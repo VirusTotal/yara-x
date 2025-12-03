@@ -1,0 +1,117 @@
+type: ET_DYN
+machine: 23
+osabi: OSABI_NONE
+entry_point: 109440
+sh_offset: 0
+sh_entry_size: 64
+ph_offset: 64
+ph_entry_size: 56
+number_of_sections: 0
+number_of_segments: 12
+symtab_entries: 0
+dynsym_entries: 0
+dynamic_section_entries: 3
+segments:
+  - type: -905969663
+    flags: 0x5  # PF_X | PF_R
+    offset: 0
+    virtual_address: 0
+    physical_address: 0
+    file_size: 111725
+    memory_size: 111725
+    alignment: 4096
+  - type: PT_NULL
+    flags: 0x5  # PF_X | PF_R
+    offset: 20480
+    virtual_address: 20480
+    physical_address: 20480
+    file_size: 141281
+    memory_size: 141281
+    alignment: 4096
+  - type: PT_NULL
+    flags: 0x4  # PF_R
+    offset: 163840
+    virtual_address: 163840
+    physical_address: 163840
+    file_size: 50739
+    memory_size: 50739
+    alignment: 4096
+  - type: PT_LOAD
+    flags: 0x6  # PF_W | PF_R
+    offset: 115920
+    virtual_address: 218320
+    physical_address: 218320
+    file_size: 3018
+    memory_size: 5192
+    alignment: 4096
+  - type: PT_DYNAMIC
+    flags: 0x6  # PF_W | PF_R
+    offset: 116832
+    virtual_address: 219488
+    physical_address: 219488
+    file_size: 512
+    memory_size: 512
+    alignment: 8
+  - type: PT_NOTE
+    flags: 0x4  # PF_R
+    offset: 736
+    virtual_address: 736
+    physical_address: 736
+    file_size: 64
+    memory_size: 64
+    alignment: 8
+  - type: PT_NOTE
+    flags: 0x4  # PF_R
+    offset: 800
+    virtual_address: 800
+    physical_address: 800
+    file_size: 36
+    memory_size: 36
+    alignment: 4
+  - type: PT_TLS
+    flags: 0x4  # PF_R
+    offset: 115920
+    virtual_address: 218320
+    physical_address: 218320
+    file_size: 0
+    memory_size: 32
+    alignment: 8
+  - type: PT_GNU_PROPERTY
+    flags: 0x4  # PF_R
+    offset: 736
+    virtual_address: 736
+    physical_address: 736
+    file_size: 64
+    memory_size: 64
+    alignment: 8
+  - type: PT_GNU_EH_FRAME
+    flags: 0x4  # PF_R
+    offset: 86216
+    virtual_address: 188616
+    physical_address: 188616
+    file_size: 3188
+    memory_size: 3188
+    alignment: 4
+  - type: PT_GNU_STACK
+    flags: 0x6  # PF_W | PF_R
+    offset: 0
+    virtual_address: 0
+    physical_address: 0
+    file_size: 0
+    memory_size: 0
+    alignment: 16
+  - type: PT_GNU_RELRO
+    flags: 0x4  # PF_R
+    offset: 115920
+    virtual_address: 218320
+    physical_address: 218320
+    file_size: 2864
+    memory_size: 2864
+    alignment: 1
+dynamic:
+  - type: 177145
+    val: 177151
+  - type: 177156
+    val: 177161
+  - type: 177170
+    val: 177178

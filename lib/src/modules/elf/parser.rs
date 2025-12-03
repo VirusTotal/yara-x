@@ -118,11 +118,10 @@ impl ElfParser {
             segment.file_size = Some(s.file_size);
             segment.memory_size = Some(s.mem_size);
             segment.alignment = Some(s.alignment);
-            segment.type_ = s
-                .type_
-                .try_into()
-                .ok()
-                .map(EnumOrUnknown::<elf::SegmentType>::from_i32);
+            segment.flags = Some(s.flags);
+            segment.type_ = Some(EnumOrUnknown::<elf::SegmentType>::from_i32(
+                s.type_ as i32,
+            ));
 
             self.result.segments.push(segment);
 
@@ -169,11 +168,9 @@ impl ElfParser {
             section.size = Some(s.size);
             section.offset = Some(s.offset);
             section.name = Self::parse_name(elf, shstrtab, s.name);
-            section.type_ = s
-                .type_
-                .try_into()
-                .ok()
-                .map(EnumOrUnknown::<elf::SectionType>::from_i32);
+            section.type_ = Some(EnumOrUnknown::<elf::SectionType>::from_i32(
+                s.type_ as i32,
+            ));
 
             self.result.sections.push(section);
         }
@@ -596,10 +593,10 @@ impl ElfParser {
                 if let Ok((_, tuples)) = parser_result {
                     for (tag, value) in tuples {
                         let mut dyn_entry = elf::Dyn::new();
-                        dyn_entry.type_ = tag
-                            .try_into()
-                            .ok()
-                            .map(EnumOrUnknown::<elf::DynType>::from_i32);
+                        dyn_entry.type_ =
+                            Some(EnumOrUnknown::<elf::DynType>::from_i32(
+                                tag as i32,
+                            ));
                         dyn_entry.val = Some(value);
                         result.push(dyn_entry);
                     }
