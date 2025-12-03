@@ -41,13 +41,16 @@ fn metadata() {
 1 | rule foo : bar baz {
   |      --- required metadata `required` not found
 warning[text_as_hex]: hex pattern could be written as text literal
-  --> src/tests/testdata/foo.yar:10:5
+  --> src/tests/testdata/foo.yar:10:16
    |
 10 |     $foo_hex = { 66 6f 6f }
-   |     ---------------------
-   |     |
-   |     this pattern can be written as a text literal
-   |     replace with "foo"
+   |                ------------ this pattern can be written as a text literal
+   |
+help: consider the following change
+   |
+10 -     $foo_hex = { 66 6f 6f }
+10 +     $foo_hex = "foo"
+   |
 "#,
         );
 
