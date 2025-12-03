@@ -1100,7 +1100,7 @@ impl Compiler<'_> {
         if let Some(symbol) = self.symbol_table.lookup(ident.name) {
             return match symbol {
                 // Found another rule with the same name.
-                Symbol::Rule(rule_id) => Err(DuplicateRule::build(
+                Symbol::Rule { rule_id, .. } => Err(DuplicateRule::build(
                     &self.report_builder,
                     ident.name.to_string(),
                     self.report_builder.span_to_code_loc(ident.span()),
@@ -1772,7 +1772,10 @@ impl Compiler<'_> {
         }
 
         // Create a new symbol of bool type for the rule.
-        let new_symbol = Symbol::Rule(rule_id);
+        let new_symbol = Symbol::Rule {
+            rule_id,
+            is_global: rule.flags.contains(RuleFlags::Global),
+        };
 
         // Insert the symbol in the symbol table corresponding to the
         // current namespace. This must be done after every fallible function

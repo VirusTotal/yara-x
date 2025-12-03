@@ -671,34 +671,48 @@ fn expr_from_ast(
                 }
             }
 
-            // If the field is deprecated raise the appropriate warning.
-            if let Symbol::Field {
-                deprecation_notice: Some(ref notice), ..
-            } = symbol
-            {
-                let code_loc =
-                    ctx.report_builder.span_to_code_loc(ident.span());
+            match symbol {
+                // If the symbol is a deprecated field, raise the appropriate
+                // warning.
+                Symbol::Field {
+                    deprecation_notice: Some(ref notice), ..
+                } => {
+                    let code_loc =
+                        ctx.report_builder.span_to_code_loc(ident.span());
 
-                let mut warning = warnings::DeprecatedField::build(
-                    ctx.report_builder,
-                    ident.name.to_string(),
-                    code_loc.clone(),
-                    notice.text.clone(),
-                );
+                    let mut warning = warnings::DeprecatedField::build(
+                        ctx.report_builder,
+                        ident.name.to_string(),
+                        code_loc.clone(),
+                        notice.text.clone(),
+                    );
 
-                if let Some(replacement) = &notice.replacement {
-                    warning
-                        .report_mut()
-                        .new_section(
-                            Level::HELP,
-                            notice.help.clone().unwrap_or(
-                                "apply the following changes".to_owned(),
-                            ),
-                        )
-                        .patch(code_loc, replacement);
+                    if let Some(replacement) = &notice.replacement {
+                        warning
+                            .report_mut()
+                            .new_section(
+                                Level::HELP,
+                                notice.help.clone().unwrap_or(
+                                    "apply the following changes".to_owned(),
+                                ),
+                            )
+                            .patch(code_loc, replacement);
+                    }
+
+                    ctx.warnings.add(|| warning);
                 }
-
-                ctx.warnings.add(|| warning)
+                // If the symbol is a global rule, raise a warning. A global
+                // rule should not be used in a rule condition.
+                Symbol::Rule { is_global: true, .. } => {
+                    ctx.warnings.add(|| {
+                        warnings::GlobalRuleMisuse::build(
+                            ctx.report_builder,
+                            ctx.report_builder.span_to_code_loc(ident.span()),
+                            Some("referencing a global rule in a condition is redundant, and may result in an unsatisfiable condition".to_string()),
+                        )
+                    });
+                }
+                _ => {}
             }
 
             ctx.ir.ident(symbol)
