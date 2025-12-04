@@ -14,6 +14,7 @@ mod features;
 mod server;
 mod utils;
 
+#[cfg(feature = "default")]
 pub use async_lsp::stdio;
 
 /// Starts the Language Server Main Loop with provided streams.
