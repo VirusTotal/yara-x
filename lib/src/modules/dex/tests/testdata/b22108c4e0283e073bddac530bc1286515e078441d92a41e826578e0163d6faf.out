@@ -9,21 +9,6 @@ header:
     endian_tag: 0x12345678
     link_size: 0
     link_off: 0x0
-    map_off: 0x2700
-    string_ids_size: 176
-    string_ids_off: 0x70
-    type_ids_size: 63
-    type_ids_off: 0x330
-    proto_ids_size: 61
-    proto_ids_off: 0x42c
-    field_ids_size: 20
-    field_ids_off: 0x708
-    method_ids_size: 122
-    method_ids_off: 0x7a8
-    class_defs_size: 11
-    class_defs_off: 0xb78
-    data_size: 6880
-    data_off: 0xcd8
 strings:
   - ".Loader"
   - "//A"

@@ -9,21 +9,6 @@ header:
     endian_tag: 0x12345678
     link_size: 0
     link_off: 0x0
-    map_off: 0x2d8
-    string_ids_size: 19
-    string_ids_off: 0x70
-    type_ids_size: 7
-    type_ids_off: 0xbc
-    proto_ids_size: 5
-    proto_ids_off: 0xd8
-    field_ids_size: 0
-    field_ids_off: 0x0
-    method_ids_size: 8
-    method_ids_off: 0x114
-    class_defs_size: 1
-    class_defs_off: 0x154
-    data_size: 504
-    data_off: 0x174
 strings:
   - ""
   - "<clinit>"

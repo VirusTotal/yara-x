@@ -147,19 +147,6 @@ Read more about it in [dex-format](https://source.android.com/docs/core/runtime/
 | endian_tag      | integer | Endianness tag                                                                                |
 | link_size       | integer | Size of the link section, or 0 if this file isn't statically linked                           |
 | link_off        | integer | Offset from the start of the file to the link section, or 0 if `link_size == 0`               |
-| map_off         | integer | Offset from the start of the file to the map item                                             |
-| string_ids_size | integer | Count of strings in the `string_ids`                                                          |
-| string_ids_off  | integer | Offset from the start of the file to the strings ids, or 0 if `string_ids_size == 0`          |
-| type_ids_size   | integer | Count of elements in the `type_ids`, at most 65535                                            |
-| type_ids_off    | integer | Offset from the start of the file to the type ids, or 0 if `type_ids_size == 0`               |
-| proto_ids_size  | integer | Count of elements in the `proto_ids`, at most 65535                                           |
-| proto_ids_off   | integer | Offset from the start of the file to the proto ids, or 0 if `proto_ids_size == 0`             |
-| field_ids_size  | integer | Count of elements in the `field_ids`                                                          |
-| field_ids_off   | integer | Offset from the start of the file to the field ids, or 0 if `field_ids_size == 0`             |
-| method_ids_size | integer | Count of elements in the `method_ids`                                                         |
-| method_ids_off  | integer | Offset from start of the file to the method ids, or 0 if `method_ids_size == 0`               |
-| class_defs_size | integer | Count of elements in the `class_defs`                                                         |
-| class_defs_off  | integer | Offset from the start of the file to the class defs, or 0 if `class_defs_size == 0`           |
 | data_size       | integer | Size of `data` section (only in v40 or earlier)                                               |
 | data_off        | integer | Offset from the start of the file to the start of the `data` section (only in v40 or earlier) |
 | container_size  | integer | Size of the entire file (only in v41 or later)                                                |
