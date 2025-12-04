@@ -137,6 +137,14 @@ crx-module = [
 # the Cuckoo Sandbox seems to be abandoned since 2017.
 cuckoo-module = []
 
+# The `dex` module parses DEX files.
+dex-module = [
+    "dep:nom",
+    "dep:sha1",
+    "dep:simd-adler32",
+    "dep:simd_cesu8"
+]
+
 # The `dotnet` module parses .NET files.
 dotnet-module = [
     "pe-module",
@@ -217,6 +225,7 @@ default-modules = [
     "console-module",
     "crx-module",
     "cuckoo-module",
+    "dex-module",
     "dotnet-module",
     "elf-module",
     "macho-module",
@@ -298,6 +307,8 @@ x509-parser = { workspace = true, optional = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true, features = ["serde"] }
 zip = { workspace = true, optional = true }
+simd-adler32 = {workspace = true, optional = true}
+simd_cesu8 = {workspace = true, optional = true}
 
 lingua = { version = "1.6.2", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
 

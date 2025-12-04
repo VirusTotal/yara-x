@@ -171,6 +171,15 @@ pub mod mods {
     /// Data structure returned by the `pe` module.
     pub use super::protos::crx::Crx;
 
+    /// Data structure defined by the `dex` module.
+    ///
+    /// The main structure produced by the module is [`dex::Dex`]. The rest
+    /// of them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::dex;
+    /// Data structure returned by the `dex` module.
+    pub use super::protos::dex::Dex;
+
     /// Data structures defined by the `dotnet` module.
     ///
     /// The main structure produced by the module is [`dotnet::Dotnet`]. The
@@ -302,6 +311,7 @@ pub mod mods {
         info.macho = protobuf::MessageField(invoke::<Macho>(data));
         info.lnk = protobuf::MessageField(invoke::<Lnk>(data));
         info.crx = protobuf::MessageField(invoke::<Crx>(data));
+        info.dex = protobuf::MessageField(invoke::<Dex>(data));
         info
     }
 

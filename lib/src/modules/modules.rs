@@ -5,6 +5,8 @@ mod console;
 mod crx;
 #[cfg(feature = "cuckoo-module")]
 mod cuckoo;
+#[cfg(feature = "dex-module")]
+mod dex;
 #[cfg(feature = "dotnet-module")]
 mod dotnet;
 #[cfg(feature = "elf-module")]
