@@ -24,7 +24,7 @@ header:
     class_defs_off: 0x154
     data_size: 504
     data_off: 0x174
-string_ids:
+strings:
   - ""
   - "<clinit>"
   - "<init>"
@@ -44,7 +44,7 @@ string_ids:
   - "loadLibrary"
   - "onCreate"
   - "oyclxjt"
-type_ids:
+types:
   - "I"
   - "Landroid/app/Application;"
   - "Landroid/content/Context;"
@@ -52,7 +52,7 @@ type_ids:
   - "Ljava/lang/String;"
   - "Ljava/lang/System;"
   - "V"
-proto_ids:
+protos:
   - shorty: "LLI"
     return_type: "Landroid/content/Context;"
     parameters_count: 2
@@ -75,7 +75,7 @@ proto_ids:
     parameters_count: 1
     parameters:
       - "Ljava/lang/String;"
-method_ids:
+methods:
   - class: "Landroid/app/Application;"
     proto:
         shorty: "V"

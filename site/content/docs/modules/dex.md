@@ -120,17 +120,17 @@ rule search_method {
 
 ## Module structure
 
-| Field      | Type                            | Description                                    |
-| ---------- | ------------------------------- | ---------------------------------------------- |
-| is_dex     | bool                            | True if the file is DEX                        |
-| header     | [DexHeader](#dexheader)         | DexHeader                                      |
-| string_ids | string array                    | List of defined strings                        |
-| type_ids   | string array                    | List of defined types                          |
-| proto_ids  | [ProtoItem](#protoitem) array   | List of defined prototypes                     |
-| field_ids  | [FieldItem](#fielditem) array   | List of defined fields                         |
-| method_ids | [MethodItem](#methoditem) array | List of defined methods                        |
-| class_defs | [ClassItem](#classitem) array   | List of defined classes                        |
-| map_list   | [MapList](#maplist)             | List of the entire contnts of a file, in order |
+| Field      | Type                                        | Description                                    |
+|------------|---------------------------------------------|------------------------------------------------|
+| is_dex     | bool                                        | True if the file is DEX                        |
+| header     | [DexHeader](#dexheader)                     | DexHeader                                      |
+| strings    | string array                                | List of defined strings                        |
+| types      | string array                                | List of defined types                          |
+| protos     | [ProtoItem](#protoitem) array               | List of defined prototypes                     |
+| fields     | [FieldItem](#fielditem) array               | List of defined fields                         |
+| methods    | [MethodItem](#methoditem) array             | List of defined methods                        |
+| class_defs | [ClassItem](#classitem) array               | List of defined classes                        |
+| map_list   | [MapList](#maplist)                         | List of the entire contnts of a file, in order |
 
 ### DexHeader
 

@@ -19,19 +19,19 @@ pub struct Dex {
     header: DexHeader,
 
     // List with all found strings
-    string_ids: Vec<Rc<String>>,
+    strings: Vec<Rc<String>>,
 
     // List with all found types
-    type_ids: Vec<Rc<String>>,
+    types: Vec<Rc<String>>,
 
     // List with all found prototypes
-    proto_ids: Vec<Rc<ProtoItem>>,
+    protos: Vec<Rc<ProtoItem>>,
 
     // List with all found fields
-    field_ids: Vec<FieldItem>,
+    fields: Vec<FieldItem>,
 
     // List with all found methods
-    method_ids: Vec<MethodItem>,
+    methods: Vec<MethodItem>,
 
     // List with all found classes
     class_defs: Vec<ClassItem>,
@@ -53,57 +53,49 @@ impl Dex {
         let (strings_offset, header) = Self::parse_dex_header(data)?;
 
         // Extract defined strings
-        let (types_offset, string_ids) =
-            Self::parse_string_ids(strings_offset, data, &header)?;
+        let (types_offset, strings) =
+            Self::parse_strings(strings_offset, data, &header)?;
 
         // Extract defined types
-        let (proto_offset, type_ids) =
-            Self::parse_type_ids(types_offset, &header, &string_ids)?;
+        let (proto_offset, types) =
+            Self::parse_types(types_offset, &header, &strings)?;
 
         // Exctract defined prototypes
         let (field_offset, proto_ids) = Self::parse_proto_ids(
             proto_offset,
             data,
             &header,
-            &string_ids,
-            &type_ids,
+            &strings,
+            &types,
         )?;
 
         // Extract defined fields
-        let (method_offset, field_ids) = Self::parse_field_ids(
-            field_offset,
-            &header,
-            &string_ids,
-            &type_ids,
-        )?;
+        let (method_offset, fields) =
+            Self::parse_fields(field_offset, &header, &strings, &types)?;
 
         // Extract defined methods
-        let (class_offset, method_ids) = Self::parse_method_ids(
+        let (class_offset, methods) = Self::parse_methods(
             method_offset,
             &header,
-            &string_ids,
-            &type_ids,
+            &strings,
+            &types,
             &proto_ids,
         )?;
 
         // Extract defined classes
-        let (_, class_defs) = Self::parse_class_defs(
-            class_offset,
-            &header,
-            &string_ids,
-            &type_ids,
-        )?;
+        let (_, class_defs) =
+            Self::parse_class_defs(class_offset, &header, &strings, &types)?;
 
         // Extract map information
         let map_list = Self::parse_map_items(data, &header);
 
         Ok(Self {
             header,
-            string_ids,
-            type_ids,
-            proto_ids,
-            field_ids,
-            method_ids,
+            strings,
+            types,
+            protos: proto_ids,
+            fields,
+            methods,
             class_defs,
             map_list,
         })
@@ -209,7 +201,7 @@ impl Dex {
     /// A HashMap is needed to quickly access an item by its index.
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#string-item
-    fn parse_string_ids<'a>(
+    fn parse_strings<'a>(
         remainder: &'a [u8],
         data: &'a [u8],
         header: &DexHeader,
@@ -261,7 +253,7 @@ impl Dex {
     /// `type_item = string_item[type_ids_off[idx]]`
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#type-id-item
-    fn parse_type_ids<'a>(
+    fn parse_types<'a>(
         remainder: &'a [u8],
         header: &DexHeader,
         string_items: &[Rc<String>],
@@ -361,7 +353,7 @@ impl Dex {
     /// Collects a list of fields in a hashmap from field_ids_off list.
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#field-id-item
-    fn parse_field_ids<'a>(
+    fn parse_fields<'a>(
         remainder: &'a [u8],
         header: &DexHeader,
         string_items: &[Rc<String>],
@@ -395,7 +387,7 @@ impl Dex {
     /// Collects a list of methods in a hashmap from method_ids_off list.
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#method-id-item
-    fn parse_method_ids<'a>(
+    fn parse_methods<'a>(
         remainder: &'a [u8],
         header: &DexHeader,
         string_items: &[Rc<String>],
@@ -643,22 +635,20 @@ impl From<Dex> for protos::dex::Dex {
         result.header = MessageField::some(dex.header.clone().into());
 
         result
-            .string_ids
-            .extend(dex.string_ids.into_iter().map(|x| x.as_ref().clone()));
-        result
-            .type_ids
-            .extend(dex.type_ids.into_iter().map(|x| x.as_ref().clone()));
-        result.proto_ids.extend(
-            dex.proto_ids
+            .strings
+            .extend(dex.strings.into_iter().map(|x| x.as_ref().clone()));
+        result.types.extend(dex.types.into_iter().map(|x| x.as_ref().clone()));
+        result.protos.extend(
+            dex.protos
                 .iter()
                 .map(|x| protos::dex::ProtoItem::from(x.as_ref())),
         );
         result
-            .field_ids
-            .extend(dex.field_ids.iter().map(protos::dex::FieldItem::from));
+            .fields
+            .extend(dex.fields.iter().map(protos::dex::FieldItem::from));
         result
-            .method_ids
-            .extend(dex.method_ids.iter().map(protos::dex::MethodItem::from));
+            .methods
+            .extend(dex.methods.iter().map(protos::dex::MethodItem::from));
         result
             .class_defs
             .extend(dex.class_defs.iter().map(protos::dex::ClassItem::from));

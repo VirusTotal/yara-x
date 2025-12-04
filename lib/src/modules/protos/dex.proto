@@ -13,11 +13,11 @@ option (yara.module_options) = {
 message Dex {
     optional bool is_dex = 1;
     optional DexHeader header = 2;
-    repeated string string_ids = 3;
-    repeated string type_ids = 4;
-    repeated ProtoItem proto_ids = 5;
-    repeated FieldItem field_ids = 6;
-    repeated MethodItem method_ids = 7;
+    repeated string strings = 3;
+    repeated string types = 4;
+    repeated ProtoItem protos = 5;
+    repeated FieldItem fields = 6;
+    repeated MethodItem methods = 7;
     repeated ClassItem class_defs = 8;
     optional MapList map_list = 9;
 }

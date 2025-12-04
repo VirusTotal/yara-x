@@ -24,7 +24,7 @@ header:
     class_defs_off: 0xb78
     data_size: 6880
     data_off: 0xcd8
-string_ids:
+strings:
   - ".Loader"
   - "//A"
   - "2sShuT"
@@ -201,7 +201,7 @@ string_ids:
   - "valueOf"
   - "write"
   - "x"
-type_ids:
+types:
   - "I"
   - "J"
   - "Landroid/app/Activity;"
@@ -265,7 +265,7 @@ type_ids:
   - "[Ljava/lang/Class;"
   - "[Ljava/lang/Object;"
   - "[Ljava/lang/String;"
-proto_ids:
+protos:
   - shorty: "ILII"
     return_type: "I"
     parameters_count: 3
@@ -563,7 +563,7 @@ proto_ids:
     parameters_count: 1
     parameters:
       - "Ljava/lang/String;"
-field_ids:
+fields:
   - class: "Landroid/os/Build$VERSION;"
     type: "I"
     name: "SDK_INT"
@@ -624,7 +624,7 @@ field_ids:
   - class: "Lorg/hskdAppli;"
     type: "Ljava/lang/String;"
     name: "d"
-method_ids:
+methods:
   - class: "Landroid/app/Activity;"
     proto:
         shorty: "V"
