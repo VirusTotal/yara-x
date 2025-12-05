@@ -10,7 +10,7 @@ use yara_x_parser::ast::dfs::{DFSContext, DFSEvent, DFSIter};
 use yara_x_parser::ast::{Expr, AST};
 use yara_x_parser::Parser;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct Deps<'a> {
     rules: HashSet<&'a str>,
     modules: HashSet<&'a str>,
@@ -80,15 +80,10 @@ pub fn exec_deps(args: &ArgMatches) -> anyhow::Result<()> {
     let mut dep_map: BTreeMap<&str, Deps> = BTreeMap::new();
 
     for rule in ast.rules() {
-        if dep_map.contains_key(rule.identifier.name) {
+        if dep_map.insert(rule.identifier.name, Deps::default()).is_some() {
             bail!("Duplicate rule \"{}\" found", rule.identifier.name);
-        }
-
-        dep_map.insert(
-            rule.identifier.name,
-            Deps { rules: HashSet::new(), modules: HashSet::new() },
-        );
-        check_expr(&rule.condition, rule.identifier.name, &mut dep_map);
+        };
+        find_dependencies(&rule.condition, rule.identifier.name, &mut dep_map);
     }
 
     let graph = generate_graph(&dep_map, &requested_rules, reverse_deps);
@@ -177,7 +172,7 @@ fn generate_node_for_ident<'a>(
     }
 }
 
-fn check_expr<'a>(
+fn find_dependencies<'a>(
     expr: &'a Expr<'a>,
     rule_name: &'a str,
     dep_map: &mut BTreeMap<&'a str, Deps<'a>>,
