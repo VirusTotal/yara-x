@@ -1,0 +1,29 @@
+[package]
+name = "yara-x-ls"
+description = """
+Language Server for YARA-X.
+"""
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[lib]
+name = "yara_x_ls"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+async-lsp = { version = "0.2.2", default-features=false, features=["omni-trait"]}
+futures = "0.3.31"
+tokio = { workspace=true, optional=true }
+tower = { version = "0.5.2" }
+yara-x-parser = { workspace=true }
+
+[dev-dependencies]
+tokio-util = { version = "0.7.17", features = ["compat"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[features]
+default = ["tokio", "async-lsp/tokio", "async-lsp/client-monitor", "async-lsp/stdio", "tower/full"]

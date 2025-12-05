@@ -1,0 +1,42 @@
+{
+  "params": {
+    "textDocument": {
+      "uri": "file:///references1.yar"
+    },
+    "position": {
+      "line": 4,
+      "character": 5
+    },
+    "context": {
+      "includeDeclaration": true
+    }
+  },
+  "expected": [
+    {
+      "uri": "file:///references1.yar",
+      "range": {
+        "start": {
+          "line": 2,
+          "character": 4
+        },
+        "end": {
+          "line": 2,
+          "character": 37
+        }
+      }
+    },
+    {
+      "uri": "file:///references1.yar",
+      "range": {
+        "start": {
+          "line": 4,
+          "character": 4
+        },
+        "end": {
+          "line": 4,
+          "character": 12
+        }
+      }
+    }
+  ]
+}

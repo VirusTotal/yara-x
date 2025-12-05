@@ -1,0 +1,60 @@
+{
+  "params": {
+    "textDocument": {
+      "uri": "file:///documentsymbols3.yar"
+    }
+  },
+  "expected": [
+    {
+      "name": "test",
+      "detail": "Rule definition",
+      "kind": 12,
+      "range": {
+        "start": {
+          "line": 0,
+          "character": 0
+        },
+        "end": {
+          "line": 3,
+          "character": 1
+        }
+      },
+      "selectionRange": {
+        "start": {
+          "line": 0,
+          "character": 0
+        },
+        "end": {
+          "line": 3,
+          "character": 1
+        }
+      },
+      "children": [
+        {
+          "name": "condition",
+          "kind": 7,
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 2
+            },
+            "end": {
+              "line": 2,
+              "character": 8
+            }
+          },
+          "selectionRange": {
+            "start": {
+              "line": 1,
+              "character": 2
+            },
+            "end": {
+              "line": 2,
+              "character": 8
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
