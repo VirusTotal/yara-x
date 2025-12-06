@@ -170,6 +170,11 @@ impl Struct {
         self.protobuf_type_name.as_deref()
     }
 
+    /// Returns the fields in this structure.
+    pub fn fields(&self) -> &IndexMap<String, StructField> {
+        &self.fields
+    }
+
     /// Adds a new field to the structure.
     ///
     /// The field name may be a dot-separated sequence of field names, like
