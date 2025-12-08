@@ -437,6 +437,32 @@ impl<M> Token<M> {
         Span(self.inner.text_range().into())
     }
 
+    /// Returns the line and column numbers where this token starts.
+    pub fn line_col(&self) -> (usize, usize) {
+        // Initially we assume that the token is in the first line and its
+        // column number is equal to the offset where it starts.
+        let mut line = 1;
+        let mut col: usize = self.span().start();
+        // Iterate the tokens in the tree starting at the current token and
+        // going backwards looking for newlines. For every newline found, the
+        // line number is incremented.
+        let mut prev_token = self.inner.prev_token();
+        while let Some(token) = prev_token {
+            if let NEWLINE = token.kind() {
+                // When the first newline is found (the one that is closest to
+                // the token by its left). The column number is adjusted by
+                // decrementing the position where the newline ends, and this
+                // is the final column number.
+                if line == 1 {
+                    col -= usize::from(token.text_range().end());
+                }
+                line += 1
+            }
+            prev_token = token.prev_token();
+        }
+        (line, col)
+    }
+
     #[inline]
     /// Returns the parent of this token.
     pub fn parent(&self) -> Option<Node<M>> {
@@ -447,6 +473,7 @@ impl<M> Token<M> {
     ///
     /// The first one is the token's parent, then token's grandparent,
     /// and so on.
+    #[inline]
     pub fn ancestors(&self) -> impl Iterator<Item = Node<M>> {
         self.inner.parent_ancestors().map(Node::new)
     }
@@ -625,6 +652,31 @@ impl<M> NodeOrToken<M> {
             NodeOrToken::Token(t) => t.next_sibling_or_token(),
         }
     }
+
+    /// If this is a node, returns its first child, if any. If this is
+    /// a token, returns `None` because a toke never has children.
+    pub fn first_child_or_token(&self) -> Option<NodeOrToken<M>> {
+        match self {
+            NodeOrToken::Node(n) => n.first_child_or_token(),
+            NodeOrToken::Token(_) => None,
+        }
+    }
+
+    /// Returns the span of this node or token.
+    pub fn span(&self) -> Span {
+        match self {
+            NodeOrToken::Node(n) => n.span(),
+            NodeOrToken::Token(t) => t.span(),
+        }
+    }
+
+    /// Returns the line and column numbers where this node or token starts.
+    pub fn line_col(&self) -> (usize, usize) {
+        match self {
+            NodeOrToken::Node(n) => n.line_col(),
+            NodeOrToken::Token(t) => t.line_col(),
+        }
+    }
 }
 
 impl NodeOrToken<Mutable> {
@@ -682,23 +734,33 @@ impl<M> Node<M> {
 
 impl<M> Node<M> {
     /// Returns the kind of this node.
+    #[inline]
     pub fn kind(&self) -> SyntaxKind {
         self.inner.kind()
     }
 
     /// Returns the text of this node.
+    #[inline]
     pub fn text(&self) -> Text {
         Text(self.inner.text())
     }
 
     /// Returns the span of this node.
+    #[inline]
     pub fn span(&self) -> Span {
         Span(self.inner.text_range().into())
+    }
+
+    /// Returns the line and column numbers where this node starts.
+    #[inline]
+    pub fn line_col(&self) -> (usize, usize) {
+        self.first_token().unwrap().line_col()
     }
 
     /// Returns the parent of this node.
     ///
     /// The result is [`None`] if this is the root node.
+    #[inline]
     pub fn parent(&self) -> Option<Node<M>> {
         self.inner.parent().map(Node::new)
     }
@@ -707,6 +769,7 @@ impl<M> Node<M> {
     ///
     /// The first one is this node's parent, then node's grandparent,
     /// and so on.
+    #[inline]
     pub fn ancestors(&self) -> impl Iterator<Item = Node<M>> {
         iter::successors(self.parent(), Node::parent)
     }
@@ -725,11 +788,13 @@ impl<M> Node<M> {
     }
 
     /// Returns the first child of this node.
+    #[inline]
     pub fn first_child(&self) -> Option<Node<M>> {
         self.inner.first_child().map(Node::new)
     }
 
     /// Returns the last child of this node.
+    #[inline]
     pub fn last_child(&self) -> Option<Node<M>> {
         self.inner.last_child().map(Node::new)
     }
@@ -739,6 +804,7 @@ impl<M> Node<M> {
     /// The token returned is not necessarily a children of this node, this
     /// function will perform depth-first traversal of the tree and will
     /// return the left-most token that is a descendant of this node.
+    #[inline]
     pub fn first_token(&self) -> Option<Token<M>> {
         self.inner.first_token().map(Token::new)
     }
@@ -748,36 +814,43 @@ impl<M> Node<M> {
     /// The token returned is not necessarily a children of this node, this
     /// function will perform depth-first traversal of the tree and will
     /// return the right-most token that is a descendant of this node.
+    #[inline]
     pub fn last_token(&self) -> Option<Token<M>> {
         self.inner.last_token().map(Token::new)
     }
 
     /// Returns the first child or token of this node.
+    #[inline]
     pub fn first_child_or_token(&self) -> Option<NodeOrToken<M>> {
         self.inner.first_child_or_token().map(|x| x.into())
     }
 
     /// Returns the last child or token of this node.
+    #[inline]
     pub fn last_child_or_token(&self) -> Option<NodeOrToken<M>> {
         self.inner.last_child_or_token().map(|x| x.into())
     }
 
     /// Returns the next sibling of this node.
+    #[inline]
     pub fn next_sibling(&self) -> Option<Node<M>> {
         self.inner.next_sibling().map(Node::new)
     }
 
     /// Returns the previous sibling of this node.
+    #[inline]
     pub fn prev_sibling(&self) -> Option<Node<M>> {
         self.inner.prev_sibling().map(Node::new)
     }
 
     /// Returns the next sibling or token of this node.
+    #[inline]
     pub fn next_sibling_or_token(&self) -> Option<NodeOrToken<M>> {
         self.inner.next_sibling_or_token().map(|x| x.into())
     }
 
     /// Returns the previous sibling or token of this node.
+    #[inline]
     pub fn prev_sibling_or_token(&self) -> Option<NodeOrToken<M>> {
         self.inner.prev_sibling_or_token().map(|x| x.into())
     }
