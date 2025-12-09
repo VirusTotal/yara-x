@@ -73,6 +73,31 @@ impl Span {
         self.0.start as usize..self.0.end as usize
     }
 
+    /// Returns the length of the span.
+    ///
+    /// ```
+    /// # use yara_x_parser::Span;
+    /// assert_eq!(Span(0..3).len(), 3);
+    /// assert_eq!(Span(1..3).len(), 2);  
+    /// ```
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.range().len()
+    }
+
+    /// Returns true of the span is empty.
+    ///
+    /// ```
+    /// # use yara_x_parser::Span;
+    /// assert!(Span(0..0).is_empty());
+    /// assert!(Span(1..1).is_empty());
+    /// assert!(!Span(1..2).is_empty());
+    /// ```
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.range().is_empty()
+    }
+
     /// Returns a new [`Span`] that combines this span with `other`.
     ///
     /// The resulting span goes from `self.start()` to `other.end()`.

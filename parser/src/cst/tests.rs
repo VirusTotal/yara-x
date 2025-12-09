@@ -37,6 +37,7 @@ fn cst_1() {
     assert_eq!(rule_decl.last_child(), condition_blk);
 
     let condition_blk = condition_blk.unwrap();
+    assert_eq!(condition_blk.root(), source_file.clone());
 
     // Check the CONDITION_BLK's span.
     assert_eq!(condition_blk.span(), Span(12..27));
@@ -193,4 +194,83 @@ fn cst_4() {
 
     // After detaching the RULE_DECL node, SOURCE_CODE is empty.
     assert_eq!(source_file.last_token().map(|x| x.kind()), None);
+}
+
+#[test]
+fn cst_5() {
+    let cst: CST = Parser::new(
+        br#"rule test {
+    condition:
+        true or
+        false
+    }"#,
+    )
+    .try_into()
+    .unwrap();
+
+    let mut c = cst.root().first_child().unwrap().children_with_tokens();
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::RULE_KW);
+    assert_eq!(n.line_col(), (1, 0));
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
+    assert_eq!(n.line_col(), (1, 4));
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::IDENT);
+    assert_eq!(n.line_col(), (1, 5));
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
+    assert_eq!(n.line_col(), (1, 9));
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::L_BRACE);
+    assert_eq!(n.line_col(), (1, 10));
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::NEWLINE);
+    assert_eq!(n.line_col(), (1, 11));
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
+    assert_eq!(n.line_col(), (2, 0));
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::CONDITION_BLK);
+    assert_eq!(n.line_col(), (2, 4));
+
+    let n1 = n.first_child_or_token().unwrap();
+    assert_eq!(n1.kind(), SyntaxKind::CONDITION_KW);
+    assert_eq!(n1.line_col(), (2, 4));
+
+    let n1 = n1.next_sibling_or_token().unwrap();
+    assert_eq!(n1.kind(), SyntaxKind::COLON);
+    assert_eq!(n1.line_col(), (2, 13));
+
+    let n1 = n1.next_sibling_or_token().unwrap();
+    assert_eq!(n1.kind(), SyntaxKind::NEWLINE);
+    assert_eq!(n1.line_col(), (2, 14));
+
+    let n1 = n1.next_sibling_or_token().unwrap();
+    assert_eq!(n1.kind(), SyntaxKind::WHITESPACE);
+    assert_eq!(n1.line_col(), (3, 0));
+
+    let n1 = n1.next_sibling_or_token().unwrap();
+    assert_eq!(n1.kind(), SyntaxKind::BOOLEAN_EXPR);
+    assert_eq!(n1.line_col(), (3, 8));
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::NEWLINE);
+    assert_eq!(n.line_col(), (4, 13));
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
+    assert_eq!(n.line_col(), (5, 0));
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::R_BRACE);
+    assert_eq!(n.line_col(), (5, 4));
 }
