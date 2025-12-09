@@ -17,8 +17,6 @@ use std::iter;
 use std::marker::PhantomData;
 use std::str::{from_utf8, Utf8Error};
 
-use rowan::{GreenNodeBuilder, GreenToken, SyntaxNode};
-
 use crate::cst::SyntaxKind::{COMMENT, NEWLINE, WHITESPACE};
 use crate::{Parser, Span};
 
@@ -252,7 +250,7 @@ where
     /// Creates a [`CSTStream`] from the given parser.
     fn try_from(cst: CSTStream<'src, I>) -> Result<Self, Utf8Error> {
         let source = cst.source();
-        let mut builder = GreenNodeBuilder::new();
+        let mut builder = rowan::GreenNodeBuilder::new();
         let mut prev_token_span: Option<Span> = None;
         let mut errors = Vec::new();
 
@@ -405,7 +403,7 @@ pub struct Immutable;
 /// The inner (non-leave) nodes in the CST are of type [`Node`].
 ///
 /// NOTE: This API is still unstable and should not be used by third-party code.
-#[derive(PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 #[doc(hidden)]
 pub struct Token<M> {
     inner: rowan::SyntaxToken<YARA>,
@@ -418,7 +416,7 @@ impl<M> Token<M> {
     }
 }
 
-impl<M> Token<M> {
+impl<M: Clone> Token<M> {
     #[inline]
     /// Returns the kind of this token.
     pub fn kind(&self) -> SyntaxKind {
@@ -593,8 +591,11 @@ impl Token<Mutable> {
     }
 
     pub fn replace(&mut self, text: &str) -> Node<Mutable> {
-        Node::new(SyntaxNode::new_root(
-            self.inner.replace_with(GreenToken::new(self.kind().into(), text)),
+        Node::new(rowan::SyntaxNode::new_root(
+            self.inner.replace_with(rowan::GreenToken::new(
+                self.kind().into(),
+                text,
+            )),
         ))
     }
 }
@@ -604,14 +605,14 @@ impl Token<Mutable> {
 /// In a CST, nodes are the inner nodes of the tree, leaves are tokens.
 ///
 /// NOTE: This API is still unstable and should not be used by third-party code.
-#[derive(PartialEq, Eq, Debug)]
 #[doc(hidden)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum NodeOrToken<M> {
     Node(Node<M>),
     Token(Token<M>),
 }
 
-impl<M> NodeOrToken<M> {
+impl<M: Clone> NodeOrToken<M> {
     /// Returns the kind of this node or token.
     pub fn kind(&self) -> SyntaxKind {
         match self {
@@ -719,8 +720,8 @@ impl<M> From<NodeOrToken<M>> for rowan::SyntaxElement<YARA> {
 /// The leaves in a CST are of type [`Token`].
 ///
 /// NOTE: This API is still unstable and should not be used by third-party code.
-#[derive(Clone, Debug, PartialEq, Eq)]
 #[doc(hidden)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Node<M> {
     inner: rowan::SyntaxNode<YARA>,
     _mutability: PhantomData<M>,
@@ -732,7 +733,7 @@ impl<M> Node<M> {
     }
 }
 
-impl<M> Node<M> {
+impl<M: Clone> Node<M> {
     /// Returns the kind of this node.
     #[inline]
     pub fn kind(&self) -> SyntaxKind {
@@ -777,6 +778,12 @@ impl<M> Node<M> {
     /// Returns the children of this node.
     pub fn children(&self) -> Nodes<M> {
         Nodes { inner: self.inner.children(), _mutability: PhantomData }
+    }
+
+    /// Returns the root node of the tree.
+    #[inline]
+    pub fn root(&self) -> Node<M> {
+        self.ancestors().last().unwrap_or_else(|| self.clone())
     }
 
     /// Returns the children of this node, including tokens.
@@ -948,9 +955,8 @@ impl<M> Node<M> {
 
     /// Returns the token at a given offset within the source code.
     ///
-    /// If the offset points code that is outside the current node, this
+    /// If the offset points to code that is outside the current node, this
     /// function returns `None`.
-    ///
     ///
     /// ```rust
     /// # use yara_x_parser::cst::SyntaxKind;
@@ -995,6 +1001,87 @@ impl<M> Node<M> {
             .token_at_offset(offset.try_into().ok()?)
             .right_biased()
             .map(Token::new)
+    }
+
+    /// Returns the token at a given line and column within the source code.
+    ///
+    /// If the offset points to code that is outside the current node, this
+    /// function returns `None`.
+    ///
+    /// ```rust
+    /// # use yara_x_parser::cst::SyntaxKind;
+    /// use yara_x_parser::Parser;
+    /// let mut root_node = Parser::new(
+    /// br#"rule test {
+    /// condition:
+    ///   true or
+    ///   false
+    /// }"#)
+    ///     .try_into_cst()
+    ///     .unwrap()
+    ///     .root();
+    ///
+    /// // Token at line 1, column 0 is `SyntaxKind::RULE_KW`.
+    /// assert_eq!(
+    ///     root_node.token_at_line_col((1,0)).unwrap().kind(),
+    ///     SyntaxKind::RULE_KW);
+    ///
+    /// // Token at line 1, column 4 is `SyntaxKind::WHITESPACE`.
+    /// assert_eq!(
+    ///     root_node.token_at_line_col((1,4)).unwrap().kind(),
+    ///     SyntaxKind::WHITESPACE);
+    ///
+    /// // Token at line 1, column 11 is `SyntaxKind::NEWLINE`.
+    /// assert_eq!(
+    ///     root_node.token_at_line_col((1,11)).unwrap().kind(),
+    ///     SyntaxKind::NEWLINE);
+    ///
+    /// // Token at line 2, column 0 is `SyntaxKind::CONDITION_KW`.
+    /// assert_eq!(
+    ///     root_node.token_at_line_col((2,0)).unwrap().kind(),
+    ///     SyntaxKind::CONDITION_KW);
+    ///
+    /// // Token at line 3, column 2 is `SyntaxKind::TRUE_KW`.
+    /// assert_eq!(
+    ///     root_node.token_at_line_col((3,2)).unwrap().kind(),
+    ///     SyntaxKind::TRUE_KW);
+    ///
+    /// // Token at line 4, column 6 is `SyntaxKind::FALSE_KW`.
+    /// assert_eq!(
+    ///     root_node.token_at_line_col((4,6)).unwrap().kind(),
+    ///     SyntaxKind::FALSE_KW);
+    ///
+    /// // Token at line 4, column 7 is `SyntaxKind::NEWLINE`.
+    /// assert_eq!(
+    ///     root_node.token_at_line_col((4,7)).unwrap().kind(),
+    ///     SyntaxKind::NEWLINE);
+    /// ```
+    pub fn token_at_line_col(
+        &self,
+        line_col: (usize, usize),
+    ) -> Option<Token<M>> {
+        let mut next_token = self.root().first_token();
+        let mut line = 1;
+        let mut col = 0;
+
+        while let Some(token) = next_token {
+            let token_len = token.span().len();
+            if line_col.0 == line
+                && line_col.1 >= col
+                && line_col.1 < col + token_len
+            {
+                return Some(token);
+            }
+            if let NEWLINE = token.kind() {
+                line += 1;
+                col = 0;
+            } else {
+                col += token_len;
+            }
+            next_token = token.next_token();
+        }
+
+        None
     }
 }
 

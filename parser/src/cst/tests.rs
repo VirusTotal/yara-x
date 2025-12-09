@@ -37,6 +37,7 @@ fn cst_1() {
     assert_eq!(rule_decl.last_child(), condition_blk);
 
     let condition_blk = condition_blk.unwrap();
+    assert_eq!(condition_blk.root(), source_file.clone());
 
     // Check the CONDITION_BLK's span.
     assert_eq!(condition_blk.span(), Span(12..27));
