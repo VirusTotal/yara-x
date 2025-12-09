@@ -14,9 +14,6 @@ mod features;
 mod server;
 mod utils;
 
-#[cfg(feature = "default")]
-pub use async_lsp::stdio;
-
 /// Starts the Language Server Main Loop with provided streams.
 ///
 /// Provided streams must implement [`futures::AsyncRead`] and
@@ -34,4 +31,24 @@ pub async fn serve(
     });
 
     server.run_buffered(input, output).await
+}
+
+/// Starts the Language Server Main Loop using Standard Input Output.
+#[cfg(feature = "default")]
+pub async fn serve_stdio() -> Result<(), async_lsp::Error> {
+    #[cfg(unix)]
+    let (stdin, stdout) = (
+        async_lsp::stdio::PipeStdin::lock_tokio()?,
+        async_lsp::stdio::PipeStdout::lock_tokio()?,
+    );
+
+    #[cfg(not(unix))]
+    let (stdin, stdout) = (
+        tokio_util::compat::TokioAsyncReadCompatExt::compat(tokio::io::stdin()),
+        tokio_util::compat::TokioAsyncWriteCompatExt::compat_write(
+            tokio::io::stdout(),
+        ),
+    );
+
+    serve(stdin, stdout).await
 }
