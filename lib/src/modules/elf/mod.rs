@@ -38,13 +38,14 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<ELF, ModuleError> {
 }
 
 #[module_export]
-fn import_md5(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached = IMPORT_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
-        cache
-            .borrow()
-            .as_deref()
-            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
-    });
+fn import_md5(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
+    let cached = IMPORT_MD5_CACHE.with(
+        |cache| -> Option<Lowercase<FixedLenString<32>>> {
+            cache.borrow().as_deref().map(|s| {
+                Lowercase::<FixedLenString<32>>::from_slice(ctx, s.as_bytes())
+            })
+        },
+    );
 
     if cached.is_some() {
         return cached;
@@ -77,7 +78,7 @@ fn import_md5(ctx: &mut ScanContext) -> Option<RuntimeString> {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
-    Some(RuntimeString::new(digest))
+    Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
 /// Function names excluded while computing the telfhash. These exclusions
@@ -105,13 +106,13 @@ pub(crate) static TELFHASH_EXCLUSIONS: LazyLock<FxHashSet<&'static str>> =
 ///
 /// [1]: https://github.com/trendmicro/telfhash
 #[module_export]
-fn telfhash(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached = TLSH_CACHE.with(|cache| -> Option<RuntimeString> {
-        cache
-            .borrow()
-            .as_deref()
-            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
-    });
+fn telfhash(ctx: &mut ScanContext) -> Option<Uppercase<FixedLenString<72>>> {
+    let cached =
+        TLSH_CACHE.with(|cache| -> Option<Uppercase<FixedLenString<72>>> {
+            cache.borrow().as_deref().map(|s| {
+                Uppercase::<FixedLenString<72>>::from_slice(ctx, s.as_bytes())
+            })
+        });
 
     if cached.is_some() {
         return cached;
@@ -172,5 +173,5 @@ fn telfhash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
-    Some(RuntimeString::new(digest))
+    Some(Uppercase::<FixedLenString<72>>::new(digest))
 }

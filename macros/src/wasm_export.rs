@@ -116,6 +116,18 @@ impl<'ast> FuncSignatureParser<'ast> {
                     ))
                 }
             }
+            "Uppercase" => {
+                let mut args = Self::type_args(type_path)?;
+                if let Some(GenericArgument::Type(Type::Path(p))) = args.next()
+                {
+                    Ok(Self::type_path_to_mangled_named(p)?.add(":U"))
+                } else {
+                    Err(Error::new_spanned(
+                        type_path,
+                        "Uppercase must have a type argument (i.e: <Uppercase<RuntimeString>>))",
+                    ))
+                }
+            }
             type_ident => Err(Error::new_spanned(
                 type_path,
                 format!(
@@ -423,10 +435,22 @@ mod tests {
         assert_eq!(parser.parse(&func).unwrap(), "@@s:L");
 
         let func = parse_quote! {
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> Uppercase<RuntimeString> {  }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@s:U");
+
+        let func = parse_quote! {
           fn foo(caller: &mut Caller<'_, ScanContext>) -> Lowercase<FixedLenString<32>> {  }
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@@s:N32:L");
+
+        let func = parse_quote! {
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> Uppercase<FixedLenString<32>> {  }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@s:N32:U");
 
         let func = parse_quote! {
           fn foo(caller: &mut Caller<'_, ScanContext>) -> FixedLenString<64> {  }

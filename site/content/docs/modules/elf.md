@@ -56,6 +56,8 @@ visit [https://github.com/trendmicro/telfhash](https://github.com/trendmicro/tel
 or read
 TrendMicro's [whitepaper](https://documents.trendmicro.com/assets/pdf/TB_Telfhash-%20An%20Algorithm%20That%20Finds%20Similar%20Malicious%20ELF%20Files%20Used%20in%20Linux%20IoT%20Malware.pdf).
 
+NOTE: This function always returns an uppercase string.
+
 #### Example
 
 ```
@@ -63,7 +65,7 @@ import "elf"
 
 rule FindByTelfhash {
     condition:
-        elf.telfhash() == "t166a00284751084526486df8b5df5b2fccb3f511dbc188c37156f5e714a11bc5d71014d"
+        elf.telfhash() == "T166A00284751084526486DF8B5DF5B2FCCB3F511DBC188C37156F5E714A11BC5D71014D"
 }
 ```
 

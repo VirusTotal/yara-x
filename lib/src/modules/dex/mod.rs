@@ -74,13 +74,14 @@ fn checksum(ctx: &mut ScanContext) -> Option<i64> {
 /// (dex.header.signature) in order to verify if the actual signature matches
 /// the on in the header.
 #[module_export]
-fn signature(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached = SIGNATURE_CACHE.with(|cache| -> Option<RuntimeString> {
-        cache
-            .borrow()
-            .as_deref()
-            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
-    });
+fn signature(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<40>>> {
+    let cached = SIGNATURE_CACHE.with(
+        |cache| -> Option<Lowercase<FixedLenString<40>>> {
+            cache.borrow().as_deref().map(|s| {
+                Lowercase::<FixedLenString<40>>::from_slice(ctx, s.as_bytes())
+            })
+        },
+    );
 
     if cached.is_some() {
         return cached;
@@ -104,7 +105,7 @@ fn signature(ctx: &mut ScanContext) -> Option<RuntimeString> {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
-    Some(RuntimeString::new(digest))
+    Some(Lowercase::<FixedLenString<40>>::new(digest))
 }
 
 /// Function that checks whether the DEX file contains the specified string

@@ -335,13 +335,14 @@ fn has_export(ctx: &ScanContext, export: RuntimeString) -> Option<bool> {
 
 /// Returns a md5 hash of the dylibs designated in the mach-o binary
 #[module_export]
-fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached = DYLIB_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
-        cache
-            .borrow()
-            .as_deref()
-            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
-    });
+fn dylib_hash(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
+    let cached = DYLIB_MD5_CACHE.with(
+        |cache| -> Option<Lowercase<FixedLenString<32>>> {
+            cache.borrow().as_deref().map(|s| {
+                Lowercase::<FixedLenString<32>>::from_slice(ctx, s.as_bytes())
+            })
+        },
+    );
 
     if cached.is_some() {
         return cached;
@@ -383,19 +384,21 @@ fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
-    Some(RuntimeString::new(digest))
+    Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
 /// Returns a md5 hash of the entitlements designated in the mach-o binary
 #[module_export]
-fn entitlement_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached =
-        ENTITLEMENT_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
-            cache
-                .borrow()
-                .as_deref()
-                .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
-        });
+fn entitlement_hash(
+    ctx: &mut ScanContext,
+) -> Option<Lowercase<FixedLenString<32>>> {
+    let cached = ENTITLEMENT_MD5_CACHE.with(
+        |cache| -> Option<Lowercase<FixedLenString<32>>> {
+            cache.borrow().as_deref().map(|s| {
+                Lowercase::<FixedLenString<32>>::from_slice(ctx, s.as_bytes())
+            })
+        },
+    );
 
     if cached.is_some() {
         return cached;
@@ -432,18 +435,21 @@ fn entitlement_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
-    Some(RuntimeString::new(digest))
+    Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
 /// Returns a md5 hash of the export symbols in the mach-o binary
 #[module_export]
-fn export_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached = EXPORT_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
-        cache
-            .borrow()
-            .as_deref()
-            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
-    });
+fn export_hash(
+    ctx: &mut ScanContext,
+) -> Option<Lowercase<FixedLenString<32>>> {
+    let cached = EXPORT_MD5_CACHE.with(
+        |cache| -> Option<Lowercase<FixedLenString<32>>> {
+            cache.borrow().as_deref().map(|s| {
+                Lowercase::<FixedLenString<32>>::from_slice(ctx, s.as_bytes())
+            })
+        },
+    );
 
     if cached.is_some() {
         return cached;
@@ -480,18 +486,21 @@ fn export_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
-    Some(RuntimeString::new(digest))
+    Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
 /// Returns a md5 hash of the imported symbols in the mach-o binary
 #[module_export]
-fn import_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached = IMPORT_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
-        cache
-            .borrow()
-            .as_deref()
-            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
-    });
+fn import_hash(
+    ctx: &mut ScanContext,
+) -> Option<Lowercase<FixedLenString<32>>> {
+    let cached = IMPORT_MD5_CACHE.with(
+        |cache| -> Option<Lowercase<FixedLenString<32>>> {
+            cache.borrow().as_deref().map(|s| {
+                Lowercase::<FixedLenString<32>>::from_slice(ctx, s.as_bytes())
+            })
+        },
+    );
 
     if cached.is_some() {
         return cached;
@@ -528,19 +537,19 @@ fn import_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
-    Some(RuntimeString::new(digest))
+    Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
 /// Returns a md5 hash of specific parts of the symbol table
 /// as defined by http://github.com/threatstream/symhash
 #[module_export]
-fn symhash(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached = SYM_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
-        cache
-            .borrow()
-            .as_deref()
-            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
-    });
+fn symhash(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
+    let cached =
+        SYM_MD5_CACHE.with(|cache| -> Option<Lowercase<FixedLenString<32>>> {
+            cache.borrow().as_deref().map(|s| {
+                Lowercase::<FixedLenString<32>>::from_slice(ctx, s.as_bytes())
+            })
+        });
 
     if cached.is_some() {
         return cached;
@@ -562,7 +571,7 @@ fn symhash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         return None;
     }
 
-    let mut md5_hash: digest::core_api::CoreWrapper<md5::Md5Core> = Md5::new();
+    let mut md5_hash = Md5::new();
 
     // ref: implementation of symhash published at https://github.com/threatstream/symhash/
     let symtab_hash_entries = nlists
@@ -592,7 +601,7 @@ fn symhash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
-    Some(RuntimeString::new(digest))
+    Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
 #[module_main]
