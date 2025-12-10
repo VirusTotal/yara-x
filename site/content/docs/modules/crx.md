@@ -25,6 +25,22 @@ distribute browser extensions. Essentially, they are ZIP archives with a
 different file extension and additional metadata, including one or more digital
 signatures that validate the file’s integrity.
 
+-------
+
+## Functions
+
+{{< callout context="caution" title="Important">}}
+
+Hashes returned by the functions below are always in lowercase.
+
+{{< /callout >}}
+
+### permhash()
+
+Returns permhash of the crx. See [Google blog post](https://cloud.google.com/blog/topics/threat-intelligence/permhash-no-curls-necessary/) for more details.
+
+Example: `crx.permhash() == "0bd16e5d8c30b71e844aa6f30b381adf20dc14cc555f5594fc3ac49985c9a52e"`
+
 #### Examples
 
 ```
