@@ -2445,12 +2445,13 @@ fn eq_check(
                                 "an uppercase string can't be equal to a string containing lowercase characters"
                                     .to_string()),
                         );
+
                         warning.report_mut().patch(
                             ctx.report_builder
                                 .span_to_code_loc(const_string_span.clone()),
                             format!(
                                 "\"{}\"",
-                                const_string.to_string().to_lowercase()
+                                const_string.to_string().to_uppercase()
                             ),
                         );
 
@@ -2474,6 +2475,7 @@ fn eq_check(
                                 "a lowercase string can't be equal to a string containing uppercase characters"
                                     .to_string()),
                         );
+
                         warning.report_mut().patch(
                             ctx.report_builder
                                 .span_to_code_loc(const_string_span.clone()),

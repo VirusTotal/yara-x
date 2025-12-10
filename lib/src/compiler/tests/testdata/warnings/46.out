@@ -1,0 +1,14 @@
+warning[unsatisfiable_expr]: unsatisfiable expression
+ --> line:4:25
+  |
+4 |  condition: test_proto2.uppercase("foo") == "foo"
+  |                         ----------------    ----- this contains lowercase characters
+  |                         |
+  |                         this is an uppercase string
+  |
+  = note: an uppercase string can't be equal to a string containing lowercase characters
+help: consider the following change
+  |
+4 -  condition: test_proto2.uppercase("foo") == "foo"
+4 +  condition: test_proto2.uppercase("foo") == "FOO"
+  |
