@@ -202,6 +202,8 @@ pub(crate) enum TypeValue {
 pub(crate) enum StringConstraint {
     /// The string is guaranteed to be lowercase.
     Lowercase,
+    /// The string is guaranteed to be uppercase.
+    Uppercase,
     /// The string has an exact number of bytes.
     ExactLength(usize),
 }

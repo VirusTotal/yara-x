@@ -7,7 +7,7 @@ use crate::scanner::{
 };
 use crate::utils::cast;
 
-/// This trait is implemented by [RuntimeString], [FixedLenString] and [Lowercase].
+/// This trait is implemented by [RuntimeString], [FixedLenString], [Lowercase] and [Uppercase].
 pub(crate) trait String: Default {
     /// Creates a new string.
     fn new<V: Into<Vec<u8>>>(s: V) -> Self;
@@ -342,6 +342,23 @@ impl<const LEN: usize> String for FixedLenString<LEN> {
 pub(crate) struct Lowercase<S: String>(S);
 
 impl<S: String> String for Lowercase<S> {
+    fn new<V: Into<Vec<u8>>>(s: V) -> Self {
+        Self(S::new(s))
+    }
+
+    fn into_wasm_with_ctx(self, ctx: &mut ScanContext) -> RuntimeStringWasm {
+        self.0.into_wasm_with_ctx(ctx)
+    }
+
+    fn from_slice(ctx: &ScanContext, s: &[u8]) -> Self {
+        Self(S::from_slice(ctx, s))
+    }
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct Uppercase<S: String>(S);
+
+impl<S: String> String for Uppercase<S> {
     fn new<V: Into<Vec<u8>>>(s: V) -> Self {
         Self(S::new(s))
     }
