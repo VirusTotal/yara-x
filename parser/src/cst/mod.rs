@@ -387,6 +387,24 @@ impl PartialEq<&'_ str> for Text {
     }
 }
 
+/// Represents a position in the source code by line and column number.
+///
+/// Both line and column numbers are zero-based. The column number is
+/// specified in number of characters, not bytes. Unicode characters
+/// represented by more than one byte count as a single column.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Position {
+    pub line: usize,
+    pub column: usize,
+}
+
+impl From<(usize, usize)> for Position {
+    #[inline]
+    fn from((line, column): (usize, usize)) -> Self {
+        Self { line, column }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[doc(hidden)]
 pub struct Mutable;
@@ -435,30 +453,40 @@ impl<M: Clone> Token<M> {
         Span(self.inner.text_range().into())
     }
 
-    /// Returns the line and column numbers where this token starts.
-    pub fn line_col(&self) -> (usize, usize) {
-        // Initially we assume that the token is in the first line and its
-        // column number is equal to the offset where it starts.
-        let mut line = 1;
-        let mut col: usize = self.span().start();
+    /// Returns position (line and column) where this token starts.
+    pub fn position(&self) -> Position {
+        // Initially we assume that the token is in line 0, column 0.
+        let mut line = 0;
+        let mut column = 0;
         // Iterate the tokens in the tree starting at the current token and
         // going backwards looking for newlines. For every newline found, the
-        // line number is incremented.
+        // line number is incremented. Comments can contain newlines too. When
+        // a comment is found, the line number is incremented by the number of
+        // newlines contained in the comment.
         let mut prev_token = self.inner.prev_token();
         while let Some(token) = prev_token {
-            if let NEWLINE = token.kind() {
-                // When the first newline is found (the one that is closest to
-                // the token by its left). The column number is adjusted by
-                // decrementing the position where the newline ends, and this
-                // is the final column number.
-                if line == 1 {
-                    col -= usize::from(token.text_range().end());
+            match token.kind() {
+                NEWLINE => line += 1,
+                COMMENT => {
+                    if line == 0 {
+                        column += token
+                            .text()
+                            .chars()
+                            .rev()
+                            .take_while(|c| *c != '\n')
+                            .count();
+                    }
+                    line += token.text().chars().filter(|c| *c == '\n').count()
                 }
-                line += 1
+                _ => {
+                    if line == 0 {
+                        column += token.text().chars().count();
+                    }
+                }
             }
             prev_token = token.prev_token();
         }
-        (line, col)
+        Position { line, column }
     }
 
     #[inline]
@@ -671,11 +699,11 @@ impl<M: Clone> NodeOrToken<M> {
         }
     }
 
-    /// Returns the line and column numbers where this node or token starts.
-    pub fn line_col(&self) -> (usize, usize) {
+    /// Returns the position (line and column) where this node or token starts.
+    pub fn position(&self) -> Position {
         match self {
-            NodeOrToken::Node(n) => n.line_col(),
-            NodeOrToken::Token(t) => t.line_col(),
+            NodeOrToken::Node(n) => n.position(),
+            NodeOrToken::Token(t) => t.position(),
         }
     }
 }
@@ -752,10 +780,10 @@ impl<M: Clone> Node<M> {
         Span(self.inner.text_range().into())
     }
 
-    /// Returns the line and column numbers where this node starts.
+    /// Returns the position (line and column) where this node starts.
     #[inline]
-    pub fn line_col(&self) -> (usize, usize) {
-        self.first_token().unwrap().line_col()
+    pub fn position(&self) -> Position {
+        self.first_token().unwrap().position()
     }
 
     /// Returns the parent of this node.
@@ -1005,8 +1033,9 @@ impl<M: Clone> Node<M> {
 
     /// Returns the token at a given line and column within the source code.
     ///
-    /// If the offset points to code that is outside the current node, this
-    /// function returns `None`.
+    /// Both line and column numbers are zero-based. If the line and column
+    /// numbers point to code that is outside the current node, this function
+    /// returns `None`.
     ///
     /// ```rust
     /// # use yara_x_parser::cst::SyntaxKind;
@@ -1021,62 +1050,68 @@ impl<M: Clone> Node<M> {
     ///     .unwrap()
     ///     .root();
     ///
-    /// // Token at line 1, column 0 is `SyntaxKind::RULE_KW`.
+    /// // Token at line 0, column 0 is `SyntaxKind::RULE_KW`.
     /// assert_eq!(
-    ///     root_node.token_at_line_col((1,0)).unwrap().kind(),
+    ///     root_node.token_at_position((0,0)).unwrap().kind(),
     ///     SyntaxKind::RULE_KW);
     ///
-    /// // Token at line 1, column 4 is `SyntaxKind::WHITESPACE`.
+    /// // Token at line 1, column 0 is `SyntaxKind::CONDITION_KW`.
     /// assert_eq!(
-    ///     root_node.token_at_line_col((1,4)).unwrap().kind(),
-    ///     SyntaxKind::WHITESPACE);
-    ///
-    /// // Token at line 1, column 11 is `SyntaxKind::NEWLINE`.
-    /// assert_eq!(
-    ///     root_node.token_at_line_col((1,11)).unwrap().kind(),
-    ///     SyntaxKind::NEWLINE);
-    ///
-    /// // Token at line 2, column 0 is `SyntaxKind::CONDITION_KW`.
-    /// assert_eq!(
-    ///     root_node.token_at_line_col((2,0)).unwrap().kind(),
+    ///     root_node.token_at_position((1,0)).unwrap().kind(),
     ///     SyntaxKind::CONDITION_KW);
     ///
-    /// // Token at line 3, column 2 is `SyntaxKind::TRUE_KW`.
+    /// // Token at line 2, column 2 is `SyntaxKind::TRUE_KW`.
     /// assert_eq!(
-    ///     root_node.token_at_line_col((3,2)).unwrap().kind(),
+    ///     root_node.token_at_position((2,2)).unwrap().kind(),
     ///     SyntaxKind::TRUE_KW);
     ///
-    /// // Token at line 4, column 6 is `SyntaxKind::FALSE_KW`.
+    /// // Token at line 3, column 6 is `SyntaxKind::FALSE_KW`.
     /// assert_eq!(
-    ///     root_node.token_at_line_col((4,6)).unwrap().kind(),
+    ///     root_node.token_at_position((3,6)).unwrap().kind(),
     ///     SyntaxKind::FALSE_KW);
-    ///
-    /// // Token at line 4, column 7 is `SyntaxKind::NEWLINE`.
-    /// assert_eq!(
-    ///     root_node.token_at_line_col((4,7)).unwrap().kind(),
-    ///     SyntaxKind::NEWLINE);
     /// ```
-    pub fn token_at_line_col(
+    pub fn token_at_position<P: Into<Position>>(
         &self,
-        line_col: (usize, usize),
+        position: P,
     ) -> Option<Token<M>> {
-        let mut next_token = self.root().first_token();
-        let mut line = 1;
+        let position = position.into();
+        let mut line = 0;
         let mut col = 0;
+        let mut next_token = self.root().first_token();
 
         while let Some(token) = next_token {
-            let token_len = token.span().len();
-            if line_col.0 == line
-                && line_col.1 >= col
-                && line_col.1 < col + token_len
+            // Token length in number of characters, not in bytes.
+            let token_len = token.text().chars().count();
+            if position.line == line
+                && position.column >= col
+                && position.column < col + token_len
             {
                 return Some(token);
             }
-            if let NEWLINE = token.kind() {
-                line += 1;
-                col = 0;
-            } else {
-                col += token_len;
+            match token.kind() {
+                NEWLINE => {
+                    // When a newline found, the line number is incremented and
+                    // column number reset to zero.
+                    line += 1;
+                    col = 0;
+                }
+                COMMENT => {
+                    let t = token.text();
+                    // Increment line number by the number of newlines found in
+                    // the comment.
+                    let newlines = t.chars().filter(|c| *c == '\n').count();
+                    line += newlines;
+                    // If there is some newline, column number is reset to zero.
+                    if newlines > 0 {
+                        col = 0;
+                    }
+                    // The column number is reset to the number of characters
+                    // from the last newline to the end of the comment.
+                    col += t.chars().rev().take_while(|c| *c != '\n').count();
+                }
+                _ => {
+                    col += token_len;
+                }
             }
             next_token = token.next_token();
         }
