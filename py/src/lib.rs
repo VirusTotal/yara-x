@@ -719,22 +719,14 @@ impl Scanner {
 
     /// Scans in-memory data.
     fn scan(&mut self, data: &[u8]) -> PyResult<Py<ScanResults>> {
-        Python::attach(|py| {
-            scan_results_to_py(
-                py,
-                self.inner.scan(data).map_err(map_scan_err)?,
-            )
-        })
+        let results = self.inner.scan(data).map_err(map_scan_err)?;
+        Python::attach(|py| scan_results_to_py(py, results))
     }
 
     /// Scans a file.
     fn scan_file(&mut self, path: PathBuf) -> PyResult<Py<ScanResults>> {
-        Python::attach(|py| {
-            scan_results_to_py(
-                py,
-                self.inner.scan_file(path).map_err(map_scan_err)?,
-            )
-        })
+        let results = self.inner.scan_file(path).map_err(map_scan_err)?;
+        Python::attach(|py| scan_results_to_py(py, results))
     }
 }
 
@@ -914,14 +906,10 @@ impl Rules {
     /// Scans in-memory data with these rules.
     fn scan(&self, data: &[u8]) -> PyResult<Py<ScanResults>> {
         let mut scanner = yrx::Scanner::new(&self.inner.rules);
-        Python::attach(|py| {
-            scan_results_to_py(
-                py,
-                scanner
-                    .scan(data)
-                    .map_err(|err| ScanError::new_err(err.to_string()))?,
-            )
-        })
+        let results = scanner
+            .scan(data)
+            .map_err(|err| ScanError::new_err(err.to_string()))?;
+        Python::attach(|py| scan_results_to_py(py, results))
     }
 
     /// Serializes the rules into a file-like object.
