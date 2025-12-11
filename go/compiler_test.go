@@ -6,6 +6,7 @@ import (
 	"testing"
 	"os"
 	"io/ioutil"
+	"encoding/json"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -104,6 +105,34 @@ func TestRelaxedReSyntax(t *testing.T) {
 	assert.NoError(t, err)
 	scanResults, _ := r.Scan([]byte("Release"))
 	assert.Len(t, scanResults.MatchingRules(), 1)
+}
+
+func TestGetGlobals(t *testing.T) {
+	c, err := NewCompiler()
+	assert.NoError(t, err)
+
+	x := map[string]interface{}{"a": map[string]interface{}{"a": "a"}, "b": "d"}
+
+	c.DefineGlobal("A", "B")
+	c.DefineGlobal("B", 1.5)
+	c.DefineGlobal("C", x)
+	c.DefineGlobal("D", true)
+
+	var globals map[string]interface{}
+
+	// Unmarshal the JSON string into the map
+	err = json.Unmarshal([]byte(c.GetGlobals()), &globals)
+	assert.NoError(t, err)
+
+	assert.Equal(t, globals["A"], "B")
+	assert.Equal(t, globals["B"], 1.5)
+	assert.Equal(t, globals["C"], x)
+	assert.Equal(t, globals["D"], true)
+
+	c, err = NewCompiler()
+	assert.NoError(t, err)
+
+	assert.Equal(t, c.GetGlobals(), "{}")
 }
 
 func TestConditionOptimization(t *testing.T) {
