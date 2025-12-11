@@ -21,7 +21,6 @@ use std::ops::Deref;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::str::FromStr;
-use std::sync::OnceLock;
 use std::time::Duration;
 use std::{io, mem};
 
@@ -30,12 +29,12 @@ use base64::Engine;
 use protobuf::MessageDyn;
 use pyo3::exceptions::{PyException, PyIOError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
+use pyo3::sync::PyOnceLock;
 use pyo3::types::{
     PyBool, PyBytes, PyDict, PyFloat, PyInt, PyString, PyStringMethods,
     PyTuple, PyTzInfo,
 };
 use pyo3::{create_exception, IntoPyObjectExt};
-
 use strum_macros::{Display, EnumString};
 
 use ::yara_x as yrx;
@@ -43,9 +42,9 @@ use ::yara_x as yrx;
 use yara_x_fmt::Indentation;
 
 fn dict_to_json(dict: Bound<PyAny>) -> PyResult<serde_json::Value> {
-    static JSON_DUMPS: OnceLock<Py<PyAny>> = OnceLock::new();
+    static JSON_DUMPS: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
     let py = dict.py();
-    let dumps = JSON_DUMPS.get_or_init(|| {
+    let dumps = JSON_DUMPS.get_or_init(py, || {
         let json_mod = PyModule::import(py, "json").unwrap().unbind();
         json_mod.getattr(py, "dumps").unwrap()
     });
@@ -1198,5 +1197,6 @@ fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Match>()?;
     m.add_class::<Formatter>()?;
     m.add_class::<Module>()?;
+    m.gil_used(false)?;
     Ok(())
 }
