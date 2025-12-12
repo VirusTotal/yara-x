@@ -27,7 +27,7 @@ use async_lsp::lsp_types::{
     SemanticTokensLegend, SemanticTokensOptions, SemanticTokensResult,
     SemanticTokensServerCapabilities, ServerCapabilities,
     TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-    TextDocumentSyncSaveOptions, TextEdit, Url, WorkspaceEdit,
+    TextDocumentSyncSaveOptions, Url, WorkspaceEdit,
 };
 
 use async_lsp::router::Router;
@@ -328,19 +328,16 @@ impl LanguageServer for ServerState {
             Err(_) => return Box::pin(async { Ok(None) }),
         };
 
-        let edit = rename::rename(
+        let changes = rename::rename(
             cst,
             &text,
             params.new_name,
             params.text_document_position.position,
         )
-        .map(|text_edits| {
-            let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
-            changes.insert(uri, text_edits);
-            WorkspaceEdit::new(changes)
-        });
+        .map(|changes| HashMap::from([(uri, changes)]))
+        .map(WorkspaceEdit::new);
 
-        Box::pin(async move { Ok(edit) })
+        Box::pin(async move { Ok(changes) })
     }
 
     fn selection_range(
