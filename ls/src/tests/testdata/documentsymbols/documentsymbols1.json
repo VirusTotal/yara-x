@@ -1,0 +1,34 @@
+{
+  "params": {
+    "textDocument": {
+      "uri": "file:///documentsymbols1.yar"
+    }
+  },
+  "expected": [
+    {
+      "name": "\"foo\"",
+      "detail": "Import statement",
+      "kind": 1,
+      "range": {
+        "start": {
+          "line": 0,
+          "character": 7
+        },
+        "end": {
+          "line": 0,
+          "character": 12
+        }
+      },
+      "selectionRange": {
+        "start": {
+          "line": 0,
+          "character": 7
+        },
+        "end": {
+          "line": 0,
+          "character": 12
+        }
+      }
+    }
+  ]
+}

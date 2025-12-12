@@ -1,0 +1,63 @@
+{
+  "name": "yara-x-ls",
+  "displayName": "yara-x-ls",
+  "description": "",
+  "version": "0.0.1",
+  "publisher": "at",
+  "engines": {
+    "vscode": "^1.102.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "YARA",
+      "properties": {}
+    },
+    "configurationDefaults": {
+      "[yara]": {
+        "editor.tabSize": 4,
+        "editor.insertSpaces": false,
+        "editor.detectIndentation": false
+      }
+    },
+    "languages": [
+      {
+        "id": "yara",
+        "extensions": [
+          ".yara",
+          ".yar"
+        ],
+        "configuration": "./lang/config.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "yara",
+        "scopeName": "source.yara",
+        "path": "./lang/yara.tmLanguage.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/node": "20.x",
+    "@types/vscode": "^1.102.0",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "eslint": "^9.25.1",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "vscode-languageclient": "9.0.1"
+  }
+}

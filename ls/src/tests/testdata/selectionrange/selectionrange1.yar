@@ -1,0 +1,4 @@
+rule simple {
+  condition:
+    true
+}

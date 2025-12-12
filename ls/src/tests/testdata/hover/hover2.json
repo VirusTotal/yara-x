@@ -1,0 +1,17 @@
+{
+  "params": {
+    "textDocument": {
+      "uri": "file:///hover2.yar"
+    },
+    "position": {
+      "line": 4,
+      "character": 5
+    }
+  },
+  "expected": {
+    "contents": {
+      "kind": "markdown",
+      "value": "#### Rule `one_line`\n#### Strings\n`$a = \"foo\"`\n\n#### Condition\n```\n$a at 100 + 200\n```"
+    }
+  }
+}

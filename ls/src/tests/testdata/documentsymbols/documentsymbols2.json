@@ -1,0 +1,34 @@
+{
+  "params": {
+    "textDocument": {
+      "uri": "file:///documentsymbols2.yar"
+    }
+  },
+  "expected": [
+    {
+      "name": "\"foo\"",
+      "detail": "Include statement",
+      "kind": 1,
+      "range": {
+        "start": {
+          "line": 0,
+          "character": 8
+        },
+        "end": {
+          "line": 0,
+          "character": 13
+        }
+      },
+      "selectionRange": {
+        "start": {
+          "line": 0,
+          "character": 8
+        },
+        "end": {
+          "line": 0,
+          "character": 13
+        }
+      }
+    }
+  ]
+}
