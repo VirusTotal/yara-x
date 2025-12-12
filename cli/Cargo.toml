@@ -61,14 +61,12 @@ serde_json = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
 strum = { workspace = true }
 strum_macros = { workspace = true }
-tokio = {workspace = true}
 yansi = { workspace = true }
 yara-x = { workspace = true, default-features = true, features = ["parallel-compilation"] }
 yara-x-parser = { workspace = true }
 yara-x-proto-yaml = { workspace = true }
 yara-x-proto-json = { workspace = true }
 yara-x-fmt = { workspace = true }
-yara-x-ls = { workspace = true, default-features = true }
 
 chardetng = "0.1.17"
 crossbeam = "0.8.4"

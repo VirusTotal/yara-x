@@ -45,7 +45,7 @@ use crate::features::{
 
 /// Stores the state of the Language Server.
 pub struct ServerState {
-    /// Client socket for communication with the Develepment Tool.
+    /// Client socket for communication with the Development Tool.
     ///
     /// Mainly used to send notifications sush as diagnostics updates,
     /// logging and showing messages, etc.

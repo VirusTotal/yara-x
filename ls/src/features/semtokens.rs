@@ -6,7 +6,7 @@ use yara_x_parser::{
 
 use crate::utils::position::{to_pos, to_range};
 
-// Used semenctic token types defined in the server capabilities
+// Used semantic token types defined in the server capabilities
 const KEYWORD: u32 = 0;
 const STRING: u32 = 1;
 const CLASS: u32 = 2;
@@ -38,6 +38,9 @@ macro_rules! push_token {
 }
 
 /// Returns semantic tokens for the given CST stream and text.
+///
+/// Semantic tokens are used to add additional color information to a file that
+//  depends on language specific symbol information.
 pub fn semantic_tokens(
     cst_stream: CSTStream<Parser<'_>>,
     text: &str,
@@ -63,7 +66,7 @@ pub fn semantic_tokens(
             Event::Begin { kind, span: _ } => {
                 last_begin_kind = kind;
             }
-            //Keywords
+            // Keywords
             Event::Token { kind: SyntaxKind::RULE_KW, span }
             | Event::Token { kind: SyntaxKind::STRINGS_KW, span }
             | Event::Token { kind: SyntaxKind::CONDITION_KW, span }
@@ -80,7 +83,7 @@ pub fn semantic_tokens(
             | Event::Token { kind: SyntaxKind::THEM_KW, span } => {
                 push_token!(result, last_pos, span, text, KEYWORD, 0);
             }
-            //Pattern and rule modifier keywords
+            // Pattern and rule modifier keywords
             Event::Token { kind: SyntaxKind::ASCII_KW, span }
             | Event::Token { kind: SyntaxKind::WIDE_KW, span }
             | Event::Token { kind: SyntaxKind::NOCASE_KW, span }
@@ -92,7 +95,7 @@ pub fn semantic_tokens(
             | Event::Token { kind: SyntaxKind::GLOBAL_KW, span } => {
                 push_token!(result, last_pos, span, text, PARAMETER, 0);
             }
-            //Operator keywords
+            // Operator keywords
             Event::Token { kind: SyntaxKind::AT_KW, span }
             | Event::Token { kind: SyntaxKind::IN_KW, span }
             | Event::Token { kind: SyntaxKind::OF_KW, span }
@@ -115,21 +118,21 @@ pub fn semantic_tokens(
             | Event::Token { kind: SyntaxKind::NONE_KW, span } => {
                 push_token!(result, last_pos, span, text, MACRO, 0);
             }
-            //Regexp
-            //Apparently not supported in VS Code
+            // Regexp
+            // Apparently not supported in VS Code
             Event::Token { kind: SyntaxKind::REGEXP, span } => {
                 push_token!(result, last_pos, span, text, REGEXP, 0);
             }
-            //Numbers
+            // Numbers
             Event::Token { kind: SyntaxKind::INTEGER_LIT, span }
             | Event::Token { kind: SyntaxKind::FLOAT_LIT, span } => {
                 push_token!(result, last_pos, span, text, NUMBER, 0);
             }
-            //String
+            // String
             Event::Token { kind: SyntaxKind::STRING_LIT, span } => {
                 push_token!(result, last_pos, span, text, STRING, 0);
             }
-            //Identificator
+            // Identificator
             Event::Token { kind: SyntaxKind::IDENT, span } => {
                 if last_begin_kind == SyntaxKind::FUNC_CALL {
                     push_token!(result, last_pos, span, text, FUNCTION, 0);
@@ -137,7 +140,7 @@ pub fn semantic_tokens(
                     push_token!(result, last_pos, span, text, CLASS, 1);
                 }
             }
-            //Variable
+            // Variable
             Event::Token { kind: SyntaxKind::PATTERN_IDENT, span }
             | Event::Token { kind: SyntaxKind::PATTERN_COUNT, span }
             | Event::Token { kind: SyntaxKind::PATTERN_OFFSET, span }
@@ -155,22 +158,22 @@ pub fn semantic_tokens(
                     }
                 );
             }
-            //Comments
-            //Explicitly process multiline comments
-            //See: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#semanticTokensClientCapabilities
+            // Comments
+            // Explicitly process multiline comments
+            // See: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#semanticTokensClientCapabilities
             Event::Token { kind: SyntaxKind::COMMENT, span } => {
                 let whole_comment_range = to_range(span, text);
 
                 let comment_end = text
                     .lines()
-                    //Take only lines with comments except last line
+                    // Take only lines with comments except last line
                     .skip(whole_comment_range.start.line as usize)
                     .take(
                         (whole_comment_range.end.line
                             - whole_comment_range.start.line)
                             as usize,
                     )
-                    //Push them into result vector
+                    // Push them into result vector
                     .fold(
                         Range {
                             start: last_pos,
@@ -205,7 +208,7 @@ pub fn semantic_tokens(
                         },
                     );
 
-                //Adds last line or single line comment
+                // Adds last line or single line comment
                 result.push(SemanticToken {
                     delta_line: comment_end.end.line - comment_end.start.line,
                     delta_start: if comment_end.end.line

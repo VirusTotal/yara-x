@@ -9,9 +9,9 @@ license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 
-[lib]
-name = "yara_x_ls"
-crate-type = ["cdylib", "rlib"]
+[[bin]]
+name = "yr-ls"
+path = "src/main.rs"
 
 [dependencies]
 async-lsp = { version = "0.2.2", default-features=false, features=["omni-trait"]}

@@ -11,8 +11,10 @@ use crate::utils::{
     position::{to_abs, to_range},
 };
 
-/// Returns document highlight vector of a symbol at the specified
-/// position in the text.
+// The document highlight request is sent from the client to the server to
+// resolve document highlights for a given text document position. When the
+// specified position is contained in a symbol, the response contains the
+// ranges of all occurrences of that symbol in the source code.
 pub fn document_highlight(
     cst: CST,
     text: &str,

@@ -9,8 +9,8 @@ let client: LanguageClient | null = null;
 
 export async function activate(_context: ExtensionContext) {
   const serverExecutable: Executable = {
-    command: process.env.CARGO_BIN_EXE_yr!,
-    args: ["ls"],
+    command: process.env.CARGO_BIN_EXE_yr_ls!,
+    args: [],
   };
 
   let clientOptions: LanguageClientOptions = {

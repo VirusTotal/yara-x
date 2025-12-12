@@ -52,3 +52,8 @@ pub async fn serve_stdio() -> Result<(), async_lsp::Error> {
 
     serve(stdin, stdout).await
 }
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn main() -> Result<(), async_lsp::Error> {
+    serve_stdio().await
+}
