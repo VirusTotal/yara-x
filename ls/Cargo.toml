@@ -14,19 +14,14 @@ name = "yr-ls"
 path = "src/main.rs"
 
 [dependencies]
-async-lsp = { version = "0.2.2", default-features=false, features=["omni-trait"]}
+async-lsp = { version = "0.2.2", default-features=false, features=["omni-trait", "tokio", "client-monitor", "stdio"]}
 futures = "0.3.31"
-tokio = { version = "1.48.0", features = ["full"], optional = true }
-tower = "0.5.2"
+tokio = { version = "1.48.0", features = ["full"] }
+tokio-util = { version = "0.7.17", features = ["compat"] }
+tower = { version = "0.5.2" , features = ["full"]}
 yara-x-parser = { workspace = true }
 
 [dev-dependencies]
-tokio-util = { version = "0.7.17", features = ["compat"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
-[features]
-default = ["tokio", "async-lsp/tokio", "async-lsp/client-monitor", "async-lsp/stdio", "tower/full"]
-
-[target.'cfg(windows)'.dependencies]
-tokio-util = { version = "0.7.17", features = ["compat"] }

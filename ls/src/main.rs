@@ -34,7 +34,6 @@ pub async fn serve(
 }
 
 /// Starts the Language Server Main Loop using Standard Input Output.
-#[cfg(feature = "default")]
 pub async fn serve_stdio() -> Result<(), async_lsp::Error> {
     #[cfg(unix)]
     let (stdin, stdout) = (
