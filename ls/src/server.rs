@@ -318,28 +318,29 @@ impl LanguageServer for ServerState {
         params: RenameParams,
     ) -> BoxFuture<'static, Result<Option<WorkspaceEdit>, Self::Error>> {
         let uri = params.text_document_position.text_document.uri;
-        let text = self.documents.get(&uri).cloned();
-        let new_name = params.new_name;
-        let pos = params.text_document_position.position;
+        let text = match self.documents.get(&uri) {
+            Some(text) => text,
+            None => return Box::pin(async { Ok(None) }),
+        };
 
-        Box::pin(async move {
-            if let Some(text) = text {
-                if let Ok(cst) = CST::try_from(Parser::new(text.as_bytes())) {
-                    Ok(rename::rename(cst, &text, new_name, pos).map(
-                        |text_edits| {
-                            let mut changes: HashMap<Url, Vec<TextEdit>> =
-                                HashMap::new();
-                            changes.insert(uri, text_edits);
-                            WorkspaceEdit::new(changes)
-                        },
-                    ))
-                } else {
-                    Ok(None)
-                }
-            } else {
-                Ok(None)
-            }
-        })
+        let cst = match CST::try_from(Parser::new(text.as_bytes())) {
+            Ok(cst) => cst,
+            Err(_) => return Box::pin(async { Ok(None) }),
+        };
+
+        let edit = rename::rename(
+            cst,
+            &text,
+            params.new_name,
+            params.text_document_position.position,
+        )
+        .map(|text_edits| {
+            let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
+            changes.insert(uri, text_edits);
+            WorkspaceEdit::new(changes)
+        });
+
+        Box::pin(async move { Ok(edit) })
     }
 
     fn selection_range(
@@ -347,20 +348,20 @@ impl LanguageServer for ServerState {
         params: SelectionRangeParams,
     ) -> BoxFuture<'static, Result<Option<Vec<SelectionRange>>, Self::Error>>
     {
-        let text = self.documents.get(&params.text_document.uri).cloned();
-        let positions = params.positions;
+        let text = match self.documents.get(&params.text_document.uri) {
+            Some(text) => text,
+            None => return Box::pin(async { Ok(None) }),
+        };
 
-        Box::pin(async move {
-            if let Some(text) = text {
-                if let Ok(cst) = CST::try_from(Parser::new(text.as_bytes())) {
-                    Ok(selection_range::selection_range(cst, positions, &text))
-                } else {
-                    Ok(None)
-                }
-            } else {
-                Ok(None)
-            }
-        })
+        let cst = match CST::try_from(Parser::new(text.as_bytes())) {
+            Ok(cst) => cst,
+            Err(_) => return Box::pin(async { Ok(None) }),
+        };
+
+        let ranges =
+            selection_range::selection_range(cst, params.positions, &text);
+
+        Box::pin(async move { Ok(ranges) })
     }
 
     /// This function is called only for pull model diagnostics.
@@ -398,7 +399,7 @@ impl LanguageServer for ServerState {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
 
-        self.documents.insert(uri.clone(), text.clone());
+        self.documents.insert(uri.clone(), text);
 
         self.publish_diagnostics(&uri);
 
@@ -411,7 +412,7 @@ impl LanguageServer for ServerState {
     ) -> Self::NotifyResult {
         if let Some(text) = params.text {
             let uri = params.text_document.uri;
-            self.documents.insert(uri.clone(), text.clone());
+            self.documents.insert(uri.clone(), text);
             self.publish_diagnostics(&uri);
         }
 
@@ -424,8 +425,8 @@ impl LanguageServer for ServerState {
     ) -> Self::NotifyResult {
         let uri = params.text_document.uri;
 
-        for change in params.content_changes.iter() {
-            self.documents.insert(uri.clone(), change.text.clone());
+        for change in params.content_changes.into_iter() {
+            self.documents.insert(uri.clone(), change.text);
         }
 
         self.publish_diagnostics(&uri);
