@@ -16,9 +16,9 @@ mod tests;
 pub(crate) mod prelude {
     pub(crate) use crate::scanner::ScanContext;
     pub(crate) use crate::wasm::string::FixedLenString;
-    pub(crate) use crate::wasm::string::Lowercase;
     pub(crate) use crate::wasm::string::RuntimeString;
     pub(crate) use crate::wasm::string::String as _;
+    pub(crate) use crate::wasm::string::{Lowercase, Uppercase};
     pub(crate) use crate::wasm::*;
     pub(crate) use bstr::ByteSlice;
     #[cfg(not(feature = "inventory"))]

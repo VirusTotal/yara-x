@@ -228,13 +228,13 @@ fn section_index_offset(ctx: &ScanContext, offset: i64) -> Option<i64> {
 ///
 /// The resulting hash string is consistently in lowercase.
 #[module_export]
-fn imphash(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached = IMPHASH_CACHE.with(|cache| -> Option<RuntimeString> {
-        cache
-            .borrow()
-            .as_deref()
-            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
-    });
+fn imphash(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
+    let cached =
+        IMPHASH_CACHE.with(|cache| -> Option<Lowercase<FixedLenString<32>>> {
+            cache.borrow().as_deref().map(|s| {
+                Lowercase::<FixedLenString<32>>::from_slice(ctx, s.as_bytes())
+            })
+        });
 
     if cached.is_some() {
         return cached;
@@ -277,7 +277,7 @@ fn imphash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
-    Some(RuntimeString::new(digest))
+    Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
 #[module_export(name = "rich_signature.toolid")]

@@ -22,8 +22,8 @@ pub(crate) fn add_f64(_ctx: &mut ScanContext, a: f64, b: f64) -> f64 {
 pub(crate) fn uppercase(
     ctx: &mut ScanContext,
     s: RuntimeString,
-) -> RuntimeString {
-    RuntimeString::new(s.as_bstr(ctx).to_uppercase())
+) -> Uppercase<RuntimeString> {
+    Uppercase::new(s.as_bstr(ctx).to_uppercase())
 }
 
 #[module_export(name = "nested.nested_func")]

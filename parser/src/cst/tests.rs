@@ -199,11 +199,15 @@ fn cst_4() {
 #[test]
 fn cst_5() {
     let cst: CST = Parser::new(
-        br#"rule test {
+        r#"rule test {
+    /*
+       Comment
+    */
     condition:
         true or
-        false
-    }"#,
+        /* 😊 */ false
+    }"#
+        .as_bytes(),
     )
     .try_into()
     .unwrap();
@@ -212,65 +216,138 @@ fn cst_5() {
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::RULE_KW);
-    assert_eq!(n.line_col(), (1, 0));
+    assert_eq!(n.position(), (0, 0).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
-    assert_eq!(n.line_col(), (1, 4));
+    assert_eq!(n.position(), (0, 4).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::IDENT);
-    assert_eq!(n.line_col(), (1, 5));
+    assert_eq!(n.position(), (0, 5).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
-    assert_eq!(n.line_col(), (1, 9));
+    assert_eq!(n.position(), (0, 9).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::L_BRACE);
-    assert_eq!(n.line_col(), (1, 10));
+    assert_eq!(n.position(), (0, 10).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::NEWLINE);
-    assert_eq!(n.line_col(), (1, 11));
+    assert_eq!(n.position(), (0, 11).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
-    assert_eq!(n.line_col(), (2, 0));
+    assert_eq!(n.position(), (1, 0).into());
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::COMMENT);
+    assert_eq!(n.position(), (1, 4).into());
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::NEWLINE);
+    assert_eq!(n.position(), (3, 6).into());
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
+    assert_eq!(n.position(), (4, 0).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::CONDITION_BLK);
-    assert_eq!(n.line_col(), (2, 4));
+    assert_eq!(n.position(), (4, 4).into());
 
     let n1 = n.first_child_or_token().unwrap();
     assert_eq!(n1.kind(), SyntaxKind::CONDITION_KW);
-    assert_eq!(n1.line_col(), (2, 4));
+    assert_eq!(n1.position(), (4, 4).into());
 
     let n1 = n1.next_sibling_or_token().unwrap();
     assert_eq!(n1.kind(), SyntaxKind::COLON);
-    assert_eq!(n1.line_col(), (2, 13));
+    assert_eq!(n1.position(), (4, 13).into());
 
     let n1 = n1.next_sibling_or_token().unwrap();
     assert_eq!(n1.kind(), SyntaxKind::NEWLINE);
-    assert_eq!(n1.line_col(), (2, 14));
+    assert_eq!(n1.position(), (4, 14).into());
 
     let n1 = n1.next_sibling_or_token().unwrap();
     assert_eq!(n1.kind(), SyntaxKind::WHITESPACE);
-    assert_eq!(n1.line_col(), (3, 0));
+    assert_eq!(n1.position(), (5, 0).into());
 
     let n1 = n1.next_sibling_or_token().unwrap();
     assert_eq!(n1.kind(), SyntaxKind::BOOLEAN_EXPR);
-    assert_eq!(n1.line_col(), (3, 8));
+    assert_eq!(n1.position(), (5, 8).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::NEWLINE);
-    assert_eq!(n.line_col(), (4, 13));
+    assert_eq!(n.position(), (6, 21).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
-    assert_eq!(n.line_col(), (5, 0));
+    assert_eq!(n.position(), (7, 0).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::R_BRACE);
-    assert_eq!(n.line_col(), (5, 4));
+    assert_eq!(n.position(), (7, 4).into());
+}
+
+#[test]
+fn cst_6() {
+    let cst: CST = Parser::new(
+        r#"rule test {
+    /*
+       Comment
+    */
+    condition:
+        true or
+        /* 😊 */ false
+    }"#
+        .as_bytes(),
+    )
+    .try_into()
+    .unwrap();
+
+    let root_node = cst.root();
+
+    // Token at line 0, column 0 is `SyntaxKind::RULE_KW`.
+    assert_eq!(
+        root_node.token_at_position((0, 0)).unwrap().kind(),
+        SyntaxKind::RULE_KW
+    );
+
+    // Token at line 0, column 4 is `SyntaxKind::WHITESPACE`.
+    assert_eq!(
+        root_node.token_at_position((0, 4)).unwrap().kind(),
+        SyntaxKind::WHITESPACE
+    );
+
+    // Token at line 0, column 11 is `SyntaxKind::NEWLINE`.
+    assert_eq!(
+        root_node.token_at_position((0, 11)).unwrap().kind(),
+        SyntaxKind::NEWLINE
+    );
+
+    // Token at line 1, column 4 is `SyntaxKind::COMMENT`.
+    assert_eq!(
+        root_node.token_at_position((1, 4)).unwrap().kind(),
+        SyntaxKind::COMMENT
+    );
+
+    // Token at line 3, column 6 is `SyntaxKind::COMMENT`.
+    assert_eq!(
+        root_node.token_at_position((3, 6)).unwrap().kind(),
+        SyntaxKind::NEWLINE
+    );
+
+    // Token at line 4, column 4 is `SyntaxKind::CONDITION_KW`.
+    assert_eq!(
+        root_node.token_at_position((4, 4)).unwrap().kind(),
+        SyntaxKind::CONDITION_KW
+    );
+
+    // Token at line 6, column 16 is `SyntaxKind::FALSE_KW`.
+    assert_eq!(
+        root_node.token_at_position((6, 16)).unwrap().kind(),
+        SyntaxKind::FALSE_KW
+    );
 }

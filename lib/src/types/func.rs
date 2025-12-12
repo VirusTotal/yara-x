@@ -66,8 +66,10 @@ use std::str::Chars;
 ///
 /// ```text
 /// foo() -> lowercase string           _> foo@@s:L
+/// foo() -> uppercase string           _> foo@@s:U
 /// foo() -> string of length 32        _> foo@@s:N32
 /// foo() -> 32-byte lowercase string   -> foo@@s:N32:L
+/// foo() -> 32-byte uppercase string   -> foo@@s:N32:U
 /// foo() -> integer in the range 0-255 -> foo@@i:R0:255
 /// ```
 ///
@@ -158,6 +160,9 @@ impl MangledFnName {
                     match chars.next() {
                         Some('L') => {
                             constraints.push(StringConstraint::Lowercase);
+                        }
+                        Some('U') => {
+                            constraints.push(StringConstraint::Uppercase);
                         }
                         Some('N') => {
                             let n = self.parse_i64(chars);
@@ -369,6 +374,16 @@ mod test {
                 vec![TypeValue::unknown_string()],
                 TypeValue::unknown_string_with_constraints(vec![
                     StringConstraint::Lowercase
+                ])
+            )
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@s@s:U").unmangle(),
+            (
+                vec![TypeValue::unknown_string()],
+                TypeValue::unknown_string_with_constraints(vec![
+                    StringConstraint::Uppercase
                 ])
             )
         );
