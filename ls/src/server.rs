@@ -369,7 +369,11 @@ impl LanguageServer for ServerState {
         params: DocumentDiagnosticParams,
     ) -> BoxFuture<'static, Result<DocumentDiagnosticReportResult, Self::Error>>
     {
-        let text = self.documents.get(&params.text_document.uri).cloned();
+        let diagnostics = self
+            .documents
+            .get(&params.text_document.uri)
+            .map(|text| diagnostics::get_diagnostic_vec(&text))
+            .unwrap_or_default();
 
         Box::pin(async move {
             Ok(DocumentDiagnosticReportResult::Report(
@@ -378,11 +382,7 @@ impl LanguageServer for ServerState {
                         full_document_diagnostic_report:
                             FullDocumentDiagnosticReport {
                                 result_id: None,
-                                items: if let Some(text) = text {
-                                    diagnostics::get_diagnostic_vec(&text)
-                                } else {
-                                    vec![]
-                                },
+                                items: diagnostics,
                             },
                         related_documents: None,
                     },
