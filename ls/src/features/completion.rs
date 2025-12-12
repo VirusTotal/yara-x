@@ -8,18 +8,14 @@ use crate::features::completion_const::{
     CONDITION_SUGGESTIONS, PATTERN_MOD, RULE_KW_BLKS, SRC_SUGGESTIONS,
 };
 
-use crate::utils::{cst_traversal::rule_from_pos, position::to_abs};
+use crate::utils::cst_traversal::rule_from_span;
 
 /// Provides completion suggestions based on the cursor position and the
 /// block it is in.
-pub fn completion(
-    cst: CST,
-    text: &str,
-    pos: Position,
-) -> Option<CompletionResponse> {
-    let pos_span = to_abs(pos, text);
-
-    let completion_cursor = cst.root().token_at_offset(pos_span as usize);
+pub fn completion(cst: CST, pos: Position) -> Option<CompletionResponse> {
+    let completion_cursor = cst
+        .root()
+        .token_at_position((pos.line as usize, pos.character as usize));
     let completion_token: Token<Immutable>;
 
     // Extract token before cursor
@@ -79,7 +75,7 @@ pub fn completion(
     let completion_vec = match nearets_section_kind {
         SyntaxKind::SOURCE_FILE => Some(source_file_suggestions()),
         SyntaxKind::CONDITION_BLK | SyntaxKind::BOOLEAN_EXPR => {
-            condition_suggestions(cst, completion_token, &pos_span)
+            condition_suggestions(cst, completion_token)
         }
         SyntaxKind::PATTERN_DEF => pattern_suggestions(completion_token),
         SyntaxKind::RULE_DECL => Some(rule_suggestions()),
@@ -93,7 +89,6 @@ pub fn completion(
 fn condition_suggestions(
     cst: CST,
     completion_prev_token: Token<Immutable>,
-    pos_span: &u32,
 ) -> Option<Vec<CompletionItem>> {
     let mut completion_vec: Vec<CompletionItem> = Vec::new();
 
@@ -138,7 +133,7 @@ fn condition_suggestions(
         | SyntaxKind::PATTERN_COUNT
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
-            let rule = rule_from_pos(&cst, pos_span)?;
+            let rule = rule_from_span(&cst, &completion_prev_token.span())?;
 
             let patterns = rule
                 .children()
