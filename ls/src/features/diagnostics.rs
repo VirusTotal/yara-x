@@ -115,11 +115,11 @@ fn collect_variable_diagnostics(
                             pm.identifier.name.to_string()
                         }
                         Expr::PatternCount(ident_range) => {
-                            format!("${}", ident_range.identifier.name)
+                            format!("${}", &ident_range.identifier.name[1..])
                         }
                         Expr::PatternOffset(ident_index)
                         | Expr::PatternLength(ident_index) => {
-                            format!("${}", ident_index.identifier.name)
+                            format!("${}", &ident_index.identifier.name[1..])
                         }
                         _ => Default::default(),
                     };
