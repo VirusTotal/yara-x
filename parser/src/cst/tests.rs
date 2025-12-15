@@ -327,13 +327,34 @@ fn cst_6() {
         SyntaxKind::NEWLINE
     );
 
+    // There's no token at line 0, column 12.
+    assert!(root_node.token_at_position((0, 12)).is_none());
+
     // Token at line 1, column 4 is `SyntaxKind::COMMENT`.
     assert_eq!(
         root_node.token_at_position((1, 4)).unwrap().kind(),
         SyntaxKind::COMMENT
     );
 
-    // Token at line 3, column 6 is `SyntaxKind::COMMENT`.
+    // Token at line 2, column 8 is `SyntaxKind::COMMENT`.
+    assert_eq!(
+        root_node.token_at_position((2, 8)).unwrap().kind(),
+        SyntaxKind::COMMENT
+    );
+
+    // Token at line 2, column 20 is `SyntaxKind::COMMENT`.
+    assert_eq!(
+        root_node.token_at_position((2, 20)).unwrap().kind(),
+        SyntaxKind::COMMENT
+    );
+
+    // Token at line 3, column 5 is `SyntaxKind::COMMENT`.
+    assert_eq!(
+        root_node.token_at_position((3, 5)).unwrap().kind(),
+        SyntaxKind::COMMENT
+    );
+
+    // Token at line 3, column 6 is `SyntaxKind::NEWLINE`.
     assert_eq!(
         root_node.token_at_position((3, 6)).unwrap().kind(),
         SyntaxKind::NEWLINE
@@ -344,6 +365,9 @@ fn cst_6() {
         root_node.token_at_position((4, 4)).unwrap().kind(),
         SyntaxKind::CONDITION_KW
     );
+
+    // There's no token at line 4, column 15.
+    assert!(root_node.token_at_position((4, 15)).is_none());
 
     // Token at line 6, column 16 is `SyntaxKind::FALSE_KW`.
     assert_eq!(

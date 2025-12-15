@@ -1096,22 +1096,48 @@ impl<M: Clone> Node<M> {
                     col = 0;
                 }
                 COMMENT => {
-                    let t = token.text();
-                    // Increment line number by the number of newlines found in
-                    // the comment.
-                    let newlines = t.chars().filter(|c| *c == '\n').count();
+                    let comment = token.text();
+                    // Get the number of newline characters contained in the
+                    // comment.
+                    let newlines =
+                        comment.chars().filter(|c| *c == '\n').count();
+                    // Increment the current line in the number of lines in the
+                    // comment.
                     line += newlines;
+                    // After the increment, the line number is past the requested
+                    // line, this means the requested position is within the
+                    // comment.
+                    if line > position.line {
+                        return Some(token);
+                    }
+                    // Compute the length of the last line in the comment.
+                    let last_line_len = comment
+                        .chars()
+                        .rev()
+                        .take_while(|c| *c != '\n')
+                        .count();
                     // If there is some newline, column number is reset to zero.
                     if newlines > 0 {
                         col = 0;
                     }
                     // The column number is reset to the number of characters
-                    // from the last newline to the end of the comment.
-                    col += t.chars().rev().take_while(|c| *c != '\n').count();
+                    // in the last line.
+                    col += last_line_len;
+                    // After the incrementing line and column numbers, the
+                    // requested position is in the final line, and before the
+                    // column where the comment ends. This means that the
+                    // requested position is within the comment.
+                    if line == position.line && col > position.column {
+                        return Some(token);
+                    }
                 }
                 _ => {
                     col += token_len;
                 }
+            }
+            // If we are past the requested line, the token can't be found.
+            if line > position.line {
+                return None;
             }
             next_token = token.next_token();
         }
