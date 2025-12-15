@@ -490,7 +490,7 @@ impl<M> Token<M> {
         Self { inner, _state: PhantomData }
     }
 }
-
+#[allow(clippy::len_without_is_empty)]
 impl<M: Clone> Token<M> {
     #[inline]
     /// Returns the kind of this token.
