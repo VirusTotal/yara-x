@@ -5,9 +5,8 @@ use yara_x_parser::cst::{
     Immutable, Mutable, Node, NodeOrToken, SyntaxKind, CST,
 };
 
-use crate::utils::{
-    cst_traversal::{pattern_from_strings, rule_from_ident, rule_from_pos},
-    position::to_abs,
+use crate::utils::cst_traversal::{
+    pattern_from_strings, rule_from_ident, rule_from_span,
 };
 
 /// Builder for hover markdown representation of a rule.
@@ -115,14 +114,10 @@ impl RuleHoverBuilder {
     }
 }
 
-pub fn hover_cst(
-    cst: CST,
-    text: &str,
-    pos: Position,
-) -> Option<HoverContents> {
-    let pos_span = to_abs(pos, text);
-
-    let hover_cursor = cst.root().token_at_offset(pos_span as usize)?;
+pub fn hover_cst(cst: CST, pos: Position) -> Option<HoverContents> {
+    let hover_cursor = cst
+        .root()
+        .token_at_position((pos.line as usize, pos.character as usize))?;
 
     #[allow(irrefutable_let_patterns)]
     match hover_cursor.kind() {
@@ -132,7 +127,7 @@ pub fn hover_cst(
         | SyntaxKind::PATTERN_COUNT
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
-            let rule = rule_from_pos(&cst, &pos_span)?;
+            let rule = rule_from_span(&cst, &hover_cursor.span())?;
 
             let pattern = pattern_from_strings(&rule, hover_cursor.text())?;
 

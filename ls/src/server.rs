@@ -164,7 +164,6 @@ impl LanguageServer for ServerState {
                 if let Ok(cst) = CST::try_from(Parser::new(text.as_bytes())) {
                     Ok(hover::hover_cst(
                         cst,
-                        &text,
                         params.text_document_position_params.position,
                     )
                     .map(|contents| Hover { contents, range: None }))
@@ -190,7 +189,6 @@ impl LanguageServer for ServerState {
                 if let Ok(cst) = CST::try_from(Parser::new(text.as_bytes())) {
                     Ok(goto::go_to_definition(
                         cst,
-                        &text,
                         params.text_document_position_params.position,
                     )
                     .map(|range| {
@@ -216,7 +214,7 @@ impl LanguageServer for ServerState {
         Box::pin(async move {
             if let Some(text) = text {
                 if let Ok(cst) = CST::try_from(Parser::new(text.as_bytes())) {
-                    Ok(references::find_references(cst, &text, position, uri))
+                    Ok(references::find_references(cst, position, uri))
                 } else {
                     Ok(None)
                 }
@@ -238,7 +236,7 @@ impl LanguageServer for ServerState {
         Box::pin(async move {
             if let Some(text) = text {
                 if let Ok(cst) = CST::try_from(Parser::new(text.as_bytes())) {
-                    Ok(completion::completion(cst, &text, position))
+                    Ok(completion::completion(cst, position))
                 } else {
                     Ok(None)
                 }
@@ -260,9 +258,7 @@ impl LanguageServer for ServerState {
         Box::pin(async move {
             if let Some(text) = text {
                 if let Ok(cst) = CST::try_from(Parser::new(text.as_bytes())) {
-                    Ok(document_highlight::document_highlight(
-                        cst, &text, position,
-                    ))
+                    Ok(document_highlight::document_highlight(cst, position))
                 } else {
                     Ok(None)
                 }
@@ -330,7 +326,6 @@ impl LanguageServer for ServerState {
 
         let changes = rename::rename(
             cst,
-            &text,
             params.new_name,
             params.text_document_position.position,
         )
@@ -355,8 +350,7 @@ impl LanguageServer for ServerState {
             Err(_) => return Box::pin(async { Ok(None) }),
         };
 
-        let ranges =
-            selection_range::selection_range(cst, params.positions, &text);
+        let ranges = selection_range::selection_range(cst, params.positions);
 
         Box::pin(async move { Ok(ranges) })
     }
@@ -370,7 +364,7 @@ impl LanguageServer for ServerState {
         let diagnostics = self
             .documents
             .get(&params.text_document.uri)
-            .map(|text| diagnostics::get_diagnostic_vec(&text))
+            .map(diagnostics::get_diagnostic_vec)
             .unwrap_or_default();
 
         Box::pin(async move {

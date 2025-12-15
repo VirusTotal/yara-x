@@ -6,9 +6,9 @@ use yara_x_parser::cst::{SyntaxKind, CST};
 use crate::utils::{
     cst_traversal::{
         pattern_from_condition, pattern_from_strings, rule_from_condition,
-        rule_from_ident, rule_from_pos,
+        rule_from_ident, rule_from_span,
     },
-    position::{to_abs, to_range},
+    position::{node_to_range, token_to_range},
 };
 
 // The document highlight request is sent from the client to the server to
@@ -17,12 +17,11 @@ use crate::utils::{
 // ranges of all occurrences of that symbol in the source code.
 pub fn document_highlight(
     cst: CST,
-    text: &str,
     pos: Position,
 ) -> Option<Vec<DocumentHighlight>> {
-    let pos_span = to_abs(pos, text);
-
-    let highlight_cursor = cst.root().token_at_offset(pos_span as usize)?;
+    let highlight_cursor = cst
+        .root()
+        .token_at_position((pos.line as usize, pos.character as usize))?;
 
     match highlight_cursor.kind() {
         //Find highlight of pattern within the same rule
@@ -32,7 +31,7 @@ pub fn document_highlight(
         | SyntaxKind::PATTERN_LENGTH => {
             let mut highlight_vec: Vec<DocumentHighlight> = Vec::new();
 
-            let rule = rule_from_pos(&cst, &pos_span)?;
+            let rule = rule_from_span(&cst, &highlight_cursor.span())?;
 
             let declaration =
                 pattern_from_strings(&rule, highlight_cursor.text());
@@ -41,18 +40,22 @@ pub fn document_highlight(
                 pattern_from_condition(&rule, highlight_cursor.text());
 
             if let Some(declaration) = declaration {
-                highlight_vec.push(DocumentHighlight {
-                    range: to_range(declaration.span(), text),
-                    kind: Some(DocumentHighlightKind::WRITE),
-                });
+                if let Some(range) = node_to_range(&declaration) {
+                    highlight_vec.push(DocumentHighlight {
+                        range,
+                        kind: Some(DocumentHighlightKind::WRITE),
+                    });
+                }
             }
 
             if let Some(occurrences) = occurrences {
                 for occurrence in occurrences {
-                    highlight_vec.push(DocumentHighlight {
-                        range: to_range(occurrence.span(), text),
-                        kind: Some(DocumentHighlightKind::READ),
-                    });
+                    if let Some(range) = token_to_range(&occurrence) {
+                        highlight_vec.push(DocumentHighlight {
+                            range,
+                            kind: Some(DocumentHighlightKind::READ),
+                        });
+                    }
                 }
             }
 
@@ -65,10 +68,12 @@ pub fn document_highlight(
             let rule = rule_from_ident(&cst, highlight_cursor.text());
 
             if let Some(rule) = rule {
-                highlight_vec.push(DocumentHighlight {
-                    range: to_range(rule.span(), text),
-                    kind: Some(DocumentHighlightKind::WRITE),
-                });
+                if let Some(range) = node_to_range(&rule) {
+                    highlight_vec.push(DocumentHighlight {
+                        range,
+                        kind: Some(DocumentHighlightKind::WRITE),
+                    });
+                }
             }
 
             let occurrences =
@@ -76,10 +81,12 @@ pub fn document_highlight(
 
             if let Some(occurrences) = occurrences {
                 for occurrence in occurrences {
-                    highlight_vec.push(DocumentHighlight {
-                        range: to_range(occurrence.span(), text),
-                        kind: Some(DocumentHighlightKind::READ),
-                    });
+                    if let Some(range) = token_to_range(&occurrence) {
+                        highlight_vec.push(DocumentHighlight {
+                            range,
+                            kind: Some(DocumentHighlightKind::READ),
+                        });
+                    }
                 }
             }
 

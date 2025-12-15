@@ -5,19 +5,10 @@ to LSP `Position` and `Range` types and vice versa.
  */
 
 use async_lsp::lsp_types::{Position, Range};
-use yara_x_parser::Span;
-
-/// Converts `Position` LSP object to the absolute position in text.
-pub(crate) fn to_abs(pos: Position, text: &str) -> u32 {
-    let mut result = 0;
-    for (i, s) in text.split("\n").enumerate() {
-        if i as u32 == pos.line {
-            return result as u32 + pos.character;
-        }
-        result += s.len() + 1;
-    }
-    0
-}
+use yara_x_parser::{
+    cst::{Immutable, Node, Token},
+    Span,
+};
 
 /// Converts the absolute position in text to `Position` LSP object.
 pub(crate) fn to_pos(pos: u32, text: &str) -> Position {
@@ -38,4 +29,37 @@ pub(crate) fn to_range(span: Span, text: &str) -> Range {
         start: to_pos(span.start() as u32, text),
         end: to_pos(span.end() as u32, text),
     }
+}
+
+pub(crate) fn token_to_range(token: &Token<Immutable>) -> Option<Range> {
+    let position = token.position();
+    let len = token.span().len();
+    Some(Range {
+        start: Position {
+            line: position.line as u32,
+            character: position.column as u32,
+        },
+        end: Position {
+            line: position.line as u32,
+            character: (position.column + len) as u32,
+        },
+    })
+}
+
+pub(crate) fn node_to_range(node: &Node<Immutable>) -> Option<Range> {
+    let first = node.first_token()?;
+    let last = node.last_token()?;
+    let start = first.position();
+    let end = last.position();
+    let end_len = last.span().len();
+    Some(Range {
+        start: Position {
+            line: start.line as u32,
+            character: start.column as u32,
+        },
+        end: Position {
+            line: end.line as u32,
+            character: (end.column + end_len) as u32,
+        },
+    })
 }
