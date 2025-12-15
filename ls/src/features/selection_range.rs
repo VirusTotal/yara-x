@@ -1,5 +1,5 @@
 use async_lsp::lsp_types::{Position, SelectionRange};
-use yara_x_parser::cst::{Immutable, Node, CST};
+use yara_x_parser::cst::{Immutable, Node, Utf16, CST};
 
 use crate::utils::position::{node_to_range, token_to_range};
 
@@ -14,7 +14,7 @@ pub fn selection_range(
     let mut result: Vec<SelectionRange> = Vec::new();
 
     for position in positions {
-        let nth_position_token = root.token_at_position((
+        let nth_position_token = root.token_at_position::<Utf16, _>((
             position.line as usize,
             position.character as usize,
         ))?;

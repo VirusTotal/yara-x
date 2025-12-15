@@ -1,7 +1,7 @@
 use async_lsp::lsp_types::{
     DocumentHighlight, DocumentHighlightKind, Position,
 };
-use yara_x_parser::cst::{SyntaxKind, CST};
+use yara_x_parser::cst::{SyntaxKind, Utf16, CST};
 
 use crate::utils::{
     cst_traversal::{
@@ -19,9 +19,10 @@ pub fn document_highlight(
     cst: CST,
     pos: Position,
 ) -> Option<Vec<DocumentHighlight>> {
-    let highlight_cursor = cst
-        .root()
-        .token_at_position((pos.line as usize, pos.character as usize))?;
+    let highlight_cursor = cst.root().token_at_position::<Utf16, _>((
+        pos.line as usize,
+        pos.character as usize,
+    ))?;
 
     match highlight_cursor.kind() {
         //Find highlight of pattern within the same rule

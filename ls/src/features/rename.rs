@@ -1,5 +1,5 @@
 use async_lsp::lsp_types::{Position, TextEdit};
-use yara_x_parser::cst::{NodeOrToken, SyntaxKind, CST};
+use yara_x_parser::cst::{NodeOrToken, SyntaxKind, Utf16, CST};
 
 use crate::utils::{
     cst_traversal::{
@@ -17,9 +17,10 @@ pub fn rename(
 ) -> Option<Vec<TextEdit>> {
     let mut result: Vec<TextEdit> = Vec::new();
 
-    let rename_cursor = cst
-        .root()
-        .token_at_position((pos.line as usize, pos.character as usize))?;
+    let rename_cursor = cst.root().token_at_position::<Utf16, _>((
+        pos.line as usize,
+        pos.character as usize,
+    ))?;
 
     match rename_cursor.kind() {
         // Pattern identifiers

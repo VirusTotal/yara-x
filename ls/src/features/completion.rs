@@ -2,7 +2,9 @@ use async_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails,
     CompletionResponse, InsertTextFormat, InsertTextMode, Position,
 };
-use yara_x_parser::cst::{Immutable, NodeOrToken, SyntaxKind, Token, CST};
+use yara_x_parser::cst::{
+    Immutable, NodeOrToken, SyntaxKind, Token, Utf16, CST,
+};
 
 use crate::features::completion_const::{
     CONDITION_SUGGESTIONS, PATTERN_MOD, RULE_KW_BLKS, SRC_SUGGESTIONS,
@@ -13,9 +15,10 @@ use crate::utils::cst_traversal::rule_from_span;
 /// Provides completion suggestions based on the cursor position and the
 /// block it is in.
 pub fn completion(cst: CST, pos: Position) -> Option<CompletionResponse> {
-    let completion_cursor = cst
-        .root()
-        .token_at_position((pos.line as usize, pos.character as usize));
+    let completion_cursor = cst.root().token_at_position::<Utf16, _>((
+        pos.line as usize,
+        pos.character as usize,
+    ));
     let completion_token: Token<Immutable>;
 
     // Extract token before cursor

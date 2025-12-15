@@ -2,7 +2,7 @@ use async_lsp::lsp_types::{
     HoverContents, MarkupContent, MarkupKind, Position,
 };
 use yara_x_parser::cst::{
-    Immutable, Mutable, Node, NodeOrToken, SyntaxKind, CST,
+    Immutable, Mutable, Node, NodeOrToken, SyntaxKind, Utf16, CST,
 };
 
 use crate::utils::cst_traversal::{
@@ -115,9 +115,10 @@ impl RuleHoverBuilder {
 }
 
 pub fn hover_cst(cst: CST, pos: Position) -> Option<HoverContents> {
-    let hover_cursor = cst
-        .root()
-        .token_at_position((pos.line as usize, pos.character as usize))?;
+    let hover_cursor = cst.root().token_at_position::<Utf16, _>((
+        pos.line as usize,
+        pos.character as usize,
+    ))?;
 
     #[allow(irrefutable_let_patterns)]
     match hover_cursor.kind() {

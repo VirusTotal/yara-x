@@ -5,6 +5,7 @@ to LSP `Position` and `Range` types and vice versa.
  */
 
 use async_lsp::lsp_types::{Position, Range};
+use yara_x_parser::cst::Utf16;
 use yara_x_parser::{
     cst::{Immutable, Node, Token},
     Span,
@@ -32,34 +33,19 @@ pub(crate) fn to_range(span: Span, text: &str) -> Range {
 }
 
 pub(crate) fn token_to_range(token: &Token<Immutable>) -> Option<Range> {
-    let position = token.position();
-    let len = token.span().len();
-    Some(Range {
-        start: Position {
-            line: position.line as u32,
-            character: position.column as u32,
-        },
-        end: Position {
-            line: position.line as u32,
-            character: (position.column + len) as u32,
-        },
-    })
+    let start = token.start_pos::<Utf16>();
+    let start = Position::new(start.line as u32, start.column as u32);
+    let end = token.end_pos::<Utf16>();
+    let end = Position::new(end.line as u32, end.column as u32);
+
+    Some(Range { start, end })
 }
 
 pub(crate) fn node_to_range(node: &Node<Immutable>) -> Option<Range> {
-    let first = node.first_token()?;
-    let last = node.last_token()?;
-    let start = first.position();
-    let end = last.position();
-    let end_len = last.span().len();
-    Some(Range {
-        start: Position {
-            line: start.line as u32,
-            character: start.column as u32,
-        },
-        end: Position {
-            line: end.line as u32,
-            character: (end.column + end_len) as u32,
-        },
-    })
+    let start = node.first_token()?.start_pos::<Utf16>();
+    let start = Position::new(start.line as u32, start.column as u32);
+    let end = node.last_token()?.end_pos::<Utf16>();
+    let end = Position::new(end.line as u32, end.column as u32);
+
+    Some(Range { start, end })
 }

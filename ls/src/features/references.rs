@@ -1,5 +1,5 @@
 use async_lsp::lsp_types::{Location, Position, Url};
-use yara_x_parser::cst::{SyntaxKind, CST};
+use yara_x_parser::cst::{SyntaxKind, Utf16, CST};
 
 use crate::utils::{
     cst_traversal::{
@@ -15,9 +15,10 @@ pub fn find_references(
     pos: Position,
     uri: Url,
 ) -> Option<Vec<Location>> {
-    let references_click = cst
-        .root()
-        .token_at_position((pos.line as usize, pos.character as usize))?;
+    let references_click = cst.root().token_at_position::<Utf16, _>((
+        pos.line as usize,
+        pos.character as usize,
+    ))?;
 
     match references_click.kind() {
         // Pattern identifiers
