@@ -42,9 +42,9 @@ pub(crate) fn token_to_range(token: &Token<Immutable>) -> Option<Range> {
 }
 
 pub(crate) fn node_to_range(node: &Node<Immutable>) -> Option<Range> {
-    let start = node.first_token()?.start_pos::<Utf16>();
+    let start = node.start_pos::<Utf16>();
     let start = Position::new(start.line as u32, start.column as u32);
-    let end = node.last_token()?.end_pos::<Utf16>();
+    let end = node.end_pos::<Utf16>();
     let end = Position::new(end.line as u32, end.column as u32);
 
     Some(Range { start, end })
