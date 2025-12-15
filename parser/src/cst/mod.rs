@@ -17,10 +17,10 @@ use std::iter;
 use std::marker::PhantomData;
 use std::str::{from_utf8, Utf8Error};
 
+pub use syntax_kind::SyntaxKind;
+
 use crate::cst::SyntaxKind::{COMMENT, NEWLINE, WHITESPACE};
 use crate::{Parser, Span};
-
-pub use syntax_kind::SyntaxKind;
 
 pub(crate) mod syntax_kind;
 pub(crate) mod syntax_stream;
@@ -490,7 +490,7 @@ impl<M> Token<M> {
         Self { inner, _state: PhantomData }
     }
 }
-
+#[allow(clippy::len_without_is_empty)]
 impl<M: Clone> Token<M> {
     #[inline]
     /// Returns the kind of this token.
@@ -530,8 +530,8 @@ impl<M: Clone> Token<M> {
         E::len(self.text())
     }
 
-    /// Returns position (line and column) where this token starts.
-    pub fn position<E: Encoding>(&self) -> Position<E> {
+    /// Returns the position (line and column) where this token starts.
+    pub fn start_pos<E: Encoding>(&self) -> Position<E> {
         // Initially we assume that the token is in line 0, column 0.
         let mut line = 0;
         let mut column = 0;
@@ -564,6 +564,28 @@ impl<M: Clone> Token<M> {
             prev_token = token.prev_token();
         }
         Position::from((line, column))
+    }
+
+    /// Returns the position (line and column) where this token ends.
+    pub fn end_pos<E: Encoding>(&self) -> Position<E> {
+        let token = self.text();
+        let start = self.start_pos::<E>();
+
+        match token.rfind('\n') {
+            // The token contains newline characters. The ending line is the
+            // start line plus the number of newlines. The ending column is the
+            // length of the last line.
+            Some(last_newline) => Position::from((
+                start.line + token.chars().filter(|c| *c == '\n').count(),
+                E::len(&token[last_newline + 1..]),
+            )),
+            // The token doesn't contain newline characters. The end line
+            // and the start line are the same. The ending column is the
+            // start column plus the token's length.
+            None => {
+                Position::from((start.line, start.column + self.len::<E>()))
+            }
+        }
     }
 
     #[inline]
@@ -777,10 +799,18 @@ impl<M: Clone> NodeOrToken<M> {
     }
 
     /// Returns the position (line and column) where this node or token starts.
-    pub fn position<E: Encoding>(&self) -> Position<E> {
+    pub fn start_pos<E: Encoding>(&self) -> Position<E> {
         match self {
-            NodeOrToken::Node(n) => n.position(),
-            NodeOrToken::Token(t) => t.position(),
+            NodeOrToken::Node(n) => n.start_pos(),
+            NodeOrToken::Token(t) => t.start_pos(),
+        }
+    }
+
+    /// Returns the position (line and column) where this node or token ends.
+    pub fn end_pos<E: Encoding>(&self) -> Position<E> {
+        match self {
+            NodeOrToken::Node(n) => n.end_pos(),
+            NodeOrToken::Token(t) => t.end_pos(),
         }
     }
 }
@@ -859,8 +889,14 @@ impl<M: Clone> Node<M> {
 
     /// Returns the position (line and column) where this node starts.
     #[inline]
-    pub fn position<E: Encoding>(&self) -> Position<E> {
-        self.first_token().unwrap().position()
+    pub fn start_pos<E: Encoding>(&self) -> Position<E> {
+        self.first_token().unwrap().start_pos()
+    }
+
+    /// Returns the position (line and column) where this node ends.
+    #[inline]
+    pub fn end_pos<E: Encoding>(&self) -> Position<E> {
+        self.last_token().unwrap().end_pos()
     }
 
     /// Returns the parent of this node.

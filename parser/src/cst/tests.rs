@@ -216,116 +216,125 @@ fn cst_5() {
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::RULE_KW);
-    assert_eq!(n.position::<Utf32>(), (0, 0).into());
-    assert_eq!(n.position::<Utf16>(), (0, 0).into());
-    assert_eq!(n.position::<Utf8>(), (0, 0).into());
+    assert_eq!(n.start_pos::<Utf32>(), (0, 0).into());
+    assert_eq!(n.start_pos::<Utf16>(), (0, 0).into());
+    assert_eq!(n.start_pos::<Utf8>(), (0, 0).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
-    assert_eq!(n.position::<Utf32>(), (0, 4).into());
-    assert_eq!(n.position::<Utf16>(), (0, 4).into());
-    assert_eq!(n.position::<Utf8>(), (0, 4).into());
+    assert_eq!(n.start_pos::<Utf32>(), (0, 4).into());
+    assert_eq!(n.start_pos::<Utf16>(), (0, 4).into());
+    assert_eq!(n.start_pos::<Utf8>(), (0, 4).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::IDENT);
-    assert_eq!(n.position::<Utf32>(), (0, 5).into());
-    assert_eq!(n.position::<Utf16>(), (0, 5).into());
-    assert_eq!(n.position::<Utf8>(), (0, 5).into());
+    assert_eq!(n.start_pos::<Utf32>(), (0, 5).into());
+    assert_eq!(n.start_pos::<Utf16>(), (0, 5).into());
+    assert_eq!(n.start_pos::<Utf8>(), (0, 5).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
-    assert_eq!(n.position::<Utf32>(), (0, 9).into());
-    assert_eq!(n.position::<Utf16>(), (0, 9).into());
-    assert_eq!(n.position::<Utf8>(), (0, 9).into());
+    assert_eq!(n.start_pos::<Utf32>(), (0, 9).into());
+    assert_eq!(n.start_pos::<Utf16>(), (0, 9).into());
+    assert_eq!(n.start_pos::<Utf8>(), (0, 9).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::L_BRACE);
-    assert_eq!(n.position::<Utf32>(), (0, 10).into());
-    assert_eq!(n.position::<Utf16>(), (0, 10).into());
-    assert_eq!(n.position::<Utf8>(), (0, 10).into());
+    assert_eq!(n.start_pos::<Utf32>(), (0, 10).into());
+    assert_eq!(n.start_pos::<Utf16>(), (0, 10).into());
+    assert_eq!(n.start_pos::<Utf8>(), (0, 10).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::NEWLINE);
-    assert_eq!(n.position::<Utf32>(), (0, 11).into());
-    assert_eq!(n.position::<Utf16>(), (0, 11).into());
-    assert_eq!(n.position::<Utf8>(), (0, 11).into());
+    assert_eq!(n.start_pos::<Utf32>(), (0, 11).into());
+    assert_eq!(n.start_pos::<Utf16>(), (0, 11).into());
+    assert_eq!(n.start_pos::<Utf8>(), (0, 11).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
-    assert_eq!(n.position::<Utf32>(), (1, 0).into());
-    assert_eq!(n.position::<Utf16>(), (1, 0).into());
-    assert_eq!(n.position::<Utf8>(), (1, 0).into());
+    assert_eq!(n.start_pos::<Utf32>(), (1, 0).into());
+    assert_eq!(n.start_pos::<Utf16>(), (1, 0).into());
+    assert_eq!(n.start_pos::<Utf8>(), (1, 0).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::COMMENT);
-    assert_eq!(n.position::<Utf32>(), (1, 4).into());
-    assert_eq!(n.position::<Utf16>(), (1, 4).into());
-    assert_eq!(n.position::<Utf8>(), (1, 4).into());
+    assert_eq!(n.start_pos::<Utf32>(), (1, 4).into());
+    assert_eq!(n.start_pos::<Utf16>(), (1, 4).into());
+    assert_eq!(n.start_pos::<Utf8>(), (1, 4).into());
+    assert_eq!(n.end_pos::<Utf32>(), (3, 6).into());
+    assert_eq!(n.end_pos::<Utf16>(), (3, 6).into());
+    assert_eq!(n.end_pos::<Utf8>(), (3, 6).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::NEWLINE);
-    assert_eq!(n.position::<Utf32>(), (3, 6).into());
-    assert_eq!(n.position::<Utf16>(), (3, 6).into());
+    assert_eq!(n.start_pos::<Utf32>(), (3, 6).into());
+    assert_eq!(n.start_pos::<Utf16>(), (3, 6).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
-    assert_eq!(n.position::<Utf32>(), (4, 0).into());
-    assert_eq!(n.position::<Utf16>(), (4, 0).into());
-    assert_eq!(n.position::<Utf8>(), (4, 0).into());
+    assert_eq!(n.start_pos::<Utf32>(), (4, 0).into());
+    assert_eq!(n.start_pos::<Utf16>(), (4, 0).into());
+    assert_eq!(n.start_pos::<Utf8>(), (4, 0).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::CONDITION_BLK);
-    assert_eq!(n.position::<Utf32>(), (4, 4).into());
-    assert_eq!(n.position::<Utf16>(), (4, 4).into());
-    assert_eq!(n.position::<Utf8>(), (4, 4).into());
+    assert_eq!(n.start_pos::<Utf32>(), (4, 4).into());
+    assert_eq!(n.start_pos::<Utf16>(), (4, 4).into());
+    assert_eq!(n.start_pos::<Utf8>(), (4, 4).into());
+    assert_eq!(n.end_pos::<Utf32>(), (6, 21).into());
+    assert_eq!(n.end_pos::<Utf16>(), (6, 22).into());
+    assert_eq!(n.end_pos::<Utf8>(), (6, 24).into());
 
     let n1 = n.first_child_or_token().unwrap();
     assert_eq!(n1.kind(), SyntaxKind::CONDITION_KW);
-    assert_eq!(n1.position::<Utf32>(), (4, 4).into());
-    assert_eq!(n1.position::<Utf16>(), (4, 4).into());
-    assert_eq!(n1.position::<Utf8>(), (4, 4).into());
+    assert_eq!(n1.start_pos::<Utf32>(), (4, 4).into());
+    assert_eq!(n1.start_pos::<Utf16>(), (4, 4).into());
+    assert_eq!(n1.start_pos::<Utf8>(), (4, 4).into());
 
     let n1 = n1.next_sibling_or_token().unwrap();
     assert_eq!(n1.kind(), SyntaxKind::COLON);
-    assert_eq!(n1.position::<Utf32>(), (4, 13).into());
-    assert_eq!(n1.position::<Utf16>(), (4, 13).into());
-    assert_eq!(n1.position::<Utf8>(), (4, 13).into());
+    assert_eq!(n1.start_pos::<Utf32>(), (4, 13).into());
+    assert_eq!(n1.start_pos::<Utf16>(), (4, 13).into());
+    assert_eq!(n1.start_pos::<Utf8>(), (4, 13).into());
 
     let n1 = n1.next_sibling_or_token().unwrap();
     assert_eq!(n1.kind(), SyntaxKind::NEWLINE);
-    assert_eq!(n1.position::<Utf32>(), (4, 14).into());
-    assert_eq!(n1.position::<Utf16>(), (4, 14).into());
-    assert_eq!(n1.position::<Utf8>(), (4, 14).into());
+    assert_eq!(n1.start_pos::<Utf32>(), (4, 14).into());
+    assert_eq!(n1.start_pos::<Utf16>(), (4, 14).into());
+    assert_eq!(n1.start_pos::<Utf8>(), (4, 14).into());
 
     let n1 = n1.next_sibling_or_token().unwrap();
     assert_eq!(n1.kind(), SyntaxKind::WHITESPACE);
-    assert_eq!(n1.position::<Utf32>(), (5, 0).into());
-    assert_eq!(n1.position::<Utf16>(), (5, 0).into());
-    assert_eq!(n1.position::<Utf8>(), (5, 0).into());
+    assert_eq!(n1.start_pos::<Utf32>(), (5, 0).into());
+    assert_eq!(n1.start_pos::<Utf16>(), (5, 0).into());
+    assert_eq!(n1.start_pos::<Utf8>(), (5, 0).into());
 
     let n1 = n1.next_sibling_or_token().unwrap();
     assert_eq!(n1.kind(), SyntaxKind::BOOLEAN_EXPR);
-    assert_eq!(n1.position::<Utf32>(), (5, 8).into());
-    assert_eq!(n1.position::<Utf16>(), (5, 8).into());
-    assert_eq!(n1.position::<Utf8>(), (5, 8).into());
+    assert_eq!(n1.start_pos::<Utf32>(), (5, 8).into());
+    assert_eq!(n1.start_pos::<Utf16>(), (5, 8).into());
+    assert_eq!(n1.start_pos::<Utf8>(), (5, 8).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::NEWLINE);
-    assert_eq!(n.position::<Utf32>(), (6, 21).into());
-    assert_eq!(n.position::<Utf16>(), (6, 22).into());
-    assert_eq!(n.position::<Utf8>(), (6, 24).into());
+    assert_eq!(n.start_pos::<Utf32>(), (6, 21).into());
+    assert_eq!(n.start_pos::<Utf16>(), (6, 22).into());
+    assert_eq!(n.start_pos::<Utf8>(), (6, 24).into());
+    assert_eq!(n.end_pos::<Utf32>(), (7, 0).into());
+    assert_eq!(n.end_pos::<Utf16>(), (7, 0).into());
+    assert_eq!(n.end_pos::<Utf8>(), (7, 0).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
-    assert_eq!(n.position::<Utf32>(), (7, 0).into());
-    assert_eq!(n.position::<Utf16>(), (7, 0).into());
-    assert_eq!(n.position::<Utf8>(), (7, 0).into());
+    assert_eq!(n.start_pos::<Utf32>(), (7, 0).into());
+    assert_eq!(n.start_pos::<Utf16>(), (7, 0).into());
+    assert_eq!(n.start_pos::<Utf8>(), (7, 0).into());
 
     let n = c.next().unwrap();
     assert_eq!(n.kind(), SyntaxKind::R_BRACE);
-    assert_eq!(n.position::<Utf32>(), (7, 4).into());
-    assert_eq!(n.position::<Utf16>(), (7, 4).into());
-    assert_eq!(n.position::<Utf8>(), (7, 4).into());
+    assert_eq!(n.start_pos::<Utf32>(), (7, 4).into());
+    assert_eq!(n.start_pos::<Utf16>(), (7, 4).into());
+    assert_eq!(n.start_pos::<Utf8>(), (7, 4).into());
 }
 
 #[test]
