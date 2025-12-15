@@ -387,21 +387,78 @@ impl PartialEq<&'_ str> for Text {
     }
 }
 
-/// Represents a position in the source code by line and column number.
-///
-/// Both line and column numbers are zero-based. The column number is
-/// specified in number of characters, not bytes. Unicode characters
-/// represented by more than one byte count as a single column.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Position {
-    pub line: usize,
-    pub column: usize,
+/// Represents the encoding used to interpret column numbers.
+#[doc(hidden)]
+pub trait Encoding {
+    fn len(s: &str) -> usize;
 }
 
-impl From<(usize, usize)> for Position {
+/// Represents the UTF-8 encoding.
+#[derive(Debug, PartialEq)]
+#[doc(hidden)]
+pub struct Utf8 {}
+
+/// Represents the UTF-16 encoding.
+#[derive(Debug, PartialEq)]
+#[doc(hidden)]
+pub struct Utf16 {}
+
+/// Represents the UTF-32 encoding.
+#[derive(Debug, PartialEq)]
+#[doc(hidden)]
+pub struct Utf32 {}
+
+impl Encoding for Utf8 {
+    fn len(s: &str) -> usize {
+        s.len()
+    }
+}
+
+impl Encoding for Utf16 {
+    fn len(s: &str) -> usize {
+        s.encode_utf16().count()
+    }
+}
+
+impl Encoding for Utf32 {
+    fn len(s: &str) -> usize {
+        s.chars().count()
+    }
+}
+
+/// Represents a position in the source code expressed as a line and column
+/// number.
+///
+/// Line and column numbers are zero-based. The meaning of the column number
+/// depends on the encoding:
+///
+/// * [`Utf8`]: the column number is expressed as UTF-8 code units (bytes).
+///   In this mode the column number is the byte offset of the character
+///   counted from the start of the line.
+/// * [`Utf16`]: the column number is expressed as UTF-16 code units.
+///   In this mode the column number is the number of UTF-16 code units from
+///   the start of the line. In UTF-16 each character is composed of 1 or 2
+///   code units.
+/// * [`Utf32`]: the column number is expressed as UTF-32 code units. In
+///   UTF-32 all characters are expressed as a single code unit, therefore
+///   in this mode the column number corresponds to the number of characters
+///   from the start of the line.
+///
+/// In [`Utf32`] mode, the column is synonymous with the "character count",
+/// while in [`Utf8`] and [`Utf16`], the column number reflects the underlying
+/// memory usage, not necessarily the number of visible characters.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[doc(hidden)]
+pub struct Position<E: Encoding> {
+    pub line: usize,
+    pub column: usize,
+    _encoding: PhantomData<E>,
+}
+
+impl<E: Encoding> From<(usize, usize)> for Position<E> {
     #[inline]
     fn from((line, column): (usize, usize)) -> Self {
-        Self { line, column }
+        Self { line, column, _encoding: PhantomData }
     }
 }
 
@@ -453,8 +510,28 @@ impl<M: Clone> Token<M> {
         Span(self.inner.text_range().into())
     }
 
+    /// Returns the length of the token.
+    ///
+    /// The length of the token depends on the encoding in the following
+    /// way:
+    ///
+    /// * [`Utf8`]: the length is expressed as the number of code units in the
+    ///   UTF-8 representation of the token. Each code unit is 1 byte long, and
+    ///   each character is represented by a 1, 2, 3 or 4 code units.
+    /// * [`Utf16`]: the length is expressed as the number of code units in the
+    ///   UTF-16 representation of the token. Each code unit is 2 bytes long,
+    ///   and each character is represented by 1 or 2 code units.
+    /// * [`Utf32`]: the length is expressed as the number of code units in the
+    ///   UTF-32 representation of the token. Each code unit is 4 bytes long,
+    ///   and each character is represented by exactly 1 code unit. This is
+    ///   equivalent to the character count of the token.
+    #[inline]
+    pub fn len<E: Encoding>(&self) -> usize {
+        E::len(self.text())
+    }
+
     /// Returns position (line and column) where this token starts.
-    pub fn position(&self) -> Position {
+    pub fn position<E: Encoding>(&self) -> Position<E> {
         // Initially we assume that the token is in line 0, column 0.
         let mut line = 0;
         let mut column = 0;
@@ -463,30 +540,30 @@ impl<M: Clone> Token<M> {
         // line number is incremented. Comments can contain newlines too. When
         // a comment is found, the line number is incremented by the number of
         // newlines contained in the comment.
-        let mut prev_token = self.inner.prev_token();
+        let mut prev_token = self.prev_token();
         while let Some(token) = prev_token {
             match token.kind() {
                 NEWLINE => line += 1,
                 COMMENT => {
                     if line == 0 {
-                        column += token
-                            .text()
-                            .chars()
-                            .rev()
-                            .take_while(|c| *c != '\n')
-                            .count();
+                        let comment = token.text();
+                        let last_line = match comment.rfind('\n') {
+                            Some(idx) => &comment[idx + 1..],
+                            None => comment, // no newline → whole comment
+                        };
+                        column += E::len(last_line);
                     }
                     line += token.text().chars().filter(|c| *c == '\n').count()
                 }
                 _ => {
                     if line == 0 {
-                        column += token.text().chars().count();
+                        column += token.len::<E>()
                     }
                 }
             }
             prev_token = token.prev_token();
         }
-        Position { line, column }
+        Position::from((line, column))
     }
 
     #[inline]
@@ -700,7 +777,7 @@ impl<M: Clone> NodeOrToken<M> {
     }
 
     /// Returns the position (line and column) where this node or token starts.
-    pub fn position(&self) -> Position {
+    pub fn position<E: Encoding>(&self) -> Position<E> {
         match self {
             NodeOrToken::Node(n) => n.position(),
             NodeOrToken::Token(t) => t.position(),
@@ -782,7 +859,7 @@ impl<M: Clone> Node<M> {
 
     /// Returns the position (line and column) where this node starts.
     #[inline]
-    pub fn position(&self) -> Position {
+    pub fn position<E: Encoding>(&self) -> Position<E> {
         self.first_token().unwrap().position()
     }
 
@@ -1031,14 +1108,14 @@ impl<M: Clone> Node<M> {
             .map(Token::new)
     }
 
-    /// Returns the token at a given line and column within the source code.
+    /// Returns the token at a given position within the source code.
     ///
     /// Both line and column numbers are zero-based. If the line and column
     /// numbers point to code that is outside the current node, this function
     /// returns `None`.
     ///
     /// ```rust
-    /// # use yara_x_parser::cst::SyntaxKind;
+    /// # use yara_x_parser::cst::{Utf32, SyntaxKind};
     /// use yara_x_parser::Parser;
     /// let mut root_node = Parser::new(
     /// br#"rule test {
@@ -1052,25 +1129,25 @@ impl<M: Clone> Node<M> {
     ///
     /// // Token at line 0, column 0 is `SyntaxKind::RULE_KW`.
     /// assert_eq!(
-    ///     root_node.token_at_position((0,0)).unwrap().kind(),
+    ///     root_node.token_at_position::<Utf32, _>((0,0)).unwrap().kind(),
     ///     SyntaxKind::RULE_KW);
     ///
     /// // Token at line 1, column 0 is `SyntaxKind::CONDITION_KW`.
     /// assert_eq!(
-    ///     root_node.token_at_position((1,0)).unwrap().kind(),
+    ///     root_node.token_at_position::<Utf32, _>((1,0)).unwrap().kind(),
     ///     SyntaxKind::CONDITION_KW);
     ///
     /// // Token at line 2, column 2 is `SyntaxKind::TRUE_KW`.
     /// assert_eq!(
-    ///     root_node.token_at_position((2,2)).unwrap().kind(),
+    ///     root_node.token_at_position::<Utf32, _>((2,2)).unwrap().kind(),
     ///     SyntaxKind::TRUE_KW);
     ///
     /// // Token at line 3, column 6 is `SyntaxKind::FALSE_KW`.
     /// assert_eq!(
-    ///     root_node.token_at_position((3,6)).unwrap().kind(),
+    ///     root_node.token_at_position::<Utf32, _>((3,6)).unwrap().kind(),
     ///     SyntaxKind::FALSE_KW);
     /// ```
-    pub fn token_at_position<P: Into<Position>>(
+    pub fn token_at_position<E: Encoding, P: Into<Position<E>>>(
         &self,
         position: P,
     ) -> Option<Token<M>> {
@@ -1080,8 +1157,7 @@ impl<M: Clone> Node<M> {
         let mut next_token = self.root().first_token();
 
         while let Some(token) = next_token {
-            // Token length in number of characters, not in bytes.
-            let token_len = token.text().chars().count();
+            let token_len = token.len::<E>();
             if position.line == line
                 && position.column >= col
                 && position.column < col + token_len
@@ -1110,19 +1186,15 @@ impl<M: Clone> Node<M> {
                     if line > position.line {
                         return Some(token);
                     }
-                    // Compute the length of the last line in the comment.
-                    let last_line_len = comment
-                        .chars()
-                        .rev()
-                        .take_while(|c| *c != '\n')
-                        .count();
+                    let last_line = match comment.rfind('\n') {
+                        Some(idx) => &comment[idx + 1..],
+                        None => comment, // no newline → whole comment
+                    };
                     // If there is some newline, column number is reset to zero.
                     if newlines > 0 {
                         col = 0;
                     }
-                    // The column number is reset to the number of characters
-                    // in the last line.
-                    col += last_line_len;
+                    col += E::len(last_line);
                     // After the incrementing line and column numbers, the
                     // requested position is in the final line, and before the
                     // column where the comment ends. This means that the
