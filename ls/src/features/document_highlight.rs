@@ -11,10 +11,10 @@ use crate::utils::{
     position::{node_to_range, token_to_range},
 };
 
-// The document highlight request is sent from the client to the server to
-// resolve document highlights for a given text document position. When the
-// specified position is contained in a symbol, the response contains the
-// ranges of all occurrences of that symbol in the source code.
+/// The document highlight request is sent from the client to the server to
+/// resolve document highlights for a given text document position. When the
+/// specified position is contained in a symbol, the response contains the
+/// ranges of all occurrences of that symbol in the source code.
 pub fn document_highlight(
     cst: CST,
     pos: Position,

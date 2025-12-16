@@ -270,7 +270,7 @@ where
                             span.start(),
                         );
                     }
-                    // The span must within the source code, this unwrap
+                    // The span must be within the source code, this unwrap
                     // can't fail.
                     let token = source.get(span.range()).unwrap();
                     let token = from_utf8(token)?;

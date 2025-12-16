@@ -23,11 +23,10 @@ use async_lsp::lsp_types::{
     OneOf, PublishDiagnosticsParams, ReferenceParams,
     RelatedFullDocumentDiagnosticReport, RenameParams, SaveOptions,
     SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability,
-    SemanticTokenModifier, SemanticTokenType, SemanticTokensFullOptions,
-    SemanticTokensLegend, SemanticTokensOptions, SemanticTokensResult,
-    SemanticTokensServerCapabilities, ServerCapabilities,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-    TextDocumentSyncSaveOptions, Url, WorkspaceEdit,
+    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
+    SemanticTokensResult, SemanticTokensServerCapabilities,
+    ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind,
+    TextDocumentSyncOptions, TextDocumentSyncSaveOptions, Url, WorkspaceEdit,
 };
 
 use async_lsp::router::Router;
@@ -35,9 +34,12 @@ use async_lsp::{ClientSocket, LanguageClient, LanguageServer, ResponseError};
 
 use futures::future::BoxFuture;
 
-use yara_x_parser::cst::{CSTStream, CST};
+use yara_x_parser::cst::CST;
 use yara_x_parser::Parser;
 
+use crate::features::semtokens::{
+    SEMANTIC_TOKEN_MODIFIERS, SEMANTIC_TOKEN_TYPES,
+};
 use crate::features::{
     completion, diagnostics, document_highlight, document_symbol, goto, hover,
     references, rename, selection_range, semtokens,
@@ -67,7 +69,7 @@ pub struct ServerState {
     should_send_diagnostics: bool,
 }
 
-/// Implements document synchonization and various LSP features.
+/// Implements document synchronization and various LSP features.
 ///
 /// The features itself are implemented in [`crate::features`] module,
 /// this trait is responsible for routing the request to appropriate feature.
@@ -94,20 +96,8 @@ impl LanguageServer for ServerState {
                             SemanticTokensOptions {
                                 full: Some(SemanticTokensFullOptions::Bool(true)),
                                 legend: SemanticTokensLegend {
-                                    token_types: vec![
-                                        SemanticTokenType::KEYWORD,
-                                        SemanticTokenType::STRING,
-                                        SemanticTokenType::CLASS,
-                                        SemanticTokenType::VARIABLE,
-                                        SemanticTokenType::NUMBER,
-                                        SemanticTokenType::OPERATOR,
-                                        SemanticTokenType::FUNCTION,
-                                        SemanticTokenType::REGEXP,
-                                        SemanticTokenType::COMMENT,
-                                        SemanticTokenType::PARAMETER, // Should be SemanticTokenType::MODIFIER for pattern modifiers
-                                        SemanticTokenType::MACRO,
-                                    ],
-                                    token_modifiers: vec![SemanticTokenModifier::DEFINITION],
+                                    token_types: Vec::from(SEMANTIC_TOKEN_TYPES),
+                                    token_modifiers: Vec::from(SEMANTIC_TOKEN_MODIFIERS),
                                 },
                                 ..Default::default()
                             },
@@ -295,18 +285,19 @@ impl LanguageServer for ServerState {
     ) -> BoxFuture<'static, Result<Option<SemanticTokensResult>, Self::Error>>
     {
         let uri = params.text_document.uri;
-        let text = self.documents.get(&uri).cloned();
+        let text = match self.documents.get(&uri) {
+            Some(text) => text,
+            None => return Box::pin(async { Ok(None) }),
+        };
 
-        Box::pin(async move {
-            if let Some(text) = text {
-                let cststream = CSTStream::from(Parser::new(text.as_bytes()));
-                Ok(Some(SemanticTokensResult::Tokens(
-                    semtokens::semantic_tokens(cststream, &text),
-                )))
-            } else {
-                Ok(None)
-            }
-        })
+        let cst = match CST::try_from(Parser::new(text.as_bytes())) {
+            Ok(cst) => cst,
+            Err(_) => return Box::pin(async { Ok(None) }),
+        };
+
+        let tokens = semtokens::semantic_tokens(cst);
+
+        Box::pin(async move { Ok(Some(SemanticTokensResult::Tokens(tokens))) })
     }
 
     fn rename(
