@@ -131,6 +131,10 @@ fn token_type(
             Some((SemanticTokenType::OPERATOR, Modifiers::empty()))
         }
 
+        SyntaxKind::REGEXP => {
+            Some((SemanticTokenType::REGEXP, Modifiers::empty()))
+        }
+
         SyntaxKind::STRING_LIT => {
             Some((SemanticTokenType::STRING, Modifiers::empty()))
         }
