@@ -40,19 +40,6 @@ bitflags! {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn semantic_token_modifiers() {
-        // Make sure that the number of flags in `Modifiers` matches
-        // the number of items in `SEMANTIC_TOKEN_MODIFIERS`.
-        assert_eq!(
-            super::SEMANTIC_TOKEN_MODIFIERS.len() as u32,
-            super::Modifiers::all().bits().count_ones()
-        );
-    }
-}
-
 /// Given a semantic token type, returns its index in the
 /// [`SEMANTIC_TOKEN_TYPES`] array.
 fn token_type_index(value: SemanticTokenType) -> u32 {
@@ -264,4 +251,17 @@ pub fn semantic_tokens(cst: CST) -> SemanticTokens {
     }
 
     SemanticTokens { data: result, ..Default::default() }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn semantic_token_modifiers() {
+        // Make sure that the number of flags in `Modifiers` matches
+        // the number of items in `SEMANTIC_TOKEN_MODIFIERS`.
+        assert_eq!(
+            super::SEMANTIC_TOKEN_MODIFIERS.len() as u32,
+            super::Modifiers::all().bits().count_ones()
+        );
+    }
 }
