@@ -37,12 +37,12 @@ use futures::future::BoxFuture;
 use yara_x_parser::cst::CST;
 use yara_x_parser::Parser;
 
-use crate::features::semtokens::{
+use crate::features::semantic_tokens::{
     SEMANTIC_TOKEN_MODIFIERS, SEMANTIC_TOKEN_TYPES,
 };
 use crate::features::{
     completion, diagnostics, document_highlight, document_symbol, goto, hover,
-    references, rename, selection_range, semtokens,
+    references, rename, selection_range, semantic_tokens,
 };
 
 /// Stores the state of the Language Server.
@@ -295,7 +295,7 @@ impl LanguageServer for ServerState {
             Err(_) => return Box::pin(async { Ok(None) }),
         };
 
-        let tokens = semtokens::semantic_tokens(cst);
+        let tokens = semantic_tokens::semantic_tokens(cst);
 
         Box::pin(async move { Ok(Some(SemanticTokensResult::Tokens(tokens))) })
     }

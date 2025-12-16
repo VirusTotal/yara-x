@@ -229,7 +229,7 @@ impl Iterator for SemanticTokensIter {
 /// Returns semantic tokens for the given CST stream and text.
 ///
 /// Semantic tokens are used to add additional color information to a file that
-///  depends on language specific symbol information.
+/// depends on language specific symbol information.
 pub fn semantic_tokens(cst: CST) -> SemanticTokens {
     let tokens = SemanticTokensIter::new(cst);
     let mut prev_position = Position::default();
