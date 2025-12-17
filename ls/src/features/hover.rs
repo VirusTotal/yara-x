@@ -1,9 +1,8 @@
 use async_lsp::lsp_types::{
     HoverContents, MarkupContent, MarkupKind, Position,
 };
-use yara_x_parser::cst::{
-    Immutable, Mutable, Node, NodeOrToken, SyntaxKind, Utf16, Utf8, CST,
-};
+
+use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Utf16, Utf8, CST};
 
 use crate::utils::cst_traversal::{
     pattern_from_strings, rule_containing_token, rule_from_ident,
@@ -13,8 +12,8 @@ use crate::utils::cst_traversal::{
 struct RuleHoverBuilder {
     name: String,
     metas: Option<Node<Immutable>>,
-    strings: Option<Node<Immutable>>,
-    condition: Option<Node<Mutable>>,
+    patterns: Option<Node<Immutable>>,
+    condition: Option<Node<Immutable>>,
 }
 
 impl RuleHoverBuilder {
@@ -23,7 +22,7 @@ impl RuleHoverBuilder {
         RuleHoverBuilder {
             name: String::from(name),
             metas: None,
-            strings: None,
+            patterns: None,
             condition: None,
         }
     }
@@ -41,11 +40,11 @@ impl RuleHoverBuilder {
             ",
             name = self.name,
             metas = self.process_metas().unwrap_or_default(),
-            strings = self.process_strings().unwrap_or_default(),
+            strings = self.process_patterns().unwrap_or_default(),
             condition = self
                 .process_condition()
                 .unwrap_or_default()
-                //Trim indents
+                // Trim indents
                 .split_inclusive('\n')
                 .fold(String::new(), |mut acc, line| {
                     acc.push_str(line.trim_start());
@@ -56,46 +55,34 @@ impl RuleHoverBuilder {
 
     /// Processes the meta block and returns its markdown representation.
     fn process_metas(&self) -> Option<String> {
-        let children = self.metas.clone()?.children();
         Some(
-            children
-                .filter(|node| node.kind() == SyntaxKind::META_DEF)
+            self.metas
+                .as_ref()?
+                .children()
                 .map(|node| format!("{}\n\n", node.text()))
                 .collect(),
         )
     }
 
     /// Processes the strings block and returns its markdown representation.
-    fn process_strings(&self) -> Option<String> {
-        let children = self.strings.clone()?.children();
+    fn process_patterns(&self) -> Option<String> {
         Some(
-            children
-                //All children in PATTERNS_BLK Node should be PATTERN_DEF
-                .map(|pattern_def| format!("`{}`\n\n", pattern_def.text()))
+            self.patterns
+                .as_ref()?
+                .children()
+                // All children in PATTERNS_BLK Node should be PATTERN_DEF
+                .map(|node| format!("`{}`\n\n", node.text()))
                 .collect(),
         )
     }
 
     /// Processes the condition block and returns its markdown representation.
     fn process_condition(&self) -> Option<String> {
-        let base = self.condition.clone()?;
-
-        // Detaches `condition:` part
-        let cond_prefix: Vec<NodeOrToken<Mutable>> = base
-            .children_with_tokens()
-            .take_while(|node_or_token| {
-                node_or_token.kind() == SyntaxKind::WHITESPACE
-                    || node_or_token.kind() == SyntaxKind::COLON
-                    || node_or_token.kind() == SyntaxKind::NEWLINE
-                    || node_or_token.kind() == SyntaxKind::CONDITION_KW
-            })
-            .collect();
-
-        for node_or_token in cond_prefix {
-            node_or_token.detach();
-        }
-
-        Some(format!("{}", base.text()))
+        self.condition
+            .as_ref()?
+            .children()
+            .find(|node| node.kind() == SyntaxKind::BOOLEAN_EXPR)
+            .map(|node| node.text().to_string())
     }
 
     /// Sets the meta block of the rule.
@@ -104,12 +91,12 @@ impl RuleHoverBuilder {
     }
 
     /// Sets the strings block of the rule.
-    pub fn set_strings(&mut self, strings: Node<Immutable>) {
-        self.strings = Some(strings);
+    pub fn set_patterns(&mut self, strings: Node<Immutable>) {
+        self.patterns = Some(strings);
     }
 
     /// Sets the condition block of the rule.
-    pub fn set_condition(&mut self, condition: Node<Mutable>) {
+    pub fn set_condition(&mut self, condition: Node<Immutable>) {
         self.condition = Some(condition);
     }
 }
@@ -151,10 +138,10 @@ pub fn hover(cst: &CST, pos: Position) -> Option<HoverContents> {
                         builder.set_metas(child);
                     }
                     SyntaxKind::PATTERNS_BLK => {
-                        builder.set_strings(child);
+                        builder.set_patterns(child);
                     }
                     SyntaxKind::CONDITION_BLK => {
-                        builder.set_condition(child.into_mut());
+                        builder.set_condition(child);
                     }
                     _ => {}
                 }
