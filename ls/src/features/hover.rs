@@ -6,7 +6,7 @@ use yara_x_parser::cst::{
 };
 
 use crate::utils::cst_traversal::{
-    pattern_from_strings, rule_from_ident, rule_from_span,
+    pattern_from_strings, rule_containing_token, rule_from_ident,
 };
 
 /// Builder for hover markdown representation of a rule.
@@ -114,23 +114,24 @@ impl RuleHoverBuilder {
     }
 }
 
-pub fn hover_cst(cst: &CST, pos: Position) -> Option<HoverContents> {
-    let hover_cursor = cst.root().token_at_position::<Utf16, _>((
+pub fn hover(cst: &CST, pos: Position) -> Option<HoverContents> {
+    // Find the token at the position where the user is hovering.
+    let token = cst.root().token_at_position::<Utf16, _>((
         pos.line as usize,
         pos.character as usize,
     ))?;
 
     #[allow(irrefutable_let_patterns)]
-    match hover_cursor.kind() {
+    match token.kind() {
         // Pattern identifiers
         // PATTERN_IDENT($a) PATTERN_COUNT(#a) PATTERN_OFFSET(@a) PATTERN_LENGTH(!a)
         SyntaxKind::PATTERN_IDENT
         | SyntaxKind::PATTERN_COUNT
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
-            let rule = rule_from_span(cst, &hover_cursor.span())?;
+            let rule = rule_containing_token(&token)?;
 
-            let pattern = pattern_from_strings(&rule, hover_cursor.text())?;
+            let pattern = pattern_from_strings(&rule, token.text())?;
 
             Some(HoverContents::Markup(MarkupContent {
                 kind: MarkupKind::Markdown,
@@ -139,8 +140,8 @@ pub fn hover_cst(cst: &CST, pos: Position) -> Option<HoverContents> {
         }
         // Rule identifiers
         SyntaxKind::IDENT => {
-            let rule = rule_from_ident(cst, hover_cursor.text())?;
-            let mut builder = RuleHoverBuilder::new(hover_cursor.text());
+            let rule = rule_from_ident(cst, token.text())?;
+            let mut builder = RuleHoverBuilder::new(token.text());
 
             for child in rule.children() {
                 match child.kind() {

@@ -10,7 +10,7 @@ use crate::features::completion_const::{
     CONDITION_SUGGESTIONS, PATTERN_MOD, RULE_KW_BLKS, SRC_SUGGESTIONS,
 };
 
-use crate::utils::cst_traversal::rule_from_span;
+use crate::utils::cst_traversal::rule_containing_token;
 
 /// Provides completion suggestions based on the cursor position and the
 /// block it is in.
@@ -136,7 +136,7 @@ fn condition_suggestions(
         | SyntaxKind::PATTERN_COUNT
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
-            let rule = rule_from_span(cst, &completion_prev_token.span())?;
+            let rule = rule_containing_token(&completion_prev_token)?;
 
             let patterns = rule
                 .children()

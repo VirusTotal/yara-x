@@ -1,13 +1,12 @@
 use async_lsp::lsp_types::{Location, Position, Url};
 use yara_x_parser::cst::{SyntaxKind, Utf16, CST};
 
-use crate::utils::{
-    cst_traversal::{
-        pattern_from_condition, pattern_from_strings, rule_from_condition,
-        rule_from_ident, rule_from_span,
-    },
-    position::{node_to_range, token_to_range},
+use crate::utils::cst_traversal::rule_containing_token;
+use crate::utils::cst_traversal::{
+    pattern_from_condition, pattern_from_strings, rule_from_condition,
+    rule_from_ident,
 };
+use crate::utils::position::{node_to_range, token_to_range};
 
 /// Finds all references of a symbol at the given position in the text.
 pub fn find_references(
@@ -29,7 +28,7 @@ pub fn find_references(
         | SyntaxKind::PATTERN_LENGTH => {
             let mut location_vec: Vec<Location> = Vec::new();
 
-            let rule = rule_from_span(cst, &references_click.span())?;
+            let rule = rule_containing_token(&references_click)?;
 
             let references =
                 pattern_from_condition(&rule, references_click.text());
@@ -66,8 +65,7 @@ pub fn find_references(
                 }
             }
 
-            let references =
-                rule_from_condition(cst, references_click.text());
+            let references = rule_from_condition(cst, references_click.text());
 
             if let Some(references) = references {
                 for reference in references {

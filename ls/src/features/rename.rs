@@ -1,13 +1,12 @@
 use async_lsp::lsp_types::{Position, TextEdit};
 use yara_x_parser::cst::{NodeOrToken, SyntaxKind, Utf16, CST};
 
-use crate::utils::{
-    cst_traversal::{
-        pattern_from_condition, pattern_from_strings, rule_from_condition,
-        rule_from_ident, rule_from_span,
-    },
-    position::token_to_range,
+use crate::utils::cst_traversal::rule_containing_token;
+use crate::utils::cst_traversal::{
+    pattern_from_condition, pattern_from_strings, rule_from_condition,
+    rule_from_ident,
 };
+use crate::utils::position::token_to_range;
 
 /// Renames all occurrences of a symbol at the given position in the text.
 pub fn rename(
@@ -29,7 +28,7 @@ pub fn rename(
         | SyntaxKind::PATTERN_COUNT
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
-            let rule = rule_from_span(cst, &rename_cursor.span())?;
+            let rule = rule_containing_token(&rename_cursor)?;
 
             //If user entered `$`, `!`, `#` or `@`, then ignore it
             //Because only text after these characters will change

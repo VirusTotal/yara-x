@@ -163,6 +163,9 @@ impl LanguageServer for YARALanguageServer {
         })
     }
 
+    /// Message received when the user hovers over some position in the
+    /// source code. The response is a text in Markdown format that the
+    /// editor shows as a tooltip.
     fn hover(
         &mut self,
         params: HoverParams,
@@ -174,11 +177,9 @@ impl LanguageServer for YARALanguageServer {
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let result = hover::hover_cst(
-            cst,
-            params.text_document_position_params.position,
-        )
-        .map(|contents| Hover { contents, range: None });
+        let result =
+            hover::hover(cst, params.text_document_position_params.position)
+                .map(|contents| Hover { contents, range: None });
 
         Box::pin(async move { Ok(result) })
     }

@@ -4,9 +4,8 @@ These functions are mainly used in [`crate::features`] module to find
 rules and patterns within the CST based on provided identifiers or positions.
  */
 
-use yara_x_parser::{
-    cst::{Immutable, Node, NodeOrToken, SyntaxKind, Token, CST},
-    Span,
+use yara_x_parser::cst::{
+    Immutable, Node, NodeOrToken, SyntaxKind, Token, CST,
 };
 
 /// Returns [`yara_x_parser::cst::Node`] containing rule declaration matching
@@ -46,19 +45,12 @@ pub(crate) fn rule_from_ident(
     None
 }
 
-/// Returns [`yara_x_parser::cst::Node`] containing rule declaration
-/// which span is in the range of the given absolute position if exists.
-pub(crate) fn rule_from_span(
-    cst: &CST,
-    other: &Span,
+/// Given a token in the CST, returns the node that corresponds to the rule
+/// that contains that token.
+pub(crate) fn rule_containing_token(
+    token: &Token<Immutable>,
 ) -> Option<Node<Immutable>> {
-    // Iterator over all rule declarations in the CST
-    let mut rules = cst
-        .root()
-        .children()
-        .filter(|node| node.kind() == SyntaxKind::RULE_DECL);
-
-    rules.find(|node| node.span().contains(other))
+    token.ancestors().find(|node| node.kind() == SyntaxKind::RULE_DECL)
 }
 
 /// Returns [`yara_x_parser::cst::Node`] containing pattern declaration

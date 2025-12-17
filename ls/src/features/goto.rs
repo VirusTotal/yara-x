@@ -1,9 +1,10 @@
-use crate::utils::cst_traversal::{
-    pattern_from_strings, rule_from_ident, rule_from_span,
-};
-use crate::utils::position::node_to_range;
 use async_lsp::lsp_types::{Position, Range};
 use yara_x_parser::cst::{SyntaxKind, Utf16, CST};
+
+use crate::utils::cst_traversal::{
+    pattern_from_strings, rule_containing_token, rule_from_ident,
+};
+use crate::utils::position::node_to_range;
 
 /// Return the range of the definition of a symbol at the specified
 /// position in the text if exists.
@@ -21,8 +22,7 @@ pub fn go_to_definition(cst: &CST, pos: Position) -> Option<Range> {
         | SyntaxKind::PATTERN_COUNT
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
-            let rule = rule_from_span(cst, &goto_cursor.span())?;
-
+            let rule = rule_containing_token(&goto_cursor)?;
             let pattern = pattern_from_strings(&rule, goto_cursor.text())?;
 
             node_to_range(&pattern)
