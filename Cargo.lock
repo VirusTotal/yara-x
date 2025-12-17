@@ -5255,6 +5255,7 @@ dependencies = [
  "async-lsp",
  "bitflags 2.10.0",
  "futures",
+ "goldenfile",
  "serde",
  "serde_json",
  "tokio",

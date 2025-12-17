@@ -1,0 +1,9 @@
+{
+  "textDocument": {
+    "uri": "file:///completion1.yar"
+  },
+  "position": {
+    "line": 0,
+    "character": 1
+  }
+}

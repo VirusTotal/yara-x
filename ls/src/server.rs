@@ -1,6 +1,6 @@
 /*! This module implements [Language Server Protocol (LSP)][1] for YARA-X.
 
-By implementing [`async_lsp::LanguageServer`] trait for [`ServerState`], it
+By implementing [`async_lsp::LanguageServer`] trait for [`YARALanguageServer`], it
 defines how the server should process various LSP requests and notifications.
 
 [1]: https://microsoft.github.io/language-server-protocol/
@@ -31,7 +31,6 @@ use async_lsp::lsp_types::{
 
 use async_lsp::router::Router;
 use async_lsp::{ClientSocket, LanguageClient, LanguageServer, ResponseError};
-
 use futures::future::BoxFuture;
 
 use yara_x_parser::cst::CST;
@@ -45,16 +44,38 @@ use crate::features::{
     references, rename, selection_range, semantic_tokens,
 };
 
-/// Stores the state of the Language Server.
-pub struct ServerState {
+pub struct DocumentStore {
+    documents: HashMap<Url, (String, CST)>,
+}
+
+impl DocumentStore {
+    fn new() -> Self {
+        Self { documents: HashMap::new() }
+    }
+
+    fn get(&self, url: &Url) -> Option<&(String, CST)> {
+        self.documents.get(url)
+    }
+
+    fn insert(&mut self, url: Url, document: (String, CST)) {
+        self.documents.insert(url, document);
+    }
+
+    fn remove(&mut self, url: &Url) -> Option<(String, CST)> {
+        self.documents.remove(url)
+    }
+}
+
+/// Represents a YARA language server.
+pub struct YARALanguageServer {
     /// Client socket for communication with the Development Tool.
     ///
     /// Mainly used to send notifications sush as diagnostics updates,
     /// logging and showing messages, etc.
     client: ClientSocket,
 
-    /// Hashmap containing opened documents.
-    documents: HashMap<Url, String>,
+    /// Stores the currently open documents.
+    documents: DocumentStore,
 
     /// Flag indicating what document diagnostics model to use.
     ///
@@ -73,7 +94,7 @@ pub struct ServerState {
 ///
 /// The features itself are implemented in [`crate::features`] module,
 /// this trait is responsible for routing the request to appropriate feature.
-impl LanguageServer for ServerState {
+impl LanguageServer for YARALanguageServer {
     type Error = ResponseError;
     type NotifyResult = ControlFlow<async_lsp::Result<()>>;
 
@@ -81,7 +102,7 @@ impl LanguageServer for ServerState {
         &mut self,
         params: InitializeParams,
     ) -> BoxFuture<'static, Result<InitializeResult, Self::Error>> {
-        //Check if client supports pull model diagnostics
+        // Check if client supports pull model diagnostics
         if let Some(capabilities_td) = params.capabilities.text_document {
             if capabilities_td.diagnostic.is_some() {
                 self.should_send_diagnostics = false;
@@ -147,23 +168,19 @@ impl LanguageServer for ServerState {
         params: HoverParams,
     ) -> BoxFuture<'static, Result<Option<Hover>, Self::Error>> {
         let uri = params.text_document_position_params.text_document.uri;
-        let text = self.documents.get(&uri).cloned();
 
-        Box::pin(async move {
-            if let Some(text) = text {
-                if let Ok(cst) = CST::try_from(Parser::new(text.as_bytes())) {
-                    Ok(hover::hover_cst(
-                        cst,
-                        params.text_document_position_params.position,
-                    )
-                    .map(|contents| Hover { contents, range: None }))
-                } else {
-                    Ok(None)
-                }
-            } else {
-                Ok(None)
-            }
-        })
+        let (_, cst) = match self.documents.get(&uri) {
+            Some(entry) => entry,
+            None => return Box::pin(async { Ok(None) }),
+        };
+
+        let result = hover::hover_cst(
+            cst,
+            params.text_document_position_params.position,
+        )
+        .map(|contents| Hover { contents, range: None });
+
+        Box::pin(async move { Ok(result) })
     }
 
     fn definition(
@@ -172,25 +189,19 @@ impl LanguageServer for ServerState {
     ) -> BoxFuture<'static, Result<Option<GotoDefinitionResponse>, Self::Error>>
     {
         let uri = params.text_document_position_params.text_document.uri;
-        let text = self.documents.get(&uri).cloned();
 
-        Box::pin(async move {
-            if let Some(text) = text {
-                if let Ok(cst) = CST::try_from(Parser::new(text.as_bytes())) {
-                    Ok(goto::go_to_definition(
-                        cst,
-                        params.text_document_position_params.position,
-                    )
-                    .map(|range| {
-                        GotoDefinitionResponse::Scalar(Location { uri, range })
-                    }))
-                } else {
-                    Ok(None)
-                }
-            } else {
-                Ok(None)
-            }
-        })
+        let (_, cst) = match self.documents.get(&uri) {
+            Some(entry) => entry,
+            None => return Box::pin(async { Ok(None) }),
+        };
+
+        let result = goto::go_to_definition(
+            cst,
+            params.text_document_position_params.position,
+        )
+        .map(|range| GotoDefinitionResponse::Scalar(Location { uri, range }));
+
+        Box::pin(async move { Ok(result) })
     }
 
     fn references(
@@ -198,20 +209,19 @@ impl LanguageServer for ServerState {
         params: ReferenceParams,
     ) -> BoxFuture<'static, Result<Option<Vec<Location>>, Self::Error>> {
         let uri = params.text_document_position.text_document.uri;
-        let position = params.text_document_position.position;
-        let text = self.documents.get(&uri).cloned();
 
-        Box::pin(async move {
-            if let Some(text) = text {
-                if let Ok(cst) = CST::try_from(Parser::new(text.as_bytes())) {
-                    Ok(references::find_references(cst, position, uri))
-                } else {
-                    Ok(None)
-                }
-            } else {
-                Ok(None)
-            }
-        })
+        let (_, cst) = match self.documents.get(&uri) {
+            Some(entry) => entry,
+            None => return Box::pin(async { Ok(None) }),
+        };
+
+        let references = references::find_references(
+            cst,
+            params.text_document_position.position,
+            uri,
+        );
+
+        Box::pin(async move { Ok(references) })
     }
 
     fn completion(
@@ -220,20 +230,18 @@ impl LanguageServer for ServerState {
     ) -> BoxFuture<'static, Result<Option<CompletionResponse>, Self::Error>>
     {
         let uri = params.text_document_position.text_document.uri;
-        let position = params.text_document_position.position;
-        let text = self.documents.get(&uri).cloned();
 
-        Box::pin(async move {
-            if let Some(text) = text {
-                if let Ok(cst) = CST::try_from(Parser::new(text.as_bytes())) {
-                    Ok(completion::completion(cst, position))
-                } else {
-                    Ok(None)
-                }
-            } else {
-                Ok(None)
-            }
-        })
+        let (_, cst) = match self.documents.get(&uri) {
+            Some(entry) => entry,
+            None => return Box::pin(async { Ok(None) }),
+        };
+
+        let completions = completion::completion(
+            cst,
+            params.text_document_position.position,
+        );
+
+        Box::pin(async move { Ok(completions) })
     }
 
     fn document_highlight(
@@ -242,20 +250,18 @@ impl LanguageServer for ServerState {
     ) -> BoxFuture<'static, Result<Option<Vec<DocumentHighlight>>, Self::Error>>
     {
         let uri = params.text_document_position_params.text_document.uri;
-        let position = params.text_document_position_params.position;
-        let text = self.documents.get(&uri).cloned();
 
-        Box::pin(async move {
-            if let Some(text) = text {
-                if let Ok(cst) = CST::try_from(Parser::new(text.as_bytes())) {
-                    Ok(document_highlight::document_highlight(cst, position))
-                } else {
-                    Ok(None)
-                }
-            } else {
-                Ok(None)
-            }
-        })
+        let (_, cst) = match self.documents.get(&uri) {
+            Some(entry) => entry,
+            None => return Box::pin(async { Ok(None) }),
+        };
+
+        let highlights = document_highlight::document_highlight(
+            cst,
+            params.text_document_position_params.position,
+        );
+
+        Box::pin(async move { Ok(highlights) })
     }
 
     fn document_symbol(
@@ -264,19 +270,17 @@ impl LanguageServer for ServerState {
     ) -> BoxFuture<'static, Result<Option<DocumentSymbolResponse>, Self::Error>>
     {
         let uri = params.text_document.uri;
-        let text = self.documents.get(&uri).cloned();
 
-        Box::pin(async move {
-            if let Some(text) = text {
-                if let Ok(cst) = CST::try_from(Parser::new(text.as_bytes())) {
-                    Ok(document_symbol::document_symbol(cst, &text))
-                } else {
-                    Ok(None)
-                }
-            } else {
-                Ok(None)
-            }
-        })
+        let (_, cst) = match self.documents.get(&uri) {
+            Some(entry) => entry,
+            None => return Box::pin(async { Ok(None) }),
+        };
+
+        let symbols = document_symbol::document_symbol(cst);
+
+        Box::pin(
+            async move { Ok(Some(DocumentSymbolResponse::Nested(symbols))) },
+        )
     }
 
     fn semantic_tokens_full(
@@ -285,14 +289,10 @@ impl LanguageServer for ServerState {
     ) -> BoxFuture<'static, Result<Option<SemanticTokensResult>, Self::Error>>
     {
         let uri = params.text_document.uri;
-        let text = match self.documents.get(&uri) {
-            Some(text) => text,
-            None => return Box::pin(async { Ok(None) }),
-        };
 
-        let cst = match CST::try_from(Parser::new(text.as_bytes())) {
-            Ok(cst) => cst,
-            Err(_) => return Box::pin(async { Ok(None) }),
+        let (_, cst) = match self.documents.get(&uri) {
+            Some(entry) => entry,
+            None => return Box::pin(async { Ok(None) }),
         };
 
         let tokens = semantic_tokens::semantic_tokens(cst);
@@ -305,14 +305,10 @@ impl LanguageServer for ServerState {
         params: RenameParams,
     ) -> BoxFuture<'static, Result<Option<WorkspaceEdit>, Self::Error>> {
         let uri = params.text_document_position.text_document.uri;
-        let text = match self.documents.get(&uri) {
-            Some(text) => text,
-            None => return Box::pin(async { Ok(None) }),
-        };
 
-        let cst = match CST::try_from(Parser::new(text.as_bytes())) {
-            Ok(cst) => cst,
-            Err(_) => return Box::pin(async { Ok(None) }),
+        let (_, cst) = match self.documents.get(&uri) {
+            Some(entry) => entry,
+            None => return Box::pin(async { Ok(None) }),
         };
 
         let changes = rename::rename(
@@ -331,14 +327,11 @@ impl LanguageServer for ServerState {
         params: SelectionRangeParams,
     ) -> BoxFuture<'static, Result<Option<Vec<SelectionRange>>, Self::Error>>
     {
-        let text = match self.documents.get(&params.text_document.uri) {
-            Some(text) => text,
-            None => return Box::pin(async { Ok(None) }),
-        };
+        let uri = params.text_document.uri;
 
-        let cst = match CST::try_from(Parser::new(text.as_bytes())) {
-            Ok(cst) => cst,
-            Err(_) => return Box::pin(async { Ok(None) }),
+        let (_, cst) = match self.documents.get(&uri) {
+            Some(entry) => entry,
+            None => return Box::pin(async { Ok(None) }),
         };
 
         let ranges = selection_range::selection_range(cst, params.positions);
@@ -355,7 +348,7 @@ impl LanguageServer for ServerState {
         let diagnostics = self
             .documents
             .get(&params.text_document.uri)
-            .map(diagnostics::get_diagnostic_vec)
+            .map(|(text, _)| diagnostics::get_diagnostic_vec(text))
             .unwrap_or_default();
 
         Box::pin(async move {
@@ -381,10 +374,12 @@ impl LanguageServer for ServerState {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
 
-        self.documents.insert(uri.clone(), text);
+        // TODO: this fails with UTF-8 errors, what should we do?
+        if let Ok(cst) = CST::try_from(Parser::new(text.as_bytes())) {
+            self.documents.insert(uri.clone(), (text, cst));
+        }
 
         self.publish_diagnostics(&uri);
-
         ControlFlow::Continue(())
     }
 
@@ -394,10 +389,12 @@ impl LanguageServer for ServerState {
     ) -> Self::NotifyResult {
         if let Some(text) = params.text {
             let uri = params.text_document.uri;
-            self.documents.insert(uri.clone(), text);
+            // TODO: this fails with UTF-8 errors, what should we do?
+            if let Ok(cst) = CST::try_from(Parser::new(text.as_bytes())) {
+                self.documents.insert(uri.clone(), (text, cst));
+            }
             self.publish_diagnostics(&uri);
         }
-
         ControlFlow::Continue(())
     }
 
@@ -405,14 +402,20 @@ impl LanguageServer for ServerState {
         &mut self,
         params: DidChangeTextDocumentParams,
     ) -> Self::NotifyResult {
-        let uri = params.text_document.uri;
-
         for change in params.content_changes.into_iter() {
-            self.documents.insert(uri.clone(), change.text);
+            // TODO: this fails with UTF-8 errors, what should we do?
+            // TODO: it seems that if change.range is Some(range) then change.text is
+            // is not the full document.
+            if let Ok(cst) = CST::try_from(Parser::new(change.text.as_bytes()))
+            {
+                self.documents.insert(
+                    params.text_document.uri.clone(),
+                    (change.text, cst),
+                );
+            }
         }
 
-        self.publish_diagnostics(&uri);
-
+        self.publish_diagnostics(&params.text_document.uri);
         ControlFlow::Continue(())
     }
 
@@ -420,10 +423,7 @@ impl LanguageServer for ServerState {
         &mut self,
         params: DidCloseTextDocumentParams,
     ) -> Self::NotifyResult {
-        let uri = params.text_document.uri;
-
-        self.documents.remove(&uri);
-
+        self.documents.remove(&params.text_document.uri);
         ControlFlow::Continue(())
     }
 
@@ -439,11 +439,11 @@ impl LanguageServer for ServerState {
     }
 }
 
-impl ServerState {
+impl YARALanguageServer {
     pub fn new_router(client: ClientSocket) -> Router<Self> {
         Router::from_language_server(Self {
             client,
-            documents: HashMap::new(),
+            documents: DocumentStore::new(),
             should_send_diagnostics: true,
         })
     }
@@ -451,7 +451,7 @@ impl ServerState {
     /// Sends diagnostics for specific document if publish model is used.
     fn publish_diagnostics(&mut self, uri: &Url) {
         if self.should_send_diagnostics {
-            if let Some(text) = self.documents.get(uri) {
+            if let Some((text, _)) = self.documents.get(uri) {
                 let _ = self.client.publish_diagnostics(
                     PublishDiagnosticsParams {
                         uri: uri.clone(),

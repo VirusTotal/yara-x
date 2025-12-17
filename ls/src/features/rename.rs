@@ -11,7 +11,7 @@ use crate::utils::{
 
 /// Renames all occurrences of a symbol at the given position in the text.
 pub fn rename(
-    cst: CST,
+    cst: &CST,
     new_name: String,
     pos: Position,
 ) -> Option<Vec<TextEdit>> {
@@ -29,7 +29,7 @@ pub fn rename(
         | SyntaxKind::PATTERN_COUNT
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
-            let rule = rule_from_span(&cst, &rename_cursor.span())?;
+            let rule = rule_from_span(cst, &rename_cursor.span())?;
 
             //If user entered `$`, `!`, `#` or `@`, then ignore it
             //Because only text after these characters will change
@@ -68,7 +68,7 @@ pub fn rename(
         }
         // Rule identifiers
         SyntaxKind::IDENT => {
-            let rule = rule_from_ident(&cst, rename_cursor.text());
+            let rule = rule_from_ident(cst, rename_cursor.text());
 
             if let Some(rule) = rule {
                 if let Some(NodeOrToken::Token(ident)) =
@@ -82,7 +82,7 @@ pub fn rename(
                 }
             }
 
-            let occurrences = rule_from_condition(&cst, rename_cursor.text());
+            let occurrences = rule_from_condition(cst, rename_cursor.text());
 
             if let Some(occurrences) = occurrences {
                 for occurrence in occurrences {

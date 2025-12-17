@@ -1,32 +1,26 @@
-use async_lsp::lsp_types::{
-    DocumentSymbol, DocumentSymbolResponse, SymbolKind,
-};
+use async_lsp::lsp_types::{DocumentSymbol, SymbolKind};
+
 use yara_x_parser::cst::{
     Immutable, Node, NodeOrToken, Nodes, SyntaxKind, CST,
 };
 
-use crate::utils::position::to_range;
+use crate::utils::position::{node_to_range, token_to_range};
 
 /// Returns document symbol response for the given document based on its CST.
 #[allow(deprecated)]
-pub fn document_symbol(
-    cst: CST,
-    text: &str,
-) -> Option<DocumentSymbolResponse> {
+pub fn document_symbol(cst: &CST) -> Vec<DocumentSymbol> {
     let mut all_symbols: Vec<DocumentSymbol> = Vec::new();
 
-    let children = cst.root().children();
-
-    for top_item in children {
-        match top_item.kind() {
-            //Import statement in the root of the document symbols
+    for node in cst.root().children() {
+        match node.kind() {
+            // Import statement in the root of the document symbols
             SyntaxKind::IMPORT_STMT => {
                 if let Some(NodeOrToken::Token(import_string)) =
-                    top_item.children_with_tokens().find(|node_or_token| {
+                    node.children_with_tokens().find(|node_or_token| {
                         node_or_token.kind() == SyntaxKind::STRING_LIT
                     })
                 {
-                    let range = to_range(import_string.span(), text);
+                    let range = token_to_range(&import_string).unwrap();
 
                     all_symbols.push(DocumentSymbol {
                         name: String::from(import_string.text()),
@@ -43,11 +37,11 @@ pub fn document_symbol(
             //Include statement in the root of the document symbols
             SyntaxKind::INCLUDE_STMT => {
                 if let Some(NodeOrToken::Token(include_string)) =
-                    top_item.children_with_tokens().find(|node_or_token| {
+                    node.children_with_tokens().find(|node_or_token| {
                         node_or_token.kind() == SyntaxKind::STRING_LIT
                     })
                 {
-                    let range = to_range(include_string.span(), text);
+                    let range = token_to_range(&include_string).unwrap();
 
                     all_symbols.push(DocumentSymbol {
                         name: String::from(include_string.text()),
@@ -64,42 +58,36 @@ pub fn document_symbol(
             //Rule definition in the root of the document symbols
             SyntaxKind::RULE_DECL => {
                 if let Some(NodeOrToken::Token(rule_ident)) =
-                    top_item.children_with_tokens().find(|node_or_token| {
+                    node.children_with_tokens().find(|node_or_token| {
                         node_or_token.kind() == SyntaxKind::IDENT
                     })
                 {
                     //Extract all rule blocks as children for the rule definition symbol
                     let mut rule_symbols: Vec<DocumentSymbol> = Vec::new();
 
-                    for block in top_item.children() {
+                    for block in node.children() {
                         match block.kind() {
                             SyntaxKind::META_BLK => {
                                 let mut meta_blk_symbol =
-                                    block_document_symbol(
-                                        &block, "meta", text,
-                                    );
+                                    block_document_symbol(&block, "meta");
 
                                 meta_blk_symbol.children = collect_definition(
                                     block.children(),
                                     "Meta attribute",
                                     SymbolKind::ENUM_MEMBER,
-                                    text,
                                 );
 
                                 rule_symbols.push(meta_blk_symbol);
                             }
                             SyntaxKind::PATTERNS_BLK => {
                                 let mut pattern_blk_symbol =
-                                    block_document_symbol(
-                                        &block, "strings", text,
-                                    );
+                                    block_document_symbol(&block, "strings");
 
                                 pattern_blk_symbol.children =
                                     collect_definition(
                                         block.children(),
                                         "Pattern definition",
                                         SymbolKind::VARIABLE,
-                                        text,
                                     );
 
                                 rule_symbols.push(pattern_blk_symbol);
@@ -108,7 +96,6 @@ pub fn document_symbol(
                                 rule_symbols.push(block_document_symbol(
                                     &block,
                                     "condition",
-                                    text,
                                 ));
                             }
                             _ => {}
@@ -116,7 +103,7 @@ pub fn document_symbol(
                     }
 
                     //Add these block symbols as children for rule definition symbol
-                    let range = to_range(top_item.span(), text);
+                    let range = node_to_range(&node).unwrap();
 
                     all_symbols.push(DocumentSymbol {
                         name: String::from(rule_ident.text()),
@@ -134,7 +121,7 @@ pub fn document_symbol(
         }
     }
 
-    Some(DocumentSymbolResponse::Nested(all_symbols))
+    all_symbols
 }
 
 /// Returns document symbol for certain block within a rule.
@@ -142,9 +129,8 @@ pub fn document_symbol(
 fn block_document_symbol(
     block: &Node<Immutable>,
     name: &str,
-    text: &str,
 ) -> DocumentSymbol {
-    let range = to_range(block.span(), text);
+    let range = node_to_range(block).unwrap();
 
     DocumentSymbol {
         name: String::from(name),
@@ -166,13 +152,11 @@ fn collect_definition(
     children: Nodes<Immutable>,
     detail: &str,
     kind: SymbolKind,
-    text: &str,
 ) -> Option<Vec<DocumentSymbol>> {
     let mut definitions: Vec<DocumentSymbol> = Vec::new();
 
     for definition in children {
-        let range = to_range(definition.span(), text);
-
+        let range = node_to_range(&definition).unwrap();
         let name = String::from(definition.first_token()?.text());
 
         definitions.push(DocumentSymbol {

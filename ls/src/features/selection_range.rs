@@ -1,4 +1,5 @@
 use async_lsp::lsp_types::{Position, SelectionRange};
+
 use yara_x_parser::cst::{Immutable, Node, Utf16, CST};
 
 use crate::utils::position::{node_to_range, token_to_range};
@@ -6,7 +7,7 @@ use crate::utils::position::{node_to_range, token_to_range};
 /// Provides selection ranges from the given positions in the text
 /// based on the given CST of this document.
 pub fn selection_range(
-    cst: CST,
+    cst: &CST,
     positions: Vec<Position>,
 ) -> Option<Vec<SelectionRange>> {
     let root = cst.root();

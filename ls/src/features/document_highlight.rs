@@ -16,7 +16,7 @@ use crate::utils::{
 /// specified position is contained in a symbol, the response contains the
 /// ranges of all occurrences of that symbol in the source code.
 pub fn document_highlight(
-    cst: CST,
+    cst: &CST,
     pos: Position,
 ) -> Option<Vec<DocumentHighlight>> {
     let highlight_cursor = cst.root().token_at_position::<Utf16, _>((
@@ -32,7 +32,7 @@ pub fn document_highlight(
         | SyntaxKind::PATTERN_LENGTH => {
             let mut highlight_vec: Vec<DocumentHighlight> = Vec::new();
 
-            let rule = rule_from_span(&cst, &highlight_cursor.span())?;
+            let rule = rule_from_span(cst, &highlight_cursor.span())?;
 
             let declaration =
                 pattern_from_strings(&rule, highlight_cursor.text());
@@ -66,7 +66,7 @@ pub fn document_highlight(
         SyntaxKind::IDENT => {
             let mut highlight_vec: Vec<DocumentHighlight> = Vec::new();
 
-            let rule = rule_from_ident(&cst, highlight_cursor.text());
+            let rule = rule_from_ident(cst, highlight_cursor.text());
 
             if let Some(rule) = rule {
                 if let Some(range) = node_to_range(&rule) {
@@ -78,7 +78,7 @@ pub fn document_highlight(
             }
 
             let occurrences =
-                rule_from_condition(&cst, highlight_cursor.text());
+                rule_from_condition(cst, highlight_cursor.text());
 
             if let Some(occurrences) = occurrences {
                 for occurrence in occurrences {

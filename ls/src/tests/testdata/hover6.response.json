@@ -1,0 +1,6 @@
+{
+  "contents": {
+    "kind": "markdown",
+    "value": "#### Rule `patterns`\nauthor = \"unknown\"\n\ndescription = \"some description\"\n\n#### Strings\n`$regex1 = /md5: [0-9a-fA-F]{32}/`\n\n`$regex2 = /bar./s`\n\n`$hex = { E2 34 ?? C8 A? FB }`\n\n`$wide = \"wide\" wide`\n\n`$nocase = \"nocase\" nocase`\n\n`$wide_and_ascii = \"wide and ascii\" wide ascii`\n\n`$xor = \"xor\" xor`\n\n`$base = \"base64\" base64`\n\n#### Condition\n```\n$regex1 and $regex2 and $hex and $wide and $nocase and $wide_and_ascii and $xor and $base\n```"
+  }
+}

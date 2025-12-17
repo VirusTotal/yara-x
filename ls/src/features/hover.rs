@@ -114,7 +114,7 @@ impl RuleHoverBuilder {
     }
 }
 
-pub fn hover_cst(cst: CST, pos: Position) -> Option<HoverContents> {
+pub fn hover_cst(cst: &CST, pos: Position) -> Option<HoverContents> {
     let hover_cursor = cst.root().token_at_position::<Utf16, _>((
         pos.line as usize,
         pos.character as usize,
@@ -128,7 +128,7 @@ pub fn hover_cst(cst: CST, pos: Position) -> Option<HoverContents> {
         | SyntaxKind::PATTERN_COUNT
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
-            let rule = rule_from_span(&cst, &hover_cursor.span())?;
+            let rule = rule_from_span(cst, &hover_cursor.span())?;
 
             let pattern = pattern_from_strings(&rule, hover_cursor.text())?;
 
@@ -139,7 +139,7 @@ pub fn hover_cst(cst: CST, pos: Position) -> Option<HoverContents> {
         }
         // Rule identifiers
         SyntaxKind::IDENT => {
-            let rule = rule_from_ident(&cst, hover_cursor.text())?;
+            let rule = rule_from_ident(cst, hover_cursor.text())?;
             let mut builder = RuleHoverBuilder::new(hover_cursor.text());
 
             for child in rule.children() {

@@ -1,0 +1,11 @@
+{
+  "textDocument": {
+    "uri": "file:///selectionrange4.yar"
+  },
+  "positions": [
+    {
+      "line": 5,
+      "character": 16
+    }
+  ]
+}

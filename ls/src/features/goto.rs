@@ -7,7 +7,7 @@ use yara_x_parser::cst::{SyntaxKind, Utf16, CST};
 
 /// Return the range of the definition of a symbol at the specified
 /// position in the text if exists.
-pub fn go_to_definition(cst: CST, pos: Position) -> Option<Range> {
+pub fn go_to_definition(cst: &CST, pos: Position) -> Option<Range> {
     let goto_cursor = cst.root().token_at_position::<Utf16, _>((
         pos.line as usize,
         pos.character as usize,
@@ -21,7 +21,7 @@ pub fn go_to_definition(cst: CST, pos: Position) -> Option<Range> {
         | SyntaxKind::PATTERN_COUNT
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
-            let rule = rule_from_span(&cst, &goto_cursor.span())?;
+            let rule = rule_from_span(cst, &goto_cursor.span())?;
 
             let pattern = pattern_from_strings(&rule, goto_cursor.text())?;
 
@@ -29,7 +29,7 @@ pub fn go_to_definition(cst: CST, pos: Position) -> Option<Range> {
         }
         //Rule identifiers
         SyntaxKind::IDENT => {
-            let rule = rule_from_ident(&cst, goto_cursor.text())?;
+            let rule = rule_from_ident(cst, goto_cursor.text())?;
             node_to_range(&rule)
         }
         _ => None,

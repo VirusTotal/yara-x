@@ -174,7 +174,7 @@ struct SemanticTokensIter {
 }
 
 impl SemanticTokensIter {
-    fn new(cst: CST) -> Self {
+    fn new(cst: &CST) -> Self {
         Self { next: cst.root().first_token(), output_queue: VecDeque::new() }
     }
 }
@@ -230,7 +230,7 @@ impl Iterator for SemanticTokensIter {
 ///
 /// Semantic tokens are used to add additional color information to a file that
 /// depends on language specific symbol information.
-pub fn semantic_tokens(cst: CST) -> SemanticTokens {
+pub fn semantic_tokens(cst: &CST) -> SemanticTokens {
     let tokens = SemanticTokensIter::new(cst);
     let mut prev_position = Position::default();
     let mut result: Vec<SemanticToken> = Vec::new();

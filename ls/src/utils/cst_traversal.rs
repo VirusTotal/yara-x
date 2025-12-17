@@ -138,7 +138,7 @@ pub(crate) fn pattern_from_condition(
                         | SyntaxKind::PATTERN_OFFSET
                         | SyntaxKind::PATTERN_LENGTH
                 )
-                // Ignore first symbols($ @ # !) to compare only pattern 
+                // Ignore first symbols($ @ # !) to compare only pattern
                 // identifiers
                 && token.text()[1..] == ident[1..]
                 {

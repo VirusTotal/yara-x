@@ -33,5 +33,6 @@ async-lsp = {version = "0.2.2", default-features=false, features=["omni-trait"]}
 tower = { version = "0.5.2" }
 
 [dev-dependencies]
+goldenfile = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

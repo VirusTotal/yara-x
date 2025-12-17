@@ -14,7 +14,7 @@ use crate::utils::cst_traversal::rule_from_span;
 
 /// Provides completion suggestions based on the cursor position and the
 /// block it is in.
-pub fn completion(cst: CST, pos: Position) -> Option<CompletionResponse> {
+pub fn completion(cst: &CST, pos: Position) -> Option<CompletionResponse> {
     let completion_cursor = cst.root().token_at_position::<Utf16, _>((
         pos.line as usize,
         pos.character as usize,
@@ -90,7 +90,7 @@ pub fn completion(cst: CST, pos: Position) -> Option<CompletionResponse> {
 
 /// Collects completion suggestions for condition block
 fn condition_suggestions(
-    cst: CST,
+    cst: &CST,
     completion_prev_token: Token<Immutable>,
 ) -> Option<Vec<CompletionItem>> {
     let mut completion_vec: Vec<CompletionItem> = Vec::new();
@@ -136,7 +136,7 @@ fn condition_suggestions(
         | SyntaxKind::PATTERN_COUNT
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
-            let rule = rule_from_span(&cst, &completion_prev_token.span())?;
+            let rule = rule_from_span(cst, &completion_prev_token.span())?;
 
             let patterns = rule
                 .children()

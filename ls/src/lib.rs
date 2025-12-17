@@ -5,13 +5,14 @@ use async_lsp::{
 use futures::{AsyncRead, AsyncWrite};
 use tower::ServiceBuilder;
 
-use crate::server::ServerState;
+use crate::server::YARALanguageServer;
 
 mod features;
 mod server;
+mod utils;
+
 #[cfg(test)]
 mod tests;
-mod utils;
 
 /// Starts the Language Server Main Loop with provided streams.
 ///
@@ -26,7 +27,7 @@ pub async fn serve(
             .layer(LifecycleLayer::default())
             .layer(CatchUnwindLayer::default())
             .layer(ConcurrencyLayer::default())
-            .service(ServerState::new_router(client))
+            .service(YARALanguageServer::new_router(client))
     });
 
     server.run_buffered(input, output).await

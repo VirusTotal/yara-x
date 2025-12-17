@@ -11,7 +11,7 @@ use crate::utils::{
 
 /// Finds all references of a symbol at the given position in the text.
 pub fn find_references(
-    cst: CST,
+    cst: &CST,
     pos: Position,
     uri: Url,
 ) -> Option<Vec<Location>> {
@@ -29,7 +29,7 @@ pub fn find_references(
         | SyntaxKind::PATTERN_LENGTH => {
             let mut location_vec: Vec<Location> = Vec::new();
 
-            let rule = rule_from_span(&cst, &references_click.span())?;
+            let rule = rule_from_span(cst, &references_click.span())?;
 
             let references =
                 pattern_from_condition(&rule, references_click.text());
@@ -58,7 +58,7 @@ pub fn find_references(
         SyntaxKind::IDENT => {
             let mut location_vec: Vec<Location> = Vec::new();
 
-            let rule = rule_from_ident(&cst, references_click.text());
+            let rule = rule_from_ident(cst, references_click.text());
 
             if let Some(rule) = rule {
                 if let Some(range) = node_to_range(&rule) {
@@ -67,7 +67,7 @@ pub fn find_references(
             }
 
             let references =
-                rule_from_condition(&cst, references_click.text());
+                rule_from_condition(cst, references_click.text());
 
             if let Some(references) = references {
                 for reference in references {
