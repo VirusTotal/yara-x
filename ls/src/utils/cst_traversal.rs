@@ -59,16 +59,16 @@ pub(crate) fn rule_containing_token(
 /// This function expect that `rule_node` argument is of kind
 /// `SyntaxKind::RULE_DECL`.
 pub(crate) fn pattern_from_strings(
-    rule_node: &Node<Immutable>,
+    rule: &Node<Immutable>,
     ident: &str,
 ) -> Option<Node<Immutable>> {
-    //Find strings block
-    let strings_blk = rule_node
+    // Find "strings" block.
+    let patterns_blk = rule
         .children()
         .find(|node| node.kind() == SyntaxKind::PATTERNS_BLK)?;
 
-    // Iterator over all pattern declarations in strings block
-    let pattern_decls = strings_blk
+    // Iterator over all pattern declarations in "strings" block.
+    let pattern_decls = patterns_blk
         .children()
         .filter(|node| node.kind() == SyntaxKind::PATTERN_DEF);
 

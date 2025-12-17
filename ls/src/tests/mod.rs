@@ -176,6 +176,7 @@ async fn hover() {
     test_lsp_request::<_, HoverRequest>("hover4.yar").await;
     test_lsp_request::<_, HoverRequest>("hover5.yar").await;
     test_lsp_request::<_, HoverRequest>("hover6.yar").await;
+    test_lsp_request::<_, HoverRequest>("hover7.yar").await;
 }
 
 #[tokio::test]

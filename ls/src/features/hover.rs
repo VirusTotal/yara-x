@@ -2,7 +2,7 @@ use async_lsp::lsp_types::{
     HoverContents, MarkupContent, MarkupKind, Position,
 };
 use yara_x_parser::cst::{
-    Immutable, Mutable, Node, NodeOrToken, SyntaxKind, Utf16, CST,
+    Immutable, Mutable, Node, NodeOrToken, SyntaxKind, Utf16, Utf8, CST,
 };
 
 use crate::utils::cst_traversal::{
@@ -123,14 +123,16 @@ pub fn hover(cst: &CST, pos: Position) -> Option<HoverContents> {
 
     #[allow(irrefutable_let_patterns)]
     match token.kind() {
-        // Pattern identifiers
-        // PATTERN_IDENT($a) PATTERN_COUNT(#a) PATTERN_OFFSET(@a) PATTERN_LENGTH(!a)
+        // Pattern identifiers in any of their forms (i.e: $a, #a, @a, !a).
+        // Notice that identifiers like $, #, @ and ! are ignored, as they
+        // don't represent a single pattern.
         SyntaxKind::PATTERN_IDENT
         | SyntaxKind::PATTERN_COUNT
         | SyntaxKind::PATTERN_OFFSET
-        | SyntaxKind::PATTERN_LENGTH => {
+        | SyntaxKind::PATTERN_LENGTH
+            if token.len::<Utf8>() >= 2 =>
+        {
             let rule = rule_containing_token(&token)?;
-
             let pattern = pattern_from_strings(&rule, token.text())?;
 
             Some(HoverContents::Markup(MarkupContent {
@@ -138,7 +140,7 @@ pub fn hover(cst: &CST, pos: Position) -> Option<HoverContents> {
                 value: format!("Pattern value is:\n\n`{}`", pattern.text()),
             }))
         }
-        // Rule identifiers
+        // Rule identifiers.
         SyntaxKind::IDENT => {
             let rule = rule_from_ident(cst, token.text())?;
             let mut builder = RuleHoverBuilder::new(token.text());
