@@ -29,28 +29,31 @@ impl RuleHoverBuilder {
 
     /// Creates the markdown representation of the rule.
     /// It includes the rule name, metas, strings, and condition.
-    pub fn get_markdown_representation(&self) -> String {
-        format!(
-            "#### Rule `{name}`\n\
-            {metas}\
-            #### Strings\n\
-            {strings}\
-            #### Condition\n\
-            ```\n{condition}\n```\
-            ",
-            name = self.name,
-            metas = self.process_metas().unwrap_or_default(),
-            strings = self.process_patterns().unwrap_or_default(),
-            condition = self
-                .process_condition()
-                .unwrap_or_default()
-                // Trim indents
-                .split_inclusive('\n')
-                .fold(String::new(), |mut acc, line| {
-                    acc.push_str(line.trim_start());
-                    acc
-                })
-        )
+    pub fn get_markdown(&self) -> String {
+        let mut markdown = format!("# {}\n", self.name);
+
+        if let Some(metas) = &self.process_metas() {
+            markdown.push_str("## meta\n");
+            markdown.push_str("```\n");
+            markdown.push_str(metas);
+            markdown.push_str("\n```\n");
+        }
+
+        if let Some(patterns) = &self.process_patterns() {
+            markdown.push_str("## strings\n");
+            markdown.push_str("```\n");
+            markdown.push_str(patterns);
+            markdown.push_str("\n```\n");
+        }
+
+        if let Some(condition) = &self.process_condition() {
+            markdown.push_str("## condition\n");
+            markdown.push_str("```\n");
+            markdown.push_str(condition);
+            markdown.push_str("\n```\n");
+        }
+
+        markdown
     }
 
     /// Processes the meta block and returns its markdown representation.
@@ -58,8 +61,9 @@ impl RuleHoverBuilder {
         Some(
             self.metas
                 .as_ref()?
+                // All children in METAS_BLK should be META_DEF.
                 .children()
-                .map(|node| format!("{}\n\n", node.text()))
+                .map(|node| format!("{}\n", node.text()))
                 .collect(),
         )
     }
@@ -69,20 +73,28 @@ impl RuleHoverBuilder {
         Some(
             self.patterns
                 .as_ref()?
+                // All children in PATTERNS_BLK should be PATTERN_DEF.
                 .children()
-                // All children in PATTERNS_BLK Node should be PATTERN_DEF
-                .map(|node| format!("`{}`\n\n", node.text()))
+                .map(|node| format!("{}\n", node.text()))
                 .collect(),
         )
     }
 
     /// Processes the condition block and returns its markdown representation.
     fn process_condition(&self) -> Option<String> {
-        self.condition
-            .as_ref()?
-            .children()
-            .find(|node| node.kind() == SyntaxKind::BOOLEAN_EXPR)
-            .map(|node| node.text().to_string())
+        Some(
+            self.condition
+                .as_ref()?
+                .children()
+                .find(|node| node.kind() == SyntaxKind::BOOLEAN_EXPR)?
+                .text()
+                .to_string()
+                .lines()
+                // Strip indentation from each line and join them again.
+                .map(|line| line.trim_start())
+                .collect::<Vec<_>>()
+                .join("\n"),
+        )
     }
 
     /// Sets the meta block of the rule.
@@ -149,7 +161,7 @@ pub fn hover(cst: &CST, pos: Position) -> Option<HoverContents> {
 
             Some(HoverContents::Markup(MarkupContent {
                 kind: MarkupKind::Markdown,
-                value: builder.get_markdown_representation(),
+                value: builder.get_markdown(),
             }))
         }
         _ => None,

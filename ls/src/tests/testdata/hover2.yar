@@ -1,4 +1,4 @@
-rule one_line { strings: $a = "foo" condition: $a at 100 + 200 }
+rule one_line { condition: true }
 
 rule test {
   condition:
