@@ -87,7 +87,7 @@ async fn open_document<P: AsRef<Path>>(s: &ServerSocket, path: P) {
     let path = path.as_ref();
     let filename = path.file_name().unwrap().to_str().unwrap();
     let rule = fs::read_to_string(path)
-        .expect(format!("failed to read file {:?}", path).as_str());
+        .unwrap_or_else(|_| panic!("failed to read file {path:?}"));
 
     s.notify::<DidOpenTextDocument>(DidOpenTextDocumentParams {
         text_document: TextDocumentItem {
@@ -113,12 +113,12 @@ where
 
         let request_path = path.with_extension("request.json");
         let request_file = File::open(request_path.as_path())
-            .expect(&format!("can't read {request_path:?}"));
+            .unwrap_or_else(|_| panic!("can't read {request_path:?}"));
 
         let response_path = path.with_extension("response.json");
         let response_file = mint
             .new_goldenfile(response_path.as_path())
-            .expect(&format!("can't read {response_path:?}"));
+            .unwrap_or_else(|_| panic!("can't read {request_path:?}"));
 
         let request =
             serde_json::from_reader::<_, R::Params>(request_file).unwrap();
