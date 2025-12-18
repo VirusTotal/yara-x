@@ -94,29 +94,7 @@ impl<'r> InnerScanner<'r> {
 pub struct YRX_SCANNER<'r, 'm> {
     inner: InnerScanner<'r>,
     on_matching_rule: Option<(YRX_RULE_CALLBACK, *mut c_void)>,
-    on_console_log: Option<YRX_CONSOLE_CALLBACK>,
     module_data: HashMap<&'m str, &'m [u8]>,
-}
-
-impl<'r, 'm> YRX_SCANNER<'r, 'm> {
-    fn set_console_log(&mut self) -> &mut Self {
-        let callback = self.on_console_log.unwrap();
-        let c = |message: String| {
-            //println!("CLOSURE {message}");
-            let msg = CString::new(message).unwrap();
-            callback(msg.as_ptr());
-        };
-        match &mut self.inner {
-            InnerScanner::SingleBlock(s) => {
-                s.console_log(c);
-            }
-            InnerScanner::MultiBlock(s) => {
-                s.console_log(c);
-            }
-            InnerScanner::None => unreachable!(),
-        }
-        self
-    }
 }
 
 /// Creates a [`YRX_SCANNER`] object that can be used for scanning data with
@@ -141,7 +119,6 @@ pub unsafe extern "C" fn yrx_scanner_create(
     *scanner = Box::into_raw(Box::new(YRX_SCANNER {
         inner: InnerScanner::SingleBlock(yara_x::Scanner::new(rules.inner())),
         on_matching_rule: None,
-        on_console_log: None,
         module_data: HashMap::new(),
     }));
 
@@ -673,8 +650,20 @@ pub unsafe extern "C" fn yrx_scanner_on_console_log(
         None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
     };
 
-    scanner.on_console_log = Some(callback);
-    scanner.set_console_log();
+    let wrapper = move |message: String| {
+        let msg = CString::new(message).unwrap();
+        callback(msg.as_ptr());
+    };
+
+    match &mut scanner.inner {
+        InnerScanner::SingleBlock(s) => {
+            s.console_log(wrapper);
+        }
+        InnerScanner::MultiBlock(s) => {
+            s.console_log(wrapper);
+        }
+        InnerScanner::None => unreachable!(),
+    }
 
     YRX_RESULT::YRX_SUCCESS
 }

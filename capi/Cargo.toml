@@ -48,6 +48,9 @@ yara-x = { workspace = true,  default-features = true, features = ["parallel-com
 [build-dependencies]
 cbindgen = { workspace = true }
 
+[dev-dependencies]
+assert-call = { workspace = true }
+
 
 # This section is used by `cargo-c` for generating the header and library
 # files. Use:
