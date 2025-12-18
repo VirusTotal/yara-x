@@ -15,22 +15,18 @@ use crate::utils::cst_traversal::rule_containing_token;
 /// Provides completion suggestions based on the cursor position and the
 /// block it is in.
 pub fn completion(cst: &CST, pos: Position) -> Option<CompletionResponse> {
-    let completion_cursor = cst.root().token_at_position::<Utf16, _>((
+    let token_at_cursor = cst.root().token_at_position::<Utf16, _>((
         pos.line as usize,
         pos.character as usize,
     ));
-    let completion_token: Token<Immutable>;
 
-    // Extract token before cursor
-    // There might be no token at cursor, when the cursor is at of the file
-    // In this case, take the last token of the file
-    if let Some(token) = completion_cursor {
-        completion_token = token.prev_token()?;
-    } else {
-        completion_token = cst.root().last_token()?;
-    }
+    // Get the token before cursor. There might be no token at cursor when the
+    // cursor is at of the file. In this case, take the last token of the file.
+    let completion_token = token_at_cursor
+        .and_then(|token| token.prev_token())
+        .or_else(|| cst.root().last_token())?;
 
-    let mut nearets_section_kind: SyntaxKind = SyntaxKind::ERROR;
+    let mut nearest_section_kind: SyntaxKind = SyntaxKind::ERROR;
 
     // Try to find node in siblings, from which we can decide what should be suggested
     if let Some(mut nearest_sibling) = completion_token.prev_sibling_or_token()
@@ -43,7 +39,7 @@ pub fn completion(cst: &CST, pos: Position) -> Option<CompletionResponse> {
                     | SyntaxKind::WHITESPACE
                     | SyntaxKind::ERROR
             ) {
-                nearets_section_kind = nearest_sibling.kind();
+                nearest_section_kind = nearest_sibling.kind();
                 break;
             }
             if let Some(prev) = nearest_sibling.prev_sibling_or_token() {
@@ -56,12 +52,12 @@ pub fn completion(cst: &CST, pos: Position) -> Option<CompletionResponse> {
 
     // If failed, try the same in the ancestors
     if !matches!(
-        nearets_section_kind,
+        nearest_section_kind,
         SyntaxKind::PATTERN_DEF
             | SyntaxKind::CONDITION_BLK
             | SyntaxKind::BOOLEAN_EXPR
     ) {
-        nearets_section_kind = completion_token
+        nearest_section_kind = completion_token
             .ancestors()
             .find(|node| {
                 matches!(
@@ -75,7 +71,7 @@ pub fn completion(cst: &CST, pos: Position) -> Option<CompletionResponse> {
             .kind();
     }
 
-    let completion_vec = match nearets_section_kind {
+    let completion_vec = match nearest_section_kind {
         SyntaxKind::SOURCE_FILE => Some(source_file_suggestions()),
         SyntaxKind::CONDITION_BLK | SyntaxKind::BOOLEAN_EXPR => {
             condition_suggestions(cst, completion_token)
