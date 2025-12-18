@@ -3,12 +3,12 @@
     "uri": "file:///references5.yar",
     "range": {
       "start": {
-        "line": 11,
+        "line": 9,
         "character": 4
       },
       "end": {
-        "line": 11,
-        "character": 6
+        "line": 9,
+        "character": 25
       }
     }
   },
@@ -16,12 +16,12 @@
     "uri": "file:///references5.yar",
     "range": {
       "start": {
-        "line": 9,
+        "line": 11,
         "character": 4
       },
       "end": {
-        "line": 9,
-        "character": 25
+        "line": 11,
+        "character": 6
       }
     }
   }

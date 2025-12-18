@@ -3,8 +3,7 @@ use yara_x_parser::cst::{NodeOrToken, SyntaxKind, Utf16, CST};
 
 use crate::utils::cst_traversal::rule_containing_token;
 use crate::utils::cst_traversal::{
-    pattern_from_condition, pattern_from_strings, rule_from_condition,
-    rule_from_ident,
+    pattern_from_ident, pattern_usages, rule_from_ident, rule_usages,
 };
 use crate::utils::position::token_to_range;
 
@@ -38,7 +37,7 @@ pub fn rename(
                 new_name
             };
 
-            let definition = pattern_from_strings(&rule, rename_cursor.text());
+            let definition = pattern_from_ident(&rule, rename_cursor.text());
 
             if let Some(definition) = definition {
                 if let Some(first_token) = definition.first_token() {
@@ -51,8 +50,7 @@ pub fn rename(
                 }
             }
 
-            let occurrences =
-                pattern_from_condition(&rule, rename_cursor.text());
+            let occurrences = pattern_usages(&rule, rename_cursor.text());
 
             if let Some(occurrences) = occurrences {
                 for occurrence in occurrences {
@@ -81,7 +79,7 @@ pub fn rename(
                 }
             }
 
-            let occurrences = rule_from_condition(cst, rename_cursor.text());
+            let occurrences = rule_usages(cst, rename_cursor.text());
 
             if let Some(occurrences) = occurrences {
                 for occurrence in occurrences {

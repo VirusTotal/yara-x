@@ -45,23 +45,24 @@ pub(crate) fn rule_from_ident(
     None
 }
 
-/// Given a token in the CST, returns the node that corresponds to the rule
-/// that contains that token.
+/// Given a token in the CST, returns the `RULE_DECL` node that corresponds to
+/// the rule containing that token, or `None` if the token is outside a rule.
 pub(crate) fn rule_containing_token(
     token: &Token<Immutable>,
 ) -> Option<Node<Immutable>> {
     token.ancestors().find(|node| node.kind() == SyntaxKind::RULE_DECL)
 }
 
-/// Returns [`yara_x_parser::cst::Node`] containing pattern declaration
-/// matching the provided identifier within the given rule Node if exists.
+/// Returns the `PATTERN_DEF` node that contains the declaration of the pattern
+/// identified as `ident`, within the given `rule`.
 ///
-/// This function expect that `rule_node` argument is of kind
-/// `SyntaxKind::RULE_DECL`.
-pub(crate) fn pattern_from_strings(
+/// This function expects that `rule` is a `RULE_DECL` node.
+pub(crate) fn pattern_from_ident(
     rule: &Node<Immutable>,
     ident: &str,
 ) -> Option<Node<Immutable>> {
+    assert_eq!(rule.kind(), SyntaxKind::RULE_DECL);
+
     // Find "strings" block.
     let patterns_blk = rule
         .children()
@@ -99,14 +100,16 @@ pub(crate) fn pattern_from_strings(
 ///
 /// This function expect that `rule_node` argument is of kind
 /// `SyntaxKind::RULE_DECL`.
-pub(crate) fn pattern_from_condition(
-    rule_node: &Node<Immutable>,
+pub(crate) fn pattern_usages(
+    rule: &Node<Immutable>,
     ident: &str,
 ) -> Option<Vec<Token<Immutable>>> {
+    assert_eq!(rule.kind(), SyntaxKind::RULE_DECL);
+
     let mut result_tokens: Vec<Token<Immutable>> = Vec::new();
 
-    //Find condition block
-    let condition_blk = rule_node
+    // Find condition block
+    let condition_blk = rule
         .children()
         .find(|node| node.kind() == SyntaxKind::CONDITION_BLK)?;
 
@@ -145,7 +148,7 @@ pub(crate) fn pattern_from_condition(
 
 /// Returns vector of [`yara_x_parser::cst::Token`] containing all rule
 /// usages in the CST matching the provided identifier.
-pub(crate) fn rule_from_condition(
+pub(crate) fn rule_usages(
     cst: &CST,
     ident: &str,
 ) -> Option<Vec<Token<Immutable>>> {

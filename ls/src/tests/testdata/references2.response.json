@@ -3,6 +3,19 @@
     "uri": "file:///references2.yar",
     "range": {
       "start": {
+        "line": 2,
+        "character": 4
+      },
+      "end": {
+        "line": 2,
+        "character": 40
+      }
+    }
+  },
+  {
+    "uri": "file:///references2.yar",
+    "range": {
+      "start": {
         "line": 4,
         "character": 41
       },
@@ -35,19 +48,6 @@
       "end": {
         "line": 4,
         "character": 12
-      }
-    }
-  },
-  {
-    "uri": "file:///references2.yar",
-    "range": {
-      "start": {
-        "line": 2,
-        "character": 4
-      },
-      "end": {
-        "line": 2,
-        "character": 40
       }
     }
   }

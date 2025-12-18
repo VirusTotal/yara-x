@@ -5,7 +5,7 @@ use async_lsp::lsp_types::{
 use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Utf16, Utf8, CST};
 
 use crate::utils::cst_traversal::{
-    pattern_from_strings, rule_containing_token, rule_from_ident,
+    pattern_from_ident, rule_containing_token, rule_from_ident,
 };
 
 /// Builder for hover markdown representation of a rule.
@@ -132,7 +132,7 @@ pub fn hover(cst: &CST, pos: Position) -> Option<HoverContents> {
             if token.len::<Utf8>() >= 2 =>
         {
             let rule = rule_containing_token(&token)?;
-            let pattern = pattern_from_strings(&rule, token.text())?;
+            let pattern = pattern_from_ident(&rule, token.text())?;
 
             Some(HoverContents::Markup(MarkupContent {
                 kind: MarkupKind::Markdown,

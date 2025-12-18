@@ -184,6 +184,11 @@ impl LanguageServer for YARALanguageServer {
         Box::pin(async move { Ok(result) })
     }
 
+    /// Message received when the user wants to find the place where some
+    /// identifier was defined.
+    ///
+    /// The params include a position within the source code that should
+    /// correspond to some identifier.
     fn definition(
         &mut self,
         params: GotoDefinitionParams,
@@ -196,15 +201,20 @@ impl LanguageServer for YARALanguageServer {
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let result = goto::go_to_definition(
+        let definition = goto::go_to_definition(
             cst,
             params.text_document_position_params.position,
         )
         .map(|range| GotoDefinitionResponse::Scalar(Location { uri, range }));
 
-        Box::pin(async move { Ok(result) })
+        Box::pin(async move { Ok(definition) })
     }
 
+    /// Message received when the user wants to find all the places where
+    /// an identifier has been used.
+    ///
+    /// The params include a position within the source code that should
+    /// correspond to some identifier.
     fn references(
         &mut self,
         params: ReferenceParams,
@@ -216,13 +226,20 @@ impl LanguageServer for YARALanguageServer {
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let references = references::find_references(
+        let references = match references::find_references(
             cst,
             params.text_document_position.position,
-            uri,
-        );
+        ) {
+            Some(references) => references,
+            None => return Box::pin(async { Ok(None) }),
+        };
 
-        Box::pin(async move { Ok(references) })
+        let references = references
+            .into_iter()
+            .map(|range| Location { uri: uri.clone(), range })
+            .collect();
+
+        Box::pin(async move { Ok(Some(references)) })
     }
 
     fn completion(
