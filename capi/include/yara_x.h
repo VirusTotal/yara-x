@@ -237,6 +237,13 @@ typedef void (*YRX_RULE_CALLBACK)(const struct YRX_RULE *rule,
 typedef void (*YRX_IMPORT_CALLBACK)(const char *module_name,
                                     void *user_data);
 
+// Callback function used when a YARA rule calls the console module.
+//
+// The callback function is invoked with a string representing the message
+// being logged. The function can print the message to stdout, append it to a
+// file, etc. If no callback is set these messages are ignored.
+typedef void (*YRX_CONSOLE_CALLBACK)(const char *message);
+
 // Callback function passed to [`yrx_scanner_iter_slowest_rules`].
 //
 // The callback function receives pointers to the namespace and rule name,
@@ -876,6 +883,10 @@ enum YRX_RESULT yrx_scanner_set_global_float(struct YRX_SCANNER *scanner,
 enum YRX_RESULT yrx_scanner_set_global_json(struct YRX_SCANNER *scanner,
                                             const char *ident,
                                             const char *value);
+
+// Sets the callback for console module.
+enum YRX_RESULT yrx_scanner_on_console_log(struct YRX_SCANNER *scanner,
+                                           YRX_CONSOLE_CALLBACK callback);
 
 // Iterates over the slowest N rules, calling the callback for each rule.
 //

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-#[cfg(feature = "rules-profiling")]
 use std::ffi::CString;
 use std::ffi::{c_char, c_void, CStr};
 use std::mem;
@@ -95,7 +94,29 @@ impl<'r> InnerScanner<'r> {
 pub struct YRX_SCANNER<'r, 'm> {
     inner: InnerScanner<'r>,
     on_matching_rule: Option<(YRX_RULE_CALLBACK, *mut c_void)>,
+    on_console_log: Option<YRX_CONSOLE_CALLBACK>,
     module_data: HashMap<&'m str, &'m [u8]>,
+}
+
+impl<'r, 'm> YRX_SCANNER<'r, 'm> {
+    fn set_console_log(&mut self) -> &mut Self {
+        let callback = self.on_console_log.unwrap();
+        let c = |message: String| {
+            //println!("CLOSURE {message}");
+            let msg = CString::new(message).unwrap();
+            callback(msg.as_ptr());
+        };
+        match &mut self.inner {
+            InnerScanner::SingleBlock(s) => {
+                s.console_log(c);
+            }
+            InnerScanner::MultiBlock(s) => {
+                s.console_log(c);
+            }
+            InnerScanner::None => unreachable!(),
+        }
+        self
+    }
 }
 
 /// Creates a [`YRX_SCANNER`] object that can be used for scanning data with
@@ -120,6 +141,7 @@ pub unsafe extern "C" fn yrx_scanner_create(
     *scanner = Box::into_raw(Box::new(YRX_SCANNER {
         inner: InnerScanner::SingleBlock(yara_x::Scanner::new(rules.inner())),
         on_matching_rule: None,
+        on_console_log: None,
         module_data: HashMap::new(),
     }));
 
@@ -631,6 +653,30 @@ pub unsafe extern "C" fn yrx_scanner_set_global_json(
     };
 
     yrx_scanner_set_global(scanner, ident, value)
+}
+
+/// Callback function used when a YARA rule calls the console module.
+///
+/// The callback function is invoked with a string representing the message
+/// being logged. The function can print the message to stdout, append it to a
+/// file, etc. If no callback is set these messages are ignored.
+pub type YRX_CONSOLE_CALLBACK = extern "C" fn(message: *const c_char) -> ();
+
+/// Sets the callback for console module.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_scanner_on_console_log(
+    scanner: *mut YRX_SCANNER,
+    callback: YRX_CONSOLE_CALLBACK,
+) -> YRX_RESULT {
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+    };
+
+    scanner.on_console_log = Some(callback);
+    scanner.set_console_log();
+
+    YRX_RESULT::YRX_SUCCESS
 }
 
 /// Callback function passed to [`yrx_scanner_iter_slowest_rules`].
