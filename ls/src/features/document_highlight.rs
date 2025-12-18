@@ -42,13 +42,11 @@ pub fn document_highlight(
             }
 
             if let Some(usages) = pattern_usages(&rule, token.text()) {
-                for usage in usages {
-                    if let Some(range) = token_to_range(&usage) {
-                        result.push(DocumentHighlight {
-                            range,
-                            kind: Some(DocumentHighlightKind::READ),
-                        });
-                    }
+                for range in usages.iter().filter_map(token_to_range) {
+                    result.push(DocumentHighlight {
+                        range,
+                        kind: Some(DocumentHighlightKind::READ),
+                    });
                 }
             }
 
@@ -69,13 +67,11 @@ pub fn document_highlight(
             }
 
             if let Some(usages) = rule_usages(cst, token.text()) {
-                for usage in usages {
-                    if let Some(range) = token_to_range(&usage) {
-                        result.push(DocumentHighlight {
-                            range,
-                            kind: Some(DocumentHighlightKind::READ),
-                        });
-                    }
+                for range in usages.iter().filter_map(token_to_range) {
+                    result.push(DocumentHighlight {
+                        range,
+                        kind: Some(DocumentHighlightKind::READ),
+                    });
                 }
             }
 

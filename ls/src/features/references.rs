@@ -32,11 +32,7 @@ pub fn find_references(cst: &CST, pos: Position) -> Option<Vec<Range>> {
             }
 
             if let Some(references) = pattern_usages(&rule, token.text()) {
-                for reference in references {
-                    if let Some(range) = token_to_range(&reference) {
-                        result.push(range);
-                    }
-                }
+                result.extend(references.iter().filter_map(token_to_range));
             }
 
             Some(result)
@@ -53,11 +49,7 @@ pub fn find_references(cst: &CST, pos: Position) -> Option<Vec<Range>> {
             }
 
             if let Some(references) = rule_usages(cst, token.text()) {
-                for reference in references {
-                    if let Some(range) = token_to_range(&reference) {
-                        result.push(range);
-                    }
-                }
+                result.extend(references.iter().filter_map(token_to_range))
             }
 
             Some(result)
