@@ -9,7 +9,7 @@ fn ast_from_cst() {
     let cst = CST::try_from(parser).unwrap();
     let ast = AST::new(source, cst.iter());
 
-    let rule = match ast.items.get(0).unwrap() {
+    let rule = match ast.items.first().unwrap() {
         Item::Rule(rule) => rule,
         _ => panic!(),
     };
