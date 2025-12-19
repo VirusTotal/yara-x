@@ -198,9 +198,9 @@ fn collect_variable_diagnostics(
 }
 
 /// Return diagnostic vector for the given source code.
-pub fn get_diagnostic_vec(text: &String) -> Vec<Diagnostic> {
+pub fn get_diagnostic_vec(text: &str) -> Vec<Diagnostic> {
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
-    let ast = AST::from(text.as_str());
+    let ast = AST::from(text);
 
     collect_variable_diagnostics(&mut diagnostics, &ast, text);
     collect_ast_errors(&mut diagnostics, ast, text);
