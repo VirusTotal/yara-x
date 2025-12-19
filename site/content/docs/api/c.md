@@ -658,6 +658,19 @@ about matching rules.
 
 See [YRX_ON_MATCHING_RULE](#yrx_on_matching_rule) for more details.
 
+#### yrx_scanner_on_console_log
+
+```c
+enum YRX_RESULT yrx_scanner_on_console_log(
+    struct YRX_SCANNER *scanner,
+    YRX_CONSOLE_CALLBACK callback);
+```
+
+Sets a callback function that is called for each message produced in a
+rule with the `console.log()` function.
+
+See [YRX_CONSOLE_CALLBACK](#yrx_on_matching_rule) for more details.
+
 #### yrx_scanner_scan
 
 ```c 
@@ -1127,6 +1140,21 @@ typedef enum YRX_RESULT {
     YRX_NOT_SUPPORTED,
 } YRX_RESULT;
 ```
+
+### YRX_CONSOLE_CALLBACK
+
+```c
+typedef void (*YRX_CONSOLE_CALLBACK)(
+    const char *message);
+```
+
+Callback function passed to [yrx_scanner_on_console_log](#yrx_scanner_on_console_log).
+
+The callback is invoked every time a rule uses the `console.log(..)` function, and
+receives a pointer to the message being logged.This pointer is guaranteed to be valid
+while the callback function is being executed, but it may be freed after the callback
+function returns, so you cannot use the pointer outside the callback.
+
 
 ### YRX_RULE_CALLBACK
 

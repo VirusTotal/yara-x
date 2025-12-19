@@ -1,4 +1,4 @@
-use crate::cst::{SyntaxKind, Utf16, Utf32, Utf8, CST};
+use crate::cst::{CSTStream, Event, SyntaxKind, Utf16, Utf32, Utf8, CST};
 use crate::{Parser, Span};
 
 #[test]
@@ -471,5 +471,60 @@ fn cst_6() {
     assert_eq!(
         root_node.token_at_position::<Utf8, _>((6, 24)).unwrap().kind(),
         SyntaxKind::NEWLINE
+    );
+}
+
+#[test]
+fn cst_stream() {
+    let parser = Parser::new(
+        br#"
+rule /* comment */
+test {
+    condition: true
+}"#,
+    );
+
+    let mut cst = CSTStream::from(parser).comments(false);
+
+    assert_eq!(
+        cst.next(),
+        Some(Event::Begin {
+            kind: SyntaxKind::SOURCE_FILE,
+            span: Span(0..48)
+        })
+    );
+
+    assert_eq!(
+        cst.next(),
+        Some(Event::Token { kind: SyntaxKind::NEWLINE, span: Span(0..1) })
+    );
+
+    let mut cst = cst.newlines(false);
+
+    assert_eq!(
+        cst.next(),
+        Some(Event::Begin { kind: SyntaxKind::RULE_DECL, span: Span(1..48) })
+    );
+
+    assert_eq!(
+        cst.next(),
+        Some(Event::Token { kind: SyntaxKind::RULE_KW, span: Span(1..5) })
+    );
+
+    assert_eq!(
+        cst.next(),
+        Some(Event::Token { kind: SyntaxKind::WHITESPACE, span: Span(5..6) })
+    );
+
+    let mut cst = cst.whitespaces(false);
+
+    assert_eq!(
+        cst.next(),
+        Some(Event::Token { kind: SyntaxKind::IDENT, span: Span(20..24) })
+    );
+
+    assert_eq!(
+        cst.next(),
+        Some(Event::Token { kind: SyntaxKind::L_BRACE, span: Span(25..26) })
     );
 }

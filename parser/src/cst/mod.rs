@@ -149,28 +149,24 @@ where
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.whitespaces && self.newlines {
-            self.events.next()
-        } else {
-            loop {
-                match self.events.next()? {
-                    token @ Event::Token { kind: WHITESPACE, .. } => {
-                        if self.whitespaces {
-                            break Some(token);
-                        }
+        loop {
+            match self.events.next()? {
+                token @ Event::Token { kind: WHITESPACE, .. } => {
+                    if self.whitespaces {
+                        break Some(token);
                     }
-                    token @ Event::Token { kind: NEWLINE, .. } => {
-                        if self.newlines {
-                            break Some(token);
-                        }
-                    }
-                    token @ Event::Token { kind: COMMENT, .. } => {
-                        if self.comments {
-                            break Some(token);
-                        }
-                    }
-                    token => break Some(token),
                 }
+                token @ Event::Token { kind: NEWLINE, .. } => {
+                    if self.newlines {
+                        break Some(token);
+                    }
+                }
+                token @ Event::Token { kind: COMMENT, .. } => {
+                    if self.comments {
+                        break Some(token);
+                    }
+                }
+                token => break Some(token),
             }
         }
     }
@@ -247,7 +243,7 @@ where
 {
     type Error = Utf8Error;
 
-    /// Creates a [`CSTStream`] from the given parser.
+    /// Creates a [`CST`] from the given [`CSTStream`].
     fn try_from(cst: CSTStream<'src, I>) -> Result<Self, Utf8Error> {
         let source = cst.source();
         let mut builder = rowan::GreenNodeBuilder::new();

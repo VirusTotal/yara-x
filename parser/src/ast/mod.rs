@@ -48,7 +48,7 @@ pub enum Item<'src> {
 impl<'src> From<Parser<'src>> for AST<'src> {
     /// Creates an [`AST`] from the given [`Parser`].
     fn from(parser: Parser<'src>) -> Self {
-        Self::from(CSTStream::new(parser.source(), parser))
+        AST::new(parser.source(), parser)
     }
 }
 
@@ -56,12 +56,20 @@ impl<'src, I> From<CSTStream<'src, I>> for AST<'src>
 where
     I: Iterator<Item = Event>,
 {
+    /// Creates an [`AST`] from the given [`CSTStream`].
     fn from(cst: CSTStream<'src, I>) -> Self {
-        Builder::new(cst).build_ast()
+        AST::new(cst.source(), cst)
     }
 }
 
 impl<'src> AST<'src> {
+    fn new<I: Iterator<Item = Event>>(
+        source: &'src [u8],
+        events: I,
+    ) -> AST<'src> {
+        Builder::new(source, events).build_ast()
+    }
+
     /// Returns the top level items in the AST.
     ///
     /// A top level item can be an import, include, or rule.
