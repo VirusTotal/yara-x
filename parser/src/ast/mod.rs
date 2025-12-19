@@ -81,6 +81,16 @@ where
 }
 
 impl<'src> AST<'src> {
+    /// Creates a new AST from YARA source code and an iterator of [`Event`]
+    /// items representing the parsed structure of that code.
+    ///
+    /// # Panics
+    ///
+    /// This is a low-level API that requires the `events` iterator to perfectly
+    /// match the provided `source`. This function will panic if the events are
+    /// inconsistent with the source or do not originate from parsing this
+    /// specific code.
+    #[doc(hidden)]
     pub fn new<I: Iterator<Item = Event>>(
         source: &'src [u8],
         events: I,

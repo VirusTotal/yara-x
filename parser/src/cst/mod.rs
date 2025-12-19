@@ -267,7 +267,7 @@ impl CST {
         Node::new(self.tree.clone())
     }
 
-    /// Returns an iterator of [`Event`].
+    /// Returns the parsed source code as an iterator of [`Event`].
     pub fn iter(&self) -> impl Iterator<Item = Event> + '_ {
         CSTIter { iter: self.tree.preorder_with_tokens() }
     }
