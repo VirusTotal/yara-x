@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-#[cfg(feature = "rules-profiling")]
 use std::ffi::CString;
 use std::ffi::{c_char, c_void, CStr};
 use std::mem;
@@ -631,6 +630,42 @@ pub unsafe extern "C" fn yrx_scanner_set_global_json(
     };
 
     yrx_scanner_set_global(scanner, ident, value)
+}
+
+/// Callback function used when a YARA rule calls the console module.
+///
+/// The callback function is invoked with a string representing the message
+/// being logged. The function can print the message to stdout, append it to a
+/// file, etc. If no callback is set these messages are ignored.
+pub type YRX_CONSOLE_CALLBACK = extern "C" fn(message: *const c_char) -> ();
+
+/// Sets the callback for console module.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_scanner_on_console_log(
+    scanner: *mut YRX_SCANNER,
+    callback: YRX_CONSOLE_CALLBACK,
+) -> YRX_RESULT {
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+    };
+
+    let wrapper = move |message: String| {
+        let msg = CString::new(message).unwrap();
+        callback(msg.as_ptr());
+    };
+
+    match &mut scanner.inner {
+        InnerScanner::SingleBlock(s) => {
+            s.console_log(wrapper);
+        }
+        InnerScanner::MultiBlock(s) => {
+            s.console_log(wrapper);
+        }
+        InnerScanner::None => unreachable!(),
+    }
+
+    YRX_RESULT::YRX_SUCCESS
 }
 
 /// Callback function passed to [`yrx_scanner_iter_slowest_rules`].

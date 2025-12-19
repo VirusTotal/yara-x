@@ -12,15 +12,17 @@ use crate::{
     yrx_rule_namespace, yrx_rules_deserialize, yrx_rules_destroy,
     yrx_rules_iter, yrx_rules_iter_imports, yrx_rules_serialize,
     yrx_scanner_create, yrx_scanner_destroy, yrx_scanner_finish,
-    yrx_scanner_on_matching_rule, yrx_scanner_scan, yrx_scanner_scan_block,
-    yrx_scanner_set_global_bool, yrx_scanner_set_global_float,
-    yrx_scanner_set_global_int, yrx_scanner_set_global_json,
-    yrx_scanner_set_global_str, yrx_scanner_set_module_data,
-    yrx_scanner_set_timeout, YRX_BUFFER, YRX_METADATA, YRX_PATTERN,
-    YRX_RESULT, YRX_RULE,
+    yrx_scanner_on_console_log, yrx_scanner_on_matching_rule,
+    yrx_scanner_scan, yrx_scanner_scan_block, yrx_scanner_set_global_bool,
+    yrx_scanner_set_global_float, yrx_scanner_set_global_int,
+    yrx_scanner_set_global_json, yrx_scanner_set_global_str,
+    yrx_scanner_set_module_data, yrx_scanner_set_timeout, YRX_BUFFER,
+    YRX_METADATA, YRX_PATTERN, YRX_RESULT, YRX_RULE,
 };
 
 use std::ffi::{c_char, c_void, CStr};
+
+use assert_call::{call, CallRecorder};
 
 extern "C" fn on_rule_iter(_rule: *const YRX_RULE, user_data: *mut c_void) {
     let ptr = user_data as *mut i32;
@@ -108,6 +110,41 @@ extern "C" fn on_rule_match_increase_counter(
     *matches += 1;
 }
 
+extern "C" fn on_console_log(message: *const c_char) {
+    let cstr = unsafe { CStr::from_ptr(message) };
+    call!("{}", cstr.to_string_lossy());
+}
+
+#[test]
+fn capi_console_log() {
+    unsafe {
+        let mut compiler = std::ptr::null_mut();
+        yrx_compiler_create(0, &mut compiler);
+
+        let src = cr#"
+        import "console"
+
+        rule test {
+            condition:
+                console.log("AXSERS")
+        }
+        "#;
+
+        yrx_compiler_add_source(compiler, src.as_ptr());
+        let rules = yrx_compiler_build(compiler);
+
+        let mut scanner = std::ptr::null_mut();
+        yrx_scanner_create(rules, &mut scanner);
+        yrx_scanner_on_console_log(scanner, on_console_log);
+        let mut recorder = CallRecorder::new_local();
+        yrx_scanner_scan(scanner, std::ptr::null(), 0);
+        recorder.verify("AXSERS");
+
+        yrx_rules_destroy(rules);
+        yrx_scanner_destroy(scanner);
+        yrx_compiler_destroy(compiler);
+    }
+}
 #[test]
 fn capi() {
     unsafe {

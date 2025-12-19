@@ -112,6 +112,7 @@ yara-x-proto-json = { path = "proto-json", version = "1.10.0" }
 zip = "6.0.0"
 simd-adler32 = "0.3.7"
 simd_cesu8 = "1"
+assert-call = "0.1.2"
 
 # Special profile that builds a release binary with link-time optimization.
 # Compiling with this profile takes a while, but the resulting binary is
