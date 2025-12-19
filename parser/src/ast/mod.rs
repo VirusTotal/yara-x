@@ -25,6 +25,8 @@ use crate::{Parser, Span};
 mod ascii_tree;
 mod cst2ast;
 mod errors;
+#[cfg(test)]
+mod tests;
 
 pub mod dfs;
 
@@ -45,6 +47,22 @@ pub enum Item<'src> {
     Rule(Rule<'src>),
 }
 
+impl<'src> From<&'src str> for AST<'src> {
+    /// Creates an [`AST`] from the give source code.
+    #[inline]
+    fn from(source: &'src str) -> Self {
+        AST::from(source.as_bytes())
+    }
+}
+
+impl<'src> From<&'src [u8]> for AST<'src> {
+    /// Creates an [`AST`] from the give source code.
+    #[inline]
+    fn from(source: &'src [u8]) -> Self {
+        AST::from(Parser::new(source))
+    }
+}
+
 impl<'src> From<Parser<'src>> for AST<'src> {
     /// Creates an [`AST`] from the given [`Parser`].
     fn from(parser: Parser<'src>) -> Self {
@@ -63,7 +81,7 @@ where
 }
 
 impl<'src> AST<'src> {
-    fn new<I: Iterator<Item = Event>>(
+    pub fn new<I: Iterator<Item = Event>>(
         source: &'src [u8],
         events: I,
     ) -> AST<'src> {

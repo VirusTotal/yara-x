@@ -46,6 +46,12 @@ impl From<logos::Span> for Span {
     }
 }
 
+impl From<rowan::TextRange> for Span {
+    fn from(value: rowan::TextRange) -> Self {
+        Self(value.start().into()..value.end().into())
+    }
+}
+
 impl Display for Span {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "[{}..{}]", self.start(), self.end())

@@ -16,7 +16,6 @@ use std::fmt::{Debug, Display, Formatter};
 use std::iter;
 use std::marker::PhantomData;
 use std::str::{from_utf8, Utf8Error};
-
 pub use syntax_kind::SyntaxKind;
 
 use crate::cst::SyntaxKind::{COMMENT, NEWLINE, WHITESPACE};
@@ -172,6 +171,47 @@ where
     }
 }
 
+struct CSTIter {
+    iter: rowan::api::PreorderWithTokens<YARA>,
+}
+
+impl Iterator for CSTIter {
+    type Item = Event;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(event) = self.iter.next() {
+            match event {
+                rowan::WalkEvent::Enter(e) => {
+                    return match e {
+                        rowan::SyntaxElement::Node(node) => {
+                            Some(Event::Begin {
+                                kind: SyntaxKind::from(node.kind()),
+                                span: Span::from(node.text_range()),
+                            })
+                        }
+                        rowan::SyntaxElement::Token(token) => {
+                            Some(Event::Token {
+                                kind: SyntaxKind::from(token.kind()),
+                                span: Span::from(token.text_range()),
+                            })
+                        }
+                    }
+                }
+                rowan::WalkEvent::Leave(e) => match e {
+                    rowan::SyntaxElement::Node(node) => {
+                        return Some(Event::End {
+                            kind: SyntaxKind::from(node.kind()),
+                            span: Span::from(node.text_range()),
+                        });
+                    }
+                    _ => {}
+                },
+            }
+        }
+        None
+    }
+}
+
 impl<'src> From<Parser<'src>> for CSTStream<'src, Parser<'src>> {
     /// Creates a [`CSTStream`] from the given parser.
     fn from(parser: Parser<'src>) -> Self {
@@ -225,6 +265,11 @@ impl CST {
     /// one by calling [`Node::into_mut`].
     pub fn root(&self) -> Node<Immutable> {
         Node::new(self.tree.clone())
+    }
+
+    /// Returns an iterator of [`Event`].
+    pub fn iter(&self) -> impl Iterator<Item = Event> + '_ {
+        CSTIter { iter: self.tree.preorder_with_tokens() }
     }
 }
 

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use async_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Range};
 use yara_x_parser::ast::dfs::{DFSEvent, DFSIter};
 use yara_x_parser::ast::{Error, Expr, OfItems, PatternSet, WithSpan, AST};
-use yara_x_parser::{Parser, Span};
+use yara_x_parser::Span;
 
 use crate::utils::position::to_pos;
 
@@ -200,7 +200,7 @@ fn collect_variable_diagnostics(
 /// Return diagnostic vector for the given source code.
 pub fn get_diagnostic_vec(text: &String) -> Vec<Diagnostic> {
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
-    let ast = AST::from(Parser::new(text.as_bytes()));
+    let ast = AST::from(text.as_str());
 
     collect_variable_diagnostics(&mut diagnostics, &ast, text);
     collect_ast_errors(&mut diagnostics, ast, text);
