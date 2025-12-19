@@ -179,33 +179,32 @@ impl Iterator for CSTIter {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(event) = self.iter.next() {
+        for event in self.iter.by_ref() {
             match event {
                 rowan::WalkEvent::Enter(e) => {
                     return match e {
                         rowan::SyntaxElement::Node(node) => {
                             Some(Event::Begin {
-                                kind: SyntaxKind::from(node.kind()),
+                                kind: node.kind(),
                                 span: Span::from(node.text_range()),
                             })
                         }
                         rowan::SyntaxElement::Token(token) => {
                             Some(Event::Token {
-                                kind: SyntaxKind::from(token.kind()),
+                                kind: token.kind(),
                                 span: Span::from(token.text_range()),
                             })
                         }
                     }
                 }
-                rowan::WalkEvent::Leave(e) => match e {
-                    rowan::SyntaxElement::Node(node) => {
+                rowan::WalkEvent::Leave(e) => {
+                    if let rowan::SyntaxElement::Node(node) = e {
                         return Some(Event::End {
-                            kind: SyntaxKind::from(node.kind()),
+                            kind: node.kind(),
                             span: Span::from(node.text_range()),
                         });
                     }
-                    _ => {}
-                },
+                }
             }
         }
         None
@@ -794,6 +793,22 @@ impl<M: Clone> NodeOrToken<M> {
         match self {
             NodeOrToken::Node(n) => n.parent(),
             NodeOrToken::Token(t) => t.parent(),
+        }
+    }
+
+    /// If this is a node, returns it. Returns `None` if otherwise.
+    pub fn into_node(self) -> Option<Node<M>> {
+        match self {
+            NodeOrToken::Node(n) => Some(n),
+            NodeOrToken::Token(_) => None,
+        }
+    }
+
+    /// If this is a token, returns it. Returns `None` if otherwise.
+    pub fn into_token(self) -> Option<Token<M>> {
+        match self {
+            NodeOrToken::Node(_) => None,
+            NodeOrToken::Token(t) => Some(t),
         }
     }
 

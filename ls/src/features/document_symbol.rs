@@ -1,10 +1,9 @@
 use async_lsp::lsp_types::{DocumentSymbol, SymbolKind};
 
+use crate::utils::position::{node_to_range, token_to_range};
 use yara_x_parser::cst::{
     Immutable, Node, NodeOrToken, Nodes, SyntaxKind, CST,
 };
-
-use crate::utils::position::{node_to_range, token_to_range};
 
 /// Returns document symbol response for the given document based on its CST.
 #[allow(deprecated)]
@@ -15,54 +14,54 @@ pub fn document_symbol(cst: &CST) -> Vec<DocumentSymbol> {
         match node.kind() {
             // Import statement in the root of the document symbols
             SyntaxKind::IMPORT_STMT => {
-                if let Some(NodeOrToken::Token(import_string)) =
-                    node.children_with_tokens().find(|node_or_token| {
-                        node_or_token.kind() == SyntaxKind::STRING_LIT
-                    })
-                {
-                    let range = token_to_range(&import_string).unwrap();
+                let module_name = node
+                    .children_with_tokens()
+                    .find(|child| child.kind() == SyntaxKind::STRING_LIT)
+                    .and_then(|child| child.into_token())
+                    .unwrap();
 
-                    all_symbols.push(DocumentSymbol {
-                        name: String::from(import_string.text()),
-                        detail: Some(String::from("Import statement")),
-                        kind: SymbolKind::FILE,
-                        tags: None,
-                        deprecated: None,
-                        range,
-                        selection_range: range,
-                        children: None,
-                    });
-                }
+                let range = token_to_range(&module_name).unwrap();
+
+                all_symbols.push(DocumentSymbol {
+                    name: String::from(module_name.text()),
+                    detail: Some(String::from("Import statement")),
+                    kind: SymbolKind::FILE,
+                    tags: None,
+                    deprecated: None,
+                    range,
+                    selection_range: range,
+                    children: None,
+                });
             }
-            //Include statement in the root of the document symbols
+            // Include statement in the root of the document symbols
             SyntaxKind::INCLUDE_STMT => {
-                if let Some(NodeOrToken::Token(include_string)) =
-                    node.children_with_tokens().find(|node_or_token| {
-                        node_or_token.kind() == SyntaxKind::STRING_LIT
-                    })
-                {
-                    let range = token_to_range(&include_string).unwrap();
+                let included_file = node
+                    .children_with_tokens()
+                    .find(|child| child.kind() == SyntaxKind::STRING_LIT)
+                    .and_then(|child| child.into_token())
+                    .unwrap();
 
-                    all_symbols.push(DocumentSymbol {
-                        name: String::from(include_string.text()),
-                        detail: Some(String::from("Include statement")),
-                        kind: SymbolKind::FILE,
-                        tags: None,
-                        deprecated: None,
-                        range,
-                        selection_range: range,
-                        children: None,
-                    });
-                }
+                let range = token_to_range(&included_file).unwrap();
+
+                all_symbols.push(DocumentSymbol {
+                    name: String::from(included_file.text()),
+                    detail: Some(String::from("Include statement")),
+                    kind: SymbolKind::FILE,
+                    tags: None,
+                    deprecated: None,
+                    range,
+                    selection_range: range,
+                    children: None,
+                });
             }
-            //Rule definition in the root of the document symbols
+            // Rule definition in the root of the document symbols
             SyntaxKind::RULE_DECL => {
                 if let Some(NodeOrToken::Token(rule_ident)) =
                     node.children_with_tokens().find(|node_or_token| {
                         node_or_token.kind() == SyntaxKind::IDENT
                     })
                 {
-                    //Extract all rule blocks as children for the rule definition symbol
+                    // Extract all rule blocks as children for the rule definition symbol
                     let mut rule_symbols: Vec<DocumentSymbol> = Vec::new();
 
                     for block in node.children() {
