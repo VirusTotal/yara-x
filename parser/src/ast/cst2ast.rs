@@ -34,7 +34,7 @@ where
     I: Iterator<Item = Event>,
 {
     source: &'src [u8],
-    events: Peekable<CSTStream<'src, I>>,
+    events: Peekable<I>,
     errors: Vec<Error>,
     depth: usize,
 }
@@ -43,11 +43,11 @@ impl<'src, I> Builder<'src, I>
 where
     I: Iterator<Item = Event>,
 {
-    pub fn new(cst: CSTStream<'src, I>) -> Self {
+    pub fn new(source: &'src [u8], events: I) -> Self {
         Self {
+            source,
+            events: events.peekable(),
             errors: Vec::new(),
-            source: cst.source(),
-            events: cst.peekable(),
             depth: 0,
         }
     }
