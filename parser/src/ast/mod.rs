@@ -50,16 +50,16 @@ pub enum Item<'src> {
 impl<'src> From<&'src str> for AST<'src> {
     /// Creates an [`AST`] from the give source code.
     #[inline]
-    fn from(source: &'src str) -> Self {
-        AST::from(source.as_bytes())
+    fn from(src: &'src str) -> Self {
+        AST::from(src.as_bytes())
     }
 }
 
 impl<'src> From<&'src [u8]> for AST<'src> {
     /// Creates an [`AST`] from the give source code.
     #[inline]
-    fn from(source: &'src [u8]) -> Self {
-        AST::from(Parser::new(source))
+    fn from(src: &'src [u8]) -> Self {
+        AST::from(Parser::new(src))
     }
 }
 
