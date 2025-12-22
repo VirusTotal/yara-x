@@ -2,9 +2,7 @@ use async_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails,
     CompletionResponse, InsertTextFormat, InsertTextMode, Position,
 };
-use yara_x_parser::cst::{
-    Immutable, NodeOrToken, SyntaxKind, Token, CST,
-};
+use yara_x_parser::cst::{Immutable, NodeOrToken, SyntaxKind, Token, CST};
 
 use crate::features::completion_const::{
     CONDITION_SUGGESTIONS, PATTERN_MOD, RULE_KW_BLKS, SRC_SUGGESTIONS,
