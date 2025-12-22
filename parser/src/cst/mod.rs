@@ -272,6 +272,15 @@ impl CST {
     }
 }
 
+impl<'src> From<&'src str> for CST {
+    /// Crates a [`CST`] from the given source code.
+    fn from(src: &'src str) -> Self {
+        // The source is &str, therefore it is guaranteed to be valid UTF-8
+        // and calling .unwrap() is safe.
+        Self::try_from(Parser::new(src.as_bytes())).unwrap()
+    }
+}
+
 impl TryFrom<Parser<'_>> for CST {
     type Error = Utf8Error;
 

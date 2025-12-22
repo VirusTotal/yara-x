@@ -34,7 +34,6 @@ use async_lsp::{ClientSocket, LanguageClient, LanguageServer, ResponseError};
 use futures::future::BoxFuture;
 
 use yara_x_parser::cst::CST;
-use yara_x_parser::Parser;
 
 use crate::features::semantic_tokens::{
     SEMANTIC_TOKEN_MODIFIERS, SEMANTIC_TOKEN_TYPES,
@@ -391,12 +390,8 @@ impl LanguageServer for YARALanguageServer {
     ) -> Self::NotifyResult {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
-
-        // TODO: this fails with UTF-8 errors, what should we do?
-        if let Ok(cst) = CST::try_from(Parser::new(text.as_bytes())) {
-            self.documents.insert(uri.clone(), (text, cst));
-        }
-
+        let cst = CST::from(text.as_str());
+        self.documents.insert(uri.clone(), (text, cst));
         self.publish_diagnostics(&uri);
         ControlFlow::Continue(())
     }
@@ -407,10 +402,8 @@ impl LanguageServer for YARALanguageServer {
     ) -> Self::NotifyResult {
         if let Some(text) = params.text {
             let uri = params.text_document.uri;
-            // TODO: this fails with UTF-8 errors, what should we do?
-            if let Ok(cst) = CST::try_from(Parser::new(text.as_bytes())) {
-                self.documents.insert(uri.clone(), (text, cst));
-            }
+            let cst = CST::from(text.as_str());
+            self.documents.insert(uri.clone(), (text, cst));
             self.publish_diagnostics(&uri);
         }
         ControlFlow::Continue(())
@@ -421,16 +414,9 @@ impl LanguageServer for YARALanguageServer {
         params: DidChangeTextDocumentParams,
     ) -> Self::NotifyResult {
         for change in params.content_changes.into_iter() {
-            // TODO: this fails with UTF-8 errors, what should we do?
-            // TODO: it seems that if change.range is Some(range) then change.text is
-            // is not the full document.
-            if let Ok(cst) = CST::try_from(Parser::new(change.text.as_bytes()))
-            {
-                self.documents.insert(
-                    params.text_document.uri.clone(),
-                    (change.text, cst),
-                );
-            }
+            let cst = CST::from(change.text.as_str());
+            self.documents
+                .insert(params.text_document.uri.clone(), (change.text, cst));
         }
 
         self.publish_diagnostics(&params.text_document.uri);
