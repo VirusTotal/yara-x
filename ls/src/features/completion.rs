@@ -3,22 +3,19 @@ use async_lsp::lsp_types::{
     CompletionResponse, InsertTextFormat, InsertTextMode, Position,
 };
 use yara_x_parser::cst::{
-    Immutable, NodeOrToken, SyntaxKind, Token, Utf16, CST,
+    Immutable, NodeOrToken, SyntaxKind, Token, CST,
 };
 
 use crate::features::completion_const::{
     CONDITION_SUGGESTIONS, PATTERN_MOD, RULE_KW_BLKS, SRC_SUGGESTIONS,
 };
 
-use crate::utils::cst_traversal::rule_containing_token;
+use crate::utils::cst_traversal::{rule_containing_token, token_at_position};
 
 /// Provides completion suggestions based on the cursor position and the
 /// block it is in.
 pub fn completion(cst: &CST, pos: Position) -> Option<CompletionResponse> {
-    let token_at_cursor = cst.root().token_at_position::<Utf16, _>((
-        pos.line as usize,
-        pos.character as usize,
-    ));
+    let token_at_cursor = token_at_position(cst, pos);
 
     // Get the token before cursor. There might be no token at cursor when the
     // cursor is at of the file. In this case, take the last token of the file.

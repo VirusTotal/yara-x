@@ -1,11 +1,12 @@
 use async_lsp::lsp_types::{
     DocumentHighlight, DocumentHighlightKind, Position,
 };
-use yara_x_parser::cst::{SyntaxKind, Utf16, CST};
+use yara_x_parser::cst::{SyntaxKind, CST};
 
 use crate::utils::cst_traversal::rule_containing_token;
 use crate::utils::cst_traversal::{
-    pattern_from_ident, pattern_usages, rule_from_ident, rule_usages,
+    ident_at_position, pattern_from_ident, pattern_usages, rule_from_ident,
+    rule_usages,
 };
 use crate::utils::position::{node_to_range, token_to_range};
 
@@ -17,10 +18,7 @@ pub fn document_highlight(
     cst: &CST,
     pos: Position,
 ) -> Option<Vec<DocumentHighlight>> {
-    let token = cst.root().token_at_position::<Utf16, _>((
-        pos.line as usize,
-        pos.character as usize,
-    ))?;
+    let token = ident_at_position(cst, pos)?;
 
     match token.kind() {
         //Find highlight of pattern within the same rule
@@ -52,7 +50,7 @@ pub fn document_highlight(
 
             Some(result)
         }
-        //Find rule declaration and its occurrences in other condition blocks
+        // Find rule declaration and its occurrences in other condition blocks
         SyntaxKind::IDENT => {
             let mut result: Vec<DocumentHighlight> = Vec::new();
 

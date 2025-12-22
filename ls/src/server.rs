@@ -317,6 +317,10 @@ impl LanguageServer for YARALanguageServer {
         Box::pin(async move { Ok(Some(SemanticTokensResult::Tokens(tokens))) })
     }
 
+    /// Message sent when the user wants to rename some identifier.
+    ///
+    /// The params include a position within the source code that should
+    /// correspond to the identifier that must be renamed.
     fn rename(
         &mut self,
         params: RenameParams,
@@ -334,9 +338,10 @@ impl LanguageServer for YARALanguageServer {
             params.text_document_position.position,
         )
         .map(|changes| HashMap::from([(uri, changes)]))
-        .map(WorkspaceEdit::new);
+        .map(WorkspaceEdit::new)
+        .unwrap_or_default();
 
-        Box::pin(async move { Ok(changes) })
+        Box::pin(async move { Ok(Some(changes)) })
     }
 
     fn selection_range(

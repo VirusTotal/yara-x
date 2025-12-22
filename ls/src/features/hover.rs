@@ -2,10 +2,11 @@ use async_lsp::lsp_types::{
     HoverContents, MarkupContent, MarkupKind, Position,
 };
 
-use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Utf16, Utf8, CST};
+use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Utf8, CST};
 
 use crate::utils::cst_traversal::{
     pattern_from_ident, rule_containing_token, rule_from_ident,
+    token_at_position,
 };
 
 /// Builder for hover markdown representation of a rule.
@@ -115,10 +116,7 @@ impl RuleHoverBuilder {
 
 pub fn hover(cst: &CST, pos: Position) -> Option<HoverContents> {
     // Find the token at the position where the user is hovering.
-    let token = cst.root().token_at_position::<Utf16, _>((
-        pos.line as usize,
-        pos.character as usize,
-    ))?;
+    let token = token_at_position(cst, pos)?;
 
     #[allow(irrefutable_let_patterns)]
     match token.kind() {

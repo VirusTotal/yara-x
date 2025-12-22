@@ -4,9 +4,58 @@ These functions are mainly used in [`crate::features`] module to find
 rules and patterns within the CST based on provided identifiers or positions.
  */
 
+use async_lsp::lsp_types::Position;
 use yara_x_parser::cst::{
-    Immutable, Node, NodeOrToken, SyntaxKind, Token, CST,
+    Immutable, Node, NodeOrToken, SyntaxKind, Token, Utf16, CST,
 };
+
+/// Returns the token at a given position in the CST.
+pub(crate) fn token_at_position(
+    cst: &CST,
+    pos: Position,
+) -> Option<Token<Immutable>> {
+    cst.root().token_at_position::<Utf16, _>((
+        pos.line as usize,
+        pos.character as usize,
+    ))
+}
+
+/// Returns the identifier at a given position in the CST.
+///
+/// This function returns the identifier even if the position is past the
+/// identifier, at the first position of the next token.
+pub(crate) fn ident_at_position(
+    cst: &CST,
+    mut pos: Position,
+) -> Option<Token<Immutable>> {
+    let ident_at_pos = |cst, pos| {
+        if let Some(token) = token_at_position(cst, pos) {
+            if matches!(
+                token.kind(),
+                SyntaxKind::IDENT
+                    | SyntaxKind::PATTERN_IDENT
+                    | SyntaxKind::PATTERN_COUNT
+                    | SyntaxKind::PATTERN_OFFSET
+                    | SyntaxKind::PATTERN_LENGTH
+            ) {
+                return Some(token);
+            }
+        }
+        None
+    };
+
+    if let Some(token) = ident_at_pos(cst, pos) {
+        return Some(token);
+    }
+
+    pos.character = pos.character.saturating_sub(1);
+
+    if let Some(token) = ident_at_pos(cst, pos) {
+        return Some(token);
+    }
+
+    None
+}
 
 /// Returns [`yara_x_parser::cst::Node`] containing rule declaration matching
 /// the provided identifier if exists in the CST.

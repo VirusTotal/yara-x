@@ -1,18 +1,15 @@
 use async_lsp::lsp_types::{Position, Range};
-use yara_x_parser::cst::{SyntaxKind, Utf16, CST};
+use yara_x_parser::cst::{SyntaxKind, CST};
 
 use crate::utils::cst_traversal::{
-    pattern_from_ident, pattern_usages, rule_from_ident,
+    ident_at_position, pattern_from_ident, pattern_usages, rule_from_ident,
 };
 use crate::utils::cst_traversal::{rule_containing_token, rule_usages};
 use crate::utils::position::{node_to_range, token_to_range};
 
 /// Finds all references of a symbol at the given position in the text.
 pub fn find_references(cst: &CST, pos: Position) -> Option<Vec<Range>> {
-    let token = cst.root().token_at_position::<Utf16, _>((
-        pos.line as usize,
-        pos.character as usize,
-    ))?;
+    let token = ident_at_position(cst, pos)?;
 
     match token.kind() {
         // Pattern identifiers

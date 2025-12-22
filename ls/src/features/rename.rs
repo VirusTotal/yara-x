@@ -1,9 +1,10 @@
 use async_lsp::lsp_types::{Position, TextEdit};
-use yara_x_parser::cst::{NodeOrToken, SyntaxKind, Utf16, CST};
+use yara_x_parser::cst::{NodeOrToken, SyntaxKind, CST};
 
 use crate::utils::cst_traversal::rule_containing_token;
 use crate::utils::cst_traversal::{
-    pattern_from_ident, pattern_usages, rule_from_ident, rule_usages,
+    ident_at_position, pattern_from_ident, pattern_usages, rule_from_ident,
+    rule_usages,
 };
 use crate::utils::position::token_to_range;
 
@@ -14,20 +15,16 @@ pub fn rename(
     pos: Position,
 ) -> Option<Vec<TextEdit>> {
     let mut result: Vec<TextEdit> = Vec::new();
+    let ident = ident_at_position(cst, pos)?;
 
-    let rename_cursor = cst.root().token_at_position::<Utf16, _>((
-        pos.line as usize,
-        pos.character as usize,
-    ))?;
-
-    match rename_cursor.kind() {
+    match ident.kind() {
         // Pattern identifiers
         // PATTERN_IDENT($a) PATTERN_COUNT(#a) PATTERN_OFFSET(@a) PATTERN_LENGTH(!a)
         SyntaxKind::PATTERN_IDENT
         | SyntaxKind::PATTERN_COUNT
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
-            let rule = rule_containing_token(&rename_cursor)?;
+            let rule = rule_containing_token(&ident)?;
 
             //If user entered `$`, `!`, `#` or `@`, then ignore it
             //Because only text after these characters will change
@@ -37,7 +34,7 @@ pub fn rename(
                 new_name
             };
 
-            let definition = pattern_from_ident(&rule, rename_cursor.text());
+            let definition = pattern_from_ident(&rule, ident.text());
 
             if let Some(definition) = definition {
                 if let Some(first_token) = definition.first_token() {
@@ -50,7 +47,7 @@ pub fn rename(
                 }
             }
 
-            let occurrences = pattern_usages(&rule, rename_cursor.text());
+            let occurrences = pattern_usages(&rule, ident.text());
 
             if let Some(occurrences) = occurrences {
                 for occurrence in occurrences {
@@ -65,7 +62,7 @@ pub fn rename(
         }
         // Rule identifiers
         SyntaxKind::IDENT => {
-            let rule = rule_from_ident(cst, rename_cursor.text());
+            let rule = rule_from_ident(cst, ident.text());
 
             if let Some(rule) = rule {
                 if let Some(NodeOrToken::Token(ident)) =
@@ -79,7 +76,7 @@ pub fn rename(
                 }
             }
 
-            let occurrences = rule_usages(cst, rename_cursor.text());
+            let occurrences = rule_usages(cst, ident.text());
 
             if let Some(occurrences) = occurrences {
                 for occurrence in occurrences {

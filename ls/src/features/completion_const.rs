@@ -1,7 +1,7 @@
 /*! This module contains constants used within code completion feature.
 
 These constants are slices containing YARA-X keywords, that can appear in
-various contexts. Arrays can additionaly contain code snippets for
+various contexts. Arrays can additionally contain code snippets for
 code completion suggestions.
  */
 
