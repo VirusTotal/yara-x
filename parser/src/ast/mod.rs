@@ -87,15 +87,15 @@ impl<'src> AST<'src> {
     /// # Panics
     ///
     /// This is a low-level API that requires the `events` iterator to perfectly
-    /// match the provided `source`. This function will panic if the events are
-    /// inconsistent with the source or do not originate from parsing this
+    /// match the provided source code. This function will panic if the events
+    /// are inconsistent with the source or do not originate from parsing this
     /// specific code.
     #[doc(hidden)]
     pub fn new<I: Iterator<Item = Event>>(
-        source: &'src [u8],
+        src: &'src [u8],
         events: I,
     ) -> AST<'src> {
-        Builder::new(source, events).build_ast()
+        Builder::new(src, events).build_ast()
     }
 
     /// Returns the top level items in the AST.

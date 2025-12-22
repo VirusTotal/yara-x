@@ -43,9 +43,9 @@ impl<'src, I> Builder<'src, I>
 where
     I: Iterator<Item = Event>,
 {
-    pub fn new(source: &'src [u8], events: I) -> Self {
+    pub fn new(src: &'src [u8], events: I) -> Self {
         Self {
-            source,
+            source: src,
             events: events.peekable(),
             errors: Vec::new(),
             depth: 0,
