@@ -64,10 +64,10 @@ where
 
 impl<'src> AST<'src> {
     fn new<I: Iterator<Item = Event>>(
-        source: &'src [u8],
+        src: &'src [u8],
         events: I,
     ) -> AST<'src> {
-        Builder::new(source, events).build_ast()
+        Builder::new(src, events).build_ast()
     }
 
     /// Returns the top level items in the AST.
