@@ -63,7 +63,8 @@ const _N_PBUD: u8 = 0xc; /* prebound undefined (defined in a dylib) */
 const N_INDR: u8 = 0xa; /* indirect */
 
 /// Mach-O export flag constants
-const EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION: u64 = 0x00000004;
+const _EXPORT_SYMBOL_FLAGS_KIND_REGULAR: u64 = 0x00000000;
+const _EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION: u64 = 0x00000004;
 const EXPORT_SYMBOL_FLAGS_REEXPORT: u64 = 0x00000008;
 const EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER: u64 = 0x00000010;
 
@@ -1213,11 +1214,10 @@ impl<'a> MachOFile<'a> {
 
                         remaining_data = remainder;
                     }
-                    EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION => {
+                    _ => {
                         let (remainder, _offset) = uleb128(remainder)?;
                         remaining_data = remainder;
                     }
-                    _ => {}
                 }
             }
 
