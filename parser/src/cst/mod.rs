@@ -14,7 +14,9 @@ code, without any grouping based on operator precedence.
 
 use std::fmt::{Debug, Display, Formatter};
 use std::iter;
+use std::iter::Cloned;
 use std::marker::PhantomData;
+use std::slice::Iter;
 use std::str::{from_utf8, Utf8Error};
 
 pub use syntax_kind::SyntaxKind;
@@ -172,12 +174,12 @@ where
     }
 }
 
-struct CSTIter {
+struct CSTIter<'a> {
     iter: rowan::api::PreorderWithTokens<YARA>,
-    errors: Vec<(Span, String)>,
+    errors: Cloned<Iter<'a, (Span, String)>>,
 }
 
-impl Iterator for CSTIter {
+impl<'a> Iterator for CSTIter<'a> {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -209,7 +211,7 @@ impl Iterator for CSTIter {
                 }
             }
         }
-        if let Some((span, message)) = self.errors.pop() {
+        if let Some((span, message)) = self.errors.next() {
             return Some(Event::Error { message, span });
         }
         None
@@ -275,7 +277,7 @@ impl CST {
     pub fn iter(&self) -> impl Iterator<Item = Event> + '_ {
         CSTIter {
             iter: self.tree.preorder_with_tokens(),
-            errors: self.errors.clone(),
+            errors: self.errors.iter().cloned(),
         }
     }
 }
