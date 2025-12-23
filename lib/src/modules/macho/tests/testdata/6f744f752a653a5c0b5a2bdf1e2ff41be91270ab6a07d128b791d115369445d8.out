@@ -1,0 +1,210 @@
+magic: 0xcffaedfe
+cputype: 0x100000c
+cpusubtype: 0x0
+filetype: 2
+ncmds: 18
+sizeofcmds: 1256
+flags: 0x200085
+reserved: 0
+number_of_segments: 4
+dynamic_linker: "/usr/lib/dyld"
+entry_point: 1328
+stack_size: 0
+source_version: "0.0.0.0.0"
+symtab:
+    symoff: 32920
+    nsyms: 4
+    stroff: 32992
+    strsize: 64
+    entries:
+      - "___swift_reflection_version"
+      - "__mh_execute_header"
+      - "_main"
+      - "_test"
+    nlists:
+      - n_strx: 34
+        n_type: 30
+        n_sect: 4
+        n_desc: 128
+        n_value: 4294968668
+      - n_strx: 2
+        n_type: 15
+        n_sect: 1
+        n_desc: 16
+        n_value: 4294967296
+      - n_strx: 22
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294968624
+      - n_strx: 28
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 1
+    iextdefsym: 1
+    nextdefsym: 2
+    tocoff: 3
+    ntoc: 1
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 32984
+    nextrel: 2
+    locreloff: 0
+    nlocrel: 0
+code_signature_data:
+    dataoff: 33056
+    datasize: 408
+segments:
+  - segname: "__PAGEZERO"
+    vmaddr: 0x0
+    vmsize: 0x100000000
+    fileoff: 0
+    filesize: 0
+    maxprot: 0x0
+    initprot: 0x0
+    nsects: 0
+    flags: 0x0
+  - segname: "__TEXT"
+    vmaddr: 0x100000000
+    vmsize: 0x4000
+    fileoff: 0
+    filesize: 16384
+    maxprot: 0x5
+    initprot: 0x5
+    nsects: 5
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0x100000530
+        size: 0x18
+        offset: 1328
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__stubs"
+        addr: 0x100000548
+        size: 0xc
+        offset: 1352
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000408
+        reserved1: 0
+        reserved2: 12
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__swift5_entry"
+        addr: 0x100000554
+        size: 0x8
+        offset: 1364
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__const"
+        addr: 0x10000055c
+        size: 0x2
+        offset: 1372
+        align: 1
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__unwind_info"
+        addr: 0x100000560
+        size: 0x58
+        offset: 1376
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+  - segname: "__DATA_CONST"
+    vmaddr: 0x100004000
+    vmsize: 0x4000
+    fileoff: 16384
+    filesize: 16384
+    maxprot: 0x3
+    initprot: 0x3
+    nsects: 2
+    flags: 0x10
+    sections:
+      - segname: "__DATA_CONST"
+        sectname: "__got"
+        addr: 0x100004000
+        size: 0x8
+        offset: 16384
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x6
+        reserved1: 1
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__objc_imageinfo"
+        addr: 0x100004008
+        size: 0x8
+        offset: 16392
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+  - segname: "__LINKEDIT"
+    vmaddr: 0x100008000
+    vmsize: 0x4000
+    fileoff: 32768
+    filesize: 696
+    maxprot: 0x1
+    initprot: 0x1
+    nsects: 0
+    flags: 0x0
+dylibs:
+  - name: "libLAZY.dylib"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "0.0.0"
+    current_version: "0.0.0"
+  - name: "/usr/lib/libSystem.B.dylib"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1351.0.0"
+uuid: "1D820275-072A-3DAC-B042-8F81C68E6C8A"
+build_version:
+    platform: 1
+    minos: "15.0.0"
+    sdk: "15.5.0"
+    ntools: 1
+    tools:
+      - tool: 3
+        version: "1167.5"
+exports:
+  - "_main"
+  - "__mh_execute_header"
+imports:
+  - "_test"
