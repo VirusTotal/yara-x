@@ -16,6 +16,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::iter;
 use std::marker::PhantomData;
 use std::str::{from_utf8, Utf8Error};
+
 pub use syntax_kind::SyntaxKind;
 
 use crate::cst::SyntaxKind::{COMMENT, NEWLINE, WHITESPACE};
@@ -173,6 +174,7 @@ where
 
 struct CSTIter {
     iter: rowan::api::PreorderWithTokens<YARA>,
+    errors: Vec<(Span, String)>,
 }
 
 impl Iterator for CSTIter {
@@ -206,6 +208,9 @@ impl Iterator for CSTIter {
                     }
                 }
             }
+        }
+        if let Some((span, message)) = self.errors.pop() {
+            return Some(Event::Error { message, span });
         }
         None
     }
@@ -268,7 +273,10 @@ impl CST {
 
     /// Returns the parsed source code as an iterator of [`Event`].
     pub fn iter(&self) -> impl Iterator<Item = Event> + '_ {
-        CSTIter { iter: self.tree.preorder_with_tokens() }
+        CSTIter {
+            iter: self.tree.preorder_with_tokens(),
+            errors: self.errors.clone(),
+        }
     }
 }
 

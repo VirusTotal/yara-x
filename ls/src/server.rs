@@ -373,11 +373,16 @@ impl LanguageServer for YARALanguageServer {
         params: DocumentDiagnosticParams,
     ) -> BoxFuture<'static, Result<DocumentDiagnosticReportResult, Self::Error>>
     {
-        let diagnostics = self
-            .documents
-            .get(&params.text_document.uri)
-            .map(|(text, _)| diagnostics::get_diagnostic_vec(text))
-            .unwrap_or_default();
+        let uri = params.text_document.uri;
+
+        let diagnostics = match self.documents.get(&uri) {
+            Some((_, cst)) => {
+                let src = cst.root().text().to_string();
+                let ast = AST::new(src.as_bytes(), cst.iter());
+                diagnostics::diagnostics(ast, src.as_str())
+            }
+            None => vec![],
+        };
 
         Box::pin(async move {
             Ok(DocumentDiagnosticReportResult::Report(
@@ -466,11 +471,16 @@ impl YARALanguageServer {
     /// Sends diagnostics for specific document if publish model is used.
     fn publish_diagnostics(&mut self, uri: &Url) {
         if self.should_send_diagnostics {
-            if let Some((text, _)) = self.documents.get(uri) {
+            if let Some((_, cst)) = self.documents.get(uri) {
+                let src = cst.root().text().to_string();
+                let ast = AST::new(src.as_bytes(), cst.iter());
                 let _ = self.client.publish_diagnostics(
                     PublishDiagnosticsParams {
                         uri: uri.clone(),
-                        diagnostics: diagnostics::get_diagnostic_vec(text),
+                        diagnostics: diagnostics::diagnostics(
+                            ast,
+                            src.as_str(),
+                        ),
                         version: None,
                     },
                 );
