@@ -8,6 +8,27 @@ use async_lsp::lsp_types::{Position, Range};
 
 use yara_x_parser::cst::Utf16;
 use yara_x_parser::cst::{Immutable, Node, Token};
+use yara_x_parser::Span;
+
+/// Given a span within `src`, returns the corresponding [`Range`].
+pub(crate) fn span_to_range(span: Span, src: &str) -> Range {
+    Range {
+        start: offset_to_position(span.start(), src),
+        end: offset_to_position(span.end(), src),
+    }
+}
+
+/// Given an offset within `src`, returns the corresponding [`Position`].
+pub(crate) fn offset_to_position(offset: usize, src: &str) -> Position {
+    let (line, col) = if let Some(newline) = src[0..offset].rfind('\n') {
+        let line = src[0..newline].chars().filter(|c| *c == '\n').count() + 1;
+        let col = src[newline + 1..offset].encode_utf16().count();
+        (line, col)
+    } else {
+        (0, src[0..offset].encode_utf16().count())
+    };
+    Position::new(line as u32, col as u32)
+}
 
 /// Converts the absolute position in text to `Position` LSP object.
 pub(crate) fn to_pos(pos: u32, text: &str) -> Position {

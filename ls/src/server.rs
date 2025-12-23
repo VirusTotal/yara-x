@@ -32,7 +32,7 @@ use async_lsp::lsp_types::{
 use async_lsp::router::Router;
 use async_lsp::{ClientSocket, LanguageClient, LanguageServer, ResponseError};
 use futures::future::BoxFuture;
-
+use yara_x_parser::ast::AST;
 use yara_x_parser::cst::CST;
 
 use crate::features::semantic_tokens::{
@@ -281,6 +281,9 @@ impl LanguageServer for YARALanguageServer {
         Box::pin(async move { Ok(highlights) })
     }
 
+    /// Message received when the client asks the server for symbol information.
+    ///
+    /// The result is a tree that shows the overall structure of the code.
     fn document_symbol(
         &mut self,
         params: DocumentSymbolParams,
@@ -293,7 +296,10 @@ impl LanguageServer for YARALanguageServer {
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let symbols = document_symbol::document_symbol(cst);
+        let src = cst.root().text().to_string();
+        let ast = AST::new(src.as_bytes(), cst.iter());
+
+        let symbols = document_symbol::document_symbol(&src, ast);
 
         Box::pin(
             async move { Ok(Some(DocumentSymbolResponse::Nested(symbols))) },

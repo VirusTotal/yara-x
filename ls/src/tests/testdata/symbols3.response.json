@@ -1,1 +1,53 @@
-null
+[
+  {
+    "name": "test",
+    "detail": "rule",
+    "kind": 12,
+    "range": {
+      "start": {
+        "line": 0,
+        "character": 5
+      },
+      "end": {
+        "line": 0,
+        "character": 9
+      }
+    },
+    "selectionRange": {
+      "start": {
+        "line": 0,
+        "character": 5
+      },
+      "end": {
+        "line": 0,
+        "character": 9
+      }
+    },
+    "children": [
+      {
+        "name": "condition",
+        "kind": 17,
+        "range": {
+          "start": {
+            "line": 2,
+            "character": 4
+          },
+          "end": {
+            "line": 2,
+            "character": 8
+          }
+        },
+        "selectionRange": {
+          "start": {
+            "line": 2,
+            "character": 4
+          },
+          "end": {
+            "line": 2,
+            "character": 8
+          }
+        }
+      }
+    ]
+  }
+]

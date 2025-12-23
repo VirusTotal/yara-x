@@ -1152,6 +1152,12 @@ impl WithSpan for IdentWithRange<'_> {
     }
 }
 
+impl WithSpan for Meta<'_> {
+    fn span(&self) -> Span {
+        self.identifier.span.combine(&self.value.span())
+    }
+}
+
 impl WithSpan for MetaValue<'_> {
     fn span(&self) -> Span {
         match self {
