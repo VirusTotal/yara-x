@@ -1,6 +1,7 @@
 include "foo"
 
 import "bar"
+import ""
 
 rule no_pattern {
   meta:

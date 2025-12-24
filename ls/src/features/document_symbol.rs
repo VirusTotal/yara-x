@@ -8,31 +8,37 @@ pub fn document_symbol(src: &str, ast: AST) -> Vec<DocumentSymbol> {
         match item {
             Item::Import(import) => {
                 let range = span_to_range(import.span(), src);
-                #[allow(deprecated)]
-                symbols.push(DocumentSymbol {
-                    name: import.module_name.to_string(),
-                    detail: Some(String::from("import")),
-                    kind: SymbolKind::MODULE,
-                    tags: None,
-                    deprecated: None,
-                    range,
-                    selection_range: range,
-                    children: None,
-                })
+                let module_name = import.module_name.to_string();
+                if !module_name.is_empty() {
+                    #[allow(deprecated)]
+                    symbols.push(DocumentSymbol {
+                        name: module_name,
+                        detail: Some(String::from("import")),
+                        kind: SymbolKind::MODULE,
+                        tags: None,
+                        deprecated: None,
+                        range,
+                        selection_range: range,
+                        children: None,
+                    })
+                }
             }
             Item::Include(include) => {
                 let range = span_to_range(include.span(), src);
-                #[allow(deprecated)]
-                symbols.push(DocumentSymbol {
-                    name: String::from(include.file_name),
-                    detail: Some(String::from("include")),
-                    kind: SymbolKind::FILE,
-                    tags: None,
-                    deprecated: None,
-                    range,
-                    selection_range: range,
-                    children: None,
-                });
+                let file_name = include.file_name.to_string();
+                if !file_name.is_empty() {
+                    #[allow(deprecated)]
+                    symbols.push(DocumentSymbol {
+                        name: file_name,
+                        detail: Some(String::from("include")),
+                        kind: SymbolKind::FILE,
+                        tags: None,
+                        deprecated: None,
+                        range,
+                        selection_range: range,
+                        children: None,
+                    });
+                }
             }
             Item::Rule(rule) => {
                 let mut children = Vec::new();
