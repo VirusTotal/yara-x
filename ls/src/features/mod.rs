@@ -1,5 +1,4 @@
 pub mod completion;
-mod completion_const;
 pub mod diagnostics;
 pub mod document_highlight;
 pub mod document_symbol;
