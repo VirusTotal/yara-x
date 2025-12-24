@@ -7,7 +7,7 @@ Token { kind: WHITESPACE, span: Span(9..10) }
 Token { kind: L_BRACE, span: Span(10..11) }
 Token { kind: NEWLINE, span: Span(11..12) }
 Token { kind: WHITESPACE, span: Span(12..13) }
-Begin { kind: ERROR, span: Span(13..47) }
+Begin { kind: PATTERNS_BLK, span: Span(13..34) }
 Token { kind: STRINGS_KW, span: Span(13..20) }
 Token { kind: COLON, span: Span(20..21) }
 Token { kind: NEWLINE, span: Span(21..22) }
@@ -19,8 +19,10 @@ Token { kind: EQUAL, span: Span(27..28) }
 Token { kind: WHITESPACE, span: Span(28..29) }
 Token { kind: STRING_LIT, span: Span(29..34) }
 End { kind: PATTERN_DEF, span: Span(24..34) }
+End { kind: PATTERNS_BLK, span: Span(13..34) }
 Token { kind: NEWLINE, span: Span(34..35) }
 Token { kind: WHITESPACE, span: Span(35..38) }
+Begin { kind: ERROR, span: Span(38..47) }
 Token { kind: PATTERN_IDENT, span: Span(38..40) }
 Token { kind: WHITESPACE, span: Span(40..41) }
 Token { kind: EQUAL, span: Span(41..42) }
@@ -28,7 +30,7 @@ Token { kind: WHITESPACE, span: Span(42..43) }
 Token { kind: L_BRACE, span: Span(43..44) }
 Token { kind: WHITESPACE, span: Span(44..45) }
 Token { kind: HEX_BYTE, span: Span(45..47) }
-End { kind: ERROR, span: Span(13..47) }
+End { kind: ERROR, span: Span(38..47) }
 Token { kind: NEWLINE, span: Span(47..48) }
 Token { kind: WHITESPACE, span: Span(48..50) }
 Begin { kind: CONDITION_BLK, span: Span(50..68) }

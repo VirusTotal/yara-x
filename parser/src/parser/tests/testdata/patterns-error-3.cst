@@ -7,7 +7,7 @@ SOURCE_FILE@0..89
     L_BRACE@10..11 "{"
     NEWLINE@11..12 "\n"
     WHITESPACE@12..14 "  "
-    ERROR@14..65
+    PATTERNS_BLK@14..37
       STRINGS_KW@14..21 "strings"
       COLON@21..22 ":"
       NEWLINE@22..23 "\n"
@@ -18,8 +18,9 @@ SOURCE_FILE@0..89
         EQUAL@30..31 "="
         WHITESPACE@31..32 " "
         STRING_LIT@32..37 "\"foo\""
-      NEWLINE@37..38 "\n"
-      WHITESPACE@38..42 "    "
+    NEWLINE@37..38 "\n"
+    WHITESPACE@38..42 "    "
+    ERROR@42..65
       PATTERN_IDENT@42..44 "$b"
       WHITESPACE@44..45 " "
       EQUAL@45..46 "="
