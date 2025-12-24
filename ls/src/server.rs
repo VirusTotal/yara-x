@@ -44,7 +44,7 @@ use crate::features::{
 };
 
 pub struct DocumentStore {
-    documents: HashMap<Url, (String, CST)>,
+    documents: HashMap<Url, CST>,
 }
 
 impl DocumentStore {
@@ -52,15 +52,15 @@ impl DocumentStore {
         Self { documents: HashMap::new() }
     }
 
-    fn get(&self, url: &Url) -> Option<&(String, CST)> {
+    fn get(&self, url: &Url) -> Option<&CST> {
         self.documents.get(url)
     }
 
-    fn insert(&mut self, url: Url, document: (String, CST)) {
+    fn insert(&mut self, url: Url, document: CST) {
         self.documents.insert(url, document);
     }
 
-    fn remove(&mut self, url: &Url) -> Option<(String, CST)> {
+    fn remove(&mut self, url: &Url) -> Option<CST> {
         self.documents.remove(url)
     }
 }
@@ -170,8 +170,7 @@ impl LanguageServer for YARALanguageServer {
         params: HoverParams,
     ) -> BoxFuture<'static, Result<Option<Hover>, Self::Error>> {
         let uri = params.text_document_position_params.text_document.uri;
-
-        let (_, cst) = match self.documents.get(&uri) {
+        let cst = match self.documents.get(&uri) {
             Some(entry) => entry,
             None => return Box::pin(async { Ok(None) }),
         };
@@ -194,8 +193,7 @@ impl LanguageServer for YARALanguageServer {
     ) -> BoxFuture<'static, Result<Option<GotoDefinitionResponse>, Self::Error>>
     {
         let uri = params.text_document_position_params.text_document.uri;
-
-        let (_, cst) = match self.documents.get(&uri) {
+        let cst = match self.documents.get(&uri) {
             Some(entry) => entry,
             None => return Box::pin(async { Ok(None) }),
         };
@@ -219,8 +217,7 @@ impl LanguageServer for YARALanguageServer {
         params: ReferenceParams,
     ) -> BoxFuture<'static, Result<Option<Vec<Location>>, Self::Error>> {
         let uri = params.text_document_position.text_document.uri;
-
-        let (_, cst) = match self.documents.get(&uri) {
+        let cst = match self.documents.get(&uri) {
             Some(entry) => entry,
             None => return Box::pin(async { Ok(None) }),
         };
@@ -247,8 +244,7 @@ impl LanguageServer for YARALanguageServer {
     ) -> BoxFuture<'static, Result<Option<CompletionResponse>, Self::Error>>
     {
         let uri = params.text_document_position.text_document.uri;
-
-        let (_, cst) = match self.documents.get(&uri) {
+        let cst = match self.documents.get(&uri) {
             Some(entry) => entry,
             None => return Box::pin(async { Ok(None) }),
         };
@@ -268,8 +264,7 @@ impl LanguageServer for YARALanguageServer {
     ) -> BoxFuture<'static, Result<Option<Vec<DocumentHighlight>>, Self::Error>>
     {
         let uri = params.text_document_position_params.text_document.uri;
-
-        let (_, cst) = match self.documents.get(&uri) {
+        let cst = match self.documents.get(&uri) {
             Some(entry) => entry,
             None => return Box::pin(async { Ok(None) }),
         };
@@ -291,8 +286,7 @@ impl LanguageServer for YARALanguageServer {
     ) -> BoxFuture<'static, Result<Option<DocumentSymbolResponse>, Self::Error>>
     {
         let uri = params.text_document.uri;
-
-        let (_, cst) = match self.documents.get(&uri) {
+        let cst = match self.documents.get(&uri) {
             Some(entry) => entry,
             None => return Box::pin(async { Ok(None) }),
         };
@@ -313,8 +307,7 @@ impl LanguageServer for YARALanguageServer {
     ) -> BoxFuture<'static, Result<Option<SemanticTokensResult>, Self::Error>>
     {
         let uri = params.text_document.uri;
-
-        let (_, cst) = match self.documents.get(&uri) {
+        let cst = match self.documents.get(&uri) {
             Some(entry) => entry,
             None => return Box::pin(async { Ok(None) }),
         };
@@ -333,8 +326,7 @@ impl LanguageServer for YARALanguageServer {
         params: RenameParams,
     ) -> BoxFuture<'static, Result<Option<WorkspaceEdit>, Self::Error>> {
         let uri = params.text_document_position.text_document.uri;
-
-        let (_, cst) = match self.documents.get(&uri) {
+        let cst = match self.documents.get(&uri) {
             Some(entry) => entry,
             None => return Box::pin(async { Ok(None) }),
         };
@@ -357,8 +349,7 @@ impl LanguageServer for YARALanguageServer {
     ) -> BoxFuture<'static, Result<Option<Vec<SelectionRange>>, Self::Error>>
     {
         let uri = params.text_document.uri;
-
-        let (_, cst) = match self.documents.get(&uri) {
+        let cst = match self.documents.get(&uri) {
             Some(entry) => entry,
             None => return Box::pin(async { Ok(None) }),
         };
@@ -375,9 +366,8 @@ impl LanguageServer for YARALanguageServer {
     ) -> BoxFuture<'static, Result<DocumentDiagnosticReportResult, Self::Error>>
     {
         let uri = params.text_document.uri;
-
         let diagnostics = match self.documents.get(&uri) {
-            Some((_, cst)) => {
+            Some(cst) => {
                 let src = cst.root().text().to_string();
                 let ast = AST::new(src.as_bytes(), cst.iter());
                 diagnostics::diagnostics(ast, src.as_str())
@@ -408,7 +398,7 @@ impl LanguageServer for YARALanguageServer {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
         let cst = CST::from(text.as_str());
-        self.documents.insert(uri.clone(), (text, cst));
+        self.documents.insert(uri.clone(), cst);
         self.publish_diagnostics(&uri);
         ControlFlow::Continue(())
     }
@@ -420,7 +410,7 @@ impl LanguageServer for YARALanguageServer {
         if let Some(text) = params.text {
             let uri = params.text_document.uri;
             let cst = CST::from(text.as_str());
-            self.documents.insert(uri.clone(), (text, cst));
+            self.documents.insert(uri.clone(), cst);
             self.publish_diagnostics(&uri);
         }
         ControlFlow::Continue(())
@@ -431,9 +421,10 @@ impl LanguageServer for YARALanguageServer {
         params: DidChangeTextDocumentParams,
     ) -> Self::NotifyResult {
         for change in params.content_changes.into_iter() {
-            let cst = CST::from(change.text.as_str());
-            self.documents
-                .insert(params.text_document.uri.clone(), (change.text, cst));
+            self.documents.insert(
+                params.text_document.uri.clone(),
+                CST::from(change.text.as_str()),
+            );
         }
 
         self.publish_diagnostics(&params.text_document.uri);
@@ -472,7 +463,7 @@ impl YARALanguageServer {
     /// Sends diagnostics for specific document if publish model is used.
     fn publish_diagnostics(&mut self, uri: &Url) {
         if self.should_send_diagnostics {
-            if let Some((_, cst)) = self.documents.get(uri) {
+            if let Some(cst) = self.documents.get(uri) {
                 let src = cst.root().text().to_string();
                 let ast = AST::new(src.as_bytes(), cst.iter());
                 let _ = self.client.publish_diagnostics(
