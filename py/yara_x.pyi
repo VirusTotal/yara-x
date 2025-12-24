@@ -105,6 +105,11 @@ class Compiler:
         """
         ...
 
+    def show_globals(self) -> dict:
+        r"""
+        Retrives a dict where the keys are the currently loaded global variable names and the values are their values
+        """
+
     def new_namespace(self, namespace: str) -> None:
         r"""
         Creates a new namespace.

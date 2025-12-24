@@ -15,6 +15,7 @@ matches = rules.scan(b'some dummy data')
 
 #![deny(missing_docs)]
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::marker::PhantomPinned;
 use std::ops::Deref;
@@ -51,6 +52,22 @@ fn dict_to_json(dict: Bound<PyAny>) -> PyResult<serde_json::Value> {
     let json_str: String = dumps.call1(py, (dict,))?.extract(py)?;
     serde_json::from_str(&json_str)
         .map_err(|err| PyValueError::new_err(err.to_string()))
+}
+
+fn json_to_dict<'py>(
+    py: Python<'py>,
+    json: &serde_json::Value,
+) -> PyResult<Py<PyAny>> {
+    let json_str = serde_json::to_string(json)
+        .map_err(|err| PyValueError::new_err(err.to_string()))?;
+
+    static JSON_LOADS: OnceLock<Py<PyAny>> = OnceLock::new();
+
+    let json_loads = JSON_LOADS.get_or_init(|| {
+        let json_mod = PyModule::import(py, "json").unwrap().unbind();
+        json_mod.getattr(py, "loads").unwrap()
+    });
+    json_loads.call1(py,(json_str,))
 }
 
 #[derive(Debug, Clone, Display, EnumString, PartialEq)]
@@ -519,6 +536,14 @@ impl Compiler {
 
         Ok(())
     }
+
+    fn show_globals(
+        &mut self,
+        py: Python,
+    ) -> Py<PyAny> {
+        json_to_dict(py, &self.inner.show_globals()).unwrap()
+    }
+
 
     /// Creates a new namespace.
     ///

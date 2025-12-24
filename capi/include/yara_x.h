@@ -426,6 +426,9 @@ enum YRX_RESULT yrx_compiler_ban_module(struct YRX_COMPILER *compiler,
 enum YRX_RESULT yrx_compiler_new_namespace(struct YRX_COMPILER *compiler,
                                            const char *namespace_);
 
+// Collects a string of a hashmap of all current loaded global vars
+const char *yrx_compiler_get_globals(struct YRX_COMPILER *compiler);
+
 // Defines a global variable of string type and sets its initial value.
 enum YRX_RESULT yrx_compiler_define_global_str(struct YRX_COMPILER *compiler,
                                                const char *ident,
