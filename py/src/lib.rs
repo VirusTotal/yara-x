@@ -940,6 +940,11 @@ impl Rules {
 
         Py::new(py, rules_iter)
     }
+
+    /// Returns a list of modules imported by the rules.
+    fn imports(&self) -> PyResult<Vec<&str>> {
+        Ok(self.inner.rules.imports().collect())
+    }
 }
 
 fn scan_results_to_py(

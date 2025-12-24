@@ -103,8 +103,10 @@ const LC_UUID: u32 = 0x00000001b;
 const LC_RPATH: u32 = 0x1c | LC_REQ_DYLD;
 const LC_CODE_SIGNATURE: u32 = 0x0000001d;
 const LC_REEXPORT_DYLIB: u32 = 0x1f | LC_REQ_DYLD;
+const LC_LAZY_LOAD_DYLIB: u32 = 0x00000020;
 const LC_DYLD_INFO: u32 = 0x00000022;
 const LC_DYLD_INFO_ONLY: u32 = 0x22 | LC_REQ_DYLD;
+const LC_LOAD_UPWARD_DYLIB: u32 = 0x23 | LC_REQ_DYLD;
 const LC_VERSION_MIN_MACOSX: u32 = 0x00000024;
 const LC_VERSION_MIN_IPHONEOS: u32 = 0x00000025;
 const LC_DYLD_ENVIRONMENT: u32 = 0x00000027;
@@ -624,7 +626,8 @@ impl<'a> MachOFile<'a> {
                     self.rpaths.push(rpath);
                 }
                 LC_LOAD_DYLIB | LC_ID_DYLIB | LC_LOAD_WEAK_DYLIB
-                | LC_REEXPORT_DYLIB => {
+                | LC_REEXPORT_DYLIB | LC_LAZY_LOAD_DYLIB
+                | LC_LOAD_UPWARD_DYLIB => {
                     let (_, dylib) =
                         self.dylib_command().parse(command_data)?;
                     self.dylibs.push(dylib);
