@@ -227,7 +227,7 @@ pub(crate) fn rule_usages(
     let mut nodes_or_tokens: Vec<NodeOrToken<Immutable>>;
 
     for rule_node in rules {
-        //Find condition block
+        // Find condition block
         let condition_blk = rule_node
             .children()
             .find(|node| node.kind() == SyntaxKind::CONDITION_BLK)?;

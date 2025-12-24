@@ -26,8 +26,8 @@ pub fn rename(
         | SyntaxKind::PATTERN_LENGTH => {
             let rule = rule_containing_token(&ident)?;
 
-            //If user entered `$`, `!`, `#` or `@`, then ignore it
-            //Because only text after these characters will change
+            // If user entered `$`, `!`, `#` or `@`, then ignore it because
+            // only text after these characters will change
             let new_text = if new_name.starts_with(['$', '!', '#', '@']) {
                 String::from(&new_name[1..])
             } else {
@@ -38,7 +38,7 @@ pub fn rename(
 
             if let Some(definition) = definition {
                 if let Some(first_token) = definition.first_token() {
-                    //Don't change first character (`$`, `!`, `#` or `@`)
+                    // Don't change first character (`$`, `!`, `#` or `@`)
                     let mut range = token_to_range(&first_token)?;
                     range.start.character += 1;
 
@@ -51,7 +51,7 @@ pub fn rename(
 
             if let Some(occurrences) = occurrences {
                 for occurrence in occurrences {
-                    //Don't change first character (`$`, `!`, `#` or `@`)
+                    // Don't change first character (`$`, `!`, `#` or `@`)
                     let mut range = token_to_range(&occurrence)?;
                     range.start.character += 1;
 
