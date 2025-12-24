@@ -223,7 +223,6 @@ impl LanguageServer for YARALanguageServer {
     ) -> BoxFuture<'static, Result<Option<Vec<Location>>, Self::Error>> {
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
-
         let cst = match self.documents.get(&uri) {
             Some(entry) => entry,
             None => return Box::pin(async { Ok(None) }),

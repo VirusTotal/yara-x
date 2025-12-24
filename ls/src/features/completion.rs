@@ -160,7 +160,7 @@ fn condition_suggestions(
                         description: Some("Pattern".to_string()),
                         ..Default::default()
                     }),
-                    kind: Some(CompletionItemKind::VARIABLE),
+                    kind: Some(CompletionItemKind::TEXT),
                     ..Default::default()
                 });
             }

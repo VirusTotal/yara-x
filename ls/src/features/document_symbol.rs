@@ -80,7 +80,7 @@ pub fn document_symbol(src: &str, ast: AST) -> Vec<DocumentSymbol> {
                 let range = span_to_range(rule.condition.span(), src);
                 #[allow(deprecated)]
                 children.push(DocumentSymbol {
-                    name: "condition".to_string(),
+                    name: String::from("condition"),
                     detail: None,
                     kind: SymbolKind::BOOLEAN,
                     tags: None,
@@ -93,7 +93,7 @@ pub fn document_symbol(src: &str, ast: AST) -> Vec<DocumentSymbol> {
                 let range = span_to_range(rule.identifier.span(), src);
                 #[allow(deprecated)]
                 symbols.push(DocumentSymbol {
-                    name: String::from(rule.identifier.name),
+                    name: rule.identifier.name.to_string(),
                     detail: Some(String::from("rule")),
                     kind: SymbolKind::FUNCTION,
                     tags: None,
