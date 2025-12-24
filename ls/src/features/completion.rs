@@ -10,7 +10,7 @@ use crate::utils::cst_traversal::{
 
 use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Token, CST};
 
-pub(crate) const PATTERN_MODS: &[(SyntaxKind, &[&str])] = &[
+const PATTERN_MODS: &[(SyntaxKind, &[&str])] = &[
     (
         SyntaxKind::STRING_LIT,
         &[
@@ -28,9 +28,9 @@ pub(crate) const PATTERN_MODS: &[(SyntaxKind, &[&str])] = &[
     (SyntaxKind::HEX_PATTERN, &["private"]),
 ];
 
-pub const RULE_KW_BLKS: [&str; 3] = ["meta", "strings", "condition"];
+const RULE_KW_BLKS: [&str; 3] = ["meta", "strings", "condition"];
 
-pub const SRC_SUGGESTIONS: [(&str, Option<&str>); 5] = [
+const SRC_SUGGESTIONS: [(&str, Option<&str>); 5] = [
     ("rule", Some("rule ${1:ident} {\n\tcondition:\n\t\t${2:true}\n}")),
     ("import", Some("import \"${1:}\"")),
     ("include", Some("include \"${1:}\"")),
@@ -38,7 +38,7 @@ pub const SRC_SUGGESTIONS: [(&str, Option<&str>); 5] = [
     ("global", None),
 ];
 
-pub const CONDITION_SUGGESTIONS: [(&str, Option<&str>); 16] = [
+const CONDITION_SUGGESTIONS: [(&str, Option<&str>); 16] = [
     ("and", None),
     ("or", None),
     ("all", None),
