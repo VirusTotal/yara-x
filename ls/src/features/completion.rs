@@ -3,14 +3,12 @@ use async_lsp::lsp_types::{
     InsertTextFormat, InsertTextMode, Position,
 };
 
-use yara_x_parser::cst::{
-    Immutable, Node, NodeOrToken, SyntaxKind, Token, CST,
-};
-
 use crate::utils::cst_traversal::{
     non_error_parent, prev_non_trivia_token, rule_containing_token,
     token_at_position,
 };
+
+use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Token, CST};
 
 pub(crate) const PATTERN_MODS: &[(SyntaxKind, &[&str])] = &[
     (
@@ -100,25 +98,26 @@ fn condition_suggestions(
     match token.kind() {
         // Suggest completion of
         SyntaxKind::IDENT => {
-            // Rule identifiers
-            for rule_decl in cst.root().children() {
-                let Some(NodeOrToken::Token(ident)) =
-                    rule_decl.children_with_tokens().find(|node_or_token| {
-                        node_or_token.kind() == SyntaxKind::IDENT
-                    })
-                else {
-                    continue;
-                };
-
-                result.push(CompletionItem {
-                    label: ident.text().to_string(),
-                    label_details: Some(CompletionItemLabelDetails {
-                        description: Some("Rule".to_string()),
+            for rule_decl in cst
+                .root()
+                .children()
+                .filter(|n| n.kind() == SyntaxKind::RULE_DECL)
+            {
+                if let Some(rule_ident) = rule_decl
+                    .children_with_tokens()
+                    .find(|n| n.kind() == SyntaxKind::IDENT)
+                    .and_then(|n| n.into_token())
+                {
+                    result.push(CompletionItem {
+                        label: rule_ident.text().to_string(),
+                        label_details: Some(CompletionItemLabelDetails {
+                            description: Some("Rule".to_string()),
+                            ..Default::default()
+                        }),
+                        kind: Some(CompletionItemKind::VARIABLE),
                         ..Default::default()
-                    }),
-                    kind: Some(CompletionItemKind::VARIABLE),
-                    ..Default::default()
-                });
+                    });
+                }
             }
 
             // Keywords
@@ -138,31 +137,27 @@ fn condition_suggestions(
         | SyntaxKind::PATTERN_COUNT
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
-            let rule = rule_containing_token(&token)?;
-
-            let patterns = rule
+            let pattern_defs = rule_containing_token(&token)?
                 .children()
-                .find(|node| node.kind() == SyntaxKind::PATTERNS_BLK)?;
+                .find(|node| node.kind() == SyntaxKind::PATTERNS_BLK)?
+                .children();
 
-            for pattern_def in patterns.children() {
-                let Some(NodeOrToken::Token(ident)) =
-                    pattern_def.children_with_tokens().find(|node_or_token| {
-                        node_or_token.kind() == SyntaxKind::PATTERN_IDENT
-                    })
-                else {
-                    continue;
-                };
-                let label = String::from(&ident.text()[1..]);
-
-                result.push(CompletionItem {
-                    label,
-                    label_details: Some(CompletionItemLabelDetails {
-                        description: Some("Pattern".to_string()),
+            for pattern_def in pattern_defs {
+                if let Some(pattern_ident) = pattern_def
+                    .children_with_tokens()
+                    .find(|n| n.kind() == SyntaxKind::PATTERN_IDENT)
+                    .and_then(|n| n.into_token())
+                {
+                    result.push(CompletionItem {
+                        label: String::from(&pattern_ident.text()[1..]),
+                        label_details: Some(CompletionItemLabelDetails {
+                            description: Some("Pattern".to_string()),
+                            ..Default::default()
+                        }),
+                        kind: Some(CompletionItemKind::TEXT),
                         ..Default::default()
-                    }),
-                    kind: Some(CompletionItemKind::TEXT),
-                    ..Default::default()
-                });
+                    });
+                }
             }
         }
         _ => {
