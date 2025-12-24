@@ -1,19 +1,16 @@
 use std::collections::HashMap;
 
-use async_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Range};
+use async_lsp::lsp_types::{Diagnostic, DiagnosticSeverity};
 use yara_x_parser::ast::dfs::{DFSEvent, DFSIter};
 use yara_x_parser::ast::{Error, Expr, OfItems, PatternSet, WithSpan, AST};
 use yara_x_parser::Span;
 
-use crate::utils::position::to_pos;
+use crate::utils::position::span_to_range;
 
 macro_rules! push_diagnostic {
     ($vec:expr, $span:expr, $message:expr, $text:expr, $severity:expr) => {
         $vec.push(Diagnostic {
-            range: Range {
-                start: to_pos($span.0.start, $text),
-                end: to_pos($span.0.end, $text),
-            },
+            range: span_to_range($span, $text),
             message: $message,
             severity: Some($severity),
             ..Default::default()
@@ -183,8 +180,8 @@ fn collect_variable_diagnostics(
             }
         }
 
-        for (is_used, span) in vars.values() {
-            if !*is_used {
+        for (is_used, span) in vars.into_values() {
+            if !is_used {
                 push_diagnostic!(
                     diagnostics,
                     span,
