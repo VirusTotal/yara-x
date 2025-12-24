@@ -9,6 +9,36 @@ use yara_x_parser::cst::{
     Immutable, Node, NodeOrToken, SyntaxKind, Token, Utf16, CST,
 };
 
+/// Return the token that appears before the given one, without taking
+/// into account newlines and whitespaces.
+pub(crate) fn prev_non_trivia_token(
+    token: &Token<Immutable>,
+) -> Option<Token<Immutable>> {
+    let mut prev_token = token.prev_token();
+    while let Some(token) = prev_token {
+        if !matches!(
+            token.kind(),
+            SyntaxKind::NEWLINE | SyntaxKind::WHITESPACE
+        ) {
+            return Some(token);
+        }
+        prev_token = token.prev_token()
+    }
+    None
+}
+
+/// Returns the parent of a node, except if the parent is an
+/// `ERROR` node, in which case returns the parent's parent.
+pub(crate) fn non_error_parent(
+    token: &Token<Immutable>,
+) -> Option<Node<Immutable>> {
+    let mut parent = token.parent()?;
+    while parent.kind() == SyntaxKind::ERROR {
+        parent = parent.parent()?;
+    }
+    Some(parent)
+}
+
 /// Returns the token at a given position in the CST.
 pub(crate) fn token_at_position(
     cst: &CST,

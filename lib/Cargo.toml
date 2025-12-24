@@ -64,7 +64,8 @@ inventory = ["dep:inventory"]
 protoc = []
 
 # Uses the `linkme` crate (https://github.com/dtolnay/linkme) instead
-# of `linkme`  (https://github.com/dtolnay/inventory) for tracking WASM exports.
+# of `inventory`  (https://github.com/dtolnay/inventory) for tracking WASM
+# exports.
 #
 # This feature is enabled by default.
 linkme = ["dep:linkme"]

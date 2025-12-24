@@ -383,6 +383,12 @@ class Rules:
         """
         ...
 
+    def imports(self) -> list[str]:
+        r"""
+        Returns a list of modules imported by the rules.
+        """
+        ...
+
     def serialize_into(self, file: BinaryIO) -> None:
         r"""
         Serializes the rules into a file-like object.

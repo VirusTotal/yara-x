@@ -215,4 +215,6 @@ async fn completion() {
     test_lsp_request::<_, Completion>("completion3.yar").await;
     test_lsp_request::<_, Completion>("completion4.yar").await;
     test_lsp_request::<_, Completion>("completion5.yar").await;
+    test_lsp_request::<_, Completion>("completion6.yar").await;
+    test_lsp_request::<_, Completion>("completion7.yar").await;
 }

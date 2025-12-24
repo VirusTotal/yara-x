@@ -453,39 +453,39 @@ impl<'src> ParserImpl<'src> {
                 self.end();
                 self.recover();
                 return self;
-            } else {
-                let token_span = token.span();
-                let token_id = token.id();
+            }
 
+            let token_span = token.span();
+            let token_id = token.id();
+
+            // If there were previous errors, flush those errors and
+            // don't produce new ones, but if no previous error exist
+            // then create an error that tells that we are expecting
+            // any of the tokens in the recovery set.
+            if self.pending_errors.is_empty() {
+                self.end();
+                self.trivia();
+                self.begin(ERROR);
+                self.bump();
+
+                let (actual_token_id, expected) =
+                    self.expected_token_errors.entry(token_span).or_default();
+
+                *actual_token_id = token_id;
+
+                expected.extend(
+                    recovery_set.token_ids().map(|token| token.description()),
+                );
+
+                self.handle_errors();
+            } else {
                 self.trivia();
                 self.bump();
-                self.set_state(State::Failure);
-
-                // If there were previous errors, flush those errors and
-                // don't produce new ones, but if no previous error exist
-                // then create an error that tells that we are expecting
-                // any of the tokens in the recovery set.
-                if self.pending_errors.is_empty() {
-                    let (actual_token_id, expected) = self
-                        .expected_token_errors
-                        .entry(token_span)
-                        .or_default();
-
-                    *actual_token_id = token_id;
-
-                    expected.extend(
-                        recovery_set
-                            .token_ids()
-                            .map(|token| token.description()),
-                    );
-
-                    self.handle_errors();
-                } else {
-                    self.flush_errors();
-                }
+                self.flush_errors();
             }
         }
 
+        // Consume any token that is not in the recovery set.
         while let Some(token) = self.peek_non_trivia() {
             if recovery_set.contains(token).is_some() {
                 break;

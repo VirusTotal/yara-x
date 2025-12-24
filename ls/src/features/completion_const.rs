@@ -5,15 +5,24 @@ various contexts. Arrays can additionally contain code snippets for
 code completion suggestions.
  */
 
-pub const PATTERN_MOD: [&str; 8] = [
-    "ascii",
-    "wide",
-    "nocase",
-    "private",
-    "fullword",
-    "base64",
-    "base64wide",
-    "xor",
+use yara_x_parser::cst::SyntaxKind;
+
+pub(crate) const PATTERN_MODS: &[(SyntaxKind, &[&str])] = &[
+    (
+        SyntaxKind::STRING_LIT,
+        &[
+            "ascii",
+            "wide",
+            "nocase",
+            "private",
+            "fullword",
+            "base64",
+            "base64wide",
+            "xor",
+        ],
+    ),
+    (SyntaxKind::REGEXP, &["ascii", "wide", "nocase", "private", "fullword"]),
+    (SyntaxKind::HEX_PATTERN, &["private"]),
 ];
 
 pub const RULE_KW_BLKS: [&str; 3] = ["meta", "strings", "condition"];

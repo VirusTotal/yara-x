@@ -1,93 +1,61 @@
 use async_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails,
-    CompletionResponse, InsertTextFormat, InsertTextMode, Position,
+    InsertTextFormat, InsertTextMode, Position,
 };
-use yara_x_parser::cst::{Immutable, NodeOrToken, SyntaxKind, Token, CST};
+
+use yara_x_parser::cst::{
+    Immutable, Node, NodeOrToken, SyntaxKind, Token, CST,
+};
 
 use crate::features::completion_const::{
-    CONDITION_SUGGESTIONS, PATTERN_MOD, RULE_KW_BLKS, SRC_SUGGESTIONS,
+    CONDITION_SUGGESTIONS, PATTERN_MODS, RULE_KW_BLKS, SRC_SUGGESTIONS,
 };
 
-use crate::utils::cst_traversal::{rule_containing_token, token_at_position};
+use crate::utils::cst_traversal::{
+    non_error_parent, prev_non_trivia_token, rule_containing_token,
+    token_at_position,
+};
 
-/// Provides completion suggestions based on the cursor position and the
-/// block it is in.
-pub fn completion(cst: &CST, pos: Position) -> Option<CompletionResponse> {
-    let token_at_cursor = token_at_position(cst, pos);
-
+pub fn completion(cst: &CST, pos: Position) -> Option<Vec<CompletionItem>> {
     // Get the token before cursor. There might be no token at cursor when the
     // cursor is at of the file. In this case, take the last token of the file.
-    let completion_token = token_at_cursor
+    let token = token_at_position(cst, pos)
         .and_then(|token| token.prev_token())
         .or_else(|| cst.root().last_token())?;
 
-    let mut nearest_section_kind: SyntaxKind = SyntaxKind::ERROR;
+    // If the token is a direct child of `SOURCE_FILE` top-level suggestions.
+    if non_error_parent(&token)?.kind() == SyntaxKind::SOURCE_FILE {
+        return Some(source_file_suggestions());
+    }
 
-    // Try to find node in siblings, from which we can decide what should be suggested
-    if let Some(mut nearest_sibling) = completion_token.prev_sibling_or_token()
+    let prev_token = prev_non_trivia_token(&token)?;
+
+    if let Some(pattern_def) =
+        prev_token.ancestors().find(|n| n.kind() == SyntaxKind::PATTERN_DEF)
     {
-        loop {
-            if !matches!(
-                nearest_sibling.kind(),
-                SyntaxKind::COMMENT
-                    | SyntaxKind::NEWLINE
-                    | SyntaxKind::WHITESPACE
-                    | SyntaxKind::ERROR
-            ) {
-                nearest_section_kind = nearest_sibling.kind();
-                break;
-            }
-            if let Some(prev) = nearest_sibling.prev_sibling_or_token() {
-                nearest_sibling = prev;
-            } else {
-                break;
-            }
-        }
+        return Some(pattern_modifier_suggestions(pattern_def));
     }
 
-    // If failed, try the same in the ancestors
-    if !matches!(
-        nearest_section_kind,
-        SyntaxKind::PATTERN_DEF
-            | SyntaxKind::CONDITION_BLK
-            | SyntaxKind::BOOLEAN_EXPR
-    ) {
-        nearest_section_kind = completion_token
-            .ancestors()
-            .find(|node| {
-                matches!(
-                    node.kind(),
-                    SyntaxKind::CONDITION_BLK
-                        | SyntaxKind::RULE_DECL
-                        | SyntaxKind::SOURCE_FILE
-                        | SyntaxKind::BOOLEAN_EXPR
-                )
-            })?
-            .kind();
+    if prev_token.ancestors().any(|n| n.kind() == SyntaxKind::CONDITION_BLK) {
+        return condition_suggestions(cst, token);
     }
 
-    let completion_vec = match nearest_section_kind {
-        SyntaxKind::SOURCE_FILE => Some(source_file_suggestions()),
-        SyntaxKind::CONDITION_BLK | SyntaxKind::BOOLEAN_EXPR => {
-            condition_suggestions(cst, completion_token)
-        }
-        SyntaxKind::PATTERN_DEF => pattern_suggestions(completion_token),
-        SyntaxKind::RULE_DECL => Some(rule_suggestions()),
-        _ => None,
-    }?;
+    if prev_token.ancestors().any(|n| n.kind() == SyntaxKind::RULE_DECL) {
+        return Some(rule_suggestions());
+    }
 
-    Some(CompletionResponse::Array(completion_vec))
+    Some(vec![])
 }
 
-/// Collects completion suggestions for condition block
+/// Collects completion suggestions for condition block.
 fn condition_suggestions(
     cst: &CST,
-    completion_prev_token: Token<Immutable>,
+    token: Token<Immutable>,
 ) -> Option<Vec<CompletionItem>> {
-    let mut completion_vec: Vec<CompletionItem> = Vec::new();
+    let mut result = Vec::new();
 
-    match completion_prev_token.kind() {
-        //Suggest completion of
+    match token.kind() {
+        // Suggest completion of
         SyntaxKind::IDENT => {
             // Rule identifiers
             for rule_decl in cst.root().children() {
@@ -99,7 +67,7 @@ fn condition_suggestions(
                     continue;
                 };
 
-                completion_vec.push(CompletionItem {
+                result.push(CompletionItem {
                     label: ident.text().to_string(),
                     label_details: Some(CompletionItemLabelDetails {
                         description: Some("Rule".to_string()),
@@ -112,7 +80,7 @@ fn condition_suggestions(
 
             // Keywords
             CONDITION_SUGGESTIONS.iter().for_each(|(kw, insert)| {
-                completion_vec.push(CompletionItem {
+                result.push(CompletionItem {
                     label: kw.to_string(),
                     kind: Some(CompletionItemKind::KEYWORD),
                     insert_text_format: insert
@@ -127,7 +95,7 @@ fn condition_suggestions(
         | SyntaxKind::PATTERN_COUNT
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
-            let rule = rule_containing_token(&completion_prev_token)?;
+            let rule = rule_containing_token(&token)?;
 
             let patterns = rule
                 .children()
@@ -143,7 +111,7 @@ fn condition_suggestions(
                 };
                 let label = String::from(&ident.text()[1..]);
 
-                completion_vec.push(CompletionItem {
+                result.push(CompletionItem {
                     label,
                     label_details: Some(CompletionItemLabelDetails {
                         description: Some("Pattern".to_string()),
@@ -156,7 +124,7 @@ fn condition_suggestions(
         }
         _ => {
             CONDITION_SUGGESTIONS.iter().for_each(|(kw, insert)| {
-                completion_vec.push(CompletionItem {
+                result.push(CompletionItem {
                     label: kw.to_string(),
                     kind: Some(CompletionItemKind::KEYWORD),
                     insert_text_format: insert
@@ -169,13 +137,13 @@ fn condition_suggestions(
         }
     }
 
-    Some(completion_vec)
+    Some(result)
 }
 
 /// Collects completion suggestions outside any block
 fn source_file_suggestions() -> Vec<CompletionItem> {
-    //Propose import or rule definition with snippet
-    let completion_vec: Vec<CompletionItem> = SRC_SUGGESTIONS
+    // Propose import or rule definition with snippet
+    SRC_SUGGESTIONS
         .map(|(label, insert_text)| CompletionItem {
             label: label.to_string(),
             kind: if insert_text.is_none() {
@@ -191,49 +159,23 @@ fn source_file_suggestions() -> Vec<CompletionItem> {
             ..Default::default()
         })
         .into_iter()
-        .collect();
-
-    completion_vec
+        .collect()
 }
 
-/// Collects completion suggestions for strings block
-#[allow(irrefutable_let_patterns)]
-fn pattern_suggestions(
-    completion_prev_token: Token<Immutable>,
-) -> Option<Vec<CompletionItem>> {
-    let mut nearest_sibling = completion_prev_token.prev_sibling_or_token()?;
-
-    while let prev = nearest_sibling.prev_sibling_or_token() {
-        if !matches!(
-            nearest_sibling.kind(),
-            SyntaxKind::COMMENT | SyntaxKind::NEWLINE | SyntaxKind::WHITESPACE
-        ) {
-            break;
-        }
-        nearest_sibling = prev?;
-    }
-
-    if matches!(
-        nearest_sibling.kind(),
-        SyntaxKind::PATTERN_MODS
-            | SyntaxKind::STRING_LIT
-            | SyntaxKind::REGEXP
-            | SyntaxKind::HEX_PATTERN
-            | SyntaxKind::PATTERN_DEF
-    ) {
-        Some(
-            PATTERN_MOD
+fn pattern_modifier_suggestions(node: Node<Immutable>) -> Vec<CompletionItem> {
+    for (kind, valid_modifiers) in PATTERN_MODS {
+        if node.children_with_tokens().any(|child| child.kind() == *kind) {
+            return valid_modifiers
                 .iter()
-                .map(|kw| CompletionItem {
-                    label: kw.to_string(),
+                .map(|modifier| CompletionItem {
+                    label: modifier.to_string(),
                     kind: Some(CompletionItemKind::KEYWORD),
                     ..Default::default()
                 })
-                .collect(),
-        )
-    } else {
-        None
+                .collect();
+        }
     }
+    vec![]
 }
 
 /// Collects completion suggestion for different blocks of the rule

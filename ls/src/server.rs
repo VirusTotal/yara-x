@@ -256,7 +256,8 @@ impl LanguageServer for YARALanguageServer {
         let completions = completion::completion(
             cst,
             params.text_document_position.position,
-        );
+        )
+        .map(CompletionResponse::Array);
 
         Box::pin(async move { Ok(completions) })
     }
