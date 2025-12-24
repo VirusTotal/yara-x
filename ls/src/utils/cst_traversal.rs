@@ -100,22 +100,12 @@ pub(crate) fn rule_from_ident(
         .filter(|node| node.kind() == SyntaxKind::RULE_DECL);
 
     for rule in rules {
-        // First token within `SyntaxKind::RULE_DECL` is always rule identifier
-        let first_ident: Option<Token<Immutable>> =
-            rule.children_with_tokens().find_map(|node_or_token| {
-                if let NodeOrToken::Token(token) = node_or_token {
-                    if token.kind() == SyntaxKind::IDENT {
-                        Some(token)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            });
-
-        if let Some(first_ident) = first_ident {
-            if first_ident.text() == ident {
+        if let Some(rule_ident) = rule
+            .children_with_tokens()
+            .find(|n| n.kind() == SyntaxKind::IDENT)
+            .and_then(|node| node.into_token())
+        {
+            if rule_ident.text() == ident {
                 return Some(rule);
             }
         }
@@ -153,21 +143,16 @@ pub(crate) fn pattern_from_ident(
         .filter(|node| node.kind() == SyntaxKind::PATTERN_DEF);
 
     for pattern in pattern_decls {
-        // Check if the pattern declaration has identical identifier
-        let identical_ident =
-            pattern.children_with_tokens().any(|node_or_token| {
-                if let NodeOrToken::Token(token) = node_or_token {
-                    token.kind() == SyntaxKind::PATTERN_IDENT
-                    // Ignore first symbols($ @ # !) to compare only
-                    // pattern identifiers
-                        && token.text()[1..] == ident[1..]
-                } else {
-                    false
-                }
-            });
-
-        if identical_ident {
-            return Some(pattern);
+        if let Some(pattern_ident) = pattern
+            .children_with_tokens()
+            .find(|n| n.kind() == SyntaxKind::PATTERN_IDENT)
+            .and_then(|n| n.into_token())
+        {
+            // Ignore first character ($, @, # or !) to compare only the actual
+            // identifier.
+            if pattern_ident.text()[1..] == ident[1..] {
+                return Some(pattern);
+            }
         }
     }
 
