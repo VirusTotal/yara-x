@@ -106,6 +106,13 @@ impl LanguageServer for YARALanguageServer {
     type Error = ResponseError;
     type NotifyResult = ControlFlow<async_lsp::Result<()>>;
 
+    /// This method is called when the language server is initialized.
+    ///
+    /// It sets up the server's capabilities, indicating which features are
+    /// supported. For example, it declares that the server supports hover,
+    /// definition, references, code completion, etc. It also checks if the
+    /// client supports pull model diagnostics and sets the
+    /// `should_send_diagnostics` flag accordingly.
     fn initialize(
         &mut self,
         params: InitializeParams,
@@ -172,9 +179,10 @@ impl LanguageServer for YARALanguageServer {
         })
     }
 
-    /// Message received when the user hovers over some position in the
-    /// source code. The response is a text in Markdown format that the
-    /// editor shows as a tooltip.
+    /// This method is called when the user hovers over a symbol.
+    ///
+    /// It provides information about the symbol, such as its type and
+    /// documentation, which is displayed as a tooltip in the editor.
     fn hover(
         &mut self,
         params: HoverParams,
@@ -192,11 +200,11 @@ impl LanguageServer for YARALanguageServer {
         Box::pin(async move { Ok(result) })
     }
 
-    /// Message received when the user wants to find the place where some
-    /// identifier was defined.
+    /// This method is called when the user requests to go to the definition
+    /// of a symbol.
     ///
-    /// The params include a position within the source code that should
-    /// correspond to some identifier.
+    /// It returns the location of the symbol's definition, allowing the
+    /// editor to navigate to it.
     fn definition(
         &mut self,
         params: GotoDefinitionParams,
@@ -216,11 +224,11 @@ impl LanguageServer for YARALanguageServer {
         Box::pin(async move { Ok(definition) })
     }
 
-    /// Message received when the user wants to find all the places where
-    /// an identifier has been used.
+    /// This method is called when the user requests to find all references
+    /// to a symbol.
     ///
-    /// The params include a position within the source code that should
-    /// correspond to some identifier.
+    /// It returns a list of all locations where the symbol is used,
+    /// allowing the editor to display them.
     fn references(
         &mut self,
         params: ReferenceParams,
@@ -243,6 +251,12 @@ impl LanguageServer for YARALanguageServer {
         Box::pin(async move { Ok(Some(references)) })
     }
 
+    /// This method is called when the user requests code completion.
+    ///
+    /// It provides a list of suggested completions for the current cursor
+    /// position, such as keywords, identifiers, and module names. The
+    /// suggestions are triggered by characters like `.`, `!`, `$`, `@`, and
+    /// `#`.
     fn completion(
         &mut self,
         params: CompletionParams,
@@ -261,6 +275,12 @@ impl LanguageServer for YARALanguageServer {
         Box::pin(async move { Ok(completions) })
     }
 
+    /// This method is called when the user requests to highlight occurrences
+    /// of a symbol in the document.
+    ///
+    /// It identifies all instances of the symbol at the current cursor
+    /// position and returns their locations, allowing the editor to highlight
+    /// them.
     fn document_highlight(
         &mut self,
         params: DocumentHighlightParams,
@@ -278,9 +298,11 @@ impl LanguageServer for YARALanguageServer {
         Box::pin(async move { Ok(highlights) })
     }
 
-    /// Message received when the client asks the server for symbol information.
+    /// This method is called when the client requests a list of all symbols
+    /// in a document.
     ///
-    /// The result is a tree that shows the overall structure of the code.
+    /// It returns a hierarchical list of symbols, which can be used to
+    /// display an outline of the document.
     fn document_symbol(
         &mut self,
         params: DocumentSymbolParams,
@@ -302,6 +324,11 @@ impl LanguageServer for YARALanguageServer {
         )
     }
 
+    /// This method is called to provide semantic highlighting for the document.
+    ///
+    /// It analyzes the source code and returns a list of tokens with their
+    /// corresponding types and modifiers, allowing the editor to apply syntax
+    /// highlighting with greater accuracy.
     fn semantic_tokens_full(
         &mut self,
         params: <SemanticTokensFullRequest as Request>::Params,
@@ -318,10 +345,10 @@ impl LanguageServer for YARALanguageServer {
         Box::pin(async move { Ok(Some(SemanticTokensResult::Tokens(tokens))) })
     }
 
-    /// Message sent when the user wants to rename some identifier.
+    /// This method is called when the user wants to rename a symbol.
     ///
-    /// The params include a position within the source code that should
-    /// correspond to the identifier that must be renamed.
+    /// It finds all occurrences of the symbol at the given position and
+    /// returns a set of edits to rename them.
     fn rename(
         &mut self,
         params: RenameParams,
@@ -341,6 +368,11 @@ impl LanguageServer for YARALanguageServer {
         Box::pin(async move { Ok(Some(changes)) })
     }
 
+    /// This method is called to determine the range of the symbol at the
+    /// current cursor position.
+    ///
+    /// It helps the editor to intelligently expand the selection, for example,
+    /// from a variable to the entire statement.
     fn selection_range(
         &mut self,
         params: SelectionRangeParams,
@@ -357,7 +389,11 @@ impl LanguageServer for YARALanguageServer {
         Box::pin(async move { Ok(ranges) })
     }
 
-    /// This function is called only for pull model diagnostics.
+    /// This method is called to provide diagnostic information for a document.
+    ///
+    /// It analyzes the source code and returns a list of diagnostics, such as
+    /// errors and warnings. This method is only called if the client supports
+    /// the pull model for diagnostics.
     fn document_diagnostic(
         &mut self,
         params: DocumentDiagnosticParams,
@@ -389,7 +425,10 @@ impl LanguageServer for YARALanguageServer {
         })
     }
 
-    /// Message sent when the user wants for format some source code.
+    /// This method is called when the user requests to format a document.
+    ///
+    /// It formats the source code according to the configured style and
+    /// returns a set of edits to apply the changes.
     fn formatting(
         &mut self,
         params: DocumentFormattingParams,
@@ -429,6 +468,10 @@ impl LanguageServer for YARALanguageServer {
         })
     }
 
+    /// This method is called when a document is opened.
+    ///
+    /// It adds the document to the document store and triggers a diagnostic
+    /// update.
     fn did_open(
         &mut self,
         params: DidOpenTextDocumentParams,
@@ -441,6 +484,10 @@ impl LanguageServer for YARALanguageServer {
         ControlFlow::Continue(())
     }
 
+    /// This method is called when a document is saved.
+    ///
+    /// It updates the document in the document store and triggers a
+    /// diagnostic update.
     fn did_save(
         &mut self,
         params: DidSaveTextDocumentParams,
@@ -454,6 +501,10 @@ impl LanguageServer for YARALanguageServer {
         ControlFlow::Continue(())
     }
 
+    /// This method is called when a document is changed.
+    ///
+    /// It updates the document in the document store and triggers a
+    /// diagnostic update.
     fn did_change(
         &mut self,
         params: DidChangeTextDocumentParams,
@@ -468,6 +519,9 @@ impl LanguageServer for YARALanguageServer {
         ControlFlow::Continue(())
     }
 
+    /// This method is called when a document is closed.
+    ///
+    /// It removes the document from the document store.
     fn did_close(
         &mut self,
         params: DidCloseTextDocumentParams,
@@ -476,6 +530,10 @@ impl LanguageServer for YARALanguageServer {
         ControlFlow::Continue(())
     }
 
+    /// This method is called when the server is requested to shut down.
+    ///
+    /// It should not exit the process, but instead, it should prepare for
+    /// shutdown.
     fn shutdown(
         &mut self,
         _: (),
@@ -483,6 +541,9 @@ impl LanguageServer for YARALanguageServer {
         Box::pin(async move { Ok(()) })
     }
 
+    /// This method is called to exit the server process.
+    ///
+    /// It should only be called after the shutdown method has been called.
     fn exit(&mut self, _: ()) -> Self::NotifyResult {
         ControlFlow::Break(Ok(()))
     }
