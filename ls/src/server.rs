@@ -6,9 +6,6 @@ defines how the server should process various LSP requests and notifications.
 [1]: https://microsoft.github.io/language-server-protocol/
  */
 
-use std::collections::HashMap;
-use std::ops::ControlFlow;
-
 use async_lsp::lsp_types::request::{Request, SemanticTokensFullRequest};
 use async_lsp::lsp_types::{
     CompletionOptions, CompletionParams, CompletionResponse,
@@ -16,23 +13,29 @@ use async_lsp::lsp_types::{
     DidChangeTextDocumentParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, DidSaveTextDocumentParams,
     DocumentDiagnosticParams, DocumentDiagnosticReportResult,
-    DocumentHighlight, DocumentHighlightParams, DocumentSymbolParams,
-    DocumentSymbolResponse, FullDocumentDiagnosticReport,
-    GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams,
-    HoverProviderCapability, InitializeParams, InitializeResult, Location,
-    OneOf, PublishDiagnosticsParams, ReferenceParams,
+    DocumentFormattingParams, DocumentHighlight, DocumentHighlightParams,
+    DocumentSymbolParams, DocumentSymbolResponse,
+    FullDocumentDiagnosticReport, GotoDefinitionParams,
+    GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability,
+    InitializeParams, InitializeResult, Location, OneOf, Position,
+    PublishDiagnosticsParams, Range, ReferenceParams,
     RelatedFullDocumentDiagnosticReport, RenameParams, SaveOptions,
     SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability,
     SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
     SemanticTokensResult, SemanticTokensServerCapabilities,
     ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind,
-    TextDocumentSyncOptions, TextDocumentSyncSaveOptions, Url, WorkspaceEdit,
+    TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Url,
+    WorkspaceEdit,
 };
+use std::collections::HashMap;
+use std::io::Cursor;
+use std::ops::ControlFlow;
 
 use async_lsp::router::Router;
 use async_lsp::{ClientSocket, LanguageClient, LanguageServer, ResponseError};
 use futures::future::BoxFuture;
 
+use yara_x_fmt::Indentation;
 use yara_x_parser::ast::AST;
 use yara_x_parser::cst::CST;
 
@@ -107,12 +110,12 @@ impl LanguageServer for YARALanguageServer {
         &mut self,
         params: InitializeParams,
     ) -> BoxFuture<'static, Result<InitializeResult, Self::Error>> {
-        // Check if client supports pull model diagnostics
-        if let Some(capabilities_td) = params.capabilities.text_document {
-            if capabilities_td.diagnostic.is_some() {
-                self.should_send_diagnostics = false;
-            }
-        }
+        // Check if client supports pull model diagnostics.
+        self.should_send_diagnostics = params
+            .capabilities
+            .text_document
+            .and_then(|c| c.diagnostic)
+            .is_none();
 
         Box::pin(async move {
             Ok(InitializeResult {
@@ -132,6 +135,7 @@ impl LanguageServer for YARALanguageServer {
                     hover_provider: Some(HoverProviderCapability::Simple(true)),
                     definition_provider: Some(OneOf::Left(true)),
                     references_provider: Some(OneOf::Left(true)),
+                    document_formatting_provider: Some(OneOf::Left(true)),
                     completion_provider: Some(CompletionOptions {
                         resolve_provider: Some(false),
                         trigger_characters: Some(vec![
@@ -385,6 +389,46 @@ impl LanguageServer for YARALanguageServer {
         })
     }
 
+    /// Message sent when the user wants for format some source code.
+    fn formatting(
+        &mut self,
+        params: DocumentFormattingParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<TextEdit>>, Self::Error>> {
+        let uri = params.text_document.uri;
+        let cst = match self.documents.get(&uri) {
+            Some(entry) => entry,
+            None => return Box::pin(async { Ok(None) }),
+        };
+
+        let src = cst.root().text().to_string();
+
+        Box::pin(async move {
+            let line_count = src.lines().count() as u32;
+            let input = Cursor::new(src);
+            let mut output = Vec::new();
+
+            let indentation = if params.options.insert_spaces {
+                Indentation::Spaces(params.options.tab_size as usize)
+            } else {
+                Indentation::Tabs
+            };
+
+            let formatter =
+                yara_x_fmt::Formatter::new().indentation(indentation);
+
+            match formatter.format(input, &mut output) {
+                Ok(changed) if changed => Ok(Some(vec![TextEdit::new(
+                    Range::new(
+                        Position::new(0, 0),
+                        Position::new(line_count, 0),
+                    ),
+                    output.try_into().unwrap(),
+                )])),
+                _ => Ok(None),
+            }
+        })
+    }
+
     fn did_open(
         &mut self,
         params: DidOpenTextDocumentParams,
@@ -420,7 +464,6 @@ impl LanguageServer for YARALanguageServer {
                 CST::from(change.text.as_str()),
             );
         }
-
         self.publish_diagnostics(&params.text_document.uri);
         ControlFlow::Continue(())
     }

@@ -8,8 +8,8 @@ use async_lsp::concurrency::ConcurrencyLayer;
 use async_lsp::lsp_types::notification::DidOpenTextDocument;
 use async_lsp::lsp_types::request::{
     Completion, DocumentDiagnosticRequest, DocumentHighlightRequest,
-    DocumentSymbolRequest, GotoDefinition, HoverRequest, References, Rename,
-    Request, SelectionRangeRequest,
+    DocumentSymbolRequest, Formatting, GotoDefinition, HoverRequest,
+    References, Rename, Request, SelectionRangeRequest,
 };
 use async_lsp::lsp_types::{
     ClientCapabilities, DiagnosticClientCapabilities,
@@ -217,4 +217,9 @@ async fn completion() {
     test_lsp_request::<_, Completion>("completion5.yar").await;
     test_lsp_request::<_, Completion>("completion6.yar").await;
     test_lsp_request::<_, Completion>("completion7.yar").await;
+}
+
+#[tokio::test]
+async fn formatting() {
+    test_lsp_request::<_, Formatting>("formatting1.yar").await;
 }
