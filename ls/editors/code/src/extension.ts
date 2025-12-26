@@ -1,4 +1,4 @@
-import { ExtensionContext } from "vscode";
+import { ExtensionContext, window } from "vscode";
 import {
   Executable,
   LanguageClient,
@@ -13,8 +13,11 @@ export async function activate(_context: ExtensionContext) {
     args: [],
   };
 
+  const outputChannel = window.createOutputChannel("YARA-X Language Server");
+
   let clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: "file", language: "yara" }],
+    outputChannel: outputChannel,
   };
 
   client = new LanguageClient(

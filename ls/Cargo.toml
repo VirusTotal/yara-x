@@ -21,6 +21,7 @@ path = "src/main.rs"
 bitflags = { workspace = true }
 futures = "0.3.31"
 yara-x-parser = { workspace = true }
+yara-x-fmt = { workspace = true }
 
 [target.'cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))'.dependencies]
 tokio = { version = "1.48.0", features = ["full"] }

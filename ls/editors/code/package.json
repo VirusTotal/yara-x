@@ -3,7 +3,7 @@
   "displayName": "yara-x-ls",
   "description": "",
   "version": "0.0.1",
-  "publisher": "at",
+  "publisher": "VirusTotal",
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -20,7 +20,8 @@
       "[yara]": {
         "editor.tabSize": 4,
         "editor.insertSpaces": false,
-        "editor.detectIndentation": false
+        "editor.detectIndentation": false,
+        "editor.formatOnSave": true
       }
     },
     "languages": [
