@@ -1,0 +1,10 @@
+{
+  "textDocument": {
+    "uri": "file:///rename3.yar"
+  },
+  "position": {
+    "line": 9,
+    "character": 19
+  },
+  "newName": "new_rule_identifier"
+}

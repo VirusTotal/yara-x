@@ -1,0 +1,19 @@
+{
+  "kind": "full",
+  "items": [
+    {
+      "range": {
+        "start": {
+          "line": 2,
+          "character": 4
+        },
+        "end": {
+          "line": 2,
+          "character": 6
+        }
+      },
+      "severity": 4,
+      "message": "This pattern is not used in condition block"
+    }
+  ]
+}

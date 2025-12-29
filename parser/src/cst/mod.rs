@@ -14,7 +14,9 @@ code, without any grouping based on operator precedence.
 
 use std::fmt::{Debug, Display, Formatter};
 use std::iter;
+use std::iter::Cloned;
 use std::marker::PhantomData;
+use std::slice::Iter;
 use std::str::{from_utf8, Utf8Error};
 
 pub use syntax_kind::SyntaxKind;
@@ -172,6 +174,50 @@ where
     }
 }
 
+struct CSTIter<'a> {
+    iter: rowan::api::PreorderWithTokens<YARA>,
+    errors: Cloned<Iter<'a, (Span, String)>>,
+}
+
+impl<'a> Iterator for CSTIter<'a> {
+    type Item = Event;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for event in self.iter.by_ref() {
+            match event {
+                rowan::WalkEvent::Enter(e) => {
+                    return match e {
+                        rowan::SyntaxElement::Node(node) => {
+                            Some(Event::Begin {
+                                kind: node.kind(),
+                                span: Span::from(node.text_range()),
+                            })
+                        }
+                        rowan::SyntaxElement::Token(token) => {
+                            Some(Event::Token {
+                                kind: token.kind(),
+                                span: Span::from(token.text_range()),
+                            })
+                        }
+                    }
+                }
+                rowan::WalkEvent::Leave(e) => {
+                    if let rowan::SyntaxElement::Node(node) = e {
+                        return Some(Event::End {
+                            kind: node.kind(),
+                            span: Span::from(node.text_range()),
+                        });
+                    }
+                }
+            }
+        }
+        if let Some((span, message)) = self.errors.next() {
+            return Some(Event::Error { message, span });
+        }
+        None
+    }
+}
+
 impl<'src> From<Parser<'src>> for CSTStream<'src, Parser<'src>> {
     /// Creates a [`CSTStream`] from the given parser.
     fn from(parser: Parser<'src>) -> Self {
@@ -226,6 +272,23 @@ impl CST {
     pub fn root(&self) -> Node<Immutable> {
         Node::new(self.tree.clone())
     }
+
+    /// Returns the parsed source code as an iterator of [`Event`].
+    pub fn iter(&self) -> impl Iterator<Item = Event> + '_ {
+        CSTIter {
+            iter: self.tree.preorder_with_tokens(),
+            errors: self.errors.iter().cloned(),
+        }
+    }
+}
+
+impl<'src> From<&'src str> for CST {
+    /// Crates a [`CST`] from the given source code.
+    fn from(src: &'src str) -> Self {
+        // The source is &str, therefore it is guaranteed to be valid UTF-8
+        // and calling .unwrap() is safe.
+        Self::try_from(Parser::new(src.as_bytes())).unwrap()
+    }
 }
 
 impl TryFrom<Parser<'_>> for CST {
@@ -266,7 +329,7 @@ where
                             span.start(),
                         );
                     }
-                    // The span must within the source code, this unwrap
+                    // The span must be within the source code, this unwrap
                     // can't fail.
                     let token = source.get(span.range()).unwrap();
                     let token = from_utf8(token)?;
@@ -749,6 +812,22 @@ impl<M: Clone> NodeOrToken<M> {
         match self {
             NodeOrToken::Node(n) => n.parent(),
             NodeOrToken::Token(t) => t.parent(),
+        }
+    }
+
+    /// If this is a node, returns it. Returns `None` if otherwise.
+    pub fn into_node(self) -> Option<Node<M>> {
+        match self {
+            NodeOrToken::Node(n) => Some(n),
+            NodeOrToken::Token(_) => None,
+        }
+    }
+
+    /// If this is a token, returns it. Returns `None` if otherwise.
+    pub fn into_token(self) -> Option<Token<M>> {
+        match self {
+            NodeOrToken::Node(_) => None,
+            NodeOrToken::Token(t) => Some(t),
         }
     }
 

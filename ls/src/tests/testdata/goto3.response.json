@@ -1,0 +1,13 @@
+{
+  "uri": "file:///goto3.yar",
+  "range": {
+    "start": {
+      "line": 9,
+      "character": 4
+    },
+    "end": {
+      "line": 9,
+      "character": 25
+    }
+  }
+}

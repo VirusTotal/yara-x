@@ -1,0 +1,9 @@
+{
+  "textDocument": {
+    "uri": "file:///goto1.yar"
+  },
+  "position": {
+    "line": 4,
+    "character": 5
+  }
+}

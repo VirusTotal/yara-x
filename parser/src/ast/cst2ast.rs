@@ -64,8 +64,9 @@ where
                     Ok(rule) => items.push(Item::Rule(rule)),
                     // If `rule_decl` returns an error the rule is ignored,
                     // but we try to continue at the next rule declaration,
-                    // import statement, or include statement. The `recover` function discards
-                    // everything until finding the next valid item.
+                    // import statement, or include statement. The `recover`
+                    // function discards everything until finding the next
+                    // valid item.
                     Err(BuilderError::Abort) => self.recover(),
                     Err(BuilderError::MaxDepthReached) => {}
                 },
@@ -93,6 +94,15 @@ where
         }
 
         self.end(SOURCE_FILE).unwrap();
+
+        // After the closing SOURCE_FILE, more error events can follow.
+        for event in self.events {
+            if let Event::Error { message, span } = event {
+                self.errors.push(Error::SyntaxError { message, span });
+            } else {
+                unreachable!("unexpected event: {:?}", event);
+            }
+        }
 
         assert_eq!(self.depth, 0);
 
@@ -164,7 +174,11 @@ where
                 | Event::Begin { kind: INCLUDE_STMT, .. } => break,
                 Event::End { kind: SOURCE_FILE, .. } => break,
                 _ => {
-                    let _ = self.events.next();
+                    if let Some(Event::Error { message, span }) =
+                        self.events.next()
+                    {
+                        self.errors.push(Error::SyntaxError { message, span });
+                    }
                 }
             }
         }

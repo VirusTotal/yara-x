@@ -1,0 +1,19 @@
+{
+  "kind": "full",
+  "items": [
+    {
+      "range": {
+        "start": {
+          "line": 4,
+          "character": 11
+        },
+        "end": {
+          "line": 4,
+          "character": 13
+        }
+      },
+      "severity": 1,
+      "message": "Undefined pattern"
+    }
+  ]
+}

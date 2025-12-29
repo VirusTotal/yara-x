@@ -1,0 +1,19 @@
+{
+  "kind": "full",
+  "items": [
+    {
+      "range": {
+        "start": {
+          "line": 3,
+          "character": 4
+        },
+        "end": {
+          "line": 3,
+          "character": 6
+        }
+      },
+      "severity": 1,
+      "message": "Pattern with this identifier is already defined"
+    }
+  ]
+}

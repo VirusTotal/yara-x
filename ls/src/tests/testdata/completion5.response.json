@@ -1,0 +1,34 @@
+[
+  {
+    "label": "ascii",
+    "kind": 14
+  },
+  {
+    "label": "wide",
+    "kind": 14
+  },
+  {
+    "label": "nocase",
+    "kind": 14
+  },
+  {
+    "label": "private",
+    "kind": 14
+  },
+  {
+    "label": "fullword",
+    "kind": 14
+  },
+  {
+    "label": "base64",
+    "kind": 14
+  },
+  {
+    "label": "base64wide",
+    "kind": 14
+  },
+  {
+    "label": "xor",
+    "kind": 14
+  }
+]

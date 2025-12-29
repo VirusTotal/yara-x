@@ -25,6 +25,8 @@ use crate::{Parser, Span};
 mod ascii_tree;
 mod cst2ast;
 mod errors;
+#[cfg(test)]
+mod tests;
 
 pub mod dfs;
 
@@ -45,6 +47,22 @@ pub enum Item<'src> {
     Rule(Rule<'src>),
 }
 
+impl<'src> From<&'src str> for AST<'src> {
+    /// Creates an [`AST`] from the give source code.
+    #[inline]
+    fn from(src: &'src str) -> Self {
+        AST::from(src.as_bytes())
+    }
+}
+
+impl<'src> From<&'src [u8]> for AST<'src> {
+    /// Creates an [`AST`] from the give source code.
+    #[inline]
+    fn from(src: &'src [u8]) -> Self {
+        AST::from(Parser::new(src))
+    }
+}
+
 impl<'src> From<Parser<'src>> for AST<'src> {
     /// Creates an [`AST`] from the given [`Parser`].
     fn from(parser: Parser<'src>) -> Self {
@@ -63,7 +81,17 @@ where
 }
 
 impl<'src> AST<'src> {
-    fn new<I: Iterator<Item = Event>>(
+    /// Creates a new AST from YARA source code and an iterator of [`Event`]
+    /// items representing the parsed structure of that code.
+    ///
+    /// # Panics
+    ///
+    /// This is a low-level API that requires the `events` iterator to perfectly
+    /// match the provided source code. This function will panic if the events
+    /// are inconsistent with the source or do not originate from parsing this
+    /// specific code.
+    #[doc(hidden)]
+    pub fn new<I: Iterator<Item = Event>>(
         src: &'src [u8],
         events: I,
     ) -> AST<'src> {
@@ -1121,6 +1149,12 @@ impl WithSpan for IdentWithIndex<'_> {
 impl WithSpan for IdentWithRange<'_> {
     fn span(&self) -> Span {
         self.span.clone()
+    }
+}
+
+impl WithSpan for Meta<'_> {
+    fn span(&self) -> Span {
+        self.identifier.span.combine(&self.value.span())
     }
 }
 
