@@ -28,34 +28,39 @@ SOURCE_FILE@0..94
         STRING_LIT@45..50 "\"bar\""
     NEWLINE@50..51 "\n"
     WHITESPACE@51..52 "\t"
-    ERROR@52..92
+    CONDITION_BLK@52..92
       CONDITION_KW@52..61 "condition"
       COLON@61..62 ":"
       NEWLINE@62..63 "\n"
       WHITESPACE@63..65 "\t\t"
-      ERROR@65..65
-        ERROR@65..65
-      FOR_KW@65..68 "for"
-      WHITESPACE@68..69 " "
-      IDENT@69..72 "foo"
-      L_BRACKET@72..73 "["
-      INTEGER_LIT@73..74 "1"
-      R_BRACKET@74..75 "]"
-      PERCENT@75..76 "%"
-      WHITESPACE@76..77 " "
-      OF_KW@77..79 "of"
-      WHITESPACE@79..80 " "
-      THEM_KW@80..84 "them"
-      WHITESPACE@84..85 " "
-      COLON@85..86 ":"
-      WHITESPACE@86..87 " "
-      L_PAREN@87..88 "("
-      WHITESPACE@88..89 " "
-      PATTERN_IDENT@89..90 "$"
-      WHITESPACE@90..91 " "
-      R_PAREN@91..92 ")"
+      BOOLEAN_EXPR@65..92
+        BOOLEAN_TERM@65..92
+          FOR_EXPR@65..92
+            FOR_KW@65..68 "for"
+            WHITESPACE@68..69 " "
+            QUANTIFIER@69..76
+              TERM@69..75
+                PRIMARY_EXPR@69..75
+                  IDENT@69..72 "foo"
+                  L_BRACKET@72..73 "["
+                  EXPR@73..74
+                    TERM@73..74
+                      INTEGER_LIT@73..74 "1"
+                  R_BRACKET@74..75 "]"
+              PERCENT@75..76 "%"
+            WHITESPACE@76..77 " "
+            OF_KW@77..79 "of"
+            WHITESPACE@79..80 " "
+            THEM_KW@80..84 "them"
+            WHITESPACE@84..85 " "
+            COLON@85..86 ":"
+            WHITESPACE@86..87 " "
+            L_PAREN@87..88 "("
+            WHITESPACE@88..89 " "
+            BOOLEAN_EXPR@89..90
+              BOOLEAN_TERM@89..90
+                PATTERN_IDENT@89..90 "$"
+            WHITESPACE@90..91 " "
+            R_PAREN@91..92 ")"
     NEWLINE@92..93 "\n"
     R_BRACE@93..94 "}"
-
-ERRORS:
-- [77..79]: expecting expression, found `of`

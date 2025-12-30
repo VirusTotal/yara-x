@@ -61,7 +61,7 @@ serde_json = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 
-yara-x = { workspace = true, features = ["exact-atoms", "constant-folding", "fast-regexp"] }
+yara-x = { workspace = true, features = ["linkme", "exact-atoms", "constant-folding", "fast-regexp"] }
 yara-x-proto-json = { workspace = true }
 yara-x-fmt = { workspace = true }
 

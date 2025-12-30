@@ -49,6 +49,12 @@ exact-atoms = []
 # the fast regexp matching mechanism for testing purposes.
 fast-regexp = []
 
+# Uses the `inventory` crate (https://github.com/dtolnay/inventory) instead
+# of `linkme`  (https://github.com/dtolnay/linkme) for tracking WASM exports.
+#
+# This feature is disabled by default.
+inventory = ["dep:inventory"]
+
 # Whether to use protoc for parsing and compiling .proto files. By default,
 # .proto files are parsed and compiled by the pure-Rust compiler implemented
 # by the `rust-protobuf` crate. With this feature you can change this behavior
@@ -56,6 +62,13 @@ fast-regexp = []
 # protoc installed in your system, together with the protoc-gen-rust plugin.
 # Follow the instructions in: https://lib.rs/crates/protobuf-codegen3
 protoc = []
+
+# Uses the `linkme` crate (https://github.com/dtolnay/linkme) instead
+# of `inventory`  (https://github.com/dtolnay/inventory) for tracking WASM
+# exports.
+#
+# This feature is enabled by default.
+linkme = ["dep:linkme"]
 
 # Enables debug logs.
 logging = ["dep:log", "dep:quanta"]
@@ -124,6 +137,14 @@ crx-module = [
 # compatibility with YARA, but it won't be actively maintained or improved as
 # the Cuckoo Sandbox seems to be abandoned since 2017.
 cuckoo-module = []
+
+# The `dex` module parses DEX files.
+dex-module = [
+    "dep:nom",
+    "dep:sha1",
+    "dep:simd-adler32",
+    "dep:simd_cesu8"
+]
 
 # The `dotnet` module parses .NET files.
 dotnet-module = [
@@ -200,14 +221,12 @@ vt-module = [
     "dep:psl",
 ]
 
-# Features that are enabled by default.
-default = [
-    "constant-folding",
+# Enables all the default modules.
+default-modules = [
     "console-module",
     "crx-module",
     "cuckoo-module",
-    "exact-atoms",
-    "fast-regexp",
+    "dex-module",
     "dotnet-module",
     "elf-module",
     "macho-module",
@@ -220,6 +239,14 @@ default = [
     "test_proto2-module",
     "test_proto3-module",
     "vt-module",
+]
+
+# Features that are enabled by default.
+default = [
+    "constant-folding",
+    "default-modules",
+    "fast-regexp",
+    "linkme",
 ]
 
 [dependencies]
@@ -241,9 +268,10 @@ ecdsa = { workspace = true, optional = true }
 memmap2 = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 intaglio = { workspace = true }
+inventory = { workspace = true, optional = true }
 ipnet = { workspace = true, optional = true }
 itertools = { workspace = true }
-linkme = { workspace = true }
+linkme = { workspace = true, optional = true }
 log = { workspace = true, optional = true }
 md2 = { workspace = true, optional = true, features = ["oid"] }
 md-5 = { workspace = true, optional = true, features = ["oid"] }
@@ -280,6 +308,8 @@ x509-parser = { workspace = true, optional = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true, features = ["serde"] }
 zip = { workspace = true, optional = true }
+simd-adler32 = {workspace = true, optional = true}
+simd_cesu8 = {workspace = true, optional = true}
 
 lingua = { version = "1.6.2", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
 

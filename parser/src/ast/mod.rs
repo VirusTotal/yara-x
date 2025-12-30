@@ -25,6 +25,8 @@ use crate::{Parser, Span};
 mod ascii_tree;
 mod cst2ast;
 mod errors;
+#[cfg(test)]
+mod tests;
 
 pub mod dfs;
 
@@ -45,10 +47,26 @@ pub enum Item<'src> {
     Rule(Rule<'src>),
 }
 
+impl<'src> From<&'src str> for AST<'src> {
+    /// Creates an [`AST`] from the give source code.
+    #[inline]
+    fn from(src: &'src str) -> Self {
+        AST::from(src.as_bytes())
+    }
+}
+
+impl<'src> From<&'src [u8]> for AST<'src> {
+    /// Creates an [`AST`] from the give source code.
+    #[inline]
+    fn from(src: &'src [u8]) -> Self {
+        AST::from(Parser::new(src))
+    }
+}
+
 impl<'src> From<Parser<'src>> for AST<'src> {
     /// Creates an [`AST`] from the given [`Parser`].
     fn from(parser: Parser<'src>) -> Self {
-        Self::from(CSTStream::new(parser.source(), parser))
+        AST::new(parser.source(), parser)
     }
 }
 
@@ -56,12 +74,30 @@ impl<'src, I> From<CSTStream<'src, I>> for AST<'src>
 where
     I: Iterator<Item = Event>,
 {
+    /// Creates an [`AST`] from the given [`CSTStream`].
     fn from(cst: CSTStream<'src, I>) -> Self {
-        Builder::new(cst).build_ast()
+        AST::new(cst.source(), cst)
     }
 }
 
 impl<'src> AST<'src> {
+    /// Creates a new AST from YARA source code and an iterator of [`Event`]
+    /// items representing the parsed structure of that code.
+    ///
+    /// # Panics
+    ///
+    /// This is a low-level API that requires the `events` iterator to perfectly
+    /// match the provided source code. This function will panic if the events
+    /// are inconsistent with the source or do not originate from parsing this
+    /// specific code.
+    #[doc(hidden)]
+    pub fn new<I: Iterator<Item = Event>>(
+        src: &'src [u8],
+        events: I,
+    ) -> AST<'src> {
+        Builder::new(src, events).build_ast()
+    }
+
     /// Returns the top level items in the AST.
     ///
     /// A top level item can be an import, include, or rule.
@@ -277,9 +313,21 @@ pub struct RegexpPattern<'src> {
 /// A hex pattern (a.k.a. hex string) in a YARA rule.
 #[derive(Debug, Default)]
 pub struct HexPattern<'src> {
+    span: Span,
     pub identifier: Ident<'src>,
     pub sub_patterns: HexSubPattern,
     pub modifiers: PatternModifiers<'src>,
+}
+
+impl<'src> HexPattern<'src> {
+    #[doc(hidden)]
+    pub fn new(ident: &'src str) -> Self {
+        Self {
+            identifier: Ident::new(ident),
+            span: Span::default(),
+            ..Default::default()
+        }
+    }
 }
 
 /// A sequence of tokens that conform a hex pattern (a.k.a. hex string).
@@ -865,7 +913,6 @@ pub struct In<'src> {
 /// An expression representing a function call.
 #[derive(Debug)]
 pub struct FuncCall<'src> {
-    span: Span,
     args_span: Span,
     pub object: Option<Expr<'src>>,
     pub identifier: Ident<'src>,
@@ -1105,6 +1152,12 @@ impl WithSpan for IdentWithRange<'_> {
     }
 }
 
+impl WithSpan for Meta<'_> {
+    fn span(&self) -> Span {
+        self.identifier.span.combine(&self.value.span())
+    }
+}
+
 impl WithSpan for MetaValue<'_> {
     fn span(&self) -> Span {
         match self {
@@ -1180,7 +1233,7 @@ impl WithSpan for Include<'_> {
 
 impl WithSpan for FuncCall<'_> {
     fn span(&self) -> Span {
-        self.span.clone()
+        self.identifier.span.combine(&self.args_span)
     }
 }
 
@@ -1206,11 +1259,7 @@ impl WithSpan for TextPattern<'_> {
 
 impl WithSpan for HexPattern<'_> {
     fn span(&self) -> Span {
-        if self.modifiers.is_empty() {
-            self.identifier.span().combine(&self.sub_patterns.span())
-        } else {
-            self.identifier.span().combine(&self.modifiers.span())
-        }
+        self.span.clone()
     }
 }
 
@@ -1397,7 +1446,7 @@ impl WithSpan for Expr<'_> {
             Expr::Ident(i) => i.span.clone(),
             Expr::Regexp(r) => r.span.clone(),
             Expr::Lookup(l) => l.span.clone(),
-            Expr::FuncCall(f) => f.span.clone(),
+            Expr::FuncCall(f) => f.span(),
             Expr::PatternMatch(p) => p.span(),
             Expr::PatternCount(p) => p.span(),
             Expr::PatternLength(p) => p.span(),

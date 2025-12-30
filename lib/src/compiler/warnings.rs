@@ -23,6 +23,7 @@ pub enum Warning {
     ConsecutiveJumps(Box<ConsecutiveJumps>),
     DeprecatedField(Box<DeprecatedField>),
     DuplicateImport(Box<DuplicateImport>),
+    GlobalRuleMisuse(Box<GlobalRuleMisuse>),
     IgnoredModule(Box<IgnoredModule>),
     IgnoredRule(Box<IgnoredRule>),
     InvalidMetadata(Box<InvalidMetadata>),
@@ -500,14 +501,8 @@ pub struct IgnoredRule {
     "this pattern can be written as a text literal",
     pattern_loc
 )]
-#[label(
-    "replace with \"{text}\"",
-    pattern_loc,
-    Level::HELP
-)]
 pub struct TextPatternAsHex {
     report: Report,
-    text: String,
     pattern_loc: CodeLoc,
 }
 
@@ -781,4 +776,42 @@ pub struct AmbiguousExpression {
 pub struct UnusedIdentifier {
     report: Report,
     loc: CodeLoc,
+}
+
+
+/// A global rule has been used as part of a rule condition.
+///
+/// Referencing a global rule within a condition is redundant and may create
+/// logical contradictions. Global rules are implicit prerequisites for all
+/// non-global rules. Therefore, explicitly checking a global rule in a 
+/// condition is unnecessary. Furthermore, negating a global rule renders the
+/// condition unsatisfiable: the condition requires the global rule to be false,
+/// but a false global rule prevents all non-global rules from being true.
+///
+/// ## Example
+///
+/// ```text
+/// warning[global_rule_misuse]: global rule used in condition
+///  --> line:7:5
+///   |
+/// 7 |     test_1
+///   |     ------ a global rule is being used as part of an condition
+///   |
+///   = note: referencing a global rule in a condition is redundant, and may result in an unsatisfiable condition
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "global_rule_misuse",
+    title = "global rule used in condition",
+)]
+#[label(
+    "a global rule is being used as part of an condition",
+    loc
+)]
+#[footer(note)]
+pub struct GlobalRuleMisuse {
+    report: Report,
+    loc: CodeLoc,
+    note: Option<String>,
 }

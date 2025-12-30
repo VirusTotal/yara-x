@@ -1,4 +1,4 @@
-use crate::cst::{SyntaxKind, CST};
+use crate::cst::{CSTStream, Event, SyntaxKind, Utf16, Utf32, Utf8, CST};
 use crate::{Parser, Span};
 
 #[test]
@@ -37,6 +37,7 @@ fn cst_1() {
     assert_eq!(rule_decl.last_child(), condition_blk);
 
     let condition_blk = condition_blk.unwrap();
+    assert_eq!(condition_blk.root(), source_file.clone());
 
     // Check the CONDITION_BLK's span.
     assert_eq!(condition_blk.span(), Span(12..27));
@@ -193,4 +194,337 @@ fn cst_4() {
 
     // After detaching the RULE_DECL node, SOURCE_CODE is empty.
     assert_eq!(source_file.last_token().map(|x| x.kind()), None);
+}
+
+#[test]
+fn cst_5() {
+    let cst: CST = Parser::new(
+        r#"rule test {
+    /*
+       Comment
+    */
+    condition:
+        true or
+        /* 😊 */ false
+    }"#
+        .as_bytes(),
+    )
+    .try_into()
+    .unwrap();
+
+    let mut c = cst.root().first_child().unwrap().children_with_tokens();
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::RULE_KW);
+    assert_eq!(n.start_pos::<Utf32>(), (0, 0).into());
+    assert_eq!(n.start_pos::<Utf16>(), (0, 0).into());
+    assert_eq!(n.start_pos::<Utf8>(), (0, 0).into());
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
+    assert_eq!(n.start_pos::<Utf32>(), (0, 4).into());
+    assert_eq!(n.start_pos::<Utf16>(), (0, 4).into());
+    assert_eq!(n.start_pos::<Utf8>(), (0, 4).into());
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::IDENT);
+    assert_eq!(n.start_pos::<Utf32>(), (0, 5).into());
+    assert_eq!(n.start_pos::<Utf16>(), (0, 5).into());
+    assert_eq!(n.start_pos::<Utf8>(), (0, 5).into());
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
+    assert_eq!(n.start_pos::<Utf32>(), (0, 9).into());
+    assert_eq!(n.start_pos::<Utf16>(), (0, 9).into());
+    assert_eq!(n.start_pos::<Utf8>(), (0, 9).into());
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::L_BRACE);
+    assert_eq!(n.start_pos::<Utf32>(), (0, 10).into());
+    assert_eq!(n.start_pos::<Utf16>(), (0, 10).into());
+    assert_eq!(n.start_pos::<Utf8>(), (0, 10).into());
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::NEWLINE);
+    assert_eq!(n.start_pos::<Utf32>(), (0, 11).into());
+    assert_eq!(n.start_pos::<Utf16>(), (0, 11).into());
+    assert_eq!(n.start_pos::<Utf8>(), (0, 11).into());
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
+    assert_eq!(n.start_pos::<Utf32>(), (1, 0).into());
+    assert_eq!(n.start_pos::<Utf16>(), (1, 0).into());
+    assert_eq!(n.start_pos::<Utf8>(), (1, 0).into());
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::COMMENT);
+    assert_eq!(n.start_pos::<Utf32>(), (1, 4).into());
+    assert_eq!(n.start_pos::<Utf16>(), (1, 4).into());
+    assert_eq!(n.start_pos::<Utf8>(), (1, 4).into());
+    assert_eq!(n.end_pos::<Utf32>(), (3, 6).into());
+    assert_eq!(n.end_pos::<Utf16>(), (3, 6).into());
+    assert_eq!(n.end_pos::<Utf8>(), (3, 6).into());
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::NEWLINE);
+    assert_eq!(n.start_pos::<Utf32>(), (3, 6).into());
+    assert_eq!(n.start_pos::<Utf16>(), (3, 6).into());
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
+    assert_eq!(n.start_pos::<Utf32>(), (4, 0).into());
+    assert_eq!(n.start_pos::<Utf16>(), (4, 0).into());
+    assert_eq!(n.start_pos::<Utf8>(), (4, 0).into());
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::CONDITION_BLK);
+    assert_eq!(n.start_pos::<Utf32>(), (4, 4).into());
+    assert_eq!(n.start_pos::<Utf16>(), (4, 4).into());
+    assert_eq!(n.start_pos::<Utf8>(), (4, 4).into());
+    assert_eq!(n.end_pos::<Utf32>(), (6, 21).into());
+    assert_eq!(n.end_pos::<Utf16>(), (6, 22).into());
+    assert_eq!(n.end_pos::<Utf8>(), (6, 24).into());
+
+    let n1 = n.first_child_or_token().unwrap();
+    assert_eq!(n1.kind(), SyntaxKind::CONDITION_KW);
+    assert_eq!(n1.start_pos::<Utf32>(), (4, 4).into());
+    assert_eq!(n1.start_pos::<Utf16>(), (4, 4).into());
+    assert_eq!(n1.start_pos::<Utf8>(), (4, 4).into());
+
+    let n1 = n1.next_sibling_or_token().unwrap();
+    assert_eq!(n1.kind(), SyntaxKind::COLON);
+    assert_eq!(n1.start_pos::<Utf32>(), (4, 13).into());
+    assert_eq!(n1.start_pos::<Utf16>(), (4, 13).into());
+    assert_eq!(n1.start_pos::<Utf8>(), (4, 13).into());
+
+    let n1 = n1.next_sibling_or_token().unwrap();
+    assert_eq!(n1.kind(), SyntaxKind::NEWLINE);
+    assert_eq!(n1.start_pos::<Utf32>(), (4, 14).into());
+    assert_eq!(n1.start_pos::<Utf16>(), (4, 14).into());
+    assert_eq!(n1.start_pos::<Utf8>(), (4, 14).into());
+
+    let n1 = n1.next_sibling_or_token().unwrap();
+    assert_eq!(n1.kind(), SyntaxKind::WHITESPACE);
+    assert_eq!(n1.start_pos::<Utf32>(), (5, 0).into());
+    assert_eq!(n1.start_pos::<Utf16>(), (5, 0).into());
+    assert_eq!(n1.start_pos::<Utf8>(), (5, 0).into());
+
+    let n1 = n1.next_sibling_or_token().unwrap();
+    assert_eq!(n1.kind(), SyntaxKind::BOOLEAN_EXPR);
+    assert_eq!(n1.start_pos::<Utf32>(), (5, 8).into());
+    assert_eq!(n1.start_pos::<Utf16>(), (5, 8).into());
+    assert_eq!(n1.start_pos::<Utf8>(), (5, 8).into());
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::NEWLINE);
+    assert_eq!(n.start_pos::<Utf32>(), (6, 21).into());
+    assert_eq!(n.start_pos::<Utf16>(), (6, 22).into());
+    assert_eq!(n.start_pos::<Utf8>(), (6, 24).into());
+    assert_eq!(n.end_pos::<Utf32>(), (7, 0).into());
+    assert_eq!(n.end_pos::<Utf16>(), (7, 0).into());
+    assert_eq!(n.end_pos::<Utf8>(), (7, 0).into());
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::WHITESPACE);
+    assert_eq!(n.start_pos::<Utf32>(), (7, 0).into());
+    assert_eq!(n.start_pos::<Utf16>(), (7, 0).into());
+    assert_eq!(n.start_pos::<Utf8>(), (7, 0).into());
+
+    let n = c.next().unwrap();
+    assert_eq!(n.kind(), SyntaxKind::R_BRACE);
+    assert_eq!(n.start_pos::<Utf32>(), (7, 4).into());
+    assert_eq!(n.start_pos::<Utf16>(), (7, 4).into());
+    assert_eq!(n.start_pos::<Utf8>(), (7, 4).into());
+}
+
+#[test]
+fn cst_6() {
+    let cst: CST = Parser::new(
+        r#"rule test {
+    /*
+       Comment
+    */
+    condition:
+        true or
+        /* 😊 */ false
+    }"#
+        .as_bytes(),
+    )
+    .try_into()
+    .unwrap();
+
+    let root_node = cst.root();
+
+    // Token at line 0, column 0 is `SyntaxKind::RULE_KW`.
+    assert_eq!(
+        root_node.token_at_position::<Utf32, _>((0, 0)).unwrap().kind(),
+        SyntaxKind::RULE_KW
+    );
+
+    assert_eq!(
+        root_node.token_at_position::<Utf16, _>((0, 0)).unwrap().kind(),
+        SyntaxKind::RULE_KW
+    );
+
+    assert_eq!(
+        root_node.token_at_position::<Utf8, _>((0, 0)).unwrap().kind(),
+        SyntaxKind::RULE_KW
+    );
+
+    // Token at line 0, column 4 is `SyntaxKind::WHITESPACE`.
+    assert_eq!(
+        root_node.token_at_position::<Utf32, _>((0, 4)).unwrap().kind(),
+        SyntaxKind::WHITESPACE
+    );
+
+    // Token at line 0, column 11 is `SyntaxKind::NEWLINE`.
+    assert_eq!(
+        root_node.token_at_position::<Utf32, _>((0, 11)).unwrap().kind(),
+        SyntaxKind::NEWLINE
+    );
+
+    // There's no token at line 0, column 12.
+    assert!(root_node.token_at_position::<Utf32, _>((0, 12)).is_none());
+
+    // Token at line 1, column 4 is `SyntaxKind::COMMENT`.
+    assert_eq!(
+        root_node.token_at_position::<Utf32, _>((1, 4)).unwrap().kind(),
+        SyntaxKind::COMMENT
+    );
+
+    // Token at line 2, column 8 is `SyntaxKind::COMMENT`.
+    assert_eq!(
+        root_node.token_at_position::<Utf32, _>((2, 8)).unwrap().kind(),
+        SyntaxKind::COMMENT
+    );
+
+    // Token at line 2, column 20 is `SyntaxKind::COMMENT`.
+    assert_eq!(
+        root_node.token_at_position::<Utf32, _>((2, 20)).unwrap().kind(),
+        SyntaxKind::COMMENT
+    );
+
+    // Token at line 3, column 5 is `SyntaxKind::COMMENT`.
+    assert_eq!(
+        root_node.token_at_position::<Utf32, _>((3, 5)).unwrap().kind(),
+        SyntaxKind::COMMENT
+    );
+
+    // Token at line 3, column 6 is `SyntaxKind::NEWLINE`.
+    assert_eq!(
+        root_node.token_at_position::<Utf32, _>((3, 6)).unwrap().kind(),
+        SyntaxKind::NEWLINE
+    );
+
+    // Token at line 4, column 4 is `SyntaxKind::CONDITION_KW`.
+    assert_eq!(
+        root_node.token_at_position::<Utf32, _>((4, 4)).unwrap().kind(),
+        SyntaxKind::CONDITION_KW
+    );
+
+    // There's no token at line 4, column 15.
+    assert!(root_node.token_at_position::<Utf32, _>((4, 15)).is_none());
+
+    // Token at line 6, column 16 is `SyntaxKind::FALSE_KW`.
+    assert_eq!(
+        root_node.token_at_position::<Utf32, _>((6, 16)).unwrap().kind(),
+        SyntaxKind::FALSE_KW
+    );
+
+    assert_eq!(
+        root_node.token_at_position::<Utf16, _>((6, 17)).unwrap().kind(),
+        SyntaxKind::FALSE_KW
+    );
+
+    assert_eq!(
+        root_node.token_at_position::<Utf8, _>((6, 19)).unwrap().kind(),
+        SyntaxKind::FALSE_KW
+    );
+
+    // Token at line 6, column 20 is `SyntaxKind::FALSE_KW`.
+    assert_eq!(
+        root_node.token_at_position::<Utf32, _>((6, 20)).unwrap().kind(),
+        SyntaxKind::FALSE_KW
+    );
+
+    assert_eq!(
+        root_node.token_at_position::<Utf16, _>((6, 21)).unwrap().kind(),
+        SyntaxKind::FALSE_KW
+    );
+
+    assert_eq!(
+        root_node.token_at_position::<Utf8, _>((6, 23)).unwrap().kind(),
+        SyntaxKind::FALSE_KW
+    );
+
+    // Token at line 6, column 21 is `SyntaxKind::NEWLINE`.
+    assert_eq!(
+        root_node.token_at_position::<Utf32, _>((6, 21)).unwrap().kind(),
+        SyntaxKind::NEWLINE
+    );
+
+    assert_eq!(
+        root_node.token_at_position::<Utf16, _>((6, 22)).unwrap().kind(),
+        SyntaxKind::NEWLINE
+    );
+
+    assert_eq!(
+        root_node.token_at_position::<Utf8, _>((6, 24)).unwrap().kind(),
+        SyntaxKind::NEWLINE
+    );
+}
+
+#[test]
+fn cst_stream() {
+    let parser = Parser::new(
+        br#"
+rule /* comment */
+test {
+    condition: true
+}"#,
+    );
+
+    let mut cst = CSTStream::from(parser).comments(false);
+
+    assert_eq!(
+        cst.next(),
+        Some(Event::Begin {
+            kind: SyntaxKind::SOURCE_FILE,
+            span: Span(0..48)
+        })
+    );
+
+    assert_eq!(
+        cst.next(),
+        Some(Event::Token { kind: SyntaxKind::NEWLINE, span: Span(0..1) })
+    );
+
+    let mut cst = cst.newlines(false);
+
+    assert_eq!(
+        cst.next(),
+        Some(Event::Begin { kind: SyntaxKind::RULE_DECL, span: Span(1..48) })
+    );
+
+    assert_eq!(
+        cst.next(),
+        Some(Event::Token { kind: SyntaxKind::RULE_KW, span: Span(1..5) })
+    );
+
+    assert_eq!(
+        cst.next(),
+        Some(Event::Token { kind: SyntaxKind::WHITESPACE, span: Span(5..6) })
+    );
+
+    let mut cst = cst.whitespaces(false);
+
+    assert_eq!(
+        cst.next(),
+        Some(Event::Token { kind: SyntaxKind::IDENT, span: Span(20..24) })
+    );
+
+    assert_eq!(
+        cst.next(),
+        Some(Event::Token { kind: SyntaxKind::L_BRACE, span: Span(25..26) })
+    );
 }

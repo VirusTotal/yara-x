@@ -1,0 +1,28 @@
+[
+  {
+    "uri": "file:///references3.yar",
+    "range": {
+      "start": {
+        "line": 0,
+        "character": 0
+      },
+      "end": {
+        "line": 3,
+        "character": 1
+      }
+    }
+  },
+  {
+    "uri": "file:///references3.yar",
+    "range": {
+      "start": {
+        "line": 7,
+        "character": 4
+      },
+      "end": {
+        "line": 7,
+        "character": 19
+      }
+    }
+  }
+]

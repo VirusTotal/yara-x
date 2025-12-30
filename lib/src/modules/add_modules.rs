@@ -6,6 +6,8 @@ add_module!(modules, "console", console, "console.Console", Some("console"), Som
 add_module!(modules, "crx", crx, "crx.Crx", Some("crx"), Some(crx::__main__ as MainFn));
 #[cfg(feature = "cuckoo-module")]
 add_module!(modules, "cuckoo", cuckoo, "cuckoo.Cuckoo", Some("cuckoo"), Some(cuckoo::__main__ as MainFn));
+#[cfg(feature = "dex-module")]
+add_module!(modules, "dex", dex, "dex.Dex", Some("dex"), Some(dex::__main__ as MainFn));
 #[cfg(feature = "dotnet-module")]
 add_module!(modules, "dotnet", dotnet, "dotnet.Dotnet", Some("dotnet"), Some(dotnet::__main__ as MainFn));
 #[cfg(feature = "elf-module")]

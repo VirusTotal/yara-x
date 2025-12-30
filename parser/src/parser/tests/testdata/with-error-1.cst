@@ -43,4 +43,4 @@ SOURCE_FILE@0..92
     R_BRACE@91..92 "}"
 
 ERRORS:
-- [50..51]: expecting operator, `,` or `:`, found `(`
+- [50..51]: expecting expression, operator, `,` or `:`, found `(`

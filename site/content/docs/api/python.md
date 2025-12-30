@@ -328,6 +328,38 @@ Returns: [yara_x.ScanResults](#scanresults)
 
 Raises: [yara_x.ScanError](#scanerror), [yara_x.TimeoutError](#timeouterror)
 
+#### .imports()
+
+An array with the names of the modules imported by the rules.
+
+#### .serialize_into(file)
+
+Serializes the rules into a file-like object.
+
+##### Example
+
+```python
+rules = yara_x.compile("rule test { condition: true }")
+f = io.BytesIO()
+rules.serialize_into(f)
+f.seek(0)
+rules = yara_x.Rules.deserialize_from(f)
+```
+
+#### .deserialize_from(file)
+
+Deserializes rules from a file-like object.
+
+##### Example
+
+```python
+rules = yara_x.compile("rule test { condition: true }")
+f = io.BytesIO()
+rules.serialize_into(f)
+f.seek(0)
+rules = yara_x.Rules.deserialize_from(f)
+```
+
 ---------
 
 ### Scanner
@@ -425,8 +457,6 @@ during the scan, if any.
 
 A tuple of pairs `(identifier, value)` with the metadata associated to the
 rule.
-
----------
 
 ### Pattern
 

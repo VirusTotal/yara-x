@@ -1,0 +1,5 @@
+error[E001]: syntax error
+ --> line:3:13
+  |
+3 |         foo."foo"
+  |             ^^^^^ expecting identifier, found `"foo"`

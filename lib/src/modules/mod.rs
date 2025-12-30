@@ -16,11 +16,12 @@ mod tests;
 pub(crate) mod prelude {
     pub(crate) use crate::scanner::ScanContext;
     pub(crate) use crate::wasm::string::FixedLenString;
-    pub(crate) use crate::wasm::string::Lowercase;
     pub(crate) use crate::wasm::string::RuntimeString;
     pub(crate) use crate::wasm::string::String as _;
+    pub(crate) use crate::wasm::string::{Lowercase, Uppercase};
     pub(crate) use crate::wasm::*;
     pub(crate) use bstr::ByteSlice;
+    #[cfg(not(feature = "inventory"))]
     pub(crate) use linkme::distributed_slice;
     pub(crate) use wasmtime::Caller;
     pub(crate) use yara_x_macros::{module_export, module_main, wasm_export};
@@ -170,6 +171,15 @@ pub mod mods {
     /// Data structure returned by the `pe` module.
     pub use super::protos::crx::Crx;
 
+    /// Data structure defined by the `dex` module.
+    ///
+    /// The main structure produced by the module is [`dex::Dex`]. The rest
+    /// of them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::dex;
+    /// Data structure returned by the `dex` module.
+    pub use super::protos::dex::Dex;
+
     /// Data structures defined by the `dotnet` module.
     ///
     /// The main structure produced by the module is [`dotnet::Dotnet`]. The
@@ -301,6 +311,7 @@ pub mod mods {
         info.macho = protobuf::MessageField(invoke::<Macho>(data));
         info.lnk = protobuf::MessageField(invoke::<Lnk>(data));
         info.crx = protobuf::MessageField(invoke::<Crx>(data));
+        info.dex = protobuf::MessageField(invoke::<Dex>(data));
         info
     }
 

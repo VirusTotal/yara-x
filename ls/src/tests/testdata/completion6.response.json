@@ -1,0 +1,29 @@
+[
+  {
+    "label": "meta",
+    "labelDetails": {
+      "description": "Block of meta"
+    },
+    "kind": 14,
+    "insertText": "meta:\n\t",
+    "insertTextMode": 2
+  },
+  {
+    "label": "strings",
+    "labelDetails": {
+      "description": "Block of strings"
+    },
+    "kind": 14,
+    "insertText": "strings:\n\t",
+    "insertTextMode": 2
+  },
+  {
+    "label": "condition",
+    "labelDetails": {
+      "description": "Block of condition"
+    },
+    "kind": 14,
+    "insertText": "condition:\n\t",
+    "insertTextMode": 2
+  }
+]

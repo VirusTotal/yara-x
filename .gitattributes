@@ -10,4 +10,5 @@
 *.stdout text eol=lf
 *.stderr text eol=lf
 *.yar text eol=lf
+*.json text eol=lf
 

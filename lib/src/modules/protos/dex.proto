@@ -1,0 +1,182 @@
+syntax = "proto2";
+import "yara.proto";
+
+package dex;
+
+option (yara.module_options) = {
+    name : "dex",
+    root_message: "dex.Dex",
+    rust_module: "dex",
+    cargo_feature: "dex-module"
+};
+
+message Dex {
+    optional bool is_dex = 1;
+    optional DexHeader header = 2;
+    repeated string strings = 3;
+    repeated string types = 4;
+    repeated ProtoItem protos = 5;
+    repeated FieldItem fields = 6;
+    repeated MethodItem methods = 7;
+    repeated ClassItem class_defs = 8;
+    optional MapList map_list = 9;
+}
+
+// See: https://source.android.com/docs/core/runtime/dex-format#header-item
+message DexHeader {
+    optional uint32 magic = 1 [(yara.field_options).fmt = "x"];
+    // DEX version (35, 36, 37, ...)
+    optional uint32 version = 2;
+    optional uint32 checksum = 3 [(yara.field_options).fmt = "x"];
+    optional string signature = 4;
+    optional uint32 file_size = 5;
+    optional uint32 header_size = 6 [(yara.field_options).fmt = "x"];
+    optional uint32 endian_tag = 7 [(yara.field_options).fmt = "x"];
+    optional uint32 link_size = 8;
+    optional uint32 link_off = 9 [(yara.field_options).fmt = "x"];
+    optional uint32 data_size = 23;
+    optional uint32 data_off = 24 [(yara.field_options).fmt = "x"];
+    optional uint32 container_size = 25;
+    optional uint32 header_offset = 26 [(yara.field_options).fmt = "x"];
+}
+
+message ProtoItem {
+    optional string shorty = 1;
+    optional string return_type = 2;
+    optional uint32 parameters_count = 3;
+    repeated string parameters = 4;
+}
+
+message FieldItem {
+    optional string class = 1;
+    optional string type = 2;
+    optional string name = 3;
+}
+
+message MethodItem {
+    optional string class = 1;
+    optional ProtoItem proto = 2;
+    optional string name = 3;
+}
+
+message ClassItem {
+    optional string class = 1;
+    optional uint32 access_flags = 2 [(yara.field_options).fmt = "flags:AccessFlag"];
+    optional string superclass = 3;
+    optional string source_file = 4;
+}
+
+message MapList {
+    optional uint32 size = 1;
+    repeated MapItem items = 2;
+}
+
+message MapItem {
+    optional TypeCode type = 1;
+    optional uint32 unused = 2;
+    optional uint32 size = 3;
+    optional uint32 offset = 4 [(yara.field_options).fmt = "x"];
+}
+
+// Bitfields of these flags are used to indicate the accessibility and overall properties of classes and class members
+// See: https://source.android.com/docs/core/runtime/dex-format#access-flags
+enum AccessFlag {
+    option (yara.enum_options).inline = true;
+
+    // public: visible everywhere (class, field, method)
+    ACC_PUBLIC = 0x1;
+
+    // private: only visible to defining class (class, field, method)
+    ACC_PRIVATE = 0x2;
+
+    // protected: visible to package and subclasses (class, field, method)
+    ACC_PROTECTED = 0x4;
+
+    // static:
+    //   - class: not constructed with an outer this reference
+    //   - field: global to defining class
+    //   - method: does not take a this argument
+    ACC_STATIC = 0x8;
+
+    // final:
+    //   - class: not subclassable
+    //   - field: immutable after construction
+    //   - method: not overridable
+    ACC_FINAL = 0x10;
+
+    // synchronized: method has associated lock automatically acquired around call.
+    // Note: only valid if ACC_NATIVE is also set.
+    ACC_SYNCHRONIZED = 0x20;
+
+    // bridge: compiler-generated method to provide type-safe bridge
+    ACC_BRIDGE = 0x40;
+
+    // varargs: last argument should be treated as a "rest" argument by compiler
+    ACC_VARARGS = 0x80;
+
+    // native: implemented in native code
+    ACC_NATIVE = 0x100;
+
+    // interface: multiply-implementable abstract class
+    ACC_INTERFACE = 0x200;
+
+    // abstract:
+    //   - class: not directly instantiable
+    //   - method: unimplemented by this class
+    ACC_ABSTRACT = 0x400;
+
+    // strictfp: strict rules for floating-point arithmetic
+    ACC_STRICT = 0x800;
+
+    // synthetic: not directly defined in source code (class, field, method)
+    ACC_SYNTHETIC = 0x1000;
+
+    // annotation: declared as an annotation class
+    ACC_ANNOTATION = 0x2000;
+
+    // enum:
+    //   - class: declared as an enumerated type
+    //   - field: declared as an enumerated value
+    ACC_ENUM = 0x4000;
+
+    // constructor: constructor method (class or instance initializer)
+    ACC_CONSTRUCTOR = 0x10000;
+
+    // declared synchronized: declared with 'synchronized' keyword
+    ACC_DECLARED_SYNCHRONIZED = 0x20000;
+}
+
+enum AccessFlagSpecial {
+    option (yara.enum_options).inline = true;
+    // volatile (field): special access rules to help with thread safety
+    ACC_VOLATILE = 0x40;
+
+    // transient (field): not to be saved by default serialization
+    ACC_TRANSIENT = 0x80;
+}
+
+// See: https://source.android.com/docs/core/runtime/dex-format#type-codes
+enum TypeCode {
+    option (yara.enum_options).inline = true;
+    TYPE_HEADER_ITEM = 0x0000;
+    TYPE_STRING_ID_ITEM = 0x0001;
+    TYPE_TYPE_ID_ITEM = 0x0002;
+    TYPE_PROTO_ID_ITEM = 0x0003;
+    TYPE_FIELD_ID_ITEM = 0x0004;
+    TYPE_METHOD_ID_ITEM = 0x0005;
+    TYPE_CLASS_DEF_ITEM = 0x0006;
+    TYPE_CALL_SITE_ID_ITEM = 0x0007;
+    TYPE_METHOD_HANDLE_ITEM = 0x0008;
+    TYPE_MAP_LIST = 0x1000;
+    TYPE_TYPE_LIST = 0x1001;
+    TYPE_ANNOTATION_SET_REF_LIST = 0x1002;
+    TYPE_ANNOTATION_SET_ITEM = 0x1003;
+    TYPE_CLASS_DATA_ITEM = 0x2000;
+    TYPE_CODE_ITEM = 0x2001;
+    TYPE_STRING_DATA_ITEM = 0x2002;
+    TYPE_DEBUG_INFO_ITEM = 0x2003;
+    TYPE_ANNOTATION_ITEM = 0x2004;
+    TYPE_ENCODED_ARRAY_ITEM = 0x2005;
+    TYPE_ANNOTATIONS_DIRECTORY_ITEM = 0x2006;
+    TYPE_HIDDENAPI_CLASS_DATA_ITEM = 0xF000;
+}

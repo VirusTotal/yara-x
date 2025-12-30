@@ -1,0 +1,174 @@
+is_dex: true
+header:
+    magic: 0x6465780a
+    version: 38
+    checksum: 0x200c7aa1
+    signature: "e9bd6aa16e8eea1a71e7fd2eb3236749a10a64ef"
+    file_size: 876
+    header_size: 0x70
+    endian_tag: 0x12345678
+    link_size: 0
+    link_off: 0x0
+strings:
+  - ""
+  - "<clinit>"
+  - "<init>"
+  - "I"
+  - "L"
+  - "LLI"
+  - "Landroid/app/Application;"
+  - "Landroid/content/Context;"
+  - "Ljava/lang/String;"
+  - "Ljava/lang/System;"
+  - "Lwmczycqxv/egztwrhea;"
+  - "V"
+  - "VL"
+  - "attachBaseContext"
+  - "createPackageContext"
+  - "getPackageName"
+  - "loadLibrary"
+  - "onCreate"
+  - "xjgxpt"
+types:
+  - "I"
+  - "Landroid/app/Application;"
+  - "Landroid/content/Context;"
+  - "Ljava/lang/String;"
+  - "Ljava/lang/System;"
+  - "Lwmczycqxv/egztwrhea;"
+  - "V"
+protos:
+  - shorty: "LLI"
+    return_type: "Landroid/content/Context;"
+    parameters_count: 2
+    parameters:
+      - "Ljava/lang/String;"
+      - "Landroid/app/Application;"
+  - shorty: "L"
+    return_type: "Ljava/lang/String;"
+    parameters_count: 0
+  - shorty: "V"
+    return_type: "V"
+    parameters_count: 0
+  - shorty: "VL"
+    return_type: "V"
+    parameters_count: 1
+    parameters:
+      - "Landroid/content/Context;"
+  - shorty: "VL"
+    return_type: "V"
+    parameters_count: 1
+    parameters:
+      - "Ljava/lang/String;"
+methods:
+  - class: "Landroid/app/Application;"
+    proto:
+        shorty: "V"
+        return_type: "V"
+        parameters_count: 0
+    name: "<init>"
+  - class: "Ljava/lang/System;"
+    proto:
+        shorty: "VL"
+        return_type: "V"
+        parameters_count: 1
+        parameters:
+          - "Ljava/lang/String;"
+    name: "loadLibrary"
+  - class: "Lwmczycqxv/egztwrhea;"
+    proto:
+        shorty: "V"
+        return_type: "V"
+        parameters_count: 0
+    name: "<clinit>"
+  - class: "Lwmczycqxv/egztwrhea;"
+    proto:
+        shorty: "V"
+        return_type: "V"
+        parameters_count: 0
+    name: "<init>"
+  - class: "Lwmczycqxv/egztwrhea;"
+    proto:
+        shorty: "VL"
+        return_type: "V"
+        parameters_count: 1
+        parameters:
+          - "Landroid/content/Context;"
+    name: "attachBaseContext"
+  - class: "Lwmczycqxv/egztwrhea;"
+    proto:
+        shorty: "LLI"
+        return_type: "Landroid/content/Context;"
+        parameters_count: 2
+        parameters:
+          - "Ljava/lang/String;"
+          - "Landroid/app/Application;"
+    name: "createPackageContext"
+  - class: "Lwmczycqxv/egztwrhea;"
+    proto:
+        shorty: "L"
+        return_type: "Ljava/lang/String;"
+        parameters_count: 0
+    name: "getPackageName"
+  - class: "Lwmczycqxv/egztwrhea;"
+    proto:
+        shorty: "V"
+        return_type: "V"
+        parameters_count: 0
+    name: "onCreate"
+class_defs:
+  - class: "Lwmczycqxv/egztwrhea;"
+    access_flags: 0x1  # ACC_PUBLIC
+    superclass: "Landroid/app/Application;"
+    source_file: ""
+map_list:
+    size: 12
+    items:
+      - type: TYPE_HEADER_ITEM
+        unused: 0
+        size: 1
+        offset: 0x0
+      - type: TYPE_STRING_ID_ITEM
+        unused: 0
+        size: 19
+        offset: 0x70
+      - type: TYPE_TYPE_ID_ITEM
+        unused: 0
+        size: 7
+        offset: 0xbc
+      - type: TYPE_PROTO_ID_ITEM
+        unused: 0
+        size: 5
+        offset: 0xd8
+      - type: TYPE_METHOD_ID_ITEM
+        unused: 0
+        size: 8
+        offset: 0x114
+      - type: TYPE_CLASS_DEF_ITEM
+        unused: 0
+        size: 1
+        offset: 0x154
+      - type: TYPE_STRING_DATA_ITEM
+        unused: 0
+        size: 19
+        offset: 0x174
+      - type: TYPE_TYPE_LIST
+        unused: 0
+        size: 3
+        offset: 0x268
+      - type: TYPE_ANNOTATION_SET_ITEM
+        unused: 0
+        size: 1
+        offset: 0x280
+      - type: TYPE_CODE_ITEM
+        unused: 0
+        size: 2
+        offset: 0x284
+      - type: TYPE_CLASS_DATA_ITEM
+        unused: 0
+        size: 1
+        offset: 0x2b8
+      - type: TYPE_MAP_LIST
+        unused: 0
+        size: 1
+        offset: 0x2d8

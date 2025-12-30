@@ -1,0 +1,6 @@
+rule test {
+  strings:
+    $a = "/الدفاع+\s[هة]وزار/"
+  condition:
+    $a
+}

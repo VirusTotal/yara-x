@@ -2,6 +2,7 @@ syntax = "proto2";
 
 import "yara.proto";
 import "crx.proto";
+import "dex.proto";
 import "dotnet.proto";
 import "elf.proto";
 import "pe.proto";
@@ -18,4 +19,5 @@ message Modules {
     optional macho.Macho macho = 4;
     optional lnk.Lnk lnk = 5;
     optional crx.Crx crx = 6;
+    optional dex.Dex dex = 7;
 }

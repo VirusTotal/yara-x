@@ -330,7 +330,7 @@ fn emit_expr(
 
         Expr::Symbol(symbol) => {
             match symbol.as_ref() {
-                Symbol::Rule(rule_id) => {
+                Symbol::Rule { rule_id, .. } => {
                     // Emit code that checks if a rule has matched, leaving
                     // zero or one at the top of the stack.
                     emit_check_for_rule_match(ctx, *rule_id, instr);
@@ -953,7 +953,7 @@ fn emit_field_access(
     instr: &mut InstrSeqBuilder,
 ) {
     // Iterate over the operands, excluding the last one. While the operands
-    // are field identifiers they are simply added to the `lookup_list`, and
+    // are field identifiers they are simply added to `lookup_list`, and
     // during the last call to `emit_expr` a single field lookup operation
     // will be emitted, encompassing all the lookups in a single call to
     // Rust code.

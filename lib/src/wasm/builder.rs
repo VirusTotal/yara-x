@@ -141,7 +141,7 @@ impl WasmModuleBuilder {
         let mut module = walrus::Module::with_config(config);
         let mut wasm_exports = FxHashMap::default();
 
-        for export in super::WASM_EXPORTS {
+        for export in super::wasm_exports() {
             let ty = module.types.add(
                 export.func.walrus_args().as_slice(),
                 export.func.walrus_results().as_slice(),

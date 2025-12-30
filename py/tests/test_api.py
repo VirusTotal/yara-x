@@ -375,3 +375,15 @@ rule bar {
   assert len(rules_list) == 2
   assert rules_list[0].identifier == 'foo'
   assert rules_list[1].identifier == 'bar'
+
+
+def test_rules_imports():
+  rules = yara_x.compile('''
+import "pe"
+import "elf"
+rule test {
+  condition:
+    true
+}
+''')
+  assert rules.imports() == ["pe", "elf"]

@@ -14,15 +14,15 @@ code, without any grouping based on operator precedence.
 
 use std::fmt::{Debug, Display, Formatter};
 use std::iter;
+use std::iter::Cloned;
 use std::marker::PhantomData;
+use std::slice::Iter;
 use std::str::{from_utf8, Utf8Error};
 
-use rowan::{GreenNodeBuilder, GreenToken, SyntaxNode};
+pub use syntax_kind::SyntaxKind;
 
 use crate::cst::SyntaxKind::{COMMENT, NEWLINE, WHITESPACE};
 use crate::{Parser, Span};
-
-pub use syntax_kind::SyntaxKind;
 
 pub(crate) mod syntax_kind;
 pub(crate) mod syntax_stream;
@@ -151,30 +151,70 @@ where
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.whitespaces && self.newlines {
-            self.events.next()
-        } else {
-            loop {
-                match self.events.next()? {
-                    token @ Event::Token { kind: WHITESPACE, .. } => {
-                        if self.whitespaces {
-                            break Some(token);
+        loop {
+            match self.events.next()? {
+                token @ Event::Token { kind: WHITESPACE, .. } => {
+                    if self.whitespaces {
+                        break Some(token);
+                    }
+                }
+                token @ Event::Token { kind: NEWLINE, .. } => {
+                    if self.newlines {
+                        break Some(token);
+                    }
+                }
+                token @ Event::Token { kind: COMMENT, .. } => {
+                    if self.comments {
+                        break Some(token);
+                    }
+                }
+                token => break Some(token),
+            }
+        }
+    }
+}
+
+struct CSTIter<'a> {
+    iter: rowan::api::PreorderWithTokens<YARA>,
+    errors: Cloned<Iter<'a, (Span, String)>>,
+}
+
+impl<'a> Iterator for CSTIter<'a> {
+    type Item = Event;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for event in self.iter.by_ref() {
+            match event {
+                rowan::WalkEvent::Enter(e) => {
+                    return match e {
+                        rowan::SyntaxElement::Node(node) => {
+                            Some(Event::Begin {
+                                kind: node.kind(),
+                                span: Span::from(node.text_range()),
+                            })
+                        }
+                        rowan::SyntaxElement::Token(token) => {
+                            Some(Event::Token {
+                                kind: token.kind(),
+                                span: Span::from(token.text_range()),
+                            })
                         }
                     }
-                    token @ Event::Token { kind: NEWLINE, .. } => {
-                        if self.newlines {
-                            break Some(token);
-                        }
+                }
+                rowan::WalkEvent::Leave(e) => {
+                    if let rowan::SyntaxElement::Node(node) = e {
+                        return Some(Event::End {
+                            kind: node.kind(),
+                            span: Span::from(node.text_range()),
+                        });
                     }
-                    token @ Event::Token { kind: COMMENT, .. } => {
-                        if self.comments {
-                            break Some(token);
-                        }
-                    }
-                    token => break Some(token),
                 }
             }
         }
+        if let Some((span, message)) = self.errors.next() {
+            return Some(Event::Error { message, span });
+        }
+        None
     }
 }
 
@@ -232,6 +272,23 @@ impl CST {
     pub fn root(&self) -> Node<Immutable> {
         Node::new(self.tree.clone())
     }
+
+    /// Returns the parsed source code as an iterator of [`Event`].
+    pub fn iter(&self) -> impl Iterator<Item = Event> + '_ {
+        CSTIter {
+            iter: self.tree.preorder_with_tokens(),
+            errors: self.errors.iter().cloned(),
+        }
+    }
+}
+
+impl<'src> From<&'src str> for CST {
+    /// Crates a [`CST`] from the given source code.
+    fn from(src: &'src str) -> Self {
+        // The source is &str, therefore it is guaranteed to be valid UTF-8
+        // and calling .unwrap() is safe.
+        Self::try_from(Parser::new(src.as_bytes())).unwrap()
+    }
 }
 
 impl TryFrom<Parser<'_>> for CST {
@@ -249,10 +306,10 @@ where
 {
     type Error = Utf8Error;
 
-    /// Creates a [`CSTStream`] from the given parser.
+    /// Creates a [`CST`] from the given [`CSTStream`].
     fn try_from(cst: CSTStream<'src, I>) -> Result<Self, Utf8Error> {
         let source = cst.source();
-        let mut builder = GreenNodeBuilder::new();
+        let mut builder = rowan::GreenNodeBuilder::new();
         let mut prev_token_span: Option<Span> = None;
         let mut errors = Vec::new();
 
@@ -272,7 +329,7 @@ where
                             span.start(),
                         );
                     }
-                    // The span must within the source code, this unwrap
+                    // The span must be within the source code, this unwrap
                     // can't fail.
                     let token = source.get(span.range()).unwrap();
                     let token = from_utf8(token)?;
@@ -389,6 +446,81 @@ impl PartialEq<&'_ str> for Text {
     }
 }
 
+/// Represents the encoding used to interpret column numbers.
+#[doc(hidden)]
+pub trait Encoding {
+    fn len(s: &str) -> usize;
+}
+
+/// Represents the UTF-8 encoding.
+#[derive(Debug, PartialEq)]
+#[doc(hidden)]
+pub struct Utf8 {}
+
+/// Represents the UTF-16 encoding.
+#[derive(Debug, PartialEq)]
+#[doc(hidden)]
+pub struct Utf16 {}
+
+/// Represents the UTF-32 encoding.
+#[derive(Debug, PartialEq)]
+#[doc(hidden)]
+pub struct Utf32 {}
+
+impl Encoding for Utf8 {
+    fn len(s: &str) -> usize {
+        s.len()
+    }
+}
+
+impl Encoding for Utf16 {
+    fn len(s: &str) -> usize {
+        s.encode_utf16().count()
+    }
+}
+
+impl Encoding for Utf32 {
+    fn len(s: &str) -> usize {
+        s.chars().count()
+    }
+}
+
+/// Represents a position in the source code expressed as a line and column
+/// number.
+///
+/// Line and column numbers are zero-based. The meaning of the column number
+/// depends on the encoding:
+///
+/// * [`Utf8`]: the column number is expressed as UTF-8 code units (bytes).
+///   In this mode the column number is the byte offset of the character
+///   counted from the start of the line.
+/// * [`Utf16`]: the column number is expressed as UTF-16 code units.
+///   In this mode the column number is the number of UTF-16 code units from
+///   the start of the line. In UTF-16 each character is composed of 1 or 2
+///   code units.
+/// * [`Utf32`]: the column number is expressed as UTF-32 code units. In
+///   UTF-32 all characters are expressed as a single code unit, therefore
+///   in this mode the column number corresponds to the number of characters
+///   from the start of the line.
+///
+/// In [`Utf32`] mode, the column is synonymous with the "character count",
+/// while in [`Utf8`] and [`Utf16`], the column number reflects the underlying
+/// memory usage, not necessarily the number of visible characters.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[doc(hidden)]
+pub struct Position<E: Encoding> {
+    pub line: usize,
+    pub column: usize,
+    _encoding: PhantomData<E>,
+}
+
+impl<E: Encoding> From<(usize, usize)> for Position<E> {
+    #[inline]
+    fn from((line, column): (usize, usize)) -> Self {
+        Self { line, column, _encoding: PhantomData }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[doc(hidden)]
 pub struct Mutable;
@@ -405,7 +537,7 @@ pub struct Immutable;
 /// The inner (non-leave) nodes in the CST are of type [`Node`].
 ///
 /// NOTE: This API is still unstable and should not be used by third-party code.
-#[derive(PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 #[doc(hidden)]
 pub struct Token<M> {
     inner: rowan::SyntaxToken<YARA>,
@@ -417,8 +549,8 @@ impl<M> Token<M> {
         Self { inner, _state: PhantomData }
     }
 }
-
-impl<M> Token<M> {
+#[allow(clippy::len_without_is_empty)]
+impl<M: Clone> Token<M> {
     #[inline]
     /// Returns the kind of this token.
     pub fn kind(&self) -> SyntaxKind {
@@ -437,6 +569,84 @@ impl<M> Token<M> {
         Span(self.inner.text_range().into())
     }
 
+    /// Returns the length of the token.
+    ///
+    /// The length of the token depends on the encoding in the following
+    /// way:
+    ///
+    /// * [`Utf8`]: the length is expressed as the number of code units in the
+    ///   UTF-8 representation of the token. Each code unit is 1 byte long, and
+    ///   each character is represented by a 1, 2, 3 or 4 code units.
+    /// * [`Utf16`]: the length is expressed as the number of code units in the
+    ///   UTF-16 representation of the token. Each code unit is 2 bytes long,
+    ///   and each character is represented by 1 or 2 code units.
+    /// * [`Utf32`]: the length is expressed as the number of code units in the
+    ///   UTF-32 representation of the token. Each code unit is 4 bytes long,
+    ///   and each character is represented by exactly 1 code unit. This is
+    ///   equivalent to the character count of the token.
+    #[inline]
+    pub fn len<E: Encoding>(&self) -> usize {
+        E::len(self.text())
+    }
+
+    /// Returns the position (line and column) where this token starts.
+    pub fn start_pos<E: Encoding>(&self) -> Position<E> {
+        // Initially we assume that the token is in line 0, column 0.
+        let mut line = 0;
+        let mut column = 0;
+        // Iterate the tokens in the tree starting at the current token and
+        // going backwards looking for newlines. For every newline found, the
+        // line number is incremented. Comments can contain newlines too. When
+        // a comment is found, the line number is incremented by the number of
+        // newlines contained in the comment.
+        let mut prev_token = self.prev_token();
+        while let Some(token) = prev_token {
+            match token.kind() {
+                NEWLINE => line += 1,
+                COMMENT => {
+                    if line == 0 {
+                        let comment = token.text();
+                        let last_line = match comment.rfind('\n') {
+                            Some(idx) => &comment[idx + 1..],
+                            None => comment, // no newline → whole comment
+                        };
+                        column += E::len(last_line);
+                    }
+                    line += token.text().chars().filter(|c| *c == '\n').count()
+                }
+                _ => {
+                    if line == 0 {
+                        column += token.len::<E>()
+                    }
+                }
+            }
+            prev_token = token.prev_token();
+        }
+        Position::from((line, column))
+    }
+
+    /// Returns the position (line and column) where this token ends.
+    pub fn end_pos<E: Encoding>(&self) -> Position<E> {
+        let token = self.text();
+        let start = self.start_pos::<E>();
+
+        match token.rfind('\n') {
+            // The token contains newline characters. The ending line is the
+            // start line plus the number of newlines. The ending column is the
+            // length of the last line.
+            Some(last_newline) => Position::from((
+                start.line + token.chars().filter(|c| *c == '\n').count(),
+                E::len(&token[last_newline + 1..]),
+            )),
+            // The token doesn't contain newline characters. The end line
+            // and the start line are the same. The ending column is the
+            // start column plus the token's length.
+            None => {
+                Position::from((start.line, start.column + self.len::<E>()))
+            }
+        }
+    }
+
     #[inline]
     /// Returns the parent of this token.
     pub fn parent(&self) -> Option<Node<M>> {
@@ -447,6 +657,7 @@ impl<M> Token<M> {
     ///
     /// The first one is the token's parent, then token's grandparent,
     /// and so on.
+    #[inline]
     pub fn ancestors(&self) -> impl Iterator<Item = Node<M>> {
         self.inner.parent_ancestors().map(Node::new)
     }
@@ -566,8 +777,11 @@ impl Token<Mutable> {
     }
 
     pub fn replace(&mut self, text: &str) -> Node<Mutable> {
-        Node::new(SyntaxNode::new_root(
-            self.inner.replace_with(GreenToken::new(self.kind().into(), text)),
+        Node::new(rowan::SyntaxNode::new_root(
+            self.inner.replace_with(rowan::GreenToken::new(
+                self.kind().into(),
+                text,
+            )),
         ))
     }
 }
@@ -577,14 +791,14 @@ impl Token<Mutable> {
 /// In a CST, nodes are the inner nodes of the tree, leaves are tokens.
 ///
 /// NOTE: This API is still unstable and should not be used by third-party code.
-#[derive(PartialEq, Eq, Debug)]
 #[doc(hidden)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum NodeOrToken<M> {
     Node(Node<M>),
     Token(Token<M>),
 }
 
-impl<M> NodeOrToken<M> {
+impl<M: Clone> NodeOrToken<M> {
     /// Returns the kind of this node or token.
     pub fn kind(&self) -> SyntaxKind {
         match self {
@@ -598,6 +812,22 @@ impl<M> NodeOrToken<M> {
         match self {
             NodeOrToken::Node(n) => n.parent(),
             NodeOrToken::Token(t) => t.parent(),
+        }
+    }
+
+    /// If this is a node, returns it. Returns `None` if otherwise.
+    pub fn into_node(self) -> Option<Node<M>> {
+        match self {
+            NodeOrToken::Node(n) => Some(n),
+            NodeOrToken::Token(_) => None,
+        }
+    }
+
+    /// If this is a token, returns it. Returns `None` if otherwise.
+    pub fn into_token(self) -> Option<Token<M>> {
+        match self {
+            NodeOrToken::Node(_) => None,
+            NodeOrToken::Token(t) => Some(t),
         }
     }
 
@@ -623,6 +853,39 @@ impl<M> NodeOrToken<M> {
         match self {
             NodeOrToken::Node(n) => n.next_sibling_or_token(),
             NodeOrToken::Token(t) => t.next_sibling_or_token(),
+        }
+    }
+
+    /// If this is a node, returns its first child, if any. If this is
+    /// a token, returns `None` because a toke never has children.
+    pub fn first_child_or_token(&self) -> Option<NodeOrToken<M>> {
+        match self {
+            NodeOrToken::Node(n) => n.first_child_or_token(),
+            NodeOrToken::Token(_) => None,
+        }
+    }
+
+    /// Returns the span of this node or token.
+    pub fn span(&self) -> Span {
+        match self {
+            NodeOrToken::Node(n) => n.span(),
+            NodeOrToken::Token(t) => t.span(),
+        }
+    }
+
+    /// Returns the position (line and column) where this node or token starts.
+    pub fn start_pos<E: Encoding>(&self) -> Position<E> {
+        match self {
+            NodeOrToken::Node(n) => n.start_pos(),
+            NodeOrToken::Token(t) => t.start_pos(),
+        }
+    }
+
+    /// Returns the position (line and column) where this node or token ends.
+    pub fn end_pos<E: Encoding>(&self) -> Position<E> {
+        match self {
+            NodeOrToken::Node(n) => n.end_pos(),
+            NodeOrToken::Token(t) => t.end_pos(),
         }
     }
 }
@@ -667,8 +930,8 @@ impl<M> From<NodeOrToken<M>> for rowan::SyntaxElement<YARA> {
 /// The leaves in a CST are of type [`Token`].
 ///
 /// NOTE: This API is still unstable and should not be used by third-party code.
-#[derive(Clone, Debug, PartialEq, Eq)]
 #[doc(hidden)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Node<M> {
     inner: rowan::SyntaxNode<YARA>,
     _mutability: PhantomData<M>,
@@ -680,25 +943,41 @@ impl<M> Node<M> {
     }
 }
 
-impl<M> Node<M> {
+impl<M: Clone> Node<M> {
     /// Returns the kind of this node.
+    #[inline]
     pub fn kind(&self) -> SyntaxKind {
         self.inner.kind()
     }
 
     /// Returns the text of this node.
+    #[inline]
     pub fn text(&self) -> Text {
         Text(self.inner.text())
     }
 
     /// Returns the span of this node.
+    #[inline]
     pub fn span(&self) -> Span {
         Span(self.inner.text_range().into())
+    }
+
+    /// Returns the position (line and column) where this node starts.
+    #[inline]
+    pub fn start_pos<E: Encoding>(&self) -> Position<E> {
+        self.first_token().unwrap().start_pos()
+    }
+
+    /// Returns the position (line and column) where this node ends.
+    #[inline]
+    pub fn end_pos<E: Encoding>(&self) -> Position<E> {
+        self.last_token().unwrap().end_pos()
     }
 
     /// Returns the parent of this node.
     ///
     /// The result is [`None`] if this is the root node.
+    #[inline]
     pub fn parent(&self) -> Option<Node<M>> {
         self.inner.parent().map(Node::new)
     }
@@ -707,6 +986,7 @@ impl<M> Node<M> {
     ///
     /// The first one is this node's parent, then node's grandparent,
     /// and so on.
+    #[inline]
     pub fn ancestors(&self) -> impl Iterator<Item = Node<M>> {
         iter::successors(self.parent(), Node::parent)
     }
@@ -714,6 +994,12 @@ impl<M> Node<M> {
     /// Returns the children of this node.
     pub fn children(&self) -> Nodes<M> {
         Nodes { inner: self.inner.children(), _mutability: PhantomData }
+    }
+
+    /// Returns the root node of the tree.
+    #[inline]
+    pub fn root(&self) -> Node<M> {
+        self.ancestors().last().unwrap_or_else(|| self.clone())
     }
 
     /// Returns the children of this node, including tokens.
@@ -725,11 +1011,13 @@ impl<M> Node<M> {
     }
 
     /// Returns the first child of this node.
+    #[inline]
     pub fn first_child(&self) -> Option<Node<M>> {
         self.inner.first_child().map(Node::new)
     }
 
     /// Returns the last child of this node.
+    #[inline]
     pub fn last_child(&self) -> Option<Node<M>> {
         self.inner.last_child().map(Node::new)
     }
@@ -739,6 +1027,7 @@ impl<M> Node<M> {
     /// The token returned is not necessarily a children of this node, this
     /// function will perform depth-first traversal of the tree and will
     /// return the left-most token that is a descendant of this node.
+    #[inline]
     pub fn first_token(&self) -> Option<Token<M>> {
         self.inner.first_token().map(Token::new)
     }
@@ -748,36 +1037,43 @@ impl<M> Node<M> {
     /// The token returned is not necessarily a children of this node, this
     /// function will perform depth-first traversal of the tree and will
     /// return the right-most token that is a descendant of this node.
+    #[inline]
     pub fn last_token(&self) -> Option<Token<M>> {
         self.inner.last_token().map(Token::new)
     }
 
     /// Returns the first child or token of this node.
+    #[inline]
     pub fn first_child_or_token(&self) -> Option<NodeOrToken<M>> {
         self.inner.first_child_or_token().map(|x| x.into())
     }
 
     /// Returns the last child or token of this node.
+    #[inline]
     pub fn last_child_or_token(&self) -> Option<NodeOrToken<M>> {
         self.inner.last_child_or_token().map(|x| x.into())
     }
 
     /// Returns the next sibling of this node.
+    #[inline]
     pub fn next_sibling(&self) -> Option<Node<M>> {
         self.inner.next_sibling().map(Node::new)
     }
 
     /// Returns the previous sibling of this node.
+    #[inline]
     pub fn prev_sibling(&self) -> Option<Node<M>> {
         self.inner.prev_sibling().map(Node::new)
     }
 
     /// Returns the next sibling or token of this node.
+    #[inline]
     pub fn next_sibling_or_token(&self) -> Option<NodeOrToken<M>> {
         self.inner.next_sibling_or_token().map(|x| x.into())
     }
 
     /// Returns the previous sibling or token of this node.
+    #[inline]
     pub fn prev_sibling_or_token(&self) -> Option<NodeOrToken<M>> {
         self.inner.prev_sibling_or_token().map(|x| x.into())
     }
@@ -875,9 +1171,8 @@ impl<M> Node<M> {
 
     /// Returns the token at a given offset within the source code.
     ///
-    /// If the offset points code that is outside the current node, this
+    /// If the offset points to code that is outside the current node, this
     /// function returns `None`.
-    ///
     ///
     /// ```rust
     /// # use yara_x_parser::cst::SyntaxKind;
@@ -922,6 +1217,115 @@ impl<M> Node<M> {
             .token_at_offset(offset.try_into().ok()?)
             .right_biased()
             .map(Token::new)
+    }
+
+    /// Returns the token at a given position within the source code.
+    ///
+    /// Both line and column numbers are zero-based. If the line and column
+    /// numbers point to code that is outside the current node, this function
+    /// returns `None`.
+    ///
+    /// ```rust
+    /// # use yara_x_parser::cst::{Utf32, SyntaxKind};
+    /// use yara_x_parser::Parser;
+    /// let mut root_node = Parser::new(
+    /// br#"rule test {
+    /// condition:
+    ///   true or
+    ///   false
+    /// }"#)
+    ///     .try_into_cst()
+    ///     .unwrap()
+    ///     .root();
+    ///
+    /// // Token at line 0, column 0 is `SyntaxKind::RULE_KW`.
+    /// assert_eq!(
+    ///     root_node.token_at_position::<Utf32, _>((0,0)).unwrap().kind(),
+    ///     SyntaxKind::RULE_KW);
+    ///
+    /// // Token at line 1, column 0 is `SyntaxKind::CONDITION_KW`.
+    /// assert_eq!(
+    ///     root_node.token_at_position::<Utf32, _>((1,0)).unwrap().kind(),
+    ///     SyntaxKind::CONDITION_KW);
+    ///
+    /// // Token at line 2, column 2 is `SyntaxKind::TRUE_KW`.
+    /// assert_eq!(
+    ///     root_node.token_at_position::<Utf32, _>((2,2)).unwrap().kind(),
+    ///     SyntaxKind::TRUE_KW);
+    ///
+    /// // Token at line 3, column 6 is `SyntaxKind::FALSE_KW`.
+    /// assert_eq!(
+    ///     root_node.token_at_position::<Utf32, _>((3,6)).unwrap().kind(),
+    ///     SyntaxKind::FALSE_KW);
+    /// ```
+    pub fn token_at_position<E: Encoding, P: Into<Position<E>>>(
+        &self,
+        position: P,
+    ) -> Option<Token<M>> {
+        let position = position.into();
+        let mut line = 0;
+        let mut col = 0;
+        let mut next_token = self.root().first_token();
+
+        while let Some(token) = next_token {
+            let token_len = token.len::<E>();
+            if position.line == line
+                && position.column >= col
+                && position.column < col + token_len
+            {
+                return Some(token);
+            }
+            match token.kind() {
+                NEWLINE => {
+                    // When a newline found, the line number is incremented and
+                    // column number reset to zero.
+                    line += 1;
+                    col = 0;
+                }
+                COMMENT => {
+                    let comment = token.text();
+                    // Get the number of newline characters contained in the
+                    // comment.
+                    let newlines =
+                        comment.chars().filter(|c| *c == '\n').count();
+                    // Increment the current line in the number of lines in the
+                    // comment.
+                    line += newlines;
+                    // After the increment, the line number is past the requested
+                    // line, this means the requested position is within the
+                    // comment.
+                    if line > position.line {
+                        return Some(token);
+                    }
+                    let last_line = match comment.rfind('\n') {
+                        Some(idx) => &comment[idx + 1..],
+                        None => comment, // no newline → whole comment
+                    };
+                    // If there is some newline, column number is reset to zero.
+                    if newlines > 0 {
+                        col = 0;
+                    }
+                    col += E::len(last_line);
+                    // After the incrementing line and column numbers, the
+                    // requested position is in the final line, and before the
+                    // column where the comment ends. This means that the
+                    // requested position is within the comment.
+                    if line == position.line && col > position.column {
+                        return Some(token);
+                    }
+                }
+                _ => {
+                    col += token_len;
+                }
+            }
+            // If we are past the requested line, the token can't be found.
+            if line > position.line {
+                return None;
+            }
+            next_token = token.next_token();
+        }
+
+        None
     }
 }
 

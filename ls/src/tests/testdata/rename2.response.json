@@ -1,0 +1,71 @@
+{
+  "changes": {
+    "file:///rename2.yar": [
+      {
+        "range": {
+          "start": {
+            "line": 2,
+            "character": 5
+          },
+          "end": {
+            "line": 2,
+            "character": 12
+          }
+        },
+        "newText": "newpattern"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 4,
+            "character": 44
+          },
+          "end": {
+            "line": 4,
+            "character": 51
+          }
+        },
+        "newText": "newpattern"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 4,
+            "character": 31
+          },
+          "end": {
+            "line": 4,
+            "character": 38
+          }
+        },
+        "newText": "newpattern"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 4,
+            "character": 18
+          },
+          "end": {
+            "line": 4,
+            "character": 25
+          }
+        },
+        "newText": "newpattern"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 4,
+            "character": 5
+          },
+          "end": {
+            "line": 4,
+            "character": 12
+          }
+        },
+        "newText": "newpattern"
+      }
+    ]
+  }
+}

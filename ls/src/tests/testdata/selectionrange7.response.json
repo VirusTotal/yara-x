@@ -1,0 +1,62 @@
+[
+  {
+    "range": {
+      "start": {
+        "line": 2,
+        "character": 30
+      },
+      "end": {
+        "line": 2,
+        "character": 35
+      }
+    },
+    "parent": {
+      "range": {
+        "start": {
+          "line": 2,
+          "character": 25
+        },
+        "end": {
+          "line": 2,
+          "character": 42
+        }
+      },
+      "parent": {
+        "range": {
+          "start": {
+            "line": 2,
+            "character": 4
+          },
+          "end": {
+            "line": 2,
+            "character": 42
+          }
+        },
+        "parent": {
+          "range": {
+            "start": {
+              "line": 1,
+              "character": 2
+            },
+            "end": {
+              "line": 2,
+              "character": 42
+            }
+          },
+          "parent": {
+            "range": {
+              "start": {
+                "line": 0,
+                "character": 0
+              },
+              "end": {
+                "line": 5,
+                "character": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+]

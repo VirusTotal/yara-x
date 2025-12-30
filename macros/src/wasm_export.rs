@@ -116,6 +116,18 @@ impl<'ast> FuncSignatureParser<'ast> {
                     ))
                 }
             }
+            "Uppercase" => {
+                let mut args = Self::type_args(type_path)?;
+                if let Some(GenericArgument::Type(Type::Path(p))) = args.next()
+                {
+                    Ok(Self::type_path_to_mangled_named(p)?.add(":U"))
+                } else {
+                    Err(Error::new_spanned(
+                        type_path,
+                        "Uppercase must have a type argument (i.e: <Uppercase<RuntimeString>>))",
+                    ))
+                }
+            }
             type_ident => Err(Error::new_spanned(
                 type_path,
                 format!(
@@ -227,9 +239,14 @@ pub struct WasmExportArgs {
 /// Implementation for the `#[wasm_export]` attribute macro.
 ///
 /// This attribute is used in functions that will be called from WASM.
-/// For each function using this attribute the macro adds an entry to the
-/// `WASM_EXPORTS` global slice. This is done by adding a code snippet
-/// similar to the one shown below.
+/// For each function using this attribute adds an entry in a global
+/// registry that tracks all the functions that may be called from WASM.
+///
+/// Under the hood, this macro uses either the `linkme` or the `inventory`
+/// crate for maintaining the global registry. In the first case, a
+/// `WasmExport` is added to the global `WASM_EXPORTS` slice, while in
+/// the second cases it uses the `inventory::submit!` for adding a
+/// `WasmExport` struct to the inventory.
 ///
 /// # Example
 ///
@@ -245,7 +262,7 @@ pub struct WasmExportArgs {
 /// The code generated will be:
 ///
 /// ```text
-/// #[distributed_slice(WASM_EXPORTS)]
+/// #[cfg_attr(not(feature = "inventory"), distributed_slice(WASM_EXPORTS))]
 /// pub(crate) static export__add: WasmExport = WasmExport {
 ///     name: "add",
 ///     mangled_name: "add@ii@i",
@@ -253,6 +270,18 @@ pub struct WasmExportArgs {
 ///     method_of: None,
 ///     func: &WasmExportedFn2 { target_fn: &add },
 /// };
+///
+/// #[cfg(feature = "inventory")]
+/// inventory::submit! {
+///     WasmExport {
+///         name: #fn_name,
+///         mangled_name: #mangled_fn_name,
+///         public: #public,
+///         rust_module_path: module_path!(),
+///         method_of: #method_of,
+///         func: &#exported_fn_ident { target_fn: &#rust_fn_name },
+///     }
+/// }
 /// ```
 ///
 /// Notice that the generated code uses `WasmExportedFn2` because the function
@@ -301,7 +330,7 @@ pub(crate) fn impl_wasm_export_macro(
 
     let fn_descriptor = quote! {
         #[allow(non_upper_case_globals)]
-        #[distributed_slice(WASM_EXPORTS)]
+        #[cfg_attr(not(feature = "inventory"), distributed_slice(WASM_EXPORTS))]
         pub(crate) static #export_ident: WasmExport = WasmExport {
             name: #fn_name,
             mangled_name: #mangled_fn_name,
@@ -310,6 +339,18 @@ pub(crate) fn impl_wasm_export_macro(
             method_of: #method_of,
             func: &#exported_fn_ident { target_fn: &#rust_fn_name },
         };
+
+        #[cfg(feature = "inventory")]
+        inventory::submit! {
+            WasmExport {
+                name: #fn_name,
+                mangled_name: #mangled_fn_name,
+                public: #public,
+                rust_module_path: module_path!(),
+                method_of: #method_of,
+                func: &#exported_fn_ident { target_fn: &#rust_fn_name },
+            }
+        }
     };
 
     let mut token_stream = func.to_token_stream();
@@ -394,10 +435,22 @@ mod tests {
         assert_eq!(parser.parse(&func).unwrap(), "@@s:L");
 
         let func = parse_quote! {
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> Uppercase<RuntimeString> {  }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@s:U");
+
+        let func = parse_quote! {
           fn foo(caller: &mut Caller<'_, ScanContext>) -> Lowercase<FixedLenString<32>> {  }
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@@s:N32:L");
+
+        let func = parse_quote! {
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> Uppercase<FixedLenString<32>> {  }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@s:N32:U");
 
         let func = parse_quote! {
           fn foo(caller: &mut Caller<'_, ScanContext>) -> FixedLenString<64> {  }

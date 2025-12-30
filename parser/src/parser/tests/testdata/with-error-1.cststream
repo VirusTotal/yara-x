@@ -17,7 +17,7 @@ Begin { kind: ERROR, span: Span(26..26) }
 End { kind: ERROR, span: Span(26..26) }
 End { kind: ERROR, span: Span(26..26) }
 Token { kind: WITH_KW, span: Span(26..30) }
-Error { message: "expecting operator, `,` or `:`, found `(`", span: Span(50..51) }
+Error { message: "expecting expression, operator, `,` or `:`, found `(`", span: Span(50..51) }
 Token { kind: WHITESPACE, span: Span(30..31) }
 Token { kind: IDENT, span: Span(31..36) }
 Token { kind: WHITESPACE, span: Span(36..37) }

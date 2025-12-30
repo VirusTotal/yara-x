@@ -40,7 +40,11 @@ pub(crate) enum Symbol {
         deprecation_notice: Option<DeprecationNotice>,
     },
     /// The symbol refers to a rule.
-    Rule(RuleId),
+    Rule {
+        rule_id: RuleId,
+        /// True if the rule is global.
+        is_global: bool,
+    },
     /// The symbol refers to a function.
     Func(Rc<Func>),
 }
@@ -56,7 +60,7 @@ impl Hash for Symbol {
                 index.hash(state);
                 is_root.hash(state);
             }
-            Symbol::Rule(rule_id) => {
+            Symbol::Rule { rule_id, .. } => {
                 rule_id.hash(state);
             }
             Symbol::Func(func) => func.hash(state),
@@ -88,8 +92,8 @@ impl PartialEq for Symbol {
                     false
                 }
             }
-            Symbol::Rule(this) => {
-                if let Symbol::Rule(other) = other {
+            Symbol::Rule { rule_id: this, .. } => {
+                if let Symbol::Rule { rule_id: other, .. } = other {
                     this == other
                 } else {
                     false
@@ -113,7 +117,7 @@ impl Symbol {
         match &self {
             Symbol::Var { var, .. } => var.ty(),
             Symbol::Field { type_value, .. } => type_value.ty(),
-            Symbol::Rule(_) => Type::Bool,
+            Symbol::Rule { .. } => Type::Bool,
             Symbol::Func(_) => Type::Func,
         }
     }
@@ -122,7 +126,7 @@ impl Symbol {
         match &self {
             Symbol::Var { type_value, .. } => type_value.clone(),
             Symbol::Field { type_value, .. } => type_value.clone(),
-            Symbol::Rule(_) => TypeValue::unknown_bool(),
+            Symbol::Rule { .. } => TypeValue::unknown_bool(),
             Symbol::Func(func) => TypeValue::Func(func.clone()),
         }
     }

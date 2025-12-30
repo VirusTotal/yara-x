@@ -7,7 +7,7 @@ SOURCE_FILE@0..251
     L_BRACE@12..13 "{"
     NEWLINE@13..14 "\n"
     WHITESPACE@14..15 "\t"
-    ERROR@15..36
+    CONDITION_BLK@15..33
       CONDITION_KW@15..24 "condition"
       COLON@24..25 ":"
       NEWLINE@25..26 "\n"
@@ -16,15 +16,14 @@ SOURCE_FILE@0..251
         BOOLEAN_TERM@28..33
           EXPR@28..33
             TERM@28..29
-              PRIMARY_EXPR@28..29
-                INTEGER_LIT@28..29 "1"
+              INTEGER_LIT@28..29 "1"
             WHITESPACE@29..30 " "
             ADD@30..31 "+"
             WHITESPACE@31..32 " "
             TERM@32..33
-              PRIMARY_EXPR@32..33
-                INTEGER_LIT@32..33 "2"
-      WHITESPACE@33..34 " "
+              INTEGER_LIT@32..33 "2"
+    WHITESPACE@33..34 " "
+    ERROR@34..36
       EQ@34..36 "=="
     NEWLINE@36..37 "\n"
     R_BRACE@37..38 "}"
@@ -38,7 +37,7 @@ SOURCE_FILE@0..251
     L_BRACE@52..53 "{"
     NEWLINE@53..54 "\n"
     WHITESPACE@54..55 "\t"
-    ERROR@55..79
+    CONDITION_BLK@55..69
       CONDITION_KW@55..64 "condition"
       COLON@64..65 ":"
       NEWLINE@65..66 "\n"
@@ -47,9 +46,9 @@ SOURCE_FILE@0..251
         BOOLEAN_TERM@68..69
           EXPR@68..69
             TERM@68..69
-              PRIMARY_EXPR@68..69
-                INTEGER_LIT@68..69 "1"
-      WHITESPACE@69..70 " "
+              INTEGER_LIT@68..69 "1"
+    WHITESPACE@69..70 " "
+    ERROR@70..79
       PLUS@70..71 "+"
       PLUS@71..72 "+"
       WHITESPACE@72..73 " "
@@ -70,7 +69,7 @@ SOURCE_FILE@0..251
     L_BRACE@95..96 "{"
     NEWLINE@96..97 "\n"
     WHITESPACE@97..98 "\t"
-    ERROR@98..119
+    CONDITION_BLK@98..112
       CONDITION_KW@98..107 "condition"
       COLON@107..108 ":"
       NEWLINE@108..109 "\n"
@@ -79,9 +78,9 @@ SOURCE_FILE@0..251
         BOOLEAN_TERM@111..112
           EXPR@111..112
             TERM@111..112
-              PRIMARY_EXPR@111..112
-                INTEGER_LIT@111..112 "1"
-      WHITESPACE@112..113 " "
+              INTEGER_LIT@111..112 "1"
+    WHITESPACE@112..113 " "
+    ERROR@113..119
       PLUS@113..114 "+"
       WHITESPACE@114..115 " "
       EQ@115..117 "=="
@@ -99,7 +98,7 @@ SOURCE_FILE@0..251
     L_BRACE@135..136 "{"
     NEWLINE@136..137 "\n"
     WHITESPACE@137..138 "\t"
-    ERROR@138..165
+    CONDITION_BLK@138..162
       CONDITION_KW@138..147 "condition"
       COLON@147..148 ":"
       NEWLINE@148..149 "\n"
@@ -108,14 +107,14 @@ SOURCE_FILE@0..251
         BOOLEAN_TERM@152..162
           EXPR@152..162
             TERM@152..162
-              PRIMARY_EXPR@152..155
+              PRIMARY_EXPR@152..162
                 IDENT@152..155 "foo"
-              L_BRACKET@155..156 "["
-              EXPR@156..161
-                TERM@156..161
-                  PRIMARY_EXPR@156..161
+                L_BRACKET@155..156 "["
+                EXPR@156..161
+                  TERM@156..161
                     STRING_LIT@156..161 "\"foo\""
-              R_BRACKET@161..162 "]"
+                R_BRACKET@161..162 "]"
+    ERROR@162..165
       L_PAREN@162..163 "("
       INTEGER_LIT@163..164 "4"
       R_PAREN@164..165 ")"
@@ -144,7 +143,7 @@ SOURCE_FILE@0..251
         STRING_LIT@205..210 "\"foo\""
     NEWLINE@210..211 "\n"
     WHITESPACE@211..214 "   "
-    ERROR@214..248
+    CONDITION_BLK@214..237
       CONDITION_KW@214..223 "condition"
       COLON@223..224 ":"
       NEWLINE@224..225 "\n"
@@ -157,9 +156,9 @@ SOURCE_FILE@0..251
           WHITESPACE@235..236 " "
           EXPR@236..237
             TERM@236..237
-              PRIMARY_EXPR@236..237
-                INTEGER_LIT@236..237 "0"
-      WHITESPACE@237..238 " "
+              INTEGER_LIT@236..237 "0"
+    WHITESPACE@237..238 " "
+    ERROR@238..248
       IN_KW@238..240 "in"
       WHITESPACE@240..241 " "
       L_PAREN@241..242 "("
@@ -173,8 +172,8 @@ SOURCE_FILE@0..251
   NEWLINE@250..251 "\n"
 
 ERRORS:
-- [37..38]: expecting expression, found `}`
-- [71..72]: expecting expression, found `+`
-- [115..117]: expecting expression, found `==`
-- [162..163]: expecting operator, `of`, expression or `}`, found `(`
-- [238..240]: expecting `[`, `.`, operator or `}`, found `in`
+- [37..38]: expecting expression or identifier, found `}`
+- [71..72]: expecting expression or identifier, found `+`
+- [115..117]: expecting expression or identifier, found `==`
+- [162..163]: expecting expression, `%`, operator, `of` or `}`, found `(`
+- [238..240]: expecting operator or `}`, found `in`

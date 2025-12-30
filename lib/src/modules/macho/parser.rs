@@ -24,6 +24,7 @@ use x509_parser::x509::AlgorithmIdentifier;
 
 use crate::modules::protos;
 use crate::modules::utils::asn1::SignedData;
+use crate::modules::utils::leb128::{sleb128, uleb128};
 
 type NomError<'a> = nom::error::Error<&'a [u8]>;
 
@@ -62,7 +63,8 @@ const _N_PBUD: u8 = 0xc; /* prebound undefined (defined in a dylib) */
 const N_INDR: u8 = 0xa; /* indirect */
 
 /// Mach-O export flag constants
-const EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION: u64 = 0x00000004;
+const _EXPORT_SYMBOL_FLAGS_KIND_REGULAR: u64 = 0x00000000;
+const _EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION: u64 = 0x00000004;
 const EXPORT_SYMBOL_FLAGS_REEXPORT: u64 = 0x00000008;
 const EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER: u64 = 0x00000010;
 
@@ -101,8 +103,10 @@ const LC_UUID: u32 = 0x00000001b;
 const LC_RPATH: u32 = 0x1c | LC_REQ_DYLD;
 const LC_CODE_SIGNATURE: u32 = 0x0000001d;
 const LC_REEXPORT_DYLIB: u32 = 0x1f | LC_REQ_DYLD;
+const LC_LAZY_LOAD_DYLIB: u32 = 0x00000020;
 const LC_DYLD_INFO: u32 = 0x00000022;
 const LC_DYLD_INFO_ONLY: u32 = 0x22 | LC_REQ_DYLD;
+const LC_LOAD_UPWARD_DYLIB: u32 = 0x23 | LC_REQ_DYLD;
 const LC_VERSION_MIN_MACOSX: u32 = 0x00000024;
 const LC_VERSION_MIN_IPHONEOS: u32 = 0x00000025;
 const LC_DYLD_ENVIRONMENT: u32 = 0x00000027;
@@ -622,7 +626,8 @@ impl<'a> MachOFile<'a> {
                     self.rpaths.push(rpath);
                 }
                 LC_LOAD_DYLIB | LC_ID_DYLIB | LC_LOAD_WEAK_DYLIB
-                | LC_REEXPORT_DYLIB => {
+                | LC_REEXPORT_DYLIB | LC_LAZY_LOAD_DYLIB
+                | LC_LOAD_UPWARD_DYLIB => {
                     let (_, dylib) =
                         self.dylib_command().parse(command_data)?;
                     self.dylibs.push(dylib);
@@ -1212,11 +1217,10 @@ impl<'a> MachOFile<'a> {
 
                         remaining_data = remainder;
                     }
-                    EXPORT_SYMBOL_FLAGS_WEAK_DEFINITION => {
+                    _ => {
                         let (remainder, _offset) = uleb128(remainder)?;
                         remaining_data = remainder;
                     }
-                    _ => {}
                 }
             }
 
@@ -1836,81 +1840,6 @@ fn uint(
             u64(endianness)(input)
         }
     }
-}
-
-/// Parser that reads [ULEB128][1].
-///
-/// Notice however that this function returns a `u64`, so it's able to parse
-/// numbers up to 2^64-1. When parsing larger numbers it fails, even if they
-/// are valid ULEB128.
-///
-/// [1]: https://en.wikipedia.org/wiki/LEB128
-fn uleb128(input: &[u8]) -> IResult<&[u8], u64> {
-    let mut val: u64 = 0;
-    let mut shift: u32 = 0;
-
-    let mut data = input;
-    let mut byte: u8;
-
-    loop {
-        // Read one byte of data.
-        (data, byte) = u8(data)?;
-
-        // Use all the bits, except the most significant one.
-        let b = (byte & 0x7f) as u64;
-
-        val |= b
-            .checked_shl(shift)
-            .ok_or(Err::Error(NomError::new(input, ErrorKind::TooLarge)))?;
-
-        // Break if the most significant bit is zero.
-        if byte & 0x80 == 0 {
-            break;
-        }
-
-        shift += 7;
-    }
-
-    Ok((data, val))
-}
-
-/// Parser that reads [SLEB128][1].
-///
-/// Notice however that this function returns an `i64`, so it's able to parse
-/// numbers from -2^63 to 2^63-1. When parsing numbers out of that range it
-/// fails, even if they are valid ULEB128.
-///
-/// [1]: https://en.wikipedia.org/wiki/LEB128
-fn sleb128(input: &[u8]) -> IResult<&[u8], i64> {
-    let mut val: i64 = 0;
-    let mut shift: u32 = 0;
-
-    let mut data = input;
-    let mut byte: u8;
-
-    loop {
-        (data, byte) = u8(data)?;
-
-        // Use all the bits, except the most significant one.
-        let b = (byte & 0x7f) as i64;
-
-        val |= b
-            .checked_shl(shift)
-            .ok_or(Err::Error(NomError::new(input, ErrorKind::TooLarge)))?;
-
-        shift += 7;
-
-        // Break if the most significant bit is zero.
-        if byte & 0x80 == 0 {
-            break;
-        }
-    }
-
-    if shift < i64::BITS && (byte & 0x40) != 0 {
-        val |= !0 << shift;
-    }
-
-    Ok((data, val))
 }
 
 /// Convert a decimal number representation to a version string representation.

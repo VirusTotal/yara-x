@@ -22,7 +22,7 @@
 //! use yara_x_parser::ast::dfs::{DFSIter, DFSEvent};
 //!
 //! // Parse a YARA rule from a string.
-//! let mut parser = Parser::new(r#"
+//! let mut rules = r#"
 //! rule test {
 //!   strings:
 //!     $a = "some string"
@@ -30,10 +30,10 @@
 //!   condition:
 //!     ($a at 100) and $b
 //! }
-//! "#.as_bytes());
+//! "#;
 //!
 //! // The AST object is the root of the AST.
-//! let ast = AST::from(parser);
+//! let ast = AST::from(rules);
 //!
 //! // Get the condition of the first rule.
 //! let condition = &ast.rules().next().unwrap().condition;
@@ -67,7 +67,7 @@
 //! # use yara_x_parser::ast::*;
 //! # use yara_x_parser::ast::dfs::{DFSIter, DFSEvent};
 //! #
-//! # let mut parser = Parser::new(r#"
+//! # let rules = r#"
 //! # rule test {
 //! #   strings:
 //! #     $a = "some string"
@@ -75,9 +75,9 @@
 //! #   condition:
 //! #     ($a at 100) and $b
 //! # }
-//! # "#.as_bytes());
+//! # "#;
 //! #
-//! # let ast = AST::from(parser);
+//! # let ast = AST::from(rules);
 //! # let condition = &ast.rules().next().unwrap().condition;
 //! #
 //! let mut iter = DFSIter::new(condition);
@@ -198,14 +198,14 @@ impl<'src> DFSIter<'src> {
     /// # use yara_x_parser::Parser;
     /// # use yara_x_parser::ast::{AST, Expr};
     /// # use yara_x_parser::ast::dfs::{DFSIter, DFSEvent, DFSContext};
-    /// let mut parser = Parser::new(r#"
+    /// let rules = r#"
     /// rule test {
     ///   condition:
     ///     (1 + 2) > 3
     /// }
-    /// "#.as_bytes());
+    /// "#;
     ///
-    /// let ast = AST::from(parser);
+    /// let ast = AST::from(rules);
     /// let mut iter = DFSIter::new(&ast.rules().next().unwrap().condition);
     ///
     /// // iter enters `(1 + 2) > 3`
@@ -241,7 +241,9 @@ impl<'src> DFSIter<'src> {
     ///
     /// assert!(contexts.next().is_none());
     /// ```
-    pub fn contexts(&self) -> impl Iterator<Item = &DFSContext<'src>> {
+    pub fn contexts(
+        &self,
+    ) -> impl DoubleEndedIterator<Item = &DFSContext<'src>> {
         itertools::chain(
             self.recently_left_context.iter(),
             self.stack.iter().rev().filter_map(|event| match event {
@@ -548,21 +550,17 @@ fn dfs_enter<'a>(
 mod tests {
     use crate::ast::dfs::{DFSContext, DFSEvent, DFSIter};
     use crate::ast::{Expr, AST};
-    use crate::Parser;
 
     #[test]
     fn dfs() {
-        let parser = Parser::new(
-            r#"
+        let source = br#"
             rule test {
                 condition:
                     (true and false) or (1 + 2 > 5)
             }
-            "#
-            .as_bytes(),
-        );
+            "#;
 
-        let ast = AST::from(parser);
+        let ast = AST::from(source.as_slice());
         let mut dfs = DFSIter::new(&ast.rules().next().unwrap().condition);
 
         // enter: (true and false) or (1 + 2 > 5)
@@ -615,8 +613,7 @@ mod tests {
 
     #[test]
     fn dfs_contexts() {
-        let parser = Parser::new(
-            r#"
+        let source = r#"
             rule test {
                 strings:
                     $a = "foo"
@@ -627,11 +624,9 @@ mod tests {
                         )
                     )
             }
-            "#
-            .as_bytes(),
-        );
+            "#;
 
-        let ast = AST::from(parser);
+        let ast = AST::from(source);
         let mut dfs = DFSIter::new(&ast.rules().next().unwrap().condition);
         assert!(dfs.contexts().next().is_none());
 

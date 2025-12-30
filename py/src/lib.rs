@@ -21,7 +21,6 @@ use std::ops::Deref;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::str::FromStr;
-use std::sync::OnceLock;
 use std::time::Duration;
 use std::{io, mem};
 
@@ -30,12 +29,12 @@ use base64::Engine;
 use protobuf::MessageDyn;
 use pyo3::exceptions::{PyException, PyIOError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
+use pyo3::sync::PyOnceLock;
 use pyo3::types::{
     PyBool, PyBytes, PyDict, PyFloat, PyInt, PyString, PyStringMethods,
     PyTuple, PyTzInfo,
 };
 use pyo3::{create_exception, IntoPyObjectExt};
-
 use strum_macros::{Display, EnumString};
 
 use ::yara_x as yrx;
@@ -43,9 +42,9 @@ use ::yara_x as yrx;
 use yara_x_fmt::Indentation;
 
 fn dict_to_json(dict: Bound<PyAny>) -> PyResult<serde_json::Value> {
-    static JSON_DUMPS: OnceLock<Py<PyAny>> = OnceLock::new();
+    static JSON_DUMPS: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
     let py = dict.py();
-    let dumps = JSON_DUMPS.get_or_init(|| {
+    let dumps = JSON_DUMPS.get_or_init(py, || {
         let json_mod = PyModule::import(py, "json").unwrap().unbind();
         json_mod.getattr(py, "dumps").unwrap()
     });
@@ -719,22 +718,14 @@ impl Scanner {
 
     /// Scans in-memory data.
     fn scan(&mut self, data: &[u8]) -> PyResult<Py<ScanResults>> {
-        Python::attach(|py| {
-            scan_results_to_py(
-                py,
-                self.inner.scan(data).map_err(map_scan_err)?,
-            )
-        })
+        let results = self.inner.scan(data).map_err(map_scan_err)?;
+        Python::attach(|py| scan_results_to_py(py, results))
     }
 
     /// Scans a file.
     fn scan_file(&mut self, path: PathBuf) -> PyResult<Py<ScanResults>> {
-        Python::attach(|py| {
-            scan_results_to_py(
-                py,
-                self.inner.scan_file(path).map_err(map_scan_err)?,
-            )
-        })
+        let results = self.inner.scan_file(path).map_err(map_scan_err)?;
+        Python::attach(|py| scan_results_to_py(py, results))
     }
 }
 
@@ -914,14 +905,10 @@ impl Rules {
     /// Scans in-memory data with these rules.
     fn scan(&self, data: &[u8]) -> PyResult<Py<ScanResults>> {
         let mut scanner = yrx::Scanner::new(&self.inner.rules);
-        Python::attach(|py| {
-            scan_results_to_py(
-                py,
-                scanner
-                    .scan(data)
-                    .map_err(|err| ScanError::new_err(err.to_string()))?,
-            )
-        })
+        let results = scanner
+            .scan(data)
+            .map_err(|err| ScanError::new_err(err.to_string()))?;
+        Python::attach(|py| scan_results_to_py(py, results))
     }
 
     /// Serializes the rules into a file-like object.
@@ -952,6 +939,11 @@ impl Rules {
             RulesIter { iter: Box::new(rules.iter()), _rules: slf.into() };
 
         Py::new(py, rules_iter)
+    }
+
+    /// Returns a list of modules imported by the rules.
+    fn imports(&self) -> PyResult<Vec<&str>> {
+        Ok(self.inner.rules.imports().collect())
     }
 }
 
@@ -1210,5 +1202,6 @@ fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Match>()?;
     m.add_class::<Formatter>()?;
     m.add_class::<Module>()?;
+    m.gil_used(false)?;
     Ok(())
 }

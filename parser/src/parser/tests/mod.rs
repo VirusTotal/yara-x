@@ -70,7 +70,7 @@ fn ast() {
 
         println!("file: {path:?}");
         let source = fs::read_to_string(path).unwrap();
-        let ast = AST::from(Parser::new(source.as_bytes()));
+        let ast = AST::from(source.as_str());
         let mut w = BufWriter::new(output_file);
         write!(&mut w, "{ast:?}").unwrap();
     });
@@ -83,7 +83,7 @@ fn utf8_error_1() {
 rule test_1 { \xFF\xFF condition: true }
 rule test_2 { condition: true }";
 
-    let ast = AST::from(Parser::new(rules));
+    let ast = AST::from(rules.as_slice());
 
     assert_eq!(
         &ast.errors()[0],
@@ -104,7 +104,7 @@ fn utf8_error_2() {
 rule test_1 { condition: \"\xFF\xFF\" contains \"foo\" }
 rule test_2 { condition: true }";
 
-    let ast = AST::from(Parser::new(rules));
+    let ast = AST::from(rules.as_slice());
 
     assert_eq!(&ast.errors()[0], &Error::InvalidUTF8(Span(27..28)));
 
@@ -119,7 +119,7 @@ fn utf8_error_3() {
 /* \xFF\xFF */
 rule test_1 { condition: true }";
 
-    let ast = AST::from(Parser::new(rules));
+    let ast = AST::from(rules.as_slice());
     assert_eq!(ast.rules().count(), 1);
 }
 
@@ -130,7 +130,7 @@ fn utf8_error_4() {
 rule test_1 { strings: $a = /foo\xFF\xFFbar/ condition: $a }\
 rule test_2 { condition: true }";
 
-    let ast = AST::from(Parser::new(rules));
+    let ast = AST::from(rules.as_slice());
 
     assert_eq!(&ast.errors()[0], &Error::InvalidUTF8(Span(33..34)));
     assert_eq!(ast.rules().count(), 1);

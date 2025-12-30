@@ -1,0 +1,42 @@
+SOURCE_FILE@0..69
+  RULE_DECL@0..31
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..11 "test_1"
+    WHITESPACE@11..12 " "
+    L_BRACE@12..13 "{"
+    WHITESPACE@13..14 " "
+    CONDITION_BLK@14..29
+      CONDITION_KW@14..23 "condition"
+      COLON@23..24 ":"
+      WHITESPACE@24..25 " "
+      BOOLEAN_EXPR@25..29
+        BOOLEAN_TERM@25..29
+          TRUE_KW@25..29 "true"
+    WHITESPACE@29..30 " "
+    R_BRACE@30..31 "}"
+  NEWLINE@31..32 "\n"
+  NEWLINE@32..33 "\n"
+  ERROR@33..36
+    IDENT@33..36 "foo"
+  NEWLINE@36..37 "\n"
+  NEWLINE@37..38 "\n"
+  RULE_DECL@38..69
+    RULE_KW@38..42 "rule"
+    WHITESPACE@42..43 " "
+    IDENT@43..49 "test_2"
+    WHITESPACE@49..50 " "
+    L_BRACE@50..51 "{"
+    WHITESPACE@51..52 " "
+    CONDITION_BLK@52..67
+      CONDITION_KW@52..61 "condition"
+      COLON@61..62 ":"
+      WHITESPACE@62..63 " "
+      BOOLEAN_EXPR@63..67
+        BOOLEAN_TERM@63..67
+          TRUE_KW@63..67 "true"
+    WHITESPACE@67..68 " "
+    R_BRACE@68..69 "}"
+
+ERRORS:
+- [33..36]: expecting `global`, `private`, `rule`, `import` or `include`, found `foo`

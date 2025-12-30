@@ -291,13 +291,13 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
         if literal.chars().all(|c| {
             (' '..='~').contains(&c) || c == '\t' || c == '\n' || c == '\r'
         }) {
-            ctx.warnings.add(|| {
-                TextPatternAsHex::build(
-                    ctx.report_builder,
-                    escape(literal),
-                    ctx.report_builder.span_to_code_loc(pattern.span()),
-                )
-            });
+            let code_loc = ctx.report_builder.span_to_code_loc(pattern.span());
+            let mut warning =
+                TextPatternAsHex::build(ctx.report_builder, code_loc.clone());
+
+            warning.report_mut().patch(code_loc, escape(literal));
+
+            ctx.warnings.add(|| warning);
         }
     }
 
@@ -316,6 +316,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
 
 fn escape(s: &str) -> String {
     let mut escaped = String::with_capacity(s.len());
+    escaped.push('"');
     for c in s.chars() {
         match c {
             '\r' => escaped.push_str("\\r"),
@@ -326,6 +327,7 @@ fn escape(s: &str) -> String {
             _ => escaped.push(c),
         }
     }
+    escaped.push('"');
     escaped
 }
 
@@ -671,34 +673,48 @@ fn expr_from_ast(
                 }
             }
 
-            // If the field is deprecated raise the appropriate warning.
-            if let Symbol::Field {
-                deprecation_notice: Some(ref notice), ..
-            } = symbol
-            {
-                let code_loc =
-                    ctx.report_builder.span_to_code_loc(ident.span());
+            match symbol {
+                // If the symbol is a deprecated field, raise the appropriate
+                // warning.
+                Symbol::Field {
+                    deprecation_notice: Some(ref notice), ..
+                } => {
+                    let code_loc =
+                        ctx.report_builder.span_to_code_loc(ident.span());
 
-                let mut warning = warnings::DeprecatedField::build(
-                    ctx.report_builder,
-                    ident.name.to_string(),
-                    code_loc.clone(),
-                    notice.text.clone(),
-                );
+                    let mut warning = warnings::DeprecatedField::build(
+                        ctx.report_builder,
+                        ident.name.to_string(),
+                        code_loc.clone(),
+                        notice.text.clone(),
+                    );
 
-                if let Some(replacement) = &notice.replacement {
-                    warning
-                        .report_mut()
-                        .new_section(
-                            Level::HELP,
-                            notice.help.clone().unwrap_or(
-                                "apply the following changes".to_owned(),
-                            ),
-                        )
-                        .patch(code_loc, replacement);
+                    if let Some(replacement) = &notice.replacement {
+                        warning
+                            .report_mut()
+                            .new_section(
+                                Level::HELP,
+                                notice.help.clone().unwrap_or(
+                                    "apply the following changes".to_owned(),
+                                ),
+                            )
+                            .patch(code_loc, replacement);
+                    }
+
+                    ctx.warnings.add(|| warning);
                 }
-
-                ctx.warnings.add(|| warning)
+                // If the symbol is a global rule, raise a warning. A global
+                // rule should not be used in a rule condition.
+                Symbol::Rule { is_global: true, .. } => {
+                    ctx.warnings.add(|| {
+                        warnings::GlobalRuleMisuse::build(
+                            ctx.report_builder,
+                            ctx.report_builder.span_to_code_loc(ident.span()),
+                            Some("referencing a global rule in a condition is redundant, and may result in an unsatisfiable condition".to_string()),
+                        )
+                    });
+                }
+                _ => {}
             }
 
             ctx.ir.ident(symbol)
@@ -2412,6 +2428,36 @@ fn eq_check(
          constrained_string_span: Span| {
             for constraint in constraints {
                 match constraint {
+                    StringConstraint::Uppercase
+                        if const_string.chars().any(|c| c.is_lowercase()) =>
+                    {
+                        let mut warning = UnsatisfiableExpression::build(
+                            ctx.report_builder,
+                            "this is an uppercase string".to_string(),
+                            "this contains lowercase characters".to_string(),
+                            ctx.report_builder.span_to_code_loc(
+                                constrained_string_span.clone()
+                            ),
+                            ctx.report_builder.span_to_code_loc(
+                                const_string_span.clone()
+                            ),
+                            Some(
+                                "an uppercase string can't be equal to a string containing lowercase characters"
+                                    .to_string()),
+                        );
+
+                        warning.report_mut().patch(
+                            ctx.report_builder
+                                .span_to_code_loc(const_string_span.clone()),
+                            format!(
+                                "\"{}\"",
+                                const_string.to_string().to_uppercase()
+                            ),
+                        );
+
+                        ctx.warnings.add(|| warning);
+                        return;
+                    }
                     StringConstraint::Lowercase
                         if const_string.chars().any(|c| c.is_uppercase()) =>
                     {
@@ -2429,6 +2475,7 @@ fn eq_check(
                                 "a lowercase string can't be equal to a string containing uppercase characters"
                                     .to_string()),
                         );
+
                         warning.report_mut().patch(
                             ctx.report_builder
                                 .span_to_code_loc(const_string_span.clone()),

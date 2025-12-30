@@ -1,32 +1,44 @@
 warning[text_as_hex]: hex pattern could be written as text literal
- --> line:3:5
+ --> line:3:12
   |
 3 |     $aaa = { 61 61 61 }
-  |     -----------------
-  |     |
-  |     this pattern can be written as a text literal
-  |     replace with "aaa"
+  |            ------------ this pattern can be written as a text literal
+  |
+help: consider the following change
+  |
+3 -     $aaa = { 61 61 61 }
+3 +     $aaa = "aaa"
+  |
 warning[text_as_hex]: hex pattern could be written as text literal
-  --> line:10:7
+  --> line:10:21
    |
 10 |       $quoted_aaa = { 27 61 61 61 27 }
-   |       ------------------------------
-   |       |
-   |       this pattern can be written as a text literal
-   |       replace with "'aaa'"
+   |                     ------------------ this pattern can be written as a text literal
+   |
+help: consider the following change
+   |
+10 -       $quoted_aaa = { 27 61 61 61 27 }
+10 +       $quoted_aaa = "'aaa'"
+   |
 warning[text_as_hex]: hex pattern could be written as text literal
-  --> line:17:7
+  --> line:17:21
    |
 17 |       $quoted_aaa = { 22 61 61 61 22 }
-   |       ------------------------------
-   |       |
-   |       this pattern can be written as a text literal
-   |       replace with "\"aaa\""
+   |                     ------------------ this pattern can be written as a text literal
+   |
+help: consider the following change
+   |
+17 -       $quoted_aaa = { 22 61 61 61 22 }
+17 +       $quoted_aaa = "\"aaa\""
+   |
 warning[text_as_hex]: hex pattern could be written as text literal
-  --> line:24:7
+  --> line:24:11
    |
 24 |       $ = { 61 61 61 0D 0A 09 5C 62 62 62 }
-   |       -----------------------------------
-   |       |
-   |       this pattern can be written as a text literal
-   |       replace with "aaa\r\n\t\\bbb"
+   |           --------------------------------- this pattern can be written as a text literal
+   |
+help: consider the following change
+   |
+24 -       $ = { 61 61 61 0D 0A 09 5C 62 62 62 }
+24 +       $ = "aaa\r\n\t\\bbb"
+   |
