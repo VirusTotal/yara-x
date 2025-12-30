@@ -681,6 +681,12 @@ impl<'a> Compiler<'a> {
         Ok(self)
     }
 
+
+    /// Shows all current gloval variables of the compiler
+    pub fn show_globals(&mut self) -> serde_json::Value {
+        self.global_symbols.borrow_mut().show_globals()
+    }
+
     /// Creates a new namespace.
     ///
     /// Further calls to [`Compiler::add_source`] will put the rules under the

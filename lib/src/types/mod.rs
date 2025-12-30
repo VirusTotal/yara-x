@@ -7,6 +7,7 @@ use std::rc::Rc;
 use std::{mem, ptr};
 use walrus::ir::InstrSeqType;
 use walrus::ValType;
+use serde_json::{Map as JsonMap, Number as JsonNumber, Value as JsonValue};
 
 use crate::modules::protos::yara::enum_value_options::Value as EnumValue;
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
@@ -617,6 +618,79 @@ impl TypeValue {
         Self::Integer {
             value: Value::Unknown,
             constraints: Some(constraints.into()),
+        }
+    }
+
+    pub fn value_as_json(&self) -> JsonValue {
+        match self {
+            Self::Unknown => JsonValue::Null,
+            Self::Bool { value } => value.extract().cloned().map(JsonValue::Bool).unwrap_or(JsonValue::Null),
+            Self::Integer { value, .. } => {
+                if let Some(i) = value.extract().cloned() {
+                    JsonValue::Number(JsonNumber::from(i))
+                } else {
+                    JsonValue::Null
+                }
+            }
+            Self::Float {value} => {
+                if let Some(f) = value.extract().cloned() {
+                    JsonNumber::from_f64(f).map(JsonValue::Number).unwrap_or(JsonValue::Null)
+                } else {
+                    JsonValue::Null
+                }
+            }
+            Self::String {value, ..} => {
+                if let Some(s) = value.extract().cloned() {
+                    let s_str = String::from_utf8_lossy(s.as_slice()).into_owned();
+                    JsonValue::String(s_str)
+                } else {
+                    JsonValue::Null
+                }
+            }
+            Self::Regexp(r) => {
+                if let Some(re) = r {
+                    JsonValue::String(re.as_str().to_string())
+                } else {
+                    JsonValue::Null
+                }
+            }
+            Self::Struct(s) => {
+                let mut obj = JsonMap::new();
+                for (key, field) in s.fields().iter() {
+                    obj.insert(key.clone(), field.type_value.value_as_json());
+                }
+                JsonValue::Object(obj)
+            }
+            Self::Array(a) => match a.as_ref() {
+                Array::Integers(items) => JsonValue::Array(items.iter().map(|i| JsonValue::Number(JsonNumber::from(*i))).collect()),
+                Array::Floats(items) => JsonValue::Array(items.iter().map(|f| JsonNumber::from_f64(*f).map(JsonValue::Number).unwrap_or(JsonValue::Null)).collect()),
+                Array::Bools(items) => JsonValue::Array(items.iter().map(|b| JsonValue::Bool(*b)).collect()),
+                Array::Strings(items) => JsonValue::Array(items.iter().map(|s| JsonValue::String(String::from_utf8_lossy(s.as_slice()).into_owned())).collect()),
+                Array::Structs(items) => JsonValue::Array(items.iter().map(|st| {
+                    let mut obj = JsonMap::new();
+                    for (key, field) in st.fields().iter() {
+                        obj.insert(key.clone(), field.type_value.value_as_json());
+                    }
+                    JsonValue::Object(obj)
+                }).collect()),
+            }
+            Self::Map(m) => match m.as_ref() {
+                Map::IntegerKeys { map, .. } => {
+                    let mut obj = JsonMap::new();
+                    for (k, v) in map.iter() {
+                        obj.insert(k.to_string(), v.value_as_json());
+                    }
+                    JsonValue::Object(obj)
+                }
+                Map::StringKeys { map, .. } => {
+                    let mut obj = JsonMap::new();
+                    for (k, v) in map.iter() {
+                        obj.insert(String::from_utf8_lossy(k.as_slice()).into_owned(), v.value_as_json());
+                    }
+                    JsonValue::Object(obj)
+                }
+            }
+            Self::Func(_) => JsonValue::Null,
         }
     }
 }

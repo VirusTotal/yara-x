@@ -109,6 +109,19 @@ def test_dict_globals():
   matching_rules = scanner.scan(b'').matching_rules
   assert len(matching_rules) == 1
 
+def test_show_globals():
+  compiler = yara_x.Compiler()
+  compiler.define_global('some_dict', {"foo": "bar"})
+  compiler.define_global("A", "B")
+  compiler.define_global("B", 1)
+  compiler.add_source('rule test {condition: some_dict.foo == "bar"}')
+  x = compiler.show_globals()
+
+  assert(x['some_dict'] == {'foo': 'bar'})
+  assert(x['A'] == "B")
+  assert(x['B'] == 1)
+
+
 def test_namespaces():
   compiler = yara_x.Compiler()
   compiler.new_namespace('foo')

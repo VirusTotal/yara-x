@@ -1,4 +1,4 @@
-use std::ffi::{c_char, CStr};
+use std::ffi::{c_char, CStr, CString};
 use std::mem;
 use std::mem::ManuallyDrop;
 
@@ -385,6 +385,23 @@ unsafe fn yrx_compiler_define_global<
             YRX_RESULT::YRX_VARIABLE_ERROR
         }
     }
+}
+
+/// Collects a string of a hashmap of all current loaded global vars
+#[no_mangle]
+pub unsafe extern "C" fn yrx_compiler_get_globals(
+    compiler: *mut YRX_COMPILER,
+) -> *const c_char {
+    let compiler = if let Some(compiler) = compiler.as_mut() {
+        compiler
+    } else {
+        return CString::new("Could not access the compiler").unwrap().into_raw();
+    };
+
+    let globals = compiler.inner.show_globals();
+    let json = serde_json::to_string(&globals).unwrap();
+
+    CString::new(json).unwrap().into_raw()
 }
 
 /// Defines a global variable of string type and sets its initial value.
