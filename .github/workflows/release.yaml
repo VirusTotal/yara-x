@@ -175,7 +175,11 @@ jobs:
         # we build for "arch" if it exists, else 'auto'
         CIBW_ARCHS: ${{ matrix.arch || 'auto' }}
 
-        CIBW_BEFORE_BUILD_LINUX: >
+        CIBW_BEFORE_BUILD_LINUX: |
+          if [[ $CIBW_BUILD == *-musllinux* ]]; then
+            export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="gcc"
+            export CARGO_ENCODED_RUSTFLAGS=""
+          fi
           curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain=stable --profile=minimal -y &&
           rustup show
 
