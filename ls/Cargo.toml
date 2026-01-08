@@ -4,10 +4,10 @@ description = """
 Language Server for YARA-X.
 """
 edition.workspace = true
-version.workspace = true
 license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
+version = "0.1.0"
 
 [lib]
 name = "yara_x_ls"
