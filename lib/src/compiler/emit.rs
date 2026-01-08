@@ -63,6 +63,11 @@ macro_rules! emit_operands {
             lhs_type = Type::Float;
         }
 
+        // If the left operand is bool, promote it from i32 to i64.
+        if lhs_type == Type::Bool {
+            $instr.unop(UnaryOp::I64ExtendUI32);
+        }
+
         emit_expr($ctx, $ir, rhs, $instr);
 
         // If the right operand is integer, but the left one is float,
@@ -70,6 +75,11 @@ macro_rules! emit_operands {
         if lhs_type == Type::Float && rhs_type == Type::Integer {
             $instr.unop(UnaryOp::F64ConvertSI64);
             rhs_type = Type::Float;
+        }
+
+        // If the right operand is bool, promote it from i32 to i64.
+        if rhs_type == Type::Bool {
+            $instr.unop(UnaryOp::I64ExtendUI32);
         }
 
         (lhs_type, rhs_type)
@@ -104,7 +114,10 @@ macro_rules! emit_arithmetic_op {
 macro_rules! emit_comparison_op {
     ($ctx:ident, $ir:ident, $lhs:expr, $rhs:expr, $int_op:tt, $float_op:tt, $str_op:expr, $instr:ident) => {{
         match emit_operands!($ctx, $ir, $lhs, $rhs, $instr) {
-            (Type::Integer, Type::Integer) => {
+            (Type::Integer, Type::Integer)
+            | (Type::Bool, Type::Bool)
+            | (Type::Bool, Type::Integer)
+            | (Type::Integer, Type::Bool) => {
                 $instr.binop(BinaryOp::$int_op);
             }
             (Type::Float, Type::Float) => {

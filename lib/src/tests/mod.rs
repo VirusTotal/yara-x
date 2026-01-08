@@ -224,6 +224,17 @@ fn test_comparison_operations() {
     condition_true!("1.0 == 1");
     condition_true!("1.0 != 1.000000000000001");
     condition_true!("1.0 < 1.000000000000001");
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"test_proto2.array_bool[0] == test_proto2.array_bool[0]"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(r#"test_proto2.array_bool[0] == 0 + 0"#);
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(r#"2 - 1 == test_proto2.array_bool[1]"#);
 }
 
 #[test]
