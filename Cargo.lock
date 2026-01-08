@@ -5145,7 +5145,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "aho-corasick",
  "annotate-snippets",
@@ -5218,7 +5218,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-capi"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "assert-call",
  "cbindgen",
@@ -5228,7 +5228,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-cli"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -5266,7 +5266,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-fmt"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "bitflags 2.10.0",
  "bstr",
@@ -5297,7 +5297,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-macros"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -5307,7 +5307,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-parser"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "anyhow",
  "ascii_tree",
@@ -5330,7 +5330,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-proto"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "protobuf",
  "protobuf-codegen",
@@ -5338,7 +5338,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-proto-json"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "base64 0.22.1",
  "globwalk",
@@ -5352,7 +5352,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-proto-yaml"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "chrono",
  "globwalk",
@@ -5366,7 +5366,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-py"
-version = "1.10.0"
+version = "1.11.0"
 dependencies = [
  "base64 0.22.1",
  "protobuf",
