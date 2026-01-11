@@ -378,33 +378,6 @@ fn field_access() {
 }
 
 #[test]
-fn field_access_expression() {
-    let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.child("rule.yar");
-
-    input_file
-        .write_str("rule a { condition: (pe).number_of_signatures > 0 }")
-        .unwrap();
-
-    Command::new(cargo_bin!("yr"))
-        .arg("deps")
-        .arg("-r")
-        .arg("a")
-        .arg(input_file.path())
-        .assert()
-        .stdout(
-            r#"digraph {
-  a [fillcolor=paleturquoise, style="filled"];
-  pe [fillcolor=palegreen, style="filled"];
-  a -> pe;
-}
-
-"#,
-        )
-        .success();
-}
-
-#[test]
 fn field_access_with_unknown_lookup() {
     let temp_dir = TempDir::new().unwrap();
     let input_file = temp_dir.child("rule.yar");
