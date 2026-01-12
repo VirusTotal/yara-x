@@ -600,10 +600,12 @@ impl Transformer {
                 Ast::Flags(_) => {}
                 Ast::Literal(_) => {}
                 Ast::Dot(_) => {}
-                Ast::Assertion(_) => {}
                 Ast::ClassUnicode(_) => {}
                 Ast::ClassPerl(_) => {}
                 Ast::ClassBracketed(_) => {}
+                Ast::Assertion(_) => {
+                    self.replace_word_boundary_assertions(ast);
+                }
                 Ast::Repetition(rep) => {
                     self.replace_word_boundary_assertions(rep.ast.as_mut());
                     stack.push_back(rep.ast.as_mut());
