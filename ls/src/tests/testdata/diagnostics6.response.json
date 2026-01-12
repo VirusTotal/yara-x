@@ -1,0 +1,55 @@
+{
+  "kind": "full",
+  "items": [
+    {
+      "range": {
+        "start": {
+          "line": 1,
+          "character": 0
+        },
+        "end": {
+          "line": 1,
+          "character": 11
+        }
+      },
+      "severity": 2,
+      "code": "duplicate_import",
+      "message": "duplicate import statement",
+      "data": {
+        "patches": [
+          {
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 0
+              },
+              "end": {
+                "line": 1,
+                "character": 11
+              }
+            },
+            "replacement": ""
+          }
+        ]
+      }
+    },
+    {
+      "range": {
+        "start": {
+          "line": 4,
+          "character": 15
+        },
+        "end": {
+          "line": 4,
+          "character": 19
+        }
+      },
+      "severity": 2,
+      "code": "invariant_expr",
+      "message": "invariant boolean expression",
+      "data": {
+        "patches": []
+      }
+    }
+  ]
+}

@@ -8,6 +8,7 @@ defines how the server should process various LSP requests and notifications.
 
 use async_lsp::lsp_types::request::{Request, SemanticTokensFullRequest};
 use async_lsp::lsp_types::{
+    CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
     CompletionOptions, CompletionParams, CompletionResponse,
     DiagnosticOptions, DiagnosticServerCapabilities,
     DidChangeTextDocumentParams, DidCloseTextDocumentParams,
@@ -39,6 +40,7 @@ use yara_x_fmt::Indentation;
 use yara_x_parser::ast::AST;
 use yara_x_parser::cst::CST;
 
+use crate::features::code_action::code_actions;
 use crate::features::completion::completion;
 use crate::features::diagnostics::diagnostics;
 use crate::features::document_highlight::document_highlight;
@@ -157,6 +159,7 @@ impl LanguageServer for YARALanguageServer {
                     document_highlight_provider: Some(OneOf::Left(true)),
                     document_symbol_provider: Some(OneOf::Left(true)),
                     rename_provider: Some(OneOf::Left(true)),
+                    code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
                     selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
                     text_document_sync: Some(TextDocumentSyncCapability::Options(
                         TextDocumentSyncOptions {
@@ -249,6 +252,25 @@ impl LanguageServer for YARALanguageServer {
         };
 
         Box::pin(async move { Ok(Some(references)) })
+    }
+
+    /// This method is called when the user requests code actions for a range.
+    ///
+    /// It provides quick fixes for errors and warnings that have patches
+    /// available from the compiler.
+    fn code_action(
+        &mut self,
+        params: CodeActionParams,
+    ) -> BoxFuture<'static, Result<Option<CodeActionResponse>, Self::Error>>
+    {
+        let uri = params.text_document.uri;
+        let actions = code_actions(&uri, params.context.diagnostics);
+
+        if actions.is_empty() {
+            Box::pin(async { Ok(None) })
+        } else {
+            Box::pin(async move { Ok(Some(actions)) })
+        }
     }
 
     /// This method is called when the user requests code completion.
@@ -403,8 +425,7 @@ impl LanguageServer for YARALanguageServer {
         let diagnostics = match self.documents.get(&uri) {
             Some(cst) => {
                 let src = cst.root().text().to_string();
-                let ast = AST::new(src.as_bytes(), cst.iter());
-                diagnostics(ast, src.as_str())
+                diagnostics(src.as_str())
             }
             None => vec![],
         };
@@ -563,11 +584,10 @@ impl YARALanguageServer {
         if self.should_send_diagnostics {
             if let Some(cst) = self.documents.get(uri) {
                 let src = cst.root().text().to_string();
-                let ast = AST::new(src.as_bytes(), cst.iter());
                 let _ = self.client.publish_diagnostics(
                     PublishDiagnosticsParams {
                         uri: uri.clone(),
-                        diagnostics: diagnostics(ast, src.as_str()),
+                        diagnostics: diagnostics(src.as_str()),
                         version: None,
                     },
                 );

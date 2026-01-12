@@ -12,8 +12,30 @@
           "character": 6
         }
       },
-      "severity": 4,
-      "message": "This pattern is not used in condition block"
+      "severity": 1,
+      "code": "E022",
+      "message": "unused pattern `$a`",
+      "data": {
+        "patches": []
+      }
+    },
+    {
+      "range": {
+        "start": {
+          "line": 4,
+          "character": 4
+        },
+        "end": {
+          "line": 4,
+          "character": 8
+        }
+      },
+      "severity": 2,
+      "code": "invariant_expr",
+      "message": "invariant boolean expression",
+      "data": {
+        "patches": []
+      }
     }
   ]
 }

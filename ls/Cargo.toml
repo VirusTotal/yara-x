@@ -17,11 +17,29 @@ crate-type = ["cdylib", "rlib"]
 name = "yr-ls"
 path = "src/main.rs"
 
+[features]
+# Enables the use of the YARA-X compiler in the language server.
+#
+# With this feature the language server depends on the yara-x crate, but it
+# offers more features. Without this feature, the language server is lighter
+# because it only depends on the yara-x-parser crate.
+full-compiler = ["dep:yara-x"]
+
+# Enables tracing, which helps debuging the language server.
+tracing = ["dep:tracing", "dep:tracing-subscriber"]
+
+default = ["full-compiler"]
+
 [dependencies]
 bitflags = { workspace = true }
 futures = "0.3.31"
+tracing = { version = "0.1.44", optional = true }
+tracing-subscriber = { version = "0.3.22", optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 yara-x-parser = { workspace = true }
 yara-x-fmt = { workspace = true }
+yara-x = { workspace = true, default-features = true, optional = true }
 
 [target.'cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))'.dependencies]
 tokio = { version = "1.48.0", features = ["full"] }
@@ -35,5 +53,3 @@ tower = { version = "0.5.2" }
 
 [dev-dependencies]
 goldenfile = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }

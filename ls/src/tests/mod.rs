@@ -7,9 +7,10 @@ use std::path::{Path, PathBuf};
 use async_lsp::concurrency::ConcurrencyLayer;
 use async_lsp::lsp_types::notification::DidOpenTextDocument;
 use async_lsp::lsp_types::request::{
-    Completion, DocumentDiagnosticRequest, DocumentHighlightRequest,
-    DocumentSymbolRequest, Formatting, GotoDefinition, HoverRequest,
-    References, Rename, Request, SelectionRangeRequest,
+    CodeActionRequest, Completion, DocumentDiagnosticRequest,
+    DocumentHighlightRequest, DocumentSymbolRequest, Formatting,
+    GotoDefinition, HoverRequest, References, Rename, Request,
+    SelectionRangeRequest,
 };
 use async_lsp::lsp_types::{
     ClientCapabilities, DiagnosticClientCapabilities,
@@ -206,6 +207,7 @@ async fn document_diagnostics() {
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics3.yar").await;
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics4.yar").await;
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics5.yar").await;
+    test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics6.yar").await;
 }
 
 #[tokio::test]
@@ -222,4 +224,9 @@ async fn completion() {
 #[tokio::test]
 async fn formatting() {
     test_lsp_request::<_, Formatting>("formatting1.yar").await;
+}
+
+#[tokio::test]
+async fn code_action() {
+    test_lsp_request::<_, CodeActionRequest>("code_action.yar").await;
 }

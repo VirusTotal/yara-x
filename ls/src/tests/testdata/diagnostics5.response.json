@@ -13,7 +13,11 @@
         }
       },
       "severity": 1,
-      "message": "Pattern with this identifier is already defined"
+      "code": "E023",
+      "message": "duplicate pattern `$a`",
+      "data": {
+        "patches": []
+      }
     }
   ]
 }

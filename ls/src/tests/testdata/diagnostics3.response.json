@@ -13,7 +13,11 @@
         }
       },
       "severity": 1,
-      "message": "Undefined pattern"
+      "code": "E025",
+      "message": "unknown pattern `$b`",
+      "data": {
+        "patches": []
+      }
     }
   ]
 }

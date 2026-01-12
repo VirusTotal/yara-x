@@ -13,7 +13,11 @@
         }
       },
       "severity": 1,
-      "message": "expecting import statement or rule definition"
+      "code": "E001",
+      "message": "syntax error",
+      "data": {
+        "patches": []
+      }
     }
   ]
 }
