@@ -203,10 +203,20 @@ async fn document_highlights() {
 #[tokio::test]
 async fn document_diagnostics() {
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics1.yar").await;
+
+    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics2.yar").await;
+
+    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics3.yar").await;
+
+    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics4.yar").await;
+
+    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics5.yar").await;
+
+    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics6.yar").await;
 }
 
