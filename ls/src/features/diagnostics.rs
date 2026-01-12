@@ -63,7 +63,7 @@ pub fn compiler_diagnostics(src: &str) -> Vec<Diagnostic> {
 
             diagnostics.push(Diagnostic {
                 range: span_to_range(label.span().clone(), src),
-                message: format!("{}", error.title()),
+                message: error.title().to_string(),
                 severity: Some(DiagnosticSeverity::ERROR),
                 code: Some(NumberOrString::String(error.code().to_string())),
                 data: Some(
@@ -88,7 +88,7 @@ pub fn compiler_diagnostics(src: &str) -> Vec<Diagnostic> {
 
             diagnostics.push(Diagnostic {
                 range: span_to_range(label.span().clone(), src),
-                message: format!("{}", warning.title()),
+                message: warning.title().to_string(),
                 severity: Some(DiagnosticSeverity::WARNING),
                 code: Some(NumberOrString::String(warning.code().to_string())),
                 data: Some(
