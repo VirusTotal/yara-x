@@ -229,6 +229,9 @@ async fn completion() {
     test_lsp_request::<_, Completion>("completion5.yar").await;
     test_lsp_request::<_, Completion>("completion6.yar").await;
     test_lsp_request::<_, Completion>("completion7.yar").await;
+
+    #[cfg(feature = "full-compiler")]
+    test_lsp_request::<_, Completion>("completion8.yar").await;
 }
 
 #[tokio::test]

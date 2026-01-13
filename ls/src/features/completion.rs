@@ -1,12 +1,17 @@
+use crate::utils::cst_traversal::{
+    non_error_parent, prev_non_trivia_token, rule_containing_token,
+    token_at_position,
+};
+
 use async_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails,
     InsertTextFormat, InsertTextMode, Position,
 };
 
-use crate::utils::cst_traversal::{
-    non_error_parent, prev_non_trivia_token, rule_containing_token,
-    token_at_position,
-};
+#[cfg(feature = "full-compiler")]
+use yara_x::mods::module_definition;
+#[cfg(feature = "full-compiler")]
+use yara_x::mods::reflect::FieldKind;
 
 use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Token, CST};
 
@@ -94,6 +99,11 @@ fn condition_suggestions(
     token: Token<Immutable>,
 ) -> Option<Vec<CompletionItem>> {
     let mut result = Vec::new();
+
+    #[cfg(feature = "full-compiler")]
+    if let Some(suggestions) = module_suggestions(&token) {
+        return Some(suggestions);
+    }
 
     match token.kind() {
         // Suggest completion of
@@ -232,4 +242,172 @@ fn rule_suggestions() -> Vec<CompletionItem> {
             ..Default::default()
         })
         .collect()
+}
+
+#[cfg(feature = "full-compiler")]
+fn module_suggestions(
+    token: &Token<Immutable>,
+) -> Option<Vec<CompletionItem>> {
+    let mut curr;
+
+    // Check if we are at a position that triggers completion.
+    match token.kind() {
+        SyntaxKind::DOT => {
+            // structure. <cursor>
+            curr = prev_non_trivia_token(token);
+        }
+        SyntaxKind::IDENT => {
+            // structure.field <cursor>
+            // We need to check if previous is DOT
+            let prev = prev_non_trivia_token(token)?;
+            if prev.kind() == SyntaxKind::DOT {
+                // It is a field
+                curr = prev_non_trivia_token(&prev);
+            } else {
+                return None;
+            }
+        }
+        _ => return None,
+    }
+
+    #[derive(Debug)]
+    enum Segment {
+        Field(String),
+        Index,
+    }
+
+    let mut path = Vec::new();
+
+    while let Some(token) = curr {
+        match token.kind() {
+            SyntaxKind::IDENT => {
+                path.push(Segment::Field(token.text().to_string()));
+                // Look for previous DOT
+                if let Some(prev) = prev_non_trivia_token(&token) {
+                    if prev.kind() == SyntaxKind::DOT {
+                        curr = prev_non_trivia_token(&prev);
+                        continue;
+                    }
+                }
+                // If no dot, we might have reached the start (module name)
+                break;
+            }
+            SyntaxKind::R_BRACKET => {
+                // Array access: field[index]
+                path.push(Segment::Index);
+                // Skip to L_BRACKET
+                curr = find_matching_left_bracket(&token);
+                // After finding [, look for previous token.
+                // It should be the field name (IDENT).
+                if let Some(c) = curr {
+                    curr = prev_non_trivia_token(&c);
+                }
+                continue;
+            }
+            _ => break, // Unknown token, stop chain
+        }
+    }
+
+    let module_name = match path.last()? {
+        Segment::Field(s) => s,
+        _ => return None,
+    };
+
+    // Lookup module
+    let definition = module_definition(module_name)?;
+
+    // Traverse
+    let mut current_kind = FieldKind::Struct(definition);
+
+    for segment in path.iter().rev().skip(1) {
+        match segment {
+            Segment::Field(name) => {
+                match current_kind {
+                    FieldKind::Struct(struct_def) => {
+                        // Find field
+                        current_kind = struct_def
+                            .fields()
+                            .find(|field| field.name() == name)?
+                            .kind();
+                    }
+                    _ => return None, // Cannot access field of non-struct
+                }
+            }
+            Segment::Index => {
+                match current_kind {
+                    FieldKind::Array(inner) => {
+                        current_kind = *inner;
+                    }
+                    FieldKind::Map(_, value) => {
+                        current_kind = *value;
+                    }
+                    _ => return None, // Cannot index non-array
+                }
+            }
+        }
+    }
+
+    // Now `current_kind` is the type of the expression before the cursor.
+    // We want to suggest fields if it is a Struct.
+    if let FieldKind::Struct(def) = current_kind {
+        let suggestions = def
+            .fields()
+            .map(|f| CompletionItem {
+                label: f.name().to_string(),
+                kind: Some(CompletionItemKind::FIELD),
+                label_details: Some(CompletionItemLabelDetails {
+                    description: Some(kind_to_string(&f.kind())),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            })
+            .collect();
+        return Some(suggestions);
+    }
+
+    None
+}
+
+/// Given a token that must be a closing (right) bracket, find the
+/// corresponding opening (left) bracket.
+#[cfg(feature = "full-compiler")]
+fn find_matching_left_bracket(
+    token: &Token<Immutable>,
+) -> Option<Token<Immutable>> {
+    assert_eq!(token.kind(), SyntaxKind::R_BRACKET);
+
+    let mut depth = 1;
+    let mut prev = token.prev_token();
+
+    while let Some(token) = prev {
+        match token.kind() {
+            SyntaxKind::R_BRACKET => depth += 1,
+            SyntaxKind::L_BRACKET => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(token);
+                }
+            }
+            _ => {}
+        }
+        prev = token.prev_token();
+    }
+
+    None
+}
+
+#[cfg(feature = "full-compiler")]
+fn kind_to_string(k: &FieldKind) -> String {
+    match k {
+        FieldKind::Integer => "integer".to_string(),
+        FieldKind::Float => "float".to_string(),
+        FieldKind::Bool => "bool".to_string(),
+        FieldKind::String => "string".to_string(),
+        FieldKind::Bytes => "bytes".to_string(),
+        FieldKind::Struct(_) => "struct".to_string(),
+        FieldKind::Array(inner) => format!("array<{}>", kind_to_string(inner)),
+        FieldKind::Map(key, value) => {
+            format!("map<{},{}>", kind_to_string(key), kind_to_string(value))
+        }
+    }
 }

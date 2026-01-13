@@ -321,6 +321,109 @@ pub mod mods {
     pub fn module_names() -> impl Iterator<Item = &'static str> {
         super::BUILTIN_MODULES.keys().copied()
     }
+
+    /// Returns the definition of the module with the given name.
+    pub fn module_definition(name: &str) -> Option<reflect::Struct> {
+        super::BUILTIN_MODULES
+            .get(name)
+            .map(|m| reflect::Struct::new(m.root_struct_descriptor.clone()))
+    }
+
+    /// Types that allows to perform module introspection.
+    pub mod reflect {
+        /// Describes a structure or module.
+        #[derive(Clone, Debug)]
+        pub struct Struct {
+            descriptor: protobuf::reflect::MessageDescriptor,
+        }
+
+        impl Struct {
+            pub(super) fn new(
+                descriptor: protobuf::reflect::MessageDescriptor,
+            ) -> Self {
+                Self { descriptor }
+            }
+
+            /// Returns an iterator over the fields defined in the structure.
+            pub fn fields(&self) -> impl Iterator<Item = Field> + '_ {
+                self.descriptor.fields().map(Field::new)
+            }
+        }
+
+        /// Describes a field within a structure or module.
+        #[derive(Clone)]
+        pub struct Field {
+            descriptor: protobuf::reflect::FieldDescriptor,
+        }
+
+        impl Field {
+            fn new(descriptor: protobuf::reflect::FieldDescriptor) -> Self {
+                Self { descriptor }
+            }
+
+            /// Returns the name of the field.
+            pub fn name(&self) -> &str {
+                self.descriptor.name()
+            }
+
+            /// Returns the kind of the field.
+            pub fn kind(&self) -> FieldKind {
+                use protobuf::reflect::RuntimeFieldType;
+                use protobuf::reflect::RuntimeType;
+
+                let convert_type = |t: RuntimeType| -> FieldKind {
+                    match t {
+                        RuntimeType::I32
+                        | RuntimeType::I64
+                        | RuntimeType::U32
+                        | RuntimeType::U64 => FieldKind::Integer,
+                        RuntimeType::F32 | RuntimeType::F64 => {
+                            FieldKind::Float
+                        }
+                        RuntimeType::Bool => FieldKind::Bool,
+                        RuntimeType::String => FieldKind::String,
+                        RuntimeType::VecU8 => FieldKind::Bytes,
+                        RuntimeType::Enum(_) => FieldKind::Integer,
+                        RuntimeType::Message(m) => {
+                            FieldKind::Struct(Struct::new(m))
+                        }
+                    }
+                };
+
+                match self.descriptor.runtime_field_type() {
+                    RuntimeFieldType::Singular(t) => convert_type(t),
+                    RuntimeFieldType::Repeated(t) => {
+                        FieldKind::Array(Box::new(convert_type(t)))
+                    }
+                    RuntimeFieldType::Map(k, v) => FieldKind::Map(
+                        Box::new(convert_type(k)),
+                        Box::new(convert_type(v)),
+                    ),
+                }
+            }
+        }
+
+        /// The kind of a field.
+        #[derive(Clone, Debug)]
+        pub enum FieldKind {
+            /// An integer.
+            Integer,
+            /// A float.
+            Float,
+            /// A boolean.
+            Bool,
+            /// A string.
+            String,
+            /// A bytes sequence.
+            Bytes,
+            /// A structure.
+            Struct(Struct),
+            /// An array.
+            Array(Box<FieldKind>),
+            /// A map.
+            Map(Box<FieldKind>, Box<FieldKind>),
+        }
+    }
 }
 
 #[cfg(feature = "crypto")]
