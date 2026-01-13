@@ -25,7 +25,7 @@ path = "src/main.rs"
 # because it only depends on the yara-x-parser crate.
 full-compiler = ["dep:yara-x"]
 
-# Enables tracing, which helps debuging the language server.
+# Enables tracing, which helps debugging the language server.
 tracing = ["dep:tracing", "dep:tracing-subscriber"]
 
 default = ["full-compiler"]

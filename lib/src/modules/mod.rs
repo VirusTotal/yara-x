@@ -47,11 +47,11 @@ pub enum ModuleError {
     },
 }
 
-/// Type of module's main function.
+/// Signature of a module's main function.
 type MainFn =
     fn(&[u8], Option<&[u8]>) -> Result<Box<dyn MessageDyn>, ModuleError>;
 
-/// Describes a YARA module.
+/// A structure describing a YARA module.
 pub(crate) struct Module {
     /// Pointer to the module's main function.
     pub main_fn: Option<MainFn>,
@@ -143,7 +143,7 @@ pub(crate) static BUILTIN_MODULES: LazyLock<FxHashMap<&'static str, Module>> =
     });
 
 pub mod mods {
-    /*! Utility functions and structures for invoking YARA modules directly.
+    /*! Utility functions and structures that allow invoking YARA modules directly.
 
     The utility functions [`invoke`], [`invoke_dyn`] and [`invoke_all`]
     allow leveraging YARA modules for parsing some file formats independently
@@ -168,10 +168,10 @@ pub mod mods {
     /// of them are used by one or more fields in the main structure.
     ///
     pub use super::protos::crx;
-    /// Data structure returned by the `pe` module.
+    /// Data structure returned by the `crx` module.
     pub use super::protos::crx::Crx;
 
-    /// Data structure defined by the `dex` module.
+    /// Data structures defined by the `dex` module.
     ///
     /// The main structure produced by the module is [`dex::Dex`]. The rest
     /// of them are used by one or more fields in the main structure.
@@ -225,10 +225,10 @@ pub mod mods {
     /// Data structure returned by the `pe` module.
     pub use super::protos::pe::PE;
 
-    /// A data structure contains the data returned by all modules.
+    /// A data structure containing the data returned by all modules.
     pub use super::protos::mods::Modules;
 
-    /// Invoke a YARA module with arbitrary data.
+    /// Invokes a YARA module with arbitrary data.
     ///
     /// <br>
     ///
@@ -246,7 +246,7 @@ pub mod mods {
     /// the input data.
     ///
     /// `T` must be one of the structure types returned by a YARA module, which
-    /// are defined [`crate::mods`], like [`crate::mods::PE`], [`crate::mods::ELF`], etc.
+    /// are defined in [`crate::mods`], like [`crate::mods::PE`], [`crate::mods::ELF`], etc.
     ///
     /// # Example
     /// ```rust
@@ -267,7 +267,7 @@ pub mod mods {
         Some(<dyn protobuf::MessageDyn>::downcast_box(module_output).unwrap())
     }
 
-    /// Invoke a YARA module with arbitrary data, but returns a dynamic
+    /// Invokes a YARA module with arbitrary data, returning a dynamic
     /// structure.
     ///
     /// This function is similar to [`invoke`] but its result is a dynamic-
@@ -293,7 +293,7 @@ pub mod mods {
         module.main_fn?(data, meta).ok()
     }
 
-    /// Invoke all YARA modules and return the data produced by them.
+    /// Invokes all YARA modules and returns the data produced by them.
     ///
     /// This function is similar to [`invoke`], but it returns the
     /// information produced by all modules at once.
@@ -329,7 +329,7 @@ pub mod mods {
             .map(|m| reflect::Struct::new(m.root_struct_descriptor.clone()))
     }
 
-    /// Types that allows to perform module introspection.
+    /// Types that allow for module introspection.
     pub mod reflect {
         /// Describes a structure or module.
         #[derive(Clone, Debug)]

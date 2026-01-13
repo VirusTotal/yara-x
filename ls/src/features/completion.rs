@@ -64,12 +64,12 @@ const CONDITION_SUGGESTIONS: [(&str, Option<&str>); 16] = [
 
 pub fn completion(cst: &CST, pos: Position) -> Option<Vec<CompletionItem>> {
     // Get the token before cursor. There might be no token at cursor when the
-    // cursor is at of the file. In this case, take the last token of the file.
+    // cursor is at the end of the file. In this case, take the last token of the file.
     let token = token_at_position(cst, pos)
         .and_then(|token| token.prev_token())
         .or_else(|| cst.root().last_token())?;
 
-    // If the token is a direct child of `SOURCE_FILE` top-level suggestions.
+    // If the token is a direct child of `SOURCE_FILE`, return top-level suggestions.
     if non_error_parent(&token)?.kind() == SyntaxKind::SOURCE_FILE {
         return Some(source_file_suggestions());
     }
@@ -93,7 +93,7 @@ pub fn completion(cst: &CST, pos: Position) -> Option<Vec<CompletionItem>> {
     Some(vec![])
 }
 
-/// Collects completion suggestions for condition block.
+/// Collects completion suggestions for a condition block.
 fn condition_suggestions(
     cst: &CST,
     token: Token<Immutable>,
@@ -188,7 +188,7 @@ fn condition_suggestions(
     Some(result)
 }
 
-/// Collects completion suggestions outside any block
+/// Collects completion suggestions outside any block.
 fn source_file_suggestions() -> Vec<CompletionItem> {
     // Propose import or rule definition with snippet
     SRC_SUGGESTIONS
@@ -226,7 +226,7 @@ fn pattern_modifier_suggestions(node: Node<Immutable>) -> Vec<CompletionItem> {
     vec![]
 }
 
-/// Collects completion suggestion for different blocks of the rule
+/// Collects completion suggestions for different blocks of the rule.
 fn rule_suggestions() -> Vec<CompletionItem> {
     RULE_KW_BLKS
         .iter()

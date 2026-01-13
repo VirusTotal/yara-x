@@ -1,6 +1,6 @@
 /*! This module implements [Language Server Protocol (LSP)][1] for YARA-X.
 
-By implementing [`async_lsp::LanguageServer`] trait for [`YARALanguageServer`], it
+By implementing the [`async_lsp::LanguageServer`] trait for [`YARALanguageServer`], it
 defines how the server should process various LSP requests and notifications.
 
 [1]: https://microsoft.github.io/language-server-protocol/
@@ -80,7 +80,7 @@ impl DocumentStore {
 pub struct YARALanguageServer {
     /// Client socket for communication with the Development Tool.
     ///
-    /// Mainly used to send notifications sush as diagnostics updates,
+    /// Mainly used to send notifications such as diagnostics updates,
     /// logging and showing messages, etc.
     client: ClientSocket,
 
@@ -102,8 +102,8 @@ pub struct YARALanguageServer {
 
 /// Implements document synchronization and various LSP features.
 ///
-/// The features itself are implemented in [`crate::features`] module,
-/// this trait is responsible for routing the request to appropriate feature.
+/// The features themselves are implemented in [`crate::features`] module,
+/// this trait is responsible for routing the request to the appropriate feature.
 impl LanguageServer for YARALanguageServer {
     type Error = ResponseError;
     type NotifyResult = ControlFlow<async_lsp::Result<()>>;

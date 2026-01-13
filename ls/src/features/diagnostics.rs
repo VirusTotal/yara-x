@@ -22,7 +22,7 @@ pub struct Patch {
     pub replacement: String,
 }
 
-/// Return diagnostic vector for the given source code.
+/// Returns a diagnostic vector for the given source code.
 #[allow(unused_variables)]
 pub fn diagnostics(src: &str) -> Vec<Diagnostic> {
     #[allow(unused_mut)]
