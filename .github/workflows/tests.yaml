@@ -143,14 +143,6 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
-      - name: Cache target directory
-        if: matrix.use_cache == true
-        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
-        with:
-          path: target
-          key: ${{ runner.os }}-target-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('.rustc_version') }}
-          restore-keys: ${{ runner.os }}-target-
-
       - name: Install dependencies
         if: runner.os == 'Linux'
         run: |
