@@ -332,7 +332,7 @@ func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 }
 
 func (c *Compiler) initialize() error {
-	for name, _ := range c.ignoredModules {
+	for name := range c.ignoredModules {
 		c.ignoreModule(name)
 	}
 	for _, feature := range c.features {
@@ -346,9 +346,9 @@ func (c *Compiler) initialize() error {
 			return err
 		}
 	}
-    for _, dir := range c.includeDirs {
-        c.addIncludeDir(dir)
-    }
+	for _, dir := range c.includeDirs {
+		c.addIncludeDir(dir)
+	}
 	return nil
 }
 
