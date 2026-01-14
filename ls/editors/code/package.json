@@ -1,9 +1,13 @@
 {
   "name": "yara-x-ls",
   "displayName": "yara-x-ls",
-  "description": "",
+  "description": "Helps writing YARA rules by providing syntax highlighting, autocompletion and more.",
   "version": "0.0.1",
   "publisher": "VirusTotal",
+  "icon": "images/icon.png",
+  "repository": {
+    "url": "https://github.com/VirusTotal/yara-x"
+  },
   "engines": {
     "vscode": "^1.102.0"
   },
@@ -56,7 +60,8 @@
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
     "eslint": "^9.25.1",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "@vscode/vsce": "^2.29.0"
   },
   "dependencies": {
     "vscode-languageclient": "9.0.1"
