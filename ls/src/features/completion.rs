@@ -327,7 +327,7 @@ fn module_suggestions(
                         // Find field
                         current_kind = struct_def
                             .fields()
-                            .find(|field| field.name() == name)?
+                            .find(|field| field.name() == *name)?
                             .kind();
                     }
                     _ => return None, // Cannot access field of non-struct

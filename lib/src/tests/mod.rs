@@ -163,8 +163,6 @@ macro_rules! pattern_match {
 
 pub(crate) use condition_false;
 pub(crate) use condition_true;
-pub(crate) use pattern_false;
-pub(crate) use pattern_true;
 pub(crate) use rule_false;
 pub(crate) use rule_true;
 pub(crate) use test_condition;

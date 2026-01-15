@@ -5,11 +5,31 @@ import {
   LanguageClientOptions,
 } from "vscode-languageclient/node";
 
+import * as os from "os";
+import * as path from "path";
+
 let client: LanguageClient | null = null;
 
-export async function activate(_context: ExtensionContext) {
+export async function activate(context: ExtensionContext) {
+  const platform = os.platform();
+  const arch = os.arch();
+
+  let binaryName: string;
+  if (platform === "win32" && arch === "x64") {
+    binaryName = "yr-ls.exe";
+  } else if (platform === "darwin" && (arch === "x64" || arch === "arm64")) {
+    binaryName = "yr-ls";
+  } else if (platform === "linux" && arch === "x64") {
+    binaryName = "yr-ls";
+  } else {
+    window.showErrorMessage(`Unsupported platform: ${platform}-${arch}`);
+    return;
+  }
+
+  const serverPath = context.asAbsolutePath(path.join("dist", binaryName));
+
   const serverExecutable: Executable = {
-    command: process.env.CARGO_BIN_EXE_yr_ls!,
+    command: serverPath,
     args: [],
   };
 
