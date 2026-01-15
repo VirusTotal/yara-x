@@ -1,7 +1,8 @@
+use std::sync::LazyLock;
+
 use protobuf::reflect::MessageDescriptor;
 use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
-use std::sync::LazyLock;
 
 use thiserror::Error;
 
@@ -331,8 +332,11 @@ pub mod mods {
 
     /// Types that allow for module introspection.
     pub mod reflect {
+        use crate::modules::protos::yara::exts::field_options;
+        use std::borrow::Cow;
+
         /// Describes a structure or module.
-        #[derive(Clone, Debug)]
+        #[derive(Clone, Debug, PartialEq)]
         pub struct Struct {
             descriptor: protobuf::reflect::MessageDescriptor,
         }
@@ -346,7 +350,17 @@ pub mod mods {
 
             /// Returns an iterator over the fields defined in the structure.
             pub fn fields(&self) -> impl Iterator<Item = Field> + '_ {
-                self.descriptor.fields().map(Field::new)
+                self.descriptor.fields().filter_map(|field_descriptor| {
+                    let ignore = field_options
+                        .get(&field_descriptor.proto().options)
+                        .and_then(|options| options.ignore)
+                        .unwrap_or_default();
+                    if ignore {
+                        None
+                    } else {
+                        Some(Field::new(field_descriptor))
+                    }
+                })
             }
         }
 
@@ -362,8 +376,12 @@ pub mod mods {
             }
 
             /// Returns the name of the field.
-            pub fn name(&self) -> &str {
-                self.descriptor.name()
+            pub fn name(&self) -> Cow<'_, str> {
+                field_options
+                    .get(&self.descriptor.proto().options)
+                    .and_then(|options| options.name)
+                    .map(Cow::Owned)
+                    .unwrap_or_else(|| Cow::Borrowed(self.descriptor.name()))
             }
 
             /// Returns the kind of the field.
@@ -404,7 +422,7 @@ pub mod mods {
         }
 
         /// The kind of a field.
-        #[derive(Clone, Debug)]
+        #[derive(Clone, Debug, PartialEq)]
         pub enum FieldKind {
             /// An integer.
             Integer,
