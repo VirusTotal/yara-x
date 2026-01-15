@@ -7,7 +7,7 @@ on:
   #    - main
   #  paths:
   #    - "ls/editors/code/**"
-  #    - ".github/workflows/publish-vscode-extension.yaml"
+  #    - ".github/workflows/vscode_extension.yaml"
 
 jobs:
   build-and-publish:
@@ -17,19 +17,19 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             vsce_target: linux-x64
-            binary_name: yr_ls
+            binary_name: yr-ls
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             vsce_target: win32-x64
-            binary_name: yr_ls.exe
+            binary_name: yr-ls.exe
           - os: macos-latest
             target: x86_64-apple-darwin
             vsce_target: darwin-x64
-            binary_name: yr_ls
+            binary_name: yr-ls
           - os: macos-latest
             target: aarch64-apple-darwin
             vsce_target: darwin-arm64
-            binary_name: yr_ls
+            binary_name: yr-ls
 
     runs-on: ${{ matrix.os }}
 
