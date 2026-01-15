@@ -1,6 +1,6 @@
 {
   "name": "yara-x-ls",
-  "displayName": "YARA",
+  "displayName": "YARA Language",
   "description": "Helps writing YARA rules by providing syntax highlighting, autocompletion and more.",
   "version": "0.0.1",
   "publisher": "VirusTotal",

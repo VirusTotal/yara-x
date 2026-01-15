@@ -13,22 +13,30 @@ jobs:
   build-and-publish:
     strategy:
       matrix:
+        build:
+          - linux-x64
+          - win32-x64
+          - darwin-x64
+          - darwin-arm64
+
         include:
-          - os: ubuntu-latest
+          - build: linux-x64
             target: x86_64-unknown-linux-gnu
-            vsce_target: linux-x64
             binary_name: yr-ls
-          - os: windows-latest
+
+          - build: win32-x64
+            os: windows-latest
             target: x86_64-pc-windows-msvc
-            vsce_target: win32-x64
             binary_name: yr-ls.exe
-          - os: macos-latest
+
+          - build: darwin-x64
+            os: macos-latest
             target: x86_64-apple-darwin
-            vsce_target: darwin-x64
             binary_name: yr-ls
-          - os: macos-latest
+
+          - build: darwin-arm64
+            os: macos-latest
             target: aarch64-apple-darwin
-            vsce_target: darwin-arm64
             binary_name: yr-ls
 
     runs-on: ${{ matrix.os }}
@@ -61,11 +69,11 @@ jobs:
         working-directory: ./ls/editors/code
         run: |
           npm install
-          npx @vscode/vsce package --target ${{ matrix.vsce_target }} -o ${{ matrix.vsce_target }}.vsix
+          npx @vscode/vsce package --target ${{ matrix.build }} -o ${{ matrix.build }}.vsix
 
       - name: Publish to Visual Studio Marketplace
         #if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         working-directory: ./ls/editors/code
-        run: npx @vscode/vsce publish --packagePath ${{ matrix.vsce_target }}.vsix
+        run: npx @vscode/vsce publish --packagePath ${{ matrix.build }}.vsix
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
