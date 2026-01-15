@@ -7,7 +7,7 @@ on:
   #    - main
   #  paths:
   #    - "ls/editors/code/**"
-  #    - ".github/workflows/vscode_extension.yaml"
+  #    - ".github/workflows/publish-vscode-extension.yaml"
 
 jobs:
   build-and-publish:
