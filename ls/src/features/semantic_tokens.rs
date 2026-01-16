@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use async_lsp::lsp_types;
 use async_lsp::lsp_types::{
-    Position, SemanticToken, SemanticTokenType, SemanticTokens,
+    Position, Range, SemanticToken, SemanticTokenType, SemanticTokens,
 };
 use bitflags::bitflags;
 
@@ -167,15 +167,54 @@ fn token_type(
 /// An iterator that returns semantic tokens given a CST.
 ///
 /// The iterator returns the type of the semantic token, its position and
-/// length.
+/// length. If a range is provided, tokens outside the range are filtered out.
 struct SemanticTokensIter {
     next: Option<Token<Immutable>>,
     output_queue: VecDeque<(SemanticTokenType, Modifiers, Position, u32)>,
+    range: Option<Range>,
 }
 
 impl SemanticTokensIter {
-    fn new(cst: &CST) -> Self {
-        Self { next: cst.root().first_token(), output_queue: VecDeque::new() }
+    fn new(cst: &CST, range: Option<Range>) -> Self {
+        let next = if let Some(range) = range {
+            cst.root().token_at_position::<Utf16, _>((
+                range.start.line as usize,
+                range.start.character as usize,
+            ))
+        } else {
+            cst.root().first_token()
+        };
+
+        Self { next, output_queue: VecDeque::new(), range }
+    }
+
+    /// Check if a token at the given position with the given length overlaps
+    /// with the filter range (if any).
+    fn is_in_range(&self, line: u32, column: u32, length: u32) -> bool {
+        match &self.range {
+            None => true,
+            Some(range) => {
+                // Token is before range
+                if line < range.start.line {
+                    return false;
+                }
+                if line == range.start.line
+                    && column + length <= range.start.character
+                {
+                    return false;
+                }
+
+                // Token is after range
+                if line > range.end.line {
+                    return false;
+                }
+                if line == range.end.line && column >= range.end.character {
+                    return false;
+                }
+
+                true
+            }
+        }
     }
 }
 
@@ -183,6 +222,11 @@ impl Iterator for SemanticTokensIter {
     type Item = (SemanticTokenType, Modifiers, Position, u32);
 
     fn next(&mut self) -> Option<Self::Item> {
+        // First, check if there are any items in the output queue.
+        if let Some(item) = self.output_queue.pop_front() {
+            return Some(item);
+        }
+
         while let Some(token) = self.next.take() {
             self.next = token.next_token();
 
@@ -192,46 +236,68 @@ impl Iterator for SemanticTokensIter {
                 let mut line = pos.line as u32;
                 let mut column = pos.column as u32;
 
-                // Multi-line tokens are not supported by the LSP client,
-                // therefore tokens that contain newlines are split into
-                // multiple ones, one per line.
-                while let Some(newline) = text.find('\n') {
-                    let token = &text[..newline];
-                    let token_len = token.encode_utf16().count();
-
-                    self.output_queue.push_back((
-                        token_type.clone(),
-                        token_modifiers,
-                        Position::new(line, column),
-                        token_len as u32,
-                    ));
-
-                    text = &text[newline + 1..];
-                    line += 1;
-                    column = 0;
+                // If we've passed the range, stop iterating early.
+                if let Some(range) = self.range {
+                    if range.start.line < line {
+                        return None;
+                    }
                 }
 
-                self.output_queue.push_back((
-                    token_type,
-                    token_modifiers,
-                    Position::new(line, column),
-                    text.encode_utf16().count() as u32,
-                ));
+                // Multi-line tokens are not supported by the LSP client,
+                // therefore tokens that contain newlines are split into
+                // multiple ones, one per line. Only comments and string
+                // literals can contain newlines.
+                if matches!(
+                    token.kind(),
+                    SyntaxKind::COMMENT | SyntaxKind::STRING_LIT
+                ) {
+                    while let Some(newline) = text.find('\n') {
+                        let token = &text[..newline];
+                        let token_len = token.encode_utf16().count() as u32;
 
-                break;
+                        if self.is_in_range(line, column, token_len) {
+                            self.output_queue.push_back((
+                                token_type.clone(),
+                                token_modifiers,
+                                Position::new(line, column),
+                                token_len,
+                            ));
+                        }
+
+                        text = &text[newline + 1..];
+                        line += 1;
+                        column = 0;
+                    }
+                }
+
+                let token_len = text.encode_utf16().count() as u32;
+
+                if self.is_in_range(line, column, token_len) {
+                    self.output_queue.push_back((
+                        token_type,
+                        token_modifiers,
+                        Position::new(line, column),
+                        token_len,
+                    ));
+                }
+
+                // If we have items in the queue, return the first one
+                if let Some(item) = self.output_queue.pop_front() {
+                    return Some(item);
+                }
             }
         }
 
-        self.output_queue.pop_front()
+        None
     }
 }
 
-/// Returns semantic tokens for the given CST stream and text.
+/// Returns semantic tokens for the given CST.
 ///
-/// Semantic tokens are used to add additional color information to a file that
-/// depends on language specific symbol information.
-pub fn semantic_tokens(cst: &CST) -> SemanticTokens {
-    let tokens = SemanticTokensIter::new(cst);
+/// An optional range can be specified, in which case only the tokens in that
+/// range will be returned.
+pub fn semantic_tokens(cst: &CST, range: Option<Range>) -> SemanticTokens {
+    let tokens = SemanticTokensIter::new(cst, range);
     let mut prev_position = Position::default();
     let mut result: Vec<SemanticToken> = Vec::new();
 

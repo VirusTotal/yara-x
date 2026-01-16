@@ -10,7 +10,9 @@ use std::collections::HashMap;
 use std::io::Cursor;
 use std::ops::ControlFlow;
 
-use async_lsp::lsp_types::request::{Request, SemanticTokensFullRequest};
+use async_lsp::lsp_types::request::{
+    Request, SemanticTokensFullRequest, SemanticTokensRangeRequest,
+};
 use async_lsp::lsp_types::{
     CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
     CompletionOptions, CompletionParams, CompletionResponse,
@@ -26,11 +28,12 @@ use async_lsp::lsp_types::{
     PublishDiagnosticsParams, Range, ReferenceParams,
     RelatedFullDocumentDiagnosticReport, RenameParams, SaveOptions,
     SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability,
+    SemanticTokensDeltaParams, SemanticTokensFullDeltaResult,
     SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
-    SemanticTokensResult, SemanticTokensServerCapabilities,
-    ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind,
-    TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Url,
-    WorkspaceEdit,
+    SemanticTokensRangeResult, SemanticTokensResult,
+    SemanticTokensServerCapabilities, ServerCapabilities,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
+    TextDocumentSyncSaveOptions, TextEdit, Url, WorkspaceEdit,
 };
 use async_lsp::router::Router;
 use async_lsp::{ClientSocket, LanguageClient, LanguageServer, ResponseError};
@@ -133,6 +136,7 @@ impl LanguageServer for YARALanguageServer {
                         SemanticTokensServerCapabilities::SemanticTokensOptions(
                             SemanticTokensOptions {
                                 full: Some(SemanticTokensFullOptions::Bool(true)),
+                                range: Some(true),
                                 legend: SemanticTokensLegend {
                                     token_types: Vec::from(SEMANTIC_TOKEN_TYPES),
                                     token_modifiers: Vec::from(SEMANTIC_TOKEN_MODIFIERS),
@@ -362,9 +366,35 @@ impl LanguageServer for YARALanguageServer {
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let tokens = semantic_tokens(cst);
+        let tokens = semantic_tokens(cst, None);
 
         Box::pin(async move { Ok(Some(SemanticTokensResult::Tokens(tokens))) })
+    }
+
+    /// This method is called to provide semantic highlighting for a specific
+    /// range of the document.
+    ///
+    /// This is more efficient than `semantic_tokens_full` for large files
+    /// as it only computes tokens within the visible range.
+    fn semantic_tokens_range(
+        &mut self,
+        params: <SemanticTokensRangeRequest as Request>::Params,
+    ) -> BoxFuture<
+        'static,
+        Result<Option<SemanticTokensRangeResult>, Self::Error>,
+    > {
+        let uri = params.text_document.uri;
+        let range = params.range;
+        let cst = match self.documents.get(&uri) {
+            Some(entry) => entry,
+            None => return Box::pin(async { Ok(None) }),
+        };
+
+        let tokens = semantic_tokens(cst, Some(range));
+
+        Box::pin(
+            async move { Ok(Some(SemanticTokensRangeResult::Tokens(tokens))) },
+        )
     }
 
     /// This method is called when the user wants to rename a symbol.

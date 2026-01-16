@@ -35,4 +35,3 @@ pub async fn serve(
 
     server.run_buffered(input, output).await
 }
-
