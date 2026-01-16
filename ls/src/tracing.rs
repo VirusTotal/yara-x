@@ -62,7 +62,7 @@ impl<S: LspService> LspService for MessageTracing<S> {
     }
 
     fn emit(&mut self, event: AnyEvent) -> ControlFlow<async_lsp::Result<()>> {
-        eprintln!("[LSP] --> Event: {:?}", event);
+        eprintln!("[LSP] --> Event: {event:?}");
         self.inner.emit(event)
     }
 }
