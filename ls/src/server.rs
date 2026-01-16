@@ -6,6 +6,10 @@ defines how the server should process various LSP requests and notifications.
 [1]: https://microsoft.github.io/language-server-protocol/
  */
 
+use std::collections::HashMap;
+use std::io::Cursor;
+use std::ops::ControlFlow;
+
 use async_lsp::lsp_types::request::{Request, SemanticTokensFullRequest};
 use async_lsp::lsp_types::{
     CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
@@ -28,10 +32,6 @@ use async_lsp::lsp_types::{
     TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Url,
     WorkspaceEdit,
 };
-use std::collections::HashMap;
-use std::io::Cursor;
-use std::ops::ControlFlow;
-
 use async_lsp::router::Router;
 use async_lsp::{ClientSocket, LanguageClient, LanguageServer, ResponseError};
 use futures::future::BoxFuture;

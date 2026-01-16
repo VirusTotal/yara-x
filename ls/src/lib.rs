@@ -6,9 +6,11 @@ use futures::{AsyncRead, AsyncWrite};
 use tower::ServiceBuilder;
 
 use crate::server::YARALanguageServer;
+use crate::tracing::MessageTracingLayer;
 
 mod features;
 mod server;
+mod tracing;
 mod utils;
 
 #[cfg(test)]
@@ -24,6 +26,7 @@ pub async fn serve(
 ) -> Result<(), async_lsp::Error> {
     let (server, _) = async_lsp::MainLoop::new_server(|client| {
         ServiceBuilder::new()
+            .layer(MessageTracingLayer)
             .layer(LifecycleLayer::default())
             .layer(CatchUnwindLayer::default())
             .layer(ConcurrencyLayer::default())
@@ -32,3 +35,4 @@ pub async fn serve(
 
     server.run_buffered(input, output).await
 }
+

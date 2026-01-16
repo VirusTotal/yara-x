@@ -38,6 +38,7 @@ export async function activate(context: ExtensionContext) {
   let clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: "file", language: "yara" }],
     outputChannel: outputChannel,
+    traceOutputChannel: outputChannel,
   };
 
   client = new LanguageClient(
