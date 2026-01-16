@@ -1,6 +1,6 @@
 {
   "contents": {
     "kind": "markdown",
-    "value": "# one_line\n## condition\n```\ntrue\n```\n"
+    "value": "### rule `one_line`\n"
   }
 }
