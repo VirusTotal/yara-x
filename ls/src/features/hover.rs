@@ -9,7 +9,7 @@ use crate::utils::cst_traversal::{
     token_at_position,
 };
 
-/// Builder for hover markdown representation of a rule.
+/// Builder for hover Markdown representation of a rule.
 struct RuleHoverBuilder {
     name: String,
     metas: Option<Node<Immutable>>,
@@ -28,29 +28,14 @@ impl RuleHoverBuilder {
         }
     }
 
-    /// Creates the markdown representation of the rule.
+    /// Creates the Markdown representation of the rule.
     /// It includes the rule name, metas, strings, and condition.
     pub fn get_markdown(&self) -> String {
-        let mut markdown = format!("# {}\n", self.name);
+        let mut markdown = format!("### rule `{}`\n", self.name);
 
         if let Some(metas) = &self.process_metas() {
-            markdown.push_str("## meta\n");
             markdown.push_str("```\n");
             markdown.push_str(metas);
-            markdown.push_str("\n```\n");
-        }
-
-        if let Some(patterns) = &self.process_patterns() {
-            markdown.push_str("## strings\n");
-            markdown.push_str("```\n");
-            markdown.push_str(patterns);
-            markdown.push_str("\n```\n");
-        }
-
-        if let Some(condition) = &self.process_condition() {
-            markdown.push_str("## condition\n");
-            markdown.push_str("```\n");
-            markdown.push_str(condition);
             markdown.push_str("\n```\n");
         }
 
@@ -66,35 +51,6 @@ impl RuleHoverBuilder {
                 .children()
                 .map(|node| format!("{}\n", node.text()))
                 .collect(),
-        )
-    }
-
-    /// Processes the strings block and returns its markdown representation.
-    fn process_patterns(&self) -> Option<String> {
-        Some(
-            self.patterns
-                .as_ref()?
-                // All children in PATTERNS_BLK should be PATTERN_DEF.
-                .children()
-                .map(|node| format!("{}\n", node.text()))
-                .collect(),
-        )
-    }
-
-    /// Processes the condition block and returns its markdown representation.
-    fn process_condition(&self) -> Option<String> {
-        Some(
-            self.condition
-                .as_ref()?
-                .children()
-                .find(|node| node.kind() == SyntaxKind::BOOLEAN_EXPR)?
-                .text()
-                .to_string()
-                .lines()
-                // Strip indentation from each line and join them again.
-                .map(|line| line.trim_start())
-                .collect::<Vec<_>>()
-                .join("\n"),
         )
     }
 
