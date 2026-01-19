@@ -1,15 +1,13 @@
-use async_lsp::lsp_types::{Diagnostic, Range};
+use serde::{Deserialize, Serialize};
 
+use async_lsp::lsp_types::{Diagnostic, Range};
 #[cfg(feature = "full-compiler")]
 use async_lsp::lsp_types::{DiagnosticSeverity, NumberOrString};
 
-use serde::{Deserialize, Serialize};
-
-#[cfg(feature = "full-compiler")]
-use crate::utils::position::span_to_range;
-
 #[cfg(feature = "full-compiler")]
 use yara_x::Compiler;
+
+use crate::document::Document;
 
 #[derive(Serialize, Deserialize)]
 pub struct DiagnosticData {
@@ -24,12 +22,12 @@ pub struct Patch {
 
 /// Returns a diagnostic vector for the given source code.
 #[allow(unused_variables)]
-pub fn diagnostics(src: &str) -> Vec<Diagnostic> {
+pub fn diagnostics(document: &Document) -> Vec<Diagnostic> {
     #[allow(unused_mut)]
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
 
     #[cfg(feature = "full-compiler")]
-    diagnostics.extend(compiler_diagnostics(src));
+    diagnostics.extend(compiler_diagnostics(document));
 
     diagnostics
 }
@@ -41,13 +39,14 @@ pub fn diagnostics(src: &str) -> Vec<Diagnostic> {
 /// comprehensive feedback including type checking, semantic analysis,
 /// and pattern validation - not just syntax errors.
 #[cfg(feature = "full-compiler")]
-pub fn compiler_diagnostics(src: &str) -> Vec<Diagnostic> {
+pub fn compiler_diagnostics(document: &Document) -> Vec<Diagnostic> {
+    let line_index = &document.line_index;
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
     let mut compiler = Compiler::new();
 
     // Attempt to compile the source. We don't care about the result
     // since we want to collect all errors and warnings regardless.
-    let _ = compiler.add_source(src);
+    let _ = compiler.add_source(document.text.as_str());
 
     // Collect compiler errors
     for error in compiler.errors() {
@@ -56,13 +55,13 @@ pub fn compiler_diagnostics(src: &str) -> Vec<Diagnostic> {
             let patches = error
                 .patches()
                 .map(|patch| Patch {
-                    range: span_to_range(patch.span().clone(), src),
+                    range: line_index.span_to_range(patch.span().clone()),
                     replacement: patch.replacement().to_string(),
                 })
                 .collect();
 
             diagnostics.push(Diagnostic {
-                range: span_to_range(label.span().clone(), src),
+                range: line_index.span_to_range(label.span().clone()),
                 message: error.title().to_string(),
                 severity: Some(DiagnosticSeverity::ERROR),
                 code: Some(NumberOrString::String(error.code().to_string())),
@@ -81,13 +80,13 @@ pub fn compiler_diagnostics(src: &str) -> Vec<Diagnostic> {
             let patches = warning
                 .patches()
                 .map(|patch| Patch {
-                    range: span_to_range(patch.span().clone(), src),
+                    range: line_index.span_to_range(patch.span().clone()),
                     replacement: patch.replacement().to_string(),
                 })
                 .collect();
 
             diagnostics.push(Diagnostic {
-                range: span_to_range(label.span().clone(), src),
+                range: line_index.span_to_range(label.span().clone()),
                 message: warning.title().to_string(),
                 severity: Some(DiagnosticSeverity::WARNING),
                 code: Some(NumberOrString::String(warning.code().to_string())),

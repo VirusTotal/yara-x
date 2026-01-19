@@ -6,6 +6,7 @@ use async_lsp::lsp_types::{
 };
 use bitflags::bitflags;
 
+use crate::document::Document;
 use yara_x_parser::cst::{Immutable, SyntaxKind, Token, Utf16, CST};
 
 pub const SEMANTIC_TOKEN_TYPES: &[SemanticTokenType] = &[
@@ -296,8 +297,11 @@ impl Iterator for SemanticTokensIter {
 ///
 /// An optional range can be specified, in which case only the tokens in that
 /// range will be returned.
-pub fn semantic_tokens(cst: &CST, range: Option<Range>) -> SemanticTokens {
-    let tokens = SemanticTokensIter::new(cst, range);
+pub fn semantic_tokens(
+    document: &Document,
+    range: Option<Range>,
+) -> SemanticTokens {
+    let tokens = SemanticTokensIter::new(&document.cst, range);
     let mut prev_position = Position::default();
     let mut result: Vec<SemanticToken> = Vec::new();
 

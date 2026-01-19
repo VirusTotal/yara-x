@@ -6,8 +6,6 @@ provides a rich set of features to enhance your YARA rule development workflow.
 
 ## Features
 
-This extension provides the following features:
-
 *   **Syntax Highlighting**: Advanced, token-based syntax highlighting for YARA rules.
 *   **Completions**: Autocompletion for modules, rule identifiers, and more.
 *   **Diagnostics**: Real-time error checking and diagnostics to help you write valid rules.

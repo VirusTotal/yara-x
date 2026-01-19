@@ -1,8 +1,3 @@
-use crate::utils::cst_traversal::{
-    non_error_parent, prev_non_trivia_token, rule_containing_token,
-    token_at_position,
-};
-
 use async_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails,
     InsertTextFormat, InsertTextMode, Position,
@@ -12,8 +7,13 @@ use async_lsp::lsp_types::{
 use yara_x::mods::module_definition;
 #[cfg(feature = "full-compiler")]
 use yara_x::mods::reflect::FieldKind;
-
 use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Token, CST};
+
+use crate::document::Document;
+use crate::utils::cst_traversal::{
+    non_error_parent, prev_non_trivia_token, rule_containing_token,
+    token_at_position,
+};
 
 const PATTERN_MODS: &[(SyntaxKind, &[&str])] = &[
     (
@@ -62,7 +62,11 @@ const CONDITION_SUGGESTIONS: [(&str, Option<&str>); 16] = [
     ("with", Some("with ${1:declarations} : ( ${3:expression} )")),
 ];
 
-pub fn completion(cst: &CST, pos: Position) -> Option<Vec<CompletionItem>> {
+pub fn completion(
+    document: &Document,
+    pos: Position,
+) -> Option<Vec<CompletionItem>> {
+    let cst = &document.cst;
     // Get the token before cursor. There might be no token at cursor when the
     // cursor is at the end of the file. In this case, take the last token of the file.
     let token = token_at_position(cst, pos)

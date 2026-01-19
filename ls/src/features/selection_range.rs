@@ -1,20 +1,21 @@
 use async_lsp::lsp_types::{Position, SelectionRange};
 
+use yara_x_parser::cst::{Immutable, Node};
+
+use crate::document::Document;
 use crate::utils::cst_traversal::token_at_position;
 use crate::utils::position::{node_to_range, token_to_range};
-use yara_x_parser::cst::{Immutable, Node, CST};
 
 /// Provides selection ranges from the given positions in the text
 /// based on the given CST of this document.
 pub fn selection_range(
-    cst: &CST,
+    document: &Document,
     positions: Vec<Position>,
 ) -> Option<Vec<SelectionRange>> {
     let mut result: Vec<SelectionRange> = Vec::new();
 
     for position in positions {
-        let nth_position_token = token_at_position(cst, position)?;
-
+        let nth_position_token = token_at_position(&document.cst, position)?;
         let parent = nth_position_token.parent();
 
         let base = if let Some(parent) = parent {

@@ -1,8 +1,10 @@
 use async_lsp::lsp_types::{
     DocumentHighlight, DocumentHighlightKind, Position,
 };
-use yara_x_parser::cst::{SyntaxKind, CST};
 
+use yara_x_parser::cst::SyntaxKind;
+
+use crate::document::Document;
 use crate::utils::cst_traversal::rule_containing_token;
 use crate::utils::cst_traversal::{
     ident_at_position, pattern_from_ident, pattern_usages, rule_from_ident,
@@ -15,9 +17,10 @@ use crate::utils::position::{node_to_range, token_to_range};
 /// specified position is contained in a symbol, the response contains the
 /// ranges of all occurrences of that symbol in the source code.
 pub fn document_highlight(
-    cst: &CST,
+    document: &Document,
     pos: Position,
 ) -> Option<Vec<DocumentHighlight>> {
+    let cst = &document.cst;
     let token = ident_at_position(cst, pos)?;
 
     match token.kind() {

@@ -1127,7 +1127,7 @@ impl<M: Clone> Node<M> {
     ///
     /// ```rust
     /// # use yara_x_parser::cst::{Direction, SyntaxKind};
-    /// # use yara_x_parser::Parser;     ///
+    /// # use yara_x_parser::Parser;
     /// // Get the first child of the root node, which corresponds to the
     /// // rule declaration for `test_1`.
     /// let mut rule_decl = Parser::new(b"
