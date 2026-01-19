@@ -65,6 +65,12 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Sync version number
+        run: |
+          VERSION=$(grep '^version' ls/Cargo.toml | head -n 1 | sed 's/version = "\(.*\)"/\1/')
+          jq --arg ver "$VERSION" '.version = $ver' ls/editors/code/package.json > tmp.json && mv tmp.json ls/editors/code/package.json
+          echo "Synced version to $VERSION"
+
       - name: Install dependencies and package
         working-directory: ./ls/editors/code
         run: |
