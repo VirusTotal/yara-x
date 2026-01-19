@@ -249,5 +249,6 @@ async fn code_action() {
 
 #[tokio::test]
 async fn semantic_tokens() {
-    test_lsp_request::<_, SemanticTokensFullRequest>("semantic_tokens1.yar").await;
+    test_lsp_request::<_, SemanticTokensFullRequest>("semantic_tokens1.yar")
+        .await;
 }
