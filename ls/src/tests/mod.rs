@@ -10,7 +10,7 @@ use async_lsp::lsp_types::request::{
     CodeActionRequest, Completion, DocumentDiagnosticRequest,
     DocumentHighlightRequest, DocumentSymbolRequest, Formatting,
     GotoDefinition, HoverRequest, References, Rename, Request,
-    SelectionRangeRequest,
+    SelectionRangeRequest, SemanticTokensFullRequest,
 };
 use async_lsp::lsp_types::{
     ClientCapabilities, DiagnosticClientCapabilities,
@@ -245,4 +245,9 @@ async fn formatting() {
 #[tokio::test]
 async fn code_action() {
     test_lsp_request::<_, CodeActionRequest>("code_action.yar").await;
+}
+
+#[tokio::test]
+async fn semantic_tokens() {
+    test_lsp_request::<_, SemanticTokensFullRequest>("semantic_tokens1.yar").await;
 }
