@@ -1,6 +1,10 @@
+/*
+  Comment
+*/
+
 rule test {
     strings:
         $a = "foo"
     condition:
-        $a
+        $a  // Commment
 }

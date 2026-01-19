@@ -6,8 +6,9 @@ use async_lsp::lsp_types::{
 };
 use bitflags::bitflags;
 
+use yara_x_parser::cst::{Immutable, SyntaxKind, Token, Utf16};
+
 use crate::document::Document;
-use yara_x_parser::cst::{Immutable, SyntaxKind, Token, Utf16, CST};
 
 pub const SEMANTIC_TOKEN_TYPES: &[SemanticTokenType] = &[
     SemanticTokenType::KEYWORD,
@@ -170,23 +171,35 @@ fn token_type(
 /// The iterator returns the type of the semantic token, its position and
 /// length. If a range is provided, tokens outside the range are filtered out.
 struct SemanticTokensIter {
-    next: Option<Token<Immutable>>,
     output_queue: VecDeque<(SemanticTokenType, Modifiers, Position, u32)>,
     range: Option<Range>,
+    next_token: Option<Token<Immutable>>,
+    position: Position,
 }
 
 impl SemanticTokensIter {
-    fn new(cst: &CST, range: Option<Range>) -> Self {
-        let next = if let Some(range) = range {
-            cst.root().token_at_position::<Utf16, _>((
+    fn new(document: &Document, range: Option<Range>) -> Self {
+        let first_token = if let Some(range) = range {
+            document.cst.root().token_at_position::<Utf16, _>((
                 range.start.line as usize,
                 range.start.character as usize,
             ))
         } else {
-            cst.root().first_token()
+            document.cst.root().first_token()
         };
 
-        Self { next, output_queue: VecDeque::new(), range }
+        let position = first_token
+            .as_ref()
+            .map(|token| token.start_pos::<Utf16>())
+            .map(|pos| Position::new(pos.line as u32, pos.column as u32))
+            .unwrap_or_default();
+
+        Self {
+            output_queue: VecDeque::new(),
+            position,
+            range,
+            next_token: first_token,
+        }
     }
 
     /// Check if a token at the given position with the given length overlaps
@@ -228,18 +241,17 @@ impl Iterator for SemanticTokensIter {
             return Some(item);
         }
 
-        while let Some(token) = self.next.take() {
-            self.next = token.next_token();
+        while let Some(token) = self.next_token.take() {
+            self.next_token = token.next_token();
 
             if let Some((token_type, token_modifiers)) = token_type(&token) {
                 let mut text = token.text();
-                let pos = token.start_pos::<Utf16>();
-                let mut line = pos.line as u32;
-                let mut column = pos.column as u32;
+                let mut line = self.position.line;
+                let mut column = self.position.character;
 
                 // If we've passed the range, stop iterating early.
                 if let Some(range) = self.range {
-                    if range.start.line < line {
+                    if range.end.line < line {
                         return None;
                     }
                 }
@@ -281,11 +293,31 @@ impl Iterator for SemanticTokensIter {
                         token_len,
                     ));
                 }
+            }
 
-                // If we have items in the queue, return the first one
-                if let Some(item) = self.output_queue.pop_front() {
-                    return Some(item);
+            match token.kind() {
+                SyntaxKind::COMMENT | SyntaxKind::STRING_LIT => {
+                    for c in token.text().chars() {
+                        if c == '\n' {
+                            self.position.line += 1;
+                            self.position.character = 0;
+                        } else {
+                            self.position.character += c.len_utf16() as u32;
+                        }
+                    }
                 }
+                SyntaxKind::NEWLINE => {
+                    self.position.line += 1;
+                    self.position.character = 0;
+                }
+                _ => {
+                    self.position.character += token.len::<Utf16>() as u32;
+                }
+            }
+
+            // If we have items in the queue, return the first one
+            if let Some(item) = self.output_queue.pop_front() {
+                return Some(item);
             }
         }
 
@@ -301,7 +333,7 @@ pub fn semantic_tokens(
     document: &Document,
     range: Option<Range>,
 ) -> SemanticTokens {
-    let tokens = SemanticTokensIter::new(&document.cst, range);
+    let tokens = SemanticTokensIter::new(document, range);
     let mut prev_position = Position::default();
     let mut result: Vec<SemanticToken> = Vec::new();
 
