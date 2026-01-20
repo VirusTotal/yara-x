@@ -253,7 +253,7 @@ fn __get_HASHMAP{hasmap_name}() -> &'static HashMap<&'static str, Vec<ItemModule
             item_module_value.push_str("None,");
         }
 
-        // Completiom item kind for Code Completion feature
+        // Completion item kind for Code Completion feature
         item_module_value.push_str(&format!(
             "kind: {},",
             self.kind.to_completion_item_kind()
@@ -454,7 +454,7 @@ fn find_message_by_full_name<'a>(
     }
 }
 
-// Processes all input protos for a specific module
+// Processes all input protobuf files for a specific module.
 fn process_proto_module_definition(
     yara_modules: &mut YaraModules,
     protos: &[FileDescriptorProto],
@@ -496,7 +496,7 @@ fn process_proto_module_definition(
     }
 }
 
-/// Processes proto enumeration to extract constants of a specific module
+/// Processes proto enumeration to extract constants of a specific module.
 fn process_enum_proto(
     yara_modules: &mut YaraModules,
     edp: &EnumDescriptorProto,
@@ -525,6 +525,8 @@ fn process_enum_proto(
     }
 }
 
+/// Processes proto message to extract fields and nested structures of
+/// a specific module/structure.
 fn process_message_proto(
     yara_modules: &mut YaraModules,
     protos: &[FileDescriptorProto],
@@ -735,6 +737,7 @@ fn get_module_definitions(module_directory: PathBuf) -> Vec<ModuleDefinition> {
                 });
                 if module_main_existence {
                     let file_name = item.file_name().into_string().unwrap();
+                    // Save AST of the module Rust code with its name
                     if file_name == "mod.rs" {
                         if let Some(parent) = item.path().parent() {
                             if let Some(module_dir_name) = parent.file_name() {
