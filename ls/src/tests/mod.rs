@@ -5,7 +5,9 @@ use std::future::Future;
 use std::path::{Path, PathBuf};
 
 use async_lsp::concurrency::ConcurrencyLayer;
-use async_lsp::lsp_types::notification::DidOpenTextDocument;
+use async_lsp::lsp_types::notification::{
+    DidCloseTextDocument, DidOpenTextDocument,
+};
 use async_lsp::lsp_types::request::{
     CodeActionRequest, Completion, DocumentDiagnosticRequest,
     DocumentHighlightRequest, DocumentSymbolRequest, Formatting,
@@ -15,8 +17,9 @@ use async_lsp::lsp_types::request::{
 };
 use async_lsp::lsp_types::{
     ClientCapabilities, DiagnosticClientCapabilities,
-    DidOpenTextDocumentParams, InitializeParams, InitializedParams,
-    TextDocumentClientCapabilities, TextDocumentItem, Url,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
+    InitializedParams, TextDocumentClientCapabilities, TextDocumentIdentifier,
+    TextDocumentItem, Url,
 };
 use async_lsp::router::Router;
 use async_lsp::server::LifecycleLayer;
@@ -31,7 +34,7 @@ struct ClientState;
 
 async fn lsp_test<F, R>(f: F)
 where
-    R: Future<Output = ()>,
+    R: Future<Output = ServerSocket>,
     F: Fn(ServerSocket) -> R,
 {
     let (server, _) = async_lsp::MainLoop::new_server(|client| {
@@ -80,7 +83,7 @@ where
                 .initialized(InitializedParams{})
                 .expect("failed to notify the server that the client was initialized");
 
-            f(server_socket).await
+            f(server_socket).await.shutdown(()).await.expect("server shutdown");
         } => {}
     }
 }
@@ -102,14 +105,26 @@ async fn open_document<P: AsRef<Path>>(s: &ServerSocket, path: P) {
     .expect("DidOpenTextDocument notification failed");
 }
 
+async fn close_document<P: AsRef<Path>>(s: &ServerSocket, path: P) {
+    let path = path.as_ref();
+    let filename = path.file_name().unwrap().to_str().unwrap();
+
+    s.notify::<DidCloseTextDocument>(DidCloseTextDocumentParams {
+        text_document: TextDocumentIdentifier {
+            uri: Url::parse(format!("file:///{filename}").as_str()).unwrap(),
+        },
+    })
+    .expect("DidOpenTextDocument notification failed");
+}
+
 async fn test_lsp_request<P: AsRef<Path>, R: Request>(path: P)
 where
     R::Result: serde::Serialize + serde::de::DeserializeOwned + Debug,
 {
     let path = PathBuf::from("src/tests/testdata").join(path);
 
-    lsp_test(async |s| {
-        open_document(&s, path.as_path()).await;
+    lsp_test(async |server_socket| {
+        open_document(&server_socket, path.as_path()).await;
 
         let mut mint = goldenfile::Mint::new(".");
 
@@ -125,9 +140,13 @@ where
         let request =
             serde_json::from_reader::<_, R::Params>(request_file).unwrap();
 
-        let actual_response = s.request::<R>(request).await.unwrap();
+        let actual_response =
+            server_socket.request::<R>(request).await.unwrap();
+
+        close_document(&server_socket, path.as_path()).await;
 
         serde_json::to_writer_pretty(response_file, &actual_response).unwrap();
+        server_socket
     })
     .await;
 }
