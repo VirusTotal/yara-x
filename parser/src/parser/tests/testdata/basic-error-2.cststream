@@ -7,7 +7,7 @@ Token { kind: WHITESPACE, span: Span(9..10) }
 Token { kind: L_BRACE, span: Span(10..11) }
 Token { kind: NEWLINE, span: Span(11..12) }
 Token { kind: WHITESPACE, span: Span(12..14) }
-Begin { kind: ERROR, span: Span(14..37) }
+Begin { kind: ERROR, span: Span(14..32) }
 Token { kind: STRINGS_KW, span: Span(14..21) }
 Token { kind: COLON, span: Span(21..22) }
 Token { kind: NEWLINE, span: Span(22..23) }
@@ -17,10 +17,12 @@ Token { kind: PATTERN_IDENT, span: Span(28..30) }
 Token { kind: WHITESPACE, span: Span(30..31) }
 Token { kind: EQUAL, span: Span(31..32) }
 End { kind: ERROR, span: Span(28..32) }
+End { kind: ERROR, span: Span(14..32) }
 Token { kind: WHITESPACE, span: Span(32..33) }
-Error { message: "unclosed literal string", span: Span(33..37) }
+Begin { kind: ERROR, span: Span(33..37) }
 Token { kind: UNKNOWN, span: Span(33..37) }
-End { kind: ERROR, span: Span(14..37) }
+Error { message: "unclosed literal string", span: Span(33..37) }
+End { kind: ERROR, span: Span(33..37) }
 Token { kind: NEWLINE, span: Span(37..38) }
 Token { kind: WHITESPACE, span: Span(38..40) }
 Begin { kind: CONDITION_BLK, span: Span(40..60) }

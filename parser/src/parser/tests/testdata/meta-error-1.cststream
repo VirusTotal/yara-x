@@ -7,6 +7,8 @@ Token { kind: WHITESPACE, span: Span(9..10) }
 Token { kind: L_BRACE, span: Span(10..11) }
 Token { kind: NEWLINE, span: Span(11..12) }
 Token { kind: WHITESPACE, span: Span(12..14) }
+Begin { kind: ERROR, span: Span(14..14) }
+End { kind: ERROR, span: Span(14..14) }
 Begin { kind: ERROR, span: Span(14..38) }
 Token { kind: IDENT, span: Span(14..17) }
 Error { message: "expecting `meta`, `strings` or `condition`, found `foo`", span: Span(14..17) }

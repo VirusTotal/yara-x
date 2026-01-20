@@ -5,6 +5,7 @@ SOURCE_FILE@0..58
     IDENT@5..9 "test"
     WHITESPACE@9..10 " "
     L_BRACE@10..11 "{"
+    ERROR@11..11
     ERROR@11..56
       L_BRACE@11..12 "{"
       NEWLINE@12..13 "\n"

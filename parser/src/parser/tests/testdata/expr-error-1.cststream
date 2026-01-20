@@ -7,7 +7,7 @@ Token { kind: WHITESPACE, span: Span(11..12) }
 Token { kind: L_BRACE, span: Span(12..13) }
 Token { kind: NEWLINE, span: Span(13..14) }
 Token { kind: WHITESPACE, span: Span(14..15) }
-Begin { kind: CONDITION_BLK, span: Span(15..33) }
+Begin { kind: CONDITION_BLK, span: Span(15..36) }
 Token { kind: CONDITION_KW, span: Span(15..24) }
 Token { kind: COLON, span: Span(24..25) }
 Token { kind: NEWLINE, span: Span(25..26) }
@@ -27,11 +27,11 @@ End { kind: TERM, span: Span(32..33) }
 End { kind: EXPR, span: Span(28..33) }
 End { kind: BOOLEAN_TERM, span: Span(28..33) }
 End { kind: BOOLEAN_EXPR, span: Span(28..33) }
-End { kind: CONDITION_BLK, span: Span(15..33) }
 Token { kind: WHITESPACE, span: Span(33..34) }
 Begin { kind: ERROR, span: Span(34..36) }
 Token { kind: EQ, span: Span(34..36) }
 End { kind: ERROR, span: Span(34..36) }
+End { kind: CONDITION_BLK, span: Span(15..36) }
 Token { kind: NEWLINE, span: Span(36..37) }
 Token { kind: R_BRACE, span: Span(37..38) }
 Error { message: "expecting expression or identifier, found `}`", span: Span(37..38) }
@@ -46,7 +46,7 @@ Token { kind: WHITESPACE, span: Span(51..52) }
 Token { kind: L_BRACE, span: Span(52..53) }
 Token { kind: NEWLINE, span: Span(53..54) }
 Token { kind: WHITESPACE, span: Span(54..55) }
-Begin { kind: CONDITION_BLK, span: Span(55..69) }
+Begin { kind: CONDITION_BLK, span: Span(55..79) }
 Token { kind: CONDITION_KW, span: Span(55..64) }
 Token { kind: COLON, span: Span(64..65) }
 Token { kind: NEWLINE, span: Span(65..66) }
@@ -60,7 +60,6 @@ End { kind: TERM, span: Span(68..69) }
 End { kind: EXPR, span: Span(68..69) }
 End { kind: BOOLEAN_TERM, span: Span(68..69) }
 End { kind: BOOLEAN_EXPR, span: Span(68..69) }
-End { kind: CONDITION_BLK, span: Span(55..69) }
 Token { kind: WHITESPACE, span: Span(69..70) }
 Begin { kind: ERROR, span: Span(70..79) }
 Token { kind: PLUS, span: Span(70..71) }
@@ -72,6 +71,7 @@ Token { kind: EQ, span: Span(75..77) }
 Token { kind: WHITESPACE, span: Span(77..78) }
 Token { kind: INTEGER_LIT, span: Span(78..79) }
 End { kind: ERROR, span: Span(70..79) }
+End { kind: CONDITION_BLK, span: Span(55..79) }
 Token { kind: NEWLINE, span: Span(79..80) }
 Token { kind: R_BRACE, span: Span(80..81) }
 Error { message: "expecting expression or identifier, found `+`", span: Span(71..72) }
@@ -86,7 +86,7 @@ Token { kind: WHITESPACE, span: Span(94..95) }
 Token { kind: L_BRACE, span: Span(95..96) }
 Token { kind: NEWLINE, span: Span(96..97) }
 Token { kind: WHITESPACE, span: Span(97..98) }
-Begin { kind: CONDITION_BLK, span: Span(98..112) }
+Begin { kind: CONDITION_BLK, span: Span(98..119) }
 Token { kind: CONDITION_KW, span: Span(98..107) }
 Token { kind: COLON, span: Span(107..108) }
 Token { kind: NEWLINE, span: Span(108..109) }
@@ -100,7 +100,6 @@ End { kind: TERM, span: Span(111..112) }
 End { kind: EXPR, span: Span(111..112) }
 End { kind: BOOLEAN_TERM, span: Span(111..112) }
 End { kind: BOOLEAN_EXPR, span: Span(111..112) }
-End { kind: CONDITION_BLK, span: Span(98..112) }
 Token { kind: WHITESPACE, span: Span(112..113) }
 Begin { kind: ERROR, span: Span(113..119) }
 Token { kind: PLUS, span: Span(113..114) }
@@ -109,6 +108,7 @@ Token { kind: EQ, span: Span(115..117) }
 Token { kind: WHITESPACE, span: Span(117..118) }
 Token { kind: INTEGER_LIT, span: Span(118..119) }
 End { kind: ERROR, span: Span(113..119) }
+End { kind: CONDITION_BLK, span: Span(98..119) }
 Token { kind: NEWLINE, span: Span(119..120) }
 Token { kind: R_BRACE, span: Span(120..121) }
 Error { message: "expecting expression or identifier, found `==`", span: Span(115..117) }
@@ -123,7 +123,7 @@ Token { kind: WHITESPACE, span: Span(134..135) }
 Token { kind: L_BRACE, span: Span(135..136) }
 Token { kind: NEWLINE, span: Span(136..137) }
 Token { kind: WHITESPACE, span: Span(137..138) }
-Begin { kind: CONDITION_BLK, span: Span(138..162) }
+Begin { kind: CONDITION_BLK, span: Span(138..165) }
 Token { kind: CONDITION_KW, span: Span(138..147) }
 Token { kind: COLON, span: Span(147..148) }
 Token { kind: NEWLINE, span: Span(148..149) }
@@ -146,12 +146,12 @@ End { kind: TERM, span: Span(152..162) }
 End { kind: EXPR, span: Span(152..162) }
 End { kind: BOOLEAN_TERM, span: Span(152..162) }
 End { kind: BOOLEAN_EXPR, span: Span(152..162) }
-End { kind: CONDITION_BLK, span: Span(138..162) }
 Begin { kind: ERROR, span: Span(162..165) }
 Token { kind: L_PAREN, span: Span(162..163) }
 Token { kind: INTEGER_LIT, span: Span(163..164) }
 Token { kind: R_PAREN, span: Span(164..165) }
 End { kind: ERROR, span: Span(162..165) }
+End { kind: CONDITION_BLK, span: Span(138..165) }
 Token { kind: NEWLINE, span: Span(165..166) }
 Token { kind: R_BRACE, span: Span(166..167) }
 Error { message: "expecting expression, `%`, operator, `of` or `}`, found `(`", span: Span(162..163) }
@@ -181,7 +181,7 @@ End { kind: PATTERN_DEF, span: Span(200..210) }
 End { kind: PATTERNS_BLK, span: Span(186..210) }
 Token { kind: NEWLINE, span: Span(210..211) }
 Token { kind: WHITESPACE, span: Span(211..214) }
-Begin { kind: CONDITION_BLK, span: Span(214..237) }
+Begin { kind: CONDITION_BLK, span: Span(214..248) }
 Token { kind: CONDITION_KW, span: Span(214..223) }
 Token { kind: COLON, span: Span(223..224) }
 Token { kind: NEWLINE, span: Span(224..225) }
@@ -199,7 +199,6 @@ End { kind: TERM, span: Span(236..237) }
 End { kind: EXPR, span: Span(236..237) }
 End { kind: BOOLEAN_TERM, span: Span(230..237) }
 End { kind: BOOLEAN_EXPR, span: Span(230..237) }
-End { kind: CONDITION_BLK, span: Span(214..237) }
 Token { kind: WHITESPACE, span: Span(237..238) }
 Begin { kind: ERROR, span: Span(238..248) }
 Token { kind: IN_KW, span: Span(238..240) }
@@ -211,6 +210,7 @@ Token { kind: DOT, span: Span(244..245) }
 Token { kind: INTEGER_LIT, span: Span(245..247) }
 Token { kind: R_PAREN, span: Span(247..248) }
 End { kind: ERROR, span: Span(238..248) }
+End { kind: CONDITION_BLK, span: Span(214..248) }
 Token { kind: NEWLINE, span: Span(248..249) }
 Token { kind: R_BRACE, span: Span(249..250) }
 Error { message: "expecting operator or `}`, found `in`", span: Span(238..240) }

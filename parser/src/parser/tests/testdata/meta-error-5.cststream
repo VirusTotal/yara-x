@@ -7,7 +7,7 @@ Token { kind: WHITESPACE, span: Span(9..10) }
 Token { kind: L_BRACE, span: Span(10..11) }
 Token { kind: NEWLINE, span: Span(11..12) }
 Token { kind: WHITESPACE, span: Span(12..14) }
-Begin { kind: ERROR, span: Span(14..49) }
+Begin { kind: ERROR, span: Span(14..29) }
 Token { kind: META_KW, span: Span(14..18) }
 Token { kind: COLON, span: Span(18..19) }
 Token { kind: NEWLINE, span: Span(19..20) }
@@ -17,9 +17,11 @@ Token { kind: IDENT, span: Span(24..27) }
 Token { kind: WHITESPACE, span: Span(27..28) }
 Token { kind: EQUAL, span: Span(28..29) }
 End { kind: ERROR, span: Span(24..29) }
+End { kind: ERROR, span: Span(14..29) }
 Token { kind: WHITESPACE, span: Span(29..30) }
-Error { message: "expecting `-`, INTEGER, FLOAT, STRING, `true` or `false`, found `bar`", span: Span(30..33) }
+Begin { kind: ERROR, span: Span(30..49) }
 Token { kind: IDENT, span: Span(30..33) }
+Error { message: "expecting `-`, INTEGER, FLOAT, STRING, `true` or `false`, found `bar`", span: Span(30..33) }
 Token { kind: NEWLINE, span: Span(33..34) }
 Token { kind: WHITESPACE, span: Span(34..38) }
 Token { kind: IDENT, span: Span(38..41) }
@@ -27,7 +29,7 @@ Token { kind: WHITESPACE, span: Span(41..42) }
 Token { kind: EQUAL, span: Span(42..43) }
 Token { kind: WHITESPACE, span: Span(43..44) }
 Token { kind: STRING_LIT, span: Span(44..49) }
-End { kind: ERROR, span: Span(14..49) }
+End { kind: ERROR, span: Span(30..49) }
 Token { kind: NEWLINE, span: Span(49..50) }
 Token { kind: WHITESPACE, span: Span(50..52) }
 Begin { kind: PATTERNS_BLK, span: Span(52..74) }
