@@ -38,7 +38,8 @@ impl<S: LspService> Service<AnyRequest> for MessageTracing<S> {
     }
 
     fn call(&mut self, req: AnyRequest) -> Self::Future {
-        eprintln!(
+        #[cfg(feature = "tracing")]
+        tracing::info!(
             "[LSP] --> Request: {} (id: {:?})\n        params: {}",
             req.method,
             req.id,
@@ -53,7 +54,8 @@ impl<S: LspService> LspService for MessageTracing<S> {
         &mut self,
         notif: AnyNotification,
     ) -> ControlFlow<async_lsp::Result<()>> {
-        eprintln!(
+        #[cfg(feature = "tracing")]
+        tracing::info!(
             "[LSP] --> Notification: {}\n        params: {}",
             notif.method,
             serde_json::to_string_pretty(&notif.params).unwrap_or_default()
@@ -62,7 +64,8 @@ impl<S: LspService> LspService for MessageTracing<S> {
     }
 
     fn emit(&mut self, event: AnyEvent) -> ControlFlow<async_lsp::Result<()>> {
-        eprintln!("[LSP] --> Event: {event:?}");
+        #[cfg(feature = "tracing")]
+        tracing::info!("[LSP] --> Event: {event:?}");
         self.inner.emit(event)
     }
 }
