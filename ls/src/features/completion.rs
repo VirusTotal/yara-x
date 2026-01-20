@@ -104,7 +104,6 @@ fn condition_suggestions(
     if let Some(suggestions) = module_suggestions(&token) {
         result = suggestions;
     }
-    eprintln!("{token:?}");
 
     match token.kind() {
         // Suggest completion of
@@ -309,7 +308,6 @@ fn module_suggestions(
 
 /// Given a token that must be a closing (right) bracket, find the
 /// corresponding opening (left) bracket.
-#[cfg(feature = "full-compiler")]
 fn find_matching_left_bracket(
     token: &Token<Immutable>,
 ) -> Option<Token<Immutable>> {
