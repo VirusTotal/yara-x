@@ -13,7 +13,7 @@ use async_lsp::lsp_types::request::{
     DocumentHighlightRequest, DocumentSymbolRequest, Formatting,
     GotoDefinition, HoverRequest, References, Rename, Request,
     SelectionRangeRequest, SemanticTokensFullRequest,
-    SemanticTokensRangeRequest,
+    SemanticTokensRangeRequest, SignatureHelpRequest,
 };
 use async_lsp::lsp_types::{
     ClientCapabilities, DiagnosticClientCapabilities,
@@ -249,11 +249,7 @@ async fn completion() {
     test_lsp_request::<_, Completion>("completion5.yar").await;
     test_lsp_request::<_, Completion>("completion6.yar").await;
     test_lsp_request::<_, Completion>("completion7.yar").await;
-
-    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, Completion>("completion8.yar").await;
-
-    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, Completion>("completion9.yar").await;
 }
 
@@ -279,4 +275,10 @@ async fn semantic_tokens_range() {
         "semantic_tokens_range.yar",
     )
     .await;
+}
+
+#[tokio::test]
+async fn signature_help() {
+    test_lsp_request::<_, SignatureHelpRequest>("signature_help1.yar").await;
+    test_lsp_request::<_, SignatureHelpRequest>("signature_help2.yar").await;
 }
