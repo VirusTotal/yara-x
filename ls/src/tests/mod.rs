@@ -11,6 +11,7 @@ use async_lsp::lsp_types::request::{
     DocumentHighlightRequest, DocumentSymbolRequest, Formatting,
     GotoDefinition, HoverRequest, References, Rename, Request,
     SelectionRangeRequest, SemanticTokensFullRequest,
+    SemanticTokensRangeRequest,
 };
 use async_lsp::lsp_types::{
     ClientCapabilities, DiagnosticClientCapabilities,
@@ -251,4 +252,12 @@ async fn code_action() {
 async fn semantic_tokens() {
     test_lsp_request::<_, SemanticTokensFullRequest>("semantic_tokens1.yar")
         .await;
+}
+
+#[tokio::test]
+async fn semantic_tokens_range() {
+    test_lsp_request::<_, SemanticTokensRangeRequest>(
+        "semantic_tokens_range.yar",
+    )
+    .await;
 }
