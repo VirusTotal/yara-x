@@ -7,7 +7,7 @@ Token { kind: WHITESPACE, span: Span(9..10) }
 Token { kind: L_BRACE, span: Span(10..11) }
 Token { kind: NEWLINE, span: Span(11..12) }
 Token { kind: WHITESPACE, span: Span(12..13) }
-Begin { kind: CONDITION_BLK, span: Span(13..29) }
+Begin { kind: CONDITION_BLK, span: Span(13..33) }
 Token { kind: CONDITION_KW, span: Span(13..22) }
 Token { kind: COLON, span: Span(22..23) }
 Token { kind: NEWLINE, span: Span(23..24) }
@@ -23,13 +23,13 @@ End { kind: TERM, span: Span(26..29) }
 End { kind: EXPR, span: Span(26..29) }
 End { kind: BOOLEAN_TERM, span: Span(26..29) }
 End { kind: BOOLEAN_EXPR, span: Span(26..29) }
-End { kind: CONDITION_BLK, span: Span(13..29) }
 Token { kind: WHITESPACE, span: Span(29..30) }
 Begin { kind: ERROR, span: Span(30..33) }
 Token { kind: TILDE, span: Span(30..31) }
 Token { kind: WHITESPACE, span: Span(31..32) }
 Token { kind: INTEGER_LIT, span: Span(32..33) }
 End { kind: ERROR, span: Span(30..33) }
+End { kind: CONDITION_BLK, span: Span(13..33) }
 Token { kind: NEWLINE, span: Span(33..34) }
 Token { kind: R_BRACE, span: Span(34..35) }
 Error { message: "expecting `(`, `[`, expression, `%`, operator, `of` or `}`, found `~`", span: Span(30..31) }

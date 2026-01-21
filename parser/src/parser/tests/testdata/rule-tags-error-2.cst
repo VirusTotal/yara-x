@@ -1,9 +1,10 @@
 SOURCE_FILE@0..36
-  ERROR@0..36
+  ERROR@0..9
     RULE_KW@0..4 "rule"
     WHITESPACE@4..5 " "
     IDENT@5..9 "test"
-    WHITESPACE@9..10 " "
+  WHITESPACE@9..10 " "
+  ERROR@10..36
     EQUAL@10..11 "="
     WHITESPACE@11..12 " "
     L_BRACE@12..13 "{"

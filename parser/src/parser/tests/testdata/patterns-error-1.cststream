@@ -7,7 +7,7 @@ Token { kind: WHITESPACE, span: Span(9..10) }
 Token { kind: L_BRACE, span: Span(10..11) }
 Token { kind: NEWLINE, span: Span(11..12) }
 Token { kind: WHITESPACE, span: Span(12..13) }
-Begin { kind: ERROR, span: Span(13..34) }
+Begin { kind: ERROR, span: Span(13..29) }
 Token { kind: STRINGS_KW, span: Span(13..20) }
 Token { kind: COLON, span: Span(20..21) }
 Token { kind: NEWLINE, span: Span(21..22) }
@@ -17,12 +17,14 @@ Token { kind: PATTERN_IDENT, span: Span(25..27) }
 Token { kind: WHITESPACE, span: Span(27..28) }
 Token { kind: EQUAL, span: Span(28..29) }
 End { kind: ERROR, span: Span(25..29) }
+End { kind: ERROR, span: Span(13..29) }
 Token { kind: WHITESPACE, span: Span(29..30) }
-Error { message: "expecting `[`, BYTE, `(` or `}`, found `condition`", span: Span(37..46) }
+Begin { kind: ERROR, span: Span(30..34) }
 Token { kind: L_BRACE, span: Span(30..31) }
+Error { message: "expecting `[`, BYTE, `(` or `}`, found `condition`", span: Span(37..46) }
 Token { kind: WHITESPACE, span: Span(31..32) }
 Token { kind: HEX_BYTE, span: Span(32..34) }
-End { kind: ERROR, span: Span(13..34) }
+End { kind: ERROR, span: Span(30..34) }
 Token { kind: NEWLINE, span: Span(34..35) }
 Token { kind: WHITESPACE, span: Span(35..37) }
 Begin { kind: CONDITION_BLK, span: Span(37..55) }

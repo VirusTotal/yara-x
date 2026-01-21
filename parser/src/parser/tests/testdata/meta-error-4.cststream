@@ -7,7 +7,7 @@ Token { kind: WHITESPACE, span: Span(9..10) }
 Token { kind: L_BRACE, span: Span(10..11) }
 Token { kind: NEWLINE, span: Span(11..12) }
 Token { kind: WHITESPACE, span: Span(12..14) }
-Begin { kind: ERROR, span: Span(14..50) }
+Begin { kind: ERROR, span: Span(14..29) }
 Token { kind: META_KW, span: Span(14..18) }
 Token { kind: COLON, span: Span(18..19) }
 Token { kind: NEWLINE, span: Span(19..20) }
@@ -17,9 +17,11 @@ Token { kind: IDENT, span: Span(24..27) }
 Token { kind: WHITESPACE, span: Span(27..28) }
 Token { kind: EQUAL, span: Span(28..29) }
 End { kind: ERROR, span: Span(24..29) }
+End { kind: ERROR, span: Span(14..29) }
 Token { kind: WHITESPACE, span: Span(29..30) }
-Error { message: "expecting `-`, INTEGER, FLOAT, STRING, `true` or `false`, found `meta`", span: Span(30..34) }
+Begin { kind: ERROR, span: Span(30..50) }
 Token { kind: META_KW, span: Span(30..34) }
+Error { message: "expecting `-`, INTEGER, FLOAT, STRING, `true` or `false`, found `meta`", span: Span(30..34) }
 Token { kind: NEWLINE, span: Span(34..35) }
 Token { kind: WHITESPACE, span: Span(35..39) }
 Token { kind: IDENT, span: Span(39..42) }
@@ -27,7 +29,7 @@ Token { kind: WHITESPACE, span: Span(42..43) }
 Token { kind: EQUAL, span: Span(43..44) }
 Token { kind: WHITESPACE, span: Span(44..45) }
 Token { kind: STRING_LIT, span: Span(45..50) }
-End { kind: ERROR, span: Span(14..50) }
+End { kind: ERROR, span: Span(30..50) }
 Token { kind: NEWLINE, span: Span(50..51) }
 Token { kind: WHITESPACE, span: Span(51..53) }
 Begin { kind: CONDITION_BLK, span: Span(53..71) }

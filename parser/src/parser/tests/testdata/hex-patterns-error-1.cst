@@ -7,7 +7,7 @@ SOURCE_FILE@0..124
     L_BRACE@10..11 "{"
     NEWLINE@11..12 "\n"
     WHITESPACE@12..13 "\t"
-    ERROR@13..43
+    ERROR@13..29
       STRINGS_KW@13..20 "strings"
       COLON@20..21 ":"
       NEWLINE@21..22 "\n"
@@ -16,7 +16,8 @@ SOURCE_FILE@0..124
         PATTERN_IDENT@25..27 "$a"
         WHITESPACE@27..28 " "
         EQUAL@28..29 "="
-      WHITESPACE@29..30 " "
+    WHITESPACE@29..30 " "
+    ERROR@30..43
       L_BRACE@30..31 "{"
       WHITESPACE@31..32 " "
       HEX_BYTE@32..34 "00"
@@ -50,7 +51,7 @@ SOURCE_FILE@0..124
     L_BRACE@78..79 "{"
     NEWLINE@79..80 "\n"
     WHITESPACE@80..81 "\t"
-    ERROR@81..101
+    ERROR@81..97
       STRINGS_KW@81..88 "strings"
       COLON@88..89 ":"
       NEWLINE@89..90 "\n"
@@ -59,7 +60,8 @@ SOURCE_FILE@0..124
         PATTERN_IDENT@93..95 "$a"
         WHITESPACE@95..96 " "
         EQUAL@96..97 "="
-      WHITESPACE@97..98 " "
+    WHITESPACE@97..98 " "
+    ERROR@98..101
       L_BRACE@98..99 "{"
       WHITESPACE@99..100 " "
       R_BRACE@100..101 "}"

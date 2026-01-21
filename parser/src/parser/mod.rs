@@ -441,48 +441,43 @@ impl<'src> ParserImpl<'src> {
         self
     }
 
-    /// Similar to [`Parser::end`] but also recovers the parser from previous
-    /// errors, consuming all tokens until finding one that is in the recovery
-    /// set.
-    fn end_with_recovery(
-        &mut self,
-        recovery_set: &'static TokenSet,
-    ) -> &mut Self {
-        if let Some(token) = self.peek_non_trivia() {
-            if recovery_set.contains(token).is_some() {
-                self.end();
-                self.recover();
-                return self;
-            }
+    /// Recovers from errors by discarding any token until finding
+    /// one that is in `recovery_set`.
+    fn recover(&mut self, recovery_set: &'static TokenSet) -> &mut Self {
+        self.set_state(State::OK);
 
-            let token_span = token.span();
-            let token_id = token.id();
+        let token = match self.peek_non_trivia() {
+            Some(token) => token,
+            None => return self,
+        };
 
-            // If there were previous errors, flush those errors and
-            // don't produce new ones, but if no previous error exist
-            // then create an error that tells that we are expecting
-            // any of the tokens in the recovery set.
-            if self.pending_errors.is_empty() {
-                self.end();
-                self.trivia();
-                self.begin(ERROR);
-                self.bump();
+        if recovery_set.contains(token).is_some() {
+            return self;
+        }
 
-                let (actual_token_id, expected) =
-                    self.expected_token_errors.entry(token_span).or_default();
+        let token_span = token.span();
+        let token_id = token.id();
 
-                *actual_token_id = token_id;
+        self.trivia();
+        self.begin(ERROR);
+        self.bump();
 
-                expected.extend(
-                    recovery_set.token_ids().map(|token| token.description()),
-                );
+        // If no previous error exists, create an error that tells that we are
+        // expecting any of the tokens in the recovery set. If there were
+        // previous errors, flush them and don't produce new ones.
+        if self.pending_errors.is_empty() {
+            let (actual_token_id, expected) =
+                self.expected_token_errors.entry(token_span).or_default();
 
-                self.handle_errors();
-            } else {
-                self.trivia();
-                self.bump();
-                self.flush_errors();
-            }
+            *actual_token_id = token_id;
+
+            expected.extend(
+                recovery_set.token_ids().map(|token| token.description()),
+            );
+
+            self.handle_errors();
+        } else {
+            self.flush_errors();
         }
 
         // Consume any token that is not in the recovery set.
@@ -496,14 +491,7 @@ impl<'src> ParserImpl<'src> {
         }
 
         self.end();
-        self.recover();
-        self
-    }
 
-    /// Sets the parser state to [`State::OK`] if its previous state was
-    /// [`State::Failure`].
-    fn recover(&mut self) -> &mut Self {
-        self.set_state(State::OK);
         self
     }
 
@@ -660,7 +648,7 @@ impl<'src> ParserImpl<'src> {
 
         // Any error occurred while parsing the optional production is ignored.
         if matches!(self.state, State::Failure) {
-            self.recover();
+            self.set_state(State::OK);
             self.restore_bookmark(&bookmark);
         }
 
@@ -828,7 +816,7 @@ impl<'src> ParserImpl<'src> {
             parser(self);
             self.opt_depth -= 1;
             if matches!(self.state, State::Failure | State::OutOfFuel) {
-                self.recover();
+                self.set_state(State::OK);
                 self.restore_bookmark(&bookmark);
                 self.remove_bookmark(bookmark);
                 break;
@@ -1125,7 +1113,8 @@ impl ParserImpl<'_> {
             .if_next(t!(STRINGS_KW), |p| p.patterns_blk())
             .then(|p| p.condition_blk())
             .expect(t!(R_BRACE))
-            .end_with_recovery(t!(GLOBAL_KW
+            .end()
+            .recover(t!(GLOBAL_KW
                 | PRIVATE_KW
                 | RULE_KW
                 | IMPORT_KW
@@ -1155,7 +1144,8 @@ impl ParserImpl<'_> {
         self.begin(RULE_TAGS)
             .expect(t!(COLON))
             .one_or_more(|p| p.expect(t!(IDENT)))
-            .end_with_recovery(t!(L_BRACE))
+            .end()
+            .recover(t!(L_BRACE))
     }
 
     /// Parses metadata block.
@@ -1168,7 +1158,8 @@ impl ParserImpl<'_> {
             .expect(t!(META_KW))
             .expect(t!(COLON))
             .one_or_more(|p| p.meta_def())
-            .end_with_recovery(t!(STRINGS_KW | CONDITION_KW))
+            .end()
+            .recover(t!(STRINGS_KW | CONDITION_KW))
     }
 
     /// Parses a metadata definition.
@@ -1205,7 +1196,8 @@ impl ParserImpl<'_> {
             .expect(t!(STRINGS_KW))
             .expect(t!(COLON))
             .one_or_more(|p| p.pattern_def())
-            .end_with_recovery(t!(CONDITION_KW))
+            .end()
+            .recover(t!(CONDITION_KW))
     }
 
     /// Parses a pattern definition.
@@ -1368,8 +1360,9 @@ impl ParserImpl<'_> {
         self.begin(CONDITION_BLK)
             .expect(t!(CONDITION_KW))
             .expect(t!(COLON))
-            .then(|p| p.boolean_expr())
-            .end_with_recovery(t!(R_BRACE))
+            .then(|p| p.boolean_expr().recover(t!(R_BRACE)))
+            .end()
+            .recover(t!(R_BRACE))
     }
 
     /// Parses a boolean expression.
@@ -1817,6 +1810,7 @@ struct Bookmark {
 /// function.
 ///
 /// The set is represented by a list of [`SyntaxKind`].
+#[derive(Debug)]
 struct TokenSet(&'static [SyntaxKind]);
 
 impl TokenSet {
@@ -1867,7 +1861,7 @@ impl<'a, 'src> Alt<'a, 'src> {
                 // The current alternative didn't match, restore the token
                 // stream to the position it has before trying to match.
                 State::Failure => {
-                    self.parser.recover();
+                    self.parser.set_state(State::OK);
                     self.parser.restore_bookmark(&self.bookmark);
                 }
                 State::OutOfFuel => {}
