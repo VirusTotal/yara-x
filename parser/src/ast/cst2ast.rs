@@ -256,18 +256,24 @@ where
     }
 
     fn begin(&mut self, kind: SyntaxKind) -> Result<(), BuilderError> {
-        let next = self.next()?;
-        assert!(matches!(next, Event::Begin{kind: k, ..} if k == kind));
-        if self.depth == Self::MAX_AST_DEPTH {
-            return Err(BuilderError::MaxDepthReached);
+        match self.next()? {
+            Event::Begin { kind: k, .. } if k == kind => {
+                if self.depth == Self::MAX_AST_DEPTH {
+                    return Err(BuilderError::MaxDepthReached);
+                }
+                self.depth += 1;
+                Ok(())
+            }
+            _ => Err(BuilderError::Abort),
         }
-        self.depth += 1;
-        Ok(())
     }
 
     fn end(&mut self, kind: SyntaxKind) -> Result<(), BuilderError> {
         let next = self.next()?;
-        assert!(matches!(next, Event::End{kind: k, ..} if k == kind));
+        assert!(
+            matches!(next, Event::End{kind: k, ..} if k == kind),
+            "expecting End {{ kind: {kind:?} }}, found {next:?}",
+        );
         self.depth = self.depth.saturating_sub(1);
         Ok(())
     }
@@ -1842,15 +1848,15 @@ where
                                     let (escaped_char_pos, _) = escaped_char;
 
                                     self.errors
-                                    .push(Error::InvalidEscapeSequence {
-                                    message:
-                                        r"expecting two hex digits after `\x`"
-                                            .to_string(),
-                                    span: string_span.offset(first_backslash as isize).subspan(
-                                        backslash,
-                                        escaped_char_pos + 1,
-                                    ),
-                                });
+                                        .push(Error::InvalidEscapeSequence {
+                                            message:
+                                            r"expecting two hex digits after `\x`"
+                                                .to_string(),
+                                            span: string_span.offset(first_backslash as isize).subspan(
+                                                backslash,
+                                                escaped_char_pos + 1,
+                                            ),
+                                        });
 
                                     return Err(BuilderError::Abort);
                                 }

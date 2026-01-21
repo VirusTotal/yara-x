@@ -13,8 +13,6 @@ Token { kind: COLON, span: Span(22..23) }
 Token { kind: NEWLINE, span: Span(23..24) }
 Token { kind: WHITESPACE, span: Span(24..26) }
 Begin { kind: ERROR, span: Span(26..63) }
-Begin { kind: ERROR, span: Span(26..26) }
-End { kind: ERROR, span: Span(26..26) }
 Token { kind: WITH_KW, span: Span(26..30) }
 Error { message: "expecting expression or identifier, found `)`", span: Span(62..63) }
 Token { kind: WHITESPACE, span: Span(30..31) }

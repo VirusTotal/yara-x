@@ -13,7 +13,6 @@ SOURCE_FILE@0..92
       NEWLINE@23..24 "\n"
       WHITESPACE@24..26 "\t\t"
       ERROR@26..90
-        ERROR@26..26
         WITH_KW@26..30 "with"
         WHITESPACE@30..31 " "
         IDENT@31..36 "first"
