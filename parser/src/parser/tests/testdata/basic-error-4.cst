@@ -1,7 +1,6 @@
 SOURCE_FILE@0..26
-  ERROR@0..4
+  ERROR@0..26
     RULE_KW@0..4 "rule"
-  ERROR@4..26
     L_BRACE@4..5 "{"
     NEWLINE@5..6 "\n"
     WHITESPACE@6..7 "\t"

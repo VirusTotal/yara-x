@@ -21,12 +21,13 @@ use std::str::{from_utf8, Utf8Error};
 
 pub use syntax_kind::SyntaxKind;
 
+use crate::cst::error_merger::ErrorMerger;
 use crate::cst::SyntaxKind::{COMMENT, NEWLINE, WHITESPACE};
 use crate::{Parser, Span};
 
+pub(crate) mod error_merger;
 pub(crate) mod syntax_kind;
 pub(crate) mod syntax_stream;
-
 #[cfg(test)]
 mod tests;
 
@@ -82,7 +83,7 @@ where
     I: Iterator<Item = Event>,
 {
     source: &'src [u8],
-    events: I,
+    events: ErrorMerger<I>,
     whitespaces: bool,
     newlines: bool,
     comments: bool,
@@ -102,7 +103,7 @@ where
     pub fn new(source: &'src [u8], events: I) -> Self {
         Self {
             source,
-            events,
+            events: ErrorMerger::new(events),
             whitespaces: true,
             newlines: true,
             comments: true,

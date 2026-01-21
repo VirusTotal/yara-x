@@ -5,8 +5,6 @@ Token { kind: WHITESPACE, span: Span(4..5) }
 Token { kind: IDENT, span: Span(5..9) }
 Token { kind: WHITESPACE, span: Span(9..10) }
 Token { kind: L_BRACE, span: Span(10..11) }
-Begin { kind: ERROR, span: Span(11..11) }
-End { kind: ERROR, span: Span(11..11) }
 Begin { kind: ERROR, span: Span(11..56) }
 Token { kind: L_BRACE, span: Span(11..12) }
 Error { message: "expecting `meta`, `strings` or `condition`, found `{`", span: Span(11..12) }

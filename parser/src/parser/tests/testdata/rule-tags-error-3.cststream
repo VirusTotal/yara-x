@@ -4,14 +4,12 @@ Token { kind: RULE_KW, span: Span(0..4) }
 Token { kind: WHITESPACE, span: Span(4..5) }
 Token { kind: IDENT, span: Span(5..9) }
 Token { kind: WHITESPACE, span: Span(9..10) }
-Begin { kind: ERROR, span: Span(10..12) }
+Begin { kind: ERROR, span: Span(10..13) }
 Token { kind: COLON, span: Span(10..11) }
 Token { kind: WHITESPACE, span: Span(11..12) }
-End { kind: ERROR, span: Span(10..12) }
-Begin { kind: ERROR, span: Span(12..13) }
 Token { kind: EQUAL, span: Span(12..13) }
 Error { message: "expecting identifier, found `=`", span: Span(12..13) }
-End { kind: ERROR, span: Span(12..13) }
+End { kind: ERROR, span: Span(10..13) }
 Token { kind: WHITESPACE, span: Span(13..14) }
 Token { kind: L_BRACE, span: Span(14..15) }
 Token { kind: NEWLINE, span: Span(15..16) }

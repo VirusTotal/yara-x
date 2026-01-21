@@ -7,7 +7,6 @@ SOURCE_FILE@0..40
     L_BRACE@10..11 "{"
     NEWLINE@11..12 "\n"
     WHITESPACE@12..14 "  "
-    ERROR@14..14
     ERROR@14..38
       IDENT@14..17 "foo"
       NEWLINE@17..18 "\n"
