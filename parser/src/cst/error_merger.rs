@@ -68,11 +68,7 @@ where
             return Some(event);
         }
 
-        loop {
-            let event = match self.inner.next() {
-                Some(event) => event,
-                None => break,
-            };
+        while let Some(event) = self.inner.next() {
             match event {
                 // Found the start of an ERROR, push it into `output_buffer`
                 // and save its index in `open_begins` until we find the
@@ -100,7 +96,7 @@ where
                                     kind: SyntaxKind::ERROR,
                                     span,
                                 } => {
-                                    *span = span.combine(&next_error_span);
+                                    *span = span.combine(next_error_span);
                                 }
                                 _ => unreachable!(),
                             }
