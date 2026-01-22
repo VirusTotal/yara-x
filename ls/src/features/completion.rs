@@ -36,9 +36,19 @@ const PATTERN_MODS: &[(SyntaxKind, &[&str])] = &[
 const RULE_KW_BLKS: [&str; 3] = ["meta", "strings", "condition"];
 
 const SRC_SUGGESTIONS: [(&str, Option<&str>); 5] = [
-    ("rule", Some("rule ${1:ident} {\n\tcondition:\n\t\t${2:true}\n}")),
-    ("import", Some("import \"${1:}\"")),
-    ("include", Some("include \"${1:}\"")),
+    (
+        "rule",
+        Some(
+            r#"rule ${1:ident} {
+  strings:
+    $${2:a} = "${3}"
+  condition:
+    $${2:a}${0}
+ }"#,
+        ),
+    ),
+    ("import", Some("import \"${1:}\"${0}")),
+    ("include", Some("include \"${1:}\"${0}")),
     ("private", None),
     ("global", None),
 ];
