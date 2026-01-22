@@ -14,8 +14,28 @@ provides a rich set of features to enhance your YARA rule development workflow.
 *   **Find References**: Find all references to a specific rule or identifier.
 *   **Code Formatting**: Format your YARA rules according to the standard style.
 *   **Rename**: Safely rename rule identifiers and variables across your files.
-*   **Document Symbols**: See a symbol tree of your document for quick navigation.
+*   **Document outline**: See a symbol tree of your document for quick navigation.
 *   **Code Actions**: Quick fixes and refactoring suggestions.
+
+An image is worth a thousand words...
+
+<p align="center">
+<img src="images/demo.gif" width=95% alt="">
+<br/>
+<em>(Demo)</em>
+</p>
+
+<p align="center">
+<img src="images/outline.gif" width=95% alt="">
+<br/>
+<em>(Navigation)</em>
+</p>
+
+<p align="center">
+<img src="images/quickfix.gif" width=95% alt="">
+<br/>
+<em>(Quick fix)</em>
+</p>
 
 ## Quick Start
 
