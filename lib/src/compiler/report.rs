@@ -357,8 +357,18 @@ pub struct Label<'a> {
 
 impl Label<'_> {
     #[inline]
+    pub fn origin(&self) -> Option<&str> {
+        self.code_origin.as_deref()
+    }
+
+    #[inline]
     pub fn span(&self) -> &Span {
         &self.span
+    }
+
+    #[inline]
+    pub fn text(&self) -> &str {
+        self.text
     }
 }
 

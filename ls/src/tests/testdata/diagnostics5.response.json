@@ -15,6 +15,60 @@
       "severity": 1,
       "code": "E023",
       "message": "duplicate pattern `$a`",
+      "relatedInformation": [
+        {
+          "location": {
+            "uri": "file:///diagnostics5.yar",
+            "range": {
+              "start": {
+                "line": 3,
+                "character": 4
+              },
+              "end": {
+                "line": 3,
+                "character": 6
+              }
+            }
+          },
+          "message": "duplicate declaration of `$a`"
+        }
+      ],
+      "data": {
+        "patches": []
+      }
+    },
+    {
+      "range": {
+        "start": {
+          "line": 2,
+          "character": 4
+        },
+        "end": {
+          "line": 2,
+          "character": 6
+        }
+      },
+      "severity": 1,
+      "code": "E023",
+      "message": "duplicate pattern `$a`",
+      "relatedInformation": [
+        {
+          "location": {
+            "uri": "file:///diagnostics5.yar",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 4
+              },
+              "end": {
+                "line": 2,
+                "character": 6
+              }
+            }
+          },
+          "message": "`$a` declared here for the first time"
+        }
+      ],
       "data": {
         "patches": []
       }

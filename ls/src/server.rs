@@ -519,7 +519,8 @@ impl LanguageServer for YARALanguageServer {
     ) -> Self::NotifyResult {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
-        self.documents.insert(uri.clone(), Document::new(text));
+        let document = Document::new(uri.clone(), text);
+        self.documents.insert(uri.clone(), document);
         self.publish_diagnostics(&uri);
         ControlFlow::Continue(())
     }
@@ -534,7 +535,8 @@ impl LanguageServer for YARALanguageServer {
     ) -> Self::NotifyResult {
         if let Some(text) = params.text {
             let uri = params.text_document.uri;
-            self.documents.insert(uri.clone(), Document::new(text));
+            let document = Document::new(uri.clone(), text);
+            self.documents.insert(uri.clone(), document);
             self.publish_diagnostics(&uri);
         }
         ControlFlow::Continue(())
@@ -549,13 +551,12 @@ impl LanguageServer for YARALanguageServer {
         &mut self,
         params: DidChangeTextDocumentParams,
     ) -> Self::NotifyResult {
+        let uri = params.text_document.uri;
         for change in params.content_changes.into_iter() {
-            self.documents.insert(
-                params.text_document.uri.clone(),
-                Document::new(change.text),
-            );
+            let document = Document::new(uri.clone(), change.text);
+            self.documents.insert(uri.clone(), document);
         }
-        self.publish_diagnostics(&params.text_document.uri);
+        self.publish_diagnostics(&uri);
         ControlFlow::Continue(())
     }
 

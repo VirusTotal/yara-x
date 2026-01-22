@@ -1,0 +1,41 @@
+{
+  "kind": "full",
+  "items": [
+    {
+      "range": {
+        "start": {
+          "line": 3,
+          "character": 15
+        },
+        "end": {
+          "line": 3,
+          "character": 19
+        }
+      },
+      "severity": 2,
+      "code": "invariant_expr",
+      "message": "invariant boolean expression",
+      "relatedInformation": [
+        {
+          "location": {
+            "uri": "file:///diagnostics7.yar",
+            "range": {
+              "start": {
+                "line": 3,
+                "character": 15
+              },
+              "end": {
+                "line": 3,
+                "character": 19
+              }
+            }
+          },
+          "message": "this expression is always true"
+        }
+      ],
+      "data": {
+        "patches": []
+      }
+    }
+  ]
+}

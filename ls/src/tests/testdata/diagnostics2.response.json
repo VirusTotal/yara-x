@@ -15,6 +15,24 @@
       "severity": 1,
       "code": "E001",
       "message": "syntax error",
+      "relatedInformation": [
+        {
+          "location": {
+            "uri": "file:///diagnostics2.yar",
+            "range": {
+              "start": {
+                "line": 0,
+                "character": 0
+              },
+              "end": {
+                "line": 0,
+                "character": 3
+              }
+            }
+          },
+          "message": "expecting import statement or rule definition"
+        }
+      ],
       "data": {
         "patches": []
       }

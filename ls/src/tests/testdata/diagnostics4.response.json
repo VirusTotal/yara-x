@@ -15,6 +15,24 @@
       "severity": 1,
       "code": "E022",
       "message": "unused pattern `$a`",
+      "relatedInformation": [
+        {
+          "location": {
+            "uri": "file:///diagnostics4.yar",
+            "range": {
+              "start": {
+                "line": 2,
+                "character": 4
+              },
+              "end": {
+                "line": 2,
+                "character": 6
+              }
+            }
+          },
+          "message": "this pattern was not used in the condition"
+        }
+      ],
       "data": {
         "patches": []
       }
@@ -33,6 +51,24 @@
       "severity": 2,
       "code": "invariant_expr",
       "message": "invariant boolean expression",
+      "relatedInformation": [
+        {
+          "location": {
+            "uri": "file:///diagnostics4.yar",
+            "range": {
+              "start": {
+                "line": 4,
+                "character": 4
+              },
+              "end": {
+                "line": 4,
+                "character": 8
+              }
+            }
+          },
+          "message": "this expression is always true"
+        }
+      ],
       "data": {
         "patches": []
       }
