@@ -6,8 +6,7 @@ use async_lsp::lsp_types::{DiagnosticSeverity, NumberOrString};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "full-compiler")]
-use yara_x::Compiler;
-use yara_x::SourceCode;
+use yara_x::{Compiler, SourceCode};
 
 use crate::document::Document;
 
