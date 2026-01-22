@@ -20,19 +20,19 @@ provides a rich set of features to enhance your YARA rule development workflow.
 An image is worth a thousand words...
 
 <p align="center">
-<img src="images/demo.gif" width=95% alt="">
+<img src="images/demo.gif" width="95%" alt="Demo">
 <br/>
 <em>(Demo)</em>
 </p>
 
 <p align="center">
-<img src="images/outline.gif" width=95% alt="">
+<img src="images/outline.gif" width="95%" alt="Navigation demo">
 <br/>
 <em>(Navigation)</em>
 </p>
 
 <p align="center">
-<img src="images/quickfix.gif" width=95% alt="">
+<img src="images/quickfix.gif" width="95%" alt="Quick fix demo">
 <br/>
 <em>(Quick fix)</em>
 </p>

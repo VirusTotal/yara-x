@@ -80,7 +80,7 @@ jobs:
         working-directory: ./ls/editors/code
         run: |
           npm install
-          npx @vscode/vsce package --target ${{ matrix.build }} -o ${{ matrix.build }}.vsix
+          npx @vscode/vsce package --target ${{ matrix.build }} -o ${{ matrix.build }}.vsix --baseImagesUrl https://github.com/VirusTotal/yara-x/raw/HEAD/ls/editors/code
 
       - name: Publish to Visual Studio Marketplace
         #if: github.ref == 'refs/heads/main' && github.event_name == 'push'

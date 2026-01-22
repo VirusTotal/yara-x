@@ -2,10 +2,11 @@
   "name": "yara-x-ls",
   "displayName": "YARA Language",
   "description": "Rich support for the YARA language. Provides syntax highlighting, autocompletion and more.",
-  "version": "0.0.2",
+  "version": "0.0.0",
   "publisher": "VirusTotal",
   "icon": "images/icon.png",
   "repository": {
+    "type": "git",
     "url": "https://github.com/VirusTotal/yara-x"
   },
   "engines": {
