@@ -1,71 +1,6 @@
 [
   {
-    "label": "math",
-    "kind": 9,
-    "preselect": true
-  },
-  {
     "label": "console",
-    "kind": 9,
-    "preselect": true
-  },
-  {
-    "label": "test_proto2",
-    "kind": 9,
-    "preselect": true
-  },
-  {
-    "label": "time",
-    "kind": 9,
-    "preselect": true
-  },
-  {
-    "label": "lnk",
-    "kind": 9,
-    "preselect": true
-  },
-  {
-    "label": "elf",
-    "kind": 9,
-    "preselect": true
-  },
-  {
-    "label": "dex",
-    "kind": 9,
-    "preselect": true
-  },
-  {
-    "label": "pe",
-    "kind": 9,
-    "preselect": true
-  },
-  {
-    "label": "hash",
-    "kind": 9,
-    "preselect": true
-  },
-  {
-    "label": "test_proto3",
-    "kind": 9,
-    "preselect": true
-  },
-  {
-    "label": "vt",
-    "kind": 9,
-    "preselect": true
-  },
-  {
-    "label": "dotnet",
-    "kind": 9,
-    "preselect": true
-  },
-  {
-    "label": "cuckoo",
-    "kind": 9,
-    "preselect": true
-  },
-  {
-    "label": "macho",
     "kind": 9,
     "preselect": true
   },
@@ -75,7 +10,72 @@
     "preselect": true
   },
   {
+    "label": "cuckoo",
+    "kind": 9,
+    "preselect": true
+  },
+  {
+    "label": "dex",
+    "kind": 9,
+    "preselect": true
+  },
+  {
+    "label": "dotnet",
+    "kind": 9,
+    "preselect": true
+  },
+  {
+    "label": "elf",
+    "kind": 9,
+    "preselect": true
+  },
+  {
+    "label": "hash",
+    "kind": 9,
+    "preselect": true
+  },
+  {
+    "label": "lnk",
+    "kind": 9,
+    "preselect": true
+  },
+  {
+    "label": "macho",
+    "kind": 9,
+    "preselect": true
+  },
+  {
+    "label": "math",
+    "kind": 9,
+    "preselect": true
+  },
+  {
+    "label": "pe",
+    "kind": 9,
+    "preselect": true
+  },
+  {
     "label": "string",
+    "kind": 9,
+    "preselect": true
+  },
+  {
+    "label": "test_proto2",
+    "kind": 9,
+    "preselect": true
+  },
+  {
+    "label": "test_proto3",
+    "kind": 9,
+    "preselect": true
+  },
+  {
+    "label": "time",
+    "kind": 9,
+    "preselect": true
+  },
+  {
+    "label": "vt",
     "kind": 9,
     "preselect": true
   }

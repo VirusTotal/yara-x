@@ -5,8 +5,8 @@ use std::path::Path;
 use rayon::prelude::*;
 
 use crate::mods;
-use crate::mods::invoke_all;
 use crate::mods::reflect::FieldKind;
+use crate::mods::{invoke_all, module_names};
 
 /// Utility function that receives the content of an [`Intel HEX`][1] (ihex)
 /// file and returns the binary data contained in it.
@@ -171,6 +171,28 @@ fn test_modules() {
 
         yaml.serialize(output).unwrap();
     });
+}
+
+#[test]
+fn test_module_names() {
+    let mut names = module_names();
+
+    #[cfg(feature = "console-module")]
+    assert_eq!(names.next(), Some("console"));
+
+    #[cfg(feature = "crx-module")]
+    assert_eq!(names.next(), Some("crx"));
+
+    #[cfg(feature = "cuckoo-module")]
+    assert_eq!(names.next(), Some("cuckoo"));
+
+    #[cfg(feature = "dex-module")]
+    assert_eq!(names.next(), Some("dex"));
+
+    #[cfg(feature = "dotnet-module")]
+    assert_eq!(names.next(), Some("dotnet"));
+
+    // There are more modules, but is unnecessary to check them all.
 }
 
 #[test]

@@ -320,7 +320,8 @@ pub mod mods {
     ///
     /// See the "debug modules" command.
     pub fn module_names() -> impl Iterator<Item = &'static str> {
-        super::BUILTIN_MODULES.keys().copied()
+        use itertools::Itertools;
+        super::BUILTIN_MODULES.keys().sorted_by_key(|k| **k).copied()
     }
 
     /// Returns the definition of the module with the given name.
