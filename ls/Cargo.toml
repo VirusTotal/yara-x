@@ -28,6 +28,9 @@ full-compiler = ["dep:yara-x"]
 # Enables tracing, which helps debugging the language server.
 tracing = ["dep:tracing", "dep:tracing-subscriber"]
 
+# Enables the `magic` module.
+magic-module = ["yara-x/magic-module"]
+
 default = ["full-compiler"]
 
 [dependencies]
