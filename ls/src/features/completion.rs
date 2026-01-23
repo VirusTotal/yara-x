@@ -4,9 +4,9 @@ use async_lsp::lsp_types::{
 };
 
 #[cfg(feature = "full-compiler")]
-use yara_x::mods::module_definition;
-#[cfg(feature = "full-compiler")]
 use yara_x::mods::reflect::FieldKind;
+#[cfg(feature = "full-compiler")]
+use yara_x::mods::{module_definition, module_names};
 use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Token, CST};
 
 use crate::document::Document;
@@ -89,6 +89,13 @@ pub fn completion(
     }
 
     let prev_token = prev_non_trivia_token(&token)?;
+
+    if prev_token.kind() == SyntaxKind::IMPORT_KW {
+        #[cfg(feature = "full-compiler")]
+        return Some(import_suggestions());
+        #[cfg(not(feature = "full-compiler"))]
+        return None;
+    }
 
     if let Some(pattern_def) =
         prev_token.ancestors().find(|n| n.kind() == SyntaxKind::PATTERN_DEF)
@@ -200,6 +207,19 @@ fn condition_suggestions(
     }
 
     Some(result)
+}
+
+/// Collects completion suggestions for import statements.
+#[cfg(feature = "full-compiler")]
+fn import_suggestions() -> Vec<CompletionItem> {
+    module_names()
+        .map(|name| CompletionItem {
+            label: name.to_string(),
+            preselect: Some(true),
+            kind: Some(CompletionItemKind::MODULE),
+            ..Default::default()
+        })
+        .collect()
 }
 
 /// Collects completion suggestions outside any block.
