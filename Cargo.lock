@@ -5358,8 +5358,13 @@ dependencies = [
  "bitflags 2.10.0",
  "futures",
  "goldenfile",
+ "proc-macro2",
+ "protobuf",
+ "protobuf-parse",
+ "quote",
  "serde",
  "serde_json",
+ "syn 2.0.108",
  "tokio",
  "tokio-util",
  "tower",
@@ -5368,6 +5373,7 @@ dependencies = [
  "yara-x",
  "yara-x-fmt",
  "yara-x-parser",
+ "yara-x-proto",
 ]
 
 [[package]]

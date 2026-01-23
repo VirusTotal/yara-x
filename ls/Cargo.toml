@@ -51,5 +51,13 @@ tower = { version = "0.5.2" , features = ["full"]}
 async-lsp = {version = "0.2.2", default-features=false, features=["omni-trait"]}
 tower = { version = "0.5.2" }
 
+[build-dependencies]
+protobuf = { workspace = true }
+protobuf-parse = { workspace = true }
+syn = { version = "2.0.103" }
+proc-macro2 = "1.0.95"
+quote = "1.0"
+yara-x-proto = { workspace = true }
+
 [dev-dependencies]
 goldenfile = { workspace = true }

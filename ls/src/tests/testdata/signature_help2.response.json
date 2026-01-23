@@ -1,0 +1,42 @@
+{
+  "signatures": [
+    {
+      "label": "delayed_import_rva(dll_name: string, func_name: string)",
+      "documentation": " Both `dll_name` and `func_name` are case-insensitive.",
+      "parameters": [
+        {
+          "label": [
+            19,
+            35
+          ]
+        },
+        {
+          "label": [
+            37,
+            54
+          ]
+        }
+      ]
+    },
+    {
+      "label": "delayed_import_rva(dll_name: string, ordinal: integer)",
+      "documentation": " `dll_name` is case-insensitive.",
+      "parameters": [
+        {
+          "label": [
+            19,
+            35
+          ]
+        },
+        {
+          "label": [
+            37,
+            53
+          ]
+        }
+      ]
+    }
+  ],
+  "activeSignature": 0,
+  "activeParameter": 1
+}

@@ -1,5 +1,69 @@
 [
   {
+    "label": "dotnet",
+    "kind": 9
+  },
+  {
+    "label": "dex",
+    "kind": 9
+  },
+  {
+    "label": "vt",
+    "kind": 9
+  },
+  {
+    "label": "elf",
+    "kind": 9
+  },
+  {
+    "label": "lnk",
+    "kind": 9
+  },
+  {
+    "label": "macho",
+    "kind": 9
+  },
+  {
+    "label": "time",
+    "kind": 9
+  },
+  {
+    "label": "pe",
+    "kind": 9
+  },
+  {
+    "label": "magic",
+    "kind": 9
+  },
+  {
+    "label": "string",
+    "kind": 9
+  },
+  {
+    "label": "crx",
+    "kind": 9
+  },
+  {
+    "label": "math",
+    "kind": 9
+  },
+  {
+    "label": "hash",
+    "kind": 9
+  },
+  {
+    "label": "text",
+    "kind": 9
+  },
+  {
+    "label": "cuckoo",
+    "kind": 9
+  },
+  {
+    "label": "console",
+    "kind": 9
+  },
+  {
     "label": "rule_ident_propose_on_the_end",
     "labelDetails": {
       "description": "Rule"

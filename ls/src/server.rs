@@ -30,8 +30,9 @@ use async_lsp::lsp_types::{
     SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability,
     SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
     SemanticTokensRangeResult, SemanticTokensResult,
-    SemanticTokensServerCapabilities, ServerCapabilities,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
+    SemanticTokensServerCapabilities, ServerCapabilities, SignatureHelp,
+    SignatureHelpOptions, SignatureHelpParams, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextDocumentSyncOptions,
     TextDocumentSyncSaveOptions, TextEdit, Url, WorkspaceEdit,
 };
 use async_lsp::router::Router;
@@ -56,6 +57,7 @@ use crate::features::semantic_tokens::{
 };
 
 use crate::document::Document;
+use crate::features::signature_help::signature_help;
 
 pub struct DocumentStore {
     documents: HashMap<Url, Document>,
@@ -175,6 +177,12 @@ impl LanguageServer for YARALanguageServer {
                             ..Default::default()
                         },
                     )),
+                    signature_help_provider: Some(SignatureHelpOptions {
+                        trigger_characters: Some(vec!["(".to_string(), ",".to_string()]),
+                        retrigger_characters: Some(vec!["(".to_string(), ",".to_string()]),
+                        ..Default::default()
+                    }),
+
                     // This is for pull model diagnostics
                     diagnostic_provider: Some(DiagnosticServerCapabilities::Options(
                         DiagnosticOptions::default(),
@@ -507,6 +515,23 @@ impl LanguageServer for YARALanguageServer {
         };
 
         Box::pin(async move { Ok(result) })
+    }
+
+    fn signature_help(
+        &mut self,
+        params: SignatureHelpParams,
+    ) -> BoxFuture<'static, Result<Option<SignatureHelp>, Self::Error>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+        let document = match self.documents.get(&uri) {
+            Some(entry) => entry,
+            None => return Box::pin(async { Ok(None) }),
+        };
+
+        let signature_help =
+            signature_help(document, position, params.context);
+
+        Box::pin(async move { Ok(signature_help) })
     }
 
     /// This method is called when a document is opened.

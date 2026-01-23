@@ -3,17 +3,14 @@ use async_lsp::lsp_types::{
     InsertTextFormat, InsertTextMode, Position,
 };
 
-#[cfg(feature = "full-compiler")]
-use yara_x::mods::module_definition;
-#[cfg(feature = "full-compiler")]
-use yara_x::mods::reflect::FieldKind;
-use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Token, CST};
-
 use crate::document::Document;
 use crate::utils::cst_traversal::{
     non_error_parent, prev_non_trivia_token, rule_containing_token,
     token_at_position,
 };
+use crate::utils::module_symbols::Segment;
+
+use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Token, CST};
 
 const PATTERN_MODS: &[(SyntaxKind, &[&str])] = &[
     (
@@ -114,9 +111,8 @@ fn condition_suggestions(
 ) -> Option<Vec<CompletionItem>> {
     let mut result = Vec::new();
 
-    #[cfg(feature = "full-compiler")]
     if let Some(suggestions) = module_suggestions(&token) {
-        return Some(suggestions);
+        result = suggestions;
     }
 
     match token.kind() {
@@ -184,6 +180,7 @@ fn condition_suggestions(
                 }
             }
         }
+        SyntaxKind::DOT => {}
         _ => {
             CONDITION_SUGGESTIONS.iter().for_each(|(kw, insert)| {
                 result.push(CompletionItem {
@@ -258,11 +255,14 @@ fn rule_suggestions() -> Vec<CompletionItem> {
         .collect()
 }
 
-#[cfg(feature = "full-compiler")]
 fn module_suggestions(
     token: &Token<Immutable>,
 ) -> Option<Vec<CompletionItem>> {
+    use crate::utils::module_symbols::get_module_proposals;
+
     let mut curr;
+
+    let mut path = Vec::new();
 
     // Check if we are at a position that triggers completion.
     match token.kind() {
@@ -272,25 +272,16 @@ fn module_suggestions(
         }
         SyntaxKind::IDENT => {
             // structure.field <cursor>
-            // We need to check if previous is DOT
             let prev = prev_non_trivia_token(token)?;
             if prev.kind() == SyntaxKind::DOT {
                 // It is a field
                 curr = prev_non_trivia_token(&prev);
             } else {
-                return None;
+                curr = None;
             }
         }
         _ => return None,
     }
-
-    #[derive(Debug)]
-    enum Segment {
-        Field(String),
-        Index,
-    }
-
-    let mut path = Vec::new();
 
     while let Some(token) = curr {
         match token.kind() {
@@ -322,69 +313,11 @@ fn module_suggestions(
         }
     }
 
-    let module_name = match path.last()? {
-        Segment::Field(s) => s,
-        _ => return None,
-    };
-
-    // Lookup module
-    let definition = module_definition(module_name)?;
-
-    // Traverse
-    let mut current_kind = FieldKind::Struct(definition);
-
-    for segment in path.iter().rev().skip(1) {
-        match segment {
-            Segment::Field(name) => {
-                match current_kind {
-                    FieldKind::Struct(struct_def) => {
-                        // Find field
-                        current_kind = struct_def
-                            .fields()
-                            .find(|field| field.name() == *name)?
-                            .kind();
-                    }
-                    _ => return None, // Cannot access field of non-struct
-                }
-            }
-            Segment::Index => {
-                match current_kind {
-                    FieldKind::Array(inner) => {
-                        current_kind = *inner;
-                    }
-                    FieldKind::Map(_, value) => {
-                        current_kind = *value;
-                    }
-                    _ => return None, // Cannot index non-array
-                }
-            }
-        }
-    }
-
-    // Now `current_kind` is the type of the expression before the cursor.
-    // We want to suggest fields if it is a Struct.
-    if let FieldKind::Struct(def) = current_kind {
-        let suggestions = def
-            .fields()
-            .map(|f| CompletionItem {
-                label: f.name().to_string(),
-                kind: Some(CompletionItemKind::FIELD),
-                label_details: Some(CompletionItemLabelDetails {
-                    description: Some(kind_to_string(&f.kind())),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            })
-            .collect();
-        return Some(suggestions);
-    }
-
-    None
+    get_module_proposals(path)
 }
 
 /// Given a token that must be a closing (right) bracket, find the
 /// corresponding opening (left) bracket.
-#[cfg(feature = "full-compiler")]
 fn find_matching_left_bracket(
     token: &Token<Immutable>,
 ) -> Option<Token<Immutable>> {
@@ -408,20 +341,4 @@ fn find_matching_left_bracket(
     }
 
     None
-}
-
-#[cfg(feature = "full-compiler")]
-fn kind_to_string(k: &FieldKind) -> String {
-    match k {
-        FieldKind::Integer => "integer".to_string(),
-        FieldKind::Float => "float".to_string(),
-        FieldKind::Bool => "bool".to_string(),
-        FieldKind::String => "string".to_string(),
-        FieldKind::Bytes => "bytes".to_string(),
-        FieldKind::Struct(_) => "struct".to_string(),
-        FieldKind::Array(inner) => format!("array<{}>", kind_to_string(inner)),
-        FieldKind::Map(key, value) => {
-            format!("map<{},{}>", kind_to_string(key), kind_to_string(value))
-        }
-    }
 }
