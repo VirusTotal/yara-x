@@ -371,19 +371,19 @@ fn test_reflect() {
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "bytes_foo");
-    assert_eq!(field.kind(), FieldKind::Bytes);
+    assert_eq!(field.kind(), FieldKind::String);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "bytes_bar");
-    assert_eq!(field.kind(), FieldKind::Bytes);
+    assert_eq!(field.kind(), FieldKind::String);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "bytes_raw");
-    assert_eq!(field.kind(), FieldKind::Bytes);
+    assert_eq!(field.kind(), FieldKind::String);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "bytes_undef");
-    assert_eq!(field.kind(), FieldKind::Bytes);
+    assert_eq!(field.kind(), FieldKind::String);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "enumeration");

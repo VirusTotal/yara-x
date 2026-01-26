@@ -401,7 +401,7 @@ pub mod mods {
                         }
                         RuntimeType::Bool => FieldKind::Bool,
                         RuntimeType::String => FieldKind::String,
-                        RuntimeType::VecU8 => FieldKind::Bytes,
+                        RuntimeType::VecU8 => FieldKind::String,
                         RuntimeType::Enum(_) => FieldKind::Integer,
                         RuntimeType::Message(m) => {
                             FieldKind::Struct(Struct::new(m))
@@ -433,8 +433,6 @@ pub mod mods {
             Bool,
             /// A string.
             String,
-            /// A bytes sequence.
-            Bytes,
             /// A structure.
             Struct(Struct),
             /// An array.

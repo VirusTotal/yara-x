@@ -437,7 +437,6 @@ fn kind_to_string(k: &FieldKind) -> String {
         FieldKind::Float => "float".to_string(),
         FieldKind::Bool => "bool".to_string(),
         FieldKind::String => "string".to_string(),
-        FieldKind::Bytes => "bytes".to_string(),
         FieldKind::Struct(_) => "struct".to_string(),
         FieldKind::Array(inner) => format!("array<{}>", kind_to_string(inner)),
         FieldKind::Map(key, value) => {

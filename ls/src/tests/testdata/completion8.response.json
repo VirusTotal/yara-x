@@ -338,7 +338,7 @@
   {
     "label": "pdb_path",
     "labelDetails": {
-      "description": "bytes"
+      "description": "string"
     },
     "kind": 5
   },
