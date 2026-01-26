@@ -332,6 +332,9 @@ pub mod mods {
     }
 
     /// Types that allow for module introspection.
+    ///
+    /// This API is unstable and not ready for public use.
+    #[doc(hidden)]
     pub mod reflect {
         use crate::modules::protos::yara::exts::field_options;
         use std::borrow::Cow;
