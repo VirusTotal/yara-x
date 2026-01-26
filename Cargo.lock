@@ -158,16 +158,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "array-bytes"
-version = "9.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27d55334c98d756b32dcceb60248647ab34f027690f87f9a362fd292676ee927"
-dependencies = [
- "smallvec",
- "thiserror 2.0.17",
-]
-
-[[package]]
 name = "ascii_tree"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5222,7 +5212,6 @@ dependencies = [
  "aho-corasick",
  "annotate-snippets",
  "anyhow",
- "array-bytes",
  "base64 0.22.1",
  "bincode",
  "bitflags 2.10.0",
@@ -5236,6 +5225,7 @@ dependencies = [
  "ecdsa",
  "globwalk",
  "goldenfile",
+ "hex",
  "ihex",
  "indexmap 2.12.0",
  "intaglio",

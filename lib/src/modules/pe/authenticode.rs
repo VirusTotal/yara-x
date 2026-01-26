@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt::Write;
 
-use array_bytes::Hexify;
 use bstr::ByteSlice;
 use const_oid::db::{rfc5911, rfc5912, rfc6268};
 use der_parser::asn1_rs::{Set, Tag, ToDer, UtcTime};
@@ -497,7 +496,7 @@ impl<'a> AuthenticodeSignature<'a> {
 
     #[inline]
     pub fn signer_info_digest(&self) -> String {
-        self.signer_info_digest.hexify()
+        hex::encode(self.signer_info_digest)
     }
 
     #[inline]
@@ -559,9 +558,9 @@ impl From<&AuthenticodeSignature<'_>> for protos::pe::Signature {
     fn from(value: &AuthenticodeSignature) -> Self {
         let mut sig = protos::pe::Signature::new();
 
-        sig.set_digest(value.stored_authenticode_hash().hexify());
+        sig.set_digest(hex::encode(value.stored_authenticode_hash()));
         sig.set_digest_alg(value.authenticode_hash_algorithm().into_owned());
-        sig.set_file_digest(value.computed_authenticode_hash().hexify());
+        sig.set_file_digest(hex::encode(value.computed_authenticode_hash()));
         sig.set_verified(value.verified());
 
         sig.certificates.extend(
@@ -633,7 +632,7 @@ impl From<&AuthenticodeCountersign<'_>> for protos::pe::CounterSignature {
     fn from(value: &AuthenticodeCountersign<'_>) -> Self {
         let mut cs = protos::pe::CounterSignature::new();
 
-        cs.set_digest(value.digest.hexify());
+        cs.set_digest(hex::encode(value.digest));
         cs.set_digest_alg(value.digest_alg.to_string());
         cs.set_verified(value.verified);
         cs.sign_time = value.signing_time;
