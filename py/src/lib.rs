@@ -66,6 +66,10 @@ enum SupportedModules {
     Pe,
     #[cfg(feature = "dotnet-module")]
     Dotnet,
+    #[cfg(feature = "crx-module")]
+    Crx,
+    #[cfg(feature = "dex-module")]
+    Dex,
 }
 
 /// Formats YARA rules.
@@ -312,6 +316,14 @@ impl Module {
                 #[cfg(feature = "dotnet-module")]
                 SupportedModules::Dotnet => {
                     yrx::mods::invoke_dyn::<yrx::mods::Dotnet>(data)
+                }
+                #[cfg(feature = "crx-module")]
+                SupportedModules::Crx => {
+                    yrx::mods::invoke_dyn::<yrx::mods::Crx>(data)
+                }
+                #[cfg(feature = "dex-module")]
+                SupportedModules::Dex => {
+                    yrx::mods::invoke_dyn::<yrx::mods::Dex>(data)
                 }
                 _ => return Ok(py.None().into_bound(py)),
             };
