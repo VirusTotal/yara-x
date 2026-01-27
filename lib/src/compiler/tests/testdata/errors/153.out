@@ -1,0 +1,5 @@
+error[E001]: syntax error
+ --> line:3:10
+  |
+3 |     $a = “foo”
+  |          ^^^^^ expecting STRING, regexp or `{`, found `“foo”`

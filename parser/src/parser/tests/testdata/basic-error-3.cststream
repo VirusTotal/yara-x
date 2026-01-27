@@ -17,5 +17,5 @@ End { kind: BOOLEAN_TERM, span: Span(23..27) }
 End { kind: BOOLEAN_EXPR, span: Span(23..27) }
 End { kind: CONDITION_BLK, span: Span(12..27) }
 End { kind: ERROR, span: Span(0..27) }
-Error { message: "expecting operator or `}`, found end of file", span: Span(26..26) }
+Error { message: "expecting operator or `}`, found end of file", span: Span(27..27) }
 End { kind: SOURCE_FILE, span: Span(0..27) }

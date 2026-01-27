@@ -543,8 +543,8 @@ impl<'src> ParserImpl<'src> {
             None => {
                 // Special case when the end of the source is reached. The span
                 // used for error reporting is a zero-length span pointing to
-                // last byte in the source code.
-                let last = self.tokens.source().len().saturating_sub(1) as u32;
+                // the end of the code.
+                let last = self.tokens.source().len() as u32;
                 (None, None, Span(last..last))
             }
             Some(token) => (
