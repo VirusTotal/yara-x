@@ -312,6 +312,8 @@ impl Struct {
         self.fields.entry(name)
     }
 
+    /// Calls `f` with all the structures contained in the current one.
+    /// The first call to `f` is for the current structure itself.
     pub fn enum_substructures<F>(&mut self, f: &mut F)
     where
         F: FnMut(&mut Struct),
@@ -666,6 +668,15 @@ impl Struct {
             .unwrap_or_else(|| {
                 EnumValue::I64(enum_value_descriptor.value() as i64)
             })
+    }
+
+    /// Returns an iterator over the fields of this structure.
+    ///
+    /// The returned values are tuples where the first value is the name of the
+    /// field and the second one is a reference to [`StructField`] describing
+    /// the field.
+    pub(crate) fn fields(&self) -> impl Iterator<Item = (&str, &StructField)> {
+        self.fields.iter().map(move |(name, field)| (name.as_str(), field))
     }
 
     /// Similar to [`Struct::enum_value`], but returns the enum value as an `i64`
@@ -1213,7 +1224,8 @@ impl From<&Module> for Rc<Struct> {
         if let Some(rust_module_name) = module.rust_module_name {
             let functions = WasmExport::get_functions(|export| {
                 export.public
-                    && export.rust_module_path.contains(rust_module_name)
+                    && export.rust_module_path.ends_with(rust_module_name)
+                    && export.method_of.is_none()
             });
             for (name, func) in functions {
                 let func = TypeValue::Func(Rc::new(func));

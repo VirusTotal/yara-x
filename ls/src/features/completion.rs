@@ -442,5 +442,6 @@ fn kind_to_string(k: &FieldKind) -> String {
         FieldKind::Map(key, value) => {
             format!("map<{},{}>", kind_to_string(key), kind_to_string(value))
         }
+        FieldKind::Func => "function".to_string(),
     }
 }

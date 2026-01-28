@@ -434,6 +434,11 @@ mod test {
             Some("Bar")
         );
 
+        assert_eq!(
+            MangledFnName::from("bar.Bar::foo@i@iu").method_of(),
+            Some("bar.Bar")
+        );
+
         assert_eq!(MangledFnName::from("foo@i@iu").method_of(), None);
 
         assert!(!MangledFnName::from("foo@i@i").result_may_be_undef());

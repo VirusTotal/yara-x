@@ -473,5 +473,53 @@ fn test_reflect() {
     assert_eq!(field.name(), "deprecated");
     assert_eq!(field.kind(), FieldKind::String);
 
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "Enumeration");
+    assert!(matches!(field.kind(), FieldKind::Struct(_)));
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "items");
+    assert!(matches!(field.kind(), FieldKind::Struct(_)));
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "NestedProto2");
+    assert!(matches!(field.kind(), FieldKind::Struct(_)));
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "TopLevelEnumeration");
+    assert!(matches!(field.kind(), FieldKind::Struct(_)));
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "INLINE_0x1000");
+    assert_eq!(field.kind(), FieldKind::Integer);
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "INLINE_0x2000");
+    assert_eq!(field.kind(), FieldKind::Integer);
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "uppercase");
+    assert_eq!(field.kind(), FieldKind::Func);
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "head");
+    assert_eq!(field.kind(), FieldKind::Func);
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "get_foo");
+    assert_eq!(field.kind(), FieldKind::Func);
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "to_int");
+    assert_eq!(field.kind(), FieldKind::Func);
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "add");
+    assert_eq!(field.kind(), FieldKind::Func);
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "undef_i64");
+    assert_eq!(field.kind(), FieldKind::Func);
+
     assert!(fields.next().is_none());
 }
