@@ -8,6 +8,10 @@ use crate::symbols::{Symbol, SymbolTable};
 use crate::types::TypeValue;
 use crate::wasm::WasmExport;
 
+thread_local! {
+    static BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = OnceCell::new();
+}
+
 #[derive(Serialize, Deserialize)]
 pub(crate) enum Map {
     /// A map that has integer keys.
@@ -31,13 +35,9 @@ pub(crate) enum Map {
 }
 
 impl Map {
-    #[allow(clippy::declare_interior_mutable_const)]
-    const BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = OnceCell::new();
-
     pub fn builtin_methods() -> Rc<SymbolTable> {
-        #[allow(clippy::borrow_interior_mutable_const)]
-        Self::BUILTIN_METHODS
-            .get_or_init(|| {
+        BUILTIN_METHODS.with(|cell| {
+            cell.get_or_init(|| {
                 let mut s = SymbolTable::new();
                 for (name, func) in WasmExport::get_methods("Map") {
                     s.insert(name, Symbol::Func(Rc::new(func)));
@@ -45,6 +45,7 @@ impl Map {
                 Rc::new(s)
             })
             .clone()
+        })
     }
 
     pub fn deputy(&self) -> TypeValue {

@@ -8,6 +8,10 @@ use crate::symbols::{Symbol, SymbolTable};
 use crate::types::{Struct, TypeValue};
 use crate::wasm::WasmExport;
 
+thread_local! {
+    static BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = OnceCell::new();
+}
+
 #[derive(Serialize, Deserialize)]
 pub(crate) enum Array {
     Integers(Vec<i64>),
@@ -18,13 +22,9 @@ pub(crate) enum Array {
 }
 
 impl Array {
-    #[allow(clippy::declare_interior_mutable_const)]
-    const BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = OnceCell::new();
-
     pub fn builtin_methods() -> Rc<SymbolTable> {
-        #[allow(clippy::borrow_interior_mutable_const)]
-        Self::BUILTIN_METHODS
-            .get_or_init(|| {
+        BUILTIN_METHODS.with(|cell| {
+            cell.get_or_init(|| {
                 let mut s = SymbolTable::new();
                 for (name, func) in WasmExport::get_methods("Array") {
                     s.insert(name, Symbol::Func(Rc::new(func)));
@@ -32,6 +32,7 @@ impl Array {
                 Rc::new(s)
             })
             .clone()
+        })
     }
 
     pub fn deputy(&self) -> TypeValue {

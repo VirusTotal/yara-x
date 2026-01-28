@@ -17,6 +17,10 @@ pub(crate) use func::*;
 pub(crate) use map::*;
 pub(crate) use structure::*;
 
+thread_local! {
+    static STRING_BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = OnceCell::new();
+}
+
 mod array;
 mod func;
 mod map;
@@ -310,13 +314,9 @@ impl TypeValue {
         }
     }
 
-    #[allow(clippy::declare_interior_mutable_const)]
-    const STRING_BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = OnceCell::new();
-
     fn string_builtin_methods() -> Rc<SymbolTable> {
-        #[allow(clippy::borrow_interior_mutable_const)]
-        Self::STRING_BUILTIN_METHODS
-            .get_or_init(|| {
+        STRING_BUILTIN_METHODS.with(|cell| {
+            cell.get_or_init(|| {
                 let mut s = SymbolTable::new();
                 for (name, func) in WasmExport::get_methods("RuntimeString") {
                     s.insert(name, Symbol::Func(Rc::new(func)));
@@ -324,6 +324,7 @@ impl TypeValue {
                 Rc::new(s)
             })
             .clone()
+        })
     }
 
     /// Returns the symbol table associated to this [`TypeValue`].
