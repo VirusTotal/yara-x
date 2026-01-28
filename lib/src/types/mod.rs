@@ -18,7 +18,7 @@ pub(crate) use map::*;
 pub(crate) use structure::*;
 
 thread_local! {
-    static STRING_BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = OnceCell::new();
+    static STRING_BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = const { OnceCell::new() };
 }
 
 mod array;

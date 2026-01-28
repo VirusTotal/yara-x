@@ -9,7 +9,7 @@ use crate::types::{Struct, TypeValue};
 use crate::wasm::WasmExport;
 
 thread_local! {
-    static BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = OnceCell::new();
+    static BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = const { OnceCell::new() };
 }
 
 #[derive(Serialize, Deserialize)]
