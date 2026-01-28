@@ -100,7 +100,7 @@ strum_macros = "0.27.2"
 thiserror = "2.0.17"
 uuid = "1.18.1"
 walrus = "0.24.3"
-wasmtime = { version = "38.0.4", default-features = false }
+wasmtime = { version = "40.0.3", default-features = false }
 x509-parser = "0.18.0"
 yansi = "1.0.1"
 yara-x = { path = "lib", version = "1.12.0", default-features = false }
