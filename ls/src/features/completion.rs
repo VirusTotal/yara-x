@@ -2,9 +2,10 @@ use async_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails,
     InsertTextFormat, InsertTextMode, Position,
 };
+use itertools::Itertools;
 
 #[cfg(feature = "full-compiler")]
-use yara_x::mods::reflect::FieldKind;
+use yara_x::mods::reflect::Type;
 #[cfg(feature = "full-compiler")]
 use yara_x::mods::{module_definition, module_names};
 use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Token, CST};
@@ -351,28 +352,28 @@ fn module_suggestions(
     let definition = module_definition(module_name)?;
 
     // Traverse
-    let mut current_kind = FieldKind::Struct(definition);
+    let mut current_kind = Type::Struct(definition);
 
     for segment in path.iter().rev().skip(1) {
         match segment {
             Segment::Field(name) => {
                 match current_kind {
-                    FieldKind::Struct(struct_def) => {
+                    Type::Struct(struct_def) => {
                         // Find field
                         current_kind = struct_def
                             .fields()
                             .find(|field| field.name() == *name)?
-                            .kind();
+                            .ty();
                     }
                     _ => return None, // Cannot access field of non-struct
                 }
             }
             Segment::Index => {
                 match current_kind {
-                    FieldKind::Array(inner) => {
+                    Type::Array(inner) => {
                         current_kind = *inner;
                     }
-                    FieldKind::Map(_, value) => {
+                    Type::Map(_, value) => {
                         current_kind = *value;
                     }
                     _ => return None, // Cannot index non-array
@@ -383,14 +384,24 @@ fn module_suggestions(
 
     // Now `current_kind` is the type of the expression before the cursor.
     // We want to suggest fields if it is a Struct.
-    if let FieldKind::Struct(def) = current_kind {
+    if let Type::Struct(def) = current_kind {
         let suggestions = def
             .fields()
             .map(|f| CompletionItem {
                 label: f.name().to_string(),
-                kind: Some(CompletionItemKind::FIELD),
+                kind: if matches!(f.ty(), Type::Func(_)) {
+                    Some(CompletionItemKind::METHOD)
+                } else {
+                    Some(CompletionItemKind::FIELD)
+                },
+                insert_text: if matches!(f.ty(), Type::Func(_)) {
+                    Some(format!("{}(${{0}})", f.name()))
+                } else {
+                    None
+                },
+                insert_text_format: Some(InsertTextFormat::SNIPPET),
                 label_details: Some(CompletionItemLabelDetails {
-                    description: Some(kind_to_string(&f.kind())),
+                    description: Some(type_to_string(&f.ty())),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -431,17 +442,31 @@ fn find_matching_left_bracket(
 }
 
 #[cfg(feature = "full-compiler")]
-fn kind_to_string(k: &FieldKind) -> String {
+fn type_to_string(k: &Type) -> String {
     match k {
-        FieldKind::Integer => "integer".to_string(),
-        FieldKind::Float => "float".to_string(),
-        FieldKind::Bool => "bool".to_string(),
-        FieldKind::String => "string".to_string(),
-        FieldKind::Struct(_) => "struct".to_string(),
-        FieldKind::Array(inner) => format!("array<{}>", kind_to_string(inner)),
-        FieldKind::Map(key, value) => {
-            format!("map<{},{}>", kind_to_string(key), kind_to_string(value))
+        Type::Integer => "integer".to_string(),
+        Type::Float => "float".to_string(),
+        Type::Bool => "bool".to_string(),
+        Type::String => "string".to_string(),
+        Type::Regexp => "regexp".to_string(),
+        Type::Struct(_) => "struct".to_string(),
+        Type::Array(inner) => format!("array<{}>", type_to_string(inner)),
+        Type::Map(key, value) => {
+            format!("map<{},{}>", type_to_string(key), type_to_string(value))
         }
-        FieldKind::Func => "function".to_string(),
+        Type::Func(func) => {
+            let mut s = String::from("func(");
+            if let Some(signature) = func.signatures.first() {
+                s.push_str(
+                    &*signature
+                        .args
+                        .iter()
+                        .map(|arg_type| type_to_string(arg_type))
+                        .join(","),
+                );
+            }
+            s.push_str(")");
+            s
+        }
     }
 }

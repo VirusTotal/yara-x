@@ -146,21 +146,21 @@ pub(crate) static BUILTIN_MODULES: LazyLock<FxHashMap<&'static str, Module>> =
 pub mod mods {
     /*! Utility functions and structures that allow invoking YARA modules directly.
 
-       The utility functions [`invoke`], [`invoke_dyn`] and [`invoke_all`]
-       allow leveraging YARA modules for parsing some file formats independently
-       of any YARA rule. With these functions you can pass arbitrary data to a
-       YARA module and obtain the same data structure that is accessible to YARA
-       rules and which you use in your rule conditions.
+    The utility functions [`invoke`], [`invoke_dyn`] and [`invoke_all`]
+    allow leveraging YARA modules for parsing some file formats independently
+    of any YARA rule. With these functions you can pass arbitrary data to a
+    YARA module and obtain the same data structure that is accessible to YARA
+    rules and which you use in your rule conditions.
 
-       This allows external projects to benefit from YARA's file-parsing
-       capabilities for their own purposes.
+    This allows external projects to benefit from YARA's file-parsing
+    capabilities for their own purposes.
 
-       # Example
+    # Example
 
-       ```rust
-       # use yara_x;
-       let pe_info = yara_x::mods::invoke::<yara_x::mods::PE>(&[]);
-       ```
+    ```rust
+    # use yara_x;
+    let pe_info = yara_x::mods::invoke::<yara_x::mods::PE>(&[]);
+    ```
     */
 
     /// Data structures defined by the `crx` module.
@@ -337,9 +337,10 @@ pub mod mods {
     /// This API is unstable and not ready for public use.
     #[doc(hidden)]
     pub mod reflect {
+        use std::rc::Rc;
+
         use crate::types;
         use crate::types::{Map, TypeValue};
-        use std::rc::Rc;
 
         /// Describes a structure or module.
         #[derive(Clone, Debug, PartialEq)]
@@ -362,6 +363,40 @@ pub mod mods {
             }
         }
 
+        /// Describes a function.
+        #[derive(Clone, Debug, PartialEq)]
+        pub struct Func {
+            /// All the existing signatures for this function. A function
+            /// can have multiple signatures that differ in their arguments
+            /// or return type.
+            pub signatures: Vec<FuncSignature>,
+        }
+
+        impl From<Rc<types::Func>> for Func {
+            fn from(func: Rc<types::Func>) -> Self {
+                let mut signatures =
+                    Vec::with_capacity(func.signatures().len());
+
+                for signature in func.signatures() {
+                    signatures.push(FuncSignature {
+                        args: signature.args.iter().map(Type::from).collect(),
+                        ret: Type::from(&signature.result),
+                    });
+                }
+
+                Func { signatures }
+            }
+        }
+
+        /// Describes a function signature.
+        #[derive(Clone, Debug, PartialEq)]
+        pub struct FuncSignature {
+            /// The types of the function arguments.
+            pub args: Vec<Type>,
+            /// The return type for the function.
+            pub ret: Type,
+        }
+
         /// Describes a field within a structure or module.
         #[derive(Clone)]
         pub struct Field<'a> {
@@ -382,47 +417,15 @@ pub mod mods {
                 self.name
             }
 
-            /// Returns the kind of the field.
-            pub fn kind(&self) -> FieldKind {
-                Self::field_kind_from_type_value(&self.struct_field.type_value)
-            }
-
-            fn field_kind_from_type_value(
-                type_value: &TypeValue,
-            ) -> FieldKind {
-                match type_value {
-                    TypeValue::Bool { .. } => FieldKind::Bool,
-                    TypeValue::Float { .. } => FieldKind::Float,
-                    TypeValue::Integer { .. } => FieldKind::Integer,
-                    TypeValue::String { .. } => FieldKind::String,
-                    TypeValue::Struct(s) => {
-                        FieldKind::Struct(Struct::new(s.clone()))
-                    }
-                    TypeValue::Array(a) => FieldKind::Array(Box::new(
-                        Self::field_kind_from_type_value(&a.deputy()),
-                    )),
-                    TypeValue::Map(m) => {
-                        let key_kind = match **m {
-                            Map::IntegerKeys { .. } => FieldKind::Integer,
-                            Map::StringKeys { .. } => FieldKind::String,
-                        };
-                        FieldKind::Map(
-                            Box::new(key_kind),
-                            Box::new(Self::field_kind_from_type_value(
-                                &m.deputy(),
-                            )),
-                        )
-                    }
-                    TypeValue::Func(_) => FieldKind::Func,
-                    TypeValue::Regexp(_) => unreachable!(),
-                    TypeValue::Unknown => unreachable!(),
-                }
+            /// Returns the type of the field.
+            pub fn ty(&self) -> Type {
+                Type::from(&self.struct_field.type_value)
             }
         }
 
-        /// The kind of a field.
+        /// The type of field, function argument or return value.
         #[derive(Clone, Debug, PartialEq)]
-        pub enum FieldKind {
+        pub enum Type {
             /// An integer.
             Integer,
             /// A float.
@@ -431,14 +434,46 @@ pub mod mods {
             Bool,
             /// A string.
             String,
+            /// A regular expression
+            Regexp,
             /// A structure.
             Struct(Struct),
             /// An array.
-            Array(Box<FieldKind>),
+            Array(Box<Type>),
             /// A map.
-            Map(Box<FieldKind>, Box<FieldKind>),
+            Map(Box<Type>, Box<Type>),
             /// A function.
-            Func,
+            Func(Func),
+        }
+
+        impl From<&TypeValue> for Type {
+            fn from(type_value: &TypeValue) -> Self {
+                match type_value {
+                    TypeValue::Bool { .. } => Type::Bool,
+                    TypeValue::Float { .. } => Type::Float,
+                    TypeValue::Integer { .. } => Type::Integer,
+                    TypeValue::String { .. } => Type::String,
+                    TypeValue::Regexp(_) => Type::Regexp,
+                    TypeValue::Struct(s) => {
+                        Type::Struct(Struct::new(s.clone()))
+                    }
+                    TypeValue::Array(a) => {
+                        Type::Array(Box::new(Type::from(&a.deputy())))
+                    }
+                    TypeValue::Map(m) => {
+                        let key_kind = match **m {
+                            Map::IntegerKeys { .. } => Type::Integer,
+                            Map::StringKeys { .. } => Type::String,
+                        };
+                        Type::Map(
+                            Box::new(key_kind),
+                            Box::new(Type::from(&m.deputy())),
+                        )
+                    }
+                    TypeValue::Func(func) => Type::Func(func.clone().into()),
+                    TypeValue::Unknown => unreachable!(),
+                }
+            }
         }
     }
 }

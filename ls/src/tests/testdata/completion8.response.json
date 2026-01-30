@@ -4,1490 +4,1717 @@
     "labelDetails": {
       "description": "bool"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "machine",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "subsystem",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "os_version",
     "labelDetails": {
       "description": "struct"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "subsystem_version",
     "labelDetails": {
       "description": "struct"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "image_version",
     "labelDetails": {
       "description": "struct"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "linker_version",
     "labelDetails": {
       "description": "struct"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "opthdr_magic",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "characteristics",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "dll_characteristics",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "timestamp",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "image_base",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "checksum",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "base_of_code",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "base_of_data",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "entry_point",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "entry_point_raw",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "dll_name",
     "labelDetails": {
       "description": "string"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "export_timestamp",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "section_alignment",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "file_alignment",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "loader_flags",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "size_of_optional_header",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "size_of_code",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "size_of_initialized_data",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "size_of_uninitialized_data",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "size_of_image",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "size_of_headers",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "size_of_stack_reserve",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "size_of_stack_commit",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "size_of_heap_reserve",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "size_of_heap_commit",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "pointer_to_symbol_table",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "win32_version_value",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "number_of_symbols",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "number_of_rva_and_sizes",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "number_of_sections",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "number_of_imported_functions",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "number_of_delayed_imported_functions",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "number_of_resources",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "number_of_version_infos",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "number_of_imports",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "number_of_delayed_imports",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "number_of_exports",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "number_of_signatures",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "version_info",
     "labelDetails": {
       "description": "map<string,string>"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "version_info_list",
     "labelDetails": {
       "description": "array<struct>"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "rich_signature",
     "labelDetails": {
       "description": "struct"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "pdb_path",
     "labelDetails": {
       "description": "string"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "sections",
     "labelDetails": {
       "description": "array<struct>"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "data_directories",
     "labelDetails": {
       "description": "array<struct>"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "resource_timestamp",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "resource_version",
     "labelDetails": {
       "description": "struct"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "resources",
     "labelDetails": {
       "description": "array<struct>"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "import_details",
     "labelDetails": {
       "description": "array<struct>"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "delayed_import_details",
     "labelDetails": {
       "description": "array<struct>"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "export_details",
     "labelDetails": {
       "description": "array<struct>"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "is_signed",
     "labelDetails": {
       "description": "bool"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "signatures",
     "labelDetails": {
       "description": "array<struct>"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "overlay",
     "labelDetails": {
       "description": "struct"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_UNKNOWN",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_AM33",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_AMD64",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_ARM",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_ARMNT",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_ARM64",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_EBC",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_I386",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_IA64",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_M32R",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_MIPS16",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_MIPSFPU",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_MIPSFPU16",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_POWERPC",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_POWERPCFP",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_R4000",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_SH3",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_SH3DSP",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_SH4",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_SH5",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_THUMB",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_WCEMIPSV2",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SUBSYSTEM_UNKNOWN",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SUBSYSTEM_NATIVE",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SUBSYSTEM_WINDOWS_GUI",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SUBSYSTEM_WINDOWS_CUI",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SUBSYSTEM_OS2_CUI",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SUBSYSTEM_POSIX_CUI",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SUBSYSTEM_NATIVE_WINDOWS",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SUBSYSTEM_WINDOWS_CE_GUI",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SUBSYSTEM_EFI_APPLICATION",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SUBSYSTEM_EFI_RUNTIME_DRIVER",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SUBSYSTEM_EFI_ROM_IMAGE",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SUBSYSTEM_XBOX",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SUBSYSTEM_WINDOWS_BOOT_APPLICATION",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_NT_OPTIONAL_HDR32_MAGIC",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_NT_OPTIONAL_HDR64_MAGIC",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_ROM_OPTIONAL_HDR_MAGIC",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_CURSOR",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_BITMAP",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_ICON",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_MENU",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_DIALOG",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_STRING",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_FONTDIR",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_FONT",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_ACCELERATOR",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_RCDATA",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_MESSAGETABLE",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_GROUP_CURSOR",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_GROUP_ICON",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_VERSION",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_DLGINCLUDE",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_PLUGPLAY",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_VXD",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_ANICURSOR",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_ANIICON",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_HTML",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RESOURCE_TYPE_MANIFEST",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMPORT_STANDARD",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMPORT_DELAYED",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMPORT_ANY",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "RELOCS_STRIPPED",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "EXECUTABLE_IMAGE",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "LINE_NUMS_STRIPPED",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "LOCAL_SYMS_STRIPPED",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "AGGRESIVE_WS_TRIM",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "LARGE_ADDRESS_AWARE",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "BYTES_REVERSED_LO",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "MACHINE_32BIT",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "DEBUG_STRIPPED",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "REMOVABLE_RUN_FROM_SWAP",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "NET_RUN_FROM_SWAP",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SYSTEM",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "DLL",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "UP_SYSTEM_ONLY",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "BYTES_REVERSED_HI",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_DIRECTORY_ENTRY_EXPORT",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_DIRECTORY_ENTRY_IMPORT",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_DIRECTORY_ENTRY_RESOURCE",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_DIRECTORY_ENTRY_EXCEPTION",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_DIRECTORY_ENTRY_SECURITY",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_DIRECTORY_ENTRY_BASERELOC",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_DIRECTORY_ENTRY_DEBUG",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_DIRECTORY_ENTRY_COPYRIGHT",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_DIRECTORY_ENTRY_ARCHITECTURE",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_DIRECTORY_ENTRY_GLOBALPTR",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_DIRECTORY_ENTRY_TLS",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_DIRECTORY_ENTRY_IAT",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_NO_PAD",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_CNT_CODE",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_CNT_INITIALIZED_DATA",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_CNT_UNINITIALIZED_DATA",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_LNK_OTHER",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_LNK_INFO",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_LNK_REMOVE",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_LNK_COMDAT",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_NO_DEFER_SPEC_EXC",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_GPREL",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_ALIGN_1BYTES",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_ALIGN_2BYTES",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_ALIGN_4BYTES",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_ALIGN_8BYTES",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_ALIGN_16BYTES",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_ALIGN_32BYTES",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_ALIGN_64BYTES",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_ALIGN_128BYTES",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_ALIGN_256BYTES",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_ALIGN_512BYTES",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_ALIGN_1024BYTES",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_ALIGN_2048BYTES",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_ALIGN_4096BYTES",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_ALIGN_8192BYTES",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_ALIGN_MASK",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_LNK_NRELOC_OVFL",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_MEM_DISCARDABLE",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_MEM_NOT_CACHED",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_MEM_NOT_PAGED",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_MEM_SHARED",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_MEM_EXECUTE",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_MEM_READ",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_MEM_WRITE",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "SECTION_SCALE_INDEX",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "HIGH_ENTROPY_VA",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "DYNAMIC_BASE",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "FORCE_INTEGRITY",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "NX_COMPAT",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "NO_ISOLATION",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "NO_SEH",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "NO_BIND",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "APPCONTAINER",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "WDM_DRIVER",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "GUARD_CF",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "TERMINAL_SERVER_AWARE",
     "labelDetails": {
       "description": "integer"
     },
-    "kind": 5
+    "kind": 5,
+    "insertTextFormat": 2
   },
   {
     "label": "imphash",
     "labelDetails": {
-      "description": "function"
+      "description": "func()"
     },
-    "kind": 5
+    "kind": 2,
+    "insertText": "imphash(${0})",
+    "insertTextFormat": 2
   },
   {
     "label": "is_32bit",
     "labelDetails": {
-      "description": "function"
+      "description": "func()"
     },
-    "kind": 5
+    "kind": 2,
+    "insertText": "is_32bit(${0})",
+    "insertTextFormat": 2
   },
   {
     "label": "calculate_checksum",
     "labelDetails": {
-      "description": "function"
+      "description": "func()"
     },
-    "kind": 5
+    "kind": 2,
+    "insertText": "calculate_checksum(${0})",
+    "insertTextFormat": 2
   },
   {
     "label": "delayed_import_rva",
     "labelDetails": {
-      "description": "function"
+      "description": "func(string,integer)"
     },
-    "kind": 5
+    "kind": 2,
+    "insertText": "delayed_import_rva(${0})",
+    "insertTextFormat": 2
   },
   {
     "label": "exports",
     "labelDetails": {
-      "description": "function"
+      "description": "func(integer)"
     },
-    "kind": 5
+    "kind": 2,
+    "insertText": "exports(${0})",
+    "insertTextFormat": 2
   },
   {
     "label": "imports",
     "labelDetails": {
-      "description": "function"
+      "description": "func(integer,regexp,regexp)"
     },
-    "kind": 5
+    "kind": 2,
+    "insertText": "imports(${0})",
+    "insertTextFormat": 2
   },
   {
     "label": "section_index",
     "labelDetails": {
-      "description": "function"
+      "description": "func(integer)"
     },
-    "kind": 5
+    "kind": 2,
+    "insertText": "section_index(${0})",
+    "insertTextFormat": 2
   },
   {
     "label": "rva_to_offset",
     "labelDetails": {
-      "description": "function"
+      "description": "func(integer)"
     },
-    "kind": 5
+    "kind": 2,
+    "insertText": "rva_to_offset(${0})",
+    "insertTextFormat": 2
   },
   {
     "label": "is_dll",
     "labelDetails": {
-      "description": "function"
+      "description": "func()"
     },
-    "kind": 5
+    "kind": 2,
+    "insertText": "is_dll(${0})",
+    "insertTextFormat": 2
   },
   {
     "label": "exports_index",
     "labelDetails": {
-      "description": "function"
+      "description": "func(integer)"
     },
-    "kind": 5
+    "kind": 2,
+    "insertText": "exports_index(${0})",
+    "insertTextFormat": 2
   },
   {
     "label": "import_rva",
     "labelDetails": {
-      "description": "function"
+      "description": "func(string,integer)"
     },
-    "kind": 5
+    "kind": 2,
+    "insertText": "import_rva(${0})",
+    "insertTextFormat": 2
   },
   {
     "label": "is_64bit",
     "labelDetails": {
-      "description": "function"
+      "description": "func()"
     },
-    "kind": 5
+    "kind": 2,
+    "insertText": "is_64bit(${0})",
+    "insertTextFormat": 2
   },
   {
     "label": "language",
     "labelDetails": {
-      "description": "function"
+      "description": "func(integer)"
     },
-    "kind": 5
+    "kind": 2,
+    "insertText": "language(${0})",
+    "insertTextFormat": 2
   },
   {
     "label": "locale",
     "labelDetails": {
-      "description": "function"
+      "description": "func(integer)"
     },
-    "kind": 5
+    "kind": 2,
+    "insertText": "locale(${0})",
+    "insertTextFormat": 2
   }
 ]

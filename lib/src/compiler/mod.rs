@@ -1858,6 +1858,7 @@ impl Compiler<'_> {
             self.imported_modules
                 .push(self.ident_pool.get_or_intern(module_name));
 
+            // Create the `Struct` that describes the module.
             let module_struct = Rc::<Struct>::from(module);
 
             // Insert the module in the struct that contains all imported
