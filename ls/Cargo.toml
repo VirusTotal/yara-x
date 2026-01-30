@@ -36,7 +36,6 @@ default = ["full-compiler"]
 [dependencies]
 bitflags = { workspace = true }
 futures = "0.3.31"
-itertools = {  workspace = true }
 tracing = { version = "0.1.44", optional = true }
 tracing-subscriber = { version = "0.3.22", optional = true }
 serde = { workspace = true }

@@ -5348,7 +5348,6 @@ dependencies = [
  "bitflags 2.10.0",
  "futures",
  "goldenfile",
- "itertools 0.14.0",
  "serde",
  "serde_json",
  "tokio",

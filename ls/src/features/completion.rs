@@ -2,7 +2,6 @@ use async_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails,
     InsertTextFormat, InsertTextMode, Position,
 };
-use itertools::Itertools;
 
 #[cfg(feature = "full-compiler")]
 use yara_x::mods::reflect::Type;
@@ -382,35 +381,61 @@ fn module_suggestions(
         }
     }
 
-    // Now `current_kind` is the type of the expression before the cursor.
-    // We want to suggest fields if it is a Struct.
-    if let Type::Struct(def) = current_kind {
-        let suggestions = def
-            .fields()
-            .map(|f| CompletionItem {
-                label: f.name().to_string(),
-                kind: if matches!(f.ty(), Type::Func(_)) {
-                    Some(CompletionItemKind::METHOD)
-                } else {
-                    Some(CompletionItemKind::FIELD)
-                },
-                insert_text: if matches!(f.ty(), Type::Func(_)) {
-                    Some(format!("{}(${{0}})", f.name()))
-                } else {
-                    None
-                },
-                insert_text_format: Some(InsertTextFormat::SNIPPET),
-                label_details: Some(CompletionItemLabelDetails {
-                    description: Some(type_to_string(&f.ty())),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            })
-            .collect();
-        return Some(suggestions);
-    }
+    let current_struct = match current_kind {
+        Type::Struct(s) => s,
+        _ => return None,
+    };
 
-    None
+    // Now `current_struct` is the structure before the cursor.
+    // We want to suggest fields for this structure.
+    let suggestions = current_struct
+        .fields()
+        .flat_map(|f| {
+            let name = f.name();
+            let ty = f.ty();
+
+            if let Type::Func(ref func_def) = ty {
+                func_def
+                    .signatures
+                    .iter()
+                    .map(|sig| {
+                        let args = sig
+                            .args
+                            .iter()
+                            .map(|arg| ty_to_string(arg))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+
+                        CompletionItem {
+                            label: format!("{}({})", name, args),
+                            kind: Some(CompletionItemKind::METHOD),
+                            insert_text: Some(format!("{}(${{0}})", name)),
+                            insert_text_format: Some(
+                                InsertTextFormat::SNIPPET,
+                            ),
+                            label_details: Some(CompletionItemLabelDetails {
+                                description: Some(ty_to_string(&ty)),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                        }
+                    })
+                    .collect()
+            } else {
+                vec![CompletionItem {
+                    label: name.to_string(),
+                    kind: Some(CompletionItemKind::FIELD),
+                    label_details: Some(CompletionItemLabelDetails {
+                        description: Some(ty_to_string(&ty)),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }]
+            }
+        })
+        .collect();
+
+    Some(suggestions)
 }
 
 /// Given a token that must be a closing (right) bracket, find the
@@ -442,31 +467,18 @@ fn find_matching_left_bracket(
 }
 
 #[cfg(feature = "full-compiler")]
-fn type_to_string(k: &Type) -> String {
-    match k {
+fn ty_to_string(ty: &Type) -> String {
+    match ty {
         Type::Integer => "integer".to_string(),
         Type::Float => "float".to_string(),
         Type::Bool => "bool".to_string(),
         Type::String => "string".to_string(),
         Type::Regexp => "regexp".to_string(),
         Type::Struct(_) => "struct".to_string(),
-        Type::Array(inner) => format!("array<{}>", type_to_string(inner)),
+        Type::Func(_) => "func()".to_string(),
+        Type::Array(inner) => format!("array<{}>", ty_to_string(inner)),
         Type::Map(key, value) => {
-            format!("map<{},{}>", type_to_string(key), type_to_string(value))
-        }
-        Type::Func(func) => {
-            let mut s = String::from("func(");
-            if let Some(signature) = func.signatures.first() {
-                s.push_str(
-                    &*signature
-                        .args
-                        .iter()
-                        .map(|arg_type| type_to_string(arg_type))
-                        .join(","),
-                );
-            }
-            s.push_str(")");
-            s
+            format!("map<{},{}>", ty_to_string(key), ty_to_string(value))
         }
     }
 }
