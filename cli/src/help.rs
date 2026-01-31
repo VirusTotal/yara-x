@@ -81,6 +81,12 @@ When no filter is specified, the following ones are used by default:
 
 --filter='**/*.yara' --filter='**/*.yar'"#;
 
+pub const FMT_LONG_HELP: &str = r#"Format YARA source files
+
+Multiple <RULES_PATH> arguments can be specified. If a path is a directory, all files with
+extensions `.yar` and `.yara` will be formatted. This behavior can be changed by using the
+`--filter` option."#;
+
 pub const FMT_CHECK_MODE: &str = r#"Run in 'check' mode
 
 Doesn't modify the files. Exits with 0 if files are formatted correctly. Exits
