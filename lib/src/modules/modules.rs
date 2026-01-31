@@ -33,5 +33,7 @@ mod test_proto3;
 mod text;
 #[cfg(feature = "time-module")]
 mod time;
+#[cfg(feature = "vsix-module")]
+mod vsix;
 #[cfg(feature = "vt-module")]
 mod vt;

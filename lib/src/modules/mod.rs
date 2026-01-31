@@ -226,6 +226,15 @@ pub mod mods {
     /// Data structure returned by the `pe` module.
     pub use super::protos::pe::PE;
 
+    /// Data structures defined by the `vsix` module.
+    ///
+    /// The main structure produced by the module is [`vsix::Vsix`]. The rest
+    /// of them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::vsix;
+    /// Data structure returned by the `vsix` module.
+    pub use super::protos::vsix::Vsix;
+
     /// A data structure containing the data returned by all modules.
     pub use super::protos::mods::Modules;
 
@@ -313,6 +322,7 @@ pub mod mods {
         info.lnk = protobuf::MessageField(invoke::<Lnk>(data));
         info.crx = protobuf::MessageField(invoke::<Crx>(data));
         info.dex = protobuf::MessageField(invoke::<Dex>(data));
+        info.vsix = protobuf::MessageField(invoke::<Vsix>(data));
         info
     }
 

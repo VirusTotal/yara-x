@@ -34,6 +34,8 @@ add_module!(modules, "test_proto3", test_proto3, "test_proto3.TestProto3", Some(
 add_module!(modules, "text", text, "text.Text", Some("text"), Some(text::__main__ as MainFn));
 #[cfg(feature = "time-module")]
 add_module!(modules, "time", time, "time.Time", Some("time"), Some(time::__main__ as MainFn));
+#[cfg(feature = "vsix-module")]
+add_module!(modules, "vsix", vsix, "vsix.Vsix", Some("vsix"), Some(vsix::__main__ as MainFn));
 #[cfg(feature = "vt-module")]
 add_module!(modules, "vt", titan, "vt.titan.LiveHuntData", Some("vt"), Some(vt::__main__ as MainFn));
 }
