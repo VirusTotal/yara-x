@@ -72,7 +72,11 @@ impl Vsix {
     pub fn parse(data: &[u8]) -> Result<Self, Error> {
         let mut zip = Self::read_zip(data).map_err(|_| Error::InvalidVsix)?;
 
-        // Collect all file names from the archive
+        // Collect all file names from the archive as in-memory strings for YARA
+        // rule matching. Note: While file.name() can contain path traversal
+        // sequences like "../", this is only a security concern when extracting
+        // files to disk. Here, names are stored as opaque strings for pattern
+        // matching, never used as paths.
         let mut files = Vec::with_capacity(zip.len());
         for i in 0..zip.len() {
             if let Ok(file) = zip.by_index(i) {
