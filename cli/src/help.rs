@@ -83,8 +83,9 @@ When no filter is specified, the following ones are used by default:
 
 pub const FMT_CHECK_MODE: &str = r#"Run in 'check' mode
 
-Doesn't modify the files. Exits with 0 if files are formatted correctly. Exits
-with 1 if formatting is required."#;
+Doesn't modify the files. If formatting is required prints the names of files
+that would be modified and exits with 1. Exits with 0 if all files were already
+formatted correctly."#;
 
 pub const FMT_TAB_SIZE: &str = r#"Tab size (in spaces) used in source files
 
