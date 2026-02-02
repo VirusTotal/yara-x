@@ -75,6 +75,11 @@
     "preselect": true
   },
   {
+    "label": "vsix",
+    "kind": 9,
+    "preselect": true
+  },
+  {
     "label": "vt",
     "kind": 9,
     "preselect": true
