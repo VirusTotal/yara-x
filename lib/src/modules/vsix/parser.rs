@@ -99,13 +99,17 @@ impl Vsix {
         zip::ZipArchive::new(Cursor::new(zip_data))
     }
 
-    fn read_manifest<R: Read + Seek>(zip: &mut ZipArchive<R>) -> Option<VsixManifest> {
+    fn read_manifest<R: Read + Seek>(
+        zip: &mut ZipArchive<R>,
+    ) -> Option<VsixManifest> {
         // Try common locations for package.json
         let paths = ["extension/package.json", "package.json"];
 
         for path in paths {
             if let Ok(file) = zip.by_name(path) {
-                if let Ok(manifest) = serde_json::from_reader::<_, VsixManifest>(file) {
+                if let Ok(manifest) =
+                    serde_json::from_reader::<_, VsixManifest>(file)
+                {
                     return Some(manifest);
                 }
             }
@@ -115,8 +119,12 @@ impl Vsix {
         for i in 0..zip.len() {
             if let Ok(file) = zip.by_index(i) {
                 let name = file.name();
-                if name.ends_with("/package.json") && name.matches('/').count() == 1 {
-                    if let Ok(manifest) = serde_json::from_reader::<_, VsixManifest>(file) {
+                if name.ends_with("/package.json")
+                    && name.matches('/').count() == 1
+                {
+                    if let Ok(manifest) =
+                        serde_json::from_reader::<_, VsixManifest>(file)
+                    {
                         return Some(manifest);
                     }
                 }
@@ -148,8 +156,10 @@ impl From<Vsix> for protos::vsix::Vsix {
             result.keywords = manifest.keywords;
 
             // Compute extension ID as publisher.name
-            if let (Some(publisher), Some(name)) = (&manifest.publisher, &manifest.name) {
-                result.id = Some(format!("{}.{}", publisher, name));
+            if let (Some(publisher), Some(name)) =
+                (&manifest.publisher, &manifest.name)
+            {
+                result.id = Some(format!("{publisher}.{name}"));
             }
 
             // Extract vscode version from engines
