@@ -1375,7 +1375,6 @@ impl<'a> MachOFile<'a> {
                             |(s, _)| s,
                         )
                         .parse(name_buffer)?;
-                        dbg!(import_str.to_str_lossy());
                         if let Ok(import) = import_str.to_str() {
                             self.imports.push(import.to_string());
                         }
