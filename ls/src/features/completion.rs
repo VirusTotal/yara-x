@@ -2,6 +2,7 @@ use async_lsp::lsp_types::{
     CompletionItem, CompletionItemKind, CompletionItemLabelDetails,
     InsertTextFormat, InsertTextMode, Position,
 };
+use itertools::Itertools;
 
 #[cfg(feature = "full-compiler")]
 use yara_x::mods::reflect::Type;
@@ -399,17 +400,30 @@ fn module_suggestions(
                     .signatures
                     .iter()
                     .map(|sig| {
-                        let args = sig
+                        let arg_types = sig
                             .args
                             .iter()
                             .map(|arg| ty_to_string(arg))
-                            .collect::<Vec<_>>()
-                            .join(", ");
+                            .collect::<Vec<_>>();
+
+                        let args_template = arg_types
+                            .iter()
+                            .enumerate()
+                            .map(|(n, arg_type)| {
+                                format!("${{{}:{arg_type}}}", n + 1)
+                            })
+                            .join(",");
 
                         CompletionItem {
-                            label: format!("{}({})", name, args),
+                            label: format!(
+                                "{}({})",
+                                name,
+                                arg_types.join(", ")
+                            ),
                             kind: Some(CompletionItemKind::METHOD),
-                            insert_text: Some(format!("{}(${{0}})", name)),
+                            insert_text: Some(format!(
+                                "{name}({args_template})",
+                            )),
                             insert_text_format: Some(
                                 InsertTextFormat::SNIPPET,
                             ),
