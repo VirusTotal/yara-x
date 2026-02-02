@@ -1335,7 +1335,7 @@ impl<'a> MachOFile<'a> {
                     imports_offset,
                     symbols_offset,
                     imports_count,
-                    _imports_format: imports_format,
+                    imports_format,
                     _symbols_format: symbols_format,
                 }
             },
@@ -1350,29 +1350,35 @@ impl<'a> MachOFile<'a> {
         let (_, header) = self.chained_fixup_header().parse(data)?;
 
         if let Some(import_data) = data.get(header.imports_offset as usize..) {
-            let mut remainder = import_data;
-            let mut chained_import_value: u32;
+            let entry_size = match header.imports_format {
+                2 => 8,  // DYLD_CHAINED_IMPORT_ADDEND (u64)
+                3 => 16, // DYLD_CHAINED_IMPORT_ADDEND64 (u128)
+                _ => 4,  // Default u32
+            };
 
-            for _ in 0..header.imports_count {
-                (remainder, chained_import_value) =
-                    u32(self.endianness)(remainder)?;
+            let imports_size = (header.imports_count as usize) * entry_size;
+            if let Some(raw_imports_blob) = import_data.get(..imports_size) {
+                for chunk in raw_imports_blob.chunks_exact(entry_size) {
+                    let (_, chained_import_value) =
+                        u32(self.endianness)(chunk)?;
 
-                let _lib_ordinal = chained_import_value & 0xff;
-                let _import_kind = (chained_import_value >> 8) & 0x1;
-                let name_offset = chained_import_value >> 9;
+                    let _lib_ordinal = chained_import_value & 0xff;
+                    let _import_kind = (chained_import_value >> 8) & 0x1;
+                    let name_offset = (chained_import_value >> 9) & 0x7FFFFF;
 
-                if let Some(name_buffer) = data.get(
-                    header.symbols_offset.saturating_add(name_offset)
-                        as usize..,
-                ) {
-                    let (_remainder, import_str) = map(
-                        (take_till(|b| b == b'\x00'), tag("\x00")),
-                        |(s, _)| s,
-                    )
-                    .parse(name_buffer)?;
-
-                    if let Ok(import) = import_str.to_str() {
-                        self.imports.push(import.to_string());
+                    if let Some(name_buffer) = data.get(
+                        header.symbols_offset.saturating_add(name_offset)
+                            as usize..,
+                    ) {
+                        let (_remainder, import_str) = map(
+                            (take_till(|b| b == b'\x00'), tag("\x00")),
+                            |(s, _)| s,
+                        )
+                        .parse(name_buffer)?;
+                        dbg!(import_str.to_str_lossy());
+                        if let Ok(import) = import_str.to_str() {
+                            self.imports.push(import.to_string());
+                        }
                     }
                 }
             }
@@ -1800,7 +1806,7 @@ struct ChainedFixupsHeader {
     imports_offset: u32,
     symbols_offset: u32,
     imports_count: u32,
-    _imports_format: u32,
+    imports_format: u32,
     _symbols_format: u32,
 }
 
