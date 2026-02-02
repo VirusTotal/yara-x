@@ -418,5 +418,1230 @@
       "description": "struct"
     },
     "kind": 5
+  },
+  {
+    "label": "MACHINE_UNKNOWN",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_AM33",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_AMD64",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_ARM",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_ARMNT",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_ARM64",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_EBC",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_I386",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_IA64",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_M32R",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_MIPS16",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_MIPSFPU",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_MIPSFPU16",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_POWERPC",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_POWERPCFP",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_R4000",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_SH3",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_SH3DSP",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_SH4",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_SH5",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_THUMB",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_WCEMIPSV2",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SUBSYSTEM_UNKNOWN",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SUBSYSTEM_NATIVE",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SUBSYSTEM_WINDOWS_GUI",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SUBSYSTEM_WINDOWS_CUI",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SUBSYSTEM_OS2_CUI",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SUBSYSTEM_POSIX_CUI",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SUBSYSTEM_NATIVE_WINDOWS",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SUBSYSTEM_WINDOWS_CE_GUI",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SUBSYSTEM_EFI_APPLICATION",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SUBSYSTEM_EFI_RUNTIME_DRIVER",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SUBSYSTEM_EFI_ROM_IMAGE",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SUBSYSTEM_XBOX",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SUBSYSTEM_WINDOWS_BOOT_APPLICATION",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_NT_OPTIONAL_HDR32_MAGIC",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_NT_OPTIONAL_HDR64_MAGIC",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_ROM_OPTIONAL_HDR_MAGIC",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_CURSOR",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_BITMAP",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_ICON",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_MENU",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_DIALOG",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_STRING",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_FONTDIR",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_FONT",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_ACCELERATOR",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_RCDATA",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_MESSAGETABLE",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_GROUP_CURSOR",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_GROUP_ICON",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_VERSION",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_DLGINCLUDE",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_PLUGPLAY",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_VXD",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_ANICURSOR",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_ANIICON",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_HTML",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RESOURCE_TYPE_MANIFEST",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMPORT_STANDARD",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMPORT_DELAYED",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMPORT_ANY",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "RELOCS_STRIPPED",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "EXECUTABLE_IMAGE",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "LINE_NUMS_STRIPPED",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "LOCAL_SYMS_STRIPPED",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "AGGRESIVE_WS_TRIM",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "LARGE_ADDRESS_AWARE",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "BYTES_REVERSED_LO",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "MACHINE_32BIT",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "DEBUG_STRIPPED",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "REMOVABLE_RUN_FROM_SWAP",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "NET_RUN_FROM_SWAP",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SYSTEM",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "DLL",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "UP_SYSTEM_ONLY",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "BYTES_REVERSED_HI",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_DIRECTORY_ENTRY_EXPORT",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_DIRECTORY_ENTRY_IMPORT",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_DIRECTORY_ENTRY_RESOURCE",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_DIRECTORY_ENTRY_EXCEPTION",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_DIRECTORY_ENTRY_SECURITY",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_DIRECTORY_ENTRY_BASERELOC",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_DIRECTORY_ENTRY_DEBUG",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_DIRECTORY_ENTRY_COPYRIGHT",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_DIRECTORY_ENTRY_ARCHITECTURE",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_DIRECTORY_ENTRY_GLOBALPTR",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_DIRECTORY_ENTRY_TLS",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_DIRECTORY_ENTRY_IAT",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_NO_PAD",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_CNT_CODE",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_CNT_INITIALIZED_DATA",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_CNT_UNINITIALIZED_DATA",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_LNK_OTHER",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_LNK_INFO",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_LNK_REMOVE",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_LNK_COMDAT",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_NO_DEFER_SPEC_EXC",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_GPREL",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_ALIGN_1BYTES",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_ALIGN_2BYTES",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_ALIGN_4BYTES",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_ALIGN_8BYTES",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_ALIGN_16BYTES",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_ALIGN_32BYTES",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_ALIGN_64BYTES",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_ALIGN_128BYTES",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_ALIGN_256BYTES",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_ALIGN_512BYTES",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_ALIGN_1024BYTES",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_ALIGN_2048BYTES",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_ALIGN_4096BYTES",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_ALIGN_8192BYTES",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_ALIGN_MASK",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_LNK_NRELOC_OVFL",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_MEM_DISCARDABLE",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_MEM_NOT_CACHED",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_MEM_NOT_PAGED",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_MEM_SHARED",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_MEM_EXECUTE",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_MEM_READ",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_MEM_WRITE",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "SECTION_SCALE_INDEX",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "HIGH_ENTROPY_VA",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "DYNAMIC_BASE",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "FORCE_INTEGRITY",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "NX_COMPAT",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "NO_ISOLATION",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "NO_SEH",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "NO_BIND",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "APPCONTAINER",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "WDM_DRIVER",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "GUARD_CF",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "TERMINAL_SERVER_AWARE",
+    "labelDetails": {
+      "description": "integer"
+    },
+    "kind": 5
+  },
+  {
+    "label": "calculate_checksum()",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "calculate_checksum()",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "delayed_import_rva(string, integer)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "delayed_import_rva(${1:string},${2:integer})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "delayed_import_rva(string, string)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "delayed_import_rva(${1:string},${2:string})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "exports(integer)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "exports(${1:integer})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "exports(regexp)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "exports(${1:regexp})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "exports(string)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "exports(${1:string})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "exports_index(integer)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "exports_index(${1:integer})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "exports_index(regexp)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "exports_index(${1:regexp})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "exports_index(string)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "exports_index(${1:string})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "imphash()",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "imphash()",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "import_rva(string, integer)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "import_rva(${1:string},${2:integer})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "import_rva(string, string)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "import_rva(${1:string},${2:string})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "imports(integer, regexp, regexp)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "imports(${1:integer},${2:regexp},${3:regexp})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "imports(integer, string)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "imports(${1:integer},${2:string})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "imports(integer, string, integer)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "imports(${1:integer},${2:string},${3:integer})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "imports(integer, string, string)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "imports(${1:integer},${2:string},${3:string})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "imports(regexp, regexp)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "imports(${1:regexp},${2:regexp})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "imports(string)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "imports(${1:string})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "imports(string, integer)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "imports(${1:string},${2:integer})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "imports(string, string)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "imports(${1:string},${2:string})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "is_32bit()",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "is_32bit()",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "is_64bit()",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "is_64bit()",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "is_dll()",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "is_dll()",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "language(integer)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "language(${1:integer})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "locale(integer)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "locale(${1:integer})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "rva_to_offset(integer)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "rva_to_offset(${1:integer})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "section_index(integer)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "section_index(${1:integer})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "section_index(string)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "section_index(${1:string})",
+    "insertTextFormat": 2
   }
 ]

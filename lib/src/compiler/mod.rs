@@ -46,7 +46,7 @@ use crate::types::{Func, Struct, TypeValue};
 use crate::utils::cast;
 use crate::variables::{is_valid_identifier, Variable, VariableError};
 use crate::wasm::builder::WasmModuleBuilder;
-use crate::wasm::{wasm_exports, WasmExport, WasmSymbols};
+use crate::wasm::{wasm_exports, WasmSymbols};
 use crate::{re, wasm};
 
 pub(crate) use crate::compiler::atoms::*;
@@ -1858,52 +1858,8 @@ impl Compiler<'_> {
             self.imported_modules
                 .push(self.ident_pool.get_or_intern(module_name));
 
-            // Create the structure that describes the module.
-            let mut module_struct = Struct::from_proto_descriptor_and_msg(
-                &module.root_struct_descriptor,
-                None,
-                true,
-            );
-
-            // Get a mutable reference for the module's structure. This is
-            // possible because there's only one Rc pointing to the structure,
-            // otherwise the `.unwrap()` panics.
-            let module_struct_mut =
-                Rc::<Struct>::get_mut(&mut module_struct).unwrap();
-
-            // If the YARA module has an associated Rust module, check if it
-            // exports some function and add it to the structure.
-            if let Some(rust_module_name) = module.rust_module_name {
-                let functions = WasmExport::get_functions(|export| {
-                    export.public
-                        && export.rust_module_path.contains(rust_module_name)
-                });
-                for (name, func) in functions {
-                    let func = TypeValue::Func(Rc::new(func));
-                    if module_struct_mut.add_field(name, func).is_some() {
-                        panic!(
-                            "function `{name}` has the same name than a field in `{rust_module_name}`",
-                        )
-                    };
-                }
-            }
-
-            // Iterate over all substructures of the module's main structure and
-            // add any methods defined for them.
-            module_struct_mut.enum_substructures(&mut |sub_struct| {
-                let methods = sub_struct.protobuf_type_name().map(WasmExport::get_methods);
-                if let Some(methods) = methods {
-                    for (name, func) in methods {
-                        let func = TypeValue::Func(Rc::new(func));
-                        if sub_struct.add_field(name, func).is_some() {
-                            panic!(
-                                "method `{name}` has the same name than a field in `{}`",
-                                sub_struct.protobuf_type_name().unwrap(),
-                            )
-                        };
-                    }
-                }
-            });
+            // Create the `Struct` that describes the module.
+            let module_struct = Rc::<Struct>::from(module);
 
             // Insert the module in the struct that contains all imported
             // modules. This struct contains all modules imported, from

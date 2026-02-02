@@ -2,13 +2,6 @@ use std::iter;
 use std::ops::Deref;
 use std::rc::Rc;
 
-use crate::modules::protos::yara as protos;
-use crate::modules::protos::yara::enum_value_options::Value as EnumValue;
-use crate::modules::protos::yara::exts::{
-    enum_options, enum_value, field_options, message_options, module_options,
-};
-use crate::symbols::{Symbol, SymbolLookup};
-use crate::types::{Array, Map, StringConstraint, TypeValue};
 use bstr::BString;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
@@ -19,6 +12,16 @@ use protobuf::reflect::{
 use protobuf::reflect::{EnumValueDescriptor, Syntax};
 use protobuf::{MessageDyn, MessageField};
 use serde::{Deserialize, Serialize};
+
+use crate::modules::protos::yara as protos;
+use crate::modules::protos::yara::enum_value_options::Value as EnumValue;
+use crate::modules::protos::yara::exts::{
+    enum_options, enum_value, field_options, message_options, module_options,
+};
+use crate::modules::Module;
+use crate::symbols::{Symbol, SymbolLookup};
+use crate::types::{Array, Map, StringConstraint, TypeValue};
+use crate::wasm::WasmExport;
 
 /// Each of the entries in an Access Control List (ACL)
 ///
@@ -309,6 +312,8 @@ impl Struct {
         self.fields.entry(name)
     }
 
+    /// Calls `f` with all the structures contained in the current one.
+    /// The first call to `f` is for the current structure itself.
     pub fn enum_substructures<F>(&mut self, f: &mut F)
     where
         F: FnMut(&mut Struct),
@@ -663,6 +668,15 @@ impl Struct {
             .unwrap_or_else(|| {
                 EnumValue::I64(enum_value_descriptor.value() as i64)
             })
+    }
+
+    /// Returns an iterator over the fields of this structure.
+    ///
+    /// The returned values are tuples where the first value is the name of the
+    /// field and the second one is a reference to [`StructField`] describing
+    /// the field.
+    pub(crate) fn fields(&self) -> impl Iterator<Item = (&str, &StructField)> {
+        self.fields.iter().map(move |(name, field)| (name.as_str(), field))
     }
 
     /// Similar to [`Struct::enum_value`], but returns the enum value as an `i64`
@@ -1186,6 +1200,64 @@ impl PartialEq for Struct {
             }
         }
         true
+    }
+}
+
+impl From<&Module> for Rc<Struct> {
+    /// Creates a `Rc<Struct>` from a [`Module`] definition.
+    fn from(module: &Module) -> Self {
+        // Create the structure that describes the module.
+        let mut module_struct = Struct::from_proto_descriptor_and_msg(
+            &module.root_struct_descriptor,
+            None,
+            true,
+        );
+
+        // Get a mutable reference for the module's structure. This is
+        // possible because there's only one Rc pointing to the structure,
+        // otherwise the `.unwrap()` panics.
+        let module_struct_mut =
+            Rc::<Struct>::get_mut(&mut module_struct).unwrap();
+
+        // If the YARA module has an associated Rust module, check if it
+        // exports some function and add it to the structure.
+        if let Some(rust_module_name) = module.rust_module_name {
+            let functions = WasmExport::get_functions(|export| {
+                export.public
+                    && export.rust_module_path.ends_with(rust_module_name)
+                    && export.method_of.is_none()
+            })
+            .into_iter()
+            .sorted_by_key(|(name, _)| *name);
+
+            for (name, func) in functions {
+                let func = TypeValue::Func(Rc::new(func));
+                if module_struct_mut.add_field(name, func).is_some() {
+                    panic!(
+                        "function `{name}` has the same name than a field in `{rust_module_name}`",
+                    )
+                };
+            }
+        }
+
+        // Iterate over all substructures of the module's main structure and
+        // add any methods defined for them.
+        module_struct_mut.enum_substructures(&mut |sub_struct| {
+            let methods = sub_struct.protobuf_type_name().map(WasmExport::get_methods);
+            if let Some(methods) = methods {
+                for (name, func) in methods {
+                    let func = TypeValue::Func(Rc::new(func));
+                    if sub_struct.add_field(name, func).is_some() {
+                        panic!(
+                            "method `{name}` has the same name than a field in `{}`",
+                            sub_struct.protobuf_type_name().unwrap(),
+                        )
+                    };
+                }
+            }
+        });
+
+        module_struct
     }
 }
 

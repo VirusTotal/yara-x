@@ -171,7 +171,6 @@ pub mod mods {
     pub use super::protos::crx;
     /// Data structure returned by the `crx` module.
     pub use super::protos::crx::Crx;
-
     /// Data structures defined by the `dex` module.
     ///
     /// The main structure produced by the module is [`dex::Dex`]. The rest
@@ -326,9 +325,11 @@ pub mod mods {
 
     /// Returns the definition of the module with the given name.
     pub fn module_definition(name: &str) -> Option<reflect::Struct> {
+        use crate::types;
+        use std::rc::Rc;
         super::BUILTIN_MODULES
             .get(name)
-            .map(|m| reflect::Struct::new(m.root_struct_descriptor.clone()))
+            .map(|m| reflect::Struct::new(Rc::<types::Struct>::from(m)))
     }
 
     /// Types that allow for module introspection.
@@ -336,98 +337,95 @@ pub mod mods {
     /// This API is unstable and not ready for public use.
     #[doc(hidden)]
     pub mod reflect {
-        use crate::modules::protos::yara::exts::field_options;
-        use std::borrow::Cow;
+        use std::rc::Rc;
+
+        use crate::types;
+        use crate::types::{Map, TypeValue};
 
         /// Describes a structure or module.
         #[derive(Clone, Debug, PartialEq)]
         pub struct Struct {
-            descriptor: protobuf::reflect::MessageDescriptor,
+            inner: Rc<types::Struct>,
         }
 
         impl Struct {
-            pub(super) fn new(
-                descriptor: protobuf::reflect::MessageDescriptor,
-            ) -> Self {
-                Self { descriptor }
+            pub(super) fn new(inner: Rc<types::Struct>) -> Self {
+                Self { inner }
             }
 
             /// Returns an iterator over the fields defined in the structure.
-            pub fn fields(&self) -> impl Iterator<Item = Field> + '_ {
-                self.descriptor.fields().filter_map(|field_descriptor| {
-                    let ignore = field_options
-                        .get(&field_descriptor.proto().options)
-                        .and_then(|options| options.ignore)
-                        .unwrap_or_default();
-                    if ignore {
-                        None
-                    } else {
-                        Some(Field::new(field_descriptor))
-                    }
-                })
+            ///
+            /// The fields are sorted by name.
+            pub fn fields(&self) -> impl Iterator<Item = Field<'_>> + '_ {
+                self.inner
+                    .fields()
+                    .map(|(name, field)| Field::new(name, field))
             }
+        }
+
+        /// Describes a function.
+        #[derive(Clone, Debug, PartialEq)]
+        pub struct Func {
+            /// All the existing signatures for this function. A function
+            /// can have multiple signatures that differ in their arguments
+            /// or return type.
+            pub signatures: Vec<FuncSignature>,
+        }
+
+        impl From<Rc<types::Func>> for Func {
+            fn from(func: Rc<types::Func>) -> Self {
+                let mut signatures =
+                    Vec::with_capacity(func.signatures().len());
+
+                for signature in func.signatures() {
+                    signatures.push(FuncSignature {
+                        args: signature.args.iter().map(Type::from).collect(),
+                        ret: Type::from(&signature.result),
+                    });
+                }
+
+                Func { signatures }
+            }
+        }
+
+        /// Describes a function signature.
+        #[derive(Clone, Debug, PartialEq)]
+        pub struct FuncSignature {
+            /// The types of the function arguments.
+            pub args: Vec<Type>,
+            /// The return type for the function.
+            pub ret: Type,
         }
 
         /// Describes a field within a structure or module.
         #[derive(Clone)]
-        pub struct Field {
-            descriptor: protobuf::reflect::FieldDescriptor,
+        pub struct Field<'a> {
+            name: &'a str,
+            struct_field: &'a types::StructField,
         }
 
-        impl Field {
-            fn new(descriptor: protobuf::reflect::FieldDescriptor) -> Self {
-                Self { descriptor }
+        impl<'a> Field<'a> {
+            fn new(
+                name: &'a str,
+                struct_field: &'a types::StructField,
+            ) -> Self {
+                Self { name, struct_field }
             }
 
             /// Returns the name of the field.
-            pub fn name(&self) -> Cow<'_, str> {
-                field_options
-                    .get(&self.descriptor.proto().options)
-                    .and_then(|options| options.name)
-                    .map(Cow::Owned)
-                    .unwrap_or_else(|| Cow::Borrowed(self.descriptor.name()))
+            pub fn name(&self) -> &'a str {
+                self.name
             }
 
-            /// Returns the kind of the field.
-            pub fn kind(&self) -> FieldKind {
-                use protobuf::reflect::RuntimeFieldType;
-                use protobuf::reflect::RuntimeType;
-
-                let convert_type = |t: RuntimeType| -> FieldKind {
-                    match t {
-                        RuntimeType::I32
-                        | RuntimeType::I64
-                        | RuntimeType::U32
-                        | RuntimeType::U64 => FieldKind::Integer,
-                        RuntimeType::F32 | RuntimeType::F64 => {
-                            FieldKind::Float
-                        }
-                        RuntimeType::Bool => FieldKind::Bool,
-                        RuntimeType::String => FieldKind::String,
-                        RuntimeType::VecU8 => FieldKind::String,
-                        RuntimeType::Enum(_) => FieldKind::Integer,
-                        RuntimeType::Message(m) => {
-                            FieldKind::Struct(Struct::new(m))
-                        }
-                    }
-                };
-
-                match self.descriptor.runtime_field_type() {
-                    RuntimeFieldType::Singular(t) => convert_type(t),
-                    RuntimeFieldType::Repeated(t) => {
-                        FieldKind::Array(Box::new(convert_type(t)))
-                    }
-                    RuntimeFieldType::Map(k, v) => FieldKind::Map(
-                        Box::new(convert_type(k)),
-                        Box::new(convert_type(v)),
-                    ),
-                }
+            /// Returns the type of the field.
+            pub fn ty(&self) -> Type {
+                Type::from(&self.struct_field.type_value)
             }
         }
 
-        /// The kind of a field.
+        /// The type of field, function argument or return value.
         #[derive(Clone, Debug, PartialEq)]
-        pub enum FieldKind {
+        pub enum Type {
             /// An integer.
             Integer,
             /// A float.
@@ -436,12 +434,46 @@ pub mod mods {
             Bool,
             /// A string.
             String,
+            /// A regular expression
+            Regexp,
             /// A structure.
             Struct(Struct),
             /// An array.
-            Array(Box<FieldKind>),
+            Array(Box<Type>),
             /// A map.
-            Map(Box<FieldKind>, Box<FieldKind>),
+            Map(Box<Type>, Box<Type>),
+            /// A function.
+            Func(Func),
+        }
+
+        impl From<&TypeValue> for Type {
+            fn from(type_value: &TypeValue) -> Self {
+                match type_value {
+                    TypeValue::Bool { .. } => Type::Bool,
+                    TypeValue::Float { .. } => Type::Float,
+                    TypeValue::Integer { .. } => Type::Integer,
+                    TypeValue::String { .. } => Type::String,
+                    TypeValue::Regexp(_) => Type::Regexp,
+                    TypeValue::Struct(s) => {
+                        Type::Struct(Struct::new(s.clone()))
+                    }
+                    TypeValue::Array(a) => {
+                        Type::Array(Box::new(Type::from(&a.deputy())))
+                    }
+                    TypeValue::Map(m) => {
+                        let key_kind = match **m {
+                            Map::IntegerKeys { .. } => Type::Integer,
+                            Map::StringKeys { .. } => Type::String,
+                        };
+                        Type::Map(
+                            Box::new(key_kind),
+                            Box::new(Type::from(&m.deputy())),
+                        )
+                    }
+                    TypeValue::Func(func) => Type::Func(func.clone().into()),
+                    TypeValue::Unknown => unreachable!(),
+                }
+            }
         }
     }
 }

@@ -182,6 +182,9 @@ impl WasmExport {
     /// The fully qualified name includes not only the function's name, but
     /// also the module's name (e.g: `my_module.my_struct.my_func@ii@i`)
     pub fn fully_qualified_mangled_name(&self) -> String {
+        if self.method_of.is_some() {
+            return self.mangled_name.to_string();
+        }
         for (module_name, module) in BUILTIN_MODULES.iter() {
             if let Some(rust_module_name) = module.rust_module_name {
                 if self.rust_module_path.contains(rust_module_name) {
@@ -211,9 +214,9 @@ impl WasmExport {
         let mut functions: FxHashMap<&'static str, Func> =
             FxHashMap::default();
 
-        // Iterate over public functions in WASM_EXPORTS looking for those that
-        // match the predicate. Add them to `functions` map, or update the
-        // `Func` object with an additional signature if the function is
+        // Iterate over the WASM exports looking for those that match the
+        // predicate. Add them to `functions` map, or update the `Func`
+        // object with an additional signature if the function is
         // overloaded.
         for export in wasm_exports().filter(predicate) {
             let mangled_name = export.fully_qualified_mangled_name();
