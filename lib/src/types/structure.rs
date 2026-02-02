@@ -1226,7 +1226,10 @@ impl From<&Module> for Rc<Struct> {
                 export.public
                     && export.rust_module_path.ends_with(rust_module_name)
                     && export.method_of.is_none()
-            });
+            })
+            .into_iter()
+            .sorted_by_key(|(name, _)| *name);
+
             for (name, func) in functions {
                 let func = TypeValue::Func(Rc::new(func));
                 if module_struct_mut.add_field(name, func).is_some() {

@@ -498,11 +498,7 @@ fn test_reflect() {
     assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
-    assert_eq!(field.name(), "uppercase");
-    assert!(matches!(field.ty(), Type::Func(_)));
-
-    let field = fields.next().unwrap();
-    assert_eq!(field.name(), "head");
+    assert_eq!(field.name(), "add");
     assert!(matches!(field.ty(), Type::Func(_)));
 
     let field = fields.next().unwrap();
@@ -510,15 +506,19 @@ fn test_reflect() {
     assert!(matches!(field.ty(), Type::Func(_)));
 
     let field = fields.next().unwrap();
+    assert_eq!(field.name(), "head");
+    assert!(matches!(field.ty(), Type::Func(_)));
+
+    let field = fields.next().unwrap();
     assert_eq!(field.name(), "to_int");
     assert!(matches!(field.ty(), Type::Func(_)));
 
     let field = fields.next().unwrap();
-    assert_eq!(field.name(), "add");
+    assert_eq!(field.name(), "undef_i64");
     assert!(matches!(field.ty(), Type::Func(_)));
 
     let field = fields.next().unwrap();
-    assert_eq!(field.name(), "undef_i64");
+    assert_eq!(field.name(), "uppercase");
     assert!(matches!(field.ty(), Type::Func(_)));
 
     assert!(fields.next().is_none());

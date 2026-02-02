@@ -1393,24 +1393,6 @@
     "kind": 5
   },
   {
-    "label": "imphash()",
-    "labelDetails": {
-      "description": "func()"
-    },
-    "kind": 2,
-    "insertText": "imphash()",
-    "insertTextFormat": 2
-  },
-  {
-    "label": "is_32bit()",
-    "labelDetails": {
-      "description": "func()"
-    },
-    "kind": 2,
-    "insertText": "is_32bit()",
-    "insertTextFormat": 2
-  },
-  {
     "label": "calculate_checksum()",
     "labelDetails": {
       "description": "func()"
@@ -1462,6 +1444,60 @@
     },
     "kind": 2,
     "insertText": "exports(${1:string})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "exports_index(integer)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "exports_index(${1:integer})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "exports_index(regexp)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "exports_index(${1:regexp})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "exports_index(string)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "exports_index(${1:string})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "imphash()",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "imphash()",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "import_rva(string, integer)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "import_rva(${1:string},${2:integer})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "import_rva(string, string)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "import_rva(${1:string},${2:string})",
     "insertTextFormat": 2
   },
   {
@@ -1537,84 +1573,12 @@
     "insertTextFormat": 2
   },
   {
-    "label": "section_index(integer)",
+    "label": "is_32bit()",
     "labelDetails": {
       "description": "func()"
     },
     "kind": 2,
-    "insertText": "section_index(${1:integer})",
-    "insertTextFormat": 2
-  },
-  {
-    "label": "section_index(string)",
-    "labelDetails": {
-      "description": "func()"
-    },
-    "kind": 2,
-    "insertText": "section_index(${1:string})",
-    "insertTextFormat": 2
-  },
-  {
-    "label": "rva_to_offset(integer)",
-    "labelDetails": {
-      "description": "func()"
-    },
-    "kind": 2,
-    "insertText": "rva_to_offset(${1:integer})",
-    "insertTextFormat": 2
-  },
-  {
-    "label": "is_dll()",
-    "labelDetails": {
-      "description": "func()"
-    },
-    "kind": 2,
-    "insertText": "is_dll()",
-    "insertTextFormat": 2
-  },
-  {
-    "label": "exports_index(integer)",
-    "labelDetails": {
-      "description": "func()"
-    },
-    "kind": 2,
-    "insertText": "exports_index(${1:integer})",
-    "insertTextFormat": 2
-  },
-  {
-    "label": "exports_index(regexp)",
-    "labelDetails": {
-      "description": "func()"
-    },
-    "kind": 2,
-    "insertText": "exports_index(${1:regexp})",
-    "insertTextFormat": 2
-  },
-  {
-    "label": "exports_index(string)",
-    "labelDetails": {
-      "description": "func()"
-    },
-    "kind": 2,
-    "insertText": "exports_index(${1:string})",
-    "insertTextFormat": 2
-  },
-  {
-    "label": "import_rva(string, integer)",
-    "labelDetails": {
-      "description": "func()"
-    },
-    "kind": 2,
-    "insertText": "import_rva(${1:string},${2:integer})",
-    "insertTextFormat": 2
-  },
-  {
-    "label": "import_rva(string, string)",
-    "labelDetails": {
-      "description": "func()"
-    },
-    "kind": 2,
-    "insertText": "import_rva(${1:string},${2:string})",
+    "insertText": "is_32bit()",
     "insertTextFormat": 2
   },
   {
@@ -1624,6 +1588,15 @@
     },
     "kind": 2,
     "insertText": "is_64bit()",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "is_dll()",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "is_dll()",
     "insertTextFormat": 2
   },
   {
@@ -1642,6 +1615,33 @@
     },
     "kind": 2,
     "insertText": "locale(${1:integer})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "rva_to_offset(integer)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "rva_to_offset(${1:integer})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "section_index(integer)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "section_index(${1:integer})",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "section_index(string)",
+    "labelDetails": {
+      "description": "func()"
+    },
+    "kind": 2,
+    "insertText": "section_index(${1:string})",
     "insertTextFormat": 2
   }
 ]
