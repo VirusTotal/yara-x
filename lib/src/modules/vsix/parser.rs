@@ -77,12 +77,7 @@ impl Vsix {
         // sequences like "../", this is only a security concern when extracting
         // files to disk. Here, names are stored as opaque strings for pattern
         // matching, never used as paths.
-        let mut files = Vec::with_capacity(zip.len());
-        for i in 0..zip.len() {
-            if let Ok(file) = zip.by_index(i) {
-                files.push(file.name().to_string());
-            }
-        }
+        let files = zip.file_names().map(String::from).collect::<Vec<_>>();
 
         // Try to find and parse package.json
         let manifest = Self::read_manifest(&mut zip);
