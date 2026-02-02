@@ -247,7 +247,7 @@ impl Ord for FuncSignature {
 
 impl PartialOrd for FuncSignature {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.mangled_name.as_str().cmp(other.mangled_name.as_str()))
+        Some(self.cmp(other))
     }
 }
 
