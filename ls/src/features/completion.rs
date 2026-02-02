@@ -403,7 +403,7 @@ fn module_suggestions(
                         let arg_types = sig
                             .args
                             .iter()
-                            .map(|arg| ty_to_string(arg))
+                            .map(ty_to_string)
                             .collect::<Vec<_>>();
 
                         let args_template = arg_types
