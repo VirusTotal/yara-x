@@ -110,7 +110,7 @@ yara-x-parser = { path = "parser", version = "1.13.0" }
 yara-x-proto = { path = "proto", version = "1.13.0"}
 yara-x-proto-yaml = { path = "proto-yaml", version = "1.13.0" }
 yara-x-proto-json = { path = "proto-json", version = "1.13.0" }
-yara-x-ls = { path = "ls", version = "0.1.0" }
+yara-x-ls = { path = "ls", version = "0.0.7" }
 zip = "6.0.0"
 simd-adler32 = "0.3.7"
 simd_cesu8 = "1"
