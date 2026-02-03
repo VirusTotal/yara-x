@@ -130,6 +130,11 @@ const CPU_TYPE_SPARC: u32 = 0x0000000e;
 const CPU_TYPE_POWERPC: u32 = 0x00000012;
 const CPU_TYPE_POWERPC64: u32 = 0x01000012;
 
+/// Mach-O Import Fixup Formats
+const DYLD_CHAINED_IMPORT: u32 = 1;
+const DYLD_CHAINED_IMPORT_ADDEND: u32 = 2;
+const DYLD_CHAINED_IMPORT_ADDEND64: u32 = 3;
+
 /// Represents a Mach-O file. It can represent both a multi-architecture
 /// binary (a.k.a. FAT binary) or a single-architecture binary.
 pub struct MachO<'a> {
@@ -1351,9 +1356,10 @@ impl<'a> MachOFile<'a> {
 
         if let Some(import_data) = data.get(header.imports_offset as usize..) {
             let entry_size = match header.imports_format {
-                2 => 8,  // DYLD_CHAINED_IMPORT_ADDEND (u64)
-                3 => 16, // DYLD_CHAINED_IMPORT_ADDEND64 (u128)
-                _ => 4,  // Default u32
+                DYLD_CHAINED_IMPORT => 4,
+                DYLD_CHAINED_IMPORT_ADDEND => 8,
+                DYLD_CHAINED_IMPORT_ADDEND64 => 16,
+                _ => 4, // fallback
             };
 
             let imports_size = (header.imports_count as usize) * entry_size;
