@@ -1,0 +1,5 @@
+// test_proto2-module required
+rule test {
+  condition:
+    test_proto2.int32_zero == 0
+}
