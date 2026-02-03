@@ -68,7 +68,7 @@ pub fn compiler_diagnostics(document: &Document) -> Vec<Diagnostic> {
             let patches = error
                 .patches()
                 .map(|patch| Patch {
-                    range,
+                    range: line_index.span_to_range(patch.span()),
                     replacement: patch.replacement().to_string(),
                 })
                 .collect();

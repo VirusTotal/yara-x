@@ -241,6 +241,9 @@ async fn document_diagnostics() {
 
     #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics7.yar").await;
+
+    #[cfg(feature = "full-compiler")]
+    test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics8.yar").await;
 }
 
 #[tokio::test]
