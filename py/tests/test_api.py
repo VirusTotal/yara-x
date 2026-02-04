@@ -232,6 +232,17 @@ def test_scanner_max_matches_per_pattern():
   assert len(matching_rules) == 1
 
 
+def test_scan_options():
+  if 'test_proto2' not in yara_x.module_names():
+    return
+
+  rules = yara_x.compile('import "test_proto2" rule foo {condition: false}')
+  options = yara_x.ScanOptions()
+  options.set_module_metadata('test_proto2', b'foo bar baz')
+  module_outputs = rules.scan_with_options(b'', options).module_outputs
+  assert module_outputs['test_proto2']['metadata'] == b'foo bar baz'
+
+
 def test_module_outputs():
   if 'test_proto2' not in yara_x.module_names():
     return
@@ -243,7 +254,6 @@ def test_module_outputs():
   assert module_outputs['test_proto2']['bytes_foo'] == b'foo'
   assert module_outputs['test_proto2']['bytes_raw'] == b'\xfcH\x83\xe4\xf0\xeb3]\x8bE\x00H'
   assert module_outputs['test_proto2']['timestamp'] == datetime.datetime(2025, 5, 30, 7, 50, 40, tzinfo=datetime.timezone.utc)
-
 
 def test_ignored_modules():
   compiler = yara_x.Compiler()

@@ -219,6 +219,9 @@ message TestProto2 {
     help: "use `foo` instead",
     replacement: "foo"
   }];
+
+  // The metadata received by the module is copied into this field.
+  optional bytes metadata = 502;
 }
 
 enum TopLevelEnumeration {
