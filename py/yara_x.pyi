@@ -166,6 +166,25 @@ class Compiler:
         ...
 
 @final
+class ScanOptions:
+    r"""
+    Optional information for the scan operation.
+    """
+
+    def __new__(cls) -> ScanOptions:
+        r"""
+        Creates a new [`ScanOptions`].
+        """
+        ...
+
+    def set_module_metadata(self, module: str, metadata: bytes) -> None:
+        r"""
+        Sets the data associated with a YARA module.
+        """
+        ...
+
+
+@final
 class Scanner:
     r"""
     Scans data with already compiled YARA rules.
@@ -190,6 +209,18 @@ class Scanner:
     def scan_file(self, path: str) -> ScanResults:
         r"""
         Scans a file
+        """
+        ...
+
+    def scan_with_options(self, data: bytes, options: ScanOptions) -> ScanResults:
+        r"""
+        Like `scan`, but with options.
+        """
+        ...
+
+    def scan_file_with_options(self, path: str, options: ScanOptions) -> ScanResults:
+        r"""
+        Like `scan_file`, but with options.
         """
         ...
 
@@ -380,6 +411,12 @@ class Rules:
     def scan(self, data: bytes) -> ScanResults:
         r"""
         Scans in-memory data with these rules.
+        """
+        ...
+
+    def scan_with_options(self, data: bytes, options: ScanOptions) -> ScanResults:
+        r"""
+        Like `scan`, but with options.
         """
         ...
 

@@ -328,6 +328,14 @@ Returns: [yara_x.ScanResults](#scanresults)
 
 Raises: [yara_x.ScanError](#scanerror), [yara_x.TimeoutError](#timeouterror)
 
+#### .scan_with_options(bytes, options)
+
+Like [Rules.scan(...)](#scanbytes), but allows to specify additional scan options.
+
+Returns: [yara_x.ScanResults](#scanresults)
+
+Raises: [yara_x.ScanError](#scanerror), [yara_x.TimeoutError](#timeouterror)
+
 #### .imports()
 
 An array with the names of the modules imported by the rules.
@@ -392,6 +400,24 @@ scanner = yara_x.Scanner(rules)
 scanner.scan(b"foobar")
 ```
 
+#### .scan_with_options(bytes, options)
+
+Like [Scanner.scan(...)](#scanbytes-1), but allows to specify additional scan options.
+
+Returns: [yara_x.ScanResults](#scanresults)
+
+Raises: [yara_x.ScanError](#scanerror), [yara_x.TimeoutError](#timeouterror)
+
+##### Example
+
+```python
+rules = yara_x.compile('rule foo { strings: $foo = "foo" condition: $foo }')
+scanner = yara_x.Scanner(rules)
+options = yara_x.ScanOptions()
+options.set_module_metadata("cuckoo", b'{"foo": "bar"}')
+scanner.scan_with_options(b"foobar", options)
+```
+
 #### .scan_file(path)
 
 Scans a file given its path.
@@ -399,6 +425,32 @@ Scans a file given its path.
 Returns: [yara_x.ScanResults](#scanresults)
 
 Raises: [yara_x.ScanError](#scanerror), [yara_x.TimeoutError](#timeouterror)
+
+##### Example
+
+```python
+rules = yara_x.compile('rule foo { strings: $foo = "foo" condition: $foo }')
+scanner = yara_x.Scanner(rules)
+scanner.scan_file("foo.bin")
+```
+
+#### .scan_file_with_options(path, options)
+
+Like [Scanner.scan_file(...)](#scan_filepath), but allows to specify additional scan options.
+
+Returns: [yara_x.ScanResults](#scanresults)
+
+Raises: [yara_x.ScanError](#scanerror), [yara_x.TimeoutError](#timeouterror)
+
+##### Example
+
+```python
+rules = yara_x.compile('rule foo { strings: $foo = "foo" condition: $foo }')
+scanner = yara_x.Scanner(rules)
+options = yara_x.ScanOptions()
+options.set_module_metadata("cuckoo", b'{"foo": "bar"}')
+scanner.scan_file_with_options("foo.bin", options)
+```
 
 #### .set_global(identifier, value)
 
@@ -416,6 +468,45 @@ if the type of `value` is not one of the supported ones.
 #### .set_timeout(seconds)
 
 Sets a timeout for each scan. Scans will abort after the specified `seconds`.
+
+---------
+
+### ScanOptions
+
+Type that represents a set of optional information for the scan operation.
+
+#### .__init__()
+
+Creates a new [`ScanOptions`](#scanoptions) object.
+
+##### Example
+
+```python
+options = yara_x.ScanOptions()
+```
+
+#### .set_module_metadata(module, metadata)
+
+Sets the data associated with a YARA module.
+
+When scanning a file, YARA modules may require additional data that is
+not present in the file itself. For instance, the `cuckoo` module may
+need a report from Cuckoo sandbox with information about the file being
+scanned.
+
+This function is used for providing that data to the modules. The data
+is specific to the module, and each module expects a different data
+structure. The data is passed as raw bytes that the module is responsible
+to decode accordingly.
+
+##### Example
+
+```python
+rules = yara_x.compile('import "cuckoo"')
+options = yara_x.ScanOptions()
+options.set_module_metadata("cuckoo", module_metadata)
+rules.scan_with_options(data, options)
+```
 
 ---------
 
