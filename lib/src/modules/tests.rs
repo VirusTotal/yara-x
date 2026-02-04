@@ -474,6 +474,10 @@ fn test_reflect() {
     assert_eq!(field.ty(), Type::String);
 
     let field = fields.next().unwrap();
+    assert_eq!(field.name(), "metadata");
+    assert_eq!(field.ty(), Type::String);
+
+    let field = fields.next().unwrap();
     assert_eq!(field.name(), "Enumeration");
     assert!(matches!(field.ty(), Type::Struct(_)));
 
