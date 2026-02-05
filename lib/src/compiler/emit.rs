@@ -1038,13 +1038,11 @@ fn emit_lazy_call_to_search_for_patterns(
             },
             |_else| {
                 _else
-                    // Call `search_for_patterns`.
+                    // Call `search_for_patterns`. This function will set
+                    // `pattern_search_done` to true before exiting.
                     .call(ctx.function_id(
                         wasm::export__search_for_patterns.mangled_name,
-                    ))
-                    // Set `pattern_search_done` to true.
-                    .i32_const(1)
-                    .global_set(ctx.wasm_symbols.pattern_search_done);
+                    ));
             },
         );
         let top = ctx.emit_search_for_pattern_stack.last_mut().unwrap();

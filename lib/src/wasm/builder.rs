@@ -197,14 +197,7 @@ impl WasmModuleBuilder {
         );
 
         // The main function receives no arguments and returns an I32.
-        let mut main_func =
-            FunctionBuilder::new(&mut module.types, &[], &[I32]);
-
-        // The first instructions in the main function initialize the global
-        // variables `pattern_search_done`.
-        main_func.func_body().i32_const(0);
-        main_func.func_body().global_set(pattern_search_done);
-
+        let main_func = FunctionBuilder::new(&mut module.types, &[], &[I32]);
         let namespace_block = namespace_func.dangling_instr_seq(None).id();
 
         Self {
