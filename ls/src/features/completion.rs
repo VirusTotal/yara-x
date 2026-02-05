@@ -1,6 +1,7 @@
 use async_lsp::lsp_types::{
-    CompletionItem, CompletionItemKind, CompletionItemLabelDetails,
-    InsertTextFormat, InsertTextMode, Position,
+    CompletionContext, CompletionItem, CompletionItemKind,
+    CompletionItemLabelDetails, CompletionTriggerKind, InsertTextFormat,
+    InsertTextMode, Position,
 };
 use itertools::Itertools;
 
@@ -76,6 +77,7 @@ const CONDITION_SUGGESTIONS: [(&str, Option<&str>); 16] = [
 pub fn completion(
     document: &Document,
     pos: Position,
+    context: Option<CompletionContext>,
 ) -> Option<Vec<CompletionItem>> {
     let cst = &document.cst;
     // Get the token before cursor. There might be no token at cursor when the
@@ -84,12 +86,28 @@ pub fn completion(
         .and_then(|token| token.prev_token())
         .or_else(|| cst.root().last_token())?;
 
+    // Trigger characters are: `.`, `!`, `$`, `@`, `#`.
+    let is_trigger_character = context.is_some_and(|ctx| {
+        ctx.trigger_kind == CompletionTriggerKind::TRIGGER_CHARACTER
+    });
+
     // If the token is a direct child of `SOURCE_FILE`, return top-level suggestions.
-    if non_error_parent(&token)?.kind() == SyntaxKind::SOURCE_FILE {
+    if !is_trigger_character
+        && non_error_parent(&token)?.kind() == SyntaxKind::SOURCE_FILE
+    {
         return Some(source_file_suggestions());
     }
 
     let prev_token = prev_non_trivia_token(&token)?;
+
+    if prev_token.ancestors().any(|n| n.kind() == SyntaxKind::CONDITION_BLK) {
+        return condition_suggestions(cst, token);
+    }
+
+    // Trigger characters are recognized in the condition block only.
+    if is_trigger_character {
+        return Some(vec![]);
+    }
 
     if prev_token.kind() == SyntaxKind::IMPORT_KW {
         #[cfg(feature = "full-compiler")]
@@ -102,10 +120,6 @@ pub fn completion(
         prev_token.ancestors().find(|n| n.kind() == SyntaxKind::PATTERN_DEF)
     {
         return Some(pattern_modifier_suggestions(pattern_def));
-    }
-
-    if prev_token.ancestors().any(|n| n.kind() == SyntaxKind::CONDITION_BLK) {
-        return condition_suggestions(cst, token);
     }
 
     if prev_token.ancestors().any(|n| n.kind() == SyntaxKind::RULE_DECL) {
@@ -192,6 +206,8 @@ fn condition_suggestions(
                 }
             }
         }
+        // Do not propose keywords for condition block after a dot.
+        SyntaxKind::DOT => {}
         _ => {
             CONDITION_SUGGESTIONS.iter().for_each(|(kw, insert)| {
                 result.push(CompletionItem {
@@ -214,6 +230,7 @@ fn condition_suggestions(
 #[cfg(feature = "full-compiler")]
 fn import_suggestions() -> Vec<CompletionItem> {
     module_names()
+        .filter(|name| !name.starts_with("test"))
         .map(|name| CompletionItem {
             label: name.to_string(),
             preselect: Some(true),
