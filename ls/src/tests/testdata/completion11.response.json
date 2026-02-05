@@ -60,6 +60,16 @@
     "preselect": true
   },
   {
+    "label": "test_proto2",
+    "kind": 9,
+    "preselect": true
+  },
+  {
+    "label": "test_proto3",
+    "kind": 9,
+    "preselect": true
+  },
+  {
     "label": "time",
     "kind": 9,
     "preselect": true

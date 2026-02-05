@@ -230,7 +230,6 @@ fn condition_suggestions(
 #[cfg(feature = "full-compiler")]
 fn import_suggestions() -> Vec<CompletionItem> {
     module_names()
-        .filter(|name| !name.starts_with("test"))
         .map(|name| CompletionItem {
             label: name.to_string(),
             preselect: Some(true),
