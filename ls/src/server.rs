@@ -290,13 +290,14 @@ impl LanguageServer for YARALanguageServer {
     {
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
+        let context = params.context;
         let document = match self.documents.get(&uri) {
             Some(entry) => entry,
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let completions =
-            completion(document, position).map(CompletionResponse::Array);
+        let completions = completion(document, position, context)
+            .map(CompletionResponse::Array);
 
         Box::pin(async move { Ok(completions) })
     }
