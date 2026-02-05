@@ -1089,8 +1089,10 @@ mod output_handler {
                 .map(|rule| {
                     let meta = self.output_options.include_meta.then(|| {
                         // Group metadata by key to handle duplicate keys.
-                        let mut grouped: HashMap<String, Vec<serde_json::Value>> =
-                            HashMap::new();
+                        let mut grouped: HashMap<
+                            String,
+                            Vec<serde_json::Value>,
+                        > = HashMap::new();
 
                         for (meta_key, meta_val) in rule.metadata() {
                             let key = meta_key.to_owned();
