@@ -235,32 +235,30 @@ fn generate_proto_code() {
     // Generate .rs files for .proto files in src/modules/protos
     proto_compiler.run_from_script();
 
-    // Decide whether the `modules.rs` and `add_modules.rs` files should be
-    // re-generated. By default, they will be re-generated.
-    let mut regenerate_modules_rs = true;
+    // Decide whether `modules.rs`, `add_modules.rs` and the content of the
+    // `protos/generated` directory should be re-generated. By default, they
+    // will be re-generated.
+    let mut regenerate = true;
 
     // If the environment variable `YRX_REGENERATE_MODULES_RS` is present, the
     // files won't be re-generated if the value is "false", "no" or "0". Any
     // other value will re-generate the files.
     if let Ok(env_var) = env::var("YRX_REGENERATE_MODULES_RS") {
-        regenerate_modules_rs =
-            env_var != "false" && env_var != "no" && env_var != "0";
+        regenerate = env_var != "false" && env_var != "no" && env_var != "0";
     }
 
     // Also, don't re-generate the files if `DOCS_RS` is defined. This is
     // because doc.rs puts the source code in a read-only file system, and
     // we can't modify the files.
     if env::var("DOCS_RS").is_ok() {
-        regenerate_modules_rs = false;
+        regenerate = false;
     }
 
-    if regenerate_modules_rs {
+    if regenerate {
         generate_module_files(
             proto_parser.file_descriptor_set().unwrap().file,
         );
-    }
 
-    if env::var("YRX_UPDATE_PREGENERATED_PROTOS").is_ok() {
         let out_dir = env::var("OUT_DIR").unwrap();
         let src_dir = PathBuf::from("src/modules/protos/generated");
         let _ = fs::create_dir_all(&src_dir);

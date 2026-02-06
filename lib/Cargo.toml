@@ -49,8 +49,13 @@ exact-atoms = []
 # the fast regexp matching mechanism for testing purposes.
 fast-regexp = []
 
+# Enables the generation of Rust code from .proto files. This feature is enabled
+# by default. When disabled, the build process will use pre-generated Rust files
+# found in the source tree, instead of generating them at build time.
+generate-proto-code = ["dep:protobuf-codegen", "dep:protobuf-parse"]
+
 # Uses the `inventory` crate (https://github.com/dtolnay/inventory) instead
-# of `linkme`  (https://github.com/dtolnay/linkme) for tracking WASM exports.
+# of `linkme` (https://github.com/dtolnay/linkme) for tracking WASM exports.
 #
 # This feature is disabled by default.
 inventory = ["dep:inventory"]
@@ -62,11 +67,6 @@ inventory = ["dep:inventory"]
 # protoc installed in your system, together with the protoc-gen-rust plugin.
 # Follow the instructions in: https://lib.rs/crates/protobuf-codegen3
 protoc = []
-
-# Enables the generation of Rust code from .proto files. This feature is enabled
-# by default. When disabled, the build process will use pre-generated Rust
-# files found in the source tree, instead of generating them at build time.
-generate-proto-code = ["dep:protobuf-codegen", "dep:protobuf-parse"]
 
 # Uses the `linkme` crate (https://github.com/dtolnay/linkme) instead
 # of `inventory`  (https://github.com/dtolnay/inventory) for tracking WASM
