@@ -63,6 +63,11 @@ inventory = ["dep:inventory"]
 # Follow the instructions in: https://lib.rs/crates/protobuf-codegen3
 protoc = []
 
+# Enables the generation of Rust code from .proto files. This feature is enabled
+# by default. When disabled, the build process will use pre-generated Rust
+# files found in the source tree, instead of generating them at build time.
+generate-proto-code = ["dep:protobuf-codegen", "dep:protobuf-parse"]
+
 # Uses the `linkme` crate (https://github.com/dtolnay/linkme) instead
 # of `inventory`  (https://github.com/dtolnay/inventory) for tracking WASM
 # exports.
@@ -246,6 +251,7 @@ default = [
     "constant-folding",
     "default-modules",
     "fast-regexp",
+    "generate-proto-code",
     "linkme",
 ]
 
@@ -317,8 +323,8 @@ lingua = { version = "1.6.2", optional = true, default-features = false, feature
 anyhow = { workspace = true }
 globwalk = { workspace = true }
 protobuf = { workspace = true }
-protobuf-codegen = { workspace = true }
-protobuf-parse = { workspace = true }
+protobuf-codegen = { workspace = true, optional = true }
+protobuf-parse = { workspace = true, optional = true }
 yara-x-proto = { workspace = true }
 
 [dev-dependencies]

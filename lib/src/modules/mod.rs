@@ -7,7 +7,11 @@ use rustc_hash::FxHashMap;
 use thiserror::Error;
 
 pub mod protos {
+    #[cfg(feature = "generate-proto-code")]
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
+
+    #[cfg(not(feature = "generate-proto-code"))]
+    include!("protos/generated/mod.rs");
 }
 
 #[cfg(test)]
