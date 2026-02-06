@@ -52,7 +52,11 @@ fast-regexp = []
 # Enables the generation of Rust code from .proto files. This feature is enabled
 # by default. When disabled, the build process will use pre-generated Rust files
 # found in the source tree, instead of generating them at build time.
-generate-proto-code = ["dep:protobuf-codegen", "dep:protobuf-parse"]
+generate-proto-code = [
+    "dep:protobuf-codegen",
+    "dep:protobuf-parse",
+    "dep:yara-x-proto"
+]
 
 # Uses the `inventory` crate (https://github.com/dtolnay/inventory) instead
 # of `linkme` (https://github.com/dtolnay/linkme) for tracking WASM exports.
@@ -325,7 +329,7 @@ globwalk = { workspace = true }
 protobuf = { workspace = true }
 protobuf-codegen = { workspace = true, optional = true }
 protobuf-parse = { workspace = true, optional = true }
-yara-x-proto = { workspace = true }
+yara-x-proto = { workspace = true, optional = true }
 
 [dev-dependencies]
 globwalk = { workspace = true }
