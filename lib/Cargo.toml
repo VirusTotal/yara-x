@@ -49,18 +49,23 @@ exact-atoms = []
 # the fast regexp matching mechanism for testing purposes.
 fast-regexp = []
 
+# Enables the generation of Rust code from .proto files. This feature is enabled
+# by default. When disabled, the build process will use pre-generated Rust files
+# found in the source tree, instead of generating them at build time.
+generate-proto-code = ["dep:protobuf-codegen", "dep:protobuf-parse"]
+
 # Uses the `inventory` crate (https://github.com/dtolnay/inventory) instead
-# of `linkme`  (https://github.com/dtolnay/linkme) for tracking WASM exports.
+# of `linkme` (https://github.com/dtolnay/linkme) for tracking WASM exports.
 #
 # This feature is disabled by default.
 inventory = ["dep:inventory"]
 
 # Whether to use protoc for parsing and compiling .proto files. By default,
 # .proto files are parsed and compiled by the pure-Rust compiler implemented
-# by the `rust-protobuf` crate. With this feature you can change this behavior
-# and use protoc, the official Protocol Buffer compiler. You'll need to have
-# protoc installed in your system, together with the protoc-gen-rust plugin.
-# Follow the instructions in: https://lib.rs/crates/protobuf-codegen3
+# by the `protobuf_codegen` crate. With this feature you can change this
+# behavio and use `protoc`, the official Protocol Buffer compiler. You'll need
+# to have protoc installed in your system, together with the protoc-gen-rust
+# plugin. Follow the instructions in: https://lib.rs/crates/protobuf-codegen3
 protoc = []
 
 # Uses the `linkme` crate (https://github.com/dtolnay/linkme) instead
@@ -246,6 +251,7 @@ default = [
     "constant-folding",
     "default-modules",
     "fast-regexp",
+    "generate-proto-code",
     "linkme",
 ]
 
@@ -317,8 +323,8 @@ lingua = { version = "1.6.2", optional = true, default-features = false, feature
 anyhow = { workspace = true }
 globwalk = { workspace = true }
 protobuf = { workspace = true }
-protobuf-codegen = { workspace = true }
-protobuf-parse = { workspace = true }
+protobuf-codegen = { workspace = true, optional = true }
+protobuf-parse = { workspace = true, optional = true }
 yara-x-proto = { workspace = true }
 
 [dev-dependencies]

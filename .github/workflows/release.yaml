@@ -230,10 +230,11 @@ jobs:
 
     - name: Publish crate
       env:
-        # Don't re-generate the files `modules.rs` and `add_modules.rs`, use
-        # the ones in the repository. These files can't be regenerated because
-        # `cargo publish` checks that the repository doesn't change during
-        # the build. See: https://github.com/rust-lang/cargo/pull/5584
+        # Don't re-generate `modules.rs`, `add_modules.rs` and the files in
+        # `protos/generated`. Use the ones in the repository. These files can't
+        # be regenerated because `cargo publish` checks that the repository
+        # doesn't change during the build.
+        # See: https://github.com/rust-lang/cargo/pull/5584
         YRX_REGENERATE_MODULES_RS: "no"
       run: |
         cargo login ${{ secrets.CRATES_IO_API_TOKEN }}

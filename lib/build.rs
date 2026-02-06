@@ -1,16 +1,16 @@
-use anyhow::Context;
+#[cfg(feature = "generate-proto-code")]
 use protobuf::descriptor::FileDescriptorProto;
-use std::fs::File;
-use std::io::Write;
-use std::path::PathBuf;
-use std::{env, fs};
 
-use protobuf_codegen::Codegen;
-use protobuf_parse::Parser;
-
-use yara_x_proto::exts::module_options as yara_module_options;
-
+#[cfg(feature = "generate-proto-code")]
 fn generate_module_files(proto_files: Vec<FileDescriptorProto>) {
+    use std::fs::File;
+    use std::io::Write;
+    use std::path::PathBuf;
+    use yara_x_proto::exts::module_options as yara_module_options;
+
+    println!("cargo:rerun-if-changed=src/modules/add_modules.rs");
+    println!("cargo:rerun-if-changed=src/modules/modules.rs");
+
     let mut modules = Vec::new();
     // Look for .proto files that describe a YARA module. A proto that
     // describes a YARA module has yara.module_options, like...
@@ -141,16 +141,14 @@ add_module!(modules, "{name}", {proto_mod}, "{root_message}", {rust_mod_name}, {
     write!(add_modules_rs, "\n}}").unwrap();
 }
 
-fn main() {
-    println!("cargo:rerun-if-changed=src/modules/protos");
-    println!("cargo:rerun-if-changed=src/modules/add_modules.rs");
-    println!("cargo:rerun-if-changed=src/modules/modules.rs");
+#[cfg(feature = "generate-proto-code")]
+fn generate_proto_code() {
+    use anyhow::Context;
+    use std::path::PathBuf;
+    use std::{env, fs};
 
-    if !cfg!(feature = "inventory") && !cfg!(feature = "linkme") {
-        panic!(
-            "either the `inventory` feature or the `linkme` feature must be enabled."
-        );
-    }
+    use protobuf_codegen::Codegen;
+    use protobuf_parse::Parser;
 
     let mut proto_compiler = Codegen::new();
     let mut proto_parser = Parser::new();
@@ -162,6 +160,8 @@ fn main() {
         proto_compiler.pure();
         proto_parser.pure();
     }
+
+    println!("cargo:rerun-if-changed=src/modules/protos");
 
     proto_compiler.cargo_out_dir("protos").include("./src/modules/protos");
     proto_parser.include("./src/modules/protos");
@@ -235,28 +235,53 @@ fn main() {
     // Generate .rs files for .proto files in src/modules/protos
     proto_compiler.run_from_script();
 
-    // Decide whether the `modules.rs` and `add_modules.rs` files should be
-    // re-generated. By default, they will be re-generated.
-    let mut regenerate_modules_rs = true;
+    // Decide whether `modules.rs`, `add_modules.rs` and the content of the
+    // `protos/generated` directory should be re-generated. By default, they
+    // will be re-generated.
+    let mut regenerate = true;
 
     // If the environment variable `YRX_REGENERATE_MODULES_RS` is present, the
     // files won't be re-generated if the value is "false", "no" or "0". Any
     // other value will re-generate the files.
     if let Ok(env_var) = env::var("YRX_REGENERATE_MODULES_RS") {
-        regenerate_modules_rs =
-            env_var != "false" && env_var != "no" && env_var != "0";
+        regenerate = env_var != "false" && env_var != "no" && env_var != "0";
     }
 
     // Also, don't re-generate the files if `DOCS_RS` is defined. This is
     // because doc.rs puts the source code in a read-only file system, and
     // we can't modify the files.
     if env::var("DOCS_RS").is_ok() {
-        regenerate_modules_rs = false;
+        regenerate = false;
     }
 
-    if regenerate_modules_rs {
+    if regenerate {
         generate_module_files(
             proto_parser.file_descriptor_set().unwrap().file,
         );
+
+        let out_dir = env::var("OUT_DIR").unwrap();
+        let src_dir = PathBuf::from("src/modules/protos/generated");
+        let _ = fs::create_dir_all(&src_dir);
+
+        for entry in globwalk::glob(format!("{}/protos/*.rs", out_dir))
+            .unwrap()
+            .flatten()
+        {
+            let path = entry.path();
+            let file_name = path.file_name().unwrap();
+            let dest = src_dir.join(file_name);
+            fs::copy(path, dest).unwrap();
+        }
     }
+}
+
+fn main() {
+    if !cfg!(feature = "inventory") && !cfg!(feature = "linkme") {
+        panic!(
+            "either the `inventory` feature or the `linkme` feature must be enabled."
+        );
+    }
+
+    #[cfg(feature = "generate-proto-code")]
+    generate_proto_code();
 }
