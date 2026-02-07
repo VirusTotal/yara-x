@@ -1376,12 +1376,12 @@ impl<'a> MachOFile<'a> {
             if let Some(raw_imports_blob) = import_data.get(..imports_size) {
                 for chunk in raw_imports_blob.chunks_exact(entry_size) {
                     // this is u64 if DYLD_CHAINED_IMPORT_ADDEND64 else u32
-                    let (_, chained_import_value) = if is_addend64 {
-                        let (i, val) = u64(self.endianness)(chunk)?;
-                        (i, val)
+                    let chained_import_value = if is_addend64 {
+                        let (_, val) = u64(self.endianness)(chunk)?;
+                        val
                     } else {
-                        let (i, val) = u32(self.endianness)(chunk)?;
-                        (i, val as u64)
+                        let (_, val) = u32(self.endianness)(chunk)?;
+                        val as u64
                     };
 
                     let _lib_ordinal = chained_import_value & ordinal_mask;
