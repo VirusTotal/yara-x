@@ -1365,16 +1365,17 @@ impl<'a> MachOFile<'a> {
             let is_addend64 =
                 header.imports_format == DYLD_CHAINED_IMPORT_ADDEND64;
 
-            let (shift_symbol, symbol_mask, ordinal_mask, shift_kind) = if is_addend64 {
-                (32, 0xFFFFFFFF, 0xFFFF, 16)
-            } else {
-                (9, 0x7FFFFF, 0xFF, 8)
-            };
+            let (shift_symbol, symbol_mask, ordinal_mask, shift_kind) =
+                if is_addend64 {
+                    (32, 0xFFFFFFFF, 0xFFFF, 16)
+                } else {
+                    (9, 0x7FFFFF, 0xFF, 8)
+                };
 
             let imports_size = (header.imports_count as usize) * entry_size;
             if let Some(raw_imports_blob) = import_data.get(..imports_size) {
                 for chunk in raw_imports_blob.chunks_exact(entry_size) {
-                    // this is u64 if DYLD_CHAINED_IMPORT_ADDEND64 else u32,
+                    // this is u64 if DYLD_CHAINED_IMPORT_ADDEND64 else u32
                     let (_, chained_import_value) = if is_addend64 {
                         let (i, val) = u64(self.endianness)(chunk)?;
                         (i, val)
@@ -1384,7 +1385,8 @@ impl<'a> MachOFile<'a> {
                     };
 
                     let _lib_ordinal = chained_import_value & ordinal_mask;
-                    let _import_kind = (chained_import_value >> shift_kind) & 0x1;
+                    let _import_kind =
+                        (chained_import_value >> shift_kind) & 0x1;
 
                     let name_offset =
                         (chained_import_value >> shift_symbol) & symbol_mask;
