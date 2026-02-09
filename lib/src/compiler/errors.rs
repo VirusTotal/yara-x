@@ -34,6 +34,16 @@ impl InvalidWarningCode {
 /// Error returned while serializing/deserializing compiled rules.
 #[derive(Error, Debug)]
 pub enum SerializationError {
+    /// The data being deserialized was created with an incompatible version
+    /// of YARA-X.
+    #[error("incompatible version, expected {expected} got {actual}")]
+    InvalidVersion {
+        /// The expected version.
+        expected: u32,
+        /// The actual version found in the file.
+        actual: u32,
+    },
+
     /// The data being deserialized doesn't contain YARA-X serialized rules.
     #[error("not a YARA-X compiled rules file")]
     InvalidFormat,
