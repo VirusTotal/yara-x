@@ -523,9 +523,16 @@ fn globals_json() {
 
     assert_eq!(
         Compiler::new()
-            .define_global("invalid_array", json!({ "foo": null }))
+            .define_global("invalid_struct", json!({ "foo": null }))
             .unwrap_err(),
         VariableError::UnexpectedNull
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .define_global("invalid_struct", json!({ "/foo": 1 }))
+            .unwrap_err(),
+        VariableError::InvalidIdentifier("/foo".to_string())
     );
 }
 
