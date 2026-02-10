@@ -452,9 +452,9 @@ enum YRX_RESULT yrx_compiler_define_global_float(struct YRX_COMPILER *compiler,
 // (e.g., booleans, integers, strings), prefer dedicated functions to avoid
 // the overhead of JSON deserialization.
 //
-// When defining a map, keys must be of string type, and values can be
-// any of the types supported by YARA, including other maps. Arrays must be
-// homogeneous (all elements must be the same type).
+// When defining a map, keys must be of string type and valid YARA identifiers,
+// and values can be any of the types supported by YARA, including other maps.
+// Arrays must be homogeneous (all elements must be the same type).
 enum YRX_RESULT yrx_compiler_define_global_json(struct YRX_COMPILER *compiler,
                                                 const char *ident,
                                                 const char *value);

@@ -646,6 +646,12 @@ impl<'a> Compiler<'a> {
     /// `i64`, `i32`, `i16`, `i8`, `u32`, `u16`, `u8`, `f64`, `f32`, `bool`,
     /// `&str`, `String` and [`serde_json::Value`].
     ///
+    /// When using a [`serde_json::Value`] there are certain limitations: keys
+    /// in maps must be valid YARA identifiers (the first character must be `_`
+    /// or a letter, the remaining ones must be `_`, a letter or a digit),
+    /// because these maps are translated into YARA structures. Also, all items
+    /// in an array must have the same type.
+    ///
     /// ```
     /// # use yara_x::Compiler;
     /// assert!(Compiler::new()

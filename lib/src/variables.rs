@@ -37,7 +37,7 @@ pub enum VariableError {
 
     /// The identifier is not valid. Identifiers can only contain alphanumeric
     /// characters and underscores, and can't start with a digit.
-    #[error("invalid variable identifier `{0}`")]
+    #[error("invalid identifier `{0}`")]
     InvalidIdentifier(String),
 
     /// The value of a variable cannot be null. This may happen when using a

@@ -497,7 +497,10 @@ impl Compiler {
     /// each scanner can change the variable's value by calling
     /// [`crate::Scanner::set_global`].
     ///
-    /// The type of `value` must be: bool, str, bytes, int or float.
+    /// The type of `value` must be: bool, str, bytes, int, float or dict. When
+    /// the value is a dict, keys must be of type string and valid YARA identifiers
+    /// (the first character must be `_` or a letter, and the remaining ones must
+    /// be a `_`, a letter or a digit).
     ///
     /// # Raises
     ///
