@@ -1,3 +1,6 @@
+use std::fs;
+use std::io::Error;
+
 use async_lsp::lsp_types::Url;
 
 use yara_x_parser::cst::CST;
@@ -22,5 +25,12 @@ impl Document {
         let cst = CST::from(text.as_str());
         let line_index = LineIndex::new(text.as_str());
         Self { uri, text, cst, line_index }
+    }
+
+    /// Reads a document from a uri.
+    pub fn read(uri: Url) -> Result<Self, Error> {
+        let path =
+            uri.to_file_path().map_err(|_| Error::other("invalid path"))?;
+        Ok(Self::new(uri, fs::read_to_string(path)?))
     }
 }
