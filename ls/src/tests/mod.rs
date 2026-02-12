@@ -140,7 +140,7 @@ where
         let request_path = path.with_extension("request.json");
         let request_str = fs::read_to_string(request_path.as_path())
             .unwrap_or_else(|_| panic!("can't read {request_path:?}"))
-            .replace("${test_dir}", &test_dir);
+            .replace("${test_dir}", test_dir);
 
         let request = serde_json::from_str::<R::Params>(&request_str)
             .unwrap_or_else(|_| {
@@ -163,7 +163,7 @@ where
 
         let mut response_json = serde_json::to_value(actual_response).unwrap();
 
-        replace_in_json(&mut response_json, &test_dir, "${test_dir}");
+        replace_in_json(&mut response_json, test_dir, "${test_dir}");
         serde_json::to_writer_pretty(response_file, &response_json).unwrap();
         server_socket
     })
