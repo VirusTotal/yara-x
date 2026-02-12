@@ -1,6 +1,6 @@
 [
   {
-    "uri": "file://${test_dir}/references5.yar",
+    "uri": "${test_dir}/references5.yar",
     "range": {
       "start": {
         "line": 9,
@@ -13,7 +13,7 @@
     }
   },
   {
-    "uri": "file://${test_dir}/references5.yar",
+    "uri": "${test_dir}/references5.yar",
     "range": {
       "start": {
         "line": 11,

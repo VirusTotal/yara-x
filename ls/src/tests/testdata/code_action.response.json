@@ -4,7 +4,7 @@
     "kind": "quickfix",
     "edit": {
       "changes": {
-        "file://${test_dir}/code_action.yar": [
+        "${test_dir}/code_action.yar": [
           {
             "range": {
               "start": {

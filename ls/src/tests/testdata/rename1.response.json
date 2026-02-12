@@ -1,6 +1,6 @@
 {
   "changes": {
-    "file://${test_dir}/rename1.yar": [
+    "${test_dir}/rename1.yar": [
       {
         "range": {
           "start": {
