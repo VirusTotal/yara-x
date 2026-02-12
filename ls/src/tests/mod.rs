@@ -174,7 +174,6 @@ where
 ///
 /// This function recursively traverses the JSON value and performs the
 /// replacement in string values and in object keys.
-
 fn replace_in_json(value: &mut Value, from: &str, to: &str) {
     match value {
         Value::Object(map) => {
