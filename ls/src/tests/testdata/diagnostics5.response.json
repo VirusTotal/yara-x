@@ -18,7 +18,7 @@
       "relatedInformation": [
         {
           "location": {
-            "uri": "file:///diagnostics5.yar",
+            "uri": "${test_dir}/diagnostics5.yar",
             "range": {
               "start": {
                 "line": 3,
@@ -54,7 +54,7 @@
       "relatedInformation": [
         {
           "location": {
-            "uri": "file:///diagnostics5.yar",
+            "uri": "${test_dir}/diagnostics5.yar",
             "range": {
               "start": {
                 "line": 2,

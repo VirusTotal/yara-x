@@ -224,9 +224,8 @@ impl LanguageServer for YARALanguageServer {
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let definition = go_to_definition(document, position).map(|range| {
-            GotoDefinitionResponse::Scalar(Location { uri, range })
-        });
+        let definition = go_to_definition(document, position)
+            .map(GotoDefinitionResponse::Scalar);
 
         Box::pin(async move { Ok(definition) })
     }

@@ -1,9 +1,9 @@
 {
   "textDocument": {
-    "uri": "${test_dir}/goto5.yar"
+    "uri": "${test_dir}/goto6.yar"
   },
   "position": {
     "line": 4,
-    "character": 7
+    "character": 6
   }
 }

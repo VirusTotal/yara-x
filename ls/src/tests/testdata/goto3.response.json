@@ -1,5 +1,5 @@
 {
-  "uri": "file:///goto3.yar",
+  "uri": "${test_dir}/goto3.yar",
   "range": {
     "start": {
       "line": 9,

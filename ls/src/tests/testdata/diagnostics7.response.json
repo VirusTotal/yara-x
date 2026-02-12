@@ -18,7 +18,7 @@
       "relatedInformation": [
         {
           "location": {
-            "uri": "file:///diagnostics7.yar",
+            "uri": "${test_dir}/diagnostics7.yar",
             "range": {
               "start": {
                 "line": 3,
