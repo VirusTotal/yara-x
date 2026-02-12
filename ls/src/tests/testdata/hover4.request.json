@@ -1,6 +1,6 @@
 {
   "textDocument": {
-    "uri": "file:///hover4.yar"
+    "uri": "file://${test_dir}/hover4.yar"
   },
   "position": {
     "line": 0,

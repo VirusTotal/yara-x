@@ -1,6 +1,6 @@
 {
   "textDocument": {
-    "uri": "file:///goto2.yar"
+    "uri": "file://${test_dir}/goto2.yar"
   },
   "position": {
     "line": 5,

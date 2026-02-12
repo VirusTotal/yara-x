@@ -1,6 +1,6 @@
 [
   {
-    "uri": "file:///references2.yar",
+    "uri": "file://${test_dir}/references2.yar",
     "range": {
       "start": {
         "line": 2,
@@ -13,7 +13,7 @@
     }
   },
   {
-    "uri": "file:///references2.yar",
+    "uri": "file://${test_dir}/references2.yar",
     "range": {
       "start": {
         "line": 4,
@@ -26,7 +26,7 @@
     }
   },
   {
-    "uri": "file:///references2.yar",
+    "uri": "file://${test_dir}/references2.yar",
     "range": {
       "start": {
         "line": 4,
@@ -39,7 +39,7 @@
     }
   },
   {
-    "uri": "file:///references2.yar",
+    "uri": "file://${test_dir}/references2.yar",
     "range": {
       "start": {
         "line": 4,

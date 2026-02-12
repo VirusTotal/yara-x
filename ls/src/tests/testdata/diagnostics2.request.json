@@ -1,5 +1,5 @@
 {
   "textDocument": {
-    "uri": "file:///diagnostics2.yar"
+    "uri": "file://${test_dir}/diagnostics2.yar"
   }
 }

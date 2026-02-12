@@ -1,6 +1,6 @@
 {
     "textDocument": {
-        "uri": "file:///code_action.yar"
+        "uri": "file://${test_dir}/code_action.yar"
     },
     "range": {
         "start": {

@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 use std::fs;
-use std::fs::File;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 
@@ -19,12 +18,13 @@ use async_lsp::lsp_types::{
     ClientCapabilities, DiagnosticClientCapabilities,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
     InitializedParams, TextDocumentClientCapabilities, TextDocumentIdentifier,
-    TextDocumentItem, Url,
+    TextDocumentItem, Url, WorkspaceFolder,
 };
 use async_lsp::router::Router;
 use async_lsp::server::LifecycleLayer;
 use async_lsp::{LanguageServer, ServerSocket};
 use futures::AsyncReadExt;
+use serde_json::Value;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 use tower::ServiceBuilder;
 
@@ -59,9 +59,18 @@ where
         _ = server.run_buffered(server_rx, server_tx) => {}
         _ = client.run_buffered(client_rx, client_tx) => {}
         _ = async {
+            let root_path = PathBuf::from("src/tests/testdata");
+            let root_uri = Url::from_file_path(
+                root_path.canonicalize().unwrap()
+            ).unwrap();
+
             // Send request to initialize the server.
             server_socket
                 .initialize(InitializeParams{
+                    workspace_folders: Some(vec![WorkspaceFolder{
+                        uri: root_uri,
+                        name: "testdata".to_string(),
+                    }]),
                      capabilities: ClientCapabilities {
                          text_document: Some(TextDocumentClientCapabilities {
                              diagnostic: Some(DiagnosticClientCapabilities {
@@ -90,13 +99,12 @@ where
 
 async fn open_document<P: AsRef<Path>>(s: &ServerSocket, path: P) {
     let path = path.as_ref();
-    let filename = path.file_name().unwrap().to_str().unwrap();
     let rule = fs::read_to_string(path)
         .unwrap_or_else(|_| panic!("failed to read file {path:?}"));
 
     s.notify::<DidOpenTextDocument>(DidOpenTextDocumentParams {
         text_document: TextDocumentItem {
-            uri: Url::parse(format!("file:///{filename}").as_str()).unwrap(),
+            uri: Url::from_file_path(path).unwrap(),
             language_id: "yara".to_string(),
             version: 1,
             text: rule,
@@ -107,11 +115,10 @@ async fn open_document<P: AsRef<Path>>(s: &ServerSocket, path: P) {
 
 async fn close_document<P: AsRef<Path>>(s: &ServerSocket, path: P) {
     let path = path.as_ref();
-    let filename = path.file_name().unwrap().to_str().unwrap();
 
     s.notify::<DidCloseTextDocument>(DidCloseTextDocumentParams {
         text_document: TextDocumentIdentifier {
-            uri: Url::parse(format!("file:///{filename}").as_str()).unwrap(),
+            uri: Url::from_file_path(path).unwrap(),
         },
     })
     .expect("DidOpenTextDocument notification failed");
@@ -122,33 +129,82 @@ where
     R::Result: serde::Serialize + serde::de::DeserializeOwned + Debug,
 {
     let path = PathBuf::from("src/tests/testdata").join(path);
+    let abs_path = path.canonicalize().unwrap();
+    let test_dir = abs_path.parent().unwrap().to_str().unwrap();
 
     lsp_test(async |server_socket| {
-        open_document(&server_socket, path.as_path()).await;
+        open_document(&server_socket, &abs_path).await;
 
         let mut mint = goldenfile::Mint::new(".");
 
         let request_path = path.with_extension("request.json");
-        let request_file = File::open(request_path.as_path())
-            .unwrap_or_else(|_| panic!("can't read {request_path:?}"));
+        let request_str = fs::read_to_string(request_path.as_path())
+            .unwrap_or_else(|_| panic!("can't read {request_path:?}"))
+            .replace("${test_dir}", &test_dir);
+
+        let request = serde_json::from_str::<R::Params>(&request_str)
+            .unwrap_or_else(|_| {
+                panic!("failed to parse request: {}", request_str)
+            });
 
         let response_path = path.with_extension("response.json");
         let response_file = mint
             .new_goldenfile(response_path.as_path())
             .unwrap_or_else(|_| panic!("can't read {request_path:?}"));
 
-        let request =
-            serde_json::from_reader::<_, R::Params>(request_file).unwrap();
+        let actual_response = match server_socket.request::<R>(request).await {
+            Ok(response) => response,
+            Err(err) => {
+                panic!("request failed: {:?}", err)
+            }
+        };
 
-        let actual_response =
-            server_socket.request::<R>(request).await.unwrap();
+        close_document(&server_socket, &abs_path).await;
 
-        close_document(&server_socket, path.as_path()).await;
+        let mut response_json = serde_json::to_value(actual_response).unwrap();
 
-        serde_json::to_writer_pretty(response_file, &actual_response).unwrap();
+        replace_in_json(&mut response_json, &test_dir, "${test_dir}");
+        serde_json::to_writer_pretty(response_file, &response_json).unwrap();
         server_socket
     })
     .await;
+}
+
+/// Replaces all occurrences of `from` with `to` in a JSON value.
+///
+/// This function recursively traverses the JSON value and performs the
+/// replacement in string values and in object keys.
+
+fn replace_in_json(value: &mut Value, from: &str, to: &str) {
+    match value {
+        Value::Object(map) => {
+            let keys_to_modify: Vec<(String, String)> = map
+                .keys()
+                .filter(|k| k.contains(from))
+                .map(|k| (k.clone(), k.replace(from, to)))
+                .collect();
+
+            for (old_key, new_key) in keys_to_modify {
+                if let Some(mut val) = map.remove(&old_key) {
+                    replace_in_json(&mut val, from, to);
+                    map.insert(new_key, val);
+                }
+            }
+
+            for (_, val) in map.iter_mut() {
+                replace_in_json(val, from, to);
+            }
+        }
+        Value::Array(arr) => {
+            for v in arr {
+                replace_in_json(v, from, to);
+            }
+        }
+        Value::String(s) => {
+            *s = s.replace(from, to);
+        }
+        _ => {}
+    }
 }
 
 #[tokio::test]
@@ -187,6 +243,7 @@ async fn goto_definition() {
     test_lsp_request::<_, GotoDefinition>("goto3.yar").await;
     test_lsp_request::<_, GotoDefinition>("goto4.yar").await;
     test_lsp_request::<_, GotoDefinition>("goto5.yar").await;
+    test_lsp_request::<_, GotoDefinition>("goto6.yar").await;
 }
 
 #[tokio::test]

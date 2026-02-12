@@ -1,5 +1,5 @@
 {
   "textDocument": {
-    "uri": "file:///semantic_tokens1.yar"
+    "uri": "file://${test_dir}/semantic_tokens1.yar"
   }
 }

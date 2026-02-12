@@ -1,6 +1,6 @@
 {
   "textDocument": {
-    "uri": "file:///selectionrange7.yar"
+    "uri": "file://${test_dir}/selectionrange7.yar"
   },
   "positions": [
     {
