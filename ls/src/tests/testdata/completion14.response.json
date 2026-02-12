@@ -1,0 +1,109 @@
+[
+  {
+    "label": "with_for",
+    "labelDetails": {
+      "description": "Rule"
+    },
+    "kind": 6
+  },
+  {
+    "label": "and",
+    "kind": 14
+  },
+  {
+    "label": "or",
+    "kind": 14
+  },
+  {
+    "label": "all",
+    "kind": 14
+  },
+  {
+    "label": "any",
+    "kind": 14
+  },
+  {
+    "label": "none",
+    "kind": 14
+  },
+  {
+    "label": "of",
+    "kind": 14
+  },
+  {
+    "label": "at",
+    "kind": 14,
+    "insertText": "at ${1:expression}",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "in",
+    "kind": 14,
+    "insertText": "in ${1:}..${2:}",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "filesize",
+    "kind": 14
+  },
+  {
+    "label": "entrypoint",
+    "kind": 14
+  },
+  {
+    "label": "true",
+    "kind": 14
+  },
+  {
+    "label": "false",
+    "kind": 14
+  },
+  {
+    "label": "not",
+    "kind": 14
+  },
+  {
+    "label": "defined",
+    "kind": 14
+  },
+  {
+    "label": "for",
+    "kind": 14,
+    "insertText": "for ${1:quantifier} ${2:iterable} : ( ${3:expression} )",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "with",
+    "kind": 14,
+    "insertText": "with ${1:declarations} : ( ${3:expression} )",
+    "insertTextFormat": 2
+  },
+  {
+    "label": "k",
+    "labelDetails": {
+      "description": "Variable"
+    },
+    "kind": 6
+  },
+  {
+    "label": "v",
+    "labelDetails": {
+      "description": "Variable"
+    },
+    "kind": 6
+  },
+  {
+    "label": "version_info",
+    "labelDetails": {
+      "description": "Variable"
+    },
+    "kind": 6
+  },
+  {
+    "label": "another",
+    "labelDetails": {
+      "description": "Variable"
+    },
+    "kind": 6
+  }
+]

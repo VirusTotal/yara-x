@@ -1,0 +1,32 @@
+{
+  "changes": {
+    "file:///rename8.yar": [
+      {
+        "range": {
+          "start": {
+            "line": 8,
+            "character": 6
+          },
+          "end": {
+            "line": 8,
+            "character": 11
+          }
+        },
+        "newText": "new_ident"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 8,
+            "character": 19
+          },
+          "end": {
+            "line": 8,
+            "character": 24
+          }
+        },
+        "newText": "new_ident"
+      }
+    ]
+  }
+}

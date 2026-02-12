@@ -1,0 +1,9 @@
+{
+  "textDocument": {
+    "uri": "file:///hover9.yar"
+  },
+  "position": {
+    "line": 10,
+    "character": 20
+  }
+}

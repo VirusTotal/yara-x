@@ -1,0 +1,45 @@
+{
+  "changes": {
+    "file:///rename6.yar": [
+      {
+        "range": {
+          "start": {
+            "line": 4,
+            "character": 6
+          },
+          "end": {
+            "line": 4,
+            "character": 7
+          }
+        },
+        "newText": "c"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 4,
+            "character": 38
+          },
+          "end": {
+            "line": 4,
+            "character": 39
+          }
+        },
+        "newText": "c"
+      },
+      {
+        "range": {
+          "start": {
+            "line": 4,
+            "character": 33
+          },
+          "end": {
+            "line": 4,
+            "character": 34
+          }
+        },
+        "newText": "c"
+      }
+    ]
+  }
+}

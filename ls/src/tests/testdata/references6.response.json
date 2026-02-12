@@ -1,0 +1,28 @@
+[
+  {
+    "uri": "file:///references6.yar",
+    "range": {
+      "start": {
+        "line": 8,
+        "character": 6
+      },
+      "end": {
+        "line": 8,
+        "character": 11
+      }
+    }
+  },
+  {
+    "uri": "file:///references6.yar",
+    "range": {
+      "start": {
+        "line": 8,
+        "character": 19
+      },
+      "end": {
+        "line": 8,
+        "character": 24
+      }
+    }
+  }
+]
