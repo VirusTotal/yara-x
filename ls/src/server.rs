@@ -9,6 +9,7 @@ defines how the server should process various LSP requests and notifications.
 use std::collections::HashMap;
 use std::io::Cursor;
 use std::ops::ControlFlow;
+use std::sync::Arc;
 
 use async_lsp::lsp_types::request::{
     Request, SemanticTokensFullRequest, SemanticTokensRangeRequest,
@@ -39,7 +40,6 @@ use async_lsp::{ClientSocket, LanguageClient, LanguageServer, ResponseError};
 use futures::future::BoxFuture;
 
 use yara_x_fmt::Indentation;
-use yara_x_parser::ast::AST;
 
 use crate::features::code_action::code_actions;
 use crate::features::completion::completion;
@@ -58,7 +58,7 @@ use crate::features::semantic_tokens::{
 use crate::document::Document;
 
 pub struct DocumentStore {
-    documents: HashMap<Url, Document>,
+    documents: HashMap<Url, Arc<Document>>,
 }
 
 impl DocumentStore {
@@ -66,15 +66,15 @@ impl DocumentStore {
         Self { documents: HashMap::new() }
     }
 
-    fn get(&self, url: &Url) -> Option<&Document> {
-        self.documents.get(url)
+    fn get(&self, url: &Url) -> Option<Arc<Document>> {
+        self.documents.get(url).cloned()
     }
 
-    fn insert(&mut self, url: Url, document: Document) {
+    fn insert(&mut self, url: Url, document: Arc<Document>) {
         self.documents.insert(url, document);
     }
 
-    fn remove(&mut self, url: &Url) -> Option<Document> {
+    fn remove(&mut self, url: &Url) -> Option<Arc<Document>> {
         self.documents.remove(url)
     }
 }
@@ -201,10 +201,10 @@ impl LanguageServer for YARALanguageServer {
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let result = hover(document, position)
-            .map(|contents| Hover { contents, range: None });
-
-        Box::pin(async move { Ok(result) })
+        Box::pin(async move {
+            Ok(hover(document, position)
+                .map(|contents| Hover { contents, range: None }))
+        })
     }
 
     /// This method is called when the user requests to go to the definition
@@ -224,10 +224,10 @@ impl LanguageServer for YARALanguageServer {
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let definition = go_to_definition(document, position)
-            .map(GotoDefinitionResponse::Scalar);
-
-        Box::pin(async move { Ok(definition) })
+        Box::pin(async move {
+            Ok(go_to_definition(document, position)
+                .map(GotoDefinitionResponse::Scalar))
+        })
     }
 
     /// This method is called when the user requests to find all references
@@ -246,15 +246,14 @@ impl LanguageServer for YARALanguageServer {
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let references = match find_references(document, position) {
-            Some(references) => references
-                .into_iter()
-                .map(|range| Location { uri: uri.clone(), range })
-                .collect(),
-            None => return Box::pin(async { Ok(None) }),
-        };
-
-        Box::pin(async move { Ok(Some(references)) })
+        Box::pin(async move {
+            Ok(find_references(document, position).map(|references| {
+                references
+                    .into_iter()
+                    .map(|range| Location { uri: uri.clone(), range })
+                    .collect()
+            }))
+        })
     }
 
     /// This method is called when the user requests code actions for a range.
@@ -295,10 +294,10 @@ impl LanguageServer for YARALanguageServer {
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let completions = completion(document, position, context)
-            .map(CompletionResponse::Array);
-
-        Box::pin(async move { Ok(completions) })
+        Box::pin(async move {
+            Ok(completion(document, position, context)
+                .map(CompletionResponse::Array))
+        })
     }
 
     /// This method is called when the user requests to highlight occurrences
@@ -319,9 +318,7 @@ impl LanguageServer for YARALanguageServer {
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let highlights = document_highlight(document, position);
-
-        Box::pin(async move { Ok(highlights) })
+        Box::pin(async move { Ok(document_highlight(document, position)) })
     }
 
     /// This method is called when the client requests a list of all symbols
@@ -340,12 +337,9 @@ impl LanguageServer for YARALanguageServer {
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let ast = AST::new(document.text.as_bytes(), document.cst.iter());
-        let symbols = document_symbol(document, ast);
-
-        Box::pin(
-            async move { Ok(Some(DocumentSymbolResponse::Nested(symbols))) },
-        )
+        Box::pin(async move {
+            Ok(Some(DocumentSymbolResponse::Nested(document_symbol(document))))
+        })
     }
 
     /// This method is called to provide semantic highlighting for the document.
@@ -364,9 +358,11 @@ impl LanguageServer for YARALanguageServer {
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let tokens = semantic_tokens(document, None);
-
-        Box::pin(async move { Ok(Some(SemanticTokensResult::Tokens(tokens))) })
+        Box::pin(async move {
+            Ok(Some(SemanticTokensResult::Tokens(semantic_tokens(
+                document, None,
+            ))))
+        })
     }
 
     /// This method is called to provide semantic highlighting for a specific
@@ -388,11 +384,12 @@ impl LanguageServer for YARALanguageServer {
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let tokens = semantic_tokens(document, Some(range));
-
-        Box::pin(
-            async move { Ok(Some(SemanticTokensRangeResult::Tokens(tokens))) },
-        )
+        Box::pin(async move {
+            Ok(Some(SemanticTokensRangeResult::Tokens(semantic_tokens(
+                document,
+                Some(range),
+            ))))
+        })
     }
 
     /// This method is called when the user wants to rename a symbol.
@@ -410,12 +407,14 @@ impl LanguageServer for YARALanguageServer {
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let changes = rename(&document.cst, params.new_name, position)
-            .map(|changes| HashMap::from([(uri, changes)]))
-            .map(WorkspaceEdit::new)
-            .unwrap_or_default();
+        Box::pin(async move {
+            let changes = rename(&document.cst, params.new_name, position)
+                .map(|changes| HashMap::from([(uri, changes)]))
+                .map(WorkspaceEdit::new)
+                .unwrap_or_default();
 
-        Box::pin(async move { Ok(Some(changes)) })
+            Ok(Some(changes))
+        })
     }
 
     /// This method is called to determine the range of the symbol at the
@@ -434,9 +433,9 @@ impl LanguageServer for YARALanguageServer {
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let ranges = selection_range(document, params.positions);
-
-        Box::pin(async move { Ok(ranges) })
+        Box::pin(
+            async move { Ok(selection_range(document, params.positions)) },
+        )
     }
 
     /// This method is called to provide diagnostic information for a document.
@@ -485,28 +484,34 @@ impl LanguageServer for YARALanguageServer {
             None => return Box::pin(async { Ok(None) }),
         };
 
-        let src = document.text.as_str();
-        let line_count = src.lines().count() as u32;
-        let input = Cursor::new(src);
-        let mut output = Vec::new();
+        Box::pin(async move {
+            let src = document.text.as_str();
+            let line_count = src.lines().count() as u32;
+            let input = Cursor::new(src);
+            let mut output = Vec::new();
 
-        let indentation = if params.options.insert_spaces {
-            Indentation::Spaces(params.options.tab_size as usize)
-        } else {
-            Indentation::Tabs
-        };
+            let indentation = if params.options.insert_spaces {
+                Indentation::Spaces(params.options.tab_size as usize)
+            } else {
+                Indentation::Tabs
+            };
 
-        let formatter = yara_x_fmt::Formatter::new().indentation(indentation);
+            let formatter =
+                yara_x_fmt::Formatter::new().indentation(indentation);
 
-        let result = match formatter.format(input, &mut output) {
-            Ok(changed) if changed => Some(vec![TextEdit::new(
-                Range::new(Position::new(0, 0), Position::new(line_count, 0)),
-                output.try_into().unwrap(),
-            )]),
-            _ => None,
-        };
+            let result = match formatter.format(input, &mut output) {
+                Ok(changed) if changed => Some(vec![TextEdit::new(
+                    Range::new(
+                        Position::new(0, 0),
+                        Position::new(line_count, 0),
+                    ),
+                    output.try_into().unwrap(),
+                )]),
+                _ => None,
+            };
 
-        Box::pin(async move { Ok(result) })
+            Ok(result)
+        })
     }
 
     /// This method is called when a document is opened.
@@ -519,7 +524,7 @@ impl LanguageServer for YARALanguageServer {
     ) -> Self::NotifyResult {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
-        let document = Document::new(uri.clone(), text);
+        let document = Arc::new(Document::new(uri.clone(), text));
         self.documents.insert(uri.clone(), document);
         self.publish_diagnostics(&uri);
         ControlFlow::Continue(())
@@ -535,7 +540,7 @@ impl LanguageServer for YARALanguageServer {
     ) -> Self::NotifyResult {
         if let Some(text) = params.text {
             let uri = params.text_document.uri;
-            let document = Document::new(uri.clone(), text);
+            let document = Arc::new(Document::new(uri.clone(), text));
             self.documents.insert(uri.clone(), document);
             self.publish_diagnostics(&uri);
         }
@@ -553,7 +558,7 @@ impl LanguageServer for YARALanguageServer {
     ) -> Self::NotifyResult {
         let uri = params.text_document.uri;
         for change in params.content_changes.into_iter() {
-            let document = Document::new(uri.clone(), change.text);
+            let document = Arc::new(Document::new(uri.clone(), change.text));
             self.documents.insert(uri.clone(), document);
         }
         self.publish_diagnostics(&uri);
@@ -606,7 +611,7 @@ impl YARALanguageServer {
                 let _ = self.client.publish_diagnostics(
                     PublishDiagnosticsParams {
                         uri: uri.clone(),
-                        diagnostics: diagnostics(document),
+                        diagnostics: diagnostics(document.clone()),
                         version: None,
                     },
                 );

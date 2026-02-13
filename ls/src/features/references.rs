@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_lsp::lsp_types::{Position, Range};
 
 use yara_x_parser::cst::SyntaxKind;
@@ -11,7 +13,7 @@ use crate::utils::position::{node_to_range, token_to_range};
 
 /// Finds all references of a symbol at the given position in the text.
 pub fn find_references(
-    document: &Document,
+    document: Arc<Document>,
     pos: Position,
 ) -> Option<Vec<Range>> {
     let cst = &document.cst;

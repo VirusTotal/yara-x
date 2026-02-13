@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_lsp::lsp_types::{
     DocumentHighlight, DocumentHighlightKind, Position,
 };
@@ -17,7 +19,7 @@ use crate::utils::position::{node_to_range, token_to_range};
 /// specified position is contained in a symbol, the response contains the
 /// ranges of all occurrences of that symbol in the source code.
 pub fn document_highlight(
-    document: &Document,
+    document: Arc<Document>,
     pos: Position,
 ) -> Option<Vec<DocumentHighlight>> {
     let cst = &document.cst;

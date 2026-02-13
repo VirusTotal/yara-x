@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_lsp::lsp_types::{
     CompletionContext, CompletionItem, CompletionItemKind,
     CompletionItemLabelDetails, CompletionTriggerKind, InsertTextFormat,
@@ -75,7 +77,7 @@ const CONDITION_SUGGESTIONS: [(&str, Option<&str>); 16] = [
 ];
 
 pub fn completion(
-    document: &Document,
+    document: Arc<Document>,
     pos: Position,
     context: Option<CompletionContext>,
 ) -> Option<Vec<CompletionItem>> {
