@@ -5,11 +5,9 @@ use yara_x_parser::ast::{Item, WithSpan, AST};
 
 use crate::document::Document;
 
-pub fn document_symbol(
-    document: Arc<Document>,
-    ast: AST,
-) -> Vec<DocumentSymbol> {
+pub fn document_symbol(document: Arc<Document>) -> Vec<DocumentSymbol> {
     let line_index = &document.line_index;
+    let ast = AST::new(document.text.as_bytes(), document.cst.iter());
     let mut symbols = Vec::new();
     for item in ast.items {
         match item {
