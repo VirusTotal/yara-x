@@ -1,3 +1,4 @@
+// This test is working with the `ident` from `with`
 rule ident {
   condition:
     true

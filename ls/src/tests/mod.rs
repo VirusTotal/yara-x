@@ -227,6 +227,7 @@ async fn rename() {
     test_lsp_request::<_, Rename>("rename6.yar").await;
     test_lsp_request::<_, Rename>("rename7.yar").await;
     test_lsp_request::<_, Rename>("rename8.yar").await;
+    test_lsp_request::<_, Rename>("rename9.yar").await;
 }
 
 #[tokio::test]
@@ -238,6 +239,7 @@ async fn references() {
     test_lsp_request::<_, References>("references5.yar").await;
     test_lsp_request::<_, References>("references6.yar").await;
     test_lsp_request::<_, References>("references7.yar").await;
+    test_lsp_request::<_, References>("references8.yar").await;
 }
 
 #[tokio::test]
@@ -286,6 +288,7 @@ async fn document_highlights() {
     test_lsp_request::<_, DocumentHighlightRequest>("highlights6.yar").await;
     test_lsp_request::<_, DocumentHighlightRequest>("highlights7.yar").await;
     test_lsp_request::<_, DocumentHighlightRequest>("highlights8.yar").await;
+    test_lsp_request::<_, DocumentHighlightRequest>("highlights9.yar").await;
 }
 
 #[tokio::test]

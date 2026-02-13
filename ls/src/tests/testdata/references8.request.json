@@ -1,10 +1,10 @@
 {
   "textDocument": {
-    "uri": "${test_dir}/references6.yar"
+    "uri": "${test_dir}/references8.yar"
   },
   "position": {
-    "line": 9,
-    "character": 19
+    "line": 8,
+    "character": 4
   },
   "context": {
     "includeDeclaration": true

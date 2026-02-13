@@ -1,4 +1,4 @@
-// This test is working with the `ident` from `with`
+// This test is working with the `ident` from rule
 rule ident {
   condition:
     true

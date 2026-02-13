@@ -1,6 +1,6 @@
 import "pe"
 
-rule with_the_same_ident {
+rule with_for {
   condition:
     with
       v = pe.version_info: (
