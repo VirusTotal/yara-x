@@ -72,11 +72,15 @@ pub fn rename(
                     new_text: new_name.clone(),
                 });
 
-                for occurrence in occurrences_in_with_for(n, token.text()) {
-                    result.push(TextEdit {
-                        range: token_to_range(&occurrence).unwrap(),
-                        new_text: new_name.clone(),
-                    });
+                if let Some(occurrences) =
+                    occurrences_in_with_for(n, token.text())
+                {
+                    for occurrence in occurrences {
+                        result.push(TextEdit {
+                            range: token_to_range(&occurrence).unwrap(),
+                            new_text: new_name.clone(),
+                        });
+                    }
                 }
 
                 return Some(result);

@@ -224,34 +224,13 @@ pub(crate) fn rule_usages(
 
     let mut result_tokens: Vec<Token<Immutable>> = Vec::new();
 
-    let mut nodes_or_tokens: Vec<NodeOrToken<Immutable>>;
-
     for rule_node in rules {
         // Find condition block
         let condition_blk = rule_node
             .children()
             .find(|node| node.kind() == SyntaxKind::CONDITION_BLK)?;
 
-        nodes_or_tokens = vec![NodeOrToken::Node(condition_blk)];
-
-        // Traverse all nodes and tokens within condition block to
-        // find rule usages
-        while let Some(node_or_token) = nodes_or_tokens.pop() {
-            match node_or_token {
-                NodeOrToken::Node(node) => node
-                    .children_with_tokens()
-                    .for_each(|node_or_token_inner| {
-                        nodes_or_tokens.push(node_or_token_inner)
-                    }),
-                NodeOrToken::Token(token) => {
-                    if token.kind() == SyntaxKind::IDENT
-                        && token.text() == ident
-                    {
-                        result_tokens.push(token);
-                    }
-                }
-            }
-        }
+        result_tokens.extend(ident_in_node(condition_blk, ident));
     }
 
     Some(result_tokens)
@@ -369,20 +348,33 @@ pub fn with_for_from_ident(
 pub fn occurrences_in_with_for(
     with_for: Node<Immutable>,
     ident: &str,
-) -> Vec<Token<Immutable>> {
-    let mut result_tokens: Vec<Token<Immutable>> = Vec::new();
-
-    let mut nodes_or_tokens: Vec<NodeOrToken<Immutable>> = with_for
+) -> Option<Vec<Token<Immutable>>> {
+    let bool_expr = with_for
         .children_with_tokens()
         .skip_while(|node_or_token| node_or_token.kind() != SyntaxKind::COLON)
-        .collect();
+        .find(|node_or_token| {
+            node_or_token.kind() == SyntaxKind::BOOLEAN_EXPR
+        })?
+        .into_node()?;
+
+    Some(ident_in_node(bool_expr, ident))
+}
+
+fn ident_in_node(node: Node<Immutable>, ident: &str) -> Vec<Token<Immutable>> {
+    let mut result_tokens: Vec<Token<Immutable>> = Vec::new();
+
+    let mut nodes_or_tokens = vec![NodeOrToken::Node(node)];
 
     while let Some(node_or_token) = nodes_or_tokens.pop() {
         match node_or_token {
             NodeOrToken::Node(node) => {
-                node.children_with_tokens().for_each(|node_or_token_inner| {
-                    nodes_or_tokens.push(node_or_token_inner)
-                })
+                if !ident_in_with_for(&node, ident) {
+                    node.children_with_tokens().for_each(
+                        |node_or_token_inner| {
+                            nodes_or_tokens.push(node_or_token_inner)
+                        },
+                    );
+                }
             }
             NodeOrToken::Token(token) => {
                 if token.kind() == SyntaxKind::IDENT
@@ -402,4 +394,38 @@ pub fn occurrences_in_with_for(
     }
 
     result_tokens
+}
+
+/// This function checks if the node represents `with` or `for` statement and also contains defintion of an `ident`.
+fn ident_in_with_for(with_for: &Node<Immutable>, ident: &str) -> bool {
+    match with_for.kind() {
+        SyntaxKind::WITH_EXPR => with_for
+            .children()
+            .find(|node| node.kind() == SyntaxKind::WITH_DECLS)
+            .is_some_and(|decls| {
+                decls
+                    .children()
+                    .filter(|decl_node| {
+                        decl_node.kind() == SyntaxKind::WITH_DECL
+                    })
+                    .any(|decl| {
+                        decl.first_token()
+                            .is_some_and(|token| token.text() == ident)
+                    })
+            }),
+        SyntaxKind::FOR_EXPR => with_for
+            .children_with_tokens()
+            .take_while(|node_or_token| {
+                !matches!(
+                    node_or_token.kind(),
+                    SyntaxKind::COLON | SyntaxKind::IN_KW
+                )
+            })
+            .any(|node_or_token| {
+                node_or_token.into_token().is_some_and(|t| {
+                    t.kind() == SyntaxKind::IDENT && t.text() == ident
+                })
+            }),
+        _ => false,
+    }
 }

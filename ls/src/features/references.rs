@@ -48,8 +48,12 @@ pub fn find_references(
             if let Some((t, n)) = with_for_from_ident(&token) {
                 result.push(token_to_range(&t).unwrap());
 
-                for occurrence in occurrences_in_with_for(n, token.text()) {
-                    result.push(token_to_range(&occurrence).unwrap());
+                if let Some(occurrences) =
+                    occurrences_in_with_for(n, token.text())
+                {
+                    for occurrence in occurrences {
+                        result.push(token_to_range(&occurrence).unwrap());
+                    }
                 }
 
                 return Some(result);

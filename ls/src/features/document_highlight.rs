@@ -65,11 +65,15 @@ pub fn document_highlight(
                     kind: Some(DocumentHighlightKind::WRITE),
                 });
 
-                for occurrence in occurrences_in_with_for(n, token.text()) {
-                    result.push(DocumentHighlight {
-                        range: token_to_range(&occurrence).unwrap(),
-                        kind: Some(DocumentHighlightKind::READ),
-                    });
+                if let Some(occurrences) =
+                    occurrences_in_with_for(n, token.text())
+                {
+                    for occurrence in occurrences {
+                        result.push(DocumentHighlight {
+                            range: token_to_range(&occurrence).unwrap(),
+                            kind: Some(DocumentHighlightKind::READ),
+                        });
+                    }
                 }
 
                 return Some(result);
