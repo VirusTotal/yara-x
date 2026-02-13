@@ -9,6 +9,7 @@ defines how the server should process various LSP requests and notifications.
 use std::collections::HashMap;
 use std::io::Cursor;
 use std::ops::ControlFlow;
+use std::sync::Arc;
 
 use async_lsp::lsp_types::request::{
     Request, SemanticTokensFullRequest, SemanticTokensRangeRequest,
@@ -58,7 +59,7 @@ use crate::features::semantic_tokens::{
 use crate::document::Document;
 
 pub struct DocumentStore {
-    documents: HashMap<Url, Document>,
+    documents: HashMap<Url, Arc<Document>>,
 }
 
 impl DocumentStore {
@@ -66,15 +67,15 @@ impl DocumentStore {
         Self { documents: HashMap::new() }
     }
 
-    fn get(&self, url: &Url) -> Option<&Document> {
-        self.documents.get(url)
+    fn get(&self, url: &Url) -> Option<Arc<Document>> {
+        self.documents.get(url).cloned()
     }
 
-    fn insert(&mut self, url: Url, document: Document) {
+    fn insert(&mut self, url: Url, document: Arc<Document>) {
         self.documents.insert(url, document);
     }
 
-    fn remove(&mut self, url: &Url) -> Option<Document> {
+    fn remove(&mut self, url: &Url) -> Option<Arc<Document>> {
         self.documents.remove(url)
     }
 }
@@ -341,7 +342,7 @@ impl LanguageServer for YARALanguageServer {
         };
 
         let ast = AST::new(document.text.as_bytes(), document.cst.iter());
-        let symbols = document_symbol(document, ast);
+        let symbols = document_symbol(document.clone(), ast);
 
         Box::pin(
             async move { Ok(Some(DocumentSymbolResponse::Nested(symbols))) },
@@ -519,7 +520,7 @@ impl LanguageServer for YARALanguageServer {
     ) -> Self::NotifyResult {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
-        let document = Document::new(uri.clone(), text);
+        let document = Arc::new(Document::new(uri.clone(), text));
         self.documents.insert(uri.clone(), document);
         self.publish_diagnostics(&uri);
         ControlFlow::Continue(())
@@ -535,7 +536,7 @@ impl LanguageServer for YARALanguageServer {
     ) -> Self::NotifyResult {
         if let Some(text) = params.text {
             let uri = params.text_document.uri;
-            let document = Document::new(uri.clone(), text);
+            let document = Arc::new(Document::new(uri.clone(), text));
             self.documents.insert(uri.clone(), document);
             self.publish_diagnostics(&uri);
         }
@@ -553,7 +554,7 @@ impl LanguageServer for YARALanguageServer {
     ) -> Self::NotifyResult {
         let uri = params.text_document.uri;
         for change in params.content_changes.into_iter() {
-            let document = Document::new(uri.clone(), change.text);
+            let document = Arc::new(Document::new(uri.clone(), change.text));
             self.documents.insert(uri.clone(), document);
         }
         self.publish_diagnostics(&uri);
@@ -606,7 +607,7 @@ impl YARALanguageServer {
                 let _ = self.client.publish_diagnostics(
                     PublishDiagnosticsParams {
                         uri: uri.clone(),
-                        diagnostics: diagnostics(document),
+                        diagnostics: diagnostics(document.clone()),
                         version: None,
                     },
                 );

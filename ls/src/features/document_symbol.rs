@@ -1,9 +1,14 @@
+use std::sync::Arc;
+
 use async_lsp::lsp_types::{DocumentSymbol, SymbolKind};
 use yara_x_parser::ast::{Item, WithSpan, AST};
 
 use crate::document::Document;
 
-pub fn document_symbol(document: &Document, ast: AST) -> Vec<DocumentSymbol> {
+pub fn document_symbol(
+    document: Arc<Document>,
+    ast: AST,
+) -> Vec<DocumentSymbol> {
     let line_index = &document.line_index;
     let mut symbols = Vec::new();
     for item in ast.items {

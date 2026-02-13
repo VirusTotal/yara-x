@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use async_lsp::lsp_types::{Location, Position, Url};
 use yara_x_parser::cst::SyntaxKind;
@@ -13,7 +14,7 @@ use crate::utils::position::node_to_range;
 /// Given a position that points some identifier, returns the range
 /// of source code that contains the definition of that identifier.
 pub fn go_to_definition(
-    document: &Document,
+    document: Arc<Document>,
     pos: Position,
 ) -> Option<Location> {
     let token = ident_at_position(&document.cst, pos)?;
@@ -38,7 +39,7 @@ pub fn go_to_definition(
 }
 
 fn go_to_rule_definition(
-    document: &Document,
+    document: Arc<Document>,
     ident: &str,
 ) -> Option<Location> {
     // Check if the rule is defined in the current document
@@ -82,9 +83,9 @@ fn go_to_rule_definition(
         };
 
         let uri = Url::from_file_path(abs_included_path).ok()?;
-        let document = Document::read(uri).ok()?;
+        let document = Arc::new(Document::read(uri).ok()?);
 
-        if let Some(location) = go_to_rule_definition(&document, ident) {
+        if let Some(location) = go_to_rule_definition(document, ident) {
             return Some(location);
         }
     }

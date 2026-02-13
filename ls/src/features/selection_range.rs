@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_lsp::lsp_types::{Position, SelectionRange};
 
 use yara_x_parser::cst::{Immutable, Node};
@@ -9,7 +11,7 @@ use crate::utils::position::{node_to_range, token_to_range};
 /// Provides selection ranges from the given positions in the text
 /// based on the given CST of this document.
 pub fn selection_range(
-    document: &Document,
+    document: Arc<Document>,
     positions: Vec<Position>,
 ) -> Option<Vec<SelectionRange>> {
     let mut result: Vec<SelectionRange> = Vec::new();

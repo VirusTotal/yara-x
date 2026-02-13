@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_lsp::lsp_types::{
     HoverContents, MarkupContent, MarkupKind, Position,
 };
@@ -71,7 +73,7 @@ impl RuleHoverBuilder {
     }
 }
 
-pub fn hover(document: &Document, pos: Position) -> Option<HoverContents> {
+pub fn hover(document: Arc<Document>, pos: Position) -> Option<HoverContents> {
     // Find the token at the position where the user is hovering.
     let token = token_at_position(&document.cst, pos)?;
 

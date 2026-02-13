@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 use async_lsp::lsp_types;
 use async_lsp::lsp_types::{
@@ -178,7 +179,7 @@ struct SemanticTokensIter {
 }
 
 impl SemanticTokensIter {
-    fn new(document: &Document, range: Option<Range>) -> Self {
+    fn new(document: Arc<Document>, range: Option<Range>) -> Self {
         let first_token = if let Some(range) = range {
             document.cst.root().token_at_position::<Utf16, _>((
                 range.start.line as usize,
@@ -330,7 +331,7 @@ impl Iterator for SemanticTokensIter {
 /// An optional range can be specified, in which case only the tokens in that
 /// range will be returned.
 pub fn semantic_tokens(
-    document: &Document,
+    document: Arc<Document>,
     range: Option<Range>,
 ) -> SemanticTokens {
     let tokens = SemanticTokensIter::new(document, range);

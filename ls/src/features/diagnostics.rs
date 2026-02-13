@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_lsp::lsp_types::{
     Diagnostic, DiagnosticRelatedInformation, Location, Range,
 };
@@ -23,7 +25,7 @@ pub struct Patch {
 
 /// Returns a diagnostic vector for the given source code.
 #[allow(unused_variables)]
-pub fn diagnostics(document: &Document) -> Vec<Diagnostic> {
+pub fn diagnostics(document: Arc<Document>) -> Vec<Diagnostic> {
     #[allow(unused_mut)]
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
 
@@ -40,7 +42,7 @@ pub fn diagnostics(document: &Document) -> Vec<Diagnostic> {
 /// comprehensive feedback including type checking, semantic analysis,
 /// and pattern validation - not just syntax errors.
 #[cfg(feature = "full-compiler")]
-pub fn compiler_diagnostics(document: &Document) -> Vec<Diagnostic> {
+pub fn compiler_diagnostics(document: Arc<Document>) -> Vec<Diagnostic> {
     let source_code = SourceCode::from(document.text.as_str())
         .with_origin(document.uri.clone());
 
