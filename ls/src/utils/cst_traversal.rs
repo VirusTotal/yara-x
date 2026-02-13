@@ -248,7 +248,10 @@ pub fn with_for_attainable_idents(
                 ancestor
                     .children_with_tokens()
                     .take_while(|node_or_token| {
-                        node_or_token.kind() != SyntaxKind::ITERABLE
+                        !matches!(
+                            node_or_token.kind(),
+                            SyntaxKind::COLON | SyntaxKind::IN_KW
+                        )
                     })
                     .for_each(|node_or_token| {
                         if let Some(token) = node_or_token.into_token() {
@@ -271,14 +274,9 @@ pub fn with_for_attainable_idents(
                 };
 
                 with_decls.for_each(|with_decl| {
-                    if let Some(NodeOrToken::Token(token)) = with_decl
-                        .children_with_tokens()
-                        .take_while(|node_or_token| {
-                            node_or_token.kind() != SyntaxKind::EQUAL
-                        })
-                        .find(|node_or_token| {
-                            node_or_token.kind() == SyntaxKind::IDENT
-                        })
+                    if let Some(token) = with_decl
+                        .first_token()
+                        .filter(|token| token.kind() == SyntaxKind::IDENT)
                     {
                         result_idents.push(token);
                     }
@@ -317,17 +315,13 @@ pub fn with_for_from_ident(
                     .children()
                     .find(|node| node.kind() == SyntaxKind::WITH_DECLS)
                 {
-                    for declaration in decls
+                    for decl in decls
                         .children()
                         .filter(|node| node.kind() == SyntaxKind::WITH_DECL)
                     {
-                        if let Some(token) = declaration
-                            .children_with_tokens()
-                            .find_map(|node_or_token| {
-                                node_or_token.into_token().filter(|token| {
-                                    token.kind() == SyntaxKind::IDENT
-                                })
-                            })
+                        if let Some(token) = decl
+                            .first_token()
+                            .filter(|token| token.kind() == SyntaxKind::IDENT)
                         {
                             if token.text() == child.text() {
                                 return Some((token, ancestor));
@@ -381,6 +375,8 @@ fn occurrences_in_node(
     while let Some(node_or_token) = nodes_or_tokens.pop() {
         match node_or_token {
             NodeOrToken::Node(node) => {
+                // Check if this node does not contatin definition
+                // of the same identifier
                 if !with_for_defines_ident(&node, ident) {
                     node.children_with_tokens().for_each(
                         |node_or_token_inner| {
