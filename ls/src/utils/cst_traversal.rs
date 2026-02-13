@@ -230,7 +230,7 @@ pub(crate) fn rule_usages(
             .children()
             .find(|node| node.kind() == SyntaxKind::CONDITION_BLK)?;
 
-        result_tokens.extend(ident_in_node(condition_blk, ident));
+        result_tokens.extend(occurrences_in_node(condition_blk, ident));
     }
 
     Some(result_tokens)
@@ -342,13 +342,15 @@ pub fn with_for_from_ident(
     None
 }
 
-/// This function finds all occurences of `ident` identifier declared in `with` or `for` statements
+/// This function finds all occurences of `ident` identifier declared in
+/// `with` or `for` statements
 ///
 /// The `with_for` argument should be a Node of either `SyntaxKind::FOR_EXPR` or `SyntaxKind::WITH_EXPR`.
 pub fn occurrences_in_with_for(
     with_for: Node<Immutable>,
     ident: &str,
 ) -> Option<Vec<Token<Immutable>>> {
+    // Find the bool expression which is body of the `with` or `for` statement
     let bool_expr = with_for
         .children_with_tokens()
         .skip_while(|node_or_token| node_or_token.kind() != SyntaxKind::COLON)
@@ -357,10 +359,21 @@ pub fn occurrences_in_with_for(
         })?
         .into_node()?;
 
-    Some(ident_in_node(bool_expr, ident))
+    Some(occurrences_in_node(bool_expr, ident))
 }
 
-fn ident_in_node(node: Node<Immutable>, ident: &str) -> Vec<Token<Immutable>> {
+/// This function tries to find all occurrences of the provided identifier
+/// by traversing all children of the specified node.
+///
+/// This function is also context-aware, meaning it can distinguish when
+/// the identifier is redefined within the node in `with` and `for`
+/// statements. It also ignores identifiers which are part of the field
+/// access expression (e.g. `characteristics` is ignored in
+/// `pe.characteristics`).
+fn occurrences_in_node(
+    node: Node<Immutable>,
+    ident: &str,
+) -> Vec<Token<Immutable>> {
     let mut result_tokens: Vec<Token<Immutable>> = Vec::new();
 
     let mut nodes_or_tokens = vec![NodeOrToken::Node(node)];
@@ -368,7 +381,7 @@ fn ident_in_node(node: Node<Immutable>, ident: &str) -> Vec<Token<Immutable>> {
     while let Some(node_or_token) = nodes_or_tokens.pop() {
         match node_or_token {
             NodeOrToken::Node(node) => {
-                if !ident_in_with_for(&node, ident) {
+                if !with_for_defines_ident(&node, ident) {
                     node.children_with_tokens().for_each(
                         |node_or_token_inner| {
                             nodes_or_tokens.push(node_or_token_inner)
@@ -378,12 +391,9 @@ fn ident_in_node(node: Node<Immutable>, ident: &str) -> Vec<Token<Immutable>> {
             }
             NodeOrToken::Token(token) => {
                 if token.kind() == SyntaxKind::IDENT
-                    //Ignore identifiers within module function calls, constants, etc.
+                    //Ignore identifiers within module function calls, field access, etc.
                     && token
                         .prev_token()
-                        .is_none_or(|t| t.kind() != SyntaxKind::DOT)
-                    && token
-                        .next_token()
                         .is_none_or(|t| t.kind() != SyntaxKind::DOT)
                     && token.text() == ident
                 {
@@ -396,8 +406,11 @@ fn ident_in_node(node: Node<Immutable>, ident: &str) -> Vec<Token<Immutable>> {
     result_tokens
 }
 
-/// This function checks if the node represents `with` or `for` statement and also contains defintion of an `ident`.
-fn ident_in_with_for(with_for: &Node<Immutable>, ident: &str) -> bool {
+/// This function checks if the node represents `with` or `for` statement
+/// and also contains defintion of an `ident`. If the kind of the
+/// specified node is not `SyntaxKind::WITH_EXPR` or `SyntaxKind::FOR_EXPR`,
+/// the function just return false.
+fn with_for_defines_ident(with_for: &Node<Immutable>, ident: &str) -> bool {
     match with_for.kind() {
         SyntaxKind::WITH_EXPR => with_for
             .children()
