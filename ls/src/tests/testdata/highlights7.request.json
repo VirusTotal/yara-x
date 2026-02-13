@@ -1,6 +1,6 @@
 {
   "textDocument": {
-    "uri": "file:///highlights7.yar"
+    "uri": "${test_dir}/highlights7.yar"
   },
   "position": {
     "line": 5,
