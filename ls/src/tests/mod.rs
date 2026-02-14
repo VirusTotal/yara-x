@@ -224,6 +224,10 @@ async fn rename() {
     test_lsp_request::<_, Rename>("rename3.yar").await;
     test_lsp_request::<_, Rename>("rename4.yar").await;
     test_lsp_request::<_, Rename>("rename5.yar").await;
+    test_lsp_request::<_, Rename>("rename6.yar").await;
+    test_lsp_request::<_, Rename>("rename7.yar").await;
+    test_lsp_request::<_, Rename>("rename8.yar").await;
+    test_lsp_request::<_, Rename>("rename9.yar").await;
 }
 
 #[tokio::test]
@@ -233,6 +237,9 @@ async fn references() {
     test_lsp_request::<_, References>("references3.yar").await;
     test_lsp_request::<_, References>("references4.yar").await;
     test_lsp_request::<_, References>("references5.yar").await;
+    test_lsp_request::<_, References>("references6.yar").await;
+    test_lsp_request::<_, References>("references7.yar").await;
+    test_lsp_request::<_, References>("references8.yar").await;
 }
 
 #[tokio::test]
@@ -243,6 +250,8 @@ async fn goto_definition() {
     test_lsp_request::<_, GotoDefinition>("goto4.yar").await;
     test_lsp_request::<_, GotoDefinition>("goto5.yar").await;
     test_lsp_request::<_, GotoDefinition>("goto6.yar").await;
+    test_lsp_request::<_, GotoDefinition>("goto7.yar").await;
+    test_lsp_request::<_, GotoDefinition>("goto8.yar").await;
 }
 
 #[tokio::test]
@@ -254,6 +263,8 @@ async fn hover() {
     test_lsp_request::<_, HoverRequest>("hover5.yar").await;
     test_lsp_request::<_, HoverRequest>("hover6.yar").await;
     test_lsp_request::<_, HoverRequest>("hover7.yar").await;
+    test_lsp_request::<_, HoverRequest>("hover8.yar").await;
+    test_lsp_request::<_, HoverRequest>("hover9.yar").await;
 }
 
 #[tokio::test]
@@ -274,6 +285,10 @@ async fn document_highlights() {
     test_lsp_request::<_, DocumentHighlightRequest>("highlights3.yar").await;
     test_lsp_request::<_, DocumentHighlightRequest>("highlights4.yar").await;
     test_lsp_request::<_, DocumentHighlightRequest>("highlights5.yar").await;
+    test_lsp_request::<_, DocumentHighlightRequest>("highlights6.yar").await;
+    test_lsp_request::<_, DocumentHighlightRequest>("highlights7.yar").await;
+    test_lsp_request::<_, DocumentHighlightRequest>("highlights8.yar").await;
+    test_lsp_request::<_, DocumentHighlightRequest>("highlights9.yar").await;
 }
 
 #[tokio::test]
@@ -329,6 +344,8 @@ async fn completion() {
 
     #[cfg(all(feature = "full-compiler", not(feature = "magic-module")))]
     test_lsp_request::<_, Completion>("completion13.yar").await;
+
+    test_lsp_request::<_, Completion>("completion14.yar").await;
 }
 
 #[tokio::test]

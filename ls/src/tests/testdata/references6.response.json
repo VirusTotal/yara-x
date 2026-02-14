@@ -1,0 +1,28 @@
+[
+  {
+    "uri": "${test_dir}/references6.yar",
+    "range": {
+      "start": {
+        "line": 9,
+        "character": 6
+      },
+      "end": {
+        "line": 9,
+        "character": 11
+      }
+    }
+  },
+  {
+    "uri": "${test_dir}/references6.yar",
+    "range": {
+      "start": {
+        "line": 9,
+        "character": 19
+      },
+      "end": {
+        "line": 9,
+        "character": 24
+      }
+    }
+  }
+]
