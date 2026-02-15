@@ -8,8 +8,7 @@ use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Utf8};
 
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
-    pattern_from_ident, rule_containing_token, rule_from_ident,
-    token_at_position,
+    pattern_from_ident, rule_containing_token, token_at_position,
 };
 
 /// Builder for hover Markdown representation of a rule.
@@ -83,7 +82,6 @@ pub fn hover(
     // Find the token at the position where the user is hovering.
     let token = token_at_position(&document.cst, pos)?;
 
-    #[allow(irrefutable_let_patterns)]
     match token.kind() {
         // Pattern identifiers in any of their forms (i.e: $a, #a, @a, !a).
         // Notice that identifiers like $, #, @ and ! are ignored, as they
@@ -104,7 +102,8 @@ pub fn hover(
         }
         // Rule identifiers.
         SyntaxKind::IDENT => {
-            let rule = rule_from_ident(&document.cst.root(), token.text())?;
+            let (rule, _) =
+                documents.find_rule_definition(&uri, token.text())?;
             let mut builder = RuleHoverBuilder::new(token.text());
 
             for child in rule.children() {
