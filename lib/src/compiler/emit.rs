@@ -757,24 +757,8 @@ fn emit_not(
     operand: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
-    // The `not` expression is emitted as:
-    //
-    //   if (evaluate_operand()) {
-    //     false
-    //   } else {
-    //     true
-    //   }
-    //
     emit_bool_expr(ctx, ir, operand, instr);
-    instr.if_else(
-        I32,
-        |then| {
-            then.i32_const(0);
-        },
-        |else_| {
-            else_.i32_const(1);
-        },
-    );
+    instr.unop(UnaryOp::I32Eqz);
 }
 
 /// Emits the code for `and` operations.
