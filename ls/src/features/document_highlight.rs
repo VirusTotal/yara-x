@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use async_lsp::lsp_types::{
-    DocumentHighlight, DocumentHighlightKind, Position,
+    DocumentHighlight, DocumentHighlightKind, Position, Url,
 };
 
 use yara_x_parser::cst::SyntaxKind;
 
-use crate::document::Document;
+use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::rule_containing_token;
 use crate::utils::cst_traversal::{
     ident_at_position, pattern_from_ident, pattern_usages, rule_from_ident,
@@ -19,10 +19,11 @@ use crate::utils::position::{node_to_range, token_to_range};
 /// specified position is contained in a symbol, the response contains the
 /// ranges of all occurrences of that symbol in the source code.
 pub fn document_highlight(
-    document: Arc<Document>,
+    documents: Arc<DocumentStorage>,
+    uri: Url,
     pos: Position,
 ) -> Option<Vec<DocumentHighlight>> {
-    let cst = &document.cst;
+    let cst = &documents.get(&uri)?.cst;
     let token = ident_at_position(cst, pos)?;
 
     match token.kind() {
@@ -59,7 +60,7 @@ pub fn document_highlight(
         SyntaxKind::IDENT => {
             let mut result: Vec<DocumentHighlight> = Vec::new();
 
-            if let Some(range) = rule_from_ident(cst, token.text())
+            if let Some(range) = rule_from_ident(&cst.root(), token.text())
                 .as_ref()
                 .and_then(node_to_range)
             {

@@ -1,11 +1,15 @@
 use std::sync::Arc;
 
-use async_lsp::lsp_types::{DocumentSymbol, SymbolKind};
+use async_lsp::lsp_types::{DocumentSymbol, SymbolKind, Url};
 use yara_x_parser::ast::{Item, WithSpan, AST};
 
-use crate::document::Document;
+use crate::documents::storage::DocumentStorage;
 
-pub fn document_symbol(document: Arc<Document>) -> Vec<DocumentSymbol> {
+pub fn document_symbol(
+    documents: Arc<DocumentStorage>,
+    uri: Url,
+) -> Option<Vec<DocumentSymbol>> {
+    let document = documents.get(&uri)?;
     let line_index = &document.line_index;
     let ast = AST::new(document.text.as_bytes(), document.cst.iter());
     let mut symbols = Vec::new();
@@ -111,5 +115,5 @@ pub fn document_symbol(document: Arc<Document>) -> Vec<DocumentSymbol> {
         }
     }
 
-    symbols
+    Some(symbols)
 }

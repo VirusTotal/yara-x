@@ -8,7 +8,7 @@ use tower::ServiceBuilder;
 use crate::server::YARALanguageServer;
 use crate::tracing::MessageTracingLayer;
 
-mod document;
+mod documents;
 mod features;
 mod server;
 mod tracing;

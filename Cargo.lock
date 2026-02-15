@@ -5347,6 +5347,7 @@ version = "0.0.7"
 dependencies = [
  "async-lsp",
  "bitflags 2.10.0",
+ "dashmap",
  "futures",
  "goldenfile",
  "itertools 0.14.0",

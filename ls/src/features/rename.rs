@@ -1,6 +1,9 @@
-use async_lsp::lsp_types::{Position, TextEdit};
-use yara_x_parser::cst::{NodeOrToken, SyntaxKind, CST};
+use std::sync::Arc;
 
+use async_lsp::lsp_types::{Position, TextEdit, Url};
+use yara_x_parser::cst::{NodeOrToken, SyntaxKind};
+
+use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::rule_containing_token;
 use crate::utils::cst_traversal::{
     ident_at_position, pattern_from_ident, pattern_usages, rule_from_ident,
@@ -10,12 +13,15 @@ use crate::utils::position::token_to_range;
 
 /// Renames all occurrences of a symbol at the given position in the text.
 pub fn rename(
-    cst: &CST,
+    documents: Arc<DocumentStorage>,
+    uri: Url,
     new_name: String,
     pos: Position,
 ) -> Option<Vec<TextEdit>> {
-    let mut result: Vec<TextEdit> = Vec::new();
+    let document = documents.get(&uri)?;
+    let cst = &document.cst;
     let ident = ident_at_position(cst, pos)?;
+    let mut result: Vec<TextEdit> = Vec::new();
 
     match ident.kind() {
         // Pattern identifiers
@@ -62,7 +68,7 @@ pub fn rename(
         }
         // Rule identifiers
         SyntaxKind::IDENT => {
-            let rule = rule_from_ident(cst, ident.text());
+            let rule = rule_from_ident(&cst.root(), ident.text());
 
             if let Some(rule) = rule {
                 if let Some(NodeOrToken::Token(ident)) =

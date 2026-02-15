@@ -1,19 +1,21 @@
 use std::sync::Arc;
 
-use async_lsp::lsp_types::{Position, SelectionRange};
+use async_lsp::lsp_types::{Position, SelectionRange, Url};
 
 use yara_x_parser::cst::{Immutable, Node};
 
-use crate::document::Document;
+use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::token_at_position;
 use crate::utils::position::{node_to_range, token_to_range};
 
 /// Provides selection ranges from the given positions in the text
 /// based on the given CST of this document.
 pub fn selection_range(
-    document: Arc<Document>,
+    documents: Arc<DocumentStorage>,
+    uri: Url,
     positions: Vec<Position>,
 ) -> Option<Vec<SelectionRange>> {
+    let document = documents.get(&uri)?;
     let mut result: Vec<SelectionRange> = Vec::new();
 
     for position in positions {

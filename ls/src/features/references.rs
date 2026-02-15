@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use async_lsp::lsp_types::{Position, Range};
+use async_lsp::lsp_types::{Position, Range, Url};
 
 use yara_x_parser::cst::SyntaxKind;
 
-use crate::document::Document;
+use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
     ident_at_position, pattern_from_ident, pattern_usages, rule_from_ident,
 };
@@ -13,9 +13,11 @@ use crate::utils::position::{node_to_range, token_to_range};
 
 /// Finds all references of a symbol at the given position in the text.
 pub fn find_references(
-    document: Arc<Document>,
+    documents: Arc<DocumentStorage>,
+    uri: Url,
     pos: Position,
 ) -> Option<Vec<Range>> {
+    let document = documents.get(&uri)?;
     let cst = &document.cst;
     let token = ident_at_position(cst, pos)?;
 
@@ -46,7 +48,7 @@ pub fn find_references(
         SyntaxKind::IDENT => {
             let mut result = Vec::new();
 
-            if let Some(range) = rule_from_ident(cst, token.text())
+            if let Some(range) = rule_from_ident(&cst.root(), token.text())
                 .as_ref()
                 .and_then(node_to_range)
             {

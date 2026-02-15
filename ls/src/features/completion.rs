@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_lsp::lsp_types::{
     CompletionContext, CompletionItem, CompletionItemKind,
     CompletionItemLabelDetails, CompletionTriggerKind, InsertTextFormat,
-    InsertTextMode, Position,
+    InsertTextMode, Position, Url,
 };
 use itertools::Itertools;
 
@@ -13,7 +13,7 @@ use yara_x::mods::reflect::Type;
 use yara_x::mods::{module_definition, module_names};
 use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Token, CST};
 
-use crate::document::Document;
+use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
     non_error_parent, prev_non_trivia_token, rule_containing_token,
     token_at_position,
@@ -77,11 +77,12 @@ const CONDITION_SUGGESTIONS: [(&str, Option<&str>); 16] = [
 ];
 
 pub fn completion(
-    document: Arc<Document>,
+    documents: Arc<DocumentStorage>,
     pos: Position,
+    uri: Url,
     context: Option<CompletionContext>,
 ) -> Option<Vec<CompletionItem>> {
-    let cst = &document.cst;
+    let cst = &documents.get(&uri)?.cst;
     // Get the token before cursor. There might be no token at cursor when the
     // cursor is at the end of the file. In this case, take the last token of the file.
     let token = token_at_position(cst, pos)

@@ -1,16 +1,21 @@
 use std::sync::Arc;
 
 use async_lsp::lsp_types::{
-    Diagnostic, DiagnosticRelatedInformation, Location, Range,
+    Diagnostic, DiagnosticRelatedInformation, Location, Range, Url,
 };
 #[cfg(feature = "full-compiler")]
 use async_lsp::lsp_types::{DiagnosticSeverity, NumberOrString};
+#[cfg(feature = "full-compiler")]
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "full-compiler")]
 use yara_x::{Compiler, SourceCode};
 
-use crate::document::Document;
+#[cfg(feature = "full-compiler")]
+use crate::documents::document::Document;
+use crate::documents::storage::DocumentStorage;
+
+use dashmap::mapref::one::Ref;
 
 #[derive(Serialize, Deserialize)]
 pub struct DiagnosticData {
@@ -25,12 +30,19 @@ pub struct Patch {
 
 /// Returns a diagnostic vector for the given source code.
 #[allow(unused_variables)]
-pub fn diagnostics(document: Arc<Document>) -> Vec<Diagnostic> {
+pub fn diagnostics(
+    documents: Arc<DocumentStorage>,
+    uri: Url,
+) -> Vec<Diagnostic> {
     #[allow(unused_mut)]
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
 
-    #[cfg(feature = "full-compiler")]
-    diagnostics.extend(compiler_diagnostics(document));
+    let doc = documents.get(&uri);
+
+    if let Some(doc) = doc {
+        #[cfg(feature = "full-compiler")]
+        diagnostics.extend(compiler_diagnostics(doc));
+    }
 
     diagnostics
 }
@@ -42,7 +54,9 @@ pub fn diagnostics(document: Arc<Document>) -> Vec<Diagnostic> {
 /// comprehensive feedback including type checking, semantic analysis,
 /// and pattern validation - not just syntax errors.
 #[cfg(feature = "full-compiler")]
-pub fn compiler_diagnostics(document: Arc<Document>) -> Vec<Diagnostic> {
+pub fn compiler_diagnostics(
+    document: Ref<'_, Url, Document>,
+) -> Vec<Diagnostic> {
     let source_code = SourceCode::from(document.text.as_str())
         .with_origin(document.uri.clone());
 

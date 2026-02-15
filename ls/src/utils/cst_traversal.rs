@@ -90,14 +90,12 @@ pub(crate) fn ident_at_position(
 /// Returns [`yara_x_parser::cst::Node`] containing rule declaration matching
 /// the provided identifier if exists in the CST.
 pub(crate) fn rule_from_ident(
-    cst: &CST,
+    root: &Node<Immutable>,
     ident: &str,
 ) -> Option<Node<Immutable>> {
     // Iterator over all rule declarations in the CST
-    let rules = cst
-        .root()
-        .children()
-        .filter(|node| node.kind() == SyntaxKind::RULE_DECL);
+    let rules =
+        root.children().filter(|node| node.kind() == SyntaxKind::RULE_DECL);
 
     for rule in rules {
         if let Some(rule_ident) = rule
