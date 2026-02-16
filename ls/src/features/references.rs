@@ -6,8 +6,8 @@ use yara_x_parser::cst::SyntaxKind;
 
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
-    ident_at_position, pattern_from_ident, pattern_usages,
-    rule_containing_token,
+    find_identifier_declaration, ident_at_position, occurrences_in_with_for,
+    pattern_from_ident, pattern_usages, rule_containing_token,
 };
 use crate::utils::position::{node_to_range, token_to_range};
 
@@ -50,6 +50,27 @@ pub fn find_references(
         // Rule identifiers
         SyntaxKind::IDENT => {
             let mut result = Vec::new();
+
+            if let Some((t, n)) = find_identifier_declaration(&token) {
+                result.push(Location {
+                    uri: uri.clone(),
+                    range: token_to_range(&t).unwrap(),
+                });
+
+                if let Some(occurrences) =
+                    occurrences_in_with_for(n, token.text())
+                {
+                    for occurrence in occurrences {
+                        result.push(Location {
+                            uri: uri.clone(),
+                            range: token_to_range(&occurrence).unwrap(),
+                        });
+                    }
+                }
+
+                return Some(result);
+            }
+
             let occurrences =
                 documents.find_rule_occurrences(&uri, token.text())?;
 

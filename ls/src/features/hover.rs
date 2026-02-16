@@ -4,11 +4,12 @@ use async_lsp::lsp_types::{
     HoverContents, MarkupContent, MarkupKind, Position, Url,
 };
 
-use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Utf8};
+use yara_x_parser::cst::{Immutable, Node, NodeOrToken, SyntaxKind, Utf8};
 
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
-    pattern_from_ident, rule_containing_token, token_at_position,
+    find_identifier_declaration, pattern_from_ident, rule_containing_token,
+    token_at_position,
 };
 
 /// Builder for hover Markdown representation of a rule.
@@ -102,8 +103,31 @@ pub fn hover(
         }
         // Rule identifiers.
         SyntaxKind::IDENT => {
+            if let Some((_, n)) = find_identifier_declaration(&token) {
+                let text = n
+                    .children_with_tokens()
+                    .take_while(|node_or_token| {
+                        node_or_token.kind() != SyntaxKind::COLON
+                    })
+                    .fold(String::new(), |mut acc, node_or_token| {
+                        match node_or_token {
+                            NodeOrToken::Token(t) => acc.push_str(t.text()),
+                            NodeOrToken::Node(n) => n
+                                .text()
+                                .for_each_chunks(|chunk| acc.push_str(chunk)),
+                        }
+                        acc
+                    });
+
+                return Some(HoverContents::Markup(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: format!("Declared:\n\n```\n{text}\n```"),
+                }));
+            }
+
             let (rule, _) =
                 documents.find_rule_definition(&uri, token.text())?;
+
             let mut builder = RuleHoverBuilder::new(token.text());
 
             for child in rule.children() {

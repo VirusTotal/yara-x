@@ -3,7 +3,7 @@
     "uri": "${test_dir}/goto6.yar"
   },
   "position": {
-    "line": 4,
-    "character": 6
+    "line": 10,
+    "character": 20
   }
 }

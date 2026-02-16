@@ -1,0 +1,13 @@
+{
+  "uri": "${test_dir}/goto7.yar",
+  "range": {
+    "start": {
+      "line": 8,
+      "character": 6
+    },
+    "end": {
+      "line": 8,
+      "character": 11
+    }
+  }
+}

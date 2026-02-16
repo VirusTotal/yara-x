@@ -1,0 +1,41 @@
+[
+  {
+    "range": {
+      "start": {
+        "line": 4,
+        "character": 6
+      },
+      "end": {
+        "line": 4,
+        "character": 7
+      }
+    },
+    "kind": 3
+  },
+  {
+    "range": {
+      "start": {
+        "line": 4,
+        "character": 38
+      },
+      "end": {
+        "line": 4,
+        "character": 39
+      }
+    },
+    "kind": 2
+  },
+  {
+    "range": {
+      "start": {
+        "line": 4,
+        "character": 33
+      },
+      "end": {
+        "line": 4,
+        "character": 34
+      }
+    },
+    "kind": 2
+  }
+]

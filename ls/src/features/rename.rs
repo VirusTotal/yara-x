@@ -5,9 +5,10 @@ use async_lsp::lsp_types::{Position, TextEdit, Url};
 use yara_x_parser::cst::SyntaxKind;
 
 use crate::documents::storage::DocumentStorage;
-use crate::utils::cst_traversal::rule_containing_token;
+
 use crate::utils::cst_traversal::{
-    ident_at_position, pattern_from_ident, pattern_usages,
+    find_identifier_declaration, ident_at_position, occurrences_in_with_for,
+    pattern_from_ident, pattern_usages, rule_containing_token,
 };
 use crate::utils::position::token_to_range;
 
@@ -20,17 +21,17 @@ pub fn rename(
 ) -> Option<HashMap<Url, Vec<TextEdit>>> {
     let document = documents.get(&uri)?;
     let cst = &document.cst;
-    let ident = ident_at_position(cst, pos)?;
+    let token = ident_at_position(cst, pos)?;
     let mut result: HashMap<Url, Vec<TextEdit>> = HashMap::new();
 
-    match ident.kind() {
+    match token.kind() {
         // Pattern identifiers
         // PATTERN_IDENT($a) PATTERN_COUNT(#a) PATTERN_OFFSET(@a) PATTERN_LENGTH(!a)
         SyntaxKind::PATTERN_IDENT
         | SyntaxKind::PATTERN_COUNT
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
-            let rule = rule_containing_token(&ident)?;
+            let rule = rule_containing_token(&token)?;
             let mut text_edits = vec![];
 
             // If user entered `$`, `!`, `#` or `@`, then ignore it because
@@ -41,7 +42,7 @@ pub fn rename(
                 new_name
             };
 
-            let definition = pattern_from_ident(&rule, ident.text());
+            let definition = pattern_from_ident(&rule, token.text());
 
             if let Some(definition) = definition {
                 if let Some(first_token) = definition.first_token() {
@@ -54,7 +55,7 @@ pub fn rename(
                 }
             }
 
-            let occurrences = pattern_usages(&rule, ident.text());
+            let occurrences = pattern_usages(&rule, token.text());
 
             if let Some(occurrences) = occurrences {
                 for occurrence in occurrences {
@@ -71,8 +72,29 @@ pub fn rename(
         }
         // Rule identifiers
         SyntaxKind::IDENT => {
+            if let Some((t, n)) = find_identifier_declaration(&token) {
+                let mut text_edits = vec![];
+                text_edits.push(TextEdit {
+                    range: token_to_range(&t).unwrap(),
+                    new_text: new_name.clone(),
+                });
+
+                if let Some(occurrences) =
+                    occurrences_in_with_for(n, token.text())
+                {
+                    for occurrence in occurrences {
+                        text_edits.push(TextEdit {
+                            range: token_to_range(&occurrence).unwrap(),
+                            new_text: new_name.clone(),
+                        });
+                    }
+                }
+
+                return Some(HashMap::from([(uri.clone(), text_edits)]));
+            }
+
             let occurrences =
-                documents.find_rule_occurrences(&uri, ident.text())?;
+                documents.find_rule_occurrences(&uri, token.text())?;
 
             for (k, v) in occurrences.usages {
                 result.insert(

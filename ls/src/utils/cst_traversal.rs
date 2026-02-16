@@ -220,37 +220,218 @@ pub(crate) fn rule_usages(
 
     let mut result_tokens: Vec<Token<Immutable>> = Vec::new();
 
-    let mut nodes_or_tokens: Vec<NodeOrToken<Immutable>>;
-
     for rule_node in rules {
         // Find condition block
         let condition_blk = rule_node
             .children()
             .find(|node| node.kind() == SyntaxKind::CONDITION_BLK)?;
 
-        nodes_or_tokens = vec![NodeOrToken::Node(condition_blk)];
+        result_tokens.extend(occurrences_in_node(condition_blk, ident));
+    }
 
-        // Traverse all nodes and tokens within condition block to
-        // find rule usages
-        while let Some(node_or_token) = nodes_or_tokens.pop() {
-            match node_or_token {
-                NodeOrToken::Node(node) => node
-                    .children_with_tokens()
-                    .for_each(|node_or_token_inner| {
-                        nodes_or_tokens.push(node_or_token_inner)
-                    }),
-                NodeOrToken::Token(token) => {
-                    if token.kind() == SyntaxKind::IDENT
-                        && token.text() == ident
-                    {
-                        result_tokens.push(token);
+    Some(result_tokens)
+}
+
+/// Finds the declaration of `identifier` in a `with` or `for` expression. The
+/// `identifier` token must be of `SyntaxKind::IDENT` kind and be contained
+/// within the `with` or `for` expression. It returns the `SyntaxKind::IDENT`
+/// token in the identifier declaration and the `SyntaxKind::FOR_EXPR` or
+/// `SyntaxKind::WITH_EXPR` node where it was declared.
+pub fn find_identifier_declaration(
+    identifier: &Token<Immutable>,
+) -> Option<(Token<Immutable>, Node<Immutable>)> {
+    assert_eq!(identifier.kind(), SyntaxKind::IDENT);
+
+    for ancestor in identifier.ancestors() {
+        match ancestor.kind() {
+            SyntaxKind::FOR_EXPR => {
+                for declared_ident in identifiers_declared_by_for(&ancestor) {
+                    if identifier.text() == declared_ident.text() {
+                        return Some((declared_ident, ancestor));
                     }
+                }
+            }
+            SyntaxKind::WITH_EXPR => {
+                for declared_ident in identifiers_declared_by_with(&ancestor) {
+                    if identifier.text() == declared_ident.text() {
+                        return Some((declared_ident, ancestor));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    None
+}
+
+/// Finds all identifiers declared in a `with` or `for` expression that are in
+/// the same scope as `child` Token is.
+pub fn identifiers_declared_by_with_or_for(
+    child: &Token<Immutable>,
+) -> Vec<Token<Immutable>> {
+    let mut result_idents: Vec<Token<Immutable>> = Vec::new();
+    for ancestor in child.ancestors() {
+        match ancestor.kind() {
+            SyntaxKind::FOR_EXPR => {
+                for ident in identifiers_declared_by_for(&ancestor) {
+                    result_idents.push(ident);
+                }
+            }
+            SyntaxKind::WITH_EXPR => {
+                for ident in identifiers_declared_by_with(&ancestor) {
+                    result_idents.push(ident);
+                }
+            }
+            _ => {}
+        }
+    }
+    result_idents
+}
+
+/// Finds all identifiers declared by a `with` expression.
+pub fn identifiers_declared_by_with(
+    with_expr: &Node<Immutable>,
+) -> impl Iterator<Item = Token<Immutable>> {
+    assert_eq!(with_expr.kind(), SyntaxKind::WITH_EXPR);
+
+    with_expr
+        .children()
+        .find(|node| node.kind() == SyntaxKind::WITH_DECLS)
+        .map(|with_decls| {
+            with_decls
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::WITH_DECL)
+        })
+        .map(|with_decls| {
+            with_decls.filter_map(|with_decl| {
+                with_decl
+                    .first_token()
+                    .filter(|token| token.kind() == SyntaxKind::IDENT)
+            })
+        })
+        .into_iter()
+        .flatten()
+}
+
+/// Finds all identifiers declared by a `for` expression.
+pub fn identifiers_declared_by_for(
+    for_expr: &Node<Immutable>,
+) -> impl Iterator<Item = Token<Immutable>> {
+    assert_eq!(for_expr.kind(), SyntaxKind::FOR_EXPR);
+    for_expr
+        .children_with_tokens()
+        .take_while(|node_or_token| {
+            !matches!(
+                node_or_token.kind(),
+                SyntaxKind::COLON | SyntaxKind::IN_KW
+            )
+        })
+        .filter_map(|node_or_token| node_or_token.into_token())
+        .filter(|token| token.kind() == SyntaxKind::IDENT)
+}
+
+/// This function finds all occurrences of `ident` identifier declared in
+/// `with` or `for` statements
+///
+/// The `with_for` argument should be a Node of either `SyntaxKind::FOR_EXPR` or `SyntaxKind::WITH_EXPR`.
+pub fn occurrences_in_with_for(
+    with_for: Node<Immutable>,
+    ident: &str,
+) -> Option<Vec<Token<Immutable>>> {
+    // Find the bool expression which is body of the `with` or `for` statement
+    let bool_expr = with_for
+        .children_with_tokens()
+        .skip_while(|node_or_token| node_or_token.kind() != SyntaxKind::COLON)
+        .find(|node_or_token| {
+            node_or_token.kind() == SyntaxKind::BOOLEAN_EXPR
+        })?
+        .into_node()?;
+
+    Some(occurrences_in_node(bool_expr, ident))
+}
+
+/// This function tries to find all occurrences of the provided identifier
+/// by traversing all children of the specified node.
+///
+/// This function is also context-aware, meaning it can distinguish when
+/// the identifier is redefined within the node in `with` and `for`
+/// statements. It also ignores identifiers which are part of the field
+/// access expression (e.g. `characteristics` is ignored in
+/// `pe.characteristics`).
+fn occurrences_in_node(
+    node: Node<Immutable>,
+    ident: &str,
+) -> Vec<Token<Immutable>> {
+    let mut result_tokens: Vec<Token<Immutable>> = Vec::new();
+
+    let mut nodes_or_tokens = vec![NodeOrToken::Node(node)];
+
+    while let Some(node_or_token) = nodes_or_tokens.pop() {
+        match node_or_token {
+            NodeOrToken::Node(node) => {
+                // Check if this node does not contatin definition
+                // of the same identifier
+                if !with_for_defines_ident(&node, ident) {
+                    node.children_with_tokens().for_each(
+                        |node_or_token_inner| {
+                            nodes_or_tokens.push(node_or_token_inner)
+                        },
+                    );
+                }
+            }
+            NodeOrToken::Token(token) => {
+                if token.kind() == SyntaxKind::IDENT
+                    //Ignore identifiers within module function calls, field access, etc.
+                    && token
+                        .prev_token()
+                        .is_none_or(|t| t.kind() != SyntaxKind::DOT)
+                    && token.text() == ident
+                {
+                    result_tokens.push(token);
                 }
             }
         }
     }
 
-    Some(result_tokens)
+    result_tokens
+}
+
+/// This function checks if the node represents `with` or `for` statement
+/// and also contains defintion of an `ident`. If the kind of the
+/// specified node is not `SyntaxKind::WITH_EXPR` or `SyntaxKind::FOR_EXPR`,
+/// the function just return false.
+fn with_for_defines_ident(with_for: &Node<Immutable>, ident: &str) -> bool {
+    match with_for.kind() {
+        SyntaxKind::WITH_EXPR => with_for
+            .children()
+            .find(|node| node.kind() == SyntaxKind::WITH_DECLS)
+            .is_some_and(|decls| {
+                decls
+                    .children()
+                    .filter(|decl_node| {
+                        decl_node.kind() == SyntaxKind::WITH_DECL
+                    })
+                    .any(|decl| {
+                        decl.first_token()
+                            .is_some_and(|token| token.text() == ident)
+                    })
+            }),
+        SyntaxKind::FOR_EXPR => with_for
+            .children_with_tokens()
+            .take_while(|node_or_token| {
+                !matches!(
+                    node_or_token.kind(),
+                    SyntaxKind::COLON | SyntaxKind::IN_KW
+                )
+            })
+            .any(|node_or_token| {
+                node_or_token.into_token().is_some_and(|t| {
+                    t.kind() == SyntaxKind::IDENT && t.text() == ident
+                })
+            }),
+        _ => false,
+    }
 }
 
 /// Returns a vector of [`async_lsp::lsp_types::Url`] that represent all includes
