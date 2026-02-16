@@ -230,6 +230,12 @@ vt-module = [
     "dep:psl",
 ]
 
+# The `vsix` module parses Visual Studio Code Extension files.
+vsix-module = [
+    "dep:sha2",
+    "dep:zip",
+]
+
 # Enables all the default modules.
 default-modules = [
     "console-module",
@@ -247,6 +253,7 @@ default-modules = [
     "lnk-module",
     "test_proto2-module",
     "test_proto3-module",
+    "vsix-module",
     "vt-module",
 ]
 

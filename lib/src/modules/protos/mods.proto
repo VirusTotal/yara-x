@@ -8,6 +8,7 @@ import "elf.proto";
 import "pe.proto";
 import "lnk.proto";
 import "macho.proto";
+import "vsix.proto";
 
 package mods;
 
@@ -20,4 +21,5 @@ message Modules {
     optional lnk.Lnk lnk = 5;
     optional crx.Crx crx = 6;
     optional dex.Dex dex = 7;
+    optional vsix.Vsix vsix = 8;
 }

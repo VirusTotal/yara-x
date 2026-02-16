@@ -1,0 +1,42 @@
+syntax = "proto2";
+import "yara.proto";
+
+package vsix;
+
+option (yara.module_options) = {
+  name : "vsix"
+  root_message: "vsix.Vsix"
+  rust_module: "vsix"
+  cargo_feature: "vsix-module"
+};
+
+message Vsix {
+  // True if the file is a valid VSIX extension.
+  optional bool is_vsix = 1;
+
+  // Extension identity
+  optional string name = 2;
+  optional string display_name = 3;
+  optional string publisher = 4;
+  optional string version = 5;
+  optional string id = 6;                    // publisher.name
+  optional string description = 7;
+
+  // Entry points (security-critical)
+  optional string main = 8;
+  optional string browser = 9;
+
+  // Activation events (security-critical)
+  repeated string activation_events = 10;
+
+  // Metadata
+  optional string vscode_version = 11;       // engines.vscode
+  optional string repository = 12;
+  optional string homepage = 13;
+  optional string license = 14;
+  repeated string categories = 15;
+  repeated string keywords = 16;
+
+  // Files in archive
+  repeated string files = 17;
+}
