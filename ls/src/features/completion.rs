@@ -104,7 +104,7 @@ pub fn completion(
     let prev_token = prev_non_trivia_token(&token)?;
 
     if prev_token.ancestors().any(|n| n.kind() == SyntaxKind::CONDITION_BLK) {
-        return condition_suggestions(cst, token);
+        return condition_suggestions(cst, token, documents.clone(), uri);
     }
 
     // Trigger characters are recognized in the condition block only.
@@ -136,6 +136,8 @@ pub fn completion(
 fn condition_suggestions(
     cst: &CST,
     token: Token<Immutable>,
+    documents: Arc<DocumentStorage>,
+    uri: Url,
 ) -> Option<Vec<CompletionItem>> {
     let mut result = Vec::new();
 
@@ -168,6 +170,19 @@ fn condition_suggestions(
                     });
                 }
             }
+            result.extend(
+                documents.included_rules(cst.root(), &uri).into_iter().map(
+                    |(desc, token)| CompletionItem {
+                        label: token.text().to_string(),
+                        label_details: Some(CompletionItemLabelDetails {
+                            description: Some(desc),
+                            ..Default::default()
+                        }),
+                        kind: Some(CompletionItemKind::VARIABLE),
+                        ..Default::default()
+                    },
+                ),
+            );
 
             // Keywords
             CONDITION_SUGGESTIONS.iter().for_each(|(kw, insert)| {

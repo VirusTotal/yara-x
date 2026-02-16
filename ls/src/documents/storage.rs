@@ -9,7 +9,7 @@ use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Token, CST};
 
 use crate::{
     documents::document::Document,
-    utils::cst_traversal::{rule_from_ident, rule_usages},
+    utils::cst_traversal::{get_includes, rule_from_ident, rule_usages},
 };
 
 #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
@@ -259,5 +259,46 @@ impl DocumentStorage {
         }
 
         Some(OccurrencesResult { usages, definition: (rule_uri, rule) })
+    }
+
+    pub fn included_rules(
+        &self,
+        base_root: Node<Immutable>,
+        base: &Url,
+    ) -> Vec<(String, Token<Immutable>)> {
+        let mut includes = get_includes(&base_root, base);
+        let mut accessed: HashSet<Url> = HashSet::new();
+        let mut rules: Vec<(String, Token<Immutable>)> = vec![];
+
+        while let Some(included) = includes.pop() {
+            if !accessed.contains(&included) {
+                if let Some(root) = self.get_document_cst_root(&included) {
+                    includes.extend(get_includes(&root, &included));
+
+                    let relative_path =
+                        base.make_relative(&included).unwrap_or_default();
+
+                    root.children()
+                        .filter(|child| child.kind() == SyntaxKind::RULE_DECL)
+                        .for_each(|rule_decl| {
+                            if let Some(ident) = rule_decl
+                                .children_with_tokens()
+                                .find(|node_or_token| {
+                                    node_or_token.kind() == SyntaxKind::IDENT
+                                })
+                                .and_then(|node_or_token| {
+                                    node_or_token.into_token()
+                                })
+                            {
+                                rules.push((relative_path.clone(), ident));
+                            }
+                        });
+                }
+
+                accessed.insert(included);
+            }
+        }
+
+        rules
     }
 }
