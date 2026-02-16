@@ -3,19 +3,17 @@ use std::sync::Arc;
 use async_lsp::lsp_types::{
     Diagnostic, DiagnosticRelatedInformation, Location, Range, Url,
 };
+
+use serde::{Deserialize, Serialize};
+
+use crate::documents::{document::Document, storage::DocumentStorage};
+
+use dashmap::mapref::one::Ref;
+
 #[cfg(feature = "full-compiler")]
 use async_lsp::lsp_types::{DiagnosticSeverity, NumberOrString};
 #[cfg(feature = "full-compiler")]
-use serde::{Deserialize, Serialize};
-
-#[cfg(feature = "full-compiler")]
 use yara_x::{Compiler, SourceCode};
-
-#[cfg(feature = "full-compiler")]
-use crate::documents::document::Document;
-use crate::documents::storage::DocumentStorage;
-
-use dashmap::mapref::one::Ref;
 
 #[derive(Serialize, Deserialize)]
 pub struct DiagnosticData {
