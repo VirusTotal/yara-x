@@ -70,7 +70,7 @@ pub fn document_highlight(
                 });
             }
 
-            if let Some(usages) = rule_usages(cst, token.text()) {
+            if let Some(usages) = rule_usages(&cst.root(), token.text()) {
                 for range in usages.iter().filter_map(token_to_range) {
                     result.push(DocumentHighlight {
                         range,

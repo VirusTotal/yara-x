@@ -211,14 +211,12 @@ pub(crate) fn pattern_usages(
 /// Returns vector of [`yara_x_parser::cst::Token`] containing all rule
 /// usages in the CST matching the provided identifier.
 pub(crate) fn rule_usages(
-    cst: &CST,
+    root: &Node<Immutable>,
     ident: &str,
 ) -> Option<Vec<Token<Immutable>>> {
     // Iterator over all rule declarations in the CST
-    let rules = cst
-        .root()
-        .children()
-        .filter(|node| node.kind() == SyntaxKind::RULE_DECL);
+    let rules =
+        root.children().filter(|node| node.kind() == SyntaxKind::RULE_DECL);
 
     let mut result_tokens: Vec<Token<Immutable>> = Vec::new();
 

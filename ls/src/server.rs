@@ -6,7 +6,6 @@ defines how the server should process various LSP requests and notifications.
 [1]: https://microsoft.github.io/language-server-protocol/
  */
 
-use std::collections::HashMap;
 use std::ops::ControlFlow;
 use std::sync::Arc;
 
@@ -223,14 +222,7 @@ impl LanguageServer for YARALanguageServer {
         let documents = Arc::clone(&self.documents);
 
         Box::pin(async move {
-            Ok(find_references(documents, uri.clone(), position).map(
-                |references| {
-                    references
-                        .into_iter()
-                        .map(|range| Location { uri: uri.clone(), range })
-                        .collect()
-                },
-            ))
+            Ok(find_references(documents, uri.clone(), position))
         })
     }
 
@@ -370,7 +362,6 @@ impl LanguageServer for YARALanguageServer {
 
         Box::pin(async move {
             let changes = rename(documents, uri.clone(), new_name, position)
-                .map(|changes| HashMap::from([(uri, changes)]))
                 .map(WorkspaceEdit::new)
                 .unwrap_or_default();
 
