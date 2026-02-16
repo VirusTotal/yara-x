@@ -224,6 +224,7 @@ async fn rename() {
     test_lsp_request::<_, Rename>("rename3.yar").await;
     test_lsp_request::<_, Rename>("rename4.yar").await;
     test_lsp_request::<_, Rename>("rename5.yar").await;
+    test_lsp_request::<_, Rename>("rename10.yar").await;
 }
 
 #[tokio::test]
@@ -233,6 +234,7 @@ async fn references() {
     test_lsp_request::<_, References>("references3.yar").await;
     test_lsp_request::<_, References>("references4.yar").await;
     test_lsp_request::<_, References>("references5.yar").await;
+    test_lsp_request::<_, References>("references9.yar").await;
 }
 
 #[tokio::test]
@@ -330,6 +332,8 @@ async fn completion() {
 
     #[cfg(all(feature = "full-compiler", not(feature = "magic-module")))]
     test_lsp_request::<_, Completion>("completion13.yar").await;
+
+    test_lsp_request::<_, Completion>("completion15.yar").await;
 }
 
 #[tokio::test]
