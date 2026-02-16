@@ -5,8 +5,8 @@ use yara_x_parser::cst::SyntaxKind;
 
 use crate::document::Document;
 use crate::utils::cst_traversal::{
-    ident_at_position, pattern_from_ident, rule_containing_token,
-    rule_from_ident, with_for_from_ident,
+    find_identifier_declaration, ident_at_position, pattern_from_ident,
+    rule_containing_token, rule_from_ident,
 };
 use crate::utils::position::{node_to_range, token_to_range};
 
@@ -33,7 +33,7 @@ pub fn go_to_definition(
         }
         // Rule identifiers
         SyntaxKind::IDENT => {
-            if let Some((t, _)) = with_for_from_ident(&token) {
+            if let Some((t, _)) = find_identifier_declaration(&token) {
                 let range = token_to_range(&t)?;
                 return Some(Location { uri: document.uri.clone(), range });
             }

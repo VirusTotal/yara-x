@@ -6,11 +6,11 @@ use yara_x_parser::cst::SyntaxKind;
 
 use crate::document::Document;
 use crate::utils::cst_traversal::{
-    ident_at_position, occurrences_in_with_for, pattern_from_ident,
-    pattern_usages, rule_from_ident, rule_usages,
+    find_identifier_declaration, rule_containing_token,
 };
 use crate::utils::cst_traversal::{
-    rule_containing_token, with_for_from_ident,
+    ident_at_position, occurrences_in_with_for, pattern_from_ident,
+    pattern_usages, rule_from_ident, rule_usages,
 };
 use crate::utils::position::{node_to_range, token_to_range};
 
@@ -59,7 +59,7 @@ pub fn document_highlight(
         SyntaxKind::IDENT => {
             let mut result: Vec<DocumentHighlight> = Vec::new();
 
-            if let Some((t, n)) = with_for_from_ident(&token) {
+            if let Some((t, n)) = find_identifier_declaration(&token) {
                 result.push(DocumentHighlight {
                     range: token_to_range(&t).unwrap(),
                     kind: Some(DocumentHighlightKind::WRITE),

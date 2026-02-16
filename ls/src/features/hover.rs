@@ -6,8 +6,8 @@ use yara_x_parser::cst::{Immutable, Node, NodeOrToken, SyntaxKind, Utf8};
 
 use crate::document::Document;
 use crate::utils::cst_traversal::{
-    pattern_from_ident, rule_containing_token, rule_from_ident,
-    token_at_position, with_for_from_ident,
+    find_identifier_declaration, pattern_from_ident, rule_containing_token,
+    rule_from_ident, token_at_position,
 };
 
 /// Builder for hover Markdown representation of a rule.
@@ -96,7 +96,7 @@ pub fn hover(document: &Document, pos: Position) -> Option<HoverContents> {
         }
         // Rule identifiers.
         SyntaxKind::IDENT => {
-            if let Some((_, n)) = with_for_from_ident(&token) {
+            if let Some((_, n)) = find_identifier_declaration(&token) {
                 let text = n
                     .children_with_tokens()
                     .take_while(|node_or_token| {
