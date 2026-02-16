@@ -1,10 +1,5 @@
 import "pe"
 
-rule v {
-  condition:
-    true
-}
-
 rule for_rule {
   condition:
     for any k, v in pe.version_info:

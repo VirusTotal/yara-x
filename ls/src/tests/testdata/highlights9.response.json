@@ -2,11 +2,11 @@
   {
     "range": {
       "start": {
-        "line": 0,
+        "line": 1,
         "character": 0
       },
       "end": {
-        "line": 3,
+        "line": 4,
         "character": 1
       }
     },
@@ -15,11 +15,11 @@
   {
     "range": {
       "start": {
-        "line": 7,
+        "line": 8,
         "character": 4
       },
       "end": {
-        "line": 7,
+        "line": 8,
         "character": 9
       }
     },

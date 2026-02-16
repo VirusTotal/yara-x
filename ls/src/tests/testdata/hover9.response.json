@@ -1,0 +1,6 @@
+{
+  "contents": {
+    "kind": "markdown",
+    "value": "Declared:\n\n```\nfor any k, v in pe.version_info\n```"
+  }
+}

@@ -1,10 +1,12 @@
 use async_lsp::lsp_types::{Position, TextEdit};
 use yara_x_parser::cst::{NodeOrToken, SyntaxKind, CST};
 
-use crate::utils::cst_traversal::rule_containing_token;
 use crate::utils::cst_traversal::{
-    ident_at_position, pattern_from_ident, pattern_usages, rule_from_ident,
-    rule_usages,
+    find_identifier_declaration, rule_containing_token,
+};
+use crate::utils::cst_traversal::{
+    ident_at_position, occurrences_in_with_for, pattern_from_ident,
+    pattern_usages, rule_from_ident, rule_usages,
 };
 use crate::utils::position::token_to_range;
 
@@ -15,16 +17,16 @@ pub fn rename(
     pos: Position,
 ) -> Option<Vec<TextEdit>> {
     let mut result: Vec<TextEdit> = Vec::new();
-    let ident = ident_at_position(cst, pos)?;
+    let token = ident_at_position(cst, pos)?;
 
-    match ident.kind() {
+    match token.kind() {
         // Pattern identifiers
         // PATTERN_IDENT($a) PATTERN_COUNT(#a) PATTERN_OFFSET(@a) PATTERN_LENGTH(!a)
         SyntaxKind::PATTERN_IDENT
         | SyntaxKind::PATTERN_COUNT
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
-            let rule = rule_containing_token(&ident)?;
+            let rule = rule_containing_token(&token)?;
 
             // If user entered `$`, `!`, `#` or `@`, then ignore it because
             // only text after these characters will change
@@ -34,7 +36,7 @@ pub fn rename(
                 new_name
             };
 
-            let definition = pattern_from_ident(&rule, ident.text());
+            let definition = pattern_from_ident(&rule, token.text());
 
             if let Some(definition) = definition {
                 if let Some(first_token) = definition.first_token() {
@@ -47,7 +49,7 @@ pub fn rename(
                 }
             }
 
-            let occurrences = pattern_usages(&rule, ident.text());
+            let occurrences = pattern_usages(&rule, token.text());
 
             if let Some(occurrences) = occurrences {
                 for occurrence in occurrences {
@@ -62,7 +64,27 @@ pub fn rename(
         }
         // Rule identifiers
         SyntaxKind::IDENT => {
-            let rule = rule_from_ident(cst, ident.text());
+            let rule = rule_from_ident(cst, token.text());
+
+            if let Some((t, n)) = find_identifier_declaration(&token) {
+                result.push(TextEdit {
+                    range: token_to_range(&t).unwrap(),
+                    new_text: new_name.clone(),
+                });
+
+                if let Some(occurrences) =
+                    occurrences_in_with_for(n, token.text())
+                {
+                    for occurrence in occurrences {
+                        result.push(TextEdit {
+                            range: token_to_range(&occurrence).unwrap(),
+                            new_text: new_name.clone(),
+                        });
+                    }
+                }
+
+                return Some(result);
+            }
 
             if let Some(rule) = rule {
                 if let Some(NodeOrToken::Token(ident)) =
@@ -76,7 +98,7 @@ pub fn rename(
                 }
             }
 
-            let occurrences = rule_usages(cst, ident.text());
+            let occurrences = rule_usages(cst, token.text());
 
             if let Some(occurrences) = occurrences {
                 for occurrence in occurrences {
