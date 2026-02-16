@@ -31,28 +31,35 @@ impl DocumentStorage {
         Self::default()
     }
 
+    /// Returns a reference to the document with a specific URI.
     pub fn get(&self, uri: &Url) -> Option<Ref<'_, Url, Document>> {
         self.opened.get(uri)
     }
 
+    /// Inserts a new document with the specified content.
     pub fn insert(&self, uri: Url, text: String) {
         self.opened.insert(uri.clone(), Document::new(uri, text));
     }
 
+    /// Updates document content and its internal structures.
     pub fn update(&self, uri: Url, text: String) {
         if let Some(mut document) = self.opened.get_mut(&uri) {
             document.update(text);
         }
     }
 
+    /// Removes the document and returns (key,value) before removing.
     pub fn remove(&self, uri: &Url) -> Option<(Url, Document)> {
         self.opened.remove(uri)
     }
 
+    /// Sets workspace folder to the specified URI.
     pub fn set_workspace(&mut self, uri: Url) {
         self.workspace = Some(uri);
     }
 
+    /// Gets root [`yara_x_parser::cst::Node`] either from opened document,
+    /// or reads the file to parse the tree.
     #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
     fn get_document_cst_root(&self, uri: &Url) -> Option<Node<Immutable>> {
         if let Some(doc) = self.get(uri) {
@@ -71,6 +78,8 @@ impl DocumentStorage {
         self.get(uri).map(|doc| doc.cst.root())
     }
 
+    /// Recursively traverse all YARA files in the workspace using
+    /// [`walkdir::WalkDir`].
     #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
     fn walk_workspace(&self) -> Option<impl Iterator<Item = Url>> {
         self.workspace.as_ref().and_then(|uri| uri.to_file_path().ok()).map(
@@ -97,6 +106,8 @@ impl DocumentStorage {
         None::<std::iter::Empty<Url>>
     }
 
+    /// This function attempts to find definiton of the rule within the
+    /// origin and its includes based on provided `ident`.
     pub fn find_rule_definition(
         &self,
         uri: &Url,
@@ -117,7 +128,7 @@ impl DocumentStorage {
                 continue;
             }
 
-            // Push include URLs from this file
+            // Push include URIs from this file
             for include in root
                 .children()
                 .filter(|child| child.kind() == SyntaxKind::INCLUDE_STMT)
@@ -151,6 +162,12 @@ impl DocumentStorage {
         None
     }
 
+    /// This function attempts to find all occurences of the rule with the
+    /// specified `ident` only within workspace or opened documents,
+    /// including its definition, which is then fully preserved as a
+    /// [`yara_x_parser::cst::Node`] in [`OccurrencesResult`].
+    ///
+    /// This function fails when rule definition cannot be located.
     pub fn find_rule_occurrences(
         &self,
         uri: &Url,
@@ -261,6 +278,9 @@ impl DocumentStorage {
         Some(OccurrencesResult { usages, definition: (rule_uri, rule) })
     }
 
+    /// This function collects all rules that were included from other
+    /// files as [`yara_x_parser::cst::Token`] and also stores its
+    /// relative path to the `base` URI of the origin document.
     pub fn included_rules(
         &self,
         base_root: Node<Immutable>,

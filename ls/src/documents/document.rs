@@ -24,6 +24,7 @@ impl Document {
         Self { uri, text, cst, line_index }
     }
 
+    /// Updates all stored structures.
     pub fn update(&mut self, text: String) {
         self.cst = CST::from(text.as_str());
         self.line_index = LineIndex::new(text.as_str());

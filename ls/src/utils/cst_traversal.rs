@@ -253,6 +253,8 @@ pub(crate) fn rule_usages(
     Some(result_tokens)
 }
 
+/// Returns a vector of [`async_lsp::lsp_types::Url`] that represent all includes
+/// of the document that were found in the root [`yara_x_parser::cst::Node`].
 pub fn get_includes(root: &Node<Immutable>, base: &Url) -> Vec<Url> {
     let mut includes: Vec<Url> = vec![];
     root.children()
