@@ -15,8 +15,8 @@ use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Token, CST};
 
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
-    identifiers_declared_by_with_or_for, non_error_parent,
-    prev_non_trivia_token, rule_containing_token, token_at_position,
+    idents_declared_by_expr, non_error_parent, prev_non_trivia_token,
+    rule_containing_token, token_at_position,
 };
 
 const PATTERN_MODS: &[(SyntaxKind, &[&str])] = &[
@@ -198,19 +198,17 @@ fn condition_suggestions(
             });
 
             // Identifiers from `for` or `with` statements
-            identifiers_declared_by_with_or_for(&token).iter().for_each(
-                |ident| {
-                    result.push(CompletionItem {
-                        label: ident.text().to_string(),
-                        label_details: Some(CompletionItemLabelDetails {
-                            description: Some("Variable".to_string()),
-                            ..Default::default()
-                        }),
-                        kind: Some(CompletionItemKind::VARIABLE),
+            idents_declared_by_expr(&token).iter().for_each(|ident| {
+                result.push(CompletionItem {
+                    label: ident.text().to_string(),
+                    label_details: Some(CompletionItemLabelDetails {
+                        description: Some("Variable".to_string()),
                         ..Default::default()
-                    })
-                },
-            );
+                    }),
+                    kind: Some(CompletionItemKind::VARIABLE),
+                    ..Default::default()
+                })
+            });
         }
         SyntaxKind::PATTERN_IDENT
         | SyntaxKind::PATTERN_COUNT

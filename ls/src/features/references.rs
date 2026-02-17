@@ -6,7 +6,7 @@ use yara_x_parser::cst::SyntaxKind;
 
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
-    find_identifier_declaration, ident_at_position, occurrences_in_with_for,
+    find_declaration, ident_at_position, occurrences_in_with_for,
     pattern_from_ident, pattern_usages, rule_containing_token,
 };
 use crate::utils::position::{node_to_range, token_to_range};
@@ -19,9 +19,9 @@ pub fn find_references(
 ) -> Option<Vec<Location>> {
     let document = documents.get(&uri)?;
     let cst = &document.cst;
-    let token = ident_at_position(cst, pos)?;
+    let ident = ident_at_position(cst, pos)?;
 
-    match token.kind() {
+    match ident.kind() {
         // Pattern identifiers
         // PATTERN_IDENT($a) PATTERN_COUNT(#a) PATTERN_OFFSET(@a) PATTERN_LENGTH(!a)
         SyntaxKind::PATTERN_IDENT
@@ -29,16 +29,16 @@ pub fn find_references(
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
             let mut result = Vec::new();
-            let rule = rule_containing_token(&token)?;
+            let rule = rule_containing_token(&ident)?;
 
-            if let Some(range) = pattern_from_ident(&rule, token.text())
+            if let Some(range) = pattern_from_ident(&rule, &ident)
                 .as_ref()
                 .and_then(node_to_range)
             {
                 result.push(Location { uri: uri.clone(), range });
             }
 
-            if let Some(references) = pattern_usages(&rule, token.text()) {
+            if let Some(references) = pattern_usages(&rule, &ident) {
                 result.extend(references.iter().map(|t| Location {
                     uri: uri.clone(),
                     range: token_to_range(t).unwrap(),
@@ -51,14 +51,13 @@ pub fn find_references(
         SyntaxKind::IDENT => {
             let mut result = Vec::new();
 
-            if let Some((t, n)) = find_identifier_declaration(&token) {
+            if let Some((t, n)) = find_declaration(&ident) {
                 result.push(Location {
                     uri: uri.clone(),
                     range: token_to_range(&t).unwrap(),
                 });
 
-                if let Some(occurrences) =
-                    occurrences_in_with_for(n, token.text())
+                if let Some(occurrences) = occurrences_in_with_for(&n, &ident)
                 {
                     for occurrence in occurrences {
                         result.push(Location {
@@ -71,8 +70,7 @@ pub fn find_references(
                 return Some(result);
             }
 
-            let occurrences =
-                documents.find_rule_occurrences(&uri, token.text())?;
+            let occurrences = documents.find_rule_occurrences(&uri, &ident)?;
 
             result.push(Location {
                 uri: occurrences.definition.0,

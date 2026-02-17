@@ -8,7 +8,7 @@ use yara_x_parser::cst::SyntaxKind;
 
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
-    find_identifier_declaration, ident_at_position, occurrences_in_with_for,
+    find_declaration, ident_at_position, occurrences_in_with_for,
     pattern_from_ident, pattern_usages, rule_containing_token,
     rule_from_ident, rule_usages,
 };
@@ -24,18 +24,18 @@ pub fn document_highlight(
     pos: Position,
 ) -> Option<Vec<DocumentHighlight>> {
     let cst = &documents.get(&uri)?.cst;
-    let token = ident_at_position(cst, pos)?;
+    let ident = ident_at_position(cst, pos)?;
 
-    match token.kind() {
+    match ident.kind() {
         //Find highlight of pattern within the same rule
         SyntaxKind::PATTERN_IDENT
         | SyntaxKind::PATTERN_COUNT
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
             let mut result: Vec<DocumentHighlight> = Vec::new();
-            let rule = rule_containing_token(&token)?;
+            let rule = rule_containing_token(&ident)?;
 
-            if let Some(range) = pattern_from_ident(&rule, token.text())
+            if let Some(range) = pattern_from_ident(&rule, &ident)
                 .as_ref()
                 .and_then(node_to_range)
             {
@@ -45,7 +45,7 @@ pub fn document_highlight(
                 });
             }
 
-            if let Some(usages) = pattern_usages(&rule, token.text()) {
+            if let Some(usages) = pattern_usages(&rule, &ident) {
                 for range in usages.iter().filter_map(token_to_range) {
                     result.push(DocumentHighlight {
                         range,
@@ -60,14 +60,13 @@ pub fn document_highlight(
         SyntaxKind::IDENT => {
             let mut result: Vec<DocumentHighlight> = Vec::new();
 
-            if let Some((t, n)) = find_identifier_declaration(&token) {
+            if let Some((t, n)) = find_declaration(&ident) {
                 result.push(DocumentHighlight {
                     range: token_to_range(&t).unwrap(),
                     kind: Some(DocumentHighlightKind::WRITE),
                 });
 
-                if let Some(occurrences) =
-                    occurrences_in_with_for(n, token.text())
+                if let Some(occurrences) = occurrences_in_with_for(&n, &ident)
                 {
                     for occurrence in occurrences {
                         result.push(DocumentHighlight {
@@ -80,7 +79,7 @@ pub fn document_highlight(
                 return Some(result);
             }
 
-            if let Some(range) = rule_from_ident(&cst.root(), token.text())
+            if let Some(range) = rule_from_ident(&cst.root(), &ident)
                 .as_ref()
                 .and_then(node_to_range)
             {
@@ -90,7 +89,7 @@ pub fn document_highlight(
                 });
             }
 
-            if let Some(usages) = rule_usages(&cst.root(), token.text()) {
+            if let Some(usages) = rule_usages(&cst.root(), &ident) {
                 for range in usages.iter().filter_map(token_to_range) {
                     result.push(DocumentHighlight {
                         range,

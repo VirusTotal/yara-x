@@ -106,13 +106,17 @@ impl DocumentStorage {
         None::<std::iter::Empty<Url>>
     }
 
-    /// This function attempts to find definiton of the rule within the
-    /// origin and its includes based on provided `ident`.
+    /// Finds the definition of the rule with the given `ident`.
+    ///
+    /// It looks into the document identified by the given `uri` and all its
+    /// includes.
     pub fn find_rule_definition(
         &self,
         uri: &Url,
-        ident: &str,
+        ident: &Token<Immutable>,
     ) -> Option<(Node<Immutable>, Url)> {
+        assert_eq!(ident.kind(), SyntaxKind::IDENT);
+
         let mut includes = vec![uri.clone()];
         let mut accessed: HashSet<Url> = HashSet::new();
 
@@ -160,16 +164,14 @@ impl DocumentStorage {
         None
     }
 
-    /// This function attempts to find all occurences of the rule with the
-    /// specified `ident` only within workspace or opened documents,
-    /// including its definition, which is then fully preserved as a
-    /// [`yara_x_parser::cst::Node`] in [`OccurrencesResult`].
-    ///
-    /// This function fails when rule definition cannot be located.
+    /// Finds all occurrences of the rule with the specified `ident` only
+    /// within the current workspace or opened documents. The occurrences
+    /// include the rule definition and any use of the rule in the condition
+    /// of other rules.
     pub fn find_rule_occurrences(
         &self,
         uri: &Url,
-        ident: &str,
+        ident: &Token<Immutable>,
     ) -> Option<OccurrencesResult> {
         let (rule, rule_uri) = self.find_rule_definition(uri, ident)?;
 

@@ -8,7 +8,7 @@ use yara_x_parser::cst::{Immutable, Node, NodeOrToken, SyntaxKind, Utf8};
 
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
-    find_identifier_declaration, pattern_from_ident, rule_containing_token,
+    find_declaration, pattern_from_ident, rule_containing_token,
     token_at_position,
 };
 
@@ -94,7 +94,7 @@ pub fn hover(
             if token.len::<Utf8>() >= 2 =>
         {
             let rule = rule_containing_token(&token)?;
-            let pattern = pattern_from_ident(&rule, token.text())?;
+            let pattern = pattern_from_ident(&rule, &token)?;
 
             Some(HoverContents::Markup(MarkupContent {
                 kind: MarkupKind::Markdown,
@@ -103,7 +103,7 @@ pub fn hover(
         }
         // Rule identifiers.
         SyntaxKind::IDENT => {
-            if let Some((_, n)) = find_identifier_declaration(&token) {
+            if let Some((_, n)) = find_declaration(&token) {
                 let text = n
                     .children_with_tokens()
                     .take_while(|node_or_token| {
@@ -125,8 +125,7 @@ pub fn hover(
                 }));
             }
 
-            let (rule, _) =
-                documents.find_rule_definition(&uri, token.text())?;
+            let (rule, _) = documents.find_rule_definition(&uri, &token)?;
 
             let mut builder = RuleHoverBuilder::new(token.text());
 
