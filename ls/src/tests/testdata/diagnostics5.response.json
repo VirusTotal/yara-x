@@ -1,77 +1,77 @@
 {
-  "kind": "full",
   "items": [
     {
+      "code": "E023",
+      "data": {
+        "patches": []
+      },
+      "message": "duplicate pattern `$a`",
       "range": {
-        "start": {
-          "line": 3,
-          "character": 4
-        },
         "end": {
-          "line": 3,
-          "character": 6
+          "character": 6,
+          "line": 3
+        },
+        "start": {
+          "character": 4,
+          "line": 3
         }
       },
-      "severity": 1,
-      "code": "E023",
-      "message": "duplicate pattern `$a`",
       "relatedInformation": [
         {
           "location": {
-            "uri": "${test_dir}/diagnostics5.yar",
             "range": {
-              "start": {
-                "line": 3,
-                "character": 4
-              },
               "end": {
-                "line": 3,
-                "character": 6
+                "character": 6,
+                "line": 3
+              },
+              "start": {
+                "character": 4,
+                "line": 3
               }
-            }
+            },
+            "uri": "${test_dir}/diagnostics5.yar"
           },
           "message": "duplicate declaration of `$a`"
         }
       ],
-      "data": {
-        "patches": []
-      }
+      "severity": 1
     },
     {
+      "code": "E023",
+      "data": {
+        "patches": []
+      },
+      "message": "duplicate pattern `$a`",
       "range": {
-        "start": {
-          "line": 2,
-          "character": 4
-        },
         "end": {
-          "line": 2,
-          "character": 6
+          "character": 6,
+          "line": 2
+        },
+        "start": {
+          "character": 4,
+          "line": 2
         }
       },
-      "severity": 1,
-      "code": "E023",
-      "message": "duplicate pattern `$a`",
       "relatedInformation": [
         {
           "location": {
-            "uri": "${test_dir}/diagnostics5.yar",
             "range": {
-              "start": {
-                "line": 2,
-                "character": 4
-              },
               "end": {
-                "line": 2,
-                "character": 6
+                "character": 6,
+                "line": 2
+              },
+              "start": {
+                "character": 4,
+                "line": 2
               }
-            }
+            },
+            "uri": "${test_dir}/diagnostics5.yar"
           },
           "message": "`$a` declared here for the first time"
         }
       ],
-      "data": {
-        "patches": []
-      }
+      "severity": 1
     }
-  ]
+  ],
+  "kind": "full"
 }

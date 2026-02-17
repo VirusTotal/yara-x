@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_lsp::lsp_types::{
     CompletionContext, CompletionItem, CompletionItemKind,
     CompletionItemLabelDetails, CompletionTriggerKind, InsertTextFormat,
-    InsertTextMode, Position,
+    InsertTextMode, Position, Url,
 };
 use itertools::Itertools;
 
@@ -13,7 +13,7 @@ use yara_x::mods::reflect::Type;
 use yara_x::mods::{module_definition, module_names};
 use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Token, CST};
 
-use crate::document::Document;
+use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
     identifiers_declared_by_with_or_for, non_error_parent,
     prev_non_trivia_token, rule_containing_token, token_at_position,
@@ -77,11 +77,12 @@ const CONDITION_SUGGESTIONS: [(&str, Option<&str>); 16] = [
 ];
 
 pub fn completion(
-    document: Arc<Document>,
+    documents: Arc<DocumentStorage>,
     pos: Position,
+    uri: Url,
     context: Option<CompletionContext>,
 ) -> Option<Vec<CompletionItem>> {
-    let cst = &document.cst;
+    let cst = &documents.get(&uri)?.cst;
     // Get the token before cursor. There might be no token at cursor when the
     // cursor is at the end of the file. In this case, take the last token of the file.
     let token = token_at_position(cst, pos)
@@ -103,7 +104,7 @@ pub fn completion(
     let prev_token = prev_non_trivia_token(&token)?;
 
     if prev_token.ancestors().any(|n| n.kind() == SyntaxKind::CONDITION_BLK) {
-        return condition_suggestions(cst, token);
+        return condition_suggestions(cst, token, documents.clone(), uri);
     }
 
     // Trigger characters are recognized in the condition block only.
@@ -135,6 +136,8 @@ pub fn completion(
 fn condition_suggestions(
     cst: &CST,
     token: Token<Immutable>,
+    documents: Arc<DocumentStorage>,
+    uri: Url,
 ) -> Option<Vec<CompletionItem>> {
     let mut result = Vec::new();
 
@@ -167,6 +170,19 @@ fn condition_suggestions(
                     });
                 }
             }
+            result.extend(
+                documents.included_rules(cst.root(), &uri).into_iter().map(
+                    |(desc, token)| CompletionItem {
+                        label: token.text().to_string(),
+                        label_details: Some(CompletionItemLabelDetails {
+                            description: Some(desc),
+                            ..Default::default()
+                        }),
+                        kind: Some(CompletionItemKind::VARIABLE),
+                        ..Default::default()
+                    },
+                ),
+            );
 
             // Keywords
             CONDITION_SUGGESTIONS.iter().for_each(|(kw, insert)| {

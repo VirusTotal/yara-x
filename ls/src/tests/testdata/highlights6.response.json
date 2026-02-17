@@ -1,41 +1,41 @@
 [
   {
+    "kind": 3,
     "range": {
-      "start": {
-        "line": 4,
-        "character": 6
-      },
       "end": {
-        "line": 4,
-        "character": 7
+        "character": 7,
+        "line": 4
+      },
+      "start": {
+        "character": 6,
+        "line": 4
       }
-    },
-    "kind": 3
+    }
   },
   {
+    "kind": 2,
     "range": {
-      "start": {
-        "line": 4,
-        "character": 38
-      },
       "end": {
-        "line": 4,
-        "character": 39
+        "character": 39,
+        "line": 4
+      },
+      "start": {
+        "character": 38,
+        "line": 4
       }
-    },
-    "kind": 2
+    }
   },
   {
+    "kind": 2,
     "range": {
-      "start": {
-        "line": 4,
-        "character": 33
-      },
       "end": {
-        "line": 4,
-        "character": 34
+        "character": 34,
+        "line": 4
+      },
+      "start": {
+        "character": 33,
+        "line": 4
       }
-    },
-    "kind": 2
+    }
   }
 ]

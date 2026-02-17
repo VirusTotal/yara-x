@@ -1,0 +1,34 @@
+{
+  "changes": {
+    "${test_dir}/rename10.yar": [
+      {
+        "newText": "new_name",
+        "range": {
+          "end": {
+            "character": 10,
+            "line": 4
+          },
+          "start": {
+            "character": 4,
+            "line": 4
+          }
+        }
+      }
+    ],
+    "${test_dir}/rename5.yar": [
+      {
+        "newText": "new_name",
+        "range": {
+          "end": {
+            "character": 11,
+            "line": 0
+          },
+          "start": {
+            "character": 5,
+            "line": 0
+          }
+        }
+      }
+    ]
+  }
+}

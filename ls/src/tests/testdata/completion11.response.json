@@ -1,82 +1,82 @@
 [
   {
+    "kind": 9,
     "label": "console",
-    "kind": 9,
     "preselect": true
   },
   {
+    "kind": 9,
     "label": "crx",
-    "kind": 9,
     "preselect": true
   },
   {
+    "kind": 9,
     "label": "cuckoo",
-    "kind": 9,
     "preselect": true
   },
   {
+    "kind": 9,
     "label": "dex",
-    "kind": 9,
     "preselect": true
   },
   {
+    "kind": 9,
     "label": "dotnet",
-    "kind": 9,
     "preselect": true
   },
   {
+    "kind": 9,
     "label": "elf",
-    "kind": 9,
     "preselect": true
   },
   {
+    "kind": 9,
     "label": "hash",
-    "kind": 9,
     "preselect": true
   },
   {
+    "kind": 9,
     "label": "lnk",
-    "kind": 9,
     "preselect": true
   },
   {
+    "kind": 9,
     "label": "macho",
-    "kind": 9,
     "preselect": true
   },
   {
+    "kind": 9,
     "label": "math",
-    "kind": 9,
     "preselect": true
   },
   {
+    "kind": 9,
     "label": "pe",
-    "kind": 9,
     "preselect": true
   },
   {
+    "kind": 9,
     "label": "string",
-    "kind": 9,
     "preselect": true
   },
   {
+    "kind": 9,
     "label": "test_proto2",
-    "kind": 9,
     "preselect": true
   },
   {
+    "kind": 9,
     "label": "test_proto3",
-    "kind": 9,
     "preselect": true
   },
   {
+    "kind": 9,
     "label": "time",
-    "kind": 9,
     "preselect": true
   },
   {
-    "label": "vt",
     "kind": 9,
+    "label": "vt",
     "preselect": true
   }
 ]

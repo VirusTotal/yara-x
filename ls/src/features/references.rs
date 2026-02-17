@@ -1,22 +1,23 @@
 use std::sync::Arc;
 
-use async_lsp::lsp_types::{Position, Range};
+use async_lsp::lsp_types::{Location, Position, Url};
 
 use yara_x_parser::cst::SyntaxKind;
 
-use crate::document::Document;
+use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
     find_identifier_declaration, ident_at_position, occurrences_in_with_for,
-    pattern_from_ident, pattern_usages, rule_from_ident,
+    pattern_from_ident, pattern_usages, rule_containing_token,
 };
-use crate::utils::cst_traversal::{rule_containing_token, rule_usages};
 use crate::utils::position::{node_to_range, token_to_range};
 
 /// Finds all references of a symbol at the given position in the text.
 pub fn find_references(
-    document: Arc<Document>,
+    documents: Arc<DocumentStorage>,
+    uri: Url,
     pos: Position,
-) -> Option<Vec<Range>> {
+) -> Option<Vec<Location>> {
+    let document = documents.get(&uri)?;
     let cst = &document.cst;
     let token = ident_at_position(cst, pos)?;
 
@@ -34,11 +35,14 @@ pub fn find_references(
                 .as_ref()
                 .and_then(node_to_range)
             {
-                result.push(range);
+                result.push(Location { uri: uri.clone(), range });
             }
 
             if let Some(references) = pattern_usages(&rule, token.text()) {
-                result.extend(references.iter().filter_map(token_to_range));
+                result.extend(references.iter().map(|t| Location {
+                    uri: uri.clone(),
+                    range: token_to_range(t).unwrap(),
+                }));
             }
 
             Some(result)
@@ -48,28 +52,38 @@ pub fn find_references(
             let mut result = Vec::new();
 
             if let Some((t, n)) = find_identifier_declaration(&token) {
-                result.push(token_to_range(&t).unwrap());
+                result.push(Location {
+                    uri: uri.clone(),
+                    range: token_to_range(&t).unwrap(),
+                });
 
                 if let Some(occurrences) =
                     occurrences_in_with_for(n, token.text())
                 {
                     for occurrence in occurrences {
-                        result.push(token_to_range(&occurrence).unwrap());
+                        result.push(Location {
+                            uri: uri.clone(),
+                            range: token_to_range(&occurrence).unwrap(),
+                        });
                     }
                 }
 
                 return Some(result);
             }
 
-            if let Some(range) = rule_from_ident(cst, token.text())
-                .as_ref()
-                .and_then(node_to_range)
-            {
-                result.push(range);
-            }
+            let occurrences =
+                documents.find_rule_occurrences(&uri, token.text())?;
 
-            if let Some(references) = rule_usages(cst, token.text()) {
-                result.extend(references.iter().filter_map(token_to_range))
+            result.push(Location {
+                uri: occurrences.definition.0,
+                range: node_to_range(&occurrences.definition.1).unwrap(),
+            });
+
+            for (k, v) in occurrences.usages {
+                result.extend(v.iter().map(|occurrence| Location {
+                    uri: k.clone(),
+                    range: token_to_range(occurrence).unwrap(),
+                }));
             }
 
             Some(result)

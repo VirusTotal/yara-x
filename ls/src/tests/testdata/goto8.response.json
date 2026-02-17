@@ -1,13 +1,13 @@
 {
-  "uri": "${test_dir}/goto5.yar",
   "range": {
-    "start": {
-      "line": 0,
-      "character": 0
-    },
     "end": {
-      "line": 5,
-      "character": 1
+      "character": 1,
+      "line": 5
+    },
+    "start": {
+      "character": 0,
+      "line": 0
     }
-  }
+  },
+  "uri": "${test_dir}/goto5.yar"
 }

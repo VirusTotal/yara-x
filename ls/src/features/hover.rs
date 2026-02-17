@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
 use async_lsp::lsp_types::{
-    HoverContents, MarkupContent, MarkupKind, Position,
+    HoverContents, MarkupContent, MarkupKind, Position, Url,
 };
 
 use yara_x_parser::cst::{Immutable, Node, NodeOrToken, SyntaxKind, Utf8};
 
-use crate::document::Document;
+use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
     find_identifier_declaration, pattern_from_ident, rule_containing_token,
-    rule_from_ident, token_at_position,
+    token_at_position,
 };
 
 /// Builder for hover Markdown representation of a rule.
@@ -73,11 +73,16 @@ impl RuleHoverBuilder {
     }
 }
 
-pub fn hover(document: Arc<Document>, pos: Position) -> Option<HoverContents> {
+pub fn hover(
+    documents: Arc<DocumentStorage>,
+    uri: Url,
+    pos: Position,
+) -> Option<HoverContents> {
+    let document = documents.get(&uri)?;
+
     // Find the token at the position where the user is hovering.
     let token = token_at_position(&document.cst, pos)?;
 
-    #[allow(irrefutable_let_patterns)]
     match token.kind() {
         // Pattern identifiers in any of their forms (i.e: $a, #a, @a, !a).
         // Notice that identifiers like $, #, @ and ! are ignored, as they
@@ -120,7 +125,9 @@ pub fn hover(document: Arc<Document>, pos: Position) -> Option<HoverContents> {
                 }));
             }
 
-            let rule = rule_from_ident(&document.cst, token.text())?;
+            let (rule, _) =
+                documents.find_rule_definition(&uri, token.text())?;
+
             let mut builder = RuleHoverBuilder::new(token.text());
 
             for child in rule.children() {

@@ -164,6 +164,8 @@ where
         let mut response_json = serde_json::to_value(actual_response).unwrap();
 
         replace_in_json(&mut response_json, test_dir.as_str(), "${test_dir}");
+        sort_json(&mut response_json);
+
         serde_json::to_writer_pretty(response_file, &response_json).unwrap();
         server_socket
     })
@@ -206,6 +208,32 @@ fn replace_in_json(value: &mut Value, from: &str, to: &str) {
     }
 }
 
+/// Sort maps by key in JSON values.
+///
+/// This guarantees that items in maps have always the same order, which
+/// makes the responses in test cases predictable.
+fn sort_json(value: &mut Value) {
+    match value {
+        Value::Object(obj) => {
+            for v in obj.values_mut() {
+                sort_json(v);
+            }
+
+            let mut entries: Vec<_> =
+                std::mem::take(obj).into_iter().collect();
+
+            entries.sort_by(|a, b| a.0.cmp(&b.0));
+            obj.extend(entries);
+        }
+        Value::Array(arr) => {
+            for v in arr {
+                sort_json(v);
+            }
+        }
+        _ => {}
+    }
+}
+
 #[tokio::test]
 async fn selection_range() {
     test_lsp_request::<_, SelectionRangeRequest>("selectionrange1.yar").await;
@@ -228,6 +256,7 @@ async fn rename() {
     test_lsp_request::<_, Rename>("rename7.yar").await;
     test_lsp_request::<_, Rename>("rename8.yar").await;
     test_lsp_request::<_, Rename>("rename9.yar").await;
+    test_lsp_request::<_, Rename>("rename10.yar").await;
 }
 
 #[tokio::test]
@@ -240,6 +269,7 @@ async fn references() {
     test_lsp_request::<_, References>("references6.yar").await;
     test_lsp_request::<_, References>("references7.yar").await;
     test_lsp_request::<_, References>("references8.yar").await;
+    test_lsp_request::<_, References>("references9.yar").await;
 }
 
 #[tokio::test]
@@ -265,6 +295,7 @@ async fn hover() {
     test_lsp_request::<_, HoverRequest>("hover7.yar").await;
     test_lsp_request::<_, HoverRequest>("hover8.yar").await;
     test_lsp_request::<_, HoverRequest>("hover9.yar").await;
+    test_lsp_request::<_, HoverRequest>("hover10.yar").await;
 }
 
 #[tokio::test]
@@ -346,6 +377,7 @@ async fn completion() {
     test_lsp_request::<_, Completion>("completion13.yar").await;
 
     test_lsp_request::<_, Completion>("completion14.yar").await;
+    test_lsp_request::<_, Completion>("completion15.yar").await;
 }
 
 #[tokio::test]

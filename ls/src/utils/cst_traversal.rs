@@ -4,7 +4,7 @@ These functions are mainly used in [`crate::features`] module to find
 rules and patterns within the CST based on provided identifiers or positions.
  */
 
-use async_lsp::lsp_types::Position;
+use async_lsp::lsp_types::{Position, Url};
 use yara_x_parser::cst::{
     Immutable, Node, NodeOrToken, SyntaxKind, Token, Utf16, CST,
 };
@@ -90,14 +90,12 @@ pub(crate) fn ident_at_position(
 /// Returns [`yara_x_parser::cst::Node`] containing rule declaration matching
 /// the provided identifier if exists in the CST.
 pub(crate) fn rule_from_ident(
-    cst: &CST,
+    root: &Node<Immutable>,
     ident: &str,
 ) -> Option<Node<Immutable>> {
     // Iterator over all rule declarations in the CST
-    let rules = cst
-        .root()
-        .children()
-        .filter(|node| node.kind() == SyntaxKind::RULE_DECL);
+    let rules =
+        root.children().filter(|node| node.kind() == SyntaxKind::RULE_DECL);
 
     for rule in rules {
         if let Some(rule_ident) = rule
@@ -213,14 +211,12 @@ pub(crate) fn pattern_usages(
 /// Returns vector of [`yara_x_parser::cst::Token`] containing all rule
 /// usages in the CST matching the provided identifier.
 pub(crate) fn rule_usages(
-    cst: &CST,
+    root: &Node<Immutable>,
     ident: &str,
 ) -> Option<Vec<Token<Immutable>>> {
     // Iterator over all rule declarations in the CST
-    let rules = cst
-        .root()
-        .children()
-        .filter(|node| node.kind() == SyntaxKind::RULE_DECL);
+    let rules =
+        root.children().filter(|node| node.kind() == SyntaxKind::RULE_DECL);
 
     let mut result_tokens: Vec<Token<Immutable>> = Vec::new();
 
@@ -436,4 +432,29 @@ fn with_for_defines_ident(with_for: &Node<Immutable>, ident: &str) -> bool {
             }),
         _ => false,
     }
+}
+
+/// Returns a vector of [`async_lsp::lsp_types::Url`] that represent all includes
+/// of the document that were found in the root [`yara_x_parser::cst::Node`].
+pub fn get_includes(root: &Node<Immutable>, base: &Url) -> Vec<Url> {
+    let mut includes: Vec<Url> = vec![];
+    root.children()
+        .filter(|child| child.kind() == SyntaxKind::INCLUDE_STMT)
+        .for_each(|include| {
+            if let Some(include_token) = include.last_token() {
+                let include_text = include_token.text();
+                let include_len = include_text.len();
+
+                if include_token.kind() == SyntaxKind::STRING_LIT
+                    && include_len > 2
+                {
+                    if let Ok(new_url) =
+                        base.join(&include_text[1..include_len - 1])
+                    {
+                        includes.push(new_url);
+                    }
+                }
+            }
+        });
+    includes
 }

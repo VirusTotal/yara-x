@@ -1,41 +1,41 @@
 {
-  "kind": "full",
   "items": [
     {
+      "code": "E025",
+      "data": {
+        "patches": []
+      },
+      "message": "unknown pattern `$b`",
       "range": {
-        "start": {
-          "line": 4,
-          "character": 11
-        },
         "end": {
-          "line": 4,
-          "character": 13
+          "character": 13,
+          "line": 4
+        },
+        "start": {
+          "character": 11,
+          "line": 4
         }
       },
-      "severity": 1,
-      "code": "E025",
-      "message": "unknown pattern `$b`",
       "relatedInformation": [
         {
           "location": {
-            "uri": "${test_dir}/diagnostics3.yar",
             "range": {
-              "start": {
-                "line": 4,
-                "character": 11
-              },
               "end": {
-                "line": 4,
-                "character": 13
+                "character": 13,
+                "line": 4
+              },
+              "start": {
+                "character": 11,
+                "line": 4
               }
-            }
+            },
+            "uri": "${test_dir}/diagnostics3.yar"
           },
           "message": "this pattern is not declared in the `strings` section"
         }
       ],
-      "data": {
-        "patches": []
-      }
+      "severity": 1
     }
-  ]
+  ],
+  "kind": "full"
 }

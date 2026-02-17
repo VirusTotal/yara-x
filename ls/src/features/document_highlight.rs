@@ -1,18 +1,16 @@
 use std::sync::Arc;
 
 use async_lsp::lsp_types::{
-    DocumentHighlight, DocumentHighlightKind, Position,
+    DocumentHighlight, DocumentHighlightKind, Position, Url,
 };
 
 use yara_x_parser::cst::SyntaxKind;
 
-use crate::document::Document;
+use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
-    find_identifier_declaration, rule_containing_token,
-};
-use crate::utils::cst_traversal::{
-    ident_at_position, occurrences_in_with_for, pattern_from_ident,
-    pattern_usages, rule_from_ident, rule_usages,
+    find_identifier_declaration, ident_at_position, occurrences_in_with_for,
+    pattern_from_ident, pattern_usages, rule_containing_token,
+    rule_from_ident, rule_usages,
 };
 use crate::utils::position::{node_to_range, token_to_range};
 
@@ -21,10 +19,11 @@ use crate::utils::position::{node_to_range, token_to_range};
 /// specified position is contained in a symbol, the response contains the
 /// ranges of all occurrences of that symbol in the source code.
 pub fn document_highlight(
-    document: Arc<Document>,
+    documents: Arc<DocumentStorage>,
+    uri: Url,
     pos: Position,
 ) -> Option<Vec<DocumentHighlight>> {
-    let cst = &document.cst;
+    let cst = &documents.get(&uri)?.cst;
     let token = ident_at_position(cst, pos)?;
 
     match token.kind() {
@@ -81,7 +80,7 @@ pub fn document_highlight(
                 return Some(result);
             }
 
-            if let Some(range) = rule_from_ident(cst, token.text())
+            if let Some(range) = rule_from_ident(&cst.root(), token.text())
                 .as_ref()
                 .and_then(node_to_range)
             {
@@ -91,7 +90,7 @@ pub fn document_highlight(
                 });
             }
 
-            if let Some(usages) = rule_usages(cst, token.text()) {
+            if let Some(usages) = rule_usages(&cst.root(), token.text()) {
                 for range in usages.iter().filter_map(token_to_range) {
                     result.push(DocumentHighlight {
                         range,

@@ -2,56 +2,56 @@
   "changes": {
     "${test_dir}/rename4.yar": [
       {
+        "newText": "new_rule_identifier",
         "range": {
-          "start": {
-            "line": 0,
-            "character": 5
-          },
           "end": {
-            "line": 0,
-            "character": 20
+            "character": 19,
+            "line": 9
+          },
+          "start": {
+            "character": 4,
+            "line": 9
           }
-        },
-        "newText": "new_rule_identifier"
+        }
       },
       {
+        "newText": "new_rule_identifier",
         "range": {
-          "start": {
-            "line": 9,
-            "character": 4
-          },
           "end": {
-            "line": 9,
-            "character": 19
+            "character": 19,
+            "line": 14
+          },
+          "start": {
+            "character": 4,
+            "line": 14
           }
-        },
-        "newText": "new_rule_identifier"
+        }
       },
       {
+        "newText": "new_rule_identifier",
         "range": {
-          "start": {
-            "line": 14,
-            "character": 4
-          },
           "end": {
-            "line": 14,
-            "character": 19
+            "character": 19,
+            "line": 19
+          },
+          "start": {
+            "character": 4,
+            "line": 19
           }
-        },
-        "newText": "new_rule_identifier"
+        }
       },
       {
+        "newText": "new_rule_identifier",
         "range": {
-          "start": {
-            "line": 19,
-            "character": 4
-          },
           "end": {
-            "line": 19,
-            "character": 19
+            "character": 20,
+            "line": 0
+          },
+          "start": {
+            "character": 5,
+            "line": 0
           }
-        },
-        "newText": "new_rule_identifier"
+        }
       }
     ]
   }

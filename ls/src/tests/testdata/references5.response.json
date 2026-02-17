@@ -1,28 +1,28 @@
 [
   {
-    "uri": "${test_dir}/references5.yar",
     "range": {
-      "start": {
-        "line": 9,
-        "character": 4
-      },
       "end": {
-        "line": 9,
-        "character": 25
+        "character": 25,
+        "line": 9
+      },
+      "start": {
+        "character": 4,
+        "line": 9
       }
-    }
+    },
+    "uri": "${test_dir}/references5.yar"
   },
   {
-    "uri": "${test_dir}/references5.yar",
     "range": {
-      "start": {
-        "line": 11,
-        "character": 4
-      },
       "end": {
-        "line": 11,
-        "character": 6
+        "character": 6,
+        "line": 11
+      },
+      "start": {
+        "character": 4,
+        "line": 11
       }
-    }
+    },
+    "uri": "${test_dir}/references5.yar"
   }
 ]

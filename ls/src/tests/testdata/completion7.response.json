@@ -1,31 +1,31 @@
 [
   {
-    "label": "rule",
-    "kind": 2,
     "insertText": "rule ${1:ident} {\n  strings:\n    $${2:a} = \"${3}\"\n  condition:\n    $${2:a}${0}\n }",
     "insertTextFormat": 2,
-    "insertTextMode": 2
+    "insertTextMode": 2,
+    "kind": 2,
+    "label": "rule"
   },
   {
-    "label": "import",
-    "kind": 2,
     "insertText": "import \"${1:}\"${0}",
     "insertTextFormat": 2,
-    "insertTextMode": 2
+    "insertTextMode": 2,
+    "kind": 2,
+    "label": "import"
   },
   {
-    "label": "include",
-    "kind": 2,
     "insertText": "include \"${1:}\"${0}",
     "insertTextFormat": 2,
-    "insertTextMode": 2
+    "insertTextMode": 2,
+    "kind": 2,
+    "label": "include"
   },
   {
-    "label": "private",
-    "kind": 14
+    "kind": 14,
+    "label": "private"
   },
   {
-    "label": "global",
-    "kind": 14
+    "kind": 14,
+    "label": "global"
   }
 ]

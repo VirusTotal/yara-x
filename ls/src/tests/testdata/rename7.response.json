@@ -2,30 +2,30 @@
   "changes": {
     "${test_dir}/rename7.yar": [
       {
+        "newText": "value",
         "range": {
-          "start": {
-            "line": 4,
-            "character": 15
-          },
           "end": {
-            "line": 4,
-            "character": 16
+            "character": 16,
+            "line": 4
+          },
+          "start": {
+            "character": 15,
+            "line": 4
           }
-        },
-        "newText": "value"
+        }
       },
       {
+        "newText": "value",
         "range": {
-          "start": {
-            "line": 5,
-            "character": 20
-          },
           "end": {
-            "line": 5,
-            "character": 21
+            "character": 21,
+            "line": 5
+          },
+          "start": {
+            "character": 20,
+            "line": 5
           }
-        },
-        "newText": "value"
+        }
       }
     ]
   }
