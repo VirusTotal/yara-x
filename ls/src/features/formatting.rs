@@ -1,9 +1,11 @@
-use crate::documents::storage::DocumentStorage;
+use std::{io::Cursor, sync::Arc};
+
 use async_lsp::lsp_types::{
     DocumentFormattingParams, Position, Range, TextEdit,
 };
-use std::{io::Cursor, sync::Arc};
 use yara_x_fmt::Indentation;
+
+use crate::documents::storage::DocumentStorage;
 
 pub fn formatting(
     documents: Arc<DocumentStorage>,

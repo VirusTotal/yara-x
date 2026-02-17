@@ -6,8 +6,8 @@ use async_lsp::lsp_types::{
     Position, Range, SemanticToken, SemanticTokenType, SemanticTokens,
 };
 use bitflags::bitflags;
-
 use dashmap::mapref::one::Ref;
+
 use yara_x_parser::cst::{Immutable, SyntaxKind, Token, Utf16};
 
 use crate::documents::document::Document;

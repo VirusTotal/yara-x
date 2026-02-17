@@ -117,15 +117,13 @@ impl DocumentStorage {
         let mut accessed: HashSet<Url> = HashSet::new();
 
         while let Some(curr) = includes.pop() {
-            let root: Node<Immutable>;
+            let root = match self.get_document_cst_root(&curr) {
+                Some(node) => node,
+                None => continue,
+            };
 
-            if let Some(_root) = self.get_document_cst_root(&curr) {
-                root = _root;
-                if let Some(rule) = rule_from_ident(&root, ident) {
-                    return Some((rule, curr));
-                }
-            } else {
-                continue;
+            if let Some(rule) = rule_from_ident(&root, ident) {
+                return Some((rule, curr));
             }
 
             // Push include URIs from this file

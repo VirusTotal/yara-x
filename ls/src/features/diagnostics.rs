@@ -3,12 +3,10 @@ use std::sync::Arc;
 use async_lsp::lsp_types::{
     Diagnostic, DiagnosticRelatedInformation, Location, Range, Url,
 };
-
+use dashmap::mapref::one::Ref;
 use serde::{Deserialize, Serialize};
 
 use crate::documents::{document::Document, storage::DocumentStorage};
-
-use dashmap::mapref::one::Ref;
 
 #[cfg(feature = "full-compiler")]
 use async_lsp::lsp_types::{DiagnosticSeverity, NumberOrString};

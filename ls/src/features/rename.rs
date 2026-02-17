@@ -5,7 +5,6 @@ use async_lsp::lsp_types::{Position, TextEdit, Url};
 use yara_x_parser::cst::SyntaxKind;
 
 use crate::documents::storage::DocumentStorage;
-
 use crate::utils::cst_traversal::{
     find_identifier_declaration, ident_at_position, occurrences_in_with_for,
     pattern_from_ident, pattern_usages, rule_containing_token,
