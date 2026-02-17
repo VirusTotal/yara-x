@@ -407,9 +407,9 @@ fn expr_declares_ident(
     ident: &Token<Immutable>,
 ) -> bool {
     match expr.kind() {
-        SyntaxKind::WITH_EXPR => idents_declared_by_with(&expr)
+        SyntaxKind::WITH_EXPR => idents_declared_by_with(expr)
             .any(|declared_ident| declared_ident.text() == ident.text()),
-        SyntaxKind::FOR_EXPR => idents_declared_by_for(&expr)
+        SyntaxKind::FOR_EXPR => idents_declared_by_for(expr)
             .any(|declared_ident| declared_ident.text() == ident.text()),
         _ => false,
     }
