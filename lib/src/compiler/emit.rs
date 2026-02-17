@@ -2248,26 +2248,20 @@ fn emit_for<I, B, C, A>(
                                 None,
                                 // count >= max_count
                                 |then_| {
-                                    // Is max_count == 0?
+                                    // If max_count == 0, this should be
+                                    // treated as a `none` quantifier. At
+                                    // this point count >= 1, so break the
+                                    // loop with result false (0). If
+                                    // max_count != 0 and count >= max_count,
+                                    // break with result true (1).
+                                    //
+                                    // `i64.ne` with 0 directly produces the
+                                    // right i32: 0 when max_count == 0,
+                                    // 1 when max_count != 0.
                                     load_var(ctx, then_, max_count);
-                                    then_.unop(UnaryOp::I64Eqz);
-                                    then_.if_else(
-                                        None,
-                                        // max_count == 0, this should treated be
-                                        // as a `none` quantifier. At this point
-                                        // count >= 1, so break the loop with
-                                        // result false.
-                                        |then_| {
-                                            then_.i32_const(0);
-                                            then_.br(loop_end);
-                                        },
-                                        // max_count != 0 and count >= max_count
-                                        // break the loop with result true.
-                                        |else_| {
-                                            else_.i32_const(1);
-                                            else_.br(loop_end);
-                                        },
-                                    );
+                                    then_.i64_const(0);
+                                    then_.binop(BinaryOp::I64Ne);
+                                    then_.br(loop_end);
                                 },
                                 |_| {},
                             );
@@ -2283,19 +2277,11 @@ fn emit_for<I, B, C, A>(
                     // return true. If `max_count` is non-zero it means that
                     // `counter` didn't reach `max_count` and the loop must
                     // return false.
+                    //
+                    // `i64.eqz` produces exactly the right i32 result:
+                    // 1 (true) when max_count == 0, 0 (false) otherwise.
                     load_var(ctx, block, max_count);
                     block.unop(UnaryOp::I64Eqz);
-                    block.if_else(
-                        I32,
-                        // max_count == 0
-                        |then_| {
-                            then_.i32_const(1);
-                        },
-                        // max_count != 0
-                        |else_| {
-                            else_.i32_const(0);
-                        },
-                    );
                 }
             }
         });
