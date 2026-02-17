@@ -245,6 +245,7 @@ jobs:
         cargo publish -p yara-x-parser
         cargo publish -p yara-x-fmt
         cargo publish -p yara-x
+        cargo publish -p yara-x-capi
         cargo publish -p yara-x-cli
 
   publish-py:
