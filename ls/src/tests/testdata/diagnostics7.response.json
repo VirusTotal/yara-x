@@ -1,41 +1,41 @@
 {
-  "kind": "full",
   "items": [
     {
+      "code": "invariant_expr",
+      "data": {
+        "patches": []
+      },
+      "message": "invariant boolean expression",
       "range": {
-        "start": {
-          "line": 3,
-          "character": 15
-        },
         "end": {
-          "line": 3,
-          "character": 19
+          "character": 19,
+          "line": 3
+        },
+        "start": {
+          "character": 15,
+          "line": 3
         }
       },
-      "severity": 2,
-      "code": "invariant_expr",
-      "message": "invariant boolean expression",
       "relatedInformation": [
         {
           "location": {
-            "uri": "${test_dir}/diagnostics7.yar",
             "range": {
-              "start": {
-                "line": 3,
-                "character": 15
-              },
               "end": {
-                "line": 3,
-                "character": 19
+                "character": 19,
+                "line": 3
+              },
+              "start": {
+                "character": 15,
+                "line": 3
               }
-            }
+            },
+            "uri": "${test_dir}/diagnostics7.yar"
           },
           "message": "this expression is always true"
         }
       ],
-      "data": {
-        "patches": []
-      }
+      "severity": 2
     }
-  ]
+  ],
+  "kind": "full"
 }

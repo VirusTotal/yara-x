@@ -1,67 +1,67 @@
 [
   {
+    "kind": 3,
     "range": {
-      "start": {
-        "line": 2,
-        "character": 4
-      },
       "end": {
-        "line": 2,
-        "character": 20
+        "character": 20,
+        "line": 2
+      },
+      "start": {
+        "character": 4,
+        "line": 2
       }
-    },
-    "kind": 3
+    }
   },
   {
+    "kind": 2,
     "range": {
-      "start": {
-        "line": 4,
-        "character": 43
-      },
       "end": {
-        "line": 4,
-        "character": 51
+        "character": 51,
+        "line": 4
+      },
+      "start": {
+        "character": 43,
+        "line": 4
       }
-    },
-    "kind": 2
+    }
   },
   {
+    "kind": 2,
     "range": {
-      "start": {
-        "line": 4,
-        "character": 30
-      },
       "end": {
-        "line": 4,
-        "character": 38
+        "character": 38,
+        "line": 4
+      },
+      "start": {
+        "character": 30,
+        "line": 4
       }
-    },
-    "kind": 2
+    }
   },
   {
+    "kind": 2,
     "range": {
-      "start": {
-        "line": 4,
-        "character": 17
-      },
       "end": {
-        "line": 4,
-        "character": 25
+        "character": 25,
+        "line": 4
+      },
+      "start": {
+        "character": 17,
+        "line": 4
       }
-    },
-    "kind": 2
+    }
   },
   {
+    "kind": 2,
     "range": {
-      "start": {
-        "line": 4,
-        "character": 4
-      },
       "end": {
-        "line": 4,
-        "character": 12
+        "character": 12,
+        "line": 4
+      },
+      "start": {
+        "character": 4,
+        "line": 4
       }
-    },
-    "kind": 2
+    }
   }
 ]

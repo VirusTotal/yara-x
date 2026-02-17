@@ -1,28 +1,28 @@
 [
   {
+    "kind": 3,
     "range": {
-      "start": {
-        "line": 1,
-        "character": 0
-      },
       "end": {
-        "line": 4,
-        "character": 1
+        "character": 1,
+        "line": 4
+      },
+      "start": {
+        "character": 0,
+        "line": 1
       }
-    },
-    "kind": 3
+    }
   },
   {
+    "kind": 2,
     "range": {
-      "start": {
-        "line": 8,
-        "character": 4
-      },
       "end": {
-        "line": 8,
-        "character": 9
+        "character": 9,
+        "line": 8
+      },
+      "start": {
+        "character": 4,
+        "line": 8
       }
-    },
-    "kind": 2
+    }
   }
 ]

@@ -1,77 +1,77 @@
 {
-  "kind": "full",
   "items": [
     {
+      "code": "E022",
+      "data": {
+        "patches": []
+      },
+      "message": "unused pattern `$a`",
       "range": {
-        "start": {
-          "line": 2,
-          "character": 4
-        },
         "end": {
-          "line": 2,
-          "character": 6
+          "character": 6,
+          "line": 2
+        },
+        "start": {
+          "character": 4,
+          "line": 2
         }
       },
-      "severity": 1,
-      "code": "E022",
-      "message": "unused pattern `$a`",
       "relatedInformation": [
         {
           "location": {
-            "uri": "${test_dir}/diagnostics4.yar",
             "range": {
-              "start": {
-                "line": 2,
-                "character": 4
-              },
               "end": {
-                "line": 2,
-                "character": 6
+                "character": 6,
+                "line": 2
+              },
+              "start": {
+                "character": 4,
+                "line": 2
               }
-            }
+            },
+            "uri": "${test_dir}/diagnostics4.yar"
           },
           "message": "this pattern was not used in the condition"
         }
       ],
-      "data": {
-        "patches": []
-      }
+      "severity": 1
     },
     {
+      "code": "invariant_expr",
+      "data": {
+        "patches": []
+      },
+      "message": "invariant boolean expression",
       "range": {
-        "start": {
-          "line": 4,
-          "character": 4
-        },
         "end": {
-          "line": 4,
-          "character": 8
+          "character": 8,
+          "line": 4
+        },
+        "start": {
+          "character": 4,
+          "line": 4
         }
       },
-      "severity": 2,
-      "code": "invariant_expr",
-      "message": "invariant boolean expression",
       "relatedInformation": [
         {
           "location": {
-            "uri": "${test_dir}/diagnostics4.yar",
             "range": {
-              "start": {
-                "line": 4,
-                "character": 4
-              },
               "end": {
-                "line": 4,
-                "character": 8
+                "character": 8,
+                "line": 4
+              },
+              "start": {
+                "character": 4,
+                "line": 4
               }
-            }
+            },
+            "uri": "${test_dir}/diagnostics4.yar"
           },
           "message": "this expression is always true"
         }
       ],
-      "data": {
-        "patches": []
-      }
+      "severity": 2
     }
-  ]
+  ],
+  "kind": "full"
 }

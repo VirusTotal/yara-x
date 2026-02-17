@@ -1,26 +1,26 @@
 [
   {
-    "title": "Fix: duplicate import statement",
-    "kind": "quickfix",
     "edit": {
       "changes": {
         "${test_dir}/code_action.yar": [
           {
+            "newText": "",
             "range": {
-              "start": {
-                "line": 1,
-                "character": 0
-              },
               "end": {
-                "line": 1,
-                "character": 11
+                "character": 11,
+                "line": 1
+              },
+              "start": {
+                "character": 0,
+                "line": 1
               }
-            },
-            "newText": ""
+            }
           }
         ]
       }
     },
-    "isPreferred": true
+    "isPreferred": true,
+    "kind": "quickfix",
+    "title": "Fix: duplicate import statement"
   }
 ]

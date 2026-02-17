@@ -1,61 +1,61 @@
 [
   {
-    "range": {
-      "start": {
-        "line": 2,
-        "character": 30
-      },
-      "end": {
-        "line": 2,
-        "character": 35
-      }
-    },
     "parent": {
-      "range": {
-        "start": {
-          "line": 2,
-          "character": 25
-        },
-        "end": {
-          "line": 2,
-          "character": 42
-        }
-      },
       "parent": {
-        "range": {
-          "start": {
-            "line": 2,
-            "character": 4
-          },
-          "end": {
-            "line": 2,
-            "character": 42
-          }
-        },
         "parent": {
-          "range": {
-            "start": {
-              "line": 1,
-              "character": 2
-            },
-            "end": {
-              "line": 2,
-              "character": 42
-            }
-          },
           "parent": {
             "range": {
-              "start": {
-                "line": 0,
-                "character": 0
-              },
               "end": {
-                "line": 5,
-                "character": 1
+                "character": 1,
+                "line": 5
+              },
+              "start": {
+                "character": 0,
+                "line": 0
               }
             }
+          },
+          "range": {
+            "end": {
+              "character": 42,
+              "line": 2
+            },
+            "start": {
+              "character": 2,
+              "line": 1
+            }
+          }
+        },
+        "range": {
+          "end": {
+            "character": 42,
+            "line": 2
+          },
+          "start": {
+            "character": 4,
+            "line": 2
           }
         }
+      },
+      "range": {
+        "end": {
+          "character": 42,
+          "line": 2
+        },
+        "start": {
+          "character": 25,
+          "line": 2
+        }
+      }
+    },
+    "range": {
+      "end": {
+        "character": 35,
+        "line": 2
+      },
+      "start": {
+        "character": 30,
+        "line": 2
       }
     }
   }

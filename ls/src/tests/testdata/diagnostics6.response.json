@@ -1,141 +1,141 @@
 {
-  "kind": "full",
   "items": [
     {
+      "code": "duplicate_import",
+      "data": {
+        "patches": [
+          {
+            "range": {
+              "end": {
+                "character": 11,
+                "line": 1
+              },
+              "start": {
+                "character": 0,
+                "line": 1
+              }
+            },
+            "replacement": ""
+          }
+        ]
+      },
+      "message": "duplicate import statement",
       "range": {
-        "start": {
-          "line": 1,
-          "character": 0
-        },
         "end": {
-          "line": 1,
-          "character": 11
+          "character": 11,
+          "line": 1
+        },
+        "start": {
+          "character": 0,
+          "line": 1
         }
       },
-      "severity": 2,
-      "code": "duplicate_import",
-      "message": "duplicate import statement",
       "relatedInformation": [
         {
           "location": {
-            "uri": "${test_dir}/diagnostics6.yar",
             "range": {
-              "start": {
-                "line": 1,
-                "character": 0
-              },
               "end": {
-                "line": 1,
-                "character": 11
+                "character": 11,
+                "line": 1
+              },
+              "start": {
+                "character": 0,
+                "line": 1
               }
-            }
+            },
+            "uri": "${test_dir}/diagnostics6.yar"
           },
           "message": "duplicate import"
         }
       ],
+      "severity": 2
+    },
+    {
+      "code": "duplicate_import",
       "data": {
         "patches": [
           {
             "range": {
-              "start": {
-                "line": 1,
-                "character": 0
-              },
               "end": {
-                "line": 1,
-                "character": 11
+                "character": 11,
+                "line": 0
+              },
+              "start": {
+                "character": 0,
+                "line": 0
               }
             },
             "replacement": ""
           }
         ]
-      }
-    },
-    {
+      },
+      "message": "duplicate import statement",
       "range": {
-        "start": {
-          "line": 0,
-          "character": 0
-        },
         "end": {
-          "line": 0,
-          "character": 11
+          "character": 11,
+          "line": 0
+        },
+        "start": {
+          "character": 0,
+          "line": 0
         }
       },
-      "severity": 2,
-      "code": "duplicate_import",
-      "message": "duplicate import statement",
       "relatedInformation": [
         {
           "location": {
-            "uri": "${test_dir}/diagnostics6.yar",
             "range": {
-              "start": {
-                "line": 0,
-                "character": 0
-              },
               "end": {
-                "line": 0,
-                "character": 11
+                "character": 11,
+                "line": 0
+              },
+              "start": {
+                "character": 0,
+                "line": 0
               }
-            }
+            },
+            "uri": "${test_dir}/diagnostics6.yar"
           },
           "message": "`pe` imported here for the first time"
         }
       ],
-      "data": {
-        "patches": [
-          {
-            "range": {
-              "start": {
-                "line": 0,
-                "character": 0
-              },
-              "end": {
-                "line": 0,
-                "character": 11
-              }
-            },
-            "replacement": ""
-          }
-        ]
-      }
+      "severity": 2
     },
     {
+      "code": "invariant_expr",
+      "data": {
+        "patches": []
+      },
+      "message": "invariant boolean expression",
       "range": {
-        "start": {
-          "line": 4,
-          "character": 15
-        },
         "end": {
-          "line": 4,
-          "character": 19
+          "character": 19,
+          "line": 4
+        },
+        "start": {
+          "character": 15,
+          "line": 4
         }
       },
-      "severity": 2,
-      "code": "invariant_expr",
-      "message": "invariant boolean expression",
       "relatedInformation": [
         {
           "location": {
-            "uri": "${test_dir}/diagnostics6.yar",
             "range": {
-              "start": {
-                "line": 4,
-                "character": 15
-              },
               "end": {
-                "line": 4,
-                "character": 19
+                "character": 19,
+                "line": 4
+              },
+              "start": {
+                "character": 15,
+                "line": 4
               }
-            }
+            },
+            "uri": "${test_dir}/diagnostics6.yar"
           },
           "message": "this expression is always true"
         }
       ],
-      "data": {
-        "patches": []
-      }
+      "severity": 2
     }
-  ]
+  ],
+  "kind": "full"
 }

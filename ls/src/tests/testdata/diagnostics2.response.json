@@ -1,41 +1,41 @@
 {
-  "kind": "full",
   "items": [
     {
+      "code": "E001",
+      "data": {
+        "patches": []
+      },
+      "message": "syntax error",
       "range": {
-        "start": {
-          "line": 0,
-          "character": 0
-        },
         "end": {
-          "line": 0,
-          "character": 3
+          "character": 3,
+          "line": 0
+        },
+        "start": {
+          "character": 0,
+          "line": 0
         }
       },
-      "severity": 1,
-      "code": "E001",
-      "message": "syntax error",
       "relatedInformation": [
         {
           "location": {
-            "uri": "${test_dir}/diagnostics2.yar",
             "range": {
-              "start": {
-                "line": 0,
-                "character": 0
-              },
               "end": {
-                "line": 0,
-                "character": 3
+                "character": 3,
+                "line": 0
+              },
+              "start": {
+                "character": 0,
+                "line": 0
               }
-            }
+            },
+            "uri": "${test_dir}/diagnostics2.yar"
           },
           "message": "expecting import statement or rule definition"
         }
       ],
-      "data": {
-        "patches": []
-      }
+      "severity": 1
     }
-  ]
+  ],
+  "kind": "full"
 }
