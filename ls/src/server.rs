@@ -518,7 +518,6 @@ impl LanguageServer for YARALanguageServer {
     /// This method is called when the server is requested to shut down.
     ///
     /// It should not exit the process, but instead, it should prepare for
-
     /// shutdown.
     fn shutdown(
         &mut self,
