@@ -36,6 +36,7 @@ use async_lsp::lsp_types::{
 use async_lsp::router::Router;
 use async_lsp::{ClientSocket, LanguageClient, LanguageServer, ResponseError};
 use futures::future::BoxFuture;
+use serde::Deserialize;
 
 use crate::documents::storage::DocumentStorage;
 use crate::features::code_action::code_actions;
@@ -53,6 +54,20 @@ use crate::features::selection_range::selection_range;
 use crate::features::semantic_tokens::{
     semantic_tokens, SEMANTIC_TOKEN_MODIFIERS, SEMANTIC_TOKEN_TYPES,
 };
+
+/// Rule that describes a how to validate a metadata entry in a rule.
+#[derive(Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct MetadataValidationRule {
+    /// Metadata identifier
+    pub identifier: String,
+    /// Whether the metadata entry is required or not.
+    #[serde(default)]
+    pub required: bool,
+    /// Type of the metadata entry.
+    #[serde(rename = "type")]
+    pub ty: Option<String>,
+}
 
 /// Represents a YARA language server.
 pub struct YARALanguageServer {
@@ -408,15 +423,20 @@ impl LanguageServer for YARALanguageServer {
     {
         let uri = params.text_document.uri;
         let documents = Arc::clone(&self.documents);
+        let client = self.client.clone();
 
         Box::pin(async move {
+            let meta_specs =
+                Self::get_meta_validation_rules(client.clone(), uri.clone())
+                    .await;
+
             Ok(DocumentDiagnosticReportResult::Report(
                 async_lsp::lsp_types::DocumentDiagnosticReport::Full(
                     RelatedFullDocumentDiagnosticReport {
                         full_document_diagnostic_report:
                             FullDocumentDiagnosticReport {
                                 result_id: None,
-                                items: diagnostics(documents, uri),
+                                items: diagnostics(documents, uri, meta_specs),
                             },
                         related_documents: None,
                     },
@@ -543,18 +563,51 @@ impl YARALanguageServer {
         })
     }
 
+    async fn get_meta_validation_rules(
+        mut client: ClientSocket,
+        scope_uri: Url,
+    ) -> Vec<MetadataValidationRule> {
+        client
+            .configuration(ConfigurationParams {
+                items: vec![ConfigurationItem {
+                    scope_uri: Some(scope_uri),
+                    section: Some("YARA.metadataValidation".to_string()),
+                }],
+            })
+            .await
+            .ok()
+            .and_then(|mut v| v.pop())
+            .and_then(|value| {
+                serde_json::from_value::<Vec<MetadataValidationRule>>(value)
+                    .ok()
+            })
+            .unwrap_or_default()
+    }
+
     /// Sends diagnostics for specific document if publish model is used.
     fn publish_diagnostics(&mut self, uri: &Url) {
         if self.should_send_diagnostics {
-            let _ =
-                self.client.publish_diagnostics(PublishDiagnosticsParams {
+            let documents = Arc::clone(&self.documents);
+            let mut client = self.client.clone();
+            let uri = uri.clone();
+
+            tokio::spawn(async move {
+                let meta_validation_rules = Self::get_meta_validation_rules(
+                    client.clone(),
+                    uri.clone(),
+                )
+                .await;
+
+                client.publish_diagnostics(PublishDiagnosticsParams {
                     uri: uri.clone(),
                     diagnostics: diagnostics(
-                        Arc::clone(&self.documents),
-                        uri.clone(),
+                        documents,
+                        uri,
+                        meta_validation_rules,
                     ),
                     version: None,
-                });
+                })
+            });
         }
     }
 }

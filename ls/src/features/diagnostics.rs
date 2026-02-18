@@ -3,13 +3,16 @@ use std::sync::Arc;
 use async_lsp::lsp_types::{
     Diagnostic, DiagnosticRelatedInformation, Location, Range, Url,
 };
+#[cfg(feature = "full-compiler")]
+use async_lsp::lsp_types::{DiagnosticSeverity, NumberOrString};
 use dashmap::mapref::one::Ref;
 use serde::{Deserialize, Serialize};
 
 use crate::documents::{document::Document, storage::DocumentStorage};
+use crate::server::MetadataValidationRule;
 
 #[cfg(feature = "full-compiler")]
-use async_lsp::lsp_types::{DiagnosticSeverity, NumberOrString};
+use yara_x::linters;
 #[cfg(feature = "full-compiler")]
 use yara_x::{Compiler, SourceCode};
 
@@ -29,6 +32,7 @@ pub struct Patch {
 pub fn diagnostics(
     documents: Arc<DocumentStorage>,
     uri: Url,
+    meta_validation_rules: Vec<MetadataValidationRule>,
 ) -> Vec<Diagnostic> {
     #[allow(unused_mut)]
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
@@ -37,7 +41,7 @@ pub fn diagnostics(
 
     if let Some(doc) = doc {
         #[cfg(feature = "full-compiler")]
-        diagnostics.extend(compiler_diagnostics(doc));
+        diagnostics.extend(compiler_diagnostics(doc, meta_validation_rules));
     }
 
     diagnostics
@@ -52,11 +56,54 @@ pub fn diagnostics(
 #[cfg(feature = "full-compiler")]
 pub fn compiler_diagnostics(
     document: Ref<'_, Url, Document>,
+    metadata_validation_rules: Vec<MetadataValidationRule>,
 ) -> Vec<Diagnostic> {
     let source_code = SourceCode::from(document.text.as_str())
         .with_origin(document.uri.clone());
 
     let mut compiler = Compiler::new();
+
+    for validation_rule in metadata_validation_rules {
+        let mut linter = linters::metadata(&validation_rule.identifier)
+            .required(validation_rule.required);
+
+        if let Some(ty) = validation_rule.ty {
+            let predicate = match ty.as_str() {
+                "string" => |meta: &yara_x_parser::ast::Meta| {
+                    matches!(
+                        meta.value,
+                        yara_x_parser::ast::MetaValue::String(_)
+                    )
+                },
+                "integer" => |meta: &yara_x_parser::ast::Meta| {
+                    matches!(
+                        meta.value,
+                        yara_x_parser::ast::MetaValue::Integer(_)
+                    )
+                },
+                "float" => |meta: &yara_x_parser::ast::Meta| {
+                    matches!(
+                        meta.value,
+                        yara_x_parser::ast::MetaValue::Float(_)
+                    )
+                },
+                "bool" => |meta: &yara_x_parser::ast::Meta| {
+                    matches!(
+                        meta.value,
+                        yara_x_parser::ast::MetaValue::Bool(_)
+                    )
+                },
+                _ => continue,
+            };
+            linter = linter.validator(
+                predicate,
+                format!("`{}` must be a `{}`", validation_rule.identifier, ty),
+            );
+        }
+
+        compiler.add_linter(linter);
+    }
+
     // VSCode don't handle well error messages with too many columns.
     compiler.errors_max_width(110);
     // Attempt to compile the source. We don't care about the result

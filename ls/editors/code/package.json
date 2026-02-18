@@ -69,6 +69,36 @@
               "description": "Puts the opening curly brace on a new line."
             }
           }
+        },
+        "YARA.metadataValidation": {
+          "type": "array",
+          "default": [
+            {
+              "identifier": "author",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "description": "Rules for validating metadata in YARA rules.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "identifier": {
+                "type": "string",
+                "description": "The metadata identifier (e.g., `author`, `version`)."
+              },
+              "required": {
+                "type": "boolean",
+                "default": false,
+                "description": "Specifies if the metadata is required."
+              },
+              "type": {
+                "type": "string",
+                "enum": ["string", "integer", "float", "bool"],
+                "description": "The expected type of the metadata value."
+              }
+            }
+          }
         }
       }
     },
