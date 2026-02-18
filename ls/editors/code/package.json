@@ -19,7 +19,58 @@
   "contributes": {
     "configuration": {
       "title": "YARA",
-      "properties": {}
+      "properties": {
+        "YARA.codeFormatting": {
+          "type": "object",
+          "default": {
+            "alignMetadata": true,
+            "alignPatterns": true,
+            "indentSectionHeaders": true,
+            "indentSectionContents": true,
+            "newlineBeforeCurlyBrace": false,
+            "emptyLineBeforeSectionHeader": false,
+            "emptyLineAfterSectionHeader": false
+          },
+          "description": "Options for automatic code formatting.",
+          "properties": {
+            "alignMetadata": {
+              "type": "boolean",
+              "default": true,
+              "markdownDescription": "Aligns the values in the `meta` section of a rule.\n\n**Example:**\n\n*Original code:*\n```yara\nrule example {\n  meta:\n    author = \"John Doe\"\n    creation_date = \"2024-01-01\"\n    description = \"A simple example rule.\"\n}\n```\n\n*Formatted code:*\n```yara\nrule example {\n  meta:\n    author        = \"John Doe\"\n    creation_date = \"2024-01-01\"\n    description   = \"A simple example rule.\"\n}\n```"
+            },
+            "alignPatterns": {
+              "type": "boolean",
+              "default": true,
+              "markdownDescription": "Aligns the patterns in the `strings` section of a rule.\n\n**Example:**\n\n*Original code:*\n```yara\nrule example {\n  strings:\n    $a = \"some string\"\n    $b_is_longer = { 48 65 6c 6c 6f }\n    $c = \"another string\"\n}\n```\n\n*Formatted code:*\n```yara\nrule example {\n  strings:\n    $a           = \"some string\"\n    $b_is_longer = { 48 65 6c 6c 6f }\n    $c           = \"another string\"\n}\n```"
+            },
+            "indentSectionHeaders": {
+              "type": "boolean",
+              "default": true,
+              "markdownDescription": "Indent section headers (`meta`, `strings`, `condition`).\n\n**Example:**\n\n*Original code:*\n```yara\nrule example {\nmeta:\n  author = \"John Doe\"\nstrings:\n  $a = \"some string\"\ncondition:\n  $a\n}\n```\n\n*Formatted code:*\n```yara\nrule example {\n  meta:\n    author = \"John Doe\"\n  strings:\n    $a = \"some string\"\n  condition:\n    $a\n}\n```"
+            },
+            "indentSectionContents": {
+              "type": "boolean",
+              "default": true,
+              "markdownDescription": "Indent the content of rule sections.\n\n**Example:**\n\n*Original code:*\n```yara\nrule example {\n  meta:\n  author = \"John Doe\"\n  strings:\n  $a = \"some string\"\n  condition:\n  $a\n}\n```\n\n*Formatted code:*\n```yara\nrule example {\n  meta:\n    author = \"John Doe\"\n  strings:\n    $a = \"some string\"\n  condition:\n    $a\n}\n```"
+            },
+            "emptyLineBeforeSectionHeader": {
+              "type": "boolean",
+              "default": false,
+              "description": "Inserts an empty line before each section header."
+            },
+            "emptyLineAfterSectionHeader": {
+              "type": "boolean",
+              "default": false,
+              "description": "Inserts an empty line after each section header."
+            },
+            "newlineBeforeCurlyBrace": {
+              "type": "boolean",
+              "default": false,
+              "description": "Puts the opening curly brace on a new line."
+            }
+          }
+        }
+      }
     },
     "configurationDefaults": {
       "[yara]": {

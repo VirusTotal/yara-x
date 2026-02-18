@@ -15,16 +15,16 @@ use async_lsp::lsp_types::request::{
 use async_lsp::lsp_types::{
     CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
     CompletionOptions, CompletionParams, CompletionResponse,
-    DiagnosticOptions, DiagnosticServerCapabilities,
-    DidChangeTextDocumentParams, DidCloseTextDocumentParams,
-    DidOpenTextDocumentParams, DidSaveTextDocumentParams,
-    DocumentDiagnosticParams, DocumentDiagnosticReportResult,
-    DocumentFormattingParams, DocumentHighlight, DocumentHighlightParams,
-    DocumentSymbolParams, DocumentSymbolResponse,
-    FullDocumentDiagnosticReport, GotoDefinitionParams,
-    GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability,
-    InitializeParams, InitializeResult, Location, OneOf,
-    PublishDiagnosticsParams, ReferenceParams,
+    ConfigurationItem, ConfigurationParams, DiagnosticOptions,
+    DiagnosticServerCapabilities, DidChangeTextDocumentParams,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    DidSaveTextDocumentParams, DocumentDiagnosticParams,
+    DocumentDiagnosticReportResult, DocumentFormattingParams,
+    DocumentHighlight, DocumentHighlightParams, DocumentSymbolParams,
+    DocumentSymbolResponse, FullDocumentDiagnosticReport,
+    GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams,
+    HoverProviderCapability, InitializeParams, InitializeResult, Location,
+    OneOf, PublishDiagnosticsParams, ReferenceParams,
     RelatedFullDocumentDiagnosticReport, RenameParams, SaveOptions,
     SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability,
     SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
@@ -37,12 +37,14 @@ use async_lsp::router::Router;
 use async_lsp::{ClientSocket, LanguageClient, LanguageServer, ResponseError};
 use futures::future::BoxFuture;
 
+use crate::documents::storage::DocumentStorage;
 use crate::features::code_action::code_actions;
 use crate::features::completion::completion;
 use crate::features::diagnostics::diagnostics;
 use crate::features::document_highlight::document_highlight;
 use crate::features::document_symbol::document_symbol;
 use crate::features::formatting::formatting;
+use crate::features::formatting::FormattingOptions;
 use crate::features::goto::go_to_definition;
 use crate::features::hover::hover;
 use crate::features::references::find_references;
@@ -51,8 +53,6 @@ use crate::features::selection_range::selection_range;
 use crate::features::semantic_tokens::{
     semantic_tokens, SEMANTIC_TOKEN_MODIFIERS, SEMANTIC_TOKEN_TYPES,
 };
-
-use crate::documents::storage::DocumentStorage;
 
 /// Represents a YARA language server.
 pub struct YARALanguageServer {
@@ -123,7 +123,9 @@ impl LanguageServer for YARALanguageServer {
                                 range: Some(true),
                                 legend: SemanticTokensLegend {
                                     token_types: Vec::from(SEMANTIC_TOKEN_TYPES),
-                                    token_modifiers: Vec::from(SEMANTIC_TOKEN_MODIFIERS),
+                                    token_modifiers: Vec::from(
+                                        SEMANTIC_TOKEN_MODIFIERS,
+                                    ),
                                 },
                                 ..Default::default()
                             },
@@ -147,22 +149,30 @@ impl LanguageServer for YARALanguageServer {
                     document_highlight_provider: Some(OneOf::Left(true)),
                     document_symbol_provider: Some(OneOf::Left(true)),
                     rename_provider: Some(OneOf::Left(true)),
-                    code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
-                    selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
+                    code_action_provider: Some(
+                        CodeActionProviderCapability::Simple(true),
+                    ),
+                    selection_range_provider: Some(
+                        SelectionRangeProviderCapability::Simple(true),
+                    ),
                     text_document_sync: Some(TextDocumentSyncCapability::Options(
                         TextDocumentSyncOptions {
-                            save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
-                                include_text: Some(true),
-                            })),
+                            save: Some(TextDocumentSyncSaveOptions::SaveOptions(
+                                SaveOptions {
+                                    include_text: Some(true),
+                                },
+                            )),
                             open_close: Some(true),
                             change: Some(TextDocumentSyncKind::FULL),
                             ..Default::default()
                         },
                     )),
                     // This is for pull model diagnostics
-                    diagnostic_provider: Some(DiagnosticServerCapabilities::Options(
-                        DiagnosticOptions::default(),
-                    )),
+                    diagnostic_provider: Some(
+                        DiagnosticServerCapabilities::Options(
+                            DiagnosticOptions::default(),
+                        ),
+                    ),
                     ..ServerCapabilities::default()
                 },
                 server_info: None,
@@ -415,8 +425,6 @@ impl LanguageServer for YARALanguageServer {
         })
     }
 
-    /// This method is called when the user requests to format a document.
-    ///
     /// It formats the source code according to the configured style and
     /// returns a set of edits to apply the changes.
     fn formatting(
@@ -424,8 +432,28 @@ impl LanguageServer for YARALanguageServer {
         params: DocumentFormattingParams,
     ) -> BoxFuture<'static, Result<Option<Vec<TextEdit>>, Self::Error>> {
         let documents = Arc::clone(&self.documents);
+        let mut client = self.client.clone();
 
-        Box::pin(async move { Ok(formatting(documents, params)) })
+        Box::pin(async move {
+            let config = client
+                .configuration(ConfigurationParams {
+                    items: vec![ConfigurationItem {
+                        scope_uri: Some(params.text_document.uri.clone()),
+                        section: Some("YARA.codeFormatting".to_string()),
+                    }],
+                })
+                .await;
+
+            let options = config
+                .ok()
+                .and_then(|mut config| config.pop())
+                .and_then(|v| {
+                    serde_json::from_value::<FormattingOptions>(v).ok()
+                })
+                .unwrap_or_default();
+
+            Ok(formatting(documents, params, options))
+        })
     }
 
     /// This method is called when a document is opened.
@@ -490,6 +518,7 @@ impl LanguageServer for YARALanguageServer {
     /// This method is called when the server is requested to shut down.
     ///
     /// It should not exit the process, but instead, it should prepare for
+
     /// shutdown.
     fn shutdown(
         &mut self,

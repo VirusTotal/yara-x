@@ -1,6 +1,6 @@
 [
   {
-    "newText": "rule test {\n    strings:\n        $a = \"some string\"\n\n    condition:\n        $a\n}\n",
+    "newText": "rule test {\n    strings:\n        $a = \"some string\"\n    condition:\n        $a\n}\n",
     "range": {
       "end": {
         "character": 0,
