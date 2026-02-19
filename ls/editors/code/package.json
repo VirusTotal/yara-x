@@ -99,6 +99,11 @@
               }
             }
           }
+        },
+        "YARA.ruleNameValidation": {
+          "type": "string",
+          "default": "",
+          "description": "A regular expression that all rule names must match."
         }
       }
     },

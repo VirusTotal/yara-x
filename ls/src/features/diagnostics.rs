@@ -9,7 +9,6 @@ use dashmap::mapref::one::Ref;
 use serde::{Deserialize, Serialize};
 
 use crate::documents::{document::Document, storage::DocumentStorage};
-use crate::server::MetadataValidationRule;
 
 #[cfg(feature = "full-compiler")]
 use yara_x::linters;
@@ -27,12 +26,33 @@ pub struct Patch {
     pub replacement: String,
 }
 
+/// Rule that describes a how to validate a metadata entry in a rule.
+#[derive(Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct MetadataValidationRule {
+    /// Metadata identifier
+    pub identifier: String,
+    /// Whether the metadata entry is required or not.
+    #[serde(default)]
+    pub required: bool,
+    /// Type of the metadata entry.
+    #[serde(rename = "type")]
+    pub ty: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Settings {
+    pub metadata_validation: Vec<MetadataValidationRule>,
+    pub rule_name_validation: Option<String>,
+}
+
 /// Returns a diagnostic vector for the given source code.
 #[allow(unused_variables)]
 pub fn diagnostics(
     documents: Arc<DocumentStorage>,
     uri: Url,
-    meta_validation_rules: Vec<MetadataValidationRule>,
+    settings: Settings,
 ) -> Vec<Diagnostic> {
     #[allow(unused_mut)]
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
@@ -41,7 +61,7 @@ pub fn diagnostics(
 
     if let Some(doc) = doc {
         #[cfg(feature = "full-compiler")]
-        diagnostics.extend(compiler_diagnostics(doc, meta_validation_rules));
+        diagnostics.extend(compiler_diagnostics(doc, settings));
     }
 
     diagnostics
@@ -49,21 +69,27 @@ pub fn diagnostics(
 
 /// Return diagnostic vector for the given source code.
 ///
-/// This function compiles the source code using the full YARA-X compiler
+/// This function compiles the source code using the full YARA-X 'compiler'
 /// and collects all errors and warnings as LSP diagnostics. This provides
 /// comprehensive feedback including type checking, semantic analysis,
 /// and pattern validation - not just syntax errors.
 #[cfg(feature = "full-compiler")]
 pub fn compiler_diagnostics(
     document: Ref<'_, Url, Document>,
-    metadata_validation_rules: Vec<MetadataValidationRule>,
+    settings: Settings,
 ) -> Vec<Diagnostic> {
     let source_code = SourceCode::from(document.text.as_str())
         .with_origin(document.uri.clone());
 
     let mut compiler = Compiler::new();
 
-    for validation_rule in metadata_validation_rules {
+    if let Some(regex) = settings.rule_name_validation {
+        if let Ok(linter) = linters::rule_name(regex) {
+            compiler.add_linter(linter);
+        }
+    }
+
+    for validation_rule in settings.metadata_validation {
         let mut linter = linters::metadata(&validation_rule.identifier)
             .required(validation_rule.required);
 

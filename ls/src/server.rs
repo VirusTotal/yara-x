@@ -36,12 +36,14 @@ use async_lsp::lsp_types::{
 use async_lsp::router::Router;
 use async_lsp::{ClientSocket, LanguageClient, LanguageServer, ResponseError};
 use futures::future::BoxFuture;
-use serde::Deserialize;
+use serde_json::from_value;
 
 use crate::documents::storage::DocumentStorage;
 use crate::features::code_action::code_actions;
 use crate::features::completion::completion;
-use crate::features::diagnostics::diagnostics;
+use crate::features::diagnostics::{
+    diagnostics, MetadataValidationRule, Settings,
+};
 use crate::features::document_highlight::document_highlight;
 use crate::features::document_symbol::document_symbol;
 use crate::features::formatting::formatting;
@@ -54,20 +56,6 @@ use crate::features::selection_range::selection_range;
 use crate::features::semantic_tokens::{
     semantic_tokens, SEMANTIC_TOKEN_MODIFIERS, SEMANTIC_TOKEN_TYPES,
 };
-
-/// Rule that describes a how to validate a metadata entry in a rule.
-#[derive(Deserialize, Debug, Clone, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct MetadataValidationRule {
-    /// Metadata identifier
-    pub identifier: String,
-    /// Whether the metadata entry is required or not.
-    #[serde(default)]
-    pub required: bool,
-    /// Type of the metadata entry.
-    #[serde(rename = "type")]
-    pub ty: Option<String>,
-}
 
 /// Represents a YARA language server.
 pub struct YARALanguageServer {
@@ -426,9 +414,7 @@ impl LanguageServer for YARALanguageServer {
         let client = self.client.clone();
 
         Box::pin(async move {
-            let meta_specs =
-                Self::get_meta_validation_rules(client.clone(), uri.clone())
-                    .await;
+            let settings = Self::get_settings(client, uri.clone()).await;
 
             Ok(DocumentDiagnosticReportResult::Report(
                 async_lsp::lsp_types::DocumentDiagnosticReport::Full(
@@ -436,7 +422,7 @@ impl LanguageServer for YARALanguageServer {
                         full_document_diagnostic_report:
                             FullDocumentDiagnosticReport {
                                 result_id: None,
-                                items: diagnostics(documents, uri, meta_specs),
+                                items: diagnostics(documents, uri, settings),
                             },
                         related_documents: None,
                     },
@@ -563,23 +549,39 @@ impl YARALanguageServer {
         })
     }
 
-    async fn get_meta_validation_rules(
+    async fn get_settings(
         mut client: ClientSocket,
         scope_uri: Url,
-    ) -> Vec<MetadataValidationRule> {
+    ) -> Settings {
         client
             .configuration(ConfigurationParams {
-                items: vec![ConfigurationItem {
-                    scope_uri: Some(scope_uri),
-                    section: Some("YARA.metadataValidation".to_string()),
-                }],
+                items: vec![
+                    ConfigurationItem {
+                        scope_uri: Some(scope_uri.clone()),
+                        section: Some("YARA.metadataValidation".to_string()),
+                    },
+                    ConfigurationItem {
+                        scope_uri: Some(scope_uri),
+                        section: Some("YARA.ruleNameValidation".to_string()),
+                    },
+                ],
             })
             .await
             .ok()
-            .and_then(|mut v| v.pop())
-            .and_then(|value| {
-                serde_json::from_value::<Vec<MetadataValidationRule>>(value)
-                    .ok()
+            .map(|mut v| {
+                let rule_name_validation = v
+                    .pop()
+                    .and_then(|value| from_value::<Option<String>>(value).ok())
+                    .unwrap_or_default();
+
+                let metadata_validation = v
+                    .pop()
+                    .and_then(|value| {
+                        from_value::<Vec<MetadataValidationRule>>(value).ok()
+                    })
+                    .unwrap_or_default();
+
+                Settings { metadata_validation, rule_name_validation }
             })
             .unwrap_or_default()
     }
@@ -592,19 +594,12 @@ impl YARALanguageServer {
             let uri = uri.clone();
 
             tokio::spawn(async move {
-                let meta_validation_rules = Self::get_meta_validation_rules(
-                    client.clone(),
-                    uri.clone(),
-                )
-                .await;
+                let settings =
+                    Self::get_settings(client.clone(), uri.clone()).await;
 
                 client.publish_diagnostics(PublishDiagnosticsParams {
                     uri: uri.clone(),
-                    diagnostics: diagnostics(
-                        documents,
-                        uri,
-                        meta_validation_rules,
-                    ),
+                    diagnostics: diagnostics(documents, uri, settings),
                     version: None,
                 })
             });
