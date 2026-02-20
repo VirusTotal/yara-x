@@ -24,12 +24,12 @@ use async_lsp::lsp_types::{
     DocumentSymbolResponse, FullDocumentDiagnosticReport,
     GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams,
     HoverProviderCapability, InitializeParams, InitializeResult, Location,
-    OneOf, PublishDiagnosticsParams, ReferenceParams,
+    MessageType, OneOf, PublishDiagnosticsParams, ReferenceParams,
     RelatedFullDocumentDiagnosticReport, RenameParams, SaveOptions,
     SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability,
     SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
     SemanticTokensRangeResult, SemanticTokensResult,
-    SemanticTokensServerCapabilities, ServerCapabilities,
+    SemanticTokensServerCapabilities, ServerCapabilities, ShowMessageParams,
     TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
     TextDocumentSyncSaveOptions, TextEdit, Url, WorkspaceEdit,
 };
@@ -553,7 +553,7 @@ impl YARALanguageServer {
         mut client: ClientSocket,
         scope_uri: Url,
     ) -> Settings {
-        client
+        let settings = client
             .configuration(ConfigurationParams {
                 items: vec![
                     ConfigurationItem {
@@ -583,7 +583,20 @@ impl YARALanguageServer {
 
                 Settings { metadata_validation, rule_name_validation }
             })
-            .unwrap_or_default()
+            .unwrap_or_default();
+
+        if let Some(re) = &settings.rule_name_validation {
+            if regex::Regex::new(re).is_err() {
+                let _ = client.show_message(ShowMessageParams {
+                    typ: MessageType::ERROR,
+                    message: format!(
+                        "YARA: wrong rule name validation regex: {re}"
+                    ),
+                });
+            }
+        }
+
+        settings
     }
 
     /// Sends diagnostics for specific document if publish model is used.

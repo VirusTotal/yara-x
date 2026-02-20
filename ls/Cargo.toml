@@ -37,6 +37,7 @@ default = ["full-compiler"]
 bitflags = { workspace = true }
 dashmap = { version = "6.1.0" }
 futures = "0.3.31"
+regex = { workspace = true }
 tracing = { version = "0.1.44", optional = true }
 tracing-subscriber = { version = "0.3.22", optional = true }
 itertools = { workspace = true}
