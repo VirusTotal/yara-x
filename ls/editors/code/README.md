@@ -45,17 +45,50 @@ An image is worth a thousand words...
 
 ## Configuration
 
-This extension respects the standard Visual Studio Code settings for formatting and other editor features. There are no YARA-X specific settings at this time.
-
-The extension contributes the following default settings for the `[yara]` language:
+This extension provides configurations through VSCode's configuration settings. All configurations are under `YARA.*`.
 
 ```json
-"[yara]": {
-  "editor.tabSize": 4,
-  "editor.insertSpaces": false,
-  "editor.detectIndentation": false,
-  "editor.formatOnSave": true
-}
+"YARA.ruleNameValidation": "^APT_.+$",
+"YARA.metadataValidation": [
+  {
+    "identifier": "author",
+    "required": true,
+    "type": "string"
+  },
+  {
+    "identifier": "version",
+    "required": true,
+    "type": "integer"
+  }
+]
 ```
 
-You can override these in your user or workspace settings.
+### `YARA.ruleNameValidation`
+
+Type: `string`
+Default: `""` (no validation)
+
+A regular expression that rule names must conform to. If a rule name does not match this pattern, a warning will be 
+generated.
+
+### `YARA.metadataValidation`
+
+Type: `array` of objects
+Default: `[]` (no validation)
+
+An array of objects, where each object defines validation rules for a specific metadata field. Each object can have
+the following properties:
+
+*   `identifier` (string, required): The name of the metadata field to validate (e.g., `author`, `version`).
+*   `required` (boolean, optional): If `true`, the metadata field must be present in the rule. Defaults to `false`.
+*   `type` (string, optional): Specifies the expected type of the metadata value. Valid values are
+    `"string"`, `"integer"`, `"float"`, and `"bool"`. If the value does not match the specified type, a warning will
+    be generated.
+
+For accessing these settings go to the Settings
+
+<p align="center">
+<img src="images/settings.gif" width="95%" alt="Demo">
+<br/>
+<em>(Demo)</em>
+</p>
