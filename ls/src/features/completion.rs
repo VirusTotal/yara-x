@@ -483,9 +483,16 @@ fn module_suggestions(
                     })
                     .collect()
             } else {
+                let insert_text = match &ty {
+                    Type::Array(_) => format!("{name}[${{1}}]${{2}}"),
+                    _ => format!("{name}"),
+                };
+
                 vec![CompletionItem {
                     label: name.to_string(),
                     kind: Some(CompletionItemKind::FIELD),
+                    insert_text: Some(insert_text),
+                    insert_text_format: Some(InsertTextFormat::SNIPPET),
                     label_details: Some(CompletionItemLabelDetails {
                         description: Some(ty_to_string(&ty)),
                         ..Default::default()

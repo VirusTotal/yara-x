@@ -1,5 +1,7 @@
 [
   {
+    "insertText": "is_pe",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "is_pe",
     "labelDetails": {
@@ -7,6 +9,8 @@
     }
   },
   {
+    "insertText": "machine",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "machine",
     "labelDetails": {
@@ -14,6 +18,8 @@
     }
   },
   {
+    "insertText": "subsystem",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "subsystem",
     "labelDetails": {
@@ -21,6 +27,8 @@
     }
   },
   {
+    "insertText": "os_version",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "os_version",
     "labelDetails": {
@@ -28,6 +36,8 @@
     }
   },
   {
+    "insertText": "subsystem_version",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "subsystem_version",
     "labelDetails": {
@@ -35,6 +45,8 @@
     }
   },
   {
+    "insertText": "image_version",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "image_version",
     "labelDetails": {
@@ -42,6 +54,8 @@
     }
   },
   {
+    "insertText": "linker_version",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "linker_version",
     "labelDetails": {
@@ -49,6 +63,8 @@
     }
   },
   {
+    "insertText": "opthdr_magic",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "opthdr_magic",
     "labelDetails": {
@@ -56,6 +72,8 @@
     }
   },
   {
+    "insertText": "characteristics",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "characteristics",
     "labelDetails": {
@@ -63,6 +81,8 @@
     }
   },
   {
+    "insertText": "dll_characteristics",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "dll_characteristics",
     "labelDetails": {
@@ -70,6 +90,8 @@
     }
   },
   {
+    "insertText": "timestamp",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "timestamp",
     "labelDetails": {
@@ -77,6 +99,8 @@
     }
   },
   {
+    "insertText": "image_base",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "image_base",
     "labelDetails": {
@@ -84,6 +108,8 @@
     }
   },
   {
+    "insertText": "checksum",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "checksum",
     "labelDetails": {
@@ -91,6 +117,8 @@
     }
   },
   {
+    "insertText": "base_of_code",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "base_of_code",
     "labelDetails": {
@@ -98,6 +126,8 @@
     }
   },
   {
+    "insertText": "base_of_data",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "base_of_data",
     "labelDetails": {
@@ -105,6 +135,8 @@
     }
   },
   {
+    "insertText": "entry_point",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "entry_point",
     "labelDetails": {
@@ -112,6 +144,8 @@
     }
   },
   {
+    "insertText": "entry_point_raw",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "entry_point_raw",
     "labelDetails": {
@@ -119,6 +153,8 @@
     }
   },
   {
+    "insertText": "dll_name",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "dll_name",
     "labelDetails": {
@@ -126,6 +162,8 @@
     }
   },
   {
+    "insertText": "export_timestamp",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "export_timestamp",
     "labelDetails": {
@@ -133,6 +171,8 @@
     }
   },
   {
+    "insertText": "section_alignment",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "section_alignment",
     "labelDetails": {
@@ -140,6 +180,8 @@
     }
   },
   {
+    "insertText": "file_alignment",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "file_alignment",
     "labelDetails": {
@@ -147,6 +189,8 @@
     }
   },
   {
+    "insertText": "loader_flags",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "loader_flags",
     "labelDetails": {
@@ -154,6 +198,8 @@
     }
   },
   {
+    "insertText": "size_of_optional_header",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "size_of_optional_header",
     "labelDetails": {
@@ -161,6 +207,8 @@
     }
   },
   {
+    "insertText": "size_of_code",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "size_of_code",
     "labelDetails": {
@@ -168,6 +216,8 @@
     }
   },
   {
+    "insertText": "size_of_initialized_data",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "size_of_initialized_data",
     "labelDetails": {
@@ -175,6 +225,8 @@
     }
   },
   {
+    "insertText": "size_of_uninitialized_data",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "size_of_uninitialized_data",
     "labelDetails": {
@@ -182,6 +234,8 @@
     }
   },
   {
+    "insertText": "size_of_image",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "size_of_image",
     "labelDetails": {
@@ -189,6 +243,8 @@
     }
   },
   {
+    "insertText": "size_of_headers",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "size_of_headers",
     "labelDetails": {
@@ -196,6 +252,8 @@
     }
   },
   {
+    "insertText": "size_of_stack_reserve",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "size_of_stack_reserve",
     "labelDetails": {
@@ -203,6 +261,8 @@
     }
   },
   {
+    "insertText": "size_of_stack_commit",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "size_of_stack_commit",
     "labelDetails": {
@@ -210,6 +270,8 @@
     }
   },
   {
+    "insertText": "size_of_heap_reserve",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "size_of_heap_reserve",
     "labelDetails": {
@@ -217,6 +279,8 @@
     }
   },
   {
+    "insertText": "size_of_heap_commit",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "size_of_heap_commit",
     "labelDetails": {
@@ -224,6 +288,8 @@
     }
   },
   {
+    "insertText": "pointer_to_symbol_table",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "pointer_to_symbol_table",
     "labelDetails": {
@@ -231,6 +297,8 @@
     }
   },
   {
+    "insertText": "win32_version_value",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "win32_version_value",
     "labelDetails": {
@@ -238,6 +306,8 @@
     }
   },
   {
+    "insertText": "number_of_symbols",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "number_of_symbols",
     "labelDetails": {
@@ -245,6 +315,8 @@
     }
   },
   {
+    "insertText": "number_of_rva_and_sizes",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "number_of_rva_and_sizes",
     "labelDetails": {
@@ -252,6 +324,8 @@
     }
   },
   {
+    "insertText": "number_of_sections",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "number_of_sections",
     "labelDetails": {
@@ -259,6 +333,8 @@
     }
   },
   {
+    "insertText": "number_of_imported_functions",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "number_of_imported_functions",
     "labelDetails": {
@@ -266,6 +342,8 @@
     }
   },
   {
+    "insertText": "number_of_delayed_imported_functions",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "number_of_delayed_imported_functions",
     "labelDetails": {
@@ -273,6 +351,8 @@
     }
   },
   {
+    "insertText": "number_of_resources",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "number_of_resources",
     "labelDetails": {
@@ -280,6 +360,8 @@
     }
   },
   {
+    "insertText": "number_of_version_infos",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "number_of_version_infos",
     "labelDetails": {
@@ -287,6 +369,8 @@
     }
   },
   {
+    "insertText": "number_of_imports",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "number_of_imports",
     "labelDetails": {
@@ -294,6 +378,8 @@
     }
   },
   {
+    "insertText": "number_of_delayed_imports",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "number_of_delayed_imports",
     "labelDetails": {
@@ -301,6 +387,8 @@
     }
   },
   {
+    "insertText": "number_of_exports",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "number_of_exports",
     "labelDetails": {
@@ -308,6 +396,8 @@
     }
   },
   {
+    "insertText": "number_of_signatures",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "number_of_signatures",
     "labelDetails": {
@@ -315,6 +405,8 @@
     }
   },
   {
+    "insertText": "version_info",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "version_info",
     "labelDetails": {
@@ -322,6 +414,8 @@
     }
   },
   {
+    "insertText": "version_info_list[${1}]${2}",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "version_info_list",
     "labelDetails": {
@@ -329,6 +423,8 @@
     }
   },
   {
+    "insertText": "rich_signature",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "rich_signature",
     "labelDetails": {
@@ -336,6 +432,8 @@
     }
   },
   {
+    "insertText": "pdb_path",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "pdb_path",
     "labelDetails": {
@@ -343,6 +441,8 @@
     }
   },
   {
+    "insertText": "sections[${1}]${2}",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "sections",
     "labelDetails": {
@@ -350,6 +450,8 @@
     }
   },
   {
+    "insertText": "data_directories[${1}]${2}",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "data_directories",
     "labelDetails": {
@@ -357,6 +459,8 @@
     }
   },
   {
+    "insertText": "resource_timestamp",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "resource_timestamp",
     "labelDetails": {
@@ -364,6 +468,8 @@
     }
   },
   {
+    "insertText": "resource_version",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "resource_version",
     "labelDetails": {
@@ -371,6 +477,8 @@
     }
   },
   {
+    "insertText": "resources[${1}]${2}",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "resources",
     "labelDetails": {
@@ -378,6 +486,8 @@
     }
   },
   {
+    "insertText": "import_details[${1}]${2}",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "import_details",
     "labelDetails": {
@@ -385,6 +495,8 @@
     }
   },
   {
+    "insertText": "delayed_import_details[${1}]${2}",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "delayed_import_details",
     "labelDetails": {
@@ -392,6 +504,8 @@
     }
   },
   {
+    "insertText": "export_details[${1}]${2}",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "export_details",
     "labelDetails": {
@@ -399,6 +513,8 @@
     }
   },
   {
+    "insertText": "is_signed",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "is_signed",
     "labelDetails": {
@@ -406,6 +522,8 @@
     }
   },
   {
+    "insertText": "signatures[${1}]${2}",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "signatures",
     "labelDetails": {
@@ -413,6 +531,8 @@
     }
   },
   {
+    "insertText": "overlay",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "overlay",
     "labelDetails": {
@@ -420,6 +540,8 @@
     }
   },
   {
+    "insertText": "MACHINE_UNKNOWN",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_UNKNOWN",
     "labelDetails": {
@@ -427,6 +549,8 @@
     }
   },
   {
+    "insertText": "MACHINE_AM33",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_AM33",
     "labelDetails": {
@@ -434,6 +558,8 @@
     }
   },
   {
+    "insertText": "MACHINE_AMD64",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_AMD64",
     "labelDetails": {
@@ -441,6 +567,8 @@
     }
   },
   {
+    "insertText": "MACHINE_ARM",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_ARM",
     "labelDetails": {
@@ -448,6 +576,8 @@
     }
   },
   {
+    "insertText": "MACHINE_ARMNT",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_ARMNT",
     "labelDetails": {
@@ -455,6 +585,8 @@
     }
   },
   {
+    "insertText": "MACHINE_ARM64",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_ARM64",
     "labelDetails": {
@@ -462,6 +594,8 @@
     }
   },
   {
+    "insertText": "MACHINE_EBC",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_EBC",
     "labelDetails": {
@@ -469,6 +603,8 @@
     }
   },
   {
+    "insertText": "MACHINE_I386",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_I386",
     "labelDetails": {
@@ -476,6 +612,8 @@
     }
   },
   {
+    "insertText": "MACHINE_IA64",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_IA64",
     "labelDetails": {
@@ -483,6 +621,8 @@
     }
   },
   {
+    "insertText": "MACHINE_M32R",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_M32R",
     "labelDetails": {
@@ -490,6 +630,8 @@
     }
   },
   {
+    "insertText": "MACHINE_MIPS16",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_MIPS16",
     "labelDetails": {
@@ -497,6 +639,8 @@
     }
   },
   {
+    "insertText": "MACHINE_MIPSFPU",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_MIPSFPU",
     "labelDetails": {
@@ -504,6 +648,8 @@
     }
   },
   {
+    "insertText": "MACHINE_MIPSFPU16",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_MIPSFPU16",
     "labelDetails": {
@@ -511,6 +657,8 @@
     }
   },
   {
+    "insertText": "MACHINE_POWERPC",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_POWERPC",
     "labelDetails": {
@@ -518,6 +666,8 @@
     }
   },
   {
+    "insertText": "MACHINE_POWERPCFP",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_POWERPCFP",
     "labelDetails": {
@@ -525,6 +675,8 @@
     }
   },
   {
+    "insertText": "MACHINE_R4000",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_R4000",
     "labelDetails": {
@@ -532,6 +684,8 @@
     }
   },
   {
+    "insertText": "MACHINE_SH3",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_SH3",
     "labelDetails": {
@@ -539,6 +693,8 @@
     }
   },
   {
+    "insertText": "MACHINE_SH3DSP",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_SH3DSP",
     "labelDetails": {
@@ -546,6 +702,8 @@
     }
   },
   {
+    "insertText": "MACHINE_SH4",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_SH4",
     "labelDetails": {
@@ -553,6 +711,8 @@
     }
   },
   {
+    "insertText": "MACHINE_SH5",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_SH5",
     "labelDetails": {
@@ -560,6 +720,8 @@
     }
   },
   {
+    "insertText": "MACHINE_THUMB",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_THUMB",
     "labelDetails": {
@@ -567,6 +729,8 @@
     }
   },
   {
+    "insertText": "MACHINE_WCEMIPSV2",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_WCEMIPSV2",
     "labelDetails": {
@@ -574,6 +738,8 @@
     }
   },
   {
+    "insertText": "SUBSYSTEM_UNKNOWN",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SUBSYSTEM_UNKNOWN",
     "labelDetails": {
@@ -581,6 +747,8 @@
     }
   },
   {
+    "insertText": "SUBSYSTEM_NATIVE",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SUBSYSTEM_NATIVE",
     "labelDetails": {
@@ -588,6 +756,8 @@
     }
   },
   {
+    "insertText": "SUBSYSTEM_WINDOWS_GUI",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SUBSYSTEM_WINDOWS_GUI",
     "labelDetails": {
@@ -595,6 +765,8 @@
     }
   },
   {
+    "insertText": "SUBSYSTEM_WINDOWS_CUI",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SUBSYSTEM_WINDOWS_CUI",
     "labelDetails": {
@@ -602,6 +774,8 @@
     }
   },
   {
+    "insertText": "SUBSYSTEM_OS2_CUI",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SUBSYSTEM_OS2_CUI",
     "labelDetails": {
@@ -609,6 +783,8 @@
     }
   },
   {
+    "insertText": "SUBSYSTEM_POSIX_CUI",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SUBSYSTEM_POSIX_CUI",
     "labelDetails": {
@@ -616,6 +792,8 @@
     }
   },
   {
+    "insertText": "SUBSYSTEM_NATIVE_WINDOWS",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SUBSYSTEM_NATIVE_WINDOWS",
     "labelDetails": {
@@ -623,6 +801,8 @@
     }
   },
   {
+    "insertText": "SUBSYSTEM_WINDOWS_CE_GUI",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SUBSYSTEM_WINDOWS_CE_GUI",
     "labelDetails": {
@@ -630,6 +810,8 @@
     }
   },
   {
+    "insertText": "SUBSYSTEM_EFI_APPLICATION",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SUBSYSTEM_EFI_APPLICATION",
     "labelDetails": {
@@ -637,6 +819,8 @@
     }
   },
   {
+    "insertText": "SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER",
     "labelDetails": {
@@ -644,6 +828,8 @@
     }
   },
   {
+    "insertText": "SUBSYSTEM_EFI_RUNTIME_DRIVER",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SUBSYSTEM_EFI_RUNTIME_DRIVER",
     "labelDetails": {
@@ -651,6 +837,8 @@
     }
   },
   {
+    "insertText": "SUBSYSTEM_EFI_ROM_IMAGE",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SUBSYSTEM_EFI_ROM_IMAGE",
     "labelDetails": {
@@ -658,6 +846,8 @@
     }
   },
   {
+    "insertText": "SUBSYSTEM_XBOX",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SUBSYSTEM_XBOX",
     "labelDetails": {
@@ -665,6 +855,8 @@
     }
   },
   {
+    "insertText": "SUBSYSTEM_WINDOWS_BOOT_APPLICATION",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SUBSYSTEM_WINDOWS_BOOT_APPLICATION",
     "labelDetails": {
@@ -672,6 +864,8 @@
     }
   },
   {
+    "insertText": "IMAGE_NT_OPTIONAL_HDR32_MAGIC",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_NT_OPTIONAL_HDR32_MAGIC",
     "labelDetails": {
@@ -679,6 +873,8 @@
     }
   },
   {
+    "insertText": "IMAGE_NT_OPTIONAL_HDR64_MAGIC",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_NT_OPTIONAL_HDR64_MAGIC",
     "labelDetails": {
@@ -686,6 +882,8 @@
     }
   },
   {
+    "insertText": "IMAGE_ROM_OPTIONAL_HDR_MAGIC",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_ROM_OPTIONAL_HDR_MAGIC",
     "labelDetails": {
@@ -693,6 +891,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_CURSOR",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_CURSOR",
     "labelDetails": {
@@ -700,6 +900,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_BITMAP",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_BITMAP",
     "labelDetails": {
@@ -707,6 +909,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_ICON",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_ICON",
     "labelDetails": {
@@ -714,6 +918,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_MENU",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_MENU",
     "labelDetails": {
@@ -721,6 +927,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_DIALOG",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_DIALOG",
     "labelDetails": {
@@ -728,6 +936,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_STRING",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_STRING",
     "labelDetails": {
@@ -735,6 +945,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_FONTDIR",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_FONTDIR",
     "labelDetails": {
@@ -742,6 +954,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_FONT",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_FONT",
     "labelDetails": {
@@ -749,6 +963,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_ACCELERATOR",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_ACCELERATOR",
     "labelDetails": {
@@ -756,6 +972,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_RCDATA",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_RCDATA",
     "labelDetails": {
@@ -763,6 +981,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_MESSAGETABLE",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_MESSAGETABLE",
     "labelDetails": {
@@ -770,6 +990,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_GROUP_CURSOR",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_GROUP_CURSOR",
     "labelDetails": {
@@ -777,6 +999,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_GROUP_ICON",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_GROUP_ICON",
     "labelDetails": {
@@ -784,6 +1008,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_VERSION",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_VERSION",
     "labelDetails": {
@@ -791,6 +1017,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_DLGINCLUDE",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_DLGINCLUDE",
     "labelDetails": {
@@ -798,6 +1026,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_PLUGPLAY",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_PLUGPLAY",
     "labelDetails": {
@@ -805,6 +1035,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_VXD",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_VXD",
     "labelDetails": {
@@ -812,6 +1044,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_ANICURSOR",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_ANICURSOR",
     "labelDetails": {
@@ -819,6 +1053,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_ANIICON",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_ANIICON",
     "labelDetails": {
@@ -826,6 +1062,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_HTML",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_HTML",
     "labelDetails": {
@@ -833,6 +1071,8 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_MANIFEST",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RESOURCE_TYPE_MANIFEST",
     "labelDetails": {
@@ -840,6 +1080,8 @@
     }
   },
   {
+    "insertText": "IMPORT_STANDARD",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMPORT_STANDARD",
     "labelDetails": {
@@ -847,6 +1089,8 @@
     }
   },
   {
+    "insertText": "IMPORT_DELAYED",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMPORT_DELAYED",
     "labelDetails": {
@@ -854,6 +1098,8 @@
     }
   },
   {
+    "insertText": "IMPORT_ANY",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMPORT_ANY",
     "labelDetails": {
@@ -861,6 +1107,8 @@
     }
   },
   {
+    "insertText": "RELOCS_STRIPPED",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "RELOCS_STRIPPED",
     "labelDetails": {
@@ -868,6 +1116,8 @@
     }
   },
   {
+    "insertText": "EXECUTABLE_IMAGE",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "EXECUTABLE_IMAGE",
     "labelDetails": {
@@ -875,6 +1125,8 @@
     }
   },
   {
+    "insertText": "LINE_NUMS_STRIPPED",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "LINE_NUMS_STRIPPED",
     "labelDetails": {
@@ -882,6 +1134,8 @@
     }
   },
   {
+    "insertText": "LOCAL_SYMS_STRIPPED",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "LOCAL_SYMS_STRIPPED",
     "labelDetails": {
@@ -889,6 +1143,8 @@
     }
   },
   {
+    "insertText": "AGGRESIVE_WS_TRIM",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "AGGRESIVE_WS_TRIM",
     "labelDetails": {
@@ -896,6 +1152,8 @@
     }
   },
   {
+    "insertText": "LARGE_ADDRESS_AWARE",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "LARGE_ADDRESS_AWARE",
     "labelDetails": {
@@ -903,6 +1161,8 @@
     }
   },
   {
+    "insertText": "BYTES_REVERSED_LO",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "BYTES_REVERSED_LO",
     "labelDetails": {
@@ -910,6 +1170,8 @@
     }
   },
   {
+    "insertText": "MACHINE_32BIT",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_32BIT",
     "labelDetails": {
@@ -917,6 +1179,8 @@
     }
   },
   {
+    "insertText": "DEBUG_STRIPPED",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "DEBUG_STRIPPED",
     "labelDetails": {
@@ -924,6 +1188,8 @@
     }
   },
   {
+    "insertText": "REMOVABLE_RUN_FROM_SWAP",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "REMOVABLE_RUN_FROM_SWAP",
     "labelDetails": {
@@ -931,6 +1197,8 @@
     }
   },
   {
+    "insertText": "NET_RUN_FROM_SWAP",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "NET_RUN_FROM_SWAP",
     "labelDetails": {
@@ -938,6 +1206,8 @@
     }
   },
   {
+    "insertText": "SYSTEM",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SYSTEM",
     "labelDetails": {
@@ -945,6 +1215,8 @@
     }
   },
   {
+    "insertText": "DLL",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "DLL",
     "labelDetails": {
@@ -952,6 +1224,8 @@
     }
   },
   {
+    "insertText": "UP_SYSTEM_ONLY",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "UP_SYSTEM_ONLY",
     "labelDetails": {
@@ -959,6 +1233,8 @@
     }
   },
   {
+    "insertText": "BYTES_REVERSED_HI",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "BYTES_REVERSED_HI",
     "labelDetails": {
@@ -966,6 +1242,8 @@
     }
   },
   {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_EXPORT",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_DIRECTORY_ENTRY_EXPORT",
     "labelDetails": {
@@ -973,6 +1251,8 @@
     }
   },
   {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_IMPORT",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_DIRECTORY_ENTRY_IMPORT",
     "labelDetails": {
@@ -980,6 +1260,8 @@
     }
   },
   {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_RESOURCE",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_DIRECTORY_ENTRY_RESOURCE",
     "labelDetails": {
@@ -987,6 +1269,8 @@
     }
   },
   {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_EXCEPTION",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_DIRECTORY_ENTRY_EXCEPTION",
     "labelDetails": {
@@ -994,6 +1278,8 @@
     }
   },
   {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_SECURITY",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_DIRECTORY_ENTRY_SECURITY",
     "labelDetails": {
@@ -1001,6 +1287,8 @@
     }
   },
   {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_BASERELOC",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_DIRECTORY_ENTRY_BASERELOC",
     "labelDetails": {
@@ -1008,6 +1296,8 @@
     }
   },
   {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_DEBUG",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_DIRECTORY_ENTRY_DEBUG",
     "labelDetails": {
@@ -1015,6 +1305,8 @@
     }
   },
   {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_COPYRIGHT",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_DIRECTORY_ENTRY_COPYRIGHT",
     "labelDetails": {
@@ -1022,6 +1314,8 @@
     }
   },
   {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_ARCHITECTURE",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_DIRECTORY_ENTRY_ARCHITECTURE",
     "labelDetails": {
@@ -1029,6 +1323,8 @@
     }
   },
   {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_GLOBALPTR",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_DIRECTORY_ENTRY_GLOBALPTR",
     "labelDetails": {
@@ -1036,6 +1332,8 @@
     }
   },
   {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_TLS",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_DIRECTORY_ENTRY_TLS",
     "labelDetails": {
@@ -1043,6 +1341,8 @@
     }
   },
   {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG",
     "labelDetails": {
@@ -1050,6 +1350,8 @@
     }
   },
   {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT",
     "labelDetails": {
@@ -1057,6 +1359,8 @@
     }
   },
   {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_IAT",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_DIRECTORY_ENTRY_IAT",
     "labelDetails": {
@@ -1064,6 +1368,8 @@
     }
   },
   {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT",
     "labelDetails": {
@@ -1071,6 +1377,8 @@
     }
   },
   {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR",
     "labelDetails": {
@@ -1078,6 +1386,8 @@
     }
   },
   {
+    "insertText": "SECTION_NO_PAD",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_NO_PAD",
     "labelDetails": {
@@ -1085,6 +1395,8 @@
     }
   },
   {
+    "insertText": "SECTION_CNT_CODE",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_CNT_CODE",
     "labelDetails": {
@@ -1092,6 +1404,8 @@
     }
   },
   {
+    "insertText": "SECTION_CNT_INITIALIZED_DATA",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_CNT_INITIALIZED_DATA",
     "labelDetails": {
@@ -1099,6 +1413,8 @@
     }
   },
   {
+    "insertText": "SECTION_CNT_UNINITIALIZED_DATA",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_CNT_UNINITIALIZED_DATA",
     "labelDetails": {
@@ -1106,6 +1422,8 @@
     }
   },
   {
+    "insertText": "SECTION_LNK_OTHER",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_LNK_OTHER",
     "labelDetails": {
@@ -1113,6 +1431,8 @@
     }
   },
   {
+    "insertText": "SECTION_LNK_INFO",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_LNK_INFO",
     "labelDetails": {
@@ -1120,6 +1440,8 @@
     }
   },
   {
+    "insertText": "SECTION_LNK_REMOVE",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_LNK_REMOVE",
     "labelDetails": {
@@ -1127,6 +1449,8 @@
     }
   },
   {
+    "insertText": "SECTION_LNK_COMDAT",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_LNK_COMDAT",
     "labelDetails": {
@@ -1134,6 +1458,8 @@
     }
   },
   {
+    "insertText": "SECTION_NO_DEFER_SPEC_EXC",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_NO_DEFER_SPEC_EXC",
     "labelDetails": {
@@ -1141,6 +1467,8 @@
     }
   },
   {
+    "insertText": "SECTION_GPREL",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_GPREL",
     "labelDetails": {
@@ -1148,6 +1476,8 @@
     }
   },
   {
+    "insertText": "SECTION_ALIGN_1BYTES",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_ALIGN_1BYTES",
     "labelDetails": {
@@ -1155,6 +1485,8 @@
     }
   },
   {
+    "insertText": "SECTION_ALIGN_2BYTES",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_ALIGN_2BYTES",
     "labelDetails": {
@@ -1162,6 +1494,8 @@
     }
   },
   {
+    "insertText": "SECTION_ALIGN_4BYTES",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_ALIGN_4BYTES",
     "labelDetails": {
@@ -1169,6 +1503,8 @@
     }
   },
   {
+    "insertText": "SECTION_ALIGN_8BYTES",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_ALIGN_8BYTES",
     "labelDetails": {
@@ -1176,6 +1512,8 @@
     }
   },
   {
+    "insertText": "SECTION_ALIGN_16BYTES",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_ALIGN_16BYTES",
     "labelDetails": {
@@ -1183,6 +1521,8 @@
     }
   },
   {
+    "insertText": "SECTION_ALIGN_32BYTES",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_ALIGN_32BYTES",
     "labelDetails": {
@@ -1190,6 +1530,8 @@
     }
   },
   {
+    "insertText": "SECTION_ALIGN_64BYTES",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_ALIGN_64BYTES",
     "labelDetails": {
@@ -1197,6 +1539,8 @@
     }
   },
   {
+    "insertText": "SECTION_ALIGN_128BYTES",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_ALIGN_128BYTES",
     "labelDetails": {
@@ -1204,6 +1548,8 @@
     }
   },
   {
+    "insertText": "SECTION_ALIGN_256BYTES",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_ALIGN_256BYTES",
     "labelDetails": {
@@ -1211,6 +1557,8 @@
     }
   },
   {
+    "insertText": "SECTION_ALIGN_512BYTES",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_ALIGN_512BYTES",
     "labelDetails": {
@@ -1218,6 +1566,8 @@
     }
   },
   {
+    "insertText": "SECTION_ALIGN_1024BYTES",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_ALIGN_1024BYTES",
     "labelDetails": {
@@ -1225,6 +1575,8 @@
     }
   },
   {
+    "insertText": "SECTION_ALIGN_2048BYTES",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_ALIGN_2048BYTES",
     "labelDetails": {
@@ -1232,6 +1584,8 @@
     }
   },
   {
+    "insertText": "SECTION_ALIGN_4096BYTES",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_ALIGN_4096BYTES",
     "labelDetails": {
@@ -1239,6 +1593,8 @@
     }
   },
   {
+    "insertText": "SECTION_ALIGN_8192BYTES",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_ALIGN_8192BYTES",
     "labelDetails": {
@@ -1246,6 +1602,8 @@
     }
   },
   {
+    "insertText": "SECTION_ALIGN_MASK",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_ALIGN_MASK",
     "labelDetails": {
@@ -1253,6 +1611,8 @@
     }
   },
   {
+    "insertText": "SECTION_LNK_NRELOC_OVFL",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_LNK_NRELOC_OVFL",
     "labelDetails": {
@@ -1260,6 +1620,8 @@
     }
   },
   {
+    "insertText": "SECTION_MEM_DISCARDABLE",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_MEM_DISCARDABLE",
     "labelDetails": {
@@ -1267,6 +1629,8 @@
     }
   },
   {
+    "insertText": "SECTION_MEM_NOT_CACHED",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_MEM_NOT_CACHED",
     "labelDetails": {
@@ -1274,6 +1638,8 @@
     }
   },
   {
+    "insertText": "SECTION_MEM_NOT_PAGED",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_MEM_NOT_PAGED",
     "labelDetails": {
@@ -1281,6 +1647,8 @@
     }
   },
   {
+    "insertText": "SECTION_MEM_SHARED",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_MEM_SHARED",
     "labelDetails": {
@@ -1288,6 +1656,8 @@
     }
   },
   {
+    "insertText": "SECTION_MEM_EXECUTE",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_MEM_EXECUTE",
     "labelDetails": {
@@ -1295,6 +1665,8 @@
     }
   },
   {
+    "insertText": "SECTION_MEM_READ",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_MEM_READ",
     "labelDetails": {
@@ -1302,6 +1674,8 @@
     }
   },
   {
+    "insertText": "SECTION_MEM_WRITE",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_MEM_WRITE",
     "labelDetails": {
@@ -1309,6 +1683,8 @@
     }
   },
   {
+    "insertText": "SECTION_SCALE_INDEX",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "SECTION_SCALE_INDEX",
     "labelDetails": {
@@ -1316,6 +1692,8 @@
     }
   },
   {
+    "insertText": "HIGH_ENTROPY_VA",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "HIGH_ENTROPY_VA",
     "labelDetails": {
@@ -1323,6 +1701,8 @@
     }
   },
   {
+    "insertText": "DYNAMIC_BASE",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "DYNAMIC_BASE",
     "labelDetails": {
@@ -1330,6 +1710,8 @@
     }
   },
   {
+    "insertText": "FORCE_INTEGRITY",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "FORCE_INTEGRITY",
     "labelDetails": {
@@ -1337,6 +1719,8 @@
     }
   },
   {
+    "insertText": "NX_COMPAT",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "NX_COMPAT",
     "labelDetails": {
@@ -1344,6 +1728,8 @@
     }
   },
   {
+    "insertText": "NO_ISOLATION",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "NO_ISOLATION",
     "labelDetails": {
@@ -1351,6 +1737,8 @@
     }
   },
   {
+    "insertText": "NO_SEH",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "NO_SEH",
     "labelDetails": {
@@ -1358,6 +1746,8 @@
     }
   },
   {
+    "insertText": "NO_BIND",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "NO_BIND",
     "labelDetails": {
@@ -1365,6 +1755,8 @@
     }
   },
   {
+    "insertText": "APPCONTAINER",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "APPCONTAINER",
     "labelDetails": {
@@ -1372,6 +1764,8 @@
     }
   },
   {
+    "insertText": "WDM_DRIVER",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "WDM_DRIVER",
     "labelDetails": {
@@ -1379,6 +1773,8 @@
     }
   },
   {
+    "insertText": "GUARD_CF",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "GUARD_CF",
     "labelDetails": {
@@ -1386,6 +1782,8 @@
     }
   },
   {
+    "insertText": "TERMINAL_SERVER_AWARE",
+    "insertTextFormat": 2,
     "kind": 5,
     "label": "TERMINAL_SERVER_AWARE",
     "labelDetails": {
