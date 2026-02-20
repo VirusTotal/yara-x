@@ -1,4 +1,4 @@
-# YARA-X for Visual Studio Code
+# YARA for Visual Studio Code
 
 This extension brings support for the [YARA](https://virustotal.github.io/yara-x/)
 language to Visual Studio Code, powered by the official YARA-X Language Server. It

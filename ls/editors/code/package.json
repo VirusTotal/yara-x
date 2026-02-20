@@ -1,7 +1,7 @@
 {
   "name": "yara-x-ls",
   "displayName": "YARA Language",
-  "description": "Rich support for the YARA language. Provides syntax highlighting, autocompletion and more.",
+  "description": "The official YARA language extension. Provides syntax highlighting, autocompletion and more.",
   "version": "0.0.0",
   "publisher": "VirusTotal",
   "icon": "images/icon.png",
