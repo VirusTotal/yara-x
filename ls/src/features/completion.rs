@@ -485,7 +485,7 @@ fn module_suggestions(
             } else {
                 let insert_text = match &ty {
                     Type::Array(_) => format!("{name}[${{1}}]${{2}}"),
-                    _ => format!("{name}"),
+                    _ => name.to_string(),
                 };
 
                 vec![CompletionItem {
