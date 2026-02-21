@@ -39,6 +39,9 @@ export async function activate(context: ExtensionContext) {
     documentSelector: [{ scheme: "file", language: "yara" }],
     outputChannel: outputChannel,
     traceOutputChannel: outputChannel,
+    synchronize: {
+      configurationSection: 'YARA'
+    }
   };
 
   client = new LanguageClient(

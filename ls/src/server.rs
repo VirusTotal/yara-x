@@ -12,11 +12,12 @@ use std::sync::Arc;
 use async_lsp::lsp_types::request::{
     Request, SemanticTokensFullRequest, SemanticTokensRangeRequest,
 };
+
 use async_lsp::lsp_types::{
     CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
     CompletionOptions, CompletionParams, CompletionResponse,
-    ConfigurationItem, ConfigurationParams, DiagnosticOptions,
-    DiagnosticServerCapabilities, DidChangeTextDocumentParams,
+    DiagnosticOptions, DiagnosticServerCapabilities,
+    DidChangeConfigurationParams, DidChangeTextDocumentParams,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams,
     DidSaveTextDocumentParams, DocumentDiagnosticParams,
     DocumentDiagnosticReportResult, DocumentFormattingParams,
@@ -38,16 +39,14 @@ use async_lsp::{ClientSocket, LanguageClient, LanguageServer, ResponseError};
 use futures::future::BoxFuture;
 use serde_json::from_value;
 
+use crate::configuration::Config;
 use crate::documents::storage::DocumentStorage;
 use crate::features::code_action::code_actions;
 use crate::features::completion::completion;
-use crate::features::diagnostics::{
-    diagnostics, MetadataValidationRule, Settings,
-};
+use crate::features::diagnostics::diagnostics;
 use crate::features::document_highlight::document_highlight;
 use crate::features::document_symbol::document_symbol;
 use crate::features::formatting::formatting;
-use crate::features::formatting::FormattingOptions;
 use crate::features::goto::go_to_definition;
 use crate::features::hover::hover;
 use crate::features::references::find_references;
@@ -79,6 +78,9 @@ pub struct YARALanguageServer {
     /// `textDocument.diagnostic` capability property. If the client supports
     /// pull model, server will disable publishing diagnostics.
     should_send_diagnostics: bool,
+
+    /// Client-side configuration settings of the language server.
+    config: Arc<Config>,
 }
 
 /// Implements document synchronization and various LSP features.
@@ -411,18 +413,21 @@ impl LanguageServer for YARALanguageServer {
     {
         let uri = params.text_document.uri;
         let documents = Arc::clone(&self.documents);
-        let client = self.client.clone();
+        let config = Arc::clone(&self.config);
 
         Box::pin(async move {
-            let settings = Self::get_settings(client, uri.clone()).await;
-
             Ok(DocumentDiagnosticReportResult::Report(
                 async_lsp::lsp_types::DocumentDiagnosticReport::Full(
                     RelatedFullDocumentDiagnosticReport {
                         full_document_diagnostic_report:
                             FullDocumentDiagnosticReport {
                                 result_id: None,
-                                items: diagnostics(documents, uri, settings),
+                                items: diagnostics(
+                                    documents,
+                                    uri,
+                                    &config.metadata_validation,
+                                    &config.rule_name_validation,
+                                ),
                             },
                         related_documents: None,
                     },
@@ -438,27 +443,10 @@ impl LanguageServer for YARALanguageServer {
         params: DocumentFormattingParams,
     ) -> BoxFuture<'static, Result<Option<Vec<TextEdit>>, Self::Error>> {
         let documents = Arc::clone(&self.documents);
-        let mut client = self.client.clone();
+        let config = Arc::clone(&self.config);
 
         Box::pin(async move {
-            let config = client
-                .configuration(ConfigurationParams {
-                    items: vec![ConfigurationItem {
-                        scope_uri: Some(params.text_document.uri.clone()),
-                        section: Some("YARA.codeFormatting".to_string()),
-                    }],
-                })
-                .await;
-
-            let options = config
-                .ok()
-                .and_then(|mut config| config.pop())
-                .and_then(|v| {
-                    serde_json::from_value::<FormattingOptions>(v).ok()
-                })
-                .unwrap_or_default();
-
-            Ok(formatting(documents, params, options))
+            Ok(formatting(documents, params, &config.code_formatting))
         })
     }
 
@@ -521,6 +509,41 @@ impl LanguageServer for YARALanguageServer {
         ControlFlow::Continue(())
     }
 
+    /// This method is called right after LSP communication is initialized
+    /// and when the user changes the configuration settings.
+    fn did_change_configuration(
+        &mut self,
+        mut params: DidChangeConfigurationParams,
+    ) -> Self::NotifyResult {
+        if let Some(value) =
+            params.settings.as_object_mut().and_then(|obj| obj.remove("YARA"))
+        {
+            match from_value::<Config>(value) {
+                Ok(config) => {
+                    if let Some(re) = &config.rule_name_validation {
+                        if regex::Regex::new(re).is_err() {
+                            let _ =
+                                self.client.show_message(ShowMessageParams {
+                                    typ: MessageType::ERROR,
+                                    message: format!(
+                                        "YARA: wrong rule name validation regex: {re}"
+                                    ),
+                                });
+                        }
+                    }
+                    self.config = Arc::new(config);
+                }
+                Err(err) => {
+                    let _ = self.client.show_message(ShowMessageParams {
+                        typ: MessageType::ERROR,
+                        message: format!("YARA: failed to parse configuration\n```\n{err:?}\n```"),
+                    });
+                }
+            }
+        }
+        ControlFlow::Continue(())
+    }
+
     /// This method is called when the server is requested to shut down.
     ///
     /// It should not exit the process, but instead, it should prepare for
@@ -546,73 +569,27 @@ impl YARALanguageServer {
             client,
             documents: Arc::new(DocumentStorage::new()),
             should_send_diagnostics: true,
+            config: Arc::new(Config::default()),
         })
-    }
-
-    async fn get_settings(
-        mut client: ClientSocket,
-        scope_uri: Url,
-    ) -> Settings {
-        let settings = client
-            .configuration(ConfigurationParams {
-                items: vec![
-                    ConfigurationItem {
-                        scope_uri: Some(scope_uri.clone()),
-                        section: Some("YARA.metadataValidation".to_string()),
-                    },
-                    ConfigurationItem {
-                        scope_uri: Some(scope_uri),
-                        section: Some("YARA.ruleNameValidation".to_string()),
-                    },
-                ],
-            })
-            .await
-            .ok()
-            .map(|mut v| {
-                let rule_name_validation = v
-                    .pop()
-                    .and_then(|value| from_value::<Option<String>>(value).ok())
-                    .unwrap_or_default();
-
-                let metadata_validation = v
-                    .pop()
-                    .and_then(|value| {
-                        from_value::<Vec<MetadataValidationRule>>(value).ok()
-                    })
-                    .unwrap_or_default();
-
-                Settings { metadata_validation, rule_name_validation }
-            })
-            .unwrap_or_default();
-
-        if let Some(re) = &settings.rule_name_validation {
-            if regex::Regex::new(re).is_err() {
-                let _ = client.show_message(ShowMessageParams {
-                    typ: MessageType::ERROR,
-                    message: format!(
-                        "YARA: wrong rule name validation regex: {re}"
-                    ),
-                });
-            }
-        }
-
-        settings
     }
 
     /// Sends diagnostics for specific document if publish model is used.
     fn publish_diagnostics(&mut self, uri: &Url) {
         if self.should_send_diagnostics {
             let documents = Arc::clone(&self.documents);
+            let config = Arc::clone(&self.config);
             let mut client = self.client.clone();
             let uri = uri.clone();
 
             tokio::spawn(async move {
-                let settings =
-                    Self::get_settings(client.clone(), uri.clone()).await;
-
                 client.publish_diagnostics(PublishDiagnosticsParams {
                     uri: uri.clone(),
-                    diagnostics: diagnostics(documents, uri, settings),
+                    diagnostics: diagnostics(
+                        documents,
+                        uri,
+                        &config.metadata_validation,
+                        &config.rule_name_validation,
+                    ),
                     version: None,
                 })
             });
