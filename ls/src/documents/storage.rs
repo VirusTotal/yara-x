@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
 use std::fs;
 
-use async_lsp::lsp_types::Url;
+use async_lsp::lsp_types::{FileChangeType, FileEvent, Url};
 use dashmap::{mapref::one::Ref, DashMap};
 use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Token, CST};
 
@@ -23,6 +23,7 @@ pub struct OccurrencesResult {
 #[derive(Default)]
 pub struct DocumentStorage {
     opened: DashMap<Url, Document>,
+    cached: DashMap<Url, CST>,
     workspace: Option<Url>,
 }
 
@@ -64,6 +65,8 @@ impl DocumentStorage {
     fn get_document_cst_root(&self, uri: &Url) -> Option<Node<Immutable>> {
         if let Some(doc) = self.get(uri) {
             Some(doc.cst.root())
+        } else if let Some(cst) = self.cached.get(uri) {
+            Some(cst.root())
         } else {
             uri.to_file_path().ok().and_then(|path| {
                 fs::read_to_string(path)
@@ -321,4 +324,65 @@ impl DocumentStorage {
 
         rules
     }
+
+    #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+    pub fn cache_workspace(&self) {
+        if let Some(workspace_files) = self
+            .walk_workspace()
+            .map(|workspace| workspace.collect::<Vec<Url>>())
+        {
+            for entry in workspace_files {
+                if self.opened.contains_key(&entry) {
+                    continue;
+                }
+
+                if let Some(cst) = entry
+                    .to_file_path()
+                    .ok()
+                    .and_then(|path| fs::read_to_string(path).ok())
+                    .map(|content| CST::from(content.as_str()))
+                {
+                    self.cached.insert(entry, cst);
+                }
+            }
+        }
+    }
+
+    #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
+    pub fn cache_workspace(&self) {}
+
+    pub fn clear_cache(&self) {
+        self.cached.clear();
+    }
+
+    #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+    pub fn react_watched_files_changes(&self, changes: Vec<FileEvent>) {
+        for change in changes {
+            // Opened files are synchronized in `textDocument/did*` methods.
+            if self.opened.contains_key(&change.uri) {
+                continue;
+            }
+
+            match change.typ {
+                FileChangeType::CHANGED | FileChangeType::CREATED => {
+                    if let Some(cst) =
+                        change.uri.to_file_path().ok().and_then(|path| {
+                            fs::read_to_string(path)
+                                .ok()
+                                .map(|content| CST::from(content.as_str()))
+                        })
+                    {
+                        self.cached.insert(change.uri, cst);
+                    }
+                }
+                FileChangeType::DELETED => {
+                    self.cached.remove(&change.uri);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
+    pub fn react_watched_files_changes(&self, changes: Vec<FileEvent>) {}
 }

@@ -8,6 +8,7 @@ pub struct Config {
     pub code_formatting: FormattingConfiguration,
     pub metadata_validation: Vec<MetadataValidationRule>,
     pub rule_name_validation: Option<String>,
+    pub cache_workspace: bool,
 }
 
 /// This structure represents settings for the YARA-X formatter.

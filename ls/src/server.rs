@@ -18,26 +18,30 @@ use async_lsp::lsp_types::{
     CompletionOptions, CompletionParams, CompletionResponse,
     DiagnosticOptions, DiagnosticServerCapabilities,
     DidChangeConfigurationParams, DidChangeTextDocumentParams,
+    DidChangeWatchedFilesParams, DidChangeWatchedFilesRegistrationOptions,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams,
     DidSaveTextDocumentParams, DocumentDiagnosticParams,
     DocumentDiagnosticReportResult, DocumentFormattingParams,
     DocumentHighlight, DocumentHighlightParams, DocumentSymbolParams,
-    DocumentSymbolResponse, FullDocumentDiagnosticReport,
-    GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams,
-    HoverProviderCapability, InitializeParams, InitializeResult, Location,
-    MessageType, OneOf, PublishDiagnosticsParams, ReferenceParams,
-    RelatedFullDocumentDiagnosticReport, RenameParams, SaveOptions,
-    SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability,
-    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
-    SemanticTokensRangeResult, SemanticTokensResult,
-    SemanticTokensServerCapabilities, ServerCapabilities, ShowMessageParams,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-    TextDocumentSyncSaveOptions, TextEdit, Url, WorkspaceEdit,
+    DocumentSymbolResponse, FileSystemWatcher, FullDocumentDiagnosticReport,
+    GlobPattern, GotoDefinitionParams, GotoDefinitionResponse, Hover,
+    HoverParams, HoverProviderCapability, InitializeParams, InitializeResult,
+    Location, MessageType, OneOf, PublishDiagnosticsParams, ReferenceParams,
+    Registration, RegistrationParams, RelatedFullDocumentDiagnosticReport,
+    RenameParams, SaveOptions, SelectionRange, SelectionRangeParams,
+    SelectionRangeProviderCapability, SemanticTokensFullOptions,
+    SemanticTokensLegend, SemanticTokensOptions, SemanticTokensRangeResult,
+    SemanticTokensResult, SemanticTokensServerCapabilities,
+    ServerCapabilities, ShowMessageParams, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextDocumentSyncOptions,
+    TextDocumentSyncSaveOptions, TextEdit, Unregistration,
+    UnregistrationParams, Url, WatchKind, WorkspaceEdit,
+    WorkspaceFoldersServerCapabilities, WorkspaceServerCapabilities,
 };
 use async_lsp::router::Router;
 use async_lsp::{ClientSocket, LanguageClient, LanguageServer, ResponseError};
 use futures::future::BoxFuture;
-use serde_json::from_value;
+use serde_json::{from_value, to_value};
 
 use crate::configuration::Config;
 use crate::documents::storage::DocumentStorage;
@@ -178,6 +182,13 @@ impl LanguageServer for YARALanguageServer {
                             DiagnosticOptions::default(),
                         ),
                     ),
+                    workspace: Some(WorkspaceServerCapabilities{
+                        workspace_folders: Some(WorkspaceFoldersServerCapabilities{
+                            supported: Some(true),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    }),
                     ..ServerCapabilities::default()
                 },
                 server_info: None,
@@ -515,6 +526,7 @@ impl LanguageServer for YARALanguageServer {
         &mut self,
         mut params: DidChangeConfigurationParams,
     ) -> Self::NotifyResult {
+        let cache_before = self.config.cache_workspace;
         if let Some(value) =
             params.settings.as_object_mut().and_then(|obj| obj.remove("YARA"))
         {
@@ -531,6 +543,18 @@ impl LanguageServer for YARALanguageServer {
                                 });
                         }
                     }
+                    if config.cache_workspace != cache_before {
+                        match config.cache_workspace {
+                            true => {
+                                self.register_fs_watcher();
+                                self.documents.cache_workspace();
+                            }
+                            false => {
+                                self.unregister_fs_watcher();
+                                self.documents.clear_cache();
+                            }
+                        }
+                    }
                     self.config = Arc::new(config);
                 }
                 Err(err) => {
@@ -541,6 +565,14 @@ impl LanguageServer for YARALanguageServer {
                 }
             }
         }
+        ControlFlow::Continue(())
+    }
+
+    fn did_change_watched_files(
+        &mut self,
+        params: DidChangeWatchedFilesParams,
+    ) -> Self::NotifyResult {
+        self.documents.react_watched_files_changes(params.changes);
         ControlFlow::Continue(())
     }
 
@@ -571,6 +603,49 @@ impl YARALanguageServer {
             should_send_diagnostics: true,
             config: Arc::new(Config::default()),
         })
+    }
+
+    pub fn register_fs_watcher(&mut self) {
+        let mut client = self.client.clone();
+        tokio::spawn(async move {
+            let _ = client
+                .register_capability(RegistrationParams {
+                    registrations: vec![Registration {
+                        id: "yxls/watchedFiles".to_string(),
+                        method: "workspace/didChangeWatchedFiles".to_string(),
+                        register_options: Some(
+                            to_value(
+                                DidChangeWatchedFilesRegistrationOptions {
+                                    watchers: vec![FileSystemWatcher {
+                                        glob_pattern: GlobPattern::String(
+                                            "**/*.{yar,yara}".to_string(),
+                                        ),
+                                        kind: Some(
+                                            WatchKind::from_bits(7).unwrap(),
+                                        ),
+                                    }],
+                                },
+                            )
+                            .unwrap(),
+                        ),
+                    }],
+                })
+                .await;
+        });
+    }
+
+    pub fn unregister_fs_watcher(&mut self) {
+        let mut client = self.client.clone();
+        tokio::spawn(async move {
+            let _ = client
+                .unregister_capability(UnregistrationParams {
+                    unregisterations: vec![Unregistration {
+                        id: "yxls/watchedFiles".to_string(),
+                        method: "workspace/didChangeWatchedFiles".to_string(),
+                    }],
+                })
+                .await;
+        });
     }
 
     /// Sends diagnostics for specific document if publish model is used.

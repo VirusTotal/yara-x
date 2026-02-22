@@ -104,6 +104,11 @@
           "type": "string",
           "default": "",
           "description": "A regular expression that all rule names must match (example: APT_.*)."
+        },
+        "YARA.cacheWorkspace": {
+          "type": "boolean",
+          "default": true,
+          "description": "Specifies if the language server should cache all files from the workspace."
         }
       }
     },
