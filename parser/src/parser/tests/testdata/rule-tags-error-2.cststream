@@ -6,7 +6,6 @@ Token { kind: IDENT, span: Span(5..9) }
 Token { kind: WHITESPACE, span: Span(9..10) }
 Begin { kind: ERROR, span: Span(10..34) }
 Token { kind: EQUAL, span: Span(10..11) }
-Error { message: "expecting `:` or `{`, found `=`", span: Span(10..11) }
 Token { kind: WHITESPACE, span: Span(11..12) }
 Token { kind: L_BRACE, span: Span(12..13) }
 Token { kind: NEWLINE, span: Span(13..14) }
@@ -20,4 +19,5 @@ End { kind: ERROR, span: Span(10..34) }
 Token { kind: NEWLINE, span: Span(34..35) }
 Token { kind: R_BRACE, span: Span(35..36) }
 End { kind: RULE_DECL, span: Span(0..36) }
+Error { message: "expecting `:` or `{`, found `=`", span: Span(10..11) }
 End { kind: SOURCE_FILE, span: Span(0..36) }

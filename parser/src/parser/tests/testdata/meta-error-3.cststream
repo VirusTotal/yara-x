@@ -22,7 +22,6 @@ Token { kind: NEWLINE, span: Span(29..30) }
 Token { kind: WHITESPACE, span: Span(30..32) }
 Begin { kind: CONDITION_BLK, span: Span(32..50) }
 Token { kind: CONDITION_KW, span: Span(32..41) }
-Error { message: "expecting `-`, INTEGER, FLOAT, STRING, `true` or `false`, found `condition`", span: Span(32..41) }
 Token { kind: COLON, span: Span(41..42) }
 Token { kind: NEWLINE, span: Span(42..43) }
 Token { kind: WHITESPACE, span: Span(43..46) }
@@ -35,4 +34,5 @@ End { kind: CONDITION_BLK, span: Span(32..50) }
 Token { kind: NEWLINE, span: Span(50..51) }
 Token { kind: R_BRACE, span: Span(51..52) }
 End { kind: RULE_DECL, span: Span(0..52) }
+Error { message: "expecting `-`, INTEGER, FLOAT, STRING, `true` or `false`, found `condition`", span: Span(32..41) }
 End { kind: SOURCE_FILE, span: Span(0..52) }

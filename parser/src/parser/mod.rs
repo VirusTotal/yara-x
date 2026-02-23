@@ -146,7 +146,7 @@ pub(crate) struct ParserImpl<'src> {
     /// can be represented (conceptually, not actual code) as:
     ///
     /// ```text
-    /// self.start(A)
+    /// self.begin(A)
     ///     .opt(|p| p.expect(a))
     ///     .expect(b)
     ///     .end()
@@ -435,6 +435,7 @@ impl<'src> ParserImpl<'src> {
         }
         if matches!(self.state, State::Failure | State::OutOfFuel) {
             self.output.end_with_error();
+            self.handle_errors();
         } else {
             self.output.end();
         }
@@ -476,8 +477,6 @@ impl<'src> ParserImpl<'src> {
             );
 
             self.handle_errors();
-        } else {
-            self.flush_errors();
         }
 
         // Consume any token that is not in the recovery set.
@@ -560,7 +559,6 @@ impl<'src> ParserImpl<'src> {
             // actually means that the token was *not* expected.
             (not_depth, Some(_)) if not_depth > 0 => {
                 self.unexpected_token_errors.insert(token_span);
-                self.handle_errors()
             }
             // We are not inside a "not", and the expected token was
             // not found.
@@ -579,8 +577,6 @@ impl<'src> ParserImpl<'src> {
                             .map(|token| token.description()),
                     );
                 }
-
-                self.handle_errors();
             }
             _ => {}
         }
@@ -592,13 +588,6 @@ impl<'src> ParserImpl<'src> {
             // Consume the expected token.
             let token = self.tokens.next_token().unwrap();
             self.output.push_token(*t, token.span());
-            // After matching a token that is not inside an "optional" branch
-            // in the grammar, it's guaranteed that the parser won't go back
-            // to a position at the left of the matched token. This is a good
-            // opportunity for flushing errors.
-            if self.opt_depth == 0 {
-                self.flush_errors()
-            }
         } else {
             self.set_state(State::Failure);
         }
@@ -865,8 +854,6 @@ impl<'src> ParserImpl<'src> {
     }
 
     fn flush_errors(&mut self) {
-        self.expected_token_errors.clear();
-        self.unexpected_token_errors.clear();
         for (span, error) in self.pending_errors.drain(0..) {
             self.output.push_error(error, span);
         }
@@ -1833,8 +1820,8 @@ impl<'a, 'src> Alt<'a, 'src> {
         if matches!(self.parser.state, State::Failure | State::OutOfFuel) {
             return self;
         }
-        // Don't try to match the current alternative if the parser a previous
-        // one already matched.
+        // Don't try to match the current alternative if a previous one already
+        // matched.
         if !self.matched {
             self.parser.trivia();
             self.parser.opt_depth += 1;

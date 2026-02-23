@@ -3,7 +3,6 @@ Begin { kind: RULE_DECL, span: Span(0..26) }
 Token { kind: RULE_KW, span: Span(0..4) }
 Begin { kind: ERROR, span: Span(4..24) }
 Token { kind: L_BRACE, span: Span(4..5) }
-Error { message: "expecting identifier, found `{`", span: Span(4..5) }
 Token { kind: NEWLINE, span: Span(5..6) }
 Token { kind: WHITESPACE, span: Span(6..7) }
 Token { kind: CONDITION_KW, span: Span(7..16) }
@@ -15,4 +14,5 @@ End { kind: ERROR, span: Span(4..24) }
 Token { kind: NEWLINE, span: Span(24..25) }
 Token { kind: R_BRACE, span: Span(25..26) }
 End { kind: RULE_DECL, span: Span(0..26) }
+Error { message: "expecting identifier, found `{`", span: Span(4..5) }
 End { kind: SOURCE_FILE, span: Span(0..26) }
