@@ -630,6 +630,7 @@ impl YARALanguageServer {
         router
     }
 
+    /// Dynamically registers File System watcher for YARA files.
     pub fn register_fs_watcher(&mut self) {
         let mut client = self.client.clone();
         in_thread!({
@@ -659,6 +660,7 @@ impl YARALanguageServer {
         });
     }
 
+    /// Dynamically unregisters File Sytem Watcher.
     fn unregister_fs_watcher(&mut self) {
         let mut client = self.client.clone();
         in_thread!({

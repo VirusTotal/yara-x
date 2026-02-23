@@ -337,6 +337,8 @@ impl DocumentStorage {
         rules
     }
 
+    /// Reads all files from the workspace and initializes cache iwth CST
+    /// for each YARA file.
     #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
     pub fn cache_workspace(&self) {
         if let Some(workspace_files) = self
@@ -363,10 +365,13 @@ impl DocumentStorage {
     #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
     pub fn cache_workspace(&self) {}
 
+    /// Clears the cache.
     pub fn clear_cache(&self) {
         self.cached.clear();
     }
 
+    /// Reacts to the file system changes within the workspace by making
+    /// changes in the cache.
     #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
     pub fn react_watched_files_changes(&self, changes: Vec<FileEvent>) {
         for change in changes {
