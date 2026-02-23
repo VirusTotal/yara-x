@@ -1,6 +1,7 @@
 Begin { kind: SOURCE_FILE, span: Span(0..26) }
-Begin { kind: ERROR, span: Span(0..26) }
+Begin { kind: RULE_DECL, span: Span(0..26) }
 Token { kind: RULE_KW, span: Span(0..4) }
+Begin { kind: ERROR, span: Span(4..24) }
 Token { kind: L_BRACE, span: Span(4..5) }
 Error { message: "expecting identifier, found `{`", span: Span(4..5) }
 Token { kind: NEWLINE, span: Span(5..6) }
@@ -10,7 +11,8 @@ Token { kind: COLON, span: Span(16..17) }
 Token { kind: NEWLINE, span: Span(17..18) }
 Token { kind: WHITESPACE, span: Span(18..20) }
 Token { kind: TRUE_KW, span: Span(20..24) }
+End { kind: ERROR, span: Span(4..24) }
 Token { kind: NEWLINE, span: Span(24..25) }
 Token { kind: R_BRACE, span: Span(25..26) }
-End { kind: ERROR, span: Span(0..26) }
+End { kind: RULE_DECL, span: Span(0..26) }
 End { kind: SOURCE_FILE, span: Span(0..26) }

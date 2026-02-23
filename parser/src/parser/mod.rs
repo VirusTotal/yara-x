@@ -844,7 +844,7 @@ impl<'src> ParserImpl<'src> {
     where
         P: Fn(&mut Self) -> &mut Self,
     {
-        if matches!(self.state, State::OutOfFuel) {
+        if matches!(self.state, State::Failure | State::OutOfFuel) {
             return self;
         }
 
@@ -1111,7 +1111,7 @@ impl ParserImpl<'_> {
             .expect(t!(L_BRACE))
             .if_next(t!(META_KW), |p| p.meta_blk())
             .if_next(t!(STRINGS_KW), |p| p.patterns_blk())
-            .then(|p| p.condition_blk())
+            .condition_blk()
             .expect(t!(R_BRACE))
             .end()
             .recover(t!(GLOBAL_KW
@@ -1289,7 +1289,7 @@ impl ParserImpl<'_> {
         self.begin(HEX_PATTERN)
             .expect(t!(L_BRACE))
             .enter_hex_pattern_mode()
-            .then(|p| p.hex_sub_pattern())
+            .hex_sub_pattern()
             .expect(t!(R_BRACE))
             .end()
     }
@@ -1324,8 +1324,8 @@ impl ParserImpl<'_> {
     fn hex_alternative(&mut self) -> &mut Self {
         self.begin(HEX_ALTERNATIVE)
             .expect(t!(L_PAREN))
-            .then(|p| p.hex_sub_pattern())
-            .zero_or_more(|p| p.expect(t!(PIPE)).then(|p| p.hex_sub_pattern()))
+            .hex_sub_pattern()
+            .zero_or_more(|p| p.expect(t!(PIPE)).hex_sub_pattern())
             .expect(t!(R_PAREN))
             .end()
     }
@@ -1374,8 +1374,7 @@ impl ParserImpl<'_> {
         self.begin(BOOLEAN_EXPR)
             .boolean_term()
             .zero_or_more(|p| {
-                p.expect_d(t!(AND_KW | OR_KW), Some("operator"))
-                    .then(|p| p.boolean_term())
+                p.expect_d(t!(AND_KW | OR_KW), Some("operator")).boolean_term()
             })
             .end()
     }
@@ -1408,10 +1407,7 @@ impl ParserImpl<'_> {
                 )
             })
             .alt(|p| p.expect_d(t!(TRUE_KW | FALSE_KW), DESC))
-            .alt(|p| {
-                p.expect_d(t!(NOT_KW | DEFINED_KW), DESC)
-                    .then(|p| p.boolean_term())
-            })
+            .alt(|p| p.expect_d(t!(NOT_KW | DEFINED_KW), DESC).boolean_term())
             .alt(|p| p.for_expr())
             .alt(|p| p.of_expr())
             .alt(|p| p.with_expr())
@@ -1434,12 +1430,12 @@ impl ParserImpl<'_> {
                             | MATCHES_KW),
                         DESC,
                     )
-                    .then(|p| p.expr())
+                    .expr()
                 })
             })
             .alt(|p| {
                 p.expect_d(t!(L_PAREN), DESC)
-                    .then(|p| p.boolean_expr())
+                    .boolean_expr()
                     .expect(t!(R_PAREN))
             })
             .end_alt()
@@ -1471,7 +1467,7 @@ impl ParserImpl<'_> {
                             | BITWISE_XOR),
                         Some("operator"),
                     )
-                    .then(|p| p.term())
+                    .term()
                 })
                 .end()
         })
@@ -1487,9 +1483,8 @@ impl ParserImpl<'_> {
             .expect(t!(IDENT))
             .expect(t!(L_PAREN))
             .opt(|p| {
-                p.boolean_expr().zero_or_more(|p| {
-                    p.expect(t!(COMMA)).then(|p| p.boolean_expr())
-                })
+                p.boolean_expr()
+                    .zero_or_more(|p| p.expect(t!(COMMA)).boolean_expr())
             })
             .expect(t!(R_PAREN))
             .end()
@@ -1503,10 +1498,10 @@ impl ParserImpl<'_> {
     fn range(&mut self) -> &mut Self {
         self.begin(RANGE)
             .expect(t!(L_PAREN))
-            .then(|p| p.expr())
+            .expr()
             .expect(t!(DOT))
             .expect(t!(DOT))
-            .then(|p| p.expr())
+            .expr()
             .expect(t!(R_PAREN))
             .end()
     }
@@ -1557,12 +1552,10 @@ impl ParserImpl<'_> {
                             p.expr().expect(t!(R_BRACKET))
                         })
                 })
-                .alt(|p| p.expect_d(t!(MINUS), DESC).then(|p| p.term()))
-                .alt(|p| p.expect_d(t!(BITWISE_NOT), DESC).then(|p| p.term()))
+                .alt(|p| p.expect_d(t!(MINUS), DESC).term())
+                .alt(|p| p.expect_d(t!(BITWISE_NOT), DESC).term())
                 .alt(|p| {
-                    p.expect_d(t!(L_PAREN), DESC)
-                        .then(|p| p.expr())
-                        .expect(t!(R_PAREN))
+                    p.expect_d(t!(L_PAREN), DESC).expr().expect(t!(R_PAREN))
                 })
                 .alt(|p| {
                     p.primary_expr().zero_or_more(|p| {
@@ -1609,7 +1602,7 @@ impl ParserImpl<'_> {
     fn for_expr(&mut self) -> &mut Self {
         self.begin(FOR_EXPR)
             .expect_d(t!(FOR_KW), Some("expression"))
-            .then(|p| p.quantifier())
+            .quantifier()
             .begin_alt()
             .alt(|p| {
                 p.expect(t!(OF_KW))
@@ -1622,12 +1615,12 @@ impl ParserImpl<'_> {
                 p.expect(t!(IDENT))
                     .zero_or_more(|p| p.expect(t!(COMMA)).expect(t!(IDENT)))
                     .expect(t!(IN_KW))
-                    .then(|p| p.iterable())
+                    .iterable()
             })
             .end_alt()
             .expect(t!(COLON))
             .expect(t!(L_PAREN))
-            .then(|p| p.boolean_expr())
+            .boolean_expr()
             .expect(t!(R_PAREN))
             .end()
     }
@@ -1642,7 +1635,7 @@ impl ParserImpl<'_> {
     /// ``
     fn of_expr(&mut self) -> &mut Self {
         self.begin(OF_EXPR)
-            .then(|p| p.quantifier())
+            .quantifier()
             .expect(t!(OF_KW))
             .begin_alt()
             .alt(|p| {
@@ -1672,10 +1665,10 @@ impl ParserImpl<'_> {
     fn with_expr(&mut self) -> &mut Self {
         self.begin(WITH_EXPR)
             .expect_d(t!(WITH_KW), Some("expression"))
-            .then(|p| p.with_declarations())
+            .with_declarations()
             .expect(t!(COLON))
             .expect(t!(L_PAREN))
-            .then(|p| p.boolean_expr())
+            .boolean_expr()
             .expect(t!(R_PAREN))
             .end()
     }
@@ -1687,10 +1680,8 @@ impl ParserImpl<'_> {
     ///
     fn with_declarations(&mut self) -> &mut Self {
         self.begin(WITH_DECLS)
-            .then(|p| p.with_declaration())
-            .zero_or_more(|p| {
-                p.expect(t!(COMMA)).then(|p| p.with_declaration())
-            })
+            .with_declaration()
+            .zero_or_more(|p| p.expect(t!(COMMA)).with_declaration())
             .end()
     }
 
@@ -1700,11 +1691,7 @@ impl ParserImpl<'_> {
     /// WITH_DECL := IDENT `=` EXPR
     /// ```
     fn with_declaration(&mut self) -> &mut Self {
-        self.begin(WITH_DECL)
-            .expect(t!(IDENT))
-            .expect(t!(EQUAL))
-            .then(|p| p.expr())
-            .end()
+        self.begin(WITH_DECL).expect(t!(IDENT)).expect(t!(EQUAL)).expr().end()
     }
 
     /// Parses quantifier.
@@ -1761,8 +1748,8 @@ impl ParserImpl<'_> {
     fn boolean_expr_tuple(&mut self) -> &mut Self {
         self.begin(BOOLEAN_EXPR_TUPLE)
             .expect(t!(L_PAREN))
-            .then(|p| p.boolean_expr())
-            .zero_or_more(|p| p.expect(t!(COMMA)).then(|p| p.boolean_expr()))
+            .boolean_expr()
+            .zero_or_more(|p| p.expect(t!(COMMA)).boolean_expr())
             .expect(t!(R_PAREN))
             .end()
     }
@@ -1775,8 +1762,8 @@ impl ParserImpl<'_> {
     fn expr_tuple(&mut self) -> &mut Self {
         self.begin(EXPR_TUPLE)
             .expect(t!(L_PAREN))
-            .then(|p| p.expr())
-            .zero_or_more(|p| p.expect(t!(COMMA)).then(|p| p.expr()))
+            .expr()
+            .zero_or_more(|p| p.expect(t!(COMMA)).expr())
             .expect(t!(R_PAREN))
             .end()
     }
