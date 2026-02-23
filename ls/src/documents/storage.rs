@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-#[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+#[cfg(not(target_family = "wasm"))]
 use std::fs;
 
 use async_lsp::lsp_types::{FileChangeType, FileEvent, Url};
@@ -12,7 +12,7 @@ use crate::{
     utils::cst_traversal::{get_includes, rule_from_ident, rule_usages},
 };
 
-#[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+#[cfg(not(target_family = "wasm"))]
 use walkdir::WalkDir;
 
 pub struct OccurrencesResult {
@@ -73,7 +73,7 @@ impl DocumentStorage {
 
     /// Gets root [`yara_x_parser::cst::Node`] either from opened document,
     /// or reads the file to parse the tree.
-    #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+    #[cfg(not(target_family = "wasm"))]
     fn get_document_cst_root(&self, uri: &Url) -> Option<Node<Immutable>> {
         if let Some(doc) = self.get(uri) {
             Some(doc.cst.root())
@@ -88,14 +88,14 @@ impl DocumentStorage {
         }
     }
 
-    #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
+    #[cfg(target_family = "wasm")]
     fn get_document_cst_root(&self, uri: &Url) -> Option<Node<Immutable>> {
         self.get(uri).map(|doc| doc.cst.root())
     }
 
     /// Recursively traverse all YARA files in the workspace using
     /// [`walkdir::WalkDir`].
-    #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+    #[cfg(not(target_family = "wasm"))]
     fn walk_workspace(&self) -> Option<impl Iterator<Item = Url>> {
         self.workspace.as_ref().and_then(|uri| uri.to_file_path().ok()).map(
             |workspace_path| {
@@ -116,7 +116,7 @@ impl DocumentStorage {
         )
     }
 
-    #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
+    #[cfg(target_family = "wasm")]
     fn walk_workspace(&self) -> Option<impl Iterator<Item = Url>> {
         None::<std::iter::Empty<Url>>
     }
@@ -339,7 +339,7 @@ impl DocumentStorage {
 
     /// Reads all files from the workspace and initializes cache iwth CST
     /// for each YARA file.
-    #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+    #[cfg(not(target_family = "wasm"))]
     pub fn cache_workspace(&self) {
         if let Some(workspace_files) = self
             .walk_workspace()
@@ -362,7 +362,7 @@ impl DocumentStorage {
         }
     }
 
-    #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
+    #[cfg(target_family = "wasm")]
     pub fn cache_workspace(&self) {}
 
     /// Clears the cache.
@@ -372,7 +372,7 @@ impl DocumentStorage {
 
     /// Reacts to the file system changes within the workspace by making
     /// changes in the cache.
-    #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+    #[cfg(not(target_family = "wasm"))]
     pub fn react_watched_files_changes(&self, changes: Vec<FileEvent>) {
         for change in changes {
             // Opened files are synchronized in `textDocument/did*` methods.
@@ -400,6 +400,6 @@ impl DocumentStorage {
         }
     }
 
-    #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
+    #[cfg(target_family = "wasm")]
     pub fn react_watched_files_changes(&self, changes: Vec<FileEvent>) {}
 }
