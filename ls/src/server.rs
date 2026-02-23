@@ -63,10 +63,10 @@ use crate::features::semantic_tokens::{
 
 macro_rules! in_thread {
     ($code:expr) => {{
-        #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+        #[cfg(not(target_family = "wasm"))]
         tokio::spawn(async move { $code });
 
-        #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
+        #[cfg(target_family = "wasm")]
         wasm_bindgen_futures::spawn_local(async move { $code });
     }};
 }
