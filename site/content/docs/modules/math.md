@@ -111,7 +111,7 @@ comparisons are inclusive.
 
 Examples:
 
-`math.in_range(math.deviation(0, filesize, math.MEAN_BYTES), 63.9, 64,1)`
+`math.in_range(math.deviation(0, filesize, math.MEAN_BYTES), 63.9, 64.1)`
 
 ### max(int, int)
 
