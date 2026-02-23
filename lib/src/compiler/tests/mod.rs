@@ -1136,7 +1136,8 @@ fn errors_serialization() {
                 "line": 1,
                 "column": 23,
                 "span": { "start": 22, "end": 25 },
-                "text": "this identifier has not been declared"
+                "text": "this identifier has not been declared",
+                "source_line": "rule test {condition: foo}"
             }
         ],
         "footers": [],

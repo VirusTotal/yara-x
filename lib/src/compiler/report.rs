@@ -148,6 +148,22 @@ impl Report {
                     ),
                 };
 
+            // Extract the source line to include into diagnostics
+            let start = span.start();
+            let line_start = match code[..start].rfind('\n') {
+                Some(i) => i + 1,
+                None => 0,
+            };
+            let line_end = match code[start..].find('\n') {
+                Some(i) => start + i,
+                None => code.len(),
+            };
+
+            // Strip trailing CR from possible CRLF
+            let source_line = code[line_start..line_end]
+                .trim_end_matches('\r')
+                .to_string();
+
             Label {
                 level: level_as_text(level),
                 code_origin,
@@ -155,6 +171,7 @@ impl Report {
                 column,
                 span,
                 text,
+                source_line,
             }
         })
     }
@@ -353,6 +370,7 @@ pub struct Label<'a> {
     column: usize,
     span: Span,
     text: &'a str,
+    source_line: String,
 }
 
 impl Label<'_> {
