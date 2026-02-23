@@ -87,6 +87,10 @@ Examples:
 
 Returns the mean for the given string.
 
+Examples:
+
+`math.mean("ABCABC")` &rarr; `66.0`
+
 ### deviation(offset, size, mean)
 
 Returns the deviation from the mean for the size bytes starting at offset. When
