@@ -185,7 +185,9 @@ Converts the given integer to a string. Note: integers in YARA are signed.
 
 Examples:
 
-`math.to_string(10) == "10" Example: math.to_string(-1) == "-1"`
+`math.to_string(10) == "10"`
+
+`math.to_string(-1) == "-1"`
 
 ### to_string(int, base)
 
