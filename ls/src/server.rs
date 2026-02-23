@@ -16,17 +16,18 @@ use async_lsp::lsp_types::request::{
 use async_lsp::lsp_types::{
     CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
     CompletionOptions, CompletionParams, CompletionResponse,
-    DiagnosticOptions, DiagnosticServerCapabilities,
-    DidChangeConfigurationParams, DidChangeTextDocumentParams,
-    DidChangeWatchedFilesParams, DidChangeWatchedFilesRegistrationOptions,
-    DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, DocumentDiagnosticParams,
-    DocumentDiagnosticReportResult, DocumentFormattingParams,
-    DocumentHighlight, DocumentHighlightParams, DocumentSymbolParams,
-    DocumentSymbolResponse, FileSystemWatcher, FullDocumentDiagnosticReport,
-    GlobPattern, GotoDefinitionParams, GotoDefinitionResponse, Hover,
-    HoverParams, HoverProviderCapability, InitializeParams, InitializeResult,
-    Location, MessageType, OneOf, PublishDiagnosticsParams, ReferenceParams,
+    ConfigurationItem, ConfigurationParams, DiagnosticOptions,
+    DiagnosticServerCapabilities, DidChangeConfigurationParams,
+    DidChangeTextDocumentParams, DidChangeWatchedFilesParams,
+    DidChangeWatchedFilesRegistrationOptions, DidCloseTextDocumentParams,
+    DidOpenTextDocumentParams, DidSaveTextDocumentParams,
+    DocumentDiagnosticParams, DocumentDiagnosticReportResult,
+    DocumentFormattingParams, DocumentHighlight, DocumentHighlightParams,
+    DocumentSymbolParams, DocumentSymbolResponse, FileSystemWatcher,
+    FullDocumentDiagnosticReport, GlobPattern, GotoDefinitionParams,
+    GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability,
+    InitializeParams, InitializeResult, InitializedParams, Location,
+    MessageType, OneOf, PublishDiagnosticsParams, ReferenceParams,
     Registration, RegistrationParams, RelatedFullDocumentDiagnosticReport,
     RenameParams, SaveOptions, SelectionRange, SelectionRangeParams,
     SelectionRangeProviderCapability, SemanticTokensFullOptions,
@@ -95,7 +96,7 @@ impl LanguageServer for YARALanguageServer {
     type Error = ResponseError;
     type NotifyResult = ControlFlow<async_lsp::Result<()>>;
 
-    /// This method is called when the language server is initialized.
+    /// This method is called when the language server is initializing.
     ///
     /// It sets up the server's capabilities, indicating which features are
     /// supported. For example, it declares that the server supports hover,
@@ -120,6 +121,13 @@ impl LanguageServer for YARALanguageServer {
             if let Some(documents) = Arc::get_mut(&mut self.documents) {
                 documents.set_workspace(folder.uri);
             }
+        }
+
+        if let Some(config) = params
+            .initialization_options
+            .and_then(|value| from_value::<Config>(value).ok())
+        {
+            self.config = Arc::new(config);
         }
 
         Box::pin(async move {
@@ -194,6 +202,40 @@ impl LanguageServer for YARALanguageServer {
                 server_info: None,
             })
         })
+    }
+
+    /// This method is called when the communication between the language
+    /// server and the code editor is considered initialized.
+    ///
+    /// After the communication is initialized, the server can dynamically
+    /// register capabilities. In this case, the language server wants to
+    /// get notifications about configuration changes via
+    /// `workspace/didChangeConfiguration`.
+    fn initialized(
+        &mut self,
+        _params: InitializedParams,
+    ) -> Self::NotifyResult {
+        let mut client = self.client.clone();
+        tokio::spawn(async move {
+            let _ = client
+                .register_capability(RegistrationParams {
+                    registrations: vec![Registration {
+                        id: "yxls/didChangeConfiguration".to_string(),
+                        method: "workspace/didChangeConfiguration".to_string(),
+                        register_options: None,
+                    }],
+                })
+                .await;
+        });
+
+        // The configuration can be passed through `initialization_options`
+        // in initialize request, but we want to cahce entire workspace
+        // only after the communication is considered initialized.
+        if self.config.cache_workspace {
+            self.documents.cache_workspace();
+        }
+
+        ControlFlow::Continue(())
     }
 
     /// This method is called when the user hovers over a symbol.
@@ -520,51 +562,18 @@ impl LanguageServer for YARALanguageServer {
         ControlFlow::Continue(())
     }
 
-    /// This method is called right after LSP communication is initialized
-    /// and when the user changes the configuration settings.
+    /// This method is called right when the client changes its
+    /// configuration.
+    ///
+    /// This represents push model, which is currently considered
+    /// deprecated method for obtaining configuration. Therefore, this
+    /// method is only used to receive notifications about changes, and
+    /// the configuration itself is obtained using a pull model.
     fn did_change_configuration(
         &mut self,
-        mut params: DidChangeConfigurationParams,
+        _params: DidChangeConfigurationParams,
     ) -> Self::NotifyResult {
-        let cache_before = self.config.cache_workspace;
-        if let Some(value) =
-            params.settings.as_object_mut().and_then(|obj| obj.remove("YARA"))
-        {
-            match from_value::<Config>(value) {
-                Ok(config) => {
-                    if let Some(re) = &config.rule_name_validation {
-                        if regex::Regex::new(re).is_err() {
-                            let _ =
-                                self.client.show_message(ShowMessageParams {
-                                    typ: MessageType::ERROR,
-                                    message: format!(
-                                        "YARA: wrong rule name validation regex: {re}"
-                                    ),
-                                });
-                        }
-                    }
-                    if config.cache_workspace != cache_before {
-                        match config.cache_workspace {
-                            true => {
-                                self.register_fs_watcher();
-                                self.documents.cache_workspace();
-                            }
-                            false => {
-                                self.unregister_fs_watcher();
-                                self.documents.clear_cache();
-                            }
-                        }
-                    }
-                    self.config = Arc::new(config);
-                }
-                Err(err) => {
-                    let _ = self.client.show_message(ShowMessageParams {
-                        typ: MessageType::ERROR,
-                        message: format!("YARA: failed to parse configuration\n```\n{err:?}\n```"),
-                    });
-                }
-            }
-        }
+        self.load_config();
         ControlFlow::Continue(())
     }
 
@@ -595,14 +604,19 @@ impl LanguageServer for YARALanguageServer {
     }
 }
 
+/// Structure, which holds updated configuration.
+struct UpdateConfig(Config);
+
 impl YARALanguageServer {
     pub fn new_router(client: ClientSocket) -> Router<Self> {
-        Router::from_language_server(Self {
+        let mut router = Router::from_language_server(Self {
             client,
             documents: Arc::new(DocumentStorage::new()),
             should_send_diagnostics: true,
             config: Arc::new(Config::default()),
-        })
+        });
+        router.event(Self::update_config);
+        router
     }
 
     pub fn register_fs_watcher(&mut self) {
@@ -634,7 +648,7 @@ impl YARALanguageServer {
         });
     }
 
-    pub fn unregister_fs_watcher(&mut self) {
+    fn unregister_fs_watcher(&mut self) {
         let mut client = self.client.clone();
         tokio::spawn(async move {
             let _ = client
@@ -646,6 +660,73 @@ impl YARALanguageServer {
                 })
                 .await;
         });
+    }
+
+    /// This method is used to read the configuration using pull model
+    /// and verify its correctness. Then it emits the event, which
+    /// will update the configuration in the server state.
+    fn load_config(&mut self) {
+        let mut client = self.client.clone();
+        tokio::spawn(async move {
+            let config = client
+                .configuration(ConfigurationParams {
+                    items: vec![ConfigurationItem {
+                        scope_uri: None,
+                        section: Some("YARA".to_string()),
+                    }],
+                })
+                .await
+                .ok()
+                .and_then(|mut res| res.pop())
+                .and_then(|value| from_value::<Config>(value).ok());
+
+            match config {
+                Some(config) => {
+                    if let Some(re) = &config.rule_name_validation {
+                        if regex::Regex::new(re).is_err() {
+                            let _ =
+                                client.show_message(ShowMessageParams {
+                                    typ: MessageType::ERROR,
+                                    message: format!(
+                                        "YARA: wrong rule name validation regex: {re}"
+                                    ),
+                                });
+                        }
+                    }
+                    let _ = client.emit(UpdateConfig(config));
+                }
+                None => {
+                    let _ = client.show_message(ShowMessageParams {
+                        typ: MessageType::ERROR,
+                        message: "YARA: failed to parse configuration"
+                            .to_string(),
+                    });
+                }
+            }
+        });
+    }
+
+    /// This method is used to save the new configuration in the server
+    /// state and also to react to changes.
+    fn update_config(
+        &mut self,
+        value: UpdateConfig,
+    ) -> ControlFlow<async_lsp::Result<()>> {
+        let cache_before = self.config.cache_workspace;
+        if value.0.cache_workspace != cache_before {
+            match value.0.cache_workspace {
+                true => {
+                    self.register_fs_watcher();
+                    self.documents.cache_workspace();
+                }
+                false => {
+                    self.unregister_fs_watcher();
+                    self.documents.clear_cache();
+                }
+            }
+        }
+        self.config = Arc::new(value.0);
+        ControlFlow::Continue(())
     }
 
     /// Sends diagnostics for specific document if publish model is used.
