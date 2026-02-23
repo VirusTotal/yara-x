@@ -57,6 +57,7 @@ walkdir = "2.5.0"
 [target.'cfg(any(target_arch = "wasm32", target_arch = "wasm64"))'.dependencies]
 async-lsp = {version = "0.2.2", default-features=false, features=["omni-trait"]}
 tower = { version = "0.5.2" }
+wasm-bindgen-futures = {version = "0.4.61"}
 
 [dev-dependencies]
 goldenfile = { workspace = true }

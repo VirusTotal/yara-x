@@ -61,6 +61,16 @@ use crate::features::semantic_tokens::{
     semantic_tokens, SEMANTIC_TOKEN_MODIFIERS, SEMANTIC_TOKEN_TYPES,
 };
 
+macro_rules! in_thread {
+    ($code:expr) => {{
+        #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+        tokio::spawn(async move { $code });
+
+        #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
+        wasm_bindgen_futures::spawn_local(async move { $code });
+    }};
+}
+
 /// Represents a YARA language server.
 pub struct YARALanguageServer {
     /// Client socket for communication with the Development Tool.
@@ -216,7 +226,7 @@ impl LanguageServer for YARALanguageServer {
         _params: InitializedParams,
     ) -> Self::NotifyResult {
         let mut client = self.client.clone();
-        tokio::spawn(async move {
+        in_thread!({
             let _ = client
                 .register_capability(RegistrationParams {
                     registrations: vec![Registration {
@@ -621,7 +631,7 @@ impl YARALanguageServer {
 
     pub fn register_fs_watcher(&mut self) {
         let mut client = self.client.clone();
-        tokio::spawn(async move {
+        in_thread!({
             let _ = client
                 .register_capability(RegistrationParams {
                     registrations: vec![Registration {
@@ -650,7 +660,7 @@ impl YARALanguageServer {
 
     fn unregister_fs_watcher(&mut self) {
         let mut client = self.client.clone();
-        tokio::spawn(async move {
+        in_thread!({
             let _ = client
                 .unregister_capability(UnregistrationParams {
                     unregisterations: vec![Unregistration {
@@ -667,7 +677,7 @@ impl YARALanguageServer {
     /// will update the configuration in the server state.
     fn load_config(&mut self) {
         let mut client = self.client.clone();
-        tokio::spawn(async move {
+        in_thread!({
             let config = client
                 .configuration(ConfigurationParams {
                     items: vec![ConfigurationItem {
@@ -737,8 +747,8 @@ impl YARALanguageServer {
             let mut client = self.client.clone();
             let uri = uri.clone();
 
-            tokio::spawn(async move {
-                client.publish_diagnostics(PublishDiagnosticsParams {
+            in_thread!({
+                let _ = client.publish_diagnostics(PublishDiagnosticsParams {
                     uri: uri.clone(),
                     diagnostics: diagnostics(
                         documents,
@@ -747,7 +757,7 @@ impl YARALanguageServer {
                         &config.rule_name_validation,
                     ),
                     version: None,
-                })
+                });
             });
         }
     }
