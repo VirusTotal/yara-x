@@ -1,4 +1,3 @@
-use serde::Deserialize;
 use std::{io::Cursor, sync::Arc};
 
 use async_lsp::lsp_types::{
@@ -6,38 +5,15 @@ use async_lsp::lsp_types::{
 };
 use yara_x_fmt::Indentation;
 
-use crate::documents::storage::DocumentStorage;
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct FormattingOptions {
-    pub align_metadata: bool,
-    pub align_patterns: bool,
-    pub indent_section_headers: bool,
-    pub indent_section_contents: bool,
-    pub newline_before_curly_brace: bool,
-    pub empty_line_before_section_header: bool,
-    pub empty_line_after_section_header: bool,
-}
-
-impl Default for FormattingOptions {
-    fn default() -> Self {
-        Self {
-            align_metadata: true,
-            align_patterns: true,
-            indent_section_headers: true,
-            indent_section_contents: true,
-            newline_before_curly_brace: false,
-            empty_line_before_section_header: false,
-            empty_line_after_section_header: false,
-        }
-    }
-}
+use crate::{
+    configuration::FormattingConfiguration,
+    documents::storage::DocumentStorage,
+};
 
 pub fn formatting(
     documents: Arc<DocumentStorage>,
     params: DocumentFormattingParams,
-    options: FormattingOptions,
+    options: &FormattingConfiguration,
 ) -> Option<Vec<TextEdit>> {
     let document = documents.get(&params.text_document.uri)?;
     let src = document.text.as_str();

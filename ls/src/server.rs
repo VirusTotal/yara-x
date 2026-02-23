@@ -12,42 +12,46 @@ use std::sync::Arc;
 use async_lsp::lsp_types::request::{
     Request, SemanticTokensFullRequest, SemanticTokensRangeRequest,
 };
+
 use async_lsp::lsp_types::{
     CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
     CompletionOptions, CompletionParams, CompletionResponse,
     ConfigurationItem, ConfigurationParams, DiagnosticOptions,
-    DiagnosticServerCapabilities, DidChangeTextDocumentParams,
-    DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, DocumentDiagnosticParams,
-    DocumentDiagnosticReportResult, DocumentFormattingParams,
-    DocumentHighlight, DocumentHighlightParams, DocumentSymbolParams,
-    DocumentSymbolResponse, FullDocumentDiagnosticReport,
-    GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams,
-    HoverProviderCapability, InitializeParams, InitializeResult, Location,
+    DiagnosticServerCapabilities, DidChangeConfigurationParams,
+    DidChangeTextDocumentParams, DidChangeWatchedFilesParams,
+    DidChangeWatchedFilesRegistrationOptions, DidCloseTextDocumentParams,
+    DidOpenTextDocumentParams, DidSaveTextDocumentParams,
+    DocumentDiagnosticParams, DocumentDiagnosticReportResult,
+    DocumentFormattingParams, DocumentHighlight, DocumentHighlightParams,
+    DocumentSymbolParams, DocumentSymbolResponse, FileSystemWatcher,
+    FullDocumentDiagnosticReport, GlobPattern, GotoDefinitionParams,
+    GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability,
+    InitializeParams, InitializeResult, InitializedParams, Location,
     MessageType, OneOf, PublishDiagnosticsParams, ReferenceParams,
-    RelatedFullDocumentDiagnosticReport, RenameParams, SaveOptions,
-    SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability,
-    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
-    SemanticTokensRangeResult, SemanticTokensResult,
-    SemanticTokensServerCapabilities, ServerCapabilities, ShowMessageParams,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-    TextDocumentSyncSaveOptions, TextEdit, Url, WorkspaceEdit,
+    Registration, RegistrationParams, RelatedFullDocumentDiagnosticReport,
+    RenameParams, SaveOptions, SelectionRange, SelectionRangeParams,
+    SelectionRangeProviderCapability, SemanticTokensFullOptions,
+    SemanticTokensLegend, SemanticTokensOptions, SemanticTokensRangeResult,
+    SemanticTokensResult, SemanticTokensServerCapabilities,
+    ServerCapabilities, ShowMessageParams, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextDocumentSyncOptions,
+    TextDocumentSyncSaveOptions, TextEdit, Unregistration,
+    UnregistrationParams, Url, WatchKind, WorkspaceEdit,
+    WorkspaceFoldersServerCapabilities, WorkspaceServerCapabilities,
 };
 use async_lsp::router::Router;
 use async_lsp::{ClientSocket, LanguageClient, LanguageServer, ResponseError};
 use futures::future::BoxFuture;
-use serde_json::from_value;
+use serde_json::{from_value, to_value};
 
+use crate::configuration::Config;
 use crate::documents::storage::DocumentStorage;
 use crate::features::code_action::code_actions;
 use crate::features::completion::completion;
-use crate::features::diagnostics::{
-    diagnostics, MetadataValidationRule, Settings,
-};
+use crate::features::diagnostics::diagnostics;
 use crate::features::document_highlight::document_highlight;
 use crate::features::document_symbol::document_symbol;
 use crate::features::formatting::formatting;
-use crate::features::formatting::FormattingOptions;
 use crate::features::goto::go_to_definition;
 use crate::features::hover::hover;
 use crate::features::references::find_references;
@@ -56,6 +60,16 @@ use crate::features::selection_range::selection_range;
 use crate::features::semantic_tokens::{
     semantic_tokens, SEMANTIC_TOKEN_MODIFIERS, SEMANTIC_TOKEN_TYPES,
 };
+
+macro_rules! in_thread {
+    ($code:expr) => {{
+        #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+        tokio::spawn(async move { $code });
+
+        #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
+        wasm_bindgen_futures::spawn_local(async move { $code });
+    }};
+}
 
 /// Represents a YARA language server.
 pub struct YARALanguageServer {
@@ -79,6 +93,9 @@ pub struct YARALanguageServer {
     /// `textDocument.diagnostic` capability property. If the client supports
     /// pull model, server will disable publishing diagnostics.
     should_send_diagnostics: bool,
+
+    /// Client-side configuration settings of the language server.
+    config: Arc<Config>,
 }
 
 /// Implements document synchronization and various LSP features.
@@ -89,7 +106,7 @@ impl LanguageServer for YARALanguageServer {
     type Error = ResponseError;
     type NotifyResult = ControlFlow<async_lsp::Result<()>>;
 
-    /// This method is called when the language server is initialized.
+    /// This method is called when the language server is initializing.
     ///
     /// It sets up the server's capabilities, indicating which features are
     /// supported. For example, it declares that the server supports hover,
@@ -114,6 +131,13 @@ impl LanguageServer for YARALanguageServer {
             if let Some(documents) = Arc::get_mut(&mut self.documents) {
                 documents.set_workspace(folder.uri);
             }
+        }
+
+        if let Some(config) = params
+            .initialization_options
+            .and_then(|value| from_value::<Config>(value).ok())
+        {
+            self.config = Arc::new(config);
         }
 
         Box::pin(async move {
@@ -176,11 +200,53 @@ impl LanguageServer for YARALanguageServer {
                             DiagnosticOptions::default(),
                         ),
                     ),
+                    workspace: Some(WorkspaceServerCapabilities{
+                        workspace_folders: Some(WorkspaceFoldersServerCapabilities{
+                            supported: Some(true),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    }),
                     ..ServerCapabilities::default()
                 },
                 server_info: None,
             })
         })
+    }
+
+    /// This method is called when the communication between the language
+    /// server and the code editor is considered initialized.
+    ///
+    /// After the communication is initialized, the server can dynamically
+    /// register capabilities. In this case, the language server wants to
+    /// get notifications about configuration changes via
+    /// `workspace/didChangeConfiguration`.
+    fn initialized(
+        &mut self,
+        _params: InitializedParams,
+    ) -> Self::NotifyResult {
+        let mut client = self.client.clone();
+        in_thread!({
+            let _ = client
+                .register_capability(RegistrationParams {
+                    registrations: vec![Registration {
+                        id: "yxls/didChangeConfiguration".to_string(),
+                        method: "workspace/didChangeConfiguration".to_string(),
+                        register_options: None,
+                    }],
+                })
+                .await;
+        });
+
+        // The configuration can be passed through `initialization_options`
+        // in initialize request, but we want to cahce entire workspace
+        // only after the communication is considered initialized.
+        if self.config.cache_workspace {
+            self.register_fs_watcher();
+            self.documents.cache_workspace();
+        }
+
+        ControlFlow::Continue(())
     }
 
     /// This method is called when the user hovers over a symbol.
@@ -411,18 +477,21 @@ impl LanguageServer for YARALanguageServer {
     {
         let uri = params.text_document.uri;
         let documents = Arc::clone(&self.documents);
-        let client = self.client.clone();
+        let config = Arc::clone(&self.config);
 
         Box::pin(async move {
-            let settings = Self::get_settings(client, uri.clone()).await;
-
             Ok(DocumentDiagnosticReportResult::Report(
                 async_lsp::lsp_types::DocumentDiagnosticReport::Full(
                     RelatedFullDocumentDiagnosticReport {
                         full_document_diagnostic_report:
                             FullDocumentDiagnosticReport {
                                 result_id: None,
-                                items: diagnostics(documents, uri, settings),
+                                items: diagnostics(
+                                    documents,
+                                    uri,
+                                    &config.metadata_validation,
+                                    &config.rule_name_validation,
+                                ),
                             },
                         related_documents: None,
                     },
@@ -438,27 +507,10 @@ impl LanguageServer for YARALanguageServer {
         params: DocumentFormattingParams,
     ) -> BoxFuture<'static, Result<Option<Vec<TextEdit>>, Self::Error>> {
         let documents = Arc::clone(&self.documents);
-        let mut client = self.client.clone();
+        let config = Arc::clone(&self.config);
 
         Box::pin(async move {
-            let config = client
-                .configuration(ConfigurationParams {
-                    items: vec![ConfigurationItem {
-                        scope_uri: Some(params.text_document.uri.clone()),
-                        section: Some("YARA.codeFormatting".to_string()),
-                    }],
-                })
-                .await;
-
-            let options = config
-                .ok()
-                .and_then(|mut config| config.pop())
-                .and_then(|v| {
-                    serde_json::from_value::<FormattingOptions>(v).ok()
-                })
-                .unwrap_or_default();
-
-            Ok(formatting(documents, params, options))
+            Ok(formatting(documents, params, &config.code_formatting))
         })
     }
 
@@ -494,7 +546,6 @@ impl LanguageServer for YARALanguageServer {
     }
 
     /// This method is called when a document is changed.
-    /// This method is called when a document is changed.
     ///
     /// It updates the document in the document store and triggers a
     /// diagnostic update.
@@ -517,7 +568,31 @@ impl LanguageServer for YARALanguageServer {
         &mut self,
         params: DidCloseTextDocumentParams,
     ) -> Self::NotifyResult {
-        self.documents.remove(&params.text_document.uri);
+        self.documents
+            .remove(&params.text_document.uri, self.config.cache_workspace);
+        ControlFlow::Continue(())
+    }
+
+    /// This method is called right when the client changes its
+    /// configuration.
+    ///
+    /// This represents push model, which is currently considered
+    /// deprecated method for obtaining configuration. Therefore, this
+    /// method is only used to receive notifications about changes, and
+    /// the configuration itself is obtained using a pull model.
+    fn did_change_configuration(
+        &mut self,
+        _params: DidChangeConfigurationParams,
+    ) -> Self::NotifyResult {
+        self.load_config();
+        ControlFlow::Continue(())
+    }
+
+    fn did_change_watched_files(
+        &mut self,
+        params: DidChangeWatchedFilesParams,
+    ) -> Self::NotifyResult {
+        self.documents.react_watched_files_changes(params.changes);
         ControlFlow::Continue(())
     }
 
@@ -540,81 +615,152 @@ impl LanguageServer for YARALanguageServer {
     }
 }
 
+/// Structure, which holds updated configuration.
+struct UpdateConfig(Config);
+
 impl YARALanguageServer {
     pub fn new_router(client: ClientSocket) -> Router<Self> {
-        Router::from_language_server(Self {
+        let mut router = Router::from_language_server(Self {
             client,
             documents: Arc::new(DocumentStorage::new()),
             should_send_diagnostics: true,
-        })
+            config: Arc::new(Config::default()),
+        });
+        router.event(Self::update_config);
+        router
     }
 
-    async fn get_settings(
-        mut client: ClientSocket,
-        scope_uri: Url,
-    ) -> Settings {
-        let settings = client
-            .configuration(ConfigurationParams {
-                items: vec![
-                    ConfigurationItem {
-                        scope_uri: Some(scope_uri.clone()),
-                        section: Some("YARA.metadataValidation".to_string()),
-                    },
-                    ConfigurationItem {
-                        scope_uri: Some(scope_uri),
-                        section: Some("YARA.ruleNameValidation".to_string()),
-                    },
-                ],
-            })
-            .await
-            .ok()
-            .map(|mut v| {
-                let rule_name_validation = v
-                    .pop()
-                    .and_then(|value| from_value::<Option<String>>(value).ok())
-                    .unwrap_or_default();
+    /// Dynamically registers File System watcher for YARA files.
+    pub fn register_fs_watcher(&mut self) {
+        let mut client = self.client.clone();
+        in_thread!({
+            let _ = client
+                .register_capability(RegistrationParams {
+                    registrations: vec![Registration {
+                        id: "yxls/watchedFiles".to_string(),
+                        method: "workspace/didChangeWatchedFiles".to_string(),
+                        register_options: Some(
+                            to_value(
+                                DidChangeWatchedFilesRegistrationOptions {
+                                    watchers: vec![FileSystemWatcher {
+                                        glob_pattern: GlobPattern::String(
+                                            "**/*.{yar,yara}".to_string(),
+                                        ),
+                                        kind: Some(
+                                            WatchKind::from_bits(7).unwrap(),
+                                        ),
+                                    }],
+                                },
+                            )
+                            .unwrap(),
+                        ),
+                    }],
+                })
+                .await;
+        });
+    }
 
-                let metadata_validation = v
-                    .pop()
-                    .and_then(|value| {
-                        from_value::<Vec<MetadataValidationRule>>(value).ok()
-                    })
-                    .unwrap_or_default();
+    /// Dynamically unregisters File Sytem Watcher.
+    fn unregister_fs_watcher(&mut self) {
+        let mut client = self.client.clone();
+        in_thread!({
+            let _ = client
+                .unregister_capability(UnregistrationParams {
+                    unregisterations: vec![Unregistration {
+                        id: "yxls/watchedFiles".to_string(),
+                        method: "workspace/didChangeWatchedFiles".to_string(),
+                    }],
+                })
+                .await;
+        });
+    }
 
-                Settings { metadata_validation, rule_name_validation }
-            })
-            .unwrap_or_default();
+    /// This method is used to read the configuration using pull model
+    /// and verify its correctness. Then it emits the event, which
+    /// will update the configuration in the server state.
+    fn load_config(&mut self) {
+        let mut client = self.client.clone();
+        in_thread!({
+            let config = client
+                .configuration(ConfigurationParams {
+                    items: vec![ConfigurationItem {
+                        scope_uri: None,
+                        section: Some("YARA".to_string()),
+                    }],
+                })
+                .await
+                .ok()
+                .and_then(|mut res| res.pop())
+                .and_then(|value| from_value::<Config>(value).ok());
 
-        if let Some(re) = &settings.rule_name_validation {
-            if regex::Regex::new(re).is_err() {
-                let _ = client.show_message(ShowMessageParams {
-                    typ: MessageType::ERROR,
-                    message: format!(
-                        "YARA: wrong rule name validation regex: {re}"
-                    ),
-                });
+            match config {
+                Some(config) => {
+                    if let Some(re) = &config.rule_name_validation {
+                        if regex::Regex::new(re).is_err() {
+                            let _ =
+                                client.show_message(ShowMessageParams {
+                                    typ: MessageType::ERROR,
+                                    message: format!(
+                                        "YARA: wrong rule name validation regex: {re}"
+                                    ),
+                                });
+                        }
+                    }
+                    let _ = client.emit(UpdateConfig(config));
+                }
+                None => {
+                    let _ = client.show_message(ShowMessageParams {
+                        typ: MessageType::ERROR,
+                        message: "YARA: failed to parse configuration"
+                            .to_string(),
+                    });
+                }
+            }
+        });
+    }
+
+    /// This method is used to save the new configuration in the server
+    /// state and also to react to changes.
+    fn update_config(
+        &mut self,
+        value: UpdateConfig,
+    ) -> ControlFlow<async_lsp::Result<()>> {
+        let cache_before = self.config.cache_workspace;
+        if value.0.cache_workspace != cache_before {
+            match value.0.cache_workspace {
+                true => {
+                    self.register_fs_watcher();
+                    self.documents.cache_workspace();
+                }
+                false => {
+                    self.unregister_fs_watcher();
+                    self.documents.clear_cache();
+                }
             }
         }
-
-        settings
+        self.config = Arc::new(value.0);
+        ControlFlow::Continue(())
     }
 
     /// Sends diagnostics for specific document if publish model is used.
     fn publish_diagnostics(&mut self, uri: &Url) {
         if self.should_send_diagnostics {
             let documents = Arc::clone(&self.documents);
+            let config = Arc::clone(&self.config);
             let mut client = self.client.clone();
             let uri = uri.clone();
 
-            tokio::spawn(async move {
-                let settings =
-                    Self::get_settings(client.clone(), uri.clone()).await;
-
-                client.publish_diagnostics(PublishDiagnosticsParams {
+            in_thread!({
+                let _ = client.publish_diagnostics(PublishDiagnosticsParams {
                     uri: uri.clone(),
-                    diagnostics: diagnostics(documents, uri, settings),
+                    diagnostics: diagnostics(
+                        documents,
+                        uri,
+                        &config.metadata_validation,
+                        &config.rule_name_validation,
+                    ),
                     version: None,
-                })
+                });
             });
         }
     }

@@ -8,6 +8,7 @@ use async_lsp::lsp_types::{DiagnosticSeverity, NumberOrString};
 use dashmap::mapref::one::Ref;
 use serde::{Deserialize, Serialize};
 
+use crate::configuration::MetadataValidationRule;
 use crate::documents::{document::Document, storage::DocumentStorage};
 
 #[cfg(feature = "full-compiler")]
@@ -26,33 +27,13 @@ pub struct Patch {
     pub replacement: String,
 }
 
-/// Rule that describes a how to validate a metadata entry in a rule.
-#[derive(Deserialize, Debug, Clone, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct MetadataValidationRule {
-    /// Metadata identifier
-    pub identifier: String,
-    /// Whether the metadata entry is required or not.
-    #[serde(default)]
-    pub required: bool,
-    /// Type of the metadata entry.
-    #[serde(rename = "type")]
-    pub ty: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Settings {
-    pub metadata_validation: Vec<MetadataValidationRule>,
-    pub rule_name_validation: Option<String>,
-}
-
 /// Returns a diagnostic vector for the given source code.
 #[allow(unused_variables)]
 pub fn diagnostics(
     documents: Arc<DocumentStorage>,
     uri: Url,
-    settings: Settings,
+    metadata_validation: &Vec<MetadataValidationRule>,
+    rule_name_validation: &Option<String>,
 ) -> Vec<Diagnostic> {
     #[allow(unused_mut)]
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
@@ -61,7 +42,11 @@ pub fn diagnostics(
 
     if let Some(doc) = doc {
         #[cfg(feature = "full-compiler")]
-        diagnostics.extend(compiler_diagnostics(doc, settings));
+        diagnostics.extend(compiler_diagnostics(
+            doc,
+            metadata_validation,
+            rule_name_validation,
+        ));
     }
 
     diagnostics
@@ -76,24 +61,25 @@ pub fn diagnostics(
 #[cfg(feature = "full-compiler")]
 pub fn compiler_diagnostics(
     document: Ref<'_, Url, Document>,
-    settings: Settings,
+    metadata_validation: &Vec<MetadataValidationRule>,
+    rule_name_validation: &Option<String>,
 ) -> Vec<Diagnostic> {
     let source_code = SourceCode::from(document.text.as_str())
         .with_origin(document.uri.clone());
 
     let mut compiler = Compiler::new();
 
-    if let Some(regex) = settings.rule_name_validation {
+    if let Some(regex) = rule_name_validation {
         if let Ok(linter) = linters::rule_name(regex) {
             compiler.add_linter(linter);
         }
     }
 
-    for validation_rule in settings.metadata_validation {
+    for validation_rule in metadata_validation {
         let mut linter = linters::metadata(&validation_rule.identifier)
             .required(validation_rule.required);
 
-        if let Some(ty) = validation_rule.ty {
+        if let Some(ty) = &validation_rule.ty {
             let predicate = match ty.as_str() {
                 "string" => |meta: &yara_x_parser::ast::Meta| {
                     matches!(
