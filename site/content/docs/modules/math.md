@@ -73,6 +73,10 @@ Examples:
 
 Returns the serial correlation for the given string.
 
+Examples:
+
+`math.serial_correlation("BCA")` &rarr; `-0.5`
+
 ### mean(offset, size)
 
 Returns the mean for the size bytes starting at offset. When scanning a running
