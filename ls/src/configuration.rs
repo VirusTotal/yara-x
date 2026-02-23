@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-/// This structure containts all client-side configuration settings,
+/// This structure contains all client-side configuration settings,
 /// which user can specify in the code editor.
 #[derive(Deserialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
