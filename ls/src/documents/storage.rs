@@ -39,7 +39,12 @@ impl DocumentStorage {
 
     /// Inserts a new document with the specified content.
     pub fn insert(&self, uri: Url, text: String) {
-        self.opened.insert(uri.clone(), Document::new(uri, text));
+        // Checks if the opened document is already in cache and remove it.
+        let document = match self.cached.remove(&uri) {
+            Some((_, cst)) => Document::new_with_cst(uri.clone(), text, cst),
+            None => Document::new(uri.clone(), text),
+        };
+        self.opened.insert(uri.clone(), document);
     }
 
     /// Updates document content and its internal structures.
@@ -50,8 +55,15 @@ impl DocumentStorage {
     }
 
     /// Removes the document and returns (key,value) before removing.
-    pub fn remove(&self, uri: &Url) -> Option<(Url, Document)> {
-        self.opened.remove(uri)
+    pub fn remove(&self, uri: &Url, cache_enabled: bool) {
+        if let Some((uri, document)) = self.opened.remove(uri) {
+            // If the workspace caching is enabled we want to
+            // move CST of the closed document to the cache.
+            if cache_enabled {
+                let cst = document.cst;
+                self.cached.insert(uri, cst);
+            }
+        }
     }
 
     /// Sets workspace folder to the specified URI.

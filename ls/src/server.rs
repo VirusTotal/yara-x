@@ -545,7 +545,6 @@ impl LanguageServer for YARALanguageServer {
     }
 
     /// This method is called when a document is changed.
-    /// This method is called when a document is changed.
     ///
     /// It updates the document in the document store and triggers a
     /// diagnostic update.
@@ -568,7 +567,8 @@ impl LanguageServer for YARALanguageServer {
         &mut self,
         params: DidCloseTextDocumentParams,
     ) -> Self::NotifyResult {
-        self.documents.remove(&params.text_document.uri);
+        self.documents
+            .remove(&params.text_document.uri, self.config.cache_workspace);
         ControlFlow::Continue(())
     }
 

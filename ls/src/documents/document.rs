@@ -24,6 +24,12 @@ impl Document {
         Self { uri, text, cst, line_index }
     }
 
+    /// Creates a new document with precached CST.
+    pub fn new_with_cst(uri: Url, text: String, cst: CST) -> Self {
+        let line_index = LineIndex::new(text.as_str());
+        Self { uri, text, cst, line_index }
+    }
+
     /// Updates all stored structures.
     pub fn update(&mut self, text: String) {
         self.cst = CST::from(text.as_str());
