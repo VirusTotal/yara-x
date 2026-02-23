@@ -242,6 +242,7 @@ impl LanguageServer for YARALanguageServer {
         // in initialize request, but we want to cahce entire workspace
         // only after the communication is considered initialized.
         if self.config.cache_workspace {
+            self.register_fs_watcher();
             self.documents.cache_workspace();
         }
 
