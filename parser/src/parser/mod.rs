@@ -1852,7 +1852,6 @@ impl<'a, 'src> Alt<'a, 'src> {
             self.parser.set_state(State::OK);
         } else {
             self.parser.set_state(State::Failure);
-            self.parser.handle_errors();
         };
         self.parser
     }
