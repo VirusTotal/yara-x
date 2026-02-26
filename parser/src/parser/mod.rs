@@ -434,17 +434,30 @@ impl<'src> ParserImpl<'src> {
             self.depth -= 1;
         }
         if matches!(self.state, State::Failure | State::OutOfFuel) {
+            if self.opt_depth == 0 {
+                self.handle_errors();
+            }
             self.output.end_with_error();
-            self.handle_errors();
         } else {
             self.output.end();
         }
         self
     }
 
-    /// Recovers from errors by discarding any token until finding
-    /// one that is in `recovery_set`.
+    /// Recovers from errors and discards tokens until finding one that is in
+    /// `recovery_set`.
+    ///
+    /// If the parser is in [`State::Failure`], it will go back to [`State::OK`].
+    /// Any token that is not in `recovery_set` will be consumed in put into an
+    /// `ERROR` node, regardless of the initial parser state.
     fn recover(&mut self, recovery_set: &'static TokenSet) -> &mut Self {
+        // If parser is out-of-fuel there's nothing to recover from.
+        if matches!(self.state, State::OutOfFuel) {
+            return self;
+        }
+
+        let state_was_ok = matches!(self.state, State::OK);
+
         self.set_state(State::OK);
 
         let token = match self.peek_non_trivia() {
@@ -452,44 +465,46 @@ impl<'src> ParserImpl<'src> {
             None => return self,
         };
 
-        if recovery_set.contains(token).is_some() {
-            return self;
-        }
-
         let token_span = token.span();
         let token_id = token.id();
-
-        self.trivia();
-        self.begin(ERROR);
-        self.bump();
+        let token_in_recovery_set = recovery_set.contains(token).is_some();
 
         // If no previous error exists, create an error that tells that we are
-        // expecting any of the tokens in the recovery set. If there were
-        // previous errors, flush them and don't produce new ones.
+        // expecting any of the tokens in the recovery set.
         if self.pending_errors.is_empty() {
             let (actual_token_id, expected) =
                 self.expected_token_errors.entry(token_span).or_default();
 
             *actual_token_id = token_id;
 
-            expected.extend(
-                recovery_set.token_ids().map(|token| token.description()),
-            );
+            if !token_in_recovery_set {
+                expected.extend(
+                    recovery_set.token_ids().map(|token| token.description()),
+                );
+            }
+        }
 
+        if !state_was_ok || !token_in_recovery_set {
             self.handle_errors();
         }
 
         // Consume any token that is not in the recovery set.
-        while let Some(token) = self.peek_non_trivia() {
-            if recovery_set.contains(token).is_some() {
-                break;
-            } else {
-                self.trivia();
-                self.bump();
-            }
-        }
+        if !token_in_recovery_set {
+            self.trivia();
+            self.begin(ERROR);
+            self.bump();
 
-        self.end();
+            while let Some(token) = self.peek_non_trivia() {
+                if recovery_set.contains(token).is_some() {
+                    break;
+                } else {
+                    self.trivia();
+                    self.bump();
+                }
+            }
+
+            self.end();
+        }
 
         self
     }
@@ -860,9 +875,6 @@ impl<'src> ParserImpl<'src> {
     }
 
     fn handle_errors(&mut self) {
-        if self.opt_depth > 0 {
-            return;
-        }
         // From all errors in expected_token_errors, use the one at the largest
         // offset. If several errors start at the same offset, the last one is
         // used.
@@ -1370,10 +1382,15 @@ impl ParserImpl<'_> {
     ///
     /// ```text
     /// BOOLEAN_TERM := (
+    ///    PATTERN_IDENT ( 'at' EXPR | 'in' RANGE )?
     ///    `true`                 |
     ///    `false`                |
     ///    `not` BOOLEAN_TERM     |
     ///    `defined` BOOLEAN_TERM |
+    ///    FOR_EXPR
+    ///    OF_EXPR
+    ///    WITH_EXPR
+    ///    EXPR ( comparison_op  EXPR )*
     ///    `(` BOOLEAN_EXPR `)`
     /// )
     /// ``
@@ -1655,7 +1672,7 @@ impl ParserImpl<'_> {
             .with_declarations()
             .expect(t!(COLON))
             .expect(t!(L_PAREN))
-            .boolean_expr()
+            .then(|p| p.boolean_expr().recover(t!(R_PAREN)))
             .expect(t!(R_PAREN))
             .end()
     }
