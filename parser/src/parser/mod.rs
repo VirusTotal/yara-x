@@ -133,9 +133,10 @@ pub(crate) struct ParserImpl<'src> {
     #[cfg(feature = "logging")]
     depth: usize,
 
-    /// Hash map where keys are spans within the source code, and values
-    /// are tuples containing the ID of the token actually found and a list of
-    /// tokens that were expected to match at that span.
+    /// Hash map where keys are tuples (Span, TokenId) identifying a token in
+    /// the source code (the Span and the TokenId correspond to the same token),
+    /// and values are lists of tokens that were expected to match at that
+    /// span.
     ///
     /// This hash map plays a crucial role in error reporting during parsing.
     /// Consider the following grammar rule:
@@ -169,7 +170,7 @@ pub(crate) struct ParserImpl<'src> {
     /// the position of `c`. When `expect(b)` fails later, the parser looks up
     /// any other token (besides `b`) that were expected to match at the
     /// position and produces a comprehensive error message.
-    expected_token_errors: FxHashMap<Span, (TokenId, IndexSet<&'static str>)>,
+    expected_token_errors: FxHashMap<(Span, TokenId), IndexSet<&'static str>>,
 
     /// Similar to `expected_token_errors` but tracks the positions where
     /// unexpected tokens were found. This type of error is produced when
@@ -472,10 +473,10 @@ impl<'src> ParserImpl<'src> {
         // If no previous error exists, create an error that tells that we are
         // expecting any of the tokens in the recovery set.
         if self.pending_errors.is_empty() {
-            let (actual_token_id, expected) =
-                self.expected_token_errors.entry(token_span).or_default();
-
-            *actual_token_id = token_id;
+            let expected = self
+                .expected_token_errors
+                .entry((token_span, token_id))
+                .or_default();
 
             if !token_in_recovery_set {
                 expected.extend(
@@ -552,20 +553,18 @@ impl<'src> ParserImpl<'src> {
             return self;
         }
 
-        let (token_id, token_match, token_span) = match self.peek_non_trivia()
+        let (token_span, token_id, token_match) = match self.peek_non_trivia()
         {
             None => {
                 // Special case when the end of the source is reached. The span
                 // used for error reporting is a zero-length span pointing to
                 // the end of the code.
                 let last = self.tokens.source().len() as u32;
-                (None, None, Span(last..last))
+                (Span(last..last), TokenId::UNKNOWN, None)
             }
-            Some(token) => (
-                Some(token.id()),
-                expected_tokens.contains(token),
-                token.span(),
-            ),
+            Some(token) => {
+                (token.span(), token.id(), expected_tokens.contains(token))
+            }
         };
 
         match (self.not_depth, token_match) {
@@ -578,10 +577,10 @@ impl<'src> ParserImpl<'src> {
             // We are not inside a "not", and the expected token was
             // not found.
             (0, None) => {
-                let (actual_token_id, expected) =
-                    self.expected_token_errors.entry(token_span).or_default();
-
-                *actual_token_id = token_id.unwrap_or(TokenId::UNKNOWN);
+                let expected = self
+                    .expected_token_errors
+                    .entry((token_span, token_id))
+                    .or_default();
 
                 if let Some(description) = description {
                     expected.insert(description);
@@ -737,12 +736,10 @@ impl<'src> ParserImpl<'src> {
                     let token_span = token.span();
                     let token_id = token.id();
 
-                    let (actual_token, expected) = self
+                    let expected = self
                         .expected_token_errors
-                        .entry(token_span)
+                        .entry((token_span, token_id))
                         .or_default();
-
-                    *actual_token = token_id;
 
                     expected.extend(
                         expected_tokens
@@ -881,7 +878,7 @@ impl<'src> ParserImpl<'src> {
         let expected_token = self
             .expected_token_errors
             .drain()
-            .max_by_key(|(span, _)| span.start());
+            .max_by_key(|((span, _), _)| span.start());
 
         // From all errors in unexpected_token_errors, use the one at the
         // largest offset. If several errors start at the same offset, the last
@@ -892,9 +889,11 @@ impl<'src> ParserImpl<'src> {
             .max_by_key(|span| span.start());
 
         let (span, expected) = match (expected_token, unexpected_token) {
-            (Some((e, _)), Some(u)) if u.start() > e.start() => (u, None),
+            (Some(((e, _), _)), Some(u)) if u.start() > e.start() => (u, None),
             (None, Some(u)) => (u, None),
-            (Some((e, expected)), _) => (e, Some(expected)),
+            (Some(((e, token_id), expected)), _) => {
+                (e, Some((token_id, expected)))
+            }
             (None, None) => return,
         };
 

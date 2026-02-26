@@ -4,6 +4,7 @@ use crate::Span;
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Copy, Clone, PartialEq, Eq, Default)]
 #[repr(u8)]
+#[derive(Hash)]
 pub(crate) enum TokenId {
     // Keywords.
     ALL_KW,
