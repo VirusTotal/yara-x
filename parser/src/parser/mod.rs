@@ -1836,9 +1836,9 @@ struct Alt<'a, 'src> {
 }
 
 impl<'a, 'src> Alt<'a, 'src> {
-    fn alt<F>(mut self, f: F) -> Self
+    fn alt<P>(mut self, parser: P) -> Self
     where
-        F: Fn(&'a mut ParserImpl<'src>) -> &'a mut ParserImpl<'src>,
+        P: Fn(&'a mut ParserImpl<'src>) -> &'a mut ParserImpl<'src>,
     {
         if matches!(self.parser.state, State::Failure | State::OutOfFuel) {
             return self;
@@ -1848,7 +1848,7 @@ impl<'a, 'src> Alt<'a, 'src> {
         if !self.matched {
             self.parser.trivia();
             self.parser.opt_depth += 1;
-            self.parser = f(self.parser);
+            self.parser = parser(self.parser);
             self.parser.opt_depth -= 1;
             match self.parser.state {
                 // The current alternative matched.
