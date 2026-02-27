@@ -1,2 +1,2 @@
 ERRORS:
-- SyntaxError { message: "expecting `=`, found `:`", span: Span(44..45) }
+- SyntaxError { message: "expecting `=`, found `(`", span: Span(44..45) }
