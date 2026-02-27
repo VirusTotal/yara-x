@@ -538,7 +538,7 @@ fn get_struct(token: &Token<Immutable>) -> Option<Type> {
 /// * `declaration` - The `Node` representing the `for` or `with` declaration.
 /// * `ident` - The `Token` of the identifier whose type needs to be resolved.
 /// * `path` - An iterator over `Segment`s representing the access path (fields,
-///            array indices) applied to the declared variable.
+///   array indices) applied to the declared variable.
 ///
 /// # Returns
 ///
