@@ -1630,7 +1630,7 @@ impl ParserImpl<'_> {
             .end_alt()
             .expect(t!(COLON))
             .expect(t!(L_PAREN))
-            .then(Self::boolean_expr)
+            .then(|p| p.boolean_expr().recover(t!(R_PAREN)))
             .expect(t!(R_PAREN))
             .end()
     }

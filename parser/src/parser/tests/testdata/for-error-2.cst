@@ -1,0 +1,66 @@
+SOURCE_FILE@0..98
+  RULE_DECL@0..98
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..14 "  "
+    PATTERNS_BLK@14..52
+      STRINGS_KW@14..21 "strings"
+      COLON@21..22 ":"
+      NEWLINE@22..23 "\n"
+      WHITESPACE@23..27 "    "
+      PATTERN_DEF@27..37
+        PATTERN_IDENT@27..29 "$a"
+        WHITESPACE@29..30 " "
+        EQUAL@30..31 "="
+        WHITESPACE@31..32 " "
+        STRING_LIT@32..37 "\"foo\""
+      NEWLINE@37..38 "\n"
+      WHITESPACE@38..42 "    "
+      PATTERN_DEF@42..52
+        PATTERN_IDENT@42..44 "$b"
+        WHITESPACE@44..45 " "
+        EQUAL@45..46 "="
+        WHITESPACE@46..47 " "
+        STRING_LIT@47..52 "\"bar\""
+    NEWLINE@52..53 "\n"
+    WHITESPACE@53..55 "  "
+    CONDITION_BLK@55..96
+      CONDITION_KW@55..64 "condition"
+      COLON@64..65 ":"
+      NEWLINE@65..66 "\n"
+      WHITESPACE@66..70 "    "
+      BOOLEAN_EXPR@70..96
+        BOOLEAN_TERM@70..96
+          FOR_EXPR@70..96
+            FOR_KW@70..73 "for"
+            WHITESPACE@73..74 " "
+            QUANTIFIER@74..77
+              ALL_KW@74..77 "all"
+            WHITESPACE@77..78 " "
+            OF_KW@78..80 "of"
+            WHITESPACE@80..81 " "
+            THEM_KW@81..85 "them"
+            WHITESPACE@85..86 " "
+            COLON@86..87 ":"
+            WHITESPACE@87..88 " "
+            L_PAREN@88..89 "("
+            WHITESPACE@89..90 " "
+            BOOLEAN_EXPR@90..93
+              BOOLEAN_TERM@90..93
+                EXPR@90..93
+                  TERM@90..93
+                    PRIMARY_EXPR@90..93
+                      IDENT@90..93 "foo"
+            ERROR@93..94
+              DOT@93..94 "."
+            WHITESPACE@94..95 " "
+            R_PAREN@95..96 ")"
+    NEWLINE@96..97 "\n"
+    R_BRACE@97..98 "}"
+
+ERRORS:
+- [95..96]: expecting identifier, found `)`
