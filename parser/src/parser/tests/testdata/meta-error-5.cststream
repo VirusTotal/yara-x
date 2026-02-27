@@ -21,7 +21,6 @@ End { kind: ERROR, span: Span(14..29) }
 Token { kind: WHITESPACE, span: Span(29..30) }
 Begin { kind: ERROR, span: Span(30..49) }
 Token { kind: IDENT, span: Span(30..33) }
-Error { message: "expecting `-`, INTEGER, FLOAT, STRING, `true` or `false`, found `bar`", span: Span(30..33) }
 Token { kind: NEWLINE, span: Span(33..34) }
 Token { kind: WHITESPACE, span: Span(34..38) }
 Token { kind: IDENT, span: Span(38..41) }
@@ -61,4 +60,5 @@ End { kind: CONDITION_BLK, span: Span(77..95) }
 Token { kind: NEWLINE, span: Span(95..96) }
 Token { kind: R_BRACE, span: Span(96..97) }
 End { kind: RULE_DECL, span: Span(0..97) }
+Error { message: "expecting `-`, INTEGER, FLOAT, STRING, `true` or `false`, found `bar`", span: Span(30..33) }
 End { kind: SOURCE_FILE, span: Span(0..97) }

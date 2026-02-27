@@ -21,7 +21,6 @@ End { kind: ERROR, span: Span(13..29) }
 Token { kind: WHITESPACE, span: Span(29..30) }
 Begin { kind: ERROR, span: Span(30..35) }
 Token { kind: L_BRACE, span: Span(30..31) }
-Error { message: "expecting `[`, BYTE, `(` or `}`, found `0`", span: Span(33..34) }
 Token { kind: HEX_BYTE, span: Span(31..33) }
 Token { kind: INTEGER_LIT, span: Span(33..34) }
 Token { kind: R_BRACE, span: Span(34..35) }
@@ -42,6 +41,7 @@ End { kind: CONDITION_BLK, span: Span(38..56) }
 Token { kind: NEWLINE, span: Span(56..57) }
 Token { kind: R_BRACE, span: Span(57..58) }
 End { kind: RULE_DECL, span: Span(0..58) }
+Error { message: "expecting `[`, BYTE, `(` or `}`, found `0`", span: Span(33..34) }
 Token { kind: NEWLINE, span: Span(58..59) }
 Token { kind: NEWLINE, span: Span(59..60) }
 Begin { kind: RULE_DECL, span: Span(60..118) }
@@ -66,7 +66,6 @@ End { kind: ERROR, span: Span(73..89) }
 Token { kind: WHITESPACE, span: Span(89..90) }
 Begin { kind: ERROR, span: Span(90..95) }
 Token { kind: L_BRACE, span: Span(90..91) }
-Error { message: "expecting `[`, BYTE, `(` or `}`, found `a`", span: Span(93..94) }
 Token { kind: HEX_BYTE, span: Span(91..93) }
 Token { kind: IDENT, span: Span(93..94) }
 Token { kind: R_BRACE, span: Span(94..95) }
@@ -87,4 +86,5 @@ End { kind: CONDITION_BLK, span: Span(98..116) }
 Token { kind: NEWLINE, span: Span(116..117) }
 Token { kind: R_BRACE, span: Span(117..118) }
 End { kind: RULE_DECL, span: Span(60..118) }
+Error { message: "expecting `[`, BYTE, `(` or `}`, found `a`", span: Span(93..94) }
 End { kind: SOURCE_FILE, span: Span(0..118) }

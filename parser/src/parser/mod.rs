@@ -133,9 +133,10 @@ pub(crate) struct ParserImpl<'src> {
     #[cfg(feature = "logging")]
     depth: usize,
 
-    /// Hash map where keys are spans within the source code, and values
-    /// are tuples containing the ID of the token actually found and a list of
-    /// tokens that were expected to match at that span.
+    /// Hash map where keys are tuples (Span, TokenId) identifying a token in
+    /// the source code (the Span and the TokenId correspond to the same token),
+    /// and values are lists of tokens that were expected to match at that
+    /// span.
     ///
     /// This hash map plays a crucial role in error reporting during parsing.
     /// Consider the following grammar rule:
@@ -146,7 +147,7 @@ pub(crate) struct ParserImpl<'src> {
     /// can be represented (conceptually, not actual code) as:
     ///
     /// ```text
-    /// self.start(A)
+    /// self.begin(A)
     ///     .opt(|p| p.expect(a))
     ///     .expect(b)
     ///     .end()
@@ -169,7 +170,7 @@ pub(crate) struct ParserImpl<'src> {
     /// the position of `c`. When `expect(b)` fails later, the parser looks up
     /// any other token (besides `b`) that were expected to match at the
     /// position and produces a comprehensive error message.
-    expected_token_errors: FxHashMap<Span, (TokenId, IndexSet<&'static str>)>,
+    expected_token_errors: FxHashMap<(Span, TokenId), IndexSet<&'static str>>,
 
     /// Similar to `expected_token_errors` but tracks the positions where
     /// unexpected tokens were found. This type of error is produced when
@@ -434,6 +435,9 @@ impl<'src> ParserImpl<'src> {
             self.depth -= 1;
         }
         if matches!(self.state, State::Failure | State::OutOfFuel) {
+            if self.opt_depth == 0 {
+                self.handle_errors();
+            }
             self.output.end_with_error();
         } else {
             self.output.end();
@@ -441,9 +445,20 @@ impl<'src> ParserImpl<'src> {
         self
     }
 
-    /// Recovers from errors by discarding any token until finding
-    /// one that is in `recovery_set`.
+    /// Recovers from errors and discards tokens until finding one that is in
+    /// `recovery_set`.
+    ///
+    /// If the parser is in [`State::Failure`], it will go back to [`State::OK`].
+    /// Any token that is not in `recovery_set` will be consumed in put into an
+    /// `ERROR` node, regardless of the initial parser state.
     fn recover(&mut self, recovery_set: &'static TokenSet) -> &mut Self {
+        // If parser is out-of-fuel there's nothing to recover from.
+        if matches!(self.state, State::OutOfFuel) {
+            return self;
+        }
+
+        let state_was_ok = matches!(self.state, State::OK);
+
         self.set_state(State::OK);
 
         let token = match self.peek_non_trivia() {
@@ -451,46 +466,46 @@ impl<'src> ParserImpl<'src> {
             None => return self,
         };
 
-        if recovery_set.contains(token).is_some() {
-            return self;
-        }
-
         let token_span = token.span();
         let token_id = token.id();
-
-        self.trivia();
-        self.begin(ERROR);
-        self.bump();
+        let token_in_recovery_set = recovery_set.contains(token).is_some();
 
         // If no previous error exists, create an error that tells that we are
-        // expecting any of the tokens in the recovery set. If there were
-        // previous errors, flush them and don't produce new ones.
+        // expecting any of the tokens in the recovery set.
         if self.pending_errors.is_empty() {
-            let (actual_token_id, expected) =
-                self.expected_token_errors.entry(token_span).or_default();
+            let expected = self
+                .expected_token_errors
+                .entry((token_span, token_id))
+                .or_default();
 
-            *actual_token_id = token_id;
-
-            expected.extend(
-                recovery_set.token_ids().map(|token| token.description()),
-            );
-
-            self.handle_errors();
-        } else {
-            self.flush_errors();
-        }
-
-        // Consume any token that is not in the recovery set.
-        while let Some(token) = self.peek_non_trivia() {
-            if recovery_set.contains(token).is_some() {
-                break;
-            } else {
-                self.trivia();
-                self.bump();
+            if !token_in_recovery_set {
+                expected.extend(
+                    recovery_set.token_ids().map(|token| token.description()),
+                );
             }
         }
 
-        self.end();
+        if !state_was_ok || !token_in_recovery_set {
+            self.handle_errors();
+        }
+
+        // Consume any token that is not in the recovery set.
+        if !token_in_recovery_set {
+            self.trivia();
+            self.begin(ERROR);
+            self.bump();
+
+            while let Some(token) = self.peek_non_trivia() {
+                if recovery_set.contains(token).is_some() {
+                    break;
+                } else {
+                    self.trivia();
+                    self.bump();
+                }
+            }
+
+            self.end();
+        }
 
         self
     }
@@ -538,20 +553,18 @@ impl<'src> ParserImpl<'src> {
             return self;
         }
 
-        let (token_id, token_match, token_span) = match self.peek_non_trivia()
+        let (token_span, token_id, token_match) = match self.peek_non_trivia()
         {
             None => {
                 // Special case when the end of the source is reached. The span
                 // used for error reporting is a zero-length span pointing to
                 // the end of the code.
                 let last = self.tokens.source().len() as u32;
-                (None, None, Span(last..last))
+                (Span(last..last), TokenId::UNKNOWN, None)
             }
-            Some(token) => (
-                Some(token.id()),
-                expected_tokens.contains(token),
-                token.span(),
-            ),
+            Some(token) => {
+                (token.span(), token.id(), expected_tokens.contains(token))
+            }
         };
 
         match (self.not_depth, token_match) {
@@ -560,15 +573,14 @@ impl<'src> ParserImpl<'src> {
             // actually means that the token was *not* expected.
             (not_depth, Some(_)) if not_depth > 0 => {
                 self.unexpected_token_errors.insert(token_span);
-                self.handle_errors()
             }
             // We are not inside a "not", and the expected token was
             // not found.
             (0, None) => {
-                let (actual_token_id, expected) =
-                    self.expected_token_errors.entry(token_span).or_default();
-
-                *actual_token_id = token_id.unwrap_or(TokenId::UNKNOWN);
+                let expected = self
+                    .expected_token_errors
+                    .entry((token_span, token_id))
+                    .or_default();
 
                 if let Some(description) = description {
                     expected.insert(description);
@@ -579,8 +591,6 @@ impl<'src> ParserImpl<'src> {
                             .map(|token| token.description()),
                     );
                 }
-
-                self.handle_errors();
             }
             _ => {}
         }
@@ -592,13 +602,6 @@ impl<'src> ParserImpl<'src> {
             // Consume the expected token.
             let token = self.tokens.next_token().unwrap();
             self.output.push_token(*t, token.span());
-            // After matching a token that is not inside an "optional" branch
-            // in the grammar, it's guaranteed that the parser won't go back
-            // to a position at the left of the matched token. This is a good
-            // opportunity for flushing errors.
-            if self.opt_depth == 0 {
-                self.flush_errors()
-            }
         } else {
             self.set_state(State::Failure);
         }
@@ -733,12 +736,10 @@ impl<'src> ParserImpl<'src> {
                     let token_span = token.span();
                     let token_id = token.id();
 
-                    let (actual_token, expected) = self
+                    let expected = self
                         .expected_token_errors
-                        .entry(token_span)
+                        .entry((token_span, token_id))
                         .or_default();
-
-                    *actual_token = token_id;
 
                     expected.extend(
                         expected_tokens
@@ -865,24 +866,19 @@ impl<'src> ParserImpl<'src> {
     }
 
     fn flush_errors(&mut self) {
-        self.expected_token_errors.clear();
-        self.unexpected_token_errors.clear();
         for (span, error) in self.pending_errors.drain(0..) {
             self.output.push_error(error, span);
         }
     }
 
     fn handle_errors(&mut self) {
-        if self.opt_depth > 0 {
-            return;
-        }
         // From all errors in expected_token_errors, use the one at the largest
         // offset. If several errors start at the same offset, the last one is
         // used.
         let expected_token = self
             .expected_token_errors
             .drain()
-            .max_by_key(|(span, _)| span.start());
+            .max_by_key(|((span, _), _)| span.start());
 
         // From all errors in unexpected_token_errors, use the one at the
         // largest offset. If several errors start at the same offset, the last
@@ -893,9 +889,11 @@ impl<'src> ParserImpl<'src> {
             .max_by_key(|span| span.start());
 
         let (span, expected) = match (expected_token, unexpected_token) {
-            (Some((e, _)), Some(u)) if u.start() > e.start() => (u, None),
+            (Some(((e, _), _)), Some(u)) if u.start() > e.start() => (u, None),
             (None, Some(u)) => (u, None),
-            (Some((e, expected)), _) => (e, Some(expected)),
+            (Some(((e, token_id), expected)), _) => {
+                (e, Some((token_id, expected)))
+            }
             (None, None) => return,
         };
 
@@ -1104,14 +1102,14 @@ impl ParserImpl<'_> {
     /// ```
     fn rule_decl(&mut self) -> &mut Self {
         self.begin(RULE_DECL)
-            .opt(|p| p.rule_mods())
+            .opt(Self::rule_mods)
             .expect(t!(RULE_KW))
             .expect(t!(IDENT))
-            .if_next(t!(COLON), |p| p.rule_tags())
+            .if_next(t!(COLON), Self::rule_tags)
             .expect(t!(L_BRACE))
-            .if_next(t!(META_KW), |p| p.meta_blk())
-            .if_next(t!(STRINGS_KW), |p| p.patterns_blk())
-            .condition_blk()
+            .if_next(t!(META_KW), Self::meta_blk)
+            .if_next(t!(STRINGS_KW), Self::patterns_blk)
+            .then(Self::condition_blk)
             .expect(t!(R_BRACE))
             .end()
             .recover(t!(GLOBAL_KW
@@ -1157,7 +1155,7 @@ impl ParserImpl<'_> {
         self.begin(META_BLK)
             .expect(t!(META_KW))
             .expect(t!(COLON))
-            .one_or_more(|p| p.meta_def())
+            .one_or_more(Self::meta_def)
             .end()
             .recover(t!(STRINGS_KW | CONDITION_KW))
     }
@@ -1195,7 +1193,7 @@ impl ParserImpl<'_> {
         self.begin(PATTERNS_BLK)
             .expect(t!(STRINGS_KW))
             .expect(t!(COLON))
-            .one_or_more(|p| p.pattern_def())
+            .one_or_more(Self::pattern_def)
             .end()
             .recover(t!(CONDITION_KW))
     }
@@ -1216,9 +1214,9 @@ impl ParserImpl<'_> {
             .begin_alt()
             .alt(|p| p.expect(t!(STRING_LIT)))
             .alt(|p| p.expect(t!(REGEXP)))
-            .alt(|p| p.hex_pattern())
+            .alt(Self::hex_pattern)
             .end_alt()
-            .opt(|p| p.pattern_mods())
+            .opt(Self::pattern_mods)
             .end()
     }
 
@@ -1228,7 +1226,7 @@ impl ParserImpl<'_> {
     /// PATTERN_MODS := PATTERN_MOD+
     /// ``
     fn pattern_mods(&mut self) -> &mut Self {
-        self.begin(PATTERN_MODS).one_or_more(|p| p.pattern_mod()).end()
+        self.begin(PATTERN_MODS).one_or_more(Self::pattern_mod).end()
     }
 
     /// Parses a pattern modifier.
@@ -1289,7 +1287,7 @@ impl ParserImpl<'_> {
         self.begin(HEX_PATTERN)
             .expect(t!(L_BRACE))
             .enter_hex_pattern_mode()
-            .hex_sub_pattern()
+            .then(Self::hex_sub_pattern)
             .expect(t!(R_BRACE))
             .end()
     }
@@ -1304,13 +1302,13 @@ impl ParserImpl<'_> {
         self.begin(HEX_SUB_PATTERN)
             .begin_alt()
             .alt(|p| p.expect(t!(HEX_BYTE)))
-            .alt(|p| p.hex_alternative())
+            .alt(Self::hex_alternative)
             .end_alt()
             .zero_or_more(|p| {
-                p.zero_or_more(|p| p.hex_jump())
+                p.zero_or_more(Self::hex_jump)
                     .begin_alt()
                     .alt(|p| p.expect(t!(HEX_BYTE)))
-                    .alt(|p| p.hex_alternative())
+                    .alt(Self::hex_alternative)
                     .end_alt()
             })
             .end()
@@ -1324,8 +1322,8 @@ impl ParserImpl<'_> {
     fn hex_alternative(&mut self) -> &mut Self {
         self.begin(HEX_ALTERNATIVE)
             .expect(t!(L_PAREN))
-            .hex_sub_pattern()
-            .zero_or_more(|p| p.expect(t!(PIPE)).hex_sub_pattern())
+            .then(Self::hex_sub_pattern)
+            .zero_or_more(|p| p.expect(t!(PIPE)).then(Self::hex_sub_pattern))
             .expect(t!(R_PAREN))
             .end()
     }
@@ -1372,9 +1370,10 @@ impl ParserImpl<'_> {
     /// ``
     fn boolean_expr(&mut self) -> &mut Self {
         self.begin(BOOLEAN_EXPR)
-            .boolean_term()
+            .then(Self::boolean_term)
             .zero_or_more(|p| {
-                p.expect_d(t!(AND_KW | OR_KW), Some("operator")).boolean_term()
+                p.expect_d(t!(AND_KW | OR_KW), Some("operator"))
+                    .then(Self::boolean_term)
             })
             .end()
     }
@@ -1383,10 +1382,15 @@ impl ParserImpl<'_> {
     ///
     /// ```text
     /// BOOLEAN_TERM := (
+    ///    PATTERN_IDENT ( 'at' EXPR | 'in' RANGE )?
     ///    `true`                 |
     ///    `false`                |
     ///    `not` BOOLEAN_TERM     |
     ///    `defined` BOOLEAN_TERM |
+    ///    FOR_EXPR
+    ///    OF_EXPR
+    ///    WITH_EXPR
+    ///    EXPR ( comparison_op  EXPR )*
     ///    `(` BOOLEAN_EXPR `)`
     /// )
     /// ``
@@ -1396,21 +1400,17 @@ impl ParserImpl<'_> {
         self.begin(BOOLEAN_TERM)
             .begin_alt()
             .alt(|p| {
-                p.expect_d(t!(PATTERN_IDENT), DESC).if_next(
-                    t!(AT_KW | IN_KW),
-                    |p| {
-                        p.begin_alt()
-                            .alt(|p| p.expect(t!(AT_KW)).expr())
-                            .alt(|p| p.expect(t!(IN_KW)).range())
-                            .end_alt()
-                    },
-                )
+                p.expect_d(t!(PATTERN_IDENT), DESC)
+                    .if_next(t!(AT_KW | IN_KW), Self::at_or_in)
             })
             .alt(|p| p.expect_d(t!(TRUE_KW | FALSE_KW), DESC))
-            .alt(|p| p.expect_d(t!(NOT_KW | DEFINED_KW), DESC).boolean_term())
-            .alt(|p| p.for_expr())
-            .alt(|p| p.of_expr())
-            .alt(|p| p.with_expr())
+            .alt(|p| {
+                p.expect_d(t!(NOT_KW | DEFINED_KW), DESC)
+                    .then(Self::boolean_term)
+            })
+            .alt(Self::for_expr)
+            .alt(Self::of_expr)
+            .alt(Self::with_expr)
             .alt(|p| {
                 p.expr().zero_or_more(|p| {
                     p.expect_d(
@@ -1430,16 +1430,23 @@ impl ParserImpl<'_> {
                             | MATCHES_KW),
                         DESC,
                     )
-                    .expr()
+                    .then(Self::expr)
                 })
             })
             .alt(|p| {
                 p.expect_d(t!(L_PAREN), DESC)
-                    .boolean_expr()
+                    .then(Self::boolean_expr)
                     .expect(t!(R_PAREN))
             })
             .end_alt()
             .end()
+    }
+
+    fn at_or_in(&mut self) -> &mut Self {
+        self.begin_alt()
+            .alt(|p| p.expect(t!(AT_KW)).then(Self::expr))
+            .alt(|p| p.expect(t!(IN_KW)).then(Self::range))
+            .end_alt()
     }
 
     /// Parses an expression.
@@ -1452,7 +1459,7 @@ impl ParserImpl<'_> {
     fn expr(&mut self) -> &mut Self {
         self.cached(EXPR, |p| {
             p.begin(EXPR)
-                .term()
+                .then(Self::term)
                 .zero_or_more(|p| {
                     p.expect_d(
                         t!(ADD
@@ -1467,7 +1474,7 @@ impl ParserImpl<'_> {
                             | BITWISE_XOR),
                         Some("operator"),
                     )
-                    .term()
+                    .then(Self::term)
                 })
                 .end()
         })
@@ -1483,8 +1490,9 @@ impl ParserImpl<'_> {
             .expect(t!(IDENT))
             .expect(t!(L_PAREN))
             .opt(|p| {
-                p.boolean_expr()
-                    .zero_or_more(|p| p.expect(t!(COMMA)).boolean_expr())
+                p.boolean_expr().zero_or_more(|p| {
+                    p.expect(t!(COMMA)).then(Self::boolean_expr)
+                })
             })
             .expect(t!(R_PAREN))
             .end()
@@ -1498,10 +1506,10 @@ impl ParserImpl<'_> {
     fn range(&mut self) -> &mut Self {
         self.begin(RANGE)
             .expect(t!(L_PAREN))
-            .expr()
+            .then(Self::expr)
             .expect(t!(DOT))
             .expect(t!(DOT))
-            .expr()
+            .then(Self::expr)
             .expect(t!(R_PAREN))
             .end()
     }
@@ -1544,7 +1552,7 @@ impl ParserImpl<'_> {
                 })
                 .alt(|p| {
                     p.expect_d(t!(PATTERN_COUNT), DESC)
-                        .cond(t!(IN_KW), |p| p.range())
+                        .cond(t!(IN_KW), Self::range)
                 })
                 .alt(|p| {
                     p.expect_d(t!(PATTERN_OFFSET | PATTERN_LENGTH), DESC)
@@ -1552,14 +1560,16 @@ impl ParserImpl<'_> {
                             p.expr().expect(t!(R_BRACKET))
                         })
                 })
-                .alt(|p| p.expect_d(t!(MINUS), DESC).term())
-                .alt(|p| p.expect_d(t!(BITWISE_NOT), DESC).term())
+                .alt(|p| p.expect_d(t!(MINUS), DESC).then(Self::term))
+                .alt(|p| p.expect_d(t!(BITWISE_NOT), DESC).then(Self::term))
                 .alt(|p| {
-                    p.expect_d(t!(L_PAREN), DESC).expr().expect(t!(R_PAREN))
+                    p.expect_d(t!(L_PAREN), DESC)
+                        .then(Self::expr)
+                        .expect(t!(R_PAREN))
                 })
                 .alt(|p| {
                     p.primary_expr().zero_or_more(|p| {
-                        p.expect_d(t!(DOT), DESC).primary_expr()
+                        p.expect_d(t!(DOT), DESC).then(Self::primary_expr)
                     })
                 })
                 .end_alt()
@@ -1578,11 +1588,11 @@ impl ParserImpl<'_> {
     fn primary_expr(&mut self) -> &mut Self {
         self.begin(PRIMARY_EXPR)
             .begin_alt()
-            .alt(|p| p.func_call())
+            .alt(Self::func_call)
             .alt(|p| {
                 p.expect(t!(IDENT))
                     .expect(t!(L_BRACKET))
-                    .expr()
+                    .then(Self::expr)
                     .expect(t![R_BRACKET])
             })
             .alt(|p| p.expect(t!(IDENT)))
@@ -1602,13 +1612,13 @@ impl ParserImpl<'_> {
     fn for_expr(&mut self) -> &mut Self {
         self.begin(FOR_EXPR)
             .expect_d(t!(FOR_KW), Some("expression"))
-            .quantifier()
+            .then(Self::quantifier)
             .begin_alt()
             .alt(|p| {
                 p.expect(t!(OF_KW))
                     .begin_alt()
                     .alt(|p| p.expect(t!(THEM_KW)))
-                    .alt(|p| p.pattern_ident_tuple())
+                    .alt(Self::pattern_ident_tuple)
                     .end_alt()
             })
             .alt(|p| {
@@ -1620,7 +1630,7 @@ impl ParserImpl<'_> {
             .end_alt()
             .expect(t!(COLON))
             .expect(t!(L_PAREN))
-            .boolean_expr()
+            .then(Self::boolean_expr)
             .expect(t!(R_PAREN))
             .end()
     }
@@ -1635,20 +1645,15 @@ impl ParserImpl<'_> {
     /// ``
     fn of_expr(&mut self) -> &mut Self {
         self.begin(OF_EXPR)
-            .quantifier()
+            .then(Self::quantifier)
             .expect(t!(OF_KW))
             .begin_alt()
             .alt(|p| {
                 p.begin_alt()
                     .alt(|p| p.expect(t!(THEM_KW)))
-                    .alt(|p| p.pattern_ident_tuple())
+                    .alt(Self::pattern_ident_tuple)
                     .end_alt()
-                    .if_next(t!(AT_KW | IN_KW), |p| {
-                        p.begin_alt()
-                            .alt(|p| p.expect(t!(AT_KW)).expr())
-                            .alt(|p| p.expect(t!(IN_KW)).range())
-                            .end_alt()
-                    })
+                    .if_next(t!(AT_KW | IN_KW), Self::at_or_in)
             })
             .alt(|p| {
                 p.boolean_expr_tuple().not(|p| p.expect(t!(AT_KW | IN_KW)))
@@ -1665,10 +1670,10 @@ impl ParserImpl<'_> {
     fn with_expr(&mut self) -> &mut Self {
         self.begin(WITH_EXPR)
             .expect_d(t!(WITH_KW), Some("expression"))
-            .with_declarations()
+            .then(Self::with_declarations)
             .expect(t!(COLON))
             .expect(t!(L_PAREN))
-            .boolean_expr()
+            .then(|p| p.boolean_expr().recover(t!(R_PAREN)))
             .expect(t!(R_PAREN))
             .end()
     }
@@ -1680,9 +1685,10 @@ impl ParserImpl<'_> {
     ///
     fn with_declarations(&mut self) -> &mut Self {
         self.begin(WITH_DECLS)
-            .with_declaration()
+            .then(Self::with_declaration)
             .zero_or_more(|p| p.expect(t!(COMMA)).with_declaration())
             .end()
+            .recover(t!(COLON | L_PAREN))
     }
 
     /// Parses a `with` declaration.
@@ -1691,7 +1697,11 @@ impl ParserImpl<'_> {
     /// WITH_DECL := IDENT `=` EXPR
     /// ```
     fn with_declaration(&mut self) -> &mut Self {
-        self.begin(WITH_DECL).expect(t!(IDENT)).expect(t!(EQUAL)).expr().end()
+        self.begin(WITH_DECL)
+            .expect(t!(IDENT))
+            .expect(t!(EQUAL))
+            .then(Self::expr)
+            .end()
     }
 
     /// Parses quantifier.
@@ -1733,9 +1743,9 @@ impl ParserImpl<'_> {
     fn iterable(&mut self) -> &mut Self {
         self.begin(ITERABLE)
             .begin_alt()
-            .alt(|p| p.range())
-            .alt(|p| p.expr_tuple())
-            .alt(|p| p.expr())
+            .alt(Self::range)
+            .alt(Self::expr_tuple)
+            .alt(Self::expr)
             .end_alt()
             .end()
     }
@@ -1748,8 +1758,8 @@ impl ParserImpl<'_> {
     fn boolean_expr_tuple(&mut self) -> &mut Self {
         self.begin(BOOLEAN_EXPR_TUPLE)
             .expect(t!(L_PAREN))
-            .boolean_expr()
-            .zero_or_more(|p| p.expect(t!(COMMA)).boolean_expr())
+            .then(Self::boolean_expr)
+            .zero_or_more(|p| p.expect(t!(COMMA)).then(Self::boolean_expr))
             .expect(t!(R_PAREN))
             .end()
     }
@@ -1762,8 +1772,8 @@ impl ParserImpl<'_> {
     fn expr_tuple(&mut self) -> &mut Self {
         self.begin(EXPR_TUPLE)
             .expect(t!(L_PAREN))
-            .expr()
-            .zero_or_more(|p| p.expect(t!(COMMA)).expr())
+            .then(Self::expr)
+            .zero_or_more(|p| p.expect(t!(COMMA)).then(Self::expr))
             .expect(t!(R_PAREN))
             .end()
     }
@@ -1826,19 +1836,19 @@ struct Alt<'a, 'src> {
 }
 
 impl<'a, 'src> Alt<'a, 'src> {
-    fn alt<F>(mut self, f: F) -> Self
+    fn alt<P>(mut self, parser: P) -> Self
     where
-        F: Fn(&'a mut ParserImpl<'src>) -> &'a mut ParserImpl<'src>,
+        P: Fn(&'a mut ParserImpl<'src>) -> &'a mut ParserImpl<'src>,
     {
         if matches!(self.parser.state, State::Failure | State::OutOfFuel) {
             return self;
         }
-        // Don't try to match the current alternative if the parser a previous
-        // one already matched.
+        // Don't try to match the current alternative if a previous one already
+        // matched.
         if !self.matched {
             self.parser.trivia();
             self.parser.opt_depth += 1;
-            self.parser = f(self.parser);
+            self.parser = parser(self.parser);
             self.parser.opt_depth -= 1;
             match self.parser.state {
                 // The current alternative matched.
@@ -1865,7 +1875,6 @@ impl<'a, 'src> Alt<'a, 'src> {
             self.parser.set_state(State::OK);
         } else {
             self.parser.set_state(State::Failure);
-            self.parser.handle_errors();
         };
         self.parser
     }

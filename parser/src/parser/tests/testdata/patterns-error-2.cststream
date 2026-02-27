@@ -35,7 +35,6 @@ Token { kind: NEWLINE, span: Span(47..48) }
 Token { kind: WHITESPACE, span: Span(48..50) }
 Begin { kind: CONDITION_BLK, span: Span(50..68) }
 Token { kind: CONDITION_KW, span: Span(50..59) }
-Error { message: "expecting `[`, BYTE, `(` or `}`, found `condition`", span: Span(50..59) }
 Token { kind: COLON, span: Span(59..60) }
 Token { kind: NEWLINE, span: Span(60..61) }
 Token { kind: WHITESPACE, span: Span(61..64) }
@@ -48,4 +47,5 @@ End { kind: CONDITION_BLK, span: Span(50..68) }
 Token { kind: NEWLINE, span: Span(68..69) }
 Token { kind: R_BRACE, span: Span(69..70) }
 End { kind: RULE_DECL, span: Span(0..70) }
+Error { message: "expecting `[`, BYTE, `(` or `}`, found `condition`", span: Span(50..59) }
 End { kind: SOURCE_FILE, span: Span(0..70) }

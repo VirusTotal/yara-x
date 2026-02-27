@@ -21,7 +21,6 @@ End { kind: ERROR, span: Span(13..29) }
 Token { kind: WHITESPACE, span: Span(29..30) }
 Begin { kind: ERROR, span: Span(30..34) }
 Token { kind: L_BRACE, span: Span(30..31) }
-Error { message: "expecting `[`, BYTE, `(` or `}`, found `condition`", span: Span(37..46) }
 Token { kind: WHITESPACE, span: Span(31..32) }
 Token { kind: HEX_BYTE, span: Span(32..34) }
 End { kind: ERROR, span: Span(30..34) }
@@ -41,4 +40,5 @@ End { kind: CONDITION_BLK, span: Span(37..55) }
 Token { kind: NEWLINE, span: Span(55..56) }
 Token { kind: R_BRACE, span: Span(56..57) }
 End { kind: RULE_DECL, span: Span(0..57) }
+Error { message: "expecting `[`, BYTE, `(` or `}`, found `condition`", span: Span(37..46) }
 End { kind: SOURCE_FILE, span: Span(0..57) }

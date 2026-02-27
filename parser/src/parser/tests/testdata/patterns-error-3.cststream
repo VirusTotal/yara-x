@@ -40,7 +40,6 @@ Token { kind: NEWLINE, span: Span(65..66) }
 Token { kind: WHITESPACE, span: Span(66..68) }
 Begin { kind: CONDITION_BLK, span: Span(68..87) }
 Token { kind: CONDITION_KW, span: Span(68..77) }
-Error { message: "expecting STRING, regexp or `{`, found `bar`", span: Span(47..50) }
 Token { kind: COLON, span: Span(77..78) }
 Token { kind: NEWLINE, span: Span(78..79) }
 Token { kind: WHITESPACE, span: Span(79..83) }
@@ -53,4 +52,5 @@ End { kind: CONDITION_BLK, span: Span(68..87) }
 Token { kind: NEWLINE, span: Span(87..88) }
 Token { kind: R_BRACE, span: Span(88..89) }
 End { kind: RULE_DECL, span: Span(0..89) }
+Error { message: "expecting STRING, regexp or `{`, found `bar`", span: Span(47..50) }
 End { kind: SOURCE_FILE, span: Span(0..89) }
