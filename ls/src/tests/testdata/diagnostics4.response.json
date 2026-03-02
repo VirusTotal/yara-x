@@ -1,19 +1,77 @@
 {
-  "kind": "full",
   "items": [
     {
+      "code": "E022",
+      "data": {
+        "patches": []
+      },
+      "message": "unused pattern `$a`",
       "range": {
-        "start": {
-          "line": 2,
-          "character": 4
-        },
         "end": {
-          "line": 2,
-          "character": 6
+          "character": 6,
+          "line": 2
+        },
+        "start": {
+          "character": 4,
+          "line": 2
         }
       },
-      "severity": 4,
-      "message": "This pattern is not used in condition block"
+      "relatedInformation": [
+        {
+          "location": {
+            "range": {
+              "end": {
+                "character": 6,
+                "line": 2
+              },
+              "start": {
+                "character": 4,
+                "line": 2
+              }
+            },
+            "uri": "${test_dir}/diagnostics4.yar"
+          },
+          "message": "this pattern was not used in the condition"
+        }
+      ],
+      "severity": 1
+    },
+    {
+      "code": "invariant_expr",
+      "data": {
+        "patches": []
+      },
+      "message": "invariant boolean expression",
+      "range": {
+        "end": {
+          "character": 8,
+          "line": 4
+        },
+        "start": {
+          "character": 4,
+          "line": 4
+        }
+      },
+      "relatedInformation": [
+        {
+          "location": {
+            "range": {
+              "end": {
+                "character": 8,
+                "line": 4
+              },
+              "start": {
+                "character": 4,
+                "line": 4
+              }
+            },
+            "uri": "${test_dir}/diagnostics4.yar"
+          },
+          "message": "this expression is always true"
+        }
+      ],
+      "severity": 2
     }
-  ]
+  ],
+  "kind": "full"
 }

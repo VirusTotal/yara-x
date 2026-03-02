@@ -1,6 +1,6 @@
 {
   "textDocument": {
-    "uri": "file:///formatting1.yar"
+    "uri": "${test_dir}/formatting1.yar"
   },
   "options": {
     "tabSize": 4,

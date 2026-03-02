@@ -63,6 +63,11 @@ macro_rules! emit_operands {
             lhs_type = Type::Float;
         }
 
+        // If the left operand is bool, promote it from i32 to i64.
+        if lhs_type == Type::Bool {
+            $instr.unop(UnaryOp::I64ExtendUI32);
+        }
+
         emit_expr($ctx, $ir, rhs, $instr);
 
         // If the right operand is integer, but the left one is float,
@@ -70,6 +75,11 @@ macro_rules! emit_operands {
         if lhs_type == Type::Float && rhs_type == Type::Integer {
             $instr.unop(UnaryOp::F64ConvertSI64);
             rhs_type = Type::Float;
+        }
+
+        // If the right operand is bool, promote it from i32 to i64.
+        if rhs_type == Type::Bool {
+            $instr.unop(UnaryOp::I64ExtendUI32);
         }
 
         (lhs_type, rhs_type)
@@ -104,7 +114,10 @@ macro_rules! emit_arithmetic_op {
 macro_rules! emit_comparison_op {
     ($ctx:ident, $ir:ident, $lhs:expr, $rhs:expr, $int_op:tt, $float_op:tt, $str_op:expr, $instr:ident) => {{
         match emit_operands!($ctx, $ir, $lhs, $rhs, $instr) {
-            (Type::Integer, Type::Integer) => {
+            (Type::Integer, Type::Integer)
+            | (Type::Bool, Type::Bool)
+            | (Type::Bool, Type::Integer)
+            | (Type::Integer, Type::Bool) => {
                 $instr.binop(BinaryOp::$int_op);
             }
             (Type::Float, Type::Float) => {
@@ -744,24 +757,8 @@ fn emit_not(
     operand: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
-    // The `not` expression is emitted as:
-    //
-    //   if (evaluate_operand()) {
-    //     false
-    //   } else {
-    //     true
-    //   }
-    //
     emit_bool_expr(ctx, ir, operand, instr);
-    instr.if_else(
-        I32,
-        |then| {
-            then.i32_const(0);
-        },
-        |else_| {
-            else_.i32_const(1);
-        },
-    );
+    instr.unop(UnaryOp::I32Eqz);
 }
 
 /// Emits the code for `and` operations.
@@ -1025,13 +1022,11 @@ fn emit_lazy_call_to_search_for_patterns(
             },
             |_else| {
                 _else
-                    // Call `search_for_patterns`.
+                    // Call `search_for_patterns`. This function will set
+                    // `pattern_search_done` to true before exiting.
                     .call(ctx.function_id(
                         wasm::export__search_for_patterns.mangled_name,
-                    ))
-                    // Set `pattern_search_done` to true.
-                    .i32_const(1)
-                    .global_set(ctx.wasm_symbols.pattern_search_done);
+                    ));
             },
         );
         let top = ctx.emit_search_for_pattern_stack.last_mut().unwrap();
@@ -2253,26 +2248,20 @@ fn emit_for<I, B, C, A>(
                                 None,
                                 // count >= max_count
                                 |then_| {
-                                    // Is max_count == 0?
+                                    // If max_count == 0, this should be
+                                    // treated as a `none` quantifier. At
+                                    // this point count >= 1, so break the
+                                    // loop with result false (0). If
+                                    // max_count != 0 and count >= max_count,
+                                    // break with result true (1).
+                                    //
+                                    // `i64.ne` with 0 directly produces the
+                                    // right i32: 0 when max_count == 0,
+                                    // 1 when max_count != 0.
                                     load_var(ctx, then_, max_count);
-                                    then_.unop(UnaryOp::I64Eqz);
-                                    then_.if_else(
-                                        None,
-                                        // max_count == 0, this should treated be
-                                        // as a `none` quantifier. At this point
-                                        // count >= 1, so break the loop with
-                                        // result false.
-                                        |then_| {
-                                            then_.i32_const(0);
-                                            then_.br(loop_end);
-                                        },
-                                        // max_count != 0 and count >= max_count
-                                        // break the loop with result true.
-                                        |else_| {
-                                            else_.i32_const(1);
-                                            else_.br(loop_end);
-                                        },
-                                    );
+                                    then_.i64_const(0);
+                                    then_.binop(BinaryOp::I64Ne);
+                                    then_.br(loop_end);
                                 },
                                 |_| {},
                             );
@@ -2288,19 +2277,11 @@ fn emit_for<I, B, C, A>(
                     // return true. If `max_count` is non-zero it means that
                     // `counter` didn't reach `max_count` and the loop must
                     // return false.
+                    //
+                    // `i64.eqz` produces exactly the right i32 result:
+                    // 1 (true) when max_count == 0, 0 (false) otherwise.
                     load_var(ctx, block, max_count);
                     block.unop(UnaryOp::I64Eqz);
-                    block.if_else(
-                        I32,
-                        // max_count == 0
-                        |then_| {
-                            then_.i32_const(1);
-                        },
-                        // max_count != 0
-                        |else_| {
-                            else_.i32_const(0);
-                        },
-                    );
                 }
             }
         });

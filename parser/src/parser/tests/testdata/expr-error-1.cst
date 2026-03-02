@@ -7,7 +7,7 @@ SOURCE_FILE@0..251
     L_BRACE@12..13 "{"
     NEWLINE@13..14 "\n"
     WHITESPACE@14..15 "\t"
-    CONDITION_BLK@15..33
+    CONDITION_BLK@15..36
       CONDITION_KW@15..24 "condition"
       COLON@24..25 ":"
       NEWLINE@25..26 "\n"
@@ -22,9 +22,9 @@ SOURCE_FILE@0..251
             WHITESPACE@31..32 " "
             TERM@32..33
               INTEGER_LIT@32..33 "2"
-    WHITESPACE@33..34 " "
-    ERROR@34..36
-      EQ@34..36 "=="
+      WHITESPACE@33..34 " "
+      ERROR@34..36
+        EQ@34..36 "=="
     NEWLINE@36..37 "\n"
     R_BRACE@37..38 "}"
   NEWLINE@38..39 "\n"
@@ -37,7 +37,7 @@ SOURCE_FILE@0..251
     L_BRACE@52..53 "{"
     NEWLINE@53..54 "\n"
     WHITESPACE@54..55 "\t"
-    CONDITION_BLK@55..69
+    CONDITION_BLK@55..79
       CONDITION_KW@55..64 "condition"
       COLON@64..65 ":"
       NEWLINE@65..66 "\n"
@@ -47,16 +47,16 @@ SOURCE_FILE@0..251
           EXPR@68..69
             TERM@68..69
               INTEGER_LIT@68..69 "1"
-    WHITESPACE@69..70 " "
-    ERROR@70..79
-      PLUS@70..71 "+"
-      PLUS@71..72 "+"
-      WHITESPACE@72..73 " "
-      INTEGER_LIT@73..74 "2"
-      WHITESPACE@74..75 " "
-      EQ@75..77 "=="
-      WHITESPACE@77..78 " "
-      INTEGER_LIT@78..79 "3"
+      WHITESPACE@69..70 " "
+      ERROR@70..79
+        PLUS@70..71 "+"
+        PLUS@71..72 "+"
+        WHITESPACE@72..73 " "
+        INTEGER_LIT@73..74 "2"
+        WHITESPACE@74..75 " "
+        EQ@75..77 "=="
+        WHITESPACE@77..78 " "
+        INTEGER_LIT@78..79 "3"
     NEWLINE@79..80 "\n"
     R_BRACE@80..81 "}"
   NEWLINE@81..82 "\n"
@@ -69,7 +69,7 @@ SOURCE_FILE@0..251
     L_BRACE@95..96 "{"
     NEWLINE@96..97 "\n"
     WHITESPACE@97..98 "\t"
-    CONDITION_BLK@98..112
+    CONDITION_BLK@98..119
       CONDITION_KW@98..107 "condition"
       COLON@107..108 ":"
       NEWLINE@108..109 "\n"
@@ -79,13 +79,13 @@ SOURCE_FILE@0..251
           EXPR@111..112
             TERM@111..112
               INTEGER_LIT@111..112 "1"
-    WHITESPACE@112..113 " "
-    ERROR@113..119
-      PLUS@113..114 "+"
-      WHITESPACE@114..115 " "
-      EQ@115..117 "=="
-      WHITESPACE@117..118 " "
-      INTEGER_LIT@118..119 "3"
+      WHITESPACE@112..113 " "
+      ERROR@113..119
+        PLUS@113..114 "+"
+        WHITESPACE@114..115 " "
+        EQ@115..117 "=="
+        WHITESPACE@117..118 " "
+        INTEGER_LIT@118..119 "3"
     NEWLINE@119..120 "\n"
     R_BRACE@120..121 "}"
   NEWLINE@121..122 "\n"
@@ -98,7 +98,7 @@ SOURCE_FILE@0..251
     L_BRACE@135..136 "{"
     NEWLINE@136..137 "\n"
     WHITESPACE@137..138 "\t"
-    CONDITION_BLK@138..162
+    CONDITION_BLK@138..165
       CONDITION_KW@138..147 "condition"
       COLON@147..148 ":"
       NEWLINE@148..149 "\n"
@@ -114,10 +114,10 @@ SOURCE_FILE@0..251
                   TERM@156..161
                     STRING_LIT@156..161 "\"foo\""
                 R_BRACKET@161..162 "]"
-    ERROR@162..165
-      L_PAREN@162..163 "("
-      INTEGER_LIT@163..164 "4"
-      R_PAREN@164..165 ")"
+      ERROR@162..165
+        L_PAREN@162..163 "("
+        INTEGER_LIT@163..164 "4"
+        R_PAREN@164..165 ")"
     NEWLINE@165..166 "\n"
     R_BRACE@166..167 "}"
   NEWLINE@167..168 "\n"
@@ -143,7 +143,7 @@ SOURCE_FILE@0..251
         STRING_LIT@205..210 "\"foo\""
     NEWLINE@210..211 "\n"
     WHITESPACE@211..214 "   "
-    CONDITION_BLK@214..237
+    CONDITION_BLK@214..248
       CONDITION_KW@214..223 "condition"
       COLON@223..224 ":"
       NEWLINE@224..225 "\n"
@@ -157,16 +157,16 @@ SOURCE_FILE@0..251
           EXPR@236..237
             TERM@236..237
               INTEGER_LIT@236..237 "0"
-    WHITESPACE@237..238 " "
-    ERROR@238..248
-      IN_KW@238..240 "in"
-      WHITESPACE@240..241 " "
-      L_PAREN@241..242 "("
-      INTEGER_LIT@242..243 "0"
-      DOT@243..244 "."
-      DOT@244..245 "."
-      INTEGER_LIT@245..247 "10"
-      R_PAREN@247..248 ")"
+      WHITESPACE@237..238 " "
+      ERROR@238..248
+        IN_KW@238..240 "in"
+        WHITESPACE@240..241 " "
+        L_PAREN@241..242 "("
+        INTEGER_LIT@242..243 "0"
+        DOT@243..244 "."
+        DOT@244..245 "."
+        INTEGER_LIT@245..247 "10"
+        R_PAREN@247..248 ")"
     NEWLINE@248..249 "\n"
     R_BRACE@249..250 "}"
   NEWLINE@250..251 "\n"

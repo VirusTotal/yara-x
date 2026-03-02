@@ -20,7 +20,32 @@ fn serialization() {
 
     assert!(matches!(
         Rules::deserialize(b"YARA-X").err().unwrap(),
+        SerializationError::InvalidFormat
+    ));
+
+    // A valid file starts with `MAGIC` and a version number, but the rest of
+    // the content is invalid because it is too short. This must produce a
+    // `DecodeError`.
+    let mut data = Vec::new();
+    data.extend(b"YARA-X\0\0");
+    data.extend(1u32.to_le_bytes());
+    data.extend(b"foo");
+
+    assert!(matches!(
+        Rules::deserialize(&data).err().unwrap(),
         SerializationError::DecodeError(_)
+    ));
+
+    // This is a valid file, but with a version number that is not the current
+    // one. This must produce an `InvalidVersion` error.
+    let mut data = Vec::new();
+    data.extend(b"YARA-X\0\0");
+    data.extend(0u32.to_le_bytes());
+    data.extend(b"foo");
+
+    assert!(matches!(
+        Rules::deserialize(&data).err().unwrap(),
+        SerializationError::InvalidVersion { expected: _, actual: 0 }
     ));
 
     let rules = compile(r#"rule test { strings: $a = "foo" condition: $a }"#)
@@ -498,9 +523,16 @@ fn globals_json() {
 
     assert_eq!(
         Compiler::new()
-            .define_global("invalid_array", json!({ "foo": null }))
+            .define_global("invalid_struct", json!({ "foo": null }))
             .unwrap_err(),
         VariableError::UnexpectedNull
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .define_global("invalid_struct", json!({ "/foo": 1 }))
+            .unwrap_err(),
+        VariableError::InvalidIdentifier("/foo".to_string())
     );
 }
 

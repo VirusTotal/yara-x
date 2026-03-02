@@ -1,17 +1,27 @@
-use async_lsp::lsp_types::{Position, Range};
-use yara_x_parser::cst::{SyntaxKind, CST};
+use std::sync::Arc;
 
+use async_lsp::lsp_types::{Location, Position, Url};
+
+use yara_x_parser::cst::SyntaxKind;
+
+use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
-    ident_at_position, pattern_from_ident, pattern_usages, rule_from_ident,
+    find_declaration, ident_at_position, occurrences_in_with_for,
+    pattern_from_ident, pattern_usages, rule_containing_token,
 };
-use crate::utils::cst_traversal::{rule_containing_token, rule_usages};
 use crate::utils::position::{node_to_range, token_to_range};
 
 /// Finds all references of a symbol at the given position in the text.
-pub fn find_references(cst: &CST, pos: Position) -> Option<Vec<Range>> {
-    let token = ident_at_position(cst, pos)?;
+pub fn find_references(
+    documents: Arc<DocumentStorage>,
+    uri: Url,
+    pos: Position,
+) -> Option<Vec<Location>> {
+    let document = documents.get(&uri)?;
+    let cst = &document.cst;
+    let ident = ident_at_position(cst, pos)?;
 
-    match token.kind() {
+    match ident.kind() {
         // Pattern identifiers
         // PATTERN_IDENT($a) PATTERN_COUNT(#a) PATTERN_OFFSET(@a) PATTERN_LENGTH(!a)
         SyntaxKind::PATTERN_IDENT
@@ -19,17 +29,20 @@ pub fn find_references(cst: &CST, pos: Position) -> Option<Vec<Range>> {
         | SyntaxKind::PATTERN_OFFSET
         | SyntaxKind::PATTERN_LENGTH => {
             let mut result = Vec::new();
-            let rule = rule_containing_token(&token)?;
+            let rule = rule_containing_token(&ident)?;
 
-            if let Some(range) = pattern_from_ident(&rule, token.text())
+            if let Some(range) = pattern_from_ident(&rule, &ident)
                 .as_ref()
                 .and_then(node_to_range)
             {
-                result.push(range);
+                result.push(Location { uri: uri.clone(), range });
             }
 
-            if let Some(references) = pattern_usages(&rule, token.text()) {
-                result.extend(references.iter().filter_map(token_to_range));
+            if let Some(references) = pattern_usages(&rule, &ident) {
+                result.extend(references.iter().map(|t| Location {
+                    uri: uri.clone(),
+                    range: token_to_range(t).unwrap(),
+                }));
             }
 
             Some(result)
@@ -38,15 +51,37 @@ pub fn find_references(cst: &CST, pos: Position) -> Option<Vec<Range>> {
         SyntaxKind::IDENT => {
             let mut result = Vec::new();
 
-            if let Some(range) = rule_from_ident(cst, token.text())
-                .as_ref()
-                .and_then(node_to_range)
-            {
-                result.push(range);
+            if let Some((t, n)) = find_declaration(&ident) {
+                result.push(Location {
+                    uri: uri.clone(),
+                    range: token_to_range(&t).unwrap(),
+                });
+
+                if let Some(occurrences) = occurrences_in_with_for(&n, &ident)
+                {
+                    for occurrence in occurrences {
+                        result.push(Location {
+                            uri: uri.clone(),
+                            range: token_to_range(&occurrence).unwrap(),
+                        });
+                    }
+                }
+
+                return Some(result);
             }
 
-            if let Some(references) = rule_usages(cst, token.text()) {
-                result.extend(references.iter().filter_map(token_to_range))
+            let occurrences = documents.find_rule_occurrences(&uri, &ident)?;
+
+            result.push(Location {
+                uri: occurrences.definition.0,
+                range: node_to_range(&occurrences.definition.1).unwrap(),
+            });
+
+            for (k, v) in occurrences.usages {
+                result.extend(v.iter().map(|occurrence| Location {
+                    uri: k.clone(),
+                    range: token_to_range(occurrence).unwrap(),
+                }));
             }
 
             Some(result)

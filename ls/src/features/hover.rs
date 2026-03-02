@@ -1,15 +1,18 @@
+use std::sync::Arc;
+
 use async_lsp::lsp_types::{
-    HoverContents, MarkupContent, MarkupKind, Position,
+    HoverContents, MarkupContent, MarkupKind, Position, Url,
 };
 
-use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Utf8, CST};
+use yara_x_parser::cst::{Immutable, Node, NodeOrToken, SyntaxKind, Utf8};
 
+use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
-    pattern_from_ident, rule_containing_token, rule_from_ident,
+    find_declaration, pattern_from_ident, rule_containing_token,
     token_at_position,
 };
 
-/// Builder for hover markdown representation of a rule.
+/// Builder for hover Markdown representation of a rule.
 struct RuleHoverBuilder {
     name: String,
     metas: Option<Node<Immutable>>,
@@ -28,29 +31,14 @@ impl RuleHoverBuilder {
         }
     }
 
-    /// Creates the markdown representation of the rule.
+    /// Creates the Markdown representation of the rule.
     /// It includes the rule name, metas, strings, and condition.
     pub fn get_markdown(&self) -> String {
-        let mut markdown = format!("# {}\n", self.name);
+        let mut markdown = format!("### rule `{}`\n", self.name);
 
         if let Some(metas) = &self.process_metas() {
-            markdown.push_str("## meta\n");
             markdown.push_str("```\n");
             markdown.push_str(metas);
-            markdown.push_str("\n```\n");
-        }
-
-        if let Some(patterns) = &self.process_patterns() {
-            markdown.push_str("## strings\n");
-            markdown.push_str("```\n");
-            markdown.push_str(patterns);
-            markdown.push_str("\n```\n");
-        }
-
-        if let Some(condition) = &self.process_condition() {
-            markdown.push_str("## condition\n");
-            markdown.push_str("```\n");
-            markdown.push_str(condition);
             markdown.push_str("\n```\n");
         }
 
@@ -66,35 +54,6 @@ impl RuleHoverBuilder {
                 .children()
                 .map(|node| format!("{}\n", node.text()))
                 .collect(),
-        )
-    }
-
-    /// Processes the strings block and returns its markdown representation.
-    fn process_patterns(&self) -> Option<String> {
-        Some(
-            self.patterns
-                .as_ref()?
-                // All children in PATTERNS_BLK should be PATTERN_DEF.
-                .children()
-                .map(|node| format!("{}\n", node.text()))
-                .collect(),
-        )
-    }
-
-    /// Processes the condition block and returns its markdown representation.
-    fn process_condition(&self) -> Option<String> {
-        Some(
-            self.condition
-                .as_ref()?
-                .children()
-                .find(|node| node.kind() == SyntaxKind::BOOLEAN_EXPR)?
-                .text()
-                .to_string()
-                .lines()
-                // Strip indentation from each line and join them again.
-                .map(|line| line.trim_start())
-                .collect::<Vec<_>>()
-                .join("\n"),
         )
     }
 
@@ -114,11 +73,16 @@ impl RuleHoverBuilder {
     }
 }
 
-pub fn hover(cst: &CST, pos: Position) -> Option<HoverContents> {
-    // Find the token at the position where the user is hovering.
-    let token = token_at_position(cst, pos)?;
+pub fn hover(
+    documents: Arc<DocumentStorage>,
+    uri: Url,
+    pos: Position,
+) -> Option<HoverContents> {
+    let document = documents.get(&uri)?;
 
-    #[allow(irrefutable_let_patterns)]
+    // Find the token at the position where the user is hovering.
+    let token = token_at_position(&document.cst, pos)?;
+
     match token.kind() {
         // Pattern identifiers in any of their forms (i.e: $a, #a, @a, !a).
         // Notice that identifiers like $, #, @ and ! are ignored, as they
@@ -130,7 +94,7 @@ pub fn hover(cst: &CST, pos: Position) -> Option<HoverContents> {
             if token.len::<Utf8>() >= 2 =>
         {
             let rule = rule_containing_token(&token)?;
-            let pattern = pattern_from_ident(&rule, token.text())?;
+            let pattern = pattern_from_ident(&rule, &token)?;
 
             Some(HoverContents::Markup(MarkupContent {
                 kind: MarkupKind::Markdown,
@@ -139,7 +103,30 @@ pub fn hover(cst: &CST, pos: Position) -> Option<HoverContents> {
         }
         // Rule identifiers.
         SyntaxKind::IDENT => {
-            let rule = rule_from_ident(cst, token.text())?;
+            if let Some((_, n)) = find_declaration(&token) {
+                let text = n
+                    .children_with_tokens()
+                    .take_while(|node_or_token| {
+                        node_or_token.kind() != SyntaxKind::COLON
+                    })
+                    .fold(String::new(), |mut acc, node_or_token| {
+                        match node_or_token {
+                            NodeOrToken::Token(t) => acc.push_str(t.text()),
+                            NodeOrToken::Node(n) => n
+                                .text()
+                                .for_each_chunks(|chunk| acc.push_str(chunk)),
+                        }
+                        acc
+                    });
+
+                return Some(HoverContents::Markup(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: format!("Declared:\n\n```\n{text}\n```"),
+                }));
+            }
+
+            let (rule, _) = documents.find_rule_definition(&uri, &token)?;
+
             let mut builder = RuleHoverBuilder::new(token.text());
 
             for child in rule.children() {

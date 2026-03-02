@@ -3,9 +3,9 @@ package yara_x
 import (
 	"bytes"
 	"fmt"
-	"testing"
-	"os"
 	"io/ioutil"
+	"os"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -29,7 +29,7 @@ func TestGlobals(t *testing.T) {
 	assert.NoError(t, err)
 	x := map[string]interface{}{"a": map[string]interface{}{"a": "b"}, "b": "d"}
 	y := []interface{}{"z"}
-	
+
 	c.DefineGlobal("test_hashmap", x)
 	c.DefineGlobal("A", "b")
 	c.DefineGlobal("test_arr", y)
@@ -85,10 +85,10 @@ func TestDisabledIncludes(t *testing.T) {
 }
 
 func TestIncludes(t *testing.T) {
-    file, err := ioutil.TempFile("", "prefix")
-    assert.NoError(t, err)
+	file, err := ioutil.TempFile("", "prefix")
+	assert.NoError(t, err)
 
-    defer os.Remove(file.Name())
+	defer os.Remove(file.Name())
 
 	_, err = Compile(
 		fmt.Sprintf(`include "%s"`, file.Name()),
@@ -400,23 +400,23 @@ help: consider the following change
 			Code:   "slow_pattern",
 			Title:  "slow pattern",
 			Line:   1,
-			Column: 22,
+			Column: 27,
 			Labels: []Label{
 				{
 					Level:      "warning",
 					CodeOrigin: "",
 					Line:       1,
-					Column:     22,
-					Span:       Span{Start: 21, End: 43},
+					Column:     27,
+					Span:       Span{Start: 26, End: 45},
 					Text:       "this pattern may slow down the scan",
 				},
 			},
 			Footers: []Footer{},
 			Text: `warning[slow_pattern]: slow pattern
- --> line:1:22
+ --> line:1:27
   |
 1 | rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }
-  |                      ---------------------- this pattern may slow down the scan`,
+  |                           ------------------- this pattern may slow down the scan`,
 		},
 	}, c.Warnings())
 }

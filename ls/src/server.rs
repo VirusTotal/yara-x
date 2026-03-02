@@ -1,48 +1,57 @@
 /*! This module implements [Language Server Protocol (LSP)][1] for YARA-X.
 
-By implementing [`async_lsp::LanguageServer`] trait for [`YARALanguageServer`], it
+By implementing the [`async_lsp::LanguageServer`] trait for [`YARALanguageServer`], it
 defines how the server should process various LSP requests and notifications.
 
 [1]: https://microsoft.github.io/language-server-protocol/
  */
 
-use async_lsp::lsp_types::request::{Request, SemanticTokensFullRequest};
+use std::ops::ControlFlow;
+use std::sync::Arc;
+
+use async_lsp::lsp_types::request::{
+    Request, SemanticTokensFullRequest, SemanticTokensRangeRequest,
+};
+
 use async_lsp::lsp_types::{
+    CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
     CompletionOptions, CompletionParams, CompletionResponse,
-    DiagnosticOptions, DiagnosticServerCapabilities,
-    DidChangeTextDocumentParams, DidCloseTextDocumentParams,
+    ConfigurationItem, ConfigurationParams, DiagnosticOptions,
+    DiagnosticServerCapabilities, DidChangeConfigurationParams,
+    DidChangeTextDocumentParams, DidChangeWatchedFilesParams,
+    DidChangeWatchedFilesRegistrationOptions, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, DidSaveTextDocumentParams,
     DocumentDiagnosticParams, DocumentDiagnosticReportResult,
     DocumentFormattingParams, DocumentHighlight, DocumentHighlightParams,
-    DocumentSymbolParams, DocumentSymbolResponse,
-    FullDocumentDiagnosticReport, GotoDefinitionParams,
+    DocumentSymbolParams, DocumentSymbolResponse, FileSystemWatcher,
+    FullDocumentDiagnosticReport, GlobPattern, GotoDefinitionParams,
     GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability,
-    InitializeParams, InitializeResult, Location, OneOf, Position,
-    PublishDiagnosticsParams, Range, ReferenceParams,
-    RelatedFullDocumentDiagnosticReport, RenameParams, SaveOptions,
-    SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability,
-    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
+    InitializeParams, InitializeResult, InitializedParams, Location,
+    MessageType, OneOf, PublishDiagnosticsParams, ReferenceParams,
+    Registration, RegistrationParams, RelatedFullDocumentDiagnosticReport,
+    RenameParams, SaveOptions, SelectionRange, SelectionRangeParams,
+    SelectionRangeProviderCapability, SemanticTokensFullOptions,
+    SemanticTokensLegend, SemanticTokensOptions, SemanticTokensRangeResult,
     SemanticTokensResult, SemanticTokensServerCapabilities,
-    ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind,
-    TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Url,
-    WorkspaceEdit,
+    ServerCapabilities, ShowMessageParams, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextDocumentSyncOptions,
+    TextDocumentSyncSaveOptions, TextEdit, Unregistration,
+    UnregistrationParams, Url, WatchKind, WorkspaceEdit,
+    WorkspaceFoldersServerCapabilities, WorkspaceServerCapabilities,
 };
-use std::collections::HashMap;
-use std::io::Cursor;
-use std::ops::ControlFlow;
-
 use async_lsp::router::Router;
 use async_lsp::{ClientSocket, LanguageClient, LanguageServer, ResponseError};
 use futures::future::BoxFuture;
+use serde_json::{from_value, to_value};
 
-use yara_x_fmt::Indentation;
-use yara_x_parser::ast::AST;
-use yara_x_parser::cst::CST;
-
+use crate::configuration::Config;
+use crate::documents::storage::DocumentStorage;
+use crate::features::code_action::code_actions;
 use crate::features::completion::completion;
 use crate::features::diagnostics::diagnostics;
 use crate::features::document_highlight::document_highlight;
 use crate::features::document_symbol::document_symbol;
+use crate::features::formatting::formatting;
 use crate::features::goto::go_to_definition;
 use crate::features::hover::hover;
 use crate::features::references::find_references;
@@ -52,38 +61,26 @@ use crate::features::semantic_tokens::{
     semantic_tokens, SEMANTIC_TOKEN_MODIFIERS, SEMANTIC_TOKEN_TYPES,
 };
 
-pub struct DocumentStore {
-    documents: HashMap<Url, CST>,
-}
+macro_rules! in_thread {
+    ($code:expr) => {{
+        #[cfg(not(target_family = "wasm"))]
+        tokio::spawn(async move { $code });
 
-impl DocumentStore {
-    fn new() -> Self {
-        Self { documents: HashMap::new() }
-    }
-
-    fn get(&self, url: &Url) -> Option<&CST> {
-        self.documents.get(url)
-    }
-
-    fn insert(&mut self, url: Url, document: CST) {
-        self.documents.insert(url, document);
-    }
-
-    fn remove(&mut self, url: &Url) -> Option<CST> {
-        self.documents.remove(url)
-    }
+        #[cfg(target_family = "wasm")]
+        wasm_bindgen_futures::spawn_local(async move { $code });
+    }};
 }
 
 /// Represents a YARA language server.
 pub struct YARALanguageServer {
     /// Client socket for communication with the Development Tool.
     ///
-    /// Mainly used to send notifications sush as diagnostics updates,
+    /// Mainly used to send notifications such as diagnostics updates,
     /// logging and showing messages, etc.
     client: ClientSocket,
 
     /// Stores the currently open documents.
-    documents: DocumentStore,
+    documents: Arc<DocumentStorage>,
 
     /// Flag indicating what document diagnostics model to use.
     ///
@@ -96,17 +93,20 @@ pub struct YARALanguageServer {
     /// `textDocument.diagnostic` capability property. If the client supports
     /// pull model, server will disable publishing diagnostics.
     should_send_diagnostics: bool,
+
+    /// Client-side configuration settings of the language server.
+    config: Arc<Config>,
 }
 
 /// Implements document synchronization and various LSP features.
 ///
-/// The features itself are implemented in [`crate::features`] module,
-/// this trait is responsible for routing the request to appropriate feature.
+/// The features themselves are implemented in [`crate::features`] module,
+/// this trait is responsible for routing the request to the appropriate feature.
 impl LanguageServer for YARALanguageServer {
     type Error = ResponseError;
     type NotifyResult = ControlFlow<async_lsp::Result<()>>;
 
-    /// This method is called when the language server is initialized.
+    /// This method is called when the language server is initializing.
     ///
     /// It sets up the server's capabilities, indicating which features are
     /// supported. For example, it declares that the server supports hover,
@@ -124,6 +124,22 @@ impl LanguageServer for YARALanguageServer {
             .and_then(|c| c.diagnostic)
             .is_none();
 
+        if let Some(folder) = params
+            .workspace_folders
+            .and_then(|folders| folders.first().cloned())
+        {
+            if let Some(documents) = Arc::get_mut(&mut self.documents) {
+                documents.set_workspace(folder.uri);
+            }
+        }
+
+        if let Some(config) = params
+            .initialization_options
+            .and_then(|value| from_value::<Config>(value).ok())
+        {
+            self.config = Arc::new(config);
+        }
+
         Box::pin(async move {
             Ok(InitializeResult {
                 capabilities: ServerCapabilities {
@@ -131,9 +147,12 @@ impl LanguageServer for YARALanguageServer {
                         SemanticTokensServerCapabilities::SemanticTokensOptions(
                             SemanticTokensOptions {
                                 full: Some(SemanticTokensFullOptions::Bool(true)),
+                                range: Some(true),
                                 legend: SemanticTokensLegend {
                                     token_types: Vec::from(SEMANTIC_TOKEN_TYPES),
-                                    token_modifiers: Vec::from(SEMANTIC_TOKEN_MODIFIERS),
+                                    token_modifiers: Vec::from(
+                                        SEMANTIC_TOKEN_MODIFIERS,
+                                    ),
                                 },
                                 ..Default::default()
                             },
@@ -157,26 +176,77 @@ impl LanguageServer for YARALanguageServer {
                     document_highlight_provider: Some(OneOf::Left(true)),
                     document_symbol_provider: Some(OneOf::Left(true)),
                     rename_provider: Some(OneOf::Left(true)),
-                    selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
+                    code_action_provider: Some(
+                        CodeActionProviderCapability::Simple(true),
+                    ),
+                    selection_range_provider: Some(
+                        SelectionRangeProviderCapability::Simple(true),
+                    ),
                     text_document_sync: Some(TextDocumentSyncCapability::Options(
                         TextDocumentSyncOptions {
-                            save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
-                                include_text: Some(true),
-                            })),
+                            save: Some(TextDocumentSyncSaveOptions::SaveOptions(
+                                SaveOptions {
+                                    include_text: Some(true),
+                                },
+                            )),
                             open_close: Some(true),
                             change: Some(TextDocumentSyncKind::FULL),
                             ..Default::default()
                         },
                     )),
                     // This is for pull model diagnostics
-                    diagnostic_provider: Some(DiagnosticServerCapabilities::Options(
-                        DiagnosticOptions::default(),
-                    )),
+                    diagnostic_provider: Some(
+                        DiagnosticServerCapabilities::Options(
+                            DiagnosticOptions::default(),
+                        ),
+                    ),
+                    workspace: Some(WorkspaceServerCapabilities{
+                        workspace_folders: Some(WorkspaceFoldersServerCapabilities{
+                            supported: Some(true),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    }),
                     ..ServerCapabilities::default()
                 },
                 server_info: None,
             })
         })
+    }
+
+    /// This method is called when the communication between the language
+    /// server and the code editor is considered initialized.
+    ///
+    /// After the communication is initialized, the server can dynamically
+    /// register capabilities. In this case, the language server wants to
+    /// get notifications about configuration changes via
+    /// `workspace/didChangeConfiguration`.
+    fn initialized(
+        &mut self,
+        _params: InitializedParams,
+    ) -> Self::NotifyResult {
+        let mut client = self.client.clone();
+        in_thread!({
+            let _ = client
+                .register_capability(RegistrationParams {
+                    registrations: vec![Registration {
+                        id: "yxls/didChangeConfiguration".to_string(),
+                        method: "workspace/didChangeConfiguration".to_string(),
+                        register_options: None,
+                    }],
+                })
+                .await;
+        });
+
+        // The configuration can be passed through `initialization_options`
+        // in initialize request, but we want to cahce entire workspace
+        // only after the communication is considered initialized.
+        if self.config.cache_workspace {
+            self.register_fs_watcher();
+            self.documents.cache_workspace();
+        }
+
+        ControlFlow::Continue(())
     }
 
     /// This method is called when the user hovers over a symbol.
@@ -189,15 +259,12 @@ impl LanguageServer for YARALanguageServer {
     ) -> BoxFuture<'static, Result<Option<Hover>, Self::Error>> {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
-        let cst = match self.documents.get(&uri) {
-            Some(entry) => entry,
-            None => return Box::pin(async { Ok(None) }),
-        };
+        let documents = Arc::clone(&self.documents);
 
-        let result = hover(cst, position)
-            .map(|contents| Hover { contents, range: None });
-
-        Box::pin(async move { Ok(result) })
+        Box::pin(async move {
+            Ok(hover(documents, uri, position)
+                .map(|contents| Hover { contents, range: None }))
+        })
     }
 
     /// This method is called when the user requests to go to the definition
@@ -212,16 +279,12 @@ impl LanguageServer for YARALanguageServer {
     {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
-        let cst = match self.documents.get(&uri) {
-            Some(entry) => entry,
-            None => return Box::pin(async { Ok(None) }),
-        };
+        let documents = Arc::clone(&self.documents);
 
-        let definition = go_to_definition(cst, position).map(|range| {
-            GotoDefinitionResponse::Scalar(Location { uri, range })
-        });
-
-        Box::pin(async move { Ok(definition) })
+        Box::pin(async move {
+            Ok(go_to_definition(documents, uri, position)
+                .map(GotoDefinitionResponse::Scalar))
+        })
     }
 
     /// This method is called when the user requests to find all references
@@ -235,20 +298,30 @@ impl LanguageServer for YARALanguageServer {
     ) -> BoxFuture<'static, Result<Option<Vec<Location>>, Self::Error>> {
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
-        let cst = match self.documents.get(&uri) {
-            Some(entry) => entry,
-            None => return Box::pin(async { Ok(None) }),
-        };
+        let documents = Arc::clone(&self.documents);
 
-        let references = match find_references(cst, position) {
-            Some(references) => references
-                .into_iter()
-                .map(|range| Location { uri: uri.clone(), range })
-                .collect(),
-            None => return Box::pin(async { Ok(None) }),
-        };
+        Box::pin(async move {
+            Ok(find_references(documents, uri.clone(), position))
+        })
+    }
 
-        Box::pin(async move { Ok(Some(references)) })
+    /// This method is called when the user requests code actions for a range.
+    ///
+    /// It provides quick fixes for errors and warnings that have patches
+    /// available from the compiler.
+    fn code_action(
+        &mut self,
+        params: CodeActionParams,
+    ) -> BoxFuture<'static, Result<Option<CodeActionResponse>, Self::Error>>
+    {
+        let uri = params.text_document.uri;
+        let actions = code_actions(&uri, params.context.diagnostics);
+
+        if actions.is_empty() {
+            Box::pin(async { Ok(None) })
+        } else {
+            Box::pin(async move { Ok(Some(actions)) })
+        }
     }
 
     /// This method is called when the user requests code completion.
@@ -264,15 +337,13 @@ impl LanguageServer for YARALanguageServer {
     {
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
-        let cst = match self.documents.get(&uri) {
-            Some(entry) => entry,
-            None => return Box::pin(async { Ok(None) }),
-        };
+        let context = params.context;
+        let documents = Arc::clone(&self.documents);
 
-        let completions =
-            completion(cst, position).map(CompletionResponse::Array);
-
-        Box::pin(async move { Ok(completions) })
+        Box::pin(async move {
+            Ok(completion(documents, position, uri, context)
+                .map(CompletionResponse::Array))
+        })
     }
 
     /// This method is called when the user requests to highlight occurrences
@@ -288,14 +359,11 @@ impl LanguageServer for YARALanguageServer {
     {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
-        let cst = match self.documents.get(&uri) {
-            Some(entry) => entry,
-            None => return Box::pin(async { Ok(None) }),
-        };
+        let documents = Arc::clone(&self.documents);
 
-        let highlights = document_highlight(cst, position);
-
-        Box::pin(async move { Ok(highlights) })
+        Box::pin(
+            async move { Ok(document_highlight(documents, uri, position)) },
+        )
     }
 
     /// This method is called when the client requests a list of all symbols
@@ -309,19 +377,12 @@ impl LanguageServer for YARALanguageServer {
     ) -> BoxFuture<'static, Result<Option<DocumentSymbolResponse>, Self::Error>>
     {
         let uri = params.text_document.uri;
-        let cst = match self.documents.get(&uri) {
-            Some(entry) => entry,
-            None => return Box::pin(async { Ok(None) }),
-        };
+        let documents = Arc::clone(&self.documents);
 
-        let src = cst.root().text().to_string();
-        let ast = AST::new(src.as_bytes(), cst.iter());
-
-        let symbols = document_symbol(&src, ast);
-
-        Box::pin(
-            async move { Ok(Some(DocumentSymbolResponse::Nested(symbols))) },
-        )
+        Box::pin(async move {
+            Ok(document_symbol(documents, uri)
+                .map(DocumentSymbolResponse::Nested))
+        })
     }
 
     /// This method is called to provide semantic highlighting for the document.
@@ -335,14 +396,34 @@ impl LanguageServer for YARALanguageServer {
     ) -> BoxFuture<'static, Result<Option<SemanticTokensResult>, Self::Error>>
     {
         let uri = params.text_document.uri;
-        let cst = match self.documents.get(&uri) {
-            Some(entry) => entry,
-            None => return Box::pin(async { Ok(None) }),
-        };
+        let documents = Arc::clone(&self.documents);
 
-        let tokens = semantic_tokens(cst);
+        Box::pin(async move {
+            Ok(semantic_tokens(documents, uri, None)
+                .map(SemanticTokensResult::Tokens))
+        })
+    }
 
-        Box::pin(async move { Ok(Some(SemanticTokensResult::Tokens(tokens))) })
+    /// This method is called to provide semantic highlighting for a specific
+    /// range of the document.
+    ///
+    /// This is more efficient than `semantic_tokens_full` for large files
+    /// as it only computes tokens within the visible range.
+    fn semantic_tokens_range(
+        &mut self,
+        params: <SemanticTokensRangeRequest as Request>::Params,
+    ) -> BoxFuture<
+        'static,
+        Result<Option<SemanticTokensRangeResult>, Self::Error>,
+    > {
+        let uri = params.text_document.uri;
+        let range = params.range;
+        let documents = Arc::clone(&self.documents);
+
+        Box::pin(async move {
+            Ok(semantic_tokens(documents, uri, Some(range))
+                .map(SemanticTokensRangeResult::Tokens))
+        })
     }
 
     /// This method is called when the user wants to rename a symbol.
@@ -355,17 +436,16 @@ impl LanguageServer for YARALanguageServer {
     ) -> BoxFuture<'static, Result<Option<WorkspaceEdit>, Self::Error>> {
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
-        let cst = match self.documents.get(&uri) {
-            Some(entry) => entry,
-            None => return Box::pin(async { Ok(None) }),
-        };
+        let new_name = params.new_name;
+        let documents = Arc::clone(&self.documents);
 
-        let changes = rename(cst, params.new_name, position)
-            .map(|changes| HashMap::from([(uri, changes)]))
-            .map(WorkspaceEdit::new)
-            .unwrap_or_default();
+        Box::pin(async move {
+            let changes = rename(documents, uri.clone(), new_name, position)
+                .map(WorkspaceEdit::new)
+                .unwrap_or_default();
 
-        Box::pin(async move { Ok(Some(changes)) })
+            Ok(Some(changes))
+        })
     }
 
     /// This method is called to determine the range of the symbol at the
@@ -379,14 +459,10 @@ impl LanguageServer for YARALanguageServer {
     ) -> BoxFuture<'static, Result<Option<Vec<SelectionRange>>, Self::Error>>
     {
         let uri = params.text_document.uri;
-        let cst = match self.documents.get(&uri) {
-            Some(entry) => entry,
-            None => return Box::pin(async { Ok(None) }),
-        };
+        let positions = params.positions;
+        let documents = Arc::clone(&self.documents);
 
-        let ranges = selection_range(cst, params.positions);
-
-        Box::pin(async move { Ok(ranges) })
+        Box::pin(async move { Ok(selection_range(documents, uri, positions)) })
     }
 
     /// This method is called to provide diagnostic information for a document.
@@ -400,14 +476,8 @@ impl LanguageServer for YARALanguageServer {
     ) -> BoxFuture<'static, Result<DocumentDiagnosticReportResult, Self::Error>>
     {
         let uri = params.text_document.uri;
-        let diagnostics = match self.documents.get(&uri) {
-            Some(cst) => {
-                let src = cst.root().text().to_string();
-                let ast = AST::new(src.as_bytes(), cst.iter());
-                diagnostics(ast, src.as_str())
-            }
-            None => vec![],
-        };
+        let documents = Arc::clone(&self.documents);
+        let config = Arc::clone(&self.config);
 
         Box::pin(async move {
             Ok(DocumentDiagnosticReportResult::Report(
@@ -416,7 +486,12 @@ impl LanguageServer for YARALanguageServer {
                         full_document_diagnostic_report:
                             FullDocumentDiagnosticReport {
                                 result_id: None,
-                                items: diagnostics,
+                                items: diagnostics(
+                                    documents,
+                                    uri,
+                                    &config.metadata_validation,
+                                    &config.rule_name_validation,
+                                ),
                             },
                         related_documents: None,
                     },
@@ -425,46 +500,17 @@ impl LanguageServer for YARALanguageServer {
         })
     }
 
-    /// This method is called when the user requests to format a document.
-    ///
     /// It formats the source code according to the configured style and
     /// returns a set of edits to apply the changes.
     fn formatting(
         &mut self,
         params: DocumentFormattingParams,
     ) -> BoxFuture<'static, Result<Option<Vec<TextEdit>>, Self::Error>> {
-        let uri = params.text_document.uri;
-        let cst = match self.documents.get(&uri) {
-            Some(entry) => entry,
-            None => return Box::pin(async { Ok(None) }),
-        };
-
-        let src = cst.root().text().to_string();
+        let documents = Arc::clone(&self.documents);
+        let config = Arc::clone(&self.config);
 
         Box::pin(async move {
-            let line_count = src.lines().count() as u32;
-            let input = Cursor::new(src);
-            let mut output = Vec::new();
-
-            let indentation = if params.options.insert_spaces {
-                Indentation::Spaces(params.options.tab_size as usize)
-            } else {
-                Indentation::Tabs
-            };
-
-            let formatter =
-                yara_x_fmt::Formatter::new().indentation(indentation);
-
-            match formatter.format(input, &mut output) {
-                Ok(changed) if changed => Ok(Some(vec![TextEdit::new(
-                    Range::new(
-                        Position::new(0, 0),
-                        Position::new(line_count, 0),
-                    ),
-                    output.try_into().unwrap(),
-                )])),
-                _ => Ok(None),
-            }
+            Ok(formatting(documents, params, &config.code_formatting))
         })
     }
 
@@ -478,8 +524,7 @@ impl LanguageServer for YARALanguageServer {
     ) -> Self::NotifyResult {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
-        let cst = CST::from(text.as_str());
-        self.documents.insert(uri.clone(), cst);
+        self.documents.insert(uri.clone(), text);
         self.publish_diagnostics(&uri);
         ControlFlow::Continue(())
     }
@@ -494,8 +539,7 @@ impl LanguageServer for YARALanguageServer {
     ) -> Self::NotifyResult {
         if let Some(text) = params.text {
             let uri = params.text_document.uri;
-            let cst = CST::from(text.as_str());
-            self.documents.insert(uri.clone(), cst);
+            self.documents.insert(uri.clone(), text);
             self.publish_diagnostics(&uri);
         }
         ControlFlow::Continue(())
@@ -509,13 +553,11 @@ impl LanguageServer for YARALanguageServer {
         &mut self,
         params: DidChangeTextDocumentParams,
     ) -> Self::NotifyResult {
+        let uri = params.text_document.uri;
         for change in params.content_changes.into_iter() {
-            self.documents.insert(
-                params.text_document.uri.clone(),
-                CST::from(change.text.as_str()),
-            );
+            self.documents.update(uri.clone(), change.text);
         }
-        self.publish_diagnostics(&params.text_document.uri);
+        self.publish_diagnostics(&uri);
         ControlFlow::Continue(())
     }
 
@@ -526,7 +568,31 @@ impl LanguageServer for YARALanguageServer {
         &mut self,
         params: DidCloseTextDocumentParams,
     ) -> Self::NotifyResult {
-        self.documents.remove(&params.text_document.uri);
+        self.documents
+            .remove(&params.text_document.uri, self.config.cache_workspace);
+        ControlFlow::Continue(())
+    }
+
+    /// This method is called right when the client changes its
+    /// configuration.
+    ///
+    /// This represents push model, which is currently considered
+    /// deprecated method for obtaining configuration. Therefore, this
+    /// method is only used to receive notifications about changes, and
+    /// the configuration itself is obtained using a pull model.
+    fn did_change_configuration(
+        &mut self,
+        _params: DidChangeConfigurationParams,
+    ) -> Self::NotifyResult {
+        self.load_config();
+        ControlFlow::Continue(())
+    }
+
+    fn did_change_watched_files(
+        &mut self,
+        params: DidChangeWatchedFilesParams,
+    ) -> Self::NotifyResult {
+        self.documents.react_watched_files_changes(params.changes);
         ControlFlow::Continue(())
     }
 
@@ -549,29 +615,153 @@ impl LanguageServer for YARALanguageServer {
     }
 }
 
+/// Structure, which holds updated configuration.
+struct UpdateConfig(Config);
+
 impl YARALanguageServer {
     pub fn new_router(client: ClientSocket) -> Router<Self> {
-        Router::from_language_server(Self {
+        let mut router = Router::from_language_server(Self {
             client,
-            documents: DocumentStore::new(),
+            documents: Arc::new(DocumentStorage::new()),
             should_send_diagnostics: true,
-        })
+            config: Arc::new(Config::default()),
+        });
+        router.event(Self::update_config);
+        router
+    }
+
+    /// Dynamically registers File System watcher for YARA files.
+    pub fn register_fs_watcher(&mut self) {
+        let mut client = self.client.clone();
+        in_thread!({
+            let _ = client
+                .register_capability(RegistrationParams {
+                    registrations: vec![Registration {
+                        id: "yxls/watchedFiles".to_string(),
+                        method: "workspace/didChangeWatchedFiles".to_string(),
+                        register_options: Some(
+                            to_value(
+                                DidChangeWatchedFilesRegistrationOptions {
+                                    watchers: vec![FileSystemWatcher {
+                                        glob_pattern: GlobPattern::String(
+                                            "**/*.{yar,yara}".to_string(),
+                                        ),
+                                        kind: Some(
+                                            WatchKind::from_bits(7).unwrap(),
+                                        ),
+                                    }],
+                                },
+                            )
+                            .unwrap(),
+                        ),
+                    }],
+                })
+                .await;
+        });
+    }
+
+    /// Dynamically unregisters File Sytem Watcher.
+    fn unregister_fs_watcher(&mut self) {
+        let mut client = self.client.clone();
+        in_thread!({
+            let _ = client
+                .unregister_capability(UnregistrationParams {
+                    unregisterations: vec![Unregistration {
+                        id: "yxls/watchedFiles".to_string(),
+                        method: "workspace/didChangeWatchedFiles".to_string(),
+                    }],
+                })
+                .await;
+        });
+    }
+
+    /// This method is used to read the configuration using pull model
+    /// and verify its correctness. Then it emits the event, which
+    /// will update the configuration in the server state.
+    fn load_config(&mut self) {
+        let mut client = self.client.clone();
+        in_thread!({
+            let config = client
+                .configuration(ConfigurationParams {
+                    items: vec![ConfigurationItem {
+                        scope_uri: None,
+                        section: Some("YARA".to_string()),
+                    }],
+                })
+                .await
+                .ok()
+                .and_then(|mut res| res.pop())
+                .and_then(|value| from_value::<Config>(value).ok());
+
+            match config {
+                Some(config) => {
+                    if let Some(re) = &config.rule_name_validation {
+                        if regex::Regex::new(re).is_err() {
+                            let _ =
+                                client.show_message(ShowMessageParams {
+                                    typ: MessageType::ERROR,
+                                    message: format!(
+                                        "YARA: wrong rule name validation regex: {re}"
+                                    ),
+                                });
+                        }
+                    }
+                    let _ = client.emit(UpdateConfig(config));
+                }
+                None => {
+                    let _ = client.show_message(ShowMessageParams {
+                        typ: MessageType::ERROR,
+                        message: "YARA: failed to parse configuration"
+                            .to_string(),
+                    });
+                }
+            }
+        });
+    }
+
+    /// This method is used to save the new configuration in the server
+    /// state and also to react to changes.
+    fn update_config(
+        &mut self,
+        value: UpdateConfig,
+    ) -> ControlFlow<async_lsp::Result<()>> {
+        let cache_before = self.config.cache_workspace;
+        if value.0.cache_workspace != cache_before {
+            match value.0.cache_workspace {
+                true => {
+                    self.register_fs_watcher();
+                    self.documents.cache_workspace();
+                }
+                false => {
+                    self.unregister_fs_watcher();
+                    self.documents.clear_cache();
+                }
+            }
+        }
+        self.config = Arc::new(value.0);
+        ControlFlow::Continue(())
     }
 
     /// Sends diagnostics for specific document if publish model is used.
     fn publish_diagnostics(&mut self, uri: &Url) {
         if self.should_send_diagnostics {
-            if let Some(cst) = self.documents.get(uri) {
-                let src = cst.root().text().to_string();
-                let ast = AST::new(src.as_bytes(), cst.iter());
-                let _ = self.client.publish_diagnostics(
-                    PublishDiagnosticsParams {
-                        uri: uri.clone(),
-                        diagnostics: diagnostics(ast, src.as_str()),
-                        version: None,
-                    },
-                );
-            }
+            let documents = Arc::clone(&self.documents);
+            let config = Arc::clone(&self.config);
+            let mut client = self.client.clone();
+            let uri = uri.clone();
+
+            in_thread!({
+                let _ = client.publish_diagnostics(PublishDiagnosticsParams {
+                    uri: uri.clone(),
+                    diagnostics: diagnostics(
+                        documents,
+                        uri,
+                        &config.metadata_validation,
+                        &config.rule_name_validation,
+                    ),
+                    version: None,
+                });
+            });
         }
     }
 }

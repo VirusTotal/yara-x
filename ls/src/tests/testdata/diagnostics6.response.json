@@ -1,0 +1,141 @@
+{
+  "items": [
+    {
+      "code": "duplicate_import",
+      "data": {
+        "patches": [
+          {
+            "range": {
+              "end": {
+                "character": 11,
+                "line": 1
+              },
+              "start": {
+                "character": 0,
+                "line": 1
+              }
+            },
+            "replacement": ""
+          }
+        ]
+      },
+      "message": "duplicate import statement",
+      "range": {
+        "end": {
+          "character": 11,
+          "line": 1
+        },
+        "start": {
+          "character": 0,
+          "line": 1
+        }
+      },
+      "relatedInformation": [
+        {
+          "location": {
+            "range": {
+              "end": {
+                "character": 11,
+                "line": 1
+              },
+              "start": {
+                "character": 0,
+                "line": 1
+              }
+            },
+            "uri": "${test_dir}/diagnostics6.yar"
+          },
+          "message": "duplicate import"
+        }
+      ],
+      "severity": 2
+    },
+    {
+      "code": "duplicate_import",
+      "data": {
+        "patches": [
+          {
+            "range": {
+              "end": {
+                "character": 11,
+                "line": 0
+              },
+              "start": {
+                "character": 0,
+                "line": 0
+              }
+            },
+            "replacement": ""
+          }
+        ]
+      },
+      "message": "duplicate import statement",
+      "range": {
+        "end": {
+          "character": 11,
+          "line": 0
+        },
+        "start": {
+          "character": 0,
+          "line": 0
+        }
+      },
+      "relatedInformation": [
+        {
+          "location": {
+            "range": {
+              "end": {
+                "character": 11,
+                "line": 0
+              },
+              "start": {
+                "character": 0,
+                "line": 0
+              }
+            },
+            "uri": "${test_dir}/diagnostics6.yar"
+          },
+          "message": "`pe` imported here for the first time"
+        }
+      ],
+      "severity": 2
+    },
+    {
+      "code": "invariant_expr",
+      "data": {
+        "patches": []
+      },
+      "message": "invariant boolean expression",
+      "range": {
+        "end": {
+          "character": 19,
+          "line": 4
+        },
+        "start": {
+          "character": 15,
+          "line": 4
+        }
+      },
+      "relatedInformation": [
+        {
+          "location": {
+            "range": {
+              "end": {
+                "character": 19,
+                "line": 4
+              },
+              "start": {
+                "character": 15,
+                "line": 4
+              }
+            },
+            "uri": "${test_dir}/diagnostics6.yar"
+          },
+          "message": "this expression is always true"
+        }
+      ],
+      "severity": 2
+    }
+  ],
+  "kind": "full"
+}

@@ -1,0 +1,1 @@
+rule test { condition: pe.is_pe }

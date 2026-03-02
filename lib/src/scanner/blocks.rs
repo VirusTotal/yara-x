@@ -151,7 +151,11 @@ impl<'r> Scanner<'r> {
         let ctx = self.scan_context_mut();
 
         ctx.scan_state = ScanState::ScanningBlock((base, data));
+
+        ctx.set_pattern_search_done(false);
         ctx.search_for_patterns()?;
+
+        ctx.scan_state = ScanState::Idle;
 
         for (_, match_list) in ctx.pattern_matches.matches_per_pattern() {
             // Here we iterate the matches in order to gather snippets of data

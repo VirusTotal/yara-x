@@ -1,0 +1,82 @@
+[
+  {
+    "kind": 9,
+    "label": "console",
+    "preselect": true
+  },
+  {
+    "kind": 9,
+    "label": "crx",
+    "preselect": true
+  },
+  {
+    "kind": 9,
+    "label": "cuckoo",
+    "preselect": true
+  },
+  {
+    "kind": 9,
+    "label": "dex",
+    "preselect": true
+  },
+  {
+    "kind": 9,
+    "label": "dotnet",
+    "preselect": true
+  },
+  {
+    "kind": 9,
+    "label": "elf",
+    "preselect": true
+  },
+  {
+    "kind": 9,
+    "label": "hash",
+    "preselect": true
+  },
+  {
+    "kind": 9,
+    "label": "lnk",
+    "preselect": true
+  },
+  {
+    "kind": 9,
+    "label": "macho",
+    "preselect": true
+  },
+  {
+    "kind": 9,
+    "label": "math",
+    "preselect": true
+  },
+  {
+    "kind": 9,
+    "label": "pe",
+    "preselect": true
+  },
+  {
+    "kind": 9,
+    "label": "string",
+    "preselect": true
+  },
+  {
+    "kind": 9,
+    "label": "test_proto2",
+    "preselect": true
+  },
+  {
+    "kind": 9,
+    "label": "test_proto3",
+    "preselect": true
+  },
+  {
+    "kind": 9,
+    "label": "time",
+    "preselect": true
+  },
+  {
+    "kind": 9,
+    "label": "vt",
+    "preselect": true
+  }
+]

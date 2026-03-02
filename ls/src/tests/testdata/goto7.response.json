@@ -1,0 +1,13 @@
+{
+  "range": {
+    "end": {
+      "character": 11,
+      "line": 8
+    },
+    "start": {
+      "character": 6,
+      "line": 8
+    }
+  },
+  "uri": "${test_dir}/goto7.yar"
+}

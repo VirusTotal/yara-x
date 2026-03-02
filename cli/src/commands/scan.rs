@@ -1088,15 +1088,30 @@ mod output_handler {
                 })
                 .map(|rule| {
                     let meta = self.output_options.include_meta.then(|| {
-                        rule.metadata()
-                            .map(|(meta_key, meta_val)| {
-                                let meta_key = meta_key.to_owned();
-                                let meta_val = serde_json::to_value(meta_val)
-                                    .expect(
-                                    "Derived Serialize impl should never fail",
-                                );
+                        // Group metadata by key to handle duplicate keys.
+                        let mut grouped: HashMap<
+                            String,
+                            Vec<serde_json::Value>,
+                        > = HashMap::new();
 
-                                (meta_key, meta_val)
+                        for (meta_key, meta_val) in rule.metadata() {
+                            let key = meta_key.to_owned();
+                            let val = serde_json::to_value(meta_val).expect(
+                                "Derived Serialize impl should never fail",
+                            );
+                            grouped.entry(key).or_default().push(val);
+                        }
+
+                        // Single values stay as-is, multiple values become arrays.
+                        grouped
+                            .into_iter()
+                            .map(|(k, mut v)| {
+                                let val = if v.len() == 1 {
+                                    v.pop().unwrap()
+                                } else {
+                                    serde_json::Value::Array(v)
+                                };
+                                (k, val)
                             })
                             .collect::<HashMap<_, _>>()
                     });

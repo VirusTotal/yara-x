@@ -15,6 +15,7 @@ matches = rules.scan(b'some dummy data')
 
 #![deny(missing_docs)]
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::marker::PhantomPinned;
 use std::ops::Deref;
@@ -38,7 +39,6 @@ use pyo3::{create_exception, IntoPyObjectExt};
 use strum_macros::{Display, EnumString};
 
 use ::yara_x as yrx;
-
 use yara_x_fmt::Indentation;
 
 fn dict_to_json(dict: Bound<PyAny>) -> PyResult<serde_json::Value> {
@@ -66,6 +66,10 @@ enum SupportedModules {
     Pe,
     #[cfg(feature = "dotnet-module")]
     Dotnet,
+    #[cfg(feature = "crx-module")]
+    Crx,
+    #[cfg(feature = "dex-module")]
+    Dex,
 }
 
 /// Formats YARA rules.
@@ -313,6 +317,14 @@ impl Module {
                 SupportedModules::Dotnet => {
                     yrx::mods::invoke_dyn::<yrx::mods::Dotnet>(data)
                 }
+                #[cfg(feature = "crx-module")]
+                SupportedModules::Crx => {
+                    yrx::mods::invoke_dyn::<yrx::mods::Crx>(data)
+                }
+                #[cfg(feature = "dex-module")]
+                SupportedModules::Dex => {
+                    yrx::mods::invoke_dyn::<yrx::mods::Dex>(data)
+                }
                 _ => return Ok(py.None().into_bound(py)),
             };
 
@@ -485,7 +497,10 @@ impl Compiler {
     /// each scanner can change the variable's value by calling
     /// [`crate::Scanner::set_global`].
     ///
-    /// The type of `value` must be: bool, str, bytes, int or float.
+    /// The type of `value` must be: bool, str, bytes, int, float or dict. When
+    /// the value is a dict, keys must be of type string and valid YARA identifiers
+    /// (the first character must be `_` or a letter, and the remaining ones must
+    /// be a `_`, a letter or a digit).
     ///
     /// # Raises
     ///
@@ -600,6 +615,55 @@ impl Compiler {
         let warnings_json = warnings_json
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
         json_loads.call((warnings_json,), None)
+    }
+}
+
+/// Optional information for the scan operation.
+#[pyclass]
+struct ScanOptions {
+    module_metadata: HashMap<String, Vec<u8>>,
+}
+
+impl<'a> From<&'a ScanOptions> for yrx::ScanOptions<'a> {
+    fn from(options: &'a ScanOptions) -> Self {
+        let mut result = yrx::ScanOptions::new();
+        for (module_name, metadata) in &options.module_metadata {
+            result = result.set_module_metadata(
+                module_name.as_str(),
+                metadata.as_slice(),
+            );
+        }
+        result
+    }
+}
+
+#[pymethods]
+impl ScanOptions {
+    /// Creates a new [`ScanOptions`].
+    #[new]
+    fn new() -> Self {
+        Self { module_metadata: HashMap::new() }
+    }
+
+    /// Sets the data associated with a YARA module.
+    ///
+    /// When scanning a file, YARA modules may require additional data that is
+    /// not present in the file itself. For instance, the `cuckoo` module may
+    /// need a report from Cuckoo sandbox with information about the file being
+    /// scanned.
+    ///
+    /// This function is used for providing that data to the modules. The data
+    /// is specific to the module, and each module expects a different data
+    /// structure. The data is passed as raw bytes that the module is responsible
+    /// to decode accordingly.
+    fn set_module_metadata(
+        &mut self,
+        module: &str,
+        metadata: Bound<PyBytes>,
+    ) -> PyResult<()> {
+        let metadata = metadata.extract::<Vec<u8>>()?;
+        self.module_metadata.insert(module.to_string(), metadata);
+        Ok(())
     }
 }
 
@@ -722,9 +786,35 @@ impl Scanner {
         Python::attach(|py| scan_results_to_py(py, results))
     }
 
+    /// Like [`Scanner::scan`], but allows to specify additional scan options.
+    fn scan_with_options(
+        &mut self,
+        data: &[u8],
+        options: &ScanOptions,
+    ) -> PyResult<Py<ScanResults>> {
+        let results = self
+            .inner
+            .scan_with_options(data, yrx::ScanOptions::from(options))
+            .map_err(map_scan_err)?;
+        Python::attach(|py| scan_results_to_py(py, results))
+    }
+
     /// Scans a file.
     fn scan_file(&mut self, path: PathBuf) -> PyResult<Py<ScanResults>> {
         let results = self.inner.scan_file(path).map_err(map_scan_err)?;
+        Python::attach(|py| scan_results_to_py(py, results))
+    }
+
+    /// Like [`Scanner::scan_file`], but allows to specify additional scan options.
+    fn scan_file_with_options(
+        &mut self,
+        path: PathBuf,
+        options: &ScanOptions,
+    ) -> PyResult<Py<ScanResults>> {
+        let results = self
+            .inner
+            .scan_file_with_options(path, yrx::ScanOptions::from(options))
+            .map_err(map_scan_err)?;
         Python::attach(|py| scan_results_to_py(py, results))
     }
 }
@@ -907,6 +997,19 @@ impl Rules {
         let mut scanner = yrx::Scanner::new(&self.inner.rules);
         let results = scanner
             .scan(data)
+            .map_err(|err| ScanError::new_err(err.to_string()))?;
+        Python::attach(|py| scan_results_to_py(py, results))
+    }
+
+    /// Scans in-memory data with these rules.
+    fn scan_with_options(
+        &self,
+        data: &[u8],
+        options: &ScanOptions,
+    ) -> PyResult<Py<ScanResults>> {
+        let mut scanner = yrx::Scanner::new(&self.inner.rules);
+        let results = scanner
+            .scan_with_options(data, yrx::ScanOptions::from(options))
             .map_err(|err| ScanError::new_err(err.to_string()))?;
         Python::attach(|py| scan_results_to_py(py, results))
     }
@@ -1195,6 +1298,7 @@ fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(module_names, m)?)?;
     m.add_class::<Rules>()?;
     m.add_class::<Scanner>()?;
+    m.add_class::<ScanOptions>()?;
     m.add_class::<ScanResults>()?;
     m.add_class::<Compiler>()?;
     m.add_class::<Rule>()?;

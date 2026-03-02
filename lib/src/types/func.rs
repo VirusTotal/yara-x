@@ -247,7 +247,7 @@ impl Ord for FuncSignature {
 
 impl PartialOrd for FuncSignature {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.mangled_name.as_str().cmp(other.mangled_name.as_str()))
+        Some(self.cmp(other))
     }
 }
 
@@ -432,6 +432,11 @@ mod test {
         assert_eq!(
             MangledFnName::from("Bar::foo@i@iu").method_of(),
             Some("Bar")
+        );
+
+        assert_eq!(
+            MangledFnName::from("bar.Bar::foo@i@iu").method_of(),
+            Some("bar.Bar")
         );
 
         assert_eq!(MangledFnName::from("foo@i@iu").method_of(), None);

@@ -79,12 +79,12 @@ where
 
 /// States used in [`CommentProcessor::process_input_buffer`]
 enum State {
-    /// This state indicates that a comment token has not been
-    /// found yet. When a newline character is found before
-    /// finding a comment, `leading_newline` is set to `true`.
+    /// This state indicates that a comment token has not been found yet.
+    /// When a newline character is found before finding a comment,
+    /// `leading_newline` is set to `true`.
     PreComment { leading_newline: bool },
-    /// Once a comment token is found, it goes to this state
-    /// which contains information about the being created.
+    /// Once a comment token is found, it goes to this state which contains
+    /// information about the comment being created.
     Comment {
         indentation: usize,
         leading_newline: bool,
@@ -145,8 +145,8 @@ where
     /// comments, and control tokens. No other kind of tokens can appear in
     /// the input buffer. In fact, this function is called when a different
     /// kind of tokens is observed in the input stream, so, while processing
-    /// the input buffer we can assume that the token that comes next after
-    /// those in the input buffer is not a whitespace, newline nor comment.
+    /// the input buffer we can assume that the token that comes after those
+    /// in the input buffer is not a whitespace, newline or comment.
     ///
     /// This function works like an automaton with two states `PreComment`
     /// and `Comment`. The automaton remains in the `PreComment` state

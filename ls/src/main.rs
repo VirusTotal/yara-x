@@ -21,5 +21,10 @@ pub async fn serve_stdio() -> Result<(), async_lsp::Error> {
 
 #[tokio::main(flavor = "current_thread")]
 pub async fn main() -> Result<(), async_lsp::Error> {
+    #[cfg(feature = "tracing")]
+    tracing_subscriber::fmt()
+        .with_ansi(false)
+        .with_writer(std::io::stderr)
+        .init();
     serve_stdio().await
 }

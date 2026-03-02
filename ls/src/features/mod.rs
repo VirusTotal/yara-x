@@ -1,7 +1,9 @@
+pub mod code_action;
 pub mod completion;
 pub mod diagnostics;
 pub mod document_highlight;
 pub mod document_symbol;
+pub mod formatting;
 pub mod goto;
 pub mod hover;
 pub mod references;

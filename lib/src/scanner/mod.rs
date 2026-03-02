@@ -599,6 +599,9 @@ impl<'r> Scanner<'r> {
         // by the rules.
         ctx.user_provided_module_outputs.clear();
 
+        // Clear the flag that indicates that the search phase was done.
+        ctx.set_pattern_search_done(false);
+
         // Evaluate the conditions of every rule, this will call
         // `ScanContext::search_for_patterns` if necessary.
         ctx.eval_conditions()?;

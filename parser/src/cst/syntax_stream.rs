@@ -100,13 +100,14 @@ impl SyntaxStream {
     ///
     /// * If no matching `Begin` exists for this `End`.
     pub(crate) fn end(&mut self) {
-        // Get the `Event::Begin` that corresponds to this `Event::End`.
-        let begin = &mut self.events[self
+        // Get the index in the `events` vector where the `Event::Begin`
+        // that corresponds to this `Event::End` resides.
+        let begin_idx = self
             .open_begins
             .pop_back()
-            .expect("`End` without a corresponding `Begin`")];
+            .expect("`End` without a corresponding `Begin`");
 
-        match begin {
+        match &mut self.events[begin_idx] {
             Event::Begin { kind, span } => {
                 // Now that we know where it ends, the span associated to
                 // Event::Begin is updated.
@@ -124,17 +125,30 @@ impl SyntaxStream {
     /// Similar to [`SyntaxStream::end`], but the kind of the closed block is
     /// changed to [`SyntaxKind::ERROR`].
     ///
+    /// Notice that if the block being closed is empty, it will be removed
+    /// altogether.
+    ///
     /// # Panics
     ///
     /// * If no matching `Begin` exists for this `End`.
     pub(crate) fn end_with_error(&mut self) {
-        // Get the `Event::Begin` that corresponds to this `Event::End`.
-        let begin = &mut self.events[self
+        // Get the index in the `events` vector where the `Event::Begin`
+        // that corresponds to this `Event::End` resides.
+        let begin_idx = self
             .open_begins
             .pop_back()
-            .expect("`End` without a corresponding `Begin`")];
+            .expect("`End` without a corresponding `Begin`");
 
-        match begin {
+        // If `Event::Begin` is the last element in `events`, there's no other
+        // event in between `Event::Begin` and the current `Event::End`. In
+        // such cases, the `Event::Begin` is removed and the `Event::End` not
+        // inserted, we don't want empty nodes in the CST.
+        if begin_idx == self.events.len() - 1 {
+            self.events.pop_back();
+            return;
+        }
+
+        match &mut self.events[begin_idx] {
             Event::Begin { kind, span } => {
                 // Change the kind for Event::Begin to SyntaxKind::ERROR.
                 *kind = SyntaxKind::ERROR;
@@ -285,18 +299,6 @@ mod tests {
         assert_eq!(
             s.pop(),
             Some(Event::End { kind: SyntaxKind::ERROR, span: Span(0..1) })
-        );
-
-        let mut s = SyntaxStream::new();
-        s.begin(SyntaxKind::RULE_DECL);
-        s.end_with_error();
-        assert_eq!(
-            s.pop(),
-            Some(Event::Begin { kind: SyntaxKind::ERROR, span: Span(0..0) })
-        );
-        assert_eq!(
-            s.pop(),
-            Some(Event::End { kind: SyntaxKind::ERROR, span: Span(0..0) })
         );
     }
 

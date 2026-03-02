@@ -56,11 +56,11 @@ pub fn exec_fmt(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             config.fmt.rule.empty_line_after_section_header,
         );
 
-    let mut modified = false;
+    let mut modified_files: Vec<&PathBuf> = Vec::new();
 
     for file in files {
         let input = fs::read(file.as_path())?;
-        modified = if check {
+        let file_modified = if check {
             formatter.format(input.as_slice(), io::sink())?
         } else {
             let mut formatted = Cursor::new(Vec::with_capacity(input.len()));
@@ -72,10 +72,19 @@ pub fn exec_fmt(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             } else {
                 false
             }
-        } || modified;
+        };
+
+        if file_modified {
+            modified_files.push(file);
+        }
     }
 
-    if modified {
+    if !modified_files.is_empty() {
+        if check {
+            for file in &modified_files {
+                eprintln!("{}", file.display());
+            }
+        }
         process::exit(1)
     }
 

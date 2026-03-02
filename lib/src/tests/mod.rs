@@ -163,8 +163,6 @@ macro_rules! pattern_match {
 
 pub(crate) use condition_false;
 pub(crate) use condition_true;
-pub(crate) use pattern_false;
-pub(crate) use pattern_true;
 pub(crate) use rule_false;
 pub(crate) use rule_true;
 pub(crate) use test_condition;
@@ -224,6 +222,17 @@ fn test_comparison_operations() {
     condition_true!("1.0 == 1");
     condition_true!("1.0 != 1.000000000000001");
     condition_true!("1.0 < 1.000000000000001");
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"test_proto2.array_bool[0] == test_proto2.array_bool[0]"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(r#"test_proto2.array_bool[0] == 0 + 0"#);
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(r#"2 - 1 == test_proto2.array_bool[1]"#);
 }
 
 #[test]
@@ -1710,6 +1719,8 @@ fn regexp_patterns_5() {
     pattern_match!(r"/\B\w\w\w/", b"abcd", b"bcd");
     pattern_false!(r"/\B\w\w\w\B/", b"abcd");
     pattern_match!(r"/\<abc/", b"<abc", b"<abc");
+    pattern_match!(r"/\>/", b">", b">");
+    pattern_match!(r"/\</", b"<", b"<");
     pattern_match!(r"/abc\>/", b"abc>", b"abc>");
     pattern_match!(r"/\b{start}abc/", b"abc", b"abc");
     pattern_match!(r"/abc\b{end}/", b"abc", b"abc");

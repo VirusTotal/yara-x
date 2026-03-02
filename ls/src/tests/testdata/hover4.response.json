@@ -1,6 +1,6 @@
 {
   "contents": {
     "kind": "markdown",
-    "value": "# multiline_condition\n## strings\n```\n$a = \"bar\"\n$b = {11 22}\n\n```\n## condition\n```\n$a\nand\n$b\n```\n"
+    "value": "### rule `multiline_condition`\n"
   }
 }

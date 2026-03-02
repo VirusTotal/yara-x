@@ -1,20 +1,116 @@
 {
   "name": "yara-x-ls",
-  "displayName": "yara-x-ls",
-  "description": "",
-  "version": "0.0.1",
+  "displayName": "YARA Language",
+  "description": "The official YARA language extension. Provides syntax highlighting, autocompletion and more.",
+  "version": "0.0.0",
   "publisher": "VirusTotal",
+  "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/VirusTotal/yara-x"
+  },
   "engines": {
     "vscode": "^1.102.0"
   },
   "categories": [
-    "Other"
+    "Programming Languages"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "configuration": {
       "title": "YARA",
-      "properties": {}
+      "properties": {
+        "YARA.codeFormatting": {
+          "type": "object",
+          "default": {
+            "alignMetadata": true,
+            "alignPatterns": true,
+            "indentSectionHeaders": true,
+            "indentSectionContents": true,
+            "newlineBeforeCurlyBrace": false,
+            "emptyLineBeforeSectionHeader": false,
+            "emptyLineAfterSectionHeader": false
+          },
+          "description": "Options for automatic code formatting.",
+          "properties": {
+            "alignMetadata": {
+              "type": "boolean",
+              "default": true,
+              "markdownDescription": "Aligns the values in the `meta` section of a rule.\n\n**Example:**\n\n*Original code:*\n```yara\nrule example {\n  meta:\n    author = \"John Doe\"\n    creation_date = \"2024-01-01\"\n    description = \"A simple example rule.\"\n}\n```\n\n*Formatted code:*\n```yara\nrule example {\n  meta:\n    author        = \"John Doe\"\n    creation_date = \"2024-01-01\"\n    description   = \"A simple example rule.\"\n}\n```"
+            },
+            "alignPatterns": {
+              "type": "boolean",
+              "default": true,
+              "markdownDescription": "Aligns the patterns in the `strings` section of a rule.\n\n**Example:**\n\n*Original code:*\n```yara\nrule example {\n  strings:\n    $a = \"some string\"\n    $b_is_longer = { 48 65 6c 6c 6f }\n    $c = \"another string\"\n}\n```\n\n*Formatted code:*\n```yara\nrule example {\n  strings:\n    $a           = \"some string\"\n    $b_is_longer = { 48 65 6c 6c 6f }\n    $c           = \"another string\"\n}\n```"
+            },
+            "indentSectionHeaders": {
+              "type": "boolean",
+              "default": true,
+              "markdownDescription": "Indent section headers (`meta`, `strings`, `condition`).\n\n**Example:**\n\n*Original code:*\n```yara\nrule example {\nmeta:\n  author = \"John Doe\"\nstrings:\n  $a = \"some string\"\ncondition:\n  $a\n}\n```\n\n*Formatted code:*\n```yara\nrule example {\n  meta:\n    author = \"John Doe\"\n  strings:\n    $a = \"some string\"\n  condition:\n    $a\n}\n```"
+            },
+            "indentSectionContents": {
+              "type": "boolean",
+              "default": true,
+              "markdownDescription": "Indent the content of rule sections.\n\n**Example:**\n\n*Original code:*\n```yara\nrule example {\n  meta:\n  author = \"John Doe\"\n  strings:\n  $a = \"some string\"\n  condition:\n  $a\n}\n```\n\n*Formatted code:*\n```yara\nrule example {\n  meta:\n    author = \"John Doe\"\n  strings:\n    $a = \"some string\"\n  condition:\n    $a\n}\n```"
+            },
+            "emptyLineBeforeSectionHeader": {
+              "type": "boolean",
+              "default": false,
+              "description": "Inserts an empty line before each section header."
+            },
+            "emptyLineAfterSectionHeader": {
+              "type": "boolean",
+              "default": false,
+              "description": "Inserts an empty line after each section header."
+            },
+            "newlineBeforeCurlyBrace": {
+              "type": "boolean",
+              "default": false,
+              "description": "Puts the opening curly brace on a new line."
+            }
+          }
+        },
+        "YARA.metadataValidation": {
+          "type": "array",
+          "default": [
+            {
+              "identifier": "author",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "description": "Rules for validating metadata in YARA rules.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "identifier": {
+                "type": "string",
+                "description": "The metadata identifier (e.g., `author`, `version`)."
+              },
+              "required": {
+                "type": "boolean",
+                "default": false,
+                "description": "Specifies if the metadata is required."
+              },
+              "type": {
+                "type": "string",
+                "enum": ["string", "integer", "float", "bool"],
+                "description": "The expected type of the metadata value."
+              }
+            }
+          }
+        },
+        "YARA.ruleNameValidation": {
+          "type": "string",
+          "default": "",
+          "description": "A regular expression that all rule names must match (example: APT_.*)."
+        },
+        "YARA.cacheWorkspace": {
+          "type": "boolean",
+          "default": true,
+          "description": "Specifies if the language server should cache all files from the workspace."
+        }
+      }
     },
     "configurationDefaults": {
       "[yara]": {
@@ -55,6 +151,7 @@
     "@types/vscode": "^1.102.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
+    "@vscode/vsce": "^2.29.0",
     "eslint": "^9.25.1",
     "typescript": "^5.8.3"
   },

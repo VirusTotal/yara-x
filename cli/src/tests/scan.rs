@@ -2,6 +2,7 @@ use assert_cmd::{cargo_bin, Command};
 use assert_fs::prelude::*;
 use assert_fs::TempDir;
 use predicates::prelude::*;
+use serde_json;
 
 #[test]
 fn always_true() {
@@ -355,4 +356,66 @@ fn issue_280() {
         .arg(r#".\"#)
         .assert()
         .success();
+}
+
+#[test]
+fn json_output_duplicate_meta_keys() {
+    // Test that duplicate metadata keys are preserved as arrays in JSON output
+    let output = Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=json")
+        .arg("--print-meta")
+        .arg("src/tests/testdata/duplicate_meta.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value =
+        serde_json::from_slice(&output).expect("valid JSON output");
+
+    // Navigate to the meta object
+    let meta = &json["matches"][0]["meta"];
+
+    // Single-value keys should remain as single values
+    assert_eq!(meta["author"], "Test Author");
+    assert_eq!(meta["description"], "Rule with duplicate metadata keys");
+
+    // Duplicate keys should become arrays
+    let hash = &meta["hash"];
+    assert!(hash.is_array(), "hash should be an array");
+    let hash_array = hash.as_array().unwrap();
+    assert_eq!(hash_array.len(), 3);
+    assert!(hash_array.contains(&serde_json::json!("aaa111")));
+    assert!(hash_array.contains(&serde_json::json!("bbb222")));
+    assert!(hash_array.contains(&serde_json::json!("ccc333")));
+}
+
+#[test]
+fn json_output_single_meta_not_array() {
+    // Test that single metadata values are NOT wrapped in arrays
+    let output = Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=json")
+        .arg("--print-meta")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value =
+        serde_json::from_slice(&output).expect("valid JSON output");
+
+    let meta = &json["matches"][0]["meta"];
+
+    // All values should be single values, not arrays
+    assert!(meta["string"].is_string());
+    assert!(meta["bool"].is_boolean());
+    assert!(meta["int"].is_i64());
+    assert!(meta["float"].is_f64());
 }

@@ -1,12 +1,17 @@
+use std::sync::LazyLock;
+
 use protobuf::reflect::MessageDescriptor;
 use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
-use std::sync::LazyLock;
 
 use thiserror::Error;
 
 pub mod protos {
+    #[cfg(feature = "generate-proto-code")]
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
+
+    #[cfg(not(feature = "generate-proto-code"))]
+    include!("protos/generated/mod.rs");
 }
 
 #[cfg(test)]
@@ -47,11 +52,11 @@ pub enum ModuleError {
     },
 }
 
-/// Type of module's main function.
+/// Signature of a module's main function.
 type MainFn =
     fn(&[u8], Option<&[u8]>) -> Result<Box<dyn MessageDyn>, ModuleError>;
 
-/// Describes a YARA module.
+/// A structure describing a YARA module.
 pub(crate) struct Module {
     /// Pointer to the module's main function.
     pub main_fn: Option<MainFn>,
@@ -143,7 +148,7 @@ pub(crate) static BUILTIN_MODULES: LazyLock<FxHashMap<&'static str, Module>> =
     });
 
 pub mod mods {
-    /*! Utility functions and structures for invoking YARA modules directly.
+    /*! Utility functions and structures that allow invoking YARA modules directly.
 
     The utility functions [`invoke`], [`invoke_dyn`] and [`invoke_all`]
     allow leveraging YARA modules for parsing some file formats independently
@@ -168,10 +173,9 @@ pub mod mods {
     /// of them are used by one or more fields in the main structure.
     ///
     pub use super::protos::crx;
-    /// Data structure returned by the `pe` module.
+    /// Data structure returned by the `crx` module.
     pub use super::protos::crx::Crx;
-
-    /// Data structure defined by the `dex` module.
+    /// Data structures defined by the `dex` module.
     ///
     /// The main structure produced by the module is [`dex::Dex`]. The rest
     /// of them are used by one or more fields in the main structure.
@@ -225,10 +229,10 @@ pub mod mods {
     /// Data structure returned by the `pe` module.
     pub use super::protos::pe::PE;
 
-    /// A data structure contains the data returned by all modules.
+    /// A data structure containing the data returned by all modules.
     pub use super::protos::mods::Modules;
 
-    /// Invoke a YARA module with arbitrary data.
+    /// Invokes a YARA module with arbitrary data.
     ///
     /// <br>
     ///
@@ -246,7 +250,7 @@ pub mod mods {
     /// the input data.
     ///
     /// `T` must be one of the structure types returned by a YARA module, which
-    /// are defined [`crate::mods`], like [`crate::mods::PE`], [`crate::mods::ELF`], etc.
+    /// are defined in [`crate::mods`], like [`crate::mods::PE`], [`crate::mods::ELF`], etc.
     ///
     /// # Example
     /// ```rust
@@ -267,7 +271,7 @@ pub mod mods {
         Some(<dyn protobuf::MessageDyn>::downcast_box(module_output).unwrap())
     }
 
-    /// Invoke a YARA module with arbitrary data, but returns a dynamic
+    /// Invokes a YARA module with arbitrary data, returning a dynamic
     /// structure.
     ///
     /// This function is similar to [`invoke`] but its result is a dynamic-
@@ -293,7 +297,7 @@ pub mod mods {
         module.main_fn?(data, meta).ok()
     }
 
-    /// Invoke all YARA modules and return the data produced by them.
+    /// Invokes all YARA modules and returns the data produced by them.
     ///
     /// This function is similar to [`invoke`], but it returns the
     /// information produced by all modules at once.
@@ -319,7 +323,162 @@ pub mod mods {
     ///
     /// See the "debug modules" command.
     pub fn module_names() -> impl Iterator<Item = &'static str> {
-        super::BUILTIN_MODULES.keys().copied()
+        use itertools::Itertools;
+        super::BUILTIN_MODULES.keys().sorted_by_key(|k| **k).copied()
+    }
+
+    /// Returns the definition of the module with the given name.
+    pub fn module_definition(name: &str) -> Option<reflect::Struct> {
+        use crate::types;
+        use std::rc::Rc;
+        super::BUILTIN_MODULES
+            .get(name)
+            .map(|m| reflect::Struct::new(Rc::<types::Struct>::from(m)))
+    }
+
+    /// Types that allow for module introspection.
+    ///
+    /// This API is unstable and not ready for public use.
+    #[doc(hidden)]
+    pub mod reflect {
+        use std::rc::Rc;
+
+        use crate::types;
+        use crate::types::{Map, TypeValue};
+
+        /// Describes a structure or module.
+        #[derive(Clone, Debug, PartialEq)]
+        pub struct Struct {
+            inner: Rc<types::Struct>,
+        }
+
+        impl Struct {
+            pub(super) fn new(inner: Rc<types::Struct>) -> Self {
+                Self { inner }
+            }
+
+            /// Returns an iterator over the fields defined in the structure.
+            ///
+            /// The fields are sorted by name.
+            pub fn fields(&self) -> impl Iterator<Item = Field<'_>> + '_ {
+                self.inner
+                    .fields()
+                    .map(|(name, field)| Field::new(name, field))
+            }
+        }
+
+        /// Describes a function.
+        #[derive(Clone, Debug, PartialEq)]
+        pub struct Func {
+            /// All the existing signatures for this function. A function
+            /// can have multiple signatures that differ in their arguments
+            /// or return type.
+            pub signatures: Vec<FuncSignature>,
+        }
+
+        impl From<Rc<types::Func>> for Func {
+            fn from(func: Rc<types::Func>) -> Self {
+                let mut signatures =
+                    Vec::with_capacity(func.signatures().len());
+
+                for signature in func.signatures() {
+                    signatures.push(FuncSignature {
+                        args: signature.args.iter().map(Type::from).collect(),
+                        ret: Type::from(&signature.result),
+                    });
+                }
+
+                Func { signatures }
+            }
+        }
+
+        /// Describes a function signature.
+        #[derive(Clone, Debug, PartialEq)]
+        pub struct FuncSignature {
+            /// The types of the function arguments.
+            pub args: Vec<Type>,
+            /// The return type for the function.
+            pub ret: Type,
+        }
+
+        /// Describes a field within a structure or module.
+        #[derive(Clone)]
+        pub struct Field<'a> {
+            name: &'a str,
+            struct_field: &'a types::StructField,
+        }
+
+        impl<'a> Field<'a> {
+            fn new(
+                name: &'a str,
+                struct_field: &'a types::StructField,
+            ) -> Self {
+                Self { name, struct_field }
+            }
+
+            /// Returns the name of the field.
+            pub fn name(&self) -> &'a str {
+                self.name
+            }
+
+            /// Returns the type of the field.
+            pub fn ty(&self) -> Type {
+                Type::from(&self.struct_field.type_value)
+            }
+        }
+
+        /// The type of field, function argument or return value.
+        #[derive(Clone, Debug, PartialEq)]
+        pub enum Type {
+            /// An integer.
+            Integer,
+            /// A float.
+            Float,
+            /// A boolean.
+            Bool,
+            /// A string.
+            String,
+            /// A regular expression
+            Regexp,
+            /// A structure.
+            Struct(Struct),
+            /// An array.
+            Array(Box<Type>),
+            /// A map.
+            Map(Box<Type>, Box<Type>),
+            /// A function.
+            Func(Func),
+        }
+
+        impl From<&TypeValue> for Type {
+            fn from(type_value: &TypeValue) -> Self {
+                match type_value {
+                    TypeValue::Bool { .. } => Type::Bool,
+                    TypeValue::Float { .. } => Type::Float,
+                    TypeValue::Integer { .. } => Type::Integer,
+                    TypeValue::String { .. } => Type::String,
+                    TypeValue::Regexp(_) => Type::Regexp,
+                    TypeValue::Struct(s) => {
+                        Type::Struct(Struct::new(s.clone()))
+                    }
+                    TypeValue::Array(a) => {
+                        Type::Array(Box::new(Type::from(&a.deputy())))
+                    }
+                    TypeValue::Map(m) => {
+                        let key_kind = match **m {
+                            Map::IntegerKeys { .. } => Type::Integer,
+                            Map::StringKeys { .. } => Type::String,
+                        };
+                        Type::Map(
+                            Box::new(key_kind),
+                            Box::new(Type::from(&m.deputy())),
+                        )
+                    }
+                    TypeValue::Func(func) => Type::Func(func.clone().into()),
+                    TypeValue::Unknown => unreachable!(),
+                }
+            }
+        }
     }
 }
 

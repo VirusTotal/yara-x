@@ -82,12 +82,12 @@ impl Hir {
     /// large gaps (a.k.a. jumps) into multiple pieces that are chained together.
     ///
     /// For example, when matching the pattern `{ 01 02 03 [0-2000] 04 05 06 }` is
-    /// more efficient if we split it into two patterns `{ 01 02 03}` and
+    /// more efficient if we split it into two patterns `{ 01 02 03 }` and
     /// `{ 04 05 06 }`, while the latter is chained to the former in order to make
-    /// sure that `{ 01 02 03}` won't match if `{ 04 05 06 }` doesn't appear at the
-    /// correct distance after `{ 01 02 03}`.
+    /// sure that `{ 01 02 03 }` won't match if `{ 04 05 06 }` doesn't appear at the
+    /// correct distance after `{ 01 02 03 }`.
     ///
-    /// Both `{ 01 02 03}` and `{ 04 05 06 }` are handled as if they were separate
+    /// Both `{ 01 02 03 }` and `{ 04 05 06 }` are handled as if they were separate
     /// patterns, except that they are chained together.
     ///
     /// [`PATTERN_CHAINING_THRESHOLD`] controls how large the gap (or jump)

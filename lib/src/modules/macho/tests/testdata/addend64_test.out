@@ -1,0 +1,159 @@
+magic: 0xcffaedfe
+cputype: 0x100000c
+cpusubtype: 0x0
+filetype: 2
+ncmds: 17
+sizeofcmds: 896
+flags: 0x200085
+reserved: 0
+number_of_segments: 4
+dynamic_linker: "/usr/lib/dyld"
+entry_point: 960
+stack_size: 0
+source_version: "0.0.0.0.0"
+symtab:
+    symoff: 32960
+    nsyms: 4
+    stroff: 33024
+    strsize: 64
+    entries:
+      - "__mh_execute_header"
+      - "_main"
+      - "_trigger"
+      - "_some_external_glob"
+    nlists:
+      - n_strx: 2
+        n_type: 15
+        n_sect: 1
+        n_desc: 16
+        n_value: 4294967296
+      - n_strx: 22
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294968256
+      - n_strx: 28
+        n_type: 15
+        n_sect: 3
+        n_desc: 0
+        n_value: 4294983680
+      - n_strx: 37
+        n_type: 1
+        n_sect: 0
+        n_desc: 65024
+        n_value: 0
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 0
+    iextdefsym: 0
+    nextdefsym: 3
+    tocoff: 3
+    ntoc: 1
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 0
+    nextrel: 0
+    locreloff: 0
+    nlocrel: 0
+code_signature_data:
+    dataoff: 33088
+    datasize: 408
+segments:
+  - segname: "__PAGEZERO"
+    vmaddr: 0x0
+    vmsize: 0x100000000
+    fileoff: 0
+    filesize: 0
+    maxprot: 0x0
+    initprot: 0x0
+    nsects: 0
+    flags: 0x0
+  - segname: "__TEXT"
+    vmaddr: 0x100000000
+    vmsize: 0x4000
+    fileoff: 0
+    filesize: 16384
+    maxprot: 0x5
+    initprot: 0x5
+    nsects: 2
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0x1000003c0
+        size: 0x14
+        offset: 960
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__unwind_info"
+        addr: 0x1000003d4
+        size: 0x58
+        offset: 980
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+  - segname: "__DATA"
+    vmaddr: 0x100004000
+    vmsize: 0x4000
+    fileoff: 16384
+    filesize: 16384
+    maxprot: 0x3
+    initprot: 0x3
+    nsects: 1
+    flags: 0x0
+    sections:
+      - segname: "__DATA"
+        sectname: "__data"
+        addr: 0x100004000
+        size: 0x8
+        offset: 16384
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+  - segname: "__LINKEDIT"
+    vmaddr: 0x100008000
+    vmsize: 0x4000
+    fileoff: 32768
+    filesize: 728
+    maxprot: 0x1
+    initprot: 0x1
+    nsects: 0
+    flags: 0x0
+dylibs:
+  - name: "/usr/lib/libSystem.B.dylib"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1356.0.0"
+uuid: "5A985B5E-0070-3862-89B6-761F7D580E9C"
+build_version:
+    platform: 1
+    minos: "12.0.0"
+    sdk: "26.2.0"
+    ntools: 1
+    tools:
+      - tool: 3
+        version: "1167.5"
+exports:
+  - "_trigger"
+  - "_main"
+  - "__mh_execute_header"
+imports:
+  - "_some_external_glob"

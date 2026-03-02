@@ -28,7 +28,7 @@ jobs:
         include:
           - build: msrv
             os: ubuntu-latest
-            rust: 1.88.0
+            rust: 1.89.0
             target: x86_64-unknown-linux-gnu
             args: "--features=magic-module,rules-profiling"
             rust_flags: "-Awarnings"
@@ -142,14 +142,6 @@ jobs:
             ~/.cargo/git
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
-
-      - name: Cache target directory
-        if: matrix.use_cache == true
-        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
-        with:
-          path: target
-          key: ${{ runner.os }}-target-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('.rustc_version') }}
-          restore-keys: ${{ runner.os }}-target-
 
       - name: Install dependencies
         if: runner.os == 'Linux'

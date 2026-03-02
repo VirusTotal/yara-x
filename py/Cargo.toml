@@ -19,11 +19,13 @@ crate-type = ["cdylib"]
 console-module = ["yara-x/console-module"]
 crx-module = ["yara-x/crx-module"]
 cuckoo-module = ["yara-x/cuckoo-module"]
+dex-module = ["yara-x/dex-module"]
 dotnet-module = ["yara-x/dotnet-module"]
 elf-module = ["yara-x/elf-module"]
 hash-module = ["yara-x/hash-module"]
 lnk-module = ["yara-x/lnk-module"]
 macho-module = ["yara-x/macho-module"]
+magic-module = ["yara-x/magic-module"]
 math-module = ["yara-x/math-module"]
 pe-module = ["yara-x/pe-module"]
 string-module = ["yara-x/string-module"]
@@ -38,6 +40,7 @@ default = [
     "crx-module",
     "cuckoo-module",
     "dotnet-module",
+    "dex-module",
     "elf-module",
     "hash-module",
     "lnk-module",

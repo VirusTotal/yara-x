@@ -1,0 +1,10 @@
+{
+  "textDocument": {
+    "uri": "${test_dir}/rename10.yar"
+  },
+  "position": {
+    "line": 4,
+    "character": 4
+  },
+  "newName": "new_name"
+}

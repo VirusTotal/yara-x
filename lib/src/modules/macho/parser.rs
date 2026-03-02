@@ -130,6 +130,11 @@ const CPU_TYPE_SPARC: u32 = 0x0000000e;
 const CPU_TYPE_POWERPC: u32 = 0x00000012;
 const CPU_TYPE_POWERPC64: u32 = 0x01000012;
 
+/// Mach-O Import Fixup Formats
+const DYLD_CHAINED_IMPORT: u32 = 1;
+const DYLD_CHAINED_IMPORT_ADDEND: u32 = 2;
+const DYLD_CHAINED_IMPORT_ADDEND64: u32 = 3;
+
 /// Represents a Mach-O file. It can represent both a multi-architecture
 /// binary (a.k.a. FAT binary) or a single-architecture binary.
 pub struct MachO<'a> {
@@ -1335,7 +1340,7 @@ impl<'a> MachOFile<'a> {
                     imports_offset,
                     symbols_offset,
                     imports_count,
-                    _imports_format: imports_format,
+                    imports_format,
                     _symbols_format: symbols_format,
                 }
             },
@@ -1350,29 +1355,57 @@ impl<'a> MachOFile<'a> {
         let (_, header) = self.chained_fixup_header().parse(data)?;
 
         if let Some(import_data) = data.get(header.imports_offset as usize..) {
-            let mut remainder = import_data;
-            let mut chained_import_value: u32;
+            let entry_size = match header.imports_format {
+                DYLD_CHAINED_IMPORT => 4,
+                DYLD_CHAINED_IMPORT_ADDEND => 8,
+                DYLD_CHAINED_IMPORT_ADDEND64 => 16,
+                _ => 4, // fallback
+            };
 
-            for _ in 0..header.imports_count {
-                (remainder, chained_import_value) =
-                    u32(self.endianness)(remainder)?;
+            let is_addend64 =
+                header.imports_format == DYLD_CHAINED_IMPORT_ADDEND64;
 
-                let _lib_ordinal = chained_import_value & 0xff;
-                let _import_kind = (chained_import_value >> 8) & 0x1;
-                let name_offset = chained_import_value >> 9;
+            let (shift_symbol, symbol_mask, ordinal_mask, shift_kind) =
+                if is_addend64 {
+                    (32, 0xFFFFFFFF, 0xFFFF, 16)
+                } else {
+                    (9, 0x7FFFFF, 0xFF, 8)
+                };
 
-                if let Some(name_buffer) = data.get(
-                    header.symbols_offset.saturating_add(name_offset)
-                        as usize..,
-                ) {
-                    let (_remainder, import_str) = map(
-                        (take_till(|b| b == b'\x00'), tag("\x00")),
-                        |(s, _)| s,
-                    )
-                    .parse(name_buffer)?;
+            let imports_size = (header.imports_count as usize) * entry_size;
+            if let Some(raw_imports_blob) = import_data.get(..imports_size) {
+                for chunk in raw_imports_blob.chunks_exact(entry_size) {
+                    // this is u64 if DYLD_CHAINED_IMPORT_ADDEND64 else u32
+                    let chained_import_value = if is_addend64 {
+                        let (_, val) = u64(self.endianness)(chunk)?;
+                        val
+                    } else {
+                        let (_, val) = u32(self.endianness)(chunk)?;
+                        val as u64
+                    };
 
-                    if let Ok(import) = import_str.to_str() {
-                        self.imports.push(import.to_string());
+                    let _lib_ordinal = chained_import_value & ordinal_mask;
+                    let _import_kind =
+                        (chained_import_value >> shift_kind) & 0x1;
+
+                    let name_offset =
+                        (chained_import_value >> shift_symbol) & symbol_mask;
+
+                    if let Some(name_buffer) = data.get(
+                        header
+                            .symbols_offset
+                            // name_offset is always _at most_ 32 bits, so this is ok to cast down
+                            .saturating_add(name_offset as u32)
+                            as usize..,
+                    ) {
+                        let (_remainder, import_str) = map(
+                            (take_till(|b| b == b'\x00'), tag("\x00")),
+                            |(s, _)| s,
+                        )
+                        .parse(name_buffer)?;
+                        if let Ok(import) = import_str.to_str() {
+                            self.imports.push(import.to_string());
+                        }
                     }
                 }
             }
@@ -1800,7 +1833,7 @@ struct ChainedFixupsHeader {
     imports_offset: u32,
     symbols_offset: u32,
     imports_count: u32,
-    _imports_format: u32,
+    imports_format: u32,
     _symbols_format: u32,
 }
 

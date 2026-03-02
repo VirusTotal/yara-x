@@ -1,34 +1,34 @@
 [
   {
-    "label": "ascii",
-    "kind": 14
+    "kind": 14,
+    "label": "ascii"
   },
   {
-    "label": "wide",
-    "kind": 14
+    "kind": 14,
+    "label": "wide"
   },
   {
-    "label": "nocase",
-    "kind": 14
+    "kind": 14,
+    "label": "nocase"
   },
   {
-    "label": "private",
-    "kind": 14
+    "kind": 14,
+    "label": "private"
   },
   {
-    "label": "fullword",
-    "kind": 14
+    "kind": 14,
+    "label": "fullword"
   },
   {
-    "label": "base64",
-    "kind": 14
+    "kind": 14,
+    "label": "base64"
   },
   {
-    "label": "base64wide",
-    "kind": 14
+    "kind": 14,
+    "label": "base64wide"
   },
   {
-    "label": "xor",
-    "kind": 14
+    "kind": 14,
+    "label": "xor"
   }
 ]

@@ -5,6 +5,7 @@ use itertools::Itertools;
 use rustc_hash::FxHashSet;
 
 use yara_x_parser::ast::{Ident, WithSpan};
+use yara_x_parser::Span;
 
 use crate::compiler::errors::{CompileError, UnknownPattern};
 use crate::compiler::ir::{PatternIdx, IR};
@@ -118,7 +119,8 @@ impl<'src> CompileContext<'_, 'src> {
             // If the current symbol table is `None` it means that the
             // identifier is not a field or method of some structure.
             return if symbol_table.is_none() {
-                Err(UnknownIdentifier::build(
+                // Build the error for the unknown identifier.
+                let mut err = UnknownIdentifier::build(
                     self.report_builder,
                     ident.name.to_string(),
                     self.report_builder.span_to_code_loc(ident.span()),
@@ -133,7 +135,16 @@ impl<'src> CompileContext<'_, 'src> {
                     } else {
                         None
                     },
-                ))
+                );
+                // If the identifier is a known module, add a fix that inserts
+                // the import statement at the beginning of the file.
+                if BUILTIN_MODULES.contains_key(ident.name) {
+                    err.report_mut().patch(
+                        self.report_builder.span_to_code_loc(Span(0..0)),
+                        format!("import \"{}\"\n", ident.name),
+                    );
+                }
+                Err(err)
             } else {
                 Err(UnknownField::build(
                     self.report_builder,

@@ -1,0 +1,20 @@
+[
+  {
+    "insertText": "virtual_address",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "virtual_address",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "size",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "size",
+    "labelDetails": {
+      "description": "integer"
+    }
+  }
+]

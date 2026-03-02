@@ -74,6 +74,9 @@ pub(crate) struct ScanContext<'r, 'd> {
     pub wasm_main_memory: Option<wasmtime::Memory>,
     /// WASM global variable that contains the value of `filesize`.
     pub wasm_filesize: Option<Global>,
+    /// WASM global variable that contains a boolean that indicates if
+    /// pattern search was done.
+    pub wasm_pattern_search_done: Option<Global>,
     /// Map where keys are object handles and values are objects used during
     /// the evaluation of rule conditions. Handles are opaque integer values
     /// that can be passed to and received from WASM code. Each handle identify
@@ -357,7 +360,7 @@ impl ScanContext<'_, '_> {
         obj_ref
     }
 
-    /// Get the value of the global variable `filesize`.
+    /// Gets the value of the global variable `filesize`.
     pub(crate) fn get_filesize(&mut self) -> i64 {
         self.wasm_filesize.unwrap().get(self.wasm_store_mut()).i64().unwrap()
     }
@@ -370,13 +373,22 @@ impl ScanContext<'_, '_> {
             .unwrap();
     }
 
+    /// Sets the value of the flag that indicates if the pattern search
+    /// phase was already executed.
+    pub(crate) fn set_pattern_search_done(&mut self, done: bool) {
+        self.wasm_pattern_search_done
+            .unwrap()
+            .set(self.wasm_store_mut(), Val::I32(done as i32))
+            .unwrap();
+    }
+
     /// Sets a timeout for scan operations.
     pub(crate) fn set_timeout(&mut self, timeout: Duration) -> &mut Self {
         self.scan_timeout = Some(timeout);
         self
     }
 
-    /// Invoke the main function, which evaluates the rules' conditions. It
+    /// Invokes the main function, which evaluates the rules' conditions. It
     /// calls ScanContext::search_for_patterns (which does the Aho-Corasick
     /// scanning) only if necessary.
     ///
@@ -1031,6 +1043,9 @@ impl ScanContext<'_, '_> {
             }
             _ => unreachable!(),
         };
+
+        // Indicate that the pattern search phase was already done.
+        self.set_pattern_search_done(true);
 
         #[cfg(any(feature = "rules-profiling", feature = "logging"))]
         let scan_end = self.clock.raw();
@@ -1789,6 +1804,7 @@ pub fn create_wasm_store_and_ctx<'r>(
         wasm_main_memory: None,
         wasm_main_func: None,
         wasm_filesize: None,
+        wasm_pattern_search_done: None,
         module_outputs: FxHashMap::default(),
         user_provided_module_outputs: FxHashMap::default(),
         pattern_matches: PatternMatches::new(),
@@ -1915,6 +1931,7 @@ pub fn create_wasm_store_and_ctx<'r>(
     ctx.wasm_main_memory = Some(main_memory);
     ctx.wasm_main_func = Some(main_fn);
     ctx.wasm_filesize = Some(filesize);
+    ctx.wasm_pattern_search_done = Some(pattern_search_done);
 
     wasm_store
 }
