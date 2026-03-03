@@ -46,9 +46,9 @@ rules-profiling = ["yara-x/rules-profiling"]
 
 [dependencies]
 anyhow = { workspace = true }
+ascii_tree = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 clap_complete = { workspace = true }
-dot-writer = { workspace = true }
 figment = { workspace = true, features = ["toml"] }
 globwalk = { workspace = true }
 home = { workspace = true }

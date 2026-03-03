@@ -11,14 +11,12 @@ fn basic_rule() {
 
     Command::new(cargo_bin!("yr"))
         .arg("deps")
-        .arg("-r")
-        .arg("a")
         .arg(input_file.path())
         .assert()
         .stdout(
-            r#"digraph {
-  a [fillcolor=paleturquoise, style="filled"];
-}
+            r#" a
+ ├─ modules
+ └─ rules
 
 "#,
         )
@@ -36,13 +34,36 @@ fn duplicate_rule() {
 
     Command::new(cargo_bin!("yr"))
         .arg("deps")
-        .arg("-r")
-        .arg("a")
         .arg(input_file.path())
         .assert()
         .failure()
         .code(1)
         .stderr("error: Duplicate rule \"a\" found\n");
+}
+
+#[test]
+fn specific_rule_only() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.child("rule.yar");
+
+    input_file
+        .write_str("rule a { condition: true } rule b { condition: true }")
+        .unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .arg("deps")
+        .arg("-r")
+        .arg("b")
+        .arg(input_file.path())
+        .assert()
+        .stdout(
+            r#" b
+ ├─ modules
+ └─ rules
+
+"#,
+        )
+        .success();
 }
 
 #[test]
@@ -58,12 +79,7 @@ fn rule_does_not_exist() {
         .arg("does_not_exist")
         .arg(input_file.path())
         .assert()
-        .stdout(
-            r#"digraph {
-}
-
-"#,
-        )
+        .stdout(r#""#)
         .success();
 }
 
@@ -76,14 +92,12 @@ fn unknown_identifier() {
 
     Command::new(cargo_bin!("yr"))
         .arg("deps")
-        .arg("-r")
-        .arg("a")
         .arg(input_file.path())
         .assert()
         .stdout(
-            r#"digraph {
-  a [fillcolor=paleturquoise, style="filled"];
-}
+            r#" a
+ ├─ modules
+ └─ rules
 
 "#,
         )
@@ -99,16 +113,13 @@ fn module_identifier() {
 
     Command::new(cargo_bin!("yr"))
         .arg("deps")
-        .arg("-r")
-        .arg("a")
         .arg(input_file.path())
         .assert()
         .stdout(
-            r#"digraph {
-  a [fillcolor=paleturquoise, style="filled"];
-  pe [fillcolor=palegreen, style="filled"];
-  a -> pe;
-}
+            r#" a
+ ├─ modules
+ │  └─ pe
+ └─ rules
 
 "#,
         )
@@ -122,25 +133,27 @@ fn dependency_and_module() {
 
     input_file
         .write_str(
-            r#"rule a { condition: pe.is_dll() }
-    rule b { condition: a } "#,
+            r#"rule a { condition: pe.is_dll() } rule b { condition: a } "#,
         )
         .unwrap();
 
     Command::new(cargo_bin!("yr"))
         .arg("deps")
-        .arg("-r")
-        .arg("b")
         .arg(input_file.path())
         .assert()
         .stdout(
-            r#"digraph {
-  b [fillcolor=paleturquoise, style="filled"];
-  a [fillcolor=paleturquoise, style="filled"];
-  pe [fillcolor=palegreen, style="filled"];
-  a -> pe;
-  b -> a;
-}
+            r#" a
+ ├─ modules
+ │  └─ pe
+ └─ rules
+
+ b
+ ├─ modules
+ └─ rules
+    └─ a
+       ├─ modules
+       │  └─ pe
+       └─ rules
 
 "#,
         )
@@ -158,14 +171,12 @@ fn for_in_variable_module_name() {
 
     Command::new(cargo_bin!("yr"))
         .arg("deps")
-        .arg("-r")
-        .arg("a")
         .arg(input_file.path())
         .assert()
         .stdout(
-            r#"digraph {
-  a [fillcolor=paleturquoise, style="filled"];
-}
+            r#" a
+ ├─ modules
+ └─ rules
 
 "#,
         )
@@ -192,14 +203,12 @@ fn nested_variables() {
 
     Command::new(cargo_bin!("yr"))
         .arg("deps")
-        .arg("-r")
-        .arg("a")
         .arg(input_file.path())
         .assert()
         .stdout(
-            r#"digraph {
-  a [fillcolor=paleturquoise, style="filled"];
-}
+            r#" a
+ ├─ modules
+ └─ rules
 
 "#,
         )
@@ -224,14 +233,12 @@ fn with_variables() {
 
     Command::new(cargo_bin!("yr"))
         .arg("deps")
-        .arg("-r")
-        .arg("a")
         .arg(input_file.path())
         .assert()
         .stdout(
-            r#"digraph {
-  a [fillcolor=paleturquoise, style="filled"];
-}
+            r#" a
+ ├─ modules
+ └─ rules
 
 "#,
         )
@@ -256,14 +263,12 @@ fn with_variables_and_unknown() {
 
     Command::new(cargo_bin!("yr"))
         .arg("deps")
-        .arg("-r")
-        .arg("a")
         .arg(input_file.path())
         .assert()
         .stdout(
-            r#"digraph {
-  a [fillcolor=paleturquoise, style="filled"];
-}
+            r#" a
+ ├─ modules
+ └─ rules
 
 "#,
         )
@@ -286,9 +291,9 @@ fn with_variables_and_previous_rule() {
         .arg(input_file.path())
         .assert()
         .stdout(
-            r#"digraph {
-  b [fillcolor=paleturquoise, style="filled"];
-}
+            r#" b
+ ├─ modules
+ └─ rules
 
 "#,
         )
@@ -307,16 +312,13 @@ fn with_module_in_expression() {
 
     Command::new(cargo_bin!("yr"))
         .arg("deps")
-        .arg("-r")
-        .arg("a")
         .arg(input_file.path())
         .assert()
         .stdout(
-            r#"digraph {
-  a [fillcolor=paleturquoise, style="filled"];
-  pe [fillcolor=palegreen, style="filled"];
-  a -> pe;
-}
+            r#" a
+ ├─ modules
+ │  └─ pe
+ └─ rules
 
 "#,
         )
@@ -339,11 +341,10 @@ fn for_in_variable_module_name_other_module() {
         .arg(input_file.path())
         .assert()
         .stdout(
-            r#"digraph {
-  a [fillcolor=paleturquoise, style="filled"];
-  elf [fillcolor=palegreen, style="filled"];
-  a -> elf;
-}
+            r#" a
+ ├─ modules
+ │  └─ elf
+ └─ rules
 
 "#,
         )
@@ -361,16 +362,13 @@ fn field_access() {
 
     Command::new(cargo_bin!("yr"))
         .arg("deps")
-        .arg("-r")
-        .arg("a")
         .arg(input_file.path())
         .assert()
         .stdout(
-            r#"digraph {
-  a [fillcolor=paleturquoise, style="filled"];
-  pe [fillcolor=palegreen, style="filled"];
-  a -> pe;
-}
+            r#" a
+ ├─ modules
+ │  └─ pe
+ └─ rules
 
 "#,
         )
@@ -388,16 +386,13 @@ fn field_access_with_unknown_lookup() {
 
     Command::new(cargo_bin!("yr"))
         .arg("deps")
-        .arg("-r")
-        .arg("a")
         .arg(input_file.path())
         .assert()
         .stdout(
-            r#"digraph {
-  a [fillcolor=paleturquoise, style="filled"];
-  pe [fillcolor=palegreen, style="filled"];
-  a -> pe;
-}
+            r#" a
+ ├─ modules
+ │  └─ pe
+ └─ rules
 
 "#,
         )
@@ -415,16 +410,13 @@ fn field_access_with_variable() {
 
     Command::new(cargo_bin!("yr"))
         .arg("deps")
-        .arg("-r")
-        .arg("a")
         .arg(input_file.path())
         .assert()
         .stdout(
-            r#"digraph {
-  a [fillcolor=paleturquoise, style="filled"];
-  pe [fillcolor=palegreen, style="filled"];
-  a -> pe;
-}
+            r#" a
+ ├─ modules
+ │  └─ pe
+ └─ rules
 
 "#,
         )
@@ -432,7 +424,7 @@ fn field_access_with_variable() {
 }
 
 #[test]
-fn field_access_hidding_ident() {
+fn field_access_hiding_ident() {
     let temp_dir = TempDir::new().unwrap();
     let input_file = temp_dir.child("rule.yar");
 
@@ -456,44 +448,17 @@ fn field_access_hidding_ident() {
 
     Command::new(cargo_bin!("yr"))
         .arg("deps")
-        .arg("-r")
-        .arg("b")
         .arg(input_file.path())
         .assert()
         .stdout(
-            r#"digraph {
-  b [fillcolor=paleturquoise, style="filled"];
-  pe [fillcolor=palegreen, style="filled"];
-  b -> pe;
-}
+            r#" a
+ ├─ modules
+ └─ rules
 
-"#,
-        )
-        .success();
-}
-
-#[test]
-fn reverse_deps() {
-    let temp_dir = TempDir::new().unwrap();
-    let input_file = temp_dir.child("rule.yar");
-
-    input_file
-        .write_str("rule a { condition: true } rule b { condition: a }")
-        .unwrap();
-
-    Command::new(cargo_bin!("yr"))
-        .arg("deps")
-        .arg("-R")
-        .arg("-r")
-        .arg("a")
-        .arg(input_file.path())
-        .assert()
-        .stdout(
-            r#"digraph {
-  a [fillcolor=paleturquoise, style="filled"];
-  b [fillcolor=paleturquoise, style="filled"];
-  b -> a;
-}
+ b
+ ├─ modules
+ │  └─ pe
+ └─ rules
 
 "#,
         )

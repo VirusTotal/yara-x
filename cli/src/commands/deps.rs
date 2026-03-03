@@ -2,10 +2,12 @@ use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 
+use ::ascii_tree::write_tree;
+use ::ascii_tree::Tree;
+use ::ascii_tree::Tree::Node;
 use anyhow::{bail, Context};
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 
-use dot_writer::{Attributes, Color, DotWriter, Scope, Style};
 use yara_x_parser::ast::dfs::{DFSContext, DFSEvent, DFSIter};
 use yara_x_parser::ast::{Expr, AST};
 use yara_x_parser::Parser;
@@ -28,20 +30,15 @@ pub fn deps() -> Command {
         )
         .arg(
             arg!(-r - -"rule")
-                .required(true)
+                .required(false)
                 .help("Rules to display dependency information for")
                 .action(ArgAction::Append),
-        )
-        .arg(
-            arg!(-R - -"reverse")
-                .help("Also show reverse dependencies of selected rules"),
         )
 }
 
 pub fn exec_deps(args: &ArgMatches) -> anyhow::Result<()> {
     let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
     let requested_rules = args.get_many::<String>("rule");
-    let reverse_deps = args.get_flag("reverse");
 
     let requested_rules: Vec<_> = requested_rules
         .map_or(Vec::new(), |v| v.collect())
@@ -86,90 +83,56 @@ pub fn exec_deps(args: &ArgMatches) -> anyhow::Result<()> {
         find_dependencies(&rule.condition, rule.identifier.name, &mut dep_map);
     }
 
-    let graph = generate_graph(&dep_map, &requested_rules, reverse_deps);
-    println!("{graph}");
-
+    let dep_tree = generate_dep_tree(&dep_map, &requested_rules);
+    for dep in dep_tree.iter() {
+        let mut output = String::new();
+        write_tree(&mut output, &dep).unwrap();
+    }
     Ok(())
 }
 
-fn generate_graph(
+fn generate_dep_tree(
     dep_map: &BTreeMap<&str, Deps>,
     requested_rules: &Vec<&str>,
-    reverse_deps: bool,
-) -> String {
-    let mut bytes = Vec::new();
+) -> Vec<Tree> {
+    let mut nodes: Vec<Tree> = Vec::new();
 
-    // Set of created nodes to avoid creating duplicates.
-    let mut nodes: HashSet<&str> = HashSet::new();
-    {
-        let mut writer = DotWriter::from(&mut bytes);
-        let mut graph = writer.digraph();
-        for (rule, deps) in dep_map.iter() {
-            if requested_rules.contains(rule)
-                || (reverse_deps
-                    && deps.rules.iter().any(|d| nodes.contains(d)))
-            {
-                generate_node_for_ident(
-                    &mut graph,
-                    &rule,
-                    &deps,
-                    &mut nodes,
-                    &dep_map,
-                    reverse_deps,
-                );
-            }
+    for (rule, deps) in dep_map.iter() {
+        if requested_rules.is_empty() || requested_rules.contains(rule) {
+            nodes.push(tree_for_rule(rule, &deps, &dep_map));
         }
     }
-
-    // Now that writer is out of scope we can read from bytes again.
-    String::from_utf8(bytes).unwrap()
+    nodes
 }
 
-fn generate_node_for_ident<'a>(
-    graph: &mut Scope,
-    ident: &'a str,
-    deps: &Deps<'a>,
-    nodes: &mut HashSet<&'a str>,
-    dep_map: &BTreeMap<&str, Deps<'a>>,
-    reverse_deps: bool,
-) {
-    {
-        let mut node = graph.node_named(ident);
-        node.set_fill_color(Color::PaleTurquoise).set_style(Style::Filled);
-        nodes.insert(ident);
-    }
+fn tree_for_rule(
+    rule: &str,
+    deps: &Deps,
+    dep_map: &BTreeMap<&str, Deps>,
+) -> Tree {
+    let mut nodes: Vec<Tree> = Vec::new();
+    let mut leafs: Vec<Tree> = Vec::new();
 
-    if reverse_deps {
-        for rule_dep in deps.rules.iter() {
-            if nodes.contains(rule_dep) {
-                graph.edge(ident, rule_dep);
+    for dep in deps.modules.iter() {
+        leafs.push(Node(dep.to_string(), vec![]));
+    }
+    nodes.push(Node(String::from("modules"), leafs));
+
+    leafs = Vec::new();
+
+    for dep in deps.rules.iter() {
+        match dep_map.get(dep) {
+            Some(new_deps) => {
+                leafs.push(tree_for_rule(dep, new_deps, dep_map));
+            }
+            None => {
+                leafs.push(Node(dep.to_string(), vec![]));
             }
         }
-        return;
     }
+    nodes.push(Node(String::from("rules"), leafs));
 
-    for rule_dep in deps.rules.iter() {
-        if !nodes.contains(*rule_dep) {
-            generate_node_for_ident(
-                graph,
-                rule_dep,
-                &dep_map[rule_dep],
-                nodes,
-                dep_map,
-                reverse_deps,
-            );
-        }
-        graph.edge(ident, rule_dep);
-    }
-
-    for module in deps.modules.iter() {
-        if !nodes.contains(*module) {
-            let mut node = graph.node_named(*module);
-            node.set_fill_color(Color::PaleGreen).set_style(Style::Filled);
-            nodes.insert(module);
-        }
-        graph.edge(ident, module);
-    }
+    Node(rule.to_string(), nodes)
 }
 
 fn find_dependencies<'a>(
