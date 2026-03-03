@@ -1,7 +1,7 @@
 [workspace.package]
 version = "1.13.0"
 authors = ["Victor M. Alvarez <vmalvarez@virustotal.com>"]
-edition = "2021"
+edition = "2024"
 homepage = "https://virustotal.github.io/yara-x"
 repository = "https://github.com/VirusTotal/yara-x"
 readme = "README.md"
@@ -28,7 +28,7 @@ members = [
     "py",
     "ls",
 ]
-resolver = "2"
+resolver = "3"
 
 
 [workspace.dependencies]
