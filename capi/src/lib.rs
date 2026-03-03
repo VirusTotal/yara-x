@@ -90,6 +90,7 @@ includes:
 
 #![deny(missing_docs)]
 #![allow(non_camel_case_types)]
+#![allow(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::missing_safety_doc)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
