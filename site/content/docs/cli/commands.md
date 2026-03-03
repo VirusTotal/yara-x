@@ -20,8 +20,8 @@ seo:
 
 YARA-X provides a modern command-line interface (CLI) for performing common
 tasks, like scanning files with YARA rules, compiling rules, etc. This tool
-is named `yr` and is always followed by a top-level command, such as `scan`,
-`compile`, `help` and so on.
+is named `yr` and is always followed by a top-level command, such as [`scan`](#scan),
+[`compile`](#compile), `help` and so on.
 
 Let's see the output of `yr help`:
 
@@ -36,6 +36,7 @@ Commands:
   dump        Show the data produced by YARA modules for a file
   deps        Show rule dependencies
   fmt         Format YARA source files
+  fix         Utilities for fixing source code
   completion  Output shell completion code for the specified shell
   help        Print this message or the help of the given subcommand(s)
 
@@ -46,6 +47,15 @@ Options:
 
 You can get more help for a specific command by using `yr help [COMMAND]` or
 `yr [COMMAND] --help` (e.g: `yr help scan`, `yr scan --help`)
+
+Click on the commands below to learn more about them:
+
+* [`scan`](#scan)
+* [`compile`](#compile)
+* [`dump`](#dump)
+* [`deps`](#deps)
+* [`fmt`](#fmt)
+* [`fix`](#fix)
 
 ------
 
@@ -470,6 +480,42 @@ formatting when the code mixes tabs and spaces.
 
 By default, it uses 4 spaces.
 
+------
+
+## fix
+
+Utilities for fixing source code.
+
+```
+yr fix [COMMAND]
+```
+
+These command has two sub-commands:
+
+* [`encoding`](#encoding)  Convert source files to UTF-8
+* [`warnings`](#warnings)  Automatically fix warnings
+
+### encoding
+
+Convert source files to UTF-8
+
+YARA-X is stricter that YARA with respect to invalid UTF-8 characters in source
+code. This command allows to convert your YARA source files to UTF-8 encoding if
+they are not.
+
+```
+yr fix encoding [OPTIONS] <RULES_PATH>
+```
+
+### warnings
+
+This command automatically resolves fixable YARA-X warnings. It accepts the same
+options as the compile command; however, instead of outputting a compiled rules file,
+it directly modifies the source files to fix the warnings.
+
+```
+yr fix encoding [OPTIONS] <RULES_PATH>
+```
 
 ------
 
