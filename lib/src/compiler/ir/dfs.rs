@@ -1,5 +1,5 @@
-use crate::compiler::ir::{Expr, ExprId, Iterable, MatchAnchor, Quantifier};
 use crate::compiler::IR;
+use crate::compiler::ir::{Expr, ExprId, Iterable, MatchAnchor, Quantifier};
 
 /// Events yielded by [`DFSIter`].
 pub(crate) enum Event<T> {

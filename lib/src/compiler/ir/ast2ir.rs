@@ -10,9 +10,9 @@ use std::rc::Rc;
 use bstr::{BString, ByteSlice};
 use itertools::Itertools;
 
+use yara_x_parser::Span;
 use yara_x_parser::ast;
 use yara_x_parser::ast::WithSpan;
-use yara_x_parser::Span;
 
 use crate::compiler::context::VarStack;
 use crate::compiler::errors::{
@@ -30,8 +30,8 @@ use crate::compiler::ir::{
 };
 use crate::compiler::report::{Level, ReportBuilder};
 use crate::compiler::{
-    warnings, CompileContext, CompileError, FilesizeBounds, ForVars,
-    PatternIdx, TextPatternAsHex,
+    CompileContext, CompileError, FilesizeBounds, ForVars, PatternIdx,
+    TextPatternAsHex, warnings,
 };
 use crate::errors::CustomError;
 use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
@@ -1363,11 +1363,13 @@ fn for_in_expr_from_ast(
             // clone its actual value if known. The actual value for the
             // loop variable is not known until the loop is executed.
             (
-                vec![expressions
-                    .first()
-                    .map(|node_idx| ctx.ir.get(*node_idx).type_value())
-                    .unwrap()
-                    .clone_without_value()],
+                vec![
+                    expressions
+                        .first()
+                        .map(|node_idx| ctx.ir.get(*node_idx).type_value())
+                        .unwrap()
+                        .clone_without_value(),
+                ],
                 Type::Unknown,
             )
         }

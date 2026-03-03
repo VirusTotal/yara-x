@@ -6,7 +6,7 @@ rules and patterns within the CST based on provided identifiers or positions.
 
 use async_lsp::lsp_types::{Position, Url};
 use yara_x_parser::cst::{
-    Immutable, Node, NodeOrToken, SyntaxKind, Token, Utf16, CST,
+    CST, Immutable, Node, NodeOrToken, SyntaxKind, Token, Utf16,
 };
 
 /// Return the token that appears before the given one, without taking

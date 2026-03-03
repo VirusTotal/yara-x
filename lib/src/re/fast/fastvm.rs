@@ -7,7 +7,7 @@ use itertools::izip;
 
 use crate::re::bitmapset::BitmapSet;
 use crate::re::fast::instr::{Instr, InstrParser};
-use crate::re::{Action, CodeLoc, WideIter, DEFAULT_SCAN_LIMIT};
+use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT, WideIter};
 
 /// A faster but less general alternative to [PikeVM].
 ///

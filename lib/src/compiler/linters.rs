@@ -2,8 +2,8 @@ use regex::{Error, Regex};
 
 use yara_x_parser::ast::{self, Meta, WithSpan};
 
-use crate::compiler::report::ReportBuilder;
 use crate::compiler::Warning;
+use crate::compiler::report::ReportBuilder;
 use crate::compiler::{errors, warnings};
 use crate::errors::CompileError;
 

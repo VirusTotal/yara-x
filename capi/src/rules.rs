@@ -1,4 +1,4 @@
-use std::ffi::{c_char, c_int, c_void, CString};
+use std::ffi::{CString, c_char, c_int, c_void};
 use std::mem::ManuallyDrop;
 use std::slice;
 

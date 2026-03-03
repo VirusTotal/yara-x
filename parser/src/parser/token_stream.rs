@@ -219,9 +219,9 @@ pub struct Bookmark(usize);
 
 #[cfg(test)]
 mod test {
+    use crate::Span;
     use crate::parser::token_stream::TokenStream;
     use crate::tokenizer::{Token, Tokenizer};
-    use crate::Span;
 
     #[test]
     fn next() {

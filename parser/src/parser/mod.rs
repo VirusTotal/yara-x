@@ -19,16 +19,16 @@ use indexmap::IndexSet;
 #[cfg(feature = "logging")]
 use log::*;
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::str::{from_utf8, Utf8Error};
+use std::str::{Utf8Error, from_utf8};
 
+use crate::Span;
 use crate::ast::AST;
-use crate::cst::syntax_stream::SyntaxStream;
 use crate::cst::SyntaxKind::*;
-use crate::cst::{syntax_stream, CST};
+use crate::cst::syntax_stream::SyntaxStream;
+use crate::cst::{CST, syntax_stream};
 use crate::cst::{CSTStream, Event, SyntaxKind};
 use crate::parser::token_stream::TokenStream;
 use crate::tokenizer::{Token, TokenId, Tokenizer};
-use crate::Span;
 
 mod token_stream;
 
@@ -942,12 +942,17 @@ impl<'src> ParserImpl<'src> {
                             }
                             (l, 0) if l > 15 => format!("expecting {last}"),
                             (_, 0) => {
-                                format!("expecting {last}, found `{actual_token}`")
+                                format!(
+                                    "expecting {last}, found `{actual_token}`"
+                                )
                             }
                             (0, _) => {
                                 format!(
                                     "expecting {} or {last}, found end of file",
-                                    itertools::join(all_except_last.iter(), ", "),
+                                    itertools::join(
+                                        all_except_last.iter(),
+                                        ", "
+                                    ),
                                 )
                             }
                             (l, _) if l > 15 => format!(

@@ -1,7 +1,7 @@
 extern crate proc_macro;
 
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{ItemFn, Result};
 
 pub(crate) fn impl_module_main_macro(input: ItemFn) -> Result<TokenStream> {

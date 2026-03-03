@@ -1,7 +1,7 @@
 use std::sync::LazyLock;
 
-use protobuf::reflect::MessageDescriptor;
 use protobuf::MessageDyn;
+use protobuf::reflect::MessageDescriptor;
 use rustc_hash::FxHashMap;
 
 use thiserror::Error;

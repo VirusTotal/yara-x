@@ -4,8 +4,8 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 
 use async_lsp::lsp_types::{FileChangeType, FileEvent, Url};
-use dashmap::{mapref::one::Ref, DashMap};
-use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Token, CST};
+use dashmap::{DashMap, mapref::one::Ref};
+use yara_x_parser::cst::{CST, Immutable, Node, SyntaxKind, Token};
 
 use crate::{
     documents::document::Document,

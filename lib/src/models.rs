@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::compiler::{IdentId, PatternId, PatternInfo, RuleInfo};
 use crate::scanner::{ScanContext, ScanState};
-use crate::{compiler, scanner, Rules};
+use crate::{Rules, compiler, scanner};
 
 /// Kinds of patterns.
 #[derive(Serialize, Deserialize, Clone, Copy)]

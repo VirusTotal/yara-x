@@ -3,7 +3,7 @@ use std::io::{Cursor, Seek, SeekFrom};
 use std::path::PathBuf;
 use std::{fs, io, process};
 
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
+use clap::{ArgAction, ArgMatches, Command, arg, value_parser};
 use yara_x_fmt::{Formatter, Indentation};
 
 use crate::config::Config;

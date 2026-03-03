@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
-use const_oid::db::{rfc4519, rfc5912};
 use const_oid::ObjectIdentifier;
+use const_oid::db::{rfc4519, rfc5912};
 
 use der_parser::asn1_rs::{
     Any, FromBer, FromDer, OptTaggedParser, ParseResult,
@@ -10,12 +10,12 @@ use der_parser::ber::*;
 use der_parser::error::Error::BerValueError;
 use der_parser::error::{BerError, BerResult};
 use der_parser::nom;
-use der_parser::nom::branch::alt;
-use der_parser::nom::combinator::{consumed, map_res};
 use der_parser::nom::Err::Incomplete;
 use der_parser::nom::Parser;
+use der_parser::nom::branch::alt;
+use der_parser::nom::combinator::{consumed, map_res};
 use der_parser::num_bigint::BigUint;
-use der_parser::{asn1_rs, parse_ber, Oid};
+use der_parser::{Oid, asn1_rs, parse_ber};
 
 use digest::Digest;
 use sha1::Sha1;

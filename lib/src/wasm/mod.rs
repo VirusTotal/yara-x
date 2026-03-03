@@ -77,7 +77,7 @@ how many indexes to lookup.
 See the [`lookup_field`] function.
 
  */
-use std::any::{type_name, TypeId};
+use std::any::{TypeId, type_name};
 use std::mem;
 use std::ops::RangeInclusive;
 use std::rc::Rc;
@@ -87,7 +87,7 @@ use bstr::{BString, ByteSlice};
 #[cfg(not(feature = "inventory"))]
 use linkme::distributed_slice;
 use rustc_hash::FxHashMap;
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 use wasmtime::{
     AsContext, AsContextMut, Caller, Config, Engine, FuncType, Linker, ValRaw,
 };
@@ -103,7 +103,7 @@ use crate::types::{
 use crate::wasm::integer::RangedInteger;
 use crate::wasm::string::RuntimeString;
 use crate::wasm::string::String as _;
-use crate::{wasm, ScanError};
+use crate::{ScanError, wasm};
 
 pub(crate) mod builder;
 pub(crate) mod integer;

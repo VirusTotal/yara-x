@@ -6,7 +6,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use annotate_snippets::renderer::{AnsiColor, Color, DEFAULT_TERM_WIDTH};
 use annotate_snippets::{
-    renderer, Annotation, AnnotationKind, Group, Snippet,
+    Annotation, AnnotationKind, Group, Snippet, renderer,
 };
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};

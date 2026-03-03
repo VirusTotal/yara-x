@@ -2,15 +2,15 @@ use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 
-use ::ascii_tree::write_tree;
 use ::ascii_tree::Tree;
 use ::ascii_tree::Tree::Node;
-use anyhow::{bail, Context};
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
+use ::ascii_tree::write_tree;
+use anyhow::{Context, bail};
+use clap::{ArgAction, ArgMatches, Command, arg, value_parser};
 
-use yara_x_parser::ast::dfs::{DFSContext, DFSEvent, DFSIter};
-use yara_x_parser::ast::{Expr, AST};
 use yara_x_parser::Parser;
+use yara_x_parser::ast::dfs::{DFSContext, DFSEvent, DFSIter};
+use yara_x_parser::ast::{AST, Expr};
 
 #[derive(Debug, Default)]
 struct Deps<'a> {

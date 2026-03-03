@@ -1,9 +1,9 @@
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command, ValueEnum};
+use clap::{ArgAction, ArgMatches, Command, ValueEnum, arg, value_parser};
 
 use crossterm::tty::IsTty;
 use protobuf::MessageField;
 use std::fs::File;
-use std::io::{stdin, stdout, Read};
+use std::io::{Read, stdin, stdout};
 use std::path::PathBuf;
 use strum_macros::Display;
 

@@ -1,6 +1,6 @@
 use darling::FromMeta;
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{Expr, FnArg, ItemFn, Pat, Result};

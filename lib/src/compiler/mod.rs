@@ -16,7 +16,7 @@ use std::{env, fmt, fs, io, iter};
 
 use bitflags::bitflags;
 use bstr::{BStr, ByteSlice};
-use itertools::{izip, Itertools, MinMaxResult};
+use itertools::{Itertools, MinMaxResult, izip};
 #[cfg(feature = "logging")]
 use log::*;
 use regex_syntax::hir;
@@ -25,12 +25,12 @@ use serde::{Deserialize, Serialize};
 use walrus::FunctionId;
 
 use yara_x_parser::ast;
-use yara_x_parser::ast::{Ident, Import, Include, RuleFlags, WithSpan, AST};
+use yara_x_parser::ast::{AST, Ident, Import, Include, RuleFlags, WithSpan};
 use yara_x_parser::cst::CSTStream;
 use yara_x_parser::{Parser, Span};
 
 use crate::compiler::base64::base64_patterns;
-use crate::compiler::emit::{emit_rule_condition, EmitContext};
+use crate::compiler::emit::{EmitContext, emit_rule_condition};
 use crate::compiler::errors::{
     CompileError, ConflictingRuleIdentifier, CustomError, DuplicateRule,
     DuplicateTag, EmitWasmError, InvalidRegexp, InvalidUTF8, UnknownModule,
@@ -44,9 +44,9 @@ use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup, SymbolTable};
 use crate::types::{Func, Struct, TypeValue};
 use crate::utils::cast;
-use crate::variables::{is_valid_identifier, Variable, VariableError};
+use crate::variables::{Variable, VariableError, is_valid_identifier};
 use crate::wasm::builder::WasmModuleBuilder;
-use crate::wasm::{wasm_exports, WasmSymbols};
+use crate::wasm::{WasmSymbols, wasm_exports};
 use crate::{re, wasm};
 
 pub(crate) use crate::compiler::atoms::*;
@@ -1771,7 +1771,9 @@ impl Compiler<'_> {
                         .is_some()
                 {
                     // This should not happen.
-                    panic!("modifying the file size bounds of an existing pattern")
+                    panic!(
+                        "modifying the file size bounds of an existing pattern"
+                    )
                 }
                 pending_patterns.remove(pattern_id);
             }

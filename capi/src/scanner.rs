@@ -1,17 +1,17 @@
 use std::collections::HashMap;
 use std::ffi::CString;
-use std::ffi::{c_char, c_void, CStr};
+use std::ffi::{CStr, c_char, c_void};
 use std::mem;
 use std::time::Duration;
 
 #[cfg(feature = "rules-profiling")]
 use yara_x::ProfilingData;
 
-use yara_x::errors::ScanError;
 use yara_x::ScanOptions;
+use yara_x::errors::ScanError;
 
 use crate::{
-    _yrx_set_last_error, YRX_RESULT, YRX_RULE, YRX_RULES, YRX_RULE_CALLBACK,
+    _yrx_set_last_error, YRX_RESULT, YRX_RULE, YRX_RULE_CALLBACK, YRX_RULES,
 };
 
 enum InnerScanner<'r> {

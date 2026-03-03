@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_lsp::lsp_types::{DocumentSymbol, SymbolKind, Url};
-use yara_x_parser::ast::{Item, WithSpan, AST};
+use yara_x_parser::ast::{AST, Item, WithSpan};
 
 use crate::documents::storage::DocumentStorage;
 

@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::iter::Peekable;
 use yara_x_parser::cst::SyntaxKind;
 
-use crate::tokens::{categories, Token, TokenStream};
+use crate::tokens::{Token, TokenStream, categories};
 
 // The line below could be uncommented and all occurrences of
 // Iterator<Item = Token<'a>> replaced with TokenIterator<'a>, which would

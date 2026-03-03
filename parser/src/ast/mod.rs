@@ -16,7 +16,7 @@ use bstr::{BStr, BString, ByteSlice, Utf8Error};
 
 use crate::ast::cst2ast::Builder;
 use crate::cst::SyntaxKind::{
-    ASCII_KW, BASE64WIDE_KW, BASE64_KW, FULLWORD_KW, NOCASE_KW, WIDE_KW,
+    ASCII_KW, BASE64_KW, BASE64WIDE_KW, FULLWORD_KW, NOCASE_KW, WIDE_KW,
     XOR_KW,
 };
 use crate::cst::{CSTStream, Event};
@@ -109,22 +109,14 @@ impl<'src> AST<'src> {
     /// Returns the import statements in the AST.
     pub fn imports(&self) -> impl Iterator<Item = &Import<'src>> {
         self.items.iter().filter_map(|item| {
-            if let Item::Import(import) = item {
-                Some(import)
-            } else {
-                None
-            }
+            if let Item::Import(import) = item { Some(import) } else { None }
         })
     }
 
     /// Returns the rules in the AST.
     pub fn rules(&self) -> impl Iterator<Item = &Rule<'src>> {
         self.items.iter().filter_map(|item| {
-            if let Item::Rule(rule) = item {
-                Some(rule)
-            } else {
-                None
-            }
+            if let Item::Rule(rule) = item { Some(rule) } else { None }
         })
     }
 

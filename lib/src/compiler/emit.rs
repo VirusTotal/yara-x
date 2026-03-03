@@ -14,16 +14,16 @@ use std::rc::Rc;
 use bstr::ByteSlice;
 use itertools::{Itertools, Position};
 use rustc_hash::FxHashMap;
+use walrus::ValType::{I32, I64};
 use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{
     BinaryOp, InstrSeqId, InstrSeqType, LoadKind, MemArg, StoreKind, UnaryOp,
 };
-use walrus::ValType::{I32, I64};
 use walrus::{FunctionId, InstrSeqBuilder, ValType};
 
 use crate::compiler::ir::{
-    Expr, ExprId, ForIn, ForOf, Iterable, MatchAnchor, PatternIdx, Quantifier,
-    IR,
+    Expr, ExprId, ForIn, ForOf, IR, Iterable, MatchAnchor, PatternIdx,
+    Quantifier,
 };
 use crate::compiler::{
     FieldAccess, ForVars, LiteralId, OfExprTuple, OfPatternSet, PatternId,
@@ -39,8 +39,8 @@ use crate::wasm;
 use crate::wasm::builder::WasmModuleBuilder;
 use crate::wasm::string::RuntimeString;
 use crate::wasm::{
-    WasmSymbols, LOOKUP_INDEXES_END, LOOKUP_INDEXES_START,
-    MATCHING_RULES_BITMAP_BASE, VARS_STACK_START,
+    LOOKUP_INDEXES_END, LOOKUP_INDEXES_START, MATCHING_RULES_BITMAP_BASE,
+    VARS_STACK_START, WasmSymbols,
 };
 
 /// This macro emits the code for the left and right operands of some

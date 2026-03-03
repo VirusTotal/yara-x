@@ -1,4 +1,4 @@
-use std::cmp::{min, Ordering};
+use std::cmp::{Ordering, min};
 use std::collections::VecDeque;
 use std::iter;
 use std::iter::zip;
@@ -425,7 +425,7 @@ where
 mod test {
     use super::atom_quality;
     use crate::compiler::atoms::quality::masked_atom_quality;
-    use crate::compiler::{atoms, AtomsQuality};
+    use crate::compiler::{AtomsQuality, atoms};
     use itertools::Itertools;
     use regex_syntax::hir::literal::Literal;
     use regex_syntax::hir::literal::Seq;

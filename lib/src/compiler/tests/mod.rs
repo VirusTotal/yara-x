@@ -6,10 +6,10 @@ use std::mem::size_of;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
-use crate::compiler::{linters, FilesizeBounds, SubPattern, VarStack};
+use crate::compiler::{FilesizeBounds, SubPattern, VarStack, linters};
 use crate::errors::{SerializationError, VariableError};
 use crate::types::Type;
-use crate::{compile, Compiler, Rules, Scanner, SourceCode};
+use crate::{Compiler, Rules, Scanner, SourceCode, compile};
 
 #[test]
 fn serialization() {
@@ -74,34 +74,40 @@ fn namespaces() {
     // correctly.
     let mut compiler = Compiler::new();
 
-    assert!(compiler
-        .add_source("rule foo {condition: true}")
-        .unwrap()
-        .add_source("rule bar {condition: foo}")
-        .is_ok());
+    assert!(
+        compiler
+            .add_source("rule foo {condition: true}")
+            .unwrap()
+            .add_source("rule bar {condition: foo}")
+            .is_ok()
+    );
 
     let mut compiler = Compiler::new();
 
     // `bar` can't use `foo` because they are in different namespaces, this
     // be a compilation error.
-    assert!(compiler
-        .add_source("rule foo {condition: true}")
-        .unwrap()
-        .new_namespace("bar")
-        .add_source("rule bar {condition: foo}")
-        .is_err());
+    assert!(
+        compiler
+            .add_source("rule foo {condition: true}")
+            .unwrap()
+            .new_namespace("bar")
+            .add_source("rule bar {condition: foo}")
+            .is_err()
+    );
 
     let mut compiler = Compiler::new();
 
     // `bar` can use `foo` because they are in the same namespace, the second
     // call to `new_namespace` has no effect.
-    assert!(compiler
-        .new_namespace("foo")
-        .add_source("rule foo {condition: true}")
-        .unwrap()
-        .new_namespace("foo")
-        .add_source("rule bar {condition: foo}")
-        .is_ok());
+    assert!(
+        compiler
+            .new_namespace("foo")
+            .add_source("rule foo {condition: true}")
+            .unwrap()
+            .new_namespace("foo")
+            .add_source("rule bar {condition: foo}")
+            .is_ok()
+    );
 }
 
 #[test]
@@ -771,14 +777,20 @@ fn linter_tags_regexp() {
 
 #[test]
 fn linter_rule_name() {
-    assert!(Compiler::new()
-        .add_linter(linters::rule_name("r_.+").unwrap())
-        .add_source(r#"rule r_foo { strings: $foo = "foo" condition: $foo }"#)
-        .unwrap()
-        .add_source(r#"rule r_bar { strings: $bar = "bar" condition: $bar }"#)
-        .unwrap()
-        .warnings()
-        .is_empty());
+    assert!(
+        Compiler::new()
+            .add_linter(linters::rule_name("r_.+").unwrap())
+            .add_source(
+                r#"rule r_foo { strings: $foo = "foo" condition: $foo }"#
+            )
+            .unwrap()
+            .add_source(
+                r#"rule r_bar { strings: $bar = "bar" condition: $bar }"#
+            )
+            .unwrap()
+            .warnings()
+            .is_empty()
+    );
 
     assert_eq!(
         Compiler::new()
@@ -861,35 +873,39 @@ fn linter_required_metadata() {
 #[test]
 fn import_modules() {
     let mut compiler = Compiler::new();
-    assert!(compiler
-        .add_source(
-            r#"
+    assert!(
+        compiler
+            .add_source(
+                r#"
             import "test_proto2"
             rule foo {condition: test_proto2.int32_zero == 0}"#
-        )
-        .unwrap()
-        .add_source(
-            r#"
+            )
+            .unwrap()
+            .add_source(
+                r#"
             import "test_proto2"
             rule bar {condition: test_proto2.int32_zero == 0}"#
-        )
-        .is_ok());
+            )
+            .is_ok()
+    );
 
     let mut compiler = Compiler::new();
-    assert!(compiler
-        .add_source(
-            r#"
+    assert!(
+        compiler
+            .add_source(
+                r#"
             import "test_proto2"
             rule foo {condition: test_proto2.int32_zero == 0}"#
-        )
-        .unwrap()
-        .new_namespace("namespace1")
-        .add_source(
-            r#"
+            )
+            .unwrap()
+            .new_namespace("namespace1")
+            .add_source(
+                r#"
             import "test_proto2"
             rule bar {condition: test_proto2.int32_zero == 0}"#
-        )
-        .is_ok());
+            )
+            .is_ok()
+    );
 }
 
 #[cfg(feature = "pe-module")]
@@ -951,9 +967,10 @@ fn continue_after_error() {
     let mut compiler = Compiler::new();
 
     // This rule won't compile because $b is not used.
-    assert!(compiler
-        .add_source(
-            r#"
+    assert!(
+        compiler
+            .add_source(
+                r#"
             rule test {
                 strings:
                     $a = "foo"
@@ -961,23 +978,26 @@ fn continue_after_error() {
                 condition:
                     $a
             }"#
-        )
-        .is_err());
+            )
+            .is_err()
+    );
 
     // Adding a rule with the same name after the previous one failed should
     // be ok. Notice that the rule also reuses a pattern that was defined
     // by the rule that failed before.
-    assert!(compiler
-        .add_source(
-            r#"
+    assert!(
+        compiler
+            .add_source(
+                r#"
             rule test {
                 strings:
                     $a = "foo" 
                 condition: 
                     $a 
             }"#
-        )
-        .is_ok());
+            )
+            .is_ok()
+    );
 
     let rules = compiler.build();
     let mut scanner = Scanner::new(&rules);
@@ -988,9 +1008,10 @@ fn continue_after_error() {
     let mut compiler = Compiler::new();
     compiler.new_namespace("namespace1");
 
-    assert!(compiler
-        .add_source(
-            r#"
+    assert!(
+        compiler
+            .add_source(
+                r#"
             rule test {
                 strings:
                     $a = "foo"
@@ -998,22 +1019,25 @@ fn continue_after_error() {
                 condition:
                     $a
             }"#
-        )
-        .is_err());
+            )
+            .is_err()
+    );
 
     compiler.new_namespace("namespace2");
 
-    assert!(compiler
-        .add_source(
-            r#"
+    assert!(
+        compiler
+            .add_source(
+                r#"
             rule test {
                 strings:
                     $a = "foo" 
                 condition: 
                     $a 
             }"#
-        )
-        .is_ok());
+            )
+            .is_ok()
+    );
 
     let rules = compiler.build();
     let mut scanner = Scanner::new(&rules);

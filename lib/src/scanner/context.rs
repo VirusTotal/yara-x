@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 #[cfg(feature = "rules-profiling")]
 use std::iter;
-use std::mem::{transmute, MaybeUninit};
+use std::mem::{MaybeUninit, transmute};
 #[cfg(feature = "rules-profiling")]
 use std::ops::AddAssign;
 use std::ops::{Deref, Range};
@@ -31,18 +31,18 @@ use crate::compiler::{
     SubPatternAtom, SubPatternFlags, SubPatternId,
 };
 use crate::errors::VariableError;
+use crate::re::Action;
 use crate::re::fast::FastVM;
 use crate::re::hir::ChainedPatternGap;
 use crate::re::thompson::PikeVM;
-use crate::re::Action;
-use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
 #[cfg(feature = "rules-profiling")]
 use crate::scanner::ProfilingData;
+use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
 use crate::scanner::{DataSnippets, ScanError, ScannedData};
 use crate::scanner::{HEARTBEAT_COUNTER, INIT_HEARTBEAT};
 use crate::types::{Array, Map, Struct, TypeValue};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::{wasm, Variable};
+use crate::{Variable, wasm};
 
 /// Represents the states in which a scanner can be.
 pub(crate) enum ScanState<'a> {
@@ -584,16 +584,18 @@ impl ScanContext<'_, '_> {
         // scans.
         if self.scan_timeout.is_some() {
             INIT_HEARTBEAT.call_once(|| {
-                thread::spawn(|| loop {
-                    thread::sleep(Duration::from_secs(1));
-                    wasm::get_engine().increment_epoch();
-                    HEARTBEAT_COUNTER
-                        .fetch_update(
-                            Ordering::SeqCst,
-                            Ordering::SeqCst,
-                            |x| Some(x + 1),
-                        )
-                        .unwrap();
+                thread::spawn(|| {
+                    loop {
+                        thread::sleep(Duration::from_secs(1));
+                        wasm::get_engine().increment_epoch();
+                        HEARTBEAT_COUNTER
+                            .fetch_update(
+                                Ordering::SeqCst,
+                                Ordering::SeqCst,
+                                |x| Some(x + 1),
+                            )
+                            .unwrap();
+                    }
                 });
             });
         }

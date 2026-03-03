@@ -6,7 +6,7 @@ use std::ops::Add;
 
 use darling::FromMeta;
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 use syn::visit::Visit;
 use syn::{
     AngleBracketedGenericArguments, Error, Expr, ExprLit, GenericArgument,
@@ -204,7 +204,8 @@ impl<'ast> FuncSignatureParser<'ast> {
                 &func.sig,
                 format!(
                     "the first argument for function `{}` must be `&mut Caller<'_, ScanContext>`",
-                    func.sig.ident),
+                    func.sig.ident
+                ),
             ));
         }
 
@@ -298,7 +299,8 @@ pub(crate) fn impl_wasm_export_macro(
         return Err(Error::new_spanned(
             &func.sig,
             format!(
-                "function `{rust_fn_name}` must have at least one argument of type `&mut Caller<'_, ScanContext>`"),
+                "function `{rust_fn_name}` must have at least one argument of type `&mut Caller<'_, ScanContext>`"
+            ),
         ));
     }
 

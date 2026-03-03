@@ -70,12 +70,12 @@ use std::ops::BitAnd;
 
 use chrono::prelude::DateTime;
 use itertools::Itertools;
+use protobuf::MessageDyn;
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
 use protobuf::reflect::{FieldDescriptor, MessageRef, ReflectValueRef};
-use protobuf::MessageDyn;
 use yansi::{Color, Paint, Style};
 
-use yara_x_proto::{get_field_format, FieldFormat};
+use yara_x_proto::{FieldFormat, get_field_format};
 
 #[cfg(test)]
 mod tests;

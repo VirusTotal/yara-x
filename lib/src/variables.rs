@@ -47,7 +47,9 @@ pub enum VariableError {
 
     /// Invalid array. Arrays can't be empty, and all items must be non-null
     /// and have the same type.
-    #[error("arrays can't be empty and all items must be non-null and the same type")]
+    #[error(
+        "arrays can't be empty and all items must be non-null and the same type"
+    )]
     InvalidArray,
 
     /// Integer value is out of range.

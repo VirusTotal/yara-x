@@ -1,6 +1,6 @@
 use darling::ast::NestedMeta;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput, Error, ItemFn};
+use syn::{DeriveInput, Error, ItemFn, parse_macro_input};
 
 mod error;
 mod module_export;

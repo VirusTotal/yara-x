@@ -3,10 +3,10 @@ use protobuf::MessageDyn;
 use protobuf::{Message, MessageFull};
 use serde_json::json;
 
+use crate::Scanner;
 use crate::models::MetaValue;
 use crate::variables::VariableError;
-use crate::Scanner;
-use crate::{mods, ScanOptions};
+use crate::{ScanOptions, mods};
 
 #[cfg(feature = "rules-profiling")]
 use std::time::Duration;

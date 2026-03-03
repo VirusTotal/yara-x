@@ -58,7 +58,7 @@ use crate::features::references::find_references;
 use crate::features::rename::rename;
 use crate::features::selection_range::selection_range;
 use crate::features::semantic_tokens::{
-    semantic_tokens, SEMANTIC_TOKEN_MODIFIERS, SEMANTIC_TOKEN_TYPES,
+    SEMANTIC_TOKEN_MODIFIERS, SEMANTIC_TOKEN_TYPES, semantic_tokens,
 };
 
 macro_rules! in_thread {

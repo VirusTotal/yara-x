@@ -11,7 +11,7 @@ use itertools::Itertools;
 use yara_x::mods::reflect::Type;
 #[cfg(feature = "full-compiler")]
 use yara_x::mods::{module_definition, module_names};
-use yara_x_parser::cst::{Immutable, Node, SyntaxKind, Token, CST};
+use yara_x_parser::cst::{CST, Immutable, Node, SyntaxKind, Token};
 
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{

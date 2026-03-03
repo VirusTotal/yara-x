@@ -4,13 +4,13 @@ use std::rc::Rc;
 use itertools::Itertools;
 use rustc_hash::FxHashSet;
 
-use yara_x_parser::ast::{Ident, WithSpan};
 use yara_x_parser::Span;
+use yara_x_parser::ast::{Ident, WithSpan};
 
 use crate::compiler::errors::{CompileError, UnknownPattern};
-use crate::compiler::ir::{PatternIdx, IR};
+use crate::compiler::ir::{IR, PatternIdx};
 use crate::compiler::report::ReportBuilder;
-use crate::compiler::{ir, Warnings};
+use crate::compiler::{Warnings, ir};
 use crate::errors::{UnknownField, UnknownIdentifier};
 use crate::modules::BUILTIN_MODULES;
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup};
@@ -80,13 +80,15 @@ impl<'src> CompileContext<'_, 'src> {
         ident: &Ident,
     ) -> Result<(PatternIdx, &mut ir::PatternInRule<'src>), CompileError> {
         // Make sure that identifier starts with `$`, `#`, `@` or `!`.
-        debug_assert!("$#@!".contains(
-            ident
-                .name
-                .chars()
-                .next()
-                .expect("identifier must be at least 1 character long")
-        ));
+        debug_assert!(
+            "$#@!".contains(
+                ident
+                    .name
+                    .chars()
+                    .next()
+                    .expect("identifier must be at least 1 character long")
+            )
+        );
 
         self.current_rule_patterns
             .iter_mut()
@@ -129,8 +131,7 @@ impl<'src> CompileContext<'_, 'src> {
                     if BUILTIN_MODULES.contains_key(ident.name) {
                         Some(format!(
                             "there is a module named `{}`, but the `import \"{}\"` statement is missing",
-                            ident.name,
-                            ident.name
+                            ident.name, ident.name
                         ))
                     } else {
                         None

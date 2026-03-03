@@ -24,10 +24,10 @@ use std::fs;
 use std::io::stdout;
 use std::path::PathBuf;
 
-use anyhow::{anyhow, bail, Context};
+use anyhow::{Context, anyhow, bail};
 use clap::{
-    arg, command, crate_authors, value_parser, Arg, ArgAction, ArgMatches,
-    Command,
+    Arg, ArgAction, ArgMatches, Command, arg, command, crate_authors,
+    value_parser,
 };
 use crossterm::tty::IsTty;
 use superconsole::{Component, Line, Lines, Span, SuperConsole};
@@ -37,7 +37,7 @@ use yansi::Paint;
 
 use crate::config::Config;
 use crate::walk::Walker;
-use crate::{commands, help, APP_HELP_TEMPLATE};
+use crate::{APP_HELP_TEMPLATE, commands, help};
 use yara_x::{Compiler, Rules, SourceCode};
 
 pub fn command(name: &'static str) -> Command {
@@ -145,11 +145,7 @@ fn path_with_namespace_parser(
 /// Parses a path and makes sure that it exists.
 fn existing_path_parser(input: &str) -> Result<PathBuf, anyhow::Error> {
     let path = PathBuf::from(input);
-    if path.try_exists()? {
-        Ok(path)
-    } else {
-        Err(anyhow!("file not found"))
-    }
+    if path.try_exists()? { Ok(path) } else { Err(anyhow!("file not found")) }
 }
 
 pub fn create_compiler<'a>(

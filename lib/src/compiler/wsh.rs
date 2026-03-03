@@ -2,8 +2,8 @@ use std::str::from_utf8;
 
 use regex::bytes::Regex;
 
-use yara_x_parser::cst::{CSTStream, Event, SyntaxKind};
 use yara_x_parser::Span;
+use yara_x_parser::cst::{CSTStream, Event, SyntaxKind};
 
 /// This type hooks into a stream of [`cst::Event`] and invokes a callback for
 /// each comment that suppresses a warning.

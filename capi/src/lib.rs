@@ -95,7 +95,7 @@ includes:
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 use std::cell::RefCell;
-use std::ffi::{c_char, CStr, CString};
+use std::ffi::{CStr, CString, c_char};
 use std::ptr::slice_from_raw_parts_mut;
 
 use yara_x::errors::CompileError;
@@ -171,11 +171,7 @@ pub enum YRX_RESULT {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_last_error() -> *const c_char {
     LAST_ERROR.with_borrow(|err| {
-        if let Some(err) = err {
-            err.as_ptr()
-        } else {
-            std::ptr::null()
-        }
+        if let Some(err) = err { err.as_ptr() } else { std::ptr::null() }
     })
 }
 

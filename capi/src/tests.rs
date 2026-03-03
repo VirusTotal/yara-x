@@ -7,6 +7,7 @@ use crate::compiler::{
     yrx_compiler_new_namespace,
 };
 use crate::{
+    YRX_BUFFER, YRX_METADATA, YRX_PATTERN, YRX_RESULT, YRX_RULE,
     yrx_buffer_destroy, yrx_last_error, yrx_rule_identifier,
     yrx_rule_iter_metadata, yrx_rule_iter_patterns, yrx_rule_iter_tags,
     yrx_rule_namespace, yrx_rules_deserialize, yrx_rules_destroy,
@@ -16,13 +17,12 @@ use crate::{
     yrx_scanner_scan, yrx_scanner_scan_block, yrx_scanner_set_global_bool,
     yrx_scanner_set_global_float, yrx_scanner_set_global_int,
     yrx_scanner_set_global_json, yrx_scanner_set_global_str,
-    yrx_scanner_set_module_data, yrx_scanner_set_timeout, YRX_BUFFER,
-    YRX_METADATA, YRX_PATTERN, YRX_RESULT, YRX_RULE,
+    yrx_scanner_set_module_data, yrx_scanner_set_timeout,
 };
 
-use std::ffi::{c_char, c_void, CStr};
+use std::ffi::{CStr, c_char, c_void};
 
-use assert_call::{call, CallRecorder};
+use assert_call::{CallRecorder, call};
 
 extern "C" fn on_rule_iter(_rule: *const YRX_RULE, user_data: *mut c_void) {
     let ptr = user_data as *mut i32;

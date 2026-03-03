@@ -17,12 +17,12 @@ use std::iter;
 use std::iter::Cloned;
 use std::marker::PhantomData;
 use std::slice::Iter;
-use std::str::{from_utf8, Utf8Error};
+use std::str::{Utf8Error, from_utf8};
 
 pub use syntax_kind::SyntaxKind;
 
-use crate::cst::error_merger::ErrorMerger;
 use crate::cst::SyntaxKind::{COMMENT, NEWLINE, WHITESPACE};
+use crate::cst::error_merger::ErrorMerger;
 use crate::{Parser, Span};
 
 pub(crate) mod error_merger;
@@ -200,7 +200,7 @@ impl<'a> Iterator for CSTIter<'a> {
                                 span: Span::from(token.text_range()),
                             })
                         }
-                    }
+                    };
                 }
                 rowan::WalkEvent::Leave(e) => {
                     if let rowan::SyntaxElement::Node(node) = e {

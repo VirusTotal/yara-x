@@ -43,12 +43,12 @@ use bstr::BString;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 
-use yara_x_parser::ast::Ident;
 use yara_x_parser::Span;
+use yara_x_parser::ast::Ident;
 
 use crate::compiler::context::{Var, VarStack};
 use crate::compiler::ir::dfs::{
-    dfs_common, DFSIter, DFSWithScopeIter, Event, EventContext,
+    DFSIter, DFSWithScopeIter, Event, EventContext, dfs_common,
 };
 
 use crate::compiler::FilesizeBounds;

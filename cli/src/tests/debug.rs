@@ -1,6 +1,6 @@
-use assert_cmd::{cargo::cargo_bin, Command};
-use assert_fs::prelude::*;
+use assert_cmd::{Command, cargo::cargo_bin};
 use assert_fs::TempDir;
+use assert_fs::prelude::*;
 
 #[test]
 fn ast() {

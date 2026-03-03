@@ -4,8 +4,8 @@ This scanner is designed for scenarios where the data to be scanned is not
 available as a single contiguous block of memory, but rather arrives in
 smaller, discrete blocks, allowing for incremental scanning.
 */
-use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
+use std::collections::btree_map::Entry;
 use std::mem;
 use std::mem::transmute;
 use std::pin::Pin;
@@ -14,7 +14,7 @@ use std::time::Duration;
 use wasmtime::Store;
 
 use crate::errors::VariableError;
-use crate::scanner::context::{create_wasm_store_and_ctx, ScanState};
+use crate::scanner::context::{ScanState, create_wasm_store_and_ctx};
 use crate::scanner::{DataSnippets, ScanContext};
 use crate::{Rules, ScanError, ScanResults, Variable};
 
@@ -337,7 +337,7 @@ impl<'r> From<crate::scanner::Scanner<'r>> for Scanner<'r> {
 #[cfg(test)]
 mod tests {
     use crate::scanner::blocks::Scanner;
-    use crate::{compile, Compiler};
+    use crate::{Compiler, compile};
     use std::time::Duration;
 
     #[test]

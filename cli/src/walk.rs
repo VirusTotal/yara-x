@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{io, thread};
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use crossbeam::channel::{RecvTimeoutError, SendError, Sender};
 use crossterm::tty::IsTty;
 use globwalk::FileType;
@@ -502,11 +502,7 @@ impl<'a> ParWalker<'a> {
             } else {
                 // `console` will be `None` if either stdout or stderr is not a tty
                 // (for example when any of them are redirected to a file).
-                if io::stdout().is_tty() {
-                    SuperConsole::new()
-                } else {
-                    None
-                }
+                if io::stdout().is_tty() { SuperConsole::new() } else { None }
             };
 
             // The console is rendered once every `render_period`.

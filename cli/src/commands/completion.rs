@@ -1,7 +1,7 @@
 use crate::commands::cli;
 use crate::help;
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
-use clap_complete::{generate, Shell};
+use clap::{ArgAction, ArgMatches, Command, arg, value_parser};
+use clap_complete::{Shell, generate};
 use std::io;
 
 pub fn completion() -> Command {
