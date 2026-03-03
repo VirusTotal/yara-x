@@ -51,8 +51,31 @@ pub(crate) const TOPVAL: [usize; 170] = [
 
 const _MAX_DATA_LEN: usize = TOPVAL[TOPVAL.len() - 1];
 
-static mut BIT_PAIRS_FLAG: bool = false;
-static mut BIT_PAIRS_DIFF: [[usize; 256]; 256] = [[0; 256]; 256];
+const fn compute_bit_pairs_diff() -> [[usize; 256]; 256] {
+    let mut a = [[0; 256]; 256];
+
+    let mut i: i16 = 0;
+    while i < 256 {
+        let mut j: i16 = 0;
+        while j < 256 {
+            let (mut x, mut y, mut diff) = (i, j, 0);
+            let mut k = 0;
+            while k < 4 {
+                let d = (x % 4 - y % 4).abs();
+                diff += if d == 3 { 6 } else { d };
+                x /= 4;
+                y /= 4;
+                k += 1;
+            }
+            a[i as usize][j as usize] = diff as usize;
+            j += 1;
+        }
+        i += 1;
+    }
+    a
+}
+
+const BIT_PAIRS_DIFF: [[usize; 256]; 256] = compute_bit_pairs_diff();
 
 pub(crate) fn pearson_hash(salt: u8, ii: u8, jj: u8, kk: u8) -> u8 {
     let mut h = 0;
@@ -209,41 +232,10 @@ where
 
 pub(crate) fn bit_distance(x: &[u8], y: &[u8]) -> usize {
     let mut result = 0;
-
     for ii in 0..x.len() {
-        unsafe {
-            result += bit_pairs_diff(x[ii] as usize, y[ii] as usize);
-        }
+        result += BIT_PAIRS_DIFF[x[ii] as usize][y[ii] as usize];
     }
-
     result
-}
-
-#[inline]
-unsafe fn bit_pairs_diff(row: usize, col: usize) -> usize {
-    let f = |x: &mut i16, y: &mut i16, diff: &mut i16| {
-        let d = (*x % 4 - *y % 4).abs();
-        *diff += if d == 3 { 6 } else { d };
-
-        *x /= 4;
-        *y /= 4;
-    };
-
-    if !BIT_PAIRS_FLAG {
-        for ii in 0..256i16 {
-            for jj in 0..256 {
-                let (mut x, mut y, mut diff) = (ii, jj, 0);
-                for _ in 0..4 {
-                    f(&mut x, &mut y, &mut diff);
-                }
-
-                BIT_PAIRS_DIFF[ii as usize][jj as usize] = diff as usize;
-            }
-        }
-        BIT_PAIRS_FLAG = true;
-    }
-
-    BIT_PAIRS_DIFF[row][col]
 }
 
 pub(crate) fn l_capturing(len: usize) -> Result<usize, TlshError> {
