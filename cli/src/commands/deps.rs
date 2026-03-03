@@ -20,9 +20,7 @@ struct Deps<'a> {
 
 pub fn deps() -> Command {
     super::command("deps")
-        .about("Show rule dependencies and modules")
-        // The `deps` command is not ready yet.
-        .hide(true)
+        .about("Show rule dependencies")
         .arg(
             arg!(<RULES_PATH>)
                 .help("Path to YARA source file")
