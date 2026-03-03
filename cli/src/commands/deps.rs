@@ -84,10 +84,13 @@ pub fn exec_deps(args: &ArgMatches) -> anyhow::Result<()> {
     }
 
     let dep_tree = generate_dep_tree(&dep_map, &requested_rules);
+
     for dep in dep_tree.iter() {
         let mut output = String::new();
         write_tree(&mut output, &dep).unwrap();
+        println!("{output}");
     }
+
     Ok(())
 }
 
