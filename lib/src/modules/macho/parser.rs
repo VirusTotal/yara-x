@@ -354,11 +354,10 @@ impl<'a> MachO<'a> {
                     // corrupted while the rest are ok. But when the end of
                     // the file is reached there are no more commands that can
                     // be parsed.
-                    if let Err::Error(e) = err {
-                        if e.code == ErrorKind::Eof {
+                    if let Err::Error(e) = err
+                        && e.code == ErrorKind::Eof {
                             break;
                         }
-                    }
                 }
             }
         }
@@ -372,9 +371,8 @@ impl<'a> MachO<'a> {
             // We don't want the dyld_shared_cache ones for now
             if let Some(string_table) =
                 data.get(str_offset..str_offset.saturating_add(str_end))
-            {
-                if let Some(symbol_table) = data.get(sym_offset..) {
-                    if let Err(_err) =
+                && let Some(symbol_table) = data.get(sym_offset..)
+                    && let Err(_err) =
                         macho.parse_symtab(string_table, symbol_table, nsyms)
                     {
                         #[cfg(feature = "logging")]
@@ -383,8 +381,6 @@ impl<'a> MachO<'a> {
                         // correctly but parsing should still proceed for
                         // everything else
                     };
-                }
-            }
         }
 
         if let Some(entry_point_rva) = macho.entry_point_rva {
@@ -396,15 +392,13 @@ impl<'a> MachO<'a> {
             let size = code_signature_data.datasize as usize;
             if let Some(super_data) =
                 data.get(offset..offset.saturating_add(size))
-            {
-                if let Err(_err) = macho.cs_superblob().parse(super_data) {
+                && let Err(_err) = macho.cs_superblob().parse(super_data) {
                     #[cfg(feature = "logging")]
                     error!("Error parsing Mach-O file: {:?}", _err);
                     // fail silently if it fails, data was not formatted
                     // correctly but parsing should still proceed for
                     // everything else
                 };
-            }
         }
 
         for (offset, size) in [
@@ -422,15 +416,13 @@ impl<'a> MachO<'a> {
         {
             if let Some(export_data) =
                 data.get(offset..offset.saturating_add(size))
-            {
-                if let Err(_err) = macho.parse_exports(export_data) {
+                && let Err(_err) = macho.parse_exports(export_data) {
                     #[cfg(feature = "logging")]
                     error!("Error parsing Mach-O file: {:?}", _err);
                     // fail silently if it fails, data was not formatted
                     // correctly but parsing should still proceed for
                     // everything else
                 };
-            }
         }
 
         // imports defined at `weak_offset` can be duplicative, meaning
@@ -452,8 +444,7 @@ impl<'a> MachO<'a> {
         {
             if let Some(import_data) =
                 data.get(offset..offset.saturating_add(size))
-            {
-                if let Err(_err) = macho.parse_imports(import_data, &mut seen)
+                && let Err(_err) = macho.parse_imports(import_data, &mut seen)
                 {
                     #[cfg(feature = "logging")]
                     error!("Error parsing Mach-O file: {:?}", _err);
@@ -461,7 +452,6 @@ impl<'a> MachO<'a> {
                     // correctly but parsing should still proceed for
                     // everything else
                 };
-            }
         }
 
         if let Some(ref chained_fixups) = macho.dyld_chain_fixups {
@@ -469,15 +459,13 @@ impl<'a> MachO<'a> {
             let size = chained_fixups.data_size as usize;
             if let Some(fixup_data) =
                 data.get(offset..offset.saturating_add(size))
-            {
-                if let Err(_err) = macho.parse_chained_fixups(fixup_data) {
+                && let Err(_err) = macho.parse_chained_fixups(fixup_data) {
                     #[cfg(feature = "logging")]
                     error!("Error parsing Mach-O file: {:?}", _err);
                     // fail silently if it fails, data was not formatted
                     // correctly but parsing should still proceed for
                     // everything else
                 };
-            }
         }
 
         Ok(macho)
@@ -1062,13 +1050,12 @@ impl<'a> MachOFile<'a> {
                         if let Some(ber_blob) = super_data.get(
                             offset.saturating_add(size_of_blob)
                                 ..offset.saturating_add(length),
-                        ) {
-                            if let Ok((_remainder, certs)) =
+                        )
+                            && let Ok((_remainder, certs)) =
                                 parse_certificates(ber_blob)
                             {
                                 self.certificates.extend(certs);
                             }
-                        }
                     }
                     _ => {}
                 }
@@ -1160,8 +1147,8 @@ impl<'a> MachOFile<'a> {
 
         for _ in 0..count {
             (data, n) = self.nlist().parse(data)?;
-            if let Some(symtab) = self.symtab.as_mut() {
-                if let Some(string_data) =
+            if let Some(symtab) = self.symtab.as_mut()
+                && let Some(string_data) =
                     string_table.get(n.n_strx as usize..)
                 {
                     let (_, string_value) = map(
@@ -1175,7 +1162,6 @@ impl<'a> MachOFile<'a> {
                         symtab.nlists.push(n);
                     }
                 }
-            }
         }
 
         Ok((data, ()))
@@ -1296,12 +1282,11 @@ impl<'a> MachOFile<'a> {
                     )
                     .parse(remainder)?;
                     remainder = import_remainder;
-                    if let Ok(import) = strr.to_str() {
-                        if !seen.contains(import) {
+                    if let Ok(import) = strr.to_str()
+                        && !seen.contains(import) {
                             self.imports.push(import.to_string());
                             seen.insert(import);
                         }
-                    }
                 }
                 _ => {}
             }
@@ -2033,8 +2018,8 @@ impl From<MachO<'_>> for protos::macho::Macho {
             // If the exports are empty, iterate the symbol table entries to
             // check like dyld_info does:
             // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L560-L617
-            if m.dyld_export_trie.is_none() && m.dyld_info.is_none() {
-                if let Some(symtab) = &m.symtab {
+            if m.dyld_export_trie.is_none() && m.dyld_info.is_none()
+                && let Some(symtab) = &m.symtab {
                     result.exports.extend(
                         symtab
                             .nlists
@@ -2056,13 +2041,12 @@ impl From<MachO<'_>> for protos::macho::Macho {
                             .map(|sym| BStr::new(sym).to_string()),
                     )
                 }
-            }
 
             // If the imports are empty, iterate the symbol table entries to
             // check for undefined symbols like dyld_info does:
             // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L372-L398
-            if m.dyld_chain_fixups.is_none() && m.dyld_info.is_none() {
-                if let Some(symtab) = &m.symtab {
+            if m.dyld_chain_fixups.is_none() && m.dyld_info.is_none()
+                && let Some(symtab) = &m.symtab {
                     result.imports.extend(
                         symtab
                             .nlists
@@ -2081,7 +2065,6 @@ impl From<MachO<'_>> for protos::macho::Macho {
                             .map(|sym| BStr::new(sym).to_string()),
                     );
                 }
-            }
 
             result
                 .certificates
@@ -2171,8 +2154,8 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         // If the exports are empty, iterate the symbol table entries to check
         // like dyld_info does:
         // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L560-L617
-        if macho.dyld_export_trie.is_none() && macho.dyld_info.is_none() {
-            if let Some(symtab) = &macho.symtab {
+        if macho.dyld_export_trie.is_none() && macho.dyld_info.is_none()
+            && let Some(symtab) = &macho.symtab {
                 result.exports.extend(
                     symtab
                         .nlists
@@ -2194,13 +2177,12 @@ impl From<&MachOFile<'_>> for protos::macho::File {
                         .map(|sym| BStr::new(sym).to_string()),
                 )
             }
-        }
 
         // If the imports are empty, iterate the symbol table entries to
         // check for undefined symbols like dyld_info does:
         // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L372-L398
-        if macho.dyld_chain_fixups.is_none() && macho.dyld_info.is_none() {
-            if let Some(symtab) = &macho.symtab {
+        if macho.dyld_chain_fixups.is_none() && macho.dyld_info.is_none()
+            && let Some(symtab) = &macho.symtab {
                 result.imports.extend(
                     symtab
                         .nlists
@@ -2217,7 +2199,6 @@ impl From<&MachOFile<'_>> for protos::macho::File {
                         .map(|sym| BStr::new(sym).to_string()),
                 );
             }
-        }
         result
             .certificates
             .extend(macho.certificates.iter().map(|cert| cert.into()));

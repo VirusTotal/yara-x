@@ -366,8 +366,8 @@ impl LinterInternal for Metadata<'_> {
         let mut found = false;
         for meta in rule.meta.iter().flatten() {
             if meta.identifier.name == self.identifier.as_str() {
-                if let Some(predicate) = &self.predicate {
-                    if !predicate(meta) {
+                if let Some(predicate) = &self.predicate
+                    && !predicate(meta) {
                         return if self.error {
                             LinterResult::Err(errors::InvalidMetadata::build(
                                 report_builder,
@@ -392,7 +392,6 @@ impl LinterInternal for Metadata<'_> {
                             )
                         };
                     }
-                }
                 found = true;
             }
         }

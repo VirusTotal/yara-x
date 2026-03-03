@@ -56,8 +56,8 @@ pub(in crate::compiler) fn patterns_from_ast<'src>(
 ) -> Result<(), CompileError> {
     for pattern_ast in rule.patterns.as_ref().into_iter().flatten() {
         let pattern = pattern_from_ast(ctx, pattern_ast)?;
-        if pattern.identifier().name != "$" {
-            if let Some(existing) = ctx
+        if pattern.identifier().name != "$"
+            && let Some(existing) = ctx
                 .current_rule_patterns
                 .iter()
                 .find(|p| p.identifier.name == pattern.identifier.name)
@@ -71,7 +71,6 @@ pub(in crate::compiler) fn patterns_from_ast<'src>(
                         .span_to_code_loc(existing.identifier.span()),
                 ));
             }
-        }
         if ctx.current_rule_patterns.len() == MAX_PATTERNS_PER_RULE {
             return Err(TooManyPatterns::build(
                 ctx.report_builder,
@@ -287,8 +286,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
     // breaks.
     if let Some(literal) =
         hir.as_literal_bytes().and_then(|lit| lit.to_str().ok())
-    {
-        if literal.chars().all(|c| {
+        && literal.chars().all(|c| {
             (' '..='~').contains(&c) || c == '\t' || c == '\n' || c == '\r'
         }) {
             let code_loc = ctx.report_builder.span_to_code_loc(pattern.span());
@@ -299,7 +297,6 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
 
             ctx.warnings.add(|| warning);
         }
-    }
 
     Ok(PatternInRule {
         identifier: pattern.identifier.clone(),
@@ -1101,8 +1098,8 @@ fn of_expr_from_ast(
         }
     };
 
-    if let Quantifier::Expr(expr) = &quantifier {
-        if let Some(value) = ctx.ir.get(*expr).try_as_const_integer() {
+    if let Quantifier::Expr(expr) = &quantifier
+        && let Some(value) = ctx.ir.get(*expr).try_as_const_integer() {
             // The use of `0 of them` is not recommended, because is not clear
             // if 0 or more patterns must match, or if none of them should
             // match.
@@ -1140,7 +1137,6 @@ fn of_expr_from_ast(
                 ));
             }
         }
-    }
 
     // The anchor `at <expr>` is being used with a quantifier that is not `any`
     // or `none`, but this usually doesn't make sense. For example consider the
@@ -1255,8 +1251,8 @@ fn for_of_expr_from_ast(
     ctx.symbol_table.pop();
     ctx.vars.unwind(&stack_frame);
 
-    if let Quantifier::Expr(expr) = &quantifier {
-        if let Some(value) = ctx.ir.get(*expr).try_as_const_integer() {
+    if let Quantifier::Expr(expr) = &quantifier
+        && let Some(value) = ctx.ir.get(*expr).try_as_const_integer() {
             // If the quantifier expression is greater than the number of items,
             // the `of` expression is always false.
             if value > pattern_set.len() as i64 {
@@ -1271,7 +1267,6 @@ fn for_of_expr_from_ast(
                 ));
             }
         }
-    }
 
     Ok(ctx.ir.for_of(quantifier, next_pattern_id, for_vars, pattern_set, body))
 }
@@ -1549,8 +1544,8 @@ fn iterable_from_ast(
                 // with the previous item and return as soon as we find a
                 // type mismatch.
                 let ty = ctx.ir.get(expr).ty();
-                if let Some((prev_ty, prev_span)) = prev {
-                    if prev_ty != ty {
+                if let Some((prev_ty, prev_span)) = prev
+                    && prev_ty != ty {
                         return Err(MismatchingTypes::build(
                             ctx.report_builder,
                             prev_ty.to_string(),
@@ -1559,7 +1554,6 @@ fn iterable_from_ast(
                             ctx.report_builder.span_to_code_loc(span),
                         ));
                     }
-                }
                 prev = Some((ty, span));
                 e.push(expr);
             }
@@ -1600,8 +1594,8 @@ fn range_from_ast(
     ) = (
         ctx.ir.get(lower_bound).type_value(),
         ctx.ir.get(upper_bound).type_value(),
-    ) {
-        if lower_bound > upper_bound {
+    )
+        && lower_bound > upper_bound {
             return Err(InvalidRange::build(
                 ctx.report_builder,
                 format!(
@@ -1610,7 +1604,6 @@ fn range_from_ast(
                 ctx.report_builder.span_to_code_loc(range.span()),
             ));
         }
-    }
 
     Ok(Range { lower_bound, upper_bound })
 }
@@ -1625,14 +1618,13 @@ fn non_negative_integer_from_ast(
     check_type(ctx, expr, span.clone(), &[Type::Integer])?;
 
     let type_value = ctx.ir.get(expr).type_value();
-    if let TypeValue::Integer { value: Const(value), .. } = type_value {
-        if value < 0 {
+    if let TypeValue::Integer { value: Const(value), .. } = type_value
+        && value < 0 {
             return Err(UnexpectedNegativeNumber::build(
                 ctx.report_builder,
                 ctx.report_builder.span_to_code_loc(span),
             ));
         }
-    }
 
     Ok(expr)
 }
@@ -1651,8 +1643,8 @@ fn integer_in_range_from_ast(
     // the given range.
     let type_value = ctx.ir.get(expr).type_value();
 
-    if let TypeValue::Integer { value: Const(value), .. } = type_value {
-        if !range.contains(&value) {
+    if let TypeValue::Integer { value: Const(value), .. } = type_value
+        && !range.contains(&value) {
             return Err(NumberOutOfRange::build(
                 ctx.report_builder,
                 *range.start(),
@@ -1660,7 +1652,6 @@ fn integer_in_range_from_ast(
                 ctx.report_builder.span_to_code_loc(span),
             ));
         }
-    }
 
     Ok(expr)
 }
@@ -2606,13 +2597,11 @@ fn shx_check(
 ) -> Result<(), CompileError> {
     if let TypeValue::Integer { value: Const(value), .. } =
         ctx.ir.get(rhs).type_value()
-    {
-        if value < 0 {
+        && value < 0 {
             return Err(UnexpectedNegativeNumber::build(
                 ctx.report_builder,
                 ctx.report_builder.span_to_code_loc(rhs_span),
             ));
         }
-    }
     Ok(())
 }

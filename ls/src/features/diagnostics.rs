@@ -77,11 +77,10 @@ pub fn compiler_diagnostics(
         .enable_feature("ip_address")
         .enable_feature("domain");
 
-    if let Some(regex) = rule_name_validation {
-        if let Ok(linter) = linters::rule_name(regex) {
+    if let Some(regex) = rule_name_validation
+        && let Ok(linter) = linters::rule_name(regex) {
             compiler.add_linter(linter);
         }
-    }
 
     for validation_rule in metadata_validation {
         let mut linter = linters::metadata(&validation_rule.identifier)

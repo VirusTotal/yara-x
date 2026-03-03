@@ -114,9 +114,9 @@ where
                     if comment.code_span.is_none() {
                         comment.code_span = self.line_span.clone();
                     }
-                    if let Some(code_span) = &comment.code_span {
-                        if let Some(hook) = &mut self.f {
-                            if let Some(warning_id) = self
+                    if let Some(code_span) = &comment.code_span
+                        && let Some(hook) = &mut self.f
+                            && let Some(warning_id) = self
                                 .suppress_re
                                 .captures(comment.text)
                                 .and_then(|captures| captures.get(1))
@@ -125,8 +125,6 @@ where
                             {
                                 hook(warning_id, code_span.clone());
                             }
-                        }
-                    }
                     comment.code_span.is_none()
                 });
                 self.line_span = None;

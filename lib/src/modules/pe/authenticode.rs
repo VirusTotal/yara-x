@@ -208,14 +208,13 @@ impl AuthenticodeParser {
                 // anyway.
                 oid::MS_SPC_NESTED_SIGNATURE => {
                     for value in &attr.attr_values {
-                        if let Ok(content_info) = value.try_into() {
-                            if let Ok(nested) = Self::parse_content_info(
+                        if let Ok(content_info) = value.try_into()
+                            && let Ok(nested) = Self::parse_content_info(
                                 content_info,
                                 authenticode_hasher,
                             ) {
                                 nested_signatures.extend(nested);
-                            }
-                        };
+                            };
                     }
                 }
                 oid::MS_COUNTERSIGN => {
@@ -610,8 +609,8 @@ impl From<&AuthenticodeSignature<'_>> for protos::pe::Signature {
         // in the `pe::Signature` structure for backward compatibility. The
         // `chain` field in `SignerInfo` didn't exist in previous versions of
         // YARA.
-        if let Some(signer_info) = sig.signer_info.as_ref() {
-            if let Some(cert) = signer_info.chain.first() {
+        if let Some(signer_info) = sig.signer_info.as_ref()
+            && let Some(cert) = signer_info.chain.first() {
                 sig.version = cert.version;
                 sig.thumbprint.clone_from(&cert.thumbprint);
                 sig.issuer.clone_from(&cert.issuer);
@@ -622,7 +621,6 @@ impl From<&AuthenticodeSignature<'_>> for protos::pe::Signature {
                 sig.algorithm.clone_from(&cert.algorithm);
                 sig.algorithm_oid.clone_from(&cert.algorithm_oid);
             }
-        }
 
         sig
     }

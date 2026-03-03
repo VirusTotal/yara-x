@@ -918,9 +918,9 @@ impl Formatter {
             };
 
         let tokens = AddIndentation::new(tokens, self.indentation);
-        let tokens = RemoveTrailingSpaces::new(tokens);
+        
 
-        tokens
+        RemoveTrailingSpaces::new(tokens)
     }
 
     /// Indents the sections (meta, strings, condition) of a rule one level up.

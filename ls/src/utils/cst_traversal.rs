@@ -59,8 +59,8 @@ pub(crate) fn ident_at_position(
     mut pos: Position,
 ) -> Option<Token<Immutable>> {
     let ident_at_pos = |cst, pos| {
-        if let Some(token) = token_at_position(cst, pos) {
-            if matches!(
+        if let Some(token) = token_at_position(cst, pos)
+            && matches!(
                 token.kind(),
                 SyntaxKind::IDENT
                     | SyntaxKind::PATTERN_IDENT
@@ -70,7 +70,6 @@ pub(crate) fn ident_at_position(
             ) {
                 return Some(token);
             }
-        }
         None
     };
 
@@ -105,11 +104,9 @@ pub(crate) fn rule_from_ident(
             .children_with_tokens()
             .find(|n| n.kind() == SyntaxKind::IDENT)
             .and_then(|node| node.into_token())
-        {
-            if rule_ident.text() == ident.text() {
+            && rule_ident.text() == ident.text() {
                 return Some(rule);
             }
-        }
     }
 
     None
@@ -428,13 +425,11 @@ pub fn get_includes(root: &Node<Immutable>, base: &Url) -> Vec<Url> {
 
                 if include_token.kind() == SyntaxKind::STRING_LIT
                     && include_len > 2
-                {
-                    if let Ok(new_url) =
+                    && let Ok(new_url) =
                         base.join(&include_text[1..include_len - 1])
                     {
                         includes.push(new_url);
                     }
-                }
             }
         });
     includes

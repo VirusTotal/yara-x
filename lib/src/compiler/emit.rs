@@ -398,11 +398,10 @@ fn emit_expr(
                             // field in the lookup list doesn't belong to the
                             // root structure, we know that the stack already
                             // contains the object.
-                            if let Some((_, true)) = ctx.lookup_list.first() {
-                                if func.is_method() {
+                            if let Some((_, true)) = ctx.lookup_list.first()
+                                && func.is_method() {
                                     emit_lookup_object(ctx, instr);
                                 }
-                            }
                             ctx.lookup_list.clear();
                         }
                         TypeValue::Regexp(_) => {
@@ -955,12 +954,11 @@ fn emit_field_access(
     // will be emitted, encompassing all the lookups in a single call to
     // Rust code.
     for operand in field_access.operands.iter().dropping_back(1) {
-        if let Expr::Symbol(symbol) = ir.get(*operand) {
-            if let Symbol::Field { index, is_root, .. } = symbol.as_ref() {
+        if let Expr::Symbol(symbol) = ir.get(*operand)
+            && let Symbol::Field { index, is_root, .. } = symbol.as_ref() {
                 ctx.lookup_list.push((*index as i32, *is_root));
                 continue;
             }
-        }
         emit_expr(ctx, ir, *operand, instr);
     }
 

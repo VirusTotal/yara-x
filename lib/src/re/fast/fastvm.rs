@@ -257,14 +257,13 @@ impl<'r> FastVM<'r> {
                     for (position, _) in self.positions.iter() {
                         let jump_range =
                             *position..*position + step * jump as usize;
-                        if let Some(jump_range) = input.get(jump_range) {
-                            if memchr::memchr(0x0A, jump_range).is_none() {
+                        if let Some(jump_range) = input.get(jump_range)
+                            && memchr::memchr(0x0A, jump_range).is_none() {
                                 self.next_positions.insert(
                                     position + step * jump as usize,
                                     (),
                                 );
                             }
-                        }
                     }
                 }
                 Instr::Jump(..)
@@ -488,11 +487,10 @@ impl FastVM<'_> {
 
             // Is some of the interleaved zeroes was not actually zero, return
             // false as this is not a match.
-            if let Some(pos) = error_pos.get() {
-                if pos < literal.len() {
+            if let Some(pos) = error_pos.get()
+                && pos < literal.len() {
                     return false;
                 }
-            }
         } else {
             if input.len() < literal.len() {
                 return false;
@@ -539,11 +537,10 @@ impl FastVM<'_> {
                 }
             }
 
-            if let Some(pos) = error_pos.get() {
-                if pos < literal.len() {
+            if let Some(pos) = error_pos.get()
+                && pos < literal.len() {
                     return false;
                 }
-            }
         } else {
             if input.len() < literal.len() {
                 return false;

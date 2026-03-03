@@ -85,7 +85,7 @@ pub fn exec_deps(args: &ArgMatches) -> anyhow::Result<()> {
 
     for dep in dep_tree.iter() {
         let mut output = String::new();
-        write_tree(&mut output, &dep)?;
+        write_tree(&mut output, dep)?;
         println!("{output}");
     }
 
@@ -100,7 +100,7 @@ fn generate_dep_tree(
 
     for (rule, deps) in dep_map.iter() {
         if requested_rules.is_empty() || requested_rules.contains(rule) {
-            nodes.push(tree_for_rule(rule, &deps, &dep_map));
+            nodes.push(tree_for_rule(rule, deps, dep_map));
         }
     }
 

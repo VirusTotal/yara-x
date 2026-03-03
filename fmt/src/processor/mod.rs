@@ -411,11 +411,10 @@ where
                 // start or the end of a rule.
                 if let Token::Begin(rule) = token {
                     self.stack.push(rule)
-                } else if let Token::End(rule) = token {
-                    if let Some(top) = self.stack.pop() {
+                } else if let Token::End(rule) = token
+                    && let Some(top) = self.stack.pop() {
                         assert_eq!(top, rule);
                     }
-                }
                 self.output.push_back(token);
             } else {
                 break;

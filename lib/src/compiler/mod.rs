@@ -1253,11 +1253,9 @@ impl Compiler<'_> {
 
                 if let Ok(cwd) =
                     env::current_dir().and_then(|dir| dir.canonicalize())
-                {
-                    if let Ok(relative_path) = path.strip_prefix(cwd) {
+                    && let Ok(relative_path) = path.strip_prefix(cwd) {
                         path = relative_path.to_path_buf();
                     }
-                }
 
                 Ok((content, path))
             };
@@ -1266,11 +1264,9 @@ impl Compiler<'_> {
         // include stack.
         if let Some(dir) =
             self.include_stack.last().and_then(|path| path.parent())
-        {
-            if let Ok(result) = read_file(dir.join(include.file_name)) {
+            && let Ok(result) = read_file(dir.join(include.file_name)) {
                 return Ok(result);
             }
-        }
 
         // If one or more include directory were specified, try to find the
         // included file in them, in the order they were specified. Otherwise,
@@ -1562,8 +1558,8 @@ impl Compiler<'_> {
                     Pattern::Regexp(re) => re.hir.as_literal_bytes(),
                     Pattern::Hex(re) => re.hir.as_literal_bytes(),
                 };
-                if let Some(literal_bytes) = literal_bytes {
-                    if Self::common_byte_repetition(literal_bytes) {
+                if let Some(literal_bytes) = literal_bytes
+                    && Self::common_byte_repetition(literal_bytes) {
                         self.warnings.add(|| {
                             warnings::SlowPattern::build(
                                 &self.report_builder,
@@ -1573,7 +1569,6 @@ impl Compiler<'_> {
                             )
                         });
                     }
-                }
             }
         }
 
@@ -2972,8 +2967,8 @@ impl Warnings {
             let warning = f();
             let mut warn = !self.disabled_warnings.contains(warning.code());
 
-            if warn {
-                if let Some(spans) =
+            if warn
+                && let Some(spans) =
                     self.suppressed_warnings.get(warning.code())
                 {
                     'l: for disabled_span in spans {
@@ -2985,7 +2980,6 @@ impl Warnings {
                         }
                     }
                 }
-            }
 
             if warn {
                 self.warnings.push(warning);

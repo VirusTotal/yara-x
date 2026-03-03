@@ -193,11 +193,10 @@ impl<'ast> FuncSignatureParser<'ast> {
         let mut first_argument_is_ok = false;
 
         // Make sure that the first argument is `&mut Caller`.
-        if let Some(Type::Reference(ref_type)) = arg_types.pop_front() {
-            if let Type::Path(type_) = ref_type.elem.as_ref() {
+        if let Some(Type::Reference(ref_type)) = arg_types.pop_front()
+            && let Type::Path(type_) = ref_type.elem.as_ref() {
                 first_argument_is_ok = Self::type_ident(type_) == "Caller";
             }
-        }
 
         if !first_argument_is_ok {
             return Err(Error::new_spanned(

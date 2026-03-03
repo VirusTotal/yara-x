@@ -11,7 +11,6 @@ use clap::{
     Arg, ArgAction, ArgMatches, Command, ValueEnum, arg, value_parser,
 };
 use crossbeam::channel::Sender;
-use dunce;
 use itertools::Itertools;
 use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
@@ -436,11 +435,10 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             let _ = output.send(Message::Error(msg));
 
             // In case of timeout walk is aborted.
-            if let Ok(scan_err) = err.downcast::<ScanError>() {
-                if matches!(scan_err, ScanError::Timeout) {
+            if let Ok(scan_err) = err.downcast::<ScanError>()
+                && matches!(scan_err, ScanError::Timeout) {
                     return Err(scan_err.into());
                 }
-            }
 
             Ok(())
         },
@@ -756,14 +754,13 @@ mod output_handler {
             let mut result = false;
 
             for matching_rule in scan_results {
-                if let Some(ref only_tag) = self.output_options.only_tag {
-                    if !matching_rule
+                if let Some(ref only_tag) = self.output_options.only_tag
+                    && !matching_rule
                         .tags()
                         .any(|tag| tag.identifier() == only_tag)
                     {
                         continue;
                     }
-                }
 
                 result = true;
 
@@ -1066,7 +1063,7 @@ mod output_handler {
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
             _output: &Sender<Message>,
         ) -> bool {
-            let path = dunce::canonicalize(&file_path)
+            let path = dunce::canonicalize(file_path)
                 .ok()
                 .as_ref()
                 .and_then(|absolute| absolute.to_str())

@@ -637,8 +637,8 @@ impl ScanContext<'_, '_> {
         // map. Also, their corresponding bits in the matching rules bitmap must
         // be cleared, and `num_matching_private_rules` must be decremented if
         // the rule was private and `num_non_matching_private_rules` incremented.
-        if rule.is_global {
-            if let Some(rules) =
+        if rule.is_global
+            && let Some(rules) =
                 self.matching_rules_per_ns.get_mut(&rule.namespace_id)
             {
                 let store = unsafe { self.wasm_store.as_mut() };
@@ -659,7 +659,6 @@ impl ScanContext<'_, '_> {
                     bits.set(rule_id.into(), false);
                 }
             }
-        }
 
         // Save the time in which the evaluation of the next rule started.
         #[cfg(feature = "rules-profiling")]
@@ -810,15 +809,12 @@ impl ScanContext<'_, '_> {
             // confirmation is needed. The rule won't match regardless of
             // whether the pattern matches or not. This is not done in block
             // scanning mode as `filesize` is undefined in that mode.
-            if !block_scanning_mode {
-                if let Some(bounds) =
+            if !block_scanning_mode
+                && let Some(bounds) =
                     self.compiled_rules.filesize_bounds(*pattern_id)
-                {
-                    if !bounds.contains(filesize) {
+                    && !bounds.contains(filesize) {
                         continue;
                     }
-                }
-            }
 
             #[cfg(feature = "rules-profiling")]
             let verification_start = self.clock.raw();
@@ -1372,13 +1368,13 @@ fn verify_literal_match(
         return false;
     }
 
-    let match_found = if flags.contains(SubPatternFlags::Nocase) {
+    
+
+    if flags.contains(SubPatternFlags::Nocase) {
         pattern.eq_ignore_ascii_case(&scanned_data[match_start..match_end])
     } else {
         &scanned_data[match_start..match_end] == pattern.as_bytes()
-    };
-
-    match_found
+    }
 }
 
 /// Returns true if the match delimited by `match_range` is a full word match.

@@ -55,13 +55,11 @@ fn file_index_type(ctx: &mut ScanContext, type_arg: i64) -> Option<i64> {
 
     // Iterate over fat_arch up to nfat entries
     for i in 0..nfat as usize {
-        if let Some(arch) = macho.fat_arch.get(i) {
-            if let Some(cputype) = arch.cputype {
-                if cputype as i64 == type_arg {
+        if let Some(arch) = macho.fat_arch.get(i)
+            && let Some(cputype) = arch.cputype
+                && cputype as i64 == type_arg {
                     return Some(i as i64);
                 }
-            }
-        }
     }
 
     None
@@ -96,17 +94,14 @@ fn file_index_subtype(
 
     // Iterate over fat_arch up to nfat entries
     for i in 0..nfat as usize {
-        if let Some(arch) = macho.fat_arch.get(i) {
-            if let (Some(cputype), Some(cpusubtype)) =
+        if let Some(arch) = macho.fat_arch.get(i)
+            && let (Some(cputype), Some(cpusubtype)) =
                 (arch.cputype, arch.cpusubtype)
-            {
-                if cputype as i64 == type_arg
+                && cputype as i64 == type_arg
                     && cpusubtype as i64 == subtype_arg
                 {
                     return Some(i as i64);
                 }
-            }
-        }
     }
 
     None
@@ -136,17 +131,15 @@ fn ep_for_arch_type(ctx: &mut ScanContext, type_arg: i64) -> Option<i64> {
 
     // Iterate over fat_arch up to nfat entries
     for i in 0..nfat as usize {
-        if let Some(arch) = macho.fat_arch.get(i) {
-            if let Some(cputype) = arch.cputype {
-                if cputype as i64 == type_arg {
+        if let Some(arch) = macho.fat_arch.get(i)
+            && let Some(cputype) = arch.cputype
+                && cputype as i64 == type_arg {
                     let file_offset = arch.offset?;
                     let entry_point = macho.file.get(i)?.entry_point?;
                     return file_offset
                         .checked_add(entry_point)
                         .map(|sum| sum as i64);
                 }
-            }
-        }
     }
 
     None
@@ -181,11 +174,10 @@ fn ep_for_arch_subtype(
 
     // Iterate over fat_arch up to nfat entries
     for i in 0..nfat as usize {
-        if let Some(arch) = macho.fat_arch.get(i) {
-            if let (Some(cputype), Some(cpusubtype)) =
+        if let Some(arch) = macho.fat_arch.get(i)
+            && let (Some(cputype), Some(cpusubtype)) =
                 (arch.cputype, arch.cpusubtype)
-            {
-                if cputype as i64 == type_arg
+                && cputype as i64 == type_arg
                     && cpusubtype as i64 == subtype_arg
                 {
                     let file_offset = arch.offset?;
@@ -194,8 +186,6 @@ fn ep_for_arch_subtype(
                         .checked_add(entry_point)
                         .map(|sum| sum as i64);
                 }
-            }
-        }
     }
 
     None

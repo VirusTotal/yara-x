@@ -1031,11 +1031,10 @@ impl IR {
 
     /// Creates a new [`Expr::Not`].
     pub fn not(&mut self, operand: ExprId) -> ExprId {
-        if self.constant_folding {
-            if let Some(v) = self.get(operand).try_as_const_bool() {
+        if self.constant_folding
+            && let Some(v) = self.get(operand).try_as_const_bool() {
                 return self.constant(TypeValue::const_bool_from(!v));
             }
-        }
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[operand.0 as usize] = expr_id;
         self.parents.push(ExprId::none());
@@ -1224,15 +1223,14 @@ impl IR {
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
 
-        if self.constant_folding {
-            if let Some(value) = self.fold_arithmetic(
+        if self.constant_folding
+            && let Some(value) = self.fold_arithmetic(
                 operands.as_slice(),
                 is_float,
                 |acc, x| acc + x,
             )? {
                 return Ok(self.constant(value));
             }
-        }
 
         let expr_id = ExprId::from(self.nodes.len());
         for operand in operands.iter() {
@@ -1250,15 +1248,14 @@ impl IR {
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
 
-        if self.constant_folding {
-            if let Some(value) = self.fold_arithmetic(
+        if self.constant_folding
+            && let Some(value) = self.fold_arithmetic(
                 operands.as_slice(),
                 is_float,
                 |acc, x| acc - x,
             )? {
                 return Ok(self.constant(value));
             }
-        }
 
         let expr_id = ExprId::from(self.nodes.len());
         for operand in operands.iter() {
@@ -1276,15 +1273,14 @@ impl IR {
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
 
-        if self.constant_folding {
-            if let Some(value) = self.fold_arithmetic(
+        if self.constant_folding
+            && let Some(value) = self.fold_arithmetic(
                 operands.as_slice(),
                 is_float,
                 |acc, x| acc * x,
             )? {
                 return Ok(self.constant(value));
             }
-        }
 
         let expr_id = ExprId::from(self.nodes.len());
         for operand in operands.iter() {
@@ -2644,11 +2640,10 @@ impl Expr {
             | Expr::PatternOffsetVar { index, .. }
             | Expr::PatternLength { index, .. }
             | Expr::PatternLengthVar { index, .. } => {
-                if let Some(index) = index {
-                    if *index == child {
+                if let Some(index) = index
+                    && *index == child {
                         *index = replacement
                     }
-                }
             }
 
             Expr::With(with) => {
@@ -2667,11 +2662,10 @@ impl Expr {
             }
 
             Expr::FuncCall(func_call) => {
-                if let Some(expr) = &mut func_call.object {
-                    if *expr == child {
+                if let Some(expr) = &mut func_call.object
+                    && *expr == child {
                         *expr = replacement
                     }
-                }
                 replace_in_slice(func_call.args.as_mut_slice());
             }
 

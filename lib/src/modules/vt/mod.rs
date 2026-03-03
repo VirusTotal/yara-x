@@ -153,13 +153,11 @@ fn permutations(
         return true;
     }
 
-    if SUBDOMAIN.bitand(&permutation_kinds) != 0 {
-        if let (Some(legit), Some(scanned)) = (legit_prefix, scanned_prefix) {
-            if interleaved(legit, scanned, '.') {
+    if SUBDOMAIN.bitand(&permutation_kinds) != 0
+        && let (Some(legit), Some(scanned)) = (legit_prefix, scanned_prefix)
+            && interleaved(legit, scanned, '.') {
                 return true;
             }
-        }
-    }
 
     if HYPHENATION.bitand(&permutation_kinds) != 0
         && interleaved(legit_domain, scanned_domain, '-')
