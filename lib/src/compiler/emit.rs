@@ -14,16 +14,16 @@ use std::rc::Rc;
 use bstr::ByteSlice;
 use itertools::{Itertools, Position};
 use rustc_hash::FxHashMap;
+use walrus::ValType::{I32, I64};
 use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{
     BinaryOp, InstrSeqId, InstrSeqType, LoadKind, MemArg, StoreKind, UnaryOp,
 };
-use walrus::ValType::{I32, I64};
 use walrus::{FunctionId, InstrSeqBuilder, ValType};
 
 use crate::compiler::ir::{
-    Expr, ExprId, ForIn, ForOf, Iterable, MatchAnchor, PatternIdx, Quantifier,
-    IR,
+    Expr, ExprId, ForIn, ForOf, IR, Iterable, MatchAnchor, PatternIdx,
+    Quantifier,
 };
 use crate::compiler::{
     FieldAccess, ForVars, LiteralId, OfExprTuple, OfPatternSet, PatternId,
@@ -39,8 +39,8 @@ use crate::wasm;
 use crate::wasm::builder::WasmModuleBuilder;
 use crate::wasm::string::RuntimeString;
 use crate::wasm::{
-    WasmSymbols, LOOKUP_INDEXES_END, LOOKUP_INDEXES_START,
-    MATCHING_RULES_BITMAP_BASE, VARS_STACK_START,
+    LOOKUP_INDEXES_END, LOOKUP_INDEXES_START, MATCHING_RULES_BITMAP_BASE,
+    VARS_STACK_START, WasmSymbols,
 };
 
 /// This macro emits the code for the left and right operands of some
@@ -398,10 +398,10 @@ fn emit_expr(
                             // field in the lookup list doesn't belong to the
                             // root structure, we know that the stack already
                             // contains the object.
-                            if let Some((_, true)) = ctx.lookup_list.first() {
-                                if func.is_method() {
-                                    emit_lookup_object(ctx, instr);
-                                }
+                            if let Some((_, true)) = ctx.lookup_list.first()
+                                && func.is_method()
+                            {
+                                emit_lookup_object(ctx, instr);
                             }
                             ctx.lookup_list.clear();
                         }
@@ -955,11 +955,11 @@ fn emit_field_access(
     // will be emitted, encompassing all the lookups in a single call to
     // Rust code.
     for operand in field_access.operands.iter().dropping_back(1) {
-        if let Expr::Symbol(symbol) = ir.get(*operand) {
-            if let Symbol::Field { index, is_root, .. } = symbol.as_ref() {
-                ctx.lookup_list.push((*index as i32, *is_root));
-                continue;
-            }
+        if let Expr::Symbol(symbol) = ir.get(*operand)
+            && let Symbol::Field { index, is_root, .. } = symbol.as_ref()
+        {
+            ctx.lookup_list.push((*index as i32, *is_root));
+            continue;
         }
         emit_expr(ctx, ir, *operand, instr);
     }

@@ -2,7 +2,7 @@ use std::fs::File;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use clap::{arg, value_parser, Arg, ArgAction, ArgMatches, Command};
+use clap::{Arg, ArgAction, ArgMatches, Command, arg, value_parser};
 
 use crate::commands::{
     compilation_args, compile_rules, path_with_namespace_parser,

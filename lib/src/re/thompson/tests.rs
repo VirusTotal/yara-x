@@ -9,7 +9,7 @@ use crate::re::{BckCodeLoc, FwdCodeLoc};
 use crate::types::Regexp;
 
 use super::compiler::{CodeLoc, Compiler, RegexpAtom};
-use super::pikevm::{epsilon_closure, EpsilonClosureState};
+use super::pikevm::{EpsilonClosureState, epsilon_closure};
 
 macro_rules! assert_re_code {
     ($re:expr, $fwd:expr, $bck:expr, $atoms:expr, $fwd_closure:expr, $bck_closure:expr) => {{
@@ -1545,8 +1545,10 @@ fn re_atoms() {
 fn split_id() {
     assert_eq!(SplitId::BITS, 13);
     assert_eq!(SplitId::MAX, 8191);
-    assert!(SplitId::default()
-        .add(SplitId::MAX as u16)
-        .and_then(|id| id.add(1))
-        .is_none())
+    assert!(
+        SplitId::default()
+            .add(SplitId::MAX as u16)
+            .and_then(|id| id.add(1))
+            .is_none()
+    )
 }

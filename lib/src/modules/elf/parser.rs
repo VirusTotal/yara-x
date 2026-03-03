@@ -139,8 +139,8 @@ impl ElfParser {
             return Ok(mem::take(&mut self.result));
         }
 
-        if let Some(elf_type) = self.result.type_ {
-            if ehdr.entry_point != 0 {
+        if let Some(elf_type) = self.result.type_
+            && ehdr.entry_point != 0 {
                 self.result.entry_point = Self::rva_to_offset(
                     elf_type,
                     segments.as_deref().unwrap_or(&[]),
@@ -148,7 +148,6 @@ impl ElfParser {
                     ehdr.entry_point,
                 )
             }
-        }
 
         let sections = match sections {
             Some(sections) => sections,
@@ -448,9 +447,9 @@ impl ElfParser {
     {
         let mut result = vec![];
 
-        if let Some(symtab) = sections.iter().find(predicate) {
-            if let Some(range) = symtab.offset_range() {
-                if let Some(data) = elf.get(range) {
+        if let Some(symtab) = sections.iter().find(predicate)
+            && let Some(range) = symtab.offset_range()
+                && let Some(data) = elf.get(range) {
                     let syms = many0(self.parse_sym())
                         .parse(data)
                         .map(|(_, syms)| syms)
@@ -484,8 +483,6 @@ impl ElfParser {
                         result.push(sym);
                     }
                 }
-            }
-        }
 
         result
     }
@@ -575,8 +572,8 @@ impl ElfParser {
     fn parse_dyn_entries(&self, elf: &[u8], s: &Phdr) -> Vec<elf::Dyn> {
         let mut result = vec![];
 
-        if let Some(range) = s.offset_range() {
-            if let Some(segment_data) = elf.get(range) {
+        if let Some(range) = s.offset_range()
+            && let Some(segment_data) = elf.get(range) {
                 // Parse tuples (tag, value) until the final marker
                 // with tag == ELF_DT_NULL is found.
                 let parser_result = many0(verify(
@@ -602,7 +599,6 @@ impl ElfParser {
                     }
                 }
             }
-        }
 
         result
     }

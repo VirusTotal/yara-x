@@ -14,7 +14,6 @@ Token { kind: NEWLINE, span: Span(23..24) }
 Token { kind: WHITESPACE, span: Span(24..26) }
 Begin { kind: ERROR, span: Span(26..45) }
 Token { kind: ANY_KW, span: Span(26..29) }
-Error { message: "unexpected `at`", span: Span(41..43) }
 Token { kind: WHITESPACE, span: Span(29..30) }
 Token { kind: OF_KW, span: Span(30..32) }
 Token { kind: WHITESPACE, span: Span(32..33) }
@@ -34,4 +33,5 @@ End { kind: CONDITION_BLK, span: Span(13..45) }
 Token { kind: NEWLINE, span: Span(45..46) }
 Token { kind: R_BRACE, span: Span(46..47) }
 End { kind: RULE_DECL, span: Span(0..47) }
+Error { message: "unexpected `at`", span: Span(41..43) }
 End { kind: SOURCE_FILE, span: Span(0..47) }

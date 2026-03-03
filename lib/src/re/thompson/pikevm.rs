@@ -6,7 +6,7 @@ use bitvec::array::BitArray;
 use super::instr::{Instr, InstrParser, Offset};
 use crate::re::bitmapset::BitmapSet;
 use crate::re::thompson::instr::SplitId;
-use crate::re::{Action, CodeLoc, WideIter, DEFAULT_SCAN_LIMIT};
+use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT, WideIter};
 
 /// Represents a [Pike's VM](https://swtch.com/~rsc/regexp/regexp2.html) that
 /// executes VM code produced by the [compiler][`crate::re::compiler::Compiler`].

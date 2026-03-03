@@ -1,6 +1,6 @@
 use std::borrow::Cow;
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::Context;
-use clap::{arg, value_parser, Arg, ArgAction, ArgMatches, Command};
+use clap::{Arg, ArgAction, ArgMatches, Command, arg, value_parser};
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Green, Red, Yellow};
 use yansi::Paint;
@@ -230,7 +230,8 @@ pub fn exec_fix_warnings(
 
     println!(
         "{num_warnings_with_patch} out of {num_warnings} warning(s) fixed, {} file(s) modified",
-        patches_per_origin.len());
+        patches_per_origin.len()
+    );
 
     Ok(())
 }

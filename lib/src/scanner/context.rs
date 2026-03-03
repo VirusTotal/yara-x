@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 #[cfg(feature = "rules-profiling")]
 use std::iter;
-use std::mem::{transmute, MaybeUninit};
+use std::mem::{MaybeUninit, transmute};
 #[cfg(feature = "rules-profiling")]
 use std::ops::AddAssign;
 use std::ops::{Deref, Range};
@@ -31,18 +31,18 @@ use crate::compiler::{
     SubPatternAtom, SubPatternFlags, SubPatternId,
 };
 use crate::errors::VariableError;
+use crate::re::Action;
 use crate::re::fast::FastVM;
 use crate::re::hir::ChainedPatternGap;
 use crate::re::thompson::PikeVM;
-use crate::re::Action;
-use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
 #[cfg(feature = "rules-profiling")]
 use crate::scanner::ProfilingData;
+use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
 use crate::scanner::{DataSnippets, ScanError, ScannedData};
 use crate::scanner::{HEARTBEAT_COUNTER, INIT_HEARTBEAT};
 use crate::types::{Array, Map, Struct, TypeValue};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::{wasm, Variable};
+use crate::{Variable, wasm};
 
 /// Represents the states in which a scanner can be.
 pub(crate) enum ScanState<'a> {
@@ -584,16 +584,18 @@ impl ScanContext<'_, '_> {
         // scans.
         if self.scan_timeout.is_some() {
             INIT_HEARTBEAT.call_once(|| {
-                thread::spawn(|| loop {
-                    thread::sleep(Duration::from_secs(1));
-                    wasm::get_engine().increment_epoch();
-                    HEARTBEAT_COUNTER
-                        .fetch_update(
-                            Ordering::SeqCst,
-                            Ordering::SeqCst,
-                            |x| Some(x + 1),
-                        )
-                        .unwrap();
+                thread::spawn(|| {
+                    loop {
+                        thread::sleep(Duration::from_secs(1));
+                        wasm::get_engine().increment_epoch();
+                        HEARTBEAT_COUNTER
+                            .fetch_update(
+                                Ordering::SeqCst,
+                                Ordering::SeqCst,
+                                |x| Some(x + 1),
+                            )
+                            .unwrap();
+                    }
                 });
             });
         }
@@ -635,27 +637,26 @@ impl ScanContext<'_, '_> {
         // map. Also, their corresponding bits in the matching rules bitmap must
         // be cleared, and `num_matching_private_rules` must be decremented if
         // the rule was private and `num_non_matching_private_rules` incremented.
-        if rule.is_global {
-            if let Some(rules) =
+        if rule.is_global
+            && let Some(rules) =
                 self.matching_rules_per_ns.get_mut(&rule.namespace_id)
-            {
-                let store = unsafe { self.wasm_store.as_mut() };
-                let main_mem = self.wasm_main_memory.unwrap().data_mut(store);
+        {
+            let store = unsafe { self.wasm_store.as_mut() };
+            let main_mem = self.wasm_main_memory.unwrap().data_mut(store);
 
-                let base = MATCHING_RULES_BITMAP_BASE as usize;
-                let num_rules = self.compiled_rules.num_rules();
+            let base = MATCHING_RULES_BITMAP_BASE as usize;
+            let num_rules = self.compiled_rules.num_rules();
 
-                let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
-                    &mut main_mem[base..base + num_rules.div_ceil(8)],
-                );
+            let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
+                &mut main_mem[base..base + num_rules.div_ceil(8)],
+            );
 
-                for rule_id in rules.drain(0..) {
-                    if self.compiled_rules.get(rule_id).is_private {
-                        self.num_matching_private_rules -= 1;
-                        self.num_non_matching_private_rules += 1;
-                    }
-                    bits.set(rule_id.into(), false);
+            for rule_id in rules.drain(0..) {
+                if self.compiled_rules.get(rule_id).is_private {
+                    self.num_matching_private_rules -= 1;
+                    self.num_non_matching_private_rules += 1;
                 }
+                bits.set(rule_id.into(), false);
             }
         }
 
@@ -808,14 +809,12 @@ impl ScanContext<'_, '_> {
             // confirmation is needed. The rule won't match regardless of
             // whether the pattern matches or not. This is not done in block
             // scanning mode as `filesize` is undefined in that mode.
-            if !block_scanning_mode {
-                if let Some(bounds) =
+            if !block_scanning_mode
+                && let Some(bounds) =
                     self.compiled_rules.filesize_bounds(*pattern_id)
-                {
-                    if !bounds.contains(filesize) {
-                        continue;
-                    }
-                }
+                && !bounds.contains(filesize)
+            {
+                continue;
             }
 
             #[cfg(feature = "rules-profiling")]
@@ -1370,13 +1369,11 @@ fn verify_literal_match(
         return false;
     }
 
-    let match_found = if flags.contains(SubPatternFlags::Nocase) {
+    if flags.contains(SubPatternFlags::Nocase) {
         pattern.eq_ignore_ascii_case(&scanned_data[match_start..match_end])
     } else {
         &scanned_data[match_start..match_end] == pattern.as_bytes()
-    };
-
-    match_found
+    }
 }
 
 /// Returns true if the match delimited by `match_range` is a full word match.

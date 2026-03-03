@@ -58,15 +58,15 @@ use crate::features::references::find_references;
 use crate::features::rename::rename;
 use crate::features::selection_range::selection_range;
 use crate::features::semantic_tokens::{
-    semantic_tokens, SEMANTIC_TOKEN_MODIFIERS, SEMANTIC_TOKEN_TYPES,
+    SEMANTIC_TOKEN_MODIFIERS, SEMANTIC_TOKEN_TYPES, semantic_tokens,
 };
 
 macro_rules! in_thread {
     ($code:expr) => {{
-        #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+        #[cfg(not(target_family = "wasm"))]
         tokio::spawn(async move { $code });
 
-        #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
+        #[cfg(target_family = "wasm")]
         wasm_bindgen_futures::spawn_local(async move { $code });
     }};
 }
@@ -127,10 +127,9 @@ impl LanguageServer for YARALanguageServer {
         if let Some(folder) = params
             .workspace_folders
             .and_then(|folders| folders.first().cloned())
+            && let Some(documents) = Arc::get_mut(&mut self.documents)
         {
-            if let Some(documents) = Arc::get_mut(&mut self.documents) {
-                documents.set_workspace(folder.uri);
-            }
+            documents.set_workspace(folder.uri);
         }
 
         if let Some(config) = params
@@ -695,16 +694,15 @@ impl YARALanguageServer {
 
             match config {
                 Some(config) => {
-                    if let Some(re) = &config.rule_name_validation {
-                        if regex::Regex::new(re).is_err() {
-                            let _ =
-                                client.show_message(ShowMessageParams {
-                                    typ: MessageType::ERROR,
-                                    message: format!(
-                                        "YARA: wrong rule name validation regex: {re}"
-                                    ),
-                                });
-                        }
+                    if let Some(re) = &config.rule_name_validation
+                        && regex::Regex::new(re).is_err()
+                    {
+                        let _ = client.show_message(ShowMessageParams {
+                            typ: MessageType::ERROR,
+                            message: format!(
+                                "YARA: wrong rule name validation regex: {re}"
+                            ),
+                        });
                     }
                     let _ = client.emit(UpdateConfig(config));
                 }

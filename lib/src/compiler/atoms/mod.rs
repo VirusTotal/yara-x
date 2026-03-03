@@ -64,13 +64,13 @@ use std::slice::SliceIndex;
 use itertools::{Itertools, MultiProduct};
 use regex_syntax::hir::literal::Literal;
 use serde::{Deserialize, Serialize};
-use smallvec::{smallvec, SmallVec, ToSmallVec};
+use smallvec::{SmallVec, ToSmallVec, smallvec};
 
 pub(crate) use crate::compiler::atoms::mask::ByteMaskCombinator;
+pub(crate) use crate::compiler::atoms::quality::AtomsQuality;
 pub(crate) use crate::compiler::atoms::quality::best_atom_in_bytes;
 pub(crate) use crate::compiler::atoms::quality::best_range_in_bytes;
 pub(crate) use crate::compiler::atoms::quality::best_range_in_masked_bytes;
-pub(crate) use crate::compiler::atoms::quality::AtomsQuality;
 
 use crate::compiler::SubPatternFlags;
 

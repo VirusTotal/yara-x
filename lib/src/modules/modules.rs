@@ -29,8 +29,6 @@ mod string;
 mod test_proto2;
 #[cfg(feature = "test_proto3-module")]
 mod test_proto3;
-#[cfg(feature = "text-module")]
-mod text;
 #[cfg(feature = "time-module")]
 mod time;
 #[cfg(feature = "vt-module")]

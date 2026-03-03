@@ -23,15 +23,15 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::io::{Error, Write};
 
-use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
+use base64::prelude::BASE64_STANDARD;
 use itertools::Itertools;
+use protobuf::MessageDyn;
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
 use protobuf::reflect::{FieldDescriptor, MessageRef, ReflectValueRef};
-use protobuf::MessageDyn;
 use yansi::{Color, Paint, Style};
 
-use yara_x_proto::{get_field_format, FieldFormat};
+use yara_x_proto::{FieldFormat, get_field_format};
 
 #[cfg(test)]
 mod tests;

@@ -3,12 +3,12 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{fs, io, process};
 
 use anyhow::Context;
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
+use clap::{ArgAction, ArgMatches, Command, arg, value_parser};
 use crossterm::tty::IsTty;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Green, Red, Yellow};
 use yansi::Paint;
-use yara_x::{linters, SourceCode};
+use yara_x::{SourceCode, linters};
 use yara_x_parser::ast::MetaValue;
 
 use crate::config::{Config, MetaValueType};

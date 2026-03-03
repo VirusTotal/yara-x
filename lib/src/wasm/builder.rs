@@ -2,9 +2,9 @@ use crate::compiler::RuleId;
 use crate::wasm;
 use rustc_hash::FxHashMap;
 use std::mem;
+use walrus::ValType::{F64, I32, I64};
 use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{BinaryOp, Block, InstrSeqId, LoadKind, MemArg, UnaryOp};
-use walrus::ValType::{F64, I32, I64};
 use walrus::{
     FunctionBuilder, FunctionId, GlobalId, InstrSeqBuilder, MemoryId, Module,
 };

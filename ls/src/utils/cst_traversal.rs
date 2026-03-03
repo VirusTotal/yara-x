@@ -6,7 +6,7 @@ rules and patterns within the CST based on provided identifiers or positions.
 
 use async_lsp::lsp_types::{Position, Url};
 use yara_x_parser::cst::{
-    Immutable, Node, NodeOrToken, SyntaxKind, Token, Utf16, CST,
+    CST, Immutable, Node, NodeOrToken, SyntaxKind, Token, Utf16,
 };
 
 /// Return the token that appears before the given one, without taking
@@ -59,17 +59,17 @@ pub(crate) fn ident_at_position(
     mut pos: Position,
 ) -> Option<Token<Immutable>> {
     let ident_at_pos = |cst, pos| {
-        if let Some(token) = token_at_position(cst, pos) {
-            if matches!(
+        if let Some(token) = token_at_position(cst, pos)
+            && matches!(
                 token.kind(),
                 SyntaxKind::IDENT
                     | SyntaxKind::PATTERN_IDENT
                     | SyntaxKind::PATTERN_COUNT
                     | SyntaxKind::PATTERN_OFFSET
                     | SyntaxKind::PATTERN_LENGTH
-            ) {
-                return Some(token);
-            }
+            )
+        {
+            return Some(token);
         }
         None
     };
@@ -105,10 +105,9 @@ pub(crate) fn rule_from_ident(
             .children_with_tokens()
             .find(|n| n.kind() == SyntaxKind::IDENT)
             .and_then(|node| node.into_token())
+            && rule_ident.text() == ident.text()
         {
-            if rule_ident.text() == ident.text() {
-                return Some(rule);
-            }
+            return Some(rule);
         }
     }
 
@@ -306,7 +305,7 @@ pub fn idents_declared_by_expr(
 /// Finds all identifiers declared by a `with` expression.
 pub fn idents_declared_by_with(
     with_expr: &Node<Immutable>,
-) -> impl Iterator<Item = Token<Immutable>> {
+) -> impl Iterator<Item = Token<Immutable>> + use<> {
     assert_eq!(with_expr.kind(), SyntaxKind::WITH_EXPR);
 
     with_expr
@@ -331,7 +330,7 @@ pub fn idents_declared_by_with(
 /// Finds all identifiers declared by a `for` expression.
 pub fn idents_declared_by_for(
     for_expr: &Node<Immutable>,
-) -> impl Iterator<Item = Token<Immutable>> {
+) -> impl Iterator<Item = Token<Immutable>> + use<> {
     assert_eq!(for_expr.kind(), SyntaxKind::FOR_EXPR);
     for_expr
         .children_with_tokens()
@@ -428,12 +427,10 @@ pub fn get_includes(root: &Node<Immutable>, base: &Url) -> Vec<Url> {
 
                 if include_token.kind() == SyntaxKind::STRING_LIT
                     && include_len > 2
-                {
-                    if let Ok(new_url) =
+                    && let Ok(new_url) =
                         base.join(&include_text[1..include_len - 1])
-                    {
-                        includes.push(new_url);
-                    }
+                {
+                    includes.push(new_url);
                 }
             }
         });

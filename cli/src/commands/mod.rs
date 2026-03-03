@@ -2,6 +2,7 @@ mod check;
 mod compile;
 mod completion;
 mod debug;
+mod deps;
 mod dump;
 mod fix;
 mod fmt;
@@ -12,6 +13,7 @@ pub use compile::*;
 pub use completion::*;
 #[cfg(feature = "debug-cmd")]
 pub use debug::*;
+pub use deps::*;
 pub use dump::*;
 pub use fix::*;
 pub use fmt::*;
@@ -22,10 +24,10 @@ use std::fs;
 use std::io::stdout;
 use std::path::PathBuf;
 
-use anyhow::{anyhow, bail, Context};
+use anyhow::{Context, anyhow, bail};
 use clap::{
-    arg, command, crate_authors, value_parser, Arg, ArgAction, ArgMatches,
-    Command,
+    Arg, ArgAction, ArgMatches, Command, arg, command, crate_authors,
+    value_parser,
 };
 use crossterm::tty::IsTty;
 use superconsole::{Component, Line, Lines, Span, SuperConsole};
@@ -35,7 +37,7 @@ use yansi::Paint;
 
 use crate::config::Config;
 use crate::walk::Walker;
-use crate::{commands, help, APP_HELP_TEMPLATE};
+use crate::{APP_HELP_TEMPLATE, commands, help};
 use yara_x::{Compiler, Rules, SourceCode};
 
 pub fn command(name: &'static str) -> Command {
@@ -70,6 +72,7 @@ pub fn cli() -> Command {
             commands::fmt(),
             commands::fix(),
             commands::completion(),
+            commands::deps(),
         ])
 }
 
@@ -142,11 +145,7 @@ fn path_with_namespace_parser(
 /// Parses a path and makes sure that it exists.
 fn existing_path_parser(input: &str) -> Result<PathBuf, anyhow::Error> {
     let path = PathBuf::from(input);
-    if path.try_exists()? {
-        Ok(path)
-    } else {
-        Err(anyhow!("file not found"))
-    }
+    if path.try_exists()? { Ok(path) } else { Err(anyhow!("file not found")) }
 }
 
 pub fn create_compiler<'a>(
@@ -355,14 +354,14 @@ impl Component for CompileState {
     ) -> anyhow::Result<Lines> {
         let mut lines = Lines::new();
 
-        if mode == superconsole::DrawMode::Normal {
-            if let Some(file) = &self.file_in_progress {
-                lines.push(Line::from_iter([Span::new_unstyled(format!(
-                    "{} {}...",
-                    "Compiling".paint(Green).bold(),
-                    file.display(),
-                ))?]));
-            }
+        if mode == superconsole::DrawMode::Normal
+            && let Some(file) = &self.file_in_progress
+        {
+            lines.push(Line::from_iter([Span::new_unstyled(format!(
+                "{} {}...",
+                "Compiling".paint(Green).bold(),
+                file.display(),
+            ))?]));
         }
 
         Ok(lines)

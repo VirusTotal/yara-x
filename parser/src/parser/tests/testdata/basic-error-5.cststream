@@ -6,6 +6,6 @@ Token { kind: IDENT, span: Span(5..9) }
 Token { kind: WHITESPACE, span: Span(9..10) }
 Token { kind: L_BRACE, span: Span(10..11) }
 Token { kind: R_BRACE, span: Span(11..12) }
-Error { message: "expecting `meta`, `strings` or `condition`, found `}`", span: Span(11..12) }
 End { kind: RULE_DECL, span: Span(0..12) }
+Error { message: "expecting `meta`, `strings` or `condition`, found `}`", span: Span(11..12) }
 End { kind: SOURCE_FILE, span: Span(0..12) }

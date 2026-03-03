@@ -20,7 +20,6 @@ Token { kind: NEWLINE, span: Span(27..28) }
 Token { kind: WHITESPACE, span: Span(28..30) }
 Begin { kind: CONDITION_BLK, span: Span(30..48) }
 Token { kind: CONDITION_KW, span: Span(30..39) }
-Error { message: "expecting `=`, found `condition`", span: Span(30..39) }
 Token { kind: COLON, span: Span(39..40) }
 Token { kind: NEWLINE, span: Span(40..41) }
 Token { kind: WHITESPACE, span: Span(41..44) }
@@ -33,4 +32,5 @@ End { kind: CONDITION_BLK, span: Span(30..48) }
 Token { kind: NEWLINE, span: Span(48..49) }
 Token { kind: R_BRACE, span: Span(49..50) }
 End { kind: RULE_DECL, span: Span(0..50) }
+Error { message: "expecting `=`, found `condition`", span: Span(30..39) }
 End { kind: SOURCE_FILE, span: Span(0..50) }

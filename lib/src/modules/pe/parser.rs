@@ -898,23 +898,19 @@ impl<'a> PE<'a> {
             //
             // 2e9c671b8a0411f2b397544b368c44d7f095eb395779de0ad1ac946914dfa34c
             //
-            if let Some(string_table) = string_table {
-                if let Some(offset) = section
+            if let Some(string_table) = string_table
+                && let Some(offset) = section
                     .name
                     .to_str()
                     .ok()
                     .and_then(|name| name.strip_prefix('/'))
                     .and_then(|offset| u32::from_str(offset).ok())
-                {
-                    if let Some(s) = string_table.get(offset as usize..) {
-                        if let Ok((_, s)) =
+                    && let Some(s) = string_table.get(offset as usize..)
+                        && let Ok((_, s)) =
                             take_till::<_, &[u8], Error>(|c| c == 0)(s)
                         {
                             section.full_name = Some(BStr::new(s));
                         }
-                    }
-                }
-            }
 
             Ok((remainder, section))
         }
@@ -1470,8 +1466,7 @@ impl<'a> PE<'a> {
                     }
                     if let Ok((_, rsrc_entry)) =
                         Self::parse_rsrc_entry(entry_data)
-                    {
-                        if rsrc_entry.size > 0 && rsrc_entry.offset > 0
+                        && rsrc_entry.size > 0 && rsrc_entry.offset > 0
                         // We could use the PE's size as an upper bound for
                         // the entry size, but there are some truncated files
                         // where the PE size is lower. Use a reasonably large
@@ -1495,7 +1490,6 @@ impl<'a> PE<'a> {
                                 return Some((resources_info, resources));
                             }
                         }
-                    }
                 }
             }
         }
@@ -2145,12 +2139,10 @@ impl<'a> PE<'a> {
                     .find_position(|ordinal| {
                         *ordinal as u32 == f.ordinal - exports.base
                     })
-            {
-                if let Some(name_rva) = names.get(idx) {
+                && let Some(name_rva) = names.get(idx) {
                     f.name =
                         self.str_at_rva(*name_rva, Self::MAX_FUNC_NAME_LENGTH);
                 }
-            }
 
             // If the function's RVA is within the exports section (as given
             // by the RVA and size fields in the directory entry), this is a

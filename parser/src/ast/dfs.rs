@@ -549,7 +549,7 @@ fn dfs_enter<'a>(
 #[cfg(test)]
 mod tests {
     use crate::ast::dfs::{DFSContext, DFSEvent, DFSIter};
-    use crate::ast::{Expr, AST};
+    use crate::ast::{AST, Expr};
 
     #[test]
     fn dfs() {

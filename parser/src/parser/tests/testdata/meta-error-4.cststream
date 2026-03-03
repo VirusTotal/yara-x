@@ -21,7 +21,6 @@ End { kind: ERROR, span: Span(14..29) }
 Token { kind: WHITESPACE, span: Span(29..30) }
 Begin { kind: ERROR, span: Span(30..50) }
 Token { kind: META_KW, span: Span(30..34) }
-Error { message: "expecting `-`, INTEGER, FLOAT, STRING, `true` or `false`, found `meta`", span: Span(30..34) }
 Token { kind: NEWLINE, span: Span(34..35) }
 Token { kind: WHITESPACE, span: Span(35..39) }
 Token { kind: IDENT, span: Span(39..42) }
@@ -46,4 +45,5 @@ End { kind: CONDITION_BLK, span: Span(53..71) }
 Token { kind: NEWLINE, span: Span(71..72) }
 Token { kind: R_BRACE, span: Span(72..73) }
 End { kind: RULE_DECL, span: Span(0..73) }
+Error { message: "expecting `-`, INTEGER, FLOAT, STRING, `true` or `false`, found `meta`", span: Span(30..34) }
 End { kind: SOURCE_FILE, span: Span(0..73) }

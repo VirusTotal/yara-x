@@ -1,17 +1,17 @@
 use std::collections::HashMap;
 use std::ffi::CString;
-use std::ffi::{c_char, c_void, CStr};
+use std::ffi::{CStr, c_char, c_void};
 use std::mem;
 use std::time::Duration;
 
 #[cfg(feature = "rules-profiling")]
 use yara_x::ProfilingData;
 
-use yara_x::errors::ScanError;
 use yara_x::ScanOptions;
+use yara_x::errors::ScanError;
 
 use crate::{
-    _yrx_set_last_error, YRX_RESULT, YRX_RULE, YRX_RULES, YRX_RULE_CALLBACK,
+    _yrx_set_last_error, YRX_RESULT, YRX_RULE, YRX_RULE_CALLBACK, YRX_RULES,
 };
 
 enum InnerScanner<'r> {
@@ -105,7 +105,7 @@ pub struct YRX_SCANNER<'r, 'm> {
 /// you want, and it must be destroyed with [`yrx_scanner_destroy`]. Also, the
 /// scanner is valid as long as the rules are not destroyed, so, always destroy
 /// the [`YRX_SCANNER`] object before the [`YRX_RULES`] object.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_create(
     rules: *const YRX_RULES,
     scanner: &mut *mut YRX_SCANNER,
@@ -126,7 +126,7 @@ pub unsafe extern "C" fn yrx_scanner_create(
 }
 
 /// Destroys a [`YRX_SCANNER`] object.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_destroy(scanner: *mut YRX_SCANNER) {
     drop(Box::from_raw(scanner))
 }
@@ -138,7 +138,7 @@ pub unsafe extern "C" fn yrx_scanner_destroy(scanner: *mut YRX_SCANNER) {
 /// after the designated timeout duration. However, in some cases, particularly
 /// with rules containing only a few patterns, the scanner could potentially
 /// continue running for a longer period than the specified timeout.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_set_timeout(
     scanner: *mut YRX_SCANNER,
     timeout: u64,
@@ -158,7 +158,7 @@ pub unsafe extern "C" fn yrx_scanner_set_timeout(
 /// `data` can be null as long as `len` is 0. In such cases its handled as
 /// empty data. Some YARA rules (i.e: `rule dummy { condition: true }`) can
 /// match even with empty data.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_scan(
     scanner: *mut YRX_SCANNER,
     data: *const u8,
@@ -213,7 +213,7 @@ pub unsafe extern "C" fn yrx_scanner_scan(
 ///
 /// This function is similar to `yrx_scanner_scan`, but it receives a file
 /// path instead of data to be scanned.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_scan_file(
     scanner: *mut YRX_SCANNER,
     path: *const c_char,
@@ -317,7 +317,7 @@ pub unsafe extern "C" fn yrx_scanner_scan_file(
 /// assumes the user provides accurate and consistent data. In debug releases
 /// the scanner may try to verify this consistency, but only when some pattern
 /// matches in the overlapping region.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_scan_block(
     scanner: *mut YRX_SCANNER,
     base: usize,
@@ -359,7 +359,7 @@ pub unsafe extern "C" fn yrx_scanner_scan_block(
 /// After this function returns, the scanner is ready to be used again for
 /// scanning a new set of memory blocks. However, the scanner remains in block
 /// scanning mode and can't be used for normal scanning.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_finish(
     scanner: *mut YRX_SCANNER,
 ) -> YRX_RESULT {
@@ -398,7 +398,7 @@ pub unsafe extern "C" fn yrx_scanner_finish(
 /// about matching rules.
 ///
 /// See [`YRX_RULE_CALLBACK`] for more details.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_on_matching_rule(
     scanner: *mut YRX_SCANNER,
     callback: YRX_RULE_CALLBACK,
@@ -447,7 +447,7 @@ pub unsafe extern "C" fn yrx_scanner_on_matching_rule(
 /// the module. It must be a valid UTF-8 string.
 ///
 /// If the scanner is in block scanning mode this function returns `YRX_INVALID_STATE`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_set_module_output(
     scanner: *mut YRX_SCANNER,
     name: *const c_char,
@@ -502,7 +502,7 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
 /// of this function until the scan is executed.
 ///
 /// If the scanner is in block scanning mode this function returns `YRX_INVALID_STATE`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_set_module_data(
     scanner: *mut YRX_SCANNER,
     name: *const c_char,
@@ -563,7 +563,7 @@ unsafe extern "C" fn yrx_scanner_set_global<
 }
 
 /// Sets the value of a global variable of type string.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_set_global_str(
     scanner: *mut YRX_SCANNER,
     ident: *const c_char,
@@ -576,7 +576,7 @@ pub unsafe extern "C" fn yrx_scanner_set_global_str(
 }
 
 /// Sets the value of a global variable of type bool.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_set_global_bool(
     scanner: *mut YRX_SCANNER,
     ident: *const c_char,
@@ -586,7 +586,7 @@ pub unsafe extern "C" fn yrx_scanner_set_global_bool(
 }
 
 /// Sets the value of a global variable of type int.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_set_global_int(
     scanner: *mut YRX_SCANNER,
     ident: *const c_char,
@@ -596,7 +596,7 @@ pub unsafe extern "C" fn yrx_scanner_set_global_int(
 }
 
 /// Sets the value of a global variable of type float.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_set_global_float(
     scanner: *mut YRX_SCANNER,
     ident: *const c_char,
@@ -613,7 +613,7 @@ pub unsafe extern "C" fn yrx_scanner_set_global_float(
 ///
 /// The type of the JSON-encoded value must match the type of the variable
 /// as it was defined.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_set_global_json(
     scanner: *mut YRX_SCANNER,
     ident: *const c_char,
@@ -640,7 +640,7 @@ pub unsafe extern "C" fn yrx_scanner_set_global_json(
 pub type YRX_CONSOLE_CALLBACK = extern "C" fn(message: *const c_char) -> ();
 
 /// Sets the callback for console module.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_on_console_log(
     scanner: *mut YRX_SCANNER,
     callback: YRX_CONSOLE_CALLBACK,
@@ -693,7 +693,7 @@ pub type YRX_SLOWEST_RULES_CALLBACK = extern "C" fn(
 /// `YRX_RESULT::NOT_SUPPORTED`.
 ///
 /// See [`YRX_SLOWEST_RULES_CALLBACK`] for more details.
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables)]
 pub unsafe extern "C" fn yrx_scanner_iter_slowest_rules(
     scanner: *mut YRX_SCANNER,
@@ -737,7 +737,7 @@ pub unsafe extern "C" fn yrx_scanner_iter_slowest_rules(
 /// Requires the `rules-profiling` feature, otherwise returns
 /// `YRX_RESULT::NOT_SUPPORTED`.
 ///
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables)]
 pub unsafe extern "C" fn yrx_scanner_clear_profiling_data(
     scanner: *mut YRX_SCANNER,

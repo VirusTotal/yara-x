@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{io, thread};
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use crossbeam::channel::{RecvTimeoutError, SendError, Sender};
 use crossterm::tty::IsTty;
 use globwalk::FileType;
@@ -155,10 +155,10 @@ impl<'a> Walker<'a> {
             self.walk_file_list(f, e)
         } else {
             if metadata.is_file() {
-                if self.pass_metadata_filter(metadata) {
-                    if let Err(err) = f(self.path) {
-                        return e(err);
-                    }
+                if self.pass_metadata_filter(metadata)
+                    && let Err(err) = f(self.path)
+                {
+                    return e(err);
                 };
                 return Ok(());
             }
@@ -185,10 +185,10 @@ impl<'a> Walker<'a> {
                     Err(err) => return Err(err),
                 },
             };
-            if self.pass_metadata_filter(metadata) {
-                if let Err(err) = f(&path) {
-                    e(err)?
-                }
+            if self.pass_metadata_filter(metadata)
+                && let Err(err) = f(&path)
+            {
+                e(err)?
             }
         }
 
@@ -246,10 +246,10 @@ impl<'a> Walker<'a> {
 
             match entry.metadata() {
                 Ok(metadata) => {
-                    if self.pass_metadata_filter(metadata) {
-                        if let Err(err) = f(entry.path()) {
-                            e(err)?
-                        }
+                    if self.pass_metadata_filter(metadata)
+                        && let Err(err) = f(entry.path())
+                    {
+                        e(err)?
                     }
                 }
                 Err(err) => e(err.into())?,
@@ -455,11 +455,11 @@ impl<'a> ParWalker<'a> {
                             path.to_path_buf(),
                             &mut per_thread_obj,
                         );
-                        if let Err(err) = res {
-                            if error(err, &msg_send).is_err() {
-                                let _ = msg_send.send(Message::Abort);
-                                break;
-                            }
+                        if let Err(err) = res
+                            && error(err, &msg_send).is_err()
+                        {
+                            let _ = msg_send.send(Message::Abort);
+                            break;
                         }
                     }
                     finalize(&per_thread_obj, &msg_send);
@@ -490,10 +490,10 @@ impl<'a> ParWalker<'a> {
                     },
                 );
 
-                if let Err(err) = res {
-                    if error(err, &msg_send).is_err() {
-                        let _ = msg_send.send(Message::Abort);
-                    }
+                if let Err(err) = res
+                    && error(err, &msg_send).is_err()
+                {
+                    let _ = msg_send.send(Message::Abort);
                 }
             }));
 
@@ -502,11 +502,7 @@ impl<'a> ParWalker<'a> {
             } else {
                 // `console` will be `None` if either stdout or stderr is not a tty
                 // (for example when any of them are redirected to a file).
-                if io::stdout().is_tty() {
-                    SuperConsole::new()
-                } else {
-                    None
-                }
+                if io::stdout().is_tty() { SuperConsole::new() } else { None }
             };
 
             // The console is rendered once every `render_period`.
@@ -598,11 +594,11 @@ fn output_messages<S>(
             Err(RecvTimeoutError::Timeout) => {}
         }
 
-        if let Some(console) = console.as_mut() {
-            if Instant::elapsed(&last_render) > render_period {
-                console.render(state.as_ref()).unwrap();
-                last_render = Instant::now();
-            }
+        if let Some(console) = console.as_mut()
+            && Instant::elapsed(&last_render) > render_period
+        {
+            console.render(state.as_ref()).unwrap();
+            last_render = Instant::now();
         }
     }
 }

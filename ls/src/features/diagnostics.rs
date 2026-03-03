@@ -69,10 +69,18 @@ pub fn compiler_diagnostics(
 
     let mut compiler = Compiler::new();
 
-    if let Some(regex) = rule_name_validation {
-        if let Ok(linter) = linters::rule_name(regex) {
-            compiler.add_linter(linter);
-        }
+    // These features are required by the "vt" module. Some field will be
+    // recognized only if these features are enabled.
+    compiler
+        .enable_feature("file")
+        .enable_feature("url")
+        .enable_feature("ip_address")
+        .enable_feature("domain");
+
+    if let Some(regex) = rule_name_validation
+        && let Ok(linter) = linters::rule_name(regex)
+    {
+        compiler.add_linter(linter);
     }
 
     for validation_rule in metadata_validation {

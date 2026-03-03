@@ -56,43 +56,23 @@ impl Array {
     }
 
     pub fn as_integer_array(&self) -> &Vec<i64> {
-        if let Self::Integers(v) = self {
-            v
-        } else {
-            panic!()
-        }
+        if let Self::Integers(v) = self { v } else { panic!() }
     }
 
     pub fn as_float_array(&self) -> &Vec<f64> {
-        if let Self::Floats(v) = self {
-            v
-        } else {
-            panic!()
-        }
+        if let Self::Floats(v) = self { v } else { panic!() }
     }
 
     pub fn as_bool_array(&self) -> &Vec<bool> {
-        if let Self::Bools(v) = self {
-            v
-        } else {
-            panic!()
-        }
+        if let Self::Bools(v) = self { v } else { panic!() }
     }
 
     pub fn as_string_array(&self) -> &Vec<Rc<BString>> {
-        if let Self::Strings(v) = self {
-            v
-        } else {
-            panic!()
-        }
+        if let Self::Strings(v) = self { v } else { panic!() }
     }
 
     pub fn as_struct_array(&self) -> &Vec<Rc<Struct>> {
-        if let Self::Structs(v) = self {
-            v
-        } else {
-            panic!()
-        }
+        if let Self::Structs(v) = self { v } else { panic!() }
     }
 
     pub fn enum_substructures<F>(&mut self, f: &mut F)

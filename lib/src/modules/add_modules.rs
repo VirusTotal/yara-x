@@ -30,8 +30,6 @@ add_module!(modules, "string", string, "string.String", Some("string"), Some(str
 add_module!(modules, "test_proto2", test_proto2, "test_proto2.TestProto2", Some("test_proto2"), Some(test_proto2::__main__ as MainFn));
 #[cfg(feature = "test_proto3-module")]
 add_module!(modules, "test_proto3", test_proto3, "test_proto3.TestProto3", Some("test_proto3"), Some(test_proto3::__main__ as MainFn));
-#[cfg(feature = "text-module")]
-add_module!(modules, "text", text, "text.Text", Some("text"), Some(text::__main__ as MainFn));
 #[cfg(feature = "time-module")]
 add_module!(modules, "time", time, "time.Time", Some("time"), Some(time::__main__ as MainFn));
 #[cfg(feature = "vt-module")]

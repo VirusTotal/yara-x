@@ -141,10 +141,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::cst::error_merger::ErrorMerger;
+    use crate::Span;
     use crate::cst::Event;
     use crate::cst::SyntaxKind;
-    use crate::Span;
+    use crate::cst::error_merger::ErrorMerger;
 
     #[test]
     fn error_merger() {

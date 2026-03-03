@@ -24,7 +24,6 @@ pub mod string;
 pub mod submitter;
 pub mod test_proto2;
 pub mod test_proto3;
-pub mod text;
 pub mod time;
 pub mod titan;
 pub mod vtnet;

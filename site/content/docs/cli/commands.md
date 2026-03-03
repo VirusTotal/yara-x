@@ -20,8 +20,8 @@ seo:
 
 YARA-X provides a modern command-line interface (CLI) for performing common
 tasks, like scanning files with YARA rules, compiling rules, etc. This tool
-is named `yr` and is always followed by a top-level command, such as `scan`,
-`compile`, `help` and so on.
+is named `yr` and is always followed by a top-level command, such as [`scan`](#scan),
+[`compile`](#compile), `help` and so on.
 
 Let's see the output of `yr help`:
 
@@ -34,7 +34,9 @@ Commands:
   scan        Scan a file or directory
   compile     Compile rules to binary form
   dump        Show the data produced by YARA modules for a file
+  deps        Show rule dependencies
   fmt         Format YARA source files
+  fix         Utilities for fixing source code
   completion  Output shell completion code for the specified shell
   help        Print this message or the help of the given subcommand(s)
 
@@ -45,6 +47,15 @@ Options:
 
 You can get more help for a specific command by using `yr help [COMMAND]` or
 `yr [COMMAND] --help` (e.g: `yr help scan`, `yr scan --help`)
+
+Click on the commands below to learn more about them:
+
+* [`scan`](#scan)
+* [`compile`](#compile)
+* [`dump`](#dump)
+* [`deps`](#deps)
+* [`fmt`](#fmt)
+* [`fix`](#fix)
 
 ------
 
@@ -468,3 +479,93 @@ many spaces each tab represents. Setting this incorrectly can lead to misaligned
 formatting when the code mixes tabs and spaces.
 
 By default, it uses 4 spaces.
+
+------
+
+## fix
+
+Utilities for fixing source code.
+
+```
+yr fix [COMMAND]
+```
+
+These command has two sub-commands:
+
+* [`encoding`](#encoding)  Convert source files to UTF-8
+* [`warnings`](#warnings)  Automatically fix warnings
+
+### encoding
+
+Convert source files to UTF-8
+
+YARA-X is stricter that YARA with respect to invalid UTF-8 characters in source
+code. This command allows to convert your YARA source files to UTF-8 encoding if
+they are not.
+
+```
+yr fix encoding [OPTIONS] <RULES_PATH>
+```
+
+### warnings
+
+This command automatically resolves fixable YARA-X warnings. It accepts the same
+options as the compile command; however, instead of outputting a compiled rules file,
+it directly modifies the source files to fix the warnings.
+
+```
+yr fix encoding [OPTIONS] <RULES_PATH>
+```
+
+------
+
+## deps
+
+Show rule dependencies and modules.
+
+This command shows a tree-like structure that tells which rules depend on
+other rules, and which modules are used by each rule.
+
+For example, if you have the following rules:
+
+```yara
+import "pe"
+
+rule rule_1 {
+  condition:
+    pe.is_dll()
+}
+
+rule rule_2 {
+  condition:
+    rule_1
+}
+```
+
+The `deps` command will show:
+
+```
+ rule_1
+ └─ mod: pe
+
+ rule_2
+ └─ rule_1
+    └─ mod: pe
+```
+
+This indicates that `rule_2` depends on `rule_1`, which in turns uses the `pe`
+module.
+
+The syntax for this command is:
+
+```
+yr deps [OPTIONS] <RULES_PATH>
+```
+
+### --rule <RULE_NAME>
+
+Show information about the specified rule(s) only. If this option is not used,
+the command shows information about all the rules in the file. This option can
+be used multiple times.
+
+------

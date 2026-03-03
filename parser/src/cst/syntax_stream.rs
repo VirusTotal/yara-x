@@ -1,8 +1,8 @@
 use std::collections::VecDeque;
 
+use crate::Span;
 use crate::cst::Event;
 use crate::cst::SyntaxKind;
-use crate::Span;
 
 /// A Concrete Syntax Tree (CST) represented as a stream of events.
 ///
@@ -220,8 +220,8 @@ pub(crate) struct Bookmark(usize);
 mod tests {
     use super::SyntaxKind;
     use super::SyntaxStream;
-    use crate::cst::Event;
     use crate::Span;
+    use crate::cst::Event;
 
     #[test]
     fn begin_and_end() {

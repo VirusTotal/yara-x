@@ -347,7 +347,9 @@ fn build_tree_for_expr(expr: &Expr, children: Vec<Tree>) -> Tree {
                         ));
                     }
 
-                    format!("for <quantifier> <vars> in ({comma_sep_labels}) : ( <condition> )")
+                    format!(
+                        "for <quantifier> <vars> in ({comma_sep_labels}) : ( <condition> )"
+                    )
                 }
                 Iterable::Expr(_) => {
                     new_children.push(Node(

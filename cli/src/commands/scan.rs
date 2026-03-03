@@ -2,13 +2,13 @@ use std::borrow::Cow;
 use std::cmp::min;
 use std::fs::File;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
-use anyhow::{bail, Context, Error};
+use anyhow::{Context, Error, bail};
 use clap::{
-    arg, value_parser, Arg, ArgAction, ArgMatches, Command, ValueEnum,
+    Arg, ArgAction, ArgMatches, Command, ValueEnum, arg, value_parser,
 };
 use crossbeam::channel::Sender;
 use itertools::Itertools;
@@ -435,11 +435,10 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             let _ = output.send(Message::Error(msg));
 
             // In case of timeout walk is aborted.
-            if let Ok(scan_err) = err.downcast::<ScanError>() {
-                if matches!(scan_err, ScanError::Timeout) {
+            if let Ok(scan_err) = err.downcast::<ScanError>()
+                && matches!(scan_err, ScanError::Timeout) {
                     return Err(scan_err.into());
                 }
-            }
 
             Ok(())
         },
@@ -511,11 +510,7 @@ fn replace_whitespace(path: &Path) -> Cow<'_, str> {
     if s.chars().any(|c| c != ' ' && c.is_whitespace()) {
         let mut r = String::with_capacity(s.len());
         for c in s.chars() {
-            if c.is_whitespace() {
-                r.push(' ')
-            } else {
-                r.push(c)
-            }
+            if c.is_whitespace() { r.push(' ') } else { r.push(c) }
         }
         s = Cow::Owned(r);
     }
@@ -759,13 +754,12 @@ mod output_handler {
             let mut result = false;
 
             for matching_rule in scan_results {
-                if let Some(ref only_tag) = self.output_options.only_tag {
-                    if !matching_rule
+                if let Some(ref only_tag) = self.output_options.only_tag
+                    && !matching_rule
                         .tags()
                         .any(|tag| tag.identifier() == only_tag)
-                    {
-                        continue;
-                    }
+                {
+                    continue;
                 }
 
                 result = true;
@@ -1069,8 +1063,7 @@ mod output_handler {
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
             _output: &Sender<Message>,
         ) -> bool {
-            let path = file_path
-                .canonicalize()
+            let path = dunce::canonicalize(file_path)
                 .ok()
                 .as_ref()
                 .and_then(|absolute| absolute.to_str())

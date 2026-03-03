@@ -16,7 +16,7 @@ use std::{env, fmt, fs, io, iter};
 
 use bitflags::bitflags;
 use bstr::{BStr, ByteSlice};
-use itertools::{izip, Itertools, MinMaxResult};
+use itertools::{Itertools, MinMaxResult, izip};
 #[cfg(feature = "logging")]
 use log::*;
 use regex_syntax::hir;
@@ -25,12 +25,12 @@ use serde::{Deserialize, Serialize};
 use walrus::FunctionId;
 
 use yara_x_parser::ast;
-use yara_x_parser::ast::{Ident, Import, Include, RuleFlags, WithSpan, AST};
+use yara_x_parser::ast::{AST, Ident, Import, Include, RuleFlags, WithSpan};
 use yara_x_parser::cst::CSTStream;
 use yara_x_parser::{Parser, Span};
 
 use crate::compiler::base64::base64_patterns;
-use crate::compiler::emit::{emit_rule_condition, EmitContext};
+use crate::compiler::emit::{EmitContext, emit_rule_condition};
 use crate::compiler::errors::{
     CompileError, ConflictingRuleIdentifier, CustomError, DuplicateRule,
     DuplicateTag, EmitWasmError, InvalidRegexp, InvalidUTF8, UnknownModule,
@@ -44,9 +44,9 @@ use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup, SymbolTable};
 use crate::types::{Func, Struct, TypeValue};
 use crate::utils::cast;
-use crate::variables::{is_valid_identifier, Variable, VariableError};
+use crate::variables::{Variable, VariableError, is_valid_identifier};
 use crate::wasm::builder::WasmModuleBuilder;
-use crate::wasm::{wasm_exports, WasmSymbols};
+use crate::wasm::{WasmSymbols, wasm_exports};
 use crate::{re, wasm};
 
 pub(crate) use crate::compiler::atoms::*;
@@ -1253,10 +1253,9 @@ impl Compiler<'_> {
 
                 if let Ok(cwd) =
                     env::current_dir().and_then(|dir| dir.canonicalize())
+                    && let Ok(relative_path) = path.strip_prefix(cwd)
                 {
-                    if let Ok(relative_path) = path.strip_prefix(cwd) {
-                        path = relative_path.to_path_buf();
-                    }
+                    path = relative_path.to_path_buf();
                 }
 
                 Ok((content, path))
@@ -1266,10 +1265,9 @@ impl Compiler<'_> {
         // include stack.
         if let Some(dir) =
             self.include_stack.last().and_then(|path| path.parent())
+            && let Ok(result) = read_file(dir.join(include.file_name))
         {
-            if let Ok(result) = read_file(dir.join(include.file_name)) {
-                return Ok(result);
-            }
+            return Ok(result);
         }
 
         // If one or more include directory were specified, try to find the
@@ -1562,17 +1560,17 @@ impl Compiler<'_> {
                     Pattern::Regexp(re) => re.hir.as_literal_bytes(),
                     Pattern::Hex(re) => re.hir.as_literal_bytes(),
                 };
-                if let Some(literal_bytes) = literal_bytes {
-                    if Self::common_byte_repetition(literal_bytes) {
-                        self.warnings.add(|| {
-                            warnings::SlowPattern::build(
-                                &self.report_builder,
-                                self.report_builder
-                                    .span_to_code_loc(pat.span().clone()),
-                                None,
-                            )
-                        });
-                    }
+                if let Some(literal_bytes) = literal_bytes
+                    && Self::common_byte_repetition(literal_bytes)
+                {
+                    self.warnings.add(|| {
+                        warnings::SlowPattern::build(
+                            &self.report_builder,
+                            self.report_builder
+                                .span_to_code_loc(pat.span().clone()),
+                            None,
+                        )
+                    });
                 }
             }
         }
@@ -1771,7 +1769,9 @@ impl Compiler<'_> {
                         .is_some()
                 {
                     // This should not happen.
-                    panic!("modifying the file size bounds of an existing pattern")
+                    panic!(
+                        "modifying the file size bounds of an existing pattern"
+                    )
                 }
                 pending_patterns.remove(pattern_id);
             }
@@ -2970,16 +2970,15 @@ impl Warnings {
             let warning = f();
             let mut warn = !self.disabled_warnings.contains(warning.code());
 
-            if warn {
-                if let Some(spans) =
+            if warn
+                && let Some(spans) =
                     self.suppressed_warnings.get(warning.code())
-                {
-                    'l: for disabled_span in spans {
-                        for label in warning.labels() {
-                            if disabled_span.contains(label.span()) {
-                                warn = false;
-                                break 'l;
-                            }
+            {
+                'l: for disabled_span in spans {
+                    for label in warning.labels() {
+                        if disabled_span.contains(label.span()) {
+                            warn = false;
+                            break 'l;
                         }
                     }
                 }

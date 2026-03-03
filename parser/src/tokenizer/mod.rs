@@ -104,7 +104,7 @@ impl<'src> Tokenizer<'src> {
                             token,
                             Span::from(lexer.span())
                                 .offset(self.lexer_starting_pos as isize),
-                        ))
+                        ));
                     }
                     Err(()) => {
                         // Found a token that was not expected in hex pattern
@@ -126,7 +126,7 @@ impl<'src> Tokenizer<'src> {
                             token,
                             Span::from(lexer.span())
                                 .offset(self.lexer_starting_pos as isize),
-                        ))
+                        ));
                     }
                     Err(()) => {
                         // Found a token that was not expected in hex jump
@@ -541,7 +541,9 @@ enum NormalToken<'src> {
     // Space, tab, and many other Unicode characters that are considered spaces.
     // https://www.compart.com/en/unicode/U+00A0
     // https://www.compart.com/en/unicode/bidiclass/WS
-    #[regex("[ \t\u{a0}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+")]
+    #[regex(
+        "[ \t\u{a0}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+"
+    )]
     Whitespace,
 
     #[token("\n")]
@@ -588,7 +590,9 @@ enum HexPatternToken {
     // Space, tab, and many other Unicode characters that are considered spaces.
     // https://www.compart.com/en/unicode/U+00A0
     // https://www.compart.com/en/unicode/bidiclass/WS
-    #[regex("[ \t\u{a0}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+")]
+    #[regex(
+        "[ \t\u{a0}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+"
+    )]
     Whitespace,
 
     #[token("\n")]
@@ -645,7 +649,9 @@ enum HexJumpToken<'src> {
     // Space, tab, and many other Unicode characters that are considered spaces.
     // https://www.compart.com/en/unicode/U+00A0
     // https://www.compart.com/en/unicode/bidiclass/WS
-    #[regex("[ \t\u{a0}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+")]
+    #[regex(
+        "[ \t\u{a0}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+"
+    )]
     Whitespace,
 
     #[token("\n")]

@@ -274,7 +274,7 @@ pub(crate) fn impl_error_enum_macro(
                 input.ident.span(),
                 "macro ErrorEnum can be used with only with enum types"
                     .to_string(),
-            ))
+            ));
         }
     };
 

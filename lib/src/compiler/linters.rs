@@ -2,8 +2,8 @@ use regex::{Error, Regex};
 
 use yara_x_parser::ast::{self, Meta, WithSpan};
 
-use crate::compiler::report::ReportBuilder;
 use crate::compiler::Warning;
+use crate::compiler::report::ReportBuilder;
 use crate::compiler::{errors, warnings};
 use crate::errors::CompileError;
 
@@ -366,32 +366,28 @@ impl LinterInternal for Metadata<'_> {
         let mut found = false;
         for meta in rule.meta.iter().flatten() {
             if meta.identifier.name == self.identifier.as_str() {
-                if let Some(predicate) = &self.predicate {
-                    if !predicate(meta) {
-                        return if self.error {
-                            LinterResult::Err(errors::InvalidMetadata::build(
-                                report_builder,
-                                meta.identifier.name.to_string(),
-                                report_builder
-                                    .span_to_code_loc(meta.value.span()),
-                                self.message
-                                    .clone()
-                                    .unwrap_or("invalid metadata".to_string()),
-                            ))
-                        } else {
-                            LinterResult::Warn(
-                                warnings::InvalidMetadata::build(
-                                    report_builder,
-                                    meta.identifier.name.to_string(),
-                                    report_builder
-                                        .span_to_code_loc(meta.value.span()),
-                                    self.message.clone().unwrap_or(
-                                        "invalid metadata".to_string(),
-                                    ),
-                                ),
-                            )
-                        };
-                    }
+                if let Some(predicate) = &self.predicate
+                    && !predicate(meta)
+                {
+                    return if self.error {
+                        LinterResult::Err(errors::InvalidMetadata::build(
+                            report_builder,
+                            meta.identifier.name.to_string(),
+                            report_builder.span_to_code_loc(meta.value.span()),
+                            self.message
+                                .clone()
+                                .unwrap_or("invalid metadata".to_string()),
+                        ))
+                    } else {
+                        LinterResult::Warn(warnings::InvalidMetadata::build(
+                            report_builder,
+                            meta.identifier.name.to_string(),
+                            report_builder.span_to_code_loc(meta.value.span()),
+                            self.message
+                                .clone()
+                                .unwrap_or("invalid metadata".to_string()),
+                        ))
+                    };
                 }
                 found = true;
             }

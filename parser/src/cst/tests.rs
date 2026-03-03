@@ -1,4 +1,4 @@
-use crate::cst::{CSTStream, Event, SyntaxKind, Utf16, Utf32, Utf8, CST};
+use crate::cst::{CST, CSTStream, Event, SyntaxKind, Utf8, Utf16, Utf32};
 use crate::{Parser, Span};
 
 #[test]
@@ -151,11 +151,7 @@ fn cst_3() {
     assert_eq!(chunks, ["condition", ":", " ", "true"]);
 
     let result = text.try_for_each_chunks(|s| {
-        if s == ":" {
-            anyhow::bail!("colon found")
-        } else {
-            Ok(())
-        }
+        if s == ":" { anyhow::bail!("colon found") } else { Ok(()) }
     });
 
     assert!(result.is_err());

@@ -14,7 +14,6 @@ Token { kind: NEWLINE, span: Span(23..24) }
 Token { kind: WHITESPACE, span: Span(24..26) }
 Begin { kind: ERROR, span: Span(26..90) }
 Token { kind: WITH_KW, span: Span(26..30) }
-Error { message: "expecting expression, operator, `,` or `:`, found `(`", span: Span(50..51) }
 Token { kind: WHITESPACE, span: Span(30..31) }
 Token { kind: IDENT, span: Span(31..36) }
 Token { kind: WHITESPACE, span: Span(36..37) }
@@ -44,4 +43,5 @@ End { kind: CONDITION_BLK, span: Span(13..90) }
 Token { kind: NEWLINE, span: Span(90..91) }
 Token { kind: R_BRACE, span: Span(91..92) }
 End { kind: RULE_DECL, span: Span(0..92) }
+Error { message: "expecting expression, operator, `,` or `:`, found `(`", span: Span(50..51) }
 End { kind: SOURCE_FILE, span: Span(0..92) }

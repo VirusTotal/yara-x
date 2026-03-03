@@ -349,9 +349,9 @@ mod tests {
     fn message_lookup() {
         use protobuf::{Enum, MessageFull};
 
+        use crate::modules::protos::test_proto2::TestProto2;
         use crate::modules::protos::test_proto2::test_proto2::Enumeration;
         use crate::modules::protos::test_proto2::test_proto2::Enumeration2;
-        use crate::modules::protos::test_proto2::TestProto2;
 
         let test = Struct::from_proto_descriptor_and_msg(
             &TestProto2::descriptor(),
@@ -383,9 +383,9 @@ mod tests {
     fn message_dyn_lookup() {
         use protobuf::{Enum, Message, MessageField, MessageFull};
 
-        use crate::modules::protos::test_proto2::test_proto2::Enumeration;
         use crate::modules::protos::test_proto2::NestedProto2;
         use crate::modules::protos::test_proto2::TestProto2;
+        use crate::modules::protos::test_proto2::test_proto2::Enumeration;
 
         let mut test = TestProto2::new();
         let mut nested = NestedProto2::new();

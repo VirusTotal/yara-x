@@ -187,7 +187,12 @@ mod test {
         );
 
         assert_eq!(
-            base64_patterns(b"foobar", Some("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")),
+            base64_patterns(
+                b"foobar",
+                Some(
+                    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+                )
+            ),
             vec![
                 (2, BString::from("mb29iYX")),
                 (1, BString::from("Zvb2Jhc")),
@@ -196,7 +201,12 @@ mod test {
         );
 
         assert_eq!(
-            base64_patterns(b"foobar", Some("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")),
+            base64_patterns(
+                b"foobar",
+                Some(
+                    "./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+                )
+            ),
             vec![
                 (2, BString::from("kZ07gWV")),
                 (1, BString::from("XtZ0Hfa")),

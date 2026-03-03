@@ -6,8 +6,8 @@ More specifically, the compiler produces two instruction sequences, one that
 matches the regexp left-to-right, and another one that matches right-to-left.
 */
 
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::fmt::{Display, Formatter};
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use std::iter::zip;
@@ -20,15 +20,15 @@ use bitvec::order::Lsb0;
 use regex_syntax::hir;
 use regex_syntax::hir::literal::Seq;
 use regex_syntax::hir::{
-    visit, Class, ClassBytes, Hir, HirKind, Literal, Look, Repetition, Visitor,
+    Class, ClassBytes, Hir, HirKind, Literal, Look, Repetition, Visitor, visit,
 };
 
 use super::instr;
-use super::instr::{literal_code_length, Instr, NumAlt, OPCODE_PREFIX};
+use super::instr::{Instr, NumAlt, OPCODE_PREFIX, literal_code_length};
 
 use crate::compiler::{
-    best_atom_in_bytes, Atom, AtomsQuality, DESIRED_ATOM_SIZE,
-    MAX_ATOMS_PER_REGEXP,
+    Atom, AtomsQuality, DESIRED_ATOM_SIZE, MAX_ATOMS_PER_REGEXP,
+    best_atom_in_bytes,
 };
 
 use crate::re;

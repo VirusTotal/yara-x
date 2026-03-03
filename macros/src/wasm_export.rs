@@ -6,7 +6,7 @@ use std::ops::Add;
 
 use darling::FromMeta;
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 use syn::visit::Visit;
 use syn::{
     AngleBracketedGenericArguments, Error, Expr, ExprLit, GenericArgument,
@@ -193,10 +193,10 @@ impl<'ast> FuncSignatureParser<'ast> {
         let mut first_argument_is_ok = false;
 
         // Make sure that the first argument is `&mut Caller`.
-        if let Some(Type::Reference(ref_type)) = arg_types.pop_front() {
-            if let Type::Path(type_) = ref_type.elem.as_ref() {
-                first_argument_is_ok = Self::type_ident(type_) == "Caller";
-            }
+        if let Some(Type::Reference(ref_type)) = arg_types.pop_front()
+            && let Type::Path(type_) = ref_type.elem.as_ref()
+        {
+            first_argument_is_ok = Self::type_ident(type_) == "Caller";
         }
 
         if !first_argument_is_ok {
@@ -204,7 +204,8 @@ impl<'ast> FuncSignatureParser<'ast> {
                 &func.sig,
                 format!(
                     "the first argument for function `{}` must be `&mut Caller<'_, ScanContext>`",
-                    func.sig.ident),
+                    func.sig.ident
+                ),
             ));
         }
 
@@ -298,7 +299,8 @@ pub(crate) fn impl_wasm_export_macro(
         return Err(Error::new_spanned(
             &func.sig,
             format!(
-                "function `{rust_fn_name}` must have at least one argument of type `&mut Caller<'_, ScanContext>`"),
+                "function `{rust_fn_name}` must have at least one argument of type `&mut Caller<'_, ScanContext>`"
+            ),
         ));
     }
 

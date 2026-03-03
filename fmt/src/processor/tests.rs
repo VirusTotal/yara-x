@@ -1,11 +1,11 @@
 use pretty_assertions::assert_eq;
-use yara_x_parser::cst::{CSTStream, SyntaxKind};
 use yara_x_parser::Parser;
+use yara_x_parser::cst::{CSTStream, SyntaxKind};
 
-use crate::processor::{actions, Processor};
+use crate::processor::{Processor, actions};
 use crate::tokens;
 use crate::tokens::Token::*;
-use crate::tokens::{categories, Token};
+use crate::tokens::{Token, categories};
 
 fn tokenize(source: &str) -> Vec<Token<'_>> {
     let parser = Parser::new(source.as_bytes());

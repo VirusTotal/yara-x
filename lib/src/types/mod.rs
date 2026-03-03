@@ -5,8 +5,8 @@ use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::{mem, ptr};
-use walrus::ir::InstrSeqType;
 use walrus::ValType;
+use walrus::ir::InstrSeqType;
 
 use crate::modules::protos::yara::enum_value_options::Value as EnumValue;
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};

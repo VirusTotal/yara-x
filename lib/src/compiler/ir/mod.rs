@@ -43,12 +43,12 @@ use bstr::BString;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 
-use yara_x_parser::ast::Ident;
 use yara_x_parser::Span;
+use yara_x_parser::ast::Ident;
 
 use crate::compiler::context::{Var, VarStack};
 use crate::compiler::ir::dfs::{
-    dfs_common, DFSIter, DFSWithScopeIter, Event, EventContext,
+    DFSIter, DFSWithScopeIter, Event, EventContext, dfs_common,
 };
 
 use crate::compiler::FilesizeBounds;
@@ -1031,10 +1031,10 @@ impl IR {
 
     /// Creates a new [`Expr::Not`].
     pub fn not(&mut self, operand: ExprId) -> ExprId {
-        if self.constant_folding {
-            if let Some(v) = self.get(operand).try_as_const_bool() {
-                return self.constant(TypeValue::const_bool_from(!v));
-            }
+        if self.constant_folding
+            && let Some(v) = self.get(operand).try_as_const_bool()
+        {
+            return self.constant(TypeValue::const_bool_from(!v));
         }
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[operand.0 as usize] = expr_id;
@@ -1224,14 +1224,14 @@ impl IR {
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
 
-        if self.constant_folding {
-            if let Some(value) = self.fold_arithmetic(
+        if self.constant_folding
+            && let Some(value) = self.fold_arithmetic(
                 operands.as_slice(),
                 is_float,
                 |acc, x| acc + x,
-            )? {
-                return Ok(self.constant(value));
-            }
+            )?
+        {
+            return Ok(self.constant(value));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
@@ -1250,14 +1250,14 @@ impl IR {
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
 
-        if self.constant_folding {
-            if let Some(value) = self.fold_arithmetic(
+        if self.constant_folding
+            && let Some(value) = self.fold_arithmetic(
                 operands.as_slice(),
                 is_float,
                 |acc, x| acc - x,
-            )? {
-                return Ok(self.constant(value));
-            }
+            )?
+        {
+            return Ok(self.constant(value));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
@@ -1276,14 +1276,14 @@ impl IR {
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
 
-        if self.constant_folding {
-            if let Some(value) = self.fold_arithmetic(
+        if self.constant_folding
+            && let Some(value) = self.fold_arithmetic(
                 operands.as_slice(),
                 is_float,
                 |acc, x| acc * x,
-            )? {
-                return Ok(self.constant(value));
-            }
+            )?
+        {
+            return Ok(self.constant(value));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
@@ -2644,10 +2644,10 @@ impl Expr {
             | Expr::PatternOffsetVar { index, .. }
             | Expr::PatternLength { index, .. }
             | Expr::PatternLengthVar { index, .. } => {
-                if let Some(index) = index {
-                    if *index == child {
-                        *index = replacement
-                    }
+                if let Some(index) = index
+                    && *index == child
+                {
+                    *index = replacement
                 }
             }
 
@@ -2667,10 +2667,10 @@ impl Expr {
             }
 
             Expr::FuncCall(func_call) => {
-                if let Some(expr) = &mut func_call.object {
-                    if *expr == child {
-                        *expr = replacement
-                    }
+                if let Some(expr) = &mut func_call.object
+                    && *expr == child
+                {
+                    *expr = replacement
                 }
                 replace_in_slice(func_call.args.as_mut_slice());
             }

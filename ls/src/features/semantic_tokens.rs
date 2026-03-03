@@ -253,10 +253,10 @@ impl Iterator for SemanticTokensIter {
                 let mut column = self.position.character;
 
                 // If we've passed the range, stop iterating early.
-                if let Some(range) = self.range {
-                    if range.end.line < line {
-                        return None;
-                    }
+                if let Some(range) = self.range
+                    && range.end.line < line
+                {
+                    return None;
                 }
 
                 // Multi-line tokens are not supported by the LSP client,

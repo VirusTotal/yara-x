@@ -25,8 +25,8 @@ use std::str::FromStr;
 use std::time::Duration;
 use std::{io, mem};
 
-use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
+use base64::prelude::BASE64_STANDARD;
 use protobuf::MessageDyn;
 use pyo3::exceptions::{PyException, PyIOError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
@@ -35,7 +35,7 @@ use pyo3::types::{
     PyBool, PyBytes, PyDict, PyFloat, PyInt, PyString, PyStringMethods,
     PyTuple, PyTzInfo,
 };
-use pyo3::{create_exception, IntoPyObjectExt};
+use pyo3::{IntoPyObjectExt, create_exception};
 use strum_macros::{Display, EnumString};
 
 use ::yara_x as yrx;
@@ -147,7 +147,7 @@ mod consts {
     use pyo3::prelude::*;
     use pyo3::sync::PyOnceLock;
     use pyo3::types::PyString;
-    use pyo3::{intern, Bound, Py, PyResult, Python};
+    use pyo3::{Bound, Py, PyResult, Python, intern};
 
     pub fn read(py: Python<'_>) -> &Bound<'_, PyString> {
         intern!(py, "read")

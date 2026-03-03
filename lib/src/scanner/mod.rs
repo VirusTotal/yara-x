@@ -2,7 +2,7 @@
 
 The scanner takes the rules produces by the compiler and scans data with them.
 */
-use std::collections::{hash_map, BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, hash_map};
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::io::Read;
@@ -11,8 +11,8 @@ use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::slice::Iter;
-use std::sync::atomic::AtomicU64;
 use std::sync::Once;
+use std::sync::atomic::AtomicU64;
 use std::time::Duration;
 
 use bitvec::prelude::*;
@@ -23,12 +23,12 @@ use wasmtime::Store;
 
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
-use crate::modules::{Module, ModuleError, BUILTIN_MODULES};
+use crate::modules::{BUILTIN_MODULES, Module, ModuleError};
 use crate::scanner::context::create_wasm_store_and_ctx;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::{modules, Variable};
+use crate::{Variable, modules};
 
 pub(crate) use crate::scanner::context::RuntimeObject;
 pub(crate) use crate::scanner::context::RuntimeObjectHandle;
@@ -68,7 +68,9 @@ pub enum ScanError {
         err: std::io::Error,
     },
     /// Could not deserialize the protobuf message for some YARA module.
-    #[error("can not deserialize protobuf message for YARA module `{module}`: {err}")]
+    #[error(
+        "can not deserialize protobuf message for YARA module `{module}`: {err}"
+    )]
     ProtoError {
         /// Module name.
         module: String,

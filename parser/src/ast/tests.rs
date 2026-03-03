@@ -1,6 +1,6 @@
-use crate::ast::{Item, AST};
+use crate::ast::{AST, Item};
 use crate::cst::CST;
-use crate::{ast, Parser, Span};
+use crate::{Parser, Span, ast};
 
 #[test]
 fn ast_from_cst() {

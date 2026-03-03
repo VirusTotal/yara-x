@@ -2,8 +2,8 @@ use std::str::from_utf8;
 
 use regex::bytes::Regex;
 
-use yara_x_parser::cst::{CSTStream, Event, SyntaxKind};
 use yara_x_parser::Span;
+use yara_x_parser::cst::{CSTStream, Event, SyntaxKind};
 
 /// This type hooks into a stream of [`cst::Event`] and invokes a callback for
 /// each comment that suppresses a warning.
@@ -114,18 +114,16 @@ where
                     if comment.code_span.is_none() {
                         comment.code_span = self.line_span.clone();
                     }
-                    if let Some(code_span) = &comment.code_span {
-                        if let Some(hook) = &mut self.f {
-                            if let Some(warning_id) = self
-                                .suppress_re
-                                .captures(comment.text)
-                                .and_then(|captures| captures.get(1))
-                                .map(|m| m.as_bytes())
-                                .and_then(|m| from_utf8(m).ok())
-                            {
-                                hook(warning_id, code_span.clone());
-                            }
-                        }
+                    if let Some(code_span) = &comment.code_span
+                        && let Some(hook) = &mut self.f
+                        && let Some(warning_id) = self
+                            .suppress_re
+                            .captures(comment.text)
+                            .and_then(|captures| captures.get(1))
+                            .map(|m| m.as_bytes())
+                            .and_then(|m| from_utf8(m).ok())
+                    {
+                        hook(warning_id, code_span.clone());
                     }
                     comment.code_span.is_none()
                 });

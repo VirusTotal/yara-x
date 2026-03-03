@@ -12,22 +12,30 @@ Token { kind: CONDITION_KW, span: Span(13..22) }
 Token { kind: COLON, span: Span(22..23) }
 Token { kind: NEWLINE, span: Span(23..24) }
 Token { kind: WHITESPACE, span: Span(24..26) }
-Begin { kind: ERROR, span: Span(26..61) }
+Begin { kind: BOOLEAN_EXPR, span: Span(26..61) }
+Begin { kind: BOOLEAN_TERM, span: Span(26..61) }
+Begin { kind: WITH_EXPR, span: Span(26..61) }
 Token { kind: WITH_KW, span: Span(26..30) }
-Error { message: "expecting identifier, found `:`", span: Span(31..32) }
 Token { kind: WHITESPACE, span: Span(30..31) }
 Token { kind: COLON, span: Span(31..32) }
 Token { kind: WHITESPACE, span: Span(32..33) }
 Token { kind: L_PAREN, span: Span(33..34) }
 Token { kind: NEWLINE, span: Span(34..35) }
 Token { kind: WHITESPACE, span: Span(35..47) }
+Begin { kind: BOOLEAN_EXPR, span: Span(47..51) }
+Begin { kind: BOOLEAN_TERM, span: Span(47..51) }
 Token { kind: TRUE_KW, span: Span(47..51) }
+End { kind: BOOLEAN_TERM, span: Span(47..51) }
+End { kind: BOOLEAN_EXPR, span: Span(47..51) }
 Token { kind: NEWLINE, span: Span(51..52) }
 Token { kind: WHITESPACE, span: Span(52..60) }
 Token { kind: R_PAREN, span: Span(60..61) }
-End { kind: ERROR, span: Span(26..61) }
+End { kind: WITH_EXPR, span: Span(26..61) }
+End { kind: BOOLEAN_TERM, span: Span(26..61) }
+End { kind: BOOLEAN_EXPR, span: Span(26..61) }
 End { kind: CONDITION_BLK, span: Span(13..61) }
 Token { kind: NEWLINE, span: Span(61..62) }
 Token { kind: R_BRACE, span: Span(62..63) }
 End { kind: RULE_DECL, span: Span(0..63) }
+Error { message: "expecting identifier, found `:`", span: Span(31..32) }
 End { kind: SOURCE_FILE, span: Span(0..63) }
