@@ -173,5 +173,7 @@ mod utils {
 ///
 /// [wasmtime]: https://wasmtime.dev/
 pub unsafe fn finalize() {
-    wasm::free_engine();
+    unsafe {
+        wasm::free_engine();
+    }
 }

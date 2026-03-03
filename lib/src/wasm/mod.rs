@@ -830,7 +830,9 @@ pub(crate) unsafe fn free_engine() {
     ))]
     {
         #[allow(static_mut_refs)]
-        ENGINE.take().unwrap().unload_process_handlers()
+        unsafe {
+            ENGINE.take().unwrap().unload_process_handlers()
+        }
     }
 }
 
