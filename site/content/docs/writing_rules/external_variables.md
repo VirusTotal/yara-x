@@ -18,22 +18,22 @@ seo:
   noindex: false # false (default) or true
 ---
 
-External variables enable rules to depend on dynamic values from external
-sources. For instance, consider the following rule:
+Rules can reference external variables that are defined at compile time.
+For instance, consider the following rule:
 
-```
+```yara
 rule VariableExample1 {
     condition:
         ext_var == 10
 }
 ```
 
-Here, `ext_var` is an external variable whose value is determined at
-run-time. External variables can be integers, strings, or booleans, depending
-on their assigned value.
+Here, `ext_var` is an external variable that is defined when the rule is
+compiled with the `--define ext_var=VALUE` flag. 
 
-Integer variables can replace integer constants in conditions, while boolean
-variables can act as boolean expressions. For example:
+External variables can be integers, strings, or booleans. Integer variables can
+replace integer constants in conditions, while boolean variables can act as
+boolean expressions. For example:
 
 ```yara
 rule VariableExample2 {
@@ -41,6 +41,9 @@ rule VariableExample2 {
         bool_ext_var or filesize < int_ext_var
 }
 ```
+
+The above rule may be compiled with the flags 
+`-d bool_ext_var=true -d int_ext_var=100` for example.
 
 External variables of type `string` can be used with any operators that works
 on strings, like `contains`, `startswith`, `endswith`, etc. Let's see some
@@ -73,12 +76,15 @@ rule MatchesExample {
 }
 ```
 
-Every external variable used in your rules must be defined when the rules
-are being compiled. This can be done using the `--define` option (or `-d`) in
+The rules above could be compiled with the flag `-d string_ext_var=\"Hello\"`
+for example.
+
+Every external variable used in your rules must be defined at compile time.
+This can be done using the `--define VAR=VALUE` option (or `-d VAR=VALUE`) in
 the command-line tool, or by using the appropriate API.
-(like [this one](
+(Like [this one](
 https://docs.rs/yara-x/latest/yara_x/struct.Compiler.html#method.define_global)
 in Rust or
 [this one]({{< ref "python.md" >}}#define_globalidentifier-value)
-in Python).
+in Python.)
 
