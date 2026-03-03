@@ -1,4 +1,4 @@
-use std::ffi::{c_char, c_int, c_void, CString};
+use std::ffi::{CString, c_char, c_int, c_void};
 use std::mem::ManuallyDrop;
 use std::slice;
 
@@ -43,7 +43,7 @@ pub type YRX_RULE_CALLBACK =
 /// callback function.
 ///
 /// See [`YRX_RULE_CALLBACK`] for more details.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_rules_iter(
     rules: *const YRX_RULES,
     callback: YRX_RULE_CALLBACK,
@@ -63,7 +63,7 @@ pub unsafe extern "C" fn yrx_rules_iter(
 /// Returns the total number of rules.
 ///
 /// Returns -1 in case of error.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_rules_count(rules: *mut YRX_RULES) -> c_int {
     if let Some(rules) = rules.as_ref() {
         rules.inner().iter().len() as c_int
@@ -80,7 +80,7 @@ pub unsafe extern "C" fn yrx_rules_count(rules: *mut YRX_RULES) -> c_int {
 /// data itself, and its length.
 ///
 /// The [`YRX_BUFFER`] must be destroyed with `yrx_buffer_destroy`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_rules_serialize(
     rules: *const YRX_RULES,
     buf: &mut *mut YRX_BUFFER,
@@ -109,7 +109,7 @@ pub unsafe extern "C" fn yrx_rules_serialize(
 
 /// Deserializes the rules from a sequence of bytes produced by
 /// [`yrx_rules_serialize`].
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_rules_deserialize(
     data: *const u8,
     len: usize,
@@ -148,7 +148,7 @@ pub type YRX_IMPORT_CALLBACK =
 /// callback function.
 ///
 /// See [`YRX_IMPORT_CALLBACK`] for more details.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_rules_iter_imports(
     rules: *const YRX_RULES,
     callback: YRX_IMPORT_CALLBACK,
@@ -166,7 +166,7 @@ pub unsafe extern "C" fn yrx_rules_iter_imports(
 }
 
 /// Destroys a [`YRX_RULES`] object.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_rules_destroy(rules: *mut YRX_RULES) {
     drop(Box::from_raw(rules))
 }
