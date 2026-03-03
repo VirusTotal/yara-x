@@ -75,7 +75,7 @@ const fn compute_bit_pairs_diff() -> [[usize; 256]; 256] {
     a
 }
 
-const BIT_PAIRS_DIFF: [[usize; 256]; 256] = compute_bit_pairs_diff();
+static BIT_PAIRS_DIFF: [[usize; 256]; 256] = compute_bit_pairs_diff();
 
 pub(crate) fn pearson_hash(salt: u8, ii: u8, jj: u8, kk: u8) -> u8 {
     let mut h = 0;
