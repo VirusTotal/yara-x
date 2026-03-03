@@ -15,8 +15,6 @@ fn basic_rule() {
         .assert()
         .stdout(
             r#" a
- ├─ modules
- └─ rules
 
 "#,
         )
@@ -58,8 +56,6 @@ fn specific_rule_only() {
         .assert()
         .stdout(
             r#" b
- ├─ modules
- └─ rules
 
 "#,
         )
@@ -96,8 +92,6 @@ fn unknown_identifier() {
         .assert()
         .stdout(
             r#" a
- ├─ modules
- └─ rules
 
 "#,
         )
@@ -117,9 +111,7 @@ fn module_identifier() {
         .assert()
         .stdout(
             r#" a
- ├─ modules
- │  └─ pe
- └─ rules
+ └─ mod: pe
 
 "#,
         )
@@ -143,17 +135,11 @@ fn dependency_and_module() {
         .assert()
         .stdout(
             r#" a
- ├─ modules
- │  └─ pe
- └─ rules
+ └─ mod: pe
 
  b
- ├─ modules
- └─ rules
-    └─ a
-       ├─ modules
-       │  └─ pe
-       └─ rules
+ └─ a
+    └─ mod: pe
 
 "#,
         )
@@ -175,8 +161,6 @@ fn for_in_variable_module_name() {
         .assert()
         .stdout(
             r#" a
- ├─ modules
- └─ rules
 
 "#,
         )
@@ -207,8 +191,6 @@ fn nested_variables() {
         .assert()
         .stdout(
             r#" a
- ├─ modules
- └─ rules
 
 "#,
         )
@@ -237,8 +219,6 @@ fn with_variables() {
         .assert()
         .stdout(
             r#" a
- ├─ modules
- └─ rules
 
 "#,
         )
@@ -267,8 +247,6 @@ fn with_variables_and_unknown() {
         .assert()
         .stdout(
             r#" a
- ├─ modules
- └─ rules
 
 "#,
         )
@@ -292,8 +270,6 @@ fn with_variables_and_previous_rule() {
         .assert()
         .stdout(
             r#" b
- ├─ modules
- └─ rules
 
 "#,
         )
@@ -316,9 +292,7 @@ fn with_module_in_expression() {
         .assert()
         .stdout(
             r#" a
- ├─ modules
- │  └─ pe
- └─ rules
+ └─ mod: pe
 
 "#,
         )
@@ -342,9 +316,7 @@ fn for_in_variable_module_name_other_module() {
         .assert()
         .stdout(
             r#" a
- ├─ modules
- │  └─ elf
- └─ rules
+ └─ mod: elf
 
 "#,
         )
@@ -366,9 +338,7 @@ fn field_access() {
         .assert()
         .stdout(
             r#" a
- ├─ modules
- │  └─ pe
- └─ rules
+ └─ mod: pe
 
 "#,
         )
@@ -390,9 +360,7 @@ fn field_access_with_unknown_lookup() {
         .assert()
         .stdout(
             r#" a
- ├─ modules
- │  └─ pe
- └─ rules
+ └─ mod: pe
 
 "#,
         )
@@ -414,9 +382,7 @@ fn field_access_with_variable() {
         .assert()
         .stdout(
             r#" a
- ├─ modules
- │  └─ pe
- └─ rules
+ └─ mod: pe
 
 "#,
         )
@@ -452,13 +418,9 @@ fn field_access_hiding_ident() {
         .assert()
         .stdout(
             r#" a
- ├─ modules
- └─ rules
 
  b
- ├─ modules
- │  └─ pe
- └─ rules
+ └─ mod: pe
 
 "#,
         )

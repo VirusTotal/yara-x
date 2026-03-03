@@ -87,7 +87,7 @@ pub fn exec_deps(args: &ArgMatches) -> anyhow::Result<()> {
 
     for dep in dep_tree.iter() {
         let mut output = String::new();
-        write_tree(&mut output, &dep).unwrap();
+        write_tree(&mut output, &dep)?;
         println!("{output}");
     }
 
@@ -105,6 +105,7 @@ fn generate_dep_tree(
             nodes.push(tree_for_rule(rule, &deps, &dep_map));
         }
     }
+
     nodes
 }
 
@@ -114,26 +115,21 @@ fn tree_for_rule(
     dep_map: &BTreeMap<&str, Deps>,
 ) -> Tree {
     let mut nodes: Vec<Tree> = Vec::new();
-    let mut leafs: Vec<Tree> = Vec::new();
 
-    for dep in deps.modules.iter() {
-        leafs.push(Node(dep.to_string(), vec![]));
+    for module in deps.modules.iter() {
+        nodes.push(Node(format!("mod: {module}"), vec![]));
     }
-    nodes.push(Node(String::from("modules"), leafs));
-
-    leafs = Vec::new();
 
     for dep in deps.rules.iter() {
         match dep_map.get(dep) {
             Some(new_deps) => {
-                leafs.push(tree_for_rule(dep, new_deps, dep_map));
+                nodes.push(tree_for_rule(dep, new_deps, dep_map));
             }
             None => {
-                leafs.push(Node(dep.to_string(), vec![]));
+                nodes.push(Node(dep.to_string(), vec![]));
             }
         }
     }
-    nodes.push(Node(String::from("rules"), leafs));
 
     Node(rule.to_string(), nodes)
 }
