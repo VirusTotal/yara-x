@@ -213,12 +213,6 @@ string-module = []
 test_proto2-module = []
 test_proto3-module = []
 
-# The `text` module is an example module described in the Module's Developer
-# Guide. Not very useful in real life.
-text-module = [
-    "dep:lingua"
-]
-
 # The `time` module allows you to retrieve epoch in seconds that can be used in
 # conditions of a rule to check against other epoch time.
 time-module = []
@@ -320,8 +314,6 @@ yara-x-parser = { workspace = true, features = ["serde"] }
 zip = { workspace = true, optional = true }
 simd-adler32 = {workspace = true, optional = true}
 simd_cesu8 = {workspace = true, optional = true}
-
-lingua = { version = "1.6.2", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
 
 [build-dependencies]
 anyhow = { workspace = true }
