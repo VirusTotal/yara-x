@@ -116,15 +116,15 @@ where
                     }
                     if let Some(code_span) = &comment.code_span
                         && let Some(hook) = &mut self.f
-                            && let Some(warning_id) = self
-                                .suppress_re
-                                .captures(comment.text)
-                                .and_then(|captures| captures.get(1))
-                                .map(|m| m.as_bytes())
-                                .and_then(|m| from_utf8(m).ok())
-                            {
-                                hook(warning_id, code_span.clone());
-                            }
+                        && let Some(warning_id) = self
+                            .suppress_re
+                            .captures(comment.text)
+                            .and_then(|captures| captures.get(1))
+                            .map(|m| m.as_bytes())
+                            .and_then(|m| from_utf8(m).ok())
+                    {
+                        hook(warning_id, code_span.clone());
+                    }
                     comment.code_span.is_none()
                 });
                 self.line_span = None;

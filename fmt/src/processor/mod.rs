@@ -412,9 +412,10 @@ where
                 if let Token::Begin(rule) = token {
                     self.stack.push(rule)
                 } else if let Token::End(rule) = token
-                    && let Some(top) = self.stack.pop() {
-                        assert_eq!(top, rule);
-                    }
+                    && let Some(top) = self.stack.pop()
+                {
+                    assert_eq!(top, rule);
+                }
                 self.output.push_back(token);
             } else {
                 break;

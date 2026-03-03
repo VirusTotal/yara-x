@@ -918,7 +918,6 @@ impl Formatter {
             };
 
         let tokens = AddIndentation::new(tokens, self.indentation);
-        
 
         RemoveTrailingSpaces::new(tokens)
     }

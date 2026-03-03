@@ -461,10 +461,11 @@ fn get_struct(token: &Token<Immutable>) -> Option<Type> {
                 path.push(Segment::Field(token.text().to_string()));
                 // Look for previous DOT
                 if let Some(prev) = prev_non_trivia_token(&token)
-                    && prev.kind() == SyntaxKind::DOT {
-                        curr = prev_non_trivia_token(&prev);
-                        continue;
-                    }
+                    && prev.kind() == SyntaxKind::DOT
+                {
+                    curr = prev_non_trivia_token(&prev);
+                    continue;
+                }
                 // If no dot, we might have reached the start (module name)
                 break;
             }

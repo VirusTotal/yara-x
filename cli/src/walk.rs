@@ -156,9 +156,10 @@ impl<'a> Walker<'a> {
         } else {
             if metadata.is_file() {
                 if self.pass_metadata_filter(metadata)
-                    && let Err(err) = f(self.path) {
-                        return e(err);
-                    };
+                    && let Err(err) = f(self.path)
+                {
+                    return e(err);
+                };
                 return Ok(());
             }
             self.walk_dir(f, e)
@@ -185,9 +186,10 @@ impl<'a> Walker<'a> {
                 },
             };
             if self.pass_metadata_filter(metadata)
-                && let Err(err) = f(&path) {
-                    e(err)?
-                }
+                && let Err(err) = f(&path)
+            {
+                e(err)?
+            }
         }
 
         Ok(())
@@ -245,9 +247,10 @@ impl<'a> Walker<'a> {
             match entry.metadata() {
                 Ok(metadata) => {
                     if self.pass_metadata_filter(metadata)
-                        && let Err(err) = f(entry.path()) {
-                            e(err)?
-                        }
+                        && let Err(err) = f(entry.path())
+                    {
+                        e(err)?
+                    }
                 }
                 Err(err) => e(err.into())?,
             }
@@ -453,10 +456,11 @@ impl<'a> ParWalker<'a> {
                             &mut per_thread_obj,
                         );
                         if let Err(err) = res
-                            && error(err, &msg_send).is_err() {
-                                let _ = msg_send.send(Message::Abort);
-                                break;
-                            }
+                            && error(err, &msg_send).is_err()
+                        {
+                            let _ = msg_send.send(Message::Abort);
+                            break;
+                        }
                     }
                     finalize(&per_thread_obj, &msg_send);
                 }));
@@ -487,9 +491,10 @@ impl<'a> ParWalker<'a> {
                 );
 
                 if let Err(err) = res
-                    && error(err, &msg_send).is_err() {
-                        let _ = msg_send.send(Message::Abort);
-                    }
+                    && error(err, &msg_send).is_err()
+                {
+                    let _ = msg_send.send(Message::Abort);
+                }
             }));
 
             let mut console = if cfg!(feature = "logging") {
@@ -590,10 +595,11 @@ fn output_messages<S>(
         }
 
         if let Some(console) = console.as_mut()
-            && Instant::elapsed(&last_render) > render_period {
-                console.render(state.as_ref()).unwrap();
-                last_render = Instant::now();
-            }
+            && Instant::elapsed(&last_render) > render_period
+        {
+            console.render(state.as_ref()).unwrap();
+            last_render = Instant::now();
+        }
     }
 }
 

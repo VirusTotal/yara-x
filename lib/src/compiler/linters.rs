@@ -367,31 +367,28 @@ impl LinterInternal for Metadata<'_> {
         for meta in rule.meta.iter().flatten() {
             if meta.identifier.name == self.identifier.as_str() {
                 if let Some(predicate) = &self.predicate
-                    && !predicate(meta) {
-                        return if self.error {
-                            LinterResult::Err(errors::InvalidMetadata::build(
-                                report_builder,
-                                meta.identifier.name.to_string(),
-                                report_builder
-                                    .span_to_code_loc(meta.value.span()),
-                                self.message
-                                    .clone()
-                                    .unwrap_or("invalid metadata".to_string()),
-                            ))
-                        } else {
-                            LinterResult::Warn(
-                                warnings::InvalidMetadata::build(
-                                    report_builder,
-                                    meta.identifier.name.to_string(),
-                                    report_builder
-                                        .span_to_code_loc(meta.value.span()),
-                                    self.message.clone().unwrap_or(
-                                        "invalid metadata".to_string(),
-                                    ),
-                                ),
-                            )
-                        };
-                    }
+                    && !predicate(meta)
+                {
+                    return if self.error {
+                        LinterResult::Err(errors::InvalidMetadata::build(
+                            report_builder,
+                            meta.identifier.name.to_string(),
+                            report_builder.span_to_code_loc(meta.value.span()),
+                            self.message
+                                .clone()
+                                .unwrap_or("invalid metadata".to_string()),
+                        ))
+                    } else {
+                        LinterResult::Warn(warnings::InvalidMetadata::build(
+                            report_builder,
+                            meta.identifier.name.to_string(),
+                            report_builder.span_to_code_loc(meta.value.span()),
+                            self.message
+                                .clone()
+                                .unwrap_or("invalid metadata".to_string()),
+                        ))
+                    };
+                }
                 found = true;
             }
         }

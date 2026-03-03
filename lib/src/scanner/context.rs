@@ -640,25 +640,25 @@ impl ScanContext<'_, '_> {
         if rule.is_global
             && let Some(rules) =
                 self.matching_rules_per_ns.get_mut(&rule.namespace_id)
-            {
-                let store = unsafe { self.wasm_store.as_mut() };
-                let main_mem = self.wasm_main_memory.unwrap().data_mut(store);
+        {
+            let store = unsafe { self.wasm_store.as_mut() };
+            let main_mem = self.wasm_main_memory.unwrap().data_mut(store);
 
-                let base = MATCHING_RULES_BITMAP_BASE as usize;
-                let num_rules = self.compiled_rules.num_rules();
+            let base = MATCHING_RULES_BITMAP_BASE as usize;
+            let num_rules = self.compiled_rules.num_rules();
 
-                let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
-                    &mut main_mem[base..base + num_rules.div_ceil(8)],
-                );
+            let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
+                &mut main_mem[base..base + num_rules.div_ceil(8)],
+            );
 
-                for rule_id in rules.drain(0..) {
-                    if self.compiled_rules.get(rule_id).is_private {
-                        self.num_matching_private_rules -= 1;
-                        self.num_non_matching_private_rules += 1;
-                    }
-                    bits.set(rule_id.into(), false);
+            for rule_id in rules.drain(0..) {
+                if self.compiled_rules.get(rule_id).is_private {
+                    self.num_matching_private_rules -= 1;
+                    self.num_non_matching_private_rules += 1;
                 }
+                bits.set(rule_id.into(), false);
             }
+        }
 
         // Save the time in which the evaluation of the next rule started.
         #[cfg(feature = "rules-profiling")]
@@ -812,9 +812,10 @@ impl ScanContext<'_, '_> {
             if !block_scanning_mode
                 && let Some(bounds) =
                     self.compiled_rules.filesize_bounds(*pattern_id)
-                    && !bounds.contains(filesize) {
-                        continue;
-                    }
+                && !bounds.contains(filesize)
+            {
+                continue;
+            }
 
             #[cfg(feature = "rules-profiling")]
             let verification_start = self.clock.raw();
@@ -1367,8 +1368,6 @@ fn verify_literal_match(
     ) {
         return false;
     }
-
-    
 
     if flags.contains(SubPatternFlags::Nocase) {
         pattern.eq_ignore_ascii_case(&scanned_data[match_start..match_end])

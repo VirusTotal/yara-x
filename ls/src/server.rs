@@ -127,9 +127,10 @@ impl LanguageServer for YARALanguageServer {
         if let Some(folder) = params
             .workspace_folders
             .and_then(|folders| folders.first().cloned())
-            && let Some(documents) = Arc::get_mut(&mut self.documents) {
-                documents.set_workspace(folder.uri);
-            }
+            && let Some(documents) = Arc::get_mut(&mut self.documents)
+        {
+            documents.set_workspace(folder.uri);
+        }
 
         if let Some(config) = params
             .initialization_options
@@ -694,15 +695,15 @@ impl YARALanguageServer {
             match config {
                 Some(config) => {
                     if let Some(re) = &config.rule_name_validation
-                        && regex::Regex::new(re).is_err() {
-                            let _ =
-                                client.show_message(ShowMessageParams {
-                                    typ: MessageType::ERROR,
-                                    message: format!(
-                                        "YARA: wrong rule name validation regex: {re}"
-                                    ),
-                                });
-                        }
+                        && regex::Regex::new(re).is_err()
+                    {
+                        let _ = client.show_message(ShowMessageParams {
+                            typ: MessageType::ERROR,
+                            message: format!(
+                                "YARA: wrong rule name validation regex: {re}"
+                            ),
+                        });
+                    }
                     let _ = client.emit(UpdateConfig(config));
                 }
                 None => {

@@ -61,16 +61,16 @@ pub(in crate::compiler) fn patterns_from_ast<'src>(
                 .current_rule_patterns
                 .iter()
                 .find(|p| p.identifier.name == pattern.identifier.name)
-            {
-                return Err(DuplicatePattern::build(
-                    ctx.report_builder,
-                    pattern.identifier().name.to_string(),
-                    ctx.report_builder
-                        .span_to_code_loc(pattern.identifier().span()),
-                    ctx.report_builder
-                        .span_to_code_loc(existing.identifier.span()),
-                ));
-            }
+        {
+            return Err(DuplicatePattern::build(
+                ctx.report_builder,
+                pattern.identifier().name.to_string(),
+                ctx.report_builder
+                    .span_to_code_loc(pattern.identifier().span()),
+                ctx.report_builder
+                    .span_to_code_loc(existing.identifier.span()),
+            ));
+        }
         if ctx.current_rule_patterns.len() == MAX_PATTERNS_PER_RULE {
             return Err(TooManyPatterns::build(
                 ctx.report_builder,
@@ -288,15 +288,16 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
         hir.as_literal_bytes().and_then(|lit| lit.to_str().ok())
         && literal.chars().all(|c| {
             (' '..='~').contains(&c) || c == '\t' || c == '\n' || c == '\r'
-        }) {
-            let code_loc = ctx.report_builder.span_to_code_loc(pattern.span());
-            let mut warning =
-                TextPatternAsHex::build(ctx.report_builder, code_loc.clone());
+        })
+    {
+        let code_loc = ctx.report_builder.span_to_code_loc(pattern.span());
+        let mut warning =
+            TextPatternAsHex::build(ctx.report_builder, code_loc.clone());
 
-            warning.report_mut().patch(code_loc, escape(literal));
+        warning.report_mut().patch(code_loc, escape(literal));
 
-            ctx.warnings.add(|| warning);
-        }
+        ctx.warnings.add(|| warning);
+    }
 
     Ok(PatternInRule {
         identifier: pattern.identifier.clone(),
@@ -1099,34 +1100,34 @@ fn of_expr_from_ast(
     };
 
     if let Quantifier::Expr(expr) = &quantifier
-        && let Some(value) = ctx.ir.get(*expr).try_as_const_integer() {
-            // The use of `0 of them` is not recommended, because is not clear
-            // if 0 or more patterns must match, or if none of them should
-            // match.
-            if value == 0 {
-                let mut warning = warnings::AmbiguousExpression::build(
-                    ctx.report_builder,
-                    ctx.report_builder.span_to_code_loc(of.span()),
+        && let Some(value) = ctx.ir.get(*expr).try_as_const_integer()
+    {
+        // The use of `0 of them` is not recommended, because is not clear
+        // if 0 or more patterns must match, or if none of them should
+        // match.
+        if value == 0 {
+            let mut warning = warnings::AmbiguousExpression::build(
+                ctx.report_builder,
+                ctx.report_builder.span_to_code_loc(of.span()),
+            );
+
+            warning
+                .report_mut()
+                .new_section(
+                    Level::HELP,
+                    "consider using `none` instead of `0`",
+                )
+                .patch(
+                    ctx.report_builder.span_to_code_loc(of.quantifier.span()),
+                    "none",
                 );
 
-                warning
-                    .report_mut()
-                    .new_section(
-                        Level::HELP,
-                        "consider using `none` instead of `0`",
-                    )
-                    .patch(
-                        ctx.report_builder
-                            .span_to_code_loc(of.quantifier.span()),
-                        "none",
-                    );
-
-                ctx.warnings.add(|| warning)
-            }
-            // If the quantifier expression is greater than the number of items,
-            // the `of` expression is always false.
-            if value > items.len() as i64 {
-                ctx.warnings.add(|| warnings::InvariantBooleanExpression::build(
+            ctx.warnings.add(|| warning)
+        }
+        // If the quantifier expression is greater than the number of items,
+        // the `of` expression is always false.
+        if value > items.len() as i64 {
+            ctx.warnings.add(|| warnings::InvariantBooleanExpression::build(
                     ctx.report_builder,
                     false,
                     ctx.report_builder.span_to_code_loc(of.span()),
@@ -1135,8 +1136,8 @@ fn of_expr_from_ast(
                         value, items.len()
                     )),
                 ));
-            }
         }
+    }
 
     // The anchor `at <expr>` is being used with a quantifier that is not `any`
     // or `none`, but this usually doesn't make sense. For example consider the
@@ -1252,11 +1253,12 @@ fn for_of_expr_from_ast(
     ctx.vars.unwind(&stack_frame);
 
     if let Quantifier::Expr(expr) = &quantifier
-        && let Some(value) = ctx.ir.get(*expr).try_as_const_integer() {
-            // If the quantifier expression is greater than the number of items,
-            // the `of` expression is always false.
-            if value > pattern_set.len() as i64 {
-                ctx.warnings.add(|| warnings::InvariantBooleanExpression::build(
+        && let Some(value) = ctx.ir.get(*expr).try_as_const_integer()
+    {
+        // If the quantifier expression is greater than the number of items,
+        // the `of` expression is always false.
+        if value > pattern_set.len() as i64 {
+            ctx.warnings.add(|| warnings::InvariantBooleanExpression::build(
                     ctx.report_builder,
                     false,
                     ctx.report_builder.span_to_code_loc(for_of.span()),
@@ -1265,8 +1267,8 @@ fn for_of_expr_from_ast(
                         value, pattern_set.len()
                     )),
                 ));
-            }
         }
+    }
 
     Ok(ctx.ir.for_of(quantifier, next_pattern_id, for_vars, pattern_set, body))
 }
@@ -1545,15 +1547,16 @@ fn iterable_from_ast(
                 // type mismatch.
                 let ty = ctx.ir.get(expr).ty();
                 if let Some((prev_ty, prev_span)) = prev
-                    && prev_ty != ty {
-                        return Err(MismatchingTypes::build(
-                            ctx.report_builder,
-                            prev_ty.to_string(),
-                            ty.to_string(),
-                            ctx.report_builder.span_to_code_loc(prev_span),
-                            ctx.report_builder.span_to_code_loc(span),
-                        ));
-                    }
+                    && prev_ty != ty
+                {
+                    return Err(MismatchingTypes::build(
+                        ctx.report_builder,
+                        prev_ty.to_string(),
+                        ty.to_string(),
+                        ctx.report_builder.span_to_code_loc(prev_span),
+                        ctx.report_builder.span_to_code_loc(span),
+                    ));
+                }
                 prev = Some((ty, span));
                 e.push(expr);
             }
@@ -1594,16 +1597,16 @@ fn range_from_ast(
     ) = (
         ctx.ir.get(lower_bound).type_value(),
         ctx.ir.get(upper_bound).type_value(),
-    )
-        && lower_bound > upper_bound {
-            return Err(InvalidRange::build(
-                ctx.report_builder,
-                format!(
-                    "lower bound ({lower_bound}) is greater than upper bound ({upper_bound})"
-                ),
-                ctx.report_builder.span_to_code_loc(range.span()),
-            ));
-        }
+    ) && lower_bound > upper_bound
+    {
+        return Err(InvalidRange::build(
+            ctx.report_builder,
+            format!(
+                "lower bound ({lower_bound}) is greater than upper bound ({upper_bound})"
+            ),
+            ctx.report_builder.span_to_code_loc(range.span()),
+        ));
+    }
 
     Ok(Range { lower_bound, upper_bound })
 }
@@ -1619,12 +1622,13 @@ fn non_negative_integer_from_ast(
 
     let type_value = ctx.ir.get(expr).type_value();
     if let TypeValue::Integer { value: Const(value), .. } = type_value
-        && value < 0 {
-            return Err(UnexpectedNegativeNumber::build(
-                ctx.report_builder,
-                ctx.report_builder.span_to_code_loc(span),
-            ));
-        }
+        && value < 0
+    {
+        return Err(UnexpectedNegativeNumber::build(
+            ctx.report_builder,
+            ctx.report_builder.span_to_code_loc(span),
+        ));
+    }
 
     Ok(expr)
 }
@@ -1644,14 +1648,15 @@ fn integer_in_range_from_ast(
     let type_value = ctx.ir.get(expr).type_value();
 
     if let TypeValue::Integer { value: Const(value), .. } = type_value
-        && !range.contains(&value) {
-            return Err(NumberOutOfRange::build(
-                ctx.report_builder,
-                *range.start(),
-                *range.end(),
-                ctx.report_builder.span_to_code_loc(span),
-            ));
-        }
+        && !range.contains(&value)
+    {
+        return Err(NumberOutOfRange::build(
+            ctx.report_builder,
+            *range.start(),
+            *range.end(),
+            ctx.report_builder.span_to_code_loc(span),
+        ));
+    }
 
     Ok(expr)
 }
@@ -2597,11 +2602,12 @@ fn shx_check(
 ) -> Result<(), CompileError> {
     if let TypeValue::Integer { value: Const(value), .. } =
         ctx.ir.get(rhs).type_value()
-        && value < 0 {
-            return Err(UnexpectedNegativeNumber::build(
-                ctx.report_builder,
-                ctx.report_builder.span_to_code_loc(rhs_span),
-            ));
-        }
+        && value < 0
+    {
+        return Err(UnexpectedNegativeNumber::build(
+            ctx.report_builder,
+            ctx.report_builder.span_to_code_loc(rhs_span),
+        ));
+    }
     Ok(())
 }

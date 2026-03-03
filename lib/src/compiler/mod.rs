@@ -1253,9 +1253,10 @@ impl Compiler<'_> {
 
                 if let Ok(cwd) =
                     env::current_dir().and_then(|dir| dir.canonicalize())
-                    && let Ok(relative_path) = path.strip_prefix(cwd) {
-                        path = relative_path.to_path_buf();
-                    }
+                    && let Ok(relative_path) = path.strip_prefix(cwd)
+                {
+                    path = relative_path.to_path_buf();
+                }
 
                 Ok((content, path))
             };
@@ -1264,9 +1265,10 @@ impl Compiler<'_> {
         // include stack.
         if let Some(dir) =
             self.include_stack.last().and_then(|path| path.parent())
-            && let Ok(result) = read_file(dir.join(include.file_name)) {
-                return Ok(result);
-            }
+            && let Ok(result) = read_file(dir.join(include.file_name))
+        {
+            return Ok(result);
+        }
 
         // If one or more include directory were specified, try to find the
         // included file in them, in the order they were specified. Otherwise,
@@ -1559,16 +1561,17 @@ impl Compiler<'_> {
                     Pattern::Hex(re) => re.hir.as_literal_bytes(),
                 };
                 if let Some(literal_bytes) = literal_bytes
-                    && Self::common_byte_repetition(literal_bytes) {
-                        self.warnings.add(|| {
-                            warnings::SlowPattern::build(
-                                &self.report_builder,
-                                self.report_builder
-                                    .span_to_code_loc(pat.span().clone()),
-                                None,
-                            )
-                        });
-                    }
+                    && Self::common_byte_repetition(literal_bytes)
+                {
+                    self.warnings.add(|| {
+                        warnings::SlowPattern::build(
+                            &self.report_builder,
+                            self.report_builder
+                                .span_to_code_loc(pat.span().clone()),
+                            None,
+                        )
+                    });
+                }
             }
         }
 
@@ -2970,16 +2973,16 @@ impl Warnings {
             if warn
                 && let Some(spans) =
                     self.suppressed_warnings.get(warning.code())
-                {
-                    'l: for disabled_span in spans {
-                        for label in warning.labels() {
-                            if disabled_span.contains(label.span()) {
-                                warn = false;
-                                break 'l;
-                            }
+            {
+                'l: for disabled_span in spans {
+                    for label in warning.labels() {
+                        if disabled_span.contains(label.span()) {
+                            warn = false;
+                            break 'l;
                         }
                     }
                 }
+            }
 
             if warn {
                 self.warnings.push(warning);

@@ -42,14 +42,15 @@ pub fn rename(
             };
 
             if let Some(definition) = pattern_from_ident(&rule, &ident)
-                && let Some(first_token) = definition.first_token() {
-                    // Don't change first character (`$`, `!`, `#` or `@`)
-                    let mut range = token_to_range(&first_token)?;
-                    range.start.character += 1;
+                && let Some(first_token) = definition.first_token()
+            {
+                // Don't change first character (`$`, `!`, `#` or `@`)
+                let mut range = token_to_range(&first_token)?;
+                range.start.character += 1;
 
-                    text_edits
-                        .push(TextEdit { range, new_text: new_text.clone() });
-                }
+                text_edits
+                    .push(TextEdit { range, new_text: new_text.clone() });
+            }
 
             if let Some(occurrences) = pattern_usages(&rule, &ident) {
                 for occurrence in occurrences {

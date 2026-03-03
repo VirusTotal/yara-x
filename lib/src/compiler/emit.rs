@@ -399,9 +399,10 @@ fn emit_expr(
                             // root structure, we know that the stack already
                             // contains the object.
                             if let Some((_, true)) = ctx.lookup_list.first()
-                                && func.is_method() {
-                                    emit_lookup_object(ctx, instr);
-                                }
+                                && func.is_method()
+                            {
+                                emit_lookup_object(ctx, instr);
+                            }
                             ctx.lookup_list.clear();
                         }
                         TypeValue::Regexp(_) => {
@@ -955,10 +956,11 @@ fn emit_field_access(
     // Rust code.
     for operand in field_access.operands.iter().dropping_back(1) {
         if let Expr::Symbol(symbol) = ir.get(*operand)
-            && let Symbol::Field { index, is_root, .. } = symbol.as_ref() {
-                ctx.lookup_list.push((*index as i32, *is_root));
-                continue;
-            }
+            && let Symbol::Field { index, is_root, .. } = symbol.as_ref()
+        {
+            ctx.lookup_list.push((*index as i32, *is_root));
+            continue;
+        }
         emit_expr(ctx, ir, *operand, instr);
     }
 

@@ -355,13 +355,14 @@ impl Component for CompileState {
         let mut lines = Lines::new();
 
         if mode == superconsole::DrawMode::Normal
-            && let Some(file) = &self.file_in_progress {
-                lines.push(Line::from_iter([Span::new_unstyled(format!(
-                    "{} {}...",
-                    "Compiling".paint(Green).bold(),
-                    file.display(),
-                ))?]));
-            }
+            && let Some(file) = &self.file_in_progress
+        {
+            lines.push(Line::from_iter([Span::new_unstyled(format!(
+                "{} {}...",
+                "Compiling".paint(Green).bold(),
+                file.display(),
+            ))?]));
+        }
 
         Ok(lines)
     }

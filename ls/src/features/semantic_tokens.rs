@@ -254,9 +254,10 @@ impl Iterator for SemanticTokensIter {
 
                 // If we've passed the range, stop iterating early.
                 if let Some(range) = self.range
-                    && range.end.line < line {
-                        return None;
-                    }
+                    && range.end.line < line
+                {
+                    return None;
+                }
 
                 // Multi-line tokens are not supported by the LSP client,
                 // therefore tokens that contain newlines are split into

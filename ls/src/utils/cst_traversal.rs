@@ -67,9 +67,10 @@ pub(crate) fn ident_at_position(
                     | SyntaxKind::PATTERN_COUNT
                     | SyntaxKind::PATTERN_OFFSET
                     | SyntaxKind::PATTERN_LENGTH
-            ) {
-                return Some(token);
-            }
+            )
+        {
+            return Some(token);
+        }
         None
     };
 
@@ -104,9 +105,10 @@ pub(crate) fn rule_from_ident(
             .children_with_tokens()
             .find(|n| n.kind() == SyntaxKind::IDENT)
             .and_then(|node| node.into_token())
-            && rule_ident.text() == ident.text() {
-                return Some(rule);
-            }
+            && rule_ident.text() == ident.text()
+        {
+            return Some(rule);
+        }
     }
 
     None
@@ -427,9 +429,9 @@ pub fn get_includes(root: &Node<Immutable>, base: &Url) -> Vec<Url> {
                     && include_len > 2
                     && let Ok(new_url) =
                         base.join(&include_text[1..include_len - 1])
-                    {
-                        includes.push(new_url);
-                    }
+                {
+                    includes.push(new_url);
+                }
             }
         });
     includes

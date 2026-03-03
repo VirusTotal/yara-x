@@ -180,10 +180,11 @@ fn generate_proto_code() {
             proto_parser.include(path);
         }
         if let Some(extension) = path.extension()
-            && extension == "proto" {
-                proto_compiler.input(path);
-                proto_parser.input(path);
-            }
+            && extension == "proto"
+        {
+            proto_compiler.input(path);
+            proto_parser.input(path);
+        }
     }
 
     // The environment variable `YRX_EXTRA_PROTOS` allows passing a list of

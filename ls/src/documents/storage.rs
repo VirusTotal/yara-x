@@ -165,9 +165,10 @@ impl DocumentStorage {
 
                     if let Ok(new_uri) =
                         curr.join(&include_text[1..include_len - 1])
-                        && !accessed.contains(&new_uri) {
-                            includes.push(new_uri);
-                        }
+                        && !accessed.contains(&new_uri)
+                    {
+                        includes.push(new_uri);
+                    }
                 }
             }
 

@@ -86,7 +86,7 @@ impl<'src> TokenStream<'src> {
     /// Returns `None` when peeking a token past the end of the stream.
     pub fn peek_token(&mut self, n: usize) -> Option<&Token> {
         self.fetch_tokens(self.current_token + n);
-        
+
         self.tokens.get(self.rel_pos(self.current_token + n))
     }
 

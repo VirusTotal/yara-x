@@ -758,9 +758,9 @@ mod output_handler {
                     && !matching_rule
                         .tags()
                         .any(|tag| tag.identifier() == only_tag)
-                    {
-                        continue;
-                    }
+                {
+                    continue;
+                }
 
                 result = true;
 
