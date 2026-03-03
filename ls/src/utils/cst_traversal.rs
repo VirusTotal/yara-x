@@ -306,7 +306,7 @@ pub fn idents_declared_by_expr(
 /// Finds all identifiers declared by a `with` expression.
 pub fn idents_declared_by_with(
     with_expr: &Node<Immutable>,
-) -> impl Iterator<Item = Token<Immutable>> {
+) -> impl Iterator<Item = Token<Immutable>> + use<> {
     assert_eq!(with_expr.kind(), SyntaxKind::WITH_EXPR);
 
     with_expr
@@ -331,7 +331,7 @@ pub fn idents_declared_by_with(
 /// Finds all identifiers declared by a `for` expression.
 pub fn idents_declared_by_for(
     for_expr: &Node<Immutable>,
-) -> impl Iterator<Item = Token<Immutable>> {
+) -> impl Iterator<Item = Token<Immutable>> + use<> {
     assert_eq!(for_expr.kind(), SyntaxKind::FOR_EXPR);
     for_expr
         .children_with_tokens()
