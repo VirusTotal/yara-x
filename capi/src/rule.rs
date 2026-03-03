@@ -1,4 +1,4 @@
-use std::ffi::{CString, c_char, c_void};
+use std::ffi::{c_char, c_void, CString};
 use yara_x::MetaValue;
 
 use crate::{

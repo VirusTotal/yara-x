@@ -1,9 +1,9 @@
-use std::ffi::{CStr, c_char};
+use std::ffi::{c_char, CStr};
 use std::mem;
 use std::mem::ManuallyDrop;
 
-use yara_x::SourceCode;
 use yara_x::errors::{CompileError, SerializationError, VariableError};
+use yara_x::SourceCode;
 
 use crate::{_yrx_set_last_error, YRX_BUFFER, YRX_RESULT, YRX_RULES};
 
