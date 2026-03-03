@@ -11,6 +11,7 @@ use clap::{
     arg, value_parser, Arg, ArgAction, ArgMatches, Command, ValueEnum,
 };
 use crossbeam::channel::Sender;
+use dunce;
 use itertools::Itertools;
 use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
@@ -1069,8 +1070,7 @@ mod output_handler {
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
             _output: &Sender<Message>,
         ) -> bool {
-            let path = file_path
-                .canonicalize()
+            let path = dunce::canonicalize(&file_path)
                 .ok()
                 .as_ref()
                 .and_then(|absolute| absolute.to_str())
