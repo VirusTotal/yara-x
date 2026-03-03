@@ -34,6 +34,7 @@ Commands:
   scan        Scan a file or directory
   compile     Compile rules to binary form
   dump        Show the data produced by YARA modules for a file
+  deps        Show rule dependencies
   fmt         Format YARA source files
   completion  Output shell completion code for the specified shell
   help        Print this message or the help of the given subcommand(s)
@@ -468,3 +469,57 @@ many spaces each tab represents. Setting this incorrectly can lead to misaligned
 formatting when the code mixes tabs and spaces.
 
 By default, it uses 4 spaces.
+
+
+------
+
+## deps
+
+Show rule dependencies and modules.
+
+This command shows a tree-like structure that tells which rules depend on
+other rules, and which modules are used by each rule.
+
+For example, if you have the following rules:
+
+```yara
+import "pe"
+
+rule rule_1 {
+  condition:
+    pe.is_dll()
+}
+
+rule rule_2 {
+  condition:
+    rule_1
+}
+```
+
+The `deps` command will show:
+
+```
+ rule_1
+ └─ mod: pe
+
+ rule_2
+ └─ rule_1
+    └─ mod: pe
+```
+
+This indicates that `rule_2` depends on `rule_1`, which in turns uses the `pe`
+module.
+
+The syntax for this command is:
+
+```
+yr deps [OPTIONS] <RULES_PATH>
+```
+
+### --rule <RULE_NAME>
+
+Show information about the specified rule(s) only. If this option is not used,
+the command shows information about all the rules in the file. This option can
+be used multiple times.
+
+------
