@@ -1,11 +1,10 @@
-use assert_cmd::{Command, cargo::cargo_bin};
+use assert_cmd::{Command, cargo_bin};
 use assert_fs::TempDir;
 use assert_fs::prelude::*;
 
 #[test]
 fn ast() {
     Command::new(cargo_bin!("yr"))
-        .unwrap()
         .arg("debug")
         .arg("ast")
         .arg("src/tests/testdata/foo.yar")
@@ -16,7 +15,6 @@ fn ast() {
 #[test]
 fn cst() {
     Command::new(cargo_bin!("yr"))
-        .unwrap()
         .arg("debug")
         .arg("cst")
         .arg("src/tests/testdata/foo.yar")
@@ -32,7 +30,6 @@ fn wasm() {
     input_file.write_str("rule test { condition: true }").unwrap();
 
     Command::new(cargo_bin!("yr"))
-        .unwrap()
         .arg("debug")
         .arg("wasm")
         .arg(input_file.path())

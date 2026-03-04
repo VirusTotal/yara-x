@@ -304,16 +304,22 @@ strum_macros = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true, optional = true, features = ["v4"] }
 walrus = { workspace = true }
-wasmtime = { workspace = true, default-features = false, features = [
-    "cranelift",
-    "runtime",
-] }
 x509-parser = { workspace = true, optional = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true, features = ["serde"] }
 zip = { workspace = true, optional = true }
 simd-adler32 = {workspace = true, optional = true}
 simd_cesu8 = {workspace = true, optional = true}
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+wasmtime = { workspace = true, default-features = false, features = [
+    "cranelift",
+    "runtime",
+] }
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+js-sys = "0.3.90"
+wasm-bindgen = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
