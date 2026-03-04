@@ -11,11 +11,10 @@ use std::mem::transmute;
 use std::pin::Pin;
 use std::time::Duration;
 
-use wasmtime::Store;
-
 use crate::errors::VariableError;
 use crate::scanner::context::{ScanState, create_wasm_store_and_ctx};
 use crate::scanner::{DataSnippets, ScanContext};
+use crate::wasm::runtime::Store;
 use crate::{Rules, ScanError, ScanResults, Variable};
 
 /// Scans data in blocks

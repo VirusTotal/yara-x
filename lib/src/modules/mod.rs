@@ -20,6 +20,7 @@ mod tests;
 #[allow(unused_imports)]
 pub(crate) mod prelude {
     pub(crate) use crate::scanner::ScanContext;
+    pub(crate) use crate::wasm::runtime::Caller;
     pub(crate) use crate::wasm::string::FixedLenString;
     pub(crate) use crate::wasm::string::RuntimeString;
     pub(crate) use crate::wasm::string::String as _;
@@ -28,7 +29,6 @@ pub(crate) mod prelude {
     pub(crate) use bstr::ByteSlice;
     #[cfg(not(feature = "inventory"))]
     pub(crate) use linkme::distributed_slice;
-    pub(crate) use wasmtime::Caller;
     pub(crate) use yara_x_macros::{module_export, module_main, wasm_export};
 }
 

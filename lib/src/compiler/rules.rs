@@ -69,7 +69,7 @@ pub struct Rules {
         serialize_with = "serialize_wasm_mod",
         deserialize_with = "deserialize_wasm_mod"
     )]
-    pub(in crate::compiler) compiled_wasm_mod: Option<wasmtime::Module>,
+    pub(in crate::compiler) compiled_wasm_mod: Option<wasm::runtime::Module>,
 
     /// Vector with the names of all the imported modules. The vector contains
     /// the [`IdentId`] corresponding to the module's identifier.
@@ -225,10 +225,11 @@ impl Rules {
             #[cfg(feature = "logging")]
             let start = Instant::now();
 
-            rules.compiled_wasm_mod = Some(wasmtime::Module::from_binary(
-                wasm::get_engine(),
-                rules.wasm_mod.as_slice(),
-            )?);
+            rules.compiled_wasm_mod =
+                Some(wasm::runtime::Module::from_binary(
+                    wasm::get_engine(),
+                    rules.wasm_mod.as_slice(),
+                )?);
 
             #[cfg(feature = "logging")]
             info!("WASM build time: {:?}", Instant::elapsed(&start));
@@ -498,7 +499,7 @@ impl Rules {
     }
 
     #[inline]
-    pub(crate) fn wasm_mod(&self) -> &wasmtime::Module {
+    pub(crate) fn wasm_mod(&self) -> &wasm::runtime::Module {
         self.compiled_wasm_mod.as_ref().unwrap()
     }
 
@@ -532,7 +533,7 @@ where
 
 #[cfg(not(feature = "native-code-serialization"))]
 fn serialize_wasm_mod<S>(
-    _wasm_mod: &Option<wasmtime::Module>,
+    _wasm_mod: &Option<wasm::runtime::Module>,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
@@ -543,14 +544,14 @@ where
 
 pub fn deserialize_wasm_mod<'de, D>(
     deserializer: D,
-) -> Result<Option<wasmtime::Module>, D::Error>
+) -> Result<Option<wasm::runtime::Module>, D::Error>
 where
     D: Deserializer<'de>,
 {
     let bytes: Option<&[u8]> = Deserialize::deserialize(deserializer)?;
     let module = if let Some(bytes) = bytes {
         unsafe {
-            wasmtime::Module::deserialize(wasm::get_engine(), bytes).ok()
+            wasm::runtime::Module::deserialize(wasm::get_engine(), bytes).ok()
         }
     } else {
         None

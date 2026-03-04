@@ -761,7 +761,7 @@ impl<'a> Compiler<'a> {
         // if the WASM code is invalid, which should not happen as the code is
         // emitted by YARA itself. If this ever happens is probably because
         // wrong WASM code is being emitted.
-        let compiled_wasm_mod = wasmtime::Module::from_binary(
+        let compiled_wasm_mod = wasm::runtime::Module::from_binary(
             wasm::get_engine(),
             wasm_mod.as_slice(),
         )
