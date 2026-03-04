@@ -9,7 +9,7 @@ mod browser_runtime {
     use std::pin::Pin;
     use std::sync::Arc;
 
-    use anyhow::{Result, anyhow};
+    use anyhow::{anyhow, Result};
     use js_sys::{
         Array, BigInt, Function, Object, Reflect, Uint8Array, WebAssembly,
     };
@@ -57,6 +57,15 @@ mod browser_runtime {
         where
             F: FnMut(StoreContextMut<'_, T>) -> Result<()> + 'static,
         {
+        }
+
+        /// Clears all runtime-allocated state so the store can be safely
+        /// reused for a fresh module setup.
+        ///
+        /// Call this only after any previous instance tied to this store has
+        /// been dropped.
+        pub fn reset_runtime_state(&mut self) {
+            self.runtime.reset_for_store_reuse();
         }
     }
 
@@ -144,6 +153,10 @@ mod browser_runtime {
     pub struct Config;
 
     impl Config {
+        pub fn native_unwind_info(&mut self, _enabled: bool) -> &mut Self {
+            self
+        }
+
         pub fn cranelift_opt_level(&mut self, _level: OptLevel) -> &mut Self {
             self
         }
@@ -182,6 +195,8 @@ mod browser_runtime {
         }
 
         pub fn increment_epoch(&self) {}
+
+        pub fn unload_process_handlers(self) {}
     }
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -249,12 +264,16 @@ mod browser_runtime {
             params: Vec<ValType>,
             results: impl IntoIterator<Item = ValType>,
         ) -> Self {
-            Self { params, results: results.into_iter().collect() }
+            Self {
+                params,
+                results: results.into_iter().collect(),
+            }
         }
     }
 
-    pub type HostFunc<T> =
-        Arc<dyn Fn(Caller<'_, T>, &mut [ValRaw]) -> Result<()> + Send + Sync>;
+    pub type HostFunc<T> = Arc<
+        dyn Fn(Caller<'_, T>, &mut [ValRaw]) -> Result<()> + Send + Sync,
+    >;
 
     struct RegisteredFunc<T> {
         module: String,
@@ -395,11 +414,10 @@ mod browser_runtime {
 
                         store.runtime.sync_memory_from_js();
 
-                        let mut args_and_results =
-                            vec![
-                                ValRaw::default();
-                                cmp::max(params.len(), results.len())
-                            ];
+                        let mut args_and_results = vec![
+                            ValRaw::default();
+                            cmp::max(params.len(), results.len())
+                        ];
 
                         let incoming = [a0, a1, a2, a3];
 
@@ -434,12 +452,7 @@ mod browser_runtime {
                     },
                 )
                     as Box<
-                        dyn FnMut(
-                            JsValue,
-                            JsValue,
-                            JsValue,
-                            JsValue,
-                        ) -> JsValue,
+                        dyn FnMut(JsValue, JsValue, JsValue, JsValue) -> JsValue,
                     >);
 
                 Reflect::set(
@@ -453,8 +466,8 @@ mod browser_runtime {
             }
 
             let bytes = Uint8Array::from(module.bytes.as_slice());
-            let js_module =
-                WebAssembly::Module::new(&bytes.into()).map_err(js_error)?;
+            let js_module = WebAssembly::Module::new(&bytes.into())
+                .map_err(js_error)?;
             let js_instance = WebAssembly::Instance::new(&js_module, &imports)
                 .map_err(js_error)?;
 
@@ -488,6 +501,13 @@ mod browser_runtime {
     }
 
     impl Val {
+        pub fn i32(self) -> Option<i32> {
+            match self {
+                Val::I32(v) => Some(v),
+                _ => None,
+            }
+        }
+
         pub fn i64(self) -> Option<i64> {
             match self {
                 Val::I64(v) => Some(v),
@@ -532,26 +552,22 @@ mod browser_runtime {
                 js_global,
             });
 
-            Ok(Self { id: store.runtime.globals.len() - 1 })
+            Ok(Self {
+                id: store.runtime.globals.len() - 1,
+            })
         }
 
         pub fn get<T>(&self, store: StoreContextMut<'_, T>) -> Val {
             let inner = &store.runtime.globals[self.id];
-            js_to_val(&inner.js_global.value(), inner.val_type).unwrap_or(
-                match inner.val_type {
-                    ValType::I32 => Val::I32(0),
-                    ValType::I64 => Val::I64(0),
-                    ValType::F32 => Val::F32(0),
-                    ValType::F64 => Val::F64(0),
-                },
-            )
+            js_to_val(&inner.js_global.value(), inner.val_type).unwrap_or(match inner.val_type {
+                ValType::I32 => Val::I32(0),
+                ValType::I64 => Val::I64(0),
+                ValType::F32 => Val::F32(0),
+                ValType::F64 => Val::F64(0),
+            })
         }
 
-        pub fn set<T>(
-            &self,
-            store: StoreContextMut<'_, T>,
-            value: Val,
-        ) -> Result<()> {
+        pub fn set<T>(&self, store: StoreContextMut<'_, T>, value: Val) -> Result<()> {
             let inner = &store.runtime.globals[self.id];
             if !matches!(inner.mutability, Mutability::Var) {
                 return Err(anyhow!("attempted to set immutable global"));
@@ -604,7 +620,9 @@ mod browser_runtime {
 
             store.runtime.memories.push(MemoryInner { js_memory, cache });
 
-            Ok(Self { id: store.runtime.memories.len() - 1 })
+            Ok(Self {
+                id: store.runtime.memories.len() - 1,
+            })
         }
 
         pub fn data<'a, T>(&self, store: StoreContext<'a, T>) -> &'a [u8] {
@@ -630,9 +648,10 @@ mod browser_runtime {
     impl Module {
         pub fn from_binary(_engine: &Engine, bytes: &[u8]) -> Result<Self> {
             let wasm = Uint8Array::from(bytes);
-            let _ =
-                WebAssembly::Module::new(&wasm.into()).map_err(js_error)?;
-            Ok(Self { bytes: bytes.to_vec() })
+            let _ = WebAssembly::Module::new(&wasm.into()).map_err(js_error)?;
+            Ok(Self {
+                bytes: bytes.to_vec(),
+            })
         }
 
         pub unsafe fn deserialize(
@@ -640,6 +659,10 @@ mod browser_runtime {
             bytes: &[u8],
         ) -> Result<Self> {
             Self::from_binary(_engine, bytes)
+        }
+
+        pub fn serialize(&self) -> Result<Vec<u8>> {
+            Ok(self.bytes.clone())
         }
     }
 
@@ -681,8 +704,10 @@ mod browser_runtime {
         ) -> Result<i32> {
             store.runtime.sync_memory_to_js();
 
-            let value =
-                self.function.call0(&JsValue::UNDEFINED).map_err(js_error)?;
+            let value = self
+                .function
+                .call0(&JsValue::UNDEFINED)
+                .map_err(js_error)?;
 
             store.runtime.sync_memory_from_js();
 
@@ -698,14 +723,19 @@ mod browser_runtime {
     struct RuntimeState {
         globals: Vec<GlobalInner>,
         memories: Vec<MemoryInner>,
-        import_callbacks: Vec<
-            Closure<dyn FnMut(JsValue, JsValue, JsValue, JsValue) -> JsValue>,
-        >,
+        import_callbacks:
+            Vec<Closure<dyn FnMut(JsValue, JsValue, JsValue, JsValue) -> JsValue>>,
     }
 
     impl RuntimeState {
         fn prepare_for_instantiation(&mut self) {
             self.import_callbacks.clear();
+        }
+
+        fn reset_for_store_reuse(&mut self) {
+            self.import_callbacks.clear();
+            self.globals.clear();
+            self.memories.clear();
         }
 
         fn sync_memory_from_js(&mut self) {
@@ -792,8 +822,10 @@ mod browser_runtime {
         }
 
         let bigint = BigInt::from(value.clone());
-        let text: String =
-            bigint.to_string(10).map_err(|err| js_error(err.into()))?.into();
+        let text: String = bigint
+            .to_string(10)
+            .map_err(|err| js_error(err.into()))?
+            .into();
 
         text.parse::<i64>()
             .map_err(|err| anyhow!("invalid i64 value `{text}`: {err}"))

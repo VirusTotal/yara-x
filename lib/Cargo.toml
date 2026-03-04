@@ -312,8 +312,6 @@ zip = { workspace = true, optional = true }
 simd-adler32 = {workspace = true, optional = true}
 simd_cesu8 = {workspace = true, optional = true}
 
-lingua = { version = "1.6.2", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
-
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 wasmtime = { workspace = true, default-features = false, features = [
     "cranelift",
@@ -322,7 +320,7 @@ wasmtime = { workspace = true, default-features = false, features = [
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 js-sys = "0.3.90"
-wasm-bindgen = "0.2.113"
+wasm-bindgen = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
