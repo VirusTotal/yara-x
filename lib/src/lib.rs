@@ -75,6 +75,7 @@ pub use variables::Variable;
 mod compiler;
 mod modules;
 mod re;
+mod runtime;
 mod scanner;
 mod string_pool;
 mod symbols;
@@ -85,6 +86,12 @@ mod wasm;
 mod models;
 #[cfg(test)]
 mod tests;
+
+#[cfg(target_family = "wasm")]
+pub use runtime::*;
+
+#[cfg(target_family = "wasm")]
+extern crate self as wasmtime;
 
 /// Current version number as a string (example: "1.9.0").
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

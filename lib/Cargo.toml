@@ -308,9 +308,11 @@ walrus = { workspace = true }
 x509-parser = { workspace = true, optional = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true, features = ["serde"] }
-zip = { workspace = true, optional = true, features = ["deflate"] }
+zip = { workspace = true, optional = true }
 simd-adler32 = {workspace = true, optional = true}
 simd_cesu8 = {workspace = true, optional = true}
+
+lingua = { version = "1.6.2", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 wasmtime = { workspace = true, default-features = false, features = [
@@ -320,11 +322,7 @@ wasmtime = { workspace = true, default-features = false, features = [
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 js-sys = "0.3.90"
-wasm-bindgen = { workspace = true }
-# When compiling for WASM the `js` feature is needed. The dependency chain for
-# getrandom is: dsa -> num-bigint-dig -> rand -> rand_core -> getrandom. When
-# `dsa` gets upgraded to a newer version this may not be required anymore.
-getrandom = { version = "0.2.17", features = ["js"]}
+wasm-bindgen = "0.2.113"
 
 [build-dependencies]
 anyhow = { workspace = true }
