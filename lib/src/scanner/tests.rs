@@ -3,9 +3,9 @@ use protobuf::MessageDyn;
 use protobuf::{Message, MessageFull};
 use serde_json::json;
 
-use crate::Scanner;
 use crate::models::MetaValue;
 use crate::variables::VariableError;
+use crate::{Rule, Scanner};
 use crate::{ScanOptions, mods};
 
 #[cfg(feature = "rules-profiling")]
@@ -799,6 +799,63 @@ fn scan_no_mmap() {
         .unwrap();
 
     assert_eq!(scan_results.matching_rules().len(), 1);
+}
+
+#[test]
+fn rule_serialization() {
+    let rules = crate::compile(
+        r#"
+    rule test: foo bar {
+      meta:
+        foo = "foo"
+        bar = 1
+        baz = 2.0
+        qux = true
+      strings:
+        $a = "aaaa"
+      condition:
+        $a
+    }
+    "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+
+    let scan_results = scanner.scan(b"aaaa").unwrap();
+    let matching_rules: Vec<Rule> = scan_results.matching_rules().collect();
+
+    let expected = json!([{
+        "identifier": "test",
+        "namespace": "default",
+        "is_global": false,
+        "is_private": false,
+        "metadata": [
+            ["foo", "foo"],
+            ["bar", 1],
+            ["baz", 2.0],
+            ["qux", true],
+        ],
+        "tags": ["foo", "bar"],
+        "patterns": [
+            {
+                "identifier": "$a",
+                "kind": "Text",
+                "is_private": false,
+                "matches": [
+                    {
+                        "range": {
+                            "start": 0,
+                            "end": 4
+                        },
+                        "xor_key": null
+                    }
+                ]
+            }
+        ]
+    }]);
+
+    assert_eq!(serde_json::to_value(&matching_rules).unwrap(), expected);
 }
 
 #[cfg(feature = "rules-profiling")]
