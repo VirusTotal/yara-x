@@ -41,6 +41,7 @@ impl Default for FormattingConfiguration {
 /// Rule that describes a how to validate a metadata entry in a rule.
 #[derive(Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct MetadataValidationRule {
     /// Metadata identifier
     pub identifier: String,

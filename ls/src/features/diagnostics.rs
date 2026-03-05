@@ -1,15 +1,19 @@
 use std::sync::Arc;
 
+use async_lsp::lsp_types::{Diagnostic, Range, Url};
+#[cfg(feature = "full-compiler")]
 use async_lsp::lsp_types::{
-    Diagnostic, DiagnosticRelatedInformation, Location, Range, Url,
+    DiagnosticRelatedInformation, DiagnosticSeverity, Location, NumberOrString,
 };
 #[cfg(feature = "full-compiler")]
-use async_lsp::lsp_types::{DiagnosticSeverity, NumberOrString};
 use dashmap::mapref::one::Ref;
 use serde::{Deserialize, Serialize};
 
 use crate::configuration::MetadataValidationRule;
-use crate::documents::{document::Document, storage::DocumentStorage};
+
+#[cfg(feature = "full-compiler")]
+use crate::documents::document::Document;
+use crate::documents::storage::DocumentStorage;
 
 #[cfg(feature = "full-compiler")]
 use yara_x::linters;

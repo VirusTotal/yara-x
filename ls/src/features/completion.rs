@@ -5,6 +5,8 @@ use async_lsp::lsp_types::{
     CompletionItemLabelDetails, CompletionTriggerKind, InsertTextFormat,
     InsertTextMode, Position, Url,
 };
+
+#[cfg(feature = "full-compiler")]
 use itertools::Itertools;
 
 #[cfg(feature = "full-compiler")]
@@ -15,9 +17,12 @@ use yara_x_parser::cst::{CST, Immutable, Node, SyntaxKind, Token};
 
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
-    find_declaration, idents_declared_by_expr, non_error_parent,
-    prev_non_trivia_token, rule_containing_token, token_at_position,
+    idents_declared_by_expr, non_error_parent, prev_non_trivia_token,
+    rule_containing_token, token_at_position,
 };
+
+#[cfg(feature = "full-compiler")]
+use crate::utils::cst_traversal::find_declaration;
 
 const PATTERN_MODS: &[(SyntaxKind, &[&str])] = &[
     (
@@ -327,6 +332,7 @@ fn rule_suggestions() -> Vec<CompletionItem> {
         .collect()
 }
 
+#[cfg(feature = "full-compiler")]
 #[derive(Debug)]
 enum Segment {
     Field(String),
