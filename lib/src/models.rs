@@ -2,7 +2,8 @@ use std::ops::Range;
 use std::slice::Iter;
 
 use bstr::{BStr, ByteSlice};
-use serde::{Deserialize, Serialize};
+use serde::ser::SerializeStruct;
+use serde::{Deserialize, Serialize, Serializer};
 
 use crate::compiler::{IdentId, PatternId, PatternInfo, RuleInfo};
 use crate::scanner::{ScanContext, ScanState};
@@ -80,6 +81,31 @@ impl<'a, 'r> Rule<'a, 'r> {
                 - self.rule_info.num_private_patterns,
             len_private: self.rule_info.num_private_patterns,
         }
+    }
+}
+
+impl Serialize for Rule<'_, '_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("rule", 7)?;
+
+        s.serialize_field("identifier", &self.identifier())?;
+        s.serialize_field("namespace", &self.namespace())?;
+        s.serialize_field("is_global", &self.is_global())?;
+        s.serialize_field("is_private", &self.is_private())?;
+
+        let metadata: Vec<_> = self.metadata().collect();
+        s.serialize_field("metadata", &metadata)?;
+
+        let tags: Vec<_> = self.tags().collect();
+        s.serialize_field("tags", &tags)?;
+
+        let patterns: Vec<_> = self.patterns().include_private(true).collect();
+        s.serialize_field("patterns", &patterns)?;
+
+        s.end()
     }
 }
 
@@ -242,6 +268,15 @@ impl<'r> Tag<'r> {
     }
 }
 
+impl<'r> Serialize for Tag<'r> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.identifier())
+    }
+}
+
 /// An iterator that returns the patterns defined by a rule.
 ///
 /// By default, the iterator yields only public patterns. Use
@@ -351,6 +386,21 @@ impl<'a, 'r> Pattern<'a, 'r> {
     }
 }
 
+impl<'a, 'r> Serialize for Pattern<'a, 'r> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("pattern", 4)?;
+        s.serialize_field("identifier", &self.identifier())?;
+        s.serialize_field("kind", &self.kind())?;
+        s.serialize_field("is_private", &self.is_private())?;
+        let matches: Vec<_> = self.matches().collect();
+        s.serialize_field("matches", &matches)?;
+        s.end()
+    }
+}
+
 /// Iterator that returns the matches for a pattern.
 pub struct Matches<'a, 'r> {
     ctx: Option<&'a ScanContext<'r, 'a>>,
@@ -401,5 +451,17 @@ impl<'a> Match<'a, '_> {
     #[inline]
     pub fn xor_key(&self) -> Option<u8> {
         self.inner.xor_key
+    }
+}
+
+impl<'a, 'r> Serialize for Match<'a, 'r> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("match", 2)?;
+        s.serialize_field("range", &self.range())?;
+        s.serialize_field("xor_key", &self.xor_key())?;
+        s.end()
     }
 }
