@@ -41,7 +41,7 @@ constant-folding = []
 # "abcd" we can be sure that the whole regexp matches. However, the atom "abc"
 # is not exact, finding "abc" is not enough, the regexp must be evaluated in
 # order to verify if it matches. If this feature is not enabled exact atoms are
-# treated as standard (non-exact) atoms.
+# treated as standard (non-exact) atoms. This is enabled by default.
 exact-atoms = []
 
 # Enables the use of FastVM for matching regular expression, as an alternative
@@ -248,6 +248,7 @@ default-modules = [
 default = [
     "constant-folding",
     "default-modules",
+    "exact-atoms",
     "fast-regexp",
     "generate-proto-code",
     "linkme",
