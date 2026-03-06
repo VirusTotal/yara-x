@@ -2,7 +2,7 @@ import json
 import toml
 
 # Paths to the files
-cargo_toml_path = 'ls/Cargo.toml'
+cargo_toml_path = 'Cargo.toml'
 package_json_path = 'ls/editors/code/package.json'
 
 # Read the version from Cargo.toml

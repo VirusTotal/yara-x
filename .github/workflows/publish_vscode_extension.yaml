@@ -1,13 +1,11 @@
 name: Build and Publish VSCode Extension
 
 on:
+  create:
+    tags:
+      - 'v*'
+  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-  #push:
-  #  branches:
-  #    - main
-  #  paths:
-  #    - "ls/editors/code/**"
-  #    - ".github/workflows/publish-vscode-extension.yaml"
 
 jobs:
   build-and-publish:
