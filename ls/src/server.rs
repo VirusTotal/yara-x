@@ -704,6 +704,23 @@ impl YARALanguageServer {
                             ),
                         });
                     }
+
+                    for rule in &config.metadata_validation {
+                        if let Some(pattern) = &rule.regex {
+                            if let Err(err) = regex::Regex::new(pattern) {
+                                let _ = client.show_message(ShowMessageParams {
+                                    typ: MessageType::ERROR,
+                                    message: format!(
+                                        "YARA: invalid regex for metadata '{}': {} ({})",
+                                        rule.identifier,
+                                        pattern,
+                                        err
+                                    ),
+                                });
+                            }
+                        }
+                    }
+
                     let _ = client.emit(UpdateConfig(config));
                 }
                 None => {

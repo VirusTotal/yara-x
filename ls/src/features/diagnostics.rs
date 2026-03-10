@@ -9,9 +9,10 @@ use async_lsp::lsp_types::{
 use dashmap::mapref::one::Ref;
 use serde::{Deserialize, Serialize};
 
-use crate::configuration::MetadataValidationRule;
 use chrono::NaiveDate;
+use regex::Regex;
 
+use crate::configuration::MetadataValidationRule;
 #[cfg(feature = "full-compiler")]
 use crate::documents::document::Document;
 use crate::documents::storage::DocumentStorage;
@@ -95,18 +96,37 @@ pub fn compiler_diagnostics(
         if let Some(ty) = &validation_rule.ty {
             match ty.as_str() {
                 "string" => {
-                    compiler.add_linter(linter.validator(
-                        |meta| {
-                            matches!(
-                                meta.value,
-                                yara_x_parser::ast::MetaValue::String(_)
-                            )
-                        },
-                        format!(
-                            "`{}` must be a `string`",
-                            validation_rule.identifier
-                        ),
-                    ));
+                    if let Some(pattern) = &validation_rule.regex {
+                        compiler.add_linter(linter.validator(
+                            |meta| {
+                                if let yara_x_parser::ast::MetaValue::String(
+                                    value,
+                                ) = &meta.value
+                                {
+                                    Regex::new(pattern).unwrap().is_match(value.0)
+                                } else {
+                                    false
+                                }
+                            },
+                            format!(
+                                "`{}` must be a string and match the pattern `{}`",
+                                validation_rule.identifier, pattern
+                            ),
+                        ));
+                    } else {
+                        compiler.add_linter(linter.validator(
+                            |meta| {
+                                matches!(
+                                    meta.value,
+                                    yara_x_parser::ast::MetaValue::String(_)
+                                )
+                            },
+                            format!(
+                                "`{}` must be a `string`",
+                                validation_rule.identifier
+                            ),
+                        ));
+                    }
                 }
                 "integer" => {
                     compiler.add_linter(linter.validator(

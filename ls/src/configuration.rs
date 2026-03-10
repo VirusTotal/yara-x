@@ -53,4 +53,7 @@ pub struct MetadataValidationRule {
     pub ty: Option<String>,
     /// Format of the metadata entry, if type is "date".
     pub format: Option<String>,
+    /// Regex pattern to validate the metadata entry, if type is "string".
+    #[serde(default)]
+    pub regex: Option<String>,
 }
