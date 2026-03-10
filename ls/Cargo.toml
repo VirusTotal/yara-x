@@ -35,6 +35,7 @@ default = ["full-compiler"]
 
 [dependencies]
 bitflags = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
 dashmap = { version = "6.1.0" }
 futures = "0.3.32"
 regex = { workspace = true }

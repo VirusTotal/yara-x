@@ -454,6 +454,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-link",
 ]
@@ -5194,6 +5195,7 @@ version = "1.14.0"
 dependencies = [
  "async-lsp",
  "bitflags 2.11.0",
+ "chrono",
  "dashmap",
  "futures",
  "goldenfile",

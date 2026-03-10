@@ -94,8 +94,12 @@
               },
               "type": {
                 "type": "string",
-                "enum": ["string", "integer", "float", "bool"],
+                "enum": ["string", "integer", "float", "bool", "date"],
                 "description": "The expected type of the metadata value."
+              },
+              "format": {
+                "type": "string",
+                "description": "The expected format of the date string (e.g., `%Y-%m-%d`)."
               }
             }
           }

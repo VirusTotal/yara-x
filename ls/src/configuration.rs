@@ -51,4 +51,6 @@ pub struct MetadataValidationRule {
     /// Type of the metadata entry.
     #[serde(rename = "type")]
     pub ty: Option<String>,
+    /// Format of the metadata entry, if type is "date".
+    pub format: Option<String>,
 }
