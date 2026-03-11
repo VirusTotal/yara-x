@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use async_lsp::lsp_types::{Diagnostic, Range, Url};
-#[cfg(feature = "full-compiler")]
+
 use async_lsp::lsp_types::{
     DiagnosticRelatedInformation, DiagnosticSeverity, Location, NumberOrString,
 };
-#[cfg(feature = "full-compiler")]
+
 use dashmap::mapref::one::Ref;
 use serde::{Deserialize, Serialize};
 
@@ -13,13 +13,11 @@ use chrono::NaiveDate;
 use regex::Regex;
 
 use crate::configuration::MetadataValidationRule;
-#[cfg(feature = "full-compiler")]
+
 use crate::documents::document::Document;
 use crate::documents::storage::DocumentStorage;
 
-#[cfg(feature = "full-compiler")]
 use yara_x::linters;
-#[cfg(feature = "full-compiler")]
 use yara_x::{Compiler, SourceCode};
 
 #[derive(Serialize, Deserialize)]
@@ -47,7 +45,6 @@ pub fn diagnostics(
     let doc = documents.get(&uri);
 
     if let Some(doc) = doc {
-        #[cfg(feature = "full-compiler")]
         diagnostics.extend(compiler_diagnostics(
             doc,
             metadata_validation,
@@ -64,7 +61,7 @@ pub fn diagnostics(
 /// and collects all errors and warnings as LSP diagnostics. This provides
 /// comprehensive feedback including type checking, semantic analysis,
 /// and pattern validation - not just syntax errors.
-#[cfg(feature = "full-compiler")]
+
 pub fn compiler_diagnostics(
     document: Ref<'_, Url, Document>,
     metadata_validation: &Vec<MetadataValidationRule>,
