@@ -251,7 +251,7 @@ default = [
     "exact-atoms",
     "fast-regexp",
     "generate-proto-code",
-    "linkme",
+    "inventory",
 ]
 
 [dependencies]
