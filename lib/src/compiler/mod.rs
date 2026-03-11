@@ -230,7 +230,7 @@ struct Namespace {
 ///     .add_source(r#"
 ///         rule always_false {
 ///             condition: false
-///         }"#)?;///
+///         }"#)?;
 ///
 /// let rules = compiler.build();
 ///
@@ -238,7 +238,7 @@ struct Namespace {
 /// ```
 ///
 pub struct Compiler<'a> {
-    /// Mimics YARA behaviour with respect to regular expressions, allowing
+    /// Mimics YARA behavior with respect to regular expressions, allowing
     /// some constructs that are invalid in YARA-X by default, like invalid
     /// escape sequences.
     relaxed_re_syntax: bool,
