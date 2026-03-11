@@ -325,26 +325,12 @@ async fn document_highlights() {
 #[tokio::test]
 async fn document_diagnostics() {
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics1.yar").await;
-
-    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics2.yar").await;
-
-    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics3.yar").await;
-
-    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics4.yar").await;
-
-    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics5.yar").await;
-
-    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics6.yar").await;
-
-    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics7.yar").await;
-
-    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics8.yar").await;
 }
 
@@ -358,34 +344,25 @@ async fn completion() {
     test_lsp_request::<_, Completion>("completion6.yar").await;
     test_lsp_request::<_, Completion>("completion7.yar").await;
 
-    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, Completion>("completion8.yar").await;
 
-    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, Completion>("completion9.yar").await;
 
-    #[cfg(all(feature = "full-compiler", not(feature = "magic-module")))]
+    #[cfg(not(feature = "magic-module"))]
     test_lsp_request::<_, Completion>("completion10.yar").await;
 
-    #[cfg(all(feature = "full-compiler", not(feature = "magic-module")))]
+    #[cfg(not(feature = "magic-module"))]
     test_lsp_request::<_, Completion>("completion11.yar").await;
 
-    #[cfg(all(feature = "full-compiler", not(feature = "magic-module")))]
+    #[cfg(not(feature = "magic-module"))]
     test_lsp_request::<_, Completion>("completion12.yar").await;
 
-    #[cfg(all(feature = "full-compiler", not(feature = "magic-module")))]
+    #[cfg(not(feature = "magic-module"))]
     test_lsp_request::<_, Completion>("completion13.yar").await;
 
-    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, Completion>("completion14.yar").await;
-
-    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, Completion>("completion15.yar").await;
-
-    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, Completion>("completion16.yar").await;
-
-    #[cfg(feature = "full-compiler")]
     test_lsp_request::<_, Completion>("completion17.yar").await;
 }
 

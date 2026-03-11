@@ -6,12 +6,9 @@ use async_lsp::lsp_types::{
     InsertTextMode, Position, Url,
 };
 
-#[cfg(feature = "full-compiler")]
 use itertools::Itertools;
 
-#[cfg(feature = "full-compiler")]
 use yara_x::mods::reflect::Type;
-#[cfg(feature = "full-compiler")]
 use yara_x::mods::{module_definition, module_names};
 use yara_x_parser::cst::{CST, Immutable, Node, SyntaxKind, Token};
 
@@ -21,7 +18,6 @@ use crate::utils::cst_traversal::{
     rule_containing_token, token_at_position,
 };
 
-#[cfg(feature = "full-compiler")]
 use crate::utils::cst_traversal::find_declaration;
 
 const PATTERN_MODS: &[(SyntaxKind, &[&str])] = &[
@@ -118,10 +114,7 @@ pub fn completion(
     }
 
     if prev_token.kind() == SyntaxKind::IMPORT_KW {
-        #[cfg(feature = "full-compiler")]
         return Some(import_suggestions());
-        #[cfg(not(feature = "full-compiler"))]
-        return None;
     }
 
     if let Some(pattern_def) =
@@ -146,7 +139,6 @@ fn condition_suggestions(
 ) -> Option<Vec<CompletionItem>> {
     let mut result = Vec::new();
 
-    #[cfg(feature = "full-compiler")]
     if let Some(suggestions) = field_suggestions(&token) {
         return Some(suggestions);
     }
@@ -263,7 +255,7 @@ fn condition_suggestions(
 }
 
 /// Collects completion suggestions for import statements.
-#[cfg(feature = "full-compiler")]
+
 fn import_suggestions() -> Vec<CompletionItem> {
     module_names()
         .map(|name| CompletionItem {
@@ -332,7 +324,6 @@ fn rule_suggestions() -> Vec<CompletionItem> {
         .collect()
 }
 
-#[cfg(feature = "full-compiler")]
 #[derive(Debug)]
 enum Segment {
     Field(String),
@@ -340,7 +331,7 @@ enum Segment {
 }
 
 /// Collects completion suggestions for structure fields.
-#[cfg(feature = "full-compiler")]
+
 fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
     // Check if we are at a position that triggers completion.
     let token = match token.kind() {
@@ -435,7 +426,6 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
     Some(suggestions)
 }
 
-#[cfg(feature = "full-compiler")]
 /// Given a token, returns the type of the structure that the token is part of.
 ///
 /// This function traverses the CST backwards from the given token to determine
@@ -532,7 +522,6 @@ fn get_struct(token: &Token<Immutable>) -> Option<Type> {
     Some(current_kind)
 }
 
-#[cfg(feature = "full-compiler")]
 /// Resolves the `Type` of an identifier declared within `for` or `with` statements.
 ///
 /// This function is called when `get_struct` identifies an identifier that is
@@ -640,7 +629,7 @@ fn get_type_from_declaration(
 
 /// Given a token that must be a closing (right) bracket, find the
 /// corresponding opening (left) bracket.
-#[cfg(feature = "full-compiler")]
+
 fn find_matching_left_bracket(
     token: &Token<Immutable>,
 ) -> Option<Token<Immutable>> {
@@ -666,7 +655,6 @@ fn find_matching_left_bracket(
     None
 }
 
-#[cfg(feature = "full-compiler")]
 fn ty_to_string(ty: &Type) -> String {
     match ty {
         Type::Integer => "integer".to_string(),
