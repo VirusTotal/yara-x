@@ -28,14 +28,23 @@ capi = []
 # This feature is disabled by default.
 native-code-serialization = ["yara-x/native-code-serialization"]
 
+# Enables parallel compilation of WASM code. When compiling large number of
+# rules this noticeable reduces compilation time. However, this creates new
+# threads, which can be problematic in some scenarios. See:
+# https://github.com/VirusTotal/yara-x/issues/182
+#
+# This feature is disabled by default.
+parallel-compilation = ["yara-x/parallel-compilation"]
+
 # Enables rules profiling.
 #
 # This feature is disabled by default.
 rules-profiling = ["yara-x/rules-profiling"]
 
-
+# Enables the `magic` module.
+#
+# This feature is disabled by default.
 magic-module = ["yara-x/magic-module"]
-
 
 [lib]
 name = "yara_x_capi"
@@ -43,7 +52,7 @@ crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
 serde_json = { workspace = true }
-yara-x = { workspace = true,  default-features = true, features = ["parallel-compilation"] }
+yara-x = { workspace = true,  default-features = true }
 
 [build-dependencies]
 cbindgen = { workspace = true }
