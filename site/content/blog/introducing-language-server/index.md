@@ -30,27 +30,27 @@ to provide intelligent, context-aware features. This approach, based on the Lang
 that we can build a single, powerful engine for YARA-X and have it work across a wide range of editors without 
 having to write a new extension from scratch for each one.
 
-### A Smarter Way to Write YARA Rules
+### A smarter way to write YARA rules
 
 So, what does the YARA-X Language Server mean for you? Here are some of the key features available today:
 
-*   **Real-time Diagnostics:** Say goodbye to the slow feedback loop of writing a rule, saving it, and running 
+*   **Real-time diagnostics:** Say goodbye to the slow feedback loop of writing a rule, saving it, and running 
     it through a compiler only to find a simple syntax error. The language server analyzes your code as you type, 
     highlighting mistakes and providing descriptive errors on the fly.
 
-*   **Advanced Autocompletion:** The server provides intelligent suggestions for module identifiers 
-    (e.g., `pe.`, `cuckoo.`), keywords, and more. This not only speeds up your writing but also helps you discover  
-    the rich features available in YARA-X without constantly referencing documentation.
+*   **Advanced autocompletion:** The server provides intelligent suggestions for module identifiers (e.g., `pe.`, `cuckoo.`),
+    keywords, and more. This not only speeds up your writing but also helps you discover the rich features available in 
+    YARA-X without constantly referencing documentation.
 
-*   **Go to Definition:** Working with large, complex rule sets that span multiple files? You can now instantly jump 
+*   **Go to definition:** Working with large, complex rule sets that span multiple files? You can now instantly jump 
     to the definition of a rule or pattern, making it easier to navigate and understand your rules.
 
-*   **Automatic Formatting:** Keep your YARA rules consistent and clean with automatic code formatting. The language  
-    server can automatically format your code according to best practices, saving you time and ensuring readability.
+*   **Automatic formatting:** Keep your YARA rules consistent and clean with automatic code formatting. The language server
+    can automatically format your code according to best practices, saving you time and ensuring readability.
 
 ![demo.gif](demo.gif)
     
-### Get Started Today
+### Get started today
 
 The YARA-X Language Server is now available for Visual Studio Code. It's currently in beta, but you can install
 it from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=virustotal.yara-x-ls) and

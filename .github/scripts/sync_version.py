@@ -2,13 +2,13 @@ import json
 import toml
 
 # Paths to the files
-cargo_toml_path = 'ls/Cargo.toml'
+cargo_toml_path = 'Cargo.toml'
 package_json_path = 'ls/editors/code/package.json'
 
 # Read the version from Cargo.toml
 with open(cargo_toml_path, 'r') as f:
     cargo_toml = toml.load(f)
-version = cargo_toml['package']['version']
+version = cargo_toml['workspace']['package']['version']
 
 # Read package.json
 with open(package_json_path, 'r') as f:

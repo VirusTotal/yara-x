@@ -82,8 +82,12 @@ the following properties:
 *   `identifier` (string, required): The name of the metadata field to validate (e.g., `author`, `version`).
 *   `required` (boolean, optional): If `true`, the metadata field must be present in the rule. Defaults to `false`.
 *   `type` (string, optional): Specifies the expected type of the metadata value. Valid values are
-    `"string"`, `"integer"`, `"float"`, and `"bool"`. If the value does not match the specified type, a warning will
-    be generated.
+    `"string"`, `"integer"`, `"float"`, `"bool"`, and `"date"`. If the value does not match the specified type, a 
+    warning will be generated.
+*   `format` (string, optional): When `type` is `"date"`, this property specifies the expected format of the
+    date string. The format string supports specifiers like `%Y` (year), `%m` (month), `%d` (day), `%H` (hour),
+    `%M` (minute), and `%S` (second). For example, for a date like `"2024-01-25"`, the format should be `"%Y-%m-%d"`.
+    For more information see: https://docs.rs/chrono/latest/chrono/format/strftime/index.html
 
 For accessing these settings go to the Settings
 

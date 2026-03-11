@@ -776,7 +776,7 @@ impl Token<Mutable> {
     }
 
     pub fn replace(&mut self, text: &str) -> Node<Mutable> {
-        Node::new(rowan::SyntaxNode::new_root(
+        Node::new(rowan::SyntaxNode::new_root_mut(
             self.inner.replace_with(rowan::GreenToken::new(
                 self.kind().into(),
                 text,

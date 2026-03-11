@@ -7,7 +7,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
-version = "0.0.7"
+version.workspace = true
 
 [lib]
 name = "yara_x_ls"
@@ -35,8 +35,9 @@ default = ["full-compiler"]
 
 [dependencies]
 bitflags = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
 dashmap = { version = "6.1.0" }
-futures = "0.3.31"
+futures = "0.3.32"
 regex = { workspace = true }
 tracing = { version = "0.1.44", optional = true }
 tracing-subscriber = { version = "0.3.22", optional = true }

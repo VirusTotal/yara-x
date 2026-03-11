@@ -1,5 +1,5 @@
 [workspace.package]
-version = "1.13.0"
+version = "1.14.0"
 authors = ["Victor M. Alvarez <vmalvarez@virustotal.com>"]
 edition = "2024"
 homepage = "https://virustotal.github.io/yara-x"
@@ -33,7 +33,7 @@ resolver = "3"
 
 [workspace.dependencies]
 aho-corasick = "1.1.4"
-annotate-snippets = "0.12.12"
+annotate-snippets = "0.12.13"
 anyhow = "1.0.102"
 hex = "0.4.3"
 ascii_tree = "0.1.1"
@@ -81,7 +81,7 @@ pretty_assertions = "1.4.1"
 protobuf = "3.7.2"
 protobuf-codegen = "3.7.2"
 protobuf-parse = "3.7.2"
-psl = "2.1.195"
+psl = "2.1.196"
 quanta = "0.12.6"
 rayon = "1.11.0"
 regex = "1.12.3"
@@ -104,16 +104,16 @@ wasmtime = { version = "40.0.4", default-features = false }
 wasm-bindgen = "0.2.113"
 x509-parser = "0.18.0"
 yansi = "1.0.1"
-yara-x = { path = "lib", version = "1.13.0", default-features = false }
-yara-x-fmt = { path = "fmt", version = "1.13.0" }
-yara-x-macros = { path = "macros", version = "1.13.0" }
-yara-x-parser = { path = "parser", version = "1.13.0" }
-yara-x-proto = { path = "proto", version = "1.13.0"}
-yara-x-proto-yaml = { path = "proto-yaml", version = "1.13.0" }
-yara-x-proto-json = { path = "proto-json", version = "1.13.0" }
+yara-x = { path = "lib", version = "1.14.0", default-features = false }
+yara-x-fmt = { path = "fmt", version = "1.14.0" }
+yara-x-macros = { path = "macros", version = "1.14.0" }
+yara-x-parser = { path = "parser", version = "1.14.0" }
+yara-x-proto = { path = "proto", version = "1.14.0"}
+yara-x-proto-yaml = { path = "proto-yaml", version = "1.14.0" }
+yara-x-proto-json = { path = "proto-json", version = "1.14.0" }
 zip = "8.2.0"
-simd-adler32 = "0.3.7"
-simd_cesu8 = "1.1.0"
+simd-adler32 = "0.3.8"
+simd_cesu8 = "1.1.1"
 assert-call = "0.1.2"
 
 # Special profile that builds a release binary with link-time optimization.

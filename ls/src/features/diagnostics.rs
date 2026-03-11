@@ -9,8 +9,10 @@ use async_lsp::lsp_types::{
 use dashmap::mapref::one::Ref;
 use serde::{Deserialize, Serialize};
 
-use crate::configuration::MetadataValidationRule;
+use chrono::NaiveDate;
+use regex::Regex;
 
+use crate::configuration::MetadataValidationRule;
 #[cfg(feature = "full-compiler")]
 use crate::documents::document::Document;
 use crate::documents::storage::DocumentStorage;
@@ -88,44 +90,113 @@ pub fn compiler_diagnostics(
     }
 
     for validation_rule in metadata_validation {
-        let mut linter = linters::metadata(&validation_rule.identifier)
+        let linter = linters::metadata(&validation_rule.identifier)
             .required(validation_rule.required);
 
         if let Some(ty) = &validation_rule.ty {
-            let predicate = match ty.as_str() {
-                "string" => |meta: &yara_x_parser::ast::Meta| {
-                    matches!(
-                        meta.value,
-                        yara_x_parser::ast::MetaValue::String(_)
-                    )
-                },
-                "integer" => |meta: &yara_x_parser::ast::Meta| {
-                    matches!(
-                        meta.value,
-                        yara_x_parser::ast::MetaValue::Integer(_)
-                    )
-                },
-                "float" => |meta: &yara_x_parser::ast::Meta| {
-                    matches!(
-                        meta.value,
-                        yara_x_parser::ast::MetaValue::Float(_)
-                    )
-                },
-                "bool" => |meta: &yara_x_parser::ast::Meta| {
-                    matches!(
-                        meta.value,
-                        yara_x_parser::ast::MetaValue::Bool(_)
-                    )
-                },
-                _ => continue,
-            };
-            linter = linter.validator(
-                predicate,
-                format!("`{}` must be a `{}`", validation_rule.identifier, ty),
-            );
-        }
+            match ty.as_str() {
+                "string" => {
+                    if let Some(pattern) = &validation_rule.regex {
+                        compiler.add_linter(linter.validator(
+                            |meta| {
+                                if let yara_x_parser::ast::MetaValue::String(
+                                    value,
+                                ) = &meta.value
+                                {
+                                    Regex::new(pattern).unwrap().is_match(value.0)
+                                } else {
+                                    false
+                                }
+                            },
+                            format!(
+                                "`{}` must be a string and match the pattern `{}`",
+                                validation_rule.identifier, pattern
+                            ),
+                        ));
+                    } else {
+                        compiler.add_linter(linter.validator(
+                            |meta| {
+                                matches!(
+                                    meta.value,
+                                    yara_x_parser::ast::MetaValue::String(_)
+                                )
+                            },
+                            format!(
+                                "`{}` must be a `string`",
+                                validation_rule.identifier
+                            ),
+                        ));
+                    }
+                }
+                "integer" => {
+                    compiler.add_linter(linter.validator(
+                        |meta| {
+                            matches!(
+                                meta.value,
+                                yara_x_parser::ast::MetaValue::Integer(_)
+                            )
+                        },
+                        format!(
+                            "`{}` must be a `integer`",
+                            validation_rule.identifier
+                        ),
+                    ));
+                }
+                "float" => {
+                    compiler.add_linter(linter.validator(
+                        |meta| {
+                            matches!(
+                                meta.value,
+                                yara_x_parser::ast::MetaValue::Float(_)
+                            )
+                        },
+                        format!(
+                            "`{}` must be a `float`",
+                            validation_rule.identifier
+                        ),
+                    ));
+                }
+                "bool" => {
+                    compiler.add_linter(linter.validator(
+                        |meta| {
+                            matches!(
+                                meta.value,
+                                yara_x_parser::ast::MetaValue::Float(_)
+                            )
+                        },
+                        format!(
+                            "`{}` must be a `bool`",
+                            validation_rule.identifier
+                        ),
+                    ));
+                }
+                "date" => {
+                    let format = validation_rule
+                        .format
+                        .as_deref()
+                        .unwrap_or("%Y-%m-%d");
 
-        compiler.add_linter(linter);
+                    compiler.add_linter(linter.validator(
+                        |meta| {
+                            if let yara_x_parser::ast::MetaValue::String(
+                                value,
+                            ) = &meta.value
+                            {
+                                NaiveDate::parse_from_str(value.0, format)
+                                    .is_ok()
+                            } else {
+                                false
+                            }
+                        },
+                        format!(
+                            "`{}` must be a `date` with format `{}`",
+                            validation_rule.identifier, format
+                        ),
+                    ));
+                }
+                _ => {}
+            };
+        }
     }
 
     // VSCode don't handle well error messages with too many columns.
