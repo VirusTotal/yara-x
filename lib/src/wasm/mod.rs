@@ -581,6 +581,7 @@ where
 }
 
 pub fn wasmtime_to_walrus(ty: &ValType) -> walrus::ValType {
+    #[allow(unreachable_patterns)]
     match ty {
         ValType::I64 => walrus::ValType::I64,
         ValType::I32 => walrus::ValType::I32,

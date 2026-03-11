@@ -111,7 +111,7 @@ yara-x-parser = { path = "parser", version = "1.14.0" }
 yara-x-proto = { path = "proto", version = "1.14.0"}
 yara-x-proto-yaml = { path = "proto-yaml", version = "1.14.0" }
 yara-x-proto-json = { path = "proto-json", version = "1.14.0" }
-zip = "8.2.0"
+zip = { version = "8.2.0", default-features = false }
 simd-adler32 = "0.3.8"
 simd_cesu8 = "1.1.1"
 assert-call = "0.1.2"

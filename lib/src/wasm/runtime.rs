@@ -58,15 +58,6 @@ mod browser_runtime {
             F: FnMut(StoreContextMut<'_, T>) -> Result<()> + 'static,
         {
         }
-
-        /// Clears all runtime-allocated state so the store can be safely
-        /// reused for a fresh module setup.
-        ///
-        /// Call this only after any previous instance tied to this store has
-        /// been dropped.
-        pub fn reset_runtime_state(&mut self) {
-            self.runtime.reset_for_store_reuse();
-        }
     }
 
     impl<T> AsContext for Store<T> {
@@ -153,10 +144,6 @@ mod browser_runtime {
     pub struct Config;
 
     impl Config {
-        pub fn native_unwind_info(&mut self, _enabled: bool) -> &mut Self {
-            self
-        }
-
         pub fn cranelift_opt_level(&mut self, _level: OptLevel) -> &mut Self {
             self
         }
@@ -195,8 +182,6 @@ mod browser_runtime {
         }
 
         pub fn increment_epoch(&self) {}
-
-        pub fn unload_process_handlers(self) {}
     }
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -503,13 +488,6 @@ mod browser_runtime {
     }
 
     impl Val {
-        pub fn i32(self) -> Option<i32> {
-            match self {
-                Val::I32(v) => Some(v),
-                _ => None,
-            }
-        }
-
         pub fn i64(self) -> Option<i64> {
             match self {
                 Val::I64(v) => Some(v),
@@ -663,10 +641,6 @@ mod browser_runtime {
         ) -> Result<Self> {
             Self::from_binary(_engine, bytes)
         }
-
-        pub fn serialize(&self) -> Result<Vec<u8>> {
-            Ok(self.bytes.clone())
-        }
     }
 
     pub struct Instance {
@@ -732,12 +706,6 @@ mod browser_runtime {
     impl RuntimeState {
         fn prepare_for_instantiation(&mut self) {
             self.import_callbacks.clear();
-        }
-
-        fn reset_for_store_reuse(&mut self) {
-            self.import_callbacks.clear();
-            self.globals.clear();
-            self.memories.clear();
         }
 
         fn sync_memory_from_js(&mut self) {
