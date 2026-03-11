@@ -86,7 +86,9 @@ jobs:
             os: windows-latest
             rust: stable
             target: x86_64-pc-windows-gnu
-            args: " --no-default-features --features=default-modules,rules-profiling,inventory"
+            # yara-x-py is excluded because it fails to compile in Windows with
+            # error: export ordinal too large: 252264
+            args: "--features=rules-profiling --workspace --exclude=yara-x-ls"
             rust_flags: "-Awarnings"
             experimental: false
             use_cache: true
