@@ -255,7 +255,6 @@ fn condition_suggestions(
 }
 
 /// Collects completion suggestions for import statements.
-
 fn import_suggestions() -> Vec<CompletionItem> {
     module_names()
         .map(|name| CompletionItem {
@@ -331,7 +330,6 @@ enum Segment {
 }
 
 /// Collects completion suggestions for structure fields.
-
 fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
     // Check if we are at a position that triggers completion.
     let token = match token.kind() {
@@ -629,7 +627,6 @@ fn get_type_from_declaration(
 
 /// Given a token that must be a closing (right) bracket, find the
 /// corresponding opening (left) bracket.
-
 fn find_matching_left_bracket(
     token: &Token<Immutable>,
 ) -> Option<Token<Immutable>> {

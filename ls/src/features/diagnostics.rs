@@ -61,7 +61,6 @@ pub fn diagnostics(
 /// and collects all errors and warnings as LSP diagnostics. This provides
 /// comprehensive feedback including type checking, semantic analysis,
 /// and pattern validation - not just syntax errors.
-
 pub fn compiler_diagnostics(
     document: Ref<'_, Url, Document>,
     metadata_validation: &Vec<MetadataValidationRule>,
