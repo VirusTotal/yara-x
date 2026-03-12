@@ -50,6 +50,14 @@ walkdir = "2.5.0"
 async-lsp = {version = "0.2.2", default-features=false, features=["omni-trait"]}
 tower = { version = "0.5.2" }
 wasm-bindgen-futures = {version = "0.4.61"}
+wasm-bindgen = { workspace = true }
+futures-channel = "0.3"
+js-sys = "0.3"
+console_error_panic_hook = "0.1"
+web-sys = { version = "0.3", features = ["console", "WebSocket", "MessageEvent", "BinaryType"] }
+ws_stream_wasm = "0.7"
+
 
 [dev-dependencies]
 goldenfile = { workspace = true }
+

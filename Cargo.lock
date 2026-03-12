@@ -4996,6 +4996,7 @@ dependencies = [
  "console_error_panic_hook",
  "dashmap",
  "futures",
+ "futures-channel",
  "goldenfile",
  "itertools 0.14.0",
  "js-sys",
