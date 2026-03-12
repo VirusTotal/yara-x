@@ -14,7 +14,9 @@ mod features;
 mod server;
 mod tracing;
 mod utils;
-mod wasm;
+
+#[cfg(target_family = "wasm")]
+pub mod wasm;
 
 #[cfg(test)]
 mod tests;
