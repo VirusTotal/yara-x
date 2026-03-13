@@ -30,6 +30,7 @@ chrono = { workspace = true, features = ["serde"] }
 dashmap = { version = "6.1.0" }
 futures = "0.3.32"
 regex = { workspace = true }
+tower = { version = "0.5.2" }
 tracing = { version = "0.1.44", optional = true }
 tracing-subscriber = { version = "0.3.22", optional = true }
 itertools = { workspace = true}
@@ -43,19 +44,11 @@ yara-x = { workspace = true, default-features = true }
 tokio = { version = "1.48.0", features = ["full"] }
 tokio-util = { version = "0.7.17", features = ["compat"] }
 async-lsp = {version = "0.2.2", default-features=false, features=["omni-trait", "tokio", "stdio", "tracing"]}
-tower = { version = "0.5.2" , features = ["full"]}
 walkdir = "2.5.0"
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 async-lsp = {version = "0.2.2", default-features=false, features=["omni-trait"]}
-tower = { version = "0.5.2" }
-wasm-bindgen-futures = {version = "0.4.61"}
-wasm-bindgen = { workspace = true }
-futures-channel = "0.3"
-js-sys = "0.3"
-console_error_panic_hook = "0.1"
-web-sys = { version = "0.3", features = ["console", "WebSocket", "MessageEvent", "BinaryType"] }
-ws_stream_wasm = "0.7"
+wasm-bindgen-futures = { version = "0.4.61"}
 
 
 [dev-dependencies]
