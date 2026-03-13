@@ -88,10 +88,6 @@ use bstr::{BString, ByteSlice};
 use linkme::distributed_slice;
 use rustc_hash::FxHashMap;
 use smallvec::{SmallVec, smallvec};
-use wasmtime::{
-    AsContext, AsContextMut, Caller, Config, Engine, FuncType, Linker, ValRaw,
-};
-
 use yara_x_macros::wasm_export;
 
 use crate::compiler::{LiteralId, PatternId, RegexpId, RuleId};
@@ -101,12 +97,17 @@ use crate::types::{
     Array, Func, FuncSignature, Map, Struct, TypeValue, Value,
 };
 use crate::wasm::integer::RangedInteger;
+use crate::wasm::runtime::{
+    AsContext, AsContextMut, Caller, Config, Engine, FuncType, Linker, ValRaw,
+    ValType,
+};
 use crate::wasm::string::RuntimeString;
 use crate::wasm::string::String as _;
 use crate::{ScanError, wasm};
 
 pub(crate) mod builder;
 pub(crate) mod integer;
+pub(crate) mod runtime;
 pub(crate) mod string;
 
 /// Maximum number of variables.
@@ -263,13 +264,13 @@ pub(crate) trait WasmExportedFn {
     /// function.
     fn trampoline(&'static self) -> TrampolineFn;
 
-    /// Returns a [`Vec<wasmtime::ValType>`] with the types of the function's
+    /// Returns a [`Vec<ValType>`] with the types of the function's
     /// arguments
-    fn wasmtime_args(&'static self) -> Vec<wasmtime::ValType>;
+    fn wasmtime_args(&'static self) -> Vec<ValType>;
 
-    /// Returns a [`Vec<wasmtime::ValType>`] with the types of the function's
+    /// Returns a [`Vec<ValType>`] with the types of the function's
     /// return values.
-    fn wasmtime_results(&'static self) -> WasmResultArray<wasmtime::ValType>;
+    fn wasmtime_results(&'static self) -> WasmResultArray<ValType>;
 
     /// Returns a [`Vec<walrus::ValType>`] with the types of the function's
     /// arguments
@@ -420,7 +421,7 @@ pub(crate) trait WasmResult {
     fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw>;
 
     /// Returns the WASM types that conform this result.
-    fn types() -> WasmResultArray<wasmtime::ValType>;
+    fn types() -> WasmResultArray<ValType>;
 }
 
 impl WasmResult for () {
@@ -428,7 +429,7 @@ impl WasmResult for () {
         smallvec![]
     }
 
-    fn types() -> WasmResultArray<wasmtime::ValType> {
+    fn types() -> WasmResultArray<ValType> {
         smallvec![]
     }
 }
@@ -438,8 +439,8 @@ impl WasmResult for i32 {
         smallvec![ValRaw::i32(self)]
     }
 
-    fn types() -> WasmResultArray<wasmtime::ValType> {
-        smallvec![wasmtime::ValType::I32]
+    fn types() -> WasmResultArray<ValType> {
+        smallvec![ValType::I32]
     }
 }
 
@@ -448,8 +449,8 @@ impl WasmResult for i64 {
         smallvec![ValRaw::i64(self)]
     }
 
-    fn types() -> WasmResultArray<wasmtime::ValType> {
-        smallvec![wasmtime::ValType::I64]
+    fn types() -> WasmResultArray<ValType> {
+        smallvec![ValType::I64]
     }
 }
 
@@ -458,8 +459,8 @@ impl<const MIN: i64, const MAX: i64> WasmResult for RangedInteger<MIN, MAX> {
         smallvec![ValRaw::i64(self.value())]
     }
 
-    fn types() -> WasmResultArray<wasmtime::ValType> {
-        smallvec![wasmtime::ValType::I64]
+    fn types() -> WasmResultArray<ValType> {
+        smallvec![ValType::I64]
     }
 }
 
@@ -468,8 +469,8 @@ impl WasmResult for f32 {
         smallvec![ValRaw::f32(f32::to_bits(self))]
     }
 
-    fn types() -> WasmResultArray<wasmtime::ValType> {
-        smallvec![wasmtime::ValType::F32]
+    fn types() -> WasmResultArray<ValType> {
+        smallvec![ValType::F32]
     }
 }
 
@@ -478,8 +479,8 @@ impl WasmResult for f64 {
         smallvec![ValRaw::f64(f64::to_bits(self))]
     }
 
-    fn types() -> WasmResultArray<wasmtime::ValType> {
-        smallvec![wasmtime::ValType::F64]
+    fn types() -> WasmResultArray<ValType> {
+        smallvec![ValType::F64]
     }
 }
 
@@ -488,8 +489,8 @@ impl WasmResult for bool {
         smallvec![ValRaw::i32(self as i32)]
     }
 
-    fn types() -> WasmResultArray<wasmtime::ValType> {
-        smallvec![wasmtime::ValType::I32]
+    fn types() -> WasmResultArray<ValType> {
+        smallvec![ValType::I32]
     }
 }
 
@@ -498,8 +499,8 @@ impl<S: wasm::string::String> WasmResult for S {
         smallvec![ValRaw::i64(self.into_wasm_with_ctx(ctx))]
     }
 
-    fn types() -> WasmResultArray<wasmtime::ValType> {
-        smallvec![wasmtime::ValType::I64]
+    fn types() -> WasmResultArray<ValType> {
+        smallvec![ValType::I64]
     }
 }
 
@@ -508,8 +509,8 @@ impl WasmResult for RuntimeObjectHandle {
         smallvec![ValRaw::i64(self.into())]
     }
 
-    fn types() -> WasmResultArray<wasmtime::ValType> {
-        smallvec![wasmtime::ValType::I64]
+    fn types() -> WasmResultArray<ValType> {
+        smallvec![ValType::I64]
     }
 }
 
@@ -519,8 +520,8 @@ impl WasmResult for Rc<BString> {
         smallvec![ValRaw::i64(s.into_wasm_with_ctx(ctx))]
     }
 
-    fn types() -> WasmResultArray<wasmtime::ValType> {
-        smallvec![wasmtime::ValType::I64]
+    fn types() -> WasmResultArray<ValType> {
+        smallvec![ValType::I64]
     }
 }
 
@@ -530,8 +531,8 @@ impl WasmResult for Rc<Struct> {
         smallvec![ValRaw::i64(handle.into())]
     }
 
-    fn types() -> WasmResultArray<wasmtime::ValType> {
-        smallvec![wasmtime::ValType::I64]
+    fn types() -> WasmResultArray<ValType> {
+        smallvec![ValType::I64]
     }
 }
 
@@ -546,7 +547,7 @@ where
         result
     }
 
-    fn types() -> WasmResultArray<wasmtime::ValType> {
+    fn types() -> WasmResultArray<ValType> {
         let mut result = A::types();
         result.extend(B::types());
         result
@@ -572,19 +573,20 @@ where
         }
     }
 
-    fn types() -> WasmResultArray<wasmtime::ValType> {
+    fn types() -> WasmResultArray<ValType> {
         let mut result = T::types();
-        result.push(wasmtime::ValType::I32);
+        result.push(ValType::I32);
         result
     }
 }
 
-pub fn wasmtime_to_walrus(ty: &wasmtime::ValType) -> walrus::ValType {
+pub fn wasmtime_to_walrus(ty: &ValType) -> walrus::ValType {
+    #[allow(unreachable_patterns)]
     match ty {
-        wasmtime::ValType::I64 => walrus::ValType::I64,
-        wasmtime::ValType::I32 => walrus::ValType::I32,
-        wasmtime::ValType::F64 => walrus::ValType::F64,
-        wasmtime::ValType::F32 => walrus::ValType::F32,
+        ValType::I64 => walrus::ValType::I64,
+        ValType::I32 => walrus::ValType::I32,
+        ValType::F64 => walrus::ValType::F64,
+        ValType::F32 => walrus::ValType::F32,
         _ => unreachable!(),
     }
 }
@@ -593,37 +595,37 @@ pub fn wasmtime_to_walrus(ty: &wasmtime::ValType) -> walrus::ValType {
 fn type_id_to_wasmtime(
     type_id: TypeId,
     type_name: &'static str,
-) -> &'static [wasmtime::ValType] {
+) -> &'static [ValType] {
     if type_id == TypeId::of::<i64>() {
-        return &[wasmtime::ValType::I64];
+        return &[ValType::I64];
     } else if type_id == TypeId::of::<i32>() {
-        return &[wasmtime::ValType::I32];
+        return &[ValType::I32];
     } else if type_id == TypeId::of::<f64>() {
-        return &[wasmtime::ValType::F64];
+        return &[ValType::F64];
     } else if type_id == TypeId::of::<f32>() {
-        return &[wasmtime::ValType::F32];
+        return &[ValType::F32];
     } else if type_id == TypeId::of::<bool>() {
-        return &[wasmtime::ValType::I32];
+        return &[ValType::I32];
     } else if type_id == TypeId::of::<LiteralId>() {
-        return &[wasmtime::ValType::I32];
+        return &[ValType::I32];
     } else if type_id == TypeId::of::<PatternId>() {
-        return &[wasmtime::ValType::I32];
+        return &[ValType::I32];
     } else if type_id == TypeId::of::<RuleId>() {
-        return &[wasmtime::ValType::I32];
+        return &[ValType::I32];
     } else if type_id == TypeId::of::<RegexpId>() {
-        return &[wasmtime::ValType::I32];
+        return &[ValType::I32];
     } else if type_id == TypeId::of::<()>() {
         return &[];
     } else if type_id == TypeId::of::<RuntimeString>() {
-        return &[wasmtime::ValType::I64];
+        return &[ValType::I64];
     } else if type_id == TypeId::of::<Option<Rc<Struct>>>() {
-        return &[wasmtime::ValType::I64];
+        return &[ValType::I64];
     } else if type_id == TypeId::of::<Rc<Struct>>() {
-        return &[wasmtime::ValType::I64];
+        return &[ValType::I64];
     } else if type_id == TypeId::of::<Rc<Array>>() {
-        return &[wasmtime::ValType::I64];
+        return &[ValType::I64];
     } else if type_id == TypeId::of::<Rc<Map>>() {
-        return &[wasmtime::ValType::I64];
+        return &[ValType::I64];
     }
     panic!("type `{type_name}` can't be an argument")
 }
@@ -651,7 +653,7 @@ macro_rules! impl_wasm_exported_fn {
             R: WasmResult,
         {
             #[allow(unused_mut)]
-            fn wasmtime_args(&'static self) -> Vec<wasmtime::ValType> {
+            fn wasmtime_args(&'static self) -> Vec<ValType> {
                 let mut result = Vec::new();
                 $(
                     result.extend_from_slice(type_id_to_wasmtime(
@@ -662,7 +664,7 @@ macro_rules! impl_wasm_exported_fn {
                 result
             }
 
-            fn wasmtime_results(&'static self) -> WasmResultArray<wasmtime::ValType> {
+            fn wasmtime_results(&'static self) -> WasmResultArray<ValType> {
                 R::types()
             }
 
@@ -747,7 +749,7 @@ pub(crate) static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     #[cfg(target_env = "musl")]
     config.native_unwind_info(false);
 
-    config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
+    config.cranelift_opt_level(runtime::OptLevel::SpeedAndSize);
     config.epoch_interruption(true);
 
     // 16MB should be enough for each WASM module. Each module needs a

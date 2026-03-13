@@ -303,18 +303,28 @@ serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
 strum_macros = { workspace = true }
 thiserror = { workspace = true }
-uuid = { workspace = true, optional = true, features = ["v4"] }
+uuid = { workspace = true, optional = true }
 walrus = { workspace = true }
+x509-parser = { workspace = true, optional = true }
+yara-x-macros = { workspace = true }
+yara-x-parser = { workspace = true, features = ["serde"] }
+zip = { workspace = true, optional = true, features = ["deflate"] }
+simd-adler32 = {workspace = true, optional = true}
+simd_cesu8 = {workspace = true, optional = true}
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
 wasmtime = { workspace = true, default-features = false, features = [
     "cranelift",
     "runtime",
 ] }
-x509-parser = { workspace = true, optional = true }
-yara-x-macros = { workspace = true }
-yara-x-parser = { workspace = true, features = ["serde"] }
-zip = { workspace = true, optional = true }
-simd-adler32 = {workspace = true, optional = true}
-simd_cesu8 = {workspace = true, optional = true}
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+js-sys = "0.3.90"
+wasm-bindgen = { workspace = true }
+# When compiling for WASM the `js` feature is needed. The dependency chain for
+# getrandom is: dsa -> num-bigint-dig -> rand -> rand_core -> getrandom. When
+# `dsa` gets upgraded to a newer version this may not be required anymore.
+getrandom = { version = "0.2.17", features = ["js"]}
 
 [build-dependencies]
 anyhow = { workspace = true }

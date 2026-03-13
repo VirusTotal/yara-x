@@ -1,10 +1,12 @@
 use std::collections::{HashMap, HashSet};
-
 #[cfg(not(target_family = "wasm"))]
 use std::fs;
 
-use async_lsp::lsp_types::{FileChangeType, FileEvent, Url};
+use async_lsp::lsp_types::Url;
+#[cfg(not(target_family = "wasm"))]
+use async_lsp::lsp_types::{FileChangeType, FileEvent};
 use dashmap::{DashMap, mapref::one::Ref};
+
 use yara_x_parser::cst::{CST, Immutable, Node, SyntaxKind, Token};
 
 use crate::{
@@ -398,7 +400,4 @@ impl DocumentStorage {
             }
         }
     }
-
-    #[cfg(target_family = "wasm")]
-    pub fn react_watched_files_changes(&self, changes: Vec<FileEvent>) {}
 }

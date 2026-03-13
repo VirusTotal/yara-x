@@ -5,9 +5,13 @@ use serde::Deserialize;
 #[derive(Deserialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
+    #[serde(default)]
     pub code_formatting: FormattingConfiguration,
+    #[serde(default)]
     pub metadata_validation: Vec<MetadataValidationRule>,
+    #[serde(default)]
     pub rule_name_validation: Option<String>,
+    #[serde(default)]
     pub cache_workspace: bool,
 }
 

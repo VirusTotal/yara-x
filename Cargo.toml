@@ -101,6 +101,7 @@ thiserror = "2.0.17"
 uuid = "1.18.1"
 walrus = "0.25.2"
 wasmtime = { version = "40.0.4", default-features = false }
+wasm-bindgen = "0.2.113"
 x509-parser = "0.18.0"
 yansi = "1.0.1"
 yara-x = { path = "lib", version = "1.14.0", default-features = false }
@@ -110,7 +111,7 @@ yara-x-parser = { path = "parser", version = "1.14.0" }
 yara-x-proto = { path = "proto", version = "1.14.0"}
 yara-x-proto-yaml = { path = "proto-yaml", version = "1.14.0" }
 yara-x-proto-json = { path = "proto-json", version = "1.14.0" }
-zip = "8.2.0"
+zip = { version = "8.2.0", default-features = false }
 simd-adler32 = "0.3.8"
 simd_cesu8 = "1.1.1"
 assert-call = "0.1.2"
@@ -124,6 +125,13 @@ assert-call = "0.1.2"
 inherits = "release"
 lto = true
 codegen-units = 1
+
+# Special profile used when building for WASM. Optimizations must be enabled
+# because otherwise the WASM file produced is too large and parsing it fails
+# with: "too many locals: locals exceed maximum".
+[profile.wasm-dev]
+inherits = "dev"
+opt-level = 1
 
 # Enable optimizations even for debug releases of yara-x-parser. This is necessary
 # because the `logos` lexer produces recursive functions and rely on the rustc's

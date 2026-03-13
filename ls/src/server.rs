@@ -13,28 +13,30 @@ use async_lsp::lsp_types::request::{
     Request, SemanticTokensFullRequest, SemanticTokensRangeRequest,
 };
 
+#[cfg(not(target_family = "wasm"))]
+use async_lsp::lsp_types::DidChangeWatchedFilesParams;
+
 use async_lsp::lsp_types::{
     CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
     CompletionOptions, CompletionParams, CompletionResponse,
     ConfigurationItem, ConfigurationParams, DiagnosticOptions,
     DiagnosticServerCapabilities, DidChangeConfigurationParams,
-    DidChangeTextDocumentParams, DidChangeWatchedFilesParams,
-    DidChangeWatchedFilesRegistrationOptions, DidCloseTextDocumentParams,
-    DidOpenTextDocumentParams, DidSaveTextDocumentParams,
-    DocumentDiagnosticParams, DocumentDiagnosticReportResult,
-    DocumentFormattingParams, DocumentHighlight, DocumentHighlightParams,
-    DocumentSymbolParams, DocumentSymbolResponse, FileSystemWatcher,
-    FullDocumentDiagnosticReport, GlobPattern, GotoDefinitionParams,
-    GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability,
-    InitializeParams, InitializeResult, InitializedParams, Location,
-    MessageType, OneOf, PublishDiagnosticsParams, ReferenceParams,
-    Registration, RegistrationParams, RelatedFullDocumentDiagnosticReport,
-    RenameParams, SaveOptions, SelectionRange, SelectionRangeParams,
-    SelectionRangeProviderCapability, SemanticTokensFullOptions,
-    SemanticTokensLegend, SemanticTokensOptions, SemanticTokensRangeResult,
-    SemanticTokensResult, SemanticTokensServerCapabilities,
-    ServerCapabilities, ShowMessageParams, TextDocumentSyncCapability,
-    TextDocumentSyncKind, TextDocumentSyncOptions,
+    DidChangeTextDocumentParams, DidChangeWatchedFilesRegistrationOptions,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    DidSaveTextDocumentParams, DocumentDiagnosticParams,
+    DocumentDiagnosticReportResult, DocumentFormattingParams,
+    DocumentHighlight, DocumentHighlightParams, DocumentSymbolParams,
+    DocumentSymbolResponse, FileSystemWatcher, FullDocumentDiagnosticReport,
+    GlobPattern, GotoDefinitionParams, GotoDefinitionResponse, Hover,
+    HoverParams, HoverProviderCapability, InitializeParams, InitializeResult,
+    InitializedParams, Location, MessageType, OneOf, PublishDiagnosticsParams,
+    ReferenceParams, Registration, RegistrationParams,
+    RelatedFullDocumentDiagnosticReport, RenameParams, SaveOptions,
+    SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability,
+    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
+    SemanticTokensRangeResult, SemanticTokensResult,
+    SemanticTokensServerCapabilities, ServerCapabilities, ShowMessageParams,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
     TextDocumentSyncSaveOptions, TextEdit, Unregistration,
     UnregistrationParams, Url, WatchKind, WorkspaceEdit,
     WorkspaceFoldersServerCapabilities, WorkspaceServerCapabilities,
@@ -587,6 +589,11 @@ impl LanguageServer for YARALanguageServer {
         ControlFlow::Continue(())
     }
 
+    /// The method is called when the client detects changes to files and
+    /// folders watched by the language client (note although the name
+    /// suggest that only file events are sent it is about file system
+    /// events which include folders as well).
+    #[cfg(not(target_family = "wasm"))]
     fn did_change_watched_files(
         &mut self,
         params: DidChangeWatchedFilesParams,

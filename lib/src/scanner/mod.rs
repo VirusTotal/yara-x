@@ -19,7 +19,6 @@ use bitvec::prelude::*;
 use memmap2::{Mmap, MmapOptions};
 use protobuf::{CodedInputStream, MessageDyn};
 use thiserror::Error;
-use wasmtime::Store;
 
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
@@ -28,6 +27,7 @@ use crate::scanner::context::create_wasm_store_and_ctx;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
+use crate::wasm::runtime::Store;
 use crate::{Variable, modules};
 
 pub(crate) use crate::scanner::context::RuntimeObject;

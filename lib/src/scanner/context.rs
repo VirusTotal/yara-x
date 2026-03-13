@@ -21,10 +21,6 @@ use indexmap::IndexMap;
 use protobuf::{MessageDyn, MessageFull};
 use regex_automata::meta::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
-use wasmtime::{
-    AsContext, AsContextMut, Global, GlobalType, Instance, MemoryType,
-    Mutability, Store, TypedFunc, Val, ValType,
-};
 
 use crate::compiler::{
     NamespaceId, PatternId, RegexpId, RuleId, Rules, SubPattern,
@@ -42,6 +38,10 @@ use crate::scanner::{DataSnippets, ScanError, ScannedData};
 use crate::scanner::{HEARTBEAT_COUNTER, INIT_HEARTBEAT};
 use crate::types::{Array, Map, Struct, TypeValue};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
+use crate::wasm::runtime::{
+    AsContext, AsContextMut, Global, GlobalType, Instance, MemoryType,
+    Mutability, Store, TypedFunc, Val, ValType,
+};
 use crate::{Variable, wasm};
 
 /// Represents the states in which a scanner can be.
@@ -71,7 +71,7 @@ pub(crate) struct ScanContext<'r, 'd> {
     /// the execution of rule conditions starts.
     pub wasm_main_func: Option<TypedFunc<(), i32>>,
     /// Module's main memory.
-    pub wasm_main_memory: Option<wasmtime::Memory>,
+    pub wasm_main_memory: Option<wasm::runtime::Memory>,
     /// WASM global variable that contains the value of `filesize`.
     pub wasm_filesize: Option<Global>,
     /// WASM global variable that contains a boolean that indicates if
@@ -1886,7 +1886,7 @@ pub fn create_wasm_store_and_ctx<'r>(
     .unwrap();
 
     // Create module's main memory.
-    let main_memory = wasmtime::Memory::new(
+    let main_memory = wasm::runtime::Memory::new(
         wasm_store.as_context_mut(),
         MemoryType::new(mem_size, Some(mem_size)),
     )
