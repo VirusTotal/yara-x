@@ -38,7 +38,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 yara-x-parser = { workspace = true }
 yara-x-fmt = { workspace = true }
-yara-x = { workspace = true, default-features = true }
+yara-x = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 tokio = { version = "1.48.0", features = ["full"] }

@@ -52,7 +52,7 @@ crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
 serde_json = { workspace = true }
-yara-x = { workspace = true,  default-features = true }
+yara-x = { workspace = true }
 
 [build-dependencies]
 cbindgen = { workspace = true }
