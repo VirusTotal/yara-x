@@ -8,6 +8,7 @@ defines how the server should process various LSP requests and notifications.
 
 use std::ops::ControlFlow;
 use std::sync::Arc;
+use std::env;
 
 use async_lsp::lsp_types::request::{
     Request, SemanticTokensFullRequest, SemanticTokensRangeRequest,
@@ -35,10 +36,10 @@ use async_lsp::lsp_types::{
     SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability,
     SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
     SemanticTokensRangeResult, SemanticTokensResult,
-    SemanticTokensServerCapabilities, ServerCapabilities, ShowMessageParams,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-    TextDocumentSyncSaveOptions, TextEdit, Unregistration,
-    UnregistrationParams, Url, WatchKind, WorkspaceEdit,
+    SemanticTokensServerCapabilities, ServerCapabilities, ServerInfo,
+    ShowMessageParams, TextDocumentSyncCapability, TextDocumentSyncKind,
+    TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit,
+    Unregistration, UnregistrationParams, Url, WatchKind, WorkspaceEdit,
     WorkspaceFoldersServerCapabilities, WorkspaceServerCapabilities,
 };
 use async_lsp::router::Router;
@@ -210,7 +211,11 @@ impl LanguageServer for YARALanguageServer {
                     }),
                     ..ServerCapabilities::default()
                 },
-                server_info: None,
+                server_info: Some(ServerInfo {
+                    name: "yara-x-ls".to_string(),
+                    version: Some(env!("CARGO_PKG_VERSION").to_string()),
+                }),
+                ..Default::default()
             })
         })
     }
