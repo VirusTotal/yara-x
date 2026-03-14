@@ -487,12 +487,7 @@ impl LanguageServer for YARALanguageServer {
                         full_document_diagnostic_report:
                             FullDocumentDiagnosticReport {
                                 result_id: None,
-                                items: diagnostics(
-                                    documents,
-                                    uri,
-                                    &config.metadata_validation,
-                                    &config.rule_name_validation,
-                                ),
+                                items: diagnostics(documents, uri, config),
                             },
                         related_documents: None,
                     },
@@ -775,12 +770,7 @@ impl YARALanguageServer {
             in_thread!({
                 let _ = client.publish_diagnostics(PublishDiagnosticsParams {
                     uri: uri.clone(),
-                    diagnostics: diagnostics(
-                        documents,
-                        uri,
-                        &config.metadata_validation,
-                        &config.rule_name_validation,
-                    ),
+                    diagnostics: diagnostics(documents, uri, config),
                     version: None,
                 });
             });
