@@ -98,7 +98,7 @@ pub fn inlay_hint(
                             ty
                         };
 
-                        if let Some(first) = for_expr.variables.get(0) {
+                        if let Some(first) = for_expr.variables.first() {
                             if let Some(second) = for_expr.variables.get(1) {
                                 // Extract map types.
                                 if let Type::Map(ty1, ty2) = ty {

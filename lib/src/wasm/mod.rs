@@ -175,6 +175,9 @@ pub(crate) struct WasmExport {
     pub method_of: Option<&'static str>,
     /// Reference to some type that implements the WasmExportedFn trait.
     pub func: &'static (dyn WasmExportedFn + Send + Sync),
+    /// Function's documentation description.
+    #[cfg(feature = "module-description")]
+    pub description: Option<std::borrow::Cow<'static, str>>,
 }
 
 impl WasmExport {
@@ -225,9 +228,23 @@ impl WasmExport {
             // multiple signatures. If that's the case, add more signatures to
             // the existing `Func` object.
             if let Some(function) = functions.get_mut(export.name) {
-                function.add_signature(FuncSignature::from(mangled_name))
+                #[cfg(feature = "module-description")]
+                {
+                    let mut sign = FuncSignature::from(mangled_name);
+                    sign.description = export.description.clone();
+                    function.add_signature(sign);
+                }
+                #[cfg(not(feature = "module-description"))]
+                function.add_signature(FuncSignature::from(mangled_name));
             } else {
-                functions.insert(export.name, Func::from(mangled_name));
+                #[cfg(feature = "module-description")]
+                let func = Func::from(mangled_name)
+                    .update_first_description(export.description.clone());
+
+                #[cfg(not(feature = "module-description"))]
+                let func = Func::from(mangled_name);
+
+                functions.insert(export.name, func);
             }
         }
 

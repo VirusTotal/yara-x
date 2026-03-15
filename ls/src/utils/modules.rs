@@ -310,7 +310,7 @@ fn from_expr_inner(expr: &Expr) -> Vec<Segment> {
     }
 }
 
-fn from_field_access(field_access: &Box<NAryExpr>) -> Vec<Segment> {
+fn from_field_access(field_access: &NAryExpr) -> Vec<Segment> {
     let mut res = Vec::new();
     for operand in field_access.operands() {
         match operand {
@@ -326,7 +326,7 @@ fn from_field_access(field_access: &Box<NAryExpr>) -> Vec<Segment> {
     res
 }
 
-fn from_lookup(lookup: &Box<Lookup>) -> Vec<Segment> {
+fn from_lookup(lookup: &Lookup) -> Vec<Segment> {
     match &lookup.primary {
         Expr::Ident(ident) => {
             vec![Segment::Field(ident.name.to_string()), Segment::Index]

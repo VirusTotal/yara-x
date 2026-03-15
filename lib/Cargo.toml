@@ -244,6 +244,10 @@ default-modules = [
     "vt-module",
 ]
 
+# Enables storing Rust documentation comments in WasmExport and exposing 
+# them in other structures as well.
+module-description = []
+
 # Features that are enabled by default.
 default = [
     "constant-folding",

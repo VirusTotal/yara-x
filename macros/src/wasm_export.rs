@@ -304,6 +304,33 @@ pub(crate) fn impl_wasm_export_macro(
         ));
     }
 
+    // Collect all documentation comments into single string.
+    let docs = func
+        .attrs
+        .iter()
+        .filter_map(|attr| {
+            if let Ok(name_value) = attr.meta.require_name_value()
+                && let Ok(ident) = name_value.path.require_ident()
+                && ident == "doc"
+                && let syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(doc_str),
+                    ..
+                }) = &name_value.value
+            {
+                Some(doc_str.value())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<String>>()
+        .join("\n");
+
+    let description = if docs.is_empty() {
+        quote! { None }
+    } else {
+        quote! { Some(std::borrow::Cow::Borrowed(#docs))}
+    };
+
     // By default, the name of the function in YARA is equal to the name in
     // Rust, but the YARA name can be changed with the `name` argument, as
     // in: #[wasm_export(name = "some_other_name")].
@@ -340,6 +367,8 @@ pub(crate) fn impl_wasm_export_macro(
             rust_module_path: module_path!(),
             method_of: #method_of,
             func: &#exported_fn_ident { target_fn: &#rust_fn_name },
+            #[cfg(feature = "module-description")]
+            description: #description
         };
 
         #[cfg(feature = "inventory")]
@@ -351,6 +380,8 @@ pub(crate) fn impl_wasm_export_macro(
                 rust_module_path: module_path!(),
                 method_of: #method_of,
                 func: &#exported_fn_ident { target_fn: &#rust_fn_name },
+                #[cfg(feature = "module-description")]
+                description: #description
             }
         }
     };

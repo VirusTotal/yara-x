@@ -389,6 +389,26 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
                                 description: Some(ty_to_string(&ty)),
                                 ..Default::default()
                             }),
+                            #[cfg(feature = "module-description")]
+                            documentation: sig.description.as_ref().map(
+                                |docs| {
+                                    async_lsp::lsp_types::Documentation::MarkupContent(
+                                        async_lsp::lsp_types::MarkupContent {
+                                            kind: async_lsp::lsp_types::MarkupKind::Markdown,
+                                            value: format!(
+                                                "## `{}({}) -> {}`\n\n{}",
+                                                name,
+                                                sig.args
+                                                    .iter()
+                                                    .map(ty_to_string)
+                                                    .join(", "),
+                                                ty_to_string(&sig.ret),
+                                                docs
+                                            ),
+                                        },
+                                    )
+                                },
+                            ),
                             ..Default::default()
                         }
                     })

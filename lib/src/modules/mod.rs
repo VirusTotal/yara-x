@@ -385,6 +385,8 @@ pub mod mods {
                     signatures.push(FuncSignature {
                         args: signature.args.iter().map(Type::from).collect(),
                         ret: Type::from(&signature.result),
+                        #[cfg(feature = "module-description")]
+                        description: signature.description.clone(),
                     });
                 }
 
@@ -399,6 +401,9 @@ pub mod mods {
             pub args: Vec<Type>,
             /// The return type for the function.
             pub ret: Type,
+            /// Function's documentation description.
+            #[cfg(feature = "module-description")]
+            pub description: Option<std::borrow::Cow<'static, str>>,
         }
 
         /// Describes a field within a structure or module.
