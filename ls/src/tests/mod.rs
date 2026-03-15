@@ -10,9 +10,9 @@ use async_lsp::lsp_types::notification::{
 use async_lsp::lsp_types::request::{
     CodeActionRequest, Completion, DocumentDiagnosticRequest,
     DocumentHighlightRequest, DocumentSymbolRequest, Formatting,
-    GotoDefinition, HoverRequest, References, Rename, Request,
-    SelectionRangeRequest, SemanticTokensFullRequest,
-    SemanticTokensRangeRequest,
+    GotoDefinition, HoverRequest, InlayHintRequest, References, Rename,
+    Request, SelectionRangeRequest, SemanticTokensFullRequest,
+    SemanticTokensRangeRequest, SignatureHelpRequest,
 };
 use async_lsp::lsp_types::{
     ClientCapabilities, DiagnosticClientCapabilities,
@@ -391,4 +391,15 @@ async fn semantic_tokens_range() {
         "semantic_tokens_range.yar",
     )
     .await;
+}
+
+#[tokio::test]
+async fn signature_help() {
+    test_lsp_request::<_, SignatureHelpRequest>("signature_help1.yar").await;
+    test_lsp_request::<_, SignatureHelpRequest>("signature_help2.yar").await;
+}
+
+#[tokio::test]
+async fn inlay_hint() {
+    test_lsp_request::<_, InlayHintRequest>("inlay_hint.yar").await;
 }

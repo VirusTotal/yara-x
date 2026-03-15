@@ -1,0 +1,39 @@
+{
+  "activeParameter": 1,
+  "signatures": [
+    {
+      "label": "delayed_import_rva(string, integer) -> integer",
+      "parameters": [
+        {
+          "label": [
+            19,
+            25
+          ]
+        },
+        {
+          "label": [
+            27,
+            34
+          ]
+        }
+      ]
+    },
+    {
+      "label": "delayed_import_rva(string, string) -> integer",
+      "parameters": [
+        {
+          "label": [
+            19,
+            25
+          ]
+        },
+        {
+          "label": [
+            27,
+            33
+          ]
+        }
+      ]
+    }
+  ]
+}

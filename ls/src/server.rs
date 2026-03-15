@@ -29,14 +29,16 @@ use async_lsp::lsp_types::{
     DocumentSymbolResponse, FileSystemWatcher, FullDocumentDiagnosticReport,
     GlobPattern, GotoDefinitionParams, GotoDefinitionResponse, Hover,
     HoverParams, HoverProviderCapability, InitializeParams, InitializeResult,
-    InitializedParams, Location, MessageType, OneOf, PublishDiagnosticsParams,
-    ReferenceParams, Registration, RegistrationParams,
-    RelatedFullDocumentDiagnosticReport, RenameParams, SaveOptions,
-    SelectionRange, SelectionRangeParams, SelectionRangeProviderCapability,
-    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
-    SemanticTokensRangeResult, SemanticTokensResult,
-    SemanticTokensServerCapabilities, ServerCapabilities, ShowMessageParams,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
+    InitializedParams, InlayHint, InlayHintParams, Location, MessageType,
+    OneOf, PublishDiagnosticsParams, ReferenceParams, Registration,
+    RegistrationParams, RelatedFullDocumentDiagnosticReport, RenameParams,
+    SaveOptions, SelectionRange, SelectionRangeParams,
+    SelectionRangeProviderCapability, SemanticTokensFullOptions,
+    SemanticTokensLegend, SemanticTokensOptions, SemanticTokensRangeResult,
+    SemanticTokensResult, SemanticTokensServerCapabilities,
+    ServerCapabilities, ShowMessageParams, SignatureHelp,
+    SignatureHelpOptions, SignatureHelpParams, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextDocumentSyncOptions,
     TextDocumentSyncSaveOptions, TextEdit, Unregistration,
     UnregistrationParams, Url, WatchKind, WorkspaceEdit,
     WorkspaceFoldersServerCapabilities, WorkspaceServerCapabilities,
@@ -56,12 +58,14 @@ use crate::features::document_symbol::document_symbol;
 use crate::features::formatting::formatting;
 use crate::features::goto::go_to_definition;
 use crate::features::hover::hover;
+use crate::features::inlay_hint::inlay_hint;
 use crate::features::references::find_references;
 use crate::features::rename::rename;
 use crate::features::selection_range::selection_range;
 use crate::features::semantic_tokens::{
     SEMANTIC_TOKEN_MODIFIERS, SEMANTIC_TOKEN_TYPES, semantic_tokens,
 };
+use crate::features::signature_help::signature_help;
 
 macro_rules! in_thread {
     ($code:expr) => {{
@@ -201,6 +205,12 @@ impl LanguageServer for YARALanguageServer {
                             DiagnosticOptions::default(),
                         ),
                     ),
+                    signature_help_provider: Some(SignatureHelpOptions {
+                        trigger_characters: Some(vec!["(".to_string()]),
+                        retrigger_characters: Some(vec![",".to_string()]),
+                        ..Default::default()
+                    }),
+                    inlay_hint_provider: Some(OneOf::Left(true)),
                     workspace: Some(WorkspaceServerCapabilities{
                         workspace_folders: Some(WorkspaceFoldersServerCapabilities{
                             supported: Some(true),
@@ -513,6 +523,28 @@ impl LanguageServer for YARALanguageServer {
         Box::pin(async move {
             Ok(formatting(documents, params, &config.code_formatting))
         })
+    }
+
+    fn signature_help(
+        &mut self,
+        params: SignatureHelpParams,
+    ) -> BoxFuture<'static, Result<Option<SignatureHelp>, Self::Error>> {
+        let documents = Arc::clone(&self.documents);
+        let uri = params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+
+        Box::pin(async move { Ok(signature_help(documents, position, uri)) })
+    }
+
+    fn inlay_hint(
+        &mut self,
+        params: InlayHintParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<InlayHint>>, Self::Error>> {
+        let documents = Arc::clone(&self.documents);
+        let uri = params.text_document.uri;
+        let range = params.range;
+
+        Box::pin(async move { Ok(inlay_hint(documents, uri, range)) })
     }
 
     /// This method is called when a document is opened.
