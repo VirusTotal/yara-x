@@ -1,9 +1,10 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_lsp::lsp_types::{
     CompletionContext, CompletionItem, CompletionItemKind,
     CompletionItemLabelDetails, CompletionTriggerKind, InsertTextFormat,
-    InsertTextMode, Position, Url,
+    InsertTextMode, Position, Range, TextEdit, Url,
 };
 
 use itertools::Itertools;
@@ -145,10 +146,9 @@ fn condition_suggestions(
     match token.kind() {
         // Suggest completion of
         SyntaxKind::IDENT => {
-            for rule_decl in cst
-                .root()
-                .children()
-                .filter(|n| n.kind() == SyntaxKind::RULE_DECL)
+            let root = cst.root();
+            for rule_decl in
+                root.children().filter(|n| n.kind() == SyntaxKind::RULE_DECL)
             {
                 if let Some(rule_ident) = rule_decl
                     .children_with_tokens()
@@ -202,6 +202,44 @@ fn condition_suggestions(
                         ..Default::default()
                     }),
                     kind: Some(CompletionItemKind::VARIABLE),
+                    ..Default::default()
+                })
+            });
+
+            // Collect already imported modules
+            let imported = root
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::IMPORT_STMT)
+                .filter_map(|node| {
+                    node.last_token()
+                        .filter(|token| token.kind() == SyntaxKind::STRING_LIT)
+                        .map(|token| {
+                            let module_name = token.text();
+                            // This is safe, because the text of string literal
+                            // should always contain 2 quotation marks.
+                            module_name[1..module_name.len() - 1].to_string()
+                        })
+                })
+                .collect::<HashSet<String>>();
+
+            // Suggest module names
+            module_names().for_each(|module_name| {
+                // Automatically imports the module if it is not already imported
+                let additional_text_edits = if imported.contains(module_name) {
+                    None
+                } else {
+                    Some(vec![TextEdit {
+                        range: Range {
+                            start: Position { line: 0, character: 0 },
+                            end: Position { line: 0, character: 0 },
+                        },
+                        new_text: format!("import \"{}\"\n", module_name),
+                    }])
+                };
+                result.push(CompletionItem {
+                    label: module_name.to_string(),
+                    kind: Some(CompletionItemKind::MODULE),
+                    additional_text_edits,
                     ..Default::default()
                 })
             });
