@@ -241,6 +241,7 @@ pub fn find_matching_left_bracket(
     None
 }
 
+/// Resolves a `Type` from an AST expression
 pub fn from_expr(expr: &Expr) -> Option<Type> {
     let segments = from_expr_inner(expr);
 

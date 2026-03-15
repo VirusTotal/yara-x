@@ -525,6 +525,8 @@ impl LanguageServer for YARALanguageServer {
         })
     }
 
+    /// This method is called to provide information for function
+    /// parameters.
     fn signature_help(
         &mut self,
         params: SignatureHelpParams,
@@ -536,6 +538,11 @@ impl LanguageServer for YARALanguageServer {
         Box::pin(async move { Ok(signature_help(documents, position, uri)) })
     }
 
+    /// This method is called to render additional information about
+    /// parameters or types in the code.
+    ///
+    /// Currently, this method returns the types of the variables
+    /// declared in `with` and `for` statements.
     fn inlay_hint(
         &mut self,
         params: InlayHintParams,
