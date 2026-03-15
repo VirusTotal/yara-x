@@ -1,7 +1,7 @@
 {
     "i32": 123,
     "str": "foo",
-    "bytes": { "encoding": "base64", "value": "yv4="},
+    "bytes": { "$type": "base64", "value": "yv4=" },
     "float": 3.1415,
     "bool": true,
     "repeated_msg": [
@@ -25,7 +25,9 @@
             "foo": "bar"
         }
     },
-    "timestamp": { "encoding": "timestamp", "value": 0 },
-    "enum": "Foo",
-    "flags": 3
+    "timestamp": { "$type": "timestamp", "value": 0 },
+    "enum": { "$type": "enum", "value": 1, "name": "Foo" },
+    "flags": { "$type": "flags", "value": 3, "flags": [{"name": "FOO", "value": 1}, {"name": "BAR", "value": 2}] },
+    "hex_int": { "$type": "hex", "value": 255 },
+    "hex_enum": { "$type": "enum", "value": 10, "name": "HEX_A" }
 }
