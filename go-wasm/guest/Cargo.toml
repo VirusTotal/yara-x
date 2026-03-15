@@ -1,0 +1,50 @@
+[package]
+name = "yarax_guest"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+readme.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+base64 = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+wasm-opt = { workspace = true, optional = true }
+yara-x = { workspace = true, features = [
+    "generate-proto-code",
+    "inventory",
+    "constant-folding",
+    "fast-regexp",
+    "exact-atoms",
+    "native-code-serialization",
+    "wasip1-runtime",
+    "crypto",
+    "console-module",
+    "crx-module",
+    "dex-module",
+    "dotnet-module",
+    "elf-module",
+    "hash-module",
+    "lnk-module",
+    "macho-module",
+    "math-module",
+    "pe-module",
+    "string-module",
+    "time-module",
+    "test_proto2-module",
+    "test_proto3-module",
+    "vt-module",
+] }
+
+[features]
+rules-profiling = ["yara-x/rules-profiling"]
+release-tools = ["dep:wasm-opt"]
+
+[[bin]]
+name = "build_web_release"
+path = "tools/build_web_release.rs"
+required-features = ["release-tools"]

@@ -1,0 +1,64 @@
+[package]
+name = "yara_wasm"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+readme.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+release-tools = ["dep:wasm-opt"]
+
+[dependencies]
+# Keep the browser package aligned with the Go guest's module/compiler surface.
+# The runtime backend is the only intentional difference between the two.
+yara-x = { workspace = true, features = [
+    "generate-proto-code",
+    "inventory",
+    "constant-folding",
+    "fast-regexp",
+    "exact-atoms",
+    "native-code-serialization",
+    "crypto",
+    "console-module",
+    "crx-module",
+    "dex-module",
+    "hash-module",
+    "macho-module",
+    "math-module",
+    "dotnet-module",
+    "elf-module",
+    "lnk-module",
+    "pe-module",
+    "string-module",
+    "time-module",
+    "test_proto2-module",
+    "test_proto3-module",
+    "vt-module",
+]}
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+wasm-opt = { workspace = true, optional = true }
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+js-sys = { workspace = true }
+serde-wasm-bindgen = { workspace = true }
+wasm-bindgen = { workspace = true }
+getrandom = { workspace = true, features = ["js"] }
+uuid = { workspace = true, features = ["js"] }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = { workspace = true }
+zip = { workspace = true }
+
+[[bin]]
+name = "build_web_release"
+path = "tools/build_web_release.rs"
+required-features = ["release-tools"]

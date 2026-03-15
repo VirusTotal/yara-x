@@ -1248,12 +1248,26 @@ impl Compiler<'_> {
     ) -> Result<(Vec<u8>, PathBuf), CompileError> {
         let read_file =
             |path: PathBuf| -> Result<(Vec<u8>, PathBuf), io::Error> {
-                let mut path = path.canonicalize()?;
+                let mut path = match path.canonicalize() {
+                    Ok(canonical_path) => canonical_path,
+                    Err(err) if err.kind() == io::ErrorKind::Unsupported => {
+                        path
+                    }
+                    Err(err) => return Err(err),
+                };
                 let content = fs::read(&path)?;
 
-                if let Ok(cwd) =
-                    env::current_dir().and_then(|dir| dir.canonicalize())
-                    && let Ok(relative_path) = path.strip_prefix(cwd)
+                if let Ok(cwd) = env::current_dir().and_then(|dir| {
+                    match dir.canonicalize() {
+                        Ok(canonical_dir) => Ok(canonical_dir),
+                        Err(err)
+                            if err.kind() == io::ErrorKind::Unsupported =>
+                        {
+                            Ok(dir)
+                        }
+                        Err(err) => Err(err),
+                    }
+                }) && let Ok(relative_path) = path.strip_prefix(cwd)
                 {
                     path = relative_path.to_path_buf();
                 }

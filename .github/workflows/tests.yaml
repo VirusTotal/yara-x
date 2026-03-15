@@ -179,3 +179,61 @@ jobs:
         run: cargo doc --no-deps
         env:
           RUSTDOCFLAGS: ${{ matrix.rust_flags }}
+
+  browser-wasm:
+    name: Browser WASM
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+
+      - name: Install Node.js
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a  # v4.2.0
+        with:
+          node-version: 22
+
+      - name: Install Chrome and ChromeDriver
+        id: setup-chrome
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: stable
+          install-dependencies: true
+          install-chromedriver: true
+
+      - name: Add ChromeDriver to PATH
+        run: echo "$(dirname '${{ steps.setup-chrome.outputs.chromedriver-path }}')" >> "$GITHUB_PATH"
+
+      - name: Install wasm-pack
+        run: cargo install --locked wasm-pack --version 0.14.0
+
+      - name: Install wasm-bindgen CLI
+        run: cargo install --locked wasm-bindgen-cli --version 0.2.113
+
+      - name: Install terser
+        run: npm install --global terser
+
+      - name: Run Node-targeted Rust tests
+        run: npm --prefix js-wasm run test:wasm-node
+
+      - name: Run headless browser Rust tests
+        run: npm --prefix js-wasm run test:wasm-browser
+        env:
+          CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
+          CHROMEDRIVER: ${{ steps.setup-chrome.outputs.chromedriver-path }}
+
+      - name: Build browser package
+        run: npm --prefix js-wasm run build:web
+
+      - name: Run JS integration tests
+        run: npm --prefix js-wasm run test:js
+
+      - name: Validate npm package contents
+        run: npm --prefix js-wasm run pack:dry-run

@@ -1,9 +1,10 @@
 /*! WASM runtime
 
 During the compilation process the condition associated to each YARA rule is
-translated into WebAssembly (WASM) code. This code is later converted to native
-code and executed by [wasmtime](https://wasmtime.dev/), a WASM runtime embedded
-in YARA.
+translated into WebAssembly (WASM) code. Depending on the selected target, this
+code is later executed either by embedded [wasmtime](https://wasmtime.dev/) or
+by one of YARA-X's custom WASM runtime shims for browser and `wasm32-wasip1`
+builds.
 
 For each instance of [`crate::compiler::Rules`] the compiler creates a WASM
 module. This WASM module works in close collaboration with YARA's Rust code for
@@ -173,6 +174,9 @@ pub(crate) struct WasmExport {
     /// If the function is a method of some type, this contains the name of
     /// the type (i.e: `my_module.my_struct`).
     pub method_of: Option<&'static str>,
+    /// Controls whether imported module state must be synchronized before
+    /// and/or after invoking the callback from generated WASM code.
+    pub sync_flags: u32,
     /// Reference to some type that implements the WasmExportedFn trait.
     pub func: &'static (dyn WasmExportedFn + Send + Sync),
 }
@@ -259,9 +263,8 @@ impl WasmExport {
 /// [`WasmExportedFn2`], etc. Each of these types is a generic type that
 /// represents all functions with 0, 1, and 2 arguments respectively.
 pub(crate) trait WasmExportedFn {
-    /// Returns the function that will be passed to
-    /// [`wasmtime::Func::new_unchecked`] while linking the WASM code to this
-    /// function.
+    /// Returns the function that will be passed to the selected runtime linker
+    /// while linking the WASM code to this function.
     fn trampoline(&'static self) -> TrampolineFn;
 
     /// Returns a [`Vec<ValType>`] with the types of the function's
@@ -856,6 +859,7 @@ pub(crate) fn new_linker() -> Linker<ScanContext<'static, 'static>> {
                     export.rust_module_path,
                     export.fully_qualified_mangled_name().as_str(),
                     func_type,
+                    export.sync_flags,
                     export.func.trampoline(),
                 )
                 .unwrap();
@@ -866,7 +870,7 @@ pub(crate) fn new_linker() -> Linker<ScanContext<'static, 'static>> {
 }
 
 /// Invoked from WASM for triggering the pattern search phase.
-#[wasm_export]
+#[wasm_export(sync = "both")]
 pub(crate) fn search_for_patterns(caller: &mut Caller<'_, ScanContext>) {
     // The WASM runtime and `search_for_patterns` each track timeouts
     // independently: the runtime uses epoch deadlines, while
@@ -889,7 +893,7 @@ pub(crate) fn search_for_patterns(caller: &mut Caller<'_, ScanContext>) {
 }
 
 /// Invoked from WASM to notify when a rule matches.
-#[wasm_export]
+#[wasm_export(sync = "both")]
 pub(crate) fn rule_match(
     caller: &mut Caller<'_, ScanContext>,
     rule_id: RuleId,
@@ -898,7 +902,7 @@ pub(crate) fn rule_match(
 }
 
 /// Invoked from WASM to notify when a rule doesn't match.
-#[wasm_export]
+#[wasm_export(sync = "both")]
 pub(crate) fn rule_no_match(
     caller: &mut Caller<'_, ScanContext>,
     rule_id: RuleId,
@@ -911,7 +915,7 @@ pub(crate) fn rule_no_match(
 ///
 /// Returns true if the pattern identified by `pattern_id` matches at `offset`,
 /// or false if otherwise.
-#[wasm_export]
+#[wasm_export(sync = "none")]
 pub(crate) fn is_pat_match_at(
     caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
@@ -933,7 +937,7 @@ pub(crate) fn is_pat_match_at(
 ///
 /// Returns true if the pattern identified by `pattern_id` matches at some
 /// offset in the range [`lower_bound`, `upper_bound`], both inclusive.
-#[wasm_export]
+#[wasm_export(sync = "none")]
 pub(crate) fn is_pat_match_in(
     caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
@@ -951,7 +955,7 @@ pub(crate) fn is_pat_match_in(
 
 /// Invoked from WASM to ask if at least `required` of the patterns in the
 /// range `pattern_id_start..=pattern_id_end` (inclusive) match.
-#[wasm_export]
+#[wasm_export(sync = "none")]
 pub(crate) fn pat_range_match(
     caller: &mut Caller<'_, ScanContext>,
     pattern_id_start: PatternId,
@@ -987,7 +991,7 @@ pub(crate) fn pat_range_match(
 }
 
 /// Invoked from WASM to ask for the number of matches for a pattern.
-#[wasm_export]
+#[wasm_export(sync = "none")]
 pub(crate) fn pat_matches(
     caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
@@ -1004,7 +1008,7 @@ pub(crate) fn pat_matches(
 ///
 /// Returns the number of matches for the pattern identified by `pattern_id`
 /// that start in the range [`lower_bound`, `upper_bound`], both inclusive.
-#[wasm_export]
+#[wasm_export(sync = "none")]
 pub(crate) fn pat_matches_in(
     caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
@@ -1023,7 +1027,7 @@ pub(crate) fn pat_matches_in(
 /// Returns the length for the index-th occurrence of the pattern identified
 /// by `pattern_id`. The index is 1-based. Returns `None` if the pattern
 /// has not matched or there are less than `index` matches.
-#[wasm_export]
+#[wasm_export(sync = "none")]
 pub(crate) fn pat_length(
     caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
@@ -1044,7 +1048,7 @@ pub(crate) fn pat_length(
 /// Returns the offset for the index-th occurrence of the pattern identified
 /// by `pattern_id`. The index is 1-based. Returns `None` if the pattern
 /// has not matched or there are less than `index` matches.
-#[wasm_export]
+#[wasm_export(sync = "none")]
 pub(crate) fn pat_offset(
     caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
@@ -1061,7 +1065,7 @@ pub(crate) fn pat_offset(
 }
 
 /// Called from WASM to obtain the length of a string.
-#[wasm_export(name = "len", method_of = "RuntimeString")]
+#[wasm_export(name = "len", method_of = "RuntimeString", sync = "none")]
 pub(crate) fn string_len(
     caller: &mut Caller<'_, ScanContext>,
     string: RuntimeString,
@@ -1070,7 +1074,7 @@ pub(crate) fn string_len(
 }
 
 /// Called from WASM to obtain the length of an array.
-#[wasm_export(name = "len", method_of = "Array")]
+#[wasm_export(name = "len", method_of = "Array", sync = "none")]
 pub(crate) fn array_len(
     _: &mut Caller<'_, ScanContext>,
     array: Rc<Array>,
@@ -1079,7 +1083,7 @@ pub(crate) fn array_len(
 }
 
 /// Called from WASM to obtain the length of a map.
-#[wasm_export(name = "len", method_of = "Map")]
+#[wasm_export(name = "len", method_of = "Map", sync = "none")]
 pub(crate) fn map_len(_: &mut Caller<'_, ScanContext>, map: Rc<Map>) -> i64 {
     map.len() as i64
 }
@@ -1176,7 +1180,7 @@ fn lookup_field(
 /// Lookup a field of string type and returns its value.
 ///
 /// See [`lookup_field`].
-#[wasm_export]
+#[wasm_export(sync = "before")]
 pub(crate) fn lookup_string(
     caller: &mut Caller<'_, ScanContext>,
     structure: Option<Rc<Struct>>,
@@ -1197,7 +1201,7 @@ pub(crate) fn lookup_string(
 /// Lookup a value in a struct, and put its value in a variable.
 ///
 /// See [`lookup_field`].
-#[wasm_export]
+#[wasm_export(sync = "before")]
 pub(crate) fn lookup_object(
     caller: &mut Caller<'_, ScanContext>,
     structure: Option<Rc<Struct>>,
@@ -1215,7 +1219,7 @@ pub(crate) fn lookup_object(
 
 macro_rules! gen_lookup_fn {
     ($name:ident, $return_type:ty, $type:path) => {
-        #[wasm_export]
+        #[wasm_export(sync = "before")]
         pub(crate) fn $name(
             caller: &mut Caller<'_, ScanContext>,
             structure: Option<Rc<Struct>>,
@@ -1238,7 +1242,7 @@ gen_lookup_fn!(lookup_bool, bool, TypeValue::Bool);
 
 macro_rules! gen_array_indexing_fn {
     ($name:ident, $fn:ident, $return_type:ty) => {
-        #[wasm_export]
+        #[wasm_export(sync = "none")]
         pub(crate) fn $name(
             _: &mut Caller<'_, ScanContext>,
             array: Rc<Array>,
@@ -1253,7 +1257,7 @@ gen_array_indexing_fn!(array_indexing_integer, as_integer_array, i64);
 gen_array_indexing_fn!(array_indexing_float, as_float_array, f64);
 gen_array_indexing_fn!(array_indexing_bool, as_bool_array, bool);
 
-#[wasm_export]
+#[wasm_export(sync = "none")]
 #[rustfmt::skip]
 pub(crate) fn array_indexing_string(
     _: &mut Caller<'_, ScanContext>,
@@ -1266,7 +1270,7 @@ pub(crate) fn array_indexing_string(
         .cloned()
 }
 
-#[wasm_export]
+#[wasm_export(sync = "none")]
 #[rustfmt::skip]
 pub(crate) fn array_indexing_struct(
     _: &mut Caller<'_, ScanContext>,
@@ -1317,7 +1321,7 @@ macro_rules! gen_map_lookup_fn {
         );
     };
     ($name:ident, i64, $return_type:ty, $with:ident, $as:ident) => {
-        #[wasm_export]
+        #[wasm_export(sync = "none")]
         pub(crate) fn $name(
             _: &mut Caller<'_, ScanContext>,
             map: Rc<Map>,
@@ -1327,7 +1331,7 @@ macro_rules! gen_map_lookup_fn {
         }
     };
     ($name:ident, RuntimeString, $return_type:ty, $with:ident, $as:ident) => {
-        #[wasm_export]
+        #[wasm_export(sync = "none")]
         pub(crate) fn $name(
             caller: &mut Caller<'_, ScanContext>,
             map: Rc<Map>,
@@ -1381,7 +1385,7 @@ gen_map_lookup_fn!(
     bool
 );
 
-#[wasm_export]
+#[wasm_export(sync = "none")]
 pub(crate) fn map_lookup_integer_string(
     _: &mut Caller<'_, ScanContext>,
     map: Rc<Map>,
@@ -1390,7 +1394,7 @@ pub(crate) fn map_lookup_integer_string(
     map.with_integer_keys().get(&key).map(|s| s.as_string())
 }
 
-#[wasm_export]
+#[wasm_export(sync = "none")]
 pub(crate) fn map_lookup_string_string(
     caller: &mut Caller<'_, ScanContext>,
     map: Rc<Map>,
@@ -1400,7 +1404,7 @@ pub(crate) fn map_lookup_string_string(
     map.with_string_keys().get(key).map(|s| s.as_string())
 }
 
-#[wasm_export]
+#[wasm_export(sync = "none")]
 pub(crate) fn map_lookup_integer_struct(
     _: &mut Caller<'_, ScanContext>,
     map: Rc<Map>,
@@ -1409,7 +1413,7 @@ pub(crate) fn map_lookup_integer_struct(
     map.with_integer_keys().get(&key).map(|v| v.as_struct())
 }
 
-#[wasm_export]
+#[wasm_export(sync = "none")]
 pub(crate) fn map_lookup_string_struct(
     caller: &mut Caller<'_, ScanContext>,
     map: Rc<Map>,
@@ -1421,7 +1425,7 @@ pub(crate) fn map_lookup_string_struct(
 
 macro_rules! gen_map_lookup_by_index_fn {
     ($name:ident, RuntimeString, $val:ty, $with:ident, $as:ident) => {
-        #[wasm_export]
+        #[wasm_export(sync = "none")]
         pub(crate) fn $name(
             _: &mut Caller<'_, ScanContext>,
             map: Rc<Map>,
@@ -1434,7 +1438,7 @@ macro_rules! gen_map_lookup_by_index_fn {
         }
     };
     ($name:ident, $key:ty, $val:ty, $with:ident, $as:ident) => {
-        #[wasm_export]
+        #[wasm_export(sync = "none")]
         pub(crate) fn $name(
             _: &mut Caller<'_, ScanContext>,
             map: Rc<Map>,
@@ -1502,7 +1506,7 @@ gen_map_lookup_by_index_fn!(
     as_bool
 );
 
-#[wasm_export]
+#[wasm_export(sync = "none")]
 pub(crate) fn map_lookup_by_index_integer_string(
     _: &mut Caller<'_, ScanContext>,
     map: Rc<Map>,
@@ -1514,7 +1518,7 @@ pub(crate) fn map_lookup_by_index_integer_string(
         .unwrap()
 }
 
-#[wasm_export]
+#[wasm_export(sync = "none")]
 pub(crate) fn map_lookup_by_index_string_string(
     _: &mut Caller<'_, ScanContext>,
     map: Rc<Map>,
@@ -1528,7 +1532,7 @@ pub(crate) fn map_lookup_by_index_string_string(
         .unwrap()
 }
 
-#[wasm_export]
+#[wasm_export(sync = "none")]
 pub(crate) fn map_lookup_by_index_integer_struct(
     _: &mut Caller<'_, ScanContext>,
     map: Rc<Map>,
@@ -1540,7 +1544,7 @@ pub(crate) fn map_lookup_by_index_integer_struct(
         .unwrap()
 }
 
-#[wasm_export]
+#[wasm_export(sync = "none")]
 pub(crate) fn map_lookup_by_index_string_struct(
     _: &mut Caller<'_, ScanContext>,
     map: Rc<Map>,
@@ -1556,7 +1560,7 @@ pub(crate) fn map_lookup_by_index_string_struct(
 
 macro_rules! gen_str_cmp_fn {
     ($name:ident, $op:tt) => {
-        #[wasm_export]
+        #[wasm_export(sync = "none")]
         pub(crate) fn $name(
             caller: &mut Caller<'_, ScanContext>,
             lhs: RuntimeString,
@@ -1576,7 +1580,7 @@ gen_str_cmp_fn!(str_ge, ge);
 
 macro_rules! gen_str_op_fn {
     ($name:ident, $op:tt, $case_insensitive:literal) => {
-        #[wasm_export]
+        #[wasm_export(sync = "none")]
         pub(crate) fn $name(
             caller: &mut Caller<'_, ScanContext>,
             lhs: RuntimeString,
@@ -1595,7 +1599,7 @@ gen_str_op_fn!(str_istartswith, starts_with, true);
 gen_str_op_fn!(str_iendswith, ends_with, true);
 gen_str_op_fn!(str_iequals, equals, true);
 
-#[wasm_export]
+#[wasm_export(sync = "none")]
 pub(crate) fn str_len(
     caller: &mut Caller<'_, ScanContext>,
     s: RuntimeString,
@@ -1603,7 +1607,7 @@ pub(crate) fn str_len(
     s.len(caller.data()) as i64
 }
 
-#[wasm_export]
+#[wasm_export(sync = "none")]
 pub(crate) fn str_matches(
     caller: &mut Caller<'_, ScanContext>,
     lhs: RuntimeString,
@@ -1615,7 +1619,7 @@ pub(crate) fn str_matches(
 
 macro_rules! gen_int_fn {
     ($name:ident, $return_type:ty, $from_fn:ident, $min:expr, $max:expr) => {
-        #[wasm_export(public = true)]
+        #[wasm_export(public = true, sync = "none")]
         pub(crate) fn $name(
             caller: &mut Caller<'_, ScanContext>,
             offset: i64,
@@ -1649,7 +1653,7 @@ gen_int_fn!(int32be, i32, from_be_bytes, -2_147_483_648, 2_147_483_647);
 
 macro_rules! gen_float_fn {
     ($name:ident, $return_type:ty, $from_fn:ident) => {
-        #[wasm_export(public = true)]
+        #[wasm_export(public = true, sync = "none")]
         pub(crate) fn $name(
             caller: &mut Caller<'_, ScanContext>,
             offset: i64,

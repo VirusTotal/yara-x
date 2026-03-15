@@ -9,9 +9,29 @@ use std::ops::{Deref, Range};
 use std::pin::Pin;
 use std::ptr::NonNull;
 use std::rc::Rc;
+#[cfg(not(all(
+    target_arch = "wasm32",
+    target_os = "wasi",
+    target_env = "p1",
+    feature = "wasip1-runtime"
+)))]
 use std::sync::atomic::Ordering;
+#[cfg(not(all(
+    target_arch = "wasm32",
+    target_os = "wasi",
+    target_env = "p1",
+    feature = "wasip1-runtime"
+)))]
+use std::thread;
 use std::time::Duration;
-use std::{cmp, mem, thread};
+#[cfg(all(
+    target_arch = "wasm32",
+    target_os = "wasi",
+    target_env = "p1",
+    feature = "wasip1-runtime"
+))]
+use std::time::Instant;
+use std::{cmp, mem};
 
 use base64::Engine;
 use bitvec::order::Lsb0;
@@ -35,6 +55,12 @@ use crate::re::thompson::PikeVM;
 use crate::scanner::ProfilingData;
 use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
 use crate::scanner::{DataSnippets, ScanError, ScannedData};
+#[cfg(not(all(
+    target_arch = "wasm32",
+    target_os = "wasi",
+    target_env = "p1",
+    feature = "wasip1-runtime"
+)))]
 use crate::scanner::{HEARTBEAT_COUNTER, INIT_HEARTBEAT};
 use crate::types::{Array, Map, Struct, TypeValue};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
@@ -138,6 +164,15 @@ pub(crate) struct ScanContext<'r, 'd> {
     /// When [`HEARTBEAT_COUNTER`] is larger than this value, the scan is
     /// aborted due to a timeout.
     pub deadline: u64,
+    /// Absolute wall-clock deadline used by the WASI p2 runtime, which
+    /// doesn't support the heartbeat thread used by the native runtime.
+    #[cfg(all(
+        target_arch = "wasm32",
+        target_os = "wasi",
+        target_env = "p1",
+        feature = "wasip1-runtime"
+    ))]
+    pub timeout_deadline: Option<Instant>,
     /// Hash map that serves as a cache for regexps used in expressions like
     /// `some_var matches /foobar/`. Compiling a regexp is a expensive
     /// operation. Instead of compiling the regexp each time the expression
@@ -388,6 +423,85 @@ impl ScanContext<'_, '_> {
         self
     }
 
+    #[cfg(all(
+        target_arch = "wasm32",
+        target_os = "wasi",
+        target_env = "p1",
+        feature = "wasip1-runtime"
+    ))]
+    fn timeout_reached(&self) -> bool {
+        self.timeout_deadline
+            .is_some_and(|deadline| Instant::now() >= deadline)
+    }
+
+    #[cfg(not(all(
+        target_arch = "wasm32",
+        target_os = "wasi",
+        target_env = "p1",
+        feature = "wasip1-runtime"
+    )))]
+    fn timeout_reached(&self) -> bool {
+        HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline
+    }
+
+    #[cfg(all(
+        target_arch = "wasm32",
+        target_os = "wasi",
+        target_env = "p1",
+        feature = "wasip1-runtime"
+    ))]
+    fn prepare_timeout_deadline(&mut self, _timeout_secs: u64) {
+        self.timeout_deadline =
+            self.scan_timeout.map(|timeout| Instant::now() + timeout);
+    }
+
+    #[cfg(not(all(
+        target_arch = "wasm32",
+        target_os = "wasi",
+        target_env = "p1",
+        feature = "wasip1-runtime"
+    )))]
+    fn prepare_timeout_deadline(&mut self, timeout_secs: u64) {
+        self.deadline =
+            HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
+    }
+
+    #[cfg(all(
+        target_arch = "wasm32",
+        target_os = "wasi",
+        target_env = "p1",
+        feature = "wasip1-runtime"
+    ))]
+    fn start_timeout_heartbeat(&mut self) {}
+
+    #[cfg(not(all(
+        target_arch = "wasm32",
+        target_os = "wasi",
+        target_env = "p1",
+        feature = "wasip1-runtime"
+    )))]
+    fn start_timeout_heartbeat(&mut self) {
+        if self.scan_timeout.is_none() {
+            return;
+        }
+
+        INIT_HEARTBEAT.call_once(|| {
+            thread::spawn(|| {
+                loop {
+                    thread::sleep(Duration::from_secs(1));
+                    wasm::get_engine().increment_epoch();
+                    HEARTBEAT_COUNTER
+                        .fetch_update(
+                            Ordering::SeqCst,
+                            Ordering::SeqCst,
+                            |x| Some(x + 1),
+                        )
+                        .unwrap();
+                }
+            });
+        });
+    }
+
     /// Invokes the main function, which evaluates the rules' conditions. It
     /// calls ScanContext::search_for_patterns (which does the Aho-Corasick
     /// scanning) only if necessary.
@@ -558,6 +672,22 @@ impl ScanContext<'_, '_> {
         // the user specifies a value larger than 315.360.000 we limit it to
         // 315.360.000 anyway. One year should be enough, I hope you don't plan
         // to run a YARA scan that takes longer.
+        #[cfg(all(
+            target_arch = "wasm32",
+            target_os = "wasi",
+            target_env = "p1",
+            feature = "wasip1-runtime"
+        ))]
+        let timeout_secs = self.scan_timeout.map_or(0, |t| {
+            cmp::min(t.as_secs_f32().ceil() as u64, Self::DEFAULT_SCAN_TIMEOUT)
+        });
+
+        #[cfg(not(all(
+            target_arch = "wasm32",
+            target_os = "wasi",
+            target_env = "p1",
+            feature = "wasip1-runtime"
+        )))]
         let timeout_secs =
             self.scan_timeout.map_or(Self::DEFAULT_SCAN_TIMEOUT, |t| {
                 cmp::min(
@@ -566,8 +696,7 @@ impl ScanContext<'_, '_> {
                 )
             });
 
-        self.deadline =
-            HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
+        self.prepare_timeout_deadline(timeout_secs);
 
         let wasm_store = self.wasm_store_mut();
 
@@ -582,23 +711,7 @@ impl ScanContext<'_, '_> {
         // engine epoch and HEARTBEAT_COUNTER every second. There's a single
         // instance of this thread, independently of the number of concurrent
         // scans.
-        if self.scan_timeout.is_some() {
-            INIT_HEARTBEAT.call_once(|| {
-                thread::spawn(|| {
-                    loop {
-                        thread::sleep(Duration::from_secs(1));
-                        wasm::get_engine().increment_epoch();
-                        HEARTBEAT_COUNTER
-                            .fetch_update(
-                                Ordering::SeqCst,
-                                Ordering::SeqCst,
-                                |x| Some(x + 1),
-                            )
-                            .unwrap();
-                    }
-                });
-            });
-        }
+        self.start_timeout_heartbeat();
     }
 
     /// Update the time spent in the rule with the given ID, the time is
@@ -772,7 +885,7 @@ impl ScanContext<'_, '_> {
                 atom_matches += 1;
             }
 
-            if HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline {
+            if self.timeout_reached() {
                 return Err(ScanError::Timeout);
             }
 
@@ -1781,6 +1894,13 @@ impl From<i64> for RuntimeObjectHandle {
 pub fn create_wasm_store_and_ctx<'r>(
     rules: &'r Rules,
 ) -> Pin<Box<Store<ScanContext<'static, 'static>>>> {
+    create_wasm_store_and_ctx_with_session(rules, 0)
+}
+
+pub fn create_wasm_store_and_ctx_with_session<'r>(
+    rules: &'r Rules,
+    session_id: u64,
+) -> Pin<Box<Store<ScanContext<'static, 'static>>>> {
     let num_rules = rules.num_rules() as u32;
     let num_patterns = rules.num_patterns() as u32;
 
@@ -1807,6 +1927,13 @@ pub fn create_wasm_store_and_ctx<'r>(
         pattern_matches: PatternMatches::new(),
         unconfirmed_matches: FxHashMap::default(),
         deadline: 0,
+        #[cfg(all(
+            target_arch = "wasm32",
+            target_os = "wasi",
+            target_env = "p1",
+            feature = "wasip1-runtime"
+        ))]
+        timeout_deadline: None,
         limit_reached: FxHashSet::default(),
         regexp_cache: RefCell::new(FxHashMap::default()),
         #[cfg(feature = "rules-profiling")]
@@ -1839,6 +1966,10 @@ pub fn create_wasm_store_and_ctx<'r>(
     let mut wasm_store = Box::pin(Store::new(wasm::get_engine(), unsafe {
         transmute::<ScanContext<'r, '_>, ScanContext<'static, 'static>>(ctx)
     }));
+    #[cfg(target_family = "wasm")]
+    wasm_store.set_runtime_session(session_id);
+    #[cfg(not(target_family = "wasm"))]
+    let _ = session_id;
 
     // Initialize the ScanContext.wasm_store pointer that was initially
     // dangling.

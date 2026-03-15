@@ -1,0 +1,4 @@
+guest/target
+guest/release
+internal/module/yarax_guest.wasm.zst
+*.log

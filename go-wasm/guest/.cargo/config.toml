@@ -1,0 +1,2 @@
+[alias]
+build-web-release = "run --release --features release-tools --bin build_web_release --"

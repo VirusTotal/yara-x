@@ -23,7 +23,9 @@ use thiserror::Error;
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
 use crate::modules::{BUILTIN_MODULES, Module, ModuleError};
-use crate::scanner::context::create_wasm_store_and_ctx;
+use crate::scanner::context::{
+    create_wasm_store_and_ctx, create_wasm_store_and_ctx_with_session,
+};
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
@@ -193,6 +195,13 @@ impl<'r> Scanner<'r> {
         Self { _rules: rules, wasm_store, use_mmap: true }
     }
 
+    #[doc(hidden)]
+    pub fn with_runtime_session(rules: &'r Rules, session_id: u64) -> Self {
+        let wasm_store =
+            create_wasm_store_and_ctx_with_session(rules, session_id);
+        Self { _rules: rules, wasm_store, use_mmap: true }
+    }
+
     /// Sets a timeout for scan operations.
     ///
     /// The scan functions will return an [ScanError::Timeout] once the
@@ -203,6 +212,19 @@ impl<'r> Scanner<'r> {
     /// the specified timeout.
     pub fn set_timeout(&mut self, timeout: Duration) -> &mut Self {
         self.scan_context_mut().set_timeout(timeout);
+        self
+    }
+
+    #[doc(hidden)]
+    pub fn set_runtime_session(&mut self, session_id: u64) -> &mut Self {
+        let _ = session_id;
+        #[cfg(target_family = "wasm")]
+        unsafe {
+            self.wasm_store
+                .as_mut()
+                .get_unchecked_mut()
+                .set_runtime_session(session_id);
+        }
         self
     }
 

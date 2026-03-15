@@ -1,0 +1,29 @@
+FROM golang:1.26-bookworm
+
+ARG RUST_TOOLCHAIN=1.89.0
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        clang \
+        cmake \
+        curl \
+        git \
+        libssl-dev \
+        pkg-config \
+        zstd && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+    sh -s -- -y --profile minimal --default-toolchain ${RUST_TOOLCHAIN}
+
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+RUN rustup target add wasm32-wasip1
+
+WORKDIR /workspace/yara-x/go-wasm
+
+CMD ["go", "test", "./..."]
