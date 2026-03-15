@@ -307,7 +307,7 @@ impl Func {
         mut self,
         description: Option<std::borrow::Cow<'static, str>>,
     ) -> Self {
-        if self.signatures.len() != 0 {
+        if self.signatures.len() != 1 {
             return self;
         }
 
