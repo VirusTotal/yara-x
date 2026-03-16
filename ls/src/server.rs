@@ -215,7 +215,6 @@ impl LanguageServer for YARALanguageServer {
                     name: "yara-x-ls".to_string(),
                     version: Some(env!("CARGO_PKG_VERSION").to_string()),
                 }),
-                ..Default::default()
             })
         })
     }
