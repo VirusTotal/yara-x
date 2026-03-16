@@ -6,9 +6,9 @@ defines how the server should process various LSP requests and notifications.
 [1]: https://microsoft.github.io/language-server-protocol/
  */
 
+use std::env;
 use std::ops::ControlFlow;
 use std::sync::Arc;
-use std::env;
 
 use async_lsp::lsp_types::request::{
     Request, SemanticTokensFullRequest, SemanticTokensRangeRequest,
