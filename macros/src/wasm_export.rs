@@ -254,6 +254,7 @@ pub struct WasmExportArgs {
 /// Suppose that our function is:
 ///
 /// ```text
+/// /// This function adds two numbers.
 /// #[wasm_export]
 /// fn add(caller: &mut Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {
 ///     a + b
@@ -267,20 +268,23 @@ pub struct WasmExportArgs {
 /// pub(crate) static export__add: WasmExport = WasmExport {
 ///     name: "add",
 ///     mangled_name: "add@ii@i",
+///     public: true,
 ///     rust_module_path: "yara_x::modules::my_module",
 ///     method_of: None,
 ///     func: &WasmExportedFn2 { target_fn: &add },
+///     description: Some(Cow::Borrowed("This function adds two numbers")),
 /// };
 ///
 /// #[cfg(feature = "inventory")]
 /// inventory::submit! {
 ///     WasmExport {
-///         name: #fn_name,
-///         mangled_name: #mangled_fn_name,
-///         public: #public,
-///         rust_module_path: module_path!(),
-///         method_of: #method_of,
-///         func: &#exported_fn_ident { target_fn: &#rust_fn_name },
+///         name: "add",
+///         mangled_name: "add@ii@i",
+///         public: true,
+///         rust_module_path:  "yara_x::modules::my_module",
+///         method_of: None,
+///         func: &WasmExportedFn2 { target_fn: &add },
+///         description: Some(Cow::Borrowed("This function adds two numbers")),
 ///     }
 /// }
 /// ```
