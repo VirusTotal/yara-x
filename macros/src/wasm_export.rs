@@ -304,7 +304,9 @@ pub(crate) fn impl_wasm_export_macro(
         ));
     }
 
-    // Collect all documentation comments into single string.
+    // `///` comments are syntactic sugar for `#[doc = "..."]` attributes,
+    // which is what `syn` parses them into. Here we collect all documentation
+    // comments for the exported function and join them together into a string.
     let docs = func
         .attrs
         .iter()
