@@ -367,7 +367,6 @@ pub(crate) fn impl_wasm_export_macro(
             rust_module_path: module_path!(),
             method_of: #method_of,
             func: &#exported_fn_ident { target_fn: &#rust_fn_name },
-            #[cfg(feature = "module-description")]
             description: #description
         };
 
@@ -380,7 +379,6 @@ pub(crate) fn impl_wasm_export_macro(
                 rust_module_path: module_path!(),
                 method_of: #method_of,
                 func: &#exported_fn_ident { target_fn: &#rust_fn_name },
-                #[cfg(feature = "module-description")]
                 description: #description
             }
         }

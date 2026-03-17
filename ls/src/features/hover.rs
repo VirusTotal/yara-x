@@ -3,8 +3,6 @@ use std::sync::Arc;
 use async_lsp::lsp_types::{
     HoverContents, MarkupContent, MarkupKind, Position, Url,
 };
-
-#[cfg(feature = "module-description")]
 use itertools::Itertools;
 
 use yara_x_parser::cst::{Immutable, Node, NodeOrToken, SyntaxKind, Utf8};
@@ -15,7 +13,6 @@ use crate::utils::cst_traversal::{
     token_at_position,
 };
 
-#[cfg(feature = "module-description")]
 use crate::utils::modules::{get_struct, ty_to_string};
 
 /// Builder for hover Markdown representation of a rule.
@@ -109,7 +106,6 @@ pub fn hover(
         }
         // Other identifiers.
         SyntaxKind::IDENT => {
-            #[cfg(feature = "module-description")]
             if let Some(yara_x::mods::reflect::Type::Func(func)) =
                 get_struct(&token)
             {

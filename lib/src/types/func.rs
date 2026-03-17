@@ -1,5 +1,6 @@
 use crate::types::{IntegerConstraint, StringConstraint, TypeValue};
 use itertools::Itertools;
+use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -217,8 +218,7 @@ pub(crate) struct FuncSignature {
     pub mangled_name: MangledFnName,
     pub args: Vec<TypeValue>,
     pub result: TypeValue,
-    #[cfg(feature = "module-description")]
-    pub description: Option<std::borrow::Cow<'static, str>>,
+    pub description: Option<Cow<'static, str>>,
 }
 
 impl FuncSignature {
@@ -266,13 +266,7 @@ impl<T: Into<String>> From<T> for FuncSignature {
     fn from(value: T) -> Self {
         let mangled_name = MangledFnName::from(value.into());
         let (args, result) = mangled_name.unmangle();
-        Self {
-            mangled_name,
-            args,
-            result,
-            #[cfg(feature = "module-description")]
-            description: None,
-        }
+        Self { mangled_name, args, result, description: None }
     }
 }
 
@@ -301,24 +295,6 @@ impl<T: Into<String>> From<T> for Func {
 }
 
 impl Func {
-    /// Updates the description of first signature, if there is only one.
-    #[cfg(feature = "module-description")]
-    pub fn update_first_description(
-        mut self,
-        description: Option<std::borrow::Cow<'static, str>>,
-    ) -> Self {
-        if self.signatures.len() != 1 {
-            return self;
-        }
-
-        if let Some(mut sign) = self.signatures.pop() {
-            let sign_mut = Rc::get_mut(&mut sign).unwrap();
-            sign_mut.description = description;
-            self.signatures.push(sign);
-        }
-        self
-    }
-
     /// Returns `true` if this function is a method.
     pub fn is_method(&self) -> bool {
         self.method_of.is_some()
@@ -357,6 +333,12 @@ impl Func {
     #[inline]
     pub fn signatures(&self) -> &[Rc<FuncSignature>] {
         self.signatures.as_slice()
+    }
+
+    /// Returns all the signatures for this function, but mutable.
+    #[inline]
+    pub fn signatures_mut(&mut self) -> &mut [Rc<FuncSignature>] {
+        self.signatures.as_mut_slice()
     }
 }
 

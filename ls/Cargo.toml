@@ -24,9 +24,6 @@ tracing = ["dep:tracing", "dep:tracing-subscriber"]
 # Enables the `magic` module.
 magic-module = ["yara-x/magic-module"]
 
-# Enables documentation for module functions.
-module-description = ["yara-x/module-description"]
-
 [dependencies]
 bitflags = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }

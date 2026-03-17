@@ -78,6 +78,7 @@ See the [`lookup_field`] function.
 
  */
 use std::any::{TypeId, type_name};
+use std::borrow::Cow;
 use std::mem;
 use std::ops::RangeInclusive;
 use std::rc::Rc;
@@ -176,8 +177,7 @@ pub(crate) struct WasmExport {
     /// Reference to some type that implements the WasmExportedFn trait.
     pub func: &'static (dyn WasmExportedFn + Send + Sync),
     /// Function's documentation description.
-    #[cfg(feature = "module-description")]
-    pub description: Option<std::borrow::Cow<'static, str>>,
+    pub description: Option<Cow<'static, str>>,
 }
 
 impl WasmExport {
@@ -228,21 +228,18 @@ impl WasmExport {
             // multiple signatures. If that's the case, add more signatures to
             // the existing `Func` object.
             if let Some(function) = functions.get_mut(export.name) {
-                #[cfg(feature = "module-description")]
-                {
-                    let mut sign = FuncSignature::from(mangled_name);
-                    sign.description = export.description.clone();
-                    function.add_signature(sign);
-                }
-                #[cfg(not(feature = "module-description"))]
-                function.add_signature(FuncSignature::from(mangled_name));
+                let mut signature = FuncSignature::from(mangled_name);
+                signature.description = export.description.clone();
+                function.add_signature(signature);
             } else {
-                #[cfg(feature = "module-description")]
-                let func = Func::from(mangled_name)
-                    .update_first_description(export.description.clone());
+                let mut func = Func::from(mangled_name);
+                // Update the description for the first and only signature in the function.
+                let signature = func.signatures_mut().get_mut(0).unwrap();
+                // It's safe to get a mutable reference to the signature with Rc::get_mut
+                // because the Rc was just crated and there's a single reference to it.
+                let signature = Rc::get_mut(signature).unwrap();
 
-                #[cfg(not(feature = "module-description"))]
-                let func = Func::from(mangled_name);
+                signature.description = export.description.clone();
 
                 functions.insert(export.name, func);
             }
