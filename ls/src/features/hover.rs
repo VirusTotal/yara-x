@@ -107,22 +107,26 @@ pub fn hover(
                 value: format!("Pattern value is:\n\n`{}`", pattern.text()),
             }))
         }
-        // Rule identifiers.
+        // Other identifiers.
         SyntaxKind::IDENT => {
             #[cfg(feature = "module-description")]
             if let Some(yara_x::mods::reflect::Type::Func(func)) =
                 get_struct(&token)
             {
-                let value = func
+                let documentation = func
                     .signatures
                     .iter()
-                    .filter_map(|sign| {
-                        sign.description.as_ref().map(|doc| {
+                    .filter_map(|signature| {
+                        signature.description.as_ref().map(|doc| {
                             format!(
-                                "## `{}({}) -> {}`\n\n{}",
+                                "### `{}({}) -> {}`\n\n***\n\n{}\n\n***\n\n",
                                 token.text(),
-                                sign.args.iter().map(ty_to_string).join(", "),
-                                ty_to_string(&sign.ret),
+                                signature
+                                    .args
+                                    .iter()
+                                    .map(ty_to_string)
+                                    .join(", "),
+                                ty_to_string(&signature.ret),
                                 doc
                             )
                         })
@@ -131,7 +135,7 @@ pub fn hover(
 
                 return Some(HoverContents::Markup(MarkupContent {
                     kind: MarkupKind::Markdown,
-                    value,
+                    value: documentation,
                 }));
             }
             if let Some((_, n)) = find_declaration(&token) {
