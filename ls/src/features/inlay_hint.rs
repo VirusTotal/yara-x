@@ -28,7 +28,7 @@ pub fn inlay_hint(
     let mut result = Vec::new();
 
     for condition in ast.rules().map(|rule| &rule.condition) {
-        // Do not traverse conditions that are outside of the target span.
+        // Do not traverse conditions that are outside the target span.
         if target_span.end() < condition.span().start()
             || condition.span().end() < target_span.start()
         {
@@ -40,7 +40,7 @@ pub fn inlay_hint(
             match event {
                 DFSEvent::Enter(Expr::With(with_expr)) => {
                     for decl in &with_expr.declarations {
-                        // Do not traverse expressions that are outside of the target span.
+                        // Do not traverse expressions that are outside the target span.
                         if target_span.end() < decl.span().start()
                             || decl.span().end() < target_span.start()
                         {

@@ -60,15 +60,15 @@ pub fn signature_help(
     }?;
 
     let mut signatures = Vec::new();
-    let singature_start = format!("{}(", last_ident.text());
+    let signature_start = format!("{}(", last_ident.text());
 
     for signature in func.signatures {
-        // Ignore singatures that have less parameters.
+        // Ignore signatures that have fewer parameters.
         if (active_parameter + 1) as usize > signature.args.len() {
             continue;
         }
 
-        let mut curr_signature = singature_start.clone();
+        let mut curr_signature = signature_start.clone();
         let mut param_iterator = signature.args.iter();
         let mut param_info = Vec::new();
 
