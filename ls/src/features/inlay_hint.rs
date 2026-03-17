@@ -27,23 +27,23 @@ pub fn inlay_hint(
 
     let mut result = Vec::new();
 
-    for condition in ast.rules().map(|rule| &rule.condition) {
-        // Do not traverse conditions that are outside the target span.
-        if target_span.end() < condition.span().start()
-            || condition.span().end() < target_span.start()
-        {
-            continue;
+    // Any condition that is contained in the target span will be traversed.
+    let conditions_in_target_span = ast.rules().filter_map(|rule| {
+        if target_span.contains(&rule.condition.span()) {
+            Some(&rule.condition)
+        } else {
+            None
         }
+    });
 
+    for condition in conditions_in_target_span {
         let dfs = DFSIter::new(condition);
         for event in dfs {
             match event {
                 DFSEvent::Enter(Expr::With(with_expr)) => {
                     for decl in &with_expr.declarations {
                         // Do not traverse expressions that are outside the target span.
-                        if target_span.end() < decl.span().start()
-                            || decl.span().end() < target_span.start()
-                        {
+                        if !target_span.contains(&decl.span()) {
                             break;
                         }
                         if let Some(mut ty) = from_expr(&decl.expression) {
