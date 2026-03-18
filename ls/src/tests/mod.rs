@@ -363,8 +363,12 @@ async fn completion() {
     #[cfg(not(feature = "magic-module"))]
     test_lsp_request::<_, Completion>("completion13.yar").await;
 
+    #[cfg(not(feature = "magic-module"))]
     test_lsp_request::<_, Completion>("completion14.yar").await;
+
+    #[cfg(not(feature = "magic-module"))]
     test_lsp_request::<_, Completion>("completion15.yar").await;
+
     test_lsp_request::<_, Completion>("completion16.yar").await;
     test_lsp_request::<_, Completion>("completion17.yar").await;
 }
