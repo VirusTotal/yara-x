@@ -67,6 +67,10 @@ pub fn compiler_diagnostics(
 
     // The folder where the document is located is added as an include
     // directory in order to support relative include paths.
+    //
+    // .to_file_path() is not present in WASM targets that lack
+    // file-system support.
+    #[cfg(any(unix, windows, target_os = "wasi"))]
     if let Ok(file_path) = document.uri.to_file_path()
         && let Some(folder_path) = file_path.parent()
     {
