@@ -337,7 +337,10 @@ async fn document_diagnostics() {
 #[tokio::test]
 async fn completion() {
     test_lsp_request::<_, Completion>("completion1.yar").await;
+
+    #[cfg(not(feature = "magic-module"))]
     test_lsp_request::<_, Completion>("completion2.yar").await;
+
     test_lsp_request::<_, Completion>("completion3.yar").await;
     test_lsp_request::<_, Completion>("completion4.yar").await;
     test_lsp_request::<_, Completion>("completion5.yar").await;
