@@ -119,11 +119,6 @@
           "type": "boolean",
           "default": true,
           "description": "Specifies if the language server should cache all files from the workspace."
-        },
-        "YARA.relativeIncludePath": {
-          "type": "boolean",
-          "default": false,
-          "description": "If true, the language server will specify the file's folder as the include folder for compiler when client requests for diagnotics, to support relative includes. Otherwise, the path to the open folder in the editor is used."
         }
       }
     },
