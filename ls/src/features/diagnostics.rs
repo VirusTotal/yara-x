@@ -65,11 +65,9 @@ pub fn compiler_diagnostics(
 
     let mut compiler = Compiler::new();
 
-    // Add path to the folder where the document is located when support
-    // for relative include is enabled in the configutaion
-    #[cfg(not(target_family = "wasm"))]
-    if config.relative_include_path
-        && let Ok(file_path) = document.uri.to_file_path()
+    // The folder where the document is located is added as an include
+    // directory in order to support relative include paths.
+    if let Ok(file_path) = document.uri.to_file_path()
         && let Some(folder_path) = file_path.parent()
     {
         compiler.add_include_dir(folder_path);

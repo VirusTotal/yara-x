@@ -13,8 +13,6 @@ pub struct Config {
     pub rule_name_validation: Option<String>,
     #[serde(default)]
     pub cache_workspace: bool,
-    #[serde(default)]
-    pub relative_include_path: bool,
 }
 
 /// This structure represents settings for the YARA-X formatter.
