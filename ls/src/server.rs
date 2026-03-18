@@ -6,6 +6,7 @@ defines how the server should process various LSP requests and notifications.
 [1]: https://microsoft.github.io/language-server-protocol/
  */
 
+use std::env;
 use std::ops::ControlFlow;
 use std::sync::Arc;
 
@@ -36,7 +37,7 @@ use async_lsp::lsp_types::{
     SelectionRangeProviderCapability, SemanticTokensFullOptions,
     SemanticTokensLegend, SemanticTokensOptions, SemanticTokensRangeResult,
     SemanticTokensResult, SemanticTokensServerCapabilities,
-    ServerCapabilities, ShowMessageParams, SignatureHelp,
+    ServerCapabilities, ServerInfo, ShowMessageParams, SignatureHelp,
     SignatureHelpOptions, SignatureHelpParams, TextDocumentSyncCapability,
     TextDocumentSyncKind, TextDocumentSyncOptions,
     TextDocumentSyncSaveOptions, TextEdit, Unregistration,
@@ -220,7 +221,10 @@ impl LanguageServer for YARALanguageServer {
                     }),
                     ..ServerCapabilities::default()
                 },
-                server_info: None,
+                server_info: Some(ServerInfo {
+                    name: "yara-x-ls".to_string(),
+                    version: Some(env!("CARGO_PKG_VERSION").to_string()),
+                }),
             })
         })
     }
