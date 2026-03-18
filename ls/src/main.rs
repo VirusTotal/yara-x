@@ -1,7 +1,3 @@
-/// Starts the Language Server Main Loop using Standard Input Output.
-#[cfg(not(target_family = "wasm"))]
-pub async fn serve_stdio() -> Result<(), async_lsp::Error> {}
-
 #[cfg(target_family = "wasm")]
 pub fn main() -> Result<(), async_lsp::Error> {
     panic!("this program can not run in WASM")
