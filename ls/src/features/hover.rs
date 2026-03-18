@@ -3,6 +3,7 @@ use std::sync::Arc;
 use async_lsp::lsp_types::{
     HoverContents, MarkupContent, MarkupKind, Position, Url,
 };
+use itertools::Itertools;
 
 use yara_x_parser::cst::{Immutable, Node, NodeOrToken, SyntaxKind, Utf8};
 
@@ -11,6 +12,8 @@ use crate::utils::cst_traversal::{
     find_declaration, pattern_from_ident, rule_containing_token,
     token_at_position,
 };
+
+use crate::utils::modules::{get_struct, ty_to_string};
 
 /// Builder for hover Markdown representation of a rule.
 struct RuleHoverBuilder {
@@ -101,8 +104,36 @@ pub fn hover(
                 value: format!("Pattern value is:\n\n`{}`", pattern.text()),
             }))
         }
-        // Rule identifiers.
+        // Other identifiers.
         SyntaxKind::IDENT => {
+            if let Some(yara_x::mods::reflect::Type::Func(func)) =
+                get_struct(&token)
+            {
+                let documentation = func
+                    .signatures
+                    .iter()
+                    .filter_map(|signature| {
+                        signature.description.as_ref().map(|doc| {
+                            format!(
+                                "### `{}({}) -> {}`\n\n***\n\n{}\n\n***\n\n",
+                                token.text(),
+                                signature
+                                    .args
+                                    .iter()
+                                    .map(ty_to_string)
+                                    .join(", "),
+                                ty_to_string(&signature.ret),
+                                doc
+                            )
+                        })
+                    })
+                    .join("\n");
+
+                return Some(HoverContents::Markup(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: documentation,
+                }));
+            }
             if let Some((_, n)) = find_declaration(&token) {
                 let text = n
                     .children_with_tokens()

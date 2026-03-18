@@ -40,4 +40,16 @@ impl LineIndex {
             end: self.offset_to_position(span.end()),
         }
     }
+
+    /// Converts an LSP `Range` to a `Span` (byte range) in the text.
+    pub(crate) fn range_to_span(
+        &self,
+        range: async_lsp::lsp_types::Range,
+    ) -> Span {
+        let start = self.line_starts[range.start.line as usize] as u32
+            + range.start.character;
+        let end = self.line_starts[range.end.line as usize] as u32
+            + range.end.character;
+        Span(start..end)
+    }
 }

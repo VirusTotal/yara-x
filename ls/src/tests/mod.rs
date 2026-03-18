@@ -10,9 +10,9 @@ use async_lsp::lsp_types::notification::{
 use async_lsp::lsp_types::request::{
     CodeActionRequest, Completion, DocumentDiagnosticRequest,
     DocumentHighlightRequest, DocumentSymbolRequest, Formatting,
-    GotoDefinition, HoverRequest, References, Rename, Request,
-    SelectionRangeRequest, SemanticTokensFullRequest,
-    SemanticTokensRangeRequest,
+    GotoDefinition, HoverRequest, InlayHintRequest, References, Rename,
+    Request, SelectionRangeRequest, SemanticTokensFullRequest,
+    SemanticTokensRangeRequest, SignatureHelpRequest,
 };
 use async_lsp::lsp_types::{
     ClientCapabilities, DiagnosticClientCapabilities,
@@ -337,7 +337,10 @@ async fn document_diagnostics() {
 #[tokio::test]
 async fn completion() {
     test_lsp_request::<_, Completion>("completion1.yar").await;
+
+    #[cfg(not(feature = "magic-module"))]
     test_lsp_request::<_, Completion>("completion2.yar").await;
+
     test_lsp_request::<_, Completion>("completion3.yar").await;
     test_lsp_request::<_, Completion>("completion4.yar").await;
     test_lsp_request::<_, Completion>("completion5.yar").await;
@@ -360,8 +363,12 @@ async fn completion() {
     #[cfg(not(feature = "magic-module"))]
     test_lsp_request::<_, Completion>("completion13.yar").await;
 
+    #[cfg(not(feature = "magic-module"))]
     test_lsp_request::<_, Completion>("completion14.yar").await;
+
+    #[cfg(not(feature = "magic-module"))]
     test_lsp_request::<_, Completion>("completion15.yar").await;
+
     test_lsp_request::<_, Completion>("completion16.yar").await;
     test_lsp_request::<_, Completion>("completion17.yar").await;
 }
@@ -391,4 +398,15 @@ async fn semantic_tokens_range() {
         "semantic_tokens_range.yar",
     )
     .await;
+}
+
+#[tokio::test]
+async fn signature_help() {
+    test_lsp_request::<_, SignatureHelpRequest>("signature_help1.yar").await;
+    test_lsp_request::<_, SignatureHelpRequest>("signature_help2.yar").await;
+}
+
+#[tokio::test]
+async fn inlay_hint() {
+    test_lsp_request::<_, InlayHintRequest>("inlay_hint.yar").await;
 }

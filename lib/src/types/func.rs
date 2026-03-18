@@ -1,5 +1,6 @@
 use crate::types::{IntegerConstraint, StringConstraint, TypeValue};
 use itertools::Itertools;
+use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -217,6 +218,7 @@ pub(crate) struct FuncSignature {
     pub mangled_name: MangledFnName,
     pub args: Vec<TypeValue>,
     pub result: TypeValue,
+    pub description: Option<Cow<'static, str>>,
 }
 
 impl FuncSignature {
@@ -264,7 +266,7 @@ impl<T: Into<String>> From<T> for FuncSignature {
     fn from(value: T) -> Self {
         let mangled_name = MangledFnName::from(value.into());
         let (args, result) = mangled_name.unmangle();
-        Self { mangled_name, args, result }
+        Self { mangled_name, args, result, description: None }
     }
 }
 
@@ -331,6 +333,12 @@ impl Func {
     #[inline]
     pub fn signatures(&self) -> &[Rc<FuncSignature>] {
         self.signatures.as_slice()
+    }
+
+    /// Returns all the signatures for this function, but mutable.
+    #[inline]
+    pub fn signatures_mut(&mut self) -> &mut [Rc<FuncSignature>] {
+        self.signatures.as_mut_slice()
     }
 }
 

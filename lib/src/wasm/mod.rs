@@ -78,6 +78,7 @@ See the [`lookup_field`] function.
 
  */
 use std::any::{TypeId, type_name};
+use std::borrow::Cow;
 use std::mem;
 use std::ops::RangeInclusive;
 use std::rc::Rc;
@@ -175,6 +176,8 @@ pub(crate) struct WasmExport {
     pub method_of: Option<&'static str>,
     /// Reference to some type that implements the WasmExportedFn trait.
     pub func: &'static (dyn WasmExportedFn + Send + Sync),
+    /// Function's documentation description.
+    pub description: Option<Cow<'static, str>>,
 }
 
 impl WasmExport {
@@ -225,9 +228,20 @@ impl WasmExport {
             // multiple signatures. If that's the case, add more signatures to
             // the existing `Func` object.
             if let Some(function) = functions.get_mut(export.name) {
-                function.add_signature(FuncSignature::from(mangled_name))
+                let mut signature = FuncSignature::from(mangled_name);
+                signature.description = export.description.clone();
+                function.add_signature(signature);
             } else {
-                functions.insert(export.name, Func::from(mangled_name));
+                let mut func = Func::from(mangled_name);
+                // Update the description for the first and only signature in the function.
+                let signature = func.signatures_mut().get_mut(0).unwrap();
+                // It's safe to get a mutable reference to the signature with Rc::get_mut
+                // because the Rc was just crated and there's a single reference to it.
+                let signature = Rc::get_mut(signature).unwrap();
+
+                signature.description = export.description.clone();
+
+                functions.insert(export.name, func);
             }
         }
 

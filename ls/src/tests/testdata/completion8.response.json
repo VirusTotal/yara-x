@@ -1791,6 +1791,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `calculate_checksum() -> integer`\n\n Returns the PE checksum, as calculated by YARA.\n\n This is useful for comparing with the checksum appearing in the PE header\n (pe.checksum) in order to verify if the actual checksum matches the one\n in the header."
+    },
     "insertText": "calculate_checksum()",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1800,6 +1804,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `delayed_import_rva(string, integer) -> integer`\n\n Returns the RVA of an import where the DLL name matches\n `dll_name` and the ordinal number is `ordinal`.\n\n `dll_name` is case-insensitive."
+    },
     "insertText": "delayed_import_rva(${1:string},${2:integer})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1809,6 +1817,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `delayed_import_rva(string, string) -> integer`\n\n Returns the RVA of a delayed import where the DLL name matches\n `dll_name` and the function name matches `func_name`.\n\n Both `dll_name` and `func_name` are case-insensitive."
+    },
     "insertText": "delayed_import_rva(${1:string},${2:string})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1818,6 +1830,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `exports(integer) -> bool`\n\n Returns true if the PE file exports a function with the given ordinal."
+    },
     "insertText": "exports(${1:integer})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1827,6 +1843,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `exports(regexp) -> bool`\n\n Returns true if the PE file exports a function with a name that matches\n the given regular expression."
+    },
     "insertText": "exports(${1:regexp})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1836,6 +1856,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `exports(string) -> bool`\n\n Returns true if the PE file exports a function with the given name."
+    },
     "insertText": "exports(${1:string})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1845,6 +1869,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `exports_index(integer) -> integer`\n\n Returns true if the PE file exports a function with the given ordinal."
+    },
     "insertText": "exports_index(${1:integer})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1854,6 +1882,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `exports_index(regexp) -> integer`\n\n Returns true if the PE file exports a function with a name that matches\n the given regular expression."
+    },
     "insertText": "exports_index(${1:regexp})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1863,6 +1895,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `exports_index(string) -> integer`\n\n Returns true if the PE file exports a function with the given name."
+    },
     "insertText": "exports_index(${1:string})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1872,6 +1908,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imphash() -> string`\n\n Returns the PE import hash.\n\n The import hash represents the MD5 checksum of the PE's import table\n following a normalization process. PE files sharing the same import hash\n import precisely identical functions from the same DLLs. This characteristic\n often signifies file similarity, despite not being byte-for-byte identical.\n For additional details, refer to:\n https://www.mandiant.com/resources/blog/tracking-malware-import-hashing\n\n The resulting hash string is consistently in lowercase."
+    },
     "insertText": "imphash()",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1881,6 +1921,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `import_rva(string, integer) -> integer`\n\n Returns the RVA of an import where the DLL name matches\n `dll_name` and the ordinal number is `ordinal`.\n\n `dll_name` is case-insensitive."
+    },
     "insertText": "import_rva(${1:string},${2:integer})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1890,6 +1934,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `import_rva(string, string) -> integer`\n\n Returns the RVA of an import where the DLL name matches\n `dll_name` and the function name matches `func_name`.\n\n Both `dll_name` and `func_name` are case-insensitive."
+    },
     "insertText": "import_rva(${1:string},${2:string})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1899,6 +1947,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imports(integer, regexp, regexp) -> integer`\n\n Returns the number of imported functions where the function's name matches\n `func_name` and the DLL name matches `dll_name`.\n\n Both `dll_name` and `func_name` are case-sensitive unless you use the \"/i\"\n modifier in the regexp, as shown in the example below. See [`imports_dll`]\n for details about the `import_flags` argument."
+    },
     "insertText": "imports(${1:integer},${2:regexp},${3:regexp})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1908,6 +1960,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imports(integer, string) -> integer`\n\n Returns the number of functions imported by the PE from `dll_name`.\n\n `dll_name` is case-insensitive. `import_flags` specify the types of\n import which should be taken into account. This value can be composed\n by a bitwise OR of the following values:\n\n * `pe.IMPORT_STANDARD` : standard import only\n * `pe.IMPORT_DELAYED` : delayed imports only\n * `pe.IMPORT_ANY` : both standard and delayed imports"
+    },
     "insertText": "imports(${1:integer},${2:string})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1917,6 +1973,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imports(integer, string, integer) -> bool`\n\n Returns true if the PE imports `ordinal` from `dll_name`.\n\n `dll_name` is case-insensitive. See [`imports_dll`] for details about\n the `import_flags` argument."
+    },
     "insertText": "imports(${1:integer},${2:string},${3:integer})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1926,6 +1986,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imports(integer, string, string) -> bool`\n\n Returns true if the PE imports `func_name` from `dll_name`.\n\n Both `func_name` and `dll_name` are case-insensitive. See [`imports_dll`]\n for details about the `import_flags` argument."
+    },
     "insertText": "imports(${1:integer},${2:string},${3:string})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1935,6 +1999,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imports(regexp, regexp) -> integer`\n\n Returns the number of imported functions where the function's name matches\n `func_name` and the DLL name matches `dll_name`.\n\n Both `dll_name` and `func_name` are case-sensitive unless you use the \"/i\"\n modifier in the regexp, as shown in the example below."
+    },
     "insertText": "imports(${1:regexp},${2:regexp})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1944,6 +2012,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imports(string) -> integer`\n\n Returns the number of functions imported by the PE from `dll_name`.\n\n `dll_name` is case-insensitive."
+    },
     "insertText": "imports(${1:string})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1953,6 +2025,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imports(string, integer) -> integer`\n\n Returns true if the PE imports `ordinal` from `dll_name`.\n\n `dll_name` is case-insensitive."
+    },
     "insertText": "imports(${1:string},${2:integer})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1962,6 +2038,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imports(string, string) -> bool`\n\n Returns true if the PE imports `func_name` from `dll_name`.\n\n Both `func_name` and `dll_name` are case-insensitive."
+    },
     "insertText": "imports(${1:string},${2:string})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1971,6 +2051,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `is_32bit() -> bool`\n\n Returns true if the file is a 32-bit PE."
+    },
     "insertText": "is_32bit()",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1980,6 +2064,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `is_64bit() -> bool`\n\n Returns true if the file is a 64-bit PE."
+    },
     "insertText": "is_64bit()",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1989,6 +2077,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `is_dll() -> bool`\n\n Returns true if the file is dynamic link library (DLL)"
+    },
     "insertText": "is_dll()",
     "insertTextFormat": 2,
     "kind": 2,
@@ -1998,6 +2090,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `language(integer) -> bool`\n\n Returns true if the PE contains some resource with the specified language\n identifier.\n\n Language identifiers are the lowest 8-bit of locale identifiers and can\n be found here:\n https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/available-language-packs-for-windows?view=windows-11"
+    },
     "insertText": "language(${1:integer})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -2007,6 +2103,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `locale(integer) -> bool`\n\n Returns true if the PE contains some resource with the specified locale\n identifier.\n\n Locale identifiers are 16-bit integers and can be found here:\n https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/available-language-packs-for-windows?view=windows-11"
+    },
     "insertText": "locale(${1:integer})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -2016,6 +2116,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `rva_to_offset(integer) -> integer`\n\n Convert a relative virtual address (RVA) to a file offset."
+    },
     "insertText": "rva_to_offset(${1:integer})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -2025,6 +2129,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `section_index(integer) -> integer`\n\n Returns the index in the section table of the first section that contains\n the given file offset."
+    },
     "insertText": "section_index(${1:integer})",
     "insertTextFormat": 2,
     "kind": 2,
@@ -2034,6 +2142,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `section_index(string) -> integer`\n\n Returns the index in the section table of the first section with the given\n name."
+    },
     "insertText": "section_index(${1:string})",
     "insertTextFormat": 2,
     "kind": 2,

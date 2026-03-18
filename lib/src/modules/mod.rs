@@ -341,6 +341,7 @@ pub mod mods {
     /// This API is unstable and not ready for public use.
     #[doc(hidden)]
     pub mod reflect {
+        use std::borrow::Cow;
         use std::rc::Rc;
 
         use crate::types;
@@ -385,6 +386,7 @@ pub mod mods {
                     signatures.push(FuncSignature {
                         args: signature.args.iter().map(Type::from).collect(),
                         ret: Type::from(&signature.result),
+                        description: signature.description.clone(),
                     });
                 }
 
@@ -399,6 +401,8 @@ pub mod mods {
             pub args: Vec<Type>,
             /// The return type for the function.
             pub ret: Type,
+            /// Function's documentation description.
+            pub description: Option<Cow<'static, str>>,
         }
 
         /// Describes a field within a structure or module.

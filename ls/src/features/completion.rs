@@ -1,15 +1,15 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_lsp::lsp_types::{
     CompletionContext, CompletionItem, CompletionItemKind,
     CompletionItemLabelDetails, CompletionTriggerKind, InsertTextFormat,
-    InsertTextMode, Position, Url,
+    InsertTextMode, Position, Range, TextEdit, Url,
 };
 
 use itertools::Itertools;
 
-use yara_x::mods::reflect::Type;
-use yara_x::mods::{module_definition, module_names};
+use yara_x::mods::{module_names, reflect::Type};
 use yara_x_parser::cst::{CST, Immutable, Node, SyntaxKind, Token};
 
 use crate::documents::storage::DocumentStorage;
@@ -18,7 +18,7 @@ use crate::utils::cst_traversal::{
     rule_containing_token, token_at_position,
 };
 
-use crate::utils::cst_traversal::find_declaration;
+use crate::utils::modules::{get_struct, ty_to_string};
 
 const PATTERN_MODS: &[(SyntaxKind, &[&str])] = &[
     (
@@ -146,10 +146,9 @@ fn condition_suggestions(
     match token.kind() {
         // Suggest completion of
         SyntaxKind::IDENT => {
-            for rule_decl in cst
-                .root()
-                .children()
-                .filter(|n| n.kind() == SyntaxKind::RULE_DECL)
+            let root = cst.root();
+            for rule_decl in
+                root.children().filter(|n| n.kind() == SyntaxKind::RULE_DECL)
             {
                 if let Some(rule_ident) = rule_decl
                     .children_with_tokens()
@@ -181,7 +180,7 @@ fn condition_suggestions(
                 ),
             );
 
-            // Keywords
+            // Keywords.
             CONDITION_SUGGESTIONS.iter().for_each(|(kw, insert)| {
                 result.push(CompletionItem {
                     label: kw.to_string(),
@@ -194,7 +193,7 @@ fn condition_suggestions(
                 });
             });
 
-            // Identifiers from `for` or `with` statements
+            // Identifiers from `for` or `with` statements.
             idents_declared_by_expr(&token).iter().for_each(|ident| {
                 result.push(CompletionItem {
                     label: ident.text().to_string(),
@@ -203,6 +202,46 @@ fn condition_suggestions(
                         ..Default::default()
                     }),
                     kind: Some(CompletionItemKind::VARIABLE),
+                    ..Default::default()
+                })
+            });
+
+            // Collect already imported modules.
+            let imported = root
+                .children()
+                .filter_map(|node| {
+                    if node.kind() == SyntaxKind::IMPORT_STMT {
+                        // The last token in IMPORT_STMT is a STRING_LIT with
+                        // the module name.
+                        node.last_token()
+                    } else {
+                        None
+                    }
+                })
+                .map(|module_name| {
+                    // Strip the quotes from the module name.
+                    module_name.text().trim_matches('"').to_string()
+                })
+                .collect::<HashSet<String>>();
+
+            // Suggest module names.
+            module_names().for_each(|module_name| {
+                // Automatically imports the module if it is not already imported.
+                let additional_text_edits = if imported.contains(module_name) {
+                    None
+                } else {
+                    Some(vec![TextEdit {
+                        range: Range {
+                            start: Position { line: 0, character: 0 },
+                            end: Position { line: 0, character: 0 },
+                        },
+                        new_text: format!("import \"{}\"\n", module_name),
+                    }])
+                };
+                result.push(CompletionItem {
+                    label: module_name.to_string(),
+                    kind: Some(CompletionItemKind::MODULE),
+                    additional_text_edits,
                     ..Default::default()
                 })
             });
@@ -323,12 +362,6 @@ fn rule_suggestions() -> Vec<CompletionItem> {
         .collect()
 }
 
-#[derive(Debug)]
-enum Segment {
-    Field(String),
-    Index,
-}
-
 /// Collects completion suggestions for structure fields.
 fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
     // Check if we are at a position that triggers completion.
@@ -396,6 +429,25 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
                                 description: Some(ty_to_string(&ty)),
                                 ..Default::default()
                             }),
+                            documentation: sig.description.as_ref().map(
+                                |docs| {
+                                    async_lsp::lsp_types::Documentation::MarkupContent(
+                                        async_lsp::lsp_types::MarkupContent {
+                                            kind: async_lsp::lsp_types::MarkupKind::Markdown,
+                                            value: format!(
+                                                "## `{}({}) -> {}`\n\n{}",
+                                                name,
+                                                sig.args
+                                                    .iter()
+                                                    .map(ty_to_string)
+                                                    .join(", "),
+                                                ty_to_string(&sig.ret),
+                                                docs
+                                            ),
+                                        },
+                                    )
+                                },
+                            ),
                             ..Default::default()
                         }
                     })
@@ -422,248 +474,4 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
         .collect();
 
     Some(suggestions)
-}
-
-/// Given a token, returns the type of the structure that the token is part of.
-///
-/// This function traverses the CST backwards from the given token to determine
-/// the full path to a field within a structure (e.g., `module.field.subfield`).
-/// It then uses this path to look up the corresponding `Type` definition.
-///
-/// If the token is part of a `for` or `with` statement, it will try to resolve
-/// the type from the declared variables in those statements.
-///
-/// Returns an `Option<Type>` representing the type of the structure or field
-/// identified by the token. Returns `None` if the type cannot be determined.
-fn get_struct(token: &Token<Immutable>) -> Option<Type> {
-    let mut path = Vec::new();
-
-    let mut curr = Some(token.clone());
-    while let Some(token) = curr {
-        match token.kind() {
-            SyntaxKind::IDENT => {
-                // If the identifier is a variable declared in a `for` or `with`
-                // statement, we need to find the type of that variable.
-                if let Some((_, declaration)) = find_declaration(&token) {
-                    return get_type_from_declaration(
-                        &declaration,
-                        &token,
-                        path.into_iter().rev(),
-                    );
-                }
-
-                path.push(Segment::Field(token.text().to_string()));
-                // Look for previous DOT
-                if let Some(prev) = prev_non_trivia_token(&token)
-                    && prev.kind() == SyntaxKind::DOT
-                {
-                    curr = prev_non_trivia_token(&prev);
-                    continue;
-                }
-                // If no dot, we might have reached the start (module name)
-                break;
-            }
-            SyntaxKind::R_BRACKET => {
-                // Array access: field[index]
-                path.push(Segment::Index);
-                // Skip to L_BRACKET
-                curr = find_matching_left_bracket(&token);
-                // After finding [, look for previous token.
-                // It should be the field name (IDENT).
-                if let Some(c) = curr {
-                    curr = prev_non_trivia_token(&c);
-                }
-                continue;
-            }
-            _ => break, // Unknown token, stop chain
-        }
-    }
-
-    let module_name = match path.last()? {
-        Segment::Field(s) => s,
-        _ => return None,
-    };
-
-    // Lookup module
-    let definition = module_definition(module_name)?;
-
-    // Traverse
-    let mut current_kind = Type::Struct(definition);
-
-    for segment in path.iter().rev().skip(1) {
-        match segment {
-            Segment::Field(name) => {
-                match current_kind {
-                    Type::Struct(struct_def) => {
-                        // Find field
-                        current_kind = struct_def
-                            .fields()
-                            .find(|field| field.name() == *name)?
-                            .ty();
-                    }
-                    _ => return None, // Cannot access field of non-struct
-                }
-            }
-            Segment::Index => {
-                match current_kind {
-                    Type::Array(inner) => {
-                        current_kind = *inner;
-                    }
-                    Type::Map(_, value) => {
-                        current_kind = *value;
-                    }
-                    _ => return None, // Cannot index non-array
-                }
-            }
-        }
-    }
-    Some(current_kind)
-}
-
-/// Resolves the `Type` of an identifier declared within `for` or `with` statements.
-///
-/// This function is called when `get_struct` identifies an identifier that is
-/// not a module name but rather a variable declared in a `for` or `with` expression.
-/// It then attempts to deduce the type of this variable based on its declaration.
-///
-/// # Arguments
-///
-/// * `declaration` - The `Node` representing the `for` or `with` declaration.
-/// * `ident` - The `Token` of the identifier whose type needs to be resolved.
-/// * `path` - An iterator over `Segment`s representing the access path (fields,
-///   array indices) applied to the declared variable.
-///
-/// # Returns
-///
-/// An `Option<Type>` representing the resolved type of the identifier. Returns `None`
-/// if the type cannot be determined or if the access path is invalid for the type.
-fn get_type_from_declaration(
-    declaration: &Node<Immutable>,
-    ident: &Token<Immutable>,
-    path: impl Iterator<Item = Segment>,
-) -> Option<Type> {
-    match declaration.kind() {
-        SyntaxKind::WITH_EXPR => {
-            let with_decls = declaration
-                .children()
-                .find(|n| n.kind() == SyntaxKind::WITH_DECLS)?;
-
-            for with_decl in with_decls.children() {
-                let declared_ident = with_decl.first_token()?;
-                if declared_ident.text() != ident.text() {
-                    continue;
-                }
-
-                let mut current_type = get_struct(&with_decl.last_token()?)?;
-
-                for segment in path {
-                    match segment {
-                        Segment::Field(name) => {
-                            if let Type::Struct(struct_def) = current_type {
-                                current_type = struct_def
-                                    .fields()
-                                    .find(|field| field.name() == name)?
-                                    .ty()
-                            } else {
-                                return None;
-                            }
-                        }
-                        Segment::Index => {
-                            if let Type::Array(inner) = current_type {
-                                current_type = *inner
-                            } else {
-                                return None;
-                            }
-                        }
-                    }
-                }
-                return Some(current_type);
-            }
-            return None;
-        }
-        SyntaxKind::FOR_EXPR => {
-            let colon = declaration
-                .children_with_tokens()
-                .find(|child| child.kind() == SyntaxKind::COLON)?
-                .into_token()?;
-
-            let iterable_last_token = prev_non_trivia_token(&colon)?;
-
-            let iterable_type = get_struct(&iterable_last_token)?;
-
-            let mut current_type = match iterable_type {
-                Type::Array(inner) => *inner,
-                Type::Map(_, value) => *value,
-                _ => return None,
-            };
-
-            for segment in path {
-                match segment {
-                    Segment::Field(name) => {
-                        if let Type::Struct(struct_def) = current_type {
-                            current_type = struct_def
-                                .fields()
-                                .find(|field| field.name() == name)?
-                                .ty()
-                        } else {
-                            return None;
-                        }
-                    }
-                    Segment::Index => {
-                        if let Type::Array(inner) = current_type {
-                            current_type = *inner
-                        } else {
-                            return None;
-                        }
-                    }
-                }
-            }
-            return Some(current_type);
-        }
-        _ => {}
-    }
-    None
-}
-
-/// Given a token that must be a closing (right) bracket, find the
-/// corresponding opening (left) bracket.
-fn find_matching_left_bracket(
-    token: &Token<Immutable>,
-) -> Option<Token<Immutable>> {
-    assert_eq!(token.kind(), SyntaxKind::R_BRACKET);
-
-    let mut depth = 1;
-    let mut prev = token.prev_token();
-
-    while let Some(token) = prev {
-        match token.kind() {
-            SyntaxKind::R_BRACKET => depth += 1,
-            SyntaxKind::L_BRACKET => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(token);
-                }
-            }
-            _ => {}
-        }
-        prev = token.prev_token();
-    }
-
-    None
-}
-
-fn ty_to_string(ty: &Type) -> String {
-    match ty {
-        Type::Integer => "integer".to_string(),
-        Type::Float => "float".to_string(),
-        Type::Bool => "bool".to_string(),
-        Type::String => "string".to_string(),
-        Type::Regexp => "regexp".to_string(),
-        Type::Struct(_) => "struct".to_string(),
-        Type::Func(_) => "func()".to_string(),
-        Type::Array(inner) => format!("array<{}>", ty_to_string(inner)),
-        Type::Map(key, value) => {
-            format!("map<{},{}>", ty_to_string(key), ty_to_string(value))
-        }
-    }
 }

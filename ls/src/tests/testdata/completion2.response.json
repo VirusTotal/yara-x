@@ -91,5 +91,309 @@
     "insertTextFormat": 2,
     "kind": 14,
     "label": "with"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"console\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "console"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"crx\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "crx"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"cuckoo\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "cuckoo"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"dex\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "dex"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"dotnet\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "dotnet"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"elf\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "elf"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"hash\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "hash"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"lnk\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "lnk"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"macho\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "macho"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"math\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "math"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"pe\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "pe"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"string\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "string"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"test_proto2\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "test_proto2"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"test_proto3\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "test_proto3"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"time\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "time"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"vt\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "vt"
   }
 ]
