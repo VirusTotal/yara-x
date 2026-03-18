@@ -180,7 +180,7 @@ fn condition_suggestions(
                 ),
             );
 
-            // Keywords
+            // Keywords.
             CONDITION_SUGGESTIONS.iter().for_each(|(kw, insert)| {
                 result.push(CompletionItem {
                     label: kw.to_string(),
@@ -193,7 +193,7 @@ fn condition_suggestions(
                 });
             });
 
-            // Identifiers from `for` or `with` statements
+            // Identifiers from `for` or `with` statements.
             idents_declared_by_expr(&token).iter().for_each(|ident| {
                 result.push(CompletionItem {
                     label: ident.text().to_string(),
@@ -206,25 +206,27 @@ fn condition_suggestions(
                 })
             });
 
-            // Collect already imported modules
+            // Collect already imported modules.
             let imported = root
                 .children()
-                .filter(|node| node.kind() == SyntaxKind::IMPORT_STMT)
                 .filter_map(|node| {
-                    node.last_token()
-                        .filter(|token| token.kind() == SyntaxKind::STRING_LIT)
-                        .map(|token| {
-                            let module_name = token.text();
-                            // This is safe, because the text of string literal
-                            // should always contain 2 quotation marks.
-                            module_name[1..module_name.len() - 1].to_string()
-                        })
+                    if node.kind() == SyntaxKind::IMPORT_STMT {
+                        // The last token in IMPORT_STMT is a STRING_LIT with
+                        // the module name.
+                        node.last_token()
+                    } else {
+                        None
+                    }
+                })
+                .map(|module_name| {
+                    // Strip the quotes from the module name.
+                    module_name.text().trim_matches('"').to_string()
                 })
                 .collect::<HashSet<String>>();
 
-            // Suggest module names
+            // Suggest module names.
             module_names().for_each(|module_name| {
-                // Automatically imports the module if it is not already imported
+                // Automatically imports the module if it is not already imported.
                 let additional_text_edits = if imported.contains(module_name) {
                     None
                 } else {
