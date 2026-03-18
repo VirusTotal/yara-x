@@ -1,7 +1,21 @@
-use yara_x_ls::serve;
-
 /// Starts the Language Server Main Loop using Standard Input Output.
-pub async fn serve_stdio() -> Result<(), async_lsp::Error> {
+#[cfg(not(target_family = "wasm"))]
+pub async fn serve_stdio() -> Result<(), async_lsp::Error> {}
+
+#[cfg(target_family = "wasm")]
+pub fn main() -> Result<(), async_lsp::Error> {
+    panic!("this program can not run in WASM")
+}
+
+#[cfg(not(target_family = "wasm"))]
+#[tokio::main(flavor = "current_thread")]
+pub async fn main() -> Result<(), async_lsp::Error> {
+    #[cfg(feature = "tracing")]
+    tracing_subscriber::fmt()
+        .with_ansi(false)
+        .with_writer(std::io::stderr)
+        .init();
+
     #[cfg(unix)]
     let (stdin, stdout) = (
         async_lsp::stdio::PipeStdin::lock_tokio()?,
@@ -16,15 +30,5 @@ pub async fn serve_stdio() -> Result<(), async_lsp::Error> {
         ),
     );
 
-    serve(stdin, stdout).await
-}
-
-#[tokio::main(flavor = "current_thread")]
-pub async fn main() -> Result<(), async_lsp::Error> {
-    #[cfg(feature = "tracing")]
-    tracing_subscriber::fmt()
-        .with_ansi(false)
-        .with_writer(std::io::stderr)
-        .init();
-    serve_stdio().await
+    yara_x_ls::serve(stdin, stdout).await
 }
