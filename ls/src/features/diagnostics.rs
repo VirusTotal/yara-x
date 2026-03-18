@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use chrono::NaiveDate;
 use regex::Regex;
 
-use crate::configuration::MetadataValidationRule;
+use crate::configuration::Config;
 
 use crate::documents::document::Document;
 use crate::documents::storage::DocumentStorage;
@@ -36,8 +36,7 @@ pub struct Patch {
 pub fn diagnostics(
     documents: Arc<DocumentStorage>,
     uri: Url,
-    metadata_validation: &Vec<MetadataValidationRule>,
-    rule_name_validation: &Option<String>,
+    config: Arc<Config>,
 ) -> Vec<Diagnostic> {
     #[allow(unused_mut)]
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
@@ -45,11 +44,7 @@ pub fn diagnostics(
     let doc = documents.get(&uri);
 
     if let Some(doc) = doc {
-        diagnostics.extend(compiler_diagnostics(
-            doc,
-            metadata_validation,
-            rule_name_validation,
-        ));
+        diagnostics.extend(compiler_diagnostics(doc, config));
     }
 
     diagnostics
@@ -63,13 +58,20 @@ pub fn diagnostics(
 /// and pattern validation - not just syntax errors.
 pub fn compiler_diagnostics(
     document: Ref<'_, Url, Document>,
-    metadata_validation: &Vec<MetadataValidationRule>,
-    rule_name_validation: &Option<String>,
+    config: Arc<Config>,
 ) -> Vec<Diagnostic> {
     let source_code = SourceCode::from(document.text.as_str())
         .with_origin(document.uri.clone());
 
     let mut compiler = Compiler::new();
+
+    // The folder where the document is located is added as an include
+    // directory in order to support relative include paths.
+    if let Ok(file_path) = document.uri.to_file_path()
+        && let Some(folder_path) = file_path.parent()
+    {
+        compiler.add_include_dir(folder_path);
+    }
 
     // These features are required by the "vt" module. Some field will be
     // recognized only if these features are enabled.
@@ -79,13 +81,13 @@ pub fn compiler_diagnostics(
         .enable_feature("ip_address")
         .enable_feature("domain");
 
-    if let Some(regex) = rule_name_validation
+    if let Some(regex) = &config.rule_name_validation
         && let Ok(linter) = linters::rule_name(regex)
     {
         compiler.add_linter(linter);
     }
 
-    for validation_rule in metadata_validation {
+    for validation_rule in &config.metadata_validation {
         let linter = linters::metadata(&validation_rule.identifier)
             .required(validation_rule.required);
 
