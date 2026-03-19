@@ -1,0 +1,41 @@
+{
+  "name": "yara-x-wasm",
+  "version": "0.1.0",
+  "description": "WebAssembly build of yara-x with browser-friendly JavaScript APIs.",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./pkg/yara-x-wasm.js",
+  "module": "./pkg/yara-x-wasm.js",
+  "types": "./pkg/yara-x-wasm.d.ts",
+  "exports": {
+    ".": {
+      "types": "./pkg/yara-x-wasm.d.ts",
+      "import": "./pkg/yara-x-wasm.js",
+      "default": "./pkg/yara-x-wasm.js"
+    },
+    "./bundle": "./dist/yara-x-wasm-bundle.min.js",
+    "./bundle-dev": "./dist/yara-x-wasm-bundle.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/**/*",
+    "pkg/**/*",
+    "README.md"
+  ],
+  "scripts": {
+    "build:web": "cargo build-web-release",
+    "prepack": "npm run build:web",
+    "test:wasm-node": "wasm-pack test --node --mode no-install --test wasm_api && wasm-pack test --node --mode no-install --test wasm_modules",
+    "test:wasm-browser": "wasm-pack test --headless --chrome --mode no-install --test wasm_browser_api",
+    "test:wasm": "npm run test:wasm-node && npm run test:wasm-browser",
+    "test:js": "node --test tests-js/*.test.js",
+    "pack:dry-run": "npm pack --dry-run"
+  },
+  "keywords": [
+    "yara",
+    "yara-x",
+    "wasm",
+    "webassembly",
+    "malware"
+  ]
+}

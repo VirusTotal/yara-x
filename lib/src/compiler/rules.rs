@@ -514,7 +514,7 @@ impl Rules {
 
 #[cfg(feature = "native-code-serialization")]
 fn serialize_wasm_mod<S>(
-    wasm_mod: &Option<wasmtime::Module>,
+    wasm_mod: &Option<wasm::runtime::Module>,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
