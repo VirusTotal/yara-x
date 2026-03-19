@@ -1436,6 +1436,7 @@ impl Compiler<'_> {
         }
 
         // Check the rule with all the linters.
+        let mut first_linter_err: Option<CompileError> = None;
         for linter in self.linters.iter() {
             match linter.check(&self.report_builder, rule) {
                 LinterResult::Ok => {}
@@ -1447,8 +1448,17 @@ impl Compiler<'_> {
                         self.warnings.add(|| warning);
                     }
                 }
-                LinterResult::Err(err) => return Err(err),
+                LinterResult::Err(err) => {
+                    if first_linter_err.is_none() {
+                        first_linter_err = Some(err);
+                    } else {
+                        self.errors.push(err);
+                    }
+                }
             }
+        }
+        if let Some(err) = first_linter_err {
+            return Err(err);
         }
 
         // Take snapshot of the current compiler state. In case of error

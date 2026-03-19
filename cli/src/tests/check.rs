@@ -203,3 +203,64 @@ fn config_error() {
             )
         );
 }
+
+#[test]
+fn check_reports_all_errors() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_file = temp_dir.child("config.toml");
+
+    config_file
+        .write_str(
+            r#"
+            [check.rule_name]
+            regexp = "^[A-Z][a-zA-Z0-9]+_[A-Z][a-zA-Z0-9_]+$"
+            error = true
+
+            [check.metadata.author]
+            type = "string"
+            required = true
+            error = true
+
+            [check.metadata.severity]
+            type = "string"
+            regexp = "^(low|medium|high|critical)$"
+            required = true
+            error = true
+            "#,
+        )
+        .unwrap();
+
+    let yar_file = temp_dir.child("test.yar");
+
+    yar_file
+        .write_str(
+            r#"rule bad_rule {
+              meta:
+                description = "test"
+              strings:
+                $a = "test"
+              condition:
+                $a
+            }"#,
+        )
+        .unwrap();
+
+    // All three errors should be reported, not just the first one.
+    Command::new(cargo_bin!("yr"))
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("check")
+        .arg(yar_file.path())
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(predicate::str::contains(
+            "required metadata `author` not found",
+        ))
+        .stderr(predicate::str::contains(
+            "required metadata `severity` not found",
+        ))
+        .stderr(predicate::str::contains(
+            "rule name does not match regex",
+        ));
+}
