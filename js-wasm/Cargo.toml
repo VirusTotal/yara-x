@@ -17,11 +17,10 @@ default = []
 release-tools = ["dep:wasm-opt"]
 
 [dependencies]
-# Keep the browser package aligned with the browser-capable `yara-x` surface.
-yara-x = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 wasm-opt = { workspace = true, optional = true }
+yara-x = { workspace = true }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 js-sys = { workspace = true }

@@ -25,8 +25,8 @@
   "scripts": {
     "build:web": "cargo build-web-release",
     "prepack": "npm run build:web",
-    "test:wasm-node": "wasm-pack test --node --mode no-install --test wasm_api && wasm-pack test --node --mode no-install --test wasm_modules",
-    "test:wasm-browser": "wasm-pack test --headless --chrome --mode no-install --test wasm_browser_api",
+    "test:wasm-node": "wasm-pack test --node  --profile wasm-dev --test wasm_api --test wasm_modules",
+    "test:wasm-browser": "wasm-pack test --headless --chrome --profile wasm-dev --test wasm_browser_api",
     "test:wasm": "npm run test:wasm-node && npm run test:wasm-browser",
     "test:js": "node --test tests-js/*.test.js",
     "pack:dry-run": "npm pack --dry-run"
