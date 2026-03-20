@@ -215,10 +215,6 @@ impl RuntimeBackend for Backend {
         Ok(bytes.to_vec())
     }
 
-    fn module_serialize(module: &Self::ModuleInner) -> Result<Vec<u8>> {
-        Ok(module.clone())
-    }
-
     fn instantiate<T: 'static>(
         store: &mut Store<T>,
         linker: &Linker<T>,

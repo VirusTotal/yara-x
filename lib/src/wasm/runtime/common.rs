@@ -104,9 +104,6 @@ pub(crate) trait RuntimeBackend:
         bytes: &[u8],
     ) -> Result<Self::ModuleInner>;
 
-    /// Serializes the module into bytes suitable for persistence.
-    fn module_serialize(module: &Self::ModuleInner) -> Result<Vec<u8>>;
-
     /// Instantiates `module` with the functions and externs in `linker`.
     fn instantiate<T: 'static>(
         store: &mut Store<T, Self>,
@@ -757,11 +754,6 @@ impl<B: RuntimeBackend> Module<B> {
     /// the native runtime preserves Wasmtime's unsafe deserialization API.
     pub unsafe fn deserialize(engine: &Engine, bytes: &[u8]) -> Result<Self> {
         Self::from_binary(engine, bytes)
-    }
-
-    /// Serializes the module into bytes suitable for persistence.
-    pub fn serialize(&self) -> Result<Vec<u8>> {
-        B::module_serialize(&self.inner)
     }
 }
 
