@@ -18,28 +18,7 @@ release-tools = ["dep:wasm-opt"]
 
 [dependencies]
 # Keep the browser package aligned with the browser-capable `yara-x` surface.
-yara-x = { path = "../lib", version = "1.14.0", default-features = false, features = [
-    "generate-proto-code",
-    "inventory",
-    "constant-folding",
-    "fast-regexp",
-    "exact-atoms",
-    "crypto",
-    "console-module",
-    "crx-module",
-    "dex-module",
-    "hash-module",
-    "macho-module",
-    "math-module",
-    "dotnet-module",
-    "elf-module",
-    "lnk-module",
-    "pe-module",
-    "string-module",
-    "time-module",
-    "test_proto2-module",
-    "test_proto3-module",
-]}
+yara-x = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 wasm-opt = { workspace = true, optional = true }
