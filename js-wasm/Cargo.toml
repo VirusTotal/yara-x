@@ -20,7 +20,28 @@ release-tools = ["dep:wasm-opt"]
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 wasm-opt = { workspace = true, optional = true }
-yara-x = { workspace = true }
+yara-x = { path = "../lib", version = "1.14.0", default-features = false, features = [
+"generate-proto-code",
+"inventory",
+"constant-folding",
+"fast-regexp",
+"exact-atoms",
+"crypto",
+"console-module",
+"crx-module",
+"dex-module",
+"hash-module",
+"macho-module",
+"math-module",
+"dotnet-module",
+"elf-module",
+"lnk-module",
+"pe-module",
+"string-module",
+"time-module",
+"test_proto2-module",
+"test_proto3-module",
+]}
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 js-sys = { workspace = true }
