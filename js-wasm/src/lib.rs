@@ -66,7 +66,6 @@ struct PatternMatchResult {
 struct PatternData {
     offset: usize,
     length: usize,
-    data: Vec<u8>,
     xor_key: Option<u8>,
 }
 
@@ -176,7 +175,6 @@ fn scan_compiled_rules(
                                     PatternData {
                                         offset: range.start,
                                         length: range.end - range.start,
-                                        data: entry.data().to_vec(),
                                         xor_key: entry.xor_key(),
                                     }
                                 })
@@ -574,6 +572,5 @@ mod tests {
         let matched = &pattern.matches[0];
         assert_eq!(matched.offset, 3);
         assert_eq!(matched.length, 3);
-        assert_eq!(matched.data, b"abc");
     }
 }

@@ -68,7 +68,6 @@ pub(crate) struct PatternMatchResult {
 pub(crate) struct PatternData {
     pub(crate) offset: usize,
     pub(crate) length: usize,
-    pub(crate) data: Vec<u8>,
     pub(crate) xor_key: Option<u8>,
 }
 

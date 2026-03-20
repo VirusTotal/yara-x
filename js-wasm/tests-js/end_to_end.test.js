@@ -418,10 +418,11 @@ test("Rules.scan returns match details, tags, and metadata values", () => {
   assert.equal(patternA.matches.length, 1);
   assert.equal(patternA.matches[0].offset, 2);
   assert.equal(patternA.matches[0].length, 3);
-  assert.deepEqual(bytesToArray(patternA.matches[0].data), [0x61, 0x62, 0x63]);
 
   assert.equal(privatePattern.isPrivate, true);
   assert.equal(privatePattern.matches.length, 1);
+  assert.equal(privatePattern.matches[0].offset, 3);
+  assert.equal(privatePattern.matches[0].length, 2);
 });
 
 test("hash module functions work in rule conditions", () => {
