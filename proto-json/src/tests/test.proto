@@ -19,15 +19,22 @@ message Message {
   required bool bool = 7;
   repeated SubMessage repeated_msg = 8;
   optional SubMessage nested_msg = 9;
-  optional int32 timestamp= 10 [(yara.field_options).fmt = "t"];
+  optional int32 timestamp = 10 [(yara.field_options).fmt = "t"];
   optional Enum enum = 11;
   required uint32 flags = 12 [(yara.field_options).fmt = "flags:Flags"];
-
+  optional uint32 hex_int = 13 [(yara.field_options).fmt = "x"];
+  optional HexEnum hex_enum = 14 [(yara.field_options).fmt = "x"];
 }
 
 enum Enum {
   Foo = 1;
   Bar = 2;
+}
+
+enum HexEnum {
+  option (yara.enum_options).inline = true;
+  HEX_A = 0x0a;
+  HEX_B = 0x0b;
 }
 
 enum Flags {
