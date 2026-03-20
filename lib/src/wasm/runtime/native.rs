@@ -15,6 +15,9 @@ pub(crate) use wasmtime::{
 /// Thin wrapper around [`wasmtime::Linker`] with a backend-neutral API.
 pub(crate) struct Linker<T>(wasmtime::Linker<T>);
 
+type Trampoline<T> =
+    dyn Fn(Caller<'_, T>, &mut [ValRaw]) -> Result<()> + Send + Sync + 'static;
+
 impl<T: 'static> Linker<T> {
     /// Creates a new linker.
     pub fn new(engine: &Engine) -> Self {
@@ -24,7 +27,7 @@ impl<T: 'static> Linker<T> {
     /// Registers a function import without validating its ABI.
     ///
     /// The custom runtimes use `sync_flags` to decide when imported module
-    /// state must be synchronized. Native Wasmtime shares state directly, so
+    /// state must be synchronized. Native wasmtime shares state directly, so
     /// those flags are ignored here.
     pub unsafe fn func_new_unchecked(
         &mut self,
@@ -32,12 +35,7 @@ impl<T: 'static> Linker<T> {
         name: &str,
         ty: FuncType,
         sync_flags: u32,
-        trampoline: Box<
-            dyn Fn(Caller<'_, T>, &mut [ValRaw]) -> Result<()>
-                + Send
-                + Sync
-                + 'static,
-        >,
+        trampoline: Box<Trampoline<T>>,
     ) -> Result<()> {
         let _ = sync_flags;
         unsafe {

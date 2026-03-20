@@ -224,7 +224,7 @@ fn scan_compiled_rules(
     }
 }
 
-#[cfg(any(target_family = "wasm", test))]
+#[cfg(target_family = "wasm")]
 fn collect_rule_warnings(rules: &YaraRules) -> Vec<String> {
     rules.warnings().iter().map(ToString::to_string).collect::<Vec<_>>()
 }
