@@ -260,7 +260,5 @@ fn check_reports_all_errors() {
         .stderr(predicate::str::contains(
             "required metadata `severity` not found",
         ))
-        .stderr(predicate::str::contains(
-            "rule name does not match regex",
-        ));
+        .stderr(predicate::str::contains("rule name does not match regex"));
 }
