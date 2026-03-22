@@ -60,6 +60,7 @@ pyo3 = { version = "0.28.2", features = [
     "abi3-py38",
     "extension-module",
 ] }
+regex = { workspace = true }
 serde_json = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
@@ -67,6 +68,7 @@ strum_macros = { workspace = true }
 yara-x = { workspace = true }
 yara-x-proto-json = { workspace = true }
 yara-x-fmt = { workspace = true }
+yara-x-parser = { workspace = true }
 
 [build-dependencies]
 pyo3-build-config = "0.28.2"

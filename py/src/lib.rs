@@ -40,6 +40,7 @@ use strum_macros::{Display, EnumString};
 
 use ::yara_x as yrx;
 use yara_x_fmt::Indentation;
+use yara_x_parser::ast::MetaValue;
 
 fn dict_to_json(dict: Bound<PyAny>) -> PyResult<serde_json::Value> {
     static JSON_DUMPS: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
@@ -70,6 +71,67 @@ enum SupportedModules {
     Crx,
     #[cfg(feature = "dex-module")]
     Dex,
+}
+
+// These are copies from the checker in the CLI, but exposing them in the API
+// for use here seems wrong. Maybe move them to a better place or just keep our
+// own copies here?
+fn is_sha256(s: &str) -> bool {
+    s.len() == 64 && s.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+fn is_sha1(s: &str) -> bool {
+    s.len() == 40 && s.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+fn is_md5(s: &str) -> bool {
+    s.len() == 32 && s.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+#[pyclass(unsendable)]
+struct CheckResult {
+    warning: bool,
+    code: String,
+    title: String,
+    message: String,
+}
+
+#[pymethods]
+impl CheckResult {
+    #[getter]
+    fn warning(&self) -> PyResult<bool> {
+        Ok(self.warning)
+    }
+
+    #[getter]
+    fn code(&self) -> PyResult<&str> {
+        Ok(self.code.as_str())
+    }
+
+    #[getter]
+    fn title(&self) -> PyResult<&str> {
+        Ok(self.title.as_str())
+    }
+
+    #[getter]
+    fn message(&self) -> PyResult<&str> {
+        Ok(self.message.as_str())
+    }
+}
+
+/// Supported metadata types used to add linters to the compiler and checked
+/// with [`Compiler::check`] method.
+#[pyclass(from_py_object)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MetaType {
+    STRING,
+    INTEGER,
+    FLOAT,
+    BOOL,
+    SHA256,
+    SHA1,
+    MD5,
+    HASH,
 }
 
 /// Formats YARA rules.
@@ -616,6 +678,210 @@ impl Compiler {
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
         json_loads.call((warnings_json,), None)
     }
+
+    #[pyo3(signature = (tags, error = false))]
+    fn check_allowed_tags<'py>(
+        &'py mut self,
+        tags: Vec<String>,
+        error: bool,
+    ) -> PyResult<()> {
+        self.inner.add_linter(yrx::linters::tags_allowed(tags).error(error));
+        Ok(())
+    }
+
+    #[pyo3(signature = (regexp, error = false))]
+    fn check_tags_regex<'py>(
+        &'py mut self,
+        regexp: String,
+        error: bool,
+    ) -> PyResult<()> {
+        let mut linter = match yrx::linters::tag_regex(regexp) {
+            Ok(linter) => linter,
+            Err(err) => return Err(PyValueError::new_err(err.to_string())),
+        };
+        linter = linter.error(error);
+        self.inner.add_linter(linter);
+        Ok(())
+    }
+
+    #[pyo3(signature = (regexp, error = false))]
+    fn check_rule_name<'py>(
+        &'py mut self,
+        regexp: String,
+        error: bool,
+    ) -> PyResult<()> {
+        let mut linter = match yrx::linters::rule_name(regexp) {
+            Ok(linter) => linter,
+            Err(err) => return Err(PyValueError::new_err(err.to_string())),
+        };
+        linter = linter.error(error);
+        self.inner.add_linter(linter);
+        Ok(())
+    }
+
+    #[pyo3(signature = (
+            identifier,
+            value_type,
+            required = false,
+            error = false,
+            regexp = None
+        ))]
+    fn check_metadata<'py>(
+        &'py mut self,
+        identifier: &str,
+        value_type: MetaType,
+        required: bool,
+        error: bool,
+        regexp: Option<String>,
+    ) -> PyResult<()> {
+        let mut linter =
+            yrx::linters::metadata(identifier).required(required).error(error);
+        match value_type {
+            MetaType::STRING => {
+                let message = if let Some(regexp) = regexp.clone() {
+                    let _ = regex::bytes::Regex::new(regexp.as_str())
+                        .map_err(|err| PyValueError::new_err(err.to_string()));
+                    format!(
+                        "`{identifier}` must be a string that matches `/{regexp}/`"
+                    )
+                } else {
+                    format!("`{identifier}` must be a string")
+                };
+                linter = linter.validator(
+                    move |meta| match (&meta.value, &regexp) {
+                        (MetaValue::String((s, _)), Some(regexp)) => {
+                            regex::Regex::new(regexp.as_str())
+                                .unwrap()
+                                .is_match(s)
+                        }
+                        (MetaValue::Bytes((s, _)), Some(regexp)) => {
+                            regex::bytes::Regex::new(regexp.as_str())
+                                .unwrap()
+                                .is_match(s)
+                        }
+                        (MetaValue::String(_), None) => true,
+                        (MetaValue::Bytes(_), None) => true,
+                        _ => false,
+                    },
+                    message,
+                );
+            }
+            MetaType::INTEGER => {
+                linter = linter.validator(
+                    |meta| matches!(meta.value, MetaValue::Integer(_)),
+                    format!("`{identifier}` must be an integer"),
+                );
+            }
+            MetaType::FLOAT => {
+                linter = linter.validator(
+                    |meta| matches!(meta.value, MetaValue::Float(_)),
+                    format!("`{identifier}` must be a float"),
+                );
+            }
+            MetaType::BOOL => {
+                linter = linter.validator(
+                    |meta| matches!(meta.value, MetaValue::Bool(_)),
+                    format!("`{identifier}` must be a bool"),
+                );
+            }
+            MetaType::SHA256 => {
+                linter = linter.validator(
+                        |meta| matches!(meta.value, MetaValue::String((s,_)) if is_sha256(s)),
+                        format!("`{identifier}` must be a SHA-256"),
+                    );
+            }
+            MetaType::SHA1 => {
+                linter = linter.validator(
+                        |meta| matches!(meta.value, MetaValue::String((s,_)) if is_sha1(s)),
+                        format!("`{identifier}` must be a SHA-1"),
+                    );
+            }
+            MetaType::MD5 => {
+                linter = linter.validator(
+                        |meta| matches!(meta.value, MetaValue::String((s,_)) if is_md5(s)),
+                        format!("`{identifier}` must be a MD5"),
+                    );
+            }
+            MetaType::HASH => {
+                linter = linter.validator(
+                        |meta| matches!(meta.value, MetaValue::String((s,_)) if is_md5(s) || is_sha1(s) || is_sha256(s)),
+                        format!("`{identifier}` must be a MD5, SHA-1 or SHA-256"),
+                    );
+            }
+        }
+        self.inner.add_linter(linter);
+        Ok(())
+    }
+
+    /// Checks the provided source code for any errors or warnings.
+    ///
+    /// This function returns an instance of Vec<[`CheckResults`]> containing
+    /// warnings and errors for all the rules previously added with
+    /// [`Compiler::add_source`] and sets the compiler to its initial empty
+    /// state.
+    fn check<'py>(&'py mut self, src: &str) -> PyResult<Vec<CheckResult>> {
+        let mut results: Vec<CheckResult> = Vec::new();
+        let src = yrx::SourceCode::from(src);
+
+        let _ = self.inner.add_source(src);
+
+        for warning in self.inner.warnings() {
+            results.push(CheckResult {
+                warning: true,
+                code: warning.code().to_string(),
+                title: warning.title().to_string(),
+                message: warning.to_string(),
+            });
+        }
+
+        for error in self.inner.errors() {
+            results.push(CheckResult {
+                warning: false,
+                code: error.code().to_string(),
+                title: error.title().to_string(),
+                message: error.to_string(),
+            });
+        }
+
+        let _ = mem::replace(
+            &mut self.inner,
+            Self::new_inner(
+                self.relaxed_re_syntax,
+                self.error_on_slow_pattern,
+            ),
+        );
+        Ok(results)
+    }
+
+    /*
+    fn check<'py>(&'py mut self) -> Vec<CheckResult> {
+        let mut results: Vec<CheckResult> = Vec::new();
+        for warning in self.inner.warnings() {
+            results.push(CheckResult {
+                warning: true,
+                code: warning.code().to_string(),
+                title: warning.title().to_string(),
+                message: warning.to_string(),
+            });
+        }
+        for error in self.inner.errors() {
+            results.push(CheckResult {
+                warning: false,
+                code: error.code().to_string(),
+                title: error.title().to_string(),
+                message: error.to_string(),
+            });
+        }
+        let _ = mem::replace(
+            &mut self.inner,
+            Self::new_inner(
+                self.relaxed_re_syntax,
+                self.error_on_slow_pattern,
+            ),
+        );
+        results
+    }
+    */
 }
 
 /// Optional information for the scan operation.
@@ -1306,6 +1572,7 @@ fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Match>()?;
     m.add_class::<Formatter>()?;
     m.add_class::<Module>()?;
+    m.add_class::<MetaType>()?;
     m.gil_used(false)?;
     Ok(())
 }

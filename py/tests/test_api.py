@@ -397,3 +397,11 @@ rule test {
 }
 ''')
   assert rules.imports() == ["pe", "elf"]
+
+def test_linter_allowed_tags():
+  c = yara_x.Compiler()
+  c.check_allowed_tags(['a', 'b'], error = True)
+  results = c.check('''rule test: a b c  { condition: true }''')
+  assert(len(results) == 1)
+  assert(results[0].warning == False)
+  assert(results[0].code == 'E040')

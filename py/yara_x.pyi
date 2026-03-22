@@ -1,6 +1,7 @@
 import collections
 
-from typing import Any, Dict, BinaryIO, TextIO, Optional, Tuple, final
+from typing import Any, Dict, BinaryIO, TextIO, Optional, Tuple, final, List
+from enum import Enum
 
 class CompileError(Exception):
     r"""
@@ -166,6 +167,32 @@ class Compiler:
         [ValueError](https://docs.python.org/3/library/exceptions.html#ValueError)
         if the regular expression is invalid.
         """
+        ...
+
+    def check_allowed_tags(self, tags: List[str], error: bool = False) -> None:
+        r"""List the allowed tags for rules."""
+        ...
+
+    def check_tags_regex(self, regexp: str, error: bool) -> None:
+        r"""A regular expression that must match all tags on rules."""
+        ...
+
+    def check_rule_name(self, regexp: str, error: bool) -> None:
+        r"""A regular expression that must match all rules names."""
+        ...
+
+    def check_metadata(
+            self,
+            identifier: str,
+            value_type: MetaType,
+            required: bool,
+            error: bool,
+            regexp: Optional[str]):
+        r"""Define expected type and value for metadata on rules."""
+        ...
+
+    def check(src: str) -> List[CheckResult]:
+        r"""Run the configured linters on the provided source code."""
         ...
 
 @final
@@ -479,4 +506,34 @@ class Module:
         ...
     def invoke(self, data: str) -> Any:
         r"""Parse the data and collect module metadata."""
+        ...
+
+@final
+class MetaType(Enum):
+    STRING: int
+    INTEGER: int
+    FLOAT: int
+    BOOL: int
+    SHA256: int
+    SHA1: int
+    MD5: int
+    HASH: int
+
+@final
+class CheckResult:
+    r"""Result from the [`Compiler::check`] method after checking source code."""
+    def warning(self) -> bool:
+        r"""True if the result is a warning, false if it is an error."""
+        ...
+
+    def code(self) -> bool:
+        r"""The string representation of the result code."""
+        ...
+
+    def title(self) -> str:
+        r"""The title of the result code."""
+        ...
+
+    def message(self) -> str:
+        r"""A multi-line message containing code, title and full compiler details."""
         ...
