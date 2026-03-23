@@ -1,0 +1,33 @@
+:root {
+  color-scheme: light;
+  background: #161625;
+  font-family: "Jost", "Avenir Next", "IBM Plex Sans", "Segoe UI", sans-serif;
+  font-optical-sizing: auto;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100svh;
+}
+
+body {
+  overflow: hidden;
+  color: #f5f7ff;
+  background: #161625;
+}
+
+@media (max-width: 900px) {
+  body {
+    overflow: auto;
+  }
+}
