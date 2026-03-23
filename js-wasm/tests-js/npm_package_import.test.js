@@ -4,12 +4,12 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import init, { Compiler } from "yara-x-wasm";
+import init, { Compiler } from "yara-x";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
-const wasmPath = path.join(projectRoot, "pkg", "yara-x-wasm_bg.wasm");
+const wasmPath = path.join(projectRoot, "pkg", "yara_x_js_bg.wasm");
 
 test("npm package self-import exposes the wasm API", async () => {
   const wasmBytes = await readFile(wasmPath);

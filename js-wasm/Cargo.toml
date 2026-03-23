@@ -1,5 +1,5 @@
 [package]
-name = "yara-x-wasm"
+name = "yara-x-js"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

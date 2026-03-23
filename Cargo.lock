@@ -5136,6 +5136,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "yara-x-js"
+version = "1.14.0"
+dependencies = [
+ "getrandom 0.2.17",
+ "js-sys",
+ "serde",
+ "serde-wasm-bindgen",
+ "serde_json",
+ "uuid",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+ "wasm-opt",
+ "yara-x",
+ "zip",
+]
+
+[[package]]
 name = "yara-x-ls"
 version = "1.14.0"
 dependencies = [
@@ -5244,23 +5261,6 @@ dependencies = [
  "yara-x",
  "yara-x-fmt",
  "yara-x-proto-json",
-]
-
-[[package]]
-name = "yara-x-wasm"
-version = "1.14.0"
-dependencies = [
- "getrandom 0.2.17",
- "js-sys",
- "serde",
- "serde-wasm-bindgen",
- "serde_json",
- "uuid",
- "wasm-bindgen",
- "wasm-bindgen-test",
- "wasm-opt",
- "yara-x",
- "zip",
 ]
 
 [[package]]

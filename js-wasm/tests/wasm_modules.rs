@@ -4,7 +4,7 @@
 mod support;
 
 use wasm_bindgen_test::*;
-use yara_x_wasm::WasmCompiler;
+use yara_x_js::WasmCompiler;
 
 use crate::support::{decode_zipped_ihex_fixture, parse_scan_result};
 

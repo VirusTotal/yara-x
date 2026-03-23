@@ -11,8 +11,8 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 const pkgDir = path.join(projectRoot, "pkg");
 const distDir = path.join(projectRoot, "dist");
-const jsEntrypoint = path.join(pkgDir, "yara-x-wasm.js");
-const wasmPath = path.join(pkgDir, "yara-x-wasm_bg.wasm");
+const jsEntrypoint = path.join(pkgDir, "yara_x_js.js");
+const wasmPath = path.join(pkgDir, "yara_x_js_bg.wasm");
 
 const {
   default: init,
@@ -216,8 +216,8 @@ test("Rules.scan and Scanner.scan preserve compiler warnings", () => {
 
 test("dist bundles expose YaraWasm and initialize from generated wasm bytes", async () => {
   for (const bundleName of [
-    "yara-x-wasm-bundle.js",
-    "yara-x-wasm-bundle.min.js",
+    "yara_x_js_bundle.js",
+    "yara_x_js_bundle.min.js",
   ]) {
     const api = await loadBundleApi(path.join(distDir, bundleName));
 

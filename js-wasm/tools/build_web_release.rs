@@ -9,8 +9,8 @@ use std::process::{Command, Stdio};
 use wasm_opt::{Feature, OptimizationOptions};
 
 const PKG_DIR: &str = "pkg";
-const PKG_OUT_NAME: &str = "yara-x-wasm";
-const NOMODULE_OUT_NAME: &str = "yara-x-wasm-bundle";
+const PKG_OUT_NAME: &str = "yara_x_js";
+const NOMODULE_OUT_NAME: &str = "yara_x_js_bundle";
 const WASM_RELEASE_OPT_LEVEL: &str = "z";
 
 struct Config {

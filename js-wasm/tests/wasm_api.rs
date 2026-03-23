@@ -5,7 +5,7 @@ mod support;
 
 use wasm_bindgen::JsValue;
 use wasm_bindgen_test::*;
-use yara_x_wasm::{WasmCompiler, WasmScanner};
+use yara_x_js::{WasmCompiler, WasmScanner};
 
 use crate::support::{
     MetadataValue, ScanResult, assert_match_identifiers, js_error_message,
