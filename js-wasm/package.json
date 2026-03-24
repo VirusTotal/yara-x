@@ -26,7 +26,7 @@
     "README.md"
   ],
   "scripts": {
-    "build:web": "wasm-pack build --profile=wasm-release-lto --mode no-install --no-pack --target web --out-dir pkg",
+    "build:web": "wasm-pack build --profile=wasm-release-lto --no-pack --target web --out-dir pkg",
     "prepack": "npm run build:web && rm pkg/.gitignore",
     "test:wasm-node": "wasm-pack test --node --profile wasm-dev --test wasm_api --test wasm_modules -- --nocapture",
     "test:wasm-browser": "wasm-pack test --headless --chrome --profile wasm-dev --test wasm_browser_api -- --nocapture",
