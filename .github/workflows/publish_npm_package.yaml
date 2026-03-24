@@ -1,4 +1,4 @@
-name: Publish Package to npm
+name: Publish NPM package
 
 on:
   # Allows you to run this workflow manually from the Actions tab
@@ -30,6 +30,6 @@ jobs:
         run: cargo install --locked wasm-opt
 
       - name: Build and publish package
-        run: npm --prefix js-wasm publish  --access public
+        run: cd js-wasm && npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
