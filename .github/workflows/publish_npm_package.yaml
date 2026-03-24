@@ -33,6 +33,6 @@ jobs:
         run: cargo install --locked wasm-bindgen-cli
 
       - name: Build and publish package
-        run: cd js-wasm && npm publish --access public
+        run: cd js-wasm && npm login && npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
