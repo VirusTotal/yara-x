@@ -139,6 +139,15 @@ codegen-units = 1
 inherits = "dev"
 opt-level = 1
 
+[profile.wasm-release-lto]
+inherits = "release"
+lto = true
+codegen-units = 1
+panic = "abort"
+opt-level = "z"
+# strip = "symbols"
+
+
 # Enable optimizations even for debug releases of yara-x-parser. This is necessary
 # because the `logos` lexer produces recursive functions and rely on the rustc's
 # tail-recursion elimination. In debug releases these optimizations are disabled

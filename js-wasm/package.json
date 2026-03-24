@@ -1,7 +1,13 @@
 {
   "name": "yara-x",
   "version": "0.1.0",
-  "description": "WebAssembly build of yara-x with browser-friendly JavaScript APIs.",
+  "description": "JavaScript API for YARA-X",
+  "license": "BSD-3-Clause",
+  "homepage": "https://virustotal.github.io/yara-x",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/VirusTotal/yara-x"
+  },
   "type": "module",
   "sideEffects": false,
   "main": "./pkg/yara_x_js.js",
@@ -18,13 +24,12 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist/**/*",
-    "pkg/**/*",
+    "pkg",
     "README.md"
   ],
   "scripts": {
-    "build:web": "cargo build-web-release",
-    "prepack": "npm run build:web",
+    "build:web": "wasm-pack build --profile=wasm-release-lto --mode no-install --no-pack --target web --out-dir pkg",
+    "prepack": "npm run build:web && rm pkg/.gitignore",
     "test:wasm-node": "wasm-pack test --node --profile wasm-dev --test wasm_api --test wasm_modules -- --nocapture",
     "test:wasm-browser": "wasm-pack test --headless --chrome --profile wasm-dev --test wasm_browser_api -- --nocapture",
     "test:wasm": "npm run test:wasm-node && npm run test:wasm-browser",
@@ -32,10 +37,10 @@
     "pack:dry-run": "npm pack --dry-run"
   },
   "keywords": [
-    "yara",
-    "yara-x",
-    "wasm",
-    "webassembly",
-    "malware"
+    "pattern-matching",
+    "cybersecurity",
+    "forensics",
+    "malware",
+    "yara"
   ]
 }

@@ -214,36 +214,6 @@ test("Rules.scan and Scanner.scan preserve compiler warnings", () => {
   assert.deepEqual(scannerScan.warnings, expectedWarnings);
 });
 
-test("dist bundles expose YaraWasm and initialize from generated wasm bytes", async () => {
-  for (const bundleName of [
-    "yara_x_js_bundle.js",
-    "yara_x_js_bundle.min.js",
-  ]) {
-    const api = await loadBundleApi(path.join(distDir, bundleName));
-
-    const validation = validateWithCompilerApi(
-      api,
-      "rule bundle_ok { condition: true }",
-    );
-    assert.equal(validation.valid, true, `${bundleName} should validate rules`);
-
-    const scan = scanWithCompilerApi(
-      api,
-      `
-        rule bundle_scan_ok {
-          strings:
-            $a = "abc"
-          condition:
-            $a
-        }
-      `,
-      new Uint8Array([0x61, 0x62, 0x63]),
-    );
-    assert.equal(scan.valid, true, `${bundleName} should scan successfully`);
-    assert.equal(scan.matches.length, 1);
-    assert.equal(scan.matches[0].identifier, "bundle_scan_ok");
-  }
-});
 
 test("Compiler accepts a list of rule sources", () => {
   const rules = [
