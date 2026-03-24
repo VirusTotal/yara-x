@@ -29,6 +29,9 @@ jobs:
       - name: Install wasm-opt
         run: cargo install --locked wasm-opt
 
+      - name: Install wasm-bindgen
+        run: cargo install --locked wasm-bindgen-cli
+
       - name: Build and publish package
         run: cd js-wasm && npm publish --access public
         env:
