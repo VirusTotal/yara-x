@@ -1,0 +1,9 @@
+[target.wasm32-unknown-unknown]
+runner = "wasm-bindgen-test-runner"
+rustflags = ["-C", "target-feature=+simd128"]
+
+[target.wasm64-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128"]
+
+[alias]
+build-web-release = "run --release --features release-tools --bin build_web_release --"
