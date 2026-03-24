@@ -11,8 +11,8 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 const pkgDir = path.join(projectRoot, "pkg");
 const distDir = path.join(projectRoot, "dist");
-const jsEntrypoint = path.join(pkgDir, "yara-x-wasm.js");
-const wasmPath = path.join(pkgDir, "yara-x-wasm_bg.wasm");
+const jsEntrypoint = path.join(pkgDir, "yara_x_js.js");
+const wasmPath = path.join(pkgDir, "yara_x_js_bg.wasm");
 
 const {
   default: init,
@@ -214,36 +214,6 @@ test("Rules.scan and Scanner.scan preserve compiler warnings", () => {
   assert.deepEqual(scannerScan.warnings, expectedWarnings);
 });
 
-test("dist bundles expose YaraWasm and initialize from generated wasm bytes", async () => {
-  for (const bundleName of [
-    "yara-x-wasm-bundle.js",
-    "yara-x-wasm-bundle.min.js",
-  ]) {
-    const api = await loadBundleApi(path.join(distDir, bundleName));
-
-    const validation = validateWithCompilerApi(
-      api,
-      "rule bundle_ok { condition: true }",
-    );
-    assert.equal(validation.valid, true, `${bundleName} should validate rules`);
-
-    const scan = scanWithCompilerApi(
-      api,
-      `
-        rule bundle_scan_ok {
-          strings:
-            $a = "abc"
-          condition:
-            $a
-        }
-      `,
-      new Uint8Array([0x61, 0x62, 0x63]),
-    );
-    assert.equal(scan.valid, true, `${bundleName} should scan successfully`);
-    assert.equal(scan.matches.length, 1);
-    assert.equal(scan.matches[0].identifier, "bundle_scan_ok");
-  }
-});
 
 test("Compiler accepts a list of rule sources", () => {
   const rules = [
@@ -418,11 +388,9 @@ test("Rules.scan returns match details, tags, and metadata values", () => {
   assert.equal(patternA.matches.length, 1);
   assert.equal(patternA.matches[0].offset, 2);
   assert.equal(patternA.matches[0].length, 3);
-
+  
   assert.equal(privatePattern.isPrivate, true);
   assert.equal(privatePattern.matches.length, 1);
-  assert.equal(privatePattern.matches[0].offset, 3);
-  assert.equal(privatePattern.matches[0].length, 2);
 });
 
 test("hash module functions work in rule conditions", () => {

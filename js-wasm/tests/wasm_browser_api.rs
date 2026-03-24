@@ -6,7 +6,7 @@ mod support;
 use js_sys::Array;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_test::*;
-use yara_x_wasm::WasmCompiler;
+use yara_x_js::WasmCompiler;
 
 use crate::support::{ScanResult, parse_scan_result};
 

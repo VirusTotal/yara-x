@@ -1,41 +1,46 @@
 {
-  "name": "yara-x-wasm",
+  "name": "yara-x",
   "version": "0.1.0",
-  "description": "WebAssembly build of yara-x with browser-friendly JavaScript APIs.",
+  "description": "JavaScript API for YARA-X",
+  "license": "BSD-3-Clause",
+  "homepage": "https://virustotal.github.io/yara-x",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/VirusTotal/yara-x"
+  },
   "type": "module",
   "sideEffects": false,
-  "main": "./pkg/yara-x-wasm.js",
-  "module": "./pkg/yara-x-wasm.js",
-  "types": "./pkg/yara-x-wasm.d.ts",
+  "main": "./pkg/yara_x_js.js",
+  "module": "./pkg/yara_x_js.js",
+  "types": "./pkg/yara_x_js.d.ts",
   "exports": {
     ".": {
-      "types": "./pkg/yara-x-wasm.d.ts",
-      "import": "./pkg/yara-x-wasm.js",
-      "default": "./pkg/yara-x-wasm.js"
+      "types": "./pkg/yara_x_js.d.ts",
+      "import": "./pkg/yara_x_js.js",
+      "default": "./pkg/yara_x_js.js"
     },
-    "./bundle": "./dist/yara-x-wasm-bundle.min.js",
-    "./bundle-dev": "./dist/yara-x-wasm-bundle.js",
+    "./bundle": "./dist/yara_x_js_bundle.min.js",
+    "./bundle-dev": "./dist/yara_x_js_bundle.js",
     "./package.json": "./package.json"
   },
   "files": [
-    "dist/**/*",
-    "pkg/**/*",
+    "pkg",
     "README.md"
   ],
   "scripts": {
-    "build:web": "cargo build-web-release",
-    "prepack": "npm run build:web",
-    "test:wasm-node": "wasm-pack test --node  --profile wasm-dev --test wasm_api --test wasm_modules -- --nocapture",
+    "build:web": "wasm-pack build --profile=wasm-release-lto --mode no-install --no-pack --target web --out-dir pkg",
+    "prepack": "npm run build:web && rm pkg/.gitignore",
+    "test:wasm-node": "wasm-pack test --node --profile wasm-dev --test wasm_api --test wasm_modules -- --nocapture",
     "test:wasm-browser": "wasm-pack test --headless --chrome --profile wasm-dev --test wasm_browser_api -- --nocapture",
     "test:wasm": "npm run test:wasm-node && npm run test:wasm-browser",
     "test:js": "node --test tests-js/*.test.js",
     "pack:dry-run": "npm pack --dry-run"
   },
   "keywords": [
-    "yara",
-    "yara-x",
-    "wasm",
-    "webassembly",
-    "malware"
+    "pattern-matching",
+    "cybersecurity",
+    "forensics",
+    "malware",
+    "yara"
   ]
 }
