@@ -212,40 +212,45 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
             compiler.colorize_errors(io::stdout().is_tty());
 
-            match compiler.add_source(src) {
-                Ok(compiler) => {
-                    if compiler.warnings().is_empty() {
-                        state.files_passed.fetch_add(1, Ordering::Relaxed);
-                        lines.push(format!(
-                            "[ {} ] {}",
-                            "PASS".paint(Green).bold(),
-                            file_path.display()
-                        ));
-                    } else {
-                        state.warnings.fetch_add(
-                            compiler.warnings().len(),
-                            Ordering::Relaxed,
-                        );
-                        lines.push(format!(
-                            "[ {} ] {}",
-                            "WARN".paint(Yellow).bold(),
-                            file_path.display()
-                        ));
-                        for warning in compiler.warnings() {
-                            eprintln!("{warning}");
-                        }
+            let _ = compiler.add_source(src);
+
+            if compiler.errors().is_empty() && compiler.warnings().is_empty() {
+                state.files_passed.fetch_add(1, Ordering::Relaxed);
+                lines.push(format!(
+                    "[ {} ] {}",
+                    "PASS".paint(Green).bold(),
+                    file_path.display()
+                ));
+            } else {
+                if !compiler.errors().is_empty() {
+                    state.errors.fetch_add(
+                        compiler.errors().len(),
+                        Ordering::Relaxed,
+                    );
+                    lines.push(format!(
+                        "[ {} ] {}",
+                        "FAIL".paint(Red).bold(),
+                        file_path.display()
+                    ));
+                    for error in compiler.errors() {
+                        eprintln!("{error}");
                     }
                 }
-                Err(err) => {
-                    state.errors.fetch_add(1, Ordering::Relaxed);
+                if !compiler.warnings().is_empty() {
+                    state.warnings.fetch_add(
+                        compiler.warnings().len(),
+                        Ordering::Relaxed,
+                    );
                     lines.push(format!(
-                        "[ {} ] {}\n{}",
-                        "FAIL".paint(Red).bold(),
-                        file_path.display(),
-                        err,
+                        "[ {} ] {}",
+                        "WARN".paint(Yellow).bold(),
+                        file_path.display()
                     ));
+                    for warning in compiler.warnings() {
+                        eprintln!("{warning}");
+                    }
                 }
-            };
+            }
 
             output.send(Message::Info(lines.join("\n")))?;
 

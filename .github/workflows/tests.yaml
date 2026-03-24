@@ -220,14 +220,24 @@ jobs:
       - name: Install terser
         run: npm install --global terser
 
+      - name: Write webdriver.json
+        run: |
+          cat > js-wasm/webdriver.json <<EOF
+          {
+            "goog:chromeOptions": {
+              "binary": "${{ steps.setup-chrome.outputs.chrome-path }}"
+            }
+          }
+          EOF
+
       - name: Run Node-targeted Rust tests
         run: npm --prefix js-wasm run test:wasm-node
 
       - name: Run headless browser Rust tests
         run: npm --prefix js-wasm run test:wasm-browser
         env:
-          CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
           CHROMEDRIVER: ${{ steps.setup-chrome.outputs.chromedriver-path }}
+          WASM_BINDGEN_TEST_WEBDRIVER_JSON: ${{ github.workspace }}/js-wasm/webdriver.json
 
       - name: Build browser package
         run: npm --prefix js-wasm run build:web
