@@ -1,12 +1,12 @@
 {
-  "name": "yara-x",
+  "name": "@virustotal/yara-x",
   "version": "0.1.0",
   "description": "JavaScript API for YARA-X",
   "license": "BSD-3-Clause",
   "homepage": "https://virustotal.github.io/yara-x",
   "repository": {
     "type": "git",
-    "url": "https://github.com/VirusTotal/yara-x"
+    "url": "git+https://github.com/VirusTotal/yara-x.git"
   },
   "type": "module",
   "sideEffects": false,
@@ -19,8 +19,6 @@
       "import": "./pkg/yara_x_js.js",
       "default": "./pkg/yara_x_js.js"
     },
-    "./bundle": "./dist/yara_x_js_bundle.min.js",
-    "./bundle-dev": "./dist/yara_x_js_bundle.js",
     "./package.json": "./package.json"
   },
   "files": [
