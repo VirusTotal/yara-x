@@ -173,8 +173,7 @@ export class YaraResultPanel extends LitElement {
 
       ${this.renderIssues("Warnings", summary.warningsList, "warnings")}
       ${this.renderIssues("Errors", summary.errorsList, "errors")}
-      ${this.renderMatches()}
-      ${this.renderNonMatches()}
+      ${this.renderMatches()} ${this.renderNonMatches()}
     `;
   }
 

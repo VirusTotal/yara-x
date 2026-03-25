@@ -20,8 +20,7 @@ async function ensureInitialized() {
 function wrapScanner(scanner: WasmScanner): YaraScanner {
   return {
     setTimeoutMs: (timeoutMs) => scanner.setTimeoutMs(timeoutMs),
-    setMaxMatchesPerPattern: (limit) =>
-      scanner.setMaxMatchesPerPattern(limit),
+    setMaxMatchesPerPattern: (limit) => scanner.setMaxMatchesPerPattern(limit),
     setGlobal: (identifier, value) => scanner.setGlobal(identifier, value),
     scan: (payload) => scanner.scan(payload),
     dispose: () => scanner.free(),
@@ -41,7 +40,8 @@ function wrapCompiler(compiler: WasmCompiler): YaraCompiler {
   return {
     addSource: (source) => compiler.addSource(source),
     newNamespace: (namespace) => compiler.newNamespace(namespace),
-    defineGlobal: (identifier, value) => compiler.defineGlobal(identifier, value),
+    defineGlobal: (identifier, value) =>
+      compiler.defineGlobal(identifier, value),
     errors: () => compiler.errors,
     warnings: () => compiler.warnings,
     build: () => wrapRules(compiler.build()),
