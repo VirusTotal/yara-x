@@ -1,10 +1,14 @@
 import "@codingame/monaco-vscode-editor-api/esm/vs/editor/contrib/format/browser/formatActions.js";
 
 import * as monaco from "@codingame/monaco-vscode-editor-api";
-import { BrowserMessageReader, BrowserMessageWriter } from "vscode-languageserver-protocol/browser.js";
-import { CloseAction, ErrorAction } from "vscode-languageclient/browser.js";
-import { MonacoLanguageClient } from "monaco-languageclient";
 
+import {
+  BrowserMessageReader,
+  BrowserMessageWriter,
+} from "vscode-languageserver-protocol/browser.js";
+import { CloseAction, ErrorAction } from "vscode-languageclient/browser.js";
+
+import { MonacoLanguageClient } from "monaco-languageclient";
 import { MonacoVscodeApiWrapper } from "monaco-languageclient/vscodeApiWrapper";
 import { configureDefaultWorkerFactory } from "monaco-languageclient/workerFactory";
 import { getWasmYaraLanguageServer } from "../services/wasm-yara-language-server";
@@ -212,22 +216,19 @@ async function createEditorModel(
   initialValue: string,
   language: string,
 ) {
-  let model = monaco.editor.getModel(uri);
+  const modelRef = await monaco.editor.createModelReference(uri, initialValue);
+  const model = modelRef.object.textEditorModel;
 
-  if (model) {
-    model.setValue(initialValue);
-    monaco.editor.setModelLanguage(model, language);
-  } else {
-    model = monaco.editor.createModel(initialValue, language, uri);
+  if (!model) {
+    modelRef.dispose();
+    throw new Error(`Unable to resolve editor model for ${uri.toString()}.`);
   }
+
+  monaco.editor.setModelLanguage(model, language);
 
   return {
     model,
-    modelRef: {
-      dispose: () => {
-        model.dispose();
-      },
-    },
+    modelRef,
   };
 }
 
