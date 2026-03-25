@@ -9,6 +9,8 @@
 target
 js-wasm/dist
 js-wasm/pkg
+ls-wasm/dist
+ls-wasm/pkg
 macros/target
 site/node_modules
 site/public

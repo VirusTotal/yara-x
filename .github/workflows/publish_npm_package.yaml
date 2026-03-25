@@ -10,6 +10,13 @@ jobs:
     permissions:
       contents: write
       id-token: write
+    strategy:
+      matrix:
+        package:
+          - dir: js-wasm
+            sync_version: false
+          - dir: ls-wasm
+            sync_version: true
 
     steps:
       - name: Checkout sources
@@ -36,7 +43,11 @@ jobs:
       - name: Install wasm-bindgen
         run: cargo install --locked wasm-bindgen-cli
 
+      - name: Sync package version
+        if: matrix.package.sync_version
+        run: python3 .github/scripts/sync_version.py
+
       - name: Build and publish package
-        run: cd js-wasm && npm publish --access public
+        run: cd ${{ matrix.package.dir }} && npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -247,3 +247,12 @@ jobs:
 
       - name: Validate npm package contents
         run: npm --prefix js-wasm run pack:dry-run
+
+      - name: Build language server browser package
+        run: npm --prefix ls-wasm run build:web
+
+      - name: Run language server JS package tests
+        run: npm --prefix ls-wasm run test:js
+
+      - name: Validate language server npm package contents
+        run: npm --prefix ls-wasm run pack:dry-run
