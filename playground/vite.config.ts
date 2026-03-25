@@ -3,12 +3,13 @@ import os from "node:os";
 import path from "node:path";
 
 export default defineConfig({
-  base: process.env.GITHUB_ACTIONS ? "/playground/" : "/",
+  base: process.env.GITHUB_ACTIONS ? "/yara-x/playground/" : "/",
   worker: {
     format: "es",
   },
   optimizeDeps: {
     include: ["@codingame/monaco-vscode-editor-api"],
+    exclude: ["@virustotal/yara-x"],
   },
   build: {
     rollupOptions: {

@@ -1,10 +1,13 @@
 import "@codingame/monaco-vscode-editor-api/esm/vs/editor/contrib/format/browser/formatActions.js";
 
 import * as monaco from "@codingame/monaco-vscode-editor-api";
+import { BrowserMessageReader, BrowserMessageWriter } from "vscode-languageserver-protocol/browser.js";
+import { CloseAction, ErrorAction } from "vscode-languageclient/browser.js";
+import { MonacoLanguageClient } from "monaco-languageclient";
 
 import { MonacoVscodeApiWrapper } from "monaco-languageclient/vscodeApiWrapper";
 import { configureDefaultWorkerFactory } from "monaco-languageclient/workerFactory";
-import { createModelReference } from "@codingame/monaco-vscode-api/monaco";
+import { getWasmYaraLanguageServer } from "../services/wasm-yara-language-server";
 
 const RULE_URI = monaco.Uri.file("/workspace/main.yar");
 const SAMPLE_URI = monaco.Uri.file("/workspace/sample.txt");
@@ -209,16 +212,59 @@ async function createEditorModel(
   initialValue: string,
   language: string,
 ) {
-  const modelRef = await createModelReference(uri, initialValue);
-  const model = modelRef.object.textEditorModel;
+  let model = monaco.editor.getModel(uri);
 
-  if (!model) {
-    throw new Error(`failed to create ${language} model`);
+  if (model) {
+    model.setValue(initialValue);
+    monaco.editor.setModelLanguage(model, language);
+  } else {
+    model = monaco.editor.createModel(initialValue, language, uri);
   }
 
-  monaco.editor.setModelLanguage(model as never, language);
+  return {
+    model,
+    modelRef: {
+      dispose: () => {
+        model.dispose();
+      },
+    },
+  };
+}
 
-  return { modelRef, model };
+async function createYaraLanguageClient() {
+  const worker = await getWasmYaraLanguageServer().createWorker();
+  const reader = new BrowserMessageReader(worker);
+  const writer = new BrowserMessageWriter(worker);
+
+  const client = new MonacoLanguageClient({
+    id: "yara-x-playground",
+    name: "YARA-X Playground Language Client",
+    clientOptions: {
+      documentSelector: [{ language: "yara", scheme: "file" }],
+      initializationOptions: YARA_CONFIG,
+      errorHandler: {
+        error: () => ({ action: ErrorAction.Continue }),
+        closed: () => ({ action: CloseAction.DoNotRestart }),
+      },
+      middleware: {
+        workspace: {
+          configuration: async () => [YARA_CONFIG],
+        },
+      },
+    },
+    messageTransports: { reader, writer },
+  });
+
+  await client.start();
+
+  return {
+    dispose: () => {
+      void client.stop().catch((error) => {
+        console.error("failed to stop yara-x language client", error);
+      });
+      worker.terminate();
+    },
+  };
 }
 
 function buildEditor(
@@ -302,12 +348,11 @@ export async function createYaraEditor(
     insertSpaces: true,
   });
   const editorAction = registerYaraEditorActions(editor);
-
-  // TODO(@kevinmuoz): Wire the browser language server package here once the
-  // upstream worker entrypoint and distribution strategy are settled.
+  const languageClient = await createYaraLanguageClient();
 
   return toHandle(editor, modelRef, () => {
     editorAction.dispose();
+    languageClient.dispose();
   });
 }
 

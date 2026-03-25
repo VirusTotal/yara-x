@@ -1,60 +1,59 @@
-import type { YaraCompiler, YaraEngine } from "./yara-engine";
+import initYara, {
+  Compiler as WasmCompiler,
+  Rules as WasmRules,
+  Scanner as WasmScanner,
+} from "@virustotal/yara-x";
+import type {
+  YaraCompiler,
+  YaraEngine,
+  YaraRules,
+  YaraScanner,
+} from "./yara-engine";
 
-function notImplemented(message: string): never {
-  throw new Error(message);
+let initPromise: Promise<void> | undefined;
+
+async function ensureInitialized() {
+  initPromise ??= initYara().then(() => undefined);
+  await initPromise;
 }
 
-function compilerTodo(): YaraCompiler {
+function wrapScanner(scanner: WasmScanner): YaraScanner {
   return {
-    addSource: (_source) => {
-      notImplemented(
-        `TODO(@kevinmuoz): wire "Compiler.addSource" to the official "yara-x-wasm" npm package once PR #598 is merged and published.`,
-      );
-    },
-    newNamespace: (_namespace) => {
-      notImplemented(
-        `TODO(@kevinmuoz): wire "Compiler.newNamespace" to the official "yara-x-wasm" npm package once PR #598 is merged and published.`,
-      );
-    },
-    defineGlobal: (_identifier, _value) => {
-      notImplemented(
-        `TODO(@kevinmuoz): wire "Compiler.defineGlobal" to the official "yara-x-wasm" npm package once PR #598 is merged and published.`,
-      );
-    },
-    errors: () => {
-      notImplemented(
-        `TODO(@kevinmuoz): expose "Compiler.errors()" from the official "yara-x-wasm" npm package once PR #598 is merged and published.`,
-      );
-    },
-    warnings: () => {
-      notImplemented(
-        `TODO(@kevinmuoz): expose "Compiler.warnings()" from the official "yara-x-wasm" npm package once PR #598 is merged and published.`,
-      );
-    },
-    build: () => {
-      notImplemented(
-        `TODO(@kevinmuoz): wire "Compiler.build()" to the official "yara-x-wasm" npm package once PR #598 is merged and published.`,
-      );
-    },
+    setTimeoutMs: (timeoutMs) => scanner.setTimeoutMs(timeoutMs),
+    setMaxMatchesPerPattern: (limit) =>
+      scanner.setMaxMatchesPerPattern(limit),
+    setGlobal: (identifier, value) => scanner.setGlobal(identifier, value),
+    scan: (payload) => scanner.scan(payload),
+    dispose: () => scanner.free(),
+  };
+}
+
+function wrapRules(rules: WasmRules): YaraRules {
+  return {
+    scan: (payload) => rules.scan(payload),
+    scanner: () => wrapScanner(rules.scanner()),
+    warnings: () => rules.warnings,
+    dispose: () => rules.free(),
+  };
+}
+
+function wrapCompiler(compiler: WasmCompiler): YaraCompiler {
+  return {
+    addSource: (source) => compiler.addSource(source),
+    newNamespace: (namespace) => compiler.newNamespace(namespace),
+    defineGlobal: (identifier, value) => compiler.defineGlobal(identifier, value),
+    errors: () => compiler.errors,
+    warnings: () => compiler.warnings,
+    build: () => wrapRules(compiler.build()),
+    dispose: () => compiler.free(),
   };
 }
 
 export function getWasmYaraEngine(): YaraEngine {
   return {
     async createCompiler() {
-      /**
-       * TODO(@kevinmuoz): I'll Replace this local placeholder with an adapter around
-       * the upstream `yara-x-wasm` npm package once PR #598 lands
-       *
-       * Possible future config:
-       *
-       * import initYara, { Compiler } from "yara-x-wasm";
-       *
-       * await initYara();
-       * const compiler = new Compiler();
-       *
-       */
-      return compilerTodo();
+      await ensureInitialized();
+      return wrapCompiler(new WasmCompiler());
     },
   };
 }

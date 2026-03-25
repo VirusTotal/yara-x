@@ -29,6 +29,8 @@ export class YaraResultPanel extends LitElement {
         return "Match";
       case "clean":
         return "Clean";
+      case "warning":
+        return "Warnings";
       case "issues":
         return "Issues";
       default:
@@ -55,13 +57,17 @@ export class YaraResultPanel extends LitElement {
     `;
   }
 
-  private renderIssues(title: string, issues: string[]) {
+  private renderIssues(
+    title: string,
+    issues: string[],
+    kind: "warnings" | "errors",
+  ) {
     if (issues.length === 0) return nothing;
 
     return html`
-      <section class="result-section">
+      <section class=${classMap({ "result-section": true, [kind]: true })}>
         <div class="section-heading">${title}</div>
-        <ul class="issue-list">
+        <ul class=${classMap({ "issue-list": true, [kind]: true })}>
           ${issues.map((issue) => html`<li>${issue}</li>`)}
         </ul>
       </section>
@@ -165,8 +171,9 @@ export class YaraResultPanel extends LitElement {
         </div>
       </section>
 
-      ${this.renderIssues("Warnings", summary.warningsList)}
-      ${this.renderIssues("Errors", summary.errorsList)} ${this.renderMatches()}
+      ${this.renderIssues("Warnings", summary.warningsList, "warnings")}
+      ${this.renderIssues("Errors", summary.errorsList, "errors")}
+      ${this.renderMatches()}
       ${this.renderNonMatches()}
     `;
   }

@@ -1,22 +1,8 @@
 /**
  * Playground-facing contract for the browser engine integration.
  *
- * TODO(@kevinmuoz): Replace the local adapter with the official `yara-x-wasm`
- * npm package once PR #598 is merged and published.
- *
- * Expected upstream usage:
- *
- * import initYara, { Compiler, Scanner } from "yara-x-wasm";
- *
- * await initYara();
- *
- * const compiler = new Compiler();
- * compiler.addSource(rule);
- *
- * const rules = compiler.build();
- * const scanner = new Scanner(rules);
- * const result = scanner.scan(bytes);
- *
+ * This contract intentionally mirrors the object-oriented browser API exposed
+ * by the official `@virustotal/yara-x` package.
  */
 
 export type YaraEngineScanResult = unknown;
@@ -32,12 +18,14 @@ export interface YaraCompiler {
   errors(): string[];
   warnings(): string[];
   build(): YaraRules;
+  dispose(): void;
 }
 
 export interface YaraRules {
   scan(payload: Uint8Array): YaraEngineScanResult;
   scanner(): YaraScanner;
   warnings(): string[];
+  dispose(): void;
 }
 
 export interface YaraScanner {
@@ -45,4 +33,5 @@ export interface YaraScanner {
   setMaxMatchesPerPattern(limit: number): void;
   setGlobal(identifier: string, value: unknown): void;
   scan(payload: Uint8Array): YaraEngineScanResult;
+  dispose(): void;
 }
