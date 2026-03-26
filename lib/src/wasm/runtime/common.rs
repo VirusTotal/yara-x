@@ -56,6 +56,8 @@ pub(crate) trait RuntimeBackend:
 
     /// Updates the deadline used for interrupting long-running scans.
     fn set_epoch_deadline(runtime: &mut Self::RuntimeState, deadline: u64);
+    /// Associates the runtime state with the current host session.
+    fn set_runtime_session(runtime: &mut Self::RuntimeState, session_id: u64);
     /// Resets any per-instantiation state before creating a new instance.
     fn prepare_for_instantiation(runtime: &mut Self::RuntimeState);
     /// Clears any runtime state that should not survive store reuse.
@@ -188,6 +190,11 @@ impl<T, B: RuntimeBackend> Store<T, B> {
     where
         F: FnMut(StoreContextMut<'_, T, B>) -> Result<()> + 'static,
     {
+    }
+
+    /// Associates the store with a backend-specific runtime session.
+    pub(crate) fn set_runtime_session(&mut self, session_id: u64) {
+        B::set_runtime_session(&mut self.runtime, session_id);
     }
 }
 
@@ -351,6 +358,7 @@ impl Engine {
     ///
     /// Custom runtimes track deadlines without an engine-level epoch counter,
     /// so this is a no-op kept for API compatibility.
+    #[allow(dead_code)]
     pub fn increment_epoch(&self) {}
 
     /// Unloads process-wide handlers owned by the engine.
@@ -754,6 +762,21 @@ impl<B: RuntimeBackend> Module<B> {
     /// the native runtime preserves Wasmtime's unsafe deserialization API.
     pub unsafe fn deserialize(engine: &Engine, bytes: &[u8]) -> Result<Self> {
         Self::from_binary(engine, bytes)
+    }
+}
+
+#[cfg(feature = "native-code-serialization")]
+impl<B> Module<B>
+where
+    B: RuntimeBackend<ModuleInner = Vec<u8>>,
+{
+    /// Serializes a module into bytes that can later be passed to
+    /// [`Module::deserialize`].
+    ///
+    /// Custom runtimes keep the original validated WASM bytes as their module
+    /// representation, so serialization simply returns those bytes.
+    pub fn serialize(&self) -> Result<Vec<u8>> {
+        Ok(self.inner.clone())
     }
 }
 
