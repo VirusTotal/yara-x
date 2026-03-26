@@ -4,7 +4,7 @@ import { customElement, property } from "lit/decorators.js";
 import type { ServiceStatus } from "../types/service-status";
 import { classMap } from "lit/directives/class-map.js";
 
-const yaraMarkUrl = "/yara-mark.svg";
+const yaraMarkUrl = `${import.meta.env.BASE_URL}yara-mark.svg`;
 
 function getServiceLabel(kind: "core" | "lsp", status: ServiceStatus) {
   if (kind === "core") {
