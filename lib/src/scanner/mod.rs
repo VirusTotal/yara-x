@@ -11,7 +11,17 @@ use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::slice::Iter;
+#[cfg(not(all(
+    target_arch = "wasm32",
+    target_os = "wasi",
+    target_env = "p1"
+)))]
 use std::sync::Once;
+#[cfg(not(all(
+    target_arch = "wasm32",
+    target_os = "wasi",
+    target_env = "p1"
+)))]
 use std::sync::atomic::AtomicU64;
 use std::time::Duration;
 
@@ -33,7 +43,9 @@ pub(crate) use crate::scanner::context::RuntimeObject;
 pub(crate) use crate::scanner::context::RuntimeObjectHandle;
 pub(crate) use crate::scanner::context::ScanContext;
 pub(crate) use crate::scanner::context::ScanState;
-use crate::scanner::context::create_wasm_store_and_ctx;
+use crate::scanner::context::{
+    create_wasm_store_and_ctx, create_wasm_store_and_ctx_with_session,
+};
 pub(crate) use crate::scanner::matches::Match;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
@@ -100,9 +112,19 @@ pub enum ScanError {
 /// Global counter that gets incremented every 1 second by a dedicated thread.
 ///
 /// This counter is used for determining when a scan operation has timed out.
+#[cfg(not(all(
+    target_arch = "wasm32",
+    target_os = "wasi",
+    target_env = "p1"
+)))]
 static HEARTBEAT_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Used for spawning the thread that increments `HEARTBEAT_COUNTER`.
+#[cfg(not(all(
+    target_arch = "wasm32",
+    target_os = "wasi",
+    target_env = "p1"
+)))]
 static INIT_HEARTBEAT: Once = Once::new();
 
 /// Represents the data being scanned.
@@ -205,6 +227,13 @@ impl<'r> Scanner<'r> {
         Self { _rules: rules, wasm_store, use_mmap: true, max_scan_size: None }
     }
 
+    #[doc(hidden)]
+    pub fn with_runtime_session(rules: &'r Rules, session_id: u64) -> Self {
+        let wasm_store =
+            create_wasm_store_and_ctx_with_session(rules, session_id);
+        Self { _rules: rules, wasm_store, use_mmap: true, max_scan_size: None }
+    }
+
     /// Sets a timeout for scan operations.
     ///
     /// The scan functions will return an [ScanError::Timeout] once the
@@ -215,6 +244,19 @@ impl<'r> Scanner<'r> {
     /// the specified timeout.
     pub fn set_timeout(&mut self, timeout: Duration) -> &mut Self {
         self.scan_context_mut().set_timeout(timeout);
+        self
+    }
+
+    #[doc(hidden)]
+    pub fn set_runtime_session(&mut self, session_id: u64) -> &mut Self {
+        let _ = session_id;
+        #[cfg(target_family = "wasm")]
+        unsafe {
+            self.wasm_store
+                .as_mut()
+                .get_unchecked_mut()
+                .set_runtime_session(session_id);
+        }
         self
     }
 
