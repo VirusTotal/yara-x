@@ -20,7 +20,11 @@ import {
 import { summarizeResult } from "../results/summarize-result";
 import { getWasmYaraEngine } from "../services/wasm-yara-engine";
 import type { ServiceStatus } from "../types/service-status";
-import type { YaraEngine } from "../services/yara-engine";
+import type {
+  YaraCompiler,
+  YaraEngine,
+  YaraRules,
+} from "../services/yara-engine";
 
 const INITIAL_EXECUTION: ExecutionState = {
   raw: {
@@ -147,7 +151,7 @@ export class YaraPlaygroundApp extends LitElement {
 
       this.ruleEditor = ruleEditor;
       this.sampleEditor = sampleEditor;
-      this.lspStatus = "idle";
+      this.lspStatus = "ready";
     } catch (error) {
       console.error("failed to initialize editors", error);
       this.lspStatus = "error";
@@ -177,9 +181,7 @@ export class YaraPlaygroundApp extends LitElement {
   }
 
   private get editorsReady() {
-    return Boolean(
-      this.ruleEditor && this.sampleEditor && this.lspStatus === "ready",
-    );
+    return Boolean(this.ruleEditor && this.sampleEditor);
   }
 
   private get canRun() {
@@ -215,6 +217,8 @@ export class YaraPlaygroundApp extends LitElement {
 
     this.isBusy = true;
     const startedAt = performance.now();
+    let compiler: YaraCompiler | undefined;
+    let rules: YaraRules | undefined;
 
     try {
       const engine = await this.ensureEngine();
@@ -228,10 +232,10 @@ export class YaraPlaygroundApp extends LitElement {
         );
       }
 
-      const compiler = await engine.createCompiler();
+      compiler = await engine.createCompiler();
       compiler.addSource(this.ruleEditor?.getValue() ?? "");
 
-      const rules = compiler.build();
+      rules = compiler.build();
       const raw = rules.scan(sampleBytes);
 
       this.execution = {
@@ -254,6 +258,8 @@ export class YaraPlaygroundApp extends LitElement {
         summary: summarizeResult(raw, "scan"),
       };
     } finally {
+      rules?.dispose();
+      compiler?.dispose();
       this.isBusy = false;
     }
   }

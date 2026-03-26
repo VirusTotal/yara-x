@@ -201,6 +201,12 @@ yara-playground-app code {
   background: rgba(255, 139, 155, 0.08);
 }
 
+.hit-pill.warning {
+  color: #ffcf70;
+  border-color: rgba(255, 207, 112, 0.22);
+  background: rgba(255, 207, 112, 0.09);
+}
+
 .hit-pill.clean {
   color: #86aaf9;
   background: rgba(134, 170, 249, 0.1);
@@ -601,6 +607,11 @@ yara-playground-app code {
   border-color: rgba(255, 139, 155, 0.14);
 }
 
+.headline-strip.warning {
+  background: rgba(255, 207, 112, 0.08);
+  border-color: rgba(255, 207, 112, 0.16);
+}
+
 .headline-strip p {
   color: #f4f7ff;
 }
@@ -632,12 +643,29 @@ yara-playground-app code {
   padding: 18px;
 }
 
+.result-section.warnings {
+  border-color: rgba(255, 207, 112, 0.14);
+  background: rgba(255, 207, 112, 0.04);
+}
+
+.result-section.errors {
+  border-color: rgba(255, 139, 155, 0.14);
+  background: rgba(255, 139, 155, 0.04);
+}
+
 .issue-list {
   margin: 12px 0 0;
   padding-left: 18px;
-  color: #ffb8c1;
   display: grid;
   gap: 8px;
+}
+
+.issue-list.warnings {
+  color: #ffd891;
+}
+
+.issue-list.errors {
+  color: #ffb8c1;
 }
 
 .match-list {

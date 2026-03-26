@@ -1,4 +1,4 @@
-export type ResultTone = "idle" | "clean" | "match" | "issues";
+export type ResultTone = "idle" | "clean" | "match" | "warning" | "issues";
 
 export type PatternSummary = {
   identifier: string;

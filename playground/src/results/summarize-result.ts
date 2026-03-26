@@ -112,7 +112,7 @@ export function summarizeResult(
       tone = "issues";
     } else if (warningsList.length > 0) {
       headline = `Validation completed with ${warningsList.length} warning(s).`;
-      tone = "issues";
+      tone = "warning";
     } else {
       headline = "Rule validation passed without issues.";
       tone = "clean";
@@ -120,12 +120,18 @@ export function summarizeResult(
   } else if (errorsList.length > 0) {
     headline = `Scan finished with ${errorsList.length} error(s).`;
     tone = "issues";
+  } else if (warningsList.length > 0 && matchingRules.length > 0) {
+    headline = `Matched ${matchingRules.length} rule(s) with ${hitCount} pattern hit(s) and ${warningsList.length} warning(s).`;
+    tone = "warning";
   } else if (matchingRules.length > 0) {
     headline = `Matched ${matchingRules.length} rule(s) with ${hitCount} pattern hit(s).`;
     tone = "match";
+  } else if (warningsList.length > 0) {
+    headline = `Scan completed with ${warningsList.length} warning(s).`;
+    tone = "warning";
   } else {
     headline = "Scan completed with no matching rules.";
-    tone = warningsList.length > 0 ? "issues" : "clean";
+    tone = "clean";
   }
 
   return {

@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@codingame/monaco-vscode-editor-api": "^25.1.2",
+    "@virustotal/yara-x": "^0.1.1",
     "lit": "^3.3.2",
     "monaco-languageclient": "^10.7.0",
     "vscode-languageclient": "^9.0.1",
