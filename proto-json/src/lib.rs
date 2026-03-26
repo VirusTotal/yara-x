@@ -22,6 +22,7 @@ the base64-encoded value along with an encoding identifier. For example:
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::io::{Error, Write};
+use std::ops::BitAnd;
 
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
@@ -90,15 +91,50 @@ impl<W: Write> Serializer<W> {
         value: T,
         format: FieldFormat,
     ) -> Result<(), std::io::Error> {
-        if matches!(format, FieldFormat::Timestamp) {
-            write!(
-                self.output,
-                "{{ \"encoding\": \"timestamp\", \"value\": {} }}",
-                value.to_string()
-            )
-        } else {
-            write!(self.output, "{}", value.to_string())
+        match format {
+            FieldFormat::Timestamp => self.write_typed("timestamp", |s| {
+                write!(s.output, "{}", value.to_string())
+            }),
+            FieldFormat::Hex => self.write_typed("hex", |s| {
+                write!(s.output, "{}", value.to_string())
+            }),
+            FieldFormat::Flags(flags_enum) => self.write_typed("flags", |s| {
+                let value = value.into();
+                write!(s.output, "{value}, \"flags\": [")?;
+                let mut first = true;
+                for v in flags_enum.values() {
+                    if value.bitand(v.value() as i64) != 0 {
+                        if !first {
+                            write!(s.output, ", ")?;
+                        }
+                        write!(
+                            s.output,
+                            "{{\"name\": \"{}\", \"value\": {}}}",
+                            v.name(),
+                            v.value()
+                        )?;
+                        first = false;
+                    }
+                }
+                write!(s.output, "]")
+            }),
+            FieldFormat::None => {
+                write!(self.output, "{}", value.to_string())
+            }
         }
+    }
+
+    fn write_typed<F>(
+        &mut self,
+        type_name: &str,
+        f: F,
+    ) -> Result<(), std::io::Error>
+    where
+        F: FnOnce(&mut Self) -> Result<(), std::io::Error>,
+    {
+        write!(self.output, "{{ \"$type\": \"{type_name}\", \"value\": ")?;
+        f(self)?;
+        write!(self.output, " }}")
     }
 
     fn escape(s: &str) -> Cow<'_, str> {
@@ -246,15 +282,24 @@ impl<W: Write> Serializer<W> {
                     Self::escape(v).paint(self.colors.string)
                 )?;
             }
-            ReflectValueRef::Bytes(v) => write!(
-                self.output,
-                "{{ \"encoding\": \"base64\", \"value\": \"{}\"}}",
-                BASE64_STANDARD.encode(v).paint(self.colors.string)
-            )?,
-            ReflectValueRef::Enum(d, v) => match d.value_by_number(*v) {
-                Some(e) => write!(self.output, "\"{}\"", e.name())?,
-                None => write!(self.output, "{v}")?,
-            },
+            ReflectValueRef::Bytes(v) => {
+                self.write_typed("base64", |s| {
+                    write!(
+                        s.output,
+                        "\"{}\"",
+                        BASE64_STANDARD.encode(v).paint(s.colors.string)
+                    )
+                })?;
+            }
+            ReflectValueRef::Enum(d, v) => {
+                self.write_typed("enum", |s| {
+                    write!(s.output, "{v}")?;
+                    if let Some(e) = d.value_by_number(*v) {
+                        write!(s.output, ", \"name\": \"{}\"", e.name())?;
+                    }
+                    Ok(())
+                })?;
+            }
             ReflectValueRef::Message(msg) => self.write_msg(msg)?,
         }
         Ok(())
