@@ -175,10 +175,16 @@ impl WasmModuleBuilder {
             main_memory,
             matching_patterns_bitmap_base,
         );
+        let check_for_pattern_range_match =
+            Self::gen_check_for_pattern_range_match(
+                &mut module,
+                check_for_pattern_match,
+            );
 
         let wasm_symbols = WasmSymbols {
             main_memory,
             check_for_pattern_match,
+            check_for_pattern_range_match,
             filesize,
             pattern_search_done,
             i64_tmp_a: module.locals.add(I64),
@@ -486,5 +492,88 @@ impl WasmModuleBuilder {
         instr.binop(BinaryOp::I32ShrU);
 
         func.finish(vec![pattern_id], &mut module.funcs)
+    }
+
+    fn gen_check_for_pattern_range_match(
+        module: &mut Module,
+        check_for_pattern_match: FunctionId,
+    ) -> FunctionId {
+        let mut func =
+            FunctionBuilder::new(&mut module.types, &[I32, I32, I64], &[I32]);
+
+        let pattern_id_start = module.locals.add(I32);
+        let pattern_id_end = module.locals.add(I32);
+        let required = module.locals.add(I64);
+        let current = module.locals.add(I32);
+        let count = module.locals.add(I64);
+
+        let mut instr = func.func_body();
+
+        instr.block(I32, |block| {
+            let done = block.id();
+
+            block.i64_const(0);
+            block.local_set(count);
+
+            block.local_get(pattern_id_start);
+            block.local_set(current);
+
+            block.loop_(None, |loop_| {
+                let loop_start = loop_.id();
+
+                loop_
+                    .local_get(current)
+                    .call(check_for_pattern_match)
+                    .if_else(
+                        None,
+                        |then_| {
+                            then_.local_get(count);
+                            then_.i64_const(1);
+                            then_.binop(BinaryOp::I64Add);
+                            then_.local_set(count);
+
+                            then_
+                                .local_get(count)
+                                .local_get(required)
+                                .binop(BinaryOp::I64GeS)
+                                .if_else(
+                                    None,
+                                    |then_| {
+                                        then_.i32_const(1);
+                                        then_.br(done);
+                                    },
+                                    |_else| {},
+                                );
+                        },
+                        |_else| {},
+                    );
+
+                loop_
+                    .local_get(current)
+                    .local_get(pattern_id_end)
+                    .binop(BinaryOp::I32Eq)
+                    .if_else(
+                        None,
+                        |then_| {
+                            then_.i32_const(0);
+                            then_.br(done);
+                        },
+                        |else_| {
+                            else_.local_get(current);
+                            else_.i32_const(1);
+                            else_.binop(BinaryOp::I32Add);
+                            else_.local_set(current);
+                            else_.br(loop_start);
+                        },
+                    );
+            });
+
+            block.i32_const(0);
+        });
+
+        func.finish(
+            vec![pattern_id_start, pattern_id_end, required],
+            &mut module.funcs,
+        )
     }
 }
