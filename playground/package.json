@@ -1,0 +1,30 @@
+{
+  "name": "yara-x-playground",
+  "private": true,
+  "contributors": [
+    "kevinmuoz"
+  ],
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "prod": "vite build && vite preview",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@codingame/monaco-vscode-editor-api": "^25.1.2",
+    "@virustotal/yara-x": "^0.1.1",
+    "lit": "^3.3.2",
+    "monaco-languageclient": "^10.7.0",
+    "vscode-languageclient": "^9.0.1",
+    "vscode-languageserver-protocol": "^3.17.5"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.1",
+    "rollup-plugin-visualizer": "^7.0.1",
+    "typescript": "~5.9.3",
+    "vite": "^7.1.0"
+  }
+}

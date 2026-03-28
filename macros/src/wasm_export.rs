@@ -233,8 +233,31 @@ impl<'ast> Visit<'ast> for FuncSignatureParser<'ast> {
 pub struct WasmExportArgs {
     name: Option<String>,
     method_of: Option<String>,
+    sync: Option<String>,
     #[darling(default)]
     public: bool,
+}
+
+fn sync_flags_literal(
+    sync: Option<&str>,
+    default: &str,
+) -> Result<TokenStream> {
+    let sync = sync.unwrap_or(default);
+    let bits = match sync {
+        "none" => 0_u32,
+        "before" => 1_u32,
+        "after" => 2_u32,
+        "both" => 3_u32,
+        _ => {
+            return Err(Error::new(
+                proc_macro2::Span::call_site(),
+                format!(
+                    "invalid sync mode `{sync}`, expected one of: none, before, after, both"
+                ),
+            ));
+        }
+    };
+    Ok(quote! { #bits })
 }
 
 /// Implementation for the `#[wasm_export]` attribute macro.
@@ -268,11 +291,12 @@ pub struct WasmExportArgs {
 /// pub(crate) static export__add: WasmExport = WasmExport {
 ///     name: "add",
 ///     mangled_name: "add@ii@i",
-///     public: true,
+///     public: false,
 ///     rust_module_path: "yara_x::modules::my_module",
 ///     method_of: None,
+///     sync_flags: 3,
 ///     func: &WasmExportedFn2 { target_fn: &add },
-///     description: Some(Cow::Borrowed("This function adds two numbers")),
+///     description: Some(Cow::Borrowed("This function adds two numbers.")),
 /// };
 ///
 /// #[cfg(feature = "inventory")]
@@ -280,11 +304,12 @@ pub struct WasmExportArgs {
 ///     WasmExport {
 ///         name: "add",
 ///         mangled_name: "add@ii@i",
-///         public: true,
-///         rust_module_path:  "yara_x::modules::my_module",
+///         public: false,
+///         rust_module_path: "yara_x::modules::my_module",
 ///         method_of: None,
+///         sync_flags: 3,
 ///         func: &WasmExportedFn2 { target_fn: &add },
-///         description: Some(Cow::Borrowed("This function adds two numbers")),
+///         description: Some(Cow::Borrowed("This function adds two numbers.")),
 ///     }
 /// }
 /// ```
@@ -308,9 +333,8 @@ pub(crate) fn impl_wasm_export_macro(
         ));
     }
 
-    // `///` comments are syntactic sugar for `#[doc = "..."]` attributes,
-    // which is what `syn` parses them into. Here we collect all documentation
-    // comments for the exported function and join them together into a string.
+    // `///` comments are parsed as `#[doc = "..."]` attributes. Collect all
+    // of them and join the resulting lines into a single string.
     let docs = func
         .attrs
         .iter()
@@ -334,7 +358,7 @@ pub(crate) fn impl_wasm_export_macro(
     let description = if docs.is_empty() {
         quote! { None }
     } else {
-        quote! { Some(std::borrow::Cow::Borrowed(#docs))}
+        quote! { Some(std::borrow::Cow::Borrowed(#docs)) }
     };
 
     // By default, the name of the function in YARA is equal to the name in
@@ -351,6 +375,7 @@ pub(crate) fn impl_wasm_export_macro(
     let export_ident = format_ident!("export__{}", rust_fn_name);
     let exported_fn_ident = format_ident!("WasmExportedFn{}", num_args);
     let args_signature = FuncSignatureParser::new().parse(&func)?;
+    let sync_flags = sync_flags_literal(attr_args.sync.as_deref(), "both")?;
 
     let method_of = attr_args
         .method_of
@@ -372,8 +397,9 @@ pub(crate) fn impl_wasm_export_macro(
             public: #public,
             rust_module_path: module_path!(),
             method_of: #method_of,
+            sync_flags: #sync_flags,
             func: &#exported_fn_ident { target_fn: &#rust_fn_name },
-            description: #description
+            description: #description,
         };
 
         #[cfg(feature = "inventory")]
@@ -384,8 +410,9 @@ pub(crate) fn impl_wasm_export_macro(
                 public: #public,
                 rust_module_path: module_path!(),
                 method_of: #method_of,
+                sync_flags: #sync_flags,
                 func: &#exported_fn_ident { target_fn: &#rust_fn_name },
-                description: #description
+                description: #description,
             }
         }
     };

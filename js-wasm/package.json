@@ -1,0 +1,44 @@
+{
+  "name": "@virustotal/yara-x",
+  "version": "0.1.1",
+  "description": "JavaScript API for YARA-X",
+  "license": "BSD-3-Clause",
+  "homepage": "https://virustotal.github.io/yara-x",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VirusTotal/yara-x.git"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "./pkg/yara_x_js.js",
+  "module": "./pkg/yara_x_js.js",
+  "types": "./pkg/yara_x_js.d.ts",
+  "exports": {
+    ".": {
+      "types": "./pkg/yara_x_js.d.ts",
+      "import": "./pkg/yara_x_js.js",
+      "default": "./pkg/yara_x_js.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "pkg",
+    "README.md"
+  ],
+  "scripts": {
+    "build:web": "wasm-pack build --profile=wasm-release-lto --no-pack --target web --out-dir pkg",
+    "prepack": "npm run build:web && rm pkg/.gitignore",
+    "test:wasm-node": "wasm-pack test --node --profile wasm-dev --test wasm_api --test wasm_modules -- --nocapture",
+    "test:wasm-browser": "wasm-pack test --headless --chrome --profile wasm-dev --test wasm_browser_api -- --nocapture",
+    "test:wasm": "npm run test:wasm-node && npm run test:wasm-browser",
+    "test:js": "node --test tests-js/*.test.js",
+    "pack:dry-run": "npm pack --dry-run"
+  },
+  "keywords": [
+    "pattern-matching",
+    "cybersecurity",
+    "forensics",
+    "malware",
+    "yara"
+  ]
+}

@@ -20,6 +20,7 @@ members = [
     "capi",
     "cli",
     "fmt",
+    "js-wasm",
     "macros",
     "parser",
     "proto",
@@ -57,6 +58,7 @@ env_logger = "0.11.9"
 figment = "0.10.19"
 globwalk = "0.9.1"
 goldenfile = "1.11.0"
+getrandom = "0.2.17"
 home = "0.5.12"
 ihex = "3.0.0"
 indexmap = "2.13.0"
@@ -64,6 +66,7 @@ intaglio = "1.13.1"
 inventory = "0.3.22"
 ipnet = "2.12.0"
 itertools = "0.14.0"
+js-sys = "0.3.90"
 linkme = "0.3.35"
 log = "0.4.29"
 magic = "0.16.7"
@@ -92,6 +95,7 @@ rsa = "0.9.10"
 rustc-hash = "2.1.1"
 serde = "1.0.228"
 serde_json = "1.0.149"
+serde-wasm-bindgen = "0.6.5"
 sha1 = "0.10.6"
 sha2 = "0.10.6"
 smallvec = "1.14.0"
@@ -100,8 +104,10 @@ strum_macros = "0.28.0"
 thiserror = "2.0.17"
 uuid = "1.18.1"
 walrus = "0.25.2"
+wasm-bindgen = "=0.2.113"
+wasm-bindgen-test = "=0.3.63"
+wasm-opt = "0.116.1"
 wasmtime = { version = "40.0.4", default-features = false }
-wasm-bindgen = "0.2.113"
 x509-parser = "0.18.0"
 yansi = "1.0.1"
 yara-x = { path = "lib", version = "1.14.0" }
@@ -132,6 +138,15 @@ codegen-units = 1
 [profile.wasm-dev]
 inherits = "dev"
 opt-level = 1
+
+[profile.wasm-release-lto]
+inherits = "release"
+lto = true
+codegen-units = 1
+panic = "abort"
+opt-level = "z"
+# strip = "symbols"
+
 
 # Enable optimizations even for debug releases of yara-x-parser. This is necessary
 # because the `logos` lexer produces recursive functions and rely on the rustc's
