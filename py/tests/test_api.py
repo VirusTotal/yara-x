@@ -398,36 +398,55 @@ rule test {
 ''')
   assert rules.imports() == ["pe", "elf"]
 
-def test_check_allowed_tags():
-  c = yara_x.Compiler()
-  c.check_allowed_tags(['a', 'b'], error = True)
-  results = c.check('rule test: a b c  { condition: true }')
-  assert(len(results) == 1)
-  assert(results[0].warning == False)
-  assert(results[0].code == 'E040')
+def test_check_allowed_tags_error():
+  compiler = yara_x.Compiler()
+  compiler.allowed_tags(['a', 'b'], error = True)
+  with pytest.raises(yara_x.CompileError,
+                     match="tag `c` not in allowed list"):
+    compiler.add_source('rule test: a b c d { condition: 1 + 1 == 2}')
+  # The current behavior is stop checking tags after the first tag fails.
+  assert len(compiler.errors()) == 1
+  assert len(compiler.warnings()) == 0
 
-def test_check_allowed_tags():
-  c = yara_x.Compiler()
-  # Linters can currently not return multiple errors in a single run.
-  c.check_tags_regex('^foo')
-  results = c.check('rule test: a b { condition: 1 + 1 == 2}')
-  assert(len(results) == 2)
-  assert(results[0].warning == True)
-  assert(results[0].code == 'invalid_tag')
-
-def test_check_rule_name():
-  c = yara_x.Compiler()
-  c.check_rule_name('^foo', error = True)
-  results = c.check('rule test { condition: 1 + 1 == 2}')
-  assert(len(results) == 1)
-  assert(results[0].warning == False)
-  assert(results[0].code == 'E039')
+def test_check_allowed_tags_warning():
+  compiler = yara_x.Compiler()
+  compiler.allowed_tags(['a', 'b'])
+  compiler.add_source('rule test: a b c d { condition: 1 + 1 == 2}')
+  warnings = compiler.warnings()
+  assert len(warnings) == 2
+  assert 'tag `c` not in allowed list' in warnings[0]['text']
+  assert 'tag `d` not in allowed list' in warnings[1]['text']
 
 def test_check_metadata():
-  c = yara_x.Compiler()
-  c.check_metadata('a', yara_x.MetaType.STRING, error = False)
-  c.check_metadata('b', yara_x.MetaType.STRING, regexp='^bar', error = False)
-  results = c.check('rule test { meta: a = 1 b = "foo" condition: 1 + 1 == 2}')
-  assert(len(results) == 2)
-  assert(results[0].warning == True)
-  assert(results[0].code == 'invalid_metadata')
+  compiler = yara_x.Compiler()
+  compiler.metadata('a', yara_x.MetaType.STRING)
+  compiler.metadata('b', yara_x.MetaType.STRING, regexp='^bar')
+  compiler.add_source('rule test { meta: a = 1 b = "foo" condition: 1 + 1 == 2}')
+  warnings = compiler.warnings()
+  assert len(warnings) == 2
+  assert '`a` must be a string' in warnings[0]['text']
+  assert '`b` must be a string that matches `/^bar/`' in warnings[1]['text']
+
+def test_check_rule_name_regexp():
+  rule = '''
+  rule test { condition: 1 + 1 == 2}
+  rule test2 { condition: 1 + 1 == 2}'''
+  compiler = yara_x.Compiler()
+  compiler.rule_name_regexp('^foo')
+  compiler.add_source(rule)
+  warnings = compiler.warnings()
+  assert len(warnings) == 2
+  assert 'this rule name does not match regex `^foo`' in warnings[0]['text']
+
+def test_check_rule_name_regexp_error():
+  rule = '''
+  rule test { condition: 1 + 1 == 2}
+  rule test2 { condition: 1 + 1 == 2}'''
+  compiler = yara_x.Compiler()
+  compiler.rule_name_regexp('^foo', error = True)
+  with pytest.raises(yara_x.CompileError,
+                     match=r"this rule name does not match regex `\^foo`"):
+    compiler.add_source(rule)
+  # This is different from how tags are handled, in that it will report all
+  # rule names that do not match the regex.
+  assert len(compiler.errors()) == 2

@@ -88,39 +88,7 @@ fn is_md5(s: &str) -> bool {
     s.len() == 32 && s.chars().all(|c| c.is_ascii_hexdigit())
 }
 
-#[pyclass(unsendable)]
-struct CheckResult {
-    warning: bool,
-    code: String,
-    title: String,
-    message: String,
-}
-
-#[pymethods]
-impl CheckResult {
-    #[getter]
-    fn warning(&self) -> PyResult<bool> {
-        Ok(self.warning)
-    }
-
-    #[getter]
-    fn code(&self) -> PyResult<&str> {
-        Ok(self.code.as_str())
-    }
-
-    #[getter]
-    fn title(&self) -> PyResult<&str> {
-        Ok(self.title.as_str())
-    }
-
-    #[getter]
-    fn message(&self) -> PyResult<&str> {
-        Ok(self.message.as_str())
-    }
-}
-
-/// Supported metadata types used to add linters to the compiler and checked
-/// with [`Compiler::check`] method.
+/// Supported metadata types used to add linters to the compiler.
 #[pyclass(from_py_object)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MetaType {
@@ -482,10 +450,13 @@ impl Compiler {
     /// will return an InvalidRuleName warning.
     ///
     /// If the regexp does not compile a ValueError is returned.
-    #[pyo3(signature = (regexp))]
-    fn rule_name_regexp(&mut self, regexp: &str) -> PyResult<()> {
-        let linter = yrx::linters::rule_name(regexp)
-            .map_err(|err| PyValueError::new_err(err.to_string()))?;
+    #[pyo3(signature = (regexp, error = false))]
+    fn rule_name_regexp(&mut self, regexp: &str, error: bool) -> PyResult<()> {
+        let mut linter = match yrx::linters::rule_name(regexp) {
+            Ok(linter) => linter,
+            Err(err) => return Err(PyValueError::new_err(err.to_string())),
+        };
+        linter = linter.error(error);
         self.inner.add_linter(linter);
         Ok(())
     }
@@ -680,7 +651,7 @@ impl Compiler {
     }
 
     #[pyo3(signature = (tags, error = false))]
-    fn check_allowed_tags<'py>(
+    fn allowed_tags<'py>(
         &'py mut self,
         tags: Vec<String>,
         error: bool,
@@ -690,27 +661,12 @@ impl Compiler {
     }
 
     #[pyo3(signature = (regexp, error = false))]
-    fn check_tags_regex<'py>(
+    fn tags_regex<'py>(
         &'py mut self,
         regexp: String,
         error: bool,
     ) -> PyResult<()> {
         let mut linter = match yrx::linters::tag_regex(regexp) {
-            Ok(linter) => linter,
-            Err(err) => return Err(PyValueError::new_err(err.to_string())),
-        };
-        linter = linter.error(error);
-        self.inner.add_linter(linter);
-        Ok(())
-    }
-
-    #[pyo3(signature = (regexp, error = false))]
-    fn check_rule_name<'py>(
-        &'py mut self,
-        regexp: String,
-        error: bool,
-    ) -> PyResult<()> {
-        let mut linter = match yrx::linters::rule_name(regexp) {
             Ok(linter) => linter,
             Err(err) => return Err(PyValueError::new_err(err.to_string())),
         };
@@ -726,7 +682,7 @@ impl Compiler {
             error = false,
             regexp = None
         ))]
-    fn check_metadata<'py>(
+    fn metadata<'py>(
         &'py mut self,
         identifier: &str,
         value_type: MetaType,
@@ -812,76 +768,6 @@ impl Compiler {
         self.inner.add_linter(linter);
         Ok(())
     }
-
-    /// Checks the provided source code for any errors or warnings.
-    ///
-    /// This function returns an instance of Vec<[`CheckResults`]> containing
-    /// warnings and errors for all the rules previously added with
-    /// [`Compiler::add_source`] and sets the compiler to its initial empty
-    /// state.
-    fn check<'py>(&'py mut self, src: &str) -> PyResult<Vec<CheckResult>> {
-        let mut results: Vec<CheckResult> = Vec::new();
-        let src = yrx::SourceCode::from(src);
-
-        let _ = self.inner.add_source(src);
-
-        for warning in self.inner.warnings() {
-            results.push(CheckResult {
-                warning: true,
-                code: warning.code().to_string(),
-                title: warning.title().to_string(),
-                message: warning.to_string(),
-            });
-        }
-
-        for error in self.inner.errors() {
-            results.push(CheckResult {
-                warning: false,
-                code: error.code().to_string(),
-                title: error.title().to_string(),
-                message: error.to_string(),
-            });
-        }
-
-        let _ = mem::replace(
-            &mut self.inner,
-            Self::new_inner(
-                self.relaxed_re_syntax,
-                self.error_on_slow_pattern,
-            ),
-        );
-        Ok(results)
-    }
-
-    /*
-    fn check<'py>(&'py mut self) -> Vec<CheckResult> {
-        let mut results: Vec<CheckResult> = Vec::new();
-        for warning in self.inner.warnings() {
-            results.push(CheckResult {
-                warning: true,
-                code: warning.code().to_string(),
-                title: warning.title().to_string(),
-                message: warning.to_string(),
-            });
-        }
-        for error in self.inner.errors() {
-            results.push(CheckResult {
-                warning: false,
-                code: error.code().to_string(),
-                title: error.title().to_string(),
-                message: error.to_string(),
-            });
-        }
-        let _ = mem::replace(
-            &mut self.inner,
-            Self::new_inner(
-                self.relaxed_re_syntax,
-                self.error_on_slow_pattern,
-            ),
-        );
-        results
-    }
-    */
 }
 
 /// Optional information for the scan operation.

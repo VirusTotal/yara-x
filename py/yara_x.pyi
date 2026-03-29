@@ -157,7 +157,7 @@ class Compiler:
         """
         ...
 
-    def rule_name_regexp(self, regexp: str) -> None:
+    def rule_name_regexp(self, regexp: str, error: bool = False) -> None:
         r"""
         Tell the compiler that any rule must match this regular expression or it
         will result in a compiler warning.
@@ -169,16 +169,12 @@ class Compiler:
         """
         ...
 
-    def check_allowed_tags(self, tags: List[str], error: bool = False) -> None:
+    def allowed_tags(self, tags: List[str], error: bool = False) -> None:
         r"""List the allowed tags for rules."""
         ...
 
-    def check_tags_regex(self, regexp: str, error: bool = False) -> None:
+    def tags_regex(self, regexp: str, error: bool = False) -> None:
         r"""A regular expression that must match all tags on rules."""
-        ...
-
-    def check_rule_name(self, regexp: str, error: bool = False) -> None:
-        r"""A regular expression that must match all rules names."""
         ...
 
     def check_metadata(
