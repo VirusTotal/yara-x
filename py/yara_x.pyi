@@ -173,11 +173,11 @@ class Compiler:
         r"""List the allowed tags for rules."""
         ...
 
-    def check_tags_regex(self, regexp: str, error: bool) -> None:
+    def check_tags_regex(self, regexp: str, error: bool = False) -> None:
         r"""A regular expression that must match all tags on rules."""
         ...
 
-    def check_rule_name(self, regexp: str, error: bool) -> None:
+    def check_rule_name(self, regexp: str, error: bool = False) -> None:
         r"""A regular expression that must match all rules names."""
         ...
 
@@ -186,8 +186,8 @@ class Compiler:
             identifier: str,
             value_type: MetaType,
             required: bool,
-            error: bool,
-            regexp: Optional[str]):
+            regexp: Optional[str],
+            error: bool = False):
         r"""Define expected type and value for metadata on rules."""
         ...
 

@@ -398,10 +398,36 @@ rule test {
 ''')
   assert rules.imports() == ["pe", "elf"]
 
-def test_linter_allowed_tags():
+def test_check_allowed_tags():
   c = yara_x.Compiler()
   c.check_allowed_tags(['a', 'b'], error = True)
-  results = c.check('''rule test: a b c  { condition: true }''')
+  results = c.check('rule test: a b c  { condition: true }')
   assert(len(results) == 1)
   assert(results[0].warning == False)
   assert(results[0].code == 'E040')
+
+def test_check_allowed_tags():
+  c = yara_x.Compiler()
+  # Linters can currently not return multiple errors in a single run.
+  c.check_tags_regex('^foo')
+  results = c.check('rule test: a b { condition: 1 + 1 == 2}')
+  assert(len(results) == 2)
+  assert(results[0].warning == True)
+  assert(results[0].code == 'invalid_tag')
+
+def test_check_rule_name():
+  c = yara_x.Compiler()
+  c.check_rule_name('^foo', error = True)
+  results = c.check('rule test { condition: 1 + 1 == 2}')
+  assert(len(results) == 1)
+  assert(results[0].warning == False)
+  assert(results[0].code == 'E039')
+
+def test_check_metadata():
+  c = yara_x.Compiler()
+  c.check_metadata('a', yara_x.MetaType.STRING, error = False)
+  c.check_metadata('b', yara_x.MetaType.STRING, regexp='^bar', error = False)
+  results = c.check('rule test { meta: a = 1 b = "foo" condition: 1 + 1 == 2}')
+  assert(len(results) == 2)
+  assert(results[0].warning == True)
+  assert(results[0].code == 'invalid_metadata')
