@@ -399,14 +399,20 @@ rule test {
   assert rules.imports() == ["pe", "elf"]
 
 def test_check_allowed_tags_error():
+  rule = '''
+  rule test: a b c d { condition: 1 + 1 == 2}
+  rule test2: d { condition: 1 + 1 == 2}'''
   compiler = yara_x.Compiler()
   compiler.allowed_tags(['a', 'b'], error = True)
   with pytest.raises(yara_x.CompileError,
                      match="tag `c` not in allowed list"):
-    compiler.add_source('rule test: a b c d { condition: 1 + 1 == 2}')
-  # The current behavior is stop checking tags after the first tag fails.
-  assert len(compiler.errors()) == 1
-  assert len(compiler.warnings()) == 0
+    compiler.add_source(rule)
+  # The current behavior is stop checking tags on the rule after the first tag
+  # fails, but subsequent rules are also checked.
+  errors = compiler.errors()
+  assert len(errors) == 2
+  assert 'tag `c` not in allowed list' in errors[0]['text']
+  assert 'tag `d` not in allowed list' in errors[1]['text']
 
 def test_check_allowed_tags_warning():
   compiler = yara_x.Compiler()
@@ -447,6 +453,4 @@ def test_check_rule_name_regexp_error():
   with pytest.raises(yara_x.CompileError,
                      match=r"this rule name does not match regex `\^foo`"):
     compiler.add_source(rule)
-  # This is different from how tags are handled, in that it will report all
-  # rule names that do not match the regex.
   assert len(compiler.errors()) == 2
