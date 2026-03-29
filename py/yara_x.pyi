@@ -177,7 +177,7 @@ class Compiler:
         r"""A regular expression that must match all tags on rules."""
         ...
 
-    def check_metadata(
+    def metadata(
             self,
             identifier: str,
             value_type: MetaType,
@@ -185,10 +185,6 @@ class Compiler:
             regexp: Optional[str],
             error: bool = False):
         r"""Define expected type and value for metadata on rules."""
-        ...
-
-    def check(src: str) -> List[CheckResult]:
-        r"""Run the configured linters on the provided source code."""
         ...
 
 @final
