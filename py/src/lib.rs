@@ -451,7 +451,11 @@ impl Compiler {
     ///
     /// If the regexp does not compile a ValueError is returned.
     #[pyo3(signature = (regexp, error = false))]
-    fn rule_name_regexp(&mut self, regexp: &str, error: bool) -> PyResult<()> {
+    fn allowed_rule_name(
+        &mut self,
+        regexp: &str,
+        error: bool,
+    ) -> PyResult<()> {
         let mut linter = match yrx::linters::rule_name(regexp) {
             Ok(linter) => linter,
             Err(err) => return Err(PyValueError::new_err(err.to_string())),
@@ -661,7 +665,7 @@ impl Compiler {
     }
 
     #[pyo3(signature = (regexp, error = false))]
-    fn tags_regex<'py>(
+    fn allowed_tags_regex<'py>(
         &'py mut self,
         regexp: String,
         error: bool,
@@ -682,7 +686,7 @@ impl Compiler {
             error = false,
             regexp = None
         ))]
-    fn metadata<'py>(
+    fn allowed_metadata<'py>(
         &'py mut self,
         identifier: &str,
         value_type: MetaType,

@@ -32,7 +32,7 @@ def test_error_on_slow_pattern():
 def test_invalid_rule_name_regexp():
   compiler = yara_x.Compiler()
   with pytest.raises(ValueError):
-    compiler.rule_name_regexp("(AXS|ERS")
+    compiler.allowed_rule_name("(AXS|ERS")
 
 
 def test_int_globals():
@@ -425,8 +425,8 @@ def test_check_allowed_tags_warning():
 
 def test_check_metadata():
   compiler = yara_x.Compiler()
-  compiler.metadata('a', yara_x.MetaType.STRING)
-  compiler.metadata('b', yara_x.MetaType.STRING, regexp='^bar')
+  compiler.allowed_metadata('a', yara_x.MetaType.STRING)
+  compiler.allowed_metadata('b', yara_x.MetaType.STRING, regexp='^bar')
   compiler.add_source('rule test { meta: a = 1 b = "foo" condition: 1 + 1 == 2}')
   warnings = compiler.warnings()
   assert len(warnings) == 2
@@ -438,7 +438,7 @@ def test_check_rule_name_regexp():
   rule test { condition: 1 + 1 == 2}
   rule test2 { condition: 1 + 1 == 2}'''
   compiler = yara_x.Compiler()
-  compiler.rule_name_regexp('^foo')
+  compiler.allowed_rule_name('^foo')
   compiler.add_source(rule)
   warnings = compiler.warnings()
   assert len(warnings) == 2
@@ -449,7 +449,7 @@ def test_check_rule_name_regexp_error():
   rule test { condition: 1 + 1 == 2}
   rule test2 { condition: 1 + 1 == 2}'''
   compiler = yara_x.Compiler()
-  compiler.rule_name_regexp('^foo', error = True)
+  compiler.allowed_rule_name('^foo', error = True)
   with pytest.raises(yara_x.CompileError,
                      match=r"this rule name does not match regex `\^foo`"):
     compiler.add_source(rule)
