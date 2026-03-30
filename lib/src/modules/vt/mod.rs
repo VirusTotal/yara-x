@@ -57,6 +57,7 @@ fn main(
     Ok(LiveHuntData::new())
 }
 
+/// Returns true if the IP address is within the given CIDR range.
 #[module_export(method_of = "vt.net.EnrichedIP")]
 fn in_range(
     ctx: &mut ScanContext,
@@ -79,6 +80,7 @@ fn in_range(
     cidr.contains(&ip)
 }
 
+/// Returns true if the domain is a permutation of the given `target` domain.
 #[module_export(name = "permutation_of", method_of = "vt.net.EnrichedDomain")]
 fn all_permutations(
     ctx: &mut ScanContext,
@@ -88,6 +90,8 @@ fn all_permutations(
     permutations(ctx, domain, target, 0x1F)
 }
 
+/// Returns true if the domain is a permutation of the given `target` domain, 
+/// but the permutation must be any of the kinds specified in `permutation_kinds`.
 #[module_export(name = "permutation_of", method_of = "vt.net.EnrichedDomain")]
 fn permutations(
     ctx: &mut ScanContext,

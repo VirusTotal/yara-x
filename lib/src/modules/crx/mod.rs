@@ -33,6 +33,7 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Crx, ModuleError> {
     }
 }
 
+/// Returns the SHA-256 hash of the permissions in the manifest.
 #[module_export]
 fn permhash(ctx: &ScanContext) -> Option<Lowercase<FixedLenString<64>>> {
     let cached = PERMHASH_CACHE.with(

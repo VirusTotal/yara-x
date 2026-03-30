@@ -9,12 +9,14 @@ fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Console, ModuleError> {
     Ok(Console::new())
 }
 
+/// Logs a string to the console.
 #[module_export(name = "log")]
 fn log_str(ctx: &mut ScanContext, string: RuntimeString) -> bool {
     ctx.console_log(format!("{}", string.as_bstr(ctx)));
     true
 }
 
+/// Logs a string with a message to the console.
 #[module_export(name = "log")]
 fn log_msg_str(
     ctx: &mut ScanContext,
@@ -105,6 +107,7 @@ fn log_bool(ctx: &mut ScanContext, b: bool) -> bool {
     true
 }
 
+/// Logs a boolean value with a message to the console.
 #[module_export(name = "log")]
 fn log_msg_bool(
     ctx: &mut ScanContext,
@@ -115,24 +118,28 @@ fn log_msg_bool(
     true
 }
 
+/// Logs an integer value to the console.
 #[module_export(name = "log")]
 fn log_int(ctx: &mut ScanContext, i: i64) -> bool {
     ctx.console_log(format!("{i}"));
     true
 }
 
+/// Logs an integer value with a message to the console.
 #[module_export(name = "log")]
 fn log_msg_int(ctx: &mut ScanContext, message: RuntimeString, i: i64) -> bool {
     ctx.console_log(format!("{}{}", message.as_bstr(ctx), i));
     true
 }
 
+/// Logs a float value to the console.
 #[module_export(name = "log")]
 fn log_float(ctx: &mut ScanContext, f: f64) -> bool {
     ctx.console_log(format!("{f}"));
     true
 }
 
+/// Logs a float value with a message to the console.
 #[module_export(name = "log")]
 fn log_msg_float(
     ctx: &mut ScanContext,
@@ -143,12 +150,14 @@ fn log_msg_float(
     true
 }
 
+/// Logs an integer value as a hexadecimal string to the console.
 #[module_export(name = "hex")]
 fn log_hex(ctx: &mut ScanContext, i: i64) -> bool {
     ctx.console_log(format!("0x{i:x}"));
     true
 }
 
+/// Logs an integer value as a hexadecimal string with a message to the console.
 #[module_export(name = "hex")]
 fn log_msg_hex(ctx: &mut ScanContext, message: RuntimeString, i: i64) -> bool {
     ctx.console_log(format!("{}0x{:x}", message.as_bstr(ctx), i));

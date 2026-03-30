@@ -13,36 +13,43 @@ fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Math, ModuleError> {
     Ok(Math::new())
 }
 
+/// Returns the minimum of two integers.
 #[module_export]
 fn min(_ctx: &ScanContext, a: i64, b: i64) -> i64 {
     i64::min(a, b)
 }
 
+/// Returns the maximum of two integers.
 #[module_export]
 fn max(_ctx: &ScanContext, a: i64, b: i64) -> i64 {
     i64::max(a, b)
 }
 
+/// Returns the absolute value of an integer.
 #[module_export]
 fn abs(_ctx: &ScanContext, x: i64) -> i64 {
     x.abs()
 }
 
+/// Returns true if the given float is mostly within the [min, max] range.
 #[module_export(name = "in_range")]
 fn in_range_float(_ctx: &ScanContext, x: f64, min: f64, max: f64) -> bool {
     min <= x && x <= max
 }
 
+/// Returns true if the given int is within the [min, max] range.
 #[module_export(name = "in_range")]
 fn in_range_int(_ctx: &ScanContext, x: i64, min: i64, max: i64) -> bool {
     min <= x && x <= max
 }
 
+/// Converts an integer to a string.
 #[module_export(name = "to_string")]
 fn to_string(_ctx: &ScanContext, x: i64) -> RuntimeString {
     RuntimeString::new(x.to_string())
 }
 
+/// Converts an integer to a string in the given base.
 #[module_export(name = "to_string")]
 fn to_string_base(
     _ctx: &ScanContext,
@@ -57,6 +64,7 @@ fn to_string_base(
     }
 }
 
+/// Converts a boolean to an integer (0 or 1).
 #[module_export]
 fn to_number(_ctx: &ScanContext, b: bool) -> i64 {
     if b {
@@ -66,6 +74,7 @@ fn to_number(_ctx: &ScanContext, b: bool) -> i64 {
     }
 }
 
+/// Counts the occurrences of a byte in a range of the scanned data.
 #[module_export(name = "count")]
 fn count_range(
     ctx: &ScanContext,
@@ -82,6 +91,7 @@ fn count_range(
     Some(data.iter().filter(|b| **b == byte).count() as i64)
 }
 
+/// Returns the percentage of occurrences of a byte in the scanned data.
 #[module_export(name = "percentage")]
 fn percentage_global(ctx: &ScanContext, byte: i64) -> Option<f64> {
     let byte: u8 = byte.try_into().ok()?;
@@ -93,6 +103,7 @@ fn percentage_global(ctx: &ScanContext, byte: i64) -> Option<f64> {
     Some(count as f64 / data.len() as f64)
 }
 
+/// Returns the percentage of occurrences of a byte in a range of the scanned data.
 #[module_export(name = "percentage")]
 fn percentage_range(
     ctx: &ScanContext,
@@ -113,11 +124,13 @@ fn percentage_range(
     Some(count as f64 / data.len() as f64)
 }
 
+/// Returns the most frequent byte in the scanned data.
 #[module_export(name = "mode")]
 fn mode_global(ctx: &ScanContext) -> Option<i64> {
     mode(ctx.scanned_data()?)
 }
 
+/// Returns the most frequent byte in a range of the scanned data.
 #[module_export(name = "mode")]
 fn mode_range(ctx: &ScanContext, offset: i64, length: i64) -> Option<i64> {
     let length: usize = length.try_into().ok()?;
@@ -127,12 +140,14 @@ fn mode_range(ctx: &ScanContext, offset: i64, length: i64) -> Option<i64> {
     mode(data.get(start..end)?)
 }
 
+/// Counts the occurrences of a byte in the scanned data.
 #[module_export(name = "count")]
 fn count_global(ctx: &ScanContext, byte: i64) -> Option<i64> {
     let byte: u8 = byte.try_into().ok()?;
     Some(ctx.scanned_data()?.iter().filter(|b| **b == byte).count() as i64)
 }
 
+/// Calculates the entropy of a range of the scanned data.
 #[module_export(name = "entropy")]
 fn entropy_data(ctx: &ScanContext, offset: i64, length: i64) -> Option<f64> {
     let length: usize = length.try_into().ok()?;
@@ -142,11 +157,13 @@ fn entropy_data(ctx: &ScanContext, offset: i64, length: i64) -> Option<f64> {
     Some(entropy(data.get(start..end)?))
 }
 
+/// Calculates the entropy of a string.
 #[module_export(name = "entropy")]
 fn entropy_string(ctx: &ScanContext, s: RuntimeString) -> Option<f64> {
     Some(entropy(s.as_bstr(ctx).as_bytes()))
 }
 
+/// Calculates the deviation of a range of the scanned data.
 #[module_export(name = "deviation")]
 fn deviation_data(
     ctx: &ScanContext,
@@ -161,6 +178,7 @@ fn deviation_data(
     deviation(data.get(start..end)?, mean)
 }
 
+/// Calculates the deviation of a string.
 #[module_export(name = "deviation")]
 fn deviation_string(
     ctx: &ScanContext,
@@ -170,6 +188,7 @@ fn deviation_string(
     deviation(s.as_bstr(ctx).as_bytes(), mean)
 }
 
+/// Calculates the mean of a range of the scanned data.
 #[module_export(name = "mean")]
 fn mean_data(ctx: &ScanContext, offset: i64, length: i64) -> Option<f64> {
     let length: usize = length.try_into().ok()?;
@@ -179,11 +198,13 @@ fn mean_data(ctx: &ScanContext, offset: i64, length: i64) -> Option<f64> {
     mean(data.get(start..end)?)
 }
 
+/// Calculates the mean of a string.
 #[module_export(name = "mean")]
 fn mean_string(ctx: &ScanContext, s: RuntimeString) -> Option<f64> {
     mean(s.as_bstr(ctx).as_bytes())
 }
 
+/// Calculates the serial correlation of a range of the scanned data.
 #[module_export(name = "serial_correlation")]
 fn serial_correlation_data(
     ctx: &ScanContext,
@@ -197,6 +218,7 @@ fn serial_correlation_data(
     serial_correlation(data.get(start..end)?)
 }
 
+/// Calculates the serial correlation of a string.
 #[module_export(name = "serial_correlation")]
 fn serial_correlation_string(
     ctx: &ScanContext,
@@ -205,6 +227,7 @@ fn serial_correlation_string(
     serial_correlation(s.as_bstr(ctx).as_bytes())
 }
 
+/// Calculates the Monte Carlo Pi approximation of a range of the scanned data.
 #[module_export(name = "monte_carlo_pi")]
 fn monte_carlo_pi_data(
     ctx: &ScanContext,
@@ -218,6 +241,7 @@ fn monte_carlo_pi_data(
     monte_carlo_pi(data.get(start..end)?)
 }
 
+/// Calculates the Monte Carlo Pi approximation of a string.
 #[module_export(name = "monte_carlo_pi")]
 fn monte_carlo_pi_string(ctx: &ScanContext, s: RuntimeString) -> Option<f64> {
     monte_carlo_pi(s.as_bstr(ctx).as_bytes())

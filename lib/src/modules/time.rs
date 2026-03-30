@@ -7,6 +7,7 @@ fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Time, ModuleError> {
     Ok(Time::new())
 }
 
+/// Returns the current time as the number of seconds since January 1, 1970 (UTC).
 #[module_export]
 fn now(_ctx: &ScanContext) -> Option<i64> {
     current_unix_timestamp()
