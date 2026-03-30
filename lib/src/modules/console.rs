@@ -1,5 +1,6 @@
 use crate::modules::prelude::*;
 use crate::modules::protos::console::*;
+use std::borrow::Cow;
 
 #[module_main]
 fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Console, ModuleError> {
@@ -27,36 +28,56 @@ fn log_msg_str(
     true
 }
 
-// Given an offset and length return Option<String> where the string is the
-// escaped ascii slice of scanned data. If either offset is negative or (offset
-// + length) wraps, the result will be None.
-fn get_data(
-    ctx: &mut ScanContext,
+pub fn escape(bytes: &[u8]) -> Cow<str> {
+    // First, try to interpret as UTF-8
+    let s = match std::str::from_utf8(bytes) {
+        Ok(s) => s,
+        Err(_) => {
+            // If invalid UTF-8, you must allocate anyway
+            return Cow::Owned(
+                bytes
+                    .iter()
+                    .flat_map(|&b| std::ascii::escape_default(b))
+                    .map(|b| b as char)
+                    .collect(),
+            );
+        }
+    };
+
+    // Check if escaping is needed
+    let needs_escape = s.chars().any(|c| {
+        matches!(c, '\n' | '\r' | '\t' | '\\' | '"') || c.is_control()
+    });
+
+    if !needs_escape {
+        // Zero-copy: borrow directly
+        return Cow::Borrowed(s);
+    }
+
+    Cow::Owned(bytes.escape_ascii().to_string())
+}
+
+/// Given an offset and length return Option<String> where the string is the
+/// escaped ascii slice of scanned data. If either offset is negative or (offset
+/// + length) wraps, the result will be None.
+fn get_data<'a>(
+    ctx: &'a mut ScanContext,
     offset: i64,
     length: i64,
-) -> Option<String> {
-    match ctx.scanned_data() {
-        Some(data) => {
-            match data.get(offset as usize..(offset + length) as usize) {
-                Some(data) => {
-                    return Some(data.escape_ascii().to_string());
-                }
-                None => {}
-            }
-        }
-        None => {}
-    }
-    None
+) -> Option<Cow<'a, str>> {
+    ctx.scanned_data()?
+        .get(offset as usize..(offset + length) as usize)
+        .map(escape)
 }
 
 #[module_export(name = "log")]
 fn log_bytes(ctx: &mut ScanContext, offset: i64, length: i64) -> bool {
-    match get_data(ctx, offset, length) {
-        Some(data) => {
-            ctx.console_log(format!("{}", data));
-        }
-        None => {}
-    }
+    let message = match get_data(ctx, offset, length) {
+        Some(data) => format!("{}", data),
+        None => return true,
+    };
+
+    ctx.console_log(message);
     true
 }
 
@@ -67,12 +88,13 @@ fn log_msg_bytes(
     offset: i64,
     length: i64,
 ) -> bool {
-    match get_data(ctx, offset, length) {
-        Some(data) => {
-            ctx.console_log(format!("{}{}", message.as_bstr(ctx), data));
-        }
-        None => {}
-    }
+    let message = message.as_bstr(ctx).to_string();
+    let message = match get_data(ctx, offset, length) {
+        Some(data) => format!("{}{}", message, data),
+        None => return true,
+    };
+
+    ctx.console_log(message);
     true
 }
 
