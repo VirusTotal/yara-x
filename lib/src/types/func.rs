@@ -90,7 +90,7 @@ impl MangledFnName {
 
 impl MangledFnName {
     /// Returns the types of arguments and return value for the function.
-    pub fn unmangle(&self) -> (Vec<(String, TypeValue)>, TypeValue) {
+    pub fn unmangle(&self) -> (Vec<(&str, TypeValue)>, TypeValue) {
         let (_fn_name, arg_names_and_types, ret_type) =
             self.0.split('@').collect_tuple().unwrap_or_else(|| {
                 panic!("invalid mangled name: `{}`", self.0)
@@ -102,7 +102,7 @@ impl MangledFnName {
             for arg_str in arg_names_and_types.split(',') {
                 let (arg_name, arg_type) =
                     if let Some((n, t)) = arg_str.split_once(':') {
-                        (n.to_string(), t)
+                        (n, t)
                     } else {
                         panic!(
                             "argument name missing in mangled name: `{}`",
@@ -294,7 +294,7 @@ impl<T: Into<String>> From<T> for FuncSignature {
         let mut arg_names = Vec::with_capacity(args_with_names.len());
         for (name, ty) in args_with_names {
             args.push(ty);
-            arg_names.push(name);
+            arg_names.push(name.to_string());
         }
 
         Self { mangled_name, args, arg_names, result, description: None }
@@ -391,8 +391,8 @@ mod test {
             MangledFnName::from("foo@a:i,b:i@i").unmangle(),
             (
                 vec![
-                    ("a".to_string(), TypeValue::unknown_integer()),
-                    ("b".to_string(), TypeValue::unknown_integer())
+                    ("a", TypeValue::unknown_integer()),
+                    ("b", TypeValue::unknown_integer())
                 ],
                 TypeValue::unknown_integer()
             )
@@ -402,8 +402,8 @@ mod test {
             MangledFnName::from("foo@a:f,b:f@f").unmangle(),
             (
                 vec![
-                    ("a".to_string(), TypeValue::unknown_float()),
-                    ("b".to_string(), TypeValue::unknown_float())
+                    ("a", TypeValue::unknown_float()),
+                    ("b", TypeValue::unknown_float())
                 ],
                 TypeValue::unknown_float()
             )
@@ -413,8 +413,8 @@ mod test {
             MangledFnName::from("foo@a:b,b:b@b").unmangle(),
             (
                 vec![
-                    ("a".to_string(), TypeValue::unknown_bool()),
-                    ("b".to_string(), TypeValue::unknown_bool())
+                    ("a", TypeValue::unknown_bool()),
+                    ("b", TypeValue::unknown_bool())
                 ],
                 TypeValue::unknown_bool()
             )
@@ -424,8 +424,8 @@ mod test {
             MangledFnName::from("foo@a:s,b:s@s").unmangle(),
             (
                 vec![
-                    ("a".to_string(), TypeValue::unknown_string()),
-                    ("b".to_string(), TypeValue::unknown_string())
+                    ("a", TypeValue::unknown_string()),
+                    ("b", TypeValue::unknown_string())
                 ],
                 TypeValue::unknown_string()
             )
@@ -435,9 +435,9 @@ mod test {
             MangledFnName::from("foo@a:s,b:s:L@s:L").unmangle(),
             (
                 vec![
-                    ("a".to_string(), TypeValue::unknown_string()),
+                    ("a", TypeValue::unknown_string()),
                     (
-                        "b".to_string(),
+                        "b",
                         TypeValue::unknown_string_with_constraints(vec![
                             StringConstraint::Lowercase
                         ])
@@ -453,9 +453,9 @@ mod test {
             MangledFnName::from("foo@a:s,b:s:U@s:U").unmangle(),
             (
                 vec![
-                    ("a".to_string(), TypeValue::unknown_string()),
+                    ("a", TypeValue::unknown_string()),
                     (
-                        "b".to_string(),
+                        "b",
                         TypeValue::unknown_string_with_constraints(vec![
                             StringConstraint::Uppercase
                         ])
@@ -471,9 +471,9 @@ mod test {
             MangledFnName::from("foo@a:s,b:s:N16@s:N16").unmangle(),
             (
                 vec![
-                    ("a".to_string(), TypeValue::unknown_string()),
+                    ("a", TypeValue::unknown_string()),
                     (
-                        "b".to_string(),
+                        "b",
                         TypeValue::unknown_string_with_constraints(vec![
                             StringConstraint::ExactLength(16),
                         ])
@@ -489,9 +489,9 @@ mod test {
             MangledFnName::from("foo@a:s,b:s:N16:L@s:N16:L").unmangle(),
             (
                 vec![
-                    ("a".to_string(), TypeValue::unknown_string()),
+                    ("a", TypeValue::unknown_string()),
                     (
-                        "b".to_string(),
+                        "b",
                         TypeValue::unknown_string_with_constraints(vec![
                             StringConstraint::ExactLength(16),
                             StringConstraint::Lowercase
