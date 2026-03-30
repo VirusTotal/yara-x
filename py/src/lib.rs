@@ -655,8 +655,8 @@ impl Compiler {
     }
 
     #[pyo3(signature = (tags, error = false))]
-    fn allowed_tags<'py>(
-        &'py mut self,
+    fn allowed_tags(
+        &mut self,
         tags: Vec<String>,
         error: bool,
     ) -> PyResult<()> {
@@ -665,8 +665,8 @@ impl Compiler {
     }
 
     #[pyo3(signature = (regexp, error = false))]
-    fn allowed_tags_regex<'py>(
-        &'py mut self,
+    fn allowed_tags_regex(
+        &mut self,
         regexp: String,
         error: bool,
     ) -> PyResult<()> {
@@ -686,8 +686,8 @@ impl Compiler {
             error = false,
             regexp = None
         ))]
-    fn allowed_metadata<'py>(
-        &'py mut self,
+    fn allowed_metadata(
+        &mut self,
         identifier: &str,
         value_type: MetaType,
         required: bool,
