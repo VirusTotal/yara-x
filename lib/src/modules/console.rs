@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::modules::prelude::*;
 use crate::modules::protos::console::*;
 
@@ -24,6 +26,76 @@ fn log_msg_str(
         message.as_bstr(ctx),
         string.as_bstr(ctx)
     ));
+    true
+}
+
+pub fn escape(bytes: &[u8]) -> Cow<'_, str> {
+    // First, try to interpret as UTF-8
+    let s = match std::str::from_utf8(bytes) {
+        Ok(s) => s,
+        Err(_) => {
+            // If invalid UTF-8, you must allocate anyway
+            return Cow::Owned(
+                bytes
+                    .iter()
+                    .flat_map(|&b| std::ascii::escape_default(b))
+                    .map(|b| b as char)
+                    .collect(),
+            );
+        }
+    };
+
+    // Check if escaping is needed
+    let needs_escape = s.chars().any(|c| {
+        matches!(c, '\n' | '\r' | '\t' | '\\' | '"') || c.is_control()
+    });
+
+    if !needs_escape {
+        // Zero-copy: borrow directly
+        return Cow::Borrowed(s);
+    }
+
+    Cow::Owned(bytes.escape_ascii().to_string())
+}
+
+/// Given an offset and length return Option<String> where the string is the
+/// escaped ascii slice of scanned data. If either offset is negative or (offset
+/// + length) wraps, the result will be None.
+fn get_data<'a>(
+    ctx: &'a mut ScanContext,
+    offset: i64,
+    length: i64,
+) -> Option<Cow<'a, str>> {
+    ctx.scanned_data()?
+        .get(offset as usize..(offset + length) as usize)
+        .map(escape)
+}
+
+#[module_export(name = "log")]
+fn log_bytes(ctx: &mut ScanContext, offset: i64, length: i64) -> bool {
+    let message = match get_data(ctx, offset, length) {
+        Some(data) => format!("{}", data),
+        None => return true,
+    };
+
+    ctx.console_log(message);
+    true
+}
+
+#[module_export(name = "log")]
+fn log_msg_bytes(
+    ctx: &mut ScanContext,
+    message: RuntimeString,
+    offset: i64,
+    length: i64,
+) -> bool {
+    let message = message.as_bstr(ctx).to_string();
+    let message = match get_data(ctx, offset, length) {
+        Some(data) => format!("{}{}", message, data),
+        None => return true,
+    };
+
+    ctx.console_log(message);
     true
 }
 
@@ -102,7 +174,8 @@ mod tests {
                     console.log("bool: ", true) and
                     console.hex(10) and
                     console.hex("qux: ", 255) and
-                    console.log("hello ", "world!")
+                    console.log("hello ", "world!") and
+                    console.log(0, 4)
             }
             "#,
         )
@@ -112,7 +185,7 @@ mod tests {
 
         crate::scanner::Scanner::new(&rules)
             .console_log(|message| messages.push(message))
-            .scan(b"")
+            .scan(b"\x00\x11ABC")
             .expect("scan should not fail");
 
         assert_eq!(
@@ -128,6 +201,7 @@ mod tests {
                 "0xa",
                 "qux: 0xff",
                 "hello world!",
+                r"\x00\x11AB",
             ]
         );
     }
