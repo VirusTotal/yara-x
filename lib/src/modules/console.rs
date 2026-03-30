@@ -27,6 +27,55 @@ fn log_msg_str(
     true
 }
 
+// Given an offset and length return Option<String> where the string is the
+// escaped ascii slice of scanned data. If either offset is negative or (offset
+// + length) wraps, the result will be None.
+fn get_data(
+    ctx: &mut ScanContext,
+    offset: i64,
+    length: i64,
+) -> Option<String> {
+    match ctx.scanned_data() {
+        Some(data) => {
+            match data.get(offset as usize..(offset + length) as usize) {
+                Some(data) => {
+                    return Some(data.escape_ascii().to_string());
+                }
+                None => {}
+            }
+        }
+        None => {}
+    }
+    None
+}
+
+#[module_export(name = "log")]
+fn log_bytes(ctx: &mut ScanContext, offset: i64, length: i64) -> bool {
+    match get_data(ctx, offset, length) {
+        Some(data) => {
+            ctx.console_log(format!("{}", data));
+        }
+        None => {}
+    }
+    true
+}
+
+#[module_export(name = "log")]
+fn log_msg_bytes(
+    ctx: &mut ScanContext,
+    message: RuntimeString,
+    offset: i64,
+    length: i64,
+) -> bool {
+    match get_data(ctx, offset, length) {
+        Some(data) => {
+            ctx.console_log(format!("{}{}", message.as_bstr(ctx), data));
+        }
+        None => {}
+    }
+    true
+}
+
 #[module_export(name = "log")]
 fn log_bool(ctx: &mut ScanContext, b: bool) -> bool {
     ctx.console_log(format!("{b}"));
@@ -102,7 +151,8 @@ mod tests {
                     console.log("bool: ", true) and
                     console.hex(10) and
                     console.hex("qux: ", 255) and
-                    console.log("hello ", "world!")
+                    console.log("hello ", "world!") and
+                    console.log(0, 4)
             }
             "#,
         )
@@ -112,7 +162,7 @@ mod tests {
 
         crate::scanner::Scanner::new(&rules)
             .console_log(|message| messages.push(message))
-            .scan(b"")
+            .scan(b"\x00\x11ABC")
             .expect("scan should not fail");
 
         assert_eq!(
@@ -128,6 +178,7 @@ mod tests {
                 "0xa",
                 "qux: 0xff",
                 "hello world!",
+                r"\x00\x11AB",
             ]
         );
     }
