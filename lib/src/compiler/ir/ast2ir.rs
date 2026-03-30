@@ -1294,7 +1294,10 @@ fn is_potentially_large_range(ctx: &CompileContext, range: &Range) -> bool {
             // Don't traverse the arguments of `math.min`.
             |node| {
                 if let Expr::FuncCall(func) = node {
-                    func.signature.mangled_name.as_str().eq("math.min@ii@i")
+                    func.signature
+                        .mangled_name
+                        .as_str()
+                        .eq("math.min@a:i,b:i@i")
                 } else {
                     false
                 }
