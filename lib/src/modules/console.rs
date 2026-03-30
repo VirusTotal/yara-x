@@ -29,7 +29,7 @@ fn log_msg_str(
     true
 }
 
-pub fn escape(bytes: &[u8]) -> Cow<str> {
+pub fn escape(bytes: &[u8]) -> Cow<'_, str> {
     // First, try to interpret as UTF-8
     let s = match std::str::from_utf8(bytes) {
         Ok(s) => s,
