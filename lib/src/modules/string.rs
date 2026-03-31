@@ -8,12 +8,14 @@ fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<String, ModuleError> {
     Ok(String::new())
 }
 
+/// Converts a string to an integer.
 #[module_export]
 fn to_int(ctx: &ScanContext, string: RuntimeString) -> Option<i64> {
     let string = string.to_str(ctx).ok()?;
     string.parse::<i64>().ok()
 }
 
+/// Converts a string to an integer in the given base.
 #[module_export(name = "to_int")]
 fn to_int_base(
     ctx: &ScanContext,
@@ -28,6 +30,7 @@ fn to_int_base(
     i64::from_str_radix(string, base).ok()
 }
 
+/// Returns the length of the string.
 #[module_export]
 fn length(ctx: &ScanContext, string: RuntimeString) -> Option<i64> {
     Some(string.as_bstr(ctx).len().try_into().unwrap())

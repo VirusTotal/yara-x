@@ -36,6 +36,7 @@ fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Magic, ModuleError> {
     Ok(Magic::new())
 }
 
+/// Returns the file type provided by libmagic.
 #[module_export(name = "type")]
 fn file_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let cached = TYPE_CACHE.with(|cache| cache.borrow().clone());
@@ -58,6 +59,7 @@ fn file_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
     }
 }
 
+/// Returns the MIME type provided by libmagic.
 #[module_export(name = "mime_type")]
 fn mime_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let cached = MIME_TYPE_CACHE.with(|cache| cache.borrow().clone());

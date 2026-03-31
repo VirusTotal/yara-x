@@ -280,16 +280,20 @@ fn imphash(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
     Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
+/// Returns the number of toolid records with the given toolid.
 #[module_export(name = "rich_signature.toolid")]
 fn rich_toolid(ctx: &mut ScanContext, toolid: i64) -> Option<i64> {
     rich_version_impl(ctx.module_output::<PE>()?, Some(toolid), None)
 }
 
+/// Returns the number of toolid records matching the given version.
 #[module_export(name = "rich_signature.version")]
 fn rich_version(ctx: &mut ScanContext, version: i64) -> Option<i64> {
     rich_version_impl(ctx.module_output::<PE>()?, None, Some(version))
 }
 
+
+/// Returns the number of toolid records matching the given toolid and version.
 #[module_export(name = "rich_signature.version")]
 fn rich_version_toolid(
     ctx: &mut ScanContext,
@@ -299,6 +303,7 @@ fn rich_version_toolid(
     rich_version_impl(ctx.module_output::<PE>()?, Some(toolid), Some(version))
 }
 
+/// Returns the number of toolid records matching the given toolid and version.
 #[module_export(name = "rich_signature.toolid")]
 fn rich_toolid_version(
     ctx: &mut ScanContext,

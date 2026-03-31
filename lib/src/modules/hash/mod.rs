@@ -40,6 +40,7 @@ fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Hash, ModuleError> {
     Ok(Hash::new())
 }
 
+/// Calculates the MD5 hash of a portion of the scanned data.
 #[module_export(name = "md5")]
 fn md5_data(
     ctx: &mut ScanContext,
@@ -72,6 +73,7 @@ fn md5_data(
     Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
+/// Calculates the MD5 hash of a string.
 #[module_export(name = "md5")]
 fn md5_str(
     ctx: &mut ScanContext,
@@ -86,6 +88,7 @@ fn md5_str(
     )))
 }
 
+/// Calculates the SHA-1 hash of a portion of the scanned data.
 #[module_export(name = "sha1")]
 fn sha1_data(
     ctx: &mut ScanContext,
@@ -118,6 +121,7 @@ fn sha1_data(
     Some(Lowercase::<FixedLenString<40>>::new(digest))
 }
 
+/// Calculates the SHA-1 hash of a string.
 #[module_export(name = "sha1")]
 fn sha1_str(
     ctx: &mut ScanContext,
@@ -132,6 +136,7 @@ fn sha1_str(
     )))
 }
 
+/// Calculates the SHA-256 hash of a portion of the scanned data.
 #[module_export(name = "sha256")]
 fn sha256_data(
     ctx: &mut ScanContext,
@@ -164,6 +169,7 @@ fn sha256_data(
     Some(Lowercase::<FixedLenString<64>>::new(digest))
 }
 
+/// Calculates the SHA-256 hash of a string.
 #[module_export(name = "sha256")]
 fn sha256_str(
     ctx: &mut ScanContext,
@@ -178,6 +184,7 @@ fn sha256_str(
     )))
 }
 
+/// Calculates the CRC32 checksum of a portion of the scanned data.
 #[module_export(name = "crc32")]
 fn crc_data(ctx: &ScanContext, offset: i64, size: i64) -> Option<i64> {
     let cached = CRC32_CACHE.with(|cache| -> Option<i64> {
@@ -199,12 +206,14 @@ fn crc_data(ctx: &ScanContext, offset: i64, size: i64) -> Option<i64> {
     Some(crc.into())
 }
 
+/// Calculates the CRC32 checksum of a string.
 #[module_export(name = "crc32")]
 fn crc_str(ctx: &ScanContext, s: RuntimeString) -> Option<i64> {
     let crc = crc32fast::hash(s.as_bstr(ctx));
     Some(crc.into())
 }
 
+/// Calculates the 32-bit checksum of a portion of the scanned data.
 #[module_export(name = "checksum32")]
 fn checksum_data(ctx: &ScanContext, offset: i64, size: i64) -> Option<i64> {
     let cached = CHECKSUM32_CACHE.with(|cache| -> Option<i64> {
@@ -230,6 +239,7 @@ fn checksum_data(ctx: &ScanContext, offset: i64, size: i64) -> Option<i64> {
     Some(checksum.into())
 }
 
+/// Calculates the 32-bit checksum of a string.
 #[module_export(name = "checksum32")]
 fn checksum_str(ctx: &ScanContext, s: RuntimeString) -> Option<i64> {
     let mut checksum = 0_u32;

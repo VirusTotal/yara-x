@@ -384,7 +384,11 @@ pub mod mods {
 
                 for signature in func.signatures() {
                     signatures.push(FuncSignature {
-                        args: signature.args.iter().map(Type::from).collect(),
+                        args: signature
+                            .args
+                            .iter()
+                            .map(|(name, ty)| (name.clone(), Type::from(ty)))
+                            .collect(),
                         ret: Type::from(&signature.result),
                         description: signature.description.clone(),
                     });
@@ -397,8 +401,8 @@ pub mod mods {
         /// Describes a function signature.
         #[derive(Clone, Debug, PartialEq)]
         pub struct FuncSignature {
-            /// The types of the function arguments.
-            pub args: Vec<Type>,
+            /// The names and types of the function arguments.
+            pub args: Vec<(String, Type)>,
             /// The return type for the function.
             pub ret: Type,
             /// Function's documentation description.

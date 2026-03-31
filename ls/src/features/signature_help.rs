@@ -72,11 +72,12 @@ pub fn signature_help(
         let mut param_iterator = signature.args.iter();
         let mut param_info = Vec::new();
 
-        // Traverse all parameters and insert `, ` to the label,
-        // if the parameters is not last.
-        if let Some(mut curr_type) = param_iterator.next() {
+        if let Some((name, ty)) = param_iterator.next() {
+            let mut curr_name = name;
+            let mut curr_type = ty;
             loop {
-                let ty_str = ty_to_string(curr_type);
+                let ty_str =
+                    format!("{}: {}", curr_name, ty_to_string(curr_type));
                 param_info.push(ParameterInformation {
                     label: ParameterLabel::LabelOffsets([
                         curr_signature.len() as u32,
@@ -85,8 +86,9 @@ pub fn signature_help(
                     documentation: None,
                 });
                 curr_signature.push_str(&ty_str);
-                if let Some(next_type) = param_iterator.next() {
+                if let Some((next_name, next_type)) = param_iterator.next() {
                     curr_signature.push_str(", ");
+                    curr_name = next_name;
                     curr_type = next_type;
                 } else {
                     break;

@@ -398,25 +398,26 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
                     .signatures
                     .iter()
                     .map(|sig| {
-                        let arg_types = sig
+                        let args = sig
                             .args
                             .iter()
-                            .map(ty_to_string)
+                            .map(|(name, ty)| format!("{}: {}", name, ty_to_string(ty)))
                             .collect::<Vec<_>>();
 
-                        let args_template = arg_types
+                        let args_template = sig
+                            .args
                             .iter()
                             .enumerate()
-                            .map(|(n, arg_type)| {
-                                format!("${{{}:{arg_type}}}", n + 1)
+                            .map(|(n, (name, _))| {
+                                format!("${{{}:{name}}}", n + 1)
                             })
-                            .join(",");
+                            .join(", ");
 
                         CompletionItem {
                             label: format!(
                                 "{}({})",
                                 name,
-                                arg_types.join(", ")
+                                args.join(", ")
                             ),
                             kind: Some(CompletionItemKind::METHOD),
                             insert_text: Some(format!(
@@ -439,7 +440,7 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
                                                 name,
                                                 sig.args
                                                     .iter()
-                                                    .map(ty_to_string)
+                                                    .map(|(name, ty)| format!("{}: {}", name, ty_to_string(ty)))
                                                     .join(", "),
                                                 ty_to_string(&sig.ret),
                                                 docs

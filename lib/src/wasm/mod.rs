@@ -236,14 +236,14 @@ impl WasmExport {
                 function.add_signature(signature);
             } else {
                 let mut func = Func::from(mangled_name);
-                // Update the description for the first and only signature in the function.
+                // Update the description for the first and only signature in
+                // the function.
                 let signature = func.signatures_mut().get_mut(0).unwrap();
-                // It's safe to get a mutable reference to the signature with Rc::get_mut
-                // because the Rc was just crated and there's a single reference to it.
+                // It's safe to get a mutable reference to the signature with
+                // Rc::get_mut because the Rc was just crated and there's a
+                // single reference to it.
                 let signature = Rc::get_mut(signature).unwrap();
-
                 signature.description = export.description.clone();
-
                 functions.insert(export.name, func);
             }
         }

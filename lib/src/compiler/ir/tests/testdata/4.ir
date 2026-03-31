@@ -1,18 +1,18 @@
 RULE test
-  52: WITH -- hash: 0x5e28f45a3380ebce -- parent: None 
+  52: WITH -- hash: 0x3d25b3d4794433e2 -- parent: None 
     2: FIELD_ACCESS -- hash: 0x30adb8d0b7ea7b20 -- parent: 52 
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None } -- parent: 2 
       1: SYMBOL Field { index: 12, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None } -- parent: 2 
-    51: AND -- hash: 0xd48c9e4c1bbd6e98 -- parent: 52 
-      22: FOR_IN -- hash: 0x7854178bc588aac4 -- parent: 51 
+    51: AND -- hash: 0xb3895dc66180b6ac -- parent: 52 
+      22: FOR_IN -- hash: 0xb5766871f0d8434f -- parent: 51 
         3: CONST integer(0) -- parent: 22 
         4: CONST integer(1) -- parent: 22 
-        21: AND -- hash: 0x9cf8fe424d5f369 -- parent: 22 
+        21: AND -- hash: 0x46f1e0ca50258bf4 -- parent: 22 
           7: EQ -- hash: 0xa866a1c3637edc78 -- parent: 21 
             5: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 6 }, type_value: integer(unknown) } -- parent: 7 
             6: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 0 }, type_value: integer(unknown) } -- parent: 7 
-          13: EQ -- hash: 0x15f5b2aba7d47f8 -- parent: 21 
-            11: FN_CALL test_proto2.add@ii@i -- hash: 0x4b8def611ce41371 -- parent: 13 
+          13: EQ -- hash: 0x452e9b6d563a2e0e -- parent: 21 
+            11: FN_CALL test_proto2.add@a:i,b:i@i -- hash: 0x261e822f79c74aad -- parent: 13 
               9: CONST integer(1) -- parent: 11 
               10: CONST integer(2) -- parent: 11 
             12: CONST integer(3) -- parent: 13 
@@ -23,12 +23,12 @@ RULE test
                 15: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None, deprecation_notice: None } -- parent: 16 
               17: CONST integer(1) -- parent: 18 
             19: CONST float(1.0) -- parent: 20 
-      39: FOR_IN -- hash: 0x3aeb7cd882a3770d -- parent: 51 
+      39: FOR_IN -- hash: 0x780dcdbeadf30f98 -- parent: 51 
         23: CONST integer(0) -- parent: 39 
         24: CONST integer(1) -- parent: 39 
-        38: OR -- hash: 0xc7fb5e4615f1997 -- parent: 39 
-          30: NE -- hash: 0xb189c2a481168c22 -- parent: 38 
-            28: FN_CALL test_proto2.add@ii@i -- hash: 0x4b8def611ce41371 -- parent: 30 
+        38: OR -- hash: 0x49a206ca8caeb222 -- parent: 39 
+          30: NE -- hash: 0xf55902e71cd37238 -- parent: 38 
+            28: FN_CALL test_proto2.add@a:i,b:i@i -- hash: 0x261e822f79c74aad -- parent: 30 
               26: CONST integer(1) -- parent: 28 
               27: CONST integer(2) -- parent: 28 
             29: CONST integer(0) -- parent: 30 

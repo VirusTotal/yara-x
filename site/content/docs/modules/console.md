@@ -50,6 +50,20 @@ Logs the given message and string.
 
 Example: `console.log("The imphash is: ", pe.imphash())`
 
+### log(offset, length) (New in version v.1.15.0)
+
+Logs the bytes starting at offset and continuing for length. The result is an
+ASCII escaped string.
+
+Example: `console.log(10, 5)`
+
+### log(message, offset, length) (New in version v.1.15.0)
+
+Logs the bytes starting at offset and continuing for length. The result is an
+ASCII escaped string.
+
+Example: `console.log("5 BYTES AT 10: ", 10, 5)`
+
 ### log(integer)
 
 Logs the given integer.

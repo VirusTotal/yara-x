@@ -37,6 +37,7 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<ELF, ModuleError> {
     }
 }
 
+/// Returns an MD5 hash of the ELF's imported symbols.
 #[module_export]
 fn import_md5(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
     let cached = IMPORT_MD5_CACHE.with(

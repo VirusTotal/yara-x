@@ -16,12 +16,12 @@ use syn::{
 
 /// Parses the signature of a Rust function and returns its mangled named.
 struct FuncSignatureParser<'ast> {
-    arg_types: Option<VecDeque<&'ast Type>>,
+    args: Option<VecDeque<(String, &'ast Type)>>,
 }
 
 impl<'ast> FuncSignatureParser<'ast> {
     fn new() -> Self {
-        Self { arg_types: None }
+        Self { args: None }
     }
 
     #[inline(always)]
@@ -180,20 +180,20 @@ impl<'ast> FuncSignatureParser<'ast> {
     }
 
     fn parse(&mut self, func: &'ast ItemFn) -> Result<String> {
-        self.arg_types = Some(VecDeque::new());
+        self.args = Some(VecDeque::new());
 
         // This loop traverses the function arguments' AST, populating
-        // `self.arg_types`.
+        // `self.args`.
         for fn_arg in func.sig.inputs.iter() {
             self.visit_fn_arg(fn_arg);
         }
 
-        let mut arg_types = self.arg_types.take().unwrap();
+        let mut args = self.args.take().unwrap();
 
         let mut first_argument_is_ok = false;
 
         // Make sure that the first argument is `&mut Caller`.
-        if let Some(Type::Reference(ref_type)) = arg_types.pop_front()
+        if let Some((_, Type::Reference(ref_type))) = args.pop_front()
             && let Type::Path(type_) = ref_type.elem.as_ref()
         {
             first_argument_is_ok = Self::type_ident(type_) == "Caller";
@@ -211,8 +211,17 @@ impl<'ast> FuncSignatureParser<'ast> {
 
         let mut mangled_name = String::from("@");
 
-        for arg_type in arg_types {
+        let mut first = true;
+        for (arg_name, arg_type) in args {
+            if !first {
+                mangled_name.push(',');
+            }
+            if !arg_name.is_empty() {
+                mangled_name.push_str(&arg_name);
+                mangled_name.push(':');
+            }
             mangled_name.push_str(Self::mangled_type(arg_type)?.as_ref());
+            first = false;
         }
 
         mangled_name.push('@');
@@ -224,7 +233,12 @@ impl<'ast> FuncSignatureParser<'ast> {
 
 impl<'ast> Visit<'ast> for FuncSignatureParser<'ast> {
     fn visit_pat_type(&mut self, pat_type: &'ast PatType) {
-        self.arg_types.as_mut().unwrap().push_back(pat_type.ty.as_ref());
+        let name = if let syn::Pat::Ident(ident) = &*pat_type.pat {
+            ident.ident.to_string()
+        } else {
+            "".to_string()
+        };
+        self.args.as_mut().unwrap().push_back((name, pat_type.ty.as_ref()));
     }
 }
 
@@ -454,7 +468,7 @@ mod tests {
           fn foo(caller: &mut Caller<'_, ScanContext>, a: i32, b: i32) -> i32 { a + b }
         };
 
-        assert_eq!(parser.parse(&func).unwrap(), "@ii@i");
+        assert_eq!(parser.parse(&func).unwrap(), "@a:i,b:i@i");
 
         let func = parse_quote! {
           fn foo(caller: &mut Caller<'_, ScanContext>) -> Option<()> { None }
