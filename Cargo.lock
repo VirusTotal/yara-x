@@ -5103,11 +5103,13 @@ dependencies = [
  "protobuf",
  "pyo3",
  "pyo3-build-config",
+ "regex",
  "serde_json",
  "strum",
  "strum_macros",
  "yara-x",
  "yara-x-fmt",
+ "yara-x-parser",
  "yara-x-proto-json",
 ]
 

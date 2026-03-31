@@ -32,7 +32,7 @@ def test_error_on_slow_pattern():
 def test_invalid_rule_name_regexp():
   compiler = yara_x.Compiler()
   with pytest.raises(ValueError):
-    compiler.rule_name_regexp("(AXS|ERS")
+    compiler.allowed_rule_name("(AXS|ERS")
 
 
 def test_int_globals():
@@ -397,3 +397,60 @@ rule test {
 }
 ''')
   assert rules.imports() == ["pe", "elf"]
+
+def test_check_allowed_tags_error():
+  rule = '''
+  rule test: a b c d { condition: 1 + 1 == 2}
+  rule test2: d { condition: 1 + 1 == 2}'''
+  compiler = yara_x.Compiler()
+  compiler.allowed_tags(['a', 'b'], error = True)
+  with pytest.raises(yara_x.CompileError,
+                     match="tag `c` not in allowed list"):
+    compiler.add_source(rule)
+  # The current behavior is stop checking tags on the rule after the first tag
+  # fails, but subsequent rules are also checked.
+  errors = compiler.errors()
+  assert len(errors) == 2
+  assert 'tag `c` not in allowed list' in errors[0]['text']
+  assert 'tag `d` not in allowed list' in errors[1]['text']
+
+def test_check_allowed_tags_warning():
+  compiler = yara_x.Compiler()
+  compiler.allowed_tags(['a', 'b'])
+  compiler.add_source('rule test: a b c d { condition: 1 + 1 == 2}')
+  warnings = compiler.warnings()
+  assert len(warnings) == 2
+  assert 'tag `c` not in allowed list' in warnings[0]['text']
+  assert 'tag `d` not in allowed list' in warnings[1]['text']
+
+def test_check_metadata():
+  compiler = yara_x.Compiler()
+  compiler.allowed_metadata('a', yara_x.MetaType.STRING)
+  compiler.allowed_metadata('b', yara_x.MetaType.STRING, regexp='^bar')
+  compiler.add_source('rule test { meta: a = 1 b = "foo" condition: 1 + 1 == 2}')
+  warnings = compiler.warnings()
+  assert len(warnings) == 2
+  assert '`a` must be a string' in warnings[0]['text']
+  assert '`b` must be a string that matches `/^bar/`' in warnings[1]['text']
+
+def test_check_rule_name_regexp():
+  rule = '''
+  rule test { condition: 1 + 1 == 2}
+  rule test2 { condition: 1 + 1 == 2}'''
+  compiler = yara_x.Compiler()
+  compiler.allowed_rule_name('^foo')
+  compiler.add_source(rule)
+  warnings = compiler.warnings()
+  assert len(warnings) == 2
+  assert 'this rule name does not match regex `^foo`' in warnings[0]['text']
+
+def test_check_rule_name_regexp_error():
+  rule = '''
+  rule test { condition: 1 + 1 == 2}
+  rule test2 { condition: 1 + 1 == 2}'''
+  compiler = yara_x.Compiler()
+  compiler.allowed_rule_name('^foo', error = True)
+  with pytest.raises(yara_x.CompileError,
+                     match=r"this rule name does not match regex `\^foo`"):
+    compiler.add_source(rule)
+  assert len(compiler.errors()) == 2

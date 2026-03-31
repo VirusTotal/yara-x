@@ -1,6 +1,7 @@
 import collections
 
-from typing import Any, Dict, BinaryIO, TextIO, Optional, Tuple, final
+from typing import Any, Dict, BinaryIO, TextIO, Optional, Tuple, final, List
+from enum import Enum
 
 class CompileError(Exception):
     r"""
@@ -156,7 +157,7 @@ class Compiler:
         """
         ...
 
-    def rule_name_regexp(self, regexp: str) -> None:
+    def allowed_rule_name(self, regexp: str, error: bool = False) -> None:
         r"""
         Tell the compiler that any rule must match this regular expression or it
         will result in a compiler warning.
@@ -166,6 +167,24 @@ class Compiler:
         [ValueError](https://docs.python.org/3/library/exceptions.html#ValueError)
         if the regular expression is invalid.
         """
+        ...
+
+    def allowed_tags(self, tags: List[str], error: bool = False) -> None:
+        r"""List the allowed tags for rules."""
+        ...
+
+    def allowed_tags_regex(self, regexp: str, error: bool = False) -> None:
+        r"""A regular expression that must match all tags on rules."""
+        ...
+
+    def allowed_metadata(
+            self,
+            identifier: str,
+            value_type: MetaType,
+            required: bool,
+            regexp: Optional[str],
+            error: bool = False):
+        r"""Define expected type and value for metadata on rules."""
         ...
 
 @final
@@ -479,4 +498,34 @@ class Module:
         ...
     def invoke(self, data: str) -> Any:
         r"""Parse the data and collect module metadata."""
+        ...
+
+@final
+class MetaType(Enum):
+    STRING: int
+    INTEGER: int
+    FLOAT: int
+    BOOL: int
+    SHA256: int
+    SHA1: int
+    MD5: int
+    HASH: int
+
+@final
+class CheckResult:
+    r"""Result from the [`Compiler::check`] method after checking source code."""
+    def warning(self) -> bool:
+        r"""True if the result is a warning, false if it is an error."""
+        ...
+
+    def code(self) -> bool:
+        r"""The string representation of the result code."""
+        ...
+
+    def title(self) -> str:
+        r"""The title of the result code."""
+        ...
+
+    def message(self) -> str:
+        r"""A multi-line message containing code, title and full compiler details."""
         ...
