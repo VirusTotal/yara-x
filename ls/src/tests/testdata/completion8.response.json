@@ -1806,12 +1806,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `delayed_import_rva(string, string) -> integer`\n\n Returns the RVA of a delayed import where the DLL name matches\n `dll_name` and the function name matches `func_name`.\n\n Both `dll_name` and `func_name` are case-insensitive."
+      "value": "## `delayed_import_rva(dll_name: string, func_name: string) -> integer`\n\n Returns the RVA of a delayed import where the DLL name matches\n `dll_name` and the function name matches `func_name`.\n\n Both `dll_name` and `func_name` are case-insensitive."
     },
-    "insertText": "delayed_import_rva(${1:string},${2:string})",
+    "insertText": "delayed_import_rva(${1:dll_name}, ${2:func_name})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "delayed_import_rva(string, string)",
+    "label": "delayed_import_rva(dll_name: string, func_name: string)",
     "labelDetails": {
       "description": "func()"
     }
@@ -1819,12 +1819,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `delayed_import_rva(string, integer) -> integer`\n\n Returns the RVA of an import where the DLL name matches\n `dll_name` and the ordinal number is `ordinal`.\n\n `dll_name` is case-insensitive."
+      "value": "## `delayed_import_rva(dll_name: string, ordinal: integer) -> integer`\n\n Returns the RVA of an import where the DLL name matches\n `dll_name` and the ordinal number is `ordinal`.\n\n `dll_name` is case-insensitive."
     },
-    "insertText": "delayed_import_rva(${1:string},${2:integer})",
+    "insertText": "delayed_import_rva(${1:dll_name}, ${2:ordinal})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "delayed_import_rva(string, integer)",
+    "label": "delayed_import_rva(dll_name: string, ordinal: integer)",
     "labelDetails": {
       "description": "func()"
     }
@@ -1832,12 +1832,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `exports(regexp) -> bool`\n\n Returns true if the PE file exports a function with a name that matches\n the given regular expression."
+      "value": "## `exports(func_name: regexp) -> bool`\n\n Returns true if the PE file exports a function with a name that matches\n the given regular expression."
     },
-    "insertText": "exports(${1:regexp})",
+    "insertText": "exports(${1:func_name})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "exports(regexp)",
+    "label": "exports(func_name: regexp)",
     "labelDetails": {
       "description": "func()"
     }
@@ -1845,12 +1845,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `exports(string) -> bool`\n\n Returns true if the PE file exports a function with the given name."
+      "value": "## `exports(func_name: string) -> bool`\n\n Returns true if the PE file exports a function with the given name."
     },
-    "insertText": "exports(${1:string})",
+    "insertText": "exports(${1:func_name})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "exports(string)",
+    "label": "exports(func_name: string)",
     "labelDetails": {
       "description": "func()"
     }
@@ -1858,12 +1858,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `exports(integer) -> bool`\n\n Returns true if the PE file exports a function with the given ordinal."
+      "value": "## `exports(ordinal: integer) -> bool`\n\n Returns true if the PE file exports a function with the given ordinal."
     },
-    "insertText": "exports(${1:integer})",
+    "insertText": "exports(${1:ordinal})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "exports(integer)",
+    "label": "exports(ordinal: integer)",
     "labelDetails": {
       "description": "func()"
     }
@@ -1871,12 +1871,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `exports_index(regexp) -> integer`\n\n Returns true if the PE file exports a function with a name that matches\n the given regular expression."
+      "value": "## `exports_index(func_name: regexp) -> integer`\n\n Returns true if the PE file exports a function with a name that matches\n the given regular expression."
     },
-    "insertText": "exports_index(${1:regexp})",
+    "insertText": "exports_index(${1:func_name})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "exports_index(regexp)",
+    "label": "exports_index(func_name: regexp)",
     "labelDetails": {
       "description": "func()"
     }
@@ -1884,12 +1884,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `exports_index(string) -> integer`\n\n Returns true if the PE file exports a function with the given name."
+      "value": "## `exports_index(func_name: string) -> integer`\n\n Returns true if the PE file exports a function with the given name."
     },
-    "insertText": "exports_index(${1:string})",
+    "insertText": "exports_index(${1:func_name})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "exports_index(string)",
+    "label": "exports_index(func_name: string)",
     "labelDetails": {
       "description": "func()"
     }
@@ -1897,12 +1897,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `exports_index(integer) -> integer`\n\n Returns true if the PE file exports a function with the given ordinal."
+      "value": "## `exports_index(ordinal: integer) -> integer`\n\n Returns true if the PE file exports a function with the given ordinal."
     },
-    "insertText": "exports_index(${1:integer})",
+    "insertText": "exports_index(${1:ordinal})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "exports_index(integer)",
+    "label": "exports_index(ordinal: integer)",
     "labelDetails": {
       "description": "func()"
     }
@@ -1923,12 +1923,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `import_rva(string, string) -> integer`\n\n Returns the RVA of an import where the DLL name matches\n `dll_name` and the function name matches `func_name`.\n\n Both `dll_name` and `func_name` are case-insensitive."
+      "value": "## `import_rva(dll_name: string, func_name: string) -> integer`\n\n Returns the RVA of an import where the DLL name matches\n `dll_name` and the function name matches `func_name`.\n\n Both `dll_name` and `func_name` are case-insensitive."
     },
-    "insertText": "import_rva(${1:string},${2:string})",
+    "insertText": "import_rva(${1:dll_name}, ${2:func_name})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "import_rva(string, string)",
+    "label": "import_rva(dll_name: string, func_name: string)",
     "labelDetails": {
       "description": "func()"
     }
@@ -1936,12 +1936,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `import_rva(string, integer) -> integer`\n\n Returns the RVA of an import where the DLL name matches\n `dll_name` and the ordinal number is `ordinal`.\n\n `dll_name` is case-insensitive."
+      "value": "## `import_rva(dll_name: string, ordinal: integer) -> integer`\n\n Returns the RVA of an import where the DLL name matches\n `dll_name` and the ordinal number is `ordinal`.\n\n `dll_name` is case-insensitive."
     },
-    "insertText": "import_rva(${1:string},${2:integer})",
+    "insertText": "import_rva(${1:dll_name}, ${2:ordinal})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "import_rva(string, integer)",
+    "label": "import_rva(dll_name: string, ordinal: integer)",
     "labelDetails": {
       "description": "func()"
     }
@@ -1949,12 +1949,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `imports(regexp, regexp) -> integer`\n\n Returns the number of imported functions where the function's name matches\n `func_name` and the DLL name matches `dll_name`.\n\n Both `dll_name` and `func_name` are case-sensitive unless you use the \"/i\"\n modifier in the regexp, as shown in the example below."
+      "value": "## `imports(dll_name: regexp, func_name: regexp) -> integer`\n\n Returns the number of imported functions where the function's name matches\n `func_name` and the DLL name matches `dll_name`.\n\n Both `dll_name` and `func_name` are case-sensitive unless you use the \"/i\"\n modifier in the regexp, as shown in the example below."
     },
-    "insertText": "imports(${1:regexp},${2:regexp})",
+    "insertText": "imports(${1:dll_name}, ${2:func_name})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "imports(regexp, regexp)",
+    "label": "imports(dll_name: regexp, func_name: regexp)",
     "labelDetails": {
       "description": "func()"
     }
@@ -1962,12 +1962,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `imports(string, string) -> bool`\n\n Returns true if the PE imports `func_name` from `dll_name`.\n\n Both `func_name` and `dll_name` are case-insensitive."
+      "value": "## `imports(dll_name: string, func_name: string) -> bool`\n\n Returns true if the PE imports `func_name` from `dll_name`.\n\n Both `func_name` and `dll_name` are case-insensitive."
     },
-    "insertText": "imports(${1:string},${2:string})",
+    "insertText": "imports(${1:dll_name}, ${2:func_name})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "imports(string, string)",
+    "label": "imports(dll_name: string, func_name: string)",
     "labelDetails": {
       "description": "func()"
     }
@@ -1975,12 +1975,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `imports(string, integer) -> integer`\n\n Returns true if the PE imports `ordinal` from `dll_name`.\n\n `dll_name` is case-insensitive."
+      "value": "## `imports(dll_name: string, ordinal: integer) -> integer`\n\n Returns true if the PE imports `ordinal` from `dll_name`.\n\n `dll_name` is case-insensitive."
     },
-    "insertText": "imports(${1:string},${2:integer})",
+    "insertText": "imports(${1:dll_name}, ${2:ordinal})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "imports(string, integer)",
+    "label": "imports(dll_name: string, ordinal: integer)",
     "labelDetails": {
       "description": "func()"
     }
@@ -1988,12 +1988,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `imports(string) -> integer`\n\n Returns the number of functions imported by the PE from `dll_name`.\n\n `dll_name` is case-insensitive."
+      "value": "## `imports(dll_name: string) -> integer`\n\n Returns the number of functions imported by the PE from `dll_name`.\n\n `dll_name` is case-insensitive."
     },
-    "insertText": "imports(${1:string})",
+    "insertText": "imports(${1:dll_name})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "imports(string)",
+    "label": "imports(dll_name: string)",
     "labelDetails": {
       "description": "func()"
     }
@@ -2001,12 +2001,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `imports(integer, regexp, regexp) -> integer`\n\n Returns the number of imported functions where the function's name matches\n `func_name` and the DLL name matches `dll_name`.\n\n Both `dll_name` and `func_name` are case-sensitive unless you use the \"/i\"\n modifier in the regexp, as shown in the example below. See [`imports_dll`]\n for details about the `import_flags` argument."
+      "value": "## `imports(import_flags: integer, dll_name: regexp, func_name: regexp) -> integer`\n\n Returns the number of imported functions where the function's name matches\n `func_name` and the DLL name matches `dll_name`.\n\n Both `dll_name` and `func_name` are case-sensitive unless you use the \"/i\"\n modifier in the regexp, as shown in the example below. See [`imports_dll`]\n for details about the `import_flags` argument."
     },
-    "insertText": "imports(${1:integer},${2:regexp},${3:regexp})",
+    "insertText": "imports(${1:import_flags}, ${2:dll_name}, ${3:func_name})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "imports(integer, regexp, regexp)",
+    "label": "imports(import_flags: integer, dll_name: regexp, func_name: regexp)",
     "labelDetails": {
       "description": "func()"
     }
@@ -2014,12 +2014,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `imports(integer, string, string) -> bool`\n\n Returns true if the PE imports `func_name` from `dll_name`.\n\n Both `func_name` and `dll_name` are case-insensitive. See [`imports_dll`]\n for details about the `import_flags` argument."
+      "value": "## `imports(import_flags: integer, dll_name: string, func_name: string) -> bool`\n\n Returns true if the PE imports `func_name` from `dll_name`.\n\n Both `func_name` and `dll_name` are case-insensitive. See [`imports_dll`]\n for details about the `import_flags` argument."
     },
-    "insertText": "imports(${1:integer},${2:string},${3:string})",
+    "insertText": "imports(${1:import_flags}, ${2:dll_name}, ${3:func_name})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "imports(integer, string, string)",
+    "label": "imports(import_flags: integer, dll_name: string, func_name: string)",
     "labelDetails": {
       "description": "func()"
     }
@@ -2027,12 +2027,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `imports(integer, string, integer) -> bool`\n\n Returns true if the PE imports `ordinal` from `dll_name`.\n\n `dll_name` is case-insensitive. See [`imports_dll`] for details about\n the `import_flags` argument."
+      "value": "## `imports(import_flags: integer, dll_name: string, ordinal: integer) -> bool`\n\n Returns true if the PE imports `ordinal` from `dll_name`.\n\n `dll_name` is case-insensitive. See [`imports_dll`] for details about\n the `import_flags` argument."
     },
-    "insertText": "imports(${1:integer},${2:string},${3:integer})",
+    "insertText": "imports(${1:import_flags}, ${2:dll_name}, ${3:ordinal})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "imports(integer, string, integer)",
+    "label": "imports(import_flags: integer, dll_name: string, ordinal: integer)",
     "labelDetails": {
       "description": "func()"
     }
@@ -2040,12 +2040,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `imports(integer, string) -> integer`\n\n Returns the number of functions imported by the PE from `dll_name`.\n\n `dll_name` is case-insensitive. `import_flags` specify the types of\n import which should be taken into account. This value can be composed\n by a bitwise OR of the following values:\n\n * `pe.IMPORT_STANDARD` : standard import only\n * `pe.IMPORT_DELAYED` : delayed imports only\n * `pe.IMPORT_ANY` : both standard and delayed imports"
+      "value": "## `imports(import_flags: integer, dll_name: string) -> integer`\n\n Returns the number of functions imported by the PE from `dll_name`.\n\n `dll_name` is case-insensitive. `import_flags` specify the types of\n import which should be taken into account. This value can be composed\n by a bitwise OR of the following values:\n\n * `pe.IMPORT_STANDARD` : standard import only\n * `pe.IMPORT_DELAYED` : delayed imports only\n * `pe.IMPORT_ANY` : both standard and delayed imports"
     },
-    "insertText": "imports(${1:integer},${2:string})",
+    "insertText": "imports(${1:import_flags}, ${2:dll_name})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "imports(integer, string)",
+    "label": "imports(import_flags: integer, dll_name: string)",
     "labelDetails": {
       "description": "func()"
     }
@@ -2092,12 +2092,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `language(integer) -> bool`\n\n Returns true if the PE contains some resource with the specified language\n identifier.\n\n Language identifiers are the lowest 8-bit of locale identifiers and can\n be found here:\n https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/available-language-packs-for-windows?view=windows-11"
+      "value": "## `language(lang: integer) -> bool`\n\n Returns true if the PE contains some resource with the specified language\n identifier.\n\n Language identifiers are the lowest 8-bit of locale identifiers and can\n be found here:\n https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/available-language-packs-for-windows?view=windows-11"
     },
-    "insertText": "language(${1:integer})",
+    "insertText": "language(${1:lang})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "language(integer)",
+    "label": "language(lang: integer)",
     "labelDetails": {
       "description": "func()"
     }
@@ -2105,12 +2105,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `locale(integer) -> bool`\n\n Returns true if the PE contains some resource with the specified locale\n identifier.\n\n Locale identifiers are 16-bit integers and can be found here:\n https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/available-language-packs-for-windows?view=windows-11"
+      "value": "## `locale(loc: integer) -> bool`\n\n Returns true if the PE contains some resource with the specified locale\n identifier.\n\n Locale identifiers are 16-bit integers and can be found here:\n https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/available-language-packs-for-windows?view=windows-11"
     },
-    "insertText": "locale(${1:integer})",
+    "insertText": "locale(${1:loc})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "locale(integer)",
+    "label": "locale(loc: integer)",
     "labelDetails": {
       "description": "func()"
     }
@@ -2118,12 +2118,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `rva_to_offset(integer) -> integer`\n\n Convert a relative virtual address (RVA) to a file offset."
+      "value": "## `rva_to_offset(rva: integer) -> integer`\n\n Convert a relative virtual address (RVA) to a file offset."
     },
-    "insertText": "rva_to_offset(${1:integer})",
+    "insertText": "rva_to_offset(${1:rva})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "rva_to_offset(integer)",
+    "label": "rva_to_offset(rva: integer)",
     "labelDetails": {
       "description": "func()"
     }
@@ -2131,12 +2131,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `section_index(string) -> integer`\n\n Returns the index in the section table of the first section with the given\n name."
+      "value": "## `section_index(name: string) -> integer`\n\n Returns the index in the section table of the first section with the given\n name."
     },
-    "insertText": "section_index(${1:string})",
+    "insertText": "section_index(${1:name})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "section_index(string)",
+    "label": "section_index(name: string)",
     "labelDetails": {
       "description": "func()"
     }
@@ -2144,12 +2144,12 @@
   {
     "documentation": {
       "kind": "markdown",
-      "value": "## `section_index(integer) -> integer`\n\n Returns the index in the section table of the first section that contains\n the given file offset."
+      "value": "## `section_index(offset: integer) -> integer`\n\n Returns the index in the section table of the first section that contains\n the given file offset."
     },
-    "insertText": "section_index(${1:integer})",
+    "insertText": "section_index(${1:offset})",
     "insertTextFormat": 2,
     "kind": 2,
-    "label": "section_index(integer)",
+    "label": "section_index(offset: integer)",
     "labelDetails": {
       "description": "func()"
     }

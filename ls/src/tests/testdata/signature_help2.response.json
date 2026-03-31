@@ -2,35 +2,35 @@
   "activeParameter": 1,
   "signatures": [
     {
-      "label": "delayed_import_rva(string, string) -> integer",
+      "label": "delayed_import_rva(dll_name: string, func_name: string) -> integer",
       "parameters": [
         {
           "label": [
             19,
-            25
+            35
           ]
         },
         {
           "label": [
-            27,
-            33
+            37,
+            54
           ]
         }
       ]
     },
     {
-      "label": "delayed_import_rva(string, integer) -> integer",
+      "label": "delayed_import_rva(dll_name: string, ordinal: integer) -> integer",
       "parameters": [
         {
           "label": [
             19,
-            25
+            35
           ]
         },
         {
           "label": [
-            27,
-            34
+            37,
+            53
           ]
         }
       ]

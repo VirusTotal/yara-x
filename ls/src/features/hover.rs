@@ -120,7 +120,7 @@ pub fn hover(
                                 signature
                                     .args
                                     .iter()
-                                    .map(ty_to_string)
+                                    .map(|(name, ty)| format!("{}: {}", name, ty_to_string(ty)))
                                     .join(", "),
                                 ty_to_string(&signature.ret),
                                 doc
