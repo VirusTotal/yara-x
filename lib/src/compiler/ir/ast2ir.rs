@@ -1815,9 +1815,9 @@ fn func_call_from_ast(
 
         let expected_arg_types: Vec<Type> = if signature.method_of().is_some()
         {
-            signature.args.iter().skip(1).map(|arg| arg.ty()).collect()
+            signature.args.iter().skip(1).map(|(_, arg)| arg.ty()).collect()
         } else {
-            signature.args.iter().map(|arg| arg.ty()).collect()
+            signature.args.iter().map(|(_, arg)| arg.ty()).collect()
         };
 
         if arg_types == expected_arg_types {

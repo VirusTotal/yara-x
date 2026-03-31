@@ -384,7 +384,7 @@ pub mod mods {
 
                 for signature in func.signatures() {
                     signatures.push(FuncSignature {
-                        args: signature.args.iter().map(Type::from).collect(),
+                        args: signature.args.iter().map(|(_, ty)| Type::from(ty)).collect(),
                         ret: Type::from(&signature.result),
                         description: signature.description.clone(),
                     });

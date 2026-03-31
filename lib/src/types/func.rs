@@ -238,8 +238,7 @@ where
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub(crate) struct FuncSignature {
     pub mangled_name: MangledFnName,
-    pub args: Vec<TypeValue>,
-    pub arg_names: Vec<String>,
+    pub args: Vec<(String, TypeValue)>,
     pub result: TypeValue,
     pub description: Option<Cow<'static, str>>,
 }
@@ -291,13 +290,11 @@ impl<T: Into<String>> From<T> for FuncSignature {
         let (args_with_names, result) = mangled_name.unmangle();
 
         let mut args = Vec::with_capacity(args_with_names.len());
-        let mut arg_names = Vec::with_capacity(args_with_names.len());
         for (name, ty) in args_with_names {
-            args.push(ty);
-            arg_names.push(name.to_string());
+            args.push((name.to_string(), ty));
         }
 
-        Self { mangled_name, args, arg_names, result, description: None }
+        Self { mangled_name, args, result, description: None }
     }
 }
 
