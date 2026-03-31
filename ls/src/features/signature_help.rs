@@ -76,7 +76,8 @@ pub fn signature_help(
             let mut curr_name = name;
             let mut curr_type = ty;
             loop {
-                let ty_str = format!("{}: {}", curr_name, ty_to_string(curr_type));
+                let ty_str =
+                    format!("{}: {}", curr_name, ty_to_string(curr_type));
                 param_info.push(ParameterInformation {
                     label: ParameterLabel::LabelOffsets([
                         curr_signature.len() as u32,
