@@ -703,25 +703,38 @@ fn linter_tag_list() {
         ]
     );
 
-    // Only the first error should be reported.
+    // It should also support multiple errors via the `errors`` method.
+    let mut compiler = Compiler::new();
+    compiler.add_linter(
+        linters::tags_allowed(vec!["foo".to_string(), "bar".to_string()])
+            .error(true),
+    );
+
+    let _ = compiler
+        .add_source(
+            r#"rule test : axs ers { strings: $foo = "foo" condition: $foo }"#,
+        )
+        .expect_err("expected error");
+
     assert_eq!(
-        Compiler::new()
-            .add_linter(linters::tags_allowed(vec![
-                "foo".to_string(),
-                "bar".to_string(),
-            ]).error(true))
-            .add_source(
-                r#"rule test : axs ers { strings: $foo = "foo" condition: $foo }"#
-            )
-            .expect_err("expected error")
-            .to_string(),
-        r#"error[E040]: tag not in allowed list
+        compiler.errors().iter().map(|e| e.to_string()).collect::<Vec<_>>(),
+        &[
+            r#"error[E040]: tag not in allowed list
+ --> line:1:17
+  |
+1 | rule test : axs ers { strings: $foo = "foo" condition: $foo }
+  |                 ^^^ tag `ers` not in allowed list
+  |
+  = note: allowed tags: foo, bar"#,
+            r#"error[E040]: tag not in allowed list
  --> line:1:13
   |
 1 | rule test : axs ers { strings: $foo = "foo" condition: $foo }
   |             ^^^ tag `axs` not in allowed list
   |
-  = note: allowed tags: foo, bar"#);
+  = note: allowed tags: foo, bar"#,
+        ]
+    );
 }
 
 #[test]
@@ -758,19 +771,27 @@ fn linter_tags_regexp() {
   |                 ---- tag `blah` does not match regex `^(foo|bar)`"#,
     ]);
 
+    let mut compiler = Compiler::new();
+    compiler.add_linter(linters::tag_regex("^(foo|bar)").unwrap().error(true));
+
+    let _ = compiler
+        .add_source(r#"rule test : baz blah { strings: $foo = "foo" condition: $foo }"#).expect_err("expected_error");
+
     assert_eq!(
-        Compiler::new()
-            .add_linter(linters::tag_regex("^(foo|bar)").unwrap().error(true))
-            .add_source(
-                r#"rule test : baz blah { strings: $foo = "foo" condition: $foo }"#
-            )
-            .expect_err("expected error")
-            .to_string(),
-        r#"error[E041]: tag does not match regex `^(foo|bar)`
+        compiler.errors().iter().map(|e| e.to_string()).collect::<Vec<_>>(),
+        &[
+            r#"error[E041]: tag does not match regex `^(foo|bar)`
+ --> line:1:17
+  |
+1 | rule test : baz blah { strings: $foo = "foo" condition: $foo }
+  |                 ^^^^ tag `blah` does not match regex `^(foo|bar)`"#,
+            r#"error[E041]: tag does not match regex `^(foo|bar)`
  --> line:1:13
   |
 1 | rule test : baz blah { strings: $foo = "foo" condition: $foo }
-  |             ^^^ tag `baz` does not match regex `^(foo|bar)`"#);
+  |             ^^^ tag `baz` does not match regex `^(foo|bar)`"#
+        ]
+    );
 
     assert!(linters::tag_regex("(AXS|ERS").is_err());
 }

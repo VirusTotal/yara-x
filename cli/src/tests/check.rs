@@ -226,6 +226,10 @@ fn check_reports_all_errors() {
             regexp = "^(low|medium|high|critical)$"
             required = true
             error = true
+
+            [check.tags]
+            allowed = ["a", "b"]
+            error = true
             "#,
         )
         .unwrap();
@@ -234,7 +238,7 @@ fn check_reports_all_errors() {
 
     yar_file
         .write_str(
-            r#"rule bad_rule {
+            r#"rule bad_rule : a b c d {
               meta:
                 description = "test"
               strings:
@@ -260,5 +264,7 @@ fn check_reports_all_errors() {
         .stderr(predicate::str::contains(
             "required metadata `severity` not found",
         ))
-        .stderr(predicate::str::contains("rule name does not match regex"));
+        .stderr(predicate::str::contains("rule name does not match regex"))
+        .stderr(predicate::str::contains("tag `c` not in allowed list"))
+        .stderr(predicate::str::contains("tag `d` not in allowed list"));
 }

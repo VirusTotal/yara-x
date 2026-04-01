@@ -1455,6 +1455,15 @@ impl Compiler<'_> {
                         self.errors.push(err);
                     }
                 }
+                LinterResult::Errs(errors) => {
+                    for err in errors {
+                        if first_linter_err.is_none() {
+                            first_linter_err = Some(err);
+                        } else {
+                            self.errors.push(err);
+                        }
+                    }
+                }
             }
         }
         if let Some(err) = first_linter_err {

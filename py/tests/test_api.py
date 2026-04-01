@@ -399,20 +399,17 @@ rule test {
   assert rules.imports() == ["pe", "elf"]
 
 def test_check_allowed_tags_error():
-  rule = '''
-  rule test: a b c d { condition: 1 + 1 == 2}
-  rule test2: d { condition: 1 + 1 == 2}'''
   compiler = yara_x.Compiler()
   compiler.allowed_tags(['a', 'b'], error = True)
+  # A weird artifact of the way errors are collected for tags is that they are
+  # reported in reverse order.
   with pytest.raises(yara_x.CompileError,
-                     match="tag `c` not in allowed list"):
-    compiler.add_source(rule)
-  # The current behavior is stop checking tags on the rule after the first tag
-  # fails, but subsequent rules are also checked.
+                     match="tag `d` not in allowed list"):
+    compiler.add_source('rule test: a b c d { condition: 1 + 1 == 2}')
   errors = compiler.errors()
   assert len(errors) == 2
-  assert 'tag `c` not in allowed list' in errors[0]['text']
-  assert 'tag `d` not in allowed list' in errors[1]['text']
+  assert 'tag `d` not in allowed list' in errors[0]['text']
+  assert 'tag `c` not in allowed list' in errors[1]['text']
 
 def test_check_allowed_tags_warning():
   compiler = yara_x.Compiler()

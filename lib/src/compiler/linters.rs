@@ -38,6 +38,7 @@ pub(crate) enum LinterResult {
     Warn(Warning),
     Warns(Vec<Warning>),
     Err(CompileError),
+    Errs(Vec<CompileError>),
 }
 
 /// A linter that ensures that rule names match a given regular expression.
@@ -178,6 +179,12 @@ impl Tags {
 }
 
 impl LinterInternal for Tags {
+    // This takes a single pass through all the tags and collects those that do
+    // not conform to either an explicit list of allowed tags or a regexp into
+    // a resulting vector where each item in the vector is a warning or an
+    // error, depending upon the configuration of the linter. Because the linter
+    // does not have the ability to specify error or warning on a per-tag basis
+    // we can collect all "bad" tags into a single list of the correct type.
     fn check(
         &self,
         report_builder: &ReportBuilder,
@@ -187,13 +194,14 @@ impl LinterInternal for Tags {
             return LinterResult::Ok;
         }
 
-        let mut results: Vec<Warning> = Vec::new();
+        let mut warnings: Vec<Warning> = Vec::new();
+        let mut errors: Vec<CompileError> = Vec::new();
         let tags = rule.tags.as_ref().unwrap();
         if !self.allowed.is_empty() {
             for tag in tags.iter() {
                 if !self.allowed.contains(&tag.name.to_string()) {
                     if self.error {
-                        return LinterResult::Err(errors::UnknownTag::build(
+                        errors.push(errors::UnknownTag::build(
                             report_builder,
                             report_builder.span_to_code_loc(tag.span()),
                             tag.name.to_string(),
@@ -203,7 +211,7 @@ impl LinterInternal for Tags {
                             )),
                         ));
                     } else {
-                        results.push(warnings::UnknownTag::build(
+                        warnings.push(warnings::UnknownTag::build(
                             report_builder,
                             report_builder.span_to_code_loc(tag.span()),
                             tag.name.to_string(),
@@ -221,14 +229,14 @@ impl LinterInternal for Tags {
             for tag in tags.iter() {
                 if !compiled_regex.is_match(tag.name) {
                     if self.error {
-                        return LinterResult::Err(errors::InvalidTag::build(
+                        errors.push(errors::InvalidTag::build(
                             report_builder,
                             report_builder.span_to_code_loc(tag.span()),
                             tag.name.to_string(),
                             self.regex.as_ref().unwrap().clone(),
                         ));
                     } else {
-                        results.push(warnings::InvalidTag::build(
+                        warnings.push(warnings::InvalidTag::build(
                             report_builder,
                             report_builder.span_to_code_loc(tag.span()),
                             tag.name.to_string(),
@@ -239,10 +247,12 @@ impl LinterInternal for Tags {
             }
         }
 
-        if results.is_empty() {
-            LinterResult::Ok
+        if !errors.is_empty() {
+            LinterResult::Errs(errors)
+        } else if !warnings.is_empty() {
+            LinterResult::Warns(warnings)
         } else {
-            LinterResult::Warns(results)
+            LinterResult::Ok
         }
     }
 }
