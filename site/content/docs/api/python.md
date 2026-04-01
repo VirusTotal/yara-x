@@ -246,6 +246,72 @@ compiler.add_source("rule test { condition: false }")
 rules = compiler.build()
 ```
 
+#### .allowed_metadata(identifier, value_type, required=False, error=False, regexp=None)
+
+Defines expectations for a specific metadata field.
+
+When rules are compiled, the compiler will check if the metadata fields match the specified expectations. If not, it will trigger a warning (or an error if `error` is `True`).
+
+- `identifier`: The metadata name (e.g., `"author"`).
+- `value_type`: The expected type, which must be one of the `yara_x.MetaType` constants:
+  - `MetaType.STRING`
+  - `MetaType.INTEGER`
+  - `MetaType.FLOAT`
+  - `MetaType.BOOL`
+  - `MetaType.SHA256`
+  - `MetaType.SHA1`
+  - `MetaType.MD5`
+  - `MetaType.HASH`
+- `required`: If `True`, the metadata field must be present in every rule. Defaults to `False`.
+- `error`: If `True`, failure to meet the expectation triggers an error instead of a warning. Defaults to `False`.
+- `regexp`: An optional regular expression that the metadata value must match. Only applicable if `value_type` is `MetaType.STRING`.
+
+##### Example
+
+```python
+compiler = yara_x.Compiler()
+compiler.allowed_metadata("author", yara_x.MetaType.STRING, required=True)
+compiler.allowed_metadata("version", yara_x.MetaType.STRING, regexp=r"^\d+\.\d+$")
+```
+
+#### .allowed_rule_name(regexp, error=False)
+
+Specifies a regular expression that the compiler will enforce upon each rule name.
+Any rule with a name that does not match this regular expression will trigger a warning.
+If `error` is `True`, it will trigger an error instead of a warning.
+
+##### Example
+
+```python
+compiler = yara_x.Compiler()
+compiler.allowed_rule_name("^test_")
+```
+
+#### .allowed_tags(tags, error=False)
+
+Sets a list of allowed tags. Any rule with a tag not present in this list will trigger a warning.
+If `error` is `True`, it will trigger an error instead of a warning.
+
+##### Example
+
+```python
+compiler = yara_x.Compiler()
+compiler.allowed_tags(["foo", "bar"])
+```
+
+#### .allowed_tags_regex(regexp, error=False)
+
+Specifies a regular expression that the compiler will enforce upon each tag.
+Any rule with a tag that does not match this regular expression will trigger a warning.
+If `error` is `True`, it will trigger an error instead of a warning.
+
+##### Example
+
+```python
+compiler = yara_x.Compiler()
+compiler.allowed_tags_regex("^[a-z]+$")
+```
+
 #### .errors()
 
 Returns the errors found during the compilation, across all calls to
