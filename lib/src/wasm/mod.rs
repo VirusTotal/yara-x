@@ -735,6 +735,10 @@ pub(crate) struct WasmSymbols {
     /// receives the pattern ID and returns a boolean.
     pub check_for_pattern_match: walrus::FunctionId,
 
+    /// Function that checks if at least `required` patterns matched within
+    /// the contiguous pattern id range `start..=end`.
+    pub check_for_pattern_range_match: walrus::FunctionId,
+
     /// Global variable that contains the value for `filesize`.
     pub filesize: walrus::GlobalId,
 

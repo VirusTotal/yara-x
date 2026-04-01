@@ -12,7 +12,10 @@ use std::pin::Pin;
 use std::time::Duration;
 
 use crate::errors::VariableError;
-use crate::scanner::context::{ScanState, create_wasm_store_and_ctx};
+use crate::scanner::context::{
+    ScanState, create_wasm_store_and_ctx,
+    create_wasm_store_and_ctx_with_session,
+};
 use crate::scanner::{DataSnippets, ScanContext};
 use crate::wasm::runtime::Store;
 use crate::{Rules, ScanError, ScanResults, Variable};
@@ -91,6 +94,21 @@ impl<'r> Scanner<'r> {
         Scanner {
             _rules: rules,
             wasm_store: create_wasm_store_and_ctx(rules),
+            needs_reset: true,
+            snippets: BTreeMap::new(),
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn with_runtime_session(
+        rules: &'r Rules,
+        session_id: u64,
+    ) -> Scanner<'r> {
+        Scanner {
+            _rules: rules,
+            wasm_store: create_wasm_store_and_ctx_with_session(
+                rules, session_id,
+            ),
             needs_reset: true,
             snippets: BTreeMap::new(),
         }

@@ -94,6 +94,12 @@ impl RuntimeBackend for Backend {
 
     fn set_epoch_deadline(_runtime: &mut Self::RuntimeState, _deadline: u64) {}
 
+    fn set_runtime_session(
+        _runtime: &mut Self::RuntimeState,
+        _session_id: u64,
+    ) {
+    }
+
     fn prepare_for_instantiation(runtime: &mut Self::RuntimeState) {
         runtime.import_callbacks.clear();
     }
