@@ -147,6 +147,133 @@ add_module!(modules, "{name}", {proto_mod}, "{root_message}", {rust_mod_name}, {
     write!(add_modules_rs, "\n}}").unwrap();
 }
 
+fn generate_field_docs_file(_proto_files: &[FileDescriptorProto]) {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader, Write};
+
+    let mut docs = Vec::new();
+
+    for entry in globwalk::glob("src/modules/protos/**").unwrap().flatten() {
+        let path = entry.path();
+        if path.extension().map_or(false, |ext| ext == "proto") {
+            let file = File::open(path).unwrap();
+            let reader = BufReader::new(file);
+
+            let mut package = String::new();
+            let mut msg_stack = Vec::new();
+            let mut current_comments = Vec::new();
+
+            for line in reader.lines() {
+                let line = line.unwrap();
+                let line = line.trim();
+
+                if line.starts_with("package ") {
+                    package = line["package ".len()..line.len() - 1]
+                        .trim()
+                        .to_string();
+                    continue;
+                }
+
+                if line.starts_with("//") {
+                    current_comments
+                        .push(line["//".len()..].trim().to_string());
+                    continue;
+                }
+
+                if line.starts_with("message ") {
+                    let name = line["message ".len()..]
+                        .split_whitespace()
+                        .next()
+                        .unwrap()
+                        .trim_end_matches('{')
+                        .trim();
+                    msg_stack.push(name.to_string());
+                    current_comments.clear();
+                    continue;
+                }
+
+                if line == "}" {
+                    msg_stack.pop();
+                    current_comments.clear();
+                    continue;
+                }
+
+                if line.contains('=')
+                    && (line.starts_with("optional ")
+                        || line.starts_with("required ")
+                        || line.starts_with("repeated ")
+                        || (!line.starts_with("option ")
+                            && !line.starts_with("import ")))
+                {
+                    let parts: Vec<&str> = line.split('=').collect();
+                    if parts.len() >= 2 {
+                        let left = parts[0].trim();
+                        let right = parts[1].trim();
+
+                        let number_part = right
+                            .split_whitespace()
+                            .next()
+                            .unwrap()
+                            .trim_end_matches(';');
+                        if let Ok(number) = number_part.parse::<u64>() {
+                            let left_parts: Vec<&str> =
+                                left.split_whitespace().collect();
+                            if left_parts.len() >= 2 {
+                                let _name = left_parts.last().unwrap();
+
+                                if !msg_stack.is_empty() {
+                                    let msg_name = msg_stack.join(".");
+                                    let full_msg_name = if package.is_empty() {
+                                        msg_name
+                                    } else {
+                                        format!("{}.{}", package, msg_name)
+                                    };
+
+                                    if !current_comments.is_empty() {
+                                        docs.push((
+                                            full_msg_name,
+                                            number,
+                                            current_comments.join("\\n"),
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    current_comments.clear();
+                } else if !line.is_empty() && !line.starts_with("//") {
+                    current_comments.clear();
+                }
+            }
+        }
+    }
+
+    docs.sort();
+
+    let mut field_docs_rs = File::create("src/modules/field_docs.rs").unwrap();
+
+    writeln!(
+        field_docs_rs,
+        "// File generated automatically by build.rs. Do not edit.\n"
+    )
+    .unwrap();
+
+    writeln!(field_docs_rs, "pub const FIELD_DOCS: &[(&str, u64, &str)] = &[")
+        .unwrap();
+
+    for (msg_name, field_number, comments) in docs {
+        let escaped_comments = comments.replace("\"", "\\\"");
+        writeln!(
+            field_docs_rs,
+            r#"    ("{}", {}, "{}"),"#,
+            msg_name, field_number, escaped_comments
+        )
+        .unwrap();
+    }
+
+    writeln!(field_docs_rs, "];").unwrap();
+}
+
 #[cfg(feature = "generate-proto-code")]
 fn generate_proto_code() {
     use anyhow::Context;
@@ -262,7 +389,11 @@ fn generate_proto_code() {
 
     if regenerate {
         generate_module_files(
-            proto_parser.file_descriptor_set().unwrap().file,
+            proto_parser.file_descriptor_set().unwrap().file.clone(),
+        );
+
+        generate_field_docs_file(
+            &proto_parser.file_descriptor_set().unwrap().file,
         );
 
         let out_dir = env::var("OUT_DIR").unwrap();

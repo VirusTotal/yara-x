@@ -216,6 +216,10 @@ fn test_reflect() {
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "int32_zero");
     assert_eq!(field.ty(), Type::Integer);
+    assert_eq!(
+        field.description(),
+        Some("Numeric values initialized to 0 by the module.")
+    );
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "int64_zero");

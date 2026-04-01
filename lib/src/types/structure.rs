@@ -104,6 +104,8 @@ pub(crate) struct StructField {
     /// Deprecation notice that must be shown when the field is used in a
     /// rule. This is `None` for non-deprecated fields.
     pub deprecation_notice: Option<DeprecationNotice>,
+    /// Field description/documentation.
+    pub description: Option<String>,
 }
 
 /// A dynamic structure with one or more fields.
@@ -149,6 +151,20 @@ impl SymbolLookup for Struct {
             acl: field.acl.clone(),
             deprecation_notice: field.deprecation_notice.clone(),
         })
+    }
+}
+
+fn get_field_doc(msg_name: &str, field_number: u64) -> Option<String> {
+    use crate::modules::field_docs::FIELD_DOCS;
+
+    let res = FIELD_DOCS.binary_search_by(|&(m, n, _)| match m.cmp(msg_name) {
+        std::cmp::Ordering::Equal => n.cmp(&field_number),
+        ord => ord,
+    });
+
+    match res {
+        Ok(idx) => Some(FIELD_DOCS[idx].2.to_string()),
+        Err(_) => None,
     }
 }
 
@@ -210,6 +226,7 @@ impl Struct {
                     number: 0,
                     acl: None,
                     deprecation_notice: None,
+                    description: None,
                 });
 
             if let TypeValue::Struct(ref mut s) = field.type_value {
@@ -232,6 +249,7 @@ impl Struct {
                     number: 0,
                     acl: None,
                     deprecation_notice: None,
+                    description: None,
                 },
             )
         }
@@ -437,6 +455,10 @@ impl Struct {
                     acl: Self::acl(&fd),
                     deprecation_notice: Self::deprecation_notice(&fd),
                     number,
+                    description: get_field_doc(
+                        fd.containing_message().full_name(),
+                        number,
+                    ),
                 },
             ));
         }

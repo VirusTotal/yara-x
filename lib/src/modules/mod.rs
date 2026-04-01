@@ -32,6 +32,8 @@ pub(crate) mod prelude {
     pub(crate) use yara_x_macros::{module_export, module_main, wasm_export};
 }
 
+pub(crate) mod field_docs;
+
 include!("modules.rs");
 
 /// Enum describing errors occurred in modules.
@@ -432,6 +434,11 @@ pub mod mods {
             /// Returns the type of the field.
             pub fn ty(&self) -> Type {
                 Type::from(&self.struct_field.type_value)
+            }
+
+            /// Returns the description of the field.
+            pub fn description(&self) -> Option<&str> {
+                self.struct_field.description.as_deref()
             }
         }
 
