@@ -147,102 +147,78 @@ add_module!(modules, "{name}", {proto_mod}, "{root_message}", {rust_mod_name}, {
     write!(add_modules_rs, "\n}}").unwrap();
 }
 
-fn generate_field_docs_file(_proto_files: &[FileDescriptorProto]) {
+#[cfg(feature = "reflect-descriptions")]
+fn generate_field_docs_file(proto_files: &[FileDescriptorProto]) {
+    use std::collections::HashMap;
     use std::fs::File;
-    use std::io::{BufRead, BufReader, Write};
+    use std::io::Write;
 
     let mut docs = Vec::new();
 
-    for entry in globwalk::glob("src/modules/protos/**").unwrap().flatten() {
-        let path = entry.path();
-        if path.extension().map_or(false, |ext| ext == "proto") {
-            let file = File::open(path).unwrap();
-            let reader = BufReader::new(file);
+    for proto_file in proto_files {
+        let package = proto_file.package.as_deref().unwrap_or("");
+        let mut msg_map = HashMap::new();
 
-            let mut package = String::new();
-            let mut msg_stack = Vec::new();
-            let mut current_comments = Vec::new();
+        // Recursively traverse messages to build a map of paths to message names and field numbers.
+        fn traverse_msg(
+            msg: &protobuf::descriptor::DescriptorProto,
+            path: Vec<i32>,
+            full_name: String,
+            map: &mut HashMap<Vec<i32>, (String, Vec<u64>)>,
+        ) {
+            let mut field_numbers = Vec::new();
+            for field in &msg.field {
+                field_numbers.push(field.number.unwrap_or(0) as u64);
+            }
+            map.insert(path.clone(), (full_name.clone(), field_numbers));
 
-            for line in reader.lines() {
-                let line = line.unwrap();
-                let line = line.trim();
+            for (k, nested) in msg.nested_type.iter().enumerate() {
+                let mut nested_path = path.clone();
+                nested_path.push(3); // 3 is nested_type in DescriptorProto
+                nested_path.push(k as i32);
+                let nested_name = format!(
+                    "{}.{}",
+                    full_name,
+                    nested.name.as_deref().unwrap_or("")
+                );
+                traverse_msg(nested, nested_path, nested_name, map);
+            }
+        }
 
-                if line.starts_with("package ") {
-                    package = line["package ".len()..line.len() - 1]
-                        .trim()
-                        .to_string();
-                    continue;
-                }
+        for (i, msg) in proto_file.message_type.iter().enumerate() {
+            let msg_name = msg.name.as_deref().unwrap_or("");
+            let full_name = if package.is_empty() {
+                msg_name.to_string()
+            } else {
+                format!("{}.{}", package, msg_name)
+            };
+            traverse_msg(msg, vec![4, i as i32], full_name, &mut msg_map);
+        }
 
-                if line.starts_with("//") {
-                    current_comments
-                        .push(line["//".len()..].trim().to_string());
-                    continue;
-                }
+        let source_code_info_ref = proto_file.source_code_info.as_ref();
+        let source_code_info = match source_code_info_ref {
+            Some(info) => info,
+            None => continue,
+        };
 
-                if line.starts_with("message ") {
-                    let name = line["message ".len()..]
-                        .split_whitespace()
-                        .next()
-                        .unwrap()
-                        .trim_end_matches('{')
-                        .trim();
-                    msg_stack.push(name.to_string());
-                    current_comments.clear();
-                    continue;
-                }
+        for location in &source_code_info.location {
+            let path = &location.path;
+            if path.len() >= 2 && path[path.len() - 2] == 2 {
+                let field_idx = path[path.len() - 1] as usize;
+                let msg_path = &path[..path.len() - 2];
 
-                if line == "}" {
-                    msg_stack.pop();
-                    current_comments.clear();
-                    continue;
-                }
-
-                if line.contains('=')
-                    && (line.starts_with("optional ")
-                        || line.starts_with("required ")
-                        || line.starts_with("repeated ")
-                        || (!line.starts_with("option ")
-                            && !line.starts_with("import ")))
+                if let Some((msg_name, field_numbers)) = msg_map.get(msg_path)
                 {
-                    let parts: Vec<&str> = line.split('=').collect();
-                    if parts.len() >= 2 {
-                        let left = parts[0].trim();
-                        let right = parts[1].trim();
-
-                        let number_part = right
-                            .split_whitespace()
-                            .next()
-                            .unwrap()
-                            .trim_end_matches(';');
-                        if let Ok(number) = number_part.parse::<u64>() {
-                            let left_parts: Vec<&str> =
-                                left.split_whitespace().collect();
-                            if left_parts.len() >= 2 {
-                                let _name = left_parts.last().unwrap();
-
-                                if !msg_stack.is_empty() {
-                                    let msg_name = msg_stack.join(".");
-                                    let full_msg_name = if package.is_empty() {
-                                        msg_name
-                                    } else {
-                                        format!("{}.{}", package, msg_name)
-                                    };
-
-                                    if !current_comments.is_empty() {
-                                        docs.push((
-                                            full_msg_name,
-                                            number,
-                                            current_comments.join("\\n"),
-                                        ));
-                                    }
-                                }
-                            }
+                    if field_idx < field_numbers.len() {
+                        let field_number = field_numbers[field_idx];
+                        if let Some(comments) = &location.leading_comments {
+                            docs.push((
+                                msg_name.clone(),
+                                field_number,
+                                comments.trim().to_string(),
+                            ));
                         }
                     }
-                    current_comments.clear();
-                } else if !line.is_empty() && !line.starts_with("//") {
-                    current_comments.clear();
                 }
             }
         }
@@ -289,6 +265,9 @@ fn generate_proto_code() {
     if cfg!(feature = "protoc") {
         proto_compiler.protoc();
         proto_parser.protoc();
+
+        #[cfg(feature = "reflect-descriptions")]
+        proto_parser.protoc_extra_args(["--include_source_info"]);
     } else {
         proto_compiler.pure();
         proto_parser.pure();
@@ -388,13 +367,11 @@ fn generate_proto_code() {
     }
 
     if regenerate {
-        generate_module_files(
-            proto_parser.file_descriptor_set().unwrap().file.clone(),
-        );
+        let proto_files = proto_parser.file_descriptor_set().unwrap().file;
+        generate_module_files(proto_files.clone());
 
-        generate_field_docs_file(
-            &proto_parser.file_descriptor_set().unwrap().file,
-        );
+        #[cfg(feature = "reflect-descriptions")]
+        generate_field_docs_file(&proto_files);
 
         let out_dir = env::var("OUT_DIR").unwrap();
         let src_dir = PathBuf::from("src/modules/protos/generated");

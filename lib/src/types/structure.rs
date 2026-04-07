@@ -104,7 +104,7 @@ pub(crate) struct StructField {
     /// Deprecation notice that must be shown when the field is used in a
     /// rule. This is `None` for non-deprecated fields.
     pub deprecation_notice: Option<DeprecationNotice>,
-    /// Field description/documentation.
+    /// Description of the field extracted from the .proto file.
     pub description: Option<String>,
 }
 
@@ -151,20 +151,6 @@ impl SymbolLookup for Struct {
             acl: field.acl.clone(),
             deprecation_notice: field.deprecation_notice.clone(),
         })
-    }
-}
-
-fn get_field_doc(msg_name: &str, field_number: u64) -> Option<String> {
-    use crate::modules::field_docs::FIELD_DOCS;
-
-    let res = FIELD_DOCS.binary_search_by(|&(m, n, _)| match m.cmp(msg_name) {
-        std::cmp::Ordering::Equal => n.cmp(&field_number),
-        ord => ord,
-    });
-
-    match res {
-        Ok(idx) => Some(FIELD_DOCS[idx].2.to_string()),
-        Err(_) => None,
     }
 }
 
@@ -455,8 +441,8 @@ impl Struct {
                     acl: Self::acl(&fd),
                     deprecation_notice: Self::deprecation_notice(&fd),
                     number,
-                    description: get_field_doc(
-                        fd.containing_message().full_name(),
+                    description: Self::field_description(
+                        &msg_descriptor.full_name(),
                         number,
                     ),
                 },
@@ -804,6 +790,17 @@ impl Struct {
                     })
                     .collect()
             })
+    }
+
+    fn field_description(msg_name: &str, field_number: u64) -> Option<String> {
+        use crate::modules::field_docs::FIELD_DOCS;
+        let idx = FIELD_DOCS
+            .binary_search_by(|&(name, number, _)| match name.cmp(msg_name) {
+                std::cmp::Ordering::Equal => number.cmp(&field_number),
+                ord => ord,
+            })
+            .ok()?;
+        Some(FIELD_DOCS[idx].2.to_string())
     }
 
     /// Given a protobuf type and value returns a [`TypeValue`].

@@ -216,10 +216,6 @@ fn test_reflect() {
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "int32_zero");
     assert_eq!(field.ty(), Type::Integer);
-    assert_eq!(
-        field.description(),
-        Some("Numeric values initialized to 0 by the module.")
-    );
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "int64_zero");
@@ -464,6 +460,14 @@ fn test_reflect() {
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "bool_yara");
     assert_eq!(field.ty(), Type::Bool);
+
+    #[cfg(feature = "reflect-descriptions")]
+    assert_eq!(
+        field.description(),
+        Some(
+            "This field will be visible in YARA as `bool_yara` instead of `bool_proto`."
+        )
+    );
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "file_size");

@@ -72,6 +72,8 @@ inventory = ["dep:inventory"]
 # plugin. Follow the instructions in: https://lib.rs/crates/protobuf-codegen3
 protoc = []
 
+reflect-descriptions = ["protoc", "generate-proto-code"]
+
 # Uses the `linkme` crate (https://github.com/dtolnay/linkme) instead
 # of `inventory`  (https://github.com/dtolnay/inventory) for tracking WASM
 # exports.

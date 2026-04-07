@@ -17,6 +17,8 @@ pub mod protos {
 #[cfg(test)]
 mod tests;
 
+pub(crate) mod field_docs;
+
 #[allow(unused_imports)]
 pub(crate) mod prelude {
     pub(crate) use crate::scanner::ScanContext;
@@ -31,9 +33,6 @@ pub(crate) mod prelude {
     pub(crate) use linkme::distributed_slice;
     pub(crate) use yara_x_macros::{module_export, module_main, wasm_export};
 }
-
-pub(crate) mod field_docs;
-
 include!("modules.rs");
 
 /// Enum describing errors occurred in modules.
@@ -436,7 +435,7 @@ pub mod mods {
                 Type::from(&self.struct_field.type_value)
             }
 
-            /// Returns the description of the field.
+            /// Returns the description of the field if present.
             pub fn description(&self) -> Option<&str> {
                 self.struct_field.description.as_deref()
             }
