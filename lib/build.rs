@@ -147,7 +147,7 @@ add_module!(modules, "{name}", {proto_mod}, "{root_message}", {rust_mod_name}, {
     write!(add_modules_rs, "\n}}").unwrap();
 }
 
-#[cfg(feature = "reflect-descriptions")]
+#[cfg(feature = "generate-field-docs")]
 fn generate_field_docs_file(proto_files: &[FileDescriptorProto]) {
     use std::collections::HashMap;
     use std::fs::File;
@@ -266,7 +266,7 @@ fn generate_proto_code() {
         proto_compiler.protoc();
         proto_parser.protoc();
 
-        #[cfg(feature = "reflect-descriptions")]
+        #[cfg(feature = "generate-field-docs")]
         proto_parser.protoc_extra_args(["--include_source_info"]);
     } else {
         proto_compiler.pure();
@@ -370,7 +370,7 @@ fn generate_proto_code() {
         let proto_files = proto_parser.file_descriptor_set().unwrap().file;
         generate_module_files(proto_files.clone());
 
-        #[cfg(feature = "reflect-descriptions")]
+        #[cfg(feature = "generate-field-docs")]
         generate_field_docs_file(&proto_files);
 
         let out_dir = env::var("OUT_DIR").unwrap();

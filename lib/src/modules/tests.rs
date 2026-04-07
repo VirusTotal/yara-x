@@ -461,7 +461,6 @@ fn test_reflect() {
     assert_eq!(field.name(), "bool_yara");
     assert_eq!(field.ty(), Type::Bool);
 
-    #[cfg(feature = "reflect-descriptions")]
     assert_eq!(
         field.description(),
         Some(

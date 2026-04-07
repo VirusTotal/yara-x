@@ -227,11 +227,7 @@ impl WasmExport {
         // overloaded.
         for export in wasm_exports().filter(predicate) {
             let mangled_name = export.fully_qualified_mangled_name();
-            let description = if cfg!(feature = "reflect-descriptions") {
-                export.description.clone()
-            } else {
-                None
-            };
+            let description = export.description.clone();
             // If the function was already present in the map is because it has
             // multiple signatures. If that's the case, add more signatures to
             // the existing `Func` object.
