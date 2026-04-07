@@ -442,7 +442,7 @@ impl Struct {
                     deprecation_notice: Self::deprecation_notice(&fd),
                     number,
                     description: Self::field_description(
-                        &msg_descriptor.full_name(),
+                        msg_descriptor.full_name(),
                         number,
                     ),
                 },
