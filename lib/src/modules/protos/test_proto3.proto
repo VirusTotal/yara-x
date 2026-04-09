@@ -51,21 +51,21 @@ option (yara.module_options) = {
   cargo_feature: "test_proto3-module"
 };
 
-/// Top-level structure for this module.
-///
-/// In a YARA rule, after importing the module with `import "test_proto3"`, you
-/// can access the fields in this structure, as in the following examples:
-///
-///  test_proto3.int32_zero == 0
-///  test_proto3.string_foo == "foo"
+// Top-level structure for this module.
 //
-/// In proto3 you don't need to specify if fields are optional or required as
-//  you must do in proto2. In proto3 all fields are optional. However, fields
-//  for which you don't set a value explicitly are considered to have the
-//  default value for the type. Numeric values default to 0, and string values
-//  default to an empty string. These fields are never undefined to YARA, they
-//  always have some value, either their default values or the value explicitly
-//  set while filling the structure.
+// In a YARA rule, after importing the module with `import "test_proto3"`, you
+// can access the fields in this structure, as in the following examples:
+//
+// test_proto3.int32_zero == 0
+// test_proto3.string_foo == "foo"
+//
+// In proto3 you don't need to specify if fields are optional or required as
+// you must do in proto2. In proto3 all fields are optional. However, fields
+// for which you don't set a value explicitly are considered to have the
+// default value for the type. Numeric values default to 0, and string values
+// default to an empty string. These fields are never undefined to YARA, they
+// always have some value, either their default values or the value explicitly
+// set while filling the structure.
 message TestProto3 {
 
   // Numeric values initialized to 0 by the module.

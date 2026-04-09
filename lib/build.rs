@@ -2,7 +2,17 @@
 use protobuf::descriptor::FileDescriptorProto;
 
 #[cfg(feature = "generate-proto-code")]
-fn generate_module_files(proto_files: Vec<FileDescriptorProto>) {
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq)]
+struct Module {
+    name: String,
+    proto_mod: String,
+    rust_mod: Option<String>,
+    cargo_feature: Option<String>,
+    root_msg: String,
+}
+
+#[cfg(feature = "generate-proto-code")]
+fn generate_module_files(proto_files: &[FileDescriptorProto]) -> Vec<Module> {
     use std::fs::File;
     use std::io::Write;
     use std::path::PathBuf;
@@ -12,6 +22,7 @@ fn generate_module_files(proto_files: Vec<FileDescriptorProto>) {
     println!("cargo:rerun-if-changed=src/modules/modules.rs");
 
     let mut modules = Vec::new();
+
     // Look for .proto files that describe a YARA module. A proto that
     // describes a YARA module has yara.module_options, like...
     //
@@ -25,7 +36,7 @@ fn generate_module_files(proto_files: Vec<FileDescriptorProto>) {
         if let Some(module_options) =
             yara_module_options.get(&proto_file.options)
         {
-            let proto_path = PathBuf::from(proto_file.name.unwrap());
+            let proto_path = PathBuf::from(proto_file.name.as_ref().unwrap());
             let proto_name = proto_path
                 .with_extension("")
                 .file_name()
@@ -34,13 +45,15 @@ fn generate_module_files(proto_files: Vec<FileDescriptorProto>) {
                 .unwrap()
                 .to_string();
 
-            modules.push((
-                module_options.name.unwrap(),
-                proto_name,
-                module_options.rust_module,
-                module_options.cargo_feature,
-                module_options.root_message.unwrap(),
-            ));
+            let root_msg = module_options.root_message.unwrap();
+
+            modules.push(Module {
+                name: module_options.name.unwrap(),
+                proto_mod: proto_name,
+                rust_mod: module_options.rust_module,
+                cargo_feature: module_options.cargo_feature,
+                root_msg,
+            });
         }
     }
 
@@ -64,7 +77,7 @@ fn generate_module_files(proto_files: Vec<FileDescriptorProto>) {
             println!(
                 "cargo:warning=to disable the warning set the environment variable YRX_REGENERATE_MODULES_RS=false"
             );
-            return;
+            return Vec::new();
         }
     };
 
@@ -95,14 +108,14 @@ fn generate_module_files(proto_files: Vec<FileDescriptorProto>) {
     // no matter the platform. If modules are not sorted, the order will
     // vary from one platform to the other, in the same way that HashMap
     // doesn't produce consistent key order.
-    modules.sort();
+    modules.sort_by(|a, b| a.name.cmp(&b.name));
 
-    for m in modules {
-        let name = m.0;
-        let proto_mod = m.1;
-        let rust_mod = m.2;
-        let cargo_feature = m.3;
-        let root_message = m.4;
+    for m in &modules {
+        let name = &m.name;
+        let proto_mod = &m.proto_mod;
+        let rust_mod = &m.rust_mod;
+        let cargo_feature = &m.cargo_feature;
+        let root_message = &m.root_msg;
 
         // If the YARA module has an associated Rust module, this module must
         // have a function named "main". If the YARA module doesn't have an
@@ -145,6 +158,187 @@ add_module!(modules, "{name}", {proto_mod}, "{root_message}", {rust_mod_name}, {
     }
 
     write!(add_modules_rs, "\n}}").unwrap();
+
+    modules
+}
+
+#[cfg(feature = "generate-module-docs")]
+fn generate_module_docs(
+    proto_files: &[FileDescriptorProto],
+    modules: &[Module],
+) {
+    use std::collections::{HashMap, HashSet};
+    use std::fs::File;
+    use std::io::Write;
+
+    // 1. Collect message dependencies
+    let mut dependencies = HashMap::new();
+
+    for proto_file in proto_files {
+        let package = proto_file.package.as_deref().unwrap_or("");
+
+        fn collect_deps(
+            msg: &protobuf::descriptor::DescriptorProto,
+            full_name: String,
+            deps: &mut HashMap<String, Vec<String>>,
+        ) {
+            let mut referenced = Vec::new();
+            for field in &msg.field {
+                if field.type_()
+                    == protobuf::descriptor::field_descriptor_proto::Type::TYPE_MESSAGE
+                {
+                    if let Some(type_name) = &field.type_name {
+                        let dep_name = type_name
+                            .strip_prefix('.')
+                            .unwrap_or(type_name)
+                            .to_string();
+                        referenced.push(dep_name);
+                    }
+                }
+            }
+
+            for nested in &msg.nested_type {
+                let nested_name = format!(
+                    "{}.{}",
+                    full_name,
+                    nested.name.as_deref().unwrap_or("")
+                );
+                collect_deps(nested, nested_name, deps);
+            }
+
+            deps.insert(full_name, referenced);
+        }
+
+        for msg in &proto_file.message_type {
+            let msg_name = msg.name.as_deref().unwrap_or("");
+            let full_name = if package.is_empty() {
+                msg_name.to_string()
+            } else {
+                format!("{}.{}", package, msg_name)
+            };
+            collect_deps(msg, full_name, &mut dependencies);
+        }
+    }
+
+    // 2. Compute transitive closure
+    let mut reachable = HashSet::new();
+    let mut queue: Vec<String> = Vec::new();
+
+    for m in modules {
+        let root = &m.root_msg;
+        if reachable.insert(root.clone()) {
+            queue.push(root.clone());
+        }
+    }
+
+    while let Some(node) = queue.pop() {
+        if let Some(deps) = dependencies.get(&node) {
+            for dep in deps {
+                if reachable.insert(dep.clone()) {
+                    queue.push(dep.clone());
+                }
+            }
+        }
+    }
+
+    // 3. Generate docs only for reachable messages
+    let mut docs = Vec::new();
+
+    for proto_file in proto_files {
+        let package = proto_file.package.as_deref().unwrap_or("");
+        let mut msg_map = HashMap::new();
+
+        // Recursively traverse messages to build a map of paths to message names and field numbers.
+        fn traverse_msg(
+            msg: &protobuf::descriptor::DescriptorProto,
+            path: Vec<i32>,
+            full_name: String,
+            map: &mut HashMap<Vec<i32>, (String, Vec<u64>)>,
+        ) {
+            let mut field_numbers = Vec::new();
+            for field in &msg.field {
+                field_numbers.push(field.number.unwrap_or(0) as u64);
+            }
+            map.insert(path.clone(), (full_name.clone(), field_numbers));
+
+            for (k, nested) in msg.nested_type.iter().enumerate() {
+                let mut nested_path = path.clone();
+                nested_path.push(3); // 3 is nested_type in DescriptorProto
+                nested_path.push(k as i32);
+                let nested_name = format!(
+                    "{}.{}",
+                    full_name,
+                    nested.name.as_deref().unwrap_or("")
+                );
+                traverse_msg(nested, nested_path, nested_name, map);
+            }
+        }
+
+        for (i, msg) in proto_file.message_type.iter().enumerate() {
+            let msg_name = msg.name.as_deref().unwrap_or("");
+            let full_name = if package.is_empty() {
+                msg_name.to_string()
+            } else {
+                format!("{}.{}", package, msg_name)
+            };
+            traverse_msg(msg, vec![4, i as i32], full_name, &mut msg_map);
+        }
+
+        let source_code_info_ref = proto_file.source_code_info.as_ref();
+        let source_code_info = match source_code_info_ref {
+            Some(info) => info,
+            None => continue,
+        };
+
+        for location in &source_code_info.location {
+            let path = &location.path;
+            if path.len() >= 2 && path[path.len() - 2] == 2 {
+                let field_idx = path[path.len() - 1] as usize;
+                let msg_path = &path[..path.len() - 2];
+
+                if let Some((msg_name, field_numbers)) = msg_map.get(msg_path)
+                {
+                    if reachable.contains(msg_name)
+                        && field_idx < field_numbers.len()
+                    {
+                        let field_number = field_numbers[field_idx];
+                        if let Some(comments) = &location.leading_comments {
+                            docs.push((
+                                msg_name.clone(),
+                                field_number,
+                                comments.trim().to_string(),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    docs.sort();
+
+    let mut field_docs_rs = File::create("src/modules/field_docs.rs").unwrap();
+
+    writeln!(
+        field_docs_rs,
+        "// File generated automatically by build.rs. Do not edit.\n"
+    )
+    .unwrap();
+
+    writeln!(field_docs_rs, "pub const FIELD_DOCS: &[(&str, u64, &str)] = &[")
+        .unwrap();
+
+    for (msg_name, field_number, comments) in docs {
+        let escaped_comments = comments.replace("\"", "\\\"");
+        writeln!(
+            field_docs_rs,
+            r#"    ("{}", {}, "{}"),"#,
+            msg_name, field_number, escaped_comments
+        )
+        .unwrap();
+    }
+
+    writeln!(field_docs_rs, "];").unwrap();
 }
 
 #[cfg(feature = "generate-proto-code")]
@@ -162,6 +356,9 @@ fn generate_proto_code() {
     if cfg!(feature = "protoc") {
         proto_compiler.protoc();
         proto_parser.protoc();
+
+        #[cfg(feature = "generate-module-docs")]
+        proto_parser.protoc_extra_args(["--include_source_info"]);
     } else {
         proto_compiler.pure();
         proto_parser.pure();
@@ -261,9 +458,13 @@ fn generate_proto_code() {
     }
 
     if regenerate {
-        generate_module_files(
-            proto_parser.file_descriptor_set().unwrap().file,
-        );
+        let proto_files = proto_parser.file_descriptor_set().unwrap().file;
+
+        #[allow(unused_variables)]
+        let modules = generate_module_files(&proto_files);
+
+        #[cfg(feature = "generate-module-docs")]
+        generate_module_docs(&proto_files, &modules);
 
         let out_dir = env::var("OUT_DIR").unwrap();
         let src_dir = PathBuf::from("src/modules/protos/generated");

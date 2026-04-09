@@ -51,27 +51,27 @@ option (yara.module_options) = {
   cargo_feature: "test_proto2-module"
 };
 
-/// Top-level structure for this module.
-///
-/// In a YARA rule, after importing the module with `import "test_proto2"`, you
-/// can access the fields in this structure, as in the following examples:
-///
-///  test_proto2.int32_zero == 0
-///  test_proto2.string_foo == "foo"
-///
-/// Notice that proto2 fields must be either optional or required. Optional
-/// fields don't need to be explicitly set to some value, they can remain
-/// empty. If a field is empty it will appear to YARA as undefined. In the
-/// other hand, required fields must be explicitly set to some value before
-/// the structure is passed to YARA.
-///
-/// In proto3 you don't need to specify if fields are optional or required,
-//  they are always optional and you don't need to set their values explicitly.
-//  However, fields for which you don't set a value explicitly are considered
-//  to have the default value for the type. Numeric values default to 0, and
-//  string values default to an empty string. These fields are never undefined
-//  to YARA, they always have some value, either their default values or the
-//  value explicitly set while filling the structure.
+// Top-level structure for this module.
+//
+// In a YARA rule, after importing the module with `import "test_proto2"`, you
+// can access the fields in this structure, as in the following examples:
+//
+//  test_proto2.int32_zero == 0
+//  test_proto2.string_foo == "foo"
+//
+// Notice that proto2 fields must be either optional or required. Optional
+// fields don't need to be explicitly set to some value, they can remain
+// empty. If a field is empty it will appear to YARA as undefined. In the
+// other hand, required fields must be explicitly set to some value before
+// the structure is passed to YARA.
+//
+// In proto3 you don't need to specify if fields are optional or required,
+// they are always optional and you don't need to set their values explicitly.
+// However, fields for which you don't set a value explicitly are considered
+// to have the default value for the type. Numeric values default to 0, and
+// string values default to an empty string. These fields are never undefined
+// to YARA, they always have some value, either their default values or the
+// value explicitly set while filling the structure.
 message TestProto2 {
 
   // Numeric values initialized to 0 by the module.
@@ -175,13 +175,13 @@ message TestProto2 {
 
   optional int64              timestamp = 305 [(yara.field_options).fmt = "t"];
 
-  /// This field will be visible in YARA as `bool_yara` instead of `bool_proto`.
+  // This field will be visible in YARA as `bool_yara` instead of `bool_proto`.
   optional bool bool_proto = 350 [(yara.field_options).name = "bool_yara"];
 
-  /// This field won't be visible to YARA.
+  // This field won't be visible to YARA.
   optional bool ignored = 351 [(yara.field_options).ignore = true];
 
-  /// This field will be visible in YARA as `items` instead of `Enumeration2`.
+  // This field will be visible in YARA as `items` instead of `Enumeration2`.
   enum Enumeration2 {
     option (yara.enum_options).name = "items";
     ITEM_4 = 0;
@@ -190,7 +190,7 @@ message TestProto2 {
 
   optional uint64 file_size = 400;
 
-  /// This field is accessible only if the features "foo" (or "FOO") and "bar"
+  // This field is accessible only if the features "foo" (or "FOO") and "bar"
   // are enabled while compiling the YARA rules.
   optional uint64 requires_foo_and_bar = 500 [
     (yara.field_options) = {

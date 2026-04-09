@@ -227,12 +227,13 @@ impl WasmExport {
         // overloaded.
         for export in wasm_exports().filter(predicate) {
             let mangled_name = export.fully_qualified_mangled_name();
+            let description = export.description.clone();
             // If the function was already present in the map is because it has
             // multiple signatures. If that's the case, add more signatures to
             // the existing `Func` object.
             if let Some(function) = functions.get_mut(export.name) {
                 let mut signature = FuncSignature::from(mangled_name);
-                signature.description = export.description.clone();
+                signature.doc = description;
                 function.add_signature(signature);
             } else {
                 let mut func = Func::from(mangled_name);
@@ -243,7 +244,7 @@ impl WasmExport {
                 // Rc::get_mut because the Rc was just crated and there's a
                 // single reference to it.
                 let signature = Rc::get_mut(signature).unwrap();
-                signature.description = export.description.clone();
+                signature.doc = description;
                 functions.insert(export.name, func);
             }
         }

@@ -461,6 +461,13 @@ fn test_reflect() {
     assert_eq!(field.name(), "bool_yara");
     assert_eq!(field.ty(), Type::Bool);
 
+    assert_eq!(
+        field.doc(),
+        Some(
+            "This field will be visible in YARA as `bool_yara` instead of `bool_proto`."
+        )
+    );
+
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "file_size");
     assert_eq!(field.ty(), Type::Integer);

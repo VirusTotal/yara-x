@@ -92,7 +92,6 @@ message PE {
   repeated DirEntry data_directories = 51;
 
   optional uint64 resource_timestamp = 52 [(yara.field_options).fmt = "t"];
-  // TODO: implement resource_version?
   optional Version resource_version = 53;
   repeated Resource resources = 54;
   repeated Import import_details = 55;
@@ -105,7 +104,9 @@ message PE {
 }
 
 message Version {
+  // Major version.
   required uint32 major = 1;
+  // Minor version.
   required uint32 minor = 2;
 }
 
