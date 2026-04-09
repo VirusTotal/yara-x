@@ -441,10 +441,7 @@ impl Struct {
                     acl: Self::acl(&fd),
                     deprecation_notice: Self::deprecation_notice(&fd),
                     number,
-                    doc: Self::field_description(
-                        msg_descriptor.full_name(),
-                        number,
-                    ),
+                    doc: Self::field_doc(msg_descriptor.full_name(), number),
                 },
             ));
         }
@@ -792,7 +789,7 @@ impl Struct {
             })
     }
 
-    fn field_description(msg_name: &str, field_number: u64) -> Option<String> {
+    fn field_doc(msg_name: &str, field_number: u64) -> Option<String> {
         use crate::modules::field_docs::FIELD_DOCS;
         let idx = FIELD_DOCS
             .binary_search_by(|&(name, number, _)| match name.cmp(msg_name) {
