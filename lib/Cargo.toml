@@ -58,9 +58,13 @@ generate-proto-code = [
     "dep:yara-x-proto"
 ]
 
-# Enables the generation of the `field_docs.rs` file, which contains the
-# descriptions for module fields and functions. This is disabled by default.
-generate-field-docs = ["protoc"]
+# Enables the generation of documentation for module fields and functions. This
+# requires the `protoc` feature because it relies on `protoc`'s ability to
+# extract documentation comments from .proto files, something that the pure-Rust
+# parser in the `protobuf_codegen` crate can't do.
+#
+# This feature is disabled by default.
+generate-module-docs = ["protoc"]
 
 # Uses the `inventory` crate (https://github.com/dtolnay/inventory) instead
 # of `linkme` (https://github.com/dtolnay/linkme) for tracking WASM exports.

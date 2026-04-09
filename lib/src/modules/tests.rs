@@ -462,7 +462,7 @@ fn test_reflect() {
     assert_eq!(field.ty(), Type::Bool);
 
     assert_eq!(
-        field.description(),
+        field.doc(),
         Some(
             "This field will be visible in YARA as `bool_yara` instead of `bool_proto`."
         )

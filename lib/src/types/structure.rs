@@ -105,7 +105,7 @@ pub(crate) struct StructField {
     /// rule. This is `None` for non-deprecated fields.
     pub deprecation_notice: Option<DeprecationNotice>,
     /// Description of the field extracted from the .proto file.
-    pub description: Option<String>,
+    pub doc: Option<String>,
 }
 
 /// A dynamic structure with one or more fields.
@@ -212,7 +212,7 @@ impl Struct {
                     number: 0,
                     acl: None,
                     deprecation_notice: None,
-                    description: None,
+                    doc: None,
                 });
 
             if let TypeValue::Struct(ref mut s) = field.type_value {
@@ -235,7 +235,7 @@ impl Struct {
                     number: 0,
                     acl: None,
                     deprecation_notice: None,
-                    description: None,
+                    doc: None,
                 },
             )
         }
@@ -441,7 +441,7 @@ impl Struct {
                     acl: Self::acl(&fd),
                     deprecation_notice: Self::deprecation_notice(&fd),
                     number,
-                    description: Self::field_description(
+                    doc: Self::field_description(
                         msg_descriptor.full_name(),
                         number,
                     ),

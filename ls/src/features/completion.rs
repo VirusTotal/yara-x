@@ -430,7 +430,7 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
                                 description: Some(ty_to_string(&ty)),
                                 ..Default::default()
                             }),
-                            documentation: sig.description.as_ref().map(
+                            documentation: sig.doc.as_ref().map(
                                 |docs| {
                                     async_lsp::lsp_types::Documentation::MarkupContent(
                                         async_lsp::lsp_types::MarkupContent {

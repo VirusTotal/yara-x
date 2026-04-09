@@ -391,7 +391,7 @@ pub mod mods {
                             .map(|(name, ty)| (name.clone(), Type::from(ty)))
                             .collect(),
                         ret: Type::from(&signature.result),
-                        description: signature.description.clone(),
+                        doc: signature.doc.clone(),
                     });
                 }
 
@@ -406,8 +406,8 @@ pub mod mods {
             pub args: Vec<(String, Type)>,
             /// The return type for the function.
             pub ret: Type,
-            /// Function's documentation description.
-            pub description: Option<Cow<'static, str>>,
+            /// Function's documentation.
+            pub doc: Option<Cow<'static, str>>,
         }
 
         /// Describes a field within a structure or module.
@@ -435,9 +435,9 @@ pub mod mods {
                 Type::from(&self.struct_field.type_value)
             }
 
-            /// Returns the description of the field if present.
-            pub fn description(&self) -> Option<&str> {
-                self.struct_field.description.as_deref()
+            /// Returns the documentation for the current field.
+            pub fn doc(&self) -> Option<&str> {
+                self.struct_field.doc.as_deref()
             }
         }
 

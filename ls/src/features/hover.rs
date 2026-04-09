@@ -113,7 +113,7 @@ pub fn hover(
                     .signatures
                     .iter()
                     .filter_map(|signature| {
-                        signature.description.as_ref().map(|doc| {
+                        signature.doc.as_ref().map(|doc| {
                             format!(
                                 "### `{}({}) -> {}`\n\n***\n\n{}\n\n***\n\n",
                                 token.text(),

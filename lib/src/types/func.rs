@@ -240,7 +240,7 @@ pub(crate) struct FuncSignature {
     pub mangled_name: MangledFnName,
     pub args: Vec<(String, TypeValue)>,
     pub result: TypeValue,
-    pub description: Option<Cow<'static, str>>,
+    pub doc: Option<Cow<'static, str>>,
 }
 
 impl FuncSignature {
@@ -294,7 +294,7 @@ impl<T: Into<String>> From<T> for FuncSignature {
             args.push((name.to_string(), ty));
         }
 
-        Self { mangled_name, args, result, description: None }
+        Self { mangled_name, args, result, doc: None }
     }
 }
 

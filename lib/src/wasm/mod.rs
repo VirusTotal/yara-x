@@ -233,7 +233,7 @@ impl WasmExport {
             // the existing `Func` object.
             if let Some(function) = functions.get_mut(export.name) {
                 let mut signature = FuncSignature::from(mangled_name);
-                signature.description = description;
+                signature.doc = description;
                 function.add_signature(signature);
             } else {
                 let mut func = Func::from(mangled_name);
@@ -244,7 +244,7 @@ impl WasmExport {
                 // Rc::get_mut because the Rc was just crated and there's a
                 // single reference to it.
                 let signature = Rc::get_mut(signature).unwrap();
-                signature.description = description;
+                signature.doc = description;
                 functions.insert(export.name, func);
             }
         }

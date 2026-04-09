@@ -162,8 +162,8 @@ add_module!(modules, "{name}", {proto_mod}, "{root_message}", {rust_mod_name}, {
     modules
 }
 
-#[cfg(feature = "generate-field-docs")]
-fn generate_field_docs_file(
+#[cfg(feature = "generate-module-docs")]
+fn generate_module_docs(
     proto_files: &[FileDescriptorProto],
     modules: &[Module],
 ) {
@@ -357,7 +357,7 @@ fn generate_proto_code() {
         proto_compiler.protoc();
         proto_parser.protoc();
 
-        #[cfg(feature = "generate-field-docs")]
+        #[cfg(feature = "generate-module-docs")]
         proto_parser.protoc_extra_args(["--include_source_info"]);
     } else {
         proto_compiler.pure();
@@ -463,8 +463,8 @@ fn generate_proto_code() {
         #[allow(unused_variables)]
         let modules = generate_module_files(&proto_files);
 
-        #[cfg(feature = "generate-field-docs")]
-        generate_field_docs_file(&proto_files, &modules);
+        #[cfg(feature = "generate-module-docs")]
+        generate_module_docs(&proto_files, &modules);
 
         let out_dir = env::var("OUT_DIR").unwrap();
         let src_dir = PathBuf::from("src/modules/protos/generated");

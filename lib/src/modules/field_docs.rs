@@ -51,6 +51,7 @@ pub const FIELD_DOCS: &[(&str, u64, &str)] = &[
 
  See: https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-image_section_header#members"),
     ("pe.Version", 1, "Major version."),
+    ("pe.Version", 2, "Minor version."),
     ("test_proto2.TestProto2", 350, "This field will be visible in YARA as `bool_yara` instead of `bool_proto`."),
     ("test_proto2.TestProto2", 351, "This field won't be visible to YARA."),
     ("test_proto2.TestProto2", 500, "This field is accessible only if the features \"foo\" (or \"FOO\") and \"bar\"
