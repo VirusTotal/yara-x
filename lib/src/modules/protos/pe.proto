@@ -106,6 +106,7 @@ message PE {
 message Version {
   // Major version.
   required uint32 major = 1;
+  // Minor version.
   required uint32 minor = 2;
 }
 
