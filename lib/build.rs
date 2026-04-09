@@ -1,6 +1,7 @@
 #[cfg(feature = "generate-proto-code")]
 use protobuf::descriptor::FileDescriptorProto;
 
+#[cfg(feature = "generate-proto-code")]
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq)]
 struct Module {
     name: String,
@@ -22,6 +23,15 @@ fn generate_module_files(proto_files: &[FileDescriptorProto]) -> Vec<Module> {
 
     let mut modules = Vec::new();
 
+    // Look for .proto files that describe a YARA module. A proto that
+    // describes a YARA module has yara.module_options, like...
+    //
+    // option (yara.module_options) = {
+    //   name : "test"
+    //   root_message: "Test"
+    //   rust_module: "test"
+    // };
+    //
     for proto_file in proto_files {
         if let Some(module_options) =
             yara_module_options.get(&proto_file.options)
