@@ -1253,7 +1253,7 @@ fn emit_check_for_rule_match(
         LoadKind::I32_8 { kind: ZeroExtend },
         MemArg {
             align: size_of::<i8>() as u32,
-            offset: MATCHING_RULES_BITMAP_BASE as u32,
+            offset: MATCHING_RULES_BITMAP_BASE as u64,
         },
     );
 
@@ -2486,7 +2486,7 @@ fn set_var<B>(
     instr.store(
         ctx.wasm_symbols.main_memory,
         store_kind,
-        MemArg { align: alignment as u32, offset: VARS_STACK_START as u32 },
+        MemArg { align: alignment as u32, offset: VARS_STACK_START as u64 },
     );
 
     // Flag the variable as not undefined.
@@ -2531,7 +2531,7 @@ fn set_vars<B>(
                     StoreKind::I32 { atomic: false },
                     MemArg {
                         align: size_of::<i32>() as u32,
-                        offset: VARS_STACK_START as u32,
+                        offset: VARS_STACK_START as u64,
                     },
                 );
             }
@@ -2549,7 +2549,7 @@ fn set_vars<B>(
                     StoreKind::I64 { atomic: false },
                     MemArg {
                         align: size_of::<i64>() as u32,
-                        offset: VARS_STACK_START as u32,
+                        offset: VARS_STACK_START as u64,
                     },
                 );
             }
@@ -2562,7 +2562,7 @@ fn set_vars<B>(
                     StoreKind::F64,
                     MemArg {
                         align: size_of::<f64>() as u32,
-                        offset: VARS_STACK_START as u32,
+                        offset: VARS_STACK_START as u64,
                     },
                 );
             }
@@ -2607,7 +2607,7 @@ fn load_var(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     instr.load(
         ctx.wasm_symbols.main_memory,
         load_kind,
-        MemArg { align: alignment as u32, offset: VARS_STACK_START as u32 },
+        MemArg { align: alignment as u32, offset: VARS_STACK_START as u64 },
     );
 }
 
@@ -2796,7 +2796,7 @@ fn emit_lookup_common(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
             StoreKind::I32 { atomic: false },
             MemArg {
                 align: size_of::<i32>() as u32,
-                offset: LOOKUP_INDEXES_START as u32,
+                offset: LOOKUP_INDEXES_START as u64,
             },
         );
     }
