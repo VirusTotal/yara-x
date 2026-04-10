@@ -11,62 +11,66 @@ option (yara.module_options) = {
 };
 
 message Crx {
+  // True if the file is a valid Chrome Extension (CRX) package.
   optional bool is_crx = 1;
+  // Format version of the CRX package.
   optional uint32 crx_version = 2;
+  // Size in bytes of the binary CRX header.
   optional uint32 header_size = 3;
+  // Standard 32-character extension ID string.
   optional string id = 4;
+  // Extension version string extracted from the manifest.
   optional string version = 16;
+  // Processed extension name extracted from the manifest.
   optional string name = 5;
+  // Processed extension description extracted from the manifest.
   optional string description = 6;
+  // Raw unparsed extension name extracted from the manifest.
   optional string raw_name = 7;
+  // Raw unparsed extension description extracted from the manifest.
   optional string raw_description = 8;
+  // Minimum Chrome version requirement string from the manifest.
   optional string minimum_chrome_version = 9;
+  // Homepage URL string defined inside the manifest.
   optional string homepage_url = 10;
+  // Required runtime permissions defined inside the manifest.
   repeated string permissions = 11;
+  // Required host access permissions defined inside the manifest.
   repeated string host_permissions = 12;
+  // Optional runtime permissions defined inside the manifest.
   repeated string optional_permissions = 13;
+  // Optional host access permissions defined inside the manifest.
   repeated string optional_host_permissions = 14;
+  // Cryptographic signatures validating the package.
   repeated CrxSignature signatures = 15;
 }
 
 message CrxSignature {
+  // Public key or identifier string used in the signature.
   required string key = 1;
+  // True if the cryptographic signature successfully verified.
   required bool verified = 2;
 }
 
 message CrxFileHeader {
-  // PSS signature with RSA public key. The public key is formatted as a
-  // X.509 SubjectPublicKeyInfo block, as in CRX₂. In the common case of a
-  // developer key proof, the first 128 bits of the SHA-256 hash of the
-  // public key must equal the crx_id.
+  // PSS signature with RSA public key.
   repeated AsymmetricKeyProof sha256_with_rsa = 2;
 
-  // ECDSA signature, using the NIST P-256 curve. Public key appears in
-  // named-curve format.
-  // The pinned algorithm will be this, at least on 2017-01-01.
+  // ECDSA signature using the NIST P-256 curve.
   repeated AsymmetricKeyProof sha256_with_ecdsa = 3;
 
-  // The binary form of a SignedData message. We do not use a nested
-  // SignedData message, as handlers of this message must verify the proofs
-  // on exactly these bytes, so it is convenient to parse in two steps.
-  //
-  // All proofs in this CrxFile message are on the value
-  // "CRX3 SignedData\x00" + signed_header_size + signed_header_data +
-  // archive, where "\x00" indicates an octet with value 0, "CRX3 SignedData"
-  // is encoded using UTF-8, signed_header_size is the size in octets of the
-  // contents of this field and is encoded using 4 octets in little-endian
-  // order, signed_header_data is exactly the content of this field, and
-  // archive is the remaining contents of the file following the header.
+  // Binary form of the SignedData message payload.
   optional bytes signed_header_data = 10000;
 }
 
 message AsymmetricKeyProof {
+  // Raw bytes representation of the public key.
   optional bytes public_key = 1;
+  // Cryptographic signature bytes validating the payload.
   optional bytes signature = 2;
 }
 
 message SignedData {
-  // This is simple binary, not UTF-8 encoded mpdecimal; i.e. it is exactly
-  // 16 bytes long.
+  // Raw binary 16-byte extension identifier.
   optional bytes crx_id = 1;
 }
