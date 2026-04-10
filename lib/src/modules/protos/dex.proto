@@ -11,70 +11,111 @@ option (yara.module_options) = {
 };
 
 message Dex {
+    // True if the file is a valid Dalvik Executable (DEX).
     optional bool is_dex = 1;
+    // Standard header items parsed from the binary.
     optional DexHeader header = 2;
+    // Array of strings extracted from the string pool.
     repeated string strings = 3;
+    // Data types explicitly defined in the type pool.
     repeated string types = 4;
+    // Function prototypes structured from the prototype pool.
     repeated ProtoItem protos = 5;
+    // Distinct class fields extracted from the field list.
     repeated FieldItem fields = 6;
+    // Specific subroutines and methods defined.
     repeated MethodItem methods = 7;
+    // Structured class definition objects.
     repeated ClassItem class_defs = 8;
+    // Mapping metadata table listing item offsets and sizes.
     optional MapList map_list = 9;
 }
 
 // See: https://source.android.com/docs/core/runtime/dex-format#header-item
 message DexHeader {
+    // Magic identifier characterizing the file type.
     optional uint32 magic = 1 [(yara.field_options).fmt = "x"];
-    // DEX version (35, 36, 37, ...)
+    // Format version designation (e.g., 35, 36, 37).
     optional uint32 version = 2;
+    // Standard Adler32 checksum of the remainder of the file.
     optional uint32 checksum = 3 [(yara.field_options).fmt = "x"];
+    // Cryptographic SHA-1 signature of the remaining file contents.
     optional string signature = 4;
+    // Physical size in bytes of the complete file.
     optional uint32 file_size = 5;
+    // Combined size in bytes of the binary header block.
     optional uint32 header_size = 6 [(yara.field_options).fmt = "x"];
+    // Byte ordering identifier constant.
     optional uint32 endian_tag = 7 [(yara.field_options).fmt = "x"];
+    // Physical size of the link section.
     optional uint32 link_size = 8;
+    // Offset pointing to the link section data.
     optional uint32 link_off = 9 [(yara.field_options).fmt = "x"];
+    // Size in bytes of the main data section.
     optional uint32 data_size = 23;
+    // File offset pointing to the main data block.
     optional uint32 data_off = 24 [(yara.field_options).fmt = "x"];
+    // Combined size constraint allocated for the container.
     optional uint32 container_size = 25;
+    // File offset marking the beginning of the primary header.
     optional uint32 header_offset = 26 [(yara.field_options).fmt = "x"];
 }
 
 message ProtoItem {
+    // Short-form signature representing the return and argument types.
     optional string shorty = 1;
+    // Standard data type descriptor of the return value.
     optional string return_type = 2;
+    // Total count of arguments accepted by the prototype.
     optional uint32 parameters_count = 3;
+    // Data type descriptions corresponding to each argument.
     repeated string parameters = 4;
 }
 
 message FieldItem {
+    // Name of the parent class defining the field.
     optional string class = 1;
+    // Specific data type categorization of the field.
     optional string type = 2;
+    // Descriptive string identifier assigned to the field.
     optional string name = 3;
 }
 
 message MethodItem {
+    // Parent class descriptor string containing the method.
     optional string class = 1;
+    // Signature prototype defining the function arguments and return value.
     optional ProtoItem proto = 2;
+    // Individual function name assigned to the method.
     optional string name = 3;
 }
 
 message ClassItem {
+    // Core descriptor representing the class type.
     optional string class = 1;
+    // Bitwise flags specifying accessibility constraints and attributes.
     optional uint32 access_flags = 2 [(yara.field_options).fmt = "flags:AccessFlag"];
+    // Superclass descriptor inherited by this object.
     optional string superclass = 3;
+    // Source code file name metadata string.
     optional string source_file = 4;
 }
 
 message MapList {
+    // Number of specific map item elements tracked.
     optional uint32 size = 1;
+    // Structured mapping descriptors detailing item positions.
     repeated MapItem items = 2;
 }
 
 message MapItem {
+    // Standard item classification type code.
     optional TypeCode type = 1;
+    // Reserved unused padding field.
     optional uint32 unused = 2;
+    // Total count of individual items in this section.
     optional uint32 size = 3;
+    // File offset marking the start of the designated items.
     optional uint32 offset = 4 [(yara.field_options).fmt = "x"];
 }
 
