@@ -12,20 +12,35 @@ option (yara.module_options) = {
 };
 
 message PE {
+  // True if the file is a valid PE binary.
   required bool is_pe = 1;
+  // Target architecture of the executable (e.g., x86, x64, ARM).
   optional Machine machine = 2;
+  // Subsystem required to run this binary (e.g., GUI, CUI).
   optional Subsystem subsystem = 3;
+  // Minimum operating system version required to run the binary.
   optional Version os_version = 4;
+  // Minimum subsystem version required to run the binary.
   optional Version subsystem_version = 5;
+  // User-defined version of the binary image.
   optional Version image_version = 6;
+  // Version of the linker used to generate the binary.
   optional Version linker_version = 7;
+  // Magic number used to identify the optional header structure.
   optional OptionalMagic opthdr_magic = 8;
+  // Bitwise flags indicating attributes of the file (e.g., executable, DLL).
   optional uint32 characteristics = 9 [(yara.field_options).fmt = "flags:Characteristics"];
+  // Bitwise flags indicating DLL characteristics (e.g., ASLR, DEP).
   optional uint32 dll_characteristics = 10 [(yara.field_options).fmt = "flags:DllCharacteristics"];
+  // Creation timestamp of the image, stored as a Unix epoch time.
   optional uint32 timestamp = 11 [(yara.field_options).fmt = "t"];
+  // Preferred load address of the image when placed in memory.
   optional uint64 image_base = 12 [(yara.field_options).fmt = "x"];
+  // Checksum of the image file.
   optional uint32 checksum = 13;
+  // Relative virtual address (RVA) of the beginning of the code section.
   optional uint32 base_of_code = 14 [(yara.field_options).fmt = "x"];
+  // Relative virtual address (RVA) of the beginning of the data section.
   optional uint32 base_of_data = 15 [(yara.field_options).fmt = "x"];
 
   // Entry point as a file offset.
@@ -34,171 +49,275 @@ message PE {
   // Entry point as it appears in the PE header (RVA).
   optional uint32 entry_point_raw = 17 [(yara.field_options).fmt = "x"];
 
+  // Filename of the dynamic-link library, if the image is a DLL.
   optional string dll_name = 18;
+  // Export table timestamp, stored as a Unix epoch time.
   optional uint32 export_timestamp = 19 [(yara.field_options).fmt = "t"];
 
+  // Alignment factor used for sections loaded in memory (usually 4096 bytes).
   optional uint32 section_alignment = 20 [(yara.field_options).fmt = "x"];
+  // Alignment factor used for raw section data on disk (usually 512 bytes).
   optional uint32 file_alignment = 21 [(yara.field_options).fmt = "x"];
+  // Flags used by obsolete loaders.
   optional uint32 loader_flags = 22 [(yara.field_options).fmt = "x"];
 
+  // Size of the optional header structure in bytes.
   optional uint32 size_of_optional_header = 23 [(yara.field_options).fmt = "x"];
+  // Total size of all sections containing executable code.
   optional uint32 size_of_code = 24 [(yara.field_options).fmt = "x"];
+  // Total size of all sections containing initialized data.
   optional uint32 size_of_initialized_data = 25 [(yara.field_options).fmt = "x"];
+  // Total size of all sections containing uninitialized data (BSS).
   optional uint32 size_of_uninitialized_data = 26 [(yara.field_options).fmt = "x"];
+  // Overall size of the image loaded in memory, including all headers.
   optional uint32 size_of_image = 27 [(yara.field_options).fmt = "x"];
+  // Combined size of all headers up to the first section.
   optional uint32 size_of_headers = 28 [(yara.field_options).fmt = "x"];
 
+  // Total amount of virtual memory reserved for the stack.
   optional uint64 size_of_stack_reserve = 29 [(yara.field_options).fmt = "x"];
+  // Initial amount of physical memory committed for the stack.
   optional uint64 size_of_stack_commit = 30 [(yara.field_options).fmt = "x"];
+  // Total amount of virtual memory reserved for the default heap.
   optional uint64 size_of_heap_reserve = 31 [(yara.field_options).fmt = "x"];
+  // Initial amount of physical memory committed for the default heap.
   optional uint64 size_of_heap_commit = 32 [(yara.field_options).fmt = "x"];
 
+  // File offset pointing to the COFF symbol table.
   optional uint32 pointer_to_symbol_table = 33 [(yara.field_options).fmt = "x"];
+  // Reserved field, must be set to zero.
   optional uint32 win32_version_value = 34;
+  // Number of entries found in the COFF symbol table.
   optional uint32 number_of_symbols = 35;
+  // Number of entries present in the data directories array.
   optional uint32 number_of_rva_and_sizes = 36;
   
+  // Number of sections in the PE file.
   optional uint32 number_of_sections = 37 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `pe.sections.len()` instead",
     replacement: "sections.len()"
   }];
 
+  // Number of imported functions across all imported libraries.
   optional uint64 number_of_imported_functions = 38;
+  // Number of delayed imported functions across all delayed libraries.
   optional uint64 number_of_delayed_imported_functions = 39;
   
+  // Number of resources contained within the file.
   optional uint64 number_of_resources = 40  [(yara.field_options).deprecation_notice = {
       text: "this field is deprecated",
       help: "use `pe.resources.len()` instead",
       replacement: "resources.len()"
   }];
   
+  // Number of string-value pairs within the version info resource.
   optional uint64 number_of_version_infos = 41;
+  // Number of imported libraries.
   optional uint64 number_of_imports = 42;
+  // Number of delayed imported libraries.
   optional uint64 number_of_delayed_imports = 43;
+  // Number of exported symbols.
   optional uint64 number_of_exports = 44;
 
+  // Number of digital signatures found in the file.
   optional uint64 number_of_signatures = 45  [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `pe.signatures.len()` instead",
     replacement: "signatures.len()"
   }];
 
+  // Map representation of file version information attributes.
   map<string, string> version_info = 46;
+  // List containing version information attributes as key-value elements.
   repeated KeyValue version_info_list = 47;
+  // Rich header signature containing toolchain usage information.
   optional RichSignature rich_signature = 48;
+  // File path referencing the associated PDB symbol file.
   optional bytes pdb_path = 49;
+  // Collection of sections making up the binary.
   repeated Section sections = 50;
+  // Standard data directories array (e.g., Imports, Exports, Resources).
   repeated DirEntry data_directories = 51;
 
+  // Unix epoch timestamp of the resource directory.
   optional uint64 resource_timestamp = 52 [(yara.field_options).fmt = "t"];
+  // Version structure for the resource directory.
   optional Version resource_version = 53;
+  // Individual resources defined within the binary.
   repeated Resource resources = 54;
+  // Standard library and function import descriptions.
   repeated Import import_details = 55;
+  // Delayed library and function import descriptions.
   repeated Import delayed_import_details = 56;
+  // Exported functions and symbol descriptions.
   repeated Export export_details = 57;
+  // True if the executable contains a recognized digital signature.
   optional bool is_signed = 58;
+  // Set of digital signatures extracted from the file.
   repeated Signature signatures = 59;
 
+  // Information regarding trailing data not mapped by sections.
   optional Overlay overlay = 60;
 }
 
 message Version {
-  // Major version.
+  // Major version number.
   required uint32 major = 1;
-  // Minor version.
+  // Minor version number.
   required uint32 minor = 2;
 }
 
 message KeyValue {
+  // Key identifying the entry.
   required string key = 1;
+  // String value associated with the key.
   required string value = 2;
 }
 
 message DirEntry {
+  // Relative virtual address of the data directory structure.
   required uint32 virtual_address = 1 [(yara.field_options).fmt = "x"];
+  // Size in bytes of the data directory structure.
   required uint32 size = 2 [(yara.field_options).fmt = "x"];
 }
 
 message Resource {
+  // Size of the resource content in bytes.
   required uint32 length = 1 [(yara.field_options).fmt = "x"];
+  // Relative virtual address (RVA) of the resource data.
   required uint32 rva = 2 [(yara.field_options).fmt = "x"];
+  // File offset pointing to the resource data.
   optional uint32 offset = 3 [(yara.field_options).fmt = "x"];
+  // Standard resource type classification (e.g., ICON, VERSION).
   optional ResourceType type = 4;
+  // Unique numeric identifier of the resource.
   optional uint32 id = 5;
+  // Language code assigned to the resource.
   optional uint32 language = 6;
+  // Text representation of the resource type for custom classifications.
   optional bytes type_string = 7;
+  // Text representation of the resource name.
   optional bytes name_string = 8;
+  // Text representation of the resource language.
   optional bytes language_string = 9;
 }
 
 message Import {
+  // Target library filename (e.g., "kernel32.dll").
   required string library_name = 1;
+  // Total count of functions imported from this library.
   required uint64 number_of_functions = 2;
+  // Individual functions imported from the library.
   repeated Function functions = 3;
 }
 
 message Export {
+  // Name of the exported function.
   optional string name = 1;
+  // Ordinal index of the exported function.
   required uint32 ordinal = 2;
+  // Relative virtual address (RVA) pointing to the exported function.
   required uint32 rva = 3 [(yara.field_options).fmt = "x"];
+  // Physical file offset of the exported function.
   optional uint32 offset = 4 [(yara.field_options).fmt = "x"];
+  // Forwarder string, if the export resolves to a function in another library.
   optional string forward_name = 5;
 }
 
 message Function {
+  // Name of the imported function.
   optional string name = 1;
+  // Ordinal index of the function.
   optional uint32 ordinal = 2;
+  // Relative virtual address (RVA) or offset pointing to the function import thunk.
   required uint32 rva = 3 [(yara.field_options).fmt = "x"];
 }
 
 
 message Signature {
+  // Subject name specified in the certificate.
   optional string subject = 1;
+  // Issuer name specified in the certificate.
   optional string issuer = 2;
+  // Unique thumbprint value of the certificate.
   optional string thumbprint = 3;
+  // Internal version format of the digital signature.
   optional int64 version = 4;
+  // Public key algorithm identifier string.
   optional string algorithm = 5;
+  // OID value representing the public key algorithm.
   optional string algorithm_oid = 6;
+  // Serial number of the certificate.
   optional string serial = 7;
+  // Unix timestamp representing the start of the validity window.
   optional int64 not_before = 8 [(yara.field_options).fmt = "t"];
+  // Unix timestamp representing the end of the validity window.
   optional int64 not_after = 9 [(yara.field_options).fmt = "t"];
+  // True if the cryptographic verification of the signature succeeded.
   optional bool verified = 10;
+  // Digest algorithm utilized in the signature process.
   optional string digest_alg = 11;
+  // Content digest generated by the signer.
   optional string digest = 12;
+  // Digest computed directly from the binary payload.
   optional string file_digest = 13;
+  // Number of certificates embedded in the signature chain.
   optional uint64 number_of_certificates = 14;
+  // Number of countersignatures associated with this signature.
   optional uint64 number_of_countersignatures = 15;
+  // Details regarding the primary signer entity.
   optional SignerInfo signer_info = 16;
+  // Certificates making up the signing chain.
   repeated Certificate certificates = 17;
+  // Countersignatures validating the time and source of the primary signature.
   repeated CounterSignature countersignatures = 18;
 }
 
 message SignerInfo {
+  // Program description extracted from the SpcSpOpusInfo block.
   optional string program_name = 1;
+  // URL containing supplemental details about the software.
   optional string more_info = 2;
+  // Hash digest calculated by the primary signer.
   optional string digest = 3;
+  // Algorithm used to generate the signer digest.
   optional string digest_alg = 4;
+  // Certificate chain validating the signer.
   repeated Certificate chain = 5;
 }
 
 message Certificate {
+  // Issuer of this individual certificate.
   optional string issuer = 1;
+  // Intended subject of this certificate.
   optional string subject = 2;
+  // Thumbprint identifying the certificate.
   optional string thumbprint = 3;
+  // Internal format version of the certificate.
   optional int64 version = 4;
+  // Public key cryptographic algorithm string.
   optional string algorithm = 5;
+  // Public key cryptographic algorithm OID.
   optional string algorithm_oid = 6;
+  // Unique serial number of the certificate.
   optional string serial = 7;
+  // Start date of the certificate validity period.
   optional int64 not_before = 8 [(yara.field_options).fmt = "t"];
+  // End date of the certificate validity period.
   optional int64 not_after = 9 [(yara.field_options).fmt = "t"];
 }
 
 message CounterSignature {
+  // True if the countersignature successfully verified.
   optional bool verified = 1;
+  // Unix timestamp indicating when the signature was countersigned.
   optional int64 sign_time = 2 [(yara.field_options).fmt = "t"];
+  // Hash digest of the countersignature payload.
   optional string digest = 12;
+  // Algorithm used to compute the countersignature digest.
   optional string digest_alg = 3;
+  // Certificate chain associated with the countersigning entity.
   repeated Certificate chain = 4;
 }
 
@@ -232,7 +351,7 @@ enum ResourceType {
 }
 
 message Section {
-  // The section's name as listed in the section table. The data type is `bytes`
+  // Section name as listed in the section table. The data type is `bytes`
   // instead of `string` so that it can accommodate invalid UTF-8 content. The
   // length is 8 bytes at most.
   required bytes name = 1;
@@ -248,34 +367,54 @@ message Section {
   //
   // See: https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-image_section_header#members
   required bytes full_name = 2;
+  // Characteristics and access attributes of the section.
   required uint32 characteristics = 3 [(yara.field_options).fmt = "flags:SectionCharacteristics"];
+  // Physical size of the section stored on disk.
   required uint32 raw_data_size = 4 [(yara.field_options).fmt = "x"];
+  // File offset to the section data on disk.
   required uint32 raw_data_offset = 5 [(yara.field_options).fmt = "x"];
+  // Virtual address of the section loaded in memory, relative to the image base.
   required uint32 virtual_address = 6 [(yara.field_options).fmt = "x"];
+  // Total virtual size occupied by the section in memory.
   required uint32 virtual_size = 7 [(yara.field_options).fmt = "x"];
+  // File pointer referencing the section's relocation entries.
   required uint32 pointer_to_relocations = 8 [(yara.field_options).fmt = "x"];
+  // File pointer referencing the section's line-number entries.
   required uint32 pointer_to_line_numbers = 9 [(yara.field_options).fmt = "x"];
+  // Total count of relocation records for the section.
   required uint32 number_of_relocations = 10;
+  // Total count of line-number records for the section.
   required uint32 number_of_line_numbers = 11;
 }
 
 message RichSignature {
+  // Relative file offset marking the start of the Rich signature.
   required uint32 offset = 1 [(yara.field_options).fmt = "x"];
+  // Total length in bytes of the Rich signature block.
   required uint32 length = 2 [(yara.field_options).fmt = "x"];
+  // Numerical XOR key utilized to decrypt the Rich signature.
   required uint32 key = 3;
+  // Obfuscated binary bytes of the Rich signature.
   required bytes raw_data = 4;
+  // Cleartext decrypted bytes of the Rich signature.
   required bytes clear_data = 5;
+  // Individual tools and build utilities referenced in the signature.
   repeated RichTool tools = 6;
 }
 
 message RichTool {
+  // Identifier corresponding to the compilation tool.
   required uint32 toolid = 1;
+  // Internal version of the tool.
   required uint32 version = 2;
+  // Number of times the tool was invoked to build objects in the final binary.
   required uint32 times = 3;
 }
 
 message Overlay {
+  // File offset marking the start of the appended overlay content.
   required uint64 offset = 1 [(yara.field_options).fmt = "x"];
+  // Total size in bytes of the overlay data.
   required uint64 size = 2 [(yara.field_options).fmt = "x"];
 }
 
