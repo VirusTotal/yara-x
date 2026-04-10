@@ -11,212 +11,353 @@ option (yara.module_options) = {
 };
 
 message MinVersion {
+  // Target device type (e.g., MACOSX, IPHONEOS).
   optional DeviceType device = 1;
+  // Minimum OS version string required to run the binary.
   optional string version = 2;
+  // Version string of the SDK used to build the binary.
   optional string sdk = 3;
 }
 
 message BuildVersion {
+  // Target platform designation.
   optional uint32 platform = 1;
+  // Minimum OS version required as a string.
   optional string minos = 2;
+  // Version string of the SDK utilized.
   optional string sdk = 3;
+  // Number of build tools embedded.
   optional uint32 ntools = 4;
+  // Information regarding individual tools utilized in the build.
   repeated BuildTool tools = 5;
 }
 
 message BuildTool {
+  // Identifier representing the tool utilized.
   optional uint32 tool = 1;
+  // Version string corresponding to the tool.
   optional string version = 2;
 }
 
 message LinkedItData {
+  // File offset pointing to the linked data.
   optional uint32 dataoff = 1;
+  // Size in bytes of the linked data payload.
   optional uint32 datasize = 2;
 }
 
 message Certificate {
+  // Name of the issuer of the certificate.
   required string issuer = 1;
+  // Subject designation of the certificate.
   required string subject = 2;
+  // True if the certificate is self-signed.
   required bool is_self_signed = 3;
 }
 
 message Dylib {
+  // Library name string.
   required bytes name = 1;
+  // Build timestamp of the dynamic library.
   required uint32 timestamp = 2 [(yara.field_options).fmt = "t"];
+  // Compatibility version requirement string.
   required string compatibility_version = 3;
+  // Current version designation string.
   required string current_version = 4;
 }
 
 message DyldInfo {
+  // File offset to the rebase information.
   optional uint32 rebase_off = 1;
+  // Size in bytes of the rebase payload.
   optional uint32 rebase_size = 2;
+  // File offset to the primary binding info.
   optional uint32 bind_off = 3;
+  // Size of the binding data in bytes.
   optional uint32 bind_size = 4;
+  // File offset to weak binding definitions.
   optional uint32 weak_bind_off = 5;
+  // Size of weak binding definitions.
   optional uint32 weak_bind_size = 6;
+  // File offset to lazy binding definitions.
   optional uint32 lazy_bind_off = 7;
+  // Size of lazy binding definitions.
   optional uint32 lazy_bind_size = 8;
+  // File offset to exported symbols and data.
   optional uint32 export_off = 9;
+  // Size of the export payload.
   optional uint32 export_size = 10;
 }
 
 message Nlist {
+  // Index into the string table representing the symbol name.
   optional uint32 n_strx = 1;
+  // Symbol type flag designation.
   optional uint32 n_type = 2;
+  // Section index associated with the symbol.
   optional uint32 n_sect = 3;
+  // Description attributes of the symbol.
   optional uint32 n_desc = 4;
+  // Value or address of the symbol.
   optional uint64 n_value = 5;
 }
 
 message Symtab {
+  // Physical offset to the start of the symbol table.
   optional uint32 symoff = 1;
+  // Count of total symbols stored.
   optional uint32 nsyms = 2;
+  // Physical offset to the string table data.
   optional uint32 stroff = 3;
+  // Size in bytes of the string table.
   optional uint32 strsize = 4;
+  // Individual entries stored in the table.
   repeated bytes entries = 5;
+  // Descriptive nlist entries for symbols.
   repeated Nlist nlists = 6;
 }
 
 message Dysymtab {
+  // Index of the first local symbol.
   optional uint32 ilocalsym = 3;
+  // Total number of local symbols.
   optional uint32 nlocalsym = 4;
+  // Index of the first externally defined symbol.
   optional uint32 iextdefsym = 5;
+  // Total count of externally defined symbols.
   optional uint32 nextdefsym = 6;
+  // Index of the first undefined symbol.
   optional uint32 iundefsym = 7;
+  // Total count of undefined symbols.
   optional uint32 nundefsym = 8;
+  // Physical file offset to the table of contents.
   optional uint32 tocoff = 9;
+  // Total entries within the table of contents.
   optional uint32 ntoc = 10;
+  // Physical offset to the module table.
   optional uint32 modtaboff = 11;
+  // Total module entries in the module table.
   optional uint32 nmodtab = 12;
+  // File offset to external reference symbol entries.
   optional uint32 extrefsymoff = 13;
+  // Total entries for external reference symbols.
   optional uint32 nextrefsyms = 14;
+  // File offset to indirect symbol entries.
   optional uint32 indirectsymoff = 15;
+  // Count of indirect symbol elements.
   optional uint32 nindirectsyms = 16;
+  // File offset to external relocation entries.
   optional uint32 extreloff = 17;
+  // Count of external relocation records.
   optional uint32 nextrel = 18;
+  // File offset to local relocation elements.
   optional uint32 locreloff = 19;
+  // Total count of local relocation entries.
   optional uint32 nlocrel = 20;
 }
 
 message Section {
+  // Segment name the section belongs to.
   optional bytes segname = 1;
+  // Individual section designation string.
   optional bytes sectname = 2;
+  // Address where the section is mapped in virtual memory.
   optional uint64 addr = 3 [(yara.field_options).fmt = "x"];
+  // Total virtual memory size occupied by the section.
   optional uint64 size = 4 [(yara.field_options).fmt = "x"];
+  // File offset pointing to the section data.
   optional uint32 offset = 5;
+  // Memory alignment constraint of the section.
   optional uint32 align = 6;
+  // File offset to relocation entries.
   optional uint32 reloff = 7;
+  // Total count of relocation entries.
   optional uint32 nreloc = 8;
+  // Bitwise flags and attributes characterizing the section.
   optional uint32 flags = 9 [(yara.field_options).fmt = "x"];
+  // First reserved padding field.
   optional uint32 reserved1 = 10;
+  // Second reserved padding field.
   optional uint32 reserved2 = 11;
+  // Third reserved padding field.
   optional uint32 reserved3 = 12;
 }
 
 message Segment {
+  // Text identifier of the segment.
   optional bytes segname = 3;
+  // Virtual memory address where the segment is mapped.
   optional uint64 vmaddr = 4 [(yara.field_options).fmt = "x"];
+  // Total size of the mapped segment in virtual memory.
   optional uint64 vmsize = 5 [(yara.field_options).fmt = "x"];
+  // File offset pointing to the segment contents on disk.
   optional uint64 fileoff = 6;
+  // Total physical length of the segment inside the file.
   optional uint64 filesize = 7;
+  // Maximum virtual memory protection state applicable.
   optional uint32 maxprot = 8 [(yara.field_options).fmt = "x"];
+  // Initial virtual memory protection applied at load time.
   optional uint32 initprot = 9 [(yara.field_options).fmt = "x"];
+  // Number of sections contained inside the segment.
   optional uint32 nsects = 10;
+  // Bitwise flags controlling segment properties.
   optional uint32 flags = 11 [(yara.field_options).fmt = "flags:SegmentFlag"];
+  // Array of sections nested within the segment.
   repeated Section sections = 12;
 }
 
 message FatArch {
+  // Target architecture designation of the embedded binary.
   optional uint32 cputype = 1 [(yara.field_options).fmt = "x"];
+  // Sub-architecture designation.
   optional uint32 cpusubtype = 2 [(yara.field_options).fmt = "x"];
+  // File offset referencing the start of the embedded binary.
   optional uint64 offset = 3;
+  // Size in bytes of the embedded binary payload.
   optional uint64 size = 4;
+  // Required byte alignment of the binary payload.
   optional uint32 align = 5;
+  // Reserved internal field.
   optional uint32 reserved = 6;
 }
 
 message File {
+  // Magic identifier indicating the file architecture.
   optional uint32 magic = 1 [(yara.field_options).fmt = "x"];
+  // Primary architecture designation of the embedded binary.
   optional uint32 cputype = 2 [(yara.field_options).fmt = "x"];
+  // Specific sub-architecture variant.
   optional uint32 cpusubtype = 3 [(yara.field_options).fmt = "x"];
+  // Binary file type categorization.
   optional uint32 filetype = 4;
+  // Total count of load commands embedded inside the header.
   optional uint32 ncmds = 5;
+  // Combined byte size of all load commands.
   optional uint32 sizeofcmds = 6;
+  // Bitwise flags characterizing the binary.
   optional uint32 flags = 7 [(yara.field_options).fmt = "flags:FileFlag"];
+  // Internal reserved field.
   optional uint32 reserved = 8;
 
+  // Number of segments parsed from the binary.
   optional uint64 number_of_segments = 9 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `segments.len()` instead",
     replacement: "segments.len()"
   }];
 
+  // Standard path of the dynamic linker.
   optional bytes dynamic_linker = 10;
+  // Execution entry point offset or address.
   optional uint64 entry_point = 11;
+  // Size of the stack allocated by the loader.
   optional uint64 stack_size = 12;
+  // Source version metadata string.
   optional string source_version = 13;
+  // Segments nested inside the binary.
   repeated Segment segments = 14;
+  // External dynamic libraries referenced.
   repeated Dylib dylibs = 15;
+  // Standard run paths utilized to locate libraries.
   repeated bytes rpaths = 16;
+  // App entitlement strings defined within the binary.
   repeated string entitlements = 17;
+  // Basic symbol table definitions.
   optional Symtab symtab = 18;
+  // Detailed dynamic symbol table definitions.
   optional Dysymtab dysymtab = 19;
+  // Dynamic linker information payload.
   optional DyldInfo dyld_info = 20;
+  // Linked code signature data representation.
   optional LinkedItData code_signature_data = 21;
+  // Certificates verifying the code signature.
   repeated Certificate certificates = 22;
+  // Standard UUID assigned to the binary.
   optional string uuid = 23;
+  // Standard build version metadata.
   optional BuildVersion build_version = 24;
+  // Minimum OS requirement specifications.
   optional MinVersion min_version = 25;
+  // Exported symbol descriptors.
   repeated string exports = 26;
+  // Imported symbol descriptors.
   repeated string imports = 27;
+  // Linker options passed during binary assembly.
   repeated bytes linker_options = 28;
 }
 
 message Macho {
-  // Set Mach-O header and basic fields
+  // Magic identifier indicating the file architecture.
   optional uint32 magic = 1 [(yara.field_options).fmt = "x"];
+  // Target architecture designation.
   optional uint32 cputype = 2 [(yara.field_options).fmt = "x"];
+  // Specific sub-architecture variant.
   optional uint32 cpusubtype = 3 [(yara.field_options).fmt = "x"];
+  // Categorization of the Mach-O executable.
   optional uint32 filetype = 4;
+  // Number of load commands defined inside the binary.
   optional uint32 ncmds = 5;
+  // Combined byte size of all load commands.
   optional uint32 sizeofcmds = 6;
+  // Global bitwise flags characterizing the binary.
   optional uint32 flags = 7 [(yara.field_options).fmt = "x"];
+  // Reserved padding element.
   optional uint32 reserved = 8;
 
+  // Number of segments parsed.
   optional uint64 number_of_segments = 9 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `macho.segments.len()` instead",
     replacement: "segments.len()"
   }];
 
+  // Standard dynamic linker specification path.
   optional bytes dynamic_linker = 10;
+  // Execution entry point address.
   optional uint64 entry_point = 11;
+  // Stack size allocation requested.
   optional uint64 stack_size = 12;
+  // Build source version metadata string.
   optional string source_version = 13;
+  // Standard symbol table block.
   optional Symtab symtab = 14;
+  // Detailed dynamic symbol table block.
   optional Dysymtab dysymtab = 15;
+  // Code signature data payload block.
   optional LinkedItData code_signature_data = 16;
+  // Top-level segments parsed from the binary.
   repeated Segment segments = 17;
+  // Linked external libraries.
   repeated Dylib dylibs = 18;
+  // Dynamic loader metadata information block.
   optional DyldInfo dyld_info = 19;
+  // Executable run path definition strings.
   repeated bytes rpaths = 20;
+  // Defined app entitlement descriptor strings.
   repeated string entitlements = 21;
+  // Cryptographic certificates validating the signature.
   repeated Certificate certificates = 22;
+  // Binary UUID descriptor string.
   optional string uuid = 23;
+  // General build version metadata block.
   optional BuildVersion build_version = 24;
+  // Minimum OS version requirements.
   optional MinVersion min_version = 25;
+  // Standard exported symbol strings.
   repeated string exports = 26;
+  // Standard imported symbol strings.
   repeated string imports = 27;
+  // Custom options passed directly to the linker.
   repeated bytes linker_options = 28;
 
-
-
-  // Add fields for Mach-O fat binary header
+  // Magic constant identifying the file as a Fat binary.
   optional uint32 fat_magic = 29 [(yara.field_options).fmt = "x"];
+  // Total count of different architectures embedded in the Fat binary.
   optional uint32 nfat_arch = 30;
+  // Individual descriptors for each embedded architecture.
   repeated FatArch fat_arch = 31;
 
-  // Nested Mach-O files
+  // Independent Mach-O binaries extracted from the universal Fat payload.
   repeated File file = 32;
 }
 
