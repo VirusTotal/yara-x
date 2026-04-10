@@ -1470,9 +1470,9 @@ fn emit_of_pattern_set(
                         instr.i32_const(start);
                         instr.i32_const(end);
                         instr.i64_const(1);
-                        instr.call(ctx.function_id(
-                            wasm::export__pat_range_match.mangled_name,
-                        ));
+                        instr.call(
+                            ctx.wasm_symbols.check_for_pattern_range_match,
+                        );
                     }
                     // For every call, except the last one, check the result
                     // and exit early from the block if any of the patterns
@@ -1504,9 +1504,9 @@ fn emit_of_pattern_set(
                         instr.i32_const(start);
                         instr.i32_const(end);
                         instr.i64_const(end as i64 - start as i64 + 1);
-                        instr.call(ctx.function_id(
-                            wasm::export__pat_range_match.mangled_name,
-                        ));
+                        instr.call(
+                            ctx.wasm_symbols.check_for_pattern_range_match,
+                        );
                     }
                     // For every call, except the last one, check the result
                     // and exit early from the block if some of the patterns
@@ -1535,9 +1535,7 @@ fn emit_of_pattern_set(
             instr.i32_const(start);
             instr.i32_const(end);
             emit_expr(ctx, ir, *quantifier, instr);
-            instr.call(
-                ctx.function_id(wasm::export__pat_range_match.mangled_name),
-            );
+            instr.call(ctx.wasm_symbols.check_for_pattern_range_match);
         }
         // All the remaining cases are evaluated using a loop.
         _ => emit_of_pattern_set_with_loop(ctx, ir, of, instr),

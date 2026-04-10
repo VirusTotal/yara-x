@@ -1248,7 +1248,15 @@ impl Compiler<'_> {
     ) -> Result<(Vec<u8>, PathBuf), CompileError> {
         let read_file =
             |path: PathBuf| -> Result<(Vec<u8>, PathBuf), io::Error> {
-                let mut path = path.canonicalize()?;
+                let canonical_path = match path.canonicalize() {
+                    Ok(path) => Some(path),
+                    Err(err) if err.kind() == io::ErrorKind::Unsupported => {
+                        None
+                    }
+                    Err(err) => return Err(err),
+                };
+
+                let mut path = canonical_path.unwrap_or(path);
                 let content = fs::read(&path)?;
 
                 if let Ok(cwd) =
