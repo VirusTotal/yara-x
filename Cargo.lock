@@ -1528,6 +1528,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hashbrown"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f467dd6dccf739c208452f8014c75c18bb8301b050ad1cfb27153803edb0f51"
+
+[[package]]
 name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1734,27 +1740,27 @@ checksum = "365a784774bb381e8c19edb91190a90d7f2625e057b55de2bc0f6b57bc779ff2"
 
 [[package]]
 name = "indexmap"
-version = "2.13.0"
+version = "2.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7714e70437a7dc3ac8eb7e6f8df75fd8eb422675fc7678aff7364301092b1017"
+checksum = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
 dependencies = [
  "equivalent",
- "hashbrown 0.16.1",
+ "hashbrown 0.17.0",
  "serde",
  "serde_core",
 ]
 
 [[package]]
 name = "intaglio"
-version = "1.13.1"
+version = "1.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00c786552f8d33124645e4fe7d34882670762f4ae17de7ffa41a38d5d72a9e2c"
+checksum = "4e062125b1cb1523e2032c12f3a5bac6947ccd1f8c0a8aae96f63609fe0e34ee"
 
 [[package]]
 name = "inventory"
-version = "0.3.22"
+version = "0.3.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "009ae045c87e7082cb72dab0ccd01ae075dd00141ddc108f43a0ea150a9e7227"
+checksum = "a4f0c30c76f2f4ccee3fe55a2435f691ca00c0e4bd87abe4f4a851b1d4dac39b"
 dependencies = [
  "rustversion",
 ]
@@ -2710,9 +2716,9 @@ dependencies = [
 
 [[package]]
 name = "psl"
-version = "2.1.196"
+version = "2.1.202"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcaf2b49c1b3cd056976b7ad695a2349901e8ac1777615676d9c56ffaaa9314d"
+checksum = "56fd0182df6313fbbf2d223aca9056ffd9ebf4d8c44d3215064f7b41de8756f9"
 dependencies = [
  "psl-types",
 ]
