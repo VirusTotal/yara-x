@@ -12,168 +12,234 @@ option (yara.module_options) = {
 };
 
 message Dotnet {
+  // True if the file is a valid .NET framework executable.
   optional bool is_dotnet = 1;
+  // Module name designation extracted from the assembly.
   optional string module_name = 2;
+  // Version string of the embedded module.
   optional string version = 3;
 
+  // Total count of embedded streams inside the file.
   optional uint64 number_of_streams = 4 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `dotnet.streams.len()` instead",
     replacement: "streams.len()"
   }];
 
+  // Count of unique GUIDs defined within the module.
   optional uint64 number_of_guids = 5 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `dotnet.guids.len()` instead",
     replacement: "guids.len()"
   }];
 
+  // Total number of individual resources embedded.
   optional uint64 number_of_resources = 6 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `dotnet.resources.len()` instead",
     replacement: "resources.len()"
   }];
 
+  // Count of generic parameters defined inside the assembly.
   optional uint64 number_of_generic_parameters = 7;
 
+  // Total count of classes extracted from the executable.
   optional uint64 number_of_classes = 10 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `dotnet.classes.len()` instead",
     replacement: "classes.len()"
   }];
 
+  // Number of external assembly references declared.
   optional uint64 number_of_assembly_refs = 11 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `dotnet.assembly_refs.len()` instead",
     replacement: "assembly_refs.len()"
   }];
 
+  // Number of external module references defined.
   optional uint64 number_of_modulerefs = 12 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `dotnet.modulerefs.len()` instead",
     replacement: "modulerefs.len()"
   }];
 
+  // Count of strings defined inside the user string heap.
   optional uint64 number_of_user_strings = 13 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `dotnet.user_strings.len()` instead",
     replacement: "user_strings.len()"
   }];
 
+  // Number of constant elements stored inside the assembly.
   optional uint64 number_of_constants = 14 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `dotnet.constants.len()` instead",
     replacement: "constants.len()"
   }];
 
+  // Total count of structured field offsets available.
   optional uint64 number_of_field_offsets = 15 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `dotnet.field_offsets.len()` instead",
     replacement: "field_offsets.len()"
   }];
 
+  // Core type library representation identifier string.
   optional string typelib = 16;
+  // Individual streams mapped from the metadata root.
   repeated Stream streams = 17;
 
+  // Distinct GUID values associated with the executable.
   repeated string guids = 18;
+  // Internal constants extracted from the binary.
   repeated bytes constants = 19;
+  // Structured metadata describing the primary assembly.
   optional Assembly assembly = 20;
+  // External assembly elements referenced by the program.
   repeated AssemblyRef assembly_refs = 21;
+  // Specific resources stored directly inside the module.
   repeated Resource resources = 22;
+  // Defined classes and types structured from the program.
   repeated Class classes = 23;
+  // Relative offsets describing specific fields.
   repeated uint32 field_offsets = 24;
+  // String definitions extracted from the user string pool.
   repeated bytes user_strings = 25;
+  // Descriptive names of external modules imported.
   repeated string modulerefs = 26;
 }
 
 message Assembly {
+  // Name of the active assembly.
   optional string name = 1;
+  // Standard culture setting applicable to the assembly.
   optional string culture = 2;
+  // Version descriptor assigned to the assembly.
   required Version version = 3;
 }
 
 message AssemblyRef {
+  // Identifier string representing the external assembly.
   optional string name = 1;
+  // Cryptographic key or access token assigned to the assembly.
   optional bytes public_key_or_token = 2;
+  // Standard version requirement for the referenced assembly.
   required Version version = 3;
 }
 
 message Stream {
+  // Descriptive name of the metadata stream.
   optional string name = 1;
+  // Address or file offset marking the beginning of the stream.
   required uint32 offset = 2 [(yara.field_options).fmt = "x"];
+  // Exact size of the stream inside the binary.
   required uint32 size = 3 [(yara.field_options).fmt = "x"];
 }
 
 message Version {
+  // Major format specification number.
   required uint32 major = 1;
+  // Minor format specification number.
   required uint32 minor = 2;
+  // Designated build assignment number.
   required uint32 build_number = 3;
+  // Internal code revision tracking number.
   required uint32 revision_number = 4;
 }
 
 message Resource {
+  // File offset marking the start of the resource data.
   optional uint32 offset = 1 [(yara.field_options).fmt = "x"];
+  // Physical length of the resource inside the binary.
   optional uint32 length = 2 [(yara.field_options).fmt = "x"];
+  // Descriptive name string of the stored resource.
   optional string name = 3;
 }
 
 message Class {
+  // Full namespace and class name descriptor.
   optional string fullname = 1;
+  // Individual class designation name string.
   optional string name = 2;
+  // Target namespace string containing the class.
   optional string namespace = 3;
+  // Access visibility modifier applied to the class.
   optional string visibility = 4;
+  // Categorization of the class type.
   optional string type = 5;
+  // True if the class is marked as abstract.
   required bool abstract = 6;
+  // True if the class is marked as sealed.
   required bool sealed = 7;
   
+  // Count of inherited base types declared by the class.
   required uint64 number_of_base_types = 8 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `base_types.len()` instead",
     replacement: "base_types.len()"
   }];
   
+  // Total count of generic parameters specified.
   required uint64 number_of_generic_parameters = 9 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `generic_parameters.len()` instead",
     replacement: "generic_parameters.len()"
   }];
 
+  // Number of methods explicitly defined inside the class.
   required uint64 number_of_methods = 10 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `methods.len()` instead",
     replacement: "methods.len()"
   }];
 
+  // Distinct base types inherited by this class.
   repeated string base_types = 11;
+  // Defined generic parameters applicable to the class.
   repeated string generic_parameters = 12;
+  // Methods and subroutines implemented within the class.
   repeated Method methods = 13;
 }
 
 message Method {
+  // Individual function name string.
   optional string name = 1;
+  // Access visibility scope applied to the method.
   optional string visibility = 2;
+  // True if the function is an abstract definition.
   required bool abstract = 3;
+  // True if the function is marked as static.
   required bool static = 4;
+  // True if the function acts as a virtual method.
   required bool virtual = 5;
+  // True if the function is restricted as final.
   required bool final = 6;
+  // Standard return type specification string.
   optional string return_type = 7;
   
+  // Count of generic parameters explicitly defined for the method.
   required uint64 number_of_generic_parameters = 8 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `generic_parameters.len()` instead",
     replacement: "generic_parameters.len()"
   }];
 
+  // Number of individual parameters passed to the method.
   required uint64 number_of_parameters = 9 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `parameters.len()` instead",
     replacement: "parameters.len()"
   }];
+  // Distinct generic parameters linked to the method.
   repeated string generic_parameters = 10;
+  // Detailed argument definitions accepted by the function.
   repeated Param parameters = 11;
 }
 
 message Param {
+  // Target parameter identifier name string.
   required string name = 1;
+  // Designated parameter type string.
   optional string type = 2;
 }
