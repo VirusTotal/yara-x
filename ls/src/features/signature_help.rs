@@ -4,7 +4,7 @@ use crate::{
     documents::storage::DocumentStorage,
     utils::{
         cst_traversal::{prev_non_trivia_token, token_at_position},
-        modules::{get_struct, ty_to_string},
+        modules::{get_type, ty_to_string},
     },
 };
 use async_lsp::lsp_types::{
@@ -54,7 +54,7 @@ pub fn signature_help(
 
     let last_ident = curr?;
 
-    let func = match get_struct(&last_ident) {
+    let func = match get_type(&last_ident) {
         Some(Type::Func(func)) => Some(func),
         _ => None,
     }?;

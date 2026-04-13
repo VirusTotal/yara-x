@@ -24,10 +24,10 @@ pub enum Segment {
 ///
 /// Returns an `Option<Type>` representing the type of the structure or field
 /// identified by the token. Returns `None` if the type cannot be determined.
-pub fn get_struct(token: &Token<Immutable>) -> Option<Type> {
+pub fn get_type(token: &Token<Immutable>) -> Option<Type> {
     let mut path = Vec::new();
-
     let mut curr = Some(token.clone());
+
     while let Some(token) = curr {
         match token.kind() {
             SyntaxKind::IDENT => {
@@ -40,7 +40,6 @@ pub fn get_struct(token: &Token<Immutable>) -> Option<Type> {
                         path.into_iter().rev(),
                     );
                 }
-
                 path.push(Segment::Field(token.text().to_string()));
                 // Look for previous DOT
                 if let Some(prev) = prev_non_trivia_token(&token)
@@ -106,6 +105,7 @@ pub fn get_struct(token: &Token<Immutable>) -> Option<Type> {
             }
         }
     }
+
     Some(current_kind)
 }
 
@@ -143,7 +143,7 @@ pub fn get_type_from_declaration(
                     continue;
                 }
 
-                let mut current_type = get_struct(&with_decl.last_token()?)?;
+                let mut current_type = get_type(&with_decl.last_token()?)?;
 
                 for segment in path {
                     match segment {
@@ -177,8 +177,7 @@ pub fn get_type_from_declaration(
                 .into_token()?;
 
             let iterable_last_token = prev_non_trivia_token(&colon)?;
-
-            let iterable_type = get_struct(&iterable_last_token)?;
+            let iterable_type = get_type(&iterable_last_token)?;
 
             let mut current_type = match iterable_type {
                 Type::Array(inner) => *inner,

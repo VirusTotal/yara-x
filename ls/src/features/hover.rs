@@ -4,16 +4,16 @@ use async_lsp::lsp_types::{
     HoverContents, MarkupContent, MarkupKind, Position, Url,
 };
 use itertools::Itertools;
-
+use yara_x::mods::reflect::Type;
 use yara_x_parser::cst::{Immutable, Node, NodeOrToken, SyntaxKind, Utf8};
 
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
-    find_declaration, pattern_from_ident, rule_containing_token,
-    token_at_position,
+    find_declaration, pattern_from_ident, prev_non_trivia_token,
+    rule_containing_token, token_at_position,
 };
 
-use crate::utils::modules::{get_struct, ty_to_string};
+use crate::utils::modules::{get_type, ty_to_string};
 
 /// Builder for hover Markdown representation of a rule.
 struct RuleHoverBuilder {
@@ -106,37 +106,71 @@ pub fn hover(
         }
         // Other identifiers.
         SyntaxKind::IDENT => {
-            if let Some(yara_x::mods::reflect::Type::Func(func)) =
-                get_struct(&token)
-            {
-                let documentation = func
-                    .signatures
-                    .iter()
-                    .filter_map(|signature| {
-                        signature.doc().map(|doc| {
-                            format!(
-                                "### `{}({}) -> {}`\n\n***\n\n{}\n\n***\n\n",
-                                token.text(),
-                                signature
-                                    .args()
-                                    .map(|(name, ty)| format!(
-                                        "{}: {}",
-                                        name,
-                                        ty_to_string(ty)
-                                    ))
-                                    .join(", "),
-                                ty_to_string(signature.ret_type()),
-                                doc
-                            )
-                        })
-                    })
-                    .join("\n");
+            let structure = prev_non_trivia_token(&token)
+                .filter(|token| token.kind() == SyntaxKind::DOT)
+                .and_then(|token| prev_non_trivia_token(&token))
+                .and_then(|token| get_type(&token))
+                .and_then(|ty| {
+                    if let Type::Struct(s) = ty { Some(s) } else { None }
+                });
 
-                return Some(HoverContents::Markup(MarkupContent {
-                    kind: MarkupKind::Markdown,
-                    value: documentation,
-                }));
+            let field = structure
+                .as_ref()
+                .and_then(|s| s.fields().find(|f| f.name() == token.text()));
+
+            if let Some(field) = field {
+                match field.ty() {
+                    Type::Func(func) => {
+                        let documentation = func
+                                .signatures
+                                .iter()
+                                .filter_map(|signature| {
+                                    signature.doc().map(|doc| {
+                                        format!(
+                                            "### `{}({}) -> {}`\n\n***\n\n{}\n\n***\n\n",
+                                            token.text(),
+                                            signature
+                                                .args()
+                                                .map(|(arg_name, arg_ty)| format!(
+                                                    "{}: {}",
+                                                    arg_name,
+                                                    ty_to_string(arg_ty)
+                                                ))
+                                                .join(", "),
+                                            ty_to_string(signature.ret_type()),
+                                            doc
+                                        )
+                                    })
+                                })
+                                .join("\n");
+
+                        if !documentation.is_empty() {
+                            return Some(HoverContents::Markup(
+                                MarkupContent {
+                                    kind: MarkupKind::Markdown,
+                                    value: documentation,
+                                },
+                            ));
+                        }
+                    }
+                    ty => {
+                        let mut value = format!(
+                            "### `{}: {}`",
+                            token.text(),
+                            ty_to_string(&ty)
+                        );
+                        if let Some(d) = field.doc() {
+                            value
+                                .push_str(&format!("\n\n***\n\n{}\n\n***", d));
+                        }
+                        return Some(HoverContents::Markup(MarkupContent {
+                            kind: MarkupKind::Markdown,
+                            value,
+                        }));
+                    }
+                }
             }
+
             if let Some((_, n)) = find_declaration(&token) {
                 let text = n
                     .children_with_tokens()
