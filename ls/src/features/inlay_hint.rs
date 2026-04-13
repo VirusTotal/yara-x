@@ -52,7 +52,7 @@ pub fn inlay_hint(
                                 && let Some(new_ty) = func
                                     .signatures
                                     .first()
-                                    .map(|sign| &sign.ret)
+                                    .map(|sign| sign.ret_type())
                             {
                                 new_ty.clone()
                             } else {
@@ -90,8 +90,10 @@ pub fn inlay_hint(
                     {
                         // Extract return type from function.
                         ty = if let Type::Func(func) = &ty
-                            && let Some(new_ty) =
-                                func.signatures.first().map(|sign| &sign.ret)
+                            && let Some(new_ty) = func
+                                .signatures
+                                .first()
+                                .map(|sign| sign.ret_type())
                         {
                             new_ty.clone()
                         } else {

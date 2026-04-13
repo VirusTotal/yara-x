@@ -403,11 +403,30 @@ pub mod mods {
         #[derive(Clone, Debug, PartialEq)]
         pub struct FuncSignature {
             /// The names and types of the function arguments.
-            pub args: Vec<(String, Type)>,
+            args: Vec<(String, Type)>,
             /// The return type for the function.
-            pub ret: Type,
+            ret: Type,
             /// Function's documentation.
-            pub doc: Option<Cow<'static, str>>,
+            doc: Option<Cow<'static, str>>,
+        }
+
+        impl FuncSignature {
+            /// The names and types of the function arguments.
+            pub fn args(
+                &self,
+            ) -> impl ExactSizeIterator<Item = (&str, &Type)> {
+                self.args.iter().map(|(name, ty)| (name.as_str(), ty))
+            }
+
+            /// The return type for the function.
+            pub fn ret_type(&self) -> &Type {
+                &self.ret
+            }
+
+            /// Function's documentation.
+            pub fn doc(&self) -> Option<&str> {
+                self.doc.as_deref()
+            }
         }
 
         /// Describes a field within a structure or module.

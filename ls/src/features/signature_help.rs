@@ -63,16 +63,17 @@ pub fn signature_help(
     let signature_start = format!("{}(", last_ident.text());
 
     for signature in func.signatures {
+        let mut args = signature.args();
+
         // Ignore signatures that have fewer parameters.
-        if (active_parameter + 1) as usize > signature.args.len() {
+        if (active_parameter + 1) as usize > args.len() {
             continue;
         }
 
         let mut curr_signature = signature_start.clone();
-        let mut param_iterator = signature.args.iter();
         let mut param_info = Vec::new();
 
-        if let Some((name, ty)) = param_iterator.next() {
+        if let Some((name, ty)) = args.next() {
             let mut curr_name = name;
             let mut curr_type = ty;
             loop {
@@ -86,7 +87,7 @@ pub fn signature_help(
                     documentation: None,
                 });
                 curr_signature.push_str(&ty_str);
-                if let Some((next_name, next_type)) = param_iterator.next() {
+                if let Some((next_name, next_type)) = args.next() {
                     curr_signature.push_str(", ");
                     curr_name = next_name;
                     curr_type = next_type;
@@ -97,7 +98,7 @@ pub fn signature_help(
         }
 
         curr_signature.push_str(") -> ");
-        curr_signature.push_str(&ty_to_string(&signature.ret));
+        curr_signature.push_str(&ty_to_string(signature.ret_type()));
 
         signatures.push(SignatureInformation {
             label: curr_signature,

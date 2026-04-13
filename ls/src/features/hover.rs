@@ -113,20 +113,19 @@ pub fn hover(
                     .signatures
                     .iter()
                     .filter_map(|signature| {
-                        signature.doc.as_ref().map(|doc| {
+                        signature.doc().map(|doc| {
                             format!(
                                 "### `{}({}) -> {}`\n\n***\n\n{}\n\n***\n\n",
                                 token.text(),
                                 signature
-                                    .args
-                                    .iter()
+                                    .args()
                                     .map(|(name, ty)| format!(
                                         "{}: {}",
                                         name,
                                         ty_to_string(ty)
                                     ))
                                     .join(", "),
-                                ty_to_string(&signature.ret),
+                                ty_to_string(signature.ret_type()),
                                 doc
                             )
                         })

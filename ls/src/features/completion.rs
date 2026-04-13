@@ -399,14 +399,12 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
                     .iter()
                     .map(|sig| {
                         let args = sig
-                            .args
-                            .iter()
+                            .args()
                             .map(|(name, ty)| format!("{}: {}", name, ty_to_string(ty)))
                             .collect::<Vec<_>>();
 
                         let args_template = sig
-                            .args
-                            .iter()
+                            .args()
                             .enumerate()
                             .map(|(n, (name, _))| {
                                 format!("${{{}:{name}}}", n + 1)
@@ -430,7 +428,7 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
                                 description: Some(ty_to_string(&ty)),
                                 ..Default::default()
                             }),
-                            documentation: sig.doc.as_ref().map(
+                            documentation: sig.doc().map(
                                 |docs| {
                                     async_lsp::lsp_types::Documentation::MarkupContent(
                                         async_lsp::lsp_types::MarkupContent {
@@ -438,11 +436,10 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
                                             value: format!(
                                                 "## `{}({}) -> {}`\n\n{}",
                                                 name,
-                                                sig.args
-                                                    .iter()
+                                                sig.args()
                                                     .map(|(name, ty)| format!("{}: {}", name, ty_to_string(ty)))
                                                     .join(", "),
-                                                ty_to_string(&sig.ret),
+                                                ty_to_string(sig.ret_type()),
                                                 docs
                                             ),
                                         },
