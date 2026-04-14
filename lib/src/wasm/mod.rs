@@ -303,7 +303,7 @@ pub(crate) trait WasmExportedFn {
 }
 
 type TrampolineFn = Box<
-    dyn Fn(Caller<'_, ScanContext>, &mut [ValRaw]) -> anyhow::Result<()>
+    dyn Fn(Caller<'_, ScanContext>, &mut [ValRaw]) -> wasmtime::Result<()>
         + Send
         + Sync
         + 'static,
@@ -693,7 +693,7 @@ macro_rules! impl_wasm_exported_fn {
                 Box::new(
                     |mut caller: Caller<'_, ScanContext>,
                      args_and_results: &mut [ValRaw]|
-                     -> anyhow::Result<()> {
+                     -> wasmtime::Result<()> {
                         let mut i = 0;
                         $(
                             let $args = args_and_results[i].raw_into(caller.data_mut());
@@ -707,7 +707,8 @@ macro_rules! impl_wasm_exported_fn {
                         let num_results = result_slice.len();
 
                         args_and_results[0..num_results].clone_from_slice(result_slice);
-                        anyhow::Ok(())
+
+                        wasmtime::Result::Ok(())
                     },
                 )
             }

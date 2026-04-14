@@ -62,7 +62,7 @@ pub enum SerializationError {
 
     /// Error occurred while deserializing WASM code.
     #[error("invalid YARA-X compiled rules file")]
-    InvalidWASM(#[from] anyhow::Error),
+    InvalidWASM(#[from] wasmtime::Error),
 }
 
 /// Error returned when rule compilation fails.
