@@ -76,7 +76,7 @@ struct PatternData {
     xor_key: Option<u8>,
 }
 
-#[cfg(any(target_family = "wasm", test))]
+#[cfg(test)]
 #[derive(Debug)]
 struct CompileOutcome {
     warnings: Vec<String>,
