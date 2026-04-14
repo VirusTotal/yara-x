@@ -1,3 +1,4 @@
+#[cfg(any(target_family = "wasm", test))]
 use serde::{Deserialize, Serialize};
 #[cfg(any(target_family = "wasm", test))]
 use yara_x::{
@@ -14,6 +15,7 @@ use std::time::Duration;
 #[cfg(target_family = "wasm")]
 use wasm_bindgen::prelude::*;
 
+#[cfg(any(target_family = "wasm", test))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct ScanResult {
@@ -23,6 +25,7 @@ struct ScanResult {
     matches: Vec<RuleMatch>,
 }
 
+#[cfg(any(target_family = "wasm", test))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct RuleMatch {
@@ -35,6 +38,7 @@ struct RuleMatch {
     patterns: Vec<PatternMatchResult>,
 }
 
+#[cfg(any(target_family = "wasm", test))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct MetadataEntry {
@@ -42,6 +46,7 @@ struct MetadataEntry {
     value: MetadataValue,
 }
 
+#[cfg(any(target_family = "wasm", test))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 enum MetadataValue {
@@ -52,6 +57,7 @@ enum MetadataValue {
     Bytes(Vec<u8>),
 }
 
+#[cfg(any(target_family = "wasm", test))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 struct PatternMatchResult {
@@ -61,6 +67,7 @@ struct PatternMatchResult {
     matches: Vec<PatternData>,
 }
 
+#[cfg(any(target_family = "wasm", test))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 struct PatternData {
@@ -69,7 +76,7 @@ struct PatternData {
     xor_key: Option<u8>,
 }
 
-#[cfg(test)]
+#[cfg(any(target_family = "wasm", test))]
 #[derive(Debug)]
 struct CompileOutcome {
     warnings: Vec<String>,
