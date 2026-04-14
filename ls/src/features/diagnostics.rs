@@ -163,7 +163,7 @@ pub fn compiler_diagnostics(
                         |meta| {
                             matches!(
                                 meta.value,
-                                yara_x_parser::ast::MetaValue::Float(_)
+                                yara_x_parser::ast::MetaValue::Bool(_)
                             )
                         },
                         format!(
