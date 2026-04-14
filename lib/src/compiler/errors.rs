@@ -62,7 +62,7 @@ pub enum SerializationError {
 
     /// Error occurred while deserializing WASM code.
     #[error("invalid YARA-X compiled rules file")]
-    InvalidWASM(#[from] wasmtime::Error),
+    InvalidWASM(#[from] anyhow::Error),
 }
 
 /// Error returned when rule compilation fails.
@@ -652,7 +652,7 @@ pub struct InvalidModifier {
 #[associated_enum(CompileError)]
 #[error(code = "E034", title = "potentially slow loop")]
 #[label(
-"this range can be very large",
+    "this range can be very large",
     loc
 )]
 pub struct PotentiallySlowLoop {

@@ -529,6 +529,15 @@ pub(crate) struct Linker<T, B: RuntimeBackend> {
     _phantom: PhantomData<T>,
 }
 
+pub(crate) type Trampoline<T, B> = Box<
+    dyn Fn(Caller<'_, T, B>, &mut [ValRaw]) -> TrampolineResult
+        + Send
+        + Sync
+        + 'static,
+>;
+
+pub(crate) type TrampolineResult = Result<()>;
+
 impl<T: 'static, B: RuntimeBackend> Linker<T, B> {
     /// Creates an empty linker.
     ///
@@ -552,13 +561,8 @@ impl<T: 'static, B: RuntimeBackend> Linker<T, B> {
         name: &str,
         ty: FuncType,
         sync_flags: u32,
-        trampoline: Box<
-            dyn Fn(Caller<'_, T, B>, &mut [ValRaw]) -> Result<()>
-                + Send
-                + Sync
-                + 'static,
-        >,
-    ) -> Result<()> {
+        trampoline: Trampoline<T, B>,
+    ) -> TrampolineResult {
         // This mirrors Wasmtime's unchecked registration API. The generated
         // WASM determines the ABI, so the runtime only needs to record the
         // metadata and trampoline here.
@@ -571,7 +575,8 @@ impl<T: 'static, B: RuntimeBackend> Linker<T, B> {
             sync_flags,
             trampoline: Arc::from(trampoline),
         });
-        Ok(())
+
+        TrampolineResult::Ok(())
     }
 
     /// Defines an extern import.

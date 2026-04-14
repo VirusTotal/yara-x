@@ -6,6 +6,7 @@ use std::slice::Iter;
 use std::time::Instant;
 
 use aho_corasick::AhoCorasick;
+use anyhow::anyhow;
 #[cfg(feature = "logging")]
 use log::*;
 use regex_automata::meta::Regex;
@@ -225,11 +226,13 @@ impl Rules {
             #[cfg(feature = "logging")]
             let start = Instant::now();
 
-            rules.compiled_wasm_mod =
-                Some(wasm::runtime::Module::from_binary(
+            rules.compiled_wasm_mod = Some(
+                wasm::runtime::Module::from_binary(
                     wasm::get_engine(),
                     rules.wasm_mod.as_slice(),
-                )?);
+                )
+                .map_err(|e| SerializationError::from(anyhow!(e)))?,
+            );
 
             #[cfg(feature = "logging")]
             info!("WASM build time: {:?}", Instant::elapsed(&start));

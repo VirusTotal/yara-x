@@ -99,8 +99,8 @@ use crate::types::{
 };
 use crate::wasm::integer::RangedInteger;
 use crate::wasm::runtime::{
-    AsContext, AsContextMut, Caller, Config, Engine, FuncType, Linker, ValRaw,
-    ValType,
+    AsContext, AsContextMut, Caller, Config, Engine, FuncType, Linker,
+    Trampoline, TrampolineResult, ValRaw, ValType,
 };
 use crate::wasm::string::RuntimeString;
 use crate::wasm::string::String as _;
@@ -279,7 +279,7 @@ impl WasmExport {
 pub(crate) trait WasmExportedFn {
     /// Returns the function that will be passed to the selected runtime linker
     /// while linking the WASM code to this function.
-    fn trampoline(&'static self) -> TrampolineFn;
+    fn trampoline(&'static self) -> Trampoline<ScanContext<'static, 'static>>;
 
     /// Returns a [`Vec<ValType>`] with the types of the function's
     /// arguments
@@ -301,13 +301,6 @@ pub(crate) trait WasmExportedFn {
         self.wasmtime_results().iter().map(wasmtime_to_walrus).collect()
     }
 }
-
-type TrampolineFn = Box<
-    dyn Fn(Caller<'_, ScanContext>, &mut [ValRaw]) -> wasmtime::Result<()>
-        + Send
-        + Sync
-        + 'static,
->;
 
 const MAX_RESULTS: usize = 4;
 type WasmResultArray<T> = SmallVec<[T; MAX_RESULTS]>;
@@ -689,11 +682,11 @@ macro_rules! impl_wasm_exported_fn {
             #[allow(unused_variables)]
             #[allow(non_snake_case)]
             #[allow(unused_mut)]
-            fn trampoline(&'static self) -> TrampolineFn {
+            fn trampoline(&'static self) -> Trampoline<ScanContext<'static, 'static>> {
                 Box::new(
                     |mut caller: Caller<'_, ScanContext>,
                      args_and_results: &mut [ValRaw]|
-                     -> wasmtime::Result<()> {
+                     -> TrampolineResult {
                         let mut i = 0;
                         $(
                             let $args = args_and_results[i].raw_into(caller.data_mut());
@@ -708,7 +701,7 @@ macro_rules! impl_wasm_exported_fn {
 
                         args_and_results[0..num_results].clone_from_slice(result_slice);
 
-                        wasmtime::Result::Ok(())
+                        TrampolineResult::Ok(())
                     },
                 )
             }

@@ -40,6 +40,9 @@ pub(crate) use super::common::{
     ValType,
 };
 
+pub(crate) type Trampoline<T> = common::Trampoline<T, Backend>;
+pub(crate) type TrampolineResult = common::TrampolineResult;
+
 struct GlobalInner {
     val_type: ValType,
     mutability: Mutability,
