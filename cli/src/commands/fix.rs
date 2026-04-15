@@ -7,7 +7,6 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::walk::StateComponent;
 use anyhow::Context;
 use clap::{Arg, ArgAction, ArgMatches, Command, arg, value_parser};
 use yansi::Color::{Green, Red, Yellow};
@@ -19,6 +18,7 @@ use crate::commands::{
 };
 use crate::config::Config;
 use crate::walk::Message;
+use crate::walk::StateComponent;
 use crate::{help, walk};
 
 pub fn fix() -> Command {

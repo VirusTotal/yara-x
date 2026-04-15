@@ -24,7 +24,6 @@ use std::fs;
 use std::io::stdout;
 use std::path::PathBuf;
 
-use crate::walk::StateComponent;
 use anyhow::{Context, anyhow, bail};
 use clap::{
     Arg, ArgAction, ArgMatches, Command, arg, command, crate_authors,
@@ -37,8 +36,10 @@ use yansi::Color::Green;
 use yansi::Paint;
 
 use crate::config::Config;
+use crate::walk::StateComponent;
 use crate::walk::Walker;
 use crate::{APP_HELP_TEMPLATE, commands, help};
+
 use yara_x::{Compiler, Rules, SourceCode};
 
 pub fn command(name: &'static str) -> Command {

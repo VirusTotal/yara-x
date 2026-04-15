@@ -6,7 +6,6 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
-use crate::walk::StateComponent;
 use anyhow::{Context, Error, bail};
 use clap::{
     Arg, ArgAction, ArgMatches, Command, ValueEnum, arg, value_parser,
@@ -25,6 +24,7 @@ use crate::commands::{
     truncate_with_ellipsis,
 };
 use crate::walk::Message;
+use crate::walk::StateComponent;
 use crate::{help, walk};
 
 #[derive(Clone, ValueEnum)]

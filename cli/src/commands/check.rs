@@ -2,7 +2,6 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{fs, io, process};
 
-use crate::walk::StateComponent;
 use anyhow::Context;
 use clap::{ArgAction, ArgMatches, Command, arg, value_parser};
 use crossterm::tty::IsTty;
@@ -13,6 +12,7 @@ use yara_x_parser::ast::MetaValue;
 
 use crate::config::{Config, MetaValueType};
 use crate::walk::Message;
+use crate::walk::StateComponent;
 use crate::{help, walk};
 
 pub fn check() -> Command {
