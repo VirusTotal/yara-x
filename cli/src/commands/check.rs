@@ -5,7 +5,7 @@ use std::{fs, io, process};
 use anyhow::Context;
 use clap::{ArgAction, ArgMatches, Command, arg, value_parser};
 use crossterm::tty::IsTty;
-use superconsole::{Component, Line, Lines, Span};
+use crate::walk::StateComponent;
 use yansi::Color::{Green, Red, Yellow};
 use yansi::Paint;
 use yara_x::{SourceCode, linters};
@@ -303,36 +303,28 @@ impl CheckState {
     }
 }
 
-impl Component for CheckState {
-    fn draw_unchecked(
-        &self,
-        _dimensions: superconsole::Dimensions,
-        mode: superconsole::DrawMode,
-    ) -> anyhow::Result<superconsole::Lines> {
-        let res = match mode {
-            superconsole::DrawMode::Normal | superconsole::DrawMode::Final => {
-                let ok = format!(
-                    "{} file(s) ok. ",
-                    self.files_passed.load(Ordering::Relaxed)
-                );
+impl StateComponent for CheckState {
+    fn draw(&self, _width: usize) -> String {
+        let ok = format!(
+            "{} file(s) ok. ",
+            self.files_passed.load(Ordering::Relaxed)
+        );
 
-                let warnings = format!(
-                    "warnings: {}. ",
-                    self.warnings.load(Ordering::Relaxed)
-                );
+        let warnings = format!(
+            "warnings: {}. ",
+            self.warnings.load(Ordering::Relaxed)
+        );
 
-                let errors = format!(
-                    "errors: {}.",
-                    self.errors.load(Ordering::Relaxed)
-                );
+        let errors = format!(
+            "errors: {}.",
+            self.errors.load(Ordering::Relaxed)
+        );
 
-                Line::from_iter([
-                    Span::new_unstyled(ok.paint(Green).bold())?,
-                    Span::new_unstyled(warnings.paint(Yellow).bold())?,
-                    Span::new_unstyled(errors.paint(Red).bold())?,
-                ])
-            }
-        };
-        Ok(Lines(vec![res]))
+        format!(
+            "{}{}{}",
+            ok.paint(Green).bold(),
+            warnings.paint(Yellow).bold(),
+            errors.paint(Red).bold()
+        )
     }
 }

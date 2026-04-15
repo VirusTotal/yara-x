@@ -30,7 +30,8 @@ use clap::{
     value_parser,
 };
 use crossterm::tty::IsTty;
-use superconsole::{Component, Line, Lines, Span, SuperConsole};
+use crate::walk::StateComponent;
+use indicatif::{ProgressBar, ProgressStyle};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use yansi::Color::Green;
 use yansi::Paint;
@@ -257,8 +258,13 @@ where
     let external_vars = get_external_vars(args);
     let mut compiler = create_compiler(external_vars, args, config)?;
 
-    let mut console =
-        if stdout().is_tty() { SuperConsole::new() } else { None };
+    let mut pb = if stdout().is_tty() {
+        let pb = ProgressBar::new_spinner();
+        pb.set_style(ProgressStyle::default_spinner().template("{msg}").unwrap());
+        Some(pb)
+    } else {
+        None
+    };
 
     let mut state = CompileState::new();
 
@@ -279,8 +285,9 @@ where
             |file_path| {
                 state.file_in_progress = Some(file_path.into());
 
-                if let Some(console) = console.as_mut() {
-                    console.render(&state).unwrap();
+                if let Some(pb) = pb.as_mut() {
+                    let width = crossterm::terminal::size().map(|(w, _)| w as usize).unwrap_or(80);
+                    pb.set_message(state.draw(width));
                 }
 
                 let src = fs::read(file_path).with_context(|| {
@@ -307,15 +314,15 @@ where
             // Any error occurred during walk is aborts the walk.
             Err,
         ) {
-            if let Some(console) = console {
-                console.finalize(&state)?;
+            if let Some(pb) = pb {
+                pb.finish_and_clear();
             }
             return Err(err);
         }
     }
 
-    if let Some(console) = console {
-        console.finalize(&state)?;
+    if let Some(pb) = pb {
+        pb.finish_and_clear();
     }
 
     for warning in compiler.warnings() {
@@ -346,25 +353,17 @@ impl CompileState {
     }
 }
 
-impl Component for CompileState {
-    fn draw_unchecked(
-        &self,
-        _dimensions: superconsole::Dimensions,
-        mode: superconsole::DrawMode,
-    ) -> anyhow::Result<Lines> {
-        let mut lines = Lines::new();
-
-        if mode == superconsole::DrawMode::Normal
-            && let Some(file) = &self.file_in_progress
-        {
-            lines.push(Line::from_iter([Span::new_unstyled(format!(
+impl StateComponent for CompileState {
+    fn draw(&self, _width: usize) -> String {
+        if let Some(file) = &self.file_in_progress {
+            format!(
                 "{} {}...",
                 "Compiling".paint(Green).bold(),
                 file.display(),
-            ))?]));
+            )
+        } else {
+            String::new()
         }
-
-        Ok(lines)
     }
 }
 

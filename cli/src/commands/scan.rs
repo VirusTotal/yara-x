@@ -12,11 +12,8 @@ use clap::{
 };
 use crossbeam::channel::Sender;
 use itertools::Itertools;
-use superconsole::style::Stylize;
-use superconsole::{Component, Line, Lines, Span};
-#[cfg(feature = "rules-profiling")]
-use yansi::Color::Green;
-use yansi::Color::{Cyan, Red, Yellow};
+use crate::walk::StateComponent;
+use yansi::Color::{Cyan, Green, Red, Yellow};
 use yansi::Paint;
 
 use yara_x::errors::ScanError;
@@ -517,17 +514,12 @@ fn replace_whitespace(path: &Path) -> Cow<'_, str> {
     s
 }
 
-impl Component for ScanState {
-    fn draw_unchecked(
-        &self,
-        dimensions: superconsole::Dimensions,
-        mode: superconsole::DrawMode,
-    ) -> anyhow::Result<Lines> {
-        let mut lines = Lines::new();
+impl StateComponent for ScanState {
+    fn draw(&self, width: usize) -> String {
+        let mut output = String::new();
 
-        lines.push(Line::from_iter([Span::new_unstyled(
-            "─".repeat(dimensions.width),
-        )?]));
+        output.push_str(&"─".repeat(width));
+        output.push('\n');
 
         let scanned = format!(
             " {} file(s) scanned in {:.1}s. ",
@@ -540,45 +532,41 @@ impl Component for ScanState {
 
         let matched = format!("{num_matching_files} file(s) matched.");
 
-        lines.push(Line::from_iter([
-            Span::new_unstyled(scanned)?,
-            Span::new_styled(if num_matching_files > 0 {
-                matched.red().bold()
-            } else {
-                matched.green().bold()
-            })?,
-        ]));
+        output.push_str(&scanned);
+        if num_matching_files > 0 {
+            output.push_str(&format!("{}", matched.paint(Red).bold()));
+        } else {
+            output.push_str(&format!("{}", matched.paint(Green).bold()));
+        }
+        output.push('\n');
 
-        if matches!(mode, superconsole::DrawMode::Normal) {
-            lines.push(Line::from_iter([Span::new_unstyled(
-                "╶".repeat(dimensions.width),
-            )?]));
+        output.push_str(&"╶".repeat(width));
+        output.push('\n');
 
-            for (file, start_time) in
-                self.files_in_progress.lock().unwrap().iter()
-            {
-                // The length of the elapsed time is 7 characters.
-                let max_path_with = dimensions.width.saturating_sub(7);
+        for (file, start_time) in
+            self.files_in_progress.lock().unwrap().iter()
+        {
+            let max_path_with = width.saturating_sub(7);
 
-                let (path, path_width) = truncate_with_ellipsis(
-                    replace_whitespace(file),
-                    max_path_with,
-                );
+            let (path, path_width) = truncate_with_ellipsis(
+                replace_whitespace(file),
+                max_path_with,
+            );
 
-                let spaces =
-                    " ".repeat(max_path_with.saturating_sub(path_width));
+            let spaces =
+                " ".repeat(max_path_with.saturating_sub(path_width));
 
-                let line = format!(
-                    "{}{}{:6.1}s",
-                    path,
-                    spaces,
-                    Instant::elapsed(start_time).as_secs_f32()
-                );
-                lines.push(Line::from_iter([Span::new_unstyled(line)?]))
-            }
+            let line = format!(
+                "{}{}{:6.1}s",
+                path,
+                spaces,
+                Instant::elapsed(start_time).as_secs_f32()
+            );
+            output.push_str(&line);
+            output.push('\n');
         }
 
-        Ok(lines)
+        output
     }
 }
 
