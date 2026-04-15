@@ -2,10 +2,10 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{fs, io, process};
 
+use crate::walk::StateComponent;
 use anyhow::Context;
 use clap::{ArgAction, ArgMatches, Command, arg, value_parser};
 use crossterm::tty::IsTty;
-use crate::walk::StateComponent;
 use yansi::Color::{Green, Red, Yellow};
 use yansi::Paint;
 use yara_x::{SourceCode, linters};
@@ -310,15 +310,11 @@ impl StateComponent for CheckState {
             self.files_passed.load(Ordering::Relaxed)
         );
 
-        let warnings = format!(
-            "warnings: {}. ",
-            self.warnings.load(Ordering::Relaxed)
-        );
+        let warnings =
+            format!("warnings: {}. ", self.warnings.load(Ordering::Relaxed));
 
-        let errors = format!(
-            "errors: {}.",
-            self.errors.load(Ordering::Relaxed)
-        );
+        let errors =
+            format!("errors: {}.", self.errors.load(Ordering::Relaxed));
 
         format!(
             "{}{}{}",

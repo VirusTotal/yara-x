@@ -24,13 +24,13 @@ use std::fs;
 use std::io::stdout;
 use std::path::PathBuf;
 
+use crate::walk::StateComponent;
 use anyhow::{Context, anyhow, bail};
 use clap::{
     Arg, ArgAction, ArgMatches, Command, arg, command, crate_authors,
     value_parser,
 };
 use crossterm::tty::IsTty;
-use crate::walk::StateComponent;
 use indicatif::{ProgressBar, ProgressStyle};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use yansi::Color::Green;
@@ -260,7 +260,9 @@ where
 
     let mut pb = if stdout().is_tty() {
         let pb = ProgressBar::new_spinner();
-        pb.set_style(ProgressStyle::default_spinner().template("{msg}").unwrap());
+        pb.set_style(
+            ProgressStyle::default_spinner().template("{msg}").unwrap(),
+        );
         Some(pb)
     } else {
         None
@@ -286,7 +288,9 @@ where
                 state.file_in_progress = Some(file_path.into());
 
                 if let Some(pb) = pb.as_mut() {
-                    let width = crossterm::terminal::size().map(|(w, _)| w as usize).unwrap_or(80);
+                    let width = crossterm::terminal::size()
+                        .map(|(w, _)| w as usize)
+                        .unwrap_or(80);
                     pb.set_message(state.draw(width));
                 }
 

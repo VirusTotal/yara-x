@@ -7,9 +7,9 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use crate::walk::StateComponent;
 use anyhow::Context;
 use clap::{Arg, ArgAction, ArgMatches, Command, arg, value_parser};
-use crate::walk::StateComponent;
 use yansi::Color::{Green, Red, Yellow};
 use yansi::Paint;
 use yara_x::Patch;

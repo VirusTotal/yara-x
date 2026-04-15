@@ -6,13 +6,13 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
+use crate::walk::StateComponent;
 use anyhow::{Context, Error, bail};
 use clap::{
     Arg, ArgAction, ArgMatches, Command, ValueEnum, arg, value_parser,
 };
 use crossbeam::channel::Sender;
 use itertools::Itertools;
-use crate::walk::StateComponent;
 use yansi::Color::{Cyan, Green, Red, Yellow};
 use yansi::Paint;
 
@@ -543,8 +543,7 @@ impl StateComponent for ScanState {
         output.push_str(&"╶".repeat(width));
         output.push('\n');
 
-        for (file, start_time) in
-            self.files_in_progress.lock().unwrap().iter()
+        for (file, start_time) in self.files_in_progress.lock().unwrap().iter()
         {
             let max_path_with = width.saturating_sub(7);
 
@@ -553,8 +552,7 @@ impl StateComponent for ScanState {
                 max_path_with,
             );
 
-            let spaces =
-                " ".repeat(max_path_with.saturating_sub(path_width));
+            let spaces = " ".repeat(max_path_with.saturating_sub(path_width));
 
             let line = format!(
                 "{}{}{:6.1}s",
