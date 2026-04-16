@@ -327,6 +327,22 @@ the rest of rules that don't rely on that module will be correctly compiled.
 
 ------
 
+#### yrx_compiler_max_warnings
+
+{{< callout >}}
+New in version 1.16.0
+{{< /callout >}}
+
+```c
+enum YRX_RESULT yrx_compiler_max_warnings(
+    struct YRX_COMPILER *compiler,
+    size_t n);
+```
+
+Sets the maximum number of warnings. The compiler will report only the first `n` warnings.
+
+------
+
 #### yrx_compiler_ban_module
 
 ```c

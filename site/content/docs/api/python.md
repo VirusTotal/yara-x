@@ -211,6 +211,21 @@ compiler.define_global("my_int_var", 1)
 compiler.add_source("rule test { condition: my_int_var == 1 }")
 ```
 
+#### .max_warnings(n)
+
+{{< callout >}}
+New in version 1.16.0
+{{< /callout >}}
+
+Sets the maximum number of warnings. The compiler will report only the first `n` warnings.
+
+##### Example
+
+```python
+compiler = yara_x.Compiler()
+compiler.max_warnings(1)
+```
+
 #### .enable_includes(bool)
 
 Enables or disables the inclusion of files with the `include` directive. When includes
