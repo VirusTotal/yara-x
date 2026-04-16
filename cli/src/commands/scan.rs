@@ -245,9 +245,6 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
         rules
     } else {
-        // With `take()` we pass the external variables to `compile_rules`,
-        // while leaving a `None` in `external_vars`. This way external
-        // variables are not set again in the scanner.
         compile_rules(rules_path, args, config)?
     };
 
