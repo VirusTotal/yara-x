@@ -261,9 +261,7 @@ where
 
     let mut pb = if stdout().is_tty() {
         let pb = ProgressBar::new_spinner();
-        pb.set_style(
-            ProgressStyle::default_spinner().template("{msg}").unwrap(),
-        );
+        pb.set_style(ProgressStyle::default_spinner().template("{msg}")?);
         Some(pb)
     } else {
         None
