@@ -509,6 +509,7 @@
       "has_importimport",
       "has_rpathrpath",
       "header",
+      "heading",
       "hexinteger",
       "hexmessage-integer",
       "higher-overall-performance",

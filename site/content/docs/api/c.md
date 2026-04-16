@@ -208,7 +208,7 @@ function in this API.
 Type that represents a YARA-X compiler. It takes one or more sets of YARA
 rules in text form and compile them into a [YRX_RULES](#yrx_rules) object.
 
-#### yrx_compiler_create
+### yrx_compiler_create
 
 ```c
 enum YRX_RESULT yrx_compiler_create(
@@ -257,7 +257,7 @@ combination of the following flags:
   Disables `include` statements. The compiler will produce an error
   if an `include` statement is encountered.
 
-#### yrx_compiler_destroy
+### yrx_compiler_destroy
 
 ```c
 void yrx_compiler_destroy(
@@ -266,7 +266,7 @@ void yrx_compiler_destroy(
 
 Destroys the compiler [YRX_COMPILER](#yrx_compiler) object.
 
-#### yrx_compiler_add_source
+### yrx_compiler_add_source
 
 ```c
 enum YRX_RESULT yrx_compiler_add_source(
@@ -277,7 +277,7 @@ enum YRX_RESULT yrx_compiler_add_source(
 Adds a YARA source code to be compiled. This function can be called multiple
 times.
 
-#### yrx_compiler_add_source_with_origin
+### yrx_compiler_add_source_with_origin
 
 ```c
 enum YRX_RESULT yrx_compiler_add_source_with_origin(
@@ -294,7 +294,7 @@ This origin is shown in error reports.
 
 ------
 
-#### yrx_compiler_add_include_dir
+### yrx_compiler_add_include_dir
 
 ```c
 enum YRX_RESULT yrx_compiler_add_include_dir(
@@ -312,7 +312,7 @@ directory.
 
 ------
 
-#### yrx_compiler_ignore_module
+### yrx_compiler_ignore_module
 
 ```c
 enum YRX_RESULT yrx_compiler_ignore_module(
@@ -327,7 +327,7 @@ the rest of rules that don't rely on that module will be correctly compiled.
 
 ------
 
-#### yrx_compiler_max_warnings
+### yrx_compiler_max_warnings
 
 {{< callout >}}
 New in version 1.16.0
@@ -343,7 +343,7 @@ Sets the maximum number of warnings. The compiler will report only the first `n`
 
 ------
 
-#### yrx_compiler_ban_module
+### yrx_compiler_ban_module
 
 ```c
 enum YRX_RESULT yrx_compiler_ban_module(
@@ -361,7 +361,7 @@ be updated.
 
 ------
 
-#### yrx_compiler_new_namespace
+### yrx_compiler_new_namespace
 
 ```c
 enum YRX_RESULT yrx_compiler_new_namespace(
@@ -375,7 +375,7 @@ rules under the newly created namespace. The `namespace` argument must be
 pointer to null-terminated UTF-8 string. If the string is not valid UTF-8 the
 result is an `YRX_INVALID_ARGUMENT` error.
 
-#### yrx_compiler_define_global_xxxx
+### yrx_compiler_define_global_xxxx
 
 ```c
 enum YRX_RESULT yrx_compiler_define_global_str(
@@ -426,7 +426,7 @@ When defining a map, keys must be of string type, and values can be any of the
 types supported by YARA, including other maps. Arrays must be homogeneous (all
 elements must be the same type).
 
-#### yrx_compiler_errors_json
+### yrx_compiler_errors_json
 
 ```c
 enum YRX_RESULT yrx_compiler_errors_json(
@@ -476,7 +476,7 @@ The `YRX_BUFFER` must be destroyed with [`yrx_buffer_destroy`](#yrx_buffer_destr
 
 ------
 
-#### yrx_compiler_warnings_json
+### yrx_compiler_warnings_json
 
 ```c
 enum YRX_RESULT yrx_compiler_warnings_json(
@@ -526,7 +526,7 @@ The `YRX_BUFFER` must be destroyed with [`yrx_buffer_destroy`](#yrx_buffer_destr
 
 ------
 
-#### yrx_compiler_build
+### yrx_compiler_build
 
 ```c
 struct YRX_RULES *yrx_compiler_build(struct YRX_COMPILER *compiler);
@@ -547,7 +547,7 @@ Type that represents a set of compiled rules. The compiled rules can be used for
 scanning data by creating a scanner
 with [yrx_scanner_create](#yrx_scanner_create).
 
-#### yrx_rules_count
+### yrx_rules_count
 
 ```c
 int yrx_rules_count(struct YRX_RULES *rules);
@@ -555,7 +555,7 @@ int yrx_rules_count(struct YRX_RULES *rules);
 
 Returns the total number of rules. The result is -1 in case of error.
 
-#### yrx_rules_destroy
+### yrx_rules_destroy
 
 ```c
 void yrx_rules_destroy(struct YRX_RULES *rules);
@@ -564,7 +564,7 @@ void yrx_rules_destroy(struct YRX_RULES *rules);
 Destroys the [YRX_RULES](#yrx_rules) object. This function must be called only
 after all the scanners using the  [YRX_RULES](#yrx_rules) object are destroyed.
 
-#### yrx_rules_iter
+### yrx_rules_iter
 
 ```c
 enum YRX_RESULT yrx_rules_iter(
@@ -577,7 +577,7 @@ Iterates over the compiled rules, calling the callback function for each rule.
 The `user_data` pointer can be used to provide additional context to your
 callback function. See [YRX_RULE_CALLBACK](#yrx_rule_callback) for more details.
 
-#### yrx_rules_iter_imports
+### yrx_rules_iter_imports
 
 ```c
 enum YRX_RESULT yrx_rules_iter_imports(
@@ -595,7 +595,7 @@ function.
 See [YRX_IMPORT_CALLBACK](#yrx_import_callback) for more details.
 
 
-#### yrx_rules_serialize
+### yrx_rules_serialize
 
 ```c
 enum YRX_RESULT yrx_rules_serialize(
@@ -612,7 +612,7 @@ itself, and its length.
 
 The [YRX_BUFFER](#yrx_buffer) must be destroyed with [yrx_buffer_destroy](#yrx_buffer_destroy).
 
-#### yrx_rules_deserialize
+### yrx_rules_deserialize
 
 ```c
 enum YRX_RESULT yrx_rules_deserialize(
@@ -629,7 +629,7 @@ Deserializes the rules from a sequence of bytes produced by [yrx_rules_serialize
 
 ### YRX_SCANNER
 
-#### yrx_scanner_create
+### yrx_scanner_create
 
 ```c
 enum YRX_RESULT yrx_scanner_create(
@@ -648,7 +648,7 @@ long as the rules are not destroyed, so, always destroy
 the [YRX_SCANNER](#yrx_scanner) object before the [YRX_RULES](#yrx_rules)
 object.
 
-#### yrx_scanner_destroy
+### yrx_scanner_destroy
 
 ```c
 void yrx_scanner_destroy(struct YRX_SCANNER *scanner);
@@ -656,7 +656,7 @@ void yrx_scanner_destroy(struct YRX_SCANNER *scanner);
 
 Destroys the [YRX_SCANNER](#yrx_scanner) object.
 
-#### yrx_scanner_on_matching_rule
+### yrx_scanner_on_matching_rule
 
 ```c 
 enum YRX_RESULT yrx_scanner_on_matching_rule(
@@ -674,7 +674,7 @@ about matching rules.
 
 See [YRX_ON_MATCHING_RULE](#yrx_on_matching_rule) for more details.
 
-#### yrx_scanner_on_console_log
+### yrx_scanner_on_console_log
 
 ```c
 enum YRX_RESULT yrx_scanner_on_console_log(
@@ -687,7 +687,7 @@ rule with the `console.log()` function.
 
 See [YRX_CONSOLE_CALLBACK](#yrx_on_matching_rule) for more details.
 
-#### yrx_scanner_scan
+### yrx_scanner_scan
 
 ```c 
 enum YRX_RESULT yrx_scanner_scan(
@@ -698,7 +698,7 @@ enum YRX_RESULT yrx_scanner_scan(
 
 Scans a memory buffer.
 
-#### yrx_scanner_scan_block
+### yrx_scanner_scan_block
 
 ```c
 enum YRX_RESULT yrx_scanner_scan_block(
@@ -714,7 +714,7 @@ smaller, discrete blocks, allowing for incremental scanning.
 
 See: [Block scanning mode](#block-scanning-mode)
 
-#### yrx_scanner_finish
+### yrx_scanner_finish
 
 ```c
 enum YRX_RESULT yrx_scanner_finish(
@@ -734,7 +734,7 @@ scanning mode and can't be used for normal scanning.
 
 See: [Block scanning mode](#block-scanning-mode)
 
-#### yrx_scanner_set_timeout
+### yrx_scanner_set_timeout
 
 ```c
 enum YRX_RESULT yrx_scanner_set_timeout(
@@ -742,7 +742,7 @@ enum YRX_RESULT yrx_scanner_set_timeout(
     uint64_t timeout);
 ```
 
-#### yrx_scanner_set_global_xxxx
+### yrx_scanner_set_global_xxxx
 
 ```c
 enum YRX_RESULT yrx_scanner_set_global_str(
@@ -773,7 +773,7 @@ enum YRX_RESULT yrx_scanner_set_global_json(
 
 ------
 
-#### yrx_scanner_set_module_output
+### yrx_scanner_set_module_output
 
 ```c
 enum YRX_RESULT yrx_scanner_set_module_output(
@@ -809,7 +809,7 @@ If the scanner is in block scanning mode this function returns `YRX_INVALID_STAT
 
 ------
 
-#### yrx_scanner_set_module_data
+### yrx_scanner_set_module_data
 
 ```c
 enum YRX_RESULT yrx_scanner_set_module_data(
@@ -836,7 +836,7 @@ If the scanner is in block scanning mode this function returns `YRX_INVALID_STAT
 
 ------
 
-#### yrx_scanner_iter_slowest_rules
+### yrx_scanner_iter_slowest_rules
 
 ```c
 enum YRX_RESULT yrx_scanner_iter_slowest_rules(
@@ -867,7 +867,7 @@ See also:
 
 ------
 
-#### yrx_scanner_clear_profiling_data
+### yrx_scanner_clear_profiling_data
 
 ```c
 enum YRX_RESULT yrx_scanner_clear_profiling_data(
@@ -916,7 +916,7 @@ to arbitrary data owned by the user.
 Represents a single YARA rule. The callback function passed to the scanner
 for reporting matches receives a pointer to a [YRX_RULE](#yrx_rule).
 
-#### yrx_rule_identifier
+### yrx_rule_identifier
 
 ```c
 enum YRX_RESULT yrx_rule_identifier(
@@ -935,7 +935,7 @@ The `*ident` pointer will be valid as long as the [YRX_RULES](#yrx_rules) object
 that contains the rule is not destroyed. The identifier is guaranteed to be a
 valid UTF-8 string.
 
-#### yrx_rule_namespace
+### yrx_rule_namespace
 
 ```c
 enum YRX_RESULT yrx_rule_namespace(
@@ -954,7 +954,7 @@ The `*ns` pointer will be valid as long as the [YRX_RULES](#yrx_rules) object
 that contains the rule is not destroyed. The namespace is guaranteed to be a
 valid UTF-8 string.
 
-#### yrx_rule_iter_metadata
+### yrx_rule_iter_metadata
 
 ```c
 struct YRX_METADATA *yrx_rule_iter_metadata(
@@ -969,7 +969,7 @@ to a [YRX_METADATA](#yrx_metadata) structure for each metadata in the rule.
 The `user_data` pointer can be used to provide additional context to your
 callback function.
 
-#### yrx_rule_iter_patterns
+### yrx_rule_iter_patterns
 
 ```c
 struct YRX_PATTERNS *yrx_rule_iter_patterns(
@@ -984,7 +984,7 @@ to a [YRX_PATTERN](#yrx_pattern) structure for each pattern.
 The `user_data` pointer can be used to provide additional context to your
 callback function.
 
-#### yrx_rule_iter_tags
+### yrx_rule_iter_tags
 
 ```c
 enum YRX_RESULT yrx_rule_iter_tags(
@@ -1003,7 +1003,7 @@ callback function. See `YRX_TAG_CALLBACK` for more details.
 
 An individual pattern defined in a rule.
 
-#### yrx_pattern_identifier
+### yrx_pattern_identifier
 
 ```c
 enum YRX_RESULT yrx_pattern_identifier(
@@ -1022,7 +1022,7 @@ identifier. The `*ident` pointer will be valid as long as
 the [YRX_RULES](#yrx_rules) object that contains the rule defining this pattern
 is not destroyed. The identifier is guaranteed to be a valid UTF-8 string.
 
-#### yrx_pattern_iter_matches
+### yrx_pattern_iter_matches
 
 ```c
 enum YRX_RESULT yrx_pattern_iter_matches(
@@ -1323,7 +1323,7 @@ typedef struct YRX_BUFFER {
 
 ------
 
-#### yrx_buffer_destroy
+### yrx_buffer_destroy
 
 ```c
 void yrx_buffer_destroy(struct YRX_BUFFER *buf);
