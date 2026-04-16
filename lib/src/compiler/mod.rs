@@ -2954,6 +2954,7 @@ struct Snapshot {
 /// This is a wrapper around a `Vec<Warning>` that contains additional logic
 /// for limiting the number of warnings stored in the vector and silencing some
 /// warnings types.
+#[derive(Default)]
 pub(crate) struct Warnings {
     warnings: Vec<Warning>,
     /// Maximum number of warnings that will be stored in `warnings`. If this
@@ -2965,17 +2966,6 @@ pub(crate) struct Warnings {
     /// warning identifiers, and values are the code spans in which the
     /// warning is disabled.
     suppressed_warnings: HashMap<String, Vec<Span>>,
-}
-
-impl Default for Warnings {
-    fn default() -> Self {
-        Self {
-            warnings: Vec::new(),
-            max_warnings: None,
-            disabled_warnings: HashSet::default(),
-            suppressed_warnings: HashMap::default(),
-        }
-    }
 }
 
 impl Warnings {
