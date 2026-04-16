@@ -950,6 +950,14 @@ impl<'a> Compiler<'a> {
         self
     }
 
+    /// Sets the maximum number of warnings.
+    ///
+    /// The compiler will report only the first `n` warnings.
+    pub fn max_warnings(&mut self, n: usize) -> &mut Self {
+        self.warnings.max_warnings = Some(n);
+        self
+    }
+
     /// Enables a more relaxed syntax check for regular expressions.
     ///
     /// YARA-X enforces stricter regular expression syntax compared to YARA.
@@ -2948,8 +2956,9 @@ struct Snapshot {
 /// warnings types.
 pub(crate) struct Warnings {
     warnings: Vec<Warning>,
-    /// Maximum number of warnings that will be stored in `warnings`.
-    max_warnings: usize,
+    /// Maximum number of warnings that will be stored in `warnings`. If this
+    /// is `None`, there will no limits.
+    max_warnings: Option<usize>,
     /// Warnings that are globally disabled.
     disabled_warnings: HashSet<String>,
     /// Warnings that are suppressed for a specific code span. Keys are
@@ -2962,7 +2971,7 @@ impl Default for Warnings {
     fn default() -> Self {
         Self {
             warnings: Vec::new(),
-            max_warnings: 100,
+            max_warnings: None,
             disabled_warnings: HashSet::default(),
             suppressed_warnings: HashMap::default(),
         }
@@ -2976,7 +2985,7 @@ impl Warnings {
     /// added.
     #[inline]
     pub fn add(&mut self, f: impl FnOnce() -> Warning) {
-        if self.warnings.len() < self.max_warnings {
+        if self.warnings.len() < self.max_warnings.unwrap_or(usize::MAX) {
             let warning = f();
             let mut warn = !self.disabled_warnings.contains(warning.code());
 

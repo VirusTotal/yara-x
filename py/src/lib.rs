@@ -609,6 +609,13 @@ impl Compiler {
         self.inner.enable_includes(yes);
     }
 
+    /// Sets the maximum number of warnings.
+    ///
+    /// The compiler will report only the first `n` warnings.
+    fn max_warnings(&mut self, n: usize) {
+        self.inner.max_warnings(n);
+    }
+
     /// Builds the source code previously added to the compiler.
     ///
     /// This function returns an instance of [`Rules`] containing all the rules

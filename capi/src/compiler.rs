@@ -207,6 +207,25 @@ pub unsafe extern "C" fn yrx_compiler_ignore_module(
     YRX_RESULT::YRX_SUCCESS
 }
 
+/// Sets the maximum number of warnings.
+///
+/// The compiler will report only the first `n` warnings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn yrx_compiler_max_warnings(
+    compiler: *mut YRX_COMPILER,
+    n: usize,
+) -> YRX_RESULT {
+    let compiler = if let Some(compiler) = compiler.as_mut() {
+        compiler
+    } else {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    compiler.inner.max_warnings(n);
+
+    YRX_RESULT::YRX_SUCCESS
+}
+
 /// Enables a feature on this compiler.
 ///
 /// When defining the structure of a module in a `.proto` file, you can

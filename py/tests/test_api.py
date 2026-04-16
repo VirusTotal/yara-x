@@ -369,6 +369,14 @@ def test_compiler_disables_includes():
     compiler.add_source(f'include "foo.yar"\nrule main {{ condition: true }}')
 
 
+def test_compiler_max_warnings():
+  compiler = yara_x.Compiler()
+  compiler.max_warnings(1)
+  compiler.add_source(
+      'rule test1 { condition: true } rule test2 { condition: true }')
+  assert len(compiler.warnings()) == 1
+
+
 def test_rules_iterator():
   rules = yara_x.compile('''
 rule foo {

@@ -87,6 +87,12 @@ class Compiler:
         """
         ...
 
+    def max_warnings(self, n: int) -> None:
+        r"""
+        Sets the maximum number of warnings.
+        """
+        ...
+
     def define_global(self, ident: str, value: Any) -> None:
         r"""
         Defines a global variable and sets its initial value.

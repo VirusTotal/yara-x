@@ -142,6 +142,17 @@ func EnableIncludes(yes bool) CompileOption {
 	}
 }
 
+// MaxWarnings is an option for [NewCompiler] and [Compile] that sets the
+// maximum number of warnings.
+//
+// The compiler will report only the first n warnings.
+func MaxWarnings(n int) CompileOption {
+	return func(c *Compiler) error {
+		c.maxWarnings = &n
+		return nil
+	}
+}
+
 // IncludeDir is an option for [NewCompiler] and [Compile] that tells the
 // compiler where to look for included files. This option can be used multiple
 // times for specifying more than one include directories.
@@ -281,6 +292,7 @@ type Compiler struct {
 	vars                  map[string]interface{}
 	features              []string
 	includeDirs           []string
+	maxWarnings           *int
 }
 
 // NewCompiler creates a new compiler.
@@ -332,6 +344,9 @@ func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 }
 
 func (c *Compiler) initialize() error {
+	if c.maxWarnings != nil {
+		c.setMaxWarnings(*c.maxWarnings)
+	}
 	for name := range c.ignoredModules {
 		c.ignoreModule(name)
 	}
@@ -445,6 +460,13 @@ func (c *Compiler) ignoreModule(module string) {
 	if result != C.YRX_SUCCESS {
 		panic("yrx_compiler_add_unsupported_module failed")
 	}
+	runtime.KeepAlive(c)
+}
+
+// setMaxWarnings sets the maximum number of warnings.
+// See: [MaxWarnings].
+func (c *Compiler) setMaxWarnings(n int) {
+	C.yrx_compiler_max_warnings(c.cCompiler, C.size_t(n))
 	runtime.KeepAlive(c)
 }
 

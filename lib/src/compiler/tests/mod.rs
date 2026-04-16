@@ -1289,6 +1289,27 @@ fn test_switch_all_warnings() {
 }
 
 #[test]
+fn test_max_warnings() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        .max_warnings(1)
+        .add_source(
+            r#"
+            rule test1 {
+                condition: true
+            }
+            rule test2 {
+                condition: true
+            }
+            "#,
+        )
+        .unwrap();
+
+    assert_eq!(compiler.warnings().len(), 1);
+}
+
+#[test]
 fn test_errors() {
     let mut mint = goldenfile::Mint::new(".");
 

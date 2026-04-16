@@ -354,6 +354,12 @@ enum YRX_RESULT yrx_compiler_add_include_dir(struct YRX_COMPILER *compiler,
 enum YRX_RESULT yrx_compiler_ignore_module(struct YRX_COMPILER *compiler,
                                            const char *module);
 
+// Sets the maximum number of warnings.
+//
+// The compiler will report only the first `n` warnings.
+enum YRX_RESULT yrx_compiler_max_warnings(struct YRX_COMPILER *compiler,
+                                          size_t n);
+
 // Enables a feature on this compiler.
 //
 // When defining the structure of a module in a `.proto` file, you can
