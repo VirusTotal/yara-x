@@ -32,8 +32,11 @@ where
     // Vector that contains the (key,value) pairs in the set, in insertion
     // order.
     items: Vec<(usize, T)>,
-    // Set that contains the (key,value) pairs.
-    set: FxHashSet<(usize, T)>,
+    // Hash index used for pairs that can't be decided by the bitmap and
+    // first-item checks once a key collision has been observed. Most VM
+    // frontiers insert a key only once; keeping this lazy avoids hashing every
+    // cold, bitmap-proven-new key.
+    set: Option<FxHashSet<(usize, T)>>,
     // Bitmap for keys that are > initial_key.
     p_bitmap: BitVec<usize>,
     // Bitmap for keys that are < initial_key.
@@ -49,7 +52,7 @@ where
     pub fn new() -> Self {
         Self {
             items: Vec::new(),
-            set: FxHashSet::default(),
+            set: None,
             p_bitmap: BitVec::repeat(false, 1024),
             n_bitmap: BitVec::repeat(false, 1024),
         }
@@ -92,17 +95,12 @@ where
                         assert!(offset < Self::MAX_OFFSET);
                         self.n_bitmap.resize(offset + 1, false);
                         self.n_bitmap.set_unchecked(offset, true);
-                        self.items.push((key, value));
-                        self.set.insert((key, value))
+                        self.insert_new_key(key, value)
                     } else if !*self.n_bitmap.get_unchecked(offset) {
                         self.n_bitmap.set_unchecked(offset, true);
-                        self.items.push((key, value));
-                        self.set.insert((key, value))
-                    } else if self.set.insert((key, value)) {
-                        self.items.push((key, value));
-                        true
+                        self.insert_new_key(key, value)
                     } else {
-                        false
+                        self.insert_existing_key(key, value)
                     }
                 }
             }
@@ -113,20 +111,44 @@ where
                         assert!(offset < Self::MAX_OFFSET);
                         self.p_bitmap.resize(offset + 1, false);
                         self.p_bitmap.set_unchecked(offset, true);
-                        self.items.push((key, value));
-                        self.set.insert((key, value))
+                        self.insert_new_key(key, value)
                     } else if !*self.p_bitmap.get_unchecked(offset) {
                         self.p_bitmap.set_unchecked(offset, true);
-                        self.items.push((key, value));
-                        self.set.insert((key, value))
-                    } else if self.set.insert((key, value)) {
-                        self.items.push((key, value));
-                        true
+                        self.insert_new_key(key, value)
                     } else {
-                        false
+                        self.insert_existing_key(key, value)
                     }
                 }
             }
+        }
+    }
+
+    #[inline]
+    fn insert_new_key(&mut self, key: usize, value: T) -> bool {
+        if let Some(set) = &mut self.set {
+            // Once duplicate-key tracking is active, record this pair so
+            // future duplicate-key checks remain O(1).
+            let inserted = set.insert((key, value));
+            debug_assert!(inserted);
+        }
+        self.items.push((key, value));
+        true
+    }
+
+    #[inline]
+    fn insert_existing_key(&mut self, key: usize, value: T) -> bool {
+        if self.set.is_none() {
+            let mut set = FxHashSet::default();
+            set.reserve(self.items.len() + 1);
+            set.extend(self.items.iter().copied());
+            self.set = Some(set);
+        }
+        let set = self.set.as_mut().unwrap();
+        if set.insert((key, value)) {
+            self.items.push((key, value));
+            true
+        } else {
+            false
         }
     }
 
@@ -153,7 +175,9 @@ where
                 }
             }
         }
-        self.set.clear();
+        if let Some(set) = &mut self.set {
+            set.clear();
+        }
     }
 
     /// Returns an iterator for the items in the set.
@@ -187,10 +211,21 @@ mod tests {
         assert!(!s.insert(2000, 0));
         assert!(s.insert(4, 1));
         assert!(!s.insert(4, 1));
+        assert!(s.insert(2, 1));
+        assert!(!s.insert(2, 1));
 
         assert_eq!(
             s.items,
-            vec![(4, 0), (2, 0), (3, 0), (10, 0), (0, 0), (2000, 0), (4, 1)]
+            vec![
+                (4, 0),
+                (2, 0),
+                (3, 0),
+                (10, 0),
+                (0, 0),
+                (2000, 0),
+                (4, 1),
+                (2, 1)
+            ]
         );
 
         s.clear();
@@ -203,10 +238,12 @@ mod tests {
         assert!(s.insert(10, 0));
         assert!(s.insert(300, 0));
         assert!(s.insert(250, 0));
+        assert!(s.insert(200, 1));
+        assert!(!s.insert(200, 1));
 
         assert_eq!(
             s.items,
-            vec![(200, 0), (3, 0), (10, 0), (300, 0), (250, 0)]
+            vec![(200, 0), (3, 0), (10, 0), (300, 0), (250, 0), (200, 1)]
         );
     }
 }
