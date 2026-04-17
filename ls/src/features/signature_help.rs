@@ -38,13 +38,12 @@ pub fn signature_help(
             SyntaxKind::R_PAREN => {
                 paren_counter += 1;
             }
-            SyntaxKind::COMMA => {
+            SyntaxKind::COMMA
                 // Count the position of the active parameter
                 // at the cursor within the scope of the parentheses.
-                if paren_counter == 1 {
+                if paren_counter == 1 => {
                     active_parameter += 1;
                 }
-            }
             // Avoid traversing entire file.
             SyntaxKind::CONDITION_KW => return None,
             _ => {}
