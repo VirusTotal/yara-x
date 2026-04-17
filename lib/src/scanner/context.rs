@@ -21,6 +21,7 @@ use indexmap::IndexMap;
 use protobuf::{MessageDyn, MessageFull};
 use regex_automata::meta::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
+use smallvec::SmallVec;
 
 use crate::compiler::{
     NamespaceId, PatternId, RegexpId, RuleId, Rules, SubPattern,
@@ -144,6 +145,10 @@ pub(crate) struct ScanContext<'r, 'd> {
     /// is evaluated, it is compiled the first time and stored in this hash
     /// map.
     pub regexp_cache: RefCell<FxHashMap<RegexpId, Regex>>,
+    /// Engines for custom base64 alphabets used by base64 string modifiers.
+    ///
+    /// These engines are derived from rule literals and reused across scans.
+    pub custom_base64_engine_cache: Vec<(u32, base64::engine::GeneralPurpose)>,
     /// Callback invoked every time a YARA rule calls `console.log`.
     pub console_log: Option<Box<dyn FnMut(String) + 'r>>,
     /// Hash map that tracks the time spend on each pattern. Keys are pattern
@@ -920,7 +925,7 @@ impl ScanContext<'_, '_> {
                         data,
                         (*padding).into(),
                         atom_pos,
-                        None,
+                        &base64::engine::general_purpose::STANDARD_NO_PAD,
                         matches!(sub_pattern, SubPattern::Base64Wide { .. }),
                     ) {
                         self.handle_sub_pattern_match(
@@ -938,20 +943,25 @@ impl ScanContext<'_, '_> {
                     alphabet,
                     padding,
                 } => {
-                    let alphabet = self
-                        .compiled_rules
-                        .lit_pool()
-                        .get_str(*alphabet)
-                        .map(|alphabet| {
-                            // `Alphabet::new` validates the string again. This
-                            // is not really necessary as we already know that
-                            // the string represents a valid alphabet, it would
-                            // be better if we could use the private function
-                            // `Alphabet::from_str_unchecked`
-                            base64::alphabet::Alphabet::new(alphabet).unwrap()
-                        });
-
-                    assert!(alphabet.is_some());
+                    let alphabet_id = (*alphabet).into();
+                    let compiled_rules = self.compiled_rules;
+                    let base64_engine = custom_base64_engine(
+                        &mut self.custom_base64_engine_cache,
+                        alphabet_id,
+                        || {
+                            let alphabet = compiled_rules
+                                .lit_pool()
+                                .get_str(*alphabet)
+                                .unwrap();
+                            let alphabet =
+                                base64::alphabet::Alphabet::new(alphabet)
+                                    .unwrap();
+                            base64::engine::GeneralPurpose::new(
+                                &alphabet,
+                                base64::engine::general_purpose::NO_PAD,
+                            )
+                        },
+                    );
 
                     if let Some(match_range) = verify_base64_match(
                         self.compiled_rules
@@ -961,7 +971,7 @@ impl ScanContext<'_, '_> {
                         data,
                         (*padding).into(),
                         atom_pos,
-                        alphabet,
+                        base64_engine,
                         matches!(
                             sub_pattern,
                             SubPattern::CustomBase64Wide { .. }
@@ -1573,7 +1583,7 @@ fn verify_base64_match(
     scanned_data: &[u8],
     padding: usize,
     match_start: usize,
-    alphabet: Option<base64::alphabet::Alphabet>,
+    base64_engine: &base64::engine::GeneralPurpose,
     wide: bool,
 ) -> Option<Range<usize>> {
     // The pattern is passed to this function in its original form, before
@@ -1661,51 +1671,66 @@ fn verify_base64_match(
         decode_range.end = scanned_data.len();
     }
 
-    let base64_engine = base64::engine::GeneralPurpose::new(
-        alphabet.as_ref().unwrap_or(&base64::alphabet::STANDARD),
-        base64::engine::general_purpose::NO_PAD,
-    );
-
-    let decoded = if wide {
+    let mut ascii_storage: SmallVec<[u8; 256]> = SmallVec::new();
+    let encoded = if wide {
         // Collect the ASCII characters at even positions and make sure
         // that bytes at odd positions are zeroes.
-        let mut ascii = Vec::with_capacity(decode_range.len() / 2);
         for (i, b) in scanned_data[decode_range].iter().enumerate() {
             if i.is_multiple_of(2) {
                 // Padding (=) is not added to ASCII string.
                 if *b != b'=' {
-                    ascii.push(*b)
+                    ascii_storage.push(*b)
                 }
             } else if *b != 0 {
                 return None;
             }
         }
-        base64_engine.decode(ascii)
+        ascii_storage.as_slice()
     } else {
         let s = &scanned_data[decode_range];
 
         // Strip padding if present.
-        let s = if s.ends_with_str(b"==") {
+        if s.ends_with_str(b"==") {
             &s[0..s.len().saturating_sub(2)]
         } else if s.ends_with_str(b"=") {
             &s[0..s.len().saturating_sub(1)]
         } else {
             s
-        };
-
-        base64_engine.decode(s)
+        }
     };
+
+    let mut decoded: SmallVec<[u8; 256]> =
+        smallvec::smallvec![0; base64::decoded_len_estimate(encoded.len())];
+    let decoded_len =
+        base64_engine.decode_slice(encoded, &mut decoded).ok()?;
+    decoded.truncate(decoded_len);
 
     // If the decoding was successful, ignore the padding and compare to the
     // expected pattern.
-    let decoded_pattern =
-        decoded.as_ref().ok()?.get(padding..padding + pattern.len())?;
+    let decoded_pattern = decoded.get(padding..padding + pattern.len())?;
 
     if pattern.eq(decoded_pattern) {
         Some(match_start..match_start + match_len)
     } else {
         None
     }
+}
+
+fn custom_base64_engine<'a>(
+    cache: &'a mut Vec<(u32, base64::engine::GeneralPurpose)>,
+    alphabet_id: u32,
+    build_engine: impl FnOnce() -> base64::engine::GeneralPurpose,
+) -> &'a base64::engine::GeneralPurpose {
+    // Custom alphabets are uncommon and usually few per ruleset. A small Vec
+    // avoids rebuilding decode tables in the hot path without adding hash-map
+    // overhead to every candidate verification.
+    let cached_index = cache.iter().position(|(id, _)| *id == alphabet_id);
+    if let Some(index) = cached_index {
+        return &cache[index].1;
+    }
+
+    cache.push((alphabet_id, build_engine()));
+    &cache.last().unwrap().1
 }
 
 struct VM<'r> {
@@ -1809,6 +1834,7 @@ pub fn create_wasm_store_and_ctx<'r>(
         deadline: 0,
         limit_reached: FxHashSet::default(),
         regexp_cache: RefCell::new(FxHashMap::default()),
+        custom_base64_engine_cache: Vec::new(),
         #[cfg(feature = "rules-profiling")]
         time_spent_in_pattern: FxHashMap::default(),
         #[cfg(feature = "rules-profiling")]
