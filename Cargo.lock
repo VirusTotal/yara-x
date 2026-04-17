@@ -23,7 +23,6 @@ version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ddd31a130427c27518df266943a5308ed92d4b226cc639f5a8f1002816174301"
 dependencies = [
- "log",
  "memchr",
 ]
 
@@ -835,6 +834,11 @@ dependencies = [
  "generic-array",
  "typenum",
 ]
+
+[[package]]
+name = "daachorse"
+version = "2.1.0"
+source = "git+https://github.com/plusvic/daachorse#9d7f70a8bcab98d77ab95ffe7a63e57fcfcbbd10"
 
 [[package]]
 name = "darling"
@@ -4269,7 +4273,6 @@ dependencies = [
 name = "yara-x"
 version = "1.15.0"
 dependencies = [
- "aho-corasick",
  "annotate-snippets",
  "anyhow",
  "base64",
@@ -4279,6 +4282,7 @@ dependencies = [
  "bstr",
  "const-oid",
  "crc32fast",
+ "daachorse",
  "der-parser",
  "digest",
  "dsa",

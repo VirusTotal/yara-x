@@ -5,7 +5,7 @@ use std::slice::Iter;
 #[cfg(feature = "logging")]
 use std::time::Instant;
 
-use aho_corasick::AhoCorasick;
+//use aho_corasick::AhoCorasick;
 use anyhow::anyhow;
 #[cfg(feature = "logging")]
 use log::*;
@@ -138,7 +138,8 @@ pub struct Rules {
     /// that we can use `#[serde(skip)]` on it because [`AhoCorasick`] doesn't
     /// implement the [`Default`] trait.
     #[serde(skip)]
-    pub(in crate::compiler) ac: Option<AhoCorasick>,
+    pub(in crate::compiler) ac:
+        Option<daachorse::bytewise::DoubleArrayAhoCorasick<u32>>,
 
     /// Warnings that were produced while compiling these rules. These warnings
     /// are not serialized, rules that are obtained by deserializing previously
@@ -405,7 +406,9 @@ impl Rules {
     /// Returns the Aho-Corasick automaton that allows to search for pattern
     /// atoms.
     #[inline]
-    pub(crate) fn ac_automaton(&self) -> &AhoCorasick {
+    pub(crate) fn ac_automaton(
+        &self,
+    ) -> &daachorse::bytewise::DoubleArrayAhoCorasick<u32> {
         self.ac.as_ref().expect("Aho-Corasick automaton not compiled")
     }
 
@@ -453,7 +456,7 @@ impl Rules {
         });
 
         self.ac = Some(
-            AhoCorasick::new(atoms)
+            daachorse::bytewise::DoubleArrayAhoCorasick::new(atoms)
                 .expect("failed to build Aho-Corasick automaton"),
         );
 

@@ -777,7 +777,7 @@ impl ScanContext<'_, '_> {
             }
 
             let atom =
-                unsafe { atoms.get_unchecked(ac_match.pattern().as_usize()) };
+                unsafe { atoms.get_unchecked(ac_match.value() as usize) };
 
             // Subtract the backtrack value from the offset where the atom
             // matched. If the result is negative the atom can't be inside
