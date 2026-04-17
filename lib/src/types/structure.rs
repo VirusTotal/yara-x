@@ -447,7 +447,7 @@ impl Struct {
         }
 
         // Sort fields by field numbers specified in the proto.
-        fields.sort_by(|a, b| a.1.number.cmp(&b.1.number));
+        fields.sort_by_key(|a| a.1.number);
 
         // Insert the fields in a map, checking for duplicate fields.
         let mut field_index = IndexMap::new();

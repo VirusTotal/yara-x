@@ -253,10 +253,8 @@ impl Pattern {
                 *anchored_at = None;
                 self.flags_mut().insert(PatternFlags::NonAnchorable);
             }
-            None => {
-                if is_anchorable {
-                    *anchored_at = Some(offset);
-                }
+            None if is_anchorable => {
+                *anchored_at = Some(offset);
             }
             _ => {}
         }
