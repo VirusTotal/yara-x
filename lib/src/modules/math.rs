@@ -1,8 +1,7 @@
 use std::cmp;
 use std::f64::consts::PI;
 
-use itertools::Itertools;
-use num_traits::Pow;
+use memchr::memchr_iter;
 
 use crate::modules::prelude::*;
 use crate::modules::protos::math::*;
@@ -88,7 +87,7 @@ fn count_range(
     let start: usize = offset.try_into().ok()?;
     let end = cmp::min(data.len(), start.saturating_add(length));
     let data = data.get(start..end)?;
-    Some(data.iter().filter(|b| **b == byte).count() as i64)
+    Some(memchr_iter(byte, data).count() as i64)
 }
 
 /// Returns the percentage of occurrences of a byte in the scanned data.
@@ -99,7 +98,7 @@ fn percentage_global(ctx: &ScanContext, byte: i64) -> Option<f64> {
     if data.is_empty() {
         return None;
     }
-    let count = data.iter().filter(|b| **b == byte).count();
+    let count = memchr_iter(byte, data).count();
     Some(count as f64 / data.len() as f64)
 }
 
@@ -120,7 +119,7 @@ fn percentage_range(
     if data.is_empty() {
         return None;
     }
-    let count = data.iter().filter(|b| **b == byte).count();
+    let count = memchr_iter(byte, data).count();
     Some(count as f64 / data.len() as f64)
 }
 
@@ -144,7 +143,7 @@ fn mode_range(ctx: &ScanContext, offset: i64, length: i64) -> Option<i64> {
 #[module_export(name = "count")]
 fn count_global(ctx: &ScanContext, byte: i64) -> Option<i64> {
     let byte: u8 = byte.try_into().ok()?;
-    Some(ctx.scanned_data()?.iter().filter(|b| **b == byte).count() as i64)
+    Some(memchr_iter(byte, ctx.scanned_data()?).count() as i64)
 }
 
 /// Calculates the entropy of a range of the scanned data.
@@ -325,22 +324,30 @@ fn mode(data: &[u8]) -> Option<i64> {
 }
 
 fn serial_correlation(data: &[u8]) -> Option<f64> {
-    let mut scc1: f64 = data
-        .iter()
-        .map(|x| *x as f64)
-        .tuple_windows()
-        .map(|(x, y)| x * y)
-        .sum();
+    let Some((&first, rest)) = data.split_first() else {
+        return Some(-100000.0);
+    };
 
-    let scc2: f64 = data.iter().map(|x| *x as f64).sum::<f64>().pow(2);
-    let scc3: f64 = data.iter().map(|x| (*x as f64).pow(2)).sum();
+    let first = first as f64;
+    let mut prev = first;
+    let mut adjacent_product_sum = 0.0;
+    let mut byte_sum = first;
+    let mut byte_square_sum = first * first;
 
-    if let (Some(first), Some(last)) = (data.first(), data.last()) {
-        scc1 += (*first as f64) * (*last as f64)
+    for byte in rest {
+        let byte = *byte as f64;
+        adjacent_product_sum += prev * byte;
+        byte_sum += byte;
+        byte_square_sum += byte * byte;
+        prev = byte;
     }
 
+    adjacent_product_sum += first * prev;
+
     let len = data.len() as f64;
-    let scc = (len * scc1 - scc2) / (len * scc3 - scc2);
+    let byte_sum_squared = byte_sum * byte_sum;
+    let scc = (len * adjacent_product_sum - byte_sum_squared)
+        / (len * byte_square_sum - byte_sum_squared);
 
     if scc.is_nan() {
         Some(-100000.0)
@@ -364,7 +371,7 @@ fn monte_carlo_pi(data: &[u8]) -> Option<f64> {
             my = my * 256.0 + chunk[i + 3] as f64;
         }
 
-        if mx.pow(2) + my.pow(2) < INCIRC {
+        if mx * mx + my * my < INCIRC {
             inmont += 1;
         }
 
