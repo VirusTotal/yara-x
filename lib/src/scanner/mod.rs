@@ -20,15 +20,14 @@ use memmap2::{Mmap, MmapOptions};
 use protobuf::{CodedInputStream, MessageDyn};
 use thiserror::Error;
 
+use crate::Variable;
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
 use crate::modules::{BUILTIN_MODULES, Module, ModuleError};
 use crate::scanner::context::create_wasm_store_and_ctx;
-use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
 use crate::wasm::runtime::Store;
-use crate::{Variable, modules};
 
 pub(crate) use crate::scanner::context::RuntimeObject;
 pub(crate) use crate::scanner::context::RuntimeObjectHandle;
@@ -152,6 +151,7 @@ pub struct ProfilingData<'r> {
 #[derive(Debug, Default)]
 pub struct ScanOptions<'a> {
     module_metadata: HashMap<&'a str, &'a [u8]>,
+    lazy_modules: bool,
 }
 
 impl<'a> ScanOptions<'a> {
@@ -160,7 +160,7 @@ impl<'a> ScanOptions<'a> {
     ///
     /// Use other methods to add additional information.
     pub fn new() -> Self {
-        Self { module_metadata: Default::default() }
+        Self { module_metadata: Default::default(), lazy_modules: false }
     }
 
     /// Adds metadata for a YARA module.
@@ -170,6 +170,18 @@ impl<'a> ScanOptions<'a> {
         metadata: &'a [u8],
     ) -> Self {
         self.module_metadata.insert(module_name, metadata);
+        self
+    }
+
+    /// Enables or disables lazy module execution for this scan.
+    ///
+    /// When enabled, imported modules are executed only if rule condition
+    /// evaluation actually accesses one of their fields or functions. This can
+    /// avoid expensive parsers for rules that short-circuit on strings, but
+    /// modules skipped this way won't appear in [`ScanResults::module_output`]
+    /// or [`ScanResults::module_outputs`].
+    pub fn lazy_modules(mut self, yes: bool) -> Self {
+        self.lazy_modules = yes;
         self
     }
 }
@@ -502,111 +514,33 @@ impl<'r> Scanner<'r> {
         // Indicate that the scanner is currently scanning the given data.
         ctx.scan_state = ScanState::ScanningData(data);
 
-        for module_name in ctx.compiled_rules.imports() {
-            // Lookup the module in the list of built-in modules.
-            let module = modules::BUILTIN_MODULES
-                .get(module_name)
-                .unwrap_or_else(|| panic!("module `{module_name}` not found"));
+        ctx.lazy_modules =
+            options.as_ref().is_some_and(|options| options.lazy_modules);
 
-            let root_struct_name = module.root_struct_descriptor.full_name();
-
-            let module_output;
-            // If the user already provided some output for the module by
-            // calling `Scanner::set_module_output`, use that output. If not,
-            // call the module's main function (if the module has a main
-            // function) for getting its output.
-            if let Some(output) =
-                ctx.user_provided_module_outputs.remove(root_struct_name)
-            {
-                module_output = Some(output);
-            } else {
-                let meta: Option<&'opts [u8]> =
-                    options.as_ref().and_then(|options| {
-                        options.module_metadata.get(module_name).copied()
-                    });
-
-                if let Some(main_fn) = module.main_fn {
-                    module_output = Some(
-                        main_fn(ctx.scanned_data().unwrap(), meta).map_err(
-                            |err| ScanError::ModuleError {
-                                module: module_name.to_string(),
-                                err,
-                            },
-                        )?,
-                    );
-                } else {
-                    module_output = None;
-                }
+        if let Some(options) = options.as_ref() {
+            for (module_name, metadata) in &options.module_metadata {
+                ctx.module_metadata
+                    .insert((*module_name).to_string(), (*metadata).to_vec());
             }
-
-            if let Some(module_output) = &module_output {
-                // Make sure that the module is returning a protobuf message of
-                // the expected type.
-                debug_assert_eq!(
-                    module_output.descriptor_dyn().full_name(),
-                    module.root_struct_descriptor.full_name(),
-                    "main function of module `{}` must return `{}`, but returned `{}`",
-                    module_name,
-                    module.root_struct_descriptor.full_name(),
-                    module_output.descriptor_dyn().full_name(),
-                );
-
-                // Make sure that the module is returning a protobuf message
-                // where all required fields are initialized. This only applies
-                // to proto2, proto3 doesn't have "required" fields, all fields
-                // are optional.
-                debug_assert!(
-                    module_output.is_initialized_dyn(),
-                    "module `{}` returned a protobuf `{}` where some required fields are not initialized ",
-                    module_name,
-                    module.root_struct_descriptor.full_name()
-                );
-            }
-
-            // When constant folding is enabled we don't need to generate
-            // structure fields for enums. This is because during the
-            // optimization process symbols like MyEnum.ENUM_ITEM are resolved
-            // to their constant values at compile time. In other words, the
-            // compiler determines that MyEnum.ENUM_ITEM is equal to some value
-            // X, and uses that value in the generated code.
-            //
-            // However, without constant folding, enums are treated as any
-            // other field in a struct, and their values are determined at scan
-            // time. For that reason these fields must be generated for enums
-            // when constant folding is disabled.
-            let generate_fields_for_enums =
-                !cfg!(feature = "constant-folding");
-
-            let module_struct = Struct::from_proto_descriptor_and_msg(
-                &module.root_struct_descriptor,
-                module_output.as_deref(),
-                generate_fields_for_enums,
-            );
-
-            if let Some(module_output) = module_output {
-                ctx.module_outputs
-                    .insert(root_struct_name.to_string(), module_output);
-            }
-
-            // The data structure obtained from the module is added to the
-            // root structure. Any data from previous scans will be replaced
-            // with the new data structure.
-            ctx.root_struct
-                .add_field(module_name, TypeValue::Struct(module_struct));
         }
 
-        // The user provided module outputs are not needed anymore. Let's
-        // clear any remaining entry in the hash map (which can happen if
-        // the user has set outputs for modules that are not even imported
-        // by the rules.
-        ctx.user_provided_module_outputs.clear();
+        if !ctx.lazy_modules {
+            let imported_modules: Vec<String> =
+                ctx.compiled_rules.imports().map(str::to_owned).collect();
+            for module_name in imported_modules {
+                ctx.materialize_module(module_name.as_str())?;
+            }
+        }
 
         // Clear the flag that indicates that the search phase was done.
         ctx.set_pattern_search_done(false);
 
         // Evaluate the conditions of every rule, this will call
         // `ScanContext::search_for_patterns` if necessary.
-        ctx.eval_conditions()?;
+        let eval_result = ctx.eval_conditions();
+        ctx.module_metadata.clear();
+        ctx.user_provided_module_outputs.clear();
+        eval_result?;
 
         let data = match ctx.scan_state.take() {
             ScanState::ScanningData(data) => data,
@@ -698,7 +632,9 @@ impl<'a, 'r> ScanResults<'a, 'r> {
     /// data.
     ///
     /// The result will be `None` if the module doesn't exist or didn't
-    /// produce any output.
+    /// produce any output. When [`ScanOptions::lazy_modules`] is enabled,
+    /// imported modules that were never accessed during condition evaluation
+    /// are omitted as well.
     pub fn module_output(
         &self,
         module_name: &str,
@@ -715,7 +651,9 @@ impl<'a, 'r> ScanResults<'a, 'r> {
     /// Returns an iterator that yields tuples composed of a YARA module name
     /// and the protobuf produced by that module.
     ///
-    /// Only returns the modules that produced some output.
+    /// Only returns the modules that produced some output. When
+    /// [`ScanOptions::lazy_modules`] is enabled, imported modules that were
+    /// never accessed during condition evaluation are not included.
     pub fn module_outputs(&self) -> ModuleOutputs<'a, 'r> {
         ModuleOutputs::new(self.ctx)
     }

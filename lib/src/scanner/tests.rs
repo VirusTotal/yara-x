@@ -286,6 +286,85 @@ fn module_outputs() {
     assert!(outputs.next().is_none());
 }
 
+#[cfg(feature = "test_proto2-module")]
+#[test]
+fn lazy_modules_skip_unused_module() {
+    let rules = crate::compile(
+        r#"
+        import "test_proto2"
+        rule test {
+            strings:
+                $a = "YARAX_LAZY_MODULE_MARKER"
+            condition:
+                $a and test_proto2.file_size == 24
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    let scan_results = scanner
+        .scan_with_options(
+            b"no marker here",
+            ScanOptions::new().lazy_modules(true),
+        )
+        .expect("scan should not fail");
+
+    assert_eq!(scan_results.matching_rules().len(), 0);
+    assert!(scan_results.module_output("test_proto2").is_none());
+}
+
+#[cfg(feature = "test_proto2-module")]
+#[test]
+fn lazy_modules_materializes_field_on_use() {
+    let rules = crate::compile(
+        r#"
+        import "test_proto2"
+        rule test {
+            strings:
+                $a = "YARAX_LAZY_MODULE_MARKER"
+            condition:
+                $a and test_proto2.file_size == 24
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    let scan_results = scanner
+        .scan_with_options(
+            b"YARAX_LAZY_MODULE_MARKER",
+            ScanOptions::new().lazy_modules(true),
+        )
+        .expect("scan should not fail");
+
+    assert_eq!(scan_results.matching_rules().len(), 1);
+    assert!(scan_results.module_output("test_proto2").is_some());
+}
+
+#[cfg(feature = "test_proto2-module")]
+#[test]
+fn lazy_modules_materializes_module_functions() {
+    let rules = crate::compile(
+        r#"
+        import "test_proto2"
+        rule test {
+            condition:
+                test_proto2.get_foo() == "foo"
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    let scan_results = scanner
+        .scan_with_options(b"", ScanOptions::new().lazy_modules(true))
+        .expect("scan should not fail");
+
+    assert_eq!(scan_results.matching_rules().len(), 1);
+    assert!(scan_results.module_output("test_proto2").is_some());
+}
+
 #[test]
 fn variables_1() {
     let mut compiler = crate::Compiler::new();
@@ -721,6 +800,44 @@ fn set_module_output() {
         .unwrap();
     let scan_results = scanner.scan(b"").expect("scan should not fail");
     assert_eq!(scan_results.matching_rules().len(), 1);
+}
+
+#[test]
+fn lazy_set_module_output() {
+    let mut compiler = crate::Compiler::new();
+
+    compiler
+        .add_source(
+            r#"
+        import "pe"
+        rule test {
+            condition:
+              pe.entry_point == 1
+        }
+        "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+
+    let mut scanner = Scanner::new(&rules);
+    let mut pe_data = Box::new(mods::PE::new());
+
+    pe_data.set_entry_point(1);
+    pe_data.set_is_pe(true);
+
+    scanner.set_module_output(pe_data).unwrap();
+
+    let scan_results = scanner
+        .scan_with_options(b"", ScanOptions::new().lazy_modules(true))
+        .expect("scan should not fail");
+    assert_eq!(scan_results.matching_rules().len(), 1);
+    assert!(scan_results.module_output("pe").is_some());
+
+    let scan_results = scanner
+        .scan_with_options(b"", ScanOptions::new().lazy_modules(true))
+        .expect("scan should not fail");
+    assert_eq!(scan_results.matching_rules().len(), 0);
 }
 
 #[test]

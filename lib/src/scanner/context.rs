@@ -27,6 +27,7 @@ use crate::compiler::{
     SubPatternAtom, SubPatternFlags, SubPatternId,
 };
 use crate::errors::VariableError;
+use crate::modules::{self, BUILTIN_MODULES};
 use crate::re::Action;
 use crate::re::fast::FastVM;
 use crate::re::hir::ChainedPatternGap;
@@ -120,6 +121,14 @@ pub(crate) struct ScanContext<'r, 'd> {
     /// operation. Keys are the fully qualified protobuf message names, and
     /// values are the protobuf messages set with [`Scanner::set_module_output`].
     pub user_provided_module_outputs: FxHashMap<String, Box<dyn MessageDyn>>,
+    /// Metadata passed to module main functions for the current scan.
+    pub module_metadata: FxHashMap<String, Vec<u8>>,
+    /// Modules that have been materialized during the current scan.
+    pub materialized_modules: FxHashSet<String>,
+    /// Whether imported modules should be materialized on first use.
+    pub lazy_modules: bool,
+    /// Error captured while materializing a module from a field lookup.
+    pub module_materialization_error: Option<ScanError>,
     /// Hash map that tracks the matches occurred during a scan. The keys
     /// are the PatternId of the matching pattern, and values are a list
     /// of matches.
@@ -290,6 +299,98 @@ impl ScanContext<'_, '_> {
     /// use crate::modules::protos::my_module::MyModuleProto;
     /// let module_data: MyModuleProto = ctx.module_data::<MyModuleProto>()
     /// ```
+    pub(crate) fn materialize_module_for_root_field(
+        &mut self,
+        field_index: usize,
+    ) {
+        if self.module_materialization_error.is_some() {
+            return;
+        }
+
+        let module_name =
+            self.root_struct.field_by_index(field_index).and_then(|field| {
+                if let TypeValue::Struct(structure) = &field.type_value {
+                    structure
+                        .protobuf_type_name()
+                        .and_then(modules::module_name_from_root_struct)
+                } else {
+                    None
+                }
+            });
+
+        if let Some(module_name) = module_name
+            && let Err(err) = self.materialize_module(module_name)
+        {
+            self.module_materialization_error = Some(err);
+        }
+    }
+
+    pub(crate) fn materialize_module(
+        &mut self,
+        module_name: &str,
+    ) -> Result<(), ScanError> {
+        if !self.materialized_modules.insert(module_name.to_string()) {
+            return Ok(());
+        }
+
+        let module = BUILTIN_MODULES
+            .get(module_name)
+            .unwrap_or_else(|| panic!("module `{module_name}` not found"));
+
+        let root_struct_name = module.root_struct_descriptor.full_name();
+        let root_struct_name = root_struct_name.to_string();
+
+        let module_output = if let Some(output) =
+            self.user_provided_module_outputs.remove(root_struct_name.as_str())
+        {
+            Some(output)
+        } else if let Some(main_fn) = module.main_fn
+            && let Some(data) = self.scanned_data()
+        {
+            let meta =
+                self.module_metadata.get(module_name).map(Vec::as_slice);
+            Some(main_fn(data, meta).map_err(|err| {
+                ScanError::ModuleError { module: module_name.to_string(), err }
+            })?)
+        } else {
+            None
+        };
+
+        if let Some(module_output) = &module_output {
+            debug_assert_eq!(
+                module_output.descriptor_dyn().full_name(),
+                module.root_struct_descriptor.full_name(),
+                "main function of module `{}` must return `{}`, but returned `{}`",
+                module_name,
+                module.root_struct_descriptor.full_name(),
+                module_output.descriptor_dyn().full_name(),
+            );
+
+            debug_assert!(
+                module_output.is_initialized_dyn(),
+                "module `{}` returned a protobuf `{}` where some required fields are not initialized ",
+                module_name,
+                module.root_struct_descriptor.full_name()
+            );
+        }
+
+        let generate_fields_for_enums = !cfg!(feature = "constant-folding");
+        let module_struct = Struct::from_proto_descriptor_and_msg(
+            &module.root_struct_descriptor,
+            module_output.as_deref(),
+            generate_fields_for_enums,
+        );
+
+        if let Some(module_output) = module_output {
+            self.module_outputs.insert(root_struct_name, module_output);
+        }
+
+        self.root_struct
+            .add_field(module_name, TypeValue::Struct(module_struct));
+
+        Ok(())
+    }
+
     pub(crate) fn module_output<T: MessageFull>(&self) -> Option<&T> {
         let m = self.module_outputs.get(T::descriptor().full_name())?.as_ref();
         <dyn MessageDyn>::downcast_ref(m)
@@ -472,10 +573,15 @@ impl ScanContext<'_, '_> {
         // is running. In that case, the function returns `Ok(0)` but the
         // scan state is updated to `ScanState::Timeout`.
         match eval_result {
-            Ok(0) => match self.scan_state {
-                ScanState::Timeout => Err(ScanError::Timeout),
-                _ => Ok(()),
-            },
+            Ok(0) => {
+                if let Some(err) = self.module_materialization_error.take() {
+                    return Err(err);
+                }
+                match self.scan_state {
+                    ScanState::Timeout => Err(ScanError::Timeout),
+                    _ => Ok(()),
+                }
+            }
             Ok(v) => panic!("WASM main returned: {v}"),
             Err(err) if err.is::<ScanError>() => {
                 Err(err.downcast::<ScanError>().unwrap())
@@ -514,6 +620,9 @@ impl ScanContext<'_, '_> {
 
         // Clear module outputs from previous scans.
         self.module_outputs.clear();
+        self.module_metadata.clear();
+        self.materialized_modules.clear();
+        self.module_materialization_error = None;
 
         // Move the matching rules to the `matching_rules` vector, leaving the
         // `matching_rules_per_ns` map empty.
@@ -1804,6 +1913,10 @@ pub fn create_wasm_store_and_ctx<'r>(
         wasm_pattern_search_done: None,
         module_outputs: FxHashMap::default(),
         user_provided_module_outputs: FxHashMap::default(),
+        module_metadata: FxHashMap::default(),
+        materialized_modules: FxHashSet::default(),
+        lazy_modules: false,
+        module_materialization_error: None,
         pattern_matches: PatternMatches::new(),
         unconfirmed_matches: FxHashMap::default(),
         deadline: 0,
