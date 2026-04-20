@@ -1549,19 +1549,60 @@ fn verify_xor_match(
         return None;
     }
 
+    let candidate = &scanned_data[match_start..match_end];
+
     if key == 0 {
-        if pattern != &scanned_data[match_start..match_end] {
+        if pattern != candidate {
             return None;
         }
-    } else {
-        for (i, b) in scanned_data[match_start..match_end].iter().enumerate() {
-            if pattern[i] != b ^ key {
-                return None;
-            }
-        }
+    } else if !xor_slices_eq(pattern, candidate, key) {
+        return None;
     }
 
     Some(key)
+}
+
+#[inline]
+fn xor_slices_eq(pattern: &[u8], candidate: &[u8], key: u8) -> bool {
+    debug_assert_eq!(pattern.len(), candidate.len());
+
+    if pattern.len() < 8 {
+        let key_word = u32::from_ne_bytes([key; 4]);
+        let (pattern_chunks, pattern_remainder) = pattern.as_chunks::<4>();
+        let (candidate_chunks, candidate_remainder) =
+            candidate.as_chunks::<4>();
+
+        for (pattern, candidate) in pattern_chunks.iter().zip(candidate_chunks)
+        {
+            let pattern = u32::from_ne_bytes(*pattern);
+            let candidate = u32::from_ne_bytes(*candidate);
+            if pattern != candidate ^ key_word {
+                return false;
+            }
+        }
+
+        return pattern_remainder
+            .iter()
+            .zip(candidate_remainder)
+            .all(|(pattern, candidate)| *pattern == (*candidate ^ key));
+    }
+
+    let key_word = u64::from_ne_bytes([key; 8]);
+    let (pattern_chunks, pattern_remainder) = pattern.as_chunks::<8>();
+    let (candidate_chunks, candidate_remainder) = candidate.as_chunks::<8>();
+
+    for (pattern, candidate) in pattern_chunks.iter().zip(candidate_chunks) {
+        let pattern = u64::from_ne_bytes(*pattern);
+        let candidate = u64::from_ne_bytes(*candidate);
+        if pattern != candidate ^ key_word {
+            return false;
+        }
+    }
+
+    pattern_remainder
+        .iter()
+        .zip(candidate_remainder)
+        .all(|(pattern, candidate)| *pattern == (*candidate ^ key))
 }
 
 /// Verifies that `pattern` actually matches in base64 form at `match_start`
