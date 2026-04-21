@@ -1153,6 +1153,12 @@ impl IR {
 
     /// Creates a new [`Expr::BitwiseNot`].
     pub fn bitwise_not(&mut self, operand: ExprId) -> ExprId {
+        if self.constant_folding
+            && let Some(val) = self.get(operand).try_as_const_integer()
+        {
+            return self.constant(TypeValue::const_integer_from(!val));
+        }
+
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[operand.0 as usize] = expr_id;
         self.parents.push(ExprId::none());
@@ -1163,6 +1169,17 @@ impl IR {
 
     /// Creates a new [`Expr::BitwiseAnd`].
     pub fn bitwise_and(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        if self.constant_folding
+            && let (Some(lhs_val), Some(rhs_val)) = (
+                self.get(lhs).try_as_const_integer(),
+                self.get(rhs).try_as_const_integer(),
+            )
+        {
+            return self.constant(TypeValue::const_integer_from(
+                lhs_val & rhs_val,
+            ));
+        }
+
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[lhs.0 as usize] = expr_id;
         self.parents[rhs.0 as usize] = expr_id;
@@ -1174,6 +1191,17 @@ impl IR {
 
     /// Creates a new [`Expr::BitwiseOr`].
     pub fn bitwise_or(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        if self.constant_folding
+            && let (Some(lhs_val), Some(rhs_val)) = (
+                self.get(lhs).try_as_const_integer(),
+                self.get(rhs).try_as_const_integer(),
+            )
+        {
+            return self.constant(TypeValue::const_integer_from(
+                lhs_val | rhs_val,
+            ));
+        }
+
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[lhs.0 as usize] = expr_id;
         self.parents[rhs.0 as usize] = expr_id;
@@ -1185,6 +1213,17 @@ impl IR {
 
     /// Creates a new [`Expr::BitwiseXor`].
     pub fn bitwise_xor(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        if self.constant_folding
+            && let (Some(lhs_val), Some(rhs_val)) = (
+                self.get(lhs).try_as_const_integer(),
+                self.get(rhs).try_as_const_integer(),
+            )
+        {
+            return self.constant(TypeValue::const_integer_from(
+                lhs_val ^ rhs_val,
+            ));
+        }
+
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[lhs.0 as usize] = expr_id;
         self.parents[rhs.0 as usize] = expr_id;
@@ -1196,6 +1235,18 @@ impl IR {
 
     /// Creates a new [`Expr::Shl`].
     pub fn shl(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        if self.constant_folding
+            && let (Some(lhs_val), Some(rhs_val)) = (
+                self.get(lhs).try_as_const_integer(),
+                self.get(rhs).try_as_const_integer(),
+            )
+        {
+            if rhs_val >= 0 {
+                let result = if rhs_val >= 64 { 0 } else { lhs_val << rhs_val };
+                return self.constant(TypeValue::const_integer_from(result));
+            }
+        }
+
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[lhs.0 as usize] = expr_id;
         self.parents[rhs.0 as usize] = expr_id;
@@ -1207,6 +1258,18 @@ impl IR {
 
     /// Creates a new [`Expr::Shr`].
     pub fn shr(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        if self.constant_folding
+            && let (Some(lhs_val), Some(rhs_val)) = (
+                self.get(lhs).try_as_const_integer(),
+                self.get(rhs).try_as_const_integer(),
+            )
+        {
+            if rhs_val >= 0 {
+                let result = if rhs_val >= 64 { 0 } else { lhs_val >> rhs_val };
+                return self.constant(TypeValue::const_integer_from(result));
+            }
+        }
+
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[lhs.0 as usize] = expr_id;
         self.parents[rhs.0 as usize] = expr_id;
