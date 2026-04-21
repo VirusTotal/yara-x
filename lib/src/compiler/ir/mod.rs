@@ -1912,108 +1912,120 @@ impl Debug for IR {
             match event {
                 Event::Leave(_) => level -= 1,
                 Event::Enter((expr_id, expr,_)) => {
-                    for _ in 0..level {
-                        write!(f, "  ")?;
-                    }
+                    let indentation = "  ".repeat(level);
                     level += 1;
-                    write!(f, "{expr_id:?}: ")?;
+                    write!(f, "{indentation}{expr_id:?}: ")?;
                     let expr_hash = expr_hashes[expr_id.0 as usize];
                     match expr {
-                        Expr::Const(c) => write!(f, "CONST {c}")?,
-                        Expr::Filesize => write!(f, "FILESIZE")?,
-                        Expr::Not { .. } => write!(f, "NOT -- hash: {expr_hash:#08x}")?,
-                        Expr::And { .. } => write!(f, "AND -- hash: {expr_hash:#08x}")?,
-                        Expr::Or { .. } => write!(f, "OR -- hash: {expr_hash:#08x}")?,
-                        Expr::Minus { .. } => write!(f, "MINUS -- hash: {expr_hash:#08x}")?,
-                        Expr::Add { .. } => write!(f, "ADD -- hash: {expr_hash:#08x}")?,
-                        Expr::Sub { .. } => write!(f, "SUB -- hash: {expr_hash:#08x}")?,
-                        Expr::Mul { .. } => write!(f, "MUL -- hash: {expr_hash:#08x}")?,
-                        Expr::Div { .. } => write!(f, "DIV -- hash: {expr_hash:#08x}")?,
-                        Expr::Mod { .. } => write!(f, "MOD -- hash: {expr_hash:#08x}")?,
-                        Expr::Shl { .. } => write!(f, "SHL -- hash: {expr_hash:#08x}")?,
-                        Expr::Shr { .. } => write!(f, "SHR -- hash: {expr_hash:#08x}")?,
-                        Expr::Eq { .. } => write!(f, "EQ -- hash: {expr_hash:#08x}")?,
-                        Expr::Ne { .. } => write!(f, "NE -- hash: {expr_hash:#08x}")?,
-                        Expr::Lt { .. } => write!(f, "LT -- hash: {expr_hash:#08x}")?,
-                        Expr::Gt { .. } => write!(f, "GT -- hash: {expr_hash:#08x}")?,
-                        Expr::Le { .. } => write!(f, "LE -- hash: {expr_hash:#08x}")?,
-                        Expr::Ge { .. } => write!(f, "GE -- hash: {expr_hash:#08x}")?,
-                        Expr::BitwiseNot { .. } => write!(f, "BITWISE_NOT -- hash: {expr_hash:#08x}")?,
-                        Expr::BitwiseAnd { .. } => write!(f, "BITWISE_AND -- hash: {expr_hash:#08x}")?,
-                        Expr::BitwiseOr { .. } => write!(f, "BITWISE_OR -- hash: {expr_hash:#08x}")?,
-                        Expr::BitwiseXor { .. } => write!(f, "BITWISE_XOR -- hash: {expr_hash:#08x}")?,
-                        Expr::Contains { .. } => write!(f, "CONTAINS -- hash: {expr_hash:#08x}")?,
-                        Expr::IContains { .. } => write!(f, "ICONTAINS -- hash: {expr_hash:#08x}")?,
-                        Expr::StartsWith { .. } => write!(f, "STARTS_WITH -- hash: {expr_hash:#08x}")?,
-                        Expr::IStartsWith { .. } => write!(f, "ISTARTS_WITH -- hash: {expr_hash:#08x}")?,
-                        Expr::EndsWith { .. } => write!(f, "ENDS_WITH -- hash: {expr_hash:#08x}")?,
-                        Expr::IEndsWith { .. } => write!(f, "IENDS_WITH -- hash: {expr_hash:#08x}")?,
-                        Expr::IEquals { .. } => write!(f, "IEQUALS -- hash: {expr_hash:#08x}")?,
-                        Expr::Matches { .. } => write!(f, "MATCHES -- hash: {expr_hash:#08x}")?,
-                        Expr::Defined { .. } => write!(f, "DEFINED -- hash: {expr_hash:#08x}")?,
-                        Expr::FieldAccess { .. } => write!(f, "FIELD_ACCESS -- hash: {expr_hash:#08x}")?,
-                        Expr::With { .. } => write!(f, "WITH -- hash: {expr_hash:#08x}")?,
-                        Expr::Symbol(symbol) => write!(f, "SYMBOL {symbol:?}")?,
-                        Expr::OfExprTuple(_) => write!(f, "OF -- hash: {expr_hash:#08x}")?,
-                        Expr::OfPatternSet(_) => write!(f, "OF -- hash: {expr_hash:#08x}")?,
-                        Expr::ForOf(_) => write!(f, "FOR_OF -- hash: {expr_hash:#08x}")?,
-                        Expr::ForIn(_) => write!(f, "FOR_IN -- hash: {expr_hash:#08x}")?,
-                        Expr::Lookup(_) => write!(f, "LOOKUP -- hash: {expr_hash:#08x}")?,
-                        Expr::FuncCall(func_call) => write!(f,
+                        Expr::Const(c) => writeln!(f, "CONST {c}")?,
+                        Expr::Filesize => writeln!(f, "FILESIZE")?,
+                        Expr::Not { .. } => writeln!(f, "NOT -- hash: {expr_hash:#08x}")?,
+                        Expr::And { .. } => writeln!(f, "AND -- hash: {expr_hash:#08x}")?,
+                        Expr::Or { .. } => writeln!(f, "OR -- hash: {expr_hash:#08x}")?,
+                        Expr::Minus { .. } => writeln!(f, "MINUS -- hash: {expr_hash:#08x}")?,
+                        Expr::Add { .. } => writeln!(f, "ADD -- hash: {expr_hash:#08x}")?,
+                        Expr::Sub { .. } => writeln!(f, "SUB -- hash: {expr_hash:#08x}")?,
+                        Expr::Mul { .. } => writeln!(f, "MUL -- hash: {expr_hash:#08x}")?,
+                        Expr::Div { .. } => writeln!(f, "DIV -- hash: {expr_hash:#08x}")?,
+                        Expr::Mod { .. } => writeln!(f, "MOD -- hash: {expr_hash:#08x}")?,
+                        Expr::Shl { .. } => writeln!(f, "SHL -- hash: {expr_hash:#08x}")?,
+                        Expr::Shr { .. } => writeln!(f, "SHR -- hash: {expr_hash:#08x}")?,
+                        Expr::Eq { .. } => writeln!(f, "EQ -- hash: {expr_hash:#08x}")?,
+                        Expr::Ne { .. } => writeln!(f, "NE -- hash: {expr_hash:#08x}")?,
+                        Expr::Lt { .. } => writeln!(f, "LT -- hash: {expr_hash:#08x}")?,
+                        Expr::Gt { .. } => writeln!(f, "GT -- hash: {expr_hash:#08x}")?,
+                        Expr::Le { .. } => writeln!(f, "LE -- hash: {expr_hash:#08x}")?,
+                        Expr::Ge { .. } => writeln!(f, "GE -- hash: {expr_hash:#08x}")?,
+                        Expr::BitwiseNot { .. } => writeln!(f, "BITWISE_NOT -- hash: {expr_hash:#08x}")?,
+                        Expr::BitwiseAnd { .. } => writeln!(f, "BITWISE_AND -- hash: {expr_hash:#08x}")?,
+                        Expr::BitwiseOr { .. } => writeln!(f, "BITWISE_OR -- hash: {expr_hash:#08x}")?,
+                        Expr::BitwiseXor { .. } => writeln!(f, "BITWISE_XOR -- hash: {expr_hash:#08x}")?,
+                        Expr::Contains { .. } => writeln!(f, "CONTAINS -- hash: {expr_hash:#08x}")?,
+                        Expr::IContains { .. } => writeln!(f, "ICONTAINS -- hash: {expr_hash:#08x}")?,
+                        Expr::StartsWith { .. } => writeln!(f, "STARTS_WITH -- hash: {expr_hash:#08x}")?,
+                        Expr::IStartsWith { .. } => writeln!(f, "ISTARTS_WITH -- hash: {expr_hash:#08x}")?,
+                        Expr::EndsWith { .. } => writeln!(f, "ENDS_WITH -- hash: {expr_hash:#08x}")?,
+                        Expr::IEndsWith { .. } => writeln!(f, "IENDS_WITH -- hash: {expr_hash:#08x}")?,
+                        Expr::IEquals { .. } => writeln!(f, "IEQUALS -- hash: {expr_hash:#08x}")?,
+                        Expr::Matches { .. } => writeln!(f, "MATCHES -- hash: {expr_hash:#08x}")?,
+                        Expr::Defined { .. } => writeln!(f, "DEFINED -- hash: {expr_hash:#08x}")?,
+                        Expr::FieldAccess { .. } => writeln!(f, "FIELD_ACCESS -- hash: {expr_hash:#08x}")?,
+                        Expr::With { .. } => writeln!(f, "WITH -- hash: {expr_hash:#08x}")?,
+                        Expr::Symbol(symbol) => writeln!(f, "SYMBOL {symbol:?}")?,
+                        Expr::OfExprTuple(_) => writeln!(f, "OF -- hash: {expr_hash:#08x}")?,
+                        Expr::OfPatternSet(_) => writeln!(f, "OF -- hash: {expr_hash:#08x}")?,
+                        Expr::ForOf(for_of) => {
+                            writeln!(f, "FOR_OF -- hash: {expr_hash:#08x}")?;
+                            writeln!(f, "{indentation}      var: {:?}", for_of.variable)?;
+                            writeln!(f, "{indentation}      n: {:?}", for_of.for_vars.n)?;
+                            writeln!(f, "{indentation}      i: {:?}", for_of.for_vars.i)?;
+                            writeln!(f, "{indentation}      count: {:?}", for_of.for_vars.count)?;
+                            writeln!(f, "{indentation}      max_count: {:?}", for_of.for_vars.max_count)?;
+                        },
+                        Expr::ForIn(for_in) => {
+                            writeln!(f, "FOR_IN -- hash: {expr_hash:#08x}")?;
+                            writeln!(f, "{indentation}      var: {:?}", for_in.iterable_var)?;
+                            writeln!(f, "{indentation}      n: {:?}", for_in.for_vars.n)?;
+                            writeln!(f, "{indentation}      i: {:?}", for_in.for_vars.i)?;
+                            writeln!(f, "{indentation}      count: {:?}", for_in.for_vars.count)?;
+                            writeln!(f, "{indentation}      max_count: {:?}", for_in.for_vars.max_count)?;
+                        },
+                        Expr::Lookup(_) => writeln!(f, "LOOKUP -- hash: {expr_hash:#08x}")?,
+                        Expr::FuncCall(func_call) => writeln!(f,
                             "FN_CALL {} -- hash: {:#08x}",
                             func_call.mangled_name(),
                             expr_hash
                         )?,
-                        Expr::PatternMatch { pattern, anchor } => write!(
+                        Expr::PatternMatch { pattern, anchor } => writeln!(
                             f,
                             "PATTERN_MATCH {:?}{} -- hash: {:#08x}",
                             pattern,
                             anchor_str(anchor),
                             expr_hash
                         )?,
-                        Expr::PatternMatchVar { symbol, anchor } => write!(
+                        Expr::PatternMatchVar { symbol, anchor } => writeln!(
                             f,
                             "PATTERN_MATCH {:?}{} -- hash: {:#08x}",
                             symbol,
                             anchor_str(anchor),
                             expr_hash
                         )?,
-                        Expr::PatternCount { pattern, range } => write!(
+                        Expr::PatternCount { pattern, range } => writeln!(
                             f,
                             "PATTERN_COUNT {:?}{} -- hash: {:#08x}",
                             pattern,
                             range_str(range),
                             expr_hash
                         )?,
-                        Expr::PatternCountVar { symbol, range } => write!(
+                        Expr::PatternCountVar { symbol, range } => writeln!(
                             f,
                             "PATTERN_COUNT {:?}{} -- hash: {:#08x}",
                             symbol,
                             range_str(range),
                             expr_hash
                         )?,
-                        Expr::PatternOffset { pattern, index } => write!(
+                        Expr::PatternOffset { pattern, index } => writeln!(
                             f,
                             "PATTERN_OFFSET {:?}{} -- hash: {:#08x}",
                             pattern,
                             index_str(index),
                             expr_hash
                         )?,
-                        Expr::PatternOffsetVar { symbol, index } => write!(
+                        Expr::PatternOffsetVar { symbol, index } => writeln!(
                             f,
                             "PATTERN_OFFSET {:?}{} -- hash: {:#08x}",
                             symbol,
                             index_str(index),
                             expr_hash
                         )?,
-                        Expr::PatternLength { pattern, index } => write!(
+                        Expr::PatternLength { pattern, index } => writeln!(
                             f,
                             "PATTERN_LENGTH {:?}{} -- hash: {:#08x}",
                             pattern,
                             index_str(index),
                             expr_hash
                         )?,
-                        Expr::PatternLengthVar { symbol, index } => write!(
+                        Expr::PatternLengthVar { symbol, index } => writeln!(
                             f,
                             "PATTERN_LENGTH {:?}{} -- hash: {:#08x}",
                             symbol,
@@ -2021,8 +2033,6 @@ impl Debug for IR {
                             expr_hash
                         )?,
                     }
-                    writeln!(f, " -- parent: {:?} ", self.parents[expr_id.0 as usize])?;
-
                 }
             }
         }
@@ -2030,7 +2040,6 @@ impl Debug for IR {
         Ok(())
     }
 }
-
 /// Iterator that returns the ancestors for a given expression in the
 /// IR tree.
 ///
