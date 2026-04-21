@@ -14,11 +14,11 @@ RULE test_2
 
 RULE test_3
   6: FOR_OF -- hash: 0x9efd07789e3b338f
-        var: Var { frame_id: 1, ty: integer, index: 4 }
         n: Var { frame_id: 1, ty: integer, index: 0 }
         i: Var { frame_id: 1, ty: integer, index: 1 }
-        count: Var { frame_id: 1, ty: integer, index: 3 }
         max_count: Var { frame_id: 1, ty: integer, index: 2 }
+        count: Var { frame_id: 1, ty: integer, index: 3 }
+        item: Var { frame_id: 1, ty: integer, index: 4 }
     5: OR -- hash: 0xda1fd5ef5cd9baa8
       1: PATTERN_MATCH Var { var: Var { frame_id: 1, ty: integer, index: 4 }, type_value: integer(unknown) } AT -- hash: 0x8f6f481cddaae626
         0: CONST integer(0)

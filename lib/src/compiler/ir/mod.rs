@@ -793,8 +793,8 @@ impl IR {
                                     break;
                                 }
                             }
-                            // .. and take the loop that inside directly inside
-                            // the one that defined the variable
+                            // .. and take the loop that is directly inside
+                            // the one that defined the variable.
                             if let Some(inner_loop) = scopes.next() {
                                 result.push((current_expr_id, inner_loop));
                             }
@@ -845,7 +845,7 @@ impl IR {
                 .sum::<i32>();
 
             // Shift all variables with an index greater or equal than
-            // var_index one position to the left in order to make room for
+            // var_index one position to the right in order to make room for
             // the new variable used by the `with` statement that will be
             // inserted.
             self.shift_vars(loop_expr_id, var_index, 1);
@@ -1673,7 +1673,6 @@ impl IR {
         &mut self,
         quantifier: Quantifier,
         for_vars: ForVars,
-        next_expr_var: Var,
         items: Vec<ExprId>,
         anchor: MatchAnchor,
     ) -> ExprId {
@@ -1703,7 +1702,6 @@ impl IR {
             items,
             anchor,
             for_vars,
-            next_expr_var,
         })));
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
@@ -1714,7 +1712,6 @@ impl IR {
         &mut self,
         quantifier: Quantifier,
         for_vars: ForVars,
-        next_pattern_var: Var,
         items: Vec<PatternIdx>,
         anchor: MatchAnchor,
     ) -> ExprId {
@@ -1741,7 +1738,6 @@ impl IR {
             items,
             anchor,
             for_vars,
-            next_pattern_var,
         })));
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
@@ -1751,7 +1747,6 @@ impl IR {
     pub fn for_of(
         &mut self,
         quantifier: Quantifier,
-        variable: Var,
         for_vars: ForVars,
         pattern_set: Vec<PatternIdx>,
         body: ExprId,
@@ -1767,7 +1762,6 @@ impl IR {
         self.parents.push(ExprId::none());
         self.nodes.push(Expr::ForOf(Box::new(ForOf {
             quantifier,
-            variable,
             pattern_set,
             body,
             for_vars,
@@ -1782,7 +1776,6 @@ impl IR {
         quantifier: Quantifier,
         variables: Vec<Var>,
         for_vars: ForVars,
-        iterable_var: Var,
         iterable: Iterable,
         body: ExprId,
     ) -> ExprId {
@@ -1813,7 +1806,6 @@ impl IR {
             quantifier,
             variables,
             for_vars,
-            iterable_var,
             iterable,
             body,
         })));
@@ -1956,19 +1948,19 @@ impl Debug for IR {
                         Expr::OfPatternSet(_) => writeln!(f, "OF -- hash: {expr_hash:#08x}")?,
                         Expr::ForOf(for_of) => {
                             writeln!(f, "FOR_OF -- hash: {expr_hash:#08x}")?;
-                            writeln!(f, "{indentation}      var: {:?}", for_of.variable)?;
                             writeln!(f, "{indentation}      n: {:?}", for_of.for_vars.n)?;
                             writeln!(f, "{indentation}      i: {:?}", for_of.for_vars.i)?;
-                            writeln!(f, "{indentation}      count: {:?}", for_of.for_vars.count)?;
                             writeln!(f, "{indentation}      max_count: {:?}", for_of.for_vars.max_count)?;
+                            writeln!(f, "{indentation}      count: {:?}", for_of.for_vars.count)?;
+                            writeln!(f, "{indentation}      item: {:?}", for_of.for_vars.item)?;
                         },
                         Expr::ForIn(for_in) => {
                             writeln!(f, "FOR_IN -- hash: {expr_hash:#08x}")?;
-                            writeln!(f, "{indentation}      var: {:?}", for_in.iterable_var)?;
                             writeln!(f, "{indentation}      n: {:?}", for_in.for_vars.n)?;
                             writeln!(f, "{indentation}      i: {:?}", for_in.for_vars.i)?;
-                            writeln!(f, "{indentation}      count: {:?}", for_in.for_vars.count)?;
                             writeln!(f, "{indentation}      max_count: {:?}", for_in.for_vars.max_count)?;
+                            writeln!(f, "{indentation}      count: {:?}", for_in.for_vars.count)?;
+                            writeln!(f, "{indentation}      item: {:?}", for_in.for_vars.item)?;
                         },
                         Expr::Lookup(_) => writeln!(f, "LOOKUP -- hash: {expr_hash:#08x}")?,
                         Expr::FuncCall(func_call) => writeln!(f,
@@ -2281,7 +2273,6 @@ pub(crate) struct OfExprTuple {
     pub quantifier: Quantifier,
     pub items: Vec<ExprId>,
     pub for_vars: ForVars,
-    pub next_expr_var: Var,
     pub anchor: MatchAnchor,
 }
 
@@ -2290,7 +2281,6 @@ pub(crate) struct OfPatternSet {
     pub quantifier: Quantifier,
     pub items: Vec<PatternIdx>,
     pub for_vars: ForVars,
-    pub next_pattern_var: Var,
     pub anchor: MatchAnchor,
 }
 
@@ -2298,7 +2288,6 @@ pub(crate) struct OfPatternSet {
 /// `for 1 of ($a,$b) : (..)`)
 pub(crate) struct ForOf {
     pub quantifier: Quantifier,
-    pub variable: Var,
     pub for_vars: ForVars,
     pub pattern_set: Vec<PatternIdx>,
     pub body: ExprId,
@@ -2309,7 +2298,6 @@ pub(crate) struct ForIn {
     pub quantifier: Quantifier,
     pub variables: Vec<Var>,
     pub for_vars: ForVars,
-    pub iterable_var: Var,
     pub iterable: Iterable,
     pub body: ExprId,
 }
@@ -2324,7 +2312,6 @@ pub(crate) enum Quantifier {
 }
 
 /// Variables used in `for` loop.
-#[derive(PartialEq, Eq)]
 pub(crate) struct ForVars {
     /// Maximum number of iterations.
     pub n: Var,
@@ -2334,6 +2321,8 @@ pub(crate) struct ForVars {
     pub max_count: Var,
     /// Number of loop iterations that actually returned true.
     pub count: Var,
+    /// Variable that holds the current item.
+    pub item: Var,
 }
 
 impl ForVars {
@@ -2342,6 +2331,7 @@ impl ForVars {
         self.i.shift(after, amount);
         self.max_count.shift(after, amount);
         self.count.shift(after, amount);
+        self.item.shift(after, amount);
     }
 }
 
@@ -2520,22 +2510,18 @@ impl Expr {
             }
 
             Expr::OfExprTuple(of) => {
-                of.next_expr_var.shift(from_index, shift_amount);
                 of.for_vars.shift(from_index, shift_amount);
             }
 
             Expr::OfPatternSet(of) => {
-                of.next_pattern_var.shift(from_index, shift_amount);
                 of.for_vars.shift(from_index, shift_amount);
             }
 
             Expr::ForOf(for_of) => {
-                for_of.variable.shift(from_index, shift_amount);
                 for_of.for_vars.shift(from_index, shift_amount);
             }
 
             Expr::ForIn(for_in) => {
-                for_in.iterable_var.shift(from_index, shift_amount);
                 for v in for_in.variables.iter_mut() {
                     v.shift(from_index, shift_amount)
                 }

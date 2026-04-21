@@ -1,20 +1,20 @@
 RULE test
   54: FOR_IN -- hash: 0x6562ad64044ad6f
-        var: Var { frame_id: 1, ty: array, index: 0 }
-        n: Var { frame_id: 1, ty: integer, index: 1 }
-        i: Var { frame_id: 1, ty: integer, index: 2 }
-        count: Var { frame_id: 1, ty: integer, index: 4 }
-        max_count: Var { frame_id: 1, ty: integer, index: 3 }
+        n: Var { frame_id: 1, ty: integer, index: 0 }
+        i: Var { frame_id: 1, ty: integer, index: 1 }
+        max_count: Var { frame_id: 1, ty: integer, index: 2 }
+        count: Var { frame_id: 1, ty: integer, index: 3 }
+        item: Var { frame_id: 1, ty: array, index: 4 }
     2: FIELD_ACCESS -- hash: 0x46c662e9e5c5cbcf
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
       1: SYMBOL Field { index: 56, is_root: false, type_value: array, acl: None, deprecation_notice: None }
     53: AND -- hash: 0x650be43b12ef174
       12: FOR_OF -- hash: 0x8931dd42d26d892
-            var: Var { frame_id: 2, ty: integer, index: 11 }
             n: Var { frame_id: 2, ty: integer, index: 7 }
             i: Var { frame_id: 2, ty: integer, index: 8 }
-            count: Var { frame_id: 2, ty: integer, index: 10 }
             max_count: Var { frame_id: 2, ty: integer, index: 9 }
+            count: Var { frame_id: 2, ty: integer, index: 10 }
+            item: Var { frame_id: 2, ty: integer, index: 11 }
         11: PATTERN_MATCH Var { var: Var { frame_id: 2, ty: integer, index: 11 }, type_value: integer(unknown) } IN -- hash: 0xe05e27098b7a923a
           5: FIELD_ACCESS -- hash: 0x8d08a0d4fb4c25d7
             3: SYMBOL Var { var: Var { frame_id: 1, ty: struct, index: 5 }, type_value: struct }
@@ -25,20 +25,20 @@ RULE test
               7: SYMBOL Field { index: 3, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
             9: CONST integer(512)
       52: FOR_IN -- hash: 0xc59b67cefb89d1a6
-            var: Var { frame_id: 3, ty: array, index: 7 }
-            n: Var { frame_id: 3, ty: integer, index: 8 }
-            i: Var { frame_id: 3, ty: integer, index: 9 }
-            count: Var { frame_id: 3, ty: integer, index: 11 }
-            max_count: Var { frame_id: 3, ty: integer, index: 10 }
+            n: Var { frame_id: 3, ty: integer, index: 7 }
+            i: Var { frame_id: 3, ty: integer, index: 8 }
+            max_count: Var { frame_id: 3, ty: integer, index: 9 }
+            count: Var { frame_id: 3, ty: integer, index: 10 }
+            item: Var { frame_id: 3, ty: array, index: 11 }
         15: FIELD_ACCESS -- hash: 0x54b6d37d2b917356
           13: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
           14: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None, deprecation_notice: None }
         51: FOR_IN -- hash: 0x65cbea1307c02504
-              var: Var { frame_id: 4, ty: unknown, index: 14 }
-              n: Var { frame_id: 4, ty: integer, index: 15 }
-              i: Var { frame_id: 4, ty: integer, index: 16 }
-              count: Var { frame_id: 4, ty: integer, index: 18 }
-              max_count: Var { frame_id: 4, ty: integer, index: 17 }
+              n: Var { frame_id: 4, ty: integer, index: 14 }
+              i: Var { frame_id: 4, ty: integer, index: 15 }
+              max_count: Var { frame_id: 4, ty: integer, index: 16 }
+              count: Var { frame_id: 4, ty: integer, index: 17 }
+              item: Var { frame_id: 4, ty: unknown, index: 18 }
           16: CONST integer(100)
           17: CONST integer(0)
           18: CONST integer(4096)

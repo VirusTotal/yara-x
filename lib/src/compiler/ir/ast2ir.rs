@@ -1065,13 +1065,6 @@ fn of_expr_from_ast(
     let quantifier = quantifier_from_ast(ctx, &of.quantifier)?;
     let mut stack_frame = ctx.vars.new_frame(VarStack::OF_FRAME_SIZE);
 
-    let for_vars = ForVars {
-        n: stack_frame.new_var(Type::Integer),
-        i: stack_frame.new_var(Type::Integer),
-        max_count: stack_frame.new_var(Type::Integer),
-        count: stack_frame.new_var(Type::Integer),
-    };
-
     let (items, next_item_var) = match &of.items {
         // `x of (<boolean expr>, <boolean expr>, ...)`
         ast::OfItems::BoolExprTuple(tuple) => {
@@ -1097,6 +1090,14 @@ fn of_expr_from_ast(
                 next_item_var,
             )
         }
+    };
+
+    let for_vars = ForVars {
+        n: stack_frame.new_var(Type::Integer),
+        i: stack_frame.new_var(Type::Integer),
+        max_count: stack_frame.new_var(Type::Integer),
+        count: stack_frame.new_var(Type::Integer),
+        item: next_item_var,
     };
 
     if let Quantifier::Expr(expr) = &quantifier
@@ -1197,21 +1198,13 @@ fn of_expr_from_ast(
 
     let expr = match items {
         // `x of (<boolean expr>, <boolean expr>, ...)`
-        OfItems::BoolExprTuple(exprs) => ctx.ir.of_expr_tuple(
-            quantifier,
-            for_vars,
-            next_item_var,
-            exprs,
-            anchor,
-        ),
+        OfItems::BoolExprTuple(exprs) => {
+            ctx.ir.of_expr_tuple(quantifier, for_vars, exprs, anchor)
+        }
         // `x of them`, `x of ($a*, $b)`
-        OfItems::PatternSet(pattern_set) => ctx.ir.of_pattern_set(
-            quantifier,
-            for_vars,
-            next_item_var,
-            pattern_set,
-            anchor,
-        ),
+        OfItems::PatternSet(pattern_set) => {
+            ctx.ir.of_pattern_set(quantifier, for_vars, pattern_set, anchor)
+        }
     };
 
     Ok(expr)
@@ -1230,15 +1223,15 @@ fn for_of_expr_from_ast(
         i: stack_frame.new_var(Type::Integer),
         max_count: stack_frame.new_var(Type::Integer),
         count: stack_frame.new_var(Type::Integer),
+        item: stack_frame.new_var(Type::Integer),
     };
 
-    let next_pattern_id = stack_frame.new_var(Type::Integer);
     let mut loop_vars = SymbolTable::new();
 
     loop_vars.insert(
         "$",
         Symbol::Var {
-            var: next_pattern_id,
+            var: for_vars.item,
             type_value: TypeValue::unknown_integer(),
         },
     );
@@ -1270,7 +1263,7 @@ fn for_of_expr_from_ast(
         }
     }
 
-    Ok(ctx.ir.for_of(quantifier, next_pattern_id, for_vars, pattern_set, body))
+    Ok(ctx.ir.for_of(quantifier, for_vars, pattern_set, body))
 }
 
 fn is_potentially_large_range(ctx: &CompileContext, range: &Range) -> bool {
@@ -1409,13 +1402,12 @@ fn for_in_expr_from_ast(
 
     let mut stack_frame = ctx.vars.new_frame(VarStack::FOR_IN_FRAME_SIZE);
 
-    let iterable_var = stack_frame.new_var(iterable_ty);
-
     let for_vars = ForVars {
         n: stack_frame.new_var(Type::Integer),
         i: stack_frame.new_var(Type::Integer),
         max_count: stack_frame.new_var(Type::Integer),
         count: stack_frame.new_var(Type::Integer),
+        item: stack_frame.new_var(iterable_ty),
     };
 
     let mut symbols = SymbolTable::new();
@@ -1442,14 +1434,7 @@ fn for_in_expr_from_ast(
     // Restore the parent multiplier after the loop body has been processed.
     ctx.loop_iteration_multiplier = parent_multiplier;
 
-    Ok(ctx.ir.for_in(
-        quantifier,
-        variables,
-        for_vars,
-        iterable_var,
-        iterable,
-        body,
-    ))
+    Ok(ctx.ir.for_in(quantifier, variables, for_vars, iterable, body))
 }
 
 fn with_expr_from_ast(

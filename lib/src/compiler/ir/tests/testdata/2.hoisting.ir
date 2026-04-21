@@ -6,11 +6,11 @@ RULE test
         4: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
         5: SYMBOL Field { index: 19, is_root: false, type_value: array, acl: None, deprecation_notice: None }
       42: FOR_IN -- hash: 0xe8e057517cf5bf22
-            var: Var { frame_id: 1, ty: unknown, index: 2 }
-            n: Var { frame_id: 1, ty: integer, index: 3 }
-            i: Var { frame_id: 1, ty: integer, index: 4 }
-            count: Var { frame_id: 1, ty: integer, index: 6 }
-            max_count: Var { frame_id: 1, ty: integer, index: 5 }
+            n: Var { frame_id: 1, ty: integer, index: 2 }
+            i: Var { frame_id: 1, ty: integer, index: 3 }
+            max_count: Var { frame_id: 1, ty: integer, index: 4 }
+            count: Var { frame_id: 1, ty: integer, index: 5 }
+            item: Var { frame_id: 1, ty: unknown, index: 6 }
         0: CONST integer(0)
         1: PATTERN_COUNT PatternIdx(0) -- hash: 0xc1bc033c6a64ce89
         48: WITH -- hash: 0x669c16b485984c27
@@ -20,11 +20,11 @@ RULE test
             49: PATTERN_OFFSET PatternIdx(0) INDEX -- hash: 0xce29f774b8692af2
               13: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 7 }, type_value: integer(unknown) }
             41: FOR_IN -- hash: 0xe5518f0bdf2d8333
-                  var: Var { frame_id: 2, ty: unknown, index: 11 }
-                  n: Var { frame_id: 2, ty: integer, index: 12 }
-                  i: Var { frame_id: 2, ty: integer, index: 13 }
-                  count: Var { frame_id: 2, ty: integer, index: 15 }
-                  max_count: Var { frame_id: 2, ty: integer, index: 14 }
+                  n: Var { frame_id: 2, ty: integer, index: 11 }
+                  i: Var { frame_id: 2, ty: integer, index: 12 }
+                  max_count: Var { frame_id: 2, ty: integer, index: 13 }
+                  count: Var { frame_id: 2, ty: integer, index: 14 }
+                  item: Var { frame_id: 2, ty: unknown, index: 15 }
               2: CONST integer(0)
               3: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: integer(unknown) }
               52: WITH -- hash: 0x3666334f99c17954
@@ -34,11 +34,11 @@ RULE test
                   53: PATTERN_OFFSET PatternIdx(1) INDEX -- hash: 0x49dc6121174a8d53
                     29: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 16 }, type_value: integer(unknown) }
                   40: FOR_IN -- hash: 0x92c95e15a9d08618
-                        var: Var { frame_id: 3, ty: array, index: 20 }
-                        n: Var { frame_id: 3, ty: integer, index: 21 }
-                        i: Var { frame_id: 3, ty: integer, index: 22 }
-                        count: Var { frame_id: 3, ty: integer, index: 24 }
-                        max_count: Var { frame_id: 3, ty: integer, index: 23 }
+                        n: Var { frame_id: 3, ty: integer, index: 20 }
+                        i: Var { frame_id: 3, ty: integer, index: 21 }
+                        max_count: Var { frame_id: 3, ty: integer, index: 22 }
+                        count: Var { frame_id: 3, ty: integer, index: 23 }
+                        item: Var { frame_id: 3, ty: array, index: 24 }
                     6: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 1 }, type_value: array }
                     39: AND -- hash: 0xfd9ea211fc88a365
                       12: LE -- hash: 0xaae2bff322aa8faf
