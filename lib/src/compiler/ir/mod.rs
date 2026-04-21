@@ -1175,9 +1175,8 @@ impl IR {
                 self.get(rhs).try_as_const_integer(),
             )
         {
-            return self.constant(TypeValue::const_integer_from(
-                lhs_val & rhs_val,
-            ));
+            return self
+                .constant(TypeValue::const_integer_from(lhs_val & rhs_val));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
@@ -1197,9 +1196,8 @@ impl IR {
                 self.get(rhs).try_as_const_integer(),
             )
         {
-            return self.constant(TypeValue::const_integer_from(
-                lhs_val | rhs_val,
-            ));
+            return self
+                .constant(TypeValue::const_integer_from(lhs_val | rhs_val));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
@@ -1219,9 +1217,8 @@ impl IR {
                 self.get(rhs).try_as_const_integer(),
             )
         {
-            return self.constant(TypeValue::const_integer_from(
-                lhs_val ^ rhs_val,
-            ));
+            return self
+                .constant(TypeValue::const_integer_from(lhs_val ^ rhs_val));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
@@ -1240,11 +1237,11 @@ impl IR {
                 self.get(lhs).try_as_const_integer(),
                 self.get(rhs).try_as_const_integer(),
             )
+            && rhs_val >= 0
         {
-            if rhs_val >= 0 {
-                let result = if rhs_val >= 64 { 0 } else { lhs_val << rhs_val };
-                return self.constant(TypeValue::const_integer_from(result));
-            }
+            return self.constant(TypeValue::const_integer_from(
+                if rhs_val >= 64 { 0 } else { lhs_val << rhs_val },
+            ));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
@@ -1263,11 +1260,11 @@ impl IR {
                 self.get(lhs).try_as_const_integer(),
                 self.get(rhs).try_as_const_integer(),
             )
+            && rhs_val >= 0
         {
-            if rhs_val >= 0 {
-                let result = if rhs_val >= 64 { 0 } else { lhs_val >> rhs_val };
-                return self.constant(TypeValue::const_integer_from(result));
-            }
+            return self.constant(TypeValue::const_integer_from(
+                if rhs_val >= 64 { 0 } else { lhs_val >> rhs_val },
+            ));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
