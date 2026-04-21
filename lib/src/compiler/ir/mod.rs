@@ -2530,6 +2530,7 @@ impl Expr {
             }
 
             Expr::ForOf(for_of) => {
+                for_of.variable.shift(from_index, shift_amount);
                 for_of.for_vars.shift(from_index, shift_amount);
             }
 
