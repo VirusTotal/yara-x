@@ -276,6 +276,8 @@ fn string_operations() {
 
     condition_true!(r#""foo" icontains "FOO""#);
     condition_true!(r#""foo" icontains "OO""#);
+    condition_true!(r#""CAFÉ" icontains "fé""#);
+    condition_true!(r#""mañana" istartswith "MAÑ""#);
     condition_true!(r#""foo" istartswith "Fo""#);
     condition_true!(r#""foo" iendswith "OO""#);
 
