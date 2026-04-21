@@ -5,7 +5,7 @@ use std::slice::Iter;
 #[cfg(feature = "logging")]
 use std::time::Instant;
 
-use aho_corasick::AhoCorasick;
+use aho_corasick::{AhoCorasick, AhoCorasickBuilder, AhoCorasickKind};
 use anyhow::anyhow;
 #[cfg(feature = "logging")]
 use log::*;
@@ -34,6 +34,11 @@ const MAGIC: &[u8] = b"YARA-X\0\0";
 /// This version is incremented every time a change is made to the binary
 /// format in a way that breaks backwards compatibility.
 const SERIALIZATION_VERSION: u32 = 1;
+
+/// Maximum number of atoms for which the Aho-Corasick DFA backend is
+/// preferred over the crate default. Larger atom sets keep the default
+/// selection to avoid excessive memory usage during rule compilation.
+const MAX_DFA_ATOMS: usize = 5000;
 
 /// A set of YARA rules in compiled form.
 ///
@@ -420,42 +425,45 @@ impl Rules {
         #[cfg(feature = "logging")]
         let mut num_atoms = [0_usize; 6];
 
-        let atoms = self.atoms.iter().map(|x| {
-            #[cfg(feature = "logging")]
-            {
-                match x.atom.len() {
-                    atom_len @ 0..=4 => num_atoms[atom_len] += 1,
-                    _ => num_atoms[num_atoms.len() - 1] += 1,
-                }
-
-                if x.atom.len() < 2 {
-                    let (rule_id, pattern_ident_id) = self
-                        .get_rule_and_pattern_by_sub_pattern_id(
-                            x.sub_pattern_id,
-                        )
-                        .unwrap();
-
-                    let rule = self.get(rule_id);
-
-                    info!(
-                            "Very short atom in pattern `{}` in rule `{}:{}` (length: {})",
-                            self.ident_pool.get(pattern_ident_id).unwrap(),
-                            self.ident_pool
-                                .get(rule.namespace_ident_id)
-                                .unwrap(),
-                            self.ident_pool.get(rule.ident_id).unwrap(),
-                            x.atom.len()
-                        );
-                }
+        #[cfg(feature = "logging")]
+        for x in &self.atoms {
+            match x.atom.len() {
+                atom_len @ 0..=4 => num_atoms[atom_len] += 1,
+                _ => num_atoms[num_atoms.len() - 1] += 1,
             }
 
-            x.atom.as_ref()
-        });
+            if x.atom.len() < 2 {
+                let (rule_id, pattern_ident_id) = self
+                    .get_rule_and_pattern_by_sub_pattern_id(x.sub_pattern_id)
+                    .unwrap();
 
-        self.ac = Some(
-            AhoCorasick::new(atoms)
-                .expect("failed to build Aho-Corasick automaton"),
-        );
+                let rule = self.get(rule_id);
+
+                info!(
+                    "Very short atom in pattern `{}` in rule `{}:{}` (length: {})",
+                    self.ident_pool.get(pattern_ident_id).unwrap(),
+                    self.ident_pool.get(rule.namespace_ident_id).unwrap(),
+                    self.ident_pool.get(rule.ident_id).unwrap(),
+                    x.atom.len()
+                );
+            }
+        }
+
+        let atoms = || self.atoms.iter().map(|x| x.atom.as_ref());
+        let ac = if self.atoms.len() <= MAX_DFA_ATOMS {
+            AhoCorasickBuilder::new()
+                .kind(Some(AhoCorasickKind::DFA))
+                .build(atoms())
+                .unwrap_or_else(|_| {
+                    AhoCorasick::new(atoms())
+                        .expect("failed to build Aho-Corasick automaton")
+                })
+        } else {
+            AhoCorasick::new(atoms())
+                .expect("failed to build Aho-Corasick automaton")
+        };
+
+        self.ac = Some(ac);
 
         #[cfg(feature = "logging")]
         {
@@ -471,6 +479,14 @@ impl Rules {
                 self.anchored_sub_patterns.len()
             );
             info!("Number of atoms: {}", self.atoms.len());
+            info!(
+                "Aho-Corasick backend: {:?}",
+                self.ac.as_ref().unwrap().kind()
+            );
+            info!(
+                "Aho-Corasick memory usage: {} bytes",
+                self.ac.as_ref().unwrap().memory_usage()
+            );
             info!("Atoms with len = 0: {}", num_atoms[0]);
             info!("Atoms with len = 1: {}", num_atoms[1]);
             info!("Atoms with len = 2: {}", num_atoms[2]);
