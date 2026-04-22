@@ -808,7 +808,7 @@ impl<'a, 'r> NonMatchingRules<'a, 'r> {
             .wasm
             .main_memory
             .unwrap()
-            .data(unsafe { ctx.wasm_store.as_ref() });
+            .data(unsafe { ctx.wasm.store.as_ref() });
 
         let base = MATCHING_RULES_BITMAP_BASE as usize;
 

@@ -300,12 +300,11 @@ pub(crate) struct WasmState {
     pub main_memory: Option<wasm::runtime::Memory>,
     pub filesize: Option<Global>,
     pub pattern_search_done: Option<Global>,
+    pub store: NonNull<Store<ScanContext<'static, 'static>>>,
 }
 
 /// Structure that holds information about the current scan.
 pub(crate) struct ScanContext<'r, 'd> {
-    /// Pointer to the WASM store.
-    pub wasm_store: NonNull<Store<ScanContext<'static, 'static>>>,
     /// WASM state.
     pub wasm: WasmState,
     /// Map where keys are object handles and values are objects used during
@@ -477,7 +476,7 @@ impl ScanContext<'_, '_> {
     pub(crate) fn wasm_store_mut<'a>(
         &mut self,
     ) -> &'a mut Store<ScanContext<'static, 'static>> {
-        unsafe { self.wasm_store.as_mut() }
+        unsafe { self.wasm.store.as_mut() }
     }
 
     /// Returns true of the regexp identified by the given [`RegexpId`]
@@ -864,7 +863,7 @@ impl ScanContext<'_, '_> {
             && let Some(rules) =
                 self.matching_rules_per_ns.get_mut(&rule.namespace_id)
         {
-            let store = unsafe { self.wasm_store.as_mut() };
+            let store = unsafe { self.wasm.store.as_mut() };
             let main_mem = self.wasm.main_memory.unwrap().data_mut(store);
 
             let base = MATCHING_RULES_BITMAP_BASE as usize;
@@ -1755,13 +1754,13 @@ pub fn create_wasm_store_and_ctx<'r>(
         matching_rules_per_ns: IndexMap::new(),
         num_matching_private_rules: 0,
         num_non_matching_private_rules: 0,
-        wasm_store: NonNull::dangling(),
         wasm: WasmState {
             module: MaybeUninit::uninit(),
             main_memory: None,
             main_func: None,
             filesize: None,
             pattern_search_done: None,
+            store: NonNull::dangling(),
         },
         module_outputs: FxHashMap::default(),
         user_provided_module_outputs: FxHashMap::default(),
@@ -1810,9 +1809,9 @@ pub fn create_wasm_store_and_ctx<'r>(
         transmute::<ScanContext<'r, '_>, ScanContext<'static, 'static>>(ctx)
     }));
 
-    // Initialize the ScanContext.wasm_store pointer that was initially
+    // Initialize the ScanContext.wasm.store pointer that was initially
     // dangling.
-    wasm_store.data_mut().wasm_store =
+    wasm_store.data_mut().wasm.store =
         NonNull::from(wasm_store.as_ref().deref());
 
     // Global variable that will hold the value for `filesize`. This is
