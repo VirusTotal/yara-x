@@ -1518,6 +1518,7 @@ fn verify_base64_match(
     }
 
     let mut ascii_storage: SmallVec<[u8; 256]> = SmallVec::new();
+
     let encoded = if wide {
         // Collect the ASCII characters at even positions and make sure
         // that bytes at odd positions are zeroes.
@@ -1547,8 +1548,10 @@ fn verify_base64_match(
 
     let mut decoded: SmallVec<[u8; 256]> =
         smallvec::smallvec![0; base64::decoded_len_estimate(encoded.len())];
+
     let decoded_len =
         base64_engine.decode_slice(encoded, &mut decoded).ok()?;
+
     decoded.truncate(decoded_len);
 
     // If the decoding was successful, ignore the padding and compare to the
