@@ -211,7 +211,10 @@ impl<'r> Scanner<'r> {
     /// When some pattern reaches the maximum number of patterns it won't
     /// produce more matches.
     pub fn max_matches_per_pattern(&mut self, n: usize) -> &mut Self {
-        self.scan_context_mut().tracker.pattern_matches.max_matches_per_pattern(n);
+        self.scan_context_mut()
+            .tracker
+            .pattern_matches
+            .max_matches_per_pattern(n);
         self
     }
 
@@ -802,7 +805,8 @@ impl<'a, 'r> NonMatchingRules<'a, 'r> {
     fn new(ctx: &'a ScanContext<'r, 'a>) -> Self {
         let num_rules = ctx.compiled_rules.num_rules();
         let main_memory = ctx
-            .wasm_main_memory
+            .wasm
+            .main_memory
             .unwrap()
             .data(unsafe { ctx.wasm_store.as_ref() });
 

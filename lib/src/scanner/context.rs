@@ -125,15 +125,14 @@ impl<'r> MatchTracker<'r> {
                 );
             }
             SubPattern::LiteralChainHead { .. }
-            | SubPattern::RegexpChainHead { .. } => {
-                self.unconfirmed_matches
-                    .entry(sub_pattern_id)
-                    .or_default()
-                    .push(UnconfirmedMatch {
-                        range: match_.range,
-                        chain_length: 0,
-                    })
-            }
+            | SubPattern::RegexpChainHead { .. } => self
+                .unconfirmed_matches
+                .entry(sub_pattern_id)
+                .or_default()
+                .push(UnconfirmedMatch {
+                    range: match_.range,
+                    chain_length: 0,
+                }),
             SubPattern::LiteralChainTail {
                 chained_to, gap, flags, ..
             }
@@ -293,22 +292,22 @@ impl<'r> MatchTracker<'r> {
     }
 }
 
+/// Structure that holds information about WASM memories and variables used
+/// during the scan.
+pub(crate) struct WasmState {
+    pub module: MaybeUninit<Instance>,
+    pub main_func: Option<TypedFunc<(), i32>>,
+    pub main_memory: Option<wasm::runtime::Memory>,
+    pub filesize: Option<Global>,
+    pub pattern_search_done: Option<Global>,
+}
+
 /// Structure that holds information about the current scan.
 pub(crate) struct ScanContext<'r, 'd> {
     /// Pointer to the WASM store.
     pub wasm_store: NonNull<Store<ScanContext<'static, 'static>>>,
-    /// The WASM module.
-    pub wasm_module: MaybeUninit<Instance>,
-    /// Main function in the WASM module. This is the entrypoint from where
-    /// the execution of rule conditions starts.
-    pub wasm_main_func: Option<TypedFunc<(), i32>>,
-    /// Module's main memory.
-    pub wasm_main_memory: Option<wasm::runtime::Memory>,
-    /// WASM global variable that contains the value of `filesize`.
-    pub wasm_filesize: Option<Global>,
-    /// WASM global variable that contains a boolean that indicates if
-    /// pattern search was done.
-    pub wasm_pattern_search_done: Option<Global>,
+    /// WASM state.
+    pub wasm: WasmState,
     /// Map where keys are object handles and values are objects used during
     /// the evaluation of rule conditions. Handles are opaque integer values
     /// that can be passed to and received from WASM code. Each handle identify
@@ -583,12 +582,13 @@ impl ScanContext<'_, '_> {
 
     /// Gets the value of the global variable `filesize`.
     pub(crate) fn get_filesize(&mut self) -> i64 {
-        self.wasm_filesize.unwrap().get(self.wasm_store_mut()).i64().unwrap()
+        self.wasm.filesize.unwrap().get(self.wasm_store_mut()).i64().unwrap()
     }
 
     /// Set the value of the global variable `filesize`.
     pub(crate) fn set_filesize(&mut self, filesize: i64) {
-        self.wasm_filesize
+        self.wasm
+            .filesize
             .unwrap()
             .set(self.wasm_store_mut(), Val::I64(filesize))
             .unwrap();
@@ -597,7 +597,8 @@ impl ScanContext<'_, '_> {
     /// Sets the value of the flag that indicates if the pattern search
     /// phase was already executed.
     pub(crate) fn set_pattern_search_done(&mut self, done: bool) {
-        self.wasm_pattern_search_done
+        self.wasm
+            .pattern_search_done
             .unwrap()
             .set(self.wasm_store_mut(), Val::I32(done as i32))
             .unwrap();
@@ -629,7 +630,7 @@ impl ScanContext<'_, '_> {
         // reached while WASM code is being executed.
         let store = self.wasm_store_mut();
         let eval_result =
-            self.wasm_main_func.as_ref().unwrap().call(store, ());
+            self.wasm.main_func.as_ref().unwrap().call(store, ());
 
         #[cfg(feature = "rules-profiling")]
         if eval_result.is_err() {
@@ -748,13 +749,14 @@ impl ScanContext<'_, '_> {
         // rule may match without any pattern being matched, because there
         // are rules without patterns, or that match if the pattern is not
         // found.
-        if !self.tracker.pattern_matches.is_empty() || !self.matching_rules.is_empty()
+        if !self.tracker.pattern_matches.is_empty()
+            || !self.matching_rules.is_empty()
         {
             self.tracker.pattern_matches.clear();
             self.matching_rules.clear();
 
             let store = self.wasm_store_mut();
-            let mem = self.wasm_main_memory.unwrap().data_mut(store);
+            let mem = self.wasm.main_memory.unwrap().data_mut(store);
 
             // Starting at MATCHING_RULES_BITMAP in main memory there's a
             // bitmap were the N-th bit indicates if the rule with ID = N
@@ -863,7 +865,7 @@ impl ScanContext<'_, '_> {
                 self.matching_rules_per_ns.get_mut(&rule.namespace_id)
         {
             let store = unsafe { self.wasm_store.as_mut() };
-            let main_mem = self.wasm_main_memory.unwrap().data_mut(store);
+            let main_mem = self.wasm.main_memory.unwrap().data_mut(store);
 
             let base = MATCHING_RULES_BITMAP_BASE as usize;
             let num_rules = self.compiled_rules.num_rules();
@@ -920,7 +922,7 @@ impl ScanContext<'_, '_> {
         }
 
         let wasm_store = self.wasm_store_mut();
-        let mem = self.wasm_main_memory.unwrap().data_mut(wasm_store);
+        let mem = self.wasm.main_memory.unwrap().data_mut(wasm_store);
         let num_rules = self.compiled_rules.num_rules();
 
         let base = MATCHING_RULES_BITMAP_BASE as usize;
@@ -1754,11 +1756,13 @@ pub fn create_wasm_store_and_ctx<'r>(
         num_matching_private_rules: 0,
         num_non_matching_private_rules: 0,
         wasm_store: NonNull::dangling(),
-        wasm_module: MaybeUninit::uninit(),
-        wasm_main_memory: None,
-        wasm_main_func: None,
-        wasm_filesize: None,
-        wasm_pattern_search_done: None,
+        wasm: WasmState {
+            module: MaybeUninit::uninit(),
+            main_memory: None,
+            main_func: None,
+            filesize: None,
+            pattern_search_done: None,
+        },
         module_outputs: FxHashMap::default(),
         user_provided_module_outputs: FxHashMap::default(),
         tracker: MatchTracker {
@@ -1891,13 +1895,13 @@ pub fn create_wasm_store_and_ctx<'r>(
     let store_ptr = NonNull::from(wasm_store.as_ref().deref());
     let ctx = wasm_store.data_mut();
 
-    ctx.wasm_module = MaybeUninit::new(wasm_instance);
-    ctx.wasm_main_memory = Some(main_memory);
+    ctx.wasm.module = MaybeUninit::new(wasm_instance);
+    ctx.wasm.main_memory = Some(main_memory);
     ctx.tracker.wasm_main_memory = Some(main_memory);
     ctx.tracker.wasm_store = store_ptr;
-    ctx.wasm_main_func = Some(main_fn);
-    ctx.wasm_filesize = Some(filesize);
-    ctx.wasm_pattern_search_done = Some(pattern_search_done);
+    ctx.wasm.main_func = Some(main_fn);
+    ctx.wasm.filesize = Some(filesize);
+    ctx.wasm.pattern_search_done = Some(pattern_search_done);
 
     wasm_store
 }
