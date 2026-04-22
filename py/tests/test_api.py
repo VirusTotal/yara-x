@@ -346,6 +346,20 @@ def test_format():
   assert result == expected_output
 
 
+def test_format_non_ascii_long():
+  import io
+  # Create a long string with non-ASCII characters.
+  # 5000 characters of 'ê' will be 10000 bytes.
+  rule_content = 'rule test { strings: $a = "' + 'ê' * 5000 + '" condition: $a }'
+  inp = io.StringIO(rule_content)
+  output = io.StringIO()
+  fmt = yara_x.Formatter()
+  # This should not raise "ValueError: read error: failed to write whole buffer"
+  fmt.format(inp, output)
+  result = output.getvalue()
+  assert 'ê' * 5000 in result
+
+
 def test_module():
   with pytest.raises(ValueError):
     yara_x.Module('AXS')

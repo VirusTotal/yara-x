@@ -208,6 +208,11 @@ mod consts {
 struct PyReader {
     obj: Py<PyAny>,
     is_text_io: bool,
+    // Buffer to store excess bytes read from Python streams. This is necessary
+    // because when reading from a TextIO object, Python's `read(n)` returns up
+    // to `n` characters, which can be more than `n` bytes if there are
+    // multibyte characters.
+    buffer: Vec<u8>,
 }
 
 impl PyReader {
@@ -224,26 +229,53 @@ impl PyReader {
             let is_text_io =
                 obj_bound.is_instance(consts::text_io_base(py)?)?;
 
-            Ok(Self { obj, is_text_io })
+            Ok(Self { obj, is_text_io, buffer: Vec::new() })
         })
     }
 }
 
 impl Read for PyReader {
-    fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+
+        // If we have leftover bytes from a previous read, consume them first.
+        if !self.buffer.is_empty() {
+            let n = std::cmp::min(buf.len(), self.buffer.len());
+            buf[..n].copy_from_slice(&self.buffer[..n]);
+            self.buffer.drain(..n);
+            return Ok(n);
+        }
+
         Python::attach(|py| {
+            // Call Python `read` method. We request `buf.len()` units.
+            // For text streams, this means `buf.len()` characters.
             let data =
                 self.obj.call_method1(py, consts::read(py), (buf.len(),))?;
 
-            if self.is_text_io {
-                let bytes = data.extract::<Cow<str>>(py).unwrap();
-                buf.write_all(bytes.as_bytes())?;
-                Ok(bytes.len())
+            let bytes = if self.is_text_io {
+                let s = data.extract::<Cow<str>>(py).unwrap();
+                s.as_bytes().to_vec()
             } else {
-                let bytes = data.extract::<Cow<[u8]>>(py).unwrap();
-                buf.write_all(bytes.as_ref())?;
-                Ok(bytes.len())
+                data.extract::<Cow<[u8]>>(py).unwrap().to_vec()
+            };
+
+            if bytes.is_empty() {
+                return Ok(0);
             }
+
+            // Copy as many bytes as fit in `buf`.
+            let n = std::cmp::min(buf.len(), bytes.len());
+            buf[..n].copy_from_slice(&bytes[..n]);
+
+            // If Python returned more bytes than fit in `buf` (due to multi-byte
+            // characters in text mode), store the excess in our buffer.
+            if n < bytes.len() {
+                self.buffer.extend_from_slice(&bytes[n..]);
+            }
+
+            Ok(n)
         })
     }
 }
@@ -251,6 +283,10 @@ impl Read for PyReader {
 struct PyWriter {
     obj: Py<PyAny>,
     is_text_io: bool,
+    // Buffer to store incomplete UTF-8 sequences at the end of chunks.
+    // This is necessary because the formatter writes data in chunks, and a
+    // chunk boundary can fall in the middle of a multi-byte UTF-8 character.
+    buffer: Vec<u8>,
 }
 
 impl PyWriter {
@@ -267,7 +303,7 @@ impl PyWriter {
             let is_text_io =
                 obj_bound.is_instance(consts::text_io_base(py)?)?;
 
-            Ok(Self { obj, is_text_io })
+            Ok(Self { obj, is_text_io, buffer: Vec::new() })
         })
     }
 }
@@ -275,18 +311,51 @@ impl PyWriter {
 impl Write for PyWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         Python::attach(|py| {
-            let arg = if self.is_text_io {
-                let s = std::str::from_utf8(buf).expect(
-                    "tried to write non-utf8 data to a TextIO object.",
-                );
-                PyString::new(py, s).into_any()
-            } else {
-                PyBytes::new(py, buf).into_any()
-            };
+            if !self.is_text_io {
+                let arg = PyBytes::new(py, buf).into_any();
+                let n =
+                    self.obj.call_method1(py, consts::write(py), (arg,))?;
+                return n.extract(py).map_err(io::Error::from);
+            }
 
-            let n = self.obj.call_method1(py, consts::write(py), (arg,))?;
+            // Append new data to buffer.
+            self.buffer.extend_from_slice(buf);
 
-            n.extract(py).map_err(io::Error::from)
+            // Try to convert the buffered data to a valid UTF-8 string.
+            match std::str::from_utf8(&self.buffer) {
+                Ok(s) => {
+                    let arg = PyString::new(py, s).into_any();
+                    self.obj.call_method1(py, consts::write(py), (arg,))?;
+                    self.buffer.clear();
+                    Ok(buf.len())
+                }
+                Err(e) => {
+                    let valid_len = e.valid_up_to();
+                    if e.error_len().is_some() {
+                        // Real UTF-8 error in the middle of the data.
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            e,
+                        ));
+                    }
+                    // Incomplete UTF-8 sequence at the end of the buffer.
+                    // Write the valid part and keep the incomplete part in the buffer.
+                    if valid_len > 0 {
+                        let s = std::str::from_utf8(&self.buffer[..valid_len])
+                            .unwrap();
+                        let arg = PyString::new(py, s).into_any();
+                        self.obj.call_method1(
+                            py,
+                            consts::write(py),
+                            (arg,),
+                        )?;
+                        self.buffer.drain(..valid_len);
+                    }
+                    // We return `buf.len()` because we accepted all bytes (either
+                    // wrote them or buffered them).
+                    Ok(buf.len())
+                }
+            }
         })
     }
 
