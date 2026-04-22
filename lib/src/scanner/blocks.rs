@@ -156,7 +156,9 @@ impl<'r> Scanner<'r> {
 
         ctx.scan_state = ScanState::Idle;
 
-        for (_, match_list) in ctx.tracker.pattern_matches.matches_per_pattern() {
+        for (_, match_list) in
+            ctx.tracker.pattern_matches.matches_per_pattern()
+        {
             // Here we iterate the matches in order to gather snippets of data
             // from where the matches occurred. Notice however that we are only
             // interested in the matches that occurred in the recently scanned
@@ -257,7 +259,10 @@ impl<'r> Scanner<'r> {
     /// When some pattern reaches the maximum number of patterns it won't
     /// produce more matches.
     pub fn max_matches_per_pattern(&mut self, n: usize) -> &mut Self {
-        self.scan_context_mut().tracker.pattern_matches.max_matches_per_pattern(n);
+        self.scan_context_mut()
+            .tracker
+            .pattern_matches
+            .max_matches_per_pattern(n);
         self
     }
 
