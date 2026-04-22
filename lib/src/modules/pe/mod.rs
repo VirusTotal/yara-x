@@ -250,23 +250,16 @@ fn imphash(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
     let mut first = true;
 
     for import in &pe.import_details {
-        let original_dll_name =
-            import.library_name.as_deref().unwrap().to_lowercase();
-        let mut dll_name = original_dll_name.as_str();
-        // If extension is '.dll', '.sys' or '.ocx', remove it.
-        for extension in [".dll", ".sys", ".ocx"] {
-            dll_name = dll_name.trim_end_matches(extension);
-        }
+        let dll_name = trim_import_library_extension(
+            import.library_name.as_deref().unwrap(),
+        );
         for func in &import.functions {
             if !first {
                 Digest::update(&mut md5_hash, ",".as_bytes())
             }
-            Digest::update(&mut md5_hash, dll_name);
+            update_lowercase(&mut md5_hash, dll_name);
             Digest::update(&mut md5_hash, ".".as_bytes());
-            Digest::update(
-                &mut md5_hash,
-                func.name.as_deref().unwrap().to_lowercase().as_bytes(),
-            );
+            update_lowercase(&mut md5_hash, func.name.as_deref().unwrap());
             first = false;
         }
     }
@@ -278,6 +271,42 @@ fn imphash(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
     });
 
     Some(Lowercase::<FixedLenString<32>>::new(digest))
+}
+
+fn trim_import_library_extension(name: &str) -> &str {
+    for extension in [".dll", ".sys", ".ocx"] {
+        let extension = extension.as_bytes();
+        let name_bytes = name.as_bytes();
+        if name_bytes.len() >= extension.len()
+            && name_bytes[name_bytes.len() - extension.len()..]
+                .eq_ignore_ascii_case(extension)
+        {
+            return &name[..name_bytes.len() - extension.len()];
+        }
+    }
+    name
+}
+
+fn update_lowercase<D: Digest>(hasher: &mut D, s: &str) {
+    let bytes = s.as_bytes();
+    if bytes.is_ascii() {
+        if !bytes.iter().any(u8::is_ascii_uppercase) {
+            Digest::update(hasher, bytes);
+            return;
+        }
+
+        let mut buf = [0; 256];
+        for chunk in bytes.chunks(buf.len()) {
+            for (dst, src) in buf.iter_mut().zip(chunk) {
+                *dst = src.to_ascii_lowercase();
+            }
+            Digest::update(hasher, &buf[..chunk.len()]);
+        }
+        return;
+    }
+
+    let lowercase = s.to_lowercase();
+    Digest::update(hasher, lowercase.as_bytes());
 }
 
 /// Returns the number of toolid records with the given toolid.
