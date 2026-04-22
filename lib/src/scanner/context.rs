@@ -66,26 +66,18 @@ pub(crate) struct MatchTracker<'r> {
     pub unconfirmed_matches: FxHashMap<SubPatternId, Vec<UnconfirmedMatch>>,
     pub limit_reached: FxHashSet<PatternId>,
     pub compiled_rules: &'r Rules,
-    pub wasm_store: NonNull<Store<ScanContext<'static, 'static>>>,
-    pub wasm_main_memory: Option<wasm::runtime::Memory>,
 }
 
 impl<'r> MatchTracker<'r> {
-    #[inline]
-    pub(crate) fn wasm_store_mut<'a>(
-        &mut self,
-    ) -> &'a mut Store<ScanContext<'static, 'static>> {
-        unsafe { self.wasm_store.as_mut() }
-    }
-
     pub(crate) fn track_pattern_match(
         &mut self,
+        wasm_state: &mut WasmState,
         pattern_id: PatternId,
         match_: Match,
         replace_if_longer: bool,
     ) {
-        let wasm_store = self.wasm_store_mut();
-        let mem = self.wasm_main_memory.unwrap().data_mut(wasm_store);
+        let wasm_store = unsafe { wasm_state.store.as_mut() };
+        let mem = wasm_state.main_memory.unwrap().data_mut(wasm_store);
         let num_rules = self.compiled_rules.num_rules();
         let num_patterns = self.compiled_rules.num_patterns();
 
@@ -103,6 +95,7 @@ impl<'r> MatchTracker<'r> {
 
     pub(crate) fn handle_sub_pattern_match(
         &mut self,
+        wasm_state: &mut WasmState,
         sub_pattern_id: SubPatternId,
         sub_pattern: &SubPattern,
         pattern_id: PatternId,
@@ -115,10 +108,13 @@ impl<'r> MatchTracker<'r> {
             | SubPattern::Base64Wide { .. }
             | SubPattern::CustomBase64 { .. }
             | SubPattern::CustomBase64Wide { .. } => {
-                self.track_pattern_match(pattern_id, match_, false);
+                self.track_pattern_match(
+                    wasm_state, pattern_id, match_, false,
+                );
             }
             SubPattern::Regexp { flags, .. } => {
                 self.track_pattern_match(
+                    wasm_state,
                     pattern_id,
                     match_,
                     flags.contains(SubPatternFlags::GreedyRegexp),
@@ -144,6 +140,7 @@ impl<'r> MatchTracker<'r> {
                 ) {
                     if flags.contains(SubPatternFlags::LastInChain) {
                         self.verify_chain_of_matches(
+                            wasm_state,
                             pattern_id,
                             sub_pattern_id,
                             match_,
@@ -197,6 +194,7 @@ impl<'r> MatchTracker<'r> {
 
     fn verify_chain_of_matches(
         &mut self,
+        wasm_state: &mut WasmState,
         pattern_id: PatternId,
         tail_sub_pattern_id: SubPatternId,
         tail_match: Match,
@@ -218,6 +216,7 @@ impl<'r> MatchTracker<'r> {
                 SubPattern::LiteralChainHead { flags, .. }
                 | SubPattern::RegexpChainHead { flags, .. } => {
                     self.track_pattern_match(
+                        wasm_state,
                         pattern_id,
                         Match {
                             base: tail_match.base,
@@ -1026,6 +1025,7 @@ impl ScanContext<'_, '_> {
 
                 if verify_full_word(data, &match_range, *flags, None) {
                     self.tracker.handle_sub_pattern_match(
+                        &mut self.wasm,
                         sub_pattern_id,
                         sub_pattern,
                         *pattern_id,
@@ -1048,6 +1048,7 @@ impl ScanContext<'_, '_> {
 
                     if verify_literal_match(pattern, data, atom_pos, *flags) {
                         self.tracker.handle_sub_pattern_match(
+                            &mut self.wasm,
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
@@ -1066,12 +1067,14 @@ impl ScanContext<'_, '_> {
                         atom,
                         *flags,
                         |match_range| {
-                            self.tracker.handle_sub_pattern_match(
-                                sub_pattern_id,
-                                sub_pattern,
-                                *pattern_id,
-                                Match::new(match_range).rebase(base),
-                            );
+                            let _ =
+                                &mut self.tracker.handle_sub_pattern_match(
+                                    &mut self.wasm,
+                                    sub_pattern_id,
+                                    sub_pattern,
+                                    *pattern_id,
+                                    Match::new(match_range).rebase(base),
+                                );
                         },
                     )
                 }
@@ -1087,6 +1090,7 @@ impl ScanContext<'_, '_> {
                         verify_xor_match(pattern, data, atom_pos, atom, *flags)
                     {
                         self.tracker.handle_sub_pattern_match(
+                            &mut self.wasm,
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
@@ -1111,6 +1115,7 @@ impl ScanContext<'_, '_> {
                         matches!(sub_pattern, SubPattern::Base64Wide { .. }),
                     ) {
                         self.tracker.handle_sub_pattern_match(
+                            &mut self.wasm,
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
@@ -1155,6 +1160,7 @@ impl ScanContext<'_, '_> {
                         ),
                     ) {
                         self.tracker.handle_sub_pattern_match(
+                            &mut self.wasm,
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
@@ -1286,6 +1292,7 @@ impl ScanContext<'_, '_> {
                         if verify_literal_match(pattern, data, offset, *flags)
                         {
                             self.tracker.handle_sub_pattern_match(
+                                &mut self.wasm,
                                 *sub_pattern_id,
                                 sub_pattern,
                                 *pattern_id,
@@ -1769,8 +1776,6 @@ pub fn create_wasm_store_and_ctx<'r>(
             unconfirmed_matches: FxHashMap::default(),
             limit_reached: FxHashSet::default(),
             compiled_rules: rules,
-            wasm_store: NonNull::dangling(),
-            wasm_main_memory: None,
         },
         deadline: 0,
         regexp_cache: RefCell::new(FxHashMap::default()),
@@ -1891,13 +1896,10 @@ pub fn create_wasm_store_and_ctx<'r>(
         .get_typed_func::<(), i32>(wasm_store.as_context_mut(), "main")
         .unwrap();
 
-    let store_ptr = NonNull::from(wasm_store.as_ref().deref());
     let ctx = wasm_store.data_mut();
 
     ctx.wasm.module = MaybeUninit::new(wasm_instance);
     ctx.wasm.main_memory = Some(main_memory);
-    ctx.tracker.wasm_main_memory = Some(main_memory);
-    ctx.tracker.wasm_store = store_ptr;
     ctx.wasm.main_func = Some(main_fn);
     ctx.wasm.filesize = Some(filesize);
     ctx.wasm.pattern_search_done = Some(pattern_search_done);
