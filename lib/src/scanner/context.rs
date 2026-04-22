@@ -62,22 +62,37 @@ impl<'a> ScanState<'a> {
     }
 }
 
+pub(crate) struct MatchTracker<'r> {
+    pub pattern_matches: PatternMatches,
+    pub unconfirmed_matches: FxHashMap<SubPatternId, Vec<UnconfirmedMatch>>,
+    pub limit_reached: FxHashSet<PatternId>,
+    pub compiled_rules: &'r Rules,
+}
+
+/// Structure that holds information about WASM memories and variables used
+/// during the scan.
+pub(crate) struct WasmState {
+    pub module: MaybeUninit<Instance>,
+    pub main_func: Option<TypedFunc<(), i32>>,
+    pub main_memory: Option<wasm::runtime::Memory>,
+    pub filesize: Option<Global>,
+    pub pattern_search_done: Option<Global>,
+    pub store: NonNull<Store<ScanContext<'static, 'static>>>,
+}
+
+impl WasmState {
+    #[inline]
+    pub(crate) fn store_mut<'a>(
+        &mut self,
+    ) -> &'a mut Store<ScanContext<'static, 'static>> {
+        unsafe { self.store.as_mut() }
+    }
+}
+
 /// Structure that holds information about the current scan.
 pub(crate) struct ScanContext<'r, 'd> {
-    /// Pointer to the WASM store.
-    pub wasm_store: NonNull<Store<ScanContext<'static, 'static>>>,
-    /// The WASM module.
-    pub wasm_module: MaybeUninit<Instance>,
-    /// Main function in the WASM module. This is the entrypoint from where
-    /// the execution of rule conditions starts.
-    pub wasm_main_func: Option<TypedFunc<(), i32>>,
-    /// Module's main memory.
-    pub wasm_main_memory: Option<wasm::runtime::Memory>,
-    /// WASM global variable that contains the value of `filesize`.
-    pub wasm_filesize: Option<Global>,
-    /// WASM global variable that contains a boolean that indicates if
-    /// pattern search was done.
-    pub wasm_pattern_search_done: Option<Global>,
+    /// WASM state.
+    pub wasm: WasmState,
     /// Map where keys are object handles and values are objects used during
     /// the evaluation of rule conditions. Handles are opaque integer values
     /// that can be passed to and received from WASM code. Each handle identify
@@ -121,21 +136,8 @@ pub(crate) struct ScanContext<'r, 'd> {
     /// operation. Keys are the fully qualified protobuf message names, and
     /// values are the protobuf messages set with [`Scanner::set_module_output`].
     pub user_provided_module_outputs: FxHashMap<String, Box<dyn MessageDyn>>,
-    /// Hash map that tracks the matches occurred during a scan. The keys
-    /// are the PatternId of the matching pattern, and values are a list
-    /// of matches.
-    pub pattern_matches: PatternMatches,
-    /// Hash map that tracks the unconfirmed matches for chained patterns. When
-    /// a pattern is split into multiple chained pieces, each piece is handled
-    /// as an individual pattern, but the match of one of the pieces doesn't
-    /// imply that the whole pattern matches. This partial matches are stored
-    /// here until they can be confirmed or discarded. There's no guarantee
-    /// that matches stored in `Vec<UnconfirmedMatch>` are sorted by matching
-    /// offset.
-    pub unconfirmed_matches: FxHashMap<SubPatternId, Vec<UnconfirmedMatch>>,
-    /// Set that contains the PatternId for those patterns that have reached
-    /// the maximum number of matches indicated by `max_matches_per_pattern`.
-    pub limit_reached: FxHashSet<PatternId>,
+    /// Match tracker structure that holds unconfirmed and confirmed matches.
+    pub tracker: MatchTracker<'r>,
     /// When [`HEARTBEAT_COUNTER`] is larger than this value, the scan is
     /// aborted due to a timeout.
     pub deadline: u64,
@@ -151,6 +153,8 @@ pub(crate) struct ScanContext<'r, 'd> {
     pub custom_base64_engine_cache: Vec<(u32, base64::engine::GeneralPurpose)>,
     /// Callback invoked every time a YARA rule calls `console.log`.
     pub console_log: Option<Box<dyn FnMut(String) + 'r>>,
+    /// Virtual Machines used for executing regexps.
+    pub vm: VM<'r>,
     /// Hash map that tracks the time spend on each pattern. Keys are pattern
     /// PatternIds and values are the cumulative time spent on verifying each
     /// pattern.
@@ -262,7 +266,7 @@ impl ScanContext<'_, '_> {
     pub(crate) fn wasm_store_mut<'a>(
         &mut self,
     ) -> &'a mut Store<ScanContext<'static, 'static>> {
-        unsafe { self.wasm_store.as_mut() }
+        self.wasm.store_mut()
     }
 
     /// Returns true of the regexp identified by the given [`RegexpId`]
@@ -367,12 +371,13 @@ impl ScanContext<'_, '_> {
 
     /// Gets the value of the global variable `filesize`.
     pub(crate) fn get_filesize(&mut self) -> i64 {
-        self.wasm_filesize.unwrap().get(self.wasm_store_mut()).i64().unwrap()
+        self.wasm.filesize.unwrap().get(self.wasm_store_mut()).i64().unwrap()
     }
 
     /// Set the value of the global variable `filesize`.
     pub(crate) fn set_filesize(&mut self, filesize: i64) {
-        self.wasm_filesize
+        self.wasm
+            .filesize
             .unwrap()
             .set(self.wasm_store_mut(), Val::I64(filesize))
             .unwrap();
@@ -381,7 +386,8 @@ impl ScanContext<'_, '_> {
     /// Sets the value of the flag that indicates if the pattern search
     /// phase was already executed.
     pub(crate) fn set_pattern_search_done(&mut self, done: bool) {
-        self.wasm_pattern_search_done
+        self.wasm
+            .pattern_search_done
             .unwrap()
             .set(self.wasm_store_mut(), Val::I32(done as i32))
             .unwrap();
@@ -413,7 +419,7 @@ impl ScanContext<'_, '_> {
         // reached while WASM code is being executed.
         let store = self.wasm_store_mut();
         let eval_result =
-            self.wasm_main_func.as_ref().unwrap().call(store, ());
+            self.wasm.main_func.as_ref().unwrap().call(store, ());
 
         #[cfg(feature = "rules-profiling")]
         if eval_result.is_err() {
@@ -507,9 +513,9 @@ impl ScanContext<'_, '_> {
 
         // Clear the array that tracks the patterns that reached the maximum
         // number of patterns.
-        self.limit_reached.clear();
+        self.tracker.limit_reached.clear();
 
-        self.unconfirmed_matches.clear();
+        self.tracker.unconfirmed_matches.clear();
         self.num_matching_private_rules = 0;
         self.num_non_matching_private_rules = 0;
 
@@ -532,13 +538,14 @@ impl ScanContext<'_, '_> {
         // rule may match without any pattern being matched, because there
         // are rules without patterns, or that match if the pattern is not
         // found.
-        if !self.pattern_matches.is_empty() || !self.matching_rules.is_empty()
+        if !self.tracker.pattern_matches.is_empty()
+            || !self.matching_rules.is_empty()
         {
-            self.pattern_matches.clear();
+            self.tracker.pattern_matches.clear();
             self.matching_rules.clear();
 
             let store = self.wasm_store_mut();
-            let mem = self.wasm_main_memory.unwrap().data_mut(store);
+            let mem = self.wasm.main_memory.unwrap().data_mut(store);
 
             // Starting at MATCHING_RULES_BITMAP in main memory there's a
             // bitmap were the N-th bit indicates if the rule with ID = N
@@ -646,8 +653,8 @@ impl ScanContext<'_, '_> {
             && let Some(rules) =
                 self.matching_rules_per_ns.get_mut(&rule.namespace_id)
         {
-            let store = unsafe { self.wasm_store.as_mut() };
-            let main_mem = self.wasm_main_memory.unwrap().data_mut(store);
+            let store = self.wasm.store_mut();
+            let main_mem = self.wasm.main_memory.unwrap().data_mut(store);
 
             let base = MATCHING_RULES_BITMAP_BASE as usize;
             let num_rules = self.compiled_rules.num_rules();
@@ -704,7 +711,7 @@ impl ScanContext<'_, '_> {
         }
 
         let wasm_store = self.wasm_store_mut();
-        let mem = self.wasm_main_memory.unwrap().data_mut(wasm_store);
+        let mem = self.wasm.main_memory.unwrap().data_mut(wasm_store);
         let num_rules = self.compiled_rules.num_rules();
 
         let base = MATCHING_RULES_BITMAP_BASE as usize;
@@ -722,36 +729,6 @@ impl ScanContext<'_, '_> {
         }
     }
 
-    /// Called during the scan process when a pattern match has been found.
-    ///
-    /// `pattern_id` is the ID of the matching pattern, `match_` contains
-    /// details about the match (range and xor key), and `replace_if_longer`
-    /// indicates whether existing matches for the same pattern at the same
-    /// offset should be replaced by the current match if the current is
-    /// longer.
-    pub(crate) fn track_pattern_match(
-        &mut self,
-        pattern_id: PatternId,
-        match_: Match,
-        replace_if_longer: bool,
-    ) {
-        let wasm_store = self.wasm_store_mut();
-        let mem = self.wasm_main_memory.unwrap().data_mut(wasm_store);
-        let num_rules = self.compiled_rules.num_rules();
-        let num_patterns = self.compiled_rules.num_patterns();
-
-        let base = MATCHING_RULES_BITMAP_BASE as usize + num_rules.div_ceil(8);
-        let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
-            &mut mem[base..base + num_patterns.div_ceil(8)],
-        );
-
-        bits.set(pattern_id.into(), true);
-
-        if !self.pattern_matches.add(pattern_id, match_, replace_if_longer) {
-            self.limit_reached.insert(pattern_id);
-        }
-    }
-
     /// The Aho-Corasick search loop.
     pub(crate) fn ac_search_loop(
         &mut self,
@@ -759,11 +736,6 @@ impl ScanContext<'_, '_> {
         data: &[u8],
         block_scanning_mode: bool,
     ) -> Result<(), ScanError> {
-        let mut vm = VM {
-            pike_vm: PikeVM::new(self.compiled_rules.re_code()),
-            fast_vm: FastVM::new(self.compiled_rules.re_code()),
-        };
-
         let ac = self.compiled_rules.ac_automaton();
         let atoms = self.compiled_rules.atoms();
         let filesize = self.get_filesize();
@@ -805,7 +777,7 @@ impl ScanContext<'_, '_> {
             // Check if the potentially matching pattern has reached the
             // maximum number of allowed matches. In that case continue without
             // verifying the match.
-            if self.limit_reached.contains(pattern_id) {
+            if self.tracker.limit_reached.contains(pattern_id) {
                 continue;
             }
 
@@ -843,7 +815,9 @@ impl ScanContext<'_, '_> {
                 let match_range = atom_pos..atom_pos + atom.len();
 
                 if verify_full_word(data, &match_range, *flags, None) {
-                    self.handle_sub_pattern_match(
+                    handle_sub_pattern_match(
+                        &mut self.tracker,
+                        &mut self.wasm,
                         sub_pattern_id,
                         sub_pattern,
                         *pattern_id,
@@ -865,7 +839,9 @@ impl ScanContext<'_, '_> {
                         .unwrap();
 
                     if verify_literal_match(pattern, data, atom_pos, *flags) {
-                        self.handle_sub_pattern_match(
+                        handle_sub_pattern_match(
+                            &mut self.tracker,
+                            &mut self.wasm,
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
@@ -878,13 +854,15 @@ impl ScanContext<'_, '_> {
                 | SubPattern::RegexpChainHead { flags, .. }
                 | SubPattern::RegexpChainTail { flags, .. } => {
                     verify_regexp_match(
-                        &mut vm,
+                        &mut self.vm,
                         data,
                         atom_pos,
                         atom,
                         *flags,
                         |match_range| {
-                            self.handle_sub_pattern_match(
+                            handle_sub_pattern_match(
+                                &mut self.tracker,
+                                &mut self.wasm,
                                 sub_pattern_id,
                                 sub_pattern,
                                 *pattern_id,
@@ -904,7 +882,9 @@ impl ScanContext<'_, '_> {
                     if let Some(key) =
                         verify_xor_match(pattern, data, atom_pos, atom, *flags)
                     {
-                        self.handle_sub_pattern_match(
+                        handle_sub_pattern_match(
+                            &mut self.tracker,
+                            &mut self.wasm,
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
@@ -928,7 +908,9 @@ impl ScanContext<'_, '_> {
                         &base64::engine::general_purpose::STANDARD_NO_PAD,
                         matches!(sub_pattern, SubPattern::Base64Wide { .. }),
                     ) {
-                        self.handle_sub_pattern_match(
+                        handle_sub_pattern_match(
+                            &mut self.tracker,
+                            &mut self.wasm,
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
@@ -977,7 +959,9 @@ impl ScanContext<'_, '_> {
                             SubPattern::CustomBase64Wide { .. }
                         ),
                     ) {
-                        self.handle_sub_pattern_match(
+                        handle_sub_pattern_match(
+                            &mut self.tracker,
+                            &mut self.wasm,
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
@@ -1108,7 +1092,9 @@ impl ScanContext<'_, '_> {
 
                         if verify_literal_match(pattern, data, offset, *flags)
                         {
-                            self.handle_sub_pattern_match(
+                            handle_sub_pattern_match(
+                                &mut self.tracker,
+                                &mut self.wasm,
                                 *sub_pattern_id,
                                 sub_pattern,
                                 *pattern_id,
@@ -1120,235 +1106,6 @@ impl ScanContext<'_, '_> {
                 }
                 _ => unreachable!(),
             }
-        }
-    }
-
-    fn handle_sub_pattern_match(
-        &mut self,
-        sub_pattern_id: SubPatternId,
-        sub_pattern: &SubPattern,
-        pattern_id: PatternId,
-        match_: Match,
-    ) {
-        match sub_pattern {
-            SubPattern::Literal { .. }
-            | SubPattern::Xor { .. }
-            | SubPattern::Base64 { .. }
-            | SubPattern::Base64Wide { .. }
-            | SubPattern::CustomBase64 { .. }
-            | SubPattern::CustomBase64Wide { .. } => {
-                self.track_pattern_match(pattern_id, match_, false);
-            }
-            SubPattern::Regexp { flags, .. } => {
-                self.track_pattern_match(
-                    pattern_id,
-                    match_,
-                    flags.contains(SubPatternFlags::GreedyRegexp),
-                );
-            }
-            SubPattern::LiteralChainHead { .. }
-            | SubPattern::RegexpChainHead { .. } => {
-                // This is the head of a set of chained sub-patterns.
-                // Verifying that the head matches doesn't mean that
-                // the whole sub-pattern matches, the rest of the chain
-                // must be found as well. For the time being this is
-                // just an unconfirmed match.
-                self.unconfirmed_matches
-                    .entry(sub_pattern_id)
-                    .or_default()
-                    .push(UnconfirmedMatch {
-                        range: match_.range,
-                        chain_length: 0,
-                    })
-            }
-            SubPattern::LiteralChainTail {
-                chained_to, gap, flags, ..
-            }
-            | SubPattern::RegexpChainTail { chained_to, gap, flags, .. } => {
-                if self.within_valid_distance(
-                    *chained_to,
-                    match_.range.start,
-                    gap,
-                ) {
-                    if flags.contains(SubPatternFlags::LastInChain) {
-                        // This sub-pattern is the last one in the
-                        // chain. We can proceed to verify the whole
-                        // chain and determine if it matched or not.
-                        self.verify_chain_of_matches(
-                            pattern_id,
-                            sub_pattern_id,
-                            match_,
-                        );
-                    } else {
-                        // This sub-pattern is in the middle of the
-                        // chain. We need to find the sub-patterns that
-                        // follow, so for the time being this only an
-                        // unconfirmed match.
-                        self.unconfirmed_matches
-                            .entry(sub_pattern_id)
-                            .or_default()
-                            .push(UnconfirmedMatch {
-                                range: match_.range,
-                                chain_length: 0,
-                            });
-                    }
-                }
-            }
-        }
-    }
-
-    fn within_valid_distance(
-        &mut self,
-        chained_to: SubPatternId,
-        match_start: usize,
-        gap: &ChainedPatternGap,
-    ) -> bool {
-        if let Some(unconfirmed_matches) =
-            self.unconfirmed_matches.get_mut(&chained_to)
-        {
-            for m in unconfirmed_matches {
-                match gap {
-                    ChainedPatternGap::Bounded(gap) => {
-                        let min_gap = *gap.start() as usize;
-                        let max_gap = *gap.end() as usize;
-                        if (m.range.end + min_gap..=m.range.end + max_gap)
-                            .contains(&match_start)
-                        {
-                            return true;
-                        }
-                    }
-                    ChainedPatternGap::Unbounded(gap) => {
-                        let min_gap = gap.start as usize;
-                        if (m.range.start + min_gap..).contains(&match_start) {
-                            return true;
-                        }
-                    }
-                };
-            }
-        }
-
-        false
-    }
-
-    /// Given the [`SubPatternId`] associated to the last sub-pattern in a
-    /// chain, and a range where this sub-pattern matched, verifies that the
-    /// whole chain actually matches.
-    ///
-    /// The `tail_sub_pattern_id` argument must identify the last sub-pattern
-    /// in a chain. For example, if the chain is `S1 <- S2 <- S3`, this function
-    /// must receive the [`SubPatternId`] for `S3`, and a range where `S3`
-    /// matched. Then the function traverses the chain from the tail to the
-    /// head, making sure that each intermediate sub-pattern has unconfirmed
-    /// matches that have the correct distance between them, so that the whole
-    /// chain matches from head to tail. If the whole chain matches, the
-    /// corresponding match is added to the list of confirmed matches for
-    /// pattern identified by `pattern_id`.
-    fn verify_chain_of_matches(
-        &mut self,
-        pattern_id: PatternId,
-        tail_sub_pattern_id: SubPatternId,
-        tail_match: Match,
-    ) {
-        let mut queue = VecDeque::new();
-
-        queue.push_back((
-            tail_sub_pattern_id,
-            UnconfirmedMatch {
-                range: tail_match.range.clone(),
-                chain_length: 1,
-            },
-        ));
-
-        let mut tail_chained_to: Option<SubPatternId> = None;
-
-        while let Some((id, current_match)) = queue.pop_front() {
-            match &self.compiled_rules.get_sub_pattern(id).1 {
-                SubPattern::LiteralChainHead { flags, .. }
-                | SubPattern::RegexpChainHead { flags, .. } => {
-                    // The chain head is reached. This indicates that the whole
-                    // chain is valid, and we have a full match.
-                    self.track_pattern_match(
-                        pattern_id,
-                        Match {
-                            base: tail_match.base,
-                            range: current_match.range.start
-                                ..tail_match.range.end,
-                            xor_key: None,
-                        },
-                        flags.contains(SubPatternFlags::GreedyRegexp),
-                    );
-
-                    let mut next_pattern_id = tail_chained_to;
-
-                    while let Some(id) = next_pattern_id {
-                        if let Some(unconfirmed_matches) =
-                            self.unconfirmed_matches.get_mut(&id)
-                        {
-                            unconfirmed_matches
-                                .iter_mut()
-                                .for_each(|m| m.chain_length = 0);
-                        }
-                        let (_, sub_pattern) =
-                            self.compiled_rules.get_sub_pattern(id);
-                        next_pattern_id = sub_pattern.chained_to();
-                    }
-                }
-                SubPattern::LiteralChainTail {
-                    chained_to,
-                    gap,
-                    flags,
-                    ..
-                }
-                | SubPattern::RegexpChainTail {
-                    chained_to, gap, flags, ..
-                } => {
-                    // Iterate over the list of unconfirmed matches of the
-                    // sub-pattern that comes before in the chain. For example,
-                    // if the chain is P1 <- P2, and we just found a match for
-                    // P2, iterate over the unconfirmed matches for P1.
-                    let unconfirmed_matches =
-                        match self.unconfirmed_matches.get_mut(chained_to) {
-                            Some(m) => m,
-                            None => continue,
-                        };
-
-                    // Check whether the current match is at a correct distance
-                    // from each of the unconfirmed matches.
-                    for m in unconfirmed_matches {
-                        let in_range = match gap {
-                            ChainedPatternGap::Bounded(gap) => {
-                                let min_gap = *gap.start() as usize;
-                                let max_gap = *gap.end() as usize;
-                                (m.range.end + min_gap..=m.range.end + max_gap)
-                                    .contains(&current_match.range.start)
-                            }
-                            ChainedPatternGap::Unbounded(gap) => {
-                                let min_gap = gap.start as usize;
-                                (m.range.end + min_gap..)
-                                    .contains(&current_match.range.start)
-                            }
-                        };
-                        // Besides checking that the unconfirmed match lays at
-                        // a correct distance from the current match, we also
-                        // check that the chain length associated to the
-                        // unconfirmed match doesn't exceed the current chain
-                        // length.
-                        if in_range
-                            && m.chain_length <= current_match.chain_length
-                        {
-                            m.chain_length = current_match.chain_length + 1;
-                            queue.push_back((*chained_to, m.clone()))
-                        }
-                    }
-
-                    if flags.contains(SubPatternFlags::LastInChain)
-                        && flags.contains(SubPatternFlags::GreedyRegexp)
-                    {
-                        tail_chained_to = Some(*chained_to);
-                    }
-                }
-                _ => unreachable!(),
-            };
         }
     }
 }
@@ -1432,6 +1189,95 @@ fn verify_full_word(
     }
 
     true
+}
+
+fn verify_chain_of_matches(
+    tracker: &mut MatchTracker,
+    wasm_state: &mut WasmState,
+    pattern_id: PatternId,
+    tail_sub_pattern_id: SubPatternId,
+    tail_match: Match,
+) {
+    let mut queue = VecDeque::new();
+
+    queue.push_back((
+        tail_sub_pattern_id,
+        UnconfirmedMatch { range: tail_match.range.clone(), chain_length: 1 },
+    ));
+
+    let mut tail_chained_to: Option<SubPatternId> = None;
+
+    while let Some((id, current_match)) = queue.pop_front() {
+        match &tracker.compiled_rules.get_sub_pattern(id).1 {
+            SubPattern::LiteralChainHead { flags, .. }
+            | SubPattern::RegexpChainHead { flags, .. } => {
+                track_pattern_match(
+                    tracker,
+                    wasm_state,
+                    pattern_id,
+                    Match {
+                        base: tail_match.base,
+                        range: current_match.range.start..tail_match.range.end,
+                        xor_key: None,
+                    },
+                    flags.contains(SubPatternFlags::GreedyRegexp),
+                );
+
+                let mut next_pattern_id = tail_chained_to;
+
+                while let Some(id) = next_pattern_id {
+                    if let Some(unconfirmed_matches) =
+                        tracker.unconfirmed_matches.get_mut(&id)
+                    {
+                        unconfirmed_matches
+                            .iter_mut()
+                            .for_each(|m| m.chain_length = 0);
+                    }
+                    let (_, sub_pattern) =
+                        tracker.compiled_rules.get_sub_pattern(id);
+                    next_pattern_id = sub_pattern.chained_to();
+                }
+            }
+            SubPattern::LiteralChainTail {
+                chained_to, gap, flags, ..
+            }
+            | SubPattern::RegexpChainTail { chained_to, gap, flags, .. } => {
+                let unconfirmed_matches =
+                    match tracker.unconfirmed_matches.get_mut(chained_to) {
+                        Some(m) => m,
+                        None => continue,
+                    };
+
+                for m in unconfirmed_matches {
+                    let in_range = match gap {
+                        ChainedPatternGap::Bounded(gap) => {
+                            let min_gap = *gap.start() as usize;
+                            let max_gap = *gap.end() as usize;
+                            (m.range.end + min_gap..=m.range.end + max_gap)
+                                .contains(&current_match.range.start)
+                        }
+                        ChainedPatternGap::Unbounded(gap) => {
+                            let min_gap = gap.start as usize;
+                            (m.range.end + min_gap..)
+                                .contains(&current_match.range.start)
+                        }
+                    };
+                    if in_range && m.chain_length <= current_match.chain_length
+                    {
+                        m.chain_length = current_match.chain_length + 1;
+                        queue.push_back((*chained_to, m.clone()))
+                    }
+                }
+
+                if flags.contains(SubPatternFlags::LastInChain)
+                    && flags.contains(SubPatternFlags::GreedyRegexp)
+                {
+                    tail_chained_to = Some(*chained_to);
+                }
+            }
+            _ => unreachable!(),
+        };
+    }
 }
 
 /// When some `atom` belonging to a regexp is found at `match_start`, verify
@@ -1716,11 +1562,133 @@ fn verify_base64_match(
     }
 }
 
-fn custom_base64_engine<'a>(
-    cache: &'a mut Vec<(u32, base64::engine::GeneralPurpose)>,
+fn handle_sub_pattern_match(
+    tracker: &mut MatchTracker,
+    wasm_state: &mut WasmState,
+    sub_pattern_id: SubPatternId,
+    sub_pattern: &SubPattern,
+    pattern_id: PatternId,
+    match_: Match,
+) {
+    match sub_pattern {
+        SubPattern::Literal { .. }
+        | SubPattern::Xor { .. }
+        | SubPattern::Base64 { .. }
+        | SubPattern::Base64Wide { .. }
+        | SubPattern::CustomBase64 { .. }
+        | SubPattern::CustomBase64Wide { .. } => {
+            track_pattern_match(
+                tracker, wasm_state, pattern_id, match_, false,
+            );
+        }
+        SubPattern::Regexp { flags, .. } => {
+            track_pattern_match(
+                tracker,
+                wasm_state,
+                pattern_id,
+                match_,
+                flags.contains(SubPatternFlags::GreedyRegexp),
+            );
+        }
+        SubPattern::LiteralChainHead { .. }
+        | SubPattern::RegexpChainHead { .. } => tracker
+            .unconfirmed_matches
+            .entry(sub_pattern_id)
+            .or_default()
+            .push(UnconfirmedMatch { range: match_.range, chain_length: 0 }),
+        SubPattern::LiteralChainTail { chained_to, gap, flags, .. }
+        | SubPattern::RegexpChainTail { chained_to, gap, flags, .. } => {
+            if within_valid_distance(
+                tracker,
+                *chained_to,
+                match_.range.start,
+                gap,
+            ) {
+                if flags.contains(SubPatternFlags::LastInChain) {
+                    verify_chain_of_matches(
+                        tracker,
+                        wasm_state,
+                        pattern_id,
+                        sub_pattern_id,
+                        match_,
+                    );
+                } else {
+                    tracker
+                        .unconfirmed_matches
+                        .entry(sub_pattern_id)
+                        .or_default()
+                        .push(UnconfirmedMatch {
+                            range: match_.range,
+                            chain_length: 0,
+                        });
+                }
+            }
+        }
+    }
+}
+
+fn track_pattern_match(
+    tracker: &mut MatchTracker,
+    wasm_state: &mut WasmState,
+    pattern_id: PatternId,
+    match_: Match,
+    replace_if_longer: bool,
+) {
+    let wasm_store = wasm_state.store_mut();
+    let mem = wasm_state.main_memory.unwrap().data_mut(wasm_store);
+    let num_rules = tracker.compiled_rules.num_rules();
+    let num_patterns = tracker.compiled_rules.num_patterns();
+
+    let base = MATCHING_RULES_BITMAP_BASE as usize + num_rules.div_ceil(8);
+    let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
+        &mut mem[base..base + num_patterns.div_ceil(8)],
+    );
+
+    bits.set(pattern_id.into(), true);
+
+    if !tracker.pattern_matches.add(pattern_id, match_, replace_if_longer) {
+        tracker.limit_reached.insert(pattern_id);
+    }
+}
+
+fn within_valid_distance(
+    tracker: &MatchTracker,
+    chained_to: SubPatternId,
+    match_start: usize,
+    gap: &ChainedPatternGap,
+) -> bool {
+    if let Some(unconfirmed_matches) =
+        tracker.unconfirmed_matches.get(&chained_to)
+    {
+        for m in unconfirmed_matches {
+            match gap {
+                ChainedPatternGap::Bounded(gap) => {
+                    let min_gap = *gap.start() as usize;
+                    let max_gap = *gap.end() as usize;
+                    if (m.range.end + min_gap..=m.range.end + max_gap)
+                        .contains(&match_start)
+                    {
+                        return true;
+                    }
+                }
+                ChainedPatternGap::Unbounded(gap) => {
+                    let min_gap = gap.start as usize;
+                    if (m.range.start + min_gap..).contains(&match_start) {
+                        return true;
+                    }
+                }
+            };
+        }
+    }
+
+    false
+}
+
+fn custom_base64_engine(
+    cache: &mut Vec<(u32, base64::engine::GeneralPurpose)>,
     alphabet_id: u32,
     build_engine: impl FnOnce() -> base64::engine::GeneralPurpose,
-) -> &'a base64::engine::GeneralPurpose {
+) -> &base64::engine::GeneralPurpose {
     // Custom alphabets are uncommon and usually few per ruleset. A small Vec
     // avoids rebuilding decode tables in the hot path without adding hash-map
     // overhead to every candidate verification.
@@ -1821,19 +1789,28 @@ pub fn create_wasm_store_and_ctx<'r>(
         matching_rules_per_ns: IndexMap::new(),
         num_matching_private_rules: 0,
         num_non_matching_private_rules: 0,
-        wasm_store: NonNull::dangling(),
-        wasm_module: MaybeUninit::uninit(),
-        wasm_main_memory: None,
-        wasm_main_func: None,
-        wasm_filesize: None,
-        wasm_pattern_search_done: None,
+        wasm: WasmState {
+            module: MaybeUninit::uninit(),
+            main_memory: None,
+            main_func: None,
+            filesize: None,
+            pattern_search_done: None,
+            store: NonNull::dangling(),
+        },
         module_outputs: FxHashMap::default(),
         user_provided_module_outputs: FxHashMap::default(),
-        pattern_matches: PatternMatches::new(),
-        unconfirmed_matches: FxHashMap::default(),
+        tracker: MatchTracker {
+            pattern_matches: PatternMatches::new(),
+            unconfirmed_matches: FxHashMap::default(),
+            limit_reached: FxHashSet::default(),
+            compiled_rules: rules,
+        },
         deadline: 0,
-        limit_reached: FxHashSet::default(),
         regexp_cache: RefCell::new(FxHashMap::default()),
+        vm: VM {
+            pike_vm: PikeVM::new(rules.re_code()),
+            fast_vm: FastVM::new(rules.re_code()),
+        },
         custom_base64_engine_cache: Vec::new(),
         #[cfg(feature = "rules-profiling")]
         time_spent_in_pattern: FxHashMap::default(),
@@ -1866,9 +1843,9 @@ pub fn create_wasm_store_and_ctx<'r>(
         transmute::<ScanContext<'r, '_>, ScanContext<'static, 'static>>(ctx)
     }));
 
-    // Initialize the ScanContext.wasm_store pointer that was initially
+    // Initialize the ScanContext.wasm.store pointer that was initially
     // dangling.
-    wasm_store.data_mut().wasm_store =
+    wasm_store.data_mut().wasm.store =
         NonNull::from(wasm_store.as_ref().deref());
 
     // Global variable that will hold the value for `filesize`. This is
@@ -1950,11 +1927,11 @@ pub fn create_wasm_store_and_ctx<'r>(
 
     let ctx = wasm_store.data_mut();
 
-    ctx.wasm_module = MaybeUninit::new(wasm_instance);
-    ctx.wasm_main_memory = Some(main_memory);
-    ctx.wasm_main_func = Some(main_fn);
-    ctx.wasm_filesize = Some(filesize);
-    ctx.wasm_pattern_search_done = Some(pattern_search_done);
+    ctx.wasm.module = MaybeUninit::new(wasm_instance);
+    ctx.wasm.main_memory = Some(main_memory);
+    ctx.wasm.main_func = Some(main_fn);
+    ctx.wasm.filesize = Some(filesize);
+    ctx.wasm.pattern_search_done = Some(pattern_search_done);
 
     wasm_store
 }

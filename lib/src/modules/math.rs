@@ -1,14 +1,27 @@
+use std::cell::RefCell;
 use std::cmp;
 use std::f64::consts::PI;
 
-use itertools::Itertools;
-use num_traits::Pow;
+use memchr::memchr_iter;
+use rustc_hash::FxHashMap;
 
 use crate::modules::prelude::*;
 use crate::modules::protos::math::*;
 
+type ByteDistribution = [u64; 256];
+
+const DISTRIBUTION_CACHE_MIN_LEN: usize = 4096;
+const DISTRIBUTION_CACHE_MAX_ENTRIES: usize = 8;
+
+thread_local!(
+    static DISTRIBUTION_CACHE: RefCell<FxHashMap<(usize, usize), ByteDistribution>> =
+        RefCell::new(FxHashMap::default());
+);
+
 #[module_main]
 fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Math, ModuleError> {
+    DISTRIBUTION_CACHE.with(|cache| cache.borrow_mut().clear());
+
     // Nothing to do, but we have to return our protobuf
     Ok(Math::new())
 }
@@ -88,7 +101,7 @@ fn count_range(
     let start: usize = offset.try_into().ok()?;
     let end = cmp::min(data.len(), start.saturating_add(length));
     let data = data.get(start..end)?;
-    Some(data.iter().filter(|b| **b == byte).count() as i64)
+    Some(memchr_iter(byte, data).count() as i64)
 }
 
 /// Returns the percentage of occurrences of a byte in the scanned data.
@@ -99,7 +112,7 @@ fn percentage_global(ctx: &ScanContext, byte: i64) -> Option<f64> {
     if data.is_empty() {
         return None;
     }
-    let count = data.iter().filter(|b| **b == byte).count();
+    let count = memchr_iter(byte, data).count();
     Some(count as f64 / data.len() as f64)
 }
 
@@ -120,41 +133,41 @@ fn percentage_range(
     if data.is_empty() {
         return None;
     }
-    let count = data.iter().filter(|b| **b == byte).count();
+    let count = memchr_iter(byte, data).count();
     Some(count as f64 / data.len() as f64)
 }
 
 /// Returns the most frequent byte in the scanned data.
 #[module_export(name = "mode")]
 fn mode_global(ctx: &ScanContext) -> Option<i64> {
-    mode(ctx.scanned_data()?)
+    let data = ctx.scanned_data()?;
+    let distribution = distribution_for_range(data, 0, data.len())?;
+    mode_from_distribution(&distribution, data.len())
 }
 
 /// Returns the most frequent byte in a range of the scanned data.
 #[module_export(name = "mode")]
 fn mode_range(ctx: &ScanContext, offset: i64, length: i64) -> Option<i64> {
-    let length: usize = length.try_into().ok()?;
     let data = ctx.scanned_data()?;
-    let start: usize = offset.try_into().ok()?;
-    let end = cmp::min(data.len(), start.saturating_add(length));
-    mode(data.get(start..end)?)
+    let (start, end) = data_range(data, offset, length)?;
+    let distribution = distribution_for_range(data, start, end)?;
+    mode_from_distribution(&distribution, end - start)
 }
 
 /// Counts the occurrences of a byte in the scanned data.
 #[module_export(name = "count")]
 fn count_global(ctx: &ScanContext, byte: i64) -> Option<i64> {
     let byte: u8 = byte.try_into().ok()?;
-    Some(ctx.scanned_data()?.iter().filter(|b| **b == byte).count() as i64)
+    Some(memchr_iter(byte, ctx.scanned_data()?).count() as i64)
 }
 
 /// Calculates the entropy of a range of the scanned data.
 #[module_export(name = "entropy")]
 fn entropy_data(ctx: &ScanContext, offset: i64, length: i64) -> Option<f64> {
-    let length: usize = length.try_into().ok()?;
     let data = ctx.scanned_data()?;
-    let start: usize = offset.try_into().ok()?;
-    let end = cmp::min(data.len(), start.saturating_add(length));
-    Some(entropy(data.get(start..end)?))
+    let (start, end) = data_range(data, offset, length)?;
+    let distribution = distribution_for_range(data, start, end)?;
+    Some(entropy_from_distribution(&distribution, end - start))
 }
 
 /// Calculates the entropy of a string.
@@ -171,11 +184,10 @@ fn deviation_data(
     length: i64,
     mean: f64,
 ) -> Option<f64> {
-    let length: usize = length.try_into().ok()?;
     let data = ctx.scanned_data()?;
-    let start: usize = offset.try_into().ok()?;
-    let end = cmp::min(data.len(), start.saturating_add(length));
-    deviation(data.get(start..end)?, mean)
+    let (start, end) = data_range(data, offset, length)?;
+    let distribution = distribution_for_range(data, start, end)?;
+    deviation_from_distribution(&distribution, end - start, mean)
 }
 
 /// Calculates the deviation of a string.
@@ -191,11 +203,10 @@ fn deviation_string(
 /// Calculates the mean of a range of the scanned data.
 #[module_export(name = "mean")]
 fn mean_data(ctx: &ScanContext, offset: i64, length: i64) -> Option<f64> {
-    let length: usize = length.try_into().ok()?;
     let data = ctx.scanned_data()?;
-    let start: usize = offset.try_into().ok()?;
-    let end = cmp::min(data.len(), start.saturating_add(length));
-    mean(data.get(start..end)?)
+    let (start, end) = data_range(data, offset, length)?;
+    let distribution = distribution_for_range(data, start, end)?;
+    mean_from_distribution(&distribution, end - start)
 }
 
 /// Calculates the mean of a string.
@@ -247,20 +258,69 @@ fn monte_carlo_pi_string(ctx: &ScanContext, s: RuntimeString) -> Option<f64> {
     monte_carlo_pi(s.as_bstr(ctx).as_bytes())
 }
 
-fn entropy(data: &[u8]) -> f64 {
-    if data.is_empty() {
-        return 0.0;
+fn data_range(data: &[u8], offset: i64, length: i64) -> Option<(usize, usize)> {
+    let length: usize = length.try_into().ok()?;
+    let start: usize = offset.try_into().ok()?;
+    let end = cmp::min(data.len(), start.saturating_add(length));
+    data.get(start..end)?;
+    Some((start, end))
+}
+
+fn distribution_for_range(
+    data: &[u8],
+    start: usize,
+    end: usize,
+) -> Option<ByteDistribution> {
+    let data = data.get(start..end)?;
+
+    if data.len() < DISTRIBUTION_CACHE_MIN_LEN {
+        return Some(byte_distribution(data));
     }
 
+    let key = (start, end);
+    if let Some(distribution) =
+        DISTRIBUTION_CACHE.with(|cache| cache.borrow().get(&key).copied())
+    {
+        return Some(distribution);
+    }
+
+    let distribution = byte_distribution(data);
+
+    DISTRIBUTION_CACHE.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if cache.len() < DISTRIBUTION_CACHE_MAX_ENTRIES {
+            cache.insert(key, distribution);
+        }
+    });
+
+    Some(distribution)
+}
+
+fn byte_distribution(data: &[u8]) -> ByteDistribution {
     let mut distribution = [0u64; 256];
     for byte in data {
         distribution[*byte as usize] += 1;
     }
+    distribution
+}
+
+fn entropy(data: &[u8]) -> f64 {
+    let distribution = byte_distribution(data);
+    entropy_from_distribution(&distribution, data.len())
+}
+
+fn entropy_from_distribution(
+    distribution: &ByteDistribution,
+    len: usize,
+) -> f64 {
+    if len == 0 {
+        return 0.0;
+    }
 
     let mut entropy: f64 = 0.0;
-    for value in &distribution {
+    for value in distribution {
         if *value != 0 {
-            let x = *value as f64 / data.len() as f64;
+            let x = *value as f64 / len as f64;
             entropy -= x * f64::log2(x);
         }
     }
@@ -269,13 +329,17 @@ fn entropy(data: &[u8]) -> f64 {
 }
 
 fn deviation(data: &[u8], mean: f64) -> Option<f64> {
-    if data.is_empty() {
-        return None;
-    }
+    let distribution = byte_distribution(data);
+    deviation_from_distribution(&distribution, data.len(), mean)
+}
 
-    let mut distribution = [0u64; 256];
-    for byte in data {
-        distribution[*byte as usize] += 1;
+fn deviation_from_distribution(
+    distribution: &ByteDistribution,
+    len: usize,
+    mean: f64,
+) -> Option<f64> {
+    if len == 0 {
+        return None;
     }
 
     let mut sum: f64 = 0.0;
@@ -283,17 +347,20 @@ fn deviation(data: &[u8], mean: f64) -> Option<f64> {
         sum += f64::abs(i as f64 - mean) * *value as f64;
     }
 
-    Some(sum / data.len() as f64)
+    Some(sum / len as f64)
 }
 
 fn mean(data: &[u8]) -> Option<f64> {
-    if data.is_empty() {
-        return None;
-    }
+    let distribution = byte_distribution(data);
+    mean_from_distribution(&distribution, data.len())
+}
 
-    let mut distribution = [0u64; 256];
-    for byte in data {
-        distribution[*byte as usize] += 1;
+fn mean_from_distribution(
+    distribution: &ByteDistribution,
+    len: usize,
+) -> Option<f64> {
+    if len == 0 {
+        return None;
     }
 
     let mut sum: f64 = 0.0;
@@ -301,17 +368,15 @@ fn mean(data: &[u8]) -> Option<f64> {
         sum += i as f64 * *value as f64;
     }
 
-    Some(sum / data.len() as f64)
+    Some(sum / len as f64)
 }
 
-fn mode(data: &[u8]) -> Option<i64> {
-    if data.is_empty() {
+fn mode_from_distribution(
+    distribution: &ByteDistribution,
+    len: usize,
+) -> Option<i64> {
+    if len == 0 {
         return None;
-    }
-
-    let mut distribution = [0u64; 256];
-    for byte in data {
-        distribution[*byte as usize] += 1;
     }
 
     let mut mode = 0;
@@ -325,22 +390,30 @@ fn mode(data: &[u8]) -> Option<i64> {
 }
 
 fn serial_correlation(data: &[u8]) -> Option<f64> {
-    let mut scc1: f64 = data
-        .iter()
-        .map(|x| *x as f64)
-        .tuple_windows()
-        .map(|(x, y)| x * y)
-        .sum();
+    let Some((&first, rest)) = data.split_first() else {
+        return Some(-100000.0);
+    };
 
-    let scc2: f64 = data.iter().map(|x| *x as f64).sum::<f64>().pow(2);
-    let scc3: f64 = data.iter().map(|x| (*x as f64).pow(2)).sum();
+    let first = first as f64;
+    let mut prev = first;
+    let mut adjacent_product_sum = 0.0;
+    let mut byte_sum = first;
+    let mut byte_square_sum = first * first;
 
-    if let (Some(first), Some(last)) = (data.first(), data.last()) {
-        scc1 += (*first as f64) * (*last as f64)
+    for byte in rest {
+        let byte = *byte as f64;
+        adjacent_product_sum += prev * byte;
+        byte_sum += byte;
+        byte_square_sum += byte * byte;
+        prev = byte;
     }
 
+    adjacent_product_sum += first * prev;
+
     let len = data.len() as f64;
-    let scc = (len * scc1 - scc2) / (len * scc3 - scc2);
+    let byte_sum_squared = byte_sum * byte_sum;
+    let scc = (len * adjacent_product_sum - byte_sum_squared)
+        / (len * byte_square_sum - byte_sum_squared);
 
     if scc.is_nan() {
         Some(-100000.0)
@@ -364,7 +437,7 @@ fn monte_carlo_pi(data: &[u8]) -> Option<f64> {
             my = my * 256.0 + chunk[i + 3] as f64;
         }
 
-        if mx.pow(2) + my.pow(2) < INCIRC {
+        if mx * mx + my * my < INCIRC {
             inmont += 1;
         }
 

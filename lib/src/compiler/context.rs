@@ -251,7 +251,7 @@ impl VarStackFrame {
         }
         let index = self.used + self.start;
         self.used += 1;
-        Var { frame_id: self.frame_id, ty, index }
+        Var::new(self.frame_id, ty, index)
     }
 }
 
@@ -273,6 +273,9 @@ pub(crate) struct Var {
 
 impl Var {
     pub fn new(frame_id: usize, ty: Type, index: i32) -> Self {
+        if index >= wasm::MAX_VARS {
+            panic!("variable index out of bounds");
+        }
         Self { frame_id, ty, index }
     }
 
