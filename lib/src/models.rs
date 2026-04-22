@@ -378,7 +378,8 @@ impl<'a, 'r> Pattern<'a, 'r> {
         Matches {
             ctx: self.ctx,
             iterator: self.ctx.and_then(|ctx| {
-                ctx.pattern_matches
+                ctx.tracker
+                    .pattern_matches
                     .get(self.pattern_id)
                     .map(|matches| matches.iter())
             }),
