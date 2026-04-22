@@ -68,229 +68,6 @@ pub(crate) struct MatchTracker<'r> {
     pub compiled_rules: &'r Rules,
 }
 
-impl<'r> MatchTracker<'r> {
-    pub(crate) fn track_pattern_match(
-        &mut self,
-        wasm_state: &mut WasmState,
-        pattern_id: PatternId,
-        match_: Match,
-        replace_if_longer: bool,
-    ) {
-        let wasm_store = unsafe { wasm_state.store.as_mut() };
-        let mem = wasm_state.main_memory.unwrap().data_mut(wasm_store);
-        let num_rules = self.compiled_rules.num_rules();
-        let num_patterns = self.compiled_rules.num_patterns();
-
-        let base = MATCHING_RULES_BITMAP_BASE as usize + num_rules.div_ceil(8);
-        let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
-            &mut mem[base..base + num_patterns.div_ceil(8)],
-        );
-
-        bits.set(pattern_id.into(), true);
-
-        if !self.pattern_matches.add(pattern_id, match_, replace_if_longer) {
-            self.limit_reached.insert(pattern_id);
-        }
-    }
-
-    pub(crate) fn handle_sub_pattern_match(
-        &mut self,
-        wasm_state: &mut WasmState,
-        sub_pattern_id: SubPatternId,
-        sub_pattern: &SubPattern,
-        pattern_id: PatternId,
-        match_: Match,
-    ) {
-        match sub_pattern {
-            SubPattern::Literal { .. }
-            | SubPattern::Xor { .. }
-            | SubPattern::Base64 { .. }
-            | SubPattern::Base64Wide { .. }
-            | SubPattern::CustomBase64 { .. }
-            | SubPattern::CustomBase64Wide { .. } => {
-                self.track_pattern_match(
-                    wasm_state, pattern_id, match_, false,
-                );
-            }
-            SubPattern::Regexp { flags, .. } => {
-                self.track_pattern_match(
-                    wasm_state,
-                    pattern_id,
-                    match_,
-                    flags.contains(SubPatternFlags::GreedyRegexp),
-                );
-            }
-            SubPattern::LiteralChainHead { .. }
-            | SubPattern::RegexpChainHead { .. } => self
-                .unconfirmed_matches
-                .entry(sub_pattern_id)
-                .or_default()
-                .push(UnconfirmedMatch {
-                    range: match_.range,
-                    chain_length: 0,
-                }),
-            SubPattern::LiteralChainTail {
-                chained_to, gap, flags, ..
-            }
-            | SubPattern::RegexpChainTail { chained_to, gap, flags, .. } => {
-                if self.within_valid_distance(
-                    *chained_to,
-                    match_.range.start,
-                    gap,
-                ) {
-                    if flags.contains(SubPatternFlags::LastInChain) {
-                        self.verify_chain_of_matches(
-                            wasm_state,
-                            pattern_id,
-                            sub_pattern_id,
-                            match_,
-                        );
-                    } else {
-                        self.unconfirmed_matches
-                            .entry(sub_pattern_id)
-                            .or_default()
-                            .push(UnconfirmedMatch {
-                                range: match_.range,
-                                chain_length: 0,
-                            });
-                    }
-                }
-            }
-        }
-    }
-
-    fn within_valid_distance(
-        &self,
-        chained_to: SubPatternId,
-        match_start: usize,
-        gap: &ChainedPatternGap,
-    ) -> bool {
-        if let Some(unconfirmed_matches) =
-            self.unconfirmed_matches.get(&chained_to)
-        {
-            for m in unconfirmed_matches {
-                match gap {
-                    ChainedPatternGap::Bounded(gap) => {
-                        let min_gap = *gap.start() as usize;
-                        let max_gap = *gap.end() as usize;
-                        if (m.range.end + min_gap..=m.range.end + max_gap)
-                            .contains(&match_start)
-                        {
-                            return true;
-                        }
-                    }
-                    ChainedPatternGap::Unbounded(gap) => {
-                        let min_gap = gap.start as usize;
-                        if (m.range.start + min_gap..).contains(&match_start) {
-                            return true;
-                        }
-                    }
-                };
-            }
-        }
-
-        false
-    }
-
-    fn verify_chain_of_matches(
-        &mut self,
-        wasm_state: &mut WasmState,
-        pattern_id: PatternId,
-        tail_sub_pattern_id: SubPatternId,
-        tail_match: Match,
-    ) {
-        let mut queue = VecDeque::new();
-
-        queue.push_back((
-            tail_sub_pattern_id,
-            UnconfirmedMatch {
-                range: tail_match.range.clone(),
-                chain_length: 1,
-            },
-        ));
-
-        let mut tail_chained_to: Option<SubPatternId> = None;
-
-        while let Some((id, current_match)) = queue.pop_front() {
-            match &self.compiled_rules.get_sub_pattern(id).1 {
-                SubPattern::LiteralChainHead { flags, .. }
-                | SubPattern::RegexpChainHead { flags, .. } => {
-                    self.track_pattern_match(
-                        wasm_state,
-                        pattern_id,
-                        Match {
-                            base: tail_match.base,
-                            range: current_match.range.start
-                                ..tail_match.range.end,
-                            xor_key: None,
-                        },
-                        flags.contains(SubPatternFlags::GreedyRegexp),
-                    );
-
-                    let mut next_pattern_id = tail_chained_to;
-
-                    while let Some(id) = next_pattern_id {
-                        if let Some(unconfirmed_matches) =
-                            self.unconfirmed_matches.get_mut(&id)
-                        {
-                            unconfirmed_matches
-                                .iter_mut()
-                                .for_each(|m| m.chain_length = 0);
-                        }
-                        let (_, sub_pattern) =
-                            self.compiled_rules.get_sub_pattern(id);
-                        next_pattern_id = sub_pattern.chained_to();
-                    }
-                }
-                SubPattern::LiteralChainTail {
-                    chained_to,
-                    gap,
-                    flags,
-                    ..
-                }
-                | SubPattern::RegexpChainTail {
-                    chained_to, gap, flags, ..
-                } => {
-                    let unconfirmed_matches =
-                        match self.unconfirmed_matches.get_mut(chained_to) {
-                            Some(m) => m,
-                            None => continue,
-                        };
-
-                    for m in unconfirmed_matches {
-                        let in_range = match gap {
-                            ChainedPatternGap::Bounded(gap) => {
-                                let min_gap = *gap.start() as usize;
-                                let max_gap = *gap.end() as usize;
-                                (m.range.end + min_gap..=m.range.end + max_gap)
-                                    .contains(&current_match.range.start)
-                            }
-                            ChainedPatternGap::Unbounded(gap) => {
-                                let min_gap = gap.start as usize;
-                                (m.range.end + min_gap..)
-                                    .contains(&current_match.range.start)
-                            }
-                        };
-                        if in_range
-                            && m.chain_length <= current_match.chain_length
-                        {
-                            m.chain_length = current_match.chain_length + 1;
-                            queue.push_back((*chained_to, m.clone()))
-                        }
-                    }
-
-                    if flags.contains(SubPatternFlags::LastInChain)
-                        && flags.contains(SubPatternFlags::GreedyRegexp)
-                    {
-                        tail_chained_to = Some(*chained_to);
-                    }
-                }
-                _ => unreachable!(),
-            };
-        }
-    }
-}
-
 /// Structure that holds information about WASM memories and variables used
 /// during the scan.
 pub(crate) struct WasmState {
@@ -300,6 +77,15 @@ pub(crate) struct WasmState {
     pub filesize: Option<Global>,
     pub pattern_search_done: Option<Global>,
     pub store: NonNull<Store<ScanContext<'static, 'static>>>,
+}
+
+impl WasmState {
+    #[inline]
+    pub(crate) fn store_mut<'a>(
+        &mut self,
+    ) -> &'a mut Store<ScanContext<'static, 'static>> {
+        unsafe { self.store.as_mut() }
+    }
 }
 
 /// Structure that holds information about the current scan.
@@ -475,7 +261,7 @@ impl ScanContext<'_, '_> {
     pub(crate) fn wasm_store_mut<'a>(
         &mut self,
     ) -> &'a mut Store<ScanContext<'static, 'static>> {
-        unsafe { self.wasm.store.as_mut() }
+        self.wasm.store_mut()
     }
 
     /// Returns true of the regexp identified by the given [`RegexpId`]
@@ -862,7 +648,7 @@ impl ScanContext<'_, '_> {
             && let Some(rules) =
                 self.matching_rules_per_ns.get_mut(&rule.namespace_id)
         {
-            let store = unsafe { self.wasm.store.as_mut() };
+            let store = self.wasm.store_mut();
             let main_mem = self.wasm.main_memory.unwrap().data_mut(store);
 
             let base = MATCHING_RULES_BITMAP_BASE as usize;
@@ -1024,7 +810,8 @@ impl ScanContext<'_, '_> {
                 let match_range = atom_pos..atom_pos + atom.len();
 
                 if verify_full_word(data, &match_range, *flags, None) {
-                    self.tracker.handle_sub_pattern_match(
+                    handle_sub_pattern_match(
+                        &mut self.tracker,
                         &mut self.wasm,
                         sub_pattern_id,
                         sub_pattern,
@@ -1047,7 +834,8 @@ impl ScanContext<'_, '_> {
                         .unwrap();
 
                     if verify_literal_match(pattern, data, atom_pos, *flags) {
-                        self.tracker.handle_sub_pattern_match(
+                        handle_sub_pattern_match(
+                            &mut self.tracker,
                             &mut self.wasm,
                             sub_pattern_id,
                             sub_pattern,
@@ -1067,14 +855,14 @@ impl ScanContext<'_, '_> {
                         atom,
                         *flags,
                         |match_range| {
-                            let _ =
-                                &mut self.tracker.handle_sub_pattern_match(
-                                    &mut self.wasm,
-                                    sub_pattern_id,
-                                    sub_pattern,
-                                    *pattern_id,
-                                    Match::new(match_range).rebase(base),
-                                );
+                            handle_sub_pattern_match(
+                                &mut self.tracker,
+                                &mut self.wasm,
+                                sub_pattern_id,
+                                sub_pattern,
+                                *pattern_id,
+                                Match::new(match_range).rebase(base),
+                            );
                         },
                     )
                 }
@@ -1089,7 +877,8 @@ impl ScanContext<'_, '_> {
                     if let Some(key) =
                         verify_xor_match(pattern, data, atom_pos, atom, *flags)
                     {
-                        self.tracker.handle_sub_pattern_match(
+                        handle_sub_pattern_match(
+                            &mut self.tracker,
                             &mut self.wasm,
                             sub_pattern_id,
                             sub_pattern,
@@ -1114,7 +903,8 @@ impl ScanContext<'_, '_> {
                         None,
                         matches!(sub_pattern, SubPattern::Base64Wide { .. }),
                     ) {
-                        self.tracker.handle_sub_pattern_match(
+                        handle_sub_pattern_match(
+                            &mut self.tracker,
                             &mut self.wasm,
                             sub_pattern_id,
                             sub_pattern,
@@ -1159,7 +949,8 @@ impl ScanContext<'_, '_> {
                             SubPattern::CustomBase64Wide { .. }
                         ),
                     ) {
-                        self.tracker.handle_sub_pattern_match(
+                        handle_sub_pattern_match(
+                            &mut self.tracker,
                             &mut self.wasm,
                             sub_pattern_id,
                             sub_pattern,
@@ -1291,7 +1082,8 @@ impl ScanContext<'_, '_> {
 
                         if verify_literal_match(pattern, data, offset, *flags)
                         {
-                            self.tracker.handle_sub_pattern_match(
+                            handle_sub_pattern_match(
+                                &mut self.tracker,
                                 &mut self.wasm,
                                 *sub_pattern_id,
                                 sub_pattern,
@@ -1387,6 +1179,95 @@ fn verify_full_word(
     }
 
     true
+}
+
+fn verify_chain_of_matches(
+    tracker: &mut MatchTracker,
+    wasm_state: &mut WasmState,
+    pattern_id: PatternId,
+    tail_sub_pattern_id: SubPatternId,
+    tail_match: Match,
+) {
+    let mut queue = VecDeque::new();
+
+    queue.push_back((
+        tail_sub_pattern_id,
+        UnconfirmedMatch { range: tail_match.range.clone(), chain_length: 1 },
+    ));
+
+    let mut tail_chained_to: Option<SubPatternId> = None;
+
+    while let Some((id, current_match)) = queue.pop_front() {
+        match &tracker.compiled_rules.get_sub_pattern(id).1 {
+            SubPattern::LiteralChainHead { flags, .. }
+            | SubPattern::RegexpChainHead { flags, .. } => {
+                track_pattern_match(
+                    tracker,
+                    wasm_state,
+                    pattern_id,
+                    Match {
+                        base: tail_match.base,
+                        range: current_match.range.start..tail_match.range.end,
+                        xor_key: None,
+                    },
+                    flags.contains(SubPatternFlags::GreedyRegexp),
+                );
+
+                let mut next_pattern_id = tail_chained_to;
+
+                while let Some(id) = next_pattern_id {
+                    if let Some(unconfirmed_matches) =
+                        tracker.unconfirmed_matches.get_mut(&id)
+                    {
+                        unconfirmed_matches
+                            .iter_mut()
+                            .for_each(|m| m.chain_length = 0);
+                    }
+                    let (_, sub_pattern) =
+                        tracker.compiled_rules.get_sub_pattern(id);
+                    next_pattern_id = sub_pattern.chained_to();
+                }
+            }
+            SubPattern::LiteralChainTail {
+                chained_to, gap, flags, ..
+            }
+            | SubPattern::RegexpChainTail { chained_to, gap, flags, .. } => {
+                let unconfirmed_matches =
+                    match tracker.unconfirmed_matches.get_mut(chained_to) {
+                        Some(m) => m,
+                        None => continue,
+                    };
+
+                for m in unconfirmed_matches {
+                    let in_range = match gap {
+                        ChainedPatternGap::Bounded(gap) => {
+                            let min_gap = *gap.start() as usize;
+                            let max_gap = *gap.end() as usize;
+                            (m.range.end + min_gap..=m.range.end + max_gap)
+                                .contains(&current_match.range.start)
+                        }
+                        ChainedPatternGap::Unbounded(gap) => {
+                            let min_gap = gap.start as usize;
+                            (m.range.end + min_gap..)
+                                .contains(&current_match.range.start)
+                        }
+                    };
+                    if in_range && m.chain_length <= current_match.chain_length
+                    {
+                        m.chain_length = current_match.chain_length + 1;
+                        queue.push_back((*chained_to, m.clone()))
+                    }
+                }
+
+                if flags.contains(SubPatternFlags::LastInChain)
+                    && flags.contains(SubPatternFlags::GreedyRegexp)
+                {
+                    tail_chained_to = Some(*chained_to);
+                }
+            }
+            _ => unreachable!(),
+        };
+    }
 }
 
 /// When some `atom` belonging to a regexp is found at `match_start`, verify
@@ -1671,6 +1552,128 @@ fn verify_base64_match(
     } else {
         None
     }
+}
+
+fn handle_sub_pattern_match(
+    tracker: &mut MatchTracker,
+    wasm_state: &mut WasmState,
+    sub_pattern_id: SubPatternId,
+    sub_pattern: &SubPattern,
+    pattern_id: PatternId,
+    match_: Match,
+) {
+    match sub_pattern {
+        SubPattern::Literal { .. }
+        | SubPattern::Xor { .. }
+        | SubPattern::Base64 { .. }
+        | SubPattern::Base64Wide { .. }
+        | SubPattern::CustomBase64 { .. }
+        | SubPattern::CustomBase64Wide { .. } => {
+            track_pattern_match(
+                tracker, wasm_state, pattern_id, match_, false,
+            );
+        }
+        SubPattern::Regexp { flags, .. } => {
+            track_pattern_match(
+                tracker,
+                wasm_state,
+                pattern_id,
+                match_,
+                flags.contains(SubPatternFlags::GreedyRegexp),
+            );
+        }
+        SubPattern::LiteralChainHead { .. }
+        | SubPattern::RegexpChainHead { .. } => tracker
+            .unconfirmed_matches
+            .entry(sub_pattern_id)
+            .or_default()
+            .push(UnconfirmedMatch { range: match_.range, chain_length: 0 }),
+        SubPattern::LiteralChainTail { chained_to, gap, flags, .. }
+        | SubPattern::RegexpChainTail { chained_to, gap, flags, .. } => {
+            if within_valid_distance(
+                tracker,
+                *chained_to,
+                match_.range.start,
+                gap,
+            ) {
+                if flags.contains(SubPatternFlags::LastInChain) {
+                    verify_chain_of_matches(
+                        tracker,
+                        wasm_state,
+                        pattern_id,
+                        sub_pattern_id,
+                        match_,
+                    );
+                } else {
+                    tracker
+                        .unconfirmed_matches
+                        .entry(sub_pattern_id)
+                        .or_default()
+                        .push(UnconfirmedMatch {
+                            range: match_.range,
+                            chain_length: 0,
+                        });
+                }
+            }
+        }
+    }
+}
+
+fn track_pattern_match(
+    tracker: &mut MatchTracker,
+    wasm_state: &mut WasmState,
+    pattern_id: PatternId,
+    match_: Match,
+    replace_if_longer: bool,
+) {
+    let wasm_store = wasm_state.store_mut();
+    let mem = wasm_state.main_memory.unwrap().data_mut(wasm_store);
+    let num_rules = tracker.compiled_rules.num_rules();
+    let num_patterns = tracker.compiled_rules.num_patterns();
+
+    let base = MATCHING_RULES_BITMAP_BASE as usize + num_rules.div_ceil(8);
+    let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
+        &mut mem[base..base + num_patterns.div_ceil(8)],
+    );
+
+    bits.set(pattern_id.into(), true);
+
+    if !tracker.pattern_matches.add(pattern_id, match_, replace_if_longer) {
+        tracker.limit_reached.insert(pattern_id);
+    }
+}
+
+fn within_valid_distance(
+    tracker: &MatchTracker,
+    chained_to: SubPatternId,
+    match_start: usize,
+    gap: &ChainedPatternGap,
+) -> bool {
+    if let Some(unconfirmed_matches) =
+        tracker.unconfirmed_matches.get(&chained_to)
+    {
+        for m in unconfirmed_matches {
+            match gap {
+                ChainedPatternGap::Bounded(gap) => {
+                    let min_gap = *gap.start() as usize;
+                    let max_gap = *gap.end() as usize;
+                    if (m.range.end + min_gap..=m.range.end + max_gap)
+                        .contains(&match_start)
+                    {
+                        return true;
+                    }
+                }
+                ChainedPatternGap::Unbounded(gap) => {
+                    let min_gap = gap.start as usize;
+                    if (m.range.start + min_gap..).contains(&match_start) {
+                        return true;
+                    }
+                }
+            };
+        }
+    }
+
+    false
 }
 
 pub(crate) struct VM<'r> {
