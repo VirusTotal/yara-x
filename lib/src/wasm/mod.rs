@@ -92,7 +92,7 @@ use smallvec::{SmallVec, smallvec};
 use yara_x_macros::wasm_export;
 
 use crate::compiler::{LiteralId, PatternId, RegexpId, RuleId};
-use crate::modules::BUILTIN_MODULES;
+use crate::modules::{self, BUILTIN_MODULES};
 use crate::scanner::{RuntimeObjectHandle, ScanContext};
 use crate::types::{
     Array, Func, FuncSignature, Map, Struct, TypeValue, Value,
@@ -859,6 +859,21 @@ pub(crate) fn new_linker() -> Linker<ScanContext<'static, 'static>> {
             export.func.wasmtime_args(),
             export.func.wasmtime_results(),
         );
+        let trampoline = export.func.trampoline();
+        let trampoline: Trampoline<ScanContext<'static, 'static>> =
+            if let Some(module_name) =
+                modules::module_name_from_rust_module_path(
+                    export.rust_module_path,
+                )
+            {
+                Box::new(move |mut caller, args_and_results| {
+                    caller.data_mut().materialize_module(module_name)?;
+                    trampoline(caller, args_and_results)
+                })
+            } else {
+                trampoline
+            };
+
         // Using `func_new_unchecked` instead of `func_new` makes function
         // calls from WASM to Rust around 3x faster.
         unsafe {
@@ -868,7 +883,7 @@ pub(crate) fn new_linker() -> Linker<ScanContext<'static, 'static>> {
                     export.fully_qualified_mangled_name().as_str(),
                     func_type,
                     export.sync_flags,
-                    export.func.trampoline(),
+                    trampoline,
                 )
                 .unwrap();
         }
@@ -1148,6 +1163,19 @@ fn lookup_field(
             num_lookup_indexes as usize,
         )
     };
+
+    if structure.is_none() {
+        let field_index = if cfg!(target_endian = "big") {
+            lookup_indexes[0].swap_bytes()
+        } else {
+            lookup_indexes[0]
+        };
+        if let Ok(field_index) = usize::try_from(field_index) {
+            store_ctx
+                .data_mut()
+                .materialize_module_for_root_field(field_index);
+        }
+    }
 
     // If the passed structure is None, it means that we should start the
     // at the root structure.

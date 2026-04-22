@@ -148,6 +148,30 @@ pub(crate) static BUILTIN_MODULES: LazyLock<FxHashMap<&'static str, Module>> =
         modules
     });
 
+pub(crate) fn module_name_from_root_struct(
+    root_struct_name: &str,
+) -> Option<&'static str> {
+    BUILTIN_MODULES.iter().find_map(|(module_name, module)| {
+        (module.root_struct_descriptor.full_name() == root_struct_name)
+            .then_some(*module_name)
+    })
+}
+
+pub(crate) fn module_name_from_rust_module_path(
+    rust_module_path: &str,
+) -> Option<&'static str> {
+    let module_path = rust_module_path.strip_prefix("yara_x::modules::")?;
+    BUILTIN_MODULES.iter().find_map(|(module_name, module)| {
+        module.rust_module_name.and_then(|name| {
+            (module_path == name
+                || module_path
+                    .strip_prefix(name)
+                    .is_some_and(|suffix| suffix.starts_with("::")))
+            .then_some(*module_name)
+        })
+    })
+}
+
 pub mod mods {
     /*! Utility functions and structures that allow invoking YARA modules directly.
 
