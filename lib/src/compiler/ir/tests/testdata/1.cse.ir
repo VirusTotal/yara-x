@@ -24,12 +24,8 @@ RULE test_3
     5: CONST integer(1)
 
 RULE test_4
-  6: LE -- hash: 0x94cc57b0e87ee022
-    4: SHR -- hash: 0xfcaac0eae066696c
-      2: SHL -- hash: 0x560670a37a22b641
-        0: CONST integer(1)
-        1: CONST integer(2)
-      3: CONST integer(1)
+  6: LE -- hash: 0x6046db8bec76f9db
+    4: CONST integer(2)
     5: CONST integer(2)
 
 RULE test_5
@@ -38,16 +34,9 @@ RULE test_5
     5: CONST integer(8)
 
 RULE test_6
-  9: EQ -- hash: 0x4a78a326637b7d9d
-    2: BITWISE_XOR -- hash: 0x64bffdddf74ef466
-      0: CONST integer(2)
-      1: CONST integer(1)
-    8: BITWISE_OR -- hash: 0x1dc12c2d28b77480
-      6: BITWISE_AND -- hash: 0x9c63b389ed56b277
-        4: BITWISE_NOT -- hash: 0x551649e0ddd39ce
-          3: CONST integer(1)
-        5: CONST integer(1)
-      7: CONST integer(1)
+  9: EQ -- hash: 0x94adc1565ee528a6
+    2: CONST integer(3)
+    8: CONST integer(1)
 
 RULE test_7
   8: AND -- hash: 0x966e46de448a5ee5
