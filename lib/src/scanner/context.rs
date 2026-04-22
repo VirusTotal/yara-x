@@ -1745,7 +1745,12 @@ fn custom_base64_engine(
     &cache.last().unwrap().1
 }
 
-struct VM<'r> {
+/// Virtual Machines used for evaluating regular expressions.
+///
+/// [`PikeVM`] allows executing all regular expressions, but it's slower.
+/// [`FastVM`] is faster, but can execute only a subset of the regular
+/// expressions, particularly those derived from hex patterns.
+pub(crate) struct VM<'r> {
     pike_vm: PikeVM<'r>,
     fast_vm: FastVM<'r>,
 }
