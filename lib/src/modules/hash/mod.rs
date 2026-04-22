@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::convert::TryInto;
 
 use md5::Md5;
 use rustc_hash::FxHashMap;
@@ -213,6 +214,27 @@ fn crc_str(ctx: &ScanContext, s: RuntimeString) -> Option<i64> {
     Some(crc.into())
 }
 
+#[inline]
+fn checksum32(data: &[u8]) -> u32 {
+    let mut sum = 0_u64;
+    let mut chunks = data.chunks_exact(8);
+
+    for chunk in &mut chunks {
+        let x = u64::from_le_bytes(chunk.try_into().unwrap());
+        let pairs = (x & 0x00ff_00ff_00ff_00ff)
+            + ((x >> 8) & 0x00ff_00ff_00ff_00ff);
+        let quads = (pairs & 0x0000_ffff_0000_ffff)
+            + ((pairs >> 16) & 0x0000_ffff_0000_ffff);
+        sum = sum.wrapping_add((quads & 0xffff_ffff) + (quads >> 32));
+    }
+
+    let mut checksum = sum as u32;
+    for byte in chunks.remainder() {
+        checksum = checksum.wrapping_add(*byte as u32);
+    }
+    checksum
+}
+
 /// Calculates the 32-bit checksum of a portion of the scanned data.
 #[module_export(name = "checksum32")]
 fn checksum_data(ctx: &ScanContext, offset: i64, size: i64) -> Option<i64> {
@@ -226,11 +248,7 @@ fn checksum_data(ctx: &ScanContext, offset: i64, size: i64) -> Option<i64> {
 
     let range = offset.try_into().ok()?..(offset + size).try_into().ok()?;
     let data = ctx.scanned_data()?.get(range)?;
-    let mut checksum = 0_u32;
-
-    for byte in data {
-        checksum = checksum.wrapping_add(*byte as u32)
-    }
+    let checksum = checksum32(data);
 
     CHECKSUM32_CACHE.with(|cache| {
         cache.borrow_mut().insert((offset, size), checksum.into());
@@ -242,9 +260,5 @@ fn checksum_data(ctx: &ScanContext, offset: i64, size: i64) -> Option<i64> {
 /// Calculates the 32-bit checksum of a string.
 #[module_export(name = "checksum32")]
 fn checksum_str(ctx: &ScanContext, s: RuntimeString) -> Option<i64> {
-    let mut checksum = 0_u32;
-    for byte in s.as_bstr(ctx).as_bytes() {
-        checksum = checksum.wrapping_add(*byte as u32)
-    }
-    Some(checksum.into())
+    Some(checksum32(s.as_bstr(ctx).as_bytes()).into())
 }
