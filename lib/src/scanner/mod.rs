@@ -211,7 +211,7 @@ impl<'r> Scanner<'r> {
     /// When some pattern reaches the maximum number of patterns it won't
     /// produce more matches.
     pub fn max_matches_per_pattern(&mut self, n: usize) -> &mut Self {
-        self.scan_context_mut().pattern_matches.max_matches_per_pattern(n);
+        self.scan_context_mut().tracker.pattern_matches.max_matches_per_pattern(n);
         self
     }
 
