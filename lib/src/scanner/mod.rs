@@ -16,7 +16,9 @@ use std::sync::atomic::AtomicU64;
 use std::time::Duration;
 
 use bitvec::prelude::*;
-use memmap2::{Advice, Mmap, MmapOptions};
+#[cfg(unix)]
+use memmap2::Advice;
+use memmap2::{Mmap, MmapOptions};
 use protobuf::{CodedInputStream, MessageDyn};
 use thiserror::Error;
 
