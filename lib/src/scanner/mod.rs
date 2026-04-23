@@ -477,6 +477,7 @@ impl<'r> Scanner<'r> {
                     ScanError::MapError { path: path.to_path_buf(), err }
                 })
             }?;
+            #[cfg(unix)]
             mapped_file.advise(Advice::Sequential).map_err(|err| {
                 ScanError::MapError { path: path.to_path_buf(), err }
             })?;
