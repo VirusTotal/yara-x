@@ -242,9 +242,19 @@ impl RuntimeString {
         case_insensitive: bool,
     ) -> bool {
         if case_insensitive {
-            let this = self.as_bstr(ctx).to_lowercase();
-            let other = other.as_bstr(ctx).to_lowercase();
-            this.contains_str(other)
+            let this = self.as_bstr(ctx);
+            let other = other.as_bstr(ctx);
+
+            if this.is_ascii() && other.is_ascii() {
+                contains_ascii_case_insensitive(
+                    this.as_bytes(),
+                    other.as_bytes(),
+                )
+            } else {
+                let this = this.to_lowercase();
+                let other = other.to_lowercase();
+                this.contains_str(other)
+            }
         } else {
             self.as_bstr(ctx).contains_str(other.as_bstr(ctx))
         }
@@ -258,9 +268,19 @@ impl RuntimeString {
         case_insensitive: bool,
     ) -> bool {
         if case_insensitive {
-            let this = self.as_bstr(ctx).to_lowercase();
-            let other = other.as_bstr(ctx).to_lowercase();
-            this.starts_with_str(other)
+            let this = self.as_bstr(ctx);
+            let other = other.as_bstr(ctx);
+
+            if this.is_ascii() && other.is_ascii() {
+                starts_with_ascii_case_insensitive(
+                    this.as_bytes(),
+                    other.as_bytes(),
+                )
+            } else {
+                let this = this.to_lowercase();
+                let other = other.to_lowercase();
+                this.starts_with_str(other)
+            }
         } else {
             self.as_bstr(ctx).starts_with_str(other.as_bstr(ctx))
         }
@@ -274,9 +294,19 @@ impl RuntimeString {
         case_insensitive: bool,
     ) -> bool {
         if case_insensitive {
-            let this = self.as_bstr(ctx).to_lowercase();
-            let other = other.as_bstr(ctx).to_lowercase();
-            this.ends_with_str(other)
+            let this = self.as_bstr(ctx);
+            let other = other.as_bstr(ctx);
+
+            if this.is_ascii() && other.is_ascii() {
+                ends_with_ascii_case_insensitive(
+                    this.as_bytes(),
+                    other.as_bytes(),
+                )
+            } else {
+                let this = this.to_lowercase();
+                let other = other.to_lowercase();
+                this.ends_with_str(other)
+            }
         } else {
             self.as_bstr(ctx).ends_with_str(other.as_bstr(ctx))
         }
@@ -290,13 +320,48 @@ impl RuntimeString {
         case_insensitive: bool,
     ) -> bool {
         if case_insensitive {
-            let this = self.as_bstr(ctx).to_lowercase();
-            let other = other.as_bstr(ctx).to_lowercase();
-            this.eq(&other)
+            let this = self.as_bstr(ctx);
+            let other = other.as_bstr(ctx);
+
+            if this.is_ascii() && other.is_ascii() {
+                this.as_bytes().eq_ignore_ascii_case(other.as_bytes())
+            } else {
+                let this = this.to_lowercase();
+                let other = other.to_lowercase();
+                this.eq(&other)
+            }
         } else {
             self.as_bstr(ctx).eq(other.as_bstr(ctx))
         }
     }
+}
+
+#[inline]
+fn contains_ascii_case_insensitive(haystack: &[u8], needle: &[u8]) -> bool {
+    if needle.is_empty() {
+        return true;
+    }
+
+    if needle.len() > haystack.len() {
+        return false;
+    }
+
+    haystack
+        .windows(needle.len())
+        .any(|window| window.eq_ignore_ascii_case(needle))
+}
+
+#[inline]
+fn starts_with_ascii_case_insensitive(haystack: &[u8], prefix: &[u8]) -> bool {
+    haystack.len() >= prefix.len()
+        && haystack[..prefix.len()].eq_ignore_ascii_case(prefix)
+}
+
+#[inline]
+fn ends_with_ascii_case_insensitive(haystack: &[u8], suffix: &[u8]) -> bool {
+    haystack.len() >= suffix.len()
+        && haystack[haystack.len() - suffix.len()..]
+            .eq_ignore_ascii_case(suffix)
 }
 
 /// Special kind of [RuntimeString] that has a fixed length.
