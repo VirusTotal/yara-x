@@ -170,7 +170,7 @@ fn telfhash(ctx: &mut ScanContext) -> Option<Uppercase<FixedLenString<72>>> {
 
     let digest = builder.build().ok()?.hash();
 
-    IMPORT_MD5_CACHE.with(|cache| {
+    TLSH_CACHE.with(|cache| {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
