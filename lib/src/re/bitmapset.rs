@@ -123,6 +123,8 @@ where
         }
     }
 
+    /// Used for inserting a new (key, value) pair when we are sure
+    /// that the key doesn't exist yet.
     #[inline]
     fn insert_new_key(&mut self, key: usize, value: T) -> bool {
         if let Some(set) = &mut self.set {
@@ -135,15 +137,15 @@ where
         true
     }
 
+    /// Used for inserting a new (key, value) pair when we are sure
+    /// that another pair with the same key exists.
     #[inline]
     fn insert_existing_key(&mut self, key: usize, value: T) -> bool {
-        if self.set.is_none() {
+        let set = self.set.get_or_insert_with(|| {
             let mut set = FxHashSet::default();
-            set.reserve(self.items.len() + 1);
-            set.extend(self.items.iter().copied());
-            self.set = Some(set);
-        }
-        let set = self.set.as_mut().unwrap();
+            set.extend(self.items.iter());
+            set
+        });
         if set.insert((key, value)) {
             self.items.push((key, value));
             true
