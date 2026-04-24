@@ -153,16 +153,11 @@ impl<'src> Tokenizer<'src> {
     /// back to normal mode when encounters the closing brace (`}`).
     ///
     /// See [`Tokenizer`] for more details about operation modes.
-    ///
-    /// # Panics
-    ///
-    /// If the tokenizer is not currently in normal mode.
     pub fn enter_hex_pattern_mode(&mut self) {
         self.lexer_starting_pos += match &self.mode {
+            Mode::HexPattern(_) => return,
             Mode::Normal(lexer) => lexer.span().end,
-            mode => {
-                panic!(r"enter_hex_pattern_mode called from mode: {mode:?}")
-            }
+            Mode::HexJump(lexer) => lexer.span().end,
         };
         self.mode = Mode::HexPattern(Logos::lexer(
             &self.source[self.lexer_starting_pos..],
@@ -176,16 +171,11 @@ impl<'src> Tokenizer<'src> {
     /// back to hex pattern mode when encounters the closing bracket (`]`).
     ///
     /// See [`Tokenizer`] for more details about operation modes.
-    ///
-    /// # Panics
-    ///
-    /// If the tokenizer is not currently in hex pattern mode.
     pub fn enter_hex_jump_mode(&mut self) {
         self.lexer_starting_pos += match &self.mode {
+            Mode::HexJump(_) => return,
+            Mode::Normal(lexer) => lexer.span().end,
             Mode::HexPattern(lexer) => lexer.span().end,
-            mode => {
-                panic!(r"enter_hex_jump_mode called from mode: {mode:?}")
-            }
         };
         self.mode = Mode::HexJump(Logos::lexer(
             &self.source[self.lexer_starting_pos..],

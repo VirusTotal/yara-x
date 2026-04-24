@@ -135,3 +135,24 @@ rule test_2 { condition: true }";
     assert_eq!(&ast.errors()[0], &Error::InvalidUTF8(Span(33..34)));
     assert_eq!(ast.rules().count(), 1);
 }
+
+#[test]
+fn parser_error() {
+    // Invalid UTF-8 in a regular expression.
+    let rules = b"
+rule test_1 {
+    condition:
+        with a : (
+}
+
+rule test_2 {
+    strings: $a = { condition: }
+
+rule test_3 {
+    strings: $a = {
+";
+
+    let ast = AST::from(rules.as_slice());
+
+    assert_eq!(ast.rules().count(), 0);
+}
