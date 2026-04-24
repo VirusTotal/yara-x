@@ -1,0 +1,7 @@
+ERRORS:
+- SyntaxError { message: "expecting `=`, found `:`", span: Span(44..45) }
+- SyntaxError { message: "expecting expression or identifier, found `}`", span: Span(48..49) }
+- SyntaxError { message: "expecting `)`, found end of file", span: Span(132..132) }
+- SyntaxError { message: "expecting BYTE or `(`, found `condition`", span: Span(85..94) }
+- SyntaxError { message: "expecting expression or identifier, found `}`", span: Span(96..97) }
+- SyntaxError { message: "expecting BYTE or `(`, found end of file", span: Span(132..132) }
