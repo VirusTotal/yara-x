@@ -472,17 +472,13 @@ impl<'src> ParserImpl<'src> {
 
         // If no previous error exists, create an error that tells that we are
         // expecting any of the tokens in the recovery set.
-        if self.pending_errors.is_empty() {
-            let expected = self
-                .expected_token_errors
+        if self.pending_errors.is_empty() && !token_in_recovery_set {
+            self.expected_token_errors
                 .entry((token_span, token_id))
-                .or_default();
-
-            if !token_in_recovery_set {
-                expected.extend(
+                .or_default()
+                .extend(
                     recovery_set.token_ids().map(|token| token.description()),
                 );
-            }
         }
 
         if !state_was_ok || !token_in_recovery_set {
