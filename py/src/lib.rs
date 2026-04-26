@@ -255,10 +255,10 @@ impl Read for PyReader {
                 self.obj.call_method1(py, consts::read(py), (buf.len(),))?;
 
             let bytes = if self.is_text_io {
-                let s = data.extract::<Cow<str>>(py).unwrap();
+                let s = data.extract::<Cow<str>>(py)?;
                 s.as_bytes().to_vec()
             } else {
-                data.extract::<Cow<[u8]>>(py).unwrap().to_vec()
+                data.extract::<Cow<[u8]>>(py)?.to_vec()
             };
 
             if bytes.is_empty() {
@@ -775,9 +775,19 @@ impl Compiler {
             yrx::linters::metadata(identifier).required(required).error(error);
         match value_type {
             MetaType::STRING => {
+                let compiled_regex = regexp
+                    .as_ref()
+                    .map(|regexp| -> PyResult<(regex::Regex, regex::bytes::Regex)> {
+                        Ok((
+                            regex::Regex::new(regexp.as_str())
+                                .map_err(|err| PyValueError::new_err(err.to_string()))?,
+                            regex::bytes::Regex::new(regexp.as_str())
+                                .map_err(|err| PyValueError::new_err(err.to_string()))?,
+                        ))
+                    })
+                    .transpose()?;
+
                 let message = if let Some(regexp) = regexp.clone() {
-                    let _ = regex::bytes::Regex::new(regexp.as_str())
-                        .map_err(|err| PyValueError::new_err(err.to_string()));
                     format!(
                         "`{identifier}` must be a string that matches `/{regexp}/`"
                     )
@@ -785,16 +795,12 @@ impl Compiler {
                     format!("`{identifier}` must be a string")
                 };
                 linter = linter.validator(
-                    move |meta| match (&meta.value, &regexp) {
-                        (MetaValue::String((s, _)), Some(regexp)) => {
-                            regex::Regex::new(regexp.as_str())
-                                .unwrap()
-                                .is_match(s)
+                    move |meta| match (&meta.value, &compiled_regex) {
+                        (MetaValue::String((s, _)), Some((regexp, _))) => {
+                            regexp.is_match(s)
                         }
-                        (MetaValue::Bytes((s, _)), Some(regexp)) => {
-                            regex::bytes::Regex::new(regexp.as_str())
-                                .unwrap()
-                                .is_match(s)
+                        (MetaValue::Bytes((s, _)), Some((_, regexp))) => {
+                            regexp.is_match(s)
                         }
                         (MetaValue::String(_), None) => true,
                         (MetaValue::Bytes(_), None) => true,
@@ -1540,6 +1546,9 @@ fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Formatter>()?;
     m.add_class::<Module>()?;
     m.add_class::<MetaType>()?;
-    m.gil_used(false)?;
+    // This module still exposes unsendable classes and uses unsafe lifetime
+    // extensions in the bindings, so it should not advertise free-threaded
+    // safety until the API is properly audited and redesigned.
+    m.gil_used(true)?;
     Ok(())
 }
