@@ -101,6 +101,10 @@ pub(crate) struct ScanContext<'r, 'd> {
     /// The time that can be spent in a scan operation, including the
     /// execution of the rule conditions.
     pub scan_timeout: Option<Duration>,
+    /// The number of bytes at the left and right of the matching data
+    /// that is stored to provide additional context about where the match
+    /// was found.
+    pub match_context_size: usize,
     /// The current state of the scanner.
     pub scan_state: ScanState<'d>,
     /// Vector containing the IDs of the rules that matched, including both
@@ -1832,6 +1836,7 @@ pub fn create_wasm_store_and_ctx<'r>(
         console_log: None,
         current_struct: None,
         scan_timeout: None,
+        match_context_size: 0,
         scan_state: ScanState::Idle,
         root_struct: rules.globals().make_root(),
         matching_rules: Vec::new(),

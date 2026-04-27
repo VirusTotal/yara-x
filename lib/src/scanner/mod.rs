@@ -4,7 +4,6 @@ The scanner takes the rules produces by the compiler and scans data with them.
 */
 use std::collections::{BTreeMap, HashMap, hash_map};
 use std::fmt::{Debug, Formatter};
-use std::fs;
 use std::io::Read;
 use std::mem::transmute;
 use std::ops::Range;
@@ -14,6 +13,7 @@ use std::slice::Iter;
 use std::sync::Once;
 use std::sync::atomic::AtomicU64;
 use std::time::Duration;
+use std::{cmp, fs};
 
 use bitvec::prelude::*;
 #[cfg(unix)]
@@ -120,6 +120,13 @@ impl AsRef<[u8]> for ScannedData<'_> {
             ScannedData::Vec(v) => v.as_ref(),
             ScannedData::Mmap(m) => m.as_ref(),
         }
+    }
+}
+
+impl ScannedData<'_> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.as_ref().len()
     }
 }
 
@@ -248,6 +255,17 @@ impl<'r> Scanner<'r> {
         F: FnMut(String) + 'r,
     {
         self.scan_context_mut().console_log = Some(Box::new(callback));
+        self
+    }
+
+    /// Sets the context size for matches.
+    ///
+    /// This specifies how many bytes at the left and right of each match will
+    /// be reported by [`crate::Match::data_with_context`]. By default, the
+    /// match context size is 0, which means that [`crate::Match::data_with_context`]
+    /// will return exactly the same data as [`crate::Match::data`].
+    pub fn match_context_size(&mut self, size: usize) -> &mut Self {
+        self.scan_context_mut().match_context_size = size;
         self
     }
 
@@ -653,22 +671,50 @@ pub(crate) enum DataSnippets<'d> {
 
 impl DataSnippets<'_> {
     pub(crate) fn get(&self, range: Range<usize>) -> Option<&[u8]> {
+        self.get_with_context(range, 0)
+    }
+
+    /// Gets the data for the given `range`, but adding `context_size` additional
+    /// bytes to the left and right.
+    ///
+    /// The result will be `None` only if the data for `range` can't be found.
+    /// The additional bytes at the left and right will be added if possible,
+    /// but otherwise won't affect the result.
+    pub(crate) fn get_with_context(
+        &self,
+        range: Range<usize>,
+        context_size: usize,
+    ) -> Option<&[u8]> {
         match self {
-            Self::SingleBlock(data) => data.as_ref().get(range),
+            Self::SingleBlock(data) => {
+                let start = range.start.saturating_sub(context_size);
+                let end = range.end.saturating_add(context_size);
+                let end = cmp::min(end, data.len());
+                data.as_ref().get(start..end)
+            }
             Self::MultiBlock(btree) => {
-                // Find in the btree the snippet that starts exactly at the
-                // offset indicated by range.start, if not found, take the
-                // previous one, which may also contain the requested range.
-                let (snippet_offset, snippet_data) =
-                    btree.range(..=range.start).next_back()?;
+                for (snippet_offset, snippet_data) in
+                    btree.range(..=range.start).rev()
+                {
+                    // Calculate the start and end of the slice within the snippet.
+                    let start = range.start.saturating_sub(*snippet_offset);
+                    let end = range.end.saturating_sub(*snippet_offset);
 
-                // Calculate the start and end of the slice within the snippet.
-                let start = range.start - snippet_offset;
-                let end = range.end - snippet_offset;
+                    if end > snippet_data.len() {
+                        continue;
+                    }
 
-                // Returns the data, or `None` if `start` and `end` are not
-                // within the snippet boundaries.
-                snippet_data.get(start..end)
+                    let start = start.saturating_sub(context_size);
+                    let end = end.saturating_add(context_size);
+                    let end = cmp::min(end, snippet_data.len());
+
+                    match snippet_data.get(start..end) {
+                        Some(data) if !data.is_empty() => return Some(data),
+                        _ => continue,
+                    }
+                }
+
+                None
             }
         }
     }
@@ -932,21 +978,82 @@ mod snippet_tests {
     use std::collections::BTreeMap;
 
     #[test]
-    fn snippets() {
+    fn snippets_multiblock() {
         let mut btree_map = BTreeMap::new();
 
-        btree_map.insert(0, vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
-        btree_map.insert(50, vec![51, 52, 53, 54]);
+        btree_map.insert(0, vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        btree_map.insert(50, vec![50, 51, 52, 53, 54]);
+        btree_map.insert(52, vec![52, 53]);
+        btree_map.insert(100, vec![100, 101, 102, 103]);
 
         let snippets = DataSnippets::MultiBlock(btree_map);
 
-        assert_eq!(snippets.get(0..2), Some([1, 2].as_slice()));
-        assert_eq!(snippets.get(1..3), Some([2, 3].as_slice()));
-        assert_eq!(snippets.get(8..9), Some([9].as_slice()));
-        assert_eq!(snippets.get(9..10), None);
-        assert_eq!(snippets.get(50..51), Some([51].as_slice()));
-        assert_eq!(snippets.get(50..54), Some([51, 52, 53, 54].as_slice()));
-        assert_eq!(snippets.get(52..54), Some([53, 54].as_slice()));
+        assert_eq!(snippets.get(0..2), Some([0, 1].as_slice()));
+        assert_eq!(snippets.get(1..3), Some([1, 2].as_slice()));
+        assert_eq!(snippets.get(8..9), Some([8].as_slice()));
+        assert_eq!(snippets.get(10..11), None);
+        assert_eq!(snippets.get(50..51), Some([50].as_slice()));
+        assert_eq!(snippets.get(51..53), Some([51, 52].as_slice()));
+        assert_eq!(snippets.get(50..54), Some([50, 51, 52, 53].as_slice()));
+        assert_eq!(snippets.get(52..54), Some([52, 53].as_slice()));
+        assert_eq!(snippets.get(52..55), Some([52, 53, 54].as_slice()));
+        assert_eq!(snippets.get(52..53), Some([52].as_slice()));
         assert_eq!(snippets.get(50..56), None);
+        assert_eq!(snippets.get(100..101), Some([100].as_slice()));
+        assert_eq!(snippets.get(101..103), Some([101, 102].as_slice()));
+
+        assert_eq!(
+            snippets.get_with_context(0..2, 1),
+            Some([0, 1, 2].as_slice())
+        );
+
+        assert_eq!(
+            snippets.get_with_context(0..2, 2),
+            Some([0, 1, 2, 3].as_slice())
+        );
+
+        assert_eq!(
+            snippets.get_with_context(2..4, 2),
+            Some([0, 1, 2, 3, 4, 5].as_slice())
+        );
+
+        assert_eq!(
+            snippets.get_with_context(51..52, 3),
+            Some([50, 51, 52, 53, 54].as_slice())
+        );
+
+        assert_eq!(
+            snippets.get_with_context(102..103, 3),
+            Some([100, 101, 102, 103].as_slice())
+        );
+    }
+
+    #[test]
+    fn snippets_singleblock() {
+        let data = b"Lorem ipsum dolor sit amet".to_vec();
+        let scanned_data = super::ScannedData::Vec(data);
+        let snippets = DataSnippets::SingleBlock(scanned_data);
+
+        // Test get
+        assert_eq!(snippets.get(6..11), Some(b"ipsum".as_slice()));
+        assert_eq!(snippets.get(0..5), Some(b"Lorem".as_slice()));
+        assert_eq!(snippets.get(20..26), Some(b"t amet".as_slice()));
+        assert_eq!(snippets.get(27..30), None);
+
+        // Test get_with_context
+        // context_size = 5
+        assert_eq!(
+            snippets.get_with_context(6..11, 5),
+            Some(b"orem ipsum dolo".as_slice())
+        );
+        assert_eq!(
+            snippets.get_with_context(0..5, 5),
+            Some(b"Lorem ipsu".as_slice())
+        );
+        assert_eq!(
+            snippets.get_with_context(20..26, 5),
+            Some(b"or sit amet".as_slice())
+        );
+        assert_eq!(snippets.get_with_context(32..35, 5), None);
     }
 }

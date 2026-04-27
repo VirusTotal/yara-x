@@ -447,6 +447,18 @@ impl<'a> Match<'a, '_> {
         data.unwrap()
     }
 
+    /// Slice containing the data that matched with additional bytes
+    /// at the left and right if possible.
+    pub fn data_with_context(&self) -> &'a [u8] {
+        let data = match &self.ctx.scan_state {
+            ScanState::Finished(snippets) => snippets
+                .get_with_context(self.range(), self.ctx.match_context_size),
+            _ => None,
+        };
+
+        data.unwrap()
+    }
+
     /// XOR key used for decrypting the data if the pattern had the `xor`
     /// modifier, or `None` if otherwise.
     #[inline]
