@@ -417,12 +417,14 @@ mod tests {
         let mut matches = pattern.matches();
 
         let match1 = matches.next().unwrap();
-        let data1 = match1.data_with_context();
+        let (data1, range1) = match1.data_with_context();
         assert_eq!(data1, b"orem ipsum sit ".as_slice());
+        assert_eq!(range1, 5..10);
 
         let match2 = matches.next().unwrap();
-        let data2 = match2.data_with_context();
+        let (data2, range2) = match2.data_with_context();
         assert_eq!(data2, b"olor ipsum sit ".as_slice());
+        assert_eq!(range2, 5..10);
     }
 
     #[test]

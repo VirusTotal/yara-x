@@ -439,24 +439,29 @@ impl<'a> Match<'a, '_> {
     /// Slice containing the data that matched.
     #[inline]
     pub fn data(&self) -> &'a [u8] {
-        let data = match &self.ctx.scan_state {
-            ScanState::Finished(snippets) => snippets.get(self.range()),
-            _ => None,
-        };
-
-        data.unwrap()
+        match &self.ctx.scan_state {
+            ScanState::Finished(snippets) => {
+                snippets.get(self.range()).unwrap()
+            }
+            _ => panic!("invalid scan state"),
+        }
     }
 
-    /// Slice containing the data that matched with additional bytes
-    /// at the left and right if possible.
-    pub fn data_with_context(&self) -> &'a [u8] {
-        let data = match &self.ctx.scan_state {
+    /// Similar to [`Match::data`] but returns a slice that covers the match
+    /// and some extra bytes at its left and right. The returned range indicates
+    /// the portion of the slice that corresponds to the match itself.
+    ///
+    /// Calling this function only makes sense if [`Scanner::match_context_size`]
+    /// is used for indicating how many bytes at the left and right of each
+    /// match are desired. Otherwise, this function will return the same result
+    /// as [`Match::data`].
+    pub fn data_with_context(&self) -> (&'a [u8], Range<usize>) {
+        match &self.ctx.scan_state {
             ScanState::Finished(snippets) => snippets
-                .get_with_context(self.range(), self.ctx.match_context_size),
-            _ => None,
-        };
-
-        data.unwrap()
+                .get_with_context(self.range(), self.ctx.match_context_size)
+                .unwrap(),
+            _ => panic!("invalid scan state"),
+        }
     }
 
     /// XOR key used for decrypting the data if the pattern had the `xor`

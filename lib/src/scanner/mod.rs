@@ -4,6 +4,7 @@ The scanner takes the rules produces by the compiler and scans data with them.
 */
 use std::collections::{BTreeMap, HashMap, hash_map};
 use std::fmt::{Debug, Formatter};
+use std::fs;
 use std::io::Read;
 use std::mem::transmute;
 use std::ops::Range;
@@ -13,7 +14,6 @@ use std::slice::Iter;
 use std::sync::Once;
 use std::sync::atomic::AtomicU64;
 use std::time::Duration;
-use std::{cmp, fs};
 
 use bitvec::prelude::*;
 #[cfg(unix)]
@@ -671,11 +671,15 @@ pub(crate) enum DataSnippets<'d> {
 
 impl DataSnippets<'_> {
     pub(crate) fn get(&self, range: Range<usize>) -> Option<&[u8]> {
-        self.get_with_context(range, 0)
+        self.get_with_context(range, 0).map(|(data, _)| data)
     }
 
     /// Gets the data for the given `range`, but adding `context_size` additional
     /// bytes to the left and right.
+    ///
+    /// Returns a tuple where the first item is the data slice with context,
+    /// and the second item is a range relative to the slice indicating where
+    /// the `range` part is located.
     ///
     /// The result will be `None` only if the data for `range` can't be found.
     /// The additional bytes at the left and right will be added if possible,
@@ -684,13 +688,18 @@ impl DataSnippets<'_> {
         &self,
         range: Range<usize>,
         context_size: usize,
-    ) -> Option<&[u8]> {
+    ) -> Option<(&[u8], Range<usize>)> {
         match self {
             Self::SingleBlock(data) => {
                 let start = range.start.saturating_sub(context_size);
                 let end = range.end.saturating_add(context_size);
-                let end = cmp::min(end, data.len());
-                data.as_ref().get(start..end)
+                let end = std::cmp::min(end, data.len());
+
+                let slice = data.as_ref().get(start..end)?;
+                let rel_start = range.start - start;
+                let rel_end = range.end - start;
+
+                Some((slice, rel_start..rel_end))
             }
             Self::MultiBlock(btree) => {
                 for (snippet_offset, snippet_data) in
@@ -706,10 +715,16 @@ impl DataSnippets<'_> {
 
                     let start = start.saturating_sub(context_size);
                     let end = end.saturating_add(context_size);
-                    let end = cmp::min(end, snippet_data.len());
+                    let end = std::cmp::min(end, snippet_data.len());
 
                     match snippet_data.get(start..end) {
-                        Some(data) if !data.is_empty() => return Some(data),
+                        Some(data) if !data.is_empty() => {
+                            let rel_start =
+                                range.start - (*snippet_offset + start);
+                            let rel_end =
+                                range.end - (*snippet_offset + start);
+                            return Some((data, rel_start..rel_end));
+                        }
                         _ => continue,
                     }
                 }
@@ -1004,27 +1019,27 @@ mod snippet_tests {
 
         assert_eq!(
             snippets.get_with_context(0..2, 1),
-            Some([0, 1, 2].as_slice())
+            Some(([0, 1, 2].as_slice(), 0..2))
         );
 
         assert_eq!(
             snippets.get_with_context(0..2, 2),
-            Some([0, 1, 2, 3].as_slice())
+            Some(([0, 1, 2, 3].as_slice(), 0..2))
         );
 
         assert_eq!(
             snippets.get_with_context(2..4, 2),
-            Some([0, 1, 2, 3, 4, 5].as_slice())
+            Some(([0, 1, 2, 3, 4, 5].as_slice(), 2..4))
         );
 
         assert_eq!(
             snippets.get_with_context(51..52, 3),
-            Some([50, 51, 52, 53, 54].as_slice())
+            Some(([50, 51, 52, 53, 54].as_slice(), 1..2))
         );
 
         assert_eq!(
             snippets.get_with_context(102..103, 3),
-            Some([100, 101, 102, 103].as_slice())
+            Some(([100, 101, 102, 103].as_slice(), 2..3))
         );
     }
 
@@ -1044,15 +1059,15 @@ mod snippet_tests {
         // context_size = 5
         assert_eq!(
             snippets.get_with_context(6..11, 5),
-            Some(b"orem ipsum dolo".as_slice())
+            Some((b"orem ipsum dolo".as_slice(), 5..10))
         );
         assert_eq!(
             snippets.get_with_context(0..5, 5),
-            Some(b"Lorem ipsu".as_slice())
+            Some((b"Lorem ipsu".as_slice(), 0..5))
         );
         assert_eq!(
             snippets.get_with_context(20..26, 5),
-            Some(b"or sit amet".as_slice())
+            Some((b"or sit amet".as_slice(), 5..11))
         );
         assert_eq!(snippets.get_with_context(32..35, 5), None);
     }
