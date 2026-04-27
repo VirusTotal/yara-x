@@ -775,17 +775,31 @@ impl Compiler {
             yrx::linters::metadata(identifier).required(required).error(error);
         match value_type {
             MetaType::STRING => {
-                let compiled_regex = regexp
-                    .as_ref()
-                    .map(|regexp| -> PyResult<(regex::Regex, regex::bytes::Regex)> {
-                        Ok((
-                            regex::Regex::new(regexp.as_str())
-                                .map_err(|err| PyValueError::new_err(err.to_string()))?,
-                            regex::bytes::Regex::new(regexp.as_str())
-                                .map_err(|err| PyValueError::new_err(err.to_string()))?,
-                        ))
-                    })
-                    .transpose()?;
+                let compiled_regex =
+                    regexp
+                        .as_ref()
+                        .map(
+                            |regexp| -> PyResult<(
+                                regex::Regex,
+                                regex::bytes::Regex,
+                            )> {
+                                Ok((
+                                    regex::Regex::new(regexp.as_str())
+                                        .map_err(|err| {
+                                            PyValueError::new_err(
+                                                err.to_string(),
+                                            )
+                                        })?,
+                                    regex::bytes::Regex::new(regexp.as_str())
+                                        .map_err(|err| {
+                                            PyValueError::new_err(
+                                                err.to_string(),
+                                            )
+                                        })?,
+                                ))
+                            },
+                        )
+                        .transpose()?;
 
                 let message = if let Some(regexp) = regexp.clone() {
                     format!(
