@@ -43,11 +43,6 @@ impl Match {
         self.xor_key = Some(key);
         self
     }
-
-    /// Range relative to the block where the match occurred.
-    pub fn block_range(&self) -> Range<usize> {
-        self.range.start.sub(self.base)..self.range.end.sub(self.base)
-    }
 }
 
 /// Represents the list of matches for a pattern.
