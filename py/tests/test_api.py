@@ -35,6 +35,12 @@ def test_invalid_rule_name_regexp():
     compiler.allowed_rule_name("(AXS|ERS")
 
 
+def test_invalid_allowed_metadata_regexp():
+  compiler = yara_x.Compiler()
+  with pytest.raises(ValueError):
+    compiler.allowed_metadata('author', yara_x.MetaType.STRING, regexp='(AXS|ERS')
+
+
 def test_int_globals():
   compiler = yara_x.Compiler()
   compiler.define_global('some_int', 1)
@@ -271,6 +277,14 @@ def test_serialization():
   f.seek(0)
   rules = yara_x.Rules.deserialize_from(f)
   assert len(rules.scan(b'').matching_rules) == 1
+
+def test_deserialize_from_bad_reader_raises_ioerror():
+  class BadReader:
+    def read(self, n):
+      return 123
+
+  with pytest.raises(OSError):
+    yara_x.Rules.deserialize_from(BadReader())
 
 
 def tests_compiler_errors():
