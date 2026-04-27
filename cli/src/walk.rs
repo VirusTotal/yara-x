@@ -12,7 +12,7 @@ use crossterm::tty::IsTty;
 use globwalk::FileType;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
-pub trait StateComponent {
+pub trait Draw {
     fn draw(&self, width: usize) -> String;
 }
 
@@ -277,7 +277,7 @@ impl<'a> Walker<'a> {
 /// <br>
 ///
 /// The function receives four arguments: the file's path, a state of some
-/// type `S` that implements the [`Component`] trait, an output channel that
+/// type `S` that implements the [`Draw`] trait, an output channel that
 /// the function can use for writing messages to the console (its type is
 /// &[`Sender<Message>`]), and a mutable reference to some type `T` returned
 /// by the thread initialization function.
@@ -312,7 +312,7 @@ impl<'a> Walker<'a> {
 ///
 /// walker.walk(
 ///     // The initial state. This must have some type `S` that implements the
-///     // `Component` trait.
+///     // `Draw` trait.
 ///     state
 ///     // This is the thread initialization function. This is called once
 ///     // per thread, and each thread will own the value returned by this
@@ -409,7 +409,7 @@ impl<'a> ParWalker<'a> {
         error: E,
     ) -> thread::Result<S>
     where
-        S: StateComponent + Debug + Send + Sync + 'static,
+        S: Draw + Debug + Send + Sync + 'static,
         I: Fn(&S, &Sender<Message>) -> T + Send + Copy + Sync,
         A: Fn(&S, &Sender<Message>, PathBuf, &mut T) -> anyhow::Result<()>
             + Send
@@ -563,7 +563,7 @@ fn output_messages<S>(
     multi_progress: Option<&MultiProgress>,
     state: Arc<S>,
 ) where
-    S: StateComponent,
+    S: Draw,
 {
     let mut last_render = last_render;
     let pb = multi_progress.map(|mp| {

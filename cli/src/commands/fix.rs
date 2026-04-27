@@ -17,8 +17,8 @@ use crate::commands::{
     compilation_args, compile_rules, path_with_namespace_parser,
 };
 use crate::config::Config;
+use crate::walk::Draw;
 use crate::walk::Message;
-use crate::walk::StateComponent;
 use crate::{help, walk};
 
 pub fn fix() -> Command {
@@ -247,7 +247,7 @@ impl FixEncodingState {
     }
 }
 
-impl StateComponent for FixEncodingState {
+impl Draw for FixEncodingState {
     fn draw(&self, _width: usize) -> String {
         let modified = format!(
             "{} file(s) modified.",

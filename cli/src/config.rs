@@ -198,7 +198,7 @@ impl Default for PatternsFormatConfig {
 
 /// Load a config file from a given path. Path must contain a valid TOML file
 /// or this function will propagate the error. For structure of the config file
-/// see https://virustotal.github.io/yara-x/docs/cli/config-file/.
+/// see <https://virustotal.github.io/yara-x/docs/cli/config-file/>.
 pub fn load_config_from_file(
     config_file: &Path,
 ) -> Result<Config, Box<figment::Error>> {

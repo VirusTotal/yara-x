@@ -11,8 +11,8 @@ use yara_x::{SourceCode, linters};
 use yara_x_parser::ast::MetaValue;
 
 use crate::config::{Config, MetaValueType};
+use crate::walk::Draw;
 use crate::walk::Message;
-use crate::walk::StateComponent;
 use crate::{help, walk};
 
 pub fn check() -> Command {
@@ -303,7 +303,7 @@ impl CheckState {
     }
 }
 
-impl StateComponent for CheckState {
+impl Draw for CheckState {
     fn draw(&self, _width: usize) -> String {
         let ok = format!(
             "{} file(s) ok. ",
