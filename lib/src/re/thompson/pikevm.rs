@@ -338,7 +338,9 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
             | Instr::ClassBitmap(_)
             | Instr::ClassRanges(_)
             | Instr::Match => {
-                closure.push((ip, rep_count));
+                if closure.iter().find(|(i, _)| *i == ip).is_none() {
+                    closure.push((ip, rep_count));
+                }
             }
             Instr::SplitA(id, offset) => {
                 if !state.executed(id) {
