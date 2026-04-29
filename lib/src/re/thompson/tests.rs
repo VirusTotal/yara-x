@@ -3,7 +3,6 @@ use pretty_assertions::assert_eq;
 
 use crate::compiler::Atom;
 use crate::re;
-use crate::re::bitmapset::BitmapSet;
 use crate::re::thompson::instr::SplitId;
 use crate::re::{BckCodeLoc, FwdCodeLoc};
 use crate::types::Regexp;
@@ -25,7 +24,7 @@ macro_rules! assert_re_code {
         assert_eq!($bck, bck_code.to_string());
         assert_eq!($atoms, atoms);
 
-        let mut fwd_closure = BitmapSet::<u32>::new();
+        let mut fwd_closure = Vec::new();
         let mut cache = EpsilonClosureState::new();
 
         epsilon_closure(
@@ -43,7 +42,7 @@ macro_rules! assert_re_code {
             fwd_closure.iter().map(|(ip, _)| *ip).collect::<Vec<_>>()
         );
 
-        let mut bck_closure = BitmapSet::<u32>::new();
+        let mut bck_closure = Vec::new();
         epsilon_closure(
             bck_code.as_ref(),
             BckCodeLoc::try_from(0_usize).unwrap(),
