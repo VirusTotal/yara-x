@@ -433,6 +433,7 @@ impl<'a> InstrParser<'a> {
         }
     }
 
+    #[inline(always)]
     fn decode_u32(slice: &[u8]) -> u32 {
         let bytes: &[u8; size_of::<u32>()] =
             unsafe { &*(slice.as_ptr() as *const [u8; size_of::<u32>()]) };
@@ -440,6 +441,7 @@ impl<'a> InstrParser<'a> {
         u32::from_le_bytes(*bytes)
     }
 
+    #[inline(always)]
     fn decode_offset(slice: &[u8]) -> Offset {
         let bytes: &[u8; size_of::<Offset>()] =
             unsafe { &*(slice.as_ptr() as *const [u8; size_of::<Offset>()]) };
@@ -447,6 +449,7 @@ impl<'a> InstrParser<'a> {
         Offset::from_le_bytes(*bytes)
     }
 
+    #[inline(always)]
     fn decode_num_alt(slice: &[u8]) -> NumAlt {
         let bytes: &[u8; size_of::<NumAlt>()] =
             unsafe { &*(slice.as_ptr() as *const [u8; size_of::<NumAlt>()]) };
@@ -454,6 +457,7 @@ impl<'a> InstrParser<'a> {
         NumAlt::from_le_bytes(*bytes)
     }
 
+    #[inline(always)]
     fn decode_split_id(slice: &[u8]) -> SplitId {
         let bytes: &[u8; size_of::<SplitId>()] =
             unsafe { &*(slice.as_ptr() as *const [u8; size_of::<SplitId>()]) };
@@ -566,6 +570,7 @@ impl<'a> ClassBitmap<'a> {
     }
 
     /// Returns true if the class contains the given byte.
+    #[inline]
     pub fn contains(&self, byte: u8) -> bool {
         unsafe {
             *BitSlice::<_, Lsb0>::from_slice(self.0)
