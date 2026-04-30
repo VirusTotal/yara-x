@@ -424,11 +424,11 @@ fn re_code_8() {
         // Atoms
         vec![
             RegexpAtom {
-                atom: Atom::exact(vec![0x61, 0x66, 0x67]),
+                atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x64]),
                 code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x20 },
             },
             RegexpAtom {
-                atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x64]),
+                atom: Atom::exact(vec![0x61, 0x66, 0x67]),
                 code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x20 },
             },
         ],
@@ -828,11 +828,11 @@ fn re_code_16() {
         // Atoms
         vec![
             RegexpAtom {
-                atom: Atom::exact(vec![0x64, 0x65]),
+                atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x64]),
                 code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x18 }
             },
             RegexpAtom {
-                atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x64]),
+                atom: Atom::exact(vec![0x64, 0x65]),
                 code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x18 }
             }
         ],
@@ -1362,8 +1362,8 @@ fn re_atoms() {
     assert_re_atoms!(
         r#"ab??c"#,
         vec![
-            Atom::exact(b"ac"),
             Atom::exact(b"abc"),
+            Atom::exact(b"ac"),
         ]
     );
 
@@ -1434,8 +1434,8 @@ fn re_atoms() {
     assert_re_atoms!(
         r#"a(bcd.*)*?e"#,
         vec![
-            Atom::exact(b"ae"),
             Atom::inexact(b"abcd"),
+            Atom::exact(b"ae"),
         ]
     );
 
@@ -1506,6 +1506,7 @@ fn re_atoms() {
             .map(Atom::inexact)
             .collect::<Vec<Atom>>();
         v.push(Atom::exact(b"abcd"));
+        v.sort();
         v
     });
 
@@ -1516,6 +1517,7 @@ fn re_atoms() {
             .multi_cartesian_product()
             .map(Atom::inexact)
             .collect::<Vec<Atom>>());
+        v.sort();
         v
     });
 
@@ -1550,4 +1552,23 @@ fn split_id() {
             .and_then(|id| id.add(1))
             .is_none()
     )
+}
+
+#[test]
+fn re_no_duplicate_atoms() {
+    // This test ensures that the compiler successfully deduplicates atoms that
+    // become identical after their `exact` flag is cleared (made inexact).
+    let atoms = assert_re_atoms_impl!(
+        "(?s)[a-zA-Z][a-zA-Z0-9]*[0-9][a-zA-Z0-9]*[0-9][a-zA-Z0-9]{4,12}"
+    );
+
+    let mut unique_atoms: Vec<_> = atoms.iter().map(|a| &a.atom).collect();
+    unique_atoms.sort();
+    unique_atoms.dedup();
+
+    assert_eq!(
+        atoms.len(),
+        unique_atoms.len(),
+        "Atoms vector contains duplicates"
+    );
 }
