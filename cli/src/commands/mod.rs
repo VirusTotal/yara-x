@@ -36,7 +36,7 @@ use yansi::Color::Green;
 use yansi::Paint;
 
 use crate::config::Config;
-use crate::walk::StateComponent;
+use crate::walk::Draw;
 use crate::walk::Walker;
 use crate::{APP_HELP_TEMPLATE, commands, help};
 
@@ -356,7 +356,7 @@ impl CompileState {
     }
 }
 
-impl StateComponent for CompileState {
+impl Draw for CompileState {
     fn draw(&self, _width: usize) -> String {
         if let Some(file) = &self.file_in_progress {
             format!(

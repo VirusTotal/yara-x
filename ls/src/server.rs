@@ -78,17 +78,9 @@ macro_rules! in_thread {
     }};
 }
 
-/// Represents a YARA language server.
-pub struct YARALanguageServer {
-    /// Client socket for communication with the Development Tool.
-    ///
-    /// Mainly used to send notifications such as diagnostics updates,
-    /// logging and showing messages, etc.
-    client: ClientSocket,
-
-    /// Stores the currently open documents.
-    documents: Arc<DocumentStorage>,
-
+#[derive(Default)]
+/// This structure stores only the essential capabilities of the client.
+struct ClientCapabilities {
     /// Flag indicating what document diagnostics model to use.
     ///
     /// There are two models: publish and pull. The publish model specifies
@@ -100,6 +92,30 @@ pub struct YARALanguageServer {
     /// `textDocument.diagnostic` capability property. If the client supports
     /// pull model, server will disable publishing diagnostics.
     should_send_diagnostics: bool,
+    /// Flag indicating if the client supports dynamic registration of
+    /// `workspace/didChangeConfiguration` notifications.
+    dynamic_registration_config_change: bool,
+    /// Flag indicating if the client supports dynamic registration of
+    /// `workspace/didChangeWatchedFiles` notifications.
+    dynamic_registration_watched_files: bool,
+    /// Flag indicating if the client supports `workspace/configuration`
+    /// requests.
+    support_config_requests: bool,
+}
+
+/// Represents a YARA language server.
+pub struct YARALanguageServer {
+    /// Client socket for communication with the Development Tool.
+    ///
+    /// Mainly used to send notifications such as diagnostics updates,
+    /// logging and showing messages, etc.
+    client: ClientSocket,
+
+    /// Stores the currently open documents.
+    documents: Arc<DocumentStorage>,
+
+    /// Capabilities of the client, which are extracted during the initialization request.
+    client_capabilities: ClientCapabilities,
 
     /// Client-side configuration settings of the language server.
     config: Arc<Config>,
@@ -125,11 +141,37 @@ impl LanguageServer for YARALanguageServer {
         params: InitializeParams,
     ) -> BoxFuture<'static, Result<InitializeResult, Self::Error>> {
         // Check if client supports pull model diagnostics.
-        self.should_send_diagnostics = params
+        self.client_capabilities.should_send_diagnostics = params
             .capabilities
             .text_document
             .and_then(|c| c.diagnostic)
             .is_none();
+
+        if let Some(workspace_client_capabilities) =
+            &params.capabilities.workspace
+        {
+            // Check if client supportst the dynmiac registration of configuration change notifications.
+            self.client_capabilities.dynamic_registration_config_change =
+                workspace_client_capabilities
+                    .did_change_configuration
+                    .is_some_and(|dynamic_registration_client_capabilities| {
+                        dynamic_registration_client_capabilities
+                            .dynamic_registration
+                            == Some(true)
+                    });
+
+            // Check if client supportst the dynmiac registration of watched files change notifications.
+            self.client_capabilities.dynamic_registration_watched_files =
+                workspace_client_capabilities
+                    .did_change_watched_files
+                    .is_some_and(|dynamic_registration_client_capabilities| {
+                        dynamic_registration_client_capabilities
+                            .dynamic_registration
+                            == Some(true)
+                    });
+            self.client_capabilities.support_config_requests =
+                workspace_client_capabilities.configuration == Some(true);
+        }
 
         if let Some(folder) = params
             .workspace_folders
@@ -241,22 +283,34 @@ impl LanguageServer for YARALanguageServer {
         _params: InitializedParams,
     ) -> Self::NotifyResult {
         let mut client = self.client.clone();
-        in_thread!({
-            let _ = client
-                .register_capability(RegistrationParams {
-                    registrations: vec![Registration {
-                        id: "yxls/didChangeConfiguration".to_string(),
-                        method: "workspace/didChangeConfiguration".to_string(),
-                        register_options: None,
-                    }],
-                })
-                .await;
-        });
+        if self.client_capabilities.dynamic_registration_config_change {
+            in_thread!({
+                let _ = client
+                    .register_capability(RegistrationParams {
+                        registrations: vec![Registration {
+                            id: "yxls/didChangeConfiguration".to_string(),
+                            method: "workspace/didChangeConfiguration"
+                                .to_string(),
+                            register_options: None,
+                        }],
+                    })
+                    .await;
+            });
+        }
+        // It is not ensured, that every code editor will provide configuration
+        // through `initialization_options`, and therefore we will try to obtain
+        // it one more time, if the dynamic registration of configuration change
+        // notifications is not supported.
+        else {
+            self.load_config();
+        }
 
         // The configuration can be passed through `initialization_options`
         // in initialize request, but we want to cahce entire workspace
         // only after the communication is considered initialized.
-        if self.config.cache_workspace {
+        if self.config.cache_workspace
+            && self.client_capabilities.dynamic_registration_watched_files
+        {
             self.register_fs_watcher();
             self.documents.cache_workspace();
         }
@@ -667,7 +721,7 @@ impl YARALanguageServer {
         let mut router = Router::from_language_server(Self {
             client,
             documents: Arc::new(DocumentStorage::new()),
-            should_send_diagnostics: true,
+            client_capabilities: ClientCapabilities::default(),
             config: Arc::new(Config::default()),
         });
         router.event(Self::update_config);
@@ -723,6 +777,10 @@ impl YARALanguageServer {
     /// and verify its correctness. Then it emits the event, which
     /// will update the configuration in the server state.
     fn load_config(&mut self) {
+        if !self.client_capabilities.support_config_requests {
+            return;
+        }
+
         let mut client = self.client.clone();
         in_thread!({
             let config = client
@@ -789,12 +847,22 @@ impl YARALanguageServer {
         if value.0.cache_workspace != cache_before {
             match value.0.cache_workspace {
                 true => {
-                    self.register_fs_watcher();
-                    self.documents.cache_workspace();
+                    if self
+                        .client_capabilities
+                        .dynamic_registration_watched_files
+                    {
+                        self.register_fs_watcher();
+                        self.documents.cache_workspace();
+                    }
                 }
                 false => {
-                    self.unregister_fs_watcher();
-                    self.documents.clear_cache();
+                    if self
+                        .client_capabilities
+                        .dynamic_registration_watched_files
+                    {
+                        self.unregister_fs_watcher();
+                        self.documents.clear_cache();
+                    }
                 }
             }
         }
@@ -804,7 +872,7 @@ impl YARALanguageServer {
 
     /// Sends diagnostics for specific document if publish model is used.
     fn publish_diagnostics(&mut self, uri: &Url) {
-        if self.should_send_diagnostics {
+        if self.client_capabilities.should_send_diagnostics {
             let documents = Arc::clone(&self.documents);
             let config = Arc::clone(&self.config);
             let mut client = self.client.clone();

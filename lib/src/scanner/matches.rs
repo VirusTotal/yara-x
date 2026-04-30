@@ -43,11 +43,6 @@ impl Match {
         self.xor_key = Some(key);
         self
     }
-
-    /// Range relative to the block where the match occurred.
-    pub fn block_range(&self) -> Range<usize> {
-        self.range.start.sub(self.base)..self.range.end.sub(self.base)
-    }
 }
 
 /// Represents the list of matches for a pattern.
@@ -77,38 +72,49 @@ impl MatchList {
     /// This operation is O(1) in the most common case, which is inserting
     /// the new match at an offset that is higher than those from previous
     /// matches.
-    pub fn add(&mut self, m: Match, replace_if_longer: bool) {
-        // Check if the new match belongs at the end of the list.
-        // This maintains the O(1) best case for ordered insertions.
-        if let Some(last) = self.matches.last() {
-            if m.range.start > last.range.start {
-                self.matches.push(m);
+    pub fn add(&mut self, new_match: Match, replace_if_longer: bool) {
+        match self.matches.last_mut() {
+            // The new match starts at some offset greater than the offset of
+            // the last match, we can simply push the new match at the end.
+            Some(last) if new_match.range.start > last.range.start => {
+                self.matches.push(new_match);
                 return;
-            } else if m.range.start == last.range.start {
-                if replace_if_longer && last.range.end < m.range.end {
-                    self.matches.last_mut().unwrap().range.end = m.range.end;
+            }
+            // The new match starts has the same offset as the last match. We
+            // only need to update its end position when replace_if_longer is
+            // true.
+            Some(last) if new_match.range.start == last.range.start => {
+                if replace_if_longer {
+                    last.range.end = new_match.range.end;
                 }
                 return;
             }
-        } else {
-            self.matches.push(m);
-            return;
+            // No matches so far, the match is first one.
+            None => {
+                self.matches.push(new_match);
+                return;
+            }
+            _ => {}
         }
         // If not at the end, use binary search to find the insertion point.
-        // This is O(log N) instead of O(N) for the search.
-        match self.matches.binary_search_by(|existing_match| {
-            existing_match.range.start.cmp(&m.range.start)
-        }) {
-            Ok(index) => {
+        match self
+            .matches
+            .binary_search_by_key(&new_match.range.start, |m| m.range.start)
+        {
+            // Found, and replace_if_longer is true.
+            Ok(index) if replace_if_longer => {
                 let existing_match = &mut self.matches[index];
-                if replace_if_longer && existing_match.range.end < m.range.end
-                {
-                    existing_match.range.end = m.range.end;
+                if existing_match.range.end < new_match.range.end {
+                    existing_match.range.end = new_match.range.end;
                 }
             }
+            // Not found, insert at the corresponding position.
             Err(index) => {
-                self.matches.insert(index, m);
+                self.matches.insert(index, new_match);
             }
+            // Found, but replace_if_longer is false, do nothing and keep the
+            // existing match.
+            _ => {}
         }
     }
 

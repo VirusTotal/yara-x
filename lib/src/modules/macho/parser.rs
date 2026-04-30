@@ -16,8 +16,8 @@ use nom::bytes::complete::{tag, take, take_till};
 use nom::combinator::{cond, map, verify};
 use nom::error::ErrorKind;
 use nom::multi::{count, length_count};
-use nom::number::complete::{be_u32, le_u32, u16, u32, u64, u8};
 use nom::number::Endianness;
+use nom::number::complete::{be_u32, le_u32, u8, u16, u32, u64};
 use nom::{Err, IResult, Parser};
 use protobuf::MessageField;
 use x509_parser::x509::AlgorithmIdentifier;
@@ -355,9 +355,10 @@ impl<'a> MachO<'a> {
                     // the file is reached there are no more commands that can
                     // be parsed.
                     if let Err::Error(e) = err
-                        && e.code == ErrorKind::Eof {
-                            break;
-                        }
+                        && e.code == ErrorKind::Eof
+                    {
+                        break;
+                    }
                 }
             }
         }
@@ -372,15 +373,15 @@ impl<'a> MachO<'a> {
             if let Some(string_table) =
                 data.get(str_offset..str_offset.saturating_add(str_end))
                 && let Some(symbol_table) = data.get(sym_offset..)
-                    && let Err(_err) =
-                        macho.parse_symtab(string_table, symbol_table, nsyms)
-                    {
-                        #[cfg(feature = "logging")]
-                        error!("Error parsing Mach-O file: {:?}", _err);
-                        // fail silently if it fails, data was not formatted
-                        // correctly but parsing should still proceed for
-                        // everything else
-                    };
+                && let Err(_err) =
+                    macho.parse_symtab(string_table, symbol_table, nsyms)
+            {
+                #[cfg(feature = "logging")]
+                error!("Error parsing Mach-O file: {:?}", _err);
+                // fail silently if it fails, data was not formatted
+                // correctly but parsing should still proceed for
+                // everything else
+            };
         }
 
         if let Some(entry_point_rva) = macho.entry_point_rva {
@@ -392,13 +393,14 @@ impl<'a> MachO<'a> {
             let size = code_signature_data.datasize as usize;
             if let Some(super_data) =
                 data.get(offset..offset.saturating_add(size))
-                && let Err(_err) = macho.cs_superblob().parse(super_data) {
-                    #[cfg(feature = "logging")]
-                    error!("Error parsing Mach-O file: {:?}", _err);
-                    // fail silently if it fails, data was not formatted
-                    // correctly but parsing should still proceed for
-                    // everything else
-                };
+                && let Err(_err) = macho.cs_superblob().parse(super_data)
+            {
+                #[cfg(feature = "logging")]
+                error!("Error parsing Mach-O file: {:?}", _err);
+                // fail silently if it fails, data was not formatted
+                // correctly but parsing should still proceed for
+                // everything else
+            };
         }
 
         for (offset, size) in [
@@ -416,13 +418,14 @@ impl<'a> MachO<'a> {
         {
             if let Some(export_data) =
                 data.get(offset..offset.saturating_add(size))
-                && let Err(_err) = macho.parse_exports(export_data) {
-                    #[cfg(feature = "logging")]
-                    error!("Error parsing Mach-O file: {:?}", _err);
-                    // fail silently if it fails, data was not formatted
-                    // correctly but parsing should still proceed for
-                    // everything else
-                };
+                && let Err(_err) = macho.parse_exports(export_data)
+            {
+                #[cfg(feature = "logging")]
+                error!("Error parsing Mach-O file: {:?}", _err);
+                // fail silently if it fails, data was not formatted
+                // correctly but parsing should still proceed for
+                // everything else
+            };
         }
 
         // imports defined at `weak_offset` can be duplicative, meaning
@@ -445,13 +448,13 @@ impl<'a> MachO<'a> {
             if let Some(import_data) =
                 data.get(offset..offset.saturating_add(size))
                 && let Err(_err) = macho.parse_imports(import_data, &mut seen)
-                {
-                    #[cfg(feature = "logging")]
-                    error!("Error parsing Mach-O file: {:?}", _err);
-                    // fail silently if it fails, data was not formatted
-                    // correctly but parsing should still proceed for
-                    // everything else
-                };
+            {
+                #[cfg(feature = "logging")]
+                error!("Error parsing Mach-O file: {:?}", _err);
+                // fail silently if it fails, data was not formatted
+                // correctly but parsing should still proceed for
+                // everything else
+            };
         }
 
         if let Some(ref chained_fixups) = macho.dyld_chain_fixups {
@@ -459,13 +462,14 @@ impl<'a> MachO<'a> {
             let size = chained_fixups.data_size as usize;
             if let Some(fixup_data) =
                 data.get(offset..offset.saturating_add(size))
-                && let Err(_err) = macho.parse_chained_fixups(fixup_data) {
-                    #[cfg(feature = "logging")]
-                    error!("Error parsing Mach-O file: {:?}", _err);
-                    // fail silently if it fails, data was not formatted
-                    // correctly but parsing should still proceed for
-                    // everything else
-                };
+                && let Err(_err) = macho.parse_chained_fixups(fixup_data)
+            {
+                #[cfg(feature = "logging")]
+                error!("Error parsing Mach-O file: {:?}", _err);
+                // fail silently if it fails, data was not formatted
+                // correctly but parsing should still proceed for
+                // everything else
+            };
         }
 
         Ok(macho)
@@ -596,104 +600,134 @@ impl<'a> MachOFile<'a> {
             )(remainder)?;
             // Parse the command's data. Parsers for individual commands must
             // consume all `command_data`.
+            //
+            // If a specific command parser fails, the command bytes were
+            // already consumed by `take(...)` above, so we ignore that single
+            // malformed command and continue with the next one instead of
+            // retrying the same bytes for the remaining `ncmds` iterations.
             match command {
                 LC_MAIN => {
-                    let (_, (entry_point_offset, stack_size)) =
-                        self.main_command().parse(command_data)?;
-                    self.entry_point_offset = Some(entry_point_offset);
-                    self.stack_size = Some(stack_size);
+                    let parsed = self.main_command().parse(command_data);
+                    if let Ok((_, (entry_point_offset, stack_size))) = parsed {
+                        self.entry_point_offset = Some(entry_point_offset);
+                        self.stack_size = Some(stack_size);
+                    }
                 }
                 LC_UNIXTHREAD => {
-                    let (_, eip) =
-                        self.thread_command().parse(command_data)?;
-                    self.entry_point_rva = Some(eip);
+                    let parsed = self.thread_command().parse(command_data);
+                    if let Ok((_, eip)) = parsed {
+                        self.entry_point_rva = Some(eip);
+                    }
                 }
                 LC_SEGMENT | LC_SEGMENT_64 => {
-                    let (_, segment) =
-                        self.segment_command().parse(command_data)?;
-                    self.segments.push(segment);
+                    let parsed = self.segment_command().parse(command_data);
+                    if let Ok((_, segment)) = parsed {
+                        self.segments.push(segment);
+                    }
                 }
                 LC_RPATH => {
-                    let (_, rpath) =
-                        self.rpath_command().parse(command_data)?;
-                    self.rpaths.push(rpath);
+                    let parsed = self.rpath_command().parse(command_data);
+                    if let Ok((_, rpath)) = parsed {
+                        self.rpaths.push(rpath);
+                    }
                 }
                 LC_LOAD_DYLIB | LC_ID_DYLIB | LC_LOAD_WEAK_DYLIB
                 | LC_REEXPORT_DYLIB | LC_LAZY_LOAD_DYLIB
                 | LC_LOAD_UPWARD_DYLIB => {
-                    let (_, dylib) =
-                        self.dylib_command().parse(command_data)?;
-                    self.dylibs.push(dylib);
+                    let parsed = self.dylib_command().parse(command_data);
+                    if let Ok((_, dylib)) = parsed {
+                        self.dylibs.push(dylib);
+                    }
                 }
                 LC_SOURCE_VERSION => {
-                    let (_, ver) =
-                        self.source_version_command().parse(command_data)?;
-                    self.source_version =
-                        Some(convert_to_source_version_string(ver));
+                    let parsed =
+                        self.source_version_command().parse(command_data);
+                    if let Ok((_, ver)) = parsed {
+                        self.source_version =
+                            Some(convert_to_source_version_string(ver));
+                    }
                 }
                 LC_ID_DYLINKER | LC_LOAD_DYLINKER | LC_DYLD_ENVIRONMENT => {
-                    let (_, dylinker) =
-                        self.dylinker_command().parse(command_data)?;
-                    self.dynamic_linker = Some(dylinker);
+                    let parsed = self.dylinker_command().parse(command_data);
+                    if let Ok((_, dylinker)) = parsed {
+                        self.dynamic_linker = Some(dylinker);
+                    }
                 }
                 LC_SYMTAB => {
-                    let (_, symtab) =
-                        self.symtab_command().parse(command_data)?;
-                    self.symtab = Some(symtab);
+                    let parsed = self.symtab_command().parse(command_data);
+                    if let Ok((_, symtab)) = parsed {
+                        self.symtab = Some(symtab);
+                    }
                 }
                 LC_DYSYMTAB => {
-                    let (_, dysymtab) =
-                        self.dysymtab_command().parse(command_data)?;
-                    self.dysymtab = Some(dysymtab);
+                    let parsed = self.dysymtab_command().parse(command_data);
+                    if let Ok((_, dysymtab)) = parsed {
+                        self.dysymtab = Some(dysymtab);
+                    }
                 }
                 LC_CODE_SIGNATURE => {
-                    let (_, lid) =
-                        self.linkeditdata_command().parse(command_data)?;
-                    self.code_signature_data = Some(lid);
+                    let parsed =
+                        self.linkeditdata_command().parse(command_data);
+                    if let Ok((_, lid)) = parsed {
+                        self.code_signature_data = Some(lid);
+                    }
                 }
                 LC_DYLD_EXPORTS_TRIE => {
-                    let (_, exports_data) =
-                        self.linkeditdata_command().parse(command_data)?;
-                    self.dyld_export_trie = Some(DyldExportTrie {
-                        data_off: exports_data.dataoff,
-                        data_size: exports_data.datasize,
-                    });
+                    let parsed =
+                        self.linkeditdata_command().parse(command_data);
+                    if let Ok((_, exports_data)) = parsed {
+                        self.dyld_export_trie = Some(DyldExportTrie {
+                            data_off: exports_data.dataoff,
+                            data_size: exports_data.datasize,
+                        });
+                    }
                 }
                 LC_DYLD_CHAINED_FIXUPS => {
-                    let (_, imports_data) =
-                        self.linkeditdata_command().parse(command_data)?;
-                    self.dyld_chain_fixups = Some(DyldChainFixups {
-                        data_off: imports_data.dataoff,
-                        data_size: imports_data.datasize,
-                    });
+                    let parsed =
+                        self.linkeditdata_command().parse(command_data);
+                    if let Ok((_, imports_data)) = parsed {
+                        self.dyld_chain_fixups = Some(DyldChainFixups {
+                            data_off: imports_data.dataoff,
+                            data_size: imports_data.datasize,
+                        });
+                    }
                 }
                 LC_DYLD_INFO | LC_DYLD_INFO_ONLY => {
-                    let (_, dyld_info) =
-                        self.dyld_info_command().parse(command_data)?;
-                    self.dyld_info = Some(dyld_info);
+                    let parsed = self.dyld_info_command().parse(command_data);
+                    if let Ok((_, dyld_info)) = parsed {
+                        self.dyld_info = Some(dyld_info);
+                    }
                 }
                 LC_UUID => {
-                    let (_, uuid) = self.uuid_command().parse(command_data)?;
-                    self.uuid = Some(uuid);
+                    let parsed = self.uuid_command().parse(command_data);
+                    if let Ok((_, uuid)) = parsed {
+                        self.uuid = Some(uuid);
+                    }
                 }
                 LC_BUILD_VERSION => {
-                    let (_, bv) =
-                        self.build_version_command().parse(command_data)?;
-                    self.build_version = Some(bv);
+                    let parsed =
+                        self.build_version_command().parse(command_data);
+                    if let Ok((_, bv)) = parsed {
+                        self.build_version = Some(bv);
+                    }
                 }
                 LC_VERSION_MIN_MACOSX
                 | LC_VERSION_MIN_IPHONEOS
                 | LC_VERSION_MIN_TVOS
                 | LC_VERSION_MIN_WATCHOS => {
-                    let (_, mut mv) =
-                        self.min_version_command().parse(command_data)?;
-                    mv.device = command;
-                    self.min_version = Some(mv);
+                    let parsed =
+                        self.min_version_command().parse(command_data);
+                    if let Ok((_, mut mv)) = parsed {
+                        mv.device = command;
+                        self.min_version = Some(mv);
+                    }
                 }
                 LC_LINKER_OPTION => {
-                    let (_, linker_options) =
-                        self.linker_options_command().parse(command_data)?;
-                    self.linker_options.extend(linker_options);
+                    let parsed =
+                        self.linker_options_command().parse(command_data);
+                    if let Ok((_, linker_options)) = parsed {
+                        self.linker_options.extend(linker_options);
+                    }
                 }
                 _ => {}
             }
@@ -1050,12 +1084,11 @@ impl<'a> MachOFile<'a> {
                         if let Some(ber_blob) = super_data.get(
                             offset.saturating_add(size_of_blob)
                                 ..offset.saturating_add(length),
-                        )
-                            && let Ok((_remainder, certs)) =
-                                parse_certificates(ber_blob)
-                            {
-                                self.certificates.extend(certs);
-                            }
+                        ) && let Ok((_remainder, certs)) =
+                            parse_certificates(ber_blob)
+                        {
+                            self.certificates.extend(certs);
+                        }
                     }
                     _ => {}
                 }
@@ -1150,18 +1183,18 @@ impl<'a> MachOFile<'a> {
             if let Some(symtab) = self.symtab.as_mut()
                 && let Some(string_data) =
                     string_table.get(n.n_strx as usize..)
-                {
-                    let (_, string_value) = map(
-                        (take_till(|b| b == b'\x00'), tag("\x00")),
-                        |(s, _)| s,
-                    )
-                    .parse(string_data)?;
+            {
+                let (_, string_value) = map(
+                    (take_till(|b| b == b'\x00'), tag("\x00")),
+                    |(s, _)| s,
+                )
+                .parse(string_data)?;
 
-                    if !string_value.is_empty() {
-                        symtab.entries.push(string_value);
-                        symtab.nlists.push(n);
-                    }
+                if !string_value.is_empty() {
+                    symtab.entries.push(string_value);
+                    symtab.nlists.push(n);
                 }
+            }
         }
 
         Ok((data, ()))
@@ -1283,10 +1316,11 @@ impl<'a> MachOFile<'a> {
                     .parse(remainder)?;
                     remainder = import_remainder;
                     if let Ok(import) = strr.to_str()
-                        && !seen.contains(import) {
-                            self.imports.push(import.to_string());
-                            seen.insert(import);
-                        }
+                        && !seen.contains(import)
+                    {
+                        self.imports.push(import.to_string());
+                        seen.insert(import);
+                    }
                 }
                 _ => {}
             }
@@ -1298,8 +1332,11 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses the header for the chained fixups designated by LC_DYLD_CHAINED_FIXUPS.
     fn chained_fixup_header(
         &self,
-    ) -> impl Parser<&'a [u8], Output = ChainedFixupsHeader, Error = NomError<'a>>
-           + '_ {
+    ) -> impl Parser<
+        &'a [u8],
+        Output = ChainedFixupsHeader,
+        Error = NomError<'a>,
+    > + '_ {
         map(
             (
                 u32(self.endianness), //  fixups_version
@@ -1419,10 +1456,28 @@ impl<'a> MachOFile<'a> {
         &self,
     ) -> impl Parser<&'a [u8], Output = Vec<&'a [u8]>, Error = NomError<'a>> + '_
     {
-        length_count(
-            u32(self.endianness), // count
-            map((take_till(|b| b == b'\x00'), tag("\x00")), |(s, _)| s),
-        )
+        move |input: &'a [u8]| {
+            let (mut remainder, count) = u32(self.endianness).parse(input)?;
+            let count = count as usize;
+
+            if count > remainder.len() {
+                return Err(Err::Error(NomError::new(
+                    remainder,
+                    ErrorKind::TooLarge,
+                )));
+            }
+
+            let mut options = Vec::new();
+            for _ in 0..count {
+                let (next, option) =
+                    map((take_till(|b| b == b' '), tag(" ")), |(s, _)| s)
+                        .parse(remainder)?;
+                options.push(option);
+                remainder = next;
+            }
+
+            Ok((remainder, options))
+        }
     }
 
     /// Parser that parses a LC_UUID command.
@@ -1457,8 +1512,11 @@ impl<'a> MachOFile<'a> {
     /// Parser that parses a LC_BUILD_VERSION command.
     fn build_version_command(
         &self,
-    ) -> impl Parser<&'a [u8], Output = BuildVersionCommand, Error = NomError<'a>>
-           + '_ {
+    ) -> impl Parser<
+        &'a [u8],
+        Output = BuildVersionCommand,
+        Error = NomError<'a>,
+    > + '_ {
         map(
             (
                 u32(self.endianness), // platform,
@@ -2018,53 +2076,55 @@ impl From<MachO<'_>> for protos::macho::Macho {
             // If the exports are empty, iterate the symbol table entries to
             // check like dyld_info does:
             // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L560-L617
-            if m.dyld_export_trie.is_none() && m.dyld_info.is_none()
-                && let Some(symtab) = &m.symtab {
-                    result.exports.extend(
-                        symtab
-                            .nlists
-                            .iter()
-                            .enumerate()
-                            .filter_map(|(idx, nlist)| {
-                                let t = nlist.n_type & N_TYPE;
-                                if (nlist.n_type & N_EXT != 0)
-                                    && ((t == N_SECT)
-                                        || (t == N_ABS)
-                                        || (t == N_INDR))
-                                    && ((nlist.n_type & N_STAB) == 0)
-                                {
-                                    symtab.entries.get(idx)
-                                } else {
-                                    None
-                                }
-                            })
-                            .map(|sym| BStr::new(sym).to_string()),
-                    )
-                }
+            if m.dyld_export_trie.is_none()
+                && m.dyld_info.is_none()
+                && let Some(symtab) = &m.symtab
+            {
+                result.exports.extend(
+                    symtab
+                        .nlists
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(idx, nlist)| {
+                            let t = nlist.n_type & N_TYPE;
+                            if (nlist.n_type & N_EXT != 0)
+                                && ((t == N_SECT)
+                                    || (t == N_ABS)
+                                    || (t == N_INDR))
+                                && ((nlist.n_type & N_STAB) == 0)
+                            {
+                                symtab.entries.get(idx)
+                            } else {
+                                None
+                            }
+                        })
+                        .map(|sym| BStr::new(sym).to_string()),
+                )
+            }
 
             // If the imports are empty, iterate the symbol table entries to
             // check for undefined symbols like dyld_info does:
             // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L372-L398
-            if m.dyld_chain_fixups.is_none() && m.dyld_info.is_none()
-                && let Some(symtab) = &m.symtab {
-                    result.imports.extend(
-                        symtab
-                            .nlists
-                            .iter()
-                            .enumerate()
-                            .filter_map(|(idx, nlist)| {
-                                let t = nlist.n_type & N_TYPE;
-                                if (t == N_UNDF)
-                                    && (nlist.n_type & N_STAB == 0)
-                                {
-                                    symtab.entries.get(idx)
-                                } else {
-                                    None
-                                }
-                            })
-                            .map(|sym| BStr::new(sym).to_string()),
-                    );
-                }
+            if m.dyld_chain_fixups.is_none()
+                && m.dyld_info.is_none()
+                && let Some(symtab) = &m.symtab
+            {
+                result.imports.extend(
+                    symtab
+                        .nlists
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(idx, nlist)| {
+                            let t = nlist.n_type & N_TYPE;
+                            if (t == N_UNDF) && (nlist.n_type & N_STAB == 0) {
+                                symtab.entries.get(idx)
+                            } else {
+                                None
+                            }
+                        })
+                        .map(|sym| BStr::new(sym).to_string()),
+                );
+            }
 
             result
                 .certificates
@@ -2154,51 +2214,53 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         // If the exports are empty, iterate the symbol table entries to check
         // like dyld_info does:
         // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L560-L617
-        if macho.dyld_export_trie.is_none() && macho.dyld_info.is_none()
-            && let Some(symtab) = &macho.symtab {
-                result.exports.extend(
-                    symtab
-                        .nlists
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(idx, nlist)| {
-                            let t = nlist.n_type & N_TYPE;
-                            if (nlist.n_type & N_EXT != 0)
-                                && ((t == N_SECT)
-                                    || (t == N_ABS)
-                                    || (t == N_INDR))
-                                && ((nlist.n_type & N_STAB) == 0)
-                            {
-                                symtab.entries.get(idx)
-                            } else {
-                                None
-                            }
-                        })
-                        .map(|sym| BStr::new(sym).to_string()),
-                )
-            }
+        if macho.dyld_export_trie.is_none()
+            && macho.dyld_info.is_none()
+            && let Some(symtab) = &macho.symtab
+        {
+            result.exports.extend(
+                symtab
+                    .nlists
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(idx, nlist)| {
+                        let t = nlist.n_type & N_TYPE;
+                        if (nlist.n_type & N_EXT != 0)
+                            && ((t == N_SECT) || (t == N_ABS) || (t == N_INDR))
+                            && ((nlist.n_type & N_STAB) == 0)
+                        {
+                            symtab.entries.get(idx)
+                        } else {
+                            None
+                        }
+                    })
+                    .map(|sym| BStr::new(sym).to_string()),
+            )
+        }
 
         // If the imports are empty, iterate the symbol table entries to
         // check for undefined symbols like dyld_info does:
         // https://github.com/apple-oss-distributions/dyld/blob/main/other-tools/dyld_info.cpp#L372-L398
-        if macho.dyld_chain_fixups.is_none() && macho.dyld_info.is_none()
-            && let Some(symtab) = &macho.symtab {
-                result.imports.extend(
-                    symtab
-                        .nlists
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(idx, nlist)| {
-                            let t = nlist.n_type & N_TYPE;
-                            if (t == N_UNDF) && (nlist.n_type & N_STAB == 0) {
-                                symtab.entries.get(idx)
-                            } else {
-                                None
-                            }
-                        })
-                        .map(|sym| BStr::new(sym).to_string()),
-                );
-            }
+        if macho.dyld_chain_fixups.is_none()
+            && macho.dyld_info.is_none()
+            && let Some(symtab) = &macho.symtab
+        {
+            result.imports.extend(
+                symtab
+                    .nlists
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(idx, nlist)| {
+                        let t = nlist.n_type & N_TYPE;
+                        if (t == N_UNDF) && (nlist.n_type & N_STAB == 0) {
+                            symtab.entries.get(idx)
+                        } else {
+                            None
+                        }
+                    })
+                    .map(|sym| BStr::new(sym).to_string()),
+            );
+        }
         result
             .certificates
             .extend(macho.certificates.iter().map(|cert| cert.into()));
@@ -2439,10 +2501,12 @@ fn test_uleb_parsing() {
         uleb128(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f]).unwrap();
     assert_eq!(72057594037927935, n);
 
-    assert!(uleb128(&[
-        0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00,
-    ])
-    .is_err());
+    assert!(
+        uleb128(&[
+            0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00,
+        ])
+        .is_err()
+    );
 }
 
 #[test]
@@ -2471,8 +2535,10 @@ fn test_sleb_parsing() {
     let (_remainder, result) = sleb128(&sleb_128_in).unwrap();
     assert_eq!(0, result);
 
-    assert!(sleb128(&[
-        0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00,
-    ])
-    .is_err());
+    assert!(
+        sleb128(&[
+            0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00,
+        ])
+        .is_err()
+    );
 }

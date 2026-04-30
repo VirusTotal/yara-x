@@ -23,8 +23,8 @@ use crate::commands::{
     meta_file_value_parser, path_with_namespace_parser,
     truncate_with_ellipsis,
 };
+use crate::walk::Draw;
 use crate::walk::Message;
-use crate::walk::StateComponent;
 use crate::{help, walk};
 
 #[derive(Clone, ValueEnum)]
@@ -511,7 +511,7 @@ fn replace_whitespace(path: &Path) -> Cow<'_, str> {
     s
 }
 
-impl StateComponent for ScanState {
+impl Draw for ScanState {
     fn draw(&self, width: usize) -> String {
         let mut output = String::new();
 

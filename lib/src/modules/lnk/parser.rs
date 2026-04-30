@@ -367,7 +367,7 @@ impl LnkParser {
                             .unwrap_or(None);
                 }
             } else if let Some(string) =
-                input.get(volume_label_offset as usize..)
+                volume_id.get(volume_label_offset as usize..)
             {
                 self.result.volume_label = Self::parse_string(string)
                     .map(|(_, label)| Some(label))

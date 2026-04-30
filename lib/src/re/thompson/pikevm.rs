@@ -4,7 +4,6 @@ use std::mem;
 use bitvec::array::BitArray;
 
 use super::instr::{Instr, InstrParser, Offset};
-use crate::re::bitmapset::BitmapSet;
 use crate::re::thompson::instr::SplitId;
 use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT, WideIter};
 
@@ -17,10 +16,10 @@ pub(crate) struct PikeVM<'r> {
     /// position within the VM code, pointing to some VM instruction. Each item
     /// in the set is unique, the VM guarantees that there aren't two active
     /// threads at the same VM instruction.
-    threads: BitmapSet<u32>,
+    threads: Vec<(usize, u32)>,
     /// The set of threads that will become the active threads when the next
     /// byte is read from the input.
-    next_threads: BitmapSet<u32>,
+    next_threads: Vec<(usize, u32)>,
     /// Maximum number of bytes to scan. The VM will abort after ingesting
     /// this number of bytes from the input.
     scan_limit: u16,
@@ -33,8 +32,8 @@ impl<'r> PikeVM<'r> {
     pub fn new(code: &'r [u8]) -> Self {
         Self {
             code,
-            threads: BitmapSet::new(),
-            next_threads: BitmapSet::new(),
+            threads: Vec::new(),
+            next_threads: Vec::new(),
             cache: EpsilonClosureState::new(),
             scan_limit: DEFAULT_SCAN_LIMIT,
         }
@@ -317,7 +316,7 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
     curr_byte: Option<&u8>,
     prev_byte: Option<&u8>,
     state: &mut EpsilonClosureState,
-    closure: &mut BitmapSet<u32>,
+    closure: &mut Vec<(usize, u32)>,
 ) {
     state.threads.push((start.location(), rep_count));
     state.dirty = true;
@@ -339,7 +338,9 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
             | Instr::ClassBitmap(_)
             | Instr::ClassRanges(_)
             | Instr::Match => {
-                closure.insert(ip, rep_count);
+                if closure.iter().find(|(i, _)| *i == ip).is_none() {
+                    closure.push((ip, rep_count));
+                }
             }
             Instr::SplitA(id, offset) => {
                 if !state.executed(id) {

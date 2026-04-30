@@ -1252,6 +1252,10 @@ impl hir::Visitor for Compiler {
             for atom in atoms.iter_mut() {
                 atom.make_inexact();
             }
+            // Since atoms with different exactness may have become identical
+            // after make_inexact(), sort and dedup them to remove duplicates.
+            atoms.sort();
+            atoms.dedup();
         }
 
         let best_atoms = self.best_atoms_stack.last_mut().unwrap();
@@ -1996,9 +2000,17 @@ fn optimize_seq(mut seq: Seq) -> Option<Seq> {
 }
 
 fn seq_to_atoms(seq: Seq) -> Option<Vec<Atom>> {
-    optimize_seq(seq)?
+    let mut atoms: Vec<Atom> = optimize_seq(seq)?
         .literals()
-        .map(|literals| literals.iter().map(Atom::from).collect())
+        .map(|literals| literals.iter().map(Atom::from).collect())?;
+
+    // `regex-syntax`'s `Seq::dedup()` only removes consecutive duplicates.
+    // The Cartesian product can produce identical literals that are not
+    // consecutive, so we must sort and dedup here to remove them.
+    atoms.sort();
+    atoms.dedup();
+
+    Some(atoms)
 }
 
 /// A list of [`RegexpAtom`] that contains additional information, like the

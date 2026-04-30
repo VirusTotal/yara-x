@@ -105,7 +105,9 @@ pub(crate) const MAX_ATOMS_PER_REGEXP: usize = 10000;
 /// For instance, in the regexp `/ab(cd|ef)/` we can extract two atoms: `abcd`
 /// and `abef`. If any of the atoms is found the regexp matches. Both of these
 /// atoms are exact.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, Eq, PartialOrd, Ord, PartialEq, Serialize, Deserialize,
+)]
 pub(crate) struct Atom {
     bytes: SmallVec<[u8; DESIRED_ATOM_SIZE]>,
     exact: bool,
