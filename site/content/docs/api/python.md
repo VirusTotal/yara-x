@@ -198,7 +198,13 @@ the [Rules](#rules) are used for scanning data, however each scanner can change
 the variable's value by
 calling [Scanner.set_global(...)](#set_globalidentifier-value).
 
-The type of `value` must be: `bool`, `str`, `bytes`, `int` or `float`.
+The type of `value` must be: `bool`, `str`, `bytes`, `int`, `float`, or `dict`.
+
+When `value` is a `dict`, keys must be strings and valid YARA identifiers.
+Values can be any supported type, including nested dicts and lists (for arrays).
+Arrays must be homogeneous (all elements the same type). See
+[External global variables]({{< ref "external_variables.md" >}}) for details on
+using structs and arrays in rule conditions.
 
 Raises: [TypeError](https://docs.python.org/3/library/exceptions.html#TypeError)
 if the type of `value` is not one of the supported ones.
@@ -209,6 +215,24 @@ if the type of `value` is not one of the supported ones.
 compiler = yara_x.Compiler()
 compiler.define_global("my_int_var", 1)
 compiler.add_source("rule test { condition: my_int_var == 1 }")
+```
+
+```python
+compiler = yara_x.Compiler()
+compiler.define_global("file_info", {
+    "name": "test.exe",
+    "size": 45056,
+    "tags": ["packed", "unsigned"],
+})
+compiler.add_source('''
+rule test {
+    condition:
+        file_info.name == "test.exe" and
+        for any tag in file_info.tags : (
+            tag == "packed"
+        )
+}
+''')
 ```
 
 #### .max_warnings(n)
