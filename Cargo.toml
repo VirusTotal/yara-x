@@ -32,7 +32,6 @@ resolver = "3"
 
 
 [workspace.dependencies]
-# aho-corasick = "1.1.4"
 daachorse = { git = "https://github.com/plusvic/daachorse" }
 annotate-snippets = "0.12.15"
 anyhow = "1.0.102"
