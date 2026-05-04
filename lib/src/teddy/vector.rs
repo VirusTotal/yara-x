@@ -617,11 +617,11 @@ mod x86_64_avx2 {
             if let Some(t) = f(1, lane) {
                 return Some(t);
             }
-            let lane = unsafe { _mm256_extract_epi64(vector2, 0).to_bits()};
+            let lane = unsafe { _mm256_extract_epi64(vector2, 0).to_bits() };
             if let Some(t) = f(2, lane) {
                 return Some(t);
             }
-            let lane = unsafe {_mm256_extract_epi64(vector2, 1).to_bits()};
+            let lane = unsafe { _mm256_extract_epi64(vector2, 1).to_bits() };
             if let Some(t) = f(3, lane) {
                 return Some(t);
             }
