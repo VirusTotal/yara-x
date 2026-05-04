@@ -24,6 +24,7 @@ jobs:
           - windows-32bits
           - no-default-features
           - protoc
+          - pulley
 
         include:
           - build: msrv
@@ -118,6 +119,15 @@ jobs:
             rust: stable
             target: x86_64-unknown-linux-gnu
             args: "--features=protoc,magic-module"
+            rust_flags: "-Awarnings"
+            experimental: false
+            use_cache: true
+
+          - build: pulley
+            os: ubuntu-latest
+            rust: stable
+            target: x86_64-unknown-linux-gnu
+            args: "--features=pulley,magic-module"
             rust_flags: "-Awarnings"
             experimental: false
             use_cache: true

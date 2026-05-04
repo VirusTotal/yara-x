@@ -760,6 +760,14 @@ pub(crate) static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     #[cfg(target_env = "musl")]
     config.native_unwind_info(false);
 
+    #[cfg(feature = "pulley")]
+    {
+        #[cfg(target_pointer_width = "64")]
+        config.target("pulley64").unwrap();
+        #[cfg(target_pointer_width = "32")]
+        config.target("pulley32").unwrap();
+    }
+
     config.cranelift_opt_level(runtime::OptLevel::SpeedAndSize);
     config.epoch_interruption(true);
 

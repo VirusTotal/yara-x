@@ -110,6 +110,21 @@ native-code-serialization = []
 # This feature is disabled by default.
 parallel-compilation = ["wasmtime/parallel-compilation"]
 
+# Enables the use of wasmtime's Pulley bytecode interpreter instead of the 
+# default Cranelift JIT compiler.
+#
+# When using Cranelift JIT, WebAssembly code generated from rule conditions is
+# compiled directly to native host machine instructions at runtime. This yields
+# maximum execution performance but requires executable memory pages (which may
+# be restricted in sandbox/secure environments) and is limited to architectures
+#natively supported by Cranelift.
+#
+# Enabling the `pulley` feature tells wasmtime to interpret the conditions using
+# the portable Pulley bytecode instruction virtual machine instead. This 
+# eliminates JIT memory constraints, improves compilation overhead, and provides
+# broad portability across architectures.
+pulley = ["wasmtime/pulley"]
+
 # Enables rules profiling. When this is enabled together with `logging` the
 # logs will contain information about the most expensive rules after each
 # scan. Notice that profiling itself has a noticeable impact on performance.
