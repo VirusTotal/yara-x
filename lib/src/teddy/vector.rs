@@ -359,7 +359,7 @@ pub(crate) trait FatVector: Vector {
 mod x86_64_ssse3 {
     use core::arch::x86_64::*;
 
-    use super::Vector;
+    use super::{I8Ext, I32Ext, Vector};
 
     impl Vector for __m128i {
         const BITS: usize = 128;
@@ -367,33 +367,33 @@ mod x86_64_ssse3 {
 
         #[inline(always)]
         unsafe fn splat(byte: u8) -> __m128i {
-            _mm_set1_epi8(i8::from_bits(byte))
+            unsafe { _mm_set1_epi8(i8::from_bits(byte)) }
         }
 
         #[inline(always)]
         unsafe fn load_unaligned(data: *const u8) -> __m128i {
-            _mm_loadu_si128(data.cast::<__m128i>())
+            unsafe { _mm_loadu_si128(data.cast::<__m128i>()) }
         }
 
         #[inline(always)]
         unsafe fn is_zero(self) -> bool {
-            let cmp = self.cmpeq(Self::splat(0));
-            _mm_movemask_epi8(cmp).to_bits() == 0xFFFF
+            let cmp = unsafe { self.cmpeq(Self::splat(0)) };
+            unsafe { _mm_movemask_epi8(cmp).to_bits() == 0xFFFF }
         }
 
         #[inline(always)]
         unsafe fn cmpeq(self, vector2: Self) -> __m128i {
-            _mm_cmpeq_epi8(self, vector2)
+            unsafe { _mm_cmpeq_epi8(self, vector2) }
         }
 
         #[inline(always)]
         unsafe fn and(self, vector2: Self) -> __m128i {
-            _mm_and_si128(self, vector2)
+            unsafe { _mm_and_si128(self, vector2) }
         }
 
         #[inline(always)]
         unsafe fn or(self, vector2: Self) -> __m128i {
-            _mm_or_si128(self, vector2)
+            unsafe { _mm_or_si128(self, vector2) }
         }
 
         #[inline(always)]
@@ -402,28 +402,28 @@ mod x86_64_ssse3 {
             // shifting 16-bit integers and masking out the high nybble of each
             // 8-bit lane (since that nybble will contain bits from the low
             // nybble of the previous lane).
-            let lomask = Self::splat(0xF);
-            _mm_srli_epi16(self, BITS).and(lomask)
+            let lomask = unsafe { Self::splat(0xF) };
+            unsafe { _mm_srli_epi16(self, BITS).and(lomask) }
         }
 
         #[inline(always)]
         unsafe fn shift_in_one_byte(self, vector2: Self) -> Self {
-            _mm_alignr_epi8(self, vector2, 15)
+            unsafe { _mm_alignr_epi8(self, vector2, 15) }
         }
 
         #[inline(always)]
         unsafe fn shift_in_two_bytes(self, vector2: Self) -> Self {
-            _mm_alignr_epi8(self, vector2, 14)
+            unsafe { _mm_alignr_epi8(self, vector2, 14) }
         }
 
         #[inline(always)]
         unsafe fn shift_in_three_bytes(self, vector2: Self) -> Self {
-            _mm_alignr_epi8(self, vector2, 13)
+            unsafe { _mm_alignr_epi8(self, vector2, 13) }
         }
 
         #[inline(always)]
         unsafe fn shuffle_bytes(self, indices: Self) -> Self {
-            _mm_shuffle_epi8(self, indices)
+            unsafe { _mm_shuffle_epi8(self, indices) }
         }
 
         #[inline(always)]
@@ -434,7 +434,7 @@ mod x86_64_ssse3 {
             // We could just use _mm_extract_epi64 here, but that requires
             // SSE 4.1. It isn't necessarily a problem to just require SSE 4.1,
             // but everything else works with SSSE3 so we stick to that subset.
-            let lanes: [u64; 2] = core::mem::transmute(self);
+            let lanes: [u64; 2] = unsafe { core::mem::transmute(self) };
             if let Some(t) = f(0, lanes[0]) {
                 return Some(t);
             }
@@ -450,7 +450,7 @@ mod x86_64_ssse3 {
 mod x86_64_avx2 {
     use core::arch::x86_64::*;
 
-    use super::{FatVector, Vector};
+    use super::{FatVector, I8Ext, I32Ext, I64Ext, Vector};
 
     impl Vector for __m256i {
         const BITS: usize = 256;
@@ -458,39 +458,39 @@ mod x86_64_avx2 {
 
         #[inline(always)]
         unsafe fn splat(byte: u8) -> __m256i {
-            _mm256_set1_epi8(i8::from_bits(byte))
+            unsafe { _mm256_set1_epi8(i8::from_bits(byte)) }
         }
 
         #[inline(always)]
         unsafe fn load_unaligned(data: *const u8) -> __m256i {
-            _mm256_loadu_si256(data.cast::<__m256i>())
+            unsafe { _mm256_loadu_si256(data.cast::<__m256i>()) }
         }
 
         #[inline(always)]
         unsafe fn is_zero(self) -> bool {
-            let cmp = self.cmpeq(Self::splat(0));
-            _mm256_movemask_epi8(cmp).to_bits() == 0xFFFFFFFF
+            let cmp = unsafe { self.cmpeq(Self::splat(0)) };
+            unsafe { _mm256_movemask_epi8(cmp).to_bits() == 0xFFFFFFFF }
         }
 
         #[inline(always)]
         unsafe fn cmpeq(self, vector2: Self) -> __m256i {
-            _mm256_cmpeq_epi8(self, vector2)
+            unsafe { _mm256_cmpeq_epi8(self, vector2) }
         }
 
         #[inline(always)]
         unsafe fn and(self, vector2: Self) -> __m256i {
-            _mm256_and_si256(self, vector2)
+            unsafe { _mm256_and_si256(self, vector2) }
         }
 
         #[inline(always)]
         unsafe fn or(self, vector2: Self) -> __m256i {
-            _mm256_or_si256(self, vector2)
+            unsafe { _mm256_or_si256(self, vector2) }
         }
 
         #[inline(always)]
         unsafe fn shift_8bit_lane_right<const BITS: i32>(self) -> Self {
-            let lomask = Self::splat(0xF);
-            _mm256_srli_epi16(self, BITS).and(lomask)
+            let lomask = unsafe { Self::splat(0xF) };
+            unsafe { _mm256_srli_epi16(self, BITS).and(lomask) }
         }
 
         #[inline(always)]
@@ -501,8 +501,8 @@ mod x86_64_avx2 {
             // TL;DR avx2's PALIGNR instruction is actually just two 128-bit
             // PALIGNR instructions, which is not what we want, so we need to
             // do some extra shuffling.
-            let v = _mm256_permute2x128_si256(vector2, self, 0x21);
-            _mm256_alignr_epi8(self, v, 15)
+            let v = unsafe { _mm256_permute2x128_si256(vector2, self, 0x21) };
+            unsafe { _mm256_alignr_epi8(self, v, 15) }
         }
 
         #[inline(always)]
@@ -513,8 +513,8 @@ mod x86_64_avx2 {
             // TL;DR avx2's PALIGNR instruction is actually just two 128-bit
             // PALIGNR instructions, which is not what we want, so we need to
             // do some extra shuffling.
-            let v = _mm256_permute2x128_si256(vector2, self, 0x21);
-            _mm256_alignr_epi8(self, v, 14)
+            let v = unsafe { _mm256_permute2x128_si256(vector2, self, 0x21) };
+            unsafe { _mm256_alignr_epi8(self, v, 14) }
         }
 
         #[inline(always)]
@@ -525,13 +525,13 @@ mod x86_64_avx2 {
             // TL;DR avx2's PALIGNR instruction is actually just two 128-bit
             // PALIGNR instructions, which is not what we want, so we need to
             // do some extra shuffling.
-            let v = _mm256_permute2x128_si256(vector2, self, 0x21);
-            _mm256_alignr_epi8(self, v, 13)
+            let v = unsafe { _mm256_permute2x128_si256(vector2, self, 0x21) };
+            unsafe { _mm256_alignr_epi8(self, v, 13) }
         }
 
         #[inline(always)]
         unsafe fn shuffle_bytes(self, indices: Self) -> Self {
-            _mm256_shuffle_epi8(self, indices)
+            unsafe { _mm256_shuffle_epi8(self, indices) }
         }
 
         #[inline(always)]
@@ -544,19 +544,19 @@ mod x86_64_avx2 {
             // I've tried it more recently, and it looks like that's no longer
             // the case. But since there's no difference, we stick with the
             // slightly more complicated but transmute-free version.
-            let lane = _mm256_extract_epi64(self, 0).to_bits();
+            let lane = unsafe { _mm256_extract_epi64(self, 0).to_bits() };
             if let Some(t) = f(0, lane) {
                 return Some(t);
             }
-            let lane = _mm256_extract_epi64(self, 1).to_bits();
+            let lane = unsafe { _mm256_extract_epi64(self, 1).to_bits() };
             if let Some(t) = f(1, lane) {
                 return Some(t);
             }
-            let lane = _mm256_extract_epi64(self, 2).to_bits();
+            let lane = unsafe { _mm256_extract_epi64(self, 2).to_bits() };
             if let Some(t) = f(2, lane) {
                 return Some(t);
             }
-            let lane = _mm256_extract_epi64(self, 3).to_bits();
+            let lane = unsafe { _mm256_extract_epi64(self, 3).to_bits() };
             if let Some(t) = f(3, lane) {
                 return Some(t);
             }
@@ -569,38 +569,38 @@ mod x86_64_avx2 {
 
         #[inline(always)]
         unsafe fn load_half_unaligned(data: *const u8) -> Self {
-            let half = Self::Half::load_unaligned(data);
-            _mm256_broadcastsi128_si256(half)
+            let half = unsafe { Self::Half::load_unaligned(data) };
+            unsafe { _mm256_broadcastsi128_si256(half) }
         }
 
         #[inline(always)]
         unsafe fn half_shift_in_one_byte(self, vector2: Self) -> Self {
-            _mm256_alignr_epi8(self, vector2, 15)
+            unsafe { _mm256_alignr_epi8(self, vector2, 15) }
         }
 
         #[inline(always)]
         unsafe fn half_shift_in_two_bytes(self, vector2: Self) -> Self {
-            _mm256_alignr_epi8(self, vector2, 14)
+            unsafe { _mm256_alignr_epi8(self, vector2, 14) }
         }
 
         #[inline(always)]
         unsafe fn half_shift_in_three_bytes(self, vector2: Self) -> Self {
-            _mm256_alignr_epi8(self, vector2, 13)
+            unsafe { _mm256_alignr_epi8(self, vector2, 13) }
         }
 
         #[inline(always)]
         unsafe fn swap_halves(self) -> Self {
-            _mm256_permute4x64_epi64(self, 0x4E)
+            unsafe { _mm256_permute4x64_epi64(self, 0x4E) }
         }
 
         #[inline(always)]
         unsafe fn interleave_low_8bit_lanes(self, vector2: Self) -> Self {
-            _mm256_unpacklo_epi8(self, vector2)
+            unsafe { _mm256_unpacklo_epi8(self, vector2) }
         }
 
         #[inline(always)]
         unsafe fn interleave_high_8bit_lanes(self, vector2: Self) -> Self {
-            _mm256_unpackhi_epi8(self, vector2)
+            unsafe { _mm256_unpackhi_epi8(self, vector2) }
         }
 
         #[inline(always)]
@@ -609,19 +609,19 @@ mod x86_64_avx2 {
             vector2: Self,
             mut f: impl FnMut(usize, u64) -> Option<T>,
         ) -> Option<T> {
-            let lane = _mm256_extract_epi64(self, 0).to_bits();
+            let lane = unsafe { _mm256_extract_epi64(self, 0).to_bits() };
             if let Some(t) = f(0, lane) {
                 return Some(t);
             }
-            let lane = _mm256_extract_epi64(self, 1).to_bits();
+            let lane = unsafe { _mm256_extract_epi64(self, 1).to_bits() };
             if let Some(t) = f(1, lane) {
                 return Some(t);
             }
-            let lane = _mm256_extract_epi64(vector2, 0).to_bits();
+            let lane = unsafe { _mm256_extract_epi64(vector2, 0).to_bits()};
             if let Some(t) = f(2, lane) {
                 return Some(t);
             }
-            let lane = _mm256_extract_epi64(vector2, 1).to_bits();
+            let lane = unsafe {_mm256_extract_epi64(vector2, 1).to_bits()};
             if let Some(t) = f(3, lane) {
                 return Some(t);
             }

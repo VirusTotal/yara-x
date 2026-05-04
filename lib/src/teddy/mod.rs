@@ -6,6 +6,8 @@ with minor modifications.
 */
 #![allow(dead_code)]
 #![allow(unused_variables)]
+#![allow(clippy::wrong_self_convention)]
+#![allow(clippy::new_ret_no_self)]
 
 use core::fmt::Debug;
 use std::sync::Arc;
@@ -238,7 +240,9 @@ mod x86_64 {
                     end: *const u8,
                     callback: &mut dyn FnMut(Match),
                 ) {
-                    self.slim128.find_overlapping(start, end, callback);
+                    unsafe {
+                        self.slim128.find_overlapping(start, end, callback)
+                    };
                 }
             }
         };
@@ -284,9 +288,13 @@ mod x86_64 {
                 ) {
                     let len = (end as usize).saturating_sub(start as usize);
                     if len < self.slim256.minimum_len() {
-                        self.slim128.find_overlapping(start, end, callback);
+                        unsafe {
+                            self.slim128.find_overlapping(start, end, callback)
+                        };
                     } else {
-                        self.slim256.find_overlapping(start, end, callback);
+                        unsafe {
+                            self.slim256.find_overlapping(start, end, callback)
+                        };
                     }
                 }
             }
@@ -325,7 +333,9 @@ mod x86_64 {
                     end: *const u8,
                     callback: &mut dyn FnMut(Match),
                 ) {
-                    self.fat256.find_overlapping(start, end, callback);
+                    unsafe {
+                        self.fat256.find_overlapping(start, end, callback)
+                    };
                 }
             }
         };
