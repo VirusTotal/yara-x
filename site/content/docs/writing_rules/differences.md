@@ -271,3 +271,28 @@ global global global rule duplicated_global  {
 
 In YARA-X you can specify each modifier once. They can still appear in any
 order, though. This very unlikely to affect any real-life rule.
+
+## Built-in `.len()` method
+
+YARA-X introduces a `.len()` built-in method that can be called on strings,
+arrays and dictionaries (maps). This method does not exist in YARA 4.x.
+
+- On strings, `.len()` returns the number of bytes.
+- On arrays, `.len()` returns the number of elements.
+- On dictionaries, `.len()` returns the number of entries.
+
+For example:
+
+```yara
+import "some_module"
+
+rule LenExample {
+    condition:
+        some_module.some_string.len() == 3 and
+        some_module.some_array.len() >= 2 and
+        some_module.some_dict.len() == 1
+}
+```
+
+In YARA 4.x, there was no equivalent built-in method for obtaining the length
+of these types directly.

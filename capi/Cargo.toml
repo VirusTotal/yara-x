@@ -36,6 +36,10 @@ native-code-serialization = ["yara-x/native-code-serialization"]
 # This feature is disabled by default.
 parallel-compilation = ["yara-x/parallel-compilation"]
 
+# Enables the use of wasmtime's Pulley bytecode interpreter instead of the default
+# Cranelift JIT compiler. See the documentation in the `yara-x` core library for details.
+pulley = ["yara-x/pulley"]
+
 # Enables rules profiling.
 #
 # This feature is disabled by default.
