@@ -741,84 +741,217 @@ impl ScanContext<'_, '_> {
         block_scanning_mode: bool,
     ) -> Result<(), ScanError> {
         let ac = self.compiled_rules.ac_automaton();
-        let atoms = self.compiled_rules.atoms();
         let filesize = self.get_filesize();
 
         #[cfg(feature = "logging")]
         let mut atom_matches = 0_usize;
 
-        for ac_match in ac.find_overlapping_iter(data) {
-            #[cfg(feature = "logging")]
-            {
-                atom_matches += 1;
+        match &ac.teddy {
+            // Use the Teddy algorithm if it was possible to create a Teddy
+            // matcher and the data being scanned is long enough.
+            Some(teddy) if data.len() >= teddy.minimum_len() => {
+                if HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline {
+                    return Err(ScanError::Timeout);
+                }
+                teddy.find_overlapping(data, 0, &mut |m| {
+                    #[cfg(feature = "logging")]
+                    {
+                        atom_matches += 1;
+                    }
+                    let match_offset =
+                        m.start() as usize - data.as_ptr() as usize;
+
+                    self.handle_atom_match(
+                        m.pattern() as usize,
+                        match_offset,
+                        base,
+                        data,
+                        filesize,
+                        block_scanning_mode,
+                    );
+                });
             }
-
-            if HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline {
-                return Err(ScanError::Timeout);
+            // Otherwise use the Aho-Corasick algorithm.
+            _ => {
+                for ac_match in ac.daachorse.find_overlapping_iter(data) {
+                    if HEARTBEAT_COUNTER.load(Ordering::Relaxed)
+                        >= self.deadline
+                    {
+                        return Err(ScanError::Timeout);
+                    }
+                    #[cfg(feature = "logging")]
+                    {
+                        atom_matches += 1;
+                    }
+                    self.handle_atom_match(
+                        ac_match.value() as usize,
+                        ac_match.start(),
+                        base,
+                        data,
+                        filesize,
+                        block_scanning_mode,
+                    );
+                }
             }
+        }
 
-            let atom =
-                unsafe { atoms.get_unchecked(ac_match.value() as usize) };
+        #[cfg(feature = "logging")]
+        log::info!("Atom matches: {}", atom_matches);
 
-            // Subtract the backtrack value from the offset where the atom
-            // matched. If the result is negative the atom can't be inside
-            // the scanned data and therefore is not a possible match.
-            let atom_pos = if let Some(atom_pos) =
-                ac_match.start().checked_sub(atom.backtrack())
-            {
-                atom_pos
-            } else {
-                continue;
+        Ok(())
+    }
+
+    #[inline(always)]
+    fn handle_atom_match(
+        &mut self,
+        atom_idx: usize,
+        match_start: usize,
+        base: usize,
+        data: &[u8],
+        filesize: i64,
+        block_scanning_mode: bool,
+    ) {
+        let atoms = self.compiled_rules.atoms();
+        let atom = unsafe { atoms.get_unchecked(atom_idx) };
+
+        // Subtract the backtrack value from the offset where the atom
+        // matched. If the result is negative the atom can't be inside
+        // the scanned data and therefore is not a match.
+        let atom_pos = if let Some(atom_pos) =
+            match_start.checked_sub(atom.backtrack())
+        {
+            atom_pos
+        } else {
+            return;
+        };
+
+        let sub_pattern_id = atom.sub_pattern_id();
+        let (pattern_id, sub_pattern) =
+            &self.compiled_rules.get_sub_pattern(sub_pattern_id);
+
+        if self.tracker.limit_reached.contains(pattern_id) {
+            return;
+        }
+
+        if !block_scanning_mode
+            && let Some(bounds) =
+                self.compiled_rules.filesize_bounds(*pattern_id)
+            && !bounds.contains(filesize)
+        {
+            return;
+        }
+
+        #[cfg(feature = "rules-profiling")]
+        let verification_start = self.clock.raw();
+
+        #[cfg(feature = "exact-atoms")]
+        if atom.is_exact() {
+            let flags = match sub_pattern {
+                SubPattern::Literal { flags, .. }
+                | SubPattern::LiteralChainHead { flags, .. }
+                | SubPattern::LiteralChainTail { flags, .. }
+                | SubPattern::Regexp { flags, .. }
+                | SubPattern::RegexpChainHead { flags, .. }
+                | SubPattern::RegexpChainTail { flags, .. } => flags,
+                _ => unreachable!(),
             };
 
-            // Each atom belongs to a sub-pattern.
-            let sub_pattern_id = atom.sub_pattern_id();
+            let match_range = atom_pos..atom_pos + atom.len();
 
-            // Each sub-pattern belongs to a pattern.
-            let (pattern_id, sub_pattern) =
-                &self.compiled_rules.get_sub_pattern(sub_pattern_id);
-
-            // Check if the potentially matching pattern has reached the
-            // maximum number of allowed matches. In that case continue without
-            // verifying the match.
-            if self.tracker.limit_reached.contains(pattern_id) {
-                continue;
+            if verify_full_word(data, &match_range, *flags, None) {
+                handle_sub_pattern_match(
+                    &mut self.tracker,
+                    &mut self.wasm,
+                    sub_pattern_id,
+                    sub_pattern,
+                    *pattern_id,
+                    Match::new(match_range).rebase(base),
+                );
             }
 
-            // If there are file size bounds associated to the pattern, but
-            // the currently scanned file does not satisfy them, no further
-            // confirmation is needed. The rule won't match regardless of
-            // whether the pattern matches or not. This is not done in block
-            // scanning mode as `filesize` is undefined in that mode.
-            if !block_scanning_mode
-                && let Some(bounds) =
-                    self.compiled_rules.filesize_bounds(*pattern_id)
-                && !bounds.contains(filesize)
-            {
-                continue;
+            return;
+        }
+
+        match sub_pattern {
+            SubPattern::Literal { pattern, flags, .. }
+            | SubPattern::LiteralChainHead { pattern, flags, .. }
+            | SubPattern::LiteralChainTail { pattern, flags, .. } => {
+                let pattern = self
+                    .compiled_rules
+                    .lit_pool()
+                    .get_bytes(*pattern)
+                    .unwrap();
+
+                if verify_literal_match(pattern, data, atom_pos, *flags) {
+                    handle_sub_pattern_match(
+                        &mut self.tracker,
+                        &mut self.wasm,
+                        sub_pattern_id,
+                        sub_pattern,
+                        *pattern_id,
+                        Match::new(atom_pos..atom_pos + pattern.len())
+                            .rebase(base),
+                    );
+                }
+            }
+            SubPattern::Regexp { flags, .. }
+            | SubPattern::RegexpChainHead { flags, .. }
+            | SubPattern::RegexpChainTail { flags, .. } => {
+                verify_regexp_match(
+                    &mut self.vm,
+                    data,
+                    atom_pos,
+                    atom,
+                    *flags,
+                    |match_range| {
+                        handle_sub_pattern_match(
+                            &mut self.tracker,
+                            &mut self.wasm,
+                            sub_pattern_id,
+                            sub_pattern,
+                            *pattern_id,
+                            Match::new(match_range).rebase(base),
+                        );
+                    },
+                )
             }
 
-            #[cfg(feature = "rules-profiling")]
-            let verification_start = self.clock.raw();
+            SubPattern::Xor { pattern, flags } => {
+                let pattern = self
+                    .compiled_rules
+                    .lit_pool()
+                    .get_bytes(*pattern)
+                    .unwrap();
 
-            // If the atom is exact no further verification is needed, except
-            // for making sure that the fullword requirements are met. An exact
-            // atom is enough to guarantee that the whole sub-pattern matched.
-            #[cfg(feature = "exact-atoms")]
-            if atom.is_exact() {
-                let flags = match sub_pattern {
-                    SubPattern::Literal { flags, .. }
-                    | SubPattern::LiteralChainHead { flags, .. }
-                    | SubPattern::LiteralChainTail { flags, .. }
-                    | SubPattern::Regexp { flags, .. }
-                    | SubPattern::RegexpChainHead { flags, .. }
-                    | SubPattern::RegexpChainTail { flags, .. } => flags,
-                    _ => unreachable!(),
-                };
+                if let Some(key) =
+                    verify_xor_match(pattern, data, atom_pos, atom, *flags)
+                {
+                    handle_sub_pattern_match(
+                        &mut self.tracker,
+                        &mut self.wasm,
+                        sub_pattern_id,
+                        sub_pattern,
+                        *pattern_id,
+                        Match::new(atom_pos..atom_pos + pattern.len())
+                            .rebase(base)
+                            .xor_key(key),
+                    );
+                }
+            }
 
-                let match_range = atom_pos..atom_pos + atom.len();
-
-                if verify_full_word(data, &match_range, *flags, None) {
+            SubPattern::Base64 { pattern, padding }
+            | SubPattern::Base64Wide { pattern, padding } => {
+                if let Some(match_range) = verify_base64_match(
+                    self.compiled_rules
+                        .lit_pool()
+                        .get_bytes(*pattern)
+                        .unwrap(),
+                    data,
+                    (*padding).into(),
+                    atom_pos,
+                    &base64::engine::general_purpose::STANDARD_NO_PAD,
+                    matches!(sub_pattern, SubPattern::Base64Wide { .. }),
+                ) {
                     handle_sub_pattern_match(
                         &mut self.tracker,
                         &mut self.wasm,
@@ -828,172 +961,65 @@ impl ScanContext<'_, '_> {
                         Match::new(match_range).rebase(base),
                     );
                 }
-
-                continue;
             }
 
-            match sub_pattern {
-                SubPattern::Literal { pattern, flags, .. }
-                | SubPattern::LiteralChainHead { pattern, flags, .. }
-                | SubPattern::LiteralChainTail { pattern, flags, .. } => {
-                    let pattern = self
-                        .compiled_rules
-                        .lit_pool()
-                        .get_bytes(*pattern)
-                        .unwrap();
-
-                    if verify_literal_match(pattern, data, atom_pos, *flags) {
-                        handle_sub_pattern_match(
-                            &mut self.tracker,
-                            &mut self.wasm,
-                            sub_pattern_id,
-                            sub_pattern,
-                            *pattern_id,
-                            Match::new(atom_pos..atom_pos + pattern.len())
-                                .rebase(base),
-                        );
-                    }
-                }
-                SubPattern::Regexp { flags, .. }
-                | SubPattern::RegexpChainHead { flags, .. }
-                | SubPattern::RegexpChainTail { flags, .. } => {
-                    verify_regexp_match(
-                        &mut self.vm,
-                        data,
-                        atom_pos,
-                        atom,
-                        *flags,
-                        |match_range| {
-                            handle_sub_pattern_match(
-                                &mut self.tracker,
-                                &mut self.wasm,
-                                sub_pattern_id,
-                                sub_pattern,
-                                *pattern_id,
-                                Match::new(match_range).rebase(base),
-                            );
-                        },
-                    )
-                }
-
-                SubPattern::Xor { pattern, flags } => {
-                    let pattern = self
-                        .compiled_rules
-                        .lit_pool()
-                        .get_bytes(*pattern)
-                        .unwrap();
-
-                    if let Some(key) =
-                        verify_xor_match(pattern, data, atom_pos, atom, *flags)
-                    {
-                        handle_sub_pattern_match(
-                            &mut self.tracker,
-                            &mut self.wasm,
-                            sub_pattern_id,
-                            sub_pattern,
-                            *pattern_id,
-                            Match::new(atom_pos..atom_pos + pattern.len())
-                                .rebase(base)
-                                .xor_key(key),
-                        );
-                    }
-                }
-
-                SubPattern::Base64 { pattern, padding }
-                | SubPattern::Base64Wide { pattern, padding } => {
-                    if let Some(match_range) = verify_base64_match(
-                        self.compiled_rules
+            SubPattern::CustomBase64 { pattern, alphabet, padding }
+            | SubPattern::CustomBase64Wide { pattern, alphabet, padding } => {
+                let alphabet_id = (*alphabet).into();
+                let compiled_rules = self.compiled_rules;
+                let base64_engine = custom_base64_engine(
+                    &mut self.custom_base64_engine_cache,
+                    alphabet_id,
+                    || {
+                        let alphabet = compiled_rules
                             .lit_pool()
-                            .get_bytes(*pattern)
-                            .unwrap(),
-                        data,
-                        (*padding).into(),
-                        atom_pos,
-                        &base64::engine::general_purpose::STANDARD_NO_PAD,
-                        matches!(sub_pattern, SubPattern::Base64Wide { .. }),
-                    ) {
-                        handle_sub_pattern_match(
-                            &mut self.tracker,
-                            &mut self.wasm,
-                            sub_pattern_id,
-                            sub_pattern,
-                            *pattern_id,
-                            Match::new(match_range).rebase(base),
-                        );
-                    }
-                }
+                            .get_str(*alphabet)
+                            .unwrap();
+                        let alphabet =
+                            base64::alphabet::Alphabet::new(alphabet).unwrap();
+                        base64::engine::GeneralPurpose::new(
+                            &alphabet,
+                            base64::engine::general_purpose::NO_PAD,
+                        )
+                    },
+                );
 
-                SubPattern::CustomBase64 { pattern, alphabet, padding }
-                | SubPattern::CustomBase64Wide {
-                    pattern,
-                    alphabet,
-                    padding,
-                } => {
-                    let alphabet_id = (*alphabet).into();
-                    let compiled_rules = self.compiled_rules;
-                    let base64_engine = custom_base64_engine(
-                        &mut self.custom_base64_engine_cache,
-                        alphabet_id,
-                        || {
-                            let alphabet = compiled_rules
-                                .lit_pool()
-                                .get_str(*alphabet)
-                                .unwrap();
-                            let alphabet =
-                                base64::alphabet::Alphabet::new(alphabet)
-                                    .unwrap();
-                            base64::engine::GeneralPurpose::new(
-                                &alphabet,
-                                base64::engine::general_purpose::NO_PAD,
-                            )
-                        },
+                if let Some(match_range) = verify_base64_match(
+                    self.compiled_rules
+                        .lit_pool()
+                        .get_bytes(*pattern)
+                        .unwrap(),
+                    data,
+                    (*padding).into(),
+                    atom_pos,
+                    base64_engine,
+                    matches!(sub_pattern, SubPattern::CustomBase64Wide { .. }),
+                ) {
+                    handle_sub_pattern_match(
+                        &mut self.tracker,
+                        &mut self.wasm,
+                        sub_pattern_id,
+                        sub_pattern,
+                        *pattern_id,
+                        Match::new(match_range).rebase(base),
                     );
-
-                    if let Some(match_range) = verify_base64_match(
-                        self.compiled_rules
-                            .lit_pool()
-                            .get_bytes(*pattern)
-                            .unwrap(),
-                        data,
-                        (*padding).into(),
-                        atom_pos,
-                        base64_engine,
-                        matches!(
-                            sub_pattern,
-                            SubPattern::CustomBase64Wide { .. }
-                        ),
-                    ) {
-                        handle_sub_pattern_match(
-                            &mut self.tracker,
-                            &mut self.wasm,
-                            sub_pattern_id,
-                            sub_pattern,
-                            *pattern_id,
-                            Match::new(match_range).rebase(base),
-                        );
-                    }
                 }
-            };
-
-            #[cfg(feature = "rules-profiling")]
-            {
-                let time_spent = self
-                    .clock
-                    .delta_as_nanos(verification_start, self.clock.raw());
-
-                self.time_spent_in_pattern
-                    .entry(*pattern_id)
-                    .and_modify(|t| {
-                        t.add_assign(time_spent);
-                    })
-                    .or_insert(time_spent);
             }
+        };
+
+        #[cfg(feature = "rules-profiling")]
+        {
+            let time_spent = self
+                .clock
+                .delta_as_nanos(verification_start, self.clock.raw());
+
+            self.time_spent_in_pattern
+                .entry(*pattern_id)
+                .and_modify(|t| {
+                    t.add_assign(time_spent);
+                })
+                .or_insert(time_spent);
         }
-
-        #[cfg(feature = "logging")]
-        log::info!("Atom matches: {}", atom_matches);
-
-        Ok(())
     }
 
     /// Search for patterns in the scanned data.

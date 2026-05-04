@@ -35,6 +35,11 @@ const MAGIC: &[u8] = b"YARA-X\0\0";
 /// format in a way that breaks backwards compatibility.
 const SERIALIZATION_VERSION: u32 = 1;
 
+pub(crate) struct AhoCorasick {
+    pub(crate) daachorse: daachorse::bytewise::DoubleArrayAhoCorasick<u32>,
+    pub(crate) teddy: Option<crate::teddy::Searcher>,
+}
+
 /// A set of YARA rules in compiled form.
 ///
 /// This is the result from [`crate::Compiler::build`].
@@ -138,8 +143,7 @@ pub struct Rules {
     /// that we can use `#[serde(skip)]` on it because [`AhoCorasick`] doesn't
     /// implement the [`Default`] trait.
     #[serde(skip)]
-    pub(in crate::compiler) ac:
-        Option<daachorse::bytewise::DoubleArrayAhoCorasick<u32>>,
+    pub(in crate::compiler) ac: Option<AhoCorasick>,
 
     /// Warnings that were produced while compiling these rules. These warnings
     /// are not serialized, rules that are obtained by deserializing previously
@@ -406,9 +410,7 @@ impl Rules {
     /// Returns the Aho-Corasick automaton that allows to search for pattern
     /// atoms.
     #[inline]
-    pub(crate) fn ac_automaton(
-        &self,
-    ) -> &daachorse::bytewise::DoubleArrayAhoCorasick<u32> {
+    pub(crate) fn ac_automaton(&self) -> &AhoCorasick {
         self.ac.as_ref().expect("Aho-Corasick automaton not compiled")
     }
 
@@ -423,42 +425,54 @@ impl Rules {
         #[cfg(feature = "logging")]
         let mut num_atoms = [0_usize; 6];
 
-        let atoms = self.atoms.iter().map(|x| {
-            #[cfg(feature = "logging")]
-            {
-                match x.atom.len() {
-                    atom_len @ 0..=4 => num_atoms[atom_len] += 1,
-                    _ => num_atoms[num_atoms.len() - 1] += 1,
-                }
-
-                if x.atom.len() < 2 {
-                    let (rule_id, pattern_ident_id) = self
-                        .get_rule_and_pattern_by_sub_pattern_id(
-                            x.sub_pattern_id,
-                        )
-                        .unwrap();
-
-                    let rule = self.get(rule_id);
-
-                    info!(
-                            "Very short atom in pattern `{}` in rule `{}:{}` (length: {})",
-                            self.ident_pool.get(pattern_ident_id).unwrap(),
-                            self.ident_pool
-                                .get(rule.namespace_ident_id)
-                                .unwrap(),
-                            self.ident_pool.get(rule.ident_id).unwrap(),
-                            x.atom.len()
-                        );
-                }
+        #[cfg(feature = "logging")]
+        for x in &self.atoms {
+            match x.atom.len() {
+                atom_len @ 0..=4 => num_atoms[atom_len] += 1,
+                _ => num_atoms[num_atoms.len() - 1] += 1,
             }
 
-            x.atom.as_ref()
-        });
+            if x.atom.len() < 2 {
+                let (rule_id, pattern_ident_id) = self
+                    .get_rule_and_pattern_by_sub_pattern_id(x.sub_pattern_id)
+                    .unwrap();
 
-        self.ac = Some(
+                let rule = self.get(rule_id);
+
+                info!(
+                    "Very short atom in pattern `{}` in rule `{}:{}` (length: {})",
+                    self.ident_pool.get(pattern_ident_id).unwrap(),
+                    self.ident_pool.get(rule.namespace_ident_id).unwrap(),
+                    self.ident_pool.get(rule.ident_id).unwrap(),
+                    x.atom.len()
+                );
+            }
+        }
+
+        // The Teddy algorithm can't be used in all cases. It will be used if:
+        // - The number of atoms is between 1 and 64.
+        // - None of the atoms is empty.
+        let use_teddy = self.atoms.len() <= 64
+            && !self.atoms.is_empty()
+            && !self.atoms.iter().any(|x| x.atom.as_ref().is_empty());
+
+        let teddy_searcher = if use_teddy {
+            let mut teddy_builder = crate::teddy::Builder::new();
+            self.atoms.iter().for_each(|x| teddy_builder.add(x.atom.as_ref()));
+            teddy_builder.build()
+        } else {
+            None
+        };
+
+        let atoms = self.atoms.iter().map(|x| x.atom.as_ref());
+        let daachorse_ac =
             daachorse::bytewise::DoubleArrayAhoCorasick::new(atoms)
-                .expect("failed to build Aho-Corasick automaton"),
-        );
+                .expect("failed to build Aho-Corasick automaton");
+
+        self.ac = Some(AhoCorasick {
+            daachorse: daachorse_ac,
+            teddy: teddy_searcher,
+        });
 
         #[cfg(feature = "logging")]
         {
