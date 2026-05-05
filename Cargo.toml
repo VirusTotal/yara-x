@@ -32,7 +32,7 @@ resolver = "3"
 
 
 [workspace.dependencies]
-daachorse = { git = "https://github.com/plusvic/daachorse" }
+daachorse = "3.0.0"
 annotate-snippets = "0.12.15"
 anyhow = "1.0.102"
 hex = "0.4.3"
