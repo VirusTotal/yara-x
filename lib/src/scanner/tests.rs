@@ -887,3 +887,30 @@ fn rules_profiling() {
     let slowest_rules = scanner.slowest_rules(10);
     assert_eq!(slowest_rules.len(), 0);
 }
+
+#[test]
+fn max_scan_size() {
+    let rules = crate::compile(
+        r#"
+    rule test {
+      strings:
+        $a = "aaaa"
+      condition:
+        $a
+    }
+    "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    
+    // Without truncation, it matches
+    assert_eq!(scanner.scan(b"aaaabbbb").unwrap().matching_rules().len(), 1);
+    assert_eq!(scanner.scan_file("src/tests/testdata/jumps.bin").unwrap().matching_rules().len(), 1);
+
+    // With truncation to 2 bytes, it shouldn't match "aaaa" (4 bytes)
+    scanner.max_scan_size(2);
+    assert_eq!(scanner.scan(b"aaaabbbb").unwrap().matching_rules().len(), 0);
+    assert_eq!(scanner.scan_file("src/tests/testdata/jumps.bin").unwrap().matching_rules().len(), 0);
+}
+

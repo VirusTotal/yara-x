@@ -110,7 +110,7 @@ static INIT_HEARTBEAT: Once = Once::new();
 pub enum ScannedData<'d> {
     Slice(&'d [u8]),
     Vec(Vec<u8>),
-    Mmap(Mmap),
+    Mmap { mmap: Mmap, len: usize },
 }
 
 impl AsRef<[u8]> for ScannedData<'_> {
@@ -118,7 +118,7 @@ impl AsRef<[u8]> for ScannedData<'_> {
         match self {
             ScannedData::Slice(s) => s,
             ScannedData::Vec(v) => v.as_ref(),
-            ScannedData::Mmap(m) => m.as_ref(),
+            ScannedData::Mmap { mmap, len } => &mmap.as_ref()[..*len],
         }
     }
 }
@@ -193,13 +193,14 @@ pub struct Scanner<'r> {
     _rules: &'r Rules,
     wasm_store: Pin<Box<Store<ScanContext<'static, 'static>>>>,
     use_mmap: bool,
+    max_scan_size: Option<usize>,
 }
 
 impl<'r> Scanner<'r> {
     /// Creates a new scanner.
     pub fn new(rules: &'r Rules) -> Self {
         let wasm_store = create_wasm_store_and_ctx(rules);
-        Self { _rules: rules, wasm_store, use_mmap: true }
+        Self { _rules: rules, wasm_store, use_mmap: true, max_scan_size: None }
     }
 
     /// Sets a timeout for scan operations.
@@ -243,6 +244,21 @@ impl<'r> Scanner<'r> {
         self
     }
 
+    /// Sets the maximum size of the data that will be scanned.
+    ///
+    /// If the scanned data (either a file or an in-memory buffer) is larger
+    /// than this value, it will be truncated to the given size.
+    ///
+    /// The value returned by `filesize` will be also limited to the given
+    /// size.
+    ///
+    /// Also notice that some modules (pe, elf, macho, etc) may be unable
+    /// to properly parse truncated files.
+    pub fn max_scan_size(&mut self, size: usize) -> &mut Self {
+        self.max_scan_size = Some(size);
+        self
+    }
+
     /// Sets a callback that is invoked every time a YARA rule calls the
     /// `console` module.
     ///
@@ -274,7 +290,13 @@ impl<'r> Scanner<'r> {
         &'a mut self,
         data: &'a [u8],
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_impl(data.try_into()?, None)
+        let mut data = data;
+        if let Some(max) = self.max_scan_size {
+            if data.len() > max {
+                data = &data[..max];
+            }
+        }
+        self.scan_impl(ScannedData::Slice(data), None)
     }
 
     /// Scans a file.
@@ -294,6 +316,12 @@ impl<'r> Scanner<'r> {
         data: &'a [u8],
         options: ScanOptions<'opts>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
+        let mut data = data;
+        if let Some(max) = self.max_scan_size {
+            if data.len() > max {
+                data = &data[..max];
+            }
+        }
         self.scan_impl(ScannedData::Slice(data), Some(options))
     }
 
@@ -480,19 +508,20 @@ impl<'r> Scanner<'r> {
         &self,
         path: &Path,
     ) -> Result<ScannedData<'a>, ScanError> {
-        let mut file = fs::File::open(path).map_err(|err| {
+        let file = fs::File::open(path).map_err(|err| {
             ScanError::OpenError { path: path.to_path_buf(), err }
         })?;
 
-        let size = file.metadata().map(|m| m.len()).unwrap_or(0);
+        let mut size = file.metadata().map(|m| m.len()).unwrap_or(0) as usize;
 
-        let mut buffered_file;
-        let mapped_file;
+        if let Some(max_scan_size) = self.max_scan_size {
+            size = std::cmp::min(size, max_scan_size);
+        }
 
         // For files smaller than ~500MB reading the whole file is faster than
         // using a memory-mapped file.
         let data = if self.use_mmap && size > 500_000_000 {
-            mapped_file = unsafe {
+            let mapped_file = unsafe {
                 MmapOptions::new().map_copy_read_only(&file).map_err(|err| {
                     ScanError::MapError { path: path.to_path_buf(), err }
                 })
@@ -501,12 +530,16 @@ impl<'r> Scanner<'r> {
             mapped_file.advise(Advice::Sequential).map_err(|err| {
                 ScanError::MapError { path: path.to_path_buf(), err }
             })?;
-            ScannedData::Mmap(mapped_file)
+            ScannedData::Mmap { mmap: mapped_file, len: size }
         } else {
-            buffered_file = Vec::with_capacity(size as usize);
-            file.read_to_end(&mut buffered_file).map_err(|err| {
-                ScanError::OpenError { path: path.to_path_buf(), err }
-            })?;
+            let mut buffered_file = Vec::with_capacity(size);
+            (&file)
+                .take(size as u64)
+                .read_to_end(&mut buffered_file)
+                .map_err(|err| ScanError::OpenError {
+                    path: path.to_path_buf(),
+                    err,
+                })?;
             ScannedData::Vec(buffered_file)
         };
 
@@ -524,7 +557,7 @@ impl<'r> Scanner<'r> {
         ctx.reset();
 
         // Set the global variable `filesize` to the size of the scanned data.
-        ctx.set_filesize(data.as_ref().len() as i64);
+        ctx.set_filesize(data.len() as i64);
 
         // Indicate that the scanner is currently scanning the given data.
         ctx.scan_state = ScanState::ScanningData(data);
