@@ -292,9 +292,10 @@ impl<'r> Scanner<'r> {
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         let mut data = data;
         if let Some(max) = self.max_scan_size
-            && data.len() > max {
-                data = &data[..max];
-            }
+            && data.len() > max
+        {
+            data = &data[..max];
+        }
         self.scan_impl(ScannedData::Slice(data), None)
     }
 
@@ -317,9 +318,10 @@ impl<'r> Scanner<'r> {
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         let mut data = data;
         if let Some(max) = self.max_scan_size
-            && data.len() > max {
-                data = &data[..max];
-            }
+            && data.len() > max
+        {
+            data = &data[..max];
+        }
         self.scan_impl(ScannedData::Slice(data), Some(options))
     }
 
