@@ -1957,3 +1957,310 @@ impl<V: FatVector> Fat<V, 4> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn pointer_trait() {
+        let arr = [0u8; 10];
+        let p1 = &arr[0] as *const u8;
+        let p2 = &arr[5] as *const u8;
+        unsafe {
+            assert_eq!(p2.distance(p1), 5);
+            assert_eq!(p1.distance(p2), 0);
+        }
+        assert_eq!(p1.as_usize(), p1 as usize);
+
+        let mut arr_mut = [0u8; 10];
+        let m1 = &mut arr_mut[0] as *mut u8;
+        let m2 = &mut arr_mut[5] as *mut u8;
+        unsafe {
+            assert_eq!(m2.distance(m1), 5);
+            assert_eq!(m1.distance(m2), 0);
+        }
+        assert_eq!(m1.as_usize(), m1 as usize);
+    }
+
+    #[test]
+    fn patterns_and_pattern() {
+        let by_id = vec![b"abc".to_vec(), b"d".to_vec()];
+        let pats = Patterns { by_id: by_id.clone(), minimum_len: 1 };
+        assert_eq!(pats.len(), 2);
+        assert_eq!(pats.minimum_len(), 1);
+        assert_eq!(pats.get(0).bytes(), b"abc");
+        assert_eq!(pats.get(1).len(), 1);
+        unsafe {
+            assert_eq!(pats.get_unchecked(0).bytes(), b"abc");
+        }
+
+        let mut iter = pats.iter();
+        let (id0, pat0) = iter.next().unwrap();
+        assert_eq!(id0, 0);
+        assert_eq!(pat0.bytes(), b"abc");
+
+        let pat = pats.get(0);
+        let nybs = pat.low_nybbles(2);
+        assert_eq!(nybs.as_ref(), &[b'a' & 0xF, b'b' & 0xF]);
+
+        let haystack = b"abcdefg";
+        let start = haystack.as_ptr();
+        let end = unsafe { start.add(haystack.len()) };
+
+        unsafe {
+            assert!(Pattern(b"").is_prefix_raw(start, end));
+            assert!(Pattern(b"a").is_prefix_raw(start, end));
+            assert!(!Pattern(b"b").is_prefix_raw(start, end));
+            assert!(Pattern(b"ab").is_prefix_raw(start, end));
+            assert!(!Pattern(b"ac").is_prefix_raw(start, end));
+            assert!(Pattern(b"abc").is_prefix_raw(start, end));
+            assert!(!Pattern(b"abd").is_prefix_raw(start, end));
+            assert!(Pattern(b"abcd").is_prefix_raw(start, end));
+            assert!(!Pattern(b"abce").is_prefix_raw(start, end));
+            assert!(Pattern(b"abcde").is_prefix_raw(start, end));
+            assert!(!Pattern(b"abcdf").is_prefix_raw(start, end));
+            assert!(!Pattern(b"abcdefgh").is_prefix_raw(start, end));
+        }
+    }
+
+    #[test]
+    fn match_struct() {
+        let dummy = b"abc";
+        let start = dummy.as_ptr();
+        let end = unsafe { start.add(3) };
+        let m = Match { pid: 42, start, end };
+        assert_eq!(m.pattern(), 42);
+        assert_eq!(m.start(), start);
+        assert_eq!(m.end(), end);
+    }
+
+    #[test]
+    fn slim_mask_builder_debug() {
+        let mut builder = SlimMaskBuilder::default();
+        builder.add(0, b'a');
+        let debug_str = format!("{:?}", builder);
+        assert!(debug_str.contains("SlimMaskBuilder"));
+    }
+
+    #[test]
+    #[should_panic]
+    fn slim_mask_builder_invalid_bucket() {
+        let mut builder = SlimMaskBuilder::default();
+        builder.add(8, b'a');
+    }
+
+    #[test]
+    fn fat_mask_builder_debug() {
+        let mut builder = FatMaskBuilder::default();
+        builder.add(0, b'a');
+        builder.add(8, b'b');
+        let debug_str = format!("{:?}", builder);
+        assert!(debug_str.contains("FatMaskBuilder"));
+    }
+
+    #[test]
+    #[should_panic]
+    fn fat_mask_builder_invalid_bucket() {
+        let mut builder = FatMaskBuilder::default();
+        builder.add(16, b'a');
+    }
+
+    #[test]
+    fn teddy_new_and_buckets() {
+        let pats = Arc::new(Patterns {
+            by_id: vec![b"abc".to_vec(), b"def".to_vec(), b"aBc".to_vec()],
+            minimum_len: 3,
+        });
+        let teddy_8 = Teddy::<8>::new(pats.clone());
+        assert_eq!(teddy_8.mask_len(), 3);
+        assert!(teddy_8.memory_usage() > 0);
+
+        let teddy_16 = Teddy::<16>::new(pats);
+        assert_eq!(teddy_16.mask_len(), 3);
+    }
+
+    #[test]
+    #[should_panic(expected = "Teddy requires at least one pattern")]
+    fn teddy_new_empty_patterns() {
+        let pats = Arc::new(Patterns { by_id: vec![], minimum_len: 0 });
+        let _ = Teddy::<8>::new(pats);
+    }
+
+    #[test]
+    #[should_panic(expected = "Teddy does not support zero-length patterns")]
+    fn teddy_new_zero_len_pattern() {
+        let pats =
+            Arc::new(Patterns { by_id: vec![b"".to_vec()], minimum_len: 0 });
+        let _ = Teddy::<8>::new(pats);
+    }
+
+    #[test]
+    #[should_panic(expected = "Teddy only supports 8 or 16 buckets")]
+    fn teddy_invalid_buckets() {
+        let pats = Arc::new(Patterns {
+            by_id: vec![b"abc".to_vec()],
+            minimum_len: 3,
+        });
+        let _ = Teddy::<4>::new(pats);
+    }
+
+    #[test]
+    fn teddy_verify64() {
+        let pats = Arc::new(Patterns {
+            by_id: vec![b"abc".to_vec()],
+            minimum_len: 3,
+        });
+        let teddy = Teddy::<8>::new(pats);
+        let haystack = b"abcdefg";
+        let start = haystack.as_ptr();
+        let end = unsafe { start.add(haystack.len()) };
+
+        let candidate_chunk = 1 << 7;
+        unsafe {
+            let m = teddy.verify64(start, end, candidate_chunk);
+            assert!(m.is_some());
+            let m = m.unwrap();
+            assert_eq!(m.pattern(), 0);
+            assert_eq!(m.start(), start);
+            assert_eq!(m.end(), start.add(3));
+        }
+
+        let candidate_chunk_no_match = 1 << 0;
+        unsafe {
+            let m = teddy.verify64(start, end, candidate_chunk_no_match);
+            assert!(m.is_none());
+        }
+    }
+
+    #[test]
+    fn teddy_verify64_all() {
+        let pats = Arc::new(Patterns {
+            by_id: vec![b"abc".to_vec()],
+            minimum_len: 3,
+        });
+        let teddy = Teddy::<8>::new(pats);
+        let haystack = b"abcdefg";
+        let start = haystack.as_ptr();
+        let end = unsafe { start.add(haystack.len()) };
+
+        let candidate_chunk = 1 << 7;
+        let mut matches = Vec::new();
+        unsafe {
+            teddy.verify64_all(start, end, candidate_chunk, &mut |m| {
+                matches.push(m.pid);
+            });
+        }
+        assert_eq!(matches, vec![0]);
+    }
+
+    #[cfg(all(target_arch = "x86_64", target_feature = "sse2"))]
+    mod x86_64_tests {
+        use super::*;
+        use core::arch::x86_64::{__m128i, __m256i};
+
+        fn pad64(data: &[u8]) -> Vec<u8> {
+            let mut v = data.to_vec();
+            v.resize(v.len().max(64), 0x01);
+            v
+        }
+
+        #[test]
+        fn slim_and_fat_searchers_x86_64() {
+            let pats = Arc::new(Patterns {
+                by_id: vec![b"abcd".to_vec(), b"defgh".to_vec()],
+                minimum_len: 4,
+            });
+            unsafe {
+                let s1 = Slim::<__m128i, 1>::new(pats.clone());
+                let s2 = Slim::<__m128i, 2>::new(pats.clone());
+                let s3 = Slim::<__m128i, 3>::new(pats.clone());
+                let s4 = Slim::<__m128i, 4>::new(pats.clone());
+
+                assert!(s1.memory_usage() > 0);
+                assert!(s1.minimum_len() >= 4);
+
+                let haystack = pad64(b"xyzabcdefgh");
+                let start = haystack.as_ptr();
+                let end = start.add(haystack.len());
+
+                let m = s4.find(start, end);
+                assert!(m.is_some());
+                assert_eq!(m.unwrap().pattern(), 0);
+
+                let mut count = 0;
+                s4.find_overlapping(start, end, &mut |_| {
+                    count += 1;
+                });
+                assert!(count > 0);
+
+                if std::is_x86_feature_detected!("avx2") {
+                    let f1 = Fat::<__m256i, 1>::new(pats.clone());
+                    let f2 = Fat::<__m256i, 2>::new(pats.clone());
+                    let f3 = Fat::<__m256i, 3>::new(pats.clone());
+                    let f4 = Fat::<__m256i, 4>::new(pats.clone());
+
+                    assert!(f1.memory_usage() > 0);
+                    assert!(f1.minimum_len() >= 4);
+
+                    let m_fat = f4.find(start, end);
+                    assert!(m_fat.is_some());
+
+                    let mut fat_count = 0;
+                    f4.find_overlapping(start, end, &mut |_| {
+                        fat_count += 1;
+                    });
+                    assert!(fat_count > 0);
+                }
+            }
+        }
+    }
+
+    #[cfg(all(
+        target_arch = "aarch64",
+        target_feature = "neon",
+        target_endian = "little"
+    ))]
+    mod aarch64_tests {
+        use super::*;
+        use core::arch::aarch64::uint8x16_t;
+
+        fn pad64(data: &[u8]) -> Vec<u8> {
+            let mut v = data.to_vec();
+            v.resize(v.len().max(64), 0x01);
+            v
+        }
+
+        #[test]
+        fn slim_searchers_aarch64() {
+            let pats = Arc::new(Patterns {
+                by_id: vec![b"abcd".to_vec(), b"defgh".to_vec()],
+                minimum_len: 4,
+            });
+            unsafe {
+                let s1 = Slim::<uint8x16_t, 1>::new(pats.clone());
+                let s2 = Slim::<uint8x16_t, 2>::new(pats.clone());
+                let s3 = Slim::<uint8x16_t, 3>::new(pats.clone());
+                let s4 = Slim::<uint8x16_t, 4>::new(pats.clone());
+
+                assert!(s1.memory_usage() > 0);
+                assert!(s1.minimum_len() >= 4);
+
+                let haystack = pad64(b"xyzabcdefgh");
+                let start = haystack.as_ptr();
+                let end = start.add(haystack.len());
+
+                let m = s4.find(start, end);
+                assert!(m.is_some());
+                assert_eq!(m.unwrap().pattern(), 0);
+
+                let mut count = 0;
+                s4.find_overlapping(start, end, &mut |_| {
+                    count += 1;
+                });
+                assert!(count > 0);
+            }
+        }
+    }
+}
