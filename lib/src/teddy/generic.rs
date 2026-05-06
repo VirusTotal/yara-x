@@ -2205,7 +2205,7 @@ mod tests {
                 s3.find_overlapping(s_start, s_end, &mut |_| {});
                 s4.find_overlapping(s_start, s_end, &mut |_| {});
 
-                let mut tail_haystack = vec![0x01; 25];
+                let mut tail_haystack = [0x01; 25];
                 tail_haystack[9..13].copy_from_slice(b"abcd");
                 let t_start = tail_haystack.as_ptr();
                 let t_end = t_start.add(tail_haystack.len());
@@ -2314,7 +2314,7 @@ mod tests {
                 s3.find_overlapping(s_start, s_end, &mut |_| {});
                 s4.find_overlapping(s_start, s_end, &mut |_| {});
 
-                let mut tail_haystack = vec![0x01; 25];
+                let mut tail_haystack = [0x01; 25];
                 tail_haystack[9..13].copy_from_slice(b"abcd");
                 let t_start = tail_haystack.as_ptr();
                 let t_end = t_start.add(tail_haystack.len());
