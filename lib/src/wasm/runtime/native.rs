@@ -6,13 +6,13 @@
 use crate::errors::SerializationError;
 use anyhow::anyhow;
 use std::mem::transmute;
+pub use wasmtime::Caller;
 /// Wasmtime types re-exported by the native runtime.
 pub(crate) use wasmtime::{
     AsContext, AsContextMut, Config, Engine, Extern, FuncType, Global,
     GlobalType, Instance, Memory, MemoryType, Module, Mutability, OptLevel,
     Store, TypedFunc, Val, ValRaw, ValType,
 };
-pub use wasmtime::Caller;
 
 /// Thin wrapper around [`wasmtime::Linker`] with a backend-neutral API.
 pub(crate) struct Linker<T>(wasmtime::Linker<T>);

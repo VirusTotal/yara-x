@@ -124,7 +124,8 @@ pub type WasmExportedFn2<A1, A2, R> = wasm::WasmExportedFn2<A1, A2, R>;
 pub type WasmExportedFn3<A1, A2, A3, R> = wasm::WasmExportedFn3<A1, A2, A3, R>;
 #[cfg(feature = "custom-modules")]
 #[doc(hidden)]
-pub type WasmExportedFn4<A1, A2, A3, A4, R> = wasm::WasmExportedFn4<A1, A2, A3, A4, R>;
+pub type WasmExportedFn4<A1, A2, A3, A4, R> =
+    wasm::WasmExportedFn4<A1, A2, A3, A4, R>;
 #[cfg(feature = "custom-modules")]
 #[doc(hidden)]
 pub use yara_x_macros::wasm_export;

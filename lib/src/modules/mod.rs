@@ -110,10 +110,8 @@ macro_rules! add_module {
 /// The function receives the data being scanned together with optional
 /// per-module metadata, and must return the protobuf message that holds the
 /// information produced by the module.
-pub type CustomModuleMainFn = fn(
-    &[u8],
-    Option<&[u8]>,
-) -> Result<Box<dyn MessageDyn>, ModuleError>;
+pub type CustomModuleMainFn =
+    fn(&[u8], Option<&[u8]>) -> Result<Box<dyn MessageDyn>, ModuleError>;
 
 /// Function returning the [`MessageDescriptor`] that describes the root
 /// protobuf message of a [`CustomModule`].

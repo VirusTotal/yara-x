@@ -84,7 +84,8 @@ fn compiled_rules_survive_serialize_deserialize() {
     );
 
     let blob = rules.serialize().expect("serialization must succeed");
-    let rules = yara_x::Rules::deserialize(blob).expect("deserialization must succeed");
+    let rules = yara_x::Rules::deserialize(blob)
+        .expect("deserialization must succeed");
 
     let mut output = Foobar::new();
     output.label = Some("persisted".to_owned());
