@@ -2185,15 +2185,40 @@ mod tests {
                 let start = haystack.as_ptr();
                 let end = start.add(haystack.len());
 
-                let m = s4.find(start, end);
-                assert!(m.is_some());
-                assert_eq!(m.unwrap().pattern(), 0);
+                assert!(s1.find(start, end).is_some());
+                s1.find_overlapping(start, end, &mut |_| {});
 
-                let mut count = 0;
-                s4.find_overlapping(start, end, &mut |_| {
-                    count += 1;
-                });
-                assert!(count > 0);
+                assert!(s2.find(start, end).is_some());
+                s2.find_overlapping(start, end, &mut |_| {});
+
+                assert!(s3.find(start, end).is_some());
+                s3.find_overlapping(start, end, &mut |_| {});
+
+                assert!(s4.find(start, end).is_some());
+                s4.find_overlapping(start, end, &mut |_| {});
+
+                let short_haystack = b"abc";
+                let s_start = short_haystack.as_ptr();
+                let s_end = s_start.add(short_haystack.len());
+                s1.find_overlapping(s_start, s_end, &mut |_| {});
+                s2.find_overlapping(s_start, s_end, &mut |_| {});
+                s3.find_overlapping(s_start, s_end, &mut |_| {});
+                s4.find_overlapping(s_start, s_end, &mut |_| {});
+
+                let mut tail_haystack = vec![0x01; 25];
+                tail_haystack[9..13].copy_from_slice(b"abcd");
+                let t_start = tail_haystack.as_ptr();
+                let t_end = t_start.add(tail_haystack.len());
+
+                assert!(s1.find(t_start, t_end).is_some());
+                assert!(s2.find(t_start, t_end).is_some());
+                assert!(s3.find(t_start, t_end).is_some());
+                assert!(s4.find(t_start, t_end).is_some());
+
+                s1.find_overlapping(t_start, t_end, &mut |_| {});
+                s2.find_overlapping(t_start, t_end, &mut |_| {});
+                s3.find_overlapping(t_start, t_end, &mut |_| {});
+                s4.find_overlapping(t_start, t_end, &mut |_| {});
 
                 if std::is_x86_feature_detected!("avx2") {
                     let f1 = Fat::<__m256i, 1>::new(pats.clone());
@@ -2204,14 +2229,32 @@ mod tests {
                     assert!(f1.memory_usage() > 0);
                     assert!(f1.minimum_len() >= 4);
 
-                    let m_fat = f4.find(start, end);
-                    assert!(m_fat.is_some());
+                    assert!(f1.find(start, end).is_some());
+                    f1.find_overlapping(start, end, &mut |_| {});
 
-                    let mut fat_count = 0;
-                    f4.find_overlapping(start, end, &mut |_| {
-                        fat_count += 1;
-                    });
-                    assert!(fat_count > 0);
+                    assert!(f2.find(start, end).is_some());
+                    f2.find_overlapping(start, end, &mut |_| {});
+
+                    assert!(f3.find(start, end).is_some());
+                    f3.find_overlapping(start, end, &mut |_| {});
+
+                    assert!(f4.find(start, end).is_some());
+                    f4.find_overlapping(start, end, &mut |_| {});
+
+                    f1.find_overlapping(s_start, s_end, &mut |_| {});
+                    f2.find_overlapping(s_start, s_end, &mut |_| {});
+                    f3.find_overlapping(s_start, s_end, &mut |_| {});
+                    f4.find_overlapping(s_start, s_end, &mut |_| {});
+
+                    assert!(f1.find(t_start, t_end).is_some());
+                    assert!(f2.find(t_start, t_end).is_some());
+                    assert!(f3.find(t_start, t_end).is_some());
+                    assert!(f4.find(t_start, t_end).is_some());
+
+                    f1.find_overlapping(t_start, t_end, &mut |_| {});
+                    f2.find_overlapping(t_start, t_end, &mut |_| {});
+                    f3.find_overlapping(t_start, t_end, &mut |_| {});
+                    f4.find_overlapping(t_start, t_end, &mut |_| {});
                 }
             }
         }
@@ -2251,15 +2294,40 @@ mod tests {
                 let start = haystack.as_ptr();
                 let end = start.add(haystack.len());
 
-                let m = s4.find(start, end);
-                assert!(m.is_some());
-                assert_eq!(m.unwrap().pattern(), 0);
+                assert!(s1.find(start, end).is_some());
+                s1.find_overlapping(start, end, &mut |_| {});
 
-                let mut count = 0;
-                s4.find_overlapping(start, end, &mut |_| {
-                    count += 1;
-                });
-                assert!(count > 0);
+                assert!(s2.find(start, end).is_some());
+                s2.find_overlapping(start, end, &mut |_| {});
+
+                assert!(s3.find(start, end).is_some());
+                s3.find_overlapping(start, end, &mut |_| {});
+
+                assert!(s4.find(start, end).is_some());
+                s4.find_overlapping(start, end, &mut |_| {});
+
+                let short_haystack = b"abc";
+                let s_start = short_haystack.as_ptr();
+                let s_end = s_start.add(short_haystack.len());
+                s1.find_overlapping(s_start, s_end, &mut |_| {});
+                s2.find_overlapping(s_start, s_end, &mut |_| {});
+                s3.find_overlapping(s_start, s_end, &mut |_| {});
+                s4.find_overlapping(s_start, s_end, &mut |_| {});
+
+                let mut tail_haystack = vec![0x01; 25];
+                tail_haystack[9..13].copy_from_slice(b"abcd");
+                let t_start = tail_haystack.as_ptr();
+                let t_end = t_start.add(tail_haystack.len());
+
+                assert!(s1.find(t_start, t_end).is_some());
+                assert!(s2.find(t_start, t_end).is_some());
+                assert!(s3.find(t_start, t_end).is_some());
+                assert!(s4.find(t_start, t_end).is_some());
+
+                s1.find_overlapping(t_start, t_end, &mut |_| {});
+                s2.find_overlapping(t_start, t_end, &mut |_| {});
+                s3.find_overlapping(t_start, t_end, &mut |_| {});
+                s4.find_overlapping(t_start, t_end, &mut |_| {});
             }
         }
     }
