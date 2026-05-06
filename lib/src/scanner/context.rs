@@ -90,7 +90,7 @@ impl WasmState {
 }
 
 /// Structure that holds information about the current scan.
-pub(crate) struct ScanContext<'r, 'd> {
+pub struct ScanContext<'r, 'd> {
     /// WASM state.
     pub wasm: WasmState,
     /// Map where keys are object handles and values are objects used during

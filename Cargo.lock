@@ -836,6 +836,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "custom-module-example"
+version = "1.16.0"
+dependencies = [
+ "inventory",
+ "protobuf",
+ "protobuf-codegen",
+ "yara-x",
+]
+
+[[package]]
 name = "daachorse"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

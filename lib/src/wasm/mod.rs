@@ -138,7 +138,7 @@ pub(crate) fn wasm_exports() -> impl Iterator<Item = &'static WasmExport> {
 }
 
 /// Type of each entry in [`WASM_EXPORTS`].
-pub(crate) struct WasmExport {
+pub struct WasmExport {
     /// Function's name.
     pub name: &'static str,
     /// Function's mangled name. The mangled name contains information about
@@ -258,7 +258,7 @@ impl WasmExport {
 /// Implementors of this trait are [`WasmExportedFn0`], [`WasmExportedFn1`],
 /// [`WasmExportedFn2`], etc. Each of these types is a generic type that
 /// represents all functions with 0, 1, and 2 arguments respectively.
-pub(crate) trait WasmExportedFn {
+pub trait WasmExportedFn {
     /// Returns the function that will be passed to the selected runtime linker
     /// while linking the WASM code to this function.
     fn trampoline(&'static self) -> Trampoline<ScanContext<'static, 'static>>;
@@ -627,7 +627,7 @@ fn type_id_to_wasmtime(
 macro_rules! impl_wasm_exported_fn {
     ($name:ident $($args:ident)*) => {
         #[allow(dead_code)]
-        pub(super) struct $name <$($args,)* R>
+        pub struct $name <$($args,)* R>
         where
             $($args: 'static,)*
             R: 'static,

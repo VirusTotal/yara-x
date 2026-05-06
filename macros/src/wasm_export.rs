@@ -250,6 +250,11 @@ pub struct WasmExportArgs {
     sync: Option<String>,
     #[darling(default)]
     public: bool,
+    /// When set, the macro is being used from an external crate. All
+    /// generated symbol references are qualified with this crate path and
+    /// the `inventory::submit!` is emitted unconditionally (no
+    /// `cfg(feature = "inventory")` guard).
+    yara_x_crate: Option<String>,
 }
 
 fn sync_flags_literal(
@@ -402,21 +407,31 @@ pub(crate) fn impl_wasm_export_macro(
         format!("{fn_name}{args_signature}")
     };
 
-    let fn_descriptor = quote! {
-        #[allow(non_upper_case_globals)]
-        pub(crate) static #export_ident: WasmExport = WasmExport {
-            name: #fn_name,
-            mangled_name: #mangled_fn_name,
-            public: #public,
-            rust_module_path: module_path!(),
-            method_of: #method_of,
-            sync_flags: #sync_flags,
-            func: &#exported_fn_ident { target_fn: &#rust_fn_name },
-            description: #description,
-        };
-
-        inventory::submit! {
-            WasmExport {
+    let fn_descriptor = if let Some(ref crate_str) = attr_args.yara_x_crate {
+        // External-crate mode: use fully qualified paths and always emit
+        // inventory::submit! without a cfg gate.
+        let crate_path: syn::Path = syn::parse_str(crate_str).unwrap();
+        quote! {
+            #crate_path::inventory::submit! {
+                #crate_path::WasmExport {
+                    name: #fn_name,
+                    mangled_name: #mangled_fn_name,
+                    public: #public,
+                    rust_module_path: module_path!(),
+                    method_of: #method_of,
+                    sync_flags: #sync_flags,
+                    func: &#crate_path::#exported_fn_ident { target_fn: &#rust_fn_name },
+                    description: #description,
+                }
+            }
+        }
+    } else {
+        // Internal mode: keep a named static for direct access by the
+        // compiler (emit.rs / builder.rs) and submit a copy to inventory
+        // for runtime discovery.
+        quote! {
+            #[allow(non_upper_case_globals)]
+            pub(crate) static #export_ident: WasmExport = WasmExport {
                 name: #fn_name,
                 mangled_name: #mangled_fn_name,
                 public: #public,
@@ -425,6 +440,19 @@ pub(crate) fn impl_wasm_export_macro(
                 sync_flags: #sync_flags,
                 func: &#exported_fn_ident { target_fn: &#rust_fn_name },
                 description: #description,
+            };
+
+            inventory::submit! {
+                WasmExport {
+                    name: #fn_name,
+                    mangled_name: #mangled_fn_name,
+                    public: #public,
+                    rust_module_path: module_path!(),
+                    method_of: #method_of,
+                    sync_flags: #sync_flags,
+                    func: &#exported_fn_ident { target_fn: &#rust_fn_name },
+                    description: #description,
+                }
             }
         }
     };

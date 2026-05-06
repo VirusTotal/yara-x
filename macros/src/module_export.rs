@@ -11,6 +11,11 @@ pub struct ModuleExportsArgs {
     name: Option<String>,
     method_of: Option<String>,
     sync: Option<String>,
+    /// When set, the macro is being invoked from an external crate. Generated
+    /// thunk code uses fully qualified types from this crate path, and the
+    /// inner `#[wasm_export]` receives the same `yara_x_crate` argument so
+    /// that it emits an unconditional `inventory::submit!`.
+    yara_x_crate: Option<String>,
 }
 
 /// Implementation for the `#[module_export]` attribute macro.
@@ -62,9 +67,20 @@ pub(crate) fn impl_module_export_macro(
     // `&ScanContext` to `&mut Caller<'_, ScanContext>`.
     let mut fn_args: Punctuated<FnArg, Comma> = Punctuated::new();
 
-    fn_args.push(syn::parse2(quote! {
-        caller: &mut Caller<'_, ScanContext>
-    })?);
+    // When invoked from an external crate, qualify Caller and ScanContext
+    // with the crate path so they resolve correctly outside yara_x.
+    let yara_x_crate = attr_args.yara_x_crate;
+    let caller_arg = if let Some(ref crate_str) = yara_x_crate {
+        let crate_path: syn::Path = syn::parse_str(crate_str).unwrap();
+        syn::parse2(quote! {
+            caller: &mut #crate_path::Caller<'_, #crate_path::ScanContext<'_, '_>>
+        })?
+    } else {
+        syn::parse2(quote! {
+            caller: &mut Caller<'_, ScanContext>
+        })?
+    };
+    fn_args.push(caller_arg);
 
     fn_args.extend(func.sig.inputs.into_iter().skip(1));
 
@@ -85,6 +101,7 @@ pub(crate) fn impl_module_export_macro(
     let rust_fn_name = func.sig.ident;
     let fn_name = attr_args.name.unwrap_or(rust_fn_name.to_string());
     let sync = attr_args.sync.unwrap_or_else(|| "none".to_owned());
+    let method_of = attr_args.method_of;
 
     // Modify the original function and convert it into the thunk function.
     func.sig.ident = format_ident!("__thunk__{}", rust_fn_name);
@@ -95,10 +112,21 @@ pub(crate) fn impl_module_export_macro(
     }})
     .unwrap();
 
-    let wasm_export = if let Some(method_of) = attr_args.method_of {
-        quote! { #[wasm_export(name = #fn_name, public = true, method_of = #method_of, sync = #sync)] }
-    } else {
-        quote! { #[wasm_export(name = #fn_name, public = true, sync = #sync)] }
+    let wasm_export = match (&yara_x_crate, &method_of) {
+        (Some(crate_str), Some(m)) => {
+            let crate_path: syn::Path = syn::parse_str(crate_str).unwrap();
+            quote! { #[#crate_path::wasm_export(yara_x_crate = #crate_str, name = #fn_name, public = true, method_of = #m, sync = #sync)] }
+        }
+        (Some(crate_str), None) => {
+            let crate_path: syn::Path = syn::parse_str(crate_str).unwrap();
+            quote! { #[#crate_path::wasm_export(yara_x_crate = #crate_str, name = #fn_name, public = true, sync = #sync)] }
+        }
+        (None, Some(m)) => {
+            quote! { #[wasm_export(name = #fn_name, public = true, method_of = #m, sync = #sync)] }
+        }
+        (None, None) => {
+            quote! { #[wasm_export(name = #fn_name, public = true, sync = #sync)] }
+        }
     };
 
     // Add the thunk function to the output.

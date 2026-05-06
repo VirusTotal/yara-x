@@ -27,6 +27,7 @@ members = [
     "proto-yaml",
     "py",
     "ls",
+    "examples/custom-module-example",
 ]
 resolver = "3"
 
