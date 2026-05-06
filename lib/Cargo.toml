@@ -278,7 +278,6 @@ default = [
 ]
 
 [dependencies]
-aho-corasick = { workspace = true, features = ["logging"] }
 annotate-snippets = { workspace = true }
 anyhow = { workspace = true }
 hex = { workspace = true }
@@ -289,6 +288,7 @@ bitvec = { workspace = true }
 bstr = { workspace = true, features = ["serde"] }
 const-oid = { workspace = true, optional = true, features = ["db"] }
 crc32fast = { workspace = true, optional = true }
+daachorse = { workspace = true }
 der-parser = { workspace = true, optional = true, features = ["bigint"] }
 digest = { workspace = true, optional = true }
 dsa = { workspace = true, optional = true }
@@ -332,8 +332,9 @@ x509-parser = { workspace = true, optional = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true, features = ["serde"] }
 zip = { workspace = true, optional = true, features = ["deflate"] }
-simd-adler32 = {workspace = true, optional = true}
-simd_cesu8 = {workspace = true, optional = true}
+simd-adler32 = { workspace = true, optional = true }
+simd_cesu8 = { workspace = true, optional = true }
+
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 wasmtime = { workspace = true, default-features = false, features = [
