@@ -278,7 +278,6 @@ default = [
 ]
 
 [dependencies]
-# aho-corasick = { workspace = true, features = ["logging"] }
 annotate-snippets = { workspace = true }
 anyhow = { workspace = true }
 hex = { workspace = true }
