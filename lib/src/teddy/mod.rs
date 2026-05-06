@@ -631,8 +631,7 @@ mod tests {
     fn multiple_patterns_correct_ids() {
         // IDs must match the order add() was called: cat=0, dog=1, bird=2.
         let haystack = pad64(b"catdogbird");
-        let Some(mut m) =
-            find_all(&[b"cat", b"dog", b"bird"], &haystack, 0)
+        let Some(mut m) = find_all(&[b"cat", b"dog", b"bird"], &haystack, 0)
         else {
             return;
         };
@@ -649,15 +648,19 @@ mod tests {
         let mut haystack = pad64(b"XXabcdeYY");
         // Overwrite the filler so it doesn't accidentally contain the pattern.
         haystack[9..].fill(0x01);
-        let Some(mut m) =
-            find_all(&[b"abcde", b"cde"], &haystack, 0)
-        else {
+        let Some(mut m) = find_all(&[b"abcde", b"cde"], &haystack, 0) else {
             return;
         };
         m.sort_unstable_by_key(|x| x.1);
         let starts: Vec<usize> = m.iter().map(|x| x.1).collect();
-        assert!(starts.contains(&2), "expected match for 'abcde' at 2, got {starts:?}");
-        assert!(starts.contains(&4), "expected match for 'cde' at 4, got {starts:?}");
+        assert!(
+            starts.contains(&2),
+            "expected match for 'abcde' at 2, got {starts:?}"
+        );
+        assert!(
+            starts.contains(&4),
+            "expected match for 'cde' at 4, got {starts:?}"
+        );
     }
 
     // ── Search with non-zero `at` offset ─────────────────────────────────
@@ -688,8 +691,12 @@ mod tests {
     #[test]
     fn binary_pattern_match() {
         let pattern: &[u8] = &[0xDE, 0xAD, 0xBE, 0xEF];
-        let haystack: Vec<u8> =
-            [0x00u8; 10].iter().chain(pattern).chain([0x00u8; 10].iter()).cloned().collect();
+        let haystack: Vec<u8> = [0x00u8; 10]
+            .iter()
+            .chain(pattern)
+            .chain([0x00u8; 10].iter())
+            .cloned()
+            .collect();
         let haystack = pad64(&haystack);
         let Some(m) = find_all(&[pattern], &haystack, 0) else {
             return;
