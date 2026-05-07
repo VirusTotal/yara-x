@@ -12,9 +12,8 @@ pub struct ModuleExportsArgs {
     method_of: Option<String>,
     sync: Option<String>,
     /// When set, the macro is being invoked from an external crate. Generated
-    /// thunk code uses fully qualified types from this crate path, and the
-    /// inner `#[wasm_export]` receives the same `yara_x_crate` argument so
-    /// that it emits an unconditional `inventory::submit!`.
+    /// thunk code uses fully qualified types from this crate path, and passes
+    /// `yara_x_crate` through to the inner `#[wasm_export]`.
     yara_x_crate: Option<String>,
 }
 

@@ -66,11 +66,9 @@ generate-proto-code = [
 # This feature is disabled by default.
 generate-module-docs = ["protoc"]
 
-
-
 # Enables registration of custom YARA-X modules from external crates via the
-# `inventory` crate and the `CustomModule` API.
-custom-modules = ["dep:inventory"]
+# `CustomModule` API.
+custom-modules = []
 
 # Whether to use protoc for parsing and compiling .proto files. By default,
 # .proto files are parsed and compiled by the pure-Rust compiler implemented
@@ -79,8 +77,6 @@ custom-modules = ["dep:inventory"]
 # to have protoc installed in your system, together with the protoc-gen-rust
 # plugin. Follow the instructions in: https://lib.rs/crates/protobuf-codegen3
 protoc = []
-
-
 
 # Enables debug logs.
 logging = ["dep:log", "dep:quanta"]

@@ -282,14 +282,8 @@ fn sync_flags_literal(
 /// Implementation for the `#[wasm_export]` attribute macro.
 ///
 /// This attribute is used in functions that will be called from WASM.
-/// For each function using this attribute adds an entry in a global
-/// registry that tracks all the functions that may be called from WASM.
-///
-/// Under the hood, this macro uses either the `linkme` or the `inventory`
-/// crate for maintaining the global registry. In the first case, a
-/// `WasmExport` is added to the global `WASM_EXPORTS` slice, while in
-/// the second cases it uses the `inventory::submit!` for adding a
-/// `WasmExport` struct to the inventory.
+/// For each function using this attribute it registers the function in the
+/// global `inventory` registry so that it can be discovered at runtime.
 ///
 /// # Example
 ///
@@ -306,19 +300,6 @@ fn sync_flags_literal(
 /// The code generated will be:
 ///
 /// ```text
-/// #[cfg_attr(not(feature = "inventory"), distributed_slice(WASM_EXPORTS))]
-/// pub(crate) static export__add: WasmExport = WasmExport {
-///     name: "add",
-///     mangled_name: "add@ii@i",
-///     public: false,
-///     rust_module_path: "yara_x::modules::my_module",
-///     method_of: None,
-///     sync_flags: 3,
-///     func: &WasmExportedFn2 { target_fn: &add },
-///     description: Some(Cow::Borrowed("This function adds two numbers.")),
-/// };
-///
-/// #[cfg(feature = "inventory")]
 /// inventory::submit! {
 ///     WasmExport {
 ///         name: "add",
@@ -408,8 +389,7 @@ pub(crate) fn impl_wasm_export_macro(
     };
 
     let fn_descriptor = if let Some(ref crate_str) = attr_args.yara_x_crate {
-        // External-crate mode: use fully qualified paths and always emit
-        // inventory::submit! without a cfg gate.
+        // External-crate mode: qualify all symbols with the given crate path.
         let crate_path: syn::Path = syn::parse_str(crate_str).unwrap();
         quote! {
             #crate_path::inventory::submit! {

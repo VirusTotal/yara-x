@@ -29,7 +29,6 @@ pub(crate) mod prelude {
     pub(crate) use crate::wasm::string::{Lowercase, Uppercase};
     pub(crate) use crate::wasm::*;
     pub(crate) use bstr::ByteSlice;
-
     pub(crate) use yara_x_macros::{module_export, module_main, wasm_export};
 }
 include!("modules.rs");

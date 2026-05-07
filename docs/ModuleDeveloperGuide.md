@@ -1034,9 +1034,7 @@ fields are accessible in conditions, and its functions are callable.
 ### Setting up the crate
 
 First, enable the `custom-modules` feature in your dependency on `yara-x` and
-add `inventory` and `protobuf` as direct dependencies (they must match the
-versions used by `yara-x` exactly—use the re-exports described below to avoid
-version mismatches):
+add `protobuf` as a direct dependency:
 
 ```toml
 [dependencies]
