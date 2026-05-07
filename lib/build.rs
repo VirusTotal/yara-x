@@ -483,11 +483,7 @@ fn generate_proto_code() {
 }
 
 fn main() {
-    if !cfg!(feature = "inventory") && !cfg!(feature = "linkme") {
-        panic!(
-            "either the `inventory` feature or the `linkme` feature must be enabled."
-        );
-    }
+
 
     #[cfg(feature = "generate-proto-code")]
     generate_proto_code();

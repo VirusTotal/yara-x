@@ -29,8 +29,7 @@ pub(crate) mod prelude {
     pub(crate) use crate::wasm::string::{Lowercase, Uppercase};
     pub(crate) use crate::wasm::*;
     pub(crate) use bstr::ByteSlice;
-    #[cfg(not(feature = "inventory"))]
-    pub(crate) use linkme::distributed_slice;
+
     pub(crate) use yara_x_macros::{module_export, module_main, wasm_export};
 }
 include!("modules.rs");

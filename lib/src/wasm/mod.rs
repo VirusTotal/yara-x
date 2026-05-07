@@ -85,8 +85,6 @@ use std::rc::Rc;
 use std::sync::{LazyLock, OnceLock};
 
 use bstr::{BString, ByteSlice};
-#[cfg(not(feature = "inventory"))]
-use linkme::distributed_slice;
 use rustc_hash::FxHashMap;
 use smallvec::{SmallVec, smallvec};
 use yara_x_macros::wasm_export;
@@ -131,28 +129,12 @@ pub(crate) const LOOKUP_INDEXES_END: i32 = LOOKUP_INDEXES_START + 1024;
 /// bit is set, it indicates that the rule with RuleId = N matched.
 pub(crate) const MATCHING_RULES_BITMAP_BASE: i32 = LOOKUP_INDEXES_END;
 
-/// Global slice that contains an entry for each function that is callable from
-/// WASM code. Functions with attributes `#[wasm_export]` and `#[module_export]`
-/// are automatically added to this slice. See https://github.com/dtolnay/linkme
-/// for details about how `#[distributed_slice]` works.
-///
-/// When the `inventory` feature is enabled, this vector is not used.
-#[cfg(not(feature = "inventory"))]
-#[distributed_slice]
-pub(crate) static WASM_EXPORTS: [WasmExport] = [..];
-
-#[cfg(feature = "inventory")]
 inventory::collect!(WasmExport);
 
 /// Returns an iterator of [`WasmExport`] structs that describes the functions
 /// that are callable from WASM code.
 pub(crate) fn wasm_exports() -> impl Iterator<Item = &'static WasmExport> {
-    #[cfg(feature = "inventory")]
-    return inventory::iter::<WasmExport>();
-
-    // Rely on the `WASM_EXPORTS` slice when not using the `inventory` crate.
-    #[cfg(not(feature = "inventory"))]
-    WASM_EXPORTS.iter()
+    inventory::iter::<WasmExport>()
 }
 
 /// Type of each entry in [`WASM_EXPORTS`].

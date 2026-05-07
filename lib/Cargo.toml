@@ -66,11 +66,7 @@ generate-proto-code = [
 # This feature is disabled by default.
 generate-module-docs = ["protoc"]
 
-# Uses the `inventory` crate (https://github.com/dtolnay/inventory) instead
-# of `linkme` (https://github.com/dtolnay/linkme) for tracking WASM exports.
-#
-# This feature is disabled by default.
-inventory = ["dep:inventory"]
+
 
 # Whether to use protoc for parsing and compiling .proto files. By default,
 # .proto files are parsed and compiled by the pure-Rust compiler implemented
@@ -80,12 +76,7 @@ inventory = ["dep:inventory"]
 # plugin. Follow the instructions in: https://lib.rs/crates/protobuf-codegen3
 protoc = []
 
-# Uses the `linkme` crate (https://github.com/dtolnay/linkme) instead
-# of `inventory`  (https://github.com/dtolnay/inventory) for tracking WASM
-# exports.
-#
-# This feature is enabled by default.
-linkme = ["dep:linkme"]
+
 
 # Enables debug logs.
 logging = ["dep:log", "dep:quanta"]
@@ -274,7 +265,6 @@ default = [
     "exact-atoms",
     "fast-regexp",
     "generate-proto-code",
-    "inventory",
 ]
 
 [dependencies]
@@ -296,10 +286,9 @@ ecdsa = { workspace = true, optional = true }
 memmap2 = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 intaglio = { workspace = true }
-inventory = { workspace = true, optional = true }
+inventory = { workspace = true }
 ipnet = { workspace = true, optional = true }
 itertools = { workspace = true }
-linkme = { workspace = true, optional = true }
 log = { workspace = true, optional = true }
 md2 = { workspace = true, optional = true, features = ["oid"] }
 md-5 = { workspace = true, optional = true, features = ["oid"] }
