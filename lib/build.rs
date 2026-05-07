@@ -483,8 +483,6 @@ fn generate_proto_code() {
 }
 
 fn main() {
-
-
     #[cfg(feature = "generate-proto-code")]
     generate_proto_code();
 }
