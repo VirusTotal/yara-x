@@ -65,6 +65,12 @@ pub(crate) struct CompileContext<'a, 'src> {
     /// Tracks the product of iteration counts of nested loops.
     /// Used to detect loops that may iterate an excessive number of times.
     pub loop_iteration_multiplier: i64,
+
+    /// Tracks regular expressions matched against specific canonical targets across all rules.
+    pub matches_by_target: &'a mut rustc_hash::FxHashMap<crate::compiler::MatchTarget, rustc_hash::FxHashSet<crate::compiler::RegexpId>>,
+
+    /// Pool for regular expressions.
+    pub regexp_pool: &'a mut crate::string_pool::StringPool<crate::compiler::RegexpId>,
 }
 
 impl<'src> CompileContext<'_, 'src> {

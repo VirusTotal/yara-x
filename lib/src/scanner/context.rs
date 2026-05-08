@@ -151,6 +151,10 @@ pub(crate) struct ScanContext<'r, 'd> {
     /// is evaluated, it is compiled the first time and stored in this hash
     /// map.
     pub regexp_cache: RefCell<FxHashMap<RegexpId, Regex>>,
+    /// Persistent cache for grouped RegexSet automata. Preserved across scans.
+    pub regex_set_cache: RefCell<FxHashMap<crate::compiler::RegexSetId, regex::bytes::RegexSet>>,
+    /// Scan-specific cache for evaluated RegexSet match results. Cleared on reset.
+    pub regex_set_results: RefCell<FxHashMap<crate::compiler::RegexSetId, Vec<bool>>>,
     /// Engines for custom base64 alphabets used by base64 string modifiers.
     ///
     /// These engines are derived from rule literals and reused across scans.
@@ -280,6 +284,26 @@ impl ScanContext<'_, '_> {
         regexp_id: RegexpId,
         haystack: &[u8],
     ) -> bool {
+        if let Some(&(set_id, index_in_set)) = self.compiled_rules.regexp_to_set().get(&regexp_id) {
+            let mut results_cache = self.regex_set_results.borrow_mut();
+
+            let matched_bits = results_cache.entry(set_id).or_insert_with(|| {
+                let mut automata_cache = self.regex_set_cache.borrow_mut();
+                let regex_set = automata_cache.entry(set_id).or_insert_with(|| {
+                    self.compiled_rules.get_regex_set(set_id)
+                });
+
+                let set_matches = regex_set.matches(haystack);
+                let mut bits = vec![false; self.compiled_rules.num_patterns_in_set(set_id)];
+                for m in set_matches.into_iter() {
+                    bits[m] = true;
+                }
+                bits
+            });
+
+            return matched_bits[index_in_set];
+        }
+
         self.regexp_cache
             .borrow_mut()
             .entry(regexp_id)
@@ -511,6 +535,7 @@ impl ScanContext<'_, '_> {
         let num_patterns = self.compiled_rules.num_patterns();
 
         self.scan_state = ScanState::Idle;
+        self.regex_set_results.borrow_mut().clear();
 
         // Free all runtime objects left around by previous scans.
         self.runtime_objects.clear();
@@ -1887,6 +1912,8 @@ pub fn create_wasm_store_and_ctx<'r>(
         },
         deadline: 0,
         regexp_cache: RefCell::new(FxHashMap::default()),
+        regex_set_cache: RefCell::new(FxHashMap::default()),
+        regex_set_results: RefCell::new(FxHashMap::default()),
         vm: VM {
             pike_vm: PikeVM::new(rules.re_code()),
             fast_vm: FastVM::new(rules.re_code()),

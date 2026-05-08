@@ -416,6 +416,9 @@ pub struct Compiler<'a> {
     /// Linters applied to each rule during compilation. The linters are added
     /// to the compiler using [`Compiler::add_linter`]:
     linters: Vec<Box<dyn linters::Linter + 'a>>,
+
+    /// Tracks regular expressions matched against specific canonical targets across all rules.
+    matches_by_target: FxHashMap<MatchTarget, FxHashSet<RegexpId>>,
 }
 
 impl<'a> Compiler<'a> {
@@ -505,6 +508,7 @@ impl<'a> Compiler<'a> {
             include_dirs: None,
             includes_enabled: true,
             include_stack: Vec::new(),
+            matches_by_target: FxHashMap::default(),
         }
     }
 
@@ -787,6 +791,22 @@ impl<'a> Compiler<'a> {
         )
         .expect("failed to serialize global variables");
 
+        let mut regex_sets = rustc_hash::FxHashMap::default();
+        let mut regexp_to_set = rustc_hash::FxHashMap::default();
+        let mut next_set_id = 0;
+
+        for (_, re_ids) in self.matches_by_target {
+            if re_ids.len() > 1 {
+                let set_id = RegexSetId(next_set_id);
+                next_set_id += 1;
+                let sorted_re_ids: Vec<RegexpId> = re_ids.into_iter().collect();
+                for (index, &re_id) in sorted_re_ids.iter().enumerate() {
+                    regexp_to_set.insert(re_id, (set_id, index));
+                }
+                regex_sets.insert(set_id, sorted_re_ids);
+            }
+        }
+
         let mut rules = Rules {
             serialized_globals,
             wasm_mod,
@@ -805,6 +825,8 @@ impl<'a> Compiler<'a> {
             re_code: self.re_code,
             warnings: self.warnings.into(),
             filesize_bounds: self.filesize_bounds,
+            regex_sets,
+            regexp_to_set,
         };
 
         rules.build_ac_automaton();
@@ -1528,6 +1550,8 @@ impl Compiler<'_> {
             for_of_depth: 0,
             features: &self.features,
             loop_iteration_multiplier: 1,
+            matches_by_target: &mut self.matches_by_target,
+            regexp_pool: &mut self.regexp_pool,
         };
 
         // Convert the patterns from AST to IR. This populates the
@@ -2700,7 +2724,7 @@ impl From<RuleId> for i32 {
 }
 
 /// ID associated to each regexp used in a rule condition.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 pub(crate) struct RegexpId(i32);
 
 impl From<i32> for RegexpId {
@@ -2743,6 +2767,38 @@ impl From<RegexpId> for u32 {
     fn from(value: RegexpId) -> Self {
         value.0.try_into().unwrap()
     }
+}
+
+/// ID associated to each RegexSet.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
+pub(crate) struct RegexSetId(i32);
+
+impl From<i32> for RegexSetId {
+    #[inline]
+    fn from(value: i32) -> Self {
+        Self(value)
+    }
+}
+
+impl From<RegexSetId> for usize {
+    #[inline]
+    fn from(value: RegexSetId) -> Self {
+        value.0 as usize
+    }
+}
+
+impl From<RegexSetId> for i32 {
+    #[inline]
+    fn from(value: RegexSetId) -> Self {
+        value.0
+    }
+}
+
+/// Canonical representation of a target expression (like a field access) that is matched against
+/// regular expressions.
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub(crate) enum MatchTarget {
+    FieldAccess(Vec<i32>),
 }
 
 /// ID associated to each pattern.

@@ -155,6 +155,12 @@ pub struct Rules {
     /// serialized rules won't have any warnings.
     #[serde(skip)]
     pub(in crate::compiler) warnings: Vec<Warning>,
+
+    /// Grouped RegexSet definitions. Keys are RegexSetId, values are lists of RegexpId.
+    pub(in crate::compiler) regex_sets: FxHashMap<crate::compiler::RegexSetId, Vec<crate::compiler::RegexpId>>,
+
+    /// Maps each grouped RegexpId to its set membership and index.
+    pub(in crate::compiler) regexp_to_set: FxHashMap<crate::compiler::RegexpId, (crate::compiler::RegexSetId, usize)>,
 }
 
 impl Rules {
@@ -348,6 +354,40 @@ impl Rules {
             .unwrap_or_else(|err| {
                 panic!("error compiling regex `{}`: {:#?}", re.as_str(), err)
             })
+    }
+
+    /// Returns a compiled multi-pattern `RegexSet` for a given `RegexSetId`.
+    #[inline]
+    pub(crate) fn get_regex_set(&self, set_id: crate::compiler::RegexSetId) -> regex::bytes::RegexSet {
+        let re_ids = self.regex_sets.get(&set_id).unwrap();
+        let mut patterns = Vec::with_capacity(re_ids.len());
+
+        for &re_id in re_ids {
+            let re = types::Regexp::new(self.regexp_pool.get(re_id).unwrap());
+            let parser = re::parser::Parser::new()
+                .relaxed_re_syntax(self.relaxed_re_syntax);
+            let hir = parser.parse(&re).unwrap().into_inner();
+            patterns.push(hir.to_string());
+        }
+
+        regex::bytes::RegexSetBuilder::new(patterns)
+            .size_limit(50 * 1024 * 1024)
+            .build()
+            .unwrap_or_else(|err| {
+                panic!("error compiling RegexSet: {:#?}", err)
+            })
+    }
+
+    /// Returns the number of patterns in a given RegexSet.
+    #[inline]
+    pub(crate) fn num_patterns_in_set(&self, set_id: crate::compiler::RegexSetId) -> usize {
+        self.regex_sets.get(&set_id).unwrap().len()
+    }
+
+    /// Returns the mapping from RegexpId to its set membership and index.
+    #[inline]
+    pub(crate) fn regexp_to_set(&self) -> &FxHashMap<crate::compiler::RegexpId, (crate::compiler::RegexSetId, usize)> {
+        &self.regexp_to_set
     }
 
     /// Returns a sub-pattern by [`SubPatternId`].

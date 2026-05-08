@@ -227,6 +227,9 @@ mod tests {
         let mut warnings = Warnings::default();
         let mut rule_patterns = vec![];
 
+        let mut matches_by_target = rustc_hash::FxHashMap::default();
+        let mut regexp_pool = crate::string_pool::StringPool::new();
+
         let mut ctx = CompileContext {
             ir: &mut ir,
             relaxed_re_syntax: false,
@@ -240,6 +243,8 @@ mod tests {
             vars: VarStack::new(),
             for_of_depth: 0,
             loop_iteration_multiplier: 1,
+            matches_by_target: &mut matches_by_target,
+            regexp_pool: &mut regexp_pool,
         };
 
         let mut pattern = HexPattern::new("test_ident");

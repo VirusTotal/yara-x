@@ -1893,6 +1893,33 @@ fn matches_expr_from_ast(
         }
     }
 
+    if let Expr::FieldAccess(field_access) = ctx.ir.get(lhs) {
+        let mut indices = Vec::new();
+        let mut all_fields = true;
+        for operand in &field_access.operands {
+            if let Expr::Symbol(symbol) = ctx.ir.get(*operand) {
+                if let Symbol::Field { index, .. } = symbol.as_ref() {
+                    indices.push(*index as i32);
+                } else {
+                    all_fields = false;
+                    break;
+                }
+            } else {
+                all_fields = false;
+                break;
+            }
+        }
+        if all_fields && !indices.is_empty() {
+            if let Expr::Const(TypeValue::Regexp(Some(re))) = ctx.ir.get(rhs) {
+                let re_id = ctx.regexp_pool.get_or_intern(re.as_str());
+                ctx.matches_by_target
+                    .entry(crate::compiler::MatchTarget::FieldAccess(indices))
+                    .or_default()
+                    .insert(re_id);
+            }
+        }
+    }
+
     Ok(ctx.ir.matches(lhs, rhs))
 }
 
