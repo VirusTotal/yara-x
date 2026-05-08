@@ -1,0 +1,21 @@
+RULE test_1
+  5: CONTAINS -- hash: 0x3440798238ccebd2
+    2: FIELD_ACCESS -- hash: 0x25755b6a17796151
+      0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+      1: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+    4: CONST string("foobar")
+
+RULE test_2
+  5: ICONTAINS -- hash: 0x44ba48d96f7403f2
+    2: FIELD_ACCESS -- hash: 0x25755b6a17796151
+      0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+      1: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+    4: CONST string("foobar")
+
+RULE test_3
+  4: MATCHES -- hash: 0x53bd9f971ea374fb
+    2: FIELD_ACCESS -- hash: 0x25755b6a17796151
+      0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+      1: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+    3: CONST regexp(Regexp("/foo.bar/"))
+

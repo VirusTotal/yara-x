@@ -36,6 +36,7 @@ use crate::compiler::{
 use crate::errors::CustomError;
 use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
 use crate::re;
+use crate::re::parser::CaseSensitiveness;
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
 use crate::types::Value::Const;
 use crate::types::{
@@ -419,7 +420,11 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     // (right-to-left). However, if the regexp contains a mix of greedy and
     // non-greedy repetitions the decision becomes impossible.
     let hir = re::parser::Parser::new()
-        .force_case_insensitive(flags.contains(PatternFlags::Nocase))
+        .force_case_sensitiveness(if flags.contains(PatternFlags::Nocase) {
+            Some(re::parser::CaseSensitiveness::Insensitive)
+        } else {
+            None
+        })
         .allow_mixed_greediness(false)
         .relaxed_re_syntax(ctx.relaxed_re_syntax)
         .parse(&pattern.regexp)
@@ -1861,6 +1866,32 @@ fn matches_expr_from_ast(
 
     check_type(ctx, lhs, lhs_span, &[Type::String])?;
     check_type(ctx, rhs, rhs_span, &[Type::Regexp])?;
+
+    // If the regular expression that is being matched can be translated into
+    // a literal string (e.g: var matches /foobar/), the expression will be
+    // expressed as a `contains` or `icontains` operation, which is faster than
+    // trying to match a regular expression.
+    if let Expr::Const(TypeValue::Regexp(Some(re))) = ctx.ir.get(rhs) {
+        let parser = re::parser::Parser::new()
+            // We need to force the parser to handle the regexp as case-sensitive,
+            // otherwise `as_literal_bytes` won't ever produce a literal because
+            // case-insensitive regexps are never a literal.
+            .force_case_sensitiveness(Some(CaseSensitiveness::Sensitive))
+            .relaxed_re_syntax(ctx.relaxed_re_syntax);
+
+        if let Ok(hir) = parser.parse(re)
+            && let Some(literal_bytes) = hir.as_literal_bytes()
+        {
+            let case_insensitive = re.case_insensitive();
+            let new_rhs =
+                ctx.ir.constant(TypeValue::const_string_from(literal_bytes));
+            return if case_insensitive {
+                Ok(ctx.ir.icontains(lhs, new_rhs))
+            } else {
+                Ok(ctx.ir.contains(lhs, new_rhs))
+            };
+        }
+    }
 
     Ok(ctx.ir.matches(lhs, rhs))
 }

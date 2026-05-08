@@ -1,0 +1,16 @@
+import "test_proto2"
+
+rule test_1 {
+    condition:
+        test_proto2.string_foo matches /foobar/
+}
+
+rule test_2 {
+    condition:
+        test_proto2.string_foo matches /foobar/i
+}
+
+rule test_3 {
+    condition:
+        test_proto2.string_foo matches /foo.bar/
+}
