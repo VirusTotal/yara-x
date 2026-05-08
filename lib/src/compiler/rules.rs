@@ -387,7 +387,7 @@ impl Rules {
         }
 
         regex::bytes::RegexSetBuilder::new(patterns)
-            .size_limit(50 * 1024 * 1024)
+            .size_limit(1024 * 1024 * 1024)
             .build()
             .unwrap_or_else(|err| {
                 panic!("error compiling RegexSet: {:#?}", err)
