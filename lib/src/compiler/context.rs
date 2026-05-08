@@ -72,6 +72,9 @@ pub(crate) struct CompileContext<'a, 'src> {
 
     /// Pool for regular expressions.
     pub regexp_pool: &'a mut crate::string_pool::StringPool<RegexId>,
+
+    /// The ID of the current namespace being compiled.
+    pub current_namespace_id: crate::compiler::NamespaceId,
 }
 
 impl<'src> CompileContext<'_, 'src> {

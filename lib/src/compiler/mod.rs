@@ -1552,6 +1552,7 @@ impl Compiler<'_> {
             loop_iteration_multiplier: 1,
             matches_by_target: &mut self.matches_by_target,
             regexp_pool: &mut self.regexp_pool,
+            current_namespace_id: self.current_namespace.id,
         };
 
         // Convert the patterns from AST to IR. This populates the
@@ -2681,6 +2682,13 @@ impl From<LiteralId> for u64 {
 #[serde(transparent)]
 pub(crate) struct NamespaceId(i32);
 
+impl From<i32> for NamespaceId {
+    #[inline]
+    fn from(v: i32) -> Self {
+        Self(v)
+    }
+}
+
 /// ID associated to each rule.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash)]
 pub(crate) struct RuleId(i32);
@@ -2810,7 +2818,7 @@ impl From<RegexSetId> for i32 {
 /// matching the exact same target expression.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub(crate) enum MatchTarget {
-    FieldAccess(Vec<i32>),
+    FieldAccess(NamespaceId, Vec<i32>),
 }
 
 /// ID associated to each pattern.

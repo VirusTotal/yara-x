@@ -1915,7 +1915,10 @@ fn matches_expr_from_ast(
         {
             let re_id = ctx.regexp_pool.get_or_intern(re.as_str());
             ctx.matches_by_target
-                .entry(crate::compiler::MatchTarget::FieldAccess(indices))
+                .entry(crate::compiler::MatchTarget::FieldAccess(
+                    ctx.current_namespace_id,
+                    indices,
+                ))
                 .or_default()
                 .insert(re_id);
         }
