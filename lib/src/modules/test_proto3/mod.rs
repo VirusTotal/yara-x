@@ -37,3 +37,12 @@ fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<TestProto3, ModuleError> {
 
     Ok(test)
 }
+
+inventory::submit! {
+    super::YaraModule {
+        name: "test_proto3",
+        root_descriptor: <TestProto3 as ::protobuf::MessageFull>::descriptor,
+        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
+}

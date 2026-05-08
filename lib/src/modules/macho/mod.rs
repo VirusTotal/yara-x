@@ -607,3 +607,12 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Macho, ModuleError> {
         Err(_) => Ok(Macho::new()),
     }
 }
+
+inventory::submit! {
+    super::YaraModule {
+        name: "macho",
+        root_descriptor: <Macho as ::protobuf::MessageFull>::descriptor,
+        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
+}

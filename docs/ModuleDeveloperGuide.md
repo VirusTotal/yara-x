@@ -1033,20 +1033,16 @@ fields are accessible in conditions, and its functions are callable.
 
 ### Setting up the crate
 
-First, enable the `custom-modules` feature in your dependency on `yara-x` and
-add `protobuf` as a direct dependency:
+Add `yara-x` and `protobuf` as dependencies:
 
 ```toml
 [dependencies]
-yara-x   = { version = "...", features = ["custom-modules"] }
+yara-x   = { version = "..." }
 protobuf = { version = "3" }
 
 [build-dependencies]
 protobuf-codegen = { version = "3" }
 ```
-
-The `custom-modules` feature gate is the only thing you need to add on the
-`yara-x` side. Everything else is handled by the API it exposes.
 
 ### Compiling the proto at build time
 
@@ -1103,7 +1099,7 @@ protobuf, and returns it:
 
 ```rust
 use protobuf::{MessageDyn, MessageFull};
-use yara_x::CustomModule;
+use yara_x::YaraModule;
 use yara_x::errors::ModuleError;
 
 fn foobar_main(
@@ -1117,7 +1113,7 @@ fn foobar_main(
 }
 
 yara_x::inventory::submit! {
-    CustomModule {
+    YaraModule {
         name: "foobar",
         root_descriptor: Foobar::descriptor,
         main_fn: Some(foobar_main),
@@ -1170,12 +1166,12 @@ see [Valid function arguments](#valid-function-arguments) and
 
 For YARA to be able to find the functions you defined, you must tell the module
 which Rust path contains them. Set the `rust_module_name` field in your
-`CustomModule` submission to the value that `module_path!()` would expand to
+`YaraModule` submission to the value that `module_path!()` would expand to
 at the definition site of your functions:
 
 ```rust
 yara_x::inventory::submit! {
-    CustomModule {
+    YaraModule {
         name: "foobar",
         root_descriptor: Foobar::descriptor,
         main_fn: Some(foobar_main),

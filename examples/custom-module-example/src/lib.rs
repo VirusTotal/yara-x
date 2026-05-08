@@ -11,7 +11,7 @@
 
 use protobuf::MessageDyn;
 use protobuf::MessageFull;
-use yara_x::CustomModule;
+use yara_x::YaraModule;
 use yara_x::errors::ModuleError;
 
 pub mod proto {
@@ -42,7 +42,7 @@ pub mod fns {
 }
 
 yara_x::inventory::submit! {
-    CustomModule {
+    YaraModule {
         name: "foobar",
         root_descriptor: Foobar::descriptor,
         main_fn: Some(foobar_main),

@@ -858,3 +858,12 @@ fn exports_impl(
         })
         .map_or(Some((false, 0)), |(position, _)| Some((true, position)))
 }
+
+inventory::submit! {
+    super::YaraModule {
+        name: "pe",
+        root_descriptor: <PE as ::protobuf::MessageFull>::descriptor,
+        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
+}

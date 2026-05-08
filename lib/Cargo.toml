@@ -66,10 +66,6 @@ generate-proto-code = [
 # This feature is disabled by default.
 generate-module-docs = ["protoc"]
 
-# Enables registration of custom YARA-X modules from external crates via the
-# `CustomModule` API.
-custom-modules = []
-
 # Whether to use protoc for parsing and compiling .proto files. By default,
 # .proto files are parsed and compiled by the pure-Rust compiler implemented
 # by the `protobuf_codegen` crate. With this feature you can change this

@@ -269,3 +269,12 @@ fn registry_key_access_r(ctx: &ScanContext, regexp_id: RegexpId) -> i64 {
         })
         .unwrap_or(0)
 }
+
+inventory::submit! {
+    super::YaraModule {
+        name: "cuckoo",
+        root_descriptor: <Cuckoo as ::protobuf::MessageFull>::descriptor,
+        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
+}

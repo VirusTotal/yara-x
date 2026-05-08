@@ -530,3 +530,12 @@ mod tests {
         assert!(!squatting!("www.google.com", "www.goore.com"));
     }
 }
+
+inventory::submit! {
+    super::YaraModule {
+        name: "vt",
+        root_descriptor: <LiveHuntData as ::protobuf::MessageFull>::descriptor,
+        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
+}

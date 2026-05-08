@@ -262,3 +262,12 @@ fn checksum_data(ctx: &ScanContext, offset: i64, size: i64) -> Option<i64> {
 fn checksum_str(ctx: &ScanContext, s: RuntimeString) -> Option<i64> {
     Some(checksum32(s.as_bstr(ctx).as_bytes()).into())
 }
+
+inventory::submit! {
+    super::YaraModule {
+        name: "hash",
+        root_descriptor: <Hash as ::protobuf::MessageFull>::descriptor,
+        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
+}

@@ -20,9 +20,8 @@ path = "src/lib.rs"
 
 [dependencies]
 # `yara-x` is consumed via the workspace path so this example always builds
-# against the in-tree version. The `inventory` feature must be enabled (it is
-# part of the default features) so that the custom module can be registered.
-yara-x = { workspace = true, features = ["custom-modules"] }
+# against the in-tree version.
+yara-x = { workspace = true }
 # The `protobuf` crate is needed because the registered main function returns
 # a `Box<dyn protobuf::MessageDyn>` and to access `MessageFull::descriptor()`.
 protobuf = { workspace = true }

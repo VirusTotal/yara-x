@@ -12,7 +12,7 @@ use crate::compiler::ir::{IR, PatternIdx};
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{Warnings, ir};
 use crate::errors::{UnknownField, UnknownIdentifier};
-use crate::modules::BUILTIN_MODULES;
+use crate::modules::REGISTERED_MODULES;
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup};
 use crate::types::Type;
 use crate::wasm;
@@ -128,7 +128,7 @@ impl<'src> CompileContext<'_, 'src> {
                     self.report_builder.span_to_code_loc(ident.span()),
                     // Add a note about the missing import statement if
                     // the unknown identifier is a module name.
-                    if BUILTIN_MODULES.contains_key(ident.name) {
+                    if REGISTERED_MODULES.contains_key(ident.name) {
                         Some(format!(
                             "there is a module named `{}`, but the `import \"{}\"` statement is missing",
                             ident.name, ident.name
@@ -139,7 +139,7 @@ impl<'src> CompileContext<'_, 'src> {
                 );
                 // If the identifier is a known module, add a fix that inserts
                 // the import statement at the beginning of the file.
-                if BUILTIN_MODULES.contains_key(ident.name) {
+                if REGISTERED_MODULES.contains_key(ident.name) {
                     err.report_mut().patch(
                         self.report_builder.span_to_code_loc(Span(0..0)),
                         format!("import \"{}\"\n", ident.name),

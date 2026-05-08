@@ -22,3 +22,12 @@ fn main(
         }
     }
 }
+
+inventory::submit! {
+    super::YaraModule {
+        name: "dotnet",
+        root_descriptor: <Dotnet as ::protobuf::MessageFull>::descriptor,
+        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
+}

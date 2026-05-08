@@ -68,3 +68,12 @@ fn permhash(ctx: &ScanContext) -> Option<Lowercase<FixedLenString<64>>> {
 
     Some(Lowercase::<FixedLenString<64>>::new(digest))
 }
+
+inventory::submit! {
+    super::YaraModule {
+        name: "crx",
+        root_descriptor: <Crx as ::protobuf::MessageFull>::descriptor,
+        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
+}

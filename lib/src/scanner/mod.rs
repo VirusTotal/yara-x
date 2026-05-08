@@ -24,7 +24,7 @@ use thiserror::Error;
 
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
-use crate::modules::{BUILTIN_MODULES, Module, ModuleError};
+use crate::modules::{Module, ModuleError, REGISTERED_MODULES};
 use crate::scanner::context::create_wasm_store_and_ctx;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
@@ -403,7 +403,7 @@ impl<'r> Scanner<'r> {
 
         // Check if the protobuf message passed to this function corresponds
         // with any of the existing modules.
-        if !BUILTIN_MODULES
+        if !REGISTERED_MODULES
             .iter()
             .any(|m| m.1.root_struct_descriptor.full_name() == full_name)
         {
@@ -433,10 +433,10 @@ impl<'r> Scanner<'r> {
         // Try to find the module by name first, if not found, then try
         // to find a module where the fully-qualified name for its protobuf
         // message matches the `name` arguments.
-        let descriptor = if let Some(module) = BUILTIN_MODULES.get(name) {
+        let descriptor = if let Some(module) = REGISTERED_MODULES.get(name) {
             Some(&module.root_struct_descriptor)
         } else {
-            BUILTIN_MODULES.values().find_map(|module| {
+            REGISTERED_MODULES.values().find_map(|module| {
                 if module.root_struct_descriptor.full_name() == name {
                     Some(&module.root_struct_descriptor)
                 } else {
@@ -563,8 +563,8 @@ impl<'r> Scanner<'r> {
         ctx.scan_state = ScanState::ScanningData(data);
 
         for module_name in ctx.compiled_rules.imports() {
-            // Lookup the module in the list of built-in modules.
-            let module = modules::BUILTIN_MODULES
+            // Look up the module in the module registry.
+            let module = modules::REGISTERED_MODULES
                 .get(module_name)
                 .unwrap_or_else(|| panic!("module `{module_name}` not found"));
 
@@ -806,7 +806,7 @@ impl<'a, 'r> ScanResults<'a, 'r> {
         &self,
         module_name: &str,
     ) -> Option<&'a dyn MessageDyn> {
-        let module = BUILTIN_MODULES.get(module_name)?;
+        let module = REGISTERED_MODULES.get(module_name)?;
         let module_output = self
             .ctx
             .module_outputs
@@ -991,7 +991,7 @@ impl<'a, 'r> ModuleOutputs<'a, 'r> {
         Self {
             ctx,
             len: ctx.module_outputs.len(),
-            iterator: BUILTIN_MODULES.iter(),
+            iterator: REGISTERED_MODULES.iter(),
         }
     }
 }

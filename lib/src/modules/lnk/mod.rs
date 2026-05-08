@@ -27,3 +27,12 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Lnk, ModuleError> {
         }
     }
 }
+
+inventory::submit! {
+    super::YaraModule {
+        name: "lnk",
+        root_descriptor: <Lnk as ::protobuf::MessageFull>::descriptor,
+        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
+}

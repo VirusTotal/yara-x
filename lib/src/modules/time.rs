@@ -42,3 +42,12 @@ mod tests {
         );
     }
 }
+
+inventory::submit! {
+    super::YaraModule {
+        name: "time",
+        root_descriptor: <Time as ::protobuf::MessageFull>::descriptor,
+        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
+}

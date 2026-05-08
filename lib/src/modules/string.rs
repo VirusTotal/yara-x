@@ -104,3 +104,12 @@ mod tests {
         );
     }
 }
+
+inventory::submit! {
+    super::YaraModule {
+        name: "string",
+        root_descriptor: <crate::modules::protos::string::String as ::protobuf::MessageFull>::descriptor,
+        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
+}

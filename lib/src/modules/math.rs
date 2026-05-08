@@ -1013,3 +1013,12 @@ mod tests {
         );
     }
 }
+
+inventory::submit! {
+    super::YaraModule {
+        name: "math",
+        root_descriptor: <Math as ::protobuf::MessageFull>::descriptor,
+        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
+}

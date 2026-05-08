@@ -154,3 +154,12 @@ fn contains_class(
             .is_ok(),
     )
 }
+
+inventory::submit! {
+    super::YaraModule {
+        name: "dex",
+        root_descriptor: <Dex as ::protobuf::MessageFull>::descriptor,
+        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
+}

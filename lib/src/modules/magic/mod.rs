@@ -97,3 +97,12 @@ fn get_mime_type(data: &[u8]) -> Result<String, magic::cookie::Error> {
 
     MAGIC.with(|magic| magic.buffer(data))
 }
+
+inventory::submit! {
+    super::YaraModule {
+        name: "magic",
+        root_descriptor: <Magic as ::protobuf::MessageFull>::descriptor,
+        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
+}
