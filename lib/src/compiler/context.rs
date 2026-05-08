@@ -10,7 +10,7 @@ use yara_x_parser::ast::{Ident, WithSpan};
 use crate::compiler::errors::{CompileError, UnknownPattern};
 use crate::compiler::ir::{IR, PatternIdx};
 use crate::compiler::report::ReportBuilder;
-use crate::compiler::{Warnings, ir};
+use crate::compiler::{MatchTarget, RegexId, Warnings, ir};
 use crate::errors::{UnknownField, UnknownIdentifier};
 use crate::modules::BUILTIN_MODULES;
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup};
@@ -67,10 +67,11 @@ pub(crate) struct CompileContext<'a, 'src> {
     pub loop_iteration_multiplier: i64,
 
     /// Tracks regular expressions matched against specific canonical targets across all rules.
-    pub matches_by_target: &'a mut rustc_hash::FxHashMap<crate::compiler::MatchTarget, rustc_hash::FxHashSet<crate::compiler::RegexpId>>,
+    pub matches_by_target:
+        &'a mut rustc_hash::FxHashMap<MatchTarget, FxHashSet<RegexId>>,
 
     /// Pool for regular expressions.
-    pub regexp_pool: &'a mut crate::string_pool::StringPool<crate::compiler::RegexpId>,
+    pub regexp_pool: &'a mut crate::string_pool::StringPool<RegexId>,
 }
 
 impl<'src> CompileContext<'_, 'src> {

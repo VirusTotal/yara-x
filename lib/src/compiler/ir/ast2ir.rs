@@ -1909,15 +1909,14 @@ fn matches_expr_from_ast(
                 break;
             }
         }
-        if all_fields && !indices.is_empty() {
-            if let Expr::Const(TypeValue::Regexp(Some(re))) = ctx.ir.get(rhs) {
+        if all_fields && !indices.is_empty()
+            && let Expr::Const(TypeValue::Regexp(Some(re))) = ctx.ir.get(rhs) {
                 let re_id = ctx.regexp_pool.get_or_intern(re.as_str());
                 ctx.matches_by_target
                     .entry(crate::compiler::MatchTarget::FieldAccess(indices))
                     .or_default()
                     .insert(re_id);
             }
-        }
     }
 
     Ok(ctx.ir.matches(lhs, rhs))

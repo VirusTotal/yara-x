@@ -27,7 +27,7 @@ use crate::compiler::ir::{
 };
 use crate::compiler::{
     FieldAccess, ForVars, LiteralId, OfExprTuple, OfPatternSet, PatternId,
-    RegexpId, RuleId, RuleInfo, Var,
+    RegexId, RuleId, RuleInfo, Var,
 };
 use crate::scanner::RuntimeObjectHandle;
 use crate::string_pool::{BStringPool, StringPool};
@@ -205,7 +205,7 @@ pub(crate) struct EmitContext<'a> {
     pub wasm_exports: &'a FxHashMap<String, FunctionId>,
 
     /// Pool with regular expressions used in rule conditions.
-    pub regexp_pool: &'a mut StringPool<RegexpId>,
+    pub regexp_pool: &'a mut StringPool<RegexId>,
 
     /// Pool with literal strings used in the rules.
     pub lit_pool: &'a mut BStringPool<LiteralId>,

@@ -299,7 +299,7 @@ pub struct Compiler<'a> {
 
     /// Similar to `ident_pool` but for regular expressions found in rule
     /// conditions.
-    regexp_pool: StringPool<RegexpId>,
+    regexp_pool: StringPool<RegexId>,
 
     /// Similar to `ident_pool` but for string literals found in the source
     /// code. As literal strings in YARA can contain arbitrary bytes, a pool
@@ -418,7 +418,7 @@ pub struct Compiler<'a> {
     linters: Vec<Box<dyn linters::Linter + 'a>>,
 
     /// Tracks regular expressions matched against specific canonical targets across all rules.
-    matches_by_target: FxHashMap<MatchTarget, FxHashSet<RegexpId>>,
+    matches_by_target: FxHashMap<MatchTarget, FxHashSet<RegexId>>,
 }
 
 impl<'a> Compiler<'a> {
@@ -799,7 +799,7 @@ impl<'a> Compiler<'a> {
             if re_ids.len() > 1 {
                 let set_id = RegexSetId(next_set_id);
                 next_set_id += 1;
-                let sorted_re_ids: Vec<RegexpId> = re_ids.into_iter().collect();
+                let sorted_re_ids: Vec<RegexId> = re_ids.into_iter().collect();
                 for (index, &re_id) in sorted_re_ids.iter().enumerate() {
                     regexp_to_set.insert(re_id, (set_id, index));
                 }
@@ -2724,53 +2724,61 @@ impl From<RuleId> for i32 {
 }
 
 /// ID associated to each regexp used in a rule condition.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
-pub(crate) struct RegexpId(i32);
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub(crate) struct RegexId(i32);
 
-impl From<i32> for RegexpId {
+impl From<i32> for RegexId {
     #[inline]
     fn from(value: i32) -> Self {
         Self(value)
     }
 }
 
-impl From<u32> for RegexpId {
+impl From<u32> for RegexId {
     #[inline]
     fn from(value: u32) -> Self {
         Self(value.try_into().unwrap())
     }
 }
 
-impl From<i64> for RegexpId {
+impl From<i64> for RegexId {
     #[inline]
     fn from(value: i64) -> Self {
         Self(value.try_into().unwrap())
     }
 }
 
-impl From<RegexpId> for usize {
+impl From<RegexId> for usize {
     #[inline]
-    fn from(value: RegexpId) -> Self {
+    fn from(value: RegexId) -> Self {
         value.0 as usize
     }
 }
 
-impl From<RegexpId> for i32 {
+impl From<RegexId> for i32 {
     #[inline]
-    fn from(value: RegexpId) -> Self {
+    fn from(value: RegexId) -> Self {
         value.0
     }
 }
 
-impl From<RegexpId> for u32 {
+impl From<RegexId> for u32 {
     #[inline]
-    fn from(value: RegexpId) -> Self {
+    fn from(value: RegexId) -> Self {
         value.0.try_into().unwrap()
     }
 }
 
-/// ID associated to each RegexSet.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
+/// ID associated to each grouped `RegexSet`.
+///
+/// When compiling multiple rules, identical string expressions (such as a
+/// specific field access like `vt.net.domain.raw`) are frequently matched
+/// against multiple distinct regular expressions. To optimize these
+/// evaluations, the compiler identifies identical targets, assigns them a
+/// unique `RegexSetId`, and groups all their associated regular expressions
+/// together. At runtime, the entire set is evaluated simultaneously in a
+/// single pass.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub(crate) struct RegexSetId(i32);
 
 impl From<i32> for RegexSetId {
@@ -2794,8 +2802,12 @@ impl From<RegexSetId> for i32 {
     }
 }
 
-/// Canonical representation of a target expression (like a field access) that is matched against
-/// regular expressions.
+/// Canonical representation of an immutable target expression (such as a
+/// structure field access) that is matched against regular expressions.
+///
+/// This enum provides a safe, side-effect-free canonical identifier used
+/// during AST-to-IR translation to group multiple regular expressions
+/// matching the exact same target expression.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub(crate) enum MatchTarget {
     FieldAccess(Vec<i32>),

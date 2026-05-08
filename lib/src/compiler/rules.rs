@@ -18,8 +18,8 @@ use crate::compiler::errors::SerializationError;
 use crate::compiler::report::CodeLoc;
 use crate::compiler::warnings::Warning;
 use crate::compiler::{
-    IdentId, Imports, LiteralId, NamespaceId, PatternId, RegexpId, RuleId,
-    SubPattern, SubPatternId,
+    IdentId, Imports, LiteralId, NamespaceId, PatternId, RegexId, RegexSetId,
+    RuleId, SubPattern, SubPatternId,
 };
 use crate::models::PatternKind;
 use crate::re::{BckCodeLoc, FwdCodeLoc, RegexpAtom};
@@ -56,10 +56,10 @@ pub struct Rules {
     pub(in crate::compiler) ident_pool: StringPool<IdentId>,
 
     /// Pool with the regular expressions used in the rules conditions. Each
-    /// regular expression has its own [`RegexpId`]. Regular expressions
+    /// regular expression has its own [`RegexId`]. Regular expressions
     /// include the starting and ending slashes (`/`), and the modifiers
     /// `i` and `s` if present (e.g: `/foobar/`, `/foo/i`, `/bar/s`).
-    pub(in crate::compiler) regexp_pool: StringPool<RegexpId>,
+    pub(in crate::compiler) regexp_pool: StringPool<RegexId>,
 
     /// If `true`, the regular expressions in `regexp_pool` are allowed to
     /// contain invalid escape sequences.
@@ -156,11 +156,24 @@ pub struct Rules {
     #[serde(skip)]
     pub(in crate::compiler) warnings: Vec<Warning>,
 
-    /// Grouped RegexSet definitions. Keys are RegexSetId, values are lists of RegexpId.
-    pub(in crate::compiler) regex_sets: FxHashMap<crate::compiler::RegexSetId, Vec<crate::compiler::RegexpId>>,
+    /// Grouped `RegexSet` persistent definitions.
+    ///
+    /// Populated during `Compiler::build`, each entry maps a unique
+    /// `RegexSetId` to an ordered list of `RegexpId`s. All regular
+    /// expressions in a given set match the exact same target expression
+    /// in the source code, allowing them to be compiled into a unified
+    /// set automata for single-pass evaluation.
+    pub(in crate::compiler) regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
 
-    /// Maps each grouped RegexpId to its set membership and index.
-    pub(in crate::compiler) regexp_to_set: FxHashMap<crate::compiler::RegexpId, (crate::compiler::RegexSetId, usize)>,
+    /// Fast runtime mapping from an individual `RegexpId` to its grouped
+    /// set membership.
+    ///
+    /// The tuple holds the associated `RegexSetId` and the specific 0-based
+    /// index of this regular expression inside the compiled set. This allows
+    /// the scanner to instantly locate the cached short-circuiting boolean
+    /// match result without performing sequential evaluations.
+    pub(in crate::compiler) regexp_to_set:
+        FxHashMap<RegexId, (RegexSetId, usize)>,
 }
 
 impl Rules {
@@ -328,13 +341,13 @@ impl Rules {
         self.rules.get(rule_id.0 as usize).unwrap()
     }
 
-    /// Returns a regular expression by [`RegexpId`].
+    /// Returns a regular expression by [`RegexId`].
     ///
     /// # Panics
     ///
-    /// If no regular expression with such [`RegexpId`] exists.
+    /// If no regular expression with such [`RegexId`] exists.
     #[inline]
-    pub(crate) fn get_regexp(&self, regexp_id: RegexpId) -> Regex {
+    pub(crate) fn get_regexp(&self, regexp_id: RegexId) -> Regex {
         let re = types::Regexp::new(self.regexp_pool.get(regexp_id).unwrap());
 
         let parser = re::parser::Parser::new()
@@ -358,7 +371,10 @@ impl Rules {
 
     /// Returns a compiled multi-pattern `RegexSet` for a given `RegexSetId`.
     #[inline]
-    pub(crate) fn get_regex_set(&self, set_id: crate::compiler::RegexSetId) -> regex::bytes::RegexSet {
+    pub(crate) fn get_regex_set(
+        &self,
+        set_id: RegexSetId,
+    ) -> regex::bytes::RegexSet {
         let re_ids = self.regex_sets.get(&set_id).unwrap();
         let mut patterns = Vec::with_capacity(re_ids.len());
 
@@ -380,13 +396,15 @@ impl Rules {
 
     /// Returns the number of patterns in a given RegexSet.
     #[inline]
-    pub(crate) fn num_patterns_in_set(&self, set_id: crate::compiler::RegexSetId) -> usize {
+    pub(crate) fn num_patterns_in_set(&self, set_id: RegexSetId) -> usize {
         self.regex_sets.get(&set_id).unwrap().len()
     }
 
     /// Returns the mapping from RegexpId to its set membership and index.
     #[inline]
-    pub(crate) fn regexp_to_set(&self) -> &FxHashMap<crate::compiler::RegexpId, (crate::compiler::RegexSetId, usize)> {
+    pub(crate) fn regexp_to_set(
+        &self,
+    ) -> &FxHashMap<RegexId, (RegexSetId, usize)> {
         &self.regexp_to_set
     }
 

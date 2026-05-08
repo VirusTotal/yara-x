@@ -951,6 +951,7 @@ fn regex_set_optimization() {
     let mut scanner = crate::Scanner::new(&rules);
     let results = scanner.scan(b"").unwrap();
 
-    let matching_rules: Vec<_> = results.matching_rules().map(|r| r.identifier().to_string()).collect();
+    let matching_rules: Vec<_> =
+        results.matching_rules().map(|r| r.identifier().to_string()).collect();
     assert_eq!(matching_rules, vec!["test_match"]);
 }

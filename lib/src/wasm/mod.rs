@@ -89,7 +89,7 @@ use rustc_hash::FxHashMap;
 use smallvec::{SmallVec, smallvec};
 use yara_x_macros::wasm_export;
 
-use crate::compiler::{LiteralId, PatternId, RegexpId, RuleId};
+use crate::compiler::{LiteralId, PatternId, RegexId, RuleId};
 use crate::modules::BUILTIN_MODULES;
 use crate::scanner::{RuntimeObjectHandle, ScanContext};
 use crate::types::{
@@ -354,10 +354,10 @@ impl WasmArg<LiteralId> for ValRaw {
     }
 }
 
-impl WasmArg<RegexpId> for ValRaw {
+impl WasmArg<RegexId> for ValRaw {
     #[inline]
-    fn raw_into(self, _: &mut ScanContext) -> RegexpId {
-        RegexpId::from(self.get_i32())
+    fn raw_into(self, _: &mut ScanContext) -> RegexId {
+        RegexId::from(self.get_i32())
     }
 }
 
@@ -604,7 +604,7 @@ fn type_id_to_wasmtime(
         return &[ValType::I32];
     } else if type_id == TypeId::of::<RuleId>() {
         return &[ValType::I32];
-    } else if type_id == TypeId::of::<RegexpId>() {
+    } else if type_id == TypeId::of::<RegexId>() {
         return &[ValType::I32];
     } else if type_id == TypeId::of::<()>() {
         return &[];
@@ -1623,7 +1623,7 @@ pub(crate) fn str_len(
 pub(crate) fn str_matches(
     caller: &mut Caller<'_, ScanContext>,
     lhs: RuntimeString,
-    rhs: RegexpId,
+    rhs: RegexId,
 ) -> bool {
     let ctx = caller.data();
     ctx.regexp_matches(rhs, lhs.as_bstr(ctx))
