@@ -2179,40 +2179,23 @@ macro_rules! gen_n_ary_operation {
 
             // Make sure that all operands have one of the accepted types.
             for (hir, ast) in iter::zip(operands_hir.iter(), expr.operands()) {
-                check_type(ctx, *hir, ast.span(), accepted_types)?;
                 if let Some(check_fn) = check_fn {
                     check_fn(ctx, *hir, ast.span())?;
                 }
             }
 
-            // Iterate the operands in pairs (first, second), (second, third),
-            // (third, fourth), etc.
-            for ((lhs_hir, rhs_ast), (rhs_hir, lhs_ast)) in
+            for ((lhs_hir, lhs_ast), (rhs_hir, rhs_ast)) in
                 iter::zip(operands_hir.iter(), expr.operands()).tuple_windows()
             {
-                let lhs_ty = ctx.ir.get(*lhs_hir).ty();
-                let rhs_ty = ctx.ir.get(*rhs_hir).ty();
-
-                let types_are_compatible = {
-                    // If the types are the same, they are compatible.
-                    (lhs_ty == rhs_ty) ||
-                        // If the list of compatible types contains the pair
-                        // (lhs_ty, rhs_ty) or (rhs_ty, lhs_ty), they are
-                        // compatible.
-                        compatible_types.contains(&(lhs_ty, rhs_ty))
-                            || compatible_types.contains(&(rhs_ty, lhs_ty))
-
-                };
-
-                if !types_are_compatible {
-                    return Err(MismatchingTypes::build(
-                            ctx.report_builder,
-                            lhs_ty.to_string(),
-                            rhs_ty.to_string(),
-                            ctx.report_builder.span_to_code_loc(expr.first().span().combine(&lhs_ast.span())),
-                            ctx.report_builder.span_to_code_loc(rhs_ast.span()),
-                    ));
-                }
+                check_operands(
+                    ctx,
+                    *lhs_hir,
+                    *rhs_hir,
+                    expr.first().span().combine(&lhs_ast.span()),
+                    rhs_ast.span(),
+                    accepted_types,
+                    compatible_types,
+                )?;
             }
 
             ctx.ir.$variant(operands_hir).map_err(|err| {
@@ -2291,40 +2274,37 @@ fn or_expr_from_ast(
         (Type::Float, Type::Bool),
     ];
 
+    // Step 1: Validate operand types and emit standard warnings.
+    // Ensure all operands in the `or` expression conform to boolean-compatible
+    // types, checking for potential mismatches across adjacent pairs.
     let operands_hir: Vec<ExprId> = expr
         .operands()
         .map(|expr| expr_from_ast(ctx, expr))
         .collect::<Result<Vec<ExprId>, CompileError>>()?;
 
     for (hir, ast) in iter::zip(operands_hir.iter(), expr.operands()) {
-        check_type(ctx, *hir, ast.span(), accepted_types)?;
         let ty = ctx.ir.get(*hir).ty();
         warn_if_not_bool(ctx, ty, ast.span());
     }
 
-    for ((lhs_hir, rhs_ast), (rhs_hir, lhs_ast)) in
+    for ((lhs_hir, lhs_ast), (rhs_hir, rhs_ast)) in
         iter::zip(operands_hir.iter(), expr.operands()).tuple_windows()
     {
-        let lhs_ty = ctx.ir.get(*lhs_hir).ty();
-        let rhs_ty = ctx.ir.get(*rhs_hir).ty();
-
-        let types_are_compatible = (lhs_ty == rhs_ty)
-            || compatible_types.contains(&(lhs_ty, rhs_ty))
-            || compatible_types.contains(&(rhs_ty, lhs_ty));
-
-        if !types_are_compatible {
-            return Err(MismatchingTypes::build(
-                ctx.report_builder,
-                lhs_ty.to_string(),
-                rhs_ty.to_string(),
-                ctx.report_builder.span_to_code_loc(
-                    expr.first().span().combine(&lhs_ast.span()),
-                ),
-                ctx.report_builder.span_to_code_loc(rhs_ast.span()),
-            ));
-        }
+        check_operands(
+            ctx,
+            *lhs_hir,
+            *rhs_hir,
+            expr.first().span().combine(&lhs_ast.span()),
+            rhs_ast.span(),
+            accepted_types,
+            compatible_types,
+        )?;
     }
 
+    // Step 2: Group `matches` expressions by their target expression hash.
+    // Traverse the IR subtree for the left-hand side of each `matches` operand
+    // to compute a unique 64-bit hash. Operands sharing the identical target
+    // hash are aggregated together to identify potential multi-match sets.
     let mut matches_by_lhs: rustc_hash::FxHashMap<
         u64,
         Vec<(usize, ExprId, crate::compiler::RegexId)>,
@@ -2353,6 +2333,10 @@ fn or_expr_from_ast(
         }
     }
 
+    // Step 3: Collapse grouped regular expressions into `MatchesMany`.
+    // For any target expression associated with two or more regular expressions,
+    // construct a unified `RegexSet`, replace the individual `matches` nodes
+    // with a single `MatchesMany` expression, and record the collapsed indices.
     let mut final_operands = Vec::new();
     let mut collapsed_indices = rustc_hash::FxHashSet::default();
 
@@ -2375,6 +2359,10 @@ fn or_expr_from_ast(
         }
     }
 
+    // Step 4: Assemble final operands and construct the `or` expression.
+    // Preserve all non-collapsed operands in their original relative order. If
+    // all operands collapse into a single expression, return it directly without
+    // an wrapping `or` node.
     for (i, &op) in operands_hir.iter().enumerate() {
         if !collapsed_indices.contains(&i) {
             final_operands.push(op);
