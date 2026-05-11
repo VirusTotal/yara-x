@@ -59,9 +59,9 @@ pub struct Rules {
     /// regular expression has its own [`RegexId`]. Regular expressions
     /// include the starting and ending slashes (`/`), and the modifiers
     /// `i` and `s` if present (e.g: `/foobar/`, `/foo/i`, `/bar/s`).
-    pub(in crate::compiler) regexp_pool: StringPool<RegexId>,
+    pub(in crate::compiler) regex_pool: StringPool<RegexId>,
 
-    /// If `true`, the regular expressions in `regexp_pool` are allowed to
+    /// If `true`, the regular expressions in `regex_pool` are allowed to
     /// contain invalid escape sequences.
     pub(in crate::compiler) relaxed_re_syntax: bool,
 
@@ -338,7 +338,7 @@ impl Rules {
     /// If no regular expression with such [`RegexId`] exists.
     #[inline]
     pub(crate) fn get_regexp(&self, regexp_id: RegexId) -> Regex {
-        let re = types::Regexp::new(self.regexp_pool.get(regexp_id).unwrap());
+        let re = types::Regexp::new(self.regex_pool.get(regexp_id).unwrap());
 
         let parser = re::parser::Parser::new()
             .relaxed_re_syntax(self.relaxed_re_syntax);
@@ -369,7 +369,7 @@ impl Rules {
         let mut patterns = Vec::with_capacity(re_ids.len());
 
         for &re_id in re_ids {
-            let re = types::Regexp::new(self.regexp_pool.get(re_id).unwrap());
+            let re = types::Regexp::new(self.regex_pool.get(re_id).unwrap());
             let parser = re::parser::Parser::new()
                 .relaxed_re_syntax(self.relaxed_re_syntax);
             let hir = parser.parse(&re).unwrap().into_inner();

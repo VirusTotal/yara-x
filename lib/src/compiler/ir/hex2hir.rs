@@ -228,7 +228,7 @@ mod tests {
         let mut rule_patterns = vec![];
 
         let mut regex_sets = rustc_hash::FxHashMap::default();
-        let mut regexp_pool = crate::string_pool::StringPool::new();
+        let mut regex_pool = crate::string_pool::StringPool::new();
 
         let mut ctx = CompileContext {
             ir: &mut ir,
@@ -244,7 +244,7 @@ mod tests {
             for_of_depth: 0,
             loop_iteration_multiplier: 1,
             regex_sets: &mut regex_sets,
-            regexp_pool: &mut regexp_pool,
+            regex_pool: &mut regex_pool,
         };
 
         let mut pattern = HexPattern::new("test_ident");

@@ -299,7 +299,7 @@ pub struct Compiler<'a> {
 
     /// Similar to `ident_pool` but for regular expressions found in rule
     /// conditions.
-    regexp_pool: StringPool<RegexId>,
+    regex_pool: StringPool<RegexId>,
 
     /// Similar to `ident_pool` but for string literals found in the source
     /// code. As literal strings in YARA can contain arbitrary bytes, a pool
@@ -501,7 +501,7 @@ impl<'a> Compiler<'a> {
             root_struct: Struct::new().make_root(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
-            regexp_pool: StringPool::new(),
+            regex_pool: StringPool::new(),
             patterns: FxHashMap::default(),
             ir_writer: None,
             linters: Vec::new(),
@@ -799,7 +799,7 @@ impl<'a> Compiler<'a> {
             ac: None,
             num_patterns: self.next_pattern_id.0 as usize,
             ident_pool: self.ident_pool,
-            regexp_pool: self.regexp_pool,
+            regex_pool: self.regex_pool,
             lit_pool: self.lit_pool,
             imported_modules: self.imported_modules,
             rules: self.rules,
@@ -1534,7 +1534,7 @@ impl Compiler<'_> {
             features: &self.features,
             loop_iteration_multiplier: 1,
             regex_sets: &mut self.regex_sets,
-            regexp_pool: &mut self.regexp_pool,
+            regex_pool: &mut self.regex_pool,
         };
 
         // Convert the patterns from AST to IR. This populates the
@@ -1830,7 +1830,7 @@ impl Compiler<'_> {
         let mut ctx = EmitContext {
             current_rule: self.rules.last_mut().unwrap(),
             lit_pool: &mut self.lit_pool,
-            regexp_pool: &mut self.regexp_pool,
+            regex_pool: &mut self.regex_pool,
             wasm_symbols: &self.wasm_symbols,
             wasm_exports: &self.wasm_exports,
             exception_handler_stack: Vec::new(),
