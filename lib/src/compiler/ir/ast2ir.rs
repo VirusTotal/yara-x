@@ -3,13 +3,14 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::BTreeSet;
+use std::hash::{Hash, Hasher};
 use std::iter;
 use std::ops::RangeInclusive;
 use std::rc::Rc;
 
 use bstr::{BString, ByteSlice};
 use itertools::Itertools;
-
+use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use yara_x_parser::Span;
 use yara_x_parser::ast;
 use yara_x_parser::ast::WithSpan;
@@ -26,12 +27,12 @@ use crate::compiler::errors::{
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
     Error, Expr, ExprId, Iterable, LiteralPattern, MatchAnchor, Pattern,
-    PatternFlags, PatternInRule, Quantifier, Range, RegexpPattern,
+    PatternFlags, PatternInRule, Quantifier, Range, RegexpPattern, dfs,
 };
 use crate::compiler::report::{Level, ReportBuilder};
 use crate::compiler::{
     CompileContext, CompileError, FilesizeBounds, ForVars, PatternIdx,
-    TextPatternAsHex, warnings,
+    RegexId, RegexSetId, TextPatternAsHex, warnings,
 };
 use crate::errors::CustomError;
 use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
@@ -2179,40 +2180,23 @@ macro_rules! gen_n_ary_operation {
 
             // Make sure that all operands have one of the accepted types.
             for (hir, ast) in iter::zip(operands_hir.iter(), expr.operands()) {
-                check_type(ctx, *hir, ast.span(), accepted_types)?;
                 if let Some(check_fn) = check_fn {
                     check_fn(ctx, *hir, ast.span())?;
                 }
             }
 
-            // Iterate the operands in pairs (first, second), (second, third),
-            // (third, fourth), etc.
-            for ((lhs_hir, rhs_ast), (rhs_hir, lhs_ast)) in
+            for ((lhs_hir, lhs_ast), (rhs_hir, rhs_ast)) in
                 iter::zip(operands_hir.iter(), expr.operands()).tuple_windows()
             {
-                let lhs_ty = ctx.ir.get(*lhs_hir).ty();
-                let rhs_ty = ctx.ir.get(*rhs_hir).ty();
-
-                let types_are_compatible = {
-                    // If the types are the same, they are compatible.
-                    (lhs_ty == rhs_ty) ||
-                        // If the list of compatible types contains the pair
-                        // (lhs_ty, rhs_ty) or (rhs_ty, lhs_ty), they are
-                        // compatible.
-                        compatible_types.contains(&(lhs_ty, rhs_ty))
-                            || compatible_types.contains(&(rhs_ty, lhs_ty))
-
-                };
-
-                if !types_are_compatible {
-                    return Err(MismatchingTypes::build(
-                            ctx.report_builder,
-                            lhs_ty.to_string(),
-                            rhs_ty.to_string(),
-                            ctx.report_builder.span_to_code_loc(expr.first().span().combine(&lhs_ast.span())),
-                            ctx.report_builder.span_to_code_loc(rhs_ast.span()),
-                    ));
-                }
+                check_operands(
+                    ctx,
+                    *lhs_hir,
+                    *rhs_hir,
+                    expr.first().span().combine(&lhs_ast.span()),
+                    rhs_ast.span(),
+                    accepted_types,
+                    compatible_types,
+                )?;
             }
 
             ctx.ir.$variant(operands_hir).map_err(|err| {
@@ -2275,28 +2259,123 @@ gen_n_ary_operation!(
     })
 );
 
-gen_n_ary_operation!(
-    or_expr_from_ast,
-    or,
-    // Boolean operations accept integer, float and string operands.
-    // If operands are not boolean they are casted to boolean.
-    Type::Bool | Type::Integer | Type::Float | Type::String,
-    // All operand types can be mixed in a boolean operation, as they
-    // are casted to boolean anyways.
-    &[
+fn or_expr_from_ast(
+    ctx: &mut CompileContext,
+    expr: &ast::NAryExpr,
+) -> Result<ExprId, CompileError> {
+    let span = expr.span();
+    let accepted_types =
+        &[Type::Bool, Type::Integer, Type::Float, Type::String];
+    let compatible_types = &[
         (Type::Integer, Type::Bool),
         (Type::Integer, Type::Float),
         (Type::Integer, Type::String),
         (Type::String, Type::Bool),
         (Type::String, Type::Float),
-        (Type::Float, Type::Bool)
-    ],
-    Some(|ctx, operand, span| {
-        let ty = ctx.ir.get(operand).ty();
-        warn_if_not_bool(ctx, ty, span);
-        Ok(())
+        (Type::Float, Type::Bool),
+    ];
+
+    // Validate operand types and emit standard warnings. Ensure all operands
+    // in the `or` expression conform to boolean-compatible types, checking
+    // for potential mismatches across adjacent pairs.
+    let or_operands: Vec<ExprId> = expr
+        .operands()
+        .map(|expr| expr_from_ast(ctx, expr))
+        .collect::<Result<Vec<ExprId>, CompileError>>()?;
+
+    for (hir, ast) in iter::zip(or_operands.iter(), expr.operands()) {
+        let ty = ctx.ir.get(*hir).ty();
+        warn_if_not_bool(ctx, ty, ast.span());
+    }
+
+    for ((lhs_hir, lhs_ast), (rhs_hir, rhs_ast)) in
+        iter::zip(or_operands.iter(), expr.operands()).tuple_windows()
+    {
+        check_operands(
+            ctx,
+            *lhs_hir,
+            *rhs_hir,
+            expr.first().span().combine(&lhs_ast.span()),
+            rhs_ast.span(),
+            accepted_types,
+            compatible_types,
+        )?;
+    }
+
+    // Group `matches` expressions by their left-side operand. All the `matches`
+    // expressions sharing the same left-side operand will be aggregated together
+    // into a MatchMany operation that matches the left-side operand against
+    // a set of regular expressions.
+    let mut matches_by_lhs: FxHashMap<u64, Vec<(usize, ExprId, RegexId)>> =
+        FxHashMap::default();
+
+    for (i, &op) in or_operands.iter().enumerate() {
+        if let Expr::Matches { lhs, rhs } = ctx.ir.get(op)
+            && let Expr::Const(TypeValue::Regexp(Some(re))) = ctx.ir.get(*rhs)
+        {
+            let mut hasher = FxHasher::default();
+            for evt in ctx.ir.dfs_iter(*lhs) {
+                if let dfs::Event::Enter((_, expr, _)) = evt {
+                    Hash::hash(expr, &mut hasher);
+                }
+            }
+            let lhs_expr_hash = hasher.finish();
+            let re_id = ctx.regex_pool.get_or_intern(re.as_str());
+            matches_by_lhs
+                .entry(lhs_expr_hash)
+                .or_default()
+                .push((i, *lhs, re_id));
+        }
+    }
+
+    // Collapse grouped regular expressions into `MatchesMany`. For any target
+    // expression associated with two or more regular expressions, construct a
+    // unified `RegexSet`, replace the individual `matches` nodes with a single
+    // `MatchesMany` expression, and record the collapsed indices.
+    let mut final_operands = Vec::new();
+    let mut collapsed_indices = FxHashSet::default();
+
+    for (_, group) in matches_by_lhs {
+        if group.len() >= 2 {
+            let set_id = RegexSetId::from(ctx.regex_sets.len() as i32);
+            let re_ids: Vec<_> =
+                group.iter().map(|&(_, _, re_id)| re_id).collect();
+            ctx.regex_sets.insert(set_id, re_ids);
+
+            let first_lhs = group[0].1;
+            let multimatch = ctx.ir.matches_regex_set(first_lhs, set_id);
+
+            final_operands.push(multimatch);
+
+            for (i, _, _) in group {
+                collapsed_indices.insert(i);
+            }
+        }
+    }
+
+    // Assemble final operands and construct the `or` expression. Preserve all
+    // non-collapsed operands in their original relative order. If all operands
+    // collapse into a single expression, return it directly without a wrapping
+    // `or` node.
+    for (i, &op) in or_operands.iter().enumerate() {
+        if !collapsed_indices.contains(&i) {
+            final_operands.push(op);
+        }
+    }
+
+    if final_operands.len() == 1 {
+        return Ok(final_operands[0]);
+    }
+
+    ctx.ir.or(final_operands).map_err(|err| match err {
+        Error::NumberOutOfRange => NumberOutOfRange::build(
+            ctx.report_builder,
+            i64::MIN,
+            i64::MAX,
+            ctx.report_builder.span_to_code_loc(span),
+        ),
     })
-);
+}
 
 gen_unary_op!(minus_expr_from_ast, minus, Type::Integer | Type::Float, None);
 

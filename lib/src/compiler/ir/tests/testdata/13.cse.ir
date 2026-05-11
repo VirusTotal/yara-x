@@ -1,21 +1,45 @@
 RULE test_1
-  5: CONTAINS -- hash: 0x3440798238ccebd2
-    2: FIELD_ACCESS -- hash: 0x25755b6a17796151
+  5: CONTAINS -- hash: 0x6cf3f481c6c2a8f5
+    2: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
       1: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
     4: CONST string("foobar")
 
 RULE test_2
-  5: ICONTAINS -- hash: 0x44ba48d96f7403f2
-    2: FIELD_ACCESS -- hash: 0x25755b6a17796151
+  5: ICONTAINS -- hash: 0x7d6dc3d8f969c115
+    2: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
       1: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
     4: CONST string("foobar")
 
 RULE test_3
-  4: MATCHES -- hash: 0x53bd9f971ea374fb
-    2: FIELD_ACCESS -- hash: 0x25755b6a17796151
+  16: OR -- hash: 0x5ab1605c802edf6b
+    15: MATCHES_MANY RegexSetId(0) -- hash: 0x3c6728168e1bb284
+      7: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
+        5: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+        6: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+    4: EQ -- hash: 0x2e8ba46ec7871b51
+      2: FIELD_ACCESS -- hash: 0xcfb0ade44793171f
+        0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+        1: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
+      3: CONST integer(0)
+
+RULE test_4
+  10: MATCHES_MANY RegexSetId(1) -- hash: 0x3c6728168e1bb284
+    2: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
       1: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
-    3: CONST regexp(Regexp("/foo.bar/"))
+
+RULE test_5
+  10: OR -- hash: 0xb05e2359598bbe0c
+    4: MATCHES -- hash: 0x8c711a96a899321e
+      2: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
+        0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+        1: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+      3: CONST regexp(Regexp("/foo.bar/"))
+    9: MATCHES -- hash: 0xfc728e04038b39b7
+      7: FIELD_ACCESS -- hash: 0x3edc21ca56e97069
+        5: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+        6: SYMBOL Field { index: 37, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+      8: CONST regexp(Regexp("/bar.baz/"))
 

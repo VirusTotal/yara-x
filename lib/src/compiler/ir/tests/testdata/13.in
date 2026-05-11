@@ -12,5 +12,19 @@ rule test_2 {
 
 rule test_3 {
     condition:
-        test_proto2.string_foo matches /foo.bar/
+        test_proto2.int64_zero == 0 or
+        test_proto2.string_foo matches /foo.bar/i or
+        test_proto2.string_foo matches /bar.baz/
+}
+
+rule test_4 {
+    condition:
+        test_proto2.string_foo matches /foo.bar/ or
+        test_proto2.string_foo matches /bar.baz/
+}
+
+rule test_5 {
+    condition:
+        test_proto2.string_foo matches /foo.bar/ or
+        test_proto2.string_bar matches /bar.baz/
 }

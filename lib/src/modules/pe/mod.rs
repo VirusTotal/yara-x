@@ -16,7 +16,7 @@ use nom::character::complete::u8;
 use nom::combinator::map;
 use nom::number::complete::{le_u16, le_u32};
 
-use crate::compiler::RegexpId;
+use crate::compiler::RegexId;
 use crate::modules::prelude::*;
 use crate::modules::protos::pe::*;
 use crate::types::Struct;
@@ -321,7 +321,6 @@ fn rich_version(ctx: &mut ScanContext, version: i64) -> Option<i64> {
     rich_version_impl(ctx.module_output::<PE>()?, None, Some(version))
 }
 
-
 /// Returns the number of toolid records matching the given toolid and version.
 #[module_export(name = "rich_signature.version")]
 fn rich_version_toolid(
@@ -433,8 +432,8 @@ fn standard_imports_ordinal(
 #[module_export(name = "imports")]
 fn standard_imports_regexp(
     ctx: &ScanContext,
-    dll_name: RegexpId,
-    func_name: RegexpId,
+    dll_name: RegexId,
+    func_name: RegexId,
 ) -> Option<i64> {
     imports_impl(
         ctx,
@@ -519,8 +518,8 @@ fn imports_ordinal(
 fn imports_regexp(
     ctx: &ScanContext,
     import_flags: i64,
-    dll_name: RegexpId,
-    func_name: RegexpId,
+    dll_name: RegexId,
+    func_name: RegexId,
 ) -> Option<i64> {
     imports_impl(
         ctx,
@@ -620,7 +619,7 @@ fn exports_ordinal(ctx: &ScanContext, ordinal: i64) -> Option<bool> {
 /// Returns true if the PE file exports a function with a name that matches
 /// the given regular expression.
 #[module_export(name = "exports")]
-fn exports_regexp(ctx: &ScanContext, func_name: RegexpId) -> Option<bool> {
+fn exports_regexp(ctx: &ScanContext, func_name: RegexId) -> Option<bool> {
     let (found, _) = exports_impl(ctx, MatchCriteria::Regexp(func_name))?;
     Some(found)
 }
@@ -649,10 +648,7 @@ fn exports_index_ordinal(ctx: &ScanContext, ordinal: i64) -> Option<i64> {
 /// Returns true if the PE file exports a function with a name that matches
 /// the given regular expression.
 #[module_export(name = "exports_index")]
-fn exports_index_regexp(
-    ctx: &ScanContext,
-    func_name: RegexpId,
-) -> Option<i64> {
+fn exports_index_regexp(ctx: &ScanContext, func_name: RegexId) -> Option<i64> {
     match exports_impl(ctx, MatchCriteria::Regexp(func_name)) {
         Some((true, position)) => Some(position as i64),
         _ => None,
@@ -718,7 +714,7 @@ fn valid_on(
 
 enum MatchCriteria<'a> {
     Any,
-    Regexp(RegexpId),
+    Regexp(RegexId),
     Name(&'a BStr),
     Ordinal(i64),
 }
