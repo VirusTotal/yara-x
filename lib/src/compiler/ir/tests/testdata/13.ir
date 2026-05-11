@@ -7,7 +7,7 @@ RULE test_1
 
 RULE test_2
   16: OR -- hash: 0x5ab1605c802edf6b
-    15: MATCHES_MANY -- hash: 0x3c6728168e1bb284
+    15: MATCHES_MANY RegexSetId(0) -- hash: 0x3c6728168e1bb284
       7: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
         5: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
         6: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }

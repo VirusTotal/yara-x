@@ -2014,7 +2014,7 @@ impl Debug for IR {
                         Expr::IEndsWith { .. } => writeln!(f, "IENDS_WITH -- hash: {expr_hash:#08x}")?,
                         Expr::IEquals { .. } => writeln!(f, "IEQUALS -- hash: {expr_hash:#08x}")?,
                         Expr::Matches { .. } => writeln!(f, "MATCHES -- hash: {expr_hash:#08x}")?,
-                        Expr::MatchesMany { .. } => writeln!(f, "MATCHES_MANY -- hash: {expr_hash:#08x}")?,
+                        Expr::MatchesMany { regex_set, .. } => writeln!(f, "MATCHES_MANY RegexSetId({}) -- hash: {expr_hash:#08x}", usize::from(*regex_set))?,
                         Expr::Defined { .. } => writeln!(f, "DEFINED -- hash: {expr_hash:#08x}")?,
                         Expr::FieldAccess { .. } => writeln!(f, "FIELD_ACCESS -- hash: {expr_hash:#08x}")?,
                         Expr::With { .. } => writeln!(f, "WITH -- hash: {expr_hash:#08x}")?,
