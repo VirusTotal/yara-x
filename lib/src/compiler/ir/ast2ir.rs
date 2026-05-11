@@ -2368,13 +2368,13 @@ fn or_expr_from_ast(
             if let Some(target) = target
                 && let Expr::Const(TypeValue::Regexp(Some(re))) =
                     ctx.ir.get(*rhs)
-                {
-                    let re_id = ctx.regexp_pool.get_or_intern(re.as_str());
-                    matches_by_lhs
-                        .entry(target)
-                        .or_default()
-                        .push((i, *lhs, re_id));
-                }
+            {
+                let re_id = ctx.regexp_pool.get_or_intern(re.as_str());
+                matches_by_lhs
+                    .entry(target)
+                    .or_default()
+                    .push((i, *lhs, re_id));
+            }
         }
     }
 
