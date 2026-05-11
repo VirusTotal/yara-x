@@ -1535,7 +1535,6 @@ impl Compiler<'_> {
             loop_iteration_multiplier: 1,
             regex_sets: &mut self.regex_sets,
             regexp_pool: &mut self.regexp_pool,
-            current_namespace_id: self.current_namespace.id,
         };
 
         // Convert the patterns from AST to IR. This populates the
@@ -2791,17 +2790,6 @@ impl From<RegexSetId> for i32 {
     fn from(value: RegexSetId) -> Self {
         value.0
     }
-}
-
-/// Canonical representation of an immutable target expression (such as a
-/// structure field access) that is matched against regular expressions.
-///
-/// This enum provides a safe, side-effect-free canonical identifier used
-/// during AST-to-IR translation to group multiple regular expressions
-/// matching the exact same target expression.
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub(crate) enum MatchTarget {
-    FieldAccess(NamespaceId, Vec<i32>),
 }
 
 /// ID associated to each pattern.

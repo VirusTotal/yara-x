@@ -245,7 +245,6 @@ mod tests {
             loop_iteration_multiplier: 1,
             regex_sets: &mut regex_sets,
             regexp_pool: &mut regexp_pool,
-            current_namespace_id: crate::compiler::NamespaceId::from(0),
         };
 
         let mut pattern = HexPattern::new("test_ident");

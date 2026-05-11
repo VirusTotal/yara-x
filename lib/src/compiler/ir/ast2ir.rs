@@ -2326,48 +2326,23 @@ fn or_expr_from_ast(
     }
 
     let mut matches_by_lhs: rustc_hash::FxHashMap<
-        crate::compiler::MatchTarget,
+        u64,
         Vec<(usize, ExprId, crate::compiler::RegexId)>,
     > = rustc_hash::FxHashMap::default();
 
     for (i, &op) in operands_hir.iter().enumerate() {
         if let Expr::Matches { lhs, rhs } = ctx.ir.get(op) {
-            let target = match ctx.ir.get(*lhs) {
-                Expr::FieldAccess(fa) => {
-                    let mut indices = Vec::new();
-                    let mut all_fields = true;
-                    for &fa_op in &fa.operands {
-                        if let Expr::Symbol(symbol) = ctx.ir.get(fa_op) {
-                            if let crate::symbols::Symbol::Field {
-                                index,
-                                ..
-                            } = symbol.as_ref()
-                            {
-                                indices.push(*index as i32);
-                            } else {
-                                all_fields = false;
-                                break;
-                            }
-                        } else {
-                            all_fields = false;
-                            break;
-                        }
-                    }
-                    if all_fields && !indices.is_empty() {
-                        Some(crate::compiler::MatchTarget::FieldAccess(
-                            ctx.current_namespace_id,
-                            indices,
-                        ))
-                    } else {
-                        None
-                    }
+            let mut hasher = rustc_hash::FxHasher::default();
+            for evt in ctx.ir.dfs_iter(*lhs) {
+                if let crate::compiler::ir::dfs::Event::Enter((_, expr, _)) =
+                    evt
+                {
+                    std::hash::Hash::hash(expr, &mut hasher);
                 }
-                _ => None,
-            };
+            }
+            let target = std::hash::Hasher::finish(&hasher);
 
-            if let Some(target) = target
-                && let Expr::Const(TypeValue::Regexp(Some(re))) =
-                    ctx.ir.get(*rhs)
+            if let Expr::Const(TypeValue::Regexp(Some(re))) = ctx.ir.get(*rhs)
             {
                 let re_id = ctx.regexp_pool.get_or_intern(re.as_str());
                 matches_by_lhs
