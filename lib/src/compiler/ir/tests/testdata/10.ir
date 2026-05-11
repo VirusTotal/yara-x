@@ -1,5 +1,5 @@
 RULE test
-  13: FOR_IN -- hash: 0x12dbfc09ed5ac100
+  13: FOR_IN -- hash: 0xfd14d4882d1f6026
         n: Var { frame_id: 1, ty: integer, index: 0 }
         i: Var { frame_id: 1, ty: integer, index: 1 }
         max_count: Var { frame_id: 1, ty: integer, index: 2 }
@@ -7,15 +7,15 @@ RULE test
         item: Var { frame_id: 1, ty: unknown, index: 4 }
     0: CONST integer(1)
     1: CONST integer(10)
-    12: WITH -- hash: 0xac40a564e67960e7
-      6: FN_CALL uint32@offset:i@i:R0:4294967295u -- hash: 0xdb7bdb9e18e2be98
-        5: ADD -- hash: 0x685e7a2ba5a36f1d
-          3: PATTERN_OFFSET PatternIdx(0) INDEX -- hash: 0x7cb6e22690df7f1b
+    12: WITH -- hash: 0xe5f28003804fec06
+      6: FN_CALL uint32@offset:i@i:R0:4294967295u -- hash: 0xedfbb8eef52ecd47
+        5: ADD -- hash: 0xd087500d7c07b7de
+          3: PATTERN_OFFSET PatternIdx(0) INDEX -- hash: 0x96059519ea655987
             2: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
           4: CONST integer(16)
-      8: FN_CALL uint32be@offset:i@i:R0:4294967295u -- hash: 0x954bbb64201a5bf8
+      8: FN_CALL uint32be@offset:i@i:R0:4294967295u -- hash: 0xae9a6e5779a03664
         7: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 7 }, type_value: integer(unknown) }
-      11: NE -- hash: 0xe0b33818592dcf55
+      11: NE -- hash: 0x2475e24cefdb3f3e
         9: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 8 }, type_value: integer(unknown) }
         10: CONST integer(1347092738)
 

@@ -1629,6 +1629,19 @@ pub(crate) fn str_matches(
     ctx.regexp_matches(rhs, lhs.as_bstr(ctx))
 }
 
+#[wasm_export(sync = "none")]
+pub(crate) fn str_matches_regex_set(
+    caller: &mut Caller<'_, ScanContext>,
+    lhs: RuntimeString,
+    regex_set: i32,
+) -> bool {
+    let ctx = caller.data();
+    ctx.regex_set_matches(
+        crate::compiler::RegexSetId::from(regex_set),
+        lhs.as_bstr(ctx),
+    )
+}
+
 macro_rules! gen_int_fn {
     ($name:ident, $return_type:ty, $from_fn:ident, $min:expr, $max:expr) => {
         #[wasm_export(public = true, sync = "none")]

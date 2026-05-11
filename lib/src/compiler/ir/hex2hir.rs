@@ -227,7 +227,7 @@ mod tests {
         let mut warnings = Warnings::default();
         let mut rule_patterns = vec![];
 
-        let mut matches_by_target = rustc_hash::FxHashMap::default();
+        let mut regex_sets = rustc_hash::FxHashMap::default();
         let mut regexp_pool = crate::string_pool::StringPool::new();
 
         let mut ctx = CompileContext {
@@ -243,7 +243,7 @@ mod tests {
             vars: VarStack::new(),
             for_of_depth: 0,
             loop_iteration_multiplier: 1,
-            matches_by_target: &mut matches_by_target,
+            regex_sets: &mut regex_sets,
             regexp_pool: &mut regexp_pool,
             current_namespace_id: crate::compiler::NamespaceId::from(0),
         };

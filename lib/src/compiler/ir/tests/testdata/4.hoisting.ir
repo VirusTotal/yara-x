@@ -1,30 +1,30 @@
 RULE test
-  52: WITH -- hash: 0x9bec9656dce82b6d
-    2: FIELD_ACCESS -- hash: 0x30adb8d0b7ea7b20
+  52: WITH -- hash: 0x1acaee9d74592e85
+    2: FIELD_ACCESS -- hash: 0x9536d86a9309eb4b
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
       1: SYMBOL Field { index: 12, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
-    51: AND -- hash: 0x2eaeb74b847a4d38
-      54: WITH -- hash: 0x1146bb568254efab
-        53: FN_CALL test_proto2.add@a:i,b:i@i -- hash: 0x261e822f79c74aad
+    51: AND -- hash: 0xbfa2a96d5ec5eb5a
+      54: WITH -- hash: 0x5d2d568b16aad491
+        53: FN_CALL test_proto2.add@a:i,b:i@i -- hash: 0x5c8149efefc0401a
           9: CONST integer(1)
           10: CONST integer(2)
-        56: WITH -- hash: 0x58086382660011ee
-          55: EQ -- hash: 0xb06f506b571835e5
+        56: WITH -- hash: 0x6f43aacfc1ebf6d3
+          55: EQ -- hash: 0xf431fa9fe9c5a5cd
             11: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 1 }, type_value: integer(unknown) }
             12: CONST integer(3)
-          58: WITH -- hash: 0xa1db54bedd6f6be6
-            57: FIELD_ACCESS -- hash: 0xc6f26b43ef493d46
+          58: WITH -- hash: 0x4587a6dd1220bf55
+            57: FIELD_ACCESS -- hash: 0x2b7b8addca68ad72
               14: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
               15: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None, deprecation_notice: None }
-            60: WITH -- hash: 0x1ce3fc3e2ea805f6
-              59: ADD -- hash: 0x1f8003fe2da19d98
+            60: WITH -- hash: 0x93f86553a3dd1bcc
+              59: ADD -- hash: 0x6342ae32c04f0d80
                 16: SYMBOL Var { var: Var { frame_id: 0, ty: float, index: 3 }, type_value: float(unknown) }
                 17: CONST integer(1)
-              62: WITH -- hash: 0x6b8d39516e40d5c4
-                61: EQ -- hash: 0xe816c5b8c599086e
+              62: WITH -- hash: 0x845b7b0b5b4bd2b3
+                61: EQ -- hash: 0x2bd96fed58467857
                   18: SYMBOL Var { var: Var { frame_id: 0, ty: float, index: 4 }, type_value: float(unknown) }
                   19: CONST float(1.0)
-                22: FOR_IN -- hash: 0x7972839ab6e7e7fd
+                22: FOR_IN -- hash: 0x88b54dd178f52a83
                       n: Var { frame_id: 2, ty: integer, index: 6 }
                       i: Var { frame_id: 2, ty: integer, index: 7 }
                       max_count: Var { frame_id: 2, ty: integer, index: 8 }
@@ -32,37 +32,37 @@ RULE test
                       item: Var { frame_id: 2, ty: unknown, index: 10 }
                   3: CONST integer(0)
                   4: CONST integer(1)
-                  21: AND -- hash: 0x1f1a3d4b94bd6cf0
-                    7: EQ -- hash: 0xd0eb828214f0d7a6
+                  21: AND -- hash: 0x3c7a64c544cdef7b
+                    7: EQ -- hash: 0x46f8f3efcc8b4028
                       5: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 11 }, type_value: integer(unknown) }
                       6: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 0 }, type_value: integer(unknown) }
                     13: SYMBOL Var { var: Var { frame_id: 0, ty: boolean, index: 2 }, type_value: boolean(unknown) }
                     20: SYMBOL Var { var: Var { frame_id: 0, ty: boolean, index: 5 }, type_value: boolean(unknown) }
-      64: WITH -- hash: 0x2e00596c13d056e8
-        63: FN_CALL test_proto2.add@a:i,b:i@i -- hash: 0x261e822f79c74aad
+      64: WITH -- hash: 0x8cd2ba2f740ac463
+        63: FN_CALL test_proto2.add@a:i,b:i@i -- hash: 0x5c8149efefc0401a
           26: CONST integer(1)
           27: CONST integer(2)
-        66: WITH -- hash: 0xa0cb3969e5369c8a
-          65: NE -- hash: 0x4025089ffe7b584c
+        66: WITH -- hash: 0x4e06ca45f1f850c0
+          65: NE -- hash: 0x83e7b2d49128c834
             28: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 1 }, type_value: integer(unknown) }
             29: CONST integer(0)
-          68: WITH -- hash: 0xbe545e6656880f10
-            67: FIELD_ACCESS -- hash: 0xc6f26b43ef493d46
+          68: WITH -- hash: 0x12d76de8d989d928
+            67: FIELD_ACCESS -- hash: 0x2b7b8addca68ad72
               31: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
               32: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None, deprecation_notice: None }
-            70: WITH -- hash: 0x7fbe51166763ccd6
-              69: ADD -- hash: 0x1f8003fe2da19d98
+            70: WITH -- hash: 0x8b79fc2b2a9a664c
+              69: ADD -- hash: 0x6342ae32c04f0d80
                 33: SYMBOL Var { var: Var { frame_id: 0, ty: float, index: 3 }, type_value: float(unknown) }
                 34: CONST integer(1)
-              72: WITH -- hash: 0x63ffb8d4a4cb6c5e
-                71: EQ -- hash: 0xe816c5b8c599086e
+              72: WITH -- hash: 0x1a531251020d8904
+                71: EQ -- hash: 0x2bd96fed58467857
                   35: SYMBOL Var { var: Var { frame_id: 0, ty: float, index: 4 }, type_value: float(unknown) }
                   36: CONST float(1.0)
-                74: WITH -- hash: 0x17995e0bce4825aa
-                  73: OR -- hash: 0xd0741b62865f08c0
+                74: WITH -- hash: 0x84af01aaa1557339
+                  73: OR -- hash: 0x46818cd03df97142
                     30: SYMBOL Var { var: Var { frame_id: 0, ty: boolean, index: 2 }, type_value: boolean(unknown) }
                     37: SYMBOL Var { var: Var { frame_id: 0, ty: boolean, index: 5 }, type_value: boolean(unknown) }
-                  39: FOR_IN -- hash: 0x2a20d32365a87a56
+                  39: FOR_IN -- hash: 0xc0a2f3d63c79049b
                         n: Var { frame_id: 3, ty: integer, index: 7 }
                         i: Var { frame_id: 3, ty: integer, index: 8 }
                         max_count: Var { frame_id: 3, ty: integer, index: 9 }
@@ -71,22 +71,22 @@ RULE test
                     23: CONST integer(0)
                     24: CONST integer(1)
                     38: SYMBOL Var { var: Var { frame_id: 0, ty: boolean, index: 6 }, type_value: boolean(unknown) }
-      76: WITH -- hash: 0x3b6309a759bbc3d2
-        75: FIELD_ACCESS -- hash: 0xc6f26b43ef493d46
+      76: WITH -- hash: 0x10fe4080a968c37f
+        75: FIELD_ACCESS -- hash: 0x2b7b8addca68ad72
           42: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
           43: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None, deprecation_notice: None }
-        78: WITH -- hash: 0x59cd414d2af5d69f
-          77: ADD -- hash: 0x4729d17687d014e8
+        78: WITH -- hash: 0xf30ed907b91851c2
+          77: ADD -- hash: 0x8aec7bab1a7d84d0
             44: SYMBOL Var { var: Var { frame_id: 0, ty: float, index: 1 }, type_value: float(unknown) }
             45: CONST integer(1)
-          80: WITH -- hash: 0xa380abf1d2c9b2cc
-            79: EQ -- hash: 0xfc093311e38bfbf
+          80: WITH -- hash: 0xf12466569870a5fe
+            79: EQ -- hash: 0x53833d65b0e62fa7
               46: SYMBOL Var { var: Var { frame_id: 0, ty: float, index: 2 }, type_value: float(unknown) }
               47: CONST float(2.0)
-            82: WITH -- hash: 0x821acdcbe1f11e6b
-              81: NOT -- hash: 0xa950472dd0663d8b
+            82: WITH -- hash: 0xc1f03b5e40c18ebc
+              81: NOT -- hash: 0x957b6071a54f01e3
                 48: SYMBOL Var { var: Var { frame_id: 0, ty: boolean, index: 3 }, type_value: boolean(unknown) }
-              50: FOR_IN -- hash: 0xd8adbdd53e1ece7e
+              50: FOR_IN -- hash: 0x6f2fde8814ef58c4
                     n: Var { frame_id: 4, ty: integer, index: 5 }
                     i: Var { frame_id: 4, ty: integer, index: 6 }
                     max_count: Var { frame_id: 4, ty: integer, index: 7 }

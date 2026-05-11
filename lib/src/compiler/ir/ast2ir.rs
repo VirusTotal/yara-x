@@ -1893,37 +1893,6 @@ fn matches_expr_from_ast(
         }
     }
 
-    if let Expr::FieldAccess(field_access) = ctx.ir.get(lhs) {
-        let mut indices = Vec::new();
-        let mut all_fields = true;
-        for operand in &field_access.operands {
-            if let Expr::Symbol(symbol) = ctx.ir.get(*operand) {
-                if let Symbol::Field { index, .. } = symbol.as_ref() {
-                    indices.push(*index as i32);
-                } else {
-                    all_fields = false;
-                    break;
-                }
-            } else {
-                all_fields = false;
-                break;
-            }
-        }
-        if all_fields
-            && !indices.is_empty()
-            && let Expr::Const(TypeValue::Regexp(Some(re))) = ctx.ir.get(rhs)
-        {
-            let re_id = ctx.regexp_pool.get_or_intern(re.as_str());
-            ctx.matches_by_target
-                .entry(crate::compiler::MatchTarget::FieldAccess(
-                    ctx.current_namespace_id,
-                    indices,
-                ))
-                .or_default()
-                .insert(re_id);
-        }
-    }
-
     Ok(ctx.ir.matches(lhs, rhs))
 }
 
@@ -2306,28 +2275,152 @@ gen_n_ary_operation!(
     })
 );
 
-gen_n_ary_operation!(
-    or_expr_from_ast,
-    or,
-    // Boolean operations accept integer, float and string operands.
-    // If operands are not boolean they are casted to boolean.
-    Type::Bool | Type::Integer | Type::Float | Type::String,
-    // All operand types can be mixed in a boolean operation, as they
-    // are casted to boolean anyways.
-    &[
+fn or_expr_from_ast(
+    ctx: &mut CompileContext,
+    expr: &ast::NAryExpr,
+) -> Result<ExprId, CompileError> {
+    let span = expr.span();
+    let accepted_types =
+        &[Type::Bool, Type::Integer, Type::Float, Type::String];
+    let compatible_types = &[
         (Type::Integer, Type::Bool),
         (Type::Integer, Type::Float),
         (Type::Integer, Type::String),
         (Type::String, Type::Bool),
         (Type::String, Type::Float),
-        (Type::Float, Type::Bool)
-    ],
-    Some(|ctx, operand, span| {
-        let ty = ctx.ir.get(operand).ty();
-        warn_if_not_bool(ctx, ty, span);
-        Ok(())
+        (Type::Float, Type::Bool),
+    ];
+
+    let operands_hir: Vec<ExprId> = expr
+        .operands()
+        .map(|expr| expr_from_ast(ctx, expr))
+        .collect::<Result<Vec<ExprId>, CompileError>>()?;
+
+    for (hir, ast) in iter::zip(operands_hir.iter(), expr.operands()) {
+        check_type(ctx, *hir, ast.span(), accepted_types)?;
+        let ty = ctx.ir.get(*hir).ty();
+        warn_if_not_bool(ctx, ty, ast.span());
+    }
+
+    for ((lhs_hir, rhs_ast), (rhs_hir, lhs_ast)) in
+        iter::zip(operands_hir.iter(), expr.operands()).tuple_windows()
+    {
+        let lhs_ty = ctx.ir.get(*lhs_hir).ty();
+        let rhs_ty = ctx.ir.get(*rhs_hir).ty();
+
+        let types_are_compatible = (lhs_ty == rhs_ty)
+            || compatible_types.contains(&(lhs_ty, rhs_ty))
+            || compatible_types.contains(&(rhs_ty, lhs_ty));
+
+        if !types_are_compatible {
+            return Err(MismatchingTypes::build(
+                ctx.report_builder,
+                lhs_ty.to_string(),
+                rhs_ty.to_string(),
+                ctx.report_builder.span_to_code_loc(
+                    expr.first().span().combine(&lhs_ast.span()),
+                ),
+                ctx.report_builder.span_to_code_loc(rhs_ast.span()),
+            ));
+        }
+    }
+
+    let mut matches_by_lhs: rustc_hash::FxHashMap<
+        crate::compiler::MatchTarget,
+        Vec<(usize, ExprId, crate::compiler::RegexId)>,
+    > = rustc_hash::FxHashMap::default();
+
+    for (i, &op) in operands_hir.iter().enumerate() {
+        if let Expr::Matches { lhs, rhs } = ctx.ir.get(op) {
+            let target = match ctx.ir.get(*lhs) {
+                Expr::FieldAccess(fa) => {
+                    let mut indices = Vec::new();
+                    let mut all_fields = true;
+                    for &fa_op in &fa.operands {
+                        if let Expr::Symbol(symbol) = ctx.ir.get(fa_op) {
+                            if let crate::symbols::Symbol::Field {
+                                index,
+                                ..
+                            } = symbol.as_ref()
+                            {
+                                indices.push(*index as i32);
+                            } else {
+                                all_fields = false;
+                                break;
+                            }
+                        } else {
+                            all_fields = false;
+                            break;
+                        }
+                    }
+                    if all_fields && !indices.is_empty() {
+                        Some(crate::compiler::MatchTarget::FieldAccess(
+                            ctx.current_namespace_id,
+                            indices,
+                        ))
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
+
+            if let Some(target) = target
+                && let Expr::Const(TypeValue::Regexp(Some(re))) =
+                    ctx.ir.get(*rhs)
+                {
+                    let re_id = ctx.regexp_pool.get_or_intern(re.as_str());
+                    matches_by_lhs
+                        .entry(target)
+                        .or_default()
+                        .push((i, *lhs, re_id));
+                }
+        }
+    }
+
+    let mut final_operands = Vec::new();
+    let mut collapsed_indices = rustc_hash::FxHashSet::default();
+
+    for (_, group) in matches_by_lhs {
+        if group.len() >= 2 {
+            let set_id =
+                crate::compiler::RegexSetId::from(ctx.regex_sets.len() as i32);
+            let re_ids: Vec<_> =
+                group.iter().map(|&(_, _, re_id)| re_id).collect();
+            ctx.regex_sets.insert(set_id, re_ids);
+
+            let first_lhs = group[0].1;
+            let multimatch = ctx.ir.matches_regex_set(first_lhs, set_id);
+
+            final_operands.push(multimatch);
+
+            for (i, _, _) in group {
+                collapsed_indices.insert(i);
+            }
+        }
+    }
+
+    for (i, &op) in operands_hir.iter().enumerate() {
+        if !collapsed_indices.contains(&i) {
+            final_operands.push(op);
+        }
+    }
+
+    if final_operands.len() == 1 {
+        return Ok(final_operands[0]);
+    }
+
+    ctx.ir.or(final_operands).map_err(|err| match err {
+        crate::compiler::ir::Error::NumberOutOfRange => {
+            NumberOutOfRange::build(
+                ctx.report_builder,
+                i64::MIN,
+                i64::MAX,
+                ctx.report_builder.span_to_code_loc(span),
+            )
+        }
     })
-);
+}
 
 gen_unary_op!(minus_expr_from_ast, minus, Type::Integer | Type::Float, None);
 

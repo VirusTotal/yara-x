@@ -164,16 +164,6 @@ pub struct Rules {
     /// in the source code, allowing them to be compiled into a unified
     /// set automata for single-pass evaluation.
     pub(in crate::compiler) regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
-
-    /// Fast runtime mapping from an individual `RegexpId` to its grouped
-    /// set membership.
-    ///
-    /// The tuple holds the associated `RegexSetId` and the specific 0-based
-    /// index of this regular expression inside the compiled set. This allows
-    /// the scanner to instantly locate the cached short-circuiting boolean
-    /// match result without performing sequential evaluations.
-    pub(in crate::compiler) regexp_to_set:
-        FxHashMap<RegexId, (RegexSetId, usize)>,
 }
 
 impl Rules {
@@ -392,20 +382,6 @@ impl Rules {
             .unwrap_or_else(|err| {
                 panic!("error compiling RegexSet: {:#?}", err)
             })
-    }
-
-    /// Returns the number of patterns in a given RegexSet.
-    #[inline]
-    pub(crate) fn num_patterns_in_set(&self, set_id: RegexSetId) -> usize {
-        self.regex_sets.get(&set_id).unwrap().len()
-    }
-
-    /// Returns the mapping from RegexpId to its set membership and index.
-    #[inline]
-    pub(crate) fn regexp_to_set(
-        &self,
-    ) -> &FxHashMap<RegexId, (RegexSetId, usize)> {
-        &self.regexp_to_set
     }
 
     /// Returns a sub-pattern by [`SubPatternId`].

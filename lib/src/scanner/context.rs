@@ -161,19 +161,6 @@ pub(crate) struct ScanContext<'r, 'd> {
     pub regex_set_cache: RefCell<
         FxHashMap<crate::compiler::RegexSetId, regex::bytes::RegexSet>,
     >,
-
-    /// Scan-specific cache for evaluated `RegexSet` short-circuiting match
-    /// results.
-    ///
-    /// When the first regular expression belonging to a set is requested
-    /// during a scan, the entire set is matched simultaneously against the
-    /// current haystack. The matching pattern indices are recorded in this
-    /// boolean vector. Subsequent requests for other regular expressions in
-    /// the same set instantly read their result from this vector without
-    /// re-evaluating any string matching. This cache is completely cleared
-    /// on every call to `ScanContext::reset()`.
-    pub regex_set_results:
-        RefCell<FxHashMap<crate::compiler::RegexSetId, Vec<bool>>>,
     /// Engines for custom base64 alphabets used by base64 string modifiers.
     ///
     /// These engines are derived from rule literals and reused across scans.
@@ -298,57 +285,30 @@ impl ScanContext<'_, '_> {
 
     /// Returns true if the regular expression identified by the given
     /// [`RegexId`] matches `haystack`.
-    ///
-    /// This method implements an advanced short-circuiting optimization
-    /// for grouped regular expressions:
-    /// 1. If the requested `RegexpId` belongs to a compiled `RegexSet`, it
-    ///    checks the scan-specific results cache.
-    /// 2. If the set has not been evaluated for the current scan yet, the
-    ///    entire multi-pattern automata is executed simultaneously against
-    ///    the haystack, and all matching indices are cached in an in-memory
-    ///    boolean vector.
-    /// 3. The specific boolean result for this regular expression is
-    ///    returned instantly from the cached vector.
-    /// 4. If the regular expression is not grouped, it falls back to
-    ///    standard individual execution and caching.
     pub(crate) fn regexp_matches(
         &self,
         regexp_id: RegexId,
         haystack: &[u8],
     ) -> bool {
-        if let Some(&(set_id, index_in_set)) =
-            self.compiled_rules.regexp_to_set().get(&regexp_id)
-        {
-            let mut results_cache = self.regex_set_results.borrow_mut();
-
-            let matched_bits =
-                results_cache.entry(set_id).or_insert_with(|| {
-                    let mut automata_cache = self.regex_set_cache.borrow_mut();
-                    let regex_set =
-                        automata_cache.entry(set_id).or_insert_with(|| {
-                            self.compiled_rules.get_regex_set(set_id)
-                        });
-
-                    let set_matches = regex_set.matches(haystack);
-                    let mut bits = vec![
-                        false;
-                        self.compiled_rules
-                            .num_patterns_in_set(set_id)
-                    ];
-                    for m in set_matches.into_iter() {
-                        bits[m] = true;
-                    }
-                    bits
-                });
-
-            return matched_bits[index_in_set];
-        }
-
         self.regexp_cache
             .borrow_mut()
             .entry(regexp_id)
             .or_insert_with(|| self.compiled_rules.get_regexp(regexp_id))
             .is_match(haystack)
+    }
+
+    /// Returns true if any regular expression belonging to the given
+    /// [`RegexSetId`] matches `haystack`.
+    pub(crate) fn regex_set_matches(
+        &self,
+        set_id: crate::compiler::RegexSetId,
+        haystack: &[u8],
+    ) -> bool {
+        let mut automata_cache = self.regex_set_cache.borrow_mut();
+        let regex_set = automata_cache
+            .entry(set_id)
+            .or_insert_with(|| self.compiled_rules.get_regex_set(set_id));
+        regex_set.is_match(haystack)
     }
 
     /// Returns the protobuf struct produced by a module.
@@ -575,7 +535,6 @@ impl ScanContext<'_, '_> {
         let num_patterns = self.compiled_rules.num_patterns();
 
         self.scan_state = ScanState::Idle;
-        self.regex_set_results.borrow_mut().clear();
 
         // Free all runtime objects left around by previous scans.
         self.runtime_objects.clear();
@@ -1953,7 +1912,6 @@ pub fn create_wasm_store_and_ctx<'r>(
         deadline: 0,
         regexp_cache: RefCell::new(FxHashMap::default()),
         regex_set_cache: RefCell::new(FxHashMap::default()),
-        regex_set_results: RefCell::new(FxHashMap::default()),
         vm: VM {
             pike_vm: PikeVM::new(rules.re_code()),
             fast_vm: FastVM::new(rules.re_code()),

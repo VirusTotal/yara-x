@@ -10,7 +10,7 @@ use yara_x_parser::ast::{Ident, WithSpan};
 use crate::compiler::errors::{CompileError, UnknownPattern};
 use crate::compiler::ir::{IR, PatternIdx};
 use crate::compiler::report::ReportBuilder;
-use crate::compiler::{MatchTarget, RegexId, Warnings, ir};
+use crate::compiler::{RegexId, Warnings, ir};
 use crate::errors::{UnknownField, UnknownIdentifier};
 use crate::modules::BUILTIN_MODULES;
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup};
@@ -66,9 +66,11 @@ pub(crate) struct CompileContext<'a, 'src> {
     /// Used to detect loops that may iterate an excessive number of times.
     pub loop_iteration_multiplier: i64,
 
-    /// Tracks regular expressions matched against specific canonical targets across all rules.
-    pub matches_by_target:
-        &'a mut rustc_hash::FxHashMap<MatchTarget, FxHashSet<RegexId>>,
+    /// Grouped RegexSets constructed during IR creation for or-expressions.
+    pub regex_sets: &'a mut rustc_hash::FxHashMap<
+        crate::compiler::RegexSetId,
+        Vec<crate::compiler::RegexId>,
+    >,
 
     /// Pool for regular expressions.
     pub regexp_pool: &'a mut crate::string_pool::StringPool<RegexId>,

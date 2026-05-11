@@ -7,10 +7,10 @@ rule test_1 {
 
 rule test_2 {
     condition:
-        test_proto2.string_foo matches /foobar/i
+        test_proto2.int64_zero == 0 or test_proto2.string_foo matches /foo.bar/i or test_proto2.string_foo matches /bar.baz/
 }
 
 rule test_3 {
     condition:
-        test_proto2.string_foo matches /foo.bar/
+        test_proto2.string_foo matches /foo.bar/ or test_proto2.string_bar matches /barbaz/
 }

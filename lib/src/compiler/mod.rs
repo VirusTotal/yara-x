@@ -417,8 +417,8 @@ pub struct Compiler<'a> {
     /// to the compiler using [`Compiler::add_linter`]:
     linters: Vec<Box<dyn linters::Linter + 'a>>,
 
-    /// Tracks regular expressions matched against specific canonical targets across all rules.
-    matches_by_target: FxHashMap<MatchTarget, FxHashSet<RegexId>>,
+    /// Grouped RegexSets constructed during IR creation for or-expressions.
+    pub(crate) regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
 }
 
 impl<'a> Compiler<'a> {
@@ -508,7 +508,7 @@ impl<'a> Compiler<'a> {
             include_dirs: None,
             includes_enabled: true,
             include_stack: Vec::new(),
-            matches_by_target: FxHashMap::default(),
+            regex_sets: FxHashMap::default(),
         }
     }
 
@@ -791,22 +791,6 @@ impl<'a> Compiler<'a> {
         )
         .expect("failed to serialize global variables");
 
-        let mut regex_sets = rustc_hash::FxHashMap::default();
-        let mut regexp_to_set = rustc_hash::FxHashMap::default();
-        let mut next_set_id = 0;
-
-        for (_, re_ids) in self.matches_by_target {
-            if re_ids.len() > 1 {
-                let set_id = RegexSetId(next_set_id);
-                next_set_id += 1;
-                let sorted_re_ids: Vec<RegexId> = re_ids.into_iter().collect();
-                for (index, &re_id) in sorted_re_ids.iter().enumerate() {
-                    regexp_to_set.insert(re_id, (set_id, index));
-                }
-                regex_sets.insert(set_id, sorted_re_ids);
-            }
-        }
-
         let mut rules = Rules {
             serialized_globals,
             wasm_mod,
@@ -825,8 +809,7 @@ impl<'a> Compiler<'a> {
             re_code: self.re_code,
             warnings: self.warnings.into(),
             filesize_bounds: self.filesize_bounds,
-            regex_sets,
-            regexp_to_set,
+            regex_sets: self.regex_sets,
         };
 
         rules.build_ac_automaton();
@@ -1550,7 +1533,7 @@ impl Compiler<'_> {
             for_of_depth: 0,
             features: &self.features,
             loop_iteration_multiplier: 1,
-            matches_by_target: &mut self.matches_by_target,
+            regex_sets: &mut self.regex_sets,
             regexp_pool: &mut self.regexp_pool,
             current_namespace_id: self.current_namespace.id,
         };

@@ -640,6 +640,14 @@ fn emit_expr(
                 .call(ctx.function_id(wasm::export__str_matches.mangled_name));
         }
 
+        Expr::MatchesMany { lhs, regex_set } => {
+            emit_expr(ctx, ir, *lhs, instr);
+            instr.i32_const((*regex_set).into());
+            instr.call(ctx.function_id(
+                wasm::export__str_matches_regex_set.mangled_name,
+            ));
+        }
+
         Expr::Lookup(lookup) => {
             // Emit code for the primary expression (array or map) that is
             // being indexed.
