@@ -7,10 +7,24 @@ rule test_1 {
 
 rule test_2 {
     condition:
-        test_proto2.int64_zero == 0 or test_proto2.string_foo matches /foo.bar/i or test_proto2.string_foo matches /bar.baz/
+        test_proto2.string_foo matches /foobar/i
 }
 
 rule test_3 {
     condition:
-        test_proto2.string_foo matches /foo.bar/ or test_proto2.string_bar matches /barbaz/
+        test_proto2.int64_zero == 0 or
+        test_proto2.string_foo matches /foo.bar/i or
+        test_proto2.string_foo matches /bar.baz/
+}
+
+rule test_4 {
+    condition:
+        test_proto2.string_foo matches /foo.bar/ or
+        test_proto2.string_foo matches /bar.baz/
+}
+
+rule test_5 {
+    condition:
+        test_proto2.string_foo matches /foo.bar/ or
+        test_proto2.string_bar matches /bar.baz/
 }

@@ -3,13 +3,14 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::BTreeSet;
+use std::hash::{Hash, Hasher};
 use std::iter;
 use std::ops::RangeInclusive;
 use std::rc::Rc;
 
 use bstr::{BString, ByteSlice};
 use itertools::Itertools;
-
+use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use yara_x_parser::Span;
 use yara_x_parser::ast;
 use yara_x_parser::ast::WithSpan;
@@ -26,12 +27,12 @@ use crate::compiler::errors::{
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
     Error, Expr, ExprId, Iterable, LiteralPattern, MatchAnchor, Pattern,
-    PatternFlags, PatternInRule, Quantifier, Range, RegexpPattern,
+    PatternFlags, PatternInRule, Quantifier, Range, RegexpPattern, dfs,
 };
 use crate::compiler::report::{Level, ReportBuilder};
 use crate::compiler::{
     CompileContext, CompileError, FilesizeBounds, ForVars, PatternIdx,
-    TextPatternAsHex, warnings,
+    RegexId, RegexSetId, TextPatternAsHex, warnings,
 };
 use crate::errors::CustomError;
 use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
@@ -2274,21 +2275,21 @@ fn or_expr_from_ast(
         (Type::Float, Type::Bool),
     ];
 
-    // Step 1: Validate operand types and emit standard warnings.
-    // Ensure all operands in the `or` expression conform to boolean-compatible
-    // types, checking for potential mismatches across adjacent pairs.
-    let operands_hir: Vec<ExprId> = expr
+    // Validate operand types and emit standard warnings. Ensure all operands
+    // in the `or` expression conform to boolean-compatible types, checking
+    // for potential mismatches across adjacent pairs.
+    let or_operands: Vec<ExprId> = expr
         .operands()
         .map(|expr| expr_from_ast(ctx, expr))
         .collect::<Result<Vec<ExprId>, CompileError>>()?;
 
-    for (hir, ast) in iter::zip(operands_hir.iter(), expr.operands()) {
+    for (hir, ast) in iter::zip(or_operands.iter(), expr.operands()) {
         let ty = ctx.ir.get(*hir).ty();
         warn_if_not_bool(ctx, ty, ast.span());
     }
 
     for ((lhs_hir, lhs_ast), (rhs_hir, rhs_ast)) in
-        iter::zip(operands_hir.iter(), expr.operands()).tuple_windows()
+        iter::zip(or_operands.iter(), expr.operands()).tuple_windows()
     {
         check_operands(
             ctx,
@@ -2301,49 +2302,42 @@ fn or_expr_from_ast(
         )?;
     }
 
-    // Step 2: Group `matches` expressions by their target expression hash.
-    // Traverse the IR subtree for the left-hand side of each `matches` operand
-    // to compute a unique 64-bit hash. Operands sharing the identical target
-    // hash are aggregated together to identify potential multi-match sets.
-    let mut matches_by_lhs: rustc_hash::FxHashMap<
-        u64,
-        Vec<(usize, ExprId, crate::compiler::RegexId)>,
-    > = rustc_hash::FxHashMap::default();
+    // Group `matches` expressions by their left-side operand. All the `matches`
+    // expressions sharing the same left-side operand will be aggregated together
+    // into a MatchMany operation that matches the left-side operand against
+    // a set of regular expressions.
+    let mut matches_by_lhs: FxHashMap<u64, Vec<(usize, ExprId, RegexId)>> =
+        FxHashMap::default();
 
-    for (i, &op) in operands_hir.iter().enumerate() {
-        if let Expr::Matches { lhs, rhs } = ctx.ir.get(op) {
-            let mut hasher = rustc_hash::FxHasher::default();
+    for (i, &op) in or_operands.iter().enumerate() {
+        if let Expr::Matches { lhs, rhs } = ctx.ir.get(op)
+            && let Expr::Const(TypeValue::Regexp(Some(re))) = ctx.ir.get(*rhs)
+        {
+            let mut hasher = FxHasher::default();
             for evt in ctx.ir.dfs_iter(*lhs) {
-                if let crate::compiler::ir::dfs::Event::Enter((_, expr, _)) =
-                    evt
-                {
-                    std::hash::Hash::hash(expr, &mut hasher);
+                if let dfs::Event::Enter((_, expr, _)) = evt {
+                    Hash::hash(expr, &mut hasher);
                 }
             }
-            let target = std::hash::Hasher::finish(&hasher);
-
-            if let Expr::Const(TypeValue::Regexp(Some(re))) = ctx.ir.get(*rhs)
-            {
-                let re_id = ctx.regex_pool.get_or_intern(re.as_str());
-                matches_by_lhs
-                    .entry(target)
-                    .or_default()
-                    .push((i, *lhs, re_id));
-            }
+            let lhs_expr_hash = hasher.finish();
+            let re_id = ctx.regex_pool.get_or_intern(re.as_str());
+            matches_by_lhs
+                .entry(lhs_expr_hash)
+                .or_default()
+                .push((i, *lhs, re_id));
         }
     }
 
-    // Step 3: Collapse grouped regular expressions into `MatchesMany`.
-    // For any target expression associated with two or more regular expressions,
-    // construct a unified `RegexSet`, replace the individual `matches` nodes
-    // with a single `MatchesMany` expression, and record the collapsed indices.
+    // Collapse grouped regular expressions into `MatchesMany`. For any target
+    // expression associated with two or more regular expressions, construct a
+    // unified `RegexSet`, replace the individual `matches` nodes with a single
+    // `MatchesMany` expression, and record the collapsed indices.
     let mut final_operands = Vec::new();
-    let mut collapsed_indices = rustc_hash::FxHashSet::default();
+    let mut collapsed_indices = FxHashSet::default();
 
     for (_, group) in matches_by_lhs {
         if group.len() >= 2 {
-            let set_id =
-                crate::compiler::RegexSetId::from(ctx.regex_sets.len() as i32);
+            let set_id = RegexSetId::from(ctx.regex_sets.len() as i32);
             let re_ids: Vec<_> =
                 group.iter().map(|&(_, _, re_id)| re_id).collect();
             ctx.regex_sets.insert(set_id, re_ids);
@@ -2359,11 +2353,11 @@ fn or_expr_from_ast(
         }
     }
 
-    // Step 4: Assemble final operands and construct the `or` expression.
-    // Preserve all non-collapsed operands in their original relative order. If
-    // all operands collapse into a single expression, return it directly without
-    // an wrapping `or` node.
-    for (i, &op) in operands_hir.iter().enumerate() {
+    // Assemble final operands and construct the `or` expression. Preserve all
+    // non-collapsed operands in their original relative order. If all operands
+    // collapse into a single expression, return it directly without a wrapping
+    // `or` node.
+    for (i, &op) in or_operands.iter().enumerate() {
         if !collapsed_indices.contains(&i) {
             final_operands.push(op);
         }
@@ -2374,14 +2368,12 @@ fn or_expr_from_ast(
     }
 
     ctx.ir.or(final_operands).map_err(|err| match err {
-        crate::compiler::ir::Error::NumberOutOfRange => {
-            NumberOutOfRange::build(
-                ctx.report_builder,
-                i64::MIN,
-                i64::MAX,
-                ctx.report_builder.span_to_code_loc(span),
-            )
-        }
+        Error::NumberOutOfRange => NumberOutOfRange::build(
+            ctx.report_builder,
+            i64::MIN,
+            i64::MAX,
+            ctx.report_builder.span_to_code_loc(span),
+        ),
     })
 }
 
