@@ -24,7 +24,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 
 use crate::compiler::{
-    NamespaceId, PatternId, RegexId, RuleId, Rules, SubPattern,
+    NamespaceId, PatternId, RegexId, RegexSetId, RuleId, Rules, SubPattern,
     SubPatternAtom, SubPatternFlags, SubPatternId,
 };
 use crate::errors::VariableError;
@@ -146,11 +146,11 @@ pub(crate) struct ScanContext<'r, 'd> {
     /// aborted due to a timeout.
     pub deadline: u64,
     /// Hash map that serves as a cache for regexps used in expressions like
-    /// `some_var matches /foobar/`. Compiling a regexp is a expensive
+    /// `some_var matches /foobar/`. Compiling a regexp is an expensive
     /// operation. Instead of compiling the regexp each time the expression
     /// is evaluated, it is compiled the first time and stored in this hash
     /// map.
-    pub regexp_cache: RefCell<FxHashMap<RegexId, Regex>>,
+    pub regex_cache: RefCell<FxHashMap<RegexId, Regex>>,
     /// Persistent cache for grouped `RegexSet` automata.
     ///
     /// Like individual regular expressions, compiling a multi-pattern
@@ -158,9 +158,8 @@ pub(crate) struct ScanContext<'r, 'd> {
     /// automata lazily upon the very first match request and preserves the
     /// compiled automata across all subsequent scans performed by the
     /// scanner instance.
-    pub regex_set_cache: RefCell<
-        FxHashMap<crate::compiler::RegexSetId, regex::bytes::RegexSet>,
-    >,
+    pub regex_set_cache:
+        RefCell<FxHashMap<RegexSetId, regex::bytes::RegexSet>>,
     /// Engines for custom base64 alphabets used by base64 string modifiers.
     ///
     /// These engines are derived from rule literals and reused across scans.
@@ -290,7 +289,7 @@ impl ScanContext<'_, '_> {
         regexp_id: RegexId,
         haystack: &[u8],
     ) -> bool {
-        self.regexp_cache
+        self.regex_cache
             .borrow_mut()
             .entry(regexp_id)
             .or_insert_with(|| self.compiled_rules.get_regexp(regexp_id))
@@ -1910,7 +1909,7 @@ pub fn create_wasm_store_and_ctx<'r>(
             compiled_rules: rules,
         },
         deadline: 0,
-        regexp_cache: RefCell::new(FxHashMap::default()),
+        regex_cache: RefCell::new(FxHashMap::default()),
         regex_set_cache: RefCell::new(FxHashMap::default()),
         vm: VM {
             pike_vm: PikeVM::new(rules.re_code()),
