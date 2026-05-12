@@ -193,11 +193,11 @@ fn main(data: &[u8], meta: Option<&[u8]>) -> Result<TestProto2, ModuleError> {
     Ok(test)
 }
 
-inventory::submit! {
-    super::Module {
+register_module! {
+    Module {
         name: "test_proto2",
-        root_descriptor: <TestProto2 as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::ModuleMainFn),
+        root_descriptor: TestProto2::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

@@ -41,11 +41,11 @@ fn main(
     Ok(test)
 }
 
-inventory::submit! {
-    super::Module {
+register_module! {
+    Module {
         name: "test_proto3",
-        root_descriptor: <TestProto3 as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::ModuleMainFn),
+        root_descriptor: TestProto3::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

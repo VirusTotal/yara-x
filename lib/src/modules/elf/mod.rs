@@ -12,6 +12,7 @@ use md5::{Digest, Md5};
 use rustc_hash::FxHashSet;
 
 use crate::mods::api::prelude::*;
+use crate::modules::Module;
 use crate::modules::protos::elf::*;
 
 pub mod parser;
@@ -177,11 +178,11 @@ fn telfhash(ctx: &mut ScanContext) -> Option<Uppercase<FixedLenString<72>>> {
     Some(Uppercase::<FixedLenString<72>>::new(digest))
 }
 
-inventory::submit! {
-    super::Module {
+register_module! {
+    Module {
         name: "elf",
-        root_descriptor: <ELF as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::ModuleMainFn),
+        root_descriptor: ELF::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

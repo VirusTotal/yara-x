@@ -3,6 +3,7 @@ use std::cmp;
 use std::f64::consts::PI;
 
 use memchr::memchr_iter;
+use protobuf::MessageFull;
 use rustc_hash::FxHashMap;
 
 use crate::mods::api::prelude::*;
@@ -1011,11 +1012,11 @@ mod tests {
     }
 }
 
-inventory::submit! {
-    super::Module {
+register_module! {
+    Module {
         name: "math",
-        root_descriptor: <Math as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::ModuleMainFn),
+        root_descriptor: Math::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

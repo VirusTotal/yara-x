@@ -13,7 +13,6 @@ use protobuf::MessageDyn;
 use protobuf::MessageFull;
 
 use yara_x::errors::ModuleError;
-use yara_x::mods::api::Module;
 use yara_x::mods::api::prelude::*;
 
 pub mod proto {
@@ -38,7 +37,7 @@ pub fn add(_ctx: &ScanContext, a: i64, b: i64) -> i64 {
     a + b
 }
 
-define_module! {
+register_module! {
     Module {
         name: "foobar",
         root_descriptor: Foobar::descriptor,

@@ -267,7 +267,9 @@ pub mod mods {
         #[allow(unused_imports)]
         #[allow(missing_docs)]
         pub mod prelude {
-            //pub use crate::mods::api::ScanContext;
+            pub use crate::modules::Module;
+            pub use crate::modules::ModuleDescriptor;
+            pub use crate::modules::ModuleMainFn;
             pub use crate::wasm::runtime::Caller;
             pub use crate::wasm::string::FixedLenString;
             pub use crate::wasm::string::RuntimeString;
@@ -275,7 +277,8 @@ pub mod mods {
             pub use crate::wasm::string::{Lowercase, Uppercase};
             pub use crate::wasm::*;
             pub use bstr::ByteSlice;
-            pub use inventory::submit as define_module;
+            pub use inventory::submit as register_module;
+            pub use protobuf::MessageFull;
             pub use yara_x_macros::{module_main, wasm_export};
 
             /// Opaque scan context passed as first argument to functions exported from a
@@ -301,10 +304,6 @@ pub mod mods {
             #[cfg(not(target_family = "wasm"))]
             pub use yara_x_macros::module_export;
         }
-
-        pub use crate::modules::Module;
-        pub use crate::modules::ModuleDescriptor;
-        pub use crate::modules::ModuleMainFn;
     }
 
     /// Types that allow for module introspection.

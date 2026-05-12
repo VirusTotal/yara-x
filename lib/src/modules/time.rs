@@ -43,11 +43,11 @@ mod tests {
     }
 }
 
-inventory::submit! {
-    super::Module {
+register_module! {
+    Module {
         name: "time",
-        root_descriptor: <Time as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::ModuleMainFn),
+        root_descriptor: Time::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

@@ -11,7 +11,6 @@ by Microsoft, and the [`non-official specification by Joachim Metz`][2].
 [1]: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-shllink/16cb4ca1-9339-4d0c-a68d-bf1d6cc0f943
 [2]: https://github.com/libyal/liblnk/blob/main/documentation/Windows%20Shortcut%20File%20(LNK)%20format.asciidoc
  */
-
 use crate::mods::api::prelude::*;
 use crate::modules::protos::lnk::*;
 pub mod parser;
@@ -28,11 +27,11 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Lnk, ModuleError> {
     }
 }
 
-inventory::submit! {
-    super::Module {
+register_module! {
+    Module {
         name: "lnk",
-        root_descriptor: <Lnk as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::ModuleMainFn),
+        root_descriptor: Lnk::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

@@ -532,11 +532,11 @@ mod tests {
     }
 }
 
-inventory::submit! {
-    super::Module {
+register_module! {
+    Module {
         name: "vt",
-        root_descriptor: <LiveHuntData as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::ModuleMainFn),
+        root_descriptor: LiveHuntData::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

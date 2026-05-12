@@ -2,7 +2,6 @@
 
 This allows creating YARA rules based on .NET metadata.
  */
-
 use crate::mods::api::prelude::*;
 use crate::modules::protos::dotnet::*;
 
@@ -20,11 +19,11 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Dotnet, ModuleError> {
     }
 }
 
-inventory::submit! {
-    super::Module {
+register_module! {
+    Module {
         name: "dotnet",
-        root_descriptor: <Dotnet as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::ModuleMainFn),
+        root_descriptor: Dotnet::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

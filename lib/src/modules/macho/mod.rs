@@ -7,12 +7,13 @@
 
 use std::cell::RefCell;
 
-use crate::mods::api::prelude::*;
-use crate::modules::macho::parser::{N_EXT, N_STAB, N_TYPE};
-use crate::modules::protos::macho::*;
 use bstr::BString;
 use itertools::Itertools;
 use md5::{Digest, Md5};
+
+use crate::mods::api::prelude::*;
+use crate::modules::macho::parser::{N_EXT, N_STAB, N_TYPE};
+use crate::modules::protos::macho::*;
 
 mod parser;
 #[cfg(test)]
@@ -606,11 +607,11 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Macho, ModuleError> {
     }
 }
 
-inventory::submit! {
-    super::Module {
+register_module! {
+    Module {
         name: "macho",
-        root_descriptor: <Macho as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::ModuleMainFn),
+        root_descriptor: Macho::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

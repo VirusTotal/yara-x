@@ -2,15 +2,13 @@
 
 This allows creating YARA rules based on metadata extracted from those files.
  */
-
-mod parser;
-
 use sha2::{Digest, Sha256};
 use std::cell::RefCell;
 
 use crate::mods::api::prelude::*;
 use crate::modules::crx::Crx;
 use crate::modules::protos::crx::*;
+mod parser;
 
 #[cfg(test)]
 mod tests;
@@ -69,11 +67,11 @@ fn permhash(ctx: &ScanContext) -> Option<Lowercase<FixedLenString<64>>> {
     Some(Lowercase::<FixedLenString<64>>::new(digest))
 }
 
-inventory::submit! {
-    super::Module {
+register_module! {
+    Module {
         name: "crx",
-        root_descriptor: <Crx as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::ModuleMainFn),
+        root_descriptor: Crx::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

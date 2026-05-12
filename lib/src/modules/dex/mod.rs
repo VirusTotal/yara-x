@@ -2,7 +2,6 @@
 
 This allows creating YARA rules based on metadata extracted from those files.
  */
-
 use sha1::{Digest, Sha1};
 use simd_adler32::Adler32;
 use std::cell::RefCell;
@@ -155,13 +154,11 @@ fn contains_class(
     )
 }
 
-inventory::submit! {
-    super::Module {
+register_module! {
+    Module {
         name: "dex",
-        root_descriptor: <Dex as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::ModuleMainFn
-
-),
+        root_descriptor: Dex::descriptor,
+        main_fn: Some(__main__ as super::ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

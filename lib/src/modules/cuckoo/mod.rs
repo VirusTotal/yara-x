@@ -270,13 +270,11 @@ fn registry_key_access_r(ctx: &ScanContext, regexp_id: RegexId) -> i64 {
         .unwrap_or(0)
 }
 
-inventory::submit! {
-    super::Module {
+register_module! {
+    Module {
         name: "cuckoo",
-        root_descriptor: <Cuckoo as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::ModuleMainFn
-
-),
+        root_descriptor: Cuckoo::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

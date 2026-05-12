@@ -263,11 +263,11 @@ fn checksum_str(ctx: &ScanContext, s: RuntimeString) -> Option<i64> {
     Some(checksum32(s.as_bstr(ctx).as_bytes()).into())
 }
 
-inventory::submit! {
-    super::Module {
+register_module! {
+    Module {
         name: "hash",
-        root_descriptor: <Hash as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::ModuleMainFn),
+        root_descriptor: Hash::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }
