@@ -57,9 +57,10 @@ fn file_index_type(ctx: &mut ScanContext, type_arg: i64) -> Option<i64> {
     for i in 0..nfat as usize {
         if let Some(arch) = macho.fat_arch.get(i)
             && let Some(cputype) = arch.cputype
-                && cputype as i64 == type_arg {
-                    return Some(i as i64);
-                }
+            && cputype as i64 == type_arg
+        {
+            return Some(i as i64);
+        }
     }
 
     None
@@ -97,11 +98,11 @@ fn file_index_subtype(
         if let Some(arch) = macho.fat_arch.get(i)
             && let (Some(cputype), Some(cpusubtype)) =
                 (arch.cputype, arch.cpusubtype)
-                && cputype as i64 == type_arg
-                    && cpusubtype as i64 == subtype_arg
-                {
-                    return Some(i as i64);
-                }
+            && cputype as i64 == type_arg
+            && cpusubtype as i64 == subtype_arg
+        {
+            return Some(i as i64);
+        }
     }
 
     None
@@ -133,13 +134,12 @@ fn ep_for_arch_type(ctx: &mut ScanContext, type_arg: i64) -> Option<i64> {
     for i in 0..nfat as usize {
         if let Some(arch) = macho.fat_arch.get(i)
             && let Some(cputype) = arch.cputype
-                && cputype as i64 == type_arg {
-                    let file_offset = arch.offset?;
-                    let entry_point = macho.file.get(i)?.entry_point?;
-                    return file_offset
-                        .checked_add(entry_point)
-                        .map(|sum| sum as i64);
-                }
+            && cputype as i64 == type_arg
+        {
+            let file_offset = arch.offset?;
+            let entry_point = macho.file.get(i)?.entry_point?;
+            return file_offset.checked_add(entry_point).map(|sum| sum as i64);
+        }
     }
 
     None
@@ -177,15 +177,13 @@ fn ep_for_arch_subtype(
         if let Some(arch) = macho.fat_arch.get(i)
             && let (Some(cputype), Some(cpusubtype)) =
                 (arch.cputype, arch.cpusubtype)
-                && cputype as i64 == type_arg
-                    && cpusubtype as i64 == subtype_arg
-                {
-                    let file_offset = arch.offset?;
-                    let entry_point = macho.file.get(i)?.entry_point?;
-                    return file_offset
-                        .checked_add(entry_point)
-                        .map(|sum| sum as i64);
-                }
+            && cputype as i64 == type_arg
+            && cpusubtype as i64 == subtype_arg
+        {
+            let file_offset = arch.offset?;
+            let entry_point = macho.file.get(i)?.entry_point?;
+            return file_offset.checked_add(entry_point).map(|sum| sum as i64);
+        }
     }
 
     None
@@ -609,10 +607,10 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Macho, ModuleError> {
 }
 
 inventory::submit! {
-    super::YaraModule {
+    super::Module {
         name: "macho",
         root_descriptor: <Macho as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        main_fn: Some(__main__ as super::ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

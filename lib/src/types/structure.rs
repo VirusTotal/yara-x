@@ -2,6 +2,15 @@ use std::iter;
 use std::ops::Deref;
 use std::rc::Rc;
 
+use crate::mods::Module;
+use crate::modules::protos::yara as protos;
+use crate::modules::protos::yara::enum_value_options::Value as EnumValue;
+use crate::modules::protos::yara::exts::{
+    enum_options, enum_value, field_options, message_options, module_options,
+};
+use crate::symbols::{Symbol, SymbolLookup};
+use crate::types::{Array, Map, StringConstraint, TypeValue};
+use crate::wasm::WasmExport;
 use bstr::BString;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
@@ -12,16 +21,6 @@ use protobuf::reflect::{
 use protobuf::reflect::{EnumValueDescriptor, Syntax};
 use protobuf::{MessageDyn, MessageField};
 use serde::{Deserialize, Serialize};
-
-use crate::modules::Module;
-use crate::modules::protos::yara as protos;
-use crate::modules::protos::yara::enum_value_options::Value as EnumValue;
-use crate::modules::protos::yara::exts::{
-    enum_options, enum_value, field_options, message_options, module_options,
-};
-use crate::symbols::{Symbol, SymbolLookup};
-use crate::types::{Array, Map, StringConstraint, TypeValue};
-use crate::wasm::WasmExport;
 
 /// Each of the entries in an Access Control List (ACL)
 ///
@@ -1224,7 +1223,7 @@ impl From<&Module> for Rc<Struct> {
     fn from(module: &Module) -> Self {
         // Create the structure that describes the module.
         let mut module_struct = Struct::from_proto_descriptor_and_msg(
-            &module.root_struct_descriptor,
+            &(module.root_descriptor)(),
             None,
             true,
         );

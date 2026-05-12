@@ -856,10 +856,10 @@ fn exports_impl(
 }
 
 inventory::submit! {
-    super::YaraModule {
+    super::Module {
         name: "pe",
         root_descriptor: <PE as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        main_fn: Some(__main__ as super::ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

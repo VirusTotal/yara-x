@@ -178,10 +178,10 @@ fn telfhash(ctx: &mut ScanContext) -> Option<Uppercase<FixedLenString<72>>> {
 }
 
 inventory::submit! {
-    super::YaraModule {
+    super::Module {
         name: "elf",
         root_descriptor: <ELF as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        main_fn: Some(__main__ as super::ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

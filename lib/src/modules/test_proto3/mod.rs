@@ -2,7 +2,10 @@ use crate::modules::prelude::*;
 use crate::modules::protos::test_proto3::TestProto3;
 
 #[module_main]
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<TestProto3, ModuleError> {
+fn main(
+    _data: &[u8],
+    _meta: Option<&[u8]>,
+) -> Result<TestProto3, ModuleError> {
     let mut test = TestProto3::new();
 
     test.int32_zero = 0;
@@ -39,10 +42,10 @@ fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<TestProto3, ModuleError> {
 }
 
 inventory::submit! {
-    super::YaraModule {
+    super::Module {
         name: "test_proto3",
         root_descriptor: <TestProto3 as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        main_fn: Some(__main__ as super::ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

@@ -72,7 +72,7 @@ pub(crate) fn impl_module_export_macro(
     let caller_arg = if let Some(ref crate_str) = yara_x_crate {
         let crate_path: syn::Path = syn::parse_str(crate_str).unwrap();
         syn::parse2(quote! {
-            caller: &mut #crate_path::Caller<'_, #crate_path::ScanContext<'_, '_>>
+            caller: &mut #crate_path::Caller<'_, #crate_path::mods::ScanContext<'_, '_>>
         })?
     } else {
         syn::parse2(quote! {

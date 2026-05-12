@@ -14,8 +14,9 @@ const DISTRIBUTION_CACHE_MIN_LEN: usize = 4096;
 const DISTRIBUTION_CACHE_MAX_ENTRIES: usize = 8;
 
 thread_local!(
-    static DISTRIBUTION_CACHE: RefCell<FxHashMap<(usize, usize), ByteDistribution>> =
-        RefCell::new(FxHashMap::default());
+    static DISTRIBUTION_CACHE: RefCell<
+        FxHashMap<(usize, usize), ByteDistribution>,
+    > = RefCell::new(FxHashMap::default());
 );
 
 #[module_main]
@@ -80,11 +81,7 @@ fn to_string_base(
 /// Converts a boolean to an integer (0 or 1).
 #[module_export]
 fn to_number(_ctx: &ScanContext, b: bool) -> i64 {
-    if b {
-        1
-    } else {
-        0
-    }
+    if b { 1 } else { 0 }
 }
 
 /// Counts the occurrences of a byte in a range of the scanned data.
@@ -258,7 +255,11 @@ fn monte_carlo_pi_string(ctx: &ScanContext, s: RuntimeString) -> Option<f64> {
     monte_carlo_pi(s.as_bstr(ctx).as_bytes())
 }
 
-fn data_range(data: &[u8], offset: i64, length: i64) -> Option<(usize, usize)> {
+fn data_range(
+    data: &[u8],
+    offset: i64,
+    length: i64,
+) -> Option<(usize, usize)> {
     let length: usize = length.try_into().ok()?;
     let start: usize = offset.try_into().ok()?;
     let end = cmp::min(data.len(), start.saturating_add(length));
@@ -415,11 +416,7 @@ fn serial_correlation(data: &[u8]) -> Option<f64> {
     let scc = (len * adjacent_product_sum - byte_sum_squared)
         / (len * byte_square_sum - byte_sum_squared);
 
-    if scc.is_nan() {
-        Some(-100000.0)
-    } else {
-        Some(scc)
-    }
+    if scc.is_nan() { Some(-100000.0) } else { Some(scc) }
 }
 
 fn monte_carlo_pi(data: &[u8]) -> Option<f64> {
@@ -1015,10 +1012,10 @@ mod tests {
 }
 
 inventory::submit! {
-    super::YaraModule {
+    super::Module {
         name: "math",
         root_descriptor: <Math as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        main_fn: Some(__main__ as super::ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

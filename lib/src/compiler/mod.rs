@@ -38,7 +38,6 @@ use crate::compiler::errors::{
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{CompileContext, VarStack};
-use crate::modules::REGISTERED_MODULES;
 use crate::re::hir::{ChainedPattern, ChainedPatternGap};
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup, SymbolTable};
@@ -67,6 +66,7 @@ pub use crate::compiler::report::Patch;
 pub use crate::compiler::rules::*;
 #[doc(inline)]
 pub use crate::compiler::warnings::*;
+use crate::mods::Module;
 
 mod atoms;
 mod context;
@@ -1851,7 +1851,8 @@ impl Compiler<'_> {
 
     fn c_import(&mut self, import: &Import) -> Result<(), CompileError> {
         let module_name = import.module_name;
-        let module = REGISTERED_MODULES.get(module_name);
+        let module =
+            inventory::iter::<Module>().find(|m| m.name == module_name);
 
         // Does a module with the given name actually exist? ...
         if module.is_none() {

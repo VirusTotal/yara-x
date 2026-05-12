@@ -221,8 +221,8 @@ fn checksum32(data: &[u8]) -> u32 {
 
     for chunk in &mut chunks {
         let x = u64::from_le_bytes(chunk.try_into().unwrap());
-        let pairs = (x & 0x00ff_00ff_00ff_00ff)
-            + ((x >> 8) & 0x00ff_00ff_00ff_00ff);
+        let pairs =
+            (x & 0x00ff_00ff_00ff_00ff) + ((x >> 8) & 0x00ff_00ff_00ff_00ff);
         let quads = (pairs & 0x0000_ffff_0000_ffff)
             + ((pairs >> 16) & 0x0000_ffff_0000_ffff);
         sum = sum.wrapping_add((quads & 0xffff_ffff) + (quads >> 32));
@@ -264,10 +264,10 @@ fn checksum_str(ctx: &ScanContext, s: RuntimeString) -> Option<i64> {
 }
 
 inventory::submit! {
-    super::YaraModule {
+    super::Module {
         name: "hash",
         root_descriptor: <Hash as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        main_fn: Some(__main__ as super::ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

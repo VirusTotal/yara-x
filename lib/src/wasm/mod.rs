@@ -90,7 +90,7 @@ use smallvec::{SmallVec, smallvec};
 use yara_x_macros::wasm_export;
 
 use crate::compiler::{LiteralId, PatternId, RegexId, RuleId};
-use crate::modules::REGISTERED_MODULES;
+use crate::mods::Module;
 use crate::scanner::{RuntimeObjectHandle, ScanContext};
 use crate::types::{
     Array, Func, FuncSignature, Map, Struct, TypeValue, Value,
@@ -170,15 +170,15 @@ impl WasmExport {
     ///
     /// The fully qualified name includes not only the function's name, but
     /// also the module's name (e.g: `my_module.my_struct.my_func@ii@i`)
-    pub fn fully_qualified_mangled_name(&self) -> String {
+    pub(crate) fn fully_qualified_mangled_name(&self) -> String {
         if self.method_of.is_some() {
             return self.mangled_name.to_string();
         }
-        for (module_name, module) in REGISTERED_MODULES.iter() {
+        for module in inventory::iter::<Module>() {
             if let Some(rust_module_name) = module.rust_module_name
                 && self.rust_module_path.contains(rust_module_name)
             {
-                return format!("{}.{}", module_name, self.mangled_name);
+                return format!("{}.{}", module.name, self.mangled_name);
             }
         }
         self.mangled_name.to_owned()
@@ -196,7 +196,9 @@ impl WasmExport {
     /// Keys are function names and values are [`Func`] structures. Overloaded
     /// functions appear in the map as a single entry where the [`Func`] has
     /// multiple signatures.
-    pub fn get_functions<P>(predicate: P) -> FxHashMap<&'static str, Func>
+    pub(crate) fn get_functions<P>(
+        predicate: P,
+    ) -> FxHashMap<&'static str, Func>
     where
         P: FnMut(&&WasmExport) -> bool,
     {
@@ -246,7 +248,9 @@ impl WasmExport {
     /// #[module_export(method_of = "my_module.MyStructure")]
     /// fn some_method(...) { ... }
     /// ```
-    pub fn get_methods(type_name: &str) -> FxHashMap<&'static str, Func> {
+    pub(crate) fn get_methods(
+        type_name: &str,
+    ) -> FxHashMap<&'static str, Func> {
         WasmExport::get_functions(|export| {
             export.method_of.is_some_and(|name| name == type_name)
         })

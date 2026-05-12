@@ -1,7 +1,6 @@
 use crate::modules::prelude::*;
 use crate::modules::protos::string::*;
 
-
 #[module_main]
 fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<String, ModuleError> {
     // Nothing to do, but we have to return our protobuf
@@ -106,10 +105,10 @@ mod tests {
 }
 
 inventory::submit! {
-    super::YaraModule {
+    super::Module {
         name: "string",
         root_descriptor: <crate::modules::protos::string::String as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        main_fn: Some(__main__ as super::ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

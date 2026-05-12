@@ -9,10 +9,7 @@ use crate::modules::protos::dotnet::*;
 pub mod parser;
 
 #[module_main]
-fn main(
-    data: &[u8],
-    _meta: Option<&[u8]>,
-) -> Result<Dotnet, ModuleError> {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Dotnet, ModuleError> {
     match parser::Dotnet::parse(data) {
         Ok(dotnet) => Ok(dotnet.into()),
         Err(_) => {
@@ -24,10 +21,10 @@ fn main(
 }
 
 inventory::submit! {
-    super::YaraModule {
+    super::Module {
         name: "dotnet",
         root_descriptor: <Dotnet as ::protobuf::MessageFull>::descriptor,
-        main_fn: Some(__main__ as super::YaraModuleMainFn),
+        main_fn: Some(__main__ as super::ModuleMainFn),
         rust_module_name: Some(module_path!()),
     }
 }

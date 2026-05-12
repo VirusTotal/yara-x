@@ -11,8 +11,9 @@
 
 use protobuf::MessageDyn;
 use protobuf::MessageFull;
-use yara_x::YaraModule;
+
 use yara_x::errors::ModuleError;
+use yara_x::mods::Module;
 
 pub mod proto {
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
@@ -32,17 +33,17 @@ fn foobar_main(
 
 /// Functions exported to YARA rules as callable functions of the `foobar` module.
 pub mod fns {
-    use yara_x::ScanContext;
+    use yara_x::mods::ScanContext;
 
     /// Returns the sum of two integers. Callable from rules as `foobar.add(a, b)`.
-    #[yara_x::module_export(yara_x_crate = "yara_x")]
+    #[yara_x::mods::export(yara_x_crate = "yara_x")]
     pub fn add(_ctx: &ScanContext, a: i64, b: i64) -> i64 {
         a + b
     }
 }
 
 yara_x::inventory::submit! {
-    YaraModule {
+    Module {
         name: "foobar",
         root_descriptor: Foobar::descriptor,
         main_fn: Some(foobar_main),
