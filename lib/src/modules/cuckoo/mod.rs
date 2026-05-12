@@ -1,5 +1,5 @@
 use crate::compiler::RegexId;
-use crate::mods::api::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::cuckoo::*;
 
 mod schema;

@@ -17,7 +17,7 @@ use nom::combinator::map;
 use nom::number::complete::{le_u16, le_u32};
 
 use crate::compiler::RegexId;
-use crate::mods::api::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::pe::*;
 use crate::types::Struct;
 

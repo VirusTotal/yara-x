@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::mods::api::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::console::*;
 
 #[module_main]

@@ -18,7 +18,7 @@ use bstr::BStr;
 use ipnet::IpNet;
 use protobuf::EnumFull;
 
-use crate::mods::api::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::titan::*;
 use crate::modules::protos::vtnet::enriched_domain::Permutation;
 use crate::modules::vt::bitsquatting::bitsquatting;

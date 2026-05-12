@@ -11,7 +11,7 @@ use bstr::BString;
 use itertools::Itertools;
 use md5::{Digest, Md5};
 
-use crate::mods::api::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::macho::parser::{N_EXT, N_STAB, N_TYPE};
 use crate::modules::protos::macho::*;
 

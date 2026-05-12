@@ -13,7 +13,7 @@ use protobuf::MessageDyn;
 use protobuf::MessageFull;
 
 use yara_x::errors::ModuleError;
-use yara_x::mods::api::prelude::*;
+use yara_x::mods::prelude::*;
 
 pub mod proto {
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));

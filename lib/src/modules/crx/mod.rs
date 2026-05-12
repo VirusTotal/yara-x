@@ -5,7 +5,7 @@ This allows creating YARA rules based on metadata extracted from those files.
 use sha2::{Digest, Sha256};
 use std::cell::RefCell;
 
-use crate::mods::api::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::crx::Crx;
 use crate::modules::protos::crx::*;
 mod parser;

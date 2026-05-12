@@ -2,7 +2,7 @@
 
 This allows creating YARA rules based on .NET metadata.
  */
-use crate::mods::api::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::dotnet::*;
 
 pub mod parser;

@@ -11,7 +11,7 @@ use itertools::Itertools;
 use md5::{Digest, Md5};
 use rustc_hash::FxHashSet;
 
-use crate::mods::api::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::Module;
 use crate::modules::protos::elf::*;
 

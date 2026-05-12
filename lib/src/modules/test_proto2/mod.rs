@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::mods::api::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::test_proto2::NestedProto2;
 use crate::modules::protos::test_proto2::TestProto2;
 use crate::types::Struct;

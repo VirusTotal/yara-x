@@ -6,7 +6,7 @@ use sha1::{Digest, Sha1};
 use simd_adler32::Adler32;
 use std::cell::RefCell;
 
-use crate::mods::api::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::dex::*;
 
 pub mod parser;

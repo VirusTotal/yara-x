@@ -6,7 +6,7 @@ use memchr::memchr_iter;
 use protobuf::MessageFull;
 use rustc_hash::FxHashMap;
 
-use crate::mods::api::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::math::*;
 
 type ByteDistribution = [u64; 256];

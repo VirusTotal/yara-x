@@ -6,7 +6,7 @@ This allows creating YARA rules that use the file type provided by [libmagic][1]
  */
 use std::cell::RefCell;
 
-use crate::mods::api::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::magic::*;
 
 #[cfg(feature = "logging")]
