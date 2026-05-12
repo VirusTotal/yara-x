@@ -276,6 +276,7 @@ pub mod mods {
         pub use crate::wasm::string::{Lowercase, Uppercase};
         pub use crate::wasm::*;
         pub use bstr::ByteSlice;
+        pub use inventory;
         pub use inventory::submit as register_module;
         pub use protobuf::MessageFull;
         pub use yara_x_macros::{module_main, wasm_export};

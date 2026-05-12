@@ -8,7 +8,6 @@
 //! The module's main function populates the protobuf from the scanned data.
 //! Callers can also override the output for a specific scan by calling
 //! [`yara_x::Scanner::set_module_output`] before [`yara_x::Scanner::scan`].
-
 use protobuf::MessageDyn;
 use protobuf::MessageFull;
 

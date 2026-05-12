@@ -27,8 +27,8 @@ members = [
     "proto-yaml",
     "py",
     "ls",
-    "examples/custom-module-example",
 ]
+exclude = ["examples/custom-module-example"]
 resolver = "3"
 
 

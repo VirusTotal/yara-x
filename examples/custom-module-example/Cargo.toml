@@ -4,33 +4,23 @@ description = """
 Example crate demonstrating how to register a custom YARA-X module from an
 external crate using the `inventory` crate.
 """
-version.workspace = true
-authors.workspace = true
-edition.workspace = true
-license.workspace = true
-homepage.workspace = true
-repository.workspace = true
-rust-version.workspace = true
+edition = "2024"
 publish = false
 
 [lib]
-# A regular Rust library. The `inventory::submit!` invocation in `src/lib.rs`
+# A regular Rust library. The `register_module!` invocation in `src/lib.rs`
 # registers the custom module at link time.
 path = "src/lib.rs"
 
 [dependencies]
 # `yara-x` is consumed via the workspace path so this example always builds
 # against the in-tree version.
-yara-x = { workspace = true }
+yara-x = { path = "../../lib" }
 # The `protobuf` crate is needed because the registered main function returns
 # a `Box<dyn protobuf::MessageDyn>` and to access `MessageFull::descriptor()`.
-protobuf = { workspace = true }
-# `inventory` is re-exported by `yara-x` (see `yara_x::inventory`) but having
-# it as a direct dependency makes the example clearer for readers who copy it
-# into their own crate.
-inventory = { workspace = true }
+protobuf = "3.7.2"
 
 [build-dependencies]
 # Compiles `proto/custom_test.proto` into Rust code at build time. The
 # `pure` mode is selected so that no external `protoc` binary is required.
-protobuf-codegen = { workspace = true }
+protobuf-codegen = "3.7.2"
