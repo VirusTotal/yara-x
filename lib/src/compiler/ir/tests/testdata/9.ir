@@ -1,28 +1,28 @@
 RULE test_1
-  7: AND -- hash: 0xe5cafaa8d88f6647
-    0: PATTERN_MATCH PatternIdx(0) -- hash: 0xf292d5de83aa2bcc
-    3: EQ -- hash: 0xdd02cd4d9c8dcff4
-      1: PATTERN_COUNT PatternIdx(0) -- hash: 0xc1bc033c6a64ce89
+  7: AND -- hash: 0xc5b3f5bfb52edf4f
+    0: PATTERN_MATCH PatternIdx(0) -- hash: 0x5a276c8d75077d2b
+    3: EQ -- hash: 0x29ac06b50265bae
+      1: PATTERN_COUNT PatternIdx(0) -- hash: 0x295099eb5fc21fe8
       2: CONST integer(1)
-    6: EQ -- hash: 0x7f7928e1f3fa117b
-      4: PATTERN_OFFSET PatternIdx(0) -- hash: 0x90e5309a511f7146
+    6: EQ -- hash: 0xa5111bffa7929d34
+      4: PATTERN_OFFSET PatternIdx(0) -- hash: 0xf879c749467cc2a4
       5: CONST integer(0)
 
 RULE test_2
-  1: PATTERN_MATCH PatternIdx(0) AT -- hash: 0xd5e7410730122f97
+  1: PATTERN_MATCH PatternIdx(0) AT -- hash: 0xfb7f3424e7aabb50
     0: CONST integer(0)
 
 RULE test_3
-  6: FOR_OF -- hash: 0x9efd07789e3b338f
+  6: FOR_OF -- hash: 0x38da77c23a5f1b4e
         n: Var { frame_id: 1, ty: integer, index: 0 }
         i: Var { frame_id: 1, ty: integer, index: 1 }
         max_count: Var { frame_id: 1, ty: integer, index: 2 }
         count: Var { frame_id: 1, ty: integer, index: 3 }
         item: Var { frame_id: 1, ty: integer, index: 4 }
-    5: OR -- hash: 0xda1fd5ef5cd9baa8
-      1: PATTERN_MATCH Var { var: Var { frame_id: 1, ty: integer, index: 4 }, type_value: integer(unknown) } AT -- hash: 0x8f6f481cddaae626
+    5: OR -- hash: 0x9da4149814c75f48
+      1: PATTERN_MATCH Var { var: Var { frame_id: 1, ty: integer, index: 4 }, type_value: integer(unknown) } AT -- hash: 0x1951a046c05c8a50
         0: CONST integer(0)
-      4: GT -- hash: 0xf6c07a35e19896a9
-        2: PATTERN_COUNT Var { var: Var { frame_id: 1, ty: integer, index: 4 }, type_value: integer(unknown) } -- hash: 0x4a5032b534929583
+      4: GT -- hash: 0x80a2d25fc44a3ad3
+        2: PATTERN_COUNT Var { var: Var { frame_id: 1, ty: integer, index: 4 }, type_value: integer(unknown) } -- hash: 0x1f3792db5a762e26
         3: CONST integer(0)
 

@@ -76,7 +76,7 @@ impl<'ast> FuncSignatureParser<'ast> {
             "bool" => Ok(Cow::Borrowed("b")),
 
             "PatternId" | "RuleId" => Ok(Cow::Borrowed("i")),
-            "RegexpId" => Ok(Cow::Borrowed("r")),
+            "RegexId" => Ok(Cow::Borrowed("r")),
             "Rc" => Ok(Cow::Borrowed("i")),
             "RuntimeObjectHandle" => Ok(Cow::Borrowed("i")),
             "RuntimeString" => Ok(Cow::Borrowed("s")),

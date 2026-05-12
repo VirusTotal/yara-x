@@ -299,7 +299,7 @@ pub struct Compiler<'a> {
 
     /// Similar to `ident_pool` but for regular expressions found in rule
     /// conditions.
-    regexp_pool: StringPool<RegexpId>,
+    regex_pool: StringPool<RegexId>,
 
     /// Similar to `ident_pool` but for string literals found in the source
     /// code. As literal strings in YARA can contain arbitrary bytes, a pool
@@ -416,6 +416,9 @@ pub struct Compiler<'a> {
     /// Linters applied to each rule during compilation. The linters are added
     /// to the compiler using [`Compiler::add_linter`]:
     linters: Vec<Box<dyn linters::Linter + 'a>>,
+
+    /// Grouped RegexSets constructed during IR creation for or-expressions.
+    pub(crate) regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
 }
 
 impl<'a> Compiler<'a> {
@@ -498,13 +501,14 @@ impl<'a> Compiler<'a> {
             root_struct: Struct::new().make_root(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
-            regexp_pool: StringPool::new(),
+            regex_pool: StringPool::new(),
             patterns: FxHashMap::default(),
             ir_writer: None,
             linters: Vec::new(),
             include_dirs: None,
             includes_enabled: true,
             include_stack: Vec::new(),
+            regex_sets: FxHashMap::default(),
         }
     }
 
@@ -795,7 +799,7 @@ impl<'a> Compiler<'a> {
             ac: None,
             num_patterns: self.next_pattern_id.0 as usize,
             ident_pool: self.ident_pool,
-            regexp_pool: self.regexp_pool,
+            regex_pool: self.regex_pool,
             lit_pool: self.lit_pool,
             imported_modules: self.imported_modules,
             rules: self.rules,
@@ -805,6 +809,7 @@ impl<'a> Compiler<'a> {
             re_code: self.re_code,
             warnings: self.warnings.into(),
             filesize_bounds: self.filesize_bounds,
+            regex_sets: self.regex_sets,
         };
 
         rules.build_ac_automaton();
@@ -1528,6 +1533,8 @@ impl Compiler<'_> {
             for_of_depth: 0,
             features: &self.features,
             loop_iteration_multiplier: 1,
+            regex_sets: &mut self.regex_sets,
+            regex_pool: &mut self.regex_pool,
         };
 
         // Convert the patterns from AST to IR. This populates the
@@ -1823,7 +1830,7 @@ impl Compiler<'_> {
         let mut ctx = EmitContext {
             current_rule: self.rules.last_mut().unwrap(),
             lit_pool: &mut self.lit_pool,
-            regexp_pool: &mut self.regexp_pool,
+            regex_pool: &mut self.regex_pool,
             wasm_symbols: &self.wasm_symbols,
             wasm_exports: &self.wasm_exports,
             exception_handler_stack: Vec::new(),
@@ -2657,6 +2664,13 @@ impl From<LiteralId> for u64 {
 #[serde(transparent)]
 pub(crate) struct NamespaceId(i32);
 
+impl From<i32> for NamespaceId {
+    #[inline]
+    fn from(v: i32) -> Self {
+        Self(v)
+    }
+}
+
 /// ID associated to each rule.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash)]
 pub(crate) struct RuleId(i32);
@@ -2700,48 +2714,81 @@ impl From<RuleId> for i32 {
 }
 
 /// ID associated to each regexp used in a rule condition.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub(crate) struct RegexpId(i32);
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub(crate) struct RegexId(i32);
 
-impl From<i32> for RegexpId {
+impl From<i32> for RegexId {
     #[inline]
     fn from(value: i32) -> Self {
         Self(value)
     }
 }
 
-impl From<u32> for RegexpId {
+impl From<u32> for RegexId {
     #[inline]
     fn from(value: u32) -> Self {
         Self(value.try_into().unwrap())
     }
 }
 
-impl From<i64> for RegexpId {
+impl From<i64> for RegexId {
     #[inline]
     fn from(value: i64) -> Self {
         Self(value.try_into().unwrap())
     }
 }
 
-impl From<RegexpId> for usize {
+impl From<RegexId> for usize {
     #[inline]
-    fn from(value: RegexpId) -> Self {
+    fn from(value: RegexId) -> Self {
         value.0 as usize
     }
 }
 
-impl From<RegexpId> for i32 {
+impl From<RegexId> for i32 {
     #[inline]
-    fn from(value: RegexpId) -> Self {
+    fn from(value: RegexId) -> Self {
         value.0
     }
 }
 
-impl From<RegexpId> for u32 {
+impl From<RegexId> for u32 {
     #[inline]
-    fn from(value: RegexpId) -> Self {
+    fn from(value: RegexId) -> Self {
         value.0.try_into().unwrap()
+    }
+}
+
+/// ID associated to each grouped `RegexSet`.
+///
+/// When compiling multiple rules, identical string expressions (such as a
+/// specific field access like `vt.net.domain.raw`) are frequently matched
+/// against multiple distinct regular expressions. To optimize these
+/// evaluations, the compiler identifies identical targets, assigns them a
+/// unique `RegexSetId`, and groups all their associated regular expressions
+/// together. At runtime, the entire set is evaluated simultaneously in a
+/// single pass.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub(crate) struct RegexSetId(i32);
+
+impl From<i32> for RegexSetId {
+    #[inline]
+    fn from(value: i32) -> Self {
+        Self(value)
+    }
+}
+
+impl From<RegexSetId> for usize {
+    #[inline]
+    fn from(value: RegexSetId) -> Self {
+        value.0 as usize
+    }
+}
+
+impl From<RegexSetId> for i32 {
+    #[inline]
+    fn from(value: RegexSetId) -> Self {
+        value.0
     }
 }
 

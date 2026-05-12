@@ -18,8 +18,8 @@ use crate::compiler::errors::SerializationError;
 use crate::compiler::report::CodeLoc;
 use crate::compiler::warnings::Warning;
 use crate::compiler::{
-    IdentId, Imports, LiteralId, NamespaceId, PatternId, RegexpId, RuleId,
-    SubPattern, SubPatternId,
+    IdentId, Imports, LiteralId, NamespaceId, PatternId, RegexId, RegexSetId,
+    RuleId, SubPattern, SubPatternId,
 };
 use crate::models::PatternKind;
 use crate::re::{BckCodeLoc, FwdCodeLoc, RegexpAtom};
@@ -56,12 +56,12 @@ pub struct Rules {
     pub(in crate::compiler) ident_pool: StringPool<IdentId>,
 
     /// Pool with the regular expressions used in the rules conditions. Each
-    /// regular expression has its own [`RegexpId`]. Regular expressions
+    /// regular expression has its own [`RegexId`]. Regular expressions
     /// include the starting and ending slashes (`/`), and the modifiers
     /// `i` and `s` if present (e.g: `/foobar/`, `/foo/i`, `/bar/s`).
-    pub(in crate::compiler) regexp_pool: StringPool<RegexpId>,
+    pub(in crate::compiler) regex_pool: StringPool<RegexId>,
 
-    /// If `true`, the regular expressions in `regexp_pool` are allowed to
+    /// If `true`, the regular expressions in `regex_pool` are allowed to
     /// contain invalid escape sequences.
     pub(in crate::compiler) relaxed_re_syntax: bool,
 
@@ -155,6 +155,15 @@ pub struct Rules {
     /// serialized rules won't have any warnings.
     #[serde(skip)]
     pub(in crate::compiler) warnings: Vec<Warning>,
+
+    /// Grouped `RegexSet` persistent definitions.
+    ///
+    /// Populated during `Compiler::build`, each entry maps a unique
+    /// `RegexSetId` to an ordered list of `RegexpId`s. All regular
+    /// expressions in a given set match the exact same target expression
+    /// in the source code, allowing them to be compiled into a unified
+    /// set automata for single-pass evaluation.
+    pub(in crate::compiler) regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
 }
 
 impl Rules {
@@ -322,14 +331,14 @@ impl Rules {
         self.rules.get(rule_id.0 as usize).unwrap()
     }
 
-    /// Returns a regular expression by [`RegexpId`].
+    /// Returns a regular expression by [`RegexId`].
     ///
     /// # Panics
     ///
-    /// If no regular expression with such [`RegexpId`] exists.
+    /// If no regular expression with such [`RegexId`] exists.
     #[inline]
-    pub(crate) fn get_regexp(&self, regexp_id: RegexpId) -> Regex {
-        let re = types::Regexp::new(self.regexp_pool.get(regexp_id).unwrap());
+    pub(crate) fn get_regexp(&self, regexp_id: RegexId) -> Regex {
+        let re = types::Regexp::new(self.regex_pool.get(regexp_id).unwrap());
 
         let parser = re::parser::Parser::new()
             .relaxed_re_syntax(self.relaxed_re_syntax);
@@ -347,6 +356,31 @@ impl Rules {
             .build_from_hir(&hir)
             .unwrap_or_else(|err| {
                 panic!("error compiling regex `{}`: {:#?}", re.as_str(), err)
+            })
+    }
+
+    /// Returns a compiled multi-pattern `RegexSet` for a given `RegexSetId`.
+    #[inline]
+    pub(crate) fn get_regex_set(
+        &self,
+        set_id: RegexSetId,
+    ) -> regex::bytes::RegexSet {
+        let re_ids = self.regex_sets.get(&set_id).unwrap();
+        let mut patterns = Vec::with_capacity(re_ids.len());
+
+        for &re_id in re_ids {
+            let re = types::Regexp::new(self.regex_pool.get(re_id).unwrap());
+            let parser = re::parser::Parser::new()
+                .relaxed_re_syntax(self.relaxed_re_syntax);
+            let hir = parser.parse(&re).unwrap().into_inner();
+            patterns.push(hir.to_string());
+        }
+
+        regex::bytes::RegexSetBuilder::new(patterns)
+            .size_limit(1024 * 1024 * 1024)
+            .build()
+            .unwrap_or_else(|err| {
+                panic!("error compiling RegexSet: {:#?}", err)
             })
     }
 

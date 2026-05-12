@@ -1,25 +1,25 @@
 RULE test
-  44: WITH -- hash: 0xfd51d86833944c9b
-    43: PATTERN_COUNT PatternIdx(1) -- hash: 0x7699aa02ceb56d76
-    46: WITH -- hash: 0xf99994e9c3a68cb3
-      45: FIELD_ACCESS -- hash: 0x22bd483d721ed399
+  44: WITH -- hash: 0x7c91d0cccb598c8a
+    43: PATTERN_COUNT PatternIdx(1) -- hash: 0xde2e40b1c012bed4
+    46: WITH -- hash: 0x43de2be682efd642
+      45: FIELD_ACCESS -- hash: 0x874667d74d3e43c4
         4: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
         5: SYMBOL Field { index: 19, is_root: false, type_value: array, acl: None, deprecation_notice: None }
-      42: FOR_IN -- hash: 0xe8e057517cf5bf22
+      42: FOR_IN -- hash: 0x69ea51737f0ab559
             n: Var { frame_id: 1, ty: integer, index: 2 }
             i: Var { frame_id: 1, ty: integer, index: 3 }
             max_count: Var { frame_id: 1, ty: integer, index: 4 }
             count: Var { frame_id: 1, ty: integer, index: 5 }
             item: Var { frame_id: 1, ty: unknown, index: 6 }
         0: CONST integer(0)
-        1: PATTERN_COUNT PatternIdx(0) -- hash: 0xc1bc033c6a64ce89
-        48: WITH -- hash: 0x669c16b485984c27
-          47: PATTERN_OFFSET PatternIdx(0) INDEX -- hash: 0xce29f774b8692af2
+        1: PATTERN_COUNT PatternIdx(0) -- hash: 0x295099eb5fc21fe8
+        48: WITH -- hash: 0xf4e938698d476707
+          47: PATTERN_OFFSET PatternIdx(0) INDEX -- hash: 0xe778aa6811ef055e
             10: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 7 }, type_value: integer(unknown) }
-          50: WITH -- hash: 0xab9765e6b9c23851
-            49: PATTERN_OFFSET PatternIdx(0) INDEX -- hash: 0xce29f774b8692af2
+          50: WITH -- hash: 0xaed4c90a75f90eb3
+            49: PATTERN_OFFSET PatternIdx(0) INDEX -- hash: 0xe778aa6811ef055e
               13: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 7 }, type_value: integer(unknown) }
-            41: FOR_IN -- hash: 0xe5518f0bdf2d8333
+            41: FOR_IN -- hash: 0x49d99373f68e4c7
                   n: Var { frame_id: 2, ty: integer, index: 11 }
                   i: Var { frame_id: 2, ty: integer, index: 12 }
                   max_count: Var { frame_id: 2, ty: integer, index: 13 }
@@ -27,46 +27,46 @@ RULE test
                   item: Var { frame_id: 2, ty: unknown, index: 15 }
               2: CONST integer(0)
               3: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: integer(unknown) }
-              52: WITH -- hash: 0x3666334f99c17954
-                51: PATTERN_OFFSET PatternIdx(1) INDEX -- hash: 0x49dc6121174a8d53
+              52: WITH -- hash: 0xb5960acd8155f7b4
+                51: PATTERN_OFFSET PatternIdx(1) INDEX -- hash: 0x632b14146cd067bf
                   26: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 16 }, type_value: integer(unknown) }
-                54: WITH -- hash: 0xd26c3fe7d117b926
-                  53: PATTERN_OFFSET PatternIdx(1) INDEX -- hash: 0x49dc6121174a8d53
+                54: WITH -- hash: 0x3c39252d4e265253
+                  53: PATTERN_OFFSET PatternIdx(1) INDEX -- hash: 0x632b14146cd067bf
                     29: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 16 }, type_value: integer(unknown) }
-                  40: FOR_IN -- hash: 0x92c95e15a9d08618
+                  40: FOR_IN -- hash: 0x9e7b3fb228ae7b95
                         n: Var { frame_id: 3, ty: integer, index: 20 }
                         i: Var { frame_id: 3, ty: integer, index: 21 }
                         max_count: Var { frame_id: 3, ty: integer, index: 22 }
                         count: Var { frame_id: 3, ty: integer, index: 23 }
                         item: Var { frame_id: 3, ty: array, index: 24 }
                     6: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 1 }, type_value: array }
-                    39: AND -- hash: 0xfd9ea211fc88a365
-                      12: LE -- hash: 0xaae2bff322aa8faf
-                        9: FIELD_ACCESS -- hash: 0x2cfd8c09c7bab762
+                    39: AND -- hash: 0xf26f57a007df86f2
+                      12: LE -- hash: 0x683a1d546192136c
+                        9: FIELD_ACCESS -- hash: 0xee456a1e00eeb5a2
                           7: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 25 }, type_value: struct }
                           8: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
                         11: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 9 }, type_value: integer(unknown) }
-                      22: LE -- hash: 0x644c1cef0467915f
+                      22: LE -- hash: 0xb98d168c82aae133
                         14: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 10 }, type_value: integer(unknown) }
-                        21: ADD -- hash: 0x108f040ec6b473d7
-                          17: FIELD_ACCESS -- hash: 0x2cfd8c09c7bab762
+                        21: ADD -- hash: 0x8f76cc0b5cc1808c
+                          17: FIELD_ACCESS -- hash: 0xee456a1e00eeb5a2
                             15: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 25 }, type_value: struct }
                             16: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
-                          20: FIELD_ACCESS -- hash: 0xe1db32d0280b564e
+                          20: FIELD_ACCESS -- hash: 0xa32310e4653f548f
                             18: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 25 }, type_value: struct }
                             19: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
-                      28: LE -- hash: 0x99689fd2d49614f8
-                        25: FIELD_ACCESS -- hash: 0x2cfd8c09c7bab762
+                      28: LE -- hash: 0x56bffd34177d98b5
+                        25: FIELD_ACCESS -- hash: 0xee456a1e00eeb5a2
                           23: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 25 }, type_value: struct }
                           24: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
                         27: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 18 }, type_value: integer(unknown) }
-                      38: LE -- hash: 0xb8db6ae5493ebfc8
+                      38: LE -- hash: 0xe1c6482c7820f9d
                         30: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 19 }, type_value: integer(unknown) }
-                        37: ADD -- hash: 0x108f040ec6b473d7
-                          33: FIELD_ACCESS -- hash: 0x2cfd8c09c7bab762
+                        37: ADD -- hash: 0x8f76cc0b5cc1808c
+                          33: FIELD_ACCESS -- hash: 0xee456a1e00eeb5a2
                             31: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 25 }, type_value: struct }
                             32: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
-                          36: FIELD_ACCESS -- hash: 0xe1db32d0280b564e
+                          36: FIELD_ACCESS -- hash: 0xa32310e4653f548f
                             34: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 25 }, type_value: struct }
                             35: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
 

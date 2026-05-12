@@ -303,6 +303,10 @@ pub(super) fn dfs_common(
             stack.push(Event::Enter((*lhs, EventContext::None)));
         }
 
+        Expr::MatchesMany { lhs, .. } => {
+            stack.push(Event::Enter((*lhs, EventContext::None)));
+        }
+
         Expr::PatternMatch { anchor, .. }
         | Expr::PatternMatchVar { anchor, .. } => {
             push_anchor(anchor, stack);

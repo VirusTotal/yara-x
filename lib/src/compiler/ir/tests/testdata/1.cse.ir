@@ -4,14 +4,14 @@ RULE test_1
     5: CONST integer(1)
 
 RULE test_2
-  10: EQ -- hash: 0xfb622d3fda4c9468
-    8: SUB -- hash: 0x38aff83d94a3aa25
-      4: ADD -- hash: 0xaa45310763b4b319
-        2: FIELD_ACCESS -- hash: 0xe58b5f97183b1a0c
+  10: EQ -- hash: 0xa60cf135438e6090
+    8: SUB -- hash: 0xdc58c9f57c354387
+      4: ADD -- hash: 0x73cffc9d7ea6b7e5
+        2: FIELD_ACCESS -- hash: 0x4a147f30f75a8a38
           0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
           1: SYMBOL Field { index: 13, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
         3: CONST integer(1)
-      7: FIELD_ACCESS -- hash: 0xe58b5f97183b1a0c
+      7: FIELD_ACCESS -- hash: 0x4a147f30f75a8a38
         5: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
         6: SYMBOL Field { index: 13, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
     9: CONST integer(1)
@@ -39,16 +39,16 @@ RULE test_6
     8: CONST integer(1)
 
 RULE test_7
-  8: AND -- hash: 0x966e46de448a5ee5
-    4: EQ -- hash: 0x6500d8d8a8951685
-      2: FIELD_ACCESS -- hash: 0x6b278e4a6873a6f4
+  8: AND -- hash: 0x5ff91274637c63b1
+    4: EQ -- hash: 0x2e8ba46ec7871b51
+      2: FIELD_ACCESS -- hash: 0xcfb0ade44793171f
         0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
         1: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
       3: CONST integer(0)
 
 RULE test_8
-  5: ADD -- hash: 0x52c16f85b5684320
-    2: FIELD_ACCESS -- hash: 0x6b278e4a6873a6f4
+  5: ADD -- hash: 0x1d972cb4137a7747
+    2: FIELD_ACCESS -- hash: 0xcfb0ade44793171f
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
       1: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
     3: CONST integer(1)

@@ -927,3 +927,31 @@ fn max_scan_size() {
         0
     );
 }
+
+#[cfg(feature = "test_proto2-module")]
+#[test]
+fn regex_set_optimization() {
+    let rules = crate::compile(
+        r#"
+        import "test_proto2"
+        rule test {
+            condition:
+                test_proto2.string_foo matches /foo/ and
+                test_proto2.string_foo matches /bar/
+        }
+        rule test_match {
+            condition:
+                test_proto2.string_foo matches /foo/ or
+                test_proto2.string_foo matches /bar/
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::Scanner::new(&rules);
+    let results = scanner.scan(b"").unwrap();
+
+    let matching_rules: Vec<_> =
+        results.matching_rules().map(|r| r.identifier().to_string()).collect();
+    assert_eq!(matching_rules, vec!["test_match"]);
+}
