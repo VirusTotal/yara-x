@@ -6,7 +6,7 @@ use rustc_hash::FxHashMap;
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
 
-use crate::modules::prelude::*;
+use crate::mods::api::prelude::*;
 use crate::modules::protos::hash::*;
 
 #[cfg(test)]

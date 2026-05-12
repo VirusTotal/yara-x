@@ -90,7 +90,7 @@ use smallvec::{SmallVec, smallvec};
 use yara_x_macros::wasm_export;
 
 use crate::compiler::{LiteralId, PatternId, RegexId, RuleId};
-use crate::mods::Module;
+use crate::modules::Module;
 use crate::scanner::{RuntimeObjectHandle, ScanContext};
 use crate::types::{
     Array, Func, FuncSignature, Map, Struct, TypeValue, Value,
@@ -137,7 +137,7 @@ pub(crate) fn wasm_exports() -> impl Iterator<Item = &'static WasmExport> {
     inventory::iter::<WasmExport>()
 }
 
-/// Type of each entry in [`WASM_EXPORTS`].
+/// Describes a function that is exported to WASM code.
 pub struct WasmExport {
     /// Function's name.
     pub name: &'static str,
@@ -576,7 +576,7 @@ where
     }
 }
 
-pub fn wasmtime_to_walrus(ty: &ValType) -> walrus::ValType {
+fn wasmtime_to_walrus(ty: &ValType) -> walrus::ValType {
     #[allow(unreachable_patterns)]
     match ty {
         ValType::I64 => walrus::ValType::I64,
@@ -631,6 +631,7 @@ fn type_id_to_wasmtime(
 macro_rules! impl_wasm_exported_fn {
     ($name:ident $($args:ident)*) => {
         #[allow(dead_code)]
+        #[allow(missing_docs)]
         pub struct $name <$($args,)* R>
         where
             $($args: 'static,)*

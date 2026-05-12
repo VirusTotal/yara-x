@@ -7,8 +7,8 @@
 
 use std::cell::RefCell;
 
+use crate::mods::api::prelude::*;
 use crate::modules::macho::parser::{N_EXT, N_STAB, N_TYPE};
-use crate::modules::prelude::*;
 use crate::modules::protos::macho::*;
 use bstr::BString;
 use itertools::Itertools;

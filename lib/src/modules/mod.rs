@@ -16,18 +16,6 @@ mod tests;
 
 pub(crate) mod field_docs;
 
-#[allow(unused_imports)]
-pub(crate) mod prelude {
-    pub(crate) use crate::scanner::ScanContext;
-    pub(crate) use crate::wasm::runtime::Caller;
-    pub(crate) use crate::wasm::string::FixedLenString;
-    pub(crate) use crate::wasm::string::RuntimeString;
-    pub(crate) use crate::wasm::string::String as _;
-    pub(crate) use crate::wasm::string::{Lowercase, Uppercase};
-    pub(crate) use crate::wasm::*;
-    pub(crate) use bstr::ByteSlice;
-    pub(crate) use yara_x_macros::{module_export, module_main, wasm_export};
-}
 include!("modules.rs");
 
 /// Enum describing errors occurred in modules.
@@ -124,23 +112,6 @@ pub mod mods {
     pub use super::protos::dex;
     /// Data structure returned by the `dex` module.
     pub use super::protos::dex::Dex;
-    use itertools::Itertools;
-    use std::rc::Rc;
-
-    pub use super::Module;
-    pub use super::ModuleDescriptor;
-    pub use super::ModuleMainFn;
-    pub use crate::wasm::WasmExport;
-
-    /// Opaque scan context passed as first argument to functions exported from a
-    /// [`Module`] via `#[yara_x::mods:export(yara_x_crate = "yara_x")]`.
-    ///
-    /// Functions only receive a reference to it; all fields are private.
-    ///
-    /// Not available on the `wasm32` target.
-    #[cfg(not(target_family = "wasm"))]
-    pub type ScanContext<'r, 'd> = crate::scanner::ScanContext<'r, 'd>;
-
     /// Data structures defined by the `dotnet` module.
     ///
     /// The main structure produced by the module is [`dotnet::Dotnet`]. The
@@ -149,21 +120,6 @@ pub mod mods {
     pub use super::protos::dotnet;
     /// Data structure returned by the `dotnet` module.
     pub use super::protos::dotnet::Dotnet;
-    use crate::types;
-    /// Attribute macro for exporting a callable function from a [`Module`].
-    ///
-    /// Use with `yara_x_crate = "yara_x"` when defining functions in an external
-    /// crate that should be callable from YARA rules:
-    ///
-    /// ```ignore
-    /// #[yara_x::mods::export(yara_x_crate = "yara_x")]
-    /// fn add(_ctx: &yara_x::ScanContext, a: i64, b: i64) -> i64 { a + b }
-    /// ```
-    ///
-    /// Not available on the `wasm32` target.
-    #[cfg(not(target_family = "wasm"))]
-    pub use yara_x_macros::module_export as export;
-
     /// Data structures defined by the `elf` module.
     ///
     /// The main structure produced by the module is [`elf::ELF`]. The rest of
@@ -172,7 +128,6 @@ pub mod mods {
     pub use super::protos::elf;
     /// Data structure returned by the `elf` module.
     pub use super::protos::elf::ELF;
-
     /// Data structures defined by the `lnk` module.
     ///
     /// The main structure produced by the module is [`lnk::Lnk`]. The rest of
@@ -181,6 +136,10 @@ pub mod mods {
     pub use super::protos::lnk;
     /// Data structure returned by the `lnk` module.
     pub use super::protos::lnk::Lnk;
+    use crate::modules::Module;
+    use crate::types;
+    use itertools::Itertools;
+    use std::rc::Rc;
 
     /// Data structures defined by the `macho` module.
     ///
@@ -301,6 +260,51 @@ pub mod mods {
         inventory::iter::<Module>()
             .find(|m| m.name == name)
             .map(|m| reflect::Struct::new(Rc::<types::Struct>::from(m)))
+    }
+
+    /// Everything needed to implement your own YARA-X modules.
+    pub mod api {
+        #[allow(unused_imports)]
+        #[allow(missing_docs)]
+        pub mod prelude {
+            //pub use crate::mods::api::ScanContext;
+            pub use crate::wasm::runtime::Caller;
+            pub use crate::wasm::string::FixedLenString;
+            pub use crate::wasm::string::RuntimeString;
+            pub use crate::wasm::string::String as _;
+            pub use crate::wasm::string::{Lowercase, Uppercase};
+            pub use crate::wasm::*;
+            pub use bstr::ByteSlice;
+            pub use inventory::submit as define_module;
+            pub use yara_x_macros::{module_main, wasm_export};
+
+            /// Opaque scan context passed as first argument to functions exported from a
+            /// [`Module`] via `#[yara_x::mods:api::export(yara_x_crate = "yara_x")]`.
+            ///
+            /// Functions only receive a reference to it; all fields are private.
+            ///
+            /// Not available on the `wasm32` target.
+            #[cfg(not(target_family = "wasm"))]
+            pub type ScanContext<'r, 'd> = crate::scanner::ScanContext<'r, 'd>;
+
+            /// Attribute macro for exporting a callable function from a [`Module`].
+            ///
+            /// Use with `yara_x_crate = "yara_x"` when defining functions in an external
+            /// crate that should be callable from YARA rules:
+            ///
+            /// ```ignore
+            /// #[yara_x::mods::export(yara_x_crate = "yara_x")]
+            /// fn add(_ctx: &yara_x::ScanContext, a: i64, b: i64) -> i64 { a + b }
+            /// ```
+            ///
+            /// Not available on the `wasm32` target.
+            #[cfg(not(target_family = "wasm"))]
+            pub use yara_x_macros::module_export;
+        }
+
+        pub use crate::modules::Module;
+        pub use crate::modules::ModuleDescriptor;
+        pub use crate::modules::ModuleMainFn;
     }
 
     /// Types that allow for module introspection.

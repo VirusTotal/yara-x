@@ -38,6 +38,7 @@ use crate::compiler::errors::{
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{CompileContext, VarStack};
+use crate::modules::Module;
 use crate::re::hir::{ChainedPattern, ChainedPatternGap};
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup, SymbolTable};
@@ -66,7 +67,6 @@ pub use crate::compiler::report::Patch;
 pub use crate::compiler::rules::*;
 #[doc(inline)]
 pub use crate::compiler::warnings::*;
-use crate::mods::Module;
 
 mod atoms;
 mod context;
@@ -2628,7 +2628,7 @@ impl From<IdentId> for u32 {
 /// ID associated to each literal string in the literals pool.
 #[derive(PartialEq, Debug, Copy, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-pub(crate) struct LiteralId(u32);
+pub struct LiteralId(u32);
 
 impl From<i32> for LiteralId {
     fn from(v: i32) -> Self {

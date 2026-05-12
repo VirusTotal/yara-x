@@ -8,8 +8,8 @@ mod parser;
 use sha2::{Digest, Sha256};
 use std::cell::RefCell;
 
+use crate::mods::api::prelude::*;
 use crate::modules::crx::Crx;
-use crate::modules::prelude::*;
 use crate::modules::protos::crx::*;
 
 #[cfg(test)]

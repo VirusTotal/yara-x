@@ -1,4 +1,4 @@
-use crate::modules::prelude::*;
+use crate::mods::api::prelude::*;
 use crate::modules::protos::test_proto3::TestProto3;
 
 #[module_main]

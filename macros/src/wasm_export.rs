@@ -392,7 +392,7 @@ pub(crate) fn impl_wasm_export_macro(
         // External-crate mode: qualify all symbols with the given crate path.
         let crate_path: syn::Path = syn::parse_str(crate_str).unwrap();
         quote! {
-            #crate_path::inventory::submit! {
+            #crate_path::mods::api::inventory::submit! {
                 #crate_path::WasmExport {
                     name: #fn_name,
                     mangled_name: #mangled_fn_name,

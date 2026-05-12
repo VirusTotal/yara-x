@@ -2,7 +2,7 @@ use std::iter;
 use std::ops::Deref;
 use std::rc::Rc;
 
-use crate::mods::Module;
+use crate::modules::Module;
 use crate::modules::protos::yara as protos;
 use crate::modules::protos::yara::enum_value_options::Value as EnumValue;
 use crate::modules::protos::yara::exts::{

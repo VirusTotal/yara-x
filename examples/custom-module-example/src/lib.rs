@@ -13,7 +13,8 @@ use protobuf::MessageDyn;
 use protobuf::MessageFull;
 
 use yara_x::errors::ModuleError;
-use yara_x::mods::Module;
+use yara_x::mods::api::Module;
+use yara_x::mods::api::prelude::*;
 
 pub mod proto {
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
@@ -31,26 +32,17 @@ fn foobar_main(
     Ok(Box::new(out))
 }
 
-/// Functions exported to YARA rules as callable functions of the `foobar` module.
-pub mod fns {
-    use yara_x::mods::ScanContext;
-
-    /// Returns the sum of two integers. Callable from rules as `foobar.add(a, b)`.
-    #[yara_x::mods::export(yara_x_crate = "yara_x")]
-    pub fn add(_ctx: &ScanContext, a: i64, b: i64) -> i64 {
-        a + b
-    }
+/// Returns the sum of two integers. Callable from rules as `foobar.add(a, b)`.
+#[module_export]
+pub fn add(_ctx: &ScanContext, a: i64, b: i64) -> i64 {
+    a + b
 }
 
-yara_x::inventory::submit! {
+define_module! {
     Module {
         name: "foobar",
         root_descriptor: Foobar::descriptor,
         main_fn: Some(foobar_main),
-        rust_module_name: Some("custom_module_example::fns"),
+        rust_module_name: Some("custom_module_example"),
     }
 }
-
-/// Forces the linker to keep this crate's `inventory::submit!` initializer.
-/// Call this from any entry point that must see the `foobar` module.
-pub fn ensure_registered() {}

@@ -5,7 +5,7 @@ This allows creating YARA rules that use the file type provided by [libmagic][1]
 [1]: https://man7.org/linux/man-pages/man3/libmagic.3.html
  */
 
-use crate::modules::prelude::*;
+use crate::mods::api::prelude::*;
 use crate::modules::protos::magic::*;
 use std::cell::RefCell;
 

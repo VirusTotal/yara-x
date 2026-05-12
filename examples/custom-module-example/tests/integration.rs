@@ -1,7 +1,6 @@
-use custom_module_example::{Foobar, ensure_registered};
+use custom_module_example::Foobar;
 
 fn compile(src: &str) -> yara_x::Rules {
-    ensure_registered();
     let mut c = yara_x::Compiler::new();
     c.add_source(src).expect("rules must compile");
     c.build()
@@ -35,7 +34,6 @@ fn matches_with_output(
 
 #[test]
 fn module_is_in_registry() {
-    ensure_registered();
     let names: Vec<&str> = yara_x::mods::module_names().collect();
     assert!(names.contains(&"foobar"), "foobar not in {names:?}");
 }

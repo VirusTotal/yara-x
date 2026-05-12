@@ -12,7 +12,7 @@ by Microsoft, and the [`non-official specification by Joachim Metz`][2].
 [2]: https://github.com/libyal/liblnk/blob/main/documentation/Windows%20Shortcut%20File%20(LNK)%20format.asciidoc
  */
 
-use crate::modules::prelude::*;
+use crate::mods::api::prelude::*;
 use crate::modules::protos::lnk::*;
 pub mod parser;
 

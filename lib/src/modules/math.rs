@@ -5,7 +5,7 @@ use std::f64::consts::PI;
 use memchr::memchr_iter;
 use rustc_hash::FxHashMap;
 
-use crate::modules::prelude::*;
+use crate::mods::api::prelude::*;
 use crate::modules::protos::math::*;
 
 type ByteDistribution = [u64; 256];

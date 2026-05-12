@@ -1,4 +1,4 @@
-use crate::modules::prelude::*;
+use crate::mods::api::prelude::*;
 use crate::modules::protos::time::*;
 
 #[module_main]
