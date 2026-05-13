@@ -282,26 +282,18 @@ pub mod mods {
         pub use yara_x_macros::{module_main, wasm_export};
 
         /// Opaque scan context passed as first argument to functions exported from a
-        /// [`Module`] via `#[yara_x::mods:api::export(yara_x_crate = "yara_x")]`.
+        /// [`Module`] via `#[module_export]`.
         ///
         /// Functions only receive a reference to it; all fields are private.
-        ///
-        /// Not available on the `wasm32` target.
-        #[cfg(not(target_family = "wasm"))]
         pub type ScanContext<'r, 'd> = crate::scanner::ScanContext<'r, 'd>;
 
         /// Attribute macro for exporting a callable function from a [`Module`].
         ///
-        /// Use with `yara_x_crate = "yara_x"` when defining functions in an external
-        /// crate that should be callable from YARA rules:
-        ///
         /// ```ignore
-        /// #[yara_x::mods::export(yara_x_crate = "yara_x")]
-        /// fn add(_ctx: &yara_x::ScanContext, a: i64, b: i64) -> i64 { a + b }
+        /// use yara_x::mods::prelude::*;
+        /// #[module_export]
+        /// fn add(_ctx: &ScanContext, a: i64, b: i64) -> i64 { a + b }
         /// ```
-        ///
-        /// Not available on the `wasm32` target.
-        #[cfg(not(target_family = "wasm"))]
         pub use yara_x_macros::module_export;
     }
 
