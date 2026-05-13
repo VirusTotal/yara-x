@@ -12,7 +12,7 @@ contributors: [ "Victor M. Alvarez" ]
 pinned: false
 homepage: false
 seo:
-  title: "YARA-X is getting smarter!"
+  title: "YARA-X just got smarter"
   description: "Unpacking new features for detecting unsatisfiable expressions"
   canonical: "" # custom canonical URL (optional)
   noindex: false # false (default) or true
