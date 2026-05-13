@@ -136,10 +136,6 @@ pub mod mods {
     pub use super::protos::lnk;
     /// Data structure returned by the `lnk` module.
     pub use super::protos::lnk::Lnk;
-    use crate::modules::Module;
-    use crate::types;
-    use itertools::Itertools;
-    use std::rc::Rc;
 
     /// Data structures defined by the `macho` module.
     ///
@@ -220,7 +216,7 @@ pub mod mods {
         let descriptor = T::descriptor();
         let proto_name = descriptor.full_name();
 
-        let module = inventory::iter::<Module>()
+        let module = inventory::iter::<super::Module>()
             .find(|m| (m.root_descriptor)().full_name() == proto_name)?;
 
         module.main_fn?(data, meta).ok()
@@ -252,14 +248,16 @@ pub mod mods {
     ///
     /// See the "debug modules" command.
     pub fn module_names() -> impl Iterator<Item = &'static str> {
-        inventory::iter::<Module>().map(|m| m.name).sorted()
+        use itertools::Itertools;
+        inventory::iter::<super::Module>().map(|m| m.name).sorted()
     }
 
     /// Returns the definition of the module with the given name.
     pub fn module_definition(name: &str) -> Option<reflect::Struct> {
-        inventory::iter::<Module>()
+        use std::rc::Rc;
+        inventory::iter::<super::Module>()
             .find(|m| m.name == name)
-            .map(|m| reflect::Struct::new(Rc::<types::Struct>::from(m)))
+            .map(|m| reflect::Struct::new(Rc::<crate::types::Struct>::from(m)))
     }
 
     /// Everything needed to implement your own YARA-X modules.
