@@ -55,36 +55,31 @@ impl Dex {
 
     pub fn parse<'a>(data: &'a [u8]) -> Result<Self, Err<Error<'a>>> {
         // Extract dex header with information about data location
-        let (strings_offset, header) = Self::parse_dex_header(data)?;
+        let (_, header) = Self::parse_dex_header(data)?;
 
         // Extract defined strings
-        let (types_offset, strings) =
-            Self::parse_strings(strings_offset, data, &header)?;
+        let strings = Self::parse_strings(data, &header);
 
         // Extract defined types
-        let (proto_offset, types) =
-            Self::parse_types(types_offset, &header, &strings)?;
+        let types = Self::parse_types(data, &header, &strings);
 
         // Extract defined prototypes
-        let (field_offset, protos) =
-            Self::parse_protos(proto_offset, data, &header, &strings, &types)?;
+        let protos = Self::parse_protos(data, &header, &strings, &types);
 
         // Extract defined fields
-        let (method_offset, fields) =
-            Self::parse_fields(field_offset, &header, &strings, &types)?;
+        let fields = Self::parse_fields(data, &header, &strings, &types);
 
         // Extract defined methods
-        let (class_offset, methods) = Self::parse_methods(
-            method_offset,
+        let methods = Self::parse_methods(
+            data,
             &header,
             &strings,
             &types,
             &protos,
-        )?;
+        );
 
         // Extract defined classes
-        let (_, class_defs) =
-            Self::parse_class_defs(class_offset, &header, &strings, &types)?;
+        let class_defs = Self::parse_class_defs(data, &header, &strings, &types);
 
         // Extract map information
         let map_list = Self::parse_map_items(data, &header);
@@ -201,18 +196,22 @@ impl Dex {
     /// A HashMap is needed to quickly access an item by its index.
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#string-item
-    fn parse_strings<'a>(
-        remainder: &'a [u8],
-        data: &'a [u8],
+    fn parse_strings(
+        data: &[u8],
         header: &DexHeader,
-    ) -> IResult<&'a [u8], Vec<Rc<String>>> {
+    ) -> Vec<Rc<String>> {
         // DEX file doesn't contain strings.
         // It's a strange case, but it needs to be checked.
         if header.string_ids_off == 0 {
-            return Ok((remainder, Vec::new()));
+            return Vec::new();
         }
 
-        let mut it = iterator(remainder, le_u32);
+        let table_slice = match data.get(header.string_ids_off as usize..) {
+            Some(slice) => slice,
+            None => return Vec::new(),
+        };
+
+        let mut it = iterator(table_slice, le_u32::<&[u8], Error>);
 
         let string_offsets = it
             .by_ref()
@@ -222,9 +221,9 @@ impl Dex {
             .map(Rc::new)
             .collect();
 
-        let (rem, _) = it.finish()?;
+        let _ = it.finish();
 
-        Ok((rem, string_offsets))
+        string_offsets
     }
 
     /// Parses string by index in the string_ids_off table
@@ -266,18 +265,23 @@ impl Dex {
     /// `type_item = string_item[type_ids_off[idx]]`
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#type-id-item
-    fn parse_types<'a>(
-        remainder: &'a [u8],
+    fn parse_types(
+        data: &[u8],
         header: &DexHeader,
         string_items: &[Rc<String>],
-    ) -> IResult<&'a [u8], Vec<Rc<String>>> {
+    ) -> Vec<Rc<String>> {
         // DEX file doesn't contain types.
         // It's a strange case, but it needs to be checked.
         if header.type_ids_off == 0 {
-            return Ok((remainder, Vec::new()));
+            return Vec::new();
         }
 
-        let mut it = iterator(remainder, le_u32);
+        let table_slice = match data.get(header.type_ids_off as usize..) {
+            Some(slice) => slice,
+            None => return Vec::new(),
+        };
+
+        let mut it = iterator(table_slice, le_u32::<&[u8], Error>);
 
         let type_indexes = it
             .by_ref()
@@ -286,29 +290,33 @@ impl Dex {
             .filter_map(|idx| string_items.get(idx as usize).cloned())
             .collect();
 
-        let (rem, _) = it.finish()?;
+        let _ = it.finish();
 
-        Ok((rem, type_indexes))
+        type_indexes
     }
 
     /// Collects a list of prototypes in a hashmap from proto_ids_off list.
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#proto-id-item
     /// See: https://source.android.com/docs/core/runtime/dex-format#type-list
-    fn parse_protos<'a>(
-        remainder: &'a [u8],
-        data: &'a [u8],
+    fn parse_protos(
+        data: &[u8],
         header: &DexHeader,
         string_items: &[Rc<String>],
         type_items: &[Rc<String>],
-    ) -> IResult<&'a [u8], Vec<Rc<ProtoItem>>> {
+    ) -> Vec<Rc<ProtoItem>> {
         // DEX file doesn't contain prototypes.
         // It's a strange case, but it needs to be checked.
         if header.proto_ids_off == 0 {
-            return Ok((remainder, Vec::new()));
+            return Vec::new();
         }
 
-        let mut it = iterator(remainder, (le_u32, le_u32, le_u32));
+        let table_slice = match data.get(header.proto_ids_off as usize..) {
+            Some(slice) => slice,
+            None => return Vec::new(),
+        };
+
+        let mut it = iterator(table_slice, (le_u32::<&[u8], Error>, le_u32, le_u32));
 
         let proto_entries = it
             .by_ref()
@@ -337,9 +345,9 @@ impl Dex {
             })
             .collect();
 
-        let (rem, _) = it.finish()?;
+        let _ = it.finish();
 
-        Ok((rem, proto_entries))
+        proto_entries
     }
 
     /// Collects a type list to list of strings from given offset
@@ -374,19 +382,24 @@ impl Dex {
     /// Collects a list of fields in a hashmap from field_ids_off list.
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#field-id-item
-    fn parse_fields<'a>(
-        remainder: &'a [u8],
+    fn parse_fields(
+        data: &[u8],
         header: &DexHeader,
         string_items: &[Rc<String>],
         type_items: &[Rc<String>],
-    ) -> IResult<&'a [u8], Vec<FieldItem>> {
+    ) -> Vec<FieldItem> {
         // DEX file doesn't contain fields.
         // It's a strange case, but it needs to be checked.
         if header.field_ids_off == 0 {
-            return Ok((remainder, Vec::new()));
+            return Vec::new();
         }
 
-        let mut it = iterator(remainder, (le_u16, le_u16, le_u32));
+        let table_slice = match data.get(header.field_ids_off as usize..) {
+            Some(slice) => slice,
+            None => return Vec::new(),
+        };
+
+        let mut it = iterator(table_slice, (le_u16::<&[u8], Error>, le_u16, le_u32));
 
         let field_entries = it
             .by_ref()
@@ -401,28 +414,33 @@ impl Dex {
             })
             .collect();
 
-        let (rem, _) = it.finish()?;
+        let _ = it.finish();
 
-        Ok((rem, field_entries))
+        field_entries
     }
 
     /// Collects a list of methods in a hashmap from method_ids_off list.
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#method-id-item
-    fn parse_methods<'a>(
-        remainder: &'a [u8],
+    fn parse_methods(
+        data: &[u8],
         header: &DexHeader,
         string_items: &[Rc<String>],
         type_items: &[Rc<String>],
         proto_items: &[Rc<ProtoItem>],
-    ) -> IResult<&'a [u8], Vec<MethodItem>> {
+    ) -> Vec<MethodItem> {
         // DEX file doesn't contain methods
         // It's a strange case, but it needs to be checked.
         if header.method_ids_off == 0 {
-            return Ok((remainder, Vec::new()));
+            return Vec::new();
         }
 
-        let mut it = iterator(remainder, (le_u16, le_u16, le_u32));
+        let table_slice = match data.get(header.method_ids_off as usize..) {
+            Some(slice) => slice,
+            None => return Vec::new(),
+        };
+
+        let mut it = iterator(table_slice, (le_u16::<&[u8], Error>, le_u16, le_u32));
 
         let method_entries = it
             .by_ref()
@@ -437,9 +455,9 @@ impl Dex {
             })
             .collect();
 
-        let (rem, _) = it.finish()?;
+        let _ = it.finish();
 
-        Ok((rem, method_entries))
+        method_entries
     }
 
     /// Collects a list of classes from class_defs_off list.
@@ -447,22 +465,35 @@ impl Dex {
     /// useful when writing YARA rules.
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#class-def-item
-    fn parse_class_defs<'a>(
-        remainder: &'a [u8],
+    fn parse_class_defs(
+        data: &[u8],
         header: &DexHeader,
         string_items: &[Rc<String>],
         type_items: &[Rc<String>],
-    ) -> IResult<&'a [u8], Vec<ClassItem>> {
+    ) -> Vec<ClassItem> {
         // DEX file doesn't contain classess
         // It's a strange case, but it needs to be checked.
         if header.class_defs_off == 0 {
-            return Ok((remainder, Vec::new()));
+            return Vec::new();
         }
 
-        // (class_idx, access_flags, superclass_idx, interfaces_off, source_file_idx, annotations_off, class_data_off, static_values_off)
+        let table_slice = match data.get(header.class_defs_off as usize..) {
+            Some(slice) => slice,
+            None => return Vec::new(),
+        };
+
         let mut it = iterator(
-            remainder,
-            (le_u32::<&[u8], Error>, le_u32, le_u32, le_u32, le_u32, le_u32, le_u32, le_u32),
+            table_slice,
+            (
+                le_u32::<&[u8], Error>, // class_idx
+                le_u32,                 // access_flags
+                le_u32,                 // superclass_idx
+                le_u32,                 // interfaces_off
+                le_u32,                 // source_file_idx
+                le_u32,                 // annotations_off
+                le_u32,                 // class_data_off
+                le_u32,                 // static_values_off
+            ),
         );
 
         let class_entries = it
@@ -502,9 +533,9 @@ impl Dex {
             )
             .collect();
 
-        let (rem, _) = it.finish()?;
+        let _ = it.finish();
 
-        Ok((rem, class_entries))
+        class_entries
     }
 
     /// Collects information about maps from the DEX file
