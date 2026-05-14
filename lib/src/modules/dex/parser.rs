@@ -459,9 +459,11 @@ impl Dex {
             return Ok((remainder, Vec::new()));
         }
 
-        // (class_idx, access_flags, superclass_idx, _, source_file_idx)
-        let mut it =
-            iterator(remainder, (le_u32, le_u32, le_u32, le_u32, le_u32));
+        // (class_idx, access_flags, superclass_idx, interfaces_off, source_file_idx, annotations_off, class_data_off, static_values_off)
+        let mut it = iterator(
+            remainder,
+            (le_u32::<&[u8], Error>, le_u32, le_u32, le_u32, le_u32, le_u32, le_u32, le_u32),
+        );
 
         let class_entries = it
             .by_ref()
@@ -474,6 +476,9 @@ impl Dex {
                     superclass_idx,
                     _,
                     source_file_idx,
+                    _,
+                    _,
+                    _,
                 )| {
                     let class = type_items.get(class_idx as usize)?.clone();
                     let superclass = if superclass_idx != Self::NO_INDEX {

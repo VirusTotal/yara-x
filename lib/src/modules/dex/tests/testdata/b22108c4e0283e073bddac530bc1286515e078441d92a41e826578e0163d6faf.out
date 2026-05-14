@@ -1529,23 +1529,36 @@ class_defs:
   - class: "Lorg/BasicActivity$1;"
     access_flags: 0x10  # ACC_FINAL
     superclass: "Ljava/lang/Object;"
-  - class: "Landroid/content/BroadcastReceiver;"
+  - class: "Lorg/BasicActivity$2;"
     access_flags: 0x0
-  - class: "I"
-    access_flags: 0x2f  # ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED | ACC_STATIC | ACC_SYNCHRONIZED
-    superclass: "J"
-    source_file: ".Loader"
-  - class: "I"
-    access_flags: 0x24  # ACC_PROTECTED | ACC_SYNCHRONIZED
-  - class: "I"
-    access_flags: 0xffffffff  # ACC_PUBLIC | ACC_PRIVATE | ACC_PROTECTED | ACC_STATIC | ACC_FINAL | ACC_SYNCHRONIZED | ACC_BRIDGE | ACC_VARARGS | ACC_NATIVE | ACC_INTERFACE | ACC_ABSTRACT | ACC_STRICT | ACC_SYNTHETIC | ACC_ANNOTATION | ACC_ENUM | ACC_CONSTRUCTOR | ACC_DECLARED_SYNCHRONIZED
-    superclass: "I"
-    source_file: ".Loader"
+    superclass: "Landroid/content/BroadcastReceiver;"
+  - class: "Lorg/BasicActivity;"
+    access_flags: 0x1  # ACC_PUBLIC
+    superclass: "Landroid/app/Activity;"
+  - class: "Lorg/CeonstReceiver$1;"
+    access_flags: 0x0
+    superclass: "Ljava/lang/Object;"
+  - class: "Lorg/CeonstReceiver;"
+    access_flags: 0x1  # ACC_PUBLIC
+    superclass: "Landroid/content/BroadcastReceiver;"
   - class: "Lorg/DevService$1;"
     access_flags: 0x0
     superclass: "Landroid/content/BroadcastReceiver;"
-  - class: "Landroid/app/Service;"
-    access_flags: 0x0
+  - class: "Lorg/DevService;"
+    access_flags: 0x1  # ACC_PUBLIC
+    superclass: "Landroid/app/Service;"
+  - class: "Lorg/KasReceiver;"
+    access_flags: 0x1  # ACC_PUBLIC
+    superclass: "Lorg/CeonstReceiver;"
+  - class: "Lorg/KseActivity;"
+    access_flags: 0x1  # ACC_PUBLIC
+    superclass: "Landroid/app/Activity;"
+  - class: "Lorg/MvReceiver;"
+    access_flags: 0x1  # ACC_PUBLIC
+    superclass: "Lorg/CeonstReceiver;"
+  - class: "Lorg/hskdAppli;"
+    access_flags: 0x1  # ACC_PUBLIC
+    superclass: "Landroid/app/Application;"
 map_list:
     size: 15
     items:
