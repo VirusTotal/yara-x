@@ -41,12 +41,17 @@ pub struct Dex {
 }
 
 impl Dex {
-    // the type of endianness used in the file
     const ENDIAN_CONSTANT: u32 = 0x12345678;
     const REVERSE_ENDIAN_CONSTANT: u32 = 0x78563412;
-
-    // lack of information
+    const DEX_HEADER_SIZE: u32 = 0x70;
     const NO_INDEX: u32 = 0xffffffff;
+
+    const MAX_STRINGS: usize = 1_000_000;
+    const MAX_TYPES: usize = 1_000_000;
+    const MAX_PROTOS: usize = 1_000_000;
+    const MAX_CLASSES: usize = 1_000_000;
+    const MAX_METHODS: usize = 1_000_000;
+    const MAX_FIELDS: usize = 1_000_000;
 
     pub fn parse<'a>(data: &'a [u8]) -> Result<Self, Err<Error<'a>>> {
         // Extract dex header with information about data location
@@ -60,14 +65,9 @@ impl Dex {
         let (proto_offset, types) =
             Self::parse_types(types_offset, &header, &strings)?;
 
-        // Exctract defined prototypes
-        let (field_offset, proto_ids) = Self::parse_proto_ids(
-            proto_offset,
-            data,
-            &header,
-            &strings,
-            &types,
-        )?;
+        // Extract defined prototypes
+        let (field_offset, protos) =
+            Self::parse_protos(proto_offset, data, &header, &strings, &types)?;
 
         // Extract defined fields
         let (method_offset, fields) =
@@ -79,7 +79,7 @@ impl Dex {
             &header,
             &strings,
             &types,
-            &proto_ids,
+            &protos,
         )?;
 
         // Extract defined classes
@@ -93,7 +93,7 @@ impl Dex {
             header,
             strings,
             types,
-            protos: proto_ids,
+            protos,
             fields,
             methods,
             class_defs,
@@ -216,6 +216,7 @@ impl Dex {
 
         let string_offsets = it
             .by_ref()
+            .take(Self::MAX_STRINGS)
             .take(header.string_ids_size as usize)
             .filter_map(|offset| Self::parse_string_from_offset(data, offset))
             .map(Rc::new)
@@ -230,12 +231,24 @@ impl Dex {
     ///
     /// idx - is an index in the string_ids_off table
     /// strings_ids_off[idx] -> string_data_item
+    ///
+    /// Strings larger than 64KB will be considered invalid and the result will
+    /// be None.
     fn parse_string_from_offset(
         data: &[u8],
         string_data_offset: u32,
     ) -> Option<String> {
+        if string_data_offset < Self::DEX_HEADER_SIZE {
+            return None;
+        }
+
         data.get(string_data_offset as usize..).and_then(|data| {
             let (data, utf16_size) = uleb128(data).ok()?;
+
+            if utf16_size > 65536 || (utf16_size as usize) > data.len() {
+                return None;
+            }
+
             let (_, bytes) =
                 take::<usize, &[u8], Error>(utf16_size as usize)(data).ok()?;
 
@@ -268,6 +281,7 @@ impl Dex {
 
         let type_indexes = it
             .by_ref()
+            .take(Self::MAX_TYPES)
             .take(header.type_ids_size as usize)
             .filter_map(|idx| string_items.get(idx as usize).cloned())
             .collect();
@@ -281,7 +295,7 @@ impl Dex {
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#proto-id-item
     /// See: https://source.android.com/docs/core/runtime/dex-format#type-list
-    fn parse_proto_ids<'a>(
+    fn parse_protos<'a>(
         remainder: &'a [u8],
         data: &'a [u8],
         header: &DexHeader,
@@ -298,13 +312,15 @@ impl Dex {
 
         let proto_entries = it
             .by_ref()
+            .take(Self::MAX_PROTOS)
             .take(header.proto_ids_size as usize)
             .filter_map(|(shorty_idx, return_type_idx, parameters_off)| {
                 let shorty = string_items.get(shorty_idx as usize)?.clone();
                 let return_type =
                     type_items.get(return_type_idx as usize)?.clone();
 
-                // According to the documentation, if parameters_off is 0, then the type has 0 parameters.
+                // According to the documentation, if parameters_off is 0, then
+                // the type has 0 parameters.
                 let parameters = if parameters_off == 0 {
                     Vec::new()
                 } else {
@@ -335,10 +351,15 @@ impl Dex {
         offset: u32,
     ) -> Option<Vec<Rc<String>>> {
         let remainder = data.get(offset as usize..)?;
+        let (remainder, size) = le_u32::<&[u8], Error>(remainder).ok()?;
 
-        let (rem, size) = le_u32::<&[u8], Error>(remainder).ok()?;
+        // The number of arguments can't be higher than 255 due to constraints
+        // in the Dalvik bytecode instruction set itself.
+        if size > 255 {
+            return None;
+        }
 
-        let mut it = iterator(rem, le_u16::<&[u8], Error>);
+        let mut it = iterator(remainder, le_u16::<&[u8], Error>);
         let items = it
             .by_ref()
             .take(size as usize)
@@ -369,6 +390,7 @@ impl Dex {
 
         let field_entries = it
             .by_ref()
+            .take(Self::MAX_FIELDS)
             .take(header.field_ids_size as usize)
             .filter_map(|(class_idx, type_idx, name_idx)| {
                 let class = type_items.get(class_idx as usize)?.clone();
@@ -404,6 +426,7 @@ impl Dex {
 
         let method_entries = it
             .by_ref()
+            .take(Self::MAX_METHODS)
             .take(header.method_ids_size as usize)
             .filter_map(|(class_idx, proto_idx, name_idx)| {
                 let class = type_items.get(class_idx as usize)?.clone();
@@ -442,6 +465,7 @@ impl Dex {
 
         let class_entries = it
             .by_ref()
+            .take(Self::MAX_CLASSES)
             .take(header.class_defs_size as usize)
             .filter_map(
                 |(
@@ -484,7 +508,6 @@ impl Dex {
     fn parse_map_items(data: &[u8], header: &DexHeader) -> Option<MapList> {
         data.get(header.map_off as usize..).and_then(|offset| {
             let (items_offset, size) = le_u32::<&[u8], Error>(offset).ok()?;
-
             let mut it = iterator(items_offset, Self::parse_map_item);
             let items = it.by_ref().take(size as usize).collect();
             let _ = it.finish();
