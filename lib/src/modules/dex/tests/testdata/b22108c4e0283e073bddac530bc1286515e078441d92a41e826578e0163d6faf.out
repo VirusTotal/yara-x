@@ -257,13 +257,13 @@ protos:
     parameters:
       - "Landroid/content/Intent;"
       - "I"
-      - "J"
+      - "I"
   - shorty: "ILI"
     return_type: "I"
     parameters_count: 2
     parameters:
       - "Ljava/lang/String;"
-      - "J"
+      - "I"
   - shorty: "IL"
     return_type: "I"
     parameters_count: 1
@@ -282,11 +282,12 @@ protos:
     parameters_count: 0
   - shorty: "LLILI"
     return_type: "Landroid/app/PendingIntent;"
-    parameters_count: 3
+    parameters_count: 4
     parameters:
       - "Landroid/content/Context;"
+      - "I"
       - "Landroid/content/Intent;"
-      - "Landroid/app/Activity;"
+      - "I"
   - shorty: "LL"
     return_type: "Landroid/content/ComponentName;"
     parameters_count: 1
@@ -299,9 +300,10 @@ protos:
       - "I"
   - shorty: "LLL"
     return_type: "Landroid/content/Intent;"
-    parameters_count: 1
+    parameters_count: 2
     parameters:
-      - "J"
+      - "Landroid/content/BroadcastReceiver;"
+      - "Landroid/content/IntentFilter;"
   - shorty: "LL"
     return_type: "Landroid/content/SharedPreferences;"
     parameters_count: 1
@@ -312,7 +314,7 @@ protos:
     parameters_count: 2
     parameters:
       - "Ljava/lang/String;"
-      - "J"
+      - "I"
   - shorty: "L"
     return_type: "Landroid/content/res/AssetManager;"
     parameters_count: 0
@@ -326,10 +328,11 @@ protos:
     parameters_count: 0
   - shorty: "LLLL"
     return_type: "Ldalvik/system/DexClassLoader;"
-    parameters_count: 2
+    parameters_count: 3
     parameters:
+      - "Ljava/lang/String;"
+      - "Ljava/lang/String;"
       - "Ljava/lang/ClassLoader;"
-      - "J"
   - shorty: "L"
     return_type: "Ljava/io/File;"
     parameters_count: 0
@@ -356,9 +359,10 @@ protos:
       - "I"
   - shorty: "LLL"
     return_type: "Ljava/lang/Object;"
-    parameters_count: 1
+    parameters_count: 2
     parameters:
-      - "Landroid/app/AlarmManager;"
+      - "Ljava/lang/Object;"
+      - "[Ljava/lang/Object;"
   - shorty: "LL"
     return_type: "Ljava/lang/Object;"
     parameters_count: 1
@@ -384,12 +388,15 @@ protos:
       - "Ljava/lang/String;"
   - shorty: "LL"
     return_type: "Ljava/lang/reflect/Constructor;"
-    parameters_count: 0
-  - shorty: "LLL"
-    return_type: "Ljava/lang/reflect/Method;"
     parameters_count: 1
     parameters:
-      - "Landroid/app/AlarmManager;"
+      - "[Ljava/lang/Class;"
+  - shorty: "LLL"
+    return_type: "Ljava/lang/reflect/Method;"
+    parameters_count: 2
+    parameters:
+      - "Ljava/lang/String;"
+      - "[Ljava/lang/Class;"
   - shorty: "V"
     return_type: "V"
     parameters_count: 0
@@ -403,13 +410,14 @@ protos:
     parameters_count: 2
     parameters:
       - "I"
-      - "Landroid/app/AlarmManager;"
+      - "I"
   - shorty: "VIJL"
     return_type: "V"
-    parameters_count: 2
+    parameters_count: 3
     parameters:
+      - "I"
+      - "J"
       - "Landroid/app/PendingIntent;"
-      - "Landroid/app/Activity;"
   - shorty: "VL"
     return_type: "V"
     parameters_count: 1
@@ -417,14 +425,16 @@ protos:
       - "Landroid/content/BroadcastReceiver;"
   - shorty: "VLL"
     return_type: "V"
-    parameters_count: 1
+    parameters_count: 2
     parameters:
-      - "J"
+      - "Landroid/content/Context;"
+      - "Landroid/content/Intent;"
   - shorty: "VLL"
     return_type: "V"
-    parameters_count: 1
+    parameters_count: 2
     parameters:
-      - "Landroid/app/Activity;"
+      - "Landroid/content/Context;"
+      - "Ljava/lang/Class;"
   - shorty: "VL"
     return_type: "V"
     parameters_count: 1
@@ -432,10 +442,11 @@ protos:
       - "Landroid/content/Intent;"
   - shorty: "VLLL"
     return_type: "V"
-    parameters_count: 2
+    parameters_count: 3
     parameters:
+      - "Landroid/content/Intent;"
+      - "Landroid/content/SharedPreferences;"
       - "Ljava/lang/Object;"
-      - "J"
   - shorty: "VL"
     return_type: "V"
     parameters_count: 1
@@ -453,9 +464,10 @@ protos:
       - "Ljava/io/File;"
   - shorty: "VLL"
     return_type: "V"
-    parameters_count: 1
+    parameters_count: 2
     parameters:
-      - "J"
+      - "Ljava/io/File;"
+      - "Ljava/io/ByteArrayOutputStream;"
   - shorty: "VL"
     return_type: "V"
     parameters_count: 1
@@ -471,12 +483,13 @@ protos:
     parameters_count: 2
     parameters:
       - "Ljava/lang/Object;"
-      - "J"
+      - "I"
   - shorty: "VLL"
     return_type: "V"
-    parameters_count: 1
+    parameters_count: 2
     parameters:
-      - "J"
+      - "Ljava/lang/Object;"
+      - "Landroid/content/Intent;"
   - shorty: "VL"
     return_type: "V"
     parameters_count: 1
@@ -484,14 +497,16 @@ protos:
       - "Ljava/lang/String;"
   - shorty: "VLL"
     return_type: "V"
-    parameters_count: 1
+    parameters_count: 2
     parameters:
-      - "J"
+      - "Ljava/lang/String;"
+      - "Ljava/lang/String;"
   - shorty: "VLL"
     return_type: "V"
-    parameters_count: 1
+    parameters_count: 2
     parameters:
-      - "Landroid/app/Activity;"
+      - "Ljava/lang/reflect/Method;"
+      - "Ljava/lang/Object;"
   - shorty: "VL"
     return_type: "V"
     parameters_count: 1
@@ -499,10 +514,12 @@ protos:
       - "Lorg/BasicActivity;"
   - shorty: "VLLIL"
     return_type: "V"
-    parameters_count: 2
+    parameters_count: 4
     parameters:
-      - "J"
-      - "Landroid/os/Bundle;"
+      - "Lorg/CeonstReceiver;"
+      - "Landroid/content/Intent;"
+      - "I"
+      - "Ljava/lang/Object;"
   - shorty: "VL"
     return_type: "V"
     parameters_count: 1
@@ -519,7 +536,7 @@ protos:
     parameters:
       - "[B"
       - "I"
-      - "Landroid/app/Activity;"
+      - "I"
   - shorty: "Z"
     return_type: "Z"
     parameters_count: 0
@@ -536,13 +553,13 @@ protos:
     parameters_count: 2
     parameters:
       - "Ljava/lang/String;"
-      - "J"
+      - "I"
   - shorty: "LLI"
     return_type: "[B"
     parameters_count: 2
     parameters:
       - "[B"
-      - "Landroid/app/Activity;"
+      - "I"
   - shorty: "LL"
     return_type: "[Ljava/lang/String;"
     parameters_count: 1
@@ -634,10 +651,11 @@ methods:
     proto:
         shorty: "VIJL"
         return_type: "V"
-        parameters_count: 2
+        parameters_count: 3
         parameters:
+          - "I"
+          - "J"
           - "Landroid/app/PendingIntent;"
-          - "Landroid/app/Activity;"
     name: "set"
   - class: "Landroid/app/Application;"
     proto:
@@ -661,11 +679,12 @@ methods:
     proto:
         shorty: "LLILI"
         return_type: "Landroid/app/PendingIntent;"
-        parameters_count: 3
+        parameters_count: 4
         parameters:
           - "Landroid/content/Context;"
+          - "I"
           - "Landroid/content/Intent;"
-          - "Landroid/app/Activity;"
+          - "I"
     name: "getBroadcast"
   - class: "Landroid/app/Service;"
     proto:
@@ -695,9 +714,10 @@ methods:
     proto:
         shorty: "VLL"
         return_type: "V"
-        parameters_count: 1
+        parameters_count: 2
         parameters:
-          - "J"
+          - "Ljava/lang/String;"
+          - "Ljava/lang/String;"
     name: "<init>"
   - class: "Landroid/content/Context;"
     proto:
@@ -706,7 +726,7 @@ methods:
         parameters_count: 2
         parameters:
           - "Ljava/lang/String;"
-          - "J"
+          - "I"
     name: "getSharedPreferences"
   - class: "Landroid/content/Context;"
     proto:
@@ -720,9 +740,10 @@ methods:
     proto:
         shorty: "VLL"
         return_type: "V"
-        parameters_count: 1
+        parameters_count: 2
         parameters:
-          - "Landroid/app/Activity;"
+          - "Landroid/content/Context;"
+          - "Ljava/lang/Class;"
     name: "<init>"
   - class: "Landroid/content/Intent;"
     proto:
@@ -761,7 +782,7 @@ methods:
         parameters_count: 2
         parameters:
           - "Ljava/lang/String;"
-          - "J"
+          - "I"
     name: "getInt"
   - class: "Landroid/content/res/AssetManager;"
     proto:
@@ -798,7 +819,7 @@ methods:
         parameters_count: 2
         parameters:
           - "Ljava/lang/String;"
-          - "J"
+          - "I"
     name: "decode"
   - class: "Landroid/util/Base64;"
     proto:
@@ -807,7 +828,7 @@ methods:
         parameters_count: 2
         parameters:
           - "[B"
-          - "Landroid/app/Activity;"
+          - "I"
     name: "decode"
   - class: "Landroid/view/Window;"
     proto:
@@ -832,7 +853,7 @@ methods:
         parameters_count: 2
         parameters:
           - "I"
-          - "Landroid/app/AlarmManager;"
+          - "I"
     name: "setFlags"
   - class: "Landroid/view/Window;"
     proto:
@@ -862,7 +883,7 @@ methods:
         parameters:
           - "[B"
           - "I"
-          - "Landroid/app/Activity;"
+          - "I"
     name: "write"
   - class: "Ljava/io/File;"
     proto:
@@ -944,15 +965,18 @@ methods:
     proto:
         shorty: "LL"
         return_type: "Ljava/lang/reflect/Constructor;"
-        parameters_count: 0
+        parameters_count: 1
+        parameters:
+          - "[Ljava/lang/Class;"
     name: "getConstructor"
   - class: "Ljava/lang/Class;"
     proto:
         shorty: "LLL"
         return_type: "Ljava/lang/reflect/Method;"
-        parameters_count: 1
+        parameters_count: 2
         parameters:
-          - "Landroid/app/AlarmManager;"
+          - "Ljava/lang/String;"
+          - "[Ljava/lang/Class;"
     name: "getMethod"
   - class: "Ljava/lang/Class;"
     proto:
@@ -1068,9 +1092,10 @@ methods:
     proto:
         shorty: "LLL"
         return_type: "Ljava/lang/Object;"
-        parameters_count: 1
+        parameters_count: 2
         parameters:
-          - "Landroid/app/AlarmManager;"
+          - "Ljava/lang/Object;"
+          - "[Ljava/lang/Object;"
     name: "invoke"
   - class: "Ljava/util/zip/InflaterInputStream;"
     proto:
@@ -1106,9 +1131,10 @@ methods:
     proto:
         shorty: "VLL"
         return_type: "V"
-        parameters_count: 1
+        parameters_count: 2
         parameters:
-          - "J"
+          - "Landroid/content/Context;"
+          - "Landroid/content/Intent;"
     name: "onReceive"
   - class: "Lorg/BasicActivity;"
     proto:
@@ -1176,10 +1202,12 @@ methods:
     proto:
         shorty: "VLLIL"
         return_type: "V"
-        parameters_count: 2
+        parameters_count: 4
         parameters:
-          - "J"
-          - "Landroid/os/Bundle;"
+          - "Lorg/CeonstReceiver;"
+          - "Landroid/content/Intent;"
+          - "I"
+          - "Ljava/lang/Object;"
     name: "<init>"
   - class: "Lorg/CeonstReceiver$1;"
     proto:
@@ -1188,7 +1216,7 @@ methods:
         parameters_count: 2
         parameters:
           - "Ljava/lang/Object;"
-          - "J"
+          - "I"
     name: "a"
   - class: "Lorg/CeonstReceiver$1;"
     proto:
@@ -1214,18 +1242,20 @@ methods:
     proto:
         shorty: "VLLL"
         return_type: "V"
-        parameters_count: 2
+        parameters_count: 3
         parameters:
+          - "Landroid/content/Intent;"
+          - "Landroid/content/SharedPreferences;"
           - "Ljava/lang/Object;"
-          - "J"
     name: "a"
   - class: "Lorg/CeonstReceiver;"
     proto:
         shorty: "VLL"
         return_type: "V"
-        parameters_count: 1
+        parameters_count: 2
         parameters:
-          - "J"
+          - "Landroid/content/Context;"
+          - "Landroid/content/Intent;"
     name: "onReceive"
   - class: "Lorg/DevService$1;"
     proto:
@@ -1239,9 +1269,10 @@ methods:
     proto:
         shorty: "VLL"
         return_type: "V"
-        parameters_count: 1
+        parameters_count: 2
         parameters:
-          - "J"
+          - "Landroid/content/Context;"
+          - "Landroid/content/Intent;"
     name: "onReceive"
   - class: "Lorg/DevService;"
     proto:
@@ -1267,9 +1298,10 @@ methods:
     proto:
         shorty: "VLL"
         return_type: "V"
-        parameters_count: 1
+        parameters_count: 2
         parameters:
-          - "J"
+          - "Ljava/lang/Object;"
+          - "Landroid/content/Intent;"
     name: "a"
   - class: "Lorg/DevService;"
     proto:
@@ -1327,15 +1359,16 @@ methods:
         parameters:
           - "Landroid/content/Intent;"
           - "I"
-          - "J"
+          - "I"
     name: "onStartCommand"
   - class: "Lorg/DevService;"
     proto:
         shorty: "LLL"
         return_type: "Landroid/content/Intent;"
-        parameters_count: 1
+        parameters_count: 2
         parameters:
-          - "J"
+          - "Landroid/content/BroadcastReceiver;"
+          - "Landroid/content/IntentFilter;"
     name: "registerReceiver"
   - class: "Lorg/DevService;"
     proto:
@@ -1381,9 +1414,10 @@ methods:
     proto:
         shorty: "VLL"
         return_type: "V"
-        parameters_count: 1
+        parameters_count: 2
         parameters:
-          - "Landroid/app/Activity;"
+          - "Ljava/lang/reflect/Method;"
+          - "Ljava/lang/Object;"
     name: "a"
   - class: "Lorg/KseActivity;"
     proto:
@@ -1429,10 +1463,11 @@ methods:
     proto:
         shorty: "LLLL"
         return_type: "Ldalvik/system/DexClassLoader;"
-        parameters_count: 2
+        parameters_count: 3
         parameters:
+          - "Ljava/lang/String;"
+          - "Ljava/lang/String;"
           - "Ljava/lang/ClassLoader;"
-          - "J"
     name: "a"
   - class: "Lorg/hskdAppli;"
     proto:
@@ -1452,17 +1487,19 @@ methods:
     proto:
         shorty: "VLL"
         return_type: "V"
-        parameters_count: 1
+        parameters_count: 2
         parameters:
-          - "J"
+          - "Ljava/io/File;"
+          - "Ljava/io/ByteArrayOutputStream;"
     name: "a"
   - class: "Lorg/hskdAppli;"
     proto:
         shorty: "VLL"
         return_type: "V"
-        parameters_count: 1
+        parameters_count: 2
         parameters:
-          - "J"
+          - "Ljava/lang/String;"
+          - "Ljava/lang/String;"
     name: "a"
   - class: "Lorg/hskdAppli;"
     proto:

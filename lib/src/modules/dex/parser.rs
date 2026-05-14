@@ -338,7 +338,7 @@ impl Dex {
 
         let (rem, size) = le_u32::<&[u8], Error>(remainder).ok()?;
 
-        let mut it = iterator(rem, le_u32::<&[u8], Error>);
+        let mut it = iterator(rem, le_u16::<&[u8], Error>);
         let items = it
             .by_ref()
             .take(size as usize)
