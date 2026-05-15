@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 mod commons;
 
@@ -13,7 +13,9 @@ fn bench_dex(c: &mut Criterion) {
 
     group.bench_function("parse", |b| {
         b.iter(|| {
-            let _ = black_box(yara_x::mods::invoke::<yara_x::mods::Dex>(black_box(&data)));
+            let _ = black_box(yara_x::mods::invoke::<yara_x::mods::Dex>(
+                black_box(&data),
+            ));
         });
     });
 
