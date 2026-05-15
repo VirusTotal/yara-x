@@ -360,3 +360,7 @@ zip = { workspace = true }
 [[bench]]
 name = "dex"
 harness = false
+
+[[bench]]
+name = "pe"
+harness = false
