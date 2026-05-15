@@ -17,7 +17,7 @@ use nom::combinator::map;
 use nom::number::complete::{le_u16, le_u32};
 
 use crate::compiler::RegexId;
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::pe::*;
 use crate::types::Struct;
 
@@ -853,4 +853,13 @@ fn exports_impl(
                 .is_some_and(|ordinal| expected_ordinal == *ordinal as i64),
         })
         .map_or(Some((false, 0)), |(position, _)| Some((true, position)))
+}
+
+register_module! {
+    Module {
+        name: "pe",
+        root_descriptor: PE::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
 }

@@ -2,7 +2,7 @@
 
 The scanner takes the rules produces by the compiler and scans data with them.
 */
-use std::collections::{BTreeMap, HashMap, hash_map};
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::io::Read;
@@ -22,21 +22,20 @@ use memmap2::{Mmap, MmapOptions};
 use protobuf::{CodedInputStream, MessageDyn};
 use thiserror::Error;
 
+use crate::Variable;
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
-use crate::modules::{BUILTIN_MODULES, Module, ModuleError};
-use crate::scanner::context::create_wasm_store_and_ctx;
-use crate::types::{Struct, TypeValue};
-use crate::variables::VariableError;
-use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::wasm::runtime::Store;
-use crate::{Variable, modules};
-
+use crate::modules::{Module, ModuleError};
 pub(crate) use crate::scanner::context::RuntimeObject;
 pub(crate) use crate::scanner::context::RuntimeObjectHandle;
 pub(crate) use crate::scanner::context::ScanContext;
 pub(crate) use crate::scanner::context::ScanState;
+use crate::scanner::context::create_wasm_store_and_ctx;
 pub(crate) use crate::scanner::matches::Match;
+use crate::types::{Struct, TypeValue};
+use crate::variables::VariableError;
+use crate::wasm::MATCHING_RULES_BITMAP_BASE;
+use crate::wasm::runtime::Store;
 
 mod context;
 mod matches;
@@ -403,9 +402,8 @@ impl<'r> Scanner<'r> {
 
         // Check if the protobuf message passed to this function corresponds
         // with any of the existing modules.
-        if !BUILTIN_MODULES
-            .iter()
-            .any(|m| m.1.root_struct_descriptor.full_name() == full_name)
+        if !inventory::iter::<Module>()
+            .any(|m| (m.root_descriptor)().full_name() == full_name)
         {
             return Err(ScanError::UnknownModule {
                 module: full_name.to_string(),
@@ -433,17 +431,24 @@ impl<'r> Scanner<'r> {
         // Try to find the module by name first, if not found, then try
         // to find a module where the fully-qualified name for its protobuf
         // message matches the `name` arguments.
-        let descriptor = if let Some(module) = BUILTIN_MODULES.get(name) {
-            Some(&module.root_struct_descriptor)
-        } else {
-            BUILTIN_MODULES.values().find_map(|module| {
-                if module.root_struct_descriptor.full_name() == name {
-                    Some(&module.root_struct_descriptor)
+        let descriptor = inventory::iter::<Module>()
+            .find_map(|module| {
+                if module.name == name {
+                    Some((module.root_descriptor)())
                 } else {
                     None
                 }
             })
-        };
+            .or_else(|| {
+                inventory::iter::<Module>().find_map(|module| {
+                    let descriptor = (module.root_descriptor)();
+                    if descriptor.full_name() == name {
+                        Some(descriptor)
+                    } else {
+                        None
+                    }
+                })
+            });
 
         if descriptor.is_none() {
             return Err(ScanError::UnknownModule { module: name.to_string() });
@@ -563,12 +568,13 @@ impl<'r> Scanner<'r> {
         ctx.scan_state = ScanState::ScanningData(data);
 
         for module_name in ctx.compiled_rules.imports() {
-            // Lookup the module in the list of built-in modules.
-            let module = modules::BUILTIN_MODULES
-                .get(module_name)
+            // Look up the module in the module registry.
+            let module = inventory::iter::<Module>()
+                .find(|module| module.name == module_name)
                 .unwrap_or_else(|| panic!("module `{module_name}` not found"));
 
-            let root_struct_name = module.root_struct_descriptor.full_name();
+            let module_root_descriptor = (module.root_descriptor)();
+            let root_struct_name = module_root_descriptor.full_name();
 
             let module_output;
             // If the user already provided some output for the module by
@@ -604,10 +610,10 @@ impl<'r> Scanner<'r> {
                 // the expected type.
                 debug_assert_eq!(
                     module_output.descriptor_dyn().full_name(),
-                    module.root_struct_descriptor.full_name(),
+                    root_struct_name,
                     "main function of module `{}` must return `{}`, but returned `{}`",
                     module_name,
-                    module.root_struct_descriptor.full_name(),
+                    root_struct_name,
                     module_output.descriptor_dyn().full_name(),
                 );
 
@@ -619,7 +625,7 @@ impl<'r> Scanner<'r> {
                     module_output.is_initialized_dyn(),
                     "module `{}` returned a protobuf `{}` where some required fields are not initialized ",
                     module_name,
-                    module.root_struct_descriptor.full_name()
+                    root_struct_name
                 );
             }
 
@@ -638,7 +644,7 @@ impl<'r> Scanner<'r> {
                 !cfg!(feature = "constant-folding");
 
             let module_struct = Struct::from_proto_descriptor_and_msg(
-                &module.root_struct_descriptor,
+                &module_root_descriptor,
                 module_output.as_deref(),
                 generate_fields_for_enums,
             );
@@ -806,11 +812,17 @@ impl<'a, 'r> ScanResults<'a, 'r> {
         &self,
         module_name: &str,
     ) -> Option<&'a dyn MessageDyn> {
-        let module = BUILTIN_MODULES.get(module_name)?;
+        let module_descriptor = inventory::iter::<Module>().find_map(|m| {
+            if m.name == module_name {
+                Some((m.root_descriptor)())
+            } else {
+                None
+            }
+        })?;
         let module_output = self
             .ctx
             .module_outputs
-            .get(module.root_struct_descriptor.full_name())?
+            .get(module_descriptor.full_name())?
             .as_ref();
         Some(module_output)
     }
@@ -983,7 +995,7 @@ impl ExactSizeIterator for NonMatchingRules<'_, '_> {
 pub struct ModuleOutputs<'a, 'r> {
     ctx: &'a ScanContext<'r, 'a>,
     len: usize,
-    iterator: hash_map::Iter<'a, &'a str, Module>,
+    iterator: Box<dyn Iterator<Item = &'static Module> + 'a>,
 }
 
 impl<'a, 'r> ModuleOutputs<'a, 'r> {
@@ -991,7 +1003,7 @@ impl<'a, 'r> ModuleOutputs<'a, 'r> {
         Self {
             ctx,
             len: ctx.module_outputs.len(),
-            iterator: BUILTIN_MODULES.iter(),
+            iterator: Box::new(inventory::iter::<Module>()),
         }
     }
 }
@@ -1008,13 +1020,13 @@ impl<'a> Iterator for ModuleOutputs<'a, '_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let (name, module) = self.iterator.next()?;
+            let module = self.iterator.next()?;
             if let Some(module_output) = self
                 .ctx
                 .module_outputs
-                .get(module.root_struct_descriptor.full_name())
+                .get((module.root_descriptor)().full_name())
             {
-                return Some((*name, module_output.as_ref()));
+                return Some((module.name, module_output.as_ref()));
             }
         }
     }

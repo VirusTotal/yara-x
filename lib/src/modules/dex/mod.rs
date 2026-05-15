@@ -2,12 +2,11 @@
 
 This allows creating YARA rules based on metadata extracted from those files.
  */
-
 use sha1::{Digest, Sha1};
 use simd_adler32::Adler32;
 use std::cell::RefCell;
 
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::dex::*;
 
 pub mod parser;
@@ -156,4 +155,13 @@ fn contains_class(
             .binary_search_by(|item| item.class.cmp(&class_name))
             .is_ok(),
     )
+}
+
+register_module! {
+    Module {
+        name: "dex",
+        root_descriptor: Dex::descriptor,
+        main_fn: Some(__main__ as super::ModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
 }

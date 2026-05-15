@@ -1,0 +1,26 @@
+[package]
+name = "custom-module-example"
+description = """
+Example crate demonstrating how to register a custom YARA-X module from an
+external crate using the `inventory` crate.
+"""
+edition = "2024"
+publish = false
+
+[lib]
+# A regular Rust library. The `register_module!` invocation in `src/lib.rs`
+# registers the custom module at link time.
+path = "src/lib.rs"
+
+[dependencies]
+# `yara-x` is consumed via the workspace path so this example always builds
+# against the in-tree version.
+yara-x = { path = "../../lib" }
+# The `protobuf` crate is needed because the registered main function returns
+# a `Box<dyn protobuf::MessageDyn>` and to access `MessageFull::descriptor()`.
+protobuf = "3.7.2"
+
+[build-dependencies]
+# Compiles `proto/custom_test.proto` into Rust code at build time. The
+# `pure` mode is selected so that no external `protoc` binary is required.
+protobuf-codegen = "3.7.2"

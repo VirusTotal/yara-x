@@ -1,4 +1,4 @@
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::time::*;
 
 #[module_main]
@@ -40,5 +40,14 @@ mod tests {
             rule test { condition: time.now() >= 0 }"#,
             &[]
         );
+    }
+}
+
+register_module! {
+    Module {
+        name: "time",
+        root_descriptor: Time::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
+        rust_module_name: Some(module_path!()),
     }
 }

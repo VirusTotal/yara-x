@@ -18,7 +18,7 @@ use bstr::BStr;
 use ipnet::IpNet;
 use protobuf::EnumFull;
 
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::titan::*;
 use crate::modules::protos::vtnet::enriched_domain::Permutation;
 use crate::modules::vt::bitsquatting::bitsquatting;
@@ -90,7 +90,7 @@ fn all_permutations(
     permutations(ctx, domain, target, 0x1F)
 }
 
-/// Returns true if the domain is a permutation of the given `target` domain, 
+/// Returns true if the domain is a permutation of the given `target` domain,
 /// but the permutation must be any of the kinds specified in `permutation_kinds`.
 #[module_export(name = "permutation_of", method_of = "vt.net.EnrichedDomain")]
 fn permutations(
@@ -159,9 +159,10 @@ fn permutations(
 
     if SUBDOMAIN.bitand(&permutation_kinds) != 0
         && let (Some(legit), Some(scanned)) = (legit_prefix, scanned_prefix)
-            && interleaved(legit, scanned, '.') {
-                return true;
-            }
+        && interleaved(legit, scanned, '.')
+    {
+        return true;
+    }
 
     if HYPHENATION.bitand(&permutation_kinds) != 0
         && interleaved(legit_domain, scanned_domain, '-')
@@ -250,7 +251,7 @@ pub struct DomainParts<'a> {
 #[cfg(test)]
 mod tests {
     use crate::modules::protos::titan::LiveHuntData;
-    use crate::modules::vt::{parse_domain, DomainParts};
+    use crate::modules::vt::{DomainParts, parse_domain};
     use crate::{Compiler, Scanner};
     use bstr::BStr;
     use protobuf::text_format::parse_from_str;
@@ -528,5 +529,14 @@ mod tests {
         assert!(!squatting!("www.ing.com", "www.ncbi.nlm.nih.gov"));
         assert!(!squatting!("www.google.com", "www.goggle.es"));
         assert!(!squatting!("www.google.com", "www.goore.com"));
+    }
+}
+
+register_module! {
+    Module {
+        name: "vt",
+        root_descriptor: LiveHuntData::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
+        rust_module_name: Some(module_path!()),
     }
 }

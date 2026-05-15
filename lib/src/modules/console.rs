@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::console::*;
 
 #[module_main]
@@ -213,5 +213,14 @@ mod tests {
                 r"\x00\x11AB",
             ]
         );
+    }
+}
+
+register_module! {
+    Module {
+        name: "console",
+        root_descriptor: Console::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
+        rust_module_name: Some(module_path!()),
     }
 }

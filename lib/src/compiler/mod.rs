@@ -38,7 +38,7 @@ use crate::compiler::errors::{
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{CompileContext, VarStack};
-use crate::modules::BUILTIN_MODULES;
+use crate::modules::Module;
 use crate::re::hir::{ChainedPattern, ChainedPatternGap};
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup, SymbolTable};
@@ -1851,7 +1851,8 @@ impl Compiler<'_> {
 
     fn c_import(&mut self, import: &Import) -> Result<(), CompileError> {
         let module_name = import.module_name;
-        let module = BUILTIN_MODULES.get(module_name);
+        let module =
+            inventory::iter::<Module>().find(|m| m.name == module_name);
 
         // Does a module with the given name actually exist? ...
         if module.is_none() {
@@ -2627,7 +2628,7 @@ impl From<IdentId> for u32 {
 /// ID associated to each literal string in the literals pool.
 #[derive(PartialEq, Debug, Copy, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-pub(crate) struct LiteralId(u32);
+pub struct LiteralId(u32);
 
 impl From<i32> for LiteralId {
     fn from(v: i32) -> Self {

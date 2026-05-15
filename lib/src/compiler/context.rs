@@ -12,7 +12,7 @@ use crate::compiler::ir::{IR, PatternIdx};
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{RegexId, RegexSetId, Warnings, ir};
 use crate::errors::{UnknownField, UnknownIdentifier};
-use crate::modules::BUILTIN_MODULES;
+use crate::modules::Module;
 use crate::string_pool::StringPool;
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup};
 use crate::types::Type;
@@ -128,6 +128,8 @@ impl<'src> CompileContext<'_, 'src> {
             // If the current symbol table is `None` it means that the
             // identifier is not a field or method of some structure.
             return if symbol_table.is_none() {
+                let module = inventory::iter::<Module>()
+                    .find(|module| module.name == ident.name);
                 // Build the error for the unknown identifier.
                 let mut err = UnknownIdentifier::build(
                     self.report_builder,
@@ -135,18 +137,16 @@ impl<'src> CompileContext<'_, 'src> {
                     self.report_builder.span_to_code_loc(ident.span()),
                     // Add a note about the missing import statement if
                     // the unknown identifier is a module name.
-                    if BUILTIN_MODULES.contains_key(ident.name) {
-                        Some(format!(
+                    module.map(|m| {
+                        format!(
                             "there is a module named `{}`, but the `import \"{}\"` statement is missing",
-                            ident.name, ident.name
-                        ))
-                    } else {
-                        None
-                    },
+                            m.name, m.name)
+                        }
+                    )
                 );
                 // If the identifier is a known module, add a fix that inserts
                 // the import statement at the beginning of the file.
-                if BUILTIN_MODULES.contains_key(ident.name) {
+                if module.is_some() {
                     err.report_mut().patch(
                         self.report_builder.span_to_code_loc(Span(0..0)),
                         format!("import \"{}\"\n", ident.name),

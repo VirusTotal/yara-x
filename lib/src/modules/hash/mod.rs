@@ -6,7 +6,7 @@ use rustc_hash::FxHashMap;
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
 
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::hash::*;
 
 #[cfg(test)]
@@ -221,8 +221,8 @@ fn checksum32(data: &[u8]) -> u32 {
 
     for chunk in &mut chunks {
         let x = u64::from_le_bytes(chunk.try_into().unwrap());
-        let pairs = (x & 0x00ff_00ff_00ff_00ff)
-            + ((x >> 8) & 0x00ff_00ff_00ff_00ff);
+        let pairs =
+            (x & 0x00ff_00ff_00ff_00ff) + ((x >> 8) & 0x00ff_00ff_00ff_00ff);
         let quads = (pairs & 0x0000_ffff_0000_ffff)
             + ((pairs >> 16) & 0x0000_ffff_0000_ffff);
         sum = sum.wrapping_add((quads & 0xffff_ffff) + (quads >> 32));
@@ -261,4 +261,13 @@ fn checksum_data(ctx: &ScanContext, offset: i64, size: i64) -> Option<i64> {
 #[module_export(name = "checksum32")]
 fn checksum_str(ctx: &ScanContext, s: RuntimeString) -> Option<i64> {
     Some(checksum32(s.as_bstr(ctx).as_bytes()).into())
+}
+
+register_module! {
+    Module {
+        name: "hash",
+        root_descriptor: Hash::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
 }

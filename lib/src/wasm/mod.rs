@@ -90,7 +90,7 @@ use smallvec::{SmallVec, smallvec};
 use yara_x_macros::wasm_export;
 
 use crate::compiler::{LiteralId, PatternId, RegexId, RuleId};
-use crate::modules::BUILTIN_MODULES;
+use crate::modules::Module;
 use crate::scanner::{RuntimeObjectHandle, ScanContext};
 use crate::types::{
     Array, Func, FuncSignature, Map, Struct, TypeValue, Value,
@@ -137,8 +137,8 @@ pub(crate) fn wasm_exports() -> impl Iterator<Item = &'static WasmExport> {
     inventory::iter::<WasmExport>()
 }
 
-/// Type of each entry in [`WASM_EXPORTS`].
-pub(crate) struct WasmExport {
+/// Describes a function that is exported to WASM code.
+pub struct WasmExport {
     /// Function's name.
     pub name: &'static str,
     /// Function's mangled name. The mangled name contains information about
@@ -170,15 +170,15 @@ impl WasmExport {
     ///
     /// The fully qualified name includes not only the function's name, but
     /// also the module's name (e.g: `my_module.my_struct.my_func@ii@i`)
-    pub fn fully_qualified_mangled_name(&self) -> String {
+    pub(crate) fn fully_qualified_mangled_name(&self) -> String {
         if self.method_of.is_some() {
             return self.mangled_name.to_string();
         }
-        for (module_name, module) in BUILTIN_MODULES.iter() {
+        for module in inventory::iter::<Module>() {
             if let Some(rust_module_name) = module.rust_module_name
                 && self.rust_module_path.contains(rust_module_name)
             {
-                return format!("{}.{}", module_name, self.mangled_name);
+                return format!("{}.{}", module.name, self.mangled_name);
             }
         }
         self.mangled_name.to_owned()
@@ -196,7 +196,9 @@ impl WasmExport {
     /// Keys are function names and values are [`Func`] structures. Overloaded
     /// functions appear in the map as a single entry where the [`Func`] has
     /// multiple signatures.
-    pub fn get_functions<P>(predicate: P) -> FxHashMap<&'static str, Func>
+    pub(crate) fn get_functions<P>(
+        predicate: P,
+    ) -> FxHashMap<&'static str, Func>
     where
         P: FnMut(&&WasmExport) -> bool,
     {
@@ -246,7 +248,9 @@ impl WasmExport {
     /// #[module_export(method_of = "my_module.MyStructure")]
     /// fn some_method(...) { ... }
     /// ```
-    pub fn get_methods(type_name: &str) -> FxHashMap<&'static str, Func> {
+    pub(crate) fn get_methods(
+        type_name: &str,
+    ) -> FxHashMap<&'static str, Func> {
         WasmExport::get_functions(|export| {
             export.method_of.is_some_and(|name| name == type_name)
         })
@@ -258,7 +262,7 @@ impl WasmExport {
 /// Implementors of this trait are [`WasmExportedFn0`], [`WasmExportedFn1`],
 /// [`WasmExportedFn2`], etc. Each of these types is a generic type that
 /// represents all functions with 0, 1, and 2 arguments respectively.
-pub(crate) trait WasmExportedFn {
+pub trait WasmExportedFn {
     /// Returns the function that will be passed to the selected runtime linker
     /// while linking the WASM code to this function.
     fn trampoline(&'static self) -> Trampoline<ScanContext<'static, 'static>>;
@@ -572,7 +576,7 @@ where
     }
 }
 
-pub fn wasmtime_to_walrus(ty: &ValType) -> walrus::ValType {
+fn wasmtime_to_walrus(ty: &ValType) -> walrus::ValType {
     #[allow(unreachable_patterns)]
     match ty {
         ValType::I64 => walrus::ValType::I64,
@@ -627,7 +631,8 @@ fn type_id_to_wasmtime(
 macro_rules! impl_wasm_exported_fn {
     ($name:ident $($args:ident)*) => {
         #[allow(dead_code)]
-        pub(super) struct $name <$($args,)* R>
+        #[allow(missing_docs)]
+        pub struct $name <$($args,)* R>
         where
             $($args: 'static,)*
             R: 'static,

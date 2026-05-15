@@ -1,5 +1,5 @@
 use crate::compiler::RegexId;
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::cuckoo::*;
 
 mod schema;
@@ -268,4 +268,13 @@ fn registry_key_access_r(ctx: &ScanContext, regexp_id: RegexId) -> i64 {
                 .count() as i64
         })
         .unwrap_or(0)
+}
+
+register_module! {
+    Module {
+        name: "cuckoo",
+        root_descriptor: Cuckoo::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
 }

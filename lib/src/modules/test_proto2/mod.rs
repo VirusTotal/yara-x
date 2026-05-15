@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::test_proto2::NestedProto2;
 use crate::modules::protos::test_proto2::TestProto2;
 use crate::types::Struct;
@@ -191,4 +191,13 @@ fn main(data: &[u8], meta: Option<&[u8]>) -> Result<TestProto2, ModuleError> {
     test.metadata = meta.map(Vec::from);
 
     Ok(test)
+}
+
+register_module! {
+    Module {
+        name: "test_proto2",
+        root_descriptor: TestProto2::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
 }

@@ -4,10 +4,10 @@ This allows creating YARA rules that use the file type provided by [libmagic][1]
 
 [1]: https://man7.org/linux/man-pages/man3/libmagic.3.html
  */
-
-use crate::modules::prelude::*;
-use crate::modules::protos::magic::*;
 use std::cell::RefCell;
+
+use crate::mods::prelude::*;
+use crate::modules::protos::magic::*;
 
 #[cfg(feature = "logging")]
 use log::*;
@@ -96,4 +96,13 @@ fn get_mime_type(data: &[u8]) -> Result<String, magic::cookie::Error> {
         .expect("set libmagic options");
 
     MAGIC.with(|magic| magic.buffer(data))
+}
+
+register_module! {
+    super::Module {
+        name: "magic",
+        root_descriptor: Magic::descriptor,
+        main_fn: Some(__main__ as ModuleMainFn),
+        rust_module_name: Some(module_path!()),
+    }
 }
