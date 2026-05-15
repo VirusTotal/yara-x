@@ -23,6 +23,8 @@ thread_local!(
 
 #[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Dex, ModuleError> {
+    CHECKSUM_CACHE.with(|cache| *cache.borrow_mut() = None);
+    SIGNATURE_CACHE.with(|cache| *cache.borrow_mut() = None);
     match parser::Dex::parse(data) {
         Ok(dex) => Ok(dex.into()),
         Err(_) => {
