@@ -183,18 +183,11 @@ impl Dex {
             None => return Vec::new(),
         };
 
-        let mut it = iterator(table_slice, le_u32::<&[u8], Error>);
-
-        let string_offsets = it
-            .by_ref()
+        iterator(table_slice, le_u32::<&[u8], Error>)
             .take(Self::MAX_STRINGS)
             .take(header.string_ids_size as usize)
             .filter_map(|offset| Self::parse_string_from_offset(data, offset))
-            .collect();
-
-        let _ = it.finish();
-
-        string_offsets
+            .collect()
     }
 
     /// Parses string by index in the string_ids_off table
@@ -250,18 +243,11 @@ impl Dex {
             None => return Vec::new(),
         };
 
-        let mut it = iterator(table_slice, le_u32::<&[u8], Error>);
-
-        let type_indexes = it
-            .by_ref()
+        iterator(table_slice, le_u32::<&[u8], Error>)
             .take(Self::MAX_TYPES)
             .take(header.type_ids_size as usize)
             .filter_map(|idx| string_items.get(idx as usize).cloned())
-            .collect();
-
-        let _ = it.finish();
-
-        type_indexes
+            .collect()
     }
 
     /// Collects a list of prototypes in a hashmap from proto_ids_off list.
@@ -285,11 +271,7 @@ impl Dex {
             None => return Vec::new(),
         };
 
-        let mut it =
-            iterator(table_slice, (le_u32::<&[u8], Error>, le_u32, le_u32));
-
-        let proto_entries = it
-            .by_ref()
+        iterator(table_slice, (le_u32::<&[u8], Error>, le_u32, le_u32))
             .take(Self::MAX_PROTOS)
             .take(header.proto_ids_size as usize)
             .filter_map(|(shorty_idx, return_type_idx, parameters_off)| {
@@ -313,11 +295,7 @@ impl Dex {
                 item.parameters.extend(parameters);
                 Some(item)
             })
-            .collect();
-
-        let _ = it.finish();
-
-        proto_entries
+            .collect()
     }
 
     /// Collects a type list to list of strings from given offset
@@ -337,16 +315,12 @@ impl Dex {
             return None;
         }
 
-        let mut it = iterator(remainder, le_u16::<&[u8], Error>);
-        let items = it
-            .by_ref()
-            .take(size as usize)
-            .filter_map(|idx| type_items.get(idx as usize).cloned())
-            .collect();
-
-        let _ = it.finish();
-
-        Some(items)
+        Some(
+            iterator(remainder, le_u16::<&[u8], Error>)
+                .take(size as usize)
+                .filter_map(|idx| type_items.get(idx as usize).cloned())
+                .collect(),
+        )
     }
 
     /// Collects a list of fields in a hashmap from field_ids_off list.
@@ -369,29 +343,20 @@ impl Dex {
             None => return Vec::new(),
         };
 
-        let mut it =
-            iterator(table_slice, (le_u16::<&[u8], Error>, le_u16, le_u32));
-
-        let field_entries = it
-            .by_ref()
+        iterator(table_slice, (le_u16::<&[u8], Error>, le_u16, le_u32))
             .take(Self::MAX_FIELDS)
             .take(header.field_ids_size as usize)
             .filter_map(|(class_idx, type_idx, name_idx)| {
                 let class = type_items.get(class_idx as usize)?.clone();
                 let type_ = type_items.get(type_idx as usize)?.clone();
                 let name = string_items.get(name_idx as usize)?.clone();
-
                 let mut item = protos::dex::FieldItem::new();
                 item.class = Some(class);
                 item.type_ = Some(type_);
                 item.name = Some(name);
                 Some(item)
             })
-            .collect();
-
-        let _ = it.finish();
-
-        field_entries
+            .collect()
     }
 
     /// Collects a list of methods in a hashmap from method_ids_off list.
@@ -415,11 +380,7 @@ impl Dex {
             None => return Vec::new(),
         };
 
-        let mut it =
-            iterator(table_slice, (le_u16::<&[u8], Error>, le_u16, le_u32));
-
-        let method_entries = it
-            .by_ref()
+        iterator(table_slice, (le_u16::<&[u8], Error>, le_u16, le_u32))
             .take(Self::MAX_METHODS)
             .take(header.method_ids_size as usize)
             .filter_map(|(class_idx, proto_idx, name_idx)| {
@@ -433,11 +394,7 @@ impl Dex {
                 item.name = Some(name);
                 Some(item)
             })
-            .collect();
-
-        let _ = it.finish();
-
-        method_entries
+            .collect()
     }
 
     /// Collects a list of classes from class_defs_off list.
@@ -462,7 +419,7 @@ impl Dex {
             None => return Vec::new(),
         };
 
-        let mut it = iterator(
+        let it = iterator(
             table_slice,
             (
                 le_u32::<&[u8], Error>, // class_idx
@@ -476,9 +433,7 @@ impl Dex {
             ),
         );
 
-        let class_entries = it
-            .by_ref()
-            .take(Self::MAX_CLASSES)
+        it.take(Self::MAX_CLASSES)
             .take(header.class_defs_size as usize)
             .filter_map(
                 |(
@@ -515,11 +470,7 @@ impl Dex {
                     Some(item)
                 },
             )
-            .collect();
-
-        let _ = it.finish();
-
-        class_entries
+            .collect()
     }
 
     /// Collects information about maps from the DEX file
@@ -531,14 +482,16 @@ impl Dex {
     ) -> Option<protos::dex::MapList> {
         data.get(header.map_off as usize..).and_then(|offset| {
             let (items_offset, size) = le_u32::<&[u8], Error>(offset).ok()?;
-            let mut it = iterator(items_offset, Self::parse_map_item);
             let items: Vec<protos::dex::MapItem> =
-                it.by_ref().take(size as usize).collect();
-            let _ = it.finish();
+                iterator(items_offset, Self::parse_map_item)
+                    .take(size as usize)
+                    .collect();
 
             let mut map_list = protos::dex::MapList::new();
+
             map_list.set_size(size);
             map_list.items = items;
+
             Some(map_list)
         })
     }
