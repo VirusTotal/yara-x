@@ -27,7 +27,7 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Dex, ModuleError> {
     SIGNATURE_CACHE.with(|cache| *cache.borrow_mut() = None);
 
     match parser::Dex::parse(data) {
-        Ok(dex) => Ok(dex.into()),
+        Ok(dex) => Ok(dex),
         Err(_) => {
             let mut dex = Dex::new();
             dex.set_is_dex(false);

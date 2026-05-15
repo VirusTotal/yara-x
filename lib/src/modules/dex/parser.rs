@@ -1,6 +1,3 @@
-use std::borrow::Cow;
-use std::rc::Rc;
-
 use nom::bytes::complete::take;
 use nom::combinator::iterator;
 use nom::combinator::{cond, map, map_res, verify};
@@ -14,34 +11,9 @@ use crate::modules::utils::leb128::uleb128;
 
 type Error<'a> = nom::error::Error<&'a [u8]>;
 
-#[derive(Default)]
-pub struct Dex<'a> {
-    // DEX header information
-    header: DexHeader,
+pub struct Dex;
 
-    // List with all found strings
-    strings: Vec<Cow<'a, str>>,
-
-    // List with all found types
-    types: Vec<Cow<'a, str>>,
-
-    // List with all found prototypes
-    protos: Vec<Rc<ProtoItem<'a>>>,
-
-    // List with all found fields
-    fields: Vec<FieldItem<'a>>,
-
-    // List with all found methods
-    methods: Vec<MethodItem<'a>>,
-
-    // List with all found classes
-    class_defs: Vec<ClassItem<'a>>,
-
-    // Map information
-    map_list: Option<MapList>,
-}
-
-impl<'a> Dex<'a> {
+impl Dex {
     const ENDIAN_CONSTANT: u32 = 0x12345678;
     const REVERSE_ENDIAN_CONSTANT: u32 = 0x78563412;
     const DEX_HEADER_SIZE: u32 = 0x70;
@@ -54,7 +26,7 @@ impl<'a> Dex<'a> {
     const MAX_METHODS: usize = 1_000_000;
     const MAX_FIELDS: usize = 1_000_000;
 
-    pub fn parse(data: &'a [u8]) -> Result<Self, Err<Error<'a>>> {
+    pub fn parse(data: &[u8]) -> Result<protos::dex::Dex, Err<Error<'_>>> {
         // Extract dex header with information about data location
         let (_, header) = Self::parse_dex_header(data)?;
 
@@ -71,30 +43,32 @@ impl<'a> Dex<'a> {
         let fields = Self::parse_fields(data, &header, &strings, &types);
 
         // Extract defined methods
-        let methods = Self::parse_methods(
-            data,
-            &header,
-            &strings,
-            &types,
-            &protos,
-        );
+        let methods =
+            Self::parse_methods(data, &header, &strings, &types, &protos);
 
         // Extract defined classes
-        let class_defs = Self::parse_class_defs(data, &header, &strings, &types);
+        let class_defs =
+            Self::parse_class_defs(data, &header, &strings, &types);
 
         // Extract map information
         let map_list = Self::parse_map_items(data, &header);
 
-        Ok(Self {
-            header,
-            strings,
-            types,
-            protos,
-            fields,
-            methods,
-            class_defs,
-            map_list,
-        })
+        let mut dex = protos::dex::Dex::new();
+        dex.set_is_dex(true);
+
+        dex.header = MessageField::some(header.into());
+        dex.strings = strings;
+        dex.types = types;
+        dex.protos = protos;
+        dex.fields = fields;
+        dex.methods = methods;
+        dex.class_defs = class_defs;
+
+        if let Some(map_list) = map_list {
+            dex.map_list = MessageField::some(map_list);
+        }
+
+        Ok(dex)
     }
 
     fn parse_dex_header(data: &[u8]) -> IResult<&[u8], DexHeader> {
@@ -197,10 +171,7 @@ impl<'a> Dex<'a> {
     /// A HashMap is needed to quickly access an item by its index.
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#string-item
-    fn parse_strings(
-        data: &'a [u8],
-        header: &DexHeader,
-    ) -> Vec<Cow<'a, str>> {
+    fn parse_strings(data: &[u8], header: &DexHeader) -> Vec<String> {
         // DEX file doesn't contain strings.
         // It's a strange case, but it needs to be checked.
         if header.string_ids_off == 0 {
@@ -234,9 +205,9 @@ impl<'a> Dex<'a> {
     /// Strings larger than 64KB will be considered invalid and the result will
     /// be None.
     fn parse_string_from_offset(
-        data: &'a [u8],
+        data: &[u8],
         string_data_offset: u32,
-    ) -> Option<Cow<'a, str>> {
+    ) -> Option<String> {
         if string_data_offset < Self::DEX_HEADER_SIZE {
             return None;
         }
@@ -249,10 +220,11 @@ impl<'a> Dex<'a> {
             }
 
             let (_, bytes) =
-                take::<usize, &[u8], Error>(utf16_size as usize)(slice).ok()?;
+                take::<usize, &[u8], Error>(utf16_size as usize)(slice)
+                    .ok()?;
 
-            // Decode MUTF-8 string and return Cow<'a, str>
-            simd_cesu8::mutf8::decode(bytes).ok()
+            // Decode MUTF-8 string and return String
+            simd_cesu8::mutf8::decode(bytes).ok().map(|s| s.into_owned())
         })
     }
 
@@ -263,10 +235,10 @@ impl<'a> Dex<'a> {
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#type-id-item
     fn parse_types(
-        data: &'a [u8],
+        data: &[u8],
         header: &DexHeader,
-        string_items: &[Cow<'a, str>],
-    ) -> Vec<Cow<'a, str>> {
+        string_items: &[String],
+    ) -> Vec<String> {
         // DEX file doesn't contain types.
         // It's a strange case, but it needs to be checked.
         if header.type_ids_off == 0 {
@@ -297,11 +269,11 @@ impl<'a> Dex<'a> {
     /// See: https://source.android.com/docs/core/runtime/dex-format#proto-id-item
     /// See: https://source.android.com/docs/core/runtime/dex-format#type-list
     fn parse_protos(
-        data: &'a [u8],
+        data: &[u8],
         header: &DexHeader,
-        string_items: &[Cow<'a, str>],
-        type_items: &[Cow<'a, str>],
-    ) -> Vec<Rc<ProtoItem<'a>>> {
+        string_items: &[String],
+        type_items: &[String],
+    ) -> Vec<protos::dex::ProtoItem> {
         // DEX file doesn't contain prototypes.
         // It's a strange case, but it needs to be checked.
         if header.proto_ids_off == 0 {
@@ -313,7 +285,8 @@ impl<'a> Dex<'a> {
             None => return Vec::new(),
         };
 
-        let mut it = iterator(table_slice, (le_u32::<&[u8], Error>, le_u32, le_u32));
+        let mut it =
+            iterator(table_slice, (le_u32::<&[u8], Error>, le_u32, le_u32));
 
         let proto_entries = it
             .by_ref()
@@ -333,12 +306,12 @@ impl<'a> Dex<'a> {
                         .unwrap_or_default()
                 };
 
-                Some(Rc::new(ProtoItem {
-                    shorty,
-                    return_type,
-                    parameters_count: parameters.len() as u32,
-                    parameters,
-                }))
+                let mut item = protos::dex::ProtoItem::new();
+                item.shorty = Some(shorty);
+                item.return_type = Some(return_type);
+                item.set_parameters_count(parameters.len() as u32);
+                item.parameters.extend(parameters);
+                Some(item)
             })
             .collect();
 
@@ -351,10 +324,10 @@ impl<'a> Dex<'a> {
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#type-list
     fn parse_type_list(
-        data: &'a [u8],
-        type_items: &[Cow<'a, str>],
+        data: &[u8],
+        type_items: &[String],
         offset: u32,
-    ) -> Option<Vec<Cow<'a, str>>> {
+    ) -> Option<Vec<String>> {
         let remainder = data.get(offset as usize..)?;
         let (remainder, size) = le_u32::<&[u8], Error>(remainder).ok()?;
 
@@ -380,11 +353,11 @@ impl<'a> Dex<'a> {
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#field-id-item
     fn parse_fields(
-        data: &'a [u8],
+        data: &[u8],
         header: &DexHeader,
-        string_items: &[Cow<'a, str>],
-        type_items: &[Cow<'a, str>],
-    ) -> Vec<FieldItem<'a>> {
+        string_items: &[String],
+        type_items: &[String],
+    ) -> Vec<protos::dex::FieldItem> {
         // DEX file doesn't contain fields.
         // It's a strange case, but it needs to be checked.
         if header.field_ids_off == 0 {
@@ -396,7 +369,8 @@ impl<'a> Dex<'a> {
             None => return Vec::new(),
         };
 
-        let mut it = iterator(table_slice, (le_u16::<&[u8], Error>, le_u16, le_u32));
+        let mut it =
+            iterator(table_slice, (le_u16::<&[u8], Error>, le_u16, le_u32));
 
         let field_entries = it
             .by_ref()
@@ -407,7 +381,11 @@ impl<'a> Dex<'a> {
                 let type_ = type_items.get(type_idx as usize)?.clone();
                 let name = string_items.get(name_idx as usize)?.clone();
 
-                Some(FieldItem { class, type_, name })
+                let mut item = protos::dex::FieldItem::new();
+                item.class = Some(class);
+                item.type_ = Some(type_);
+                item.name = Some(name);
+                Some(item)
             })
             .collect();
 
@@ -420,12 +398,12 @@ impl<'a> Dex<'a> {
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#method-id-item
     fn parse_methods(
-        data: &'a [u8],
+        data: &[u8],
         header: &DexHeader,
-        string_items: &[Cow<'a, str>],
-        type_items: &[Cow<'a, str>],
-        proto_items: &[Rc<ProtoItem<'a>>],
-    ) -> Vec<MethodItem<'a>> {
+        string_items: &[String],
+        type_items: &[String],
+        proto_items: &[protos::dex::ProtoItem],
+    ) -> Vec<protos::dex::MethodItem> {
         // DEX file doesn't contain methods
         // It's a strange case, but it needs to be checked.
         if header.method_ids_off == 0 {
@@ -437,7 +415,8 @@ impl<'a> Dex<'a> {
             None => return Vec::new(),
         };
 
-        let mut it = iterator(table_slice, (le_u16::<&[u8], Error>, le_u16, le_u32));
+        let mut it =
+            iterator(table_slice, (le_u16::<&[u8], Error>, le_u16, le_u32));
 
         let method_entries = it
             .by_ref()
@@ -448,7 +427,11 @@ impl<'a> Dex<'a> {
                 let proto = proto_items.get(proto_idx as usize)?.clone();
                 let name = string_items.get(name_idx as usize)?.clone();
 
-                Some(MethodItem { class, proto, name })
+                let mut item = protos::dex::MethodItem::new();
+                item.class = Some(class);
+                item.proto = MessageField::some(proto);
+                item.name = Some(name);
+                Some(item)
             })
             .collect();
 
@@ -463,11 +446,11 @@ impl<'a> Dex<'a> {
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#class-def-item
     fn parse_class_defs(
-        data: &'a [u8],
+        data: &[u8],
         header: &DexHeader,
-        string_items: &[Cow<'a, str>],
-        type_items: &[Cow<'a, str>],
-    ) -> Vec<ClassItem<'a>> {
+        string_items: &[String],
+        type_items: &[String],
+    ) -> Vec<protos::dex::ClassItem> {
         // DEX file doesn't contain classess
         // It's a strange case, but it needs to be checked.
         if header.class_defs_off == 0 {
@@ -520,12 +503,16 @@ impl<'a> Dex<'a> {
                         None
                     };
 
-                    Some(ClassItem {
-                        class,
-                        access_flags,
-                        superclass,
-                        source_file,
-                    })
+                    let mut item = protos::dex::ClassItem::new();
+                    item.class = Some(class);
+                    item.set_access_flags(access_flags);
+                    if let Some(superclass) = superclass {
+                        item.superclass = Some(superclass);
+                    }
+                    if let Some(source_file) = source_file {
+                        item.source_file = Some(source_file);
+                    }
+                    Some(item)
                 },
             )
             .collect();
@@ -538,14 +525,21 @@ impl<'a> Dex<'a> {
     /// Collects information about maps from the DEX file
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#map-list
-    fn parse_map_items(data: &[u8], header: &DexHeader) -> Option<MapList> {
+    fn parse_map_items(
+        data: &[u8],
+        header: &DexHeader,
+    ) -> Option<protos::dex::MapList> {
         data.get(header.map_off as usize..).and_then(|offset| {
             let (items_offset, size) = le_u32::<&[u8], Error>(offset).ok()?;
             let mut it = iterator(items_offset, Self::parse_map_item);
-            let items = it.by_ref().take(size as usize).collect();
+            let items: Vec<protos::dex::MapItem> =
+                it.by_ref().take(size as usize).collect();
             let _ = it.finish();
 
-            Some(MapList { size, items })
+            let mut map_list = protos::dex::MapList::new();
+            map_list.set_size(size);
+            map_list.items = items;
+            Some(map_list)
         })
     }
 
@@ -553,7 +547,7 @@ impl<'a> Dex<'a> {
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#map-item
     #[inline]
-    fn parse_map_item(input: &[u8]) -> IResult<&[u8], MapItem> {
+    fn parse_map_item(input: &[u8]) -> IResult<&[u8], protos::dex::MapItem> {
         let (remainder, (item_type, unused, size, offset)) = (
             le_u16, // type
             le_u16, // unused
@@ -562,7 +556,13 @@ impl<'a> Dex<'a> {
         )
             .parse(input)?;
 
-        Ok((remainder, MapItem { item_type, unused, size, offset }))
+        let mut item = protos::dex::MapItem::new();
+        item.type_ = Some(EnumOrUnknown::from_i32(item_type.into()));
+        item.set_unused(unused.into());
+        item.set_size(size);
+        item.set_offset(offset);
+
+        Ok((remainder, item))
     }
 }
 
@@ -639,86 +639,6 @@ struct DexHeader {
     header_offset: Option<u32>,
 }
 
-#[derive(Debug)]
-pub struct ProtoItem<'a> {
-    shorty: Cow<'a, str>,
-    return_type: Cow<'a, str>,
-    parameters_count: u32,
-    parameters: Vec<Cow<'a, str>>,
-}
-
-#[derive(Debug)]
-pub struct FieldItem<'a> {
-    class: Cow<'a, str>,
-    type_: Cow<'a, str>,
-    name: Cow<'a, str>,
-}
-
-#[derive(Debug)]
-pub struct MethodItem<'a> {
-    class: Cow<'a, str>,
-    proto: Rc<ProtoItem<'a>>,
-    name: Cow<'a, str>,
-}
-
-#[derive(Debug)]
-pub struct ClassItem<'a> {
-    class: Cow<'a, str>,
-    access_flags: u32,
-    superclass: Option<Cow<'a, str>>,
-    source_file: Option<Cow<'a, str>>,
-}
-
-#[derive(Default)]
-pub struct MapList {
-    size: u32,
-    items: Vec<MapItem>,
-}
-
-#[derive(Default)]
-pub struct MapItem {
-    item_type: u16,
-    unused: u16,
-    size: u32,
-    offset: u32,
-}
-
-impl<'a> From<Dex<'a>> for protos::dex::Dex {
-    fn from(dex: Dex<'a>) -> Self {
-        let mut result = protos::dex::Dex::new();
-
-        result.set_is_dex(true);
-        result.header = MessageField::some(dex.header.clone().into());
-
-        result
-            .strings
-            .extend(dex.strings.into_iter().map(|x| x.to_string()));
-        result
-            .types
-            .extend(dex.types.into_iter().map(|x| x.to_string()));
-        result.protos.extend(
-            dex.protos
-                .iter()
-                .map(|x| protos::dex::ProtoItem::from(x.as_ref())),
-        );
-        result
-            .fields
-            .extend(dex.fields.iter().map(protos::dex::FieldItem::from));
-        result
-            .methods
-            .extend(dex.methods.iter().map(protos::dex::MethodItem::from));
-        result
-            .class_defs
-            .extend(dex.class_defs.iter().map(protos::dex::ClassItem::from));
-
-        if let Some(map_list) = dex.map_list {
-            result.map_list = MessageField::some(map_list.into());
-        }
-
-        result
-    }
-}
-
 impl From<DexHeader> for protos::dex::DexHeader {
     fn from(header: DexHeader) -> Self {
         let mut result = protos::dex::DexHeader::new();
@@ -734,89 +654,6 @@ impl From<DexHeader> for protos::dex::DexHeader {
         result.set_link_off(header.link_off);
         result.container_size = header.container_size;
         result.header_offset = header.header_offset;
-        result
-    }
-}
-
-impl<'a> From<&ProtoItem<'a>> for protos::dex::ProtoItem {
-    fn from(value: &ProtoItem<'a>) -> Self {
-        let mut result = protos::dex::ProtoItem::new();
-
-        result.shorty = Some(value.shorty.to_string());
-        result.return_type = Some(value.return_type.to_string());
-        result.set_parameters_count(value.parameters_count);
-        result
-            .parameters
-            .extend(value.parameters.iter().map(|x| x.to_string()));
-
-        result
-    }
-}
-
-impl<'a> From<&FieldItem<'a>> for protos::dex::FieldItem {
-    fn from(value: &FieldItem<'a>) -> Self {
-        let mut result = protos::dex::FieldItem::new();
-
-        result.class = Some(value.class.to_string());
-        result.type_ = Some(value.type_.to_string());
-        result.name = Some(value.name.to_string());
-
-        result
-    }
-}
-
-impl<'a> From<&MethodItem<'a>> for protos::dex::MethodItem {
-    fn from(value: &MethodItem<'a>) -> Self {
-        let mut result = protos::dex::MethodItem::new();
-
-        result.class = Some(value.class.to_string());
-        result.proto = MessageField::some(value.proto.as_ref().into());
-        result.name = Some(value.name.to_string());
-
-        result
-    }
-}
-
-impl<'a> From<&ClassItem<'a>> for protos::dex::ClassItem {
-    fn from(value: &ClassItem<'a>) -> Self {
-        let mut result = protos::dex::ClassItem::new();
-
-        result.class = Some(value.class.to_string());
-        result.set_access_flags(value.access_flags);
-
-        if let Some(superclass) = &value.superclass {
-            result.superclass = Some(superclass.to_string());
-        }
-
-        if let Some(source_file) = &value.source_file {
-            result.source_file = Some(source_file.to_string());
-        }
-
-        result
-    }
-}
-
-impl From<MapList> for protos::dex::MapList {
-    fn from(value: MapList) -> Self {
-        let mut result = protos::dex::MapList::new();
-
-        result.set_size(value.size);
-        result.items =
-            value.items.iter().map(protos::dex::MapItem::from).collect();
-
-        result
-    }
-}
-
-impl From<&MapItem> for protos::dex::MapItem {
-    fn from(item: &MapItem) -> Self {
-        let mut result = protos::dex::MapItem::new();
-
-        result.type_ = Some(EnumOrUnknown::from_i32(item.item_type.into()));
-        result.set_unused(item.unused.into());
-        result.set_size(item.size);
-        result.set_offset(item.offset);
-
         result
     }
 }
