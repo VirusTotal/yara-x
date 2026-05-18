@@ -90,67 +90,68 @@ impl WasmState {
 }
 
 /// Structure that holds information about the current scan.
-pub(crate) struct ScanContext<'r, 'd> {
+pub struct ScanContext<'r, 'd> {
     /// WASM state.
-    pub wasm: WasmState,
+    pub(crate) wasm: WasmState,
     /// Map where keys are object handles and values are objects used during
     /// the evaluation of rule conditions. Handles are opaque integer values
     /// that can be passed to and received from WASM code. Each handle identify
     /// an object (string, struct, array or map).
-    pub runtime_objects: IndexMap<RuntimeObjectHandle, RuntimeObject>,
+    pub(crate) runtime_objects: IndexMap<RuntimeObjectHandle, RuntimeObject>,
     /// The time that can be spent in a scan operation, including the
     /// execution of the rule conditions.
-    pub scan_timeout: Option<Duration>,
+    pub(crate) scan_timeout: Option<Duration>,
     /// The number of bytes at the left and right of the matching data
     /// that is stored to provide additional context about where the match
     /// was found.
-    pub match_context_size: usize,
+    pub(crate) match_context_size: usize,
     /// The current state of the scanner.
-    pub scan_state: ScanState<'d>,
+    pub(crate) scan_state: ScanState<'d>,
     /// Vector containing the IDs of the rules that matched, including both
     /// global and non-global ones. The rules are added first to the
     /// `matching_rules_per_ns` map, and then moved to this vector
     /// once the scan finishes.
-    pub matching_rules: Vec<RuleId>,
+    pub(crate) matching_rules: Vec<RuleId>,
     /// Map containing the IDs of rules that matched. Using an `IndexMap`
     /// because we want to keep the insertion order, so that rules in
     /// namespaces that were declared first, appear first in scan results.
-    pub matching_rules_per_ns: IndexMap<NamespaceId, Vec<RuleId>>,
+    pub(crate) matching_rules_per_ns: IndexMap<NamespaceId, Vec<RuleId>>,
     /// Number of private rules that have matched. This will be equal to or
     /// less than the length of `matching_rules`.
-    pub num_matching_private_rules: usize,
+    pub(crate) num_matching_private_rules: usize,
     /// Number of private rules that did not match.
-    pub num_non_matching_private_rules: usize,
+    pub(crate) num_non_matching_private_rules: usize,
     /// Compiled rules for this scan.
-    pub compiled_rules: &'r Rules,
+    pub(crate) compiled_rules: &'r Rules,
     /// Structure that contains top-level symbols, like module names
     /// and external variables. Symbols are normally looked up in this
     /// structure, except if `current_struct` is set to some other
     /// structure that overrides `root_struct`.
-    pub root_struct: Struct,
+    pub(crate) root_struct: Struct,
     /// Currently active structure that overrides the `root_struct` if
     /// set.
-    pub current_struct: Option<Rc<Struct>>,
+    pub(crate) current_struct: Option<Rc<Struct>>,
     /// Hash map that contains the protobuf messages returned by YARA modules.
     /// Keys are the fully qualified protobuf message name, and values are
     /// the message returned by the main function of the corresponding module.
-    pub module_outputs: FxHashMap<String, Box<dyn MessageDyn>>,
+    pub(crate) module_outputs: FxHashMap<String, Box<dyn MessageDyn>>,
     /// Hash map that contains the protobuf messages that has been explicitly
     /// provided by the user to be used as module outputs during the next scan
     /// operation. Keys are the fully qualified protobuf message names, and
     /// values are the protobuf messages set with [`Scanner::set_module_output`].
-    pub user_provided_module_outputs: FxHashMap<String, Box<dyn MessageDyn>>,
+    pub(crate) user_provided_module_outputs:
+        FxHashMap<String, Box<dyn MessageDyn>>,
     /// Match tracker structure that holds unconfirmed and confirmed matches.
-    pub tracker: MatchTracker<'r>,
+    pub(crate) tracker: MatchTracker<'r>,
     /// When [`HEARTBEAT_COUNTER`] is larger than this value, the scan is
     /// aborted due to a timeout.
-    pub deadline: u64,
+    pub(crate) deadline: u64,
     /// Hash map that serves as a cache for regexps used in expressions like
     /// `some_var matches /foobar/`. Compiling a regexp is an expensive
     /// operation. Instead of compiling the regexp each time the expression
     /// is evaluated, it is compiled the first time and stored in this hash
     /// map.
-    pub regex_cache: RefCell<FxHashMap<RegexId, Regex>>,
+    pub(crate) regex_cache: RefCell<FxHashMap<RegexId, Regex>>,
     /// Persistent cache for grouped `RegexSet` automata.
     ///
     /// Like individual regular expressions, compiling a multi-pattern
@@ -158,34 +159,35 @@ pub(crate) struct ScanContext<'r, 'd> {
     /// automata lazily upon the very first match request and preserves the
     /// compiled automata across all subsequent scans performed by the
     /// scanner instance.
-    pub regex_set_cache:
+    pub(crate) regex_set_cache:
         RefCell<FxHashMap<RegexSetId, regex::bytes::RegexSet>>,
     /// Engines for custom base64 alphabets used by base64 string modifiers.
     ///
     /// These engines are derived from rule literals and reused across scans.
-    pub custom_base64_engine_cache: Vec<(u32, base64::engine::GeneralPurpose)>,
+    pub(crate) custom_base64_engine_cache:
+        Vec<(u32, base64::engine::GeneralPurpose)>,
     /// Callback invoked every time a YARA rule calls `console.log`.
-    pub console_log: Option<Box<dyn FnMut(String) + 'r>>,
+    pub(crate) console_log: Option<Box<dyn FnMut(String) + 'r>>,
     /// Virtual Machines used for executing regexps.
-    pub vm: VM<'r>,
+    pub(crate) vm: VM<'r>,
     /// Hash map that tracks the time spend on each pattern. Keys are pattern
     /// PatternIds and values are the cumulative time spent on verifying each
     /// pattern.
     #[cfg(feature = "rules-profiling")]
-    pub time_spent_in_pattern: FxHashMap<PatternId, u64>,
+    pub(crate) time_spent_in_pattern: FxHashMap<PatternId, u64>,
     /// Time spent evaluating each rule. This vector has one entry per rule,
     /// which is the number of nanoseconds spent evaluating the rule.
     #[cfg(feature = "rules-profiling")]
-    pub time_spent_in_rule: Vec<u64>,
+    pub(crate) time_spent_in_rule: Vec<u64>,
     /// The time at which the evaluation of the current rule started.
     #[cfg(feature = "rules-profiling")]
-    pub rule_execution_start_time: u64,
+    pub(crate) rule_execution_start_time: u64,
     /// The ID of the last rule whose condition was executed.
     #[cfg(feature = "rules-profiling")]
-    pub last_executed_rule: Option<RuleId>,
+    pub(crate) last_executed_rule: Option<RuleId>,
     /// Clock used for measuring the time spend on each pattern.
     #[cfg(any(feature = "rules-profiling", feature = "logging"))]
-    pub clock: quanta::Clock,
+    pub(crate) clock: quanta::Clock,
 }
 
 #[cfg(feature = "rules-profiling")]
@@ -194,7 +196,7 @@ impl ScanContext<'_, '_> {
     ///
     /// Profiling has an accumulative effect. When the scanner is used for
     /// scanning multiple files the times add up.
-    pub fn slowest_rules(&self, n: usize) -> Vec<ProfilingData<'_>> {
+    pub(crate) fn slowest_rules(&self, n: usize) -> Vec<ProfilingData<'_>> {
         debug_assert_eq!(
             self.compiled_rules.num_rules(),
             self.time_spent_in_rule.len()
@@ -254,7 +256,7 @@ impl ScanContext<'_, '_> {
     }
 
     /// Clears profiling information.
-    pub fn clear_profiling_data(&mut self) {
+    pub(crate) fn clear_profiling_data(&mut self) {
         self.time_spent_in_rule.fill(0);
         self.time_spent_in_pattern.clear();
     }
@@ -338,7 +340,7 @@ impl ScanContext<'_, '_> {
     }
 
     /// Sets the value of a global variable.
-    pub fn set_global<T: TryInto<Variable>>(
+    pub(crate) fn set_global<T: TryInto<Variable>>(
         &mut self,
         ident: &str,
         value: T,

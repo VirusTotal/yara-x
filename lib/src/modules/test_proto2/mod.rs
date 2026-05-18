@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::test_proto2::NestedProto2;
 use crate::modules::protos::test_proto2::TestProto2;
 use crate::types::Struct;
@@ -95,7 +95,6 @@ fn to_int(ctx: &ScanContext, string: RuntimeString) -> Option<i64> {
     string.parse::<i64>().ok()
 }
 
-#[module_main]
 fn main(data: &[u8], meta: Option<&[u8]>) -> Result<TestProto2, ModuleError> {
     let mut test = TestProto2::new();
 
@@ -192,3 +191,5 @@ fn main(data: &[u8], meta: Option<&[u8]>) -> Result<TestProto2, ModuleError> {
 
     Ok(test)
 }
+
+register_module!("test_proto2", TestProto2, main);

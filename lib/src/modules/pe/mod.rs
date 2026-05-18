@@ -17,7 +17,7 @@ use nom::combinator::map;
 use nom::number::complete::{le_u16, le_u32};
 
 use crate::compiler::RegexId;
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::pe::*;
 use crate::types::Struct;
 
@@ -35,7 +35,6 @@ thread_local!(
     static CHECKSUM_CACHE: RefCell<Option<i64>> = const { RefCell::new(None) };
 );
 
-#[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<PE, ModuleError> {
     IMPHASH_CACHE.with(|cache| *cache.borrow_mut() = None);
     CHECKSUM_CACHE.with(|cache| *cache.borrow_mut() = None);
@@ -854,3 +853,5 @@ fn exports_impl(
         })
         .map_or(Some((false, 0)), |(position, _)| Some((true, position)))
 }
+
+register_module!("pe", PE, main);

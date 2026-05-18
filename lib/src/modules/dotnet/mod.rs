@@ -2,17 +2,12 @@
 
 This allows creating YARA rules based on .NET metadata.
  */
-
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::dotnet::*;
 
 pub mod parser;
 
-#[module_main]
-fn main(
-    data: &[u8],
-    _meta: Option<&[u8]>,
-) -> Result<Dotnet, ModuleError> {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Dotnet, ModuleError> {
     match parser::Dotnet::parse(data) {
         Ok(dotnet) => Ok(dotnet.into()),
         Err(_) => {
@@ -22,3 +17,5 @@ fn main(
         }
     }
 }
+
+register_module!("dotnet", Dotnet, main);

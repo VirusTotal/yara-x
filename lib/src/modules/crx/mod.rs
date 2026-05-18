@@ -2,15 +2,13 @@
 
 This allows creating YARA rules based on metadata extracted from those files.
  */
-
-mod parser;
-
 use sha2::{Digest, Sha256};
 use std::cell::RefCell;
 
+use crate::mods::prelude::*;
 use crate::modules::crx::Crx;
-use crate::modules::prelude::*;
 use crate::modules::protos::crx::*;
+mod parser;
 
 #[cfg(test)]
 mod tests;
@@ -20,7 +18,6 @@ thread_local!(
         const { RefCell::new(None) };
 );
 
-#[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Crx, ModuleError> {
     PERMHASH_CACHE.with(|cache| *cache.borrow_mut() = None);
     match parser::Crx::parse(data) {
@@ -68,3 +65,5 @@ fn permhash(ctx: &ScanContext) -> Option<Lowercase<FixedLenString<64>>> {
 
     Some(Lowercase::<FixedLenString<64>>::new(digest))
 }
+
+register_module!("crx", Crx, main);

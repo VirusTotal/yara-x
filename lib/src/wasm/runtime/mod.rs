@@ -15,7 +15,7 @@ mod native;
 mod browser;
 
 #[cfg(not(target_family = "wasm"))]
-pub(crate) use native::*;
+pub use native::*;
 
 #[cfg(target_family = "wasm")]
-pub(crate) use browser::*;
+pub use browser::*;

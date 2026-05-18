@@ -1791,8 +1791,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     _ACTIVE\x10\x07*g\n\tDriveType\x12\x0b\n\x07UNKNOWN\x10\0\x12\x0f\n\x0bN\
     O_ROOT_DIR\x10\x01\x12\r\n\tREMOVABLE\x10\x02\x12\t\n\x05FIXED\x10\x03\
     \x12\n\n\x06REMOTE\x10\x04\x12\t\n\x05CDROM\x10\x05\x12\x0b\n\x07RAMDISK\
-    \x10\x06B#\xfa\x92\x19\x1f\n\x03lnk\x12\x07lnk.Lnk\x1a\x03lnk\"\nlnk-mod\
-    uleb\x06proto2\
+    \x10\x06B\x1e\xfa\x92\x19\x1a\n\x03lnk\x12\x07lnk.Lnk\x1a\nlnk-moduleb\
+    \x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

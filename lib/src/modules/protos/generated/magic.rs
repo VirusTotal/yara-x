@@ -128,9 +128,8 @@ impl ::protobuf::reflect::ProtobufValue for Magic {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x0bmagic.proto\x12\x05magic\x1a\nyara.proto\"\x07\n\x05MagicB-\xfa\
-    \x92\x19)\n\x05magic\x12\x0bmagic.Magic\x1a\x05magic\"\x0cmagic-moduleb\
-    \x06proto2\
+    \n\x0bmagic.proto\x12\x05magic\x1a\nyara.proto\"\x07\n\x05MagicB&\xfa\
+    \x92\x19\"\n\x05magic\x12\x0bmagic.Magic\x1a\x0cmagic-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

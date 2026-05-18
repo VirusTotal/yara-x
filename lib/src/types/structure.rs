@@ -2,6 +2,15 @@ use std::iter;
 use std::ops::Deref;
 use std::rc::Rc;
 
+use crate::modules::RegisteredModule;
+use crate::modules::protos::yara as protos;
+use crate::modules::protos::yara::enum_value_options::Value as EnumValue;
+use crate::modules::protos::yara::exts::{
+    enum_options, enum_value, field_options, message_options, module_options,
+};
+use crate::symbols::{Symbol, SymbolLookup};
+use crate::types::{Array, Map, StringConstraint, TypeValue};
+use crate::wasm::WasmExport;
 use bstr::BString;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
@@ -12,16 +21,6 @@ use protobuf::reflect::{
 use protobuf::reflect::{EnumValueDescriptor, Syntax};
 use protobuf::{MessageDyn, MessageField};
 use serde::{Deserialize, Serialize};
-
-use crate::modules::Module;
-use crate::modules::protos::yara as protos;
-use crate::modules::protos::yara::enum_value_options::Value as EnumValue;
-use crate::modules::protos::yara::exts::{
-    enum_options, enum_value, field_options, message_options, module_options,
-};
-use crate::symbols::{Symbol, SymbolLookup};
-use crate::types::{Array, Map, StringConstraint, TypeValue};
-use crate::wasm::WasmExport;
 
 /// Each of the entries in an Access Control List (ACL)
 ///
@@ -1219,12 +1218,12 @@ impl PartialEq for Struct {
     }
 }
 
-impl From<&Module> for Rc<Struct> {
-    /// Creates a `Rc<Struct>` from a [`Module`] definition.
-    fn from(module: &Module) -> Self {
+impl From<&dyn RegisteredModule> for Rc<Struct> {
+    /// Creates a `Rc<Struct>` from a [`RegisteredModule`] definition.
+    fn from(module: &dyn RegisteredModule) -> Self {
         // Create the structure that describes the module.
         let mut module_struct = Struct::from_proto_descriptor_and_msg(
-            &module.root_struct_descriptor,
+            &module.root_descriptor(),
             None,
             true,
         );
@@ -1237,7 +1236,7 @@ impl From<&Module> for Rc<Struct> {
 
         // If the YARA module has an associated Rust module, check if it
         // exports some function and add it to the structure.
-        if let Some(rust_module_name) = module.rust_module_name {
+        if let Some(rust_module_name) = module.rust_module_name() {
             let functions = WasmExport::get_functions(|export| {
                 export.public
                     && export.rust_module_path.ends_with(rust_module_name)

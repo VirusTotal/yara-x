@@ -254,11 +254,13 @@ impl<T, B: RuntimeBackend> AsContextMut for Pin<Box<Store<T, B>>> {
 }
 
 /// View passed to host callbacks.
-pub(crate) struct Caller<'a, T, B: RuntimeBackend> {
+#[allow(private_bounds)]
+pub struct Caller<'a, T, B: RuntimeBackend> {
     /// Store being used for the callback.
     pub(crate) store: &'a mut Store<T, B>,
 }
 
+#[allow(private_bounds)]
 impl<'a, T, B: RuntimeBackend> Caller<'a, T, B> {
     /// Creates a caller from a mutable store reference.
     pub(crate) fn new(store: &'a mut Store<T, B>) -> Self {
@@ -367,7 +369,7 @@ impl Engine {
 
 /// Value types supported by generated WASM code.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ValType {
+pub enum ValType {
     /// A 64-bit integer.
     I64,
     /// A 32-bit integer.
@@ -380,7 +382,7 @@ pub(crate) enum ValType {
 
 /// Raw value passed across host callback trampolines.
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct ValRaw(u64);
+pub struct ValRaw(u64);
 
 impl ValRaw {
     /// Creates a raw value from an `i64`.

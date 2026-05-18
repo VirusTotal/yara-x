@@ -6,7 +6,6 @@ use protobuf::descriptor::FileDescriptorProto;
 struct Module {
     name: String,
     proto_mod: String,
-    rust_mod: Option<String>,
     cargo_feature: Option<String>,
     root_msg: String,
 }
@@ -18,7 +17,6 @@ fn generate_module_files(proto_files: &[FileDescriptorProto]) -> Vec<Module> {
     use std::path::PathBuf;
     use yara_x_proto::exts::module_options as yara_module_options;
 
-    println!("cargo:rerun-if-changed=src/modules/add_modules.rs");
     println!("cargo:rerun-if-changed=src/modules/modules.rs");
 
     let mut modules = Vec::new();
@@ -50,7 +48,6 @@ fn generate_module_files(proto_files: &[FileDescriptorProto]) -> Vec<Module> {
             modules.push(Module {
                 name: module_options.name.unwrap(),
                 proto_mod: proto_name,
-                rust_mod: module_options.rust_module,
                 cargo_feature: module_options.cargo_feature,
                 root_msg,
             });
@@ -87,23 +84,6 @@ fn generate_module_files(proto_files: &[FileDescriptorProto]) -> Vec<Module> {
     )
     .unwrap();
 
-    // Create the add_modules.rs files, with an entry for each proto that
-    // defines a YARA module. Each entry looks like:
-    //
-    //  #[cfg(feature = "foo_module")]
-    //  add_module!(modules, "foo", foo, Some(foo::__main__ as MainFn));
-    //
-    let mut add_modules_rs =
-        File::create("src/modules/add_modules.rs").unwrap();
-
-    writeln!(
-        add_modules_rs,
-        "// File generated automatically by build.rs. Do not edit."
-    )
-    .unwrap();
-
-    write!(add_modules_rs, "{{").unwrap();
-
     // Sort modules by name, so that they always appear in the same order
     // no matter the platform. If modules are not sorted, the order will
     // vary from one platform to the other, in the same way that HashMap
@@ -111,26 +91,8 @@ fn generate_module_files(proto_files: &[FileDescriptorProto]) -> Vec<Module> {
     modules.sort_by(|a, b| a.name.cmp(&b.name));
 
     for m in &modules {
-        let name = &m.name;
-        let proto_mod = &m.proto_mod;
-        let rust_mod = &m.rust_mod;
+        let module_name = m.name.as_str();
         let cargo_feature = &m.cargo_feature;
-        let root_message = &m.root_msg;
-
-        // If the YARA module has an associated Rust module, this module must
-        // have a function named "main". If the YARA module doesn't have an
-        // associated YARA module, the main function is set to None.
-        let main_fn = if let Some(rust_mod) = &rust_mod {
-            format!("Some({rust_mod}::__main__ as MainFn)")
-        } else {
-            "None".to_string()
-        };
-
-        let rust_mod_name = if let Some(rust_mod) = &rust_mod {
-            format!(r#"Some("{rust_mod}")"#)
-        } else {
-            "None".to_string()
-        };
 
         let cfg_feature = if let Some(cargo_feature) = &cargo_feature {
             format!(r#"#[cfg(feature = "{cargo_feature}")]"#)
@@ -138,26 +100,14 @@ fn generate_module_files(proto_files: &[FileDescriptorProto]) -> Vec<Module> {
             "".to_string()
         };
 
-        if let Some(rust_mod) = &rust_mod {
-            write!(
-                modules_rs,
-                r#"
-{cfg_feature}
-mod {rust_mod};"#,
-            )
-            .unwrap();
-        }
-
         write!(
-            add_modules_rs,
+            modules_rs,
             r#"
 {cfg_feature}
-add_module!(modules, "{name}", {proto_mod}, "{root_message}", {rust_mod_name}, {main_fn});"#,
+mod {module_name};"#,
         )
-            .unwrap();
+        .unwrap();
     }
-
-    write!(add_modules_rs, "\n}}").unwrap();
 
     modules
 }
@@ -438,9 +388,8 @@ fn generate_proto_code() {
     // Generate .rs files for .proto files in src/modules/protos
     proto_compiler.run_from_script();
 
-    // Decide whether `modules.rs`, `add_modules.rs` and the content of the
-    // `protos/generated` directory should be re-generated. By default, they
-    // will be re-generated.
+    // Decide whether `modules.rs` and the content of the `protos/generated`
+    // directory should be re-generated. By default, they will be re-generated.
     let mut regenerate = true;
 
     // If the environment variable `YRX_REGENERATE_MODULES_RS` is present, the

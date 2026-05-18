@@ -6,7 +6,6 @@ package elf;
 option (yara.module_options) = {
   name : "elf"
   root_message: "elf.ELF"
-  rust_module: "elf"
   cargo_feature: "elf-module"
 };
 

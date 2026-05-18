@@ -3524,8 +3524,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     M_1\x10\x01*9\n\x13TopLevelEnumeration\x12\x10\n\x0bITEM_0x1000\x10\x80\
     \x20\x12\x10\n\x0bITEM_0x2000\x10\x80@*C\n\x11InlineEnumeration\x12\x12\
     \n\rINLINE_0x1000\x10\x80\x20\x12\x12\n\rINLINE_0x2000\x10\x80@\x1a\x06\
-    \x92\x93\x19\x02\x10\x01BJ\xfa\x92\x19F\n\x0btest_proto2\x12\x16test_pro\
-    to2.TestProto2\x1a\x0btest_proto2\"\x12test_proto2-moduleb\x06proto2\
+    \x92\x93\x19\x02\x10\x01B=\xfa\x92\x199\n\x0btest_proto2\x12\x16test_pro\
+    to2.TestProto2\x1a\x12test_proto2-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

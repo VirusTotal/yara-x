@@ -9064,8 +9064,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x04\x12\x15\n\x10S_ATTR_LOC_RELOC\x10\x80\x02\x1a\x06\x92\x93\x19\x02\
     \x10\x01*E\n\nDeviceType\x12\n\n\x06MACOSX\x10$\x12\x0c\n\x08IPHONEOS\
     \x10%\x12\x08\n\x04TVOS\x10/\x12\x0b\n\x07WATCHOS\x100\x1a\x06\x92\x93\
-    \x19\x02\x10\x01B-\xfa\x92\x19)\n\x05macho\x12\x0bmacho.Macho\x1a\x05mac\
-    ho\"\x0cmacho-moduleb\x06proto2\
+    \x19\x02\x10\x01B&\xfa\x92\x19\"\n\x05macho\x12\x0bmacho.Macho\x1a\x0cma\
+    cho-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

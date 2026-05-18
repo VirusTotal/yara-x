@@ -128,9 +128,8 @@ impl ::protobuf::reflect::ProtobufValue for Cuckoo {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x0ccuckoo.proto\x12\x06cuckoo\x1a\nyara.proto\"\x08\n\x06CuckooB2\xfa\
-    \x92\x19.\n\x06cuckoo\x12\rcuckoo.Cuckoo\x1a\x06cuckoo\"\rcuckoo-moduleb\
-    \x06proto2\
+    \n\x0ccuckoo.proto\x12\x06cuckoo\x1a\nyara.proto\"\x08\n\x06CuckooB*\xfa\
+    \x92\x19&\n\x06cuckoo\x12\rcuckoo.Cuckoo\x1a\rcuckoo-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

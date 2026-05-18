@@ -1629,8 +1629,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     f\x1a=\n\x0fSignaturesEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\
     \x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x028\x01\x1a;\n\rExift\
     oolEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\
-    \x18\x02\x20\x01(\tR\x05value:\x028\x01B.\xfa\x92\x19*\n\x02vt\x12\x15vt\
-    .titan.LiveHuntData\x1a\x02vt\"\tvt-moduleb\x06proto3\
+    \x18\x02\x20\x01(\tR\x05value:\x028\x01B*\xfa\x92\x19&\n\x02vt\x12\x15vt\
+    .titan.LiveHuntData\x1a\tvt-moduleb\x06proto3\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

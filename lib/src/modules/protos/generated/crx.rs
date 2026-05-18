@@ -1558,8 +1558,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     gnedHeaderData\"Q\n\x12AsymmetricKeyProof\x12\x1d\n\npublic_key\x18\x01\
     \x20\x01(\x0cR\tpublicKey\x12\x1c\n\tsignature\x18\x02\x20\x01(\x0cR\tsi\
     gnature\"#\n\nSignedData\x12\x15\n\x06crx_id\x18\x01\x20\x01(\x0cR\x05cr\
-    xIdB#\xfa\x92\x19\x1f\n\x03crx\x12\x07crx.Crx\x1a\x03crx\"\ncrx-moduleb\
-    \x06proto2\
+    xIdB\x1e\xfa\x92\x19\x1a\n\x03crx\x12\x07crx.Crx\x1a\ncrx-moduleb\x06pro\
+    to2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

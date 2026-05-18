@@ -1,5 +1,5 @@
 use crate::compiler::RegexId;
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::cuckoo::*;
 
 mod schema;
@@ -22,7 +22,6 @@ fn set_local(value: schema::CuckooJson) {
     });
 }
 
-#[module_main]
 fn main(_data: &[u8], meta: Option<&[u8]>) -> Result<Cuckoo, ModuleError> {
     let meta = match meta {
         None | Some([]) => {
@@ -269,3 +268,5 @@ fn registry_key_access_r(ctx: &ScanContext, regexp_id: RegexId) -> i64 {
         })
         .unwrap_or(0)
 }
+
+register_module!("cuckoo", Cuckoo, main);

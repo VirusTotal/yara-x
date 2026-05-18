@@ -2,12 +2,11 @@
 
 This allows creating YARA rules based on metadata extracted from those files.
  */
-
 use sha1::{Digest, Sha1};
 use simd_adler32::Adler32;
 use std::cell::RefCell;
 
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::dex::*;
 
 pub mod parser;
@@ -21,7 +20,6 @@ thread_local!(
         const { RefCell::new(None) };
 );
 
-#[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Dex, ModuleError> {
     CHECKSUM_CACHE.with(|cache| *cache.borrow_mut() = None);
     SIGNATURE_CACHE.with(|cache| *cache.borrow_mut() = None);
@@ -157,3 +155,5 @@ fn contains_class(
             .is_ok(),
     )
 }
+
+register_module!("dex", Dex, main);

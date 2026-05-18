@@ -32,8 +32,6 @@ pub struct ModuleOptions {
     pub name: ::std::option::Option<::std::string::String>,
     // @@protoc_insertion_point(field:yara.ModuleOptions.root_message)
     pub root_message: ::std::option::Option<::std::string::String>,
-    // @@protoc_insertion_point(field:yara.ModuleOptions.rust_module)
-    pub rust_module: ::std::option::Option<::std::string::String>,
     // @@protoc_insertion_point(field:yara.ModuleOptions.cargo_feature)
     pub cargo_feature: ::std::option::Option<::std::string::String>,
     // special fields
@@ -124,43 +122,7 @@ impl ModuleOptions {
         self.root_message.take().unwrap_or_else(|| ::std::string::String::new())
     }
 
-    // optional string rust_module = 3;
-
-    pub fn rust_module(&self) -> &str {
-        match self.rust_module.as_ref() {
-            Some(v) => v,
-            None => "",
-        }
-    }
-
-    pub fn clear_rust_module(&mut self) {
-        self.rust_module = ::std::option::Option::None;
-    }
-
-    pub fn has_rust_module(&self) -> bool {
-        self.rust_module.is_some()
-    }
-
-    // Param is passed by value, moved
-    pub fn set_rust_module(&mut self, v: ::std::string::String) {
-        self.rust_module = ::std::option::Option::Some(v);
-    }
-
-    // Mutable pointer to the field.
-    // If field is not initialized, it is initialized with default value first.
-    pub fn mut_rust_module(&mut self) -> &mut ::std::string::String {
-        if self.rust_module.is_none() {
-            self.rust_module = ::std::option::Option::Some(::std::string::String::new());
-        }
-        self.rust_module.as_mut().unwrap()
-    }
-
-    // Take field
-    pub fn take_rust_module(&mut self) -> ::std::string::String {
-        self.rust_module.take().unwrap_or_else(|| ::std::string::String::new())
-    }
-
-    // optional string cargo_feature = 4;
+    // optional string cargo_feature = 3;
 
     pub fn cargo_feature(&self) -> &str {
         match self.cargo_feature.as_ref() {
@@ -197,7 +159,7 @@ impl ModuleOptions {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(4);
+        let mut fields = ::std::vec::Vec::with_capacity(3);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "name",
@@ -208,11 +170,6 @@ impl ModuleOptions {
             "root_message",
             |m: &ModuleOptions| { &m.root_message },
             |m: &mut ModuleOptions| { &mut m.root_message },
-        ));
-        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-            "rust_module",
-            |m: &ModuleOptions| { &m.rust_module },
-            |m: &mut ModuleOptions| { &mut m.rust_module },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "cargo_feature",
@@ -250,9 +207,6 @@ impl ::protobuf::Message for ModuleOptions {
                     self.root_message = ::std::option::Option::Some(is.read_string()?);
                 },
                 26 => {
-                    self.rust_module = ::std::option::Option::Some(is.read_string()?);
-                },
-                34 => {
                     self.cargo_feature = ::std::option::Option::Some(is.read_string()?);
                 },
                 tag => {
@@ -273,11 +227,8 @@ impl ::protobuf::Message for ModuleOptions {
         if let Some(v) = self.root_message.as_ref() {
             my_size += ::protobuf::rt::string_size(2, &v);
         }
-        if let Some(v) = self.rust_module.as_ref() {
-            my_size += ::protobuf::rt::string_size(3, &v);
-        }
         if let Some(v) = self.cargo_feature.as_ref() {
-            my_size += ::protobuf::rt::string_size(4, &v);
+            my_size += ::protobuf::rt::string_size(3, &v);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
@@ -291,11 +242,8 @@ impl ::protobuf::Message for ModuleOptions {
         if let Some(v) = self.root_message.as_ref() {
             os.write_string(2, v)?;
         }
-        if let Some(v) = self.rust_module.as_ref() {
-            os.write_string(3, v)?;
-        }
         if let Some(v) = self.cargo_feature.as_ref() {
-            os.write_string(4, v)?;
+            os.write_string(3, v)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -316,7 +264,6 @@ impl ::protobuf::Message for ModuleOptions {
     fn clear(&mut self) {
         self.name = ::std::option::Option::None;
         self.root_message = ::std::option::Option::None;
-        self.rust_module = ::std::option::Option::None;
         self.cargo_feature = ::std::option::Option::None;
         self.special_fields.clear();
     }
@@ -325,7 +272,6 @@ impl ::protobuf::Message for ModuleOptions {
         static instance: ModuleOptions = ModuleOptions {
             name: ::std::option::Option::None,
             root_message: ::std::option::Option::None,
-            rust_module: ::std::option::Option::None,
             cargo_feature: ::std::option::Option::None,
             special_fields: ::protobuf::SpecialFields::new(),
         };
@@ -1802,36 +1748,35 @@ pub mod exts {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\nyara.proto\x12\x04yara\x1a\x20google/protobuf/descriptor.proto\"\x8c\
-    \x01\n\rModuleOptions\x12\x12\n\x04name\x18\x01\x20\x02(\tR\x04name\x12!\
-    \n\x0croot_message\x18\x02\x20\x02(\tR\x0brootMessage\x12\x1f\n\x0brust_\
-    module\x18\x03\x20\x01(\tR\nrustModule\x12#\n\rcargo_feature\x18\x04\x20\
-    \x01(\tR\x0ccargoFeature\"\xd4\x01\n\x0cFieldOptions\x12\x12\n\x04name\
-    \x18\x01\x20\x01(\tR\x04name\x12\x16\n\x06ignore\x18\x02\x20\x01(\x08R\
-    \x06ignore\x12\x20\n\x03acl\x18\x03\x20\x03(\x0b2\x0e.yara.AclEntryR\x03\
-    acl\x12\x1c\n\tlowercase\x18\x04\x20\x01(\x08R\tlowercase\x12\x10\n\x03f\
-    mt\x18\x05\x20\x01(\tR\x03fmt\x12F\n\x12deprecation_notice\x18\x06\x20\
-    \x01(\x0b2\x17.yara.DeprecationNoticeR\x11deprecationNotice\"\x86\x01\n\
-    \x08AclEntry\x12\x1f\n\x0berror_title\x18\x01\x20\x02(\tR\nerrorTitle\
-    \x12\x1f\n\x0berror_label\x18\x02\x20\x02(\tR\nerrorLabel\x12\x1b\n\tacc\
-    ept_if\x18\x03\x20\x03(\tR\x08acceptIf\x12\x1b\n\treject_if\x18\x04\x20\
-    \x03(\tR\x08rejectIf\"]\n\x11DeprecationNotice\x12\x12\n\x04text\x18\x01\
-    \x20\x02(\tR\x04text\x12\x12\n\x04help\x18\x02\x20\x01(\tR\x04help\x12\
-    \x20\n\x0breplacement\x18\x03\x20\x01(\tR\x0breplacement\"$\n\x0eMessage\
-    Options\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\"9\n\x0bEnumOption\
-    s\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\x16\n\x06inline\x18\
-    \x02\x20\x01(\x08R\x06inline\"C\n\x10EnumValueOptions\x12\x12\n\x03i64\
-    \x18\x01\x20\x01(\x03H\0R\x03i64\x12\x12\n\x03f64\x18\x02\x20\x01(\x01H\
-    \0R\x03f64B\x07\n\x05value:Z\n\x0emodule_options\x18\xaf\x92\x03\x20\x01\
-    (\x0b2\x13.yara.ModuleOptions\x12\x1c.google.protobuf.FileOptionsR\rmodu\
-    leOptions:X\n\rfield_options\x18\xb0\x92\x03\x20\x01(\x0b2\x12.yara.Fiel\
-    dOptions\x12\x1d.google.protobuf.FieldOptionsR\x0cfieldOptions:`\n\x0fme\
-    ssage_options\x18\xb1\x92\x03\x20\x01(\x0b2\x14.yara.MessageOptions\x12\
-    \x1f.google.protobuf.MessageOptionsR\x0emessageOptions:T\n\x0cenum_optio\
-    ns\x18\xb2\x92\x03\x20\x01(\x0b2\x11.yara.EnumOptions\x12\x1c.google.pro\
-    tobuf.EnumOptionsR\x0benumOptions:Z\n\nenum_value\x18\xb3\x92\x03\x20\
-    \x01(\x0b2\x16.yara.EnumValueOptions\x12!.google.protobuf.EnumValueOptio\
-    nsR\tenumValueb\x06proto2\
+    \n\nyara.proto\x12\x04yara\x1a\x20google/protobuf/descriptor.proto\"k\n\
+    \rModuleOptions\x12\x12\n\x04name\x18\x01\x20\x02(\tR\x04name\x12!\n\x0c\
+    root_message\x18\x02\x20\x02(\tR\x0brootMessage\x12#\n\rcargo_feature\
+    \x18\x03\x20\x01(\tR\x0ccargoFeature\"\xd4\x01\n\x0cFieldOptions\x12\x12\
+    \n\x04name\x18\x01\x20\x01(\tR\x04name\x12\x16\n\x06ignore\x18\x02\x20\
+    \x01(\x08R\x06ignore\x12\x20\n\x03acl\x18\x03\x20\x03(\x0b2\x0e.yara.Acl\
+    EntryR\x03acl\x12\x1c\n\tlowercase\x18\x04\x20\x01(\x08R\tlowercase\x12\
+    \x10\n\x03fmt\x18\x05\x20\x01(\tR\x03fmt\x12F\n\x12deprecation_notice\
+    \x18\x06\x20\x01(\x0b2\x17.yara.DeprecationNoticeR\x11deprecationNotice\
+    \"\x86\x01\n\x08AclEntry\x12\x1f\n\x0berror_title\x18\x01\x20\x02(\tR\ne\
+    rrorTitle\x12\x1f\n\x0berror_label\x18\x02\x20\x02(\tR\nerrorLabel\x12\
+    \x1b\n\taccept_if\x18\x03\x20\x03(\tR\x08acceptIf\x12\x1b\n\treject_if\
+    \x18\x04\x20\x03(\tR\x08rejectIf\"]\n\x11DeprecationNotice\x12\x12\n\x04\
+    text\x18\x01\x20\x02(\tR\x04text\x12\x12\n\x04help\x18\x02\x20\x01(\tR\
+    \x04help\x12\x20\n\x0breplacement\x18\x03\x20\x01(\tR\x0breplacement\"$\
+    \n\x0eMessageOptions\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\"9\n\
+    \x0bEnumOptions\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\x16\n\
+    \x06inline\x18\x02\x20\x01(\x08R\x06inline\"C\n\x10EnumValueOptions\x12\
+    \x12\n\x03i64\x18\x01\x20\x01(\x03H\0R\x03i64\x12\x12\n\x03f64\x18\x02\
+    \x20\x01(\x01H\0R\x03f64B\x07\n\x05value:Z\n\x0emodule_options\x18\xaf\
+    \x92\x03\x20\x01(\x0b2\x13.yara.ModuleOptions\x12\x1c.google.protobuf.Fi\
+    leOptionsR\rmoduleOptions:X\n\rfield_options\x18\xb0\x92\x03\x20\x01(\
+    \x0b2\x12.yara.FieldOptions\x12\x1d.google.protobuf.FieldOptionsR\x0cfie\
+    ldOptions:`\n\x0fmessage_options\x18\xb1\x92\x03\x20\x01(\x0b2\x14.yara.\
+    MessageOptions\x12\x1f.google.protobuf.MessageOptionsR\x0emessageOptions\
+    :T\n\x0cenum_options\x18\xb2\x92\x03\x20\x01(\x0b2\x11.yara.EnumOptions\
+    \x12\x1c.google.protobuf.EnumOptionsR\x0benumOptions:Z\n\nenum_value\x18\
+    \xb3\x92\x03\x20\x01(\x0b2\x16.yara.EnumValueOptions\x12!.google.protobu\
+    f.EnumValueOptionsR\tenumValueb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

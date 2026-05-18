@@ -6,7 +6,6 @@ package dex;
 option (yara.module_options) = {
     name : "dex",
     root_message: "dex.Dex",
-    rust_module: "dex",
     cargo_feature: "dex-module"
 };
 

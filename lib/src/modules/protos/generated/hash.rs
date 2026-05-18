@@ -128,8 +128,8 @@ impl ::protobuf::reflect::ProtobufValue for Hash {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\nhash.proto\x12\x04hash\x1a\nyara.proto\"\x06\n\x04HashB(\xfa\x92\x19\
-    $\n\x04hash\x12\thash.Hash\x1a\x04hash\"\x0bhash-moduleb\x06proto2\
+    \n\nhash.proto\x12\x04hash\x1a\nyara.proto\"\x06\n\x04HashB\"\xfa\x92\
+    \x19\x1e\n\x04hash\x12\thash.Hash\x1a\x0bhash-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

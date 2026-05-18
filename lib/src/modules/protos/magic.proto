@@ -7,7 +7,6 @@ package magic;
 option (yara.module_options) = {
   name : "magic"
   root_message: "magic.Magic"
-  rust_module: "magic"
   cargo_feature: "magic-module"
 };
 

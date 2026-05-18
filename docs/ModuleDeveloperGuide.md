@@ -25,6 +25,13 @@ words
 - [Adding dependencies](#adding-dependencies)
 - [Using enums](#using-enums)
     - [Inline enums](#inline-enums)
+- [Creating a module in an external crate](#creating-a-module-in-an-external-crate)
+    - [Setting up the crate](#setting-up-the-crate)
+    - [Compiling the proto at build time](#compiling-the-proto-at-build-time)
+    - [Registering the module](#registering-the-module)
+    - [Adding callable functions to an external module](#adding-callable-functions-to-an-external-module)
+    - [Overriding the module output at scan time](#overriding-the-module-output-at-scan-time)
+    - [Ensuring the module is linked](#ensuring-the-module-is-linked)
 - [Tests](#tests)
     - [Structuring Testdata Input](#structuring-testdata-input)
         - [Linux](#linux)
@@ -121,7 +128,6 @@ Let's start with the interesting part:
 option (yara.module_options) = {
   name : "text"
   root_message: "text.Text"
-  rust_module: "text"
   cargo_feature: "text-module"
 };
 ```
@@ -133,10 +139,10 @@ file, but one describing a module. In fact, you can put any `.proto` file in the
 files is describing a YARA module. Only files containing a `yara.module_options`
 section will define a module.
 
-Options `name` and `root_message` are required, while `rust_module` and
-`cargo_feature` are optional. The `name` option defines the module's name. This
-is the name that will be used for importing the module in a YARA rule, in this
-case our module will be imported with `import "text"`.
+Options `name` and `root_message` are required, while `cargo_feature` is optional.
+The `name` option defines the module's name. This is the name that will be used 
+for importing the module in a YARA rule, in this case our module will be imported
+with `import "text"`.
 
 The `cargo_feature` option indicates the name of the feature that controls
 whether
@@ -292,11 +298,6 @@ need write the logic that parses every scanned file and fills the module's
 structure with the data obtained from the file. This is done by implementing
 a function that will act as the entry point for your module.
 
-This is where the `rust_module` option described in the previous section enters
-into play. This option is the name of the Rust module that contains the code
-for your module. In our `text.proto` file we have `rust_module: "text"`, which
-means that our Rust module must be named `text`.
-
 There are two options for creating our `text` module:
 
 * Creating a `text.rs` file in `lib/src/modules`.
@@ -309,24 +310,25 @@ second approach is the recommended one.
 So, let's create our `lib/src/modules/text.rs` file:
 
 ```rust
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::text::*;
 
-#[module_main]
-fn main(data: &[u8]) -> Text {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Text, ModuleError> {
     let mut text_proto = Text::new();
 
     // TODO: parse the data and populate text_proto.
 
-    text_proto
+    Ok(text_proto)
 }
+
+register_module!("text", Text, main);
 ```
 
 This is the simplest possible code for a YARA module, and it doesn't do anything
 special yet. Let's describe what it does in detail:
 
 ```rust
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 ```
 
 This first line is very important as it imports all the dependencies required
@@ -348,38 +350,36 @@ will be `crate::modules::protos::foobar`
 
 ---
 
-Next comes the module's main function:
+Next comes the module's main function and the module registration:
 
 ```rust
-#[module_main]
-fn main(data: &[u8]) -> Text {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Text, ModuleError> {
     ...
 }
+
+register_module!("text", Text, main);
 ```
 
 The module's main function is called for every file scanned by YARA. This
-function receives a byte slice with the content of the file being scanned. It
-must return the `Text` structure that was generated from the `text.proto` file.
-The main function must have the `#[module_main]` attribute. Notice that the
-module's main function doesn't need to be called `main`, it can have any
-arbitrary name, as long as it has the `#[module_main]` attribute. Of course,
-this attribute can't be used with more than one function per module.
+function receives a byte slice with the content of the file being scanned and an
+optional byte slice with per-scan metadata, and it returns a `Result` containing the
+`Text` structure that was generated from the `text.proto` file (or a `ModuleError`).
 
-The main function usually consists in creating an instance of the protobuf
-you previously defined, and populating the protobuf with information extracted
-from
-the scanned file. Let's finish the implementation of the main function for our
-`text` module.
+Registering the module is as simple as calling the `register_module!` macro.
+It takes the name of the module (as used in YARA rules' `import` statements), the
+protobuf message type returned by the module, and the main function name. If the
+module is a data-only module with no main function, the third argument can be omitted.
+
+Let's finish the implementation of the main function for our `text` module.
 
 ```rust 
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::text::*;
 
 use std::io;
 use std::io::BufRead;
 
-#[module_main]
-fn main(data: &[u8]) -> Text {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Text, ModuleError> {
     // Create an empty instance of the Text protobuf.
     let mut text_proto = Text::new();
 
@@ -396,7 +396,7 @@ fn main(data: &[u8]) -> Text {
                 num_words += line.split_whitespace().count();
                 num_lines += 1;
             }
-            Err(_) => return text_proto,
+            Err(_) => return Ok(text_proto),
         }
     }
 
@@ -405,8 +405,10 @@ fn main(data: &[u8]) -> Text {
     text_proto.set_num_words(num_words as i64);
 
     // Return the Text proto after filling the relevant fields.
-    text_proto
+    Ok(text_proto)
 }
+
+register_module!("text", Text, main);
 ```
 
 That's all you need for having a fully functional YARA module. Now, let's build
@@ -1008,6 +1010,202 @@ enum CPU_SUBTYPE_ARM {
 
 With the enums above you can refer to `macho.CPU_TYPE_X86` and instead of
 `macho.CPU_TYPE.CPU_TYPE_X86` and `macho.CPU_SUBTYPE_INTEL.CPU_SUBTYPE_I386`.
+
+## Creating a module in an external crate
+
+Everything described so far assumes that your module lives inside the
+`yara-x` repository itself. This is the right approach when you intend to
+contribute the module upstream, but it requires modifying the `yara-x` source
+tree and rebuilding the library. If you want to ship a module as part of your
+own crate—without forking or patching `yara-x`—you can use the **custom
+modules** API instead.
+
+Custom modules are registered at link time through the
+[inventory](https://docs.rs/inventory) crate. When your crate is linked into
+a binary together with `yara-x`, the module is discovered automatically and
+behaves exactly like a built-in module: it can be `import`-ed in rules, its
+fields are accessible in conditions, and its functions are callable.
+
+### Setting up the crate
+
+Add `yara-x` and `protobuf` as dependencies:
+
+```toml
+[dependencies]
+yara-x   = { version = "..." }
+protobuf = { version = "3" }
+
+[build-dependencies]
+protobuf-codegen = { version = "3" }
+```
+
+### Compiling the proto at build time
+
+Just like built-in modules, an external module's structure is described by a
+`.proto` file. The difference is that instead of placing it inside the
+`yara-x` source tree and relying on `yara-x`'s own build script, you compile
+it yourself in `build.rs` using `protobuf-codegen`:
+
+```protobuf
+// proto/foobar.proto
+syntax = "proto2";
+
+package foobar;
+
+message Foobar {
+  optional uint64 count = 1;
+  optional string label = 2;
+  repeated string tags = 3;
+}
+```
+
+```rust
+// build.rs
+fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=proto");
+
+    protobuf_codegen::Codegen::new()
+        .pure()
+        .cargo_out_dir("protos")
+        .include("proto")
+        .input("proto/foobar.proto")
+        .run_from_script();
+}
+```
+
+The `.pure()` call tells `protobuf-codegen` to use its built-in Rust parser,
+so you do not need to have `protoc` installed. The generated code is placed
+under `$OUT_DIR/protos/`, and you include it from your library like this:
+
+```rust
+pub mod proto {
+    include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
+}
+pub use proto::foobar::Foobar;
+```
+
+### Registering the module
+
+With the proto in place, registering the module requires two things: a main
+function and a call to `yara_x::register_module!`. The main function follows the same
+contract as in built-in modules—it receives the scanned data, populates the
+protobuf, and returns it:
+
+```rust
+use yara_x::errors::ModuleError;
+
+fn foobar_main(
+    data: &[u8],
+    _meta: Option<&[u8]>,
+) -> Result<Foobar, ModuleError> {
+    let mut out = Foobar::new();
+    out.count = Some(data.len() as u64);
+    out.label = Some("foobar".to_owned());
+    Ok(out)
+}
+
+yara_x::register_module!("foobar", Foobar, foobar_main);
+```
+
+A few things to note here:
+
+* The first argument is the string used in `import "foobar"` in YARA rules.
+* The second argument is the root protobuf message type. The root descriptor is automatically obtained from this type.
+* The third argument is the main function. If your module is data-only (the caller always
+  injects the output via `set_module_output`), it can be omitted.
+* The macro automatically sets the Rust module name path via `module_path!()` so that YARA can find any callable functions.
+
+If a custom module shares its name with a built-in module, the built-in one
+takes precedence and your registration is silently ignored.
+
+### Adding callable functions to an external module
+
+Custom modules can also export functions that are callable from YARA rules, the
+same way built-in modules do with `#[module_export]`. From an external crate
+you use the same attribute, but you must pass an extra `yara_x_crate`
+argument so that the macro can generate fully-qualified type references:
+
+```rust
+pub mod fns {
+    use yara_x::ScanContext;
+
+    #[yara_x::module_export(yara_x_crate = "yara_x")]
+    pub fn add(_ctx: &ScanContext, a: i64, b: i64) -> i64 {
+        a + b
+    }
+}
+```
+
+The `yara_x_crate = "yara_x"` argument is required whenever the macro is used
+outside of the `yara-x` source tree. Without it the macro generates bare type
+names (`Caller`, `ScanContext`, etc.) that are only in scope inside `yara-x`.
+
+The function signature rules are exactly the same as for built-in modules—
+see [Valid function arguments](#valid-function-arguments) and
+[Valid return types](#valid-return-types).
+
+After this, the `add` function is callable from YARA rules as `foobar.add(a, b)`:
+
+```yara
+import "foobar"
+
+rule add_works {
+    condition:
+        foobar.add(3, 4) == 7
+}
+```
+
+### Overriding the module output at scan time
+
+Sometimes you already have the data your module would expose, and you don't
+want to re-derive it inside `main_fn`. The `Scanner` API lets you inject a
+pre-built protobuf directly, bypassing `main_fn` entirely for that scan:
+
+```rust
+let rules = yara_x::Compiler::new()
+    .add_source(r#"import "foobar" rule r { condition: foobar.count == 99 }"#)?
+    .build();
+
+let mut out = Foobar::new();
+out.count = Some(99);
+
+let mut scanner = yara_x::Scanner::new(&rules);
+scanner.set_module_output(Box::new(out))?;
+scanner.scan(data)?;
+```
+
+`set_module_output` identifies the target module by the type of the message
+you pass in. YARA matches it against the `root_descriptor` you registered, so
+the type must be exactly the message type declared as your module's root.
+
+### Ensuring the module is linked
+
+Rust's linker may discard your crate's `inventory::submit!` initializer if
+nothing in the final binary directly references a symbol from your crate.
+The safest workaround is to expose a no-op function and call it from the
+binary's entry point:
+
+```rust
+/// Call this from your binary's `main` (or from test setup) to ensure
+/// the linker keeps this crate's module registration.
+pub fn ensure_registered() {}
+```
+
+```rust
+fn main() {
+    my_module_crate::ensure_registered();
+    // ...
+}
+```
+
+You can verify that the registration worked by checking the module registry:
+
+```rust
+my_module_crate::ensure_registered();
+let names: Vec<&str> = yara_x::mods::module_names().collect();
+assert!(names.contains(&"foobar"));
+```
 
 ## Tests
 
