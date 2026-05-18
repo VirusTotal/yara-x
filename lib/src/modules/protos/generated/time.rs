@@ -128,8 +128,8 @@ impl ::protobuf::reflect::ProtobufValue for Time {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\ntime.proto\x12\x04time\x1a\nyara.proto\"\x06\n\x04TimeB(\xfa\x92\x19\
-    $\n\x04time\x12\ttime.Time\x1a\x04time\"\x0btime-moduleb\x06proto2\
+    \n\ntime.proto\x12\x04time\x1a\nyara.proto\"\x06\n\x04TimeB\"\xfa\x92\
+    \x19\x1e\n\x04time\x12\ttime.Time\x1a\x0btime-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

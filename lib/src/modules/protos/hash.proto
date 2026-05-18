@@ -6,7 +6,6 @@ package hash;
 option (yara.module_options) = {
   name : "hash"
   root_message: "hash.Hash"
-  rust_module: "hash"
   cargo_feature: "hash-module"
 };
 

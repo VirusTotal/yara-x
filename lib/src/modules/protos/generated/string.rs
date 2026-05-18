@@ -128,9 +128,8 @@ impl ::protobuf::reflect::ProtobufValue for String {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x0cstring.proto\x12\x06string\x1a\nyara.proto\"\x08\n\x06StringB2\xfa\
-    \x92\x19.\n\x06string\x12\rstring.String\x1a\x06string\"\rstring-moduleb\
-    \x06proto2\
+    \n\x0cstring.proto\x12\x06string\x1a\nyara.proto\"\x08\n\x06StringB*\xfa\
+    \x92\x19&\n\x06string\x12\rstring.String\x1a\rstring-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

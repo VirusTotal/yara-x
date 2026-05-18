@@ -128,9 +128,9 @@ impl ::protobuf::reflect::ProtobufValue for Console {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\rconsole.proto\x12\x07console\x1a\nyara.proto\"\t\n\x07ConsoleB7\xfa\
-    \x92\x193\n\x07console\x12\x0fconsole.Console\x1a\x07console\"\x0econsol\
-    e-moduleb\x06proto2\
+    \n\rconsole.proto\x12\x07console\x1a\nyara.proto\"\t\n\x07ConsoleB.\xfa\
+    \x92\x19*\n\x07console\x12\x0fconsole.Console\x1a\x0econsole-moduleb\x06\
+    proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

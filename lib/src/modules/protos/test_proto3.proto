@@ -34,18 +34,6 @@ option (yara.module_options) = {
   // "test_proto2." prefix comes after the package name.
   root_message: "test_proto3.TestProto3"
 
-  // The name of the Rust module that contains the code for this module. A
-  // module with this name must exists under src/modules. In this case the
-  // module name is "test_proto3", we can create a module with that name in
-  // two ways: by creating a file "test_proto3.rs" under src/modules, or by
-  // creating a "test_proto3" directory under src/modules and putting a
-  // "mod.rs" file inside of it.
-  //
-  // Notice however that this is optional, as YARA modules can consists only
-  // in the data structure defined by this proto file, and don't need to have
-  // any associated code.
-  rust_module: "test_proto3"
-
   // The name of the feature that controls whether this module is compiled or
   // not. A feature with this name must be added to the Cargo.toml file.
   cargo_feature: "test_proto3-module"

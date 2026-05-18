@@ -6,7 +6,6 @@ package crx;
 option (yara.module_options) = {
   name : "crx"
   root_message: "crx.Crx"
-  rust_module: "crx"
   cargo_feature: "crx-module"
 };
 

@@ -6,7 +6,6 @@ use protobuf::descriptor::FileDescriptorProto;
 struct Module {
     name: String,
     proto_mod: String,
-    rust_mod: Option<String>,
     cargo_feature: Option<String>,
     root_msg: String,
 }
@@ -49,7 +48,6 @@ fn generate_module_files(proto_files: &[FileDescriptorProto]) -> Vec<Module> {
             modules.push(Module {
                 name: module_options.name.unwrap(),
                 proto_mod: proto_name,
-                rust_mod: module_options.rust_module,
                 cargo_feature: module_options.cargo_feature,
                 root_msg,
             });
@@ -93,7 +91,7 @@ fn generate_module_files(proto_files: &[FileDescriptorProto]) -> Vec<Module> {
     modules.sort_by(|a, b| a.name.cmp(&b.name));
 
     for m in &modules {
-        let rust_mod = &m.rust_mod;
+        let module_name = m.name.as_str();
         let cargo_feature = &m.cargo_feature;
 
         let cfg_feature = if let Some(cargo_feature) = &cargo_feature {
@@ -102,15 +100,13 @@ fn generate_module_files(proto_files: &[FileDescriptorProto]) -> Vec<Module> {
             "".to_string()
         };
 
-        if let Some(rust_mod) = &rust_mod {
-            write!(
-                modules_rs,
-                r#"
+        write!(
+            modules_rs,
+            r#"
 {cfg_feature}
-mod {rust_mod};"#,
-            )
-            .unwrap();
-        }
+mod {module_name};"#,
+        )
+        .unwrap();
     }
 
     modules

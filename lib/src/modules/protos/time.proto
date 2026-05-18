@@ -6,7 +6,6 @@ package time;
 option (yara.module_options) = {
   name : "time"
   root_message: "time.Time"
-  rust_module: "time"
   cargo_feature: "time-module"
 };
 

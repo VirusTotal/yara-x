@@ -2864,8 +2864,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     DEBUG_INFO_ITEM\x10\x83@\x12\x19\n\x14TYPE_ANNOTATION_ITEM\x10\x84@\x12\
     \x1c\n\x17TYPE_ENCODED_ARRAY_ITEM\x10\x85@\x12$\n\x1fTYPE_ANNOTATIONS_DI\
     RECTORY_ITEM\x10\x86@\x12$\n\x1eTYPE_HIDDENAPI_CLASS_DATA_ITEM\x10\x80\
-    \xe0\x03\x1a\x06\x92\x93\x19\x02\x10\x01B#\xfa\x92\x19\x1f\n\x03dex\x12\
-    \x07dex.Dex\x1a\x03dex\"\ndex-moduleb\x06proto2\
+    \xe0\x03\x1a\x06\x92\x93\x19\x02\x10\x01B\x1e\xfa\x92\x19\x1a\n\x03dex\
+    \x12\x07dex.Dex\x1a\ndex-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

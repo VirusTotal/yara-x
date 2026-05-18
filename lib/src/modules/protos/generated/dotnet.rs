@@ -3607,8 +3607,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     ers\x18\n\x20\x03(\tR\x11genericParameters\x12-\n\nparameters\x18\x0b\
     \x20\x03(\x0b2\r.dotnet.ParamR\nparameters\"/\n\x05Param\x12\x12\n\x04na\
     me\x18\x01\x20\x02(\tR\x04name\x12\x12\n\x04type\x18\x02\x20\x01(\tR\x04\
-    typeB2\xfa\x92\x19.\n\x06dotnet\x12\rdotnet.Dotnet\x1a\x06dotnet\"\rdotn\
-    et-moduleb\x06proto2\
+    typeB*\xfa\x92\x19&\n\x06dotnet\x12\rdotnet.Dotnet\x1a\rdotnet-moduleb\
+    \x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

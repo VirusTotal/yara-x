@@ -881,9 +881,9 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x1d\n\nstring_bar\x18>\x20\x01(\tR\tstringBar\x12!\n\x0cstring_undef\
     \x18?\x20\x01(\tR\x0bstringUndef\x12\x1b\n\tbytes_foo\x18@\x20\x01(\x0cR\
     \x08bytesFoo\x12\x1b\n\tbytes_bar\x18A\x20\x01(\x0cR\x08bytesBar\x12\x1f\
-    \n\x0bbytes_undef\x18B\x20\x01(\x0cR\nbytesUndefBJ\xfa\x92\x19F\n\x0btes\
-    t_proto3\x12\x16test_proto3.TestProto3\x1a\x0btest_proto3\"\x12test_prot\
-    o3-moduleb\x06proto3\
+    \n\x0bbytes_undef\x18B\x20\x01(\x0cR\nbytesUndefB=\xfa\x92\x199\n\x0btes\
+    t_proto3\x12\x16test_proto3.TestProto3\x1a\x12test_proto3-moduleb\x06pro\
+    to3\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

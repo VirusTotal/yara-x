@@ -187,8 +187,8 @@ impl Consts {
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n\nmath.proto\x12\x04math\x1a\nyara.proto\"\x06\n\x04Math*/\n\x06Consts\
     \x12\x1d\n\nMEAN_BYTES\x10\0\x1a\r\x9a\x93\x19\t\x11\0\0\0\0\0\xe0_@\x1a\
-    \x06\x92\x93\x19\x02\x10\x01B(\xfa\x92\x19$\n\x04math\x12\tmath.Math\x1a\
-    \x04math\"\x0bmath-moduleb\x06proto2\
+    \x06\x92\x93\x19\x02\x10\x01B\"\xfa\x92\x19\x1e\n\x04math\x12\tmath.Math\
+    \x1a\x0bmath-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
