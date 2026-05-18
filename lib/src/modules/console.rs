@@ -3,7 +3,6 @@ use std::borrow::Cow;
 use crate::mods::prelude::*;
 use crate::modules::protos::console::*;
 
-#[module_main]
 fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Console, ModuleError> {
     // Nothing to do, but we have to return our protobuf
     Ok(Console::new())
@@ -216,11 +215,4 @@ mod tests {
     }
 }
 
-register_module! {
-    Module {
-        name: "console",
-        root_descriptor: Console::descriptor,
-        main_fn: Some(__main__ as ModuleMainFn),
-        rust_module_name: Some(module_path!()),
-    }
-}
+register_module!("console", Console, main);

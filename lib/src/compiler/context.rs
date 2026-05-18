@@ -12,7 +12,6 @@ use crate::compiler::ir::{IR, PatternIdx};
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{RegexId, RegexSetId, Warnings, ir};
 use crate::errors::{UnknownField, UnknownIdentifier};
-use crate::modules::Module;
 use crate::string_pool::StringPool;
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup};
 use crate::types::Type;
@@ -128,8 +127,9 @@ impl<'src> CompileContext<'_, 'src> {
             // If the current symbol table is `None` it means that the
             // identifier is not a field or method of some structure.
             return if symbol_table.is_none() {
-                let module = inventory::iter::<Module>()
-                    .find(|module| module.name == ident.name);
+                let module =
+                    crate::modules::registered_modules()
+                        .find(|module| module.name() == ident.name);
                 // Build the error for the unknown identifier.
                 let mut err = UnknownIdentifier::build(
                     self.report_builder,
@@ -140,7 +140,7 @@ impl<'src> CompileContext<'_, 'src> {
                     module.map(|m| {
                         format!(
                             "there is a module named `{}`, but the `import \"{}\"` statement is missing",
-                            m.name, m.name)
+                            m.name(), m.name())
                         }
                     )
                 );

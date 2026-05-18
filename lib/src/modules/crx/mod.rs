@@ -18,7 +18,6 @@ thread_local!(
         const { RefCell::new(None) };
 );
 
-#[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Crx, ModuleError> {
     PERMHASH_CACHE.with(|cache| *cache.borrow_mut() = None);
     match parser::Crx::parse(data) {
@@ -67,11 +66,4 @@ fn permhash(ctx: &ScanContext) -> Option<Lowercase<FixedLenString<64>>> {
     Some(Lowercase::<FixedLenString<64>>::new(digest))
 }
 
-register_module! {
-    Module {
-        name: "crx",
-        root_descriptor: Crx::descriptor,
-        main_fn: Some(__main__ as ModuleMainFn),
-        rust_module_name: Some(module_path!()),
-    }
-}
+register_module!("crx", Crx, main);

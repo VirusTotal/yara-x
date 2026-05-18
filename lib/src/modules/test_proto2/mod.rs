@@ -95,7 +95,6 @@ fn to_int(ctx: &ScanContext, string: RuntimeString) -> Option<i64> {
     string.parse::<i64>().ok()
 }
 
-#[module_main]
 fn main(data: &[u8], meta: Option<&[u8]>) -> Result<TestProto2, ModuleError> {
     let mut test = TestProto2::new();
 
@@ -193,11 +192,4 @@ fn main(data: &[u8], meta: Option<&[u8]>) -> Result<TestProto2, ModuleError> {
     Ok(test)
 }
 
-register_module! {
-    Module {
-        name: "test_proto2",
-        root_descriptor: TestProto2::descriptor,
-        main_fn: Some(__main__ as ModuleMainFn),
-        rust_module_name: Some(module_path!()),
-    }
-}
+register_module!("test_proto2", TestProto2, main);

@@ -27,7 +27,6 @@ thread_local! {
     static MIME_TYPE_CACHE: RefCell<Option<String>> = const { RefCell::new(None) };
 }
 
-#[module_main]
 fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Magic, ModuleError> {
     // With every scanned file the cache must be cleared.
     TYPE_CACHE.set(None);
@@ -98,11 +97,4 @@ fn get_mime_type(data: &[u8]) -> Result<String, magic::cookie::Error> {
     MAGIC.with(|magic| magic.buffer(data))
 }
 
-register_module! {
-    super::Module {
-        name: "magic",
-        root_descriptor: Magic::descriptor,
-        main_fn: Some(__main__ as ModuleMainFn),
-        rust_module_name: Some(module_path!()),
-    }
-}
+register_module!("magic", Magic, main);

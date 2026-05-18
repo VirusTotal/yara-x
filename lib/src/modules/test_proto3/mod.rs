@@ -1,7 +1,6 @@
 use crate::mods::prelude::*;
 use crate::modules::protos::test_proto3::TestProto3;
 
-#[module_main]
 fn main(
     _data: &[u8],
     _meta: Option<&[u8]>,
@@ -41,11 +40,4 @@ fn main(
     Ok(test)
 }
 
-register_module! {
-    Module {
-        name: "test_proto3",
-        root_descriptor: TestProto3::descriptor,
-        main_fn: Some(__main__ as ModuleMainFn),
-        rust_module_name: Some(module_path!()),
-    }
-}
+register_module!("test_proto3", TestProto3, main);

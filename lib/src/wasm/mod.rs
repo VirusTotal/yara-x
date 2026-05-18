@@ -90,7 +90,6 @@ use smallvec::{SmallVec, smallvec};
 use yara_x_macros::wasm_export;
 
 use crate::compiler::{LiteralId, PatternId, RegexId, RuleId};
-use crate::modules::Module;
 use crate::scanner::{RuntimeObjectHandle, ScanContext};
 use crate::types::{
     Array, Func, FuncSignature, Map, Struct, TypeValue, Value,
@@ -174,11 +173,11 @@ impl WasmExport {
         if self.method_of.is_some() {
             return self.mangled_name.to_string();
         }
-        for module in inventory::iter::<Module>() {
-            if let Some(rust_module_name) = module.rust_module_name
+        for module in crate::modules::registered_modules() {
+            if let Some(rust_module_name) = module.rust_module_name()
                 && self.rust_module_path.contains(rust_module_name)
             {
-                return format!("{}.{}", module.name, self.mangled_name);
+                return format!("{}.{}", module.name(), self.mangled_name);
             }
         }
         self.mangled_name.to_owned()

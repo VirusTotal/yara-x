@@ -593,7 +593,6 @@ fn symhash(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
     Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
-#[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Macho, ModuleError> {
     DYLIB_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
     ENTITLEMENT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
@@ -607,11 +606,4 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Macho, ModuleError> {
     }
 }
 
-register_module! {
-    Module {
-        name: "macho",
-        root_descriptor: Macho::descriptor,
-        main_fn: Some(__main__ as ModuleMainFn),
-        rust_module_name: Some(module_path!()),
-    }
-}
+register_module!("macho", Macho, main);

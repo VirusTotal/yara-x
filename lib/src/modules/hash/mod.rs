@@ -29,7 +29,6 @@ thread_local!(
         RefCell::new(FxHashMap::default());
 );
 
-#[module_main]
 fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Hash, ModuleError> {
     // With every scanned file the cache must be cleared.
     SHA256_CACHE.with(|cache| cache.borrow_mut().clear());
@@ -263,11 +262,4 @@ fn checksum_str(ctx: &ScanContext, s: RuntimeString) -> Option<i64> {
     Some(checksum32(s.as_bstr(ctx).as_bytes()).into())
 }
 
-register_module! {
-    Module {
-        name: "hash",
-        root_descriptor: Hash::descriptor,
-        main_fn: Some(__main__ as ModuleMainFn),
-        rust_module_name: Some(module_path!()),
-    }
-}
+register_module!("hash", Hash, main);

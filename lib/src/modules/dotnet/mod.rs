@@ -7,7 +7,6 @@ use crate::modules::protos::dotnet::*;
 
 pub mod parser;
 
-#[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Dotnet, ModuleError> {
     match parser::Dotnet::parse(data) {
         Ok(dotnet) => Ok(dotnet.into()),
@@ -19,11 +18,4 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Dotnet, ModuleError> {
     }
 }
 
-register_module! {
-    Module {
-        name: "dotnet",
-        root_descriptor: Dotnet::descriptor,
-        main_fn: Some(__main__ as ModuleMainFn),
-        rust_module_name: Some(module_path!()),
-    }
-}
+register_module!("dotnet", Dotnet, main);

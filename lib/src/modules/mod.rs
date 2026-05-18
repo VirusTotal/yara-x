@@ -36,45 +36,120 @@ pub enum ModuleError {
     },
 }
 
-/// Signature of the main function of a [`Module`].
-///
-/// The function receives the data being scanned together with optional
-/// per-module metadata, and must return the protobuf message that holds the
-/// information produced by the module.
-pub type ModuleMainFn =
-    fn(&[u8], Option<&[u8]>) -> Result<Box<dyn MessageDyn>, ModuleError>;
-
-/// Function returning the [`MessageDescriptor`] that describes the root
-/// protobuf message of a [`Module`].
-///
-/// Generated message types produced by `protobuf-codegen` expose a static
-/// `descriptor()` method that has exactly this signature, so registering a
-/// module is usually as easy as `root_descriptor: my_proto::Root::descriptor`.
-pub type ModuleDescriptor = fn() -> MessageDescriptor;
-
-/// Description of a YARA module.
-///
-/// Modules are registered using the [`inventory`](https://docs.rs/inventory)
-/// crate.
-pub struct Module {
+/// The trait implemented by all registered modules.
+pub trait RegisteredModule: Send + Sync {
     /// Name used for the module in `import` statements (e.g. `"my_module"`).
-    pub name: &'static str,
+    fn name(&self) -> &'static str;
+
     /// Returns the descriptor of the protobuf message that defines the
     /// module's root structure.
-    pub root_descriptor: ModuleDescriptor,
+    fn root_descriptor(&self) -> MessageDescriptor;
+
     /// Main function called every time YARA scans some data, before
     /// evaluating the rules. Set to `None` for data-only modules.
-    pub main_fn: Option<ModuleMainFn>,
+    fn main_fn(
+        &self,
+        data: &[u8],
+        meta: Option<&[u8]>,
+    ) -> Option<Result<Box<dyn MessageDyn>, ModuleError>>;
+
     /// Rust module path of the submodule inside the external crate that
     /// contains functions registered with `#[module_export(yara_x_crate = ...)]`.
     ///
     /// Must match the value that `module_path!()` expands to at those
     /// functions' definition site (e.g. `"my_crate::my_mod"`). Set to
     /// `None` for data-only modules that export no callable functions.
+    fn rust_module_name(&self) -> Option<&'static str>;
+}
+
+/// Description of a YARA module, generic over the type `T` returned by the
+/// main function.
+pub struct Module<T>
+where
+    T: protobuf::MessageFull + 'static,
+{
+    /// Name used for the module in `import` statements (e.g. `"my_module"`).
+    pub name: &'static str,
+    /// Main function called every time YARA scans some data, before
+    /// evaluating the rules. Set to `None` for data-only modules.
+    pub main_fn: Option<fn(&[u8], Option<&[u8]>) -> Result<T, ModuleError>>,
+    /// Rust module path of the submodule inside the external crate that
+    /// contains functions registered with `#[module_export(yara_x_crate = ...)]`.
     pub rust_module_name: Option<&'static str>,
 }
 
-inventory::collect!(Module);
+impl<T> RegisteredModule for Module<T>
+where
+    T: protobuf::MessageFull + 'static,
+{
+    fn name(&self) -> &'static str {
+        self.name
+    }
+
+    fn root_descriptor(&self) -> MessageDescriptor {
+        T::descriptor()
+    }
+
+    fn main_fn(
+        &self,
+        data: &[u8],
+        meta: Option<&[u8]>,
+    ) -> Option<Result<Box<dyn MessageDyn>, ModuleError>> {
+        self.main_fn.map(|f| {
+            f(data, meta).map(|ok| Box::new(ok) as Box<dyn MessageDyn>)
+        })
+    }
+
+    fn rust_module_name(&self) -> Option<&'static str> {
+        self.rust_module_name
+    }
+}
+
+/// Macro used to register a YARA module.
+///
+/// # Examples
+///
+/// Registering a module with a main function:
+///
+/// ```ignore
+/// register_module!("my_module", MyModuleProto, main);
+/// ```
+///
+/// Registering a data-only module with no main function:
+///
+/// ```ignore
+/// register_module!("my_module", MyModuleProto);
+/// ```
+#[macro_export]
+macro_rules! register_module {
+    ($name:literal, $root_message:ty, $main_fn:path) => {
+        $crate::mods::prelude::inventory::submit! {
+            &$crate::mods::prelude::Module::<$root_message> {
+                name: $name,
+                main_fn: Some($main_fn),
+                rust_module_name: Some(module_path!()),
+            } as &dyn $crate::mods::prelude::RegisteredModule
+        }
+    };
+    ($name:literal, $root_message:ty) => {
+        $crate::mods::prelude::inventory::submit! {
+            &$crate::mods::prelude::Module::<$root_message> {
+                name: $name,
+                main_fn: None,
+                rust_module_name: None,
+            } as &dyn $crate::mods::prelude::RegisteredModule
+        }
+    };
+}
+
+inventory::collect!(&'static dyn RegisteredModule);
+
+/// Returns an iterator over all registered modules.
+#[inline]
+pub(crate) fn registered_modules()
+-> impl Iterator<Item = &'static dyn RegisteredModule> {
+    inventory::iter::<&'static dyn RegisteredModule>().map(|m| *m)
+}
 
 pub mod mods {
     /*! Utility functions and structures that allow invoking YARA modules directly.
@@ -216,10 +291,10 @@ pub mod mods {
         let descriptor = T::descriptor();
         let proto_name = descriptor.full_name();
 
-        let module = inventory::iter::<super::Module>()
-            .find(|m| (m.root_descriptor)().full_name() == proto_name)?;
+        let module = super::registered_modules()
+            .find(|m| m.root_descriptor().full_name() == proto_name)?;
 
-        module.main_fn?(data, meta).ok()
+        module.main_fn(data, meta)?.ok()
     }
 
     /// Invokes all YARA modules and returns the data produced by them.
@@ -249,15 +324,17 @@ pub mod mods {
     /// See the "debug modules" command.
     pub fn module_names() -> impl Iterator<Item = &'static str> {
         use itertools::Itertools;
-        inventory::iter::<super::Module>().map(|m| m.name).sorted()
+        super::registered_modules().map(|m| m.name()).sorted()
     }
 
     /// Returns the definition of the module with the given name.
     pub fn module_definition(name: &str) -> Option<reflect::Struct> {
         use std::rc::Rc;
-        inventory::iter::<super::Module>()
-            .find(|m| m.name == name)
-            .map(|m| reflect::Struct::new(Rc::<crate::types::Struct>::from(m)))
+        super::registered_modules()
+            .find(|m| m.name() == name)
+            .map(|m| {
+                reflect::Struct::new(Rc::<crate::types::Struct>::from(m))
+            })
     }
 
     /// Everything needed to implement your own YARA-X modules.
@@ -265,8 +342,9 @@ pub mod mods {
     #[allow(missing_docs)]
     pub mod prelude {
         pub use crate::modules::Module;
-        pub use crate::modules::ModuleDescriptor;
-        pub use crate::modules::ModuleMainFn;
+        pub use crate::modules::ModuleError;
+        pub use crate::modules::RegisteredModule;
+        pub use crate::register_module;
         pub use crate::wasm::runtime::Caller;
         pub use crate::wasm::string::FixedLenString;
         pub use crate::wasm::string::RuntimeString;
@@ -275,9 +353,8 @@ pub mod mods {
         pub use crate::wasm::*;
         pub use bstr::ByteSlice;
         pub use inventory;
-        pub use inventory::submit as register_module;
         pub use protobuf::MessageFull;
-        pub use yara_x_macros::{module_main, wasm_export};
+        pub use yara_x_macros::wasm_export;
 
         /// Opaque scan context passed as first argument to functions exported from a
         /// [`Module`] via `#[module_export]`.

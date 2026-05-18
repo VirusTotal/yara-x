@@ -25,7 +25,7 @@ use thiserror::Error;
 use crate::Variable;
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
-use crate::modules::{Module, ModuleError};
+use crate::modules::{ModuleError, RegisteredModule};
 pub(crate) use crate::scanner::context::RuntimeObject;
 pub(crate) use crate::scanner::context::RuntimeObjectHandle;
 pub(crate) use crate::scanner::context::ScanContext;
@@ -402,8 +402,8 @@ impl<'r> Scanner<'r> {
 
         // Check if the protobuf message passed to this function corresponds
         // with any of the existing modules.
-        if !inventory::iter::<Module>()
-            .any(|m| (m.root_descriptor)().full_name() == full_name)
+        if !crate::modules::registered_modules()
+            .any(|m| m.root_descriptor().full_name() == full_name)
         {
             return Err(ScanError::UnknownModule {
                 module: full_name.to_string(),
@@ -431,23 +431,25 @@ impl<'r> Scanner<'r> {
         // Try to find the module by name first, if not found, then try
         // to find a module where the fully-qualified name for its protobuf
         // message matches the `name` arguments.
-        let descriptor = inventory::iter::<Module>()
+        let descriptor = crate::modules::registered_modules()
             .find_map(|module| {
-                if module.name == name {
-                    Some((module.root_descriptor)())
+                if module.name() == name {
+                    Some(module.root_descriptor())
                 } else {
                     None
                 }
             })
             .or_else(|| {
-                inventory::iter::<Module>().find_map(|module| {
-                    let descriptor = (module.root_descriptor)();
-                    if descriptor.full_name() == name {
-                        Some(descriptor)
-                    } else {
-                        None
-                    }
-                })
+                crate::modules::registered_modules().find_map(
+                    |module| {
+                        let descriptor = module.root_descriptor();
+                        if descriptor.full_name() == name {
+                            Some(descriptor)
+                        } else {
+                            None
+                        }
+                    },
+                )
             });
 
         if descriptor.is_none() {
@@ -569,11 +571,11 @@ impl<'r> Scanner<'r> {
 
         for module_name in ctx.compiled_rules.imports() {
             // Look up the module in the module registry.
-            let module = inventory::iter::<Module>()
-                .find(|module| module.name == module_name)
+            let module = crate::modules::registered_modules()
+                .find(|module| module.name() == module_name)
                 .unwrap_or_else(|| panic!("module `{module_name}` not found"));
 
-            let module_root_descriptor = (module.root_descriptor)();
+            let module_root_descriptor = module.root_descriptor();
             let root_struct_name = module_root_descriptor.full_name();
 
             let module_output;
@@ -591,15 +593,15 @@ impl<'r> Scanner<'r> {
                         options.module_metadata.get(module_name).copied()
                     });
 
-                if let Some(main_fn) = module.main_fn {
-                    module_output = Some(
-                        main_fn(ctx.scanned_data().unwrap(), meta).map_err(
-                            |err| ScanError::ModuleError {
-                                module: module_name.to_string(),
-                                err,
-                            },
-                        )?,
-                    );
+                if let Some(main_res) =
+                    module.main_fn(ctx.scanned_data().unwrap(), meta)
+                {
+                    module_output = Some(main_res.map_err(|err| {
+                        ScanError::ModuleError {
+                            module: module_name.to_string(),
+                            err,
+                        }
+                    })?);
                 } else {
                     module_output = None;
                 }
@@ -812,13 +814,16 @@ impl<'a, 'r> ScanResults<'a, 'r> {
         &self,
         module_name: &str,
     ) -> Option<&'a dyn MessageDyn> {
-        let module_descriptor = inventory::iter::<Module>().find_map(|m| {
-            if m.name == module_name {
-                Some((m.root_descriptor)())
-            } else {
-                None
-            }
-        })?;
+        let module_descriptor =
+            crate::modules::registered_modules().find_map(
+                |m| {
+                    if m.name() == module_name {
+                        Some(m.root_descriptor())
+                    } else {
+                        None
+                    }
+                },
+            )?;
         let module_output = self
             .ctx
             .module_outputs
@@ -995,7 +1000,8 @@ impl ExactSizeIterator for NonMatchingRules<'_, '_> {
 pub struct ModuleOutputs<'a, 'r> {
     ctx: &'a ScanContext<'r, 'a>,
     len: usize,
-    iterator: Box<dyn Iterator<Item = &'static Module> + 'a>,
+    iterator:
+        Box<dyn Iterator<Item = &'static dyn RegisteredModule> + 'a>,
 }
 
 impl<'a, 'r> ModuleOutputs<'a, 'r> {
@@ -1003,7 +1009,9 @@ impl<'a, 'r> ModuleOutputs<'a, 'r> {
         Self {
             ctx,
             len: ctx.module_outputs.len(),
-            iterator: Box::new(inventory::iter::<Module>()),
+            iterator: Box::new(
+                crate::modules::registered_modules(),
+            ),
         }
     }
 }
@@ -1024,9 +1032,9 @@ impl<'a> Iterator for ModuleOutputs<'a, '_> {
             if let Some(module_output) = self
                 .ctx
                 .module_outputs
-                .get((module.root_descriptor)().full_name())
+                .get(module.root_descriptor().full_name())
             {
-                return Some((module.name, module_output.as_ref()));
+                return Some((module.name(), module_output.as_ref()));
             }
         }
     }

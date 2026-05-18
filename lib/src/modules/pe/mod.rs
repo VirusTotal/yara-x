@@ -35,7 +35,6 @@ thread_local!(
     static CHECKSUM_CACHE: RefCell<Option<i64>> = const { RefCell::new(None) };
 );
 
-#[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<PE, ModuleError> {
     IMPHASH_CACHE.with(|cache| *cache.borrow_mut() = None);
     CHECKSUM_CACHE.with(|cache| *cache.borrow_mut() = None);
@@ -855,11 +854,4 @@ fn exports_impl(
         .map_or(Some((false, 0)), |(position, _)| Some((true, position)))
 }
 
-register_module! {
-    Module {
-        name: "pe",
-        root_descriptor: PE::descriptor,
-        main_fn: Some(__main__ as ModuleMainFn),
-        rust_module_name: Some(module_path!()),
-    }
-}
+register_module!("pe", PE, main);

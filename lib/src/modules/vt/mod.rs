@@ -49,7 +49,6 @@ static SUBDOMAIN: LazyLock<i64> = LazyLock::new(|| {
     Struct::enum_value_i64(&Permutation::SUBDOMAIN.descriptor()).unwrap()
 });
 
-#[module_main]
 fn main(
     _data: &[u8],
     _meta: Option<&[u8]>,
@@ -532,11 +531,4 @@ mod tests {
     }
 }
 
-register_module! {
-    Module {
-        name: "vt",
-        root_descriptor: LiveHuntData::descriptor,
-        main_fn: Some(__main__ as ModuleMainFn),
-        rust_module_name: Some(module_path!()),
-    }
-}
+register_module!("vt", LiveHuntData, main);

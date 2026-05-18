@@ -1,7 +1,6 @@
 use crate::mods::prelude::*;
 use crate::modules::protos::string::*;
 
-#[module_main]
 fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<String, ModuleError> {
     // Nothing to do, but we have to return our protobuf
     Ok(String::new())
@@ -104,11 +103,4 @@ mod tests {
     }
 }
 
-register_module! {
-    Module {
-        name: "string",
-        root_descriptor: String::descriptor,
-        main_fn: Some(__main__ as ModuleMainFn),
-        rust_module_name: Some(module_path!()),
-    }
-}
+register_module!("string", String, main);

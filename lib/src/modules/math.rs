@@ -3,7 +3,6 @@ use std::cmp;
 use std::f64::consts::PI;
 
 use memchr::memchr_iter;
-use protobuf::MessageFull;
 use rustc_hash::FxHashMap;
 
 use crate::mods::prelude::*;
@@ -20,7 +19,6 @@ thread_local!(
     > = RefCell::new(FxHashMap::default());
 );
 
-#[module_main]
 fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Math, ModuleError> {
     DISTRIBUTION_CACHE.with(|cache| cache.borrow_mut().clear());
 
@@ -1012,11 +1010,4 @@ mod tests {
     }
 }
 
-register_module! {
-    Module {
-        name: "math",
-        root_descriptor: Math::descriptor,
-        main_fn: Some(__main__ as ModuleMainFn),
-        rust_module_name: Some(module_path!()),
-    }
-}
+register_module!("math", Math, main);

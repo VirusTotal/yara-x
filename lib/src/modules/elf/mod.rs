@@ -12,7 +12,6 @@ use md5::{Digest, Md5};
 use rustc_hash::FxHashSet;
 
 use crate::mods::prelude::*;
-use crate::modules::Module;
 use crate::modules::protos::elf::*;
 
 pub mod parser;
@@ -27,7 +26,6 @@ thread_local!(
     static TLSH_CACHE: RefCell<Option<String>> = const { RefCell::new(None) };
 );
 
-#[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<ELF, ModuleError> {
     IMPORT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
     TLSH_CACHE.with(|cache| *cache.borrow_mut() = None);
@@ -178,11 +176,4 @@ fn telfhash(ctx: &mut ScanContext) -> Option<Uppercase<FixedLenString<72>>> {
     Some(Uppercase::<FixedLenString<72>>::new(digest))
 }
 
-register_module! {
-    Module {
-        name: "elf",
-        root_descriptor: ELF::descriptor,
-        main_fn: Some(__main__ as ModuleMainFn),
-        rust_module_name: Some(module_path!()),
-    }
-}
+register_module!("elf", ELF, main);

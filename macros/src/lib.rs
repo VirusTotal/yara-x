@@ -4,7 +4,6 @@ use syn::{DeriveInput, Error, ItemFn, parse_macro_input};
 
 mod error;
 mod module_export;
-mod module_main;
 mod wasm_export;
 
 /// The `ErrorStruct` derive macro generates boilerplate code for structs that
@@ -125,31 +124,7 @@ pub fn error_enum_macro_derive(input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// The `module_main` macro is used for indicating which is the main function
-/// in a YARA module.
-///
-/// The main function in a YARA module receives a slice that contains the
-/// data being scanned, and must return the protobuf structure that corresponds
-/// to the module. The function can have any name, as long as it is marked with
-/// `#[module_main]`, but it's a good practice to name it `main`.
-///
-/// # Example
-///
-/// ```text
-/// #[module_main]
-/// fn main(data: &[u8]) -> SomeProto {
-///     let some_proto = SomeProto::new();
-///     // ... fill some_proto with data ...
-///     some_proto
-/// }
-/// ```
-#[proc_macro_attribute]
-pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as ItemFn);
-    module_main::impl_module_main_macro(input)
-        .unwrap_or_else(Error::into_compile_error)
-        .into()
-}
+
 
 /// The `wasm_export` macro is used for declaring a Rust function that will be
 /// called from WASM.

@@ -20,7 +20,6 @@ thread_local!(
         const { RefCell::new(None) };
 );
 
-#[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Dex, ModuleError> {
     CHECKSUM_CACHE.with(|cache| *cache.borrow_mut() = None);
     SIGNATURE_CACHE.with(|cache| *cache.borrow_mut() = None);
@@ -157,11 +156,4 @@ fn contains_class(
     )
 }
 
-register_module! {
-    Module {
-        name: "dex",
-        root_descriptor: Dex::descriptor,
-        main_fn: Some(__main__ as super::ModuleMainFn),
-        rust_module_name: Some(module_path!()),
-    }
-}
+register_module!("dex", Dex, main);

@@ -15,7 +15,6 @@ use crate::mods::prelude::*;
 use crate::modules::protos::lnk::*;
 pub mod parser;
 
-#[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Lnk, ModuleError> {
     match parser::LnkParser::new().parse(data) {
         Ok(lnk) => Ok(lnk),
@@ -27,11 +26,4 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Lnk, ModuleError> {
     }
 }
 
-register_module! {
-    Module {
-        name: "lnk",
-        root_descriptor: Lnk::descriptor,
-        main_fn: Some(__main__ as ModuleMainFn),
-        rust_module_name: Some(module_path!()),
-    }
-}
+register_module!("lnk", Lnk, main);
