@@ -1,8 +1,8 @@
 [package]
-name = "custom-module-example"
+name = "custom-module"
 description = """
 Example crate demonstrating how to register a custom YARA-X module from an
-external crate using the `inventory` crate.
+external crate.
 """
 edition = "2024"
 publish = false
@@ -17,7 +17,7 @@ path = "src/lib.rs"
 # against the in-tree version.
 yara-x = { path = "../../lib" }
 # The `protobuf` crate is needed because the registered main function returns
-# a `Box<dyn protobuf::MessageDyn>` and to access `MessageFull::descriptor()`.
+# a protobuf.
 protobuf = "3.7.2"
 
 [build-dependencies]

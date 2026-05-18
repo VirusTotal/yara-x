@@ -462,7 +462,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "custom-module-example"
+name = "custom-module"
 version = "0.0.0"
 dependencies = [
  "protobuf",

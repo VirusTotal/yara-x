@@ -28,7 +28,7 @@ members = [
     "py",
     "ls",
 ]
-exclude = ["examples/custom-module-example"]
+exclude = ["examples/custom-module"]
 resolver = "3"
 
 

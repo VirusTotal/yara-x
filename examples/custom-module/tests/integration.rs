@@ -1,4 +1,4 @@
-use custom_module_example::Foobar;
+use custom_module::Foobar;
 
 fn compile(src: &str) -> yara_x::Rules {
     let mut c = yara_x::Compiler::new();
