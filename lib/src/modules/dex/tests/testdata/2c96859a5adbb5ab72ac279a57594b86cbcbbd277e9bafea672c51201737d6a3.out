@@ -43,7 +43,7 @@ protos:
     parameters_count: 2
     parameters:
       - "Ljava/lang/String;"
-      - "Landroid/app/Application;"
+      - "I"
   - shorty: "L"
     return_type: "Ljava/lang/String;"
     parameters_count: 0
@@ -94,7 +94,7 @@ methods:
         parameters_count: 2
         parameters:
           - "Ljava/lang/String;"
-          - "Landroid/app/Application;"
+          - "I"
     name: "createPackageContext"
   - class: "Lezbkvojpi/keikfof;"
     proto:

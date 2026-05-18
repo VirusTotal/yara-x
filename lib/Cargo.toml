@@ -344,6 +344,7 @@ protobuf-parse = { workspace = true, optional = true }
 yara-x-proto = { workspace = true, optional = true }
 
 [dev-dependencies]
+criterion = "0.5"
 globwalk = { workspace = true }
 goldenfile = { workspace = true }
 ihex = { workspace = true }
@@ -351,3 +352,11 @@ pretty_assertions = { workspace = true }
 rayon = { workspace = true }
 yara-x-proto-yaml = { workspace = true }
 zip = { workspace = true }
+
+[[bench]]
+name = "dex"
+harness = false
+
+[[bench]]
+name = "pe"
+harness = false
