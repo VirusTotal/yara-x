@@ -62,6 +62,9 @@ pub trait RegisteredModule: Send + Sync {
     fn rust_module_name(&self) -> Option<&'static str>;
 }
 
+/// Main function in a YARA module.
+pub type ModuleMainFn<T> = fn(&[u8], Option<&[u8]>) -> Result<T, ModuleError>;
+
 /// Description of a YARA module, generic over the type `T` returned by the
 /// main function.
 pub struct Module<T>
@@ -72,7 +75,7 @@ where
     pub name: &'static str,
     /// Main function called every time YARA scans some data, before
     /// evaluating the rules. Set to `None` for data-only modules.
-    pub main_fn: Option<fn(&[u8], Option<&[u8]>) -> Result<T, ModuleError>>,
+    pub main_fn: Option<ModuleMainFn<T>>,
     /// Rust module path of the submodule inside the external crate that
     /// contains functions registered with `#[module_export(yara_x_crate = ...)]`.
     pub rust_module_name: Option<&'static str>,
@@ -148,7 +151,7 @@ inventory::collect!(&'static dyn RegisteredModule);
 #[inline]
 pub(crate) fn registered_modules()
 -> impl Iterator<Item = &'static dyn RegisteredModule> {
-    inventory::iter::<&'static dyn RegisteredModule>().map(|m| *m)
+    inventory::iter::<&'static dyn RegisteredModule>().copied()
 }
 
 pub mod mods {
@@ -332,9 +335,7 @@ pub mod mods {
         use std::rc::Rc;
         super::registered_modules()
             .find(|m| m.name() == name)
-            .map(|m| {
-                reflect::Struct::new(Rc::<crate::types::Struct>::from(m))
-            })
+            .map(|m| reflect::Struct::new(Rc::<crate::types::Struct>::from(m)))
     }
 
     /// Everything needed to implement your own YARA-X modules.

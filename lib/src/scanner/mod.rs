@@ -440,16 +440,14 @@ impl<'r> Scanner<'r> {
                 }
             })
             .or_else(|| {
-                crate::modules::registered_modules().find_map(
-                    |module| {
-                        let descriptor = module.root_descriptor();
-                        if descriptor.full_name() == name {
-                            Some(descriptor)
-                        } else {
-                            None
-                        }
-                    },
-                )
+                crate::modules::registered_modules().find_map(|module| {
+                    let descriptor = module.root_descriptor();
+                    if descriptor.full_name() == name {
+                        Some(descriptor)
+                    } else {
+                        None
+                    }
+                })
             });
 
         if descriptor.is_none() {
@@ -814,16 +812,14 @@ impl<'a, 'r> ScanResults<'a, 'r> {
         &self,
         module_name: &str,
     ) -> Option<&'a dyn MessageDyn> {
-        let module_descriptor =
-            crate::modules::registered_modules().find_map(
-                |m| {
-                    if m.name() == module_name {
-                        Some(m.root_descriptor())
-                    } else {
-                        None
-                    }
-                },
-            )?;
+        let module_descriptor = crate::modules::registered_modules()
+            .find_map(|m| {
+                if m.name() == module_name {
+                    Some(m.root_descriptor())
+                } else {
+                    None
+                }
+            })?;
         let module_output = self
             .ctx
             .module_outputs
@@ -1000,8 +996,7 @@ impl ExactSizeIterator for NonMatchingRules<'_, '_> {
 pub struct ModuleOutputs<'a, 'r> {
     ctx: &'a ScanContext<'r, 'a>,
     len: usize,
-    iterator:
-        Box<dyn Iterator<Item = &'static dyn RegisteredModule> + 'a>,
+    iterator: Box<dyn Iterator<Item = &'static dyn RegisteredModule> + 'a>,
 }
 
 impl<'a, 'r> ModuleOutputs<'a, 'r> {
@@ -1009,9 +1004,7 @@ impl<'a, 'r> ModuleOutputs<'a, 'r> {
         Self {
             ctx,
             len: ctx.module_outputs.len(),
-            iterator: Box::new(
-                crate::modules::registered_modules(),
-            ),
+            iterator: Box::new(crate::modules::registered_modules()),
         }
     }
 }

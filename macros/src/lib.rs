@@ -124,8 +124,6 @@ pub fn error_enum_macro_derive(input: TokenStream) -> TokenStream {
         .into()
 }
 
-
-
 /// The `wasm_export` macro is used for declaring a Rust function that will be
 /// called from WASM.
 ///
