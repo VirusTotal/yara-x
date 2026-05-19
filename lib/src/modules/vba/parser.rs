@@ -46,7 +46,7 @@ impl VbaProject {
             return Err("Invalid signature byte");
         }
     
-        let mut decompressed = Vec::new();
+        let mut decompressed = Vec::with_capacity(compressed.len() * 2);
         let mut current = 1; // Skip signature byte
     
         while current < compressed.len() {

@@ -30,36 +30,29 @@ impl<'a> VbaExtractor<'a> {
         self.data.starts_with(&[0x50, 0x4B, 0x03, 0x04])
     }
 
-    fn read_stream(
-        &self,
+    fn read_stream_data(
         ole_parser: &crate::modules::olecf::parser::OLECFParser,
         name: &str,
     ) -> Result<Vec<u8>, &'static str> {
         let size = ole_parser.get_stream_size(name)? as usize;
-
-        // Skip empty streams
         if size == 0 {
             return Err("Stream is empty");
         }
-
-        let data = ole_parser.get_stream_data(name)?;
-
-        Ok(data)
+        ole_parser.get_stream_data(name)
     }
 
-    fn extract_from_ole(&self) -> Result<VbaProject, &'static str> {
+    fn extract_from_ole_bytes(ole_data: &[u8]) -> Result<VbaProject, &'static str> {
         let ole_parser =
-            crate::modules::olecf::parser::OLECFParser::new(self.data)?;
+            crate::modules::olecf::parser::OLECFParser::new(ole_data)?;
         let stream_names = ole_parser.get_stream_names()?;
 
         let mut vba_dir = None;
         let mut modules = HashMap::new();
-        let mut project_streams = Vec::new();
 
         // First process the dir stream
         if let Some(dir_name) =
             stream_names.iter().find(|n| n.to_lowercase().trim() == "dir")
-            && let Ok(data) = self.read_stream(&ole_parser, dir_name) {
+            && let Ok(data) = Self::read_stream_data(&ole_parser, dir_name) {
                 vba_dir = Some(data);
             }
 
@@ -74,24 +67,24 @@ impl<'a> VbaExtractor<'a> {
                     || lowercase_name.ends_with(".cls")
                     || lowercase_name.ends_with(".frm")
                 {
-                    if let Ok(data) = self.read_stream(&ole_parser, name)
+                    if let Ok(data) = Self::read_stream_data(&ole_parser, name)
                         && !data.is_empty() {
                             modules.insert(name.clone(), data);
                         }
-                } else if lowercase_name.contains("project")
-                    && !lowercase_name.contains("_vba_project")
-                    && let Ok(data) = self.read_stream(&ole_parser, name) {
-                        project_streams.push(data);
-                    }
+                }
             }
         }
 
-        // Always try the dir stream first if we found it
+        // Always try the dir stream if we found it
         if let Some(dir_data) = vba_dir {
             parser::VbaProject::parse(&dir_data, modules)
         } else {
             Err("No VBA directory stream found")
         }
+    }
+
+    fn extract_from_ole(&self) -> Result<VbaProject, &'static str> {
+        Self::extract_from_ole_bytes(self.data)
     }
 
     fn extract_from_zip(&self) -> Result<VbaProject, &'static str> {
@@ -114,40 +107,7 @@ impl<'a> VbaExtractor<'a> {
                     file.read_to_end(&mut contents)
                         .map_err(|_| "Failed to read vbaProject.bin")?;
 
-                    // Parse as OLE
-                    let ole_parser =
-                        crate::modules::olecf::parser::OLECFParser::new(
-                            &contents,
-                        )?;
-                    let stream_names = ole_parser.get_stream_names()?;
-
-                    let mut vba_dir = None;
-                    let mut modules = HashMap::new();
-
-                    for stream_name in &stream_names {
-                        let _stream_size =
-                            ole_parser.get_stream_size(stream_name)?;
-
-                        if stream_name.starts_with("dir")
-                            && let Ok(data) =
-                                self.read_stream(&ole_parser, stream_name)
-                                && !data.is_empty() {
-                                    vba_dir = Some(data);
-                                }
-                    }
-
-                    // Process other streams
-                    for name in &stream_names {
-                        if let Ok(data) = self.read_stream(&ole_parser, name)
-                            && !data.is_empty() {
-                                modules.insert(name.clone(), data);
-                            }
-                    }
-
-                    // Use dir stream if found, otherwise fail
-                    if let Some(dir_data) = vba_dir {
-                        return parser::VbaProject::parse(&dir_data, modules);
-                    }
+                    return Self::extract_from_ole_bytes(&contents);
                 }
                 Err(_) => continue,
             }
