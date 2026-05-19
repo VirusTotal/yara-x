@@ -1,5 +1,5 @@
 use std::collections::hash_map::Entry;
-use std::ops::{Range, RangeInclusive};
+use std::ops::{Add, Range, RangeInclusive, Sub};
 
 use core::slice::Iter;
 use rustc_hash::FxHashMap;
@@ -9,12 +9,40 @@ use crate::compiler::PatternId;
 /// Represents the match of a pattern.
 #[derive(Debug, Clone)]
 pub(crate) struct Match {
-    /// Range within the scanned data where the match was found.
+    /// Base offset of the block where the match occurred.
+    pub base: usize,
+    /// Range within the scanned data where the match occurred. Notice that
+    /// this is an absolute range, in other words: in block scanning this
+    /// range is not relative to the block where the match occurred, it is
+    /// relative to the start of the data.
     pub range: Range<usize>,
     /// For patterns that have the `xor` modifier this is always `Some(k)`
     /// where `k` is the XOR key (it may be 0). For any other type of
     /// pattern this is `None`.
     pub xor_key: Option<u8>,
+}
+
+impl Match {
+    pub fn new(range: Range<usize>) -> Self {
+        Self { base: 0, range, xor_key: None }
+    }
+
+    /// Sets the base for the match.
+    ///
+    /// Subtract the previous base from the match start and end, and
+    /// adds the new one.
+    pub fn rebase(mut self, base: usize) -> Self {
+        self.range = self.range.start.sub(self.base).add(base)
+            ..self.range.end.sub(self.base).add(base);
+        self.base = base;
+        self
+    }
+
+    /// Sets the xor key for the match.
+    pub fn xor_key(mut self, key: u8) -> Self {
+        self.xor_key = Some(key);
+        self
+    }
 }
 
 /// Represents the list of matches for a pattern.
@@ -41,43 +69,52 @@ impl MatchList {
     /// is false, the existing match will remain untouched and the new one will
     /// be ignored.
     ///
-    /// This operation is O(n), where the worst case is adding a new match
-    /// with a start offset that is lower than all the other matches in the
-    /// list. This would require moving all the elements one position to the
-    /// right, making space for the new match at offset 0.
-    ///
-    /// However, in most cases new matches will be added in roughly ascending
-    /// order, which means that the operation will be the best possible case,
-    /// when the new match has a start offset larger or equal than the last
-    /// match in the list.
-    pub fn add(&mut self, m: Match, replace_if_longer: bool) {
-        let mut insertion_index = self.matches.len();
-
-        while insertion_index > 0 {
-            let existing_match = &mut self.matches[insertion_index - 1];
-            if m.range.start == existing_match.range.start {
-                // We have found another match that start at same offset, than
-                // the new match. Replace the existing match if the new one is
-                // longer and `replace_if_longer` is true.
-                if replace_if_longer && existing_match.range.end < m.range.end
-                {
-                    existing_match.range.end = m.range.end;
+    /// This operation is O(1) in the most common case, which is inserting
+    /// the new match at an offset that is higher than those from previous
+    /// matches.
+    pub fn add(&mut self, new_match: Match, replace_if_longer: bool) {
+        match self.matches.last_mut() {
+            // The new match starts at some offset greater than the offset of
+            // the last match, we can simply push the new match at the end.
+            Some(last) if new_match.range.start > last.range.start => {
+                self.matches.push(new_match);
+                return;
+            }
+            // The new match starts has the same offset as the last match. We
+            // only need to update its end position when replace_if_longer is
+            // true.
+            Some(last) if new_match.range.start == last.range.start => {
+                if replace_if_longer {
+                    last.range.end = new_match.range.end;
                 }
                 return;
             }
-            // The match just before `insertion_index` starts at some offset
-            // that is lower than the match being inserted, so this is the
-            // final insertion index.
-            if m.range.start > existing_match.range.start {
-                break;
+            // No matches so far, the match is first one.
+            None => {
+                self.matches.push(new_match);
+                return;
             }
-            insertion_index -= 1;
+            _ => {}
         }
-
-        if insertion_index == self.matches.len() {
-            self.matches.push(m);
-        } else {
-            self.matches.insert(insertion_index, m);
+        // If not at the end, use binary search to find the insertion point.
+        match self
+            .matches
+            .binary_search_by_key(&new_match.range.start, |m| m.range.start)
+        {
+            // Found, and replace_if_longer is true.
+            Ok(index) if replace_if_longer => {
+                let existing_match = &mut self.matches[index];
+                if existing_match.range.end < new_match.range.end {
+                    existing_match.range.end = new_match.range.end;
+                }
+            }
+            // Not found, insert at the corresponding position.
+            Err(index) => {
+                self.matches.insert(index, new_match);
+            }
+            // Found, but replace_if_longer is false, do nothing and keep the
+            // existing match.
+            _ => {}
         }
     }
 
@@ -157,7 +194,7 @@ impl MatchList {
     /// with that offset.
     #[inline]
     pub fn search(&self, offset: usize) -> Result<usize, usize> {
-        self.matches.binary_search_by(|x| x.range.start.cmp(&offset))
+        self.matches.binary_search_by(|m| m.range.start.cmp(&offset))
     }
 }
 
@@ -170,6 +207,7 @@ impl<'a> IntoIterator for &'a MatchList {
     }
 }
 
+#[derive(Clone)]
 pub struct UnconfirmedMatch {
     pub range: Range<usize>,
     pub chain_length: usize,
@@ -280,6 +318,12 @@ impl PatternMatches {
             }
         }
     }
+
+    pub fn matches_per_pattern(
+        &self,
+    ) -> impl Iterator<Item = (&PatternId, &MatchList)> {
+        self.matches.iter()
+    }
 }
 
 #[cfg(test)]
@@ -291,15 +335,16 @@ mod test {
     fn match_list() {
         let mut ml = MatchList::with_capacity(5);
 
-        ml.add(Match { range: (2..10), xor_key: None }, false);
-        ml.add(Match { range: (1..10), xor_key: None }, false);
-        ml.add(Match { range: (4..10), xor_key: None }, false);
-        ml.add(Match { range: (3..10), xor_key: None }, false);
-        ml.add(Match { range: (5..10), xor_key: None }, false);
+        ml.add(Match::new(2..10), false);
+        ml.add(Match::new(1..10), false);
+        ml.add(Match::new(1..15), true);
+        ml.add(Match::new(4..10), false);
+        ml.add(Match::new(3..10), false);
+        ml.add(Match::new(5..10), false);
 
         assert_eq!(
             ml.iter().map(|m| m.range.clone()).collect::<Vec<Range<usize>>>(),
-            vec![(1..10), (2..10), (3..10), (4..10), (5..10)]
+            vec![(1..15), (2..10), (3..10), (4..10), (5..10)]
         )
     }
 }

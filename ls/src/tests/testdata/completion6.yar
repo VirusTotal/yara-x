@@ -1,0 +1,3 @@
+rule ident {
+  c
+}

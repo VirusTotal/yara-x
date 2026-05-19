@@ -3,4 +3,3 @@ error[E001]: syntax error
   |
 3 |   $a = { 00 ( 00 }
   |                  ^ expecting `[`, BYTE, `(`, `|` or `)`, found `}`
-  |

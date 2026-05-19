@@ -5,8 +5,7 @@ use nom::{
     error::{Error as NomError, ErrorKind},
     multi::count,
     number::complete::{le_u16, le_u32},
-    sequence::tuple,
-    IResult,
+    IResult, Parser,
 };
 
 const OLECF_SIGNATURE: &[u8] = &[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
@@ -37,11 +36,11 @@ pub struct OLECFParser<'a> {
     mini_stream_size: u64,
 }
 
-struct DirectoryEntry {
-    name: String,
-    size: u64,
-    start_sector: u32,
-    stream_type: u8,
+pub struct DirectoryEntry {
+    pub name: String,
+    pub size: u64,
+    pub start_sector: u32,
+    pub stream_type: u8,
 }
 
 impl<'a> OLECFParser<'a> {
@@ -66,7 +65,7 @@ impl<'a> OLECFParser<'a> {
 
     fn parse(&mut self, input: &'a [u8]) -> IResult<&'a [u8], ()> {
         // (A) Check the 8-byte OLECF signature.
-        let (input, _) = verify(take(8_usize), |sig: &[u8]| sig == OLECF_SIGNATURE)(input)?;
+        let (input, _) = verify(take(8_usize), |sig: &[u8]| sig == OLECF_SIGNATURE).parse(input)?;
 
         // (B) Parse the rest of the header fields.
         let (input, ()) = self.parse_header(input)?;
@@ -77,8 +76,7 @@ impl<'a> OLECFParser<'a> {
         Ok((input, ()))
     }
 
-
-    fn parse_header(&mut self, input: &'a [u8]) -> IResult<&'a [u8], ()> {        
+    fn parse_header(&mut self, input: &'a [u8]) -> IResult<&'a [u8], ()> {
         let (mut input, (
             _skip_20,
             byte_order,
@@ -90,7 +88,7 @@ impl<'a> OLECFParser<'a> {
             mini_fat_count,
             _first_difat_sector,
             _difat_count,
-        )) = tuple((
+        )) = (
             take(20usize),  // skip 20 bytes
             le_u16,         // parse byte_order
             take(14usize),  // skip 14 bytes
@@ -101,7 +99,7 @@ impl<'a> OLECFParser<'a> {
             le_u32,         // parse mini_fat_count
             le_u32,         // parse _first_difat_sector
             le_u32,         // parse _difat_count
-        ))(input)?;
+        ).parse(input)?;
     
         // (A) Verify `byte_order == 0xFFFE`.
         if byte_order != 0xFFFE {
@@ -113,7 +111,7 @@ impl<'a> OLECFParser<'a> {
         let rest = input;
         if rest.len() < 109 * 4 {
             let possible = rest.len() / 4;
-            let (rest2, entries) = count(le_u32, possible)(rest)?;
+            let (rest2, entries) = count(le_u32, possible).parse(rest)?;
             let mut filtered = entries
                 .into_iter()
                 .filter(|&x| x < MAX_REGULAR_SECTOR)
@@ -121,7 +119,7 @@ impl<'a> OLECFParser<'a> {
             self.fat_sectors.append(&mut filtered);
             input = rest2;
         } else {
-            let (rest2, entries) = count(le_u32, 109)(rest)?;
+            let (rest2, entries) = count(le_u32, 109).parse(rest)?;
             let mut filtered = entries
                 .into_iter()
                 .filter(|&x| x < MAX_REGULAR_SECTOR)
@@ -193,6 +191,10 @@ impl<'a> OLECFParser<'a> {
             return Err("No streams found");
         }
         Ok(self.dir_entries.keys().cloned().collect())
+    }
+
+    pub fn get_streams(&self) -> impl Iterator<Item = (&str, &DirectoryEntry)> {
+        self.dir_entries.iter().map(|(k, v)| (k.as_str(), v))
     }
 
     pub fn get_stream_size(&self, stream_name: &str) -> Result<u64, &'static str> {

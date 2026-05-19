@@ -5,7 +5,7 @@ use std::num::NonZeroUsize;
 use nom::bytes::complete::{take, take_while};
 use nom::combinator::{cond, map_res, verify};
 use nom::multi::{fold_many0, length_value, many_till};
-use nom::number::complete::{le_u128, le_u16, le_u32, le_u64};
+use nom::number::complete::{le_u16, le_u32, le_u64, le_u128};
 use nom::{Err, Input, ToUsize};
 use nom::{IResult, Needed, Parser};
 use protobuf::EnumOrUnknown;
@@ -367,7 +367,7 @@ impl LnkParser {
                             .unwrap_or(None);
                 }
             } else if let Some(string) =
-                input.get(volume_label_offset as usize..)
+                volume_id.get(volume_label_offset as usize..)
             {
                 self.result.volume_label = Self::parse_string(string)
                     .map(|(_, label)| Some(label))

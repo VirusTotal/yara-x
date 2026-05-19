@@ -2,9 +2,9 @@ use crate::compiler::RuleId;
 use crate::wasm;
 use rustc_hash::FxHashMap;
 use std::mem;
+use walrus::ValType::{F64, I32, I64};
 use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{BinaryOp, Block, InstrSeqId, LoadKind, MemArg, UnaryOp};
-use walrus::ValType::{F64, I32, I64};
 use walrus::{
     FunctionBuilder, FunctionId, GlobalId, InstrSeqBuilder, MemoryId, Module,
 };
@@ -141,7 +141,7 @@ impl WasmModuleBuilder {
         let mut module = walrus::Module::with_config(config);
         let mut wasm_exports = FxHashMap::default();
 
-        for export in super::WASM_EXPORTS {
+        for export in super::wasm_exports() {
             let ty = module.types.add(
                 export.func.walrus_args().as_slice(),
                 export.func.walrus_results().as_slice(),
@@ -197,14 +197,7 @@ impl WasmModuleBuilder {
         );
 
         // The main function receives no arguments and returns an I32.
-        let mut main_func =
-            FunctionBuilder::new(&mut module.types, &[], &[I32]);
-
-        // The first instructions in the main function initialize the global
-        // variables `pattern_search_done`.
-        main_func.func_body().i32_const(0);
-        main_func.func_body().global_set(pattern_search_done);
-
+        let main_func = FunctionBuilder::new(&mut module.types, &[], &[I32]);
         let namespace_block = namespace_func.dangling_instr_seq(None).id();
 
         Self {
@@ -258,7 +251,7 @@ impl WasmModuleBuilder {
         &mut self,
         rule_id: RuleId,
         global: bool,
-    ) -> InstrSeqBuilder {
+    ) -> InstrSeqBuilder<'_> {
         if self.num_rules == self.rules_per_func {
             self.finish_rule_func();
             self.num_rules = 0;
@@ -363,7 +356,7 @@ impl WasmModuleBuilder {
     /// If a no function with the given name exists.
     pub fn function_id(&self, fn_mangled_name: &str) -> FunctionId {
         *self.wasm_exports.get(fn_mangled_name).unwrap_or_else(|| {
-            panic!("can't find function `{}`", fn_mangled_name)
+            panic!("can't find function `{fn_mangled_name}`")
         })
     }
 

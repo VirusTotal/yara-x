@@ -1,4 +1,8 @@
 rule test {
+ /*
+     Comment
+ */
+
  meta:
   a = "b"
 

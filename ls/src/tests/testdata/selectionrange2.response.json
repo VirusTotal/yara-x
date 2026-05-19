@@ -1,0 +1,50 @@
+[
+  {
+    "parent": {
+      "parent": {
+        "parent": {
+          "range": {
+            "end": {
+              "character": 1,
+              "line": 6
+            },
+            "start": {
+              "character": 0,
+              "line": 0
+            }
+          }
+        },
+        "range": {
+          "end": {
+            "character": 26,
+            "line": 3
+          },
+          "start": {
+            "character": 2,
+            "line": 1
+          }
+        }
+      },
+      "range": {
+        "end": {
+          "character": 26,
+          "line": 2
+        },
+        "start": {
+          "character": 4,
+          "line": 2
+        }
+      }
+    },
+    "range": {
+      "end": {
+        "character": 13,
+        "line": 2
+      },
+      "start": {
+        "character": 4,
+        "line": 2
+      }
+    }
+  }
+]

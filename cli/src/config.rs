@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use figment::{
-    providers::{Format, Serialized, Toml},
     Figment,
+    providers::{Format, Serialized, Toml},
 };
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
@@ -118,6 +118,9 @@ pub struct RuleNameConfig {
 pub struct MetadataConfig {
     #[serde(rename = "type")]
     pub ty: MetaValueType,
+    /// A regular expression that the metadata value must match. Only
+    /// applies if type is MetaValueType::String.
+    pub regexp: Option<String>,
     /// Specifies whether the metadata is required or optional.
     #[serde(default)]
     pub required: bool,
@@ -195,7 +198,7 @@ impl Default for PatternsFormatConfig {
 
 /// Load a config file from a given path. Path must contain a valid TOML file
 /// or this function will propagate the error. For structure of the config file
-/// see "YARA-X Config Guide.md".
+/// see <https://virustotal.github.io/yara-x/docs/cli/config-file/>.
 pub fn load_config_from_file(
     config_file: &Path,
 ) -> Result<Config, Box<figment::Error>> {

@@ -80,17 +80,13 @@ fn token_generation() {
             End(SyntaxKind::TERM),
             Literal(b"*"),
             Begin(SyntaxKind::TERM),
-            Begin(SyntaxKind::PRIMARY_EXPR),
             Literal(b"1"),
-            End(SyntaxKind::PRIMARY_EXPR),
             End(SyntaxKind::TERM),
             End(SyntaxKind::EXPR),
             Literal(b"=="),
             Begin(SyntaxKind::EXPR),
             Begin(SyntaxKind::TERM),
-            Begin(SyntaxKind::PRIMARY_EXPR),
             Literal(b"2"),
-            End(SyntaxKind::PRIMARY_EXPR),
             End(SyntaxKind::TERM),
             End(SyntaxKind::EXPR),
             End(SyntaxKind::BOOLEAN_TERM),
@@ -107,7 +103,7 @@ fn token_generation() {
 fn whitespaces() {
     let rule = r#"rule test {
         condition:
-            true
+        	true
     }"#;
 
     let events = CSTStream::from(Parser::new(rule.as_bytes()));
@@ -144,10 +140,7 @@ fn whitespaces() {
             Whitespace,
             Whitespace,
             Whitespace,
-            Whitespace,
-            Whitespace,
-            Whitespace,
-            Whitespace,
+            Tab,
             Begin(SyntaxKind::BOOLEAN_EXPR),
             Begin(SyntaxKind::BOOLEAN_TERM),
             Keyword(b"true"),

@@ -3,5 +3,5 @@ rule test {
     $a = "foo" xor(0-10) base64("foo")
 
   condition:
-    #a[0] == 0 and !a[0] == 0 and @a[0] == 0
+    @a[1] == 0 and @a[1] == 0 and @a[1] == 0
 }

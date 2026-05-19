@@ -145,7 +145,7 @@ where
             let is_air = (self.is_air)(&token);
             let is_water = (self.is_water)(&token);
             if is_air && is_water {
-                panic!("token {:?} is both air and water", token)
+                panic!("token {token:?} is both air and water")
             }
             if is_water {
                 self.input_buffer.push_back(token);

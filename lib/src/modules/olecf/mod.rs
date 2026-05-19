@@ -9,13 +9,13 @@ Read more about the Compound File Binary File format here:
 https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-cfb/53989ce4-7b05-4f8d-829b-d08d6148375b
 */
 
-use crate::modules::prelude::*;
+use crate::errors::ModuleError;
+use crate::mods::prelude::*;
 use crate::modules::protos::olecf::*;
 
 pub mod parser;
 
-#[module_main]
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Olecf {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Olecf, ModuleError> {
     let mut olecf = Olecf::new();
 
     match parser::OLECFParser::new(data) {
@@ -36,5 +36,7 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Olecf {
         }
     }
 
-    olecf
+    Ok(olecf)
 }
+
+register_module!("olecf", Olecf, main);

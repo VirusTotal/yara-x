@@ -2,14 +2,14 @@
 #![allow(clippy::duplicated_attributes)]
 
 use std::fmt::{Debug, Display, Formatter};
-use serde::Serialize;
 
+use serde::Serialize;
 use thiserror::Error;
 
 use yara_x_macros::ErrorEnum;
 use yara_x_macros::ErrorStruct;
 
-use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label, Footer};
+pub(crate) use crate::compiler::report::{Level, Patch, Report, ReportBuilder, CodeLoc, Label, Footer};
 
 /// A warning raised while compiling YARA rules.
 #[allow(missing_docs)]
@@ -18,10 +18,12 @@ use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label, Foot
 #[derive(Serialize)]
 #[serde(tag = "type")]
 pub enum Warning {
+    AmbiguousExpression(Box<AmbiguousExpression>),
     BooleanIntegerComparison(Box<BooleanIntegerComparison>),
     ConsecutiveJumps(Box<ConsecutiveJumps>),
     DeprecatedField(Box<DeprecatedField>),
     DuplicateImport(Box<DuplicateImport>),
+    GlobalRuleMisuse(Box<GlobalRuleMisuse>),
     IgnoredModule(Box<IgnoredModule>),
     IgnoredRule(Box<IgnoredRule>),
     InvalidMetadata(Box<InvalidMetadata>),
@@ -36,8 +38,9 @@ pub enum Warning {
     SlowPattern(Box<SlowPattern>),
     TextPatternAsHex(Box<TextPatternAsHex>),
     TooManyIterations(Box<TooManyIterations>),
-    UnsatisfiableExpression(Box<UnsatisfiableExpression>),
     UnknownTag(Box<UnknownTag>),
+    UnsatisfiableExpression(Box<UnsatisfiableExpression>),
+    UnusedIdentifier(Box<UnusedIdentifier>),
 }
 
 /// A hex pattern contains two or more consecutive jumps.
@@ -278,12 +281,11 @@ pub struct NonBooleanAsBoolean {
     title = "comparison between boolean and integer"
 )]
 #[label(
-    "this comparison can be replaced with: `{replacement}`",
+    "this is comparing an integer and a boolean",
     expr_loc
 )]
 pub struct BooleanIntegerComparison {
     report: Report,
-    replacement: String,
     expr_loc: CodeLoc,
 }
 
@@ -316,7 +318,7 @@ pub struct BooleanIntegerComparison {
 #[label(
     "`{module_name}` imported here for the first time",
     existing_import_loc,
-    Level::Note
+    Level::NOTE
 )]
 pub struct DuplicateImport {
     report: Report,
@@ -499,14 +501,8 @@ pub struct IgnoredRule {
     "this pattern can be written as a text literal",
     pattern_loc
 )]
-#[label(
-    "replace with \"{text}\"",
-    pattern_loc,
-    Level::Help
-)]
 pub struct TextPatternAsHex {
     report: Report,
-    text: String,
     pattern_loc: CodeLoc,
 }
 
@@ -696,7 +692,6 @@ pub struct InvalidTag {
 }
 
 /// A deprecated field was used in a YARA rule.
-/// check for it (see: [`crate::linters::Tags`]).
 ///
 /// ## Example
 ///
@@ -712,7 +707,7 @@ pub struct InvalidTag {
 #[associated_enum(Warning)]
 #[warning(
     code = "deprecated_field",
-    title = "field `{name}` is deprecated`"
+    title = "field `{name}` is deprecated"
 )]
 #[label(
     "{msg}",
@@ -723,4 +718,100 @@ pub struct DeprecatedField {
     name: String,
     loc: CodeLoc,
     msg: String,
+}
+
+/// An ambiguous expression is used in a condition.
+///
+/// ## Example
+///
+/// ```text
+/// warning[ambiguous_expr]: ambiguous expression
+///  --> line:6:5
+///   |
+/// 6 |     0 of them
+///   |     --------- this expression is ambiguous
+///   |
+/// help: consider using `none` instead of `0`
+///   |
+/// 6 - 0 of them
+/// 6 + none of them
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "ambiguous_expr",
+    title = "ambiguous expression"
+)]
+#[label(
+    "this expression is ambiguous",
+    loc
+)]
+pub struct AmbiguousExpression {
+    report: Report,
+    loc: CodeLoc,
+}
+
+/// An identifier was declared but not used.
+///
+/// ## Example
+///
+/// ```text
+/// warning[unused_identifier]: unused identifier
+///  --> test.yar:6:32
+///   |
+/// 6 |             with a = 1, b = 2, c = 3 : (
+///   |                                - this identifier is unused
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "unused_identifier",
+    title = "unused identifier",
+)]
+#[label(
+    "this identifier declared but not used",
+    loc
+)]
+pub struct UnusedIdentifier {
+    report: Report,
+    loc: CodeLoc,
+}
+
+
+/// A global rule has been used as part of a rule condition.
+///
+/// Referencing a global rule within a condition is redundant and may create
+/// logical contradictions. Global rules are implicit prerequisites for all
+/// non-global rules. Therefore, explicitly checking a global rule in a 
+/// condition is unnecessary. Furthermore, negating a global rule renders the
+/// condition unsatisfiable: the condition requires the global rule to be false,
+/// but a false global rule prevents all non-global rules from being true.
+///
+/// ## Example
+///
+/// ```text
+/// warning[global_rule_misuse]: global rule used in condition
+///  --> line:7:5
+///   |
+/// 7 |     test_1
+///   |     ------ a global rule is being used as part of an condition
+///   |
+///   = note: referencing a global rule in a condition is redundant, and may result in an unsatisfiable condition
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "global_rule_misuse",
+    title = "global rule used in condition",
+)]
+#[label(
+    "a global rule is being used as part of an condition",
+    loc
+)]
+#[footer(note)]
+pub struct GlobalRuleMisuse {
+    report: Report,
+    loc: CodeLoc,
+    note: Option<String>,
 }

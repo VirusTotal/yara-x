@@ -1,0 +1,55 @@
+{
+  "items": [
+    {
+      "code": "E009",
+      "data": {
+        "patches": [
+          {
+            "range": {
+              "end": {
+                "character": 0,
+                "line": 0
+              },
+              "start": {
+                "character": 0,
+                "line": 0
+              }
+            },
+            "replacement": "import \"pe\"\n"
+          }
+        ]
+      },
+      "message": "unknown identifier `pe`",
+      "range": {
+        "end": {
+          "character": 25,
+          "line": 0
+        },
+        "start": {
+          "character": 23,
+          "line": 0
+        }
+      },
+      "relatedInformation": [
+        {
+          "location": {
+            "range": {
+              "end": {
+                "character": 25,
+                "line": 0
+              },
+              "start": {
+                "character": 23,
+                "line": 0
+              }
+            },
+            "uri": "${test_dir}/diagnostics8.yar"
+          },
+          "message": "this identifier has not been declared"
+        }
+      ],
+      "severity": 1
+    }
+  ],
+  "kind": "full"
+}

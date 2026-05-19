@@ -3,4 +3,3 @@ error[E009]: unknown identifier `bar`
   |
 3 |     with foo = "foo" : ( bar )
   |                          ^^^ this identifier has not been declared
-  |

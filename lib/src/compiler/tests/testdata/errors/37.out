@@ -3,4 +3,3 @@ error[E014]: invalid regular expression
   |
 3 |     $a = /abc[xyz/
   |              ^ unclosed character class
-  |

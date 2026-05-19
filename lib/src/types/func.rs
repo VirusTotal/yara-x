@@ -1,5 +1,6 @@
 use crate::types::{IntegerConstraint, StringConstraint, TypeValue};
 use itertools::Itertools;
+use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -20,7 +21,9 @@ use std::str::Chars;
 ///
 /// The prefix `<type name>::` is optional, it is present only if the function
 /// is a method of the type identified by `<type name>`. `<arguments>` is a
-/// sequence of characters that specify the argument's type. Allowed types are:
+/// comma-separated list of `<name>:<type>` pairs, where `<name>` is the name
+/// of the argument, and `<type>` is a sequence of characters that specify the
+/// argument's type. Allowed type characters are:
 ///
 /// ```text
 ///  i: integer
@@ -30,12 +33,12 @@ use std::str::Chars;
 ///  r: regexp
 /// ```
 ///
-/// `<return type>` is also a sequence of one or more of the characters
-/// above, specifying the type returned by the function (except `r`,
-/// because functions can't return regular expressions). For example, a
-/// function `add` with two integer arguments that return another integer
-/// would have the mangled name `add@ii@i`. A function `foo` that returns
-/// a tuple of two integers has the mangled name `foo@@ii`.
+/// `<return type>` is a sequence of one or more of the characters above,
+/// specifying the type returned by the function (except `r`, because
+/// functions can't return regular expressions). For example, a function `add`
+/// with two integer arguments `a` and `b` that returns another integer
+/// would have the mangled name `add@a:i,b:i@i`. A function `foo` that takes no
+/// arguments and returns a tuple of two integers has the mangled name `foo@@ii`.
 ///
 /// Additionally, the return type may be followed by a `u` character if
 /// the returned value may be undefined. For example, a function `foo` that
@@ -43,12 +46,12 @@ use std::str::Chars;
 /// a mangled name: `foo@@su`.
 ///
 /// Both `<arguments>` and `<return type>` can be empty if the function
-/// doesn't receive arguments or doesn't return a value. Let's see some e
+/// doesn't receive arguments or doesn't return a value. Let's see some
 /// examples:
 ///
 /// ```text
 /// foo()                          ->  foo@@
-/// foo(i: i64)                    ->  foo@i@
+/// foo(a: i64)                    ->  foo@a:i@
 /// foo() -> i32                   ->  foo@@i
 /// foo() -> Option<()>            ->  foo@@u
 /// foo() -> Option<f32>           ->  foo@@fu
@@ -66,8 +69,10 @@ use std::str::Chars;
 ///
 /// ```text
 /// foo() -> lowercase string           _> foo@@s:L
+/// foo() -> uppercase string           _> foo@@s:U
 /// foo() -> string of length 32        _> foo@@s:N32
 /// foo() -> 32-byte lowercase string   -> foo@@s:N32:L
+/// foo() -> 32-byte uppercase string   -> foo@@s:N32:U
 /// foo() -> integer in the range 0-255 -> foo@@i:R0:255
 /// ```
 ///
@@ -85,16 +90,36 @@ impl MangledFnName {
 
 impl MangledFnName {
     /// Returns the types of arguments and return value for the function.
-    pub fn unmangle(&self) -> (Vec<TypeValue>, TypeValue) {
-        let (_name, arg_types, ret_type) =
+    pub fn unmangle(&self) -> (Vec<(&str, TypeValue)>, TypeValue) {
+        let (_fn_name, arg_names_and_types, ret_type) =
             self.0.split('@').collect_tuple().unwrap_or_else(|| {
                 panic!("invalid mangled name: `{}`", self.0)
             });
 
         let mut args = Vec::new();
-        let mut chars = arg_types.chars().peekable();
-        while let Some(type_value) = self.next_type(&mut chars) {
-            args.push(type_value);
+
+        if !arg_names_and_types.is_empty() {
+            for arg_str in arg_names_and_types.split(',') {
+                let (arg_name, arg_type) =
+                    if let Some((n, t)) = arg_str.split_once(':') {
+                        (n, t)
+                    } else {
+                        panic!(
+                            "argument name missing in mangled name: `{}`",
+                            self.0
+                        )
+                    };
+
+                let mut chars = arg_type.chars().peekable();
+                let type_value =
+                    self.next_type(&mut chars).unwrap_or_else(|| {
+                        panic!(
+                            "invalid argument type in mangled name: `{}`",
+                            self.0
+                        )
+                    });
+                args.push((arg_name, type_value));
+            }
         }
 
         let mut chars = ret_type.chars().peekable();
@@ -159,6 +184,9 @@ impl MangledFnName {
                         Some('L') => {
                             constraints.push(StringConstraint::Lowercase);
                         }
+                        Some('U') => {
+                            constraints.push(StringConstraint::Uppercase);
+                        }
                         Some('N') => {
                             let n = self.parse_i64(chars);
                             constraints.push(StringConstraint::ExactLength(
@@ -210,8 +238,9 @@ where
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub(crate) struct FuncSignature {
     pub mangled_name: MangledFnName,
-    pub args: Vec<TypeValue>,
+    pub args: Vec<(String, TypeValue)>,
     pub result: TypeValue,
+    pub doc: Option<Cow<'static, str>>,
 }
 
 impl FuncSignature {
@@ -242,7 +271,7 @@ impl Ord for FuncSignature {
 
 impl PartialOrd for FuncSignature {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.mangled_name.as_str().cmp(other.mangled_name.as_str()))
+        Some(self.cmp(other))
     }
 }
 
@@ -255,10 +284,17 @@ impl PartialEq for FuncSignature {
 }
 
 impl<T: Into<String>> From<T> for FuncSignature {
+    /// Creates a [`FuncSignature`] from a string containing a mangled function name.
     fn from(value: T) -> Self {
         let mangled_name = MangledFnName::from(value.into());
-        let (args, result) = mangled_name.unmangle();
-        Self { mangled_name, args, result }
+        let (args_with_names, result) = mangled_name.unmangle();
+
+        let mut args = Vec::with_capacity(args_with_names.len());
+        for (name, ty) in args_with_names {
+            args.push((name.to_string(), ty));
+        }
+
+        Self { mangled_name, args, result, doc: None }
     }
 }
 
@@ -277,13 +313,16 @@ pub(crate) struct Func {
     method_of: Option<String>,
 }
 
-impl Func {
-    /// Creates a new [`Func`] from a mangled function name.
-    pub fn from_mangled_name(name: &str) -> Self {
-        let signature = FuncSignature::from(name);
+impl<T: Into<String>> From<T> for Func {
+    /// Creates a [`Func`] from a string containing a mangled function name.
+    fn from(value: T) -> Self {
+        let signature = FuncSignature::from(value);
         let method_of = signature.method_of().map(String::from);
         Self { signatures: vec![Rc::new(signature)], method_of }
     }
+}
+
+impl Func {
     /// Returns `true` if this function is a method.
     pub fn is_method(&self) -> bool {
         self.method_of.is_some()
@@ -323,6 +362,12 @@ impl Func {
     pub fn signatures(&self) -> &[Rc<FuncSignature>] {
         self.signatures.as_slice()
     }
+
+    /// Returns all the signatures for this function, but mutable.
+    #[inline]
+    pub fn signatures_mut(&mut self) -> &mut [Rc<FuncSignature>] {
+        self.signatures.as_mut_slice()
+    }
 }
 
 #[cfg(test)]
@@ -340,29 +385,61 @@ mod test {
         );
 
         assert_eq!(
-            MangledFnName::from("foo@i@i").unmangle(),
-            (vec![TypeValue::unknown_integer()], TypeValue::unknown_integer())
-        );
-
-        assert_eq!(
-            MangledFnName::from("foo@f@f").unmangle(),
-            (vec![TypeValue::unknown_float()], TypeValue::unknown_float())
-        );
-
-        assert_eq!(
-            MangledFnName::from("foo@b@b").unmangle(),
-            (vec![TypeValue::unknown_bool()], TypeValue::unknown_bool())
-        );
-
-        assert_eq!(
-            MangledFnName::from("foo@s@s").unmangle(),
-            (vec![TypeValue::unknown_string()], TypeValue::unknown_string())
-        );
-
-        assert_eq!(
-            MangledFnName::from("foo@s@s:L").unmangle(),
+            MangledFnName::from("foo@a:i,b:i@i").unmangle(),
             (
-                vec![TypeValue::unknown_string()],
+                vec![
+                    ("a", TypeValue::unknown_integer()),
+                    ("b", TypeValue::unknown_integer())
+                ],
+                TypeValue::unknown_integer()
+            )
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@a:f,b:f@f").unmangle(),
+            (
+                vec![
+                    ("a", TypeValue::unknown_float()),
+                    ("b", TypeValue::unknown_float())
+                ],
+                TypeValue::unknown_float()
+            )
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@a:b,b:b@b").unmangle(),
+            (
+                vec![
+                    ("a", TypeValue::unknown_bool()),
+                    ("b", TypeValue::unknown_bool())
+                ],
+                TypeValue::unknown_bool()
+            )
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@a:s,b:s@s").unmangle(),
+            (
+                vec![
+                    ("a", TypeValue::unknown_string()),
+                    ("b", TypeValue::unknown_string())
+                ],
+                TypeValue::unknown_string()
+            )
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@a:s,b:s:L@s:L").unmangle(),
+            (
+                vec![
+                    ("a", TypeValue::unknown_string()),
+                    (
+                        "b",
+                        TypeValue::unknown_string_with_constraints(vec![
+                            StringConstraint::Lowercase
+                        ])
+                    )
+                ],
                 TypeValue::unknown_string_with_constraints(vec![
                     StringConstraint::Lowercase
                 ])
@@ -370,9 +447,35 @@ mod test {
         );
 
         assert_eq!(
-            MangledFnName::from("foo@s@s:N16").unmangle(),
+            MangledFnName::from("foo@a:s,b:s:U@s:U").unmangle(),
             (
-                vec![TypeValue::unknown_string()],
+                vec![
+                    ("a", TypeValue::unknown_string()),
+                    (
+                        "b",
+                        TypeValue::unknown_string_with_constraints(vec![
+                            StringConstraint::Uppercase
+                        ])
+                    )
+                ],
+                TypeValue::unknown_string_with_constraints(vec![
+                    StringConstraint::Uppercase
+                ])
+            )
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@a:s,b:s:N16@s:N16").unmangle(),
+            (
+                vec![
+                    ("a", TypeValue::unknown_string()),
+                    (
+                        "b",
+                        TypeValue::unknown_string_with_constraints(vec![
+                            StringConstraint::ExactLength(16),
+                        ])
+                    )
+                ],
                 TypeValue::unknown_string_with_constraints(vec![
                     StringConstraint::ExactLength(16),
                 ])
@@ -380,9 +483,18 @@ mod test {
         );
 
         assert_eq!(
-            MangledFnName::from("foo@s@s:N16:L").unmangle(),
+            MangledFnName::from("foo@a:s,b:s:N16:L@s:N16:L").unmangle(),
             (
-                vec![TypeValue::unknown_string()],
+                vec![
+                    ("a", TypeValue::unknown_string()),
+                    (
+                        "b",
+                        TypeValue::unknown_string_with_constraints(vec![
+                            StringConstraint::ExactLength(16),
+                            StringConstraint::Lowercase
+                        ])
+                    )
+                ],
                 TypeValue::unknown_string_with_constraints(vec![
                     StringConstraint::ExactLength(16),
                     StringConstraint::Lowercase
@@ -411,20 +523,25 @@ mod test {
         );
 
         assert_eq!(
-            MangledFnName::from("Bar::foo@i@iu").method_of(),
+            MangledFnName::from("Bar::foo@a:i,b:i@iu").method_of(),
             Some("Bar")
         );
 
-        assert_eq!(MangledFnName::from("foo@i@iu").method_of(), None);
+        assert_eq!(
+            MangledFnName::from("bar.Bar::foo@a:i,b:i@iu").method_of(),
+            Some("bar.Bar")
+        );
 
-        assert!(!MangledFnName::from("foo@i@i").result_may_be_undef());
-        assert!(MangledFnName::from("foo@i@iu").result_may_be_undef());
+        assert_eq!(MangledFnName::from("foo@a:i,b:i@iu").method_of(), None);
+
+        assert!(!MangledFnName::from("foo@a:i,b:i@i").result_may_be_undef());
+        assert!(MangledFnName::from("foo@a:i,b:i@iu").result_may_be_undef());
     }
 
     #[test]
     #[should_panic]
     fn invalid_mangled_name_1() {
-        MangledFnName::from("foo@i").unmangle();
+        MangledFnName::from("foo@a:i").unmangle();
     }
 
     #[test]
@@ -436,6 +553,12 @@ mod test {
     #[test]
     #[should_panic]
     fn invalid_mangled_name_3() {
-        MangledFnName::from("foo@x@i").unmangle();
+        MangledFnName::from("foo@a:x@i").unmangle();
+    }
+
+    #[test]
+    #[should_panic]
+    fn missing_argument_name() {
+        MangledFnName::from("foo@i@i").unmangle();
     }
 }

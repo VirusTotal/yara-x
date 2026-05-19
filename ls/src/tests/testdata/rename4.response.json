@@ -1,0 +1,58 @@
+{
+  "changes": {
+    "${test_dir}/rename4.yar": [
+      {
+        "newText": "new_rule_identifier",
+        "range": {
+          "end": {
+            "character": 19,
+            "line": 9
+          },
+          "start": {
+            "character": 4,
+            "line": 9
+          }
+        }
+      },
+      {
+        "newText": "new_rule_identifier",
+        "range": {
+          "end": {
+            "character": 19,
+            "line": 14
+          },
+          "start": {
+            "character": 4,
+            "line": 14
+          }
+        }
+      },
+      {
+        "newText": "new_rule_identifier",
+        "range": {
+          "end": {
+            "character": 19,
+            "line": 19
+          },
+          "start": {
+            "character": 4,
+            "line": 19
+          }
+        }
+      },
+      {
+        "newText": "new_rule_identifier",
+        "range": {
+          "end": {
+            "character": 20,
+            "line": 0
+          },
+          "start": {
+            "character": 5,
+            "line": 0
+          }
+        }
+      }
+    ]
+  }
+}

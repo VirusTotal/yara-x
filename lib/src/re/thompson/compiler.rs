@@ -6,8 +6,8 @@ More specifically, the compiler produces two instruction sequences, one that
 matches the regexp left-to-right, and another one that matches right-to-left.
 */
 
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::fmt::{Display, Formatter};
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use std::iter::zip;
@@ -20,15 +20,15 @@ use bitvec::order::Lsb0;
 use regex_syntax::hir;
 use regex_syntax::hir::literal::Seq;
 use regex_syntax::hir::{
-    visit, Class, ClassBytes, Hir, HirKind, Literal, Look, Repetition, Visitor,
+    Class, ClassBytes, Hir, HirKind, Literal, Look, Repetition, Visitor, visit,
 };
 
 use super::instr;
-use super::instr::{literal_code_length, Instr, NumAlt, OPCODE_PREFIX};
+use super::instr::{Instr, NumAlt, OPCODE_PREFIX, literal_code_length};
 
 use crate::compiler::{
-    best_atom_in_bytes, Atom, AtomsQuality, DESIRED_ATOM_SIZE,
-    MAX_ATOMS_PER_REGEXP,
+    Atom, AtomsQuality, DESIRED_ATOM_SIZE, MAX_ATOMS_PER_REGEXP,
+    best_atom_in_bytes,
 };
 
 use crate::re;
@@ -557,7 +557,7 @@ impl Compiler {
         //     ....
         // lN: ... code for eN ...
         // lEND:
-        debug_assert!(alternatives.len() < 256);
+        debug_assert!(alternatives.len() <= MAX_ALTERNATIVES);
 
         let l0 = self.emit_split_n(alternatives.len().try_into().unwrap())?;
 
@@ -1252,6 +1252,10 @@ impl hir::Visitor for Compiler {
             for atom in atoms.iter_mut() {
                 atom.make_inexact();
             }
+            // Since atoms with different exactness may have become identical
+            // after make_inexact(), sort and dedup them to remove duplicates.
+            atoms.sort();
+            atoms.dedup();
         }
 
         let best_atoms = self.best_atoms_stack.last_mut().unwrap();
@@ -1713,32 +1717,31 @@ impl Display for InstrSeq {
         for (instr, addr) in InstrParser::new(self.seq.get_ref().as_slice()) {
             match instr {
                 Instr::AnyByte => {
-                    writeln!(f, "{:05x}: ANY_BYTE", addr)?;
+                    writeln!(f, "{addr:05x}: ANY_BYTE")?;
                 }
                 Instr::Byte(byte) => {
-                    writeln!(f, "{:05x}: LIT {:#04x}", addr, byte)?;
+                    writeln!(f, "{addr:05x}: LIT {byte:#04x}")?;
                 }
                 Instr::MaskedByte { byte, mask } => {
                     writeln!(
                         f,
-                        "{:05x}: MASKED_BYTE {:#04x} {:#04x}",
-                        addr, byte, mask
+                        "{addr:05x}: MASKED_BYTE {byte:#04x} {mask:#04x}"
                     )?;
                 }
                 Instr::CaseInsensitiveChar(c) => {
-                    writeln!(f, "{:05x}: CASE_INSENSITIVE {:#04x}", addr, c)?;
+                    writeln!(f, "{addr:05x}: CASE_INSENSITIVE {c:#04x}")?;
                 }
                 Instr::ClassRanges(class) => {
-                    write!(f, "{:05x}: CLASS_RANGES", addr)?;
+                    write!(f, "{addr:05x}: CLASS_RANGES")?;
                     for range in class.ranges() {
                         write!(f, " [{:#04x}-{:#04x}]", range.0, range.1)?;
                     }
                     writeln!(f)?;
                 }
                 Instr::ClassBitmap(class) => {
-                    write!(f, "{:05x}: CLASS_BITMAP", addr)?;
+                    write!(f, "{addr:05x}: CLASS_BITMAP")?;
                     for byte in class.bytes() {
-                        write!(f, " {:#04x}", byte)?;
+                        write!(f, " {byte:#04x}")?;
                     }
                     writeln!(f)?;
                 }
@@ -1800,31 +1803,31 @@ impl Display for InstrSeq {
                     )?;
                 }
                 Instr::Start => {
-                    writeln!(f, "{:05x}: START", addr)?;
+                    writeln!(f, "{addr:05x}: START")?;
                 }
                 Instr::End => {
-                    writeln!(f, "{:05x}: END", addr)?;
+                    writeln!(f, "{addr:05x}: END")?;
                 }
                 Instr::LineStart => {
-                    writeln!(f, "{:05x}: LINE_START", addr)?;
+                    writeln!(f, "{addr:05x}: LINE_START")?;
                 }
                 Instr::LineEnd => {
-                    writeln!(f, "{:05x}: LINE_END", addr)?;
+                    writeln!(f, "{addr:05x}: LINE_END")?;
                 }
                 Instr::WordBoundary => {
-                    writeln!(f, "{:05x}: WORD_BOUNDARY", addr)?;
+                    writeln!(f, "{addr:05x}: WORD_BOUNDARY")?;
                 }
                 Instr::WordBoundaryNeg => {
-                    writeln!(f, "{:05x}: WORD_BOUNDARY_NEG", addr)?;
+                    writeln!(f, "{addr:05x}: WORD_BOUNDARY_NEG")?;
                 }
                 Instr::WordStart => {
-                    writeln!(f, "{:05x}: WORD_START", addr)?;
+                    writeln!(f, "{addr:05x}: WORD_START")?;
                 }
                 Instr::WordEnd => {
-                    writeln!(f, "{:05x}: WORD_END", addr)?;
+                    writeln!(f, "{addr:05x}: WORD_END")?;
                 }
                 Instr::Match => {
-                    writeln!(f, "{:05x}: MATCH", addr)?;
+                    writeln!(f, "{addr:05x}: MATCH")?;
                     break;
                 }
             };
@@ -1997,9 +2000,17 @@ fn optimize_seq(mut seq: Seq) -> Option<Seq> {
 }
 
 fn seq_to_atoms(seq: Seq) -> Option<Vec<Atom>> {
-    optimize_seq(seq)?
+    let mut atoms: Vec<Atom> = optimize_seq(seq)?
         .literals()
-        .map(|literals| literals.iter().map(Atom::from).collect())
+        .map(|literals| literals.iter().map(Atom::from).collect())?;
+
+    // `regex-syntax`'s `Seq::dedup()` only removes consecutive duplicates.
+    // The Cartesian product can produce identical literals that are not
+    // consecutive, so we must sort and dedup here to remove them.
+    atoms.sort();
+    atoms.dedup();
+
+    Some(atoms)
 }
 
 /// A list of [`RegexpAtom`] that contains additional information, like the

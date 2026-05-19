@@ -4,7 +4,7 @@ use std::collections::{HashMap, VecDeque};
 use std::default::Default;
 use std::iter::zip;
 use std::mem;
-use std::str::{from_utf8, FromStr};
+use std::str::{FromStr, from_utf8};
 use std::sync::OnceLock;
 
 use bstr::{BStr, ByteSlice};
@@ -12,13 +12,13 @@ use digest;
 use itertools::Itertools;
 use memchr::memmem;
 use nom::branch::{alt, permutation};
-use nom::bytes::complete::{take, take_till};
+use nom::bytes::complete::{take, take_till, take_while_m_n};
 use nom::combinator::{
-    cond, consumed, iterator, map, opt, success, verify, Success,
+    Success, cond, consumed, iterator, map, opt, success, verify,
 };
 use nom::error::ErrorKind;
 use nom::multi::{
-    count, fold_many0, fold_many1, length_data, many0, many1, many_m_n,
+    count, fold_many0, fold_many1, length_data, many_m_n, many0, many1,
 };
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
 use nom::{Err, IResult, Parser, ToUsize};
@@ -307,7 +307,7 @@ impl<'a> PE<'a> {
     /// declared in the PE file.
     ///
     /// Sections appear in the same order as they are in the section table.
-    pub fn get_sections(&self) -> &[Section] {
+    pub fn get_sections(&self) -> &[Section<'_>] {
         self.sections.as_slice()
     }
 
@@ -323,7 +323,7 @@ impl<'a> PE<'a> {
     ///
     /// http://www.ntcore.com/files/richsign.htm
     /// https://bytepointer.com/articles/the_microsoft_rich_header.htm
-    pub fn get_rich_header(&self) -> Option<&RichHeader> {
+    pub fn get_rich_header(&self) -> Option<&RichHeader<'_>> {
         self.rich_header
             .get_or_init(|| {
                 Self::parse_rich_header()(self.dos_stub)
@@ -539,6 +539,8 @@ impl<'a> PE<'a> {
     const MAX_PE_EXPORTS: usize = 16384;
     const MAX_PE_RESOURCES: usize = 65536;
     const MAX_DIR_ENTRIES: usize = 16;
+    const MAX_FUNC_NAME_LENGTH: usize = 1024;
+    const MAX_DLL_NAME_LENGTH: usize = 512;
 
     fn parse_dos_header(input: &[u8]) -> IResult<&[u8], DOSHeader> {
         map(
@@ -896,22 +898,17 @@ impl<'a> PE<'a> {
             //
             // 2e9c671b8a0411f2b397544b368c44d7f095eb395779de0ad1ac946914dfa34c
             //
-            if let Some(string_table) = string_table {
-                if let Some(offset) = section
+            if let Some(string_table) = string_table
+                && let Some(offset) = section
                     .name
                     .to_str()
                     .ok()
                     .and_then(|name| name.strip_prefix('/'))
                     .and_then(|offset| u32::from_str(offset).ok())
-                {
-                    if let Some(s) = string_table.get(offset as usize..) {
-                        if let Ok((_, s)) =
-                            take_till::<_, &[u8], Error>(|c| c == 0)(s)
-                        {
-                            section.full_name = Some(BStr::new(s));
-                        }
-                    }
-                }
+                && let Some(s) = string_table.get(offset as usize..)
+                && let Ok((_, s)) = take_till::<_, &[u8], Error>(|c| c == 0)(s)
+            {
+                section.full_name = Some(BStr::new(s));
             }
 
             Ok((remainder, section))
@@ -1468,30 +1465,28 @@ impl<'a> PE<'a> {
                     }
                     if let Ok((_, rsrc_entry)) =
                         Self::parse_rsrc_entry(entry_data)
-                    {
-                        if rsrc_entry.size > 0 && rsrc_entry.offset > 0
+                        && rsrc_entry.size > 0 && rsrc_entry.offset > 0
                         // We could use the PE's size as an upper bound for
                         // the entry size, but there are some truncated files
                         // where the PE size is lower. Use a reasonably large
                         // value as the upper bound and avoid some completely
                         // corrupt entries with random values.
                         && (rsrc_entry.size as usize) < 0x3FFFFFFF
-                        {
-                            resources.push(Resource {
-                                type_id: ids.0,
-                                rsrc_id: ids.1,
-                                lang_id: ids.2,
-                                // `rsrc_entry.offset` is relative to the start of
-                                // the resource section, so it's actually an RVA.
-                                // Here we convert it to a file offset.
-                                offset: self.rva_to_offset(rsrc_entry.offset),
-                                rva: rsrc_entry.offset,
-                                length: rsrc_entry.size,
-                            });
+                    {
+                        resources.push(Resource {
+                            type_id: ids.0,
+                            rsrc_id: ids.1,
+                            lang_id: ids.2,
+                            // `rsrc_entry.offset` is relative to the start of
+                            // the resource section, so it's actually an RVA.
+                            // Here we convert it to a file offset.
+                            offset: self.rva_to_offset(rsrc_entry.offset),
+                            rva: rsrc_entry.offset,
+                            length: rsrc_entry.size,
+                        });
 
-                            if resources.len() == Self::MAX_PE_RESOURCES {
-                                return Some((resources_info, resources));
-                            }
+                        if resources.len() == Self::MAX_PE_RESOURCES {
+                            return Some((resources_info, resources));
                         }
                     }
                 }
@@ -1529,8 +1524,10 @@ impl<'a> PE<'a> {
     /// Returns a parser that parses a WIN_CERTIFICATE structure.
     fn win_cert_parser(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<AuthenticodeSignature<'a>>>
-           + '_ {
+    ) -> impl FnMut(
+        &'a [u8],
+    ) -> IResult<&'a [u8], Vec<AuthenticodeSignature<'a>>>
+    + '_ {
         move |input: &'a [u8]| {
             // Parse the WIN_CERTIFICATE structure.
             let (remainder, (length, _revision, _cert_type)) = (
@@ -1560,8 +1557,10 @@ impl<'a> PE<'a> {
     /// Authenticode signature.
     fn signature_parser(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<AuthenticodeSignature<'a>>>
-           + '_ {
+    ) -> impl FnMut(
+        &'a [u8],
+    ) -> IResult<&'a [u8], Vec<AuthenticodeSignature<'a>>>
+    + '_ {
         move |input: &'a [u8]| {
             let signatures = AuthenticodeParser::parse(input, self)
                 .map_err(|_| Err::Error(Error::new(input, ErrorKind::Fail)))?;
@@ -1676,7 +1675,7 @@ impl<'a> PE<'a> {
             .parse(cv_info)
             {
                 Ok((_, (_signature, _padding, pdb_path))) => {
-                    return Some(pdb_path)
+                    return Some(pdb_path);
                 }
                 Err(_) => continue,
             };
@@ -1797,7 +1796,9 @@ impl<'a> PE<'a> {
         let is_32_bits =
             self.optional_hdr.magic != Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC;
 
-        let mut imported_funcs = Vec::new();
+        let estimated_descriptors =
+            min(input.len() / Self::SIZE_OF_DIR_ENTRY, Self::MAX_PE_IMPORTS);
+        let mut imported_funcs = Vec::with_capacity(estimated_descriptors);
 
         // Parse import descriptors until finding one that is empty (filled
         // with null values), which indicates the end of the directory table;
@@ -1844,6 +1845,16 @@ impl<'a> PE<'a> {
                     continue;
                 };
 
+            let import_dll = if dll_name.eq_ignore_ascii_case("ws2_32.dll")
+                || dll_name.eq_ignore_ascii_case("wsock32.dll")
+            {
+                ImportDll::Wsock32
+            } else if dll_name.eq_ignore_ascii_case("oleaut32.dll") {
+                ImportDll::Oleaut32
+            } else {
+                ImportDll::Other
+            };
+
             // Use the INT (a.k.a: OriginalFirstThunk) if it is non-zero, but
             // fallback to using the IAT (a.k.a: FirstThunk).
             let thunks = if descriptor.import_name_table > 0 {
@@ -1853,20 +1864,25 @@ impl<'a> PE<'a> {
             }
             .or_else(|| self.data_at_rva(descriptor.import_address_table));
 
-            let thunks = match thunks {
+            let thunks_slice = match thunks {
                 Some(thunk) => thunk,
                 None => continue,
             };
+
+            let estimated_funcs = min(
+                thunks_slice.len() / if is_32_bits { 4 } else { 8 },
+                Self::MAX_PE_IMPORTS,
+            );
 
             // Parse the thunks, which are an array of 64-bits or 32-bits
             // values, depending on whether this is 64-bits PE file. The
             // array is terminated by a null thunk.
             let thunks = iterator(
-                thunks,
+                thunks_slice,
                 verify(uint(is_32_bits), |thunk| *thunk != 0),
             );
 
-            let mut funcs = Vec::new();
+            let mut funcs = Vec::with_capacity(estimated_funcs);
 
             for (i, mut thunk) in
                 &mut thunks.take(Self::MAX_PE_IMPORTS).enumerate()
@@ -1901,7 +1917,7 @@ impl<'a> PE<'a> {
                 if import_by_ordinal {
                     let ordinal = (thunk & 0xffff) as u16;
                     func.ordinal = Some(ordinal);
-                    func.name = ord_to_name(dll_name, ordinal);
+                    func.name = ord_to_name(import_dll, ordinal);
                 } else {
                     // When descriptor values are virtual addresses, thunks are
                     // virtual addresses too and need to be converted to RVAs.
@@ -1913,8 +1929,7 @@ impl<'a> PE<'a> {
                     if let Ok(rva) = TryInto::<u32>::try_into(thunk) {
                         func.name = self
                             .parse_at_rva(rva, Self::parse_import_by_name)
-                            .map(|n| n.to_vec())
-                            .and_then(|n| String::from_utf8(n).ok());
+                            .and_then(|s| String::from_utf8(s.to_vec()).ok())
                     }
                 }
 
@@ -2017,10 +2032,22 @@ impl<'a> PE<'a> {
     fn parse_import_by_name(input: &[u8]) -> IResult<&[u8], &[u8]> {
         map(
             (
-                le_u16, // hint
-                verify(take_till(|c: u8| c == 0_u8), |name: &[u8]| {
-                    !name.is_empty()
-                }), // name
+                // hint
+                le_u16,
+                // name
+                verify(
+                    // As a sanity check, function names are limited to
+                    // MAX_FUNC_NAME_LENGTH bytes. Some corrupted files can
+                    // produce larger names. Example:
+                    // 0a88c56ab8abf7955138f5ecc81a635d8fca70865f5f763fd07d9fb3d1381585
+                    take_while_m_n(0, Self::MAX_FUNC_NAME_LENGTH, |c: u8| {
+                        c != 0_u8
+                    }),
+                    |name: &[u8]| {
+                        !name.is_empty()
+                            && name.iter().all(|c| c.is_ascii_graphic())
+                    },
+                ),
             ),
             |(_, name)| name,
         )
@@ -2040,6 +2067,16 @@ impl<'a> PE<'a> {
 
         // Parse the IMAGE_EXPORT_DIRECTORY structure.
         let (_, exports) = Self::parse_exports_dir_entry(exports_data).ok()?;
+
+        // If the `address_of_functions` field is 0, do not parse exports it
+        // should be valid RVA within .text or .rdata sections.
+        if exports.address_of_functions == 0 {
+            return Some(ExportInfo {
+                dll_name: self.dll_name_at_rva(exports.name),
+                timestamp: exports.timestamp,
+                functions: Vec::new(),
+            });
+        }
 
         let num_exports =
             min(exports.number_of_functions as usize, Self::MAX_PE_EXPORTS);
@@ -2092,17 +2129,16 @@ impl<'a> PE<'a> {
 
         // Create a vector with one item per exported function. Items in the
         // array initially have function RVA and ordinal only.
-        let mut exported_funcs: Vec<_> = func_rvas
-            .take(num_exports)
-            .enumerate()
-            .filter_map(|(i, rva)| {
-                Some(ExportedFunc {
+        let mut exported_funcs = Vec::with_capacity(num_exports);
+        for (i, rva) in func_rvas.take(num_exports).enumerate() {
+            if let Some(ordinal) = exports.base.checked_add(i as u32) {
+                exported_funcs.push(ExportedFunc {
                     rva,
-                    ordinal: exports.base.checked_add(i as u32)?,
+                    ordinal,
                     ..Default::default()
-                })
-            })
-            .collect();
+                });
+            }
+        }
 
         let names = self
             .parse_at_rva(exports.address_of_names, count(le_u32, num_names))
@@ -2122,10 +2158,10 @@ impl<'a> PE<'a> {
                     .find_position(|ordinal| {
                         *ordinal as u32 == f.ordinal - exports.base
                     })
+                && let Some(name_rva) = names.get(idx)
             {
-                if let Some(name_rva) = names.get(idx) {
-                    f.name = self.str_at_rva(*name_rva);
-                }
+                f.name =
+                    self.str_at_rva(*name_rva, Self::MAX_FUNC_NAME_LENGTH);
             }
 
             // If the function's RVA is within the exports section (as given
@@ -2134,7 +2170,8 @@ impl<'a> PE<'a> {
             // really pointing to the function, but to a ASCII string that
             // contains the DLL and function to which this export is forwarded.
             if exports_section.contains(&f.rva) {
-                f.forward_name = self.str_at_rva(f.rva);
+                f.forward_name =
+                    self.str_at_rva(f.rva, Self::MAX_FUNC_NAME_LENGTH);
             } else {
                 f.offset = self.rva_to_offset(f.rva);
             }
@@ -2203,9 +2240,9 @@ impl<'a> PE<'a> {
         parser.parse(data).map(|(_, result)| result).ok()
     }
 
-    fn str_at_rva(&self, rva: u32) -> Option<&'a str> {
-        let dll_name = self.parse_at_rva(rva, take_till(|c| c == 0))?;
-        from_utf8(dll_name).ok()
+    fn str_at_rva(&self, rva: u32, max_len: usize) -> Option<&'a str> {
+        self.parse_at_rva(rva, take_while_m_n(0, max_len, |c| c != 0))
+            .map(|s| from_utf8(s).ok())?
     }
 
     fn dll_name_at_rva(&self, rva: u32) -> Option<&'a str> {
@@ -2213,7 +2250,7 @@ impl<'a> PE<'a> {
         // restrictive? YARA is using a more relaxed approach and accepts
         // every byte except the ones listed below. YARA imposes a length
         // limit of 256 bytes, though.
-        let dll_name = self.str_at_rva(rva)?;
+        let dll_name = self.str_at_rva(rva, Self::MAX_DLL_NAME_LENGTH)?;
 
         for c in dll_name.chars() {
             if c.is_ascii_control() {
@@ -2805,19 +2842,26 @@ fn utf16_le_string() -> impl FnMut(&[u8]) -> IResult<&[u8], String> {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum ImportDll {
+    Wsock32,
+    Oleaut32,
+    Other,
+}
+
 /// Convert ordinal number to function name.
 ///
 /// For some well-known DLLs the returned name is the one that that corresponds
 /// to the given ordinal. For the remaining DLLs the returned name has the form
 /// "ordN" where N is the ordinal (e.g: "ord1", "ord23").
-fn ord_to_name(dll_name: &str, ordinal: u16) -> Option<String> {
-    let func_name = match dll_name.to_ascii_lowercase().as_str() {
-        "ws2_32.dll" | "wsock32.dll" => wsock32_ord_to_name(ordinal),
-        "oleaut32.dll" => oleaut32_ord_to_name(ordinal),
-        _ => None,
+fn ord_to_name(well_known: ImportDll, ordinal: u16) -> Option<String> {
+    let func_name = match well_known {
+        ImportDll::Wsock32 => wsock32_ord_to_name(ordinal),
+        ImportDll::Oleaut32 => oleaut32_ord_to_name(ordinal),
+        ImportDll::Other => None,
     };
 
-    func_name.map(|n| n.to_owned()).or_else(|| Some(format!("ord{}", ordinal)))
+    func_name.map(|n| n.to_owned()).or_else(|| Some(format!("ord{ordinal}")))
 }
 
 /// Convert ordinal number to function name for oleaut32.dll.

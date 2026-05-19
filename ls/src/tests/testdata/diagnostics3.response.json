@@ -1,0 +1,41 @@
+{
+  "items": [
+    {
+      "code": "E025",
+      "data": {
+        "patches": []
+      },
+      "message": "unknown pattern `$b`",
+      "range": {
+        "end": {
+          "character": 13,
+          "line": 4
+        },
+        "start": {
+          "character": 11,
+          "line": 4
+        }
+      },
+      "relatedInformation": [
+        {
+          "location": {
+            "range": {
+              "end": {
+                "character": 13,
+                "line": 4
+              },
+              "start": {
+                "character": 11,
+                "line": 4
+              }
+            },
+            "uri": "${test_dir}/diagnostics3.yar"
+          },
+          "message": "this pattern is not declared in the `strings` section"
+        }
+      ],
+      "severity": 1
+    }
+  ],
+  "kind": "full"
+}

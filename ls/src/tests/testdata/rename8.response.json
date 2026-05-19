@@ -1,0 +1,32 @@
+{
+  "changes": {
+    "${test_dir}/rename8.yar": [
+      {
+        "newText": "new_ident",
+        "range": {
+          "end": {
+            "character": 11,
+            "line": 9
+          },
+          "start": {
+            "character": 6,
+            "line": 9
+          }
+        }
+      },
+      {
+        "newText": "new_ident",
+        "range": {
+          "end": {
+            "character": 24,
+            "line": 9
+          },
+          "start": {
+            "character": 19,
+            "line": 9
+          }
+        }
+      }
+    ]
+  }
+}

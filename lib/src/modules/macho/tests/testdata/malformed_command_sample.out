@@ -1,0 +1,19 @@
+magic: 0xcffaedfe
+cputype: 0x0
+cpusubtype: 0x2000000
+filetype: 1953909808
+ncmds: 778961920
+sizeofcmds: 1694498816
+flags: 0x0
+reserved: 721420288
+number_of_segments: 1
+segments:
+  - segname: "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00?"
+    vmaddr: 0x0
+    vmsize: 0x0
+    fileoff: 2600468480
+    filesize: 234881024
+    maxprot: 0x0
+    initprot: 0x0
+    nsects: 0
+    flags: 0x0

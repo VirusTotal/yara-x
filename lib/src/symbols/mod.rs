@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::{mem, ptr};
@@ -8,7 +8,7 @@ use std::{mem, ptr};
 use bstr::BString;
 
 use crate::compiler::{RuleId, Var};
-use crate::types::{AclEntry, Func, Type, TypeValue};
+use crate::types::{AclEntry, DeprecationNotice, Func, Type, TypeValue};
 
 /// Trait implemented by types that allow looking up for a symbol.
 pub(crate) trait SymbolLookup {
@@ -37,10 +37,14 @@ pub(crate) enum Symbol {
         acl: Option<Vec<AclEntry>>,
         /// If the field is deprecated, this will contain the message shown when
         /// the field is used in a rule.
-        deprecation_msg: Option<String>,
+        deprecation_notice: Option<DeprecationNotice>,
     },
     /// The symbol refers to a rule.
-    Rule(RuleId),
+    Rule {
+        rule_id: RuleId,
+        /// True if the rule is global.
+        is_global: bool,
+    },
     /// The symbol refers to a function.
     Func(Rc<Func>),
 }
@@ -56,7 +60,7 @@ impl Hash for Symbol {
                 index.hash(state);
                 is_root.hash(state);
             }
-            Symbol::Rule(rule_id) => {
+            Symbol::Rule { rule_id, .. } => {
                 rule_id.hash(state);
             }
             Symbol::Func(func) => func.hash(state),
@@ -88,8 +92,8 @@ impl PartialEq for Symbol {
                     false
                 }
             }
-            Symbol::Rule(this) => {
-                if let Symbol::Rule(other) = other {
+            Symbol::Rule { rule_id: this, .. } => {
+                if let Symbol::Rule { rule_id: other, .. } = other {
                     this == other
                 } else {
                     false
@@ -113,7 +117,7 @@ impl Symbol {
         match &self {
             Symbol::Var { var, .. } => var.ty(),
             Symbol::Field { type_value, .. } => type_value.ty(),
-            Symbol::Rule(_) => Type::Bool,
+            Symbol::Rule { .. } => Type::Bool,
             Symbol::Func(_) => Type::Func,
         }
     }
@@ -122,7 +126,7 @@ impl Symbol {
         match &self {
             Symbol::Var { type_value, .. } => type_value.clone(),
             Symbol::Field { type_value, .. } => type_value.clone(),
-            Symbol::Rule(_) => TypeValue::unknown_bool(),
+            Symbol::Rule { .. } => TypeValue::unknown_bool(),
             Symbol::Func(func) => TypeValue::Func(func.clone()),
         }
     }
@@ -189,12 +193,13 @@ impl SymbolLookup for Option<Symbol> {
 /// [`SymbolTable`].
 pub(crate) struct SymbolTable {
     map: HashMap<String, Symbol>,
+    used: RefCell<HashSet<String>>,
 }
 
 impl SymbolTable {
     /// Creates a new symbol table.
     pub fn new() -> Self {
-        Self { map: HashMap::new() }
+        Self { map: HashMap::new(), used: RefCell::new(HashSet::new()) }
     }
 
     /// Inserts a new symbol into the symbol table.
@@ -218,6 +223,16 @@ impl SymbolTable {
     {
         self.map.contains_key(ident.as_ref())
     }
+
+    /// Returns true if a lookup operation for the given identifier resulted
+    /// in a symbol being returned.
+    #[inline]
+    pub fn used<I>(&self, ident: I) -> bool
+    where
+        I: AsRef<str>,
+    {
+        self.used.borrow().contains(ident.as_ref())
+    }
 }
 
 impl Default for SymbolTable {
@@ -226,21 +241,26 @@ impl Default for SymbolTable {
     }
 }
 
-impl SymbolLookup for SymbolTable {
+impl SymbolLookup for &SymbolTable {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
-        self.map.get(ident).cloned()
+        if let Some(symbol) = self.map.get(ident) {
+            self.used.borrow_mut().insert(ident.to_string());
+            Some(symbol.clone())
+        } else {
+            None
+        }
     }
 }
 
-impl SymbolLookup for &SymbolTable {
+impl SymbolLookup for SymbolTable {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
-        self.map.get(ident).cloned()
+        (&self).lookup(ident)
     }
 }
 
 impl SymbolLookup for RefCell<SymbolTable> {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
-        self.borrow().map.get(ident).cloned()
+        self.borrow().lookup(ident)
     }
 }
 
@@ -255,11 +275,11 @@ impl SymbolLookup for RefCell<SymbolTable> {
 /// If the symbol table at the top of the stack contains an identifier "foo",
 /// it hides any other identifier "foo" that may exist on a symbol table that
 /// is deeper in the stack.
-pub(crate) struct StackedSymbolTable<'a> {
-    stack: VecDeque<Rc<dyn SymbolLookup + 'a>>,
+pub(crate) struct StackedSymbolTable {
+    stack: VecDeque<Rc<RefCell<SymbolTable>>>,
 }
 
-impl<'a> StackedSymbolTable<'a> {
+impl StackedSymbolTable {
     /// Creates a new [`StackedSymbolTable`].
     pub(crate) fn new() -> Self {
         Self { stack: VecDeque::new() }
@@ -273,7 +293,7 @@ impl<'a> StackedSymbolTable<'a> {
     }
 
     /// Pushes a new symbol table into the stack.
-    pub(crate) fn push(&mut self, symbol_table: Rc<dyn SymbolLookup + 'a>) {
+    pub(crate) fn push(&mut self, symbol_table: Rc<RefCell<SymbolTable>>) {
         self.stack.push_back(symbol_table)
     }
 
@@ -281,7 +301,7 @@ impl<'a> StackedSymbolTable<'a> {
     ///
     /// Returns the symbol table removed from the stack or None if the stack
     /// was empty.
-    pub(crate) fn pop(&mut self) -> Option<Rc<dyn SymbolLookup + 'a>> {
+    pub(crate) fn pop(&mut self) -> Option<Rc<RefCell<SymbolTable>>> {
         self.stack.pop_back()
     }
 
@@ -301,7 +321,7 @@ impl<'a> StackedSymbolTable<'a> {
     }
 }
 
-impl SymbolLookup for StackedSymbolTable<'_> {
+impl SymbolLookup for StackedSymbolTable {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         // Look for the identifier starting at the top of the stack, and
         // going down the stack until it's found or the bottom of the
@@ -329,9 +349,9 @@ mod tests {
     fn message_lookup() {
         use protobuf::{Enum, MessageFull};
 
+        use crate::modules::protos::test_proto2::TestProto2;
         use crate::modules::protos::test_proto2::test_proto2::Enumeration;
         use crate::modules::protos::test_proto2::test_proto2::Enumeration2;
-        use crate::modules::protos::test_proto2::TestProto2;
 
         let test = Struct::from_proto_descriptor_and_msg(
             &TestProto2::descriptor(),
@@ -363,9 +383,9 @@ mod tests {
     fn message_dyn_lookup() {
         use protobuf::{Enum, Message, MessageField, MessageFull};
 
-        use crate::modules::protos::test_proto2::test_proto2::Enumeration;
         use crate::modules::protos::test_proto2::NestedProto2;
         use crate::modules::protos::test_proto2::TestProto2;
+        use crate::modules::protos::test_proto2::test_proto2::Enumeration;
 
         let mut test = TestProto2::new();
         let mut nested = NestedProto2::new();

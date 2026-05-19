@@ -69,7 +69,7 @@ impl<'a> InstrParser<'a> {
     }
 
     #[inline(always)]
-    pub(crate) fn decode_instr(code: &[u8]) -> (Instr, usize) {
+    pub(crate) fn decode_instr(code: &[u8]) -> (Instr<'_>, usize) {
         match code[..] {
             [Instr::LITERAL, ..] => {
                 let literal_len = Self::decode_u16(&code[1..]) as usize;

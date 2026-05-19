@@ -5,4 +5,3 @@ warning[unsatisfiable_expr]: potentially unsatisfiable expression
   |     -         ---- but they must match at the same offset
   |     |
   |     this implies that multiple patterns must match
-  |

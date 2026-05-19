@@ -1,2 +1,18 @@
-ERRORS:
-- SyntaxError { message: "expecting expression, found `of`", span: Span(77..79) }
+ rule test
+ ├─ strings
+ │  ├─ $a = "foo" 
+ │  └─ $b = "bar" 
+ └─ condition
+    └─ for <quantifier> of <items> : ( <condition> )
+       ├─ <quantifier>
+       │  └─ percentage
+       │     └─ <expr>[<index>]
+       │        ├─ <expr>
+       │        │  └─ foo
+       │        └─ <index>
+       │           └─ 1
+       ├─ <items>
+       │  └─ them
+       └─ <condition>
+          └─ $
+

@@ -1,0 +1,15 @@
+[
+  {
+    "newText": "rule test {\n    strings:\n        $a = \"some string\"\n    condition:\n        $a\n}\n",
+    "range": {
+      "end": {
+        "character": 0,
+        "line": 6
+      },
+      "start": {
+        "character": 0,
+        "line": 0
+      }
+    }
+  }
+]

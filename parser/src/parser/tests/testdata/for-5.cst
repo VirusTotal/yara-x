@@ -29,18 +29,15 @@ SOURCE_FILE@0..61
                 L_PAREN@39..40 "("
                 EXPR@40..41
                   TERM@40..41
-                    PRIMARY_EXPR@40..41
-                      INTEGER_LIT@40..41 "1"
+                    INTEGER_LIT@40..41 "1"
                 COMMA@41..42 ","
                 EXPR@42..43
                   TERM@42..43
-                    PRIMARY_EXPR@42..43
-                      INTEGER_LIT@42..43 "2"
+                    INTEGER_LIT@42..43 "2"
                 COMMA@43..44 ","
                 EXPR@44..45
                   TERM@44..45
-                    PRIMARY_EXPR@44..45
-                      INTEGER_LIT@44..45 "3"
+                    INTEGER_LIT@44..45 "3"
                 R_PAREN@45..46 ")"
             WHITESPACE@46..47 " "
             COLON@47..48 ":"
@@ -57,8 +54,7 @@ SOURCE_FILE@0..61
                 WHITESPACE@54..55 " "
                 EXPR@55..56
                   TERM@55..56
-                    PRIMARY_EXPR@55..56
-                      INTEGER_LIT@55..56 "3"
+                    INTEGER_LIT@55..56 "3"
             R_PAREN@56..57 ")"
     NEWLINE@57..58 "\n"
     R_BRACE@58..59 "}"

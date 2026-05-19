@@ -1,0 +1,31 @@
+is_crx: true
+crx_version: 2
+header_size: 550
+id: "bcfobhaoipaplhldickghhklmngpiplj"
+version: "3.7"
+name: "比特币行情"
+description: "查询比特币莱特币和其他虚拟货币实时价格的小工具."
+permissions:
+  - "notifications"
+  - "https://www.okcoin.com/"
+  - "https://www.okcoin.cn/"
+  - "https://vip.btcchina.com/"
+  - "http://data.mtgox.com/"
+  - "https://www.bitstamp.net/"
+  - "http://www.btctrade.com/"
+  - "http://www.btcclubs.com/"
+  - "https://api.huobi.com/"
+  - "http://market.huobi.com/"
+  - "https://market.huobi.com/"
+  - "http://api.796.com/"
+  - "https://data.fxbtc.com/"
+  - "http://www.btc38.com/"
+  - "https://bter.com/"
+  - "http://data.bter.com/"
+  - "https://data.bter.com/"
+  - "https://weibo.com/"
+  - "https://www.jubi.com/"
+  - "http://*/"
+signatures:
+  - key: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxxkuq41iWZZtc/m1HzxkAMFeUa8QF+k3Bja23YmnLPvwbfC+WDCxBp7S4hm2agbFbi/OS3z2hvjDFd0AgNhzoYVJjMEr2Qw7hJqQUrW0Lubyxh4DwkJuX6f524SE1C28ixnnOw6qqC7HjB5on4ErUeeeADITjW9/era7aBrtZTKIKmggOrpyin1PM1I6GlfTTthZeDJgR5tcuxnqQ5FWtz4onMeT+FKsKjKt03UNxWucba5Dx/M9ITX4sn9/HbbpEHBeNsXbgfrwlz7NT4fj3sqyu4Tbhkude+7Wi6CrD8Z1qhIXHeACsIR34uib4IW2ghHMUBsegX8h/Cs/YHD6cwIDAQAB"
+    verified: true

@@ -7,11 +7,13 @@
 
 use std::cell::RefCell;
 
-use crate::modules::prelude::*;
-use crate::modules::protos::macho::*;
 use bstr::BString;
 use itertools::Itertools;
 use md5::{Digest, Md5};
+
+use crate::mods::prelude::*;
+use crate::modules::macho::parser::{N_EXT, N_STAB, N_TYPE};
+use crate::modules::protos::macho::*;
 
 mod parser;
 #[cfg(test)]
@@ -54,12 +56,11 @@ fn file_index_type(ctx: &mut ScanContext, type_arg: i64) -> Option<i64> {
 
     // Iterate over fat_arch up to nfat entries
     for i in 0..nfat as usize {
-        if let Some(arch) = macho.fat_arch.get(i) {
-            if let Some(cputype) = arch.cputype {
-                if cputype as i64 == type_arg {
-                    return Some(i as i64);
-                }
-            }
+        if let Some(arch) = macho.fat_arch.get(i)
+            && let Some(cputype) = arch.cputype
+            && cputype as i64 == type_arg
+        {
+            return Some(i as i64);
         }
     }
 
@@ -95,16 +96,13 @@ fn file_index_subtype(
 
     // Iterate over fat_arch up to nfat entries
     for i in 0..nfat as usize {
-        if let Some(arch) = macho.fat_arch.get(i) {
-            if let (Some(cputype), Some(cpusubtype)) =
+        if let Some(arch) = macho.fat_arch.get(i)
+            && let (Some(cputype), Some(cpusubtype)) =
                 (arch.cputype, arch.cpusubtype)
-            {
-                if cputype as i64 == type_arg
-                    && cpusubtype as i64 == subtype_arg
-                {
-                    return Some(i as i64);
-                }
-            }
+            && cputype as i64 == type_arg
+            && cpusubtype as i64 == subtype_arg
+        {
+            return Some(i as i64);
         }
     }
 
@@ -135,16 +133,13 @@ fn ep_for_arch_type(ctx: &mut ScanContext, type_arg: i64) -> Option<i64> {
 
     // Iterate over fat_arch up to nfat entries
     for i in 0..nfat as usize {
-        if let Some(arch) = macho.fat_arch.get(i) {
-            if let Some(cputype) = arch.cputype {
-                if cputype as i64 == type_arg {
-                    let file_offset = arch.offset?;
-                    let entry_point = macho.file.get(i)?.entry_point?;
-                    return file_offset
-                        .checked_add(entry_point)
-                        .map(|sum| sum as i64);
-                }
-            }
+        if let Some(arch) = macho.fat_arch.get(i)
+            && let Some(cputype) = arch.cputype
+            && cputype as i64 == type_arg
+        {
+            let file_offset = arch.offset?;
+            let entry_point = macho.file.get(i)?.entry_point?;
+            return file_offset.checked_add(entry_point).map(|sum| sum as i64);
         }
     }
 
@@ -180,20 +175,15 @@ fn ep_for_arch_subtype(
 
     // Iterate over fat_arch up to nfat entries
     for i in 0..nfat as usize {
-        if let Some(arch) = macho.fat_arch.get(i) {
-            if let (Some(cputype), Some(cpusubtype)) =
+        if let Some(arch) = macho.fat_arch.get(i)
+            && let (Some(cputype), Some(cpusubtype)) =
                 (arch.cputype, arch.cpusubtype)
-            {
-                if cputype as i64 == type_arg
-                    && cpusubtype as i64 == subtype_arg
-                {
-                    let file_offset = arch.offset?;
-                    let entry_point = macho.file.get(i)?.entry_point?;
-                    return file_offset
-                        .checked_add(entry_point)
-                        .map(|sum| sum as i64);
-                }
-            }
+            && cputype as i64 == type_arg
+            && cpusubtype as i64 == subtype_arg
+        {
+            let file_offset = arch.offset?;
+            let entry_point = macho.file.get(i)?.entry_point?;
+            return file_offset.checked_add(entry_point).map(|sum| sum as i64);
         }
     }
 
@@ -334,13 +324,14 @@ fn has_export(ctx: &ScanContext, export: RuntimeString) -> Option<bool> {
 
 /// Returns a md5 hash of the dylibs designated in the mach-o binary
 #[module_export]
-fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached = DYLIB_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
-        cache
-            .borrow()
-            .as_deref()
-            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
-    });
+fn dylib_hash(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
+    let cached = DYLIB_MD5_CACHE.with(
+        |cache| -> Option<Lowercase<FixedLenString<32>>> {
+            cache.borrow().as_deref().map(|s| {
+                Lowercase::<FixedLenString<32>>::from_slice(ctx, s.as_bytes())
+            })
+        },
+    );
 
     if cached.is_some() {
         return cached;
@@ -382,19 +373,21 @@ fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
-    Some(RuntimeString::new(digest))
+    Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
 /// Returns a md5 hash of the entitlements designated in the mach-o binary
 #[module_export]
-fn entitlement_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached =
-        ENTITLEMENT_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
-            cache
-                .borrow()
-                .as_deref()
-                .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
-        });
+fn entitlement_hash(
+    ctx: &mut ScanContext,
+) -> Option<Lowercase<FixedLenString<32>>> {
+    let cached = ENTITLEMENT_MD5_CACHE.with(
+        |cache| -> Option<Lowercase<FixedLenString<32>>> {
+            cache.borrow().as_deref().map(|s| {
+                Lowercase::<FixedLenString<32>>::from_slice(ctx, s.as_bytes())
+            })
+        },
+    );
 
     if cached.is_some() {
         return cached;
@@ -431,18 +424,21 @@ fn entitlement_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
-    Some(RuntimeString::new(digest))
+    Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
 /// Returns a md5 hash of the export symbols in the mach-o binary
 #[module_export]
-fn export_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached = EXPORT_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
-        cache
-            .borrow()
-            .as_deref()
-            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
-    });
+fn export_hash(
+    ctx: &mut ScanContext,
+) -> Option<Lowercase<FixedLenString<32>>> {
+    let cached = EXPORT_MD5_CACHE.with(
+        |cache| -> Option<Lowercase<FixedLenString<32>>> {
+            cache.borrow().as_deref().map(|s| {
+                Lowercase::<FixedLenString<32>>::from_slice(ctx, s.as_bytes())
+            })
+        },
+    );
 
     if cached.is_some() {
         return cached;
@@ -479,18 +475,21 @@ fn export_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
-    Some(RuntimeString::new(digest))
+    Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
 /// Returns a md5 hash of the imported symbols in the mach-o binary
 #[module_export]
-fn import_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached = IMPORT_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
-        cache
-            .borrow()
-            .as_deref()
-            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
-    });
+fn import_hash(
+    ctx: &mut ScanContext,
+) -> Option<Lowercase<FixedLenString<32>>> {
+    let cached = IMPORT_MD5_CACHE.with(
+        |cache| -> Option<Lowercase<FixedLenString<32>>> {
+            cache.borrow().as_deref().map(|s| {
+                Lowercase::<FixedLenString<32>>::from_slice(ctx, s.as_bytes())
+            })
+        },
+    );
 
     if cached.is_some() {
         return cached;
@@ -527,18 +526,19 @@ fn import_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
-    Some(RuntimeString::new(digest))
+    Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
-/// Returns a md5 hash of the symbol table in the mach-o binary
+/// Returns a md5 hash of specific parts of the symbol table
+/// as defined by http://github.com/threatstream/symhash
 #[module_export]
-fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached = SYM_MD5_CACHE.with(|cache| -> Option<RuntimeString> {
-        cache
-            .borrow()
-            .as_deref()
-            .map(|s| RuntimeString::from_slice(ctx, s.as_bytes()))
-    });
+fn symhash(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
+    let cached =
+        SYM_MD5_CACHE.with(|cache| -> Option<Lowercase<FixedLenString<32>>> {
+            cache.borrow().as_deref().map(|s| {
+                Lowercase::<FixedLenString<32>>::from_slice(ctx, s.as_bytes())
+            })
+        });
 
     if cached.is_some() {
         return cached;
@@ -546,11 +546,13 @@ fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     let macho = ctx.module_output::<Macho>()?;
     let mut symtab_to_hash = &macho.symtab.entries;
+    let mut nlists = &macho.symtab.nlists;
 
     // if there is not a symbtol table in the main Macho, the symbol table of the
     // nested file should be hashed
     if symtab_to_hash.is_empty() && !macho.file.is_empty() {
         symtab_to_hash = &macho.file[0].symtab.entries;
+        nlists = &macho.file[0].symtab.nlists
     }
 
     // we need to check again as the nested symbol table could be empty too
@@ -558,11 +560,24 @@ fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         return None;
     }
 
-    let mut md5_hash: digest::core_api::CoreWrapper<md5::Md5Core> = Md5::new();
+    let mut md5_hash = Md5::new();
 
-    let symtab_hash_entries = symtab_to_hash
+    // ref: implementation of symhash published at https://github.com/threatstream/symhash/
+    let symtab_hash_entries = nlists
         .iter()
-        .map(|e| BString::new(e.trim().to_lowercase()))
+        .enumerate()
+        .filter_map(|(idx, nlist)| {
+            let n_type = nlist.n_type();
+            if (n_type & N_STAB as u32 == 0)
+                && (n_type & N_EXT as u32) == N_EXT as u32
+                && (n_type & N_TYPE as u32) == 0
+            {
+                symtab_to_hash.get(idx)
+            } else {
+                None
+            }
+        })
+        .map(|s| BString::new(s.trim().to_vec()))
         .unique()
         .sorted()
         .join(",");
@@ -575,10 +590,9 @@ fn sym_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
-    Some(RuntimeString::new(digest))
+    Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
-#[module_main]
 fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Macho, ModuleError> {
     DYLIB_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
     ENTITLEMENT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
@@ -591,3 +605,5 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Macho, ModuleError> {
         Err(_) => Ok(Macho::new()),
     }
 }
+
+register_module!("macho", Macho, main);

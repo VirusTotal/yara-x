@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "lnk-module"
-weight: 304
+weight: 600
 toc: true
 seo:
   title: "" # custom title (optional)

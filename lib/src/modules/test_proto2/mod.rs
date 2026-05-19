@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::test_proto2::NestedProto2;
 use crate::modules::protos::test_proto2::TestProto2;
 use crate::types::Struct;
@@ -8,29 +8,34 @@ use crate::types::Struct;
 #[cfg(test)]
 mod tests;
 
+/// Adds two integers.
 #[module_export(name = "add")]
 pub(crate) fn add_i64(_ctx: &mut ScanContext, a: i64, b: i64) -> i64 {
     a + b
 }
 
+/// Adds two floats.
 #[module_export(name = "add")]
 pub(crate) fn add_f64(_ctx: &mut ScanContext, a: f64, b: f64) -> f64 {
     a + b
 }
 
+/// Converts a string to uppercase.
 #[module_export(name = "uppercase")]
 pub(crate) fn uppercase(
     ctx: &mut ScanContext,
     s: RuntimeString,
-) -> RuntimeString {
-    RuntimeString::new(s.as_bstr(ctx).to_uppercase())
+) -> Uppercase<RuntimeString> {
+    Uppercase::new(s.as_bstr(ctx).to_uppercase())
 }
 
+/// A nested function.
 #[module_export(name = "nested.nested_func")]
 pub(crate) fn nested_func(_ctx: &mut ScanContext) -> bool {
     true
 }
 
+/// A nested method.
 #[module_export(
     name = "nested_method",
     method_of = "test_proto2.NestedProto2"
@@ -42,6 +47,7 @@ pub(crate) fn nested_method(
     structure.field_by_name("nested_bool").unwrap().type_value.as_bool()
 }
 
+/// A nested method with an argument.
 #[module_export(
     name = "nested_method_with_arg",
     method_of = "test_proto2.NestedProto2"
@@ -61,17 +67,20 @@ pub(crate) fn nested_method_with_arg(
     arg.eq(field.as_bstr())
 }
 
+/// Returns an undefined integer.
 #[module_export]
 pub(crate) fn undef_i64(_ctx: &mut ScanContext) -> Option<i64> {
     None
 }
 
+/// Extracts the first n bytes of the scanned data.
 #[module_export]
 fn head(ctx: &mut ScanContext, n: i64) -> Option<RuntimeString> {
-    let head = ctx.scanned_data().get(0..n as usize)?;
+    let head = ctx.scanned_data()?.get(0..n as usize)?;
     Some(RuntimeString::from_slice(ctx, head))
 }
 
+/// Gets foo from the protobuf.
 #[module_export]
 fn get_foo(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let proto = ctx.module_output::<TestProto2>()?;
@@ -79,14 +88,14 @@ fn get_foo(ctx: &mut ScanContext) -> Option<RuntimeString> {
     Some(RuntimeString::new(string_foo))
 }
 
+/// Converts a string to an integer.
 #[module_export]
 fn to_int(ctx: &ScanContext, string: RuntimeString) -> Option<i64> {
     let string = string.to_str(ctx).ok()?;
     string.parse::<i64>().ok()
 }
 
-#[module_main]
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<TestProto2, ModuleError> {
+fn main(data: &[u8], meta: Option<&[u8]>) -> Result<TestProto2, ModuleError> {
     let mut test = TestProto2::new();
 
     test.set_int32_zero(0);
@@ -178,5 +187,9 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<TestProto2, ModuleError> {
 
     test.set_timestamp(1748591440);
 
+    test.metadata = meta.map(Vec::from);
+
     Ok(test)
 }
+
+register_module!("test_proto2", TestProto2, main);

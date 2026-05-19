@@ -1,0 +1,103 @@
+[
+  {
+    "detail": "include",
+    "kind": 1,
+    "name": "foo",
+    "range": {
+      "end": {
+        "character": 13,
+        "line": 0
+      },
+      "start": {
+        "character": 0,
+        "line": 0
+      }
+    },
+    "selectionRange": {
+      "end": {
+        "character": 13,
+        "line": 0
+      },
+      "start": {
+        "character": 0,
+        "line": 0
+      }
+    }
+  },
+  {
+    "detail": "import",
+    "kind": 2,
+    "name": "foo",
+    "range": {
+      "end": {
+        "character": 12,
+        "line": 2
+      },
+      "start": {
+        "character": 0,
+        "line": 2
+      }
+    },
+    "selectionRange": {
+      "end": {
+        "character": 12,
+        "line": 2
+      },
+      "start": {
+        "character": 0,
+        "line": 2
+      }
+    }
+  },
+  {
+    "children": [
+      {
+        "kind": 17,
+        "name": "condition",
+        "range": {
+          "end": {
+            "character": 8,
+            "line": 6
+          },
+          "start": {
+            "character": 4,
+            "line": 6
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 8,
+            "line": 6
+          },
+          "start": {
+            "character": 4,
+            "line": 6
+          }
+        }
+      }
+    ],
+    "detail": "rule",
+    "kind": 12,
+    "name": "test",
+    "range": {
+      "end": {
+        "character": 9,
+        "line": 4
+      },
+      "start": {
+        "character": 5,
+        "line": 4
+      }
+    },
+    "selectionRange": {
+      "end": {
+        "character": 9,
+        "line": 4
+      },
+      "start": {
+        "character": 5,
+        "line": 4
+      }
+    }
+  }
+]

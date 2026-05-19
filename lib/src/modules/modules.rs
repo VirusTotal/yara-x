@@ -1,8 +1,12 @@
 // File generated automatically by build.rs. Do not edit.
 #[cfg(feature = "console-module")]
 mod console;
+#[cfg(feature = "crx-module")]
+mod crx;
 #[cfg(feature = "cuckoo-module")]
 mod cuckoo;
+#[cfg(feature = "dex-module")]
+mod dex;
 #[cfg(feature = "dotnet-module")]
 mod dotnet;
 #[cfg(feature = "elf-module")]
@@ -27,8 +31,6 @@ mod string;
 mod test_proto2;
 #[cfg(feature = "test_proto3-module")]
 mod test_proto3;
-#[cfg(feature = "text-module")]
-mod text;
 #[cfg(feature = "time-module")]
 mod time;
 #[cfg(feature = "vba-module")]

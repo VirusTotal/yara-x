@@ -142,6 +142,34 @@ func EnableIncludes(yes bool) CompileOption {
 	}
 }
 
+// MaxWarnings is an option for [NewCompiler] and [Compile] that sets the
+// maximum number of warnings.
+//
+// The compiler will report only the first n warnings.
+func MaxWarnings(n int) CompileOption {
+	return func(c *Compiler) error {
+		c.maxWarnings = &n
+		return nil
+	}
+}
+
+// IncludeDir is an option for [NewCompiler] and [Compile] that tells the
+// compiler where to look for included files. This option can be used multiple
+// times for specifying more than one include directories.
+//
+// When an `include` statement is found, the compiler looks for the included
+// file in the directories specified by this option, in the order they were
+// specified.
+//
+// If this option is not used, the compiler will only look for included files
+// in the current directory.
+func IncludeDir(path string) CompileOption {
+	return func(c *Compiler) error {
+		c.includeDirs = append(c.includeDirs, path)
+		return nil
+	}
+}
+
 // A structure that contains the options passed to [Compiler.AddSource].
 type sourceOptions struct {
 	origin string
@@ -263,6 +291,8 @@ type Compiler struct {
 	bannedModules         map[string]bannedModule
 	vars                  map[string]interface{}
 	features              []string
+	includeDirs           []string
+	maxWarnings           *int
 }
 
 // NewCompiler creates a new compiler.
@@ -273,6 +303,7 @@ func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 		bannedModules:   make(map[string]bannedModule),
 		vars:            make(map[string]interface{}),
 		features:        make([]string, 0),
+		includeDirs:     make([]string, 0),
 	}
 
 	for _, opt := range opts {
@@ -313,7 +344,10 @@ func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 }
 
 func (c *Compiler) initialize() error {
-	for name, _ := range c.ignoredModules {
+	if c.maxWarnings != nil {
+		c.setMaxWarnings(*c.maxWarnings)
+	}
+	for name := range c.ignoredModules {
 		c.ignoreModule(name)
 	}
 	for _, feature := range c.features {
@@ -326,6 +360,9 @@ func (c *Compiler) initialize() error {
 		if err := c.DefineGlobal(ident, value); err != nil {
 			return err
 		}
+	}
+	for _, dir := range c.includeDirs {
+		c.addIncludeDir(dir)
 	}
 	return nil
 }
@@ -388,6 +425,17 @@ func (c *Compiler) AddSource(src string, opts ...SourceOption) error {
 	return nil
 }
 
+// addIncludeDir adds an include directory to the compiler.
+func (c *Compiler) addIncludeDir(dir string) {
+	cDir := C.CString(dir)
+	defer C.free(unsafe.Pointer(cDir))
+	result := C.yrx_compiler_add_include_dir(c.cCompiler, cDir)
+	if result != C.YRX_SUCCESS {
+		panic("yrx_compiler_add_include_dir failed")
+	}
+	runtime.KeepAlive(c)
+}
+
 // enableFeature enables a compiler feature.
 // See: [WithFeature].
 func (c *Compiler) enableFeature(feature string) {
@@ -412,6 +460,13 @@ func (c *Compiler) ignoreModule(module string) {
 	if result != C.YRX_SUCCESS {
 		panic("yrx_compiler_add_unsupported_module failed")
 	}
+	runtime.KeepAlive(c)
+}
+
+// setMaxWarnings sets the maximum number of warnings.
+// See: [MaxWarnings].
+func (c *Compiler) setMaxWarnings(n int) {
+	C.yrx_compiler_max_warnings(c.cCompiler, C.size_t(n))
 	runtime.KeepAlive(c)
 }
 
@@ -467,7 +522,17 @@ func (c *Compiler) NewNamespace(namespace string) {
 // scanning data, however each scanner can change the variable's initial
 // value by calling [Scanner.SetGlobal].
 //
-// Valid value types are: int, int32, int64, bool, string, float32 and float64.
+// The following primitive types are supported: int, int32, int64, bool,
+// string, float32 and float64.
+//
+// Composite types are also supported:
+//
+// - map[string]interface{} represents a YARA structure, where keys are
+// field names and values may be any supported primitive type or nested maps
+// for sub-structures.
+//
+// - []interface{} represents a YARA array. All elements in the array
+// must be of the same type.
 func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 	cIdent := C.CString(ident)
 	defer C.free(unsafe.Pointer(cIdent))
@@ -493,6 +558,14 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 		ret = C.int(C.yrx_compiler_define_global_float(c.cCompiler, cIdent, C.double(v)))
 	case float64:
 		ret = C.int(C.yrx_compiler_define_global_float(c.cCompiler, cIdent, C.double(v)))
+	case map[string]interface{}, []interface{}:
+		jsonStr, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Errorf("failed to marshal '%s' to json: '%v'", ident, err)
+		}
+		cValue := C.CString(string(jsonStr))
+		defer C.free(unsafe.Pointer(cValue))
+		ret = C.int(C.yrx_compiler_define_global_json(c.cCompiler, cIdent, cValue))
 	default:
 		return fmt.Errorf("variable `%s` has unsupported type: %T", ident, v)
 	}

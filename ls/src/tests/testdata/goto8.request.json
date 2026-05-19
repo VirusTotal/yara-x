@@ -1,0 +1,9 @@
+{
+  "textDocument": {
+    "uri": "${test_dir}/goto8.yar"
+  },
+  "position": {
+    "line": 4,
+    "character": 6
+  }
+}

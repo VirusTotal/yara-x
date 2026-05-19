@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "elf-module"
-weight: 303
+weight: 400
 toc: true
 seo:
   title: "" # custom title (optional)
@@ -56,6 +56,8 @@ visit [https://github.com/trendmicro/telfhash](https://github.com/trendmicro/tel
 or read
 TrendMicro's [whitepaper](https://documents.trendmicro.com/assets/pdf/TB_Telfhash-%20An%20Algorithm%20That%20Finds%20Similar%20Malicious%20ELF%20Files%20Used%20in%20Linux%20IoT%20Malware.pdf).
 
+NOTE: This function always returns an uppercase string.
+
 #### Example
 
 ```
@@ -63,7 +65,7 @@ import "elf"
 
 rule FindByTelfhash {
     condition:
-        elf.telfhash() == "t166a00284751084526486df8b5df5b2fccb3f511dbc188c37156f5e714a11bc5d71014d"
+        elf.telfhash() == "T166A00284751084526486DF8B5DF5B2FCCB3F511DBC188C37156F5E714A11BC5D71014D"
 }
 ```
 
@@ -75,6 +77,7 @@ rule FindByTelfhash {
 |-------------------------|---------------------------|
 | type                    | [Type](#type)             |
 | machine                 | [Machine](#machine)       |
+| osabi                   | [OS ABI](#os-abi)         |
 | entry_point             | integer                   |
 | sh_offset               | integer                   |
 | sh_entry_size           | integer                   |
@@ -280,6 +283,44 @@ import "elf"
 rule SparcELF {
     condition:
         elf.machine == elf.EM_SPARC
+}
+```
+
+### OS ABI
+
+These are the possible values of the `osabi` field.
+
+| Name             | Value | Description                     |
+|------------------|-------|---------------------------------|
+| OSABI_NONE       | 0     | No extensions or unspecified    |
+| OSABI_HPUX       | 1     | Hewlett-Packard HP-UX           |
+| OSABI_NETBSD     | 2     | NetBSD                          |
+| OSABI_LINUX      | 3     | GNU Linux                       |
+| OSABI_SOLARIS    | 6     | Sun Solaris                     |
+| OSABI_AIX        | 7     | AIX                             |
+| OSABI_IRIX       | 8     | IRIX                            |
+| OSABI_FREEBSD    | 9     | FreeBSD                         |
+| OSABI_TRU64      | 10    | Compaq TRU64 UNIX               |
+| OSABI_MODESTO    | 11    | Novell Modesto                  |
+| OSABI_OPENBSD    | 12    | Open BSD                        |
+| OSABI_OPENVMS    | 13    | Open VMS                        |
+| OSABI_NSK        | 14    | Hewlett-Packard Non-Stop Kernel |
+| OSABI_AROS       | 15    | Amiga Research OS               |
+| OSABI_FENIXOS    | 16    | Fenix OS                        |
+| OSABI_CLOUDABI   | 17    | Nuxi CloudABI                   |
+| OSABI_OPENVOS    | 18    | Stratus Technologies OpenVOS    |
+| OSABI_ARM_AEABI  | 64    | ARM AEABI                       |
+| OSABI_ARM        | 97    | ARM                             |
+| OSABI_STANDALONE | 255   | Standalone application          |   
+
+#### Example
+
+```
+import "elf"
+
+rule SolarisELF {
+    condition:
+        elf.osabi == elf.OSABI_SOLARIS
 }
 ```
 

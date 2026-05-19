@@ -1,0 +1,5141 @@
+magic: 0xcffaedfe
+cputype: 0x100000c
+cpusubtype: 0x80000002
+filetype: 2
+ncmds: 28
+sizeofcmds: 3696
+flags: 0x218085
+reserved: 0
+number_of_segments: 5
+dynamic_linker: "/usr/lib/dyld"
+entry_point: 19996
+stack_size: 0
+source_version: "0.0.0.0.0"
+symtab:
+    symoff: 338976
+    nsyms: 625
+    stroff: 351296
+    strsize: 24664
+    entries:
+      - "radr://5614542"
+      - "_BitPath"
+      - "_CounterTest"
+      - "_HelperPath"
+      - "_JB_PATHS"
+      - "_OBJC_CLASS_$_CallHandler"
+      - "_OBJC_METACLASS_$_CallHandler"
+      - "_UNSAFE_PROCS"
+      - "_WatcherPathSecond"
+      - "__ZGVZN17LocalTaskPortImplI8TaskPortE11GetTaskSelfEvE8taskSelf"
+      - "__ZGVZNK12TaskPortBaseI14RemoteTaskPortE10readLengthEyyyE10sChunkSize"
+      - "__ZN10Arm64State8setFlagsEj"
+      - "__ZN10Arm64StateC1EP27__darwin_arm_thread_state64"
+      - "__ZN10RWTransfer3GetEv"
+      - "__ZN10RWTransfer4GiveER13FDGuardNeonRWi"
+      - "__ZN12TaskPortBaseI12TaskPortWeakE16deallocateMemoryEym"
+      - "__ZN12TaskPortWeakC1ERK8TaskPort"
+      - "__ZN12TaskPortWeakC1ERKS_"
+      - "__ZN12TaskPortWeakaSERKS_"
+      - "__ZN13FDGuardNeonRW10readLengthEyyy"
+      - "__ZN13FDGuardNeonRW11writeLengthEyyj"
+      - "__ZN13FDGuardNeonRW4initEO2FDS1_O10ThreadPortyy"
+      - "__ZN13FDGuardNeonRWD1Ev"
+      - "__ZN13FDGuardNeonRWD2Ev"
+      - "__ZN13ProcessImagesI12TaskPortWeakE4loadEv"
+      - "__ZN13ProcessImagesI12TaskPortWeakEC1ERKS0_"
+      - "__ZN14RemoteTaskPortC1Ev"
+      - "__ZN14TaskAllocationC1EOS_"
+      - "__ZN14TaskAllocationC1ERK8PortBaseym"
+      - "__ZN14TaskAllocationD1Ev"
+      - "__ZN14TaskAllocationaSEOS_"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner10TestHookerEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner10checkAgentEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner10onShutdownEP22__CFNotificationCenterPvPK10__CFStringPKvPK14__CFDictionary"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner11CopyWatcherEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner11ReportAbortEPcPKc"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner12ExecuteQueryEPKcPvPFvS3_P12sqlite3_stmtE"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner12ExecuteQueryEPKci"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner12is_corelliumEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner12is_developerEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner12is_not_phoneEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner12spawnProcessEPKci"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner13CheckMaintainEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner13CleaningAgentEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner13OpeningBinaryEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner13SpawnDirectlyEPKci"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner13check_performEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner14CleaningHelperEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner14chmodBundleDirEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner15CleaningWatcherEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner16ApplyTrustBypassEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner16is_proxy_runningEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner17executeDownloadedEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner17is_unsafe_runningEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner17is_watcher_existsEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner17listenForShutdownEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner17onCheckAgentTimerEP16__CFRunLoopTimerPv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner18downloadExecutableEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner19ApplyInstalldBypassEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner19ReportAbortViaNSUrlEPKcS2_"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner19is_console_attachedEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner19is_rootca_installedEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner21KillingPreviousHelperEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner21is_restricted_countryEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner22downloadExecutableOnceEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner23monitoringCrashReporterEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner26ApplySandboxEscapeForOtherEiPc"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner29downloadExecutableOnceRemotlyEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner3RC4EPhlS1_lS1_"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner4initEPKcS2_S2_S2_S2_S2_S2_S2_S2_S2_S2_S2_S2_S2_"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner4stopEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner5spawnEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner5startEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner7checkKAEv"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner9DecryptorEPhm"
+      - "__ZN16CSWatcherSpawner16CSWatcherSpawner9WriteFileEPKcPhm"
+      - "__ZN16ExceptionMessageILi2ELj7166ELy2147483650EE4SendERK21PortSendOnceRightWeakRK22__darwin_arm_vfp_state"
+      - "__ZN16ExceptionMessageILi6ELj7166ELy2147483650EE11sStateCountE"
+      - "__ZN16ExceptionMessageILi6ELj7166ELy2147483650EE4SendERK21PortSendOnceRightWeakRK27__darwin_arm_thread_state64"
+      - "__ZN16RemoteThreadPort7setTaskERK14RemoteTaskPort"
+      - "__ZN17LocalTaskPortImplI8TaskPortE11GetTaskSelfEv"
+      - "__ZN17PortAddressCached5resetEv"
+      - "__ZN17PortAddressCachedC1EOS_"
+      - "__ZN17PortAddressCachedaSEOS_"
+      - "__ZN17PortRightInserter6InsertI11CorelliumRWEE8PortBaseRT_PN2KS8ipc_portE"
+      - "__ZN17PortRightInserter6InsertI13FDGuardNeonRWEE8PortBaseRT_PN2KS8ipc_portE"
+      - "__ZN17PortRightInserter6InsertIK13FDGuardNeonRWEE8PortBaseRT_PN2KS8ipc_portE"
+      - "__ZN17VersionDispatcher13m_deviceClassE"
+      - "__ZN17VersionDispatcher14GetHostMachineEv"
+      - "__ZN17VersionDispatcher16IsBuildSupportedEv"
+      - "__ZN17VersionDispatcher16m_currentVersionE"
+      - "__ZN17VersionDispatcher17GetCurrentVersionEv"
+      - "__ZN17VersionDispatcher22OffsetsVersionByDeviceEv"
+      - "__ZN17VersionDispatcher26OffsetsVersionByDeviceInitEv"
+      - "__ZN17VersionDispatcher7m_unameE"
+      - "__ZN19LocalThreadPortImplI10ThreadPortE13GetThreadSelfEv"
+      - "__ZN19LocalThreadPortImplI10ThreadPortE13NewThreadPortERK8PortBase"
+      - "__ZN19LocalThreadPortImplI14ThreadPortWeakE8SwitchToERKS0_ij"
+      - "__ZN19MemoryEntryPortBaseI15MemoryEntryPortE17CreateMemoryEntryEPyyiRK8PortBase"
+      - "__ZN19MemoryEntryPortBaseI15MemoryEntryPortE17CreateMemoryEntryEyyi"
+      - "__ZN21PortAddressCachedBaseI17PortAddressCachedE16setKernelAddressEPN2KS8ipc_portE"
+      - "__ZN21PortAddressCachedBaseI17PortAddressCachedE5resetEv"
+      - "__ZN24PortSendReceiveRightBaseI17PortAddressCachedE7NewPortERK8TaskPortj"
+      - "__ZN24PortSendReceiveRightBaseI17PortAddressCachedE7NewPortEj"
+      - "__ZN24PortSendReceiveRightBaseI20PortSendReceiveRightE7NewPortERK8TaskPortj"
+      - "__ZN24PortSendReceiveRightBaseI20PortSendReceiveRightE7NewPortEj"
+      - "__ZN3Log10LogManager18PreparePrintPrefixERNSt3__118basic_stringstreamIcNS1_11char_traitsIcEENS1_9allocatorIcEEEENS0_9PrintTypeEPKcSB_i"
+      - "__ZN3Log10LogManager18PreparePrintSuffixERNSt3__118basic_stringstreamIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE"
+      - "__ZN3Log10LogManager4InitEv"
+      - "__ZN3Log10LogManager5ToStrERNSt3__118basic_stringstreamIcNS1_11char_traitsIcEENS1_9allocatorIcEEEEDn"
+      - "__ZN3Log10LogManager5ToStrERNSt3__118basic_stringstreamIcNS1_11char_traitsIcEENS1_9allocatorIcEEEEPKc"
+      - "__ZN3Log10LogManager5ToStrERNSt3__118basic_stringstreamIcNS1_11char_traitsIcEENS1_9allocatorIcEEEEPv"
+      - "__ZN3Log10LogManager5ToStrERNSt3__118basic_stringstreamIcNS1_11char_traitsIcEENS1_9allocatorIcEEEERKNS1_17basic_string_viewIcS4_EE"
+      - "__ZN3Log10LogManager7PrinterE"
+      - "__ZN5Utils11readLineIntEi"
+      - "__ZN5Utils11writeStringEiPKc"
+      - "__ZN5Utils12writeLineIntEii"
+      - "__ZN5Utils13getCountNamesEv"
+      - "__ZN5Utils14findObjcMethodEPKcS1_S1_"
+      - "__ZN5Utils22enableMemoryProtectionEv"
+      - "__ZN5Utils5splitEPcc"
+      - "__ZN5Utils6getPidEPKc"
+      - "__ZN5Utils8readLineEiPcm"
+      - "__ZN5Utils8writeAllEiPKcm"
+      - "__ZN5Utils9writeLineEiPKc"
+      - "__ZN6FDBase5resetEv"
+      - "__ZN6FDBaseC2EOS_"
+      - "__ZN6FDBaseC2Ei"
+      - "__ZN6FDBaseaSEOS_"
+      - "__ZN6Helper13CameraEnabler19findFunctionAddressEv"
+      - "__ZN6Helper13CameraEnabler4initEP8NSStringPPc"
+      - "__ZN6Helper13CameraEnabler6enableEv"
+      - "__ZN6Helper13CameraEnabler7disableEv"
+      - "__ZN6Helper13CameraEnabler7executeEP8NSStringPPc"
+      - "__ZN6Helper13CameraEnabler9setupHookEv"
+      - "__ZN6Helper13HelperFactory12getOperationEi"
+      - "__ZN6Helper13HelperFactory12newOperationEi"
+      - "__ZN6Helper13HelperFactory15deleteOperationEi"
+      - "__ZN6Helper13HelperFactory8getIndexEi"
+      - "__ZN6Helper13HelperHandler10initWithRWEv"
+      - "__ZN6Helper13HelperHandler10onShutdownEP22__CFNotificationCenterPvPK10__CFStringPKvPK14__CFDictionary"
+      - "__ZN6Helper13HelperHandler13processClientEi"
+      - "__ZN6Helper13HelperHandler14processRequestEicPKcPPc"
+      - "__ZN6Helper13HelperHandler17listenForShutdownEv"
+      - "__ZN6Helper13HelperHandler17onCheckAgentTimerEP16__CFRunLoopTimerPv"
+      - "__ZN6Helper13HelperHandler21checkIfAgentIsRunningEv"
+      - "__ZN6Helper13HelperHandler21startUnixSocketServerEPKc"
+      - "__ZN6Helper13HelperHandler22removeHelperBinaryFileEv"
+      - "__ZN6Helper13HelperHandler25createListeningUnixSocketEPKc"
+      - "__ZN6Helper13HelperHandler4initEv"
+      - "__ZN6Helper13HelperHandler4stopEv"
+      - "__ZN6Helper13HelperHandler5startEv"
+      - "__ZN6Helper13HelperHandlerC1Ev"
+      - "__ZN6Helper13HelperHandlerC2Ev"
+      - "__ZN6Helper13HelperHandlerD1Ev"
+      - "__ZN6Helper13HelperHandlerD2Ev"
+      - "__ZN6Helper13HookerFactory9getHookerEPKc"
+      - "__ZN6Helper4Voip10setupHooksEv"
+      - "__ZN6Helper4Voip10stopRecordEv"
+      - "__ZN6Helper4Voip11downmix4to2EPsPKsm"
+      - "__ZN6Helper4Voip11startRecordEv"
+      - "__ZN6Helper4Voip13buildPACCacheEP27__darwin_arm_thread_state64y"
+      - "__ZN6Helper4Voip13pcmFloatToIntEPvPKvm"
+      - "__ZN6Helper4Voip13restoreHookPCEP27__darwin_arm_thread_state64"
+      - "__ZN6Helper4Voip15encodePCMSampleEPKvm"
+      - "__ZN6Helper4Voip19createNewOutputFileEi"
+      - "__ZN6Helper4Voip4initEP8NSStringPPc"
+      - "__ZN6Helper4Voip4stopEv"
+      - "__ZN6Helper4Voip5startEv"
+      - "__ZN6Helper4Voip7executeEP8NSStringPPc"
+      - "__ZN6Helper4VoipD0Ev"
+      - "__ZN6Helper4VoipD1Ev"
+      - "__ZN6Helper4VoipD2Ev"
+      - "__ZN6Helper9HiddenDot4initEP8NSStringPPc"
+      - "__ZN6Helper9HiddenDot7executeEP8NSStringPPc"
+      - "__ZN6Helper9HiddenDot9setupHookEv"
+      - "__ZN6Helper9KeyLogger12getSentencesEPPcb"
+      - "__ZN6Helper9KeyLogger14startKeyLoggerEPPc"
+      - "__ZN6Helper9KeyLogger4initEP8NSStringPPc"
+      - "__ZN6Helper9KeyLogger7executeEP8NSStringPPc"
+      - "__ZN6KEvent12_CreateTimerEyjjx"
+      - "__ZN6KEvent14CreateMachPortERK8PortBaseymity"
+      - "__ZN6KEventC1Eysytj"
+      - "__ZN6KQueue9NewKQueueEv"
+      - "__ZN6TaskRWI13FDGuardNeonRWEC1ERKS0_PN2KS4taskE"
+      - "__ZN6Thread13getThreadPortEv"
+      - "__ZN6Thread14joinIfPossibleEv"
+      - "__ZN6Thread6detachEv"
+      - "__ZN6ThreadD1Ev"
+      - "__ZN6ThreadaSEOS_"
+      - "__ZN8DMHooker10flushCacheEv"
+      - "__ZN8DMHooker10hookSymbolEPKcONSt3__18functionIFNS_10HookReturnEP27__darwin_arm_thread_state64EEEb"
+      - "__ZN8DMHooker10removeHookEy"
+      - "__ZN8DMHooker11hookAddressEyONSt3__18functionIFNS_10HookReturnEP27__darwin_arm_thread_state64EEEb"
+      - "__ZN8DMHooker11onBadAccessEONSt3__18functionIFNS_10HookReturnEP27__darwin_arm_thread_state64EEE"
+      - "__ZN8DMHooker4initEv"
+      - "__ZN8DMHooker7getTaskEv"
+      - "__ZN8DMHookerC1EO14RemoteTaskPort"
+      - "__ZN8DMHookerD1Ev"
+      - "__ZN8Internal2RW6Kernel14IsAddressValidEyb"
+      - "__ZN8PortBase5resetEv"
+      - "__ZN8PortBase7setPortEj"
+      - "__ZN8PortBaseC1EOS_"
+      - "__ZN8PortBaseC1Ej"
+      - "__ZN8PortBaseC2EOS_"
+      - "__ZN8PortBaseC2Ej"
+      - "__ZN8PortBaseaSEOS_"
+      - "__ZN8ProcInfo16GetKQueueExtInfoEii"
+      - "__ZN8Syscalls10MachHandleEiPKcib"
+      - "__ZN8Syscalls10UnixHandleEiPKc10ReturnTypelbb"
+      - "__ZN8Syscalls10kevent_qosEiPKN2KS12kevent_qos_sEiPS1_iPvPmj"
+      - "__ZN8Syscalls13thread_switchEjij"
+      - "__ZN8Syscalls15mach_msg_silentEP17mach_msg_header_tijjjjj"
+      - "__ZN8Syscalls16thread_self_trapEv"
+      - "__ZN8Syscalls17change_fdguard_npEiyjyjy"
+      - "__ZN8Syscalls17readForExhaustionEiPvm"
+      - "__ZN8Syscalls29thread_get_special_reply_portEv"
+      - "__ZN8Syscalls3dupEi"
+      - "__ZN8Syscalls4readEiyy"
+      - "__ZN8Syscalls5writeEiyy"
+      - "__ZN8Syscalls7fstat64Ei"
+      - "__ZN8Syscalls9proc_infoEiijyyi"
+      - "__ZN8TaskPortaSEOS_"
+      - "__ZN8UMHookerI14RemoteTaskPortE4hookEyONSt3__18functionIFbP27__darwin_arm_thread_state64EEE"
+      - "__ZN8UMHookerI14RemoteTaskPortE7destroyEb"
+      - "__ZN8UMHookerI14RemoteTaskPortEC1EOS0_"
+      - "__ZN8UMHookerI14RemoteTaskPortED1Ev"
+      - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE14flushPageCacheEv"
+      - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE18sScratchBufferSizeE"
+      - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE20findRemoteObjectiveCEPKcS5_"
+      - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE4initEv"
+      - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWEC2EOS2_PN2KS4taskE"
+      - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWEC2EOS3_"
+      - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWED2Ev"
+      - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWEaSEOS3_"
+      - "__ZNK10Arm64State5getLREv"
+      - "__ZNK10Arm64State5getPCEv"
+      - "__ZNK10Arm64State5getSPEv"
+      - "__ZNK10Arm64State5setLREPv"
+      - "__ZNK10Arm64State5setPCEPv"
+      - "__ZNK10Arm64State8getFlagsEv"
+      - "__ZNK11CorelliumRW10readLengthEyyy"
+      - "__ZNK11CorelliumRW11writeLengthEyyj"
+      - "__ZNK12KernelReaderI11CorelliumRWE18getIPCTableForTaskERK12TaskPortWeakb"
+      - "__ZNK12KernelReaderI11CorelliumRWE18getTaskKaddrForPIDEib"
+      - "__ZNK12KernelReaderI11CorelliumRWE19getPortKobjectKaddrERK8PortBaseb"
+      - "__ZNK12KernelReaderI11CorelliumRWE24getRightKaddrForPortNameEPN2KS4taskERK8PortBaseb"
+      - "__ZNK12KernelReaderI11CorelliumRWE24getRightKaddrForPortNameER8TaskPortRK8PortBaseb"
+      - "__ZNK12KernelReaderI11CorelliumRWE24getVmObjectForVirtInTaskEPN2KS4taskEy"
+      - "__ZNK12KernelReaderI11CorelliumRWE33getRightKaddrForPortNameWithTableEPN2KS9ipc_entryERK8PortBase"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE15findProcForNameERKNSt3__117basic_string_viewIcNS2_11char_traitsIcEEEE"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE16getFileglobKaddrERK6FDWeak"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE17getPortsInPortSetEPN2KS8ipc_psetE"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE18getIPCTableForTaskERK12TaskPortWeakb"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE18getTaskKaddrForPIDEib"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE19getPortKobjectKaddrEPN2KS8ipc_portEb"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE19getPortKobjectKaddrERK8PortBaseb"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE19getProcForTaskKaddrEPv"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE19getTaskForProcKaddrEPv"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE20getVMMapEntryForTaskEPN2KS4taskEybPy"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE22getFileProcForFDInProcEPN2KS4procEi"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE22getFileProcForFDInTaskERK12TaskPortWeaki"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE22getFileglobKaddrInTaskERK6FDWeakRK12TaskPortWeak"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE24getRightKaddrForPortNameEPN2KS4taskERK8PortBaseb"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE24getRightKaddrForPortNameER8TaskPortRK8PortBaseb"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE24getVmObjectForVirtInTaskEPN2KS4taskEy"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE26getTaskKaddrForPIDStartingEiPvb"
+      - "__ZNK12KernelReaderI13FDGuardNeonRWE33getRightKaddrForPortNameWithTableEPN2KS9ipc_entryERK8PortBase"
+      - "__ZNK12KernelReaderIN5Smack6NeonRWEE18getTaskKaddrForPIDEib"
+      - "__ZNK12KernelReaderIN5Smack6NeonRWEE19getPortKobjectKaddrERK8PortBaseb"
+      - "__ZNK12KernelReaderIN5Smack6NeonRWEE24getRightKaddrForPortNameEPN2KS4taskERK8PortBaseb"
+      - "__ZNK12KernelWriterI11CorelliumRWE23createShmemWithVmObjectEPN2KS9vm_objectEy"
+      - "__ZNK12KernelWriterI11CorelliumRWE9killRightER8TaskPortRK8PortBase"
+      - "__ZNK12KernelWriterI13FDGuardNeonRWE11remotePACIAEPN2KS6threadEyy"
+      - "__ZNK12KernelWriterI13FDGuardNeonRWE23createShmemWithVmObjectEPN2KS9vm_objectEy"
+      - "__ZNK12KernelWriterI13FDGuardNeonRWE9killRightER8TaskPortRK8PortBase"
+      - "__ZNK12TaskPortBaseI12TaskPortWeakE10readLengthEyyy"
+      - "__ZNK12TaskPortBaseI12TaskPortWeakE13getDebugStateEv"
+      - "__ZNK12TaskPortBaseI12TaskPortWeakE13setDebugStateEP26__darwin_arm_debug_state64"
+      - "__ZNK12TaskPortBaseI12TaskPortWeakE16getExceptionPortEj"
+      - "__ZNK12TaskPortBaseI12TaskPortWeakE16readRemoteStringEPKc"
+      - "__ZNK12TaskPortBaseI12TaskPortWeakE16setExceptionPortERK8PortBasejii"
+      - "__ZNK12TaskPortBaseI12TaskPortWeakE3mapEPyyyijyiiij"
+      - "__ZNK12TaskPortBaseI12TaskPortWeakE7threadsEv"
+      - "__ZNK12TaskPortBaseI12TaskPortWeakE8dyldInfoEv"
+      - "__ZNK12TaskPortBaseI14RemoteTaskPortE13getDebugStateEv"
+      - "__ZNK12TaskPortBaseI14RemoteTaskPortE13setDebugStateEP26__darwin_arm_debug_state64"
+      - "__ZNK12TaskPortBaseI14RemoteTaskPortE16getExceptionPortEj"
+      - "__ZNK12TaskPortBaseI14RemoteTaskPortE16setExceptionPortERK8PortBasejii"
+      - "__ZNK12TaskPortBaseI14RemoteTaskPortE7threadsEv"
+      - "__ZNK12TaskPortBaseI8TaskPortE14allocateMemoryEmi"
+      - "__ZNK12TaskPortBaseI8TaskPortE14allocateMemoryEymi"
+      - "__ZNK12TaskPortBaseI8TaskPortE8dyldInfoEv"
+      - "__ZNK13FDGuardNeonRW5cloneEv"
+      - "__ZNK13FDGuardNeonRWcvbEv"
+      - "__ZNK14RemoteTaskPort12isRightValidEv"
+      - "__ZNK14RemoteTaskPortcvbEv"
+      - "__ZNK14TaskAllocation4sizeEv"
+      - "__ZNK14TaskAllocation7addressEv"
+      - "__ZNK14TaskAllocationcvbEv"
+      - "__ZNK14ThreadPortBaseI10ThreadPortE12getNeonStateEv"
+      - "__ZNK14ThreadPortBaseI10ThreadPortE13setArm64StateEPK27__darwin_arm_thread_state64"
+      - "__ZNK14ThreadPortBaseI10ThreadPortE16setExceptionPortERK8PortBasejii"
+      - "__ZNK14ThreadPortBaseI10ThreadPortE17setThreadPriorityEi"
+      - "__ZNK14ThreadPortBaseI10ThreadPortE17terminateInternalEv"
+      - "__ZNK14ThreadPortBaseI10ThreadPortE6resumeEv"
+      - "__ZNK14ThreadPortBaseI14ThreadPortWeakE11getVFPStateEv"
+      - "__ZNK14ThreadPortBaseI14ThreadPortWeakE11setVFPStateEP22__darwin_arm_vfp_state"
+      - "__ZNK14ThreadPortBaseI14ThreadPortWeakE12getNeonStateEv"
+      - "__ZNK14ThreadPortBaseI14ThreadPortWeakE13setDebugStateEP26__darwin_arm_debug_state64"
+      - "__ZNK14ThreadPortBaseI14ThreadPortWeakE16setExceptionPortERK8PortBasejii"
+      - "__ZNK14ThreadPortBaseI14ThreadPortWeakE6resumeEv"
+      - "__ZNK14ThreadPortBaseI14ThreadPortWeakE7suspendEv"
+      - "__ZNK14ThreadPortBaseI16RemoteThreadPortE13setDebugStateEP26__darwin_arm_debug_state64"
+      - "__ZNK19MemoryEntryPortBaseI15MemoryEntryPortE3mapEyyibyiij"
+      - "__ZNK20PortReceiveRightBaseI16PortReceiveRightE6doRecvEP17mach_msg_header_tijj"
+      - "__ZNK20PortReceiveRightBaseI20PortSendReceiveRightE13setAttributesEiPij"
+      - "__ZNK20PortReceiveRightBaseI20PortSendReceiveRightE15notifyNoSendersERK8PortBaseP17PortSendOnceRight"
+      - "__ZNK20PortReceiveRightBaseI20PortSendReceiveRightE5guardEyb"
+      - "__ZNK20PortReceiveRightBaseI20PortSendReceiveRightE6doRecvEP17mach_msg_header_tijj"
+      - "__ZNK20PortReceiveRightBaseI20PortSendReceiveRightE7unguardEy"
+      - "__ZNK20PortReceiveRightBaseI20PortSendReceiveRightE9tempOwnerEv"
+      - "__ZNK21PortAddressCachedBaseI17PortAddressCachedE16getKernelAddressEv"
+      - "__ZNK21PortSendRightBaseImplI13PortSendRightE6doSendEP17mach_msg_header_tijj"
+      - "__ZNK21PortSendRightBaseImplI17PortSendOnceRightE6doSendEP17mach_msg_header_tijj"
+      - "__ZNK21PortSendRightBaseImplI20PortSendReceiveRightE6doSendEP17mach_msg_header_tijj"
+      - "__ZNK5Smack6NeonRW10readLengthEyyy"
+      - "__ZNK5Smack6NeonRW11writeLengthEyyj"
+      - "__ZNK6FDBase5getFDEv"
+      - "__ZNK6FDBase5guardEyjyjj"
+      - "__ZNK6KQueue15doKEventSyscallEPKN2KS12kevent_qos_sEiPS1_ijPK8timespec"
+      - "__ZNK6TaskRWI13FDGuardNeonRWE10readLengthEyyy"
+      - "__ZNK6TaskRWI13FDGuardNeonRWE11writeLengthEyyj"
+      - "__ZNK6TaskRWI13FDGuardNeonRWE16readRemoteStringEPKc"
+      - "__ZNK6TaskRWI13FDGuardNeonRWE7performEyyjNS1_11PerformTypeE"
+      - "__ZNK6TaskRWI13FDGuardNeonRWEcvbEv"
+      - "__ZNK6Thread13getThreadPortEv"
+      - "__ZNK8DMHooker10readLengthEyyy"
+      - "__ZNK8DMHooker11writeLengthEyyy"
+      - "__ZNK8DMHooker9signStateEP27__darwin_arm_thread_state64yyPN9NSTaskROP20WithoutDeveloperMode16SignedStateCacheE"
+      - "__ZNK8PortBase12getRightTypeEv"
+      - "__ZNK8PortBase12isRightValidEv"
+      - "__ZNK8PortBase21doRequestNotificationEijRKS_jP17PortSendOnceRight"
+      - "__ZNK8PortBaseeqERKS_"
+      - "__ZNK8UMHookerI14RemoteTaskPortEcvbEv"
+      - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE10isTaskDeadEv"
+      - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE14isTrojanThreadERK8PortBase"
+      - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE14readLengthTaskEyyy"
+      - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE15writeLengthTaskEyyy"
+      - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE26getReturnValueFromCallFuncEv"
+      - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE8pushPortERK8PortBasej"
+      - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE9signStateEP27__darwin_arm_thread_state64yyPN2KS6threadEPNS0_16SignedStateCacheE"
+      - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWEcvbEv"
+      - "__ZTIN6Helper13CameraEnablerE"
+      - "__ZTIN6Helper4VoipE"
+      - "__ZTIN6Helper9HiddenDotE"
+      - "__ZTIN6Helper9KeyLoggerE"
+      - "__ZTSN6Helper13CameraEnablerE"
+      - "__ZTSN6Helper4VoipE"
+      - "__ZTSN6Helper9HiddenDotE"
+      - "__ZTSN6Helper9KeyLoggerE"
+      - "__ZTVN6Helper13CameraEnablerE"
+      - "__ZTVN6Helper4VoipE"
+      - "__ZTVN6Helper9HiddenDotE"
+      - "__ZTVN6Helper9KeyLoggerE"
+      - "__ZZN17LocalTaskPortImplI8TaskPortE11GetTaskSelfEvE8taskSelf"
+      - "__ZZNK12TaskPortBaseI14RemoteTaskPortE10readLengthEyyyE10sChunkSize"
+      - "__ZZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE10testTrojanEvE11sRandomChar"
+      - "__mh_execute_header"
+      - "_gadget_pacia"
+      - "_m_statusStr"
+      - "_main"
+      - "_unicopy"
+      - "_watcherFilePath"
+      - "_CFNotificationCenterAddObserver"
+      - "_CFNotificationCenterGetDarwinNotifyCenter"
+      - "_CFRelease"
+      - "_CFRunLoopAddTimer"
+      - "_CFRunLoopGetMain"
+      - "_CFRunLoopRemoveTimer"
+      - "_CFRunLoopRun"
+      - "_CFRunLoopStop"
+      - "_CFRunLoopTimerCreate"
+      - "_CFURLCreateWithFileSystemPath"
+      - "_ExtAudioFileCreateWithURL"
+      - "_ExtAudioFileDispose"
+      - "_ExtAudioFileSetProperty"
+      - "_ExtAudioFileWrite"
+      - "_NDR_record"
+      - "_NSFileModificationDate"
+      - "_NSLog"
+      - "_OBJC_CLASS_$_CXCallObserver"
+      - "_OBJC_CLASS_$_NSData"
+      - "_OBJC_CLASS_$_NSDate"
+      - "_OBJC_CLASS_$_NSError"
+      - "_OBJC_CLASS_$_NSFileManager"
+      - "_OBJC_CLASS_$_NSLocale"
+      - "_OBJC_CLASS_$_NSObject"
+      - "_OBJC_CLASS_$_NSPropertyListSerialization"
+      - "_OBJC_CLASS_$_NSString"
+      - "_OBJC_CLASS_$_NSURL"
+      - "_OBJC_EHTYPE_$_NSException"
+      - "_OBJC_METACLASS_$_NSObject"
+      - "__NSConcreteGlobalBlock"
+      - "__NSGetExecutablePath"
+      - "__Unwind_Resume"
+      - "__ZNKSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEE3strEv"
+      - "__ZNKSt3__119__shared_weak_count13__get_deleterERKSt9type_info"
+      - "__ZNKSt3__16locale9use_facetERNS0_2idE"
+      - "__ZNKSt3__18ios_base6getlocEv"
+      - "__ZNKSt9exception4whatEv"
+      - "__ZNSt11logic_errorC2EPKc"
+      - "__ZNSt12length_errorD1Ev"
+      - "__ZNSt12out_of_rangeD1Ev"
+      - "__ZNSt20bad_array_new_lengthC1Ev"
+      - "__ZNSt20bad_array_new_lengthD1Ev"
+      - "__ZNSt3__111this_thread9sleep_forERKNS_6chrono8durationIxNS_5ratioILl1ELl1000000000EEEEE"
+      - "__ZNSt3__112__next_primeEm"
+      - "__ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEPKcm"
+      - "__ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE7replaceEmmPKcm"
+      - "__ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE9push_backEc"
+      - "__ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEaSERKS5_"
+      - "__ZNSt3__113basic_istreamIcNS_11char_traitsIcEEE6sentryC1ERS3_b"
+      - "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEE6sentryC1ERS3_"
+      - "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEE6sentryD1Ev"
+      - "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEf"
+      - "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEi"
+      - "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEj"
+      - "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEm"
+      - "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEy"
+      - "__ZNSt3__114basic_iostreamIcNS_11char_traitsIcEEED2Ev"
+      - "__ZNSt3__115__thread_structC1Ev"
+      - "__ZNSt3__115__thread_structD1Ev"
+      - "__ZNSt3__115basic_streambufIcNS_11char_traitsIcEEEC2Ev"
+      - "__ZNSt3__115basic_streambufIcNS_11char_traitsIcEEED2Ev"
+      - "__ZNSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEE3strERKNS_12basic_stringIcS2_S4_EE"
+      - "__ZNSt3__119__shared_weak_count14__release_weakEv"
+      - "__ZNSt3__119__shared_weak_countD2Ev"
+      - "__ZNSt3__119__thread_local_dataEv"
+      - "__ZNSt3__120__throw_system_errorEiPKc"
+      - "__ZNSt3__15ctypeIcE2idE"
+      - "__ZNSt3__15mutex4lockEv"
+      - "__ZNSt3__15mutex6unlockEv"
+      - "__ZNSt3__15mutexD1Ev"
+      - "__ZNSt3__16chrono12steady_clock3nowEv"
+      - "__ZNSt3__16chrono12system_clock3nowEv"
+      - "__ZNSt3__16localeD1Ev"
+      - "__ZNSt3__16thread4joinEv"
+      - "__ZNSt3__16thread6detachEv"
+      - "__ZNSt3__16threadD1Ev"
+      - "__ZNSt3__18ios_base33__set_badbit_and_consider_rethrowEv"
+      - "__ZNSt3__18ios_base4initEPv"
+      - "__ZNSt3__18ios_base5clearEj"
+      - "__ZNSt3__19basic_iosIcNS_11char_traitsIcEEED2Ev"
+      - "__ZNSt9exceptionD2Ev"
+      - "__ZSt9terminatev"
+      - "__ZTINSt3__119__shared_weak_countE"
+      - "__ZTISt12length_error"
+      - "__ZTISt12out_of_range"
+      - "__ZTISt20bad_array_new_length"
+      - "__ZTISt9exception"
+      - "__ZTTNSt3__118basic_stringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE"
+      - "__ZTVN10__cxxabiv117__class_type_infoE"
+      - "__ZTVN10__cxxabiv119__pointer_type_infoE"
+      - "__ZTVN10__cxxabiv120__function_type_infoE"
+      - "__ZTVN10__cxxabiv120__si_class_type_infoE"
+      - "__ZTVNSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEEE"
+      - "__ZTVNSt3__118basic_stringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE"
+      - "__ZTVSt12length_error"
+      - "__ZTVSt12out_of_range"
+      - "__ZdaPv"
+      - "__ZdlPv"
+      - "__Znam"
+      - "__Znwm"
+      - "___CFConstantStringClassReference"
+      - "___chkstk_darwin"
+      - "___cxa_allocate_exception"
+      - "___cxa_atexit"
+      - "___cxa_begin_catch"
+      - "___cxa_end_catch"
+      - "___cxa_free_exception"
+      - "___cxa_guard_acquire"
+      - "___cxa_guard_release"
+      - "___cxa_rethrow"
+      - "___cxa_throw"
+      - "___error"
+      - "___gxx_personality_v0"
+      - "___objc_personality_v0"
+      - "__kernelrpc_mach_port_type_trap"
+      - "__objc_empty_cache"
+      - "_accept"
+      - "_access"
+      - "_atoi"
+      - "_bind"
+      - "_bootstrap_look_up"
+      - "_bootstrap_port"
+      - "_bzero"
+      - "_calloc"
+      - "_chmod"
+      - "_class_getInstanceMethod"
+      - "_close"
+      - "_compression_decode_buffer"
+      - "_dispatch_queue_create"
+      - "_dlclose"
+      - "_dlopen"
+      - "_dlsym"
+      - "_fclose"
+      - "_fopen"
+      - "_fread"
+      - "_free"
+      - "_fseek"
+      - "_fsync"
+      - "_ftell"
+      - "_getpgid"
+      - "_getpid"
+      - "_getprogname"
+      - "_getuid"
+      - "_kCFAllocatorDefault"
+      - "_kCFRunLoopDefaultMode"
+      - "_kevent"
+      - "_kill"
+      - "_kqueue"
+      - "_listen"
+      - "_mach_make_memory_entry_64"
+      - "_mach_msg"
+      - "_mach_msg_destroy"
+      - "_mach_port_allocate"
+      - "_mach_port_construct"
+      - "_mach_port_guard"
+      - "_mach_port_mod_refs"
+      - "_mach_port_request_notification"
+      - "_mach_port_set_attributes"
+      - "_mach_port_unguard"
+      - "_mach_task_self_"
+      - "_mach_vm_allocate"
+      - "_mach_vm_deallocate"
+      - "_mach_vm_map"
+      - "_mach_vm_read_overwrite"
+      - "_malloc"
+      - "_memcmp"
+      - "_memcpy"
+      - "_memmem"
+      - "_memmove"
+      - "_memorystatus_control"
+      - "_memset"
+      - "_method_getImplementation"
+      - "_mmap"
+      - "_objc_alloc"
+      - "_objc_alloc_init"
+      - "_objc_autoreleasePoolPop"
+      - "_objc_autoreleasePoolPush"
+      - "_objc_begin_catch"
+      - "_objc_end_catch"
+      - "_objc_exception_rethrow"
+      - "_objc_getClass"
+      - "_objc_msgSend"
+      - "_objc_msgSendSuper2"
+      - "_objc_release_x8"
+      - "_open"
+      - "_posix_spawn"
+      - "_proc_pidpath"
+      - "_pthread_create"
+      - "_pthread_create_suspended_np"
+      - "_pthread_detach"
+      - "_pthread_exit"
+      - "_pthread_mach_thread_np"
+      - "_pthread_setspecific"
+      - "_rand"
+      - "_read"
+      - "_remove"
+      - "_rename"
+      - "_sched_yield"
+      - "_sel_registerName"
+      - "_setrlimit"
+      - "_sleep"
+      - "_snprintf"
+      - "_socket"
+      - "_sqlite3_bind_int"
+      - "_sqlite3_bind_text"
+      - "_sqlite3_close"
+      - "_sqlite3_exec"
+      - "_sqlite3_finalize"
+      - "_sqlite3_open"
+      - "_sqlite3_prepare"
+      - "_sqlite3_step"
+      - "_stat"
+      - "_strcat"
+      - "_strchr"
+      - "_strcmp"
+      - "_strcpy"
+      - "_strdup"
+      - "_strlcpy"
+      - "_strlen"
+      - "_strncat"
+      - "_strncmp"
+      - "_strnlen"
+      - "_strstr"
+      - "_strtok"
+      - "_sysctl"
+      - "_sysctlbyname"
+      - "_task_get_exception_ports"
+      - "_task_get_state"
+      - "_task_info"
+      - "_task_set_exception_ports"
+      - "_task_set_state"
+      - "_task_threads"
+      - "_thread_create"
+      - "_thread_get_state"
+      - "_thread_policy_set"
+      - "_thread_resume"
+      - "_thread_set_exception_ports"
+      - "_thread_set_state"
+      - "_thread_suspend"
+      - "_thread_switch"
+      - "_thread_terminate"
+      - "_time"
+      - "_uname"
+      - "_unlink"
+      - "_usleep"
+      - "_vm_kernel_page_mask"
+      - "_vm_page_mask"
+      - "_vm_page_shift"
+      - "_vm_page_size"
+      - "_waitpid"
+      - "_write"
+    nlists:
+      - n_strx: 24644
+        n_type: 60
+        n_sect: 0
+        n_desc: 0
+        n_value: 90260802
+      - n_strx: 4
+        n_type: 15
+        n_sect: 27
+        n_desc: 0
+        n_value: 4295263784
+      - n_strx: 13
+        n_type: 15
+        n_sect: 29
+        n_desc: 0
+        n_value: 4295265644
+      - n_strx: 26
+        n_type: 15
+        n_sect: 27
+        n_desc: 0
+        n_value: 4295264584
+      - n_strx: 38
+        n_type: 15
+        n_sect: 27
+        n_desc: 0
+        n_value: 4295264992
+      - n_strx: 48
+        n_type: 15
+        n_sect: 26
+        n_desc: 0
+        n_value: 4295263704
+      - n_strx: 74
+        n_type: 15
+        n_sect: 26
+        n_desc: 0
+        n_value: 4295263744
+      - n_strx: 104
+        n_type: 15
+        n_sect: 27
+        n_desc: 0
+        n_value: 4295265048
+      - n_strx: 118
+        n_type: 15
+        n_sect: 27
+        n_desc: 0
+        n_value: 4295264184
+      - n_strx: 137
+        n_type: 15
+        n_sect: 27
+        n_desc: 128
+        n_value: 4295265320
+      - n_strx: 200
+        n_type: 15
+        n_sect: 27
+        n_desc: 128
+        n_value: 4295265336
+      - n_strx: 270
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295192748
+      - n_strx: 298
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295192596
+      - n_strx: 348
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295131048
+      - n_strx: 371
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295133592
+      - n_strx: 411
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295093444
+      - n_strx: 467
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295112536
+      - n_strx: 500
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295112512
+      - n_strx: 526
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295112524
+      - n_strx: 552
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295119592
+      - n_strx: 588
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295120280
+      - n_strx: 625
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295117448
+      - n_strx: 673
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295117412
+      - n_strx: 697
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295115280
+      - n_strx: 721
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295199892
+      - n_strx: 764
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295199860
+      - n_strx: 808
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295147036
+      - n_strx: 833
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295114928
+      - n_strx: 860
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295114664
+      - n_strx: 897
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295114680
+      - n_strx: 922
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295114900
+      - n_strx: 949
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294994172
+      - n_strx: 1004
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294996468
+      - n_strx: 1059
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294998200
+      - n_strx: 1175
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294992316
+      - n_strx: 1231
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294989344
+      - n_strx: 1291
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294991620
+      - n_strx: 1374
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294991924
+      - n_strx: 1434
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294990776
+      - n_strx: 1491
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294989224
+      - n_strx: 1548
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294988976
+      - n_strx: 1605
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294997144
+      - n_strx: 1665
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294992548
+      - n_strx: 1723
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294988768
+      - n_strx: 1781
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294993000
+      - n_strx: 1839
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294997852
+      - n_strx: 1900
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294990080
+      - n_strx: 1958
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294988836
+      - n_strx: 2017
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294992220
+      - n_strx: 2076
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294988904
+      - n_strx: 2136
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294991612
+      - n_strx: 2197
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294991200
+      - n_strx: 2258
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294996836
+      - n_strx: 2320
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294990864
+      - n_strx: 2382
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294990832
+      - n_strx: 2444
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294998372
+      - n_strx: 2506
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294998636
+      - n_strx: 2588
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294992552
+      - n_strx: 2651
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294992308
+      - n_strx: 2715
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294988972
+      - n_strx: 2784
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294989724
+      - n_strx: 2848
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294991420
+      - n_strx: 2912
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294996796
+      - n_strx: 2978
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294989656
+      - n_strx: 3044
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294992812
+      - n_strx: 3111
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294993876
+      - n_strx: 3179
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294997312
+      - n_strx: 3252
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294997848
+      - n_strx: 3326
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294997560
+      - n_strx: 3382
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294988184
+      - n_strx: 3471
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294998208
+      - n_strx: 3519
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294996268
+      - n_strx: 3568
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294998644
+      - n_strx: 3617
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294998460
+      - n_strx: 3668
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294993508
+      - n_strx: 3723
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294997320
+      - n_strx: 3781
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295192760
+      - n_strx: 3887
+        n_type: 15
+        n_sect: 8
+        n_desc: 128
+        n_value: 4295238356
+      - n_strx: 3950
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295192952
+      - n_strx: 4061
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295147476
+      - n_strx: 4111
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295090008
+      - n_strx: 4161
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295115036
+      - n_strx: 4193
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295115000
+      - n_strx: 4223
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295114972
+      - n_strx: 4253
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295075440
+      - n_strx: 4327
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295073968
+      - n_strx: 4403
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295072496
+      - n_strx: 4480
+        n_type: 15
+        n_sect: 29
+        n_desc: 0
+        n_value: 4295265688
+      - n_strx: 4520
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295085660
+      - n_strx: 4562
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295085672
+      - n_strx: 4606
+        n_type: 15
+        n_sect: 29
+        n_desc: 0
+        n_value: 4295265692
+      - n_strx: 4649
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295085692
+      - n_strx: 4694
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295085648
+      - n_strx: 4744
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295084584
+      - n_strx: 4798
+        n_type: 15
+        n_sect: 29
+        n_desc: 0
+        n_value: 4295265696
+      - n_strx: 4831
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295090292
+      - n_strx: 4888
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295090192
+      - n_strx: 4955
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295090328
+      - n_strx: 5016
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295090460
+      - n_strx: 5096
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295090652
+      - n_strx: 5164
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295115048
+      - n_strx: 5247
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295115064
+      - n_strx: 5304
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295092288
+      - n_strx: 5377
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295092468
+      - n_strx: 5439
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295092052
+      - n_strx: 5515
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295092224
+      - n_strx: 5580
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295079484
+      - n_strx: 5715
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295080560
+      - n_strx: 5828
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295080636
+      - n_strx: 5856
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295079460
+      - n_strx: 5957
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295079340
+      - n_strx: 6059
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295079480
+      - n_strx: 6160
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295080564
+      - n_strx: 6291
+        n_type: 15
+        n_sect: 29
+        n_desc: 0
+        n_value: 4295265656
+      - n_strx: 6321
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295016968
+      - n_strx: 6347
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295018188
+      - n_strx: 6376
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295018000
+      - n_strx: 6404
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295018588
+      - n_strx: 6432
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295018932
+      - n_strx: 6469
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295019084
+      - n_strx: 6506
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295016780
+      - n_strx: 6527
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295018304
+      - n_strx: 6549
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295016840
+      - n_strx: 6574
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295017908
+      - n_strx: 6600
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295017740
+      - n_strx: 6626
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295193204
+      - n_strx: 6646
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295193160
+      - n_strx: 6664
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295193152
+      - n_strx: 6680
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295193184
+      - n_strx: 6698
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295045544
+      - n_strx: 6748
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295045132
+      - n_strx: 6794
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295045516
+      - n_strx: 6830
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295045532
+      - n_strx: 6867
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295045392
+      - n_strx: 6916
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295045136
+      - n_strx: 6955
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295023208
+      - n_strx: 6998
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295023272
+      - n_strx: 7041
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295024000
+      - n_strx: 7087
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295023264
+      - n_strx: 7125
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295021384
+      - n_strx: 7166
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295022496
+      - n_strx: 7268
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295020032
+      - n_strx: 7312
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295020416
+      - n_strx: 7364
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295022156
+      - n_strx: 7412
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295022428
+      - n_strx: 7480
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295022244
+      - n_strx: 7532
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295019624
+      - n_strx: 7586
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295022072
+      - n_strx: 7639
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295019804
+      - n_strx: 7697
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295021320
+      - n_strx: 7731
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295022388
+      - n_strx: 7765
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295021644
+      - n_strx: 7800
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295019336
+      - n_strx: 7831
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295019276
+      - n_strx: 7862
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295019620
+      - n_strx: 7893
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295019396
+      - n_strx: 7924
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295024672
+      - n_strx: 7965
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295029908
+      - n_strx: 7996
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295028292
+      - n_strx: 8027
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295030756
+      - n_strx: 8064
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295028976
+      - n_strx: 8096
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295031320
+      - n_strx: 8160
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295030540
+      - n_strx: 8199
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295031408
+      - n_strx: 8262
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295030804
+      - n_strx: 8301
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295030872
+      - n_strx: 8341
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295029568
+      - n_strx: 8377
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295029400
+      - n_strx: 8401
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295029880
+      - n_strx: 8426
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295029628
+      - n_strx: 8465
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295029528
+      - n_strx: 8486
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295029524
+      - n_strx: 8507
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295029164
+      - n_strx: 8528
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295027092
+      - n_strx: 8569
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295027380
+      - n_strx: 8613
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295027096
+      - n_strx: 8647
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295034344
+      - n_strx: 8688
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295033992
+      - n_strx: 8730
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295033620
+      - n_strx: 8771
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295033740
+      - n_strx: 8815
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295192260
+      - n_strx: 8846
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295192156
+      - n_strx: 8891
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295192076
+      - n_strx: 8911
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295192556
+      - n_strx: 8935
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295141700
+      - n_strx: 8983
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295201352
+      - n_strx: 9012
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295201264
+      - n_strx: 9042
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295201420
+      - n_strx: 9063
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295201280
+      - n_strx: 9079
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295201368
+      - n_strx: 9097
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295214216
+      - n_strx: 9125
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295214056
+      - n_strx: 9224
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295214428
+      - n_strx: 9252
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295213104
+      - n_strx: 9350
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295212592
+      - n_strx: 9446
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295212240
+      - n_strx: 9467
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295214420
+      - n_strx: 9491
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295210272
+      - n_strx: 9525
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295210912
+      - n_strx: 9543
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295053660
+      - n_strx: 9586
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295091044
+      - n_strx: 9608
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295091060
+      - n_strx: 9632
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295091024
+      - n_strx: 9652
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295090980
+      - n_strx: 9670
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295090988
+      - n_strx: 9690
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295090972
+      - n_strx: 9708
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295091008
+      - n_strx: 9728
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295191880
+      - n_strx: 9763
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295145336
+      - n_strx: 9796
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295145192
+      - n_strx: 9842
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295145400
+      - n_strx: 9902
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295146300
+      - n_strx: 9935
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295146208
+      - n_strx: 9993
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295145644
+      - n_strx: 10027
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295146644
+      - n_strx: 10067
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295145716
+      - n_strx: 10105
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295145680
+      - n_strx: 10152
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295146820
+      - n_strx: 10172
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295145904
+      - n_strx: 10195
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295146056
+      - n_strx: 10219
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295146432
+      - n_strx: 10243
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295144992
+      - n_strx: 10274
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295112496
+      - n_strx: 10294
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295205552
+      - n_strx: 10386
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295201424
+      - n_strx: 10428
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295203540
+      - n_strx: 10467
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295203076
+      - n_strx: 10503
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295165640
+      - n_strx: 10583
+        n_type: 15
+        n_sect: 8
+        n_desc: 128
+        n_value: 4295240880
+      - n_strx: 10666
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295160612
+      - n_strx: 10757
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295151164
+      - n_strx: 10826
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295150500
+      - n_strx: 10906
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295149564
+      - n_strx: 10975
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295147668
+      - n_strx: 11041
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295149780
+      - n_strx: 11110
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295192604
+      - n_strx: 11136
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295192640
+      - n_strx: 11162
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295192676
+      - n_strx: 11188
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295192712
+      - n_strx: 11215
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295192724
+      - n_strx: 11242
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295192736
+      - n_strx: 11271
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295115072
+      - n_strx: 11306
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295115100
+      - n_strx: 11342
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295050968
+      - n_strx: 11415
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295051284
+      - n_strx: 11473
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295051016
+      - n_strx: 11542
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295051132
+      - n_strx: 11627
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295051056
+      - n_strx: 11711
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295051336
+      - n_strx: 11785
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295051112
+      - n_strx: 11883
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295048796
+      - n_strx: 11991
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295047380
+      - n_strx: 12056
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295050300
+      - n_strx: 12128
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295046112
+      - n_strx: 12203
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295047936
+      - n_strx: 12263
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295047144
+      - n_strx: 12338
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295046320
+      - n_strx: 12409
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295048476
+      - n_strx: 12470
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295048564
+      - n_strx: 12531
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295049224
+      - n_strx: 12606
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295049124
+      - n_strx: 12680
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295047728
+      - n_strx: 12759
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295047452
+      - n_strx: 12846
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295046932
+      - n_strx: 12933
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295046616
+      - n_strx: 13019
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295050076
+      - n_strx: 13095
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295048064
+      - n_strx: 13165
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295046912
+      - n_strx: 13265
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295053208
+      - n_strx: 13325
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295051392
+      - n_strx: 13396
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295051828
+      - n_strx: 13483
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295070264
+      - n_strx: 13561
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295070216
+      - n_strx: 13628
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295067552
+      - n_strx: 13694
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295069300
+      - n_strx: 13774
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295067216
+      - n_strx: 13843
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295093300
+      - n_strx: 13895
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295095104
+      - n_strx: 13948
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295095304
+      - n_strx: 14029
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295094788
+      - n_strx: 14085
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295094380
+      - n_strx: 14143
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295094984
+      - n_strx: 14212
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295094604
+      - n_strx: 14264
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295093556
+      - n_strx: 14310
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295094200
+      - n_strx: 14357
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295100524
+      - n_strx: 14412
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295100808
+      - n_strx: 14495
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295099988
+      - n_strx: 14553
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295100308
+      - n_strx: 14624
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295095416
+      - n_strx: 14672
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295092916
+      - n_strx: 14722
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295092932
+      - n_strx: 14773
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295093120
+      - n_strx: 14815
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295122288
+      - n_strx: 14844
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295117416
+      - n_strx: 14870
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295147220
+      - n_strx: 14908
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295146936
+      - n_strx: 14935
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295114964
+      - n_strx: 14964
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295114892
+      - n_strx: 14996
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295114876
+      - n_strx: 15023
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295113056
+      - n_strx: 15075
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295112944
+      - n_strx: 15158
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295112548
+      - n_strx: 15227
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295112820
+      - n_strx: 15284
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295112744
+      - n_strx: 15341
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295112668
+      - n_strx: 15386
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295113840
+      - n_strx: 15441
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295113528
+      - n_strx: 15520
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295113640
+      - n_strx: 15576
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295114056
+      - n_strx: 15661
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295113256
+      - n_strx: 15734
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295113376
+      - n_strx: 15783
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295113452
+      - n_strx: 15833
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295114168
+      - n_strx: 15920
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295090700
+      - n_strx: 15979
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295091540
+      - n_strx: 16058
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295091612
+      - n_strx: 16130
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295092028
+      - n_strx: 16231
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295091764
+      - n_strx: 16292
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295091576
+      - n_strx: 16375
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295091900
+      - n_strx: 16437
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295092012
+      - n_strx: 16501
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295115056
+      - n_strx: 16571
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295092604
+      - n_strx: 16648
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295092676
+      - n_strx: 16729
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295092532
+      - n_strx: 16813
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295193308
+      - n_strx: 16848
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295193908
+      - n_strx: 16884
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295193144
+      - n_strx: 16905
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295193224
+      - n_strx: 16930
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295192292
+      - n_strx: 17000
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295141772
+      - n_strx: 17046
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295142176
+      - n_strx: 17093
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295142184
+      - n_strx: 17145
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295141780
+      - n_strx: 17205
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295141740
+      - n_strx: 17240
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295201360
+      - n_strx: 17270
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295214192
+      - n_strx: 17301
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295214204
+      - n_strx: 17333
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295211604
+      - n_strx: 17444
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295091160
+      - n_strx: 17475
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295091088
+      - n_strx: 17506
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295091224
+      - n_strx: 17572
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295091068
+      - n_strx: 17594
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295205436
+      - n_strx: 17632
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295158812
+      - n_strx: 17709
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295189992
+      - n_strx: 17800
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295165616
+      - n_strx: 17883
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295165628
+      - n_strx: 17967
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295189428
+      - n_strx: 18060
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295156732
+      - n_strx: 18145
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295165844
+      - n_strx: 18288
+        n_type: 15
+        n_sect: 1
+        n_desc: 128
+        n_value: 4295151064
+      - n_strx: 18356
+        n_type: 15
+        n_sect: 16
+        n_desc: 0
+        n_value: 4295250064
+      - n_strx: 18386
+        n_type: 15
+        n_sect: 16
+        n_desc: 0
+        n_value: 4295249408
+      - n_strx: 18406
+        n_type: 15
+        n_sect: 16
+        n_desc: 0
+        n_value: 4295249192
+      - n_strx: 18431
+        n_type: 15
+        n_sect: 16
+        n_desc: 0
+        n_value: 4295249864
+      - n_strx: 18456
+        n_type: 15
+        n_sect: 8
+        n_desc: 0
+        n_value: 4295240080
+      - n_strx: 18486
+        n_type: 15
+        n_sect: 8
+        n_desc: 0
+        n_value: 4295239248
+      - n_strx: 18506
+        n_type: 15
+        n_sect: 8
+        n_desc: 0
+        n_value: 4295238977
+      - n_strx: 18531
+        n_type: 15
+        n_sect: 8
+        n_desc: 0
+        n_value: 4295239776
+      - n_strx: 18556
+        n_type: 15
+        n_sect: 16
+        n_desc: 0
+        n_value: 4295250016
+      - n_strx: 18586
+        n_type: 15
+        n_sect: 16
+        n_desc: 0
+        n_value: 4295249360
+      - n_strx: 18606
+        n_type: 15
+        n_sect: 16
+        n_desc: 0
+        n_value: 4295249128
+      - n_strx: 18631
+        n_type: 15
+        n_sect: 16
+        n_desc: 0
+        n_value: 4295249816
+      - n_strx: 18656
+        n_type: 15
+        n_sect: 27
+        n_desc: 128
+        n_value: 4295265312
+      - n_strx: 18717
+        n_type: 15
+        n_sect: 27
+        n_desc: 128
+        n_value: 4295265328
+      - n_strx: 18785
+        n_type: 15
+        n_sect: 8
+        n_desc: 128
+        n_value: 4295240884
+      - n_strx: 18877
+        n_type: 15
+        n_sect: 1
+        n_desc: 16
+        n_value: 4294967296
+      - n_strx: 18897
+        n_type: 15
+        n_sect: 29
+        n_desc: 0
+        n_value: 4295265536
+      - n_strx: 18911
+        n_type: 15
+        n_sect: 29
+        n_desc: 0
+        n_value: 4295265544
+      - n_strx: 18924
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4294987292
+      - n_strx: 18930
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 4295115092
+      - n_strx: 18939
+        n_type: 15
+        n_sect: 27
+        n_desc: 0
+        n_value: 4295264984
+      - n_strx: 18956
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 18989
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 19032
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 19043
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 19062
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 19080
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 19102
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 19116
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 19131
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 19153
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 19184
+        n_type: 1
+        n_sect: 0
+        n_desc: 2048
+        n_value: 0
+      - n_strx: 19211
+        n_type: 1
+        n_sect: 0
+        n_desc: 2048
+        n_value: 0
+      - n_strx: 19232
+        n_type: 1
+        n_sect: 0
+        n_desc: 2048
+        n_value: 0
+      - n_strx: 19257
+        n_type: 1
+        n_sect: 0
+        n_desc: 2048
+        n_value: 0
+      - n_strx: 19276
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 19288
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 19312
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 19319
+        n_type: 1
+        n_sect: 0
+        n_desc: 1792
+        n_value: 0
+      - n_strx: 19348
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 19369
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 19390
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 19412
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 19440
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 19463
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 19486
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 19528
+        n_type: 1
+        n_sect: 0
+        n_desc: 1536
+        n_value: 0
+      - n_strx: 19551
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 19571
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 19598
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 19625
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 19649
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 19671
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 19687
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 19762
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 19825
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 19864
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 19894
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 19919
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 19945
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 19970
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 19995
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 20028
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 20061
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 20150
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 20177
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 20254
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 20334
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 20411
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 20484
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 20548
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 20611
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 20671
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 20724
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 20777
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 20830
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 20883
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 20936
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 20990
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21022
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21054
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21109
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21164
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21266
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21316
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21352
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21386
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21424
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21448
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21472
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21498
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21519
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21557
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21595
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21617
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21642
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21669
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21691
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21748
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21776
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21804
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21852
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21873
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21890
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21925
+        n_type: 1
+        n_sect: 0
+        n_desc: 2432
+        n_value: 0
+      - n_strx: 21947
+        n_type: 1
+        n_sect: 0
+        n_desc: 2432
+        n_value: 0
+      - n_strx: 21969
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 21999
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22017
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22091
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22130
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22171
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22213
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22255
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22326
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22400
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22422
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22444
+        n_type: 1
+        n_sect: 0
+        n_desc: 2432
+        n_value: 0
+      - n_strx: 22452
+        n_type: 1
+        n_sect: 0
+        n_desc: 2432
+        n_value: 0
+      - n_strx: 22460
+        n_type: 1
+        n_sect: 0
+        n_desc: 2432
+        n_value: 0
+      - n_strx: 22467
+        n_type: 1
+        n_sect: 0
+        n_desc: 2432
+        n_value: 0
+      - n_strx: 22474
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 22508
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22525
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22551
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22565
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22584
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22601
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22623
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22644
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22665
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22680
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22693
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22702
+        n_type: 1
+        n_sect: 0
+        n_desc: 2304
+        n_value: 0
+      - n_strx: 22724
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 22747
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22779
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 22798
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22806
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22814
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22820
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22826
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22845
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22861
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22868
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22876
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22883
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 22908
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22915
+        n_type: 1
+        n_sect: 0
+        n_desc: 512
+        n_value: 0
+      - n_strx: 22942
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22965
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22974
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22982
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22989
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 22997
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23004
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23011
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23017
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23024
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23031
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23038
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23047
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23055
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23068
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23076
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 23097
+        n_type: 1
+        n_sect: 0
+        n_desc: 1280
+        n_value: 0
+      - n_strx: 23120
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23128
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23134
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23142
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23150
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23177
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23187
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23205
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23225
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23246
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23263
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23283
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23315
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23341
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23360
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23377
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23395
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23415
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23428
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23452
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23460
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23468
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23476
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23484
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23493
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23515
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23523
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 23549
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23555
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 23567
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 23584
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 23609
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 23635
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 23653
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 23669
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 23693
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 23708
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 23722
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 23742
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 23759
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23765
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23778
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23792
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23808
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23837
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23853
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23867
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23891
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23912
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23918
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23924
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23932
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23940
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23953
+        n_type: 1
+        n_sect: 0
+        n_desc: 256
+        n_value: 0
+      - n_strx: 23971
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23982
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23989
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 23999
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24007
+        n_type: 1
+        n_sect: 0
+        n_desc: 1024
+        n_value: 0
+      - n_strx: 24025
+        n_type: 1
+        n_sect: 0
+        n_desc: 1024
+        n_value: 0
+      - n_strx: 24044
+        n_type: 1
+        n_sect: 0
+        n_desc: 1024
+        n_value: 0
+      - n_strx: 24059
+        n_type: 1
+        n_sect: 0
+        n_desc: 1024
+        n_value: 0
+      - n_strx: 24073
+        n_type: 1
+        n_sect: 0
+        n_desc: 1024
+        n_value: 0
+      - n_strx: 24091
+        n_type: 1
+        n_sect: 0
+        n_desc: 1024
+        n_value: 0
+      - n_strx: 24105
+        n_type: 1
+        n_sect: 0
+        n_desc: 1024
+        n_value: 0
+      - n_strx: 24122
+        n_type: 1
+        n_sect: 0
+        n_desc: 1024
+        n_value: 0
+      - n_strx: 24136
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24142
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24150
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24158
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24166
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24174
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24182
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24191
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24199
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24208
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24217
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24226
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24234
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24242
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24250
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24264
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24290
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24306
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24317
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24343
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24359
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24373
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24388
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24406
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24425
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24440
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24468
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24486
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24502
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24517
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24535
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24541
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24548
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24556
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24564
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24585
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24599
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24614
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24628
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+      - n_strx: 24637
+        n_type: 1
+        n_sect: 0
+        n_desc: 2560
+        n_value: 0
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 1
+    iextdefsym: 1
+    nextdefsym: 373
+    tocoff: 374
+    ntoc: 251
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 348976
+    nextrel: 579
+    locreloff: 0
+    nlocrel: 0
+code_signature_data:
+    dataoff: 375968
+    datasize: 92288
+segments:
+  - segname: "__PAGEZERO"
+    vmaddr: 0x0
+    vmsize: 0x100000000
+    fileoff: 0
+    filesize: 0
+    maxprot: 0x0
+    initprot: 0x0
+    nsects: 0
+    flags: 0x0
+  - segname: "__TEXT"
+    vmaddr: 0x100000000
+    vmsize: 0x44000
+    fileoff: 0
+    filesize: 278528
+    maxprot: 0x5
+    initprot: 0x5
+    nsects: 12
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0x100004e1c
+        size: 0x383c4
+        offset: 19996
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__auth_stubs"
+        addr: 0x10003d1e0
+        size: 0x1020
+        offset: 250336
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000408
+        reserved1: 0
+        reserved2: 16
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__objc_stubs"
+        addr: 0x10003e200
+        size: 0x3c0
+        offset: 254464
+        align: 5
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__init_offsets"
+        addr: 0x10003e5c0
+        size: 0x6c
+        offset: 255424
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x16
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__objc_methlist"
+        addr: 0x10003e630
+        size: 0x20
+        offset: 255536
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__gcc_except_tab"
+        addr: 0x10003e650
+        size: 0x2af0
+        offset: 255568
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__cstring"
+        addr: 0x100041140
+        size: 0x1170
+        offset: 266560
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__const"
+        addr: 0x1000422b0
+        size: 0xa20
+        offset: 271024
+        align: 4
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__objc_methname"
+        addr: 0x100042cd0
+        size: 0x382
+        offset: 273616
+        align: 1
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__objc_classname"
+        addr: 0x100043052
+        size: 0x2c
+        offset: 274514
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__objc_methtype"
+        addr: 0x10004307e
+        size: 0x121
+        offset: 274558
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__unwind_info"
+        addr: 0x1000431a0
+        size: 0xe50
+        offset: 274848
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+  - segname: "__DATA_CONST"
+    vmaddr: 0x100044000
+    vmsize: 0x4000
+    fileoff: 278528
+    filesize: 16384
+    maxprot: 0x3
+    initprot: 0x3
+    nsects: 8
+    flags: 0x10
+    sections:
+      - segname: "__DATA_CONST"
+        sectname: "__auth_got"
+        addr: 0x100044000
+        size: 0x828
+        offset: 278528
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x6
+        reserved1: 258
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__got"
+        addr: 0x100044828
+        size: 0x1e0
+        offset: 280616
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x6
+        reserved1: 519
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__auth_ptr"
+        addr: 0x100044a08
+        size: 0x40
+        offset: 281096
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__const"
+        addr: 0x100044a48
+        size: 0x860
+        offset: 281160
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__cfstring"
+        addr: 0x1000452a8
+        size: 0x2a0
+        offset: 283304
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__objc_classlist"
+        addr: 0x100045548
+        size: 0x8
+        offset: 283976
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x10000000
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__objc_protolist"
+        addr: 0x100045550
+        size: 0x10
+        offset: 283984
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__objc_imageinfo"
+        addr: 0x100045560
+        size: 0x8
+        offset: 284000
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+  - segname: "__DATA"
+    vmaddr: 0x100048000
+    vmsize: 0x4000
+    fileoff: 294912
+    filesize: 16384
+    maxprot: 0x3
+    initprot: 0x3
+    nsects: 9
+    flags: 0x0
+    sections:
+      - segname: "__DATA"
+        sectname: "__objc_const"
+        addr: 0x100048000
+        size: 0x470
+        offset: 294912
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_selrefs"
+        addr: 0x100048470
+        size: 0x100
+        offset: 296048
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x10000005
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_classrefs"
+        addr: 0x100048570
+        size: 0x50
+        offset: 296304
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x10000000
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_superrefs"
+        addr: 0x1000485c0
+        size: 0x8
+        offset: 296384
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x10000000
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_ivar"
+        addr: 0x1000485c8
+        size: 0xc
+        offset: 296392
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_data"
+        addr: 0x1000485d8
+        size: 0x50
+        offset: 296408
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__data"
+        addr: 0x100048628
+        size: 0x618
+        offset: 296488
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__bss"
+        addr: 0x100048c40
+        size: 0xbc
+        offset: 0
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x1
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__common"
+        addr: 0x100048d00
+        size: 0x5a0
+        offset: 0
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x1
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+  - segname: "__LINKEDIT"
+    vmaddr: 0x10004c000
+    vmsize: 0x28000
+    fileoff: 311296
+    filesize: 156960
+    maxprot: 0x1
+    initprot: 0x1
+    nsects: 0
+    flags: 0x0
+dylibs:
+  - name: "/usr/lib/libobjc.A.dylib"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "228.0.0"
+  - name: "/usr/lib/libcompression.dylib"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1.0.0"
+  - name: "/usr/lib/libMobileGestalt.dylib"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1.0.0"
+  - name: "/usr/lib/libsqlite3.dylib"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "9.0.0"
+    current_version: "346.0.0"
+  - name: "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "150.0.0"
+    current_version: "1971.0.0"
+  - name: "/System/Library/Frameworks/Foundation.framework/Foundation"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "300.0.0"
+    current_version: "1971.0.0"
+  - name: "/System/Library/Frameworks/CallKit.framework/CallKit"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1.0.0"
+  - name: "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1000.0.0"
+  - name: "/usr/lib/libc++.1.dylib"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1500.65.0"
+  - name: "/usr/lib/libSystem.B.dylib"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1319.100.3"
+entitlements:
+  - "com.apple.private.security.storage.Photos"
+  - "com.apple.multitasking.termination"
+  - "com.apple.private.MobileContainerManager.allowed"
+  - "com.apple.private.MobileInstallationHelperService.InstallDaemonOpsEnabled"
+  - "com.apple.private.MobileInstallationHelperService.allowed"
+  - "com.apple.private.amfi.can-check-trust-cache"
+  - "com.apple.private.security.storage.trustd-private"
+  - "com.apple.private.kernel.override-cpumon"
+  - "com.apple.private.keychain.appclipdeletion"
+  - "com.apple.private.mis.online_auth_agent"
+  - "com.apple.private.security.storage.AppBundles"
+  - "com.apple.private.uninstall.deletion"
+  - "com.apple.vpn.installer_events"
+  - "com.apple.private.photoanalysisd.access"
+  - "com.apple.private.allow-explicit-graphics-priority"
+  - "com.apple.private.assetsd.nebulad.access"
+  - "com.apple.private.avfoundation.capture.deferred-photo-processor.allow"
+  - "com.apple.avfoundation.allow-capture-filter-rendering"
+  - "com.apple.private.memorystatus"
+  - "com.apple.avfoundation.allow-still-image-capture-shutter-sound-manipulation"
+  - "com.apple.backboardd.debugapplications"
+  - "com.apple.backboardd.launchapplications"
+  - "com.apple.diagnosticd.diagnostic"
+  - "com.apple.frontboard.debugapplications"
+  - "com.apple.frontboard.launchapplications"
+  - "com.apple.security.network.client"
+  - "com.apple.security.network.server"
+  - "com.apple.CoreTelephony.CommCenterHelper.allow"
+  - "com.apple.CommCenter.fine-grained"
+  - "spi"
+  - "sim-authentication"
+  - "identity"
+  - "bb-xpc"
+  - "preferences-reset"
+  - "voice"
+  - "phone"
+  - "carrier-settings"
+  - "data-usage"
+  - "data-allowed"
+  - "data-allowed-write"
+  - "carrier-space"
+  - "cellular-plan"
+  - "com.apple.coretelephony.Identity.get"
+  - "com.apple.locationd.preauthorized"
+  - "com.apple.locationd.effective_bundle"
+  - "com.apple.private.lockdown.finegrained-get"
+  - "NULL/ActivationRegulatoryVariant"
+  - "com.apple.wifi.manager-access"
+  - "com.apple.springboard.debugapplications"
+  - "com.apple.springboard.opensensitiveurl"
+  - "com.apple.private.tcc.allow"
+  - "kTCCServiceReminders"
+  - "kTCCServicePhotos"
+  - "kTCCServicePhotosAdd"
+  - "kTCCServiceMicrophone"
+  - "kTCCServiceAddressBook"
+  - "kTCCServiceCalendar"
+  - "kTCCServiceMediaLibrary"
+  - "kTCCServiceCamera"
+  - "kTCCServiceWillow"
+  - "kTCCServiceFaceID"
+  - "kTCCServiceCalls"
+  - "kTCCServiceLiverpool"
+  - "kTCCServiceLocation"
+  - "allow-obliterate-device"
+  - "com.apple.QuartzCore.cache-asynchronous"
+  - "com.apple.QuartzCore.displayable-context"
+  - "com.apple.QuartzCore.global-capture"
+  - "com.apple.QuartzCore.secure-capture"
+  - "com.apple.QuartzCore.secure-mode"
+  - "com.apple.private.tcc.manager"
+  - "com.apple.private.librarian.can-get-application-info"
+  - "com.apple.lsapplicationproxy.deviceidentifierforvendor"
+  - "com.apple.private.security.container-manager"
+  - "com.apple.private.MobileContainerManager.otherIdLookup"
+  - "com.apple.private.MobileGestalt.AllowedProtectedKeys"
+  - "InverseDeviceID"
+  - "UniqueDeviceID"
+  - "ProvisioningUniqueDeviceID"
+  - "com.apple.private.iamlockdown"
+  - "com.apple.accessibility.api"
+  - "com.apple.security.iokit-user-client-class"
+  - "AGXCommandQueue"
+  - "AGXDevice"
+  - "AGXDeviceUserClient"
+  - "AGXSharedUserClient"
+  - "AppleCredentialManagerUserClient"
+  - "AppleJPEGDriverUserClient"
+  - "ApplePPMUserClient"
+  - "AppleSPUHIDDeviceUserClient"
+  - "AppleSPUHIDDriverUserClient"
+  - "IOAccelContext"
+  - "IOAccelContext2"
+  - "IOAccelDevice"
+  - "IOAccelDevice2"
+  - "IOAccelSharedUserClient"
+  - "IOAccelSharedUserClient2"
+  - "IOAccelSubmitter2"
+  - "IOHIDEventServiceFastPathUserClient"
+  - "IOHIDLibUserClient"
+  - "IOMobileFramebufferUserClient"
+  - "IOReportUserClient"
+  - "IOSurfaceAcceleratorClient"
+  - "IOSurfaceRootUserClient"
+  - "RootDomainUserClient"
+  - "com.apple.abm.helper.mobile.allow"
+  - "com.apple.abm.helper.root.allow"
+  - "com.apple.abm.helper.wireless.allow"
+  - "com.apple.private.mobileinstall.allowedSPI"
+  - "UninstallForLaunchServices"
+  - "SetCapabilities"
+  - "Lookup"
+  - "com.apple.sh"
+  - "com.apple.camera.iokit-user-access"
+  - "com.apple.security.ts.springboard-services"
+  - "com.apple.springboard-ui.client"
+  - "com.apple.private.security.storage-exempt.heritable"
+  - "keychain-access-groups"
+  - "25EK2MWNA5.com.microsoft.skype.s4l"
+  - "69V327AA4Z.group.viber.share.keychain"
+  - "8248RGMF2D.com.atebits.Tweetie2"
+  - "8248RGMF2D.com.atebits.Tweetie2.oauth"
+  - "EQHXZ8M8AV.com.google.Authenticator"
+  - "EQHXZ8M8AV.com.google.Gmail"
+  - "EQHXZ8M8AV.com.google.chrome.ios"
+  - "EQHXZ8M8AV.com.google.common.SSO"
+  - "MH9GU9K5PX.platformFamily"
+  - "MY7G7S56QB.sharedGroup"
+  - "T84QZS65DQ.com.facebook.Messenger"
+  - "T84QZS65DQ.platformFamily"
+  - "U68MSDN6DR.org.whispersystems.signal"
+  - "UKFA9XBX6K.net.whatsapp.WhatsApp"
+  - "ZW4U99SQQ3.jp.naver.line"
+  - "com.apple.Spotlight"
+  - "com.apple.TextInput"
+  - "com.apple.applesse"
+  - "com.apple.apsd"
+  - "com.apple.assistant"
+  - "com.apple.bluetooth"
+  - "com.apple.cloudd"
+  - "com.apple.continuity.encryption"
+  - "com.apple.continuity.unlock"
+  - "com.apple.icloud.searchpartyd"
+  - "com.apple.identityservicesd"
+  - "com.apple.ind"
+  - "com.apple.rapport"
+  - "com.apple.sbd"
+  - "com.apple.security.ckks"
+  - "com.apple.security.egoIdentities"
+  - "com.apple.security.octagon"
+  - "com.apple.security.sos"
+  - "com.apple.security.sos-usercredential"
+  - "com.apple.siri.osprey"
+  - "com.apple.telephonyutilities.callservicesd"
+  - "group.com.apple.notes"
+  - "group.com.facebook.Facebook"
+  - "group.com.facebook.Messenger"
+  - "group.com.facebook.family"
+  - "group.com.google.Gmail"
+  - "group.net.whatsapp.WhatsApp.private"
+  - "group.net.whatsapp.WhatsApp.shared"
+  - "group.net.whatsapp.family"
+  - "ichat"
+  - "lockdown-identities"
+  - "wifianalyticsd"
+  - "apple"
+  - "com.apple.certificates"
+  - "com.apple.hap.pairing"
+  - "com.apple.identities"
+  - "appleaccount"
+  - "com.apple.mobilemail.smime"
+  - "com.apple.preferences"
+  - "com.apple.cfnetwork"
+  - "com.apple.safari.credit-cards"
+  - "com.apple.PassbookUIService"
+  - "com.apple.ProtectedCloudStorage"
+  - "com.apple.PublicCloudStorage"
+  - "com.apple.VideoSubscriberAccount"
+  - "com.apple.Passbook.PeerPayment"
+  - "com.apple.coreservices.appleidauthentication"
+  - "com.apple.coreservices.appleidauthentication.keychainaccessgroup"
+  - "com.apple.sharing.appleidauthentication"
+  - "com.apple.sharing.safaripasswordsharing"
+  - "com.apple.social.oauthurl"
+  - "com.apple.passd"
+  - "com.apple.managed.vpn.shared"
+  - "com.apple.password-manager"
+  - "keychain-cloud-circle"
+  - "modify-anchor-certificates"
+  - "com.apple.security.exception.files.absolute-path.read-write"
+  - "/private/var/"
+  - "/private/etc/"
+  - "com.apple.security.exception.files.absolute-path.read-only"
+  - "/"
+  - "com.apple.private.security.no-container"
+  - "platform-application"
+  - "run-unsigned-code"
+  - "com.apple.security.cs.disable-library-validation"
+certificates:
+  - issuer: "C=US, ST=California, L=Cupertino, O=Apple, Inc., OU=Security Engineering and Architecture, CN=CMS Test Signer"
+    subject: "C=US, ST=California, L=Cupertino, O=Apple, Inc., OU=Security Engineering and Architecture, CN=CMS Test Signer"
+    is_self_signed: true
+  - issuer: "C=US, O=Apple Inc., OU=Apple Certification Authority, CN=Apple Root CA"
+    subject: "C=US, O=Apple Inc., OU=Apple Certification Authority, CN=Apple Root CA"
+    is_self_signed: true
+  - issuer: "C=US, O=Apple Inc., OU=Apple Certification Authority, CN=Apple Root CA"
+    subject: "CN=Apple iPhone Certification Authority, OU=Certification Authority, O=Apple Inc., C=US"
+    is_self_signed: false
+  - issuer: "CN=Apple iPhone Certification Authority, OU=Certification Authority, O=Apple Inc., C=US"
+    subject: "C=US, O=Apple Inc., OU=iPhone, CN=Apple iPhone OS Application Signing"
+    is_self_signed: false
+uuid: "B1B0F490-7286-3936-8538-6A0BE0E653F4"
+build_version:
+    platform: 2
+    minos: "16.0.0"
+    sdk: "16.4.0"
+    ntools: 1
+    tools:
+      - tool: 3
+        version: "857.1"
+exports:
+  - "_watcherFilePath"
+  - "_unicopy"
+  - "_main"
+  - "_m_statusStr"
+  - "_gadget_pacia"
+  - "__mh_execute_header"
+  - "__ZZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE10testTrojanEvE11sRandomChar"
+  - "__ZZNK12TaskPortBaseI14RemoteTaskPortE10readLengthEyyyE10sChunkSize"
+  - "__ZZN17LocalTaskPortImplI8TaskPortE11GetTaskSelfEvE8taskSelf"
+  - "__ZTVN6Helper9KeyLoggerE"
+  - "__ZTVN6Helper9HiddenDotE"
+  - "__ZTVN6Helper4VoipE"
+  - "__ZTVN6Helper13CameraEnablerE"
+  - "__ZTSN6Helper9KeyLoggerE"
+  - "__ZTSN6Helper9HiddenDotE"
+  - "__ZTSN6Helper4VoipE"
+  - "__ZTSN6Helper13CameraEnablerE"
+  - "__ZTIN6Helper9KeyLoggerE"
+  - "__ZTIN6Helper9HiddenDotE"
+  - "__ZTIN6Helper4VoipE"
+  - "__ZTIN6Helper13CameraEnablerE"
+  - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWEcvbEv"
+  - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE9signStateEP27__darwin_arm_thread_state64yyPN2KS6threadEPNS0_16SignedStateCacheE"
+  - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE8pushPortERK8PortBasej"
+  - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE26getReturnValueFromCallFuncEv"
+  - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE15writeLengthTaskEyyy"
+  - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE14readLengthTaskEyyy"
+  - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE14isTrojanThreadERK8PortBase"
+  - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE10isTaskDeadEv"
+  - "__ZNK8UMHookerI14RemoteTaskPortEcvbEv"
+  - "__ZNK8PortBaseeqERKS_"
+  - "__ZNK8PortBase21doRequestNotificationEijRKS_jP17PortSendOnceRight"
+  - "__ZNK8PortBase12isRightValidEv"
+  - "__ZNK8PortBase12getRightTypeEv"
+  - "__ZNK8DMHooker9signStateEP27__darwin_arm_thread_state64yyPN9NSTaskROP20WithoutDeveloperMode16SignedStateCacheE"
+  - "__ZNK8DMHooker11writeLengthEyyy"
+  - "__ZNK8DMHooker10readLengthEyyy"
+  - "__ZNK6Thread13getThreadPortEv"
+  - "__ZNK6TaskRWI13FDGuardNeonRWEcvbEv"
+  - "__ZNK6TaskRWI13FDGuardNeonRWE7performEyyjNS1_11PerformTypeE"
+  - "__ZNK6TaskRWI13FDGuardNeonRWE16readRemoteStringEPKc"
+  - "__ZNK6TaskRWI13FDGuardNeonRWE11writeLengthEyyj"
+  - "__ZNK6TaskRWI13FDGuardNeonRWE10readLengthEyyy"
+  - "__ZNK6KQueue15doKEventSyscallEPKN2KS12kevent_qos_sEiPS1_ijPK8timespec"
+  - "__ZNK6FDBase5guardEyjyjj"
+  - "__ZNK6FDBase5getFDEv"
+  - "__ZNK5Smack6NeonRW11writeLengthEyyj"
+  - "__ZNK5Smack6NeonRW10readLengthEyyy"
+  - "__ZNK21PortSendRightBaseImplI20PortSendReceiveRightE6doSendEP17mach_msg_header_tijj"
+  - "__ZNK21PortSendRightBaseImplI17PortSendOnceRightE6doSendEP17mach_msg_header_tijj"
+  - "__ZNK21PortSendRightBaseImplI13PortSendRightE6doSendEP17mach_msg_header_tijj"
+  - "__ZNK21PortAddressCachedBaseI17PortAddressCachedE16getKernelAddressEv"
+  - "__ZNK20PortReceiveRightBaseI20PortSendReceiveRightE9tempOwnerEv"
+  - "__ZNK20PortReceiveRightBaseI20PortSendReceiveRightE7unguardEy"
+  - "__ZNK20PortReceiveRightBaseI20PortSendReceiveRightE6doRecvEP17mach_msg_header_tijj"
+  - "__ZNK20PortReceiveRightBaseI20PortSendReceiveRightE5guardEyb"
+  - "__ZNK20PortReceiveRightBaseI20PortSendReceiveRightE15notifyNoSendersERK8PortBaseP17PortSendOnceRight"
+  - "__ZNK20PortReceiveRightBaseI20PortSendReceiveRightE13setAttributesEiPij"
+  - "__ZNK20PortReceiveRightBaseI16PortReceiveRightE6doRecvEP17mach_msg_header_tijj"
+  - "__ZNK19MemoryEntryPortBaseI15MemoryEntryPortE3mapEyyibyiij"
+  - "__ZNK14ThreadPortBaseI16RemoteThreadPortE13setDebugStateEP26__darwin_arm_debug_state64"
+  - "__ZNK14ThreadPortBaseI14ThreadPortWeakE7suspendEv"
+  - "__ZNK14ThreadPortBaseI14ThreadPortWeakE6resumeEv"
+  - "__ZNK14ThreadPortBaseI14ThreadPortWeakE16setExceptionPortERK8PortBasejii"
+  - "__ZNK14ThreadPortBaseI14ThreadPortWeakE13setDebugStateEP26__darwin_arm_debug_state64"
+  - "__ZNK14ThreadPortBaseI14ThreadPortWeakE12getNeonStateEv"
+  - "__ZNK14ThreadPortBaseI14ThreadPortWeakE11setVFPStateEP22__darwin_arm_vfp_state"
+  - "__ZNK14ThreadPortBaseI14ThreadPortWeakE11getVFPStateEv"
+  - "__ZNK14ThreadPortBaseI10ThreadPortE6resumeEv"
+  - "__ZNK14ThreadPortBaseI10ThreadPortE17terminateInternalEv"
+  - "__ZNK14ThreadPortBaseI10ThreadPortE17setThreadPriorityEi"
+  - "__ZNK14ThreadPortBaseI10ThreadPortE16setExceptionPortERK8PortBasejii"
+  - "__ZNK14ThreadPortBaseI10ThreadPortE13setArm64StateEPK27__darwin_arm_thread_state64"
+  - "__ZNK14ThreadPortBaseI10ThreadPortE12getNeonStateEv"
+  - "__ZNK14TaskAllocationcvbEv"
+  - "__ZNK14TaskAllocation7addressEv"
+  - "__ZNK14TaskAllocation4sizeEv"
+  - "__ZNK14RemoteTaskPortcvbEv"
+  - "__ZNK14RemoteTaskPort12isRightValidEv"
+  - "__ZNK13FDGuardNeonRWcvbEv"
+  - "__ZNK13FDGuardNeonRW5cloneEv"
+  - "__ZNK12TaskPortBaseI8TaskPortE8dyldInfoEv"
+  - "__ZNK12TaskPortBaseI8TaskPortE14allocateMemoryEymi"
+  - "__ZNK12TaskPortBaseI8TaskPortE14allocateMemoryEmi"
+  - "__ZNK12TaskPortBaseI14RemoteTaskPortE7threadsEv"
+  - "__ZNK12TaskPortBaseI14RemoteTaskPortE16setExceptionPortERK8PortBasejii"
+  - "__ZNK12TaskPortBaseI14RemoteTaskPortE16getExceptionPortEj"
+  - "__ZNK12TaskPortBaseI14RemoteTaskPortE13setDebugStateEP26__darwin_arm_debug_state64"
+  - "__ZNK12TaskPortBaseI14RemoteTaskPortE13getDebugStateEv"
+  - "__ZNK12TaskPortBaseI12TaskPortWeakE8dyldInfoEv"
+  - "__ZNK12TaskPortBaseI12TaskPortWeakE7threadsEv"
+  - "__ZNK12TaskPortBaseI12TaskPortWeakE3mapEPyyyijyiiij"
+  - "__ZNK12TaskPortBaseI12TaskPortWeakE16setExceptionPortERK8PortBasejii"
+  - "__ZNK12TaskPortBaseI12TaskPortWeakE16readRemoteStringEPKc"
+  - "__ZNK12TaskPortBaseI12TaskPortWeakE16getExceptionPortEj"
+  - "__ZNK12TaskPortBaseI12TaskPortWeakE13setDebugStateEP26__darwin_arm_debug_state64"
+  - "__ZNK12TaskPortBaseI12TaskPortWeakE13getDebugStateEv"
+  - "__ZNK12TaskPortBaseI12TaskPortWeakE10readLengthEyyy"
+  - "__ZNK12KernelWriterI13FDGuardNeonRWE9killRightER8TaskPortRK8PortBase"
+  - "__ZNK12KernelWriterI13FDGuardNeonRWE23createShmemWithVmObjectEPN2KS9vm_objectEy"
+  - "__ZNK12KernelWriterI13FDGuardNeonRWE11remotePACIAEPN2KS6threadEyy"
+  - "__ZNK12KernelWriterI11CorelliumRWE9killRightER8TaskPortRK8PortBase"
+  - "__ZNK12KernelWriterI11CorelliumRWE23createShmemWithVmObjectEPN2KS9vm_objectEy"
+  - "__ZNK12KernelReaderIN5Smack6NeonRWEE24getRightKaddrForPortNameEPN2KS4taskERK8PortBaseb"
+  - "__ZNK12KernelReaderIN5Smack6NeonRWEE19getPortKobjectKaddrERK8PortBaseb"
+  - "__ZNK12KernelReaderIN5Smack6NeonRWEE18getTaskKaddrForPIDEib"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE33getRightKaddrForPortNameWithTableEPN2KS9ipc_entryERK8PortBase"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE26getTaskKaddrForPIDStartingEiPvb"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE24getVmObjectForVirtInTaskEPN2KS4taskEy"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE24getRightKaddrForPortNameER8TaskPortRK8PortBaseb"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE24getRightKaddrForPortNameEPN2KS4taskERK8PortBaseb"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE22getFileglobKaddrInTaskERK6FDWeakRK12TaskPortWeak"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE22getFileProcForFDInTaskERK12TaskPortWeaki"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE22getFileProcForFDInProcEPN2KS4procEi"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE20getVMMapEntryForTaskEPN2KS4taskEybPy"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE19getTaskForProcKaddrEPv"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE19getProcForTaskKaddrEPv"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE19getPortKobjectKaddrERK8PortBaseb"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE19getPortKobjectKaddrEPN2KS8ipc_portEb"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE18getTaskKaddrForPIDEib"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE18getIPCTableForTaskERK12TaskPortWeakb"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE17getPortsInPortSetEPN2KS8ipc_psetE"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE16getFileglobKaddrERK6FDWeak"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE15findProcForNameERKNSt3__117basic_string_viewIcNS2_11char_traitsIcEEEE"
+  - "__ZNK12KernelReaderI11CorelliumRWE33getRightKaddrForPortNameWithTableEPN2KS9ipc_entryERK8PortBase"
+  - "__ZNK12KernelReaderI11CorelliumRWE24getVmObjectForVirtInTaskEPN2KS4taskEy"
+  - "__ZNK12KernelReaderI11CorelliumRWE24getRightKaddrForPortNameER8TaskPortRK8PortBaseb"
+  - "__ZNK12KernelReaderI11CorelliumRWE24getRightKaddrForPortNameEPN2KS4taskERK8PortBaseb"
+  - "__ZNK12KernelReaderI11CorelliumRWE19getPortKobjectKaddrERK8PortBaseb"
+  - "__ZNK12KernelReaderI11CorelliumRWE18getTaskKaddrForPIDEib"
+  - "__ZNK12KernelReaderI11CorelliumRWE18getIPCTableForTaskERK12TaskPortWeakb"
+  - "__ZNK11CorelliumRW11writeLengthEyyj"
+  - "__ZNK11CorelliumRW10readLengthEyyy"
+  - "__ZNK10Arm64State8getFlagsEv"
+  - "__ZNK10Arm64State5setPCEPv"
+  - "__ZNK10Arm64State5setLREPv"
+  - "__ZNK10Arm64State5getSPEv"
+  - "__ZNK10Arm64State5getPCEv"
+  - "__ZNK10Arm64State5getLREv"
+  - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWEaSEOS3_"
+  - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWED2Ev"
+  - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWEC2EOS3_"
+  - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWEC2EOS2_PN2KS4taskE"
+  - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE4initEv"
+  - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE20findRemoteObjectiveCEPKcS5_"
+  - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE18sScratchBufferSizeE"
+  - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE14flushPageCacheEv"
+  - "__ZN8UMHookerI14RemoteTaskPortED1Ev"
+  - "__ZN8UMHookerI14RemoteTaskPortEC1EOS0_"
+  - "__ZN8UMHookerI14RemoteTaskPortE7destroyEb"
+  - "__ZN8UMHookerI14RemoteTaskPortE4hookEyONSt3__18functionIFbP27__darwin_arm_thread_state64EEE"
+  - "__ZN8TaskPortaSEOS_"
+  - "__ZN8Syscalls9proc_infoEiijyyi"
+  - "__ZN8Syscalls7fstat64Ei"
+  - "__ZN8Syscalls5writeEiyy"
+  - "__ZN8Syscalls4readEiyy"
+  - "__ZN8Syscalls3dupEi"
+  - "__ZN8Syscalls29thread_get_special_reply_portEv"
+  - "__ZN8Syscalls17readForExhaustionEiPvm"
+  - "__ZN8Syscalls17change_fdguard_npEiyjyjy"
+  - "__ZN8Syscalls16thread_self_trapEv"
+  - "__ZN8Syscalls15mach_msg_silentEP17mach_msg_header_tijjjjj"
+  - "__ZN8Syscalls13thread_switchEjij"
+  - "__ZN8Syscalls10kevent_qosEiPKN2KS12kevent_qos_sEiPS1_iPvPmj"
+  - "__ZN8Syscalls10UnixHandleEiPKc10ReturnTypelbb"
+  - "__ZN8Syscalls10MachHandleEiPKcib"
+  - "__ZN8ProcInfo16GetKQueueExtInfoEii"
+  - "__ZN8PortBaseaSEOS_"
+  - "__ZN8PortBaseC2Ej"
+  - "__ZN8PortBaseC2EOS_"
+  - "__ZN8PortBaseC1Ej"
+  - "__ZN8PortBaseC1EOS_"
+  - "__ZN8PortBase7setPortEj"
+  - "__ZN8PortBase5resetEv"
+  - "__ZN8Internal2RW6Kernel14IsAddressValidEyb"
+  - "__ZN8DMHookerD1Ev"
+  - "__ZN8DMHookerC1EO14RemoteTaskPort"
+  - "__ZN8DMHooker7getTaskEv"
+  - "__ZN8DMHooker4initEv"
+  - "__ZN8DMHooker11onBadAccessEONSt3__18functionIFNS_10HookReturnEP27__darwin_arm_thread_state64EEE"
+  - "__ZN8DMHooker11hookAddressEyONSt3__18functionIFNS_10HookReturnEP27__darwin_arm_thread_state64EEEb"
+  - "__ZN8DMHooker10removeHookEy"
+  - "__ZN8DMHooker10hookSymbolEPKcONSt3__18functionIFNS_10HookReturnEP27__darwin_arm_thread_state64EEEb"
+  - "__ZN8DMHooker10flushCacheEv"
+  - "__ZN6ThreadaSEOS_"
+  - "__ZN6ThreadD1Ev"
+  - "__ZN6Thread6detachEv"
+  - "__ZN6Thread14joinIfPossibleEv"
+  - "__ZN6Thread13getThreadPortEv"
+  - "__ZN6TaskRWI13FDGuardNeonRWEC1ERKS0_PN2KS4taskE"
+  - "__ZN6KQueue9NewKQueueEv"
+  - "__ZN6KEventC1Eysytj"
+  - "__ZN6KEvent14CreateMachPortERK8PortBaseymity"
+  - "__ZN6KEvent12_CreateTimerEyjjx"
+  - "__ZN6Helper9KeyLogger7executeEP8NSStringPPc"
+  - "__ZN6Helper9KeyLogger4initEP8NSStringPPc"
+  - "__ZN6Helper9KeyLogger14startKeyLoggerEPPc"
+  - "__ZN6Helper9KeyLogger12getSentencesEPPcb"
+  - "__ZN6Helper9HiddenDot9setupHookEv"
+  - "__ZN6Helper9HiddenDot7executeEP8NSStringPPc"
+  - "__ZN6Helper9HiddenDot4initEP8NSStringPPc"
+  - "__ZN6Helper4VoipD2Ev"
+  - "__ZN6Helper4VoipD1Ev"
+  - "__ZN6Helper4VoipD0Ev"
+  - "__ZN6Helper4Voip7executeEP8NSStringPPc"
+  - "__ZN6Helper4Voip5startEv"
+  - "__ZN6Helper4Voip4stopEv"
+  - "__ZN6Helper4Voip4initEP8NSStringPPc"
+  - "__ZN6Helper4Voip19createNewOutputFileEi"
+  - "__ZN6Helper4Voip15encodePCMSampleEPKvm"
+  - "__ZN6Helper4Voip13restoreHookPCEP27__darwin_arm_thread_state64"
+  - "__ZN6Helper4Voip13pcmFloatToIntEPvPKvm"
+  - "__ZN6Helper4Voip13buildPACCacheEP27__darwin_arm_thread_state64y"
+  - "__ZN6Helper4Voip11startRecordEv"
+  - "__ZN6Helper4Voip11downmix4to2EPsPKsm"
+  - "__ZN6Helper4Voip10stopRecordEv"
+  - "__ZN6Helper4Voip10setupHooksEv"
+  - "__ZN6Helper13HookerFactory9getHookerEPKc"
+  - "__ZN6Helper13HelperHandlerD2Ev"
+  - "__ZN6Helper13HelperHandlerD1Ev"
+  - "__ZN6Helper13HelperHandlerC2Ev"
+  - "__ZN6Helper13HelperHandlerC1Ev"
+  - "__ZN6Helper13HelperHandler5startEv"
+  - "__ZN6Helper13HelperHandler4stopEv"
+  - "__ZN6Helper13HelperHandler4initEv"
+  - "__ZN6Helper13HelperHandler25createListeningUnixSocketEPKc"
+  - "__ZN6Helper13HelperHandler22removeHelperBinaryFileEv"
+  - "__ZN6Helper13HelperHandler21startUnixSocketServerEPKc"
+  - "__ZN6Helper13HelperHandler21checkIfAgentIsRunningEv"
+  - "__ZN6Helper13HelperHandler17onCheckAgentTimerEP16__CFRunLoopTimerPv"
+  - "__ZN6Helper13HelperHandler17listenForShutdownEv"
+  - "__ZN6Helper13HelperHandler14processRequestEicPKcPPc"
+  - "__ZN6Helper13HelperHandler13processClientEi"
+  - "__ZN6Helper13HelperHandler10onShutdownEP22__CFNotificationCenterPvPK10__CFStringPKvPK14__CFDictionary"
+  - "__ZN6Helper13HelperHandler10initWithRWEv"
+  - "__ZN6Helper13HelperFactory8getIndexEi"
+  - "__ZN6Helper13HelperFactory15deleteOperationEi"
+  - "__ZN6Helper13HelperFactory12newOperationEi"
+  - "__ZN6Helper13HelperFactory12getOperationEi"
+  - "__ZN6Helper13CameraEnabler9setupHookEv"
+  - "__ZN6Helper13CameraEnabler7executeEP8NSStringPPc"
+  - "__ZN6Helper13CameraEnabler7disableEv"
+  - "__ZN6Helper13CameraEnabler6enableEv"
+  - "__ZN6Helper13CameraEnabler4initEP8NSStringPPc"
+  - "__ZN6Helper13CameraEnabler19findFunctionAddressEv"
+  - "__ZN6FDBaseaSEOS_"
+  - "__ZN6FDBaseC2Ei"
+  - "__ZN6FDBaseC2EOS_"
+  - "__ZN6FDBase5resetEv"
+  - "__ZN5Utils9writeLineEiPKc"
+  - "__ZN5Utils8writeAllEiPKcm"
+  - "__ZN5Utils8readLineEiPcm"
+  - "__ZN5Utils6getPidEPKc"
+  - "__ZN5Utils5splitEPcc"
+  - "__ZN5Utils22enableMemoryProtectionEv"
+  - "__ZN5Utils14findObjcMethodEPKcS1_S1_"
+  - "__ZN5Utils13getCountNamesEv"
+  - "__ZN5Utils12writeLineIntEii"
+  - "__ZN5Utils11writeStringEiPKc"
+  - "__ZN5Utils11readLineIntEi"
+  - "__ZN3Log10LogManager7PrinterE"
+  - "__ZN3Log10LogManager5ToStrERNSt3__118basic_stringstreamIcNS1_11char_traitsIcEENS1_9allocatorIcEEEERKNS1_17basic_string_viewIcS4_EE"
+  - "__ZN3Log10LogManager5ToStrERNSt3__118basic_stringstreamIcNS1_11char_traitsIcEENS1_9allocatorIcEEEEPv"
+  - "__ZN3Log10LogManager5ToStrERNSt3__118basic_stringstreamIcNS1_11char_traitsIcEENS1_9allocatorIcEEEEPKc"
+  - "__ZN3Log10LogManager5ToStrERNSt3__118basic_stringstreamIcNS1_11char_traitsIcEENS1_9allocatorIcEEEEDn"
+  - "__ZN3Log10LogManager4InitEv"
+  - "__ZN3Log10LogManager18PreparePrintSuffixERNSt3__118basic_stringstreamIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE"
+  - "__ZN3Log10LogManager18PreparePrintPrefixERNSt3__118basic_stringstreamIcNS1_11char_traitsIcEENS1_9allocatorIcEEEENS0_9PrintTypeEPKcSB_i"
+  - "__ZN24PortSendReceiveRightBaseI20PortSendReceiveRightE7NewPortEj"
+  - "__ZN24PortSendReceiveRightBaseI20PortSendReceiveRightE7NewPortERK8TaskPortj"
+  - "__ZN24PortSendReceiveRightBaseI17PortAddressCachedE7NewPortEj"
+  - "__ZN24PortSendReceiveRightBaseI17PortAddressCachedE7NewPortERK8TaskPortj"
+  - "__ZN21PortAddressCachedBaseI17PortAddressCachedE5resetEv"
+  - "__ZN21PortAddressCachedBaseI17PortAddressCachedE16setKernelAddressEPN2KS8ipc_portE"
+  - "__ZN19MemoryEntryPortBaseI15MemoryEntryPortE17CreateMemoryEntryEyyi"
+  - "__ZN19MemoryEntryPortBaseI15MemoryEntryPortE17CreateMemoryEntryEPyyiRK8PortBase"
+  - "__ZN19LocalThreadPortImplI14ThreadPortWeakE8SwitchToERKS0_ij"
+  - "__ZN19LocalThreadPortImplI10ThreadPortE13NewThreadPortERK8PortBase"
+  - "__ZN19LocalThreadPortImplI10ThreadPortE13GetThreadSelfEv"
+  - "__ZN17VersionDispatcher7m_unameE"
+  - "__ZN17VersionDispatcher26OffsetsVersionByDeviceInitEv"
+  - "__ZN17VersionDispatcher22OffsetsVersionByDeviceEv"
+  - "__ZN17VersionDispatcher17GetCurrentVersionEv"
+  - "__ZN17VersionDispatcher16m_currentVersionE"
+  - "__ZN17VersionDispatcher16IsBuildSupportedEv"
+  - "__ZN17VersionDispatcher14GetHostMachineEv"
+  - "__ZN17VersionDispatcher13m_deviceClassE"
+  - "__ZN17PortRightInserter6InsertIK13FDGuardNeonRWEE8PortBaseRT_PN2KS8ipc_portE"
+  - "__ZN17PortRightInserter6InsertI13FDGuardNeonRWEE8PortBaseRT_PN2KS8ipc_portE"
+  - "__ZN17PortRightInserter6InsertI11CorelliumRWEE8PortBaseRT_PN2KS8ipc_portE"
+  - "__ZN17PortAddressCachedaSEOS_"
+  - "__ZN17PortAddressCachedC1EOS_"
+  - "__ZN17PortAddressCached5resetEv"
+  - "__ZN17LocalTaskPortImplI8TaskPortE11GetTaskSelfEv"
+  - "__ZN16RemoteThreadPort7setTaskERK14RemoteTaskPort"
+  - "__ZN16ExceptionMessageILi6ELj7166ELy2147483650EE4SendERK21PortSendOnceRightWeakRK27__darwin_arm_thread_state64"
+  - "__ZN16ExceptionMessageILi6ELj7166ELy2147483650EE11sStateCountE"
+  - "__ZN16ExceptionMessageILi2ELj7166ELy2147483650EE4SendERK21PortSendOnceRightWeakRK22__darwin_arm_vfp_state"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner9WriteFileEPKcPhm"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner9DecryptorEPhm"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner7checkKAEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner5startEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner5spawnEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner4stopEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner4initEPKcS2_S2_S2_S2_S2_S2_S2_S2_S2_S2_S2_S2_S2_"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner3RC4EPhlS1_lS1_"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner29downloadExecutableOnceRemotlyEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner26ApplySandboxEscapeForOtherEiPc"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner23monitoringCrashReporterEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner22downloadExecutableOnceEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner21is_restricted_countryEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner21KillingPreviousHelperEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner19is_rootca_installedEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner19is_console_attachedEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner19ReportAbortViaNSUrlEPKcS2_"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner19ApplyInstalldBypassEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner18downloadExecutableEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner17onCheckAgentTimerEP16__CFRunLoopTimerPv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner17listenForShutdownEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner17is_watcher_existsEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner17is_unsafe_runningEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner17executeDownloadedEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner16is_proxy_runningEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner16ApplyTrustBypassEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner15CleaningWatcherEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner14chmodBundleDirEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner14CleaningHelperEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner13check_performEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner13SpawnDirectlyEPKci"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner13OpeningBinaryEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner13CleaningAgentEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner13CheckMaintainEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner12spawnProcessEPKci"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner12is_not_phoneEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner12is_developerEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner12is_corelliumEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner12ExecuteQueryEPKci"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner12ExecuteQueryEPKcPvPFvS3_P12sqlite3_stmtE"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner11ReportAbortEPcPKc"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner11CopyWatcherEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner10onShutdownEP22__CFNotificationCenterPvPK10__CFStringPKvPK14__CFDictionary"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner10checkAgentEv"
+  - "__ZN16CSWatcherSpawner16CSWatcherSpawner10TestHookerEv"
+  - "__ZN14TaskAllocationaSEOS_"
+  - "__ZN14TaskAllocationD1Ev"
+  - "__ZN14TaskAllocationC1ERK8PortBaseym"
+  - "__ZN14TaskAllocationC1EOS_"
+  - "__ZN14RemoteTaskPortC1Ev"
+  - "__ZN13ProcessImagesI12TaskPortWeakEC1ERKS0_"
+  - "__ZN13ProcessImagesI12TaskPortWeakE4loadEv"
+  - "__ZN13FDGuardNeonRWD2Ev"
+  - "__ZN13FDGuardNeonRWD1Ev"
+  - "__ZN13FDGuardNeonRW4initEO2FDS1_O10ThreadPortyy"
+  - "__ZN13FDGuardNeonRW11writeLengthEyyj"
+  - "__ZN13FDGuardNeonRW10readLengthEyyy"
+  - "__ZN12TaskPortWeakaSERKS_"
+  - "__ZN12TaskPortWeakC1ERKS_"
+  - "__ZN12TaskPortWeakC1ERK8TaskPort"
+  - "__ZN12TaskPortBaseI12TaskPortWeakE16deallocateMemoryEym"
+  - "__ZN10RWTransfer4GiveER13FDGuardNeonRWi"
+  - "__ZN10RWTransfer3GetEv"
+  - "__ZN10Arm64StateC1EP27__darwin_arm_thread_state64"
+  - "__ZN10Arm64State8setFlagsEj"
+  - "__ZGVZNK12TaskPortBaseI14RemoteTaskPortE10readLengthEyyyE10sChunkSize"
+  - "__ZGVZN17LocalTaskPortImplI8TaskPortE11GetTaskSelfEvE8taskSelf"
+  - "_WatcherPathSecond"
+  - "_UNSAFE_PROCS"
+  - "_OBJC_METACLASS_$_CallHandler"
+  - "_OBJC_CLASS_$_CallHandler"
+  - "_JB_PATHS"
+  - "_HelperPath"
+  - "_CounterTest"
+  - "_BitPath"
+imports:
+  - "_CFNotificationCenterAddObserver"
+  - "_CFNotificationCenterGetDarwinNotifyCenter"
+  - "_CFRelease"
+  - "_CFRunLoopAddTimer"
+  - "_CFRunLoopGetMain"
+  - "_CFRunLoopRemoveTimer"
+  - "_CFRunLoopRun"
+  - "_CFRunLoopStop"
+  - "_CFRunLoopTimerCreate"
+  - "_CFURLCreateWithFileSystemPath"
+  - "_ExtAudioFileCreateWithURL"
+  - "_ExtAudioFileDispose"
+  - "_ExtAudioFileSetProperty"
+  - "_ExtAudioFileWrite"
+  - "_NSLog"
+  - "__NSGetExecutablePath"
+  - "__Unwind_Resume"
+  - "__ZN16ExceptionMessageILi2ELj7166ELy2147483650EE4SendERK21PortSendOnceRightWeakRK22__darwin_arm_vfp_state"
+  - "__ZN16ExceptionMessageILi6ELj7166ELy2147483650EE4SendERK21PortSendOnceRightWeakRK27__darwin_arm_thread_state64"
+  - "__ZN17LocalTaskPortImplI8TaskPortE11GetTaskSelfEv"
+  - "__ZN19LocalThreadPortImplI14ThreadPortWeakE8SwitchToERKS0_ij"
+  - "__ZN19MemoryEntryPortBaseI15MemoryEntryPortE17CreateMemoryEntryEPyyiRK8PortBase"
+  - "__ZN24PortSendReceiveRightBaseI17PortAddressCachedE7NewPortERK8TaskPortj"
+  - "__ZN24PortSendReceiveRightBaseI20PortSendReceiveRightE7NewPortERK8TaskPortj"
+  - "__ZN8UMHookerI14RemoteTaskPortE4hookEyONSt3__18functionIFbP27__darwin_arm_thread_state64EEE"
+  - "__ZN8UMHookerI14RemoteTaskPortE7destroyEb"
+  - "__ZN8UMHookerI14RemoteTaskPortEC1EOS0_"
+  - "__ZN8UMHookerI14RemoteTaskPortED1Ev"
+  - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE20findRemoteObjectiveCEPKcS5_"
+  - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE4initEv"
+  - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWEC2EOS2_PN2KS4taskE"
+  - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWED2Ev"
+  - "__ZN9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWEaSEOS3_"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE15findProcForNameERKNSt3__117basic_string_viewIcNS2_11char_traitsIcEEEE"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE16getFileglobKaddrERK6FDWeak"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE17getPortsInPortSetEPN2KS8ipc_psetE"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE19getPortKobjectKaddrEPN2KS8ipc_portEb"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE19getPortKobjectKaddrERK8PortBaseb"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE19getProcForTaskKaddrEPv"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE19getTaskForProcKaddrEPv"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE20getVMMapEntryForTaskEPN2KS4taskEybPy"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE22getFileProcForFDInTaskERK12TaskPortWeaki"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE22getFileglobKaddrInTaskERK6FDWeakRK12TaskPortWeak"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE24getRightKaddrForPortNameER8TaskPortRK8PortBaseb"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE24getVmObjectForVirtInTaskEPN2KS4taskEy"
+  - "__ZNK12KernelReaderI13FDGuardNeonRWE26getTaskKaddrForPIDStartingEiPvb"
+  - "__ZNK12KernelReaderIN5Smack6NeonRWEE19getPortKobjectKaddrERK8PortBaseb"
+  - "__ZNK12KernelWriterI13FDGuardNeonRWE23createShmemWithVmObjectEPN2KS9vm_objectEy"
+  - "__ZNK12KernelWriterI13FDGuardNeonRWE9killRightER8TaskPortRK8PortBase"
+  - "__ZNK12TaskPortBaseI12TaskPortWeakE10readLengthEyyy"
+  - "__ZNK12TaskPortBaseI12TaskPortWeakE16readRemoteStringEPKc"
+  - "__ZNK12TaskPortBaseI12TaskPortWeakE8dyldInfoEv"
+  - "__ZNK12TaskPortBaseI14RemoteTaskPortE16getExceptionPortEj"
+  - "__ZNK12TaskPortBaseI14RemoteTaskPortE16setExceptionPortERK8PortBasejii"
+  - "__ZNK12TaskPortBaseI14RemoteTaskPortE7threadsEv"
+  - "__ZNK12TaskPortBaseI8TaskPortE14allocateMemoryEymi"
+  - "__ZNK14ThreadPortBaseI10ThreadPortE12getNeonStateEv"
+  - "__ZNK14ThreadPortBaseI10ThreadPortE13setArm64StateEPK27__darwin_arm_thread_state64"
+  - "__ZNK14ThreadPortBaseI10ThreadPortE16setExceptionPortERK8PortBasejii"
+  - "__ZNK14ThreadPortBaseI10ThreadPortE6resumeEv"
+  - "__ZNK14ThreadPortBaseI14ThreadPortWeakE11getVFPStateEv"
+  - "__ZNK14ThreadPortBaseI14ThreadPortWeakE12getNeonStateEv"
+  - "__ZNK14ThreadPortBaseI14ThreadPortWeakE16setExceptionPortERK8PortBasejii"
+  - "__ZNK14ThreadPortBaseI14ThreadPortWeakE6resumeEv"
+  - "__ZNK14ThreadPortBaseI14ThreadPortWeakE7suspendEv"
+  - "__ZNK19MemoryEntryPortBaseI15MemoryEntryPortE3mapEyyibyiij"
+  - "__ZNK20PortReceiveRightBaseI16PortReceiveRightE6doRecvEP17mach_msg_header_tijj"
+  - "__ZNK20PortReceiveRightBaseI20PortSendReceiveRightE13setAttributesEiPij"
+  - "__ZNK20PortReceiveRightBaseI20PortSendReceiveRightE5guardEyb"
+  - "__ZNK21PortSendRightBaseImplI13PortSendRightE6doSendEP17mach_msg_header_tijj"
+  - "__ZNK21PortSendRightBaseImplI17PortSendOnceRightE6doSendEP17mach_msg_header_tijj"
+  - "__ZNK21PortSendRightBaseImplI20PortSendReceiveRightE6doSendEP17mach_msg_header_tijj"
+  - "__ZNK6TaskRWI13FDGuardNeonRWE7performEyyjNS1_11PerformTypeE"
+  - "__ZNK8UMHookerI14RemoteTaskPortEcvbEv"
+  - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE14isTrojanThreadERK8PortBase"
+  - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE26getReturnValueFromCallFuncEv"
+  - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE8pushPortERK8PortBasej"
+  - "__ZNK9NSTaskROP20WithoutDeveloperMode7TaskROPI13FDGuardNeonRWE9signStateEP27__darwin_arm_thread_state64yyPN2KS6threadEPNS0_16SignedStateCacheE"
+  - "__ZNKSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEE3strEv"
+  - "__ZNKSt3__16locale9use_facetERNS0_2idE"
+  - "__ZNKSt3__18ios_base6getlocEv"
+  - "__ZNSt11logic_errorC2EPKc"
+  - "__ZNSt20bad_array_new_lengthC1Ev"
+  - "__ZNSt3__111this_thread9sleep_forERKNS_6chrono8durationIxNS_5ratioILl1ELl1000000000EEEEE"
+  - "__ZNSt3__112__next_primeEm"
+  - "__ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEPKcm"
+  - "__ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE7replaceEmmPKcm"
+  - "__ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE9push_backEc"
+  - "__ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEaSERKS5_"
+  - "__ZNSt3__113basic_istreamIcNS_11char_traitsIcEEE6sentryC1ERS3_b"
+  - "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEE6sentryC1ERS3_"
+  - "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEE6sentryD1Ev"
+  - "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEf"
+  - "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEi"
+  - "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEj"
+  - "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEm"
+  - "__ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEy"
+  - "__ZNSt3__114basic_iostreamIcNS_11char_traitsIcEEED2Ev"
+  - "__ZNSt3__115__thread_structC1Ev"
+  - "__ZNSt3__115__thread_structD1Ev"
+  - "__ZNSt3__115basic_streambufIcNS_11char_traitsIcEEEC2Ev"
+  - "__ZNSt3__115basic_streambufIcNS_11char_traitsIcEEED2Ev"
+  - "__ZNSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEE3strERKNS_12basic_stringIcS2_S4_EE"
+  - "__ZNSt3__119__shared_weak_count14__release_weakEv"
+  - "__ZNSt3__119__shared_weak_countD2Ev"
+  - "__ZNSt3__119__thread_local_dataEv"
+  - "__ZNSt3__120__throw_system_errorEiPKc"
+  - "__ZNSt3__15mutex4lockEv"
+  - "__ZNSt3__15mutex6unlockEv"
+  - "__ZNSt3__15mutexD1Ev"
+  - "__ZNSt3__16chrono12steady_clock3nowEv"
+  - "__ZNSt3__16chrono12system_clock3nowEv"
+  - "__ZNSt3__16localeD1Ev"
+  - "__ZNSt3__16thread4joinEv"
+  - "__ZNSt3__16thread6detachEv"
+  - "__ZNSt3__16threadD1Ev"
+  - "__ZNSt3__18ios_base33__set_badbit_and_consider_rethrowEv"
+  - "__ZNSt3__18ios_base4initEPv"
+  - "__ZNSt3__18ios_base5clearEj"
+  - "__ZNSt3__19basic_iosIcNS_11char_traitsIcEEED2Ev"
+  - "__ZNSt9exceptionD2Ev"
+  - "__ZSt9terminatev"
+  - "__ZdaPv"
+  - "__ZdlPv"
+  - "__Znam"
+  - "__Znwm"
+  - "___cxa_allocate_exception"
+  - "___cxa_atexit"
+  - "___cxa_begin_catch"
+  - "___cxa_end_catch"
+  - "___cxa_free_exception"
+  - "___cxa_guard_acquire"
+  - "___cxa_guard_release"
+  - "___cxa_rethrow"
+  - "___cxa_throw"
+  - "___error"
+  - "___gxx_personality_v0"
+  - "___objc_personality_v0"
+  - "__kernelrpc_mach_port_type_trap"
+  - "_accept"
+  - "_access"
+  - "_atoi"
+  - "_bind"
+  - "_bootstrap_look_up"
+  - "_bzero"
+  - "_calloc"
+  - "_chmod"
+  - "_class_getInstanceMethod"
+  - "_close"
+  - "_compression_decode_buffer"
+  - "_dispatch_queue_create"
+  - "_dlclose"
+  - "_dlopen"
+  - "_dlsym"
+  - "_fclose"
+  - "_fopen"
+  - "_fread"
+  - "_free"
+  - "_fseek"
+  - "_fsync"
+  - "_ftell"
+  - "_getpgid"
+  - "_getpid"
+  - "_getprogname"
+  - "_getuid"
+  - "_kevent"
+  - "_kill"
+  - "_kqueue"
+  - "_listen"
+  - "_mach_make_memory_entry_64"
+  - "_mach_msg"
+  - "_mach_msg_destroy"
+  - "_mach_port_construct"
+  - "_mach_port_guard"
+  - "_mach_port_mod_refs"
+  - "_mach_port_request_notification"
+  - "_mach_port_set_attributes"
+  - "_mach_port_unguard"
+  - "_mach_vm_allocate"
+  - "_mach_vm_deallocate"
+  - "_mach_vm_map"
+  - "_mach_vm_read_overwrite"
+  - "_malloc"
+  - "_memcmp"
+  - "_memcpy"
+  - "_memmem"
+  - "_memmove"
+  - "_memorystatus_control"
+  - "_memset"
+  - "_method_getImplementation"
+  - "_objc_alloc"
+  - "_objc_alloc_init"
+  - "_objc_autoreleasePoolPop"
+  - "_objc_autoreleasePoolPush"
+  - "_objc_begin_catch"
+  - "_objc_end_catch"
+  - "_objc_exception_rethrow"
+  - "_objc_getClass"
+  - "_objc_msgSend"
+  - "_objc_msgSendSuper2"
+  - "_objc_release_x8"
+  - "_open"
+  - "_posix_spawn"
+  - "_proc_pidpath"
+  - "_pthread_create"
+  - "_pthread_create_suspended_np"
+  - "_pthread_detach"
+  - "_pthread_mach_thread_np"
+  - "_pthread_setspecific"
+  - "_rand"
+  - "_read"
+  - "_remove"
+  - "_rename"
+  - "_sched_yield"
+  - "_sel_registerName"
+  - "_setrlimit"
+  - "_sleep"
+  - "_snprintf"
+  - "_socket"
+  - "_sqlite3_bind_int"
+  - "_sqlite3_bind_text"
+  - "_sqlite3_close"
+  - "_sqlite3_exec"
+  - "_sqlite3_finalize"
+  - "_sqlite3_open"
+  - "_sqlite3_prepare"
+  - "_sqlite3_step"
+  - "_stat"
+  - "_strcat"
+  - "_strchr"
+  - "_strcmp"
+  - "_strcpy"
+  - "_strdup"
+  - "_strlcpy"
+  - "_strlen"
+  - "_strncat"
+  - "_strncmp"
+  - "_strnlen"
+  - "_strstr"
+  - "_strtok"
+  - "_sysctl"
+  - "_sysctlbyname"
+  - "_task_get_state"
+  - "_task_info"
+  - "_task_set_exception_ports"
+  - "_task_set_state"
+  - "_task_threads"
+  - "_thread_create"
+  - "_thread_get_state"
+  - "_thread_policy_set"
+  - "_thread_resume"
+  - "_thread_set_exception_ports"
+  - "_thread_set_state"
+  - "_thread_suspend"
+  - "_thread_terminate"
+  - "_time"
+  - "_uname"
+  - "_unlink"
+  - "_usleep"
+  - "_waitpid"
+  - "_write"
+  - "_NDR_record"
+  - "_NSFileModificationDate"
+  - "_OBJC_EHTYPE_$_NSException"
+  - "__ZGVZN17LocalTaskPortImplI8TaskPortE11GetTaskSelfEvE8taskSelf"
+  - "__ZGVZNK12TaskPortBaseI14RemoteTaskPortE10readLengthEyyyE10sChunkSize"
+  - "__ZN16ExceptionMessageILi6ELj7166ELy2147483650EE11sStateCountE"
+  - "__ZNSt12length_errorD1Ev"
+  - "__ZNSt12out_of_rangeD1Ev"
+  - "__ZNSt20bad_array_new_lengthD1Ev"
+  - "__ZNSt3__15ctypeIcE2idE"
+  - "__ZTISt12length_error"
+  - "__ZTISt12out_of_range"
+  - "__ZTISt20bad_array_new_length"
+  - "__ZTTNSt3__118basic_stringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE"
+  - "__ZTVNSt3__115basic_stringbufIcNS_11char_traitsIcEENS_9allocatorIcEEEE"
+  - "__ZTVNSt3__118basic_stringstreamIcNS_11char_traitsIcEENS_9allocatorIcEEEE"
+  - "__ZTVSt12length_error"
+  - "__ZTVSt12out_of_range"
+  - "__ZZN17LocalTaskPortImplI8TaskPortE11GetTaskSelfEvE8taskSelf"
+  - "__ZZNK12TaskPortBaseI14RemoteTaskPortE10readLengthEyyyE10sChunkSize"
+  - "_bootstrap_port"
+  - "_kCFAllocatorDefault"
+  - "_kCFRunLoopDefaultMode"
+  - "_mach_port_allocate"
+  - "_mach_task_self_"
+  - "_mmap"
+  - "_pthread_exit"
+  - "_task_get_exception_ports"
+  - "_thread_switch"
+  - "_vm_kernel_page_mask"
+  - "_vm_page_mask"
+  - "_vm_page_shift"
+  - "_vm_page_size"
+  - "___chkstk_darwin"
+  - "__NSConcreteGlobalBlock"
+  - "__ZTISt9exception"
+  - "__ZTVN10__cxxabiv120__si_class_type_infoE"
+  - "__ZNKSt9exception4whatEv"
+  - "__ZTVN10__cxxabiv117__class_type_infoE"
+  - "__ZNKSt3__119__shared_weak_count13__get_deleterERKSt9type_info"
+  - "__ZTINSt3__119__shared_weak_countE"
+  - "__ZTVN10__cxxabiv120__function_type_infoE"
+  - "__ZTVN10__cxxabiv119__pointer_type_infoE"
+  - "___CFConstantStringClassReference"
+  - "_OBJC_CLASS_$_NSFileManager"
+  - "_OBJC_CLASS_$_NSString"
+  - "_OBJC_CLASS_$_NSURL"
+  - "_OBJC_CLASS_$_NSData"
+  - "_OBJC_CLASS_$_NSLocale"
+  - "_OBJC_CLASS_$_NSPropertyListSerialization"
+  - "_OBJC_CLASS_$_NSDate"
+  - "_OBJC_CLASS_$_CXCallObserver"
+  - "_OBJC_CLASS_$_NSError"
+  - "__objc_empty_cache"
+  - "_OBJC_CLASS_$_NSObject"
+  - "_OBJC_METACLASS_$_NSObject"

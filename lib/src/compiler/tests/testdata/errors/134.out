@@ -3,4 +3,3 @@ error[E002]: wrong type
   |
 3 |    /foo/
   |    ^^^^^ expression should be `bool`, but it is a regexp
-  |

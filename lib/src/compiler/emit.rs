@@ -8,25 +8,26 @@ expressions or language constructs.
 
 use std::collections::VecDeque;
 use std::mem::size_of;
+use std::ops::RangeInclusive;
 use std::rc::Rc;
 
 use bstr::ByteSlice;
-use itertools::Itertools;
+use itertools::{Itertools, Position};
 use rustc_hash::FxHashMap;
+use walrus::ValType::{I32, I64};
 use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{
     BinaryOp, InstrSeqId, InstrSeqType, LoadKind, MemArg, StoreKind, UnaryOp,
 };
-use walrus::ValType::{I32, I64};
 use walrus::{FunctionId, InstrSeqBuilder, ValType};
 
 use crate::compiler::ir::{
-    Expr, ExprId, ForIn, ForOf, Iterable, MatchAnchor, PatternIdx, Quantifier,
-    IR,
+    Expr, ExprId, ForIn, ForOf, IR, Iterable, MatchAnchor, PatternIdx,
+    Quantifier,
 };
 use crate::compiler::{
     FieldAccess, ForVars, LiteralId, OfExprTuple, OfPatternSet, PatternId,
-    RegexpId, RuleId, RuleInfo, Var,
+    RegexId, RuleId, RuleInfo, Var,
 };
 use crate::scanner::RuntimeObjectHandle;
 use crate::string_pool::{BStringPool, StringPool};
@@ -38,8 +39,8 @@ use crate::wasm;
 use crate::wasm::builder::WasmModuleBuilder;
 use crate::wasm::string::RuntimeString;
 use crate::wasm::{
-    WasmSymbols, LOOKUP_INDEXES_END, LOOKUP_INDEXES_START,
-    MATCHING_RULES_BITMAP_BASE, VARS_STACK_START,
+    LOOKUP_INDEXES_END, LOOKUP_INDEXES_START, MATCHING_RULES_BITMAP_BASE,
+    VARS_STACK_START, WasmSymbols,
 };
 
 /// This macro emits the code for the left and right operands of some
@@ -62,6 +63,11 @@ macro_rules! emit_operands {
             lhs_type = Type::Float;
         }
 
+        // If the left operand is bool, promote it from i32 to i64.
+        if lhs_type == Type::Bool {
+            $instr.unop(UnaryOp::I64ExtendUI32);
+        }
+
         emit_expr($ctx, $ir, rhs, $instr);
 
         // If the right operand is integer, but the left one is float,
@@ -69,6 +75,11 @@ macro_rules! emit_operands {
         if lhs_type == Type::Float && rhs_type == Type::Integer {
             $instr.unop(UnaryOp::F64ConvertSI64);
             rhs_type = Type::Float;
+        }
+
+        // If the right operand is bool, promote it from i32 to i64.
+        if rhs_type == Type::Bool {
+            $instr.unop(UnaryOp::I64ExtendUI32);
         }
 
         (lhs_type, rhs_type)
@@ -103,7 +114,10 @@ macro_rules! emit_arithmetic_op {
 macro_rules! emit_comparison_op {
     ($ctx:ident, $ir:ident, $lhs:expr, $rhs:expr, $int_op:tt, $float_op:tt, $str_op:expr, $instr:ident) => {{
         match emit_operands!($ctx, $ir, $lhs, $rhs, $instr) {
-            (Type::Integer, Type::Integer) => {
+            (Type::Integer, Type::Integer)
+            | (Type::Bool, Type::Bool)
+            | (Type::Bool, Type::Integer)
+            | (Type::Integer, Type::Bool) => {
                 $instr.binop(BinaryOp::$int_op);
             }
             (Type::Float, Type::Float) => {
@@ -191,7 +205,7 @@ pub(crate) struct EmitContext<'a> {
     pub wasm_exports: &'a FxHashMap<String, FunctionId>,
 
     /// Pool with regular expressions used in rule conditions.
-    pub regexp_pool: &'a mut StringPool<RegexpId>,
+    pub regex_pool: &'a mut StringPool<RegexId>,
 
     /// Pool with literal strings used in the rules.
     pub lit_pool: &'a mut BStringPool<LiteralId>,
@@ -200,6 +214,10 @@ pub(crate) struct EmitContext<'a> {
     /// When an exception occurs the execution flow will jump out of the block
     /// identified by `InstrSeqId`.
     pub exception_handler_stack: Vec<(InstrSeqId, ExceptionHandler)>,
+
+    /// Controls whether [emit_lazy_call_to_search_for_patterns] needs to emit
+    /// code or not.
+    pub emit_search_for_pattern_stack: Vec<bool>,
 
     /// The lookup_list contains a sequence of field IDs that will be used
     /// in the next field lookup operation. Each field ID is accompanied by a
@@ -224,16 +242,17 @@ impl EmitContext<'_> {
     /// If a no function with the given name exists.
     pub fn function_id(&self, fn_mangled_name: &str) -> FunctionId {
         *self.wasm_exports.get(fn_mangled_name).unwrap_or_else(|| {
-            panic!("can't find function `{}`", fn_mangled_name)
+            panic!("can't find function `{fn_mangled_name}`")
         })
     }
 
-    /// Given the index of a pattern in a rule, returns its [`PatternId`].
+    /// Given the index of a pattern in the current rule, returns its
+    /// [`PatternId`].
     ///
     /// The index of a pattern is the position of the pattern in the `strings`
     /// section of the rule.
     pub fn pattern_id(&self, index: PatternIdx) -> PatternId {
-        self.current_rule.patterns[index.as_usize()].2
+        self.current_rule.patterns[index.as_usize()].pattern_id
     }
 }
 
@@ -246,6 +265,8 @@ pub(crate) fn emit_rule_condition(
     builder: &mut WasmModuleBuilder,
 ) {
     let mut instr = builder.start_rule(rule_id, ctx.current_rule.is_global);
+
+    ctx.emit_search_for_pattern_stack.push(true);
 
     // Emit WASM code for the rule's condition.
     catch_undef(
@@ -260,6 +281,8 @@ pub(crate) fn emit_rule_condition(
         },
     );
 
+    ctx.emit_search_for_pattern_stack.pop();
+    assert!(ctx.emit_search_for_pattern_stack.is_empty());
     builder.finish_rule();
 }
 
@@ -290,7 +313,7 @@ fn emit_expr(
                     .i64_const(RuntimeString::Literal(literal_id).into_wasm());
             }
             TypeValue::Regexp(Some(regexp)) => {
-                let re_id = ctx.regexp_pool.get_or_intern(regexp.as_str());
+                let re_id = ctx.regex_pool.get_or_intern(regexp.as_str());
 
                 instr.i32_const(re_id.into());
             }
@@ -298,12 +321,29 @@ fn emit_expr(
         },
 
         Expr::Filesize => {
+            let tmp = ctx.wasm_symbols.i64_tmp_a;
+            // Get the value of filesize from global variable.
             instr.global_get(ctx.wasm_symbols.filesize);
+            // Make a copy in tmp, while leaving the value in the stack.
+            instr.local_tee(tmp);
+            // Compare filesize with 0.
+            instr.i64_const(0);
+            instr.binop(BinaryOp::I64LtS);
+            // Is filesize < 0?
+            instr.if_else(
+                I64,
+                // If yes, filesize is undefined
+                |then_| throw_undef(ctx, then_),
+                // Otherwise return its value
+                |else_| {
+                    else_.local_get(tmp);
+                },
+            );
         }
 
         Expr::Symbol(symbol) => {
             match symbol.as_ref() {
-                Symbol::Rule(rule_id) => {
+                Symbol::Rule { rule_id, .. } => {
                     // Emit code that checks if a rule has matched, leaving
                     // zero or one at the top of the stack.
                     emit_check_for_rule_match(ctx, *rule_id, instr);
@@ -358,10 +398,10 @@ fn emit_expr(
                             // field in the lookup list doesn't belong to the
                             // root structure, we know that the stack already
                             // contains the object.
-                            if let Some((_, true)) = ctx.lookup_list.first() {
-                                if func.is_method() {
-                                    emit_lookup_object(ctx, instr);
-                                }
+                            if let Some((_, true)) = ctx.lookup_list.first()
+                                && func.is_method()
+                            {
+                                emit_lookup_object(ctx, instr);
                             }
                             ctx.lookup_list.clear();
                         }
@@ -405,15 +445,25 @@ fn emit_expr(
             emit_field_access(ctx, ir, field_access, instr);
         }
 
-        Expr::Defined { operand } => emit_defined(ctx, ir, *operand, instr),
-
-        Expr::Not { operand } => emit_not(ctx, ir, *operand, instr),
-
-        Expr::And { operands } => {
-            emit_and(ctx, ir, operands.as_slice(), instr)
+        Expr::Defined { operand } => {
+            emit_defined(ctx, ir, *operand, instr);
         }
 
-        Expr::Or { operands } => emit_or(ctx, ir, operands.as_slice(), instr),
+        Expr::Not { operand } => {
+            emit_not(ctx, ir, *operand, instr);
+        }
+
+        Expr::And { operands } => {
+            ctx.emit_search_for_pattern_stack.push(true);
+            emit_and(ctx, ir, operands.as_slice(), instr);
+            ctx.emit_search_for_pattern_stack.pop();
+        }
+
+        Expr::Or { operands } => {
+            ctx.emit_search_for_pattern_stack.push(true);
+            emit_or(ctx, ir, operands.as_slice(), instr);
+            ctx.emit_search_for_pattern_stack.pop();
+        }
 
         Expr::Minus { operand, is_float } => {
             if *is_float {
@@ -590,6 +640,14 @@ fn emit_expr(
                 .call(ctx.function_id(wasm::export__str_matches.mangled_name));
         }
 
+        Expr::MatchesMany { lhs, regex_set } => {
+            emit_expr(ctx, ir, *lhs, instr);
+            instr.i32_const((*regex_set).into());
+            instr.call(ctx.function_id(
+                wasm::export__str_matches_regex_set.mangled_name,
+            ));
+        }
+
         Expr::Lookup(lookup) => {
             // Emit code for the primary expression (array or map) that is
             // being indexed.
@@ -707,24 +765,8 @@ fn emit_not(
     operand: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
-    // The `not` expression is emitted as:
-    //
-    //   if (evaluate_operand()) {
-    //     false
-    //   } else {
-    //     true
-    //   }
-    //
     emit_bool_expr(ctx, ir, operand, instr);
-    instr.if_else(
-        I32,
-        |then| {
-            then.i32_const(0);
-        },
-        |else_| {
-            else_.i32_const(1);
-        },
-    );
+    instr.unop(UnaryOp::I32Eqz);
 }
 
 /// Emits the code for `and` operations.
@@ -734,60 +776,49 @@ fn emit_and(
     operands: &[ExprId],
     instr: &mut InstrSeqBuilder,
 ) {
-    // The `or` expression is emitted as:
+    // The `and` expression is emitted as:
     //
-    // block {
-    //   try {
-    //     result = first_operand()
-    //   } catch undefined {
-    //     result = false
-    //   }
-    //   if !result {
-    //     push false
-    //     exit from block
-    //   }
-    //   try {
-    //     result = second_operand()
-    //   } catch undefined {
-    //     result = false
-    //   }
-    //   if !result {
-    //     push false
-    //     exit from block
-    //   }
-    //   ...
-    //   push true
-    // }
-    instr.block(
-        I32, // the block returns a bool
-        |block| {
-            let block_id = block.id();
-            for operand in operands {
-                catch_undef(
-                    ctx,
-                    I32,
-                    block,
-                    |ctx, instr| {
-                        emit_bool_expr(ctx, ir, *operand, instr);
-                    },
-                    |_, instr| {
-                        instr.i32_const(0);
-                    },
-                );
-                // If the operand is `false`, exit from the block
-                // with a `false` result.
-                block.if_else(
-                    None,
-                    |_| {},
-                    |else_| {
-                        else_.i32_const(0);
-                        else_.br(block_id);
-                    },
-                );
+    //  try {
+    //    result = first_operand()
+    //    if !result {
+    //      push false
+    //      exit from try
+    //    }
+    //    result = second_operand()
+    //    if !result {
+    //      push false
+    //      exit from try
+    //    }
+    //    ...
+    //    push last_operand()
+    //  }
+    //  catch undefined {
+    //    push false
+    //  }
+    catch_undef(
+        ctx,
+        I32,
+        instr,
+        |ctx, instr| {
+            let block_id = instr.id();
+            for (position, operand) in operands.iter().with_position() {
+                emit_bool_expr(ctx, ir, *operand, instr);
+                // For all operands except the last one, check the result
+                // and exit early from the block if it is false.
+                if matches!(position, Position::First | Position::Middle) {
+                    instr.if_else(
+                        None,
+                        |_| {},
+                        |else_| {
+                            else_.i32_const(0);
+                            else_.br(block_id);
+                        },
+                    );
+                }
             }
-            // If none of the operands was false, fallback to returning
-            // true.
-            block.i32_const(1);
+        },
+        |_, instr| {
+            instr.i32_const(0); // push false
         },
     );
 }
@@ -821,13 +852,18 @@ fn emit_or(
     //     exit from block
     //   }
     //   ...
-    //   push false
+    //   try {
+    //     result = last_operand()
+    //   } catch undefined {
+    //     result = false
+    //   }
+    //   result
     // }
     instr.block(
         I32, // the block returns a bool
         |block| {
             let block_id = block.id();
-            for operand in operands {
+            for (position, operand) in operands.iter().with_position() {
                 catch_undef(
                     ctx,
                     I32,
@@ -839,20 +875,19 @@ fn emit_or(
                         instr.i32_const(0);
                     },
                 );
-                // If the operand is `true`, exit from the block
-                // with a `true` result.
-                block.if_else(
-                    None,
-                    |then_| {
-                        then_.i32_const(1);
-                        then_.br(block_id);
-                    },
-                    |_| {},
-                );
+                // For all operands except the last one, check the result
+                // and exit early from the block if it is true.
+                if matches!(position, Position::First | Position::Middle) {
+                    block.if_else(
+                        None,
+                        |then_| {
+                            then_.i32_const(1);
+                            then_.br(block_id);
+                        },
+                        |_| {},
+                    );
+                }
             }
-            // If none of the operands was true, fallback to returning
-            // false.
-            block.i32_const(0);
         },
     );
 }
@@ -923,16 +958,16 @@ fn emit_field_access(
     instr: &mut InstrSeqBuilder,
 ) {
     // Iterate over the operands, excluding the last one. While the operands
-    // are field identifiers they are simply added to the `lookup_list`, and
+    // are field identifiers they are simply added to `lookup_list`, and
     // during the last call to `emit_expr` a single field lookup operation
     // will be emitted, encompassing all the lookups in a single call to
     // Rust code.
     for operand in field_access.operands.iter().dropping_back(1) {
-        if let Expr::Symbol(symbol) = ir.get(*operand) {
-            if let Symbol::Field { index, is_root, .. } = symbol.as_ref() {
-                ctx.lookup_list.push((*index as i32, *is_root));
-                continue;
-            }
+        if let Expr::Symbol(symbol) = ir.get(*operand)
+            && let Symbol::Field { index, is_root, .. } = symbol.as_ref()
+        {
+            ctx.lookup_list.push((*index as i32, *is_root));
+            continue;
         }
         emit_expr(ctx, ir, *operand, instr);
     }
@@ -940,34 +975,71 @@ fn emit_field_access(
     emit_expr(ctx, ir, *field_access.operands.last().unwrap(), instr);
 }
 
-/// Emits code that checks if the pattern search phase has not been executed
-/// yet, and do it in that case.
-fn emit_lazy_pattern_search(
+/// Emits code that ensures the pattern search phase is executed if it hasn't
+/// been performed yet, invoking `search_for_patterns` when necessary.
+///
+/// The `search_for_patterns` function is invoked lazily during the evaluation
+/// of rule conditions. When a pattern identifier (e.g., `$a`) is first used
+/// in a condition, `search_for_patterns` is called, and the global variable
+/// `pattern_search_done` is set to `true`. This prevents redundant calls to
+/// `search_for_patterns` during subsequent evaluations.
+///
+/// The WASM code that checks `pattern_search_done` and triggers
+/// `search_for_patterns` does not need to be emitted for every pattern
+/// identifier in a condition. For example, consider the following condition:
+///
+/// ```text
+/// $a and $b and $c
+/// ```
+///
+/// When `$a` is encountered, the emitted code includes the check and the call
+/// to `search_for_patterns`. However, for `$b` and `$c`, this code is no longer
+/// needed because evaluating `$a` will already ensure the search is performed
+/// if required.
+///
+/// A single boolean flag to track whether the call has been emitted is not
+/// sufficient due to short-circuit evaluation semantics. For example:
+///
+/// ```text
+/// (my_bool and $a) and $b
+/// ```
+///
+/// In this case, `$a` appears first during code emission, so the call to
+/// `search_for_patterns` must be emitted there. However, `$b` may still require
+/// the same code because `$a` might be skipped entirely at runtime if
+/// `my_bool` evaluates to `false`. Thus, we cannot rely solely on a single
+/// emitted flag.
+///
+/// To handle this, a stack of boolean values is maintained. The top of the
+/// stack indicates whether it is necessary to emit the call to
+/// `search_for_patterns`. Once the call is emitted, the top value is set to
+/// `false`. To correctly account for short-circuiting behavior, a new `true`
+/// value is pushed onto the stack whenever an `AND` or `OR` expression is
+/// encountered.
+fn emit_lazy_call_to_search_for_patterns(
     ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
 ) {
-    instr.global_get(ctx.wasm_symbols.pattern_search_done);
-    instr.if_else(
-        None,
-        |_then| {
-            // The pattern search phase was already executed. Nothing to
-            // do here.
-        },
-        |_else| {
-            _else
-                // Call `search_for_patterns`.
-                .call(ctx.function_id(
-                    wasm::export__search_for_patterns.mangled_name,
-                ))
-                // Remove the result of `search_for_patterns` from the stack.
-                // The result is `true` if everything went fine and `false`
-                // in case of timeout, but we don't use this result.
-                .drop()
-                // Set `pattern_search_done` to true.
-                .i32_const(1)
-                .global_set(ctx.wasm_symbols.pattern_search_done);
-        },
-    );
+    if *ctx.emit_search_for_pattern_stack.last().unwrap() {
+        instr.global_get(ctx.wasm_symbols.pattern_search_done);
+        instr.if_else(
+            None,
+            |_then| {
+                // The pattern search phase was already executed. Nothing to
+                // do here.
+            },
+            |_else| {
+                _else
+                    // Call `search_for_patterns`. This function will set
+                    // `pattern_search_done` to true before exiting.
+                    .call(ctx.function_id(
+                        wasm::export__search_for_patterns.mangled_name,
+                    ));
+            },
+        );
+        let top = ctx.emit_search_for_pattern_stack.last_mut().unwrap();
+        *top = false;
+    }
 }
 
 fn emit_pattern_match(
@@ -976,7 +1048,7 @@ fn emit_pattern_match(
     expr: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
-    emit_lazy_pattern_search(ctx, instr);
+    emit_lazy_call_to_search_for_patterns(ctx, instr);
 
     let anchor = match ir.get(expr) {
         // When the pattern ID is known, simply push the ID into the stack.
@@ -1003,7 +1075,7 @@ fn emit_pattern_match(
     // checks if there's a match.
     match anchor {
         MatchAnchor::None => {
-            emit_check_for_pattern_match(ctx, instr);
+            instr.call(ctx.wasm_symbols.check_for_pattern_match);
         }
         MatchAnchor::At(offset) => {
             emit_expr(ctx, ir, *offset, instr);
@@ -1028,7 +1100,7 @@ fn emit_pattern_count(
     expr: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
-    emit_lazy_pattern_search(ctx, instr);
+    emit_lazy_call_to_search_for_patterns(ctx, instr);
 
     let range = match ir.get(expr) {
         // Cases where the pattern ID is known, simply push the ID into the
@@ -1073,7 +1145,7 @@ fn emit_pattern_offset(
     expr: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
-    emit_lazy_pattern_search(ctx, instr);
+    emit_lazy_call_to_search_for_patterns(ctx, instr);
 
     let index = match ir.get(expr) {
         // Cases where the pattern ID is known, simply push the ID into the
@@ -1122,7 +1194,7 @@ fn emit_pattern_length(
     expr: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
-    emit_lazy_pattern_search(ctx, instr);
+    emit_lazy_call_to_search_for_patterns(ctx, instr);
 
     let index = match ir.get(expr) {
         // Cases where the pattern ID is known, simply push the ID into the
@@ -1189,7 +1261,7 @@ fn emit_check_for_rule_match(
         LoadKind::I32_8 { kind: ZeroExtend },
         MemArg {
             align: size_of::<i8>() as u32,
-            offset: MATCHING_RULES_BITMAP_BASE as u32,
+            offset: MATCHING_RULES_BITMAP_BASE as u64,
         },
     );
 
@@ -1202,18 +1274,6 @@ fn emit_check_for_rule_match(
     // 1 or 0.
     instr.i32_const(rule_id.0 % 8);
     instr.binop(BinaryOp::I32ShrU);
-}
-
-/// Emits the code that checks if a pattern (a.k.a. string) has matched.
-///
-/// This function assumes that the PatternId is at the top of the stack as a
-/// I32. The emitted code consumes the PatternId and leaves another I32 with
-/// value 0 or 1 at the top of the stack.
-fn emit_check_for_pattern_match(
-    ctx: &mut EmitContext,
-    instr: &mut InstrSeqBuilder,
-) {
-    instr.call(ctx.wasm_symbols.check_for_pattern_match);
 }
 
 /// Emits the code that gets an array item by index.
@@ -1357,7 +1417,142 @@ fn emit_map_string_key_lookup(
     emit_call_and_handle_undef(ctx, instr, ctx.function_id(func.mangled_name));
 }
 
+fn consecutive_ranges(
+    iter: impl Iterator<Item = PatternId>,
+) -> impl Iterator<Item = RangeInclusive<PatternId>> {
+    iter.peekable().batching(|it| {
+        let start = it.next()?;
+        let mut end = start;
+        while let Some(&next) = it.peek() {
+            if next.0 == end.0 + 1 {
+                end = next;
+                it.next();
+            } else {
+                break;
+            }
+        }
+        Some(start..=end)
+    })
+}
+
 fn emit_of_pattern_set(
+    ctx: &mut EmitContext,
+    ir: &IR,
+    of: &OfPatternSet,
+    instr: &mut InstrSeqBuilder,
+) {
+    // Make sure the pattern search phase is executed, as the `of` statement
+    // depends on patterns.
+    emit_lazy_call_to_search_for_patterns(ctx, instr);
+
+    // Convert the pattern indexes to pattern IDs.
+    let pattern_ids = of
+        .items
+        .iter()
+        .map(|pattern_idx: &PatternIdx| ctx.pattern_id(*pattern_idx))
+        .sorted();
+
+    // Separate the pattern IDs in contiguous ranges. For instance, if we have
+    // the IDs: 0,1,2,3,8,9,12,15,16, the ranges are 0..=3, 8..=9, 12..=12, and
+    // 15..=16.
+    let mut ranges = consecutive_ranges(pattern_ids).collect::<Vec<_>>();
+
+    // Cases like `any of them`, `all of them` and `x of them` are special, as
+    // they can be evaluated by calling a special function that receives a range
+    // of pattern IDs and the minimum number of patterns in that range that must
+    // match. All remaining cases must be evaluated by emitting a loop.
+    match (&of.quantifier, &of.items, &of.anchor) {
+        // `any of them`
+        (Quantifier::Any, _, MatchAnchor::None) => {
+            instr.block(I32, |instr| {
+                let block = instr.id();
+                for (position, range) in ranges.iter().with_position() {
+                    let start: i32 = (*range.start()).into();
+                    let end: i32 = (*range.end()).into();
+                    // If the range contains a single PatternId, invoke
+                    // `check_for_pattern_match` instead of `pat_range_match`.
+                    if end == start {
+                        instr.i32_const(start);
+                        instr.call(ctx.wasm_symbols.check_for_pattern_match);
+                    } else {
+                        instr.i32_const(start);
+                        instr.i32_const(end);
+                        instr.i64_const(1);
+                        instr.call(ctx.function_id(
+                            wasm::export__pat_range_match.mangled_name,
+                        ));
+                    }
+                    // For every call, except the last one, check the result
+                    // and exit early from the block if any of the patterns
+                    // were found.
+                    if matches!(position, Position::First | Position::Middle) {
+                        instr.if_else(
+                            None,
+                            |then_| {
+                                then_.i32_const(1);
+                                then_.br(block);
+                            },
+                            |_else| {},
+                        );
+                    }
+                }
+            });
+        }
+        // `any of them`
+        (Quantifier::All, _, MatchAnchor::None) => {
+            instr.block(I32, |instr| {
+                let block = instr.id();
+                for (position, range) in ranges.iter().with_position() {
+                    let start: i32 = (*range.start()).into();
+                    let end: i32 = (*range.end()).into();
+                    if end == start {
+                        instr.i32_const(start);
+                        instr.call(ctx.wasm_symbols.check_for_pattern_match);
+                    } else {
+                        instr.i32_const(start);
+                        instr.i32_const(end);
+                        instr.i64_const(end as i64 - start as i64 + 1);
+                        instr.call(ctx.function_id(
+                            wasm::export__pat_range_match.mangled_name,
+                        ));
+                    }
+                    // For every call, except the last one, check the result
+                    // and exit early from the block if some of the patterns
+                    // was not found.
+                    if !matches!(position, Position::Only | Position::Last) {
+                        instr.if_else(
+                            None,
+                            |_| {},
+                            |else_| {
+                                else_.i32_const(0);
+                                else_.br(block);
+                            },
+                        );
+                    }
+                }
+            });
+        }
+        // `n of them` but all the pattern IDs are contiguous (there's a
+        // single range)
+        (Quantifier::Expr(quantifier), _, MatchAnchor::None)
+            if ranges.len() == 1 =>
+        {
+            let range = ranges.pop().unwrap();
+            let start: i32 = (*range.start()).into();
+            let end: i32 = (*range.end()).into();
+            instr.i32_const(start);
+            instr.i32_const(end);
+            emit_expr(ctx, ir, *quantifier, instr);
+            instr.call(
+                ctx.function_id(wasm::export__pat_range_match.mangled_name),
+            );
+        }
+        // All the remaining cases are evaluated using a loop.
+        _ => emit_of_pattern_set_with_loop(ctx, ir, of, instr),
+    }
+}
+
+fn emit_of_pattern_set_with_loop(
     ctx: &mut EmitContext,
     ir: &IR,
     of: &OfPatternSet,
@@ -1367,11 +1562,6 @@ fn emit_of_pattern_set(
 
     let num_patterns = of.items.len();
     let mut patterns = of.items.iter();
-    let next_pattern_id = of.next_pattern_var;
-
-    // Make sure the pattern search phase is executed, as the `of` statement
-    // depends on patterns.
-    emit_lazy_pattern_search(ctx, instr);
 
     emit_for(
         ctx,
@@ -1386,8 +1576,8 @@ fn emit_of_pattern_set(
         },
         // Before each iteration.
         |ctx, instr, i| {
-            // Get the i-th pattern ID, and store it in `next_pattern_id`.
-            set_var(ctx, instr, next_pattern_id, |ctx, instr| {
+            // Get the i-th pattern ID, and store it in `of.for_vars.item`.
+            set_var(ctx, instr, of.for_vars.item, |ctx, instr| {
                 load_var(ctx, instr, i);
                 emit_switch(ctx, I64, instr, |ctx, instr| {
                     if let Some(pattern) = patterns.next() {
@@ -1401,13 +1591,13 @@ fn emit_of_pattern_set(
         // Body
         |ctx, instr| {
             // Push the pattern ID into the stack.
-            load_var(ctx, instr, next_pattern_id);
+            load_var(ctx, instr, of.for_vars.item);
             // load_var returns an I64, convert it to I32.
             instr.unop(UnaryOp::I32WrapI64);
 
             match &of.anchor {
                 MatchAnchor::None => {
-                    emit_check_for_pattern_match(ctx, instr);
+                    instr.call(ctx.wasm_symbols.check_for_pattern_match);
                 }
                 MatchAnchor::At(offset) => {
                     emit_expr(ctx, ir, *offset, instr);
@@ -1438,7 +1628,6 @@ fn emit_of_expr_tuple(
 ) {
     let num_expressions = of.items.len();
     let mut expressions = of.items.iter();
-    let next_item = of.next_expr_var;
 
     emit_for(
         ctx,
@@ -1453,12 +1642,12 @@ fn emit_of_expr_tuple(
         },
         // Before each iteration.
         |ctx, instr, i| {
-            // Execute the i-th expression and save its result in `next_item`.
-            set_var(ctx, instr, next_item, |ctx, instr| {
+            // Execute the i-th expression and save its result in `of.for_vars.item`.
+            set_var(ctx, instr, of.for_vars.item, |ctx, instr| {
                 load_var(ctx, instr, i);
                 emit_switch(
                     ctx,
-                    next_item.ty().into(),
+                    of.for_vars.item.ty().into(),
                     instr,
                     |ctx, instr| {
                         if let Some(expr) = expressions.next() {
@@ -1472,7 +1661,7 @@ fn emit_of_expr_tuple(
         },
         // Body.
         |ctx, instr| {
-            load_var(ctx, instr, next_item);
+            load_var(ctx, instr, of.for_vars.item);
         },
         // After each iteration.
         |_, _, _| {},
@@ -1488,7 +1677,6 @@ fn emit_for_of_pattern_set(
 ) {
     let num_patterns = for_of.pattern_set.len();
     let mut patterns = for_of.pattern_set.iter();
-    let next_pattern_id = for_of.variable;
 
     emit_for(
         ctx,
@@ -1503,8 +1691,8 @@ fn emit_for_of_pattern_set(
         },
         // Before each iteration.
         |ctx, instr, i| {
-            // Get the i-th pattern ID, and store it in `next_pattern_id`.
-            set_var(ctx, instr, next_pattern_id, |ctx, instr| {
+            // Get the i-th pattern ID, and store it in `for_of.for_vars.item`.
+            set_var(ctx, instr, for_of.for_vars.item, |ctx, instr| {
                 load_var(ctx, instr, i);
                 emit_switch(ctx, I64, instr, |ctx, instr| {
                     if let Some(pattern) = patterns.next() {
@@ -1639,13 +1827,9 @@ fn emit_for_in_array(
     // The only variable contains the loop's next item.
     let next_item = for_in.variables[0];
 
-    // The variable `array_var` will hold a reference to the array being
-    // iterated.
-    let array_var = for_in.iterable_var;
-
     // Emit the expression that returns the array and stores a reference to
-    // it in `array_var`.
-    set_var(ctx, instr, array_var, |ctx, instr| {
+    // it in `for_in.for_vars.item`.
+    set_var(ctx, instr, for_in.for_vars.item, |ctx, instr| {
         emit_expr(ctx, ir, expr, instr);
     });
 
@@ -1657,7 +1841,7 @@ fn emit_for_in_array(
         |ctx, instr, n, loop_end| {
             // Initialize `n` to the array's length.
             set_var(ctx, instr, n, |ctx, instr| {
-                load_var(ctx, instr, array_var);
+                load_var(ctx, instr, for_in.for_vars.item);
                 instr.call(
                     ctx.function_id(wasm::export__array_len.mangled_name),
                 );
@@ -1681,7 +1865,7 @@ fn emit_for_in_array(
             // Get the i-th item in the array and store it in the
             // local variable `next_item`.
             set_var(ctx, instr, next_item, |ctx, instr| {
-                load_var(ctx, instr, array_var);
+                load_var(ctx, instr, for_in.for_vars.item);
                 load_var(ctx, instr, i);
                 emit_array_indexing(ctx, instr, &array);
             });
@@ -1711,13 +1895,9 @@ fn emit_for_in_map(
     let next_key = for_in.variables[0];
     let next_val = for_in.variables[1];
 
-    // The variable `map_var` will hold a reference to the array being
-    // iterated.
-    let map_var = for_in.iterable_var;
-
     // Emit the expression that returns the map and stores a reference to
-    // it in `map_var`.
-    set_var(ctx, instr, map_var, |ctx, instr| {
+    // it in `for_in.for_vars.item`.
+    set_var(ctx, instr, for_in.for_vars.item, |ctx, instr| {
         emit_expr(ctx, ir, expr, instr);
     });
 
@@ -1729,7 +1909,7 @@ fn emit_for_in_map(
         |ctx, instr, n, loop_end| {
             // Initialize `n` to the map's length.
             set_var(ctx, instr, n, |ctx, instr| {
-                load_var(ctx, instr, map_var);
+                load_var(ctx, instr, for_in.for_vars.item);
                 instr
                     .call(ctx.function_id(wasm::export__map_len.mangled_name));
             });
@@ -1750,7 +1930,7 @@ fn emit_for_in_map(
         // Before each iteration.
         |ctx, instr, i| {
             set_vars(ctx, instr, &[next_key, next_val], |ctx, instr| {
-                load_var(ctx, instr, map_var);
+                load_var(ctx, instr, for_in.for_vars.item);
                 load_var(ctx, instr, i);
                 emit_map_lookup_by_index(ctx, instr, &map);
             });
@@ -2065,26 +2245,20 @@ fn emit_for<I, B, C, A>(
                                 None,
                                 // count >= max_count
                                 |then_| {
-                                    // Is max_count == 0?
+                                    // If max_count == 0, this should be
+                                    // treated as a `none` quantifier. At
+                                    // this point count >= 1, so break the
+                                    // loop with result false (0). If
+                                    // max_count != 0 and count >= max_count,
+                                    // break with result true (1).
+                                    //
+                                    // `i64.ne` with 0 directly produces the
+                                    // right i32: 0 when max_count == 0,
+                                    // 1 when max_count != 0.
                                     load_var(ctx, then_, max_count);
-                                    then_.unop(UnaryOp::I64Eqz);
-                                    then_.if_else(
-                                        None,
-                                        // max_count == 0, this should treated be
-                                        // as a `none` quantifier. At this point
-                                        // count >= 1, so break the loop with
-                                        // result false.
-                                        |then_| {
-                                            then_.i32_const(0);
-                                            then_.br(loop_end);
-                                        },
-                                        // max_count != 0 and count >= max_count
-                                        // break the loop with result true.
-                                        |else_| {
-                                            else_.i32_const(1);
-                                            else_.br(loop_end);
-                                        },
-                                    );
+                                    then_.i64_const(0);
+                                    then_.binop(BinaryOp::I64Ne);
+                                    then_.br(loop_end);
                                 },
                                 |_| {},
                             );
@@ -2100,19 +2274,11 @@ fn emit_for<I, B, C, A>(
                     // return true. If `max_count` is non-zero it means that
                     // `counter` didn't reach `max_count` and the loop must
                     // return false.
+                    //
+                    // `i64.eqz` produces exactly the right i32 result:
+                    // 1 (true) when max_count == 0, 0 (false) otherwise.
                     load_var(ctx, block, max_count);
                     block.unop(UnaryOp::I64Eqz);
-                    block.if_else(
-                        I32,
-                        // max_count == 0
-                        |then_| {
-                            then_.i32_const(1);
-                        },
-                        // max_count != 0
-                        |else_| {
-                            else_.i32_const(0);
-                        },
-                    );
                 }
             }
         });
@@ -2317,7 +2483,7 @@ fn set_var<B>(
     instr.store(
         ctx.wasm_symbols.main_memory,
         store_kind,
-        MemArg { align: alignment as u32, offset: VARS_STACK_START as u32 },
+        MemArg { align: alignment as u32, offset: VARS_STACK_START as u64 },
     );
 
     // Flag the variable as not undefined.
@@ -2362,7 +2528,7 @@ fn set_vars<B>(
                     StoreKind::I32 { atomic: false },
                     MemArg {
                         align: size_of::<i32>() as u32,
-                        offset: VARS_STACK_START as u32,
+                        offset: VARS_STACK_START as u64,
                     },
                 );
             }
@@ -2380,7 +2546,7 @@ fn set_vars<B>(
                     StoreKind::I64 { atomic: false },
                     MemArg {
                         align: size_of::<i64>() as u32,
-                        offset: VARS_STACK_START as u32,
+                        offset: VARS_STACK_START as u64,
                     },
                 );
             }
@@ -2393,7 +2559,7 @@ fn set_vars<B>(
                     StoreKind::F64,
                     MemArg {
                         align: size_of::<f64>() as u32,
-                        offset: VARS_STACK_START as u32,
+                        offset: VARS_STACK_START as u64,
                     },
                 );
             }
@@ -2438,7 +2604,7 @@ fn load_var(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     instr.load(
         ctx.wasm_symbols.main_memory,
         load_kind,
-        MemArg { align: alignment as u32, offset: VARS_STACK_START as u32 },
+        MemArg { align: alignment as u32, offset: VARS_STACK_START as u64 },
     );
 }
 
@@ -2627,7 +2793,7 @@ fn emit_lookup_common(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
             StoreKind::I32 { atomic: false },
             MemArg {
                 align: size_of::<i32>() as u32,
-                offset: LOOKUP_INDEXES_START as u32,
+                offset: LOOKUP_INDEXES_START as u64,
             },
         );
     }

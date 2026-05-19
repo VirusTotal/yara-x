@@ -1,0 +1,27 @@
+[
+  {
+    "detail": "import",
+    "kind": 2,
+    "name": "foo",
+    "range": {
+      "end": {
+        "character": 12,
+        "line": 0
+      },
+      "start": {
+        "character": 0,
+        "line": 0
+      }
+    },
+    "selectionRange": {
+      "end": {
+        "character": 12,
+        "line": 0
+      },
+      "start": {
+        "character": 0,
+        "line": 0
+      }
+    }
+  }
+]

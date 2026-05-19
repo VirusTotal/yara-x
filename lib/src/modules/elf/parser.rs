@@ -7,11 +7,14 @@ use nom::multi::{count, many0};
 use nom::number::complete::{le_u32, u16, u32, u64, u8};
 use nom::number::Endianness;
 use nom::{Err, IResult, Parser};
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
 use protobuf::EnumOrUnknown;
 
 use crate::modules::protos::elf;
 
 #[repr(u8)]
+#[derive(FromPrimitive)]
 enum Class {
     Elf32 = 0x01,
     Elf64 = 0x02,
@@ -41,29 +44,37 @@ impl ElfParser {
         elf: &'a [u8],
     ) -> Result<elf::ELF, Err<nom::error::Error<&'a [u8]>>> {
         // Parse the ELF identifier.
-        let (remainder, (_, class, data_encoding, _, _, _)) = (
+        let (
+            remainder,
+            (
+                _,
+                class,
+                data_encoding,
+                _version,
+                osabi,
+                _abi_version,
+                _padding,
+                _nident,
+            ),
+        ) = (
             // Magic must be 0x7f 0x45 (E) 0x4c (L) 0x46 (F).
             verify(le_u32, |magic| *magic == 0x464C457F),
             // Class must be either ELF_CLASS_32 or ELF_CLASS_64.
             verify(u8, |c| {
                 *c == Self::ELF_CLASS_32 || *c == Self::ELF_CLASS_64
-            }),
+            })
+            .map_opt(Class::from_u8),
             // Data encoding must be either ELF_DATA_2LSB or ELF_DATA_2MSB
             verify(u8, |d| {
                 *d == Self::ELF_DATA_2LSB || *d == Self::ELF_DATA_2MSB
             }),
-            u8,            // version
-            take(8_usize), // padding
+            u8, // version
+            map(u8, |b| EnumOrUnknown::<elf::OsAbi>::from_i32(b as i32)), // osabi
+            u8,            // abi version
+            take(6_usize), // padding
             u8,            // nident
         )
             .parse(elf)?;
-
-        match class {
-            Self::ELF_CLASS_32 => self.class = Class::Elf32,
-            Self::ELF_CLASS_64 => self.class = Class::Elf64,
-            // `class` has been verified to be valid.
-            _ => unreachable!(),
-        }
 
         match data_encoding {
             Self::ELF_DATA_2LSB => {
@@ -75,6 +86,9 @@ impl ElfParser {
             // `data_encoding` has been verified to be valid.
             _ => unreachable!(),
         }
+
+        self.class = class;
+        self.result.osabi = Some(osabi);
 
         // Parse the executable header.
         let (_remainder, ehdr) = self.parse_ehdr()(remainder)?;
@@ -104,11 +118,10 @@ impl ElfParser {
             segment.file_size = Some(s.file_size);
             segment.memory_size = Some(s.mem_size);
             segment.alignment = Some(s.alignment);
-            segment.type_ = s
-                .type_
-                .try_into()
-                .ok()
-                .map(EnumOrUnknown::<elf::SegmentType>::from_i32);
+            segment.flags = Some(s.flags);
+            segment.type_ = Some(EnumOrUnknown::<elf::SegmentType>::from_i32(
+                s.type_ as i32,
+            ));
 
             self.result.segments.push(segment);
 
@@ -126,8 +139,8 @@ impl ElfParser {
             return Ok(mem::take(&mut self.result));
         }
 
-        if let Some(elf_type) = self.result.type_ {
-            if ehdr.entry_point != 0 {
+        if let Some(elf_type) = self.result.type_
+            && ehdr.entry_point != 0 {
                 self.result.entry_point = Self::rva_to_offset(
                     elf_type,
                     segments.as_deref().unwrap_or(&[]),
@@ -135,7 +148,6 @@ impl ElfParser {
                     ehdr.entry_point,
                 )
             }
-        }
 
         let sections = match sections {
             Some(sections) => sections,
@@ -155,11 +167,9 @@ impl ElfParser {
             section.size = Some(s.size);
             section.offset = Some(s.offset);
             section.name = Self::parse_name(elf, shstrtab, s.name);
-            section.type_ = s
-                .type_
-                .try_into()
-                .ok()
-                .map(EnumOrUnknown::<elf::SectionType>::from_i32);
+            section.type_ = Some(EnumOrUnknown::<elf::SectionType>::from_i32(
+                s.type_ as i32,
+            ));
 
             self.result.sections.push(section);
         }
@@ -229,7 +239,7 @@ impl ElfParser {
         rva: u64,
     ) -> Option<u64> {
         match elf_type.enum_value() {
-            Ok(elf::Type::ET_EXEC) => {
+            Ok(elf::Type::ET_EXEC) | Ok(elf::Type::ET_DYN) => {
                 for segment in segments.iter() {
                     if segment.virt_addr_range()?.contains(&rva) {
                         return segment
@@ -437,9 +447,9 @@ impl ElfParser {
     {
         let mut result = vec![];
 
-        if let Some(symtab) = sections.iter().find(predicate) {
-            if let Some(range) = symtab.offset_range() {
-                if let Some(data) = elf.get(range) {
+        if let Some(symtab) = sections.iter().find(predicate)
+            && let Some(range) = symtab.offset_range()
+                && let Some(data) = elf.get(range) {
                     let syms = many0(self.parse_sym())
                         .parse(data)
                         .map(|(_, syms)| syms)
@@ -473,8 +483,6 @@ impl ElfParser {
                         result.push(sym);
                     }
                 }
-            }
-        }
 
         result
     }
@@ -564,8 +572,8 @@ impl ElfParser {
     fn parse_dyn_entries(&self, elf: &[u8], s: &Phdr) -> Vec<elf::Dyn> {
         let mut result = vec![];
 
-        if let Some(range) = s.offset_range() {
-            if let Some(segment_data) = elf.get(range) {
+        if let Some(range) = s.offset_range()
+            && let Some(segment_data) = elf.get(range) {
                 // Parse tuples (tag, value) until the final marker
                 // with tag == ELF_DT_NULL is found.
                 let parser_result = many0(verify(
@@ -582,16 +590,15 @@ impl ElfParser {
                 if let Ok((_, tuples)) = parser_result {
                     for (tag, value) in tuples {
                         let mut dyn_entry = elf::Dyn::new();
-                        dyn_entry.type_ = tag
-                            .try_into()
-                            .ok()
-                            .map(EnumOrUnknown::<elf::DynType>::from_i32);
+                        dyn_entry.type_ =
+                            Some(EnumOrUnknown::<elf::DynType>::from_i32(
+                                tag as i32,
+                            ));
                         dyn_entry.val = Some(value);
                         result.push(dyn_entry);
                     }
                 }
             }
-        }
 
         result
     }

@@ -32,7 +32,13 @@ def test_error_on_slow_pattern():
 def test_invalid_rule_name_regexp():
   compiler = yara_x.Compiler()
   with pytest.raises(ValueError):
-    compiler.rule_name_regexp("(AXS|ERS")
+    compiler.allowed_rule_name("(AXS|ERS")
+
+
+def test_invalid_allowed_metadata_regexp():
+  compiler = yara_x.Compiler()
+  with pytest.raises(ValueError):
+    compiler.allowed_metadata('author', yara_x.MetaType.STRING, regexp='(AXS|ERS')
 
 
 def test_int_globals():
@@ -91,6 +97,23 @@ def test_str_globals():
   matching_rules = scanner.scan(b'').matching_rules
   assert len(matching_rules) == 1
 
+def test_dict_globals():
+  compiler = yara_x.Compiler()
+  compiler.define_global('some_dict', {"foo": "bar"})
+  compiler.add_source('rule test {condition: some_dict.foo == "bar"}')
+  rules = compiler.build()
+
+  scanner = yara_x.Scanner(rules)
+  matching_rules = scanner.scan(b'').matching_rules
+  assert len(matching_rules) == 1
+
+  scanner.set_global('some_dict', {"foo": "foo"})
+  matching_rules = scanner.scan(b'').matching_rules
+  assert len(matching_rules) == 0
+
+  scanner.set_global('some_dict', {"foo": "bar"})
+  matching_rules = scanner.scan(b'').matching_rules
+  assert len(matching_rules) == 1
 
 def test_namespaces():
   compiler = yara_x.Compiler()
@@ -143,7 +166,7 @@ def test_metadata():
       ("bar", 2.0),
       ("baz", True),
       ("qux", "qux"),
-      ("quux", "qu\0x")
+      ("quux", "qu\x00x")
   )
 
 
@@ -201,8 +224,35 @@ def test_scanner_timeout():
   with pytest.raises(yara_x.TimeoutError):
     scanner.scan(b'foobar')
 
+def test_scanner_max_matches_per_pattern():
+  compiler = yara_x.Compiler()
+  compiler.add_source('rule test {strings: $a = "." condition: #a > 1}')
+
+  scanner = yara_x.Scanner(compiler.build())
+  scanner.max_matches_per_pattern(1)
+  matching_rules = scanner.scan(b'..').matching_rules
+  assert len(matching_rules) == 0
+
+  scanner.max_matches_per_pattern(2)
+  matching_rules = scanner.scan(b'..').matching_rules
+  assert len(matching_rules) == 1
+
+
+def test_scan_options():
+  if 'test_proto2' not in yara_x.module_names():
+    return
+
+  rules = yara_x.compile('import "test_proto2" rule foo {condition: false}')
+  options = yara_x.ScanOptions()
+  options.set_module_metadata('test_proto2', b'foo bar baz')
+  module_outputs = rules.scan_with_options(b'', options).module_outputs
+  assert module_outputs['test_proto2']['metadata'] == b'foo bar baz'
+
 
 def test_module_outputs():
+  if 'test_proto2' not in yara_x.module_names():
+    return
+
   import datetime
   rules = yara_x.compile('import "test_proto2" rule foo {condition: false}')
   module_outputs = rules.scan(b'').module_outputs
@@ -210,7 +260,6 @@ def test_module_outputs():
   assert module_outputs['test_proto2']['bytes_foo'] == b'foo'
   assert module_outputs['test_proto2']['bytes_raw'] == b'\xfcH\x83\xe4\xf0\xeb3]\x8bE\x00H'
   assert module_outputs['test_proto2']['timestamp'] == datetime.datetime(2025, 5, 30, 7, 50, 40, tzinfo=datetime.timezone.utc)
-
 
 def test_ignored_modules():
   compiler = yara_x.Compiler()
@@ -228,6 +277,14 @@ def test_serialization():
   f.seek(0)
   rules = yara_x.Rules.deserialize_from(f)
   assert len(rules.scan(b'').matching_rules) == 1
+
+def test_deserialize_from_bad_reader_raises_ioerror():
+  class BadReader:
+    def read(self, n):
+      return 123
+
+  with pytest.raises(OSError):
+    yara_x.Rules.deserialize_from(BadReader())
 
 
 def tests_compiler_errors():
@@ -264,6 +321,9 @@ def tests_compiler_warnings():
 
 
 def test_console_log():
+  if 'console' not in yara_x.module_names():
+      return
+
   ok = False
 
   def callback(msg):
@@ -300,9 +360,26 @@ def test_format():
   assert result == expected_output
 
 
+def test_format_non_ascii_long():
+  import io
+  # Create a long string with non-ASCII characters.
+  # 5000 characters of 'ê' will be 10000 bytes.
+  rule_content = 'rule test { strings: $a = "' + 'ê' * 5000 + '" condition: $a }'
+  inp = io.StringIO(rule_content)
+  output = io.StringIO()
+  fmt = yara_x.Formatter()
+  # This should not raise "ValueError: read error: failed to write whole buffer"
+  fmt.format(inp, output)
+  result = output.getvalue()
+  assert 'ê' * 5000 in result
+
+
 def test_module():
   with pytest.raises(ValueError):
     yara_x.Module('AXS')
+
+  if 'pe' not in yara_x.module_names():
+    return
 
   # We aren't interested in testing the actual parsing functionality of the
   # module as that is covered in module tests. Instead we just want to make sure
@@ -317,4 +394,99 @@ def test_compiler_disables_includes():
 
   with pytest.raises(yara_x.CompileError,
                      match="include statements not allowed"):
-    compiler.add_source(f'include "foo.yar"\\nrule main {{ condition: true }}')
+    compiler.add_source(f'include "foo.yar"\nrule main {{ condition: true }}')
+
+
+def test_compiler_max_warnings():
+  compiler = yara_x.Compiler()
+  compiler.max_warnings(1)
+  compiler.add_source(
+      'rule test1 { condition: true } rule test2 { condition: true }')
+  assert len(compiler.warnings()) == 1
+
+
+def test_rules_iterator():
+  rules = yara_x.compile('''
+rule foo {
+  condition:
+    true
+}
+rule bar {
+  condition:
+    true
+}
+''')
+
+  rules_list = list(rules)
+  assert len(rules_list) == 2
+  assert rules_list[0].identifier == 'foo'
+  assert rules_list[1].identifier == 'bar'
+
+
+def test_rules_imports():
+  rules = yara_x.compile('''
+import "pe"
+import "elf"
+rule test {
+  condition:
+    true
+}
+''')
+  assert rules.imports() == ["pe", "elf"]
+
+def test_check_allowed_tags_error():
+  rule = '''
+  rule test: a b c d { condition: 1 + 1 == 2}
+  rule test2: d { condition: 1 + 1 == 2}'''
+  compiler = yara_x.Compiler()
+  compiler.allowed_tags(['a', 'b'], error = True)
+  with pytest.raises(yara_x.CompileError,
+                     match="tag `c` not in allowed list"):
+    compiler.add_source(rule)
+  # The current behavior is stop checking tags on the rule after the first tag
+  # fails, but subsequent rules are also checked.
+  errors = compiler.errors()
+  assert len(errors) == 2
+  assert 'tag `c` not in allowed list' in errors[0]['text']
+  assert 'tag `d` not in allowed list' in errors[1]['text']
+
+def test_check_allowed_tags_warning():
+  compiler = yara_x.Compiler()
+  compiler.allowed_tags(['a', 'b'])
+  compiler.add_source('rule test: a b c d { condition: 1 + 1 == 2}')
+  warnings = compiler.warnings()
+  assert len(warnings) == 2
+  assert 'tag `c` not in allowed list' in warnings[0]['text']
+  assert 'tag `d` not in allowed list' in warnings[1]['text']
+
+def test_check_metadata():
+  compiler = yara_x.Compiler()
+  compiler.allowed_metadata('a', yara_x.MetaType.STRING)
+  compiler.allowed_metadata('b', yara_x.MetaType.STRING, regexp='^bar')
+  compiler.add_source('rule test { meta: a = 1 b = "foo" condition: 1 + 1 == 2}')
+  warnings = compiler.warnings()
+  assert len(warnings) == 2
+  assert '`a` must be a string' in warnings[0]['text']
+  assert '`b` must be a string that matches `/^bar/`' in warnings[1]['text']
+
+def test_check_rule_name_regexp():
+  rule = '''
+  rule test { condition: 1 + 1 == 2}
+  rule test2 { condition: 1 + 1 == 2}'''
+  compiler = yara_x.Compiler()
+  compiler.allowed_rule_name('^foo')
+  compiler.add_source(rule)
+  warnings = compiler.warnings()
+  assert len(warnings) == 2
+  assert 'this rule name does not match regex `^foo`' in warnings[0]['text']
+
+def test_check_rule_name_regexp_error():
+  rule = '''
+  rule test { condition: 1 + 1 == 2}
+  rule test2 { condition: 1 + 1 == 2}'''
+  compiler = yara_x.Compiler()
+  compiler.allowed_rule_name('^foo', error = True)
+  with pytest.raises(yara_x.CompileError,
+                     match=r"this rule name does not match regex `\^foo`"):
+    compiler.add_source(rule)
+  assert len(compiler.errors()) == 2

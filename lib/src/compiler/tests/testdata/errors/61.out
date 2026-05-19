@@ -3,4 +3,3 @@ error[E021]: duplicate tag `tag1`
   |
 1 | rule test : tag1 tag1 { condition: true }
   |                  ^^^^ duplicate tag
-  |

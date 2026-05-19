@@ -1,0 +1,10 @@
+ rule test_1
+ └─ condition
+    └─ true
+
+ rule test_2
+ └─ condition
+    └─ true
+
+ERRORS:
+- SyntaxError { message: "expecting `global`, `private`, `rule`, `import` or `include`, found `foo`", span: Span(33..36) }

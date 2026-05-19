@@ -37,7 +37,7 @@ pub enum VariableError {
 
     /// The identifier is not valid. Identifiers can only contain alphanumeric
     /// characters and underscores, and can't start with a digit.
-    #[error("invalid variable identifier `{0}`")]
+    #[error("invalid identifier `{0}`")]
     InvalidIdentifier(String),
 
     /// The value of a variable cannot be null. This may happen when using a
@@ -47,7 +47,9 @@ pub enum VariableError {
 
     /// Invalid array. Arrays can't be empty, and all items must be non-null
     /// and have the same type.
-    #[error("arrays can't be empty and all items must be non-null and the same type")]
+    #[error(
+        "arrays can't be empty and all items must be non-null and the same type"
+    )]
     InvalidArray,
 
     /// Integer value is out of range.
@@ -303,6 +305,11 @@ impl TryFrom<&serde_json::Value> for Variable {
             serde_json::Value::Object(obj) => {
                 let mut s = types::Struct::new();
                 for (key, value) in obj {
+                    if !is_valid_identifier(key) {
+                        return Err(VariableError::InvalidIdentifier(
+                            key.to_string(),
+                        ));
+                    }
                     s.add_field(
                         key,
                         TypeValue::from(Variable::try_from(value)?),

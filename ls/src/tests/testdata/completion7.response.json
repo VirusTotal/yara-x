@@ -1,0 +1,31 @@
+[
+  {
+    "insertText": "rule ${1:ident} {\n  strings:\n    $${2:a} = \"${3}\"\n  condition:\n    $${2:a}${0}\n }",
+    "insertTextFormat": 2,
+    "insertTextMode": 2,
+    "kind": 2,
+    "label": "rule"
+  },
+  {
+    "insertText": "import \"${1:}\"${0}",
+    "insertTextFormat": 2,
+    "insertTextMode": 2,
+    "kind": 2,
+    "label": "import"
+  },
+  {
+    "insertText": "include \"${1:}\"${0}",
+    "insertTextFormat": 2,
+    "insertTextMode": 2,
+    "kind": 2,
+    "label": "include"
+  },
+  {
+    "kind": 14,
+    "label": "private"
+  },
+  {
+    "kind": 14,
+    "label": "global"
+  }
+]

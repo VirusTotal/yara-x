@@ -1,0 +1,14 @@
+warning[invariant_expr]: invariant boolean expression
+ --> line:2:16
+  |
+2 |     condition: true
+  |                ---- this expression is always true
+  |
+  = note: rule `test_1` is always `true`
+warning[global_rule_misuse]: global rule used in condition
+ --> line:7:5
+  |
+7 |     test_1
+  |     ------ a global rule is being used as part of an condition
+  |
+  = note: referencing a global rule in a condition is redundant, and may result in an unsatisfiable condition

@@ -1,5 +1,5 @@
-use crate::compiler::ir::{Expr, ExprId, Iterable, MatchAnchor, Quantifier};
 use crate::compiler::IR;
+use crate::compiler::ir::{Expr, ExprId, Iterable, MatchAnchor, Quantifier};
 
 /// Events yielded by [`DFSIter`].
 pub(crate) enum Event<T> {
@@ -22,6 +22,12 @@ pub(crate) enum EventContext {
     Body,
     /// The current expression is a children of a field access expression.
     FieldAccess,
+    /// The current expression is one of the expressions that initializes a
+    /// variable in a `with` statement. For instance, the `<expr>` in:
+    /// ```text
+    /// with some_var = <expr> : ( .. )
+    /// ```
+    WithDeclaration,
 }
 
 /// An iterator that conducts a Depth First Search (DFS) traversal of the IR
@@ -154,12 +160,12 @@ impl<'a> DFSWithScopeIter<'a> {
     /// corresponding to the `for` statement.
     ///
     /// Let's see a more complex example, consider the following YARA
-    /// expression, where we are positioned at `<inner expr>`:
+    /// expression, where we are positioned at `<for body expr>`:
     ///
     /// ```text
-    /// with a = <expr> : (
+    /// with a = <init expr> : (
     ///    for any i in (0..10) : (
-    ///         <inner expr>
+    ///         <for body expr>
     ///    )
     /// )
     /// ```
@@ -168,6 +174,9 @@ impl<'a> DFSWithScopeIter<'a> {
     /// statement first and then the [`ExprId`] corresponding to the `for`
     /// statement. The iterator processes the scopes starting from the outermost
     /// scope and progresses inward.
+    ///
+    /// If we are positioned at `<init expr>`, the iterator returns the
+    /// [`ExprId`] that corresponds to the `with` statement.
     pub fn scopes(&self) -> impl DoubleEndedIterator<Item = ExprId> + '_ {
         self.scopes.iter().cloned()
     }
@@ -192,7 +201,10 @@ impl Iterator for DFSWithScopeIter<'_> {
         }
         let next = match self.dfs.next()? {
             Event::Enter((expr_id, _, ctx)) => {
-                if matches!(ctx, EventContext::Body) {
+                if matches!(
+                    ctx,
+                    EventContext::Body | EventContext::WithDeclaration
+                ) {
                     // If the current expression is the body of some other
                     // expression, the current expression must have a parent.
                     self.scopes.push(self.ir.get_parent(expr_id).unwrap());
@@ -200,7 +212,10 @@ impl Iterator for DFSWithScopeIter<'_> {
                 Event::Enter((expr_id, ctx))
             }
             Event::Leave((expr_id, _, ctx)) => {
-                if matches!(ctx, EventContext::Body) {
+                if matches!(
+                    ctx,
+                    EventContext::Body | EventContext::WithDeclaration
+                ) {
                     // Don't remove the scope at top of the stack right away.
                     // If the user calls `scopes()` while processing the Leave
                     // event, we want the current context to be there. We just
@@ -285,6 +300,10 @@ pub(super) fn dfs_common(
         | Expr::IEquals { lhs, rhs }
         | Expr::Matches { lhs, rhs } => {
             stack.push(Event::Enter((*rhs, EventContext::None)));
+            stack.push(Event::Enter((*lhs, EventContext::None)));
+        }
+
+        Expr::MatchesMany { lhs, .. } => {
             stack.push(Event::Enter((*lhs, EventContext::None)));
         }
 
@@ -383,7 +402,8 @@ pub(super) fn dfs_common(
         Expr::With(with) => {
             stack.push(Event::Enter((with.body, EventContext::Body)));
             for (_id, expr) in with.declarations.iter().rev() {
-                stack.push(Event::Enter((*expr, EventContext::None)))
+                stack
+                    .push(Event::Enter((*expr, EventContext::WithDeclaration)))
             }
         }
     }
@@ -612,17 +632,17 @@ mod tests {
 
         assert!(matches!(
             dfs.next(),
-             Some(Event::Enter((expr_id, EventContext::None))) if expr_id == const_1
+             Some(Event::Enter((expr_id, EventContext::WithDeclaration))) if expr_id == const_1
         ));
 
-        assert_eq!(dfs.scopes().collect::<Vec<_>>(), vec![]);
+        assert_eq!(dfs.scopes().collect::<Vec<_>>(), vec![with]);
 
         assert!(matches!(
             dfs.next(),
-             Some(Event::Leave((expr_id, EventContext::None))) if expr_id == const_1
+             Some(Event::Leave((expr_id, EventContext::WithDeclaration))) if expr_id == const_1
         ));
 
-        assert_eq!(dfs.scopes().collect::<Vec<_>>(), vec![]);
+        assert_eq!(dfs.scopes().collect::<Vec<_>>(), vec![with]);
 
         assert!(matches!(
             dfs.next(),
@@ -642,5 +662,7 @@ mod tests {
             dfs.next(),
             Some(Event::Leave((expr_id, EventContext::None))) if expr_id == with
         ));
+
+        assert_eq!(dfs.scopes().collect::<Vec<_>>(), vec![]);
     }
 }

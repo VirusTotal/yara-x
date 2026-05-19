@@ -25,7 +25,6 @@ use crate::modules::protos;
 use strum_macros::Display;
 
 type NomError<'a> = nom::error::Error<&'a [u8]>;
-
 #[derive(Display)]
 pub enum Error<'a> {
     InvalidDotNet,
@@ -297,7 +296,7 @@ impl<'a> Dotnet<'a> {
         self.num_rows[table as usize]
     }
 
-    fn get_type_ref(&self, index: &CodedIndex) -> Option<&TypeRef> {
+    fn get_type_ref(&self, index: &CodedIndex) -> Option<&TypeRef<'_>> {
         if index.table != Table::TypeRef {
             return None;
         }
@@ -350,7 +349,7 @@ impl<'a> Dotnet<'a> {
     /// Parses metadata root.
     ///
     /// ECMA-335 Section II.24.2.1.
-    fn parse_metadata_root(input: &[u8]) -> IResult<&[u8], CLIMetadata> {
+    fn parse_metadata_root(input: &[u8]) -> IResult<&[u8], CLIMetadata<'_>> {
         map(
             (
                 verify(le_u32, |magic| *magic == 0x424A5342), // magic == 0x424A5342
@@ -393,7 +392,7 @@ impl<'a> Dotnet<'a> {
     }
 
     /// Parses a stream header.
-    fn parse_stream_header(input: &[u8]) -> IResult<&[u8], StreamHeader> {
+    fn parse_stream_header(input: &[u8]) -> IResult<&[u8], StreamHeader<'_>> {
         let (remaining, (offset, size, name)) = (
             le_u32,                // offset
             le_u32,                // size
@@ -957,7 +956,7 @@ impl<'a> Dotnet<'a> {
                 .get(method_def.param_list.saturating_add(i as usize))
                 .and_then(|param| param.name)
                 .map(Cow::Borrowed)
-                .unwrap_or_else(|| Cow::Owned(format!("P_{}", i)));
+                .unwrap_or_else(|| Cow::Owned(format!("P_{i}")));
 
             let mut param_type = String::new();
 
@@ -1058,7 +1057,7 @@ impl<'a> Dotnet<'a> {
             Table::TypeRef => self.get_type_ref(index).and_then(|t| {
                 match (t.namespace, t.plain_name()) {
                     (Some(namespace), Some(name)) => {
-                        Some(format!("{}.{}", namespace, name))
+                        Some(format!("{namespace}.{name}"))
                     }
                     (_, name) => name.map(|n| n.to_string()),
                 }
@@ -1190,7 +1189,7 @@ impl<'a> Dotnet<'a> {
                         .ok_or(Error::InvalidType)?
                 };
 
-                write!(output, "{}", name)?;
+                write!(output, "{name}")?;
             }
             Type::Array => {
                 let dimensions;
@@ -1237,16 +1236,16 @@ impl<'a> Dotnet<'a> {
 
                     match (lower_bound, size) {
                         (Some(0), Some(size)) => {
-                            write!(output, "{}", size)?;
+                            write!(output, "{size}")?;
                         }
                         (Some(l), Some(size)) if size >= 1 => {
                             write!(output, "{}...{}", l, l + size - 1)?;
                         }
                         (Some(l), None) => {
-                            write!(output, "{}...", l)?;
+                            write!(output, "{l}...")?;
                         }
                         (None, Some(size)) => {
-                            write!(output, "{}", size)?;
+                            write!(output, "{size}")?;
                         }
                         _ => {}
                     }
@@ -2425,7 +2424,7 @@ impl CodedIndex {
     /// of the tables the coded index is actually being referring to, while
     /// the upper 32-N bits are used for the index itself. The value of N
     /// depends on the number of tables.
-    fn from_u32(tables: &[Table], u: u32) -> Result<Self, Error> {
+    fn from_u32(tables: &[Table], u: u32) -> Result<Self, Error<'_>> {
         let tag_size = f64::log2(tables.len() as f64).ceil() as u32;
         let table_index = u & ((1 << tag_size) - 1);
         let table = tables

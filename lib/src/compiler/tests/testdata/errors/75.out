@@ -3,4 +3,3 @@ error[E001]: syntax error
   |
 1 | global global rule test { condition: true }
   |        ^^^^^^ expecting `private` or `rule`, found `global`
-  |

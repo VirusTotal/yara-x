@@ -18,9 +18,9 @@ message definition. The `yara.proto` file defines the existing formatting
 options, so you must include it in your own `.proto` file in order to be able
 to use the such options.
 
-The `[(yara.field_options).fmt = "x"]` modifier, when applied to some field, indicates
-that values of that field must be rendered in hexadecimal form. The list of
-supported format modifiers is:
+The `[(yara.field_options).fmt = "x"]` modifier, when applied to some field,
+indicates that values of that field must be rendered in hexadecimal form. The
+list of supported format modifiers is:
 
 - `x`: Serializes the value as a hexadecimal number. Only valid for integer
   fields.
@@ -30,8 +30,9 @@ supported format modifiers is:
   format. Only valid for integer fields.
 
 - `flag:ENUM_TYPE_NAME`: Serializes the field as a set of flags. The value
-  is rendered as a hexadecimal number. but a comment is added withe flags set.
-  `ENUM_TYPE_NAME` must be the name of enum where each value represents a flag.
+  is rendered as a hexadecimal number, but a comment is added with the names
+  of the flags that are enabled. `ENUM_TYPE_NAME` must be the name of enum
+  where each value represents a flag.
 
 # Examples
 
@@ -69,12 +70,12 @@ use std::ops::BitAnd;
 
 use chrono::prelude::DateTime;
 use itertools::Itertools;
+use protobuf::MessageDyn;
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
 use protobuf::reflect::{FieldDescriptor, MessageRef, ReflectValueRef};
-use protobuf::MessageDyn;
 use yansi::{Color, Paint, Style};
 
-use yara_x_proto::{get_field_format, FieldFormat};
+use yara_x_proto::{FieldFormat, get_field_format};
 
 #[cfg(test)]
 mod tests;
@@ -142,7 +143,7 @@ impl<W: Write> Serializer<W> {
         match format {
             FieldFormat::Flags(flags_enum) => {
                 let value = value.into();
-                write!(self.output, "0x{:x}", value)?;
+                write!(self.output, "0x{value:x}")?;
                 let mut f = vec![];
                 for v in flags_enum.values() {
                     if value.bitand(v.value() as i64) != 0 {
@@ -215,7 +216,7 @@ impl<W: Write> Serializer<W> {
     }
 
     fn write_comment(&mut self, comment: &str) -> Result<(), Error> {
-        let comment = format!("  # {}", comment);
+        let comment = format!("  # {comment}");
         write!(self.output, "{}", comment.paint(self.colors.comment))
     }
 
@@ -332,9 +333,9 @@ impl<W: Write> Serializer<W> {
             ReflectValueRef::I64(v) => {
                 self.print_integer_value(*v, get_field_format(field))?
             }
-            ReflectValueRef::F32(v) => write!(self.output, "{:.1}", v)?,
-            ReflectValueRef::F64(v) => write!(self.output, "{:.1}", v)?,
-            ReflectValueRef::Bool(v) => write!(self.output, "{}", v)?,
+            ReflectValueRef::F32(v) => write!(self.output, "{v:.1}")?,
+            ReflectValueRef::F64(v) => write!(self.output, "{v:.1}")?,
+            ReflectValueRef::Bool(v) => write!(self.output, "{v}")?,
             ReflectValueRef::String(v) => {
                 write!(
                     self.output,
@@ -351,7 +352,7 @@ impl<W: Write> Serializer<W> {
             }
             ReflectValueRef::Enum(d, v) => match d.value_by_number(*v) {
                 Some(e) => write!(self.output, "{}", e.name())?,
-                None => write!(self.output, "{}", v)?,
+                None => write!(self.output, "{v}")?,
             },
             ReflectValueRef::Message(msg) => self.write_msg(msg)?,
         }

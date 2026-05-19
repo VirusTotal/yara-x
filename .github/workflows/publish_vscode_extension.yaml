@@ -1,0 +1,88 @@
+name: Build and Publish VSCode Extension
+
+on:
+  create:
+    tags:
+      - 'v*'
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build-and-publish:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        build:
+          - linux-x64
+          - win32-x64
+          - darwin-x64
+          - darwin-arm64
+
+        include:
+          - build: linux-x64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary_name: yr-ls
+
+          - build: win32-x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary_name: yr-ls.exe
+
+          - build: darwin-x64
+            os: macos-latest
+            target: x86_64-apple-darwin
+            binary_name: yr-ls
+
+          - build: darwin-arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            binary_name: yr-ls
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install toml
+        run: pip install toml
+
+      - name: Sync version
+        run: python .github/scripts/sync_version.py
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: Build language server binary
+        run: cargo build --release --target=${{ matrix.target }}
+
+      - name: Create dist directory
+        run: mkdir -p ls/editors/code/dist
+
+      - name: Copy binary to dist
+        run: cp target/${{ matrix.target }}/release/${{ matrix.binary_name }} ls/editors/code/dist/
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies and package
+        working-directory: ./ls/editors/code
+        run: |
+          npm install
+          npx @vscode/vsce package --target ${{ matrix.build }} -o ${{ matrix.build }}.vsix --baseImagesUrl https://github.com/VirusTotal/yara-x/raw/HEAD/ls/editors/code
+
+      - name: Publish to Visual Studio Marketplace
+        #if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: ./ls/editors/code
+        run: npx @vscode/vsce publish --packagePath ${{ matrix.build }}.vsix
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}

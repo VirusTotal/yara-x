@@ -54,7 +54,19 @@ test = false
 doc = false
 
 [[bin]]
+name = "crx_parser"
+path = "fuzz_targets/crx_parser.rs"
+test = false
+doc = false
+
+[[bin]]
 name = "rule_compiler"
 path = "fuzz_targets/rule_compiler.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "dex_parser"
+path = "fuzz_targets/dex_parser.rs"
 test = false
 doc = false

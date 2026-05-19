@@ -1,0 +1,9 @@
+{
+  "textDocument": {
+    "uri": "${test_dir}/formatting1.yar"
+  },
+  "options": {
+    "tabSize": 4,
+    "insertSpaces": true
+  }
+}

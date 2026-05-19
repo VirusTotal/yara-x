@@ -3,4 +3,3 @@ error[E022]: unused pattern `$`
   |
 3 |      $ = "foo"
   |      ^ this pattern was not used in the condition
-  |

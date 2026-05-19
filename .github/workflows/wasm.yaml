@@ -1,0 +1,27 @@
+name: Language server WebAssembly build
+on:
+  push:
+    paths:
+    - 'parser/**'
+    - 'fmt/**'
+    - 'ls/**'
+    - '.github/workflows/wasm.yaml'
+    tags-ignore:
+    - '**'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+      
+      - name: Build LS
+        run: cargo build --target wasm32-unknown-unknown --no-default-features -p yara-x-ls --lib --release

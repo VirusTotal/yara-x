@@ -3,4 +3,3 @@ error[E022]: unused pattern `$c`
   |
 5 |      $c = "baz"
   |      ^^ this pattern was not used in the condition
-  |

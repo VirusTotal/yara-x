@@ -3,4 +3,3 @@ error[E029]: invalid escape sequence
   |
 2 |   condition: "\x" == "\x"
   |               ^^ expecting two hex digits after `\x`
-  |

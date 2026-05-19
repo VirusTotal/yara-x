@@ -1,0 +1,20 @@
+import "pe"
+
+rule test {
+    strings:
+        $s0 = { 55 8B EC 83 E4 F8 83 EC }
+        $s1 = { 55 8B EC 83 EC ?? A1 }
+    condition:
+        for any export in pe.export_details : (
+            for any of ($s*) : (
+                $ in (export.offset .. export.offset + 0x200)
+            )
+            and
+            for any sec in pe.sections : (
+                for 100 i in (0 .. 0x1000) : (
+                    uint32(export.offset + i) >= (pe.image_base + sec.virtual_address)
+                    and uint32(export.offset + i) < ((pe.image_base + sec.virtual_address) & ~0xFFF)
+                )
+            )
+        )
+}

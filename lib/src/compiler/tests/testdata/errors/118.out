@@ -3,4 +3,3 @@ error[E026]: invalid base64 alphabet
   |
 3 |     $a = "foo" base64("ff")
   |                       ^^^^ invalid length - must be 64 bytes
-  |

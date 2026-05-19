@@ -1,0 +1,222 @@
+syntax = "proto2";
+import "yara.proto";
+
+package dex;
+
+option (yara.module_options) = {
+    name : "dex",
+    root_message: "dex.Dex",
+    cargo_feature: "dex-module"
+};
+
+message Dex {
+    // True if the file is a valid Dalvik Executable (DEX).
+    optional bool is_dex = 1;
+    // Standard header items parsed from the binary.
+    optional DexHeader header = 2;
+    // Array of strings extracted from the string pool.
+    repeated string strings = 3;
+    // Data types explicitly defined in the type pool.
+    repeated string types = 4;
+    // Function prototypes structured from the prototype pool.
+    repeated ProtoItem protos = 5;
+    // Distinct class fields extracted from the field list.
+    repeated FieldItem fields = 6;
+    // Specific subroutines and methods defined.
+    repeated MethodItem methods = 7;
+    // Structured class definition objects.
+    repeated ClassItem class_defs = 8;
+    // Mapping metadata table listing item offsets and sizes.
+    optional MapList map_list = 9;
+}
+
+// See: https://source.android.com/docs/core/runtime/dex-format#header-item
+message DexHeader {
+    // Magic identifier characterizing the file type.
+    optional uint32 magic = 1 [(yara.field_options).fmt = "x"];
+    // Format version designation (e.g., 35, 36, 37).
+    optional uint32 version = 2;
+    // Standard Adler32 checksum of the remainder of the file.
+    optional uint32 checksum = 3 [(yara.field_options).fmt = "x"];
+    // Cryptographic SHA-1 signature of the remaining file contents.
+    optional string signature = 4;
+    // Physical size in bytes of the complete file.
+    optional uint32 file_size = 5;
+    // Combined size in bytes of the binary header block.
+    optional uint32 header_size = 6 [(yara.field_options).fmt = "x"];
+    // Byte ordering identifier constant.
+    optional uint32 endian_tag = 7 [(yara.field_options).fmt = "x"];
+    // Physical size of the link section.
+    optional uint32 link_size = 8;
+    // Offset pointing to the link section data.
+    optional uint32 link_off = 9 [(yara.field_options).fmt = "x"];
+    // Size in bytes of the main data section.
+    optional uint32 data_size = 23;
+    // File offset pointing to the main data block.
+    optional uint32 data_off = 24 [(yara.field_options).fmt = "x"];
+    // Combined size constraint allocated for the container.
+    optional uint32 container_size = 25;
+    // File offset marking the beginning of the primary header.
+    optional uint32 header_offset = 26 [(yara.field_options).fmt = "x"];
+}
+
+message ProtoItem {
+    // Short-form signature representing the return and argument types.
+    optional string shorty = 1;
+    // Standard data type descriptor of the return value.
+    optional string return_type = 2;
+    // Total count of arguments accepted by the prototype.
+    optional uint32 parameters_count = 3;
+    // Data type descriptions corresponding to each argument.
+    repeated string parameters = 4;
+}
+
+message FieldItem {
+    // Name of the parent class defining the field.
+    optional string class = 1;
+    // Specific data type categorization of the field.
+    optional string type = 2;
+    // Descriptive string identifier assigned to the field.
+    optional string name = 3;
+}
+
+message MethodItem {
+    // Parent class descriptor string containing the method.
+    optional string class = 1;
+    // Signature prototype defining the function arguments and return value.
+    optional ProtoItem proto = 2;
+    // Individual function name assigned to the method.
+    optional string name = 3;
+}
+
+message ClassItem {
+    // Core descriptor representing the class type.
+    optional string class = 1;
+    // Bitwise flags specifying accessibility constraints and attributes.
+    optional uint32 access_flags = 2 [(yara.field_options).fmt = "flags:AccessFlag"];
+    // Superclass descriptor inherited by this object.
+    optional string superclass = 3;
+    // Source code file name metadata string.
+    optional string source_file = 4;
+}
+
+message MapList {
+    // Number of specific map item elements tracked.
+    optional uint32 size = 1;
+    // Structured mapping descriptors detailing item positions.
+    repeated MapItem items = 2;
+}
+
+message MapItem {
+    // Standard item classification type code.
+    optional TypeCode type = 1;
+    // Reserved unused padding field.
+    optional uint32 unused = 2;
+    // Total count of individual items in this section.
+    optional uint32 size = 3;
+    // File offset marking the start of the designated items.
+    optional uint32 offset = 4 [(yara.field_options).fmt = "x"];
+}
+
+// Bitfields of these flags are used to indicate the accessibility and overall properties of classes and class members
+// See: https://source.android.com/docs/core/runtime/dex-format#access-flags
+enum AccessFlag {
+    option (yara.enum_options).inline = true;
+
+    // public: visible everywhere (class, field, method)
+    ACC_PUBLIC = 0x1;
+
+    // private: only visible to defining class (class, field, method)
+    ACC_PRIVATE = 0x2;
+
+    // protected: visible to package and subclasses (class, field, method)
+    ACC_PROTECTED = 0x4;
+
+    // static:
+    //   - class: not constructed with an outer this reference
+    //   - field: global to defining class
+    //   - method: does not take a this argument
+    ACC_STATIC = 0x8;
+
+    // final:
+    //   - class: not subclassable
+    //   - field: immutable after construction
+    //   - method: not overridable
+    ACC_FINAL = 0x10;
+
+    // synchronized: method has associated lock automatically acquired around call.
+    // Note: only valid if ACC_NATIVE is also set.
+    ACC_SYNCHRONIZED = 0x20;
+
+    // bridge: compiler-generated method to provide type-safe bridge
+    ACC_BRIDGE = 0x40;
+
+    // varargs: last argument should be treated as a "rest" argument by compiler
+    ACC_VARARGS = 0x80;
+
+    // native: implemented in native code
+    ACC_NATIVE = 0x100;
+
+    // interface: multiply-implementable abstract class
+    ACC_INTERFACE = 0x200;
+
+    // abstract:
+    //   - class: not directly instantiable
+    //   - method: unimplemented by this class
+    ACC_ABSTRACT = 0x400;
+
+    // strictfp: strict rules for floating-point arithmetic
+    ACC_STRICT = 0x800;
+
+    // synthetic: not directly defined in source code (class, field, method)
+    ACC_SYNTHETIC = 0x1000;
+
+    // annotation: declared as an annotation class
+    ACC_ANNOTATION = 0x2000;
+
+    // enum:
+    //   - class: declared as an enumerated type
+    //   - field: declared as an enumerated value
+    ACC_ENUM = 0x4000;
+
+    // constructor: constructor method (class or instance initializer)
+    ACC_CONSTRUCTOR = 0x10000;
+
+    // declared synchronized: declared with 'synchronized' keyword
+    ACC_DECLARED_SYNCHRONIZED = 0x20000;
+}
+
+enum AccessFlagSpecial {
+    option (yara.enum_options).inline = true;
+    // volatile (field): special access rules to help with thread safety
+    ACC_VOLATILE = 0x40;
+
+    // transient (field): not to be saved by default serialization
+    ACC_TRANSIENT = 0x80;
+}
+
+// See: https://source.android.com/docs/core/runtime/dex-format#type-codes
+enum TypeCode {
+    option (yara.enum_options).inline = true;
+    TYPE_HEADER_ITEM = 0x0000;
+    TYPE_STRING_ID_ITEM = 0x0001;
+    TYPE_TYPE_ID_ITEM = 0x0002;
+    TYPE_PROTO_ID_ITEM = 0x0003;
+    TYPE_FIELD_ID_ITEM = 0x0004;
+    TYPE_METHOD_ID_ITEM = 0x0005;
+    TYPE_CLASS_DEF_ITEM = 0x0006;
+    TYPE_CALL_SITE_ID_ITEM = 0x0007;
+    TYPE_METHOD_HANDLE_ITEM = 0x0008;
+    TYPE_MAP_LIST = 0x1000;
+    TYPE_TYPE_LIST = 0x1001;
+    TYPE_ANNOTATION_SET_REF_LIST = 0x1002;
+    TYPE_ANNOTATION_SET_ITEM = 0x1003;
+    TYPE_CLASS_DATA_ITEM = 0x2000;
+    TYPE_CODE_ITEM = 0x2001;
+    TYPE_STRING_DATA_ITEM = 0x2002;
+    TYPE_DEBUG_INFO_ITEM = 0x2003;
+    TYPE_ANNOTATION_ITEM = 0x2004;
+    TYPE_ENCODED_ARRAY_ITEM = 0x2005;
+    TYPE_ANNOTATIONS_DIRECTORY_ITEM = 0x2006;
+    TYPE_HIDDENAPI_CLASS_DATA_ITEM = 0xF000;
+}

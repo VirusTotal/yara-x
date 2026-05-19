@@ -2,8 +2,8 @@ use regex::{Error, Regex};
 
 use yara_x_parser::ast::{self, Meta, WithSpan};
 
-use crate::compiler::report::ReportBuilder;
 use crate::compiler::Warning;
+use crate::compiler::report::ReportBuilder;
 use crate::compiler::{errors, warnings};
 use crate::errors::CompileError;
 
@@ -59,8 +59,7 @@ pub(crate) enum LinterResult {
 ///  --> line:1:6
 ///   |
 /// 1 | rule foo { strings: $foo = "foo" condition: $foo }
-///   |      --- this rule name does not match regex `APT_.*`
-///   |"#);
+///   |      --- this rule name does not match regex `APT_.*`"#);
 /// ```
 pub struct RuleName {
     regex: String,
@@ -139,7 +138,7 @@ type Predicate<'a> = dyn Fn(&Meta) -> bool + 'a;
 ///   |
 ///   = note: allowed tags: foo, bar"#);
 pub struct Tags {
-    allow_list: Vec<String>,
+    allowed: Vec<String>,
     regex: Option<String>,
     compiled_regex: Option<Regex>,
     error: bool,
@@ -148,12 +147,7 @@ pub struct Tags {
 impl Tags {
     /// A list of strings that tags for each rule must match one of.
     pub(crate) fn from_list(list: Vec<String>) -> Self {
-        Self {
-            allow_list: list,
-            regex: None,
-            compiled_regex: None,
-            error: false,
-        }
+        Self { allowed: list, regex: None, compiled_regex: None, error: false }
     }
 
     /// Regular expression that tags for each rule must match.
@@ -163,7 +157,7 @@ impl Tags {
         let regex = regex.into();
         let compiled_regex = Some(Regex::new(regex.as_str())?);
         let tags = Self {
-            allow_list: Vec::new(),
+            allowed: Vec::new(),
             regex: Some(regex),
             compiled_regex,
             error: false,
@@ -195,9 +189,9 @@ impl LinterInternal for Tags {
 
         let mut results: Vec<Warning> = Vec::new();
         let tags = rule.tags.as_ref().unwrap();
-        if !self.allow_list.is_empty() {
+        if !self.allowed.is_empty() {
             for tag in tags.iter() {
-                if !self.allow_list.contains(&tag.name.to_string()) {
+                if !self.allowed.contains(&tag.name.to_string()) {
                     if self.error {
                         return LinterResult::Err(errors::UnknownTag::build(
                             report_builder,
@@ -205,7 +199,7 @@ impl LinterInternal for Tags {
                             tag.name.to_string(),
                             Some(format!(
                                 "allowed tags: {}",
-                                self.allow_list.join(", ")
+                                self.allowed.join(", ")
                             )),
                         ));
                     } else {
@@ -215,7 +209,7 @@ impl LinterInternal for Tags {
                             tag.name.to_string(),
                             Some(format!(
                                 "allowed tags: {}",
-                                self.allow_list.join(", ")
+                                self.allowed.join(", ")
                             )),
                         ));
                     }
@@ -273,8 +267,7 @@ impl LinterInternal for Tags {
 ///  --> line:1:6
 ///   |
 /// 1 | rule foo { strings: $foo = "foo" condition: $foo }
-///   |      --- required metadata `author` not found
-///   |"#);
+///   |      --- required metadata `author` not found"#);
 /// ```
 pub struct Metadata<'a> {
     identifier: String,
@@ -351,8 +344,7 @@ impl<'a> Metadata<'a> {
     ///  --> line:3:21
     ///   |
     /// 3 |            author = false
-    ///   |                     ----- author must be a string
-    ///   |"#);
+    ///   |                     ----- author must be a string"#);
     /// ```
     pub fn validator<P, M>(mut self, predicate: P, message: M) -> Self
     where
@@ -374,32 +366,28 @@ impl LinterInternal for Metadata<'_> {
         let mut found = false;
         for meta in rule.meta.iter().flatten() {
             if meta.identifier.name == self.identifier.as_str() {
-                if let Some(predicate) = &self.predicate {
-                    if !predicate(meta) {
-                        return if self.error {
-                            LinterResult::Err(errors::InvalidMetadata::build(
-                                report_builder,
-                                meta.identifier.name.to_string(),
-                                report_builder
-                                    .span_to_code_loc(meta.value.span()),
-                                self.message
-                                    .clone()
-                                    .unwrap_or("invalid metadata".to_string()),
-                            ))
-                        } else {
-                            LinterResult::Warn(
-                                warnings::InvalidMetadata::build(
-                                    report_builder,
-                                    meta.identifier.name.to_string(),
-                                    report_builder
-                                        .span_to_code_loc(meta.value.span()),
-                                    self.message.clone().unwrap_or(
-                                        "invalid metadata".to_string(),
-                                    ),
-                                ),
-                            )
-                        };
-                    }
+                if let Some(predicate) = &self.predicate
+                    && !predicate(meta)
+                {
+                    return if self.error {
+                        LinterResult::Err(errors::InvalidMetadata::build(
+                            report_builder,
+                            meta.identifier.name.to_string(),
+                            report_builder.span_to_code_loc(meta.value.span()),
+                            self.message
+                                .clone()
+                                .unwrap_or("invalid metadata".to_string()),
+                        ))
+                    } else {
+                        LinterResult::Warn(warnings::InvalidMetadata::build(
+                            report_builder,
+                            meta.identifier.name.to_string(),
+                            report_builder.span_to_code_loc(meta.value.span()),
+                            self.message
+                                .clone()
+                                .unwrap_or("invalid metadata".to_string()),
+                        ))
+                    };
                 }
                 found = true;
             }

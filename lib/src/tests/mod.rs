@@ -163,8 +163,6 @@ macro_rules! pattern_match {
 
 pub(crate) use condition_false;
 pub(crate) use condition_true;
-pub(crate) use pattern_false;
-pub(crate) use pattern_true;
 pub(crate) use rule_false;
 pub(crate) use rule_true;
 pub(crate) use test_condition;
@@ -224,6 +222,17 @@ fn test_comparison_operations() {
     condition_true!("1.0 == 1");
     condition_true!("1.0 != 1.000000000000001");
     condition_true!("1.0 < 1.000000000000001");
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"test_proto2.array_bool[0] == test_proto2.array_bool[0]"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(r#"test_proto2.array_bool[0] == 0 + 0"#);
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(r#"2 - 1 == test_proto2.array_bool[1]"#);
 }
 
 #[test]
@@ -267,6 +276,8 @@ fn string_operations() {
 
     condition_true!(r#""foo" icontains "FOO""#);
     condition_true!(r#""foo" icontains "OO""#);
+    condition_true!(r#""CAFÉ" icontains "fé""#);
+    condition_true!(r#""mañana" istartswith "MAÑ""#);
     condition_true!(r#""foo" istartswith "Fo""#);
     condition_true!(r#""foo" iendswith "OO""#);
 
@@ -317,6 +328,9 @@ fn string_operations() {
     // characters.
     condition_false!(r#""🙈🙉🙊" matches /^...$/"#);
     condition_true!(r#""🙈🙉🙊" matches /(?u)^...$/"#);
+    // This doesn't match because unicode support is disabled after
+    // the first dot (.).
+    condition_false!(r#""🙈🙉🙊" matches /(?u)^.(?-u)..$/"#);
 }
 
 #[test]
@@ -727,6 +741,42 @@ fn with() {
            )
         "#
     );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with one = test_proto2.int32_one,
+                two = test_proto2.add(one, 1),
+                three = two + 1,
+                four = 4: (
+
+                with seven = three + four: (
+                    seven == 7
+                )
+           )
+        "#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_false!(
+        r#"with undef_1 = uint32(100000),
+                undef_2 = uint32(undef_1),
+                one = 1: (
+                undef_2 != one
+           )
+        "#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_false!(
+        r#"for any i in (1..2): (
+            with undef_1 = uint32(100000),
+                undef_2 = uint32(undef_1) + i,
+                one = i: (
+                undef_2 != one
+           )
+        )
+        "#
+    );
 }
 
 #[test]
@@ -736,6 +786,7 @@ fn len_methods() {
     condition_true!(r#"test_proto2.array_int64.len() == 3"#);
     condition_true!(r#"test_proto2.array_string.len() == 3"#);
     condition_true!(r#"test_proto2.map_int64_int64.len() == 1"#);
+    condition_true!(r#"test_proto2.string_foo.len() == 3"#);
 }
 
 #[test]
@@ -1334,6 +1385,7 @@ fn regexp_patterns_2() {
     pattern_match!(r#"/.b{2,3}/"#, b"abb", b"abb");
     pattern_match!(r#"/.b{2,3}/"#, b"abbb", b"abbb");
     pattern_match!(r#"/.b{2,3}?/"#, b"abbb", b"abb");
+    pattern_match!(r#"/.{2,3}c/s"#, b"abbc", b"abbc");
     pattern_match!(r#"/ab{2,3}?c/"#, b"abbbc", b"abbbc");
     pattern_match!(r#"/.b{2,3}cccc/"#, b"abbbcccc", b"abbbcccc");
     pattern_match!(r#"/.b{2,3}?cccc/"#, b"abbbcccc", b"abbbcccc");
@@ -1669,6 +1721,8 @@ fn regexp_patterns_5() {
     pattern_match!(r"/\B\w\w\w/", b"abcd", b"bcd");
     pattern_false!(r"/\B\w\w\w\B/", b"abcd");
     pattern_match!(r"/\<abc/", b"<abc", b"<abc");
+    pattern_match!(r"/\>/", b">", b">");
+    pattern_match!(r"/\</", b"<", b"<");
     pattern_match!(r"/abc\>/", b"abc>", b"abc>");
     pattern_match!(r"/\b{start}abc/", b"abc", b"abc");
     pattern_match!(r"/abc\b{end}/", b"abc", b"abc");
@@ -1709,6 +1763,29 @@ fn regexp_patterns_5() {
         r#"/🙈🙉🙊/i"#,
         b"\xF0\x9F\x99\x88\xF0\x9F\x99\x89\xF0\x9F\x99\x8A"
     );
+
+    pattern_match!(r"/^abc \bxyz$/", b"abc xyz", b"abc xyz");
+    pattern_match!(r"/^abc\b xyz$/", b"abc xyz", b"abc xyz");
+    pattern_false!(r"/^abc\bxyz$/", b"abcxyz");
+
+    pattern_match!(r"/^abc \b{start}xyz$/", b"abc xyz", b"abc xyz");
+    pattern_false!(r"/^abc\b{start} xyz$/", b"abc xyz");
+
+    pattern_match!(r"/^abc\b{end} xyz$/", b"abc xyz", b"abc xyz");
+    pattern_false!(r"/^abc \b{end}xyz$/", b"abc xyz");
+
+    pattern_match!(r"/^abc\Bxyz$/", b"abcxyz", b"abcxyz");
+
+    // Here the Unicode mode is enabled only for "abc", for the rest of the
+    // regexp Unicode is disabled
+    pattern_match!(r"/(?u)^abc(?-u)\b xyz$/", b"abc xyz", b"abc xyz");
+    pattern_match!(r"/^((?u)abc)\b xyz$/", b"abc xyz", b"abc xyz");
+
+    // TODO: enable if we ever implement unicode support for regexps.
+    //pattern_match!(r"/(?u)^abc \bxyz$/", b"abc xyz", b"abc xyz");
+    //pattern_match!(r"/(?u)^abc\Bxyz$/", b"abcxyz", b"abcxyz");
+    //pattern_match!(r"/(?u)^abc \b{start}xyz$/", b"abc xyz", b"abc xyz");
+    //pattern_match!(r"/(?u)^abc\b{end} xyz$/", b"abc xyz", b"abc xyz");
 }
 
 #[test]
@@ -2701,7 +2778,10 @@ fn match_length() {
 
 #[test]
 fn xor() {
+    pattern_true!(r#""mississippi" xor"#, b"mississippi");
+    pattern_false!(r#""mississippi" xor"#, b"mississippp");
     pattern_true!(r#""mississippi" xor"#, b"lhrrhrrhqqh");
+    pattern_false!(r#""mississippi" xor"#, b"lhrrhrrhqqq");
     pattern_true!(r#""ssi" xor"#, b"lhrrhrrhqqh");
     pattern_false!(r#""miss" xor fullword"#, b"lhrrhrrhqqh");
     pattern_false!(r#""ppi" xor fullword"#, b"lhrrhrrhqqh");
@@ -3278,6 +3358,81 @@ fn filesize() {
 }
 
 #[test]
+fn filesize_bounds() {
+    let rules = crate::compile(
+        r#"
+        rule test_1 {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a and filesize > 1000
+        }
+        rule test_2 {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(
+        scanner
+            .scan(b"foobar")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1 // test_2 matches, but test_1 do not.
+    );
+
+    let rules = crate::compile(
+        r#"
+        rule test {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a and filesize == 6
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(
+        scanner
+            .scan(b"foobar")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    // Test case for https://github.com/VirusTotal/yara-x/issues/481
+    crate::compile(
+        r#"
+        rule test_1 {
+          strings:
+            $a = "foobar"
+            $b = /.*/
+          condition:
+            $a and $b and filesize >= 10
+        }
+        rule test_2 {
+          strings:
+            $a = "foobar"
+          condition:
+            $a and filesize <= 10
+        }
+        "#,
+    )
+    .expect_err("should fail");
+}
+
+#[test]
 fn for_of() {
     rule_true!(
         r#"
@@ -3413,6 +3568,48 @@ fn of() {
         r#"
         rule test {
           strings:
+            $a1 = "foo"
+            $a2 = "bar"
+            $b1 = "baz"
+          condition:
+            all of them
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            all of them
+        }
+        "#,
+        b"barbaz"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            2 of them
+        }
+        "#,
+        b"bar"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+          strings:
             $ = "foo"
             $ = "bar"
             $ = "baz"
@@ -3449,6 +3646,62 @@ fn of() {
         }
         "#,
         b"barbaz"
+    );
+
+    rule_true!(
+        r#"
+        rule test_1 {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            all of them
+        }
+
+        rule test_2 {
+          strings:
+            $ = "foo" // re-use pattern from first rule
+            $ = "qux"
+          condition:
+            any of them
+        }
+        "#,
+        b"foo"
+    );
+
+    rule_false!(
+        r#"
+        rule test_1 {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            all of them
+        }
+
+        rule test_2 {
+          strings:
+            $ = "foo" // re-use pattern from first rule
+            $ = "qux"
+          condition:
+            all of them
+        }
+        "#,
+        b"barbaz"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+          condition:
+            1 of them
+        }
+        "#,
+        b"foo"
     );
 }
 
@@ -3642,4 +3895,64 @@ fn test_defined_3() {
     condition_false!(r#"test_proto3.bool_undef"#);
     condition_true!(r#"not test_proto3.bool_undef"#);
     condition_true!(r#"test_proto3.string_undef == """#);
+}
+
+#[test]
+#[cfg(feature = "test_proto2-module")]
+fn short_circuit() {
+    rule_true!(
+        r#"
+        import "test_proto2"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                (test_proto2.int32_zero == 0 and $a) and $b
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_true!(
+        r#"
+        import "test_proto2"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                (test_proto2.int32_zero == 1 and $a) or $b
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_true!(
+        r#"
+        import "test_proto2"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                (test_proto2.int32_zero == 0 or $a) and $b
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_true!(
+        r#"
+        import "test_proto2"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                (test_proto2.int32_zero == 1 or $a) and $b
+        }
+        "#,
+        b"foobar"
+    );
 }

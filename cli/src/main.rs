@@ -32,7 +32,7 @@ fn main() -> anyhow::Result<()> {
     // Enable support for ANSI escape codes in Windows. In other platforms
     // this is a no-op.
     if let Err(err) = enable_ansi_support::enable_ansi_support() {
-        println!("could not enable ANSI support: {}", err)
+        println!("could not enable ANSI support: {err}")
     }
 
     #[cfg(feature = "logging")]
@@ -85,12 +85,13 @@ fn main() -> anyhow::Result<()> {
         #[cfg(feature = "debug-cmd")]
         Some(("debug", args)) => commands::exec_debug(args, &config),
         Some(("check", args)) => commands::exec_check(args, &config),
-        Some(("fix", args)) => commands::exec_fix(args),
+        Some(("fix", args)) => commands::exec_fix(args, &config),
         Some(("fmt", args)) => commands::exec_fmt(args, &config),
         Some(("scan", args)) => commands::exec_scan(args, &config),
         Some(("dump", args)) => commands::exec_dump(args),
         Some(("compile", args)) => commands::exec_compile(args, &config),
         Some(("completion", args)) => commands::exec_completion(args),
+        Some(("deps", args)) => commands::exec_deps(args),
         _ => unreachable!(),
     };
 

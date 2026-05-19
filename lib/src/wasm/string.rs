@@ -2,16 +2,20 @@ use bstr::{BStr, BString, ByteSlice, Utf8Error};
 use std::rc::Rc;
 
 use crate::compiler::LiteralId;
-use crate::scanner::{RuntimeObject, RuntimeObjectHandle, ScanContext};
+use crate::scanner::{
+    RuntimeObject, RuntimeObjectHandle, ScanContext, ScanState,
+};
 use crate::utils::cast;
 
-/// This trait is implemented by [RuntimeString], [FixedLenString] and [Lowercase].
-pub(crate) trait String: Default {
+/// This trait is implemented by [RuntimeString], [FixedLenString], [Lowercase] and [Uppercase].
+pub trait String: Default {
     /// Creates a new string.
     fn new<V: Into<Vec<u8>>>(s: V) -> Self;
 
     /// Returns this string as a primitive type suitable to be passed to WASM.
     fn into_wasm_with_ctx(self, ctx: &mut ScanContext) -> RuntimeStringWasm;
+
+    /// Returns a new string from a byte slice.
     fn from_slice(ctx: &ScanContext, s: &[u8]) -> Self;
 }
 
@@ -67,13 +71,18 @@ pub(crate) type RuntimeStringWasm = i64;
 /// [`ScanContext`], and passes around only the handle that allows locating
 /// the string in that map.
 #[derive(Debug, PartialEq)]
-pub(crate) enum RuntimeString {
+pub enum RuntimeString {
     /// A literal string appearing in the source code. The string is identified
     /// by its [`LiteralId`] within the literal strings pool.
     Literal(LiteralId),
     /// A string found in the scanned data, represented by the offset within
     /// the data and its length.
-    ScannedDataSlice { offset: usize, length: usize },
+    ScannedDataSlice {
+        /// String's offset in the scanned data.
+        offset: usize,
+        /// String's length.
+        length: usize,
+    },
     /// A reference-counted string.
     Rc(Rc<BString>),
 }
@@ -85,7 +94,7 @@ impl Default for RuntimeString {
 }
 
 impl String for RuntimeString {
-    /// Creates a [`RuntimeString`] from a [`RString`], a [`Vec<u8>`] or any
+    /// Creates a [`RuntimeString`] from a [`String`], a [`Vec<u8>`] or any
     /// type that implements [`Into<Vec<u8>>`]
     fn new<S: Into<Vec<u8>>>(s: S) -> Self {
         Self::Rc(Rc::new(BString::new(s.into())))
@@ -120,34 +129,35 @@ impl String for RuntimeString {
     /// In any other case it makes a copy of the string and return the
     /// [`RuntimeString::Rc`] variant.
     fn from_slice(ctx: &ScanContext, s: &[u8]) -> Self {
-        let data = ctx.scanned_data();
+        if let ScanState::ScanningData(data) = &ctx.scan_state {
+            let data = data.as_ref();
+            let data_start = data.as_ptr() as usize;
+            let data_end = data_start + data.len();
 
-        let data_start = data.as_ptr() as usize;
-        let data_end = data_start + data.len();
+            let s_start = s.as_ptr() as usize;
+            let s_end = s_start + s.len();
 
-        let s_start = s.as_ptr() as usize;
-        let s_end = s_start + s.len();
-
-        if s_start >= data_start && s_end <= data_end {
-            Self::ScannedDataSlice {
-                offset: s_start - data_start,
-                length: s.len(),
+            if s_start >= data_start && s_end <= data_end {
+                return Self::ScannedDataSlice {
+                    offset: s_start - data_start,
+                    length: s.len(),
+                };
             }
-        } else {
-            Self::Rc(Rc::new(BString::from(s)))
         }
+
+        Self::Rc(Rc::new(BString::from(s)))
     }
 }
 
 impl RuntimeString {
     /// Returns this string as a &[`BStr`].
-    pub(crate) fn as_bstr<'a>(&'a self, ctx: &'a ScanContext) -> &'a BStr {
+    pub fn as_bstr<'a>(&'a self, ctx: &'a ScanContext) -> &'a BStr {
         match self {
             Self::Literal(id) => {
                 ctx.compiled_rules.lit_pool().get(*id).unwrap()
             }
             Self::ScannedDataSlice { offset, length } => {
-                let data = ctx.scanned_data();
+                let data = ctx.scanned_data().unwrap();
                 BStr::new(&data[*offset..*offset + *length])
             }
             Self::Rc(s) => s.as_bstr(),
@@ -158,7 +168,7 @@ impl RuntimeString {
     ///
     /// If the string is not valid UTF-8, then an error is returned.
     #[inline]
-    pub(crate) fn to_str<'a>(
+    pub fn to_str<'a>(
         &'a self,
         ctx: &'a ScanContext,
     ) -> Result<&'a str, Utf8Error> {
@@ -239,9 +249,19 @@ impl RuntimeString {
         case_insensitive: bool,
     ) -> bool {
         if case_insensitive {
-            let this = self.as_bstr(ctx).to_lowercase();
-            let other = other.as_bstr(ctx).to_lowercase();
-            this.contains_str(other)
+            let this = self.as_bstr(ctx);
+            let other = other.as_bstr(ctx);
+
+            if this.is_ascii() && other.is_ascii() {
+                contains_ascii_case_insensitive(
+                    this.as_bytes(),
+                    other.as_bytes(),
+                )
+            } else {
+                let this = this.to_lowercase();
+                let other = other.to_lowercase();
+                this.contains_str(other)
+            }
         } else {
             self.as_bstr(ctx).contains_str(other.as_bstr(ctx))
         }
@@ -255,9 +275,19 @@ impl RuntimeString {
         case_insensitive: bool,
     ) -> bool {
         if case_insensitive {
-            let this = self.as_bstr(ctx).to_lowercase();
-            let other = other.as_bstr(ctx).to_lowercase();
-            this.starts_with_str(other)
+            let this = self.as_bstr(ctx);
+            let other = other.as_bstr(ctx);
+
+            if this.is_ascii() && other.is_ascii() {
+                starts_with_ascii_case_insensitive(
+                    this.as_bytes(),
+                    other.as_bytes(),
+                )
+            } else {
+                let this = this.to_lowercase();
+                let other = other.to_lowercase();
+                this.starts_with_str(other)
+            }
         } else {
             self.as_bstr(ctx).starts_with_str(other.as_bstr(ctx))
         }
@@ -271,9 +301,19 @@ impl RuntimeString {
         case_insensitive: bool,
     ) -> bool {
         if case_insensitive {
-            let this = self.as_bstr(ctx).to_lowercase();
-            let other = other.as_bstr(ctx).to_lowercase();
-            this.ends_with_str(other)
+            let this = self.as_bstr(ctx);
+            let other = other.as_bstr(ctx);
+
+            if this.is_ascii() && other.is_ascii() {
+                ends_with_ascii_case_insensitive(
+                    this.as_bytes(),
+                    other.as_bytes(),
+                )
+            } else {
+                let this = this.to_lowercase();
+                let other = other.to_lowercase();
+                this.ends_with_str(other)
+            }
         } else {
             self.as_bstr(ctx).ends_with_str(other.as_bstr(ctx))
         }
@@ -287,13 +327,48 @@ impl RuntimeString {
         case_insensitive: bool,
     ) -> bool {
         if case_insensitive {
-            let this = self.as_bstr(ctx).to_lowercase();
-            let other = other.as_bstr(ctx).to_lowercase();
-            this.eq(&other)
+            let this = self.as_bstr(ctx);
+            let other = other.as_bstr(ctx);
+
+            if this.is_ascii() && other.is_ascii() {
+                this.as_bytes().eq_ignore_ascii_case(other.as_bytes())
+            } else {
+                let this = this.to_lowercase();
+                let other = other.to_lowercase();
+                this.eq(&other)
+            }
         } else {
             self.as_bstr(ctx).eq(other.as_bstr(ctx))
         }
     }
+}
+
+#[inline]
+fn contains_ascii_case_insensitive(haystack: &[u8], needle: &[u8]) -> bool {
+    if needle.is_empty() {
+        return true;
+    }
+
+    if needle.len() > haystack.len() {
+        return false;
+    }
+
+    haystack
+        .windows(needle.len())
+        .any(|window| window.eq_ignore_ascii_case(needle))
+}
+
+#[inline]
+fn starts_with_ascii_case_insensitive(haystack: &[u8], prefix: &[u8]) -> bool {
+    haystack.len() >= prefix.len()
+        && haystack[..prefix.len()].eq_ignore_ascii_case(prefix)
+}
+
+#[inline]
+fn ends_with_ascii_case_insensitive(haystack: &[u8], suffix: &[u8]) -> bool {
+    haystack.len() >= suffix.len()
+        && haystack[haystack.len() - suffix.len()..]
+            .eq_ignore_ascii_case(suffix)
 }
 
 /// Special kind of [RuntimeString] that has a fixed length.
@@ -303,7 +378,7 @@ impl RuntimeString {
 /// Trying to create a [FixedLenString] with some length that is not the one
 /// specified by the `LEN` parameter will cause a panic.
 #[derive(Debug, Default)]
-pub(crate) struct FixedLenString<const LEN: usize>(RuntimeString);
+pub struct FixedLenString<const LEN: usize>(RuntimeString);
 
 impl<const LEN: usize> String for FixedLenString<LEN> {
     fn new<S: Into<Vec<u8>>>(s: S) -> Self {
@@ -335,10 +410,29 @@ impl<const LEN: usize> String for FixedLenString<LEN> {
     }
 }
 
+/// Represents a string that is always lowercase.
 #[derive(Debug, Default)]
-pub(crate) struct Lowercase<S: String>(S);
+pub struct Lowercase<S: String>(S);
 
 impl<S: String> String for Lowercase<S> {
+    fn new<V: Into<Vec<u8>>>(s: V) -> Self {
+        Self(S::new(s))
+    }
+
+    fn into_wasm_with_ctx(self, ctx: &mut ScanContext) -> RuntimeStringWasm {
+        self.0.into_wasm_with_ctx(ctx)
+    }
+
+    fn from_slice(ctx: &ScanContext, s: &[u8]) -> Self {
+        Self(S::from_slice(ctx, s))
+    }
+}
+
+/// Represents a string that is always uppercase.
+#[derive(Debug, Default)]
+pub struct Uppercase<S: String>(S);
+
+impl<S: String> String for Uppercase<S> {
     fn new<V: Into<Vec<u8>>>(s: V) -> Self {
         Self(S::new(s))
     }

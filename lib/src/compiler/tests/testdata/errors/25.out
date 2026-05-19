@@ -3,4 +3,3 @@ error[E007]: number out of range
   |
 5 |     101% of them
   |     ^^^ this number is out of the allowed range [0-100]
-  |

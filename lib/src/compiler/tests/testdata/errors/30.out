@@ -3,4 +3,3 @@ error[E010]: unknown module `foo`
   |
 1 | import "foo"
   | ^^^^^^^^^^^^ module `foo` not found
-  |

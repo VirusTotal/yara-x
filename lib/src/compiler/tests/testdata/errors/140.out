@@ -3,4 +3,3 @@ error[E009]: unknown identifier `baz`
   |
 4 |          bar = baz : ( foo == bar )
   |                ^^^ this identifier has not been declared
-  |

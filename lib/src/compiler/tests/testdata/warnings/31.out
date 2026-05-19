@@ -3,22 +3,18 @@ warning[potentially_slow_loop]: potentially slow loop
   |
 5 |   for any i in (0..filesize) : ( int32(i) == 0 )
   |                ------------- this range can be very large
-  |
 warning[potentially_slow_loop]: potentially slow loop
   --> line:10:16
    |
 10 |   for any i in (0..filesize-1) : ( int32(i) == 0 )
    |                --------------- this range can be very large
-   |
 warning[potentially_slow_loop]: potentially slow loop
   --> line:15:16
    |
 15 |   for any i in (0..math.max(filesize, 0)) : ( int32(i) == 0 )
    |                -------------------------- this range can be very large
-   |
 warning[potentially_slow_loop]: potentially slow loop
   --> line:22:16
    |
 22 |   for any i in (0..#a) : ( uint32(i) != 0 )
    |                ------- this range can be very large
-   |

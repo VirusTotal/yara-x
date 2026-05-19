@@ -1,0 +1,12 @@
+rule test {
+  strings:
+    $a = { 50 4B 05 06 }
+  condition:
+    for any i in (1..10): (
+      with
+        offset = uint32(@a[i] + 16),
+        value = uint32be(offset): (
+          value != 0x504b0102
+        )
+    )
+}

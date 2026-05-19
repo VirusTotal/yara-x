@@ -111,7 +111,7 @@ pub(crate) fn base64_patterns(
 
         // If the pattern's length is not multiple of 3 remove the right-most
         // character from the produced base64.
-        let right_trim = usize::from(pattern.len() % 3 != 0);
+        let right_trim = usize::from(!pattern.len().is_multiple_of(3));
 
         // Depending on the amount of padding applied we must discard a certain
         // number of characters from the left of the produced base64 strings.
@@ -187,7 +187,12 @@ mod test {
         );
 
         assert_eq!(
-            base64_patterns(b"foobar", Some("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")),
+            base64_patterns(
+                b"foobar",
+                Some(
+                    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+                )
+            ),
             vec![
                 (2, BString::from("mb29iYX")),
                 (1, BString::from("Zvb2Jhc")),
@@ -196,7 +201,12 @@ mod test {
         );
 
         assert_eq!(
-            base64_patterns(b"foobar", Some("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")),
+            base64_patterns(
+                b"foobar",
+                Some(
+                    "./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+                )
+            ),
             vec![
                 (2, BString::from("kZ07gWV")),
                 (1, BString::from("XtZ0Hfa")),

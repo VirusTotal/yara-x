@@ -52,8 +52,7 @@ SOURCE_FILE@0..382
             WHITESPACE@85..86 " "
             EXPR@86..87
               TERM@86..87
-                PRIMARY_EXPR@86..87
-                  INTEGER_LIT@86..87 "0"
+                INTEGER_LIT@86..87 "0"
     NEWLINE@87..88 "\n"
     R_BRACE@88..89 "}"
   NEWLINE@89..90 "\n"
@@ -87,14 +86,12 @@ SOURCE_FILE@0..382
               L_PAREN@135..136 "("
               EXPR@136..137
                 TERM@136..137
-                  PRIMARY_EXPR@136..137
-                    INTEGER_LIT@136..137 "0"
+                  INTEGER_LIT@136..137 "0"
               DOT@137..138 "."
               DOT@138..139 "."
               EXPR@139..141
                 TERM@139..141
-                  PRIMARY_EXPR@139..141
-                    INTEGER_LIT@139..141 "10"
+                  INTEGER_LIT@139..141 "10"
               R_PAREN@141..142 ")"
     NEWLINE@142..143 "\n"
     R_BRACE@143..144 "}"
@@ -119,8 +116,7 @@ SOURCE_FILE@0..382
             QUANTIFIER@174..176
               EXPR@174..176
                 TERM@174..176
-                  PRIMARY_EXPR@174..176
-                    INTEGER_LIT@174..176 "10"
+                  INTEGER_LIT@174..176 "10"
             WHITESPACE@176..177 " "
             OF_KW@177..179 "of"
             WHITESPACE@179..180 " "
@@ -146,7 +142,7 @@ SOURCE_FILE@0..382
         BOOLEAN_TERM@216..227
           OF_EXPR@216..227
             QUANTIFIER@216..219
-              PRIMARY_EXPR@216..218
+              TERM@216..218
                 INTEGER_LIT@216..218 "10"
               PERCENT@218..219 "%"
             WHITESPACE@219..220 " "
@@ -176,8 +172,7 @@ SOURCE_FILE@0..382
             QUANTIFIER@259..260
               EXPR@259..260
                 TERM@259..260
-                  PRIMARY_EXPR@259..260
-                    INTEGER_LIT@259..260 "2"
+                  INTEGER_LIT@259..260 "2"
             WHITESPACE@260..261 " "
             OF_KW@261..263 "of"
             WHITESPACE@263..264 " "
@@ -205,15 +200,13 @@ SOURCE_FILE@0..382
                 BOOLEAN_TERM@285..291
                   EXPR@285..286
                     TERM@285..286
-                      PRIMARY_EXPR@285..286
-                        INTEGER_LIT@285..286 "2"
+                      INTEGER_LIT@285..286 "2"
                   WHITESPACE@286..287 " "
                   EQ@287..289 "=="
                   WHITESPACE@289..290 " "
                   EXPR@290..291
                     TERM@290..291
-                      PRIMARY_EXPR@290..291
-                        INTEGER_LIT@290..291 "2"
+                      INTEGER_LIT@290..291 "2"
               R_PAREN@291..292 ")"
     NEWLINE@292..293 "\n"
     R_BRACE@293..294 "}"
@@ -259,8 +252,7 @@ SOURCE_FILE@0..382
             QUANTIFIER@365..366
               EXPR@365..366
                 TERM@365..366
-                  PRIMARY_EXPR@365..366
-                    INTEGER_LIT@365..366 "2"
+                  INTEGER_LIT@365..366 "2"
             WHITESPACE@366..367 " "
             OF_KW@367..369 "of"
             WHITESPACE@369..370 " "

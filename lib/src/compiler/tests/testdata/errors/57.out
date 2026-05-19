@@ -3,4 +3,3 @@ error[E008]: unknown field or method `ignored`
   |
 4 |     test_proto2.ignored
   |                 ^^^^^^^ this field or method doesn't exist
-  |

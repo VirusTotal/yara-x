@@ -1,9 +1,9 @@
-use std::ffi::{c_char, CStr};
+use std::ffi::{CStr, c_char};
 use std::mem;
 use std::mem::ManuallyDrop;
 
-use yara_x::errors::{CompileError, SerializationError, VariableError};
 use yara_x::SourceCode;
+use yara_x::errors::{CompileError, SerializationError, VariableError};
 
 use crate::{_yrx_set_last_error, YRX_BUFFER, YRX_RESULT, YRX_RULES};
 
@@ -75,7 +75,7 @@ fn _yrx_compiler_create<'a>(flags: u32) -> yara_x::Compiler<'a> {
 }
 
 /// Creates a [`YRX_COMPILER`] object.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_create(
     flags: u32,
     compiler: &mut *mut YRX_COMPILER,
@@ -89,7 +89,7 @@ pub unsafe extern "C" fn yrx_compiler_create(
 }
 
 /// Destroys a [`YRX_COMPILER`] object.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_destroy(compiler: *mut YRX_COMPILER) {
     drop(Box::from_raw(compiler))
 }
@@ -97,7 +97,7 @@ pub unsafe extern "C" fn yrx_compiler_destroy(compiler: *mut YRX_COMPILER) {
 /// Adds a YARA source code to be compiled.
 ///
 /// This function can be called multiple times.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_add_source(
     compiler: *mut YRX_COMPILER,
     src: *const c_char,
@@ -113,7 +113,7 @@ pub unsafe extern "C" fn yrx_compiler_add_source(
 /// of the code, usually the file path from where the source was obtained.
 ///
 /// This origin is shown in error reports.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_add_source_with_origin(
     compiler: *mut YRX_COMPILER,
     src: *const c_char,
@@ -148,13 +148,44 @@ pub unsafe extern "C" fn yrx_compiler_add_source_with_origin(
     }
 }
 
+/// Adds a directory to the list of directories where the compiler should
+/// look for included files.
+///
+/// When an `include` statement is found, the compiler looks for the included
+/// file in the directories added with this function, in the order they were
+/// added.
+///
+/// If this function is not called, the compiler will only look for included
+/// files in the current directory.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn yrx_compiler_add_include_dir(
+    compiler: *mut YRX_COMPILER,
+    dir: *const c_char,
+) -> YRX_RESULT {
+    let compiler = if let Some(compiler) = compiler.as_mut() {
+        compiler
+    } else {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    let dir = if let Ok(dir) = CStr::from_ptr(dir).to_str() {
+        dir
+    } else {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    compiler.inner.add_include_dir(dir);
+
+    YRX_RESULT::YRX_SUCCESS
+}
+
 /// Tell the compiler that a YARA module is not supported.
 ///
 /// Import statements for ignored modules will be ignored without errors but a
 /// warning will be issued. Any rule that make use of an ignored module will be
 /// ignored, while the rest of rules that don't rely on that module will be
 /// correctly compiled.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_ignore_module(
     compiler: *mut YRX_COMPILER,
     module: *const c_char,
@@ -172,6 +203,25 @@ pub unsafe extern "C" fn yrx_compiler_ignore_module(
     };
 
     compiler.inner.ignore_module(module);
+
+    YRX_RESULT::YRX_SUCCESS
+}
+
+/// Sets the maximum number of warnings.
+///
+/// The compiler will report only the first `n` warnings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn yrx_compiler_max_warnings(
+    compiler: *mut YRX_COMPILER,
+    n: usize,
+) -> YRX_RESULT {
+    let compiler = if let Some(compiler) = compiler.as_mut() {
+        compiler
+    } else {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    compiler.inner.max_warnings(n);
 
     YRX_RESULT::YRX_SUCCESS
 }
@@ -223,7 +273,7 @@ pub unsafe extern "C" fn yrx_compiler_ignore_module(
 ///
 /// This API is hidden from the public documentation because it is unstable
 /// and subject to change.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_enable_feature(
     compiler: *mut YRX_COMPILER,
     feature: *const c_char,
@@ -252,7 +302,7 @@ pub unsafe extern "C" fn yrx_compiler_enable_feature(
 ///
 /// If this function is called multiple times with the same module name,
 /// the error title and message will be updated.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_ban_module(
     compiler: *mut YRX_COMPILER,
     module: *const c_char,
@@ -296,7 +346,7 @@ pub unsafe extern "C" fn yrx_compiler_ban_module(
 ///
 /// The `namespace` argument must be pointer to null-terminated UTF-8 string.
 /// If the string is not valid UTF-8 the result is an `INVALID_ARGUMENT` error.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_new_namespace(
     compiler: *mut YRX_COMPILER,
     namespace: *const c_char,
@@ -357,7 +407,7 @@ unsafe fn yrx_compiler_define_global<
 }
 
 /// Defines a global variable of string type and sets its initial value.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_define_global_str(
     compiler: *mut YRX_COMPILER,
     ident: *const c_char,
@@ -373,7 +423,7 @@ pub unsafe extern "C" fn yrx_compiler_define_global_str(
 }
 
 /// Defines a global variable of bool type and sets its initial value.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_define_global_bool(
     compiler: *mut YRX_COMPILER,
     ident: *const c_char,
@@ -383,7 +433,7 @@ pub unsafe extern "C" fn yrx_compiler_define_global_bool(
 }
 
 /// Defines a global variable of integer type and sets its initial value.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_define_global_int(
     compiler: *mut YRX_COMPILER,
     ident: *const c_char,
@@ -393,12 +443,41 @@ pub unsafe extern "C" fn yrx_compiler_define_global_int(
 }
 
 /// Defines a global variable of float type and sets its initial value.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_define_global_float(
     compiler: *mut YRX_COMPILER,
     ident: *const c_char,
     value: f64,
 ) -> YRX_RESULT {
+    yrx_compiler_define_global(compiler, ident, value)
+}
+
+/// Defines a global variable from a JSON-encoded string.
+///
+/// This is best for complex types like maps and arrays. For simple types
+/// (e.g., booleans, integers, strings), prefer dedicated functions to avoid
+/// the overhead of JSON deserialization.
+///
+/// When defining a map, keys must be of string type, and values can be
+/// any of the types supported by YARA, including other maps. Arrays must be
+/// homogeneous (all elements must be the same type).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn yrx_compiler_define_global_json(
+    compiler: *mut YRX_COMPILER,
+    ident: *const c_char,
+    value: *const c_char,
+) -> YRX_RESULT {
+    let value = if let Ok(value) = CStr::from_ptr(value).to_str() {
+        value
+    } else {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    let value: serde_json::Value = match serde_json::from_str(value) {
+        Ok(json_value) => json_value,
+        Err(_) => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+    };
+
     yrx_compiler_define_global(compiler, ident, value)
 }
 
@@ -439,7 +518,7 @@ pub unsafe extern "C" fn yrx_compiler_define_global_float(
 /// ```
 ///
 /// The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_errors_json(
     compiler: *mut YRX_COMPILER,
     buf: &mut *mut YRX_BUFFER,
@@ -505,7 +584,7 @@ pub unsafe extern "C" fn yrx_compiler_errors_json(
 /// ```
 ///
 /// The [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_warnings_json(
     compiler: *mut YRX_COMPILER,
     buf: &mut *mut YRX_BUFFER,
@@ -539,7 +618,7 @@ pub unsafe extern "C" fn yrx_compiler_warnings_json(
 /// After calling this function the compiler is reset to its initial state,
 /// (i.e: the state it had after returning from yrx_compiler_create) you can
 /// keep using it by adding more sources and calling this function again.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_build(
     compiler: *mut YRX_COMPILER,
 ) -> *mut YRX_RULES {

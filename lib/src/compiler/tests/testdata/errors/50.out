@@ -5,4 +5,3 @@ error[E003]: mismatching types
   |                                                     ^    ^^^ this expression is `string`
   |                                                     |
   |                                                     this expression is `integer`
-  |

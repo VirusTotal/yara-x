@@ -1,0 +1,10 @@
+rule test_1 {
+    condition:
+        with a : (
+}
+
+rule test_2 {
+    strings: $a = { condition: }
+
+rule test_3 {
+    strings: $a = {

@@ -2,6 +2,15 @@ use std::iter;
 use std::ops::Deref;
 use std::rc::Rc;
 
+use crate::modules::RegisteredModule;
+use crate::modules::protos::yara as protos;
+use crate::modules::protos::yara::enum_value_options::Value as EnumValue;
+use crate::modules::protos::yara::exts::{
+    enum_options, enum_value, field_options, message_options, module_options,
+};
+use crate::symbols::{Symbol, SymbolLookup};
+use crate::types::{Array, Map, StringConstraint, TypeValue};
+use crate::wasm::WasmExport;
 use bstr::BString;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
@@ -10,16 +19,8 @@ use protobuf::reflect::{
     ReflectRepeatedRef, ReflectValueRef, RuntimeFieldType, RuntimeType,
 };
 use protobuf::reflect::{EnumValueDescriptor, Syntax};
-use protobuf::MessageDyn;
+use protobuf::{MessageDyn, MessageField};
 use serde::{Deserialize, Serialize};
-
-use crate::modules::protos::yara::enum_value_options::Value as EnumValue;
-use crate::modules::protos::yara::exts::{
-    enum_options, enum_value, field_options, message_options, module_options,
-};
-use crate::symbols::{Symbol, SymbolLookup};
-use crate::types::{Array, Map, StringConstraint, TypeValue};
-use crate::wasm::WasmExport;
 
 /// Each of the entries in an Access Control List (ACL)
 ///
@@ -72,6 +73,23 @@ pub(crate) struct AclEntry {
     pub reject_if: Vec<String>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct DeprecationNotice {
+    pub text: String,
+    pub help: Option<String>,
+    pub replacement: Option<String>,
+}
+
+impl From<MessageField<protos::DeprecationNotice>> for DeprecationNotice {
+    fn from(value: MessageField<protos::DeprecationNotice>) -> Self {
+        Self {
+            text: value.text.clone().expect("the `text` field is required"),
+            help: value.help.clone(),
+            replacement: value.replacement.clone(),
+        }
+    }
+}
+
 /// A field in a [`Struct`].
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct StructField {
@@ -82,9 +100,11 @@ pub(crate) struct StructField {
     pub type_value: TypeValue,
     /// Access control list (ACL) for accessing this struct field.
     pub acl: Option<Vec<AclEntry>>,
-    /// Deprecation message that must be shown when the field is used in a
+    /// Deprecation notice that must be shown when the field is used in a
     /// rule. This is `None` for non-deprecated fields.
-    pub deprecation_msg: Option<String>,
+    pub deprecation_notice: Option<DeprecationNotice>,
+    /// Description of the field extracted from the .proto file.
+    pub doc: Option<String>,
 }
 
 /// A dynamic structure with one or more fields.
@@ -115,6 +135,9 @@ pub(crate) struct Struct {
     /// True if this is the root structure. The root structure is the top-level
     /// structure that contains global variables and modules.
     is_root: bool,
+    /// The name of the protobuf type this enum was crated from. If the enum
+    /// was not created from a protobuf type, this is `None`.
+    protobuf_type_name: Option<String>,
 }
 
 impl SymbolLookup for Struct {
@@ -125,7 +148,7 @@ impl SymbolLookup for Struct {
             is_root: self.is_root,
             type_value: field.type_value.clone(),
             acl: field.acl.clone(),
-            deprecation_msg: field.deprecation_msg.clone(),
+            deprecation_notice: field.deprecation_notice.clone(),
         })
     }
 }
@@ -133,13 +156,22 @@ impl SymbolLookup for Struct {
 impl Struct {
     /// Creates a new, empty struct.
     pub fn new() -> Self {
-        Self { fields: IndexMap::new(), is_root: false }
+        Self {
+            fields: IndexMap::new(),
+            is_root: false,
+            protobuf_type_name: None,
+        }
     }
 
     /// Makes this the root structure.
     pub fn make_root(mut self) -> Self {
         self.is_root = true;
         self
+    }
+
+    /// Returns the protobuf type this enum was created from, if any.
+    pub fn protobuf_type_name(&self) -> Option<&str> {
+        self.protobuf_type_name.as_deref()
     }
 
     /// Adds a new field to the structure.
@@ -178,7 +210,8 @@ impl Struct {
                     type_value: TypeValue::Struct(Rc::new(Struct::new())),
                     number: 0,
                     acl: None,
-                    deprecation_msg: None,
+                    deprecation_notice: None,
+                    doc: None,
                 });
 
             if let TypeValue::Struct(ref mut s) = field.type_value {
@@ -200,14 +233,15 @@ impl Struct {
                     type_value: value,
                     number: 0,
                     acl: None,
-                    deprecation_msg: None,
+                    deprecation_notice: None,
+                    doc: None,
                 },
             )
         }
     }
 
-    /// Adds a new fields to the structure corresponding to the values
-    /// in the given enum.
+    /// Adds new fields to the structure corresponding to the values in the
+    /// given enum.
     fn add_enum_fields(&mut self, enum_descriptor: &EnumDescriptor) {
         let mut enclosing_msg = enum_descriptor.enclosing_message();
         let mut path = Vec::new();
@@ -277,8 +311,28 @@ impl Struct {
     pub fn field_entry_by_name(
         &mut self,
         name: String,
-    ) -> indexmap::map::Entry<String, StructField> {
+    ) -> indexmap::map::Entry<'_, String, StructField> {
         self.fields.entry(name)
+    }
+
+    /// Calls `f` with all the structures contained in the current one.
+    /// The first call to `f` is for the current structure itself.
+    pub fn enum_substructures<F>(&mut self, f: &mut F)
+    where
+        F: FnMut(&mut Struct),
+    {
+        f(self);
+        for field in self.fields.values_mut() {
+            match &mut field.type_value {
+                TypeValue::Struct(s) => {
+                    Rc::<Struct>::get_mut(s).unwrap().enum_substructures(f);
+                }
+                TypeValue::Array(a) => {
+                    Rc::<Array>::get_mut(a).unwrap().enum_substructures(f);
+                }
+                _ => {}
+            }
+        }
     }
 
     /// Creates a [`Struct`] from a protobuf message descriptor.
@@ -329,7 +383,7 @@ impl Struct {
         msg_descriptor: &MessageDescriptor,
         msg: Option<&dyn MessageDyn>,
         generate_fields_for_enums: bool,
-    ) -> Self {
+    ) -> Rc<Self> {
         let syntax = msg_descriptor.file_descriptor().syntax();
         let mut fields = Vec::new();
 
@@ -384,14 +438,15 @@ impl Struct {
                     // Index is initially zero, will be adjusted later.
                     type_value: value,
                     acl: Self::acl(&fd),
-                    deprecation_msg: Self::deprecation_msg(&fd),
+                    deprecation_notice: Self::deprecation_notice(&fd),
                     number,
+                    doc: Self::field_doc(msg_descriptor.full_name(), number),
                 },
             ));
         }
 
         // Sort fields by field numbers specified in the proto.
-        fields.sort_by(|a, b| a.1.number.cmp(&b.1.number));
+        fields.sort_by_key(|a| a.1.number);
 
         // Insert the fields in a map, checking for duplicate fields.
         let mut field_index = IndexMap::new();
@@ -405,26 +460,11 @@ impl Struct {
             }
         }
 
-        let mut new_struct = Self { fields: field_index, is_root: false };
-
-        // Get the methods implemented for this struct type.
-        let methods = WasmExport::get_methods(msg_descriptor.full_name());
-
-        // For each method implemented by this struct field, add a field
-        // to the struct of function type. Methods cannot have the same name
-        // as an existing field.
-        for (name, method) in methods {
-            if new_struct
-                .add_field(name, TypeValue::Func(Rc::new(method)))
-                .is_some()
-            {
-                panic!(
-                    "method `{}` has the same name than a field in `{}`",
-                    name,
-                    msg_descriptor.name()
-                )
-            };
-        }
+        let mut new_struct = Self {
+            fields: field_index,
+            is_root: false,
+            protobuf_type_name: Some(msg_descriptor.full_name().to_string()),
+        };
 
         if generate_fields_for_enums && Self::is_module_root(msg_descriptor) {
             let mut enums = IndexSet::new();
@@ -445,7 +485,7 @@ impl Struct {
             }
         }
 
-        new_struct
+        Rc::new(new_struct)
     }
 
     /// Returns true if the given message is the YARA module's root message.
@@ -634,6 +674,15 @@ impl Struct {
             })
     }
 
+    /// Returns an iterator over the fields of this structure.
+    ///
+    /// The returned values are tuples where the first value is the name of the
+    /// field and the second one is a reference to [`StructField`] describing
+    /// the field.
+    pub(crate) fn fields(&self) -> impl Iterator<Item = (&str, &StructField)> {
+        self.fields.iter().map(move |(name, field)| (name.as_str(), field))
+    }
+
     /// Similar to [`Struct::enum_value`], but returns the enum value as an `i64`
     /// or `None` if it isn't an `i64`.
     pub(crate) fn enum_value_i64(
@@ -696,17 +745,22 @@ impl Struct {
             .unwrap_or(false)
     }
 
-    /// Given a [`FieldDescriptor`] returns `Some(msg)` if the field is
-    /// deprecated, and `msg` is the message that must be shown when the
-    /// field is used.
+    /// Given a [`FieldDescriptor`] returns the information that must be
+    /// shown if the field is deprecated.
     ///
     /// ```text
-    /// string foo = 1 [(yara.field_options).deprecation_msg = "use `bar` instead"];
+    /// string foo = 1 [(yara.field_options).deprecation_notice = {
+    ///    text: "`bar` is deprecated",
+    ///    replacement: "baz",
+    /// }];
     /// ```
-    fn deprecation_msg(field_descriptor: &FieldDescriptor) -> Option<String> {
+    fn deprecation_notice(
+        field_descriptor: &FieldDescriptor,
+    ) -> Option<DeprecationNotice> {
         field_options
             .get(&field_descriptor.proto().options)
-            .and_then(|options| options.deprecation_msg)
+            .filter(|options| options.deprecation_notice.is_some())
+            .map(|options| options.deprecation_notice.into())
     }
 
     /// Given a [`FieldDescriptor`] returns the Access Control List (ACL)
@@ -732,6 +786,17 @@ impl Struct {
                     })
                     .collect()
             })
+    }
+
+    fn field_doc(msg_name: &str, field_number: u64) -> Option<String> {
+        use crate::modules::field_docs::FIELD_DOCS;
+        let idx = FIELD_DOCS
+            .binary_search_by(|&(name, number, _)| match name.cmp(msg_name) {
+                std::cmp::Ordering::Equal => number.cmp(&field_number),
+                ord => ord,
+            })
+            .ok()?;
+        Some(FIELD_DOCS[idx].2.to_string())
     }
 
     /// Given a protobuf type and value returns a [`TypeValue`].
@@ -823,7 +888,7 @@ impl Struct {
                         enum_as_fields,
                     )
                 };
-                TypeValue::Struct(Rc::new(structure))
+                TypeValue::Struct(structure)
             }
         }
     }
@@ -957,22 +1022,22 @@ impl Struct {
                         repeated
                             .into_iter()
                             .map(|value| {
-                                Rc::new(Self::from_proto_descriptor_and_value(
+                                Self::from_proto_descriptor_and_value(
                                     msg_descriptor,
                                     value,
                                     enum_as_fields,
-                                ))
+                                )
                             })
                             .collect(),
                     )
                 } else {
-                    Array::Structs(vec![Rc::new(
+                    Array::Structs(vec![
                         Struct::from_proto_descriptor_and_msg(
                             msg_descriptor,
                             None,
                             enum_as_fields,
                         ),
-                    )])
+                    ])
                 }
             }
         };
@@ -1004,7 +1069,7 @@ impl Struct {
                 syntax,
             ),
             ty => {
-                panic!("maps in YARA can't have keys of type `{}`", ty);
+                panic!("maps in YARA can't have keys of type `{ty}`");
             }
         };
 
@@ -1081,7 +1146,7 @@ impl Struct {
         msg_descriptor: &MessageDescriptor,
         value: ReflectValueRef,
         enum_as_fields: bool,
-    ) -> Struct {
+    ) -> Rc<Self> {
         if let ReflectValueRef::Message(m) = value {
             Struct::from_proto_descriptor_and_msg(
                 msg_descriptor,
@@ -1119,7 +1184,7 @@ impl Struct {
         }
     }
 
-    fn value_as_string(value: ReflectValueRef) -> &[u8] {
+    fn value_as_string(value: ReflectValueRef<'_>) -> &[u8] {
         match value {
             ReflectValueRef::String(v) => v.as_bytes(),
             ReflectValueRef::Bytes(v) => v,
@@ -1153,12 +1218,69 @@ impl PartialEq for Struct {
     }
 }
 
+impl From<&dyn RegisteredModule> for Rc<Struct> {
+    /// Creates a `Rc<Struct>` from a [`RegisteredModule`] definition.
+    fn from(module: &dyn RegisteredModule) -> Self {
+        // Create the structure that describes the module.
+        let mut module_struct = Struct::from_proto_descriptor_and_msg(
+            &module.root_descriptor(),
+            None,
+            true,
+        );
+
+        // Get a mutable reference for the module's structure. This is
+        // possible because there's only one Rc pointing to the structure,
+        // otherwise the `.unwrap()` panics.
+        let module_struct_mut =
+            Rc::<Struct>::get_mut(&mut module_struct).unwrap();
+
+        // If the YARA module has an associated Rust module, check if it
+        // exports some function and add it to the structure.
+        if let Some(rust_module_name) = module.rust_module_name() {
+            let functions = WasmExport::get_functions(|export| {
+                export.public
+                    && export.rust_module_path.ends_with(rust_module_name)
+                    && export.method_of.is_none()
+            })
+            .into_iter()
+            .sorted_by_key(|(name, _)| *name);
+
+            for (name, func) in functions {
+                let func = TypeValue::Func(Rc::new(func));
+                if module_struct_mut.add_field(name, func).is_some() {
+                    panic!(
+                        "function `{name}` has the same name than a field in `{rust_module_name}`",
+                    )
+                };
+            }
+        }
+
+        // Iterate over all substructures of the module's main structure and
+        // add any methods defined for them.
+        module_struct_mut.enum_substructures(&mut |sub_struct| {
+            let methods = sub_struct.protobuf_type_name().map(WasmExport::get_methods);
+            if let Some(methods) = methods {
+                for (name, func) in methods {
+                    let func = TypeValue::Func(Rc::new(func));
+                    if sub_struct.add_field(name, func).is_some() {
+                        panic!(
+                            "method `{name}` has the same name than a field in `{}`",
+                            sub_struct.protobuf_type_name().unwrap(),
+                        )
+                    };
+                }
+            }
+        });
+
+        module_struct
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
-
     use super::Struct;
     use crate::types::{Array, Type, TypeValue};
+    use std::rc::Rc;
 
     #[test]
     fn test_struct() {
@@ -1175,6 +1297,41 @@ mod tests {
         assert_eq!(field1.type_value.ty(), field2.type_value.ty());
 
         root.add_field("foo.bar", TypeValue::var_integer_from(1));
+    }
+    #[test]
+    fn test_proto_struct() {
+        use protobuf::MessageFull;
+
+        use crate::modules::protos::test_proto2::TestProto2;
+
+        let mut structure = Struct::from_proto_descriptor_and_msg(
+            &TestProto2::descriptor(),
+            None,
+            true,
+        );
+
+        let structure = Rc::<Struct>::get_mut(&mut structure).unwrap();
+
+        let mut names = Vec::new();
+
+        structure.enum_substructures(&mut |s| {
+            names.push(s.protobuf_type_name().map(|n| n.to_string()));
+            println!("{s:?}\n\n")
+        });
+
+        assert_eq!(
+            vec![
+                Some("test_proto2.TestProto2".to_string()),
+                Some("test_proto2.NestedProto2".to_string()),
+                Some("test_proto2.NestedProto2".to_string()),
+                None,
+                None,
+                None,
+                None,
+                None,
+            ],
+            names
+        );
     }
 
     #[test]

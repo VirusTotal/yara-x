@@ -1,19 +1,25 @@
 use bstr::BString;
 use serde::{Deserialize, Serialize};
+use std::cell::OnceCell;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::{mem, ptr};
-use walrus::ir::InstrSeqType;
 use walrus::ValType;
+use walrus::ir::InstrSeqType;
 
 use crate::modules::protos::yara::enum_value_options::Value as EnumValue;
-use crate::symbols::SymbolLookup;
+use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
+use crate::wasm::WasmExport;
 
 pub(crate) use array::*;
 pub(crate) use func::*;
 pub(crate) use map::*;
 pub(crate) use structure::*;
+
+thread_local! {
+    static STRING_BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = const { OnceCell::new() };
+}
 
 mod array;
 mod func;
@@ -38,7 +44,7 @@ pub(crate) enum Type {
 
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -66,7 +72,7 @@ impl From<Type> for ValType {
             Type::Float => ValType::F64,
             Type::Bool => ValType::I32,
             Type::String => ValType::I64,
-            _ => panic!("can not create WASM primitive type for `{}`", ty),
+            _ => panic!("can not create WASM primitive type for `{ty}`"),
         }
     }
 }
@@ -200,6 +206,8 @@ pub(crate) enum TypeValue {
 pub(crate) enum StringConstraint {
     /// The string is guaranteed to be lowercase.
     Lowercase,
+    /// The string is guaranteed to be uppercase.
+    Uppercase,
     /// The string has an exact number of bytes.
     ExactLength(usize),
 }
@@ -306,6 +314,19 @@ impl TypeValue {
         }
     }
 
+    fn string_builtin_methods() -> Rc<SymbolTable> {
+        STRING_BUILTIN_METHODS.with(|cell| {
+            cell.get_or_init(|| {
+                let mut s = SymbolTable::new();
+                for (name, func) in WasmExport::get_methods("RuntimeString") {
+                    s.insert(name, Symbol::Func(Rc::new(func)));
+                }
+                Rc::new(s)
+            })
+            .clone()
+        })
+    }
+
     /// Returns the symbol table associated to this [`TypeValue`].
     ///
     /// The symbol table contains the methods and/or fields associated to the
@@ -313,8 +334,9 @@ impl TypeValue {
     pub fn symbol_table(&self) -> Option<Rc<dyn SymbolLookup>> {
         match self {
             Self::Struct(s) => Some(s.clone()),
-            Self::Array(a) => Some(a.builtin_methods()),
-            Self::Map(m) => Some(m.builtin_methods()),
+            Self::Array(_) => Some(Array::builtin_methods()),
+            Self::Map(_) => Some(Map::builtin_methods()),
+            Self::String { .. } => Some(Self::string_builtin_methods()),
             _ => None,
         }
     }
@@ -398,7 +420,7 @@ impl TypeValue {
                 Self::Bool { value: Value::Const(*b) }
             }
 
-            _ => panic!("can not cast {:?} to bool", self),
+            _ => panic!("can not cast {self:?} to bool"),
         }
     }
 
@@ -407,8 +429,7 @@ impl TypeValue {
             array.clone()
         } else {
             panic!(
-                "called `as_array` on a TypeValue that is not TypeValue::Array, it is: {:?}",
-                self
+                "called `as_array` on a TypeValue that is not TypeValue::Array, it is: {self:?}"
             )
         }
     }
@@ -418,8 +439,7 @@ impl TypeValue {
             structure.clone()
         } else {
             panic!(
-                "called `as_struct` on a TypeValue that is not TypeValue::Struct, it is: {:?}",
-                self
+                "called `as_struct` on a TypeValue that is not TypeValue::Struct, it is: {self:?}"
             )
         }
     }
@@ -429,8 +449,7 @@ impl TypeValue {
             map.clone()
         } else {
             panic!(
-                "called `as_map` on a TypeValue that is not TypeValue::Map, it is: {:?}",
-                self
+                "called `as_map` on a TypeValue that is not TypeValue::Map, it is: {self:?}"
             )
         }
     }
@@ -463,8 +482,7 @@ impl TypeValue {
             value.extract().cloned()
         } else {
             panic!(
-                "called `try_as_bool` on a TypeValue that is not TypeValue::Bool, it is: {:?}",
-                self
+                "called `try_as_bool` on a TypeValue that is not TypeValue::Bool, it is: {self:?}"
             )
         }
     }
@@ -474,8 +492,7 @@ impl TypeValue {
             value.extract().cloned()
         } else {
             panic!(
-                "called `try_as_integer` on a TypeValue that is not TypeValue::Integer, it is: {:?}",
-                self
+                "called `try_as_integer` on a TypeValue that is not TypeValue::Integer, it is: {self:?}"
             )
         }
     }
@@ -485,8 +502,7 @@ impl TypeValue {
             value.extract().cloned()
         } else {
             panic!(
-                "called `try_as_float` on a TypeValue that is not TypeValue::Float, it is: {:?}",
-                self
+                "called `try_as_float` on a TypeValue that is not TypeValue::Float, it is: {self:?}"
             )
         }
     }
@@ -496,8 +512,7 @@ impl TypeValue {
             value.extract().cloned()
         } else {
             panic!(
-                "called `as_string` on a TypeValue that is not TypeValue::String, it is: {:?}",
-                self
+                "called `try_as_string` on a TypeValue that is not TypeValue::String, it is: {self:?}"
             )
         }
     }
@@ -609,7 +624,7 @@ impl TypeValue {
 
 impl Display for TypeValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -619,35 +634,35 @@ impl Debug for TypeValue {
             Self::Unknown => write!(f, "unknown"),
             Self::Bool { value } => {
                 if let Some(v) = value.extract() {
-                    write!(f, "boolean({:?})", v)
+                    write!(f, "boolean({v:?})")
                 } else {
                     write!(f, "boolean(unknown)")
                 }
             }
             Self::Integer { value, .. } => {
                 if let Some(v) = value.extract() {
-                    write!(f, "integer({:?})", v)
+                    write!(f, "integer({v:?})")
                 } else {
                     write!(f, "integer(unknown)")
                 }
             }
             Self::Float { value } => {
                 if let Some(v) = value.extract() {
-                    write!(f, "float({:?})", v)
+                    write!(f, "float({v:?})")
                 } else {
                     write!(f, "float(unknown)")
                 }
             }
             Self::String { value, .. } => {
                 if let Some(v) = value.extract() {
-                    write!(f, "string({:?})", v)
+                    write!(f, "string({v:?})")
                 } else {
                     write!(f, "string(unknown)")
                 }
             }
             Self::Regexp(re) => {
                 if let Some(re) = re {
-                    write!(f, "regexp({:?})", re)
+                    write!(f, "regexp({re:?})")
                 } else {
                     write!(f, "regexp(unknown)")
                 }

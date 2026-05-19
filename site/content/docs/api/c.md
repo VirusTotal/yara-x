@@ -62,7 +62,7 @@ int main() {
 }
 EOF
 
-gcc `pkg-config --cflags yara_x_capi` `pkg-config --libs yara_x_capi` test.c
+gcc `pkg-config --cflags yara_x_capi` test.c `pkg-config --libs yara_x_capi`
 ```
 
 The compilation should succeed without errors.
@@ -107,6 +107,70 @@ rule. The callback function receives a pointer to a [YRX_RULE](#yrx_rule)
 structure representing the matching rule, and gives you access to details
 about the rule, like its identifier and namespace.
 
+
+## Block scanning mode
+
+In some scenarios, the data to be scanned is not available as a single 
+contiguous block of memory, but instead as a set of discrete, non-contiguous
+blocks. A common example is the memory space of a running process, which 
+consists of multiple separate memory regions that you may want to scan as
+a whole.
+
+In such cases, the [yrx_scanner_scan](#yrx_scanner_scan) function is not 
+suitable, as it accepts only a single contiguous memory block and returns 
+matches found within that block alone.
+
+To handle non-contiguous data, you can use the functions 
+[yrx_scanner_scan_block](#yrx_scanner_scan_block)
+and [yrx_scanner_finish](#yrx_scanner_finish) together. The 
+[yrx_scanner_scan_block](#yrx_scanner_scan_block) function can be 
+invoked multiple times to scan individual memory blocks. However, the final 
+results are not available until [yrx_scanner_finish](#yrx_scanner_finish) is
+called. During this finalization step, the scanner evaluates all rule 
+conditions and determines which rules match, based on the patterns found 
+across all scanned blocks.
+
+This approach allows you to scan data incrementally, one block at a time. It
+is also useful when dealing with data streams whose total size is unknown in 
+advance but can be processed in discrete chunks.
+
+Each call to [yrx_scanner_scan_block](#yrx_scanner_scan_block) must include both
+the pointer to the block being scanned and the offset indicating where that block 
+begins within the overall scanned data.
+
+### Data consistency in overlapping blocks
+
+When [yrx_scanner_scan_block](#yrx_scanner_scan_block) is called multiple times
+with blocks that overlap, the user is responsible for ensuring data consistency.
+If a region of data appears in more than one block, its contents must be identical
+across all calls.
+
+The scanner does not typically verify this consistency. It assumes that 
+the caller provides coherent data. However, in debug builds, the scanner may 
+perform limited verification when a pattern match occurs within an overlapping
+region.
+
+###  Limitations of the block scanning mode
+
+Block scanning comes with important limitations compared to standard scanning:
+
+1) Modules won't work. Parsers for structured formats (e.g., PE, ELF)
+   require access to the entire file and cannot be applied in block
+   scanning mode.
+2) Other modules like `hash` won't work either, as they require access to
+   all the scanned data during the evaluation of the rule's condition,
+   something that can't be guaranteed in block scanning mode. The hash
+   functions will return `undefined` when used in a multi-block context.
+3) Built-in functions like `uint8`, `uint16`, `uint32`, etc., have the
+   same limitation. They also return `undefined` in block scanning mode.
+4) The `filesize` keyword returns `undefined` in block scanning mode.
+5) Patterns won't match across block boundaries. Every match will be 
+   completely contained within one of the blocks.
+
+All these limitations imply that in block scanning mode you should only
+use rules that rely on text, hex or regex patterns.
+
+
 ## API reference
 
 ### yrx_compile
@@ -144,7 +208,7 @@ function in this API.
 Type that represents a YARA-X compiler. It takes one or more sets of YARA
 rules in text form and compile them into a [YRX_RULES](#yrx_rules) object.
 
-#### yrx_compiler_create
+### yrx_compiler_create
 
 ```c
 enum YRX_RESULT yrx_compiler_create(
@@ -193,7 +257,7 @@ combination of the following flags:
   Disables `include` statements. The compiler will produce an error
   if an `include` statement is encountered.
 
-#### yrx_compiler_destroy
+### yrx_compiler_destroy
 
 ```c
 void yrx_compiler_destroy(
@@ -202,7 +266,7 @@ void yrx_compiler_destroy(
 
 Destroys the compiler [YRX_COMPILER](#yrx_compiler) object.
 
-#### yrx_compiler_add_source
+### yrx_compiler_add_source
 
 ```c
 enum YRX_RESULT yrx_compiler_add_source(
@@ -213,7 +277,7 @@ enum YRX_RESULT yrx_compiler_add_source(
 Adds a YARA source code to be compiled. This function can be called multiple
 times.
 
-#### yrx_compiler_add_source_with_origin
+### yrx_compiler_add_source_with_origin
 
 ```c
 enum YRX_RESULT yrx_compiler_add_source_with_origin(
@@ -230,7 +294,25 @@ This origin is shown in error reports.
 
 ------
 
-#### yrx_compiler_ignore_module
+### yrx_compiler_add_include_dir
+
+```c
+enum YRX_RESULT yrx_compiler_add_include_dir(
+    struct YRX_COMPILER *compiler,
+    const char *dir);
+```
+
+Adds a directory to the list of directories where the compiler should look for included files.
+
+When an `include` is found, the compiler looks for the included file in the directories added
+with this function, in the order they were added.
+
+If this function is not called, the compiler will only look for included files in the current
+directory.
+
+------
+
+### yrx_compiler_ignore_module
 
 ```c
 enum YRX_RESULT yrx_compiler_ignore_module(
@@ -245,7 +327,23 @@ the rest of rules that don't rely on that module will be correctly compiled.
 
 ------
 
-#### yrx_compiler_ban_module
+### yrx_compiler_max_warnings
+
+{{< callout >}}
+New in version 1.16.0
+{{< /callout >}}
+
+```c
+enum YRX_RESULT yrx_compiler_max_warnings(
+    struct YRX_COMPILER *compiler,
+    size_t n);
+```
+
+Sets the maximum number of warnings. The compiler will report only the first `n` warnings.
+
+------
+
+### yrx_compiler_ban_module
 
 ```c
 enum YRX_RESULT yrx_compiler_ban_module(
@@ -263,7 +361,7 @@ be updated.
 
 ------
 
-#### yrx_compiler_new_namespace
+### yrx_compiler_new_namespace
 
 ```c
 enum YRX_RESULT yrx_compiler_new_namespace(
@@ -277,7 +375,7 @@ rules under the newly created namespace. The `namespace` argument must be
 pointer to null-terminated UTF-8 string. If the string is not valid UTF-8 the
 result is an `YRX_INVALID_ARGUMENT` error.
 
-#### yrx_compiler_define_global_xxxx
+### yrx_compiler_define_global_xxxx
 
 ```c
 enum YRX_RESULT yrx_compiler_define_global_str(
@@ -299,6 +397,11 @@ enum YRX_RESULT yrx_compiler_define_global_float(
     struct YRX_COMPILER *compiler,
     const char *ident,
     double value);
+
+enum YRX_RESULT yrx_compiler_define_global_json(
+    struct YRX_COMPILER *compiler,
+    const char *ident,
+    const char *json_value);
 ```
 
 Defines a global variable and sets its initial value.
@@ -314,7 +417,16 @@ functions.
 The `ident` argument must be pointer to null-terminated UTF-8 string. If the
 string is not valid UTF-8 the result is an `YRX_INVALID_ARGUMENT` error.
 
-#### yrx_compiler_errors_json
+In the case of `yrx_compiler_define_global_json`, the value is a text string
+with a JSON-encoded value. This is best for complex types like maps and arrays.
+For simple types (e.g., booleans, integers, strings), prefer dedicated functions
+to avoid the overhead of JSON deserialization.
+
+When defining a map, keys must be of string type, and values can be any of the
+types supported by YARA, including other maps. Arrays must be homogeneous (all
+elements must be the same type).
+
+### yrx_compiler_errors_json
 
 ```c
 enum YRX_RESULT yrx_compiler_errors_json(
@@ -364,7 +476,7 @@ The `YRX_BUFFER` must be destroyed with [`yrx_buffer_destroy`](#yrx_buffer_destr
 
 ------
 
-#### yrx_compiler_warnings_json
+### yrx_compiler_warnings_json
 
 ```c
 enum YRX_RESULT yrx_compiler_warnings_json(
@@ -414,7 +526,7 @@ The `YRX_BUFFER` must be destroyed with [`yrx_buffer_destroy`](#yrx_buffer_destr
 
 ------
 
-#### yrx_compiler_build
+### yrx_compiler_build
 
 ```c
 struct YRX_RULES *yrx_compiler_build(struct YRX_COMPILER *compiler);
@@ -435,7 +547,7 @@ Type that represents a set of compiled rules. The compiled rules can be used for
 scanning data by creating a scanner
 with [yrx_scanner_create](#yrx_scanner_create).
 
-#### yrx_rules_count
+### yrx_rules_count
 
 ```c
 int yrx_rules_count(struct YRX_RULES *rules);
@@ -443,7 +555,7 @@ int yrx_rules_count(struct YRX_RULES *rules);
 
 Returns the total number of rules. The result is -1 in case of error.
 
-#### yrx_rules_destroy
+### yrx_rules_destroy
 
 ```c
 void yrx_rules_destroy(struct YRX_RULES *rules);
@@ -452,7 +564,7 @@ void yrx_rules_destroy(struct YRX_RULES *rules);
 Destroys the [YRX_RULES](#yrx_rules) object. This function must be called only
 after all the scanners using the  [YRX_RULES](#yrx_rules) object are destroyed.
 
-#### yrx_rules_iter
+### yrx_rules_iter
 
 ```c
 enum YRX_RESULT yrx_rules_iter(
@@ -465,7 +577,7 @@ Iterates over the compiled rules, calling the callback function for each rule.
 The `user_data` pointer can be used to provide additional context to your
 callback function. See [YRX_RULE_CALLBACK](#yrx_rule_callback) for more details.
 
-#### yrx_rules_iter_imports
+### yrx_rules_iter_imports
 
 ```c
 enum YRX_RESULT yrx_rules_iter_imports(
@@ -483,7 +595,7 @@ function.
 See [YRX_IMPORT_CALLBACK](#yrx_import_callback) for more details.
 
 
-#### yrx_rules_serialize
+### yrx_rules_serialize
 
 ```c
 enum YRX_RESULT yrx_rules_serialize(
@@ -500,7 +612,7 @@ itself, and its length.
 
 The [YRX_BUFFER](#yrx_buffer) must be destroyed with [yrx_buffer_destroy](#yrx_buffer_destroy).
 
-#### yrx_rules_deserialize
+### yrx_rules_deserialize
 
 ```c
 enum YRX_RESULT yrx_rules_deserialize(
@@ -517,7 +629,7 @@ Deserializes the rules from a sequence of bytes produced by [yrx_rules_serialize
 
 ### YRX_SCANNER
 
-#### yrx_scanner_create
+### yrx_scanner_create
 
 ```c
 enum YRX_RESULT yrx_scanner_create(
@@ -536,7 +648,7 @@ long as the rules are not destroyed, so, always destroy
 the [YRX_SCANNER](#yrx_scanner) object before the [YRX_RULES](#yrx_rules)
 object.
 
-#### yrx_scanner_destroy
+### yrx_scanner_destroy
 
 ```c
 void yrx_scanner_destroy(struct YRX_SCANNER *scanner);
@@ -544,7 +656,7 @@ void yrx_scanner_destroy(struct YRX_SCANNER *scanner);
 
 Destroys the [YRX_SCANNER](#yrx_scanner) object.
 
-#### yrx_scanner_on_matching_rule
+### yrx_scanner_on_matching_rule
 
 ```c 
 enum YRX_RESULT yrx_scanner_on_matching_rule(
@@ -562,7 +674,20 @@ about matching rules.
 
 See [YRX_ON_MATCHING_RULE](#yrx_on_matching_rule) for more details.
 
-#### yrx_scanner_scan
+### yrx_scanner_on_console_log
+
+```c
+enum YRX_RESULT yrx_scanner_on_console_log(
+    struct YRX_SCANNER *scanner,
+    YRX_CONSOLE_CALLBACK callback);
+```
+
+Sets a callback function that is called for each message produced in a
+rule with the `console.log()` function.
+
+See [YRX_CONSOLE_CALLBACK](#yrx_on_matching_rule) for more details.
+
+### yrx_scanner_scan
 
 ```c 
 enum YRX_RESULT yrx_scanner_scan(
@@ -571,7 +696,45 @@ enum YRX_RESULT yrx_scanner_scan(
     size_t len);
 ```
 
-#### yrx_scanner_set_timeout
+Scans a memory buffer.
+
+### yrx_scanner_scan_block
+
+```c
+enum YRX_RESULT yrx_scanner_scan_block(
+    struct YRX_SCANNER *scanner,
+    const uint8_t *data,
+    size_t len,
+    uint64_t block_offset);
+```
+
+This function is designed for scenarios where the data to be scanned is not
+available as a single contiguous block of memory, but rather arrives in
+smaller, discrete blocks, allowing for incremental scanning. 
+
+See: [Block scanning mode](#block-scanning-mode)
+
+### yrx_scanner_finish
+
+```c
+enum YRX_RESULT yrx_scanner_finish(
+    struct YRX_SCANNER *scanner);
+```
+
+Finalizes the scan of a set of memory blocks.
+
+This function must be used in conjunction with [`yrx_scanner_scan_block`]
+when scanning data in blocks. After all data blocks have been scanned, this
+functions evaluates the conditions of the YARA rules and produces the final
+scan results.
+
+After this function returns, the scanner is ready to be used again for
+scanning a new set of memory blocks. However, the scanner remains in block
+scanning mode and can't be used for normal scanning.
+
+See: [Block scanning mode](#block-scanning-mode)
+
+### yrx_scanner_set_timeout
 
 ```c
 enum YRX_RESULT yrx_scanner_set_timeout(
@@ -579,7 +742,7 @@ enum YRX_RESULT yrx_scanner_set_timeout(
     uint64_t timeout);
 ```
 
-#### yrx_scanner_set_global_xxxx
+### yrx_scanner_set_global_xxxx
 
 ```c
 enum YRX_RESULT yrx_scanner_set_global_str(
@@ -601,11 +764,16 @@ enum YRX_RESULT yrx_scanner_set_global_float(
     struct YRX_SCANNER *scanner,
     const char *ident,
     double value);
+
+enum YRX_RESULT yrx_scanner_set_global_json(
+    struct YRX_SCANNER *scanner,
+    const char *ident,
+    const char *json_value);
 ```
 
 ------
 
-#### yrx_scanner_set_module_output
+### yrx_scanner_set_module_output
 
 ```c
 enum YRX_RESULT yrx_scanner_set_module_output(
@@ -637,9 +805,11 @@ This function receives:
 *   `data`: A pointer to the buffer containing the serialized protobuf data.
 *   `len`: The length of the data buffer in bytes.
 
+If the scanner is in block scanning mode this function returns `YRX_INVALID_STATE`.
+
 ------
 
-#### yrx_scanner_set_module_data
+### yrx_scanner_set_module_data
 
 ```c
 enum YRX_RESULT yrx_scanner_set_module_data(
@@ -662,9 +832,11 @@ before each scan if you intend to provide custom module metadata. It receives:
 The provided `name` and `data` pointers must remain valid from the time this
 function is called until the scan is executed.
 
+If the scanner is in block scanning mode this function returns `YRX_INVALID_STATE`.
+
 ------
 
-#### yrx_scanner_iter_slowest_rules
+### yrx_scanner_iter_slowest_rules
 
 ```c
 enum YRX_RESULT yrx_scanner_iter_slowest_rules(
@@ -695,7 +867,7 @@ See also:
 
 ------
 
-#### yrx_scanner_clear_profiling_data
+### yrx_scanner_clear_profiling_data
 
 ```c
 enum YRX_RESULT yrx_scanner_clear_profiling_data(
@@ -744,7 +916,7 @@ to arbitrary data owned by the user.
 Represents a single YARA rule. The callback function passed to the scanner
 for reporting matches receives a pointer to a [YRX_RULE](#yrx_rule).
 
-#### yrx_rule_identifier
+### yrx_rule_identifier
 
 ```c
 enum YRX_RESULT yrx_rule_identifier(
@@ -763,7 +935,7 @@ The `*ident` pointer will be valid as long as the [YRX_RULES](#yrx_rules) object
 that contains the rule is not destroyed. The identifier is guaranteed to be a
 valid UTF-8 string.
 
-#### yrx_rule_namespace
+### yrx_rule_namespace
 
 ```c
 enum YRX_RESULT yrx_rule_namespace(
@@ -782,7 +954,7 @@ The `*ns` pointer will be valid as long as the [YRX_RULES](#yrx_rules) object
 that contains the rule is not destroyed. The namespace is guaranteed to be a
 valid UTF-8 string.
 
-#### yrx_rule_iter_metadata
+### yrx_rule_iter_metadata
 
 ```c
 struct YRX_METADATA *yrx_rule_iter_metadata(
@@ -797,7 +969,7 @@ to a [YRX_METADATA](#yrx_metadata) structure for each metadata in the rule.
 The `user_data` pointer can be used to provide additional context to your
 callback function.
 
-#### yrx_rule_iter_patterns
+### yrx_rule_iter_patterns
 
 ```c
 struct YRX_PATTERNS *yrx_rule_iter_patterns(
@@ -812,7 +984,7 @@ to a [YRX_PATTERN](#yrx_pattern) structure for each pattern.
 The `user_data` pointer can be used to provide additional context to your
 callback function.
 
-#### yrx_rule_iter_tags
+### yrx_rule_iter_tags
 
 ```c
 enum YRX_RESULT yrx_rule_iter_tags(
@@ -831,7 +1003,7 @@ callback function. See `YRX_TAG_CALLBACK` for more details.
 
 An individual pattern defined in a rule.
 
-#### yrx_pattern_identifier
+### yrx_pattern_identifier
 
 ```c
 enum YRX_RESULT yrx_pattern_identifier(
@@ -850,7 +1022,7 @@ identifier. The `*ident` pointer will be valid as long as
 the [YRX_RULES](#yrx_rules) object that contains the rule defining this pattern
 is not destroyed. The identifier is guaranteed to be a valid UTF-8 string.
 
-#### yrx_pattern_iter_matches
+### yrx_pattern_iter_matches
 
 ```c
 enum YRX_RESULT yrx_pattern_iter_matches(
@@ -984,6 +1156,21 @@ typedef enum YRX_RESULT {
     YRX_NOT_SUPPORTED,
 } YRX_RESULT;
 ```
+
+### YRX_CONSOLE_CALLBACK
+
+```c
+typedef void (*YRX_CONSOLE_CALLBACK)(
+    const char *message);
+```
+
+Callback function passed to [yrx_scanner_on_console_log](#yrx_scanner_on_console_log).
+
+The callback is invoked every time a rule uses the `console.log(..)` function, and
+receives a pointer to the message being logged.This pointer is guaranteed to be valid
+while the callback function is being executed, but it may be freed after the callback
+function returns, so you cannot use the pointer outside the callback.
+
 
 ### YRX_RULE_CALLBACK
 
@@ -1136,10 +1323,39 @@ typedef struct YRX_BUFFER {
 
 ------
 
-#### yrx_buffer_destroy
+### yrx_buffer_destroy
 
 ```c
 void yrx_buffer_destroy(struct YRX_BUFFER *buf);
 ```
 
 Destroys a `YRX_BUFFER` object.
+
+### yrx_finalize
+
+```c
+void yrx_finalize();
+```
+
+Finalizes YARA-X.
+
+This function only needs to be called in a very specific scenario:
+when YARA-X is used as a dynamically loaded library (`.so`, `.dll`,
+`.dylib`) **and** that library must be unloaded at runtime.
+
+Its primary purpose is to remove the process-wide signal handlers
+installed by the [wasmtime](https://wasmtime.dev/) engine.
+
+This function is **unsafe** to call under normal circumstances. It has
+strict preconditions that must be met:
+
+- There must be no other active `wasmtime` engines in the process. This
+ applies not only to clones of the engine used by YARA-X (which should not
+ exist because YARA-X uses a single copy of its engine), but to *any*
+ `wasmtime` engine, since global state shared by all engines is torn
+ down.
+
+- On Unix platforms, no other signal handlers may have been installed
+ for signals intercepted by `wasmtime`. If other handlers have been set,
+ `wasmtime` cannot reliably restore the original state, which may lead
+ to undefined behavior.

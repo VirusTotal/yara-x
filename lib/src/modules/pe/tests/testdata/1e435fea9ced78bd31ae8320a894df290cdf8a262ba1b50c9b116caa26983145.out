@@ -682,7 +682,7 @@ export_details:
     offset: 0xdc70
 is_signed: true
 signatures:
-  - subject: "/C=KN/postalCode=KN/ST=Nevis/L=Charlestown/streetAddress=Main Street,Charlestown/O=Disk Software Ltd/CN=Disk Software Ltd"
+  - subject: "/C=KN/postalCode=KN/ST=Nevis/L=Charlestown/street=Main Street,Charlestown/O=Disk Software Ltd/CN=Disk Software Ltd"
     issuer: "/C=US/ST=UT/L=Salt Lake City/O=The USERTRUST Network/OU=http://www.usertrust.com/CN=UTN-USERFirst-Object"
     thumbprint: "0d7877f141bbdf56909690bdebfc5a873f62e7ce"
     version: 3
@@ -702,7 +702,7 @@ signatures:
         digest_alg: "sha1"
         chain:
           - issuer: "/C=US/ST=UT/L=Salt Lake City/O=The USERTRUST Network/OU=http://www.usertrust.com/CN=UTN-USERFirst-Object"
-            subject: "/C=KN/postalCode=KN/ST=Nevis/L=Charlestown/streetAddress=Main Street,Charlestown/O=Disk Software Ltd/CN=Disk Software Ltd"
+            subject: "/C=KN/postalCode=KN/ST=Nevis/L=Charlestown/street=Main Street,Charlestown/O=Disk Software Ltd/CN=Disk Software Ltd"
             thumbprint: "0d7877f141bbdf56909690bdebfc5a873f62e7ce"
             version: 3
             algorithm: "sha1WithRSAEncryption"
@@ -712,7 +712,7 @@ signatures:
             not_after: 1286236799  # 2010-10-04 23:59:59 UTC
     certificates:
       - issuer: "/C=US/ST=UT/L=Salt Lake City/O=The USERTRUST Network/OU=http://www.usertrust.com/CN=UTN-USERFirst-Object"
-        subject: "/C=KN/postalCode=KN/ST=Nevis/L=Charlestown/streetAddress=Main Street,Charlestown/O=Disk Software Ltd/CN=Disk Software Ltd"
+        subject: "/C=KN/postalCode=KN/ST=Nevis/L=Charlestown/street=Main Street,Charlestown/O=Disk Software Ltd/CN=Disk Software Ltd"
         thumbprint: "0d7877f141bbdf56909690bdebfc5a873f62e7ce"
         version: 3
         algorithm: "sha1WithRSAEncryption"

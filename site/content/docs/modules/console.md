@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "console-module"
-weight: 325
+weight: 100
 toc: true
 seo:
   title: "" # custom title (optional)
@@ -50,6 +50,28 @@ Logs the given message and string.
 
 Example: `console.log("The imphash is: ", pe.imphash())`
 
+### log(offset, length)
+
+{{< callout >}}
+New in version 1.15.0
+{{< /callout >}}
+
+Logs the bytes starting at offset and continuing for length. The result is an
+ASCII escaped string.
+
+Example: `console.log(10, 5)`
+
+### log(message, offset, length)
+
+{{< callout >}}
+New in version 1.15.0
+{{< /callout >}}
+
+Logs the bytes starting at offset and continuing for length. The result is an
+ASCII escaped string.
+
+Example: `console.log("5 BYTES AT 10: ", 10, 5)`
+
 ### log(integer)
 
 Logs the given integer.
@@ -73,6 +95,18 @@ Example: `console.log(math.entropy(0, filesize))`
 Logs the given message and float number.
 
 Example: `console.log("Entropy: ", math.entropy(0, filesize))`
+
+### log(boolean)
+
+Logs the given boolean value.
+
+Example: `console.log(pe.is_32bit())`
+
+### log(message, boolean)
+
+Logs the given message and boolean value.
+
+Example: `console.log("32 bit PE: ", pe.is_32bit())`
 
 ### hex(integer)
 

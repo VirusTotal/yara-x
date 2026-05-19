@@ -1,5 +1,5 @@
 error[E019]: invalid modifier combination: `base64wide` `nocase`
- --> line:3:29
+ --> line:3:16
   |
 3 |     $a = "foo" nocase ascii base64wide
   |                ^^^^^^       ^^^^^^^^^^ `base64wide` modifier used here

@@ -1,2 +1,2 @@
 ERRORS:
-- SyntaxError { message: "expecting expression, `for`, `all`, `none`, `any` or `with`, found `)`", span: Span(62..63) }
+- SyntaxError { message: "expecting expression or identifier, found `)`", span: Span(62..63) }

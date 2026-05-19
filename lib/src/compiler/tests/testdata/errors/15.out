@@ -3,4 +3,3 @@ error[E011]: invalid range
   |
 5 |     $a in (2..1)
   |           ^^^^^^ lower bound (2) is greater than upper bound (1)
-  |

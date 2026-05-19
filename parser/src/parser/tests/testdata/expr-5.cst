@@ -16,15 +16,13 @@ SOURCE_FILE@0..101
         BOOLEAN_TERM@33..47
           EXPR@33..41
             TERM@33..41
-              PRIMARY_EXPR@33..41
-                FILESIZE_KW@33..41 "filesize"
+              FILESIZE_KW@33..41 "filesize"
           WHITESPACE@41..42 " "
           GT@42..43 ">"
           WHITESPACE@43..44 " "
           EXPR@44..47
             TERM@44..47
-              PRIMARY_EXPR@44..47
-                INTEGER_LIT@44..47 "1KB"
+              INTEGER_LIT@44..47 "1KB"
     NEWLINE@47..48 "\n"
     R_BRACE@48..49 "}"
   NEWLINE@49..50 "\n"
@@ -46,14 +44,12 @@ SOURCE_FILE@0..101
         BOOLEAN_TERM@84..99
           EXPR@84..92
             TERM@84..92
-              PRIMARY_EXPR@84..92
-                FILESIZE_KW@84..92 "filesize"
+              FILESIZE_KW@84..92 "filesize"
           WHITESPACE@92..93 " "
           NE@93..95 "!="
           WHITESPACE@95..96 " "
           EXPR@96..99
             TERM@96..99
-              PRIMARY_EXPR@96..99
-                INTEGER_LIT@96..99 "1MB"
+              INTEGER_LIT@96..99 "1MB"
     NEWLINE@99..100 "\n"
     R_BRACE@100..101 "}"

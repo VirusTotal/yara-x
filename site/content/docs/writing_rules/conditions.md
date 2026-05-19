@@ -87,6 +87,95 @@ direction of their associativity.
 | 2          | `and`         | Logical and                             | Left-to-right |
 | 1          | `or`          | Logical or                              | Left-to-right |
 
+
+## Literals
+
+When writing rule conditions in YARA-X, you often need to use fixed values known
+as literals. YARA-X supports several types of literals, including string literals
+and integer literals, which can be written in various formats.
+
+### String literals
+
+String literals are enclosed in double quotes ("). They represent sequences of characters
+and support standard escape sequences.
+
+##### Examples
+
+```yara
+"example"
+"This is a string\nwith a newline"
+"Tab:\tIndented"                                                       
+"Quote: \"double quoted\""
+```
+
+| Escape sequence | Operator        |
+|-----------------|-----------------|
+| `\\`            | Backslash       |
+| `\"`            | Double quote    |
+| `\n`            | Newline         |
+| `\r`            | Carriage return |
+| `\t`            | Tab             |        
+
+
+### Integer literals
+
+Integer literals represent whole numbers and can be written in decimal, hexadecimal, 
+or octal notation:
+
+```yara
+100        // decimal
+0x1f       // hexadecimal (lowercase)
+0xDEADBEEF // hexadecimal (uppercase)
+0o755      // octal
+```
+
+Negative values are prefixed with minus sign (`-`):
+
+```yara
+-100
+-0x2A
+-0o77
+```
+
+Since YARA-X 1.5.0 underscores (`_`) are allowed within numeric literals to improve
+readability:
+
+```yara
+1_000_000
+0xFF_FF_FF
+```
+
+Integers are always 64-bits long, even the results of functions like `uint8`,
+`uint16` and `uint32` are promoted to 64-bits. This is something you must take
+into account, specially while using bitwise operators (for example, `~0x01` is
+not `0xFE` but `0xFFFFFFFFFFFFFFFE`).
+
+### Float literals
+
+Float literals are represented in the standard notation (scientific notation is not
+supported):
+
+```yara
+3.14
+0.0
+-273.15
+```
+
+Floats without a fractional part are still considered float literals if they include
+a decimal point:
+
+```yara
+42.0   // float
+42     // integer
+```
+
+Since YARA-X 1.5.0 float literals can also include underscores for better readability:
+
+```yara
+1_000.0
+2_500_000.5
+```
+
 ## Counting pattern occurrences
 
 Sometimes we need to know not only if a certain pattern is present or not, but
@@ -174,18 +263,6 @@ character `!` in front of the pattern identifier, in a similar way you use
 the `@` character for the offset. `!a[1]` is the length for the first match of
 `$a`, `!a[2]` is the length for the second match, and so on. `!a` is an
 abbreviated form of `!a[1]`.
-
-Integers are always 64-bits long, even the results of functions like `uint8`,
-`uint16` and `uint32` are promoted to 64-bits. This is something you must take
-into account, specially while using bitwise operators (for example, `~0x01` is
-not `0xFE` but `0xFFFFFFFFFFFFFFFE`).
-
-The following table lists the precedence and associativity of all operators. The
-table is sorted in descending precedence order, which means that operators
-listed on a higher row in the list are grouped prior operators listed in rows
-further below it. Operators within the same row have the same precedence, if
-they appear together in a expression the associativity determines how they are
-grouped.
 
 ## File size
 
@@ -478,6 +555,37 @@ here:
 The `for..in` operator is similar to `for..of`, but the latter iterates over a
 set of patterns, while the former iterates over ranges, enumerations, arrays
 and dictionaries.
+
+## Built-in `.len()` method
+
+YARA-X provides a `.len()` method that can be called on strings, arrays and
+dictionaries. It returns an integer representing the size of the value it is
+called on:
+
+- On **strings**, `.len()` returns the number of bytes in the string.
+- On **arrays**, `.len()` returns the number of elements.
+- On **dictionaries** (maps), `.len()` returns the number of entries.
+
+```yara
+import "some_module"
+
+rule LenExample {
+    condition:
+        some_module.some_string.len() > 0 and
+        some_module.some_array.len() >= 3 and
+        some_module.some_dict.len() == 1
+}
+```
+
+{{< callout title="Notice">}}
+
+The `.len()` method is not the same as the `string.length()` function from the
+[string module](/docs/modules/string). The `.len()` method is a built-in that
+can be called directly on any string, array or dictionary value, while
+`string.length()` is a function in the `string` module that takes a string
+argument.
+
+{{< /callout >}}
 
 ## The "with" statement
 

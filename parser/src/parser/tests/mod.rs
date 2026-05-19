@@ -1,10 +1,10 @@
-use crate::ast::{Error, AST};
+use crate::ast::{AST, Error};
 use rayon::prelude::*;
 use std::fs;
 use std::io::BufWriter;
 use std::io::Write;
 
-use crate::cst::{CSTStream, CST};
+use crate::cst::{CST, CSTStream};
 use crate::{Parser, Span};
 
 #[test]
@@ -26,7 +26,7 @@ fn cst() {
         let source = fs::read_to_string(path).unwrap();
         let cst = CST::try_from(Parser::new(source.as_bytes())).unwrap();
         let mut w = BufWriter::new(output_file);
-        write!(&mut w, "{:?}", cst).unwrap();
+        write!(&mut w, "{cst:?}").unwrap();
     });
 }
 
@@ -49,7 +49,7 @@ fn cst_stream() {
         let mut w = BufWriter::new(output_file);
 
         for event in cst {
-            writeln!(&mut w, "{:?}", event).unwrap();
+            writeln!(&mut w, "{event:?}").unwrap();
         }
     });
 }
@@ -68,11 +68,11 @@ fn ast() {
         let output_path = path.with_extension("ast");
         let output_file = mint.new_goldenfile(output_path).unwrap();
 
-        println!("file: {:?}", path);
+        println!("file: {path:?}");
         let source = fs::read_to_string(path).unwrap();
-        let ast = AST::from(Parser::new(source.as_bytes()));
+        let ast = AST::from(source.as_str());
         let mut w = BufWriter::new(output_file);
-        write!(&mut w, "{:?}", ast).unwrap();
+        write!(&mut w, "{ast:?}").unwrap();
     });
 }
 
@@ -83,7 +83,7 @@ fn utf8_error_1() {
 rule test_1 { \xFF\xFF condition: true }
 rule test_2 { condition: true }";
 
-    let ast = AST::from(Parser::new(rules));
+    let ast = AST::from(rules.as_slice());
 
     assert_eq!(
         &ast.errors()[0],
@@ -104,7 +104,7 @@ fn utf8_error_2() {
 rule test_1 { condition: \"\xFF\xFF\" contains \"foo\" }
 rule test_2 { condition: true }";
 
-    let ast = AST::from(Parser::new(rules));
+    let ast = AST::from(rules.as_slice());
 
     assert_eq!(&ast.errors()[0], &Error::InvalidUTF8(Span(27..28)));
 
@@ -119,7 +119,7 @@ fn utf8_error_3() {
 /* \xFF\xFF */
 rule test_1 { condition: true }";
 
-    let ast = AST::from(Parser::new(rules));
+    let ast = AST::from(rules.as_slice());
     assert_eq!(ast.rules().count(), 1);
 }
 
@@ -130,7 +130,7 @@ fn utf8_error_4() {
 rule test_1 { strings: $a = /foo\xFF\xFFbar/ condition: $a }\
 rule test_2 { condition: true }";
 
-    let ast = AST::from(Parser::new(rules));
+    let ast = AST::from(rules.as_slice());
 
     assert_eq!(&ast.errors()[0], &Error::InvalidUTF8(Span(33..34)));
     assert_eq!(ast.rules().count(), 1);

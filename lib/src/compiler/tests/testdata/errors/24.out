@@ -3,4 +3,3 @@ error[E002]: wrong type
   |
 5 |     "1" of them
   |     ^^^ expression should be `integer`, but it is `string`
-  |

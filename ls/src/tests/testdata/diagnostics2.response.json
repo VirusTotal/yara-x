@@ -1,0 +1,41 @@
+{
+  "items": [
+    {
+      "code": "E001",
+      "data": {
+        "patches": []
+      },
+      "message": "syntax error",
+      "range": {
+        "end": {
+          "character": 3,
+          "line": 0
+        },
+        "start": {
+          "character": 0,
+          "line": 0
+        }
+      },
+      "relatedInformation": [
+        {
+          "location": {
+            "range": {
+              "end": {
+                "character": 3,
+                "line": 0
+              },
+              "start": {
+                "character": 0,
+                "line": 0
+              }
+            },
+            "uri": "${test_dir}/diagnostics2.yar"
+          },
+          "message": "expecting import statement or rule definition"
+        }
+      ],
+      "severity": 1
+    }
+  ],
+  "kind": "full"
+}

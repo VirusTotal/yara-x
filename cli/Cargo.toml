@@ -17,9 +17,11 @@ name = "yr"
 path = "src/main.rs"
 # Don't run the CLI tests by default when `cargo test` is executed. The
 # CLI tests require the `target/debug/yr` binary do exists before the
-# tests are executed. The CLI tests can be run with:
+# tests are executed, and the CARGO_BIN_EXE_yr environment variable
+# contains the absolute path to the yr binary. The CLI tests can be run
+# with:
 # cargo build
-# cargo test -p yara-x-cli --bin yr
+# CARGO_BIN_EXE_yr=/path/to/yr cargo test -p yara-x-cli --bin yr
 test = false
 
 [features]
@@ -42,8 +44,13 @@ logging = ["dep:log", "dep:env_logger"]
 # performance.
 rules-profiling = ["yara-x/rules-profiling"]
 
+# Enables the use of wasmtime's Pulley bytecode interpreter instead of the default
+# Cranelift JIT compiler. See the documentation in the `yara-x` core library for details.
+pulley = ["yara-x/pulley"]
+
 [dependencies]
 anyhow = { workspace = true }
+ascii_tree = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 clap_complete = { workspace = true }
 figment = { workspace = true, features = ["toml"] }
@@ -54,6 +61,7 @@ enable-ansi-support = { workspace = true }
 env_logger = { workspace = true, optional = true, features = ["auto-color"] }
 log = { workspace = true, optional = true }
 protobuf = { workspace = true }
+regex = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
 strum = { workspace = true }
@@ -68,12 +76,13 @@ yara-x-fmt = { workspace = true }
 chardetng = "0.1.17"
 crossbeam = "0.8.4"
 crossterm = "0.29.0"
+dunce = "1.0.5"
 encoding_rs = "0.8.35"
-superconsole = "0.2.0"
-unicode-width = "0.2.0"
+indicatif = "0.18.4"
+unicode-width = "0.2.2"
 wild = "2.2.1"
 
 [dev-dependencies]
-assert_cmd = "2.0.16"
-assert_fs = "1.1.2"
+assert_cmd = "2.1.2"
+assert_fs = "1.1.3"
 predicates = { workspace = true }

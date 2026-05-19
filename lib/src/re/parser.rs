@@ -2,9 +2,13 @@ use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::fmt::{Debug, Display, Formatter};
 use std::mem::replace;
+use std::ops::Deref;
 
 use regex_syntax as re;
-use regex_syntax::ast::{AssertionKind, Ast, ErrorKind, Literal, LiteralKind};
+use regex_syntax::ast::{
+    AssertionKind, Ast, ErrorKind, Flag, Literal, LiteralKind, RepetitionKind,
+    RepetitionRange,
+};
 use thiserror::Error;
 
 use yara_x_parser::ast;
@@ -14,7 +18,7 @@ use crate::types;
 
 #[derive(Error, Debug)]
 pub(crate) enum Error {
-    SyntaxError {
+    WrongSyntax {
         msg: String,
         span: re::ast::Span,
         note: Option<String>,
@@ -25,13 +29,25 @@ pub(crate) enum Error {
         span_1: re::ast::Span,
         span_2: re::ast::Span,
     },
+    UnsupportedInUnicode {
+        span: re::ast::Span,
+    },
+    ArbitraryPrefix {
+        span: re::ast::Span,
+    },
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::SyntaxError { msg, .. } => write!(f, "{}", msg),
+            Error::WrongSyntax { msg, .. } => write!(f, "{msg}"),
             Error::MixedGreediness { .. } => write!(f, "mixed greediness"),
+            Error::UnsupportedInUnicode { .. } => {
+                write!(f, "this is unsupported in Unicode regular expressions")
+            }
+            Error::ArbitraryPrefix { .. } => {
+                write!(f, "arbitrary prefix")
+            }
         }
     }
 }
@@ -84,11 +100,17 @@ impl Regexp for types::Regexp {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CaseSensitiveness {
+    Sensitive,
+    Insensitive,
+}
+
 /// A regular expression parser.
 ///
 /// Takes an [`ast::Regexp`] and produces its corresponding [`re::hir::Hir`].
 pub(crate) struct Parser {
-    force_case_insensitive: bool,
+    force_case_sensitiveness: Option<CaseSensitiveness>,
     allow_mixed_greediness: bool,
     relaxed_re_syntax: bool,
 }
@@ -96,16 +118,19 @@ pub(crate) struct Parser {
 impl Parser {
     pub fn new() -> Self {
         Self {
-            force_case_insensitive: false,
+            force_case_sensitiveness: None,
             allow_mixed_greediness: true,
             relaxed_re_syntax: false,
         }
     }
 
-    /// Parses the regexp as a case-insensitive one, no matter whether the regexp
-    /// was actually flagged as case-insensitive or not.
-    pub fn force_case_insensitive(mut self, yes: bool) -> Self {
-        self.force_case_insensitive = yes;
+    /// Forces the regular expression to be parsed with a specific case sensitiveness,
+    /// overriding any modifiers in the regular expression itself.
+    pub fn force_case_sensitiveness(
+        mut self,
+        sensitiveness: Option<CaseSensitiveness>,
+    ) -> Self {
+        self.force_case_sensitiveness = sensitiveness;
         self
     }
 
@@ -234,8 +259,7 @@ impl Parser {
                 ErrorKind::EscapeUnrecognized => {
                     let esc_seq = &re_src[span.start.offset..span.end.offset];
                     Some(format!(
-                        "did you mean `\\{}` instead of `{}`?",
-                        esc_seq, esc_seq
+                        "did you mean `\\{esc_seq}` instead of `{esc_seq}`?"
                     ))
                 }
                 ErrorKind::RepetitionMissing
@@ -247,7 +271,7 @@ impl Parser {
                 _ => None,
             };
 
-            Error::SyntaxError {
+            Error::WrongSyntax {
                 msg: err.kind().to_string(),
                 span: adjust_span(span, span_delta),
                 note,
@@ -255,23 +279,21 @@ impl Parser {
         })?;
 
         let ast = Transformer::new().transform(ast);
-        let greedy = Validator::new().validate(&ast);
 
         // `greedy` is set to Some(true) if all regexp quantifiers are greedy,
         // Some(false) if all are non-greedy, and None if there's a mix of
         // greedy and non-greedy quantifiers, like in `foo.*bar.*?baz`. Mixed
         // greediness is allowed only if allow_mixed_greediness is true, an
         // error is returned if otherwise.
-        let greedy = if self.allow_mixed_greediness {
-            greedy.unwrap_or(None)
-        } else {
-            greedy?
-        };
+        let greedy = Validator::new()
+            .allow_mixed_greediness(self.allow_mixed_greediness)
+            .dot_matches_new_line(regexp.dot_matches_new_line())
+            .validate(&ast)?;
 
-        let case_insensitive = if self.force_case_insensitive {
-            true
-        } else {
-            regexp.case_insensitive()
+        let case_insensitive = match self.force_case_sensitiveness {
+            Some(CaseSensitiveness::Sensitive) => false,
+            Some(CaseSensitiveness::Insensitive) => true,
+            None => regexp.case_insensitive(),
         };
 
         let mut translator = re::hir::translate::TranslatorBuilder::new()
@@ -283,7 +305,7 @@ impl Parser {
 
         let hir =
             translator.translate(re_src.as_ref(), &ast).map_err(|err| {
-                Error::SyntaxError {
+                Error::WrongSyntax {
                     msg: err.kind().to_string(),
                     span: adjust_span(err.span(), span_delta),
                     note: None,
@@ -294,17 +316,68 @@ impl Parser {
     }
 }
 
+#[derive(Clone, Default)]
+enum MatchKind {
+    #[default]
+    NonArbitrary,
+    ArbitraryData(re::ast::Span),
+    ArbitraryLengthAndData(re::ast::Span),
+}
+
+/// Performs additional validation on regular expressions to ensure
+/// compatibility with YARA.
+///
+/// This includes checks such as disallowing a mix of greedy and non-greedy
+/// quantifiers, rejecting expressions that begin with patterns capable
+/// of matching arbitrarily long sequences of arbitrary bytes, and making
+/// sure that some assertions like \b and \B are not used in Unicode mode.
 struct Validator {
     first_rep: Option<(bool, re::ast::Span)>,
+    greedy: Option<bool>,
+    match_kind: MatchKind,
+    stack: Vec<Vec<MatchKind>>,
+    allow_mixed_greediness: bool,
+    dot_matches_new_line: bool,
+    unicode_mode_stack: Vec<bool>,
 }
 
 impl Validator {
     fn new() -> Self {
-        Self { first_rep: None }
+        Self {
+            first_rep: None,
+            greedy: None,
+            match_kind: MatchKind::NonArbitrary,
+            stack: Vec::new(),
+            allow_mixed_greediness: false,
+            dot_matches_new_line: false,
+            unicode_mode_stack: Vec::new(),
+        }
+    }
+    fn allow_mixed_greediness(mut self, yes: bool) -> Self {
+        self.allow_mixed_greediness = yes;
+        self
+    }
+
+    fn dot_matches_new_line(mut self, yes: bool) -> Self {
+        self.dot_matches_new_line = yes;
+        self
     }
 
     fn validate(&mut self, ast: &Ast) -> Result<Option<bool>, Error> {
         re::ast::visit(ast, self)
+    }
+
+    /// Returns true if we are currently in Unicode mode.
+    ///
+    /// Unicode mode is enabled by using the `(?u)` flag in the regexp, and can
+    /// be disabled by using `(?-u)`. These flags apply to the current regular
+    /// expression group. For instance, in `/((?u)foo)bar)/` the `foo` portion
+    /// is in Unicode mode, but `bar` it's not, because the flag appears within
+    /// the group that encloses `foo`.
+    fn in_unicode_mode(&self) -> bool {
+        // The current Unicode mode is the value at the top of the stack,
+        // or false if the stack is empty.
+        self.unicode_mode_stack.last().cloned().unwrap_or(false)
     }
 }
 
@@ -313,24 +386,184 @@ impl re::ast::Visitor for &mut Validator {
     type Err = Error;
 
     fn finish(self) -> Result<Self::Output, Self::Err> {
-        Ok(self.first_rep.map(|rep| rep.0))
+        Ok(self.greedy)
     }
 
     fn visit_pre(&mut self, ast: &Ast) -> Result<(), Self::Err> {
-        if let Ast::Repetition(rep) = ast {
-            if let Some(first_rep) = self.first_rep {
-                if rep.greedy != first_rep.0 {
-                    return Err(Error::MixedGreediness {
-                        is_greedy_1: rep.greedy,
-                        is_greedy_2: first_rep.0,
-                        span_1: *ast.span(),
-                        span_2: first_rep.1,
+        match ast {
+            Ast::Group(_) => {
+                self.unicode_mode_stack.push(self.in_unicode_mode());
+            }
+            Ast::Flags(f) => {
+                if let Some(unicode_flag) = f.flags.flag_state(Flag::Unicode) {
+                    match self.unicode_mode_stack.last_mut() {
+                        Some(u) => *u = unicode_flag,
+                        None => self.unicode_mode_stack.push(unicode_flag),
+                    }
+                }
+            }
+            Ast::Assertion(assertion) => {
+                // The transformer should have removed all WordBoundaryStartAngle
+                // and WordBoundaryEndAngle from the AST. These kinds of assertions
+                // should not be found.
+                debug_assert!(!matches!(
+                    assertion.kind,
+                    AssertionKind::WordBoundaryStartAngle  // \<
+                        | AssertionKind::WordBoundaryEndAngle // \>
+                ));
+
+                if self.in_unicode_mode()
+                    && matches!(
+                        assertion.kind,
+                        AssertionKind::NotWordBoundary  // \B
+                        | AssertionKind::WordBoundary // \b
+                        | AssertionKind::WordBoundaryStart // \b{start}
+                        | AssertionKind::WordBoundaryEnd // \b{end}
+                    )
+                {
+                    return Err(Error::UnsupportedInUnicode {
+                        span: assertion.span,
                     });
                 }
-            } else {
-                self.first_rep = Some((rep.greedy, rep.span));
+            }
+            Ast::Repetition(rep) => {
+                if let Some(first_rep) = self.first_rep {
+                    if rep.greedy != first_rep.0 {
+                        if !self.allow_mixed_greediness {
+                            return Err(Error::MixedGreediness {
+                                is_greedy_1: rep.greedy,
+                                is_greedy_2: first_rep.0,
+                                span_1: *ast.span(),
+                                span_2: first_rep.1,
+                            });
+                        }
+                        self.greedy = None;
+                    }
+                } else {
+                    self.first_rep = Some((rep.greedy, rep.span));
+                    self.greedy = Some(rep.greedy);
+                }
+            }
+            Ast::Concat(_) | Ast::Alternation(_) => {
+                self.stack.push(Vec::new());
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+
+    fn visit_post(&mut self, ast: &Ast) -> Result<(), Self::Err> {
+        match ast {
+            Ast::Group(_) => {
+                self.unicode_mode_stack.pop();
+            }
+            Ast::Flags(_) | Ast::Assertion(_) => {}
+            Ast::Empty(_)
+            | Ast::Literal(_)
+            | Ast::ClassUnicode(_)
+            | Ast::ClassPerl(_)
+            | Ast::ClassBracketed(_) => {
+                self.match_kind = MatchKind::NonArbitrary
+            }
+            Ast::Dot(hir) => {
+                if self.dot_matches_new_line {
+                    self.match_kind = MatchKind::ArbitraryData(*hir.deref())
+                } else {
+                    self.match_kind = MatchKind::NonArbitrary
+                }
+            }
+            Ast::Repetition(rep) => {
+                if let MatchKind::ArbitraryData(_) = self.match_kind {
+                    let unbounded = matches!(
+                        rep.op.kind,
+                        RepetitionKind::Range(RepetitionRange::AtLeast(_))
+                            | RepetitionKind::ZeroOrMore
+                            | RepetitionKind::OneOrMore
+                    );
+                    if unbounded {
+                        self.match_kind =
+                            MatchKind::ArbitraryLengthAndData(rep.span);
+                    }
+                }
+            }
+            Ast::Alternation(alternation) => {
+                let mut items = self.stack.pop().unwrap();
+                items.push(self.match_kind.clone());
+                assert_eq!(items.len(), alternation.asts.len());
+
+                for item in items.into_iter() {
+                    match item {
+                        MatchKind::NonArbitrary => {}
+                        m @ MatchKind::ArbitraryData(_) => {
+                            self.match_kind = m;
+                        }
+                        m @ MatchKind::ArbitraryLengthAndData(_) => {
+                            self.match_kind = m;
+                            break;
+                        }
+                    }
+                }
+            }
+            Ast::Concat(concat) => {
+                let mut items = self.stack.pop().unwrap();
+                items.push(self.match_kind.clone());
+                assert_eq!(items.len(), concat.asts.len());
+
+                let merge_spans = |a: MatchKind, b: MatchKind| match (a, b) {
+                    (
+                        MatchKind::ArbitraryData(a),
+                        MatchKind::ArbitraryData(b),
+                    ) => MatchKind::ArbitraryData(re::ast::Span::new(
+                        a.start, b.end,
+                    )),
+                    (
+                        MatchKind::ArbitraryLengthAndData(a),
+                        MatchKind::ArbitraryData(b),
+                    )
+                    | (
+                        MatchKind::ArbitraryData(a),
+                        MatchKind::ArbitraryLengthAndData(b),
+                    ) => MatchKind::ArbitraryLengthAndData(
+                        re::ast::Span::new(a.start, b.end),
+                    ),
+                    _ => MatchKind::NonArbitrary,
+                };
+
+                // If the stack is empty this is the top-level concatenation.
+                if self.stack.is_empty() {
+                    if let MatchKind::ArbitraryLengthAndData(span) = items
+                        .into_iter()
+                        .take_while(|match_kind| {
+                            matches!(
+                                match_kind,
+                                MatchKind::ArbitraryLengthAndData(_)
+                                    | MatchKind::ArbitraryData(_)
+                            )
+                        })
+                        .reduce(merge_spans)
+                        .unwrap_or_default()
+                    {
+                        return Err(Error::ArbitraryPrefix { span });
+                    }
+                } else {
+                    self.match_kind =
+                        items.into_iter().reduce(merge_spans).unwrap();
+                }
             }
         }
+        Ok(())
+    }
+
+    fn visit_concat_in(&mut self) -> Result<(), Self::Err> {
+        self.stack.last_mut().unwrap().push(self.match_kind.clone());
+        self.match_kind = MatchKind::NonArbitrary;
+        Ok(())
+    }
+
+    fn visit_alternation_in(&mut self) -> Result<(), Self::Err> {
+        self.stack.last_mut().unwrap().push(self.match_kind.clone());
+        self.match_kind = MatchKind::NonArbitrary;
         Ok(())
     }
 }
@@ -376,14 +609,12 @@ impl Transformer {
                 Ast::Flags(_) => {}
                 Ast::Literal(_) => {}
                 Ast::Dot(_) => {}
-                Ast::Assertion(assertion) => match assertion.kind {
-                    AssertionKind::WordBoundaryStartAngle => {}
-                    AssertionKind::WordBoundaryEndAngle => {}
-                    _ => {}
-                },
                 Ast::ClassUnicode(_) => {}
                 Ast::ClassPerl(_) => {}
                 Ast::ClassBracketed(_) => {}
+                Ast::Assertion(_) => {
+                    self.replace_word_boundary_assertions(ast);
+                }
                 Ast::Repetition(rep) => {
                     self.replace_word_boundary_assertions(rep.ast.as_mut());
                     stack.push_back(rep.ast.as_mut());
@@ -413,7 +644,7 @@ impl Transformer {
     }
 
     fn replace_word_boundary_assertions(&self, ast: &mut Ast) {
-        if let Ast::Assertion(ref assertion) = ast {
+        if let &mut Ast::Assertion(ref assertion) = ast {
             match assertion.kind {
                 AssertionKind::WordBoundaryStartAngle => {
                     let _ = replace(

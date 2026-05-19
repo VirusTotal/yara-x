@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "pe-module"
-weight: 302
+weight: 800
 toc: true
 seo:
   title: "" # custom title (optional)

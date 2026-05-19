@@ -6,7 +6,6 @@ package vba;
 option (yara.module_options) = {
   name: "vba"
   root_message: "vba.Vba"
-  rust_module: "vba"
   cargo_feature: "vba-module"
 };
 

@@ -1,17 +1,17 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::{fs, io};
+use std::{fs, io, process};
 
 use anyhow::Context;
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
+use clap::{ArgAction, ArgMatches, Command, arg, value_parser};
 use crossterm::tty::IsTty;
-use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Green, Red, Yellow};
 use yansi::Paint;
-use yara_x::{linters, SourceCode};
+use yara_x::{SourceCode, linters};
 use yara_x_parser::ast::MetaValue;
 
 use crate::config::{Config, MetaValueType};
+use crate::walk::Draw;
 use crate::walk::Message;
 use crate::{help, walk};
 
@@ -86,7 +86,7 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
     w.max_depth(*recursive.unwrap_or(&0));
 
-    w.walk(
+    let state = w.walk(
         CheckState::new(),
         // Initialization
         |_, _| {},
@@ -112,14 +112,28 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
                 match config.ty {
                     MetaValueType::String => {
+                        let message = if let Some(regexp) = &config.regexp {
+                            // Make sure that the regexp is valid.
+                            let _ = regex::bytes::Regex::new(regexp)?;
+                            format!("`{identifier}` must be a string that matches `/{regexp}/`")
+                        } else {
+                            format!("`{identifier}` must be a string")
+                        };
                         linter = linter.validator(
                             |meta| {
-                                matches!(
-                                    meta.value,
-                                    MetaValue::String(_) | MetaValue::Bytes(_)
-                                )
+                                match (&meta.value, &config.regexp) {
+                                    (MetaValue::String((s, _)), Some(regexp)) => {
+                                        regex::Regex::new(regexp).unwrap().is_match(s)
+                                    }
+                                    (MetaValue::Bytes((s, _)), Some(regexp)) => {
+                                        regex::bytes::Regex::new(regexp).unwrap().is_match(s)
+                                    }
+                                    (MetaValue::String(_), None) => true,
+                                    (MetaValue::Bytes(_), None) => true,
+                                    _ => false,
+                                }
                             },
-                            format!("`{identifier}` must be a string"),
+                            message,
                         );
                     }
                     MetaValueType::Integer => {
@@ -184,7 +198,7 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             if !config.check.tags.allowed.is_empty() {
                 compiler.add_linter(
                     linters::tags_allowed(config.check.tags.allowed.clone())
-                    .error(config.check.tags.error));
+                        .error(config.check.tags.error));
             } else if let Some(re) = config
                 .check
                 .tags
@@ -198,40 +212,45 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
             compiler.colorize_errors(io::stdout().is_tty());
 
-            match compiler.add_source(src) {
-                Ok(compiler) => {
-                    if compiler.warnings().is_empty() {
-                        state.files_passed.fetch_add(1, Ordering::Relaxed);
-                        lines.push(format!(
-                            "[ {} ] {}",
-                            "PASS".paint(Green).bold(),
-                            file_path.display()
-                        ));
-                    } else {
-                        state.warnings.fetch_add(
-                            compiler.warnings().len(),
-                            Ordering::Relaxed,
-                        );
-                        lines.push(format!(
-                            "[ {} ] {}",
-                            "WARN".paint(Yellow).bold(),
-                            file_path.display()
-                        ));
-                        for warning in compiler.warnings() {
-                            eprintln!("{}", warning);
-                        }
+            let _ = compiler.add_source(src);
+
+            if compiler.errors().is_empty() && compiler.warnings().is_empty() {
+                state.files_passed.fetch_add(1, Ordering::Relaxed);
+                lines.push(format!(
+                    "[ {} ] {}",
+                    "PASS".paint(Green).bold(),
+                    file_path.display()
+                ));
+            } else {
+                if !compiler.errors().is_empty() {
+                    state.errors.fetch_add(
+                        compiler.errors().len(),
+                        Ordering::Relaxed,
+                    );
+                    lines.push(format!(
+                        "[ {} ] {}",
+                        "FAIL".paint(Red).bold(),
+                        file_path.display()
+                    ));
+                    for error in compiler.errors() {
+                        eprintln!("{error}");
                     }
                 }
-                Err(err) => {
-                    state.errors.fetch_add(1, Ordering::Relaxed);
+                if !compiler.warnings().is_empty() {
+                    state.warnings.fetch_add(
+                        compiler.warnings().len(),
+                        Ordering::Relaxed,
+                    );
                     lines.push(format!(
-                        "[ {} ] {}\n{}",
-                        "FAIL".paint(Red).bold(),
-                        file_path.display(),
-                        err,
+                        "[ {} ] {}",
+                        "WARN".paint(Yellow).bold(),
+                        file_path.display()
                     ));
+                    for warning in compiler.warnings() {
+                        eprintln!("{warning}");
+                    }
                 }
-            };
+            }
 
             output.send(Message::Info(lines.join("\n")))?;
 
@@ -252,11 +271,22 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             Ok(())
         },
     )
-    .unwrap();
+        .unwrap();
+
+    // Exit code is 1 if errors were found.
+    if state.errors.load(Ordering::Relaxed) > 0 {
+        process::exit(1)
+    }
+
+    // Exit code is 2 if no error was found, but warnings were found.
+    if state.warnings.load(Ordering::Relaxed) > 0 {
+        process::exit(2);
+    }
 
     Ok(())
 }
 
+#[derive(Debug)]
 struct CheckState {
     files_passed: AtomicUsize,
     warnings: AtomicUsize,
@@ -273,36 +303,24 @@ impl CheckState {
     }
 }
 
-impl Component for CheckState {
-    fn draw_unchecked(
-        &self,
-        _dimensions: superconsole::Dimensions,
-        mode: superconsole::DrawMode,
-    ) -> anyhow::Result<superconsole::Lines> {
-        let res = match mode {
-            superconsole::DrawMode::Normal | superconsole::DrawMode::Final => {
-                let ok = format!(
-                    "{} file(s) ok. ",
-                    self.files_passed.load(Ordering::Relaxed)
-                );
+impl Draw for CheckState {
+    fn draw(&self, _width: usize) -> String {
+        let ok = format!(
+            "{} file(s) ok. ",
+            self.files_passed.load(Ordering::Relaxed)
+        );
 
-                let warnings = format!(
-                    "warnings: {}. ",
-                    self.warnings.load(Ordering::Relaxed)
-                );
+        let warnings =
+            format!("warnings: {}. ", self.warnings.load(Ordering::Relaxed));
 
-                let errors = format!(
-                    "errors: {}.",
-                    self.errors.load(Ordering::Relaxed)
-                );
+        let errors =
+            format!("errors: {}.", self.errors.load(Ordering::Relaxed));
 
-                Line::from_iter([
-                    Span::new_unstyled(ok.paint(Green).bold())?,
-                    Span::new_unstyled(warnings.paint(Yellow).bold())?,
-                    Span::new_unstyled(errors.paint(Red).bold())?,
-                ])
-            }
-        };
-        Ok(Lines(vec![res]))
+        format!(
+            "{}{}{}",
+            ok.paint(Green).bold(),
+            warnings.paint(Yellow).bold(),
+            errors.paint(Red).bold()
+        )
     }
 }

@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::fs::{File, Metadata};
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
@@ -5,11 +6,15 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use std::{io, thread};
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use crossbeam::channel::{RecvTimeoutError, SendError, Sender};
 use crossterm::tty::IsTty;
 use globwalk::FileType;
-use superconsole::{Component, Lines, SuperConsole};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+
+pub trait Draw {
+    fn draw(&self, width: usize) -> String;
+}
 
 /// Walks the files in a directory or a text file containing file paths,
 /// running a given function for each file.
@@ -154,10 +159,10 @@ impl<'a> Walker<'a> {
             self.walk_file_list(f, e)
         } else {
             if metadata.is_file() {
-                if self.pass_metadata_filter(metadata) {
-                    if let Err(err) = f(self.path) {
-                        return e(err);
-                    }
+                if self.pass_metadata_filter(metadata)
+                    && let Err(err) = f(self.path)
+                {
+                    return e(err);
                 };
                 return Ok(());
             }
@@ -184,10 +189,10 @@ impl<'a> Walker<'a> {
                     Err(err) => return Err(err),
                 },
             };
-            if self.pass_metadata_filter(metadata) {
-                if let Err(err) = f(&path) {
-                    e(err)?
-                }
+            if self.pass_metadata_filter(metadata)
+                && let Err(err) = f(&path)
+            {
+                e(err)?
             }
         }
 
@@ -245,10 +250,10 @@ impl<'a> Walker<'a> {
 
             match entry.metadata() {
                 Ok(metadata) => {
-                    if self.pass_metadata_filter(metadata) {
-                        if let Err(err) = f(entry.path()) {
-                            e(err)?
-                        }
+                    if self.pass_metadata_filter(metadata)
+                        && let Err(err) = f(entry.path())
+                    {
+                        e(err)?
                     }
                 }
                 Err(err) => e(err.into())?,
@@ -272,7 +277,7 @@ impl<'a> Walker<'a> {
 /// <br>
 ///
 /// The function receives four arguments: the file's path, a state of some
-/// type `S` that implements the [`Component`] trait, an output channel that
+/// type `S` that implements the [`Draw`] trait, an output channel that
 /// the function can use for writing messages to the console (its type is
 /// &[`Sender<Message>`]), and a mutable reference to some type `T` returned
 /// by the thread initialization function.
@@ -307,7 +312,7 @@ impl<'a> Walker<'a> {
 ///
 /// walker.walk(
 ///     // The initial state. This must have some type `S` that implements the
-///     // `Component` trait.
+///     // `Draw` trait.
 ///     state
 ///     // This is the thread initialization function. This is called once
 ///     // per thread, and each thread will own the value returned by this
@@ -322,8 +327,8 @@ impl<'a> Walker<'a> {
 ///     |state, output, file_path, scanner| {
 ///         scanner.scan_file(file_path);
 ///     }
-///     /// This function is called by each thread after every file is
-///     /// scanned.
+///     // This function is called by each thread after every file is
+///     // scanned.
 ///     |scanner| {
 ///         // Do some final action with the scanner before it is released.
 ///     }
@@ -402,9 +407,9 @@ impl<'a> ParWalker<'a> {
         finalize: F,
         on_walk_done: D,
         error: E,
-    ) -> thread::Result<()>
+    ) -> thread::Result<S>
     where
-        S: Component + Send + Sync + 'static,
+        S: Draw + Debug + Send + Sync + 'static,
         I: Fn(&S, &Sender<Message>) -> T + Send + Copy + Sync,
         A: Fn(&S, &Sender<Message>, PathBuf, &mut T) -> anyhow::Result<()>
             + Send
@@ -454,11 +459,11 @@ impl<'a> ParWalker<'a> {
                             path.to_path_buf(),
                             &mut per_thread_obj,
                         );
-                        if let Err(err) = res {
-                            if error(err, &msg_send).is_err() {
-                                let _ = msg_send.send(Message::Abort);
-                                break;
-                            }
+                        if let Err(err) = res
+                            && error(err, &msg_send).is_err()
+                        {
+                            let _ = msg_send.send(Message::Abort);
+                            break;
                         }
                     }
                     finalize(&per_thread_obj, &msg_send);
@@ -489,33 +494,31 @@ impl<'a> ParWalker<'a> {
                     },
                 );
 
-                if let Err(err) = res {
-                    if error(err, &msg_send).is_err() {
-                        let _ = msg_send.send(Message::Abort);
-                    }
+                if let Err(err) = res
+                    && error(err, &msg_send).is_err()
+                {
+                    let _ = msg_send.send(Message::Abort);
                 }
             }));
 
-            let mut console = if cfg!(feature = "logging") {
+            // `multi_progress` will be `None` if the `logging` feature is
+            // enabled or if either stdout or stderr is not a tty (for example
+            // when any of them are redirected to a file).
+            let multi_progress = if cfg!(feature = "logging") {
                 None
+            } else if io::stdout().is_tty() {
+                Some(MultiProgress::new())
             } else {
-                // `console` will be `None` if either stdout or stderr is not a tty
-                // (for example when any of them are redirected to a file).
-                if io::stdout().is_tty() {
-                    SuperConsole::new()
-                } else {
-                    None
-                }
+                None
             };
 
-            // The console is rendered once every `render_period`.
             let render_period = Duration::from_secs_f64(0.150);
 
             output_messages(
                 render_period,
                 Instant::now(),
                 msg_recv,
-                console.as_mut(),
+                multi_progress.as_ref(),
                 state.clone(),
             );
 
@@ -524,19 +527,19 @@ impl<'a> ParWalker<'a> {
             let (msg_send, msg_recv) =
                 crossbeam::channel::bounded::<Message>(32);
 
-            let handle = thread::spawn(move || {
-                output_messages(
-                    render_period,
-                    Instant::now(),
-                    msg_recv,
-                    console.as_mut(),
-                    state.clone(),
-                );
-
-                if let Some(console) = console {
-                    console.finalize(state.as_ref()).unwrap();
-                }
-            });
+            let handle = {
+                let state = state.clone();
+                let multi_progress = multi_progress.clone();
+                thread::spawn(move || {
+                    output_messages(
+                        render_period,
+                        Instant::now(),
+                        msg_recv,
+                        multi_progress.as_ref(),
+                        state.clone(),
+                    );
+                })
+            };
 
             // let `on_walk_done` send messages to the console
             on_walk_done(&msg_send);
@@ -544,9 +547,11 @@ impl<'a> ParWalker<'a> {
             // close the channel *before* joining the thread (`handle.join()`)
             // this sends a signal through the channel to the listening threads to disconnect
             // otherwise, trying to `handle.join()` will cause a deadlock
-            std::mem::drop(msg_send);
+            drop(msg_send);
 
             handle.join().unwrap();
+
+            Arc::<S>::try_unwrap(state).unwrap()
         })
     }
 }
@@ -555,32 +560,34 @@ fn output_messages<S>(
     render_period: Duration,
     last_render: Instant,
     msg_recv: crossbeam::channel::Receiver<Message>,
-    console: Option<&mut SuperConsole>,
+    multi_progress: Option<&MultiProgress>,
     state: Arc<S>,
 ) where
-    S: Component,
+    S: Draw,
 {
-    let mut console = console;
     let mut last_render = last_render;
+    let pb = multi_progress.map(|mp| {
+        let pb = mp.add(ProgressBar::new_spinner());
+        pb.set_style(
+            ProgressStyle::default_spinner().template("{msg}").unwrap(),
+        );
+        pb
+    });
 
     loop {
         match msg_recv.recv_timeout(render_period) {
             Ok(Message::Info(s)) => {
-                if let Some(console) = console.as_mut() {
-                    console.emit(Lines::from_colored_multiline_string(
-                        s.as_str(),
-                    ));
+                if let Some(mp) = multi_progress {
+                    let _ = mp.println(s);
                 } else {
-                    println!("{}", s)
+                    println!("{s}")
                 }
             }
             Ok(Message::Error(s)) => {
-                if let Some(console) = console.as_mut() {
-                    console.emit(Lines::from_colored_multiline_string(
-                        s.as_str(),
-                    ));
+                if let Some(mp) = multi_progress {
+                    let _ = mp.println(s);
                 } else {
-                    eprintln!("{}", s)
+                    eprintln!("{s}")
                 }
             }
             Ok(Message::Abort) => {
@@ -592,12 +599,19 @@ fn output_messages<S>(
             Err(RecvTimeoutError::Timeout) => {}
         }
 
-        if let Some(console) = console.as_mut() {
-            if Instant::elapsed(&last_render) > render_period {
-                console.render(state.as_ref()).unwrap();
-                last_render = Instant::now();
-            }
+        if let Some(pb) = &pb
+            && Instant::elapsed(&last_render) > render_period
+        {
+            let width = crossterm::terminal::size()
+                .map(|(w, _)| w as usize)
+                .unwrap_or(80);
+            pb.set_message(state.draw(width));
+            last_render = Instant::now();
         }
+    }
+
+    if let Some(pb) = pb {
+        pb.finish_and_clear();
     }
 }
 

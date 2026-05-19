@@ -95,6 +95,7 @@ rules = compiler.build()
 # Pass the rules to a scanner, and set a scan timeout.
 scanner = yara_x.Scanner(rules)
 scanner.set_timeout(60)
+scanner.max_matches_per_pattern(1000)
 # Scan some data.
 result = scanner.scan(b"foo")
 ```
@@ -197,7 +198,13 @@ the [Rules](#rules) are used for scanning data, however each scanner can change
 the variable's value by
 calling [Scanner.set_global(...)](#set_globalidentifier-value).
 
-The type of `value` must be: `bool`, `str`, `bytes`, `int` or `float`.
+The type of `value` must be: `bool`, `str`, `bytes`, `int`, `float`, or `dict`.
+
+When `value` is a `dict`, keys must be strings and valid YARA identifiers.
+Values can be any supported type, including nested dicts and lists (for arrays).
+Arrays must be homogeneous (all elements the same type). See
+[External global variables]({{< ref "external_variables.md" >}}) for details on
+using structs and arrays in rule conditions.
 
 Raises: [TypeError](https://docs.python.org/3/library/exceptions.html#TypeError)
 if the type of `value` is not one of the supported ones.
@@ -208,6 +215,39 @@ if the type of `value` is not one of the supported ones.
 compiler = yara_x.Compiler()
 compiler.define_global("my_int_var", 1)
 compiler.add_source("rule test { condition: my_int_var == 1 }")
+```
+
+```python
+compiler = yara_x.Compiler()
+compiler.define_global("file_info", {
+    "name": "test.exe",
+    "size": 45056,
+    "tags": ["packed", "unsigned"],
+})
+compiler.add_source('''
+rule test {
+    condition:
+        file_info.name == "test.exe" and
+        for any tag in file_info.tags : (
+            tag == "packed"
+        )
+}
+''')
+```
+
+#### .max_warnings(n)
+
+{{< callout >}}
+New in version 1.16.0
+{{< /callout >}}
+
+Sets the maximum number of warnings. The compiler will report only the first `n` warnings.
+
+##### Example
+
+```python
+compiler = yara_x.Compiler()
+compiler.max_warnings(1)
 ```
 
 #### .enable_includes(bool)
@@ -243,6 +283,72 @@ compiler.new_namespace("bar")
 # don't collide even if they are both named "test".
 compiler.add_source("rule test { condition: false }")
 rules = compiler.build()
+```
+
+#### .allowed_metadata(identifier, value_type, required=False, error=False, regexp=None)
+
+Defines expectations for a specific metadata field.
+
+When rules are compiled, the compiler will check if the metadata fields match the specified expectations. If not, it will trigger a warning (or an error if `error` is `True`).
+
+- `identifier`: The metadata name (e.g., `"author"`).
+- `value_type`: The expected type, which must be one of the `yara_x.MetaType` constants:
+  - `MetaType.STRING`
+  - `MetaType.INTEGER`
+  - `MetaType.FLOAT`
+  - `MetaType.BOOL`
+  - `MetaType.SHA256`
+  - `MetaType.SHA1`
+  - `MetaType.MD5`
+  - `MetaType.HASH`
+- `required`: If `True`, the metadata field must be present in every rule. Defaults to `False`.
+- `error`: If `True`, failure to meet the expectation triggers an error instead of a warning. Defaults to `False`.
+- `regexp`: An optional regular expression that the metadata value must match. Only applicable if `value_type` is `MetaType.STRING`.
+
+##### Example
+
+```python
+compiler = yara_x.Compiler()
+compiler.allowed_metadata("author", yara_x.MetaType.STRING, required=True)
+compiler.allowed_metadata("version", yara_x.MetaType.STRING, regexp=r"^\d+\.\d+$")
+```
+
+#### .allowed_rule_name(regexp, error=False)
+
+Specifies a regular expression that the compiler will enforce upon each rule name.
+Any rule with a name that does not match this regular expression will trigger a warning.
+If `error` is `True`, it will trigger an error instead of a warning.
+
+##### Example
+
+```python
+compiler = yara_x.Compiler()
+compiler.allowed_rule_name("^test_")
+```
+
+#### .allowed_tags(tags, error=False)
+
+Sets a list of allowed tags. Any rule with a tag not present in this list will trigger a warning.
+If `error` is `True`, it will trigger an error instead of a warning.
+
+##### Example
+
+```python
+compiler = yara_x.Compiler()
+compiler.allowed_tags(["foo", "bar"])
+```
+
+#### .allowed_tags_regex(regexp, error=False)
+
+Specifies a regular expression that the compiler will enforce upon each tag.
+Any rule with a tag that does not match this regular expression will trigger a warning.
+If `error` is `True`, it will trigger an error instead of a warning.
+
+##### Example
+
+```python
+compiler = yara_x.Compiler()
+compiler.allowed_tags_regex("^[a-z]+$")
 ```
 
 #### .errors()
@@ -327,6 +433,46 @@ Returns: [yara_x.ScanResults](#scanresults)
 
 Raises: [yara_x.ScanError](#scanerror), [yara_x.TimeoutError](#timeouterror)
 
+#### .scan_with_options(bytes, options)
+
+Like [Rules.scan(...)](#scanbytes), but allows to specify additional scan options.
+
+Returns: [yara_x.ScanResults](#scanresults)
+
+Raises: [yara_x.ScanError](#scanerror), [yara_x.TimeoutError](#timeouterror)
+
+#### .imports()
+
+An array with the names of the modules imported by the rules.
+
+#### .serialize_into(file)
+
+Serializes the rules into a file-like object.
+
+##### Example
+
+```python
+rules = yara_x.compile("rule test { condition: true }")
+f = io.BytesIO()
+rules.serialize_into(f)
+f.seek(0)
+rules = yara_x.Rules.deserialize_from(f)
+```
+
+#### .deserialize_from(file)
+
+Deserializes rules from a file-like object.
+
+##### Example
+
+```python
+rules = yara_x.compile("rule test { condition: true }")
+f = io.BytesIO()
+rules.serialize_into(f)
+f.seek(0)
+rules = yara_x.Rules.deserialize_from(f)
+```
+
 ---------
 
 ### Scanner
@@ -359,6 +505,24 @@ scanner = yara_x.Scanner(rules)
 scanner.scan(b"foobar")
 ```
 
+#### .scan_with_options(bytes, options)
+
+Like [Scanner.scan(...)](#scanbytes-1), but allows to specify additional scan options.
+
+Returns: [yara_x.ScanResults](#scanresults)
+
+Raises: [yara_x.ScanError](#scanerror), [yara_x.TimeoutError](#timeouterror)
+
+##### Example
+
+```python
+rules = yara_x.compile('rule foo { strings: $foo = "foo" condition: $foo }')
+scanner = yara_x.Scanner(rules)
+options = yara_x.ScanOptions()
+options.set_module_metadata("cuckoo", b'{"foo": "bar"}')
+scanner.scan_with_options(b"foobar", options)
+```
+
 #### .scan_file(path)
 
 Scans a file given its path.
@@ -366,6 +530,32 @@ Scans a file given its path.
 Returns: [yara_x.ScanResults](#scanresults)
 
 Raises: [yara_x.ScanError](#scanerror), [yara_x.TimeoutError](#timeouterror)
+
+##### Example
+
+```python
+rules = yara_x.compile('rule foo { strings: $foo = "foo" condition: $foo }')
+scanner = yara_x.Scanner(rules)
+scanner.scan_file("foo.bin")
+```
+
+#### .scan_file_with_options(path, options)
+
+Like [Scanner.scan_file(...)](#scan_filepath), but allows to specify additional scan options.
+
+Returns: [yara_x.ScanResults](#scanresults)
+
+Raises: [yara_x.ScanError](#scanerror), [yara_x.TimeoutError](#timeouterror)
+
+##### Example
+
+```python
+rules = yara_x.compile('rule foo { strings: $foo = "foo" condition: $foo }')
+scanner = yara_x.Scanner(rules)
+options = yara_x.ScanOptions()
+options.set_module_metadata("cuckoo", b'{"foo": "bar"}')
+scanner.scan_file_with_options("foo.bin", options)
+```
 
 #### .set_global(identifier, value)
 
@@ -383,6 +573,45 @@ if the type of `value` is not one of the supported ones.
 #### .set_timeout(seconds)
 
 Sets a timeout for each scan. Scans will abort after the specified `seconds`.
+
+---------
+
+### ScanOptions
+
+Type that represents a set of optional information for the scan operation.
+
+#### .__init__()
+
+Creates a new [`ScanOptions`](#scanoptions) object.
+
+##### Example
+
+```python
+options = yara_x.ScanOptions()
+```
+
+#### .set_module_metadata(module, metadata)
+
+Sets the data associated with a YARA module.
+
+When scanning a file, YARA modules may require additional data that is
+not present in the file itself. For instance, the `cuckoo` module may
+need a report from Cuckoo sandbox with information about the file being
+scanned.
+
+This function is used for providing that data to the modules. The data
+is specific to the module, and each module expects a different data
+structure. The data is passed as raw bytes that the module is responsible
+to decode accordingly.
+
+##### Example
+
+```python
+rules = yara_x.compile('import "cuckoo"')
+options = yara_x.ScanOptions()
+options.set_module_metadata("cuckoo", module_metadata)
+rules.scan_with_options(data, options)
+```
 
 ---------
 
@@ -424,8 +653,6 @@ during the scan, if any.
 
 A tuple of pairs `(identifier, value)` with the metadata associated to the
 rule.
-
----------
 
 ### Pattern
 

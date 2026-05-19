@@ -1,0 +1,164 @@
+magic: 0xcffaedfe
+cputype: 0x1000007
+cpusubtype: 0x3
+filetype: 6
+ncmds: 15
+sizeofcmds: 712
+flags: 0x2100085
+reserved: 0
+number_of_segments: 2
+source_version: "951.1.0.0.0"
+symtab:
+    symoff: 53424
+    nsyms: 8
+    stroff: 53552
+    strsize: 248
+    entries:
+      - "_objc_trampolinesVersionString"
+      - "_objc_trampolinesVersionNumber"
+      - "__objc_blockTrampolineImpl"
+      - "__objc_blockTrampolineImpl_stret"
+      - "__objc_blockTrampolineLast"
+      - "__objc_blockTrampolineLast_stret"
+      - "__objc_blockTrampolineStart"
+      - "__objc_blockTrampolineStart_stret"
+    nlists:
+      - n_strx: 186
+        n_type: 30
+        n_sect: 2
+        n_desc: 0
+        n_value: 49152
+      - n_strx: 217
+        n_type: 30
+        n_sect: 2
+        n_desc: 0
+        n_value: 49208
+      - n_strx: 4
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 16384
+      - n_strx: 31
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 32768
+      - n_strx: 64
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 32760
+      - n_strx: 91
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 49144
+      - n_strx: 124
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 16416
+      - n_strx: 152
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 32800
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 2
+    iextdefsym: 2
+    nextdefsym: 6
+    tocoff: 8
+    ntoc: 0
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 0
+    nextrel: 0
+    locreloff: 0
+    nlocrel: 0
+code_signature_data:
+    dataoff: 53808
+    datasize: 18768
+segments:
+  - segname: "__TEXT"
+    vmaddr: 0x0
+    vmsize: 0xd000
+    fileoff: 0
+    filesize: 53248
+    maxprot: 0x5
+    initprot: 0x5
+    nsects: 2
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0x1000
+        size: 0xb000
+        offset: 4096
+        align: 12
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__const"
+        addr: 0xc000
+        size: 0x40
+        offset: 49152
+        align: 4
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+  - segname: "__LINKEDIT"
+    vmaddr: 0xd000
+    vmsize: 0x8000
+    fileoff: 53248
+    filesize: 19328
+    maxprot: 0x1
+    initprot: 0x1
+    nsects: 0
+    flags: 0x0
+dylibs:
+  - name: "/usr/lib/libobjc-trampolines.dylib"
+    timestamp: 1  # 1970-01-01 00:00:01 UTC
+    compatibility_version: "1.0.0"
+    current_version: "228.0.0"
+  - name: "/usr/lib/libSystem.B.dylib"
+    timestamp: 2  # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1356.0.0"
+certificates:
+  - issuer: "C=US, O=Apple Inc., OU=Apple Certification Authority, CN=Apple Root CA"
+    subject: "C=US, O=Apple Inc., OU=Apple Certification Authority, CN=Apple Code Signing Certification Authority"
+    is_self_signed: false
+  - issuer: "C=US, O=Apple Inc., OU=Apple Certification Authority, CN=Apple Code Signing Certification Authority"
+    subject: "C=US, O=Apple Inc., OU=Apple Software, CN=Software Signing"
+    is_self_signed: false
+  - issuer: "C=US, O=Apple Inc., OU=Apple Certification Authority, CN=Apple Root CA"
+    subject: "C=US, O=Apple Inc., OU=Apple Certification Authority, CN=Apple Root CA"
+    is_self_signed: true
+uuid: "32DA9B89-2C83-393D-B006-8257D61FD9D9"
+build_version:
+    platform: 6
+    minos: "26.2.0"
+    sdk: "26.2.0"
+    ntools: 1
+    tools:
+      - tool: 3
+        version: "1230.3"
+exports:
+  - "__objc_blockTrampolineStart"
+  - "__objc_blockTrampolineStart_stret"
+  - "__objc_blockTrampolineLast"
+  - "__objc_blockTrampolineLast_stret"
+  - "__objc_blockTrampolineImpl"
+  - "__objc_blockTrampolineImpl_stret"

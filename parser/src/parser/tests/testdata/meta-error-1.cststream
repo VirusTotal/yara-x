@@ -9,7 +9,6 @@ Token { kind: NEWLINE, span: Span(11..12) }
 Token { kind: WHITESPACE, span: Span(12..14) }
 Begin { kind: ERROR, span: Span(14..38) }
 Token { kind: IDENT, span: Span(14..17) }
-Error { message: "expecting `meta`, `strings` or `condition`, found `foo`", span: Span(14..17) }
 Token { kind: NEWLINE, span: Span(17..18) }
 Token { kind: WHITESPACE, span: Span(18..20) }
 Token { kind: CONDITION_KW, span: Span(20..29) }
@@ -21,4 +20,5 @@ End { kind: ERROR, span: Span(14..38) }
 Token { kind: NEWLINE, span: Span(38..39) }
 Token { kind: R_BRACE, span: Span(39..40) }
 End { kind: RULE_DECL, span: Span(0..40) }
+Error { message: "expecting `meta`, `strings` or `condition`, found `foo`", span: Span(14..17) }
 End { kind: SOURCE_FILE, span: Span(0..40) }

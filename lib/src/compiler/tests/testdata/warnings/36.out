@@ -3,13 +3,11 @@ warning[too_many_iterations]: loop has too many iterations
   |
 4 |     for any i in (1..2000000) : ( true )
   |     ------------------------------------ this loop iterates 2000000 times, which may be slow
-  |
 warning[too_many_iterations]: loop has too many iterations
   --> line:11:7
    |
 11 |       for any j in (1..1500) : ( true )
    |       --------------------------------- this loop iterates 2250000 times, which may be slow
-   |
 warning[too_many_iterations]: loop has too many iterations
   --> line:39:7
    |
@@ -17,7 +15,6 @@ warning[too_many_iterations]: loop has too many iterations
 40 | |         true // Total iterations = 2 * 1,000,000 = 2,000,000. Should trigger.
 41 | |       )
    | |_______- this loop iterates 2000000 times, which may be slow
-   |
 warning[too_many_iterations]: loop has too many iterations
   --> line:49:7
    |
@@ -25,7 +22,6 @@ warning[too_many_iterations]: loop has too many iterations
 50 | |         true // Total iterations = 1,000,000 * 2 = 2,000,000. Should trigger.
 51 | |       )
    | |_______- this loop iterates 3000000 times, which may be slow
-   |
 warning[too_many_iterations]: loop has too many iterations
   --> line:58:5
    |
@@ -33,19 +29,16 @@ warning[too_many_iterations]: loop has too many iterations
 59 | |       (1 + 1 == 2) and (true or false)
 60 | |     )
    | |_____- this loop iterates 2000000 times, which may be slow
-   |
 warning[too_many_iterations]: loop has too many iterations
   --> line:67:6
    |
 67 |     (for any i in (1..2000000) : (true)) // This one should trigger
    |      ---------------------------------- this loop iterates 2000000 times, which may be slow
-   |
 warning[too_many_iterations]: loop has too many iterations
   --> line:73:6
    |
 73 |     (for any i in (1..2000000) : (true)) and // This one should trigger
    |      ---------------------------------- this loop iterates 2000000 times, which may be slow
-   |
 warning[too_many_iterations]: loop has too many iterations
   --> line:83:11
    |
@@ -53,4 +46,3 @@ warning[too_many_iterations]: loop has too many iterations
 84 | |             true
 85 | |           )
    | |___________- this loop iterates 2000000 times, which may be slow
-   |

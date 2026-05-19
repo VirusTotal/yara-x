@@ -48,6 +48,8 @@ its YARA counterpart:
 * More information about the files being scanned.
 * Autocompletion support for multiple shells, including Bash, Zsh, and
   PowerShell, improving usability and efficiency during command entry.
+* Automatic code formatting.
+* Automatic fixes for some warnings.
 * Access to the output of YARA modules in YAML and JSON formats without
   requiring any YARA rule. This capability transforms YARA-X into a versatile
   file dissection tool supporting multiple file formats, like
@@ -55,9 +57,9 @@ its YARA counterpart:
   [Mach-O](https://en.wikipedia.org/wiki/Mach-O)
   and LNK (Windows link file).
 
-### Higher overall performance
+### Better performance
 
-YARA-X's is better than YARA when dealing with regular expressions and complex
+YARA-X performs better than YARA when dealing with regular expressions and complex
 hex patterns. Let's use the following rule for detecting Bitcoin addresses as
 an example:
 
@@ -93,18 +95,9 @@ rule cafebabe {
 }
 ```
 
-Notably, not all rules benefit from YARA-X's optimizations. Rules that are
-already optimized for performance, and only use plain text patterns or simple
-hex patterns, are likely to run faster in YARA. This is because YARA is still
-around 2-3x times faster than YARA-X at raw scanning speed (i.e. the inner loop
-of the Aho-Corasick algorithm is faster in YARA). However, when encountering a
-mixture of heterogeneous rules, the worst rules are the ones that dominate the
-scanning time, often slowing down the process by a factor of 10x or more. As
-YARA-X is much better at handling those slow cases, the overall performance is
-usually better.
-
-There's room for improvement here, and the goal is making YARA-X faster than
-YARA in all cases.
+Overall, YARA-X is faster than YARA in almost all cases. There are still some
+rules and files where YARA may perform better, but YARA-X will outperform YARA
+in the vast majority of cases.
 
 ### Parser re-usability
 

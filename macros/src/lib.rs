@@ -1,10 +1,9 @@
 use darling::ast::NestedMeta;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput, Error, ItemFn};
+use syn::{DeriveInput, Error, ItemFn, parse_macro_input};
 
 mod error;
 mod module_export;
-mod module_main;
 mod wasm_export;
 
 /// The `ErrorStruct` derive macro generates boilerplate code for structs that
@@ -68,14 +67,14 @@ mod wasm_export;
 ///    of a text, the name of some field of type `SourceRef` in the structure,
 ///    and optionally, the label's error level. Valid error levels are:
 ///
-///     - `Level::Error`
-///     - `Level::Warning`
-///     - `Level::Info`
-///     - `Level::Note`
-///     - `Level::Help`
+///     - `Level::ERROR`
+///     - `Level::WARNING`
+///     - `Level::INFO`
+///     - `Level::NOTE`
+///     - `Level::HELP`
 ///
-///    If the level is omitted it will be either `Level::Error` or
-///    `Level::Warning`, depending on whether we are defining an error with
+///    If the level is omitted it will be either `Level::ERROR` or
+///    `Level::WARNING`, depending on whether we are defining an error with
 ///    `#[error(...)]`, or a warning with `#[warning(...)]`.
 ///
 /// ```text
@@ -121,32 +120,6 @@ pub fn error_struct_macro_derive(input: TokenStream) -> TokenStream {
 pub fn error_enum_macro_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     error::impl_error_enum_macro(input)
-        .unwrap_or_else(Error::into_compile_error)
-        .into()
-}
-
-/// The `module_main` macro is used for indicating which is the main function
-/// in a YARA module.
-///
-/// The main function in a YARA module receives a slice that contains the
-/// data being scanned, and must return the protobuf structure that corresponds
-/// to the module. The function can have any name, as long as it is marked with
-/// `#[module_main]`, but it's a good practice to name it `main`.
-///
-/// # Example
-///
-/// ```text
-/// #[module_main]
-/// fn main(data: &[u8]) -> SomeProto {
-///     let some_proto = SomeProto::new();
-///     // ... fill some_proto with data ...
-///     some_proto
-/// }
-/// ```
-#[proc_macro_attribute]
-pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as ItemFn);
-    module_main::impl_module_main_macro(input)
         .unwrap_or_else(Error::into_compile_error)
         .into()
 }

@@ -462,6 +462,19 @@ fn test_macho_module() {
     rule_true!(
         r#"
         import "macho"
+        import "console"
+
+        rule macho_test {
+            condition:
+                macho.symhash() == "cd6ad5ad7251fd15f8aab8ee4fa11743"
+        }
+        "#,
+        &chess_macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
         rule macho_test {
             condition:
                 macho.has_export("_factorial")
@@ -486,7 +499,7 @@ fn test_macho_module() {
     import "macho"
     rule macho_test {
         condition:
-            not defined macho.sym_hash()
+            not defined macho.symhash()
     }
     "#,
         &[]
@@ -497,7 +510,7 @@ fn test_macho_module() {
     import "macho"
     rule macho_test {
         condition:
-            macho.sym_hash() == "fea44765d5601027002d40c278d119aa"
+            macho.symhash() == "d41d8cd98f00b204e9800998ecf8427e"
     }
     "#,
         &symbolt_table_test_data
@@ -508,7 +521,7 @@ fn test_macho_module() {
     import "macho"
     rule macho_test {
         condition:
-            macho.sym_hash() == "786daad487993f71b1ba40d0f43a9e0f"
+            macho.symhash() == "786daad487993f71b1ba40d0f43a9e0f"
     }
     "#,
         &symbolt_table_test_data
@@ -519,7 +532,7 @@ fn test_macho_module() {
     import "macho"
     rule macho_test {
         condition:
-            macho.sym_hash() == "a9ccc7c7b8bd33a99dc7ede4e8d771b4"
+            macho.symhash() == "80524643c68b9cf5658e9c2ccc71bdda"
     }
     "#,
         &tiny_universal_macho_data

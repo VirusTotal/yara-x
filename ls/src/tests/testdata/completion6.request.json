@@ -1,0 +1,9 @@
+{
+  "textDocument": {
+    "uri": "${test_dir}/completion6.yar"
+  },
+  "position": {
+    "line": 1,
+    "character": 3
+  }
+}

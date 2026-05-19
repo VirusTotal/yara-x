@@ -28,14 +28,27 @@ capi = []
 # This feature is disabled by default.
 native-code-serialization = ["yara-x/native-code-serialization"]
 
+# Enables parallel compilation of WASM code. When compiling large number of
+# rules this noticeable reduces compilation time. However, this creates new
+# threads, which can be problematic in some scenarios. See:
+# https://github.com/VirusTotal/yara-x/issues/182
+#
+# This feature is disabled by default.
+parallel-compilation = ["yara-x/parallel-compilation"]
+
+# Enables the use of wasmtime's Pulley bytecode interpreter instead of the default
+# Cranelift JIT compiler. See the documentation in the `yara-x` core library for details.
+pulley = ["yara-x/pulley"]
+
 # Enables rules profiling.
 #
 # This feature is disabled by default.
 rules-profiling = ["yara-x/rules-profiling"]
 
-
+# Enables the `magic` module.
+#
+# This feature is disabled by default.
 magic-module = ["yara-x/magic-module"]
-
 
 [lib]
 name = "yara_x_capi"
@@ -43,10 +56,13 @@ crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
 serde_json = { workspace = true }
-yara-x = { workspace = true, features = ["parallel-compilation"] }
+yara-x = { workspace = true }
 
 [build-dependencies]
 cbindgen = { workspace = true }
+
+[dev-dependencies]
+assert-call = { workspace = true }
 
 
 # This section is used by `cargo-c` for generating the header and library

@@ -3,4 +3,3 @@ error[E024]: invalid pattern `$a`
   |
 3 |   $a = { 00 ~?? 11 }
   |             ^^^ negation of `??` is not allowed
-  |

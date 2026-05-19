@@ -4,7 +4,7 @@ Read more about the VBA file format specification here:
  https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/575462ba-bf67-4190-9fac-c275523c75fc
 */
 
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::vba::vba::ProjectInfo;
 use crate::modules::protos::vba::*;
 use protobuf::MessageField;
@@ -166,8 +166,7 @@ impl<'a> VbaExtractor<'a> {
     }
 }
 
-#[module_main]
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Vba {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Vba, ModuleError> {
     let mut vba = Vba::new();
     vba.has_macros = Some(false);
 
@@ -211,5 +210,7 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Vba {
         }
     }
 
-    vba
+    Ok(vba)
 }
+
+register_module!("vba", Vba, main);

@@ -1,0 +1,9 @@
+{
+  "textDocument": {
+    "uri": "${test_dir}/highlights3.yar"
+  },
+  "position": {
+    "line": 4,
+    "character": 5
+  }
+}

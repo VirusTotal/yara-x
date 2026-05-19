@@ -1,6 +1,8 @@
 syntax = "proto2";
 
 import "yara.proto";
+import "crx.proto";
+import "dex.proto";
 import "dotnet.proto";
 import "elf.proto";
 import "pe.proto";
@@ -20,4 +22,6 @@ message Modules {
     optional lnk.Lnk lnk = 5;
     optional olecf.Olecf olecf = 6;
     optional vba.Vba vba = 7;
+    optional crx.Crx crx = 8;
+    optional dex.Dex dex = 9;
 }

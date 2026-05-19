@@ -90,11 +90,12 @@ includes:
 
 #![deny(missing_docs)]
 #![allow(non_camel_case_types)]
+#![allow(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::missing_safety_doc)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 use std::cell::RefCell;
-use std::ffi::{c_char, CStr, CString};
+use std::ffi::{CStr, CString, c_char};
 use std::ptr::slice_from_raw_parts_mut;
 
 use yara_x::errors::CompileError;
@@ -148,6 +149,9 @@ pub enum YRX_RESULT {
     /// An error indicating that some of the strings passed to a function is
     /// not valid UTF-8.
     YRX_INVALID_UTF8,
+    /// An error indicating that a scanner that was already in multi-block
+    /// mode has been used as a standard scanner.
+    YRX_INVALID_STATE,
     /// An error occurred while serializing/deserializing YARA rules.
     YRX_SERIALIZATION_ERROR,
     /// An error returned when a rule doesn't have any metadata.
@@ -164,14 +168,10 @@ pub enum YRX_RESULT {
 /// function, as it can modify the last error and render the pointer to
 /// a previous error message invalid. Also, the pointer will be null if
 /// the most recent function was successfully.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_last_error() -> *const c_char {
     LAST_ERROR.with_borrow(|err| {
-        if let Some(err) = err {
-            err.as_ptr()
-        } else {
-            std::ptr::null()
-        }
+        if let Some(err) = err { err.as_ptr() } else { std::ptr::null() }
     })
 }
 
@@ -205,7 +205,7 @@ impl Drop for YRX_BUFFER {
 }
 
 /// Destroys a [`YRX_BUFFER`] object.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_buffer_destroy(buf: *mut YRX_BUFFER) {
     drop(Box::from_raw(buf));
 }
@@ -214,7 +214,7 @@ pub unsafe extern "C" fn yrx_buffer_destroy(buf: *mut YRX_BUFFER) {
 /// the compiled rules.
 ///
 /// The rules must be destroyed with [`yrx_rules_destroy`].
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compile(
     src: *const c_char,
     rules: &mut *mut YRX_RULES,
@@ -231,4 +231,35 @@ pub unsafe extern "C" fn yrx_compile(
             YRX_RESULT::YRX_SYNTAX_ERROR
         }
     }
+}
+
+/// Finalizes YARA-X.
+///
+/// This function only needs to be called in a very specific scenario:
+/// when YARA-X is used as a dynamically loaded library (`.so`, `.dll`,
+/// `.dylib`) **and** that library must be unloaded at runtime.
+///
+/// Its primary purpose is to remove the process-wide signal handlers
+/// installed by the [wasmtime] engine.
+///
+/// # Safety
+///
+/// This function is **unsafe** to call under normal circumstances. It has
+/// strict preconditions that must be met:
+///
+/// - There must be no other active `wasmtime` engines in the process. This
+///   applies not only to clones of the engine used by YARA-X (which should not
+///   exist because YARA-X uses a single copy of its engine), but to *any*
+///   `wasmtime` engine, since global state shared by all engines is torn
+///   down.
+///
+/// - On Unix platforms, no other signal handlers may have been installed
+///   for signals intercepted by `wasmtime`. If other handlers have been set,
+///   `wasmtime` cannot reliably restore the original state, which may lead
+///   to undefined behavior.
+///
+/// [wasmtime]: https://wasmtime.dev/
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn yrx_finalize() {
+    yara_x::finalize();
 }

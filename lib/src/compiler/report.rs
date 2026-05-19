@@ -1,18 +1,19 @@
-use annotate_snippets::renderer;
-use annotate_snippets::renderer::{AnsiColor, Color, DEFAULT_TERM_WIDTH};
-use serde::ser::SerializeStruct;
-use serde::{Serialize, Serializer};
 use std::borrow::Cow;
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
+use annotate_snippets::renderer::{AnsiColor, Color, DEFAULT_TERM_WIDTH};
+use annotate_snippets::{AnnotationKind, Group, Snippet, renderer};
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
+
 use yara_x_parser::Span;
 
 use crate::SourceCode;
 
-pub type Level = annotate_snippets::Level;
+pub type Level = annotate_snippets::Level<'static>;
 
 /// Identifier for each source code file registered in a [`ReportBuilder`].
 /// Each source file gets assigned its own unique `SourceId` when registered
@@ -37,11 +38,35 @@ impl CodeLoc {
     pub(crate) fn new(source_id: Option<SourceId>, span: Span) -> Self {
         Self { source_id, span }
     }
+}
 
-    /// Returns the span within the source code.
-    #[inline]
-    pub fn span(&self) -> &Span {
-        &self.span
+/// A patch that be applied for fixing a warning or error.
+pub struct Patch {
+    code_cache: Arc<CodeCache>,
+    code_loc: CodeLoc,
+    replacement: String,
+}
+
+impl Patch {
+    /// Origin of the source code, as specified by [`SourceCode::with_origin`].
+    pub fn origin(&self) -> Option<String> {
+        self.code_cache
+            .read()
+            .get(&self.code_loc.source_id.unwrap())
+            .unwrap()
+            .origin
+            .clone()
+    }
+
+    /// Span covering the portion of source code that needs to be replaced.
+    pub fn span(&self) -> Span {
+        self.code_loc.span.clone()
+    }
+
+    /// The new code that should replace the original one indicated by
+    /// [`Patch::span`].
+    pub fn replacement(&self) -> &str {
+        &self.replacement
     }
 }
 
@@ -80,6 +105,14 @@ pub(crate) struct Report {
     title: String,
     labels: Vec<(Level, CodeLoc, String)>,
     footers: Vec<(Level, String)>,
+    sections: Vec<Section>,
+}
+
+#[derive(Clone)]
+pub(crate) struct Section {
+    level: Level,
+    title: String,
+    patches: Vec<(CodeLoc, String)>,
 }
 
 impl Report {
@@ -90,31 +123,31 @@ impl Report {
     }
 
     /// Returns the report's labels.
-    pub(crate) fn labels(&self) -> impl Iterator<Item = Label> {
+    pub(crate) fn labels(&self) -> impl Iterator<Item = Label<'_>> {
         self.labels.iter().map(|(level, code_loc, text)| {
             let source_id =
                 code_loc.source_id.expect("CodeLoc without source ID");
 
             let code_cache = self.code_cache.read();
             let cache_entry = code_cache.get(&source_id).unwrap();
-            let code_origin = cache_entry.origin.clone();
+            let span = code_loc.span.clone();
 
-            // This could be faster if we maintain an ordered vector with the
-            // byte offset where each line begins. By doing a binary search
-            // on that vector, we can locate the line number in O(log(N))
-            // instead of O(N).
-            let (line, column) = byte_offset_to_line_col(
-                &cache_entry.code,
-                code_loc.span.start(),
-            )
-            .unwrap();
+            let (line, column) = match cache_entry
+                .byte_offset_to_line_col(span.start())
+            {
+                Some((line, column)) => (line, column),
+                None => panic!(
+                    "can't find line and column for span {span} in code:\n{}",
+                    &cache_entry.code
+                ),
+            };
 
             Label {
-                level: level_as_text(*level),
-                code_origin,
+                level: level_as_text(level),
+                code_origin: cache_entry.origin.clone(),
                 line,
                 column,
-                span: code_loc.span.clone(),
+                span,
                 text,
             }
         })
@@ -122,10 +155,50 @@ impl Report {
 
     /// Returns the report's footers.
     #[inline]
-    pub(crate) fn footers(&self) -> impl Iterator<Item = Footer> {
+    pub(crate) fn footers(&self) -> impl Iterator<Item = Footer<'_>> {
         self.footers
             .iter()
-            .map(|(level, text)| Footer { level: level_as_text(*level), text })
+            .map(|(level, text)| Footer { level: level_as_text(level), text })
+    }
+
+    /// Returns all the patches in the report.
+    pub(crate) fn patches(&self) -> impl Iterator<Item = Patch> + use<'_> {
+        self.sections.iter().flat_map(|section| {
+            section.patches.iter().map(|(code_loc, replacement)| Patch {
+                code_cache: self.code_cache.clone(),
+                code_loc: code_loc.clone(),
+                replacement: replacement.clone(),
+            })
+        })
+    }
+
+    pub(crate) fn new_section<T: Into<String>>(
+        &mut self,
+        level: Level,
+        title: T,
+    ) -> &mut Self {
+        self.sections.push(Section {
+            level,
+            title: title.into(),
+            patches: vec![],
+        });
+        self
+    }
+
+    pub(crate) fn patch<R: Into<String>>(
+        &mut self,
+        code_loc: CodeLoc,
+        replacement: R,
+    ) -> &mut Self {
+        if self.sections.is_empty() {
+            self.new_section(Level::HELP, "consider the following change");
+        };
+        self.sections
+            .last_mut()
+            .unwrap()
+            .patches
+            .push((code_loc, replacement.into()));
+        self
     }
 }
 
@@ -147,7 +220,7 @@ impl Serialize for Report {
         // that label.
         if let Some(label) = labels
             .iter()
-            .find(|label| label.level == level_as_text(self.level))
+            .find(|label| label.level == level_as_text(&self.level))
         {
             s.serialize_field("line", &label.line)?;
             s.serialize_field("column", &label.column)?;
@@ -174,54 +247,87 @@ impl Eq for Report {}
 
 impl Debug for Report {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }
 
 impl Display for Report {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        // Use the SourceId indicated by the first label, or the one
-        // corresponding to the current source file (i.e: the most
-        // recently registered).
-        let source_id =
-            self.labels.first().and_then(|label| label.1.source_id).unwrap();
-
         let code_cache = self.code_cache.read();
-        let mut cache_entry = code_cache.get(&source_id).unwrap();
-        let mut src = cache_entry.code.as_str();
 
-        let mut message = self.level.title(self.title.as_str()).id(self.code);
-        let mut snippet = annotate_snippets::Snippet::source(src)
-            .origin(cache_entry.origin.as_deref().unwrap_or("line"))
-            .fold(true);
+        let mut group = Group::with_title(
+            self.level.clone().primary_title(&self.title).id(self.code),
+        );
 
-        for (level, label_ref, label) in &self.labels {
-            let label_source_id = label_ref.source_id.unwrap();
-
-            // If the current label doesn't belong to the same source file
-            // finish the current snippet, add it to the error message and
-            // start a new snippet for the label's source file.
-            if label_source_id != source_id {
-                cache_entry = code_cache.get(&label_source_id).unwrap();
-                src = cache_entry.code.as_str();
-                message = message.snippet(snippet);
-                snippet = annotate_snippets::Snippet::source(src)
-                    .origin(cache_entry.origin.as_deref().unwrap_or("line"))
-                    .fold(true)
+        let mut source_ids = Vec::new();
+        for (_, label_ref, _) in &self.labels {
+            let sid = label_ref.source_id.unwrap();
+            if !source_ids.contains(&sid) {
+                source_ids.push(sid);
             }
-
-            let span_start = label_ref.span.start();
-            let span_end = label_ref.span.end();
-
-            snippet = snippet.annotation(
-                level.span(span_start..span_end).label(label.as_str()),
-            );
         }
 
-        message = message.snippet(snippet);
+        for source_id in source_ids {
+            let cache_entry = code_cache.get(&source_id).unwrap();
+
+            // To optimize snippet rendering for large files, we avoid passing
+            // the entire source code to annotate_snippets. Instead, we find
+            // the minimum and maximum byte offsets across all labels in this
+            // source file, locate their enclosing lines, and slice only that
+            // minimal section of code.
+            let min_offset = self
+                .labels
+                .iter()
+                .filter(|l| l.1.source_id.unwrap() == source_id)
+                .map(|l| l.1.span.start())
+                .min()
+                .unwrap();
+
+            let max_offset = self
+                .labels
+                .iter()
+                .filter(|l| l.1.source_id.unwrap() == source_id)
+                .map(|l| l.1.span.end())
+                .max()
+                .unwrap();
+
+            let (sliced_src, line_start, slice_start) =
+                get_source_slice(cache_entry, min_offset, max_offset);
+
+            // Construct snippet with the sliced source and explicitly align
+            // the starting line number.
+            let mut snippet = Snippet::source(sliced_src)
+                .line_start(line_start)
+                .path(cache_entry.origin.as_deref().unwrap_or("line"));
+
+            for (level, label_ref, label) in &self.labels {
+                if label_ref.source_id.unwrap() == source_id {
+                    let annotation_kind = if matches!(level, &Level::ERROR) {
+                        AnnotationKind::Primary
+                    } else {
+                        AnnotationKind::Context
+                    };
+
+                    // Shift annotation spans relative to the start
+                    // of our sliced source code.
+                    let span_start =
+                        label_ref.span.start().saturating_sub(slice_start);
+                    let span_end =
+                        label_ref.span.end().saturating_sub(slice_start);
+
+                    snippet = snippet.annotation(
+                        annotation_kind
+                            .span(span_start..span_end)
+                            .label(label),
+                    );
+                }
+            }
+
+            group = group.element(snippet);
+        }
 
         for (level, text) in &self.footers {
-            message = message.footer(level.title(text.as_str()));
+            group = group.element(level.clone().message(text.as_str()));
         }
 
         let renderer = if self.with_colors {
@@ -231,10 +337,90 @@ impl Display for Report {
         };
 
         let renderer = renderer.term_width(self.max_width);
-        let text = renderer.render(message);
 
-        write!(f, "{}", text)
+        let mut groups = vec![group];
+
+        for section in &self.sections {
+            if section.patches.is_empty() {
+                continue;
+            }
+            let sid = section.patches[0].0.source_id.unwrap();
+            let cache_entry = code_cache.get(&sid).unwrap();
+
+            // Similarly, slice the source code around the minimum and maximum
+            // patch offsets.
+            let min_offset = section
+                .patches
+                .iter()
+                .map(|(loc, _)| loc.span.start())
+                .min()
+                .unwrap();
+            let max_offset = section
+                .patches
+                .iter()
+                .map(|(loc, _)| loc.span.end())
+                .max()
+                .unwrap();
+
+            let (sliced_src, line_start, slice_start) =
+                get_source_slice(cache_entry, min_offset, max_offset);
+
+            let mut snippet = Snippet::source(sliced_src)
+                .line_start(line_start)
+                .path(cache_entry.origin.as_deref().unwrap_or("line"));
+
+            for (code_loc, replacement) in &section.patches {
+                // Shift patch spans relative to the sliced source code.
+                let span_start =
+                    code_loc.span.start().saturating_sub(slice_start);
+                let span_end = code_loc.span.end().saturating_sub(slice_start);
+
+                snippet = snippet.patch(annotate_snippets::Patch::new(
+                    span_start..span_end,
+                    replacement,
+                ))
+            }
+
+            groups.push(
+                section
+                    .level
+                    .clone()
+                    .secondary_title(&section.title)
+                    .element(snippet),
+            );
+        }
+
+        let text = renderer.render(&groups);
+
+        write!(f, "{text}")
     }
+}
+
+/// Given a cache entry and byte offset range, returns the minimal source code
+/// slice, its 1-based starting line number, and starting byte offset.
+fn get_source_slice(
+    cache_entry: &CodeCacheEntry,
+    min_offset: usize,
+    max_offset: usize,
+) -> (&str, usize, usize) {
+    let line_starts = &cache_entry.line_starts;
+    let start_line_idx =
+        line_starts.partition_point(|&x| x <= min_offset).saturating_sub(1);
+    let end_line_idx =
+        line_starts.partition_point(|&x| x <= max_offset).saturating_sub(1);
+
+    let slice_start = line_starts[start_line_idx];
+    let slice_end = if end_line_idx + 1 < line_starts.len() {
+        line_starts[end_line_idx + 1]
+    } else {
+        cache_entry.code.len()
+    };
+
+    (
+        &cache_entry.code[slice_start..slice_end],
+        start_line_idx + 1,
+        slice_start,
+    )
 }
 
 /// Represents a label in an error or warning report.
@@ -250,8 +436,18 @@ pub struct Label<'a> {
 
 impl Label<'_> {
     #[inline]
+    pub fn origin(&self) -> Option<&str> {
+        self.code_origin.as_deref()
+    }
+
+    #[inline]
     pub fn span(&self) -> &Span {
         &self.span
+    }
+
+    #[inline]
+    pub fn text(&self) -> &str {
+        self.text
     }
 }
 
@@ -304,7 +500,29 @@ impl CodeCache {
 /// Each of the entries stored in [`CodeCache`].
 struct CodeCacheEntry {
     code: String,
+    line_starts: Vec<usize>,
     origin: Option<String>,
+}
+
+impl CodeCacheEntry {
+    /// Given a position indicated as a byte offset, returns the same position
+    /// as a (line, column) pair.
+    fn byte_offset_to_line_col(
+        &self,
+        byte_offset: usize,
+    ) -> Option<(usize, usize)> {
+        if byte_offset > self.code.len()
+            || !self.code.is_char_boundary(byte_offset)
+        {
+            return None;
+        }
+
+        let line = self.line_starts.partition_point(|&x| x <= byte_offset);
+        let line_start = self.line_starts[line - 1];
+        let col = self.code[line_start..byte_offset].chars().count() + 1;
+
+        Some((line, col))
+    }
 }
 
 impl Default for ReportBuilder {
@@ -403,12 +621,15 @@ impl ReportBuilder {
             } else {
                 String::from_utf8_lossy(src.raw.as_ref())
             };
+            let code = s.replace('\t', " ");
+            let line_starts = compute_line_starts(&code);
             CodeCacheEntry {
                 // Replace tab characters with a single space. This doesn't
                 // affect code spans, because the number of characters remain
                 // the same, but prevents error messages from being wrongly
                 // formatted when they are printed.
-                code: s.replace('\t', " "),
+                code,
+                line_starts,
                 origin: src.origin.clone(),
             }
         });
@@ -416,14 +637,14 @@ impl ReportBuilder {
         source_id
     }
 
-    /// Returns the fragment of source code indicated by `code_loc`.
-    pub fn get_snippet(&self, code_loc: &CodeLoc) -> String {
-        let source_id = code_loc.source_id.expect("CodeLoc without source ID");
+    /// Returns the fragment from the current source code indicated by `span`.
+    pub fn get_snippet(&self, span: Span) -> String {
+        let source_id = self.get_current_source_id().unwrap();
         let code_cache = self.code_cache.read();
         let cache_entry = code_cache.get(&source_id).unwrap();
         let src = cache_entry.code.as_str();
 
-        src[code_loc.span().range()].to_string()
+        src[span.range()].to_string()
     }
 
     /// Creates a new error or warning report.
@@ -453,100 +674,88 @@ impl ReportBuilder {
             title,
             labels,
             footers,
+            sections: Vec::new(),
         }
     }
 }
 
-fn level_as_text(level: Level) -> &'static str {
-    match level {
-        Level::Error => "error",
-        Level::Warning => "warning",
-        Level::Info => "info",
-        Level::Note => "note",
-        Level::Help => "help",
+fn level_as_text(level: &Level) -> &'static str {
+    match *level {
+        Level::ERROR => "error",
+        Level::WARNING => "warning",
+        Level::INFO => "info",
+        Level::NOTE => "note",
+        Level::HELP => "help",
+        _ => panic!("unsupported level {level:?}"),
     }
 }
 
-/// Given a text slice and a position indicated as a byte offset, returns
-/// the same position as a (line, column) pair.
-fn byte_offset_to_line_col(
-    text: &str,
-    byte_offset: usize,
-) -> Option<(usize, usize)> {
-    // Check if the byte_offset is valid
-    if byte_offset > text.len() {
-        return None; // Out of bounds
-    }
-
-    let mut line = 1;
-    let mut col = 1;
-
-    // Iterate through the characters (not bytes) in the string
+fn compute_line_starts(text: &str) -> Vec<usize> {
+    let mut line_starts = vec![0];
     for (i, c) in text.char_indices() {
-        if i == byte_offset {
-            return Some((line, col));
-        }
         if c == '\n' {
-            line += 1;
-            col = 1; // Reset column to 1 after a newline
-        } else {
-            col += 1;
+            line_starts.push(i + 1);
         }
     }
-
-    // If the byte_offset points to the last byte of the string, return the final position
-    if byte_offset == text.len() {
-        return Some((line, col));
-    }
-
-    None
+    line_starts
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::compiler::report::byte_offset_to_line_col;
+    use crate::compiler::report::{CodeCacheEntry, compute_line_starts};
+
+    fn helper(text: &str, offset: usize) -> Option<(usize, usize)> {
+        let line_starts = compute_line_starts(text);
+        let entry = CodeCacheEntry {
+            code: text.to_string(),
+            line_starts,
+            origin: None,
+        };
+        entry.byte_offset_to_line_col(offset)
+    }
 
     #[test]
     fn byte_offset_to_line_col_single_line() {
         let text = "Hello, World!";
-        assert_eq!(byte_offset_to_line_col(text, 0), Some((1, 1))); // Start of the string
-        assert_eq!(byte_offset_to_line_col(text, 7), Some((1, 8))); // Byte offset of 'W'
-        assert_eq!(byte_offset_to_line_col(text, 12), Some((1, 13))); // Byte offset of '!'
+        assert_eq!(helper(text, 0), Some((1, 1))); // Start of the string
+        assert_eq!(helper(text, 7), Some((1, 8))); // Byte offset of 'W'
+        assert_eq!(helper(text, 12), Some((1, 13))); // Byte offset of '!'
     }
 
     #[test]
     fn byte_offset_to_line_col_multiline() {
         let text = "Hello\nRust\nWorld!";
-        assert_eq!(byte_offset_to_line_col(text, 0), Some((1, 1))); // First character
-        assert_eq!(byte_offset_to_line_col(text, 5), Some((1, 6))); // End of first line (newline)
-        assert_eq!(byte_offset_to_line_col(text, 6), Some((2, 1))); // Start of second line ('R')
-        assert_eq!(byte_offset_to_line_col(text, 9), Some((2, 4))); // Byte offset of 't' in "Rust"
-        assert_eq!(byte_offset_to_line_col(text, 11), Some((3, 1))); // Start of third line ('W')
+        assert_eq!(helper(text, 0), Some((1, 1))); // First character
+        assert_eq!(helper(text, 5), Some((1, 6))); // End of first line (newline)
+        assert_eq!(helper(text, 6), Some((2, 1))); // Start of second line ('R')
+        assert_eq!(helper(text, 9), Some((2, 4))); // Byte offset of 't' in "Rust"
+        assert_eq!(helper(text, 11), Some((3, 1))); // Start of third line ('W')
     }
 
     #[test]
     fn byte_offset_to_line_col_empty_string() {
         let text = "";
-        assert_eq!(byte_offset_to_line_col(text, 0), Some((1, 1)));
+        assert_eq!(helper(text, 0), Some((1, 1)));
     }
 
     #[test]
     fn byte_offset_to_line_col_out_of_bounds() {
         let text = "Hello, World!";
-        assert_eq!(byte_offset_to_line_col(text, text.len() + 1), None);
+        assert_eq!(helper(text, text.len() + 1), None);
     }
 
     #[test]
     fn byte_offset_to_line_col_end_of_string() {
         let text = "Hello, World!";
-        assert_eq!(byte_offset_to_line_col(text, text.len()), Some((1, 14))); // Last position after '!'
+        assert_eq!(helper(text, text.len()), Some((1, 14))); // Last position after '!'
     }
 
     #[test]
     fn byte_offset_to_line_col_multibyte_characters() {
         let text = "Hello, 你好!";
-        assert_eq!(byte_offset_to_line_col(text, 7), Some((1, 8))); // Position of '你'
-        assert_eq!(byte_offset_to_line_col(text, 10), Some((1, 9))); // Position of '好'
-        assert_eq!(byte_offset_to_line_col(text, 13), Some((1, 10))); // Position of '!'
+        assert_eq!(helper(text, 7), Some((1, 8))); // Position of '你'
+        assert_eq!(helper(text, 8), None); // Position in the middle of '你'
+        assert_eq!(helper(text, 10), Some((1, 9))); // Position of '好'
+        assert_eq!(helper(text, 13), Some((1, 10))); // Position of '!'
     }
 }

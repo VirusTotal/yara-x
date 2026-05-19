@@ -1,0 +1,31 @@
+SOURCE_FILE@0..73
+  RULE_DECL@0..73
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..16 "    "
+    CONDITION_BLK@16..71
+      CONDITION_KW@16..25 "condition"
+      COLON@25..26 ":"
+      NEWLINE@26..27 "\n"
+      WHITESPACE@27..35 "        "
+      ERROR@35..71
+        WITH_KW@35..39 "with"
+        WHITESPACE@39..40 " "
+        IDENT@40..43 "foo"
+        WHITESPACE@43..44 " "
+        L_PAREN@44..45 "("
+        NEWLINE@45..46 "\n"
+        WHITESPACE@46..58 "            "
+        IDENT@58..61 "foo"
+        NEWLINE@61..62 "\n"
+        WHITESPACE@62..70 "        "
+        R_PAREN@70..71 ")"
+    NEWLINE@71..72 "\n"
+    R_BRACE@72..73 "}"
+
+ERRORS:
+- [44..45]: expecting `=`, found `(`

@@ -3,4 +3,3 @@ error[E002]: wrong type
   |
 4 |     test_proto2.nested
   |     ^^^^^^^^^^^^^^^^^^ expression should be `bool`, but it is a struct
-  |

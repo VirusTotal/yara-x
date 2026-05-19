@@ -1,0 +1,27 @@
+[
+  {
+    "detail": "include",
+    "kind": 1,
+    "name": "foo",
+    "range": {
+      "end": {
+        "character": 13,
+        "line": 0
+      },
+      "start": {
+        "character": 0,
+        "line": 0
+      }
+    },
+    "selectionRange": {
+      "end": {
+        "character": 13,
+        "line": 0
+      },
+      "start": {
+        "character": 0,
+        "line": 0
+      }
+    }
+  }
+]

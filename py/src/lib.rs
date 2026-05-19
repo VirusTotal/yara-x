@@ -14,39 +14,93 @@ matches = rules.scan(b'some dummy data')
  */
 
 #![deny(missing_docs)]
-
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::io::{Read, Write};
 use std::marker::PhantomPinned;
-use std::mem;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::str::FromStr;
 use std::time::Duration;
-use strum_macros::{Display, EnumString};
+use std::{io, mem};
 
-use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
+use base64::prelude::BASE64_STANDARD;
 use protobuf::MessageDyn;
 use pyo3::exceptions::{PyException, PyIOError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
+use pyo3::sync::PyOnceLock;
 use pyo3::types::{
     PyBool, PyBytes, PyDict, PyFloat, PyInt, PyString, PyStringMethods,
     PyTuple, PyTzInfo,
 };
-use pyo3::{create_exception, IntoPyObjectExt};
-use pyo3_file::PyFileLikeObject;
+use pyo3::{IntoPyObjectExt, create_exception};
+use strum_macros::{Display, EnumString};
 
 use ::yara_x as yrx;
-use ::yara_x::mods::*;
+use yara_x_fmt::Indentation;
+use yara_x_parser::ast::MetaValue;
+
+fn dict_to_json(dict: Bound<PyAny>) -> PyResult<serde_json::Value> {
+    static JSON_DUMPS: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+    let py = dict.py();
+    let dumps = JSON_DUMPS.get_or_init(py, || {
+        let json_mod = PyModule::import(py, "json").unwrap().unbind();
+        json_mod.getattr(py, "dumps").unwrap()
+    });
+    let json_str: String = dumps.call1(py, (dict,))?.extract(py)?;
+    serde_json::from_str(&json_str)
+        .map_err(|err| PyValueError::new_err(err.to_string()))
+}
 
 #[derive(Debug, Clone, Display, EnumString, PartialEq)]
 #[strum(ascii_case_insensitive)]
 enum SupportedModules {
+    #[cfg(feature = "lnk-module")]
     Lnk,
+    #[cfg(feature = "macho-module")]
     Macho,
+    #[cfg(feature = "elf-module")]
     Elf,
+    #[cfg(feature = "pe-module")]
     Pe,
+    #[cfg(feature = "dotnet-module")]
     Dotnet,
+    #[cfg(feature = "crx-module")]
+    Crx,
+    #[cfg(feature = "dex-module")]
+    Dex,
+}
+
+// These are copies from the checker in the CLI, but exposing them in the API
+// for use here seems wrong. Maybe move them to a better place or just keep our
+// own copies here?
+fn is_sha256(s: &str) -> bool {
+    s.len() == 64 && s.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+fn is_sha1(s: &str) -> bool {
+    s.len() == 40 && s.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+fn is_md5(s: &str) -> bool {
+    s.len() == 32 && s.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+/// Supported metadata types used to add linters to the compiler.
+#[pyclass(from_py_object)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(clippy::upper_case_acronyms)]
+enum MetaType {
+    STRING,
+    INTEGER,
+    FLOAT,
+    BOOL,
+    SHA256,
+    SHA1,
+    MD5,
+    HASH,
 }
 
 /// Formats YARA rules.
@@ -95,7 +149,11 @@ impl Formatter {
                 .align_patterns(align_patterns)
                 .indent_section_headers(indent_section_headers)
                 .indent_section_contents(indent_section_contents)
-                .indent_spaces(indent_spaces)
+                .indentation(if indent_spaces == 0 {
+                    Indentation::Tabs
+                } else {
+                    Indentation::Spaces(indent_spaces as usize)
+                })
                 .newline_before_curly_brace(newline_before_curly_brace)
                 .empty_line_before_section_header(
                     empty_line_before_section_header,
@@ -107,20 +165,205 @@ impl Formatter {
     }
 
     /// Format a YARA rule
-    fn format(&self, input: PyObject, output: PyObject) -> PyResult<()> {
-        let in_buf = PyFileLikeObject::with_requirements(
-            input, true, false, false, false,
-        )?;
-
-        let mut out_buf = PyFileLikeObject::with_requirements(
-            output, false, true, false, false,
-        )?;
-
+    fn format(&self, input: Py<PyAny>, output: Py<PyAny>) -> PyResult<()> {
         self.inner
-            .format(in_buf, &mut out_buf)
+            .format(PyReader::new(input)?, PyWriter::new(output)?)
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
         Ok(())
+    }
+}
+
+mod consts {
+    use pyo3::prelude::*;
+    use pyo3::sync::PyOnceLock;
+    use pyo3::types::PyString;
+    use pyo3::{Bound, Py, PyResult, Python, intern};
+
+    pub fn read(py: Python<'_>) -> &Bound<'_, PyString> {
+        intern!(py, "read")
+    }
+
+    pub fn write(py: Python<'_>) -> &Bound<'_, PyString> {
+        intern!(py, "write")
+    }
+
+    pub fn flush(py: Python<'_>) -> &Bound<'_, PyString> {
+        intern!(py, "flush")
+    }
+
+    pub fn text_io_base(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>> {
+        static INSTANCE: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+
+        INSTANCE
+            .get_or_try_init(py, || {
+                let io = PyModule::import(py, "io")?;
+                let cls = io.getattr("TextIOBase")?;
+                Ok(cls.unbind())
+            })
+            .map(|x| x.bind(py))
+    }
+}
+
+struct PyReader {
+    obj: Py<PyAny>,
+    is_text_io: bool,
+    // Buffer to store excess bytes read from Python streams. This is necessary
+    // because when reading from a TextIO object, Python's `read(n)` returns up
+    // to `n` characters, which can be more than `n` bytes if there are
+    // multibyte characters.
+    buffer: Vec<u8>,
+}
+
+impl PyReader {
+    pub fn new(obj: Py<PyAny>) -> PyResult<Self> {
+        Python::attach(|py| {
+            let obj_bound = obj.bind(py);
+
+            if !obj_bound.hasattr(consts::read(py))? {
+                return Err(PyTypeError::new_err(
+                    "object does not have a .read() method.",
+                ));
+            }
+
+            let is_text_io =
+                obj_bound.is_instance(consts::text_io_base(py)?)?;
+
+            Ok(Self { obj, is_text_io, buffer: Vec::new() })
+        })
+    }
+}
+
+impl Read for PyReader {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+
+        // If we have leftover bytes from a previous read, consume them first.
+        if !self.buffer.is_empty() {
+            let n = std::cmp::min(buf.len(), self.buffer.len());
+            buf[..n].copy_from_slice(&self.buffer[..n]);
+            self.buffer.drain(..n);
+            return Ok(n);
+        }
+
+        Python::attach(|py| {
+            // Call Python `read` method. We request `buf.len()` units.
+            // For text streams, this means `buf.len()` characters.
+            let data =
+                self.obj.call_method1(py, consts::read(py), (buf.len(),))?;
+
+            let bytes = if self.is_text_io {
+                let s = data.extract::<Cow<str>>(py)?;
+                s.as_bytes().to_vec()
+            } else {
+                data.extract::<Cow<[u8]>>(py)?.to_vec()
+            };
+
+            if bytes.is_empty() {
+                return Ok(0);
+            }
+
+            // Copy as many bytes as fit in `buf`.
+            let n = std::cmp::min(buf.len(), bytes.len());
+            buf[..n].copy_from_slice(&bytes[..n]);
+
+            // If Python returned more bytes than fit in `buf` (due to multi-byte
+            // characters in text mode), store the excess in our buffer.
+            if n < bytes.len() {
+                self.buffer.extend_from_slice(&bytes[n..]);
+            }
+
+            Ok(n)
+        })
+    }
+}
+
+struct PyWriter {
+    obj: Py<PyAny>,
+    is_text_io: bool,
+    // Buffer to store incomplete UTF-8 sequences at the end of chunks.
+    // This is necessary because the formatter writes data in chunks, and a
+    // chunk boundary can fall in the middle of a multi-byte UTF-8 character.
+    buffer: Vec<u8>,
+}
+
+impl PyWriter {
+    pub fn new(obj: Py<PyAny>) -> PyResult<Self> {
+        Python::attach(|py| {
+            let obj_bound = obj.bind(py);
+
+            if !obj_bound.hasattr(consts::write(py))? {
+                return Err(PyTypeError::new_err(
+                    "object does not have a .write() method.",
+                ));
+            }
+
+            let is_text_io =
+                obj_bound.is_instance(consts::text_io_base(py)?)?;
+
+            Ok(Self { obj, is_text_io, buffer: Vec::new() })
+        })
+    }
+}
+
+impl Write for PyWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        Python::attach(|py| {
+            if !self.is_text_io {
+                let arg = PyBytes::new(py, buf).into_any();
+                let n =
+                    self.obj.call_method1(py, consts::write(py), (arg,))?;
+                return n.extract(py).map_err(io::Error::from);
+            }
+
+            // Append new data to buffer.
+            self.buffer.extend_from_slice(buf);
+
+            // Try to convert the buffered data to a valid UTF-8 string.
+            match std::str::from_utf8(&self.buffer) {
+                Ok(s) => {
+                    let arg = PyString::new(py, s).into_any();
+                    self.obj.call_method1(py, consts::write(py), (arg,))?;
+                    self.buffer.clear();
+                    Ok(buf.len())
+                }
+                Err(e) => {
+                    let valid_len = e.valid_up_to();
+                    if e.error_len().is_some() {
+                        // Real UTF-8 error in the middle of the data.
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            e,
+                        ));
+                    }
+                    // Incomplete UTF-8 sequence at the end of the buffer.
+                    // Write the valid part and keep the incomplete part in the buffer.
+                    if valid_len > 0 {
+                        let s = std::str::from_utf8(&self.buffer[..valid_len])
+                            .unwrap();
+                        let arg = PyString::new(py, s).into_any();
+                        self.obj.call_method1(
+                            py,
+                            consts::write(py),
+                            (arg,),
+                        )?;
+                        self.buffer.drain(..valid_len);
+                    }
+                    // We return `buf.len()` because we accepted all bytes (either
+                    // wrote them or buffered them).
+                    Ok(buf.len())
+                }
+            }
+        })
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Python::attach(|py| {
+            self.obj.call_method0(py, consts::flush(py))?;
+            Ok(())
+        })
     }
 }
 
@@ -138,10 +381,7 @@ impl Module {
     fn new(name: &str) -> PyResult<Self> {
         Ok(Self {
             _module: SupportedModules::from_str(name).map_err(|_| {
-                PyValueError::new_err(format!(
-                    "{} not a supported module",
-                    name
-                ))
+                PyValueError::new_err(format!("{name} not a supported module"))
             })?,
         })
     }
@@ -149,18 +389,44 @@ impl Module {
     /// Invoke the module with provided data.
     ///
     /// Returns None if the module didn't produce any output for the given data.
+    #[allow(unreachable_code, unused_variables, unreachable_patterns)]
     fn invoke<'py>(
         &'py self,
         py: Python<'py>,
         data: &[u8],
     ) -> PyResult<Bound<'py, PyAny>> {
-        let module_output = match self._module {
-            SupportedModules::Macho => invoke_dyn::<Macho>(data),
-            SupportedModules::Lnk => invoke_dyn::<Lnk>(data),
-            SupportedModules::Elf => invoke_dyn::<ELF>(data),
-            SupportedModules::Pe => invoke_dyn::<PE>(data),
-            SupportedModules::Dotnet => invoke_dyn::<Dotnet>(data),
-        };
+        let module_output: Option<Box<dyn protobuf::MessageDyn>> =
+            match self._module {
+                #[cfg(feature = "macho-module")]
+                SupportedModules::Macho => {
+                    yrx::mods::invoke_dyn::<yrx::mods::Macho>(data)
+                }
+                #[cfg(feature = "lnk-module")]
+                SupportedModules::Lnk => {
+                    yrx::mods::invoke_dyn::<yrx::mods::Lnk>(data)
+                }
+                #[cfg(feature = "elf-module")]
+                SupportedModules::Elf => {
+                    yrx::mods::invoke_dyn::<yrx::mods::ELF>(data)
+                }
+                #[cfg(feature = "pe-module")]
+                SupportedModules::Pe => {
+                    yrx::mods::invoke_dyn::<yrx::mods::PE>(data)
+                }
+                #[cfg(feature = "dotnet-module")]
+                SupportedModules::Dotnet => {
+                    yrx::mods::invoke_dyn::<yrx::mods::Dotnet>(data)
+                }
+                #[cfg(feature = "crx-module")]
+                SupportedModules::Crx => {
+                    yrx::mods::invoke_dyn::<yrx::mods::Crx>(data)
+                }
+                #[cfg(feature = "dex-module")]
+                SupportedModules::Dex => {
+                    yrx::mods::invoke_dyn::<yrx::mods::Dex>(data)
+                }
+                _ => return Ok(py.None().into_bound(py)),
+            };
 
         let module_output = match module_output {
             Some(output) => output,
@@ -169,6 +435,15 @@ impl Module {
 
         proto_to_json(py, module_output.as_ref())
     }
+}
+
+/// Returns the names of the supported modules.
+///
+/// These are the modules that can be used in `import` statements in your
+/// rules.
+#[pyfunction]
+fn module_names<'py>(py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
+    PyTuple::new(py, yrx::mods::module_names().collect::<Vec<_>>())
 }
 
 /// Compiles a YARA source code producing a set of compiled [`Rules`].
@@ -223,7 +498,8 @@ impl Compiler {
     /// The `error_on_slow_pattern` argument tells the compiler to treat slow
     /// patterns as errors, instead of warnings.
     #[new]
-    #[pyo3(signature = (*, relaxed_re_syntax=false, error_on_slow_pattern=false, includes_enabled=true))]
+    #[pyo3(signature = (relaxed_re_syntax=false, error_on_slow_pattern=false, includes_enabled=true)
+    )]
     fn new(
         relaxed_re_syntax: bool,
         error_on_slow_pattern: bool,
@@ -244,10 +520,17 @@ impl Compiler {
     /// will return an InvalidRuleName warning.
     ///
     /// If the regexp does not compile a ValueError is returned.
-    #[pyo3(signature = (regexp_str))]
-    fn rule_name_regexp(&mut self, regexp_str: &str) -> PyResult<()> {
-        let linter = yrx::linters::rule_name(regexp_str)
-            .map_err(|err| PyValueError::new_err(err.to_string()))?;
+    #[pyo3(signature = (regexp, error = false))]
+    fn allowed_rule_name(
+        &mut self,
+        regexp: &str,
+        error: bool,
+    ) -> PyResult<()> {
+        let mut linter = match yrx::linters::rule_name(regexp) {
+            Ok(linter) => linter,
+            Err(err) => return Err(PyValueError::new_err(err.to_string())),
+        };
+        linter = linter.error(error);
         self.inner.add_linter(linter);
         Ok(())
     }
@@ -288,6 +571,31 @@ impl Compiler {
         Ok(())
     }
 
+    /// Adds a directory to the list of directories where the compiler should
+    /// look for included files.
+    ///
+    /// When an `include` statement is found, the compiler looks for the included
+    /// file in the directories added with this function, in the order they were
+    /// added.
+    ///
+    /// If this function is not called, the compiler will only look for included
+    /// files in the current directory.
+    ///
+    /// Use [Compiler::enable_includes] for controlling whether include statements
+    /// are allowed or not.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// import yara_x
+    /// compiler = yara_x.Compiler()
+    /// compiler.add_include_dir("/path/to/rules")
+    /// compiler.add_include_dir("/another/path")
+    /// ```
+    fn add_include_dir(&mut self, dir: &str) {
+        self.inner.add_include_dir(dir);
+    }
+
     /// Defines a global variable and sets its initial value.
     ///
     /// Global variables must be defined before calling [`Compiler::add_source`]
@@ -296,7 +604,10 @@ impl Compiler {
     /// each scanner can change the variable's value by calling
     /// [`crate::Scanner::set_global`].
     ///
-    /// The type of `value` must be: bool, str, bytes, int or float.
+    /// The type of `value` must be: bool, str, bytes, int, float or dict. When
+    /// the value is a dict, keys must be of type string and valid YARA identifiers
+    /// (the first character must be `_` or a letter, and the remaining ones must
+    /// be a `_`, a letter or a digit).
     ///
     /// # Raises
     ///
@@ -317,6 +628,8 @@ impl Compiler {
             self.inner.define_global(ident, value.extract::<i64>()?)
         } else if value.is_exact_instance_of::<PyFloat>() {
             self.inner.define_global(ident, value.extract::<f64>()?)
+        } else if value.is_exact_instance_of::<PyDict>() {
+            self.inner.define_global(ident, dict_to_json(value)?)
         } else {
             return Err(PyTypeError::new_err(format!(
                 "unsupported variable type `{}`",
@@ -365,6 +678,13 @@ impl Compiler {
         self.inner.enable_includes(yes);
     }
 
+    /// Sets the maximum number of warnings.
+    ///
+    /// The compiler will report only the first `n` warnings.
+    fn max_warnings(&mut self, n: usize) {
+        self.inner.max_warnings(n);
+    }
+
     /// Builds the source code previously added to the compiler.
     ///
     /// This function returns an instance of [`Rules`] containing all the rules
@@ -410,6 +730,194 @@ impl Compiler {
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
         json_loads.call((warnings_json,), None)
     }
+
+    #[pyo3(signature = (tags, error = false))]
+    fn allowed_tags(
+        &mut self,
+        tags: Vec<String>,
+        error: bool,
+    ) -> PyResult<()> {
+        self.inner.add_linter(yrx::linters::tags_allowed(tags).error(error));
+        Ok(())
+    }
+
+    #[pyo3(signature = (regexp, error = false))]
+    fn allowed_tags_regex(
+        &mut self,
+        regexp: String,
+        error: bool,
+    ) -> PyResult<()> {
+        let mut linter = match yrx::linters::tag_regex(regexp) {
+            Ok(linter) => linter,
+            Err(err) => return Err(PyValueError::new_err(err.to_string())),
+        };
+        linter = linter.error(error);
+        self.inner.add_linter(linter);
+        Ok(())
+    }
+
+    #[pyo3(signature = (
+            identifier,
+            value_type,
+            required = false,
+            error = false,
+            regexp = None
+        ))]
+    fn allowed_metadata(
+        &mut self,
+        identifier: &str,
+        value_type: MetaType,
+        required: bool,
+        error: bool,
+        regexp: Option<String>,
+    ) -> PyResult<()> {
+        let mut linter =
+            yrx::linters::metadata(identifier).required(required).error(error);
+        match value_type {
+            MetaType::STRING => {
+                let compiled_regex =
+                    regexp
+                        .as_ref()
+                        .map(
+                            |regexp| -> PyResult<(
+                                regex::Regex,
+                                regex::bytes::Regex,
+                            )> {
+                                Ok((
+                                    regex::Regex::new(regexp.as_str())
+                                        .map_err(|err| {
+                                            PyValueError::new_err(
+                                                err.to_string(),
+                                            )
+                                        })?,
+                                    regex::bytes::Regex::new(regexp.as_str())
+                                        .map_err(|err| {
+                                            PyValueError::new_err(
+                                                err.to_string(),
+                                            )
+                                        })?,
+                                ))
+                            },
+                        )
+                        .transpose()?;
+
+                let message = if let Some(regexp) = regexp.clone() {
+                    format!(
+                        "`{identifier}` must be a string that matches `/{regexp}/`"
+                    )
+                } else {
+                    format!("`{identifier}` must be a string")
+                };
+                linter = linter.validator(
+                    move |meta| match (&meta.value, &compiled_regex) {
+                        (MetaValue::String((s, _)), Some((regexp, _))) => {
+                            regexp.is_match(s)
+                        }
+                        (MetaValue::Bytes((s, _)), Some((_, regexp))) => {
+                            regexp.is_match(s)
+                        }
+                        (MetaValue::String(_), None) => true,
+                        (MetaValue::Bytes(_), None) => true,
+                        _ => false,
+                    },
+                    message,
+                );
+            }
+            MetaType::INTEGER => {
+                linter = linter.validator(
+                    |meta| matches!(meta.value, MetaValue::Integer(_)),
+                    format!("`{identifier}` must be an integer"),
+                );
+            }
+            MetaType::FLOAT => {
+                linter = linter.validator(
+                    |meta| matches!(meta.value, MetaValue::Float(_)),
+                    format!("`{identifier}` must be a float"),
+                );
+            }
+            MetaType::BOOL => {
+                linter = linter.validator(
+                    |meta| matches!(meta.value, MetaValue::Bool(_)),
+                    format!("`{identifier}` must be a bool"),
+                );
+            }
+            MetaType::SHA256 => {
+                linter = linter.validator(
+                        |meta| matches!(meta.value, MetaValue::String((s,_)) if is_sha256(s)),
+                        format!("`{identifier}` must be a SHA-256"),
+                    );
+            }
+            MetaType::SHA1 => {
+                linter = linter.validator(
+                        |meta| matches!(meta.value, MetaValue::String((s,_)) if is_sha1(s)),
+                        format!("`{identifier}` must be a SHA-1"),
+                    );
+            }
+            MetaType::MD5 => {
+                linter = linter.validator(
+                        |meta| matches!(meta.value, MetaValue::String((s,_)) if is_md5(s)),
+                        format!("`{identifier}` must be a MD5"),
+                    );
+            }
+            MetaType::HASH => {
+                linter = linter.validator(
+                        |meta| matches!(meta.value, MetaValue::String((s,_)) if is_md5(s) || is_sha1(s) || is_sha256(s)),
+                        format!("`{identifier}` must be a MD5, SHA-1 or SHA-256"),
+                    );
+            }
+        }
+        self.inner.add_linter(linter);
+        Ok(())
+    }
+}
+
+/// Optional information for the scan operation.
+#[pyclass]
+struct ScanOptions {
+    module_metadata: HashMap<String, Vec<u8>>,
+}
+
+impl<'a> From<&'a ScanOptions> for yrx::ScanOptions<'a> {
+    fn from(options: &'a ScanOptions) -> Self {
+        let mut result = yrx::ScanOptions::new();
+        for (module_name, metadata) in &options.module_metadata {
+            result = result.set_module_metadata(
+                module_name.as_str(),
+                metadata.as_slice(),
+            );
+        }
+        result
+    }
+}
+
+#[pymethods]
+impl ScanOptions {
+    /// Creates a new [`ScanOptions`].
+    #[new]
+    fn new() -> Self {
+        Self { module_metadata: HashMap::new() }
+    }
+
+    /// Sets the data associated with a YARA module.
+    ///
+    /// When scanning a file, YARA modules may require additional data that is
+    /// not present in the file itself. For instance, the `cuckoo` module may
+    /// need a report from Cuckoo sandbox with information about the file being
+    /// scanned.
+    ///
+    /// This function is used for providing that data to the modules. The data
+    /// is specific to the module, and each module expects a different data
+    /// structure. The data is passed as raw bytes that the module is responsible
+    /// to decode accordingly.
+    fn set_module_metadata(
+        &mut self,
+        module: &str,
+        metadata: Bound<PyBytes>,
+    ) -> PyResult<()> {
+        let metadata = metadata.extract::<Vec<u8>>()?;
+        self.module_metadata.insert(module.to_string(), metadata);
+        Ok(())
+    }
 }
 
 /// Scans data with already compiled YARA rules.
@@ -438,7 +946,7 @@ impl Scanner {
     /// Creates a new [`Scanner`] with a given set of [`Rules`].
     #[new]
     fn new(rules: Py<Rules>) -> Self {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let rules_ref: &'static yrx::Rules = {
                 let rules = rules.borrow(py);
                 let rules_ptr: *const yrx::Rules = &rules.deref().inner.rules;
@@ -478,6 +986,8 @@ impl Scanner {
             self.inner.set_global(ident, value.extract::<i64>()?)
         } else if value.is_exact_instance_of::<PyFloat>() {
             self.inner.set_global(ident, value.extract::<f64>()?)
+        } else if value.is_exact_instance_of::<PyDict>() {
+            self.inner.set_global(ident, dict_to_json(value)?)
         } else {
             return Err(PyTypeError::new_err(format!(
                 "unsupported variable type `{}`",
@@ -497,6 +1007,13 @@ impl Scanner {
         self.inner.set_timeout(Duration::from_secs(seconds));
     }
 
+    /// Sets the maximum number of matches per pattern.
+    ///
+    /// When some pattern reaches the specified number of `matches` it won't produce more matches.
+    fn max_matches_per_pattern(&mut self, matches: usize) {
+        self.inner.max_matches_per_pattern(matches);
+    }
+
     /// Sets a callback that is invoked every time a YARA rule calls the
     /// `console` module.
     ///
@@ -504,12 +1021,12 @@ impl Scanner {
     /// message being logged. The function can print the message to stdout,
     /// append it to a file, etc. If no callback is set these messages are
     /// ignored.
-    fn console_log(&mut self, callback: PyObject) -> PyResult<()> {
-        if !Python::with_gil(|py| callback.bind(py).is_callable()) {
+    fn console_log(&mut self, callback: Py<PyAny>) -> PyResult<()> {
+        if !Python::attach(|py| callback.bind(py).is_callable()) {
             return Err(PyValueError::new_err("callback is not callable"));
         }
         self.inner.console_log(move |msg| {
-            let _ = Python::with_gil(|py| -> PyResult<PyObject> {
+            let _ = Python::attach(|py| -> PyResult<Py<PyAny>> {
                 callback.call1(py, (msg,))
             });
         });
@@ -518,22 +1035,40 @@ impl Scanner {
 
     /// Scans in-memory data.
     fn scan(&mut self, data: &[u8]) -> PyResult<Py<ScanResults>> {
-        Python::with_gil(|py| {
-            scan_results_to_py(
-                py,
-                self.inner.scan(data).map_err(map_scan_err)?,
-            )
-        })
+        let results = self.inner.scan(data).map_err(map_scan_err)?;
+        Python::attach(|py| scan_results_to_py(py, results))
+    }
+
+    /// Like [`Scanner::scan`], but allows to specify additional scan options.
+    fn scan_with_options(
+        &mut self,
+        data: &[u8],
+        options: &ScanOptions,
+    ) -> PyResult<Py<ScanResults>> {
+        let results = self
+            .inner
+            .scan_with_options(data, yrx::ScanOptions::from(options))
+            .map_err(map_scan_err)?;
+        Python::attach(|py| scan_results_to_py(py, results))
     }
 
     /// Scans a file.
     fn scan_file(&mut self, path: PathBuf) -> PyResult<Py<ScanResults>> {
-        Python::with_gil(|py| {
-            scan_results_to_py(
-                py,
-                self.inner.scan_file(path).map_err(map_scan_err)?,
-            )
-        })
+        let results = self.inner.scan_file(path).map_err(map_scan_err)?;
+        Python::attach(|py| scan_results_to_py(py, results))
+    }
+
+    /// Like [`Scanner::scan_file`], but allows to specify additional scan options.
+    fn scan_file_with_options(
+        &mut self,
+        path: PathBuf,
+        options: &ScanOptions,
+    ) -> PyResult<Py<ScanResults>> {
+        let results = self
+            .inner
+            .scan_file_with_options(path, yrx::ScanOptions::from(options))
+            .map_err(map_scan_err)?;
+        Python::attach(|py| scan_results_to_py(py, results))
     }
 }
 
@@ -552,7 +1087,7 @@ impl ScanResults {
     #[getter]
     /// Rules that matched during the scan.
     fn matching_rules(&self) -> Py<PyTuple> {
-        Python::with_gil(|py| self.matching_rules.clone_ref(py))
+        Python::attach(|py| self.matching_rules.clone_ref(py))
     }
 
     #[getter]
@@ -592,20 +1127,20 @@ impl Rule {
     /// Returns the rule's tags.
     #[getter]
     fn tags(&self) -> Py<PyTuple> {
-        Python::with_gil(|py| self.tags.clone_ref(py))
+        Python::attach(|py| self.tags.clone_ref(py))
     }
 
     /// A tuple of pairs `(identifier, value)` with the metadata associated to
     /// the rule.
     #[getter]
     fn metadata(&self) -> Py<PyTuple> {
-        Python::with_gil(|py| self.metadata.clone_ref(py))
+        Python::attach(|py| self.metadata.clone_ref(py))
     }
 
     /// Patterns defined by the rule.
     #[getter]
     fn patterns(&self) -> Py<PyTuple> {
-        Python::with_gil(|py| self.patterns.clone_ref(py))
+        Python::attach(|py| self.patterns.clone_ref(py))
     }
 }
 
@@ -627,7 +1162,7 @@ impl Pattern {
     /// Matches found for this pattern.
     #[getter]
     fn matches(&self) -> Py<PyTuple> {
-        Python::with_gil(|py| self.matches.clone_ref(py))
+        Python::attach(|py| self.matches.clone_ref(py))
     }
 }
 
@@ -686,42 +1221,85 @@ impl Rules {
     }
 }
 
+#[pyclass(unsendable)]
+struct RulesIter {
+    iter: Box<dyn Iterator<Item = yrx::Rule<'static, 'static>> + Send>,
+    // Keep a reference to Rules to keep it alive.
+    _rules: Py<Rules>,
+}
+
+#[pymethods]
+impl RulesIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> PyResult<Option<Py<Rule>>> {
+        let py = slf.py();
+        match slf.iter.next() {
+            Some(rule) => Ok(Some(rule_to_py(py, rule)?)),
+            None => Ok(None),
+        }
+    }
+}
+
 #[pymethods]
 impl Rules {
     /// Scans in-memory data with these rules.
     fn scan(&self, data: &[u8]) -> PyResult<Py<ScanResults>> {
         let mut scanner = yrx::Scanner::new(&self.inner.rules);
-        Python::with_gil(|py| {
-            scan_results_to_py(
-                py,
-                scanner
-                    .scan(data)
-                    .map_err(|err| ScanError::new_err(err.to_string()))?,
-            )
-        })
+        let results = scanner
+            .scan(data)
+            .map_err(|err| ScanError::new_err(err.to_string()))?;
+        Python::attach(|py| scan_results_to_py(py, results))
+    }
+
+    /// Scans in-memory data with these rules.
+    fn scan_with_options(
+        &self,
+        data: &[u8],
+        options: &ScanOptions,
+    ) -> PyResult<Py<ScanResults>> {
+        let mut scanner = yrx::Scanner::new(&self.inner.rules);
+        let results = scanner
+            .scan_with_options(data, yrx::ScanOptions::from(options))
+            .map_err(|err| ScanError::new_err(err.to_string()))?;
+        Python::attach(|py| scan_results_to_py(py, results))
     }
 
     /// Serializes the rules into a file-like object.
-    fn serialize_into(&self, file: PyObject) -> PyResult<()> {
-        let f = PyFileLikeObject::with_requirements(
-            file, false, true, false, false,
-        )?;
+    fn serialize_into(&self, file: Py<PyAny>) -> PyResult<()> {
         self.inner
             .rules
-            .serialize_into(f)
+            .serialize_into(PyWriter::new(file)?)
             .map_err(|err| PyIOError::new_err(err.to_string()))
     }
 
     /// Deserializes rules from a file-like object.
     #[staticmethod]
-    fn deserialize_from(file: PyObject) -> PyResult<Py<Rules>> {
-        let f = PyFileLikeObject::with_requirements(
-            file, true, false, false, false,
-        )?;
-        let rules = yrx::Rules::deserialize_from(f)
+    fn deserialize_from(file: Py<PyAny>) -> PyResult<Py<Rules>> {
+        let rules = yrx::Rules::deserialize_from(PyReader::new(file)?)
             .map_err(|err| PyIOError::new_err(err.to_string()))?;
 
-        Python::with_gil(|py| Py::new(py, Rules::new(rules)))
+        Python::attach(|py| Py::new(py, Rules::new(rules)))
+    }
+
+    /// Returns an iterator over the rules.
+    fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<RulesIter>> {
+        let py = slf.py();
+
+        let rules: &'static yrx::Rules =
+            unsafe { mem::transmute(&slf.inner.rules) };
+
+        let rules_iter =
+            RulesIter { iter: Box::new(rules.iter()), _rules: slf.into() };
+
+        Py::new(py, rules_iter)
+    }
+
+    /// Returns a list of modules imported by the rules.
+    fn imports(&self) -> PyResult<Vec<&str>> {
+        Ok(self.inner.rules.imports().collect())
     }
 }
 
@@ -850,7 +1428,7 @@ impl JsonDecoder {
     #[staticmethod]
     fn new() -> Self {
         JsonDecoder {
-            fromtimestamp: Python::with_gil(|py| {
+            fromtimestamp: Python::attach(|py| {
                 PyModule::import(py, "datetime")
                     .unwrap()
                     .getattr("datetime")
@@ -870,7 +1448,7 @@ impl JsonDecoder {
         if let Some(encoding) = dict
             .get_item("encoding")?
             .as_ref()
-            .and_then(|encoding| encoding.downcast::<PyString>().ok())
+            .and_then(|encoding| encoding.cast::<PyString>().ok())
         {
             let value = match dict.get_item("value")? {
                 Some(value) => value,
@@ -879,7 +1457,7 @@ impl JsonDecoder {
 
             if encoding == "base64" {
                 BASE64_STANDARD
-                    .decode(value.downcast::<PyString>()?.to_cow()?.as_bytes())
+                    .decode(value.cast::<PyString>()?.to_cow()?.as_bytes())
                     .expect("decoding base64")
                     .into_bound_py_any(py)
             } else if encoding == "timestamp" {
@@ -970,14 +1548,21 @@ fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("TimeoutError", m.py().get_type::<TimeoutError>())?;
     m.add("ScanError", m.py().get_type::<ScanError>())?;
     m.add_function(wrap_pyfunction!(compile, m)?)?;
+    m.add_function(wrap_pyfunction!(module_names, m)?)?;
     m.add_class::<Rules>()?;
     m.add_class::<Scanner>()?;
+    m.add_class::<ScanOptions>()?;
+    m.add_class::<ScanResults>()?;
     m.add_class::<Compiler>()?;
     m.add_class::<Rule>()?;
     m.add_class::<Pattern>()?;
     m.add_class::<Match>()?;
     m.add_class::<Formatter>()?;
     m.add_class::<Module>()?;
-    m.add_class::<JsonDecoder>()?;
+    m.add_class::<MetaType>()?;
+    // This module still exposes unsendable classes and uses unsafe lifetime
+    // extensions in the bindings, so it should not advertise free-threaded
+    // safety until the API is properly audited and redesigned.
+    m.gil_used(true)?;
     Ok(())
 }

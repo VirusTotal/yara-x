@@ -46,6 +46,12 @@ impl From<logos::Span> for Span {
     }
 }
 
+impl From<rowan::TextRange> for Span {
+    fn from(value: rowan::TextRange) -> Self {
+        Self(value.start().into()..value.end().into())
+    }
+}
+
 impl Display for Span {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "[{}..{}]", self.start(), self.end())
@@ -71,6 +77,31 @@ impl Span {
     #[inline]
     pub fn range(&self) -> Range<usize> {
         self.0.start as usize..self.0.end as usize
+    }
+
+    /// Returns the length of the span.
+    ///
+    /// ```
+    /// # use yara_x_parser::Span;
+    /// assert_eq!(Span(0..3).len(), 3);
+    /// assert_eq!(Span(1..3).len(), 2);  
+    /// ```
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.range().len()
+    }
+
+    /// Returns true of the span is empty.
+    ///
+    /// ```
+    /// # use yara_x_parser::Span;
+    /// assert!(Span(0..0).is_empty());
+    /// assert!(Span(1..1).is_empty());
+    /// assert!(!Span(1..2).is_empty());
+    /// ```
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.range().is_empty()
     }
 
     /// Returns a new [`Span`] that combines this span with `other`.
@@ -108,16 +139,34 @@ impl Span {
         Self(self.0.start + start as u32..self.0.start + end as u32)
     }
 
-    /// Displace the span to the left, incrementing both the starting and
-    /// ending positions by the given offset
+    /// Displace the span by adding `offset` to both the starting and
+    /// ending positions.
     ///
     /// ```
     /// # use yara_x_parser::Span;
-    /// assert_eq!(Span(0..1).offset(1), Span(1..2))
+    /// assert_eq!(Span(0..1).offset(1), Span(1..2));
+    /// assert_eq!(Span(1..2).offset(-1), Span(0..1));
     /// ```
-    pub fn offset(mut self, offset: usize) -> Self {
-        self.0.start = self.0.start.saturating_add(offset as u32);
-        self.0.end = self.0.end.saturating_add(offset as u32);
+    ///
+    /// # Panics
+    ///
+    /// Panics if the new span has a start or end positions that are
+    /// negative or larger than `Span::MAX`.
+    ///
+    /// ```should_panic
+    /// # use yara_x_parser::Span;
+    /// Span(0..1).offset(-1);
+    /// ```
+    pub fn offset(mut self, offset: isize) -> Self {
+        if offset.is_negative() {
+            let offset = offset.unsigned_abs() as u32;
+            self.0.start = self.0.start.checked_sub(offset).unwrap();
+            self.0.end = self.0.end.checked_sub(offset).unwrap();
+        } else {
+            let offset = offset as u32;
+            self.0.start = self.0.start.checked_add(offset).unwrap();
+            self.0.end = self.0.end.checked_add(offset).unwrap();
+        }
         self
     }
 }

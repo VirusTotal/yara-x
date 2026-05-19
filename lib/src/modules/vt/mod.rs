@@ -18,7 +18,7 @@ use bstr::BStr;
 use ipnet::IpNet;
 use protobuf::EnumFull;
 
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::titan::*;
 use crate::modules::protos::vtnet::enriched_domain::Permutation;
 use crate::modules::vt::bitsquatting::bitsquatting;
@@ -49,11 +49,14 @@ static SUBDOMAIN: LazyLock<i64> = LazyLock::new(|| {
     Struct::enum_value_i64(&Permutation::SUBDOMAIN.descriptor()).unwrap()
 });
 
-#[module_main]
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<LiveHuntData, ModuleError> {
+fn main(
+    _data: &[u8],
+    _meta: Option<&[u8]>,
+) -> Result<LiveHuntData, ModuleError> {
     Ok(LiveHuntData::new())
 }
 
+/// Returns true if the IP address is within the given CIDR range.
 #[module_export(method_of = "vt.net.EnrichedIP")]
 fn in_range(
     ctx: &mut ScanContext,
@@ -76,6 +79,7 @@ fn in_range(
     cidr.contains(&ip)
 }
 
+/// Returns true if the domain is a permutation of the given `target` domain.
 #[module_export(name = "permutation_of", method_of = "vt.net.EnrichedDomain")]
 fn all_permutations(
     ctx: &mut ScanContext,
@@ -85,6 +89,8 @@ fn all_permutations(
     permutations(ctx, domain, target, 0x1F)
 }
 
+/// Returns true if the domain is a permutation of the given `target` domain,
+/// but the permutation must be any of the kinds specified in `permutation_kinds`.
 #[module_export(name = "permutation_of", method_of = "vt.net.EnrichedDomain")]
 fn permutations(
     ctx: &mut ScanContext,
@@ -150,12 +156,11 @@ fn permutations(
         return true;
     }
 
-    if SUBDOMAIN.bitand(&permutation_kinds) != 0 {
-        if let (Some(legit), Some(scanned)) = (legit_prefix, scanned_prefix) {
-            if interleaved(legit, scanned, '.') {
-                return true;
-            }
-        }
+    if SUBDOMAIN.bitand(&permutation_kinds) != 0
+        && let (Some(legit), Some(scanned)) = (legit_prefix, scanned_prefix)
+        && interleaved(legit, scanned, '.')
+    {
+        return true;
     }
 
     if HYPHENATION.bitand(&permutation_kinds) != 0
@@ -180,7 +185,7 @@ fn permutations(
 /// ```
 ///
 /// Returns `None` if the argument is not a valid domain name.
-fn parse_domain(domain: &BStr) -> Option<DomainParts> {
+fn parse_domain(domain: &BStr) -> Option<DomainParts<'_>> {
     let domain_len = domain.len();
     let suffix_len = psl::suffix(domain)?.as_bytes().len();
     let tld = domain[domain_len - suffix_len..].to_str().ok()?;
@@ -245,7 +250,7 @@ pub struct DomainParts<'a> {
 #[cfg(test)]
 mod tests {
     use crate::modules::protos::titan::LiveHuntData;
-    use crate::modules::vt::{parse_domain, DomainParts};
+    use crate::modules::vt::{DomainParts, parse_domain};
     use crate::{Compiler, Scanner};
     use bstr::BStr;
     use protobuf::text_format::parse_from_str;
@@ -525,3 +530,5 @@ mod tests {
         assert!(!squatting!("www.google.com", "www.goore.com"));
     }
 }
+
+register_module!("vt", LiveHuntData, main);

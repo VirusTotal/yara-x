@@ -1,0 +1,50 @@
+[
+  {
+    "kind": 1,
+    "label": ": string",
+    "position": {
+      "character": 13,
+      "line": 6
+    }
+  },
+  {
+    "kind": 1,
+    "label": ": string",
+    "position": {
+      "character": 20,
+      "line": 6
+    }
+  },
+  {
+    "kind": 1,
+    "label": ": struct",
+    "position": {
+      "character": 15,
+      "line": 9
+    }
+  },
+  {
+    "kind": 1,
+    "label": ": integer",
+    "position": {
+      "character": 4,
+      "line": 12
+    }
+  },
+  {
+    "kind": 1,
+    "label": ": integer",
+    "position": {
+      "character": 4,
+      "line": 13
+    }
+  },
+  {
+    "kind": 1,
+    "label": ": integer",
+    "position": {
+      "character": 4,
+      "line": 14
+    }
+  }
+]

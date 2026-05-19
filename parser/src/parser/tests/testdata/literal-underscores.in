@@ -1,0 +1,7 @@
+rule test {
+  meta:
+    a = 1_000
+    b = 1_0.1_0
+  condition:
+    0xaa_bb == 0xaabb and 0.1_0 == 0.1
+}

@@ -2,6 +2,7 @@ mod check;
 mod compile;
 mod completion;
 mod debug;
+mod deps;
 mod dump;
 mod fix;
 mod fmt;
@@ -12,6 +13,7 @@ pub use compile::*;
 pub use completion::*;
 #[cfg(feature = "debug-cmd")]
 pub use debug::*;
+pub use deps::*;
 pub use dump::*;
 pub use fix::*;
 pub use fmt::*;
@@ -22,17 +24,22 @@ use std::fs;
 use std::io::stdout;
 use std::path::PathBuf;
 
-use anyhow::{anyhow, bail, Context};
-use clap::{arg, command, crate_authors, ArgMatches, Command};
+use anyhow::{Context, anyhow, bail};
+use clap::{
+    Arg, ArgAction, ArgMatches, Command, arg, command, crate_authors,
+    value_parser,
+};
 use crossterm::tty::IsTty;
-use superconsole::{Component, Line, Lines, Span, SuperConsole};
+use indicatif::{ProgressBar, ProgressStyle};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use yansi::Color::Green;
 use yansi::Paint;
 
 use crate::config::Config;
+use crate::walk::Draw;
 use crate::walk::Walker;
-use crate::{commands, help, APP_HELP_TEMPLATE};
+use crate::{APP_HELP_TEMPLATE, commands, help};
+
 use yara_x::{Compiler, Rules, SourceCode};
 
 pub fn command(name: &'static str) -> Command {
@@ -67,6 +74,7 @@ pub fn cli() -> Command {
             commands::fmt(),
             commands::fix(),
             commands::completion(),
+            commands::deps(),
         ])
 }
 
@@ -87,15 +95,12 @@ fn external_var_parser(
     option: &str,
 ) -> Result<(String, serde_json::Value), anyhow::Error> {
     let (var, value) = option.split_once('=').ok_or(anyhow!(
-        "the equal sign is missing, use the syntax VAR=VALUE (example: {}=10)",
-        option
+        "the equal sign is missing, use the syntax VAR=VALUE (example: {option}=10)",
     ))?;
 
     let value = serde_json::from_str(value).map_err(|_| {
         anyhow!(
-            "`{}` is not a valid value, did you mean \\\"{}\\\"?",
-            value,
-            value
+            "`{value}` is not a valid value, did you mean \\\"{value}\\\"?"
         )
     })?;
 
@@ -108,8 +113,7 @@ fn meta_file_value_parser(
     option: &str,
 ) -> Result<(String, PathBuf), anyhow::Error> {
     let (var, value) = option.split_once('=').ok_or(anyhow!(
-        "the equal sign is missing, use the syntax MODULE=FILE (example: {}=file)",
-        option
+        "the equal sign is missing, use the syntax MODULE=FILE (example: {option}=file)"
     ))?;
 
     let value = PathBuf::from(value);
@@ -143,11 +147,7 @@ fn path_with_namespace_parser(
 /// Parses a path and makes sure that it exists.
 fn existing_path_parser(input: &str) -> Result<PathBuf, anyhow::Error> {
     let path = PathBuf::from(input);
-    if path.try_exists()? {
-        Ok(path)
-    } else {
-        Err(anyhow!("file not found"))
-    }
+    if path.try_exists()? { Ok(path) } else { Err(anyhow!("file not found")) }
 }
 
 pub fn create_compiler<'a>(
@@ -216,19 +216,56 @@ pub fn create_compiler<'a>(
     Ok(compiler)
 }
 
+pub fn compilation_args() -> [Arg; 6] {
+    [
+        arg!(-d --"define")
+            .help("Define external variable")
+            .long_help(help::DEFINE_LONG_HELP)
+            .value_name("VAR=VALUE")
+            .value_parser(external_var_parser)
+            .action(ArgAction::Append),
+        arg!(-w --"disable-warnings" [WARNING_ID])
+            .help("Disable warnings")
+            .long_help(help::DISABLE_WARNINGS_LONG_HELP)
+            .default_missing_value("all")
+            .num_args(0..)
+            .require_equals(true)
+            .value_delimiter(',')
+            .action(ArgAction::Append),
+        arg!(-I --"ignore-module" <MODULE>)
+            .help("Ignore rules that use the specified module")
+            .long_help(help::IGNORE_MODULE_LONG_HELP)
+            .action(ArgAction::Append),
+        arg!(--"include-dir" <PATH>)
+            .help("Directory in which to search for included files")
+            .long_help(help::INCLUDE_DIR_LONG_HELP)
+            .value_parser(value_parser!(PathBuf))
+            .action(ArgAction::Append),
+        arg!(--"path-as-namespace")
+            .help("Use file path as rule namespace"),
+        arg!(--"relaxed-re-syntax")
+            .help("Use a more relaxed syntax check while parsing regular expressions"),
+    ]
+}
+
 pub fn compile_rules<'a, P>(
     paths: P,
-    external_vars: Option<Vec<(String, serde_json::Value)>>,
     args: &ArgMatches,
     config: &Config,
 ) -> Result<Rules, anyhow::Error>
 where
     P: Iterator<Item = &'a (Option<String>, PathBuf)>,
 {
+    let external_vars = get_external_vars(args);
     let mut compiler = create_compiler(external_vars, args, config)?;
 
-    let mut console =
-        if stdout().is_tty() { SuperConsole::new() } else { None };
+    let mut pb = if stdout().is_tty() {
+        let pb = ProgressBar::new_spinner();
+        pb.set_style(ProgressStyle::default_spinner().template("{msg}")?);
+        Some(pb)
+    } else {
+        None
+    };
 
     let mut state = CompileState::new();
 
@@ -249,8 +286,11 @@ where
             |file_path| {
                 state.file_in_progress = Some(file_path.into());
 
-                if let Some(console) = console.as_mut() {
-                    console.render(&state).unwrap();
+                if let Some(pb) = pb.as_mut() {
+                    let width = crossterm::terminal::size()
+                        .map(|(w, _)| w as usize)
+                        .unwrap_or(80);
+                    pb.set_message(state.draw(width));
                 }
 
                 let src = fs::read(file_path).with_context(|| {
@@ -277,27 +317,27 @@ where
             // Any error occurred during walk is aborts the walk.
             Err,
         ) {
-            if let Some(console) = console {
-                console.finalize(&state)?;
+            if let Some(pb) = pb {
+                pb.finish_and_clear();
             }
             return Err(err);
         }
     }
 
-    if let Some(console) = console {
-        console.finalize(&state)?;
-    }
-
-    for error in compiler.errors() {
-        eprintln!("{}", error);
+    if let Some(pb) = pb {
+        pb.finish_and_clear();
     }
 
     for warning in compiler.warnings() {
-        eprintln!("{}", warning);
+        eprintln!("{warning}");
+    }
+
+    for error in compiler.errors() {
+        eprintln!("{error}");
     }
 
     if !compiler.errors().is_empty() {
-        bail!("{} errors found", compiler.errors().len());
+        bail!("{} error(s) found", compiler.errors().len());
     }
 
     let rules = compiler.build();
@@ -316,25 +356,17 @@ impl CompileState {
     }
 }
 
-impl Component for CompileState {
-    fn draw_unchecked(
-        &self,
-        _dimensions: superconsole::Dimensions,
-        mode: superconsole::DrawMode,
-    ) -> anyhow::Result<Lines> {
-        let mut lines = Lines::new();
-
-        if mode == superconsole::DrawMode::Normal {
-            if let Some(file) = &self.file_in_progress {
-                lines.push(Line::from_iter([Span::new_unstyled(format!(
-                    "{} {}...",
-                    "Compiling".paint(Green).bold(),
-                    file.display(),
-                ))?]));
-            }
+impl Draw for CompileState {
+    fn draw(&self, _width: usize) -> String {
+        if let Some(file) = &self.file_in_progress {
+            format!(
+                "{} {}...",
+                "Compiling".paint(Green).bold(),
+                file.display(),
+            )
+        } else {
+            String::new()
         }
-
-        Ok(lines)
     }
 }
 

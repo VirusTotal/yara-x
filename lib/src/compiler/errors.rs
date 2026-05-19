@@ -11,11 +11,39 @@ use yara_x_macros::ErrorEnum;
 use yara_x_macros::ErrorStruct;
 use yara_x_parser::ast;
 
-use crate::compiler::report::{Level, Report, ReportBuilder, CodeLoc, Label, Footer};
+use crate::compiler::report::{Level, Patch, Report, ReportBuilder, CodeLoc, Label, Footer};
+
+/// Error returned by [`crate::Compiler::emit_wasm_file`].
+#[derive(Error, Debug)]
+#[error(transparent)]
+#[doc(hidden)]
+pub struct EmitWasmError(#[from] anyhow::Error);
+
+/// Error returned by [`crate::Compiler::switch_warning`] when the warning
+/// code is not valid.
+#[derive(Error, Debug, Eq, PartialEq)]
+#[error("`{0}` is not a valid warning code")]
+pub struct InvalidWarningCode(String);
+
+impl InvalidWarningCode {
+    pub(crate) fn new(code: String) -> Self {
+        Self(code)
+    }
+}
 
 /// Error returned while serializing/deserializing compiled rules.
 #[derive(Error, Debug)]
 pub enum SerializationError {
+    /// The data being deserialized was created with an incompatible version
+    /// of YARA-X.
+    #[error("incompatible version, expected {expected} got {actual}")]
+    InvalidVersion {
+        /// The expected version.
+        expected: u32,
+        /// The actual version found in the file.
+        actual: u32,
+    },
+
     /// The data being deserialized doesn't contain YARA-X serialized rules.
     #[error("not a YARA-X compiled rules file")]
     InvalidFormat,
@@ -37,12 +65,6 @@ pub enum SerializationError {
     InvalidWASM(#[from] anyhow::Error),
 }
 
-/// Error returned by [`crate::Compiler::emit_wasm_file`].
-#[derive(Error, Debug)]
-#[error(transparent)]
-#[doc(hidden)]
-pub struct EmitWasmError(#[from] anyhow::Error);
-
 /// Error returned when rule compilation fails.
 #[allow(missing_docs)]
 #[non_exhaustive]
@@ -50,7 +72,9 @@ pub struct EmitWasmError(#[from] anyhow::Error);
 #[derive(Serialize)]
 #[serde(tag = "type")]
 pub enum CompileError {
+    ArbitraryRegexpPrefix(Box<ArbitraryRegexpPrefix>),
     AssignmentMismatch(Box<AssignmentMismatch>),
+    CircularIncludes(Box<CircularIncludes>),
     ConflictingRuleIdentifier(Box<ConflictingRuleIdentifier>),
     CustomError(Box<CustomError>),
     DuplicateModifier(Box<DuplicateModifier>),
@@ -197,7 +221,7 @@ pub struct SyntaxError {
     "expression should be {expected_types}, but it is {actual_type}",
     error_loc
 )]
-#[footer(help, Level::Help)]
+#[footer(help, Level::HELP)]
 pub struct WrongType {
     report: Report,
     expected_types: String,
@@ -334,12 +358,12 @@ pub struct InvalidRange {
 #[label(
     "duplicate declaration of `{new_rule}`",
     duplicate_rule_loc,
-    Level::Error
+    Level::ERROR
 )]
 #[label(
     "`{new_rule}` declared here for the first time",
     existing_rule_loc,
-    Level::Note
+    Level::NOTE
 )]
 pub struct DuplicateRule {
     report: Report,
@@ -410,11 +434,6 @@ pub struct EmptyPatternSet {
 #[associated_enum(CompileError)]
 #[error(code = "E017", title = "`entrypoint` is unsupported")]
 #[label("the `entrypoint` keyword is not supported anymore", error_loc)]
-#[label(
-    "use `pe.entry_point` or `elf.entry_point` or `macho.entry_point`",
-    error_loc,
-    Level::Help
-)]
 pub struct EntrypointUnsupported {
     report: Report,
     error_loc: CodeLoc,
@@ -491,7 +510,7 @@ pub struct UnusedPattern {
 #[label(
     "`{pattern_ident}` declared here for the first time",
     note_loc,
-    Level::Note
+    Level::NOTE
 )]
 pub struct DuplicatePattern {
     report: Report,
@@ -633,7 +652,7 @@ pub struct InvalidModifier {
 #[associated_enum(CompileError)]
 #[error(code = "E034", title = "potentially slow loop")]
 #[label(
-"this range can be very large",
+    "this range can be very large",
     loc
 )]
 pub struct PotentiallySlowLoop {
@@ -892,6 +911,45 @@ pub struct IncludeNotFound {
 pub struct IncludeNotAllowed {
     report: Report,
     include_loc: CodeLoc,
+}
+
+/// Indicates that a regular expression has a prefix that can be arbitrarily
+/// long and matches any sequence of bytes.
+///
+/// # Example
+///
+/// ```text
+/// error[E045]: arbitrary regular expression prefix  
+///  --> line:3:11  
+///   |  
+/// 3 |     $a = /.*foo/s  
+///   |           ^^ this prefix can be arbitrarily long and matches all bytes  
+///   |
+/// ```  
+///
+/// Regular expressions with such prefixes are problematic because YARA will
+/// report a match at every file offset from the start of the file up to where
+/// the rest of the pattern matches. In most cases, this prefix can be removed
+/// without affecting the rule's semantics.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E045", title = "arbitrary regular expression prefix")]
+#[label("this prefix can be arbitrarily long and matches all bytes", error_loc)]
+pub struct ArbitraryRegexpPrefix {
+    report: Report,
+    error_loc: CodeLoc,
+}
+
+/// Include statements have circular dependencies.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E046", title = "circular include dependencies")]
+#[label("include statement has circular dependencies", error_loc)]
+#[footer(note)]
+pub struct CircularIncludes {
+    report: Report,
+    error_loc: CodeLoc,
+    note: Option<String>,
 }
 
 /// A custom error has occurred.

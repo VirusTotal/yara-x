@@ -1,0 +1,436 @@
+[
+  {
+    "kind": 6,
+    "label": "with_for",
+    "labelDetails": {
+      "description": "Rule"
+    }
+  },
+  {
+    "kind": 14,
+    "label": "and"
+  },
+  {
+    "kind": 14,
+    "label": "or"
+  },
+  {
+    "kind": 14,
+    "label": "all"
+  },
+  {
+    "kind": 14,
+    "label": "any"
+  },
+  {
+    "kind": 14,
+    "label": "none"
+  },
+  {
+    "kind": 14,
+    "label": "of"
+  },
+  {
+    "insertText": "at ${1:expression}",
+    "insertTextFormat": 2,
+    "kind": 14,
+    "label": "at"
+  },
+  {
+    "insertText": "in ${1:}..${2:}",
+    "insertTextFormat": 2,
+    "kind": 14,
+    "label": "in"
+  },
+  {
+    "kind": 14,
+    "label": "filesize"
+  },
+  {
+    "kind": 14,
+    "label": "entrypoint"
+  },
+  {
+    "kind": 14,
+    "label": "true"
+  },
+  {
+    "kind": 14,
+    "label": "false"
+  },
+  {
+    "kind": 14,
+    "label": "not"
+  },
+  {
+    "kind": 14,
+    "label": "defined"
+  },
+  {
+    "insertText": "for ${1:quantifier} ${2:iterable} : ( ${3:expression} )",
+    "insertTextFormat": 2,
+    "kind": 14,
+    "label": "for"
+  },
+  {
+    "insertText": "with ${1:declarations} : ( ${3:expression} )",
+    "insertTextFormat": 2,
+    "kind": 14,
+    "label": "with"
+  },
+  {
+    "kind": 6,
+    "label": "k",
+    "labelDetails": {
+      "description": "Variable"
+    }
+  },
+  {
+    "kind": 6,
+    "label": "v",
+    "labelDetails": {
+      "description": "Variable"
+    }
+  },
+  {
+    "kind": 6,
+    "label": "version_info",
+    "labelDetails": {
+      "description": "Variable"
+    }
+  },
+  {
+    "kind": 6,
+    "label": "another",
+    "labelDetails": {
+      "description": "Variable"
+    }
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"console\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "console"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"crx\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "crx"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"cuckoo\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "cuckoo"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"dex\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "dex"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"dotnet\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "dotnet"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"elf\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "elf"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"hash\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "hash"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"lnk\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "lnk"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"macho\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "macho"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"math\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "math"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"olecf\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "olecf"
+  },
+  {
+    "kind": 9,
+    "label": "pe"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"string\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "string"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"test_proto2\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "test_proto2"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"test_proto3\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "test_proto3"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"time\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "time"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"vba\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "vba"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"vt\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "vt"
+  }
+]

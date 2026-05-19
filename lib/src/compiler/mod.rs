@@ -12,26 +12,25 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 #[cfg(feature = "logging")]
 use std::time::Instant;
-use std::{fmt, fs, iter, vec};
+use std::{env, fmt, fs, io, iter};
 
 use bitflags::bitflags;
 use bstr::{BStr, ByteSlice};
-use itertools::{izip, Itertools, MinMaxResult};
+use itertools::{Itertools, MinMaxResult, izip};
 #[cfg(feature = "logging")]
 use log::*;
 use regex_syntax::hir;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use walrus::FunctionId;
 
 use yara_x_parser::ast;
-use yara_x_parser::ast::{Ident, Import, Include, RuleFlags, WithSpan, AST};
+use yara_x_parser::ast::{AST, Ident, Import, Include, RuleFlags, WithSpan};
 use yara_x_parser::cst::CSTStream;
 use yara_x_parser::{Parser, Span};
 
 use crate::compiler::base64::base64_patterns;
-use crate::compiler::emit::{emit_rule_condition, EmitContext};
+use crate::compiler::emit::{EmitContext, emit_rule_condition};
 use crate::compiler::errors::{
     CompileError, ConflictingRuleIdentifier, CustomError, DuplicateRule,
     DuplicateTag, EmitWasmError, InvalidRegexp, InvalidUTF8, UnknownModule,
@@ -39,28 +38,34 @@ use crate::compiler::errors::{
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{CompileContext, VarStack};
-use crate::modules::BUILTIN_MODULES;
-use crate::re;
 use crate::re::hir::{ChainedPattern, ChainedPatternGap};
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup, SymbolTable};
 use crate::types::{Func, Struct, TypeValue};
 use crate::utils::cast;
-use crate::variables::{is_valid_identifier, Variable, VariableError};
+use crate::variables::{Variable, VariableError, is_valid_identifier};
 use crate::wasm::builder::WasmModuleBuilder;
-use crate::wasm::{WasmExport, WasmSymbols, WASM_EXPORTS};
+use crate::wasm::{WasmSymbols, wasm_exports};
+use crate::{re, wasm};
 
 pub(crate) use crate::compiler::atoms::*;
 pub(crate) use crate::compiler::context::*;
 pub(crate) use crate::compiler::ir::*;
+
+use crate::compiler::wsh::WarningSuppressionHook;
+use crate::errors::{
+    CircularIncludes, IncludeError, IncludeNotAllowed, IncludeNotFound,
+    InvalidWarningCode,
+};
+use crate::linters::LinterResult;
+use crate::models::PatternKind;
+
+#[doc(inline)]
+pub use crate::compiler::report::Patch;
 #[doc(inline)]
 pub use crate::compiler::rules::*;
 #[doc(inline)]
 pub use crate::compiler::warnings::*;
-use crate::compiler::wsh::WarningSuppressionHook;
-use crate::errors::{IncludeError, IncludeNotAllowed, IncludeNotFound};
-use crate::linters::LinterResult;
-use crate::models::PatternKind;
 
 mod atoms;
 mod context;
@@ -120,12 +125,8 @@ impl<'src> SourceCode<'src> {
     /// This is usually the path of the file that contained the source code,
     /// but it can be an arbitrary string. The origin appears in error and
     /// warning messages.
-    pub fn with_origin(self, origin: &str) -> Self {
-        Self {
-            raw: self.raw,
-            valid: self.valid,
-            origin: Some(origin.to_owned()),
-        }
+    pub fn with_origin<S: Into<String>>(self, origin: S) -> Self {
+        Self { raw: self.raw, valid: self.valid, origin: Some(origin.into()) }
     }
 
     /// Returns the source code as a `&str`.
@@ -228,7 +229,7 @@ struct Namespace {
 ///     .add_source(r#"
 ///         rule always_false {
 ///             condition: false
-///         }"#)?;///
+///         }"#)?;
 ///
 /// let rules = compiler.build();
 ///
@@ -236,7 +237,7 @@ struct Namespace {
 /// ```
 ///
 pub struct Compiler<'a> {
-    /// Mimics YARA behaviour with respect to regular expressions, allowing
+    /// Mimics YARA behavior with respect to regular expressions, allowing
     /// some constructs that are invalid in YARA-X by default, like invalid
     /// escape sequences.
     relaxed_re_syntax: bool,
@@ -263,6 +264,11 @@ pub struct Compiler<'a> {
     /// will produce a compile error.
     includes_enabled: bool,
 
+    /// Tracks the paths of the files that have been included by nested
+    /// includes. This is useful for detecting circular includes and resolving
+    /// relative includes.
+    include_stack: Vec<PathBuf>,
+
     /// Used for generating error and warning reports.
     report_builder: ReportBuilder,
 
@@ -270,7 +276,7 @@ pub struct Compiler<'a> {
     /// symbol tables where the bottom-most table is the one that contains
     /// global identifiers like built-in functions and user-defined global
     /// identifiers.
-    symbol_table: StackedSymbolTable<'a>,
+    symbol_table: StackedSymbolTable,
 
     /// Symbol table that contains the global identifiers, including built-in
     /// functions like `uint8`, `uint16`, etc. This symbol table is at the
@@ -292,7 +298,7 @@ pub struct Compiler<'a> {
 
     /// Similar to `ident_pool` but for regular expressions found in rule
     /// conditions.
-    regexp_pool: StringPool<RegexpId>,
+    regex_pool: StringPool<RegexId>,
 
     /// Similar to `ident_pool` but for string literals found in the source
     /// code. As literal strings in YARA can contain arbitrary bytes, a pool
@@ -320,15 +326,23 @@ pub struct Compiler<'a> {
     /// function name (e.g: `my_module.my_struct.my_func@ii@i`)
     wasm_exports: FxHashMap<String, FunctionId>,
 
+    /// Map that associates a `PatternId` to a certain filesize bound.
+    ///
+    /// A condition like `filesize < 1000 and $a` only matches if `filesize`
+    /// is less than 1000. Therefore, the pattern `$a` does not need be
+    /// checked for files of size 1000 bytes or larger.
+    ///
+    /// In this case, the map will contain an entry associating `$a` to a
+    /// `FilesizeBounds` value like:
+    /// `FilesizeBounds{start: Bound::Unbounded, end: Bound:Excluded(1000)}`.
+    filesize_bounds: FxHashMap<PatternId, FilesizeBounds>,
+
     /// A vector with all the rules that has been compiled. A [`RuleId`] is
     /// an index in this vector.
     rules: Vec<RuleInfo>,
 
     /// Next (not used yet) [`PatternId`].
     next_pattern_id: PatternId,
-
-    /// The [`PatternId`] for the pattern being processed.
-    current_pattern_id: PatternId,
 
     /// Map used for de-duplicating pattern. Keys are the pattern's IR and
     /// values are the `PatternId` assigned to each pattern. Every time a rule
@@ -401,41 +415,12 @@ pub struct Compiler<'a> {
     /// Linters applied to each rule during compilation. The linters are added
     /// to the compiler using [`Compiler::add_linter`]:
     linters: Vec<Box<dyn linters::Linter + 'a>>,
+
+    /// Grouped RegexSets constructed during IR creation for or-expressions.
+    pub(crate) regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
 }
 
 impl<'a> Compiler<'a> {
-    /// Adds a directory to the list of directories where the compiler should
-    /// look for included files.
-    ///
-    /// When an `include` statement is found, the compiler looks for the included
-    /// file in the directories added with this function, in the order they were
-    /// added.
-    ///
-    /// If this function is not called, the compiler will only look for included
-    /// files in the current directory.
-    ///
-    /// Use [Compiler::enable_includes] for controlling whether include statements
-    /// are allowed or not.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use yara_x::Compiler;
-    /// # use std::path::Path;
-    /// let mut compiler = Compiler::new();
-    /// compiler.add_include_dir("/path/to/rules")
-    ///         .add_include_dir("/another/path");
-    /// ```
-    pub fn add_include_dir<P: AsRef<std::path::Path>>(
-        &mut self,
-        dir: P,
-    ) -> &mut Self {
-        self.include_dirs
-            .get_or_insert_default()
-            .push(dir.as_ref().to_path_buf());
-        self
-    }
-
     /// Creates a new YARA compiler.
     pub fn new() -> Self {
         let mut ident_pool = StringPool::new();
@@ -444,12 +429,11 @@ impl<'a> Compiler<'a> {
         let global_symbols = symbol_table.push_new();
 
         // Add symbols for built-in functions like uint8, uint16, etc.
-        for export in WASM_EXPORTS
-            .iter()
+        for export in wasm_exports()
             // Get only the public exports not belonging to a YARA module.
             .filter(|e| e.public && e.builtin())
         {
-            let func = Rc::new(Func::from_mangled_name(export.mangled_name));
+            let func = Rc::new(Func::from(export.mangled_name));
             let symbol = Symbol::Func(func);
 
             global_symbols.borrow_mut().insert(export.name, symbol);
@@ -499,7 +483,6 @@ impl<'a> Compiler<'a> {
             error_on_slow_pattern: false,
             error_on_slow_loop: false,
             next_pattern_id: PatternId(0),
-            current_pattern_id: PatternId(0),
             current_namespace: default_namespace,
             features: FxHashSet::default(),
             warnings: Warnings::default(),
@@ -513,16 +496,51 @@ impl<'a> Compiler<'a> {
             ignored_modules: FxHashSet::default(),
             banned_modules: FxHashMap::default(),
             ignored_rules: FxHashMap::default(),
+            filesize_bounds: FxHashMap::default(),
             root_struct: Struct::new().make_root(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
-            regexp_pool: StringPool::new(),
+            regex_pool: StringPool::new(),
             patterns: FxHashMap::default(),
             ir_writer: None,
             linters: Vec::new(),
             include_dirs: None,
             includes_enabled: true,
+            include_stack: Vec::new(),
+            regex_sets: FxHashMap::default(),
         }
+    }
+
+    /// Adds a directory to the list of directories where the compiler should
+    /// look for included files.
+    ///
+    /// When an `include` statement is found, the compiler looks for the included
+    /// file in the directories added with this function, in the order they were
+    /// added.
+    ///
+    /// If this function is not called, the compiler will only look for included
+    /// files in the current directory.
+    ///
+    /// Use [Compiler::enable_includes] for controlling whether include statements
+    /// are allowed or not.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use yara_x::Compiler;
+    /// # use std::path::Path;
+    /// let mut compiler = Compiler::new();
+    /// compiler.add_include_dir("/path/to/rules")
+    ///         .add_include_dir("/another/path");
+    /// ```
+    pub fn add_include_dir<P: AsRef<std::path::Path>>(
+        &mut self,
+        dir: P,
+    ) -> &mut Self {
+        self.include_dirs
+            .get_or_insert_default()
+            .push(dir.as_ref().to_path_buf());
+        self
     }
 
     /// Adds some YARA source code to be compiled.
@@ -631,6 +649,12 @@ impl<'a> Compiler<'a> {
     /// `i64`, `i32`, `i16`, `i8`, `u32`, `u16`, `u8`, `f64`, `f32`, `bool`,
     /// `&str`, `String` and [`serde_json::Value`].
     ///
+    /// When using a [`serde_json::Value`] there are certain limitations: keys
+    /// in maps must be valid YARA identifiers (the first character must be `_`
+    /// or a letter, the remaining ones must be `_`, a letter or a digit),
+    /// because these maps are translated into YARA structures. Also, all items
+    /// in an array must have the same type.
+    ///
     /// ```
     /// # use yara_x::Compiler;
     /// assert!(Compiler::new()
@@ -669,8 +693,8 @@ impl<'a> Compiler<'a> {
     /// Creates a new namespace.
     ///
     /// Further calls to [`Compiler::add_source`] will put the rules under the
-    /// newly created namespace. If the current namespace is already named as
-    /// the current one, no new namespace is created.
+    /// newly created namespace. If the new namespace is named as the current
+    /// one, no new namespace is created.
     ///
     /// In the example below both rules `foo` and `bar` are put into the same
     /// namespace (the default namespace), therefore `bar` can use `foo` as
@@ -740,8 +764,8 @@ impl<'a> Compiler<'a> {
         // if the WASM code is invalid, which should not happen as the code is
         // emitted by YARA itself. If this ever happens is probably because
         // wrong WASM code is being emitted.
-        let compiled_wasm_mod = wasmtime::Module::from_binary(
-            &crate::wasm::ENGINE,
+        let compiled_wasm_mod = wasm::runtime::Module::from_binary(
+            wasm::get_engine(),
             wasm_mod.as_slice(),
         )
         .expect("WASM module is not valid");
@@ -774,7 +798,7 @@ impl<'a> Compiler<'a> {
             ac: None,
             num_patterns: self.next_pattern_id.0 as usize,
             ident_pool: self.ident_pool,
-            regexp_pool: self.regexp_pool,
+            regex_pool: self.regex_pool,
             lit_pool: self.lit_pool,
             imported_modules: self.imported_modules,
             rules: self.rules,
@@ -783,6 +807,8 @@ impl<'a> Compiler<'a> {
             atoms: self.atoms,
             re_code: self.re_code,
             warnings: self.warnings.into(),
+            filesize_bounds: self.filesize_bounds,
+            regex_sets: self.regex_sets,
         };
 
         rules.build_ac_automaton();
@@ -928,6 +954,14 @@ impl<'a> Compiler<'a> {
         self
     }
 
+    /// Sets the maximum number of warnings.
+    ///
+    /// The compiler will report only the first `n` warnings.
+    pub fn max_warnings(&mut self, n: usize) -> &mut Self {
+        self.warnings.max_warnings = Some(n);
+        self
+    }
+
     /// Enables a more relaxed syntax check for regular expressions.
     ///
     /// YARA-X enforces stricter regular expression syntax compared to YARA.
@@ -1035,11 +1069,22 @@ impl<'a> Compiler<'a> {
         let mut wasm_mod = self.wasm_mod.build();
         Ok(wasm_mod.emit_wasm_file(path)?)
     }
+
+    /// Sets a writer where the compiler will write the Intermediate
+    /// Representation (IR) of compiled conditions.
+    ///
+    /// This is used for testing and debugging purposes.
+    #[doc(hidden)]
+    pub fn set_ir_writer<W: Write + 'static>(&mut self, w: W) -> &mut Self {
+        self.ir_writer = Some(Box::new(w));
+        self
+    }
 }
 
 impl Compiler<'_> {
     fn add_sub_pattern<I, F, A>(
         &mut self,
+        pattern_id: PatternId,
         sub_pattern: SubPattern,
         atoms: I,
         f: F,
@@ -1051,7 +1096,7 @@ impl Compiler<'_> {
         let sub_pattern_id = SubPatternId(self.sub_patterns.len() as u32);
 
         // Sub-patterns that are anchored at some fixed offset are not added to
-        // the Aho-Corasick automata. Instead their IDs are added to the
+        // the Aho-Corasick automata. Instead, their IDs are added to the
         // anchored_sub_patterns list.
         if let SubPattern::Literal { anchored_at: Some(_), .. } = sub_pattern {
             self.anchored_sub_patterns.push(sub_pattern_id);
@@ -1059,7 +1104,7 @@ impl Compiler<'_> {
             self.atoms.extend(atoms.map(|atom| f(sub_pattern_id, atom)));
         }
 
-        self.sub_patterns.push((self.current_pattern_id, sub_pattern));
+        self.sub_patterns.push((pattern_id, sub_pattern));
 
         sub_pattern_id
     }
@@ -1073,7 +1118,7 @@ impl Compiler<'_> {
         if let Some(symbol) = self.symbol_table.lookup(ident.name) {
             return match symbol {
                 // Found another rule with the same name.
-                Symbol::Rule(rule_id) => Err(DuplicateRule::build(
+                Symbol::Rule { rule_id, .. } => Err(DuplicateRule::build(
                     &self.report_builder,
                     ident.name.to_string(),
                     self.report_builder.span_to_code_loc(ident.span()),
@@ -1159,16 +1204,15 @@ impl Compiler<'_> {
         self.re_code.truncate(snapshot.re_code_len);
         self.atoms.truncate(snapshot.atoms_len);
         self.symbol_table.truncate(snapshot.symbol_table_len);
-    }
 
-    /// Sets a writer where the compiler will write the Intermediate
-    /// Representation (IR) of compiled conditions.
-    ///
-    /// This is used for testing and debugging purposes.
-    #[doc(hidden)]
-    pub fn set_ir_writer<W: Write + 'static>(&mut self, w: W) -> &mut Self {
-        self.ir_writer = Some(Box::new(w));
-        self
+        // Pattern IDs that are >= next_pattern_id, are being discarded. Any pattern
+        // or file size bound associated to such IDs must be removed.
+
+        self.patterns
+            .retain(|_, pattern_id| *pattern_id < snapshot.next_pattern_id);
+
+        self.filesize_bounds
+            .retain(|pattern_id, _| *pattern_id < snapshot.next_pattern_id);
     }
 
     /// Returns true if the bytes in the slice are all 0x00, 0x90, or 0xff.
@@ -1201,34 +1245,76 @@ impl Compiler<'_> {
         true
     }
 
+    /// Reads the file specified by an `include` statement.
+    ///
+    /// Tries to read the file in the include directories that were specified
+    /// with [`Compiler::add_include_dir`], or in the current directory, if
+    /// no include directories were specified.
+    ///
+    /// The function returns both the content and the path of the included file
+    /// relative to the current directory, or an error if the included file could
+    /// not be read.
     fn read_included_file(
         &mut self,
         include: &Include,
-    ) -> Result<Vec<u8>, CompileError> {
-        // If no include directories are specified, use the current directory.
-        let current_dir = vec![PathBuf::from(".")];
-        let include_dirs = self.include_dirs.as_ref().unwrap_or(&current_dir);
+    ) -> Result<(Vec<u8>, PathBuf), CompileError> {
+        let read_file =
+            |path: PathBuf| -> Result<(Vec<u8>, PathBuf), io::Error> {
+                let mut path = path.canonicalize()?;
+                let content = fs::read(&path)?;
 
-        // Try to read the file from each directory.
-        for dir in include_dirs {
-            let file_path = dir.join(include.file_name);
-            if file_path.exists() {
-                return fs::read(file_path).map_err(|err| {
+                if let Ok(cwd) =
+                    env::current_dir().and_then(|dir| dir.canonicalize())
+                    && let Ok(relative_path) = path.strip_prefix(cwd)
+                {
+                    path = relative_path.to_path_buf();
+                }
+
+                Ok((content, path))
+            };
+
+        // Look for the included file in the directory at the top of the
+        // include stack.
+        if let Some(dir) =
+            self.include_stack.last().and_then(|path| path.parent())
+            && let Ok(result) = read_file(dir.join(include.file_name))
+        {
+            return Ok(result);
+        }
+
+        // If one or more include directory were specified, try to find the
+        // included file in them, in the order they were specified. Otherwise,
+        // try to find the included file in the current directory.
+        if let Some(include_dirs) = &self.include_dirs {
+            if let Some(result) = include_dirs
+                .iter()
+                .find_map(|dir| read_file(dir.join(include.file_name)).ok())
+            {
+                Ok(result)
+            } else {
+                Err(IncludeNotFound::build(
+                    &self.report_builder,
+                    include.file_name.to_string(),
+                    self.report_builder.span_to_code_loc(include.span()),
+                ))
+            }
+        } else {
+            read_file(PathBuf::from(include.file_name)).map_err(|err| {
+                if err.kind() == io::ErrorKind::NotFound {
+                    IncludeNotFound::build(
+                        &self.report_builder,
+                        include.file_name.to_string(),
+                        self.report_builder.span_to_code_loc(include.span()),
+                    )
+                } else {
                     IncludeError::build(
                         &self.report_builder,
                         self.report_builder.span_to_code_loc(include.span()),
                         err.to_string(),
                     )
-                });
-            }
+                }
+            })
         }
-
-        // If file not found anywhere, return an error.
-        Err(IncludeNotFound::build(
-            &self.report_builder,
-            include.file_name.to_string(),
-            self.report_builder.span_to_code_loc(include.span()),
-        ))
     }
 }
 
@@ -1246,18 +1332,24 @@ impl Compiler<'_> {
                     // raise warnings in case of duplicated imports within
                     // the same source file. For each module add a symbol to
                     // the current namespace.
-                    if let Some(span) = already_imported
-                        .insert(&import.module_name, import.span())
-                    {
-                        self.warnings.add(|| {
-                            warnings::DuplicateImport::build(
-                                &self.report_builder,
-                                import.module_name.to_string(),
-                                self.report_builder
-                                    .span_to_code_loc(import.span()),
-                                self.report_builder.span_to_code_loc(span),
-                            )
-                        })
+                    if let Some(existing_import) = already_imported.insert(
+                        &import.module_name,
+                        self.report_builder.span_to_code_loc(import.span()),
+                    ) {
+                        let duplicated_import = self
+                            .report_builder
+                            .span_to_code_loc(import.span());
+
+                        let mut warning = warnings::DuplicateImport::build(
+                            &self.report_builder,
+                            import.module_name.to_string(),
+                            duplicated_import.clone(),
+                            existing_import,
+                        );
+
+                        warning.report_mut().patch(duplicated_import, "");
+
+                        self.warnings.add(|| warning)
                     }
                     // Import the module. This updates `self.root_struct` if
                     // necessary.
@@ -1276,13 +1368,37 @@ impl Compiler<'_> {
                         continue;
                     }
 
-                    let included = match self.read_included_file(include) {
-                        Ok(included) => included,
-                        Err(err) => {
-                            self.errors.push(err);
-                            continue;
-                        }
-                    };
+                    let (included_src, included_path) =
+                        match self.read_included_file(include) {
+                            Ok(included) => included,
+                            Err(err) => {
+                                self.errors.push(err);
+                                continue;
+                            }
+                        };
+
+                    if self.include_stack.contains(&included_path) {
+                        self.errors.push(CircularIncludes::build(
+                            &self.report_builder,
+                            self.report_builder
+                                .span_to_code_loc(include.span()),
+                            Some(format!(
+                                "include dependencies:\n{}",
+                                self.include_stack
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(i, path)| format!(
+                                        "{:>width$}↳ {}",
+                                        "",
+                                        path.display(),
+                                        width = i * 2
+                                    ))
+                                    .collect::<Vec<_>>()
+                                    .join("\n")
+                            )),
+                        ));
+                        continue;
+                    }
 
                     // Save the current source ID from the report builder in
                     // order to restore it later. Any recursive call to
@@ -1291,18 +1407,26 @@ impl Compiler<'_> {
                     let source_id =
                         self.report_builder.get_current_source_id().unwrap();
 
+                    let source_code =
+                        SourceCode::from(included_src.as_slice()).with_origin(
+                            // In Windows the paths separators are backslashes, but we
+                            // want to use slashes.
+                            included_path.to_str().unwrap().replace("\\", "/"),
+                        );
+
+                    self.include_stack.push(included_path);
+
                     // Any error generated while processing the included source
                     // code will be added to `self.errors`. The error returned
                     // by `add_source` is simply the first of the added errors,
                     // we don't need to handle the error here.
-                    let _ = self.add_source(
-                        SourceCode::from(included.as_slice())
-                            .with_origin(include.file_name),
-                    );
+                    let _ = self.add_source(source_code);
 
                     // Restore the current source ID to the value it had before
                     // calling `add_source`.
                     self.report_builder.set_current_source_id(source_id);
+
+                    self.include_stack.pop().unwrap();
                 }
                 ast::Item::Rule(rule) => {
                     if let Err(err) = self.c_rule(rule) {
@@ -1324,6 +1448,7 @@ impl Compiler<'_> {
         }
 
         // Check the rule with all the linters.
+        let mut first_linter_err: Option<CompileError> = None;
         for linter in self.linters.iter() {
             match linter.check(&self.report_builder, rule) {
                 LinterResult::Ok => {}
@@ -1335,16 +1460,18 @@ impl Compiler<'_> {
                         self.warnings.add(|| warning);
                     }
                 }
-                LinterResult::Err(err) => return Err(err),
+                LinterResult::Err(err) => {
+                    if first_linter_err.is_none() {
+                        first_linter_err = Some(err);
+                    } else {
+                        self.errors.push(err);
+                    }
+                }
             }
         }
-
-        let tags: Vec<IdentId> = rule
-            .tags
-            .iter()
-            .flatten()
-            .map(|t| self.ident_pool.get_or_intern(t.name))
-            .collect();
+        if let Some(err) = first_linter_err {
+            return Err(err);
+        }
 
         // Take snapshot of the current compiler state. In case of error
         // compiling the current rule this snapshot allows restoring the
@@ -1355,9 +1482,12 @@ impl Compiler<'_> {
         // added to one of these pools it can't be removed.
         let snapshot = self.take_snapshot();
 
-        // The RuleId for the new rule is current length of `self.rules`. The
-        // first rule has RuleId = 0.
-        let rule_id = RuleId::from(self.rules.len());
+        let tags: Vec<IdentId> = rule
+            .tags
+            .iter()
+            .flatten()
+            .map(|t| self.ident_pool.get_or_intern(t.name))
+            .collect();
 
         // Helper function that converts from `ast::MetaValue` to
         // `compiler::rules::MetaValue`.
@@ -1375,7 +1505,7 @@ impl Compiler<'_> {
 
         // Build a vector of pairs (IdentId, MetaValue) for every meta defined
         // in the rule.
-        let meta = rule
+        let metadata = rule
             .meta
             .iter()
             .flatten()
@@ -1386,29 +1516,6 @@ impl Compiler<'_> {
                 )
             })
             .collect();
-
-        // Add the new rule to `self.rules`. The only information about the
-        // rule that we don't have right now is the PatternId corresponding to
-        // each pattern, that's why the `pattern` fields is initialized as
-        // an empty vector. The PatternId corresponding to each pattern can't
-        // be determined until `bool_expr_from_ast` processes the condition
-        // and determines which patterns are anchored, because this information
-        // is required for detecting duplicate patterns that can share the same
-        // PatternId.
-        self.rules.push(RuleInfo {
-            namespace_id: self.current_namespace.id,
-            namespace_ident_id: self.current_namespace.ident_id,
-            ident_id: self.ident_pool.get_or_intern(rule.identifier.name),
-            ident_ref: self
-                .report_builder
-                .span_to_code_loc(rule.identifier.span()),
-            tags,
-            patterns: vec![],
-            is_global: rule.flags.contains(RuleFlags::Global),
-            is_private: rule.flags.contains(RuleFlags::Private),
-            metadata: meta,
-            num_private_patterns: 0,
-        });
 
         let mut rule_patterns = Vec::new();
 
@@ -1425,6 +1532,8 @@ impl Compiler<'_> {
             for_of_depth: 0,
             features: &self.features,
             loop_iteration_multiplier: 1,
+            regex_sets: &mut self.regex_sets,
+            regex_pool: &mut self.regex_pool,
         };
 
         // Convert the patterns from AST to IR. This populates the
@@ -1433,11 +1542,11 @@ impl Compiler<'_> {
             drop(ctx);
             self.restore_snapshot(snapshot);
             return Err(err);
-        };
+        }
 
-        // Convert the rule condition's AST to the intermediate representation
-        // (IR). Also updates the patterns with information about whether they
-        // are used in the condition and if they are anchored or not.
+        // Convert the condition from AST to IR. Also updates the patterns
+        // with information about whether they are used in the condition and
+        // if they are anchored or not.
         let condition = rule_condition_from_ast(&mut ctx, rule);
 
         drop(ctx);
@@ -1475,17 +1584,17 @@ impl Compiler<'_> {
                     Pattern::Regexp(re) => re.hir.as_literal_bytes(),
                     Pattern::Hex(re) => re.hir.as_literal_bytes(),
                 };
-                if let Some(literal_bytes) = literal_bytes {
-                    if Self::common_byte_repetition(literal_bytes) {
-                        self.warnings.add(|| {
-                            warnings::SlowPattern::build(
-                                &self.report_builder,
-                                self.report_builder
-                                    .span_to_code_loc(pat.span().clone()),
-                                None,
-                            )
-                        });
-                    }
+                if let Some(literal_bytes) = literal_bytes
+                    && Self::common_byte_repetition(literal_bytes)
+                {
+                    self.warnings.add(|| {
+                        warnings::SlowPattern::build(
+                            &self.report_builder,
+                            self.report_builder
+                                .span_to_code_loc(pat.span().clone()),
+                            None,
+                        )
+                    });
                 }
             }
         }
@@ -1547,35 +1656,38 @@ impl Compiler<'_> {
             condition = self.ir.hoisting();
         }
 
+        // Analyze the condition and determine the bounds it imposes to
+        // `filesize`, if any.
+        let filesize_bounds = self.ir.filesize_bounds();
+
+        // Set the bounds to all patterns in the rule. This must be done
+        // before assigning the PatternId to each pattern, as the filesize
+        // bounds are taken into account when determining if the pattern
+        // is unique or re-used from a previous rule.
+        if !filesize_bounds.unbounded() {
+            for pattern in &mut rule_patterns {
+                pattern.pattern_mut().set_filesize_bounds(&filesize_bounds);
+            }
+        }
+
         if let Some(w) = &mut self.ir_writer {
             writeln!(w, "RULE {}", rule.identifier.name).unwrap();
             writeln!(w, "{:?}", self.ir).unwrap();
+            if !filesize_bounds.unbounded() {
+                writeln!(w, "{filesize_bounds:?}\n",).unwrap();
+            }
         }
 
-        // Create a new symbol of bool type for the rule.
-        let new_symbol = Symbol::Rule(rule_id);
-
-        // Insert the symbol in the symbol table corresponding to the
-        // current namespace.
-        let existing_symbol = self
-            .current_namespace
-            .symbols
-            .as_ref()
-            .borrow_mut()
-            .insert(rule.identifier.name, new_symbol);
-
-        // No other symbol with the same identifier should exist.
-        assert!(existing_symbol.is_none());
-
         let mut pattern_ids = Vec::with_capacity(rule_patterns.len());
+        let mut patterns = Vec::with_capacity(rule_patterns.len());
         let mut pending_patterns = HashSet::new();
-
-        let current_rule = self.rules.last_mut().unwrap();
+        let mut num_private_patterns = 0;
 
         for pattern in &rule_patterns {
             // Raise error is some pattern was not used, except if the pattern
             // identifier starts with underscore.
             if !pattern.in_use() && !pattern.identifier().starts_with("$_") {
+                self.restore_snapshot(snapshot);
                 return Err(UnusedPattern::build(
                     &self.report_builder,
                     pattern.identifier().name.to_string(),
@@ -1585,7 +1697,7 @@ impl Compiler<'_> {
             }
 
             if pattern.pattern().flags().contains(PatternFlags::Private) {
-                current_rule.num_private_patterns += 1;
+                num_private_patterns += 1;
             }
 
             // Check if this pattern has been declared before, in this rule or
@@ -1593,8 +1705,9 @@ impl Compiler<'_> {
             // we don't need to process (i.e: extract atoms and add them to
             // Aho-Corasick automaton) the pattern again. Two patterns are
             // considered equal if they are exactly the same, including any
-            // modifiers associated to the pattern, and both are non-anchored
-            // or anchored at the same file offset.
+            // modifiers associated to the pattern, both are non-anchored
+            // or anchored at the same file offset, and if they have the same
+            // file size bounds.
             let pattern_id =
                 match self.patterns.entry(pattern.pattern().clone()) {
                     // The pattern already exists, return the existing ID.
@@ -1609,50 +1722,104 @@ impl Compiler<'_> {
                     }
                 };
 
-            let pattern_kind = match pattern.pattern() {
+            let kind = match pattern.pattern() {
                 Pattern::Text(_) => PatternKind::Text,
                 Pattern::Regexp(_) => PatternKind::Regexp,
                 Pattern::Hex(_) => PatternKind::Hex,
             };
 
-            current_rule.patterns.push((
-                self.ident_pool.get_or_intern(pattern.identifier().name),
-                pattern_kind,
+            patterns.push(PatternInfo {
+                kind,
                 pattern_id,
-                pattern.pattern().flags().contains(PatternFlags::Private),
-            ));
+                ident_id: self
+                    .ident_pool
+                    .get_or_intern(pattern.identifier().name),
+                is_private: pattern
+                    .pattern()
+                    .flags()
+                    .contains(PatternFlags::Private),
+            });
 
             pattern_ids.push(pattern_id);
         }
 
-        // Process the patterns in the rule. This extract the best atoms
+        // The RuleId for the new rule is current length of `self.rules`. The
+        // first rule has RuleId = 0.
+        let rule_id = RuleId::from(self.rules.len());
+
+        self.rules.push(RuleInfo {
+            tags,
+            metadata,
+            patterns,
+            num_private_patterns,
+            is_global: rule.flags.contains(RuleFlags::Global),
+            is_private: rule.flags.contains(RuleFlags::Private),
+            namespace_id: self.current_namespace.id,
+            namespace_ident_id: self.current_namespace.ident_id,
+            ident_id: self.ident_pool.get_or_intern(rule.identifier.name),
+            ident_ref: self
+                .report_builder
+                .span_to_code_loc(rule.identifier.span()),
+        });
+
+        // Process the patterns in the rule. This extracts the best atoms
         // from each pattern, adding them to the `self.atoms` vector, it
-        // also creates one or more sub-patterns per pattern and add them
+        // also creates one or more sub-patterns per pattern and adds them
         // to `self.sub_patterns`
-        for (pattern_id, pattern, span) in izip!(
-            pattern_ids.iter(),
-            rule_patterns.into_iter(),
-            rule.patterns.iter().flatten().map(|p| p.span())
-        ) {
+        for (pattern_id, pattern) in
+            izip!(pattern_ids.iter(), rule_patterns.into_iter())
+        {
             if pending_patterns.contains(pattern_id) {
-                self.current_pattern_id = *pattern_id;
-                let anchored_at = pattern.anchored_at();
+                let pattern_span = pattern.span().clone();
                 match pattern.into_pattern() {
                     Pattern::Text(pattern) => {
-                        self.c_literal_pattern(pattern, anchored_at);
+                        self.c_literal_pattern(*pattern_id, pattern);
                     }
                     Pattern::Regexp(pattern) | Pattern::Hex(pattern) => {
-                        if let Err(err) =
-                            self.c_regexp_pattern(pattern, anchored_at, span)
-                        {
+                        if let Err(err) = self.c_regexp_pattern(
+                            *pattern_id,
+                            pattern,
+                            pattern_span,
+                        ) {
                             self.restore_snapshot(snapshot);
                             return Err(err);
                         }
                     }
                 };
+                if !filesize_bounds.unbounded()
+                    && self
+                        .filesize_bounds
+                        .insert(*pattern_id, filesize_bounds.clone())
+                        .is_some()
+                {
+                    // This should not happen.
+                    panic!(
+                        "modifying the file size bounds of an existing pattern"
+                    )
+                }
                 pending_patterns.remove(pattern_id);
             }
         }
+
+        // Create a new symbol of bool type for the rule.
+        let new_symbol = Symbol::Rule {
+            rule_id,
+            is_global: rule.flags.contains(RuleFlags::Global),
+        };
+
+        // Insert the symbol in the symbol table corresponding to the
+        // current namespace. This must be done after every fallible function
+        // has been called; once the symbol is inserted in the symbol table,
+        // it can't be undone.
+        let existing_symbol = self
+            .current_namespace
+            .symbols
+            .as_ref()
+            .borrow_mut()
+            .insert(rule.identifier.name, new_symbol);
+
+        // No other symbol with the same identifier should exist.
+        assert!(existing_symbol.is_none());
 
         // The last step is emitting the WASM code corresponding to the rule's
         // condition. This is done after every fallible function has been called
@@ -1662,11 +1829,12 @@ impl Compiler<'_> {
         let mut ctx = EmitContext {
             current_rule: self.rules.last_mut().unwrap(),
             lit_pool: &mut self.lit_pool,
-            regexp_pool: &mut self.regexp_pool,
+            regex_pool: &mut self.regex_pool,
             wasm_symbols: &self.wasm_symbols,
             wasm_exports: &self.wasm_exports,
             exception_handler_stack: Vec::new(),
             lookup_list: Vec::new(),
+            emit_search_for_pattern_stack: Vec::new(),
         };
 
         emit_rule_condition(
@@ -1682,7 +1850,8 @@ impl Compiler<'_> {
 
     fn c_import(&mut self, import: &Import) -> Result<(), CompileError> {
         let module_name = import.module_name;
-        let module = BUILTIN_MODULES.get(module_name);
+        let module = crate::modules::registered_modules()
+            .find(|m| m.name() == module_name);
 
         // Does a module with the given name actually exist? ...
         if module.is_none() {
@@ -1720,44 +1889,18 @@ impl Compiler<'_> {
             self.imported_modules
                 .push(self.ident_pool.get_or_intern(module_name));
 
-            // Create the structure that describes the module.
-            let mut module_struct = Struct::from_proto_descriptor_and_msg(
-                &module.root_struct_descriptor,
-                None,
-                true,
-            );
-
-            // Does the YARA module has an associated Rust module? If
-            // yes, search for functions exported by the module.
-            if let Some(rust_module_name) = module.rust_module_name {
-                // Find all WASM public functions that belong to the current module.
-                let mut functions = WasmExport::get_functions(|e| {
-                    e.public && e.rust_module_path.contains(rust_module_name)
-                });
-
-                // Insert the functions in the module's struct.
-                for (name, export) in functions.drain() {
-                    if module_struct
-                        .add_field(name, TypeValue::Func(Rc::new(export)))
-                        .is_some()
-                    {
-                        panic!("duplicate function `{}`", name)
-                    }
-                }
-            }
+            // Create the `Struct` that describes the module.
+            let module_struct = Rc::<Struct>::from(module);
 
             // Insert the module in the struct that contains all imported
             // modules. This struct contains all modules imported, from
             // all namespaces. Panic if the module was already in the struct.
             if self
                 .root_struct
-                .add_field(
-                    module_name,
-                    TypeValue::Struct(Rc::new(module_struct)),
-                )
+                .add_field(module_name, TypeValue::Struct(module_struct))
                 .is_some()
             {
-                panic!("duplicate module `{}`", module_name)
+                panic!("duplicate module `{module_name}`")
             }
         }
 
@@ -1793,8 +1936,8 @@ impl Compiler<'_> {
 
     fn c_literal_pattern(
         &mut self,
+        pattern_id: PatternId,
         pattern: LiteralPattern,
-        anchored_at: Option<usize>,
     ) {
         let full_word = pattern.flags.contains(PatternFlags::Fullword);
         let mut flags = SubPatternFlags::empty();
@@ -1842,6 +1985,7 @@ impl Compiler<'_> {
 
                 let xor_range = pattern.xor_range.clone().unwrap();
                 self.add_sub_pattern(
+                    pattern_id,
                     SubPattern::Xor { pattern: pattern_lit_id, flags },
                     best_atom.xor_combinations(xor_range),
                     SubPatternAtom::from_atom,
@@ -1856,6 +2000,7 @@ impl Compiler<'_> {
                 ));
 
                 self.add_sub_pattern(
+                    pattern_id,
                     SubPattern::Literal {
                         pattern: pattern_lit_id,
                         flags: flags | SubPatternFlags::Nocase,
@@ -1901,6 +2046,7 @@ impl Compiler<'_> {
                         };
 
                         self.add_sub_pattern(
+                            pattern_id,
                             sub_pattern,
                             iter::once({
                                 let mut atom = best_atom_in_bytes(
@@ -1941,6 +2087,7 @@ impl Compiler<'_> {
                         let wide = make_wide(base64_pattern.as_slice());
 
                         self.add_sub_pattern(
+                            pattern_id,
                             sub_pattern,
                             iter::once({
                                 let mut atom =
@@ -1956,9 +2103,10 @@ impl Compiler<'_> {
                 }
             } else {
                 self.add_sub_pattern(
+                    pattern_id,
                     SubPattern::Literal {
                         pattern: pattern_lit_id,
-                        anchored_at,
+                        anchored_at: pattern.anchored_at,
                         flags,
                     },
                     iter::once(best_atom),
@@ -1970,8 +2118,8 @@ impl Compiler<'_> {
 
     fn c_regexp_pattern(
         &mut self,
+        pattern_id: PatternId,
         pattern: RegexpPattern,
-        anchored_at: Option<usize>,
         span: Span,
     ) -> Result<(), CompileError> {
         // Try splitting the regexp into multiple chained sub-patterns if it
@@ -1984,7 +2132,13 @@ impl Compiler<'_> {
 
         if !tail.is_empty() {
             // The pattern was split into multiple chained regexps.
-            return self.c_chain(&head, &tail, pattern.flags, span);
+            return self.c_chain(
+                pattern_id,
+                &head,
+                &tail,
+                pattern.flags,
+                span,
+            );
         }
 
         if head.is_alternation_literal() {
@@ -1995,8 +2149,9 @@ impl Compiler<'_> {
             //   { 01 02 03 }
             //   { (01 02 03 | 04 05 06 ) }
             return self.c_alternation_literal(
+                pattern_id,
                 head,
-                anchored_at,
+                pattern.anchored_at,
                 pattern.flags,
             );
         }
@@ -2027,6 +2182,7 @@ impl Compiler<'_> {
 
         if pattern.flags.contains(PatternFlags::Wide) {
             self.add_sub_pattern(
+                pattern_id,
                 SubPattern::Regexp { flags: flags | SubPatternFlags::Wide },
                 atoms.iter().cloned().map(|atom| atom.make_wide()),
                 SubPatternAtom::from_regexp_atom,
@@ -2035,6 +2191,7 @@ impl Compiler<'_> {
 
         if pattern.flags.contains(PatternFlags::Ascii) {
             self.add_sub_pattern(
+                pattern_id,
                 SubPattern::Regexp { flags },
                 atoms.into_iter(),
                 SubPatternAtom::from_regexp_atom,
@@ -2046,6 +2203,7 @@ impl Compiler<'_> {
 
     fn c_alternation_literal(
         &mut self,
+        pattern_id: PatternId,
         hir: re::hir::Hir,
         anchored_at: Option<usize>,
         flags: PatternFlags,
@@ -2085,12 +2243,14 @@ impl Compiler<'_> {
 
             if case_insensitive {
                 self.add_sub_pattern(
+                    pattern_id,
                     sub_pattern,
                     best_atom.case_combinations(),
                     SubPatternAtom::from_atom,
                 );
             } else {
                 self.add_sub_pattern(
+                    pattern_id,
                     sub_pattern,
                     iter::once(best_atom),
                     SubPatternAtom::from_atom,
@@ -2137,6 +2297,7 @@ impl Compiler<'_> {
 
     fn c_chain(
         &mut self,
+        pattern_id: PatternId,
         leading: &re::hir::Hir,
         trailing: &[ChainedPattern],
         flags: PatternFlags,
@@ -2169,11 +2330,12 @@ impl Compiler<'_> {
 
             if ascii {
                 prev_sub_pattern_ascii =
-                    self.c_literal_chain_head(literal, flags);
+                    self.c_literal_chain_head(pattern_id, literal, flags);
             }
 
             if wide {
                 prev_sub_pattern_wide = self.c_literal_chain_head(
+                    pattern_id,
                     literal,
                     flags | SubPatternFlags::Wide,
                 );
@@ -2194,6 +2356,7 @@ impl Compiler<'_> {
 
             if wide {
                 prev_sub_pattern_wide = self.add_sub_pattern(
+                    pattern_id,
                     SubPattern::RegexpChainHead {
                         flags: flags | SubPatternFlags::Wide,
                     },
@@ -2204,6 +2367,7 @@ impl Compiler<'_> {
 
             if ascii {
                 prev_sub_pattern_ascii = self.add_sub_pattern(
+                    pattern_id,
                     SubPattern::RegexpChainHead { flags },
                     atoms.into_iter(),
                     SubPatternAtom::from_regexp_atom,
@@ -2228,6 +2392,7 @@ impl Compiler<'_> {
             if let hir::HirKind::Literal(literal) = p.hir.kind() {
                 if wide {
                     prev_sub_pattern_wide = self.c_literal_chain_tail(
+                        pattern_id,
                         literal,
                         prev_sub_pattern_wide,
                         p.gap.clone(),
@@ -2236,6 +2401,7 @@ impl Compiler<'_> {
                 };
                 if ascii {
                     prev_sub_pattern_ascii = self.c_literal_chain_tail(
+                        pattern_id,
                         literal,
                         prev_sub_pattern_ascii,
                         p.gap.clone(),
@@ -2256,6 +2422,7 @@ impl Compiler<'_> {
 
                 if wide {
                     prev_sub_pattern_wide = self.add_sub_pattern(
+                        pattern_id,
                         SubPattern::RegexpChainTail {
                             chained_to: prev_sub_pattern_wide,
                             gap: p.gap.clone(),
@@ -2268,6 +2435,7 @@ impl Compiler<'_> {
 
                 if ascii {
                     prev_sub_pattern_ascii = self.add_sub_pattern(
+                        pattern_id,
                         SubPattern::RegexpChainTail {
                             chained_to: prev_sub_pattern_ascii,
                             gap: p.gap.clone(),
@@ -2309,14 +2477,13 @@ impl Compiler<'_> {
             false,
         );
 
-        let re_atoms = result.map_err(|err| match err {
-            re::Error::TooLarge => InvalidRegexp::build(
+        let re_atoms = result.map_err(|err| {
+            InvalidRegexp::build(
                 &self.report_builder,
-                "regexp is too large".to_string(),
+                err.to_string(),
                 self.report_builder.span_to_code_loc(span.clone()),
                 None,
-            ),
-            _ => unreachable!(),
+            )
         })?;
 
         if matches!(hir.minimum_len(), Some(0)) {
@@ -2380,6 +2547,7 @@ impl Compiler<'_> {
 
     fn c_literal_chain_head(
         &mut self,
+        pattern_id: PatternId,
         literal: &hir::Literal,
         flags: SubPatternFlags,
     ) -> SubPatternId {
@@ -2388,6 +2556,7 @@ impl Compiler<'_> {
             flags.contains(SubPatternFlags::Wide),
         );
         self.add_sub_pattern(
+            pattern_id,
             SubPattern::LiteralChainHead { pattern: pattern_lit_id, flags },
             extract_atoms(
                 self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
@@ -2399,6 +2568,7 @@ impl Compiler<'_> {
 
     fn c_literal_chain_tail(
         &mut self,
+        pattern_id: PatternId,
         literal: &hir::Literal,
         chained_to: SubPatternId,
         gap: ChainedPatternGap,
@@ -2409,6 +2579,7 @@ impl Compiler<'_> {
             flags.contains(SubPatternFlags::Wide),
         );
         self.add_sub_pattern(
+            pattern_id,
             SubPattern::LiteralChainTail {
                 pattern: pattern_lit_id,
                 chained_to,
@@ -2456,7 +2627,7 @@ impl From<IdentId> for u32 {
 /// ID associated to each literal string in the literals pool.
 #[derive(PartialEq, Debug, Copy, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-pub(crate) struct LiteralId(u32);
+pub struct LiteralId(u32);
 
 impl From<i32> for LiteralId {
     fn from(v: i32) -> Self {
@@ -2492,6 +2663,13 @@ impl From<LiteralId> for u64 {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub(crate) struct NamespaceId(i32);
+
+impl From<i32> for NamespaceId {
+    #[inline]
+    fn from(v: i32) -> Self {
+        Self(v)
+    }
+}
 
 /// ID associated to each rule.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash)]
@@ -2536,48 +2714,81 @@ impl From<RuleId> for i32 {
 }
 
 /// ID associated to each regexp used in a rule condition.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub(crate) struct RegexpId(i32);
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub(crate) struct RegexId(i32);
 
-impl From<i32> for RegexpId {
+impl From<i32> for RegexId {
     #[inline]
     fn from(value: i32) -> Self {
         Self(value)
     }
 }
 
-impl From<u32> for RegexpId {
+impl From<u32> for RegexId {
     #[inline]
     fn from(value: u32) -> Self {
         Self(value.try_into().unwrap())
     }
 }
 
-impl From<i64> for RegexpId {
+impl From<i64> for RegexId {
     #[inline]
     fn from(value: i64) -> Self {
         Self(value.try_into().unwrap())
     }
 }
 
-impl From<RegexpId> for usize {
+impl From<RegexId> for usize {
     #[inline]
-    fn from(value: RegexpId) -> Self {
+    fn from(value: RegexId) -> Self {
         value.0 as usize
     }
 }
 
-impl From<RegexpId> for i32 {
+impl From<RegexId> for i32 {
     #[inline]
-    fn from(value: RegexpId) -> Self {
+    fn from(value: RegexId) -> Self {
         value.0
     }
 }
 
-impl From<RegexpId> for u32 {
+impl From<RegexId> for u32 {
     #[inline]
-    fn from(value: RegexpId) -> Self {
+    fn from(value: RegexId) -> Self {
         value.0.try_into().unwrap()
+    }
+}
+
+/// ID associated to each grouped `RegexSet`.
+///
+/// When compiling multiple rules, identical string expressions (such as a
+/// specific field access like `vt.net.domain.raw`) are frequently matched
+/// against multiple distinct regular expressions. To optimize these
+/// evaluations, the compiler identifies identical targets, assigns them a
+/// unique `RegexSetId`, and groups all their associated regular expressions
+/// together. At runtime, the entire set is evaluated simultaneously in a
+/// single pass.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub(crate) struct RegexSetId(i32);
+
+impl From<i32> for RegexSetId {
+    #[inline]
+    fn from(value: i32) -> Self {
+        Self(value)
+    }
+}
+
+impl From<RegexSetId> for usize {
+    #[inline]
+    fn from(value: RegexSetId) -> Self {
+        value.0 as usize
+    }
+}
+
+impl From<RegexSetId> for i32 {
+    #[inline]
+    fn from(value: RegexSetId) -> Self {
+        value.0
     }
 }
 
@@ -2586,13 +2797,21 @@ impl From<RegexpId> for u32 {
 /// For each unique pattern defined in a set of YARA rules there's a PatternId
 /// that identifies it. If two different rules define exactly the same pattern
 /// there's a single instance of the pattern and therefore a single PatternId
-/// shared by both rules. Two patterns are considered equal when the have the
-/// same data and modifiers, but the identifier is not relevant. For example,
-/// if one rule defines `$a = "mz"` and another one `$mz = "mz"`, the pattern
-/// `"mz"` is shared by the two rules. Each rule has a Vec<(IdentId, PatternId)>
-/// that associates identifiers to their corresponding patterns.
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+/// shared by both rules. For example, if one rule defines `$a = "mz"` and
+/// another one `$mz = "mz"`, the pattern `"mz"` is shared by the two rules.
+///
+/// However, in order to be considered the same, the following conditions must
+/// be met:
+///
+/// * Both patterns must have the same modifiers (i.e: `"mz" nocase` is not the
+///   same pattern as `"mz"`),
+/// * Both patterns must be either non-anchored, or anchored to the same offset.
+/// * Both patterns must have the same file size bounds (or no bounds at all).
+#[derive(
+    Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Serialize, Deserialize,
+)]
 #[serde(transparent)]
+#[derive(Ord)]
 pub(crate) struct PatternId(i32);
 
 impl PatternId {
@@ -2777,38 +2996,23 @@ struct Snapshot {
     symbol_table_len: usize,
 }
 
-/// Error returned by [`Compiler::switch_warning`] when the warning
-/// code is not valid.
-#[derive(Error, Debug, Eq, PartialEq)]
-#[error("`{0}` is not a valid warning code")]
-pub struct InvalidWarningCode(String);
-
 /// Represents a list of warnings.
 ///
 /// This is a wrapper around a `Vec<Warning>` that contains additional logic
 /// for limiting the number of warnings stored in the vector and silencing some
 /// warnings types.
+#[derive(Default)]
 pub(crate) struct Warnings {
     warnings: Vec<Warning>,
-    /// Maximum number of warnings that will be stored in `warnings`.
-    max_warnings: usize,
+    /// Maximum number of warnings that will be stored in `warnings`. If this
+    /// is `None`, there will no limits.
+    max_warnings: Option<usize>,
     /// Warnings that are globally disabled.
     disabled_warnings: HashSet<String>,
     /// Warnings that are suppressed for a specific code span. Keys are
     /// warning identifiers, and values are the code spans in which the
     /// warning is disabled.
     suppressed_warnings: HashMap<String, Vec<Span>>,
-}
-
-impl Default for Warnings {
-    fn default() -> Self {
-        Self {
-            warnings: Vec::new(),
-            max_warnings: 100,
-            disabled_warnings: HashSet::default(),
-            suppressed_warnings: HashMap::default(),
-        }
-    }
 }
 
 impl Warnings {
@@ -2818,20 +3022,19 @@ impl Warnings {
     /// added.
     #[inline]
     pub fn add(&mut self, f: impl FnOnce() -> Warning) {
-        if self.warnings.len() < self.max_warnings {
+        if self.warnings.len() < self.max_warnings.unwrap_or(usize::MAX) {
             let warning = f();
             let mut warn = !self.disabled_warnings.contains(warning.code());
 
-            if warn {
-                if let Some(spans) =
+            if warn
+                && let Some(spans) =
                     self.suppressed_warnings.get(warning.code())
-                {
-                    'l: for disabled_span in spans {
-                        for label in warning.labels() {
-                            if disabled_span.contains(label.span()) {
-                                warn = false;
-                                break 'l;
-                            }
+            {
+                'l: for disabled_span in spans {
+                    for label in warning.labels() {
+                        if disabled_span.contains(label.span()) {
+                            warn = false;
+                            break 'l;
                         }
                     }
                 }
@@ -2860,7 +3063,7 @@ impl Warnings {
         enabled: bool,
     ) -> Result<bool, InvalidWarningCode> {
         if !Self::is_valid_code(code) {
-            return Err(InvalidWarningCode(code.to_string()));
+            return Err(InvalidWarningCode::new(code.to_string()));
         }
         if enabled {
             Ok(!self.disabled_warnings.remove(code))

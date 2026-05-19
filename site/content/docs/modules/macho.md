@@ -9,7 +9,7 @@ menu:
   docs:
     parent: ""
     identifier: "macho-module"
-weight: 310
+weight: 600
 toc: true
 seo:
   title: "" # custom title (optional)
@@ -267,9 +267,11 @@ rule import_hash_example {
 }
 ```
 
-### sym_hash()
+### symhash()
 
-Returns an MD5 hash of the symbol table entries designated in the Mach-O binary.
+Implementation of `symhash` as defined at https://github.com/threatstream/symhash/.
+
+Returns an MD5 hash of the symbols extracted as defined above.
 
 {{< callout title="Notice">}}
 
@@ -282,9 +284,9 @@ The returned hash string is always in lowercase.
 ```yara
 import "macho"
 
-rule sym_hash_example {
+rule symhash_example {
   condition:
-    macho.sym_hash() == "a9ccc7c7b8bd33a99dc7ede4e8d771b4"
+    macho.symhash() == "a9ccc7c7b8bd33a99dc7ede4e8d771b4"
 }
 ```
 
@@ -292,40 +294,40 @@ rule sym_hash_example {
 
 ### Module structure
 
-| Field               | Type                          |
-| ------------------- | ----------------------------- |
-| magic               | integer                       |
-| cputype             | integer                       |
-| cpusubtype          | integer                       |
-| filetype            | integer                       |
-| ncmds               | integer                       |
-| sizeofcmds          | integer                       |
-| flags               | integer                       |
-| reserved            | integer                       |
-| number_of_segments  | integer                       |
-| dynamic_linker      | string                        |
-| entry_point         | integer                       |
-| stack_size          | integer                       |
-| source_version      | string                        |
-| symtab              | [Symtab](#symtab)             |
-| dysymtab            | [Dysymtab](#dysymtab)         |
-| code_signature_data | [LinkedItData](#linkeditdata) |
-| segments            | [Segment](#segment) array     |
-| dylibs              | [Dylib](#dylib) array         |
-| dyld_info           | [DyldInfo](#dyldinfo)         |
-| rpaths              | string array                  |
-| entitlements        | string array                  |
-| certificates        | [Certificates](#certificates) |
-| uuid                | string                        |
-| build_version       | [BuildVersion](#buildversion) |
-| min_version         | [MinVersion](#minversion)     |
-| exports             | string array                  |
-| imports             | string array                  |
-| linker_options      | string array                  |
-| fat_magic           | integer                       |
-| nfat_arch           | integer                       |
-| fat_arch            | [FatArch](#fatarch) array     |
-| file                | [File](#file) array           |
+| Field               | Type                              |
+| ------------------- | --------------------------------- |
+| magic               | integer                           |
+| cputype             | integer                           |
+| cpusubtype          | integer                           |
+| filetype            | integer                           |
+| ncmds               | integer                           |
+| sizeofcmds          | integer                           |
+| flags               | integer                           |
+| reserved            | integer                           |
+| number_of_segments  | integer                           |
+| dynamic_linker      | string                            |
+| entry_point         | integer                           |
+| stack_size          | integer                           |
+| source_version      | string                            |
+| symtab              | [Symtab](#symtab)                 |
+| dysymtab            | [Dysymtab](#dysymtab)             |
+| code_signature_data | [LinkedItData](#linkeditdata)     |
+| segments            | [Segment](#segment) array         |
+| dylibs              | [Dylib](#dylib) array             |
+| dyld_info           | [DyldInfo](#dyldinfo)             |
+| rpaths              | string array                      |
+| entitlements        | string array                      |
+| certificates        | [Certificate](#certificate) array |
+| uuid                | string                            |
+| build_version       | [BuildVersion](#buildversion)     |
+| min_version         | [MinVersion](#minversion)         |
+| exports             | string array                      |
+| imports             | string array                      |
+| linker_options      | string array                      |
+| fat_magic           | integer                           |
+| nfat_arch           | integer                           |
+| fat_arch            | [FatArch](#fatarch) array         |
+| file                | [File](#file) array               |
 
 ### BuildTool
 
@@ -344,14 +346,15 @@ rule sym_hash_example {
 | ntools   | integer                       |
 | tools    | [BuildTool](#buildtool) array |
 
-<a name="macho-Certificates"></a>
+<a name="macho-Certificate"></a>
 
-### Certificates
+### Certificate
 
-| Field        | Type         |
-| ------------ | ------------ |
-| common_names | string array |
-| signer_names | string array |
+| Field          | Type    |
+| -------------- | ------- |
+| issuer         | string  |
+| subject        | string  |
+| is_self_signed | boolean |
 
 ### DyldInfo
 
@@ -493,13 +496,25 @@ rule sym_hash_example {
 
 ### Symtab
 
-| Field   | Type         |
-| ------- | ------------ |
-| symoff  | integer      |
-| nsyms   | integer      |
-| stroff  | integer      |
-| strsize | integer      |
-| entries | string array |
+| Field   | Type                  |
+| ------- | --------------------- |
+| symoff  | integer               |
+| nsyms   | integer               |
+| stroff  | integer               |
+| strsize | integer               |
+| entries | string array          |
+| nlists  | [Nlist](#nlist) array |
+
+### Nlist
+
+| Field   | Type    |
+| ------- | ------- |
+| n_strx  | integer |
+| n_type  | integer |
+| n_sect  | integer |
+| n_desc  | integer |
+| n_value | integer |
+
 
 ### CPU_ARM_64_SUBTYPE
 

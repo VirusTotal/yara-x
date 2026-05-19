@@ -3,4 +3,3 @@ error[E002]: wrong type
   |
 2 |   condition: "111" contains 1
   |                             ^ expression should be `string`, but it is `integer`
-  |

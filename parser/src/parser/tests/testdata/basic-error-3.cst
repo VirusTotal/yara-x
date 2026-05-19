@@ -15,4 +15,4 @@ SOURCE_FILE@0..27
           TRUE_KW@23..27 "true"
 
 ERRORS:
-- [26..26]: expecting operator or `}`, found end of file
+- [27..27]: expecting operator or `}`, found end of file

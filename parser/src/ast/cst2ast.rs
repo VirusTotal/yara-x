@@ -8,11 +8,11 @@ use bstr::{ByteSlice, ByteVec};
 use itertools::Itertools;
 use num_traits::{Bounded, CheckedMul, FromPrimitive, Num};
 
+use crate::Span;
 use crate::ast::errors::Error;
 use crate::ast::*;
 use crate::cst::SyntaxKind::*;
 use crate::cst::{Event, SyntaxKind};
-use crate::Span;
 
 #[derive(Debug)]
 enum BuilderError {
@@ -34,7 +34,7 @@ where
     I: Iterator<Item = Event>,
 {
     source: &'src [u8],
-    events: Peekable<CSTStream<'src, I>>,
+    events: Peekable<I>,
     errors: Vec<Error>,
     depth: usize,
 }
@@ -43,11 +43,11 @@ impl<'src, I> Builder<'src, I>
 where
     I: Iterator<Item = Event>,
 {
-    pub fn new(cst: CSTStream<'src, I>) -> Self {
+    pub fn new(src: &'src [u8], events: I) -> Self {
         Self {
+            source: src,
+            events: events.peekable(),
             errors: Vec::new(),
-            source: cst.source(),
-            events: cst.peekable(),
             depth: 0,
         }
     }
@@ -64,8 +64,9 @@ where
                     Ok(rule) => items.push(Item::Rule(rule)),
                     // If `rule_decl` returns an error the rule is ignored,
                     // but we try to continue at the next rule declaration,
-                    // import statement, or include statement. The `recover` function discards
-                    // everything until finding the next valid item.
+                    // import statement, or include statement. The `recover`
+                    // function discards everything until finding the next
+                    // valid item.
                     Err(BuilderError::Abort) => self.recover(),
                     Err(BuilderError::MaxDepthReached) => {}
                 },
@@ -93,6 +94,15 @@ where
         }
 
         self.end(SOURCE_FILE).unwrap();
+
+        // After the closing SOURCE_FILE, more error events can follow.
+        for event in self.events {
+            if let Event::Error { message, span } = event {
+                self.errors.push(Error::SyntaxError { message, span });
+            } else {
+                unreachable!("unexpected event: {:?}", event);
+            }
+        }
 
         assert_eq!(self.depth, 0);
 
@@ -141,9 +151,7 @@ macro_rules! new_n_ary_expr {
 }
 
 macro_rules! new_binary_expr {
-    ($variant:path, $lhs:ident, $rhs:ident) => {{
-        $variant(Box::new(BinaryExpr { lhs: $lhs, rhs: $rhs }))
-    }};
+    ($variant:path, $lhs:ident, $rhs:ident) => {{ $variant(Box::new(BinaryExpr { lhs: $lhs, rhs: $rhs })) }};
 }
 
 impl<'src, I> Builder<'src, I>
@@ -164,7 +172,11 @@ where
                 | Event::Begin { kind: INCLUDE_STMT, .. } => break,
                 Event::End { kind: SOURCE_FILE, .. } => break,
                 _ => {
-                    let _ = self.events.next();
+                    if let Some(Event::Error { message, span }) =
+                        self.events.next()
+                    {
+                        self.errors.push(Error::SyntaxError { message, span });
+                    }
                 }
             }
         }
@@ -216,8 +228,8 @@ where
 
     /// Returns a reference to the next [`Event`] that is not a whitespace,
     /// newline, comment or error. The event is returned without being
-    /// consumed. Any whitespace, newline, comment or error is consumed that
-    /// appears before the returned one is consumed.
+    /// consumed, but any whitespace, newline, comment or error that appears
+    /// before the event is consumed.
     fn peek(&mut self) -> &Event {
         self.consume_errors_and_trivia();
         self.events.peek().expect("unexpected end of events")
@@ -242,18 +254,24 @@ where
     }
 
     fn begin(&mut self, kind: SyntaxKind) -> Result<(), BuilderError> {
-        let next = self.next()?;
-        assert!(matches!(next, Event::Begin{kind: k, ..} if k == kind));
-        if self.depth == Self::MAX_AST_DEPTH {
-            return Err(BuilderError::MaxDepthReached);
+        match self.next()? {
+            Event::Begin { kind: k, .. } if k == kind => {
+                if self.depth == Self::MAX_AST_DEPTH {
+                    return Err(BuilderError::MaxDepthReached);
+                }
+                self.depth += 1;
+                Ok(())
+            }
+            _ => Err(BuilderError::Abort),
         }
-        self.depth += 1;
-        Ok(())
     }
 
     fn end(&mut self, kind: SyntaxKind) -> Result<(), BuilderError> {
         let next = self.next()?;
-        assert!(matches!(next, Event::End{kind: k, ..} if k == kind));
+        assert!(
+            matches!(next, Event::End{kind: k, ..} if k == kind),
+            "expecting End {{ kind: {kind:?} }}, found {next:?}",
+        );
         self.depth = self.depth.saturating_sub(1);
         Ok(())
     }
@@ -272,11 +290,11 @@ where
                     // unexpected syntax in the CST. Either the source -> CST
                     // phase is not strict enough, or the CST -> AST phase is
                     // overly strict.
-                    panic!("expected {:?}, got {:?}", expected_kind, kind);
+                    panic!("expected {expected_kind:?}, got {kind:?}");
                 }
                 Ok(span)
             }
-            event => panic!("unexpected {:?}, got {:?}", expected_kind, event),
+            event => panic!("unexpected {expected_kind:?}, got {event:?}"),
         }
     }
 
@@ -349,7 +367,7 @@ where
             let (operator, (l_bp, r_bp)) = match self.peek() {
                 Event::Token { kind, .. } => (*kind, binding_power(*kind)),
                 Event::End { .. } => break,
-                event => panic!("unexpected {:?}", event),
+                event => panic!("unexpected {event:?}"),
             };
 
             if l_bp < min_bp {
@@ -535,7 +553,7 @@ where
                 Event::End { kind: RULE_MODS, .. } => {
                     break;
                 }
-                event => panic!("unexpected {:?}", event),
+                event => panic!("unexpected {event:?}"),
             }
         }
 
@@ -635,7 +653,7 @@ where
             Event::Token { kind: FALSE_KW, .. } => {
                 MetaValue::Bool((false, self.expect(FALSE_KW)?))
             }
-            event => panic!("unexpected {:?}", event),
+            event => panic!("unexpected {event:?}"),
         };
 
         self.end(META_DEF)?;
@@ -669,17 +687,19 @@ where
                     modifiers,
                 }))
             }
-            Event::Begin { kind: HEX_PATTERN, .. } => {
+            Event::Begin { kind: HEX_PATTERN, span } => {
+                let span = span.clone();
                 let tokens = self.hex_pattern()?;
                 let modifiers = self.pattern_mods_opt()?;
 
                 Pattern::Hex(Box::new(HexPattern {
-                    identifier,
                     sub_patterns: tokens,
+                    span,
+                    identifier,
                     modifiers,
                 }))
             }
-            event => panic!("unexpected {:?}", event),
+            event => panic!("unexpected {event:?}"),
         };
 
         self.end(PATTERN_DEF)?;
@@ -742,7 +762,7 @@ where
                                 end = self.integer_lit::<u8>()?.0;
                                 span = span.combine(&self.expect(R_PAREN)?);
                             }
-                            event => panic!("unexpected {:?}", event),
+                            event => panic!("unexpected {event:?}"),
                         }
                     }
                     modifiers.push(PatternModifier::Xor { span, start, end });
@@ -772,10 +792,10 @@ where
                                 alphabet,
                             });
                         }
-                        event => panic!("unexpected {:?}", event),
+                        event => panic!("unexpected {event:?}"),
                     };
                 }
-                event => panic!("unexpected {:?}", event),
+                event => panic!("unexpected {event:?}"),
             }
             self.end(PATTERN_MOD)?;
         }
@@ -975,7 +995,7 @@ where
             Event::Begin { kind: EXPR, .. } => {
                 self.pratt_parser(Self::expr, 0)?
             }
-            event => panic!("unexpected {:?}", event),
+            event => panic!("unexpected {event:?}"),
         };
 
         self.end(BOOLEAN_TERM)?;
@@ -1003,7 +1023,7 @@ where
                     Event::Begin { kind: PATTERN_IDENT_TUPLE, .. } => {
                         Some(PatternSet::Set(self.pattern_ident_tuple()?))
                     }
-                    event => panic!("unexpected {:?}", event),
+                    event => panic!("unexpected {event:?}"),
                 };
             }
             Event::Token { kind: IDENT, .. } => {
@@ -1014,12 +1034,12 @@ where
                         Event::Token { kind: IN_KW, .. } => {
                             break;
                         }
-                        event => panic!("unexpected {:?}", event),
+                        event => panic!("unexpected {event:?}"),
                     }
                 }
                 iterable = Some(self.iterable()?);
             }
-            event => panic!("unexpected {:?}", event),
+            event => panic!("unexpected {event:?}"),
         }
 
         self.expect(COLON)?;
@@ -1073,7 +1093,7 @@ where
             Event::Begin { kind: BOOLEAN_EXPR_TUPLE, .. } => {
                 OfItems::BoolExprTuple(self.boolean_expr_tuple()?)
             }
-            event => panic!("unexpected {:?}", event),
+            event => panic!("unexpected {event:?}"),
         };
 
         let anchor = self.anchor()?;
@@ -1145,13 +1165,13 @@ where
             Event::Token { kind: ANY_KW, .. } => {
                 Quantifier::Any { span: self.expect(ANY_KW)? }
             }
-            Event::Begin { kind: PRIMARY_EXPR, .. } => {
-                let expr = self.primary_expr()?;
+            Event::Begin { kind: TERM, .. } => {
+                let expr = self.term()?;
                 self.expect(PERCENT)?;
                 Quantifier::Percentage(expr)
             }
             Event::Begin { kind: EXPR, .. } => Quantifier::Expr(self.expr()?),
-            event => panic!("unexpected {:?}", event),
+            event => panic!("unexpected {event:?}"),
         };
 
         self.end(QUANTIFIER)?;
@@ -1168,7 +1188,7 @@ where
                 Iterable::ExprTuple(self.expr_tuple()?)
             }
             Event::Begin { kind: EXPR, .. } => Iterable::Expr(self.expr()?),
-            event => panic!("unexpected {:?}", event),
+            event => panic!("unexpected {event:?}"),
         };
 
         self.end(ITERABLE)?;
@@ -1243,40 +1263,28 @@ where
         Ok(exprs)
     }
 
-    fn term(&mut self) -> Result<Expr<'src>, BuilderError> {
-        self.begin(TERM)?;
+    fn primary_expr(&mut self) -> Result<Expr<'src>, BuilderError> {
+        self.begin(PRIMARY_EXPR)?;
 
-        let expr = match self.peek() {
+        let mut expr = match self.peek() {
             Event::Begin { kind: FUNC_CALL, .. } => self.func_call(None)?,
-            Event::Begin { kind: PRIMARY_EXPR, .. } => {
-                let mut expr = self.primary_expr()?;
-
-                match self.peek() {
-                    // Array or dictionary lookup.
-                    Event::Token { kind: L_BRACKET, .. } => {
-                        self.expect(L_BRACKET)?;
-                        let index = self.expr()?;
-                        let span = expr.span();
-                        let span = span.combine(&self.expect(R_BRACKET)?);
-                        expr = Expr::Lookup(Box::new(Lookup {
-                            primary: expr,
-                            index,
-                            span,
-                        }))
-                    }
-                    Event::Token { kind: DOT, .. } => {
-                        self.expect(DOT)?;
-                        expr = self.func_call(Some(expr))?;
-                    }
-                    _ => {}
-                }
-
-                expr
+            Event::Token { kind: IDENT, .. } => {
+                Expr::Ident(Box::new(self.identifier()?))
             }
-            _ => unreachable!(),
+            expr => panic!("unexpected {expr:?}"),
         };
 
-        self.end(TERM)?;
+        if let Event::Token { kind: L_BRACKET, .. } = self.peek() {
+            self.expect(L_BRACKET)?;
+            let span = expr.span();
+            let index = self.expr()?;
+            let span = span.combine(&self.expect(R_BRACKET)?);
+
+            expr =
+                Expr::Lookup(Box::new(Lookup { primary: expr, index, span }))
+        }
+
+        self.end(PRIMARY_EXPR)?;
 
         Ok(expr)
     }
@@ -1301,7 +1309,6 @@ where
         let r_paren_span = self.expect(R_PAREN)?;
 
         let expr = Expr::FuncCall(Box::new(FuncCall {
-            span: identifier.span().combine(&r_paren_span),
             args_span: l_paren_span.combine(&r_paren_span),
             object,
             identifier,
@@ -1313,8 +1320,8 @@ where
         Ok(expr)
     }
 
-    fn primary_expr(&mut self) -> Result<Expr<'src>, BuilderError> {
-        self.begin(PRIMARY_EXPR)?;
+    fn term(&mut self) -> Result<Expr<'src>, BuilderError> {
+        self.begin(TERM)?;
 
         let expr = match self.peek() {
             Event::Token { kind: FLOAT_LIT, .. } => {
@@ -1461,25 +1468,89 @@ where
                 self.expect(R_PAREN)?;
                 expr
             }
-            Event::Token { kind: IDENT, .. } => {
-                let mut idents =
-                    vec![Expr::Ident(Box::new(self.identifier()?))];
+            Event::Begin { kind: PRIMARY_EXPR, .. } => {
+                let mut exprs = vec![self.primary_expr()?];
 
                 while let Event::Token { kind: DOT, .. } = self.peek() {
                     self.expect(DOT)?;
-                    idents.push(Expr::Ident(Box::new(self.identifier()?)));
+                    exprs.push(self.primary_expr()?);
                 }
 
-                if idents.len() == 1 {
-                    idents.pop().unwrap()
+                // Consecutive dot-separated expressions can be coalesced
+                // into a single one based on the operands types. For
+                // example `a.b` (identifier . identifier), is merged into
+                // one FieldAccess expression. Similarly, if the left side
+                // is already a FieldAccess, and the right is an identifier,
+                // the identifier is simply added to the operand list of
+                // the FieldAccess. There are more cases, all covered below.
+                let mut coalesced: Vec<Expr> = exprs
+                    .into_iter()
+                    .coalesce(|x, y| match (x, y) {
+                        // Two consecutive identifiers, this is a field access.
+                        (left @ Expr::Ident(_), right @ Expr::Ident(_)) => {
+                            Ok(Expr::FieldAccess(Box::new(NAryExpr::from(
+                                vec![left, right],
+                            ))))
+                        }
+                        // A field access followed by some identifier, add the
+                        // identifier as another operator of the field access.
+                        (
+                            Expr::FieldAccess(mut field_access),
+                            ident @ Expr::Ident(_),
+                        ) => {
+                            field_access.operands.push(ident);
+                            Ok(Expr::FieldAccess(field_access))
+                        }
+                        //  A field access followed by a function call, the
+                        // field access is the target object for the function.
+                        (
+                            field_access @ Expr::FieldAccess(_),
+                            Expr::FuncCall(mut func_call),
+                        ) => {
+                            func_call.object = Some(field_access);
+                            Ok(Expr::FuncCall(func_call))
+                        }
+                        // An identifier followed by a function call, the
+                        // identifier is the target object for the function.
+                        (
+                            ident @ Expr::Ident(_),
+                            Expr::FuncCall(mut func_call),
+                        ) => {
+                            func_call.object = Some(ident);
+                            Ok(Expr::FuncCall(func_call))
+                        }
+                        // An identifier followed by a lookup expression.
+                        (ident @ Expr::Ident(_), Expr::Lookup(mut lookup)) => {
+                            lookup.span = ident.span().combine(&lookup.span);
+                            lookup.primary = Expr::FieldAccess(Box::new(
+                                NAryExpr::from(vec![ident, lookup.primary]),
+                            ));
+                            Ok(Expr::Lookup(lookup))
+                        }
+                        // Field access followed by a lookup expression.
+                        (
+                            Expr::FieldAccess(mut fa),
+                            Expr::Lookup(mut lookup),
+                        ) => {
+                            fa.operands.push(lookup.primary);
+                            lookup.span = fa.span().combine(&lookup.span);
+                            lookup.primary = Expr::FieldAccess(fa);
+                            Ok(Expr::Lookup(lookup))
+                        }
+                        (x, y) => Err((x, y)),
+                    })
+                    .collect();
+
+                if coalesced.len() == 1 {
+                    coalesced.pop().unwrap()
                 } else {
-                    Expr::FieldAccess(Box::new(NAryExpr::from(idents)))
+                    Expr::FieldAccess(Box::new(NAryExpr::from(coalesced)))
                 }
             }
-            event => panic!("unexpected {:?}", event),
+            event => panic!("unexpected {event:?}"),
         };
 
-        self.end(PRIMARY_EXPR)?;
+        self.end(TERM)?;
 
         Ok(expr)
     }
@@ -1546,12 +1617,19 @@ where
             multiplier = 1024 * 1024;
         }
 
-        let value = if literal.starts_with("0x") {
-            T::from_str_radix(literal.strip_prefix("0x").unwrap(), 16)
+        let literal_no_underscores = literal.replace('_', "");
+        let value = if literal_no_underscores.as_str().starts_with("0x") {
+            T::from_str_radix(
+                literal_no_underscores.strip_prefix("0x").unwrap(),
+                16,
+            )
         } else if literal.starts_with("0o") {
-            T::from_str_radix(literal.strip_prefix("0o").unwrap(), 8)
+            T::from_str_radix(
+                literal_no_underscores.strip_prefix("0o").unwrap(),
+                8,
+            )
         } else {
-            T::from_str_radix(literal, 10)
+            T::from_str_radix(literal_no_underscores.as_str(), 10)
         };
 
         let build_error = |span: &Span| Error::InvalidInteger {
@@ -1591,13 +1669,14 @@ where
     fn float_lit(&mut self) -> Result<(f64, &'src str, Span), BuilderError> {
         let span = self.expect(FLOAT_LIT)?;
         let literal = self.get_source_str(&span)?;
-        let value = literal.parse::<f64>().map_err(|err| {
-            self.errors.push(Error::InvalidFloat {
-                message: err.to_string(),
-                span: span.clone(),
-            });
-            BuilderError::Abort
-        })?;
+        let value =
+            literal.replace('_', "").parse::<f64>().map_err(|err| {
+                self.errors.push(Error::InvalidFloat {
+                    message: err.to_string(),
+                    span: span.clone(),
+                });
+                BuilderError::Abort
+            })?;
 
         Ok((value, literal, span))
     }
@@ -1628,7 +1707,7 @@ where
                     );
 
                     self.errors.push(Error::InvalidRegexpModifier {
-                        message: format!("{}", c),
+                        message: format!("{c}"),
                         span,
                     });
 
@@ -1704,14 +1783,12 @@ where
         let without_quotes = &literal[num_quotes..literal.len() - num_quotes];
 
         // Check if the string contains some backslash.
-        let backslash_pos = if let Some(backslash_pos) =
-            without_quotes.find('\\')
-        {
+        let first_backslash = if let Some(pos) = without_quotes.find('\\') {
             if !allow_escape_char {
                 self.errors.push(Error::UnexpectedEscapeSequence(span));
                 return Err(BuilderError::Abort);
             }
-            backslash_pos
+            pos
         } else {
             // If the literal does not contain a backslash it can't contain escaped
             // characters, the literal is exactly as it appears in the source code.
@@ -1722,13 +1799,13 @@ where
 
         // Initially the result is a copy of the literal string up to the first
         // backslash found.
-        let mut result = BString::from(&without_quotes[..backslash_pos]);
+        let mut result = BString::from(&without_quotes[..first_backslash]);
 
         // Process the remaining part of the literal, starting at the backslash.
-        let without_quotes = &without_quotes[backslash_pos..];
-        let mut chars = without_quotes.char_indices();
+        let remaining = &without_quotes[first_backslash..];
+        let mut chars = remaining.char_indices();
 
-        while let Some((backslash_pos, b)) = chars.next() {
+        while let Some((backslash, b)) = chars.next() {
             match b {
                 // The backslash indicates an escape sequence.
                 '\\' => {
@@ -1749,42 +1826,40 @@ where
                         't' => result.push(b'\t'),
                         '0' => result.push(b'\0'),
                         '"' => result.push(b'"'),
-                        'x' => match (chars.next(), chars.next()) {
-                            (Some((start, _)), Some((end, _))) => {
-                                if let Ok(hex_value) = u8::from_str_radix(
-                                    &without_quotes[start..=end],
-                                    16,
-                                ) {
+                        'x' => {
+                            match (chars.next(), chars.next()) {
+                                (
+                                    Some((start, first_char)),
+                                    Some((end, second_char)),
+                                ) if first_char.is_ascii_hexdigit()
+                                    && second_char.is_ascii_hexdigit() =>
+                                {
+                                    let hex_value = u8::from_str_radix(
+                                        &remaining[start..=end],
+                                        16,
+                                    )
+                                    .unwrap();
+
                                     result.push(hex_value);
-                                } else {
-                                    self.errors.push(
-                                        Error::InvalidEscapeSequence {
-                                            message: format!(
-                                                r"invalid hex value `{}` after `\x`",
-                                                &without_quotes[start..=end]
+                                }
+                                _ => {
+                                    let (escaped_char_pos, _) = escaped_char;
+
+                                    self.errors
+                                        .push(Error::InvalidEscapeSequence {
+                                            message:
+                                            r"expecting two hex digits after `\x`"
+                                                .to_string(),
+                                            span: string_span.offset(first_backslash as isize).subspan(
+                                                backslash,
+                                                escaped_char_pos + 1,
                                             ),
-                                            span: string_span
-                                                .subspan(start, end + 1),
-                                        }
-                                    );
+                                        });
+
                                     return Err(BuilderError::Abort);
                                 }
                             }
-                            _ => {
-                                self.errors
-                                    .push(Error::InvalidEscapeSequence {
-                                    message:
-                                        r"expecting two hex digits after `\x`"
-                                            .to_string(),
-                                    span: string_span.subspan(
-                                        backslash_pos,
-                                        escaped_char.0 + 1,
-                                    ),
-                                });
-
-                                return Err(BuilderError::Abort);
-                            }
-                        },
+                        }
                         _ => {
                             let (escaped_char_pos, escaped_char) =
                                 escaped_char;
@@ -1795,13 +1870,12 @@ where
                             self.errors.push(Error::InvalidEscapeSequence {
                                 message: format!(
                                     "invalid escape sequence `{}`",
-                                    &without_quotes
-                                        [backslash_pos..escaped_char_end_pos]
+                                    &remaining
+                                        [backslash..escaped_char_end_pos]
                                 ),
-                                span: string_span.subspan(
-                                    backslash_pos,
-                                    escaped_char_end_pos,
-                                ),
+                                span: string_span
+                                    .offset(first_backslash as isize)
+                                    .subspan(backslash, escaped_char_end_pos),
                             });
 
                             return Err(BuilderError::Abort);

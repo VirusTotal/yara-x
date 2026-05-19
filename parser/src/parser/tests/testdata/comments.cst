@@ -22,14 +22,12 @@ SOURCE_FILE@0..572
         BOOLEAN_TERM@91..133
           EXPR@91..96
             TERM@91..92
-              PRIMARY_EXPR@91..92
-                INTEGER_LIT@91..92 "1"
+              INTEGER_LIT@91..92 "1"
             WHITESPACE@92..93 " "
             ADD@93..94 "+"
             WHITESPACE@94..95 " "
             TERM@95..96
-              PRIMARY_EXPR@95..96
-                INTEGER_LIT@95..96 "2"
+              INTEGER_LIT@95..96 "2"
           NEWLINE@96..97 "\n"
           WHITESPACE@97..99 "\t\t"
           COMMENT@99..109 "// Comment"
@@ -42,14 +40,12 @@ SOURCE_FILE@0..572
           WHITESPACE@126..128 "\t\t"
           EXPR@128..133
             TERM@128..129
-              PRIMARY_EXPR@128..129
-                INTEGER_LIT@128..129 "4"
+              INTEGER_LIT@128..129 "4"
             WHITESPACE@129..130 " "
             SUB@130..131 "-"
             WHITESPACE@131..132 " "
             TERM@132..133
-              PRIMARY_EXPR@132..133
-                INTEGER_LIT@132..133 "1"
+              INTEGER_LIT@132..133 "1"
     WHITESPACE@133..136 "   "
     COMMENT@136..146 "// Comment"
     NEWLINE@146..147 "\n"

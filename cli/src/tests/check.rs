@@ -1,6 +1,6 @@
-use assert_cmd::Command;
-use assert_fs::prelude::*;
+use assert_cmd::{Command, cargo_bin};
 use assert_fs::TempDir;
+use assert_fs::prelude::*;
 use predicates::prelude::*;
 
 #[test]
@@ -21,18 +21,18 @@ fn metadata() {
             sha256 = { type = "sha256" }
             required = { type = "string", required = true }
             optional = { type = "string" }
+            regexp = { type = "string", regexp = "(foo|bar)" }
             "#,
         )
         .unwrap();
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("--config")
         .arg(config_file.path())
         .arg("check")
         .arg("src/tests/testdata/foo.yar")
         .assert()
-        .success()
+        .code(2)
         .stdout("[ WARN ] src/tests/testdata/foo.yar\n")
         .stderr(
             r#"warning[missing_metadata]: required metadata is missing
@@ -40,16 +40,17 @@ fn metadata() {
   |
 1 | rule foo : bar baz {
   |      --- required metadata `required` not found
-  |
 warning[text_as_hex]: hex pattern could be written as text literal
- --> src/tests/testdata/foo.yar:9:5
-  |
-9 |     $foo_hex = { 66 6f 6f }
-  |     ---------------------
-  |     |
-  |     this pattern can be written as a text literal
-  |     help: replace with "foo"
-  |
+  --> src/tests/testdata/foo.yar:10:16
+   |
+10 |     $foo_hex = { 66 6f 6f }
+   |                ------------ this pattern can be written as a text literal
+   |
+help: consider the following change
+   |
+10 -     $foo_hex = { 66 6f 6f }
+10 +     $foo_hex = "foo"
+   |
 "#,
         );
 
@@ -66,40 +67,53 @@ warning[text_as_hex]: hex pattern could be written as text literal
                 int = 3.14
                 float = "not a float"
                 string = true
+                regexp = "baz"
               condition:
                 true
             }"#,
         )
         .unwrap();
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("--config")
         .arg(config_file.path())
         .arg("check")
         .arg(yar_file.path())
         .assert()
-        .success()
+        .code(2)
         .stderr(predicate::str::contains(
             "warning[invalid_metadata]: metadata `md5` is not valid",
         ))
+        .stderr(predicate::str::contains("`md5` must be a MD5"))
         .stderr(predicate::str::contains(
             "warning[invalid_metadata]: metadata `sha1` is not valid",
         ))
+        .stderr(predicate::str::contains("`sha1` must be a SHA-1"))
         .stderr(predicate::str::contains(
             "warning[invalid_metadata]: metadata `sha256` is not valid",
         ))
+        .stderr(predicate::str::contains("`sha256` must be a SHA-256"))
         .stderr(predicate::str::contains(
             "warning[invalid_metadata]: metadata `bool` is not valid",
         ))
+        .stderr(predicate::str::contains("`bool` must be a bool"))
         .stderr(predicate::str::contains(
             "warning[invalid_metadata]: metadata `int` is not valid",
         ))
+        .stderr(predicate::str::contains("`int` must be an int"))
         .stderr(predicate::str::contains(
             "warning[invalid_metadata]: metadata `float` is not valid",
         ))
+        .stderr(predicate::str::contains("`float` must be a float"))
         .stderr(predicate::str::contains(
             "warning[invalid_metadata]: metadata `string` is not valid",
+        ))
+        .stderr(predicate::str::contains("`string` must be a string"))
+        .stderr(predicate::str::contains(
+            "warning[invalid_metadata]: metadata `regexp` is not valid",
+        ))
+        .stderr(predicate::str::contains(
+            "`regexp` must be a string that matches `/(foo|bar)/`",
         ));
 }
 
@@ -117,14 +131,14 @@ fn check_rule_name_warning() {
         )
         .unwrap();
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("--config")
         .arg(config_file.path())
         .arg("check")
         .arg("src/tests/testdata/foo.yar")
         .assert()
-        .success()
+        .failure()
+        .code(2)
         .stdout("[ WARN ] src/tests/testdata/foo.yar\n");
 }
 
@@ -143,22 +157,21 @@ fn check_rule_name_error() {
         )
         .unwrap();
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("--config")
         .arg(config_file.path())
         .arg("check")
         .arg("src/tests/testdata/foo.yar")
         .assert()
-        .success()
-        .stdout(
-            r#"[ FAIL ] src/tests/testdata/foo.yar
-error[E039]: rule name does not match regex `APT_.+`
+        .failure()
+        .code(1)
+        .stdout("[ FAIL ] src/tests/testdata/foo.yar\n")
+        .stderr(
+            r#"error[E039]: rule name does not match regex `APT_.+`
  --> src/tests/testdata/foo.yar:1:6
   |
 1 | rule foo : bar baz {
   |      ^^^ this rule name does not match regex `APT_.+`
-  |
 "#,
         );
 }
@@ -177,8 +190,7 @@ fn config_error() {
         )
         .unwrap();
 
-    Command::cargo_bin("yr")
-        .unwrap()
+    Command::new(cargo_bin!("yr"))
         .arg("--config")
         .arg(config_file.path())
         .arg("check")
@@ -190,4 +202,63 @@ fn config_error() {
                 r#"error: unknown field: found `foo`, expected `one of `metadata`, `rule_name`, `tags`` for key "default.check.foo""#,
             )
         );
+}
+
+#[test]
+fn check_reports_all_errors() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_file = temp_dir.child("config.toml");
+
+    config_file
+        .write_str(
+            r#"
+            [check.rule_name]
+            regexp = "^[A-Z][a-zA-Z0-9]+_[A-Z][a-zA-Z0-9_]+$"
+            error = true
+
+            [check.metadata.author]
+            type = "string"
+            required = true
+            error = true
+
+            [check.metadata.severity]
+            type = "string"
+            regexp = "^(low|medium|high|critical)$"
+            required = true
+            error = true
+            "#,
+        )
+        .unwrap();
+
+    let yar_file = temp_dir.child("test.yar");
+
+    yar_file
+        .write_str(
+            r#"rule bad_rule {
+              meta:
+                description = "test"
+              strings:
+                $a = "test"
+              condition:
+                $a
+            }"#,
+        )
+        .unwrap();
+
+    // All three errors should be reported, not just the first one.
+    Command::new(cargo_bin!("yr"))
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("check")
+        .arg(yar_file.path())
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(predicate::str::contains(
+            "required metadata `author` not found",
+        ))
+        .stderr(predicate::str::contains(
+            "required metadata `severity` not found",
+        ))
+        .stderr(predicate::str::contains("rule name does not match regex"));
 }

@@ -1,3 +1,4 @@
+use std::collections::Bound;
 use std::fs;
 use std::io::Write;
 use std::mem::size_of;
@@ -5,10 +6,10 @@ use std::mem::size_of;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
-use crate::compiler::{linters, SubPattern, VarStack};
+use crate::compiler::{FilesizeBounds, SubPattern, VarStack, linters};
 use crate::errors::{SerializationError, VariableError};
 use crate::types::Type;
-use crate::{compile, Compiler, Rules, Scanner, SourceCode};
+use crate::{Compiler, Rules, Scanner, SourceCode, compile};
 
 #[test]
 fn serialization() {
@@ -19,7 +20,32 @@ fn serialization() {
 
     assert!(matches!(
         Rules::deserialize(b"YARA-X").err().unwrap(),
+        SerializationError::InvalidFormat
+    ));
+
+    // A valid file starts with `MAGIC` and a version number, but the rest of
+    // the content is invalid because it is too short. This must produce a
+    // `DecodeError`.
+    let mut data = Vec::new();
+    data.extend(b"YARA-X\0\0");
+    data.extend(1u32.to_le_bytes());
+    data.extend(b"foo");
+
+    assert!(matches!(
+        Rules::deserialize(&data).err().unwrap(),
         SerializationError::DecodeError(_)
+    ));
+
+    // This is a valid file, but with a version number that is not the current
+    // one. This must produce an `InvalidVersion` error.
+    let mut data = Vec::new();
+    data.extend(b"YARA-X\0\0");
+    data.extend(0u32.to_le_bytes());
+    data.extend(b"foo");
+
+    assert!(matches!(
+        Rules::deserialize(&data).err().unwrap(),
+        SerializationError::InvalidVersion { expected: _, actual: 0 }
     ));
 
     let rules = compile(r#"rule test { strings: $a = "foo" condition: $a }"#)
@@ -48,34 +74,40 @@ fn namespaces() {
     // correctly.
     let mut compiler = Compiler::new();
 
-    assert!(compiler
-        .add_source("rule foo {condition: true}")
-        .unwrap()
-        .add_source("rule bar {condition: foo}")
-        .is_ok());
+    assert!(
+        compiler
+            .add_source("rule foo {condition: true}")
+            .unwrap()
+            .add_source("rule bar {condition: foo}")
+            .is_ok()
+    );
 
     let mut compiler = Compiler::new();
 
     // `bar` can't use `foo` because they are in different namespaces, this
     // be a compilation error.
-    assert!(compiler
-        .add_source("rule foo {condition: true}")
-        .unwrap()
-        .new_namespace("bar")
-        .add_source("rule bar {condition: foo}")
-        .is_err());
+    assert!(
+        compiler
+            .add_source("rule foo {condition: true}")
+            .unwrap()
+            .new_namespace("bar")
+            .add_source("rule bar {condition: foo}")
+            .is_err()
+    );
 
     let mut compiler = Compiler::new();
 
     // `bar` can use `foo` because they are in the same namespace, the second
     // call to `new_namespace` has no effect.
-    assert!(compiler
-        .new_namespace("foo")
-        .add_source("rule foo {condition: true}")
-        .unwrap()
-        .new_namespace("foo")
-        .add_source("rule bar {condition: foo}")
-        .is_ok());
+    assert!(
+        compiler
+            .new_namespace("foo")
+            .add_source("rule foo {condition: true}")
+            .unwrap()
+            .new_namespace("foo")
+            .add_source("rule bar {condition: foo}")
+            .is_ok()
+    );
 }
 
 #[test]
@@ -497,9 +529,16 @@ fn globals_json() {
 
     assert_eq!(
         Compiler::new()
-            .define_global("invalid_array", json!({ "foo": null }))
+            .define_global("invalid_struct", json!({ "foo": null }))
             .unwrap_err(),
         VariableError::UnexpectedNull
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .define_global("invalid_struct", json!({ "/foo": 1 }))
+            .unwrap_err(),
+        VariableError::InvalidIdentifier("/foo".to_string())
     );
 }
 
@@ -609,8 +648,7 @@ fn banned_modules() {
  --> line:2:13
   |
 2 |             import "test_proto2"
-  |             ^^^^^^^^^^^^^^^^^^^^ module `test_proto2` is used here
-  |"#
+  |             ^^^^^^^^^^^^^^^^^^^^ module `test_proto2` is used here"#
     );
 
     // The only error should be the error about the use of a banned module,
@@ -712,14 +750,12 @@ fn linter_tags_regexp() {
  --> line:1:13
   |
 1 | rule test : baz blah { strings: $foo = "foo" condition: $foo }
-  |             --- tag `baz` does not match regex `^(foo|bar)`
-  |"#,
+  |             --- tag `baz` does not match regex `^(foo|bar)`"#,
        r#"warning[invalid_tag]: tag `blah` does not match regex `^(foo|bar)`
  --> line:1:17
   |
 1 | rule test : baz blah { strings: $foo = "foo" condition: $foo }
-  |                 ---- tag `blah` does not match regex `^(foo|bar)`
-  |"#,
+  |                 ---- tag `blah` does not match regex `^(foo|bar)`"#,
     ]);
 
     assert_eq!(
@@ -734,22 +770,27 @@ fn linter_tags_regexp() {
  --> line:1:13
   |
 1 | rule test : baz blah { strings: $foo = "foo" condition: $foo }
-  |             ^^^ tag `baz` does not match regex `^(foo|bar)`
-  |"#);
+  |             ^^^ tag `baz` does not match regex `^(foo|bar)`"#);
 
     assert!(linters::tag_regex("(AXS|ERS").is_err());
 }
 
 #[test]
 fn linter_rule_name() {
-    assert!(Compiler::new()
-        .add_linter(linters::rule_name("r_.+").unwrap())
-        .add_source(r#"rule r_foo { strings: $foo = "foo" condition: $foo }"#)
-        .unwrap()
-        .add_source(r#"rule r_bar { strings: $bar = "bar" condition: $bar }"#)
-        .unwrap()
-        .warnings()
-        .is_empty());
+    assert!(
+        Compiler::new()
+            .add_linter(linters::rule_name("r_.+").unwrap())
+            .add_source(
+                r#"rule r_foo { strings: $foo = "foo" condition: $foo }"#
+            )
+            .unwrap()
+            .add_source(
+                r#"rule r_bar { strings: $bar = "bar" condition: $bar }"#
+            )
+            .unwrap()
+            .warnings()
+            .is_empty()
+    );
 
     assert_eq!(
         Compiler::new()
@@ -767,8 +808,7 @@ fn linter_rule_name() {
  --> line:1:6
   |
 1 | rule foo { strings: $foo = "foo" condition: $foo }
-  |      --- this rule name does not match regex `r_.+`
-  |"#
+  |      --- this rule name does not match regex `r_.+`"#
         ]
     );
 
@@ -782,8 +822,7 @@ fn linter_rule_name() {
  --> line:1:6
   |
 1 | rule foo { condition: true }
-  |      ^^^ this rule name does not match regex `r_.+`
-  |"
+  |      ^^^ this rule name does not match regex `r_.+`"
     );
 
     assert!(linters::rule_name("(AXS|ERS").is_err());
@@ -813,8 +852,7 @@ fn linter_required_metadata() {
  --> line:1:6
   |
 1 | rule foo { strings: $foo = "foo" condition: $foo }
-  |      --- required metadata `author` not found
-  |"#]
+  |      --- required metadata `author` not found"#]
     );
 
     assert_eq!(
@@ -827,8 +865,7 @@ fn linter_required_metadata() {
  --> line:1:6
   |
 1 | rule foo { condition: true }
-  |      ^^^ required metadata `author` not found
-  |"
+  |      ^^^ required metadata `author` not found"
     );
 }
 
@@ -836,35 +873,39 @@ fn linter_required_metadata() {
 #[test]
 fn import_modules() {
     let mut compiler = Compiler::new();
-    assert!(compiler
-        .add_source(
-            r#"
+    assert!(
+        compiler
+            .add_source(
+                r#"
             import "test_proto2"
             rule foo {condition: test_proto2.int32_zero == 0}"#
-        )
-        .unwrap()
-        .add_source(
-            r#"
+            )
+            .unwrap()
+            .add_source(
+                r#"
             import "test_proto2"
             rule bar {condition: test_proto2.int32_zero == 0}"#
-        )
-        .is_ok());
+            )
+            .is_ok()
+    );
 
     let mut compiler = Compiler::new();
-    assert!(compiler
-        .add_source(
-            r#"
+    assert!(
+        compiler
+            .add_source(
+                r#"
             import "test_proto2"
             rule foo {condition: test_proto2.int32_zero == 0}"#
-        )
-        .unwrap()
-        .new_namespace("namespace1")
-        .add_source(
-            r#"
+            )
+            .unwrap()
+            .new_namespace("namespace1")
+            .add_source(
+                r#"
             import "test_proto2"
             rule bar {condition: test_proto2.int32_zero == 0}"#
-        )
-        .is_ok());
+            )
+            .is_ok()
+    );
 }
 
 #[cfg(feature = "pe-module")]
@@ -901,8 +942,7 @@ fn wrong_type() {
  --> line:3:36
   |
 3 |             rule test { condition: pe.sections }
-  |                                    ^^^^^^^^^^^ expression should be `bool`, but it is an array
-  |"
+  |                                    ^^^^^^^^^^^ expression should be `bool`, but it is an array"
     );
 
     assert_eq!(
@@ -918,8 +958,7 @@ fn wrong_type() {
  --> line:3:36
   |
 3 |             rule test { condition: pe.version_info }
-  |                                    ^^^^^^^^^^^^^^^ expression should be `bool`, but it is a map
-  |"
+  |                                    ^^^^^^^^^^^^^^^ expression should be `bool`, but it is a map"
     );
 }
 
@@ -927,38 +966,83 @@ fn wrong_type() {
 fn continue_after_error() {
     let mut compiler = Compiler::new();
 
-    // This rule won't compile because we are using `contains` with an integer.
-    assert!(compiler
-        .add_source(
-            r#"
+    // This rule won't compile because $b is not used.
+    assert!(
+        compiler
+            .add_source(
+                r#"
             rule test {
+                strings:
+                    $a = "foo"
+                    $b = "bar"
                 condition:
-                    for any x in (1,2,3) : ( x contains "foo")
+                    $a
             }"#
-        )
-        .is_err());
+            )
+            .is_err()
+    );
 
     // Adding a rule with the same name after the previous one failed should
-    // be ok.
-    assert!(compiler.add_source(r#"rule test { condition: true }"#).is_ok());
+    // be ok. Notice that the rule also reuses a pattern that was defined
+    // by the rule that failed before.
+    assert!(
+        compiler
+            .add_source(
+                r#"
+            rule test {
+                strings:
+                    $a = "foo" 
+                condition: 
+                    $a 
+            }"#
+            )
+            .is_ok()
+    );
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+
+    assert_eq!(scanner.scan(b"foo").unwrap().matching_rules().len(), 1);
 
     // Now do the same test, but with each rule in a different namespace.
     let mut compiler = Compiler::new();
     compiler.new_namespace("namespace1");
 
-    assert!(compiler
-        .add_source(
-            r#"
+    assert!(
+        compiler
+            .add_source(
+                r#"
             rule test {
+                strings:
+                    $a = "foo"
+                    $b = "bar"
                 condition:
-                    for any x in (1,2,3) : ( x contains "foo")
+                    $a
             }"#
-        )
-        .is_err());
+            )
+            .is_err()
+    );
 
     compiler.new_namespace("namespace2");
 
-    assert!(compiler.add_source(r#"rule test { condition: true }"#).is_ok());
+    assert!(
+        compiler
+            .add_source(
+                r#"
+            rule test {
+                strings:
+                    $a = "foo" 
+                condition: 
+                    $a 
+            }"#
+            )
+            .is_ok()
+    );
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+
+    assert_eq!(scanner.scan(b"foo").unwrap().matching_rules().len(), 1);
 }
 
 #[test]
@@ -974,8 +1058,7 @@ fn conflicting_identifiers_error() {
  --> line:1:6
   |
 1 | rule foo  {condition: true}
-  |      ^^^ identifier already in use by a module or global variable
-  |"
+  |      ^^^ identifier already in use by a module or global variable"
     );
 }
 
@@ -997,8 +1080,7 @@ fn duplicate_rule_error() {
  ::: line:1:6
   |
 1 | rule foo : first {condition: true}
-  |      --- note: `foo` declared here for the first time
-  |"
+  |      --- `foo` declared here for the first time"
     );
 }
 
@@ -1019,8 +1101,7 @@ condition:
  --> line:3:4
   |
 3 |    9223372036854775807 + 1000000000 == 0
-  |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this number is out of the allowed range [-9223372036854775808-9223372036854775807]
-  |"
+  |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this number is out of the allowed range [-9223372036854775808-9223372036854775807]"
     );
 }
 
@@ -1045,8 +1126,7 @@ fn utf8_errors() {
  --> line:1:5
   |
 1 | rule� test {condition: true}
-  |     ^ invalid UTF-8 character
-  |"
+  |     ^ invalid UTF-8 character"
     );
 
     assert_eq!(
@@ -1088,8 +1168,7 @@ fn errors_serialization() {
  --> test.yar:1:23
   |
 1 | rule test {condition: foo}
-  |                       ^^^ this identifier has not been declared
-  |"#
+  |                       ^^^ this identifier has not been declared"#
     });
 
     assert_eq!(json_error, expected.to_string());
@@ -1103,6 +1182,46 @@ fn test_includes() {
         // this directory contains the included.yar file
         .add_include_dir("src/compiler/tests/testdata/includes")
         .add_source(r#"include "included_ok.yar""#)
+        .unwrap();
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+
+    assert_eq!(scanner.scan(b"").unwrap().matching_rules().len(), 1);
+}
+
+#[test]
+fn test_circular_includes() {
+    let mut compiler = Compiler::new();
+
+    let err = compiler
+        // this directory contains the included.yar file
+        .add_include_dir("src/compiler/tests/testdata/includes")
+        .add_source(r#"include "included_circular.yar""#)
+        .unwrap_err()
+        .to_string();
+
+    assert!(err.contains(r#"error[E046]: circular include dependencies"#));
+
+    #[cfg(target_family = "unix")]
+    assert!(err.contains(
+        r"src/compiler/tests/testdata/includes/included_circular.yar"
+    ));
+
+    #[cfg(target_family = "windows")]
+    assert!(err.contains(
+        r#"src\compiler\tests\testdata\includes\included_circular.yar"#
+    ));
+}
+
+#[test]
+fn test_relative_includes() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        // this directory contains the included.yar file
+        .add_include_dir("src/compiler/tests/testdata/includes")
+        .add_source(r#"include "included_relative.yar""#)
         .unwrap();
 
     let rules = compiler.build();
@@ -1128,9 +1247,66 @@ fn test_disable_includes() {
  --> line:1:1
   |
 1 | include "included_ok.yar"
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^ includes are disabled for this compilation
-  |"#
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^ includes are disabled for this compilation"#
     );
+}
+
+#[test]
+fn test_switch_warnings() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        .switch_warning("invariant_expr", false)
+        .unwrap()
+        .add_source(
+            r#"
+            rule test {
+                condition: true
+            }
+            "#,
+        )
+        .unwrap();
+
+    assert_eq!(compiler.warnings().len(), 0);
+}
+
+#[test]
+fn test_switch_all_warnings() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        .switch_all_warnings(false)
+        .add_source(
+            r#"
+            rule test {
+                condition: true
+            }
+            "#,
+        )
+        .unwrap();
+
+    assert_eq!(compiler.warnings().len(), 0);
+}
+
+#[test]
+fn test_max_warnings() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        .max_warnings(1)
+        .add_source(
+            r#"
+            rule test1 {
+                condition: true
+            }
+            rule test2 {
+                condition: true
+            }
+            "#,
+        )
+        .unwrap();
+
+    assert_eq!(compiler.warnings().len(), 1);
 }
 
 #[test]
@@ -1144,7 +1320,7 @@ fn test_errors() {
         // Path to the .in file.
         let in_path = entry.into_path();
 
-        println!("{:?}", in_path);
+        println!("{in_path:?}");
 
         // Path to the .out file.
         let out_path = in_path.with_extension("out");
@@ -1170,7 +1346,7 @@ fn test_errors() {
         src.push_str(rules.as_str());
 
         let err = compile(src.as_str()).expect_err(
-            format!("file {:?} should have failed", in_path).as_str(),
+            format!("file {in_path:?} should have failed").as_str(),
         );
 
         let mut output_file = mint.new_goldenfile(out_path).unwrap();
@@ -1192,7 +1368,7 @@ fn test_warnings() {
         // Path to the .in file.
         let in_path = entry.into_path();
 
-        println!("{:?}", in_path);
+        println!("{in_path:?}");
 
         // Path to the .out file.
         let out_path = in_path.with_extension("out");
@@ -1229,4 +1405,34 @@ fn test_warnings() {
             output_file.write_all(s.as_bytes()).expect("unable to write");
         }
     }
+}
+
+#[test]
+fn test_filesize_bounds() {
+    let mut bounds = FilesizeBounds::default();
+
+    // Initially unbounded.
+    assert_eq!(bounds, FilesizeBounds::from(..));
+
+    bounds.min_end(Bound::Included(1000));
+    // Now the end must be <= 1000.
+    assert_eq!(bounds, FilesizeBounds::from(..=1000));
+
+    bounds.min_end(Bound::Excluded(1000));
+    // Now the end must be < 1000, 1000 was excluded.
+    assert_eq!(bounds, FilesizeBounds::from(..1000));
+
+    bounds.min_end(Bound::Excluded(2000));
+    // The bounds remain the same, the previous call didn't change the
+    // bounds as the existing bounds were already more restrictive.
+    assert_eq!(bounds, FilesizeBounds::from(..1000));
+
+    bounds.max_start(Bound::Included(1));
+    assert_eq!(bounds, FilesizeBounds::from(1..1000));
+
+    bounds.max_start(Bound::Excluded(1));
+    assert_eq!(
+        bounds,
+        FilesizeBounds::from((Bound::Excluded(1), Bound::Excluded(1000)))
+    );
 }

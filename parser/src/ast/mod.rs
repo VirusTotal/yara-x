@@ -16,7 +16,7 @@ use bstr::{BStr, BString, ByteSlice, Utf8Error};
 
 use crate::ast::cst2ast::Builder;
 use crate::cst::SyntaxKind::{
-    ASCII_KW, BASE64WIDE_KW, BASE64_KW, FULLWORD_KW, NOCASE_KW, WIDE_KW,
+    ASCII_KW, BASE64_KW, BASE64WIDE_KW, FULLWORD_KW, NOCASE_KW, WIDE_KW,
     XOR_KW,
 };
 use crate::cst::{CSTStream, Event};
@@ -25,6 +25,10 @@ use crate::{Parser, Span};
 mod ascii_tree;
 mod cst2ast;
 mod errors;
+#[cfg(test)]
+mod tests;
+
+pub mod dfs;
 
 pub use errors::Error;
 
@@ -43,10 +47,26 @@ pub enum Item<'src> {
     Rule(Rule<'src>),
 }
 
+impl<'src> From<&'src str> for AST<'src> {
+    /// Creates an [`AST`] from the give source code.
+    #[inline]
+    fn from(src: &'src str) -> Self {
+        AST::from(src.as_bytes())
+    }
+}
+
+impl<'src> From<&'src [u8]> for AST<'src> {
+    /// Creates an [`AST`] from the give source code.
+    #[inline]
+    fn from(src: &'src [u8]) -> Self {
+        AST::from(Parser::new(src))
+    }
+}
+
 impl<'src> From<Parser<'src>> for AST<'src> {
     /// Creates an [`AST`] from the given [`Parser`].
     fn from(parser: Parser<'src>) -> Self {
-        Self::from(CSTStream::new(parser.source(), parser))
+        AST::new(parser.source(), parser)
     }
 }
 
@@ -54,12 +74,30 @@ impl<'src, I> From<CSTStream<'src, I>> for AST<'src>
 where
     I: Iterator<Item = Event>,
 {
+    /// Creates an [`AST`] from the given [`CSTStream`].
     fn from(cst: CSTStream<'src, I>) -> Self {
-        Builder::new(cst).build_ast()
+        AST::new(cst.source(), cst)
     }
 }
 
 impl<'src> AST<'src> {
+    /// Creates a new AST from YARA source code and an iterator of [`Event`]
+    /// items representing the parsed structure of that code.
+    ///
+    /// # Panics
+    ///
+    /// This is a low-level API that requires the `events` iterator to perfectly
+    /// match the provided source code. This function will panic if the events
+    /// are inconsistent with the source or do not originate from parsing this
+    /// specific code.
+    #[doc(hidden)]
+    pub fn new<I: Iterator<Item = Event>>(
+        src: &'src [u8],
+        events: I,
+    ) -> AST<'src> {
+        Builder::new(src, events).build_ast()
+    }
+
     /// Returns the top level items in the AST.
     ///
     /// A top level item can be an import, include, or rule.
@@ -71,22 +109,14 @@ impl<'src> AST<'src> {
     /// Returns the import statements in the AST.
     pub fn imports(&self) -> impl Iterator<Item = &Import<'src>> {
         self.items.iter().filter_map(|item| {
-            if let Item::Import(import) = item {
-                Some(import)
-            } else {
-                None
-            }
+            if let Item::Import(import) = item { Some(import) } else { None }
         })
     }
 
     /// Returns the rules in the AST.
     pub fn rules(&self) -> impl Iterator<Item = &Rule<'src>> {
         self.items.iter().filter_map(|item| {
-            if let Item::Rule(rule) = item {
-                Some(rule)
-            } else {
-                None
-            }
+            if let Item::Rule(rule) = item { Some(rule) } else { None }
         })
     }
 
@@ -114,7 +144,7 @@ impl Debug for AST<'_> {
         if !self.errors.is_empty() {
             writeln!(f, "ERRORS:")?;
             for err in &self.errors {
-                writeln!(f, "- {:?}", err)?;
+                writeln!(f, "- {err:?}")?;
             }
         }
 
@@ -176,11 +206,11 @@ pub enum MetaValue<'src> {
 impl Display for MetaValue<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Bool((v, _)) => write!(f, "{}", v),
-            Self::Integer((v, _)) => write!(f, "{}", v),
-            Self::Float((v, _)) => write!(f, "{:.1}", v),
-            Self::String((v, _)) => write!(f, "\"{}\"", v),
-            Self::Bytes((v, _)) => write!(f, "\"{}\"", v),
+            Self::Bool((v, _)) => write!(f, "{v}"),
+            Self::Integer((v, _)) => write!(f, "{v}"),
+            Self::Float((v, _)) => write!(f, "{v:.1}"),
+            Self::String((v, _)) => write!(f, "\"{v}\""),
+            Self::Bytes((v, _)) => write!(f, "\"{v}\""),
         }
     }
 }
@@ -275,9 +305,21 @@ pub struct RegexpPattern<'src> {
 /// A hex pattern (a.k.a. hex string) in a YARA rule.
 #[derive(Debug, Default)]
 pub struct HexPattern<'src> {
+    span: Span,
     pub identifier: Ident<'src>,
     pub sub_patterns: HexSubPattern,
     pub modifiers: PatternModifiers<'src>,
+}
+
+impl<'src> HexPattern<'src> {
+    #[doc(hidden)]
+    pub fn new(ident: &'src str) -> Self {
+        Self {
+            identifier: Ident::new(ident),
+            span: Span::default(),
+            ..Default::default()
+        }
+    }
 }
 
 /// A sequence of tokens that conform a hex pattern (a.k.a. hex string).
@@ -371,9 +413,9 @@ impl HexJump {
 impl Display for HexJump {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match (self.start, self.end) {
-            (Some(start), Some(end)) => write!(f, "[{}-{}]", start, end),
-            (Some(start), None) => write!(f, "[{}-]", start),
-            (None, Some(end)) => write!(f, "[-{}]", end),
+            (Some(start), Some(end)) => write!(f, "[{start}-{end}]"),
+            (Some(start), None) => write!(f, "[{start}-]"),
+            (None, Some(end)) => write!(f, "[-{end}]"),
             (None, None) => write!(f, "[-]"),
         }
     }
@@ -662,7 +704,7 @@ impl<'src> PatternModifiers<'src> {
 
     /// Returns an iterator for all the modifiers associated to the pattern.
     #[inline]
-    pub fn iter(&self) -> PatternModifiersIter {
+    pub fn iter(&self) -> PatternModifiersIter<'_> {
         PatternModifiersIter { iter: self.modifiers.iter() }
     }
 
@@ -808,9 +850,9 @@ impl Display for PatternModifier<'_> {
                 if *start == 0 && *end == 255 {
                     write!(f, "xor")
                 } else if *start == *end {
-                    write!(f, "xor({})", start)
+                    write!(f, "xor({start})")
                 } else {
-                    write!(f, "xor({}-{})", start, end)
+                    write!(f, "xor({start}-{end})")
                 }
             }
         }
@@ -863,7 +905,6 @@ pub struct In<'src> {
 /// An expression representing a function call.
 #[derive(Debug)]
 pub struct FuncCall<'src> {
-    span: Span,
     args_span: Span,
     pub object: Option<Expr<'src>>,
     pub identifier: Ident<'src>,
@@ -1103,6 +1144,12 @@ impl WithSpan for IdentWithRange<'_> {
     }
 }
 
+impl WithSpan for Meta<'_> {
+    fn span(&self) -> Span {
+        self.identifier.span.combine(&self.value.span())
+    }
+}
+
 impl WithSpan for MetaValue<'_> {
     fn span(&self) -> Span {
         match self {
@@ -1178,7 +1225,7 @@ impl WithSpan for Include<'_> {
 
 impl WithSpan for FuncCall<'_> {
     fn span(&self) -> Span {
-        self.span.clone()
+        self.identifier.span.combine(&self.args_span)
     }
 }
 
@@ -1204,11 +1251,7 @@ impl WithSpan for TextPattern<'_> {
 
 impl WithSpan for HexPattern<'_> {
     fn span(&self) -> Span {
-        if self.modifiers.is_empty() {
-            self.identifier.span().combine(&self.sub_patterns.span())
-        } else {
-            self.identifier.span().combine(&self.modifiers.span())
-        }
+        self.span.clone()
     }
 }
 
@@ -1395,7 +1438,7 @@ impl WithSpan for Expr<'_> {
             Expr::Ident(i) => i.span.clone(),
             Expr::Regexp(r) => r.span.clone(),
             Expr::Lookup(l) => l.span.clone(),
-            Expr::FuncCall(f) => f.span.clone(),
+            Expr::FuncCall(f) => f.span(),
             Expr::PatternMatch(p) => p.span(),
             Expr::PatternCount(p) => p.span(),
             Expr::PatternLength(p) => p.span(),

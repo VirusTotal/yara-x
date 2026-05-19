@@ -3,4 +3,3 @@ error[E009]: unknown identifier `y`
   |
 7 |       and y == 1
   |           ^ this identifier has not been declared
-  |

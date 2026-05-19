@@ -16,15 +16,13 @@ SOURCE_FILE@0..472
         BOOLEAN_TERM@28..48
           EXPR@28..33
             TERM@28..33
-              PRIMARY_EXPR@28..33
-                STRING_LIT@28..33 "\"foo\""
+              STRING_LIT@28..33 "\"foo\""
           WHITESPACE@33..34 " "
           CONTAINS_KW@34..42 "contains"
           WHITESPACE@42..43 " "
           EXPR@43..48
             TERM@43..48
-              PRIMARY_EXPR@43..48
-                STRING_LIT@43..48 "\"foo\""
+              STRING_LIT@43..48 "\"foo\""
     NEWLINE@48..49 "\n"
     R_BRACE@49..50 "}"
   NEWLINE@50..51 "\n"
@@ -46,15 +44,13 @@ SOURCE_FILE@0..472
         BOOLEAN_TERM@80..101
           EXPR@80..85
             TERM@80..85
-              PRIMARY_EXPR@80..85
-                STRING_LIT@80..85 "\"foo\""
+              STRING_LIT@80..85 "\"foo\""
           WHITESPACE@85..86 " "
           ICONTAINS_KW@86..95 "icontains"
           WHITESPACE@95..96 " "
           EXPR@96..101
             TERM@96..101
-              PRIMARY_EXPR@96..101
-                STRING_LIT@96..101 "\"foo\""
+              STRING_LIT@96..101 "\"foo\""
     NEWLINE@101..102 "\n"
     R_BRACE@102..103 "}"
   NEWLINE@103..104 "\n"
@@ -76,15 +72,13 @@ SOURCE_FILE@0..472
         BOOLEAN_TERM@133..155
           EXPR@133..138
             TERM@133..138
-              PRIMARY_EXPR@133..138
-                STRING_LIT@133..138 "\"foo\""
+              STRING_LIT@133..138 "\"foo\""
           WHITESPACE@138..139 " "
           STARTSWITH_KW@139..149 "startswith"
           WHITESPACE@149..150 " "
           EXPR@150..155
             TERM@150..155
-              PRIMARY_EXPR@150..155
-                STRING_LIT@150..155 "\"foo\""
+              STRING_LIT@150..155 "\"foo\""
     NEWLINE@155..156 "\n"
     R_BRACE@156..157 "}"
   NEWLINE@157..158 "\n"
@@ -106,15 +100,13 @@ SOURCE_FILE@0..472
         BOOLEAN_TERM@187..210
           EXPR@187..192
             TERM@187..192
-              PRIMARY_EXPR@187..192
-                STRING_LIT@187..192 "\"foo\""
+              STRING_LIT@187..192 "\"foo\""
           WHITESPACE@192..193 " "
           ISTARTSWITH_KW@193..204 "istartswith"
           WHITESPACE@204..205 " "
           EXPR@205..210
             TERM@205..210
-              PRIMARY_EXPR@205..210
-                STRING_LIT@205..210 "\"foo\""
+              STRING_LIT@205..210 "\"foo\""
     NEWLINE@210..211 "\n"
     R_BRACE@211..212 "}"
   NEWLINE@212..213 "\n"
@@ -136,15 +128,13 @@ SOURCE_FILE@0..472
         BOOLEAN_TERM@242..262
           EXPR@242..247
             TERM@242..247
-              PRIMARY_EXPR@242..247
-                STRING_LIT@242..247 "\"foo\""
+              STRING_LIT@242..247 "\"foo\""
           WHITESPACE@247..248 " "
           ENDSWITH_KW@248..256 "endswith"
           WHITESPACE@256..257 " "
           EXPR@257..262
             TERM@257..262
-              PRIMARY_EXPR@257..262
-                STRING_LIT@257..262 "\"foo\""
+              STRING_LIT@257..262 "\"foo\""
     NEWLINE@262..263 "\n"
     R_BRACE@263..264 "}"
   NEWLINE@264..265 "\n"
@@ -166,15 +156,13 @@ SOURCE_FILE@0..472
         BOOLEAN_TERM@294..315
           EXPR@294..299
             TERM@294..299
-              PRIMARY_EXPR@294..299
-                STRING_LIT@294..299 "\"foo\""
+              STRING_LIT@294..299 "\"foo\""
           WHITESPACE@299..300 " "
           IENDSWITH_KW@300..309 "iendswith"
           WHITESPACE@309..310 " "
           EXPR@310..315
             TERM@310..315
-              PRIMARY_EXPR@310..315
-                STRING_LIT@310..315 "\"foo\""
+              STRING_LIT@310..315 "\"foo\""
     NEWLINE@315..316 "\n"
     R_BRACE@316..317 "}"
   NEWLINE@317..318 "\n"
@@ -196,15 +184,13 @@ SOURCE_FILE@0..472
         BOOLEAN_TERM@347..366
           EXPR@347..352
             TERM@347..352
-              PRIMARY_EXPR@347..352
-                STRING_LIT@347..352 "\"foo\""
+              STRING_LIT@347..352 "\"foo\""
           WHITESPACE@352..353 " "
           MATCHES_KW@353..360 "matches"
           WHITESPACE@360..361 " "
           EXPR@361..366
             TERM@361..366
-              PRIMARY_EXPR@361..366
-                REGEXP@361..366 "/foo/"
+              REGEXP@361..366 "/foo/"
     NEWLINE@366..367 "\n"
     R_BRACE@367..368 "}"
   NEWLINE@368..369 "\n"
@@ -226,15 +212,13 @@ SOURCE_FILE@0..472
         BOOLEAN_TERM@398..419
           EXPR@398..403
             TERM@398..403
-              PRIMARY_EXPR@398..403
-                STRING_LIT@398..403 "\"foo\""
+              STRING_LIT@398..403 "\"foo\""
           WHITESPACE@403..404 " "
           MATCHES_KW@404..411 "matches"
           WHITESPACE@411..412 " "
           EXPR@412..419
             TERM@412..419
-              PRIMARY_EXPR@412..419
-                REGEXP@412..419 "/foo/is"
+              REGEXP@412..419 "/foo/is"
     NEWLINE@419..420 "\n"
     R_BRACE@420..421 "}"
   NEWLINE@421..422 "\n"
@@ -256,14 +240,12 @@ SOURCE_FILE@0..472
         BOOLEAN_TERM@451..470
           EXPR@451..456
             TERM@451..456
-              PRIMARY_EXPR@451..456
-                STRING_LIT@451..456 "\"foo\""
+              STRING_LIT@451..456 "\"foo\""
           WHITESPACE@456..457 " "
           IEQUALS_KW@457..464 "iequals"
           WHITESPACE@464..465 " "
           EXPR@465..470
             TERM@465..470
-              PRIMARY_EXPR@465..470
-                STRING_LIT@465..470 "\"foo\""
+              STRING_LIT@465..470 "\"foo\""
     NEWLINE@470..471 "\n"
     R_BRACE@471..472 "}"

@@ -3,4 +3,3 @@ error[E020]: duplicate pattern modifier
   |
 3 |     $a = "foo" xor(0) xor(1-2)
   |                       ^^^^^^^^ duplicate modifier
-  |

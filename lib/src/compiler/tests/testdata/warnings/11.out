@@ -5,4 +5,3 @@ warning[redundant_modifier]: redundant case-insensitive modifier
   |               - ------ the `nocase` modifier does the same
   |               |
   |               the `i` suffix indicates that the pattern is case-insensitive
-  |

@@ -29,6 +29,7 @@ allows using the same regex engine for matching both types of patterns.
 [Hir]: regex_syntax::hir::Hir
 */
 
+use std::collections::Bound;
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem;
@@ -42,14 +43,15 @@ use bstr::BString;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 
-use yara_x_parser::ast::Ident;
 use yara_x_parser::Span;
+use yara_x_parser::ast::Ident;
 
 use crate::compiler::context::{Var, VarStack};
 use crate::compiler::ir::dfs::{
-    dfs_common, DFSIter, DFSWithScopeIter, Event, EventContext,
+    DFSIter, DFSWithScopeIter, Event, EventContext, dfs_common,
 };
 
+use crate::compiler::{FilesizeBounds, RegexSetId};
 use crate::re;
 use crate::symbols::Symbol;
 use crate::types::Value::Const;
@@ -121,6 +123,11 @@ impl<'src> PatternInRule<'src> {
     #[inline]
     pub fn pattern(&self) -> &Pattern {
         &self.pattern
+    }
+
+    #[inline]
+    pub fn pattern_mut(&mut self) -> &mut Pattern {
+        &mut self.pattern
     }
 
     #[inline]
@@ -246,10 +253,8 @@ impl Pattern {
                 *anchored_at = None;
                 self.flags_mut().insert(PatternFlags::NonAnchorable);
             }
-            None => {
-                if is_anchorable {
-                    *anchored_at = Some(offset);
-                }
+            None if is_anchorable => {
+                *anchored_at = Some(offset);
             }
             _ => {}
         }
@@ -272,6 +277,17 @@ impl Pattern {
         };
         self.flags_mut().insert(PatternFlags::NonAnchorable);
     }
+
+    pub fn set_filesize_bounds(&mut self, bounds: &FilesizeBounds) {
+        match self {
+            Pattern::Text(literal) => {
+                literal.filesize_bounds = bounds.clone();
+            }
+            Pattern::Regexp(regexp) | Pattern::Hex(regexp) => {
+                regexp.filesize_bounds = bounds.clone();
+            }
+        }
+    }
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -282,6 +298,7 @@ pub(crate) struct LiteralPattern {
     pub xor_range: Option<RangeInclusive<u8>>,
     pub base64_alphabet: Option<String>,
     pub base64wide_alphabet: Option<String>,
+    pub filesize_bounds: FilesizeBounds,
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -289,13 +306,14 @@ pub(crate) struct RegexpPattern {
     pub flags: PatternFlags,
     pub hir: re::hir::Hir,
     pub anchored_at: Option<usize>,
+    pub filesize_bounds: FilesizeBounds,
 }
 
 /// The index of a pattern in the rule that declares it.
 ///
 /// The first pattern in the rule has index 0, the second has index 1, and
 /// so on.
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct PatternIdx(usize);
 
 impl PatternIdx {
@@ -309,6 +327,13 @@ impl From<usize> for PatternIdx {
     #[inline]
     fn from(value: usize) -> Self {
         Self(value)
+    }
+}
+
+impl From<&PatternIdx> for i64 {
+    #[inline]
+    fn from(value: &PatternIdx) -> Self {
+        value.0 as i64
     }
 }
 
@@ -467,7 +492,7 @@ impl IR {
 
     /// Returns an iterator that performs a depth first search starting at
     /// the given node.
-    pub fn dfs_iter(&self, start: ExprId) -> DFSIter {
+    pub fn dfs_iter(&self, start: ExprId) -> DFSIter<'_> {
         DFSIter::new(start, self)
     }
 
@@ -475,7 +500,7 @@ impl IR {
     /// information about the current scopes.
     ///
     /// See [`DFSWithScopeIter`] for details.
-    pub fn dfs_with_scope(&self, start: ExprId) -> DFSWithScopeIter {
+    pub fn dfs_with_scope(&self, start: ExprId) -> DFSWithScopeIter<'_> {
         DFSWithScopeIter::new(start, self)
     }
 
@@ -544,7 +569,7 @@ impl IR {
     }
 
     /// Returns an iterator that yields the children of the given expression.
-    pub fn children(&self, expr: ExprId) -> Children {
+    pub fn children(&self, expr: ExprId) -> Children<'_> {
         // The children iterator uses a DFS iterator under the hood. By using
         // the `DFSIter::prune` method we avoid traversing all the descendants
         // of the given expression and traverse only its children.
@@ -768,8 +793,8 @@ impl IR {
                                     break;
                                 }
                             }
-                            // .. and take the loop that inside directly inside
-                            // the one that defined the variable
+                            // .. and take the loop that is directly inside
+                            // the one that defined the variable.
                             if let Some(inner_loop) = scopes.next() {
                                 result.push((current_expr_id, inner_loop));
                             }
@@ -820,7 +845,7 @@ impl IR {
                 .sum::<i32>();
 
             // Shift all variables with an index greater or equal than
-            // var_index one position to the left in order to make room for
+            // var_index one position to the right in order to make room for
             // the new variable used by the `with` statement that will be
             // inserted.
             self.shift_vars(loop_expr_id, var_index, 1);
@@ -860,6 +885,90 @@ impl IR {
         }
 
         self.root.unwrap()
+    }
+
+    /// Determines the constraints on `filesize` imposed by a rule condition.
+    ///
+    /// This function analyzes the rule’s condition to determine whether it
+    /// restricts matching to files whose size falls within a specific range.
+    ///
+    /// For example, the condition `filesize < 10MB and $a` only matches files
+    /// smaller than 10MB. In this case, the function would return bounds
+    /// reflecting that limit.
+    ///
+    /// In contrast, the condition `filesize < 10MB or $a` does not impose a
+    /// filesize constraint, since the use of `or` allows files larger than
+    /// 10MB to also match.
+    pub fn filesize_bounds(&self) -> FilesizeBounds {
+        let mut result = FilesizeBounds::default();
+        let mut dfs = self.dfs_iter(self.root.unwrap());
+
+        while let Some(evt) = dfs.next() {
+            let expr = match evt {
+                Event::Enter((_, expr, _)) => expr,
+                _ => continue,
+            };
+            match expr {
+                Expr::Gt { lhs, rhs } => {
+                    match (self.get(*lhs), self.get(*rhs)) {
+                        // constant > filesize
+                        (Expr::Const(c), Expr::Filesize) => {
+                            result.min_end(Bound::Excluded(c.as_integer()));
+                        }
+                        // filesize > constant
+                        (Expr::Filesize, Expr::Const(c)) => {
+                            result.max_start(Bound::Excluded(c.as_integer()));
+                        }
+                        _ => {}
+                    }
+                }
+                Expr::Ge { lhs, rhs } => {
+                    match (self.get(*lhs), self.get(*rhs)) {
+                        // constant >= filesize
+                        (Expr::Const(c), Expr::Filesize) => {
+                            result.min_end(Bound::Included(c.as_integer()));
+                        }
+                        // filesize >= constant
+                        (Expr::Filesize, Expr::Const(c)) => {
+                            result.max_start(Bound::Included(c.as_integer()));
+                        }
+                        _ => {}
+                    }
+                }
+                Expr::Lt { lhs, rhs } => {
+                    match (self.get(*lhs), self.get(*rhs)) {
+                        // constant < filesize
+                        (Expr::Const(c), Expr::Filesize) => {
+                            result.max_start(Bound::Excluded(c.as_integer()));
+                        }
+                        // filesize < constant
+                        (Expr::Filesize, Expr::Const(c)) => {
+                            result.min_end(Bound::Excluded(c.as_integer()));
+                        }
+                        _ => {}
+                    }
+                }
+                Expr::Le { lhs, rhs } => {
+                    match (self.get(*lhs), self.get(*rhs)) {
+                        // constant < filesize
+                        (Expr::Const(c), Expr::Filesize) => {
+                            result.max_start(Bound::Included(c.as_integer()));
+                        }
+                        // filesize < constant
+                        (Expr::Filesize, Expr::Const(c)) => {
+                            result.min_end(Bound::Included(c.as_integer()));
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+            if !matches!(expr, Expr::And { .. }) {
+                dfs.prune();
+            }
+        }
+
+        result
     }
 }
 
@@ -920,10 +1029,10 @@ impl IR {
 
     /// Creates a new [`Expr::Not`].
     pub fn not(&mut self, operand: ExprId) -> ExprId {
-        if self.constant_folding {
-            if let Some(v) = self.get(operand).try_as_const_bool() {
-                return self.constant(TypeValue::const_bool_from(!v));
-            }
+        if self.constant_folding
+            && let Some(v) = self.get(operand).try_as_const_bool()
+        {
+            return self.constant(TypeValue::const_bool_from(!v));
         }
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[operand.0 as usize] = expr_id;
@@ -1044,6 +1153,12 @@ impl IR {
 
     /// Creates a new [`Expr::BitwiseNot`].
     pub fn bitwise_not(&mut self, operand: ExprId) -> ExprId {
+        if self.constant_folding
+            && let Some(val) = self.get(operand).try_as_const_integer()
+        {
+            return self.constant(TypeValue::const_integer_from(!val));
+        }
+
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[operand.0 as usize] = expr_id;
         self.parents.push(ExprId::none());
@@ -1054,6 +1169,16 @@ impl IR {
 
     /// Creates a new [`Expr::BitwiseAnd`].
     pub fn bitwise_and(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        if self.constant_folding
+            && let (Some(lhs_val), Some(rhs_val)) = (
+                self.get(lhs).try_as_const_integer(),
+                self.get(rhs).try_as_const_integer(),
+            )
+        {
+            return self
+                .constant(TypeValue::const_integer_from(lhs_val & rhs_val));
+        }
+
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[lhs.0 as usize] = expr_id;
         self.parents[rhs.0 as usize] = expr_id;
@@ -1065,6 +1190,16 @@ impl IR {
 
     /// Creates a new [`Expr::BitwiseOr`].
     pub fn bitwise_or(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        if self.constant_folding
+            && let (Some(lhs_val), Some(rhs_val)) = (
+                self.get(lhs).try_as_const_integer(),
+                self.get(rhs).try_as_const_integer(),
+            )
+        {
+            return self
+                .constant(TypeValue::const_integer_from(lhs_val | rhs_val));
+        }
+
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[lhs.0 as usize] = expr_id;
         self.parents[rhs.0 as usize] = expr_id;
@@ -1076,6 +1211,16 @@ impl IR {
 
     /// Creates a new [`Expr::BitwiseXor`].
     pub fn bitwise_xor(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        if self.constant_folding
+            && let (Some(lhs_val), Some(rhs_val)) = (
+                self.get(lhs).try_as_const_integer(),
+                self.get(rhs).try_as_const_integer(),
+            )
+        {
+            return self
+                .constant(TypeValue::const_integer_from(lhs_val ^ rhs_val));
+        }
+
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[lhs.0 as usize] = expr_id;
         self.parents[rhs.0 as usize] = expr_id;
@@ -1087,6 +1232,18 @@ impl IR {
 
     /// Creates a new [`Expr::Shl`].
     pub fn shl(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        if self.constant_folding
+            && let (Some(lhs_val), Some(rhs_val)) = (
+                self.get(lhs).try_as_const_integer(),
+                self.get(rhs).try_as_const_integer(),
+            )
+            && rhs_val >= 0
+        {
+            return self.constant(TypeValue::const_integer_from(
+                if rhs_val >= 64 { 0 } else { lhs_val << rhs_val },
+            ));
+        }
+
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[lhs.0 as usize] = expr_id;
         self.parents[rhs.0 as usize] = expr_id;
@@ -1098,6 +1255,18 @@ impl IR {
 
     /// Creates a new [`Expr::Shr`].
     pub fn shr(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        if self.constant_folding
+            && let (Some(lhs_val), Some(rhs_val)) = (
+                self.get(lhs).try_as_const_integer(),
+                self.get(rhs).try_as_const_integer(),
+            )
+            && rhs_val >= 0
+        {
+            return self.constant(TypeValue::const_integer_from(
+                if rhs_val >= 64 { 0 } else { lhs_val >> rhs_val },
+            ));
+        }
+
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[lhs.0 as usize] = expr_id;
         self.parents[rhs.0 as usize] = expr_id;
@@ -1113,14 +1282,14 @@ impl IR {
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
 
-        if self.constant_folding {
-            if let Some(value) = self.fold_arithmetic(
+        if self.constant_folding
+            && let Some(value) = self.fold_arithmetic(
                 operands.as_slice(),
                 is_float,
                 |acc, x| acc + x,
-            )? {
-                return Ok(self.constant(value));
-            }
+            )?
+        {
+            return Ok(self.constant(value));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
@@ -1139,14 +1308,14 @@ impl IR {
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
 
-        if self.constant_folding {
-            if let Some(value) = self.fold_arithmetic(
+        if self.constant_folding
+            && let Some(value) = self.fold_arithmetic(
                 operands.as_slice(),
                 is_float,
                 |acc, x| acc - x,
-            )? {
-                return Ok(self.constant(value));
-            }
+            )?
+        {
+            return Ok(self.constant(value));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
@@ -1165,14 +1334,14 @@ impl IR {
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
 
-        if self.constant_folding {
-            if let Some(value) = self.fold_arithmetic(
+        if self.constant_folding
+            && let Some(value) = self.fold_arithmetic(
                 operands.as_slice(),
                 is_float,
                 |acc, x| acc * x,
-            )? {
-                return Ok(self.constant(value));
-            }
+            )?
+        {
+            return Ok(self.constant(value));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
@@ -1387,6 +1556,20 @@ impl IR {
         expr_id
     }
 
+    /// Creates a new [`Expr::MatchesMany`].
+    pub fn matches_regex_set(
+        &mut self,
+        lhs: ExprId,
+        regex_set: crate::compiler::RegexSetId,
+    ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
+        self.nodes.push(Expr::MatchesMany { lhs, regex_set });
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
+    }
+
     /// Creates a new [`Expr::PatternMatch`]
     pub fn pattern_match(
         &mut self,
@@ -1564,7 +1747,6 @@ impl IR {
         &mut self,
         quantifier: Quantifier,
         for_vars: ForVars,
-        next_expr_var: Var,
         items: Vec<ExprId>,
         anchor: MatchAnchor,
     ) -> ExprId {
@@ -1594,7 +1776,6 @@ impl IR {
             items,
             anchor,
             for_vars,
-            next_expr_var,
         })));
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
@@ -1605,7 +1786,6 @@ impl IR {
         &mut self,
         quantifier: Quantifier,
         for_vars: ForVars,
-        next_pattern_var: Var,
         items: Vec<PatternIdx>,
         anchor: MatchAnchor,
     ) -> ExprId {
@@ -1632,7 +1812,6 @@ impl IR {
             items,
             anchor,
             for_vars,
-            next_pattern_var,
         })));
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
@@ -1642,7 +1821,6 @@ impl IR {
     pub fn for_of(
         &mut self,
         quantifier: Quantifier,
-        variable: Var,
         for_vars: ForVars,
         pattern_set: Vec<PatternIdx>,
         body: ExprId,
@@ -1658,7 +1836,6 @@ impl IR {
         self.parents.push(ExprId::none());
         self.nodes.push(Expr::ForOf(Box::new(ForOf {
             quantifier,
-            variable,
             pattern_set,
             body,
             for_vars,
@@ -1673,7 +1850,6 @@ impl IR {
         quantifier: Quantifier,
         variables: Vec<Var>,
         for_vars: ForVars,
-        iterable_var: Var,
         iterable: Iterable,
         body: ExprId,
     ) -> ExprId {
@@ -1704,7 +1880,6 @@ impl IR {
             quantifier,
             variables,
             for_vars,
-            iterable_var,
             iterable,
             body,
         })));
@@ -1803,108 +1978,121 @@ impl Debug for IR {
             match event {
                 Event::Leave(_) => level -= 1,
                 Event::Enter((expr_id, expr,_)) => {
-                    for _ in 0..level {
-                        write!(f, "  ")?;
-                    }
+                    let indentation = "  ".repeat(level);
                     level += 1;
-                    write!(f, "{:?}: ", expr_id)?;
+                    write!(f, "{indentation}{expr_id:?}: ")?;
                     let expr_hash = expr_hashes[expr_id.0 as usize];
                     match expr {
-                        Expr::Const(c) => write!(f, "CONST {}", c)?,
-                        Expr::Filesize => write!(f, "FILESIZE")?,
-                        Expr::Not { .. } => write!(f, "NOT -- hash: {:#08x}", expr_hash)?,
-                        Expr::And { .. } => write!(f, "AND -- hash: {:#08x}", expr_hash)?,
-                        Expr::Or { .. } => write!(f, "OR -- hash: {:#08x}", expr_hash)?,
-                        Expr::Minus { .. } => write!(f, "MINUS -- hash: {:#08x}", expr_hash)?,
-                        Expr::Add { .. } => write!(f, "ADD -- hash: {:#08x}", expr_hash)?,
-                        Expr::Sub { .. } => write!(f, "SUB -- hash: {:#08x}", expr_hash)?,
-                        Expr::Mul { .. } => write!(f, "MUL -- hash: {:#08x}", expr_hash)?,
-                        Expr::Div { .. } => write!(f, "DIV -- hash: {:#08x}", expr_hash)?,
-                        Expr::Mod { .. } => write!(f, "MOD -- hash: {:#08x}", expr_hash)?,
-                        Expr::Shl { .. } => write!(f, "SHL -- hash: {:#08x}", expr_hash)?,
-                        Expr::Shr { .. } => write!(f, "SHR -- hash: {:#08x}", expr_hash)?,
-                        Expr::Eq { .. } => write!(f, "EQ -- hash: {:#08x}", expr_hash)?,
-                        Expr::Ne { .. } => write!(f, "NE -- hash: {:#08x}", expr_hash)?,
-                        Expr::Lt { .. } => write!(f, "LT -- hash: {:#08x}", expr_hash)?,
-                        Expr::Gt { .. } => write!(f, "GT -- hash: {:#08x}", expr_hash)?,
-                        Expr::Le { .. } => write!(f, "LE -- hash: {:#08x}", expr_hash)?,
-                        Expr::Ge { .. } => write!(f, "GE -- hash: {:#08x}", expr_hash)?,
-                        Expr::BitwiseNot { .. } => write!(f, "BITWISE_NOT -- hash: {:#08x}", expr_hash)?,
-                        Expr::BitwiseAnd { .. } => write!(f, "BITWISE_AND -- hash: {:#08x}", expr_hash)?,
-                        Expr::BitwiseOr { .. } => write!(f, "BITWISE_OR -- hash: {:#08x}", expr_hash)?,
-                        Expr::BitwiseXor { .. } => write!(f, "BITWISE_XOR -- hash: {:#08x}", expr_hash)?,
-                        Expr::Contains { .. } => write!(f, "CONTAINS -- hash: {:#08x}", expr_hash)?,
-                        Expr::IContains { .. } => write!(f, "ICONTAINS -- hash: {:#08x}", expr_hash)?,
-                        Expr::StartsWith { .. } => write!(f, "STARTS_WITH -- hash: {:#08x}", expr_hash)?,
-                        Expr::IStartsWith { .. } => write!(f, "ISTARTS_WITH -- hash: {:#08x}", expr_hash)?,
-                        Expr::EndsWith { .. } => write!(f, "ENDS_WITH -- hash: {:#08x}", expr_hash)?,
-                        Expr::IEndsWith { .. } => write!(f, "IENDS_WITH -- hash: {:#08x}", expr_hash)?,
-                        Expr::IEquals { .. } => write!(f, "IEQUALS -- hash: {:#08x}", expr_hash)?,
-                        Expr::Matches { .. } => write!(f, "MATCHES -- hash: {:#08x}", expr_hash)?,
-                        Expr::Defined { .. } => write!(f, "DEFINED -- hash: {:#08x}", expr_hash)?,
-                        Expr::FieldAccess { .. } => write!(f, "FIELD_ACCESS -- hash: {:#08x}", expr_hash)?,
-                        Expr::With { .. } => write!(f, "WITH -- hash: {:#08x}", expr_hash)?,
-                        Expr::Symbol(symbol) => write!(f, "SYMBOL {:?}", symbol)?,
-                        Expr::OfExprTuple(_) => write!(f, "OF -- hash: {:#08x}", expr_hash)?,
-                        Expr::OfPatternSet(_) => write!(f, "OF -- hash: {:#08x}", expr_hash)?,
-                        Expr::ForOf(_) => write!(f, "FOR_OF -- hash: {:#08x}", expr_hash)?,
-                        Expr::ForIn(_) => write!(f, "FOR_IN -- hash: {:#08x}", expr_hash)?,
-                        Expr::Lookup(_) => write!(f, "LOOKUP -- hash: {:#08x}", expr_hash)?,
-                        Expr::FuncCall(func_call) => write!(f,
+                        Expr::Const(c) => writeln!(f, "CONST {c}")?,
+                        Expr::Filesize => writeln!(f, "FILESIZE")?,
+                        Expr::Not { .. } => writeln!(f, "NOT -- hash: {expr_hash:#08x}")?,
+                        Expr::And { .. } => writeln!(f, "AND -- hash: {expr_hash:#08x}")?,
+                        Expr::Or { .. } => writeln!(f, "OR -- hash: {expr_hash:#08x}")?,
+                        Expr::Minus { .. } => writeln!(f, "MINUS -- hash: {expr_hash:#08x}")?,
+                        Expr::Add { .. } => writeln!(f, "ADD -- hash: {expr_hash:#08x}")?,
+                        Expr::Sub { .. } => writeln!(f, "SUB -- hash: {expr_hash:#08x}")?,
+                        Expr::Mul { .. } => writeln!(f, "MUL -- hash: {expr_hash:#08x}")?,
+                        Expr::Div { .. } => writeln!(f, "DIV -- hash: {expr_hash:#08x}")?,
+                        Expr::Mod { .. } => writeln!(f, "MOD -- hash: {expr_hash:#08x}")?,
+                        Expr::Shl { .. } => writeln!(f, "SHL -- hash: {expr_hash:#08x}")?,
+                        Expr::Shr { .. } => writeln!(f, "SHR -- hash: {expr_hash:#08x}")?,
+                        Expr::Eq { .. } => writeln!(f, "EQ -- hash: {expr_hash:#08x}")?,
+                        Expr::Ne { .. } => writeln!(f, "NE -- hash: {expr_hash:#08x}")?,
+                        Expr::Lt { .. } => writeln!(f, "LT -- hash: {expr_hash:#08x}")?,
+                        Expr::Gt { .. } => writeln!(f, "GT -- hash: {expr_hash:#08x}")?,
+                        Expr::Le { .. } => writeln!(f, "LE -- hash: {expr_hash:#08x}")?,
+                        Expr::Ge { .. } => writeln!(f, "GE -- hash: {expr_hash:#08x}")?,
+                        Expr::BitwiseNot { .. } => writeln!(f, "BITWISE_NOT -- hash: {expr_hash:#08x}")?,
+                        Expr::BitwiseAnd { .. } => writeln!(f, "BITWISE_AND -- hash: {expr_hash:#08x}")?,
+                        Expr::BitwiseOr { .. } => writeln!(f, "BITWISE_OR -- hash: {expr_hash:#08x}")?,
+                        Expr::BitwiseXor { .. } => writeln!(f, "BITWISE_XOR -- hash: {expr_hash:#08x}")?,
+                        Expr::Contains { .. } => writeln!(f, "CONTAINS -- hash: {expr_hash:#08x}")?,
+                        Expr::IContains { .. } => writeln!(f, "ICONTAINS -- hash: {expr_hash:#08x}")?,
+                        Expr::StartsWith { .. } => writeln!(f, "STARTS_WITH -- hash: {expr_hash:#08x}")?,
+                        Expr::IStartsWith { .. } => writeln!(f, "ISTARTS_WITH -- hash: {expr_hash:#08x}")?,
+                        Expr::EndsWith { .. } => writeln!(f, "ENDS_WITH -- hash: {expr_hash:#08x}")?,
+                        Expr::IEndsWith { .. } => writeln!(f, "IENDS_WITH -- hash: {expr_hash:#08x}")?,
+                        Expr::IEquals { .. } => writeln!(f, "IEQUALS -- hash: {expr_hash:#08x}")?,
+                        Expr::Matches { .. } => writeln!(f, "MATCHES -- hash: {expr_hash:#08x}")?,
+                        Expr::MatchesMany { regex_set, .. } => writeln!(f, "MATCHES_MANY RegexSetId({}) -- hash: {expr_hash:#08x}", usize::from(*regex_set))?,
+                        Expr::Defined { .. } => writeln!(f, "DEFINED -- hash: {expr_hash:#08x}")?,
+                        Expr::FieldAccess { .. } => writeln!(f, "FIELD_ACCESS -- hash: {expr_hash:#08x}")?,
+                        Expr::With { .. } => writeln!(f, "WITH -- hash: {expr_hash:#08x}")?,
+                        Expr::Symbol(symbol) => writeln!(f, "SYMBOL {symbol:?}")?,
+                        Expr::OfExprTuple(_) => writeln!(f, "OF -- hash: {expr_hash:#08x}")?,
+                        Expr::OfPatternSet(_) => writeln!(f, "OF -- hash: {expr_hash:#08x}")?,
+                        Expr::ForOf(for_of) => {
+                            writeln!(f, "FOR_OF -- hash: {expr_hash:#08x}")?;
+                            writeln!(f, "{indentation}      n: {:?}", for_of.for_vars.n)?;
+                            writeln!(f, "{indentation}      i: {:?}", for_of.for_vars.i)?;
+                            writeln!(f, "{indentation}      max_count: {:?}", for_of.for_vars.max_count)?;
+                            writeln!(f, "{indentation}      count: {:?}", for_of.for_vars.count)?;
+                            writeln!(f, "{indentation}      item: {:?}", for_of.for_vars.item)?;
+                        },
+                        Expr::ForIn(for_in) => {
+                            writeln!(f, "FOR_IN -- hash: {expr_hash:#08x}")?;
+                            writeln!(f, "{indentation}      n: {:?}", for_in.for_vars.n)?;
+                            writeln!(f, "{indentation}      i: {:?}", for_in.for_vars.i)?;
+                            writeln!(f, "{indentation}      max_count: {:?}", for_in.for_vars.max_count)?;
+                            writeln!(f, "{indentation}      count: {:?}", for_in.for_vars.count)?;
+                            writeln!(f, "{indentation}      item: {:?}", for_in.for_vars.item)?;
+                        },
+                        Expr::Lookup(_) => writeln!(f, "LOOKUP -- hash: {expr_hash:#08x}")?,
+                        Expr::FuncCall(func_call) => writeln!(f,
                             "FN_CALL {} -- hash: {:#08x}",
                             func_call.mangled_name(),
                             expr_hash
                         )?,
-                        Expr::PatternMatch { pattern, anchor } => write!(
+                        Expr::PatternMatch { pattern, anchor } => writeln!(
                             f,
                             "PATTERN_MATCH {:?}{} -- hash: {:#08x}",
                             pattern,
                             anchor_str(anchor),
                             expr_hash
                         )?,
-                        Expr::PatternMatchVar { symbol, anchor } => write!(
+                        Expr::PatternMatchVar { symbol, anchor } => writeln!(
                             f,
                             "PATTERN_MATCH {:?}{} -- hash: {:#08x}",
                             symbol,
                             anchor_str(anchor),
                             expr_hash
                         )?,
-                        Expr::PatternCount { pattern, range } => write!(
+                        Expr::PatternCount { pattern, range } => writeln!(
                             f,
                             "PATTERN_COUNT {:?}{} -- hash: {:#08x}",
                             pattern,
                             range_str(range),
                             expr_hash
                         )?,
-                        Expr::PatternCountVar { symbol, range } => write!(
+                        Expr::PatternCountVar { symbol, range } => writeln!(
                             f,
                             "PATTERN_COUNT {:?}{} -- hash: {:#08x}",
                             symbol,
                             range_str(range),
                             expr_hash
                         )?,
-                        Expr::PatternOffset { pattern, index } => write!(
+                        Expr::PatternOffset { pattern, index } => writeln!(
                             f,
                             "PATTERN_OFFSET {:?}{} -- hash: {:#08x}",
                             pattern,
                             index_str(index),
                             expr_hash
                         )?,
-                        Expr::PatternOffsetVar { symbol, index } => write!(
+                        Expr::PatternOffsetVar { symbol, index } => writeln!(
                             f,
                             "PATTERN_OFFSET {:?}{} -- hash: {:#08x}",
                             symbol,
                             index_str(index),
                             expr_hash
                         )?,
-                        Expr::PatternLength { pattern, index } => write!(
+                        Expr::PatternLength { pattern, index } => writeln!(
                             f,
                             "PATTERN_LENGTH {:?}{} -- hash: {:#08x}",
                             pattern,
                             index_str(index),
                             expr_hash
                         )?,
-                        Expr::PatternLengthVar { symbol, index } => write!(
+                        Expr::PatternLengthVar { symbol, index } => writeln!(
                             f,
                             "PATTERN_LENGTH {:?}{} -- hash: {:#08x}",
                             symbol,
@@ -1912,8 +2100,6 @@ impl Debug for IR {
                             expr_hash
                         )?,
                     }
-                    writeln!(f, " -- parent: {:?} ", self.parents[expr_id.0 as usize])?;
-
                 }
             }
         }
@@ -1921,7 +2107,6 @@ impl Debug for IR {
         Ok(())
     }
 }
-
 /// Iterator that returns the ancestors for a given expression in the
 /// IR tree.
 ///
@@ -2065,6 +2250,10 @@ pub(crate) enum Expr {
     /// `matches` expression.
     Matches { rhs: ExprId, lhs: ExprId },
 
+    /// Match expression similar to `Expr::Matches` but that matches against
+    /// multiple regular expressions at the same time.
+    MatchesMany { lhs: ExprId, regex_set: RegexSetId },
+
     /// A `defined` expression (e.g. `defined foo`)
     Defined { operand: ExprId },
 
@@ -2163,7 +2352,6 @@ pub(crate) struct OfExprTuple {
     pub quantifier: Quantifier,
     pub items: Vec<ExprId>,
     pub for_vars: ForVars,
-    pub next_expr_var: Var,
     pub anchor: MatchAnchor,
 }
 
@@ -2172,7 +2360,6 @@ pub(crate) struct OfPatternSet {
     pub quantifier: Quantifier,
     pub items: Vec<PatternIdx>,
     pub for_vars: ForVars,
-    pub next_pattern_var: Var,
     pub anchor: MatchAnchor,
 }
 
@@ -2180,7 +2367,6 @@ pub(crate) struct OfPatternSet {
 /// `for 1 of ($a,$b) : (..)`)
 pub(crate) struct ForOf {
     pub quantifier: Quantifier,
-    pub variable: Var,
     pub for_vars: ForVars,
     pub pattern_set: Vec<PatternIdx>,
     pub body: ExprId,
@@ -2191,7 +2377,6 @@ pub(crate) struct ForIn {
     pub quantifier: Quantifier,
     pub variables: Vec<Var>,
     pub for_vars: ForVars,
-    pub iterable_var: Var,
     pub iterable: Iterable,
     pub body: ExprId,
 }
@@ -2206,7 +2391,6 @@ pub(crate) enum Quantifier {
 }
 
 /// Variables used in `for` loop.
-#[derive(PartialEq, Eq)]
 pub(crate) struct ForVars {
     /// Maximum number of iterations.
     pub n: Var,
@@ -2216,6 +2400,8 @@ pub(crate) struct ForVars {
     pub max_count: Var,
     /// Number of loop iterations that actually returned true.
     pub count: Var,
+    /// Variable that holds the current item.
+    pub item: Var,
 }
 
 impl ForVars {
@@ -2224,6 +2410,7 @@ impl ForVars {
         self.i.shift(after, amount);
         self.max_count.shift(after, amount);
         self.count.shift(after, amount);
+        self.item.shift(after, amount);
     }
 }
 
@@ -2402,12 +2589,10 @@ impl Expr {
             }
 
             Expr::OfExprTuple(of) => {
-                of.next_expr_var.shift(from_index, shift_amount);
                 of.for_vars.shift(from_index, shift_amount);
             }
 
             Expr::OfPatternSet(of) => {
-                of.next_pattern_var.shift(from_index, shift_amount);
                 of.for_vars.shift(from_index, shift_amount);
             }
 
@@ -2416,7 +2601,6 @@ impl Expr {
             }
 
             Expr::ForIn(for_in) => {
-                for_in.iterable_var.shift(from_index, shift_amount);
                 for v in for_in.variables.iter_mut() {
                     v.shift(from_index, shift_amount)
                 }
@@ -2517,6 +2701,11 @@ impl Expr {
                     *rhs = replacement;
                 }
             }
+            Expr::MatchesMany { lhs, .. } => {
+                if *lhs == child {
+                    *lhs = replacement;
+                }
+            }
             Expr::PatternMatch { anchor, .. }
             | Expr::PatternMatchVar { anchor, .. } => {
                 replace_in_anchor(anchor)
@@ -2533,10 +2722,10 @@ impl Expr {
             | Expr::PatternOffsetVar { index, .. }
             | Expr::PatternLength { index, .. }
             | Expr::PatternLengthVar { index, .. } => {
-                if let Some(index) = index {
-                    if *index == child {
-                        *index = replacement
-                    }
+                if let Some(index) = index
+                    && *index == child
+                {
+                    *index = replacement
                 }
             }
 
@@ -2556,10 +2745,10 @@ impl Expr {
             }
 
             Expr::FuncCall(func_call) => {
-                if let Some(expr) = &mut func_call.object {
-                    if *expr == child {
-                        *expr = replacement
-                    }
+                if let Some(expr) = &mut func_call.object
+                    && *expr == child
+                {
+                    *expr = replacement
                 }
                 replace_in_slice(func_call.args.as_mut_slice());
             }
@@ -2621,6 +2810,7 @@ impl Expr {
             | Expr::IEndsWith { .. }
             | Expr::IEquals { .. }
             | Expr::Matches { .. }
+            | Expr::MatchesMany { .. }
             | Expr::PatternMatch { .. }
             | Expr::PatternMatchVar { .. }
             | Expr::OfExprTuple(_)
@@ -2692,6 +2882,7 @@ impl Expr {
             | Expr::IEndsWith { .. }
             | Expr::IEquals { .. }
             | Expr::Matches { .. }
+            | Expr::MatchesMany { .. }
             | Expr::PatternMatch { .. }
             | Expr::PatternMatchVar { .. }
             | Expr::OfExprTuple(_)

@@ -3,8 +3,9 @@ error[E001]: syntax error
    |
  8 | / /*/
  9 | | rule test_2
+10 | | {
+11 | |   strings:
 ...  |
 14 | |     $a
 15 | | }
    | |_^ unclosed comment
-   |

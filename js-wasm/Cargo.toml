@@ -1,0 +1,32 @@
+[package]
+name = "yara-x-js"
+description = """
+JavaScript bindings for YARA-X.
+"""
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+readme.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+yara-x = { workspace = true }
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+js-sys = { workspace = true }
+serde-wasm-bindgen = { workspace = true }
+wasm-bindgen = { workspace = true }
+getrandom = { workspace = true, features = ["js"] }
+uuid = { workspace = true, features = ["js"] }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = { workspace = true }
+zip = { workspace = true, features = ["deflate"] }

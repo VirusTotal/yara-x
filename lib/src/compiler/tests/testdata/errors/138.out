@@ -3,4 +3,3 @@ error[E014]: invalid regular expression
   |
 3 |   $a = /abcd((efg){0,10000}){0,10000}/
   |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ regexp is too large
-  |

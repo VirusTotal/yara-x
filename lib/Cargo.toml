@@ -20,8 +20,11 @@ exclude = [
     "src/modules/**/*.out"
 ]
 
+# Configuration for docs.rs.
 [package.metadata.docs.rs]
+# While generating the documentation for doc.rs all features are enabled
 all-features = true
+# Pass "docsrs" config to rustdoc while generating documentation for doc.rs
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -38,7 +41,7 @@ constant-folding = []
 # "abcd" we can be sure that the whole regexp matches. However, the atom "abc"
 # is not exact, finding "abc" is not enough, the regexp must be evaluated in
 # order to verify if it matches. If this feature is not enabled exact atoms are
-# treated as standard (non-exact) atoms.
+# treated as standard (non-exact) atoms. This is enabled by default.
 exact-atoms = []
 
 # Enables the use of FastVM for matching regular expression, as an alternative
@@ -46,12 +49,29 @@ exact-atoms = []
 # the fast regexp matching mechanism for testing purposes.
 fast-regexp = []
 
+# Enables the generation of Rust code from .proto files. This feature is enabled
+# by default. When disabled, the build process will use pre-generated Rust files
+# found in the source tree, instead of generating them at build time.
+generate-proto-code = [
+    "dep:protobuf-codegen",
+    "dep:protobuf-parse",
+    "dep:yara-x-proto"
+]
+
+# Enables the generation of documentation for module fields and functions. This
+# requires the `protoc` feature because it relies on `protoc`'s ability to
+# extract documentation comments from .proto files, something that the pure-Rust
+# parser in the `protobuf_codegen` crate can't do.
+#
+# This feature is disabled by default.
+generate-module-docs = ["protoc"]
+
 # Whether to use protoc for parsing and compiling .proto files. By default,
 # .proto files are parsed and compiled by the pure-Rust compiler implemented
-# by the `rust-protobuf` crate. With this feature you can change this behavior
-# and use protoc, the official Protocol Buffer compiler. You'll need to have
-# protoc installed in your system, together with the protoc-gen-rust plugin.
-# Follow the instructions in: https://lib.rs/crates/protobuf-codegen3
+# by the `protobuf_codegen` crate. With this feature you can change this
+# behavio and use `protoc`, the official Protocol Buffer compiler. You'll need
+# to have protoc installed in your system, together with the protoc-gen-rust
+# plugin. Follow the instructions in: https://lib.rs/crates/protobuf-codegen3
 protoc = []
 
 # Enables debug logs.
@@ -77,15 +97,41 @@ native-code-serialization = []
 # This feature is disabled by default.
 parallel-compilation = ["wasmtime/parallel-compilation"]
 
+# Enables the use of wasmtime's Pulley bytecode interpreter instead of the 
+# default Cranelift JIT compiler.
+#
+# When using Cranelift JIT, WebAssembly code generated from rule conditions is
+# compiled directly to native host machine instructions at runtime. This yields
+# maximum execution performance but requires executable memory pages (which may
+# be restricted in sandbox/secure environments) and is limited to architectures
+#natively supported by Cranelift.
+#
+# Enabling the `pulley` feature tells wasmtime to interpret the conditions using
+# the portable Pulley bytecode instruction virtual machine instead. This 
+# eliminates JIT memory constraints, improves compilation overhead, and provides
+# broad portability across architectures.
+pulley = ["wasmtime/pulley"]
+
 # Enables rules profiling. When this is enabled together with `logging` the
 # logs will contain information about the most expensive rules after each
 # scan. Notice that profiling itself has a noticeable impact on performance.
 rules-profiling = ["logging", "dep:quanta"]
 
-# When enabled use the logic included in the `x509-parser` crate for verifying
-# certificates. If not enabled we use our ouwn logic. This is disabled by
-# default.
-x509-parser-verify = ["x509-parser/verify"]
+crypto = [
+    "dep:const-oid",
+    "dep:der-parser",
+    "dep:digest",
+    "dep:dsa",
+    "dep:ecdsa",
+    "dep:md2",
+    "dep:md-5",
+    "dep:p256",
+    "dep:p384",
+    "dep:rsa",
+    "dep:sha1",
+    "dep:sha2",
+    "dep:x509-parser",
+]
 
 # Features for enabling/disabling modules.
 #
@@ -96,6 +142,13 @@ x509-parser-verify = ["x509-parser/verify"]
 # The `console` module exports functions for printing text from YARA rules.
 console-module = []
 
+# The `crx` module parses Chrome Extension files.
+crx-module = [
+    "crypto",
+    "dep:nom",
+    "dep:zip",
+]
+
 # The `cuckoo` module parses behaviour reports from the Cuckoo Sandbox
 # https://cuckoosandbox.org/
 #
@@ -104,15 +157,23 @@ console-module = []
 # the Cuckoo Sandbox seems to be abandoned since 2017.
 cuckoo-module = []
 
+# The `dex` module parses DEX files.
+dex-module = [
+    "dep:nom",
+    "dep:sha1",
+    "dep:simd-adler32",
+    "dep:simd_cesu8"
+]
+
 # The `dotnet` module parses .NET files.
 dotnet-module = [
     "pe-module",
     "dep:nom",
+    "dep:uuid",
 ]
 
 # The `elf` module parses ELF files.
 elf-module = [
-    "dep:tlsh-fixed",
     "dep:nom",
     "dep:md-5",
 ]
@@ -134,12 +195,9 @@ lnk-module = [
 
 # The `macho` module parses Mach-O files.
 macho-module = [
-    "dep:const-oid",
-    "dep:der-parser",
-    "dep:digest",
+    "crypto",
     "dep:nom",
     "dep:roxmltree",
-    "dep:x509-parser",
 ]
 
 # The `magic` allows recognizing file types based on the output of the
@@ -156,20 +214,8 @@ olecf-module = []
 
 # The `pe` module parses PE files.
 pe-module = [
-    "dep:const-oid",
-    "dep:der-parser",
-    "dep:digest",
-    "dep:dsa",
-    "dep:ecdsa",
+    "crypto",
     "dep:nom",
-    "dep:rsa",
-    "dep:md2",
-    "dep:md-5",
-    "dep:p256",
-    "dep:p384",
-    "dep:sha1",
-    "dep:sha2",
-    "dep:x509-parser"
 ]
 
 # The `string` modules offer some functions for parsing strings as integers,
@@ -179,12 +225,6 @@ string-module = []
 # Test modules to be used only in test cases.
 test_proto2-module = []
 test_proto3-module = []
-
-# The `text` module is an example module described in the Module's Developer
-# Guide. Not very useful in real life.
-text-module = [
-    "dep:lingua"
-]
 
 # The `time` module allows you to retrieve epoch in seconds that can be used in
 # conditions of a rule to check against other epoch time.
@@ -200,13 +240,12 @@ vt-module = [
     "dep:psl",
 ]
 
-# Features that are enabled by default.
-default = [
-    "constant-folding",
-    "cuckoo-module",
-    "exact-atoms",
-    "fast-regexp",
+# Enables all the default modules.
+default-modules = [
     "console-module",
+    "crx-module",
+    "cuckoo-module",
+    "dex-module",
     "dotnet-module",
     "elf-module",
     "macho-module",
@@ -223,11 +262,19 @@ default = [
     "vt-module",
 ]
 
+# Features that are enabled by default.
+default = [
+    "constant-folding",
+    "default-modules",
+    "exact-atoms",
+    "fast-regexp",
+    "generate-proto-code",
+]
+
 [dependencies]
-aho-corasick = { workspace = true, features = ["logging"] }
 annotate-snippets = { workspace = true }
 anyhow = { workspace = true }
-array-bytes = { workspace = true }
+hex = { workspace = true }
 base64 = { workspace = true }
 bincode = { workspace = true, features = ["serde"] }
 bitflags = { workspace = true, features = ["serde"] }
@@ -235,6 +282,7 @@ bitvec = { workspace = true }
 bstr = { workspace = true, features = ["serde"] }
 const-oid = { workspace = true, optional = true, features = ["db"] }
 crc32fast = { workspace = true, optional = true }
+daachorse = { workspace = true }
 der-parser = { workspace = true, optional = true, features = ["bigint"] }
 digest = { workspace = true, optional = true }
 dsa = { workspace = true, optional = true }
@@ -242,9 +290,9 @@ ecdsa = { workspace = true, optional = true }
 memmap2 = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 intaglio = { workspace = true }
+inventory = { workspace = true }
 ipnet = { workspace = true, optional = true }
 itertools = { workspace = true }
-linkme = { workspace = true }
 log = { workspace = true, optional = true }
 md2 = { workspace = true, optional = true, features = ["oid"] }
 md-5 = { workspace = true, optional = true, features = ["oid"] }
@@ -252,7 +300,6 @@ sha1 = { workspace = true, optional = true, features = ["oid"] }
 sha2 = { workspace = true, optional = true, features = ["oid"] }
 magic = { workspace = true, optional = true }
 memchr = { workspace = true }
-memx = { workspace = true }
 nom = { workspace = true, optional = true }
 num-derive = { workspace = true }
 num-traits = { workspace = true }
@@ -272,29 +319,40 @@ serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
 strum_macros = { workspace = true }
 thiserror = { workspace = true }
-tlsh-fixed = { workspace = true, optional = true }
-uuid = { workspace = true, optional = true, features = ["v4"] }
+uuid = { workspace = true, optional = true }
 walrus = { workspace = true }
+x509-parser = { workspace = true, optional = true }
+yara-x-macros = { workspace = true }
+yara-x-parser = { workspace = true, features = ["serde"] }
+zip = { workspace = true, optional = true, features = ["deflate"] }
+simd-adler32 = { workspace = true, optional = true }
+simd_cesu8 = { workspace = true, optional = true }
+
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
 wasmtime = { workspace = true, default-features = false, features = [
     "cranelift",
     "runtime",
 ] }
-x509-parser = { workspace = true, optional = true }
-yara-x-macros = { workspace = true }
-yara-x-parser = { workspace = true, features = ["serde"] }
-zip = { workspace = true }
 
-lingua = { version = "1.6.2", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
+[target.'cfg(target_family = "wasm")'.dependencies]
+js-sys = "0.3.90"
+wasm-bindgen = { workspace = true }
+# When compiling for WASM the `js` feature is needed. The dependency chain for
+# getrandom is: dsa -> num-bigint-dig -> rand -> rand_core -> getrandom. When
+# `dsa` gets upgraded to a newer version this may not be required anymore.
+getrandom = { version = "0.2.17", features = ["js"]}
 
 [build-dependencies]
 anyhow = { workspace = true }
 globwalk = { workspace = true }
 protobuf = { workspace = true }
-protobuf-codegen = { workspace = true }
-protobuf-parse = { workspace = true }
-yara-x-proto = { workspace = true }
+protobuf-codegen = { workspace = true, optional = true }
+protobuf-parse = { workspace = true, optional = true }
+yara-x-proto = { workspace = true, optional = true }
 
 [dev-dependencies]
+criterion = "0.5"
 globwalk = { workspace = true }
 goldenfile = { workspace = true }
 ihex = { workspace = true }
@@ -302,3 +360,11 @@ pretty_assertions = { workspace = true }
 rayon = { workspace = true }
 yara-x-proto-yaml = { workspace = true }
 zip = { workspace = true }
+
+[[bench]]
+name = "dex"
+harness = false
+
+[[bench]]
+name = "pe"
+harness = false

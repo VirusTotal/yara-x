@@ -3,4 +3,3 @@ error[E001]: syntax error
   |
 3 |     $a = { 11 [-1-65535] 22 }
   |                  ^ expecting `]`, found `-`
-  |

@@ -5,8 +5,8 @@ use serde_json::json;
 
 use crate::models::MetaValue;
 use crate::variables::VariableError;
-use crate::Scanner;
-use crate::{mods, ScanOptions};
+use crate::{Rule, Scanner};
+use crate::{ScanOptions, mods};
 
 #[cfg(feature = "rules-profiling")]
 use std::time::Duration;
@@ -61,8 +61,9 @@ fn matches() {
     )
     .unwrap();
 
-    let mut matches = vec![];
     let mut scanner = Scanner::new(&rules);
+
+    let mut matches = vec![];
     let results = scanner.scan(b"foobar").expect("scan should not fail");
 
     for matching_rule in results.matching_rules() {
@@ -78,7 +79,22 @@ fn matches() {
     assert_eq!(
         matches,
         [("$a", 0..6, b"foobar".as_slice()), ("$b", 3..6, b"bar".as_slice())]
-    )
+    );
+
+    let mut matches = vec![];
+    let results = scanner.scan(b"baz").expect("scan should not fail");
+
+    for matching_rule in results.matching_rules() {
+        for pattern in matching_rule.patterns() {
+            matches.extend(
+                pattern
+                    .matches()
+                    .map(|x| (pattern.identifier(), x.range(), x.data())),
+            )
+        }
+    }
+
+    assert_eq!(matches, [("$c", 0..3, b"baz".as_slice())]);
 }
 
 #[test]
@@ -735,7 +751,7 @@ fn namespaces() {
 fn scan_file() {
     let rules = crate::compile(
         r#"
-    rule slow {
+    rule test {
       strings:
         $a = "aaaa"
       condition: 
@@ -759,6 +775,87 @@ fn scan_file() {
         .unwrap();
 
     assert_eq!(scan_results.matching_rules().len(), 1)
+}
+
+#[test]
+fn scan_no_mmap() {
+    let rules = crate::compile(
+        r#"
+    rule test {
+      strings:
+        $a = "aaaa"
+      condition:
+        $a
+    }
+    "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+
+    let scan_results = scanner
+        .use_mmap(false)
+        .scan_file("src/tests/testdata/jumps.bin")
+        .unwrap();
+
+    assert_eq!(scan_results.matching_rules().len(), 1);
+}
+
+#[test]
+fn rule_serialization() {
+    let rules = crate::compile(
+        r#"
+    rule test: foo bar {
+      meta:
+        foo = "foo"
+        bar = 1
+        baz = 2.0
+        qux = true
+      strings:
+        $a = "aaaa"
+      condition:
+        $a
+    }
+    "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+
+    let scan_results = scanner.scan(b"aaaa").unwrap();
+    let matching_rules: Vec<Rule> = scan_results.matching_rules().collect();
+
+    let expected = json!([{
+        "identifier": "test",
+        "namespace": "default",
+        "is_global": false,
+        "is_private": false,
+        "metadata": [
+            ["foo", "foo"],
+            ["bar", 1],
+            ["baz", 2.0],
+            ["qux", true],
+        ],
+        "tags": ["foo", "bar"],
+        "patterns": [
+            {
+                "identifier": "$a",
+                "kind": "Text",
+                "is_private": false,
+                "matches": [
+                    {
+                        "range": {
+                            "start": 0,
+                            "end": 4
+                        },
+                        "xor_key": null
+                    }
+                ]
+            }
+        ]
+    }]);
+
+    assert_eq!(serde_json::to_value(&matching_rules).unwrap(), expected);
 }
 
 #[cfg(feature = "rules-profiling")]
@@ -789,4 +886,72 @@ fn rules_profiling() {
 
     let slowest_rules = scanner.slowest_rules(10);
     assert_eq!(slowest_rules.len(), 0);
+}
+
+#[test]
+fn max_scan_size() {
+    let rules = crate::compile(
+        r#"
+    rule test {
+      strings:
+        $a = "aaaa"
+      condition:
+        $a
+    }
+    "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+
+    // Without truncation, it matches
+    assert_eq!(scanner.scan(b"aaaabbbb").unwrap().matching_rules().len(), 1);
+    assert_eq!(
+        scanner
+            .scan_file("src/tests/testdata/jumps.bin")
+            .unwrap()
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    // With truncation to 2 bytes, it shouldn't match "aaaa" (4 bytes)
+    scanner.max_scan_size(2);
+    assert_eq!(scanner.scan(b"aaaabbbb").unwrap().matching_rules().len(), 0);
+    assert_eq!(
+        scanner
+            .scan_file("src/tests/testdata/jumps.bin")
+            .unwrap()
+            .matching_rules()
+            .len(),
+        0
+    );
+}
+
+#[cfg(feature = "test_proto2-module")]
+#[test]
+fn regex_set_optimization() {
+    let rules = crate::compile(
+        r#"
+        import "test_proto2"
+        rule test {
+            condition:
+                test_proto2.string_foo matches /foo/ and
+                test_proto2.string_foo matches /bar/
+        }
+        rule test_match {
+            condition:
+                test_proto2.string_foo matches /foo/ or
+                test_proto2.string_foo matches /bar/
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::Scanner::new(&rules);
+    let results = scanner.scan(b"").unwrap();
+
+    let matching_rules: Vec<_> =
+        results.matching_rules().map(|r| r.identifier().to_string()).collect();
+    assert_eq!(matching_rules, vec!["test_match"]);
 }

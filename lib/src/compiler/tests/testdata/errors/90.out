@@ -2,7 +2,6 @@ error[E023]: duplicate pattern `$a`
  --> line:4:6
   |
 3 |      $a = "foo"
-  |      -- note: `$a` declared here for the first time
+  |      -- `$a` declared here for the first time
 4 |      $a = "bar"
   |      ^^ duplicate declaration of `$a`
-  |

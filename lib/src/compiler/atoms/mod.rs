@@ -64,13 +64,13 @@ use std::slice::SliceIndex;
 use itertools::{Itertools, MultiProduct};
 use regex_syntax::hir::literal::Literal;
 use serde::{Deserialize, Serialize};
-use smallvec::{smallvec, SmallVec, ToSmallVec};
+use smallvec::{SmallVec, ToSmallVec, smallvec};
 
 pub(crate) use crate::compiler::atoms::mask::ByteMaskCombinator;
+pub(crate) use crate::compiler::atoms::quality::AtomsQuality;
 pub(crate) use crate::compiler::atoms::quality::best_atom_in_bytes;
 pub(crate) use crate::compiler::atoms::quality::best_range_in_bytes;
 pub(crate) use crate::compiler::atoms::quality::best_range_in_masked_bytes;
-pub(crate) use crate::compiler::atoms::quality::AtomsQuality;
 
 use crate::compiler::SubPatternFlags;
 
@@ -105,7 +105,9 @@ pub(crate) const MAX_ATOMS_PER_REGEXP: usize = 10000;
 /// For instance, in the regexp `/ab(cd|ef)/` we can extract two atoms: `abcd`
 /// and `abef`. If any of the atoms is found the regexp matches. Both of these
 /// atoms are exact.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, Eq, PartialOrd, Ord, PartialEq, Serialize, Deserialize,
+)]
 pub(crate) struct Atom {
     bytes: SmallVec<[u8; DESIRED_ATOM_SIZE]>,
     exact: bool,

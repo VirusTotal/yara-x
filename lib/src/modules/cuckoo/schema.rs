@@ -101,25 +101,25 @@ impl<'de> Deserialize<'de> for NetworkJson {
                             }
                             old_domains = Some(val);
                         }
-                        "http" => {
+                        "http" if !val.is_null() => {
                             http = Some(
                                 Deserialize::deserialize(val)
                                     .map_err(Error::custom)?,
                             );
                         }
-                        "tcp" => {
+                        "tcp" if !val.is_null() => {
                             tcp = Some(
                                 Deserialize::deserialize(val)
                                     .map_err(Error::custom)?,
                             );
                         }
-                        "udp" => {
+                        "udp" if !val.is_null() => {
                             udp = Some(
                                 Deserialize::deserialize(val)
                                     .map_err(Error::custom)?,
                             );
                         }
-                        "hosts" => {
+                        "hosts" if !val.is_null() => {
                             hosts = Some(
                                 Deserialize::deserialize(val)
                                     .map_err(Error::custom)?,
@@ -136,11 +136,13 @@ impl<'de> Deserialize<'de> for NetworkJson {
 
                 let domains: Option<Vec<DomainJson>> =
                     match (domains, old_domains) {
-                        (Some(domains), _) => {
+                        (Some(domains), _) if !domains.is_null() => {
                             Deserialize::deserialize(domains)
                                 .map_err(Error::custom)?
                         }
-                        (None, Some(old_domains)) => {
+                        (None, Some(old_domains))
+                            if !old_domains.is_null() =>
+                        {
                             let old_domains: Vec<OldDomainJson> =
                                 Deserialize::deserialize(old_domains)
                                     .map_err(Error::custom)?;
@@ -154,7 +156,7 @@ impl<'de> Deserialize<'de> for NetworkJson {
                                     .collect(),
                             )
                         }
-                        (None, None) => None, // domains field is optional
+                        _ => None, // domains field is optional or null
                     };
 
                 Ok(NetworkJson { domains, http, tcp, udp, hosts })

@@ -8,6 +8,10 @@ use crate::symbols::{Symbol, SymbolTable};
 use crate::types::TypeValue;
 use crate::wasm::WasmExport;
 
+thread_local! {
+    static BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = const { OnceCell::new() };
+}
+
 #[derive(Serialize, Deserialize)]
 pub(crate) enum Map {
     /// A map that has integer keys.
@@ -31,13 +35,9 @@ pub(crate) enum Map {
 }
 
 impl Map {
-    #[allow(clippy::declare_interior_mutable_const)]
-    const BUILTIN_METHODS: OnceCell<Rc<SymbolTable>> = OnceCell::new();
-
-    pub fn builtin_methods(&self) -> Rc<SymbolTable> {
-        #[allow(clippy::borrow_interior_mutable_const)]
-        Self::BUILTIN_METHODS
-            .get_or_init(|| {
+    pub fn builtin_methods() -> Rc<SymbolTable> {
+        BUILTIN_METHODS.with(|cell| {
+            cell.get_or_init(|| {
                 let mut s = SymbolTable::new();
                 for (name, func) in WasmExport::get_methods("Map") {
                     s.insert(name, Symbol::Func(Rc::new(func)));
@@ -45,6 +45,7 @@ impl Map {
                 Rc::new(s)
             })
             .clone()
+        })
     }
 
     pub fn deputy(&self) -> TypeValue {
@@ -64,7 +65,9 @@ impl Map {
     pub fn with_integer_keys(&self) -> &IndexMap<i64, TypeValue> {
         match self {
             Map::IntegerKeys { map, .. } => map,
-            _ => panic!("calling `with_integers_keys` on an map that is not `Map::IntegerKeys`"),
+            _ => panic!(
+                "calling `with_integers_keys` on an map that is not `Map::IntegerKeys`"
+            ),
         }
     }
 
@@ -76,7 +79,9 @@ impl Map {
     pub fn with_string_keys(&self) -> &IndexMap<BString, TypeValue> {
         match self {
             Map::StringKeys { map, .. } => map,
-            _ => panic!("calling `with_string_keys` on an map that is not `Map::StringKeys`"),
+            _ => panic!(
+                "calling `with_string_keys` on an map that is not `Map::StringKeys`"
+            ),
         }
     }
 

@@ -224,6 +224,7 @@ metadata field.
 author = { type = "string", required = true }
 date = { type = "integer" }
 file = { type = "hash", required = true, error = true }
+severity = { type = "string", regexp = "(LOW|HIGH)" }
 ```
 
 {{< callout title="Warning">}}
@@ -239,6 +240,7 @@ allowed.
   and is required. If the field is not present or has the wrong type it will
   cause
   an error instead of a warning.
+- The `severity` field must be a string that matches the regexp `(LOW|HIGH)`.
 
 Supported metadata types are `"string"`, `"integer"`, `"float"`, `"bool"`,
 `"md5"`, `"sha1"`, `"sha256"`, or `"hash"`. The `"md5"`, `"sha1"` and `"sha256"`
@@ -249,6 +251,10 @@ The `"hash"` type is another convenience type that checks for any of the valid
 hashes mentioned above. It is meant to be more flexible than requiring a
 specific hash type in every rule.
 
+Metadata entries of type `"string"` can be accompanied by a `regexp` field that
+contains a regular expression that must be matched by the metadata value. This
+field is ignored if the type is other than `"string"`.
+
 The default values for `required` and `error` are both `false`. This means that
 metadata fields are optional by default, and if they don't comply with the
 requirements established in the configuration file YARA-X will raise a warning.
@@ -258,7 +264,7 @@ By setting `error` to `true` these warnings are turned into errors.
 
 ```toml
 [check.tags]
-allow_list = ["APT", "CRIME"]
+allowed = ["APT", "CRIME"]
 regexp = "^(APT|CRIME)_"
 error = false
 ```
@@ -337,7 +343,7 @@ author = { type = "string", required = true }
 date = { type = "integer" }
 
 [check.tags]
-allow_list = ["APT", "CRIME"]
+allowed = ["APT", "CRIME"]
 error = true
 
 [warnings]

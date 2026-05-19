@@ -1,0 +1,15 @@
+{
+  "textDocument": {
+    "uri": "${test_dir}/inlay_hint.yar"
+  },
+  "range": {
+    "start": {
+      "line": 0,
+      "character": 0
+    },
+    "end": {
+      "line": 15,
+      "character": 0
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "textDocument": {
+    "uri": "${test_dir}/selectionrange5.yar"
+  },
+  "positions": [
+    {
+      "line": 1,
+      "character": 14
+    }
+  ]
+}

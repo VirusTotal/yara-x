@@ -3,4 +3,3 @@ error[E014]: invalid regular expression
   |
 3 |     $a = /abc[b-a]/
   |               ^^^ invalid character class range, the start must be <= the end
-  |

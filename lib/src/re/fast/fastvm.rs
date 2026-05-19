@@ -1,13 +1,13 @@
-use bitflags::bitflags;
-use itertools::izip;
-use memx::memeq;
 use std::cell::Cell;
 use std::ops::RangeInclusive;
 use std::{cmp, mem};
 
+use bitflags::bitflags;
+use itertools::izip;
+
 use crate::re::bitmapset::BitmapSet;
 use crate::re::fast::instr::{Instr, InstrParser};
-use crate::re::{Action, CodeLoc, WideIter, DEFAULT_SCAN_LIMIT};
+use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT, WideIter};
 
 /// A faster but less general alternative to [PikeVM].
 ///
@@ -257,13 +257,11 @@ impl<'r> FastVM<'r> {
                     for (position, _) in self.positions.iter() {
                         let jump_range =
                             *position..*position + step * jump as usize;
-                        if let Some(jump_range) = input.get(jump_range) {
-                            if memchr::memchr(0x0A, jump_range).is_none() {
-                                self.next_positions.insert(
-                                    position + step * jump as usize,
-                                    (),
-                                );
-                            }
+                        if let Some(jump_range) = input.get(jump_range)
+                            && memchr::memchr(0x0A, jump_range).is_none()
+                        {
+                            self.next_positions
+                                .insert(position + step * jump as usize, ());
                         }
                     }
                 }
@@ -417,7 +415,7 @@ impl FastVM<'_> {
             if input.len() < literal.len() {
                 return false;
             }
-            memeq(&input[..literal.len()], literal)
+            &input[..literal.len()] == literal
         }
     }
 
@@ -449,7 +447,7 @@ impl FastVM<'_> {
             if input.len() < literal.len() {
                 return false;
             }
-            memeq(&input[input.len() - literal.len()..], literal)
+            &input[input.len() - literal.len()..] == literal
         }
     }
 
@@ -488,10 +486,10 @@ impl FastVM<'_> {
 
             // Is some of the interleaved zeroes was not actually zero, return
             // false as this is not a match.
-            if let Some(pos) = error_pos.get() {
-                if pos < literal.len() {
-                    return false;
-                }
+            if let Some(pos) = error_pos.get()
+                && pos < literal.len()
+            {
+                return false;
             }
         } else {
             if input.len() < literal.len() {
@@ -539,10 +537,10 @@ impl FastVM<'_> {
                 }
             }
 
-            if let Some(pos) = error_pos.get() {
-                if pos < literal.len() {
-                    return false;
-                }
+            if let Some(pos) = error_pos.get()
+                && pos < literal.len()
+            {
+                return false;
             }
         } else {
             if input.len() < literal.len() {

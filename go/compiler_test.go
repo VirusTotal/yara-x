@@ -2,6 +2,9 @@ package yara_x
 
 import (
 	"bytes"
+	"fmt"
+	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,6 +22,30 @@ func TestNamespaces(t *testing.T) {
 	s := NewScanner(c.Build())
 	scanResults, _ := s.Scan([]byte{})
 	assert.Len(t, scanResults.MatchingRules(), 2)
+}
+
+func TestGlobals(t *testing.T) {
+	c, err := NewCompiler()
+	assert.NoError(t, err)
+	x := map[string]interface{}{"a": map[string]interface{}{"a": "b"}, "b": "d"}
+	y := []interface{}{"z"}
+
+	c.DefineGlobal("test_hashmap", x)
+	c.DefineGlobal("A", "b")
+	c.DefineGlobal("test_arr", y)
+
+	c.AddSource("rule test {condition: test_hashmap.a.a == \"b\"}")
+	c.AddSource("rule test2 {condition: A == \"b\"}")
+	c.AddSource("rule test3 {condition: test_arr[0] == \"z\"}")
+
+	s := NewScanner(c.Build())
+	ScanResults, _ := s.Scan([]byte{})
+	assert.Len(t, ScanResults.MatchingRules(), 3)
+
+	s.SetGlobal("A", "c")
+	s.SetGlobal("test_arr", []interface{}{"f"})
+	ScanResults, _ = s.Scan([]byte{})
+	assert.Len(t, ScanResults.MatchingRules(), 1)
 }
 
 func TestUnsupportedModules(t *testing.T) {
@@ -41,8 +68,7 @@ func TestBannedModules(t *testing.T) {
  --> line:1:1
   |
 1 | import "pe"
-  | ^^^^^^^^^^^ pe module was used here
-  |`
+  | ^^^^^^^^^^^ pe module was used here`
 	assert.EqualError(t, err, expected)
 }
 
@@ -54,9 +80,21 @@ func TestDisabledIncludes(t *testing.T) {
  --> line:1:1
   |
 1 | include "foo.yar"
-  | ^^^^^^^^^^^^^^^^^ includes are disabled for this compilation
-  |`
+  | ^^^^^^^^^^^^^^^^^ includes are disabled for this compilation`
 	assert.EqualError(t, err, expected)
+}
+
+func TestIncludes(t *testing.T) {
+	file, err := ioutil.TempFile("", "prefix")
+	assert.NoError(t, err)
+
+	defer os.Remove(file.Name())
+
+	_, err = Compile(
+		fmt.Sprintf(`include "%s"`, file.Name()),
+		IncludeDir(os.TempDir()))
+
+	assert.NoError(t, err)
 }
 
 func TestRelaxedReSyntax(t *testing.T) {
@@ -161,8 +199,7 @@ func TestError(t *testing.T) {
  --> line:1:24
   |
 1 | rule test { condition: foo }
-  |                        ^^^ this identifier has not been declared
-  |`
+  |                        ^^^ this identifier has not been declared`
 	assert.EqualError(t, err, expected)
 }
 
@@ -174,16 +211,14 @@ func TestCompilerFeatures(t *testing.T) {
  --> line:1:57
   |
 1 | import "test_proto2" rule test { condition: test_proto2.requires_foo_and_bar }
-  |                                                         ^^^^^^^^^^^^^^^^^^^^ this field was used without foo
-  |`)
+  |                                                         ^^^^^^^^^^^^^^^^^^^^ this field was used without foo`)
 
 	_, err = Compile(rules, WithFeature("foo"))
 	assert.EqualError(t, err, `error[E100]: bar is required
  --> line:1:57
   |
 1 | import "test_proto2" rule test { condition: test_proto2.requires_foo_and_bar }
-  |                                                         ^^^^^^^^^^^^^^^^^^^^ this field was used without bar
-  |`)
+  |                                                         ^^^^^^^^^^^^^^^^^^^^ this field was used without bar`)
 
 	_, err = Compile(rules, WithFeature("foo"), WithFeature("bar"))
 	assert.NoError(t, err)
@@ -249,8 +284,7 @@ func TestErrors(t *testing.T) {
  --> test.yar:1:26
   |
 1 | rule test_2 { condition: foo }
-  |                          ^^^ this identifier has not been declared
-  |`,
+  |                          ^^^ this identifier has not been declared`,
 		},
 	}, c.Errors())
 }
@@ -355,30 +389,34 @@ func TestWarnings(t *testing.T) {
   |
 1 | rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }
   |                               ---------- these consecutive jumps will be treated as [0-2]
+  |
+help: consider the following change
+  |
+1 - rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }
+1 + rule test { strings: $a = {01 [0-2] 02 } condition: $a }
   |`,
 		},
 		{
 			Code:   "slow_pattern",
 			Title:  "slow pattern",
 			Line:   1,
-			Column: 22,
+			Column: 27,
 			Labels: []Label{
 				{
 					Level:      "warning",
 					CodeOrigin: "",
 					Line:       1,
-					Column:     22,
-					Span:       Span{Start: 21, End: 43},
+					Column:     27,
+					Span:       Span{Start: 26, End: 45},
 					Text:       "this pattern may slow down the scan",
 				},
 			},
 			Footers: []Footer{},
 			Text: `warning[slow_pattern]: slow pattern
- --> line:1:22
+ --> line:1:27
   |
 1 | rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }
-  |                      ---------------------- this pattern may slow down the scan
-  |`,
+  |                           ------------------- this pattern may slow down the scan`,
 		},
 	}, c.Warnings())
 }

@@ -27,7 +27,7 @@ use yara_x_parser::{Parser, Span};
 
 use crate::align::Align;
 use crate::format_hex_patterns::FormatHexPatterns;
-use crate::indentation::AddIndentationSpaces;
+use crate::indentation::AddIndentation;
 use crate::tokens::categories::*;
 use crate::tokens::*;
 use crate::trailing_spaces::RemoveTrailingSpaces;
@@ -61,16 +61,26 @@ pub enum Error {
     InvalidUTF8(Span),
 }
 
+/// Specifies how to indent the formatted code.
+#[derive(Copy, Clone)]
+pub enum Indentation {
+    /// Use a given number of spaces per indentation level.
+    Spaces(usize),
+    /// Use one tab per indentation level.
+    Tabs,
+}
+
 /// Formats YARA source code automatically.
 pub struct Formatter {
     align_metadata: bool,
     align_patterns: bool,
     indent_section_headers: bool,
     indent_section_contents: bool,
-    indent_spaces: u8,
     newline_before_curly_brace: bool,
     empty_line_before_section_header: bool,
     empty_line_after_section_header: bool,
+    tab_size: usize,
+    indentation: Indentation,
 }
 
 impl Default for Formatter {
@@ -88,10 +98,11 @@ impl Formatter {
             align_patterns: true,
             indent_section_headers: true,
             indent_section_contents: true,
-            indent_spaces: 2,
             newline_before_curly_brace: false,
             empty_line_before_section_header: true,
             empty_line_after_section_header: false,
+            tab_size: 4,
+            indentation: Indentation::Spaces(2),
         }
     }
 
@@ -234,8 +245,41 @@ impl Formatter {
     /// Number of spaces to indent, if indenting at all. Set to 0 to use tabs.
     ///
     /// The default is `2`.
+    #[deprecated(
+        since = "1.7.0",
+        note = "use `.indentation(Indentation::Spaces(n))` or `.indentation(Indentation::Tabs)` instead"
+    )]
     pub fn indent_spaces(mut self, n: u8) -> Self {
-        self.indent_spaces = n;
+        if n == 0 {
+            self.indentation = Indentation::Tabs
+        } else {
+            self.indentation = Indentation::Spaces(n as usize)
+        }
+        self
+    }
+
+    /// Specifies how to indent the formatted source code.
+    ///
+    /// ```
+    /// # use yara_x_fmt::{Formatter, Indentation};
+    /// let indent_with_two_spaces = Formatter::new().indentation(Indentation::Spaces(2));
+    /// let indent_with_tabs = Formatter::new().indentation(Indentation::Tabs);
+    /// ```
+    pub fn indentation(mut self, indentation: Indentation) -> Self {
+        self.indentation = indentation;
+        self
+    }
+
+    /// Specifies the tab size (in spaces) expected in the unformatted source
+    /// code.
+    ///
+    /// If the input contains tab characters, the formatter uses this value to
+    /// determine how many spaces each tab represents. Setting this incorrectly
+    /// can lead to misaligned formatting when the code mixes tabs and spaces.
+    ///
+    /// Defaults to `4`.
+    pub fn input_tab_size(mut self, tab_size: usize) -> Self {
+        self.tab_size = tab_size;
         self
     }
 
@@ -379,7 +423,62 @@ impl Formatter {
     where
         I: TokenStream<'a> + 'a,
     {
-        let tokens = comments::CommentProcessor::new(input);
+        // The first step is inserting newlines between top-level statements
+        // (rules, imports and includes) if they are in the same line.
+        let tokens = processor::Processor::new(input)
+            //
+            // Insert newline in front of import and include statements, making
+            // sure that they start at a new line. The newline is not inserted if
+            // the statement is at the start of the file.
+            //
+            // Example:
+            //
+            // import "foo" import "bar"
+            //
+            // Inserts newline before import "bar".
+            //
+            .add_rule(
+                |ctx| {
+                    let next_token = ctx.token(1);
+                    let prev_token = ctx.token(-1);
+
+                    matches!(
+                        next_token,
+                        Begin(SyntaxKind::IMPORT_STMT)
+                            | Begin(SyntaxKind::INCLUDE_STMT)
+                    ) && prev_token.neq(&Begin(SyntaxKind::SOURCE_FILE))
+                        && prev_token.is_not(*NEWLINE)
+                },
+                processor::actions::newline,
+            )
+            //
+            // Insert newline in front of rule declarations, making sure that
+            // rule declarations starts at a new line. The newline is not
+            // inserted if the rule is at the start of the file.
+            //
+            // Example:
+            //
+            // rule foo { ... } rule bar { ... }
+            //
+            // Inserts newline before "rule bar".
+            //
+            .add_rule(
+                |ctx| {
+                    let next_token = ctx.token(1);
+                    let prev_token = ctx.token(-1);
+
+                    next_token.eq(&Begin(SyntaxKind::RULE_DECL))
+                        && prev_token.neq(&Begin(SyntaxKind::SOURCE_FILE))
+                        && prev_token.is_not(*NEWLINE)
+                },
+                processor::actions::newline,
+            );
+
+        // Process comments before removing whitespaces. Whitespaces must
+        // be the original ones while the comments are being processed in
+        // order to maintain comment indentation unaltered.
+        let tokens =
+            comments::CommentProcessor::new(tokens).tab_size(self.tab_size);
 
         // Remove all whitespaces from the original source.
         let tokens = processor::Processor::new(tokens).add_rule(
@@ -457,7 +556,7 @@ impl Formatter {
             // moved up and placed before Token::Begin(source_file) by the
             // first bubble pipeline.
             .add_rule(
-                |ctx| ctx.token(-1).eq(&None) && ctx.token(1).is(*NEWLINE),
+                |ctx| ctx.token(-1).is(*NONE) && ctx.token(1).is(*NEWLINE),
                 processor::actions::drop,
             )
             // Remove excess of consecutive newlines, only two consecutive
@@ -467,6 +566,15 @@ impl Formatter {
                     ctx.token(1).is(*NEWLINE)
                         && ctx.token(2).is(*NEWLINE)
                         && ctx.token(3).is(*NEWLINE)
+                },
+                processor::actions::drop,
+            )
+            // Remove excess of newlines at the end of the file.
+            .add_rule(
+                |ctx| {
+                    ctx.token(-1).is(*NEWLINE)
+                        && ctx.token(1).is(*NEWLINE)
+                        && ctx.token(2).is(*NONE)
                 },
                 processor::actions::drop,
             )
@@ -533,53 +641,6 @@ impl Formatter {
 
         let tokens = processor::Processor::new(tokens)
             //
-            // Insert newline in front of import and include statements, making
-            // sure that they start at a new line. The newline is not inserted if
-            // the statement is at the start of the file.
-            //
-            // Example:
-            //
-            // import "foo" import "bar"
-            //
-            // Inserts newline before import "bar".
-            //
-            .add_rule(
-                |ctx| {
-                    let next_token = ctx.token(1);
-                    let prev_token = ctx.token(-1);
-
-                    matches!(
-                        next_token,
-                        Begin(SyntaxKind::IMPORT_STMT)
-                            | Begin(SyntaxKind::INCLUDE_STMT)
-                    ) && prev_token.neq(&Begin(SyntaxKind::SOURCE_FILE))
-                        && prev_token.is_not(*NEWLINE)
-                },
-                processor::actions::newline,
-            )
-            //
-            // Insert newline in front of rule declarations, making sure that
-            // rule declarations starts at a new line. The newline is not
-            // inserted if the rule is at the start of the file.
-            //
-            // Example:
-            //
-            // rule foo { ... } rule bar { ... }
-            //
-            // Inserts newline before "rule bar".
-            //
-            .add_rule(
-                |ctx| {
-                    let next_token = ctx.token(1);
-                    let prev_token = ctx.token(-1);
-
-                    next_token.eq(&Begin(SyntaxKind::RULE_DECL))
-                        && prev_token.neq(&Begin(SyntaxKind::SOURCE_FILE))
-                        && prev_token.is_not(*NEWLINE)
-                },
-                processor::actions::newline,
-            )
-            //
             // Insert additional newline in front of a rule declaration that
             // already starts at a newline, but only if not preceded by a
             // comment. In other words, this adds empty lines in between rule
@@ -602,17 +663,6 @@ impl Formatter {
                     ctx.token(1).eq(&Begin(SyntaxKind::RULE_DECL))
                         && ctx.token(-1).is(*NEWLINE)
                         && ctx.token(-2).is_not(*NEWLINE | *COMMENT)
-                },
-                processor::actions::newline,
-            )
-            //
-            // Insert empty line at the end of the file
-            //
-            .add_rule(
-                |ctx| {
-                    ctx.token(1).eq(&End(SyntaxKind::SOURCE_FILE))
-                        && ctx.token(-1).is_not(*NEWLINE)
-                        && ctx.token(2).is_not(*NEWLINE)
                 },
                 processor::actions::newline,
             );
@@ -758,6 +808,7 @@ impl Formatter {
             )
         };
 
+        // Add newline at multiple places.
         let tokens = processor::Processor::new(tokens)
             .set_passthrough(*CONTROL)
             // Add a newline in front of meta definitions in the "meta" section.
@@ -796,6 +847,11 @@ impl Formatter {
                         && ctx.token(-1).is_not(*NEWLINE)
                 },
                 processor::actions::newline,
+            )
+            // Add empty line at the end of the file
+            .add_rule(
+                |ctx| ctx.token(1).is(*NONE) && ctx.token(-1).is_not(*NEWLINE),
+                processor::actions::newline,
             );
 
         let tokens = FormatHexPatterns::new(tokens);
@@ -829,15 +885,17 @@ impl Formatter {
             |token| token.is(*NEWLINE),
         );
 
-        // Make sure that tail and block comments are followed by newline. In
-        // most cases this is already the case, but some of the rules that
-        // remove newlines may remove those appearing after the comment.
+        // Make sure that comments (except inline comments) are followed by
+        // newline. In most cases this is already the case, but some of the rules
+        // that remove newlines may remove those appearing after the comment.
         let tokens = processor::Processor::new(tokens)
             .set_passthrough(*CONTROL)
             .add_rule(
                 |ctx| {
-                    matches!(ctx.token(-1), TailComment(_) | BlockComment(_))
-                        && ctx.token(1).is_not(*NEWLINE)
+                    matches!(
+                        ctx.token(-1),
+                        HeadComment(_) | TailComment(_) | BlockComment(_)
+                    ) && ctx.token(1).is_not(*NEWLINE)
                 },
                 processor::actions::newline,
             );
@@ -859,10 +917,9 @@ impl Formatter {
                 Box::new(tokens)
             };
 
-        let tokens = AddIndentationSpaces::new(tokens, self.indent_spaces);
-        let tokens = RemoveTrailingSpaces::new(tokens);
+        let tokens = AddIndentation::new(tokens, self.indentation);
 
-        tokens
+        RemoveTrailingSpaces::new(tokens)
     }
 
     /// Indents the sections (meta, strings, condition) of a rule one level up.
@@ -1366,6 +1423,16 @@ impl Formatter {
                     add_space && !drop_space
                 },
                 processor::actions::space,
+            )
+            // Insert space before after inline comment.
+            .add_rule(
+                |ctx| {
+                    matches!(
+                        ctx.token(-1),
+                        InlineComment(_)
+                    )
+                },
+                processor::actions::space
             )
             // Insert two spaces before trailing comments in a line.
             .add_rule(

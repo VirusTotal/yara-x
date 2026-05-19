@@ -3,12 +3,12 @@ use std::mem;
 use std::mem::size_of;
 
 use bstr::ByteSlice;
-use regex_syntax::hir::{visit, Class, Hir, HirKind, Visitor};
+use regex_syntax::hir::{Class, Hir, HirKind, Visitor, visit};
 
-use crate::compiler::{best_range_in_bytes, best_range_in_masked_bytes, Atom};
+use crate::compiler::{Atom, best_range_in_bytes, best_range_in_masked_bytes};
 use crate::re;
 use crate::re::fast::instr::Instr;
-use crate::re::{BckCodeLoc, Error, FwdCodeLoc, RegexpAtom, MAX_ALTERNATIVES};
+use crate::re::{BckCodeLoc, Error, FwdCodeLoc, MAX_ALTERNATIVES, RegexpAtom};
 
 /// A compiler that takes a [`re::hir::Hir`] and produces code for
 /// [`re::fast::FastVM`].

@@ -3,4 +3,3 @@ error[E002]: wrong type
   |
 2 |   condition: "foobar" matches "foobar"
   |                               ^^^^^^^^ expression should be `regexp`, but it is `string`
-  |

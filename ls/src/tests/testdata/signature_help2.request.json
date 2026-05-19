@@ -1,0 +1,9 @@
+{
+  "textDocument": {
+    "uri": "${test_dir}/signature_help2.yar"
+  },
+  "position": {
+    "line": 4,
+    "character": 31
+  }
+}

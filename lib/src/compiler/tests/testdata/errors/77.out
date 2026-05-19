@@ -3,4 +3,3 @@ error[E001]: syntax error
   |
 1 | foo rule test { condition: true }
   | ^^^ expecting import statement or rule definition
-  |

@@ -1,8 +1,7 @@
 use std::borrow::Cow;
 
-use array_bytes::Hexify;
-use const_oid::db::{rfc4519, rfc5912};
 use const_oid::ObjectIdentifier;
+use const_oid::db::{rfc4519, rfc5912};
 
 use der_parser::asn1_rs::{
     Any, FromBer, FromDer, OptTaggedParser, ParseResult,
@@ -11,12 +10,12 @@ use der_parser::ber::*;
 use der_parser::error::Error::BerValueError;
 use der_parser::error::{BerError, BerResult};
 use der_parser::nom;
-use der_parser::nom::branch::alt;
-use der_parser::nom::combinator::{consumed, map_res};
 use der_parser::nom::Err::Incomplete;
 use der_parser::nom::Parser;
+use der_parser::nom::branch::alt;
+use der_parser::nom::combinator::{consumed, map_res};
 use der_parser::num_bigint::BigUint;
-use der_parser::{asn1_rs, parse_ber, Oid};
+use der_parser::{Oid, asn1_rs, parse_ber};
 
 use digest::Digest;
 use sha1::Sha1;
@@ -100,6 +99,7 @@ pub fn oid_to_str(oid: &Oid) -> Cow<'static, str> {
         rfc4519::O => Cow::Borrowed("O"),
         rfc4519::OU => Cow::Borrowed("OU"),
         rfc4519::ST => Cow::Borrowed("ST"),
+        rfc4519::STREET => Cow::Borrowed("street"),
         // OIDs not included in const_oid.
         oid::JURISDICTION_C => Cow::Borrowed("jurisdictionC"),
         oid::JURISDICTION_L => Cow::Borrowed("jurisdictionL"),
@@ -227,7 +227,7 @@ impl<'a> SignedData<'a> {
         ))
     }
 
-    pub fn parse_certificates(input: &[u8]) -> (&[u8], Vec<Certificate>) {
+    pub fn parse_certificates(input: &[u8]) -> (&[u8], Vec<Certificate<'_>>) {
         let mut remainder = input;
         let mut certificates = Vec::new();
 
@@ -241,7 +241,7 @@ impl<'a> SignedData<'a> {
                 Ok((remainder, (cert_bytes, cert))) => {
                     certificates.push(Certificate {
                         x509: cert,
-                        thumbprint: Sha1::digest(cert_bytes).hexify(),
+                        thumbprint: hex::encode(Sha1::digest(cert_bytes)),
                     });
                     remainder
                 }
@@ -379,7 +379,7 @@ impl<'a> SignerInfo<'a> {
 
     fn parse_issuer_and_serial_number(
         input: &[u8],
-    ) -> BerResult<(X509Name, BigUint)> {
+    ) -> BerResult<'_, (X509Name<'_>, BigUint)> {
         parse_ber_sequence_defined_g(|input: &[u8], _| {
             let (remainder, issuer) =
                 X509Name::from_der(input).map_err(|_| BerValueError)?;
@@ -395,7 +395,7 @@ impl<'a> SignerInfo<'a> {
         })(input)
     }
 
-    fn parse_attributes(input: &[u8]) -> BerResult<Vec<Attribute>> {
+    fn parse_attributes(input: &[u8]) -> BerResult<'_, Vec<Attribute<'_>>> {
         let mut remainder = input;
         let mut attributes = Vec::new();
         loop {
@@ -530,7 +530,7 @@ pub struct SpcSpOpusInfo {
 }
 
 impl SpcSpOpusInfo {
-    fn parse_inner(input: &[u8]) -> BerResult<Self> {
+    fn parse_inner(input: &[u8]) -> BerResult<'_, Self> {
         let (remainder, program_name) = OptTaggedParser::from(0)
             .parse_ber(input, |_, content| Self::parse_spc_string(content))?;
 
@@ -545,7 +545,7 @@ impl SpcSpOpusInfo {
     ///     unicode           [0] IMPLICIT BMPSTRING
     ///     ascii             [1] IMPLICIT IA5STRING
     /// }
-    fn parse_spc_string(input: &[u8]) -> BerResult<String> {
+    fn parse_spc_string(input: &[u8]) -> BerResult<'_, String> {
         alt((
             // The most straightforward way for parsing a BmpString would be:
             //
@@ -571,7 +571,7 @@ impl SpcSpOpusInfo {
     ///     moniker            [1] IMPLICIT SpcSerializedObject,
     ///     file               [2] EXPLICIT SpcString
     /// }
-    fn parse_spc_link(input: &[u8]) -> BerResult<String> {
+    fn parse_spc_link(input: &[u8]) -> BerResult<'_, String> {
         // The SpcLink, when used in the SpcSpOpusInfo structure, only contains
         // URLs (the first choice), we don't bother to implement parsing for the
         // other two choices. SpcLink is also used inside SpcPeImageData, and in
@@ -669,7 +669,7 @@ impl<'a> TstInfo<'a> {
 ///
 /// https://doc.rust-lang.org/alloc/string/struct.String.html#method.from_utf16be
 fn string_from_utf16be(v: &[u8]) -> Option<String> {
-    if v.len() % 2 != 0 {
+    if !v.len().is_multiple_of(2) {
         return None;
     }
 

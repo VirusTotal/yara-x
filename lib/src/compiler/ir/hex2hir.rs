@@ -6,7 +6,7 @@ use yara_x_parser::ast::WithSpan;
 
 use crate::compiler::context::CompileContext;
 use crate::compiler::errors::{CompileError, InvalidPattern};
-use crate::compiler::{warnings, ByteMaskCombinator};
+use crate::compiler::{ByteMaskCombinator, warnings};
 
 pub(in crate::compiler) fn hex_pattern_hir_from_ast(
     ctx: &mut CompileContext,
@@ -104,14 +104,19 @@ fn hex_sub_pattern_hir_from_ast(
                 }
 
                 if coalesced {
-                    ctx.warnings.add(|| {
-                        warnings::ConsecutiveJumps::build(
-                            ctx.report_builder,
-                            pattern_ident.name.to_string(),
-                            format!("{jump}"),
-                            ctx.report_builder.span_to_code_loc(span.clone()),
-                        )
-                    });
+                    let code_loc =
+                        ctx.report_builder.span_to_code_loc(span.clone());
+
+                    let mut warning = warnings::ConsecutiveJumps::build(
+                        ctx.report_builder,
+                        pattern_ident.name.to_string(),
+                        format!("{jump}"),
+                        ctx.report_builder.span_to_code_loc(span.clone()),
+                    );
+
+                    warning.report_mut().patch(code_loc, format!("{jump}"));
+
+                    ctx.warnings.add(|| warning);
                 }
 
                 match (jump.start, jump.end) {
@@ -130,13 +135,14 @@ fn hex_sub_pattern_hir_from_ast(
                             ctx.report_builder,
                             pattern_ident.name.to_string(),
                             format!(
-                                "lower bound ({start}) is greater than upper bound ({end})"),
+                                "lower bound ({start}) is greater than upper bound ({end})"
+                            ),
                             ctx.report_builder.span_to_code_loc(span),
                             if coalesced {
                                 Some("consecutive jumps were coalesced into a single one".to_string())
                             } else {
                                 None
-                            }
+                            },
                         ));
                     }
                     _ => {}
@@ -186,14 +192,14 @@ mod tests {
 
     use yara_x_parser::ast;
     use yara_x_parser::ast::{
-        HexAlternative, HexJump, HexPattern, HexSubPattern, HexToken, Ident,
+        HexAlternative, HexJump, HexPattern, HexSubPattern, HexToken,
     };
 
     use super::hex_byte_to_class;
+    use crate::compiler::Warnings;
     use crate::compiler::context::{CompileContext, VarStack};
     use crate::compiler::ir::IR;
     use crate::compiler::report::ReportBuilder;
-    use crate::compiler::Warnings;
     use crate::re::hir;
     use crate::re::hir::class_to_masked_byte;
     use crate::symbols::StackedSymbolTable;
@@ -221,6 +227,9 @@ mod tests {
         let mut warnings = Warnings::default();
         let mut rule_patterns = vec![];
 
+        let mut regex_sets = rustc_hash::FxHashMap::default();
+        let mut regex_pool = crate::string_pool::StringPool::new();
+
         let mut ctx = CompileContext {
             ir: &mut ir,
             relaxed_re_syntax: false,
@@ -234,17 +243,17 @@ mod tests {
             vars: VarStack::new(),
             for_of_depth: 0,
             loop_iteration_multiplier: 1,
+            regex_sets: &mut regex_sets,
+            regex_pool: &mut regex_pool,
         };
 
-        let mut pattern = HexPattern {
-            identifier: Ident::new("test_ident"),
-            sub_patterns: HexSubPattern(vec![
-                HexToken::Byte(ast::HexByte::new(b'a', 0xff)),
-                HexToken::Byte(ast::HexByte::new(b'b', 0xff)),
-                HexToken::Byte(ast::HexByte::new(b'c', 0xff)),
-            ]),
-            ..Default::default()
-        };
+        let mut pattern = HexPattern::new("test_ident");
+
+        pattern.sub_patterns = HexSubPattern(vec![
+            HexToken::Byte(ast::HexByte::new(b'a', 0xff)),
+            HexToken::Byte(ast::HexByte::new(b'b', 0xff)),
+            HexToken::Byte(ast::HexByte::new(b'c', 0xff)),
+        ]);
 
         assert_eq!(
             super::hex_pattern_hir_from_ast(&mut ctx, &pattern),

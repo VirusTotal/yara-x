@@ -48,3 +48,20 @@ fn cuckoo() {
         }
     });
 }
+
+#[test]
+fn null_network_fields() {
+    let json = r#"{"network": {"http": null, "tcp": null, "udp": null, "hosts": null, "dns": null}}"#;
+    let rule = r#"
+        import "cuckoo"
+        rule test { condition: cuckoo.network.dns_lookup(/example/) == 0 }
+    "#;
+
+    let rules = crate::compile(rule).unwrap();
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+    let options = crate::ScanOptions::default()
+        .set_module_metadata("cuckoo", json.as_bytes());
+    scanner
+        .scan_with_options(&[], options)
+        .expect("scan should not fail");
+}

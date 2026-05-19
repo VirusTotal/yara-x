@@ -2,31 +2,28 @@ use std::borrow::Cow;
 use std::cmp::min;
 use std::fs::File;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
-use anyhow::{bail, Context, Error};
+use anyhow::{Context, Error, bail};
 use clap::{
-    arg, value_parser, Arg, ArgAction, ArgMatches, Command, ValueEnum,
+    Arg, ArgAction, ArgMatches, Command, ValueEnum, arg, value_parser,
 };
 use crossbeam::channel::Sender;
 use itertools::Itertools;
-use superconsole::style::Stylize;
-use superconsole::{Component, Line, Lines, Span};
-#[cfg(feature = "rules-profiling")]
-use yansi::Color::Green;
-use yansi::Color::{Cyan, Red, Yellow};
+use yansi::Color::{Cyan, Green, Red, Yellow};
 use yansi::Paint;
 
 use yara_x::errors::ScanError;
 use yara_x::{MetaValue, Patterns, Rule, Rules, ScanOptions, Scanner};
 
 use crate::commands::{
-    compile_rules, external_var_parser, get_external_vars,
+    compilation_args, compile_rules, get_external_vars,
     meta_file_value_parser, path_with_namespace_parser,
     truncate_with_ellipsis,
 };
+use crate::walk::Draw;
 use crate::walk::Message;
 use crate::{help, walk};
 
@@ -57,139 +54,72 @@ pub fn scan() -> Command {
                 .help("Path to the file or directory that will be scanned")
                 .value_parser(value_parser!(PathBuf))
         )
-        // Keep options sorted alphabetically by their long name.
-        // For instance, --bar goes before --foo.
-        .arg(
+        .args(itertools::merge(compilation_args(), [
             arg!(-C --"compiled-rules")
                 .help("Indicate that RULES_PATH is a file with compiled rules")
-                .long_help(help::COMPILED_RULES_LONG_HELP)
-        )
-        .arg(
+                .long_help(help::COMPILED_RULES_LONG_HELP),
             arg!(-c --"count")
-                .help("Print only the number of matches per file")
-        )
-        .arg(
-            arg!(-d --"define")
-                .help("Define external variable")
-                .long_help(help::DEFINE_LONG_HELP)
-                .value_name("VAR=VALUE")
-                .value_parser(external_var_parser)
-                .action(ArgAction::Append)
-        )
-        .arg(
+                .help("Print only the number of matches per file"),
             arg!(--"disable-console-logs")
-                .help("Disable printing console log messages")
-        )
-        .arg(
-            arg!(-w --"disable-warnings" [WARNING_ID])
-                .help("Disable warnings")
-                .long_help(help::DISABLE_WARNINGS_LONG_HELP)
-                .default_missing_value("all")
-                .num_args(0..)
-                .require_equals(true)
-                .value_delimiter(',')
-                .action(ArgAction::Append)
-        )
-        .arg(
-            arg!(--"ignore-module" <MODULE>)
-                .help("Ignore rules that use the specified module")
-                .long_help(help::IGNORE_MODULE_LONG_HELP)
-                .action(ArgAction::Append)
-        )
-        .arg(
-            arg!(-I --"include-dir" <PATH>)
-                .help("Directory in which to search for included files")
-                .long_help(help::INCLUDE_DIR_LONG_HELP)
-                .value_parser(value_parser!(PathBuf))
-                .action(ArgAction::Append)
-        )
-        .arg(
+                .help("Disable printing console log messages"),
+            arg!(--"max-matches-per-pattern" <MATCHES>)
+                .help("Maximum number of matches per pattern")
+                .long_help(help::MAX_MATCHES_PER_PATTERN_LONG_HELP)
+                .value_parser(value_parser!(usize)),
             arg!(-x --"module-data")
                 .help("Pass FILE's content as extra data to MODULE")
                 .long_help(help::MODULE_DATA_LONG_HELP)
                 .required(false)
                 .value_name("MODULE=FILE")
                 .value_parser(meta_file_value_parser)
-                .action(ArgAction::Append)
-        )
-        .arg(
+                .action(ArgAction::Append),
             arg!(-n --"negate")
-                .help("Print non-satisfied rules only")
-        )
-        .arg(
+                .help("Print non-satisfied rules only"),
+            arg!(--"no-mmap")
+                .help("Don't use memory-mapped files")
+                .long_help(help::NO_MMAP_LONG_HELP),
             arg!(-o --"output-format" <FORMAT>)
                 .help("Output format for results")
                 .long_help(help::OUTPUT_FORMAT_LONG_HELP)
-                .value_parser(value_parser!(OutputFormats))
-        )
-        .arg(
-            arg!(--"path-as-namespace")
-                .help("Use file path as rule namespace")
-        )
-        .arg(
-            arg!(--"profiling")
-                .help("Show profiling information")
-        )
-        .arg(
+                .value_parser(value_parser!(OutputFormats)),
             arg!(-m --"print-meta")
-                .help("Print rule metadata")
-        )
-        .arg(
+                .help("Print rule metadata"),
             arg!(-e --"print-namespace")
-                .help("Print rule namespace")
-        )
-        .arg(
+                .help("Print rule namespace"),
             arg!(-s --"print-strings" [N])
                 .help("Print matching patterns")
                 .long_help(help::SCAN_PRINT_STRING_LONG_HELP)
                 .default_missing_value("120")
                 .require_equals(true)
-                .value_parser(value_parser!(usize))
-        )
-        .arg(
+                .value_parser(value_parser!(usize)),
             arg!(-g --"print-tags")
-                .help("Print rule tags")
-        )
-        .arg(
+                .help("Print rule tags"),
+            arg!(--"profiling")
+                .help("Show profiling information"),
             arg!(-r --"recursive" [MAX_DEPTH])
                 .help("Scan directories recursively")
                 .long_help(help::SCAN_RECURSIVE_LONG_HELP)
                 .default_missing_value("1000")
                 .require_equals(true)
-                .value_parser(value_parser!(usize))
-        )
-        .arg(
-            arg!(--"relaxed-re-syntax")
-                .help("Use a more relaxed syntax check while parsing regular expressions")
-                .conflicts_with("compiled-rules")
-        )
-        .arg(
+                .value_parser(value_parser!(usize)),
             arg!(--"scan-list")
                 .help("Indicate that TARGET_PATH is a file containing the paths to be scanned")
-                .long_help(help::SCAN_LIST_LONG_HELP)
-        )
-        .arg(
+                .long_help(help::SCAN_LIST_LONG_HELP),
             arg!(-z --"skip-larger" <FILE_SIZE>)
                 .help("Skip files larger than the given size")
-                .value_parser(value_parser!(u64))
-        )
-        .arg(
+                .value_parser(value_parser!(u64)),
             arg!(-t --"tag" <TAG>)
                 .help("Print only rules tagged as TAG")
-                .value_parser(value_parser!(String))
-        )
-        .arg(
+                .value_parser(value_parser!(String)),
             arg!(-p --"threads" <NUM_THREADS>)
                 .help("Use the given number of threads")
                 .long_help(help::THREADS_LONG_HELP)
-                .value_parser(value_parser!(u8).range(1..))
-        )
-        .arg(
+                .value_parser(value_parser!(u8).range(1..)),
             arg!(-a --"timeout" <SECONDS>)
                 .help("Abort scanning after the given number of seconds")
                 .value_parser(value_parser!(u64).range(1..))
-        )
 
+    ]))
 }
 
 #[cfg(feature = "rules-profiling")]
@@ -250,11 +180,14 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let disable_console_logs = args.get_flag("disable-console-logs");
     let scan_list = args.get_flag("scan-list");
     let recursive = args.get_one::<usize>("recursive");
+    let no_mmap = args.get_flag("no-mmap");
+    let max_matches_per_pattern =
+        args.get_one::<usize>("max-matches-per-pattern");
 
     let timeout =
         args.get_one::<u64>("timeout").map(|t| Duration::from_secs(*t));
 
-    let mut external_vars = get_external_vars(args);
+    let external_vars = get_external_vars(args);
 
     let metadata = args
         .get_many::<(String, PathBuf)>("module-data")
@@ -312,10 +245,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
         rules
     } else {
-        // With `take()` we pass the external variables to `compile_rules`,
-        // while leaving a `None` in `external_vars`. This way external
-        // variables are not set again in the scanner.
-        compile_rules(rules_path, external_vars.take(), args, config)?
+        compile_rules(rules_path, args, config)?
     };
 
     let rules_ref = &rules;
@@ -353,7 +283,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                 as Box<dyn OutputHandler>
         }
         Some(OutputFormats::Ndjson) => {
-            Box::new(NdJsonOutputHandler::new(args.into()))
+            Box::new(NdjsonOutputHandler::new(args.into()))
         }
         None | Some(OutputFormats::Text) => {
             Box::new(TextOutputHandler::new(args.into()))
@@ -366,17 +296,8 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     w.walk(
         state,
         // Initialization
-        |_, output| {
+        |_, _| {
             let mut scanner = Scanner::new(rules_ref);
-
-            if !disable_console_logs {
-                let output = output.clone();
-                scanner.console_log(move |msg| {
-                    output
-                        .send(Message::Error(format!("{}", msg.paint(Yellow))))
-                        .unwrap();
-                });
-            }
 
             if let Some(ref vars) = external_vars {
                 for (ident, value) in vars {
@@ -386,10 +307,28 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                 }
             }
 
+            if no_mmap {
+                scanner.use_mmap(false);
+            }
+
+            if let Some(max_matches_per_pattern) = max_matches_per_pattern {
+                scanner.max_matches_per_pattern(*max_matches_per_pattern);
+            }
+
             scanner
         },
         // File handler. Called for every file found while walking the path.
         |state, output, file_path, scanner| {
+            if !disable_console_logs {
+                let output = output.clone();
+                let path = file_path.display().to_string();
+                scanner.console_log(move |msg| {
+                    output
+                        .send(Message::Error(format!("{}: {}", &path.paint(Yellow), msg.paint(Yellow))))
+                        .unwrap();
+                });
+            }
+
             let elapsed_time = Instant::elapsed(&start_time);
 
             if let Some(timeout) = timeout {
@@ -430,19 +369,20 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             let scan_results = scan_results?;
             let mut wanted_rules = match args.get_flag("negate") {
                 true => Box::new(scan_results.non_matching_rules())
-                    as Box<dyn ExactSizeIterator<Item = Rule>>,
+                    as Box<dyn ExactSizeIterator<Item=Rule>>,
                 false => Box::new(scan_results.matching_rules()),
             };
 
-            let matched_count = wanted_rules.len();
-            output_handler.on_file_scanned(
+            state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
+
+            // The number of matching files is incremented only if
+            // `on_file_scanned` returns `true`, which indicates that the
+            // match is actually included in the output and not ignored.
+            if output_handler.on_file_scanned(
                 &file_path,
                 &mut wanted_rules,
                 output,
-            );
-
-            state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
-            if matched_count > 0 {
+            ) {
                 state.num_matching_files.fetch_add(1, Ordering::Relaxed);
             }
 
@@ -489,16 +429,15 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             let _ = output.send(Message::Error(msg));
 
             // In case of timeout walk is aborted.
-            if let Ok(scan_err) = err.downcast::<ScanError>() {
-                if matches!(scan_err, ScanError::Timeout) {
+            if let Ok(scan_err) = err.downcast::<ScanError>()
+                && matches!(scan_err, ScanError::Timeout) {
                     return Err(scan_err.into());
                 }
-            }
 
             Ok(())
         },
     )
-    .unwrap();
+        .unwrap();
 
     #[cfg(feature = "rules-profiling")]
     if profiling {
@@ -538,6 +477,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Debug)]
 struct ScanState {
     start_time: Instant,
     num_scanned_files: AtomicUsize,
@@ -559,33 +499,24 @@ impl ScanState {
 // superconsole will not print any string that contains Unicode characters that
 // are spaces but are not the ASCII space character, so we replace them all.
 // See https://github.com/VirusTotal/yara-x/pull/163 for discussion.
-fn replace_whitespace(path: &Path) -> Cow<str> {
+fn replace_whitespace(path: &Path) -> Cow<'_, str> {
     let mut s = path.to_string_lossy();
     if s.chars().any(|c| c != ' ' && c.is_whitespace()) {
         let mut r = String::with_capacity(s.len());
         for c in s.chars() {
-            if c.is_whitespace() {
-                r.push(' ')
-            } else {
-                r.push(c)
-            }
+            if c.is_whitespace() { r.push(' ') } else { r.push(c) }
         }
         s = Cow::Owned(r);
     }
     s
 }
 
-impl Component for ScanState {
-    fn draw_unchecked(
-        &self,
-        dimensions: superconsole::Dimensions,
-        mode: superconsole::DrawMode,
-    ) -> anyhow::Result<Lines> {
-        let mut lines = Lines::new();
+impl Draw for ScanState {
+    fn draw(&self, width: usize) -> String {
+        let mut output = String::new();
 
-        lines.push(Line::from_iter([Span::new_unstyled(
-            "─".repeat(dimensions.width),
-        )?]));
+        output.push_str(&"─".repeat(width));
+        output.push('\n');
 
         let scanned = format!(
             " {} file(s) scanned in {:.1}s. ",
@@ -596,47 +527,41 @@ impl Component for ScanState {
         let num_matching_files =
             self.num_matching_files.load(Ordering::Relaxed);
 
-        let matched = format!("{} file(s) matched.", num_matching_files);
+        let matched = format!("{num_matching_files} file(s) matched.");
 
-        lines.push(Line::from_iter([
-            Span::new_unstyled(scanned)?,
-            Span::new_styled(if num_matching_files > 0 {
-                matched.red().bold()
-            } else {
-                matched.green().bold()
-            })?,
-        ]));
+        output.push_str(&scanned);
+        if num_matching_files > 0 {
+            output.push_str(&format!("{}", matched.paint(Red).bold()));
+        } else {
+            output.push_str(&format!("{}", matched.paint(Green).bold()));
+        }
+        output.push('\n');
 
-        if matches!(mode, superconsole::DrawMode::Normal) {
-            lines.push(Line::from_iter([Span::new_unstyled(
-                "╶".repeat(dimensions.width),
-            )?]));
+        output.push_str(&"╶".repeat(width));
+        output.push('\n');
 
-            for (file, start_time) in
-                self.files_in_progress.lock().unwrap().iter()
-            {
-                // The length of the elapsed time is 7 characters.
-                let max_path_with = dimensions.width.saturating_sub(7);
+        for (file, start_time) in self.files_in_progress.lock().unwrap().iter()
+        {
+            let max_path_with = width.saturating_sub(7);
 
-                let (path, path_width) = truncate_with_ellipsis(
-                    replace_whitespace(file),
-                    max_path_with,
-                );
+            let (path, path_width) = truncate_with_ellipsis(
+                replace_whitespace(file),
+                max_path_with,
+            );
 
-                let spaces =
-                    " ".repeat(max_path_with.saturating_sub(path_width));
+            let spaces = " ".repeat(max_path_with.saturating_sub(path_width));
 
-                let line = format!(
-                    "{}{}{:6.1}s",
-                    path,
-                    spaces,
-                    Instant::elapsed(start_time).as_secs_f32()
-                );
-                lines.push(Line::from_iter([Span::new_unstyled(line)?]))
-            }
+            let line = format!(
+                "{}{}{:6.1}s",
+                path,
+                spaces,
+                Instant::elapsed(start_time).as_secs_f32()
+            );
+            output.push_str(&line);
+            output.push('\n');
         }
 
-        Ok(lines)
+        output
     }
 }
 
@@ -729,7 +654,7 @@ mod output_handler {
                     let more_bytes_message =
                         match match_data.len().saturating_sub(string_limit) {
                             0 => None,
-                            n => Some(format!(" ... {} more bytes", n)),
+                            n => Some(format!(" ... {n} more bytes")),
                         };
 
                     let string = match_data
@@ -768,12 +693,15 @@ mod output_handler {
     /// [`NdjsonOutputHandler`] and [`JsonOutputHandler`].
     pub(super) trait OutputHandler: Sync {
         /// Called for each scanned file.
+        ///
+        /// Must return `true` when the file was included in the output,
+        /// or `false` if the file was ignored.
         fn on_file_scanned(
             &self,
             file_path: &Path,
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
             output: &Sender<Message>,
-        );
+        ) -> bool;
         /// Called when the last file has been scanned.
         fn on_done(&self, _output: &Sender<Message>);
     }
@@ -794,7 +722,7 @@ mod output_handler {
             file_path: &Path,
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
             output: &Sender<Message>,
-        ) {
+        ) -> bool {
             if self.output_options.count_only {
                 output
                     .send(Message::Info(format!(
@@ -803,18 +731,21 @@ mod output_handler {
                         scan_results.len()
                     )))
                     .unwrap();
-                return;
+                return true;
             }
 
+            let mut result = false;
+
             for matching_rule in scan_results {
-                if let Some(ref only_tag) = self.output_options.only_tag {
-                    if !matching_rule
+                if let Some(ref only_tag) = self.output_options.only_tag
+                    && !matching_rule
                         .tags()
                         .any(|tag| tag.identifier() == only_tag)
-                    {
-                        continue;
-                    }
+                {
+                    continue;
                 }
+
+                result = true;
 
                 let mut msg = if self.output_options.include_namespace {
                     format!(
@@ -849,16 +780,16 @@ mod output_handler {
                     for (pos, (m, v)) in metadata.with_position() {
                         match v {
                             MetaValue::Bool(v) => {
-                                msg.push_str(&format!("{}={}", m, v))
+                                msg.push_str(&format!("{m}={v}"))
                             }
                             MetaValue::Integer(v) => {
-                                msg.push_str(&format!("{}={}", m, v))
+                                msg.push_str(&format!("{m}={v}"))
                             }
                             MetaValue::Float(v) => {
-                                msg.push_str(&format!("{}={}", m, v))
+                                msg.push_str(&format!("{m}={v}"))
                             }
                             MetaValue::String(v) => {
-                                msg.push_str(&format!("{}=\"{}\"", m, v))
+                                msg.push_str(&format!("{m}=\"{v}\""))
                             }
                             MetaValue::Bytes(v) => msg.push_str(&format!(
                                 "{}=\"{}\"",
@@ -892,7 +823,7 @@ mod output_handler {
                             match m.xor_key() {
                                 Some(k) => {
                                     match_str.push_str(
-                                        format!(" xor({:#x},", k).as_str(),
+                                        format!(" xor({k:#x},").as_str(),
                                     );
                                     for b in &match_data
                                         [..min(match_data.len(), limit)]
@@ -929,7 +860,7 @@ mod output_handler {
                                     for (pos, b) in data.iter().with_position()
                                     {
                                         match_str.push_str(
-                                            format!("{:02x}", b).as_str(),
+                                            format!("{b:02x}").as_str(),
                                         );
                                         if !matches!(
                                             pos,
@@ -958,6 +889,8 @@ mod output_handler {
 
                 output.send(Message::Info(msg)).unwrap();
             }
+
+            result
         }
 
         fn on_done(&self, _output: &Sender<Message>) {
@@ -965,23 +898,23 @@ mod output_handler {
         }
     }
 
-    pub(super) struct NdJsonOutputHandler {
+    pub(super) struct NdjsonOutputHandler {
         output_options: OutputOptions,
     }
 
-    impl NdJsonOutputHandler {
+    impl NdjsonOutputHandler {
         pub(super) fn new(output_options: OutputOptions) -> Self {
             Self { output_options }
         }
     }
 
-    impl OutputHandler for NdJsonOutputHandler {
+    impl OutputHandler for NdjsonOutputHandler {
         fn on_file_scanned(
             &self,
             file_path: &Path,
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
             output: &Sender<Message>,
-        ) {
+        ) -> bool {
             let path = file_path.to_str().unwrap();
 
             if self.output_options.count_only {
@@ -992,17 +925,22 @@ mod output_handler {
                 .unwrap();
 
                 output.send(Message::Info(json)).unwrap();
-                return;
+                return true;
             }
 
-            let rules = rules_to_json(&self.output_options, scan_results);
+            let matching_rules =
+                rules_to_json(&self.output_options, scan_results);
+
             let line = serde_json::to_string(&JsonOutput {
                 path,
-                rules: rules.as_slice(),
+                rules: matching_rules.as_slice(),
             })
             .unwrap();
 
             output.send(Message::Info(line)).unwrap();
+
+            // Return `false` if `matching_rules` is empty.
+            !matching_rules.is_empty()
         }
 
         fn on_done(&self, _output: &Sender<Message>) {
@@ -1066,7 +1004,7 @@ mod output_handler {
                     let more_bytes_message =
                         match match_data.len().saturating_sub(string_limit) {
                             0 => None,
-                            n => Some(format!(" ... {} more bytes", n)),
+                            n => Some(format!(" ... {n} more bytes")),
                         };
 
                     let string = match_data
@@ -1107,9 +1045,8 @@ mod output_handler {
             file_path: &Path,
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
             _output: &Sender<Message>,
-        ) {
-            let path = file_path
-                .canonicalize()
+        ) -> bool {
+            let path = dunce::canonicalize(file_path)
                 .ok()
                 .as_ref()
                 .and_then(|absolute| absolute.to_str())
@@ -1117,7 +1054,7 @@ mod output_handler {
                 .unwrap_or_default();
 
             // prepare the increment *outside* the critical section
-            let matches = scan_results
+            let matching_rules = scan_results
                 .filter(|rule| {
                     self.output_options.only_tag.as_ref().is_none_or(
                         |only_tag| {
@@ -1127,15 +1064,30 @@ mod output_handler {
                 })
                 .map(|rule| {
                     let meta = self.output_options.include_meta.then(|| {
-                        rule.metadata()
-                            .map(|(meta_key, meta_val)| {
-                                let meta_key = meta_key.to_owned();
-                                let meta_val = serde_json::to_value(meta_val)
-                                    .expect(
-                                    "Derived Serialize impl should never fail",
-                                );
+                        // Group metadata by key to handle duplicate keys.
+                        let mut grouped: HashMap<
+                            String,
+                            Vec<serde_json::Value>,
+                        > = HashMap::new();
 
-                                (meta_key, meta_val)
+                        for (meta_key, meta_val) in rule.metadata() {
+                            let key = meta_key.to_owned();
+                            let val = serde_json::to_value(meta_val).expect(
+                                "Derived Serialize impl should never fail",
+                            );
+                            grouped.entry(key).or_default().push(val);
+                        }
+
+                        // Single values stay as-is, multiple values become arrays.
+                        grouped
+                            .into_iter()
+                            .map(|(k, mut v)| {
+                                let val = if v.len() == 1 {
+                                    v.pop().unwrap()
+                                } else {
+                                    serde_json::Value::Array(v)
+                                };
+                                (k, val)
                             })
                             .collect::<HashMap<_, _>>()
                     });
@@ -1167,8 +1119,9 @@ mod output_handler {
                 });
 
             {
-                let mut lock = self.output_buffer.lock().unwrap();
-                lock.extend(matches);
+                let mut output = self.output_buffer.lock().unwrap();
+                output.extend(matching_rules);
+                !output.is_empty()
             }
         }
 
