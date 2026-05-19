@@ -1,4 +1,3 @@
-// Self-contained generic Teddy algorithm for yara-x.
 #![allow(dead_code)]
 #![allow(unused_variables)]
 use super::vector::{FatVector, Vector};
