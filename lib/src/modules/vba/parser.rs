@@ -167,10 +167,12 @@ impl VbaProject {
         let dir_stream = Self::decompress_stream(compressed_dir_stream)?;
         let input = &dir_stream[..];
 
+        // The following records are described in [MS-OVBA] version 15.0.
+        // https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/575462ba-bf67-4190-9fac-c275523c75fc
+
         // -- PROJECTSYSKIND Record
         // Specifies the operating system platform for the VBA project.
         // See: [MS-OVBA] Section 2.3.4.2.1.1 PROJECTSYSKIND Record
-        // Landing page: https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/571360c7-d1a8-44d4-9d5f-f32a4e210168
         let (input, _) = Self::parse_record(
             (
                 verify(le_u16, |&id| id == 0x0001),
