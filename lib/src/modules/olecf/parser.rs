@@ -142,10 +142,21 @@ impl<'a> OLECFParser<'a> {
         let mut next_difat_sector = first_difat_sector;
         let entries_per_sector = self.sector_size / 4;
 
+        // Bound fat_sectors to what a file of this size can legitimately need.
+        let max_fat_sectors =
+            (self.data.len() / self.sector_size / entries_per_sector) + 2;
+
+        let mut visited_difat = std::collections::HashSet::new();
+
         for _ in 0..difat_count {
             if next_difat_sector >= MAX_REGULAR_SECTOR
                 || next_difat_sector == ENDOFCHAIN
             {
+                break;
+            }
+
+            // Stop if this DIFAT sector was already processed (cycle detection).
+            if !visited_difat.insert(next_difat_sector) {
                 break;
             }
 
@@ -156,6 +167,9 @@ impl<'a> OLECFParser<'a> {
 
             // The first (entries_per_sector - 1) entries point to FAT sectors
             for i in 0..(entries_per_sector - 1) {
+                if self.fat_sectors.len() >= max_fat_sectors {
+                    break;
+                }
                 let fat_sec = match parse_u32_at(sector_data, i * 4) {
                     Ok(sec) => sec,
                     Err(_) => break,
@@ -163,6 +177,10 @@ impl<'a> OLECFParser<'a> {
                 if fat_sec < MAX_REGULAR_SECTOR {
                     self.fat_sectors.push(fat_sec);
                 }
+            }
+
+            if self.fat_sectors.len() >= max_fat_sectors {
+                break;
             }
 
             // The last entry points to the next DIFAT sector
