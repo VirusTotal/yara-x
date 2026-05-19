@@ -183,7 +183,7 @@ impl VbaProject {
 
         // -- PROJECTCOMPATVERSION Record (Optional)
         // Specifies the compatibility version of the VBA project. Introduced in Office 2010.
-        // See: [MS-OVBA] Section 2.3.4.2.1.12 PROJECTCOMPATVERSION Record
+        // See: [MS-OVBA] Section 2.3.4.2.1.2 PROJECTCOMPATVERSION Record
         let mut remainder = input;
         let (peek_input, next_id) =
             Self::parse_record(le_u16, input, "Failed to peek next ID")?;
@@ -202,7 +202,7 @@ impl VbaProject {
 
         // -- PROJECTLCID Record
         // Specifies the VBA project's LCID (Locale Identifier).
-        // See: [MS-OVBA] Section 2.3.4.2.1.2 PROJECTLCID Record
+        // See: [MS-OVBA] Section 2.3.4.2.1.3 PROJECTLCID Record
         let (input, _) = Self::parse_record(
             (
                 verify(le_u16, |&id| id == 0x0002),
@@ -215,7 +215,7 @@ impl VbaProject {
 
         // -- PROJECTLCIDINVOKE Record
         // Specifies the VBA project's LCID for invoking APIs.
-        // See: [MS-OVBA] Section 2.3.4.2.1.3 PROJECTLCIDINVOKE Record
+        // See: [MS-OVBA] Section 2.3.4.2.1.4 PROJECTLCIDINVOKE Record
         let (input, _) = Self::parse_record(
             (
                 verify(le_u16, |&id| id == 0x0014),
@@ -228,7 +228,7 @@ impl VbaProject {
 
         // -- PROJECTCODEPAGE Record
         // Specifies the codepage to be used for string decoding in the project.
-        // See: [MS-OVBA] Section 2.3.4.2.1.4 PROJECTCODEPAGE Record
+        // See: [MS-OVBA] Section 2.3.4.2.1.5 PROJECTCODEPAGE Record
         let (input, _) = Self::parse_record(
             (
                 verify(le_u16, |&id| id == 0x0003),
@@ -241,7 +241,7 @@ impl VbaProject {
 
         // -- PROJECTNAME Record
         // Specifies the VBA project name.
-        // See: [MS-OVBA] Section 2.3.4.2.1.5 PROJECTNAME Record
+        // See: [MS-OVBA] Section 2.3.4.2.1.6 PROJECTNAME Record
         let (input, (_, name_size)) = Self::parse_record(
             (
                 verify(le_u16, |&id| id == 0x0004),
@@ -261,7 +261,7 @@ impl VbaProject {
 
         // -- PROJECTDOCSTRING Record
         // Specifies the project description and its Unicode equivalent.
-        // See: [MS-OVBA] Section 2.3.4.2.1.6 PROJECTDOCSTRING Record
+        // See: [MS-OVBA] Section 2.3.4.2.1.7 PROJECTDOCSTRING Record
         let (input, (_, doc_size)) = Self::parse_record(
             (verify(le_u16, |&id| id == 0x0005), le_u32),
             input,
@@ -291,7 +291,7 @@ impl VbaProject {
 
         // -- PROJECTHELPFILEPATH Record
         // Specifies help file paths for the VBA project.
-        // See: [MS-OVBA] Section 2.3.4.2.1.7 PROJECTHELPFILEPATH Record
+        // See: [MS-OVBA] Section 2.3.4.2.1.8 PROJECTHELPFILEPATH Record
         let (input, (_, helpfile_size1)) = Self::parse_record(
             (
                 verify(le_u16, |&id| id == 0x0006),
@@ -328,7 +328,7 @@ impl VbaProject {
 
         // -- PROJECTHELPCONTEXT Record
         // Specifies the help context ID in the help file.
-        // See: [MS-OVBA] Section 2.3.4.2.1.8 PROJECTHELPCONTEXT Record
+        // See: [MS-OVBA] Section 2.3.4.2.1.9 PROJECTHELPCONTEXT Record
         let (input, _) = Self::parse_record(
             (
                 verify(le_u16, |&id| id == 0x0007),
@@ -341,7 +341,7 @@ impl VbaProject {
 
         // -- PROJECTLIBFLAGS Record
         // Specifies the library flags of the VBA project.
-        // See: [MS-OVBA] Section 2.3.4.2.1.9 PROJECTLIBFLAGS Record
+        // See: [MS-OVBA] Section 2.3.4.2.1.10 PROJECTLIBFLAGS Record
         let (input, _) = Self::parse_record(
             (
                 verify(le_u16, |&id| id == 0x0008),
@@ -354,7 +354,7 @@ impl VbaProject {
 
         // -- PROJECTVERSION Record
         // Specifies the major and minor version of the VBA project.
-        // See: [MS-OVBA] Section 2.3.4.2.1.10 PROJECTVERSION Record
+        // See: [MS-OVBA] Section 2.3.4.2.1.11 PROJECTVERSION Record
         let (input, (_, _, version_major, version_minor)) =
             Self::parse_record(
                 (
@@ -369,7 +369,7 @@ impl VbaProject {
 
         // -- PROJECTCONSTANTS Record
         // Specifies compilation constants of the VBA project.
-        // See: [MS-OVBA] Section 2.3.4.2.1.11 PROJECTCONSTANTS Record
+        // See: [MS-OVBA] Section 2.3.4.2.1.12 PROJECTCONSTANTS Record
         let (input, (_, constants_size)) = Self::parse_record(
             (
                 verify(le_u16, |&id| id == 0x000C),
