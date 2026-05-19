@@ -1,3 +1,4 @@
+use nom::combinator::opt;
 use nom::{
     Parser,
     bytes::complete::take,
@@ -149,258 +150,177 @@ impl VbaProject {
         Ok(decompressed)
     }
 
-    fn parse_record<'c, P, O>(
-        mut parser: P,
-        input: &'c [u8],
-        err_msg: &'static str,
-    ) -> Result<(&'c [u8], O), &'static str>
-    where
-        P: Parser<&'c [u8], Output = O, Error = nom::error::Error<&'c [u8]>>,
-    {
-        parser.parse(input).map_err(|_| err_msg)
-    }
-
     pub fn parse(
         compressed_dir_stream: &[u8],
         module_streams: HashMap<String, Vec<u8>>,
     ) -> Result<Self, &'static str> {
         let dir_stream = Self::decompress_stream(compressed_dir_stream)?;
-        let input = &dir_stream[..];
+        Self::parse_inner(&dir_stream, &module_streams)
+            .map_err(|_| "Failed to parse VBA dir stream")
+    }
 
-        // The following records are described in [MS-OVBA] version 15.0.
+    fn parse_inner<'c>(
+        dir_stream: &'c [u8],
+        module_streams: &HashMap<String, Vec<u8>>,
+    ) -> Result<Self, nom::Err<nom::error::Error<&'c [u8]>>> {
+        let input = dir_stream;
+
+        // The records below are described in [MS-OVBA] version 15.0.
         // https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/575462ba-bf67-4190-9fac-c275523c75fc
 
         // -- PROJECTSYSKIND Record
         // Specifies the operating system platform for the VBA project.
         // See: [MS-OVBA] Section 2.3.4.2.1.1 PROJECTSYSKIND Record
-        let (input, _) = Self::parse_record(
-            (
-                verify(le_u16, |&id| id == 0x0001),
-                verify(le_u32, |&size| size == 0x0004),
-                le_u32,
-            ),
-            input,
-            "Failed to parse PROJECTSYSKIND Record",
-        )?;
+        let (input, _) = (
+            verify(le_u16, |&id| id == 0x0001),
+            verify(le_u32, |&size| size == 0x0004),
+            le_u32,
+        )
+            .parse(input)?;
 
         // -- PROJECTCOMPATVERSION Record (Optional)
         // Specifies the compatibility version of the VBA project. Introduced in Office 2010.
         // See: [MS-OVBA] Section 2.3.4.2.1.2 PROJECTCOMPATVERSION Record
-        let mut remainder = input;
-        let (peek_input, next_id) =
-            Self::parse_record(le_u16, input, "Failed to peek next ID")?;
-        if next_id == 0x004A {
-            let (remainder, _) = Self::parse_record(
-                (
-                    le_u16, // id (0x004A)
-                    verify(le_u32, |&size| size == 0x0004),
-                    le_u32, // compatibility version
-                ),
-                input,
-                "Failed to parse PROJECTCOMPATVERSION Record",
-            )?;
-        }
-        let input = remainder;
+        let (input, _) = opt((
+            verify(le_u16, |&id| id == 0x004A),
+            verify(le_u32, |&size| size == 0x0004),
+            le_u32,
+        ))
+        .parse(input)?;
 
         // -- PROJECTLCID Record
         // Specifies the VBA project's LCID (Locale Identifier).
         // See: [MS-OVBA] Section 2.3.4.2.1.3 PROJECTLCID Record
-        let (input, _) = Self::parse_record(
-            (
-                verify(le_u16, |&id| id == 0x0002),
-                verify(le_u32, |&size| size == 0x0004),
-                verify(le_u32, |&val| val == 0x409),
-            ),
-            input,
-            "Failed to parse PROJECTLCID Record",
-        )?;
+        let (input, _) = (
+            verify(le_u16, |&id| id == 0x0002),
+            verify(le_u32, |&size| size == 0x0004),
+            verify(le_u32, |&val| val == 0x409),
+        )
+            .parse(input)?;
 
         // -- PROJECTLCIDINVOKE Record
         // Specifies the VBA project's LCID for invoking APIs.
         // See: [MS-OVBA] Section 2.3.4.2.1.4 PROJECTLCIDINVOKE Record
-        let (input, _) = Self::parse_record(
-            (
-                verify(le_u16, |&id| id == 0x0014),
-                verify(le_u32, |&size| size == 0x0004),
-                verify(le_u32, |&val| val == 0x409),
-            ),
-            input,
-            "Failed to parse PROJECTLCIDINVOKE Record",
-        )?;
+        let (input, _) = (
+            verify(le_u16, |&id| id == 0x0014),
+            verify(le_u32, |&size| size == 0x0004),
+            verify(le_u32, |&val| val == 0x409),
+        )
+            .parse(input)?;
 
         // -- PROJECTCODEPAGE Record
         // Specifies the codepage to be used for string decoding in the project.
         // See: [MS-OVBA] Section 2.3.4.2.1.5 PROJECTCODEPAGE Record
-        let (input, _) = Self::parse_record(
-            (
-                verify(le_u16, |&id| id == 0x0003),
-                verify(le_u32, |&size| size == 0x0002),
-                le_u16,
-            ),
-            input,
-            "Failed to parse PROJECTCODEPAGE Record",
-        )?;
+        let (input, _) = (
+            verify(le_u16, |&id| id == 0x0003),
+            verify(le_u32, |&size| size == 0x0002),
+            le_u16,
+        )
+            .parse(input)?;
 
         // -- PROJECTNAME Record
         // Specifies the VBA project name.
         // See: [MS-OVBA] Section 2.3.4.2.1.6 PROJECTNAME Record
-        let (input, (_, name_size)) = Self::parse_record(
-            (
-                verify(le_u16, |&id| id == 0x0004),
-                verify(le_u32, |&size| (1..=128).contains(&size)),
-            ),
-            input,
-            "Failed to parse PROJECTNAME Record header",
-        )?;
+        let (input, (_, name_size)) = (
+            verify(le_u16, |&id| id == 0x0004),
+            verify(le_u32, |&size| (1..=128).contains(&size)),
+        )
+            .parse(input)?;
 
-        let (input, name_bytes) = Self::parse_record(
-            take(name_size as usize),
-            input,
-            "Failed to parse PROJECTNAME bytes",
-        )?;
-
+        let (input, name_bytes) = take(name_size as usize).parse(input)?;
         let project_name = String::from_utf8_lossy(name_bytes).to_string();
 
         // -- PROJECTDOCSTRING Record
         // Specifies the project description and its Unicode equivalent.
         // See: [MS-OVBA] Section 2.3.4.2.1.7 PROJECTDOCSTRING Record
-        let (input, (_, doc_size)) = Self::parse_record(
-            (verify(le_u16, |&id| id == 0x0005), le_u32),
-            input,
-            "Failed to parse PROJECTDOCSTRING Record header",
-        )?;
+        let (input, (_, doc_size)) =
+            (verify(le_u16, |&id| id == 0x0005), le_u32).parse(input)?;
 
-        let (input, _doc_string) = Self::parse_record(
-            take(doc_size as usize),
-            input,
-            "Failed to parse PROJECTDOCSTRING bytes",
-        )?;
+        let (input, _) = take(doc_size as usize).parse(input)?;
 
-        let (input, (_, doc_unicode_size)) = Self::parse_record(
-            (
-                verify(le_u16, |&reserved| reserved == 0x0040),
-                verify(le_u32, |&size| size.is_multiple_of(2)),
-            ),
-            input,
-            "Failed to parse PROJECTDOCSTRING Unicode header",
-        )?;
+        let (input, (_, doc_unicode_size)) = (
+            verify(le_u16, |&reserved| reserved == 0x0040),
+            verify(le_u32, |&size| size % 2 == 0),
+        )
+            .parse(input)?;
 
-        let (input, _doc_unicode) = Self::parse_record(
-            take(doc_unicode_size as usize),
-            input,
-            "Failed to parse PROJECTDOCSTRING Unicode bytes",
-        )?;
+        let (input, _) = take(doc_unicode_size as usize).parse(input)?;
 
         // -- PROJECTHELPFILEPATH Record
         // Specifies help file paths for the VBA project.
         // See: [MS-OVBA] Section 2.3.4.2.1.8 PROJECTHELPFILEPATH Record
-        let (input, (_, helpfile_size1)) = Self::parse_record(
-            (
-                verify(le_u16, |&id| id == 0x0006),
-                verify(le_u32, |&size| size <= 260),
-            ),
-            input,
-            "Failed to parse PROJECTHELPFILEPATH Record header",
-        )?;
+        let (input, (_, helpfile_size1)) = (
+            verify(le_u16, |&id| id == 0x0006),
+            verify(le_u32, |&size| size <= 260),
+        )
+            .parse(input)?;
 
-        let (input, helpfile1) = Self::parse_record(
-            take(helpfile_size1 as usize),
-            input,
-            "Failed to parse PROJECTHELPFILEPATH bytes 1",
-        )?;
+        let (input, helpfile1) = take(helpfile_size1 as usize).parse(input)?;
 
-        let (input, (_, helpfile_size2)) = Self::parse_record(
-            (
-                verify(le_u16, |&reserved| reserved == 0x003D),
-                verify(le_u32, |&size| size == helpfile_size1),
-            ),
-            input,
-            "Failed to parse PROJECTHELPFILEPATH Unicode header",
-        )?;
+        let (input, (_, helpfile_size2)) = (
+            verify(le_u16, |&reserved| reserved == 0x003D),
+            verify(le_u32, |&size| size == helpfile_size1),
+        )
+            .parse(input)?;
 
-        let (input, helpfile2) = Self::parse_record(
-            take(helpfile_size2 as usize),
-            input,
-            "Failed to parse PROJECTHELPFILEPATH bytes 2",
-        )?;
+        let (input, helpfile2) = take(helpfile_size2 as usize).parse(input)?;
 
         if helpfile1 != helpfile2 {
-            return Err("Help files don't match");
+            return Err(nom::Err::Error(nom::error::Error::new(
+                input,
+                nom::error::ErrorKind::Verify,
+            )));
         }
 
         // -- PROJECTHELPCONTEXT Record
         // Specifies the help context ID in the help file.
         // See: [MS-OVBA] Section 2.3.4.2.1.9 PROJECTHELPCONTEXT Record
-        let (input, _) = Self::parse_record(
-            (
-                verify(le_u16, |&id| id == 0x0007),
-                verify(le_u32, |&size| size == 0x0004),
-                le_u32,
-            ),
-            input,
-            "Failed to parse PROJECTHELPCONTEXT Record",
-        )?;
+        let (input, _) = (
+            verify(le_u16, |&id| id == 0x0007),
+            verify(le_u32, |&size| size == 0x0004),
+            le_u32,
+        )
+            .parse(input)?;
 
         // -- PROJECTLIBFLAGS Record
         // Specifies the library flags of the VBA project.
         // See: [MS-OVBA] Section 2.3.4.2.1.10 PROJECTLIBFLAGS Record
-        let (input, _) = Self::parse_record(
-            (
-                verify(le_u16, |&id| id == 0x0008),
-                verify(le_u32, |&size| size == 0x0004),
-                verify(le_u32, |&flags| flags == 0x0000),
-            ),
-            input,
-            "Failed to parse PROJECTLIBFLAGS Record",
-        )?;
+        let (input, _) = (
+            verify(le_u16, |&id| id == 0x0008),
+            verify(le_u32, |&size| size == 0x0004),
+            verify(le_u32, |&flags| flags == 0x0000),
+        )
+            .parse(input)?;
 
         // -- PROJECTVERSION Record
         // Specifies the major and minor version of the VBA project.
         // See: [MS-OVBA] Section 2.3.4.2.1.11 PROJECTVERSION Record
-        let (input, (_, _, version_major, version_minor)) =
-            Self::parse_record(
-                (
-                    verify(le_u16, |&id| id == 0x0009),
-                    verify(le_u32, |&reserved| reserved == 0x0004),
-                    le_u32,
-                    le_u16,
-                ),
-                input,
-                "Failed to parse PROJECTVERSION Record",
-            )?;
+        let (input, (_, _, version_major, version_minor)) = (
+            verify(le_u16, |&id| id == 0x0009),
+            verify(le_u32, |&reserved| reserved == 0x0004),
+            le_u32,
+            le_u16,
+        )
+            .parse(input)?;
 
         // -- PROJECTCONSTANTS Record
         // Specifies compilation constants of the VBA project.
         // See: [MS-OVBA] Section 2.3.4.2.1.12 PROJECTCONSTANTS Record
-        let (input, (_, constants_size)) = Self::parse_record(
-            (
-                verify(le_u16, |&id| id == 0x000C),
-                verify(le_u32, |&size| size <= 1015),
-            ),
-            input,
-            "Failed to parse PROJECTCONSTANTS Record header",
-        )?;
+        let (input, (_, constants_size)) = (
+            verify(le_u16, |&id| id == 0x000C),
+            verify(le_u32, |&size| size <= 1015),
+        )
+            .parse(input)?;
 
-        let (input, _constants) = Self::parse_record(
-            take(constants_size as usize),
-            input,
-            "Failed to parse PROJECTCONSTANTS bytes",
-        )?;
+        let (input, _) = take(constants_size as usize).parse(input)?;
 
-        let (input, (_, constants_unicode_size)) = Self::parse_record(
-            (
-                verify(le_u16, |&reserved| reserved == 0x003C),
-                verify(le_u32, |&size| size.is_multiple_of(2)),
-            ),
-            input,
-            "Failed to parse PROJECTCONSTANTS Unicode header",
-        )?;
+        let (input, (_, constants_unicode_size)) = (
+            verify(le_u16, |&reserved| reserved == 0x003C),
+            verify(le_u32, |&size| size % 2 == 0),
+        )
+            .parse(input)?;
 
-        let (input, _constants_unicode) = Self::parse_record(
-            take(constants_unicode_size as usize),
-            input,
-            "Failed to parse PROJECTCONSTANTS Unicode bytes",
-        )?;
+        let (input, _) = take(constants_unicode_size as usize).parse(input)?;
 
         // -- References
         // Parses references to libraries, controls, and other projects.
@@ -410,36 +330,25 @@ impl VbaProject {
         // -- PROJECTMODULES Record
         // Specifies module block count of the project.
         // See: [MS-OVBA] Section 2.3.4.2.3 PROJECTMODULES Record
-        let (input, _) = Self::parse_record(
-            verify(le_u32, |&size| size == 0x0002),
-            input,
-            "Failed to parse PROJECTMODULES_Size",
-        )?;
-
-        let (input, modules_count) = Self::parse_record(
-            le_u16,
-            input,
-            "Failed to parse PROJECTMODULES_Count",
-        )?;
+        let (input, _) =
+            verify(le_u32, |&size| size == 0x0002).parse(input)?;
+        let (input, modules_count) = le_u16.parse(input)?;
 
         // -- ProjectCookie Record
         // Specifies the project cookie record.
         // See: [MS-OVBA] Section 2.3.4.2.3.1 ProjectCookie Record
-        let (input, _) = Self::parse_record(
-            (
-                verify(le_u16, |&id| id == 0x0013),
-                verify(le_u32, |&size| size == 0x0002),
-                le_u16,
-            ),
-            input,
-            "Failed to parse ProjectCookie Record",
-        )?;
+        let (input, _) = (
+            verify(le_u16, |&id| id == 0x0013),
+            verify(le_u32, |&size| size == 0x0002),
+            le_u16,
+        )
+            .parse(input)?;
 
         // -- Modules
         // Parses module streams and decompresses MS-OVBA streams.
         // See: [MS-OVBA] Section 2.3.4.2.3.2 Modules
-        let (_input, modules) =
-            Self::parse_modules(input, modules_count, &module_streams)?;
+        let (_, modules) =
+            Self::parse_modules(input, modules_count, module_streams)?;
 
         Ok(VbaProject {
             modules,
@@ -453,14 +362,10 @@ impl VbaProject {
 
     fn parse_references(
         mut input: &[u8],
-    ) -> Result<(&[u8], Vec<String>), &'static str> {
+    ) -> Result<(&[u8], Vec<String>), nom::Err<nom::error::Error<&[u8]>>> {
         let mut references = Vec::new();
         loop {
-            let (remainder, check) = Self::parse_record(
-                le_u16,
-                input,
-                "Failed to parse reference type check",
-            )?;
+            let (remainder, check) = le_u16.parse(input)?;
             input = remainder;
             if check == 0x000F {
                 break;
@@ -469,193 +374,110 @@ impl VbaProject {
             match check {
                 0x0016 => {
                     // REFERENCE Name
-                    let (remainder, name_size) = Self::parse_record(
-                        le_u32,
-                        input,
-                        "Failed to parse name size",
-                    )?;
-                    let (remainder, name_bytes) = Self::parse_record(
-                        take(name_size as usize),
-                        remainder,
-                        "Failed to parse name bytes",
-                    )?;
+                    let (remainder, name_size) = le_u32.parse(input)?;
+                    let (remainder, name_bytes) =
+                        take(name_size as usize).parse(remainder)?;
                     let name = String::from_utf8_lossy(name_bytes).to_string();
                     references.push(name);
 
-                    let (remainder, (reserved, unicode_size)) =
-                        Self::parse_record(
-                            (verify(le_u16, |&val| val == 0x003E), le_u32),
-                            remainder,
-                            "Failed to parse Unicode reference header",
-                        )?;
-                    let (remainder, _name_unicode) = Self::parse_record(
-                        take(unicode_size as usize),
-                        remainder,
-                        "Failed to parse Unicode name bytes",
-                    )?;
+                    let (remainder, (_, unicode_size)) =
+                        (verify(le_u16, |&val| val == 0x003E), le_u32)
+                            .parse(remainder)?;
+                    let (remainder, _) =
+                        take(unicode_size as usize).parse(remainder)?;
                     input = remainder;
                 }
                 0x0033 => {
                     // REFERENCEORIGINAL
-                    let (remainder, size) = Self::parse_record(
-                        le_u32,
-                        input,
-                        "Failed to parse REFERENCEORIGINAL size",
-                    )?;
-                    let (remainder, _libid) = Self::parse_record(
-                        take(size as usize),
-                        remainder,
-                        "Failed to parse REFERENCEORIGINAL bytes",
-                    )?;
+                    let (remainder, size) = le_u32.parse(input)?;
+                    let (remainder, _) =
+                        take(size as usize).parse(remainder)?;
                     input = remainder;
                 }
                 0x002F => {
                     // REFERENCECONTROL
-                    let (remainder, size_twiddled) = Self::parse_record(
-                        le_u32,
-                        input,
-                        "Failed to parse size_twiddled",
-                    )?;
-                    let (remainder, _twiddled) = Self::parse_record(
-                        take(size_twiddled as usize),
-                        remainder,
-                        "Failed to parse twiddled bytes",
-                    )?;
+                    let (remainder, size_twiddled) = le_u32.parse(input)?;
+                    let (remainder, _) =
+                        take(size_twiddled as usize).parse(remainder)?;
 
-                    let (remainder, _) = Self::parse_record(
-                        (
-                            verify(le_u32, |&val| val == 0x0000),
-                            verify(le_u16, |&val| val == 0x0000),
-                        ),
-                        remainder,
-                        "Failed to parse REFERENCECONTROL reserved header",
-                    )?;
+                    let (remainder, _) = (
+                        verify(le_u32, |&val| val == 0x0000),
+                        verify(le_u16, |&val| val == 0x0000),
+                    )
+                        .parse(remainder)?;
 
-                    let (remainder, maybe_check2) = Self::parse_record(
-                        le_u16,
-                        remainder,
-                        "Failed to parse REFERENCECONTROL name-record option check",
-                    )?;
+                    let (remainder, maybe_check2) = le_u16.parse(remainder)?;
                     if maybe_check2 == 0x0016 {
                         // Name record
-                        let (remainder, name_size) = Self::parse_record(
-                            le_u32,
-                            remainder,
-                            "Failed to parse NameRecord size",
-                        )?;
-                        let (remainder, _name) = Self::parse_record(
-                            take(name_size as usize),
-                            remainder,
-                            "Failed to parse NameRecord bytes",
-                        )?;
+                        let (remainder, name_size) =
+                            le_u32.parse(remainder)?;
+                        let (remainder, _) =
+                            take(name_size as usize).parse(remainder)?;
 
-                        let (remainder, (reserved, unicode_size)) =
-                            Self::parse_record(
-                                (verify(le_u16, |&val| val == 0x003E), le_u32),
-                                remainder,
-                                "Failed to parse NameRecord Unicode header",
-                            )?;
-                        let (remainder, _name_unicode) = Self::parse_record(
-                            take(unicode_size as usize),
-                            remainder,
-                            "Failed to parse NameRecord Unicode bytes",
-                        )?;
+                        let (remainder, (_, unicode_size)) =
+                            (verify(le_u16, |&val| val == 0x003E), le_u32)
+                                .parse(remainder)?;
+                        let (remainder, _) =
+                            take(unicode_size as usize).parse(remainder)?;
 
-                        let (remainder, _) = Self::parse_record(
-                            verify(le_u16, |&val| val == 0x0030),
-                            remainder,
-                            "Failed to parse REFERENCECONTROL Reserved3",
-                        )?;
+                        let (remainder, _) =
+                            verify(le_u16, |&val| val == 0x0030)
+                                .parse(remainder)?;
                         input = remainder;
                     } else {
                         // No name record, maybe_check2 is reserved3
                         if maybe_check2 != 0x0030 {
-                            return Err("Invalid REFERENCECONTROL_Reserved3");
+                            return Err(nom::Err::Error(
+                                nom::error::Error::new(
+                                    input,
+                                    nom::error::ErrorKind::Verify,
+                                ),
+                            ));
                         }
                         input = remainder;
                     }
 
-                    let (remainder, (_size_extended, size_libid)) =
-                        Self::parse_record(
-                            (le_u32, le_u32),
-                            input,
-                            "Failed to parse extended libid sizes",
-                        )?;
-                    let (remainder, _libid) = Self::parse_record(
-                        take(size_libid as usize),
-                        remainder,
-                        "Failed to parse libid bytes",
-                    )?;
-                    let (remainder, _) = Self::parse_record(
-                        (le_u32, le_u16),
-                        remainder,
-                        "Failed to parse REFERENCECONTROL reserved tails",
-                    )?;
-                    let (remainder, _original_typelib) = Self::parse_record(
-                        take(16_usize),
-                        remainder,
-                        "Failed to parse original typelib bytes",
-                    )?;
-                    let (remainder, _cookie) = Self::parse_record(
-                        le_u32,
-                        remainder,
-                        "Failed to parse cookie",
-                    )?;
+                    let (remainder, (_, size_libid)) =
+                        (le_u32, le_u32).parse(input)?;
+                    let (remainder, _) =
+                        take(size_libid as usize).parse(remainder)?;
+                    let (remainder, _) = (le_u32, le_u16).parse(remainder)?;
+                    let (remainder, _) = take(16_usize).parse(remainder)?;
+                    let (remainder, _) = le_u32.parse(remainder)?;
                     input = remainder;
                 }
                 0x000D => {
                     // REFERENCEREGISTERED
-                    let (remainder, (_size, libid_size)) = Self::parse_record(
-                        (le_u32, le_u32),
-                        input,
-                        "Failed to parse REFERENCEREGISTERED sizes",
-                    )?;
-                    let (remainder, _libid) = Self::parse_record(
-                        take(libid_size as usize),
-                        remainder,
-                        "Failed to parse REFERENCEREGISTERED libid bytes",
-                    )?;
-                    let (remainder, _) = Self::parse_record(
-                        (
-                            verify(le_u32, |&val| val == 0x0000),
-                            verify(le_u16, |&val| val == 0x0000),
-                        ),
-                        remainder,
-                        "Failed to parse REFERENCEREGISTERED reserved tails",
-                    )?;
+                    let (remainder, (_, libid_size)) =
+                        (le_u32, le_u32).parse(input)?;
+                    let (remainder, _) =
+                        take(libid_size as usize).parse(remainder)?;
+                    let (remainder, _) = (
+                        verify(le_u32, |&val| val == 0x0000),
+                        verify(le_u16, |&val| val == 0x0000),
+                    )
+                        .parse(remainder)?;
                     input = remainder;
                 }
                 0x000E => {
                     // REFERENCEPROJECT
-                    let (remainder, (_size, libid_abs_size)) =
-                        Self::parse_record(
-                            (le_u32, le_u32),
-                            input,
-                            "Failed to parse REFERENCEPROJECT libid abs sizes",
-                        )?;
-                    let (remainder, _libid_abs) = Self::parse_record(
-                        take(libid_abs_size as usize),
-                        remainder,
-                        "Failed to parse REFERENCEPROJECT libid abs bytes",
-                    )?;
-                    let (remainder, libid_rel_size) = Self::parse_record(
-                        le_u32,
-                        remainder,
-                        "Failed to parse REFERENCEPROJECT libid rel size",
-                    )?;
-                    let (remainder, _libid_rel) = Self::parse_record(
-                        take(libid_rel_size as usize),
-                        remainder,
-                        "Failed to parse REFERENCEPROJECT libid rel bytes",
-                    )?;
-                    let (remainder, (_major, _minor)) = Self::parse_record(
-                        (le_u32, le_u16),
-                        remainder,
-                        "Failed to parse major/minor versions",
-                    )?;
+                    let (remainder, (_, libid_abs_size)) =
+                        (le_u32, le_u32).parse(input)?;
+                    let (remainder, _) =
+                        take(libid_abs_size as usize).parse(remainder)?;
+                    let (remainder, libid_rel_size) =
+                        le_u32.parse(remainder)?;
+                    let (remainder, _) =
+                        take(libid_rel_size as usize).parse(remainder)?;
+                    let (remainder, _) = (le_u32, le_u16).parse(remainder)?;
                     input = remainder;
                 }
-                _ => return Err("Invalid reference type"),
+                _ => {
+                    return Err(nom::Err::Error(nom::error::Error::new(
+                        input,
+                        nom::error::ErrorKind::Switch,
+                    )));
+                }
             }
         }
         Ok((input, references))
@@ -665,27 +487,20 @@ impl VbaProject {
         mut input: &'c [u8],
         modules_count: u16,
         module_streams: &HashMap<String, Vec<u8>>,
-    ) -> Result<(&'c [u8], HashMap<String, VbaModule>), &'static str> {
+    ) -> Result<
+        (&'c [u8], HashMap<String, VbaModule>),
+        nom::Err<nom::error::Error<&'c [u8]>>,
+    > {
         let mut modules = HashMap::new();
 
         for _ in 0..modules_count {
             // MODULENAME record
-            let (remainder, _) = Self::parse_record(
-                verify(le_u16, |&id| id == 0x0019),
-                input,
-                "Failed to parse MODULENAME_Id",
-            )?;
+            let (remainder, _) =
+                verify(le_u16, |&id| id == 0x0019).parse(input)?;
 
-            let (remainder, module_name_size) = Self::parse_record(
-                le_u32,
-                remainder,
-                "Failed to parse module name size",
-            )?;
-            let (remainder, name_bytes) = Self::parse_record(
-                take(module_name_size as usize),
-                remainder,
-                "Failed to parse module name bytes",
-            )?;
+            let (remainder, module_name_size) = le_u32.parse(remainder)?;
+            let (remainder, name_bytes) =
+                take(module_name_size as usize).parse(remainder)?;
             let module_name = String::from_utf8_lossy(name_bytes).to_string();
             input = remainder;
 
@@ -695,191 +510,133 @@ impl VbaProject {
 
             // Read sections until terminator 0x002B
             loop {
-                let (remainder, section_id) = Self::parse_record(
-                    le_u16,
-                    input,
-                    "Failed to parse module section ID",
-                )?;
+                let (remainder, section_id) = le_u16.parse(input)?;
                 input = remainder;
                 match section_id {
                     0x0047 => {
                         // MODULENAMEUNICODE
-                        let (remainder, unicode_size) = Self::parse_record(
-                            le_u32,
-                            input,
-                            "Failed to parse MODULENAMEUNICODE size",
-                        )?;
-                        let (remainder, _unicode_name) = Self::parse_record(
-                            take(unicode_size as usize),
-                            remainder,
-                            "Failed to parse MODULENAMEUNICODE bytes",
-                        )?;
+                        let (remainder, unicode_size) = le_u32.parse(input)?;
+                        let (remainder, _) =
+                            take(unicode_size as usize).parse(remainder)?;
                         input = remainder;
                     }
                     0x001A => {
                         // MODULESTREAMNAME
-                        let (remainder, stream_size) = Self::parse_record(
-                            le_u32,
-                            input,
-                            "Failed to parse STREAMNAME size",
-                        )?;
-                        let (remainder, stream_bytes) = Self::parse_record(
-                            take(stream_size as usize),
-                            remainder,
-                            "Failed to parse STREAMNAME bytes",
-                        )?;
+                        let (remainder, stream_size) = le_u32.parse(input)?;
+                        let (remainder, stream_bytes) =
+                            take(stream_size as usize).parse(remainder)?;
                         stream_name =
                             String::from_utf8_lossy(stream_bytes).to_string();
 
-                        let (remainder, _) = Self::parse_record(
-                            verify(le_u16, |&val| val == 0x0032),
-                            remainder,
-                            "Failed to parse STREAMNAME reserved flag",
-                        )?;
+                        let (remainder, _) =
+                            verify(le_u16, |&val| val == 0x0032)
+                                .parse(remainder)?;
 
-                        let (remainder, unicode_size) = Self::parse_record(
-                            le_u32,
-                            remainder,
-                            "Failed to parse STREAMNAME Unicode size",
-                        )?;
-                        let (remainder, _unicode_name) = Self::parse_record(
-                            take(unicode_size as usize),
-                            remainder,
-                            "Failed to parse STREAMNAME Unicode bytes",
-                        )?;
+                        let (remainder, unicode_size) =
+                            le_u32.parse(remainder)?;
+                        let (remainder, _) =
+                            take(unicode_size as usize).parse(remainder)?;
                         input = remainder;
                     }
                     0x001C => {
                         // MODULEDOCSTRING
-                        let (remainder, doc_size) = Self::parse_record(
-                            le_u32,
-                            input,
-                            "Failed to parse MODULEDOCSTRING size",
-                        )?;
-                        let (remainder, _doc_string) = Self::parse_record(
-                            take(doc_size as usize),
-                            remainder,
-                            "Failed to parse MODULEDOCSTRING bytes",
-                        )?;
+                        let (remainder, doc_size) = le_u32.parse(input)?;
+                        let (remainder, _) =
+                            take(doc_size as usize).parse(remainder)?;
 
-                        let (remainder, _) = Self::parse_record(
-                            verify(le_u16, |&val| val == 0x0048),
-                            remainder,
-                            "Failed to parse MODULEDOCSTRING reserved flag",
-                        )?;
+                        let (remainder, _) =
+                            verify(le_u16, |&val| val == 0x0048)
+                                .parse(remainder)?;
 
-                        let (remainder, unicode_size) = Self::parse_record(
-                            le_u32,
-                            remainder,
-                            "Failed to parse MODULEDOCSTRING Unicode size",
-                        )?;
-                        let (remainder, _unicode_doc) = Self::parse_record(
-                            take(unicode_size as usize),
-                            remainder,
-                            "Failed to parse MODULEDOCSTRING Unicode bytes",
-                        )?;
+                        let (remainder, unicode_size) =
+                            le_u32.parse(remainder)?;
+                        let (remainder, _) =
+                            take(unicode_size as usize).parse(remainder)?;
                         input = remainder;
                     }
                     0x0031 => {
                         // MODULEOFFSET
-                        let (remainder, offset_size) = Self::parse_record(
-                            verify(le_u32, |&size| size == 0x0004),
-                            input,
-                            "Failed to parse MODULEOFFSET size",
-                        )?;
-                        let (remainder, offset) = Self::parse_record(
-                            le_u32,
-                            remainder,
-                            "Failed to parse MODULEOFFSET value",
-                        )?;
+                        let (remainder, _) =
+                            verify(le_u32, |&size| size == 0x0004)
+                                .parse(input)?;
+                        let (remainder, offset) = le_u32.parse(remainder)?;
                         module_offset = offset;
                         input = remainder;
                     }
                     0x001E => {
                         // MODULEHELPCONTEXT
-                        let (remainder, help_size) = Self::parse_record(
-                            verify(le_u32, |&size| size == 0x0004),
-                            input,
-                            "Failed to parse MODULEHELPCONTEXT size",
-                        )?;
-                        let (remainder, _help_context) = Self::parse_record(
-                            le_u32,
-                            remainder,
-                            "Failed to parse MODULEHELPCONTEXT value",
-                        )?;
+                        let (remainder, _) =
+                            verify(le_u32, |&size| size == 0x0004)
+                                .parse(input)?;
+                        let (remainder, _) = le_u32.parse(remainder)?;
                         input = remainder;
                     }
                     0x002C => {
                         // MODULECOOKIE
-                        let (remainder, cookie_size) = Self::parse_record(
-                            verify(le_u32, |&size| size == 0x0002),
-                            input,
-                            "Failed to parse MODULECOOKIE size",
-                        )?;
-                        let (remainder, _cookie) = Self::parse_record(
-                            le_u16,
-                            remainder,
-                            "Failed to parse MODULECOOKIE value",
-                        )?;
+                        let (remainder, _) =
+                            verify(le_u32, |&size| size == 0x0002)
+                                .parse(input)?;
+                        let (remainder, _) = le_u16.parse(remainder)?;
                         input = remainder;
                     }
                     0x0021 => {
                         module_type = ModuleType::Standard;
-                        let (remainder, _) = Self::parse_record(
-                            le_u32,
-                            input,
-                            "Failed to parse standard module reserve",
-                        )?;
+                        let (remainder, _) = le_u32.parse(input)?;
                         input = remainder;
                     }
                     0x0022 => {
                         module_type = ModuleType::Class;
-                        let (remainder, _) = Self::parse_record(
-                            le_u32,
-                            input,
-                            "Failed to parse class module reserve",
-                        )?;
+                        let (remainder, _) = le_u32.parse(input)?;
                         input = remainder;
                     }
                     0x0025 => {
-                        let (remainder, _) = Self::parse_record(
-                            verify(le_u32, |&val| val == 0x0000),
-                            input,
-                            "Failed to parse READONLY reserved",
-                        )?;
+                        let (remainder, _) =
+                            verify(le_u32, |&val| val == 0x0000)
+                                .parse(input)?;
                         input = remainder;
                     }
                     0x0028 => {
-                        let (remainder, _) = Self::parse_record(
-                            verify(le_u32, |&val| val == 0x0000),
-                            input,
-                            "Failed to parse PRIVATE reserved",
-                        )?;
+                        let (remainder, _) =
+                            verify(le_u32, |&val| val == 0x0000)
+                                .parse(input)?;
                         input = remainder;
                     }
                     0x002B => {
                         // TERMINATOR
-                        let (remainder, _) = Self::parse_record(
-                            verify(le_u32, |&val| val == 0x0000),
-                            input,
-                            "Failed to parse TERMINATOR reserved",
-                        )?;
+                        let (remainder, _) =
+                            verify(le_u32, |&val| val == 0x0000)
+                                .parse(input)?;
                         input = remainder;
                         break;
                     }
-                    _ => return Err("Invalid module section ID"),
+                    _ => {
+                        return Err(nom::Err::Error(nom::error::Error::new(
+                            input,
+                            nom::error::ErrorKind::Switch,
+                        )));
+                    }
                 }
             }
 
             // Retrieve module code
             if let Some(module_data) = module_streams.get(&stream_name) {
                 if module_offset as usize >= module_data.len() {
-                    return Err("Invalid module offset");
+                    return Err(nom::Err::Error(nom::error::Error::new(
+                        input,
+                        nom::error::ErrorKind::Verify,
+                    )));
                 }
                 let code_data = &module_data[module_offset as usize..];
                 if !code_data.is_empty() {
-                    let decompressed =
-                        VbaProject::decompress_stream(code_data)?;
+                    let decompressed = VbaProject::decompress_stream(
+                        code_data,
+                    )
+                    .map_err(|_| {
+                        nom::Err::Error(nom::error::Error::new(
+                            input,
+                            nom::error::ErrorKind::Verify,
+                        ))
+                    })?;
                     let code =
                         String::from_utf8_lossy(&decompressed).to_string();
                     modules.insert(
