@@ -235,7 +235,7 @@ impl VbaProject {
         }
         let (rest, doc_unicode_size) = Self::parse_u32(_input)?; _input = rest;
         let doc_unicode_size = doc_unicode_size as usize;
-        if doc_unicode_size % 2 != 0 {
+        if !doc_unicode_size.is_multiple_of(2) {
             return Err("DOCSTRING_Unicode size not even");
         }
         let (rest, _doc_unicode) = Self::parse_bytes(rest, doc_unicode_size)?;
@@ -323,7 +323,7 @@ impl VbaProject {
         }
         let (rest, constants_unicode_size) = Self::parse_u32(_input)?; _input = rest;
         let constants_unicode_size = constants_unicode_size as usize;
-        if constants_unicode_size % 2 != 0 {
+        if !constants_unicode_size.is_multiple_of(2) {
             return Err("Constants unicode size not even");
         }
         let (rest, _constants_unicode) = Self::parse_bytes(rest, constants_unicode_size)?;

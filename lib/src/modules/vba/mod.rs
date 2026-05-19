@@ -59,11 +59,9 @@ impl<'a> VbaExtractor<'a> {
         // First process the dir stream
         if let Some(dir_name) =
             stream_names.iter().find(|n| n.to_lowercase().trim() == "dir")
-        {
-            if let Ok(data) = self.read_stream(&ole_parser, dir_name) {
+            && let Ok(data) = self.read_stream(&ole_parser, dir_name) {
                 vba_dir = Some(data);
             }
-        }
 
         // Then process other streams
         for name in &stream_names {
@@ -76,18 +74,15 @@ impl<'a> VbaExtractor<'a> {
                     || lowercase_name.ends_with(".cls")
                     || lowercase_name.ends_with(".frm")
                 {
-                    if let Ok(data) = self.read_stream(&ole_parser, name) {
-                        if !data.is_empty() {
+                    if let Ok(data) = self.read_stream(&ole_parser, name)
+                        && !data.is_empty() {
                             modules.insert(name.clone(), data);
                         }
-                    }
                 } else if lowercase_name.contains("project")
                     && !lowercase_name.contains("_vba_project")
-                {
-                    if let Ok(data) = self.read_stream(&ole_parser, name) {
+                    && let Ok(data) = self.read_stream(&ole_parser, name) {
                         project_streams.push(data);
                     }
-                }
             }
         }
 
@@ -133,24 +128,20 @@ impl<'a> VbaExtractor<'a> {
                         let _stream_size =
                             ole_parser.get_stream_size(stream_name)?;
 
-                        if stream_name.starts_with("dir") {
-                            if let Ok(data) =
+                        if stream_name.starts_with("dir")
+                            && let Ok(data) =
                                 self.read_stream(&ole_parser, stream_name)
-                            {
-                                if !data.is_empty() {
+                                && !data.is_empty() {
                                     vba_dir = Some(data);
                                 }
-                            }
-                        }
                     }
 
                     // Process other streams
                     for name in &stream_names {
-                        if let Ok(data) = self.read_stream(&ole_parser, name) {
-                            if !data.is_empty() {
+                        if let Ok(data) = self.read_stream(&ole_parser, name)
+                            && !data.is_empty() {
                                 modules.insert(name.clone(), data);
                             }
-                        }
                     }
 
                     // Use dir stream if found, otherwise fail
