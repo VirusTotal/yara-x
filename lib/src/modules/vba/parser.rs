@@ -7,6 +7,8 @@ use nom::{
 };
 use std::collections::HashMap;
 
+type Error<'a> = nom::error::Error<&'a [u8]>;
+
 pub enum ModuleType {
     Standard,
     Class,
@@ -24,6 +26,8 @@ pub struct VbaModule {
     pub code: String,
     pub module_type: ModuleType,
 }
+
+type VbaModules = HashMap<String, VbaModule>;
 
 pub struct VbaProject {
     pub modules: HashMap<String, VbaModule>,
@@ -159,10 +163,10 @@ impl VbaProject {
             .map_err(|_| "Failed to parse VBA dir stream")
     }
 
-    fn parse_inner<'c>(
-        dir_stream: &'c [u8],
+    fn parse_inner<'a>(
+        dir_stream: &'a [u8],
         module_streams: &HashMap<String, Vec<u8>>,
-    ) -> Result<Self, nom::Err<nom::error::Error<&'c [u8]>>> {
+    ) -> Result<Self, nom::Err<Error<'a>>> {
         let input = dir_stream;
 
         // The records below are described in [MS-OVBA] version 15.0.
@@ -362,7 +366,7 @@ impl VbaProject {
 
     fn parse_references(
         mut input: &[u8],
-    ) -> Result<(&[u8], Vec<String>), nom::Err<nom::error::Error<&[u8]>>> {
+    ) -> Result<(&[u8], Vec<String>), nom::Err<Error<'_>>> {
         let mut references = Vec::new();
         loop {
             let (remainder, check) = le_u16.parse(input)?;
@@ -483,14 +487,11 @@ impl VbaProject {
         Ok((input, references))
     }
 
-    fn parse_modules<'c>(
-        mut input: &'c [u8],
+    fn parse_modules<'a>(
+        mut input: &'a [u8],
         modules_count: u16,
         module_streams: &HashMap<String, Vec<u8>>,
-    ) -> Result<
-        (&'c [u8], HashMap<String, VbaModule>),
-        nom::Err<nom::error::Error<&'c [u8]>>,
-    > {
+    ) -> Result<(&'a [u8], VbaModules), nom::Err<Error<'a>>> {
         let mut modules = HashMap::new();
 
         for _ in 0..modules_count {
