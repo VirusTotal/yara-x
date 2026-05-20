@@ -113,8 +113,6 @@ fn test_modules() {
         .collect();
 
     files.into_par_iter().for_each(|path| {
-        println!("test file: {:?}", path);
-
         let mut mint = goldenfile::Mint::new(".");
 
         // Read the data encoded in the .in.zip file.
