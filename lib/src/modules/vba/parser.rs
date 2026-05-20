@@ -1,4 +1,5 @@
 use nom::combinator::opt;
+use nom::multi::length_data;
 use nom::{
     Parser,
     bytes::complete::take,
@@ -22,9 +23,7 @@ fn copytoken_help(difference: usize) -> (u16, u16, u32, u16) {
     (length_mask, offset_mask, bit_count, maximum_length)
 }
 
-pub fn decompress_stream(
-    compressed: &[u8],
-) -> Result<Vec<u8>, &'static str> {
+pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
     if compressed.is_empty() {
         return Err("Empty input buffer");
     }
@@ -63,8 +62,7 @@ pub fn decompress_stream(
             );
         }
 
-        let chunk_end =
-            std::cmp::min(compressed.len(), current + chunk_size);
+        let chunk_end = std::cmp::min(compressed.len(), current + chunk_size);
 
         if !chunk_is_compressed {
             if current + 4096 > compressed.len() {
@@ -205,49 +203,34 @@ fn parse_inner<'a>(
     // -- PROJECTNAME Record
     // Specifies the VBA project name.
     // See: [MS-OVBA] Section 2.3.4.2.1.6 PROJECTNAME Record
-    let (input, (_, name_size)) = (
+    let (input, (_, project_name)) = (
         verify(le_u16, |&id| id == 0x0004),
-        verify(le_u32, |&size| (1..=128).contains(&size)),
+        length_data(verify(le_u32, |&size| (1..=128).contains(&size)))
+            .map(String::from_utf8_lossy),
     )
         .parse(input)?;
-
-    let (input, name_bytes) = take(name_size as usize).parse(input)?;
-    let project_name = String::from_utf8_lossy(name_bytes).to_string();
 
     // -- PROJECTDOCSTRING Record
     // Specifies the project description and its Unicode equivalent.
     // See: [MS-OVBA] Section 2.3.4.2.1.7 PROJECTDOCSTRING Record
-    let (input, (_, doc_size)) =
-        (verify(le_u16, |&id| id == 0x0005), le_u32).parse(input)?;
-
-    let (input, _) = take(doc_size as usize).parse(input)?;
-
-    let (input, (_, doc_unicode_size)) = (
+    let (input, _) = (
+        verify(le_u16, |&id| id == 0x0005),
+        length_data(le_u32),
         verify(le_u16, |&reserved| reserved == 0x0040),
-        verify(le_u32, |&size| size % 2 == 0),
+        length_data(verify(le_u32, |&size| size % 2 == 0)),
     )
         .parse(input)?;
-
-    let (input, _) = take(doc_unicode_size as usize).parse(input)?;
 
     // -- PROJECTHELPFILEPATH Record
     // Specifies help file paths for the VBA project.
     // See: [MS-OVBA] Section 2.3.4.2.1.8 PROJECTHELPFILEPATH Record
-    let (input, (_, helpfile_size1)) = (
+    let (input, (_, helpfile1, _, helpfile2)) = (
         verify(le_u16, |&id| id == 0x0006),
-        verify(le_u32, |&size| size <= 260),
-    )
-        .parse(input)?;
-
-    let (input, helpfile1) = take(helpfile_size1 as usize).parse(input)?;
-
-    let (input, (_, helpfile_size2)) = (
+        length_data(verify(le_u32, |&size| size <= 260)),
         verify(le_u16, |&reserved| reserved == 0x003D),
-        verify(le_u32, |&size| size == helpfile_size1),
+        length_data(verify(le_u32, |&size| size <= 260)),
     )
         .parse(input)?;
-
-    let (input, helpfile2) = take(helpfile_size2 as usize).parse(input)?;
 
     if helpfile1 != helpfile2 {
         return Err(nom::Err::Error(nom::error::Error::new(
@@ -290,21 +273,13 @@ fn parse_inner<'a>(
     // -- PROJECTCONSTANTS Record
     // Specifies compilation constants of the VBA project.
     // See: [MS-OVBA] Section 2.3.4.2.1.12 PROJECTCONSTANTS Record
-    let (input, (_, constants_size)) = (
+    let (input, _) = (
         verify(le_u16, |&id| id == 0x000C),
-        verify(le_u32, |&size| size <= 1015),
-    )
-        .parse(input)?;
-
-    let (input, _) = take(constants_size as usize).parse(input)?;
-
-    let (input, (_, constants_unicode_size)) = (
+        length_data(verify(le_u32, |&size| size <= 1015)),
         verify(le_u16, |&reserved| reserved == 0x003C),
-        verify(le_u32, |&size| size % 2 == 0),
+        length_data(verify(le_u32, |&size| size % 2 == 0)),
     )
         .parse(input)?;
-
-    let (input, _) = take(constants_unicode_size as usize).parse(input)?;
 
     // -- References
     // Parses references to libraries, controls, and other projects.
@@ -314,9 +289,8 @@ fn parse_inner<'a>(
     // -- PROJECTMODULES Record
     // Specifies module block count of the project.
     // See: [MS-OVBA] Section 2.3.4.2.3 PROJECTMODULES Record
-    let (input, _) =
-        verify(le_u32, |&size| size == 0x0002).parse(input)?;
-    let (input, modules_count) = le_u16.parse(input)?;
+    let (input, (_, modules_count)) =
+        (verify(le_u32, |&size| size == 0x0002), le_u16).parse(input)?;
 
     // -- ProjectCookie Record
     // Specifies the project cookie record.
@@ -335,9 +309,10 @@ fn parse_inner<'a>(
         parse_modules(input, modules_count, module_streams, vba)?;
 
     let mut project_info = ProjectInfo::new();
-    project_info.set_name(project_name);
-    project_info.set_version(format!("{}.{}", version_major, version_minor));
     project_info.references = references;
+
+    project_info.set_name(project_name.to_string());
+    project_info.set_version(format!("{}.{}", version_major, version_minor));
     project_info.set_module_count(modules_count as i32);
     project_info.set_is_compressed(true);
 
@@ -360,31 +335,25 @@ fn parse_references(
         match check {
             0x0016 => {
                 // REFERENCE Name
-                let (remainder, name_size) = le_u32.parse(input)?;
-                let (remainder, name_bytes) =
-                    take(name_size as usize).parse(remainder)?;
-                let name = String::from_utf8_lossy(name_bytes).to_string();
-                references.push(name);
+                let (remainder, name) = length_data(le_u32)
+                    .map(String::from_utf8_lossy)
+                    .parse(input)?;
 
-                let (remainder, (_, unicode_size)) =
-                    (verify(le_u16, |&val| val == 0x003E), le_u32)
-                        .parse(remainder)?;
+                references.push(name.to_string());
+
                 let (remainder, _) =
-                    take(unicode_size as usize).parse(remainder)?;
+                    verify(le_u16, |&val| val == 0x003E).parse(remainder)?;
+                let (remainder, _) = length_data(le_u32).parse(remainder)?;
                 input = remainder;
             }
             0x0033 => {
                 // REFERENCEORIGINAL
-                let (remainder, size) = le_u32.parse(input)?;
-                let (remainder, _) =
-                    take(size as usize).parse(remainder)?;
+                let (remainder, _) = length_data(le_u32).parse(input)?;
                 input = remainder;
             }
             0x002F => {
                 // REFERENCECONTROL
-                let (remainder, size_twiddled) = le_u32.parse(input)?;
-                let (remainder, _) =
-                    take(size_twiddled as usize).parse(remainder)?;
+                let (remainder, _) = length_data(le_u32).parse(input)?;
 
                 let (remainder, _) = (
                     verify(le_u32, |&val| val == 0x0000),
@@ -395,38 +364,30 @@ fn parse_references(
                 let (remainder, maybe_check2) = le_u16.parse(remainder)?;
                 if maybe_check2 == 0x0016 {
                     // Name record
-                    let (remainder, name_size) =
-                        le_u32.parse(remainder)?;
                     let (remainder, _) =
-                        take(name_size as usize).parse(remainder)?;
+                        length_data(le_u32).parse(remainder)?;
 
-                    let (remainder, (_, unicode_size)) =
-                        (verify(le_u16, |&val| val == 0x003E), le_u32)
-                            .parse(remainder)?;
+                    let (remainder, _) = verify(le_u16, |&val| val == 0x003E)
+                        .parse(remainder)?;
                     let (remainder, _) =
-                        take(unicode_size as usize).parse(remainder)?;
+                        length_data(le_u32).parse(remainder)?;
 
-                    let (remainder, _) =
-                        verify(le_u16, |&val| val == 0x0030)
-                            .parse(remainder)?;
+                    let (remainder, _) = verify(le_u16, |&val| val == 0x0030)
+                        .parse(remainder)?;
                     input = remainder;
                 } else {
                     // No name record, maybe_check2 is reserved3
                     if maybe_check2 != 0x0030 {
-                        return Err(nom::Err::Error(
-                            nom::error::Error::new(
-                                input,
-                                nom::error::ErrorKind::Verify,
-                            ),
-                        ));
+                        return Err(nom::Err::Error(nom::error::Error::new(
+                            input,
+                            nom::error::ErrorKind::Verify,
+                        )));
                     }
                     input = remainder;
                 }
 
-                let (remainder, (_, size_libid)) =
-                    (le_u32, le_u32).parse(input)?;
-                let (remainder, _) =
-                    take(size_libid as usize).parse(remainder)?;
+                let (remainder, _) = le_u32.parse(input)?;
+                let (remainder, _) = length_data(le_u32).parse(remainder)?;
                 let (remainder, _) = (le_u32, le_u16).parse(remainder)?;
                 let (remainder, _) = take(16_usize).parse(remainder)?;
                 let (remainder, _) = le_u32.parse(remainder)?;
@@ -434,10 +395,8 @@ fn parse_references(
             }
             0x000D => {
                 // REFERENCEREGISTERED
-                let (remainder, (_, libid_size)) =
-                    (le_u32, le_u32).parse(input)?;
-                let (remainder, _) =
-                    take(libid_size as usize).parse(remainder)?;
+                let (remainder, _) = le_u32.parse(input)?;
+                let (remainder, _) = length_data(le_u32).parse(remainder)?;
                 let (remainder, _) = (
                     verify(le_u32, |&val| val == 0x0000),
                     verify(le_u16, |&val| val == 0x0000),
@@ -447,14 +406,9 @@ fn parse_references(
             }
             0x000E => {
                 // REFERENCEPROJECT
-                let (remainder, (_, libid_abs_size)) =
-                    (le_u32, le_u32).parse(input)?;
-                let (remainder, _) =
-                    take(libid_abs_size as usize).parse(remainder)?;
-                let (remainder, libid_rel_size) =
-                    le_u32.parse(remainder)?;
-                let (remainder, _) =
-                    take(libid_rel_size as usize).parse(remainder)?;
+                let (remainder, _) = le_u32.parse(input)?;
+                let (remainder, _) = length_data(le_u32).parse(remainder)?;
+                let (remainder, _) = length_data(le_u32).parse(remainder)?;
                 let (remainder, _) = (le_u32, le_u16).parse(remainder)?;
                 input = remainder;
             }
@@ -480,14 +434,14 @@ fn parse_modules<'a>(
         let (remainder, _) =
             verify(le_u16, |&id| id == 0x0019).parse(input)?;
 
-        let (remainder, module_name_size) = le_u32.parse(remainder)?;
-        let (remainder, name_bytes) =
-            take(module_name_size as usize).parse(remainder)?;
-        let module_name = String::from_utf8_lossy(name_bytes).to_string();
+        let (remainder, module_name) = length_data(le_u32)
+            .map(String::from_utf8_lossy)
+            .parse(remainder)?;
+
         input = remainder;
 
         let mut module_type = ModuleType::MODULE_TYPE_UNKNOWN;
-        let mut stream_name = String::new();
+        let mut stream_name = None;
         let mut module_offset = 0u32;
 
         // Read sections until terminator 0x002B
@@ -497,50 +451,39 @@ fn parse_modules<'a>(
             match section_id {
                 0x0047 => {
                     // MODULENAMEUNICODE
-                    let (remainder, unicode_size) = le_u32.parse(input)?;
-                    let (remainder, _) =
-                        take(unicode_size as usize).parse(remainder)?;
+                    let (remainder, _) = length_data(le_u32).parse(input)?;
                     input = remainder;
                 }
                 0x001A => {
                     // MODULESTREAMNAME
-                    let (remainder, stream_size) = le_u32.parse(input)?;
-                    let (remainder, stream_bytes) =
-                        take(stream_size as usize).parse(remainder)?;
-                    stream_name =
-                        String::from_utf8_lossy(stream_bytes).to_string();
+                    let (remainder, name) = length_data(le_u32)
+                        .map(String::from_utf8_lossy)
+                        .parse(input)?;
+
+                    let (remainder, _) = verify(le_u16, |&val| val == 0x0032)
+                        .parse(remainder)?;
 
                     let (remainder, _) =
-                        verify(le_u16, |&val| val == 0x0032)
-                            .parse(remainder)?;
+                        length_data(le_u32).parse(remainder)?;
 
-                    let (remainder, unicode_size) =
-                        le_u32.parse(remainder)?;
-                    let (remainder, _) =
-                        take(unicode_size as usize).parse(remainder)?;
+                    stream_name = Some(name);
                     input = remainder;
                 }
                 0x001C => {
                     // MODULEDOCSTRING
-                    let (remainder, doc_size) = le_u32.parse(input)?;
-                    let (remainder, _) =
-                        take(doc_size as usize).parse(remainder)?;
+                    let (remainder, _) = length_data(le_u32).parse(input)?;
+
+                    let (remainder, _) = verify(le_u16, |&val| val == 0x0048)
+                        .parse(remainder)?;
 
                     let (remainder, _) =
-                        verify(le_u16, |&val| val == 0x0048)
-                            .parse(remainder)?;
-
-                    let (remainder, unicode_size) =
-                        le_u32.parse(remainder)?;
-                    let (remainder, _) =
-                        take(unicode_size as usize).parse(remainder)?;
+                        length_data(le_u32).parse(remainder)?;
                     input = remainder;
                 }
                 0x0031 => {
                     // MODULEOFFSET
                     let (remainder, _) =
-                        verify(le_u32, |&size| size == 0x0004)
-                            .parse(input)?;
+                        verify(le_u32, |&size| size == 0x0004).parse(input)?;
                     let (remainder, offset) = le_u32.parse(remainder)?;
                     module_offset = offset;
                     input = remainder;
@@ -548,16 +491,14 @@ fn parse_modules<'a>(
                 0x001E => {
                     // MODULEHELPCONTEXT
                     let (remainder, _) =
-                        verify(le_u32, |&size| size == 0x0004)
-                            .parse(input)?;
+                        verify(le_u32, |&size| size == 0x0004).parse(input)?;
                     let (remainder, _) = le_u32.parse(remainder)?;
                     input = remainder;
                 }
                 0x002C => {
                     // MODULECOOKIE
                     let (remainder, _) =
-                        verify(le_u32, |&size| size == 0x0002)
-                            .parse(input)?;
+                        verify(le_u32, |&size| size == 0x0002).parse(input)?;
                     let (remainder, _) = le_u16.parse(remainder)?;
                     input = remainder;
                 }
@@ -573,21 +514,18 @@ fn parse_modules<'a>(
                 }
                 0x0025 => {
                     let (remainder, _) =
-                        verify(le_u32, |&val| val == 0x0000)
-                            .parse(input)?;
+                        verify(le_u32, |&val| val == 0x0000).parse(input)?;
                     input = remainder;
                 }
                 0x0028 => {
                     let (remainder, _) =
-                        verify(le_u32, |&val| val == 0x0000)
-                            .parse(input)?;
+                        verify(le_u32, |&val| val == 0x0000).parse(input)?;
                     input = remainder;
                 }
                 0x002B => {
                     // TERMINATOR
                     let (remainder, _) =
-                        verify(le_u32, |&val| val == 0x0000)
-                            .parse(input)?;
+                        verify(le_u32, |&val| val == 0x0000).parse(input)?;
                     input = remainder;
                     break;
                 }
@@ -602,7 +540,10 @@ fn parse_modules<'a>(
 
         // Retrieve module code
         let mut code = None;
-        if let Some(module_data) = module_streams.get(&stream_name) {
+
+        if let Some(stream_name) = stream_name
+            && let Some(module_data) = module_streams.get(stream_name.as_ref())
+        {
             if module_offset as usize >= module_data.len() {
                 return Err(nom::Err::Error(nom::error::Error::new(
                     input,
@@ -611,18 +552,14 @@ fn parse_modules<'a>(
             }
             let code_data = &module_data[module_offset as usize..];
             if !code_data.is_empty() {
-                let decompressed = decompress_stream(code_data).map_err(|_| {
-                    nom::Err::Error(nom::error::Error::new(
-                        input,
-                        nom::error::ErrorKind::Verify,
-                    ))
-                })?;
-                code = Some(String::from_utf8_lossy(&decompressed).to_string());
+                code = decompress_stream(code_data)
+                    .ok()
+                    .and_then(|d| String::from_utf8(d).ok());
             }
         }
 
         if let Some(code) = code {
-            vba.module_names.push(module_name);
+            vba.module_names.push(module_name.to_string());
             vba.module_types.push(::protobuf::EnumOrUnknown::new(module_type));
             vba.module_codes.push(code);
         }
