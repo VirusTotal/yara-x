@@ -228,17 +228,23 @@ impl<'a> OLECFParser<'a> {
         }
 
         for &sector in &self.directory_sectors {
-            let mut entry_offset = 0;
+            let mut entry_offset = 0u64;
 
-            while entry_offset + DIRECTORY_ENTRY_SIZE as usize
-                <= self.sector_size
+            while entry_offset + DIRECTORY_ENTRY_SIZE
+                <= self.sector_size as u64
             {
-                let abs_offset = self.sector_to_offset(sector) + entry_offset;
-                if abs_offset + DIRECTORY_ENTRY_SIZE as usize > self.data.len()
+                let abs_offset =
+                    self.sector_to_offset(sector).saturating_add(entry_offset);
+
+                if abs_offset.saturating_add(DIRECTORY_ENTRY_SIZE)
+                    > self.data.len() as u64
                 {
                     break;
                 }
-                if let Ok(entry) = self.read_directory_entry(abs_offset) {
+
+                if let Ok(entry) =
+                    self.read_directory_entry(abs_offset as usize)
+                {
                     if entry.stream_type == ROOT_STORAGE_TYPE {
                         self.mini_stream_start = entry.start_sector;
                         self.mini_stream_size = entry.size;
@@ -250,7 +256,7 @@ impl<'a> OLECFParser<'a> {
                         self.dir_entries.insert(entry.name.clone(), entry);
                     }
                 }
-                entry_offset += DIRECTORY_ENTRY_SIZE as usize;
+                entry_offset += DIRECTORY_ENTRY_SIZE;
             }
         }
 
@@ -299,13 +305,20 @@ impl<'a> OLECFParser<'a> {
         }
     }
 
-    fn sector_to_offset(&self, sector: u32) -> usize {
-        // The first sector begins at offset 512
-        512 + (sector as usize * self.sector_size)
+    fn sector_to_offset(&self, sector: u32) -> u64 {
+        // The first sector begins at byte offset 512. The theoretical maximum
+        // offset for a v3 OLE file (512-byte sectors, max sector number
+        // 0xFFFFFFF9) is ~2 TB, so the result must be u64 — it does not fit
+        // in a 32-bit usize on 32-bit targets.
+        512u64 + sector as u64 * self.sector_size as u64
     }
 
     fn read_sector(&self, sector: u32) -> Result<&'a [u8], &'static str> {
         let offset = self.sector_to_offset(sector);
+        // Narrow to usize for slice indexing; any offset that doesn't fit in
+        // usize is necessarily beyond the in-memory data slice.
+        let offset = usize::try_from(offset)
+            .map_err(|_| "Sector offset exceeds address space")?;
         if offset + self.sector_size > self.data.len() {
             return Err("Sector read out of bounds");
         }
@@ -500,7 +513,10 @@ impl<'a> OLECFParser<'a> {
             }
             visited.push(current);
 
-            let mini_offset = current as usize * self.mini_sector_size;
+            let mini_offset =
+                usize::try_from(current as u64 * self.mini_sector_size as u64)
+                    .map_err(|_| "Mini sector offset exceeds address space")?;
+
             if mini_offset >= mini_data_len {
                 return Err("Mini stream offset out of range");
             }
