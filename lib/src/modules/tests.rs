@@ -113,6 +113,8 @@ fn test_modules() {
         .collect();
 
     files.into_par_iter().for_each(|path| {
+        println!("test file: {:?}", path);
+
         let mut mint = goldenfile::Mint::new(".");
 
         // Read the data encoded in the .in.zip file.
@@ -164,12 +166,13 @@ fn test_modules() {
                 panic!("module `{module_name}` should produce some output")
             });
 
-        let output_file = mint.new_goldenfile(out_path).unwrap();
+        let output_file =
+            mint.new_goldenfile(out_path).expect("can not create goldenfile");
 
         // Render the module's output as YAML.
         let mut yaml = yara_x_proto_yaml::Serializer::new(output_file);
 
-        yaml.serialize(output).unwrap();
+        assert!(yaml.serialize(output).is_ok());
     });
 }
 
