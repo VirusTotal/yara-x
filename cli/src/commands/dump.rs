@@ -115,6 +115,18 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         if !requested_modules.contains(&&SupportedModules::Pe) {
             module_output.pe = MessageField::none()
         }
+        if !requested_modules.contains(&&SupportedModules::Crx) {
+            module_output.crx = MessageField::none()
+        }
+        if !requested_modules.contains(&&SupportedModules::Dex) {
+            module_output.dex = MessageField::none()
+        }
+        if !requested_modules.contains(&&SupportedModules::Olecf) {
+            module_output.olecf = MessageField::none()
+        }
+        if !requested_modules.contains(&&SupportedModules::Vba) {
+            module_output.vba = MessageField::none()
+        }
     } else {
         // Module was not specified, only show those that produced meaningful
         // results, the rest are cleared out.
@@ -135,17 +147,17 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         if !module_output.pe.is_pe() {
             module_output.pe = MessageField::none()
         }
-        if !module_output.olecf.is_olecf() {
-            module_output.olecf = MessageField::none()
-        }
-        if !module_output.vba.has_macros() {
-            module_output.vba = MessageField::none()
-        }
         if !module_output.crx.is_crx() {
             module_output.crx = MessageField::none()
         }
         if !module_output.dex.is_dex() {
             module_output.dex = MessageField::none()
+        }
+        if !module_output.olecf.is_olecf() {
+            module_output.olecf = MessageField::none()
+        }
+        if !module_output.vba.has_macros() {
+            module_output.vba = MessageField::none()
         }
     }
 
