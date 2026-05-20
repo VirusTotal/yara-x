@@ -129,22 +129,11 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
     Ok(decompressed)
 }
 
-pub fn parse(
-    compressed_dir_stream: &[u8],
-    module_streams: HashMap<String, Vec<u8>>,
-) -> Result<Vba, &'static str> {
-    let dir_stream = decompress_stream(compressed_dir_stream)?;
-    let mut vba = Vba::new();
-    parse_inner(&dir_stream, &module_streams, &mut vba)
-        .map_err(|_| "Failed to parse VBA dir stream")?;
-    Ok(vba)
-}
-
-fn parse_inner<'a>(
+pub fn parse<'a>(
     dir_stream: &'a [u8],
     module_streams: &HashMap<String, Vec<u8>>,
-    vba: &mut Vba,
-) -> Result<(), nom::Err<Error<'a>>> {
+) -> Result<Vba, nom::Err<Error<'a>>> {
+    let mut vba = Vba::new();
     let input = dir_stream;
 
     // The records below are described in [MS-OVBA] version 15.0.
@@ -306,7 +295,7 @@ fn parse_inner<'a>(
     // Parses module streams and decompresses MS-OVBA streams.
     // See: [MS-OVBA] Section 2.3.4.2.3.2 Modules
     let (_input, _) =
-        parse_modules(input, modules_count, module_streams, vba)?;
+        parse_modules(input, modules_count, module_streams, &mut vba)?;
 
     let mut project_info = ProjectInfo::new();
     project_info.references = references;
@@ -318,7 +307,7 @@ fn parse_inner<'a>(
 
     vba.project_info = protobuf::MessageField::some(project_info);
 
-    Ok(())
+    Ok(vba)
 }
 
 fn parse_references(

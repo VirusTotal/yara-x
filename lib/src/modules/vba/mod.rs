@@ -5,6 +5,7 @@ Read more about the VBA file format specification here:
 https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/575462ba-bf67-4190-9fac-c275523c75fc
 */
 
+use crate::modules::vba::parser::decompress_stream;
 use std::collections::HashMap;
 use std::io::Cursor;
 use std::io::Read;
@@ -75,7 +76,9 @@ impl<'a> VbaExtractor<'a> {
 
         // Always try the dir stream if we found it
         if let Some(dir_data) = vba_dir {
-            parser::parse(&dir_data, modules)
+            let dir_stream = decompress_stream(&dir_data)?;
+            parser::parse(&dir_stream, &modules)
+                .map_err(|_| "Failed to parse VBA stream")
         } else {
             Err("No VBA directory stream found")
         }
