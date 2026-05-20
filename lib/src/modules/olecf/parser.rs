@@ -1,3 +1,4 @@
+use indexmap::IndexMap;
 use nom::{
     IResult, Parser,
     bytes::complete::take,
@@ -6,7 +7,6 @@ use nom::{
     multi::count,
     number::complete::{le_u16, le_u32},
 };
-use std::collections::HashMap;
 
 const OLECF_SIGNATURE: &[u8] =
     &[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
@@ -32,7 +32,7 @@ pub struct OLECFParser<'a> {
     fat_sectors: Vec<u32>,
     directory_sectors: Vec<u32>,
     mini_fat_sectors: Vec<u32>,
-    dir_entries: HashMap<String, DirectoryEntry>,
+    dir_entries: IndexMap<String, DirectoryEntry>,
     mini_stream_start: u32,
     mini_stream_size: u64,
 }
@@ -53,7 +53,7 @@ impl<'a> OLECFParser<'a> {
             fat_sectors: Vec::new(),
             directory_sectors: Vec::new(),
             mini_fat_sectors: Vec::new(),
-            dir_entries: HashMap::new(),
+            dir_entries: IndexMap::new(),
             mini_stream_start: 0,
             mini_stream_size: 0,
         };
@@ -384,8 +384,22 @@ impl<'a> OLECFParser<'a> {
             utf16_units.push(unit);
         }
 
-        let name = String::from_utf16(&utf16_units)
+        let mut name = String::from_utf16(&utf16_units)
             .map_err(|_| "Invalid UTF-16 stream name")?;
+
+        // According to Microsoft OLE Compound File Binary Format specifications,
+        // standard system streams are prefixed with leading control bytes:
+        // - U+0005 (e.g., \u{0005}SummaryInformation, \u{0005}DocumentSummaryInformation)
+        //   defined in [MS-OLEPS] Section 2.21.
+        // - U+0001 (e.g., \u{0001}CompObj, \u{0001}Ole)
+        //   defined in standard OLE Compound Document specs for system streams.
+        //
+        // We strip these leading control characters (values < '\u{20}') to
+        // prevent control characters from breaking standard JSON/YAML
+        // serializers.
+        if name.starts_with(|c: char| c < '\u{20}') {
+            name.remove(0);
+        }
 
         let stream_type = self.data[offset + 66];
         let start_sector = parse_u32_at(self.data, offset + 116)?;
