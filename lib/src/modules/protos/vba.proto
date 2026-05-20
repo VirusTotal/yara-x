@@ -9,6 +9,13 @@ option (yara.module_options) = {
   cargo_feature: "vba-module"
 };
 
+enum ModuleType {
+  option (yara.enum_options).inline = true;
+  MODULE_TYPE_STANDARD = 1;
+  MODULE_TYPE_CLASS = 2;
+  MODULE_TYPE_UNKNOWN = 3;
+}
+
 message Vba {
   // True if VBA macros are present
   optional bool has_macros = 1;
@@ -17,7 +24,7 @@ message Vba {
   repeated string module_names = 2;
   
   // Type of each module (standard, class, form)
-  repeated string module_types = 3;
+  repeated ModuleType module_types = 3;
   
   // The actual VBA code for each module
   repeated string module_codes = 4;

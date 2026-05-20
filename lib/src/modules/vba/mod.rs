@@ -1,20 +1,20 @@
-/*! YARA module that extracts VBA (Visual Basic for Applications) macros from Office documents.
+/*! YARA module that extracts VBA (Visual Basic for Applications) macros
+from Office documents.
 
 Read more about the VBA file format specification here:
- https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/575462ba-bf67-4190-9fac-c275523c75fc
+https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/575462ba-bf67-4190-9fac-c275523c75fc
 */
 
-use crate::mods::prelude::*;
-use crate::modules::protos::vba::vba::ProjectInfo;
-use crate::modules::protos::vba::*;
-use protobuf::MessageField;
 use std::collections::HashMap;
 use std::io::Cursor;
 use std::io::Read;
 use zip::ZipArchive;
 
+use crate::mods::prelude::*;
+use crate::modules::olecf::parser::OLECFParser;
+use crate::modules::protos::vba::*;
+
 mod parser;
-use parser::{ModuleType, VbaProject};
 
 #[derive(Debug)]
 struct VbaExtractor<'a> {
@@ -41,9 +41,8 @@ impl<'a> VbaExtractor<'a> {
         ole_parser.get_stream_data(name)
     }
 
-    fn extract_from_ole_bytes(ole_data: &[u8]) -> Result<VbaProject, &'static str> {
-        let ole_parser =
-            crate::modules::olecf::parser::OLECFParser::new(ole_data)?;
+    fn extract_from_ole_bytes(ole_data: &[u8]) -> Result<Vba, &'static str> {
+        let ole_parser = OLECFParser::new(ole_data)?;
         let stream_names = ole_parser.get_stream_names()?;
 
         let mut vba_dir = None;
@@ -52,9 +51,10 @@ impl<'a> VbaExtractor<'a> {
         // First process the dir stream
         if let Some(dir_name) =
             stream_names.iter().find(|n| n.to_lowercase().trim() == "dir")
-            && let Ok(data) = Self::read_stream_data(&ole_parser, dir_name) {
-                vba_dir = Some(data);
-            }
+            && let Ok(data) = Self::read_stream_data(&ole_parser, dir_name)
+        {
+            vba_dir = Some(data);
+        }
 
         // Then process other streams
         for name in &stream_names {
@@ -66,25 +66,26 @@ impl<'a> VbaExtractor<'a> {
                     || lowercase_name.ends_with(".bas")
                     || lowercase_name.ends_with(".cls")
                     || lowercase_name.ends_with(".frm"))
-                    && let Ok(data) = Self::read_stream_data(&ole_parser, name)
-                        && !data.is_empty() {
-                            modules.insert(name.clone(), data);
-                        }
+                && let Ok(data) = Self::read_stream_data(&ole_parser, name)
+                && !data.is_empty()
+            {
+                modules.insert(name.clone(), data);
+            }
         }
 
         // Always try the dir stream if we found it
         if let Some(dir_data) = vba_dir {
-            parser::VbaProject::parse(&dir_data, modules)
+            parser::parse(&dir_data, modules)
         } else {
             Err("No VBA directory stream found")
         }
     }
 
-    fn extract_from_ole(&self) -> Result<VbaProject, &'static str> {
+    fn extract_from_ole(&self) -> Result<Vba, &'static str> {
         Self::extract_from_ole_bytes(self.data)
     }
 
-    fn extract_from_zip(&self) -> Result<VbaProject, &'static str> {
+    fn extract_from_zip(&self) -> Result<Vba, &'static str> {
         let reader = Cursor::new(&self.data);
         let mut archive = ZipArchive::new(reader)
             .map_err(|_| "Failed to read ZIP archive")?;
@@ -110,53 +111,30 @@ impl<'a> VbaExtractor<'a> {
             }
         }
 
-        Err("No VBA project found in ZIP")
+        Err("no VBA project found in ZIP")
     }
 }
 
 fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Vba, ModuleError> {
-    let mut vba = Vba::new();
-    vba.has_macros = Some(false);
-
     let extractor = VbaExtractor::new(data);
 
-    let project_result = if extractor.is_zip() {
+    let project = if extractor.is_zip() {
         extractor.extract_from_zip()
     } else {
         extractor.extract_from_ole()
     };
 
-    match project_result {
-        Ok(project) => {
+    let vba = match project {
+        Ok(mut vba) => {
             vba.has_macros = Some(true);
-
-            let mut project_info = ProjectInfo::new();
-            project_info.name = Some(project.info.name.clone());
-            project_info.version = Some(project.info.version.clone());
-            project_info.references.clone_from(&project.info.references);
-
-            // Add metadata
-            let module_count = project.modules.len() as i32;
-            project_info.module_count = Some(module_count);
-            project_info.is_compressed = Some(true);
-
-            vba.project_info = MessageField::some(project_info);
-
-            // Process modules
-            for module in project.modules.values() {
-                vba.module_names.push(module.name.clone());
-                vba.module_types.push(match module.module_type {
-                    ModuleType::Standard => "Standard".to_string(),
-                    ModuleType::Class => "Class".to_string(),
-                    ModuleType::Unknown => "Unknown".to_string(),
-                });
-                vba.module_codes.push(module.code.clone());
-            }
+            vba
         }
         Err(_) => {
+            let mut vba = Vba::new();
             vba.has_macros = Some(false);
+            vba
         }
-    }
+    };
 
     Ok(vba)
 }

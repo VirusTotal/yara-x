@@ -33,7 +33,7 @@ pub struct Vba {
     // @@protoc_insertion_point(field:vba.Vba.module_names)
     pub module_names: ::std::vec::Vec<::std::string::String>,
     // @@protoc_insertion_point(field:vba.Vba.module_types)
-    pub module_types: ::std::vec::Vec<::std::string::String>,
+    pub module_types: ::std::vec::Vec<::protobuf::EnumOrUnknown<ModuleType>>,
     // @@protoc_insertion_point(field:vba.Vba.module_codes)
     pub module_codes: ::std::vec::Vec<::std::string::String>,
     // @@protoc_insertion_point(field:vba.Vba.project_info)
@@ -125,8 +125,11 @@ impl ::protobuf::Message for Vba {
                 18 => {
                     self.module_names.push(is.read_string()?);
                 },
+                24 => {
+                    self.module_types.push(is.read_enum_or_unknown()?);
+                },
                 26 => {
-                    self.module_types.push(is.read_string()?);
+                    ::protobuf::rt::read_repeated_packed_enum_or_unknown_into(is, &mut self.module_types)?
                 },
                 34 => {
                     self.module_codes.push(is.read_string()?);
@@ -153,7 +156,7 @@ impl ::protobuf::Message for Vba {
             my_size += ::protobuf::rt::string_size(2, &value);
         };
         for value in &self.module_types {
-            my_size += ::protobuf::rt::string_size(3, &value);
+            my_size += ::protobuf::rt::int32_size(3, value.value());
         };
         for value in &self.module_codes {
             my_size += ::protobuf::rt::string_size(4, &value);
@@ -175,7 +178,7 @@ impl ::protobuf::Message for Vba {
             os.write_string(2, &v)?;
         };
         for v in &self.module_types {
-            os.write_string(3, &v)?;
+            os.write_enum(3, ::protobuf::EnumOrUnknown::value(v))?;
         };
         for v in &self.module_codes {
             os.write_string(4, &v)?;
@@ -545,18 +548,93 @@ pub mod vba {
     }
 }
 
+#[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+// @@protoc_insertion_point(enum:vba.ModuleType)
+pub enum ModuleType {
+    // @@protoc_insertion_point(enum_value:vba.ModuleType.MODULE_TYPE_STANDARD)
+    MODULE_TYPE_STANDARD = 1,
+    // @@protoc_insertion_point(enum_value:vba.ModuleType.MODULE_TYPE_CLASS)
+    MODULE_TYPE_CLASS = 2,
+    // @@protoc_insertion_point(enum_value:vba.ModuleType.MODULE_TYPE_UNKNOWN)
+    MODULE_TYPE_UNKNOWN = 3,
+}
+
+impl ::protobuf::Enum for ModuleType {
+    const NAME: &'static str = "ModuleType";
+
+    fn value(&self) -> i32 {
+        *self as i32
+    }
+
+    fn from_i32(value: i32) -> ::std::option::Option<ModuleType> {
+        match value {
+            1 => ::std::option::Option::Some(ModuleType::MODULE_TYPE_STANDARD),
+            2 => ::std::option::Option::Some(ModuleType::MODULE_TYPE_CLASS),
+            3 => ::std::option::Option::Some(ModuleType::MODULE_TYPE_UNKNOWN),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    fn from_str(str: &str) -> ::std::option::Option<ModuleType> {
+        match str {
+            "MODULE_TYPE_STANDARD" => ::std::option::Option::Some(ModuleType::MODULE_TYPE_STANDARD),
+            "MODULE_TYPE_CLASS" => ::std::option::Option::Some(ModuleType::MODULE_TYPE_CLASS),
+            "MODULE_TYPE_UNKNOWN" => ::std::option::Option::Some(ModuleType::MODULE_TYPE_UNKNOWN),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    const VALUES: &'static [ModuleType] = &[
+        ModuleType::MODULE_TYPE_STANDARD,
+        ModuleType::MODULE_TYPE_CLASS,
+        ModuleType::MODULE_TYPE_UNKNOWN,
+    ];
+}
+
+impl ::protobuf::EnumFull for ModuleType {
+    fn enum_descriptor() -> ::protobuf::reflect::EnumDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().enum_by_package_relative_name("ModuleType").unwrap()).clone()
+    }
+
+    fn descriptor(&self) -> ::protobuf::reflect::EnumValueDescriptor {
+        let index = match self {
+            ModuleType::MODULE_TYPE_STANDARD => 0,
+            ModuleType::MODULE_TYPE_CLASS => 1,
+            ModuleType::MODULE_TYPE_UNKNOWN => 2,
+        };
+        Self::enum_descriptor().value_by_index(index)
+    }
+}
+
+// Note, `Default` is implemented although default value is not 0
+impl ::std::default::Default for ModuleType {
+    fn default() -> Self {
+        ModuleType::MODULE_TYPE_STANDARD
+    }
+}
+
+impl ModuleType {
+    fn generated_enum_descriptor_data() -> ::protobuf::reflect::GeneratedEnumDescriptorData {
+        ::protobuf::reflect::GeneratedEnumDescriptorData::new::<ModuleType>("ModuleType")
+    }
+}
+
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\tvba.proto\x12\x03vba\x1a\nyara.proto\"\xec\x02\n\x03Vba\x12\x1d\n\nh\
+    \n\tvba.proto\x12\x03vba\x1a\nyara.proto\"\xfd\x02\n\x03Vba\x12\x1d\n\nh\
     as_macros\x18\x01\x20\x01(\x08R\thasMacros\x12!\n\x0cmodule_names\x18\
-    \x02\x20\x03(\tR\x0bmoduleNames\x12!\n\x0cmodule_types\x18\x03\x20\x03(\
-    \tR\x0bmoduleTypes\x12!\n\x0cmodule_codes\x18\x04\x20\x03(\tR\x0bmoduleC\
-    odes\x127\n\x0cproject_info\x18\x05\x20\x01(\x0b2\x14.vba.Vba.ProjectInf\
-    oR\x0bprojectInfo\x1a\xa3\x01\n\x0bProjectInfo\x12\x12\n\x04name\x18\x01\
-    \x20\x01(\tR\x04name\x12\x18\n\x07version\x18\x02\x20\x01(\tR\x07version\
-    \x12\x1e\n\nreferences\x18\x03\x20\x03(\tR\nreferences\x12!\n\x0cmodule_\
-    count\x18\x04\x20\x01(\x05R\x0bmoduleCount\x12#\n\ris_compressed\x18\x05\
-    \x20\x01(\x08R\x0cisCompressedB\x1e\xfa\x92\x19\x1a\n\x03vba\x12\x07vba.\
-    Vba\x1a\nvba-moduleb\x06proto2\
+    \x02\x20\x03(\tR\x0bmoduleNames\x122\n\x0cmodule_types\x18\x03\x20\x03(\
+    \x0e2\x0f.vba.ModuleTypeR\x0bmoduleTypes\x12!\n\x0cmodule_codes\x18\x04\
+    \x20\x03(\tR\x0bmoduleCodes\x127\n\x0cproject_info\x18\x05\x20\x01(\x0b2\
+    \x14.vba.Vba.ProjectInfoR\x0bprojectInfo\x1a\xa3\x01\n\x0bProjectInfo\
+    \x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\x18\n\x07version\x18\
+    \x02\x20\x01(\tR\x07version\x12\x1e\n\nreferences\x18\x03\x20\x03(\tR\nr\
+    eferences\x12!\n\x0cmodule_count\x18\x04\x20\x01(\x05R\x0bmoduleCount\
+    \x12#\n\ris_compressed\x18\x05\x20\x01(\x08R\x0cisCompressed*^\n\nModule\
+    Type\x12\x18\n\x14MODULE_TYPE_STANDARD\x10\x01\x12\x15\n\x11MODULE_TYPE_\
+    CLASS\x10\x02\x12\x17\n\x13MODULE_TYPE_UNKNOWN\x10\x03\x1a\x06\x92\x93\
+    \x19\x02\x10\x01B\x1e\xfa\x92\x19\x1a\n\x03vba\x12\x07vba.Vba\x1a\nvba-m\
+    oduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -578,7 +656,8 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             let mut messages = ::std::vec::Vec::with_capacity(2);
             messages.push(Vba::generated_message_descriptor_data());
             messages.push(vba::ProjectInfo::generated_message_descriptor_data());
-            let mut enums = ::std::vec::Vec::with_capacity(0);
+            let mut enums = ::std::vec::Vec::with_capacity(1);
+            enums.push(ModuleType::generated_enum_descriptor_data());
             ::protobuf::reflect::GeneratedFileDescriptor::new_generated(
                 file_descriptor_proto(),
                 deps,

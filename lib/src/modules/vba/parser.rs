@@ -7,474 +7,589 @@ use nom::{
 };
 use std::collections::HashMap;
 
+use crate::modules::protos::vba::vba::ProjectInfo;
+use crate::modules::protos::vba::{ModuleType, Vba};
+
 type Error<'a> = nom::error::Error<&'a [u8]>;
 
-pub enum ModuleType {
-    Standard,
-    Class,
-    Unknown,
+fn copytoken_help(difference: usize) -> (u16, u16, u32, u16) {
+    let bit_count = (difference as f64).log2().ceil() as u32;
+    let bit_count = bit_count.max(4);
+    let length_mask = 0xFFFF >> bit_count;
+    let offset_mask = !length_mask;
+    let maximum_length = (0xFFFF >> bit_count) + 3;
+
+    (length_mask, offset_mask, bit_count, maximum_length)
 }
 
-pub struct ProjectInfo {
-    pub name: String,
-    pub version: String,
-    pub references: Vec<String>,
-}
-
-pub struct VbaModule {
-    pub name: String,
-    pub code: String,
-    pub module_type: ModuleType,
-}
-
-type VbaModules = HashMap<String, VbaModule>;
-
-pub struct VbaProject {
-    pub modules: HashMap<String, VbaModule>,
-    pub info: ProjectInfo,
-}
-
-impl VbaProject {
-    fn copytoken_help(difference: usize) -> (u16, u16, u32, u16) {
-        let bit_count = (difference as f64).log2().ceil() as u32;
-        let bit_count = bit_count.max(4);
-        let length_mask = 0xFFFF >> bit_count;
-        let offset_mask = !length_mask;
-        let maximum_length = (0xFFFF >> bit_count) + 3;
-
-        (length_mask, offset_mask, bit_count, maximum_length)
+pub fn decompress_stream(
+    compressed: &[u8],
+) -> Result<Vec<u8>, &'static str> {
+    if compressed.is_empty() {
+        return Err("Empty input buffer");
     }
 
-    pub fn decompress_stream(
-        compressed: &[u8],
-    ) -> Result<Vec<u8>, &'static str> {
-        if compressed.is_empty() {
-            return Err("Empty input buffer");
+    if compressed[0] != 0x01 {
+        return Err("Invalid signature byte");
+    }
+
+    let mut decompressed = Vec::with_capacity(compressed.len() * 2);
+    let mut current = 1; // Skip signature byte
+
+    while current < compressed.len() {
+        // We need 2 bytes for the chunk header
+        if current + 2 > compressed.len() {
+            return Err("Incomplete chunk header");
         }
 
-        if compressed[0] != 0x01 {
-            return Err("Invalid signature byte");
-        }
+        let chunk_header = u16::from_le_bytes(
+            compressed[current..current + 2]
+                .try_into()
+                .map_err(|_| "Failed to parse chunk header")?,
+        );
+        let chunk_size = (chunk_header & 0x0FFF) as usize + 3;
+        let chunk_is_compressed = (chunk_header & 0x8000) != 0;
 
-        let mut decompressed = Vec::with_capacity(compressed.len() * 2);
-        let mut current = 1; // Skip signature byte
+        current += 2;
 
-        while current < compressed.len() {
-            // We need 2 bytes for the chunk header
-            if current + 2 > compressed.len() {
-                return Err("Incomplete chunk header");
-            }
-
-            let chunk_header = u16::from_le_bytes(
-                compressed[current..current + 2]
-                    .try_into()
-                    .map_err(|_| "Failed to parse chunk header")?,
+        if chunk_is_compressed && chunk_size > 4095 {
+            return Err(
+                "CompressedChunkSize > 4095 but CompressedChunkFlag == 1",
             );
-            let chunk_size = (chunk_header & 0x0FFF) as usize + 3;
-            let chunk_is_compressed = (chunk_header & 0x8000) != 0;
+        }
+        if !chunk_is_compressed && chunk_size != 4095 {
+            return Err(
+                "CompressedChunkSize != 4095 but CompressedChunkFlag == 0",
+            );
+        }
 
-            current += 2;
+        let chunk_end =
+            std::cmp::min(compressed.len(), current + chunk_size);
 
-            if chunk_is_compressed && chunk_size > 4095 {
-                return Err(
-                    "CompressedChunkSize > 4095 but CompressedChunkFlag == 1",
-                );
+        if !chunk_is_compressed {
+            if current + 4096 > compressed.len() {
+                return Err("Incomplete uncompressed chunk");
             }
-            if !chunk_is_compressed && chunk_size != 4095 {
-                return Err(
-                    "CompressedChunkSize != 4095 but CompressedChunkFlag == 0",
-                );
-            }
+            decompressed
+                .extend_from_slice(&compressed[current..current + 4096]);
+            current += 4096;
+            continue;
+        }
 
-            let chunk_end =
-                std::cmp::min(compressed.len(), current + chunk_size);
+        let decompressed_chunk_start = decompressed.len();
 
-            if !chunk_is_compressed {
-                if current + 4096 > compressed.len() {
-                    return Err("Incomplete uncompressed chunk");
+        while current < chunk_end {
+            let flag_byte = compressed[current];
+            current += 1;
+
+            for bit_index in 0..8 {
+                if current >= chunk_end {
+                    break;
                 }
-                decompressed
-                    .extend_from_slice(&compressed[current..current + 4096]);
-                current += 4096;
-                continue;
-            }
 
-            let decompressed_chunk_start = decompressed.len();
-
-            while current < chunk_end {
-                let flag_byte = compressed[current];
-                current += 1;
-
-                for bit_index in 0..8 {
-                    if current >= chunk_end {
-                        break;
+                if (flag_byte & (1 << bit_index)) == 0 {
+                    decompressed.push(compressed[current]);
+                    current += 1;
+                } else {
+                    if current + 2 > compressed.len() {
+                        return Err("Incomplete copy token");
                     }
 
-                    if (flag_byte & (1 << bit_index)) == 0 {
-                        decompressed.push(compressed[current]);
-                        current += 1;
-                    } else {
-                        if current + 2 > compressed.len() {
-                            return Err("Incomplete copy token");
-                        }
-
-                        let copy_token = u16::from_le_bytes(
-                            compressed[current..current + 2]
-                                .try_into()
-                                .map_err(|_| "Failed to parse copy token")?,
+                    let copy_token = u16::from_le_bytes(
+                        compressed[current..current + 2]
+                            .try_into()
+                            .map_err(|_| "Failed to parse copy token")?,
+                    );
+                    let (length_mask, offset_mask, bit_count, _) =
+                        copytoken_help(
+                            decompressed.len() - decompressed_chunk_start,
                         );
-                        let (length_mask, offset_mask, bit_count, _) =
-                            Self::copytoken_help(
-                                decompressed.len() - decompressed_chunk_start,
-                            );
 
-                        let length = (copy_token & length_mask) + 3;
-                        let temp1 = copy_token & offset_mask;
-                        let temp2 = 16 - bit_count;
-                        let offset = (temp1 >> temp2) + 1;
+                    let length = (copy_token & length_mask) + 3;
+                    let temp1 = copy_token & offset_mask;
+                    let temp2 = 16 - bit_count;
+                    let offset = (temp1 >> temp2) + 1;
 
-                        if offset as usize > decompressed.len() {
-                            return Err("Invalid copy token offset");
-                        }
-
-                        let copy_source = decompressed.len() - offset as usize;
-                        for i in 0..length {
-                            let source_idx = copy_source + i as usize;
-                            if source_idx >= decompressed.len() {
-                                return Err("Copy token source out of bounds");
-                            }
-                            decompressed.push(decompressed[source_idx]);
-                        }
-                        current += 2;
+                    if offset as usize > decompressed.len() {
+                        return Err("Invalid copy token offset");
                     }
+
+                    let copy_source = decompressed.len() - offset as usize;
+                    for i in 0..length {
+                        let source_idx = copy_source + i as usize;
+                        if source_idx >= decompressed.len() {
+                            return Err("Copy token source out of bounds");
+                        }
+                        decompressed.push(decompressed[source_idx]);
+                    }
+                    current += 2;
                 }
             }
         }
-
-        Ok(decompressed)
     }
 
-    pub fn parse(
-        compressed_dir_stream: &[u8],
-        module_streams: HashMap<String, Vec<u8>>,
-    ) -> Result<Self, &'static str> {
-        let dir_stream = Self::decompress_stream(compressed_dir_stream)?;
-        Self::parse_inner(&dir_stream, &module_streams)
-            .map_err(|_| "Failed to parse VBA dir stream")
-    }
+    Ok(decompressed)
+}
 
-    fn parse_inner<'a>(
-        dir_stream: &'a [u8],
-        module_streams: &HashMap<String, Vec<u8>>,
-    ) -> Result<Self, nom::Err<Error<'a>>> {
-        let input = dir_stream;
+pub fn parse(
+    compressed_dir_stream: &[u8],
+    module_streams: HashMap<String, Vec<u8>>,
+) -> Result<Vba, &'static str> {
+    let dir_stream = decompress_stream(compressed_dir_stream)?;
+    let mut vba = Vba::new();
+    parse_inner(&dir_stream, &module_streams, &mut vba)
+        .map_err(|_| "Failed to parse VBA dir stream")?;
+    Ok(vba)
+}
 
-        // The records below are described in [MS-OVBA] version 15.0.
-        // https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/575462ba-bf67-4190-9fac-c275523c75fc
+fn parse_inner<'a>(
+    dir_stream: &'a [u8],
+    module_streams: &HashMap<String, Vec<u8>>,
+    vba: &mut Vba,
+) -> Result<(), nom::Err<Error<'a>>> {
+    let input = dir_stream;
 
-        // -- PROJECTSYSKIND Record
-        // Specifies the operating system platform for the VBA project.
-        // See: [MS-OVBA] Section 2.3.4.2.1.1 PROJECTSYSKIND Record
-        let (input, _) = (
-            verify(le_u16, |&id| id == 0x0001),
-            verify(le_u32, |&size| size == 0x0004),
-            le_u32,
-        )
-            .parse(input)?;
+    // The records below are described in [MS-OVBA] version 15.0.
+    // https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/575462ba-bf67-4190-9fac-c275523c75fc
 
-        // -- PROJECTCOMPATVERSION Record (Optional)
-        // Specifies the compatibility version of the VBA project. Introduced in Office 2010.
-        // See: [MS-OVBA] Section 2.3.4.2.1.2 PROJECTCOMPATVERSION Record
-        let (input, _) = opt((
-            verify(le_u16, |&id| id == 0x004A),
-            verify(le_u32, |&size| size == 0x0004),
-            le_u32,
-        ))
+    // -- PROJECTSYSKIND Record
+    // Specifies the operating system platform for the VBA project.
+    // See: [MS-OVBA] Section 2.3.4.2.1.1 PROJECTSYSKIND Record
+    let (input, _) = (
+        verify(le_u16, |&id| id == 0x0001),
+        verify(le_u32, |&size| size == 0x0004),
+        le_u32,
+    )
         .parse(input)?;
 
-        // -- PROJECTLCID Record
-        // Specifies the VBA project's LCID (Locale Identifier).
-        // See: [MS-OVBA] Section 2.3.4.2.1.3 PROJECTLCID Record
-        let (input, _) = (
-            verify(le_u16, |&id| id == 0x0002),
-            verify(le_u32, |&size| size == 0x0004),
-            verify(le_u32, |&val| val == 0x409),
-        )
-            .parse(input)?;
+    // -- PROJECTCOMPATVERSION Record (Optional)
+    // Specifies the compatibility version of the VBA project. Introduced in Office 2010.
+    // See: [MS-OVBA] Section 2.3.4.2.1.2 PROJECTCOMPATVERSION Record
+    let (input, _) = opt((
+        verify(le_u16, |&id| id == 0x004A),
+        verify(le_u32, |&size| size == 0x0004),
+        le_u32,
+    ))
+    .parse(input)?;
 
-        // -- PROJECTLCIDINVOKE Record
-        // Specifies the VBA project's LCID for invoking APIs.
-        // See: [MS-OVBA] Section 2.3.4.2.1.4 PROJECTLCIDINVOKE Record
-        let (input, _) = (
-            verify(le_u16, |&id| id == 0x0014),
-            verify(le_u32, |&size| size == 0x0004),
-            verify(le_u32, |&val| val == 0x409),
-        )
-            .parse(input)?;
+    // -- PROJECTLCID Record
+    // Specifies the VBA project's LCID (Locale Identifier).
+    // See: [MS-OVBA] Section 2.3.4.2.1.3 PROJECTLCID Record
+    let (input, _) = (
+        verify(le_u16, |&id| id == 0x0002),
+        verify(le_u32, |&size| size == 0x0004),
+        verify(le_u32, |&val| val == 0x409),
+    )
+        .parse(input)?;
 
-        // -- PROJECTCODEPAGE Record
-        // Specifies the codepage to be used for string decoding in the project.
-        // See: [MS-OVBA] Section 2.3.4.2.1.5 PROJECTCODEPAGE Record
-        let (input, _) = (
-            verify(le_u16, |&id| id == 0x0003),
-            verify(le_u32, |&size| size == 0x0002),
-            le_u16,
-        )
-            .parse(input)?;
+    // -- PROJECTLCIDINVOKE Record
+    // Specifies the VBA project's LCID for invoking APIs.
+    // See: [MS-OVBA] Section 2.3.4.2.1.4 PROJECTLCIDINVOKE Record
+    let (input, _) = (
+        verify(le_u16, |&id| id == 0x0014),
+        verify(le_u32, |&size| size == 0x0004),
+        verify(le_u32, |&val| val == 0x409),
+    )
+        .parse(input)?;
 
-        // -- PROJECTNAME Record
-        // Specifies the VBA project name.
-        // See: [MS-OVBA] Section 2.3.4.2.1.6 PROJECTNAME Record
-        let (input, (_, name_size)) = (
-            verify(le_u16, |&id| id == 0x0004),
-            verify(le_u32, |&size| (1..=128).contains(&size)),
-        )
-            .parse(input)?;
+    // -- PROJECTCODEPAGE Record
+    // Specifies the codepage to be used for string decoding in the project.
+    // See: [MS-OVBA] Section 2.3.4.2.1.5 PROJECTCODEPAGE Record
+    let (input, _) = (
+        verify(le_u16, |&id| id == 0x0003),
+        verify(le_u32, |&size| size == 0x0002),
+        le_u16,
+    )
+        .parse(input)?;
 
-        let (input, name_bytes) = take(name_size as usize).parse(input)?;
-        let project_name = String::from_utf8_lossy(name_bytes).to_string();
+    // -- PROJECTNAME Record
+    // Specifies the VBA project name.
+    // See: [MS-OVBA] Section 2.3.4.2.1.6 PROJECTNAME Record
+    let (input, (_, name_size)) = (
+        verify(le_u16, |&id| id == 0x0004),
+        verify(le_u32, |&size| (1..=128).contains(&size)),
+    )
+        .parse(input)?;
 
-        // -- PROJECTDOCSTRING Record
-        // Specifies the project description and its Unicode equivalent.
-        // See: [MS-OVBA] Section 2.3.4.2.1.7 PROJECTDOCSTRING Record
-        let (input, (_, doc_size)) =
-            (verify(le_u16, |&id| id == 0x0005), le_u32).parse(input)?;
+    let (input, name_bytes) = take(name_size as usize).parse(input)?;
+    let project_name = String::from_utf8_lossy(name_bytes).to_string();
 
-        let (input, _) = take(doc_size as usize).parse(input)?;
+    // -- PROJECTDOCSTRING Record
+    // Specifies the project description and its Unicode equivalent.
+    // See: [MS-OVBA] Section 2.3.4.2.1.7 PROJECTDOCSTRING Record
+    let (input, (_, doc_size)) =
+        (verify(le_u16, |&id| id == 0x0005), le_u32).parse(input)?;
 
-        let (input, (_, doc_unicode_size)) = (
-            verify(le_u16, |&reserved| reserved == 0x0040),
-            verify(le_u32, |&size| size % 2 == 0),
-        )
-            .parse(input)?;
+    let (input, _) = take(doc_size as usize).parse(input)?;
 
-        let (input, _) = take(doc_unicode_size as usize).parse(input)?;
+    let (input, (_, doc_unicode_size)) = (
+        verify(le_u16, |&reserved| reserved == 0x0040),
+        verify(le_u32, |&size| size % 2 == 0),
+    )
+        .parse(input)?;
 
-        // -- PROJECTHELPFILEPATH Record
-        // Specifies help file paths for the VBA project.
-        // See: [MS-OVBA] Section 2.3.4.2.1.8 PROJECTHELPFILEPATH Record
-        let (input, (_, helpfile_size1)) = (
-            verify(le_u16, |&id| id == 0x0006),
-            verify(le_u32, |&size| size <= 260),
-        )
-            .parse(input)?;
+    let (input, _) = take(doc_unicode_size as usize).parse(input)?;
 
-        let (input, helpfile1) = take(helpfile_size1 as usize).parse(input)?;
+    // -- PROJECTHELPFILEPATH Record
+    // Specifies help file paths for the VBA project.
+    // See: [MS-OVBA] Section 2.3.4.2.1.8 PROJECTHELPFILEPATH Record
+    let (input, (_, helpfile_size1)) = (
+        verify(le_u16, |&id| id == 0x0006),
+        verify(le_u32, |&size| size <= 260),
+    )
+        .parse(input)?;
 
-        let (input, (_, helpfile_size2)) = (
-            verify(le_u16, |&reserved| reserved == 0x003D),
-            verify(le_u32, |&size| size == helpfile_size1),
-        )
-            .parse(input)?;
+    let (input, helpfile1) = take(helpfile_size1 as usize).parse(input)?;
 
-        let (input, helpfile2) = take(helpfile_size2 as usize).parse(input)?;
+    let (input, (_, helpfile_size2)) = (
+        verify(le_u16, |&reserved| reserved == 0x003D),
+        verify(le_u32, |&size| size == helpfile_size1),
+    )
+        .parse(input)?;
 
-        if helpfile1 != helpfile2 {
-            return Err(nom::Err::Error(nom::error::Error::new(
-                input,
-                nom::error::ErrorKind::Verify,
-            )));
-        }
+    let (input, helpfile2) = take(helpfile_size2 as usize).parse(input)?;
 
-        // -- PROJECTHELPCONTEXT Record
-        // Specifies the help context ID in the help file.
-        // See: [MS-OVBA] Section 2.3.4.2.1.9 PROJECTHELPCONTEXT Record
-        let (input, _) = (
-            verify(le_u16, |&id| id == 0x0007),
-            verify(le_u32, |&size| size == 0x0004),
-            le_u32,
-        )
-            .parse(input)?;
-
-        // -- PROJECTLIBFLAGS Record
-        // Specifies the library flags of the VBA project.
-        // See: [MS-OVBA] Section 2.3.4.2.1.10 PROJECTLIBFLAGS Record
-        let (input, _) = (
-            verify(le_u16, |&id| id == 0x0008),
-            verify(le_u32, |&size| size == 0x0004),
-            verify(le_u32, |&flags| flags == 0x0000),
-        )
-            .parse(input)?;
-
-        // -- PROJECTVERSION Record
-        // Specifies the major and minor version of the VBA project.
-        // See: [MS-OVBA] Section 2.3.4.2.1.11 PROJECTVERSION Record
-        let (input, (_, _, version_major, version_minor)) = (
-            verify(le_u16, |&id| id == 0x0009),
-            verify(le_u32, |&reserved| reserved == 0x0004),
-            le_u32,
-            le_u16,
-        )
-            .parse(input)?;
-
-        // -- PROJECTCONSTANTS Record
-        // Specifies compilation constants of the VBA project.
-        // See: [MS-OVBA] Section 2.3.4.2.1.12 PROJECTCONSTANTS Record
-        let (input, (_, constants_size)) = (
-            verify(le_u16, |&id| id == 0x000C),
-            verify(le_u32, |&size| size <= 1015),
-        )
-            .parse(input)?;
-
-        let (input, _) = take(constants_size as usize).parse(input)?;
-
-        let (input, (_, constants_unicode_size)) = (
-            verify(le_u16, |&reserved| reserved == 0x003C),
-            verify(le_u32, |&size| size % 2 == 0),
-        )
-            .parse(input)?;
-
-        let (input, _) = take(constants_unicode_size as usize).parse(input)?;
-
-        // -- References
-        // Parses references to libraries, controls, and other projects.
-        // See: [MS-OVBA] Section 2.3.4.2.2 References Record
-        let (input, references) = Self::parse_references(input)?;
-
-        // -- PROJECTMODULES Record
-        // Specifies module block count of the project.
-        // See: [MS-OVBA] Section 2.3.4.2.3 PROJECTMODULES Record
-        let (input, _) =
-            verify(le_u32, |&size| size == 0x0002).parse(input)?;
-        let (input, modules_count) = le_u16.parse(input)?;
-
-        // -- ProjectCookie Record
-        // Specifies the project cookie record.
-        // See: [MS-OVBA] Section 2.3.4.2.3.1 ProjectCookie Record
-        let (input, _) = (
-            verify(le_u16, |&id| id == 0x0013),
-            verify(le_u32, |&size| size == 0x0002),
-            le_u16,
-        )
-            .parse(input)?;
-
-        // -- Modules
-        // Parses module streams and decompresses MS-OVBA streams.
-        // See: [MS-OVBA] Section 2.3.4.2.3.2 Modules
-        let (_, modules) =
-            Self::parse_modules(input, modules_count, module_streams)?;
-
-        Ok(VbaProject {
-            modules,
-            info: ProjectInfo {
-                name: project_name,
-                version: format!("{}.{}", version_major, version_minor),
-                references,
-            },
-        })
+    if helpfile1 != helpfile2 {
+        return Err(nom::Err::Error(nom::error::Error::new(
+            input,
+            nom::error::ErrorKind::Verify,
+        )));
     }
 
-    fn parse_references(
-        mut input: &[u8],
-    ) -> Result<(&[u8], Vec<String>), nom::Err<Error<'_>>> {
-        let mut references = Vec::new();
-        loop {
-            let (remainder, check) = le_u16.parse(input)?;
-            input = remainder;
-            if check == 0x000F {
-                break;
-            }
+    // -- PROJECTHELPCONTEXT Record
+    // Specifies the help context ID in the help file.
+    // See: [MS-OVBA] Section 2.3.4.2.1.9 PROJECTHELPCONTEXT Record
+    let (input, _) = (
+        verify(le_u16, |&id| id == 0x0007),
+        verify(le_u32, |&size| size == 0x0004),
+        le_u32,
+    )
+        .parse(input)?;
 
-            match check {
-                0x0016 => {
-                    // REFERENCE Name
-                    let (remainder, name_size) = le_u32.parse(input)?;
-                    let (remainder, name_bytes) =
+    // -- PROJECTLIBFLAGS Record
+    // Specifies the library flags of the VBA project.
+    // See: [MS-OVBA] Section 2.3.4.2.1.10 PROJECTLIBFLAGS Record
+    let (input, _) = (
+        verify(le_u16, |&id| id == 0x0008),
+        verify(le_u32, |&size| size == 0x0004),
+        verify(le_u32, |&flags| flags == 0x0000),
+    )
+        .parse(input)?;
+
+    // -- PROJECTVERSION Record
+    // Specifies the major and minor version of the VBA project.
+    // See: [MS-OVBA] Section 2.3.4.2.1.11 PROJECTVERSION Record
+    let (input, (_, _, version_major, version_minor)) = (
+        verify(le_u16, |&id| id == 0x0009),
+        verify(le_u32, |&reserved| reserved == 0x0004),
+        le_u32,
+        le_u16,
+    )
+        .parse(input)?;
+
+    // -- PROJECTCONSTANTS Record
+    // Specifies compilation constants of the VBA project.
+    // See: [MS-OVBA] Section 2.3.4.2.1.12 PROJECTCONSTANTS Record
+    let (input, (_, constants_size)) = (
+        verify(le_u16, |&id| id == 0x000C),
+        verify(le_u32, |&size| size <= 1015),
+    )
+        .parse(input)?;
+
+    let (input, _) = take(constants_size as usize).parse(input)?;
+
+    let (input, (_, constants_unicode_size)) = (
+        verify(le_u16, |&reserved| reserved == 0x003C),
+        verify(le_u32, |&size| size % 2 == 0),
+    )
+        .parse(input)?;
+
+    let (input, _) = take(constants_unicode_size as usize).parse(input)?;
+
+    // -- References
+    // Parses references to libraries, controls, and other projects.
+    // See: [MS-OVBA] Section 2.3.4.2.2 References Record
+    let (input, references) = parse_references(input)?;
+
+    // -- PROJECTMODULES Record
+    // Specifies module block count of the project.
+    // See: [MS-OVBA] Section 2.3.4.2.3 PROJECTMODULES Record
+    let (input, _) =
+        verify(le_u32, |&size| size == 0x0002).parse(input)?;
+    let (input, modules_count) = le_u16.parse(input)?;
+
+    // -- ProjectCookie Record
+    // Specifies the project cookie record.
+    // See: [MS-OVBA] Section 2.3.4.2.3.1 ProjectCookie Record
+    let (input, _) = (
+        verify(le_u16, |&id| id == 0x0013),
+        verify(le_u32, |&size| size == 0x0002),
+        le_u16,
+    )
+        .parse(input)?;
+
+    // -- Modules
+    // Parses module streams and decompresses MS-OVBA streams.
+    // See: [MS-OVBA] Section 2.3.4.2.3.2 Modules
+    let (_input, _) =
+        parse_modules(input, modules_count, module_streams, vba)?;
+
+    let mut project_info = ProjectInfo::new();
+    project_info.set_name(project_name);
+    project_info.set_version(format!("{}.{}", version_major, version_minor));
+    project_info.references = references;
+    project_info.set_module_count(modules_count as i32);
+    project_info.set_is_compressed(true);
+
+    vba.project_info = protobuf::MessageField::some(project_info);
+
+    Ok(())
+}
+
+fn parse_references(
+    mut input: &[u8],
+) -> Result<(&[u8], Vec<String>), nom::Err<Error<'_>>> {
+    let mut references = Vec::new();
+    loop {
+        let (remainder, check) = le_u16.parse(input)?;
+        input = remainder;
+        if check == 0x000F {
+            break;
+        }
+
+        match check {
+            0x0016 => {
+                // REFERENCE Name
+                let (remainder, name_size) = le_u32.parse(input)?;
+                let (remainder, name_bytes) =
+                    take(name_size as usize).parse(remainder)?;
+                let name = String::from_utf8_lossy(name_bytes).to_string();
+                references.push(name);
+
+                let (remainder, (_, unicode_size)) =
+                    (verify(le_u16, |&val| val == 0x003E), le_u32)
+                        .parse(remainder)?;
+                let (remainder, _) =
+                    take(unicode_size as usize).parse(remainder)?;
+                input = remainder;
+            }
+            0x0033 => {
+                // REFERENCEORIGINAL
+                let (remainder, size) = le_u32.parse(input)?;
+                let (remainder, _) =
+                    take(size as usize).parse(remainder)?;
+                input = remainder;
+            }
+            0x002F => {
+                // REFERENCECONTROL
+                let (remainder, size_twiddled) = le_u32.parse(input)?;
+                let (remainder, _) =
+                    take(size_twiddled as usize).parse(remainder)?;
+
+                let (remainder, _) = (
+                    verify(le_u32, |&val| val == 0x0000),
+                    verify(le_u16, |&val| val == 0x0000),
+                )
+                    .parse(remainder)?;
+
+                let (remainder, maybe_check2) = le_u16.parse(remainder)?;
+                if maybe_check2 == 0x0016 {
+                    // Name record
+                    let (remainder, name_size) =
+                        le_u32.parse(remainder)?;
+                    let (remainder, _) =
                         take(name_size as usize).parse(remainder)?;
-                    let name = String::from_utf8_lossy(name_bytes).to_string();
-                    references.push(name);
 
                     let (remainder, (_, unicode_size)) =
                         (verify(le_u16, |&val| val == 0x003E), le_u32)
                             .parse(remainder)?;
                     let (remainder, _) =
                         take(unicode_size as usize).parse(remainder)?;
-                    input = remainder;
-                }
-                0x0033 => {
-                    // REFERENCEORIGINAL
-                    let (remainder, size) = le_u32.parse(input)?;
+
                     let (remainder, _) =
-                        take(size as usize).parse(remainder)?;
+                        verify(le_u16, |&val| val == 0x0030)
+                            .parse(remainder)?;
                     input = remainder;
-                }
-                0x002F => {
-                    // REFERENCECONTROL
-                    let (remainder, size_twiddled) = le_u32.parse(input)?;
-                    let (remainder, _) =
-                        take(size_twiddled as usize).parse(remainder)?;
-
-                    let (remainder, _) = (
-                        verify(le_u32, |&val| val == 0x0000),
-                        verify(le_u16, |&val| val == 0x0000),
-                    )
-                        .parse(remainder)?;
-
-                    let (remainder, maybe_check2) = le_u16.parse(remainder)?;
-                    if maybe_check2 == 0x0016 {
-                        // Name record
-                        let (remainder, name_size) =
-                            le_u32.parse(remainder)?;
-                        let (remainder, _) =
-                            take(name_size as usize).parse(remainder)?;
-
-                        let (remainder, (_, unicode_size)) =
-                            (verify(le_u16, |&val| val == 0x003E), le_u32)
-                                .parse(remainder)?;
-                        let (remainder, _) =
-                            take(unicode_size as usize).parse(remainder)?;
-
-                        let (remainder, _) =
-                            verify(le_u16, |&val| val == 0x0030)
-                                .parse(remainder)?;
-                        input = remainder;
-                    } else {
-                        // No name record, maybe_check2 is reserved3
-                        if maybe_check2 != 0x0030 {
-                            return Err(nom::Err::Error(
-                                nom::error::Error::new(
-                                    input,
-                                    nom::error::ErrorKind::Verify,
-                                ),
-                            ));
-                        }
-                        input = remainder;
+                } else {
+                    // No name record, maybe_check2 is reserved3
+                    if maybe_check2 != 0x0030 {
+                        return Err(nom::Err::Error(
+                            nom::error::Error::new(
+                                input,
+                                nom::error::ErrorKind::Verify,
+                            ),
+                        ));
                     }
+                    input = remainder;
+                }
 
-                    let (remainder, (_, size_libid)) =
-                        (le_u32, le_u32).parse(input)?;
+                let (remainder, (_, size_libid)) =
+                    (le_u32, le_u32).parse(input)?;
+                let (remainder, _) =
+                    take(size_libid as usize).parse(remainder)?;
+                let (remainder, _) = (le_u32, le_u16).parse(remainder)?;
+                let (remainder, _) = take(16_usize).parse(remainder)?;
+                let (remainder, _) = le_u32.parse(remainder)?;
+                input = remainder;
+            }
+            0x000D => {
+                // REFERENCEREGISTERED
+                let (remainder, (_, libid_size)) =
+                    (le_u32, le_u32).parse(input)?;
+                let (remainder, _) =
+                    take(libid_size as usize).parse(remainder)?;
+                let (remainder, _) = (
+                    verify(le_u32, |&val| val == 0x0000),
+                    verify(le_u16, |&val| val == 0x0000),
+                )
+                    .parse(remainder)?;
+                input = remainder;
+            }
+            0x000E => {
+                // REFERENCEPROJECT
+                let (remainder, (_, libid_abs_size)) =
+                    (le_u32, le_u32).parse(input)?;
+                let (remainder, _) =
+                    take(libid_abs_size as usize).parse(remainder)?;
+                let (remainder, libid_rel_size) =
+                    le_u32.parse(remainder)?;
+                let (remainder, _) =
+                    take(libid_rel_size as usize).parse(remainder)?;
+                let (remainder, _) = (le_u32, le_u16).parse(remainder)?;
+                input = remainder;
+            }
+            _ => {
+                return Err(nom::Err::Error(nom::error::Error::new(
+                    input,
+                    nom::error::ErrorKind::Switch,
+                )));
+            }
+        }
+    }
+    Ok((input, references))
+}
+
+fn parse_modules<'a>(
+    mut input: &'a [u8],
+    modules_count: u16,
+    module_streams: &HashMap<String, Vec<u8>>,
+    vba: &mut Vba,
+) -> Result<(&'a [u8], ()), nom::Err<Error<'a>>> {
+    for _ in 0..modules_count {
+        // MODULENAME record
+        let (remainder, _) =
+            verify(le_u16, |&id| id == 0x0019).parse(input)?;
+
+        let (remainder, module_name_size) = le_u32.parse(remainder)?;
+        let (remainder, name_bytes) =
+            take(module_name_size as usize).parse(remainder)?;
+        let module_name = String::from_utf8_lossy(name_bytes).to_string();
+        input = remainder;
+
+        let mut module_type = ModuleType::MODULE_TYPE_UNKNOWN;
+        let mut stream_name = String::new();
+        let mut module_offset = 0u32;
+
+        // Read sections until terminator 0x002B
+        loop {
+            let (remainder, section_id) = le_u16.parse(input)?;
+            input = remainder;
+            match section_id {
+                0x0047 => {
+                    // MODULENAMEUNICODE
+                    let (remainder, unicode_size) = le_u32.parse(input)?;
                     let (remainder, _) =
-                        take(size_libid as usize).parse(remainder)?;
-                    let (remainder, _) = (le_u32, le_u16).parse(remainder)?;
-                    let (remainder, _) = take(16_usize).parse(remainder)?;
+                        take(unicode_size as usize).parse(remainder)?;
+                    input = remainder;
+                }
+                0x001A => {
+                    // MODULESTREAMNAME
+                    let (remainder, stream_size) = le_u32.parse(input)?;
+                    let (remainder, stream_bytes) =
+                        take(stream_size as usize).parse(remainder)?;
+                    stream_name =
+                        String::from_utf8_lossy(stream_bytes).to_string();
+
+                    let (remainder, _) =
+                        verify(le_u16, |&val| val == 0x0032)
+                            .parse(remainder)?;
+
+                    let (remainder, unicode_size) =
+                        le_u32.parse(remainder)?;
+                    let (remainder, _) =
+                        take(unicode_size as usize).parse(remainder)?;
+                    input = remainder;
+                }
+                0x001C => {
+                    // MODULEDOCSTRING
+                    let (remainder, doc_size) = le_u32.parse(input)?;
+                    let (remainder, _) =
+                        take(doc_size as usize).parse(remainder)?;
+
+                    let (remainder, _) =
+                        verify(le_u16, |&val| val == 0x0048)
+                            .parse(remainder)?;
+
+                    let (remainder, unicode_size) =
+                        le_u32.parse(remainder)?;
+                    let (remainder, _) =
+                        take(unicode_size as usize).parse(remainder)?;
+                    input = remainder;
+                }
+                0x0031 => {
+                    // MODULEOFFSET
+                    let (remainder, _) =
+                        verify(le_u32, |&size| size == 0x0004)
+                            .parse(input)?;
+                    let (remainder, offset) = le_u32.parse(remainder)?;
+                    module_offset = offset;
+                    input = remainder;
+                }
+                0x001E => {
+                    // MODULEHELPCONTEXT
+                    let (remainder, _) =
+                        verify(le_u32, |&size| size == 0x0004)
+                            .parse(input)?;
                     let (remainder, _) = le_u32.parse(remainder)?;
                     input = remainder;
                 }
-                0x000D => {
-                    // REFERENCEREGISTERED
-                    let (remainder, (_, libid_size)) =
-                        (le_u32, le_u32).parse(input)?;
+                0x002C => {
+                    // MODULECOOKIE
                     let (remainder, _) =
-                        take(libid_size as usize).parse(remainder)?;
-                    let (remainder, _) = (
-                        verify(le_u32, |&val| val == 0x0000),
-                        verify(le_u16, |&val| val == 0x0000),
-                    )
-                        .parse(remainder)?;
+                        verify(le_u32, |&size| size == 0x0002)
+                            .parse(input)?;
+                    let (remainder, _) = le_u16.parse(remainder)?;
                     input = remainder;
                 }
-                0x000E => {
-                    // REFERENCEPROJECT
-                    let (remainder, (_, libid_abs_size)) =
-                        (le_u32, le_u32).parse(input)?;
-                    let (remainder, _) =
-                        take(libid_abs_size as usize).parse(remainder)?;
-                    let (remainder, libid_rel_size) =
-                        le_u32.parse(remainder)?;
-                    let (remainder, _) =
-                        take(libid_rel_size as usize).parse(remainder)?;
-                    let (remainder, _) = (le_u32, le_u16).parse(remainder)?;
+                0x0021 => {
+                    module_type = ModuleType::MODULE_TYPE_STANDARD;
+                    let (remainder, _) = le_u32.parse(input)?;
                     input = remainder;
+                }
+                0x0022 => {
+                    module_type = ModuleType::MODULE_TYPE_CLASS;
+                    let (remainder, _) = le_u32.parse(input)?;
+                    input = remainder;
+                }
+                0x0025 => {
+                    let (remainder, _) =
+                        verify(le_u32, |&val| val == 0x0000)
+                            .parse(input)?;
+                    input = remainder;
+                }
+                0x0028 => {
+                    let (remainder, _) =
+                        verify(le_u32, |&val| val == 0x0000)
+                            .parse(input)?;
+                    input = remainder;
+                }
+                0x002B => {
+                    // TERMINATOR
+                    let (remainder, _) =
+                        verify(le_u32, |&val| val == 0x0000)
+                            .parse(input)?;
+                    input = remainder;
+                    break;
                 }
                 _ => {
                     return Err(nom::Err::Error(nom::error::Error::new(
@@ -484,170 +599,34 @@ impl VbaProject {
                 }
             }
         }
-        Ok((input, references))
-    }
 
-    fn parse_modules<'a>(
-        mut input: &'a [u8],
-        modules_count: u16,
-        module_streams: &HashMap<String, Vec<u8>>,
-    ) -> Result<(&'a [u8], VbaModules), nom::Err<Error<'a>>> {
-        let mut modules = HashMap::new();
-
-        for _ in 0..modules_count {
-            // MODULENAME record
-            let (remainder, _) =
-                verify(le_u16, |&id| id == 0x0019).parse(input)?;
-
-            let (remainder, module_name_size) = le_u32.parse(remainder)?;
-            let (remainder, name_bytes) =
-                take(module_name_size as usize).parse(remainder)?;
-            let module_name = String::from_utf8_lossy(name_bytes).to_string();
-            input = remainder;
-
-            let mut module_type = ModuleType::Unknown;
-            let mut stream_name = String::new();
-            let mut module_offset = 0u32;
-
-            // Read sections until terminator 0x002B
-            loop {
-                let (remainder, section_id) = le_u16.parse(input)?;
-                input = remainder;
-                match section_id {
-                    0x0047 => {
-                        // MODULENAMEUNICODE
-                        let (remainder, unicode_size) = le_u32.parse(input)?;
-                        let (remainder, _) =
-                            take(unicode_size as usize).parse(remainder)?;
-                        input = remainder;
-                    }
-                    0x001A => {
-                        // MODULESTREAMNAME
-                        let (remainder, stream_size) = le_u32.parse(input)?;
-                        let (remainder, stream_bytes) =
-                            take(stream_size as usize).parse(remainder)?;
-                        stream_name =
-                            String::from_utf8_lossy(stream_bytes).to_string();
-
-                        let (remainder, _) =
-                            verify(le_u16, |&val| val == 0x0032)
-                                .parse(remainder)?;
-
-                        let (remainder, unicode_size) =
-                            le_u32.parse(remainder)?;
-                        let (remainder, _) =
-                            take(unicode_size as usize).parse(remainder)?;
-                        input = remainder;
-                    }
-                    0x001C => {
-                        // MODULEDOCSTRING
-                        let (remainder, doc_size) = le_u32.parse(input)?;
-                        let (remainder, _) =
-                            take(doc_size as usize).parse(remainder)?;
-
-                        let (remainder, _) =
-                            verify(le_u16, |&val| val == 0x0048)
-                                .parse(remainder)?;
-
-                        let (remainder, unicode_size) =
-                            le_u32.parse(remainder)?;
-                        let (remainder, _) =
-                            take(unicode_size as usize).parse(remainder)?;
-                        input = remainder;
-                    }
-                    0x0031 => {
-                        // MODULEOFFSET
-                        let (remainder, _) =
-                            verify(le_u32, |&size| size == 0x0004)
-                                .parse(input)?;
-                        let (remainder, offset) = le_u32.parse(remainder)?;
-                        module_offset = offset;
-                        input = remainder;
-                    }
-                    0x001E => {
-                        // MODULEHELPCONTEXT
-                        let (remainder, _) =
-                            verify(le_u32, |&size| size == 0x0004)
-                                .parse(input)?;
-                        let (remainder, _) = le_u32.parse(remainder)?;
-                        input = remainder;
-                    }
-                    0x002C => {
-                        // MODULECOOKIE
-                        let (remainder, _) =
-                            verify(le_u32, |&size| size == 0x0002)
-                                .parse(input)?;
-                        let (remainder, _) = le_u16.parse(remainder)?;
-                        input = remainder;
-                    }
-                    0x0021 => {
-                        module_type = ModuleType::Standard;
-                        let (remainder, _) = le_u32.parse(input)?;
-                        input = remainder;
-                    }
-                    0x0022 => {
-                        module_type = ModuleType::Class;
-                        let (remainder, _) = le_u32.parse(input)?;
-                        input = remainder;
-                    }
-                    0x0025 => {
-                        let (remainder, _) =
-                            verify(le_u32, |&val| val == 0x0000)
-                                .parse(input)?;
-                        input = remainder;
-                    }
-                    0x0028 => {
-                        let (remainder, _) =
-                            verify(le_u32, |&val| val == 0x0000)
-                                .parse(input)?;
-                        input = remainder;
-                    }
-                    0x002B => {
-                        // TERMINATOR
-                        let (remainder, _) =
-                            verify(le_u32, |&val| val == 0x0000)
-                                .parse(input)?;
-                        input = remainder;
-                        break;
-                    }
-                    _ => {
-                        return Err(nom::Err::Error(nom::error::Error::new(
-                            input,
-                            nom::error::ErrorKind::Switch,
-                        )));
-                    }
-                }
+        // Retrieve module code
+        let mut code = None;
+        if let Some(module_data) = module_streams.get(&stream_name) {
+            if module_offset as usize >= module_data.len() {
+                return Err(nom::Err::Error(nom::error::Error::new(
+                    input,
+                    nom::error::ErrorKind::Verify,
+                )));
             }
-
-            // Retrieve module code
-            if let Some(module_data) = module_streams.get(&stream_name) {
-                if module_offset as usize >= module_data.len() {
-                    return Err(nom::Err::Error(nom::error::Error::new(
+            let code_data = &module_data[module_offset as usize..];
+            if !code_data.is_empty() {
+                let decompressed = decompress_stream(code_data).map_err(|_| {
+                    nom::Err::Error(nom::error::Error::new(
                         input,
                         nom::error::ErrorKind::Verify,
-                    )));
-                }
-                let code_data = &module_data[module_offset as usize..];
-                if !code_data.is_empty() {
-                    let decompressed = VbaProject::decompress_stream(
-                        code_data,
-                    )
-                    .map_err(|_| {
-                        nom::Err::Error(nom::error::Error::new(
-                            input,
-                            nom::error::ErrorKind::Verify,
-                        ))
-                    })?;
-                    let code =
-                        String::from_utf8_lossy(&decompressed).to_string();
-                    modules.insert(
-                        module_name.clone(),
-                        VbaModule { name: module_name, code, module_type },
-                    );
-                }
+                    ))
+                })?;
+                code = Some(String::from_utf8_lossy(&decompressed).to_string());
             }
         }
 
-        Ok((input, modules))
+        if let Some(code) = code {
+            vba.module_names.push(module_name);
+            vba.module_types.push(::protobuf::EnumOrUnknown::new(module_type));
+            vba.module_codes.push(code);
+        }
     }
+
+    Ok((input, ()))
 }
