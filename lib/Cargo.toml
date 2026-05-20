@@ -210,7 +210,9 @@ magic-module = [
 math-module = []
 
 # The `olecf` module
-olecf-module = []
+olecf-module = [
+    "dep:nom"
+]
 
 # The `pe` module parses PE files.
 pe-module = [
@@ -231,7 +233,10 @@ test_proto3-module = []
 time-module = []
 
 # The `vba` module
-vba-module = []
+vba-module = [
+    "dep:nom",
+    "dep:zip",
+]
 
 # The `vt` module is a VirusTotal-specific module that provides access to
 # the metadata that VirusTotal has about the scanned file.
