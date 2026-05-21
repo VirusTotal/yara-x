@@ -341,7 +341,11 @@ impl<W: Write> Serializer<W> {
                     write!(self.output, "{}", "|".paint(self.colors.string))?;
                     for line in v.split('\n') {
                         self.newline()?;
-                        write!(self.output, "{}", line.paint(self.colors.string))?;
+                        write!(
+                            self.output,
+                            "{}",
+                            line.paint(self.colors.string)
+                        )?;
                     }
                 } else {
                     write!(
