@@ -16,7 +16,17 @@ message Olecf {
   repeated Stream streams = 2;
 }
 
+// Type of streams.
+enum StreamType {
+  UNKNOWN = 0;
+  STORAGE = 1;
+  STREAM = 2;
+  ROOT = 5;
+}
+
+// Describes a stream in the OLE CF file.
 message Stream {
   required string name = 1;
-  required uint64 size = 2;
+  required StreamType type = 2;
+  required uint64 size = 3;
 }

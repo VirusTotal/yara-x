@@ -198,6 +198,8 @@ pub struct Stream {
     // message fields
     // @@protoc_insertion_point(field:olecf.Stream.name)
     pub name: ::std::option::Option<::std::string::String>,
+    // @@protoc_insertion_point(field:olecf.Stream.type)
+    pub type_: ::std::option::Option<::protobuf::EnumOrUnknown<StreamType>>,
     // @@protoc_insertion_point(field:olecf.Stream.size)
     pub size: ::std::option::Option<u64>,
     // special fields
@@ -252,7 +254,29 @@ impl Stream {
         self.name.take().unwrap_or_else(|| ::std::string::String::new())
     }
 
-    // required uint64 size = 2;
+    // required .olecf.StreamType type = 2;
+
+    pub fn type_(&self) -> StreamType {
+        match self.type_ {
+            Some(e) => e.enum_value_or(StreamType::UNKNOWN),
+            None => StreamType::UNKNOWN,
+        }
+    }
+
+    pub fn clear_type_(&mut self) {
+        self.type_ = ::std::option::Option::None;
+    }
+
+    pub fn has_type(&self) -> bool {
+        self.type_.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_type(&mut self, v: StreamType) {
+        self.type_ = ::std::option::Option::Some(::protobuf::EnumOrUnknown::new(v));
+    }
+
+    // required uint64 size = 3;
 
     pub fn size(&self) -> u64 {
         self.size.unwrap_or(0)
@@ -272,12 +296,17 @@ impl Stream {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(2);
+        let mut fields = ::std::vec::Vec::with_capacity(3);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "name",
             |m: &Stream| { &m.name },
             |m: &mut Stream| { &mut m.name },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "type",
+            |m: &Stream| { &m.type_ },
+            |m: &mut Stream| { &mut m.type_ },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "size",
@@ -299,6 +328,9 @@ impl ::protobuf::Message for Stream {
         if self.name.is_none() {
             return false;
         }
+        if self.type_.is_none() {
+            return false;
+        }
         if self.size.is_none() {
             return false;
         }
@@ -312,6 +344,9 @@ impl ::protobuf::Message for Stream {
                     self.name = ::std::option::Option::Some(is.read_string()?);
                 },
                 16 => {
+                    self.type_ = ::std::option::Option::Some(is.read_enum_or_unknown()?);
+                },
+                24 => {
                     self.size = ::std::option::Option::Some(is.read_uint64()?);
                 },
                 tag => {
@@ -329,8 +364,11 @@ impl ::protobuf::Message for Stream {
         if let Some(v) = self.name.as_ref() {
             my_size += ::protobuf::rt::string_size(1, &v);
         }
+        if let Some(v) = self.type_ {
+            my_size += ::protobuf::rt::int32_size(2, v.value());
+        }
         if let Some(v) = self.size {
-            my_size += ::protobuf::rt::uint64_size(2, v);
+            my_size += ::protobuf::rt::uint64_size(3, v);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
@@ -341,8 +379,11 @@ impl ::protobuf::Message for Stream {
         if let Some(v) = self.name.as_ref() {
             os.write_string(1, v)?;
         }
+        if let Some(v) = self.type_ {
+            os.write_enum(2, ::protobuf::EnumOrUnknown::value(&v))?;
+        }
         if let Some(v) = self.size {
-            os.write_uint64(2, v)?;
+            os.write_uint64(3, v)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -362,6 +403,7 @@ impl ::protobuf::Message for Stream {
 
     fn clear(&mut self) {
         self.name = ::std::option::Option::None;
+        self.type_ = ::std::option::Option::None;
         self.size = ::std::option::Option::None;
         self.special_fields.clear();
     }
@@ -369,6 +411,7 @@ impl ::protobuf::Message for Stream {
     fn default_instance() -> &'static Stream {
         static instance: Stream = Stream {
             name: ::std::option::Option::None,
+            type_: ::std::option::Option::None,
             size: ::std::option::Option::None,
             special_fields: ::protobuf::SpecialFields::new(),
         };
@@ -393,13 +436,92 @@ impl ::protobuf::reflect::ProtobufValue for Stream {
     type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
 }
 
+#[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+// @@protoc_insertion_point(enum:olecf.StreamType)
+pub enum StreamType {
+    // @@protoc_insertion_point(enum_value:olecf.StreamType.UNKNOWN)
+    UNKNOWN = 0,
+    // @@protoc_insertion_point(enum_value:olecf.StreamType.STORAGE)
+    STORAGE = 1,
+    // @@protoc_insertion_point(enum_value:olecf.StreamType.STREAM)
+    STREAM = 2,
+    // @@protoc_insertion_point(enum_value:olecf.StreamType.ROOT)
+    ROOT = 5,
+}
+
+impl ::protobuf::Enum for StreamType {
+    const NAME: &'static str = "StreamType";
+
+    fn value(&self) -> i32 {
+        *self as i32
+    }
+
+    fn from_i32(value: i32) -> ::std::option::Option<StreamType> {
+        match value {
+            0 => ::std::option::Option::Some(StreamType::UNKNOWN),
+            1 => ::std::option::Option::Some(StreamType::STORAGE),
+            2 => ::std::option::Option::Some(StreamType::STREAM),
+            5 => ::std::option::Option::Some(StreamType::ROOT),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    fn from_str(str: &str) -> ::std::option::Option<StreamType> {
+        match str {
+            "UNKNOWN" => ::std::option::Option::Some(StreamType::UNKNOWN),
+            "STORAGE" => ::std::option::Option::Some(StreamType::STORAGE),
+            "STREAM" => ::std::option::Option::Some(StreamType::STREAM),
+            "ROOT" => ::std::option::Option::Some(StreamType::ROOT),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    const VALUES: &'static [StreamType] = &[
+        StreamType::UNKNOWN,
+        StreamType::STORAGE,
+        StreamType::STREAM,
+        StreamType::ROOT,
+    ];
+}
+
+impl ::protobuf::EnumFull for StreamType {
+    fn enum_descriptor() -> ::protobuf::reflect::EnumDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().enum_by_package_relative_name("StreamType").unwrap()).clone()
+    }
+
+    fn descriptor(&self) -> ::protobuf::reflect::EnumValueDescriptor {
+        let index = match self {
+            StreamType::UNKNOWN => 0,
+            StreamType::STORAGE => 1,
+            StreamType::STREAM => 2,
+            StreamType::ROOT => 3,
+        };
+        Self::enum_descriptor().value_by_index(index)
+    }
+}
+
+impl ::std::default::Default for StreamType {
+    fn default() -> Self {
+        StreamType::UNKNOWN
+    }
+}
+
+impl StreamType {
+    fn generated_enum_descriptor_data() -> ::protobuf::reflect::GeneratedEnumDescriptorData {
+        ::protobuf::reflect::GeneratedEnumDescriptorData::new::<StreamType>("StreamType")
+    }
+}
+
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n\x0bolecf.proto\x12\x05olecf\x1a\nyara.proto\"K\n\x05Olecf\x12\x19\n\
     \x08is_olecf\x18\x01\x20\x02(\x08R\x07isOlecf\x12'\n\x07streams\x18\x02\
-    \x20\x03(\x0b2\r.olecf.StreamR\x07streams\"0\n\x06Stream\x12\x12\n\x04na\
-    me\x18\x01\x20\x02(\tR\x04name\x12\x12\n\x04size\x18\x02\x20\x02(\x04R\
-    \x04sizeB&\xfa\x92\x19\"\n\x05olecf\x12\x0bolecf.Olecf\x1a\x0colecf-modu\
-    leb\x06proto2\
+    \x20\x03(\x0b2\r.olecf.StreamR\x07streams\"W\n\x06Stream\x12\x12\n\x04na\
+    me\x18\x01\x20\x02(\tR\x04name\x12%\n\x04type\x18\x02\x20\x02(\x0e2\x11.\
+    olecf.StreamTypeR\x04type\x12\x12\n\x04size\x18\x03\x20\x02(\x04R\x04siz\
+    e*<\n\nStreamType\x12\x0b\n\x07UNKNOWN\x10\0\x12\x0b\n\x07STORAGE\x10\
+    \x01\x12\n\n\x06STREAM\x10\x02\x12\x08\n\x04ROOT\x10\x05B&\xfa\x92\x19\"\
+    \n\x05olecf\x12\x0bolecf.Olecf\x1a\x0colecf-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -421,7 +543,8 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             let mut messages = ::std::vec::Vec::with_capacity(2);
             messages.push(Olecf::generated_message_descriptor_data());
             messages.push(Stream::generated_message_descriptor_data());
-            let mut enums = ::std::vec::Vec::with_capacity(0);
+            let mut enums = ::std::vec::Vec::with_capacity(1);
+            enums.push(StreamType::generated_enum_descriptor_data());
             ::protobuf::reflect::GeneratedFileDescriptor::new_generated(
                 file_descriptor_proto(),
                 deps,

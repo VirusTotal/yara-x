@@ -1,14 +1,20 @@
 is_olecf: true
 streams:
   - name: "Root Entry"
+    type: ROOT
     size: 128
   - name: "1Table"
+    type: STREAM
     size: 7273
   - name: "WordDocument"
+    type: STREAM
     size: 4096
   - name: "SummaryInformation"
+    type: STREAM
     size: 4096
   - name: "DocumentSummaryInformation"
+    type: STREAM
     size: 4096
   - name: "CompObj"
+    type: STREAM
     size: 114

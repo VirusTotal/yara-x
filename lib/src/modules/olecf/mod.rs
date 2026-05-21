@@ -27,6 +27,12 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Olecf, ModuleError> {
                     let mut s = Stream::new();
                     s.set_name(name.to_string());
                     s.set_size(entry.size);
+                    s.set_type(match entry.stream_type {
+                        1 => StreamType::STORAGE,
+                        2 => StreamType::STREAM,
+                        5 => StreamType::ROOT,
+                        _ => StreamType::UNKNOWN,
+                    });
                     s
                 })
                 .collect();
