@@ -72,7 +72,7 @@ assembly_refs:
 resources:
   - name: |
         
-        
+        
 classes:
   - fullname: "OctopusRPA.Csv.CsvHelper"
     name: "CsvHelper"
