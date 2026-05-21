@@ -344,7 +344,9 @@ impl<W: Write> Serializer<W> {
                         write!(
                             self.output,
                             "{}",
-                            line.paint(self.colors.string)
+                            line.strip_suffix('\r')
+                                .unwrap_or(line)
+                                .paint(self.colors.string)
                         )?;
                     }
                 } else {
