@@ -1,7 +1,6 @@
 # Files that must preserve LF line endings, even on Windows.
 *.formatted text eol=lf
 *.in text eol=lf
-*.out text eol=lf
 *.ast text eol=lf
 *.cst text eol=lf
 *.cststream text eol=lf
