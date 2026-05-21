@@ -62,11 +62,6 @@ impl<'a> VbaExtractor<'a> {
             let lowercase_name = name.to_lowercase();
 
             if lowercase_name != "dir"
-                && (lowercase_name.contains("module")
-                    || lowercase_name.contains("thisdocument")
-                    || lowercase_name.ends_with(".bas")
-                    || lowercase_name.ends_with(".cls")
-                    || lowercase_name.ends_with(".frm"))
                 && let Ok(data) = Self::read_stream_data(&ole_parser, name)
                 && !data.is_empty()
             {

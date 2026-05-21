@@ -38,6 +38,9 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
     while current < compressed.len() {
         // We need 2 bytes for the chunk header
         if current + 2 > compressed.len() {
+            if !decompressed.is_empty() {
+                break;
+            }
             return Err("Incomplete chunk header");
         }
 
@@ -52,11 +55,17 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
         current += 2;
 
         if chunk_is_compressed && chunk_size > 4095 {
+            if !decompressed.is_empty() {
+                break;
+            }
             return Err(
                 "CompressedChunkSize > 4095 but CompressedChunkFlag == 1",
             );
         }
         if !chunk_is_compressed && chunk_size != 4095 {
+            if !decompressed.is_empty() {
+                break;
+            }
             return Err(
                 "CompressedChunkSize != 4095 but CompressedChunkFlag == 0",
             );
@@ -77,10 +86,16 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
         let decompressed_chunk_start = decompressed.len();
 
         while current < chunk_end {
+            if decompressed.len() - decompressed_chunk_start >= 4096 {
+                break;
+            }
             let flag_byte = compressed[current];
             current += 1;
 
             for bit_index in 0..8 {
+                if decompressed.len() - decompressed_chunk_start >= 4096 {
+                    break;
+                }
                 if current >= chunk_end {
                     break;
                 }
@@ -124,6 +139,8 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
                 }
             }
         }
+
+        current = chunk_end;
     }
 
     Ok(decompressed)
@@ -314,13 +331,13 @@ fn parse_references(
 ) -> Result<(&[u8], Vec<String>), nom::Err<Error<'_>>> {
     let mut references = Vec::new();
     loop {
-        let (remainder, check) = le_u16.parse(input)?;
+        let (remainder, record_id) = le_u16.parse(input)?;
         input = remainder;
-        if check == 0x000F {
+        if record_id == 0x000F {
             break;
         }
 
-        match check {
+        match record_id {
             0x0016 => {
                 // REFERENCE Name
                 let (remainder, name) = length_data(le_u32)
@@ -340,45 +357,31 @@ fn parse_references(
                 input = remainder;
             }
             0x002F => {
-                // REFERENCECONTROL
+                // MS-OVBA 2.3.4.2.2.3 REFERENCECONTROL Record
+
+                // 1. Parse SizeTwips + Twips fields + SizeOfLibidOriginal + LibidOriginal + Reserved1 + Reserved2
                 let (remainder, _) = length_data(le_u32).parse(input)?;
 
-                let (remainder, _) = (
-                    verify(le_u32, |&val| val == 0x0000),
-                    verify(le_u16, |&val| val == 0x0000),
-                )
-                    .parse(remainder)?;
+                // 2. NameRecordExtended (optional, starts with 0x0016)
+                let (remainder, _) = opt((
+                    verify(le_u16, |&id| id == 0x0016),
+                    length_data(le_u32),
+                    verify(le_u16, |&id| id == 0x003E),
+                    length_data(le_u32),
+                ))
+                .parse(remainder)?;
 
-                let (remainder, maybe_check2) = le_u16.parse(remainder)?;
-                if maybe_check2 == 0x0016 {
-                    // Name record
-                    let (remainder, _) =
-                        length_data(le_u32).parse(remainder)?;
+                // 3. Parse Reserved3 (2 bytes, MUST be 0x0030)
+                let (remainder, _) =
+                    verify(le_u16, |&val| val == 0x0030).parse(remainder)?;
 
-                    let (remainder, _) = verify(le_u16, |&val| val == 0x003E)
-                        .parse(remainder)?;
-                    let (remainder, _) =
-                        length_data(le_u32).parse(remainder)?;
+                // 4. Parse the remaining fields:
+                let (remainder, _) = le_u32.parse(remainder)?; // Size
+                let (remainder, _) = length_data(le_u32).parse(remainder)?; // LibidExtended
+                let (remainder, _) = (le_u32, le_u16).parse(remainder)?; // Reserved
+                let (remainder, _) = take(16_usize).parse(remainder)?; // Reserved/Cookie
+                let (remainder, _) = le_u32.parse(remainder)?; // Cookie
 
-                    let (remainder, _) = verify(le_u16, |&val| val == 0x0030)
-                        .parse(remainder)?;
-                    input = remainder;
-                } else {
-                    // No name record, maybe_check2 is reserved3
-                    if maybe_check2 != 0x0030 {
-                        return Err(nom::Err::Error(nom::error::Error::new(
-                            input,
-                            nom::error::ErrorKind::Verify,
-                        )));
-                    }
-                    input = remainder;
-                }
-
-                let (remainder, _) = le_u32.parse(input)?;
-                let (remainder, _) = length_data(le_u32).parse(remainder)?;
-                let (remainder, _) = (le_u32, le_u16).parse(remainder)?;
-                let (remainder, _) = take(16_usize).parse(remainder)?;
-                let (remainder, _) = le_u32.parse(remainder)?;
                 input = remainder;
             }
             0x000D => {
@@ -542,7 +545,7 @@ fn parse_modules<'a>(
             if !code_data.is_empty() {
                 code = decompress_stream(code_data)
                     .ok()
-                    .and_then(|d| String::from_utf8(d).ok());
+                    .map(|s| String::from_utf8_lossy(&s).to_string());
             }
         }
 
