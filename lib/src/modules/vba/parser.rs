@@ -550,9 +550,11 @@ fn parse_modules<'a>(
         }
 
         if let Some(code) = code {
-            vba.module_names.push(module_name.to_string());
-            vba.module_types.push(::protobuf::EnumOrUnknown::new(module_type));
-            vba.module_codes.push(code);
+            let mut m = crate::modules::protos::vba::vba::Module::new();
+            m.set_name(module_name.to_string());
+            m.set_type(module_type);
+            m.set_code(code);
+            vba.modules.push(m);
         }
     }
 

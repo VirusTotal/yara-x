@@ -30,12 +30,8 @@ pub struct Vba {
     // message fields
     // @@protoc_insertion_point(field:vba.Vba.has_macros)
     pub has_macros: ::std::option::Option<bool>,
-    // @@protoc_insertion_point(field:vba.Vba.module_names)
-    pub module_names: ::std::vec::Vec<::std::string::String>,
-    // @@protoc_insertion_point(field:vba.Vba.module_types)
-    pub module_types: ::std::vec::Vec<::protobuf::EnumOrUnknown<ModuleType>>,
-    // @@protoc_insertion_point(field:vba.Vba.module_codes)
-    pub module_codes: ::std::vec::Vec<::std::string::String>,
+    // @@protoc_insertion_point(field:vba.Vba.modules)
+    pub modules: ::std::vec::Vec<vba::Module>,
     // @@protoc_insertion_point(field:vba.Vba.project_info)
     pub project_info: ::protobuf::MessageField<vba::ProjectInfo>,
     // special fields
@@ -74,7 +70,7 @@ impl Vba {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(5);
+        let mut fields = ::std::vec::Vec::with_capacity(3);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "has_macros",
@@ -82,19 +78,9 @@ impl Vba {
             |m: &mut Vba| { &mut m.has_macros },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
-            "module_names",
-            |m: &Vba| { &m.module_names },
-            |m: &mut Vba| { &mut m.module_names },
-        ));
-        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
-            "module_types",
-            |m: &Vba| { &m.module_types },
-            |m: &mut Vba| { &mut m.module_types },
-        ));
-        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
-            "module_codes",
-            |m: &Vba| { &m.module_codes },
-            |m: &mut Vba| { &mut m.module_codes },
+            "modules",
+            |m: &Vba| { &m.modules },
+            |m: &mut Vba| { &mut m.modules },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, vba::ProjectInfo>(
             "project_info",
@@ -123,16 +109,7 @@ impl ::protobuf::Message for Vba {
                     self.has_macros = ::std::option::Option::Some(is.read_bool()?);
                 },
                 18 => {
-                    self.module_names.push(is.read_string()?);
-                },
-                24 => {
-                    self.module_types.push(is.read_enum_or_unknown()?);
-                },
-                26 => {
-                    ::protobuf::rt::read_repeated_packed_enum_or_unknown_into(is, &mut self.module_types)?
-                },
-                34 => {
-                    self.module_codes.push(is.read_string()?);
+                    self.modules.push(is.read_message()?);
                 },
                 42 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.project_info)?;
@@ -152,14 +129,9 @@ impl ::protobuf::Message for Vba {
         if let Some(v) = self.has_macros {
             my_size += 1 + 1;
         }
-        for value in &self.module_names {
-            my_size += ::protobuf::rt::string_size(2, &value);
-        };
-        for value in &self.module_types {
-            my_size += ::protobuf::rt::int32_size(3, value.value());
-        };
-        for value in &self.module_codes {
-            my_size += ::protobuf::rt::string_size(4, &value);
+        for value in &self.modules {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         };
         if let Some(v) = self.project_info.as_ref() {
             let len = v.compute_size();
@@ -174,14 +146,8 @@ impl ::protobuf::Message for Vba {
         if let Some(v) = self.has_macros {
             os.write_bool(1, v)?;
         }
-        for v in &self.module_names {
-            os.write_string(2, &v)?;
-        };
-        for v in &self.module_types {
-            os.write_enum(3, ::protobuf::EnumOrUnknown::value(v))?;
-        };
-        for v in &self.module_codes {
-            os.write_string(4, &v)?;
+        for v in &self.modules {
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
         };
         if let Some(v) = self.project_info.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(5, v, os)?;
@@ -204,9 +170,7 @@ impl ::protobuf::Message for Vba {
 
     fn clear(&mut self) {
         self.has_macros = ::std::option::Option::None;
-        self.module_names.clear();
-        self.module_types.clear();
-        self.module_codes.clear();
+        self.modules.clear();
         self.project_info.clear();
         self.special_fields.clear();
     }
@@ -214,9 +178,7 @@ impl ::protobuf::Message for Vba {
     fn default_instance() -> &'static Vba {
         static instance: Vba = Vba {
             has_macros: ::std::option::Option::None,
-            module_names: ::std::vec::Vec::new(),
-            module_types: ::std::vec::Vec::new(),
-            module_codes: ::std::vec::Vec::new(),
+            modules: ::std::vec::Vec::new(),
             project_info: ::protobuf::MessageField::none(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
@@ -243,6 +205,258 @@ impl ::protobuf::reflect::ProtobufValue for Vba {
 
 /// Nested message and enums of message `Vba`
 pub mod vba {
+    // @@protoc_insertion_point(message:vba.Vba.Module)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct Module {
+        // message fields
+        // @@protoc_insertion_point(field:vba.Vba.Module.name)
+        pub name: ::std::option::Option<::std::string::String>,
+        // @@protoc_insertion_point(field:vba.Vba.Module.type)
+        pub type_: ::std::option::Option<::protobuf::EnumOrUnknown<super::ModuleType>>,
+        // @@protoc_insertion_point(field:vba.Vba.Module.code)
+        pub code: ::std::option::Option<::std::string::String>,
+        // special fields
+        // @@protoc_insertion_point(special_field:vba.Vba.Module.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a Module {
+        fn default() -> &'a Module {
+            <Module as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl Module {
+        pub fn new() -> Module {
+            ::std::default::Default::default()
+        }
+
+        // optional string name = 1;
+
+        pub fn name(&self) -> &str {
+            match self.name.as_ref() {
+                Some(v) => v,
+                None => "",
+            }
+        }
+
+        pub fn clear_name(&mut self) {
+            self.name = ::std::option::Option::None;
+        }
+
+        pub fn has_name(&self) -> bool {
+            self.name.is_some()
+        }
+
+        // Param is passed by value, moved
+        pub fn set_name(&mut self, v: ::std::string::String) {
+            self.name = ::std::option::Option::Some(v);
+        }
+
+        // Mutable pointer to the field.
+        // If field is not initialized, it is initialized with default value first.
+        pub fn mut_name(&mut self) -> &mut ::std::string::String {
+            if self.name.is_none() {
+                self.name = ::std::option::Option::Some(::std::string::String::new());
+            }
+            self.name.as_mut().unwrap()
+        }
+
+        // Take field
+        pub fn take_name(&mut self) -> ::std::string::String {
+            self.name.take().unwrap_or_else(|| ::std::string::String::new())
+        }
+
+        // optional .vba.ModuleType type = 2;
+
+        pub fn type_(&self) -> super::ModuleType {
+            match self.type_ {
+                Some(e) => e.enum_value_or(super::ModuleType::MODULE_TYPE_STANDARD),
+                None => super::ModuleType::MODULE_TYPE_STANDARD,
+            }
+        }
+
+        pub fn clear_type_(&mut self) {
+            self.type_ = ::std::option::Option::None;
+        }
+
+        pub fn has_type(&self) -> bool {
+            self.type_.is_some()
+        }
+
+        // Param is passed by value, moved
+        pub fn set_type(&mut self, v: super::ModuleType) {
+            self.type_ = ::std::option::Option::Some(::protobuf::EnumOrUnknown::new(v));
+        }
+
+        // optional string code = 3;
+
+        pub fn code(&self) -> &str {
+            match self.code.as_ref() {
+                Some(v) => v,
+                None => "",
+            }
+        }
+
+        pub fn clear_code(&mut self) {
+            self.code = ::std::option::Option::None;
+        }
+
+        pub fn has_code(&self) -> bool {
+            self.code.is_some()
+        }
+
+        // Param is passed by value, moved
+        pub fn set_code(&mut self, v: ::std::string::String) {
+            self.code = ::std::option::Option::Some(v);
+        }
+
+        // Mutable pointer to the field.
+        // If field is not initialized, it is initialized with default value first.
+        pub fn mut_code(&mut self) -> &mut ::std::string::String {
+            if self.code.is_none() {
+                self.code = ::std::option::Option::Some(::std::string::String::new());
+            }
+            self.code.as_mut().unwrap()
+        }
+
+        // Take field
+        pub fn take_code(&mut self) -> ::std::string::String {
+            self.code.take().unwrap_or_else(|| ::std::string::String::new())
+        }
+
+        pub(in super) fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+            let mut fields = ::std::vec::Vec::with_capacity(3);
+            let mut oneofs = ::std::vec::Vec::with_capacity(0);
+            fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+                "name",
+                |m: &Module| { &m.name },
+                |m: &mut Module| { &mut m.name },
+            ));
+            fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+                "type",
+                |m: &Module| { &m.type_ },
+                |m: &mut Module| { &mut m.type_ },
+            ));
+            fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+                "code",
+                |m: &Module| { &m.code },
+                |m: &mut Module| { &mut m.code },
+            ));
+            ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<Module>(
+                "Vba.Module",
+                fields,
+                oneofs,
+            )
+        }
+    }
+
+    impl ::protobuf::Message for Module {
+        const NAME: &'static str = "Module";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    10 => {
+                        self.name = ::std::option::Option::Some(is.read_string()?);
+                    },
+                    16 => {
+                        self.type_ = ::std::option::Option::Some(is.read_enum_or_unknown()?);
+                    },
+                    26 => {
+                        self.code = ::std::option::Option::Some(is.read_string()?);
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if let Some(v) = self.name.as_ref() {
+                my_size += ::protobuf::rt::string_size(1, &v);
+            }
+            if let Some(v) = self.type_ {
+                my_size += ::protobuf::rt::int32_size(2, v.value());
+            }
+            if let Some(v) = self.code.as_ref() {
+                my_size += ::protobuf::rt::string_size(3, &v);
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if let Some(v) = self.name.as_ref() {
+                os.write_string(1, v)?;
+            }
+            if let Some(v) = self.type_ {
+                os.write_enum(2, ::protobuf::EnumOrUnknown::value(&v))?;
+            }
+            if let Some(v) = self.code.as_ref() {
+                os.write_string(3, v)?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> Module {
+            Module::new()
+        }
+
+        fn clear(&mut self) {
+            self.name = ::std::option::Option::None;
+            self.type_ = ::std::option::Option::None;
+            self.code = ::std::option::Option::None;
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static Module {
+            static instance: Module = Module {
+                name: ::std::option::Option::None,
+                type_: ::std::option::Option::None,
+                code: ::std::option::Option::None,
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    impl ::protobuf::MessageFull for Module {
+        fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+            static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+            descriptor.get(|| super::file_descriptor().message_by_package_relative_name("Vba.Module").unwrap()).clone()
+        }
+    }
+
+    impl ::std::fmt::Display for Module {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+            ::protobuf::text_format::fmt(self, f)
+        }
+    }
+
+    impl ::protobuf::reflect::ProtobufValue for Module {
+        type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+    }
+
     // @@protoc_insertion_point(message:vba.Vba.ProjectInfo)
     #[derive(PartialEq,Clone,Default,Debug)]
     pub struct ProjectInfo {
@@ -584,19 +798,19 @@ impl ModuleType {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\tvba.proto\x12\x03vba\x1a\nyara.proto\"\xd7\x02\n\x03Vba\x12\x1d\n\nh\
-    as_macros\x18\x01\x20\x01(\x08R\thasMacros\x12!\n\x0cmodule_names\x18\
-    \x02\x20\x03(\tR\x0bmoduleNames\x122\n\x0cmodule_types\x18\x03\x20\x03(\
-    \x0e2\x0f.vba.ModuleTypeR\x0bmoduleTypes\x12!\n\x0cmodule_codes\x18\x04\
-    \x20\x03(\tR\x0bmoduleCodes\x127\n\x0cproject_info\x18\x05\x20\x01(\x0b2\
-    \x14.vba.Vba.ProjectInfoR\x0bprojectInfo\x1a~\n\x0bProjectInfo\x12\x12\n\
-    \x04name\x18\x01\x20\x01(\tR\x04name\x12\x18\n\x07version\x18\x02\x20\
-    \x01(\tR\x07version\x12\x1e\n\nreferences\x18\x03\x20\x03(\tR\nreference\
-    s\x12!\n\x0cmodule_count\x18\x04\x20\x01(\x05R\x0bmoduleCount*^\n\nModul\
-    eType\x12\x18\n\x14MODULE_TYPE_STANDARD\x10\x01\x12\x15\n\x11MODULE_TYPE\
-    _CLASS\x10\x02\x12\x17\n\x13MODULE_TYPE_UNKNOWN\x10\x03\x1a\x06\x92\x93\
-    \x19\x02\x10\x01B\x1e\xfa\x92\x19\x1a\n\x03vba\x12\x07vba.Vba\x1a\nvba-m\
-    oduleb\x06proto2\
+    \n\tvba.proto\x12\x03vba\x1a\nyara.proto\"\xdf\x02\n\x03Vba\x12\x1d\n\nh\
+    as_macros\x18\x01\x20\x01(\x08R\thasMacros\x12)\n\x07modules\x18\x02\x20\
+    \x03(\x0b2\x0f.vba.Vba.ModuleR\x07modules\x127\n\x0cproject_info\x18\x05\
+    \x20\x01(\x0b2\x14.vba.Vba.ProjectInfoR\x0bprojectInfo\x1aU\n\x06Module\
+    \x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12#\n\x04type\x18\x02\
+    \x20\x01(\x0e2\x0f.vba.ModuleTypeR\x04type\x12\x12\n\x04code\x18\x03\x20\
+    \x01(\tR\x04code\x1a~\n\x0bProjectInfo\x12\x12\n\x04name\x18\x01\x20\x01\
+    (\tR\x04name\x12\x18\n\x07version\x18\x02\x20\x01(\tR\x07version\x12\x1e\
+    \n\nreferences\x18\x03\x20\x03(\tR\nreferences\x12!\n\x0cmodule_count\
+    \x18\x04\x20\x01(\x05R\x0bmoduleCount*^\n\nModuleType\x12\x18\n\x14MODUL\
+    E_TYPE_STANDARD\x10\x01\x12\x15\n\x11MODULE_TYPE_CLASS\x10\x02\x12\x17\n\
+    \x13MODULE_TYPE_UNKNOWN\x10\x03\x1a\x06\x92\x93\x19\x02\x10\x01B\x1e\xfa\
+    \x92\x19\x1a\n\x03vba\x12\x07vba.Vba\x1a\nvba-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -615,8 +829,9 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
         let generated_file_descriptor = generated_file_descriptor_lazy.get(|| {
             let mut deps = ::std::vec::Vec::with_capacity(1);
             deps.push(super::yara::file_descriptor().clone());
-            let mut messages = ::std::vec::Vec::with_capacity(2);
+            let mut messages = ::std::vec::Vec::with_capacity(3);
             messages.push(Vba::generated_message_descriptor_data());
+            messages.push(vba::Module::generated_message_descriptor_data());
             messages.push(vba::ProjectInfo::generated_message_descriptor_data());
             let mut enums = ::std::vec::Vec::with_capacity(1);
             enums.push(ModuleType::generated_enum_descriptor_data());

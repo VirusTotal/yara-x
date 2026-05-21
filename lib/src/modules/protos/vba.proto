@@ -19,15 +19,14 @@ enum ModuleType {
 message Vba {
   // True if VBA macros are present
   optional bool has_macros = 1;
-  
-  // Names of VBA macro modules found
-  repeated string module_names = 2;
-  
-  // Type of each module (standard, class, form)
-  repeated ModuleType module_types = 3;
-  
-  // The actual VBA code for each module
-  repeated string module_codes = 4;
+  message Module {
+    optional string name = 1;
+    optional ModuleType type = 2;
+    optional string code = 3;
+  }
+
+  // VBA macro modules found
+  repeated Module modules = 2;
   
   // Project metadata
   message ProjectInfo {
