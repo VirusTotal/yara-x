@@ -70,7 +70,9 @@ assembly_refs:
         build_number: 0
         revision_number: 0
 resources:
-  - name: "\r\n"
+  - name: |
+        
+        
 classes:
   - fullname: "OctopusRPA.Csv.CsvHelper"
     name: "CsvHelper"
