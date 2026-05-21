@@ -303,7 +303,6 @@ pub fn parse<'a>(
     project_info.set_name(project_name.to_string());
     project_info.set_version(format!("{}.{}", version_major, version_minor));
     project_info.set_module_count(modules_count as i32);
-    project_info.set_is_compressed(true);
 
     vba.project_info = protobuf::MessageField::some(project_info);
 

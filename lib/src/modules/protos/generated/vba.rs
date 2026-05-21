@@ -255,8 +255,6 @@ pub mod vba {
         pub references: ::std::vec::Vec<::std::string::String>,
         // @@protoc_insertion_point(field:vba.Vba.ProjectInfo.module_count)
         pub module_count: ::std::option::Option<i32>,
-        // @@protoc_insertion_point(field:vba.Vba.ProjectInfo.is_compressed)
-        pub is_compressed: ::std::option::Option<bool>,
         // special fields
         // @@protoc_insertion_point(special_field:vba.Vba.ProjectInfo.special_fields)
         pub special_fields: ::protobuf::SpecialFields,
@@ -364,27 +362,8 @@ pub mod vba {
             self.module_count = ::std::option::Option::Some(v);
         }
 
-        // optional bool is_compressed = 5;
-
-        pub fn is_compressed(&self) -> bool {
-            self.is_compressed.unwrap_or(false)
-        }
-
-        pub fn clear_is_compressed(&mut self) {
-            self.is_compressed = ::std::option::Option::None;
-        }
-
-        pub fn has_is_compressed(&self) -> bool {
-            self.is_compressed.is_some()
-        }
-
-        // Param is passed by value, moved
-        pub fn set_is_compressed(&mut self, v: bool) {
-            self.is_compressed = ::std::option::Option::Some(v);
-        }
-
         pub(in super) fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-            let mut fields = ::std::vec::Vec::with_capacity(5);
+            let mut fields = ::std::vec::Vec::with_capacity(4);
             let mut oneofs = ::std::vec::Vec::with_capacity(0);
             fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
                 "name",
@@ -405,11 +384,6 @@ pub mod vba {
                 "module_count",
                 |m: &ProjectInfo| { &m.module_count },
                 |m: &mut ProjectInfo| { &mut m.module_count },
-            ));
-            fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-                "is_compressed",
-                |m: &ProjectInfo| { &m.is_compressed },
-                |m: &mut ProjectInfo| { &mut m.is_compressed },
             ));
             ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<ProjectInfo>(
                 "Vba.ProjectInfo",
@@ -441,9 +415,6 @@ pub mod vba {
                     32 => {
                         self.module_count = ::std::option::Option::Some(is.read_int32()?);
                     },
-                    40 => {
-                        self.is_compressed = ::std::option::Option::Some(is.read_bool()?);
-                    },
                     tag => {
                         ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                     },
@@ -468,9 +439,6 @@ pub mod vba {
             if let Some(v) = self.module_count {
                 my_size += ::protobuf::rt::int32_size(4, v);
             }
-            if let Some(v) = self.is_compressed {
-                my_size += 1 + 1;
-            }
             my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
             self.special_fields.cached_size().set(my_size as u32);
             my_size
@@ -488,9 +456,6 @@ pub mod vba {
             };
             if let Some(v) = self.module_count {
                 os.write_int32(4, v)?;
-            }
-            if let Some(v) = self.is_compressed {
-                os.write_bool(5, v)?;
             }
             os.write_unknown_fields(self.special_fields.unknown_fields())?;
             ::std::result::Result::Ok(())
@@ -513,7 +478,6 @@ pub mod vba {
             self.version = ::std::option::Option::None;
             self.references.clear();
             self.module_count = ::std::option::Option::None;
-            self.is_compressed = ::std::option::Option::None;
             self.special_fields.clear();
         }
 
@@ -523,7 +487,6 @@ pub mod vba {
                 version: ::std::option::Option::None,
                 references: ::std::vec::Vec::new(),
                 module_count: ::std::option::Option::None,
-                is_compressed: ::std::option::Option::None,
                 special_fields: ::protobuf::SpecialFields::new(),
             };
             &instance
@@ -621,18 +584,17 @@ impl ModuleType {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\tvba.proto\x12\x03vba\x1a\nyara.proto\"\xfd\x02\n\x03Vba\x12\x1d\n\nh\
+    \n\tvba.proto\x12\x03vba\x1a\nyara.proto\"\xd7\x02\n\x03Vba\x12\x1d\n\nh\
     as_macros\x18\x01\x20\x01(\x08R\thasMacros\x12!\n\x0cmodule_names\x18\
     \x02\x20\x03(\tR\x0bmoduleNames\x122\n\x0cmodule_types\x18\x03\x20\x03(\
     \x0e2\x0f.vba.ModuleTypeR\x0bmoduleTypes\x12!\n\x0cmodule_codes\x18\x04\
     \x20\x03(\tR\x0bmoduleCodes\x127\n\x0cproject_info\x18\x05\x20\x01(\x0b2\
-    \x14.vba.Vba.ProjectInfoR\x0bprojectInfo\x1a\xa3\x01\n\x0bProjectInfo\
-    \x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\x18\n\x07version\x18\
-    \x02\x20\x01(\tR\x07version\x12\x1e\n\nreferences\x18\x03\x20\x03(\tR\nr\
-    eferences\x12!\n\x0cmodule_count\x18\x04\x20\x01(\x05R\x0bmoduleCount\
-    \x12#\n\ris_compressed\x18\x05\x20\x01(\x08R\x0cisCompressed*^\n\nModule\
-    Type\x12\x18\n\x14MODULE_TYPE_STANDARD\x10\x01\x12\x15\n\x11MODULE_TYPE_\
-    CLASS\x10\x02\x12\x17\n\x13MODULE_TYPE_UNKNOWN\x10\x03\x1a\x06\x92\x93\
+    \x14.vba.Vba.ProjectInfoR\x0bprojectInfo\x1a~\n\x0bProjectInfo\x12\x12\n\
+    \x04name\x18\x01\x20\x01(\tR\x04name\x12\x18\n\x07version\x18\x02\x20\
+    \x01(\tR\x07version\x12\x1e\n\nreferences\x18\x03\x20\x03(\tR\nreference\
+    s\x12!\n\x0cmodule_count\x18\x04\x20\x01(\x05R\x0bmoduleCount*^\n\nModul\
+    eType\x12\x18\n\x14MODULE_TYPE_STANDARD\x10\x01\x12\x15\n\x11MODULE_TYPE\
+    _CLASS\x10\x02\x12\x17\n\x13MODULE_TYPE_UNKNOWN\x10\x03\x1a\x06\x92\x93\
     \x19\x02\x10\x01B\x1e\xfa\x92\x19\x1a\n\x03vba\x12\x07vba.Vba\x1a\nvba-m\
     oduleb\x06proto2\
 ";
