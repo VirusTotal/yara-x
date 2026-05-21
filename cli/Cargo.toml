@@ -53,6 +53,7 @@ anyhow = { workspace = true }
 ascii_tree = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 clap_complete = { workspace = true }
+encoding_rs = { workspace = true }
 figment = { workspace = true, features = ["toml"] }
 globwalk = { workspace = true }
 home = { workspace = true }
@@ -77,7 +78,6 @@ chardetng = "0.1.17"
 crossbeam = "0.8.4"
 crossterm = "0.29.0"
 dunce = "1.0.5"
-encoding_rs = "0.8.35"
 indicatif = "0.18.4"
 unicode-width = "0.2.2"
 wild = "2.2.1"

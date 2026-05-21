@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use nom::combinator::opt;
 use nom::multi::length_data;
 use nom::{
@@ -6,7 +8,6 @@ use nom::{
     combinator::verify,
     number::complete::{le_u16, le_u32},
 };
-use std::collections::HashMap;
 
 use crate::modules::protos::vba::vba::ProjectInfo;
 use crate::modules::protos::vba::{ModuleType, Vba};
@@ -199,7 +200,7 @@ pub fn parse<'a>(
     // -- PROJECTCODEPAGE Record
     // Specifies the codepage to be used for string decoding in the project.
     // See: [MS-OVBA] Section 2.3.4.2.1.5 PROJECTCODEPAGE Record
-    let (input, _) = (
+    let (input, (_, _, codepage)) = (
         verify(le_u16, |&id| id == 0x0003),
         verify(le_u32, |&size| size == 0x0002),
         le_u16,
@@ -212,7 +213,7 @@ pub fn parse<'a>(
     let (input, (_, project_name)) = (
         verify(le_u16, |&id| id == 0x0004),
         length_data(verify(le_u32, |&size| (1..=128).contains(&size)))
-            .map(String::from_utf8_lossy),
+            .map(|bytes| decode_string(bytes, codepage)),
     )
         .parse(input)?;
 
@@ -290,7 +291,7 @@ pub fn parse<'a>(
     // -- References
     // Parses references to libraries, controls, and other projects.
     // See: [MS-OVBA] Section 2.3.4.2.2 References Record
-    let (input, references) = parse_references(input)?;
+    let (input, references) = parse_references(input, codepage)?;
 
     // -- PROJECTMODULES Record
     // Specifies module block count of the project.
@@ -311,8 +312,13 @@ pub fn parse<'a>(
     // -- Modules
     // Parses module streams and decompresses MS-OVBA streams.
     // See: [MS-OVBA] Section 2.3.4.2.3.2 Modules
-    let (_input, _) =
-        parse_modules(input, modules_count, module_streams, &mut vba)?;
+    let (_input, _) = parse_modules(
+        input,
+        modules_count,
+        module_streams,
+        &mut vba,
+        codepage,
+    )?;
 
     let mut project_info = ProjectInfo::new();
     project_info.references = references;
@@ -328,6 +334,7 @@ pub fn parse<'a>(
 
 fn parse_references(
     mut input: &[u8],
+    codepage: u16,
 ) -> Result<(&[u8], Vec<String>), nom::Err<Error<'_>>> {
     let mut references = Vec::new();
     loop {
@@ -341,10 +348,10 @@ fn parse_references(
             0x0016 => {
                 // REFERENCE Name
                 let (remainder, name) = length_data(le_u32)
-                    .map(String::from_utf8_lossy)
+                    .map(|bytes| decode_string(bytes, codepage))
                     .parse(input)?;
 
-                references.push(name.to_string());
+                references.push(name);
 
                 let (remainder, _) =
                     verify(le_u16, |&val| val == 0x003E).parse(remainder)?;
@@ -419,6 +426,7 @@ fn parse_modules<'a>(
     modules_count: u16,
     module_streams: &HashMap<String, Vec<u8>>,
     vba: &mut Vba,
+    codepage: u16,
 ) -> Result<(&'a [u8], ()), nom::Err<Error<'a>>> {
     for _ in 0..modules_count {
         // MODULENAME record
@@ -426,7 +434,7 @@ fn parse_modules<'a>(
             verify(le_u16, |&id| id == 0x0019).parse(input)?;
 
         let (remainder, module_name) = length_data(le_u32)
-            .map(String::from_utf8_lossy)
+            .map(|bytes| decode_string(bytes, codepage))
             .parse(remainder)?;
 
         input = remainder;
@@ -448,7 +456,7 @@ fn parse_modules<'a>(
                 0x001A => {
                     // MODULESTREAMNAME
                     let (remainder, name) = length_data(le_u32)
-                        .map(String::from_utf8_lossy)
+                        .map(|bytes| decode_string(bytes, codepage))
                         .parse(input)?;
 
                     let (remainder, _) = verify(le_u16, |&val| val == 0x0032)
@@ -532,8 +540,8 @@ fn parse_modules<'a>(
         // Retrieve module code
         let mut code = None;
 
-        if let Some(stream_name) = stream_name
-            && let Some(module_data) = module_streams.get(stream_name.as_ref())
+        if let Some(stream_name) = stream_name.as_deref()
+            && let Some(module_data) = module_streams.get(stream_name)
         {
             if module_offset as usize >= module_data.len() {
                 return Err(nom::Err::Error(nom::error::Error::new(
@@ -545,7 +553,7 @@ fn parse_modules<'a>(
             if !code_data.is_empty() {
                 code = decompress_stream(code_data)
                     .ok()
-                    .map(|s| String::from_utf8_lossy(&s).to_string());
+                    .map(|s| decode_string(&s, codepage));
             }
         }
 
@@ -559,4 +567,13 @@ fn parse_modules<'a>(
     }
 
     Ok((input, ()))
+}
+
+fn decode_string(bytes: &[u8], codepage: u16) -> String {
+    if let Some(encoding) = codepage::to_encoding(codepage) {
+        let (decoded, _, _) = encoding.decode(bytes);
+        decoded.into_owned()
+    } else {
+        String::from_utf8_lossy(bytes).into_owned()
+    }
 }

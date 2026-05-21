@@ -537,6 +537,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "codepage"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48f68d061bc2828ae826206326e61251aca94c1e4a5305cf52d9138639c918b4"
+dependencies = [
+ "encoding_rs",
+]
+
+[[package]]
 name = "colorchoice"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4394,6 +4403,7 @@ dependencies = [
  "bitflags 2.11.0",
  "bitvec",
  "bstr",
+ "codepage",
  "const-oid",
  "crc32fast",
  "criterion",
@@ -4402,6 +4412,7 @@ dependencies = [
  "digest",
  "dsa",
  "ecdsa",
+ "encoding_rs",
  "getrandom 0.2.17",
  "globwalk",
  "goldenfile",

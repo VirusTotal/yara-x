@@ -234,6 +234,8 @@ time-module = []
 
 # The `vba` module
 vba-module = [
+    "dep:codepage",
+    "dep:encoding_rs",
     "dep:nom",
     "dep:zip",
 ]
@@ -285,6 +287,7 @@ bincode = { workspace = true, features = ["serde"] }
 bitflags = { workspace = true, features = ["serde"] }
 bitvec = { workspace = true }
 bstr = { workspace = true, features = ["serde"] }
+codepage = { workspace = true }
 const-oid = { workspace = true, optional = true, features = ["db"] }
 crc32fast = { workspace = true, optional = true }
 daachorse = { workspace = true }
@@ -292,6 +295,7 @@ der-parser = { workspace = true, optional = true, features = ["bigint"] }
 digest = { workspace = true, optional = true }
 dsa = { workspace = true, optional = true }
 ecdsa = { workspace = true, optional = true }
+encoding_rs = { workspace = true, optional = true }
 memmap2 = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 intaglio = { workspace = true }

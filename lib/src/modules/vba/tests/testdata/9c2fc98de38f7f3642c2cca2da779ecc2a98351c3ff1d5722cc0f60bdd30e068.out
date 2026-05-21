@@ -55,7 +55,7 @@ modules:
         Attribute VB_Control = "chbLocked, 169, 11, MSForms, CheckBox"
         Public deferred As Boolean
         
-        ' Code f�r Sprachwahl
+        ' Code für Sprachwahl
         Private Sub cbxLanguage_Change()
            If deferred Then
               deferred = False
@@ -73,10 +73,10 @@ modules:
             On Error Resume Next
             
             Dim alertUnlock(0 To 3) As String
-            alertUnlock(0) = "Achtung: TaxWare speichert nur die Werte in den vorgesehenen Eingabefeldern. Wenn Sie weitere Anpassungen an der Arbeitsmappe vornehmen, m�ssen Sie diese zwingend als Excel Datei speichern."
-            alertUnlock(1) = "Attention: TaxWare sauvegarde seulement les valeurs dans les champs de saisie appropri�s. Si vous faites d'autres modifications au classeur, vous devez l'enregistrer n�cessairement sous forme d'un fichier Excel."
+            alertUnlock(0) = "Achtung: TaxWare speichert nur die Werte in den vorgesehenen Eingabefeldern. Wenn Sie weitere Anpassungen an der Arbeitsmappe vornehmen, müssen Sie diese zwingend als Excel Datei speichern."
+            alertUnlock(1) = "Attention: TaxWare sauvegarde seulement les valeurs dans les champs de saisie appropriés. Si vous faites d'autres modifications au classeur, vous devez l'enregistrer nécessairement sous forme d'un fichier Excel."
             alertUnlock(2) = "Attention: TaxWare stores only the values in the appropriate input fields. If you make further changes to the workbook, you must save it as an Excel file."
-            alertUnlock(3) = "Attenzione: Taxware salva solo i valori nei campi di immissione appropriati. Se si apportano ulteriori modifiche alla cartella di lavoro, � necessario salvarlo come un file di Excel."
+            alertUnlock(3) = "Attenzione: Taxware salva solo i valori nei campi di immissione appropriati. Se si apportano ulteriori modifiche alla cartella di lavoro, è necessario salvarlo come un file di Excel."
             
             Dim langIndex As Integer
             langIndex = ActiveWorkbook.Names("tw_language").RefersToRange.Value - 2
@@ -188,7 +188,7 @@ modules:
             
            locked = ActiveWorkbook.Names("Locked").RefersToRange.Value 'default: false
             
-            'Freischaltung der Bl�tter, um Kommentarfelder umzubenennen
+            'Freischaltung der Blätter, um Kommentarfelder umzubenennen
             With ActiveWorkbook.Names("SheetProps").RefersToRange
               For row = 1 To .Rows.Count
                  Set aSheet = ActiveWorkbook.Sheets(.Cells(row, colID))
@@ -206,7 +206,7 @@ modules:
                 End If
             Next
             
-            'Schutz der Bl�tter
+            'Schutz der Blätter
             If locked Then
                 With ActiveWorkbook.Names("SheetProps").RefersToRange
                   For row = 1 To .Rows.Count
