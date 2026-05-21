@@ -287,7 +287,7 @@ bincode = { workspace = true, features = ["serde"] }
 bitflags = { workspace = true, features = ["serde"] }
 bitvec = { workspace = true }
 bstr = { workspace = true, features = ["serde"] }
-codepage = { workspace = true }
+codepage = { workspace = true, optional = true }
 const-oid = { workspace = true, optional = true, features = ["db"] }
 crc32fast = { workspace = true, optional = true }
 daachorse = { workspace = true }
