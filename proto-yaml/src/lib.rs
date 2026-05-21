@@ -337,11 +337,19 @@ impl<W: Write> Serializer<W> {
             ReflectValueRef::F64(v) => write!(self.output, "{v:.1}")?,
             ReflectValueRef::Bool(v) => write!(self.output, "{v}")?,
             ReflectValueRef::String(v) => {
-                write!(
-                    self.output,
-                    "\"{}\"",
-                    Self::escape(v).paint(self.colors.string)
-                )?;
+                if v.contains('\n') {
+                    write!(self.output, "{}", "|".paint(self.colors.string))?;
+                    for line in v.split('\n') {
+                        self.newline()?;
+                        write!(self.output, "{}", line.paint(self.colors.string))?;
+                    }
+                } else {
+                    write!(
+                        self.output,
+                        "\"{}\"",
+                        Self::escape(v).paint(self.colors.string)
+                    )?;
+                }
             }
             ReflectValueRef::Bytes(v) => {
                 write!(

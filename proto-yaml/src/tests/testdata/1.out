@@ -4,14 +4,18 @@ int32_dec: 123
 str: "foo"
 repeated_msg:
   - int32_dec: 456
-    str: "bar\nbar"
+    str: |
+        bar
+        bar
   - int32_dec: 789
     str: "foo\\bar"
     map_string_string:
         "foo\nbar": "bar"
 nested_msg:
     int32_dec: 1234
-    str: "qux\nfoo"
+    str: |
+        qux
+        foo
     map_string_string:
         "bar": "baz"
         "foo": "bar"
