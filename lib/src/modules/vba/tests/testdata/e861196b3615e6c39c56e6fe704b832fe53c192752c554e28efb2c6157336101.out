@@ -1,6 +1,6 @@
 has_macros: true
 modules:
-  - name: "BuÇalismaKitabi"
+  - name: "BuÇalışmaKitabı"
     type: MODULE_TYPE_CLASS
     code: |
         Attribute VB_Name = "BuÇalýþmaKitabý"

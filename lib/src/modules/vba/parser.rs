@@ -478,9 +478,11 @@ fn parse_modules<'a>(
 
         input = remainder;
 
-        let mut module_type = ModuleType::MODULE_TYPE_UNKNOWN;
-        let mut stream_name = None;
+        let mut stream_name: Option<String> = None;
+        let mut stream_name_unicode: Option<String> = None;
+        let mut module_name_unicode: Option<String> = None;
         let mut module_offset = 0u32;
+        let mut module_type = ModuleType::MODULE_TYPE_UNKNOWN;
 
         // Read sections until terminator 0x002B
         loop {
@@ -489,82 +491,68 @@ fn parse_modules<'a>(
             match section_id {
                 0x0047 => {
                     // MODULENAMEUNICODE
-                    let (remainder, _) = length_data(le_u32).parse(input)?;
-                    input = remainder;
+                    (input, module_name_unicode) = length_data(le_u32)
+                        .map(|name| decode_utf16(name).ok())
+                        .parse(input)?;
                 }
                 0x001A => {
                     // MODULESTREAMNAME
-                    let (remainder, name) = length_data(le_u32)
-                        .map(|bytes| decode_string(bytes, codepage))
+                    (input, (stream_name, _, _)) = (
+                        length_data(le_u32)
+                            .map(|bytes| Some(decode_string(bytes, codepage))),
+                        verify(le_u16, |&val| val == 0x0032),
+                        length_data(le_u32),
+                    )
                         .parse(input)?;
-
-                    let (remainder, _) = verify(le_u16, |&val| val == 0x0032)
-                        .parse(remainder)?;
-
-                    let (remainder, _) =
-                        length_data(le_u32).parse(remainder)?;
-
-                    stream_name = Some(name);
-                    input = remainder;
                 }
                 0x001C => {
                     // MODULEDOCSTRING
-                    let (remainder, _) = length_data(le_u32).parse(input)?;
-
-                    let (remainder, _) = verify(le_u16, |&val| val == 0x0048)
-                        .parse(remainder)?;
-
-                    let (remainder, _) =
-                        length_data(le_u32).parse(remainder)?;
-                    input = remainder;
+                    (input, (_, _, stream_name_unicode)) = (
+                        length_data(le_u32),
+                        verify(le_u16, |&val| val == 0x0048),
+                        length_data(le_u32)
+                            .map(|name| decode_utf16(name).ok()),
+                    )
+                        .parse(input)?;
                 }
                 0x0031 => {
                     // MODULEOFFSET
-                    let (remainder, _) =
-                        verify(le_u32, |&size| size == 0x0004).parse(input)?;
-                    let (remainder, offset) = le_u32.parse(remainder)?;
-                    module_offset = offset;
-                    input = remainder;
+                    (input, (_, module_offset)) =
+                        (verify(le_u32, |&size| size == 0x0004), le_u32)
+                            .parse(input)?;
                 }
                 0x001E => {
                     // MODULEHELPCONTEXT
-                    let (remainder, _) =
-                        verify(le_u32, |&size| size == 0x0004).parse(input)?;
-                    let (remainder, _) = le_u32.parse(remainder)?;
-                    input = remainder;
+                    (input, _) =
+                        (verify(le_u32, |&size| size == 0x0004), le_u32)
+                            .parse(input)?;
                 }
                 0x002C => {
                     // MODULECOOKIE
-                    let (remainder, _) =
-                        verify(le_u32, |&size| size == 0x0002).parse(input)?;
-                    let (remainder, _) = le_u16.parse(remainder)?;
-                    input = remainder;
+                    (input, _) =
+                        (verify(le_u32, |&size| size == 0x0002), le_u16)
+                            .parse(input)?;
                 }
                 0x0021 => {
                     module_type = ModuleType::MODULE_TYPE_STANDARD;
-                    let (remainder, _) = le_u32.parse(input)?;
-                    input = remainder;
+                    (input, _) = le_u32.parse(input)?;
                 }
                 0x0022 => {
                     module_type = ModuleType::MODULE_TYPE_CLASS;
-                    let (remainder, _) = le_u32.parse(input)?;
-                    input = remainder;
+                    (input, _) = le_u32.parse(input)?;
                 }
                 0x0025 => {
-                    let (remainder, _) =
+                    (input, _) =
                         verify(le_u32, |&val| val == 0x0000).parse(input)?;
-                    input = remainder;
                 }
                 0x0028 => {
-                    let (remainder, _) =
+                    (input, _) =
                         verify(le_u32, |&val| val == 0x0000).parse(input)?;
-                    input = remainder;
                 }
                 0x002B => {
                     // TERMINATOR
-                    let (remainder, _) =
+                    (input, _) =
                         verify(le_u32, |&val| val == 0x0000).parse(input)?;
-                    input = remainder;
                     break;
                 }
                 _ => {
@@ -579,20 +567,20 @@ fn parse_modules<'a>(
         // Retrieve module code
         let mut code = None;
 
-        // Lookup the stream data using the MODULESTREAMNAME key.
-        // If it fails (meaning the malware has spoofed or modified the stream
-        // names inside the dir stream), fallback to looking up using the
-        // MODULENAME key as a robust counter-measure.
-        // File 7c1bfa4a65cbc5c914eb4df0676d92d89001e96ac2719e5459108c983f4eef73
-        // is an example of this.
+        let stream_name =
+            stream_name_unicode.as_deref().or(stream_name.as_deref());
+
+        let module_name =
+            module_name_unicode.as_deref().unwrap_or(&module_name);
+
         let mut module_data = None;
-        if let Some(stream_name) = stream_name.as_deref() {
-            module_data = module_streams
-                .get(&normalize_name(&stream_name.to_lowercase()));
+
+        if let Some(name) = stream_name {
+            module_data = module_streams.get(&normalize_name(name));
         }
+
         if module_data.is_none() {
-            module_data = module_streams
-                .get(&normalize_name(&module_name.to_lowercase()));
+            module_data = module_streams.get(&normalize_name(module_name));
         }
 
         if let Some(module_data) = module_data {
@@ -621,10 +609,10 @@ fn parse_modules<'a>(
                         if (sig == 3 || sig == 4)
                             && let Ok(decompressed) =
                                 decompress_stream(&module_data[scan_offset..])
-                            {
-                                decompressed_res = Some(decompressed);
-                                break;
-                            }
+                        {
+                            decompressed_res = Some(decompressed);
+                            break;
+                        }
                     }
                     scan_offset += 1;
                 }
@@ -654,6 +642,17 @@ fn decode_string(bytes: &[u8], codepage: u16) -> String {
     } else {
         String::from_utf8_lossy(bytes).into_owned()
     }
+}
+
+fn decode_utf16(bytes: &[u8]) -> Result<String, &'static str> {
+    if bytes.len() % 2 != 0 {
+        return Err("Invalid UTF-16 byte length");
+    }
+    let u16_units: Vec<u16> = bytes
+        .chunks_exact(2)
+        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+        .collect();
+    String::from_utf16(&u16_units).map_err(|_| "Invalid UTF-16 data")
 }
 
 /// Normalizes stream and module names by converting to lowercase and mapping
