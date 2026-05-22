@@ -1,0 +1,44 @@
+has_macros: true
+modules:
+  - name: "BuÇalismaKitabi"
+    type: MODULE_TYPE_CLASS
+    code: |
+        Attribute VB_Name = "BuÇalýþmaKitabý"
+        Attribute VB_Base = "0{00020819-0000-0000-C000-000000000046}"
+        Attribute VB_GlobalNameSpace = False
+        Attribute VB_Creatable = False
+        Attribute VB_PredeclaredId = True
+        Attribute VB_Exposed = True
+        Attribute VB_TemplateDerived = False
+        Attribute VB_Customizable = True
+        
+  - name: "Sayfa1"
+    type: MODULE_TYPE_CLASS
+    code: |
+        Attribute VB_Name = "Sayfa1"
+        Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+        Attribute VB_GlobalNameSpace = False
+        Attribute VB_Creatable = False
+        Attribute VB_PredeclaredId = True
+        Attribute VB_Exposed = True
+        Attribute VB_TemplateDerived = False
+        Attribute VB_Customizable = True
+        
+  - name: "Module1"
+    type: MODULE_TYPE_STANDARD
+    code: |
+        Attribute VB_Name = "Module1"
+        Sub Auto_Open()
+            Dim payload As String
+            ' Bu kod bilgisayara zarar vermez, sadece sistemin analiz yeteneðini test etmek için Hesap Makinesini tetikler.
+            payload = "calc.exe"
+            Shell payload, vbNormalFocus
+        End Sub
+        
+project_info:
+    name: "VBAProject"
+    version: "1814717648.5"
+    references:
+      - "stdole"
+      - "Office"
+    module_count: 3

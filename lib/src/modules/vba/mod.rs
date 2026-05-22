@@ -22,6 +22,7 @@ struct VbaExtractor<'a> {
     data: &'a [u8],
 }
 
+
 impl<'a> VbaExtractor<'a> {
     fn new(data: &'a [u8]) -> Self {
         Self { data }
@@ -65,7 +66,7 @@ impl<'a> VbaExtractor<'a> {
                 && let Ok(data) = Self::read_stream_data(&ole_parser, name)
                 && !data.is_empty()
             {
-                modules.insert(lowercase_name, data);
+                modules.insert(parser::normalize_name(&lowercase_name), data);
             }
         }
 
