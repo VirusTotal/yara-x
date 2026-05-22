@@ -24,11 +24,19 @@ fn copytoken_help(difference: usize) -> (u16, u16, u32, u16) {
     (length_mask, offset_mask, bit_count, maximum_length)
 }
 
+/// Decompresses a VBA compressed stream according to the algorithm described
+/// in MS-OVBA Section 2.4.1.3.
+///
+/// The stream begins with a mandatory signature byte (0x01), followed by a
+/// sequence of CompressedChunk structures. Each chunk contains a 2-byte header
+/// indicating its size, whether it is compressed, and its valid chunk
+/// signature (which must be 3 or 4).
 pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
     if compressed.is_empty() {
         return Err("Empty input buffer");
     }
 
+    // Validate MS-OVBA signature byte (Section 2.4.1.3.1)
     if compressed[0] != 0x01 {
         return Err("Invalid signature byte");
     }
@@ -37,7 +45,7 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
     let mut current = 1; // Skip signature byte
 
     while current < compressed.len() {
-        // We need 2 bytes for the chunk header
+        // Ensure we have at least 2 bytes remaining to parse the chunk header.
         if current + 2 > compressed.len() {
             if !decompressed.is_empty() {
                 break;
@@ -50,11 +58,22 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
                 .try_into()
                 .map_err(|_| "Failed to parse chunk header")?,
         );
+
+        // Robust signature check: bits 12-14 must be 0b011 (3) or 0b100 (4).
+        // Trailing zero-filled sector padding has signature 0, which is cleanly
+        // filtered out.
+        let signature = (chunk_header & 0x7000) >> 12;
+        if signature != 3 && signature != 4 {
+            break;
+        }
+
         let chunk_size = (chunk_header & 0x0FFF) as usize + 3;
         let chunk_is_compressed = (chunk_header & 0x8000) != 0;
 
         current += 2;
 
+        // Section 2.4.1.3.11: If CompressedChunkFlag is 1, CompressedChunkSize
+        // must be <= 4095.
         if chunk_is_compressed && chunk_size > 4095 {
             if !decompressed.is_empty() {
                 break;
@@ -63,36 +82,45 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
                 "CompressedChunkSize > 4095 but CompressedChunkFlag == 1",
             );
         }
-        if !chunk_is_compressed && chunk_size != 4095 {
-            if !decompressed.is_empty() {
-                break;
-            }
-            return Err(
-                "CompressedChunkSize != 4095 but CompressedChunkFlag == 0",
-            );
-        }
 
         let chunk_end = std::cmp::min(compressed.len(), current + chunk_size);
 
+        // Handle uncompressed chunks (Section 2.4.1.3.11.2)
         if !chunk_is_compressed {
-            if current + 4096 > compressed.len() {
-                return Err("Incomplete uncompressed chunk");
+            let decompressed_size = if (chunk_header & 0x0FFF) == 4095 {
+                4096
+            } else {
+                (chunk_header & 0x0FFF) as usize
+            };
+
+            // Relaxed uncompressed chunk boundary handling:
+            // If the declared decompressed size extends past the physical
+            // stream boundary (due to standard compiler truncation or
+            // obfuscation), read only the available stream bytes.
+            let bytes_to_read =
+                std::cmp::min(decompressed_size, compressed.len() - current);
+            if bytes_to_read == 0 {
+                break;
             }
-            decompressed
-                .extend_from_slice(&compressed[current..current + 4096]);
-            current += 4096;
+            decompressed.extend_from_slice(
+                &compressed[current..current + bytes_to_read],
+            );
+            current += bytes_to_read;
             continue;
         }
 
+        // Handle compressed chunks (Section 2.4.1.3.11.1)
         let decompressed_chunk_start = decompressed.len();
 
         while current < chunk_end {
+            // A single chunk decompresses to at most 4096 bytes
             if decompressed.len() - decompressed_chunk_start >= 4096 {
                 break;
             }
             let flag_byte = compressed[current];
             current += 1;
 
+            // Iterate over the 8 bits in the flag byte (from LSB to MSB)
             for bit_index in 0..8 {
                 if decompressed.len() - decompressed_chunk_start >= 4096 {
                     break;
@@ -102,9 +130,11 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
                 }
 
                 if (flag_byte & (1 << bit_index)) == 0 {
+                    // Bit is 0: Literal byte (Section 2.4.1.3.11.1.1)
                     decompressed.push(compressed[current]);
                     current += 1;
                 } else {
+                    // Bit is 1: Copy token (Section 2.4.1.3.11.1.2)
                     if current + 2 > compressed.len() {
                         return Err("Incomplete copy token");
                     }
@@ -114,6 +144,9 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
                             .try_into()
                             .map_err(|_| "Failed to parse copy token")?,
                     );
+
+                    // Helper maps the bit count dynamically based on
+                    // decompressed offset
                     let (length_mask, offset_mask, bit_count, _) =
                         copytoken_help(
                             decompressed.len() - decompressed_chunk_start,
@@ -142,6 +175,12 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
         }
 
         current = chunk_end;
+    }
+
+    // Strip any trailing null bytes (0x00) from the decompressed stream buffer,
+    // cleaning up OLE sector padding artifacts.
+    while let Some(&0) = decompressed.last() {
+        decompressed.pop();
     }
 
     Ok(decompressed)
@@ -541,7 +580,8 @@ fn parse_modules<'a>(
         let mut code = None;
 
         if let Some(stream_name) = stream_name.as_deref()
-            && let Some(module_data) = module_streams.get(stream_name)
+            && let Some(module_data) =
+                module_streams.get(&stream_name.to_lowercase())
         {
             if module_offset as usize >= module_data.len() {
                 return Err(nom::Err::Error(nom::error::Error::new(

@@ -253,7 +253,16 @@ impl<'a> OLECFParser<'a> {
                         || entry.stream_type == STREAM_TYPE
                         || entry.stream_type == ROOT_STORAGE_TYPE
                     {
-                        self.dir_entries.insert(entry.name.clone(), entry);
+                        let overwrite = match self.dir_entries.get(&entry.name) {
+                            Some(existing) => {
+                                entry.stream_type == STREAM_TYPE
+                                    || existing.stream_type != STREAM_TYPE
+                            }
+                            None => true,
+                        };
+                        if overwrite {
+                            self.dir_entries.insert(entry.name.clone(), entry);
+                        }
                     }
                 }
                 entry_offset += DIRECTORY_ENTRY_SIZE;

@@ -65,7 +65,7 @@ impl<'a> VbaExtractor<'a> {
                 && let Ok(data) = Self::read_stream_data(&ole_parser, name)
                 && !data.is_empty()
             {
-                modules.insert(name.clone(), data);
+                modules.insert(lowercase_name, data);
             }
         }
 
