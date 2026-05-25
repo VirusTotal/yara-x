@@ -870,39 +870,30 @@ fn verify_signer_info(si: &SignerInfo, certs: &[Certificate<'_>]) -> bool {
     //
     let attrs_set = Set::new(Cow::Borrowed(si.raw_signed_attrs));
 
+    let mut buf = Vec::new();
+    attrs_set.write_der(&mut buf).unwrap();
+
     // Verify that the signature in `SignerInfo` is correct.
     match digest_algorithm {
         rfc5912::ID_MD_2 | rfc5912::MD_2_WITH_RSA_ENCRYPTION => {
-            let mut md2 = Md2::default();
-            attrs_set.write_der(&mut md2).unwrap();
-            key.verify_digest::<Md2>(md2.finalize(), si.signature)
+            key.verify_digest::<Md2>(Md2::digest(&buf), si.signature)
         }
         rfc5912::ID_MD_5 | rfc5912::MD_5_WITH_RSA_ENCRYPTION => {
-            let mut md5 = Md5::default();
-            attrs_set.write_der(&mut md5).unwrap();
-            key.verify_digest::<Md5>(md5.finalize(), si.signature)
+            key.verify_digest::<Md5>(Md5::digest(&buf), si.signature)
         }
         rfc5912::ID_SHA_1
         | rfc5912::SHA_1_WITH_RSA_ENCRYPTION
         | oid::SHA1_WITH_RSA_ENCRYPTION_OBSOLETE => {
-            let mut sha1 = Sha1::default();
-            attrs_set.write_der(&mut sha1).unwrap();
-            key.verify_digest::<Sha1>(sha1.finalize(), si.signature)
+            key.verify_digest::<Sha1>(Sha1::digest(&buf), si.signature)
         }
         rfc5912::ID_SHA_256 | rfc5912::SHA_256_WITH_RSA_ENCRYPTION => {
-            let mut sha256 = Sha256::default();
-            attrs_set.write_der(&mut sha256).unwrap();
-            key.verify_digest::<Sha256>(sha256.finalize(), si.signature)
+            key.verify_digest::<Sha256>(Sha256::digest(&buf), si.signature)
         }
         rfc5912::ID_SHA_384 | rfc5912::SHA_384_WITH_RSA_ENCRYPTION => {
-            let mut sha384 = Sha384::default();
-            attrs_set.write_der(&mut sha384).unwrap();
-            key.verify_digest::<Sha384>(sha384.finalize(), si.signature)
+            key.verify_digest::<Sha384>(Sha384::digest(&buf), si.signature)
         }
         rfc5912::ID_SHA_512 | rfc5912::SHA_512_WITH_RSA_ENCRYPTION => {
-            let mut sha512 = Sha512::default();
-            attrs_set.write_der(&mut sha512).unwrap();
-            key.verify_digest::<Sha512>(sha512.finalize(), si.signature)
+            key.verify_digest::<Sha512>(Sha512::digest(&buf), si.signature)
         }
         _ => {
             #[cfg(feature = "logging")]

@@ -72,7 +72,7 @@ fn import_md5(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
     let mut hasher = Md5::new();
     hasher.update(comma_separated_names.as_bytes());
 
-    let digest = format!("{:x}", hasher.finalize());
+    let digest = hex::encode(hasher.finalize());
 
     IMPORT_MD5_CACHE.with(|cache| {
         *cache.borrow_mut() = Some(digest.clone());

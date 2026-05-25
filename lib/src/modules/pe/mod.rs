@@ -263,7 +263,7 @@ fn imphash(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
         }
     }
 
-    let digest = format!("{:x}", md5_hash.finalize());
+    let digest = hex::encode(md5_hash.finalize());
 
     IMPHASH_CACHE.with(|cache| {
         *cache.borrow_mut() = Some(digest.clone());

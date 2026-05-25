@@ -100,7 +100,7 @@ fn signature(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<40>>> {
 
     let mut hasher = Sha1::new();
     hasher.update(data);
-    let digest = format!("{:x}", hasher.finalize());
+    let digest = hex::encode(hasher.finalize());
 
     SIGNATURE_CACHE.with(|cache| {
         *cache.borrow_mut() = Some(digest.clone());
