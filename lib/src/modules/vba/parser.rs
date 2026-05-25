@@ -70,8 +70,6 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
         let chunk_size = (chunk_header & 0x0FFF) as usize + 3;
         let chunk_is_compressed = (chunk_header & 0x8000) != 0;
 
-        current += 2;
-
         // Section 2.4.1.3.11: If CompressedChunkFlag is 1, CompressedChunkSize
         // must be <= 4095.
         if chunk_is_compressed && chunk_size > 4095 {
@@ -84,6 +82,9 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
         }
 
         let chunk_end = std::cmp::min(compressed.len(), current + chunk_size);
+
+        // Skip header.
+        current += 2;
 
         // Handle uncompressed chunks (Section 2.4.1.3.11.2)
         if !chunk_is_compressed {
