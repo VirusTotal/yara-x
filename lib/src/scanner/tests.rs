@@ -417,6 +417,36 @@ fn variables_2() {
 }
 
 #[test]
+fn variables_3() {
+    let mut compiler = crate::Compiler::new();
+
+    compiler
+        .define_global("some_array", json!(["foo", "bar", "baz"]))
+        .unwrap()
+        .add_source(
+            r#"
+        rule test {
+            condition:
+                for any s in some_array : ( s == "bar" )
+        }
+        "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(
+        scanner
+            .scan(&[])
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+}
+
+#[test]
 fn global_rules() {
     let mut compiler = crate::Compiler::new();
 
