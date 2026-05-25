@@ -646,7 +646,7 @@ fn decode_string(bytes: &[u8], codepage: u16) -> String {
 }
 
 fn decode_utf16(bytes: &[u8]) -> Result<String, &'static str> {
-    if bytes.len() % 2 != 0 {
+    if !bytes.len().is_multiple_of(2) {
         return Err("Invalid UTF-16 byte length");
     }
     let u16_units: Vec<u16> = bytes
