@@ -1,4 +1,3 @@
-// Self-contained SIMD vector utilities for Teddy extracted from aho-corasick.
 #![allow(dead_code)]
 use core::{
     fmt::Debug,
