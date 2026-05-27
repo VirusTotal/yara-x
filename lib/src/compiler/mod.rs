@@ -346,7 +346,7 @@ pub struct Compiler<'a> {
 
     /// Vector where the N-th boolean indicates whether the pattern with
     /// PatternId = N is a fast-scan pattern.
-    fast_scan_patterns: Vec<bool>,
+    fast_scan_patterns: bitvec::vec::BitVec,
 
     /// Map used for de-duplicating pattern. Keys are the pattern's IR and
     /// values are the `PatternId` assigned to each pattern. Every time a rule
@@ -487,7 +487,7 @@ impl<'a> Compiler<'a> {
             error_on_slow_pattern: false,
             error_on_slow_loop: false,
             next_pattern_id: PatternId(0),
-            fast_scan_patterns: Vec::new(),
+            fast_scan_patterns: bitvec::vec::BitVec::new(),
             current_namespace: default_namespace,
             features: FxHashSet::default(),
             warnings: Warnings::default(),
@@ -1732,7 +1732,7 @@ impl Compiler<'_> {
                 };
 
             if !pattern.fast_scan_allowed() {
-                self.fast_scan_patterns[usize::from(pattern_id)] = false;
+                self.fast_scan_patterns.set(usize::from(pattern_id), false);
             }
 
             let kind = match pattern.pattern() {

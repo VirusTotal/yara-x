@@ -164,7 +164,17 @@ pub struct Rules {
     /// in the source code, allowing them to be compiled into a unified
     /// set automata for single-pass evaluation.
     pub(in crate::compiler) regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
-    pub(in crate::compiler) fast_scan_patterns: Vec<bool>,
+
+    /// BitVec where the N-th bit indicates whether the pattern with
+    /// PatternId = N is a fast-scan pattern.
+    ///
+    /// A pattern can be fast-scanned if its occurrences are only evaluated
+    /// as simple boolean checks (e.g. `$a`), meaning the scanner can stop
+    /// tracking matches for it once the first match has been found. If a
+    /// pattern is used in a context that requires tracking all matches (such
+    /// as count `#a`, offset `@a`, length `!a`, anchored checks, or loop
+    /// equivalents), it cannot be fast-scanned.
+    pub(in crate::compiler) fast_scan_patterns: bitvec::vec::BitVec,
 }
 
 impl Rules {
@@ -569,7 +579,7 @@ impl Rules {
 
     #[inline]
     pub(crate) fn is_fast_scan(&self, pattern_id: PatternId) -> bool {
-        self.fast_scan_patterns[usize::from(pattern_id)]
+        *self.fast_scan_patterns.get(usize::from(pattern_id)).unwrap()
     }
 }
 

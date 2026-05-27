@@ -270,7 +270,7 @@ hex = { workspace = true }
 base64 = { workspace = true }
 bincode = { workspace = true, features = ["serde"] }
 bitflags = { workspace = true, features = ["serde"] }
-bitvec = { workspace = true }
+bitvec = { workspace = true, features = ["serde"] }
 bstr = { workspace = true, features = ["serde"] }
 const-oid = { workspace = true, optional = true, features = ["db"] }
 crc32fast = { workspace = true, optional = true }
