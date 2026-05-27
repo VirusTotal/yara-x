@@ -440,4 +440,3 @@ fn fast_scan() {
         .success()
         .stdout(predicate::str::contains("foo src/tests/testdata/dummy.file"));
 }
-
