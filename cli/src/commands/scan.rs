@@ -62,6 +62,9 @@ pub fn scan() -> Command {
                 .help("Print only the number of matches per file"),
             arg!(--"disable-console-logs")
                 .help("Disable printing console log messages"),
+            arg!(-f --"fast-scan")
+                .help("Enable fast-scan mode")
+                .long_help(help::FAST_SCAN_LONG_HELP),
             arg!(--"max-matches-per-pattern" <MATCHES>)
                 .help("Maximum number of matches per pattern")
                 .long_help(help::MAX_MATCHES_PER_PATTERN_LONG_HELP)
@@ -181,6 +184,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let scan_list = args.get_flag("scan-list");
     let recursive = args.get_one::<usize>("recursive");
     let no_mmap = args.get_flag("no-mmap");
+    let fast_scan = args.get_flag("fast-scan");
     let max_matches_per_pattern =
         args.get_one::<usize>("max-matches-per-pattern");
 
@@ -309,6 +313,10 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
             if no_mmap {
                 scanner.use_mmap(false);
+            }
+
+            if fast_scan {
+                scanner.fast_scan(true);
             }
 
             if let Some(max_matches_per_pattern) = max_matches_per_pattern {
