@@ -574,6 +574,18 @@ if the type of `value` is not one of the supported ones.
 
 Sets a timeout for each scan. Scans will abort after the specified `seconds`.
 
+#### .fast_scan(bool)
+
+Enables or disables fast scan mode.
+
+In fast scan mode, the scanner avoids tracking matches for patterns when it is
+not necessary (e.g. when a rule condition only performs a simple boolean check
+`$a`).
+
+Note that using fast scan mode implies that not all matches will be reported. 
+For instance, when iterating matches, you won't get all occurrences of the 
+pattern in the file, only the first one.
+
 ---------
 
 ### ScanOptions

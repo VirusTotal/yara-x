@@ -249,6 +249,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         identifier: pattern.identifier.clone(),
         in_use: false,
         span: pattern.span(),
+        fast_scan_allowed: true,
         pattern: Pattern::Text(LiteralPattern {
             flags,
             text,
@@ -305,6 +306,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
         identifier: pattern.identifier.clone(),
         in_use: false,
         span: pattern.span(),
+        fast_scan_allowed: true,
         pattern: Pattern::Hex(RegexpPattern {
             hir,
             flags: PatternFlags::Ascii,
@@ -440,6 +442,7 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
         identifier: pattern.identifier.clone(),
         in_use: false,
         span: pattern.span(),
+        fast_scan_allowed: true,
         pattern: Pattern::Regexp(RegexpPattern {
             flags,
             hir,
@@ -772,6 +775,10 @@ fn expr_from_ast(
                         pattern.make_non_anchorable();
                     }
 
+                    if !matches!(anchor, MatchAnchor::None) {
+                        pattern.disallow_fast_scan();
+                    }
+
                     ctx.ir.pattern_match(pattern_idx, anchor)
                 }
             }
@@ -805,13 +812,19 @@ fn expr_from_ast(
                     let range = range_from_ast(ctx, range)?;
                     let (pattern_idx, pattern) =
                         ctx.get_pattern_mut(&p.identifier)?;
-                    pattern.make_non_anchorable().mark_as_used();
+                    pattern
+                        .make_non_anchorable()
+                        .mark_as_used()
+                        .disallow_fast_scan();
                     ctx.ir.pattern_count(pattern_idx, Some(range))
                 }
                 (_, None) => {
                     let (pattern_idx, pattern) =
                         ctx.get_pattern_mut(&p.identifier)?;
-                    pattern.make_non_anchorable().mark_as_used();
+                    pattern
+                        .make_non_anchorable()
+                        .mark_as_used()
+                        .disallow_fast_scan();
                     ctx.ir.pattern_count(pattern_idx, None)
                 }
             }
@@ -847,13 +860,19 @@ fn expr_from_ast(
                         integer_in_range_from_ast(ctx, index, 1..=i64::MAX)?;
                     let (pattern_idx, pattern) =
                         ctx.get_pattern_mut(&p.identifier)?;
-                    pattern.make_non_anchorable().mark_as_used();
+                    pattern
+                        .make_non_anchorable()
+                        .mark_as_used()
+                        .disallow_fast_scan();
                     ctx.ir.pattern_offset(pattern_idx, Some(range))
                 }
                 (_, None) => {
                     let (pattern_idx, pattern) =
                         ctx.get_pattern_mut(&p.identifier)?;
-                    pattern.make_non_anchorable().mark_as_used();
+                    pattern
+                        .make_non_anchorable()
+                        .mark_as_used()
+                        .disallow_fast_scan();
                     ctx.ir.pattern_offset(pattern_idx, None)
                 }
             }
@@ -889,13 +908,19 @@ fn expr_from_ast(
                         integer_in_range_from_ast(ctx, index, 1..=i64::MAX)?;
                     let (pattern_idx, pattern) =
                         ctx.get_pattern_mut(&p.identifier)?;
-                    pattern.make_non_anchorable().mark_as_used();
+                    pattern
+                        .make_non_anchorable()
+                        .mark_as_used()
+                        .disallow_fast_scan();
                     ctx.ir.pattern_length(pattern_idx, Some(index))
                 }
                 (_, None) => {
                     let (pattern_idx, pattern) =
                         ctx.get_pattern_mut(&p.identifier)?;
-                    pattern.make_non_anchorable().mark_as_used();
+                    pattern
+                        .make_non_anchorable()
+                        .mark_as_used()
+                        .disallow_fast_scan();
                     ctx.ir.pattern_length(pattern_idx, None)
                 }
             }
@@ -1246,6 +1271,34 @@ fn for_of_expr_from_ast(
     ctx.for_of_depth += 1;
 
     let body = bool_expr_from_ast(ctx, &for_of.body)?;
+
+    let mut allow_fast_scan = true;
+
+    for event in ctx.ir.dfs_iter(body) {
+        if let dfs::Event::Enter((_, expr, _)) = event
+            && (matches!(
+                expr,
+                Expr::PatternCountVar { .. }
+                    | Expr::PatternOffsetVar { .. }
+                    | Expr::PatternLengthVar { .. }
+            ) || (match expr {
+                Expr::PatternMatchVar { anchor, .. } => {
+                    !matches!(anchor, MatchAnchor::None)
+                }
+                _ => false,
+            }))
+        {
+            allow_fast_scan = false;
+            break;
+        }
+    }
+
+    if !allow_fast_scan {
+        for &pattern_idx in &pattern_set {
+            ctx.current_rule_patterns[pattern_idx.as_usize()]
+                .disallow_fast_scan();
+        }
+    }
 
     ctx.for_of_depth -= 1;
     ctx.symbol_table.pop();

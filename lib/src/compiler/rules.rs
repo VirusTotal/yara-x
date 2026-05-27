@@ -33,7 +33,7 @@ const MAGIC: &[u8] = b"YARA-X\0\0";
 ///
 /// This version is incremented every time a change is made to the binary
 /// format in a way that breaks backwards compatibility.
-const SERIALIZATION_VERSION: u32 = 1;
+const SERIALIZATION_VERSION: u32 = 2;
 
 /// Aho-Corasick automaton bundled with an optional Teddy scanner if the
 /// number of patterns is low enough. If the Teddy scanner is present, and
@@ -164,6 +164,7 @@ pub struct Rules {
     /// in the source code, allowing them to be compiled into a unified
     /// set automata for single-pass evaluation.
     pub(in crate::compiler) regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
+    pub(in crate::compiler) fast_scan_patterns: Vec<bool>,
 }
 
 impl Rules {
@@ -564,6 +565,11 @@ impl Rules {
         pattern_id: PatternId,
     ) -> Option<&FilesizeBounds> {
         self.filesize_bounds.get(&pattern_id)
+    }
+
+    #[inline]
+    pub(crate) fn is_fast_scan(&self, pattern_id: PatternId) -> bool {
+        self.fast_scan_patterns[usize::from(pattern_id)]
     }
 }
 

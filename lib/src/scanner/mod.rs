@@ -227,6 +227,21 @@ impl<'r> Scanner<'r> {
         self
     }
 
+    /// Enables or disables fast scan mode.
+    ///
+    /// In fast scan mode, the scanner avoids tracking matches for patterns
+    /// when it is not necessary (e.g. when a rule condition only performs a
+    /// simple boolean check `$a`).
+    ///
+    /// Note that using fast scan mode implies that not all matches will be
+    /// reported. For instance, when iterating matches using [`ScanResults`],
+    /// you won't get all occurrences of the pattern in the file, only the first
+    /// one.
+    pub fn fast_scan(&mut self, yes: bool) -> &mut Self {
+        self.scan_context_mut().tracker.fast_scan = yes;
+        self
+    }
+
     /// Specifies whether [`Scanner::scan_file`] and [`Scanner::scan_file_with_options`]
     /// may use memory-mapped files to read input.
     ///

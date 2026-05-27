@@ -280,6 +280,21 @@ impl<'r> Scanner<'r> {
         self
     }
 
+    /// Enables or disables fast scan mode.
+    ///
+    /// In fast scan mode, the scanner avoids tracking matches for patterns
+    /// when it is not necessary (e.g. when a rule condition only performs a
+    /// simple boolean check `$a`).
+    ///
+    /// Note that using fast scan mode implies that not all matches will be
+    /// reported. For instance, when iterating matches using [`ScanResults`],
+    /// you won't get all occurrences of the pattern in the file, only the first
+    /// one.
+    pub fn fast_scan(&mut self, yes: bool) -> &mut Self {
+        self.scan_context_mut().tracker.fast_scan = yes;
+        self
+    }
+
     /// Sets a callback that is invoked every time a YARA rule calls the
     /// `console` module.
     ///
@@ -560,5 +575,40 @@ mod tests {
         let results = scanner.finish().unwrap();
 
         assert_eq!(results.matching_rules().len(), 1);
+    }
+
+    #[test]
+    fn block_scanner_fast_scan() {
+        let rules = compile(
+            r#"
+            rule test {
+                strings:
+                    $a = "foo"
+                condition:
+                    $a
+            }"#,
+        )
+        .unwrap();
+
+        let mut scanner = Scanner::new(&rules);
+        let results = scanner
+            .fast_scan(true)
+            .scan(0, b"foofoofoo")
+            .unwrap()
+            .finish()
+            .unwrap();
+
+        assert_eq!(results.matching_rules().len(), 1);
+
+        let rule = results.matching_rules().next().unwrap();
+        let pattern = rule.patterns().next().unwrap();
+        let mut matches = pattern.matches();
+
+        // Only a single match is returned because of the fast scan mode!
+        let match1 = matches.next().unwrap();
+        assert_eq!(match1.data(), b"foo".as_slice());
+        assert_eq!(match1.range(), 0..3);
+
+        assert!(matches.next().is_none());
     }
 }

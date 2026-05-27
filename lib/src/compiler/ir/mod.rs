@@ -107,6 +107,7 @@ pub(crate) struct PatternInRule<'src> {
     pattern: Pattern,
     span: Span,
     in_use: bool,
+    fast_scan_allowed: bool,
 }
 
 impl<'src> PatternInRule<'src> {
@@ -181,6 +182,27 @@ impl<'src> PatternInRule<'src> {
     /// to indicate that the pattern is in use.
     pub fn mark_as_used(&mut self) -> &mut Self {
         self.in_use = true;
+        self
+    }
+
+    /// Returns true if this pattern can be fast-scanned.
+    ///
+    /// A pattern can be fast-scanned if its occurrences are only evaluated
+    /// as simple boolean checks (e.g. `$a`), meaning the scanner can stop
+    /// tracking matches for it once the first match has been found.
+    #[inline]
+    pub fn fast_scan_allowed(&self) -> bool {
+        self.fast_scan_allowed
+    }
+
+    /// Disallows fast-scanning for this pattern.
+    ///
+    /// This is called when the pattern is used in a context that requires
+    /// tracking all matches (such as count `#a`, offset `@a`, length `!a`,
+    /// anchored checks, or loop equivalents).
+    #[inline]
+    pub fn disallow_fast_scan(&mut self) -> &mut Self {
+        self.fast_scan_allowed = false;
         self
     }
 }
@@ -1560,7 +1582,7 @@ impl IR {
     pub fn matches_regex_set(
         &mut self,
         lhs: ExprId,
-        regex_set: crate::compiler::RegexSetId,
+        regex_set: RegexSetId,
     ) -> ExprId {
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[lhs.0 as usize] = expr_id;

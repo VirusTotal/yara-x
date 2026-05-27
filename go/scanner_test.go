@@ -160,3 +160,21 @@ func BenchmarkScan(b *testing.B) {
 		}
 	}
 }
+
+func TestScannerFastScan(t *testing.T) {
+	r, _ := Compile(`
+    rule t {
+        strings:
+            $a = "foo"
+        condition:
+            $a
+    }`)
+	s := NewScanner(r)
+	s.FastScan(true)
+	scanResults, _ := s.Scan([]byte("foofoofoo"))
+	matchingRules := scanResults.MatchingRules()
+
+	assert.Len(t, matchingRules, 1)
+	assert.Len(t, matchingRules[0].Patterns(), 1)
+	assert.Len(t, matchingRules[0].Patterns()[0].Matches(), 1)
+}

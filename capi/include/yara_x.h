@@ -703,6 +703,19 @@ void yrx_scanner_destroy(struct YRX_SCANNER *scanner);
 enum YRX_RESULT yrx_scanner_set_timeout(struct YRX_SCANNER *scanner,
                                         uint64_t timeout);
 
+// Enables or disables fast scan mode for the scanner.
+//
+// In fast scan mode, the scanner avoids tracking matches for patterns when it
+// is not necessary (e.g. when a rule condition only performs a simple boolean
+// check `$a`).
+//
+// Note that using fast scan mode implies that not all matches will be
+// reported. For instance, when iterating matches using [`ScanResults`],
+// you won't get all occurrences of the pattern in the file, only the first
+// one.
+enum YRX_RESULT yrx_scanner_fast_scan(struct YRX_SCANNER *scanner,
+                                      bool yes);
+
 // Scans a data buffer.
 //
 // `data` can be null as long as `len` is 0. In such cases its handled as

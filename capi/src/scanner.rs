@@ -34,6 +34,19 @@ impl<'r> InnerScanner<'r> {
         self
     }
 
+    fn fast_scan(&mut self, yes: bool) -> &mut Self {
+        match self {
+            InnerScanner::SingleBlock(s) => {
+                s.fast_scan(yes);
+            }
+            InnerScanner::MultiBlock(s) => {
+                s.fast_scan(yes);
+            }
+            InnerScanner::None => unreachable!(),
+        }
+        self
+    }
+
     fn make_multi_block(&mut self) -> &mut yara_x::blocks::Scanner<'r> {
         // Already a multi-block scanner, nothing else to do.
         if let Self::MultiBlock(s) = self {
@@ -149,6 +162,31 @@ pub unsafe extern "C" fn yrx_scanner_set_timeout(
     };
 
     scanner.inner.set_timeout(Duration::from_secs(timeout));
+
+    YRX_RESULT::YRX_SUCCESS
+}
+
+/// Enables or disables fast scan mode for the scanner.
+///
+/// In fast scan mode, the scanner avoids tracking matches for patterns when it
+/// is not necessary (e.g. when a rule condition only performs a simple boolean
+/// check `$a`).
+///
+/// Note that using fast scan mode implies that not all matches will be
+/// reported. For instance, when iterating matches using [`ScanResults`],
+/// you won't get all occurrences of the pattern in the file, only the first
+/// one.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn yrx_scanner_fast_scan(
+    scanner: *mut YRX_SCANNER,
+    yes: bool,
+) -> YRX_RESULT {
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+    };
+
+    scanner.inner.fast_scan(yes);
 
     YRX_RESULT::YRX_SUCCESS
 }

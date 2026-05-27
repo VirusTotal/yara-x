@@ -344,6 +344,10 @@ pub struct Compiler<'a> {
     /// Next (not used yet) [`PatternId`].
     next_pattern_id: PatternId,
 
+    /// Vector where the N-th boolean indicates whether the pattern with
+    /// PatternId = N is a fast-scan pattern.
+    fast_scan_patterns: Vec<bool>,
+
     /// Map used for de-duplicating pattern. Keys are the pattern's IR and
     /// values are the `PatternId` assigned to each pattern. Every time a rule
     /// declares a pattern, this map is used for determining if the same
@@ -483,6 +487,7 @@ impl<'a> Compiler<'a> {
             error_on_slow_pattern: false,
             error_on_slow_loop: false,
             next_pattern_id: PatternId(0),
+            fast_scan_patterns: Vec::new(),
             current_namespace: default_namespace,
             features: FxHashSet::default(),
             warnings: Warnings::default(),
@@ -809,6 +814,7 @@ impl<'a> Compiler<'a> {
             warnings: self.warnings.into(),
             filesize_bounds: self.filesize_bounds,
             regex_sets: self.regex_sets,
+            fast_scan_patterns: self.fast_scan_patterns,
         };
 
         rules.build_ac_automaton();
@@ -1190,6 +1196,7 @@ impl Compiler<'_> {
             re_code_len: self.re_code.len(),
             sub_patterns_len: self.sub_patterns.len(),
             symbol_table_len: self.symbol_table.len(),
+            fast_scan_patterns_len: self.fast_scan_patterns.len(),
         }
     }
 
@@ -1204,6 +1211,7 @@ impl Compiler<'_> {
         self.re_code.truncate(snapshot.re_code_len);
         self.atoms.truncate(snapshot.atoms_len);
         self.symbol_table.truncate(snapshot.symbol_table_len);
+        self.fast_scan_patterns.truncate(snapshot.fast_scan_patterns_len);
 
         // Pattern IDs that are >= next_pattern_id, are being discarded. Any pattern
         // or file size bound associated to such IDs must be removed.
@@ -1716,11 +1724,16 @@ impl Compiler<'_> {
                     Entry::Vacant(entry) => {
                         let pattern_id = self.next_pattern_id;
                         self.next_pattern_id.incr(1);
+                        self.fast_scan_patterns.push(true);
                         pending_patterns.insert(pattern_id);
                         entry.insert(pattern_id);
                         pattern_id
                     }
                 };
+
+            if !pattern.fast_scan_allowed() {
+                self.fast_scan_patterns[usize::from(pattern_id)] = false;
+            }
 
             let kind = match pattern.pattern() {
                 Pattern::Text(_) => PatternKind::Text,
@@ -2994,6 +3007,7 @@ struct Snapshot {
     re_code_len: usize,
     sub_patterns_len: usize,
     symbol_table_len: usize,
+    fast_scan_patterns_len: usize,
 }
 
 /// Represents a list of warnings.

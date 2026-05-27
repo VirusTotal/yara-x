@@ -67,6 +67,7 @@ pub(crate) struct MatchTracker<'r> {
     pub unconfirmed_matches: FxHashMap<SubPatternId, Vec<UnconfirmedMatch>>,
     pub limit_reached: FxHashSet<PatternId>,
     pub compiled_rules: &'r Rules,
+    pub fast_scan: bool,
 }
 
 /// Structure that holds information about WASM memories and variables used
@@ -1745,7 +1746,12 @@ fn track_pattern_match(
 
     bits.set(pattern_id.into(), true);
 
-    if !tracker.pattern_matches.add(pattern_id, match_, replace_if_longer) {
+    let added =
+        tracker.pattern_matches.add(pattern_id, match_, replace_if_longer);
+    if !added
+        || (tracker.fast_scan
+            && tracker.compiled_rules.is_fast_scan(pattern_id))
+    {
         tracker.limit_reached.insert(pattern_id);
     }
 }
@@ -1909,6 +1915,7 @@ pub fn create_wasm_store_and_ctx<'r>(
             unconfirmed_matches: FxHashMap::default(),
             limit_reached: FxHashSet::default(),
             compiled_rules: rules,
+            fast_scan: false,
         },
         deadline: 0,
         regex_cache: RefCell::new(FxHashMap::default()),

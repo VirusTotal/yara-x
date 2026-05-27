@@ -116,6 +116,20 @@ func (s *Scanner) SetTimeout(timeout time.Duration) {
 	runtime.KeepAlive(s)
 }
 
+// FastScan enables or disables fast scan mode.
+//
+// In fast scan mode, the scanner avoids tracking matches for patterns when it
+// is not necessary (e.g. when a rule condition only performs a simple boolean
+// check `$a`).
+//
+// Note that using fast scan mode implies that not all matches will be
+// reported. For instance, when iterating matches, you won't get all occurrences
+// of the pattern in the file, only the first one.
+func (s *Scanner) FastScan(yes bool) {
+	C.yrx_scanner_fast_scan(s.cScanner, C.bool(yes))
+	runtime.KeepAlive(s)
+}
+
 var ErrTimeout = errors.New("timeout")
 
 // SetGlobal sets the value of a global variable.
