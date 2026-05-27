@@ -124,14 +124,17 @@ pub fn exec_fix_encoding(
             })?;
 
             // Detect the original encoding.
-            let mut detector = chardetng::EncodingDetector::new();
+            let mut detector = chardetng::EncodingDetector::new(
+                chardetng::Iso2022JpDetection::Allow,
+            );
             detector.feed(src.as_slice(), true);
 
             // Decode the source file as UTF-8. `invalid_chars` will be true
             // if some character could not be encoded as UTF-8 and was replaced
             // by the replacement character.
-            let (src_utf8, encoding, invalid_chars) =
-                detector.guess(None, true).decode(src.as_slice());
+            let (src_utf8, encoding, invalid_chars) = detector
+                .guess(None, chardetng::Utf8Detection::Allow)
+                .decode(src.as_slice());
 
             // Re-write the source as UTF-8, except if --dry-run was used or
             // the original source was not modified at all.
