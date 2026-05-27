@@ -12,7 +12,7 @@ rust-version.workspace = true
 proc-macro = true
 
 [dependencies]
-darling = "0.20.11"
-syn = { version = "2.0.103", features = ["full", "derive", "parsing", "visit"] }
+darling = "0.23.0"
+syn = { version = "2.0.117", features = ["full", "derive", "parsing", "visit"] }
 quote = "1.0"
-proc-macro2 = "1.0.95"
+proc-macro2 = "1.0.106"

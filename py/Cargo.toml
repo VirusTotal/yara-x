@@ -55,7 +55,7 @@ default = [
 [dependencies]
 base64 = { workspace = true }
 protobuf = { workspace = true }
-pyo3 = { version = "0.28.2", features = [
+pyo3 = { version = "0.28.3", features = [
     "abi3",
     "abi3-py38",
     "extension-module",
@@ -71,4 +71,4 @@ yara-x-fmt = { workspace = true }
 yara-x-parser = { workspace = true }
 
 [build-dependencies]
-pyo3-build-config = "0.28.2"
+pyo3-build-config = "0.28.3"
