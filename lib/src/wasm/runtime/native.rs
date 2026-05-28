@@ -10,8 +10,8 @@ pub use wasmtime::Caller;
 /// Wasmtime types re-exported by the native runtime.
 pub(crate) use wasmtime::{
     AsContext, AsContextMut, Config, Engine, Extern, FuncType, Global,
-    GlobalType, Instance, Memory, MemoryType, Mutability, OptLevel,
-    Store, TypedFunc, Val, ValRaw, ValType,
+    GlobalType, Instance, Memory, MemoryType, Mutability, OptLevel, Store,
+    TypedFunc, Val, ValRaw, ValType,
 };
 
 #[derive(Clone)]
@@ -44,10 +44,8 @@ impl Module {
         std::thread::Builder::new()
             .name("yara-x-wasm-deserializer".to_string())
             .stack_size(8 * 1024 * 1024) // 8MB stack size
-            .spawn(move || {
-                unsafe {
-                    wasmtime::Module::deserialize(&engine, &bytes).map(Module)
-                }
+            .spawn(move || unsafe {
+                wasmtime::Module::deserialize(&engine, &bytes).map(Module)
             })
             .unwrap()
             .join()
