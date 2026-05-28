@@ -455,7 +455,7 @@ impl<'a> Match<'a, '_> {
     /// and some extra bytes at its left and right. The returned range indicates
     /// the portion of the slice that corresponds to the match itself.
     ///
-    /// Calling this function only makes sense if [`Scanner::match_context_size`]
+    /// Calling this function only makes sense if [`crate::Scanner::match_context_size`]
     /// is used for indicating how many bytes at the left and right of each
     /// match are desired. Otherwise, this function will return the same result
     /// as [`Match::data`].

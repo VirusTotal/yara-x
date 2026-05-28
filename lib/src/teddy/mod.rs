@@ -1,6 +1,6 @@
 /*! Teddy is a SIMD accelerated multiple substring matching algorithm.
 
-This implementation was taken from https://github.com/BurntSushi/aho-corasick
+This implementation was taken from <https://github.com/BurntSushi/aho-corasick>
 with minor modifications.
 
 */
