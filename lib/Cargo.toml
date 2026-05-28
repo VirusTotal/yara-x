@@ -104,7 +104,7 @@ parallel-compilation = ["wasmtime/parallel-compilation"]
 # compiled directly to native host machine instructions at runtime. This yields
 # maximum execution performance but requires executable memory pages (which may
 # be restricted in sandbox/secure environments) and is limited to architectures
-#natively supported by Cranelift.
+# natively supported by Cranelift.
 #
 # Enabling the `pulley` feature tells wasmtime to interpret the conditions using
 # the portable Pulley bytecode instruction virtual machine instead. This 

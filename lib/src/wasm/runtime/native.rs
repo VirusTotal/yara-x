@@ -3,10 +3,13 @@
 //! This adapter exists only to normalize a couple of APIs so the rest of the
 //! crate can talk to native and custom runtimes through the same interface.
 
+use std::mem::transmute;
+
 use crate::errors::SerializationError;
 use anyhow::anyhow;
-use std::mem::transmute;
+
 pub use wasmtime::Caller;
+
 /// Wasmtime types re-exported by the native runtime.
 pub(crate) use wasmtime::{
     AsContext, AsContextMut, Config, Engine, Extern, FuncType, Global,
@@ -15,43 +18,34 @@ pub(crate) use wasmtime::{
 };
 
 #[derive(Clone)]
-pub(crate) struct Module(pub(crate) wasmtime::Module);
+pub(crate) struct Module(wasmtime::Module);
 
 impl Module {
     pub fn from_binary(
-        engine: &wasmtime::Engine,
+        engine: &Engine,
         binary: &[u8],
     ) -> wasmtime::Result<Self> {
-        let binary = binary.to_vec();
-        let engine = engine.clone();
-        std::thread::Builder::new()
-            .name("yara-x-wasm-compiler".to_string())
-            .stack_size(8 * 1024 * 1024) // 8MB stack size
-            .spawn(move || {
-                wasmtime::Module::from_binary(&engine, &binary).map(Module)
-            })
-            .unwrap()
-            .join()
-            .unwrap()
+        std::thread::scope(|s| {
+            std::thread::Builder::new()
+                .name("yara-x-wasm-compiler".to_string())
+                .stack_size(8 * 1024 * 1024) // 8MB stack size
+                .spawn_scoped(s, || {
+                    wasmtime::Module::from_binary(engine, binary).map(Module)
+                })
+                .unwrap()
+                .join()
+                .unwrap()
+        })
     }
 
-    pub unsafe fn deserialize(
-        engine: &wasmtime::Engine,
+    pub fn deserialize(
+        engine: &Engine,
         bytes: impl AsRef<[u8]>,
     ) -> wasmtime::Result<Self> {
-        let bytes = bytes.as_ref().to_vec();
-        let engine = engine.clone();
-        std::thread::Builder::new()
-            .name("yara-x-wasm-deserializer".to_string())
-            .stack_size(8 * 1024 * 1024) // 8MB stack size
-            .spawn(move || unsafe {
-                wasmtime::Module::deserialize(&engine, &bytes).map(Module)
-            })
-            .unwrap()
-            .join()
-            .unwrap()
+        unsafe { wasmtime::Module::deserialize(engine, bytes).map(Module) }
     }
 
+    #[allow(dead_code)]
     pub fn serialize(&self) -> wasmtime::Result<Vec<u8>> {
         self.0.serialize()
     }
@@ -71,7 +65,7 @@ pub(crate) type TrampolineResult = wasmtime::Result<()>;
 
 impl<T: 'static> Linker<T> {
     /// Creates a new linker.
-    pub fn new(engine: &Engine) -> Self {
+    pub fn new(engine: &wasmtime::Engine) -> Self {
         Self(wasmtime::Linker::new(engine))
     }
 
