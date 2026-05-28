@@ -374,6 +374,10 @@ impl<'a, 'r> Pattern<'a, 'r> {
     }
 
     /// Returns the matches found for this pattern.
+    ///
+    /// The returned matches are affected by [`crate::Scanner::fast_scan`].
+    /// If fast scan mode is enabled, not all matches are guaranteed to be
+    /// returned.
     pub fn matches(&self) -> Matches<'a, 'r> {
         Matches {
             ctx: self.ctx,
