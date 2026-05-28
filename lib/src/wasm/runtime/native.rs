@@ -10,9 +10,54 @@ pub use wasmtime::Caller;
 /// Wasmtime types re-exported by the native runtime.
 pub(crate) use wasmtime::{
     AsContext, AsContextMut, Config, Engine, Extern, FuncType, Global,
-    GlobalType, Instance, Memory, MemoryType, Module, Mutability, OptLevel,
+    GlobalType, Instance, Memory, MemoryType, Mutability, OptLevel,
     Store, TypedFunc, Val, ValRaw, ValType,
 };
+
+#[derive(Clone)]
+pub(crate) struct Module(pub(crate) wasmtime::Module);
+
+impl Module {
+    pub fn from_binary(
+        engine: &wasmtime::Engine,
+        binary: &[u8],
+    ) -> wasmtime::Result<Self> {
+        let binary = binary.to_vec();
+        let engine = engine.clone();
+        std::thread::Builder::new()
+            .name("yara-x-wasm-compiler".to_string())
+            .stack_size(8 * 1024 * 1024) // 8MB stack size
+            .spawn(move || {
+                wasmtime::Module::from_binary(&engine, &binary).map(Module)
+            })
+            .unwrap()
+            .join()
+            .unwrap()
+    }
+
+    pub unsafe fn deserialize(
+        engine: &wasmtime::Engine,
+        bytes: impl AsRef<[u8]>,
+    ) -> wasmtime::Result<Self> {
+        let bytes = bytes.as_ref().to_vec();
+        let engine = engine.clone();
+        std::thread::Builder::new()
+            .name("yara-x-wasm-deserializer".to_string())
+            .stack_size(8 * 1024 * 1024) // 8MB stack size
+            .spawn(move || {
+                unsafe {
+                    wasmtime::Module::deserialize(&engine, &bytes).map(Module)
+                }
+            })
+            .unwrap()
+            .join()
+            .unwrap()
+    }
+
+    pub fn serialize(&self) -> wasmtime::Result<Vec<u8>> {
+        self.0.serialize()
+    }
+}
 
 /// Thin wrapper around [`wasmtime::Linker`] with a backend-neutral API.
 pub(crate) struct Linker<T>(wasmtime::Linker<T>);
@@ -80,7 +125,7 @@ impl<T: 'static> Linker<T> {
         module: &Module,
     ) -> Result<Instance, SerializationError> {
         self.0
-            .instantiate(store, module)
+            .instantiate(store, &module.0)
             .map_err(|e| SerializationError::InvalidWASM(anyhow!(e)))
     }
 }
