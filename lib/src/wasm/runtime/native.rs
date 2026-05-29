@@ -25,17 +25,27 @@ impl Module {
         engine: &Engine,
         binary: &[u8],
     ) -> wasmtime::Result<Self> {
-        std::thread::scope(|s| {
-            std::thread::Builder::new()
-                .name("yara-x-wasm-compiler".to_string())
-                .stack_size(8 * 1024 * 1024) // 8MB stack size
-                .spawn_scoped(s, || {
-                    wasmtime::Module::from_binary(engine, binary).map(Module)
-                })
-                .unwrap()
-                .join()
-                .unwrap()
-        })
+        if cfg!(target_env = "musl") {
+            // Under musl, the default stack size for threads can be very small
+            // (typically 128 KB), which is insufficient for the deep call stacks
+            // required by Wasmtime/Cranelift during WebAssembly compilation.
+            // To avoid stack overflow crashes, we compile the WebAssembly module
+            // in a separate thread with a guaranteed 8 MB stack size.
+            std::thread::scope(|s| {
+                std::thread::Builder::new()
+                    .name("yara-x-wasm-compiler".to_string())
+                    .stack_size(8 * 1024 * 1024) // 8MB stack size
+                    .spawn_scoped(s, || {
+                        wasmtime::Module::from_binary(engine, binary)
+                            .map(Module)
+                    })
+                    .unwrap()
+                    .join()
+                    .unwrap()
+            })
+        } else {
+            wasmtime::Module::from_binary(engine, binary).map(Module)
+        }
     }
 
     pub fn deserialize(
