@@ -229,14 +229,55 @@ impl<'r> Scanner<'r> {
 
     /// Enables or disables fast scan mode.
     ///
-    /// In fast scan mode, the scanner avoids tracking matches for patterns
-    /// when it is not necessary (e.g. when a rule condition only performs a
-    /// simple boolean check `$a`).
+    /// During rule compilation, the compiler analyzes rule conditions to
+    /// identify patterns that are only ever used in simple boolean existence
+    /// checks (e.g., `$a` in YARA). If a pattern is never queried for its match
+    /// count (`#a`), specific match offset (`@a`), match length (`!a`), or
+    /// evaluated inside a loop, it is classified as a fast-scan pattern.
+    ///
+    /// In fast scan mode, the scanner optimizes scans by stopping the search
+    /// and match tracking for these fast-scan patterns once their **very first
+    /// match** is found. Subsequent occurrences in the input data are ignored,
+    /// preventing redundant Aho-Corasick scans, regex evaluations, and match
+    /// memory allocations.
     ///
     /// Note that using fast scan mode implies that not all matches will be
     /// reported. For instance, when iterating matches using [`ScanResults`],
     /// you won't get all occurrences of the pattern in the file, only the first
     /// one.
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// # use yara_x::{Compiler, Scanner};
+    /// let mut compiler = Compiler::new();
+    /// compiler.add_source(r#"
+    ///     rule test {
+    ///         strings:
+    ///             $a = "abc"
+    ///         condition:
+    ///             $a
+    ///     }
+    /// "#).unwrap();
+    ///
+    /// let rules = compiler.build();
+    /// let mut scanner = Scanner::new(&rules);
+    ///
+    /// // Enable fast scan mode.
+    /// scanner.fast_scan(true);
+    ///
+    /// // The haystack contains two matches of "abc".
+    /// let results = scanner.scan(b"abc...abc").unwrap();
+    ///
+    /// // Find the matching rule.
+    /// let matching_rule = results.matching_rules().next().unwrap();
+    ///
+    /// // Only a single match is returned for pattern $a.
+    /// let pattern = matching_rule.patterns().next().unwrap();
+    /// let mut matches = pattern.matches();
+    /// assert_eq!(matches.next().unwrap().range().start, 0); // The first match
+    /// assert!(matches.next().is_none()); // No other matches are returned
+    /// ```
     pub fn fast_scan(&mut self, yes: bool) -> &mut Self {
         self.scan_context_mut().tracker.fast_scan = yes;
         self

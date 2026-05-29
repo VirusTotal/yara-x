@@ -710,7 +710,7 @@ enum YRX_RESULT yrx_scanner_set_timeout(struct YRX_SCANNER *scanner,
 // check `$a`).
 //
 // Note that using fast scan mode implies that not all matches will be
-// reported. For instance, when iterating matches using [`ScanResults`],
+// reported. For instance, when iterating matches using [`yara_x::ScanResults`],
 // you won't get all occurrences of the pattern in the file, only the first
 // one.
 enum YRX_RESULT yrx_scanner_fast_scan(struct YRX_SCANNER *scanner,
