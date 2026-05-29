@@ -24,7 +24,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 
 use crate::compiler::{
-    NamespaceId, PatternId, RegexId, RegexSetId, RuleId, Rules, SubPattern,
+    NamespaceId, PatternId, RegexId, RuleId, Rules, SubPattern,
     SubPatternAtom, SubPatternFlags, SubPatternId,
 };
 use crate::errors::VariableError;
@@ -153,15 +153,6 @@ pub struct ScanContext<'r, 'd> {
     /// is evaluated, it is compiled the first time and stored in this hash
     /// map.
     pub(crate) regex_cache: RefCell<FxHashMap<RegexId, Regex>>,
-    /// Persistent cache for grouped `RegexSet` automata.
-    ///
-    /// Like individual regular expressions, compiling a multi-pattern
-    /// `RegexSet` is an expensive operation. This cache compiles the set
-    /// automata lazily upon the very first match request and preserves the
-    /// compiled automata across all subsequent scans performed by the
-    /// scanner instance.
-    pub(crate) regex_set_cache:
-        RefCell<FxHashMap<RegexSetId, regex::bytes::RegexSet>>,
     /// Engines for custom base64 alphabets used by base64 string modifiers.
     ///
     /// These engines are derived from rule literals and reused across scans.
@@ -306,11 +297,7 @@ impl ScanContext<'_, '_> {
         set_id: crate::compiler::RegexSetId,
         haystack: &[u8],
     ) -> bool {
-        let mut automata_cache = self.regex_set_cache.borrow_mut();
-        let regex_set = automata_cache
-            .entry(set_id)
-            .or_insert_with(|| self.compiled_rules.get_regex_set(set_id));
-        regex_set.is_match(haystack)
+        self.compiled_rules.get_regex_set(set_id).is_match(haystack)
     }
 
     /// Returns the protobuf struct produced by a module.
@@ -1919,7 +1906,6 @@ pub fn create_wasm_store_and_ctx<'r>(
         },
         deadline: 0,
         regex_cache: RefCell::new(FxHashMap::default()),
-        regex_set_cache: RefCell::new(FxHashMap::default()),
         vm: VM {
             pike_vm: PikeVM::new(rules.re_code()),
             fast_vm: FastVM::new(rules.re_code()),

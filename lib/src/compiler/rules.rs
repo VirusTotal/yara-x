@@ -2,6 +2,7 @@ use std::fmt;
 use std::io::{BufWriter, Read, Write};
 use std::ops::{Bound, RangeBounds};
 use std::slice::Iter;
+use std::sync::OnceLock;
 #[cfg(feature = "logging")]
 use std::time::Instant;
 
@@ -164,6 +165,16 @@ pub struct Rules {
     /// in the source code, allowing them to be compiled into a unified
     /// set automata for single-pass evaluation.
     pub(in crate::compiler) regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
+
+    /// Lazily compiled `RegexSet` automata shared by all scanners using these
+    /// rules.
+    ///
+    /// The definitions in `regex_sets` are serialized with the rules, but the
+    /// compiled automata are runtime-only. Sharing this cache at the `Rules`
+    /// level avoids rebuilding the same `RegexSet` once per scanner/thread.
+    #[serde(skip)]
+    pub(in crate::compiler) compiled_regex_sets:
+        OnceLock<FxHashMap<RegexSetId, OnceLock<regex::bytes::RegexSet>>>,
 
     /// BitVec where the N-th bit indicates whether the pattern with
     /// PatternId = N is a fast-scan pattern.
@@ -375,7 +386,25 @@ impl Rules {
     pub(crate) fn get_regex_set(
         &self,
         set_id: RegexSetId,
-    ) -> regex::bytes::RegexSet {
+    ) -> &regex::bytes::RegexSet {
+        let compiled_regex_sets = self.compiled_regex_sets.get_or_init(|| {
+            let mut regex_sets = FxHashMap::default();
+            regex_sets.reserve(self.regex_sets.len());
+            for &set_id in self.regex_sets.keys() {
+                regex_sets.insert(set_id, OnceLock::new());
+            }
+            regex_sets
+        });
+
+        let regex_set = compiled_regex_sets
+            .get(&set_id)
+            .unwrap_or_else(|| panic!("invalid RegexSetId: {set_id:?}"));
+
+        regex_set.get_or_init(|| self.build_regex_set(set_id))
+    }
+
+    /// Builds the `RegexSet` automaton for a given [`RegexSetId`].
+    fn build_regex_set(&self, set_id: RegexSetId) -> regex::bytes::RegexSet {
         let re_ids = self.regex_sets.get(&set_id).unwrap();
         let mut patterns = Vec::with_capacity(re_ids.len());
 

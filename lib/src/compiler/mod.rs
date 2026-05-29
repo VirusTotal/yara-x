@@ -814,6 +814,7 @@ impl<'a> Compiler<'a> {
             warnings: self.warnings.into(),
             filesize_bounds: self.filesize_bounds,
             regex_sets: self.regex_sets,
+            compiled_regex_sets: Default::default(),
             fast_scan_patterns: self.fast_scan_patterns,
         };
 
