@@ -621,9 +621,7 @@ where
 {
     let bytes: Option<&[u8]> = Deserialize::deserialize(deserializer)?;
     let module = if let Some(bytes) = bytes {
-        unsafe {
-            wasm::runtime::Module::deserialize(wasm::get_engine(), bytes).ok()
-        }
+        wasm::runtime::Module::deserialize(wasm::get_engine(), bytes).ok()
     } else {
         None
     };
