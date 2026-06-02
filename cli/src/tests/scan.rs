@@ -440,3 +440,14 @@ fn fast_scan() {
         .success()
         .stdout(predicate::str::contains("foo src/tests/testdata/dummy.file"));
 }
+
+#[test]
+fn cpu_limit() {
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--cpu-limit=50")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success();
+}

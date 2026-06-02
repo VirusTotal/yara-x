@@ -98,6 +98,18 @@ Prints the number of matching rules per file. Instead of printing the
 names of the rules that matches each file, it prints the number the
 total number of rules matching each file.
 
+### --cpu-limit \<PERCENTAGE\>
+
+Limit the CPU usage of the scan (percentage from 1 to 99).
+
+This option dynamically restricts CPU utilization per scan thread to the
+specified percentage. The scanner achieves this by measuring the exact 
+duration spent scanning each file and introducing a sleep delay before 
+moving to the next file.
+
+This is useful for running background scan tasks on production servers 
+or multi-user systems without saturating CPU capacity.
+
 ### --define <VAR=VALUE>
 
 Defines external variables.
