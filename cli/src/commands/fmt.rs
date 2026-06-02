@@ -14,7 +14,7 @@ pub fn fmt() -> Command {
     super::command("fmt")
         .about("Format YARA source files")
         .arg(
-            arg!(<FILE>)
+            arg!(<PATH>)
                 .help("Path to YARA source file or directory")
                 .required(true)
                 .value_parser(value_parser!(PathBuf))
@@ -42,7 +42,7 @@ pub fn fmt() -> Command {
 }
 
 pub fn exec_fmt(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
-    let files = args.get_many::<PathBuf>("FILE").unwrap();
+    let paths = args.get_many::<PathBuf>("PATH").unwrap();
     let check = args.get_flag("check");
     let tab_size = args.get_one::<usize>("tab-size").unwrap();
     let recursive = args.get_one::<usize>("recursive");
@@ -68,8 +68,8 @@ pub fn exec_fmt(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
     let mut modified_files: Vec<PathBuf> = Vec::new();
 
-    for file in files {
-        let mut walker = walk::Walker::path(file);
+    for path in paths {
+        let mut walker = walk::Walker::path(path);
         if let Some(recursive) = recursive {
             walker.max_depth(*recursive);
         } else {
