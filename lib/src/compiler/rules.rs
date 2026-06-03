@@ -170,11 +170,12 @@ pub struct Rules {
     /// rules.
     ///
     /// The definitions in `regex_sets` are serialized with the rules, but the
-    /// compiled automata are runtime-only. Sharing this cache at the `Rules`
-    /// level avoids rebuilding the same `RegexSet` once per scanner/thread.
+    /// compiled automata are runtime-only. The vector is initialized when the
+    /// [`Rules`] are built or deserialized, while each individual `RegexSet`
+    /// is compiled lazily on first use.
     #[serde(skip)]
     pub(in crate::compiler) compiled_regex_sets:
-        OnceLock<FxHashMap<RegexSetId, OnceLock<regex::bytes::RegexSet>>>,
+        Vec<OnceLock<regex::bytes::RegexSet>>,
 
     /// BitVec where the N-th bit indicates whether the pattern with
     /// PatternId = N is a fast-scan pattern.
@@ -279,6 +280,7 @@ impl Rules {
             info!("WASM build time: {:?}", Instant::elapsed(&start));
         }
 
+        rules.init_regex_set_cache();
         rules.build_ac_automaton();
 
         Ok(rules)
@@ -381,23 +383,21 @@ impl Rules {
             })
     }
 
+    /// Initializes the runtime-only cache for compiled `RegexSet` automata.
+    pub(in crate::compiler) fn init_regex_set_cache(&mut self) {
+        self.compiled_regex_sets =
+            (0..self.regex_sets.len()).map(|_| OnceLock::new()).collect();
+    }
+
     /// Returns a compiled multi-pattern `RegexSet` for a given `RegexSetId`.
     #[inline]
     pub(crate) fn get_regex_set(
         &self,
         set_id: RegexSetId,
     ) -> &regex::bytes::RegexSet {
-        let compiled_regex_sets = self.compiled_regex_sets.get_or_init(|| {
-            let mut regex_sets = FxHashMap::default();
-            regex_sets.reserve(self.regex_sets.len());
-            for &set_id in self.regex_sets.keys() {
-                regex_sets.insert(set_id, OnceLock::new());
-            }
-            regex_sets
-        });
-
-        let regex_set = compiled_regex_sets
-            .get(&set_id)
+        let regex_set = self
+            .compiled_regex_sets
+            .get(usize::from(set_id))
             .unwrap_or_else(|| panic!("invalid RegexSetId: {set_id:?}"));
 
         regex_set.get_or_init(|| self.build_regex_set(set_id))

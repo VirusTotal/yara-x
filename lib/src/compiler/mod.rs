@@ -818,6 +818,7 @@ impl<'a> Compiler<'a> {
             fast_scan_patterns: self.fast_scan_patterns,
         };
 
+        rules.init_regex_set_cache();
         rules.build_ac_automaton();
         rules
     }
