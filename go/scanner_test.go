@@ -51,7 +51,7 @@ func TestScanner2(t *testing.T) {
 func TestScanner3(t *testing.T) {
 	r, _ := Compile(
 		`rule t { condition: var_bool }`,
-		Globals(map[string]interface{}{"var_bool": true}))
+		Globals(map[string]any{"var_bool": true}))
 
 	s := NewScanner(r)
 	scanResults, _ := s.Scan([]byte{})
@@ -65,7 +65,7 @@ func TestScanner3(t *testing.T) {
 func TestScanner4(t *testing.T) {
 	r, _ := Compile(
 		`rule t { condition: var_int == 1}`,
-		Globals(map[string]interface{}{"var_int": 0}))
+		Globals(map[string]any{"var_int": 0}))
 
 	s := NewScanner(r)
 	scanResults, _ := s.Scan([]byte{})
@@ -84,7 +84,6 @@ func TestScanner4(t *testing.T) {
 	assert.Len(t, scanResults.MatchingRules(), 1)
 }
 
-
 func TestScanFile(t *testing.T) {
 	r, _ := Compile(`rule t { strings: $bar = "bar" condition: $bar }`)
 	s := NewScanner(r)
@@ -102,7 +101,6 @@ func TestScanFile(t *testing.T) {
 	matchingRules := scanResults.MatchingRules()
 	assert.Len(t, matchingRules, 1)
 }
-
 
 func TestScannerTimeout(t *testing.T) {
 	r, _ := Compile("rule t { strings: $a = /a(.*)*a/ condition: $a }")
