@@ -27,8 +27,8 @@ func TestNamespaces(t *testing.T) {
 func TestGlobals(t *testing.T) {
 	c, err := NewCompiler()
 	assert.NoError(t, err)
-	x := map[string]interface{}{"a": map[string]interface{}{"a": "b"}, "b": "d"}
-	y := []interface{}{"z"}
+	x := map[string]any{"a": map[string]any{"a": "b"}, "b": "d"}
+	y := []any{"z"}
 
 	c.DefineGlobal("test_hashmap", x)
 	c.DefineGlobal("A", "b")
@@ -43,7 +43,7 @@ func TestGlobals(t *testing.T) {
 	assert.Len(t, ScanResults.MatchingRules(), 3)
 
 	s.SetGlobal("A", "c")
-	s.SetGlobal("test_arr", []interface{}{"f"})
+	s.SetGlobal("test_arr", []any{"f"})
 	ScanResults, _ = s.Scan([]byte{})
 	assert.Len(t, ScanResults.MatchingRules(), 1)
 }
@@ -151,7 +151,7 @@ func TestSerialization(t *testing.T) {
 func TestVariables(t *testing.T) {
 	r, _ := Compile(
 		"rule test { condition: var == 1234 }",
-		Globals(map[string]interface{}{"var": 1234}))
+		Globals(map[string]any{"var": 1234}))
 
 	scanResults, _ := NewScanner(r).Scan([]byte{})
 	assert.Len(t, scanResults.MatchingRules(), 1)
