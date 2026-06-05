@@ -6,6 +6,7 @@ More specifically, the compiler produces two instruction sequences, one that
 matches the regexp left-to-right, and another one that matches right-to-left.
 */
 
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::fmt::{Display, Formatter};
@@ -2030,21 +2031,39 @@ fn seq_to_atoms(seq: Seq) -> Option<Vec<Atom>> {
     atoms.dedup();
 
     // For any pair of atoms, if one is a prefix of the other, the shorter
-    // one must be made inexact to allow the longer one to match greedily
-    // via the VM if necessary.
-    for i in 0..atoms.len() {
-        let is_prefix_of_other = (0..atoms.len()).any(|j| {
-            i != j && atoms[j].as_ref().starts_with(atoms[i].as_ref())
-        });
-        if is_prefix_of_other {
-            atoms[i].make_inexact();
+    // one must be made inexact, and the longer one can be completely removed.
+    //
+    // Since the atoms are sorted lexicographically, any prefix of an atom
+    // must be adjacent to it in the sorted list.
+    let mut to_make_inexact = Vec::new();
+    let mut to_remove = Vec::new();
+
+    for ((atom_idx, atom), (next_idx, next)) in
+        atoms.iter().map(|atom| atom.as_ref()).enumerate().tuple_windows()
+    {
+        if atom == next {
+            // If they have the same bytes, the exact one (which sorts
+            // after the inexact one) must be removed.
+            to_remove.push(next_idx);
+        } else if next.starts_with(atom) {
+            // If the next atom contains the current one as a prefix,
+            // the next one must be removed and the current one marked
+            // as inexact.
+            to_make_inexact.push(atom_idx);
+            to_remove.push(next_idx);
         }
     }
 
-    // Since atoms with different exactness may have become identical
-    // after make_inexact(), sort and dedup again.
-    atoms.sort();
-    atoms.dedup();
+    for idx in to_make_inexact {
+        atoms[idx].make_inexact();
+    }
+
+    // Since to_remove was populated in ascending order, by iterating it
+    // in reverse order we get indexes in descending order to safely remove
+    // elements without index shifting.
+    for idx in to_remove.into_iter().rev() {
+        atoms.remove(idx);
+    }
 
     Some(atoms)
 }
