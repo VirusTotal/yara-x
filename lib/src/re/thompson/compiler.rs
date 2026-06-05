@@ -1876,47 +1876,48 @@ fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
         _ => {}
     }
 
+    // Count of the number of sequences at the tail that can be empty.
+    // For instance, if we have sequences [s1, s2, s3], the result will
+    // be 2 if both s2 and s3 can be empty.
+    let empty_tail = seqs
+        .iter()
+        .rev()
+        .map_while(|seq| {
+            if matches!(seq.min_literal_len(), Some(x) if x == 0) {
+                Some(seq)
+            } else {
+                None
+            }
+        })
+        .count();
+
+    // The sequences that can be empty at the tail won't be candidates for
+    // concatenation.
+    let seqs_considered = seqs.len() - empty_tail;
+
+    let mut seqs_added = 0;
     let mut total_min_literal_len = 0;
     let mut result = Seq::singleton(hir::literal::Literal::exact(vec![]));
-    let mut all_required_added = true;
 
-    for (j, seq) in seqs.iter().enumerate() {
-        let remaining_can_be_empty =
-            seqs[j..].iter().all(|s| s.min_literal_len() == Some(0));
-        if remaining_can_be_empty {
-            all_required_added = false;
-            break;
-        }
-
+    for seq in seqs.iter().take(seqs_considered) {
         match seq.min_literal_len() {
             Some(min_literal_len) => {
                 // If the cross product of `result` with `seq` produces too many
                 // literals, stop trying to add more sequences to the result and
                 // return what we have so far.
                 match result.max_cross_len(seq) {
-                    None => {
-                        all_required_added = false;
-                        break;
-                    }
-                    Some(len) if len > MAX_ATOMS_PER_REGEXP => {
-                        all_required_added = false;
-                        break;
-                    }
+                    None => break,
+                    Some(len) if len > MAX_ATOMS_PER_REGEXP => break,
                     _ => {}
                 }
 
                 result.cross_forward(&mut seq.clone());
+                seqs_added += 1;
                 total_min_literal_len += min_literal_len;
 
-                // The desired atom length has been reached, don't process
+                // The desired atom length as been reached, don't process
                 // more sequences.
                 if total_min_literal_len >= DESIRED_ATOM_SIZE {
-                    let remaining_can_be_empty = seqs[j + 1..]
-                        .iter()
-                        .all(|s| s.min_literal_len() == Some(0));
-                    if !remaining_can_be_empty {
-                        all_required_added = false;
-                    }
                     break;
                 }
 
@@ -1925,25 +1926,16 @@ fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
                 // can add to it and can quit early. Note that this also includes
                 // infinite sequences.
                 if result.is_inexact() {
-                    let remaining_can_be_empty = seqs[j + 1..]
-                        .iter()
-                        .all(|s| s.min_literal_len() == Some(0));
-                    if !remaining_can_be_empty {
-                        all_required_added = false;
-                    }
                     break;
                 }
             }
-            None => {
-                all_required_added = false;
-                break;
-            }
+            None => break,
         }
     }
 
-    // If there are sequences that were not added to the result, and they
-    // were required (not all of them could be empty), the result is inexact.
-    if !all_required_added {
+    // If there are sequences that were not added to the result, the result
+    // is inexact.
+    if seqs_added < seqs.len() {
         result.make_inexact();
     }
 
