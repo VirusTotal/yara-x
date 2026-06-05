@@ -4099,4 +4099,3 @@ fn header_constraints_optimization() {
         2
     );
 }
-
