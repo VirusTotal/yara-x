@@ -1876,29 +1876,47 @@ fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
         _ => {}
     }
 
-    let mut seqs_added = 0;
     let mut total_min_literal_len = 0;
     let mut result = Seq::singleton(hir::literal::Literal::exact(vec![]));
+    let mut all_required_added = true;
 
-    for seq in seqs.iter() {
+    for (j, seq) in seqs.iter().enumerate() {
+        let remaining_can_be_empty =
+            seqs[j..].iter().all(|s| s.min_literal_len() == Some(0));
+        if remaining_can_be_empty {
+            all_required_added = false;
+            break;
+        }
+
         match seq.min_literal_len() {
             Some(min_literal_len) => {
                 // If the cross product of `result` with `seq` produces too many
                 // literals, stop trying to add more sequences to the result and
                 // return what we have so far.
                 match result.max_cross_len(seq) {
-                    None => break,
-                    Some(len) if len > MAX_ATOMS_PER_REGEXP => break,
+                    None => {
+                        all_required_added = false;
+                        break;
+                    }
+                    Some(len) if len > MAX_ATOMS_PER_REGEXP => {
+                        all_required_added = false;
+                        break;
+                    }
                     _ => {}
                 }
 
                 result.cross_forward(&mut seq.clone());
-                seqs_added += 1;
                 total_min_literal_len += min_literal_len;
 
-                // The desired atom length as been reached, don't process
+                // The desired atom length has been reached, don't process
                 // more sequences.
                 if total_min_literal_len >= DESIRED_ATOM_SIZE {
+                    let remaining_can_be_empty = seqs[j + 1..]
+                        .iter()
+                        .all(|s| s.min_literal_len() == Some(0));
+                    if !remaining_can_be_empty {
+                        all_required_added = false;
+                    }
                     break;
                 }
 
@@ -1907,16 +1925,25 @@ fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
                 // can add to it and can quit early. Note that this also includes
                 // infinite sequences.
                 if result.is_inexact() {
+                    let remaining_can_be_empty = seqs[j + 1..]
+                        .iter()
+                        .all(|s| s.min_literal_len() == Some(0));
+                    if !remaining_can_be_empty {
+                        all_required_added = false;
+                    }
                     break;
                 }
             }
-            None => break,
+            None => {
+                all_required_added = false;
+                break;
+            }
         }
     }
 
-    // If there are sequences that were not added to the result, the result
-    // is inexact.
-    if seqs_added < seqs.len() {
+    // If there are sequences that were not added to the result, and they
+    // were required (not all of them could be empty), the result is inexact.
+    if !all_required_added {
         result.make_inexact();
     }
 
@@ -2007,6 +2034,23 @@ fn seq_to_atoms(seq: Seq) -> Option<Vec<Atom>> {
     // `regex-syntax`'s `Seq::dedup()` only removes consecutive duplicates.
     // The Cartesian product can produce identical literals that are not
     // consecutive, so we must sort and dedup here to remove them.
+    atoms.sort();
+    atoms.dedup();
+
+    // For any pair of atoms, if one is a prefix of the other, the shorter
+    // one must be made inexact to allow the longer one to match greedily
+    // via the VM if necessary.
+    for i in 0..atoms.len() {
+        let is_prefix_of_other = (0..atoms.len()).any(|j| {
+            i != j && atoms[j].as_ref().starts_with(atoms[i].as_ref())
+        });
+        if is_prefix_of_other {
+            atoms[i].make_inexact();
+        }
+    }
+
+    // Since atoms with different exactness may have become identical
+    // after make_inexact(), sort and dedup again.
     atoms.sort();
     atoms.dedup();
 

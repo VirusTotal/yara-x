@@ -887,7 +887,6 @@ fn re_code_17() {
 00049: LIT 0x61
 0004a: MATCH
 "#,
-        // Atoms
         vec![
             RegexpAtom {
                 atom: Atom::inexact(vec![]),
@@ -1521,6 +1520,13 @@ fn re_atoms() {
         v
     });
 
+    assert_re_atoms!(r#"(com|net)[^{}]{0,100}"#, {
+        vec![
+            Atom::inexact(b"com"),
+            Atom::inexact(b"net"),
+        ]
+    });
+
     assert_re_atoms!(
         r#"(?s)abc.d(((xy|xz)w.)|[a-c])(((xy|xz)w.)|[a-c])"#,
         vec![Atom::inexact(b"abc")]
@@ -1572,3 +1578,4 @@ fn re_no_duplicate_atoms() {
         "Atoms vector contains duplicates"
     );
 }
+
