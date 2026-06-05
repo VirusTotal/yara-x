@@ -476,25 +476,26 @@ impl<'a> ParWalker<'a> {
                         let t_active = start_time.elapsed();
 
                         if let Some(limit) = cpu_limit
-                            && limit < 100 {
-                                // Calculate the required sleep duration to limit
-                                // CPU usage to the target percentage.
-                                //
-                                // Let T_active be the elapsed time scanning the
-                                // file. Let T_sleep be the sleep time. The target
-                                // utilization percentage is P.
-                                //
-                                // P = 100 * T_active / (T_active + T_sleep)
-                                // P * (T_active + T_sleep) = 100 * T_active
-                                // P * T_sleep = (100 - P) * T_active
-                                // T_sleep = T_active * (100 - P) / P
-                                let t_sleep = t_active.mul_f64(
-                                    (100.0 - limit as f64) / limit as f64,
-                                );
-                                if !t_sleep.is_zero() {
-                                    thread::sleep(t_sleep);
-                                }
+                            && limit < 100
+                        {
+                            // Calculate the required sleep duration to limit
+                            // CPU usage to the target percentage.
+                            //
+                            // Let T_active be the elapsed time scanning the
+                            // file. Let T_sleep be the sleep time. The target
+                            // utilization percentage is P.
+                            //
+                            // P = 100 * T_active / (T_active + T_sleep)
+                            // P * (T_active + T_sleep) = 100 * T_active
+                            // P * T_sleep = (100 - P) * T_active
+                            // T_sleep = T_active * (100 - P) / P
+                            let t_sleep = t_active.mul_f64(
+                                (100.0 - limit as f64) / limit as f64,
+                            );
+                            if !t_sleep.is_zero() {
+                                thread::sleep(t_sleep);
                             }
+                        }
 
                         if let Err(err) = res
                             && error(err, &msg_send).is_err()
