@@ -6,6 +6,7 @@ More specifically, the compiler produces two instruction sequences, one that
 matches the regexp left-to-right, and another one that matches right-to-left.
 */
 
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::fmt::{Display, Formatter};
@@ -1876,11 +1877,30 @@ fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
         _ => {}
     }
 
+    // Count of the number of sequences at the tail that can be empty.
+    // For instance, if we have sequences [s1, s2, s3], the result will
+    // be 2 if both s2 and s3 can be empty.
+    let empty_tail = seqs
+        .iter()
+        .rev()
+        .map_while(|seq| {
+            if matches!(seq.min_literal_len(), Some(x) if x == 0) {
+                Some(seq)
+            } else {
+                None
+            }
+        })
+        .count();
+
+    // The sequences that can be empty at the tail won't be candidates for
+    // concatenation.
+    let seqs_considered = seqs.len() - empty_tail;
+
     let mut seqs_added = 0;
     let mut total_min_literal_len = 0;
     let mut result = Seq::singleton(hir::literal::Literal::exact(vec![]));
 
-    for seq in seqs.iter() {
+    for seq in seqs.iter().take(seqs_considered) {
         match seq.min_literal_len() {
             Some(min_literal_len) => {
                 // If the cross product of `result` with `seq` produces too many
@@ -2009,6 +2029,41 @@ fn seq_to_atoms(seq: Seq) -> Option<Vec<Atom>> {
     // consecutive, so we must sort and dedup here to remove them.
     atoms.sort();
     atoms.dedup();
+
+    // For any pair of atoms, if one is a prefix of the other, the shorter
+    // one must be made inexact, and the longer one can be completely removed.
+    //
+    // Since the atoms are sorted lexicographically, any prefix of an atom
+    // must be adjacent to it in the sorted list.
+    let mut to_make_inexact = Vec::new();
+    let mut to_remove = Vec::new();
+
+    for ((atom_idx, atom), (next_idx, next)) in
+        atoms.iter().map(|atom| atom.as_ref()).enumerate().tuple_windows()
+    {
+        if atom == next {
+            // If they have the same bytes, the exact one (which sorts
+            // after the inexact one) must be removed.
+            to_remove.push(next_idx);
+        } else if next.starts_with(atom) {
+            // If the next atom contains the current one as a prefix,
+            // the next one must be removed and the current one marked
+            // as inexact.
+            to_make_inexact.push(atom_idx);
+            to_remove.push(next_idx);
+        }
+    }
+
+    for idx in to_make_inexact {
+        atoms[idx].make_inexact();
+    }
+
+    // Since to_remove was populated in ascending order, by iterating it
+    // in reverse order we get indexes in descending order to safely remove
+    // elements without index shifting.
+    for idx in to_remove.into_iter().rev() {
+        atoms.remove(idx);
+    }
 
     Some(atoms)
 }
