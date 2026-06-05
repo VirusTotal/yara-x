@@ -31,8 +31,8 @@ use crate::compiler::ir::{
 };
 use crate::compiler::report::{Level, ReportBuilder};
 use crate::compiler::{
-    CompileContext, CompileError, FilesizeBounds, ForVars, PatternIdx,
-    RegexId, RegexSetId, TextPatternAsHex, warnings,
+    CompileContext, CompileError, FilesizeBounds, ForVars, HeaderConstraint,
+    PatternIdx, RegexId, RegexSetId, TextPatternAsHex, warnings,
 };
 use crate::errors::CustomError;
 use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
@@ -258,6 +258,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
             base64wide_alphabet,
             anchored_at: None,
             filesize_bounds: FilesizeBounds::default(),
+            header_constraints: HeaderConstraint::default(),
         }),
     })
 }
@@ -312,6 +313,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
             flags: PatternFlags::Ascii,
             anchored_at: None,
             filesize_bounds: FilesizeBounds::default(),
+            header_constraints: HeaderConstraint::default(),
         }),
     })
 }
@@ -448,6 +450,7 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
             hir,
             anchored_at: None,
             filesize_bounds: FilesizeBounds::default(),
+            header_constraints: HeaderConstraint::default(),
         }),
     })
 }

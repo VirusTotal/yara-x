@@ -119,6 +119,9 @@ pub struct Rules {
     pub(in crate::compiler) filesize_bounds:
         FxHashMap<PatternId, FilesizeBounds>,
 
+    pub(in crate::compiler) header_constraints:
+        FxHashMap<PatternId, HeaderConstraint>,
+
     /// Vector that contains the [`SubPatternId`] for sub-patterns that can
     /// match only at a fixed offset within the scanned data. These sub-patterns
     /// are not added to the Aho-Corasick automaton.
@@ -578,6 +581,14 @@ impl Rules {
     }
 
     #[inline]
+    pub(crate) fn header_constraints(
+        &self,
+        pattern_id: PatternId,
+    ) -> Option<&HeaderConstraint> {
+        self.header_constraints.get(&pattern_id)
+    }
+
+    #[inline]
     pub(crate) fn is_fast_scan(&self, pattern_id: PatternId) -> bool {
         *self.fast_scan_patterns.get(usize::from(pattern_id)).unwrap()
     }
@@ -848,6 +859,37 @@ impl FilesizeBounds {
             (_, Bound::Unbounded) => {}
         }
         self
+    }
+}
+
+/// Describes the requirements on the file header imposed by a rule condition.
+///
+/// For example, the condition `uint32(0) == 0x464c457f` requires that the first
+/// 4 bytes of the file are `0x7f, 0x45, 0x4c, 0x46`.
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Hash, Eq)]
+pub(crate) enum HeaderConstraint {
+    Unconstrained,
+    Unsatisfiable,
+    Constrained(Vec<u8>),
+}
+
+impl Default for HeaderConstraint {
+    fn default() -> Self {
+        Self::Unconstrained
+    }
+}
+
+impl HeaderConstraint {
+    pub fn unconstrained(&self) -> bool {
+        matches!(self, Self::Unconstrained)
+    }
+
+    pub fn is_satisfied(&self, data: &[u8]) -> bool {
+        match self {
+            Self::Unconstrained => true,
+            Self::Unsatisfiable => false,
+            Self::Constrained(bytes) => data.starts_with(bytes),
+        }
     }
 }
 

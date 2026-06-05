@@ -337,6 +337,19 @@ pub struct Compiler<'a> {
     /// `FilesizeBounds{start: Bound::Unbounded, end: Bound:Excluded(1000)}`.
     filesize_bounds: FxHashMap<PatternId, FilesizeBounds>,
 
+    /// Map that associates a `PatternId` to a certain constraint on the
+    /// file header (e.g. magic bytes at offset 0), if any.
+    ///
+    /// A condition like `uint16(0) == 0x5A4D and $a` or `$mz at 0 and $a`
+    /// (were $mz = "MZ") only matches if the file starts with "MZ" (0x5A4D).
+    /// In this case the map will contain an entry associating `$a` to a
+    /// `HeaderConstraint` that requires the file to start with those two
+    /// bytes.
+    ///
+    /// This allows skipping pattern checks entirely if the scanned data doesn't
+    /// start with the expected header prefix.
+    header_constraints: FxHashMap<PatternId, HeaderConstraint>,
+
     /// A vector with all the rules that has been compiled. A [`RuleId`] is
     /// an index in this vector.
     rules: Vec<RuleInfo>,
@@ -502,6 +515,7 @@ impl<'a> Compiler<'a> {
             banned_modules: FxHashMap::default(),
             ignored_rules: FxHashMap::default(),
             filesize_bounds: FxHashMap::default(),
+            header_constraints: FxHashMap::default(),
             root_struct: Struct::new().make_root(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
@@ -813,6 +827,7 @@ impl<'a> Compiler<'a> {
             re_code: self.re_code,
             warnings: self.warnings.into(),
             filesize_bounds: self.filesize_bounds,
+            header_constraints: self.header_constraints,
             regex_sets: self.regex_sets,
             fast_scan_patterns: self.fast_scan_patterns,
         };
@@ -1668,6 +1683,18 @@ impl Compiler<'_> {
         // `filesize`, if any.
         let filesize_bounds = self.ir.filesize_bounds();
 
+        // Analyze the condition and determine if it imposes some constraint
+        // to the file header (ex: `uint16(0) == 0x5a4d`).
+        let header_constraints = self.ir.header_constraints(|pat_idx| {
+            let pat = &rule_patterns[pat_idx.as_usize()];
+            match pat.pattern() {
+                Pattern::Text(lit) => Some(lit.text.as_bytes().to_vec()),
+                Pattern::Regexp(re) | Pattern::Hex(re) => {
+                    re.hir.as_literal_bytes().map(|bytes| bytes.to_vec())
+                }
+            }
+        });
+
         // Set the bounds to all patterns in the rule. This must be done
         // before assigning the PatternId to each pattern, as the filesize
         // bounds are taken into account when determining if the pattern
@@ -1675,6 +1702,15 @@ impl Compiler<'_> {
         if !filesize_bounds.unbounded() {
             for pattern in &mut rule_patterns {
                 pattern.pattern_mut().set_filesize_bounds(&filesize_bounds);
+            }
+        }
+
+        // Set header constraints to all patterns in the rule.
+        if !header_constraints.unconstrained() {
+            for pattern in &mut rule_patterns {
+                pattern
+                    .pattern_mut()
+                    .set_header_constraints(&header_constraints);
             }
         }
 
@@ -1808,6 +1844,17 @@ impl Compiler<'_> {
                     // This should not happen.
                     panic!(
                         "modifying the file size bounds of an existing pattern"
+                    )
+                }
+                if !header_constraints.unconstrained()
+                    && self
+                        .header_constraints
+                        .insert(*pattern_id, header_constraints.clone())
+                        .is_some()
+                {
+                    // This should not happen.
+                    panic!(
+                        "modifying the header constraints of an existing pattern"
                     )
                 }
                 pending_patterns.remove(pattern_id);

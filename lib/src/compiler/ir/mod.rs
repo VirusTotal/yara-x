@@ -51,7 +51,7 @@ use crate::compiler::ir::dfs::{
     DFSIter, DFSWithScopeIter, Event, EventContext, dfs_common,
 };
 
-use crate::compiler::{FilesizeBounds, RegexSetId};
+use crate::compiler::{FilesizeBounds, HeaderConstraint, RegexSetId};
 use crate::re;
 use crate::symbols::Symbol;
 use crate::types::Value::Const;
@@ -310,6 +310,17 @@ impl Pattern {
             }
         }
     }
+
+    pub fn set_header_constraints(&mut self, constraints: &HeaderConstraint) {
+        match self {
+            Pattern::Text(literal) => {
+                literal.header_constraints = constraints.clone();
+            }
+            Pattern::Regexp(regexp) | Pattern::Hex(regexp) => {
+                regexp.header_constraints = constraints.clone();
+            }
+        }
+    }
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -321,6 +332,7 @@ pub(crate) struct LiteralPattern {
     pub base64_alphabet: Option<String>,
     pub base64wide_alphabet: Option<String>,
     pub filesize_bounds: FilesizeBounds,
+    pub header_constraints: HeaderConstraint,
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -329,6 +341,7 @@ pub(crate) struct RegexpPattern {
     pub hir: re::hir::Hir,
     pub anchored_at: Option<usize>,
     pub filesize_bounds: FilesizeBounds,
+    pub header_constraints: HeaderConstraint,
 }
 
 /// The index of a pattern in the rule that declares it.
@@ -991,6 +1004,269 @@ impl IR {
         }
 
         result
+    }
+
+    pub fn header_constraints(
+        &self,
+        pattern_prefix_lookup: impl Fn(PatternIdx) -> Option<Vec<u8>>,
+    ) -> HeaderConstraint {
+        let mut temp = std::collections::BTreeMap::new();
+        let mut unsatisfiable = false;
+        let mut dfs = self.dfs_iter(self.root.unwrap());
+
+        while let Some(evt) = dfs.next() {
+            let expr = match evt {
+                Event::Enter((_, expr, _)) => expr,
+                _ => continue,
+            };
+            match expr {
+                Expr::Eq { lhs, rhs } => {
+                    self.extract_header_constraints_from_eq(
+                        *lhs,
+                        *rhs,
+                        &mut temp,
+                        &mut unsatisfiable,
+                    );
+                }
+                Expr::PatternMatch { pattern, anchor } => {
+                    if let MatchAnchor::At(offset_expr) = anchor {
+                        if let Some(0) = self.try_as_const_int(*offset_expr) {
+                            if let Some(prefix_bytes) =
+                                pattern_prefix_lookup(*pattern)
+                            {
+                                for (i, &b) in prefix_bytes.iter().enumerate()
+                                {
+                                    match temp.entry(i) {
+                                        std::collections::btree_map::Entry::Occupied(entry) => {
+                                            if *entry.get() != b {
+                                                unsatisfiable = true;
+                                                break;
+                                            }
+                                        }
+                                        std::collections::btree_map::Entry::Vacant(entry) => {
+                                            entry.insert(b);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+            if unsatisfiable {
+                break;
+            }
+            if !matches!(expr, Expr::And { .. }) {
+                dfs.prune();
+            }
+        }
+
+        if unsatisfiable {
+            return HeaderConstraint::Unsatisfiable;
+        }
+
+        let mut bytes = Vec::new();
+        let mut offset = 0;
+        while let Some(&byte) = temp.get(&offset) {
+            bytes.push(byte);
+            offset += 1;
+        }
+
+        if bytes.is_empty() {
+            HeaderConstraint::Unconstrained
+        } else {
+            HeaderConstraint::Constrained(bytes)
+        }
+    }
+
+    fn try_as_const_int(&self, expr_id: ExprId) -> Option<i64> {
+        if let Expr::Const(val) = self.get(expr_id) {
+            val.try_as_integer()
+        } else {
+            None
+        }
+    }
+
+    fn extract_int_read_call(&self, expr_id: ExprId) -> Option<(&str, usize)> {
+        if let Expr::FuncCall(func_call) = self.get(expr_id) {
+            if func_call.object.is_none() {
+                let mangled_name = func_call.signature.mangled_name.as_str();
+                let clean_name = mangled_name.split('@').next()?;
+                let is_int_read = match clean_name {
+                    "uint8" | "int8" | "uint8be" | "int8be" | "uint16"
+                    | "int16" | "uint16be" | "int16be" | "uint32"
+                    | "int32" | "uint32be" | "int32be" => true,
+                    _ => false,
+                };
+                if is_int_read {
+                    if func_call.args.len() == 1 {
+                        if let Some(offset) =
+                            self.try_as_const_int(func_call.args[0])
+                        {
+                            if offset >= 0 {
+                                return Some((clean_name, offset as usize));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn extract_header_constraints_from_eq(
+        &self,
+        lhs: ExprId,
+        rhs: ExprId,
+        temp: &mut std::collections::BTreeMap<usize, u8>,
+        unsatisfiable: &mut bool,
+    ) {
+        if let Some((func_name, offset)) = self.extract_int_read_call(lhs) {
+            if let Some(val) = self.try_as_const_int(rhs) {
+                self.apply_int_read_constraint(
+                    temp,
+                    unsatisfiable,
+                    func_name,
+                    offset,
+                    val,
+                );
+            }
+        } else if let Some((func_name, offset)) =
+            self.extract_int_read_call(rhs)
+        {
+            if let Some(val) = self.try_as_const_int(lhs) {
+                self.apply_int_read_constraint(
+                    temp,
+                    unsatisfiable,
+                    func_name,
+                    offset,
+                    val,
+                );
+            }
+        }
+    }
+
+    fn add_constraint(
+        &self,
+        temp: &mut std::collections::BTreeMap<usize, u8>,
+        unsatisfiable: &mut bool,
+        offset: usize,
+        value: u8,
+    ) {
+        if *unsatisfiable {
+            return;
+        }
+        match temp.entry(offset) {
+            std::collections::btree_map::Entry::Occupied(entry) => {
+                if *entry.get() != value {
+                    *unsatisfiable = true;
+                }
+            }
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(value);
+            }
+        }
+    }
+
+    fn apply_int_read_constraint(
+        &self,
+        temp: &mut std::collections::BTreeMap<usize, u8>,
+        unsatisfiable: &mut bool,
+        func_name: &str,
+        offset: usize,
+        val: i64,
+    ) {
+        match func_name {
+            "uint8" | "int8" | "uint8be" | "int8be" => {
+                self.add_constraint(temp, unsatisfiable, offset, val as u8);
+            }
+            "uint16" | "int16" => {
+                let val = val as u16;
+                self.add_constraint(
+                    temp,
+                    unsatisfiable,
+                    offset,
+                    (val & 0xff) as u8,
+                );
+                self.add_constraint(
+                    temp,
+                    unsatisfiable,
+                    offset + 1,
+                    ((val >> 8) & 0xff) as u8,
+                );
+            }
+            "uint16be" | "int16be" => {
+                let val = val as u16;
+                self.add_constraint(
+                    temp,
+                    unsatisfiable,
+                    offset,
+                    ((val >> 8) & 0xff) as u8,
+                );
+                self.add_constraint(
+                    temp,
+                    unsatisfiable,
+                    offset + 1,
+                    (val & 0xff) as u8,
+                );
+            }
+            "uint32" | "int32" => {
+                let val = val as u32;
+                self.add_constraint(
+                    temp,
+                    unsatisfiable,
+                    offset,
+                    (val & 0xff) as u8,
+                );
+                self.add_constraint(
+                    temp,
+                    unsatisfiable,
+                    offset + 1,
+                    ((val >> 8) & 0xff) as u8,
+                );
+                self.add_constraint(
+                    temp,
+                    unsatisfiable,
+                    offset + 2,
+                    ((val >> 16) & 0xff) as u8,
+                );
+                self.add_constraint(
+                    temp,
+                    unsatisfiable,
+                    offset + 3,
+                    ((val >> 24) & 0xff) as u8,
+                );
+            }
+            "uint32be" | "int32be" => {
+                let val = val as u32;
+                self.add_constraint(
+                    temp,
+                    unsatisfiable,
+                    offset,
+                    ((val >> 24) & 0xff) as u8,
+                );
+                self.add_constraint(
+                    temp,
+                    unsatisfiable,
+                    offset + 1,
+                    ((val >> 16) & 0xff) as u8,
+                );
+                self.add_constraint(
+                    temp,
+                    unsatisfiable,
+                    offset + 2,
+                    ((val >> 8) & 0xff) as u8,
+                );
+                self.add_constraint(
+                    temp,
+                    unsatisfiable,
+                    offset + 3,
+                    (val & 0xff) as u8,
+                );
+            }
+            _ => {}
+        }
     }
 }
 
