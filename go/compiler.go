@@ -2,6 +2,7 @@ package yara_x
 
 // #include <yara_x.h>
 import "C"
+
 import (
 	"encoding/json"
 	"errors"

@@ -314,7 +314,8 @@ func slowestRulesCallback(
 	rule *C.char,
 	patternMatchingTime C.double,
 	conditionExecTime C.double,
-	handle C.uintptr_t) {
+	handle C.uintptr_t,
+) {
 	h := cgo.Handle(handle)
 	profilingInfo, ok := h.Value().(*[]ProfilingInfo)
 	if !ok {
