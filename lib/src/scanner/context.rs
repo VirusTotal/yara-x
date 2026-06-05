@@ -171,7 +171,9 @@ pub struct ScanContext<'r, 'd> {
     pub(crate) console_log: Option<Box<dyn FnMut(String) + 'r>>,
     /// Virtual Machines used for executing regexps.
     pub(crate) vm: VM<'r>,
-    pub(crate) disabled_patterns: bitvec::vec::BitVec,
+    /// Patterns that are disabled for the current scan (e.g. because they don't
+    /// comply with filesize bounds or header constraints).
+    pub(crate) disabled_patterns: FxHashSet<PatternId>,
     /// Hash map that tracks the time spend on each pattern. Keys are pattern
     /// PatternIds and values are the cumulative time spent on verifying each
     /// pattern.
@@ -542,8 +544,8 @@ impl ScanContext<'_, '_> {
         // Free all runtime objects left around by previous scans.
         self.runtime_objects.clear();
 
+        // Clear the set that tracks the disabled patterns.
         self.disabled_patterns.clear();
-        self.disabled_patterns.resize(num_patterns, false);
 
         // Clear the array that tracks the patterns that reached the maximum
         // number of patterns.
@@ -851,7 +853,7 @@ impl ScanContext<'_, '_> {
         let (pattern_id, sub_pattern) =
             &self.compiled_rules.get_sub_pattern(sub_pattern_id);
 
-        if *self.disabled_patterns.get(usize::from(*pattern_id)).unwrap() {
+        if self.disabled_patterns.contains(pattern_id) {
             return;
         }
 
@@ -1073,8 +1075,7 @@ impl ScanContext<'_, '_> {
                     self.compiled_rules.filesize_bounds(pattern_id)
                 {
                     if !bounds.contains(filesize) {
-                        self.disabled_patterns
-                            .set(usize::from(pattern_id), true);
+                        self.disabled_patterns.insert(pattern_id);
                     }
                 }
             }
@@ -1087,8 +1088,7 @@ impl ScanContext<'_, '_> {
                     self.compiled_rules.header_constraints(pattern_id)
                 {
                     if !constraints.is_satisfied(data) {
-                        self.disabled_patterns
-                            .set(usize::from(pattern_id), true);
+                        self.disabled_patterns.insert(pattern_id);
                     }
                 }
             }
@@ -1150,11 +1150,7 @@ impl ScanContext<'_, '_> {
             .map(|id| (id, self.compiled_rules.get_sub_pattern(*id)))
             // Disabled patterns are ignored.
             .filter(|(_, (pattern_id, _))| {
-                let disabled = *self
-                    .disabled_patterns
-                    .get(usize::from(*pattern_id))
-                    .unwrap();
-                !disabled
+                !self.disabled_patterns.contains(pattern_id)
             })
         {
             match sub_pattern {
@@ -1952,10 +1948,7 @@ pub fn create_wasm_store_and_ctx<'r>(
             pike_vm: PikeVM::new(rules.re_code()),
             fast_vm: FastVM::new(rules.re_code()),
         },
-        disabled_patterns: bitvec::vec::BitVec::repeat(
-            false,
-            num_patterns as usize,
-        ),
+        disabled_patterns: FxHashSet::default(),
         custom_base64_engine_cache: Vec::new(),
         #[cfg(feature = "rules-profiling")]
         time_spent_in_pattern: FxHashMap::default(),
