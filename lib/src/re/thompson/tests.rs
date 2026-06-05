@@ -1573,4 +1573,3 @@ fn re_no_duplicate_atoms() {
         "Atoms vector contains duplicates"
     );
 }
-
