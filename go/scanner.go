@@ -31,9 +31,7 @@ import (
 	"runtime/cgo"
 	"time"
 	"unsafe"
-)
 
-import (
 	"google.golang.org/protobuf/proto"
 )
 
@@ -163,7 +161,7 @@ func (s *Scanner) SetGlobal(ident string, value interface{}) error {
 		ret = C.int(C.yrx_scanner_set_global_str(s.cScanner, cIdent, cValue))
 	case float64:
 		ret = C.int(C.yrx_scanner_set_global_float(s.cScanner, cIdent, C.double(v)))
-	case map[string]interface{}, []interface{}:
+	case map[string]any, []any:
 		jsonStr, err := json.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("failed to marshal '%s' to json: '%v'", ident, err)
@@ -358,17 +356,17 @@ func (s *Scanner) SlowestRules(n int) []ProfilingInfo {
 	return profilingInfo
 }
 
-/// ClearProfilingData resets the profiling data collected during rule execution
-/// across scanned files. Use it to start a new profiling session, ensuring the
-/// results reflect only the data gathered after this method is called.
+// ClearProfilingData resets the profiling data collected during rule execution
+// across scanned files. Use it to start a new profiling session, ensuring the
+// results reflect only the data gathered after this method is called.
 //
 // In order to use this function, the YARA-X C library must be built with
 // support for rules profiling by enabling the `rules-profiling` feature.
 // Otherwise, calling this function will cause a panic.
 func (s *Scanner) ClearProfilingData() {
-  if C.yrx_scanner_clear_profiling_data(s.cScanner) == C.YRX_NOT_SUPPORTED {
-     panic("ClearProfilingData requires that the YARA-X C library is built with the `rules-profiling` feature")
-  }
+	if C.yrx_scanner_clear_profiling_data(s.cScanner) == C.YRX_NOT_SUPPORTED {
+		panic("ClearProfilingData requires that the YARA-X C library is built with the `rules-profiling` feature")
+	}
 }
 
 // Destroy destroys the scanner.

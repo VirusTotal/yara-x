@@ -2,11 +2,13 @@ package yara_x
 
 import (
 	"bytes"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestScanner1(t *testing.T) {
@@ -18,7 +20,7 @@ func TestScanner1(t *testing.T) {
 	assert.Len(t, matchingRules, 1)
 	assert.Equal(t, "t", matchingRules[0].Identifier())
 	assert.Equal(t, "default", matchingRules[0].Namespace())
-	assert.Len(t, matchingRules[0].Patterns(), 0)
+	assert.Empty(t, matchingRules[0].Patterns())
 
 	scanResults, _ = s.Scan(nil)
 	matchingRules = scanResults.MatchingRules()
@@ -26,7 +28,7 @@ func TestScanner1(t *testing.T) {
 	assert.Len(t, matchingRules, 1)
 	assert.Equal(t, "t", matchingRules[0].Identifier())
 	assert.Equal(t, "default", matchingRules[0].Namespace())
-	assert.Len(t, matchingRules[0].Patterns(), 0)
+	assert.Empty(t, matchingRules[0].Patterns())
 }
 
 func TestScanner2(t *testing.T) {
@@ -59,7 +61,7 @@ func TestScanner3(t *testing.T) {
 
 	s.SetGlobal("var_bool", false)
 	scanResults, _ = s.Scan([]byte{})
-	assert.Len(t, scanResults.MatchingRules(), 0)
+	assert.Empty(t, scanResults.MatchingRules())
 }
 
 func TestScanner4(t *testing.T) {
@@ -69,17 +71,17 @@ func TestScanner4(t *testing.T) {
 
 	s := NewScanner(r)
 	scanResults, _ := s.Scan([]byte{})
-	assert.Len(t, scanResults.MatchingRules(), 0)
+	assert.Empty(t, scanResults.MatchingRules())
 
-	assert.NoError(t, s.SetGlobal("var_int", 1))
+	require.NoError(t, s.SetGlobal("var_int", 1))
 	scanResults, _ = s.Scan([]byte{})
 	assert.Len(t, scanResults.MatchingRules(), 1)
 
-	assert.NoError(t, s.SetGlobal("var_int", int32(1)))
+	require.NoError(t, s.SetGlobal("var_int", int32(1)))
 	scanResults, _ = s.Scan([]byte{})
 	assert.Len(t, scanResults.MatchingRules(), 1)
 
-	assert.NoError(t, s.SetGlobal("var_int", int64(1)))
+	require.NoError(t, s.SetGlobal("var_int", int64(1)))
 	scanResults, _ = s.Scan([]byte{})
 	assert.Len(t, scanResults.MatchingRules(), 1)
 }
@@ -89,12 +91,12 @@ func TestScanFile(t *testing.T) {
 	s := NewScanner(r)
 
 	// Create a temporary file with some content
-	f, err := os.CreateTemp("", "example")
-	assert.NoError(t, err)
+	f, err := os.CreateTemp(t.TempDir(), "example")
+	require.NoError(t, err)
 	defer os.Remove(f.Name())
 
 	_, err = f.Write([]byte("foobar"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	f.Close()
 
 	scanResults, _ := s.ScanFile(f.Name())

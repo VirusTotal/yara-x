@@ -3,16 +3,16 @@ package yara_x
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNamespaces(t *testing.T) {
 	c, err := NewCompiler()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	c.NewNamespace("foo")
 	c.AddSource("rule test { condition: true }")
@@ -26,7 +26,7 @@ func TestNamespaces(t *testing.T) {
 
 func TestGlobals(t *testing.T) {
 	c, err := NewCompiler()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	x := map[string]any{"a": map[string]any{"a": "b"}, "b": "d"}
 	y := []any{"z"}
 
@@ -54,7 +54,7 @@ func TestUnsupportedModules(t *testing.T) {
 		rule test { condition: true }`,
 		IgnoreModule("unsupported_module"))
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	scanResults, _ := r.Scan([]byte{})
 	assert.Len(t, scanResults.MatchingRules(), 1)
 }
@@ -85,8 +85,8 @@ func TestDisabledIncludes(t *testing.T) {
 }
 
 func TestIncludes(t *testing.T) {
-	file, err := ioutil.TempFile("", "prefix")
-	assert.NoError(t, err)
+	file, err := os.CreateTemp(t.TempDir(), "prefix")
+	require.NoError(t, err)
 
 	defer os.Remove(file.Name())
 
@@ -94,14 +94,14 @@ func TestIncludes(t *testing.T) {
 		fmt.Sprintf(`include "%s"`, file.Name()),
 		IncludeDir(os.TempDir()))
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestRelaxedReSyntax(t *testing.T) {
 	r, err := Compile(`
 		rule test { strings: $a = /\Release/ condition: $a }`,
 		RelaxedReSyntax(true))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	scanResults, _ := r.Scan([]byte("Release"))
 	assert.Len(t, scanResults.MatchingRules(), 1)
 }
@@ -110,7 +110,7 @@ func TestConditionOptimization(t *testing.T) {
 	_, err := Compile(`
 		rule test { condition: true }`,
 		ConditionOptimization(true))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestErrorOnSlowPattern(t *testing.T) {
@@ -129,14 +129,14 @@ func TestErrorOnSlowLoop(t *testing.T) {
 
 func TestSerialization(t *testing.T) {
 	r, err := Compile("rule test { condition: true }")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	var buf bytes.Buffer
 
 	// Write rules into buffer
 	n, err := r.WriteTo(&buf)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, buf.Bytes(), int(n))
 
 	// Read rules from buffer
@@ -157,7 +157,7 @@ func TestVariables(t *testing.T) {
 	assert.Len(t, scanResults.MatchingRules(), 1)
 
 	c, err := NewCompiler()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	c.DefineGlobal("var", 1234)
 	c.AddSource("rule test { condition: var == 1234 }")
@@ -177,7 +177,7 @@ func TestVariables(t *testing.T) {
 	c.DefineGlobal("var", false)
 	c.AddSource("rule test { condition: var }")
 	scanResults, _ = NewScanner(c.Build()).Scan([]byte{})
-	assert.Len(t, scanResults.MatchingRules(), 0)
+	assert.Empty(t, scanResults.MatchingRules())
 
 	c.DefineGlobal("var", "foo")
 	c.AddSource("rule test { condition: var == \"foo\" }")
@@ -207,26 +207,26 @@ func TestCompilerFeatures(t *testing.T) {
 	rules := `import "test_proto2" rule test { condition: test_proto2.requires_foo_and_bar }`
 
 	_, err := Compile(rules)
-	assert.EqualError(t, err, `error[E100]: foo is required
+	require.EqualError(t, err, `error[E100]: foo is required
  --> line:1:57
   |
 1 | import "test_proto2" rule test { condition: test_proto2.requires_foo_and_bar }
   |                                                         ^^^^^^^^^^^^^^^^^^^^ this field was used without foo`)
 
 	_, err = Compile(rules, WithFeature("foo"))
-	assert.EqualError(t, err, `error[E100]: bar is required
+	require.EqualError(t, err, `error[E100]: bar is required
  --> line:1:57
   |
 1 | import "test_proto2" rule test { condition: test_proto2.requires_foo_and_bar }
   |                                                         ^^^^^^^^^^^^^^^^^^^^ this field was used without bar`)
 
 	_, err = Compile(rules, WithFeature("foo"), WithFeature("bar"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestErrors(t *testing.T) {
 	c, err := NewCompiler()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	c.AddSource("rule test_1 { condition: true }")
 	assert.Equal(t, []CompileError{}, c.Errors())
@@ -291,13 +291,13 @@ func TestErrors(t *testing.T) {
 
 func TestRules(t *testing.T) {
 	c, err := NewCompiler()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	c.AddSource(`rule test_1 : tag1 tag2 {
       condition:
         true
 	}`)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	c.AddSource(`rule test_2 {
       meta:
@@ -308,7 +308,7 @@ func TestRules(t *testing.T) {
       condition:
         true
 	}`)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	rules := c.Build()
 	assert.Equal(t, 2, rules.Count())
@@ -324,7 +324,7 @@ func TestRules(t *testing.T) {
 	assert.Equal(t, []string{"tag1", "tag2"}, slice[0].Tags())
 	assert.Equal(t, []string{}, slice[1].Tags())
 
-	assert.Len(t, slice[0].Metadata(), 0)
+	assert.Empty(t, slice[0].Metadata())
 	assert.Len(t, slice[1].Metadata(), 4)
 
 	assert.Equal(t, "foo", slice[1].Metadata()[0].Identifier())
@@ -342,7 +342,7 @@ func TestRules(t *testing.T) {
 
 func TestImportsIter(t *testing.T) {
 	c, err := NewCompiler()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	c.AddSource(`
 	import "pe"
@@ -351,7 +351,7 @@ func TestImportsIter(t *testing.T) {
 			condition:
 				true
 	}`)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	rules := c.Build()
 	imports := rules.Imports()
@@ -363,7 +363,7 @@ func TestImportsIter(t *testing.T) {
 
 func TestWarnings(t *testing.T) {
 	c, err := NewCompiler()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	c.AddSource("rule test { strings: $a = {01 [0-1][0-1] 02 } condition: $a }")
 
