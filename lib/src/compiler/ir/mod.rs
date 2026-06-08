@@ -29,7 +29,8 @@ allows using the same regex engine for matching both types of patterns.
 [Hir]: regex_syntax::hir::Hir
 */
 
-use std::collections::Bound;
+use std::collections::btree_map::Entry;
+use std::collections::{BTreeMap, Bound};
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem;
@@ -1010,7 +1011,7 @@ impl IR {
         &self,
         pattern_prefix_lookup: impl Fn(PatternIdx) -> Option<Vec<u8>>,
     ) -> HeaderConstraint {
-        let mut temp = std::collections::BTreeMap::new();
+        let mut temp = BTreeMap::new();
         let mut unsatisfiable = false;
         let mut dfs = self.dfs_iter(self.root.unwrap());
 
@@ -1029,28 +1030,26 @@ impl IR {
                     );
                 }
                 Expr::PatternMatch { pattern, anchor } => {
-                    if let MatchAnchor::At(offset_expr) = anchor {
-                        if let Some(0) = self.try_as_const_int(*offset_expr) {
-                            if let Some(prefix_bytes) =
+                    if let MatchAnchor::At(offset_expr) = anchor
+                        && let Some(0) = self.try_as_const_int(*offset_expr)
+                            && let Some(prefix_bytes) =
                                 pattern_prefix_lookup(*pattern)
                             {
                                 for (i, &b) in prefix_bytes.iter().enumerate()
                                 {
                                     match temp.entry(i) {
-                                        std::collections::btree_map::Entry::Occupied(entry) => {
+                                        Entry::Occupied(entry) => {
                                             if *entry.get() != b {
                                                 unsatisfiable = true;
                                                 break;
                                             }
                                         }
-                                        std::collections::btree_map::Entry::Vacant(entry) => {
+                                        Entry::Vacant(entry) => {
                                             entry.insert(b);
                                         }
                                     }
                                 }
                             }
-                        }
-                    }
                 }
                 _ => {}
             }
@@ -1090,26 +1089,22 @@ impl IR {
 
     fn extract_int_read_call(&self, expr_id: ExprId) -> Option<(&str, usize)> {
         if let Expr::FuncCall(func_call) = self.get(expr_id) {
-            if func_call.object.is_none() {
-                let mangled_name = func_call.signature.mangled_name.as_str();
-                let clean_name = mangled_name.split('@').next()?;
-                let is_int_read = match clean_name {
-                    "uint8" | "int8" | "uint8be" | "int8be" | "uint16"
-                    | "int16" | "uint16be" | "int16be" | "uint32"
-                    | "int32" | "uint32be" | "int32be" => true,
-                    _ => false,
-                };
-                if is_int_read {
-                    if func_call.args.len() == 1 {
-                        if let Some(offset) =
-                            self.try_as_const_int(func_call.args[0])
-                        {
-                            if offset >= 0 {
-                                return Some((clean_name, offset as usize));
-                            }
-                        }
+            match func_call.plain_name() {
+                "uint8" | "int8" | "uint8be" | "int8be" | "uint16"
+                | "int16" | "uint16be" | "int16be" | "uint32" | "int32"
+                | "uint32be" | "int32be" => {
+                    if let Some(offset) = func_call
+                        .args.first()
+                        .and_then(|arg| self.try_as_const_int(*arg))
+                        && offset >= 0
+                    {
+                        return Some((
+                            func_call.plain_name(),
+                            offset as usize,
+                        ));
                     }
                 }
+                _ => {}
             }
         }
         None
@@ -1134,8 +1129,7 @@ impl IR {
             }
         } else if let Some((func_name, offset)) =
             self.extract_int_read_call(rhs)
-        {
-            if let Some(val) = self.try_as_const_int(lhs) {
+            && let Some(val) = self.try_as_const_int(lhs) {
                 self.apply_int_read_constraint(
                     temp,
                     unsatisfiable,
@@ -1144,7 +1138,6 @@ impl IR {
                     val,
                 );
             }
-        }
     }
 
     fn add_constraint(
@@ -2642,6 +2635,12 @@ impl FuncCall {
     /// Returns the mangled function name for this function call.
     pub fn mangled_name(&self) -> &str {
         self.signature().mangled_name.as_str()
+    }
+
+    /// Returns the plain function name, without argument or return type
+    /// information (i.e: everything before the `@` in the name).
+    pub fn plain_name(&self) -> &str {
+        self.signature().mangled_name.plain_name()
     }
 }
 

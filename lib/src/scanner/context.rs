@@ -1073,11 +1073,9 @@ impl ScanContext<'_, '_> {
                 let pattern_id = PatternId::from(pattern_id);
                 if let Some(bounds) =
                     self.compiled_rules.filesize_bounds(pattern_id)
-                {
-                    if !bounds.contains(filesize) {
+                    && !bounds.contains(filesize) {
                         self.disabled_patterns.insert(pattern_id);
                     }
-                }
             }
         }
 
@@ -1086,11 +1084,9 @@ impl ScanContext<'_, '_> {
                 let pattern_id = PatternId::from(pattern_id);
                 if let Some(constraints) =
                     self.compiled_rules.header_constraints(pattern_id)
-                {
-                    if !constraints.is_satisfied(data) {
+                    && !constraints.is_satisfied(data) {
                         self.disabled_patterns.insert(pattern_id);
                     }
-                }
             }
         }
 
