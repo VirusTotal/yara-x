@@ -1065,17 +1065,23 @@ impl IR {
             return HeaderConstraint::Unsatisfiable;
         }
 
-        let mut bytes = Vec::new();
-        let mut offset = 0;
-        while let Some(&byte) = constrained_bytes.get(&offset) {
-            bytes.push(byte);
-            offset += 1;
-        }
-
-        if bytes.is_empty() {
-            HeaderConstraint::Unconstrained
+        // If the first byte in `constrained_bytes` is at offset 0, we can
+        // return HeaderConstraint::Constrained.
+        if let Some((0, _)) = constrained_bytes.first_key_value() {
+            HeaderConstraint::Constrained(
+                // Take only the bytes at consecutive offsets starting at 0.
+                constrained_bytes
+                    .into_iter()
+                    .enumerate()
+                    .map_while(
+                        |(i, (offset, byte))| {
+                            if i == offset { Some(byte) } else { None }
+                        },
+                    )
+                    .collect(),
+            )
         } else {
-            HeaderConstraint::Constrained(bytes)
+            HeaderConstraint::Unconstrained
         }
     }
 
@@ -1087,12 +1093,22 @@ impl IR {
         unsatisfiable: &mut bool,
     ) {
         if let Some(val) = self.get(rhs).try_as_const_integer()
-            && self.apply_int_read_constraint(constrained_bytes, unsatisfiable, lhs, val)
+            && self.apply_int_read_constraint(
+                constrained_bytes,
+                unsatisfiable,
+                lhs,
+                val,
+            )
         {
             return;
         }
         if let Some(val) = self.get(lhs).try_as_const_integer() {
-            self.apply_int_read_constraint(constrained_bytes, unsatisfiable, rhs, val);
+            self.apply_int_read_constraint(
+                constrained_bytes,
+                unsatisfiable,
+                rhs,
+                val,
+            );
         }
     }
 

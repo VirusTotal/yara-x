@@ -4098,4 +4098,17 @@ fn header_constraints_optimization() {
         b"\x7fELFfoo",
         2
     );
+
+    // Non-contiguous offsets for uint8.
+    rule_true!(
+        r#"
+        rule constrained {
+            strings:
+                $a = "MZ"
+            condition:
+                uint8(0) == 0x00 and uint8(2) == 0x5a and $a
+        }
+        "#,
+        b"\0MZ"
+    );
 }
