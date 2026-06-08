@@ -3948,3 +3948,159 @@ fn short_circuit() {
         b"foobar"
     );
 }
+
+#[test]
+fn header_constraints_optimization() {
+    // ELF magic check.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "ELF"
+            condition:
+                uint32(0) == 0x464c457f and $a
+        }
+        "#,
+        b"\x7fELF\0\0\0\0"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "ELF"
+            condition:
+                uint32(0) == 0x464c457f and $a
+        }
+        "#,
+        b"\0\0\0\0ELF"
+    );
+
+    // PE magic check.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "PE"
+            condition:
+                uint16(0) == 0x5a4d and $a
+        }
+        "#,
+        b"MZ\0\0PE"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "PE"
+            condition:
+                uint16(0) == 0x5a4d and $a
+        }
+        "#,
+        b"\0\0MZPE"
+    );
+
+    // Pattern at 0 check.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "MZ"
+            condition:
+                $a at 0
+        }
+        "#,
+        b"MZ"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "MZ"
+            condition:
+                $a at 0
+        }
+        "#,
+        b"\0MZ"
+    );
+
+    // Multiple constraints combined.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "ELF"
+            condition:
+                uint32(0) == 0x464c457f and uint16(4) == 0x0102 and $a
+        }
+        "#,
+        b"\x7fELF\x02\x01"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "ELF"
+            condition:
+                uint32(0) == 0x464c457f and uint16(4) == 0x0102 and $a
+        }
+        "#,
+        b"\x7fELF\x99\x99"
+    );
+
+    // Deduplication test: A pattern used in both a constrained and an unconstrained rule.
+    // When the header does not match, only the unconstrained rule should match (exactly 1 rule).
+    rule_true!(
+        r#"
+        rule constrained {
+            strings:
+                $a = "foo"
+            condition:
+                uint32(0) == 0x464c457f and $a
+        }
+        rule unconstrained {
+            strings:
+                $a = "foo"
+            condition:
+                $a
+        }
+        "#,
+        b"\0\0\0\0foo"
+    );
+
+    // When the header matches, both rules should match (exactly 2 rules).
+    test_rule!(
+        r#"
+        rule constrained {
+            strings:
+                $a = "foo"
+            condition:
+                uint32(0) == 0x464c457f and $a
+        }
+        rule unconstrained {
+            strings:
+                $a = "foo"
+            condition:
+                $a
+        }
+        "#,
+        b"\x7fELFfoo",
+        2
+    );
+
+    // Non-contiguous offsets for uint8.
+    rule_true!(
+        r#"
+        rule constrained {
+            strings:
+                $a = "MZ"
+            condition:
+                uint8(0) == 0x00 and uint8(2) == 0x5a and $a
+        }
+        "#,
+        b"\0MZ"
+    );
+}

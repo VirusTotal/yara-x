@@ -29,7 +29,8 @@ allows using the same regex engine for matching both types of patterns.
 [Hir]: regex_syntax::hir::Hir
 */
 
-use std::collections::Bound;
+use std::collections::btree_map::Entry;
+use std::collections::{BTreeMap, Bound};
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem;
@@ -51,7 +52,7 @@ use crate::compiler::ir::dfs::{
     DFSIter, DFSWithScopeIter, Event, EventContext, dfs_common,
 };
 
-use crate::compiler::{FilesizeBounds, RegexSetId};
+use crate::compiler::{FilesizeBounds, HeaderConstraint, RegexSetId};
 use crate::re;
 use crate::symbols::Symbol;
 use crate::types::Value::Const;
@@ -310,6 +311,17 @@ impl Pattern {
             }
         }
     }
+
+    pub fn set_header_constraints(&mut self, constraints: &HeaderConstraint) {
+        match self {
+            Pattern::Text(literal) => {
+                literal.header_constraints = constraints.clone();
+            }
+            Pattern::Regexp(regexp) | Pattern::Hex(regexp) => {
+                regexp.header_constraints = constraints.clone();
+            }
+        }
+    }
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -321,6 +333,7 @@ pub(crate) struct LiteralPattern {
     pub base64_alphabet: Option<String>,
     pub base64wide_alphabet: Option<String>,
     pub filesize_bounds: FilesizeBounds,
+    pub header_constraints: HeaderConstraint,
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -329,6 +342,7 @@ pub(crate) struct RegexpPattern {
     pub hir: re::hir::Hir,
     pub anchored_at: Option<usize>,
     pub filesize_bounds: FilesizeBounds,
+    pub header_constraints: HeaderConstraint,
 }
 
 /// The index of a pattern in the rule that declares it.
@@ -991,6 +1005,251 @@ impl IR {
         }
 
         result
+    }
+
+    pub fn header_constraints(
+        &self,
+        pattern_prefix_lookup: impl Fn(PatternIdx) -> Option<Vec<u8>>,
+    ) -> HeaderConstraint {
+        let mut constrained_bytes = BTreeMap::new();
+        let mut unsatisfiable = false;
+        let mut dfs = self.dfs_iter(self.root.unwrap());
+
+        while let Some(evt) = dfs.next() {
+            let expr = match evt {
+                Event::Enter((_, expr, _)) => expr,
+                _ => continue,
+            };
+            match expr {
+                Expr::Eq { lhs, rhs } => {
+                    self.extract_header_constraints_from_eq(
+                        *lhs,
+                        *rhs,
+                        &mut constrained_bytes,
+                        &mut unsatisfiable,
+                    );
+                }
+                Expr::PatternMatch { pattern, anchor } => {
+                    if let MatchAnchor::At(offset_expr) = anchor
+                        && let Some(0) =
+                            self.get(*offset_expr).try_as_const_integer()
+                        && let Some(prefix_bytes) =
+                            pattern_prefix_lookup(*pattern)
+                    {
+                        for (i, &b) in prefix_bytes.iter().enumerate() {
+                            match constrained_bytes.entry(i) {
+                                Entry::Occupied(entry) => {
+                                    if *entry.get() != b {
+                                        unsatisfiable = true;
+                                        break;
+                                    }
+                                }
+                                Entry::Vacant(entry) => {
+                                    entry.insert(b);
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+            if unsatisfiable {
+                break;
+            }
+            if !matches!(expr, Expr::And { .. }) {
+                dfs.prune();
+            }
+        }
+
+        if unsatisfiable {
+            return HeaderConstraint::Unsatisfiable;
+        }
+
+        // If the first byte in `constrained_bytes` is at offset 0, we can
+        // return HeaderConstraint::Constrained.
+        if let Some((0, _)) = constrained_bytes.first_key_value() {
+            HeaderConstraint::Constrained(
+                // Take only the bytes at consecutive offsets starting at 0.
+                constrained_bytes
+                    .into_iter()
+                    .enumerate()
+                    .map_while(
+                        |(i, (offset, byte))| {
+                            if i == offset { Some(byte) } else { None }
+                        },
+                    )
+                    .collect(),
+            )
+        } else {
+            HeaderConstraint::Unconstrained
+        }
+    }
+
+    fn extract_header_constraints_from_eq(
+        &self,
+        lhs: ExprId,
+        rhs: ExprId,
+        constrained_bytes: &mut BTreeMap<usize, u8>,
+        unsatisfiable: &mut bool,
+    ) {
+        if let Some(val) = self.get(rhs).try_as_const_integer()
+            && self.apply_int_read_constraint(
+                constrained_bytes,
+                unsatisfiable,
+                lhs,
+                val,
+            )
+        {
+            return;
+        }
+        if let Some(val) = self.get(lhs).try_as_const_integer() {
+            self.apply_int_read_constraint(
+                constrained_bytes,
+                unsatisfiable,
+                rhs,
+                val,
+            );
+        }
+    }
+
+    fn add_constraint(
+        &self,
+        constrained_bytes: &mut BTreeMap<usize, u8>,
+        unsatisfiable: &mut bool,
+        offset: usize,
+        value: u8,
+    ) {
+        if *unsatisfiable {
+            return;
+        }
+        match constrained_bytes.entry(offset) {
+            Entry::Occupied(entry) => {
+                if *entry.get() != value {
+                    *unsatisfiable = true;
+                }
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(value);
+            }
+        }
+    }
+
+    fn apply_int_read_constraint(
+        &self,
+        constrained_bytes: &mut BTreeMap<usize, u8>,
+        unsatisfiable: &mut bool,
+        expr_id: ExprId,
+        val: i64,
+    ) -> bool {
+        let func_call = match self.get(expr_id) {
+            Expr::FuncCall(func_call) => func_call,
+            _ => return false,
+        };
+
+        if let Some(offset) = func_call
+            .args
+            .first()
+            .and_then(|arg| self.get(*arg).try_as_const_integer())
+            && offset >= 0
+        {
+            match func_call.plain_name() {
+                "uint8" | "int8" | "uint8be" | "int8be" => {
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize,
+                        val as u8,
+                    );
+                    return true;
+                }
+                "uint16" | "int16" => {
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize,
+                        (val as u16 & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 1,
+                        ((val as u16 >> 8) & 0xff) as u8,
+                    );
+                    return true;
+                }
+                "uint16be" | "int16be" => {
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize,
+                        ((val as u16 >> 8) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 1,
+                        (val as u16 & 0xff) as u8,
+                    );
+                    return true;
+                }
+                "uint32" | "int32" => {
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize,
+                        (val as u32 & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 1,
+                        ((val as u32 >> 8) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 2,
+                        ((val as u32 >> 16) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 3,
+                        ((val as u32 >> 24) & 0xff) as u8,
+                    );
+                    return true;
+                }
+                "uint32be" | "int32be" => {
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize,
+                        ((val as u32 >> 24) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 1,
+                        ((val as u32 >> 16) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 2,
+                        ((val as u32 >> 8) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 3,
+                        (val as u32 & 0xff) as u8,
+                    );
+                    return true;
+                }
+                _ => {}
+            }
+        }
+        false
     }
 }
 
@@ -2366,6 +2625,12 @@ impl FuncCall {
     /// Returns the mangled function name for this function call.
     pub fn mangled_name(&self) -> &str {
         self.signature().mangled_name.as_str()
+    }
+
+    /// Returns the plain function name, without argument or return type
+    /// information (i.e: everything before the `@` in the name).
+    pub fn plain_name(&self) -> &str {
+        self.signature().mangled_name.plain_name()
     }
 }
 

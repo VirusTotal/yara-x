@@ -171,6 +171,9 @@ pub struct ScanContext<'r, 'd> {
     pub(crate) console_log: Option<Box<dyn FnMut(String) + 'r>>,
     /// Virtual Machines used for executing regexps.
     pub(crate) vm: VM<'r>,
+    /// Patterns that are disabled for the current scan (e.g. because they don't
+    /// comply with filesize bounds or header constraints).
+    pub(crate) disabled_patterns: FxHashSet<PatternId>,
     /// Hash map that tracks the time spend on each pattern. Keys are pattern
     /// PatternIds and values are the cumulative time spent on verifying each
     /// pattern.
@@ -541,6 +544,9 @@ impl ScanContext<'_, '_> {
         // Free all runtime objects left around by previous scans.
         self.runtime_objects.clear();
 
+        // Clear the set that tracks the disabled patterns.
+        self.disabled_patterns.clear();
+
         // Clear the array that tracks the patterns that reached the maximum
         // number of patterns.
         self.tracker.limit_reached.clear();
@@ -764,10 +770,8 @@ impl ScanContext<'_, '_> {
         &mut self,
         base: usize,
         data: &[u8],
-        block_scanning_mode: bool,
     ) -> Result<(), ScanError> {
         let ac = self.compiled_rules.ac_automaton();
-        let filesize = self.get_filesize();
 
         #[cfg(feature = "logging")]
         let mut atom_matches = 0_usize;
@@ -792,8 +796,6 @@ impl ScanContext<'_, '_> {
                         match_offset,
                         base,
                         data,
-                        filesize,
-                        block_scanning_mode,
                     );
                 });
             }
@@ -814,8 +816,6 @@ impl ScanContext<'_, '_> {
                         ac_match.start(),
                         base,
                         data,
-                        filesize,
-                        block_scanning_mode,
                     );
                 }
             }
@@ -834,8 +834,6 @@ impl ScanContext<'_, '_> {
         match_start: usize,
         base: usize,
         data: &[u8],
-        filesize: i64,
-        block_scanning_mode: bool,
     ) {
         let atoms = self.compiled_rules.atoms();
         let atom = unsafe { atoms.get_unchecked(atom_idx) };
@@ -855,15 +853,11 @@ impl ScanContext<'_, '_> {
         let (pattern_id, sub_pattern) =
             &self.compiled_rules.get_sub_pattern(sub_pattern_id);
 
-        if self.tracker.limit_reached.contains(pattern_id) {
+        if self.disabled_patterns.contains(pattern_id) {
             return;
         }
 
-        if !block_scanning_mode
-            && let Some(bounds) =
-                self.compiled_rules.filesize_bounds(*pattern_id)
-            && !bounds.contains(filesize)
-        {
+        if self.tracker.limit_reached.contains(pattern_id) {
             return;
         }
 
@@ -1073,6 +1067,31 @@ impl ScanContext<'_, '_> {
             _ => panic!(),
         };
 
+        if !block_scanning_mode {
+            let filesize = self.get_filesize();
+            for pattern_id in 0..self.compiled_rules.num_patterns() {
+                let pattern_id = PatternId::from(pattern_id);
+                if let Some(bounds) =
+                    self.compiled_rules.filesize_bounds(pattern_id)
+                    && !bounds.contains(filesize)
+                {
+                    self.disabled_patterns.insert(pattern_id);
+                }
+            }
+        }
+
+        if base == 0 {
+            for pattern_id in 0..self.compiled_rules.num_patterns() {
+                let pattern_id = PatternId::from(pattern_id);
+                if let Some(constraints) =
+                    self.compiled_rules.header_constraints(pattern_id)
+                    && !constraints.is_satisfied(data)
+                {
+                    self.disabled_patterns.insert(pattern_id);
+                }
+            }
+        }
+
         #[cfg(any(feature = "rules-profiling", feature = "logging"))]
         let scan_start = self.clock.raw();
 
@@ -1080,8 +1099,7 @@ impl ScanContext<'_, '_> {
         // match at a single known offset within the data.
         self.verify_anchored_patterns(base, data);
 
-        let result = match self.ac_search_loop(base, data, block_scanning_mode)
-        {
+        let result = match self.ac_search_loop(base, data) {
             Ok(_) => {
                 self.scan_state = state;
                 Ok(())
@@ -1128,6 +1146,10 @@ impl ScanContext<'_, '_> {
             .anchored_sub_patterns()
             .iter()
             .map(|id| (id, self.compiled_rules.get_sub_pattern(*id)))
+            // Disabled patterns are ignored.
+            .filter(|(_, (pattern_id, _))| {
+                !self.disabled_patterns.contains(pattern_id)
+            })
         {
             match sub_pattern {
                 SubPattern::Literal {
@@ -1924,6 +1946,7 @@ pub fn create_wasm_store_and_ctx<'r>(
             pike_vm: PikeVM::new(rules.re_code()),
             fast_vm: FastVM::new(rules.re_code()),
         },
+        disabled_patterns: FxHashSet::default(),
         custom_base64_engine_cache: Vec::new(),
         #[cfg(feature = "rules-profiling")]
         time_spent_in_pattern: FxHashMap::default(),
