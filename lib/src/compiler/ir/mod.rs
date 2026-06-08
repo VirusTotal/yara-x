@@ -1011,7 +1011,7 @@ impl IR {
         &self,
         pattern_prefix_lookup: impl Fn(PatternIdx) -> Option<Vec<u8>>,
     ) -> HeaderConstraint {
-        let mut temp = BTreeMap::new();
+        let mut constrained_bytes = BTreeMap::new();
         let mut unsatisfiable = false;
         let mut dfs = self.dfs_iter(self.root.unwrap());
 
@@ -1025,31 +1025,31 @@ impl IR {
                     self.extract_header_constraints_from_eq(
                         *lhs,
                         *rhs,
-                        &mut temp,
+                        &mut constrained_bytes,
                         &mut unsatisfiable,
                     );
                 }
                 Expr::PatternMatch { pattern, anchor } => {
                     if let MatchAnchor::At(offset_expr) = anchor
-                        && let Some(0) = self.try_as_const_int(*offset_expr)
-                            && let Some(prefix_bytes) =
-                                pattern_prefix_lookup(*pattern)
-                            {
-                                for (i, &b) in prefix_bytes.iter().enumerate()
-                                {
-                                    match temp.entry(i) {
-                                        Entry::Occupied(entry) => {
-                                            if *entry.get() != b {
-                                                unsatisfiable = true;
-                                                break;
-                                            }
-                                        }
-                                        Entry::Vacant(entry) => {
-                                            entry.insert(b);
-                                        }
+                        && let Some(0) =
+                            self.get(*offset_expr).try_as_const_integer()
+                        && let Some(prefix_bytes) =
+                            pattern_prefix_lookup(*pattern)
+                    {
+                        for (i, &b) in prefix_bytes.iter().enumerate() {
+                            match constrained_bytes.entry(i) {
+                                Entry::Occupied(entry) => {
+                                    if *entry.get() != b {
+                                        unsatisfiable = true;
+                                        break;
                                     }
                                 }
+                                Entry::Vacant(entry) => {
+                                    entry.insert(b);
+                                }
                             }
+                        }
+                    }
                 }
                 _ => {}
             }
@@ -1067,7 +1067,7 @@ impl IR {
 
         let mut bytes = Vec::new();
         let mut offset = 0;
-        while let Some(&byte) = temp.get(&offset) {
+        while let Some(&byte) = constrained_bytes.get(&offset) {
             bytes.push(byte);
             offset += 1;
         }
@@ -1079,70 +1079,26 @@ impl IR {
         }
     }
 
-    fn try_as_const_int(&self, expr_id: ExprId) -> Option<i64> {
-        if let Expr::Const(val) = self.get(expr_id) {
-            val.try_as_integer()
-        } else {
-            None
-        }
-    }
-
-    fn extract_int_read_call(&self, expr_id: ExprId) -> Option<(&str, usize)> {
-        if let Expr::FuncCall(func_call) = self.get(expr_id) {
-            match func_call.plain_name() {
-                "uint8" | "int8" | "uint8be" | "int8be" | "uint16"
-                | "int16" | "uint16be" | "int16be" | "uint32" | "int32"
-                | "uint32be" | "int32be" => {
-                    if let Some(offset) = func_call
-                        .args.first()
-                        .and_then(|arg| self.try_as_const_int(*arg))
-                        && offset >= 0
-                    {
-                        return Some((
-                            func_call.plain_name(),
-                            offset as usize,
-                        ));
-                    }
-                }
-                _ => {}
-            }
-        }
-        None
-    }
-
     fn extract_header_constraints_from_eq(
         &self,
         lhs: ExprId,
         rhs: ExprId,
-        temp: &mut std::collections::BTreeMap<usize, u8>,
+        constrained_bytes: &mut BTreeMap<usize, u8>,
         unsatisfiable: &mut bool,
     ) {
-        if let Some((func_name, offset)) = self.extract_int_read_call(lhs) {
-            if let Some(val) = self.try_as_const_int(rhs) {
-                self.apply_int_read_constraint(
-                    temp,
-                    unsatisfiable,
-                    func_name,
-                    offset,
-                    val,
-                );
-            }
-        } else if let Some((func_name, offset)) =
-            self.extract_int_read_call(rhs)
-            && let Some(val) = self.try_as_const_int(lhs) {
-                self.apply_int_read_constraint(
-                    temp,
-                    unsatisfiable,
-                    func_name,
-                    offset,
-                    val,
-                );
-            }
+        if let Some(val) = self.get(rhs).try_as_const_integer()
+            && self.apply_int_read_constraint(constrained_bytes, unsatisfiable, lhs, val)
+        {
+            return;
+        }
+        if let Some(val) = self.get(lhs).try_as_const_integer() {
+            self.apply_int_read_constraint(constrained_bytes, unsatisfiable, rhs, val);
+        }
     }
 
     fn add_constraint(
         &self,
-        temp: &mut std::collections::BTreeMap<usize, u8>,
+        constrained_bytes: &mut BTreeMap<usize, u8>,
         unsatisfiable: &mut bool,
         offset: usize,
         value: u8,
@@ -1150,13 +1106,13 @@ impl IR {
         if *unsatisfiable {
             return;
         }
-        match temp.entry(offset) {
-            std::collections::btree_map::Entry::Occupied(entry) => {
+        match constrained_bytes.entry(offset) {
+            Entry::Occupied(entry) => {
                 if *entry.get() != value {
                     *unsatisfiable = true;
                 }
             }
-            std::collections::btree_map::Entry::Vacant(entry) => {
+            Entry::Vacant(entry) => {
                 entry.insert(value);
             }
         }
@@ -1164,102 +1120,120 @@ impl IR {
 
     fn apply_int_read_constraint(
         &self,
-        temp: &mut std::collections::BTreeMap<usize, u8>,
+        constrained_bytes: &mut BTreeMap<usize, u8>,
         unsatisfiable: &mut bool,
-        func_name: &str,
-        offset: usize,
+        expr_id: ExprId,
         val: i64,
-    ) {
-        match func_name {
-            "uint8" | "int8" | "uint8be" | "int8be" => {
-                self.add_constraint(temp, unsatisfiable, offset, val as u8);
+    ) -> bool {
+        let func_call = match self.get(expr_id) {
+            Expr::FuncCall(func_call) => func_call,
+            _ => return false,
+        };
+
+        if let Some(offset) = func_call
+            .args
+            .first()
+            .and_then(|arg| self.get(*arg).try_as_const_integer())
+            && offset >= 0
+        {
+            match func_call.plain_name() {
+                "uint8" | "int8" | "uint8be" | "int8be" => {
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize,
+                        val as u8,
+                    );
+                    return true;
+                }
+                "uint16" | "int16" => {
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize,
+                        (val as u16 & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 1,
+                        ((val as u16 >> 8) & 0xff) as u8,
+                    );
+                    return true;
+                }
+                "uint16be" | "int16be" => {
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize,
+                        ((val as u16 >> 8) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 1,
+                        (val as u16 & 0xff) as u8,
+                    );
+                    return true;
+                }
+                "uint32" | "int32" => {
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize,
+                        (val as u32 & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 1,
+                        ((val as u32 >> 8) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 2,
+                        ((val as u32 >> 16) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 3,
+                        ((val as u32 >> 24) & 0xff) as u8,
+                    );
+                    return true;
+                }
+                "uint32be" | "int32be" => {
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize,
+                        ((val as u32 >> 24) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 1,
+                        ((val as u32 >> 16) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 2,
+                        ((val as u32 >> 8) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 3,
+                        (val as u32 & 0xff) as u8,
+                    );
+                    return true;
+                }
+                _ => {}
             }
-            "uint16" | "int16" => {
-                let val = val as u16;
-                self.add_constraint(
-                    temp,
-                    unsatisfiable,
-                    offset,
-                    (val & 0xff) as u8,
-                );
-                self.add_constraint(
-                    temp,
-                    unsatisfiable,
-                    offset + 1,
-                    ((val >> 8) & 0xff) as u8,
-                );
-            }
-            "uint16be" | "int16be" => {
-                let val = val as u16;
-                self.add_constraint(
-                    temp,
-                    unsatisfiable,
-                    offset,
-                    ((val >> 8) & 0xff) as u8,
-                );
-                self.add_constraint(
-                    temp,
-                    unsatisfiable,
-                    offset + 1,
-                    (val & 0xff) as u8,
-                );
-            }
-            "uint32" | "int32" => {
-                let val = val as u32;
-                self.add_constraint(
-                    temp,
-                    unsatisfiable,
-                    offset,
-                    (val & 0xff) as u8,
-                );
-                self.add_constraint(
-                    temp,
-                    unsatisfiable,
-                    offset + 1,
-                    ((val >> 8) & 0xff) as u8,
-                );
-                self.add_constraint(
-                    temp,
-                    unsatisfiable,
-                    offset + 2,
-                    ((val >> 16) & 0xff) as u8,
-                );
-                self.add_constraint(
-                    temp,
-                    unsatisfiable,
-                    offset + 3,
-                    ((val >> 24) & 0xff) as u8,
-                );
-            }
-            "uint32be" | "int32be" => {
-                let val = val as u32;
-                self.add_constraint(
-                    temp,
-                    unsatisfiable,
-                    offset,
-                    ((val >> 24) & 0xff) as u8,
-                );
-                self.add_constraint(
-                    temp,
-                    unsatisfiable,
-                    offset + 1,
-                    ((val >> 16) & 0xff) as u8,
-                );
-                self.add_constraint(
-                    temp,
-                    unsatisfiable,
-                    offset + 2,
-                    ((val >> 8) & 0xff) as u8,
-                );
-                self.add_constraint(
-                    temp,
-                    unsatisfiable,
-                    offset + 3,
-                    (val & 0xff) as u8,
-                );
-            }
-            _ => {}
         }
+        false
     }
 }
 
