@@ -475,8 +475,8 @@ impl<'a> ParWalker<'a> {
                         );
                         let t_active = start_time.elapsed();
 
-                        if let Some(limit) = cpu_limit {
-                            if limit < 100 {
+                        if let Some(limit) = cpu_limit
+                            && limit < 100 {
                                 // Calculate the required sleep duration to limit
                                 // CPU usage to the target percentage.
                                 //
@@ -495,7 +495,6 @@ impl<'a> ParWalker<'a> {
                                     thread::sleep(t_sleep);
                                 }
                             }
-                        }
 
                         if let Err(err) = res
                             && error(err, &msg_send).is_err()
