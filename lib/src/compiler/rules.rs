@@ -866,15 +866,15 @@ impl FilesizeBounds {
 ///
 /// For example, the condition `uint32(0) == 0x464c457f` requires that the first
 /// 4 bytes of the file are `0x7f, 0x45, 0x4c, 0x46`.
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Hash, Eq)]
-#[derive(Default)]
+#[derive(
+    Debug, PartialEq, Serialize, Deserialize, Clone, Hash, Eq, Default,
+)]
 pub(crate) enum HeaderConstraint {
     #[default]
     Unconstrained,
     Unsatisfiable,
     Constrained(Vec<u8>),
 }
-
 
 impl HeaderConstraint {
     pub fn unconstrained(&self) -> bool {
