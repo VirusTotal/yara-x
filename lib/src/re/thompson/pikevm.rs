@@ -190,7 +190,8 @@ impl<'r> PikeVM<'r> {
             // multiple concurrent threads, matching a byte run would consume
             // multiple bytes from the input on the fly, which would
             // desynchronize and bypass other threads matching at different
-            // positions or branches.
+            // positions or branches. It's safe to set decode_literal_runs
+            // always to false, it will simply disable the optimization.
             let decode_literal_runs = self.threads.len() == 1;
 
             for (ip, rep_count) in self.threads.iter() {
