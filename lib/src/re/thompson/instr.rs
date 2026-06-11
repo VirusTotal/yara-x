@@ -171,6 +171,9 @@ pub enum Instr<'a> {
     /// Matches a specific byte.
     Byte(u8),
 
+    /// Matches a sequence of bytes.
+    Bytes(LiteralBytesIter<'a>),
+
     /// Matches a case-insensitive character. The value of `u8` is in the
     /// range a-z.
     CaseInsensitiveChar(u8),
@@ -320,7 +323,21 @@ impl<'a> InstrParser<'a> {
     }
 
     #[inline(always)]
-    pub fn decode_instr(code: &[u8]) -> (Instr<'_>, usize) {
+    fn is_bytes_run(code: &[u8]) -> bool {
+        match code {
+            [OPCODE_PREFIX, OPCODE_PREFIX, OPCODE_PREFIX, OPCODE_PREFIX, ..] => true,
+            [OPCODE_PREFIX, OPCODE_PREFIX, x, ..] if *x != OPCODE_PREFIX => true,
+            [x, OPCODE_PREFIX, OPCODE_PREFIX, ..] if *x != OPCODE_PREFIX => true,
+            [x, y, ..] if *x != OPCODE_PREFIX && *y != OPCODE_PREFIX => true,
+            _ => false,
+        }
+    }
+
+    #[inline(always)]
+    pub fn decode_instr(
+        code: &[u8],
+        decode_literal_runs: bool,
+    ) -> (Instr<'_>, usize) {
         match code[..] {
             [OPCODE_PREFIX, Instr::ANY_BYTE, ..] => (Instr::AnyByte, 2),
             [OPCODE_PREFIX, Instr::MASKED_BYTE, byte, mask, ..] => {
@@ -425,10 +442,15 @@ impl<'a> InstrParser<'a> {
             [OPCODE_PREFIX, Instr::WORD_START, ..] => (Instr::WordStart, 2),
             [OPCODE_PREFIX, Instr::WORD_END, ..] => (Instr::WordEnd, 2),
             [OPCODE_PREFIX, Instr::MATCH, ..] => (Instr::Match, 2),
-            [OPCODE_PREFIX, OPCODE_PREFIX, ..] => {
-                (Instr::Byte(OPCODE_PREFIX), 2)
+            [_, ..] => {
+                if decode_literal_runs && Self::is_bytes_run(code) {
+                    (Instr::Bytes(LiteralBytesIter::new(code)), 0)
+                } else if code[0] == OPCODE_PREFIX {
+                    (Instr::Byte(OPCODE_PREFIX), 2)
+                } else {
+                    (Instr::Byte(code[0]), 1)
+                }
             }
-            [b, ..] => (Instr::Byte(b), 1),
             _ => unreachable!(),
         }
     }
@@ -473,7 +495,7 @@ impl<'a> Iterator for InstrParser<'a> {
         if self.code.is_empty() {
             return None;
         }
-        let (instr, size) = InstrParser::decode_instr(self.code);
+        let (instr, size) = InstrParser::decode_instr(self.code, false);
         let addr = self.addr;
         self.addr += size;
         self.code = &self.code[size..];
@@ -594,4 +616,123 @@ pub fn literal_code_length(literal: &[u8]) -> usize {
         }
     }
     length
+}
+
+#[derive(Clone, Debug)]
+pub struct LiteralBytesIter<'a> {
+    code: &'a [u8],
+    offset: usize,
+}
+
+impl<'a> LiteralBytesIter<'a> {
+    #[inline(always)]
+    pub fn new(code: &'a [u8]) -> Self {
+        Self { code, offset: 0 }
+    }
+
+    #[inline(always)]
+    pub fn consumed(&self) -> usize {
+        self.offset
+    }
+}
+
+impl<'a> Iterator for LiteralBytesIter<'a> {
+    type Item = u8;
+
+    #[inline(always)]
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.offset >= self.code.len() {
+            return None;
+        }
+        match self.code[self.offset..] {
+            [OPCODE_PREFIX, OPCODE_PREFIX, ..] => {
+                self.offset += 2;
+                Some(OPCODE_PREFIX)
+            }
+            [OPCODE_PREFIX, ..] => None,
+            [byte, ..] => {
+                self.offset += 1;
+                Some(byte)
+            }
+            _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_decode_instr() {
+        // Run of standard literal bytes
+        let code = [0x01, 0x02, OPCODE_PREFIX, Instr::SPLIT_B];
+        let (instr, size) = InstrParser::decode_instr(&code, true);
+        assert_eq!(size, 0);
+        if let Instr::Bytes(mut iter) = instr {
+            assert_eq!(iter.next(), Some(0x01));
+            assert_eq!(iter.next(), Some(0x02));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.consumed(), 2);
+        } else {
+            panic!("Expected Instr::Bytes");
+        }
+
+        let (instr, size) = InstrParser::decode_instr(&code, false);
+        assert_eq!(size, 1);
+        assert!(matches!(instr, Instr::Byte(0x01)));
+
+        // Run of escaped OPCODE_PREFIX bytes
+        let code =
+            [OPCODE_PREFIX, OPCODE_PREFIX, OPCODE_PREFIX, OPCODE_PREFIX];
+        let (instr, size) = InstrParser::decode_instr(&code, true);
+        assert_eq!(size, 0);
+        if let Instr::Bytes(mut iter) = instr {
+            assert_eq!(iter.next(), Some(OPCODE_PREFIX));
+            assert_eq!(iter.next(), Some(OPCODE_PREFIX));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.consumed(), 4);
+        } else {
+            panic!("Expected Instr::Bytes");
+        }
+
+        // Run with escaped OPCODE_PREFIX and standard literal byte
+        let code = [OPCODE_PREFIX, OPCODE_PREFIX, 0x01];
+        let (instr, size) = InstrParser::decode_instr(&code, true);
+        assert_eq!(size, 0);
+        if let Instr::Bytes(mut iter) = instr {
+            assert_eq!(iter.next(), Some(OPCODE_PREFIX));
+            assert_eq!(iter.next(), Some(0x01));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.consumed(), 3);
+        } else {
+            panic!("Expected Instr::Bytes");
+        }
+
+        // Run with standard literal byte and escaped OPCODE_PREFIX
+        let code = [0x01, OPCODE_PREFIX, OPCODE_PREFIX];
+        let (instr, size) = InstrParser::decode_instr(&code, true);
+        assert_eq!(size, 0);
+        if let Instr::Bytes(mut iter) = instr {
+            assert_eq!(iter.next(), Some(0x01));
+            assert_eq!(iter.next(), Some(OPCODE_PREFIX));
+            assert_eq!(iter.next(), None);
+            assert_eq!(iter.consumed(), 3);
+        } else {
+            panic!("Expected Instr::Bytes");
+        }
+
+        // Single literal byte (not a run of >= 2)
+        let code = [0x01, OPCODE_PREFIX, Instr::SPLIT_B];
+        let (instr, size) = InstrParser::decode_instr(&code, true);
+        assert_eq!(size, 1);
+        assert!(matches!(instr, Instr::Byte(0x01)));
+
+        // Single escaped OPCODE_PREFIX (not a run of >= 2)
+        let code =
+            [OPCODE_PREFIX, OPCODE_PREFIX, OPCODE_PREFIX, Instr::SPLIT_B];
+        let (instr, size) = InstrParser::decode_instr(&code, true);
+        assert_eq!(size, 2);
+        assert!(matches!(instr, Instr::Byte(OPCODE_PREFIX)));
+    }
 }
