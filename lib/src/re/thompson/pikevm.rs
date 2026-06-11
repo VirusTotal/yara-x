@@ -237,11 +237,11 @@ impl<'r> PikeVM<'r> {
                             // sequence by consuming bytes from the input
                             // stream.
                             for expected_byte in lit_bytes.by_ref() {
-                                match fwd_input.next() {
-                                    Some(byte) => {
-                                        curr_byte = Some(byte);
+                                curr_byte = fwd_input.next();
+                                match curr_byte {
+                                    Some(curr_byte) => {
                                         current_pos += 1;
-                                        if *byte != expected_byte {
+                                        if *curr_byte != expected_byte {
                                             break 'is_match false;
                                         }
                                     }
