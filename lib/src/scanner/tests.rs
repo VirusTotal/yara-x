@@ -1053,3 +1053,49 @@ fn fast_scan_mode() {
         test_count.patterns().filter(|p| p.identifier() == "$c");
     assert_eq!(patterns_c.next().unwrap().matches().len(), 2);
 }
+
+#[test]
+fn test_pikevm_literal_run_optimization() {
+    let rules = crate::compile(
+        r#"
+        rule test_opt {
+            strings:
+                $a = /abcdefg.*hijk.*lmno/
+            condition:
+                $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+
+    let results = scanner.scan(b"abcdefg_hijk_lmno").unwrap();
+    assert_eq!(results.matching_rules().count(), 1);
+
+    let results = scanner.scan(b"abcdefg_hijk_lmn").unwrap();
+    assert_eq!(results.matching_rules().count(), 0);
+
+    let results = scanner.scan(b"abcdef_hijk_lmno").unwrap();
+    assert_eq!(results.matching_rules().count(), 0);
+}
+
+#[test]
+fn test_slow_rule_hang() {
+    let rules = crate::compile(
+        r#"
+        rule test {
+            strings:
+                $zero_padding = /\x00{860,}/
+            condition:
+                $zero_padding
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    let data = vec![0u8; 2000];
+    let results = scanner.scan(&data).unwrap();
+    assert_eq!(results.matching_rules().count(), 1);
+}

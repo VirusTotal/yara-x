@@ -1723,6 +1723,10 @@ impl Display for InstrSeq {
                 Instr::Byte(byte) => {
                     writeln!(f, "{addr:05x}: LIT {byte:#04x}")?;
                 }
+                Instr::Bytes(iter) => {
+                    let bytes: Vec<u8> = iter.clone().collect();
+                    writeln!(f, "{addr:05x}: BYTES {:?}", bytes)?;
+                }
                 Instr::MaskedByte { byte, mask } => {
                     writeln!(
                         f,
