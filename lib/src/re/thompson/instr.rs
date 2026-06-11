@@ -325,9 +325,19 @@ impl<'a> InstrParser<'a> {
     #[inline(always)]
     fn is_bytes_run(code: &[u8]) -> bool {
         match code {
-            [OPCODE_PREFIX, OPCODE_PREFIX, OPCODE_PREFIX, OPCODE_PREFIX, ..] => true,
-            [OPCODE_PREFIX, OPCODE_PREFIX, x, ..] if *x != OPCODE_PREFIX => true,
-            [x, OPCODE_PREFIX, OPCODE_PREFIX, ..] if *x != OPCODE_PREFIX => true,
+            [
+                OPCODE_PREFIX,
+                OPCODE_PREFIX,
+                OPCODE_PREFIX,
+                OPCODE_PREFIX,
+                ..,
+            ] => true,
+            [OPCODE_PREFIX, OPCODE_PREFIX, x, ..] if *x != OPCODE_PREFIX => {
+                true
+            }
+            [x, OPCODE_PREFIX, OPCODE_PREFIX, ..] if *x != OPCODE_PREFIX => {
+                true
+            }
             [x, y, ..] if *x != OPCODE_PREFIX && *y != OPCODE_PREFIX => true,
             _ => false,
         }
