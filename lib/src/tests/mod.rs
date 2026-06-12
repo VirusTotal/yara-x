@@ -3425,6 +3425,80 @@ fn filesize_bounds() {
 }
 
 #[test]
+fn header_constraints() {
+    let rules = crate::compile(
+        r#"
+        rule test_1 {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            uint16(0) == 0x5a4d and $a
+        }
+        rule test_2 {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(
+        scanner
+            .scan(b"foobar")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1 // test_2 matches, but test_1 do not.
+    );
+
+    let rules = crate::compile(
+        r#"
+        rule test {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a and filesize == 6
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(
+        scanner
+            .scan(b"foobar")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    crate::compile(
+        r#"
+        rule test_1 {
+          strings:
+            $a = "foo"
+            $b = /a*/
+          condition:
+            uint16(0) == 0x5a4d and $a and $b
+        }
+        rule test_2 {
+          strings:
+            $c = "bar"
+          condition:
+            uint16(0) == 0x5a4d and $c
+        }
+        "#,
+    )
+    .expect_err("should fail");
+}
+
+#[test]
 fn for_of() {
     rule_true!(
         r#"

@@ -1236,6 +1236,9 @@ impl Compiler<'_> {
 
         self.filesize_bounds
             .retain(|pattern_id, _| *pattern_id < snapshot.next_pattern_id);
+
+        self.header_constraints
+            .retain(|pattern_id, _| *pattern_id < snapshot.next_pattern_id);
     }
 
     /// Returns true if the bytes in the slice are all 0x00, 0x90, or 0xff.
