@@ -6,7 +6,8 @@ use walrus::ValType::{F64, I32, I64};
 use walrus::ir::ExtendedLoad::{SignExtend, ZeroExtend};
 use walrus::ir::{BinaryOp, Block, InstrSeqId, LoadKind, MemArg, UnaryOp};
 use walrus::{
-    FunctionBuilder, FunctionId, GlobalId, InstrSeqBuilder, LocalId, MemoryId, Module,
+    FunctionBuilder, FunctionId, GlobalId, InstrSeqBuilder, LocalId, MemoryId,
+    Module,
 };
 
 use super::WasmSymbols;
@@ -160,10 +161,13 @@ impl WasmModuleBuilder {
 
         for export in super::wasm_exports() {
             let fully_qualified_name = export.fully_qualified_mangled_name();
-            let is_xint = export.builtin() && [
-                "uint8", "uint16", "uint32", "uint8be", "uint16be", "uint32be",
-                "int8", "int16", "int32", "int8be", "int16be", "int32be"
-            ].contains(&export.name);
+            let is_xint = export.builtin()
+                && [
+                    "uint8", "uint16", "uint32", "uint8be", "uint16be",
+                    "uint32be", "int8", "int16", "int32", "int8be", "int16be",
+                    "int32be",
+                ]
+                .contains(&export.name);
 
             if is_xint {
                 xint_wrappers.push((export.name, fully_qualified_name));
@@ -185,7 +189,8 @@ impl WasmModuleBuilder {
             wasm_exports.insert(fully_qualified_name, func_id);
         }
 
-        let fill_cache_func = fill_cache_func.expect("fill_cache function not found in exports");
+        let fill_cache_func =
+            fill_cache_func.expect("fill_cache function not found in exports");
 
         for (name, fully_qualified_name) in xint_wrappers {
             let func_id = Self::gen_xint_wrapper(
@@ -531,11 +536,8 @@ impl WasmModuleBuilder {
         fill_cache_func: FunctionId,
         export_name: &str,
     ) -> FunctionId {
-        let mut func = FunctionBuilder::new(
-            &mut module.types,
-            &[I64],
-            &[I64, I32],
-        );
+        let mut func =
+            FunctionBuilder::new(&mut module.types, &[I64], &[I64, I32]);
 
         let offset = module.locals.add(I64);
         let cache_start_var = module.locals.add(I64);
@@ -603,7 +605,14 @@ impl WasmModuleBuilder {
                 then_.unop(UnaryOp::I32WrapI64);
                 then_.binop(BinaryOp::I32Add);
 
-                Self::emit_cache_load(then_, main_memory, size, is_be, is_signed, addr_tmp);
+                Self::emit_cache_load(
+                    then_,
+                    main_memory,
+                    size,
+                    is_be,
+                    is_signed,
+                    addr_tmp,
+                );
             },
             |else_| {
                 else_.local_get(offset);
@@ -616,15 +625,22 @@ impl WasmModuleBuilder {
                     I64,
                     |then_after_fill| {
                         then_after_fill.i32_const(wasm::CACHE_DATA_OFFSET);
-                        Self::emit_cache_load(then_after_fill, main_memory, size, is_be, is_signed, addr_tmp);
+                        Self::emit_cache_load(
+                            then_after_fill,
+                            main_memory,
+                            size,
+                            is_be,
+                            is_signed,
+                            addr_tmp,
+                        );
                     },
                     |else_after_fill| {
                         else_after_fill.i64_const(0);
                         else_after_fill.i32_const(1);
                         else_after_fill.return_();
-                    }
+                    },
                 );
-            }
+            },
         );
 
         // Put is_undef = 0 on stack
@@ -641,11 +657,7 @@ impl WasmModuleBuilder {
         is_signed: bool,
         addr_tmp: LocalId,
     ) {
-        let ext = if is_signed {
-            SignExtend
-        } else {
-            ZeroExtend
-        };
+        let ext = if is_signed { SignExtend } else { ZeroExtend };
 
         match (size, is_be) {
             (1, _) => {

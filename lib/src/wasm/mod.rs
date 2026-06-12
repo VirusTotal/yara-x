@@ -132,7 +132,8 @@ pub(crate) const CACHE_DATA_OFFSET: i32 = CACHE_BASE + 12;
 /// Offset in module's main memory where resides the bitmap that tells if a
 /// rule matches or not. This bitmap contains one bit per rule, if the N-th
 /// bit is set, it indicates that the rule with RuleId = N matched.
-pub(crate) const MATCHING_RULES_BITMAP_BASE: i32 = CACHE_DATA_OFFSET + CACHE_SIZE;
+pub(crate) const MATCHING_RULES_BITMAP_BASE: i32 =
+    CACHE_DATA_OFFSET + CACHE_SIZE;
 
 inventory::collect!(WasmExport);
 
