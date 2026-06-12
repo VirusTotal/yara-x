@@ -3,10 +3,10 @@ use crate::wasm;
 use rustc_hash::FxHashMap;
 use std::mem;
 use walrus::ValType::{F64, I32, I64};
-use walrus::ir::ExtendedLoad::ZeroExtend;
+use walrus::ir::ExtendedLoad::{SignExtend, ZeroExtend};
 use walrus::ir::{BinaryOp, Block, InstrSeqId, LoadKind, MemArg, UnaryOp};
 use walrus::{
-    FunctionBuilder, FunctionId, GlobalId, InstrSeqBuilder, MemoryId, Module,
+    FunctionBuilder, FunctionId, GlobalId, InstrSeqBuilder, LocalId, MemoryId, Module,
 };
 
 use super::WasmSymbols;
@@ -141,24 +141,6 @@ impl WasmModuleBuilder {
         let mut module = walrus::Module::with_config(config);
         let mut wasm_exports = FxHashMap::default();
 
-        for export in super::wasm_exports() {
-            let ty = module.types.add(
-                export.func.walrus_args().as_slice(),
-                export.func.walrus_results().as_slice(),
-            );
-            let fully_qualified_name = export.fully_qualified_mangled_name();
-            let (func_id, _) = module.add_import_func(
-                export.rust_module_path,
-                fully_qualified_name.as_str(),
-                ty,
-            );
-            wasm_exports.insert(fully_qualified_name, func_id);
-        }
-
-        global_const!(module, matching_patterns_bitmap_base, I32);
-        global_var!(module, filesize, I64);
-        global_var!(module, pattern_search_done, I32);
-
         let (main_memory, _) = module.add_import_memory(
             "yara_x",
             "main_memory",
@@ -168,6 +150,52 @@ impl WasmModuleBuilder {
             None,
             None,
         );
+
+        global_const!(module, matching_patterns_bitmap_base, I32);
+        global_var!(module, filesize, I64);
+        global_var!(module, pattern_search_done, I32);
+
+        let mut xint_wrappers = Vec::new();
+        let mut fill_cache_func = None;
+
+        for export in super::wasm_exports() {
+            let fully_qualified_name = export.fully_qualified_mangled_name();
+            let is_xint = export.builtin() && [
+                "uint8", "uint16", "uint32", "uint8be", "uint16be", "uint32be",
+                "int8", "int16", "int32", "int8be", "int16be", "int32be"
+            ].contains(&export.name);
+
+            if is_xint {
+                xint_wrappers.push((export.name, fully_qualified_name));
+                continue;
+            }
+
+            let ty = module.types.add(
+                export.func.walrus_args().as_slice(),
+                export.func.walrus_results().as_slice(),
+            );
+            let (func_id, _) = module.add_import_func(
+                export.rust_module_path,
+                fully_qualified_name.as_str(),
+                ty,
+            );
+            if export.name == "fill_cache" {
+                fill_cache_func = Some(func_id);
+            }
+            wasm_exports.insert(fully_qualified_name, func_id);
+        }
+
+        let fill_cache_func = fill_cache_func.expect("fill_cache function not found in exports");
+
+        for (name, fully_qualified_name) in xint_wrappers {
+            let func_id = Self::gen_xint_wrapper(
+                &mut module,
+                main_memory,
+                fill_cache_func,
+                name,
+            );
+            wasm_exports.insert(fully_qualified_name, func_id);
+        }
 
         // Generate the function that checks if a pattern matched.
         let check_for_pattern_match = Self::gen_check_for_pattern_match(
@@ -495,5 +523,228 @@ impl WasmModuleBuilder {
         instr.binop(BinaryOp::I32ShrU);
 
         func.finish(vec![pattern_id], &mut module.funcs)
+    }
+
+    fn gen_xint_wrapper(
+        module: &mut Module,
+        main_memory: MemoryId,
+        fill_cache_func: FunctionId,
+        export_name: &str,
+    ) -> FunctionId {
+        let mut func = FunctionBuilder::new(
+            &mut module.types,
+            &[I64],
+            &[I64, I32],
+        );
+
+        let offset = module.locals.add(I64);
+        let cache_start_var = module.locals.add(I64);
+        let cache_len_var = module.locals.add(I32);
+        let addr_tmp = module.locals.add(I32);
+
+        let mut instr = func.func_body();
+
+        // Load cache_start
+        instr.i32_const(wasm::CACHE_START_OFFSET);
+        instr.load(
+            main_memory,
+            LoadKind::I64 { atomic: false },
+            MemArg { align: 8, offset: 0 },
+        );
+        instr.local_set(cache_start_var);
+
+        // Load cache_len
+        instr.i32_const(wasm::CACHE_LEN_OFFSET);
+        instr.load(
+            main_memory,
+            LoadKind::I32 { atomic: false },
+            MemArg { align: 4, offset: 0 },
+        );
+        instr.local_set(cache_len_var);
+
+        // Determine size S based on the function name.
+        let is_be = export_name.ends_with("be");
+        let base_name = export_name.strip_suffix("be").unwrap_or(export_name);
+        let size = match base_name {
+            "uint8" | "int8" => 1,
+            "uint16" | "int16" => 2,
+            "uint32" | "int32" => 4,
+            _ => unreachable!(),
+        };
+        let is_signed = base_name.starts_with("int");
+
+        // Check if offset >= cache_start
+        instr.local_get(offset);
+        instr.local_get(cache_start_var);
+        instr.binop(BinaryOp::I64GeS);
+
+        // Check if offset + size <= cache_start + cache_len
+        instr.local_get(offset);
+        instr.i64_const(size as i64);
+        instr.binop(BinaryOp::I64Add);
+
+        instr.local_get(cache_start_var);
+        instr.local_get(cache_len_var);
+        instr.unop(UnaryOp::I64ExtendUI32);
+        instr.binop(BinaryOp::I64Add);
+        instr.binop(BinaryOp::I64LeS);
+
+        // AND them
+        instr.binop(BinaryOp::I32And);
+
+        // If hit, load from cache. Else call fill_cache and check again.
+        instr.if_else(
+            I64,
+            |then_| {
+                then_.i32_const(wasm::CACHE_DATA_OFFSET);
+                then_.local_get(offset);
+                then_.local_get(cache_start_var);
+                then_.binop(BinaryOp::I64Sub);
+                then_.unop(UnaryOp::I32WrapI64);
+                then_.binop(BinaryOp::I32Add);
+
+                Self::emit_cache_load(then_, main_memory, size, is_be, is_signed, addr_tmp);
+            },
+            |else_| {
+                else_.local_get(offset);
+                else_.call(fill_cache_func);
+
+                else_.i32_const(size);
+                else_.binop(BinaryOp::I32GeS);
+
+                else_.if_else(
+                    I64,
+                    |then_after_fill| {
+                        then_after_fill.i32_const(wasm::CACHE_DATA_OFFSET);
+                        Self::emit_cache_load(then_after_fill, main_memory, size, is_be, is_signed, addr_tmp);
+                    },
+                    |else_after_fill| {
+                        else_after_fill.i64_const(0);
+                        else_after_fill.i32_const(1);
+                        else_after_fill.return_();
+                    }
+                );
+            }
+        );
+
+        // Put is_undef = 0 on stack
+        instr.i32_const(0);
+
+        func.finish(vec![offset], &mut module.funcs)
+    }
+
+    fn emit_cache_load(
+        instr: &mut InstrSeqBuilder,
+        main_memory: MemoryId,
+        size: i32,
+        is_be: bool,
+        is_signed: bool,
+        addr_tmp: LocalId,
+    ) {
+        let ext = if is_signed {
+            SignExtend
+        } else {
+            ZeroExtend
+        };
+
+        match (size, is_be) {
+            (1, _) => {
+                instr.load(
+                    main_memory,
+                    LoadKind::I64_8 { kind: ext },
+                    MemArg { align: 1, offset: 0 },
+                );
+            }
+            (2, false) => {
+                instr.load(
+                    main_memory,
+                    LoadKind::I64_16 { kind: ext },
+                    MemArg { align: 1, offset: 0 },
+                );
+            }
+            (4, false) => {
+                instr.load(
+                    main_memory,
+                    LoadKind::I64_32 { kind: ext },
+                    MemArg { align: 1, offset: 0 },
+                );
+            }
+            (2, true) => {
+                instr.local_set(addr_tmp);
+
+                instr.local_get(addr_tmp);
+                instr.load(
+                    main_memory,
+                    LoadKind::I64_8 { kind: ZeroExtend },
+                    MemArg { align: 1, offset: 0 },
+                );
+                instr.i64_const(8);
+                instr.binop(BinaryOp::I64Shl);
+
+                instr.local_get(addr_tmp);
+                instr.load(
+                    main_memory,
+                    LoadKind::I64_8 { kind: ZeroExtend },
+                    MemArg { align: 1, offset: 1 },
+                );
+
+                instr.binop(BinaryOp::I64Or);
+
+                if is_signed {
+                    instr.i64_const(48);
+                    instr.binop(BinaryOp::I64Shl);
+                    instr.i64_const(48);
+                    instr.binop(BinaryOp::I64ShrS);
+                }
+            }
+            (4, true) => {
+                instr.local_set(addr_tmp);
+
+                instr.local_get(addr_tmp);
+                instr.load(
+                    main_memory,
+                    LoadKind::I64_8 { kind: ZeroExtend },
+                    MemArg { align: 1, offset: 0 },
+                );
+                instr.i64_const(24);
+                instr.binop(BinaryOp::I64Shl);
+
+                instr.local_get(addr_tmp);
+                instr.load(
+                    main_memory,
+                    LoadKind::I64_8 { kind: ZeroExtend },
+                    MemArg { align: 1, offset: 1 },
+                );
+                instr.i64_const(16);
+                instr.binop(BinaryOp::I64Shl);
+                instr.binop(BinaryOp::I64Or);
+
+                instr.local_get(addr_tmp);
+                instr.load(
+                    main_memory,
+                    LoadKind::I64_8 { kind: ZeroExtend },
+                    MemArg { align: 1, offset: 2 },
+                );
+                instr.i64_const(8);
+                instr.binop(BinaryOp::I64Shl);
+                instr.binop(BinaryOp::I64Or);
+
+                instr.local_get(addr_tmp);
+                instr.load(
+                    main_memory,
+                    LoadKind::I64_8 { kind: ZeroExtend },
+                    MemArg { align: 1, offset: 3 },
+                );
+                instr.binop(BinaryOp::I64Or);
+
+                if is_signed {
+                    instr.i64_const(32);
+                    instr.binop(BinaryOp::I64Shl);
+                    instr.i64_const(32);
+                    instr.binop(BinaryOp::I64ShrS);
+                }
+            }
+            _ => unreachable!(),
+        }
     }
 }

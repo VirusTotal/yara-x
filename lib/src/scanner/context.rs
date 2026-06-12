@@ -569,6 +569,13 @@ impl ScanContext<'_, '_> {
         // Clear module outputs from previous scans.
         self.module_outputs.clear();
 
+        if let Some(main_memory) = self.wasm.main_memory {
+            let store = self.wasm_store_mut();
+            let mem = main_memory.data_mut(store);
+            let cache_base = wasm::CACHE_BASE as usize;
+            mem[cache_base..cache_base + 12].fill(0);
+        }
+
         // Move the matching rules to the `matching_rules` vector, leaving the
         // `matching_rules_per_ns` map empty.
         for rules in self.matching_rules_per_ns.values_mut() {

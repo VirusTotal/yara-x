@@ -123,10 +123,16 @@ pub(crate) const LOOKUP_INDEXES_START: i32 = VARS_STACK_END;
 /// Offset in module's main memory where the space for lookup indexes end.
 pub(crate) const LOOKUP_INDEXES_END: i32 = LOOKUP_INDEXES_START + 1024;
 
+pub(crate) const CACHE_BASE: i32 = LOOKUP_INDEXES_END;
+pub(crate) const CACHE_SIZE: i32 = 64;
+pub(crate) const CACHE_START_OFFSET: i32 = CACHE_BASE;
+pub(crate) const CACHE_LEN_OFFSET: i32 = CACHE_BASE + 8;
+pub(crate) const CACHE_DATA_OFFSET: i32 = CACHE_BASE + 12;
+
 /// Offset in module's main memory where resides the bitmap that tells if a
 /// rule matches or not. This bitmap contains one bit per rule, if the N-th
 /// bit is set, it indicates that the rule with RuleId = N matched.
-pub(crate) const MATCHING_RULES_BITMAP_BASE: i32 = LOOKUP_INDEXES_END;
+pub(crate) const MATCHING_RULES_BITMAP_BASE: i32 = CACHE_DATA_OFFSET + CACHE_SIZE;
 
 inventory::collect!(WasmExport);
 
@@ -1644,6 +1650,47 @@ pub(crate) fn str_matches_regex_set(
         crate::compiler::RegexSetId::from(regex_set),
         lhs.as_bstr(ctx),
     )
+}
+
+#[wasm_export(sync = "none")]
+pub(crate) fn fill_cache(
+    caller: &mut Caller<'_, ScanContext>,
+    offset: i64,
+) -> i32 {
+    let offset = match usize::try_from(offset) {
+        Ok(offset) => offset,
+        Err(_) => return 0,
+    };
+
+    let mut chunk_buf = [0u8; 64];
+    let chunk_len = {
+        let data = match caller.data().scanned_data() {
+            Some(data) => data,
+            None => return 0,
+        };
+        if offset >= data.len() {
+            return 0;
+        }
+        let len = std::cmp::min(CACHE_SIZE as usize, data.len() - offset);
+        chunk_buf[..len].copy_from_slice(&data[offset..offset + len]);
+        len
+    };
+
+    let main_memory = caller.data().wasm.main_memory.unwrap();
+    let mem = main_memory.data_mut(caller.as_context_mut());
+
+    let start_bytes = (offset as i64).to_le_bytes();
+    mem[CACHE_START_OFFSET as usize..CACHE_START_OFFSET as usize + 8]
+        .copy_from_slice(&start_bytes);
+
+    let len_bytes = (chunk_len as i32).to_le_bytes();
+    mem[CACHE_LEN_OFFSET as usize..CACHE_LEN_OFFSET as usize + 4]
+        .copy_from_slice(&len_bytes);
+
+    mem[CACHE_DATA_OFFSET as usize..CACHE_DATA_OFFSET as usize + chunk_len]
+        .copy_from_slice(&chunk_buf[..chunk_len]);
+
+    chunk_len as i32
 }
 
 macro_rules! gen_int_fn {
