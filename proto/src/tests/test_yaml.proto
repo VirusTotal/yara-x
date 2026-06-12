@@ -2,7 +2,7 @@ syntax = "proto2";
 
 import "yara.proto";
 
-package test;
+package test_yaml;
 
 message SubMessage {
   optional int32 int32_dec = 1;

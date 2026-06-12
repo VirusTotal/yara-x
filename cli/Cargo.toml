@@ -68,8 +68,7 @@ strum_macros = { workspace = true }
 yansi = { workspace = true }
 yara-x = { workspace = true, features = ["parallel-compilation"] }
 yara-x-parser = { workspace = true }
-yara-x-proto-yaml = { workspace = true }
-yara-x-proto-json = { workspace = true }
+yara-x-proto = { workspace = true }
 yara-x-fmt = { workspace = true }
 
 chardetng = "1.0.0"

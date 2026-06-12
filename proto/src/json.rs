@@ -1,86 +1,37 @@
-/*! Serializes a Protocol Buffer (protobuf) message to YAML.
+/*! Serializes Protocol Buffer (protobuf) messages into JSON format.
 
-This crate serializes arbitrary protobuf messages to YAML format, producing
-YAML that is user-friendly, customizable and colorful. Some aspects of the
-produced YAML can be customized by using specific options in your `.proto`
-files. Let's use the following protobuf message definition as an example:
+This crate provides functionality to serialize arbitrary protobuf messages
+into a structured JSON representation. Special handling is applied to certain
+protobuf field types that are not natively representable in JSON—most notably,
+`bytes` fields.
 
-```protobuf
-import "yara.proto";
+Since raw byte sequences may contain non-UTF-8 data, they cannot be directly
+encoded as JSON strings. Instead, they are serialized as an object containing
+the base64-encoded value along with an encoding identifier. For example:
 
-message MyMessage {
-  optional int32 some_field = 1 [(yara.field_options).fmt = "x"];
+```json
+{
+  "my_bytes_field": {
+    "encoding": "base64",
+    "value": "dGhpcyBpcyB0aGUgb3JpZ2luYWwgdmFsdWU="
+  }
 }
 ```
-
-The first think to note is the `import "yara.proto"` statement before the
-message definition. The `yara.proto` file defines the existing formatting
-options, so you must include it in your own `.proto` file in order to be able
-to use the such options.
-
-The `[(yara.field_options).fmt = "x"]` modifier, when applied to some field,
-indicates that values of that field must be rendered in hexadecimal form. The
-list of supported format modifiers is:
-
-- `x`: Serializes the value as a hexadecimal number. Only valid for integer
-  fields.
-
-- `t`: Serializes the field as a timestamp. The value itself is rendered as a
-  decimal integer, but a comment is added with the timestamp in a human-friendly
-  format. Only valid for integer fields.
-
-- `flag:ENUM_TYPE_NAME`: Serializes the field as a set of flags. The value
-  is rendered as a hexadecimal number, but a comment is added with the names
-  of the flags that are enabled. `ENUM_TYPE_NAME` must be the name of enum
-  where each value represents a flag.
-
-# Examples
-
-Protobuf definition:
-
-```protobuf
-import "yara.proto";
-
-message MyMessage {
-  optional int32 some_field = 1 [(yara.field_options).fmt = "x"];
-  optional int64 some_timestamp = 2 [(yara.field_options).fmt = "t"];
-  optional int32 some_flag = 3 [(yara.field_options).fmt = "flags:MyFlags"];
-}
-
-enum MyFlags {
-    FOO = 0x01;
-    BAR = 0x02;
-    BAZ = 0x04;
-}
-```
-
-YAML output:
-
-```yaml
-some_field: 0x8b1;
-some_timestamp: 999999999  # 2001-09-09 01:46:39 UTC
-some_flag: 0x06  # BAR | BAZ
-```
- */
+*/
 
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::io::{Error, Write};
-use std::ops::BitAnd;
 
-use chrono::prelude::DateTime;
+use base64::Engine;
+use base64::prelude::BASE64_STANDARD;
 use itertools::Itertools;
 use protobuf::MessageDyn;
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
 use protobuf::reflect::{FieldDescriptor, MessageRef, ReflectValueRef};
 use yansi::{Color, Paint, Style};
 
-use yara_x_proto::{FieldFormat, get_field_format};
-
-#[cfg(test)]
-mod tests;
-
-include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
+use crate::{FieldFormat, get_field_format};
 
 const INDENTATION: u16 = 4;
 
@@ -89,15 +40,11 @@ const INDENTATION: u16 = 4;
 struct Colors {
     string: Style,
     field_name: Style,
-    repeated_name: Style,
-    comment: Style,
 }
 
-/// Serializes a protobuf to YAML format.
+/// Serializes a protobuf to JSON format.
 ///
-/// Takes a protobuf message and produces a YAML representation of it. The
-/// produced YAML intends to be as human-friendly as possible, by including
-/// comments that clarify the meaning of certain values, like timestamps.
+/// Takes a protobuf message and produces a JSON representation of it.
 pub struct Serializer<W: Write> {
     indent: u16,
     output: W,
@@ -119,8 +66,6 @@ impl<W: Write> Serializer<W> {
             Colors {
                 string: Color::Green.foreground(),
                 field_name: Color::Yellow.foreground(),
-                repeated_name: Color::Yellow.foreground(),
-                comment: Color::Rgb(222, 184, 135).foreground(),
             }
         } else {
             Colors::default()
@@ -140,57 +85,15 @@ impl<W: Write> Serializer<W> {
         value: T,
         format: FieldFormat,
     ) -> Result<(), std::io::Error> {
-        match format {
-            FieldFormat::Flags(flags_enum) => {
-                let value = value.into();
-                write!(self.output, "0x{value:x}")?;
-                let mut f = vec![];
-                for v in flags_enum.values() {
-                    if value.bitand(v.value() as i64) != 0 {
-                        f.push(v.name().to_string());
-                    }
-                }
-                if !f.is_empty() {
-                    self.write_comment(f.into_iter().join(" | ").as_str())?;
-                }
-            }
-            FieldFormat::Hex => {
-                write!(self.output, "0x{:x}", value.into())?;
-            }
-            FieldFormat::Timestamp => {
-                write!(self.output, "{}", value.to_string())?;
-                self.write_comment(
-                    DateTime::from_timestamp(value.into(), 0)
-                        .unwrap()
-                        .to_string()
-                        .as_str(),
-                )?;
-            }
-            _ => {
-                write!(self.output, "{}", value.to_string())?;
-            }
+        if matches!(format, FieldFormat::Timestamp) {
+            write!(
+                self.output,
+                "{{ \"encoding\": \"timestamp\", \"value\": {} }}",
+                value.to_string()
+            )
+        } else {
+            write!(self.output, "{}", value.to_string())
         }
-
-        Ok(())
-    }
-
-    fn escape_bytes(bytes: &[u8]) -> String {
-        let mut result = String::with_capacity(bytes.len());
-        for b in bytes.iter() {
-            match b {
-                b'\n' => result.push_str(r"\n"),
-                b'\r' => result.push_str(r"\r"),
-                b'\t' => result.push_str(r"\t"),
-                b'\'' => result.push_str("\\\'"),
-                b'"' => result.push_str("\\\""),
-                b'\\' => result.push_str(r"\\"),
-                b'\x20'..=b'\x7e' => result.push(*b as char),
-                _ => {
-                    result.push_str(&format!("\\x{:02x}", *b));
-                }
-            }
-        }
-        result
     }
 
     fn escape(s: &str) -> Cow<'_, str> {
@@ -203,7 +106,6 @@ impl<W: Write> Serializer<W> {
                     '\n' => result.push_str(r"\n"),
                     '\r' => result.push_str(r"\r"),
                     '\t' => result.push_str(r"\t"),
-                    '\'' => result.push_str("\\\'"),
                     '"' => result.push_str("\\\""),
                     '\\' => result.push_str(r"\\"),
                     _ => result.push(c),
@@ -215,17 +117,8 @@ impl<W: Write> Serializer<W> {
         }
     }
 
-    fn write_comment(&mut self, comment: &str) -> Result<(), Error> {
-        let comment = format!("  # {comment}");
-        write!(self.output, "{}", comment.paint(self.colors.comment))
-    }
-
     fn write_field_name(&mut self, name: &str) -> Result<(), Error> {
-        write!(self.output, "{}:", name.paint(self.colors.field_name))
-    }
-
-    fn write_repeated_name(&mut self, name: &str) -> Result<(), Error> {
-        write!(self.output, "{}:", name.paint(self.colors.repeated_name))
+        write!(self.output, "\"{}\": ", name.paint(self.colors.field_name))
     }
 
     fn write_msg(&mut self, msg: &MessageRef) -> Result<(), Error> {
@@ -241,37 +134,37 @@ impl<W: Write> Serializer<W> {
             })
             .peekable();
 
+        write!(self.output, "{{")?;
+        self.indent += INDENTATION;
+        self.newline()?;
+
         while let Some(field) = non_empty_fields.next() {
             match field.get_reflect(&**msg) {
                 Optional(optional) => {
                     let value = optional.value().unwrap();
                     self.write_field_name(field.name())?;
-                    self.indent += INDENTATION;
-                    self.write_name_value_separator(&value)?;
                     self.write_value(&field, &value)?;
-                    self.indent -= INDENTATION;
                 }
                 Repeated(repeated) => {
-                    self.write_repeated_name(field.name())?;
+                    self.write_field_name(field.name())?;
+                    write!(self.output, "[")?;
+                    self.indent += INDENTATION;
                     self.newline()?;
                     let mut items = repeated.into_iter().peekable();
                     while let Some(value) = items.next() {
-                        write!(
-                            self.output,
-                            "{}{} ",
-                            " ".repeat((INDENTATION - 2) as usize),
-                            "-".paint(self.colors.repeated_name)
-                        )?;
-                        self.indent += INDENTATION;
                         self.write_value(&field, &value)?;
-                        self.indent -= INDENTATION;
                         if items.peek().is_some() {
+                            write!(self.output, ",")?;
                             self.newline()?;
                         }
                     }
+                    self.indent -= INDENTATION;
+                    self.newline()?;
+                    write!(self.output, "]")?;
                 }
                 Map(map) => {
                     self.write_field_name(field.name())?;
+                    write!(self.output, "{{")?;
                     self.indent += INDENTATION;
                     self.newline()?;
 
@@ -288,29 +181,34 @@ impl<W: Write> Serializer<W> {
                         .peekable();
 
                     while let Some(item) = items.next() {
-                        let key = format!("{}", item.key);
-                        let escaped_key = Self::escape(&key);
+                        let key = item.key.to_string();
                         write!(
                             self.output,
-                            "\"{}\":",
-                            escaped_key.paint(self.colors.field_name)
+                            "\"{}\": ",
+                            Self::escape(&key).paint(self.colors.string)
                         )?;
-                        self.indent += INDENTATION;
-                        self.write_name_value_separator(&item.value)?;
                         self.write_value(&field, &item.value)?;
-                        self.indent -= INDENTATION;
                         if items.peek().is_some() {
+                            write!(self.output, ",")?;
+                            self.newline()?;
+                        } else {
+                            self.indent -= INDENTATION;
                             self.newline()?;
                         }
                     }
-                    self.indent -= INDENTATION;
+                    write!(self.output, "}}")?;
                 }
             }
 
             if non_empty_fields.peek().is_some() {
+                write!(self.output, ",")?;
                 self.newline()?;
             }
         }
+
+        self.indent -= INDENTATION;
+        self.newline()?;
+        write!(self.output, "}}")?;
 
         Ok(())
     }
@@ -333,39 +231,23 @@ impl<W: Write> Serializer<W> {
             ReflectValueRef::I64(v) => {
                 self.print_integer_value(*v, get_field_format(field))?
             }
-            ReflectValueRef::F32(v) => write!(self.output, "{v:.1}")?,
-            ReflectValueRef::F64(v) => write!(self.output, "{v:.1}")?,
+            ReflectValueRef::F32(v) => write!(self.output, "{v}")?,
+            ReflectValueRef::F64(v) => write!(self.output, "{v}")?,
             ReflectValueRef::Bool(v) => write!(self.output, "{v}")?,
             ReflectValueRef::String(v) => {
-                if v.contains('\n') {
-                    write!(self.output, "{}", "|".paint(self.colors.string))?;
-                    for line in v.split('\n') {
-                        self.newline()?;
-                        write!(
-                            self.output,
-                            "{}",
-                            line.strip_suffix('\r')
-                                .unwrap_or(line)
-                                .paint(self.colors.string)
-                        )?;
-                    }
-                } else {
-                    write!(
-                        self.output,
-                        "\"{}\"",
-                        Self::escape(v).paint(self.colors.string)
-                    )?;
-                }
-            }
-            ReflectValueRef::Bytes(v) => {
                 write!(
                     self.output,
                     "\"{}\"",
-                    Self::escape_bytes(v).paint(self.colors.string)
+                    Self::escape(v).paint(self.colors.string)
                 )?;
             }
+            ReflectValueRef::Bytes(v) => write!(
+                self.output,
+                "{{ \"encoding\": \"base64\", \"value\": \"{}\"}}",
+                BASE64_STANDARD.encode(v).paint(self.colors.string)
+            )?,
             ReflectValueRef::Enum(d, v) => match d.value_by_number(*v) {
-                Some(e) => write!(self.output, "{}", e.name())?,
+                Some(e) => write!(self.output, "\"{}\"", e.name())?,
                 None => write!(self.output, "{v}")?,
             },
             ReflectValueRef::Message(msg) => self.write_msg(msg)?,
@@ -377,18 +259,6 @@ impl<W: Write> Serializer<W> {
         writeln!(self.output)?;
         for _ in 0..self.indent {
             write!(self.output, " ")?;
-        }
-        Ok(())
-    }
-
-    fn write_name_value_separator(
-        &mut self,
-        value: &ReflectValueRef,
-    ) -> Result<(), Error> {
-        if let ReflectValueRef::Message(_) = value {
-            self.newline()?
-        } else {
-            write!(self.output, " ")?
         }
         Ok(())
     }

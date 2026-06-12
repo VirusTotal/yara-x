@@ -167,7 +167,7 @@ fn test_modules() {
         let output_file = mint.new_goldenfile(out_path).unwrap();
 
         // Render the module's output as YAML.
-        let mut yaml = yara_x_proto_yaml::Serializer::new(output_file);
+        let mut yaml = yara_x_proto::yaml::Serializer::new(output_file);
 
         yaml.serialize(output).unwrap();
     });

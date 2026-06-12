@@ -2,7 +2,7 @@ syntax = "proto2";
 
 import "yara.proto";
 
-package test;
+package test_json;
 
 message SubMessage {
   optional int32 i32 = 1;

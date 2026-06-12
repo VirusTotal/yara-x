@@ -1496,7 +1496,7 @@ fn proto_to_json<'py>(
     let mut module_output_json = Vec::new();
 
     let mut serializer =
-        yara_x_proto_json::Serializer::new(&mut module_output_json);
+        yara_x_proto::json::Serializer::new(&mut module_output_json);
 
     serializer
         .serialize(proto)
