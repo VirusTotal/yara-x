@@ -8,8 +8,8 @@ use std::path::PathBuf;
 use strum_macros::Display;
 
 use yara_x::mods::*;
-use yara_x_proto_json::Serializer as JsonSerializer;
-use yara_x_proto_yaml::Serializer as YamlSerializer;
+use yara_x_proto::json::Serializer as JsonSerializer;
+use yara_x_proto::yaml::Serializer as YamlSerializer;
 
 use crate::help;
 

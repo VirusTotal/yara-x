@@ -350,7 +350,7 @@ goldenfile = { workspace = true }
 ihex = { workspace = true }
 pretty_assertions = { workspace = true }
 rayon = { workspace = true }
-yara-x-proto-yaml = { workspace = true }
+yara-x-proto = { workspace = true }
 zip = { workspace = true }
 
 [[bench]]

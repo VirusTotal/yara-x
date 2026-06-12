@@ -57,7 +57,6 @@ figment = { workspace = true, features = ["toml"] }
 globwalk = { workspace = true }
 home = { workspace = true }
 itertools = { workspace = true }
-enable-ansi-support = { workspace = true }
 env_logger = { workspace = true, optional = true, features = ["auto-color"] }
 log = { workspace = true, optional = true }
 protobuf = { workspace = true }
@@ -69,8 +68,7 @@ strum_macros = { workspace = true }
 yansi = { workspace = true }
 yara-x = { workspace = true, features = ["parallel-compilation"] }
 yara-x-parser = { workspace = true }
-yara-x-proto-yaml = { workspace = true }
-yara-x-proto-json = { workspace = true }
+yara-x-proto = { workspace = true }
 yara-x-fmt = { workspace = true }
 
 chardetng = "1.0.0"
@@ -86,3 +84,6 @@ wild = "2.2.1"
 assert_cmd = "2.2.2"
 assert_fs = "1.1.4"
 predicates = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+enable-ansi-support = "0.3.1"

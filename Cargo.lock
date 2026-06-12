@@ -4417,7 +4417,6 @@ dependencies = [
  "yara-x-macros",
  "yara-x-parser",
  "yara-x-proto",
- "yara-x-proto-yaml",
  "zip",
 ]
 
@@ -4467,8 +4466,7 @@ dependencies = [
  "yara-x",
  "yara-x-fmt",
  "yara-x-parser",
- "yara-x-proto-json",
- "yara-x-proto-yaml",
+ "yara-x-proto",
 ]
 
 [[package]]
@@ -4568,28 +4566,7 @@ dependencies = [
 name = "yara-x-proto"
 version = "1.17.0"
 dependencies = [
- "protobuf",
- "protobuf-codegen",
-]
-
-[[package]]
-name = "yara-x-proto-json"
-version = "1.17.0"
-dependencies = [
  "base64",
- "globwalk",
- "goldenfile",
- "itertools 0.14.0",
- "protobuf",
- "protobuf-codegen",
- "yansi",
- "yara-x-proto",
-]
-
-[[package]]
-name = "yara-x-proto-yaml"
-version = "1.17.0"
-dependencies = [
  "chrono",
  "globwalk",
  "goldenfile",
@@ -4597,7 +4574,6 @@ dependencies = [
  "protobuf",
  "protobuf-codegen",
  "yansi",
- "yara-x-proto",
 ]
 
 [[package]]
@@ -4615,7 +4591,7 @@ dependencies = [
  "yara-x",
  "yara-x-fmt",
  "yara-x-parser",
- "yara-x-proto-json",
+ "yara-x-proto",
 ]
 
 [[package]]
