@@ -62,11 +62,25 @@ impl<'a> ScanState<'a> {
     }
 }
 
+/// Tracks the matches found during a scan.
 pub(crate) struct MatchTracker<'r> {
+    /// Contains the matches found so far.
     pub pattern_matches: PatternMatches,
+    /// Contains matches for subpatterns that are part of a chain but
+    /// the whole chain has not been confirmed yet
     pub unconfirmed_matches: FxHashMap<SubPatternId, Vec<UnconfirmedMatch>>,
-    pub limit_reached: FxHashSet<PatternId>,
+    /// Patterns that have been disabled, either because they have reached
+    /// the maximum number of matches or because they are meant to be ignored
+    /// during this scan because they belong to some rule that we know that
+    /// can't match.
+    pub disabled_patterns: FxHashSet<PatternId>,
+    /// The rules that are being used during the scan.
     pub compiled_rules: &'r Rules,
+    /// Indicates whether fast mode is enabled. In fast mode the scanner
+    /// only looks for the first match of each pattern, unless the condition
+    /// requires tracking all the matches (i.e: the condition relies on the
+    /// total number of matches). The drawback is that the user can't retrieve
+    /// all the matches for a give pattern.
     pub fast_scan: bool,
 }
 
@@ -171,9 +185,6 @@ pub struct ScanContext<'r, 'd> {
     pub(crate) console_log: Option<Box<dyn FnMut(String) + 'r>>,
     /// Virtual Machines used for executing regexps.
     pub(crate) vm: VM<'r>,
-    /// Patterns that are disabled for the current scan (e.g. because they don't
-    /// comply with filesize bounds or header constraints).
-    pub(crate) disabled_patterns: FxHashSet<PatternId>,
     /// Hash map that tracks the time spend on each pattern. Keys are pattern
     /// PatternIds and values are the cumulative time spent on verifying each
     /// pattern.
@@ -544,12 +555,8 @@ impl ScanContext<'_, '_> {
         // Free all runtime objects left around by previous scans.
         self.runtime_objects.clear();
 
-        // Clear the set that tracks the disabled patterns.
-        self.disabled_patterns.clear();
-
-        // Clear the array that tracks the patterns that reached the maximum
-        // number of patterns.
-        self.tracker.limit_reached.clear();
+        // Clear the set that tracks the patterns that has been disabled.
+        self.tracker.disabled_patterns.clear();
 
         self.tracker.unconfirmed_matches.clear();
         self.num_matching_private_rules = 0;
@@ -853,11 +860,7 @@ impl ScanContext<'_, '_> {
         let (pattern_id, sub_pattern) =
             &self.compiled_rules.get_sub_pattern(sub_pattern_id);
 
-        if self.disabled_patterns.contains(pattern_id) {
-            return;
-        }
-
-        if self.tracker.limit_reached.contains(pattern_id) {
+        if self.tracker.disabled_patterns.contains(pattern_id) {
             return;
         }
 
@@ -1075,7 +1078,7 @@ impl ScanContext<'_, '_> {
                     self.compiled_rules.filesize_bounds(pattern_id)
                     && !bounds.contains(filesize)
                 {
-                    self.disabled_patterns.insert(pattern_id);
+                    self.tracker.disabled_patterns.insert(pattern_id);
                 }
             }
         }
@@ -1087,7 +1090,7 @@ impl ScanContext<'_, '_> {
                     self.compiled_rules.header_constraints(pattern_id)
                     && !constraints.is_satisfied(data)
                 {
-                    self.disabled_patterns.insert(pattern_id);
+                    self.tracker.disabled_patterns.insert(pattern_id);
                 }
             }
         }
@@ -1146,11 +1149,10 @@ impl ScanContext<'_, '_> {
             .anchored_sub_patterns()
             .iter()
             .map(|id| (id, self.compiled_rules.get_sub_pattern(*id)))
-            // Disabled patterns are ignored.
-            .filter(|(_, (pattern_id, _))| {
-                !self.disabled_patterns.contains(pattern_id)
-            })
         {
+            if self.tracker.disabled_patterns.contains(pattern_id) {
+                continue;
+            }
             match sub_pattern {
                 SubPattern::Literal {
                     pattern,
@@ -1774,7 +1776,7 @@ fn track_pattern_match(
         || (tracker.fast_scan
             && tracker.compiled_rules.is_fast_scan(pattern_id))
     {
-        tracker.limit_reached.insert(pattern_id);
+        tracker.disabled_patterns.insert(pattern_id);
     }
 }
 
@@ -1935,7 +1937,7 @@ pub fn create_wasm_store_and_ctx<'r>(
         tracker: MatchTracker {
             pattern_matches: PatternMatches::new(),
             unconfirmed_matches: FxHashMap::default(),
-            limit_reached: FxHashSet::default(),
+            disabled_patterns: FxHashSet::default(),
             compiled_rules: rules,
             fast_scan: false,
         },
@@ -1946,7 +1948,6 @@ pub fn create_wasm_store_and_ctx<'r>(
             pike_vm: PikeVM::new(rules.re_code()),
             fast_vm: FastVM::new(rules.re_code()),
         },
-        disabled_patterns: FxHashSet::default(),
         custom_base64_engine_cache: Vec::new(),
         #[cfg(feature = "rules-profiling")]
         time_spent_in_pattern: FxHashMap::default(),
