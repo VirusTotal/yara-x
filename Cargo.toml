@@ -31,7 +31,7 @@ resolver = "3"
 
 
 [workspace.dependencies]
-daachorse = "3.0.0"
+daachorse = "3.0.2"
 annotate-snippets = "0.12.16"
 anyhow = "1.0.102"
 hex = "0.4.3"
