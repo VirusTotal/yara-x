@@ -29,7 +29,9 @@ globally, they affect the entire rule set, offering little flexibility when you
 want to silence a specific warning in just one location.
 
 Individual warnings at specific locations of your code can be disabled by using 
-a comment of the form: `// suppress: <WARNING_ID>`.
+a comment of the form: `// suppress: <WARNING_ID>`. Starting with YARA-X 1.19.0
+You can also suppress multiple warnings at once by separating them with commas, 
+for example: `// suppress: <WARNING_ID_1>,<WARNING_ID_2>`.
 
 This allows you to disable a warning only for a specific rule, pattern, or line, 
 depending on the comment's position.

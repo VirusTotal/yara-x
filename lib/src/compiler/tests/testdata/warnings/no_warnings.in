@@ -62,7 +62,7 @@ rule test_9 {
   strings:
     // suppress: text_as_hex
     $a = { 61 62 63 64 }
-    $b = { 61 62 63 64 } // suppress: text_as_hex
+    $b = { 61 62 63 64 } // suppress: text_as_hex,duplicate_pattern_value
   condition:
     $a and $b or true // suppress: invariant_expr
 }
@@ -72,7 +72,7 @@ rule test_9 {
 rule test_10 {
   strings:
     $a = { 61 62 63 64 }
-    $b = { 61 62 63 64 }
+    $b = { 61 62 63 64 } // suppress: duplicate_pattern_value
   condition:
     $a and $b or true
 }
