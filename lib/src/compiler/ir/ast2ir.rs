@@ -82,8 +82,10 @@ pub(in crate::compiler) fn patterns_from_ast<'src>(
                 warnings::DuplicatePatternValue::build(
                     ctx.report_builder,
                     existing.identifier().name.to_string(),
-                    ctx.report_builder.span_to_code_loc(pattern.span().clone()),
-                    ctx.report_builder.span_to_code_loc(existing.span().clone()),
+                    ctx.report_builder
+                        .span_to_code_loc(pattern.span().clone()),
+                    ctx.report_builder
+                        .span_to_code_loc(existing.span().clone()),
                 )
             });
         }
