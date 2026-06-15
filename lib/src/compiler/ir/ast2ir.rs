@@ -73,6 +73,20 @@ pub(in crate::compiler) fn patterns_from_ast<'src>(
                     .span_to_code_loc(existing.identifier.span()),
             ));
         }
+        if let Some(existing) = ctx
+            .current_rule_patterns
+            .iter()
+            .find(|p| p.pattern() == pattern.pattern())
+        {
+            ctx.warnings.add(|| {
+                warnings::DuplicatePatternValue::build(
+                    ctx.report_builder,
+                    existing.identifier().name.to_string(),
+                    ctx.report_builder.span_to_code_loc(pattern.span().clone()),
+                    ctx.report_builder.span_to_code_loc(existing.span().clone()),
+                )
+            });
+        }
         if ctx.current_rule_patterns.len() == MAX_PATTERNS_PER_RULE {
             return Err(TooManyPatterns::build(
                 ctx.report_builder,

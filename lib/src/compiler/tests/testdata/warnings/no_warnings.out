@@ -1,0 +1,14 @@
+warning[duplicate_pattern_value]: duplicate pattern value
+  --> line:64:10
+   |
+64 |     $a = { 61 62 63 64 }
+   |          --------------- pattern `$a` defined here first
+65 |     $b = { 61 62 63 64 } // suppress: text_as_hex
+   |          --------------- duplicate of pattern `$a`
+warning[duplicate_pattern_value]: duplicate pattern value
+  --> line:74:10
+   |
+74 |     $a = { 61 62 63 64 }
+   |          --------------- pattern `$a` defined here first
+75 |     $b = { 61 62 63 64 }
+   |          --------------- duplicate of pattern `$a`
