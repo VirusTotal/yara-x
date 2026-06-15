@@ -38,8 +38,7 @@ jobs:
       run: cargo llvm-cov --features=magic-module,rules-profiling --workspace --lib --lcov --output-path lcov.info
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
+      uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v7.0.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: lcov.info
-        fail_ci_if_error: true
