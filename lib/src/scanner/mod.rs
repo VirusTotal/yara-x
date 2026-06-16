@@ -160,18 +160,12 @@ pub struct ProfilingData<'r> {
 #[derive(Debug)]
 pub struct ScanOptions<'a> {
     module_metadata: HashMap<&'a str, &'a [u8]>,
-    /// Enables or disables container file extraction.
-    pub enable_extraction: bool,
-    /// Maximum recursion depth for container file extraction.
-    pub max_extraction_depth: usize,
 }
 
 impl Default for ScanOptions<'_> {
     fn default() -> Self {
         Self {
             module_metadata: Default::default(),
-            enable_extraction: false,
-            max_extraction_depth: 3,
         }
     }
 }
@@ -647,11 +641,8 @@ impl<'r> Scanner<'r> {
         data: ScannedData<'a>,
         options: Option<&ScanOptions<'opts>>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        let enable_extraction =
-            options.map_or(self.enable_extraction, |o| o.enable_extraction);
-
-        let max_extraction_depth = options
-            .map_or(self.max_extraction_depth, |o| o.max_extraction_depth);
+        let enable_extraction = self.enable_extraction;
+        let max_extraction_depth = self.max_extraction_depth;
 
         self.scan_context_mut().matching_rules.clear();
         self.scan_context_mut().pattern_matches.clear();
