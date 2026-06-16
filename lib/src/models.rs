@@ -25,9 +25,16 @@ pub struct Rule<'a, 'r> {
     pub(crate) ctx: Option<&'a ScanContext<'r, 'a>>,
     pub(crate) rules: &'r Rules,
     pub(crate) rule_info: &'r RuleInfo,
+    pub(crate) logical_path: Option<std::path::PathBuf>,
 }
 
 impl<'a, 'r> Rule<'a, 'r> {
+    /// Returns the logical virtual path of the specific file where this rule matched.
+    /// For the root scanned file, this returns `Path::new("")`.
+    pub fn logical_path(&self) -> &std::path::Path {
+        self.logical_path.as_deref().unwrap_or_else(|| std::path::Path::new(""))
+    }
+
     /// Returns the rule's name.
     pub fn identifier(&self) -> &'r str {
         self.rules.ident_pool().get(self.rule_info.ident_id).unwrap()
@@ -80,6 +87,7 @@ impl<'a, 'r> Rule<'a, 'r> {
             len_non_private: self.rule_info.patterns.len()
                 - self.rule_info.num_private_patterns,
             len_private: self.rule_info.num_private_patterns,
+            logical_path: self.logical_path.clone(),
         }
     }
 }
@@ -294,6 +302,7 @@ pub struct Patterns<'a, 'r> {
     len_private: usize,
     /// Number of non-private patterns that remain to be yielded.
     len_non_private: usize,
+    logical_path: Option<std::path::PathBuf>,
 }
 
 impl Patterns<'_, '_> {
@@ -339,6 +348,7 @@ impl<'a, 'r> Iterator for Patterns<'a, 'r> {
                     pattern_id: pattern.pattern_id,
                     kind: pattern.kind,
                     is_private: pattern.is_private,
+                    logical_path: self.logical_path.clone(),
                 });
             }
         }
@@ -353,6 +363,7 @@ pub struct Pattern<'a, 'r> {
     pattern_id: PatternId,
     kind: PatternKind,
     is_private: bool,
+    logical_path: Option<std::path::PathBuf>,
 }
 
 impl<'a, 'r> Pattern<'a, 'r> {
@@ -381,11 +392,17 @@ impl<'a, 'r> Pattern<'a, 'r> {
     pub fn matches(&self) -> Matches<'a, 'r> {
         Matches {
             ctx: self.ctx,
+            logical_path: self.logical_path.clone(),
             iterator: self.ctx.and_then(|ctx| {
-                ctx.tracker
-                    .pattern_matches
-                    .get(self.pattern_id)
-                    .map(|matches| matches.iter())
+                let path = self.logical_path.as_deref().unwrap_or_else(|| std::path::Path::new(""));
+                if let Some(pm) = ctx.multi_file_pattern_matches.get(path) {
+                    pm.get(self.pattern_id).map(|matches| matches.iter())
+                } else {
+                    ctx.tracker
+                        .pattern_matches
+                        .get(self.pattern_id)
+                        .map(|matches| matches.iter())
+                }
             }),
         }
     }
@@ -410,6 +427,7 @@ impl<'a, 'r> Serialize for Pattern<'a, 'r> {
 pub struct Matches<'a, 'r> {
     ctx: Option<&'a ScanContext<'r, 'a>>,
     iterator: Option<Iter<'a, scanner::Match>>,
+    logical_path: Option<std::path::PathBuf>,
 }
 
 impl<'a, 'r> Iterator for Matches<'a, 'r> {
@@ -417,7 +435,11 @@ impl<'a, 'r> Iterator for Matches<'a, 'r> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let iter = self.iterator.as_mut()?;
-        Some(Match { ctx: self.ctx?, inner: iter.next()? })
+        Some(Match {
+            ctx: self.ctx?,
+            inner: iter.next()?,
+            logical_path: self.logical_path.clone(),
+        })
     }
 }
 
@@ -431,6 +453,7 @@ impl ExactSizeIterator for Matches<'_, '_> {
 pub struct Match<'a, 'r> {
     ctx: &'a ScanContext<'r, 'a>,
     inner: &'a scanner::Match,
+    logical_path: Option<std::path::PathBuf>,
 }
 
 impl<'a> Match<'a, '_> {
@@ -444,9 +467,10 @@ impl<'a> Match<'a, '_> {
     #[inline]
     pub fn data(&self) -> &'a [u8] {
         match &self.ctx.scan_state {
-            ScanState::Finished(snippets) => {
-                snippets.get(self.range()).unwrap()
-            }
+            ScanState::Finished(snippets) => snippets
+                .get_with_file_context(self.logical_path.as_deref(), self.range(), 0)
+                .unwrap()
+                .0,
             _ => panic!("invalid scan state"),
         }
     }
@@ -462,7 +486,11 @@ impl<'a> Match<'a, '_> {
     pub fn data_with_context(&self) -> (&'a [u8], Range<usize>) {
         match &self.ctx.scan_state {
             ScanState::Finished(snippets) => snippets
-                .get_with_context(self.range(), self.ctx.match_context_size)
+                .get_with_file_context(
+                    self.logical_path.as_deref(),
+                    self.range(),
+                    self.ctx.match_context_size,
+                )
                 .unwrap(),
             _ => panic!("invalid scan state"),
         }

@@ -2,13 +2,13 @@
 
 The scanner takes the rules produces by the compiler and scans data with them.
 */
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::io::Read;
 use std::mem::transmute;
 use std::ops::Range;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::pin::Pin;
 use std::slice::Iter;
 use std::sync::Once;
@@ -157,9 +157,23 @@ pub struct ProfilingData<'r> {
 }
 
 /// Optional information for the scan operation.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ScanOptions<'a> {
     module_metadata: HashMap<&'a str, &'a [u8]>,
+    /// Enables or disables container file extraction.
+    pub enable_extraction: bool,
+    /// Maximum recursion depth for container file extraction.
+    pub max_extraction_depth: usize,
+}
+
+impl Default for ScanOptions<'_> {
+    fn default() -> Self {
+        Self {
+            module_metadata: Default::default(),
+            enable_extraction: false,
+            max_extraction_depth: 3,
+        }
+    }
 }
 
 impl<'a> ScanOptions<'a> {
@@ -168,7 +182,7 @@ impl<'a> ScanOptions<'a> {
     ///
     /// Use other methods to add additional information.
     pub fn new() -> Self {
-        Self { module_metadata: Default::default() }
+        Self::default()
     }
 
     /// Adds metadata for a YARA module.
@@ -193,13 +207,22 @@ pub struct Scanner<'r> {
     wasm_store: Pin<Box<Store<ScanContext<'static, 'static>>>>,
     use_mmap: bool,
     max_scan_size: Option<usize>,
+    pub(crate) enable_extraction: bool,
+    pub(crate) max_extraction_depth: usize,
 }
 
 impl<'r> Scanner<'r> {
     /// Creates a new scanner.
     pub fn new(rules: &'r Rules) -> Self {
         let wasm_store = create_wasm_store_and_ctx(rules);
-        Self { _rules: rules, wasm_store, use_mmap: true, max_scan_size: None }
+        Self {
+            _rules: rules,
+            wasm_store,
+            use_mmap: true,
+            max_scan_size: None,
+            enable_extraction: false,
+            max_extraction_depth: 3,
+        }
     }
 
     /// Sets a timeout for scan operations.
@@ -212,6 +235,18 @@ impl<'r> Scanner<'r> {
     /// the specified timeout.
     pub fn set_timeout(&mut self, timeout: Duration) -> &mut Self {
         self.scan_context_mut().set_timeout(timeout);
+        self
+    }
+
+    /// Enables or disables container file extraction during scan operations.
+    pub fn enable_extraction(&mut self, yes: bool) -> &mut Self {
+        self.enable_extraction = yes;
+        self
+    }
+
+    /// Sets the maximum recursion depth for container file extraction.
+    pub fn max_extraction_depth(&mut self, depth: usize) -> &mut Self {
+        self.max_extraction_depth = depth;
         self
     }
 
@@ -612,130 +647,192 @@ impl<'r> Scanner<'r> {
         data: ScannedData<'a>,
         options: Option<ScanOptions<'opts>>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
+        let enable_extraction = options
+            .as_ref()
+            .map_or(self.enable_extraction, |o| o.enable_extraction);
+
+        let max_extraction_depth = options
+            .as_ref()
+            .map_or(self.max_extraction_depth, |o| o.max_extraction_depth);
+
+        let mut queue: VecDeque<(PathBuf, ScannedData<'a>, usize)> =
+            VecDeque::new();
+
+        queue.push_back((PathBuf::from(""), data, 0));
+
+        let mut multi_file_map = BTreeMap::new();
+
         let ctx = self.scan_context_mut();
 
-        // Clear information about matches found in a previous scan, if any.
-        ctx.reset();
+        ctx.aggregated_matching_rules.clear();
+        ctx.multi_file_pattern_matches.clear();
 
-        // Set the global variable `filesize` to the size of the scanned data.
-        ctx.set_filesize(data.len() as i64);
+        while let Some((logical_path, file_data, extraction_depth)) =
+            queue.pop_front()
+        {
+            // Clear information about matches found in a previous scan, if any.
+            ctx.reset();
 
-        // Indicate that the scanner is currently scanning the given data.
-        ctx.scan_state = ScanState::ScanningData(data);
+            // Set the global variable `filesize` to the size of the scanned data.
+            ctx.set_filesize(file_data.len() as i64);
 
-        for module_name in ctx.compiled_rules.imports() {
-            // Look up the module in the module registry.
-            let module = crate::modules::registered_modules()
-                .find(|module| module.name() == module_name)
-                .unwrap_or_else(|| panic!("module `{module_name}` not found"));
+            // Indicate that the scanner is currently scanning the given data.
+            ctx.scan_state = ScanState::ScanningData(file_data);
 
-            let module_root_descriptor = module.root_descriptor();
-            let root_struct_name = module_root_descriptor.full_name();
-
-            let module_output;
-            // If the user already provided some output for the module by
-            // calling `Scanner::set_module_output`, use that output. If not,
-            // call the module's main function (if the module has a main
-            // function) for getting its output.
-            if let Some(output) =
-                ctx.user_provided_module_outputs.remove(root_struct_name)
-            {
-                module_output = Some(output);
-            } else {
-                let meta: Option<&'opts [u8]> =
-                    options.as_ref().and_then(|options| {
-                        options.module_metadata.get(module_name).copied()
+            for module_name in ctx.compiled_rules.imports() {
+                // Look up the module in the module registry.
+                let module = crate::modules::registered_modules()
+                    .find(|module| module.name() == module_name)
+                    .unwrap_or_else(|| {
+                        panic!("module `{module_name}` not found")
                     });
 
-                if let Some(main_res) =
-                    module.main_fn(ctx.scanned_data().unwrap(), meta)
+                let module_root_descriptor = module.root_descriptor();
+                let root_struct_name = module_root_descriptor.full_name();
+
+                let module_output;
+                // If the user already provided some output for the module by
+                // calling `Scanner::set_module_output`, use that output. If not,
+                // call the module's main function (if the module has a main
+                // function) for getting its output.
+                if let Some(output) =
+                    ctx.user_provided_module_outputs.remove(root_struct_name)
                 {
-                    module_output = Some(main_res.map_err(|err| {
-                        ScanError::ModuleError {
-                            module: module_name.to_string(),
-                            err,
-                        }
-                    })?);
+                    module_output = Some(output);
                 } else {
-                    module_output = None;
+                    let meta: Option<&'opts [u8]> =
+                        options.as_ref().and_then(|options| {
+                            options.module_metadata.get(module_name).copied()
+                        });
+
+                    if let Some(main_res) =
+                        module.main_fn(ctx.scanned_data().unwrap(), meta)
+                    {
+                        module_output = Some(main_res.map_err(|err| {
+                            ScanError::ModuleError {
+                                module: module_name.to_string(),
+                                err,
+                            }
+                        })?);
+                    } else {
+                        module_output = None;
+                    }
+                }
+
+                if let Some(module_output) = &module_output {
+                    // Make sure that the module is returning a protobuf message of
+                    // the expected type.
+                    debug_assert_eq!(
+                        module_output.descriptor_dyn().full_name(),
+                        root_struct_name,
+                        "main function of module `{}` must return `{}`, but returned `{}`",
+                        module_name,
+                        root_struct_name,
+                        module_output.descriptor_dyn().full_name(),
+                    );
+
+                    // Make sure that the module is returning a protobuf message
+                    // where all required fields are initialized. This only applies
+                    // to proto2, proto3 doesn't have "required" fields, all fields
+                    // are optional.
+                    debug_assert!(
+                        module_output.is_initialized_dyn(),
+                        "module `{}` returned a protobuf `{}` where some required fields are not initialized ",
+                        module_name,
+                        root_struct_name
+                    );
+                }
+
+                // When constant folding is enabled we don't need to generate
+                // structure fields for enums. This is because during the
+                // optimization process symbols like MyEnum.ENUM_ITEM are resolved
+                // to their constant values at compile time. In other words, the
+                // compiler determines that MyEnum.ENUM_ITEM is equal to some value
+                // X, and uses that value in the generated code.
+                //
+                // However, without constant folding, enums are treated as any
+                // other field in a struct, and their values are determined at scan
+                // time. For that reason these fields must be generated for enums
+                // when constant folding is disabled.
+                let generate_fields_for_enums =
+                    !cfg!(feature = "constant-folding");
+
+                let module_struct = Struct::from_proto_descriptor_and_msg(
+                    &module_root_descriptor,
+                    module_output.as_deref(),
+                    generate_fields_for_enums,
+                );
+
+                if let Some(module_output) = module_output {
+                    ctx.module_outputs
+                        .insert(root_struct_name.to_string(), module_output);
+                }
+
+                // The data structure obtained from the module is added to the
+                // root structure. Any data from previous scans will be replaced
+                // with the new data structure.
+                ctx.root_struct
+                    .add_field(module_name, TypeValue::Struct(module_struct));
+            }
+
+            // The user provided module outputs are not needed anymore. Let's
+            // clear any remaining entry in the hash map (which can happen if
+            // the user has set outputs for modules that are not even imported
+            // by the rules.
+            ctx.user_provided_module_outputs.clear();
+
+            // Clear the flag that indicates that the search phase was done.
+            ctx.set_pattern_search_done(false);
+
+            // Evaluate the conditions of every rule, this will call
+            // `ScanContext::search_for_patterns` if necessary.
+            ctx.eval_conditions()?;
+
+            ctx.collect_matching_rules(&logical_path);
+
+            let active_pm = std::mem::replace(
+                &mut ctx.tracker.pattern_matches,
+                matches::PatternMatches::new(),
+            );
+
+            ctx.multi_file_pattern_matches
+                .insert(logical_path.clone(), active_pm);
+
+            let retrieved_data = match ctx.scan_state.take() {
+                ScanState::ScanningData(data) => data,
+                _ => unreachable!(),
+            };
+
+            if enable_extraction && extraction_depth < max_extraction_depth {
+                for module in crate::modules::registered_modules() {
+                    let extracted_files =
+                        match module.extract_fn(retrieved_data.as_ref()) {
+                            Some(Ok(extracted_files)) => extracted_files,
+                            _ => continue,
+                        };
+
+                    for file in extracted_files {
+                        let mut path = logical_path.clone();
+                        for component in file.path.components() {
+                            match component {
+                                Component::Normal(name) => path.push(name),
+                                _ => continue,
+                            }
+                        }
+                        queue.push_back((
+                            path,
+                            ScannedData::Vec(file.data),
+                            extraction_depth + 1,
+                        ));
+                    }
                 }
             }
 
-            if let Some(module_output) = &module_output {
-                // Make sure that the module is returning a protobuf message of
-                // the expected type.
-                debug_assert_eq!(
-                    module_output.descriptor_dyn().full_name(),
-                    root_struct_name,
-                    "main function of module `{}` must return `{}`, but returned `{}`",
-                    module_name,
-                    root_struct_name,
-                    module_output.descriptor_dyn().full_name(),
-                );
-
-                // Make sure that the module is returning a protobuf message
-                // where all required fields are initialized. This only applies
-                // to proto2, proto3 doesn't have "required" fields, all fields
-                // are optional.
-                debug_assert!(
-                    module_output.is_initialized_dyn(),
-                    "module `{}` returned a protobuf `{}` where some required fields are not initialized ",
-                    module_name,
-                    root_struct_name
-                );
-            }
-
-            // When constant folding is enabled we don't need to generate
-            // structure fields for enums. This is because during the
-            // optimization process symbols like MyEnum.ENUM_ITEM are resolved
-            // to their constant values at compile time. In other words, the
-            // compiler determines that MyEnum.ENUM_ITEM is equal to some value
-            // X, and uses that value in the generated code.
-            //
-            // However, without constant folding, enums are treated as any
-            // other field in a struct, and their values are determined at scan
-            // time. For that reason these fields must be generated for enums
-            // when constant folding is disabled.
-            let generate_fields_for_enums =
-                !cfg!(feature = "constant-folding");
-
-            let module_struct = Struct::from_proto_descriptor_and_msg(
-                &module_root_descriptor,
-                module_output.as_deref(),
-                generate_fields_for_enums,
-            );
-
-            if let Some(module_output) = module_output {
-                ctx.module_outputs
-                    .insert(root_struct_name.to_string(), module_output);
-            }
-
-            // The data structure obtained from the module is added to the
-            // root structure. Any data from previous scans will be replaced
-            // with the new data structure.
-            ctx.root_struct
-                .add_field(module_name, TypeValue::Struct(module_struct));
+            multi_file_map.insert(logical_path, retrieved_data);
         }
 
-        // The user provided module outputs are not needed anymore. Let's
-        // clear any remaining entry in the hash map (which can happen if
-        // the user has set outputs for modules that are not even imported
-        // by the rules.
-        ctx.user_provided_module_outputs.clear();
-
-        // Clear the flag that indicates that the search phase was done.
-        ctx.set_pattern_search_done(false);
-
-        // Evaluate the conditions of every rule, this will call
-        // `ScanContext::search_for_patterns` if necessary.
-        ctx.eval_conditions()?;
-
-        let data = match ctx.scan_state.take() {
-            ScanState::ScanningData(data) => data,
-            _ => unreachable!(),
-        };
-
-        ctx.scan_state = ScanState::Finished(DataSnippets::SingleBlock(data));
+        ctx.scan_state =
+            ScanState::Finished(DataSnippets::MultiFile(multi_file_map));
 
         Ok(ScanResults::new(ctx))
     }
@@ -762,9 +859,38 @@ impl<'r> Scanner<'r> {
 pub(crate) enum DataSnippets<'d> {
     SingleBlock(ScannedData<'d>),
     MultiBlock(BTreeMap<usize, Vec<u8>>),
+    MultiFile(BTreeMap<PathBuf, ScannedData<'d>>),
 }
 
 impl DataSnippets<'_> {
+    pub(crate) fn get_with_file_context(
+        &self,
+        file_path: Option<&Path>,
+        range: Range<usize>,
+        context_size: usize,
+    ) -> Option<(&[u8], Range<usize>)> {
+        match self {
+            Self::MultiFile(map) => {
+                let path = file_path.unwrap_or_else(|| Path::new(""));
+                if let Some(scanned_data) = map.get(path) {
+                    let data = scanned_data.as_ref();
+                    let start = range.start.saturating_sub(context_size);
+                    let end = std::cmp::min(
+                        range.end.saturating_add(context_size),
+                        data.len(),
+                    );
+                    let slice = data.get(start..end)?;
+                    let rel_start = range.start - start;
+                    let rel_end = range.end - start;
+                    Some((slice, rel_start..rel_end))
+                } else {
+                    None
+                }
+            }
+            _ => self.get_with_context(range, context_size),
+        }
+    }
+
     pub(crate) fn get(&self, range: Range<usize>) -> Option<&[u8]> {
         self.get_with_context(range, 0).map(|(data, _)| data)
     }
@@ -785,6 +911,19 @@ impl DataSnippets<'_> {
         context_size: usize,
     ) -> Option<(&[u8], Range<usize>)> {
         match self {
+            Self::MultiFile(map) => {
+                let scanned_data = map.get(Path::new(""))?;
+                let data = scanned_data.as_ref();
+                let start = range.start.saturating_sub(context_size);
+                let end = std::cmp::min(
+                    range.end.saturating_add(context_size),
+                    data.len(),
+                );
+                let slice = data.get(start..end)?;
+                let rel_start = range.start - start;
+                let rel_end = range.end - start;
+                Some((slice, rel_start..rel_end))
+            }
             Self::SingleBlock(data) => {
                 let start = range.start.saturating_sub(context_size);
                 let end = range.end.saturating_add(context_size);
@@ -899,7 +1038,7 @@ impl<'a, 'r> ScanResults<'a, 'r> {
 /// [`MatchingRules::include_private`] for changing this behaviour.
 pub struct MatchingRules<'a, 'r> {
     ctx: &'a ScanContext<'r, 'a>,
-    iterator: Iter<'a, RuleId>,
+    iterator: Iter<'a, (RuleId, PathBuf)>,
     len_non_private: usize,
     len_private: usize,
     include_private: bool,
@@ -907,13 +1046,20 @@ pub struct MatchingRules<'a, 'r> {
 
 impl<'a, 'r> MatchingRules<'a, 'r> {
     fn new(ctx: &'a ScanContext<'r, 'a>) -> Self {
+        let mut total_private = 0;
+        let rules = ctx.compiled_rules;
+        for (rule_id, _) in &ctx.aggregated_matching_rules {
+            if rules.get(*rule_id).is_private {
+                total_private += 1;
+            }
+        }
+        let total_matching = ctx.aggregated_matching_rules.len();
         Self {
             ctx,
-            iterator: ctx.matching_rules.iter(),
+            iterator: ctx.aggregated_matching_rules.iter(),
             include_private: false,
-            len_non_private: ctx.matching_rules.len()
-                - ctx.num_matching_private_rules,
-            len_private: ctx.num_matching_private_rules,
+            len_non_private: total_matching - total_private,
+            len_private: total_private,
         }
     }
 
@@ -933,15 +1079,20 @@ impl<'a, 'r> Iterator for MatchingRules<'a, 'r> {
     fn next(&mut self) -> Option<Self::Item> {
         let rules = self.ctx.compiled_rules;
         loop {
-            let rule_id = *self.iterator.next()?;
-            let rule_info = rules.get(rule_id);
+            let (rule_id, logical_path) = self.iterator.next()?;
+            let rule_info = rules.get(*rule_id);
             if rule_info.is_private {
                 self.len_private -= 1;
             } else {
                 self.len_non_private -= 1;
             }
             if self.include_private || !rule_info.is_private {
-                return Some(Rule { ctx: Some(self.ctx), rule_info, rules });
+                return Some(Rule {
+                    ctx: Some(self.ctx),
+                    rules,
+                    rule_info,
+                    logical_path: Some(logical_path.clone()),
+                });
             }
         }
     }
@@ -1031,7 +1182,12 @@ impl<'a, 'r> Iterator for NonMatchingRules<'a, 'r> {
             }
 
             if self.include_private || !rule_info.is_private {
-                return Some(Rule { ctx: Some(self.ctx), rule_info, rules });
+                return Some(Rule {
+                    ctx: Some(self.ctx),
+                    rules,
+                    rule_info,
+                    logical_path: None,
+                });
             }
         }
     }

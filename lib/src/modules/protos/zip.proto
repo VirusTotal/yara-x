@@ -1,0 +1,15 @@
+syntax = "proto2";
+import "yara.proto";
+
+package zip;
+
+option (yara.module_options) = {
+  name : "zip"
+  root_message: "zip.Zip"
+  cargo_feature: "zip-module"
+};
+
+message Zip {
+  // Number of files successfully extracted from the archive.
+  optional int64 extracted_file_count = 1;
+}

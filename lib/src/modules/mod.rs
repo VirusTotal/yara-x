@@ -1,5 +1,6 @@
 use protobuf::MessageDyn;
 use protobuf::reflect::MessageDescriptor;
+use std::path::PathBuf;
 
 use thiserror::Error;
 
@@ -36,6 +37,22 @@ pub enum ModuleError {
     },
 }
 
+/// Represents a file extracted from a container or archive module.
+#[derive(Debug, Clone)]
+pub struct ExtractedFile {
+    /// Relative logical path of the file within the extracted container (e.g. `"word/document.xml"`).
+    pub path: PathBuf,
+    /// Raw extracted byte contents.
+    pub data: Vec<u8>,
+}
+
+/// Main function in a YARA module.
+pub type ModuleMainFn<T> = fn(&[u8], Option<&[u8]>) -> Result<T, ModuleError>;
+
+/// Signature for module extraction functions.
+pub type ModuleExtractFn =
+    fn(&[u8]) -> Result<Vec<ExtractedFile>, ModuleError>;
+
 /// The trait implemented by all registered modules.
 pub trait RegisteredModule: Send + Sync {
     /// Name used for the module in `import` statements (e.g. `"my_module"`).
@@ -53,6 +70,15 @@ pub trait RegisteredModule: Send + Sync {
         meta: Option<&[u8]>,
     ) -> Option<Result<Box<dyn MessageDyn>, ModuleError>>;
 
+    /// Function called when YARA extracts container or archive data.
+    /// Extracts one or more internal files from the input buffer.
+    fn extract_fn(
+        &self,
+        _data: &[u8],
+    ) -> Option<Result<Vec<ExtractedFile>, ModuleError>> {
+        None
+    }
+
     /// Rust module path of the submodule inside the external crate that
     /// contains functions registered with `#[module_export(yara_x_crate = ...)]`.
     ///
@@ -61,9 +87,6 @@ pub trait RegisteredModule: Send + Sync {
     /// `None` for data-only modules that export no callable functions.
     fn rust_module_name(&self) -> Option<&'static str>;
 }
-
-/// Main function in a YARA module.
-pub type ModuleMainFn<T> = fn(&[u8], Option<&[u8]>) -> Result<T, ModuleError>;
 
 /// Description of a YARA module, generic over the type `T` returned by the
 /// main function.
@@ -76,6 +99,8 @@ where
     /// Main function called every time YARA scans some data, before
     /// evaluating the rules. Set to `None` for data-only modules.
     pub main_fn: Option<ModuleMainFn<T>>,
+    /// Extraction function called when YARA extracts container data.
+    pub extract_fn: Option<ModuleExtractFn>,
     /// Rust module path of the submodule inside the external crate that
     /// contains functions registered with `#[module_export(yara_x_crate = ...)]`.
     pub rust_module_name: Option<&'static str>,
@@ -106,6 +131,13 @@ where
     fn rust_module_name(&self) -> Option<&'static str> {
         self.rust_module_name
     }
+
+    fn extract_fn(
+        &self,
+        data: &[u8],
+    ) -> Option<Result<Vec<ExtractedFile>, ModuleError>> {
+        self.extract_fn.map(|f| f(data))
+    }
 }
 
 /// Macro used to register a YARA module.
@@ -125,11 +157,22 @@ where
 /// ```
 #[macro_export]
 macro_rules! register_module {
+    ($name:literal, $root_message:ty, $main_fn:path, $extract_fn:path) => {
+        $crate::mods::prelude::inventory::submit! {
+            &$crate::mods::prelude::Module::<$root_message> {
+                name: $name,
+                main_fn: Some($main_fn),
+                extract_fn: Some($extract_fn),
+                rust_module_name: Some(module_path!()),
+            } as &dyn $crate::mods::prelude::RegisteredModule
+        }
+    };
     ($name:literal, $root_message:ty, $main_fn:path) => {
         $crate::mods::prelude::inventory::submit! {
             &$crate::mods::prelude::Module::<$root_message> {
                 name: $name,
                 main_fn: Some($main_fn),
+                extract_fn: None,
                 rust_module_name: Some(module_path!()),
             } as &dyn $crate::mods::prelude::RegisteredModule
         }
@@ -139,6 +182,7 @@ macro_rules! register_module {
             &$crate::mods::prelude::Module::<$root_message> {
                 name: $name,
                 main_fn: None,
+                extract_fn: None,
                 rust_module_name: None,
             } as &dyn $crate::mods::prelude::RegisteredModule
         }

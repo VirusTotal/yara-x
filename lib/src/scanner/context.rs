@@ -12,6 +12,7 @@ use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::{cmp, mem, thread};
+use std::path::PathBuf;
 
 use base64::Engine;
 use bitvec::order::Lsb0;
@@ -106,6 +107,10 @@ impl WasmState {
 
 /// Structure that holds information about the current scan.
 pub struct ScanContext<'r, 'd> {
+    /// Aggregated list of matching rule IDs and their virtual logical paths.
+    pub(crate) aggregated_matching_rules: Vec<(RuleId, PathBuf)>,
+    /// Map of pattern match tracking structures for each scanned logical file path.
+    pub(crate) multi_file_pattern_matches: FxHashMap<PathBuf, PatternMatches>,
     /// WASM state.
     pub(crate) wasm: WasmState,
     /// Map where keys are object handles and values are objects used during
@@ -538,6 +543,18 @@ impl ScanContext<'_, '_> {
             Err(err) => panic!(
                 "unexpected error while executing WASM main function: {err}"
             ),
+        }
+    }
+
+    /// Aggregates active matching rules and links them to the specified logical virtual path.
+    pub(crate) fn collect_matching_rules(&mut self, path: &std::path::Path) {
+        for rules in self.matching_rules_per_ns.values_mut() {
+            for rule_id in rules.drain(0..) {
+                self.matching_rules.push(rule_id);
+            }
+        }
+        for rule_id in &self.matching_rules {
+            self.aggregated_matching_rules.push((*rule_id, path.to_path_buf()));
         }
     }
 
@@ -1912,6 +1929,8 @@ pub fn create_wasm_store_and_ctx<'r>(
     let num_patterns = rules.num_patterns() as u32;
 
     let ctx = ScanContext {
+        aggregated_matching_rules: Vec::new(),
+        multi_file_pattern_matches: FxHashMap::default(),
         runtime_objects: IndexMap::new(),
         compiled_rules: rules,
         console_log: None,

@@ -28,3 +28,4 @@ pub mod time;
 pub mod titan;
 pub mod vtnet;
 pub mod yara;
+pub mod zip;

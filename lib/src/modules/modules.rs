@@ -33,3 +33,5 @@ mod test_proto3;
 mod time;
 #[cfg(feature = "vt-module")]
 mod vt;
+#[cfg(feature = "zip-module")]
+mod zip;

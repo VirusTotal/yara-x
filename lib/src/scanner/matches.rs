@@ -49,7 +49,7 @@ impl Match {
 ///
 /// The matches are kept sorted by starting offset in ascending order. Two
 /// different matches can't have the same starting offset.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct MatchList {
     matches: Vec<Match>,
 }
@@ -220,6 +220,7 @@ pub struct UnconfirmedMatch {
 ///
 /// Each pattern is limited to a maximum number of matches that may be
 /// configured.
+#[derive(Clone)]
 pub(crate) struct PatternMatches {
     matches: FxHashMap<PatternId, MatchList>,
     max_matches_per_pattern: usize,

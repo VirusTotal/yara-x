@@ -654,6 +654,7 @@ impl<'a> Iterator for RulesIter<'a> {
             ctx: None,
             rules: self.rules,
             rule_info: self.iterator.next()?,
+            logical_path: None,
         })
     }
 }

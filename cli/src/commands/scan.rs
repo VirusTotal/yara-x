@@ -604,6 +604,8 @@ mod output_handler {
     struct RuleJson {
         identifier: String,
         #[serde(skip_serializing_if = "Option::is_none")]
+        extracted_file: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         namespace: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         meta: Option<serde_json::Value>,
@@ -635,8 +637,12 @@ mod output_handler {
                     rule.tags().any(|tag| tag.identifier() == only_tag)
                 })
             })
-            .map(move |rule| RuleJson {
-                identifier: rule.identifier().to_string(),
+            .map(move |rule| {
+                let logical_path = rule.logical_path();
+                RuleJson {
+                    identifier: rule.identifier().to_string(),
+                    extracted_file: (!logical_path.as_os_str().is_empty())
+                        .then(|| logical_path.display().to_string()),
                 namespace: output_options
                     .include_namespace
                     .then(|| rule.namespace().to_string()),
@@ -651,6 +657,7 @@ mod output_handler {
                 strings: output_options
                     .include_strings
                     .map(|limit| patterns_to_json(rule.patterns(), limit)),
+                }
             })
             .collect()
     }
@@ -820,8 +827,15 @@ mod output_handler {
                     msg.push(']');
                 }
 
+                let logical_path = matching_rule.logical_path();
+                let display_path = if logical_path.as_os_str().is_empty() {
+                    file_path.to_path_buf()
+                } else {
+                    file_path.join(logical_path)
+                };
+
                 msg.push(' ');
-                msg.push_str(&file_path.display().to_string());
+                msg.push_str(&display_path.display().to_string());
 
                 if let Some(limit) = self.output_options.include_strings {
                     for p in matching_rule.patterns() {
@@ -980,6 +994,8 @@ mod output_handler {
         rule: String,
         file: String,
         #[serde(skip_serializing_if = "Option::is_none")]
+        extracted_file: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         meta: Option<HashMap<String, serde_json::Value>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         tags: Option<Vec<String>>,
@@ -1125,8 +1141,13 @@ mod output_handler {
                         },
                     );
 
+                    let logical_path = rule.logical_path();
+                    let extracted_file = (!logical_path.as_os_str().is_empty())
+                        .then(|| logical_path.display().to_string());
+
                     MatchJson {
                         rule: rule.identifier().to_string(),
+                        extracted_file,
                         meta,
                         file,
                         tags,
