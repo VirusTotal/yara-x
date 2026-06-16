@@ -412,7 +412,7 @@ impl<'r> Scanner<'r> {
         {
             data = &data[..max];
         }
-        self.scan_impl(ScannedData::Slice(data), Some(options))
+        self.scan_impl(ScannedData::Slice(data), Some(&options))
     }
 
     /// Like [`Scanner::scan_file`], but allows to specify additional scan
@@ -425,7 +425,7 @@ impl<'r> Scanner<'r> {
     where
         P: AsRef<Path>,
     {
-        self.scan_impl(self.load_file(target.as_ref())?, Some(options))
+        self.scan_impl(self.load_file(target.as_ref())?, Some(&options))
     }
 
     /// Sets the value of a global variable.
@@ -645,14 +645,12 @@ impl<'r> Scanner<'r> {
     fn scan_impl<'a, 'opts>(
         &'a mut self,
         data: ScannedData<'a>,
-        options: Option<ScanOptions<'opts>>,
+        options: Option<&ScanOptions<'opts>>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        let enable_extraction = options
-            .as_ref()
-            .map_or(self.enable_extraction, |o| o.enable_extraction);
+        let enable_extraction =
+            options.map_or(self.enable_extraction, |o| o.enable_extraction);
 
         let max_extraction_depth = options
-            .as_ref()
             .map_or(self.max_extraction_depth, |o| o.max_extraction_depth);
 
         let mut queue: VecDeque<(PathBuf, ScannedData<'a>, usize)> =
@@ -662,151 +660,18 @@ impl<'r> Scanner<'r> {
 
         let mut multi_file_map = BTreeMap::new();
 
-        let ctx = self.scan_context_mut();
+        self.scan_context_mut().aggregated_matching_rules.clear();
+        self.scan_context_mut().multi_file_pattern_matches.clear();
 
-        ctx.aggregated_matching_rules.clear();
-        ctx.multi_file_pattern_matches.clear();
-
-        while let Some((logical_path, file_data, extraction_depth)) =
+        while let Some((logical_path, data, extraction_depth)) =
             queue.pop_front()
         {
-            // Clear information about matches found in a previous scan, if any.
-            ctx.reset();
-
-            // Set the global variable `filesize` to the size of the scanned data.
-            ctx.set_filesize(file_data.len() as i64);
-
-            // Indicate that the scanner is currently scanning the given data.
-            ctx.scan_state = ScanState::ScanningData(file_data);
-
-            for module_name in ctx.compiled_rules.imports() {
-                // Look up the module in the module registry.
-                let module = crate::modules::registered_modules()
-                    .find(|module| module.name() == module_name)
-                    .unwrap_or_else(|| {
-                        panic!("module `{module_name}` not found")
-                    });
-
-                let module_root_descriptor = module.root_descriptor();
-                let root_struct_name = module_root_descriptor.full_name();
-
-                let module_output;
-                // If the user already provided some output for the module by
-                // calling `Scanner::set_module_output`, use that output. If not,
-                // call the module's main function (if the module has a main
-                // function) for getting its output.
-                if let Some(output) =
-                    ctx.user_provided_module_outputs.remove(root_struct_name)
-                {
-                    module_output = Some(output);
-                } else {
-                    let meta: Option<&'opts [u8]> =
-                        options.as_ref().and_then(|options| {
-                            options.module_metadata.get(module_name).copied()
-                        });
-
-                    if let Some(main_res) =
-                        module.main_fn(ctx.scanned_data().unwrap(), meta)
-                    {
-                        module_output = Some(main_res.map_err(|err| {
-                            ScanError::ModuleError {
-                                module: module_name.to_string(),
-                                err,
-                            }
-                        })?);
-                    } else {
-                        module_output = None;
-                    }
-                }
-
-                if let Some(module_output) = &module_output {
-                    // Make sure that the module is returning a protobuf message of
-                    // the expected type.
-                    debug_assert_eq!(
-                        module_output.descriptor_dyn().full_name(),
-                        root_struct_name,
-                        "main function of module `{}` must return `{}`, but returned `{}`",
-                        module_name,
-                        root_struct_name,
-                        module_output.descriptor_dyn().full_name(),
-                    );
-
-                    // Make sure that the module is returning a protobuf message
-                    // where all required fields are initialized. This only applies
-                    // to proto2, proto3 doesn't have "required" fields, all fields
-                    // are optional.
-                    debug_assert!(
-                        module_output.is_initialized_dyn(),
-                        "module `{}` returned a protobuf `{}` where some required fields are not initialized ",
-                        module_name,
-                        root_struct_name
-                    );
-                }
-
-                // When constant folding is enabled we don't need to generate
-                // structure fields for enums. This is because during the
-                // optimization process symbols like MyEnum.ENUM_ITEM are resolved
-                // to their constant values at compile time. In other words, the
-                // compiler determines that MyEnum.ENUM_ITEM is equal to some value
-                // X, and uses that value in the generated code.
-                //
-                // However, without constant folding, enums are treated as any
-                // other field in a struct, and their values are determined at scan
-                // time. For that reason these fields must be generated for enums
-                // when constant folding is disabled.
-                let generate_fields_for_enums =
-                    !cfg!(feature = "constant-folding");
-
-                let module_struct = Struct::from_proto_descriptor_and_msg(
-                    &module_root_descriptor,
-                    module_output.as_deref(),
-                    generate_fields_for_enums,
-                );
-
-                if let Some(module_output) = module_output {
-                    ctx.module_outputs
-                        .insert(root_struct_name.to_string(), module_output);
-                }
-
-                // The data structure obtained from the module is added to the
-                // root structure. Any data from previous scans will be replaced
-                // with the new data structure.
-                ctx.root_struct
-                    .add_field(module_name, TypeValue::Struct(module_struct));
-            }
-
-            // The user provided module outputs are not needed anymore. Let's
-            // clear any remaining entry in the hash map (which can happen if
-            // the user has set outputs for modules that are not even imported
-            // by the rules.
-            ctx.user_provided_module_outputs.clear();
-
-            // Clear the flag that indicates that the search phase was done.
-            ctx.set_pattern_search_done(false);
-
-            // Evaluate the conditions of every rule, this will call
-            // `ScanContext::search_for_patterns` if necessary.
-            ctx.eval_conditions()?;
-
-            ctx.collect_matching_rules(&logical_path);
-
-            let active_pm = std::mem::replace(
-                &mut ctx.tracker.pattern_matches,
-                matches::PatternMatches::new(),
-            );
-
-            ctx.multi_file_pattern_matches
-                .insert(logical_path.clone(), active_pm);
-
-            let retrieved_data = match ctx.scan_state.take() {
-                ScanState::ScanningData(data) => data,
-                _ => unreachable!(),
-            };
+            let data = self.scan_data(data, options, &logical_path)?;
 
             if enable_extraction && extraction_depth < max_extraction_depth {
                 for module in crate::modules::registered_modules() {
                     let extracted_files =
-                        match module.extract_fn(retrieved_data.as_ref()) {
+                        match module.extract_fn(data.as_ref()) {
                             Some(Ok(extracted_files)) => extracted_files,
                             _ => continue,
                         };
@@ -828,13 +693,156 @@ impl<'r> Scanner<'r> {
                 }
             }
 
-            multi_file_map.insert(logical_path, retrieved_data);
+            multi_file_map.insert(logical_path, data);
         }
+
+        let ctx = self.scan_context_mut();
 
         ctx.scan_state =
             ScanState::Finished(DataSnippets::MultiFile(multi_file_map));
 
         Ok(ScanResults::new(ctx))
+    }
+
+    fn scan_data<'a, 'opts>(
+        &mut self,
+        data: ScannedData<'a>,
+        options: Option<&ScanOptions<'opts>>,
+        logical_path: &Path,
+    ) -> Result<ScannedData<'a>, ScanError> {
+        let ctx = self.scan_context_mut();
+
+        // Clear information about matches found in a previous scan, if any.
+        ctx.reset();
+
+        // Set the global variable `filesize` to the size of the scanned data.
+        ctx.set_filesize(data.len() as i64);
+
+        // Indicate that the scanner is currently scanning the given data.
+        ctx.scan_state = ScanState::ScanningData(data);
+
+        for module_name in ctx.compiled_rules.imports() {
+            // Look up the module in the module registry.
+            let module = crate::modules::registered_modules()
+                .find(|module| module.name() == module_name)
+                .unwrap_or_else(|| panic!("module `{module_name}` not found"));
+
+            let module_root_descriptor = module.root_descriptor();
+            let root_struct_name = module_root_descriptor.full_name();
+
+            let module_output;
+            // If the user already provided some output for the module by
+            // calling `Scanner::set_module_output`, use that output. If not,
+            // call the module's main function (if the module has a main
+            // function) for getting its output.
+            if let Some(output) =
+                ctx.user_provided_module_outputs.remove(root_struct_name)
+            {
+                module_output = Some(output);
+            } else {
+                let meta: Option<&'opts [u8]> = options.and_then(|options| {
+                    options.module_metadata.get(module_name).copied()
+                });
+
+                if let Some(main_res) =
+                    module.main_fn(ctx.scanned_data().unwrap(), meta)
+                {
+                    module_output = Some(main_res.map_err(|err| {
+                        ScanError::ModuleError {
+                            module: module_name.to_string(),
+                            err,
+                        }
+                    })?);
+                } else {
+                    module_output = None;
+                }
+            }
+
+            if let Some(module_output) = &module_output {
+                // Make sure that the module is returning a protobuf message of
+                // the expected type.
+                debug_assert_eq!(
+                    module_output.descriptor_dyn().full_name(),
+                    root_struct_name,
+                    "main function of module `{}` must return `{}`, but returned `{}`",
+                    module_name,
+                    root_struct_name,
+                    module_output.descriptor_dyn().full_name(),
+                );
+
+                // Make sure that the module is returning a protobuf message
+                // where all required fields are initialized. This only applies
+                // to proto2, proto3 doesn't have "required" fields, all fields
+                // are optional.
+                debug_assert!(
+                    module_output.is_initialized_dyn(),
+                    "module `{}` returned a protobuf `{}` where some required fields are not initialized ",
+                    module_name,
+                    root_struct_name
+                );
+            }
+
+            // When constant folding is enabled we don't need to generate
+            // structure fields for enums. This is because during the
+            // optimization process symbols like MyEnum.ENUM_ITEM are resolved
+            // to their constant values at compile time. In other words, the
+            // compiler determines that MyEnum.ENUM_ITEM is equal to some value
+            // X, and uses that value in the generated code.
+            //
+            // However, without constant folding, enums are treated as any
+            // other field in a struct, and their values are determined at scan
+            // time. For that reason these fields must be generated for enums
+            // when constant folding is disabled.
+            let generate_fields_for_enums =
+                !cfg!(feature = "constant-folding");
+
+            let module_struct = Struct::from_proto_descriptor_and_msg(
+                &module_root_descriptor,
+                module_output.as_deref(),
+                generate_fields_for_enums,
+            );
+
+            if let Some(module_output) = module_output {
+                ctx.module_outputs
+                    .insert(root_struct_name.to_string(), module_output);
+            }
+
+            // The data structure obtained from the module is added to the
+            // root structure. Any data from previous scans will be replaced
+            // with the new data structure.
+            ctx.root_struct
+                .add_field(module_name, TypeValue::Struct(module_struct));
+        }
+
+        // The user provided module outputs are not needed anymore. Let's
+        // clear any remaining entry in the hash map (which can happen if
+        // the user has set outputs for modules that are not even imported
+        // by the rules.
+        ctx.user_provided_module_outputs.clear();
+
+        // Clear the flag that indicates that the search phase was done.
+        ctx.set_pattern_search_done(false);
+
+        // Evaluate the conditions of every rule, this will call
+        // `ScanContext::search_for_patterns` if necessary.
+        ctx.eval_conditions()?;
+
+        ctx.collect_matching_rules(logical_path);
+
+        let active_pm = std::mem::replace(
+            &mut ctx.tracker.pattern_matches,
+            matches::PatternMatches::new(),
+        );
+
+        ctx.multi_file_pattern_matches
+            .insert(logical_path.to_path_buf(), active_pm);
+
+        let data = match ctx.scan_state.take() {
+            ScanState::ScanningData(data) => data,
+            _ => unreachable!(),
+        };
+
+        Ok(data)
     }
 }
 
