@@ -32,7 +32,9 @@ impl<'a, 'r> Rule<'a, 'r> {
     /// Returns the logical virtual path of the specific file where this rule matched.
     /// For the root scanned file, this returns `Path::new("")`.
     pub fn logical_path(&self) -> &std::path::Path {
-        self.logical_path.as_deref().unwrap_or_else(|| std::path::Path::new(""))
+        self.logical_path
+            .as_deref()
+            .unwrap_or_else(|| std::path::Path::new(""))
     }
 
     /// Returns the rule's name.
@@ -394,8 +396,11 @@ impl<'a, 'r> Pattern<'a, 'r> {
             ctx: self.ctx,
             logical_path: self.logical_path.clone(),
             iterator: self.ctx.and_then(|ctx| {
-                let path = self.logical_path.as_deref().unwrap_or_else(|| std::path::Path::new(""));
-                if let Some(pm) = ctx.multi_file_pattern_matches.get(path) {
+                let path = self
+                    .logical_path
+                    .as_deref()
+                    .unwrap_or_else(|| std::path::Path::new(""));
+                if let Some(pm) = ctx.pattern_matches.get(path) {
                     pm.get(self.pattern_id).map(|matches| matches.iter())
                 } else {
                     ctx.tracker
@@ -467,10 +472,16 @@ impl<'a> Match<'a, '_> {
     #[inline]
     pub fn data(&self) -> &'a [u8] {
         match &self.ctx.scan_state {
-            ScanState::Finished(snippets) => snippets
-                .get_with_file_context(self.logical_path.as_deref(), self.range(), 0)
-                .unwrap()
-                .0,
+            ScanState::Finished(snippets) => {
+                snippets
+                    .get_with_file_context(
+                        self.logical_path.as_deref(),
+                        self.range(),
+                        0,
+                    )
+                    .unwrap()
+                    .0
+            }
             _ => panic!("invalid scan state"),
         }
     }

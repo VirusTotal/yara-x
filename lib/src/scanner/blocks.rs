@@ -226,17 +226,25 @@ impl<'r> Scanner<'r> {
 
         let ctx = self.scan_context_mut();
         ctx.aggregated_matching_rules.clear();
-        ctx.multi_file_pattern_matches.clear();
+        ctx.pattern_matches.clear();
 
         ctx.eval_conditions()?;
 
-        ctx.collect_matching_rules(std::path::Path::new(""));
+        for rules in ctx.matching_rules_per_ns.values_mut() {
+            for rule_id in rules.drain(0..) {
+                ctx.matching_rules.push(rule_id);
+            }
+        }
+        for rule_id in &ctx.matching_rules {
+            ctx.aggregated_matching_rules
+                .push((*rule_id, ctx.current_logical_path.clone()));
+        }
+
         let active_pm = std::mem::replace(
             &mut ctx.tracker.pattern_matches,
             crate::scanner::matches::PatternMatches::new(),
         );
-        ctx.multi_file_pattern_matches
-            .insert(std::path::PathBuf::from(""), active_pm);
+        ctx.pattern_matches.insert(std::path::PathBuf::from(""), active_pm);
 
         ctx.scan_state = ScanState::Finished(DataSnippets::MultiBlock(
             mem::take(&mut self.snippets),

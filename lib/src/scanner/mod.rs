@@ -661,12 +661,15 @@ impl<'r> Scanner<'r> {
         let mut multi_file_map = BTreeMap::new();
 
         self.scan_context_mut().aggregated_matching_rules.clear();
-        self.scan_context_mut().multi_file_pattern_matches.clear();
+        self.scan_context_mut().pattern_matches.clear();
 
-        while let Some((logical_path, data, extraction_depth)) =
+        while let Some((logical_path, file_data, extraction_depth)) =
             queue.pop_front()
         {
-            let data = self.scan_data(data, options, &logical_path)?;
+            let ctx = self.scan_context_mut();
+            ctx.current_logical_path = logical_path.clone();
+
+            let data = self.scan_data(file_data, options)?;
 
             if enable_extraction && extraction_depth < max_extraction_depth {
                 for module in crate::modules::registered_modules() {
@@ -708,7 +711,6 @@ impl<'r> Scanner<'r> {
         &mut self,
         data: ScannedData<'a>,
         options: Option<&ScanOptions<'opts>>,
-        logical_path: &Path,
     ) -> Result<ScannedData<'a>, ScanError> {
         let ctx = self.scan_context_mut();
 
@@ -827,15 +829,23 @@ impl<'r> Scanner<'r> {
         // `ScanContext::search_for_patterns` if necessary.
         ctx.eval_conditions()?;
 
-        ctx.collect_matching_rules(logical_path);
+        for rules in ctx.matching_rules_per_ns.values_mut() {
+            for rule_id in rules.drain(0..) {
+                ctx.matching_rules.push(rule_id);
+            }
+        }
+        for rule_id in &ctx.matching_rules {
+            ctx.aggregated_matching_rules
+                .push((*rule_id, ctx.current_logical_path.clone()));
+        }
 
-        let active_pm = std::mem::replace(
+        let pattern_matches = std::mem::replace(
             &mut ctx.tracker.pattern_matches,
             matches::PatternMatches::new(),
         );
 
-        ctx.multi_file_pattern_matches
-            .insert(logical_path.to_path_buf(), active_pm);
+        ctx.pattern_matches
+            .insert(ctx.current_logical_path.clone(), pattern_matches);
 
         let data = match ctx.scan_state.take() {
             ScanState::ScanningData(data) => data,

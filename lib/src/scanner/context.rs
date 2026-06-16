@@ -6,13 +6,13 @@ use std::mem::{MaybeUninit, transmute};
 #[cfg(feature = "rules-profiling")]
 use std::ops::AddAssign;
 use std::ops::{Deref, Range};
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::{cmp, mem, thread};
-use std::path::PathBuf;
 
 use base64::Engine;
 use bitvec::order::Lsb0;
@@ -109,8 +109,11 @@ impl WasmState {
 pub struct ScanContext<'r, 'd> {
     /// Aggregated list of matching rule IDs and their virtual logical paths.
     pub(crate) aggregated_matching_rules: Vec<(RuleId, PathBuf)>,
-    /// Map of pattern match tracking structures for each scanned logical file path.
-    pub(crate) multi_file_pattern_matches: FxHashMap<PathBuf, PatternMatches>,
+    /// Map of pattern match tracking structures for each scanned logical file
+    /// path.
+    pub(crate) pattern_matches: FxHashMap<PathBuf, PatternMatches>,
+    /// Virtual logical path currently being scanned.
+    pub(crate) current_logical_path: PathBuf,
     /// WASM state.
     pub(crate) wasm: WasmState,
     /// Map where keys are object handles and values are objects used during
@@ -546,18 +549,6 @@ impl ScanContext<'_, '_> {
         }
     }
 
-    /// Aggregates active matching rules and links them to the specified logical virtual path.
-    pub(crate) fn collect_matching_rules(&mut self, path: &std::path::Path) {
-        for rules in self.matching_rules_per_ns.values_mut() {
-            for rule_id in rules.drain(0..) {
-                self.matching_rules.push(rule_id);
-            }
-        }
-        for rule_id in &self.matching_rules {
-            self.aggregated_matching_rules.push((*rule_id, path.to_path_buf()));
-        }
-    }
-
     /// Resets the scan context to its initial state, making it ready for
     /// another scan.
     ///
@@ -574,8 +565,8 @@ impl ScanContext<'_, '_> {
 
         // Clear the set that tracks the patterns that has been disabled.
         self.tracker.disabled_patterns.clear();
-
         self.tracker.unconfirmed_matches.clear();
+
         self.num_matching_private_rules = 0;
         self.num_non_matching_private_rules = 0;
 
@@ -1930,7 +1921,8 @@ pub fn create_wasm_store_and_ctx<'r>(
 
     let ctx = ScanContext {
         aggregated_matching_rules: Vec::new(),
-        multi_file_pattern_matches: FxHashMap::default(),
+        pattern_matches: FxHashMap::default(),
+        current_logical_path: PathBuf::new(),
         runtime_objects: IndexMap::new(),
         compiled_rules: rules,
         console_log: None,
