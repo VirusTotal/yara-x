@@ -157,17 +157,9 @@ pub struct ProfilingData<'r> {
 }
 
 /// Optional information for the scan operation.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ScanOptions<'a> {
     module_metadata: HashMap<&'a str, &'a [u8]>,
-}
-
-impl Default for ScanOptions<'_> {
-    fn default() -> Self {
-        Self {
-            module_metadata: Default::default(),
-        }
-    }
 }
 
 impl<'a> ScanOptions<'a> {
