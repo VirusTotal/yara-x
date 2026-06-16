@@ -107,13 +107,6 @@ impl WasmState {
 
 /// Structure that holds information about the current scan.
 pub struct ScanContext<'r, 'd> {
-    /// List of matching rule IDs and their virtual logical paths.
-    pub(crate) matching_rules: Vec<(RuleId, PathBuf)>,
-    /// Map of pattern match tracking structures for each scanned logical file
-    /// path.
-    pub(crate) pattern_matches: FxHashMap<PathBuf, PatternMatches>,
-    /// Virtual logical path currently being scanned.
-    pub(crate) current_logical_path: PathBuf,
     /// WASM state.
     pub(crate) wasm: WasmState,
     /// Map where keys are object handles and values are objects used during
@@ -130,6 +123,11 @@ pub struct ScanContext<'r, 'd> {
     pub(crate) match_context_size: usize,
     /// The current state of the scanner.
     pub(crate) scan_state: ScanState<'d>,
+    /// Map of pattern match tracking structures for each scanned logical file
+    /// path.
+    pub(crate) pattern_matches: FxHashMap<PathBuf, PatternMatches>,
+    /// List of matching rule IDs and their virtual logical paths.
+    pub(crate) matching_rules: Vec<(RuleId, PathBuf)>,
     /// Map containing the IDs of rules that matched. Using an `IndexMap`
     /// because we want to keep the insertion order, so that rules in
     /// namespaces that were declared first, appear first in scan results.
@@ -150,6 +148,8 @@ pub struct ScanContext<'r, 'd> {
     /// Currently active structure that overrides the `root_struct` if
     /// set.
     pub(crate) current_struct: Option<Rc<Struct>>,
+    /// Virtual logical path currently being scanned.
+    pub(crate) current_logical_path: PathBuf,
     /// Hash map that contains the protobuf messages returned by YARA modules.
     /// Keys are the fully qualified protobuf message name, and values are
     /// the message returned by the main function of the corresponding module.
