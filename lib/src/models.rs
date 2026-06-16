@@ -1,4 +1,5 @@
 use std::ops::Range;
+use std::path::Path;
 use std::slice::Iter;
 
 use bstr::{BStr, ByteSlice};
@@ -25,16 +26,14 @@ pub struct Rule<'a, 'r> {
     pub(crate) ctx: Option<&'a ScanContext<'r, 'a>>,
     pub(crate) rules: &'r Rules,
     pub(crate) rule_info: &'r RuleInfo,
-    pub(crate) logical_path: Option<std::path::PathBuf>,
+    pub(crate) logical_path: Option<&'a Path>,
 }
 
 impl<'a, 'r> Rule<'a, 'r> {
     /// Returns the logical virtual path of the specific file where this rule matched.
     /// For the root scanned file, this returns `Path::new("")`.
-    pub fn logical_path(&self) -> &std::path::Path {
-        self.logical_path
-            .as_deref()
-            .unwrap_or_else(|| std::path::Path::new(""))
+    pub fn logical_path(&self) -> &Path {
+        self.logical_path.unwrap_or_else(|| Path::new(""))
     }
 
     /// Returns the rule's name.
@@ -89,7 +88,7 @@ impl<'a, 'r> Rule<'a, 'r> {
             len_non_private: self.rule_info.patterns.len()
                 - self.rule_info.num_private_patterns,
             len_private: self.rule_info.num_private_patterns,
-            logical_path: self.logical_path.clone(),
+            logical_path: self.logical_path,
         }
     }
 }
@@ -304,7 +303,7 @@ pub struct Patterns<'a, 'r> {
     len_private: usize,
     /// Number of non-private patterns that remain to be yielded.
     len_non_private: usize,
-    logical_path: Option<std::path::PathBuf>,
+    logical_path: Option<&'a Path>,
 }
 
 impl Patterns<'_, '_> {
@@ -350,7 +349,7 @@ impl<'a, 'r> Iterator for Patterns<'a, 'r> {
                     pattern_id: pattern.pattern_id,
                     kind: pattern.kind,
                     is_private: pattern.is_private,
-                    logical_path: self.logical_path.clone(),
+                    logical_path: self.logical_path,
                 });
             }
         }
@@ -365,7 +364,7 @@ pub struct Pattern<'a, 'r> {
     pattern_id: PatternId,
     kind: PatternKind,
     is_private: bool,
-    logical_path: Option<std::path::PathBuf>,
+    logical_path: Option<&'a Path>,
 }
 
 impl<'a, 'r> Pattern<'a, 'r> {
@@ -394,12 +393,9 @@ impl<'a, 'r> Pattern<'a, 'r> {
     pub fn matches(&self) -> Matches<'a, 'r> {
         Matches {
             ctx: self.ctx,
-            logical_path: self.logical_path.clone(),
+            logical_path: self.logical_path,
             iterator: self.ctx.and_then(|ctx| {
-                let path = self
-                    .logical_path
-                    .as_deref()
-                    .unwrap_or_else(|| std::path::Path::new(""));
+                let path = self.logical_path.unwrap_or_else(|| Path::new(""));
                 if let Some(pm) = ctx.pattern_matches.get(path) {
                     pm.get(self.pattern_id).map(|matches| matches.iter())
                 } else {
@@ -432,7 +428,7 @@ impl<'a, 'r> Serialize for Pattern<'a, 'r> {
 pub struct Matches<'a, 'r> {
     ctx: Option<&'a ScanContext<'r, 'a>>,
     iterator: Option<Iter<'a, scanner::Match>>,
-    logical_path: Option<std::path::PathBuf>,
+    logical_path: Option<&'a Path>,
 }
 
 impl<'a, 'r> Iterator for Matches<'a, 'r> {
@@ -443,7 +439,7 @@ impl<'a, 'r> Iterator for Matches<'a, 'r> {
         Some(Match {
             ctx: self.ctx?,
             inner: iter.next()?,
-            logical_path: self.logical_path.clone(),
+            logical_path: self.logical_path,
         })
     }
 }
@@ -458,7 +454,7 @@ impl ExactSizeIterator for Matches<'_, '_> {
 pub struct Match<'a, 'r> {
     ctx: &'a ScanContext<'r, 'a>,
     inner: &'a scanner::Match,
-    logical_path: Option<std::path::PathBuf>,
+    logical_path: Option<&'a Path>,
 }
 
 impl<'a> Match<'a, '_> {
@@ -474,11 +470,7 @@ impl<'a> Match<'a, '_> {
         match &self.ctx.scan_state {
             ScanState::Finished(snippets) => {
                 snippets
-                    .get_with_file_context(
-                        self.logical_path.as_deref(),
-                        self.range(),
-                        0,
-                    )
+                    .get_with_file_context(self.logical_path, self.range(), 0)
                     .unwrap()
                     .0
             }
@@ -498,7 +490,7 @@ impl<'a> Match<'a, '_> {
         match &self.ctx.scan_state {
             ScanState::Finished(snippets) => snippets
                 .get_with_file_context(
-                    self.logical_path.as_deref(),
+                    self.logical_path,
                     self.range(),
                     self.ctx.match_context_size,
                 )

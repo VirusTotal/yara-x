@@ -1102,7 +1102,7 @@ impl<'a, 'r> Iterator for MatchingRules<'a, 'r> {
                     ctx: Some(self.ctx),
                     rules,
                     rule_info,
-                    logical_path: Some(logical_path.clone()),
+                    logical_path: Some(logical_path.as_path()),
                 });
             }
         }
