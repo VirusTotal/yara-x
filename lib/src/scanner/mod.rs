@@ -653,21 +653,29 @@ impl<'r> Scanner<'r> {
         let max_extraction_depth = options
             .map_or(self.max_extraction_depth, |o| o.max_extraction_depth);
 
-        let mut queue: VecDeque<(PathBuf, ScannedData<'a>, usize)> =
-            VecDeque::new();
-
-        queue.push_back((PathBuf::from(""), data, 0));
-
-        let mut multi_file_map = BTreeMap::new();
-
-        self.scan_context_mut().aggregated_matching_rules.clear();
+        self.scan_context_mut().matching_rules.clear();
         self.scan_context_mut().pattern_matches.clear();
+
+        // If extraction disabled, call scan_data directly and skip the
+        // extraction loop.
+        if !enable_extraction {
+            let data = self.scan_data(data, options)?;
+            let ctx = self.scan_context_mut();
+            ctx.scan_state =
+                ScanState::Finished(DataSnippets::SingleBlock(data));
+            return Ok(ScanResults::new(ctx));
+        }
+
+        // Extraction is enabled. Push the current data in the queue and
+        // scan items while there's something in the queue.
+        let mut queue = VecDeque::from([(PathBuf::from(""), data, 0)]);
+        let mut snippets = BTreeMap::new();
 
         while let Some((logical_path, file_data, extraction_depth)) =
             queue.pop_front()
         {
-            let ctx = self.scan_context_mut();
-            ctx.current_logical_path = logical_path.clone();
+            self.scan_context_mut().current_logical_path =
+                logical_path.clone();
 
             let data = self.scan_data(file_data, options)?;
 
@@ -696,13 +704,13 @@ impl<'r> Scanner<'r> {
                 }
             }
 
-            multi_file_map.insert(logical_path, data);
+            snippets.insert(logical_path, data);
         }
 
         let ctx = self.scan_context_mut();
 
         ctx.scan_state =
-            ScanState::Finished(DataSnippets::MultiFile(multi_file_map));
+            ScanState::Finished(DataSnippets::MultiFile(snippets));
 
         Ok(ScanResults::new(ctx))
     }
@@ -829,23 +837,7 @@ impl<'r> Scanner<'r> {
         // `ScanContext::search_for_patterns` if necessary.
         ctx.eval_conditions()?;
 
-        for rules in ctx.matching_rules_per_ns.values_mut() {
-            for rule_id in rules.drain(0..) {
-                ctx.matching_rules.push(rule_id);
-            }
-        }
-        for rule_id in &ctx.matching_rules {
-            ctx.aggregated_matching_rules
-                .push((*rule_id, ctx.current_logical_path.clone()));
-        }
-
-        let pattern_matches = std::mem::replace(
-            &mut ctx.tracker.pattern_matches,
-            matches::PatternMatches::new(),
-        );
-
-        ctx.pattern_matches
-            .insert(ctx.current_logical_path.clone(), pattern_matches);
+        ctx.collect_matches();
 
         let data = match ctx.scan_state.take() {
             ScanState::ScanningData(data) => data,
@@ -909,6 +901,7 @@ impl DataSnippets<'_> {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn get(&self, range: Range<usize>) -> Option<&[u8]> {
         self.get_with_context(range, 0).map(|(data, _)| data)
     }
@@ -1066,15 +1059,15 @@ impl<'a, 'r> MatchingRules<'a, 'r> {
     fn new(ctx: &'a ScanContext<'r, 'a>) -> Self {
         let mut total_private = 0;
         let rules = ctx.compiled_rules;
-        for (rule_id, _) in &ctx.aggregated_matching_rules {
+        for (rule_id, _) in &ctx.matching_rules {
             if rules.get(*rule_id).is_private {
                 total_private += 1;
             }
         }
-        let total_matching = ctx.aggregated_matching_rules.len();
+        let total_matching = ctx.matching_rules.len();
         Self {
             ctx,
-            iterator: ctx.aggregated_matching_rules.iter(),
+            iterator: ctx.matching_rules.iter(),
             include_private: false,
             len_non_private: total_matching - total_private,
             len_private: total_private,
@@ -1167,7 +1160,7 @@ impl<'a, 'r> NonMatchingRules<'a, 'r> {
             iterator: matching_rules_bitmap.iter_zeros(),
             include_private: false,
             len_non_private: ctx.compiled_rules.num_rules()
-                - ctx.matching_rules.len()
+                - ctx.num_matching_rules
                 - ctx.num_non_matching_private_rules,
             len_private: ctx.num_non_matching_private_rules,
         }

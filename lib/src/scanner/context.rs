@@ -36,7 +36,7 @@ use crate::re::thompson::PikeVM;
 #[cfg(feature = "rules-profiling")]
 use crate::scanner::ProfilingData;
 use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
-use crate::scanner::{DataSnippets, ScanError, ScannedData};
+use crate::scanner::{DataSnippets, ScanError, ScannedData, matches};
 use crate::scanner::{HEARTBEAT_COUNTER, INIT_HEARTBEAT};
 use crate::types::{Array, Map, Struct, TypeValue};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
@@ -107,8 +107,8 @@ impl WasmState {
 
 /// Structure that holds information about the current scan.
 pub struct ScanContext<'r, 'd> {
-    /// Aggregated list of matching rule IDs and their virtual logical paths.
-    pub(crate) aggregated_matching_rules: Vec<(RuleId, PathBuf)>,
+    /// List of matching rule IDs and their virtual logical paths.
+    pub(crate) matching_rules: Vec<(RuleId, PathBuf)>,
     /// Map of pattern match tracking structures for each scanned logical file
     /// path.
     pub(crate) pattern_matches: FxHashMap<PathBuf, PatternMatches>,
@@ -130,18 +130,14 @@ pub struct ScanContext<'r, 'd> {
     pub(crate) match_context_size: usize,
     /// The current state of the scanner.
     pub(crate) scan_state: ScanState<'d>,
-    /// Vector containing the IDs of the rules that matched, including both
-    /// global and non-global ones. The rules are added first to the
-    /// `matching_rules_per_ns` map, and then moved to this vector
-    /// once the scan finishes.
-    pub(crate) matching_rules: Vec<RuleId>,
     /// Map containing the IDs of rules that matched. Using an `IndexMap`
     /// because we want to keep the insertion order, so that rules in
     /// namespaces that were declared first, appear first in scan results.
     pub(crate) matching_rules_per_ns: IndexMap<NamespaceId, Vec<RuleId>>,
-    /// Number of private rules that have matched. This will be equal to or
-    /// less than the length of `matching_rules`.
+    /// Number of private rules that have matched.
     pub(crate) num_matching_private_rules: usize,
+    /// Total number of rules that have matched in the current file scan.
+    pub(crate) num_matching_rules: usize,
     /// Number of private rules that did not match.
     pub(crate) num_non_matching_private_rules: usize,
     /// Compiled rules for this scan.
@@ -516,19 +512,6 @@ impl ScanContext<'_, '_> {
             }
         }
 
-        // `matching_rules` must be empty at this point. Matching rules were
-        // being tracked by the `matching_rules_per_ns` map, but we are about
-        // to move them to `matching_rules` while leaving the map empty.
-        assert!(self.matching_rules.is_empty());
-
-        // Move the matching rules to the `matching_rules` vector, leaving the
-        // `matching_rules_per_ns` map empty.
-        for rules in self.matching_rules_per_ns.values_mut() {
-            for rule_id in rules.drain(0..) {
-                self.matching_rules.push(rule_id);
-            }
-        }
-
         // The WASM code that evaluates the conditions returns
         // `ScanError::Timeout` if a timeout occurs during its execution.
         // However, a timeout may also happen while `search_for_patterns`
@@ -547,6 +530,23 @@ impl ScanContext<'_, '_> {
                 "unexpected error while executing WASM main function: {err}"
             ),
         }
+    }
+
+    pub(crate) fn collect_matches(&mut self) {
+        for rules in self.matching_rules_per_ns.values_mut() {
+            for rule_id in rules.drain(0..) {
+                self.matching_rules
+                    .push((rule_id, self.current_logical_path.clone()));
+            }
+        }
+
+        let pattern_matches = std::mem::replace(
+            &mut self.tracker.pattern_matches,
+            matches::PatternMatches::new(),
+        );
+
+        self.pattern_matches
+            .insert(self.current_logical_path.clone(), pattern_matches);
     }
 
     /// Resets the scan context to its initial state, making it ready for
@@ -568,6 +568,7 @@ impl ScanContext<'_, '_> {
         self.tracker.unconfirmed_matches.clear();
 
         self.num_matching_private_rules = 0;
+        self.num_matching_rules = 0;
         self.num_non_matching_private_rules = 0;
 
         // Clear the value of `current_struct` as it may contain a reference
@@ -577,23 +578,15 @@ impl ScanContext<'_, '_> {
         // Clear module outputs from previous scans.
         self.module_outputs.clear();
 
-        // Move the matching rules to the `matching_rules` vector, leaving the
-        // `matching_rules_per_ns` map empty.
-        for rules in self.matching_rules_per_ns.values_mut() {
-            for rule_id in rules.drain(0..) {
-                self.matching_rules.push(rule_id);
-            }
-        }
-
         // If some pattern or rule matched, clear the matches. Notice that a
         // rule may match without any pattern being matched, because there
         // are rules without patterns, or that match if the pattern is not
         // found.
         if !self.tracker.pattern_matches.is_empty()
-            || !self.matching_rules.is_empty()
+            || !self.matching_rules_per_ns.is_empty()
         {
             self.tracker.pattern_matches.clear();
-            self.matching_rules.clear();
+            self.matching_rules_per_ns.clear();
 
             let store = self.wasm_store_mut();
             let mem = self.wasm.main_memory.unwrap().data_mut(store);
@@ -719,6 +712,7 @@ impl ScanContext<'_, '_> {
                     self.num_matching_private_rules -= 1;
                     self.num_non_matching_private_rules += 1;
                 }
+                self.num_matching_rules -= 1;
                 bits.set(rule_id.into(), false);
             }
         }
@@ -760,6 +754,8 @@ impl ScanContext<'_, '_> {
         if rule.is_private {
             self.num_matching_private_rules += 1;
         }
+
+        self.num_matching_rules += 1;
 
         let wasm_store = self.wasm_store_mut();
         let mem = self.wasm.main_memory.unwrap().data_mut(wasm_store);
@@ -1920,7 +1916,7 @@ pub fn create_wasm_store_and_ctx<'r>(
     let num_patterns = rules.num_patterns() as u32;
 
     let ctx = ScanContext {
-        aggregated_matching_rules: Vec::new(),
+        matching_rules: Vec::new(),
         pattern_matches: FxHashMap::default(),
         current_logical_path: PathBuf::new(),
         runtime_objects: IndexMap::new(),
@@ -1931,9 +1927,9 @@ pub fn create_wasm_store_and_ctx<'r>(
         match_context_size: 0,
         scan_state: ScanState::Idle,
         root_struct: rules.globals().make_root(),
-        matching_rules: Vec::new(),
         matching_rules_per_ns: IndexMap::new(),
         num_matching_private_rules: 0,
+        num_matching_rules: 0,
         num_non_matching_private_rules: 0,
         wasm: WasmState {
             module: MaybeUninit::uninit(),
