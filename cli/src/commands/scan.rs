@@ -643,20 +643,20 @@ mod output_handler {
                     identifier: rule.identifier().to_string(),
                     extracted_file: (!logical_path.as_os_str().is_empty())
                         .then(|| logical_path.display().to_string()),
-                namespace: output_options
-                    .include_namespace
-                    .then(|| rule.namespace().to_string()),
-                meta: output_options
-                    .include_meta
-                    .then(|| rule.metadata().into_json()),
-                tags: output_options.include_tags.then(|| {
-                    rule.tags()
-                        .map(|t| t.identifier().to_string())
-                        .collect::<Vec<_>>()
-                }),
-                strings: output_options
-                    .include_strings
-                    .map(|limit| patterns_to_json(rule.patterns(), limit)),
+                    namespace: output_options
+                        .include_namespace
+                        .then(|| rule.namespace().to_string()),
+                    meta: output_options
+                        .include_meta
+                        .then(|| rule.metadata().into_json()),
+                    tags: output_options.include_tags.then(|| {
+                        rule.tags()
+                            .map(|t| t.identifier().to_string())
+                            .collect::<Vec<_>>()
+                    }),
+                    strings: output_options
+                        .include_strings
+                        .map(|limit| patterns_to_json(rule.patterns(), limit)),
                 }
             })
             .collect()
@@ -1142,8 +1142,9 @@ mod output_handler {
                     );
 
                     let logical_path = rule.logical_path();
-                    let extracted_file = (!logical_path.as_os_str().is_empty())
-                        .then(|| logical_path.display().to_string());
+                    let extracted_file =
+                        (!logical_path.as_os_str().is_empty())
+                            .then(|| logical_path.display().to_string());
 
                     MatchJson {
                         rule: rule.identifier().to_string(),
