@@ -1,12 +1,12 @@
 use flate2::read::DeflateDecoder;
+use protobuf::Enum;
 use std::io::Read;
-use tinyzip::{Archive, Compression};
+use tinyzip::Archive;
 
-use crate::modules::protos::zip::{Compression as ProtoCompression, Entry, Zip};
+use crate::modules::protos::zip::{Compression, Entry, Zip};
 use crate::modules::{ExtractedFile, ModuleError};
 use crate::register_module;
 use crate::scanner::ScannedData;
-use protobuf::EnumOrUnknown;
 
 pub fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Zip, ModuleError> {
     let mut zip = Zip::new();
@@ -26,15 +26,10 @@ pub fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Zip, ModuleError> {
 
     let mut path_buf = vec![0u8; 65536];
 
-    for entry_res in archive.entries() {
+    for entry in archive.entries().filter_map(|entry| entry.ok()) {
         if entries.len() >= max_entries {
             break;
         }
-
-        let entry = match entry_res {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
 
         let path_bytes = match entry.read_path(&mut path_buf) {
             Ok(b) => b,
@@ -42,20 +37,22 @@ pub fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Zip, ModuleError> {
         };
 
         let filename = String::from_utf8_lossy(path_bytes).to_string();
-
-        let raw_method = match entry.compression() {
-            Ok(Compression::Stored) => 0,
-            Ok(Compression::Deflated) => 8,
-            Err(tinyzip::Error::UnsupportedCompression(raw)) => raw,
-            Err(_) => 255,
-        };
-
         let mut proto_entry = Entry::new();
         proto_entry.set_filename(filename);
-        proto_entry.compression =
-            Some(EnumOrUnknown::<ProtoCompression>::from_i32(raw_method as i32));
         proto_entry.set_uncompressed_size(entry.uncompressed_size());
         proto_entry.set_compressed_size(entry.compressed_size());
+
+        let compression = match entry.compression() {
+            Ok(tinyzip::Compression::Stored) => Compression::STORED,
+            Ok(tinyzip::Compression::Deflated) => Compression::DEFLATED,
+            Err(tinyzip::Error::UnsupportedCompression(raw)) => {
+                Compression::from_i32(raw as i32)
+                    .unwrap_or(Compression::UNKNOWN)
+            }
+            Err(_) => Compression::UNKNOWN,
+        };
+
+        proto_entry.compression = Some(compression.into());
 
         entries.push(proto_entry);
     }
@@ -126,12 +123,12 @@ pub fn extract_zip<'a>(
         };
 
         match entry.compression() {
-            Ok(Compression::Stored) => {
+            Ok(tinyzip::Compression::Stored) => {
                 if let Some(sub_data) = data.slice(start..end) {
                     results.push(ExtractedFile { path, data: sub_data });
                 }
             }
-            Ok(Compression::Deflated) => {
+            Ok(tinyzip::Compression::Deflated) => {
                 if let Some(compressed_bytes) = slice.get(start..end) {
                     let decoder = DeflateDecoder::new(compressed_bytes);
                     let mut buffer = Vec::with_capacity(
