@@ -66,8 +66,7 @@ pub fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Zip, ModuleError> {
 pub fn extract_zip<'a>(
     data: &ScannedData<'a>,
 ) -> Result<Vec<ExtractedFile<'a>>, ModuleError> {
-    let slice = data.as_ref();
-    let archive = match Archive::open(slice) {
+    let archive = match Archive::open(data.as_ref()) {
         Ok(arch) => arch,
         Err(err) => {
             return Err(ModuleError::InternalError { err: err.to_string() });
@@ -90,20 +89,11 @@ pub fn extract_zip<'a>(
             Err(_) => continue,
         };
 
-        if path_bytes.is_empty() || path_bytes.ends_with(b"/") {
-            continue;
-        }
-
-        let path_str = String::from_utf8_lossy(path_bytes);
-        let mut path = std::path::PathBuf::new();
-
-        for component in std::path::Path::new(path_str.as_ref()).components() {
-            if let std::path::Component::Normal(c) = component {
-                path.push(c);
-            }
-        }
-
-        if path.as_os_str().is_empty() {
+        // Skip entries that are empty or represent a directory.
+        if entry.uncompressed_size() == 0
+            || path_bytes.is_empty()
+            || path_bytes.ends_with(b"/")
+        {
             continue;
         }
 
@@ -122,32 +112,46 @@ pub fn extract_zip<'a>(
             Err(_) => continue,
         };
 
-        match entry.compression() {
-            Ok(tinyzip::Compression::Stored) => {
-                if let Some(sub_data) = data.slice(start..end) {
-                    results.push(ExtractedFile { path, data: sub_data });
-                }
-            }
+        let decompressed_data = match entry.compression() {
+            Ok(tinyzip::Compression::Stored) => data.slice(start..end),
             Ok(tinyzip::Compression::Deflated) => {
-                if let Some(compressed_bytes) = slice.get(start..end) {
-                    let decoder = DeflateDecoder::new(compressed_bytes);
-                    let mut buffer = Vec::with_capacity(
+                data.as_ref().get(start..end).and_then(|compressed_data| {
+                    let decoder = DeflateDecoder::new(compressed_data);
+                    let mut decompressed_data = Vec::with_capacity(
                         (entry.uncompressed_size() as usize)
                             .min(max_file_size),
                     );
-                    if decoder
+                    match decoder
                         .take(max_file_size as u64)
-                        .read_to_end(&mut buffer)
-                        .is_ok()
+                        .read_to_end(&mut decompressed_data)
                     {
-                        results.push(ExtractedFile {
-                            path,
-                            data: ScannedData::from_vec(buffer),
-                        });
+                        Ok(_) => {
+                            Some(ScannedData::from_vec(decompressed_data))
+                        }
+                        Err(_) => None,
                     }
+                })
+            }
+            _ => None,
+        };
+
+        if let Some(data) = decompressed_data {
+            let path_str = String::from_utf8_lossy(path_bytes);
+            let mut path = std::path::PathBuf::new();
+
+            for component in
+                std::path::Path::new(path_str.as_ref()).components()
+            {
+                if let std::path::Component::Normal(c) = component {
+                    path.push(c);
                 }
             }
-            _ => {}
+
+            if path.as_os_str().is_empty() {
+                continue;
+            }
+
+            results.push(ExtractedFile { path, data });
         }
     }
 
@@ -159,6 +163,7 @@ register_module!("zip", Zip, main, extract_zip);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::modules::protos::zip::Compression;
 
     #[test]
     fn test_extract_zip_invalid() {
@@ -199,6 +204,6 @@ mod tests {
         assert_eq!(zip.is_zip(), true);
         assert_eq!(zip.entries.len(), 1);
         assert_eq!(zip.entries[0].filename(), "suspicious_payload.exe");
-        assert_eq!(zip.entries[0].compression(), ProtoCompression::DEFLATED);
+        assert_eq!(zip.entries[0].compression(), Compression::DEFLATED);
     }
 }
