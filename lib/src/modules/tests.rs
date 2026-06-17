@@ -204,6 +204,7 @@ fn test_invoke_modules() {
     assert!(modules.lnk.is_lnk.is_some_and(|value| !value));
     assert!(modules.crx.is_crx.is_some_and(|value| !value));
     assert!(modules.dex.is_dex.is_some_and(|value| !value));
+    assert!(modules.zip.is_zip.is_some_and(|value| !value));
 }
 
 #[cfg(feature = "test_proto2-module")]

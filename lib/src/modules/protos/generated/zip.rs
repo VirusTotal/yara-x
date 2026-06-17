@@ -24,12 +24,288 @@
 /// of protobuf runtime.
 const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_3_7_2;
 
+// @@protoc_insertion_point(message:zip.Entry)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct Entry {
+    // message fields
+    // @@protoc_insertion_point(field:zip.Entry.filename)
+    pub filename: ::std::option::Option<::std::string::String>,
+    // @@protoc_insertion_point(field:zip.Entry.compression)
+    pub compression: ::std::option::Option<::protobuf::EnumOrUnknown<Compression>>,
+    // @@protoc_insertion_point(field:zip.Entry.uncompressed_size)
+    pub uncompressed_size: ::std::option::Option<u64>,
+    // @@protoc_insertion_point(field:zip.Entry.compressed_size)
+    pub compressed_size: ::std::option::Option<u64>,
+    // special fields
+    // @@protoc_insertion_point(special_field:zip.Entry.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a Entry {
+    fn default() -> &'a Entry {
+        <Entry as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl Entry {
+    pub fn new() -> Entry {
+        ::std::default::Default::default()
+    }
+
+    // optional string filename = 1;
+
+    pub fn filename(&self) -> &str {
+        match self.filename.as_ref() {
+            Some(v) => v,
+            None => "",
+        }
+    }
+
+    pub fn clear_filename(&mut self) {
+        self.filename = ::std::option::Option::None;
+    }
+
+    pub fn has_filename(&self) -> bool {
+        self.filename.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_filename(&mut self, v: ::std::string::String) {
+        self.filename = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_filename(&mut self) -> &mut ::std::string::String {
+        if self.filename.is_none() {
+            self.filename = ::std::option::Option::Some(::std::string::String::new());
+        }
+        self.filename.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_filename(&mut self) -> ::std::string::String {
+        self.filename.take().unwrap_or_else(|| ::std::string::String::new())
+    }
+
+    // optional .zip.Compression compression = 2;
+
+    pub fn compression(&self) -> Compression {
+        match self.compression {
+            Some(e) => e.enum_value_or(Compression::STORED),
+            None => Compression::STORED,
+        }
+    }
+
+    pub fn clear_compression(&mut self) {
+        self.compression = ::std::option::Option::None;
+    }
+
+    pub fn has_compression(&self) -> bool {
+        self.compression.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_compression(&mut self, v: Compression) {
+        self.compression = ::std::option::Option::Some(::protobuf::EnumOrUnknown::new(v));
+    }
+
+    // optional uint64 uncompressed_size = 3;
+
+    pub fn uncompressed_size(&self) -> u64 {
+        self.uncompressed_size.unwrap_or(0)
+    }
+
+    pub fn clear_uncompressed_size(&mut self) {
+        self.uncompressed_size = ::std::option::Option::None;
+    }
+
+    pub fn has_uncompressed_size(&self) -> bool {
+        self.uncompressed_size.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_uncompressed_size(&mut self, v: u64) {
+        self.uncompressed_size = ::std::option::Option::Some(v);
+    }
+
+    // optional uint64 compressed_size = 4;
+
+    pub fn compressed_size(&self) -> u64 {
+        self.compressed_size.unwrap_or(0)
+    }
+
+    pub fn clear_compressed_size(&mut self) {
+        self.compressed_size = ::std::option::Option::None;
+    }
+
+    pub fn has_compressed_size(&self) -> bool {
+        self.compressed_size.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_compressed_size(&mut self, v: u64) {
+        self.compressed_size = ::std::option::Option::Some(v);
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(4);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "filename",
+            |m: &Entry| { &m.filename },
+            |m: &mut Entry| { &mut m.filename },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "compression",
+            |m: &Entry| { &m.compression },
+            |m: &mut Entry| { &mut m.compression },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "uncompressed_size",
+            |m: &Entry| { &m.uncompressed_size },
+            |m: &mut Entry| { &mut m.uncompressed_size },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "compressed_size",
+            |m: &Entry| { &m.compressed_size },
+            |m: &mut Entry| { &mut m.compressed_size },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<Entry>(
+            "Entry",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for Entry {
+    const NAME: &'static str = "Entry";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.filename = ::std::option::Option::Some(is.read_string()?);
+                },
+                16 => {
+                    self.compression = ::std::option::Option::Some(is.read_enum_or_unknown()?);
+                },
+                24 => {
+                    self.uncompressed_size = ::std::option::Option::Some(is.read_uint64()?);
+                },
+                32 => {
+                    self.compressed_size = ::std::option::Option::Some(is.read_uint64()?);
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if let Some(v) = self.filename.as_ref() {
+            my_size += ::protobuf::rt::string_size(1, &v);
+        }
+        if let Some(v) = self.compression {
+            my_size += ::protobuf::rt::int32_size(2, v.value());
+        }
+        if let Some(v) = self.uncompressed_size {
+            my_size += ::protobuf::rt::uint64_size(3, v);
+        }
+        if let Some(v) = self.compressed_size {
+            my_size += ::protobuf::rt::uint64_size(4, v);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if let Some(v) = self.filename.as_ref() {
+            os.write_string(1, v)?;
+        }
+        if let Some(v) = self.compression {
+            os.write_enum(2, ::protobuf::EnumOrUnknown::value(&v))?;
+        }
+        if let Some(v) = self.uncompressed_size {
+            os.write_uint64(3, v)?;
+        }
+        if let Some(v) = self.compressed_size {
+            os.write_uint64(4, v)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> Entry {
+        Entry::new()
+    }
+
+    fn clear(&mut self) {
+        self.filename = ::std::option::Option::None;
+        self.compression = ::std::option::Option::None;
+        self.uncompressed_size = ::std::option::Option::None;
+        self.compressed_size = ::std::option::Option::None;
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static Entry {
+        static instance: Entry = Entry {
+            filename: ::std::option::Option::None,
+            compression: ::std::option::Option::None,
+            uncompressed_size: ::std::option::Option::None,
+            compressed_size: ::std::option::Option::None,
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for Entry {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("Entry").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for Entry {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for Entry {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
 // @@protoc_insertion_point(message:zip.Zip)
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct Zip {
     // message fields
     // @@protoc_insertion_point(field:zip.Zip.extracted_file_count)
     pub extracted_file_count: ::std::option::Option<i64>,
+    // @@protoc_insertion_point(field:zip.Zip.is_zip)
+    pub is_zip: ::std::option::Option<bool>,
+    // @@protoc_insertion_point(field:zip.Zip.entries)
+    pub entries: ::std::vec::Vec<Entry>,
     // special fields
     // @@protoc_insertion_point(special_field:zip.Zip.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -65,13 +341,42 @@ impl Zip {
         self.extracted_file_count = ::std::option::Option::Some(v);
     }
 
+    // optional bool is_zip = 2;
+
+    pub fn is_zip(&self) -> bool {
+        self.is_zip.unwrap_or(false)
+    }
+
+    pub fn clear_is_zip(&mut self) {
+        self.is_zip = ::std::option::Option::None;
+    }
+
+    pub fn has_is_zip(&self) -> bool {
+        self.is_zip.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_is_zip(&mut self, v: bool) {
+        self.is_zip = ::std::option::Option::Some(v);
+    }
+
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(1);
+        let mut fields = ::std::vec::Vec::with_capacity(3);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "extracted_file_count",
             |m: &Zip| { &m.extracted_file_count },
             |m: &mut Zip| { &mut m.extracted_file_count },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "is_zip",
+            |m: &Zip| { &m.is_zip },
+            |m: &mut Zip| { &mut m.is_zip },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "entries",
+            |m: &Zip| { &m.entries },
+            |m: &mut Zip| { &mut m.entries },
         ));
         ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<Zip>(
             "Zip",
@@ -94,6 +399,12 @@ impl ::protobuf::Message for Zip {
                 8 => {
                     self.extracted_file_count = ::std::option::Option::Some(is.read_int64()?);
                 },
+                16 => {
+                    self.is_zip = ::std::option::Option::Some(is.read_bool()?);
+                },
+                26 => {
+                    self.entries.push(is.read_message()?);
+                },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                 },
@@ -109,6 +420,13 @@ impl ::protobuf::Message for Zip {
         if let Some(v) = self.extracted_file_count {
             my_size += ::protobuf::rt::int64_size(1, v);
         }
+        if let Some(v) = self.is_zip {
+            my_size += 1 + 1;
+        }
+        for value in &self.entries {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
         my_size
@@ -118,6 +436,12 @@ impl ::protobuf::Message for Zip {
         if let Some(v) = self.extracted_file_count {
             os.write_int64(1, v)?;
         }
+        if let Some(v) = self.is_zip {
+            os.write_bool(2, v)?;
+        }
+        for v in &self.entries {
+            ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
+        };
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -136,12 +460,16 @@ impl ::protobuf::Message for Zip {
 
     fn clear(&mut self) {
         self.extracted_file_count = ::std::option::Option::None;
+        self.is_zip = ::std::option::Option::None;
+        self.entries.clear();
         self.special_fields.clear();
     }
 
     fn default_instance() -> &'static Zip {
         static instance: Zip = Zip {
             extracted_file_count: ::std::option::Option::None,
+            is_zip: ::std::option::Option::None,
+            entries: ::std::vec::Vec::new(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -165,10 +493,165 @@ impl ::protobuf::reflect::ProtobufValue for Zip {
     type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
 }
 
+#[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+// @@protoc_insertion_point(enum:zip.Compression)
+pub enum Compression {
+    // @@protoc_insertion_point(enum_value:zip.Compression.STORED)
+    STORED = 0,
+    // @@protoc_insertion_point(enum_value:zip.Compression.SHRUNK)
+    SHRUNK = 1,
+    // @@protoc_insertion_point(enum_value:zip.Compression.REDUCED_1)
+    REDUCED_1 = 2,
+    // @@protoc_insertion_point(enum_value:zip.Compression.REDUCED_2)
+    REDUCED_2 = 3,
+    // @@protoc_insertion_point(enum_value:zip.Compression.REDUCED_3)
+    REDUCED_3 = 4,
+    // @@protoc_insertion_point(enum_value:zip.Compression.REDUCED_4)
+    REDUCED_4 = 5,
+    // @@protoc_insertion_point(enum_value:zip.Compression.IMPLODED)
+    IMPLODED = 6,
+    // @@protoc_insertion_point(enum_value:zip.Compression.DEFLATED)
+    DEFLATED = 8,
+    // @@protoc_insertion_point(enum_value:zip.Compression.DEFLATE64)
+    DEFLATE64 = 9,
+    // @@protoc_insertion_point(enum_value:zip.Compression.PKWARE_IMPLODING)
+    PKWARE_IMPLODING = 10,
+    // @@protoc_insertion_point(enum_value:zip.Compression.BZIP2)
+    BZIP2 = 12,
+    // @@protoc_insertion_point(enum_value:zip.Compression.LZMA)
+    LZMA = 14,
+    // @@protoc_insertion_point(enum_value:zip.Compression.ZSTD)
+    ZSTD = 93,
+    // @@protoc_insertion_point(enum_value:zip.Compression.XZ)
+    XZ = 95,
+    // @@protoc_insertion_point(enum_value:zip.Compression.UNKNOWN)
+    UNKNOWN = 255,
+}
+
+impl ::protobuf::Enum for Compression {
+    const NAME: &'static str = "Compression";
+
+    fn value(&self) -> i32 {
+        *self as i32
+    }
+
+    fn from_i32(value: i32) -> ::std::option::Option<Compression> {
+        match value {
+            0 => ::std::option::Option::Some(Compression::STORED),
+            1 => ::std::option::Option::Some(Compression::SHRUNK),
+            2 => ::std::option::Option::Some(Compression::REDUCED_1),
+            3 => ::std::option::Option::Some(Compression::REDUCED_2),
+            4 => ::std::option::Option::Some(Compression::REDUCED_3),
+            5 => ::std::option::Option::Some(Compression::REDUCED_4),
+            6 => ::std::option::Option::Some(Compression::IMPLODED),
+            8 => ::std::option::Option::Some(Compression::DEFLATED),
+            9 => ::std::option::Option::Some(Compression::DEFLATE64),
+            10 => ::std::option::Option::Some(Compression::PKWARE_IMPLODING),
+            12 => ::std::option::Option::Some(Compression::BZIP2),
+            14 => ::std::option::Option::Some(Compression::LZMA),
+            93 => ::std::option::Option::Some(Compression::ZSTD),
+            95 => ::std::option::Option::Some(Compression::XZ),
+            255 => ::std::option::Option::Some(Compression::UNKNOWN),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    fn from_str(str: &str) -> ::std::option::Option<Compression> {
+        match str {
+            "STORED" => ::std::option::Option::Some(Compression::STORED),
+            "SHRUNK" => ::std::option::Option::Some(Compression::SHRUNK),
+            "REDUCED_1" => ::std::option::Option::Some(Compression::REDUCED_1),
+            "REDUCED_2" => ::std::option::Option::Some(Compression::REDUCED_2),
+            "REDUCED_3" => ::std::option::Option::Some(Compression::REDUCED_3),
+            "REDUCED_4" => ::std::option::Option::Some(Compression::REDUCED_4),
+            "IMPLODED" => ::std::option::Option::Some(Compression::IMPLODED),
+            "DEFLATED" => ::std::option::Option::Some(Compression::DEFLATED),
+            "DEFLATE64" => ::std::option::Option::Some(Compression::DEFLATE64),
+            "PKWARE_IMPLODING" => ::std::option::Option::Some(Compression::PKWARE_IMPLODING),
+            "BZIP2" => ::std::option::Option::Some(Compression::BZIP2),
+            "LZMA" => ::std::option::Option::Some(Compression::LZMA),
+            "ZSTD" => ::std::option::Option::Some(Compression::ZSTD),
+            "XZ" => ::std::option::Option::Some(Compression::XZ),
+            "UNKNOWN" => ::std::option::Option::Some(Compression::UNKNOWN),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    const VALUES: &'static [Compression] = &[
+        Compression::STORED,
+        Compression::SHRUNK,
+        Compression::REDUCED_1,
+        Compression::REDUCED_2,
+        Compression::REDUCED_3,
+        Compression::REDUCED_4,
+        Compression::IMPLODED,
+        Compression::DEFLATED,
+        Compression::DEFLATE64,
+        Compression::PKWARE_IMPLODING,
+        Compression::BZIP2,
+        Compression::LZMA,
+        Compression::ZSTD,
+        Compression::XZ,
+        Compression::UNKNOWN,
+    ];
+}
+
+impl ::protobuf::EnumFull for Compression {
+    fn enum_descriptor() -> ::protobuf::reflect::EnumDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().enum_by_package_relative_name("Compression").unwrap()).clone()
+    }
+
+    fn descriptor(&self) -> ::protobuf::reflect::EnumValueDescriptor {
+        let index = match self {
+            Compression::STORED => 0,
+            Compression::SHRUNK => 1,
+            Compression::REDUCED_1 => 2,
+            Compression::REDUCED_2 => 3,
+            Compression::REDUCED_3 => 4,
+            Compression::REDUCED_4 => 5,
+            Compression::IMPLODED => 6,
+            Compression::DEFLATED => 7,
+            Compression::DEFLATE64 => 8,
+            Compression::PKWARE_IMPLODING => 9,
+            Compression::BZIP2 => 10,
+            Compression::LZMA => 11,
+            Compression::ZSTD => 12,
+            Compression::XZ => 13,
+            Compression::UNKNOWN => 14,
+        };
+        Self::enum_descriptor().value_by_index(index)
+    }
+}
+
+impl ::std::default::Default for Compression {
+    fn default() -> Self {
+        Compression::STORED
+    }
+}
+
+impl Compression {
+    fn generated_enum_descriptor_data() -> ::protobuf::reflect::GeneratedEnumDescriptorData {
+        ::protobuf::reflect::GeneratedEnumDescriptorData::new::<Compression>("Compression")
+    }
+}
+
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\tzip.proto\x12\x03zip\x1a\nyara.proto\"7\n\x03Zip\x120\n\x14extracted\
-    _file_count\x18\x01\x20\x01(\x03R\x12extractedFileCountB\x1e\xfa\x92\x19\
-    \x1a\n\x03zip\x12\x07zip.Zip\x1a\nzip-moduleb\x06proto2\
+    \n\tzip.proto\x12\x03zip\x1a\nyara.proto\"\xad\x01\n\x05Entry\x12\x1a\n\
+    \x08filename\x18\x01\x20\x01(\tR\x08filename\x122\n\x0bcompression\x18\
+    \x02\x20\x01(\x0e2\x10.zip.CompressionR\x0bcompression\x12+\n\x11uncompr\
+    essed_size\x18\x03\x20\x01(\x04R\x10uncompressedSize\x12'\n\x0fcompresse\
+    d_size\x18\x04\x20\x01(\x04R\x0ecompressedSize\"t\n\x03Zip\x120\n\x14ext\
+    racted_file_count\x18\x01\x20\x01(\x03R\x12extractedFileCount\x12\x15\n\
+    \x06is_zip\x18\x02\x20\x01(\x08R\x05isZip\x12$\n\x07entries\x18\x03\x20\
+    \x03(\x0b2\n.zip.EntryR\x07entries*\xdf\x01\n\x0bCompression\x12\n\n\x06\
+    STORED\x10\0\x12\n\n\x06SHRUNK\x10\x01\x12\r\n\tREDUCED_1\x10\x02\x12\r\
+    \n\tREDUCED_2\x10\x03\x12\r\n\tREDUCED_3\x10\x04\x12\r\n\tREDUCED_4\x10\
+    \x05\x12\x0c\n\x08IMPLODED\x10\x06\x12\x0c\n\x08DEFLATED\x10\x08\x12\r\n\
+    \tDEFLATE64\x10\t\x12\x14\n\x10PKWARE_IMPLODING\x10\n\x12\t\n\x05BZIP2\
+    \x10\x0c\x12\x08\n\x04LZMA\x10\x0e\x12\x08\n\x04ZSTD\x10]\x12\x06\n\x02X\
+    Z\x10_\x12\x0c\n\x07UNKNOWN\x10\xff\x01\x1a\x06\x92\x93\x19\x02\x10\x01B\
+    \x1e\xfa\x92\x19\x1a\n\x03zip\x12\x07zip.Zip\x1a\nzip-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -187,9 +670,11 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
         let generated_file_descriptor = generated_file_descriptor_lazy.get(|| {
             let mut deps = ::std::vec::Vec::with_capacity(1);
             deps.push(super::yara::file_descriptor().clone());
-            let mut messages = ::std::vec::Vec::with_capacity(1);
+            let mut messages = ::std::vec::Vec::with_capacity(2);
+            messages.push(Entry::generated_message_descriptor_data());
             messages.push(Zip::generated_message_descriptor_data());
-            let mut enums = ::std::vec::Vec::with_capacity(0);
+            let mut enums = ::std::vec::Vec::with_capacity(1);
+            enums.push(Compression::generated_enum_descriptor_data());
             ::protobuf::reflect::GeneratedFileDescriptor::new_generated(
                 file_descriptor_proto(),
                 deps,

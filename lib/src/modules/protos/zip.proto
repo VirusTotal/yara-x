@@ -9,7 +9,35 @@ option (yara.module_options) = {
   cargo_feature: "zip-module"
 };
 
+enum Compression {
+  option (yara.enum_options).inline = true;
+  STORED = 0;
+  SHRUNK = 1;
+  REDUCED_1 = 2;
+  REDUCED_2 = 3;
+  REDUCED_3 = 4;
+  REDUCED_4 = 5;
+  IMPLODED = 6;
+  DEFLATED = 8;
+  DEFLATE64 = 9;
+  PKWARE_IMPLODING = 10;
+  BZIP2 = 12;
+  LZMA = 14;
+  ZSTD = 93;
+  XZ = 95;
+  UNKNOWN = 255;
+}
+
+message Entry {
+  optional string filename = 1;
+  optional Compression compression = 2;
+  optional uint64 uncompressed_size = 3;
+  optional uint64 compressed_size = 4;
+}
+
 message Zip {
   // Number of files successfully extracted from the archive.
   optional int64 extracted_file_count = 1;
+  optional bool is_zip = 2;
+  repeated Entry entries = 3;
 }
