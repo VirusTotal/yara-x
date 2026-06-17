@@ -492,7 +492,7 @@ pub mod mods {
 
             /// Returns the documentation for the current field.
             pub fn doc(&self) -> Option<&str> {
-                self.struct_field.doc.as_deref()
+                self.struct_field.doc
             }
         }
 
