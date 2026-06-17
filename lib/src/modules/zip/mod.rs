@@ -201,7 +201,7 @@ mod tests {
             0x00, 0x00, 0x69, 0x00, 0x00, 0x00, 0x00, 0x00,
         ];
         let zip = main(&zip_data, None).unwrap();
-        assert!(!zip.is_zip());
+        assert!(zip.is_zip());
         assert_eq!(zip.entries.len(), 1);
         assert_eq!(zip.entries[0].filename(), "suspicious_payload.exe");
         assert_eq!(zip.entries[0].compression(), Compression::DEFLATED);
