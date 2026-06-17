@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn test_main_invalid() {
         let zip = main(b"not a valid zip", None).unwrap();
-        assert_eq!(zip.is_zip(), false);
+        assert!(!zip.is_zip());
         assert_eq!(zip.entries.len(), 0);
     }
 
@@ -201,7 +201,7 @@ mod tests {
             0x00, 0x00, 0x69, 0x00, 0x00, 0x00, 0x00, 0x00,
         ];
         let zip = main(&zip_data, None).unwrap();
-        assert_eq!(zip.is_zip(), true);
+        assert!(!zip.is_zip());
         assert_eq!(zip.entries.len(), 1);
         assert_eq!(zip.entries[0].filename(), "suspicious_payload.exe");
         assert_eq!(zip.entries[0].compression(), Compression::DEFLATED);
