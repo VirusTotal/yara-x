@@ -347,11 +347,8 @@ impl Struct {
     /// be [`None`].
     ///
     /// The `generate_fields_for_enums` controls whether the enums defined
-    /// by the proto will be included as fields in the structure. Enums are
-    /// required only at compile time, so that the compiler can look up the
-    /// enums by name and resolve their values, but at scan time enums are
-    /// not necessary because their values are already embedded in the code.
-    /// The scanner never asks for an enum by field index.
+    /// by the proto will be included in the structure. These are required
+    /// only at compile time, or when constant folding is disabled.
     ///
     /// Also notice that a .proto file can define enums at the top level,
     /// outside any message. Those enums will be handled as if they were
@@ -383,6 +380,7 @@ impl Struct {
         msg_descriptor: &MessageDescriptor,
         msg: Option<&dyn MessageDyn>,
         generate_fields_for_enums: bool,
+        generate_compile_time_fields: bool,
     ) -> Rc<Self> {
         let syntax = msg_descriptor.file_descriptor().syntax();
         let mut fields = Vec::new();
@@ -403,18 +401,21 @@ impl Struct {
                     &ty,
                     msg.and_then(|msg| fd.get_singular(msg)),
                     generate_fields_for_enums,
+                    generate_compile_time_fields,
                     syntax,
                 ),
                 RuntimeFieldType::Repeated(ty) => Self::new_array(
                     &ty,
                     msg.map(|msg| fd.get_repeated(msg)),
                     generate_fields_for_enums,
+                    generate_compile_time_fields,
                 ),
                 RuntimeFieldType::Map(key_ty, value_ty) => Self::new_map(
                     &key_ty,
                     &value_ty,
                     msg.map(|msg| fd.get_map(msg)),
                     generate_fields_for_enums,
+                    generate_compile_time_fields,
                     syntax,
                 ),
             };
@@ -438,9 +439,17 @@ impl Struct {
                     // Index is initially zero, will be adjusted later.
                     type_value: value,
                     acl: Self::acl(&fd),
-                    deprecation_notice: Self::deprecation_notice(&fd),
+                    deprecation_notice: if generate_compile_time_fields {
+                        Self::deprecation_notice(&fd)
+                    } else {
+                        None
+                    },
                     number,
-                    doc: Self::field_doc(msg_descriptor.full_name(), number),
+                    doc: if generate_compile_time_fields {
+                        Self::field_doc(msg_descriptor.full_name(), number)
+                    } else {
+                        None
+                    },
                 },
             ));
         }
@@ -823,6 +832,7 @@ impl Struct {
         ty: &RuntimeType,
         value: Option<ReflectValueRef>,
         enum_as_fields: bool,
+        generate_compile_time_fields: bool,
         syntax: Syntax,
     ) -> TypeValue {
         match ty {
@@ -880,12 +890,14 @@ impl Struct {
                         msg_descriptor,
                         value,
                         enum_as_fields,
+                        generate_compile_time_fields,
                     )
                 } else {
                     Self::from_proto_descriptor_and_msg(
                         msg_descriptor,
                         None,
                         enum_as_fields,
+                        generate_compile_time_fields,
                     )
                 };
                 TypeValue::Struct(structure)
@@ -897,6 +909,7 @@ impl Struct {
         ty: &RuntimeType,
         repeated: Option<ReflectRepeatedRef>,
         enum_as_fields: bool,
+        generate_compile_time_fields: bool,
     ) -> TypeValue {
         let array = match ty {
             RuntimeType::I32 => {
@@ -904,7 +917,7 @@ impl Struct {
                     Array::Integers(
                         repeated
                             .into_iter()
-                            .map(|value| value.to_i32().unwrap() as i64)
+                            .map(|value| Self::value_as_i64(value))
                             .collect(),
                     )
                 } else {
@@ -916,7 +929,7 @@ impl Struct {
                     Array::Integers(
                         repeated
                             .into_iter()
-                            .map(|value| value.to_i64().unwrap())
+                            .map(|value| Self::value_as_i64(value))
                             .collect(),
                     )
                 } else {
@@ -928,7 +941,7 @@ impl Struct {
                     Array::Integers(
                         repeated
                             .into_iter()
-                            .map(|value| value.to_u32().unwrap() as i64)
+                            .map(|value| Self::value_as_i64(value))
                             .collect(),
                     )
                 } else {
@@ -936,14 +949,23 @@ impl Struct {
                 }
             }
             RuntimeType::U64 => {
-                todo!()
+                if let Some(repeated) = repeated {
+                    Array::Integers(
+                        repeated
+                            .into_iter()
+                            .map(|value| Self::value_as_i64(value))
+                            .collect(),
+                    )
+                } else {
+                    Array::Integers(vec![])
+                }
             }
             RuntimeType::F32 => {
                 if let Some(repeated) = repeated {
                     Array::Floats(
                         repeated
                             .into_iter()
-                            .map(|value| value.to_f32().unwrap() as f64)
+                            .map(|value| Self::value_as_f64(value))
                             .collect(),
                     )
                 } else {
@@ -955,7 +977,7 @@ impl Struct {
                     Array::Floats(
                         repeated
                             .into_iter()
-                            .map(|value| value.to_f64().unwrap())
+                            .map(|value| Self::value_as_f64(value))
                             .collect(),
                     )
                 } else {
@@ -967,7 +989,7 @@ impl Struct {
                     Array::Bools(
                         repeated
                             .into_iter()
-                            .map(|value| value.to_bool().unwrap())
+                            .map(|value| Self::value_as_bool(value))
                             .collect(),
                     )
                 } else {
@@ -1026,6 +1048,7 @@ impl Struct {
                                     msg_descriptor,
                                     value,
                                     enum_as_fields,
+                                    generate_compile_time_fields,
                                 )
                             })
                             .collect(),
@@ -1036,6 +1059,7 @@ impl Struct {
                             msg_descriptor,
                             None,
                             enum_as_fields,
+                            generate_compile_time_fields,
                         ),
                     ])
                 }
@@ -1050,6 +1074,7 @@ impl Struct {
         value_ty: &RuntimeType,
         map: Option<ReflectMapRef>,
         enum_as_fields: bool,
+        generate_compile_time_fields: bool,
         syntax: Syntax,
     ) -> TypeValue {
         let map = match key_ty {
@@ -1057,6 +1082,7 @@ impl Struct {
                 value_ty,
                 map,
                 enum_as_fields,
+                generate_compile_time_fields,
                 syntax,
             ),
             RuntimeType::I32
@@ -1066,6 +1092,7 @@ impl Struct {
                 value_ty,
                 map,
                 enum_as_fields,
+                generate_compile_time_fields,
                 syntax,
             ),
             ty => {
@@ -1080,6 +1107,7 @@ impl Struct {
         value_ty: &RuntimeType,
         map: Option<ReflectMapRef>,
         enum_as_fields: bool,
+        generate_compile_time_fields: bool,
         syntax: Syntax,
     ) -> Map {
         if let Some(map) = map {
@@ -1091,6 +1119,7 @@ impl Struct {
                         value_ty,
                         Some(value),
                         enum_as_fields,
+                        generate_compile_time_fields,
                         syntax,
                     ),
                 );
@@ -1102,6 +1131,7 @@ impl Struct {
                     value_ty,
                     None,
                     enum_as_fields,
+                    generate_compile_time_fields,
                     syntax,
                 )),
                 map: Default::default(),
@@ -1113,6 +1143,7 @@ impl Struct {
         value_ty: &RuntimeType,
         map: Option<ReflectMapRef>,
         enum_as_fields: bool,
+        generate_compile_time_fields: bool,
         syntax: Syntax,
     ) -> Map {
         if let Some(map) = map {
@@ -1124,6 +1155,7 @@ impl Struct {
                         value_ty,
                         Some(value),
                         enum_as_fields,
+                        generate_compile_time_fields,
                         syntax,
                     ),
                 );
@@ -1135,6 +1167,7 @@ impl Struct {
                     value_ty,
                     None,
                     enum_as_fields,
+                    generate_compile_time_fields,
                     syntax,
                 )),
                 map: Default::default(),
@@ -1146,12 +1179,14 @@ impl Struct {
         msg_descriptor: &MessageDescriptor,
         value: ReflectValueRef,
         enum_as_fields: bool,
+        generate_compile_time_fields: bool,
     ) -> Rc<Self> {
         if let ReflectValueRef::Message(m) = value {
             Struct::from_proto_descriptor_and_msg(
                 msg_descriptor,
                 Some(m.deref()),
                 enum_as_fields,
+                generate_compile_time_fields,
             )
         } else {
             unreachable!()
@@ -1225,6 +1260,7 @@ impl From<&dyn RegisteredModule> for Rc<Struct> {
         let mut module_struct = Struct::from_proto_descriptor_and_msg(
             &module.root_descriptor(),
             None,
+            true,
             true,
         );
 
@@ -1307,6 +1343,7 @@ mod tests {
         let mut structure = Struct::from_proto_descriptor_and_msg(
             &TestProto2::descriptor(),
             None,
+            true,
             true,
         );
 

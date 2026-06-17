@@ -703,6 +703,7 @@ impl<'r> Scanner<'r> {
                 &module_root_descriptor,
                 module_output.as_deref(),
                 generate_fields_for_enums,
+                false,
             );
 
             if let Some(module_output) = module_output {
