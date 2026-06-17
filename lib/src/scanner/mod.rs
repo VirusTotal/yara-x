@@ -11,6 +11,7 @@ use std::ops::Range;
 use std::path::{Component, Path, PathBuf};
 use std::pin::Pin;
 use std::slice::Iter;
+use std::sync::Arc;
 use std::sync::Once;
 use std::sync::atomic::AtomicU64;
 use std::time::Duration;
@@ -106,26 +107,61 @@ static INIT_HEARTBEAT: Once = Once::new();
 ///
 /// The scanned data can be backed by a slice owned by someone else, or a
 /// vector or memory-mapped file owned by `ScannedData` itself.
+#[derive(Clone, Debug)]
 pub enum ScannedData<'d> {
     Slice(&'d [u8]),
-    Vec(Vec<u8>),
-    Mmap { mmap: Mmap, len: usize },
+    Vec { vec: Arc<Vec<u8>>, range: Range<usize> },
+    Mmap { mmap: Arc<Mmap>, range: Range<usize> },
 }
 
 impl AsRef<[u8]> for ScannedData<'_> {
     fn as_ref(&self) -> &[u8] {
         match self {
             ScannedData::Slice(s) => s,
-            ScannedData::Vec(v) => v.as_ref(),
-            ScannedData::Mmap { mmap, len } => &mmap.as_ref()[..*len],
+            ScannedData::Vec { vec, range } => &vec.as_slice()[range.clone()],
+            ScannedData::Mmap { mmap, range } => &mmap.as_ref()[range.clone()],
         }
     }
 }
 
 impl ScannedData<'_> {
     #[inline]
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.as_ref().len()
+    }
+}
+
+impl<'d> ScannedData<'d> {
+    pub fn from_vec(vec: Vec<u8>) -> Self {
+        let len = vec.len();
+        ScannedData::Vec { vec: Arc::new(vec), range: 0..len }
+    }
+
+    /// Returns a zero-copy sub-view of this `ScannedData`.
+    pub fn slice(&self, range: Range<usize>) -> Option<ScannedData<'d>> {
+        let data_len = self.len();
+        if range.start > data_len
+            || range.end > data_len
+            || range.start > range.end
+        {
+            return None;
+        }
+        match self {
+            ScannedData::Slice(s) => s.get(range).map(ScannedData::Slice),
+            ScannedData::Vec { vec, range: r } => {
+                let start = r.start + range.start;
+                let end = r.start + range.end;
+                Some(ScannedData::Vec { vec: vec.clone(), range: start..end })
+            }
+            ScannedData::Mmap { mmap, range: r } => {
+                let start = r.start + range.start;
+                let end = r.start + range.end;
+                Some(ScannedData::Mmap {
+                    mmap: mmap.clone(),
+                    range: start..end,
+                })
+            }
+        }
     }
 }
 
@@ -612,7 +648,7 @@ impl<'r> Scanner<'r> {
             mapped_file.advise(Advice::Sequential).map_err(|err| {
                 ScanError::MapError { path: path.to_path_buf(), err }
             })?;
-            ScannedData::Mmap { mmap: mapped_file, len: size }
+            ScannedData::Mmap { mmap: Arc::new(mapped_file), range: 0..size }
         } else {
             let mut buffered_file = Vec::with_capacity(size);
             (&file)
@@ -622,7 +658,7 @@ impl<'r> Scanner<'r> {
                     path: path.to_path_buf(),
                     err,
                 })?;
-            ScannedData::Vec(buffered_file)
+            ScannedData::Vec { vec: Arc::new(buffered_file), range: 0..size }
         };
 
         Ok(data)
@@ -652,7 +688,7 @@ impl<'r> Scanner<'r> {
         // Extraction is enabled. Push the current data in the queue and
         // scan items while there's something in the queue.
         let mut queue = VecDeque::from([(PathBuf::from(""), data, 0)]);
-        let mut snippets = BTreeMap::new();
+        let mut scanned_files = BTreeMap::new();
 
         while let Some((logical_path, file_data, extraction_depth)) =
             queue.pop_front()
@@ -664,11 +700,10 @@ impl<'r> Scanner<'r> {
 
             if enable_extraction && extraction_depth < max_extraction_depth {
                 for module in crate::modules::registered_modules() {
-                    let extracted_files =
-                        match module.extract_fn(data.as_ref()) {
-                            Some(Ok(extracted_files)) => extracted_files,
-                            _ => continue,
-                        };
+                    let extracted_files = match module.extract_fn(&data) {
+                        Some(Ok(extracted_files)) => extracted_files,
+                        _ => continue,
+                    };
 
                     for file in extracted_files {
                         let mut path = logical_path.clone();
@@ -680,20 +715,20 @@ impl<'r> Scanner<'r> {
                         }
                         queue.push_back((
                             path,
-                            ScannedData::Vec(file.data),
+                            file.data,
                             extraction_depth + 1,
                         ));
                     }
                 }
             }
 
-            snippets.insert(logical_path, data);
+            scanned_files.insert(logical_path, data);
         }
 
         let ctx = self.scan_context_mut();
 
         ctx.scan_state =
-            ScanState::Finished(DataSnippets::MultiFile(snippets));
+            ScanState::Finished(DataSnippets::MultiFile(scanned_files));
 
         Ok(ScanResults::new(ctx))
     }
@@ -1298,7 +1333,7 @@ mod snippet_tests {
     #[test]
     fn snippets_singleblock() {
         let data = b"Lorem ipsum dolor sit amet".to_vec();
-        let scanned_data = super::ScannedData::Vec(data);
+        let scanned_data = super::ScannedData::from_vec(data);
         let snippets = DataSnippets::SingleBlock(scanned_data);
 
         // Test get

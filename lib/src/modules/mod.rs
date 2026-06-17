@@ -1,3 +1,4 @@
+use crate::scanner::ScannedData;
 use protobuf::MessageDyn;
 use protobuf::reflect::MessageDescriptor;
 use std::path::PathBuf;
@@ -39,11 +40,12 @@ pub enum ModuleError {
 
 /// Represents a file extracted from a container or archive module.
 #[derive(Debug, Clone)]
-pub struct ExtractedFile {
-    /// Relative logical path of the file within the extracted container (e.g. `"word/document.xml"`).
+pub struct ExtractedFile<'a> {
+    /// Relative logical path of the file within the extracted container
+    /// (e.g. `"word/document.xml"`).
     pub path: PathBuf,
     /// Raw extracted byte contents.
-    pub data: Vec<u8>,
+    pub data: ScannedData<'a>,
 }
 
 /// Main function in a YARA module.
@@ -51,7 +53,9 @@ pub type ModuleMainFn<T> = fn(&[u8], Option<&[u8]>) -> Result<T, ModuleError>;
 
 /// Signature for module extraction functions.
 pub type ModuleExtractFn =
-    fn(&[u8]) -> Result<Vec<ExtractedFile>, ModuleError>;
+    for<'a> fn(
+        &ScannedData<'a>,
+    ) -> Result<Vec<ExtractedFile<'a>>, ModuleError>;
 
 /// The trait implemented by all registered modules.
 pub trait RegisteredModule: Send + Sync {
@@ -72,10 +76,10 @@ pub trait RegisteredModule: Send + Sync {
 
     /// Function called when YARA extracts container or archive data.
     /// Extracts one or more internal files from the input buffer.
-    fn extract_fn(
+    fn extract_fn<'a>(
         &self,
-        _data: &[u8],
-    ) -> Option<Result<Vec<ExtractedFile>, ModuleError>> {
+        _data: &ScannedData<'a>,
+    ) -> Option<Result<Vec<ExtractedFile<'a>>, ModuleError>> {
         None
     }
 
@@ -132,10 +136,10 @@ where
         self.rust_module_name
     }
 
-    fn extract_fn(
+    fn extract_fn<'a>(
         &self,
-        data: &[u8],
-    ) -> Option<Result<Vec<ExtractedFile>, ModuleError>> {
+        data: &ScannedData<'a>,
+    ) -> Option<Result<Vec<ExtractedFile<'a>>, ModuleError>> {
         self.extract_fn.map(|f| f(data))
     }
 }

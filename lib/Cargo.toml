@@ -235,7 +235,7 @@ vt-module = [
 ]
 
 # The `zip` module provides container file extraction capabilities.
-zip-module = ["dep:zip"]
+zip-module = ["dep:tinyzip", "dep:flate2"]
 
 # Enables all the default modules.
 default-modules = [
@@ -321,6 +321,8 @@ x509-parser = { workspace = true, optional = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true, features = ["serde"] }
 zip = { workspace = true, optional = true, features = ["deflate"] }
+tinyzip = { workspace = true, optional = true }
+flate2 = { workspace = true, optional = true }
 simd-adler32 = { workspace = true, optional = true }
 simd_cesu8 = { workspace = true, optional = true }
 
