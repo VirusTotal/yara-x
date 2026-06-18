@@ -89,7 +89,7 @@ pub trait RegisteredModule: Send + Sync {
     /// evaluating the rules. Set to `None` for data-only modules.
     fn main_fn(
         &self,
-        ctx: &crate::mods::prelude::ModuleContext,
+        ctx: &ModuleContext,
         data: &[u8],
     ) -> Option<Result<Box<dyn MessageDyn>, ModuleError>>;
 
@@ -117,8 +117,7 @@ pub trait RegisteredModule: Send + Sync {
 }
 
 /// Main function in a YARA module.
-pub type ModuleMainFn<T> =
-    fn(&crate::mods::prelude::ModuleContext, &[u8]) -> Result<T, ModuleError>;
+pub type ModuleMainFn<T> = fn(&ModuleContext, &[u8]) -> Result<T, ModuleError>;
 
 /// Description of a YARA module, generic over the type `T` returned by the
 /// main function.
@@ -154,7 +153,7 @@ where
 
     fn main_fn(
         &self,
-        ctx: &crate::mods::prelude::ModuleContext,
+        ctx: &ModuleContext,
         data: &[u8],
     ) -> Option<Result<Box<dyn MessageDyn>, ModuleError>> {
         self.main_fn.map(|f| {

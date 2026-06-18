@@ -744,7 +744,8 @@ impl<'r> Scanner<'r> {
             ctx.scan_state = ScanState::ScanningData(data.clone());
         }
 
-        let imported_modules: Vec<&str> = self.scan_context().compiled_rules.imports().collect();
+        let imported_modules: Vec<&str> =
+            self.scan_context().compiled_rules.imports().collect();
 
         for module_name in imported_modules {
             let module = crate::modules::registered_modules()
@@ -754,14 +755,15 @@ impl<'r> Scanner<'r> {
             let module_root_descriptor = module.root_descriptor();
             let root_struct_name = module_root_descriptor.full_name();
 
-
             let module_output;
             // If the user already provided some output for the module by
             // calling `Scanner::set_module_output`, use that output. If not,
             // call the module's main function (if the module has a main
             // function) for getting its output.
-            if let Some(output) =
-                self.scan_context_mut().user_provided_module_outputs.remove(root_struct_name)
+            if let Some(output) = self
+                .scan_context_mut()
+                .user_provided_module_outputs
+                .remove(root_struct_name)
             {
                 module_output = Some(output);
             } else {
@@ -774,8 +776,7 @@ impl<'r> Scanner<'r> {
                     metadata: meta,
                 };
 
-                if let Some(main_res) =
-                    module.main_fn(&mod_ctx, data.as_ref())
+                if let Some(main_res) = module.main_fn(&mod_ctx, data.as_ref())
                 {
                     module_output = Some(main_res.map_err(|err| {
                         ScanError::ModuleError {
@@ -834,14 +835,16 @@ impl<'r> Scanner<'r> {
             );
 
             if let Some(module_output) = module_output {
-                self.scan_context_mut().module_outputs
+                self.scan_context_mut()
+                    .module_outputs
                     .insert(root_struct_name.to_string(), module_output);
             }
 
             // The data structure obtained from the module is added to the
             // root structure. Any data from previous scans will be replaced
             // with the new data structure.
-            self.scan_context_mut().root_struct
+            self.scan_context_mut()
+                .root_struct
                 .add_field(module_name, TypeValue::Struct(module_struct));
         }
 
