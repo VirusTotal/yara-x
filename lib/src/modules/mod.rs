@@ -1,9 +1,10 @@
-use crate::scanner::ScannedData;
-use protobuf::MessageDyn;
-use protobuf::reflect::MessageDescriptor;
 use std::path::PathBuf;
 
+use protobuf::reflect::MessageDescriptor;
+use rustc_hash::FxHashMap;
 use thiserror::Error;
+
+use crate::scanner::ScannedData;
 
 pub mod protos {
     #[cfg(feature = "generate-proto-code")]
@@ -41,7 +42,7 @@ pub enum ModuleError {
 /// Context passed to the main function of YARA modules.
 pub struct ModuleContext<'a> {
     pub(crate) module_outputs:
-        &'a rustc_hash::FxHashMap<String, Box<dyn protobuf::MessageDyn>>,
+        &'a FxHashMap<String, Box<dyn protobuf::MessageDyn>>,
     pub(crate) metadata: Option<&'a [u8]>,
 }
 
@@ -91,7 +92,7 @@ pub trait RegisteredModule: Send + Sync {
         &self,
         ctx: &ModuleContext,
         data: &[u8],
-    ) -> Option<Result<Box<dyn MessageDyn>, ModuleError>>;
+    ) -> Option<Result<Box<dyn protobuf::MessageDyn>, ModuleError>>;
 
     /// Function called when YARA extracts container or archive data.
     /// Extracts one or more internal files from the input buffer.
@@ -155,9 +156,10 @@ where
         &self,
         ctx: &ModuleContext,
         data: &[u8],
-    ) -> Option<Result<Box<dyn MessageDyn>, ModuleError>> {
+    ) -> Option<Result<Box<dyn protobuf::MessageDyn>, ModuleError>> {
         self.main_fn.map(|f| {
-            f(ctx, data).map(|ok| Box::new(ok) as Box<dyn MessageDyn>)
+            f(ctx, data)
+                .map(|ok| Box::new(ok) as Box<dyn protobuf::MessageDyn>)
         })
     }
 
