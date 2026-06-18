@@ -112,6 +112,7 @@ yara-x-macros = { path = "macros", version = "1.18.0" }
 yara-x-parser = { path = "parser", version = "1.18.0" }
 yara-x-proto = { path = "proto", version = "1.18.0"}
 zip = { version = "8.2.0", default-features = false }
+tinyzip = "0.4.0"
 simd-adler32 = "0.3.9"
 simd_cesu8 = "1.1.1"
 assert-call = "0.1.2"

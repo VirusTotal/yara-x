@@ -394,5 +394,24 @@
     ],
     "kind": 9,
     "label": "vt"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"zip\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "zip"
   }
 ]

@@ -3347,6 +3347,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "tinyzip"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6847a2bf223d67c916a25d5fb8d197fc1c7c3205421e05d50f3373e092034146"
+
+[[package]]
 name = "tokio"
 version = "1.48.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4416,6 +4422,7 @@ dependencies = [
  "smallvec",
  "strum_macros",
  "thiserror 2.0.18",
+ "tinyzip",
  "uuid",
  "walrus",
  "wasm-bindgen",
