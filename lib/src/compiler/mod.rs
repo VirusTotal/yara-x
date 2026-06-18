@@ -389,9 +389,8 @@ pub struct Compiler<'a> {
     /// vector. This vector contains both forward and backward code.
     re_code: Vec<u8>,
 
-    /// Vector with the names of all the imported modules. The vector contains
-    /// the [`IdentId`] corresponding to the module's identifier.
-    imported_modules: Vec<IdentId>,
+    /// Vector with the names of all the imported modules.
+    imported_modules: Vec<&'static str>,
 
     /// Names of modules that are known, but not supported. When an `import`
     /// statement with one of these modules is found, the statement is accepted
@@ -809,17 +808,28 @@ impl<'a> Compiler<'a> {
         )
         .expect("failed to serialize global variables");
 
+        let mut ident_pool = self.ident_pool;
+
+        // Create a list with the modules that were imported by the rules. The
+        // modules will be sorted, if module A depends on module B, B will
+        // appear before A in the list.
+        let imported_modules: Vec<IdentId> =
+            crate::modules::execution_order(self.imported_modules.into_iter())
+                .into_iter()
+                .map(|name| ident_pool.get_or_intern(name))
+                .collect();
+
         let mut rules = Rules {
             serialized_globals,
             wasm_mod,
+            imported_modules,
+            ident_pool,
             compiled_wasm_mod: Some(compiled_wasm_mod),
             relaxed_re_syntax: self.relaxed_re_syntax,
             ac: None,
             num_patterns: self.next_pattern_id.0 as usize,
-            ident_pool: self.ident_pool,
             regex_pool: self.regex_pool,
             lit_pool: self.lit_pool,
-            imported_modules: self.imported_modules,
             rules: self.rules,
             sub_patterns: self.sub_patterns,
             anchored_sub_patterns: self.anchored_sub_patterns,
@@ -1949,8 +1959,7 @@ impl Compiler<'_> {
         // `self.imported_modules`, do it.
         if !self.root_struct.has_field(module_name) {
             // Add the module to the list of imported modules.
-            self.imported_modules
-                .push(self.ident_pool.get_or_intern(module_name));
+            self.imported_modules.push(module.name());
 
             // Create the `Struct` that describes the module.
             let module_struct = Rc::<Struct>::from(module);

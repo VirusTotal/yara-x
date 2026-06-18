@@ -48,8 +48,6 @@ pub struct ExtractedFile<'a> {
     pub data: ScannedData<'a>,
 }
 
-/// Main function in a YARA module.
-pub type ModuleMainFn<T> = fn(&[u8], Option<&[u8]>) -> Result<T, ModuleError>;
 
 /// Signature for module extraction functions.
 pub type ModuleExtractFn =
@@ -66,6 +64,8 @@ pub trait RegisteredModule: Send + Sync {
     /// module's root structure.
     fn root_descriptor(&self) -> MessageDescriptor;
 
+    /// Main function called every time YARA scans some data, before
+    /// evaluating the rules. Set to `None` for data-only modules.
     /// Main function called every time YARA scans some data, before
     /// evaluating the rules. Set to `None` for data-only modules.
     fn main_fn(
@@ -90,7 +90,15 @@ pub trait RegisteredModule: Send + Sync {
     /// functions' definition site (e.g. `"my_crate::my_mod"`). Set to
     /// `None` for data-only modules that export no callable functions.
     fn rust_module_name(&self) -> Option<&'static str>;
+
+    /// Upstream module names this module depends on.
+    fn dependencies(&self) -> &'static [&'static str] {
+        &[]
+    }
 }
+
+/// Main function in a YARA module.
+pub type ModuleMainFn<T> = fn(&[u8], Option<&[u8]>) -> Result<T, ModuleError>;
 
 /// Description of a YARA module, generic over the type `T` returned by the
 /// main function.
@@ -108,6 +116,8 @@ where
     /// Rust module path of the submodule inside the external crate that
     /// contains functions registered with `#[module_export(yara_x_crate = ...)]`.
     pub rust_module_name: Option<&'static str>,
+    /// Upstream module names this module depends on.
+    pub dependencies: &'static [&'static str],
 }
 
 impl<T> RegisteredModule for Module<T>
@@ -142,6 +152,10 @@ where
     ) -> Option<Result<Vec<ExtractedFile<'a>>, ModuleError>> {
         self.extract_fn.map(|f| f(data))
     }
+
+    fn dependencies(&self) -> &'static [&'static str] {
+        self.dependencies
+    }
 }
 
 /// Macro used to register a YARA module.
@@ -168,6 +182,7 @@ macro_rules! register_module {
                 main_fn: Some($main_fn),
                 extract_fn: Some($extract_fn),
                 rust_module_name: Some(module_path!()),
+                dependencies: &[],
             } as &dyn $crate::mods::prelude::RegisteredModule
         }
     };
@@ -178,6 +193,7 @@ macro_rules! register_module {
                 main_fn: Some($main_fn),
                 extract_fn: None,
                 rust_module_name: Some(module_path!()),
+                dependencies: &[],
             } as &dyn $crate::mods::prelude::RegisteredModule
         }
     };
@@ -188,6 +204,29 @@ macro_rules! register_module {
                 main_fn: None,
                 extract_fn: None,
                 rust_module_name: None,
+                dependencies: &[],
+            } as &dyn $crate::mods::prelude::RegisteredModule
+        }
+    };
+    ($name:literal, $root_message:ty, $main_fn:path, dependencies: [$($dep:literal),*]) => {
+        $crate::mods::prelude::inventory::submit! {
+            &$crate::mods::prelude::Module::<$root_message> {
+                name: $name,
+                main_fn: Some($main_fn),
+                extract_fn: None,
+                rust_module_name: Some(module_path!()),
+                dependencies: &[$($dep),*],
+            } as &dyn $crate::mods::prelude::RegisteredModule
+        }
+    };
+    ($name:literal, $root_message:ty, $main_fn:path, $extract_fn:path, dependencies: [$($dep:literal),*]) => {
+        $crate::mods::prelude::inventory::submit! {
+            &$crate::mods::prelude::Module::<$root_message> {
+                name: $name,
+                main_fn: Some($main_fn),
+                extract_fn: Some($extract_fn),
+                rust_module_name: Some(module_path!()),
+                dependencies: &[$($dep),*],
             } as &dyn $crate::mods::prelude::RegisteredModule
         }
     };
@@ -200,6 +239,58 @@ inventory::collect!(&'static dyn RegisteredModule);
 pub(crate) fn registered_modules()
 -> impl Iterator<Item = &'static dyn RegisteredModule> {
     inventory::iter::<&'static dyn RegisteredModule>().copied()
+}
+
+/// Returns the names of imported modules and their dependencies in execution order.
+///
+/// The execution order is determined using depth-first search (DFS) topological
+/// sorting. For each requested module, its dependencies are recursively visited
+/// and appended to the resulting list first. This ensures that when scanning data,
+/// any module that depends on another module is executed after its dependencies.
+/// Panics if a cyclic dependency between modules is detected.
+pub(crate) fn execution_order<'a>(
+    imports: impl Iterator<Item = &'a str>,
+) -> Vec<&'static str> {
+    use rustc_hash::FxHashSet;
+
+    let mut visited = FxHashSet::default();
+    let mut visiting = FxHashSet::default();
+    let mut ordered = Vec::new();
+
+    fn visit(
+        name: &str,
+        visited: &mut FxHashSet<&'static str>,
+        visiting: &mut FxHashSet<&'static str>,
+        ordered: &mut Vec<&'static str>,
+    ) {
+        let module = registered_modules()
+            .find(|m| m.name() == name)
+            .unwrap_or_else(|| panic!("module `{name}` not found"));
+
+        let module_name = module.name();
+
+        if visited.contains(module_name) {
+            return;
+        }
+
+        if !visiting.insert(module_name) {
+            panic!("cyclic dependency detected in module `{module_name}`");
+        }
+
+        for dep in module.dependencies() {
+            visit(dep, visited, visiting, ordered);
+        }
+
+        visiting.remove(module_name);
+        visited.insert(module_name);
+        ordered.push(module_name);
+    }
+
+    for name in imports {
+        visit(name, &mut visited, &mut visiting, &mut ordered);
+    }
+
+    ordered
 }
 
 pub mod mods {
@@ -371,8 +462,8 @@ pub mod mods {
         info.macho = protobuf::MessageField(invoke::<Macho>(data));
         info.lnk = protobuf::MessageField(invoke::<Lnk>(data));
         info.crx = protobuf::MessageField(invoke::<Crx>(data));
-        info.dex = protobuf::MessageField(invoke::<Dex>(data));
         info.zip = protobuf::MessageField(invoke::<Zip>(data));
+        info.dex = protobuf::MessageField(invoke::<Dex>(data));
         info
     }
 

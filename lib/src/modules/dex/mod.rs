@@ -156,4 +156,4 @@ fn contains_class(
     )
 }
 
-register_module!("dex", Dex, main);
+register_module!("dex", Dex, main, dependencies: ["zip"]);
