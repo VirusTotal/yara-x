@@ -2,6 +2,7 @@ use crate::mods::prelude::*;
 use crate::modules::protos::test_proto3::TestProto3;
 
 fn main(
+    _ctx: &ScanContext,
     _data: &[u8],
     _meta: Option<&[u8]>,
 ) -> Result<TestProto3, ModuleError> {

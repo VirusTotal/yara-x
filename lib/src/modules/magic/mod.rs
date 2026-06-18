@@ -27,7 +27,7 @@ thread_local! {
     static MIME_TYPE_CACHE: RefCell<Option<String>> = const { RefCell::new(None) };
 }
 
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Magic, ModuleError> {
+fn main(_ctx: &ScanContext, _data: &[u8], _meta: Option<&[u8]>) -> Result<Magic, ModuleError> {
     // With every scanned file the cache must be cleared.
     TYPE_CACHE.set(None);
     MIME_TYPE_CACHE.set(None);

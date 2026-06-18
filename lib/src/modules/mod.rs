@@ -68,8 +68,9 @@ pub trait RegisteredModule: Send + Sync {
     /// evaluating the rules. Set to `None` for data-only modules.
     /// Main function called every time YARA scans some data, before
     /// evaluating the rules. Set to `None` for data-only modules.
-    fn main_fn(
+    fn main_fn<'a, 'd>(
         &self,
+        ctx: &crate::mods::prelude::ScanContext<'a, 'd>,
         data: &[u8],
         meta: Option<&[u8]>,
     ) -> Option<Result<Box<dyn MessageDyn>, ModuleError>>;
@@ -98,7 +99,11 @@ pub trait RegisteredModule: Send + Sync {
 }
 
 /// Main function in a YARA module.
-pub type ModuleMainFn<T> = fn(&[u8], Option<&[u8]>) -> Result<T, ModuleError>;
+pub type ModuleMainFn<T> = fn(
+    &crate::mods::prelude::ScanContext,
+    &[u8],
+    Option<&[u8]>,
+) -> Result<T, ModuleError>;
 
 /// Description of a YARA module, generic over the type `T` returned by the
 /// main function.
@@ -132,13 +137,14 @@ where
         T::descriptor()
     }
 
-    fn main_fn(
+    fn main_fn<'a, 'd>(
         &self,
+        ctx: &crate::mods::prelude::ScanContext<'a, 'd>,
         data: &[u8],
         meta: Option<&[u8]>,
     ) -> Option<Result<Box<dyn MessageDyn>, ModuleError>> {
         self.main_fn.map(|f| {
-            f(data, meta).map(|ok| Box::new(ok) as Box<dyn MessageDyn>)
+            f(ctx, data, meta).map(|ok| Box::new(ok) as Box<dyn MessageDyn>)
         })
     }
 
@@ -441,7 +447,20 @@ pub mod mods {
         let module = super::registered_modules()
             .find(|m| m.root_descriptor().full_name() == proto_name)?;
 
-        module.main_fn(data, meta)?.ok()
+        static EMPTY_RULES: std::sync::OnceLock<crate::compiler::Rules> =
+            std::sync::OnceLock::new();
+        let rules = EMPTY_RULES
+            .get_or_init(|| crate::compiler::Compiler::new().build());
+        let mut scanner = crate::scanner::Scanner::new(rules);
+        {
+            let ctx = scanner.scan_context_mut();
+            ctx.set_filesize(data.len() as i64);
+            ctx.scan_state = crate::scanner::ScanState::ScanningData(
+                data.try_into().unwrap(),
+            );
+        }
+
+        module.main_fn(scanner.scan_context(), data, meta)?.ok()
     }
 
     /// Invokes all YARA modules and returns the data produced by them.

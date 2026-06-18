@@ -95,7 +95,7 @@ fn to_int(ctx: &ScanContext, string: RuntimeString) -> Option<i64> {
     string.parse::<i64>().ok()
 }
 
-fn main(data: &[u8], meta: Option<&[u8]>) -> Result<TestProto2, ModuleError> {
+fn main(_ctx: &ScanContext, data: &[u8], meta: Option<&[u8]>) -> Result<TestProto2, ModuleError> {
     let mut test = TestProto2::new();
 
     test.set_int32_zero(0);

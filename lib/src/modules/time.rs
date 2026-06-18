@@ -1,7 +1,7 @@
 use crate::mods::prelude::*;
 use crate::modules::protos::time::*;
 
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Time, ModuleError> {
+fn main(_ctx: &ScanContext, _data: &[u8], _meta: Option<&[u8]>) -> Result<Time, ModuleError> {
     // Nothing to do, but we have to return our protobuf
     Ok(Time::new())
 }

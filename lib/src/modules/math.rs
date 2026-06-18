@@ -19,7 +19,7 @@ thread_local!(
     > = RefCell::new(FxHashMap::default());
 );
 
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Math, ModuleError> {
+fn main(_ctx: &ScanContext, _data: &[u8], _meta: Option<&[u8]>) -> Result<Math, ModuleError> {
     DISTRIBUTION_CACHE.with(|cache| cache.borrow_mut().clear());
 
     // Nothing to do, but we have to return our protobuf

@@ -6,9 +6,10 @@ use tinyzip::Archive;
 use crate::modules::protos::zip::{Compression, Entry, Zip};
 use crate::modules::{ExtractedFile, ModuleError};
 use crate::register_module;
+use crate::mods::prelude::ScanContext;
 use crate::scanner::ScannedData;
 
-pub fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Zip, ModuleError> {
+pub fn main(_ctx: &ScanContext, data: &[u8], _meta: Option<&[u8]>) -> Result<Zip, ModuleError> {
     let mut zip = Zip::new();
 
     let archive = match Archive::open(data) {
@@ -173,7 +174,7 @@ mod tests {
 
     #[test]
     fn test_main_invalid() {
-        let zip = main(b"not a valid zip", None).unwrap();
+        let zip = crate::mods::invoke::<Zip>(b"not a valid zip").unwrap();
         assert!(!zip.is_zip());
         assert_eq!(zip.entries.len(), 0);
     }
@@ -200,7 +201,7 @@ mod tests {
             0x06, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x44, 0x00,
             0x00, 0x00, 0x69, 0x00, 0x00, 0x00, 0x00, 0x00,
         ];
-        let zip = main(&zip_data, None).unwrap();
+        let zip = crate::mods::invoke::<Zip>(&zip_data).unwrap();
         assert!(zip.is_zip());
         assert_eq!(zip.entries.len(), 1);
         assert_eq!(zip.entries[0].filename(), "suspicious_payload.exe");

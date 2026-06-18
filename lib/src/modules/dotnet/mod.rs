@@ -7,7 +7,7 @@ use crate::modules::protos::dotnet::*;
 
 pub mod parser;
 
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Dotnet, ModuleError> {
+fn main(_ctx: &ScanContext, data: &[u8], _meta: Option<&[u8]>) -> Result<Dotnet, ModuleError> {
     match parser::Dotnet::parse(data) {
         Ok(dotnet) => Ok(dotnet.into()),
         Err(_) => {

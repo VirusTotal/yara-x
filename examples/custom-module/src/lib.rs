@@ -19,6 +19,7 @@ pub mod proto {
 pub use proto::foobar::Foobar;
 
 fn foobar_main(
+    _ctx: &ScanContext,
     data: &[u8],
     _meta: Option<&[u8]>,
 ) -> Result<Foobar, ModuleError> {

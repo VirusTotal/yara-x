@@ -29,7 +29,7 @@ thread_local!(
         RefCell::new(FxHashMap::default());
 );
 
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Hash, ModuleError> {
+fn main(_ctx: &ScanContext, _data: &[u8], _meta: Option<&[u8]>) -> Result<Hash, ModuleError> {
     // With every scanned file the cache must be cleared.
     SHA256_CACHE.with(|cache| cache.borrow_mut().clear());
     SHA1_CACHE.with(|cache| cache.borrow_mut().clear());

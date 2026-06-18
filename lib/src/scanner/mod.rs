@@ -603,9 +603,8 @@ impl<'r> Scanner<'r> {
 }
 
 impl<'r> Scanner<'r> {
-    #[cfg(feature = "rules-profiling")]
     #[inline]
-    fn scan_context<'a>(&self) -> &ScanContext<'r, 'a> {
+    pub(crate) fn scan_context<'a>(&self) -> &ScanContext<'r, 'a> {
         unsafe {
             transmute::<&ScanContext<'static, 'static>, &ScanContext<'r, '_>>(
                 self.wasm_store.data(),
@@ -613,7 +612,7 @@ impl<'r> Scanner<'r> {
         }
     }
     #[inline]
-    fn scan_context_mut<'a>(&mut self) -> &mut ScanContext<'r, 'a> {
+    pub(crate) fn scan_context_mut<'a>(&mut self) -> &mut ScanContext<'r, 'a> {
         unsafe {
             transmute::<
                 &mut ScanContext<'static, 'static>,
@@ -738,25 +737,23 @@ impl<'r> Scanner<'r> {
         data: ScannedData<'a>,
         options: Option<&ScanOptions<'opts>>,
     ) -> Result<ScannedData<'a>, ScanError> {
-        let ctx = self.scan_context_mut();
+        {
+            let ctx = self.scan_context_mut();
+            ctx.reset();
+            ctx.set_filesize(data.len() as i64);
+            ctx.scan_state = ScanState::ScanningData(data.clone());
+        }
 
-        // Clear information about matches found in a previous scan, if any.
-        ctx.reset();
+        let imported_modules: Vec<&str> = self.scan_context().compiled_rules.imports().collect();
 
-        // Set the global variable `filesize` to the size of the scanned data.
-        ctx.set_filesize(data.len() as i64);
-
-        // Indicate that the scanner is currently scanning the given data.
-        ctx.scan_state = ScanState::ScanningData(data);
-
-        for module_name in ctx.compiled_rules.imports() {
-            // Look up the module in the module registry.
+        for module_name in imported_modules {
             let module = crate::modules::registered_modules()
-                .find(|module| module.name() == module_name)
-                .unwrap_or_else(|| panic!("module `{module_name}` not found"));
-
+                .find(|m| m.name() == module_name)
+                .unwrap();
+            let module_name = module.name();
             let module_root_descriptor = module.root_descriptor();
             let root_struct_name = module_root_descriptor.full_name();
+
 
             let module_output;
             // If the user already provided some output for the module by
@@ -764,7 +761,7 @@ impl<'r> Scanner<'r> {
             // call the module's main function (if the module has a main
             // function) for getting its output.
             if let Some(output) =
-                ctx.user_provided_module_outputs.remove(root_struct_name)
+                self.scan_context_mut().user_provided_module_outputs.remove(root_struct_name)
             {
                 module_output = Some(output);
             } else {
@@ -773,7 +770,7 @@ impl<'r> Scanner<'r> {
                 });
 
                 if let Some(main_res) =
-                    module.main_fn(ctx.scanned_data().unwrap(), meta)
+                    module.main_fn(self.scan_context(), data.as_ref(), meta)
                 {
                     module_output = Some(main_res.map_err(|err| {
                         ScanError::ModuleError {
@@ -832,24 +829,19 @@ impl<'r> Scanner<'r> {
             );
 
             if let Some(module_output) = module_output {
-                ctx.module_outputs
+                self.scan_context_mut().module_outputs
                     .insert(root_struct_name.to_string(), module_output);
             }
 
             // The data structure obtained from the module is added to the
             // root structure. Any data from previous scans will be replaced
             // with the new data structure.
-            ctx.root_struct
+            self.scan_context_mut().root_struct
                 .add_field(module_name, TypeValue::Struct(module_struct));
         }
 
-        // The user provided module outputs are not needed anymore. Let's
-        // clear any remaining entry in the hash map (which can happen if
-        // the user has set outputs for modules that are not even imported
-        // by the rules.
+        let ctx = self.scan_context_mut();
         ctx.user_provided_module_outputs.clear();
-
-        // Clear the flag that indicates that the search phase was done.
         ctx.set_pattern_search_done(false);
 
         // Evaluate the conditions of every rule, this will call
