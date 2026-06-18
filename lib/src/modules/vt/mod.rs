@@ -49,11 +49,7 @@ static SUBDOMAIN: LazyLock<i64> = LazyLock::new(|| {
     Struct::enum_value_i64(&Permutation::SUBDOMAIN.descriptor()).unwrap()
 });
 
-fn main(
-    _ctx: &ScanContext,
-    _data: &[u8],
-    _meta: Option<&[u8]>,
-) -> Result<LiveHuntData, ModuleError> {
+fn main(_ctx: &ModuleContext, _data: &[u8]) -> Result<LiveHuntData, ModuleError> {
     Ok(LiveHuntData::new())
 }
 

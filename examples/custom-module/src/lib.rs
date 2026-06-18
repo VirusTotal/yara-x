@@ -19,9 +19,8 @@ pub mod proto {
 pub use proto::foobar::Foobar;
 
 fn foobar_main(
-    _ctx: &ScanContext,
+    _ctx: &ModuleContext,
     data: &[u8],
-    _meta: Option<&[u8]>,
 ) -> Result<Foobar, ModuleError> {
     let mut out = Foobar::new();
     out.count = Some(data.len() as u64);

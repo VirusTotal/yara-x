@@ -20,11 +20,7 @@ thread_local!(
         const { RefCell::new(None) };
 );
 
-fn main(
-    _ctx: &ScanContext,
-    data: &[u8],
-    _meta: Option<&[u8]>,
-) -> Result<Dex, ModuleError> {
+fn main(_ctx: &ModuleContext, data: &[u8]) -> Result<Dex, ModuleError> {
     CHECKSUM_CACHE.with(|cache| *cache.borrow_mut() = None);
     SIGNATURE_CACHE.with(|cache| *cache.borrow_mut() = None);
 

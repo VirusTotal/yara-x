@@ -35,7 +35,7 @@ thread_local!(
     static CHECKSUM_CACHE: RefCell<Option<i64>> = const { RefCell::new(None) };
 );
 
-fn main(_ctx: &ScanContext, data: &[u8], _meta: Option<&[u8]>) -> Result<PE, ModuleError> {
+fn main(_ctx: &ModuleContext, data: &[u8]) -> Result<PE, ModuleError> {
     IMPHASH_CACHE.with(|cache| *cache.borrow_mut() = None);
     CHECKSUM_CACHE.with(|cache| *cache.borrow_mut() = None);
 

@@ -6,10 +6,10 @@ use tinyzip::Archive;
 use crate::modules::protos::zip::{Compression, Entry, Zip};
 use crate::modules::{ExtractedFile, ModuleError};
 use crate::register_module;
-use crate::mods::prelude::ScanContext;
+use crate::mods::prelude::*;
 use crate::scanner::ScannedData;
 
-pub fn main(_ctx: &ScanContext, data: &[u8], _meta: Option<&[u8]>) -> Result<Zip, ModuleError> {
+pub fn main(_ctx: &ModuleContext, data: &[u8]) -> Result<Zip, ModuleError> {
     let mut zip = Zip::new();
 
     let archive = match Archive::open(data) {

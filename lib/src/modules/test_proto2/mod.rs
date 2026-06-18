@@ -95,7 +95,7 @@ fn to_int(ctx: &ScanContext, string: RuntimeString) -> Option<i64> {
     string.parse::<i64>().ok()
 }
 
-fn main(_ctx: &ScanContext, data: &[u8], meta: Option<&[u8]>) -> Result<TestProto2, ModuleError> {
+fn main(_ctx: &ModuleContext, data: &[u8]) -> Result<TestProto2, ModuleError> {
     let mut test = TestProto2::new();
 
     test.set_int32_zero(0);
@@ -187,7 +187,7 @@ fn main(_ctx: &ScanContext, data: &[u8], meta: Option<&[u8]>) -> Result<TestProt
 
     test.set_timestamp(1748591440);
 
-    test.metadata = meta.map(Vec::from);
+    test.metadata = _ctx.metadata().map(Vec::from);
 
     Ok(test)
 }

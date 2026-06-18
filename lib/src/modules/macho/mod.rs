@@ -593,7 +593,7 @@ fn symhash(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
     Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
-fn main(_ctx: &ScanContext, data: &[u8], _meta: Option<&[u8]>) -> Result<Macho, ModuleError> {
+fn main(_ctx: &ModuleContext, data: &[u8]) -> Result<Macho, ModuleError> {
     DYLIB_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
     ENTITLEMENT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
     EXPORT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);

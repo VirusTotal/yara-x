@@ -38,6 +38,26 @@ pub enum ModuleError {
     },
 }
 
+/// Context passed to the main function of YARA modules.
+pub struct ModuleContext<'a> {
+    pub(crate) module_outputs:
+        &'a rustc_hash::FxHashMap<String, Box<dyn protobuf::MessageDyn>>,
+    pub(crate) metadata: Option<&'a [u8]>,
+}
+
+impl<'a> ModuleContext<'a> {
+    /// Returns the protobuf message produced by another module.
+    pub fn module_output<T: protobuf::MessageFull>(&self) -> Option<&T> {
+        let m = self.module_outputs.get(T::descriptor().full_name())?.as_ref();
+        <dyn protobuf::MessageDyn>::downcast_ref(m)
+    }
+
+    /// Returns the metadata explicitly provided to this module, if any.
+    pub fn metadata(&self) -> Option<&[u8]> {
+        self.metadata
+    }
+}
+
 /// Represents a file extracted from a container or archive module.
 #[derive(Debug, Clone)]
 pub struct ExtractedFile<'a> {
@@ -47,7 +67,6 @@ pub struct ExtractedFile<'a> {
     /// Raw extracted byte contents.
     pub data: ScannedData<'a>,
 }
-
 
 /// Signature for module extraction functions.
 pub type ModuleExtractFn =
@@ -68,11 +87,10 @@ pub trait RegisteredModule: Send + Sync {
     /// evaluating the rules. Set to `None` for data-only modules.
     /// Main function called every time YARA scans some data, before
     /// evaluating the rules. Set to `None` for data-only modules.
-    fn main_fn<'a, 'd>(
+    fn main_fn(
         &self,
-        ctx: &crate::mods::prelude::ScanContext<'a, 'd>,
+        ctx: &crate::mods::prelude::ModuleContext,
         data: &[u8],
-        meta: Option<&[u8]>,
     ) -> Option<Result<Box<dyn MessageDyn>, ModuleError>>;
 
     /// Function called when YARA extracts container or archive data.
@@ -99,11 +117,8 @@ pub trait RegisteredModule: Send + Sync {
 }
 
 /// Main function in a YARA module.
-pub type ModuleMainFn<T> = fn(
-    &crate::mods::prelude::ScanContext,
-    &[u8],
-    Option<&[u8]>,
-) -> Result<T, ModuleError>;
+pub type ModuleMainFn<T> =
+    fn(&crate::mods::prelude::ModuleContext, &[u8]) -> Result<T, ModuleError>;
 
 /// Description of a YARA module, generic over the type `T` returned by the
 /// main function.
@@ -137,14 +152,13 @@ where
         T::descriptor()
     }
 
-    fn main_fn<'a, 'd>(
+    fn main_fn(
         &self,
-        ctx: &crate::mods::prelude::ScanContext<'a, 'd>,
+        ctx: &crate::mods::prelude::ModuleContext,
         data: &[u8],
-        meta: Option<&[u8]>,
     ) -> Option<Result<Box<dyn MessageDyn>, ModuleError>> {
         self.main_fn.map(|f| {
-            f(ctx, data, meta).map(|ok| Box::new(ok) as Box<dyn MessageDyn>)
+            f(ctx, data).map(|ok| Box::new(ok) as Box<dyn MessageDyn>)
         })
     }
 
@@ -447,20 +461,13 @@ pub mod mods {
         let module = super::registered_modules()
             .find(|m| m.root_descriptor().full_name() == proto_name)?;
 
-        static EMPTY_RULES: std::sync::OnceLock<crate::compiler::Rules> =
-            std::sync::OnceLock::new();
-        let rules = EMPTY_RULES
-            .get_or_init(|| crate::compiler::Compiler::new().build());
-        let mut scanner = crate::scanner::Scanner::new(rules);
-        {
-            let ctx = scanner.scan_context_mut();
-            ctx.set_filesize(data.len() as i64);
-            ctx.scan_state = crate::scanner::ScanState::ScanningData(
-                data.try_into().unwrap(),
-            );
-        }
+        let empty_outputs = rustc_hash::FxHashMap::default();
+        let ctx = super::ModuleContext {
+            module_outputs: &empty_outputs,
+            metadata: meta,
+        };
 
-        module.main_fn(scanner.scan_context(), data, meta)?.ok()
+        module.main_fn(&ctx, data)?.ok()
     }
 
     /// Invokes all YARA modules and returns the data produced by them.
@@ -507,6 +514,7 @@ pub mod mods {
     #[allow(missing_docs)]
     pub mod prelude {
         pub use crate::modules::Module;
+        pub use crate::modules::ModuleContext;
         pub use crate::modules::ModuleError;
         pub use crate::modules::RegisteredModule;
         pub use crate::register_module;

@@ -769,8 +769,13 @@ impl<'r> Scanner<'r> {
                     options.module_metadata.get(module_name).copied()
                 });
 
+                let mod_ctx = crate::modules::ModuleContext {
+                    module_outputs: &self.scan_context().module_outputs,
+                    metadata: meta,
+                };
+
                 if let Some(main_res) =
-                    module.main_fn(self.scan_context(), data.as_ref(), meta)
+                    module.main_fn(&mod_ctx, data.as_ref())
                 {
                     module_output = Some(main_res.map_err(|err| {
                         ScanError::ModuleError {

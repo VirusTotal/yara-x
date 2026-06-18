@@ -18,7 +18,7 @@ thread_local!(
         const { RefCell::new(None) };
 );
 
-fn main(_ctx: &ScanContext, data: &[u8], _meta: Option<&[u8]>) -> Result<Crx, ModuleError> {
+fn main(_ctx: &ModuleContext, data: &[u8]) -> Result<Crx, ModuleError> {
     PERMHASH_CACHE.with(|cache| *cache.borrow_mut() = None);
     match parser::Crx::parse(data) {
         Ok(crx) => Ok(crx.into()),
