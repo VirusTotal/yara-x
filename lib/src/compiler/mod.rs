@@ -1913,8 +1913,7 @@ impl Compiler<'_> {
 
     fn c_import(&mut self, import: &Import) -> Result<(), CompileError> {
         let module_name = import.module_name;
-        let module = crate::modules::registered_modules()
-            .find(|m| m.name() == module_name);
+        let module = crate::modules::module_by_name(module_name);
 
         // Does a module with the given name actually exist? ...
         if module.is_none() {

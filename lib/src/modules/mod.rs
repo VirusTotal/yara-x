@@ -1,6 +1,6 @@
 use protobuf::MessageDyn;
 use protobuf::reflect::MessageDescriptor;
-
+use rustc_hash::FxHashMap;
 use thiserror::Error;
 
 pub mod protos {
@@ -36,6 +36,29 @@ pub enum ModuleError {
     },
 }
 
+/// Context passed to the main function of YARA modules.
+#[derive(Default)]
+pub struct ModuleContext<'a> {
+    module_metadata: FxHashMap<&'static str, &'a [u8]>,
+}
+
+impl<'a> ModuleContext<'a> {
+    /// Set the metadata associated to the module with the given name.
+    pub fn set_module_metadata(
+        &mut self,
+        module_name: &'static str,
+        metadata: &'a [u8],
+    ) {
+        self.module_metadata.insert(module_name, metadata);
+    }
+
+    /// Returns the metadata explicitly provided to the module with the given
+    /// name, if any.
+    pub fn get_module_metadata(&self, module_name: &str) -> Option<&[u8]> {
+        self.module_metadata.get(module_name).copied()
+    }
+}
+
 /// The trait implemented by all registered modules.
 pub trait RegisteredModule: Send + Sync {
     /// Name used for the module in `import` statements (e.g. `"my_module"`).
@@ -47,10 +70,10 @@ pub trait RegisteredModule: Send + Sync {
 
     /// Main function called every time YARA scans some data, before
     /// evaluating the rules. Set to `None` for data-only modules.
-    fn main_fn(
+    fn main_fn<'a>(
         &self,
-        data: &[u8],
-        meta: Option<&[u8]>,
+        ctx: &mut ModuleContext<'a>,
+        data: &'a [u8],
     ) -> Option<Result<Box<dyn MessageDyn>, ModuleError>>;
 
     /// Rust module path of the submodule inside the external crate that
@@ -62,8 +85,8 @@ pub trait RegisteredModule: Send + Sync {
     fn rust_module_name(&self) -> Option<&'static str>;
 }
 
-/// Main function in a YARA module.
-pub type ModuleMainFn<T> = fn(&[u8], Option<&[u8]>) -> Result<T, ModuleError>;
+pub type ModuleMainFn<T> =
+    for<'a> fn(&mut ModuleContext<'a>, &'a [u8]) -> Result<T, ModuleError>;
 
 /// Description of a YARA module, generic over the type `T` returned by the
 /// main function.
@@ -93,13 +116,13 @@ where
         T::descriptor()
     }
 
-    fn main_fn(
+    fn main_fn<'a>(
         &self,
-        data: &[u8],
-        meta: Option<&[u8]>,
+        ctx: &mut ModuleContext<'a>,
+        data: &'a [u8],
     ) -> Option<Result<Box<dyn MessageDyn>, ModuleError>> {
         self.main_fn.map(|f| {
-            f(data, meta).map(|ok| Box::new(ok) as Box<dyn MessageDyn>)
+            f(ctx, data).map(|ok| Box::new(ok) as Box<dyn MessageDyn>)
         })
     }
 
@@ -152,6 +175,14 @@ inventory::collect!(&'static dyn RegisteredModule);
 pub(crate) fn registered_modules()
 -> impl Iterator<Item = &'static dyn RegisteredModule> {
     inventory::iter::<&'static dyn RegisteredModule>().copied()
+}
+
+/// Returns a registered module given its name.
+#[inline]
+pub(crate) fn module_by_name(
+    name: &str,
+) -> Option<&'static dyn RegisteredModule> {
+    registered_modules().find(|m| m.name() == name)
 }
 
 pub mod mods {
@@ -297,7 +328,13 @@ pub mod mods {
         let module = super::registered_modules()
             .find(|m| m.root_descriptor().full_name() == proto_name)?;
 
-        module.main_fn(data, meta)?.ok()
+        let mut ctx = super::ModuleContext::default();
+
+        if let Some(m) = meta {
+            ctx.module_metadata.insert(module.name(), m);
+        }
+
+        module.main_fn(&mut ctx, data)?.ok()
     }
 
     /// Invokes all YARA modules and returns the data produced by them.
@@ -333,8 +370,7 @@ pub mod mods {
     /// Returns the definition of the module with the given name.
     pub fn module_definition(name: &str) -> Option<reflect::Struct> {
         use std::rc::Rc;
-        super::registered_modules()
-            .find(|m| m.name() == name)
+        super::module_by_name(name)
             .map(|m| reflect::Struct::new(Rc::<crate::types::Struct>::from(m)))
     }
 
@@ -343,6 +379,7 @@ pub mod mods {
     #[allow(missing_docs)]
     pub mod prelude {
         pub use crate::modules::Module;
+        pub use crate::modules::ModuleContext;
         pub use crate::modules::ModuleError;
         pub use crate::modules::RegisteredModule;
         pub use crate::register_module;

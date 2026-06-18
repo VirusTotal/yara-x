@@ -15,7 +15,7 @@ use crate::mods::prelude::*;
 use crate::modules::protos::lnk::*;
 pub mod parser;
 
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Lnk, ModuleError> {
+fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<Lnk, ModuleError> {
     match parser::LnkParser::new().parse(data) {
         Ok(lnk) => Ok(lnk),
         Err(_) => {

@@ -127,8 +127,7 @@ impl<'src> CompileContext<'_, 'src> {
             // If the current symbol table is `None` it means that the
             // identifier is not a field or method of some structure.
             return if symbol_table.is_none() {
-                let module = crate::modules::registered_modules()
-                    .find(|module| module.name() == ident.name);
+                let module = crate::modules::module_by_name(ident.name);
                 // Build the error for the unknown identifier.
                 let mut err = UnknownIdentifier::build(
                     self.report_builder,

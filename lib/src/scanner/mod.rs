@@ -25,7 +25,9 @@ use thiserror::Error;
 use crate::Variable;
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
-use crate::modules::{ModuleError, RegisteredModule};
+use crate::modules::{
+    ModuleContext, ModuleError, RegisteredModule, module_by_name,
+};
 pub(crate) use crate::scanner::context::RuntimeObject;
 pub(crate) use crate::scanner::context::RuntimeObjectHandle;
 pub(crate) use crate::scanner::context::ScanContext;
@@ -487,23 +489,12 @@ impl<'r> Scanner<'r> {
         // Try to find the module by name first, if not found, then try
         // to find a module where the fully-qualified name for its protobuf
         // message matches the `name` arguments.
-        let descriptor = crate::modules::registered_modules()
-            .find_map(|module| {
-                if module.name() == name {
-                    Some(module.root_descriptor())
-                } else {
-                    None
-                }
-            })
+        let descriptor = module_by_name(name)
+            .map(|module| module.root_descriptor())
             .or_else(|| {
-                crate::modules::registered_modules().find_map(|module| {
-                    let descriptor = module.root_descriptor();
-                    if descriptor.full_name() == name {
-                        Some(descriptor)
-                    } else {
-                        None
-                    }
-                })
+                crate::modules::registered_modules()
+                    .find(|module| module.root_descriptor().full_name() == name)
+                    .map(|module| module.root_descriptor())
             });
 
         if descriptor.is_none() {
@@ -620,13 +611,33 @@ impl<'r> Scanner<'r> {
         // Set the global variable `filesize` to the size of the scanned data.
         ctx.set_filesize(data.len() as i64);
 
+        // Create the context that will be passed to the main function of each
+        // module.
+        let mut mod_ctx = ModuleContext::default();
+
+        // For each item in options.module_metadata, check if the module name
+        // is actually a registered module, and then add the corresponding
+        // metadata to mod_ctx.
+        for (module, meta) in options
+            .map(|options| options.module_metadata)
+            .into_iter()
+            .flatten()
+            .filter_map(|(name, meta)| Some((module_by_name(name)?, meta)))
+        {
+            mod_ctx.set_module_metadata(module.name(), meta);
+        }
+
         // Indicate that the scanner is currently scanning the given data.
         ctx.scan_state = ScanState::ScanningData(data);
 
+        let data = match &ctx.scan_state {
+            ScanState::ScanningData(data) => data.as_ref(),
+            _ => unreachable!(),
+        };
+
         for module_name in ctx.compiled_rules.imports() {
             // Look up the module in the module registry.
-            let module = crate::modules::registered_modules()
-                .find(|module| module.name() == module_name)
+            let module = module_by_name(module_name)
                 .unwrap_or_else(|| panic!("module `{module_name}` not found"));
 
             let module_root_descriptor = module.root_descriptor();
@@ -642,14 +653,7 @@ impl<'r> Scanner<'r> {
             {
                 module_output = Some(output);
             } else {
-                let meta: Option<&'opts [u8]> =
-                    options.as_ref().and_then(|options| {
-                        options.module_metadata.get(module_name).copied()
-                    });
-
-                if let Some(main_res) =
-                    module.main_fn(ctx.scanned_data().unwrap(), meta)
-                {
+                if let Some(main_res) = module.main_fn(&mut mod_ctx, data) {
                     module_output = Some(main_res.map_err(|err| {
                         ScanError::ModuleError {
                             module: module_name.to_string(),
@@ -869,14 +873,8 @@ impl<'a, 'r> ScanResults<'a, 'r> {
         &self,
         module_name: &str,
     ) -> Option<&'a dyn MessageDyn> {
-        let module_descriptor = crate::modules::registered_modules()
-            .find_map(|m| {
-                if m.name() == module_name {
-                    Some(m.root_descriptor())
-                } else {
-                    None
-                }
-            })?;
+        let module_descriptor =
+            module_by_name(module_name).map(|m| m.root_descriptor())?;
         let module_output = self
             .ctx
             .module_outputs
