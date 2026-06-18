@@ -493,7 +493,9 @@ impl<'r> Scanner<'r> {
             .map(|module| module.root_descriptor())
             .or_else(|| {
                 crate::modules::registered_modules()
-                    .find(|module| module.root_descriptor().full_name() == name)
+                    .find(|module| {
+                        module.root_descriptor().full_name() == name
+                    })
                     .map(|module| module.root_descriptor())
             });
 
