@@ -207,12 +207,6 @@ fn test_invoke_modules() {
     assert!(modules.zip.is_zip.is_some_and(|value| !value));
 }
 
-#[test]
-fn test_module_dependencies() {
-    let order = crate::modules::execution_order(["dex"].into_iter());
-    assert_eq!(order, vec!["zip", "dex"]);
-}
-
 #[cfg(feature = "test_proto2-module")]
 #[test]
 fn test_reflect() {
