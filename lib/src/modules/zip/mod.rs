@@ -12,7 +12,7 @@ pub fn main<'a>(
 ) -> Result<Zip, ModuleError> {
     match ctx.zip_cache.get_or_insert_with(|| ZipCache::new(data)) {
         ZipCache::Cached(zip) => Ok(zip.deref().into()),
-        ZipCache::NotAZip => {
+        ZipCache::NotZip => {
             let mut zip = Zip::new();
             zip.set_is_zip(false);
             Ok(zip)

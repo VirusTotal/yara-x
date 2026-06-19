@@ -8,7 +8,7 @@ use tinyzip::Archive;
 use crate::modules::protos::zip::{Compression, Entry, Zip};
 
 pub(crate) enum ZipCache<'a> {
-    NotAZip,
+    NotZip,
     Cached(CachedZip<'a>),
 }
 
@@ -22,7 +22,7 @@ impl<'a> ZipCache<'a> {
     pub(crate) fn new(data: &'a [u8]) -> Self {
         let archive = match Archive::open(data) {
             Ok(arch) => arch,
-            Err(_) => return ZipCache::NotAZip,
+            Err(_) => return ZipCache::NotZip,
         };
 
         ZipCache::Cached(CachedZip {
@@ -70,10 +70,6 @@ impl<'a> From<&CachedZip<'a>> for Zip {
     fn from(cached: &CachedZip<'a>) -> Self {
         let mut zip = Zip::new();
         zip.set_is_zip(true);
-
-        if !cached.cached_contents.is_empty() {
-            zip.set_extracted_file_count(cached.cached_contents.len() as i64);
-        }
 
         let mut entries = Vec::new();
         let max_entries = 100000; // Guardrail: prevent DoS with huge entry counts
