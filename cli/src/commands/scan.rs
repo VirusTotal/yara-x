@@ -60,8 +60,14 @@ pub fn scan() -> Command {
                 .long_help(help::COMPILED_RULES_LONG_HELP),
             arg!(-c --"count")
                 .help("Print only the number of matches per file"),
+            arg!(--"cpu-limit" <PERCENTAGE>)
+                .help("Limit the CPU usage of the scan (percentage from 1 to 99)")
+                .value_parser(value_parser!(u8).range(1..=99)),
             arg!(--"disable-console-logs")
                 .help("Disable printing console log messages"),
+            arg!(-f --"fast-scan")
+                .help("Enable fast-scan mode")
+                .long_help(help::FAST_SCAN_LONG_HELP),
             arg!(--"max-matches-per-pattern" <MATCHES>)
                 .help("Maximum number of matches per pattern")
                 .long_help(help::MAX_MATCHES_PER_PATTERN_LONG_HELP)
@@ -118,7 +124,6 @@ pub fn scan() -> Command {
             arg!(-a --"timeout" <SECONDS>)
                 .help("Abort scanning after the given number of seconds")
                 .value_parser(value_parser!(u64).range(1..))
-
     ]))
 }
 
@@ -176,11 +181,14 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let compiled_rules = args.get_flag("compiled-rules");
     let profiling = args.get_flag("profiling");
     let num_threads = args.get_one::<u8>("threads");
+
+    let cpu_limit = args.get_one::<u8>("cpu-limit");
     let skip_larger = args.get_one::<u64>("skip-larger");
     let disable_console_logs = args.get_flag("disable-console-logs");
     let scan_list = args.get_flag("scan-list");
     let recursive = args.get_one::<usize>("recursive");
     let no_mmap = args.get_flag("no-mmap");
+    let fast_scan = args.get_flag("fast-scan");
     let max_matches_per_pattern =
         args.get_one::<usize>("max-matches-per-pattern");
 
@@ -260,6 +268,10 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         w.num_threads(*num_threads);
     }
 
+    if let Some(limit) = cpu_limit {
+        w.cpu_limit(*limit);
+    }
+
     if let Some(max_file_size) = skip_larger {
         w.metadata_filter(|metadata| metadata.len() <= *max_file_size);
     }
@@ -309,6 +321,10 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
             if no_mmap {
                 scanner.use_mmap(false);
+            }
+
+            if fast_scan {
+                scanner.fast_scan(true);
             }
 
             if let Some(max_matches_per_pattern) = max_matches_per_pattern {

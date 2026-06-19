@@ -168,7 +168,7 @@ fn test_modules() {
             mint.new_goldenfile(out_path).expect("can not create goldenfile");
 
         // Render the module's output as YAML.
-        let mut yaml = yara_x_proto_yaml::Serializer::new(output_file);
+        let mut yaml = yara_x_proto::yaml::Serializer::new(output_file);
 
         assert!(yaml.serialize(output).is_ok());
     });

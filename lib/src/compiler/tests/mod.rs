@@ -28,7 +28,7 @@ fn serialization() {
     // `DecodeError`.
     let mut data = Vec::new();
     data.extend(b"YARA-X\0\0");
-    data.extend(1u32.to_le_bytes());
+    data.extend(2u32.to_le_bytes());
     data.extend(b"foo");
 
     assert!(matches!(

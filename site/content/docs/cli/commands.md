@@ -98,6 +98,18 @@ Prints the number of matching rules per file. Instead of printing the
 names of the rules that matches each file, it prints the number the
 total number of rules matching each file.
 
+### --cpu-limit \<PERCENTAGE\>
+
+Limit the CPU usage of the scan (percentage from 1 to 99).
+
+This option dynamically restricts CPU utilization per scan thread to the
+specified percentage. The scanner achieves this by measuring the exact 
+duration spent scanning each file and introducing a sleep delay before 
+moving to the next file.
+
+This is useful for running background scan tasks on production servers 
+or multi-user systems without saturating CPU capacity.
+
 ### --define <VAR=VALUE>
 
 Defines external variables.
@@ -462,8 +474,27 @@ This command is similar in spirit to other code formatting tools like `gofmt`
 and `rustfmt`.
 
 ```
-yr fmt <FILE>...
+yr fmt <PATH>...
 ```
+
+The path can be either a file or directory. If a directory is used, every `.yar` 
+or `.yara` file contained in the directory will be formated. 
+
+### -r, --recursive=[MAX_DEPTH]
+
+Walk directories recursively. When <PATH> is a directory, this option enables 
+recursive directory traversal. You can optionally specify a `MAX_DEPTH` to 
+limit how deep the traversal goes:
+
+Examples:
+
+```
+--recursive     formats nested subdirectories with no limits.
+--recursive=0   formats only the files in <PATH> (no subdirectories)
+--recursive=3   formats up to 3 levels deep, including nested subdirectories
+```
+
+If --recursive is not specified, the default behavior is equivalent to --recursive=0.
 
 ### --check, -c
 
@@ -471,7 +502,7 @@ Run in "check" mode. Doesn't modify any file, but exits error code 0 if the
 files are formatted correctly and no change is necessary, or error code 1
 if otherwise.
 
-### -t, --tab-size \<NUM_SPACES>\
+### -t, --tab-size \<NUM_SPACES>
 
 Tab size (in spaces) used in source files
 

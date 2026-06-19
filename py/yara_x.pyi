@@ -288,6 +288,20 @@ class Scanner:
         """
         ...
 
+    def fast_scan(self, yes: bool) -> None:
+        r"""
+        Enables or disables fast scan mode.
+
+        In fast scan mode, the scanner avoids tracking matches for patterns when
+        it is not necessary (e.g. when a rule condition only performs a simple
+        boolean check `$a`).
+
+        Note that using fast scan mode implies that not all matches will be
+        reported. For instance, when iterating matches, you won't get all occurrences
+        of the pattern in the file, only the first one.
+        """
+        ...
+
     def console_log(self, callback: collections.abc.Callable[[str], Any]) -> None:
         r"""
         Sets a callback that is invoked every time a YARA rule calls the

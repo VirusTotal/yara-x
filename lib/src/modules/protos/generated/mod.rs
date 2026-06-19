@@ -30,3 +30,4 @@ pub mod titan;
 pub mod vba;
 pub mod vtnet;
 pub mod yara;
+pub mod zip;

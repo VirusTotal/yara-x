@@ -313,7 +313,7 @@ So, let's create our `lib/src/modules/text.rs` file:
 use crate::mods::prelude::*;
 use crate::modules::protos::text::*;
 
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Text, ModuleError> {
+fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<Text, ModuleError> {
     let mut text_proto = Text::new();
 
     // TODO: parse the data and populate text_proto.
@@ -353,7 +353,7 @@ will be `crate::modules::protos::foobar`
 Next comes the module's main function and the module registration:
 
 ```rust
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Text, ModuleError> {
+fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<Text, ModuleError> {
     ...
 }
 
@@ -361,8 +361,8 @@ register_module!("text", Text, main);
 ```
 
 The module's main function is called for every file scanned by YARA. This
-function receives a byte slice with the content of the file being scanned and an
-optional byte slice with per-scan metadata, and it returns a `Result` containing the
+function receives a mutable reference to a `ModuleContext` and a byte slice with
+the content of the file being scanned. It returns a `Result` containing the
 `Text` structure that was generated from the `text.proto` file (or a `ModuleError`).
 
 Registering the module is as simple as calling the `register_module!` macro.
@@ -379,7 +379,7 @@ use crate::modules::protos::text::*;
 use std::io;
 use std::io::BufRead;
 
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Text, ModuleError> {
+fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<Text, ModuleError> {
     // Create an empty instance of the Text protobuf.
     let mut text_proto = Text::new();
 
@@ -1093,11 +1093,11 @@ contract as in built-in modules—it receives the scanned data, populates the
 protobuf, and returns it:
 
 ```rust
-use yara_x::errors::ModuleError;
+use yara_x::mods::prelude::*;
 
 fn foobar_main(
+    _ctx: &mut ModuleContext,
     data: &[u8],
-    _meta: Option<&[u8]>,
 ) -> Result<Foobar, ModuleError> {
     let mut out = Foobar::new();
     out.count = Some(data.len() as u64);

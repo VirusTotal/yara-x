@@ -5,7 +5,7 @@ import * as monaco from "@codingame/monaco-vscode-editor-api";
 import {
   BrowserMessageReader,
   BrowserMessageWriter,
-} from "vscode-languageserver-protocol/browser.js";
+} from "vscode-languageserver-protocol/browser";
 import { CloseAction, ErrorAction } from "vscode-languageclient/browser.js";
 
 import { MonacoLanguageClient } from "monaco-languageclient";

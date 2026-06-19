@@ -12,12 +12,13 @@ use crate::{
     yrx_rule_iter_metadata, yrx_rule_iter_patterns, yrx_rule_iter_tags,
     yrx_rule_namespace, yrx_rules_deserialize, yrx_rules_destroy,
     yrx_rules_iter, yrx_rules_iter_imports, yrx_rules_serialize,
-    yrx_scanner_create, yrx_scanner_destroy, yrx_scanner_finish,
-    yrx_scanner_on_console_log, yrx_scanner_on_matching_rule,
-    yrx_scanner_scan, yrx_scanner_scan_block, yrx_scanner_set_global_bool,
-    yrx_scanner_set_global_float, yrx_scanner_set_global_int,
-    yrx_scanner_set_global_json, yrx_scanner_set_global_str,
-    yrx_scanner_set_module_data, yrx_scanner_set_timeout,
+    yrx_scanner_create, yrx_scanner_destroy, yrx_scanner_fast_scan,
+    yrx_scanner_finish, yrx_scanner_on_console_log,
+    yrx_scanner_on_matching_rule, yrx_scanner_scan, yrx_scanner_scan_block,
+    yrx_scanner_set_global_bool, yrx_scanner_set_global_float,
+    yrx_scanner_set_global_int, yrx_scanner_set_global_json,
+    yrx_scanner_set_global_str, yrx_scanner_set_module_data,
+    yrx_scanner_set_timeout,
 };
 
 use std::ffi::{CStr, c_char, c_void};
@@ -455,5 +456,40 @@ fn capi_errors() {
         );
 
         yrx_compiler_destroy(compiler);
+    }
+}
+
+#[test]
+fn capi_fast_scan() {
+    unsafe {
+        let mut compiler = std::ptr::null_mut();
+        yrx_compiler_create(0, &mut compiler);
+
+        let src = c"rule test { strings: $a = \"foo\" condition: $a }";
+        yrx_compiler_add_source(compiler, src.as_ptr());
+
+        let rules = yrx_compiler_build(compiler);
+        yrx_compiler_destroy(compiler);
+
+        let mut scanner = std::ptr::null_mut();
+        yrx_scanner_create(rules, &mut scanner);
+
+        // Enable fast scan mode
+        yrx_scanner_fast_scan(scanner, true);
+
+        let mut matches = 0;
+        yrx_scanner_on_matching_rule(
+            scanner,
+            on_rule_match_increase_counter,
+            &mut matches as *mut i32 as *mut c_void,
+        );
+
+        let data = b"foofoofoo";
+        yrx_scanner_scan(scanner, data.as_ptr(), data.len());
+
+        assert_eq!(matches, 1);
+
+        yrx_scanner_destroy(scanner);
+        yrx_rules_destroy(rules);
     }
 }

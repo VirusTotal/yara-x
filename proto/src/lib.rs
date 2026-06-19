@@ -92,3 +92,9 @@ pub fn get_field_format(field_descriptor: &FieldDescriptor) -> FieldFormat {
 
     FieldFormat::None
 }
+
+pub mod json;
+pub mod yaml;
+
+#[cfg(test)]
+mod tests;

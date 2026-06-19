@@ -419,3 +419,35 @@ fn json_output_single_meta_not_array() {
     assert!(meta["int"].is_i64());
     assert!(meta["float"].is_f64());
 }
+
+#[test]
+fn fast_scan() {
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--fast-scan")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("foo src/tests/testdata/dummy.file"));
+
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("-f")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("foo src/tests/testdata/dummy.file"));
+}
+
+#[test]
+fn cpu_limit() {
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--cpu-limit=50")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success();
+}

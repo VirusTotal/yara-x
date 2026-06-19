@@ -88,5 +88,10 @@
     "kind": 9,
     "label": "vt",
     "preselect": true
+  },
+  {
+    "kind": 9,
+    "label": "zip",
+    "preselect": true
   }
 ]

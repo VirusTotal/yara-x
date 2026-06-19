@@ -1355,15 +1355,7 @@ fn regexp_patterns_1() {
     pattern_match!(r#"/a(.*)*/"#, b"a", b"a");
     pattern_match!(r#"/a(.*){2}/"#, b"a", b"a");
     pattern_match!(r#"/a(.*){2,4}/"#, b"a", b"a");
-
-    // TODO: known issue related to exact atoms. The matching string
-    // should be "abbb" and not "abb". When the `exact-atoms` feature
-    // is disabled it works correctly.
-    #[cfg(not(feature = "exact-atoms"))]
     pattern_match!(r#"/a(bb|b)b/"#, b"abbbbbbbb", b"abbb");
-    #[cfg(feature = "exact-atoms")]
-    pattern_match!(r#"/a(bb|b)b/"#, b"abbbbbbbb", b"abb");
-
     pattern_match!(r#"/a(b|bb)b/"#, b"abbbbbbbb", b"abb");
 
     pattern_match!(
@@ -3433,6 +3425,80 @@ fn filesize_bounds() {
 }
 
 #[test]
+fn header_constraints() {
+    let rules = crate::compile(
+        r#"
+        rule test_1 {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            uint16(0) == 0x5a4d and $a
+        }
+        rule test_2 {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(
+        scanner
+            .scan(b"foobar")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1 // test_2 matches, but test_1 do not.
+    );
+
+    let rules = crate::compile(
+        r#"
+        rule test {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a and filesize == 6
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(
+        scanner
+            .scan(b"foobar")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    crate::compile(
+        r#"
+        rule test_1 {
+          strings:
+            $a = "foo"
+            $b = /a*/
+          condition:
+            uint16(0) == 0x5a4d and $a and $b
+        }
+        rule test_2 {
+          strings:
+            $c = "bar"
+          condition:
+            uint16(0) == 0x5a4d and $c
+        }
+        "#,
+    )
+    .expect_err("should fail");
+}
+
+#[test]
 fn for_of() {
     rule_true!(
         r#"
@@ -3954,5 +4020,161 @@ fn short_circuit() {
         }
         "#,
         b"foobar"
+    );
+}
+
+#[test]
+fn header_constraints_optimization() {
+    // ELF magic check.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "ELF"
+            condition:
+                uint32(0) == 0x464c457f and $a
+        }
+        "#,
+        b"\x7fELF\0\0\0\0"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "ELF"
+            condition:
+                uint32(0) == 0x464c457f and $a
+        }
+        "#,
+        b"\0\0\0\0ELF"
+    );
+
+    // PE magic check.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "PE"
+            condition:
+                uint16(0) == 0x5a4d and $a
+        }
+        "#,
+        b"MZ\0\0PE"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "PE"
+            condition:
+                uint16(0) == 0x5a4d and $a
+        }
+        "#,
+        b"\0\0MZPE"
+    );
+
+    // Pattern at 0 check.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "MZ"
+            condition:
+                $a at 0
+        }
+        "#,
+        b"MZ"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "MZ"
+            condition:
+                $a at 0
+        }
+        "#,
+        b"\0MZ"
+    );
+
+    // Multiple constraints combined.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "ELF"
+            condition:
+                uint32(0) == 0x464c457f and uint16(4) == 0x0102 and $a
+        }
+        "#,
+        b"\x7fELF\x02\x01"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "ELF"
+            condition:
+                uint32(0) == 0x464c457f and uint16(4) == 0x0102 and $a
+        }
+        "#,
+        b"\x7fELF\x99\x99"
+    );
+
+    // Deduplication test: A pattern used in both a constrained and an unconstrained rule.
+    // When the header does not match, only the unconstrained rule should match (exactly 1 rule).
+    rule_true!(
+        r#"
+        rule constrained {
+            strings:
+                $a = "foo"
+            condition:
+                uint32(0) == 0x464c457f and $a
+        }
+        rule unconstrained {
+            strings:
+                $a = "foo"
+            condition:
+                $a
+        }
+        "#,
+        b"\0\0\0\0foo"
+    );
+
+    // When the header matches, both rules should match (exactly 2 rules).
+    test_rule!(
+        r#"
+        rule constrained {
+            strings:
+                $a = "foo"
+            condition:
+                uint32(0) == 0x464c457f and $a
+        }
+        rule unconstrained {
+            strings:
+                $a = "foo"
+            condition:
+                $a
+        }
+        "#,
+        b"\x7fELFfoo",
+        2
+    );
+
+    // Non-contiguous offsets for uint8.
+    rule_true!(
+        r#"
+        rule constrained {
+            strings:
+                $a = "MZ"
+            condition:
+                uint8(0) == 0x00 and uint8(2) == 0x5a and $a
+        }
+        "#,
+        b"\0MZ"
     );
 }

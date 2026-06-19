@@ -417,6 +417,36 @@ fn variables_2() {
 }
 
 #[test]
+fn variables_3() {
+    let mut compiler = crate::Compiler::new();
+
+    compiler
+        .define_global("some_array", json!(["foo", "bar", "baz"]))
+        .unwrap()
+        .add_source(
+            r#"
+        rule test {
+            condition:
+                for any s in some_array : ( s == "bar" )
+        }
+        "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(
+        scanner
+            .scan(&[])
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+}
+
+#[test]
 fn global_rules() {
     let mut compiler = crate::Compiler::new();
 
@@ -954,4 +984,118 @@ fn regex_set_optimization() {
     let matching_rules: Vec<_> =
         results.matching_rules().map(|r| r.identifier().to_string()).collect();
     assert_eq!(matching_rules, vec!["test_match"]);
+}
+
+#[test]
+fn fast_scan_mode() {
+    let rules = crate::compile(
+        r#"
+    rule test_boolean {
+      strings:
+        $a = "foo"
+        $b = "bar"
+      condition:
+        $a and $b
+    }
+    rule test_count {
+      strings:
+        $c = "baz"
+      condition:
+        #c > 1
+    }
+    "#,
+    )
+    .unwrap();
+
+    // Test standard scan first (fast_scan = false by default)
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(b"foofoobarbarbazbaz").unwrap();
+
+    // Check pattern $a matches
+    let test_boolean = results
+        .matching_rules()
+        .find(|r| r.identifier() == "test_boolean")
+        .unwrap();
+    let mut patterns_a =
+        test_boolean.patterns().filter(|p| p.identifier() == "$a");
+    assert_eq!(patterns_a.next().unwrap().matches().len(), 2); // foofoo has 2 matches
+
+    // Check pattern $c matches
+    let test_count = results
+        .matching_rules()
+        .find(|r| r.identifier() == "test_count")
+        .unwrap();
+    let mut patterns_c =
+        test_count.patterns().filter(|p| p.identifier() == "$c");
+    assert_eq!(patterns_c.next().unwrap().matches().len(), 2); // bazbaz has 2 matches
+
+    // Test fast scan mode (fast_scan = true)
+    let mut scanner = Scanner::new(&rules);
+    scanner.fast_scan(true);
+    let results = scanner.scan(b"foofoobarbarbazbaz").unwrap();
+
+    // Rule test_boolean still matches
+    let test_boolean = results
+        .matching_rules()
+        .find(|r| r.identifier() == "test_boolean")
+        .unwrap();
+    // But pattern $a must only have 1 match because it is fast-scanned!
+    let mut patterns_a =
+        test_boolean.patterns().filter(|p| p.identifier() == "$a");
+    assert_eq!(patterns_a.next().unwrap().matches().len(), 1);
+
+    // Pattern $c must still have 2 matches because #c is used, disabling fast scan!
+    let test_count = results
+        .matching_rules()
+        .find(|r| r.identifier() == "test_count")
+        .unwrap();
+    let mut patterns_c =
+        test_count.patterns().filter(|p| p.identifier() == "$c");
+    assert_eq!(patterns_c.next().unwrap().matches().len(), 2);
+}
+
+#[test]
+fn test_pikevm_literal_run_optimization() {
+    let rules = crate::compile(
+        r#"
+        rule test_opt {
+            strings:
+                $a = /abcdefg.*hijk.*lmno/
+            condition:
+                $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+
+    let results = scanner.scan(b"abcdefg_hijk_lmno").unwrap();
+    assert_eq!(results.matching_rules().count(), 1);
+
+    let results = scanner.scan(b"abcdefg_hijk_lmn").unwrap();
+    assert_eq!(results.matching_rules().count(), 0);
+
+    let results = scanner.scan(b"abcdef_hijk_lmno").unwrap();
+    assert_eq!(results.matching_rules().count(), 0);
+}
+
+#[test]
+fn test_slow_rule_hang() {
+    let rules = crate::compile(
+        r#"
+        rule test {
+            strings:
+                $zero_padding = /\x00{860,}/
+            condition:
+                $zero_padding
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    let data = vec![0u8; 2000];
+    let results = scanner.scan(&data).unwrap();
+    assert_eq!(results.matching_rules().count(), 1);
 }

@@ -25,7 +25,9 @@ use thiserror::Error;
 use crate::Variable;
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
-use crate::modules::{ModuleError, RegisteredModule};
+use crate::modules::{
+    ModuleContext, ModuleError, RegisteredModule, module_by_name,
+};
 pub(crate) use crate::scanner::context::RuntimeObject;
 pub(crate) use crate::scanner::context::RuntimeObjectHandle;
 pub(crate) use crate::scanner::context::ScanContext;
@@ -224,6 +226,62 @@ impl<'r> Scanner<'r> {
             .tracker
             .pattern_matches
             .max_matches_per_pattern(n);
+        self
+    }
+
+    /// Enables or disables fast scan mode.
+    ///
+    /// During rule compilation, the compiler analyzes rule conditions to
+    /// identify patterns that are only ever used in simple boolean existence
+    /// checks (e.g., `$a` in YARA). If a pattern is never queried for its match
+    /// count (`#a`), specific match offset (`@a`), match length (`!a`), or
+    /// evaluated inside a loop, it is classified as a fast-scan pattern.
+    ///
+    /// In fast scan mode, the scanner optimizes scans by stopping the search
+    /// and match tracking for these fast-scan patterns once their **very first
+    /// match** is found. Subsequent occurrences in the input data are ignored,
+    /// preventing redundant Aho-Corasick scans, regex evaluations, and match
+    /// memory allocations.
+    ///
+    /// Note that using fast scan mode implies that not all matches will be
+    /// reported. For instance, when iterating matches using [`ScanResults`],
+    /// you won't get all occurrences of the pattern in the file, only the first
+    /// one.
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// # use yara_x::{Compiler, Scanner};
+    /// let mut compiler = Compiler::new();
+    /// compiler.add_source(r#"
+    ///     rule test {
+    ///         strings:
+    ///             $a = "abc"
+    ///         condition:
+    ///             $a
+    ///     }
+    /// "#).unwrap();
+    ///
+    /// let rules = compiler.build();
+    /// let mut scanner = Scanner::new(&rules);
+    ///
+    /// // Enable fast scan mode.
+    /// scanner.fast_scan(true);
+    ///
+    /// // The haystack contains two matches of "abc".
+    /// let results = scanner.scan(b"abc...abc").unwrap();
+    ///
+    /// // Find the matching rule.
+    /// let matching_rule = results.matching_rules().next().unwrap();
+    ///
+    /// // Only a single match is returned for pattern $a.
+    /// let pattern = matching_rule.patterns().next().unwrap();
+    /// let mut matches = pattern.matches();
+    /// assert_eq!(matches.next().unwrap().range().start, 0); // The first match
+    /// assert!(matches.next().is_none()); // No other matches are returned
+    /// ```
+    pub fn fast_scan(&mut self, yes: bool) -> &mut Self {
+        self.scan_context_mut().tracker.fast_scan = yes;
         self
     }
 
@@ -431,23 +489,14 @@ impl<'r> Scanner<'r> {
         // Try to find the module by name first, if not found, then try
         // to find a module where the fully-qualified name for its protobuf
         // message matches the `name` arguments.
-        let descriptor = crate::modules::registered_modules()
-            .find_map(|module| {
-                if module.name() == name {
-                    Some(module.root_descriptor())
-                } else {
-                    None
-                }
-            })
+        let descriptor = module_by_name(name)
+            .map(|module| module.root_descriptor())
             .or_else(|| {
-                crate::modules::registered_modules().find_map(|module| {
-                    let descriptor = module.root_descriptor();
-                    if descriptor.full_name() == name {
-                        Some(descriptor)
-                    } else {
-                        None
-                    }
-                })
+                crate::modules::registered_modules()
+                    .find(|module| {
+                        module.root_descriptor().full_name() == name
+                    })
+                    .map(|module| module.root_descriptor())
             });
 
         if descriptor.is_none() {
@@ -564,13 +613,33 @@ impl<'r> Scanner<'r> {
         // Set the global variable `filesize` to the size of the scanned data.
         ctx.set_filesize(data.len() as i64);
 
+        // Create the context that will be passed to the main function of each
+        // module.
+        let mut mod_ctx = ModuleContext::default();
+
+        // For each item in options.module_metadata, check if the module name
+        // is actually a registered module, and then add the corresponding
+        // metadata to mod_ctx.
+        for (module, meta) in options
+            .map(|options| options.module_metadata)
+            .into_iter()
+            .flatten()
+            .filter_map(|(name, meta)| Some((module_by_name(name)?, meta)))
+        {
+            mod_ctx.set_module_metadata(module.name(), meta);
+        }
+
         // Indicate that the scanner is currently scanning the given data.
         ctx.scan_state = ScanState::ScanningData(data);
 
+        let data = match &ctx.scan_state {
+            ScanState::ScanningData(data) => data.as_ref(),
+            _ => unreachable!(),
+        };
+
         for module_name in ctx.compiled_rules.imports() {
             // Look up the module in the module registry.
-            let module = crate::modules::registered_modules()
-                .find(|module| module.name() == module_name)
+            let module = module_by_name(module_name)
                 .unwrap_or_else(|| panic!("module `{module_name}` not found"));
 
             let module_root_descriptor = module.root_descriptor();
@@ -586,14 +655,7 @@ impl<'r> Scanner<'r> {
             {
                 module_output = Some(output);
             } else {
-                let meta: Option<&'opts [u8]> =
-                    options.as_ref().and_then(|options| {
-                        options.module_metadata.get(module_name).copied()
-                    });
-
-                if let Some(main_res) =
-                    module.main_fn(ctx.scanned_data().unwrap(), meta)
-                {
+                if let Some(main_res) = module.main_fn(&mut mod_ctx, data) {
                     module_output = Some(main_res.map_err(|err| {
                         ScanError::ModuleError {
                             module: module_name.to_string(),
@@ -647,6 +709,7 @@ impl<'r> Scanner<'r> {
                 &module_root_descriptor,
                 module_output.as_deref(),
                 generate_fields_for_enums,
+                false,
             );
 
             if let Some(module_output) = module_output {
@@ -812,14 +875,8 @@ impl<'a, 'r> ScanResults<'a, 'r> {
         &self,
         module_name: &str,
     ) -> Option<&'a dyn MessageDyn> {
-        let module_descriptor = crate::modules::registered_modules()
-            .find_map(|m| {
-                if m.name() == module_name {
-                    Some(m.root_descriptor())
-                } else {
-                    None
-                }
-            })?;
+        let module_descriptor =
+            module_by_name(module_name).map(|m| m.root_descriptor())?;
         let module_output = self
             .ctx
             .module_outputs

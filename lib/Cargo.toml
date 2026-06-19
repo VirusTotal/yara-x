@@ -104,7 +104,7 @@ parallel-compilation = ["wasmtime/parallel-compilation"]
 # compiled directly to native host machine instructions at runtime. This yields
 # maximum execution performance but requires executable memory pages (which may
 # be restricted in sandbox/secure environments) and is limited to architectures
-#natively supported by Cranelift.
+# natively supported by Cranelift.
 #
 # Enabling the `pulley` feature tells wasmtime to interpret the conditions using
 # the portable Pulley bytecode instruction virtual machine instead. This 
@@ -247,6 +247,9 @@ vt-module = [
     "dep:psl",
 ]
 
+# The `zip` module provides container file extraction capabilities.
+zip-module = ["dep:tinyzip"]
+
 # Enables all the default modules.
 default-modules = [
     "console-module",
@@ -267,6 +270,7 @@ default-modules = [
     "test_proto2-module",
     "test_proto3-module",
     "vt-module",
+    "zip-module",
 ]
 
 # Features that are enabled by default.
@@ -285,7 +289,7 @@ hex = { workspace = true }
 base64 = { workspace = true }
 bincode = { workspace = true, features = ["serde"] }
 bitflags = { workspace = true, features = ["serde"] }
-bitvec = { workspace = true }
+bitvec = { workspace = true, features = ["serde"] }
 bstr = { workspace = true, features = ["serde"] }
 codepage = { workspace = true, optional = true }
 const-oid = { workspace = true, optional = true, features = ["db"] }
@@ -334,6 +338,7 @@ x509-parser = { workspace = true, optional = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true, features = ["serde"] }
 zip = { workspace = true, optional = true, features = ["deflate"] }
+tinyzip = { workspace = true, optional = true }
 simd-adler32 = { workspace = true, optional = true }
 simd_cesu8 = { workspace = true, optional = true }
 
@@ -367,7 +372,7 @@ goldenfile = { workspace = true }
 ihex = { workspace = true }
 pretty_assertions = { workspace = true }
 rayon = { workspace = true }
-yara-x-proto-yaml = { workspace = true }
+yara-x-proto = { workspace = true }
 zip = { workspace = true }
 
 [[bench]]

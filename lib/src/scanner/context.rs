@@ -62,11 +62,26 @@ impl<'a> ScanState<'a> {
     }
 }
 
+/// Tracks the matches found during a scan.
 pub(crate) struct MatchTracker<'r> {
+    /// Contains the matches found so far.
     pub pattern_matches: PatternMatches,
+    /// Contains matches for subpatterns that are part of a chain but
+    /// the whole chain has not been confirmed yet
     pub unconfirmed_matches: FxHashMap<SubPatternId, Vec<UnconfirmedMatch>>,
-    pub limit_reached: FxHashSet<PatternId>,
+    /// Patterns that have been disabled, either because they have reached
+    /// the maximum number of matches or because they are meant to be ignored
+    /// during this scan because they belong to some rule that we know that
+    /// can't match.
+    pub disabled_patterns: FxHashSet<PatternId>,
+    /// The rules that are being used during the scan.
     pub compiled_rules: &'r Rules,
+    /// Indicates whether fast mode is enabled. In fast mode the scanner
+    /// only looks for the first match of each pattern, unless the condition
+    /// requires tracking all the matches (i.e: the condition relies on the
+    /// total number of matches). The drawback is that the user can't retrieve
+    /// all the matches for a give pattern.
+    pub fast_scan: bool,
 }
 
 /// Structure that holds information about WASM memories and variables used
@@ -540,9 +555,8 @@ impl ScanContext<'_, '_> {
         // Free all runtime objects left around by previous scans.
         self.runtime_objects.clear();
 
-        // Clear the array that tracks the patterns that reached the maximum
-        // number of patterns.
-        self.tracker.limit_reached.clear();
+        // Clear the set that tracks the patterns that has been disabled.
+        self.tracker.disabled_patterns.clear();
 
         self.tracker.unconfirmed_matches.clear();
         self.num_matching_private_rules = 0;
@@ -763,10 +777,8 @@ impl ScanContext<'_, '_> {
         &mut self,
         base: usize,
         data: &[u8],
-        block_scanning_mode: bool,
     ) -> Result<(), ScanError> {
         let ac = self.compiled_rules.ac_automaton();
-        let filesize = self.get_filesize();
 
         #[cfg(feature = "logging")]
         let mut atom_matches = 0_usize;
@@ -791,8 +803,6 @@ impl ScanContext<'_, '_> {
                         match_offset,
                         base,
                         data,
-                        filesize,
-                        block_scanning_mode,
                     );
                 });
             }
@@ -813,8 +823,6 @@ impl ScanContext<'_, '_> {
                         ac_match.start(),
                         base,
                         data,
-                        filesize,
-                        block_scanning_mode,
                     );
                 }
             }
@@ -833,8 +841,6 @@ impl ScanContext<'_, '_> {
         match_start: usize,
         base: usize,
         data: &[u8],
-        filesize: i64,
-        block_scanning_mode: bool,
     ) {
         let atoms = self.compiled_rules.atoms();
         let atom = unsafe { atoms.get_unchecked(atom_idx) };
@@ -854,15 +860,7 @@ impl ScanContext<'_, '_> {
         let (pattern_id, sub_pattern) =
             &self.compiled_rules.get_sub_pattern(sub_pattern_id);
 
-        if self.tracker.limit_reached.contains(pattern_id) {
-            return;
-        }
-
-        if !block_scanning_mode
-            && let Some(bounds) =
-                self.compiled_rules.filesize_bounds(*pattern_id)
-            && !bounds.contains(filesize)
-        {
+        if self.tracker.disabled_patterns.contains(pattern_id) {
             return;
         }
 
@@ -1072,6 +1070,31 @@ impl ScanContext<'_, '_> {
             _ => panic!(),
         };
 
+        if !block_scanning_mode {
+            let filesize = self.get_filesize();
+            for pattern_id in 0..self.compiled_rules.num_patterns() {
+                let pattern_id = PatternId::from(pattern_id);
+                if let Some(bounds) =
+                    self.compiled_rules.filesize_bounds(pattern_id)
+                    && !bounds.contains(filesize)
+                {
+                    self.tracker.disabled_patterns.insert(pattern_id);
+                }
+            }
+        }
+
+        if base == 0 {
+            for pattern_id in 0..self.compiled_rules.num_patterns() {
+                let pattern_id = PatternId::from(pattern_id);
+                if let Some(constraints) =
+                    self.compiled_rules.header_constraints(pattern_id)
+                    && !constraints.is_satisfied(data)
+                {
+                    self.tracker.disabled_patterns.insert(pattern_id);
+                }
+            }
+        }
+
         #[cfg(any(feature = "rules-profiling", feature = "logging"))]
         let scan_start = self.clock.raw();
 
@@ -1079,8 +1102,7 @@ impl ScanContext<'_, '_> {
         // match at a single known offset within the data.
         self.verify_anchored_patterns(base, data);
 
-        let result = match self.ac_search_loop(base, data, block_scanning_mode)
-        {
+        let result = match self.ac_search_loop(base, data) {
             Ok(_) => {
                 self.scan_state = state;
                 Ok(())
@@ -1128,6 +1150,9 @@ impl ScanContext<'_, '_> {
             .iter()
             .map(|id| (id, self.compiled_rules.get_sub_pattern(*id)))
         {
+            if self.tracker.disabled_patterns.contains(pattern_id) {
+                continue;
+            }
             match sub_pattern {
                 SubPattern::Literal {
                     pattern,
@@ -1745,8 +1770,13 @@ fn track_pattern_match(
 
     bits.set(pattern_id.into(), true);
 
-    if !tracker.pattern_matches.add(pattern_id, match_, replace_if_longer) {
-        tracker.limit_reached.insert(pattern_id);
+    let added =
+        tracker.pattern_matches.add(pattern_id, match_, replace_if_longer);
+    if !added
+        || (tracker.fast_scan
+            && tracker.compiled_rules.is_fast_scan(pattern_id))
+    {
+        tracker.disabled_patterns.insert(pattern_id);
     }
 }
 
@@ -1907,8 +1937,9 @@ pub fn create_wasm_store_and_ctx<'r>(
         tracker: MatchTracker {
             pattern_matches: PatternMatches::new(),
             unconfirmed_matches: FxHashMap::default(),
-            limit_reached: FxHashSet::default(),
+            disabled_patterns: FxHashSet::default(),
             compiled_rules: rules,
+            fast_scan: false,
         },
         deadline: 0,
         regex_cache: RefCell::new(FxHashMap::default()),

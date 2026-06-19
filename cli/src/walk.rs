@@ -342,6 +342,7 @@ impl<'a> Walker<'a> {
 /// ```
 pub(crate) struct ParWalker<'a> {
     num_threads: Option<u8>,
+    cpu_limit: Option<u8>,
     walker: Walker<'a>,
 }
 
@@ -350,7 +351,7 @@ impl<'a> ParWalker<'a> {
     ///
     /// `path` can also point to an individual file instead of a directory.
     pub fn path(path: &'a Path) -> Self {
-        Self { walker: Walker::path(path), num_threads: None }
+        Self { walker: Walker::path(path), num_threads: None, cpu_limit: None }
     }
 
     /// Creates a [`ParWalker`] that walks the files listed in a text file
@@ -358,7 +359,11 @@ impl<'a> ParWalker<'a> {
     ///
     /// `path` points to the text file that contains the paths to be walked.
     pub fn file_list(path: &'a Path) -> Self {
-        Self { walker: Walker::file_list(path), num_threads: None }
+        Self {
+            walker: Walker::file_list(path),
+            num_threads: None,
+            cpu_limit: None,
+        }
     }
 
     /// Sets the number of threads used.
@@ -367,6 +372,12 @@ impl<'a> ParWalker<'a> {
     /// in the current host.
     pub fn num_threads(&mut self, n: u8) -> &mut Self {
         self.num_threads = Some(n);
+        self
+    }
+
+    /// Sets the target CPU limit percentage.
+    pub fn cpu_limit(&mut self, limit: u8) -> &mut Self {
+        self.cpu_limit = Some(limit);
         self
     }
 
@@ -429,6 +440,8 @@ impl<'a> ParWalker<'a> {
             thread::available_parallelism().map(usize::from).unwrap_or(32)
         };
 
+        let cpu_limit = self.cpu_limit;
+
         crossbeam::scope(|s| {
             let mut threads = Vec::with_capacity(num_threads);
 
@@ -453,12 +466,37 @@ impl<'a> ParWalker<'a> {
                 threads.push(s.spawn(move |_| {
                     let mut per_thread_obj = init(&state, &msg_send);
                     for path in paths_recv {
+                        let start_time = Instant::now();
                         let res = action(
                             &state,
                             &msg_send,
                             path.to_path_buf(),
                             &mut per_thread_obj,
                         );
+                        let t_active = start_time.elapsed();
+
+                        if let Some(limit) = cpu_limit
+                            && limit < 100
+                        {
+                            // Calculate the required sleep duration to limit
+                            // CPU usage to the target percentage.
+                            //
+                            // Let T_active be the elapsed time scanning the
+                            // file. Let T_sleep be the sleep time. The target
+                            // utilization percentage is P.
+                            //
+                            // P = 100 * T_active / (T_active + T_sleep)
+                            // P * (T_active + T_sleep) = 100 * T_active
+                            // P * T_sleep = (100 - P) * T_active
+                            // T_sleep = T_active * (100 - P) / P
+                            let t_sleep = t_active.mul_f64(
+                                (100.0 - limit as f64) / limit as f64,
+                            );
+                            if !t_sleep.is_zero() {
+                                thread::sleep(t_sleep);
+                            }
+                        }
+
                         if let Err(err) = res
                             && error(err, &msg_send).is_err()
                         {

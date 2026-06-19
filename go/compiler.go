@@ -2,6 +2,7 @@ package yara_x
 
 // #include <yara_x.h>
 import "C"
+
 import (
 	"encoding/json"
 	"errors"
@@ -28,7 +29,7 @@ type CompileOption func(c *Compiler) error
 //
 // Valid value types include: int, int32, int64, bool, string, float32 and
 // float64.
-func Globals(vars map[string]interface{}) CompileOption {
+func Globals(vars map[string]any) CompileOption {
 	return func(c *Compiler) error {
 		for ident, value := range vars {
 			c.vars[ident] = value
@@ -289,7 +290,7 @@ type Compiler struct {
 	includesEnabled       bool
 	ignoredModules        map[string]bool
 	bannedModules         map[string]bannedModule
-	vars                  map[string]interface{}
+	vars                  map[string]any
 	features              []string
 	includeDirs           []string
 	maxWarnings           *int
@@ -301,7 +302,7 @@ func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 		includesEnabled: true,
 		ignoredModules:  make(map[string]bool),
 		bannedModules:   make(map[string]bannedModule),
-		vars:            make(map[string]interface{}),
+		vars:            make(map[string]any),
 		features:        make([]string, 0),
 		includeDirs:     make([]string, 0),
 	}
@@ -558,7 +559,7 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 		ret = C.int(C.yrx_compiler_define_global_float(c.cCompiler, cIdent, C.double(v)))
 	case float64:
 		ret = C.int(C.yrx_compiler_define_global_float(c.cCompiler, cIdent, C.double(v)))
-	case map[string]interface{}, []interface{}:
+	case map[string]any, []any:
 		jsonStr, err := json.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("failed to marshal '%s' to json: '%v'", ident, err)

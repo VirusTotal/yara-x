@@ -1014,6 +1014,20 @@ impl Scanner {
         self.inner.max_matches_per_pattern(matches);
     }
 
+    /// Enables or disables fast scan mode.
+    ///
+    /// In fast scan mode, the scanner avoids tracking matches for patterns when
+    /// it is not necessary (e.g. when a rule condition only performs a simple
+    /// boolean check `$a`).
+    ///
+    /// Note that using fast scan mode implies that not all matches will be
+    /// reported. For instance, when iterating matches using [`ScanResults`],
+    /// you won't get all occurrences of the pattern in the file, only the first
+    /// one.
+    fn fast_scan(&mut self, yes: bool) {
+        self.inner.fast_scan(yes);
+    }
+
     /// Sets a callback that is invoked every time a YARA rule calls the
     /// `console` module.
     ///
@@ -1482,7 +1496,7 @@ fn proto_to_json<'py>(
     let mut module_output_json = Vec::new();
 
     let mut serializer =
-        yara_x_proto_json::Serializer::new(&mut module_output_json);
+        yara_x_proto::json::Serializer::new(&mut module_output_json);
 
     serializer
         .serialize(proto)

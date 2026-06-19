@@ -37,3 +37,5 @@ mod time;
 mod vba;
 #[cfg(feature = "vt-module")]
 mod vt;
+#[cfg(feature = "zip-module")]
+mod zip;

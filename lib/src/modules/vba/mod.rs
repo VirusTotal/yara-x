@@ -114,7 +114,7 @@ impl<'a> VbaExtractor<'a> {
     }
 }
 
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Vba, ModuleError> {
+fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<Vba, ModuleError> {
     let extractor = VbaExtractor::new(data);
 
     let project = if extractor.is_zip() {

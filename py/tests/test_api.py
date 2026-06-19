@@ -238,6 +238,18 @@ def test_scanner_max_matches_per_pattern():
   assert len(matching_rules) == 1
 
 
+def test_scanner_fast_scan():
+  compiler = yara_x.Compiler()
+  compiler.add_source('rule test {strings: $a = "foo" condition: $a}')
+
+  scanner = yara_x.Scanner(compiler.build())
+  scanner.fast_scan(True)
+  matching_rules = scanner.scan(b'foofoofoo').matching_rules
+  assert len(matching_rules) == 1
+  assert len(matching_rules[0].patterns) == 1
+  assert len(matching_rules[0].patterns[0].matches) == 1
+
+
 def test_scan_options():
   if 'test_proto2' not in yara_x.module_names():
     return

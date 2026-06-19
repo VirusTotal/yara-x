@@ -266,7 +266,7 @@ type Pattern struct {
 // Metadata represents a metadata in a Rule.
 type Metadata struct {
 	identifier string
-	value      interface{}
+	value      any
 }
 
 // Match contains information about the offset where a match occurred and
@@ -358,7 +358,7 @@ func (m *Metadata) Identifier() string {
 }
 
 // Value associated to the metadata.
-func (m *Metadata) Value() interface{} {
+func (m *Metadata) Value() any {
 	return m.value
 }
 
@@ -474,7 +474,7 @@ func metadataCallback(metadata *C.YRX_METADATA, handle C.uintptr_t) {
 		panic("matchCallback didn't receive a *[]Metadata")
 	}
 
-	var value interface{}
+	var value any
 
 	switch metadata.value_type {
 	case C.YRX_I64:

@@ -29,8 +29,8 @@ const EXIT_ERROR: i32 = 1;
 const CONFIG_FILE: &str = ".yara-x.toml";
 
 fn main() -> anyhow::Result<()> {
-    // Enable support for ANSI escape codes in Windows. In other platforms
-    // this is a no-op.
+    // Enable support for ANSI escape codes in Windows.
+    #[cfg(target_os = "windows")]
     if let Err(err) = enable_ansi_support::enable_ansi_support() {
         println!("could not enable ANSI support: {err}")
     }

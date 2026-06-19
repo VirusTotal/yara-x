@@ -33,7 +33,7 @@ const MAGIC: &[u8] = b"YARA-X\0\0";
 ///
 /// This version is incremented every time a change is made to the binary
 /// format in a way that breaks backwards compatibility.
-const SERIALIZATION_VERSION: u32 = 1;
+const SERIALIZATION_VERSION: u32 = 2;
 
 /// Aho-Corasick automaton bundled with an optional Teddy scanner if the
 /// number of patterns is low enough. If the Teddy scanner is present, and
@@ -119,6 +119,9 @@ pub struct Rules {
     pub(in crate::compiler) filesize_bounds:
         FxHashMap<PatternId, FilesizeBounds>,
 
+    pub(in crate::compiler) header_constraints:
+        FxHashMap<PatternId, HeaderConstraint>,
+
     /// Vector that contains the [`SubPatternId`] for sub-patterns that can
     /// match only at a fixed offset within the scanned data. These sub-patterns
     /// are not added to the Aho-Corasick automaton.
@@ -164,6 +167,17 @@ pub struct Rules {
     /// in the source code, allowing them to be compiled into a unified
     /// set automata for single-pass evaluation.
     pub(in crate::compiler) regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
+
+    /// BitVec where the N-th bit indicates whether the pattern with
+    /// PatternId = N is a fast-scan pattern.
+    ///
+    /// A pattern can be fast-scanned if its occurrences are only evaluated
+    /// as simple boolean checks (e.g. `$a`), meaning the scanner can stop
+    /// tracking matches for it once the first match has been found. If a
+    /// pattern is used in a context that requires tracking all matches (such
+    /// as count `#a`, offset `@a`, length `!a`, anchored checks, or loop
+    /// equivalents), it cannot be fast-scanned.
+    pub(in crate::compiler) fast_scan_patterns: bitvec::vec::BitVec,
 }
 
 impl Rules {
@@ -565,6 +579,19 @@ impl Rules {
     ) -> Option<&FilesizeBounds> {
         self.filesize_bounds.get(&pattern_id)
     }
+
+    #[inline]
+    pub(crate) fn header_constraints(
+        &self,
+        pattern_id: PatternId,
+    ) -> Option<&HeaderConstraint> {
+        self.header_constraints.get(&pattern_id)
+    }
+
+    #[inline]
+    pub(crate) fn is_fast_scan(&self, pattern_id: PatternId) -> bool {
+        *self.fast_scan_patterns.get(usize::from(pattern_id)).unwrap()
+    }
 }
 
 #[cfg(feature = "native-code-serialization")]
@@ -605,9 +632,7 @@ where
 {
     let bytes: Option<&[u8]> = Deserialize::deserialize(deserializer)?;
     let module = if let Some(bytes) = bytes {
-        unsafe {
-            wasm::runtime::Module::deserialize(wasm::get_engine(), bytes).ok()
-        }
+        wasm::runtime::Module::deserialize(wasm::get_engine(), bytes).ok()
     } else {
         None
     };
@@ -834,6 +859,34 @@ impl FilesizeBounds {
             (_, Bound::Unbounded) => {}
         }
         self
+    }
+}
+
+/// Describes the requirements on the file header imposed by a rule condition.
+///
+/// For example, the condition `uint32(0) == 0x464c457f` requires that the first
+/// 4 bytes of the file are `0x7f, 0x45, 0x4c, 0x46`.
+#[derive(
+    Debug, PartialEq, Serialize, Deserialize, Clone, Hash, Eq, Default,
+)]
+pub(crate) enum HeaderConstraint {
+    #[default]
+    Unconstrained,
+    Unsatisfiable,
+    Constrained(Vec<u8>),
+}
+
+impl HeaderConstraint {
+    pub fn unconstrained(&self) -> bool {
+        matches!(self, Self::Unconstrained)
+    }
+
+    pub fn is_satisfied(&self, data: &[u8]) -> bool {
+        match self {
+            Self::Unconstrained => true,
+            Self::Unsatisfiable => false,
+            Self::Constrained(bytes) => data.starts_with(bytes),
+        }
     }
 }
 
