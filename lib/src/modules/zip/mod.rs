@@ -3,9 +3,9 @@ use std::ops::Deref;
 use std::path::PathBuf;
 
 use crate::mods::prelude::*;
-use crate::modules::{ExtractedFile, ModuleError};
 use crate::modules::protos::zip::Zip;
 use crate::modules::utils::zip::ZipCache;
+use crate::modules::{ModuleError, ScannedDataWithPath};
 use crate::register_module;
 use crate::scanner::ScannedData;
 
@@ -26,7 +26,7 @@ pub fn main<'a>(
 /// Extracts internal items from a ZIP archive.
 pub fn extract_zip<'a>(
     data: &ScannedData<'a>,
-) -> Result<Vec<ExtractedFile<'a>>, ModuleError> {
+) -> Result<Vec<ScannedDataWithPath<'a>>, ModuleError> {
     let archive = match tinyzip::Archive::open(data.as_ref()) {
         Ok(arch) => arch,
         Err(_) => return Ok(Vec::new()),
@@ -76,9 +76,10 @@ pub fn extract_zip<'a>(
                 ScannedData::Slice(s) => {
                     s.get(start..end).map(ScannedData::from_slice)
                 }
-                _ => data.as_ref().get(start..end).map(|bytes| {
-                    ScannedData::from_vec(bytes.to_vec())
-                }),
+                _ => data
+                    .as_ref()
+                    .get(start..end)
+                    .map(|bytes| ScannedData::from_vec(bytes.to_vec())),
             },
             Ok(tinyzip::Compression::Deflated) => {
                 data.as_ref().get(start..end).and_then(|compressed_data| {
@@ -116,7 +117,7 @@ pub fn extract_zip<'a>(
                 continue;
             }
 
-            results.push(ExtractedFile { path, data: extracted_data });
+            results.push(ScannedDataWithPath { path, data: extracted_data });
         }
     }
 

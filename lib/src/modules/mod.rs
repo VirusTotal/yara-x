@@ -66,10 +66,10 @@ impl<'a> ModuleContext<'a> {
     }
 }
 
-/// Represents a file extracted from a container or archive module.
+/// Represents data extracted from a container or archive module.
 #[derive(Debug)]
-pub struct ExtractedFile<'a> {
-    /// Relative logical path of the file within the extracted container.
+pub struct ScannedDataWithPath<'a> {
+    /// Relative logical path of the data within its container.
     pub path: PathBuf,
     /// Raw extracted byte contents.
     pub data: ScannedData<'a>,
@@ -79,7 +79,7 @@ pub struct ExtractedFile<'a> {
 pub type ModuleExtractFn =
     for<'a> fn(
         &ScannedData<'a>,
-    ) -> Result<Vec<ExtractedFile<'a>>, ModuleError>;
+    ) -> Result<Vec<ScannedDataWithPath<'a>>, ModuleError>;
 
 /// The trait implemented by all registered modules.
 pub trait RegisteredModule: Send + Sync {
@@ -98,12 +98,11 @@ pub trait RegisteredModule: Send + Sync {
         data: &'a [u8],
     ) -> Option<Result<Box<dyn MessageDyn>, ModuleError>>;
 
-    /// Function called when YARA extracts container or archive data.
-    /// Extracts one or more internal files from the input buffer.
-    fn extract_fn<'a>(
-        &self,
-        _data: &ScannedData<'a>,
-    ) -> Option<Result<Vec<ExtractedFile<'a>>, ModuleError>> {
+    /// Returns the module's extraction function if any.
+    ///
+    /// The extraction function allows the module to extract additional
+    /// files from data that is compressed or bundled..
+    fn extract_fn(&self) -> Option<ModuleExtractFn> {
         None
     }
 
@@ -159,11 +158,8 @@ where
         })
     }
 
-    fn extract_fn<'a>(
-        &self,
-        data: &ScannedData<'a>,
-    ) -> Option<Result<Vec<ExtractedFile<'a>>, ModuleError>> {
-        self.extract_fn.map(|f| f(data))
+    fn extract_fn<'a>(&self) -> Option<ModuleExtractFn> {
+        self.extract_fn
     }
 
     fn rust_module_name(&self) -> Option<&'static str> {

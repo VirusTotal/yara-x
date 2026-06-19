@@ -14,6 +14,7 @@ use std::time::Duration;
 use protobuf::MessageDyn;
 
 use crate::errors::VariableError;
+use crate::modules::{ScannedDataWithPath, registered_modules};
 use crate::scanner::ScannedData;
 use crate::{Rules, ScanError, ScanResults, Variable};
 
@@ -67,12 +68,29 @@ use crate::{Rules, ScanError, ScanResults, Variable};
 /// ```
 pub struct Scanner<'r> {
     inner: crate::Scanner<'r>,
+    /// Maximum depth of archive and container extraction hierarchy.
+    ///
+    /// The extraction hierarchy is traversed up to this maximum depth,
+    /// preventing unbounded recursion in deeply nested containers.
+    max_depth: usize,
 }
 
 impl<'r> Scanner<'r> {
     /// Creates a new deep scanner.
     pub fn new(rules: &'r Rules) -> Self {
-        Self { inner: crate::Scanner::new(rules) }
+        Self { inner: crate::Scanner::new(rules), max_depth: 1 }
+    }
+
+    /// Sets the maximum container extraction depth.
+    ///
+    /// If set to 0 scans only the main input buffer (or file) without
+    /// extracting any files from it. If set to 1 extracts and scans immediate
+    /// inner files, but no further.
+    ///
+    /// Default value is 1.
+    pub fn max_depth(&mut self, depth: usize) -> &mut Self {
+        self.max_depth = depth;
+        self
     }
 
     /// Sets a timeout for scan operations.
@@ -179,34 +197,51 @@ impl<'r> Scanner<'r> {
     {
         self.inner.scan_context_mut().reset(false);
 
-        let max_depth = 10;
-        let mut queue =
-            VecDeque::from([(PathBuf::new(), ScannedData::Slice(data), 0)]);
+        let mut queue = VecDeque::from([(
+            ScannedDataWithPath {
+                path: PathBuf::new(),
+                data: ScannedData::Slice(data),
+            },
+            0,
+        )]);
 
-        while let Some((path, item_data, depth)) = queue.pop_front() {
+        while let Some((parent, depth)) = queue.pop_front() {
             if self.inner.scan_context().timeout_expired() {
                 return Err(ScanError::Timeout);
             }
-            if depth < max_depth {
-                for module in crate::modules::registered_modules() {
-                    let extracted_files = match module.extract_fn(&item_data) {
-                        Some(Ok(extracted_files)) => extracted_files,
+
+            // If the max depth is not reached yet, invoke the extraction
+            // function of each module that has one. The extracted data is
+            // appended to the queue for scanning.
+            if depth < self.max_depth {
+                for extract_fn in registered_modules()
+                    .filter_map(|module| module.extract_fn())
+                {
+                    let mut children = match extract_fn(&parent.data) {
+                        Ok(children) => children,
                         _ => continue,
                     };
-                    for child in extracted_files {
-                        let child_path = if path.as_os_str().is_empty() {
-                            child.path
-                        } else {
-                            path.join(child.path)
-                        };
-                        queue.push_back((child_path, child.data, depth + 1));
+
+                    // If the parent's path is not empty, prepend it to the
+                    // children paths.
+                    if !parent.path.as_os_str().is_empty() {
+                        for child in children.iter_mut() {
+                            child.path = parent.path.join(&child.path)
+                        }
                     }
+
+                    queue.extend(
+                        children.into_iter().map(|child| (child, depth + 1)),
+                    );
                 }
             }
 
-            let scan_results = self.inner.scan_impl(item_data, None, true)?;
+            let scan_results =
+                self.inner.scan_impl(parent.data, None, true)?;
 
-            if let ControlFlow::Break(b) = callback(&path, &scan_results) {
+            if let ControlFlow::Break(b) =
+                callback(&parent.path, &scan_results)
+            {
                 return Ok(ControlFlow::Break(b));
             }
         }
