@@ -70,6 +70,7 @@ pub use scanner::ScanOptions;
 pub use scanner::ScanResults;
 pub use scanner::Scanner;
 pub use scanner::blocks;
+pub use scanner::deep;
 pub use variables::Variable;
 
 mod compiler;

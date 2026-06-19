@@ -43,6 +43,7 @@ mod context;
 mod matches;
 
 pub mod blocks;
+pub mod deep;
 
 #[cfg(test)]
 mod tests;
@@ -108,6 +109,7 @@ static INIT_HEARTBEAT: Once = Once::new();
 ///
 /// The scanned data can be backed by a slice owned by someone else, or a
 /// vector or memory-mapped file owned by `ScannedData` itself.
+#[derive(Debug)]
 pub enum ScannedData<'d> {
     Slice(&'d [u8]),
     Vec(Vec<u8>),
@@ -124,10 +126,23 @@ impl AsRef<[u8]> for ScannedData<'_> {
     }
 }
 
-impl ScannedData<'_> {
+impl<'d> ScannedData<'d> {
     #[inline]
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.as_ref().len()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.as_ref().is_empty()
+    }
+
+    pub fn from_vec(vec: Vec<u8>) -> Self {
+        Self::Vec(vec)
+    }
+
+    pub fn from_slice(slice: &'d [u8]) -> Self {
+        Self::Slice(slice)
     }
 }
 
@@ -353,7 +368,7 @@ impl<'r> Scanner<'r> {
         {
             data = &data[..max];
         }
-        self.scan_impl(ScannedData::Slice(data), None)
+        self.scan_impl(ScannedData::Slice(data), None, false)
     }
 
     /// Scans a file.
@@ -364,7 +379,7 @@ impl<'r> Scanner<'r> {
     where
         P: AsRef<Path>,
     {
-        self.scan_impl(self.load_file(target.as_ref())?, None)
+        self.scan_impl(self.load_file(target.as_ref())?, None, false)
     }
 
     /// Like [`Scanner::scan`], but allows to specify additional scan options.
@@ -379,7 +394,7 @@ impl<'r> Scanner<'r> {
         {
             data = &data[..max];
         }
-        self.scan_impl(ScannedData::Slice(data), Some(options))
+        self.scan_impl(ScannedData::Slice(data), Some(options), false)
     }
 
     /// Like [`Scanner::scan_file`], but allows to specify additional scan
@@ -392,7 +407,7 @@ impl<'r> Scanner<'r> {
     where
         P: AsRef<Path>,
     {
-        self.scan_impl(self.load_file(target.as_ref())?, Some(options))
+        self.scan_impl(self.load_file(target.as_ref())?, Some(options), false)
     }
 
     /// Sets the value of a global variable.
@@ -539,7 +554,6 @@ impl<'r> Scanner<'r> {
 }
 
 impl<'r> Scanner<'r> {
-    #[cfg(feature = "rules-profiling")]
     #[inline]
     fn scan_context<'a>(&self) -> &ScanContext<'r, 'a> {
         unsafe {
@@ -604,11 +618,12 @@ impl<'r> Scanner<'r> {
         &'a mut self,
         data: ScannedData<'a>,
         options: Option<ScanOptions<'opts>>,
+        preserve_deadline: bool,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         let ctx = self.scan_context_mut();
 
         // Clear information about matches found in a previous scan, if any.
-        ctx.reset();
+        ctx.reset(preserve_deadline);
 
         // Set the global variable `filesize` to the size of the scanned data.
         ctx.set_filesize(data.len() as i64);

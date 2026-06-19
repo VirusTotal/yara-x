@@ -280,6 +280,13 @@ impl ScanContext<'_, '_> {
 impl ScanContext<'_, '_> {
     const DEFAULT_SCAN_TIMEOUT: u64 = 315_360_000;
 
+    /// Returns `true` if the timeout period configured for the scanner has expired.
+    #[inline]
+    pub(crate) fn timeout_expired(&self) -> bool {
+        self.scan_timeout.is_some()
+            && HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline
+    }
+
     /// Returns a slice with the data being scanned.
     ///
     /// Returns `None` if the current scan state is not [`ScanState::ScanningData`].
@@ -546,7 +553,7 @@ impl ScanContext<'_, '_> {
     ///
     /// This clears all the information generated during the previous scan and
     /// resets the deadline for timeouts.
-    pub(crate) fn reset(&mut self) {
+    pub(crate) fn reset(&mut self, preserve_deadline: bool) {
         let num_rules = self.compiled_rules.num_rules();
         let num_patterns = self.compiled_rules.num_patterns();
 
@@ -613,16 +620,20 @@ impl ScanContext<'_, '_> {
         // the user specifies a value larger than 315.360.000 we limit it to
         // 315.360.000 anyway. One year should be enough, I hope you don't plan
         // to run a YARA scan that takes longer.
-        let timeout_secs =
-            self.scan_timeout.map_or(Self::DEFAULT_SCAN_TIMEOUT, |t| {
-                cmp::min(
-                    t.as_secs_f32().ceil() as u64,
-                    Self::DEFAULT_SCAN_TIMEOUT,
-                )
-            });
-
-        self.deadline =
-            HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
+        let current_heartbeat = HEARTBEAT_COUNTER.load(Ordering::Relaxed);
+        let timeout_secs = if preserve_deadline {
+            self.deadline.saturating_sub(current_heartbeat)
+        } else {
+            let t_secs =
+                self.scan_timeout.map_or(Self::DEFAULT_SCAN_TIMEOUT, |t| {
+                    cmp::min(
+                        t.as_secs_f32().ceil() as u64,
+                        Self::DEFAULT_SCAN_TIMEOUT,
+                    )
+                });
+            self.deadline = current_heartbeat + t_secs;
+            t_secs
+        };
 
         let wasm_store = self.wasm_store_mut();
 
@@ -787,7 +798,7 @@ impl ScanContext<'_, '_> {
             // Use the Teddy algorithm if it was possible to create a Teddy
             // matcher and the data being scanned is long enough.
             Some(teddy) if data.len() >= teddy.minimum_len() => {
-                if HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline {
+                if self.timeout_expired() {
                     return Err(ScanError::Timeout);
                 }
                 teddy.find_overlapping(data, 0, &mut |m| {
@@ -809,9 +820,7 @@ impl ScanContext<'_, '_> {
             // Otherwise use the Aho-Corasick algorithm.
             _ => {
                 for ac_match in ac.daachorse.find_overlapping_iter(data) {
-                    if HEARTBEAT_COUNTER.load(Ordering::Relaxed)
-                        >= self.deadline
-                    {
+                    if self.timeout_expired() {
                         return Err(ScanError::Timeout);
                     }
                     #[cfg(feature = "logging")]

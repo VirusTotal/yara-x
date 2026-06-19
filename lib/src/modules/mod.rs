@@ -1,7 +1,11 @@
+use std::path::PathBuf;
+
 use protobuf::MessageDyn;
 use protobuf::reflect::MessageDescriptor;
 use rustc_hash::FxHashMap;
 use thiserror::Error;
+
+use crate::scanner::ScannedData;
 
 pub mod protos {
     #[cfg(feature = "generate-proto-code")]
@@ -62,6 +66,21 @@ impl<'a> ModuleContext<'a> {
     }
 }
 
+/// Represents a file extracted from a container or archive module.
+#[derive(Debug)]
+pub struct ExtractedFile<'a> {
+    /// Relative logical path of the file within the extracted container.
+    pub path: PathBuf,
+    /// Raw extracted byte contents.
+    pub data: ScannedData<'a>,
+}
+
+/// Signature for module extraction functions.
+pub type ModuleExtractFn =
+    for<'a> fn(
+        &ScannedData<'a>,
+    ) -> Result<Vec<ExtractedFile<'a>>, ModuleError>;
+
 /// The trait implemented by all registered modules.
 pub trait RegisteredModule: Send + Sync {
     /// Name used for the module in `import` statements (e.g. `"my_module"`).
@@ -78,6 +97,15 @@ pub trait RegisteredModule: Send + Sync {
         ctx: &mut ModuleContext<'a>,
         data: &'a [u8],
     ) -> Option<Result<Box<dyn MessageDyn>, ModuleError>>;
+
+    /// Function called when YARA extracts container or archive data.
+    /// Extracts one or more internal files from the input buffer.
+    fn extract_fn<'a>(
+        &self,
+        _data: &ScannedData<'a>,
+    ) -> Option<Result<Vec<ExtractedFile<'a>>, ModuleError>> {
+        None
+    }
 
     /// Rust module path of the submodule inside the external crate that
     /// contains functions registered with `#[module_export(yara_x_crate = ...)]`.
@@ -102,6 +130,8 @@ where
     /// Main function called every time YARA scans some data, before
     /// evaluating the rules. Set to `None` for data-only modules.
     pub main_fn: Option<ModuleMainFn<T>>,
+    /// Function called when YARA extracts container or archive data.
+    pub extract_fn: Option<ModuleExtractFn>,
     /// Rust module path of the submodule inside the external crate that
     /// contains functions registered with `#[module_export(yara_x_crate = ...)]`.
     pub rust_module_name: Option<&'static str>,
@@ -129,6 +159,13 @@ where
         })
     }
 
+    fn extract_fn<'a>(
+        &self,
+        data: &ScannedData<'a>,
+    ) -> Option<Result<Vec<ExtractedFile<'a>>, ModuleError>> {
+        self.extract_fn.map(|f| f(data))
+    }
+
     fn rust_module_name(&self) -> Option<&'static str> {
         self.rust_module_name
     }
@@ -151,11 +188,22 @@ where
 /// ```
 #[macro_export]
 macro_rules! register_module {
+    ($name:literal, $root_message:ty, $main_fn:path, $extract_fn:path) => {
+        $crate::mods::prelude::inventory::submit! {
+            &$crate::mods::prelude::Module::<$root_message> {
+                name: $name,
+                main_fn: Some($main_fn),
+                extract_fn: Some($extract_fn),
+                rust_module_name: Some(module_path!()),
+            } as &dyn $crate::mods::prelude::RegisteredModule
+        }
+    };
     ($name:literal, $root_message:ty, $main_fn:path) => {
         $crate::mods::prelude::inventory::submit! {
             &$crate::mods::prelude::Module::<$root_message> {
                 name: $name,
                 main_fn: Some($main_fn),
+                extract_fn: None,
                 rust_module_name: Some(module_path!()),
             } as &dyn $crate::mods::prelude::RegisteredModule
         }
@@ -165,6 +213,7 @@ macro_rules! register_module {
             &$crate::mods::prelude::Module::<$root_message> {
                 name: $name,
                 main_fn: None,
+                extract_fn: None,
                 rust_module_name: None,
             } as &dyn $crate::mods::prelude::RegisteredModule
         }

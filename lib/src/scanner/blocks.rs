@@ -137,7 +137,7 @@ impl<'r> Scanner<'r> {
         // block after the scanner has been created, or when a previous scan
         // has finished and the scanner is going to be reused.
         if self.needs_reset {
-            self.scan_context_mut().reset();
+            self.scan_context_mut().reset(false);
             self.needs_reset = false;
         }
         // Even when the scanner is not reset, we must clear unconfirmed matches
@@ -219,7 +219,7 @@ impl<'r> Scanner<'r> {
     /// conditions of the YARA rules and produces the final scan results.
     pub fn finish(&mut self) -> Result<ScanResults<'_, 'r>, ScanError> {
         if self.needs_reset {
-            self.scan_context_mut().reset();
+            self.scan_context_mut().reset(false);
         }
 
         self.needs_reset = true;
