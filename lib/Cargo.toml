@@ -237,7 +237,8 @@ vba-module = [
     "dep:codepage",
     "dep:encoding_rs",
     "dep:nom",
-    "dep:zip",
+    "dep:tinyzip",
+    "dep:flate2",
 ]
 
 # The `vt` module is a VirusTotal-specific module that provides access to
@@ -248,7 +249,7 @@ vt-module = [
 ]
 
 # The `zip` module provides container file extraction capabilities.
-zip-module = ["dep:tinyzip"]
+zip-module = ["dep:tinyzip", "dep:flate2"]
 
 # Enables all the default modules.
 default-modules = [
@@ -300,6 +301,7 @@ digest = { workspace = true, optional = true }
 dsa = { workspace = true, optional = true }
 ecdsa = { workspace = true, optional = true }
 encoding_rs = { workspace = true, optional = true }
+flate2 = { workspace = true, optional = true }
 memmap2 = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 intaglio = { workspace = true }

@@ -15,6 +15,7 @@ pub mod protos {
 mod tests;
 
 pub(crate) mod field_docs;
+pub(crate) mod utils;
 
 include!("modules.rs");
 
@@ -40,6 +41,8 @@ pub enum ModuleError {
 #[derive(Default)]
 pub struct ModuleContext<'a> {
     module_metadata: FxHashMap<&'static str, &'a [u8]>,
+    #[cfg(any(feature = "zip-module", feature = "vba-module"))]
+    pub(crate) zip_cache: Option<utils::zip::ZipCache<'a>>,
 }
 
 impl<'a> ModuleContext<'a> {
@@ -607,6 +610,3 @@ pub mod mods {
         }
     }
 }
-
-#[cfg(feature = "crypto")]
-pub(crate) mod utils;

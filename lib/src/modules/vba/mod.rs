@@ -7,13 +7,11 @@ https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-ovba/575462ba
 
 use crate::modules::vba::parser::decompress_stream;
 use std::collections::HashMap;
-use std::io::Cursor;
-use std::io::Read;
-use zip::ZipArchive;
 
 use crate::mods::prelude::*;
 use crate::modules::olecf::parser::OLECFParser;
 use crate::modules::protos::vba::*;
+use crate::modules::utils::zip::ZipCache;
 
 mod parser;
 
@@ -22,18 +20,13 @@ struct VbaExtractor<'a> {
     data: &'a [u8],
 }
 
-
 impl<'a> VbaExtractor<'a> {
     fn new(data: &'a [u8]) -> Self {
         Self { data }
     }
 
-    fn is_zip(&self) -> bool {
-        self.data.starts_with(&[0x50, 0x4B, 0x03, 0x04])
-    }
-
     fn read_stream_data(
-        ole_parser: &crate::modules::olecf::parser::OLECFParser,
+        ole_parser: &OLECFParser,
         name: &str,
     ) -> Result<Vec<u8>, &'static str> {
         let size = ole_parser.get_stream_size(name)? as usize;
@@ -83,44 +76,44 @@ impl<'a> VbaExtractor<'a> {
     fn extract_from_ole(&self) -> Result<Vba, &'static str> {
         Self::extract_from_ole_bytes(self.data)
     }
-
-    fn extract_from_zip(&self) -> Result<Vba, &'static str> {
-        let reader = Cursor::new(&self.data);
-        let mut archive = ZipArchive::new(reader)
-            .map_err(|_| "Failed to read ZIP archive")?;
-
-        // Search for potential VBA project files
-        let vba_project_names = [
-            "word/vbaProject.bin",
-            "xl/vbaProject.bin",
-            "ppt/vbaProject.bin",
-            "vbaProject.bin",
-        ];
-
-        for name in &vba_project_names {
-            match archive.by_name(name) {
-                Ok(mut file) => {
-                    let mut contents = Vec::new();
-                    file.read_to_end(&mut contents)
-                        .map_err(|_| "Failed to read vbaProject.bin")?;
-
-                    return Self::extract_from_ole_bytes(&contents);
-                }
-                Err(_) => continue,
-            }
-        }
-
-        Err("no VBA project found in ZIP")
-    }
 }
 
-fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<Vba, ModuleError> {
-    let extractor = VbaExtractor::new(data);
+fn extract_from_zip<'a>(
+    ctx: &mut ModuleContext<'a>,
+    data: &'a [u8],
+) -> Result<Vba, &'static str> {
+    let zip_cache = ctx.zip_cache.get_or_insert_with(|| ZipCache::new(data));
 
-    let project = if extractor.is_zip() {
-        extractor.extract_from_zip()
+    let ZipCache::Cached(cached_zip) = zip_cache else {
+        return Err("no VBA project found in ZIP");
+    };
+
+    let vba_project_names = [
+        "word/vbaProject.bin",
+        "xl/vbaProject.bin",
+        "ppt/vbaProject.bin",
+        "vbaProject.bin",
+    ];
+
+    for name in &vba_project_names {
+        if let Some(contents) = cached_zip.get_file_content(name) {
+            return VbaExtractor::extract_from_ole_bytes(contents);
+        }
+    }
+
+    Err("no VBA project found in ZIP")
+}
+
+fn main<'a>(
+    ctx: &mut ModuleContext<'a>,
+    data: &'a [u8],
+) -> Result<Vba, ModuleError> {
+    let is_zip = data.starts_with(&[0x50, 0x4B, 0x03, 0x04]);
+
+    let project = if is_zip {
+        extract_from_zip(ctx, data)
     } else {
-        extractor.extract_from_ole()
+        VbaExtractor::new(data).extract_from_ole()
     };
 
     let vba = match project {
