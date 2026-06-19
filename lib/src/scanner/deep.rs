@@ -14,6 +14,7 @@ use std::time::Duration;
 use protobuf::MessageDyn;
 
 use crate::errors::VariableError;
+use crate::scanner::ScannedData;
 use crate::{Rules, ScanError, ScanResults, Variable};
 
 /// Scans data and container contents recursively.
@@ -178,13 +179,9 @@ impl<'r> Scanner<'r> {
     {
         self.inner.scan_context_mut().reset(false);
 
-        let mut queue = VecDeque::new();
-        queue.push_back((
-            PathBuf::new(),
-            crate::scanner::ScannedData::Slice(data),
-            0,
-        ));
         let max_depth = 10;
+        let mut queue =
+            VecDeque::from([(PathBuf::new(), ScannedData::Slice(data), 0)]);
 
         while let Some((path, item_data, depth)) = queue.pop_front() {
             if self.inner.scan_context().timeout_expired() {
@@ -192,21 +189,17 @@ impl<'r> Scanner<'r> {
             }
             if depth < max_depth {
                 for module in crate::modules::registered_modules() {
-                    if let Some(Ok(extracted_files)) =
-                        module.extract_fn(&item_data)
-                    {
-                        for child in extracted_files {
-                            let child_path = if path.as_os_str().is_empty() {
-                                child.path
-                            } else {
-                                path.join(child.path)
-                            };
-                            queue.push_back((
-                                child_path,
-                                child.data,
-                                depth + 1,
-                            ));
-                        }
+                    let extracted_files = match module.extract_fn(&item_data) {
+                        Some(Ok(extracted_files)) => extracted_files,
+                        _ => continue,
+                    };
+                    for child in extracted_files {
+                        let child_path = if path.as_os_str().is_empty() {
+                            child.path
+                        } else {
+                            path.join(child.path)
+                        };
+                        queue.push_back((child_path, child.data, depth + 1));
                     }
                 }
             }
