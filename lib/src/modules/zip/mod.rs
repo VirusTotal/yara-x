@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::mods::prelude::*;
 use crate::modules::ModuleError;
 use crate::modules::protos::zip::Zip;
@@ -9,7 +11,7 @@ pub fn main<'a>(
     data: &'a [u8],
 ) -> Result<Zip, ModuleError> {
     match ctx.zip_cache.get_or_insert_with(|| ZipCache::new(data)) {
-        ZipCache::Cached(zip) => Ok(zip.proto.clone()),
+        ZipCache::Cached(zip) => Ok(zip.deref().into()),
         ZipCache::NotAZip => {
             let mut zip = Zip::new();
             zip.set_is_zip(false);

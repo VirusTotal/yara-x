@@ -1,7 +1,8 @@
-use protobuf::Enum;
-use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 use std::io::Read;
+
+use protobuf::Enum;
+use rustc_hash::FxHashMap;
 use tinyzip::Archive;
 
 use crate::modules::protos::zip::{Compression, Entry, Zip};
@@ -14,7 +15,6 @@ pub(crate) enum ZipCache<'a> {
 pub(crate) struct CachedZip<'a> {
     pub data: &'a [u8],
     pub archive: Archive<&'a [u8]>,
-    pub proto: Zip,
     pub cached_contents: FxHashMap<String, Cow<'a, [u8]>>,
 }
 
@@ -25,15 +25,62 @@ impl<'a> ZipCache<'a> {
             Err(_) => return ZipCache::NotAZip,
         };
 
+        ZipCache::Cached(CachedZip {
+            data,
+            archive,
+            cached_contents: FxHashMap::default(),
+        })
+    }
+}
+
+impl<'a> CachedZip<'a> {
+    pub(crate) fn get_file_content<'b>(
+        &'b mut self,
+        path: &str,
+    ) -> Option<&'b [u8]> {
+        if !self.cached_contents.contains_key(path) {
+            let entry = self.archive.find_file(path).ok()?;
+            let uncompressed_size = entry.uncompressed_size();
+            let data_range = entry.data_range().ok()?.data_range;
+            let start = data_range.start as usize;
+            let end = data_range.end as usize;
+            let raw_bytes = self.data.get(start..end)?;
+
+            let content = match entry.compression() {
+                Ok(tinyzip::Compression::Stored) => Cow::Borrowed(raw_bytes),
+                Ok(tinyzip::Compression::Deflated) => {
+                    let mut decoder =
+                        flate2::read::DeflateDecoder::new(raw_bytes);
+                    let mut buf =
+                        Vec::with_capacity(uncompressed_size as usize);
+                    decoder.read_to_end(&mut buf).ok()?;
+                    Cow::Owned(buf)
+                }
+                _ => return None,
+            };
+
+            self.cached_contents.insert(path.to_string(), content);
+        }
+
+        Some(self.cached_contents.get(path).unwrap().as_ref())
+    }
+}
+
+impl<'a> From<&CachedZip<'a>> for Zip {
+    fn from(cached: &CachedZip<'a>) -> Self {
         let mut zip = Zip::new();
         zip.set_is_zip(true);
+
+        if !cached.cached_contents.is_empty() {
+            zip.set_extracted_file_count(cached.cached_contents.len() as i64);
+        }
 
         let mut entries = Vec::new();
         let max_entries = 100000; // Guardrail: prevent DoS with huge entry counts
 
         let mut path_buf = vec![0u8; 65536];
 
-        for entry in archive.entries().filter_map(|entry| entry.ok()) {
+        for entry in cached.archive.entries().filter_map(|entry| entry.ok()) {
             if entries.len() >= max_entries {
                 break;
             }
@@ -65,44 +112,6 @@ impl<'a> ZipCache<'a> {
         }
 
         zip.entries = entries;
-
-        ZipCache::Cached(CachedZip {
-            data,
-            archive,
-            proto: zip,
-            cached_contents: FxHashMap::default(),
-        })
-    }
-}
-
-impl<'a> CachedZip<'a> {
-    pub(crate) fn get_file_content(&mut self, path: &str) -> Option<&[u8]> {
-        if !self.cached_contents.contains_key(path) {
-            let entry = self.archive.find_file(path).ok()?;
-            let uncompressed_size = entry.uncompressed_size();
-            let data_range = entry.data_range().ok()?.data_range;
-            let start = data_range.start as usize;
-            let end = data_range.end as usize;
-            let raw_bytes = self.data.get(start..end)?;
-
-            let content = match entry.compression() {
-                Ok(tinyzip::Compression::Stored) => Cow::Borrowed(raw_bytes),
-                Ok(tinyzip::Compression::Deflated) => {
-                    let mut buf =
-                        Vec::with_capacity(uncompressed_size as usize);
-                    let mut decoder =
-                        flate2::read::DeflateDecoder::new(raw_bytes);
-                    decoder.read_to_end(&mut buf).ok()?;
-                    Cow::Owned(buf)
-                }
-                _ => return None,
-            };
-
-            self.cached_contents.insert(path.to_string(), content);
-            self.proto
-                .set_extracted_file_count(self.cached_contents.len() as i64);
-        }
-
-        Some(self.cached_contents.get(path).unwrap().as_ref())
+        zip
     }
 }
