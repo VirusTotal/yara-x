@@ -4,6 +4,7 @@ mod completion;
 mod debug;
 mod deps;
 mod dump;
+mod extract;
 mod fix;
 mod fmt;
 mod scan;
@@ -15,6 +16,7 @@ pub use completion::*;
 pub use debug::*;
 pub use deps::*;
 pub use dump::*;
+pub use extract::*;
 pub use fix::*;
 pub use fmt::*;
 pub use scan::*;
@@ -71,6 +73,7 @@ pub fn cli() -> Command {
             #[cfg(feature = "debug-cmd")]
             commands::debug(),
             commands::dump(),
+            commands::extract(),
             commands::fmt(),
             commands::fix(),
             commands::completion(),

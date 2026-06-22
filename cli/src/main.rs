@@ -88,6 +88,7 @@ fn main() -> anyhow::Result<()> {
         Some(("fix", args)) => commands::exec_fix(args, &config),
         Some(("fmt", args)) => commands::exec_fmt(args, &config),
         Some(("scan", args)) => commands::exec_scan(args, &config),
+        Some(("extract", args)) => commands::exec_extract(args),
         Some(("dump", args)) => commands::exec_dump(args),
         Some(("compile", args)) => commands::exec_compile(args, &config),
         Some(("completion", args)) => commands::exec_completion(args),
