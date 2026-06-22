@@ -164,12 +164,13 @@ fn test_modules() {
                 panic!("module `{module_name}` should produce some output")
             });
 
-        let output_file = mint.new_goldenfile(out_path).unwrap();
+        let output_file =
+            mint.new_goldenfile(out_path).expect("can not create goldenfile");
 
         // Render the module's output as YAML.
         let mut yaml = yara_x_proto::yaml::Serializer::new(output_file);
 
-        yaml.serialize(output).unwrap();
+        assert!(yaml.serialize(output).is_ok());
     });
 }
 

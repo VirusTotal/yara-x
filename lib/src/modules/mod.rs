@@ -15,6 +15,7 @@ pub mod protos {
 mod tests;
 
 pub(crate) mod field_docs;
+pub(crate) mod utils;
 
 include!("modules.rs");
 
@@ -40,6 +41,8 @@ pub enum ModuleError {
 #[derive(Default)]
 pub struct ModuleContext<'a> {
     module_metadata: FxHashMap<&'static str, &'a [u8]>,
+    #[cfg(any(feature = "zip-module", feature = "vba-module"))]
+    pub(crate) zip_cache: Option<utils::zip::ZipCache<'a>>,
 }
 
 impl<'a> ModuleContext<'a> {
@@ -255,6 +258,24 @@ pub mod mods {
     /// Data structure returned by the `macho` module.
     pub use super::protos::macho::Macho;
 
+    /// Data structures defined by the `olecf` module.
+    ///
+    /// The main structure produced by the module is [`olecf:Olecf`]. The rest
+    /// of them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::olecf;
+    /// Data structure returned by the `olecf` module.
+    pub use super::protos::olecf::Olecf;
+
+    /// Data structures defined by the `vba` module.
+    ///
+    /// The main structure produced by the module is [`vba::Vba`]. The rest
+    /// of them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::vba;
+    /// Data structure returned by the `macho` module.
+    pub use super::protos::vba::Vba;
+
     /// Data structures defined by the `pe` module.
     ///
     /// The main structure produced by the module is [`pe::PE`]. The rest
@@ -354,6 +375,8 @@ pub mod mods {
         info.dotnet = protobuf::MessageField(invoke::<Dotnet>(data));
         info.macho = protobuf::MessageField(invoke::<Macho>(data));
         info.lnk = protobuf::MessageField(invoke::<Lnk>(data));
+        info.olecf = protobuf::MessageField(invoke::<Olecf>(data));
+        info.vba = protobuf::MessageField(invoke::<Vba>(data));
         info.crx = protobuf::MessageField(invoke::<Crx>(data));
         info.dex = protobuf::MessageField(invoke::<Dex>(data));
         info
@@ -587,6 +610,3 @@ pub mod mods {
         }
     }
 }
-
-#[cfg(feature = "crypto")]
-pub(crate) mod utils;

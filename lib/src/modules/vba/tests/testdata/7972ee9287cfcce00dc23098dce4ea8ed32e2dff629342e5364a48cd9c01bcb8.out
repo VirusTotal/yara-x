@@ -1,0 +1,34 @@
+has_macros: true
+modules:
+  - name: "ThisDocument"
+    type: MODULE_TYPE_CLASS
+    code: |
+        Attribute VB_Name = "ThisDocument"
+        Attribute VB_Base = "1Normal.ThisDocument"
+        Attribute VB_GlobalNameSpace = False
+        Attribute VB_Creatable = False
+        Attribute VB_PredeclaredId = True
+        Attribute VB_Exposed = True
+        Attribute VB_TemplateDerived = True
+        Attribute VB_Customizable = True
+        
+  - name: "模块1"
+    type: MODULE_TYPE_STANDARD
+    code: |
+        Attribute VB_Name = "??1"
+        Sub Auto_Open()
+            MsgBox "EvilClippy ²âÊÔ³É¹¦£¡", vbInformation, "²âÊÔÍ¨Öª"
+        End Sub
+        
+        Sub AutoOpen()
+            Auto_Open
+        End Sub
+        
+project_info:
+    name: "Project"
+    version: "1812056321.6"
+    references:
+      - "stdole"
+      - "Normal"
+      - "Office"
+    module_count: 2

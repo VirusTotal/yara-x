@@ -343,6 +343,8 @@ pub const FIELD_DOCS: &[(&str, u64, &str)] = &[
     ("macho.Symtab", 4, "Size in bytes of the string table."),
     ("macho.Symtab", 5, "Individual entries stored in the table."),
     ("macho.Symtab", 6, "Descriptive nlist entries for symbols."),
+    ("olecf.Olecf", 1, "True if file is an OLE CF file."),
+    ("olecf.Olecf", 2, "Streams contained in the OLE CF file."),
     ("pe.Certificate", 1, "Issuer of this individual certificate."),
     ("pe.Certificate", 2, "Intended subject of this certificate."),
     ("pe.Certificate", 3, "Thumbprint identifying the certificate."),
@@ -505,4 +507,6 @@ pub const FIELD_DOCS: &[(&str, u64, &str)] = &[
     ("test_proto2.TestProto2", 500, "This field is accessible only if the features \"foo\" (or \"FOO\") and \"bar\"
  are enabled while compiling the YARA rules."),
     ("test_proto2.TestProto2", 502, "The metadata received by the module is copied into this field."),
+    ("vba.Vba", 1, "True if VBA macros are present"),
+    ("vba.Vba", 2, "VBA macro modules found"),
 ];

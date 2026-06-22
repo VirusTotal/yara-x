@@ -209,6 +209,11 @@ magic-module = [
 # The `math` module.
 math-module = []
 
+# The `olecf` module
+olecf-module = [
+    "dep:nom"
+]
+
 # The `pe` module parses PE files.
 pe-module = [
     "crypto",
@@ -227,6 +232,15 @@ test_proto3-module = []
 # conditions of a rule to check against other epoch time.
 time-module = []
 
+# The `vba` module
+vba-module = [
+    "dep:codepage",
+    "dep:encoding_rs",
+    "dep:nom",
+    "dep:tinyzip",
+    "dep:flate2",
+]
+
 # The `vt` module is a VirusTotal-specific module that provides access to
 # the metadata that VirusTotal has about the scanned file.
 vt-module = [
@@ -235,7 +249,7 @@ vt-module = [
 ]
 
 # The `zip` module provides container file extraction capabilities.
-zip-module = ["dep:tinyzip"]
+zip-module = ["dep:tinyzip", "dep:flate2"]
 
 # Enables all the default modules.
 default-modules = [
@@ -248,10 +262,12 @@ default-modules = [
     "macho-module",
     "math-module",
     "hash-module",
+    "olecf-module",
     "pe-module",
     "string-module",
     "time-module",
     "lnk-module",
+    "vba-module",
     "test_proto2-module",
     "test_proto3-module",
     "vt-module",
@@ -276,6 +292,7 @@ bincode = { workspace = true, features = ["serde"] }
 bitflags = { workspace = true, features = ["serde"] }
 bitvec = { workspace = true, features = ["serde"] }
 bstr = { workspace = true, features = ["serde"] }
+codepage = { workspace = true, optional = true }
 const-oid = { workspace = true, optional = true, features = ["db"] }
 crc32fast = { workspace = true, optional = true }
 daachorse = { workspace = true }
@@ -283,6 +300,8 @@ der-parser = { workspace = true, optional = true, features = ["bigint"] }
 digest = { workspace = true, optional = true }
 dsa = { workspace = true, optional = true }
 ecdsa = { workspace = true, optional = true }
+encoding_rs = { workspace = true, optional = true }
+flate2 = { workspace = true, optional = true }
 memmap2 = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 intaglio = { workspace = true }

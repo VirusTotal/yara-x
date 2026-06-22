@@ -51,6 +51,11 @@
   },
   {
     "kind": 9,
+    "label": "olecf",
+    "preselect": true
+  },
+  {
+    "kind": 9,
     "label": "pe",
     "preselect": true
   },
@@ -72,6 +77,11 @@
   {
     "kind": 9,
     "label": "time",
+    "preselect": true
+  },
+  {
+    "kind": 9,
+    "label": "vba",
     "preselect": true
   },
   {

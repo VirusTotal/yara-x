@@ -300,8 +300,6 @@ impl ::protobuf::reflect::ProtobufValue for Entry {
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct Zip {
     // message fields
-    // @@protoc_insertion_point(field:zip.Zip.extracted_file_count)
-    pub extracted_file_count: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:zip.Zip.is_zip)
     pub is_zip: ::std::option::Option<bool>,
     // @@protoc_insertion_point(field:zip.Zip.entries)
@@ -322,26 +320,7 @@ impl Zip {
         ::std::default::Default::default()
     }
 
-    // optional int64 extracted_file_count = 1;
-
-    pub fn extracted_file_count(&self) -> i64 {
-        self.extracted_file_count.unwrap_or(0)
-    }
-
-    pub fn clear_extracted_file_count(&mut self) {
-        self.extracted_file_count = ::std::option::Option::None;
-    }
-
-    pub fn has_extracted_file_count(&self) -> bool {
-        self.extracted_file_count.is_some()
-    }
-
-    // Param is passed by value, moved
-    pub fn set_extracted_file_count(&mut self, v: i64) {
-        self.extracted_file_count = ::std::option::Option::Some(v);
-    }
-
-    // optional bool is_zip = 2;
+    // optional bool is_zip = 1;
 
     pub fn is_zip(&self) -> bool {
         self.is_zip.unwrap_or(false)
@@ -361,13 +340,8 @@ impl Zip {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(3);
+        let mut fields = ::std::vec::Vec::with_capacity(2);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
-        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-            "extracted_file_count",
-            |m: &Zip| { &m.extracted_file_count },
-            |m: &mut Zip| { &mut m.extracted_file_count },
-        ));
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "is_zip",
             |m: &Zip| { &m.is_zip },
@@ -397,12 +371,9 @@ impl ::protobuf::Message for Zip {
         while let Some(tag) = is.read_raw_tag_or_eof()? {
             match tag {
                 8 => {
-                    self.extracted_file_count = ::std::option::Option::Some(is.read_int64()?);
-                },
-                16 => {
                     self.is_zip = ::std::option::Option::Some(is.read_bool()?);
                 },
-                26 => {
+                18 => {
                     self.entries.push(is.read_message()?);
                 },
                 tag => {
@@ -417,9 +388,6 @@ impl ::protobuf::Message for Zip {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
-        if let Some(v) = self.extracted_file_count {
-            my_size += ::protobuf::rt::int64_size(1, v);
-        }
         if let Some(v) = self.is_zip {
             my_size += 1 + 1;
         }
@@ -433,14 +401,11 @@ impl ::protobuf::Message for Zip {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-        if let Some(v) = self.extracted_file_count {
-            os.write_int64(1, v)?;
-        }
         if let Some(v) = self.is_zip {
-            os.write_bool(2, v)?;
+            os.write_bool(1, v)?;
         }
         for v in &self.entries {
-            ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
         };
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -459,7 +424,6 @@ impl ::protobuf::Message for Zip {
     }
 
     fn clear(&mut self) {
-        self.extracted_file_count = ::std::option::Option::None;
         self.is_zip = ::std::option::Option::None;
         self.entries.clear();
         self.special_fields.clear();
@@ -467,7 +431,6 @@ impl ::protobuf::Message for Zip {
 
     fn default_instance() -> &'static Zip {
         static instance: Zip = Zip {
-            extracted_file_count: ::std::option::Option::None,
             is_zip: ::std::option::Option::None,
             entries: ::std::vec::Vec::new(),
             special_fields: ::protobuf::SpecialFields::new(),
@@ -641,16 +604,15 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \tfile_path\x18\x01\x20\x01(\tR\x08filePath\x122\n\x0bcompression\x18\
     \x02\x20\x01(\x0e2\x10.zip.CompressionR\x0bcompression\x12+\n\x11uncompr\
     essed_size\x18\x03\x20\x01(\x04R\x10uncompressedSize\x12'\n\x0fcompresse\
-    d_size\x18\x04\x20\x01(\x04R\x0ecompressedSize\"t\n\x03Zip\x120\n\x14ext\
-    racted_file_count\x18\x01\x20\x01(\x03R\x12extractedFileCount\x12\x15\n\
-    \x06is_zip\x18\x02\x20\x01(\x08R\x05isZip\x12$\n\x07entries\x18\x03\x20\
-    \x03(\x0b2\n.zip.EntryR\x07entries*\xdf\x01\n\x0bCompression\x12\n\n\x06\
-    STORED\x10\0\x12\n\n\x06SHRUNK\x10\x01\x12\r\n\tREDUCED_1\x10\x02\x12\r\
-    \n\tREDUCED_2\x10\x03\x12\r\n\tREDUCED_3\x10\x04\x12\r\n\tREDUCED_4\x10\
-    \x05\x12\x0c\n\x08IMPLODED\x10\x06\x12\x0c\n\x08DEFLATED\x10\x08\x12\r\n\
-    \tDEFLATE64\x10\t\x12\x14\n\x10PKWARE_IMPLODING\x10\n\x12\t\n\x05BZIP2\
-    \x10\x0c\x12\x08\n\x04LZMA\x10\x0e\x12\x08\n\x04ZSTD\x10]\x12\x06\n\x02X\
-    Z\x10_\x12\x0c\n\x07UNKNOWN\x10\xff\x01\x1a\x06\x92\x93\x19\x02\x10\x01B\
+    d_size\x18\x04\x20\x01(\x04R\x0ecompressedSize\"B\n\x03Zip\x12\x15\n\x06\
+    is_zip\x18\x01\x20\x01(\x08R\x05isZip\x12$\n\x07entries\x18\x02\x20\x03(\
+    \x0b2\n.zip.EntryR\x07entries*\xdf\x01\n\x0bCompression\x12\n\n\x06STORE\
+    D\x10\0\x12\n\n\x06SHRUNK\x10\x01\x12\r\n\tREDUCED_1\x10\x02\x12\r\n\tRE\
+    DUCED_2\x10\x03\x12\r\n\tREDUCED_3\x10\x04\x12\r\n\tREDUCED_4\x10\x05\
+    \x12\x0c\n\x08IMPLODED\x10\x06\x12\x0c\n\x08DEFLATED\x10\x08\x12\r\n\tDE\
+    FLATE64\x10\t\x12\x14\n\x10PKWARE_IMPLODING\x10\n\x12\t\n\x05BZIP2\x10\
+    \x0c\x12\x08\n\x04LZMA\x10\x0e\x12\x08\n\x04ZSTD\x10]\x12\x06\n\x02XZ\
+    \x10_\x12\x0c\n\x07UNKNOWN\x10\xff\x01\x1a\x06\x92\x93\x19\x02\x10\x01B\
     \x1e\xfa\x92\x19\x1a\n\x03zip\x12\x07zip.Zip\x1a\nzip-moduleb\x06proto2\
 ";
 

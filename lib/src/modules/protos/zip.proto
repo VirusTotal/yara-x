@@ -36,8 +36,6 @@ message Entry {
 }
 
 message Zip {
-  // Number of files successfully extracted from the archive.
-  optional int64 extracted_file_count = 1;
-  optional bool is_zip = 2;
-  repeated Entry entries = 3;
+  optional bool is_zip = 1;
+  repeated Entry entries = 2;
 }
