@@ -199,10 +199,10 @@ impl<'r> Scanner<'r> {
     }
 
     /// Like [`Scanner::scan`], but allows specifying additional scan options.
-    pub fn scan_with_options<'opts, F, B>(
+    pub fn scan_with_options<F, B>(
         &mut self,
         data: &[u8],
-        options: ScanOptions<'opts>,
+        options: ScanOptions,
         callback: F,
     ) -> Result<ControlFlow<B>, ScanError>
     where
@@ -227,10 +227,10 @@ impl<'r> Scanner<'r> {
     }
 
     /// Like [`Scanner::scan_file`], but allows specifying additional scan options.
-    pub fn scan_file_with_options<'opts, P, F, B>(
+    pub fn scan_file_with_options<P, F, B>(
         &mut self,
         target: P,
-        options: ScanOptions<'opts>,
+        options: ScanOptions,
         callback: F,
     ) -> Result<ControlFlow<B>, ScanError>
     where
