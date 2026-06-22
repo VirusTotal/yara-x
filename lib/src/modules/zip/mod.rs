@@ -3,9 +3,10 @@ use std::ops::Deref;
 use std::path::PathBuf;
 
 use crate::mods::prelude::*;
+use crate::modules::ModuleError;
 use crate::modules::protos::zip::Zip;
 use crate::modules::utils::zip::ZipCache;
-use crate::modules::{ModuleError, ScannedDataWithPath};
+use crate::modules::ScannedDataWithPath;
 use crate::register_module;
 use crate::scanner::ScannedData;
 
