@@ -1,7 +1,7 @@
 /*! Container extractor.
 
-This module provides the [`Extractor`] type, which unpacks archive and container
-formats (e.g., ZIP archives) recursively using registered YARA modules.
+This module provides the [`Extractor`] type, which extracts archive and container
+formats (e.g., ZIP archives) supported by YARA modules.
 */
 
 use std::collections::VecDeque;
@@ -13,25 +13,8 @@ use crate::modules::{
 };
 use crate::scanner::ScannedData;
 
-/// The `callback` function is invoked for every file extracted from the main input buffer.
-/// The function receives three arguments:
-///
-/// 1. The registered YARA module that produced the extracted data (`&dyn RegisteredModule`).
-///
-/// 2. The file path within the container (e.g., `Path::new("dir/file.txt")`).
-///
-/// 3. The extracted data as a byte slice (`&[u8]`).
-///
-/// # Flow Control
-///
-/// The callback closure returns [`std::ops::ControlFlow<B>`], giving explicit
-/// control over extraction traversal and early termination:
-///
-/// - Returning [`std::ops::ControlFlow::Continue(())`] instructs the extractor
-///   to proceed normally to the next file in the queue.
-///
-/// - Returning [`std::ops::ControlFlow::Break(b)`] immediately halts further
-///   extraction recursion, returning `Ok(ControlFlow::Break(b))`.
+/// Extracts archive and container formats (e.g., ZIP archives) supported by
+/// YARA modules.
 #[derive(Debug, Clone)]
 pub struct Extractor {
     max_depth: usize,
@@ -62,6 +45,24 @@ impl Extractor {
 
     /// Extracts files from container data recursively, executing `callback`
     /// for each actually extracted buffer.
+    ///
+    /// The `callback` closure is invoked exclusively for files unpacked from
+    /// containers. It receives three arguments:
+    ///
+    /// 1. The registered YARA module that produced the extracted data.
+    /// 2. The relative file path within the container (e.g., `Path::new("dir/file.txt")`).
+    /// 3. The raw extracted data as a byte slice (`&[u8]`).
+    ///
+    /// # Flow Control
+    ///
+    /// The callback closure returns [`std::ops::ControlFlow<B>`], giving explicit
+    /// control over extraction traversal and early termination:
+    ///
+    /// - Returning [`std::ops::ControlFlow::Continue(())`] instructs the extractor
+    ///   to proceed normally to the next file in the queue.
+    ///
+    /// - Returning [`std::ops::ControlFlow::Break(b)`] immediately halts further
+    ///   extraction recursion, returning `ControlFlow::Break(b)`.
     pub fn extract<F, B>(&self, data: &[u8], mut callback: F) -> ControlFlow<B>
     where
         F: FnMut(&dyn RegisteredModule, &Path, &[u8]) -> ControlFlow<B>,
