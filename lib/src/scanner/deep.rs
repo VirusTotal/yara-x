@@ -208,7 +208,7 @@ impl<'r> Scanner<'r> {
     where
         F: FnMut(&Path, &ScanResults) -> ControlFlow<B>,
     {
-        self.scan_internal(ScannedData::Slice(data), Some(options), callback)
+        self.scan_internal(ScannedData::Slice(data), Some(&options), callback)
     }
 
     /// Scans a file recursively, unpacking container files and
@@ -238,13 +238,13 @@ impl<'r> Scanner<'r> {
         F: FnMut(&Path, &ScanResults) -> ControlFlow<B>,
     {
         let data = self.inner.load_file(target.as_ref())?;
-        self.scan_internal(data, Some(options), callback)
+        self.scan_internal(data, Some(&options), callback)
     }
 
     fn scan_internal<'opts, F, B>(
         &mut self,
         initial_data: ScannedData<'_>,
-        options: Option<ScanOptions<'opts>>,
+        options: Option<&ScanOptions<'opts>>,
         mut callback: F,
     ) -> Result<ControlFlow<B>, ScanError>
     where
@@ -288,11 +288,8 @@ impl<'r> Scanner<'r> {
                 }
             }
 
-            let scan_results = self.inner.scan_internal(
-                parent.data,
-                options.clone(),
-                true,
-            )?;
+            let scan_results =
+                self.inner.scan_internal(parent.data, options, true)?;
 
             if let ControlFlow::Break(b) =
                 callback(&parent.path, &scan_results)

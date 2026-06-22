@@ -174,7 +174,7 @@ pub struct ProfilingData<'r> {
 }
 
 /// Optional information for the scan operation.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 pub struct ScanOptions<'a> {
     module_metadata: HashMap<&'a str, &'a [u8]>,
 }
@@ -394,7 +394,7 @@ impl<'r> Scanner<'r> {
         {
             data = &data[..max];
         }
-        self.scan_internal(ScannedData::Slice(data), Some(options), false)
+        self.scan_internal(ScannedData::Slice(data), Some(&options), false)
     }
 
     /// Like [`Scanner::scan_file`], but allows to specify additional scan
@@ -409,7 +409,7 @@ impl<'r> Scanner<'r> {
     {
         self.scan_internal(
             self.load_file(target.as_ref())?,
-            Some(options),
+            Some(&options),
             false,
         )
     }
@@ -621,7 +621,7 @@ impl<'r> Scanner<'r> {
     fn scan_internal<'a, 'opts>(
         &'a mut self,
         data: ScannedData<'a>,
-        options: Option<ScanOptions<'opts>>,
+        options: Option<&ScanOptions<'opts>>,
         preserve_deadline: bool,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         let ctx = self.scan_context_mut();
@@ -640,7 +640,7 @@ impl<'r> Scanner<'r> {
         // is actually a registered module, and then add the corresponding
         // metadata to mod_ctx.
         for (module, meta) in options
-            .map(|options| options.module_metadata)
+            .map(|options| &options.module_metadata)
             .into_iter()
             .flatten()
             .filter_map(|(name, meta)| Some((module_by_name(name)?, meta)))
