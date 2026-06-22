@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::{ArgMatches, Command, arg, value_parser};
-use yara_x::deep::Extractor;
+use yara_x::Extractor;
 
 use crate::help;
 

@@ -51,6 +51,7 @@ pub use compiler::Rules;
 pub use compiler::RulesIter;
 pub use compiler::SourceCode;
 pub use compiler::compile;
+pub use extractor::Extractor;
 pub use models::Match;
 pub use models::Matches;
 pub use models::MetaValue;
@@ -74,6 +75,7 @@ pub use scanner::deep;
 pub use variables::Variable;
 
 mod compiler;
+mod extractor;
 mod modules;
 mod re;
 mod scanner;
