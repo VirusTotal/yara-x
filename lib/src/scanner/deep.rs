@@ -18,6 +18,105 @@ use crate::modules::{ScannedDataWithPath, registered_modules};
 use crate::scanner::{ScanOptions, ScannedData};
 use crate::{Rules, ScanError, ScanResults, Variable};
 
+/// Extracts files from archive and container formats recursively.
+///
+/// Automatically unpacks container files (e.g., ZIP archives) using YARA modules
+/// that support extraction, and traverses the extracted file tree in  up to a
+/// maximum extraction depth.
+///
+/// The `callback` function is invoked for the main input buffer and for every
+/// file extracted from it. The function receives two arguments:
+///
+/// 1. The file path within the container. For the main input buffer (or file),
+///    this path is empty (`Path::new("")`).
+///
+/// 2. The extracted data as a byte slice (`&[u8]`).
+///
+/// # Flow Control
+///
+/// The callback closure returns [`std::ops::ControlFlow<B>`], giving explicit
+/// control over extraction traversal and early termination:
+///
+/// - Returning [`std::ops::ControlFlow::Continue(())`] instructs the extractor
+///   to proceed normally to the next file in the queue.
+///
+/// - Returning [`std::ops::ControlFlow::Break(b)`] immediately halts further
+///   extraction recursion, returning `Ok(ControlFlow::Break(b))`.
+#[derive(Debug, Clone)]
+pub struct Extractor {
+    max_depth: usize,
+}
+
+impl Default for Extractor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Extractor {
+    /// Creates a new extractor.
+    pub fn new() -> Self {
+        Self { max_depth: 1 }
+    }
+
+    /// Sets the maximum container extraction depth.
+    ///
+    /// If set to 0 extracts nothing (only yields the main input buffer).
+    /// If set to 1 extracts immediate inner files.
+    ///
+    /// Default value is 1.
+    pub fn max_depth(&mut self, depth: usize) -> &mut Self {
+        self.max_depth = depth;
+        self
+    }
+
+    /// Extracts files from in-memory data recursively, executing `callback`
+    /// for each buffer.
+    pub fn extract<F, B>(&self, data: &[u8], mut callback: F) -> ControlFlow<B>
+    where
+        F: FnMut(&Path, &[u8]) -> ControlFlow<B>,
+    {
+        let mut queue = VecDeque::from([(
+            ScannedDataWithPath {
+                path: PathBuf::new(),
+                data: ScannedData::Slice(data),
+            },
+            0,
+        )]);
+
+        while let Some((parent, depth)) = queue.pop_front() {
+            if depth < self.max_depth {
+                for extract_fn in registered_modules()
+                    .filter_map(|module| module.extract_fn())
+                {
+                    let mut children = match extract_fn(&parent.data) {
+                        Ok(children) => children,
+                        _ => continue,
+                    };
+
+                    if !parent.path.as_os_str().is_empty() {
+                        for child in children.iter_mut() {
+                            child.path = parent.path.join(&child.path)
+                        }
+                    }
+
+                    queue.extend(
+                        children.into_iter().map(|child| (child, depth + 1)),
+                    );
+                }
+            }
+
+            if let ControlFlow::Break(b) =
+                callback(&parent.path, parent.data.as_ref())
+            {
+                return ControlFlow::Break(b);
+            }
+        }
+
+        ControlFlow::Continue(())
+    }
+}
+
 /// Scans data and container contents recursively.
 ///
 /// This scanner is designed for recursive scanning scenarios where the input
@@ -65,20 +164,16 @@ use crate::{Rules, ScanError, ScanResults, Variable};
 ///     assert_eq!(results.matching_rules().count(), 1);
 ///     ControlFlow::<()>::Continue(())
 /// });
-/// ```
 pub struct Scanner<'r> {
     inner: crate::Scanner<'r>,
-    /// Maximum depth of archive and container extraction hierarchy.
-    ///
-    /// The extraction hierarchy is traversed up to this maximum depth,
-    /// preventing unbounded recursion in deeply nested containers.
-    max_depth: usize,
+    /// Container extractor.
+    extractor: Extractor,
 }
 
 impl<'r> Scanner<'r> {
     /// Creates a new deep scanner.
     pub fn new(rules: &'r Rules) -> Self {
-        Self { inner: crate::Scanner::new(rules), max_depth: 1 }
+        Self { inner: crate::Scanner::new(rules), extractor: Extractor::new() }
     }
 
     /// Sets the maximum container extraction depth.
@@ -89,7 +184,7 @@ impl<'r> Scanner<'r> {
     ///
     /// Default value is 1.
     pub fn max_depth(&mut self, depth: usize) -> &mut Self {
-        self.max_depth = depth;
+        self.extractor.max_depth(depth);
         self
     }
 
@@ -195,7 +290,7 @@ impl<'r> Scanner<'r> {
     where
         F: FnMut(&Path, &ScanResults) -> ControlFlow<B>,
     {
-        self.scan_internal(ScannedData::Slice(data), None, callback)
+        self.scan_internal(data, None, callback)
     }
 
     /// Like [`Scanner::scan`], but allows specifying additional scan options.
@@ -208,7 +303,7 @@ impl<'r> Scanner<'r> {
     where
         F: FnMut(&Path, &ScanResults) -> ControlFlow<B>,
     {
-        self.scan_internal(ScannedData::Slice(data), Some(&options), callback)
+        self.scan_internal(data, Some(&options), callback)
     }
 
     /// Scans a file recursively, unpacking container files and
@@ -223,7 +318,7 @@ impl<'r> Scanner<'r> {
         F: FnMut(&Path, &ScanResults) -> ControlFlow<B>,
     {
         let data = self.inner.load_file(target.as_ref())?;
-        self.scan_internal(data, None, callback)
+        self.scan_internal(data.as_ref(), None, callback)
     }
 
     /// Like [`Scanner::scan_file`], but allows specifying additional scan options.
@@ -238,12 +333,12 @@ impl<'r> Scanner<'r> {
         F: FnMut(&Path, &ScanResults) -> ControlFlow<B>,
     {
         let data = self.inner.load_file(target.as_ref())?;
-        self.scan_internal(data, Some(&options), callback)
+        self.scan_internal(data.as_ref(), Some(&options), callback)
     }
 
     fn scan_internal<'opts, F, B>(
         &mut self,
-        initial_data: ScannedData<'_>,
+        data: &[u8],
         options: Option<&ScanOptions<'opts>>,
         mut callback: F,
     ) -> Result<ControlFlow<B>, ScanError>
@@ -252,52 +347,35 @@ impl<'r> Scanner<'r> {
     {
         self.inner.scan_context_mut().reset(false);
 
-        let mut queue = VecDeque::from([(
-            ScannedDataWithPath { path: PathBuf::new(), data: initial_data },
-            0,
-        )]);
+        let mut result = Ok(ControlFlow::Continue(()));
 
-        while let Some((parent, depth)) = queue.pop_front() {
+        let _ = self.extractor.extract(data, |path, bytes| {
             if self.inner.scan_context().timeout_expired() {
-                return Err(ScanError::Timeout);
+                result = Err(ScanError::Timeout);
+                return ControlFlow::Break(());
             }
 
-            // If the max depth is not reached yet, invoke the extraction
-            // function of each module that has one. The extracted data is
-            // appended to the queue for scanning.
-            if depth < self.max_depth {
-                for extract_fn in registered_modules()
-                    .filter_map(|module| module.extract_fn())
-                {
-                    let mut children = match extract_fn(&parent.data) {
-                        Ok(children) => children,
-                        _ => continue,
-                    };
+            let scan_results = match self.inner.scan_internal(
+                ScannedData::Slice(bytes),
+                options,
+                true,
+            ) {
+                Ok(results) => results,
+                Err(err) => {
+                    result = Err(err);
+                    return ControlFlow::Break(());
+                }
+            };
 
-                    // If the parent's path is not empty, prepend it to the
-                    // children paths.
-                    if !parent.path.as_os_str().is_empty() {
-                        for child in children.iter_mut() {
-                            child.path = parent.path.join(&child.path)
-                        }
-                    }
-
-                    queue.extend(
-                        children.into_iter().map(|child| (child, depth + 1)),
-                    );
+            match callback(path, &scan_results) {
+                ControlFlow::Continue(()) => ControlFlow::Continue(()),
+                ControlFlow::Break(b) => {
+                    result = Ok(ControlFlow::Break(b));
+                    ControlFlow::Break(())
                 }
             }
+        });
 
-            let scan_results =
-                self.inner.scan_internal(parent.data, options, true)?;
-
-            if let ControlFlow::Break(b) =
-                callback(&parent.path, &scan_results)
-            {
-                return Ok(ControlFlow::Break(b));
-            }
-        }
-
-        Ok(ControlFlow::Continue(()))
+        result
     }
 }

@@ -580,19 +580,27 @@ impl<'r> Scanner<'r> {
         &self,
         path: &Path,
     ) -> Result<ScannedData<'a>, ScanError> {
+        Self::load_file_disk(path, self.use_mmap, self.max_scan_size)
+    }
+
+    pub(crate) fn load_file_disk<'a>(
+        path: &Path,
+        use_mmap: bool,
+        max_scan_size: Option<usize>,
+    ) -> Result<ScannedData<'a>, ScanError> {
         let file = fs::File::open(path).map_err(|err| {
             ScanError::OpenError { path: path.to_path_buf(), err }
         })?;
 
         let mut size = file.metadata().map(|m| m.len()).unwrap_or(0) as usize;
 
-        if let Some(max_scan_size) = self.max_scan_size {
+        if let Some(max_scan_size) = max_scan_size {
             size = std::cmp::min(size, max_scan_size);
         }
 
         // For files smaller than ~500MB reading the whole file is faster than
         // using a memory-mapped file.
-        let data = if self.use_mmap && size > 500_000_000 {
+        let data = if use_mmap && size > 500_000_000 {
             let mapped_file = unsafe {
                 MmapOptions::new().map_copy_read_only(&file).map_err(|err| {
                     ScanError::MapError { path: path.to_path_buf(), err }
