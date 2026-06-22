@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::cmp::min;
 use std::fs::File;
+use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -16,7 +17,7 @@ use yansi::Color::{Cyan, Green, Red, Yellow};
 use yansi::Paint;
 
 use yara_x::errors::ScanError;
-use yara_x::{MetaValue, Patterns, Rule, Rules, ScanOptions, Scanner};
+use yara_x::{MetaValue, Patterns, Rule, Rules, ScanOptions, deep::Scanner};
 
 use crate::commands::{
     compilation_args, compile_rules, get_external_vars,
@@ -372,8 +373,39 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                 },
             );
 
-            let scan_results = scanner
-                .scan_file_with_options(file_path.as_path(), scan_options)
+            let result = scanner
+                .scan_file_with_options(
+                    file_path.as_path(),
+                    scan_options,
+                    |inner_path, scan_results| {
+                        let full_path = if inner_path.as_os_str().is_empty() {
+                            file_path.to_path_buf()
+                        } else {
+                            file_path.join(inner_path)
+                        };
+
+                        let mut wanted_rules = match args.get_flag("negate") {
+                            true => Box::new(scan_results.non_matching_rules())
+                                as Box<dyn ExactSizeIterator<Item = Rule>>,
+                            false => Box::new(scan_results.matching_rules()),
+                        };
+
+                        state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
+
+                        // The number of matching files is incremented only if
+                        // `on_file_scanned` returns `true`, which indicates that the
+                        // match is actually included in the output and not ignored.
+                        if output_handler.on_file_scanned(
+                            &full_path,
+                            &mut wanted_rules,
+                            output,
+                        ) {
+                            state.num_matching_files.fetch_add(1, Ordering::Relaxed);
+                        }
+
+                        ControlFlow::<()>::Continue(())
+                    },
+                )
                 .with_context(|| format!("scanning {:?}", &file_path));
 
             state
@@ -382,25 +414,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                 .unwrap()
                 .retain(|(p, _)| !file_path.eq(p));
 
-            let scan_results = scan_results?;
-            let mut wanted_rules = match args.get_flag("negate") {
-                true => Box::new(scan_results.non_matching_rules())
-                    as Box<dyn ExactSizeIterator<Item=Rule>>,
-                false => Box::new(scan_results.matching_rules()),
-            };
-
-            state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
-
-            // The number of matching files is incremented only if
-            // `on_file_scanned` returns `true`, which indicates that the
-            // match is actually included in the output and not ignored.
-            if output_handler.on_file_scanned(
-                &file_path,
-                &mut wanted_rules,
-                output,
-            ) {
-                state.num_matching_files.fetch_add(1, Ordering::Relaxed);
-            }
+            let _ = result?;
 
             Ok(())
         },

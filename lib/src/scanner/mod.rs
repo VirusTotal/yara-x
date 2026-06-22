@@ -174,7 +174,7 @@ pub struct ProfilingData<'r> {
 }
 
 /// Optional information for the scan operation.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ScanOptions<'a> {
     module_metadata: HashMap<&'a str, &'a [u8]>,
 }
@@ -572,7 +572,7 @@ impl<'r> Scanner<'r> {
         }
     }
 
-    fn load_file<'a>(
+    pub(crate) fn load_file<'a>(
         &self,
         path: &Path,
     ) -> Result<ScannedData<'a>, ScanError> {

@@ -15,7 +15,7 @@ use protobuf::MessageDyn;
 
 use crate::errors::VariableError;
 use crate::modules::{ScannedDataWithPath, registered_modules};
-use crate::scanner::ScannedData;
+use crate::scanner::{ScanOptions, ScannedData};
 use crate::{Rules, ScanError, ScanResults, Variable};
 
 /// Scans data and container contents recursively.
@@ -190,6 +190,61 @@ impl<'r> Scanner<'r> {
     pub fn scan<F, B>(
         &mut self,
         data: &[u8],
+        callback: F,
+    ) -> Result<ControlFlow<B>, ScanError>
+    where
+        F: FnMut(&Path, &ScanResults) -> ControlFlow<B>,
+    {
+        self.scan_internal(ScannedData::Slice(data), None, callback)
+    }
+
+    /// Like [`Scanner::scan`], but allows specifying additional scan options.
+    pub fn scan_with_options<'opts, F, B>(
+        &mut self,
+        data: &[u8],
+        options: ScanOptions<'opts>,
+        callback: F,
+    ) -> Result<ControlFlow<B>, ScanError>
+    where
+        F: FnMut(&Path, &ScanResults) -> ControlFlow<B>,
+    {
+        self.scan_internal(ScannedData::Slice(data), Some(options), callback)
+    }
+
+    /// Scans a file recursively, unpacking container files and
+    /// executing `callback` for each buffer.
+    pub fn scan_file<P, F, B>(
+        &mut self,
+        target: P,
+        callback: F,
+    ) -> Result<ControlFlow<B>, ScanError>
+    where
+        P: AsRef<Path>,
+        F: FnMut(&Path, &ScanResults) -> ControlFlow<B>,
+    {
+        let data = self.inner.load_file(target.as_ref())?;
+        self.scan_internal(data, None, callback)
+    }
+
+    /// Like [`Scanner::scan_file`], but allows specifying additional scan options.
+    pub fn scan_file_with_options<'opts, P, F, B>(
+        &mut self,
+        target: P,
+        options: ScanOptions<'opts>,
+        callback: F,
+    ) -> Result<ControlFlow<B>, ScanError>
+    where
+        P: AsRef<Path>,
+        F: FnMut(&Path, &ScanResults) -> ControlFlow<B>,
+    {
+        let data = self.inner.load_file(target.as_ref())?;
+        self.scan_internal(data, Some(options), callback)
+    }
+
+    fn scan_internal<'opts, F, B>(
+        &mut self,
+        initial_data: ScannedData<'_>,
+        options: Option<ScanOptions<'opts>>,
         mut callback: F,
     ) -> Result<ControlFlow<B>, ScanError>
     where
@@ -198,10 +253,7 @@ impl<'r> Scanner<'r> {
         self.inner.scan_context_mut().reset(false);
 
         let mut queue = VecDeque::from([(
-            ScannedDataWithPath {
-                path: PathBuf::new(),
-                data: ScannedData::Slice(data),
-            },
+            ScannedDataWithPath { path: PathBuf::new(), data: initial_data },
             0,
         )]);
 
@@ -237,7 +289,7 @@ impl<'r> Scanner<'r> {
             }
 
             let scan_results =
-                self.inner.scan_impl(parent.data, None, true)?;
+                self.inner.scan_impl(parent.data, options.clone(), true)?;
 
             if let ControlFlow::Break(b) =
                 callback(&parent.path, &scan_results)
