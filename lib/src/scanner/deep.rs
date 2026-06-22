@@ -8,13 +8,15 @@ breadth-first search order.
 
 use std::collections::VecDeque;
 use std::ops::ControlFlow;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 
 use protobuf::MessageDyn;
 
 use crate::errors::VariableError;
-use crate::modules::{ScannedDataWithPath, registered_modules};
+use crate::modules::{
+    RegisteredModule, ScannedDataWithPath, registered_modules,
+};
 use crate::scanner::{ScanOptions, ScannedData};
 use crate::{Rules, ScanError, ScanResults, Variable};
 
@@ -24,13 +26,14 @@ use crate::{Rules, ScanError, ScanResults, Variable};
 /// that support extraction, and traverses the extracted file tree in  up to a
 /// maximum extraction depth.
 ///
-/// The `callback` function is invoked for the main input buffer and for every
-/// file extracted from it. The function receives two arguments:
+/// The `callback` function is invoked for every file extracted from the main input buffer.
+/// The function receives three arguments:
 ///
-/// 1. The file path within the container. For the main input buffer (or file),
-///    this path is empty (`Path::new("")`).
+/// 1. The YARA module that produced the extracted data (`&dyn RegisteredModule`).
 ///
-/// 2. The extracted data as a byte slice (`&[u8]`).
+/// 2. The file path within the container (e.g., `Path::new("dir/file.txt")`).
+///
+/// 3. The extracted data as a byte slice (`&[u8]`).
 ///
 /// # Flow Control
 ///
@@ -61,7 +64,7 @@ impl Extractor {
 
     /// Sets the maximum container extraction depth.
     ///
-    /// If set to 0 extracts nothing (only yields the main input buffer).
+    /// If set to 0 extracts nothing.
     /// If set to 1 extracts immediate inner files.
     ///
     /// Default value is 1.
@@ -70,50 +73,67 @@ impl Extractor {
         self
     }
 
-    /// Extracts files from in-memory data recursively, executing `callback`
-    /// for each buffer.
+    /// Extracts files from container data recursively, executing `callback`
+    /// for each actually extracted buffer.
     pub fn extract<F, B>(&self, data: &[u8], mut callback: F) -> ControlFlow<B>
     where
-        F: FnMut(&Path, &[u8]) -> ControlFlow<B>,
+        F: FnMut(&dyn RegisteredModule, &Path, &[u8]) -> ControlFlow<B>,
     {
-        let mut queue = VecDeque::from([(
-            ScannedDataWithPath {
-                path: PathBuf::new(),
-                data: ScannedData::Slice(data),
-            },
-            0,
-        )]);
+        if self.max_depth == 0 {
+            return ControlFlow::Continue(());
+        }
 
-        while let Some((parent, depth)) = queue.pop_front() {
-            if depth < self.max_depth {
-                for extract_fn in registered_modules()
-                    .filter_map(|module| module.extract_fn())
-                {
-                    let mut children = match extract_fn(&parent.data) {
-                        Ok(children) => children,
-                        _ => continue,
-                    };
+        let mut queue = VecDeque::new();
+        self.extract_children(&ScannedData::Slice(data), None, 1, &mut queue);
 
-                    if !parent.path.as_os_str().is_empty() {
-                        for child in children.iter_mut() {
-                            child.path = parent.path.join(&child.path)
-                        }
-                    }
-
-                    queue.extend(
-                        children.into_iter().map(|child| (child, depth + 1)),
-                    );
-                }
-            }
-
+        while let Some((item, module, depth)) = queue.pop_front() {
             if let ControlFlow::Break(b) =
-                callback(&parent.path, parent.data.as_ref())
+                callback(module, &item.path, item.data.as_ref())
             {
                 return ControlFlow::Break(b);
+            }
+            if depth < self.max_depth {
+                self.extract_children(
+                    &item.data,
+                    Some(&item.path),
+                    depth + 1,
+                    &mut queue,
+                );
             }
         }
 
         ControlFlow::Continue(())
+    }
+
+    fn extract_children<'a>(
+        &self,
+        data: &ScannedData<'a>,
+        parent_path: Option<&Path>,
+        depth: usize,
+        queue: &mut VecDeque<(
+            ScannedDataWithPath<'a>,
+            &'static dyn RegisteredModule,
+            usize,
+        )>,
+    ) {
+        for module in registered_modules() {
+            let extract_fn = match module.extract_fn() {
+                Some(f) => f,
+                None => continue,
+            };
+            if let Ok(mut children) = extract_fn(data) {
+                if let Some(path) = parent_path {
+                    if !path.as_os_str().is_empty() {
+                        for child in children.iter_mut() {
+                            child.path = path.join(&child.path);
+                        }
+                    }
+                }
+                queue.extend(
+                    children.into_iter().map(|child| (child, module, depth)),
+                );
+            }
+        }
     }
 }
 
@@ -347,9 +367,19 @@ impl<'r> Scanner<'r> {
     {
         self.inner.scan_context_mut().reset(false);
 
+        let scan_results = self.inner.scan_internal(
+            ScannedData::Slice(data),
+            options,
+            true,
+        )?;
+
+        if let ControlFlow::Break(b) = callback(Path::new(""), &scan_results) {
+            return Ok(ControlFlow::Break(b));
+        }
+
         let mut result = Ok(ControlFlow::Continue(()));
 
-        let _ = self.extractor.extract(data, |path, bytes| {
+        let _ = self.extractor.extract(data, |_module, path, bytes| {
             if self.inner.scan_context().timeout_expired() {
                 result = Err(ScanError::Timeout);
                 return ControlFlow::Break(());
