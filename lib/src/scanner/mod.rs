@@ -368,7 +368,7 @@ impl<'r> Scanner<'r> {
         {
             data = &data[..max];
         }
-        self.scan_impl(ScannedData::Slice(data), None, false)
+        self.scan_internal(ScannedData::Slice(data), None, false)
     }
 
     /// Scans a file.
@@ -379,7 +379,7 @@ impl<'r> Scanner<'r> {
     where
         P: AsRef<Path>,
     {
-        self.scan_impl(self.load_file(target.as_ref())?, None, false)
+        self.scan_internal(self.load_file(target.as_ref())?, None, false)
     }
 
     /// Like [`Scanner::scan`], but allows to specify additional scan options.
@@ -394,7 +394,7 @@ impl<'r> Scanner<'r> {
         {
             data = &data[..max];
         }
-        self.scan_impl(ScannedData::Slice(data), Some(options), false)
+        self.scan_internal(ScannedData::Slice(data), Some(options), false)
     }
 
     /// Like [`Scanner::scan_file`], but allows to specify additional scan
@@ -407,7 +407,11 @@ impl<'r> Scanner<'r> {
     where
         P: AsRef<Path>,
     {
-        self.scan_impl(self.load_file(target.as_ref())?, Some(options), false)
+        self.scan_internal(
+            self.load_file(target.as_ref())?,
+            Some(options),
+            false,
+        )
     }
 
     /// Sets the value of a global variable.
@@ -614,7 +618,7 @@ impl<'r> Scanner<'r> {
         Ok(data)
     }
 
-    fn scan_impl<'a, 'opts>(
+    fn scan_internal<'a, 'opts>(
         &'a mut self,
         data: ScannedData<'a>,
         options: Option<ScanOptions<'opts>>,

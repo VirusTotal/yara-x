@@ -288,8 +288,11 @@ impl<'r> Scanner<'r> {
                 }
             }
 
-            let scan_results =
-                self.inner.scan_impl(parent.data, options.clone(), true)?;
+            let scan_results = self.inner.scan_internal(
+                parent.data,
+                options.clone(),
+                true,
+            )?;
 
             if let ControlFlow::Break(b) =
                 callback(&parent.path, &scan_results)
