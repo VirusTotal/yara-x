@@ -4177,4 +4177,124 @@ fn header_constraints_optimization() {
         "#,
         b"\0MZ"
     );
+
+    // Patterns whose on-disk bytes differ from their literal text (because of
+    // the `xor`, `nocase`, `wide`, `base64` or `base64wide` modifiers) must not
+    // derive a header constraint from the literal text. Otherwise `$a at 0`
+    // would wrongly require the file to start with the plaintext bytes and the
+    // pattern would be pruned even though it matches at offset 0.
+
+    // `xor`: "Hello" XORed with key 0x01 -> 49 64 6d 6d 6e.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "Hello" xor
+            condition:
+                $a at 0
+        }
+        "#,
+        b"\x49\x64\x6d\x6d\x6e"
+    );
+
+    // `nocase`: data has a different case than the literal.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "HELLO" nocase
+            condition:
+                $a at 0
+        }
+        "#,
+        b"hello"
+    );
+
+    // `wide`: the literal bytes are interleaved with zeroes.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "Hello" wide
+            condition:
+                $a at 0
+        }
+        "#,
+        b"H\0e\0l\0l\0o\0"
+    );
+
+    // `base64`: "Hello" base64-encoded.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "Hello" base64
+            condition:
+                $a at 0
+        }
+        "#,
+        b"SGVsbG8="
+    );
+
+    // `base64wide`: "Hello" base64-encoded and then made wide.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "Hello" base64wide
+            condition:
+                $a at 0
+        }
+        "#,
+        b"S\0G\0V\0s\0b\0G\08\0"
+    );
+
+    // A regexp that reduces to a literal, with the `wide` modifier. For regexps
+    // the `wide` transformation is applied when lowering to sub-patterns, so it
+    // is not visible in the HIR and `as_literal_bytes()` returns the non-wide
+    // bytes. The header constraint must still not be derived from them.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = /Hello/ wide
+            condition:
+                $a at 0
+        }
+        "#,
+        b"H\0e\0l\0l\0o\0"
+    );
+
+    // The bytes that actually appear in the data are not constrained to the
+    // literal text, but matching itself must still work correctly: a pattern
+    // with a byte-transforming modifier anchored at 0 must not match when its
+    // encoded form is absent at offset 0.
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "Hello" xor
+            condition:
+                $a at 0
+        }
+        "#,
+        b"\0\0\0\0\x49\x64\x6d\x6d\x6e"
+    );
+
+    // A modifier pattern anchored at 0 must not contaminate the header
+    // constraint derived from a plain literal in the same rule. Here the file
+    // starts with "MZ" (so `$plain at 0` holds) and contains "Hello" XORed with
+    // key 0x01 somewhere; `$x` must not be pruned by `$plain`'s constraint.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $plain = "MZ"
+                $x = "Hello" xor
+            condition:
+                $plain at 0 and $x
+        }
+        "#,
+        b"MZ\x49\x64\x6d\x6d\x6e"
+    );
 }

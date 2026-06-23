@@ -1689,13 +1689,7 @@ impl Compiler<'_> {
         // Analyze the condition and determine if it imposes some constraint
         // to the file header (ex: `uint16(0) == 0x5a4d`).
         let header_constraints = self.ir.header_constraints(|pat_idx| {
-            let pat = &rule_patterns[pat_idx.as_usize()];
-            match pat.pattern() {
-                Pattern::Text(lit) => Some(lit.text.as_bytes().to_vec()),
-                Pattern::Regexp(re) | Pattern::Hex(re) => {
-                    re.hir.as_literal_bytes().map(|bytes| bytes.to_vec())
-                }
-            }
+            rule_patterns[pat_idx.as_usize()].pattern()
         });
 
         // Set the bounds to all patterns in the rule. This must be done
