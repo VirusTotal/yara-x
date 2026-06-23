@@ -368,7 +368,7 @@ protobuf-parse = { workspace = true, optional = true }
 yara-x-proto = { workspace = true, optional = true }
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.8"
 globwalk = { workspace = true }
 goldenfile = { workspace = true }
 ihex = { workspace = true }
