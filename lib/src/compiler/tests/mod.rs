@@ -1457,5 +1457,3 @@ fn test_error_on_slow_pattern() {
 
     assert!(matches!(err, crate::errors::CompileError::SlowPattern(_)));
 }
-
-
