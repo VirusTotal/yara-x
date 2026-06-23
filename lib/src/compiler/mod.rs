@@ -1688,38 +1688,8 @@ impl Compiler<'_> {
 
         // Analyze the condition and determine if it imposes some constraint
         // to the file header (ex: `uint16(0) == 0x5a4d`).
-        //
-        // The closure returns the literal bytes that a pattern is guaranteed
-        // to produce in the scanned data when anchored at offset 0. This is
-        // only valid for patterns whose on-disk bytes match their literal
-        // text verbatim. Modifiers like `xor`, `nocase`, `wide`, `base64` and
-        // `base64wide` make the bytes that actually appear in the data differ
-        // from the literal text (they are XORed, case-folded, interleaved
-        // with zeroes or base64-encoded), so no header constraint can be
-        // derived for patterns carrying any of those modifiers.
-        let non_literal_flags = PatternFlags::Xor
-            | PatternFlags::Nocase
-            | PatternFlags::Wide
-            | PatternFlags::Base64
-            | PatternFlags::Base64Wide;
         let header_constraints = self.ir.header_constraints(|pat_idx| {
-            let pat = &rule_patterns[pat_idx.as_usize()];
-            match pat.pattern() {
-                Pattern::Text(lit) => {
-                    if lit.flags.intersects(non_literal_flags) {
-                        None
-                    } else {
-                        Some(lit.text.as_bytes().to_vec())
-                    }
-                }
-                Pattern::Regexp(re) | Pattern::Hex(re) => {
-                    if re.flags.intersects(non_literal_flags) {
-                        None
-                    } else {
-                        re.hir.as_literal_bytes().map(|bytes| bytes.to_vec())
-                    }
-                }
-            }
+            rule_patterns[pat_idx.as_usize()].pattern()
         });
 
         // Set the bounds to all patterns in the rule. This must be done
