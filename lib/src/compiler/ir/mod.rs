@@ -1049,17 +1049,31 @@ impl IR {
                     // `base64` and `base64wide` make the bytes that actually
                     // appear in the data differ from the literal text (they
                     // are XORed, case-folded, interleaved with zeroes or
-                    // base64-encoded), so no header constraint can be
-                    // derived from them.
-                    if pattern.flags().intersects(
-                        PatternFlags::Xor
-                            | PatternFlags::Nocase
-                            | PatternFlags::Wide
-                            | PatternFlags::Base64
-                            | PatternFlags::Base64Wide,
-                    ) {
+                    // base64-encoded), so no header constraint can be derived
+                    // from them.
+                    let excluded_flags = PatternFlags::Xor
+                        | PatternFlags::Nocase
+                        | PatternFlags::Wide
+                        | PatternFlags::Base64
+                        | PatternFlags::Base64Wide;
+
+                    if pattern.flags().intersects(excluded_flags) {
                         continue;
                     }
+
+                    // Make sure that if we add a new flag in the future, we
+                    // take it into account here. The new flag either makes
+                    // the pattern ineligible as a header constraint (and must
+                    // be added to `excluded_flags`, or it must be added to
+                    // the list below.
+                    debug_assert_eq!(
+                        excluded_flags.complement(),
+                        PatternFlags::Ascii
+                            | PatternFlags::Fullword
+                            | PatternFlags::Private
+                            | PatternFlags::NonAnchorable
+                    );
+
                     if let MatchAnchor::At(offset_expr) = anchor
                         && let Some(0) =
                             self.get(*offset_expr).try_as_const_integer()
