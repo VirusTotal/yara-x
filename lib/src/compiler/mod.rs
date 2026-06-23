@@ -1241,8 +1241,13 @@ impl Compiler<'_> {
             .retain(|pattern_id, _| *pattern_id < snapshot.next_pattern_id);
     }
 
-    /// Returns true if the bytes in the slice are all 0x00, 0x90, or 0xff.
-    fn common_byte_repetition(bytes: &[u8]) -> bool {
+    /// Returns true if the slice contains a single byte, or if the bytes in
+    /// the slice are all 0x00, 0x90, or 0xff.
+    fn is_slow_pattern_bytes(bytes: &[u8]) -> bool {
+        if bytes.len() == 1 {
+            return true;
+        }
+
         let mut all_x00 = true;
         let mut all_x90 = true;
         let mut all_xff = true;
@@ -1268,7 +1273,7 @@ impl Compiler<'_> {
             }
         }
 
-        true
+        !bytes.is_empty()
     }
 
     /// Reads the file specified by an `include` statement.
@@ -1611,16 +1616,26 @@ impl Compiler<'_> {
                     Pattern::Hex(re) => re.hir.as_literal_bytes(),
                 };
                 if let Some(literal_bytes) = literal_bytes
-                    && Self::common_byte_repetition(literal_bytes)
+                    && Self::is_slow_pattern_bytes(literal_bytes)
                 {
-                    self.warnings.add(|| {
-                        warnings::SlowPattern::build(
+                    if self.error_on_slow_pattern {
+                        self.restore_snapshot(snapshot);
+                        return Err(errors::SlowPattern::build(
                             &self.report_builder,
                             self.report_builder
                                 .span_to_code_loc(pat.span().clone()),
                             None,
-                        )
-                    });
+                        ));
+                    } else {
+                        self.warnings.add(|| {
+                            warnings::SlowPattern::build(
+                                &self.report_builder,
+                                self.report_builder
+                                    .span_to_code_loc(pat.span().clone()),
+                                None,
+                            )
+                        });
+                    }
                 }
             }
         }

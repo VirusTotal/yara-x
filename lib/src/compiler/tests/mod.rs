@@ -1436,3 +1436,26 @@ fn test_filesize_bounds() {
         FilesizeBounds::from((Bound::Excluded(1), Bound::Excluded(1000)))
     );
 }
+
+#[test]
+fn test_error_on_slow_pattern() {
+    let mut compiler = Compiler::new();
+    compiler.error_on_slow_pattern(true);
+
+    let err = compiler
+        .add_source(
+            r#"
+            rule test {
+                strings:
+                    $a = "a"
+                condition:
+                    $a
+            }
+            "#,
+        )
+        .unwrap_err();
+
+    assert!(matches!(err, crate::errors::CompileError::SlowPattern(_)));
+}
+
+

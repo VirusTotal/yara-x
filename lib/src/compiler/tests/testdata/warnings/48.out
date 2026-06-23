@@ -1,0 +1,10 @@
+warning[slow_pattern]: slow pattern
+ --> line:3:5
+  |
+3 |     $a = "a"
+  |     -------- this pattern may slow down the scan
+warning[slow_pattern]: slow pattern
+ --> line:4:10
+  |
+4 |     $b = { 01 }
+  |          ------ this pattern may slow down the scan
