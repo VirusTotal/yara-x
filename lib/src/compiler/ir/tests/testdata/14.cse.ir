@@ -1,4 +1,4 @@
-RULE test_hoisting_nested
+RULE test_1
   20: FOR_IN -- hash: 0x72bf379da36225e5
         n: Var { frame_id: 1, ty: integer, index: 0 }
         i: Var { frame_id: 1, ty: integer, index: 1 }
@@ -36,7 +36,7 @@ RULE test_hoisting_nested
             14: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 12 }, type_value: integer(unknown) }
             15: CONST integer(4)
 
-RULE test_hoisting_with
+RULE test_2
   13: WITH -- hash: 0x862ac2b588220f59
     0: CONST integer(10)
     12: FOR_IN -- hash: 0xfb8fa06e0ec768d9
@@ -55,7 +55,7 @@ RULE test_hoisting_with
           8: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 6 }, type_value: integer(unknown) }
           9: CONST integer(0)
 
-RULE test_hoisting_field_access
+RULE test_3
   19: FOR_IN -- hash: 0x9f80cf2da772b9f9
         n: Var { frame_id: 1, ty: integer, index: 0 }
         i: Var { frame_id: 1, ty: integer, index: 1 }
@@ -82,7 +82,7 @@ RULE test_hoisting_field_access
           14: SYMBOL Field { index: 36, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
         16: CONST integer(0)
 
-RULE test_hoisting_limit
+RULE test_4
   532: FOR_IN -- hash: 0x9955d895482ac2dd
         n: Var { frame_id: 1, ty: integer, index: 0 }
         i: Var { frame_id: 1, ty: integer, index: 1 }
