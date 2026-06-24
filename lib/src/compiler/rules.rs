@@ -119,6 +119,17 @@ pub struct Rules {
     pub(in crate::compiler) filesize_bounds:
         FxHashMap<PatternId, FilesizeBounds>,
 
+    /// Map that associates a `PatternId` to a certain constraint on the
+    /// file header (e.g. magic bytes at offset 0), if any.
+    ///
+    /// A condition like `uint16(0) == 0x5A4D and $a` or `$mz at 0 and $a`
+    /// (where $mz = "MZ") only matches if the file starts with "MZ" (0x5A4D).
+    /// In this case, the map will contain an entry associating `$a` to a
+    /// `HeaderConstraint` that requires the file to start with those two
+    /// bytes.
+    ///
+    /// This allows skipping pattern checks entirely if the scanned data
+    /// doesn't start with the expected header prefix.
     pub(in crate::compiler) header_constraints:
         FxHashMap<PatternId, HeaderConstraint>,
 
