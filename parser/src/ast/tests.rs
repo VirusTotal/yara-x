@@ -54,15 +54,17 @@ fn ast_dfs() {
         _ => panic!(),
     };
 
-    let mut iter = DFSIter::new(&rule.condition);
+    let iter = DFSIter::new(&rule.condition);
     let mut enter_count = 0;
     let mut leave_count = 0;
-    while let Some(event) = iter.next() {
+
+    for event in iter {
         match event {
             DFSEvent::Enter(_) => enter_count += 1,
             DFSEvent::Leave(_) => leave_count += 1,
         }
     }
+
     assert!(enter_count > 0);
     assert_eq!(enter_count, leave_count);
 }
