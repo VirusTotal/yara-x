@@ -218,6 +218,14 @@ impl Rules {
 
     /// Deserializes the rules from a sequence of bytes produced by
     /// [`Rules::serialize`].
+    ///
+    /// # Safety
+    ///
+    /// As long as you are deserializing rules from binary content produced
+    /// by [`Rules::serialize`] you are safe. But you should never attempt
+    /// to do so from binary content that was produced or could be manipulated
+    /// by a third party. This implies a security risk and your program may
+    /// panic during scanning.
     pub fn deserialize<B>(bytes: B) -> Result<Self, SerializationError>
     where
         B: AsRef<[u8]>,
@@ -283,6 +291,21 @@ impl Rules {
         }
 
         rules.build_ac_automaton();
+
+        // Make sure that the maximum SubPatternId is within the boundaries
+        // of sub_patterns array. This check is important because during
+        // the scanning phase we use SubPatternId as indexes in the array
+        // without boundary checks for better performance.
+        let max_sub_pattern_id = rules
+            .atoms
+            .iter()
+            .map(|atom| atom.sub_pattern_id)
+            .max()
+            .unwrap_or(SubPatternId(0));
+
+        if rules.sub_patterns.len() < max_sub_pattern_id.0 as usize {
+            return Err(SerializationError::InvalidFormat);
+        }
 
         Ok(rules)
     }

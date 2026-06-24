@@ -203,9 +203,7 @@ impl<'r> Iterator for Metadata<'_, 'r> {
             compiler::MetaValue::Float(f) => MetaValue::Float(*f),
             compiler::MetaValue::String(id) => {
                 let s = self.rules.lit_pool().get(*id).unwrap();
-                // We can be sure that s is a valid UTF-8 string, because
-                // the type of meta is MetaValue::String.
-                let s = unsafe { s.to_str_unchecked() };
+                let s = s.to_str().unwrap();
                 MetaValue::String(s)
             }
             compiler::MetaValue::Bytes(id) => {

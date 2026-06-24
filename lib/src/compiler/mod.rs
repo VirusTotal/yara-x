@@ -2932,7 +2932,18 @@ impl From<PatternId> for usize {
 /// For each pattern there's one or more sub-patterns, depending on the pattern
 /// and its modifiers. For example the pattern `"foo" ascii wide` may have one
 /// subpattern for the ascii case and another one for the wide case.
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+)]
 #[serde(transparent)]
 pub(crate) struct SubPatternId(u32);
 
