@@ -31,3 +31,38 @@ fn ast_from_cst() {
         }
     );
 }
+
+#[test]
+fn ast_dfs() {
+    use crate::ast::dfs::{DFSEvent, DFSIter};
+    use crate::ast::*;
+
+    let source = br#"
+    rule test {
+        strings:
+            $a = "foo"
+        condition:
+            $a and foo.bar[0].baz == 1 and not (-(-1) == 1)
+    }
+    "#;
+    let parser = Parser::new(source);
+    let cst = CST::try_from(parser).unwrap();
+    let ast = AST::new(source, cst.iter());
+
+    let rule = match ast.items.first().unwrap() {
+        Item::Rule(rule) => rule,
+        _ => panic!(),
+    };
+
+    let mut iter = DFSIter::new(&rule.condition);
+    let mut enter_count = 0;
+    let mut leave_count = 0;
+    while let Some(event) = iter.next() {
+        match event {
+            DFSEvent::Enter(_) => enter_count += 1,
+            DFSEvent::Leave(_) => leave_count += 1,
+        }
+    }
+    assert!(enter_count > 0);
+    assert_eq!(enter_count, leave_count);
+}

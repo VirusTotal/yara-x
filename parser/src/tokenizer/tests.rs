@@ -399,3 +399,24 @@ fn errors() {
     assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(3..4))));
     assert_eq!(lexer.next_token(), Some(Token::INVALID_UTF8(Span(4..5))));
 }
+
+#[test]
+fn span_and_malformed_hex() {
+    use rowan::TextRange;
+    use rowan::TextSize;
+
+    let s = Span(10..25);
+    assert_eq!(format!("{s}"), "[10..25]");
+
+    let r = TextRange::new(TextSize::from(5), TextSize::from(15));
+    let span_from_r: Span = r.into();
+    assert_eq!(span_from_r, Span(5..15));
+
+    let mut lexer = super::Tokenizer::new(b"[10-");
+    lexer.enter_hex_pattern_mode();
+    assert_eq!(lexer.next_token(), Some(Token::L_BRACKET(Span(0..1))));
+    lexer.enter_hex_jump_mode();
+    assert_eq!(lexer.next_token(), Some(Token::INTEGER_LIT(Span(1..3))));
+    assert_eq!(lexer.next_token(), Some(Token::HYPHEN(Span(3..4))));
+    assert_eq!(lexer.next_token(), None);
+}
