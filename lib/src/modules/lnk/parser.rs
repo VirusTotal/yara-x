@@ -573,3 +573,21 @@ impl LnkParser {
 fn filetime_to_unix_timestamp(filetime: u64) -> Option<u64> {
     (filetime / 10000000).checked_sub(11644473600)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_filetime_to_unix_timestamp() {
+        assert_eq!(filetime_to_unix_timestamp(0), None);
+        assert_eq!(filetime_to_unix_timestamp(116444736000000000), Some(0));
+        assert_eq!(filetime_to_unix_timestamp(116444736000000000 + 10000000), Some(1));
+    }
+
+    #[test]
+    fn test_lnk_parser_invalid() {
+        let mut parser = LnkParser::new();
+        assert!(parser.parse(b"too short").is_err());
+    }
+}
