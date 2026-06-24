@@ -138,6 +138,11 @@ fn test_modules() {
             .map(|s| s.as_os_str().to_str().unwrap())
             .expect("can not extract module name from tests path");
 
+        // Ignore the module of not among the registered modules.
+        if !module_names().any(|n| n == module_name) {
+            return;
+        }
+
         // Construct a dummy YARA rule that only imports the module.
         let rule = format!(
             r#"import "{module_name}" rule test {{ condition: false }}"#
