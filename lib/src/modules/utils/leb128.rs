@@ -89,7 +89,9 @@ mod tests {
         assert_eq!(uleb128(&[0xe5, 0x8e, 0x26]), Ok((&[][..], 624485)));
         assert_eq!(uleb128(&[0x80, 0x01, 0xff]), Ok((&[0xff][..], 128)));
         let overflow = [0x80; 11];
-        assert!(matches!(uleb128(&overflow), Err(nom::Err::Error(e)) if e.code == ErrorKind::TooLarge));
+        assert!(
+            matches!(uleb128(&overflow), Err(nom::Err::Error(e)) if e.code == ErrorKind::TooLarge)
+        );
     }
 
     #[test]
@@ -100,6 +102,8 @@ mod tests {
         assert_eq!(sleb128(&[0x80, 0x7f]), Ok((&[][..], -128)));
         assert_eq!(sleb128(&[0x9b, 0xf1, 0x59]), Ok((&[][..], -624485)));
         let overflow = [0x80; 11];
-        assert!(matches!(sleb128(&overflow), Err(nom::Err::Error(e)) if e.code == ErrorKind::TooLarge));
+        assert!(
+            matches!(sleb128(&overflow), Err(nom::Err::Error(e)) if e.code == ErrorKind::TooLarge)
+        );
     }
 }

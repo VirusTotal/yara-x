@@ -118,7 +118,10 @@ mod tests {
 
     #[test]
     fn test_zip_cache() {
-        assert!(matches!(ZipCache::new(b"invalid zip data"), ZipCache::NotZip));
+        assert!(matches!(
+            ZipCache::new(b"invalid zip data"),
+            ZipCache::NotZip
+        ));
 
         let eocd = [
             0x50, 0x4b, 0x05, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
