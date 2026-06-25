@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use yara_x_parser::ast;
 
+use crate::compiler::{Atom, best_atom_in_bytes};
 use crate::utils::cast;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -78,6 +79,118 @@ impl From<regex_syntax::hir::Hir> for Hir {
 }
 
 impl Hir {
+    pub(crate) fn try_extract_simd_masked_pattern(
+        &self,
+    ) -> Option<(Vec<u8>, Vec<u8>, Atom)> {
+        use regex_syntax::hir::{HirKind, Repetition};
+
+        let mut mask = Vec::new();
+        let mut target = Vec::new();
+
+        let mut best_lit_offset = 0;
+        let mut best_lit_bytes = Vec::new();
+        let mut best_lit_quality = i32::MIN;
+
+        fn literal_quality(bytes: &[u8]) -> i32 {
+            let mut q = 0;
+            for &b in bytes {
+                match b {
+                    0x00 => q += 6,
+                    0x20 | 0x90 | 0xcc | 0xff => q += 12,
+                    b'a'..=b'z' | b'A'..=b'Z' => q += 18,
+                    _ => q += 20,
+                }
+            }
+            q
+        }
+
+        fn process_node(
+            hir: &regex_syntax::hir::Hir,
+            mask: &mut Vec<u8>,
+            target: &mut Vec<u8>,
+            offset: &mut usize,
+            best_lit_offset: &mut usize,
+            best_lit_bytes: &mut Vec<u8>,
+            best_lit_quality: &mut i32,
+        ) -> bool {
+            match hir.kind() {
+                HirKind::Literal(lit) => {
+                    let bytes = lit.0.as_ref();
+                    let q = literal_quality(bytes);
+                    if q > *best_lit_quality {
+                        *best_lit_quality = q;
+                        let atom = best_atom_in_bytes(bytes);
+                        *best_lit_offset = *offset + atom.backtrack() as usize;
+                        *best_lit_bytes = atom.as_ref().to_vec();
+                    }
+                    mask.extend(std::iter::repeat(0xff).take(bytes.len()));
+                    target.extend_from_slice(bytes);
+                    *offset += bytes.len();
+                    true
+                }
+                HirKind::Repetition(Repetition { min, max, sub, .. }) => {
+                    if *max == Some(*min) && is_any_byte(sub.as_ref()) {
+                        let count = *min as usize;
+                        mask.extend(std::iter::repeat(0x00).take(count));
+                        target.extend(std::iter::repeat(0x00).take(count));
+                        *offset += count;
+                        true
+                    } else {
+                        false
+                    }
+                }
+                HirKind::Concat(sub_hirs) => {
+                    for sub in sub_hirs {
+                        if !process_node(
+                            sub,
+                            mask,
+                            target,
+                            offset,
+                            best_lit_offset,
+                            best_lit_bytes,
+                            best_lit_quality,
+                        ) {
+                            return false;
+                        }
+                    }
+                    true
+                }
+                _ => false,
+            }
+        }
+
+        fn is_any_byte(hir: &regex_syntax::hir::Hir) -> bool {
+            match hir.kind() {
+                HirKind::Class(regex_syntax::hir::Class::Bytes(class)) => {
+                    class.ranges().len() == 1
+                        && class.ranges()[0].start() == 0
+                        && class.ranges()[0].end() == 255
+                }
+                _ => false,
+            }
+        }
+
+        let mut offset = 0;
+        let parsed = process_node(
+            &self.inner,
+            &mut mask,
+            &mut target,
+            &mut offset,
+            &mut best_lit_offset,
+            &mut best_lit_bytes,
+            &mut best_lit_quality,
+        );
+        if parsed {
+            let total_len = mask.len();
+            if total_len > 0 && total_len <= 32 {
+                let mut best_atom = Atom::from(best_lit_bytes);
+                best_atom.set_backtrack(best_lit_offset as u16);
+                best_atom.make_inexact();
+                return Some((mask, target, best_atom));
+            }
+        }
+        None
+    }
     /// Pattern chaining is the process of splitting a pattern that contains very
     /// large gaps (a.k.a. jumps) into multiple pieces that are chained together.
     ///

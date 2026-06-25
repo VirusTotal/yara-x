@@ -13,7 +13,7 @@ use core::fmt::Debug;
 use std::sync::Arc;
 
 mod generic;
-mod vector;
+pub(crate) mod vector;
 
 pub(crate) use self::generic::{Match, Patterns};
 

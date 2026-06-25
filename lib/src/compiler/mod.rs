@@ -2187,6 +2187,19 @@ impl Compiler<'_> {
         }
     }
 
+fn make_wide_masked(mask: &[u8], target: &[u8]) -> (Vec<u8>, Vec<u8>) {
+    let mut wide_mask = Vec::with_capacity(mask.len() * 2);
+    let mut wide_target = Vec::with_capacity(target.len() * 2);
+    for (&m, &t) in mask.iter().zip(target) {
+        wide_target.push(t);
+        wide_target.push(0x00);
+        
+        wide_mask.push(m);
+        wide_mask.push(0xff);
+    }
+    (wide_mask, wide_target)
+}
+
     fn c_regexp_pattern(
         &mut self,
         pattern_id: PatternId,
@@ -2245,28 +2258,77 @@ impl Compiler<'_> {
             flags.insert(SubPatternFlags::GreedyRegexp);
         }
 
-        let (atoms, is_fast_regexp) = self.c_regexp(&head, span)?;
-
-        if is_fast_regexp {
-            flags.insert(SubPatternFlags::FastRegexp);
-        }
+        let simd_masked = if !pattern.flags.contains(PatternFlags::Nocase) {
+            head.try_extract_simd_masked_pattern()
+        } else {
+            None
+        };
 
         if pattern.flags.contains(PatternFlags::Wide) {
-            self.add_sub_pattern(
-                pattern_id,
-                SubPattern::Regexp { flags: flags | SubPatternFlags::Wide },
-                atoms.iter().cloned().map(|atom| atom.make_wide()),
-                SubPatternAtom::from_regexp_atom,
-            );
+            let optimized = simd_masked.as_ref().and_then(|(mask, target, atom)| {
+                let (w_mask, w_target) = Self::make_wide_masked(mask, target);
+                if w_mask.len() <= 32 {
+                    Some((w_mask, w_target, atom.clone().make_wide()))
+                } else {
+                    None
+                }
+            });
+
+            if let Some((mask, target, wide_atom)) = optimized {
+                let mask_lit_id = self.intern_literal(mask.as_slice(), false);
+                let target_lit_id = self.intern_literal(target.as_slice(), false);
+                self.add_sub_pattern(
+                    pattern_id,
+                    SubPattern::SimdMasked {
+                        mask: mask_lit_id,
+                        target: target_lit_id,
+                        flags: flags | SubPatternFlags::Wide,
+                    },
+                    iter::once(wide_atom),
+                    SubPatternAtom::from_atom,
+                );
+            } else {
+                let (atoms, is_fast_regexp) = self.c_regexp(&head, span.clone())?;
+                let mut wide_flags = flags | SubPatternFlags::Wide;
+                if is_fast_regexp {
+                    wide_flags.insert(SubPatternFlags::FastRegexp);
+                }
+                self.add_sub_pattern(
+                    pattern_id,
+                    SubPattern::Regexp { flags: wide_flags },
+                    atoms.iter().cloned().map(|atom| atom.make_wide()),
+                    SubPatternAtom::from_regexp_atom,
+                );
+            }
         }
 
         if pattern.flags.contains(PatternFlags::Ascii) {
-            self.add_sub_pattern(
-                pattern_id,
-                SubPattern::Regexp { flags },
-                atoms.into_iter(),
-                SubPatternAtom::from_regexp_atom,
-            );
+            if let Some((mask, target, atom)) = &simd_masked {
+                let mask_lit_id = self.intern_literal(mask.as_slice(), false);
+                let target_lit_id = self.intern_literal(target.as_slice(), false);
+                self.add_sub_pattern(
+                    pattern_id,
+                    SubPattern::SimdMasked {
+                        mask: mask_lit_id,
+                        target: target_lit_id,
+                        flags,
+                    },
+                    iter::once(atom.clone()),
+                    SubPatternAtom::from_atom,
+                );
+            } else {
+                let (atoms, is_fast_regexp) = self.c_regexp(&head, span)?;
+                let mut ascii_flags = flags;
+                if is_fast_regexp {
+                    ascii_flags.insert(SubPatternFlags::FastRegexp);
+                }
+                self.add_sub_pattern(
+                    pattern_id,
+                    SubPattern::Regexp { flags: ascii_flags },
+                    atoms.into_iter(),
+                    SubPatternAtom::from_regexp_atom,
+                );
+            }
         }
 
         Ok(())
@@ -3012,6 +3074,12 @@ pub(crate) enum SubPattern {
     },
 
     Regexp {
+        flags: SubPatternFlags,
+    },
+
+    SimdMasked {
+        mask: LiteralId,
+        target: LiteralId,
         flags: SubPatternFlags,
     },
 
