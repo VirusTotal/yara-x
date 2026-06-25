@@ -2187,18 +2187,18 @@ impl Compiler<'_> {
         }
     }
 
-fn make_wide_masked(mask: &[u8], target: &[u8]) -> (Vec<u8>, Vec<u8>) {
-    let mut wide_mask = Vec::with_capacity(mask.len() * 2);
-    let mut wide_target = Vec::with_capacity(target.len() * 2);
-    for (&m, &t) in mask.iter().zip(target) {
-        wide_target.push(t);
-        wide_target.push(0x00);
-        
-        wide_mask.push(m);
-        wide_mask.push(0xff);
+    fn make_wide_masked(mask: &[u8], target: &[u8]) -> (Vec<u8>, Vec<u8>) {
+        let mut wide_mask = Vec::with_capacity(mask.len() * 2);
+        let mut wide_target = Vec::with_capacity(target.len() * 2);
+        for (&m, &t) in mask.iter().zip(target) {
+            wide_target.push(t);
+            wide_target.push(0x00);
+
+            wide_mask.push(m);
+            wide_mask.push(0xff);
+        }
+        (wide_mask, wide_target)
     }
-    (wide_mask, wide_target)
-}
 
     fn c_regexp_pattern(
         &mut self,
@@ -2265,18 +2265,21 @@ fn make_wide_masked(mask: &[u8], target: &[u8]) -> (Vec<u8>, Vec<u8>) {
         };
 
         if pattern.flags.contains(PatternFlags::Wide) {
-            let optimized = simd_masked.as_ref().and_then(|(mask, target, atom)| {
-                let (w_mask, w_target) = Self::make_wide_masked(mask, target);
-                if w_mask.len() <= 32 {
-                    Some((w_mask, w_target, atom.clone().make_wide()))
-                } else {
-                    None
-                }
-            });
+            let optimized =
+                simd_masked.as_ref().and_then(|(mask, target, atom)| {
+                    let (w_mask, w_target) =
+                        Self::make_wide_masked(mask, target);
+                    if w_mask.len() <= 32 {
+                        Some((w_mask, w_target, atom.clone().make_wide()))
+                    } else {
+                        None
+                    }
+                });
 
             if let Some((mask, target, wide_atom)) = optimized {
                 let mask_lit_id = self.intern_literal(mask.as_slice(), false);
-                let target_lit_id = self.intern_literal(target.as_slice(), false);
+                let target_lit_id =
+                    self.intern_literal(target.as_slice(), false);
                 self.add_sub_pattern(
                     pattern_id,
                     SubPattern::SimdMasked {
@@ -2288,7 +2291,8 @@ fn make_wide_masked(mask: &[u8], target: &[u8]) -> (Vec<u8>, Vec<u8>) {
                     SubPatternAtom::from_atom,
                 );
             } else {
-                let (atoms, is_fast_regexp) = self.c_regexp(&head, span.clone())?;
+                let (atoms, is_fast_regexp) =
+                    self.c_regexp(&head, span.clone())?;
                 let mut wide_flags = flags | SubPatternFlags::Wide;
                 if is_fast_regexp {
                     wide_flags.insert(SubPatternFlags::FastRegexp);
@@ -2305,7 +2309,8 @@ fn make_wide_masked(mask: &[u8], target: &[u8]) -> (Vec<u8>, Vec<u8>) {
         if pattern.flags.contains(PatternFlags::Ascii) {
             if let Some((mask, target, atom)) = &simd_masked {
                 let mask_lit_id = self.intern_literal(mask.as_slice(), false);
-                let target_lit_id = self.intern_literal(target.as_slice(), false);
+                let target_lit_id =
+                    self.intern_literal(target.as_slice(), false);
                 self.add_sub_pattern(
                     pattern_id,
                     SubPattern::SimdMasked {

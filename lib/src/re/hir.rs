@@ -123,7 +123,7 @@ impl Hir {
                         *best_lit_offset = *offset + atom.backtrack() as usize;
                         *best_lit_bytes = atom.as_ref().to_vec();
                     }
-                    mask.extend(std::iter::repeat(0xff).take(bytes.len()));
+                    mask.extend(std::iter::repeat_n(0xff, bytes.len()));
                     target.extend_from_slice(bytes);
                     *offset += bytes.len();
                     true
@@ -131,8 +131,8 @@ impl Hir {
                 HirKind::Repetition(Repetition { min, max, sub, .. }) => {
                     if *max == Some(*min) && is_any_byte(sub.as_ref()) {
                         let count = *min as usize;
-                        mask.extend(std::iter::repeat(0x00).take(count));
-                        target.extend(std::iter::repeat(0x00).take(count));
+                        mask.extend(std::iter::repeat_n(0x00, count));
+                        target.extend(std::iter::repeat_n(0x00, count));
                         *offset += count;
                         true
                     } else {

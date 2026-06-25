@@ -940,37 +940,33 @@ impl ScanContext<'_, '_> {
             }
 
             SubPattern::SimdMasked { mask, target, flags } => {
-                let mask_slice = self
-                    .compiled_rules
-                    .lit_pool()
-                    .get_bytes(*mask)
-                    .unwrap();
-                let target_slice = self
-                    .compiled_rules
-                    .lit_pool()
-                    .get_bytes(*target)
-                    .unwrap();
+                let mask_slice =
+                    self.compiled_rules.lit_pool().get_bytes(*mask).unwrap();
+                let target_slice =
+                    self.compiled_rules.lit_pool().get_bytes(*target).unwrap();
                 let pattern_len = mask_slice.len();
-                if atom_pos + pattern_len <= data.len() {
-                    if verify_simd_masked_match(
+                if atom_pos + pattern_len <= data.len()
+                    && verify_simd_masked_match(
                         &data[atom_pos..atom_pos + pattern_len],
                         mask_slice,
                         target_slice,
                         *flags,
-                    ) {
-                        let match_range = atom_pos..atom_pos + pattern_len;
-                        if !flags.intersects(SubPatternFlags::FullwordLeft | SubPatternFlags::FullwordRight)
-                            || verify_full_word(data, &match_range, *flags, None)
-                        {
-                            handle_sub_pattern_match(
-                                &mut self.tracker,
-                                &mut self.wasm,
-                                sub_pattern_id,
-                                sub_pattern,
-                                *pattern_id,
-                                Match::new(match_range).rebase(base),
-                            );
-                        }
+                    )
+                {
+                    let match_range = atom_pos..atom_pos + pattern_len;
+                    if !flags.intersects(
+                        SubPatternFlags::FullwordLeft
+                            | SubPatternFlags::FullwordRight,
+                    ) || verify_full_word(data, &match_range, *flags, None)
+                    {
+                        handle_sub_pattern_match(
+                            &mut self.tracker,
+                            &mut self.wasm,
+                            sub_pattern_id,
+                            sub_pattern,
+                            *pattern_id,
+                            Match::new(match_range).rebase(base),
+                        );
                     }
                 }
             }
