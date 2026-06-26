@@ -1269,21 +1269,21 @@ fn verify_literal_with_mask_match(
 
     use crate::teddy::vector::Vector;
 
-    let len = scanned_data_chunk.len();
+    let len = data.len();
     debug_assert!(len <= u16::MAX as usize);
 
     unsafe {
         if len <= 16 {
             let mut m_bytes = [0_u8; 16];
             let mut t_bytes = [0_u8; 16];
+            t_bytes[..len].copy_from_slice(&pattern[..len]);
             m_bytes[..len].copy_from_slice(&mask[..len]);
-            t_bytes[..len].copy_from_slice(&target[..len]);
 
-            let mask_vec = V::load_unaligned(m_bytes.as_ptr());
             let target_vec = V::load_unaligned(t_bytes.as_ptr());
+            let mask_vec = V::load_unaligned(m_bytes.as_ptr());
 
             let mut d_bytes = [0_u8; 16];
-            d_bytes[..len].copy_from_slice(scanned_data_chunk);
+            d_bytes[..len].copy_from_slice(data);
             let data_vec = V::load_unaligned(d_bytes.as_ptr());
 
             let masked = data_vec.and(mask_vec);
@@ -1293,9 +1293,8 @@ fn verify_literal_with_mask_match(
             let mut offset = 0;
             while offset + 16 <= len {
                 let mask_vec = V::load_unaligned(mask[offset..].as_ptr());
-                let target_vec = V::load_unaligned(target[offset..].as_ptr());
-                let data_vec =
-                    V::load_unaligned(scanned_data_chunk[offset..].as_ptr());
+                let target_vec = V::load_unaligned(pattern[offset..].as_ptr());
+                let data_vec = V::load_unaligned(data[offset..].as_ptr());
 
                 let masked = data_vec.and(mask_vec);
                 let eq = masked.cmpeq(target_vec);
@@ -1307,9 +1306,8 @@ fn verify_literal_with_mask_match(
             if offset < len {
                 let offset = len - 16;
                 let mask_vec = V::load_unaligned(mask[offset..].as_ptr());
-                let target_vec = V::load_unaligned(target[offset..].as_ptr());
-                let data_vec =
-                    V::load_unaligned(scanned_data_chunk[offset..].as_ptr());
+                let target_vec = V::load_unaligned(pattern[offset..].as_ptr());
+                let data_vec = V::load_unaligned(data[offset..].as_ptr());
 
                 let masked = data_vec.and(mask_vec);
                 let eq = masked.cmpeq(target_vec);
@@ -1402,7 +1400,7 @@ fn verify_literal_with_mask_match(
     mask: &[u8],
     _flags: SubPatternFlags,
 ) -> bool {
-    for ((&d, &m), &t) in scanned_data_chunk.iter().zip(mask).zip(target) {
+    for ((&d, &m), &t) in data.iter().zip(mask).zip(pattern) {
         if (d & m) != t {
             return false;
         }
