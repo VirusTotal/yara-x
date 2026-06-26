@@ -9,43 +9,75 @@ use regex_syntax::hir::literal::Seq;
 
 use crate::compiler::{Atom, DESIRED_ATOM_SIZE};
 
-/// Given an iterator of pairs (byte, mask) finds the best possible atom
-/// that can be extracted from that iterator.
-struct BestAtomFinder<'a, I>
-where
-    I: Iterator<Item = (&'a u8, &'a u8)>,
-{
+/// Finds the highest-quality atom of a given size from a stream of masked
+/// bytes.
+///
+/// It scans a stream of bytes and masks fed into it one by one, using an
+/// internal sliding window of the desired atom size. At each step, it
+/// calculates a quality score for the current window based on:
+///
+/// - Uniqueness of bytes (rewarding variety).
+/// - Specificity of byte matches (penalizing wildcards/masked bits).
+/// - Commonality of byte values (slightly penalizing common values like
+///   `0x00`, `0xff`, and padding bytes like `0xcc` or `0x90`).
+///
+/// Once the stream has finished, the finder is finalized to retrieve the
+/// range with the maximum quality score over the entire scan.
+///
+/// The design allows multiple instances of `BestAtomFinder` with different
+/// capacities to run interlocked, sharing the same byte-by-byte iteration
+/// loop.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// let mut finder_3 = BestAtomFinder::new(3);
+/// let mut finder_4 = BestAtomFinder::new(4);
+///
+/// for (byte, mask) in zip(bytes, masks) {
+///     finder_3.feed(*byte, *mask);
+///     finder_4.feed(*byte, *mask);
+/// }
+///
+/// let (range_3, quality_3) = finder_3.finalize();
+/// let (range_4, quality_4) = finder_4.finalize();
+/// ```
+struct BestAtomFinder {
+    atom_size: usize,
     index: usize,
     base_quality: i32,
     best_quality: i32,
     best_range: Option<Range<usize>>,
     queue: VecDeque<(usize, u8, u8, i32)>,
     bytes_present: BitArray<[usize; 256 / usize::BITS as usize]>,
-    byte_mask_iter: I,
 }
 
-impl<'a, I> BestAtomFinder<'a, I>
-where
-    I: Iterator<Item = (&'a u8, &'a u8)>,
-{
-    pub fn new(byte_mask_iter: I) -> Self {
+impl BestAtomFinder {
+    pub fn new(atom_size: usize) -> Self {
         Self {
-            byte_mask_iter,
+            atom_size,
             index: 0,
             base_quality: 0,
             best_quality: i32::MIN,
             best_range: None,
-            queue: VecDeque::with_capacity(DESIRED_ATOM_SIZE),
+            queue: VecDeque::with_capacity(atom_size),
             bytes_present: Default::default(),
         }
     }
 
-    pub fn find(mut self) -> (Option<Range<usize>>, i32) {
-        while let Some((byte, mask)) = self.byte_mask_iter.next() {
-            if self.queue.len() == self.queue.capacity() {
-                self.pop();
-            }
-            self.push(*byte, *mask);
+    #[inline]
+    pub fn feed(&mut self, byte: u8, mask: u8) {
+        if self.queue.len() == self.atom_size {
+            self.pop();
+        }
+        self.push(byte, mask);
+    }
+
+    pub fn finalize(mut self) -> (Option<Range<usize>>, i32) {
+        if self.best_quality == i32::MIN && !self.queue.is_empty() {
+            let quality = self.quality();
+            self.best_quality = quality;
+            self.best_range = Some(0..self.queue.len());
         }
         while !self.queue.is_empty() {
             self.pop();
@@ -57,16 +89,6 @@ where
     fn pop(&mut self) {
         let (_, _, _, q) = self.queue.pop_front().unwrap();
         self.base_quality -= q;
-
-        let quality = self.quality();
-
-        if quality > self.best_quality {
-            self.best_quality = quality;
-            self.best_range = Some(
-                self.queue.front().unwrap().0
-                    ..self.queue.back().unwrap().0 + 1,
-            );
-        }
     }
 
     #[inline]
@@ -78,7 +100,13 @@ where
         // masked bits. For ?? the increment is -8, while ?X and X? results in
         // a +4 increment.
         if mask.count_zeros() > 0 {
-            q += 2 * mask.count_ones() as i32 - mask.count_zeros() as i32;
+            let zeros = mask.count_zeros() as i32;
+            let ones = mask.count_ones() as i32;
+            if zeros == 8 {
+                q -= 15;
+            } else {
+                q += 2 * ones - zeros;
+            }
         }
         // For non-masked bytes the increment depends on the byte value.
         // Common values like 0x00, 0xff, 0xcc (opcode using of function
@@ -114,13 +142,15 @@ where
         self.base_quality += q;
         self.index += 1;
 
-        let quality = self.quality();
-        if quality > self.best_quality {
-            self.best_quality = quality;
-            self.best_range = Some(
-                self.queue.front().unwrap().0
-                    ..self.queue.back().unwrap().0 + 1,
-            );
+        if self.queue.len() == self.atom_size {
+            let quality = self.quality();
+            if quality > self.best_quality {
+                self.best_quality = quality;
+                self.best_range = Some(
+                    self.queue.front().unwrap().0
+                        ..self.queue.back().unwrap().0 + 1,
+                );
+            }
         }
     }
 
@@ -379,14 +409,50 @@ pub(crate) fn best_range_in_bytes(
     (best_range, best_quality)
 }
 
-/// Returns the range for the best possible atom that can be extracted from the
-/// masked slice.
+/// Returns the range for the best possible atom that can be extracted from
+/// the masked slice.
 #[allow(dead_code)]
 pub(crate) fn best_range_in_masked_bytes(
     bytes: &[u8],
     mask: &[u8],
 ) -> (Option<Range<usize>>, i32) {
-    BestAtomFinder::new(zip(bytes, mask)).find()
+    let mut finders: Vec<BestAtomFinder> =
+        (1..=DESIRED_ATOM_SIZE).map(BestAtomFinder::new).collect();
+
+    for (byte, mask) in zip(bytes, mask) {
+        for finder in &mut finders {
+            finder.feed(*byte, *mask);
+        }
+    }
+
+    let mut best_result = (None, i32::MIN);
+
+    for finder in finders {
+        let (range, quality) = finder.finalize();
+        if range.is_none() {
+            continue;
+        }
+        if best_result.0.is_none() {
+            best_result = (range, quality);
+            continue;
+        }
+
+        let is_better = match quality.cmp(&best_result.1) {
+            Ordering::Greater => true,
+            Ordering::Equal => {
+                let len = range.as_ref().unwrap().len();
+                let best_len = best_result.0.as_ref().unwrap().len();
+                len < best_len
+            }
+            Ordering::Less => false,
+        };
+
+        if is_better {
+            best_result = (range, quality);
+        }
+    }
+
+    best_result
 }
 
 /// Returns the best possible atom from a slice of bytes.
@@ -409,7 +475,11 @@ where
     B: IntoIterator<Item = &'a u8>,
     M: IntoIterator<Item = &'a u8>,
 {
-    BestAtomFinder::new(zip(bytes, masks)).find().1
+    let mut finder = BestAtomFinder::new(DESIRED_ATOM_SIZE);
+    for (byte, mask) in zip(bytes, masks) {
+        finder.feed(*byte, *mask);
+    }
+    finder.finalize().1
 }
 
 /// Compute the quality of an atom.
@@ -418,12 +488,16 @@ pub fn atom_quality<'a, B>(bytes: B) -> i32
 where
     B: IntoIterator<Item = &'a u8>,
 {
-    BestAtomFinder::new(zip(bytes, iter::repeat(&0xff))).find().1
+    let mut finder = BestAtomFinder::new(DESIRED_ATOM_SIZE);
+    for (byte, mask) in zip(bytes, iter::repeat(&0xff)) {
+        finder.feed(*byte, *mask);
+    }
+    finder.finalize().1
 }
 
 #[cfg(test)]
 mod test {
-    use super::atom_quality;
+    use super::{BestAtomFinder, atom_quality};
     use crate::compiler::atoms::quality::masked_atom_quality;
     use crate::compiler::{AtomsQuality, atoms};
     use itertools::Itertools;
@@ -484,6 +558,11 @@ mod test {
             [0xff, 0xff, 0x00, 0xff].iter(),
         );
 
+        let q_01xxxx04 = masked_atom_quality(
+            [0x01, 0x00, 0x00, 0x04].iter(),
+            [0xff, 0x00, 0x00, 0xff].iter(),
+        );
+
         assert!(q_00000001 > q_00000000);
         assert!(q_00000001 > q_000001);
         assert!(q_000001 > q_0001);
@@ -510,7 +589,7 @@ mod test {
         assert!(q_01xx03 < q_010203);
         assert!(q_010x0x > q_01);
         assert!(q_010x0x < q_010203);
-        assert_eq!(q_01020000, q_0102xx04);
+        assert!(q_01020000 > q_0102xx04);
         assert!(q_01020102 > q_01020000);
         assert!(q_01020102 > q_01010101);
         assert!(q_01020304 > q_01020102);
@@ -523,6 +602,8 @@ mod test {
         assert!(q_aa > q_01);
         assert!(q_ab > q_aa);
         assert!(q_ab > q_000001);
+        assert!(q_01xx03 > q_01);
+        assert!(q_01xxxx04 < q_01);
     }
 
     #[test]
@@ -623,6 +704,11 @@ mod test {
     #[test]
     fn best_range_in_masked_bytes() {
         assert_eq!(
+            atoms::best_range_in_masked_bytes(&[], &[],),
+            (None, i32::MIN),
+        );
+
+        assert_eq!(
             atoms::best_range_in_masked_bytes(
                 &[0x01, 0x02, 0x03, 0x04, 0x05],
                 &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF],
@@ -640,6 +726,14 @@ mod test {
 
         assert_eq!(
             atoms::best_range_in_masked_bytes(
+                &[0x01, 0x02, 0x00, 0x00, 0x05],
+                &[0xFF, 0xFF, 0x00, 0x00, 0xFF],
+            ),
+            (Some(0..2), 44),
+        );
+
+        assert_eq!(
+            atoms::best_range_in_masked_bytes(
                 &[0x01, 0x02, 0x03, 0x04],
                 &[0xFF, 0xFF, 0x0F, 0xFF],
             ),
@@ -651,7 +745,7 @@ mod test {
                 &[0x01, 0x02, 0x00, 0x04],
                 &[0xFF, 0xFF, 0x00, 0xFF]
             ),
-            (Some(0..4), 58),
+            (Some(0..4), 51),
         );
 
         assert_eq!(
@@ -664,15 +758,69 @@ mod test {
 
         assert_eq!(
             atoms::best_range_in_masked_bytes(
-                &[0x68, 0x00, 0x00, 0x00, 0x00, 0xFF],
+                &[0x01, 0x00, 0x00, 0x00, 0x00, 0xFF],
                 &[0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF],
             ),
             (Some(3..6), 28),
         );
+    }
 
-        assert_eq!(
-            atoms::best_range_in_masked_bytes(&[], &[],),
-            (None, i32::MIN),
-        );
+    #[test]
+    fn test_best_atom_finder_sizes() {
+        use std::iter::zip;
+
+        let bytes = &[0x01, 0x02, 0x03, 0x04, 0x05];
+        let masks = &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
+
+        let mut finder_1 = BestAtomFinder::new(1);
+        let mut finder_2 = BestAtomFinder::new(2);
+        let mut finder_3 = BestAtomFinder::new(3);
+        let mut finder_4 = BestAtomFinder::new(4);
+
+        for (byte, mask) in zip(bytes, masks) {
+            finder_1.feed(*byte, *mask);
+            finder_2.feed(*byte, *mask);
+            finder_3.feed(*byte, *mask);
+            finder_4.feed(*byte, *mask);
+        }
+
+        assert_eq!(finder_1.finalize(), (Some(0..1), 22));
+        assert_eq!(finder_2.finalize(), (Some(0..2), 44));
+        assert_eq!(finder_3.finalize(), (Some(0..3), 66));
+        assert_eq!(finder_4.finalize(), (Some(0..4), 88));
+
+        let bytes = &[0x01, 0x02, 0x00, 0x04, 0x05];
+        let masks = &[0xFF, 0xFF, 0x00, 0xFF, 0xFF];
+
+        let mut finder_2 = BestAtomFinder::new(2);
+        let mut finder_3 = BestAtomFinder::new(3);
+        let mut finder_4 = BestAtomFinder::new(4);
+
+        for (byte, mask) in zip(bytes, masks) {
+            finder_2.feed(*byte, *mask);
+            finder_3.feed(*byte, *mask);
+            finder_4.feed(*byte, *mask);
+        }
+
+        assert_eq!(finder_2.finalize(), (Some(0..2), 44));
+        assert_eq!(finder_3.finalize(), (Some(0..3), 29));
+        assert_eq!(finder_4.finalize(), (Some(0..4), 51));
+
+        let bytes = &[0x01, 0x00, 0x00, 0x04, 0x05];
+        let masks = &[0xFF, 0x00, 0x00, 0xFF, 0xFF];
+
+        let mut finder_2 = BestAtomFinder::new(2);
+        let mut finder_3 = BestAtomFinder::new(3);
+        let mut finder_4 = BestAtomFinder::new(4);
+
+        for (byte, mask) in zip(bytes, masks) {
+            finder_2.feed(*byte, *mask);
+            finder_3.feed(*byte, *mask);
+            finder_4.feed(*byte, *mask);
+        }
+
+        assert_eq!(finder_2.finalize(), (Some(3..5), 44));
+        assert_eq!(finder_3.finalize(), (Some(2..5), 29));
+        assert_eq!(finder_4.finalize(), (Some(0..4), 14));
     }
 }
