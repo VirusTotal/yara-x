@@ -155,6 +155,16 @@ impl Hir {
                     }
                     true
                 }
+                HirKind::Class(regex_syntax::hir::Class::Bytes(class)) => {
+                    if let Some(hex_byte) = class_to_masked_byte(class) {
+                        mask.push(hex_byte.mask);
+                        target.push(hex_byte.value);
+                        *offset += 1;
+                        true
+                    } else {
+                        false
+                    }
+                }
                 _ => false,
             }
         }
@@ -182,7 +192,7 @@ impl Hir {
         );
         if parsed {
             let total_len = mask.len();
-            if total_len > 0 && total_len <= 32 {
+            if total_len > 0 && total_len <= u16::MAX as usize {
                 let mut best_atom = Atom::from(best_lit_bytes);
                 best_atom.set_backtrack(best_lit_offset as u16);
                 best_atom.make_inexact();
@@ -760,5 +770,31 @@ mod tests {
                 vec![]
             )
         );
+    }
+
+    #[test]
+    fn test_try_extract_simd_masked_pattern() {
+        use crate::Compiler;
+        use crate::Scanner;
+        let mut compiler = Compiler::new();
+        compiler.add_source(r#"
+            rule test {
+                strings:
+                    $ = { C7 ?? ?? ?? ?? ?? ?? 48 ?? ?? ?? 48 ?? ?? 48 ?? ?? ?? 48 ?? ?? ?? 48 ?? ?? ?? ?? ?? ?? ?? ?? 49 ?? ?? 41 ?? ?? ?? ?? ?? 48 ?? ?? 48 ?? ?? ?? ?? ?? ?? FF D? 85 ?? 0F 94 ?? 84 ?? 74 }
+                condition:
+                    all of them
+            }
+        "#).unwrap();
+        let rules = compiler.build();
+        let mut scanner = Scanner::new(&rules);
+        let matching_data = vec![
+            0xC7, 0, 0, 0, 0, 0, 0, 0x48, 0, 0, 0, 0x48, 0, 0, 0x48, 0, 0, 0,
+            0x48, 0, 0, 0, 0x48, 0, 0, 0, 0, 0, 0, 0, 0, 0x49, 0, 0, 0x41, 0,
+            0, 0, 0, 0, 0x48, 0, 0, 0x48, 0, 0, 0, 0, 0, 0, 0xFF, 0xD5, 0x85,
+            0, 0x0F, 0x94, 0, 0x84, 0, 0x74,
+        ];
+        assert_eq!(matching_data.len(), 60);
+        let matches = scanner.scan(&matching_data).unwrap();
+        assert_eq!(matches.matching_rules().len(), 1);
     }
 }

@@ -2241,7 +2241,7 @@ impl Compiler<'_> {
         }
 
         // If this point is reached, this is a pattern that can't be split into
-        // multiple chained patterns, and is neither a literal or alternation
+        // multiple chained patterns, and is neither a literal nor alternation
         // of literals. Most patterns fall in this category.
         let mut flags = SubPatternFlags::empty();
 
@@ -2269,7 +2269,7 @@ impl Compiler<'_> {
                 simd_masked.as_ref().and_then(|(mask, target, atom)| {
                     let (w_mask, w_target) =
                         Self::make_wide_masked(mask, target);
-                    if w_mask.len() <= 32 {
+                    if w_mask.len() <= u16::MAX as usize {
                         Some((w_mask, w_target, atom.clone().make_wide()))
                     } else {
                         None
@@ -2282,9 +2282,9 @@ impl Compiler<'_> {
                     self.intern_literal(target.as_slice(), false);
                 self.add_sub_pattern(
                     pattern_id,
-                    SubPattern::SimdMasked {
+                    SubPattern::LiteralWithMask {
                         mask: mask_lit_id,
-                        target: target_lit_id,
+                        pattern: target_lit_id,
                         flags: flags | SubPatternFlags::Wide,
                     },
                     iter::once(wide_atom),
@@ -2313,9 +2313,9 @@ impl Compiler<'_> {
                     self.intern_literal(target.as_slice(), false);
                 self.add_sub_pattern(
                     pattern_id,
-                    SubPattern::SimdMasked {
+                    SubPattern::LiteralWithMask {
                         mask: mask_lit_id,
-                        target: target_lit_id,
+                        pattern: target_lit_id,
                         flags,
                     },
                     iter::once(atom.clone()),
@@ -3066,6 +3066,12 @@ pub(crate) enum SubPattern {
         flags: SubPatternFlags,
     },
 
+    LiteralWithMask {
+        pattern: LiteralId,
+        mask: LiteralId,
+        flags: SubPatternFlags,
+    },
+
     LiteralChainHead {
         pattern: LiteralId,
         flags: SubPatternFlags,
@@ -3079,12 +3085,6 @@ pub(crate) enum SubPattern {
     },
 
     Regexp {
-        flags: SubPatternFlags,
-    },
-
-    SimdMasked {
-        mask: LiteralId,
-        target: LiteralId,
         flags: SubPatternFlags,
     },
 

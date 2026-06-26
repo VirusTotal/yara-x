@@ -917,6 +917,41 @@ impl ScanContext<'_, '_> {
                     );
                 }
             }
+            SubPattern::LiteralWithMask { pattern, mask, flags } => {
+                let pattern = self
+                    .compiled_rules
+                    .lit_pool()
+                    .get_bytes(*pattern)
+                    .unwrap();
+
+                let mask =
+                    self.compiled_rules.lit_pool().get_bytes(*mask).unwrap();
+
+                debug_assert_eq!(pattern.len(), mask.len());
+
+                if let Some(data) =
+                    data.get(atom_pos..atom_pos + pattern.len())
+                    && verify_literal_with_mask_match(
+                        data, pattern, mask, *flags,
+                    )
+                {
+                    let match_range = atom_pos..atom_pos + pattern.len();
+                    if !flags.intersects(
+                        SubPatternFlags::FullwordLeft
+                            | SubPatternFlags::FullwordRight,
+                    ) || verify_full_word(data, &match_range, *flags, None)
+                    {
+                        handle_sub_pattern_match(
+                            &mut self.tracker,
+                            &mut self.wasm,
+                            sub_pattern_id,
+                            sub_pattern,
+                            *pattern_id,
+                            Match::new(match_range).rebase(base),
+                        );
+                    }
+                }
+            }
             SubPattern::Regexp { flags, .. }
             | SubPattern::RegexpChainHead { flags, .. }
             | SubPattern::RegexpChainTail { flags, .. } => {
@@ -937,38 +972,6 @@ impl ScanContext<'_, '_> {
                         );
                     },
                 )
-            }
-
-            SubPattern::SimdMasked { mask, target, flags } => {
-                let mask_slice =
-                    self.compiled_rules.lit_pool().get_bytes(*mask).unwrap();
-                let target_slice =
-                    self.compiled_rules.lit_pool().get_bytes(*target).unwrap();
-                let pattern_len = mask_slice.len();
-                if atom_pos + pattern_len <= data.len()
-                    && verify_simd_masked_match(
-                        &data[atom_pos..atom_pos + pattern_len],
-                        mask_slice,
-                        target_slice,
-                        *flags,
-                    )
-                {
-                    let match_range = atom_pos..atom_pos + pattern_len;
-                    if !flags.intersects(
-                        SubPatternFlags::FullwordLeft
-                            | SubPatternFlags::FullwordRight,
-                    ) || verify_full_word(data, &match_range, *flags, None)
-                    {
-                        handle_sub_pattern_match(
-                            &mut self.tracker,
-                            &mut self.wasm,
-                            sub_pattern_id,
-                            sub_pattern,
-                            *pattern_id,
-                            Match::new(match_range).rebase(base),
-                        );
-                    }
-                }
             }
 
             SubPattern::Xor { pattern, flags } => {
@@ -1253,6 +1256,158 @@ fn verify_literal_match(
     } else {
         &scanned_data[match_start..match_end] == pattern.as_bytes()
     }
+}
+
+#[cfg(all(target_arch = "x86_64", target_feature = "sse2"))]
+fn verify_literal_with_mask_match(
+    data: &[u8],
+    pattern: &[u8],
+    mask: &[u8],
+    _flags: SubPatternFlags,
+) -> bool {
+    type V = core::arch::x86_64::__m128i;
+
+    use crate::teddy::vector::Vector;
+
+    let len = scanned_data_chunk.len();
+    debug_assert!(len <= u16::MAX as usize);
+
+    unsafe {
+        if len <= 16 {
+            let mut m_bytes = [0_u8; 16];
+            let mut t_bytes = [0_u8; 16];
+            m_bytes[..len].copy_from_slice(&mask[..len]);
+            t_bytes[..len].copy_from_slice(&target[..len]);
+
+            let mask_vec = V::load_unaligned(m_bytes.as_ptr());
+            let target_vec = V::load_unaligned(t_bytes.as_ptr());
+
+            let mut d_bytes = [0_u8; 16];
+            d_bytes[..len].copy_from_slice(scanned_data_chunk);
+            let data_vec = V::load_unaligned(d_bytes.as_ptr());
+
+            let masked = data_vec.and(mask_vec);
+            let eq = masked.cmpeq(target_vec);
+            eq.cmpeq(V::splat(0x00)).is_zero()
+        } else {
+            let mut offset = 0;
+            while offset + 16 <= len {
+                let mask_vec = V::load_unaligned(mask[offset..].as_ptr());
+                let target_vec = V::load_unaligned(target[offset..].as_ptr());
+                let data_vec =
+                    V::load_unaligned(scanned_data_chunk[offset..].as_ptr());
+
+                let masked = data_vec.and(mask_vec);
+                let eq = masked.cmpeq(target_vec);
+                if !eq.cmpeq(V::splat(0x00)).is_zero() {
+                    return false;
+                }
+                offset += 16;
+            }
+            if offset < len {
+                let offset = len - 16;
+                let mask_vec = V::load_unaligned(mask[offset..].as_ptr());
+                let target_vec = V::load_unaligned(target[offset..].as_ptr());
+                let data_vec =
+                    V::load_unaligned(scanned_data_chunk[offset..].as_ptr());
+
+                let masked = data_vec.and(mask_vec);
+                let eq = masked.cmpeq(target_vec);
+                if !eq.cmpeq(V::splat(0x00)).is_zero() {
+                    return false;
+                }
+            }
+            true
+        }
+    }
+}
+
+#[cfg(all(
+    target_arch = "aarch64",
+    target_feature = "neon",
+    target_endian = "little"
+))]
+fn verify_literal_with_mask_match(
+    data: &[u8],
+    pattern: &[u8],
+    mask: &[u8],
+    _flags: SubPatternFlags,
+) -> bool {
+    type V = core::arch::aarch64::uint8x16_t;
+
+    use crate::teddy::vector::Vector;
+
+    let len = data.len();
+    debug_assert!(len <= u16::MAX as usize);
+
+    unsafe {
+        if len <= 16 {
+            let mut m_bytes = [0_u8; 16];
+            let mut t_bytes = [0_u8; 16];
+            m_bytes[..len].copy_from_slice(&mask[..len]);
+            t_bytes[..len].copy_from_slice(&pattern[..len]);
+
+            let mask_vec = V::load_unaligned(m_bytes.as_ptr());
+            let target_vec = V::load_unaligned(t_bytes.as_ptr());
+
+            let mut d_bytes = [0_u8; 16];
+            d_bytes[..len].copy_from_slice(data);
+            let data_vec = V::load_unaligned(d_bytes.as_ptr());
+
+            let masked = data_vec.and(mask_vec);
+            let eq = masked.cmpeq(target_vec);
+            eq.cmpeq(V::splat(0x00)).is_zero()
+        } else {
+            let mut offset = 0;
+            while offset + 16 <= len {
+                let mask_vec = V::load_unaligned(mask[offset..].as_ptr());
+                let target_vec = V::load_unaligned(pattern[offset..].as_ptr());
+                let data_vec = V::load_unaligned(data[offset..].as_ptr());
+
+                let masked = data_vec.and(mask_vec);
+                let eq = masked.cmpeq(target_vec);
+                if !eq.cmpeq(V::splat(0x00)).is_zero() {
+                    return false;
+                }
+                offset += 16;
+            }
+            if offset < len {
+                let offset = len - 16;
+                let mask_vec = V::load_unaligned(mask[offset..].as_ptr());
+                let target_vec = V::load_unaligned(pattern[offset..].as_ptr());
+                let data_vec = V::load_unaligned(data[offset..].as_ptr());
+
+                let masked = data_vec.and(mask_vec);
+                let eq = masked.cmpeq(target_vec);
+                if !eq.cmpeq(V::splat(0x00)).is_zero() {
+                    return false;
+                }
+            }
+            true
+        }
+    }
+}
+
+#[cfg(not(any(
+    all(target_arch = "x86_64", target_feature = "sse2"),
+    all(
+        target_arch = "aarch64",
+        target_feature = "neon",
+        target_endian = "little"
+    )
+)))]
+fn verify_literal_with_mask_match(
+    data: &[u8],
+    pattern: &[u8],
+    mask: &[u8],
+    _flags: SubPatternFlags,
+) -> bool {
+    for ((&d, &m), &t) in scanned_data_chunk.iter().zip(mask).zip(target) {
+        if (d & m) != t {
+            return false;
+        }
+    }
+    true
 }
 
 /// Returns true if the match delimited by `match_range` is a full word match.
@@ -1728,7 +1883,7 @@ fn handle_sub_pattern_match(
 ) {
     match sub_pattern {
         SubPattern::Literal { .. }
-        | SubPattern::SimdMasked { .. }
+        | SubPattern::LiteralWithMask { .. }
         | SubPattern::Xor { .. }
         | SubPattern::Base64 { .. }
         | SubPattern::Base64Wide { .. }
@@ -2104,87 +2259,4 @@ pub fn create_wasm_store_and_ctx<'r>(
     ctx.wasm.pattern_search_done = Some(pattern_search_done);
 
     wasm_store
-}
-
-#[cfg(all(target_arch = "x86_64", target_feature = "sse2"))]
-fn verify_simd_masked_match(
-    scanned_data_chunk: &[u8],
-    mask: &[u8],
-    target: &[u8],
-    _flags: SubPatternFlags,
-) -> bool {
-    type V = core::arch::x86_64::__m128i;
-
-    use crate::teddy::vector::Vector;
-
-    let len = scanned_data_chunk.len();
-    assert!(len <= 32);
-
-    unsafe {
-        if len <= 16 {
-            let mut m_bytes = [0_u8; 16];
-            let mut t_bytes = [0_u8; 16];
-            m_bytes[..len].copy_from_slice(&mask[..len]);
-            t_bytes[..len].copy_from_slice(&target[..len]);
-
-            let mask_vec = V::load_unaligned(m_bytes.as_ptr());
-            let target_vec = V::load_unaligned(t_bytes.as_ptr());
-
-            let mut d_bytes = [0_u8; 16];
-            d_bytes[..len].copy_from_slice(scanned_data_chunk);
-            let data_vec = V::load_unaligned(d_bytes.as_ptr());
-
-            let masked = data_vec.and(mask_vec);
-            let eq = masked.cmpeq(target_vec);
-            eq.cmpeq(V::splat(0x00)).is_zero()
-        } else {
-            let mut m1_bytes = [0_u8; 16];
-            let mut t1_bytes = [0_u8; 16];
-            let mut d1_bytes = [0_u8; 16];
-            m1_bytes.copy_from_slice(&mask[..16]);
-            t1_bytes.copy_from_slice(&target[..16]);
-            d1_bytes.copy_from_slice(&scanned_data_chunk[..16]);
-
-            let mask1 = V::load_unaligned(m1_bytes.as_ptr());
-            let target1 = V::load_unaligned(t1_bytes.as_ptr());
-            let data1 = V::load_unaligned(d1_bytes.as_ptr());
-
-            let masked1 = data1.and(mask1);
-            let eq1 = masked1.cmpeq(target1);
-            if !eq1.cmpeq(V::splat(0x00)).is_zero() {
-                return false;
-            }
-
-            let offset2 = len - 16;
-            let mut m2_bytes = [0_u8; 16];
-            let mut t2_bytes = [0_u8; 16];
-            let mut d2_bytes = [0_u8; 16];
-            m2_bytes.copy_from_slice(&mask[offset2..]);
-            t2_bytes.copy_from_slice(&target[offset2..]);
-            d2_bytes.copy_from_slice(&scanned_data_chunk[offset2..]);
-
-            let mask2 = V::load_unaligned(m2_bytes.as_ptr());
-            let target2 = V::load_unaligned(t2_bytes.as_ptr());
-            let data2 = V::load_unaligned(d2_bytes.as_ptr());
-
-            let masked2 = data2.and(mask2);
-            let eq2 = masked2.cmpeq(target2);
-            eq2.cmpeq(V::splat(0x00)).is_zero()
-        }
-    }
-}
-
-#[cfg(not(all(target_arch = "x86_64", target_feature = "sse2")))]
-fn verify_simd_masked_match(
-    scanned_data_chunk: &[u8],
-    mask: &[u8],
-    target: &[u8],
-    _flags: SubPatternFlags,
-) -> bool {
-    for ((&d, &m), &t) in scanned_data_chunk.iter().zip(mask).zip(target) {
-        if (d & m) != t {
-            return false;
-        }
-    }
-    true
 }
