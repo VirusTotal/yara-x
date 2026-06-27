@@ -2280,6 +2280,8 @@ impl Compiler<'_> {
                 let mask_lit_id = self.intern_literal(mask.as_slice(), false);
                 let target_lit_id =
                     self.intern_literal(target.as_slice(), false);
+                let backtrack = wide_atom.backtrack() as usize;
+                let atom_mask = &mask[backtrack..(backtrack + wide_atom.len())];
                 self.add_sub_pattern(
                     pattern_id,
                     SubPattern::LiteralWithMask {
@@ -2287,7 +2289,7 @@ impl Compiler<'_> {
                         pattern: target_lit_id,
                         flags: flags | SubPatternFlags::Wide,
                     },
-                    iter::once(wide_atom),
+                    wide_atom.mask_combinations(atom_mask),
                     SubPatternAtom::from_atom,
                 );
             } else {
@@ -2311,6 +2313,8 @@ impl Compiler<'_> {
                 let mask_lit_id = self.intern_literal(mask.as_slice(), false);
                 let target_lit_id =
                     self.intern_literal(target.as_slice(), false);
+                let backtrack = atom.backtrack() as usize;
+                let atom_mask = &mask[backtrack..(backtrack + atom.len())];
                 self.add_sub_pattern(
                     pattern_id,
                     SubPattern::LiteralWithMask {
@@ -2318,7 +2322,7 @@ impl Compiler<'_> {
                         pattern: target_lit_id,
                         flags,
                     },
-                    iter::once(atom.clone()),
+                    atom.clone().mask_combinations(atom_mask),
                     SubPatternAtom::from_atom,
                 );
             } else {

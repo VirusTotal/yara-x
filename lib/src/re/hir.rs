@@ -193,10 +193,43 @@ impl Hir {
         if parsed {
             let total_len = mask.len();
             if total_len > 0 && total_len <= u16::MAX as usize {
-                let mut best_atom = Atom::from(best_lit_bytes);
-                best_atom.set_backtrack(best_lit_offset as u16);
-                best_atom.make_inexact();
-                return Some((mask, target, best_atom));
+                // We want to find the longest possible atom (up to DESIRED_ATOM_SIZE)
+                // that has <= 256 combinations.
+                // If there are multiple atoms of the same length, we choose the one
+                // with the highest quality.
+                let max_len = std::cmp::min(total_len, crate::compiler::DESIRED_ATOM_SIZE);
+                let mut selected_atom = None;
+
+                for len in (1..=max_len).rev() {
+                    let mut best_range_of_len = None;
+                    let mut best_quality_of_len = i32::MIN;
+
+                    // Find the highest quality sub-range of this length.
+                    for offset in 0..=(total_len - len) {
+                        let range = offset..(offset + len);
+                        let sub_bytes = &target[range.clone()];
+                        let sub_mask = &mask[range.clone()];
+                        let quality = crate::compiler::masked_atom_quality(sub_bytes, sub_mask);
+                        if quality > best_quality_of_len {
+                            best_quality_of_len = quality;
+                            best_range_of_len = Some(range);
+                        }
+                    }
+
+                    if let Some(range) = best_range_of_len {
+                        let sub_mask = &mask[range.clone()];
+                        let mut candidate = Atom::from_slice_range(&target, range.clone());
+                        candidate.make_inexact();
+                        if candidate.mask_combinations_count(sub_mask) <= 256 {
+                            selected_atom = Some(candidate);
+                            break;
+                        }
+                    }
+                }
+
+                if let Some(best_atom) = selected_atom {
+                    return Some((mask, target, best_atom));
+                }
             }
         }
         None

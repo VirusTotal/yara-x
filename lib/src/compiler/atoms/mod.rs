@@ -54,6 +54,8 @@ and `"efg"` will be used because `"a"` and `"h"` are too short.
 
 mod mask;
 mod quality;
+#[cfg(test)]
+mod tests;
 
 use std::collections::Bound;
 use std::iter;
@@ -71,6 +73,7 @@ pub(crate) use crate::compiler::atoms::quality::AtomsQuality;
 pub(crate) use crate::compiler::atoms::quality::best_atom_in_bytes;
 pub(crate) use crate::compiler::atoms::quality::best_range_in_bytes;
 pub(crate) use crate::compiler::atoms::quality::best_range_in_masked_bytes;
+pub(crate) use crate::compiler::atoms::quality::masked_atom_quality;
 
 use crate::compiler::SubPatternFlags;
 
@@ -284,6 +287,14 @@ impl Atom {
     pub fn mask_combinations(self, mask: &[u8]) -> MaskCombinations {
         MaskCombinations::new(self, mask)
     }
+
+    /// Returns the number of concrete atoms that would be produced by applying
+    /// the given mask to this atom.
+    pub fn mask_combinations_count(&self, mask: &[u8]) -> usize {
+        zip(self.bytes.iter(), mask)
+            .map(|(_, &m)| 1 << m.count_zeros())
+            .product()
+    }
 }
 
 /// Extract the best possible atom from a literal pattern and generates all
@@ -440,78 +451,5 @@ impl Iterator for XorCombinations {
         atom.backtrack = self.atom.backtrack;
         atom.exact = false;
         Some(atom)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use pretty_assertions::assert_eq;
-
-    use crate::compiler::atoms::Atom;
-
-    #[test]
-    fn mask_combinations() {
-        let atom = Atom::exact([0x11, 0x22, 0x33, 0x44]);
-        let mut c = atom.mask_combinations(&[0xff, 0xf0, 0xff, 0xff]);
-
-        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x20, 0x33, 0x44])));
-        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x21, 0x33, 0x44])));
-        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x22, 0x33, 0x44])));
-
-        let mut c = c.skip(10);
-
-        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x2d, 0x33, 0x44])));
-        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x2e, 0x33, 0x44])));
-        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x2f, 0x33, 0x44])));
-        assert_eq!(c.next(), None);
-    }
-
-    #[test]
-    fn case_combinations() {
-        let atom = Atom::exact(b"a1B2c");
-        let mut c = atom.case_combinations();
-
-        assert_eq!(c.next(), Some(Atom::exact(b"a1b2c")));
-        assert_eq!(c.next(), Some(Atom::exact(b"a1b2C")));
-        assert_eq!(c.next(), Some(Atom::exact(b"a1B2c")));
-        assert_eq!(c.next(), Some(Atom::exact(b"a1B2C")));
-        assert_eq!(c.next(), Some(Atom::exact(b"A1b2c")));
-        assert_eq!(c.next(), Some(Atom::exact(b"A1b2C")));
-        assert_eq!(c.next(), Some(Atom::exact(b"A1B2c")));
-        assert_eq!(c.next(), Some(Atom::exact(b"A1B2C")));
-        assert_eq!(c.next(), None);
-
-        let mut atom = Atom::exact([0x00_u8, 0x01, 0x02]);
-        atom.set_backtrack(2);
-
-        let mut c = atom.clone().case_combinations();
-
-        assert_eq!(c.next(), Some(atom));
-        assert_eq!(c.next(), None);
-    }
-
-    #[test]
-    fn xor_combinations() {
-        let atom = Atom::exact([0x00_u8, 0x01, 0x02]);
-        let mut c = atom.xor_combinations(0..=1);
-
-        assert_eq!(c.next(), Some(Atom::inexact([0x00, 0x01, 0x02])));
-        assert_eq!(c.next(), Some(Atom::inexact([0x01, 0x00, 0x03])));
-        assert_eq!(c.next(), None);
-    }
-
-    #[test]
-    fn make_wide() {
-        let mut atom = Atom::exact([0x01_u8, 0x02, 0x03]);
-        atom.set_backtrack(2);
-
-        let atom = atom.make_wide();
-
-        assert_eq!(
-            atom.bytes.as_slice(),
-            &[0x01, 0x00, 0x02, 0x00, 0x03, 0x00]
-        );
-
-        assert_eq!(atom.backtrack, 4);
     }
 }

@@ -469,8 +469,7 @@ pub(crate) fn best_atom_in_bytes(bytes: &[u8]) -> Atom {
 }
 
 /// Computes the quality of a masked atom.
-#[cfg(test)]
-pub fn masked_atom_quality<'a, B, M>(bytes: B, masks: M) -> i32
+pub(crate) fn masked_atom_quality<'a, B, M>(bytes: B, masks: M) -> i32
 where
     B: IntoIterator<Item = &'a u8>,
     M: IntoIterator<Item = &'a u8>,
@@ -763,6 +762,22 @@ mod test {
             ),
             (Some(3..6), 28),
         );
+
+        assert_eq!(
+            atoms::best_range_in_masked_bytes(
+                &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06],
+                &[0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F],
+            ),
+            (Some(0..4), 16),
+        );
+
+        assert_eq!(
+            atoms::best_range_in_masked_bytes(
+                &[0x00, 0xA1, 0x81, 0x52, 0x00, 0x41, 0xA0, 0x72],
+                &[0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF],
+            ),
+            (Some(1..4), 64),
+        );
     }
 
     #[test]
@@ -822,5 +837,22 @@ mod test {
         assert_eq!(finder_2.finalize(), (Some(3..5), 44));
         assert_eq!(finder_3.finalize(), (Some(2..5), 29));
         assert_eq!(finder_4.finalize(), (Some(0..4), 14));
+
+        let bytes = &[0x00, 0xA1, 0x81, 0x52, 0x00, 0x41, 0xA0, 0x72];
+        let masks = &[0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF];
+
+        let mut finder_2 = BestAtomFinder::new(2);
+        let mut finder_3 = BestAtomFinder::new(3);
+        let mut finder_4 = BestAtomFinder::new(4);
+
+        for (byte, mask) in zip(bytes, masks) {
+            finder_2.feed(*byte, *mask);
+            finder_3.feed(*byte, *mask);
+            finder_4.feed(*byte, *mask);
+        }
+
+        assert_eq!(finder_2.finalize(), (Some(1..3), 44));
+        assert_eq!(finder_3.finalize(), (Some(1..4), 64));
+        assert_eq!(finder_4.finalize(), (Some(0..4), 49));
     }
 }
