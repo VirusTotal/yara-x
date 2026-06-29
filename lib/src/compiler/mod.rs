@@ -2257,24 +2257,94 @@ impl Compiler<'_> {
         if matches!(head.is_greedy(), Some(true)) {
             flags.insert(SubPatternFlags::GreedyRegexp);
         }
-
         let simd_masked = if !pattern.flags.contains(PatternFlags::Nocase) {
             head.try_extract_simd_masked_pattern()
         } else {
             None
         };
 
-        if pattern.flags.contains(PatternFlags::Wide) {
-            let optimized =
-                simd_masked.as_ref().and_then(|(mask, target, atom)| {
-                    let (w_mask, w_target) =
-                        Self::make_wide_masked(mask, target);
-                    if w_mask.len() <= u16::MAX as usize {
-                        Some((w_mask, w_target, atom.clone().make_wide()))
+        let get_best_atom = |mask: &[u8],
+                             target: &[u8],
+                             range: &std::ops::Range<usize>,
+                             wide: bool|
+         -> Option<Atom> {
+            let mut current_range = range.clone();
+            let mut backtrack = current_range.start;
+            let mut best_atom = Atom::from_slice_range(target, current_range.clone());
+            if wide {
+                best_atom = best_atom.make_wide();
+            } else {
+                best_atom.make_inexact();
+            }
+
+            let mut atom_mask = if wide {
+                let (w_mask, _) = Self::make_wide_masked(mask, target);
+                // For wide, backtrack is doubled because of wide representation
+                let w_backtrack = backtrack * 2;
+                w_mask[w_backtrack..(w_backtrack + best_atom.len())].to_vec()
+            } else {
+                mask[backtrack..(backtrack + best_atom.len())].to_vec()
+            };
+
+            if best_atom.mask_combinations_count(&atom_mask) <= 256 {
+                return Some(best_atom);
+            }
+
+            // If combinations exceed 256, shrink the range.
+            // Try shorter lengths from current_range.len() - 1 down to 1.
+            let mut found_shorter = false;
+            for len in (1..range.len()).rev() {
+                // Try different offsets within the original range.
+                for offset in 0..=(range.len() - len) {
+                    let sub_range = (range.start + offset)
+                        ..(range.start + offset + len);
+                    let mut candidate =
+                        Atom::from_slice_range(target, sub_range.clone());
+                    if wide {
+                        candidate = candidate.make_wide();
                     } else {
-                        None
+                        candidate.make_inexact();
                     }
-                });
+
+                    let cand_mask = if wide {
+                        let (w_mask, _) = Self::make_wide_masked(mask, target);
+                        let w_backtrack = (range.start + offset) * 2;
+                        w_mask[w_backtrack..(w_backtrack + candidate.len())]
+                            .to_vec()
+                    } else {
+                        mask[sub_range.clone()].to_vec()
+                    };
+
+                    if candidate.mask_combinations_count(&cand_mask) <= 256 {
+                        best_atom = candidate;
+                        atom_mask = cand_mask;
+                        found_shorter = true;
+                        break;
+                    }
+                }
+                if found_shorter {
+                    break;
+                }
+            }
+
+            if found_shorter {
+                Some(best_atom)
+            } else {
+                None
+            }
+        };
+
+        if pattern.flags.contains(PatternFlags::Wide) {
+            let mut optimized = None;
+            if let Some((mask, target, range)) = &simd_masked {
+                if let Some(wide_atom) = get_best_atom(mask, target, range, true)
+                {
+                    let (w_mask, w_target) = Self::make_wide_masked(mask, target);
+                    if w_mask.len() <= u16::MAX as usize {
+                        optimized = Some((w_mask, w_target, wide_atom));
+                    }
+                }
+            }
 
             if let Some((mask, target, wide_atom)) = optimized {
                 let mask_lit_id = self.intern_literal(mask.as_slice(), false);
@@ -2309,7 +2379,14 @@ impl Compiler<'_> {
         }
 
         if pattern.flags.contains(PatternFlags::Ascii) {
-            if let Some((mask, target, atom)) = &simd_masked {
+            let mut optimized = None;
+            if let Some((mask, target, range)) = &simd_masked {
+                if let Some(atom) = get_best_atom(mask, target, range, false) {
+                    optimized = Some((mask, target, atom));
+                }
+            }
+
+            if let Some((mask, target, atom)) = optimized {
                 let mask_lit_id = self.intern_literal(mask.as_slice(), false);
                 let target_lit_id =
                     self.intern_literal(target.as_slice(), false);
@@ -2322,7 +2399,7 @@ impl Compiler<'_> {
                         pattern: target_lit_id,
                         flags,
                     },
-                    atom.clone().mask_combinations(atom_mask),
+                    atom.mask_combinations(atom_mask),
                     SubPatternAtom::from_atom,
                 );
             } else {

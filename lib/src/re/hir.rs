@@ -81,97 +81,16 @@ impl From<regex_syntax::hir::Hir> for Hir {
 impl Hir {
     pub(crate) fn try_extract_simd_masked_pattern(
         &self,
-    ) -> Option<(Vec<u8>, Vec<u8>, Atom)> {
+    ) -> Option<(Vec<u8>, Vec<u8>, std::ops::Range<usize>)> {
         use regex_syntax::hir::{HirKind, Repetition};
 
         let mut mask = Vec::new();
         let mut target = Vec::new();
-
-        let mut best_lit_offset = 0;
-        let mut best_lit_bytes = Vec::new();
-        let mut best_lit_quality = i32::MIN;
-
-        fn literal_quality(bytes: &[u8]) -> i32 {
-            let mut q = 0;
-            for &b in bytes {
-                match b {
-                    0x00 => q += 6,
-                    0x20 | 0x90 | 0xcc | 0xff => q += 12,
-                    b'a'..=b'z' | b'A'..=b'Z' => q += 18,
-                    _ => q += 20,
-                }
-            }
-            q
-        }
-
-        fn process_node(
-            hir: &regex_syntax::hir::Hir,
-            mask: &mut Vec<u8>,
-            target: &mut Vec<u8>,
-            offset: &mut usize,
-            best_lit_offset: &mut usize,
-            best_lit_bytes: &mut Vec<u8>,
-            best_lit_quality: &mut i32,
-        ) -> bool {
-            match hir.kind() {
-                HirKind::Literal(lit) => {
-                    let bytes = lit.0.as_ref();
-                    let q = literal_quality(bytes);
-                    if q > *best_lit_quality {
-                        *best_lit_quality = q;
-                        let atom = best_atom_in_bytes(bytes);
-                        *best_lit_offset = *offset + atom.backtrack() as usize;
-                        *best_lit_bytes = atom.as_ref().to_vec();
-                    }
-                    mask.extend(std::iter::repeat_n(0xff, bytes.len()));
-                    target.extend_from_slice(bytes);
-                    *offset += bytes.len();
-                    true
-                }
-                HirKind::Repetition(Repetition { min, max, sub, .. }) => {
-                    if *max == Some(*min) && is_any_byte(sub.as_ref()) {
-                        let count = *min as usize;
-                        mask.extend(std::iter::repeat_n(0x00, count));
-                        target.extend(std::iter::repeat_n(0x00, count));
-                        *offset += count;
-                        true
-                    } else {
-                        false
-                    }
-                }
-                HirKind::Concat(sub_hirs) => {
-                    for sub in sub_hirs {
-                        if !process_node(
-                            sub,
-                            mask,
-                            target,
-                            offset,
-                            best_lit_offset,
-                            best_lit_bytes,
-                            best_lit_quality,
-                        ) {
-                            return false;
-                        }
-                    }
-                    true
-                }
-                HirKind::Class(regex_syntax::hir::Class::Bytes(class)) => {
-                    if let Some(hex_byte) = class_to_masked_byte(class) {
-                        mask.push(hex_byte.mask);
-                        target.push(hex_byte.value);
-                        *offset += 1;
-                        true
-                    } else {
-                        false
-                    }
-                }
-                _ => false,
-            }
-        }
+        let mut stack = vec![&self.inner];
 
         fn is_any_byte(hir: &regex_syntax::hir::Hir) -> bool {
             match hir.kind() {
-                HirKind::Class(regex_syntax::hir::Class::Bytes(class)) => {
+                HirKind::Class(Class::Bytes(class)) => {
                     class.ranges().len() == 1
                         && class.ranges()[0].start() == 0
                         && class.ranges()[0].end() == 255
@@ -180,57 +99,54 @@ impl Hir {
             }
         }
 
-        let mut offset = 0;
-        let parsed = process_node(
-            &self.inner,
-            &mut mask,
-            &mut target,
-            &mut offset,
-            &mut best_lit_offset,
-            &mut best_lit_bytes,
-            &mut best_lit_quality,
-        );
-        if parsed {
-            let total_len = mask.len();
-            if total_len > 0 && total_len <= u16::MAX as usize {
-                // We want to find the longest possible atom (up to DESIRED_ATOM_SIZE)
-                // that has <= 256 combinations.
-                // If there are multiple atoms of the same length, we choose the one
-                // with the highest quality.
-                let max_len = std::cmp::min(total_len, crate::compiler::DESIRED_ATOM_SIZE);
-                let mut selected_atom = None;
-
-                for len in (1..=max_len).rev() {
-                    let mut best_range_of_len = None;
-                    let mut best_quality_of_len = i32::MIN;
-
-                    // Find the highest quality sub-range of this length.
-                    for offset in 0..=(total_len - len) {
-                        let range = offset..(offset + len);
-                        let sub_bytes = &target[range.clone()];
-                        let sub_mask = &mask[range.clone()];
-                        let quality = crate::compiler::masked_atom_quality(sub_bytes, sub_mask);
-                        if quality > best_quality_of_len {
-                            best_quality_of_len = quality;
-                            best_range_of_len = Some(range);
-                        }
-                    }
-
-                    if let Some(range) = best_range_of_len {
-                        let sub_mask = &mask[range.clone()];
-                        let mut candidate = Atom::from_slice_range(&target, range.clone());
-                        candidate.make_inexact();
-                        if candidate.mask_combinations_count(sub_mask) <= 256 {
-                            selected_atom = Some(candidate);
-                            break;
-                        }
+        while let Some(hir) = stack.pop() {
+            match hir.kind() {
+                HirKind::Literal(lit) => {
+                    let bytes = lit.0.as_ref();
+                    mask.extend(std::iter::repeat_n(0xff, bytes.len()));
+                    target.extend_from_slice(bytes);
+                }
+                HirKind::Repetition(Repetition { min, max, sub, .. }) => {
+                    if *max == Some(*min) && is_any_byte(sub.as_ref()) {
+                        let count = *min as usize;
+                        mask.extend(std::iter::repeat_n(0x00, count));
+                        target.extend(std::iter::repeat_n(0x00, count));
+                    } else {
+                        return None;
                     }
                 }
-
-                if let Some(best_atom) = selected_atom {
-                    return Some((mask, target, best_atom));
+                HirKind::Concat(sub_hirs) => {
+                    // Push in reverse order so they are processed left-to-right.
+                    for sub in sub_hirs.iter().rev() {
+                        stack.push(sub);
+                    }
                 }
+                HirKind::Class(regex_syntax::hir::Class::Bytes(class)) => {
+                    if let Some(hex_byte) = class_to_masked_byte(class) {
+                        mask.push(hex_byte.mask);
+                        target.push(hex_byte.value);
+                    } else {
+                        return None;
+                    }
+                }
+                HirKind::Capture(group) => {
+                    stack.push(&group.sub);
+                }
+                _ => return None,
             }
+        }
+
+        let total_len = mask.len();
+        if total_len > 0 && total_len <= u16::MAX as usize {
+            let (range, _) =
+                crate::compiler::best_range_in_masked_bytes(&target, &mask);
+            let range = range.unwrap_or(
+                0..std::cmp::min(
+                    total_len,
+                    crate::compiler::DESIRED_ATOM_SIZE,
+                ),
+            );
+            return Some((mask, target, range));
         }
         None
     }
