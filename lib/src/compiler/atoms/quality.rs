@@ -393,16 +393,16 @@ impl Ord for AtomsQuality {
 /// the slice and its quality.
 pub(crate) fn best_range_in_bytes(
     bytes: &[u8],
-) -> (Option<Range<usize>>, i32) {
+) -> (Range<usize>, i32) {
     let mut best_quality = i32::MIN;
-    let mut best_range = None;
+    let mut best_range = 0..0;
 
     for i in 0..=bytes.len().saturating_sub(DESIRED_ATOM_SIZE) {
         let range = i..min(bytes.len(), i + DESIRED_ATOM_SIZE);
         let quality = atom_quality(&bytes[range.clone()]);
         if quality > best_quality {
             best_quality = quality;
-            best_range = Some(range);
+            best_range = range;
         }
     }
 
@@ -411,11 +411,10 @@ pub(crate) fn best_range_in_bytes(
 
 /// Returns the range for the best possible atom that can be extracted from
 /// the masked slice.
-#[allow(dead_code)]
 pub(crate) fn best_range_in_masked_bytes(
     bytes: &[u8],
     mask: &[u8],
-) -> (Option<Range<usize>>, i32) {
+) -> (Range<usize>, i32) {
     let mut finders: Vec<BestAtomFinder> =
         (1..=DESIRED_ATOM_SIZE).map(BestAtomFinder::new).collect();
 
@@ -425,14 +424,15 @@ pub(crate) fn best_range_in_masked_bytes(
         }
     }
 
-    let mut best_result = (None, i32::MIN);
+    let mut best_result = (0..0, i32::MIN);
 
     for finder in finders {
-        let (range, quality) = finder.finalize();
-        if range.is_none() {
-            continue;
-        }
-        if best_result.0.is_none() {
+        let (range, quality) = match finder.finalize() {
+            (Some(range), quality) => (range, quality),
+            _ => continue,
+        };
+
+        if best_result.0.is_empty() {
             best_result = (range, quality);
             continue;
         }
@@ -440,8 +440,8 @@ pub(crate) fn best_range_in_masked_bytes(
         let is_better = match quality.cmp(&best_result.1) {
             Ordering::Greater => true,
             Ordering::Equal => {
-                let len = range.as_ref().unwrap().len();
-                let best_len = best_result.0.as_ref().unwrap().len();
+                let len = range.len();
+                let best_len = best_result.0.len();
                 len < best_len
             }
             Ordering::Less => false,
@@ -465,7 +465,7 @@ pub(crate) fn best_range_in_masked_bytes(
 /// correspond to the start of the slice in the data.
 pub(crate) fn best_atom_in_bytes(bytes: &[u8]) -> Atom {
     let (range, _) = best_range_in_bytes(bytes);
-    Atom::from_slice_range(bytes, range.unwrap())
+    Atom::from_slice_range(bytes, range)
 }
 
 /// Compute the quality of an atom.
@@ -704,7 +704,7 @@ mod test {
     fn best_range_in_masked_bytes() {
         assert_eq!(
             atoms::best_range_in_masked_bytes(&[], &[],),
-            (None, i32::MIN),
+            (0..0, i32::MIN),
         );
 
         assert_eq!(
@@ -712,7 +712,7 @@ mod test {
                 &[0x01, 0x02, 0x03, 0x04, 0x05],
                 &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF],
             ),
-            (Some(0..4), 88),
+            (0..4, 88),
         );
 
         assert_eq!(
@@ -720,7 +720,7 @@ mod test {
                 &[0x01, 0x02, 0x00, 0x00],
                 &[0xFF, 0xFF, 0x00, 0x00],
             ),
-            (Some(0..2), 44),
+            (0..2, 44),
         );
 
         assert_eq!(
@@ -728,7 +728,7 @@ mod test {
                 &[0x01, 0x02, 0x00, 0x00, 0x05],
                 &[0xFF, 0xFF, 0x00, 0x00, 0xFF],
             ),
-            (Some(0..2), 44),
+            (0..2, 44),
         );
 
         assert_eq!(
@@ -736,7 +736,7 @@ mod test {
                 &[0x01, 0x02, 0x03, 0x04],
                 &[0xFF, 0xFF, 0x0F, 0xFF],
             ),
-            (Some(0..4), 70),
+            (0..4, 70),
         );
 
         assert_eq!(
@@ -744,7 +744,7 @@ mod test {
                 &[0x01, 0x02, 0x00, 0x04],
                 &[0xFF, 0xFF, 0x00, 0xFF]
             ),
-            (Some(0..4), 51),
+            (0..4, 51),
         );
 
         assert_eq!(
@@ -752,7 +752,7 @@ mod test {
                 &[0x01, 0x02, 0x00, 0x04, 0x05, 0x06, 0x07],
                 &[0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0xFF],
             ),
-            (Some(3..7), 88),
+            (3..7, 88),
         );
 
         assert_eq!(
@@ -760,7 +760,7 @@ mod test {
                 &[0x01, 0x00, 0x00, 0x00, 0x00, 0xFF],
                 &[0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF],
             ),
-            (Some(3..6), 28),
+            (3..6, 28),
         );
 
         assert_eq!(
@@ -768,7 +768,7 @@ mod test {
                 &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06],
                 &[0x0F, 0x0F, 0x0F, 0x0F, 0x0F, 0x0F],
             ),
-            (Some(0..4), 16),
+            (0..4, 16),
         );
 
         assert_eq!(
@@ -776,7 +776,7 @@ mod test {
                 &[0x00, 0xA1, 0x81, 0x52, 0x00, 0x41, 0xA0, 0x72],
                 &[0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF],
             ),
-            (Some(1..4), 64),
+            (1..4, 64),
         );
     }
 

@@ -145,11 +145,14 @@ impl Hir {
             return None;
         }
 
-        let (best_range, _) = best_range_in_masked_bytes(&pattern, &mask);
+        let (mut best_range, _) = best_range_in_masked_bytes(&pattern, &mask);
 
-        let best_range = best_range.unwrap_or(
-            0..std::cmp::min(total_len, crate::compiler::DESIRED_ATOM_SIZE),
-        );
+        if best_range.is_empty() {
+            best_range = 0..std::cmp::min(
+                total_len,
+                crate::compiler::DESIRED_ATOM_SIZE,
+            );
+        }
 
         let mut best_atom = Atom::from_slice_range(&pattern, best_range);
         best_atom.make_inexact();

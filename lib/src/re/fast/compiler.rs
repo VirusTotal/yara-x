@@ -99,7 +99,7 @@ impl Compiler {
                     }
                 }
                 PatternPiece::JumpExact(..) | PatternPiece::Jump(..) => {
-                    piece_atoms.push((None, None, None, i32::MIN))
+                    piece_atoms.push((None, None, 0..0, i32::MIN))
                 }
             };
 
@@ -163,10 +163,11 @@ impl Compiler {
         };
 
         for (best_bytes, best_mask, best_range, _) in best_atoms {
-            match (best_bytes, best_mask, best_range) {
-                (Some(bytes), Some(mask), Some(range)) => {
-                    let atom = Atom::from_slice_range(bytes, range.clone());
-                    for atom in atom.mask_combinations(&mask[range]) {
+            match (best_bytes, best_mask) {
+                (Some(bytes), Some(mask)) => {
+                    let atom =
+                        Atom::from_slice_range(bytes, best_range.clone());
+                    for atom in atom.mask_combinations(&mask[best_range]) {
                         atoms.push(RegexpAtom {
                             atom,
                             fwd_code: Some(FwdCodeLoc::from(fwd_code_start)),
@@ -174,11 +175,12 @@ impl Compiler {
                         })
                     }
                 }
-                (Some(bytes), None, Some(range)) => atoms.push(RegexpAtom {
-                    atom: Atom::from_slice_range(bytes, range),
+                (Some(bytes), None) => atoms.push(RegexpAtom {
+                    atom: Atom::from_slice_range(bytes, best_range),
                     fwd_code: Some(FwdCodeLoc::from(fwd_code_start)),
                     bck_code: bck_code_start.map(BckCodeLoc::from),
                 }),
+                (None, None) => {}
                 _ => unreachable!(),
             }
         }
