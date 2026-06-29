@@ -81,23 +81,20 @@ where
         pattern_src
     );
 
-    let mut actual_atoms: Vec<Vec<u8>> =
-        crate::compiler::compile(rule_src.as_str())
-            .unwrap()
-            .atoms()
-            .iter()
-            .map(|atom| atom.as_slice().to_vec())
-            .collect();
+    let rules = crate::compiler::compile(rule_src.as_str()).unwrap();
+    let actual_atoms = rules.atoms();
 
-    let mut expected_atoms: Vec<Vec<u8>> = expected_atoms
-        .into_iter()
-        .map(|slice| slice.as_ref().to_vec())
-        .collect();
+    let mut expected_iter = expected_atoms.into_iter();
+    for actual in actual_atoms {
+        let expected =
+            expected_iter.next().expect("actual has more atoms than expected");
+        assert_eq!(actual.as_slice(), expected.as_ref());
+    }
 
-    actual_atoms.sort();
-    expected_atoms.sort();
-
-    assert_eq!(actual_atoms, expected_atoms);
+    assert!(
+        expected_iter.next().is_none(),
+        "expected has more atoms than actual"
+    );
 }
 
 #[test]
@@ -114,6 +111,11 @@ fn atoms() {
     check_atoms(
         "{ 11 22 33 44 [2-5] 55 66 77 88 }",
         &[&[0x11, 0x22, 0x33, 0x44]],
+    );
+
+    check_atoms(
+        "{ 11 22 33 [2-5] 44 55 66 77 88 }",
+        &[&[0x55, 0x66, 0x77, 0x88]],
     );
 
     check_atoms(
@@ -139,8 +141,8 @@ fn atoms() {
 
     check_atoms(
         "{ 2? F? ?8 6? ?? 0? ?B ?B 3? ?? B? 2? ?7 5? }",
-        itertools::iproduct!(0x20..=0x2f, 0xf0..=0xff)
-            .map(|(b1, b2)| [b1, b2]),
+        itertools::iproduct!(0x20..=0x2f, 0xf0..=0xff, 0x08..=0xf8)
+            .map(|(b1, b2, b3)| [b1, b2, b3]),
     );
 
     check_atoms(
@@ -151,7 +153,13 @@ fn atoms() {
 
     check_atoms(
         "{ 1? 2? 3? 44 }",
-        itertools::iproduct!(0x20..=0x2f, 0x30..=0x3f)
-            .map(|(b2, b3)| [b2, b3, 0x44]),
+        itertools::iproduct!(0x10..=0x1f, 0x20..=0x2f, 0x30..=0x3f)
+            .map(|(b1, b2, b3)| [b1, b2, b3, 0x44]),
+    );
+
+    check_atoms(
+        "{ 11 ?? 1? 11 }",
+        itertools::iproduct!(0x00..=0xff, 0x10..=0x1f)
+            .map(|(b2, b3)| [0x11, b2, b3, 0x11]),
     );
 }

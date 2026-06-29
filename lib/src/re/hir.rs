@@ -16,7 +16,9 @@ use serde::{Deserialize, Serialize};
 
 use yara_x_parser::ast;
 
-use crate::compiler::{Atom, best_range_in_masked_bytes};
+use crate::compiler::{
+    Atom, MAX_ATOMS_PER_REGEXP, best_range_in_masked_bytes,
+};
 use crate::utils::cast;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -160,34 +162,46 @@ impl Hir {
         let backtrack = best_atom.backtrack() as usize;
         let atom_mask = &mask[backtrack..(backtrack + best_atom.len())];
 
-        if best_atom.mask_combinations_count(atom_mask) > 256 {
-            let mut found_shorter = false;
+        if best_atom.mask_combinations_count(atom_mask) > MAX_ATOMS_PER_REGEXP
+        {
+            let mut best_candidate = None;
+            let mut best_candidate_quality = i32::MIN;
             for len in (1..best_atom.len()).rev() {
                 for offset in 0..=(best_atom.len() - len) {
                     let sub_range =
                         (backtrack + offset)..(backtrack + offset + len);
                     let sub_mask = &mask[sub_range.clone()];
                     let mut candidate =
-                        Atom::from_slice_range(&pattern, sub_range);
+                        Atom::from_slice_range(&pattern, sub_range.clone());
                     candidate.make_inexact();
-                    if candidate.mask_combinations_count(sub_mask) <= 256 {
-                        best_atom = candidate;
-                        found_shorter = true;
-                        break;
+                    let count = candidate.mask_combinations_count(sub_mask);
+                    if count <= MAX_ATOMS_PER_REGEXP {
+                        let (_, quality) = best_range_in_masked_bytes(
+                            &pattern[sub_range.clone()],
+                            sub_mask,
+                        );
+                        if quality > best_candidate_quality {
+                            best_candidate = Some(candidate);
+                            best_candidate_quality = quality;
+                        }
                     }
                 }
-                if found_shorter {
+                if best_candidate.is_some() {
                     break;
                 }
             }
-            if !found_shorter {
+            if let Some(candidate) = best_candidate {
+                best_atom = candidate;
+            } else {
                 return None;
             }
         }
 
         let backtrack = best_atom.backtrack() as usize;
         let atom_mask = &mask[backtrack..(backtrack + best_atom.len())];
-        let atoms = best_atom.mask_combinations(atom_mask).collect();
+
+        let atoms: Vec<Atom> =
+            best_atom.mask_combinations(atom_mask).collect();
 
         Some((pattern, mask, atoms))
     }
