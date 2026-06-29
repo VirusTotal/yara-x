@@ -2187,19 +2187,6 @@ impl Compiler<'_> {
         }
     }
 
-    fn make_wide_masked(mask: &[u8], target: &[u8]) -> (Vec<u8>, Vec<u8>) {
-        let mut wide_mask = Vec::with_capacity(mask.len() * 2);
-        let mut wide_target = Vec::with_capacity(target.len() * 2);
-        for (&m, &t) in mask.iter().zip(target) {
-            wide_target.push(t);
-            wide_target.push(0x00);
-
-            wide_mask.push(m);
-            wide_mask.push(0xff);
-        }
-        (wide_mask, wide_target)
-    }
-
     fn c_regexp_pattern(
         &mut self,
         pattern_id: PatternId,
@@ -2257,163 +2244,50 @@ impl Compiler<'_> {
         if matches!(head.is_greedy(), Some(true)) {
             flags.insert(SubPatternFlags::GreedyRegexp);
         }
-        let simd_masked = if !pattern.flags.contains(PatternFlags::Nocase) {
-            head.try_extract_simd_masked_pattern()
-        } else {
-            None
-        };
 
-        let get_best_atom = |mask: &[u8],
-                             target: &[u8],
-                             range: &std::ops::Range<usize>,
-                             wide: bool|
-         -> Option<Atom> {
-            let current_range = range.clone();
-            let backtrack = current_range.start;
-            let mut best_atom = Atom::from_slice_range(target, current_range.clone());
-            if wide {
-                best_atom = best_atom.make_wide();
-            } else {
-                best_atom.make_inexact();
-            }
-
-            let atom_mask = if wide {
-                let (w_mask, _) = Self::make_wide_masked(mask, target);
-                // For wide, backtrack is doubled because of wide representation
-                let w_backtrack = backtrack * 2;
-                w_mask[w_backtrack..(w_backtrack + best_atom.len())].to_vec()
-            } else {
-                mask[backtrack..(backtrack + best_atom.len())].to_vec()
-            };
-
-            if best_atom.mask_combinations_count(&atom_mask) <= 256 {
-                return Some(best_atom);
-            }
-
-            // If combinations exceed 256, shrink the range.
-            // Try shorter lengths from current_range.len() - 1 down to 1.
-            let mut found_shorter = false;
-            for len in (1..range.len()).rev() {
-                // Try different offsets within the original range.
-                for offset in 0..=(range.len() - len) {
-                    let sub_range = (range.start + offset)
-                        ..(range.start + offset + len);
-                    let mut candidate =
-                        Atom::from_slice_range(target, sub_range.clone());
-                    if wide {
-                        candidate = candidate.make_wide();
-                    } else {
-                        candidate.make_inexact();
-                    }
-
-                    let cand_mask = if wide {
-                        let (w_mask, _) = Self::make_wide_masked(mask, target);
-                        let w_backtrack = (range.start + offset) * 2;
-                        w_mask[w_backtrack..(w_backtrack + candidate.len())]
-                            .to_vec()
-                    } else {
-                        mask[sub_range.clone()].to_vec()
-                    };
-
-                    if candidate.mask_combinations_count(&cand_mask) <= 256 {
-                        best_atom = candidate;
-                        found_shorter = true;
-                        break;
-                    }
-                }
-                if found_shorter {
-                    break;
-                }
-            }
-
-            if found_shorter {
-                Some(best_atom)
-            } else {
-                None
-            }
+        if !pattern.flags.contains(PatternFlags::Nocase)
+            && !pattern.flags.contains(PatternFlags::Wide)
+            && let Some((pattern, mask, atoms)) =
+                head.try_extract_literal_with_mask()
+        {
+            let pattern = self.intern_literal(pattern.as_slice(), false);
+            let mask = self.intern_literal(mask.as_slice(), false);
+            self.add_sub_pattern(
+                pattern_id,
+                SubPattern::LiteralWithMask { pattern, mask, flags },
+                atoms.into_iter(),
+                SubPatternAtom::from_atom,
+            );
+            return Ok(());
         };
 
         if pattern.flags.contains(PatternFlags::Wide) {
-            let mut optimized = None;
-            if let Some((mask, target, range)) = &simd_masked {
-                if let Some(wide_atom) = get_best_atom(mask, target, range, true)
-                {
-                    let (w_mask, w_target) = Self::make_wide_masked(mask, target);
-                    if w_mask.len() <= u16::MAX as usize {
-                        optimized = Some((w_mask, w_target, wide_atom));
-                    }
-                }
+            let (atoms, is_fast_regexp) =
+                self.c_regexp(&head, span.clone())?;
+            let mut wide_flags = flags | SubPatternFlags::Wide;
+            if is_fast_regexp {
+                wide_flags.insert(SubPatternFlags::FastRegexp);
             }
-
-            if let Some((mask, target, wide_atom)) = optimized {
-                let mask_lit_id = self.intern_literal(mask.as_slice(), false);
-                let target_lit_id =
-                    self.intern_literal(target.as_slice(), false);
-                let backtrack = wide_atom.backtrack() as usize;
-                let atom_mask = &mask[backtrack..(backtrack + wide_atom.len())];
-                self.add_sub_pattern(
-                    pattern_id,
-                    SubPattern::LiteralWithMask {
-                        mask: mask_lit_id,
-                        pattern: target_lit_id,
-                        flags: flags | SubPatternFlags::Wide,
-                    },
-                    wide_atom.mask_combinations(atom_mask),
-                    SubPatternAtom::from_atom,
-                );
-            } else {
-                let (atoms, is_fast_regexp) =
-                    self.c_regexp(&head, span.clone())?;
-                let mut wide_flags = flags | SubPatternFlags::Wide;
-                if is_fast_regexp {
-                    wide_flags.insert(SubPatternFlags::FastRegexp);
-                }
-                self.add_sub_pattern(
-                    pattern_id,
-                    SubPattern::Regexp { flags: wide_flags },
-                    atoms.iter().cloned().map(|atom| atom.make_wide()),
-                    SubPatternAtom::from_regexp_atom,
-                );
-            }
+            self.add_sub_pattern(
+                pattern_id,
+                SubPattern::Regexp { flags: wide_flags },
+                atoms.iter().cloned().map(|atom| atom.make_wide()),
+                SubPatternAtom::from_regexp_atom,
+            );
         }
 
         if pattern.flags.contains(PatternFlags::Ascii) {
-            let mut optimized = None;
-            if let Some((mask, target, range)) = &simd_masked {
-                if let Some(atom) = get_best_atom(mask, target, range, false) {
-                    optimized = Some((mask, target, atom));
-                }
+            let (atoms, is_fast_regexp) = self.c_regexp(&head, span)?;
+            let mut ascii_flags = flags;
+            if is_fast_regexp {
+                ascii_flags.insert(SubPatternFlags::FastRegexp);
             }
-
-            if let Some((mask, target, atom)) = optimized {
-                let mask_lit_id = self.intern_literal(mask.as_slice(), false);
-                let target_lit_id =
-                    self.intern_literal(target.as_slice(), false);
-                let backtrack = atom.backtrack() as usize;
-                let atom_mask = &mask[backtrack..(backtrack + atom.len())];
-                self.add_sub_pattern(
-                    pattern_id,
-                    SubPattern::LiteralWithMask {
-                        mask: mask_lit_id,
-                        pattern: target_lit_id,
-                        flags,
-                    },
-                    atom.mask_combinations(atom_mask),
-                    SubPatternAtom::from_atom,
-                );
-            } else {
-                let (atoms, is_fast_regexp) = self.c_regexp(&head, span)?;
-                let mut ascii_flags = flags;
-                if is_fast_regexp {
-                    ascii_flags.insert(SubPatternFlags::FastRegexp);
-                }
-                self.add_sub_pattern(
-                    pattern_id,
-                    SubPattern::Regexp { flags: ascii_flags },
-                    atoms.into_iter(),
-                    SubPatternAtom::from_regexp_atom,
-                );
-            }
+            self.add_sub_pattern(
+                pattern_id,
+                SubPattern::Regexp { flags: ascii_flags },
+                atoms.into_iter(),
+                SubPatternAtom::from_regexp_atom,
+            );
         }
 
         Ok(())

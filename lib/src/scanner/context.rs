@@ -931,7 +931,7 @@ impl ScanContext<'_, '_> {
 
                 if let Some(data) =
                     data.get(atom_pos..atom_pos + pattern.len())
-                    && verify_literal_with_mask(data, pattern, mask, *flags)
+                    && verify_literal_with_mask(data, pattern, mask)
                 {
                     let match_range = atom_pos..atom_pos + pattern.len();
                     if !flags.intersects(
@@ -1314,12 +1314,7 @@ unsafe fn verify_literal_with_mask_simd<V: teddy::vector::Vector>(
     }
 }
 
-fn verify_literal_with_mask(
-    data: &[u8],
-    pattern: &[u8],
-    mask: &[u8],
-    _flags: SubPatternFlags,
-) -> bool {
+fn verify_literal_with_mask(data: &[u8], pattern: &[u8], mask: &[u8]) -> bool {
     #[cfg(all(target_arch = "x86_64", target_feature = "sse2"))]
     unsafe {
         verify_literal_with_mask_simd::<core::arch::x86_64::__m128i>(

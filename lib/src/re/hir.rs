@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use yara_x_parser::ast;
 
+use crate::compiler::Atom;
 use crate::utils::cast;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -78,13 +79,13 @@ impl From<regex_syntax::hir::Hir> for Hir {
 }
 
 impl Hir {
-    pub(crate) fn try_extract_simd_masked_pattern(
+    pub(crate) fn try_extract_literal_with_mask(
         &self,
-    ) -> Option<(Vec<u8>, Vec<u8>, std::ops::Range<usize>)> {
+    ) -> Option<(Vec<u8>, Vec<u8>, Vec<Atom>)> {
         use regex_syntax::hir::{HirKind, Repetition};
 
+        let mut pattern = Vec::new();
         let mut mask = Vec::new();
-        let mut target = Vec::new();
         let mut stack = vec![&self.inner];
 
         fn is_any_byte(hir: &regex_syntax::hir::Hir) -> bool {
@@ -102,14 +103,14 @@ impl Hir {
             match hir.kind() {
                 HirKind::Literal(lit) => {
                     let bytes = lit.0.as_ref();
+                    pattern.extend_from_slice(bytes);
                     mask.extend(std::iter::repeat_n(0xff, bytes.len()));
-                    target.extend_from_slice(bytes);
                 }
                 HirKind::Repetition(Repetition { min, max, sub, .. }) => {
                     if *max == Some(*min) && is_any_byte(sub.as_ref()) {
                         let count = *min as usize;
+                        pattern.extend(std::iter::repeat_n(0x00, count));
                         mask.extend(std::iter::repeat_n(0x00, count));
-                        target.extend(std::iter::repeat_n(0x00, count));
                     } else {
                         return None;
                     }
@@ -122,8 +123,8 @@ impl Hir {
                 }
                 HirKind::Class(regex_syntax::hir::Class::Bytes(class)) => {
                     if let Some(hex_byte) = class_to_masked_byte(class) {
+                        pattern.push(hex_byte.value);
                         mask.push(hex_byte.mask);
-                        target.push(hex_byte.value);
                     } else {
                         return None;
                     }
@@ -138,14 +139,50 @@ impl Hir {
         let total_len = mask.len();
         if total_len > 0 && total_len <= u16::MAX as usize {
             let (range, _) =
-                crate::compiler::best_range_in_masked_bytes(&target, &mask);
+                crate::compiler::best_range_in_masked_bytes(&pattern, &mask);
             let range = range.unwrap_or(
                 0..std::cmp::min(
                     total_len,
                     crate::compiler::DESIRED_ATOM_SIZE,
                 ),
             );
-            return Some((mask, target, range));
+            let mut best_atom =
+                Atom::from_slice_range(&pattern, range.clone());
+            best_atom.make_inexact();
+
+            let backtrack = best_atom.backtrack() as usize;
+            let atom_mask = &mask[backtrack..(backtrack + best_atom.len())];
+
+            if best_atom.mask_combinations_count(atom_mask) > 256 {
+                let mut found_shorter = false;
+                for len in (1..best_atom.len()).rev() {
+                    for offset in 0..=(best_atom.len() - len) {
+                        let sub_range =
+                            (backtrack + offset)..(backtrack + offset + len);
+                        let sub_mask = &mask[sub_range.clone()];
+                        let mut candidate =
+                            Atom::from_slice_range(&pattern, sub_range);
+                        candidate.make_inexact();
+                        if candidate.mask_combinations_count(sub_mask) <= 256 {
+                            best_atom = candidate;
+                            found_shorter = true;
+                            break;
+                        }
+                    }
+                    if found_shorter {
+                        break;
+                    }
+                }
+                if !found_shorter {
+                    return None;
+                }
+            }
+
+            let backtrack = best_atom.backtrack() as usize;
+            let atom_mask = &mask[backtrack..(backtrack + best_atom.len())];
+            let atoms = best_atom.mask_combinations(atom_mask).collect();
+
+            return Some((pattern, mask, atoms));
         }
         None
     }
