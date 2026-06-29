@@ -15,7 +15,6 @@ use serde::{Deserialize, Serialize};
 
 use yara_x_parser::ast;
 
-use crate::compiler::{Atom, best_atom_in_bytes};
 use crate::utils::cast;
 
 #[derive(Clone, Copy, Debug, PartialEq)]

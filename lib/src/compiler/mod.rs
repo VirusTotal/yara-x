@@ -2268,8 +2268,8 @@ impl Compiler<'_> {
                              range: &std::ops::Range<usize>,
                              wide: bool|
          -> Option<Atom> {
-            let mut current_range = range.clone();
-            let mut backtrack = current_range.start;
+            let current_range = range.clone();
+            let backtrack = current_range.start;
             let mut best_atom = Atom::from_slice_range(target, current_range.clone());
             if wide {
                 best_atom = best_atom.make_wide();
@@ -2277,7 +2277,7 @@ impl Compiler<'_> {
                 best_atom.make_inexact();
             }
 
-            let mut atom_mask = if wide {
+            let atom_mask = if wide {
                 let (w_mask, _) = Self::make_wide_masked(mask, target);
                 // For wide, backtrack is doubled because of wide representation
                 let w_backtrack = backtrack * 2;
@@ -2317,7 +2317,6 @@ impl Compiler<'_> {
 
                     if candidate.mask_combinations_count(&cand_mask) <= 256 {
                         best_atom = candidate;
-                        atom_mask = cand_mask;
                         found_shorter = true;
                         break;
                     }

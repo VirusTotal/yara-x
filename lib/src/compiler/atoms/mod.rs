@@ -73,7 +73,6 @@ pub(crate) use crate::compiler::atoms::quality::AtomsQuality;
 pub(crate) use crate::compiler::atoms::quality::best_atom_in_bytes;
 pub(crate) use crate::compiler::atoms::quality::best_range_in_bytes;
 pub(crate) use crate::compiler::atoms::quality::best_range_in_masked_bytes;
-pub(crate) use crate::compiler::atoms::quality::masked_atom_quality;
 
 use crate::compiler::SubPatternFlags;
 

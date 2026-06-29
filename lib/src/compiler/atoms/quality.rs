@@ -468,19 +468,6 @@ pub(crate) fn best_atom_in_bytes(bytes: &[u8]) -> Atom {
     Atom::from_slice_range(bytes, range.unwrap())
 }
 
-/// Computes the quality of a masked atom.
-pub(crate) fn masked_atom_quality<'a, B, M>(bytes: B, masks: M) -> i32
-where
-    B: IntoIterator<Item = &'a u8>,
-    M: IntoIterator<Item = &'a u8>,
-{
-    let mut finder = BestAtomFinder::new(DESIRED_ATOM_SIZE);
-    for (byte, mask) in zip(bytes, masks) {
-        finder.feed(*byte, *mask);
-    }
-    finder.finalize().1
-}
-
 /// Compute the quality of an atom.
 #[inline]
 pub fn atom_quality<'a, B>(bytes: B) -> i32
@@ -497,11 +484,24 @@ where
 #[cfg(test)]
 mod test {
     use super::{BestAtomFinder, atom_quality};
-    use crate::compiler::atoms::quality::masked_atom_quality;
-    use crate::compiler::{AtomsQuality, atoms};
+    use crate::compiler::{AtomsQuality, DESIRED_ATOM_SIZE, atoms};
     use itertools::Itertools;
     use regex_syntax::hir::literal::Literal;
     use regex_syntax::hir::literal::Seq;
+    use std::iter::zip;
+
+    /// Computes the quality of a masked atom.
+    fn masked_atom_quality<'a, B, M>(bytes: B, masks: M) -> i32
+    where
+        B: IntoIterator<Item = &'a u8>,
+        M: IntoIterator<Item = &'a u8>,
+    {
+        let mut finder = BestAtomFinder::new(DESIRED_ATOM_SIZE);
+        for (byte, mask) in zip(bytes, masks) {
+            finder.feed(*byte, *mask);
+        }
+        finder.finalize().1
+    }
 
     #[rustfmt::skip]
     #[allow(non_snake_case)]
