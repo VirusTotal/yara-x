@@ -141,8 +141,12 @@ fn atoms() {
 
     check_atoms(
         "{ 2? F? ?8 6? ?? 0? ?B ?B 3? ?? B? 2? ?7 5? }",
-        itertools::iproduct!(0x20..=0x2f, 0xf0..=0xff, 0x08..=0xf8)
-            .map(|(b1, b2, b3)| [b1, b2, b3]),
+        itertools::iproduct!(
+            0x20..=0x2f,
+            0xf0..=0xff,
+            (0x08..=0xf8).step_by(0x10)
+        )
+        .map(|(b1, b2, b3)| [b1, b2, b3]),
     );
 
     check_atoms(
