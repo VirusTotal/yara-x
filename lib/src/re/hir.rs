@@ -1,4 +1,5 @@
 use std::hash::{Hash, Hasher};
+use std::iter::repeat_n;
 use std::mem;
 use std::ops::{RangeFrom, RangeInclusive};
 
@@ -15,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use yara_x_parser::ast;
 
-use crate::compiler::Atom;
+use crate::compiler::{Atom, best_range_in_masked_bytes};
 use crate::utils::cast;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -104,13 +105,13 @@ impl Hir {
                 HirKind::Literal(lit) => {
                     let bytes = lit.0.as_ref();
                     pattern.extend_from_slice(bytes);
-                    mask.extend(std::iter::repeat_n(0xff, bytes.len()));
+                    mask.extend(repeat_n(0xff, bytes.len()));
                 }
                 HirKind::Repetition(Repetition { min, max, sub, .. }) => {
                     if *max == Some(*min) && is_any_byte(sub.as_ref()) {
                         let count = *min as usize;
-                        pattern.extend(std::iter::repeat_n(0x00, count));
-                        mask.extend(std::iter::repeat_n(0x00, count));
+                        pattern.extend(repeat_n(0x00, count));
+                        mask.extend(repeat_n(0x00, count));
                     } else {
                         return None;
                     }
@@ -121,7 +122,7 @@ impl Hir {
                         stack.push(sub);
                     }
                 }
-                HirKind::Class(regex_syntax::hir::Class::Bytes(class)) => {
+                HirKind::Class(Class::Bytes(class)) => {
                     if let Some(hex_byte) = class_to_masked_byte(class) {
                         pattern.push(hex_byte.value);
                         mask.push(hex_byte.mask);
@@ -136,55 +137,56 @@ impl Hir {
             }
         }
 
-        let total_len = mask.len();
-        if total_len > 0 && total_len <= u16::MAX as usize {
-            let (range, _) =
-                crate::compiler::best_range_in_masked_bytes(&pattern, &mask);
-            let range = range.unwrap_or(
-                0..std::cmp::min(
-                    total_len,
-                    crate::compiler::DESIRED_ATOM_SIZE,
-                ),
-            );
-            let mut best_atom =
-                Atom::from_slice_range(&pattern, range.clone());
-            best_atom.make_inexact();
+        debug_assert_eq!(pattern.len(), mask.len());
 
-            let backtrack = best_atom.backtrack() as usize;
-            let atom_mask = &mask[backtrack..(backtrack + best_atom.len())];
+        let total_len = pattern.len();
 
-            if best_atom.mask_combinations_count(atom_mask) > 256 {
-                let mut found_shorter = false;
-                for len in (1..best_atom.len()).rev() {
-                    for offset in 0..=(best_atom.len() - len) {
-                        let sub_range =
-                            (backtrack + offset)..(backtrack + offset + len);
-                        let sub_mask = &mask[sub_range.clone()];
-                        let mut candidate =
-                            Atom::from_slice_range(&pattern, sub_range);
-                        candidate.make_inexact();
-                        if candidate.mask_combinations_count(sub_mask) <= 256 {
-                            best_atom = candidate;
-                            found_shorter = true;
-                            break;
-                        }
-                    }
-                    if found_shorter {
+        if total_len == 0 || total_len > u16::MAX as usize {
+            return None;
+        }
+
+        let (best_range, _) = best_range_in_masked_bytes(&pattern, &mask);
+
+        let best_range = best_range.unwrap_or(
+            0..std::cmp::min(total_len, crate::compiler::DESIRED_ATOM_SIZE),
+        );
+
+        let mut best_atom = Atom::from_slice_range(&pattern, best_range);
+        best_atom.make_inexact();
+
+        let backtrack = best_atom.backtrack() as usize;
+        let atom_mask = &mask[backtrack..(backtrack + best_atom.len())];
+
+        if best_atom.mask_combinations_count(atom_mask) > 256 {
+            let mut found_shorter = false;
+            for len in (1..best_atom.len()).rev() {
+                for offset in 0..=(best_atom.len() - len) {
+                    let sub_range =
+                        (backtrack + offset)..(backtrack + offset + len);
+                    let sub_mask = &mask[sub_range.clone()];
+                    let mut candidate =
+                        Atom::from_slice_range(&pattern, sub_range);
+                    candidate.make_inexact();
+                    if candidate.mask_combinations_count(sub_mask) <= 256 {
+                        best_atom = candidate;
+                        found_shorter = true;
                         break;
                     }
                 }
-                if !found_shorter {
-                    return None;
+                if found_shorter {
+                    break;
                 }
             }
-
-            let backtrack = best_atom.backtrack() as usize;
-            let atom_mask = &mask[backtrack..(backtrack + best_atom.len())];
-            let atoms = best_atom.mask_combinations(atom_mask).collect();
-
-            return Some((pattern, mask, atoms));
+            if !found_shorter {
+                return None;
+            }
         }
-        None
+
+        let backtrack = best_atom.backtrack() as usize;
+        let atom_mask = &mask[backtrack..(backtrack + best_atom.len())];
+        let atoms = best_atom.mask_combinations(atom_mask).collect();
+
+        Some((pattern, mask, atoms))
     }
     /// Pattern chaining is the process of splitting a pattern that contains very
     /// large gaps (a.k.a. jumps) into multiple pieces that are chained together.
