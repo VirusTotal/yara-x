@@ -17,7 +17,8 @@ use serde::{Deserialize, Serialize};
 use yara_x_parser::ast;
 
 use crate::compiler::{
-    Atom, MAX_ATOMS_PER_REGEXP, best_range_in_masked_bytes,
+    MAX_ATOMS_PER_REGEXP, MaskCombinations, MaskedAtom,
+    best_range_in_masked_bytes,
 };
 use crate::utils::cast;
 
@@ -82,129 +83,6 @@ impl From<regex_syntax::hir::Hir> for Hir {
 }
 
 impl Hir {
-    pub(crate) fn try_extract_literal_with_mask(
-        &self,
-    ) -> Option<(Vec<u8>, Vec<u8>, Vec<Atom>)> {
-        use regex_syntax::hir::{HirKind, Repetition};
-
-        let mut pattern = Vec::new();
-        let mut mask = Vec::new();
-        let mut stack = vec![&self.inner];
-
-        fn is_any_byte(hir: &regex_syntax::hir::Hir) -> bool {
-            match hir.kind() {
-                HirKind::Class(Class::Bytes(class)) => {
-                    class.ranges().len() == 1
-                        && class.ranges()[0].start() == 0
-                        && class.ranges()[0].end() == 255
-                }
-                _ => false,
-            }
-        }
-
-        while let Some(hir) = stack.pop() {
-            match hir.kind() {
-                HirKind::Literal(lit) => {
-                    let bytes = lit.0.as_ref();
-                    pattern.extend_from_slice(bytes);
-                    mask.extend(repeat_n(0xff, bytes.len()));
-                }
-                HirKind::Repetition(Repetition { min, max, sub, .. }) => {
-                    if *max == Some(*min) && is_any_byte(sub.as_ref()) {
-                        let count = *min as usize;
-                        pattern.extend(repeat_n(0x00, count));
-                        mask.extend(repeat_n(0x00, count));
-                    } else {
-                        return None;
-                    }
-                }
-                HirKind::Concat(sub_hirs) => {
-                    // Push in reverse order so they are processed left-to-right.
-                    for sub in sub_hirs.iter().rev() {
-                        stack.push(sub);
-                    }
-                }
-                HirKind::Class(Class::Bytes(class)) => {
-                    if let Some(hex_byte) = class_to_masked_byte(class) {
-                        pattern.push(hex_byte.value);
-                        mask.push(hex_byte.mask);
-                    } else {
-                        return None;
-                    }
-                }
-                HirKind::Capture(group) => {
-                    stack.push(&group.sub);
-                }
-                _ => return None,
-            }
-        }
-
-        debug_assert_eq!(pattern.len(), mask.len());
-
-        let total_len = pattern.len();
-
-        if total_len == 0 || total_len > u16::MAX as usize {
-            return None;
-        }
-
-        let (mut best_range, _) = best_range_in_masked_bytes(&pattern, &mask);
-
-        if best_range.is_empty() {
-            best_range = 0..std::cmp::min(
-                total_len,
-                crate::compiler::DESIRED_ATOM_SIZE,
-            );
-        }
-
-        let mut best_atom = Atom::from_slice_range(&pattern, best_range);
-        best_atom.make_inexact();
-
-        let backtrack = best_atom.backtrack() as usize;
-        let atom_mask = &mask[backtrack..(backtrack + best_atom.len())];
-
-        if best_atom.mask_combinations_count(atom_mask) > MAX_ATOMS_PER_REGEXP
-        {
-            let mut best_candidate = None;
-            let mut best_candidate_quality = i32::MIN;
-            for len in (1..best_atom.len()).rev() {
-                for offset in 0..=(best_atom.len() - len) {
-                    let sub_range =
-                        (backtrack + offset)..(backtrack + offset + len);
-                    let sub_mask = &mask[sub_range.clone()];
-                    let mut candidate =
-                        Atom::from_slice_range(&pattern, sub_range.clone());
-                    candidate.make_inexact();
-                    let count = candidate.mask_combinations_count(sub_mask);
-                    if count <= MAX_ATOMS_PER_REGEXP {
-                        let (_, quality) = best_range_in_masked_bytes(
-                            &pattern[sub_range.clone()],
-                            sub_mask,
-                        );
-                        if quality > best_candidate_quality {
-                            best_candidate = Some(candidate);
-                            best_candidate_quality = quality;
-                        }
-                    }
-                }
-                if best_candidate.is_some() {
-                    break;
-                }
-            }
-            if let Some(candidate) = best_candidate {
-                best_atom = candidate;
-            } else {
-                return None;
-            }
-        }
-
-        let backtrack = best_atom.backtrack() as usize;
-        let atom_mask = &mask[backtrack..(backtrack + best_atom.len())];
-
-        let atoms: Vec<Atom> =
-            best_atom.mask_combinations(atom_mask).collect();
-
-        Some((pattern, mask, atoms))
-    }
     /// Pattern chaining is the process of splitting a pattern that contains very
     /// large gaps (a.k.a. jumps) into multiple pieces that are chained together.
     ///
@@ -337,6 +215,96 @@ impl Hir {
         }
 
         (chain.remove(0).hir, chain)
+    }
+
+    /// Tries to extract a literal pattern with its corresponding mask and a
+    /// list of generated [`Atom`]s from the regular expression's [`Hir`].
+    ///
+    /// This method succeeds if the regular expression represents a sequence of
+    /// masked bytes (e.g., `{ 01 02 ?? 04 }` or `{ 1? 2? 3? }`). If successful,
+    /// it returns:
+    ///
+    /// - The raw pattern bytes (`Vec<u8>`).
+    /// - The mask bytes (`Vec<u8>`).
+    /// - The list of combinations of atoms to search for (`Vec<Atom>`), where
+    ///   the atoms are trimmed if necessary to avoid exceeding
+    ///   `MAX_ATOMS_PER_REGEXP` combinations.
+    ///
+    /// If the regular expression is not a simple masked literal sequence, it
+    /// returns `None`.
+    pub(crate) fn try_extract_literal_with_mask(
+        &self,
+    ) -> Option<(Vec<u8>, Vec<u8>, MaskCombinations)> {
+        use regex_syntax::hir::{HirKind, Repetition};
+
+        let mut pattern = Vec::new();
+        let mut mask = Vec::new();
+        let mut stack = vec![&self.inner];
+
+        fn is_any_byte(hir: &regex_syntax::hir::Hir) -> bool {
+            match hir.kind() {
+                HirKind::Class(Class::Bytes(class)) => {
+                    class.ranges().len() == 1
+                        && class.ranges()[0].start() == 0
+                        && class.ranges()[0].end() == 255
+                }
+                _ => false,
+            }
+        }
+
+        while let Some(hir) = stack.pop() {
+            match hir.kind() {
+                HirKind::Literal(lit) => {
+                    let bytes = lit.0.as_ref();
+                    pattern.extend_from_slice(bytes);
+                    mask.extend(repeat_n(0xff, bytes.len()));
+                }
+                HirKind::Repetition(Repetition { min, max, sub, .. }) => {
+                    if *max == Some(*min) && is_any_byte(sub.as_ref()) {
+                        let count = *min as usize;
+                        pattern.extend(repeat_n(0x00, count));
+                        mask.extend(repeat_n(0x00, count));
+                    } else {
+                        return None;
+                    }
+                }
+                HirKind::Concat(sub_hirs) => {
+                    // Push in reverse order so they are processed left-to-right.
+                    for sub in sub_hirs.iter().rev() {
+                        stack.push(sub);
+                    }
+                }
+                HirKind::Class(Class::Bytes(class)) => {
+                    if let Some(hex_byte) = class_to_masked_byte(class) {
+                        pattern.push(hex_byte.value);
+                        mask.push(hex_byte.mask);
+                    } else {
+                        return None;
+                    }
+                }
+                HirKind::Capture(group) => {
+                    stack.push(&group.sub);
+                }
+                _ => return None,
+            }
+        }
+
+        debug_assert_eq!(pattern.len(), mask.len());
+
+        let (best_range, _) = best_range_in_masked_bytes(&pattern, &mask);
+
+        let mut masked_atom =
+            MaskedAtom::from_slice_range(&pattern, &mask, best_range)?;
+
+        while masked_atom.mask_combinations().len() > MAX_ATOMS_PER_REGEXP {
+            masked_atom.trim();
+        }
+
+        if masked_atom.atom.as_ref().is_empty() {
+            return None;
+        }
+
+        Some((pattern, mask, masked_atom.mask_combinations()))
     }
 
     pub fn set_greedy(mut self, greediness: Option<bool>) -> Self {

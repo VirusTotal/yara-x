@@ -1,11 +1,18 @@
 use pretty_assertions::assert_eq;
 
-use crate::compiler::atoms::Atom;
+use crate::compiler::atoms::{Atom, MaskedAtom};
 
 #[test]
 fn mask_combinations() {
-    let atom = Atom::exact([0x11, 0x22, 0x33, 0x44]);
-    let mut c = atom.mask_combinations(&[0xff, 0xf0, 0xff, 0xff]);
+    let masked_atom = MaskedAtom::from_slice_range(
+        &[0x11, 0x22, 0x33, 0x44],
+        &[0xff, 0xf0, 0xff, 0xff],
+        ..,
+    )
+    .unwrap();
+    let mut c = masked_atom.mask_combinations();
+
+    assert_eq!(c.len(), 16);
 
     assert_eq!(c.next(), Some(Atom::exact([0x11, 0x20, 0x33, 0x44])));
     assert_eq!(c.next(), Some(Atom::exact([0x11, 0x21, 0x33, 0x44])));
@@ -166,4 +173,87 @@ fn atoms() {
         itertools::iproduct!(0x00..=0xff, 0x10..=0x1f)
             .map(|(b2, b3)| [0x11, b2, b3, 0x11]),
     );
+}
+
+#[test]
+fn masked_atom_trim() {
+    // Normal trim: removes last byte
+    let mut masked_atom = MaskedAtom::from_slice_range(
+        &[0x11, 0x22, 0x33, 0x44],
+        &[0xff, 0xff, 0xff, 0xff],
+        ..,
+    )
+    .unwrap();
+    masked_atom.trim();
+    assert_eq!(masked_atom.atom.as_ref(), &[0x11, 0x22, 0x33]);
+    assert_eq!(masked_atom.mask.as_slice(), &[0xff, 0xff, 0xff]);
+    assert!(!masked_atom.atom.is_exact());
+
+    // Trim with ?? at the end of resulting atom: removes last byte and ??
+    let mut masked_atom = MaskedAtom::from_slice_range(
+        &[0x11, 0x22, 0x33, 0x44],
+        &[0xff, 0xff, 0x00, 0xff],
+        ..,
+    )
+    .unwrap();
+    masked_atom.trim();
+    // After trimming 0x44, it becomes [0x11, 0x22, 0x33] with mask [0xff, 0xff, 0x00].
+    // Since the last byte (0x33) has mask 0x00, it's also trimmed.
+    assert_eq!(masked_atom.atom.as_ref(), &[0x11, 0x22]);
+    assert_eq!(masked_atom.mask.as_slice(), &[0xff, 0xff]);
+    assert!(!masked_atom.atom.is_exact());
+
+    // Trim with multiple ?? at the end
+    let mut masked_atom = MaskedAtom::from_slice_range(
+        &[0x11, 0x22, 0x33, 0x44],
+        &[0xff, 0x00, 0x00, 0xff],
+        ..,
+    )
+    .unwrap();
+    masked_atom.trim();
+    // After trimming 0x44, the two 0x00s are also trimmed.
+    assert_eq!(masked_atom.atom.as_ref(), &[0x11]);
+    assert_eq!(masked_atom.mask.as_slice(), &[0xff]);
+
+    // Trim to empty
+    let mut masked_atom = MaskedAtom::from_slice_range(
+        &[0x11, 0x22, 0x33],
+        &[0x00, 0x00, 0xff],
+        ..,
+    )
+    .unwrap();
+    masked_atom.trim();
+    // Trim 0x33, then both 0x00s are trimmed, resulting in empty.
+    assert!(masked_atom.atom.as_ref().is_empty());
+    assert!(masked_atom.mask.is_empty());
+
+    // Trim on empty
+    let mut masked_atom = MaskedAtom::from_slice_range(&[], &[], ..).unwrap();
+    masked_atom.trim();
+    assert!(masked_atom.atom.as_ref().is_empty());
+    assert!(masked_atom.mask.is_empty());
+}
+
+#[test]
+fn from_slice_range_limits() {
+    let bytes = [0x11, 0x22, 0x33, 0x44];
+    let mask = [0xff, 0xff, 0xff, 0xff];
+
+    // Out of bounds range
+    assert!(Atom::from_slice_range(&bytes, 2..10).is_none());
+    assert!(MaskedAtom::from_slice_range(&bytes, &mask, 2..10).is_none());
+
+    // Backtrack overflow (start offset > u16::MAX)
+    let large_bytes = vec![0; 70000];
+    let large_mask = vec![0; 70000];
+    assert!(Atom::from_slice_range(&large_bytes, 65536..65538).is_none());
+    assert!(
+        MaskedAtom::from_slice_range(&large_bytes, &large_mask, 65536..65538)
+            .is_none()
+    );
+
+    // Valid bounds and backtrack
+    let atom = Atom::from_slice_range(&large_bytes, 65535..65537);
+    assert!(atom.is_some());
+    assert_eq!(atom.unwrap().backtrack(), 65535);
 }

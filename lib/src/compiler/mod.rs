@@ -2255,7 +2255,7 @@ impl Compiler<'_> {
             self.add_sub_pattern(
                 pattern_id,
                 SubPattern::LiteralWithMask { pattern, mask, flags },
-                atoms.into_iter(),
+                atoms,
                 SubPatternAtom::from_atom,
             );
             return Ok(());

@@ -5,7 +5,9 @@ use std::mem::size_of;
 use bstr::ByteSlice;
 use regex_syntax::hir::{Class, Hir, HirKind, Visitor, visit};
 
-use crate::compiler::{Atom, best_range_in_bytes, best_range_in_masked_bytes};
+use crate::compiler::{
+    Atom, MaskedAtom, best_range_in_bytes, best_range_in_masked_bytes,
+};
 use crate::re;
 use crate::re::fast::instr::Instr;
 use crate::re::{BckCodeLoc, Error, FwdCodeLoc, MAX_ALTERNATIVES, RegexpAtom};
@@ -165,9 +167,10 @@ impl Compiler {
         for (best_bytes, best_mask, best_range, _) in best_atoms {
             match (best_bytes, best_mask) {
                 (Some(bytes), Some(mask)) => {
-                    let atom =
-                        Atom::from_slice_range(bytes, best_range.clone());
-                    for atom in atom.mask_combinations(&mask[best_range]) {
+                    let masked_atom =
+                        MaskedAtom::from_slice_range(bytes, mask, best_range)
+                            .ok_or(Error::FastIncompatible)?;
+                    for atom in masked_atom.mask_combinations() {
                         atoms.push(RegexpAtom {
                             atom,
                             fwd_code: Some(FwdCodeLoc::from(fwd_code_start)),
@@ -176,7 +179,8 @@ impl Compiler {
                     }
                 }
                 (Some(bytes), None) => atoms.push(RegexpAtom {
-                    atom: Atom::from_slice_range(bytes, best_range),
+                    atom: Atom::from_slice_range(bytes, best_range)
+                        .ok_or(Error::FastIncompatible)?,
                     fwd_code: Some(FwdCodeLoc::from(fwd_code_start)),
                     bck_code: bck_code_start.map(BckCodeLoc::from),
                 }),

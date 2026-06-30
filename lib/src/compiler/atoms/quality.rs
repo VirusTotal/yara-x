@@ -391,9 +391,7 @@ impl Ord for AtomsQuality {
 
 /// Returns the range for the best possible atom that can be extracted from
 /// the slice and its quality.
-pub(crate) fn best_range_in_bytes(
-    bytes: &[u8],
-) -> (Range<usize>, i32) {
+pub(crate) fn best_range_in_bytes(bytes: &[u8]) -> (Range<usize>, i32) {
     let mut best_quality = i32::MIN;
     let mut best_range = 0..0;
 
@@ -466,6 +464,7 @@ pub(crate) fn best_range_in_masked_bytes(
 pub(crate) fn best_atom_in_bytes(bytes: &[u8]) -> Atom {
     let (range, _) = best_range_in_bytes(bytes);
     Atom::from_slice_range(bytes, range)
+        .expect("best_range_in_bytes returned invalid range")
 }
 
 /// Compute the quality of an atom.

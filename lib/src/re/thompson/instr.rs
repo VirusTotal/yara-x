@@ -190,7 +190,7 @@ pub enum Instr<'a> {
     /// due to its more compact representation.
     ClassBitmap(ClassBitmap<'a>),
 
-    /// Matches a byte class. The class is represented 1 or more byte ranges
+    /// Matches a byte class. The class represents one or more byte ranges
     /// The first `u8` after the opcode indicates the number of ranges, then
     /// follows one pair `[u8, u8]` per range, indicating starting and ending
     /// bytes for the range, both inclusive. With 16 ranges this instruction

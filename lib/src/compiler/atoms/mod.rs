@@ -172,29 +172,29 @@ impl Atom {
     /// # Example
     ///
     /// ```ignore
-    /// let atom = Atom::from_slice_range(&[0x00, 0x01, 0x02, 0x03], 1..=2);
+    /// let atom = Atom::from_slice_range(&[0x00, 0x01, 0x02, 0x03], 1..=2)?;
     /// assert_eq!(atom.as_ref(), &[0x01, 0x02]);
     /// assert_eq!(atom.backtrack, 1)
     /// assert(!atom.is_exact);
     /// ```
     ///
-    pub fn from_slice_range<R>(s: &[u8], range: R) -> Self
+    pub fn from_slice_range<R>(s: &[u8], range: R) -> Option<Self>
     where
         R: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]>,
     {
         let backtrack = match range.start_bound() {
-            Bound::Included(b) => *b as u16,
-            Bound::Excluded(b) => (*b + 1) as u16,
+            Bound::Included(b) => u16::try_from(*b).ok()?,
+            Bound::Excluded(b) => u16::try_from(*b + 1).ok()?,
             Bound::Unbounded => 0,
         };
 
-        let atom: &[u8] = &s[range];
+        let atom: &[u8] = s.get(range)?;
 
-        Self {
+        Some(Self {
             bytes: atom.to_smallvec(),
             backtrack,
             exact: atom.len() == s.len(),
-        }
+        })
     }
 
     #[inline]
@@ -266,33 +266,68 @@ impl Atom {
 
     /// Returns a [`CaseCombinations`] iterator that produces all possible case
     /// combinations of this atom.
-    pub fn case_combinations(self) -> CaseCombinations {
+    pub fn case_combinations(&self) -> CaseCombinations {
         CaseCombinations::new(self)
+    }
+}
+
+/// An association of an [`Atom`] and a mask of exactly the same length.
+///
+/// This type is used to generate all possible atoms that match a masked
+/// pattern (e.g. `1? 2?` -> `10 20`, `10 21`, ..., `1f 2f`).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct MaskedAtom {
+    pub(crate) atom: Atom,
+    pub(crate) mask: SmallVec<[u8; DESIRED_ATOM_SIZE]>,
+}
+
+impl MaskedAtom {
+    /// Creates a [`MaskedAtom`] from a slice range of a pattern and its
+    /// corresponding mask.
+    ///
+    /// The pattern slice `s` and the `mask` slice must have the same length.
+    ///
+    /// The backtrack value of the resulting atom will be equal to the start
+    /// offset of the range within the slices.
+    pub fn from_slice_range<R>(s: &[u8], mask: &[u8], range: R) -> Option<Self>
+    where
+        R: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]> + Clone,
+    {
+        assert_eq!(s.len(), mask.len());
+        let atom = Atom::from_slice_range(s, range.clone())?;
+        let mask_slice = mask.get(range)?;
+        Some(Self { atom, mask: SmallVec::from_slice(mask_slice) })
     }
 
     /// Returns a [`MaskCombinations`] iterator which produces all possible
-    /// combinations that result from applying a given mask to the atom.
-    ///
-    /// The mask's length must be identical to the atom's length. In scenarios
-    /// where the mask is shorter than the atom, the iterator will yield atoms
-    /// matching the mask's length. If the mask is longer than the atom, it
-    /// gets truncated to the atom's length.
+    /// combinations that result from applying the mask to the atom.
     ///
     /// The mask's binary 1 bits are constant, adopting the corresponding bits
     /// from the atom. Conversely, binary 0 bits within the mask are variable;
     /// consequently, the resultant atoms encompass all feasible permutations
     /// for these variable bits.
-    #[allow(dead_code)]
-    pub fn mask_combinations(self, mask: &[u8]) -> MaskCombinations {
-        MaskCombinations::new(self, mask)
+    pub fn mask_combinations(&self) -> MaskCombinations {
+        MaskCombinations::new(self)
     }
 
-    /// Returns the number of concrete atoms that would be produced by applying
-    /// the given mask to this atom.
-    pub fn mask_combinations_count(&self, mask: &[u8]) -> usize {
-        zip(self.bytes.iter(), mask)
-            .map(|(_, &m)| 1 << m.count_zeros())
-            .product()
+    /// Reduces the length of the atom by 1 byte, removing the last byte.
+    ///
+    /// If the resulting atom ends with a full mask `??` (which is represented
+    /// by a mask byte of `0x00`), that byte is also removed. This process continues
+    /// until the last byte of the atom is not fully masked with `??` or the atom
+    /// becomes empty.
+    pub fn trim(&mut self) {
+        if self.atom.bytes.is_empty() {
+            return;
+        }
+        self.atom.bytes.pop();
+        self.mask.pop();
+        self.atom.set_exact(false);
+
+        while self.mask.last() == Some(&0x00) {
+            self.atom.bytes.pop();
+            self.mask.pop();
+        }
     }
 }
 
@@ -315,7 +350,7 @@ pub(crate) fn extract_atoms(
     }
 
     if flags.contains(SubPatternFlags::Nocase) {
-        Box::new(CaseCombinations::new(best_atom))
+        Box::new(CaseCombinations::new(&best_atom))
     } else {
         Box::new(iter::once(best_atom))
     }
@@ -346,15 +381,21 @@ pub(crate) struct MaskCombinations {
     cartesian_product: MultiProduct<ByteMaskCombinator>,
     backtrack: u16,
     exact: bool,
+    total_combinations: usize,
 }
 
 impl MaskCombinations {
-    fn new(atom: Atom, mask: &[u8]) -> Self {
+    fn new(masked_atom: &MaskedAtom) -> Self {
         Self {
-            exact: atom.exact,
-            backtrack: atom.backtrack,
-            cartesian_product: zip(atom.bytes, mask)
-                .map(|(byte, mask)| ByteMaskCombinator::new(byte, *mask))
+            exact: masked_atom.atom.exact,
+            backtrack: masked_atom.atom.backtrack,
+            total_combinations: masked_atom
+                .mask
+                .iter()
+                .map(|m| 1 << m.count_zeros())
+                .product(),
+            cartesian_product: zip(&masked_atom.atom.bytes, &masked_atom.mask)
+                .map(|(byte, mask)| ByteMaskCombinator::new(*byte, *mask))
                 .multi_cartesian_product(),
         }
     }
@@ -368,6 +409,12 @@ impl Iterator for MaskCombinations {
         atom.backtrack = self.backtrack;
         atom.exact = self.exact;
         Some(atom)
+    }
+}
+
+impl ExactSizeIterator for MaskCombinations {
+    fn len(&self) -> usize {
+        self.total_combinations
     }
 }
 
@@ -386,7 +433,7 @@ pub(crate) struct CaseCombinations {
 }
 
 impl CaseCombinations {
-    fn new(atom: Atom) -> Self {
+    fn new(atom: &Atom) -> Self {
         Self {
             exact: atom.exact,
             backtrack: atom.backtrack,

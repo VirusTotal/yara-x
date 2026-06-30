@@ -873,6 +873,7 @@ impl ScanContext<'_, '_> {
                 SubPattern::Literal { flags, .. }
                 | SubPattern::LiteralChainHead { flags, .. }
                 | SubPattern::LiteralChainTail { flags, .. }
+                | SubPattern::LiteralWithMask { flags, .. }
                 | SubPattern::Regexp { flags, .. }
                 | SubPattern::RegexpChainHead { flags, .. }
                 | SubPattern::RegexpChainTail { flags, .. } => flags,
