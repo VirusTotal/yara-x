@@ -2228,7 +2228,7 @@ impl Compiler<'_> {
         }
 
         // If this point is reached, this is a pattern that can't be split into
-        // multiple chained patterns, and is neither a literal or alternation
+        // multiple chained patterns, and is neither a literal nor alternation
         // of literals. Most patterns fall in this category.
         let mut flags = SubPatternFlags::empty();
 
@@ -2244,6 +2244,26 @@ impl Compiler<'_> {
         if matches!(head.is_greedy(), Some(true)) {
             flags.insert(SubPatternFlags::GreedyRegexp);
         }
+
+        // If the pattern doesn't have the `nocase` or `wide` modifier, and it
+        // is a simple literal pattern with masks (e.g., `{ 01 02 ?? 04 }` or
+        // `{ 1? 2? 3? }`), we can treat it as a `LiteralWithMask` sub-pattern.
+        // This is much more efficient than executing it as a regular expression.
+        if !pattern.flags.contains(PatternFlags::Nocase)
+            && !pattern.flags.contains(PatternFlags::Wide)
+            && let Some((pattern, mask, atoms)) =
+                head.try_extract_literal_with_mask()
+        {
+            let pattern = self.intern_literal(pattern.as_slice(), false);
+            let mask = self.intern_literal(mask.as_slice(), false);
+            self.add_sub_pattern(
+                pattern_id,
+                SubPattern::LiteralWithMask { pattern, mask, flags },
+                atoms,
+                SubPatternAtom::from_atom,
+            );
+            return Ok(());
+        };
 
         let (atoms, is_fast_regexp) = self.c_regexp(&head, span)?;
 
@@ -2996,6 +3016,12 @@ pub(crate) enum SubPattern {
     Literal {
         pattern: LiteralId,
         anchored_at: Option<usize>,
+        flags: SubPatternFlags,
+    },
+
+    LiteralWithMask {
+        pattern: LiteralId,
+        mask: LiteralId,
         flags: SubPatternFlags,
     },
 
