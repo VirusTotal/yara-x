@@ -241,17 +241,6 @@ impl Hir {
         let mut mask = Vec::new();
         let mut stack = vec![&self.inner];
 
-        fn is_any_byte(hir: &regex_syntax::hir::Hir) -> bool {
-            match hir.kind() {
-                HirKind::Class(Class::Bytes(class)) => {
-                    class.ranges().len() == 1
-                        && class.ranges()[0].start() == 0
-                        && class.ranges()[0].end() == 255
-                }
-                _ => false,
-            }
-        }
-
         while let Some(hir) = stack.pop() {
             match hir.kind() {
                 HirKind::Literal(lit) => {
@@ -260,7 +249,7 @@ impl Hir {
                     mask.extend(repeat_n(0xff, bytes.len()));
                 }
                 HirKind::Repetition(Repetition { min, max, sub, .. }) => {
-                    if *max == Some(*min) && is_any_byte(sub.as_ref()) {
+                    if *max == Some(*min) && any_byte(sub.kind()) {
                         let count = *min as usize;
                         pattern.extend(repeat_n(0x00, count));
                         mask.extend(repeat_n(0x00, count));
