@@ -33,7 +33,7 @@ const MAGIC: &[u8] = b"YARA-X\0\0";
 ///
 /// This version is incremented every time a change is made to the binary
 /// format in a way that breaks backwards compatibility.
-const SERIALIZATION_VERSION: u32 = 3;
+const SERIALIZATION_VERSION: u32 = 4;
 
 /// Aho-Corasick automaton bundled with an optional Teddy scanner if the
 /// number of patterns is low enough. If the Teddy scanner is present, and
@@ -189,6 +189,14 @@ pub struct Rules {
     /// as count `#a`, offset `@a`, length `!a`, anchored checks, or loop
     /// equivalents), it cannot be fast-scanned.
     pub(in crate::compiler) fast_scan_patterns: bitvec::vec::BitVec,
+
+    /// Indicates whether the rules were compiled with rules profiling enabled.
+    ///
+    /// This flag is checked during deserialization to ensure that the YARA-X
+    /// binary performing deserialization is built with the same profiling
+    /// settings as the compiled rules. A mismatch will result in a
+    /// deserialization error.
+    pub(in crate::compiler) rules_profiling_enabled: bool,
 }
 
 impl Rules {
@@ -261,6 +269,16 @@ impl Rules {
 
         #[cfg(feature = "logging")]
         info!("Deserialization time: {:?}", Instant::elapsed(&start));
+
+        let profiling_enabled = cfg!(feature = "rules-profiling");
+
+        if rules.rules_profiling_enabled != profiling_enabled {
+            return Err(SerializationError::InvalidWASM(anyhow!(
+                "rules profiling mismatch: rules compiled with profiling enabled = {}, but YARA-X compiled with profiling enabled = {}",
+                rules.rules_profiling_enabled,
+                profiling_enabled
+            )));
+        }
 
         // `rules.compiled_wasm_mod` can be `None` for two reasons:
         //

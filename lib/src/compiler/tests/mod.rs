@@ -28,7 +28,7 @@ fn serialization() {
     // `DecodeError`.
     let mut data = Vec::new();
     data.extend(b"YARA-X\0\0");
-    data.extend(3u32.to_le_bytes());
+    data.extend(4u32.to_le_bytes());
     data.extend(b"foo");
 
     assert!(matches!(
@@ -46,6 +46,17 @@ fn serialization() {
     assert!(matches!(
         Rules::deserialize(&data).err().unwrap(),
         SerializationError::InvalidVersion { expected: _, actual: 0 }
+    ));
+
+    // A mismatched rules profiling flag should produce an InvalidWASM error.
+    let mut rules = compile(r#"rule test { condition: true }"#).unwrap();
+    rules.rules_profiling_enabled = !rules.rules_profiling_enabled;
+
+    let rules_bytes = rules.serialize().unwrap();
+
+    assert!(matches!(
+        Rules::deserialize(&rules_bytes).err().unwrap(),
+        SerializationError::InvalidWASM(_)
     ));
 
     let rules = compile(r#"rule test { strings: $a = "foo" condition: $a }"#)

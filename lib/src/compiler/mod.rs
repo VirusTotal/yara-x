@@ -830,6 +830,7 @@ impl<'a> Compiler<'a> {
             header_constraints: self.header_constraints,
             regex_sets: self.regex_sets,
             fast_scan_patterns: self.fast_scan_patterns,
+            rules_profiling_enabled: cfg!(feature = "rules-profiling"),
         };
 
         rules.build_ac_automaton();
