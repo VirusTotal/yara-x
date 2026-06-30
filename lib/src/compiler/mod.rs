@@ -2245,6 +2245,10 @@ impl Compiler<'_> {
             flags.insert(SubPatternFlags::GreedyRegexp);
         }
 
+        // If the pattern doesn't have the `nocase` or `wide` modifier, and it
+        // is a simple literal pattern with masks (e.g., `{ 01 02 ?? 04 }` or
+        // `{ 1? 2? 3? }`), we can treat it as a `LiteralWithMask` sub-pattern.
+        // This is much more efficient than executing it as a regular expression.
         if !pattern.flags.contains(PatternFlags::Nocase)
             && !pattern.flags.contains(PatternFlags::Wide)
             && let Some((pattern, mask, atoms)) =
@@ -2261,30 +2265,25 @@ impl Compiler<'_> {
             return Ok(());
         };
 
+        let (atoms, is_fast_regexp) = self.c_regexp(&head, span)?;
+
+        if is_fast_regexp {
+            flags.insert(SubPatternFlags::FastRegexp);
+        }
+
         if pattern.flags.contains(PatternFlags::Wide) {
-            let (atoms, is_fast_regexp) =
-                self.c_regexp(&head, span.clone())?;
-            let mut wide_flags = flags | SubPatternFlags::Wide;
-            if is_fast_regexp {
-                wide_flags.insert(SubPatternFlags::FastRegexp);
-            }
             self.add_sub_pattern(
                 pattern_id,
-                SubPattern::Regexp { flags: wide_flags },
+                SubPattern::Regexp { flags: flags | SubPatternFlags::Wide },
                 atoms.iter().cloned().map(|atom| atom.make_wide()),
                 SubPatternAtom::from_regexp_atom,
             );
         }
 
         if pattern.flags.contains(PatternFlags::Ascii) {
-            let (atoms, is_fast_regexp) = self.c_regexp(&head, span)?;
-            let mut ascii_flags = flags;
-            if is_fast_regexp {
-                ascii_flags.insert(SubPatternFlags::FastRegexp);
-            }
             self.add_sub_pattern(
                 pattern_id,
-                SubPattern::Regexp { flags: ascii_flags },
+                SubPattern::Regexp { flags },
                 atoms.into_iter(),
                 SubPatternAtom::from_regexp_atom,
             );
