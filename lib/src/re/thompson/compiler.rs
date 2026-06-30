@@ -1999,7 +1999,7 @@ fn optimize_seq(mut seq: Seq) -> Option<Seq> {
         return Some(seq);
     }
 
-    for (_, bitmap) in map.iter_mut() {
+    for bitmap in map.values_mut() {
         bitmap.set(0, true);
     }
 

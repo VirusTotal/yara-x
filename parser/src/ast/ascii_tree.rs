@@ -379,10 +379,7 @@ fn build_tree_for_expr(expr: &Expr, children: Vec<Tree>) -> Tree {
                             .iter()
                             .flat_map(|d| {
                                 vec![
-                                    Leaf(vec![format!(
-                                        "{}",
-                                        d.identifier.name
-                                    )]),
+                                    Leaf(vec![d.identifier.name.to_string()]),
                                     children_iter.next().unwrap(),
                                 ]
                             })

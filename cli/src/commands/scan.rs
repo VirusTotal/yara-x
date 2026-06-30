@@ -237,7 +237,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         }
 
         let file = File::open(rules_path)
-            .with_context(|| format!("can not open {:?}", &rules_path))?;
+            .with_context(|| format!("can not open {:?}", rules_path))?;
 
         let rules = Rules::deserialize_from(file)?;
 
@@ -340,7 +340,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                 let path = file_path.display().to_string();
                 scanner.console_log(move |msg| {
                     output
-                        .send(Message::Error(format!("{}: {}", &path.paint(Yellow), msg.paint(Yellow))))
+                        .send(Message::Error(format!("{}: {}", path.paint(Yellow), msg.paint(Yellow))))
                         .unwrap();
                 });
             }
@@ -374,7 +374,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
             let scan_results = scanner
                 .scan_file_with_options(file_path.as_path(), scan_options)
-                .with_context(|| format!("scanning {:?}", &file_path));
+                .with_context(|| format!("scanning {:?}", file_path));
 
             state
                 .files_in_progress
@@ -743,7 +743,7 @@ mod output_handler {
                 output
                     .send(Message::Info(format!(
                         "{}: {}",
-                        &file_path.display().to_string(),
+                        file_path.display(),
                         scan_results.len()
                     )))
                     .unwrap();

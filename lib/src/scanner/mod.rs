@@ -654,17 +654,14 @@ impl<'r> Scanner<'r> {
                 ctx.user_provided_module_outputs.remove(root_struct_name)
             {
                 module_output = Some(output);
-            } else {
-                if let Some(main_res) = module.main_fn(&mut mod_ctx, data) {
-                    module_output = Some(main_res.map_err(|err| {
-                        ScanError::ModuleError {
-                            module: module_name.to_string(),
-                            err,
-                        }
+            } else if let Some(main_res) = module.main_fn(&mut mod_ctx, data) {
+                module_output =
+                    Some(main_res.map_err(|err| ScanError::ModuleError {
+                        module: module_name.to_string(),
+                        err,
                     })?);
-                } else {
-                    module_output = None;
-                }
+            } else {
+                module_output = None;
             }
 
             if let Some(module_output) = &module_output {

@@ -318,15 +318,13 @@ impl<'src> ParserImpl<'src> {
         // }
         //
         let token_pos = loop {
-            match self.tokens.peek_token(i) {
-                Some(token) => {
-                    if token.is_trivia() {
-                        i += 1;
-                    } else {
-                        break i;
-                    }
+            {
+                let token = self.tokens.peek_token(i)?;
+                if token.is_trivia() {
+                    i += 1;
+                } else {
+                    break i;
                 }
-                None => return None,
             }
         };
         self.tokens.peek_token(token_pos)

@@ -264,12 +264,9 @@ impl Hir {
                     }
                 }
                 HirKind::Class(Class::Bytes(class)) => {
-                    if let Some(hex_byte) = class_to_masked_byte(class) {
-                        pattern.push(hex_byte.value);
-                        mask.push(hex_byte.mask);
-                    } else {
-                        return None;
-                    }
+                    let hex_byte = class_to_masked_byte(class)?;
+                    pattern.push(hex_byte.value);
+                    mask.push(hex_byte.mask);
                 }
                 HirKind::Capture(group) => {
                     stack.push(&group.sub);

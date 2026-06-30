@@ -405,7 +405,8 @@ impl FastVM<'_> {
             // Iterate the input in chunks of two bytes, where the first one
             // must match a byte in the literal, and the second one is the
             // interleaved zero.
-            for (chunk, byte) in izip!(input.chunks_exact(2), literal.iter()) {
+            let (chunks, _) = input.as_chunks::<2>();
+            for (chunk, byte) in izip!(chunks, literal.iter()) {
                 if chunk[0] != *byte || chunk[1] != 0 {
                     return false;
                 }

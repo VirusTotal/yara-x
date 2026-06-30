@@ -216,10 +216,10 @@ fn crc_str(ctx: &ScanContext, s: RuntimeString) -> Option<i64> {
 #[inline]
 fn checksum32(data: &[u8]) -> u32 {
     let mut sum = 0_u64;
-    let mut chunks = data.chunks_exact(8);
+    let (chunks, remainder) = data.as_chunks::<8>();
 
-    for chunk in &mut chunks {
-        let x = u64::from_le_bytes(chunk.try_into().unwrap());
+    for chunk in chunks {
+        let x = u64::from_le_bytes(*chunk);
         let pairs =
             (x & 0x00ff_00ff_00ff_00ff) + ((x >> 8) & 0x00ff_00ff_00ff_00ff);
         let quads = (pairs & 0x0000_ffff_0000_ffff)
@@ -228,7 +228,7 @@ fn checksum32(data: &[u8]) -> u32 {
     }
 
     let mut checksum = sum as u32;
-    for byte in chunks.remainder() {
+    for byte in remainder {
         checksum = checksum.wrapping_add(*byte as u32);
     }
     checksum
