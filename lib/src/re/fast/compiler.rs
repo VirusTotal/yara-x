@@ -60,7 +60,7 @@ impl Compiler {
             } else {
                 best_range_in_bytes(bytes)
             };
-            atoms.push((Some(bytes), mask, range, quality));
+            atoms.push((bytes, mask, range, quality));
         };
 
         // Iterate the pieces, looking for the one that contains the best
@@ -100,14 +100,15 @@ impl Compiler {
                         }
                     }
                 }
-                PatternPiece::JumpExact(..) | PatternPiece::Jump(..) => {
-                    piece_atoms.push((None, None, 0..0, i32::MIN))
-                }
+                PatternPiece::JumpExact(..) | PatternPiece::Jump(..) => {}
             };
 
             // Find the quality of the worst piece.
-            let quality =
-                *piece_atoms.iter().map(|(_, _, _, q)| q).min().unwrap();
+            let quality = *piece_atoms
+                .iter()
+                .map(|(_, _, _, q)| q)
+                .min()
+                .unwrap_or(&i32::MIN);
 
             // If the quality of the worst piece is higher than the current
             // best quality, replace the best atoms and best quality.
@@ -164,11 +165,11 @@ impl Compiler {
             None => return Err(Error::FastIncompatible),
         };
 
-        for (best_bytes, best_mask, best_range, _) in best_atoms {
-            match (best_bytes, best_mask) {
-                (Some(bytes), Some(mask)) => {
+        for (pattern, mask, range, _) in best_atoms {
+            match (pattern, mask) {
+                (pattern, Some(mask)) => {
                     let masked_atom =
-                        MaskedAtom::from_slice_range(bytes, mask, best_range)
+                        MaskedAtom::from_slice_range(pattern, mask, range)
                             .ok_or(Error::FastIncompatible)?;
                     for atom in masked_atom.mask_combinations() {
                         atoms.push(RegexpAtom {
@@ -178,14 +179,12 @@ impl Compiler {
                         })
                     }
                 }
-                (Some(bytes), None) => atoms.push(RegexpAtom {
-                    atom: Atom::from_slice_range(bytes, best_range)
+                (pattern, None) => atoms.push(RegexpAtom {
+                    atom: Atom::from_slice_range(pattern, range)
                         .ok_or(Error::FastIncompatible)?,
                     fwd_code: Some(FwdCodeLoc::from(fwd_code_start)),
                     bck_code: bck_code_start.map(BckCodeLoc::from),
                 }),
-                (None, None) => {}
-                _ => unreachable!(),
             }
         }
 

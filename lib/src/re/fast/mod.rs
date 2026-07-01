@@ -4,8 +4,8 @@ to [PikeVM], accompanied by a compiler designed to generate code for it.
 [FastVM] closely resembles [PikeVM], albeit with certain limitations. It
 exclusively supports regular expressions adhering to the following rules:
 
-- No repetitions are allowed, except when the repeated pattern is any byte. So,
-  `.*` and `.{1,3}` are permitted, but `a*` and `a{1,3}` are not.
+- No repetitions are allowed, except when the repeated pattern is any byte.
+  So, `.*` and `.{1,3}` are permitted, but `a*` and `a{1,3}` are not.
 
 - Character classes are disallowed unless they can be represented as masked
   bytes. For example, `[a-z]` is not supported, but `[Aa]` is, as it can be
