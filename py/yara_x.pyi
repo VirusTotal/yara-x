@@ -398,7 +398,7 @@ class Pattern:
         ...
 
     @property
-    def matches(self) -> tuple:
+    def matches(self) -> Tuple[Match, ...]:
         r"""
         Matches found for this pattern.
         """
@@ -425,14 +425,14 @@ class Rule:
         ...
 
     @property
-    def tags(self) -> tuple:
+    def tags(self) -> Tuple[str, ...]:
         r"""
         Returns the rule's tags.
         """
         ...
 
     @property
-    def metadata(self) -> tuple:
+    def metadata(self) -> Tuple[Tuple[str, Any], ...]:
         r"""
         A tuple of pairs `(identifier, value)` with the metadata associated to
         the rule.
@@ -440,7 +440,7 @@ class Rule:
         ...
 
     @property
-    def patterns(self) -> tuple:
+    def patterns(self) -> Tuple[Pattern, ...]:
         r"""
         Patterns defined by the rule.
         """
