@@ -4,7 +4,6 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-
 pub type PatternID = u32;
 
 #[derive(Clone, Debug)]
@@ -157,8 +156,6 @@ impl<V: Vector, const BYTES: usize> Slim<V, BYTES> {
         }
     }
 
-
-
     /// Returns the minimum length, in bytes, that a haystack must be in order
     /// to use it with this searcher.
     #[inline(always)]
@@ -168,8 +165,6 @@ impl<V: Vector, const BYTES: usize> Slim<V, BYTES> {
 }
 
 impl<V: Vector> Slim<V, 1> {
-
-
     /// Look for a candidate match (represented as a vector) starting at the
     /// `V::BYTES` at and after `cur`. If there isn't one, then a vector with
     /// all bits set to zero is returned.
@@ -225,8 +220,6 @@ impl<V: Vector> Slim<V, 1> {
 }
 
 impl<V: Vector> Slim<V, 2> {
-
-
     /// See Slim<V, 1>::candidate.
     #[inline(always)]
     unsafe fn candidate(&self, cur: *const u8, prev0: &mut V) -> V {
@@ -242,8 +235,6 @@ impl<V: Vector> Slim<V, 2> {
 }
 
 impl<V: Vector> Slim<V, 3> {
-
-
     /// See Slim<V, 1>::candidate.
     #[inline(always)]
     unsafe fn candidate(
@@ -266,8 +257,6 @@ impl<V: Vector> Slim<V, 3> {
 }
 
 impl<V: Vector> Slim<V, 4> {
-
-
     /// See Slim<V, 1>::candidate.
     #[inline(always)]
     unsafe fn candidate(
@@ -329,8 +318,6 @@ impl<V: FatVector, const BYTES: usize> Fat<V, BYTES> {
         }
     }
 
-
-
     /// Returns the minimum length, in bytes, that a haystack must be in order
     /// to use it with this searcher.
     #[inline(always)]
@@ -340,7 +327,6 @@ impl<V: FatVector, const BYTES: usize> Fat<V, BYTES> {
 }
 
 impl<V: FatVector> Fat<V, 1> {
-
     /// Look for a candidate match (represented as a vector) starting at the
     /// `V::BYTES` at and after `cur`. If there isn't one, then a vector with
     /// all bits set to zero is returned.
@@ -362,8 +348,6 @@ impl<V: FatVector> Fat<V, 1> {
 }
 
 impl<V: FatVector> Fat<V, 2> {
-
-
     /// See `Fat<V, 1>::candidate`.
     #[inline(always)]
     unsafe fn candidate(&self, cur: *const u8, prev0: &mut V) -> V {
@@ -379,8 +363,6 @@ impl<V: FatVector> Fat<V, 2> {
 }
 
 impl<V: FatVector> Fat<V, 3> {
-
-
     /// See `Fat<V, 1>::candidate`.
     #[inline(always)]
     unsafe fn candidate(
@@ -403,8 +385,6 @@ impl<V: FatVector> Fat<V, 3> {
 }
 
 impl<V: FatVector> Fat<V, 4> {
-
-
     /// See `Fat<V, 1>::candidate`.
     #[inline(always)]
     unsafe fn candidate(
@@ -525,8 +505,6 @@ impl<const BUCKETS: usize> Teddy<BUCKETS> {
         t
     }
 
-
-
     /// Returns the total number of masks required by the patterns in this
     /// Teddy searcher.
     ///
@@ -541,8 +519,6 @@ impl<const BUCKETS: usize> Teddy<BUCKETS> {
     fn mask_len(&self) -> usize {
         core::cmp::min(4, self.patterns.minimum_len())
     }
-
-
 }
 
 /// A vector generic mask for the low and high nybbles in a set of patterns.
@@ -1308,8 +1284,6 @@ mod tests {
     use super::*;
     use std::sync::Arc;
 
-
-
     #[test]
     fn patterns_and_pattern() {
         let by_id = vec![b"abc".to_vec(), b"d".to_vec()];
@@ -1431,8 +1405,6 @@ mod tests {
         let _ = Teddy::<4>::new(pats);
     }
 
-
-
     #[test]
     fn teddy_verify64_all() {
         let pats = Arc::new(Patterns {
@@ -1475,7 +1447,9 @@ mod tests {
                 macro_rules! assert_finds {
                     ($s:expr, $start:expr, $end:expr) => {{
                         let mut found = false;
-                        $s.find_overlapping($start, $end, &mut |_| found = true);
+                        $s.find_overlapping($start, $end, &mut |_| {
+                            found = true
+                        });
                         assert!(found);
                     }};
                 }
@@ -1566,7 +1540,9 @@ mod tests {
                 macro_rules! assert_finds {
                     ($s:expr, $start:expr, $end:expr) => {{
                         let mut found = false;
-                        $s.find_overlapping($start, $end, &mut |_| found = true);
+                        $s.find_overlapping($start, $end, &mut |_| {
+                            found = true
+                        });
                         assert!(found);
                     }};
                 }
