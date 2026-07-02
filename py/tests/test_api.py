@@ -134,7 +134,6 @@ def test_namespaces():
   assert matching_rules[0].patterns[0].matches[0].offset == 0
   assert matching_rules[0].patterns[0].matches[0].length == 3
   assert matching_rules[0].patterns[0].matches[0].xor_key is None
-  assert matching_rules[0].patterns[0].matches[0].data == b'foo'
 
   assert matching_rules[1].identifier == 'bar'
   assert matching_rules[1].namespace == 'bar'
@@ -144,7 +143,6 @@ def test_namespaces():
   assert matching_rules[1].patterns[0].matches[0].offset == 3
   assert matching_rules[1].patterns[0].matches[0].length == 3
   assert matching_rules[1].patterns[0].matches[0].xor_key is None
-  assert matching_rules[1].patterns[0].matches[0].data == b'bar'
 
 
 def test_metadata():

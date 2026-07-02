@@ -1190,8 +1190,6 @@ struct Match {
     /// For patterns that have the `xor` modifier, contains the XOR key that
     /// applied to matching data. For any other pattern will be `None`.
     xor_key: Option<u8>,
-    /// The matched data.
-    data: Py<PyBytes>,
 }
 
 #[pymethods]
@@ -1213,12 +1211,6 @@ impl Match {
     #[getter]
     fn xor_key(&self) -> Option<u8> {
         self.xor_key
-    }
-
-    /// Matched data.
-    #[getter]
-    fn data(&self) -> &Py<PyBytes> {
-        &self.data
     }
 }
 
@@ -1418,7 +1410,6 @@ fn match_to_py(py: Python, match_: yrx::Match) -> PyResult<Py<Match>> {
             offset: match_.range().start,
             length: match_.range().len(),
             xor_key: match_.xor_key(),
-            data: PyBytes::new(py, match_.data()).unbind(),
         },
     )
 }

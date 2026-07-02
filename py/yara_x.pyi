@@ -377,13 +377,6 @@ class Match:
         """
         ...
 
-    @property
-    def data(self) -> bytes:
-        r"""
-        Matched data.
-        """
-        ...
-
 @final
 class Pattern:
     r"""
