@@ -1,0 +1,51 @@
+import "math"
+
+rule test_1 {
+    condition:
+        for any i in (1..2) : (
+            for any j in (1..2) : (
+                j == (i + 1)
+            )
+        )
+}
+
+rule test_2 {
+    strings:
+        $a = "abc"
+    condition:
+        for any of ($a) : (
+            for any i in (1..2) : (
+                i == math.abs(1)
+            )
+        )
+}
+
+rule test_3 {
+    condition:
+        true and (for any i in (1..2) : ( i == math.abs(1) ))
+}
+
+rule test_4 {
+    condition:
+        false or (for any i in (1..2) : ( i == math.abs(1) ))
+}
+
+rule test_5 {
+    condition:
+        not (for any i in (1..2) : ( i == math.abs(1) ))
+}
+
+rule test_6 {
+    condition:
+        1 of ( (for any i in (1..2) : ( i == math.abs(1) )), true )
+}
+
+rule test_7 {
+    condition:
+        math.to_number(for any i in (1..2) : ( i == math.abs(1) )) == 1
+}
+
+rule test_8 {
+    condition:
+        defined (for any i in (1..2) : ( i == math.abs(1) ))
+}
