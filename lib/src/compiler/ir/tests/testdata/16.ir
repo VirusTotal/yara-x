@@ -1,4 +1,4 @@
-RULE test_for_in_parent
+RULE test_1
   10: FOR_IN -- hash: 0xd210e99877f4fa84
         n: Var { frame_id: 1, ty: integer, index: 0 }
         i: Var { frame_id: 1, ty: integer, index: 1 }
@@ -21,7 +21,7 @@ RULE test_for_in_parent
           5: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
           6: CONST integer(1)
 
-RULE test_for_of_parent
+RULE test_2
   8: FOR_OF -- hash: 0xe4a08e7456292b47
         n: Var { frame_id: 1, ty: integer, index: 0 }
         i: Var { frame_id: 1, ty: integer, index: 1 }
@@ -41,7 +41,7 @@ RULE test_for_of_parent
         5: FN_CALL math.abs@x:i@i -- hash: 0x8fe1d7c818e3e998
           4: CONST integer(1)
 
-RULE test_and_parent
+RULE test_3
   9: AND -- hash: 0x76ad43078646820d
     8: FOR_IN -- hash: 0x33ea248cbadf6b9
           n: Var { frame_id: 1, ty: integer, index: 0 }
@@ -56,7 +56,7 @@ RULE test_and_parent
         6: FN_CALL math.abs@x:i@i -- hash: 0x8fe1d7c818e3e998
           5: CONST integer(1)
 
-RULE test_or_parent
+RULE test_4
   9: OR -- hash: 0x47d223471b2405d4
     8: FOR_IN -- hash: 0x33ea248cbadf6b9
           n: Var { frame_id: 1, ty: integer, index: 0 }
@@ -71,7 +71,7 @@ RULE test_or_parent
         6: FN_CALL math.abs@x:i@i -- hash: 0x8fe1d7c818e3e998
           5: CONST integer(1)
 
-RULE test_not_parent
+RULE test_5
   8: NOT -- hash: 0xa58862c7f168fe46
     7: FOR_IN -- hash: 0x33ea248cbadf6b9
           n: Var { frame_id: 1, ty: integer, index: 0 }
@@ -86,7 +86,7 @@ RULE test_not_parent
         5: FN_CALL math.abs@x:i@i -- hash: 0x8fe1d7c818e3e998
           4: CONST integer(1)
 
-RULE test_of_expr_tuple_parent
+RULE test_6
   10: OF -- hash: 0x24cc8e76ae19e17f
     0: CONST integer(1)
     9: CONST boolean(true)
@@ -103,7 +103,7 @@ RULE test_of_expr_tuple_parent
         6: FN_CALL math.abs@x:i@i -- hash: 0x8fe1d7c818e3e998
           5: CONST integer(1)
 
-RULE test_func_call_parent
+RULE test_7
   11: EQ -- hash: 0x3dae225ca107ebac
     9: FN_CALL math.to_number@b:b@i -- hash: 0xdcca860b2fe0bb09
       8: FOR_IN -- hash: 0x33ea248cbadf6b9
@@ -120,7 +120,7 @@ RULE test_func_call_parent
             5: CONST integer(1)
     10: CONST integer(1)
 
-RULE test_defined_parent
+RULE test_8
   8: DEFINED -- hash: 0x27daaa3b4b5e6f93
     7: FOR_IN -- hash: 0x33ea248cbadf6b9
           n: Var { frame_id: 1, ty: integer, index: 0 }

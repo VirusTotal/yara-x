@@ -1,4 +1,4 @@
-RULE test_for_in_parent
+RULE test_1
   10: FOR_IN -- hash: 0xf0de15212626240d
         n: Var { frame_id: 1, ty: integer, index: 0 }
         i: Var { frame_id: 1, ty: integer, index: 1 }
@@ -23,7 +23,7 @@ RULE test_for_in_parent
           4: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 13 }, type_value: integer(unknown) }
           7: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 7 }, type_value: integer(unknown) }
 
-RULE test_for_of_parent
+RULE test_2
   8: FOR_OF -- hash: 0xfc7c823bf3d2e50
         n: Var { frame_id: 1, ty: integer, index: 0 }
         i: Var { frame_id: 1, ty: integer, index: 1 }
@@ -45,7 +45,7 @@ RULE test_for_of_parent
           2: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 11 }, type_value: integer(unknown) }
           5: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 5 }, type_value: integer(unknown) }
 
-RULE test_and_parent
+RULE test_3
   9: AND -- hash: 0x368be42e0979068b
     11: WITH -- hash: 0x87e6897f6e291aed
       10: FN_CALL math.abs@x:i@i -- hash: 0x8fe1d7c818e3e998
@@ -62,7 +62,7 @@ RULE test_and_parent
           3: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 6 }, type_value: integer(unknown) }
           6: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: integer(unknown) }
 
-RULE test_or_parent
+RULE test_4
   9: OR -- hash: 0x70c302683e93aa6a
     11: WITH -- hash: 0x87e6897f6e291aed
       10: FN_CALL math.abs@x:i@i -- hash: 0x8fe1d7c818e3e998
@@ -79,7 +79,7 @@ RULE test_or_parent
           3: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 6 }, type_value: integer(unknown) }
           6: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: integer(unknown) }
 
-RULE test_not_parent
+RULE test_5
   8: NOT -- hash: 0xfc54c5f3d45e62ab
     10: WITH -- hash: 0x87e6897f6e291aed
       9: FN_CALL math.abs@x:i@i -- hash: 0x8fe1d7c818e3e998
@@ -96,7 +96,7 @@ RULE test_not_parent
           2: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 6 }, type_value: integer(unknown) }
           5: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: integer(unknown) }
 
-RULE test_of_expr_tuple_parent
+RULE test_6
   10: OF -- hash: 0xb2e61e7cd7d603ab
     0: CONST integer(1)
     9: CONST boolean(true)
@@ -115,7 +115,7 @@ RULE test_of_expr_tuple_parent
           3: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 11 }, type_value: integer(unknown) }
           6: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 5 }, type_value: integer(unknown) }
 
-RULE test_func_call_parent
+RULE test_7
   11: EQ -- hash: 0x2f1b62e477b4c5b
     9: FN_CALL math.to_number@b:b@i -- hash: 0x70da20af1e6f5a7
       13: WITH -- hash: 0x87e6897f6e291aed
@@ -134,7 +134,7 @@ RULE test_func_call_parent
             6: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: integer(unknown) }
     10: CONST integer(1)
 
-RULE test_defined_parent
+RULE test_8
   8: DEFINED -- hash: 0xceca50c5ed7d96d4
     10: WITH -- hash: 0x87e6897f6e291aed
       9: FN_CALL math.abs@x:i@i -- hash: 0x8fe1d7c818e3e998
