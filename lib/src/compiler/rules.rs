@@ -2,6 +2,7 @@ use std::fmt;
 use std::io::{BufWriter, Read, Write};
 use std::ops::{Bound, RangeBounds};
 use std::slice::Iter;
+use std::sync::OnceLock;
 #[cfg(feature = "logging")]
 use std::time::Instant;
 
@@ -179,6 +180,17 @@ pub struct Rules {
     /// set automata for single-pass evaluation.
     pub(in crate::compiler) regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
 
+    /// Lazily compiled `RegexSet` automata shared by all scanners using these
+    /// rules.
+    ///
+    /// The definitions in `regex_sets` are serialized with the rules, but the
+    /// compiled automata are runtime-only. The vector is initialized when the
+    /// [`Rules`] are built or deserialized, while each individual `RegexSet`
+    /// is compiled lazily on first use.
+    #[serde(skip)]
+    pub(in crate::compiler) compiled_regex_sets:
+        Vec<OnceLock<regex::bytes::RegexSet>>,
+
     /// BitVec where the N-th bit indicates whether the pattern with
     /// PatternId = N is a fast-scan pattern.
     ///
@@ -308,6 +320,7 @@ impl Rules {
             info!("WASM build time: {:?}", Instant::elapsed(&start));
         }
 
+        rules.init_regex_set_cache();
         rules.build_ac_automaton();
 
         // Make sure that the maximum SubPatternId is within the boundaries
@@ -425,12 +438,28 @@ impl Rules {
             })
     }
 
+    /// Initializes the runtime-only cache for compiled `RegexSet` automata.
+    pub(in crate::compiler) fn init_regex_set_cache(&mut self) {
+        self.compiled_regex_sets =
+            (0..self.regex_sets.len()).map(|_| OnceLock::new()).collect();
+    }
+
     /// Returns a compiled multi-pattern `RegexSet` for a given `RegexSetId`.
     #[inline]
     pub(crate) fn get_regex_set(
         &self,
         set_id: RegexSetId,
-    ) -> regex::bytes::RegexSet {
+    ) -> &regex::bytes::RegexSet {
+        let regex_set = self
+            .compiled_regex_sets
+            .get(usize::from(set_id))
+            .unwrap_or_else(|| panic!("invalid RegexSetId: {set_id:?}"));
+
+        regex_set.get_or_init(|| self.build_regex_set(set_id))
+    }
+
+    /// Builds the `RegexSet` automaton for a given [`RegexSetId`].
+    fn build_regex_set(&self, set_id: RegexSetId) -> regex::bytes::RegexSet {
         let re_ids = self.regex_sets.get(&set_id).unwrap();
         let mut patterns = Vec::with_capacity(re_ids.len());
 
