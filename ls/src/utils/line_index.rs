@@ -90,4 +90,3 @@ mod tests {
         assert_eq!(roundtrip_span, span);
     }
 }
-

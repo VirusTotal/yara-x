@@ -442,13 +442,20 @@ mod tests {
     use super::*;
     use async_lsp::lsp_types::Position;
 
-    fn find_tokens(node: &Node<Immutable>, target: &str) -> Vec<Token<Immutable>> {
+    fn find_tokens(
+        node: &Node<Immutable>,
+        target: &str,
+    ) -> Vec<Token<Immutable>> {
         let mut tokens = Vec::new();
         let mut stack = vec![NodeOrToken::Node(node.clone())];
         while let Some(nt) = stack.pop() {
             match nt {
                 NodeOrToken::Node(n) => stack.extend(n.children_with_tokens()),
-                NodeOrToken::Token(t) => if t.text() == target { tokens.push(t); },
+                NodeOrToken::Token(t) => {
+                    if t.text() == target {
+                        tokens.push(t);
+                    }
+                }
             }
         }
         tokens
@@ -465,11 +472,13 @@ mod tests {
         assert_eq!(token.kind(), SyntaxKind::IDENT);
 
         let pos_past = Position::new(0, 14);
-        let token = ident_at_position(&cst, pos_past).expect("ident found past end");
+        let token =
+            ident_at_position(&cst, pos_past).expect("ident found past end");
         assert_eq!(token.text(), "test_rule");
 
         let pos_str = Position::new(2, 6);
-        let token = ident_at_position(&cst, pos_str).expect("pattern ident found");
+        let token =
+            ident_at_position(&cst, pos_str).expect("pattern ident found");
         assert_eq!(token.text(), "$my_str");
         assert_eq!(token.kind(), SyntaxKind::PATTERN_IDENT);
     }
@@ -484,21 +493,27 @@ mod tests {
 
         let rule_node = rule_from_ident(&root, &r1_token).expect("rule node");
         assert_eq!(rule_node.kind(), SyntaxKind::RULE_DECL);
-        assert_eq!(rule_containing_token(&r1_token).unwrap().kind(), SyntaxKind::RULE_DECL);
+        assert_eq!(
+            rule_containing_token(&r1_token).unwrap().kind(),
+            SyntaxKind::RULE_DECL
+        );
 
         let hash_s1_token = find_tokens(&root, "#s1").pop().unwrap();
 
-        let pattern_def = pattern_from_ident(&rule_node, &hash_s1_token).expect("pattern def");
+        let pattern_def = pattern_from_ident(&rule_node, &hash_s1_token)
+            .expect("pattern def");
         assert_eq!(pattern_def.kind(), SyntaxKind::PATTERN_DEF);
 
-        let usages = pattern_usages(&rule_node, &hash_s1_token).expect("pattern usages");
+        let usages = pattern_usages(&rule_node, &hash_s1_token)
+            .expect("pattern usages");
         assert_eq!(usages.len(), 1);
         assert_eq!(usages[0].text(), "#s1");
     }
 
     #[test]
     fn test_rule_usages() {
-        let text = "rule helper { condition: true }\nrule main { condition: helper }";
+        let text =
+            "rule helper { condition: true }\nrule main { condition: helper }";
         let cst = CST::from(text);
         let root = cst.root();
 
@@ -518,7 +533,8 @@ mod tests {
         let x_tokens = find_tokens(&root, "x");
         let x_in_cond = x_tokens.first().unwrap(); // due to stack pop, tokens might be reversed or forward; let's pick one that works or test each
 
-        let (decl_ident, decl_node) = find_declaration(x_in_cond).expect("finds x declaration");
+        let (decl_ident, decl_node) =
+            find_declaration(x_in_cond).expect("finds x declaration");
         assert_eq!(decl_ident.text(), "x");
         assert_eq!(decl_node.kind(), SyntaxKind::FOR_EXPR);
 
@@ -529,11 +545,13 @@ mod tests {
         let y_tokens = find_tokens(&root, "y");
         let y_in_cond = y_tokens.first().unwrap();
 
-        let (y_decl, y_node) = find_declaration(y_in_cond).expect("finds y declaration");
+        let (y_decl, y_node) =
+            find_declaration(y_in_cond).expect("finds y declaration");
         assert_eq!(y_decl.text(), "y");
         assert_eq!(y_node.kind(), SyntaxKind::WITH_EXPR);
 
-        let occ = occurrences_in_with_for(&y_node, &y_decl).expect("occurrences of y");
+        let occ = occurrences_in_with_for(&y_node, &y_decl)
+            .expect("occurrences of y");
         assert_eq!(occ.len(), 1);
         assert_eq!(occ[0].text(), "y");
     }
@@ -550,5 +568,3 @@ mod tests {
         assert_eq!(incs[1].as_str(), "file:///project/sub/rules.yar");
     }
 }
-
-

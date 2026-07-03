@@ -114,4 +114,3 @@ mod tests {
         assert!(config.cache_workspace);
     }
 }
-

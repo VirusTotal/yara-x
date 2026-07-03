@@ -415,8 +415,12 @@ mod tests {
         storage.insert(uri.clone(), "rule r1 { condition: true }".to_string());
         assert!(storage.get(&uri).is_some());
 
-        storage.update(uri.clone(), "rule r1 { condition: false }".to_string());
-        assert_eq!(storage.get(&uri).unwrap().text, "rule r1 { condition: false }");
+        storage
+            .update(uri.clone(), "rule r1 { condition: false }".to_string());
+        assert_eq!(
+            storage.get(&uri).unwrap().text,
+            "rule r1 { condition: false }"
+        );
 
         // Remove with cache enabled
         storage.remove(&uri, true);
@@ -440,8 +444,15 @@ mod tests {
         let uri1 = Url::parse("file:///project/base.yar").unwrap();
         let uri2 = Url::parse("file:///project/main.yar").unwrap();
 
-        storage.insert(uri1.clone(), "rule base_rule { condition: true }".to_string());
-        storage.insert(uri2.clone(), "include \"base.yar\"\nrule main_rule { condition: base_rule }".to_string());
+        storage.insert(
+            uri1.clone(),
+            "rule base_rule { condition: true }".to_string(),
+        );
+        storage.insert(
+            uri2.clone(),
+            "include \"base.yar\"\nrule main_rule { condition: base_rule }"
+                .to_string(),
+        );
 
         let main_doc = storage.get(&uri2).unwrap();
         let mut stack = vec![NodeOrToken::Node(main_doc.cst.root())];
@@ -449,7 +460,12 @@ mod tests {
         while let Some(nt) = stack.pop() {
             match nt {
                 NodeOrToken::Node(n) => stack.extend(n.children_with_tokens()),
-                NodeOrToken::Token(t) => if t.text() == "base_rule" { base_ident = Some(t); break; },
+                NodeOrToken::Token(t) => {
+                    if t.text() == "base_rule" {
+                        base_ident = Some(t);
+                        break;
+                    }
+                }
             }
         }
         let base_ident = base_ident.unwrap();
@@ -474,8 +490,15 @@ mod tests {
         let uri1 = Url::parse("file:///project/inc.yar").unwrap();
         let uri2 = Url::parse("file:///project/main.yar").unwrap();
 
-        storage.insert(uri1.clone(), "rule inc_rule { condition: true }".to_string());
-        storage.insert(uri2.clone(), "include \"inc.yar\"\nrule main_rule { condition: true }".to_string());
+        storage.insert(
+            uri1.clone(),
+            "rule inc_rule { condition: true }".to_string(),
+        );
+        storage.insert(
+            uri2.clone(),
+            "include \"inc.yar\"\nrule main_rule { condition: true }"
+                .to_string(),
+        );
 
         let main_doc = storage.get(&uri2).unwrap();
         let root = main_doc.cst.root();
@@ -492,7 +515,9 @@ mod tests {
     fn test_react_watched_files_changes() {
         let storage = DocumentStorage::new();
         let uri = Url::parse("file:///project/deleted.yar").unwrap();
-        storage.cached.insert(uri.clone(), CST::from("rule test { condition: true }"));
+        storage
+            .cached
+            .insert(uri.clone(), CST::from("rule test { condition: true }"));
 
         storage.react_watched_files_changes(vec![FileEvent {
             uri: uri.clone(),
@@ -502,4 +527,3 @@ mod tests {
         assert!(!storage.cached.contains_key(&uri));
     }
 }
-

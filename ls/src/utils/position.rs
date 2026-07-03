@@ -49,8 +49,15 @@ mod tests {
         let mut foo_token = None;
         while let Some(nt) = stack.pop() {
             match nt {
-                yara_x_parser::cst::NodeOrToken::Node(n) => stack.extend(n.children_with_tokens()),
-                yara_x_parser::cst::NodeOrToken::Token(t) => if t.text() == "foo" { foo_token = Some(t); break; },
+                yara_x_parser::cst::NodeOrToken::Node(n) => {
+                    stack.extend(n.children_with_tokens())
+                }
+                yara_x_parser::cst::NodeOrToken::Token(t) => {
+                    if t.text() == "foo" {
+                        foo_token = Some(t);
+                        break;
+                    }
+                }
             }
         }
         let foo_token = foo_token.expect("foo token found");
@@ -62,4 +69,3 @@ mod tests {
         assert_eq!(token_range.end.character, 8);
     }
 }
-

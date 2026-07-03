@@ -45,15 +45,23 @@ mod tests {
     #[test]
     fn test_document_new_and_update() {
         let uri = Url::parse("file:///test.yar").unwrap();
-        let mut doc = Document::new(uri.clone(), "rule r1 { condition: true }".to_string());
+        let mut doc = Document::new(
+            uri.clone(),
+            "rule r1 { condition: true }".to_string(),
+        );
 
         assert_eq!(doc.uri, uri);
         assert_eq!(doc.text, "rule r1 { condition: true }");
-        assert_eq!(doc.cst.root().kind(), yara_x_parser::cst::SyntaxKind::SOURCE_FILE);
+        assert_eq!(
+            doc.cst.root().kind(),
+            yara_x_parser::cst::SyntaxKind::SOURCE_FILE
+        );
 
         doc.update("rule r2 { condition: false }".to_string());
         assert_eq!(doc.text, "rule r2 { condition: false }");
-        assert_eq!(doc.cst.root().kind(), yara_x_parser::cst::SyntaxKind::SOURCE_FILE);
+        assert_eq!(
+            doc.cst.root().kind(),
+            yara_x_parser::cst::SyntaxKind::SOURCE_FILE
+        );
     }
 }
-

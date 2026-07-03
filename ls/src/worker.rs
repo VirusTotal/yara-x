@@ -204,7 +204,10 @@ mod tests {
 
     #[test]
     fn test_find_header_end() {
-        assert_eq!(find_header_end(b"Content-Length: 10\r\n\r\nbody"), Some(18));
+        assert_eq!(
+            find_header_end(b"Content-Length: 10\r\n\r\nbody"),
+            Some(18)
+        );
         assert_eq!(find_header_end(b"Content-Length: 10\r\n"), None);
         assert_eq!(find_header_end(b"short"), None);
     }
@@ -212,7 +215,10 @@ mod tests {
     #[test]
     fn test_parse_content_length() {
         assert_eq!(parse_content_length(b"Content-Length: 42"), Some(42));
-        assert_eq!(parse_content_length(b"content-length: 100\r\nOther: foo"), Some(100));
+        assert_eq!(
+            parse_content_length(b"content-length: 100\r\nOther: foo"),
+            Some(100)
+        );
         assert_eq!(parse_content_length(b"Content-Length: abc"), None);
         assert_eq!(parse_content_length(b"Other: 10"), None);
     }
@@ -232,7 +238,9 @@ mod tests {
         assert!(buf.is_empty());
 
         // Chained messages
-        buf.extend_from_slice(b"Content-Length: 3\r\n\r\nfooContent-Length: 3\r\n\r\nbar");
+        buf.extend_from_slice(
+            b"Content-Length: 3\r\n\r\nfooContent-Length: 3\r\n\r\nbar",
+        );
         assert_eq!(take_lsp_message(&mut buf), Some("foo".to_string()));
         assert_eq!(take_lsp_message(&mut buf), Some("bar".to_string()));
         assert!(buf.is_empty());

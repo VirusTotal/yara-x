@@ -361,13 +361,20 @@ mod tests {
     use super::*;
     use yara_x_parser::cst::{CST, NodeOrToken};
 
-    fn find_tokens(node: &Node<Immutable>, target: &str) -> Vec<Token<Immutable>> {
+    fn find_tokens(
+        node: &Node<Immutable>,
+        target: &str,
+    ) -> Vec<Token<Immutable>> {
         let mut tokens = Vec::new();
         let mut stack = vec![NodeOrToken::Node(node.clone())];
         while let Some(nt) = stack.pop() {
             match nt {
                 NodeOrToken::Node(n) => stack.extend(n.children_with_tokens()),
-                NodeOrToken::Token(t) => if t.text() == target { tokens.push(t); },
+                NodeOrToken::Token(t) => {
+                    if t.text() == target {
+                        tokens.push(t);
+                    }
+                }
             }
         }
         tokens
@@ -385,7 +392,10 @@ mod tests {
             "array<integer>"
         );
         assert_eq!(
-            ty_to_string(&Type::Map(Box::new(Type::String), Box::new(Type::Integer))),
+            ty_to_string(&Type::Map(
+                Box::new(Type::String),
+                Box::new(Type::Integer)
+            )),
             "map<string,integer>"
         );
     }
@@ -401,11 +411,17 @@ mod tests {
         while let Some(nt) = stack.pop() {
             match nt {
                 NodeOrToken::Node(n) => stack.extend(n.children_with_tokens()),
-                NodeOrToken::Token(t) => if t.kind() == SyntaxKind::R_BRACKET { r_bracket = Some(t); break; },
+                NodeOrToken::Token(t) => {
+                    if t.kind() == SyntaxKind::R_BRACKET {
+                        r_bracket = Some(t);
+                        break;
+                    }
+                }
             }
         }
 
-        let l_bracket = find_matching_left_bracket(&r_bracket.unwrap()).expect("matching left bracket");
+        let l_bracket = find_matching_left_bracket(&r_bracket.unwrap())
+            .expect("matching left bracket");
         assert_eq!(l_bracket.kind(), SyntaxKind::L_BRACKET);
     }
 
@@ -443,5 +459,3 @@ mod tests {
         assert!(matches!(name_ty, Type::String));
     }
 }
-
-
