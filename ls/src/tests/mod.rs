@@ -308,6 +308,7 @@ async fn hover() {
     lsp_request::<_, HoverRequest>("hover9.yar").await;
     lsp_request::<_, HoverRequest>("hover10.yar").await;
     lsp_request::<_, HoverRequest>("hover11.yar").await;
+    lsp_request::<_, HoverRequest>("hover12.yar").await;
 }
 
 #[tokio::test]
@@ -319,6 +320,7 @@ async fn document_symbols() {
     lsp_request::<_, DocumentSymbolRequest>("symbols5.yar").await;
     lsp_request::<_, DocumentSymbolRequest>("symbols6.yar").await;
     lsp_request::<_, DocumentSymbolRequest>("symbols7.yar").await;
+    lsp_request::<_, DocumentSymbolRequest>("symbols8.yar").await;
 }
 
 #[tokio::test]
