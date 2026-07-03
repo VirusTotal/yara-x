@@ -1,5 +1,5 @@
 [workspace.package]
-version = "1.18.0"
+version = "1.19.0"
 authors = ["Victor M. Alvarez <vmalvarez@virustotal.com>"]
 edition = "2024"
 homepage = "https://virustotal.github.io/yara-x"
@@ -39,7 +39,7 @@ ascii_tree = "0.1.1"
 base64 = "0.22.1"
 bincode = "2.0.1"
 bitflags = "2.13.0"
-bitvec = "1.0.1"
+bitvec = "1.1.1"
 bstr = "1.12.1"
 cbindgen = "0.29.4"
 chrono = "0.4.45"
@@ -109,11 +109,11 @@ wasm-opt = "0.116.1"
 wasmtime = { version = "43.0.2", default-features = false }
 x509-parser = "0.18.0"
 yansi = "1.0.1"
-yara-x = { path = "lib", version = "1.18.0" }
-yara-x-fmt = { path = "fmt", version = "1.18.0" }
-yara-x-macros = { path = "macros", version = "1.18.0" }
-yara-x-parser = { path = "parser", version = "1.18.0" }
-yara-x-proto = { path = "proto", version = "1.18.0"}
+yara-x = { path = "lib", version = "1.19.0" }
+yara-x-fmt = { path = "fmt", version = "1.19.0" }
+yara-x-macros = { path = "macros", version = "1.19.0" }
+yara-x-parser = { path = "parser", version = "1.19.0" }
+yara-x-proto = { path = "proto", version = "1.19.0"}
 zip = { version = "8.2.0", default-features = false }
 tinyzip = "0.4.0"
 simd-adler32 = "0.3.9"

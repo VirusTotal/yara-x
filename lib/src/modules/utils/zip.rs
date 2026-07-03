@@ -111,3 +111,27 @@ impl<'a> From<&CachedZip<'a>> for Zip {
         zip
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_zip_cache() {
+        assert!(matches!(
+            ZipCache::new(b"invalid zip data"),
+            ZipCache::NotZip
+        ));
+
+        let eocd = [
+            0x50, 0x4b, 0x05, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        if let ZipCache::Cached(mut cached) = ZipCache::new(&eocd) {
+            assert!(cached.get_file_content("missing.txt").is_none());
+            let zip_proto: Zip = (&cached).into();
+            assert!(zip_proto.is_zip());
+            assert_eq!(zip_proto.entries.len(), 0);
+        }
+    }
+}

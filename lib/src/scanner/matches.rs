@@ -274,7 +274,7 @@ impl PatternMatches {
             self.matches.clear();
             self.capacity = 0;
         } else {
-            for (_, matches) in self.matches.iter_mut() {
+            for matches in self.matches.values_mut() {
                 matches.clear();
             }
         }

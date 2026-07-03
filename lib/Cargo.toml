@@ -262,12 +262,14 @@ default-modules = [
     "macho-module",
     "math-module",
     "hash-module",
-    "olecf-module",
+    # Still experimental
+    # "olecf-module",
     "pe-module",
     "string-module",
     "time-module",
     "lnk-module",
-    "vba-module",
+    # Still experimental
+    # "vba-module",
     "test_proto2-module",
     "test_proto3-module",
     "vt-module",
@@ -368,7 +370,7 @@ protobuf-parse = { workspace = true, optional = true }
 yara-x-proto = { workspace = true, optional = true }
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.8"
 globwalk = { workspace = true }
 goldenfile = { workspace = true }
 ihex = { workspace = true }

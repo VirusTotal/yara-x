@@ -14,7 +14,7 @@ mod features;
 mod server;
 mod tracing;
 mod utils;
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", test))]
 mod worker;
 
 #[cfg(test)]

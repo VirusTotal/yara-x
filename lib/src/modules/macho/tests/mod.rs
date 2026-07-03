@@ -21,7 +21,17 @@ fn test_macho_module() {
         "src/modules/macho/tests/testdata/8962a76d0aeaee3326cf840de11543c8beebeb768e712bd3b754b5cd3e151356.in.zip",
     );
 
-    let linker_options_data = create_binary_from_zipped_ihex("src/modules/macho/tests/testdata/f3cde7740370819a974d1bc7fbeae1946382e3377e64f3162bcc3a5cb34828b7.in.zip");
+    let linker_options_data = create_binary_from_zipped_ihex(
+        "src/modules/macho/tests/testdata/f3cde7740370819a974d1bc7fbeae1946382e3377e64f3162bcc3a5cb34828b7.in.zip",
+    );
+
+    let arm64_macho_test_data = create_binary_from_zipped_ihex(
+        "src/modules/macho/tests/testdata/39addb273998cffe5362fc69047a3ecbf499d1b1b95ac6937785c8c17a9a1515.in.zip",
+    );
+
+    let ppc64_macho_test_data = create_binary_from_zipped_ihex(
+        "src/modules/macho/tests/testdata/24536f0d970ca2e02b998d21e51e062b84f9b4f31af8bb5addd5b0de6e0013ab.in.zip",
+    );
 
     rule_true!(
         r#"
@@ -560,5 +570,48 @@ fn test_macho_module() {
     }
     "#,
         &linker_options_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.magic == 0xcffaedfe and
+                macho.cputype == 0x100000c and
+                macho.cpusubtype == 0x0 and
+                macho.filetype == 1 and
+                macho.ncmds == 5 and
+                macho.sizeofcmds == 1656 and
+                macho.flags == 0x2000 and
+                macho.number_of_segments == 1 and
+                macho.build_version.platform == 11 and
+                macho.build_version.minos == "1.0.0" and
+                macho.build_version.sdk == "26.2.0" and
+                macho.has_export("_$s10Foundation4DataV15_RepresentationOWOe") and
+                macho.has_import("_$s10Foundation4DataV19base64EncodedString7optionsSSSo27NSDataBase64EncodingOptionsV_tF")
+        }
+        "#,
+        &arm64_macho_test_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.magic == 0xfeedfacf and
+                macho.cputype == macho.CPU_TYPE_POWERPC64 and
+                macho.cpusubtype == 0x0 and
+                macho.filetype == 1 and
+                macho.ncmds == 3 and
+                macho.sizeofcmds == 656 and
+                macho.flags == 0x2000 and
+                macho.number_of_segments == 1 and
+                macho.has_export("_choose_tmpdir") and
+                macho.has_import("_abort")
+        }
+        "#,
+        &ppc64_macho_test_data
     );
 }

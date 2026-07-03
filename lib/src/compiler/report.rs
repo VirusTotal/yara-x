@@ -138,7 +138,7 @@ impl Report {
                 Some((line, column)) => (line, column),
                 None => panic!(
                     "can't find line and column for span {span} in code:\n{}",
-                    &cache_entry.code
+                    cache_entry.code
                 ),
             };
 

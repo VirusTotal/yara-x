@@ -524,3 +524,20 @@ test {
         Some(Event::Token { kind: SyntaxKind::L_BRACE, span: Span(25..26) })
     );
 }
+
+#[test]
+fn cst_recovery_and_error_merging() {
+    let stream = CSTStream::from(Parser::new(b"rule /* unclosed comment"));
+    let mut has_error = false;
+    for event in stream {
+        if matches!(
+            event,
+            Event::Begin { kind: SyntaxKind::ERROR, .. }
+                | Event::Token { kind: SyntaxKind::ERROR, .. }
+                | Event::End { kind: SyntaxKind::ERROR, .. }
+        ) {
+            has_error = true;
+        }
+    }
+    assert!(has_error);
+}

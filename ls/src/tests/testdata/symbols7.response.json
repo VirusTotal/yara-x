@@ -1,1 +1,325 @@
-null
+[
+  {
+    "detail": "include",
+    "kind": 1,
+    "name": "foo",
+    "range": {
+      "end": {
+        "character": 13,
+        "line": 0
+      },
+      "start": {
+        "character": 0,
+        "line": 0
+      }
+    },
+    "selectionRange": {
+      "end": {
+        "character": 13,
+        "line": 0
+      },
+      "start": {
+        "character": 0,
+        "line": 0
+      }
+    }
+  },
+  {
+    "detail": "import",
+    "kind": 2,
+    "name": "bar",
+    "range": {
+      "end": {
+        "character": 12,
+        "line": 2
+      },
+      "start": {
+        "character": 0,
+        "line": 2
+      }
+    },
+    "selectionRange": {
+      "end": {
+        "character": 12,
+        "line": 2
+      },
+      "start": {
+        "character": 0,
+        "line": 2
+      }
+    }
+  },
+  {
+    "children": [
+      {
+        "kind": 14,
+        "name": "description",
+        "range": {
+          "end": {
+            "character": 41,
+            "line": 7
+          },
+          "start": {
+            "character": 4,
+            "line": 7
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 41,
+            "line": 7
+          },
+          "start": {
+            "character": 4,
+            "line": 7
+          }
+        }
+      },
+      {
+        "kind": 17,
+        "name": "condition",
+        "range": {
+          "end": {
+            "character": 8,
+            "line": 9
+          },
+          "start": {
+            "character": 4,
+            "line": 9
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 8,
+            "line": 9
+          },
+          "start": {
+            "character": 4,
+            "line": 9
+          }
+        }
+      }
+    ],
+    "detail": "rule",
+    "kind": 12,
+    "name": "no_pattern",
+    "range": {
+      "end": {
+        "character": 15,
+        "line": 5
+      },
+      "start": {
+        "character": 5,
+        "line": 5
+      }
+    },
+    "selectionRange": {
+      "end": {
+        "character": 15,
+        "line": 5
+      },
+      "start": {
+        "character": 5,
+        "line": 5
+      }
+    }
+  },
+  {
+    "children": [
+      {
+        "kind": 15,
+        "name": "$pattern",
+        "range": {
+          "end": {
+            "character": 24,
+            "line": 14
+          },
+          "start": {
+            "character": 4,
+            "line": 14
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 24,
+            "line": 14
+          },
+          "start": {
+            "character": 4,
+            "line": 14
+          }
+        }
+      },
+      {
+        "kind": 17,
+        "name": "condition",
+        "range": {
+          "end": {
+            "character": 8,
+            "line": 16
+          },
+          "start": {
+            "character": 4,
+            "line": 16
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 8,
+            "line": 16
+          },
+          "start": {
+            "character": 4,
+            "line": 16
+          }
+        }
+      }
+    ],
+    "detail": "rule",
+    "kind": 12,
+    "name": "single_pattern",
+    "range": {
+      "end": {
+        "character": 19,
+        "line": 12
+      },
+      "start": {
+        "character": 5,
+        "line": 12
+      }
+    },
+    "selectionRange": {
+      "end": {
+        "character": 19,
+        "line": 12
+      },
+      "start": {
+        "character": 5,
+        "line": 12
+      }
+    }
+  },
+  {
+    "children": [
+      {
+        "kind": 15,
+        "name": "$pattern_one",
+        "range": {
+          "end": {
+            "character": 28,
+            "line": 21
+          },
+          "start": {
+            "character": 4,
+            "line": 21
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 28,
+            "line": 21
+          },
+          "start": {
+            "character": 4,
+            "line": 21
+          }
+        }
+      },
+      {
+        "kind": 15,
+        "name": "$pattern_two",
+        "range": {
+          "end": {
+            "character": 28,
+            "line": 22
+          },
+          "start": {
+            "character": 4,
+            "line": 22
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 28,
+            "line": 22
+          },
+          "start": {
+            "character": 4,
+            "line": 22
+          }
+        }
+      },
+      {
+        "kind": 15,
+        "name": "$pattern_three",
+        "range": {
+          "end": {
+            "character": 30,
+            "line": 23
+          },
+          "start": {
+            "character": 4,
+            "line": 23
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 30,
+            "line": 23
+          },
+          "start": {
+            "character": 4,
+            "line": 23
+          }
+        }
+      },
+      {
+        "kind": 17,
+        "name": "condition",
+        "range": {
+          "end": {
+            "character": 8,
+            "line": 25
+          },
+          "start": {
+            "character": 4,
+            "line": 25
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 8,
+            "line": 25
+          },
+          "start": {
+            "character": 4,
+            "line": 25
+          }
+        }
+      }
+    ],
+    "detail": "rule",
+    "kind": 12,
+    "name": "multiple_pattern",
+    "range": {
+      "end": {
+        "character": 21,
+        "line": 19
+      },
+      "start": {
+        "character": 5,
+        "line": 19
+      }
+    },
+    "selectionRange": {
+      "end": {
+        "character": 21,
+        "line": 19
+      },
+      "start": {
+        "character": 5,
+        "line": 19
+      }
+    }
+  }
+]

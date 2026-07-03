@@ -40,7 +40,7 @@ use std::ops::{Add, Index};
 use std::rc::Rc;
 
 use bitflags::bitflags;
-use bstr::BString;
+use bstr::{BString, ByteSlice};
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 
@@ -1007,9 +1007,22 @@ impl IR {
         result
     }
 
-    pub fn header_constraints(
+    /// Determines the constraints on the file header imposed by a rule condition.
+    ///
+    /// This function analyzes the rule's condition to determine whether it
+    /// restricts matching to files that start with a specific sequence of bytes.
+    ///
+    /// For example, the condition `uint32(0) == 0x464c457f and $a` requires that
+    /// the first 4 bytes of the file are `0x7f, 0x45, 0x4c, 0x46` (little-endian).
+    /// Similarly, `$a at 0` imposes a header constraint if `$a` has a known
+    /// constant prefix.
+    ///
+    /// In contrast, the condition `uint32(0) == 0x464c457f or $a` does not impose
+    /// a header constraint, since the use of `or` allows files with a different
+    /// header to also match.
+    pub fn header_constraints<'a>(
         &self,
-        pattern_prefix_lookup: impl Fn(PatternIdx) -> Option<Vec<u8>>,
+        pattern_lookup: impl Fn(PatternIdx) -> &'a Pattern,
     ) -> HeaderConstraint {
         let mut constrained_bytes = BTreeMap::new();
         let mut unsatisfiable = false;
@@ -1029,14 +1042,51 @@ impl IR {
                         &mut unsatisfiable,
                     );
                 }
-                Expr::PatternMatch { pattern, anchor } => {
+                Expr::PatternMatch { pattern: pattern_idx, anchor } => {
+                    let pattern = pattern_lookup(*pattern_idx);
+                    // A pattern that has any of these flags it's not eligible
+                    // as a constraint. Modifiers like `xor`, `nocase`, `wide`,
+                    // `base64` and `base64wide` make the bytes that actually
+                    // appear in the data differ from the literal text (they
+                    // are XORed, case-folded, interleaved with zeroes or
+                    // base64-encoded), so no header constraint can be derived
+                    // from them.
+                    let excluded_flags = PatternFlags::Xor
+                        | PatternFlags::Nocase
+                        | PatternFlags::Wide
+                        | PatternFlags::Base64
+                        | PatternFlags::Base64Wide;
+
+                    if pattern.flags().intersects(excluded_flags) {
+                        continue;
+                    }
+
+                    // Make sure that if we add a new flag in the future, we
+                    // take it into account here. The new flag either makes
+                    // the pattern ineligible as a header constraint (and must
+                    // be added to `excluded_flags`, or it must be added to
+                    // the list below.
+                    debug_assert_eq!(
+                        excluded_flags.complement(),
+                        PatternFlags::Ascii
+                            | PatternFlags::Fullword
+                            | PatternFlags::Private
+                            | PatternFlags::NonAnchorable
+                    );
+
                     if let MatchAnchor::At(offset_expr) = anchor
                         && let Some(0) =
                             self.get(*offset_expr).try_as_const_integer()
-                        && let Some(prefix_bytes) =
-                            pattern_prefix_lookup(*pattern)
+                        && let Some(pattern_bytes) = match pattern {
+                            Pattern::Text(literal) => {
+                                Some(literal.text.as_bytes())
+                            }
+                            Pattern::Regexp(re) | Pattern::Hex(re) => {
+                                re.hir.as_literal_bytes()
+                            }
+                        }
                     {
-                        for (i, &b) in prefix_bytes.iter().enumerate() {
+                        for (i, &b) in pattern_bytes.iter().enumerate() {
                             match constrained_bytes.entry(i) {
                                 Entry::Occupied(entry) => {
                                     if *entry.get() != b {

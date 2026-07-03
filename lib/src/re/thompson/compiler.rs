@@ -220,6 +220,10 @@ impl Compiler {
 }
 
 impl Compiler {
+    /// Repetition threshold. Repetitions with count(s) below or equal to this
+    /// threshold are unrolled (i.e., the repeated expression's code is
+    /// duplicated). Repetitions with count(s) above this threshold are
+    /// compiled using the `repeat` instruction to avoid bloated bytecode.
     const REPEAT_INSTR_THRESHOLD: u32 = 10;
 
     pub(super) fn compile_internal(
@@ -679,7 +683,7 @@ impl Compiler {
             }
             // e{0,max} (not inside repetition_start/repetition_end yet)
             //
-            // l1: split_a l4 ( split_a for the non-greedy e{0,max}? )
+            // l1: split_a l4 ( split_b for the non-greedy e{0,max}? )
             // l2  ... code for e ...
             // l3: repeat l2, 0, max
             // l4:
@@ -1995,7 +1999,7 @@ fn optimize_seq(mut seq: Seq) -> Option<Seq> {
         return Some(seq);
     }
 
-    for (_, bitmap) in map.iter_mut() {
+    for bitmap in map.values_mut() {
         bitmap.set(0, true);
     }
 

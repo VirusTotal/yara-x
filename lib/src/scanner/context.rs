@@ -43,7 +43,7 @@ use crate::wasm::runtime::{
     AsContext, AsContextMut, Global, GlobalType, Instance, MemoryType,
     Mutability, Store, TypedFunc, Val, ValType,
 };
-use crate::{Variable, wasm};
+use crate::{Variable, teddy, wasm};
 
 /// Represents the states in which a scanner can be.
 pub(crate) enum ScanState<'a> {
@@ -882,6 +882,7 @@ impl ScanContext<'_, '_> {
                 SubPattern::Literal { flags, .. }
                 | SubPattern::LiteralChainHead { flags, .. }
                 | SubPattern::LiteralChainTail { flags, .. }
+                | SubPattern::LiteralWithMask { flags, .. }
                 | SubPattern::Regexp { flags, .. }
                 | SubPattern::RegexpChainHead { flags, .. }
                 | SubPattern::RegexpChainTail { flags, .. } => flags,
@@ -914,7 +915,7 @@ impl ScanContext<'_, '_> {
                     .get_bytes(*pattern)
                     .unwrap();
 
-                if verify_literal_match(pattern, data, atom_pos, *flags) {
+                if verify_literal(pattern, data, atom_pos, *flags) {
                     handle_sub_pattern_match(
                         &mut self.tracker,
                         &mut self.wasm,
@@ -926,16 +927,28 @@ impl ScanContext<'_, '_> {
                     );
                 }
             }
-            SubPattern::Regexp { flags, .. }
-            | SubPattern::RegexpChainHead { flags, .. }
-            | SubPattern::RegexpChainTail { flags, .. } => {
-                verify_regexp_match(
-                    &mut self.vm,
-                    data,
-                    atom_pos,
-                    atom,
-                    *flags,
-                    |match_range| {
+            SubPattern::LiteralWithMask { pattern, mask, flags } => {
+                let pattern = self
+                    .compiled_rules
+                    .lit_pool()
+                    .get_bytes(*pattern)
+                    .unwrap();
+
+                let mask =
+                    self.compiled_rules.lit_pool().get_bytes(*mask).unwrap();
+
+                debug_assert_eq!(pattern.len(), mask.len());
+
+                if let Some(data) =
+                    data.get(atom_pos..atom_pos + pattern.len())
+                    && verify_literal_with_mask(data, pattern, mask)
+                {
+                    let match_range = atom_pos..atom_pos + pattern.len();
+                    if !flags.intersects(
+                        SubPatternFlags::FullwordLeft
+                            | SubPatternFlags::FullwordRight,
+                    ) || verify_full_word(data, &match_range, *flags, None)
+                    {
                         handle_sub_pattern_match(
                             &mut self.tracker,
                             &mut self.wasm,
@@ -944,9 +957,28 @@ impl ScanContext<'_, '_> {
                             *pattern_id,
                             Match::new(match_range).rebase(base),
                         );
-                    },
-                )
+                    }
+                }
             }
+            SubPattern::Regexp { flags, .. }
+            | SubPattern::RegexpChainHead { flags, .. }
+            | SubPattern::RegexpChainTail { flags, .. } => verify_regexp(
+                &mut self.vm,
+                data,
+                atom_pos,
+                atom,
+                *flags,
+                |match_range| {
+                    handle_sub_pattern_match(
+                        &mut self.tracker,
+                        &mut self.wasm,
+                        sub_pattern_id,
+                        sub_pattern,
+                        *pattern_id,
+                        Match::new(match_range).rebase(base),
+                    );
+                },
+            ),
 
             SubPattern::Xor { pattern, flags } => {
                 let pattern = self
@@ -956,7 +988,7 @@ impl ScanContext<'_, '_> {
                     .unwrap();
 
                 if let Some(key) =
-                    verify_xor_match(pattern, data, atom_pos, atom, *flags)
+                    verify_xor(pattern, data, atom_pos, atom, *flags)
                 {
                     handle_sub_pattern_match(
                         &mut self.tracker,
@@ -973,7 +1005,7 @@ impl ScanContext<'_, '_> {
 
             SubPattern::Base64 { pattern, padding }
             | SubPattern::Base64Wide { pattern, padding } => {
-                if let Some(match_range) = verify_base64_match(
+                if let Some(match_range) = verify_base64(
                     self.compiled_rules
                         .lit_pool()
                         .get_bytes(*pattern)
@@ -1016,7 +1048,7 @@ impl ScanContext<'_, '_> {
                     },
                 );
 
-                if let Some(match_range) = verify_base64_match(
+                if let Some(match_range) = verify_base64(
                     self.compiled_rules
                         .lit_pool()
                         .get_bytes(*pattern)
@@ -1179,8 +1211,7 @@ impl ScanContext<'_, '_> {
                             .get_bytes(*pattern)
                             .unwrap();
 
-                        if verify_literal_match(pattern, data, offset, *flags)
-                        {
+                        if verify_literal(pattern, data, offset, *flags) {
                             handle_sub_pattern_match(
                                 &mut self.tracker,
                                 &mut self.wasm,
@@ -1200,7 +1231,7 @@ impl ScanContext<'_, '_> {
 }
 
 /// Verifies if a literal `pattern` matches at `match_start` in `scanned_data`.
-fn verify_literal_match(
+fn verify_literal(
     pattern: &[u8],
     scanned_data: &[u8],
     match_start: usize,
@@ -1229,6 +1260,104 @@ fn verify_literal_match(
         pattern.eq_ignore_ascii_case(&scanned_data[match_start..match_end])
     } else {
         &scanned_data[match_start..match_end] == pattern.as_bytes()
+    }
+}
+
+#[cfg(any(
+    all(target_arch = "x86_64", target_feature = "sse2"),
+    all(
+        target_arch = "aarch64",
+        target_feature = "neon",
+        target_endian = "little"
+    )
+))]
+#[inline(always)]
+unsafe fn verify_literal_with_mask_simd<V: teddy::vector::Vector>(
+    data: &[u8],
+    pattern: &[u8],
+    mask: &[u8],
+) -> bool {
+    let len = data.len();
+    debug_assert!(len <= u16::MAX as usize);
+
+    unsafe {
+        if len <= 16 {
+            let mut d_bytes = [0_u8; 16];
+            let mut m_bytes = [0_u8; 16];
+            let mut p_bytes = [0_u8; 16];
+
+            d_bytes[..len].copy_from_slice(data);
+            p_bytes[..len].copy_from_slice(&pattern[..len]);
+            m_bytes[..len].copy_from_slice(&mask[..len]);
+
+            let data = V::load_unaligned(d_bytes.as_ptr());
+            let pattern = V::load_unaligned(p_bytes.as_ptr());
+            let mask = V::load_unaligned(m_bytes.as_ptr());
+            let eq = data.and(mask).cmpeq(pattern);
+
+            eq.cmpeq(V::splat(0x00)).is_zero()
+        } else {
+            let verify_chunk = |offset: usize| -> bool {
+                let data = V::load_unaligned(data[offset..].as_ptr());
+                let pattern = V::load_unaligned(pattern[offset..].as_ptr());
+                let mask = V::load_unaligned(mask[offset..].as_ptr());
+                let eq = data.and(mask).cmpeq(pattern);
+
+                eq.cmpeq(V::splat(0x00)).is_zero()
+            };
+
+            let mut offset = 0;
+
+            while offset + 16 <= len {
+                if !verify_chunk(offset) {
+                    return false;
+                }
+                offset += 16;
+            }
+
+            if offset < len && !verify_chunk(len - 16) {
+                return false;
+            }
+
+            true
+        }
+    }
+}
+
+fn verify_literal_with_mask(data: &[u8], pattern: &[u8], mask: &[u8]) -> bool {
+    #[cfg(all(target_arch = "x86_64", target_feature = "sse2"))]
+    unsafe {
+        verify_literal_with_mask_simd::<core::arch::x86_64::__m128i>(
+            data, pattern, mask,
+        )
+    }
+
+    #[cfg(all(
+        target_arch = "aarch64",
+        target_feature = "neon",
+        target_endian = "little"
+    ))]
+    unsafe {
+        verify_literal_with_mask_simd::<core::arch::aarch64::uint8x16_t>(
+            data, pattern, mask,
+        )
+    }
+
+    #[cfg(not(any(
+        all(target_arch = "x86_64", target_feature = "sse2"),
+        all(
+            target_arch = "aarch64",
+            target_feature = "neon",
+            target_endian = "little"
+        )
+    )))]
+    {
+        for ((&d, &m), &t) in data.iter().zip(mask).zip(pattern) {
+            if (d & m) != t {
+                return false;
+            }
+        }
+        true
     }
 }
 
@@ -1374,7 +1503,7 @@ fn verify_chain_of_matches(
 ///
 /// This function can produce multiple matches, `f` is called for every
 /// match found.
-fn verify_regexp_match(
+fn verify_regexp(
     vm: &mut VM,
     scanned_data: &[u8],
     match_start: usize,
@@ -1468,7 +1597,7 @@ fn verify_regexp_match(
 /// within `scanned_data`.
 ///
 /// Returns the XOR key if the match was confirmed, or [`None`] if otherwise.
-fn verify_xor_match(
+fn verify_xor(
     pattern: &[u8],
     scanned_data: &[u8],
     match_start: usize,
@@ -1554,7 +1683,7 @@ fn xor_slices_eq(pattern: &[u8], candidate: &[u8], key: u8) -> bool {
 /// within `scanned_data`.
 ///
 /// Returns the range where the match was found or [`None`] if otherwise.
-fn verify_base64_match(
+fn verify_base64(
     pattern: &[u8],
     scanned_data: &[u8],
     padding: usize,
@@ -1705,6 +1834,7 @@ fn handle_sub_pattern_match(
 ) {
     match sub_pattern {
         SubPattern::Literal { .. }
+        | SubPattern::LiteralWithMask { .. }
         | SubPattern::Xor { .. }
         | SubPattern::Base64 { .. }
         | SubPattern::Base64Wide { .. }

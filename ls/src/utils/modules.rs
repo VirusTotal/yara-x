@@ -355,3 +355,107 @@ pub fn ty_to_string(ty: &Type) -> String {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use yara_x_parser::cst::{CST, NodeOrToken};
+
+    fn find_tokens(
+        node: &Node<Immutable>,
+        target: &str,
+    ) -> Vec<Token<Immutable>> {
+        let mut tokens = Vec::new();
+        let mut stack = vec![NodeOrToken::Node(node.clone())];
+        while let Some(nt) = stack.pop() {
+            match nt {
+                NodeOrToken::Node(n) => stack.extend(n.children_with_tokens()),
+                NodeOrToken::Token(t) => {
+                    if t.text() == target {
+                        tokens.push(t);
+                    }
+                }
+            }
+        }
+        tokens
+    }
+
+    #[test]
+    fn test_ty_to_string() {
+        assert_eq!(ty_to_string(&Type::Integer), "integer");
+        assert_eq!(ty_to_string(&Type::Float), "float");
+        assert_eq!(ty_to_string(&Type::Bool), "bool");
+        assert_eq!(ty_to_string(&Type::String), "string");
+        assert_eq!(ty_to_string(&Type::Regexp), "regexp");
+        assert_eq!(
+            ty_to_string(&Type::Array(Box::new(Type::Integer))),
+            "array<integer>"
+        );
+        assert_eq!(
+            ty_to_string(&Type::Map(
+                Box::new(Type::String),
+                Box::new(Type::Integer)
+            )),
+            "map<string,integer>"
+        );
+    }
+
+    #[test]
+    fn test_find_matching_left_bracket() {
+        let text = "rule test { condition: arr[1][2] == 0 }";
+        let cst = CST::from(text);
+        let root = cst.root();
+
+        let mut stack = vec![NodeOrToken::Node(root)];
+        let mut r_bracket = None;
+        while let Some(nt) = stack.pop() {
+            match nt {
+                NodeOrToken::Node(n) => stack.extend(n.children_with_tokens()),
+                NodeOrToken::Token(t) => {
+                    if t.kind() == SyntaxKind::R_BRACKET {
+                        r_bracket = Some(t);
+                        break;
+                    }
+                }
+            }
+        }
+
+        let l_bracket = find_matching_left_bracket(&r_bracket.unwrap())
+            .expect("matching left bracket");
+        assert_eq!(l_bracket.kind(), SyntaxKind::L_BRACKET);
+    }
+
+    #[test]
+    fn test_get_type_and_from_expr() {
+        let text = "import \"pe\"\nrule test { condition: pe.characteristics == 0 and pe.sections[0].name == \".text\" }";
+        let cst = CST::from(text);
+        let root = cst.root();
+
+        let char_token = find_tokens(&root, "characteristics").pop().unwrap();
+        let ty = get_type(&char_token).expect("characteristics type");
+        assert!(matches!(ty, Type::Integer));
+
+        let name_token = find_tokens(&root, "name").first().unwrap().clone();
+        let name_ty = get_type(&name_token).expect("sections[0].name type");
+        assert!(matches!(name_ty, Type::String));
+    }
+
+    #[test]
+    fn test_get_type_from_declaration_loop() {
+        let text = "import \"pe\"\nrule test {\n  condition:\n    for any s in pe.sections : ( s.name == \".text\" ) and with e = pe.entry_point : ( e > 0 )\n}";
+        let cst = CST::from(text);
+        let root = cst.root();
+
+        let s_tokens = find_tokens(&root, "s");
+        let s_token = s_tokens.first().unwrap();
+
+        let s_ty = get_type(s_token).expect("type of s in for loop");
+        assert!(matches!(s_ty, Type::Struct(_)));
+
+        let name_tokens = find_tokens(&root, "name");
+        let name_token = name_tokens.first().unwrap();
+
+        let name_ty = get_type(name_token).expect("type of s.name in loop");
+        assert!(matches!(name_ty, Type::String));
+    }
+}

@@ -1,0 +1,6 @@
+{
+  "contents": {
+    "kind": "markdown",
+    "value": "### `max(a: integer, b: integer) -> integer`\n\n***\n\n Returns the maximum of two integers.\n\n***\n\n"
+  }
+}

@@ -115,6 +115,9 @@ pub unsafe extern "C" fn yrx_rules_deserialize(
     len: usize,
     rules: &mut *mut YRX_RULES,
 ) -> YRX_RESULT {
+    if data.is_null() {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
     match yara_x::Rules::deserialize(slice::from_raw_parts(data, len)) {
         Ok(r) => {
             *rules = Box::into_raw(YRX_RULES::boxed(r));
@@ -168,5 +171,7 @@ pub unsafe extern "C" fn yrx_rules_iter_imports(
 /// Destroys a [`YRX_RULES`] object.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_rules_destroy(rules: *mut YRX_RULES) {
-    drop(Box::from_raw(rules))
+    if !rules.is_null() {
+        drop(Box::from_raw(rules))
+    }
 }

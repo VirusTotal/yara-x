@@ -830,6 +830,7 @@ impl<'a> Compiler<'a> {
             header_constraints: self.header_constraints,
             regex_sets: self.regex_sets,
             fast_scan_patterns: self.fast_scan_patterns,
+            rules_profiling_enabled: cfg!(feature = "rules-profiling"),
         };
 
         rules.build_ac_automaton();
@@ -1241,8 +1242,13 @@ impl Compiler<'_> {
             .retain(|pattern_id, _| *pattern_id < snapshot.next_pattern_id);
     }
 
-    /// Returns true if the bytes in the slice are all 0x00, 0x90, or 0xff.
-    fn common_byte_repetition(bytes: &[u8]) -> bool {
+    /// Returns true if the slice contains a single byte, or if the bytes in
+    /// the slice are all 0x00, 0x90, or 0xff.
+    fn is_slow_pattern_bytes(bytes: &[u8]) -> bool {
+        if bytes.len() == 1 {
+            return true;
+        }
+
         let mut all_x00 = true;
         let mut all_x90 = true;
         let mut all_xff = true;
@@ -1268,7 +1274,7 @@ impl Compiler<'_> {
             }
         }
 
-        true
+        !bytes.is_empty()
     }
 
     /// Reads the file specified by an `include` statement.
@@ -1611,16 +1617,26 @@ impl Compiler<'_> {
                     Pattern::Hex(re) => re.hir.as_literal_bytes(),
                 };
                 if let Some(literal_bytes) = literal_bytes
-                    && Self::common_byte_repetition(literal_bytes)
+                    && Self::is_slow_pattern_bytes(literal_bytes)
                 {
-                    self.warnings.add(|| {
-                        warnings::SlowPattern::build(
+                    if self.error_on_slow_pattern {
+                        self.restore_snapshot(snapshot);
+                        return Err(errors::SlowPattern::build(
                             &self.report_builder,
                             self.report_builder
                                 .span_to_code_loc(pat.span().clone()),
                             None,
-                        )
-                    });
+                        ));
+                    } else {
+                        self.warnings.add(|| {
+                            warnings::SlowPattern::build(
+                                &self.report_builder,
+                                self.report_builder
+                                    .span_to_code_loc(pat.span().clone()),
+                                None,
+                            )
+                        });
+                    }
                 }
             }
         }
@@ -1689,13 +1705,7 @@ impl Compiler<'_> {
         // Analyze the condition and determine if it imposes some constraint
         // to the file header (ex: `uint16(0) == 0x5a4d`).
         let header_constraints = self.ir.header_constraints(|pat_idx| {
-            let pat = &rule_patterns[pat_idx.as_usize()];
-            match pat.pattern() {
-                Pattern::Text(lit) => Some(lit.text.as_bytes().to_vec()),
-                Pattern::Regexp(re) | Pattern::Hex(re) => {
-                    re.hir.as_literal_bytes().map(|bytes| bytes.to_vec())
-                }
-            }
+            rule_patterns[pat_idx.as_usize()].pattern()
         });
 
         // Set the bounds to all patterns in the rule. This must be done
@@ -2219,7 +2229,7 @@ impl Compiler<'_> {
         }
 
         // If this point is reached, this is a pattern that can't be split into
-        // multiple chained patterns, and is neither a literal or alternation
+        // multiple chained patterns, and is neither a literal nor alternation
         // of literals. Most patterns fall in this category.
         let mut flags = SubPatternFlags::empty();
 
@@ -2235,6 +2245,26 @@ impl Compiler<'_> {
         if matches!(head.is_greedy(), Some(true)) {
             flags.insert(SubPatternFlags::GreedyRegexp);
         }
+
+        // If the pattern doesn't have the `nocase` or `wide` modifier, and it
+        // is a simple literal pattern with masks (e.g., `{ 01 02 ?? 04 }` or
+        // `{ 1? 2? 3? }`), we can treat it as a `LiteralWithMask` sub-pattern.
+        // This is much more efficient than executing it as a regular expression.
+        if !pattern.flags.contains(PatternFlags::Nocase)
+            && !pattern.flags.contains(PatternFlags::Wide)
+            && let Some((pattern, mask, atoms)) =
+                head.try_extract_literal_with_mask()
+        {
+            let pattern = self.intern_literal(pattern.as_slice(), false);
+            let mask = self.intern_literal(mask.as_slice(), false);
+            self.add_sub_pattern(
+                pattern_id,
+                SubPattern::LiteralWithMask { pattern, mask, flags },
+                atoms,
+                SubPatternAtom::from_atom,
+            );
+            return Ok(());
+        };
 
         let (atoms, is_fast_regexp) = self.c_regexp(&head, span)?;
 
@@ -2923,7 +2953,18 @@ impl From<PatternId> for usize {
 /// For each pattern there's one or more sub-patterns, depending on the pattern
 /// and its modifiers. For example the pattern `"foo" ascii wide` may have one
 /// subpattern for the ascii case and another one for the wide case.
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+)]
 #[serde(transparent)]
 pub(crate) struct SubPatternId(u32);
 
@@ -2976,6 +3017,12 @@ pub(crate) enum SubPattern {
     Literal {
         pattern: LiteralId,
         anchored_at: Option<usize>,
+        flags: SubPatternFlags,
+    },
+
+    LiteralWithMask {
+        pattern: LiteralId,
+        mask: LiteralId,
         flags: SubPatternFlags,
     },
 

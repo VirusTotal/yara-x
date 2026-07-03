@@ -33,7 +33,7 @@ const MAGIC: &[u8] = b"YARA-X\0\0";
 ///
 /// This version is incremented every time a change is made to the binary
 /// format in a way that breaks backwards compatibility.
-const SERIALIZATION_VERSION: u32 = 2;
+const SERIALIZATION_VERSION: u32 = 4;
 
 /// Aho-Corasick automaton bundled with an optional Teddy scanner if the
 /// number of patterns is low enough. If the Teddy scanner is present, and
@@ -119,6 +119,17 @@ pub struct Rules {
     pub(in crate::compiler) filesize_bounds:
         FxHashMap<PatternId, FilesizeBounds>,
 
+    /// Map that associates a `PatternId` to a certain constraint on the
+    /// file header (e.g. magic bytes at offset 0), if any.
+    ///
+    /// A condition like `uint16(0) == 0x5A4D and $a` or `$mz at 0 and $a`
+    /// (where $mz = "MZ") only matches if the file starts with "MZ" (0x5A4D).
+    /// In this case, the map will contain an entry associating `$a` to a
+    /// `HeaderConstraint` that requires the file to start with those two
+    /// bytes.
+    ///
+    /// This allows skipping pattern checks entirely if the scanned data
+    /// doesn't start with the expected header prefix.
     pub(in crate::compiler) header_constraints:
         FxHashMap<PatternId, HeaderConstraint>,
 
@@ -178,6 +189,14 @@ pub struct Rules {
     /// as count `#a`, offset `@a`, length `!a`, anchored checks, or loop
     /// equivalents), it cannot be fast-scanned.
     pub(in crate::compiler) fast_scan_patterns: bitvec::vec::BitVec,
+
+    /// Indicates whether the rules were compiled with rules profiling enabled.
+    ///
+    /// This flag is checked during deserialization to ensure that the YARA-X
+    /// binary performing deserialization is built with the same profiling
+    /// settings as the compiled rules. A mismatch will result in a
+    /// deserialization error.
+    pub(in crate::compiler) rules_profiling_enabled: bool,
 }
 
 impl Rules {
@@ -207,6 +226,14 @@ impl Rules {
 
     /// Deserializes the rules from a sequence of bytes produced by
     /// [`Rules::serialize`].
+    ///
+    /// # Safety
+    ///
+    /// As long as you are deserializing rules from binary content produced
+    /// by [`Rules::serialize`] you are safe. But you should never attempt
+    /// to do so from binary content that was produced or could be manipulated
+    /// by a third party. This implies a security risk and your program may
+    /// panic during scanning.
     pub fn deserialize<B>(bytes: B) -> Result<Self, SerializationError>
     where
         B: AsRef<[u8]>,
@@ -243,6 +270,16 @@ impl Rules {
         #[cfg(feature = "logging")]
         info!("Deserialization time: {:?}", Instant::elapsed(&start));
 
+        let profiling_enabled = cfg!(feature = "rules-profiling");
+
+        if rules.rules_profiling_enabled != profiling_enabled {
+            return Err(SerializationError::InvalidWASM(anyhow!(
+                "rules profiling mismatch: rules compiled with profiling enabled = {}, but YARA-X compiled with profiling enabled = {}",
+                rules.rules_profiling_enabled,
+                profiling_enabled
+            )));
+        }
+
         // `rules.compiled_wasm_mod` can be `None` for two reasons:
         //
         //  1- The rules were serialized without compiled rules (i.e: the
@@ -272,6 +309,21 @@ impl Rules {
         }
 
         rules.build_ac_automaton();
+
+        // Make sure that the maximum SubPatternId is within the boundaries
+        // of sub_patterns array. This check is important because during
+        // the scanning phase we use SubPatternId as indexes in the array
+        // without boundary checks for better performance.
+        let max_sub_pattern_id = rules
+            .atoms
+            .iter()
+            .map(|atom| atom.sub_pattern_id)
+            .max()
+            .unwrap_or(SubPatternId(0));
+
+        if rules.sub_patterns.len() < max_sub_pattern_id.0 as usize {
+            return Err(SerializationError::InvalidFormat);
+        }
 
         Ok(rules)
     }

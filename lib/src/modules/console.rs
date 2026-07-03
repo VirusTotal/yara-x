@@ -213,6 +213,13 @@ mod tests {
             ]
         );
     }
+
+    #[test]
+    fn test_escape() {
+        assert_eq!(super::escape(b"hello"), "hello");
+        assert_eq!(super::escape(b"hello\nworld"), "hello\\nworld");
+        assert_eq!(super::escape(b"\xff\xfe"), "\\xff\\xfe");
+    }
 }
 
 register_module!("console", Console, main);

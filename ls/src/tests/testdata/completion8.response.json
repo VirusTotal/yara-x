@@ -549,6 +549,24 @@
     }
   },
   {
+    "insertText": "MACHINE_ALPHA",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "MACHINE_ALPHA",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "MACHINE_ALPHA64",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "MACHINE_ALPHA64",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
     "insertText": "MACHINE_AM33",
     "insertTextFormat": 2,
     "kind": 5,
@@ -576,6 +594,33 @@
     }
   },
   {
+    "insertText": "MACHINE_ARM64",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "MACHINE_ARM64",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "MACHINE_ARM64EC",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "MACHINE_ARM64EC",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "MACHINE_ARM64X",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "MACHINE_ARM64X",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
     "insertText": "MACHINE_ARMNT",
     "insertTextFormat": 2,
     "kind": 5,
@@ -585,10 +630,10 @@
     }
   },
   {
-    "insertText": "MACHINE_ARM64",
+    "insertText": "MACHINE_AXP64",
     "insertTextFormat": 2,
     "kind": 5,
-    "label": "MACHINE_ARM64",
+    "label": "MACHINE_AXP64",
     "labelDetails": {
       "description": "integer"
     }
@@ -616,6 +661,24 @@
     "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_IA64",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "MACHINE_LOONGARCH32",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "MACHINE_LOONGARCH32",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "MACHINE_LOONGARCH64",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "MACHINE_LOONGARCH64",
     "labelDetails": {
       "description": "integer"
     }
@@ -675,10 +738,64 @@
     }
   },
   {
+    "insertText": "MACHINE_R3000BE",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "MACHINE_R3000BE",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "MACHINE_R3000",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "MACHINE_R3000",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
     "insertText": "MACHINE_R4000",
     "insertTextFormat": 2,
     "kind": 5,
     "label": "MACHINE_R4000",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "MACHINE_R10000",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "MACHINE_R10000",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "MACHINE_RISCV32",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "MACHINE_RISCV32",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "MACHINE_RISCV64",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "MACHINE_RISCV64",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "MACHINE_RISCV128",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "MACHINE_RISCV128",
     "labelDetails": {
       "description": "integer"
     }

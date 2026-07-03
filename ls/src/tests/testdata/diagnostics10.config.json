@@ -1,0 +1,34 @@
+{
+  "metadataValidation": [
+    {
+      "identifier": "description",
+      "type": "string"
+    },
+    {
+      "identifier": "id",
+      "type": "string",
+      "regex": "^[A-Z]{3}-[0-9]{3}$"
+    },
+    {
+      "identifier": "version",
+      "type": "integer"
+    },
+    {
+      "identifier": "score",
+      "type": "float"
+    },
+    {
+      "identifier": "enabled",
+      "type": "bool"
+    },
+    {
+      "identifier": "created",
+      "type": "date"
+    },
+    {
+      "identifier": "updated",
+      "type": "date",
+      "format": "%d/%m/%Y"
+    }
+  ]
+}
