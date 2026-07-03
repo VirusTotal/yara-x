@@ -32,7 +32,7 @@ use crate::server::YARALanguageServer;
 
 struct ClientState;
 
-async fn lsp_test<F, R>(f: F)
+async fn lsp_test<F, R>(initialization_options: Option<Value>, f: F)
 where
     R: Future<Output = ServerSocket>,
     F: Fn(ServerSocket) -> R,
@@ -81,6 +81,7 @@ where
                          }),
                          ..Default::default()
                      },
+                     initialization_options,
                      ..Default::default()
                  })
                 .await
@@ -132,7 +133,17 @@ where
     let abs_path = path.canonicalize().unwrap();
     let test_dir = Url::from_file_path(abs_path.parent().unwrap()).unwrap();
 
-    lsp_test(async |server_socket| {
+    let config_path = path.with_extension("config.json");
+    let initialization_options = if config_path.exists() {
+        Some(
+            serde_json::from_str(&fs::read_to_string(&config_path).unwrap())
+                .unwrap(),
+        )
+    } else {
+        None
+    };
+
+    lsp_test(initialization_options, async |server_socket| {
         open_document(&server_socket, &abs_path).await;
 
         let mut mint = goldenfile::Mint::new(".");
@@ -333,6 +344,8 @@ async fn document_diagnostics() {
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics6.yar").await;
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics7.yar").await;
     test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics8.yar").await;
+    test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics9.yar").await;
+    test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics10.yar").await;
 }
 
 #[tokio::test]

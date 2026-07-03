@@ -196,8 +196,12 @@ pub fn compiler_diagnostics(
                         ),
                     ));
                 }
-                _ => {}
+                _ => {
+                    compiler.add_linter(linter);
+                }
             };
+        } else {
+            compiler.add_linter(linter);
         }
     }
 
