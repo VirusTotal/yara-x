@@ -125,7 +125,7 @@ async fn close_document<P: AsRef<Path>>(s: &ServerSocket, path: P) {
     .expect("DidOpenTextDocument notification failed");
 }
 
-async fn test_lsp_request<P: AsRef<Path>, R: Request>(path: P)
+async fn lsp_request<P: AsRef<Path>, R: Request>(path: P)
 where
     R::Result: serde::Serialize + serde::de::DeserializeOwned + Debug,
 {
@@ -247,180 +247,175 @@ fn sort_json(value: &mut Value) {
 
 #[tokio::test]
 async fn selection_range() {
-    test_lsp_request::<_, SelectionRangeRequest>("selectionrange1.yar").await;
-    test_lsp_request::<_, SelectionRangeRequest>("selectionrange2.yar").await;
-    test_lsp_request::<_, SelectionRangeRequest>("selectionrange3.yar").await;
-    test_lsp_request::<_, SelectionRangeRequest>("selectionrange4.yar").await;
-    test_lsp_request::<_, SelectionRangeRequest>("selectionrange5.yar").await;
-    test_lsp_request::<_, SelectionRangeRequest>("selectionrange6.yar").await;
-    test_lsp_request::<_, SelectionRangeRequest>("selectionrange7.yar").await;
+    lsp_request::<_, SelectionRangeRequest>("selectionrange1.yar").await;
+    lsp_request::<_, SelectionRangeRequest>("selectionrange2.yar").await;
+    lsp_request::<_, SelectionRangeRequest>("selectionrange3.yar").await;
+    lsp_request::<_, SelectionRangeRequest>("selectionrange4.yar").await;
+    lsp_request::<_, SelectionRangeRequest>("selectionrange5.yar").await;
+    lsp_request::<_, SelectionRangeRequest>("selectionrange6.yar").await;
+    lsp_request::<_, SelectionRangeRequest>("selectionrange7.yar").await;
 }
 
 #[tokio::test]
 async fn rename() {
-    test_lsp_request::<_, Rename>("rename1.yar").await;
-    test_lsp_request::<_, Rename>("rename2.yar").await;
-    test_lsp_request::<_, Rename>("rename3.yar").await;
-    test_lsp_request::<_, Rename>("rename4.yar").await;
-    test_lsp_request::<_, Rename>("rename5.yar").await;
-    test_lsp_request::<_, Rename>("rename6.yar").await;
-    test_lsp_request::<_, Rename>("rename7.yar").await;
-    test_lsp_request::<_, Rename>("rename8.yar").await;
-    test_lsp_request::<_, Rename>("rename9.yar").await;
-    test_lsp_request::<_, Rename>("rename10.yar").await;
+    lsp_request::<_, Rename>("rename1.yar").await;
+    lsp_request::<_, Rename>("rename2.yar").await;
+    lsp_request::<_, Rename>("rename3.yar").await;
+    lsp_request::<_, Rename>("rename4.yar").await;
+    lsp_request::<_, Rename>("rename5.yar").await;
+    lsp_request::<_, Rename>("rename6.yar").await;
+    lsp_request::<_, Rename>("rename7.yar").await;
+    lsp_request::<_, Rename>("rename8.yar").await;
+    lsp_request::<_, Rename>("rename9.yar").await;
+    lsp_request::<_, Rename>("rename10.yar").await;
 }
 
 #[tokio::test]
 async fn references() {
-    test_lsp_request::<_, References>("references1.yar").await;
-    test_lsp_request::<_, References>("references2.yar").await;
-    test_lsp_request::<_, References>("references3.yar").await;
-    test_lsp_request::<_, References>("references4.yar").await;
-    test_lsp_request::<_, References>("references5.yar").await;
-    test_lsp_request::<_, References>("references6.yar").await;
-    test_lsp_request::<_, References>("references7.yar").await;
-    test_lsp_request::<_, References>("references8.yar").await;
-    test_lsp_request::<_, References>("references9.yar").await;
+    lsp_request::<_, References>("references1.yar").await;
+    lsp_request::<_, References>("references2.yar").await;
+    lsp_request::<_, References>("references3.yar").await;
+    lsp_request::<_, References>("references4.yar").await;
+    lsp_request::<_, References>("references5.yar").await;
+    lsp_request::<_, References>("references6.yar").await;
+    lsp_request::<_, References>("references7.yar").await;
+    lsp_request::<_, References>("references8.yar").await;
+    lsp_request::<_, References>("references9.yar").await;
 }
 
 #[tokio::test]
 async fn goto_definition() {
-    test_lsp_request::<_, GotoDefinition>("goto1.yar").await;
-    test_lsp_request::<_, GotoDefinition>("goto2.yar").await;
-    test_lsp_request::<_, GotoDefinition>("goto3.yar").await;
-    test_lsp_request::<_, GotoDefinition>("goto4.yar").await;
-    test_lsp_request::<_, GotoDefinition>("goto5.yar").await;
-    test_lsp_request::<_, GotoDefinition>("goto6.yar").await;
-    test_lsp_request::<_, GotoDefinition>("goto7.yar").await;
-    test_lsp_request::<_, GotoDefinition>("goto8.yar").await;
+    lsp_request::<_, GotoDefinition>("goto1.yar").await;
+    lsp_request::<_, GotoDefinition>("goto2.yar").await;
+    lsp_request::<_, GotoDefinition>("goto3.yar").await;
+    lsp_request::<_, GotoDefinition>("goto4.yar").await;
+    lsp_request::<_, GotoDefinition>("goto5.yar").await;
+    lsp_request::<_, GotoDefinition>("goto6.yar").await;
+    lsp_request::<_, GotoDefinition>("goto7.yar").await;
+    lsp_request::<_, GotoDefinition>("goto8.yar").await;
 }
 
 #[tokio::test]
 async fn hover() {
-    test_lsp_request::<_, HoverRequest>("hover1.yar").await;
-    test_lsp_request::<_, HoverRequest>("hover2.yar").await;
-    test_lsp_request::<_, HoverRequest>("hover3.yar").await;
-    test_lsp_request::<_, HoverRequest>("hover4.yar").await;
-    test_lsp_request::<_, HoverRequest>("hover5.yar").await;
-    test_lsp_request::<_, HoverRequest>("hover6.yar").await;
-    test_lsp_request::<_, HoverRequest>("hover7.yar").await;
-    test_lsp_request::<_, HoverRequest>("hover8.yar").await;
-    test_lsp_request::<_, HoverRequest>("hover9.yar").await;
-    test_lsp_request::<_, HoverRequest>("hover10.yar").await;
-    test_lsp_request::<_, HoverRequest>("hover11.yar").await;
+    lsp_request::<_, HoverRequest>("hover1.yar").await;
+    lsp_request::<_, HoverRequest>("hover2.yar").await;
+    lsp_request::<_, HoverRequest>("hover3.yar").await;
+    lsp_request::<_, HoverRequest>("hover4.yar").await;
+    lsp_request::<_, HoverRequest>("hover5.yar").await;
+    lsp_request::<_, HoverRequest>("hover6.yar").await;
+    lsp_request::<_, HoverRequest>("hover7.yar").await;
+    lsp_request::<_, HoverRequest>("hover8.yar").await;
+    lsp_request::<_, HoverRequest>("hover9.yar").await;
+    lsp_request::<_, HoverRequest>("hover10.yar").await;
+    lsp_request::<_, HoverRequest>("hover11.yar").await;
 }
 
 #[tokio::test]
 async fn document_symbols() {
-    test_lsp_request::<_, DocumentSymbolRequest>("symbols1.yar").await;
-    test_lsp_request::<_, DocumentSymbolRequest>("symbols2.yar").await;
-    test_lsp_request::<_, DocumentSymbolRequest>("symbols3.yar").await;
-    test_lsp_request::<_, DocumentSymbolRequest>("symbols4.yar").await;
-    test_lsp_request::<_, DocumentSymbolRequest>("symbols5.yar").await;
-    test_lsp_request::<_, DocumentSymbolRequest>("symbols6.yar").await;
-    test_lsp_request::<_, DocumentSymbolRequest>("symbols7.yar").await;
+    lsp_request::<_, DocumentSymbolRequest>("symbols1.yar").await;
+    lsp_request::<_, DocumentSymbolRequest>("symbols2.yar").await;
+    lsp_request::<_, DocumentSymbolRequest>("symbols3.yar").await;
+    lsp_request::<_, DocumentSymbolRequest>("symbols4.yar").await;
+    lsp_request::<_, DocumentSymbolRequest>("symbols5.yar").await;
+    lsp_request::<_, DocumentSymbolRequest>("symbols6.yar").await;
+    lsp_request::<_, DocumentSymbolRequest>("symbols7.yar").await;
 }
 
 #[tokio::test]
 async fn document_highlights() {
-    test_lsp_request::<_, DocumentHighlightRequest>("highlights1.yar").await;
-    test_lsp_request::<_, DocumentHighlightRequest>("highlights2.yar").await;
-    test_lsp_request::<_, DocumentHighlightRequest>("highlights3.yar").await;
-    test_lsp_request::<_, DocumentHighlightRequest>("highlights4.yar").await;
-    test_lsp_request::<_, DocumentHighlightRequest>("highlights5.yar").await;
-    test_lsp_request::<_, DocumentHighlightRequest>("highlights6.yar").await;
-    test_lsp_request::<_, DocumentHighlightRequest>("highlights7.yar").await;
-    test_lsp_request::<_, DocumentHighlightRequest>("highlights8.yar").await;
-    test_lsp_request::<_, DocumentHighlightRequest>("highlights9.yar").await;
+    lsp_request::<_, DocumentHighlightRequest>("highlights1.yar").await;
+    lsp_request::<_, DocumentHighlightRequest>("highlights2.yar").await;
+    lsp_request::<_, DocumentHighlightRequest>("highlights3.yar").await;
+    lsp_request::<_, DocumentHighlightRequest>("highlights4.yar").await;
+    lsp_request::<_, DocumentHighlightRequest>("highlights5.yar").await;
+    lsp_request::<_, DocumentHighlightRequest>("highlights6.yar").await;
+    lsp_request::<_, DocumentHighlightRequest>("highlights7.yar").await;
+    lsp_request::<_, DocumentHighlightRequest>("highlights8.yar").await;
+    lsp_request::<_, DocumentHighlightRequest>("highlights9.yar").await;
 }
 
 #[tokio::test]
 async fn document_diagnostics() {
-    test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics1.yar").await;
-    test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics2.yar").await;
-    test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics3.yar").await;
-    test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics4.yar").await;
-    test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics5.yar").await;
-    test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics6.yar").await;
-    test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics7.yar").await;
-    test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics8.yar").await;
-    test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics9.yar").await;
-    test_lsp_request::<_, DocumentDiagnosticRequest>("diagnostics10.yar").await;
+    lsp_request::<_, DocumentDiagnosticRequest>("diagnostics1.yar").await;
+    lsp_request::<_, DocumentDiagnosticRequest>("diagnostics2.yar").await;
+    lsp_request::<_, DocumentDiagnosticRequest>("diagnostics3.yar").await;
+    lsp_request::<_, DocumentDiagnosticRequest>("diagnostics4.yar").await;
+    lsp_request::<_, DocumentDiagnosticRequest>("diagnostics5.yar").await;
+    lsp_request::<_, DocumentDiagnosticRequest>("diagnostics6.yar").await;
+    lsp_request::<_, DocumentDiagnosticRequest>("diagnostics7.yar").await;
+    lsp_request::<_, DocumentDiagnosticRequest>("diagnostics8.yar").await;
+    lsp_request::<_, DocumentDiagnosticRequest>("diagnostics9.yar").await;
+    lsp_request::<_, DocumentDiagnosticRequest>("diagnostics10.yar").await;
 }
 
 #[tokio::test]
 async fn completion() {
-    test_lsp_request::<_, Completion>("completion1.yar").await;
+    lsp_request::<_, Completion>("completion1.yar").await;
 
     #[cfg(not(feature = "magic-module"))]
-    test_lsp_request::<_, Completion>("completion2.yar").await;
+    lsp_request::<_, Completion>("completion2.yar").await;
 
-    test_lsp_request::<_, Completion>("completion3.yar").await;
-    test_lsp_request::<_, Completion>("completion4.yar").await;
-    test_lsp_request::<_, Completion>("completion5.yar").await;
-    test_lsp_request::<_, Completion>("completion6.yar").await;
-    test_lsp_request::<_, Completion>("completion7.yar").await;
+    lsp_request::<_, Completion>("completion3.yar").await;
+    lsp_request::<_, Completion>("completion4.yar").await;
+    lsp_request::<_, Completion>("completion5.yar").await;
+    lsp_request::<_, Completion>("completion6.yar").await;
+    lsp_request::<_, Completion>("completion7.yar").await;
 
-    test_lsp_request::<_, Completion>("completion8.yar").await;
+    lsp_request::<_, Completion>("completion8.yar").await;
 
-    test_lsp_request::<_, Completion>("completion9.yar").await;
-
-    #[cfg(not(feature = "magic-module"))]
-    test_lsp_request::<_, Completion>("completion10.yar").await;
+    lsp_request::<_, Completion>("completion9.yar").await;
 
     #[cfg(not(feature = "magic-module"))]
-    test_lsp_request::<_, Completion>("completion11.yar").await;
+    lsp_request::<_, Completion>("completion10.yar").await;
 
     #[cfg(not(feature = "magic-module"))]
-    test_lsp_request::<_, Completion>("completion12.yar").await;
+    lsp_request::<_, Completion>("completion11.yar").await;
 
     #[cfg(not(feature = "magic-module"))]
-    test_lsp_request::<_, Completion>("completion13.yar").await;
+    lsp_request::<_, Completion>("completion12.yar").await;
 
     #[cfg(not(feature = "magic-module"))]
-    test_lsp_request::<_, Completion>("completion14.yar").await;
+    lsp_request::<_, Completion>("completion13.yar").await;
 
     #[cfg(not(feature = "magic-module"))]
-    test_lsp_request::<_, Completion>("completion15.yar").await;
+    lsp_request::<_, Completion>("completion14.yar").await;
 
-    test_lsp_request::<_, Completion>("completion16.yar").await;
-    test_lsp_request::<_, Completion>("completion17.yar").await;
+    #[cfg(not(feature = "magic-module"))]
+    lsp_request::<_, Completion>("completion15.yar").await;
+
+    lsp_request::<_, Completion>("completion16.yar").await;
+    lsp_request::<_, Completion>("completion17.yar").await;
 }
 
 #[tokio::test]
 async fn formatting() {
-    test_lsp_request::<_, Formatting>("formatting1.yar").await;
+    lsp_request::<_, Formatting>("formatting1.yar").await;
 }
 
 #[tokio::test]
 async fn code_action() {
-    test_lsp_request::<_, CodeActionRequest>("code_action.yar").await;
+    lsp_request::<_, CodeActionRequest>("code_action.yar").await;
 }
 
 #[tokio::test]
 async fn semantic_tokens() {
-    test_lsp_request::<_, SemanticTokensFullRequest>("semantic_tokens1.yar")
-        .await;
-
-    test_lsp_request::<_, SemanticTokensFullRequest>("semantic_tokens2.yar")
-        .await;
+    lsp_request::<_, SemanticTokensFullRequest>("semantic_tokens1.yar").await;
+    lsp_request::<_, SemanticTokensFullRequest>("semantic_tokens2.yar").await;
 }
 
 #[tokio::test]
 async fn semantic_tokens_range() {
-    test_lsp_request::<_, SemanticTokensRangeRequest>(
-        "semantic_tokens_range.yar",
-    )
-    .await;
+    lsp_request::<_, SemanticTokensRangeRequest>("semantic_tokens_range.yar")
+        .await;
 }
 
 #[tokio::test]
 async fn signature_help() {
-    test_lsp_request::<_, SignatureHelpRequest>("signature_help1.yar").await;
-    test_lsp_request::<_, SignatureHelpRequest>("signature_help2.yar").await;
+    lsp_request::<_, SignatureHelpRequest>("signature_help1.yar").await;
+    lsp_request::<_, SignatureHelpRequest>("signature_help2.yar").await;
 }
 
 #[tokio::test]
 async fn inlay_hint() {
-    test_lsp_request::<_, InlayHintRequest>("inlay_hint.yar").await;
+    lsp_request::<_, InlayHintRequest>("inlay_hint.yar").await;
 }
