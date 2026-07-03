@@ -393,6 +393,12 @@ async fn completion() {
 
     #[cfg(not(feature = "magic-module"))]
     lsp_request::<_, Completion>("completion23.yar").await;
+
+    #[cfg(feature = "magic-module")]
+    lsp_request::<_, Completion>("completion24.yar").await;
+
+    #[cfg(feature = "magic-module")]
+    lsp_request::<_, Completion>("completion25.yar").await;
 }
 
 #[tokio::test]
