@@ -17,7 +17,7 @@ pub struct Config {
 
 /// This structure represents settings for the YARA-X formatter.
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub(crate) struct FormattingConfiguration {
     pub align_metadata: bool,
     pub align_patterns: bool,
@@ -61,3 +61,57 @@ pub struct MetadataValidationRule {
     #[serde(default)]
     pub regex: Option<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_config() {
+        let config = Config::default();
+        assert!(config.code_formatting.align_metadata);
+        assert!(config.code_formatting.align_patterns);
+        assert!(config.code_formatting.indent_section_headers);
+        assert!(config.code_formatting.indent_section_contents);
+        assert!(!config.code_formatting.newline_before_curly_brace);
+        assert!(!config.code_formatting.empty_line_before_section_header);
+        assert!(!config.code_formatting.empty_line_after_section_header);
+        assert!(config.metadata_validation.is_empty());
+        assert!(config.rule_name_validation.is_none());
+        assert!(!config.cache_workspace);
+    }
+
+    #[test]
+    fn test_deserialize_config() {
+        let json = r#"{
+            "codeFormatting": {
+                "alignMetadata": false,
+                "newlineBeforeCurlyBrace": true
+            },
+            "metadataValidation": [
+                {
+                    "identifier": "author",
+                    "required": true,
+                    "type": "string",
+                    "regex": "^[A-Za-z ]+$"
+                }
+            ],
+            "ruleNameValidation": "^[a-z_]+$",
+            "cacheWorkspace": true
+        }"#;
+
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert!(!config.code_formatting.align_metadata);
+        assert!(config.code_formatting.align_patterns); // default is true
+        assert!(config.code_formatting.newline_before_curly_brace);
+        assert_eq!(config.metadata_validation.len(), 1);
+        let rule = &config.metadata_validation[0];
+        assert_eq!(rule.identifier, "author");
+        assert!(rule.required);
+        assert_eq!(rule.ty.as_deref(), Some("string"));
+        assert_eq!(rule.regex.as_deref(), Some("^[A-Za-z ]+$"));
+        assert_eq!(config.rule_name_validation.as_deref(), Some("^[a-z_]+$"));
+        assert!(config.cache_workspace);
+    }
+}
+
