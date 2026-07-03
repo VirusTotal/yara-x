@@ -875,7 +875,7 @@ fn capi_null_args() {
         );
         let res = yrx_scanner_clear_profiling_data(std::ptr::null_mut());
         assert!(
-            res == YRX_RESULT::YRX_SUCCESS
+            res == YRX_RESULT::YRX_INVALID_ARGUMENT
                 || res == YRX_RESULT::YRX_NOT_SUPPORTED
         );
         yrx_scanner_destroy(std::ptr::null_mut());
