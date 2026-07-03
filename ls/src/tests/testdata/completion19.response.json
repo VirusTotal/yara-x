@@ -1,0 +1,16 @@
+[
+  {
+    "kind": 1,
+    "label": "my_str",
+    "labelDetails": {
+      "description": "Pattern"
+    }
+  },
+  {
+    "kind": 1,
+    "label": "other",
+    "labelDetails": {
+      "description": "Pattern"
+    }
+  }
+]

@@ -385,6 +385,12 @@ async fn completion() {
 
     lsp_request::<_, Completion>("completion16.yar").await;
     lsp_request::<_, Completion>("completion17.yar").await;
+    lsp_request::<_, Completion>("completion18.yar").await;
+    lsp_request::<_, Completion>("completion19.yar").await;
+    lsp_request::<_, Completion>("completion20.yar").await;
+    lsp_request::<_, Completion>("completion21.yar").await;
+    lsp_request::<_, Completion>("completion22.yar").await;
+    lsp_request::<_, Completion>("completion23.yar").await;
 }
 
 #[tokio::test]

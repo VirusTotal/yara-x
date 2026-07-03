@@ -1,0 +1,13 @@
+{
+  "textDocument": {
+    "uri": "${test_dir}/completion21.yar"
+  },
+  "position": {
+    "line": 2,
+    "character": 6
+  },
+  "context": {
+    "triggerKind": 2,
+    "triggerCharacter": "."
+  }
+}
