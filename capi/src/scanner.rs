@@ -141,7 +141,9 @@ pub unsafe extern "C" fn yrx_scanner_create(
 /// Destroys a [`YRX_SCANNER`] object.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_destroy(scanner: *mut YRX_SCANNER) {
-    drop(Box::from_raw(scanner))
+    if !scanner.is_null() {
+        drop(Box::from_raw(scanner))
+    }
 }
 
 /// Sets a timeout (in seconds) for scan operations.
@@ -812,6 +814,9 @@ unsafe fn slice_from_ptr_and_len<'a>(
 }
 
 unsafe fn str_from_ptr<'a>(s: *const c_char) -> Result<&'a str, YRX_RESULT> {
+    if s.is_null() {
+        return Err(YRX_RESULT::YRX_INVALID_ARGUMENT);
+    }
     match CStr::from_ptr(s).to_str() {
         Ok(s) => Ok(s),
         Err(err) => {

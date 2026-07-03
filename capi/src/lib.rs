@@ -207,7 +207,9 @@ impl Drop for YRX_BUFFER {
 /// Destroys a [`YRX_BUFFER`] object.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_buffer_destroy(buf: *mut YRX_BUFFER) {
-    drop(Box::from_raw(buf));
+    if !buf.is_null() {
+        drop(Box::from_raw(buf));
+    }
 }
 
 /// Compiles YARA source code and creates a [`YRX_RULES`] object that contains
@@ -219,6 +221,9 @@ pub unsafe extern "C" fn yrx_compile(
     src: *const c_char,
     rules: &mut *mut YRX_RULES,
 ) -> YRX_RESULT {
+    if src.is_null() {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
     let c_str = CStr::from_ptr(src);
     match yara_x::compile(c_str.to_bytes()) {
         Ok(r) => {

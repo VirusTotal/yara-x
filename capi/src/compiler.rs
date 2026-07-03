@@ -91,7 +91,9 @@ pub unsafe extern "C" fn yrx_compiler_create(
 /// Destroys a [`YRX_COMPILER`] object.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_destroy(compiler: *mut YRX_COMPILER) {
-    drop(Box::from_raw(compiler))
+    if !compiler.is_null() {
+        drop(Box::from_raw(compiler))
+    }
 }
 
 /// Adds a YARA source code to be compiled.
@@ -124,6 +126,10 @@ pub unsafe extern "C" fn yrx_compiler_add_source_with_origin(
     } else {
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
+
+    if src.is_null() {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
 
     let src = CStr::from_ptr(src);
     let mut src = SourceCode::from(src.to_bytes());
@@ -168,6 +174,10 @@ pub unsafe extern "C" fn yrx_compiler_add_include_dir(
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
+    if dir.is_null() {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
+
     let dir = if let Ok(dir) = CStr::from_ptr(dir).to_str() {
         dir
     } else {
@@ -195,6 +205,10 @@ pub unsafe extern "C" fn yrx_compiler_ignore_module(
     } else {
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
+
+    if module.is_null() {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
 
     let module = if let Ok(module) = CStr::from_ptr(module).to_str() {
         module
@@ -284,6 +298,10 @@ pub unsafe extern "C" fn yrx_compiler_enable_feature(
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
+    if feature.is_null() {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
+
     let feature = if let Ok(module) = CStr::from_ptr(feature).to_str() {
         module
     } else {
@@ -314,6 +332,10 @@ pub unsafe extern "C" fn yrx_compiler_ban_module(
     } else {
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
+
+    if module.is_null() || error_title.is_null() || error_msg.is_null() {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
 
     let module = if let Ok(module) = CStr::from_ptr(module).to_str() {
         module
@@ -357,6 +379,10 @@ pub unsafe extern "C" fn yrx_compiler_new_namespace(
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
+    if namespace.is_null() {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
+
     let namespace = if let Ok(namespace) = CStr::from_ptr(namespace).to_str() {
         namespace
     } else {
@@ -388,6 +414,10 @@ unsafe fn yrx_compiler_define_global<
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
+    if ident.is_null() {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
+
     let ident = if let Ok(ident) = CStr::from_ptr(ident).to_str() {
         ident
     } else {
@@ -413,6 +443,10 @@ pub unsafe extern "C" fn yrx_compiler_define_global_str(
     ident: *const c_char,
     value: *const c_char,
 ) -> YRX_RESULT {
+    if value.is_null() {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
+
     let value = if let Ok(value) = CStr::from_ptr(value).to_str() {
         value
     } else {
@@ -467,6 +501,10 @@ pub unsafe extern "C" fn yrx_compiler_define_global_json(
     ident: *const c_char,
     value: *const c_char,
 ) -> YRX_RESULT {
+    if value.is_null() {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
+
     let value = if let Ok(value) = CStr::from_ptr(value).to_str() {
         value
     } else {
