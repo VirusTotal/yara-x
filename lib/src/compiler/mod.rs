@@ -5,7 +5,6 @@ module implements the YARA compiler.
 */
 
 use std::cell::RefCell;
-use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -1757,27 +1756,24 @@ impl Compiler<'_> {
                 num_private_patterns += 1;
             }
 
-            // Check if this pattern has been declared before, in this rule or
-            // in some other rule. In such cases the pattern ID is re-used, and
-            // we don't need to process (i.e: extract atoms and add them to
-            // Aho-Corasick automaton) the pattern again. Two patterns are
-            // considered equal if they are exactly the same, including any
-            // modifiers associated to the pattern, both are non-anchored
-            // or anchored at the same file offset, and if they have the same
-            // file size bounds.
             let pattern_id =
-                match self.patterns.entry(pattern.pattern().clone()) {
-                    // The pattern already exists, return the existing ID.
-                    Entry::Occupied(entry) => *entry.get(),
-                    // The pattern didn't exist.
-                    Entry::Vacant(entry) => {
-                        let pattern_id = self.next_pattern_id;
-                        self.next_pattern_id.incr(1);
-                        self.fast_scan_patterns.push(true);
-                        pending_patterns.insert(pattern_id);
-                        entry.insert(pattern_id);
-                        pattern_id
-                    }
+                // Check if this pattern has been declared before, in this rule or
+                // in some other rule. In such cases the pattern ID is re-used, and
+                // we don't need to process (i.e: extract atoms and add them to
+                // Aho-Corasick automaton) the pattern again. Two patterns are
+                // considered equal if they are exactly the same, including any
+                // modifiers associated to the pattern, both are non-anchored
+                // or anchored at the same file offset, and if they have the same
+                // file size bounds.
+                if let Some(pattern_id) = self.patterns.get(pattern.pattern()) {
+                    *pattern_id
+                } else {
+                    let pattern_id = self.next_pattern_id;
+                    self.next_pattern_id.incr(1);
+                    self.fast_scan_patterns.push(true);
+                    pending_patterns.insert(pattern_id);
+                    self.patterns.insert(pattern.pattern().clone(), pattern_id);
+                    pattern_id
                 };
 
             if !pattern.fast_scan_allowed() {
