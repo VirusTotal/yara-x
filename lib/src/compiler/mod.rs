@@ -814,7 +814,7 @@ impl<'a> Compiler<'a> {
             wasm_mod,
             compiled_wasm_mod: Some(compiled_wasm_mod),
             relaxed_re_syntax: self.relaxed_re_syntax,
-            ac: None,
+            ac: AhoCorasick::default(),
             num_patterns: self.next_pattern_id.0 as usize,
             ident_pool: self.ident_pool,
             regex_pool: self.regex_pool,

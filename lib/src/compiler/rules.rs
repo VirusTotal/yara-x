@@ -33,7 +33,7 @@ const MAGIC: &[u8] = b"YARA-X\0\0";
 ///
 /// This version is incremented every time a change is made to the binary
 /// format in a way that breaks backwards compatibility.
-const SERIALIZATION_VERSION: u32 = 4;
+const SERIALIZATION_VERSION: u32 = 5;
 
 /// Aho-Corasick automaton bundled with an optional Teddy scanner if the
 /// number of patterns is low enough. If the Teddy scanner is present, and
@@ -43,6 +43,75 @@ const SERIALIZATION_VERSION: u32 = 4;
 pub(crate) struct AhoCorasick {
     pub(crate) daachorse: DoubleArrayAhoCorasick<u32>,
     pub(crate) teddy: Option<teddy::Searcher>,
+}
+
+impl Serialize for AhoCorasick {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let bytes = self.daachorse.serialize();
+        bytes.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for AhoCorasick {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let bytes = <&'de [u8]>::deserialize(deserializer)?;
+        let (daachorse, _) = DoubleArrayAhoCorasick::deserialize(bytes)
+            .map_err(|e| serde::de::Error::custom(format!("{}", e)))?;
+        Ok(Self { daachorse, teddy: None })
+    }
+}
+
+impl Default for AhoCorasick {
+    fn default() -> Self {
+        let daachorse =
+            DoubleArrayAhoCorasick::new(std::iter::empty::<&[u8]>()).unwrap();
+        Self { daachorse, teddy: None }
+    }
+}
+
+impl AhoCorasick {
+    pub(crate) fn new<'a, I>(patterns: I) -> Self
+    where
+        I: Iterator<Item = &'a [u8]> + ExactSizeIterator + Clone,
+    {
+        let daachorse = DoubleArrayAhoCorasick::new(patterns.clone())
+            .expect("failed to build Aho-Corasick automaton");
+
+        let mut ac = Self { daachorse, teddy: None };
+        ac.rebuild_teddy(patterns);
+        ac
+    }
+
+    pub(crate) fn rebuild_teddy<'a, I>(&mut self, patterns: I)
+    where
+        I: Iterator<Item = &'a [u8]> + ExactSizeIterator,
+    {
+        // Teddy only works from 1 to 64 patterns.
+        let len = patterns.len();
+        if len == 0 || len > 64 {
+            self.teddy = None;
+            return;
+        }
+
+        let mut teddy_builder = teddy::Builder::new();
+
+        for pattern in patterns {
+            // Teddy doesn't admit empty patterns.
+            if pattern.is_empty() {
+                self.teddy = None;
+                return;
+            }
+            teddy_builder.add(pattern);
+        }
+
+        self.teddy = teddy_builder.build();
+    }
 }
 
 /// A set of YARA rules in compiled form.
@@ -157,12 +226,8 @@ pub struct Rules {
 
     /// Aho-Corasick automaton containing the atoms extracted from the patterns.
     /// This allows to search for all the atoms in the scanned data at the same
-    /// time in an efficient manner. The automaton is not serialized during when
-    /// [`Rules::serialize`] is called, it needs to be wrapped in [`Option`] so
-    /// that we can use `#[serde(skip)]` on it because [`AhoCorasick`] doesn't
-    /// implement the [`Default`] trait.
-    #[serde(skip)]
-    pub(in crate::compiler) ac: Option<AhoCorasick>,
+    /// time in an efficient manner.
+    pub(in crate::compiler) ac: AhoCorasick,
 
     /// Warnings that were produced while compiling these rules. These warnings
     /// are not serialized, rules that are obtained by deserializing previously
@@ -308,7 +373,7 @@ impl Rules {
             info!("WASM build time: {:?}", Instant::elapsed(&start));
         }
 
-        rules.build_ac_automaton();
+        rules.ac.rebuild_teddy(rules.atoms.iter().map(|x| x.atom.as_ref()));
 
         // Make sure that the maximum SubPatternId is within the boundaries
         // of sub_patterns array. This check is important because during
@@ -516,14 +581,10 @@ impl Rules {
     /// atoms.
     #[inline]
     pub(crate) fn ac_automaton(&self) -> &AhoCorasick {
-        self.ac.as_ref().expect("Aho-Corasick automaton not compiled")
+        &self.ac
     }
 
     pub(crate) fn build_ac_automaton(&mut self) {
-        if self.ac.is_some() {
-            return;
-        }
-
         #[cfg(feature = "logging")]
         let start = Instant::now();
 
@@ -554,26 +615,7 @@ impl Rules {
             }
         }
 
-        // The Teddy algorithm can't be used in all cases. It will be used if:
-        // - The number of atoms is between 1 and 64.
-        // - None of the atoms is empty.
-        let use_teddy = self.atoms.len() <= 64
-            && !self.atoms.is_empty()
-            && !self.atoms.iter().any(|x| x.atom.as_ref().is_empty());
-
-        let teddy_searcher = if use_teddy {
-            let mut teddy_builder = teddy::Builder::new();
-            self.atoms.iter().for_each(|x| teddy_builder.add(x.atom.as_ref()));
-            teddy_builder.build()
-        } else {
-            None
-        };
-
-        let atoms = self.atoms.iter().map(|x| x.atom.as_ref());
-        let ac = DoubleArrayAhoCorasick::new(atoms)
-            .expect("failed to build Aho-Corasick automaton");
-
-        self.ac = Some(AhoCorasick { daachorse: ac, teddy: teddy_searcher });
+        self.ac = AhoCorasick::new(self.atoms.iter().map(|x| x.atom.as_ref()));
 
         #[cfg(feature = "logging")]
         {
