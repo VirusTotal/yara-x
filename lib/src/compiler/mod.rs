@@ -829,10 +829,12 @@ impl<'a> Compiler<'a> {
             filesize_bounds: self.filesize_bounds,
             header_constraints: self.header_constraints,
             regex_sets: self.regex_sets,
+            compiled_regex_sets: Default::default(),
             fast_scan_patterns: self.fast_scan_patterns,
             rules_profiling_enabled: cfg!(feature = "rules-profiling"),
         };
 
+        rules.init_regex_set_cache();
         rules.build_ac_automaton();
         rules
     }
