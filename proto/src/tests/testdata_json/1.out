@@ -15,6 +15,9 @@
             "map_string_string": {
                 "foo\nbar": "bar"
             }
+        },
+        {
+            "str": "c0-esc\u001b"
         }
     ],
     "nested_msg": {

@@ -11,6 +11,10 @@ repeated_msg:
     str: "foo\\bar"
     map_string_string:
         "foo\nbar": "bar"
+  - str: "c0-esc\x1b"
+  - str: "c0-esc-multiline\nhello\x1b"
+  - str: "del\x7f"
+  - str: "del-multiline\nhello\x7f"
 nested_msg:
     int32_dec: 1234
     str: |

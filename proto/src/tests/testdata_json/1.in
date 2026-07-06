@@ -18,6 +18,9 @@ repeated_msg {
     value: "bar"
   }
 }
+repeated_msg {
+  str: "c0-esc\x1b"
+}
 nested_msg {
   i32: 1234
   str: "qux\nfoo\tbar\\baz\"qux"

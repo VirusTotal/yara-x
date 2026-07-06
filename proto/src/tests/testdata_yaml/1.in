@@ -14,6 +14,18 @@ repeated_msg {
     value: "bar"
   }
 }
+repeated_msg {
+  str: "c0-esc\x1b"
+}
+repeated_msg {
+  str: "c0-esc-multiline\nhello\x1b"
+}
+repeated_msg {
+  str: "del\x7f"
+}
+repeated_msg {
+  str: "del-multiline\nhello\x7f"
+}
 nested_msg {
   int32_dec: 1234
   str: "qux\nfoo"
