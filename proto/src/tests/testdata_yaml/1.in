@@ -26,6 +26,9 @@ repeated_msg {
 repeated_msg {
   str: "del-multiline\nhello\x7f"
 }
+repeated_msg {
+  str: "tab-in-literal-block\nhello\tworld"
+}
 nested_msg {
   int32_dec: 1234
   str: "qux\nfoo"
