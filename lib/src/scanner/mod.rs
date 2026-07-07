@@ -2,7 +2,8 @@
 
 The scanner takes the rules produces by the compiler and scans data with them.
 */
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::io::Read;

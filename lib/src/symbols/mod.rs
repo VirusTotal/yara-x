@@ -1,8 +1,9 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::VecDeque;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::{mem, ptr};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 #[cfg(test)]
 use bstr::BString;
@@ -192,14 +193,17 @@ impl SymbolLookup for Option<Symbol> {
 /// object that also implements the [`SymbolLookup`] trait, possibly another
 /// [`SymbolTable`].
 pub(crate) struct SymbolTable {
-    map: HashMap<String, Symbol>,
-    used: RefCell<HashSet<String>>,
+    map: FxHashMap<String, Symbol>,
+    used: RefCell<FxHashSet<String>>,
 }
 
 impl SymbolTable {
     /// Creates a new symbol table.
     pub fn new() -> Self {
-        Self { map: HashMap::new(), used: RefCell::new(HashSet::new()) }
+        Self {
+            map: FxHashMap::default(),
+            used: RefCell::new(FxHashSet::default()),
+        }
     }
 
     /// Inserts a new symbol into the symbol table.
@@ -244,7 +248,10 @@ impl Default for SymbolTable {
 impl SymbolLookup for &SymbolTable {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         if let Some(symbol) = self.map.get(ident) {
-            self.used.borrow_mut().insert(ident.to_string());
+            let mut used = self.used.borrow_mut();
+            if !used.contains(ident) {
+                used.insert(ident.to_string());
+            }
             Some(symbol.clone())
         } else {
             None

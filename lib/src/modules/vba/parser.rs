@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use nom::combinator::opt;
 use nom::multi::length_data;

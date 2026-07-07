@@ -7,7 +7,7 @@ matches the regexp left-to-right, and another one that matches right-to-left.
 */
 
 use itertools::Itertools;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::collections::hash_map::Entry;
 use std::fmt::{Display, Formatter};
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};
@@ -322,7 +322,7 @@ impl Compiler {
         // All chunks in `last_n_chucks` will be appended to the backward code
         // in reverse order. The offset where each chunk resides in the backward
         // code is stored in the hash map.
-        let mut chunk_locations = HashMap::new();
+        let mut chunk_locations = HashMap::default();
 
         for (location, chunk) in
             zip(locations.iter_mut(), last_n_chunks.iter()).rev()
@@ -1975,7 +1975,7 @@ fn optimize_seq(mut seq: Seq) -> Option<Seq> {
     // literal. For instance, if the sequence contains literals `01 02 03` and
     // `01 02 04`, the key `01 02` will contain a bitmap where bits 3 and 4
     // are set, while the rest of the bits are unset.
-    let mut map = HashMap::new();
+    let mut map = HashMap::default();
 
     for lit in literals {
         // `prefix` contains all bytes in the literal except the last one.
