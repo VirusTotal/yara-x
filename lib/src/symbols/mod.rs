@@ -3,10 +3,10 @@ use std::collections::VecDeque;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::{mem, ptr};
-use rustc_hash::{FxHashMap, FxHashSet};
 
 #[cfg(test)]
 use bstr::BString;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::compiler::{RuleId, Var};
 use crate::types::{AclEntry, DeprecationNotice, Func, Type, TypeValue};

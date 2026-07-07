@@ -3,7 +3,6 @@
 The scanner takes the rules produces by the compiler and scans data with them.
 */
 use std::collections::BTreeMap;
-use rustc_hash::FxHashMap as HashMap;
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::io::Read;
@@ -21,6 +20,7 @@ use bitvec::prelude::*;
 use memmap2::Advice;
 use memmap2::{Mmap, MmapOptions};
 use protobuf::{CodedInputStream, MessageDyn};
+use rustc_hash::FxHashMap as HashMap;
 use thiserror::Error;
 
 use crate::Variable;
