@@ -188,10 +188,24 @@ impl<W: Write> Serializer<W> {
         result
     }
 
+    #[inline]
+    fn is_yaml_control(c: char) -> bool {
+        // C0 controls (U+0000–U+001F: NUL–US), including \n, \r, \t,
+        // and DEL (U+007F): not in YAML's c-printable set.
+        // C1 controls (U+0080–U+009F), excluding NEL (U+0085)
+        // which YAML treats as a printable line-break character.
+        (c.is_control() && c != '\u{85}')
+            // U+FFFE and U+FFFF: explicitly excluded by YAML 1.2.1 §1
+            || matches!(c, '\u{fffe}' | '\u{ffff}')
+    }
+
     fn escape(s: &str) -> Cow<'_, str> {
-        if s.chars()
-            .any(|c| matches!(c, '\n' | '\r' | '\t' | '\'' | '"' | '\\'))
-        {
+        if s.chars().any(|c| {
+            Self::is_yaml_control(c)
+                // Non-control chars that still require escaping in
+                // YAML double-quoted scalars
+                || matches!(c, '\'' | '"' | '\\')
+        }) {
             let mut result = String::with_capacity(s.len());
             for c in s.chars() {
                 match c {
@@ -201,6 +215,19 @@ impl<W: Write> Serializer<W> {
                     '\'' => result.push_str("\\\'"),
                     '"' => result.push_str("\\\""),
                     '\\' => result.push_str(r"\\"),
+                    // Remaining C0 controls (U+0000–U+001F: NUL–US) not
+                    // covered by the named arms above, DEL (U+007F), and
+                    // C1 controls (U+0080–U+009F, excl. NEL U+0085).
+                    // YAML \xXX escape covers the full U+0000–U+00FF range.
+                    '\0'..='\u{1f}'
+                    | '\u{7f}'..='\u{84}'
+                    | '\u{86}'..='\u{9f}' => {
+                        result.push_str(&format!(r"\x{:02x}", c as u32));
+                    }
+                    // U+FFFE and U+FFFF: explicitly excluded by YAML 1.2.1 §1
+                    '\u{fffe}' | '\u{ffff}' => {
+                        result.push_str(&format!(r"\u{:04x}", c as u32));
+                    }
                     _ => result.push(c),
                 }
             }
@@ -332,7 +359,19 @@ impl<W: Write> Serializer<W> {
             ReflectValueRef::F64(v) => write!(self.output, "{v:.1}")?,
             ReflectValueRef::Bool(v) => write!(self.output, "{v}")?,
             ReflectValueRef::String(v) => {
-                if v.contains('\n') {
+                // Literal block scalars cannot represent control characters
+                // other than newlines — they appear verbatim, making the YAML
+                // invalid.  Fall back to a double-quoted scalar (which supports
+                // \xXX escapes) whenever such characters are present.
+                //
+                // We check for any YAML control characters, excluding the three
+                // C0 characters YAML 1.2.1 explicitly keeps printable:
+                //   TAB (U+0009), LF (U+000A), CR (U+000D)
+                let has_other_controls = v.chars().any(|c| {
+                    Self::is_yaml_control(c)
+                        && !matches!(c, '\t' | '\n' | '\r')
+                });
+                if v.contains('\n') && !has_other_controls {
                     write!(self.output, "{}", "|".paint(self.colors.string))?;
                     for line in v.split('\n') {
                         self.newline()?;
