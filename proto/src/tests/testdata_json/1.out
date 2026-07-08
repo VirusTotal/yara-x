@@ -18,6 +18,15 @@
         },
         {
             "str": "c0-esc\u001b"
+        },
+        {
+            "str": "del\u007f"
+        },
+        {
+            "str": "cr\rtest"
+        },
+        {
+            "str": "nul\u0000test"
         }
     ],
     "nested_msg": {

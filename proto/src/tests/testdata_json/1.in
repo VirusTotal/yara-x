@@ -21,6 +21,15 @@ repeated_msg {
 repeated_msg {
   str: "c0-esc\x1b"
 }
+repeated_msg {
+  str: "del\x7f"
+}
+repeated_msg {
+  str: "cr\rtest"
+}
+repeated_msg {
+  str: "nul\x00test"
+}
 nested_msg {
   i32: 1234
   str: "qux\nfoo\tbar\\baz\"qux"

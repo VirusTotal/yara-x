@@ -98,9 +98,9 @@ impl<W: Write> Serializer<W> {
 
     fn escape(s: &str) -> Cow<'_, str> {
         if s.chars().any(|c| {
-            // C0 controls (U+0000–U+001F: NUL–US), including \n, \r, \t —
+            // C0 controls (U+0000–U+001F: NUL–US), including \n, \r, \t
             // all must be escaped per RFC 8259 §7.
-            (c as u32) < 0x20 || matches!(c, '"' | '\\')
+            c.is_ascii_control() || matches!(c, '"' | '\\')
         }) {
             let mut result = String::with_capacity(s.len());
             for c in s.chars() {
@@ -110,9 +110,9 @@ impl<W: Write> Serializer<W> {
                     '\t' => result.push_str(r"\t"),
                     '"' => result.push_str("\\\""),
                     '\\' => result.push_str(r"\\"),
-                    c if (c as u32) < 0x20 => {
-                        // Remaining C0 controls (U+0000–U+001F: NUL–US)
-                        // not covered by the named arms above.
+                    c if c.is_ascii_control() => {
+                        // Remaining C0 controls (U+0000–U+001F: NUL–US) not
+                        // covered by the arms above.
                         // RFC 8259 §7 requires \uXXXX escaping.
                         result.push_str(&format!(r"\u{:04x}", c as u32));
                     }

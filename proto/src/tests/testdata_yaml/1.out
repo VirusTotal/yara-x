@@ -18,6 +18,18 @@ repeated_msg:
   - str: |
         tab-in-literal-block
         hello	world
+  - str: "single\'quote"
+  - str: "double\"quote"
+  - str: "cr-only\rtest"
+  - str: |
+        crlf
+        line1
+        line2
+  - str: "tab-only\tworld"
+  - str: "c1-ctrl\x80test"
+  - str: "c1-ctrl2\x9ftest"
+  - str: "nel-testprintable"
+  - str: "non-char\ufffe"
 nested_msg:
     int32_dec: 1234
     str: |
