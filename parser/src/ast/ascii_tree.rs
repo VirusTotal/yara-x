@@ -435,10 +435,23 @@ pub(crate) fn pattern_ascii_tree(pattern: &Pattern) -> Tree {
             s.text.literal,
             s.modifiers.iter().map(|m| m.to_string()).join(" ")
         )]),
-        Pattern::Hex(h) => Node(
-            h.identifier.name.to_string(),
-            vec![hex_tokens_ascii_tree(&h.sub_patterns)],
-        ),
+        Pattern::Hex(h) => {
+            if h.modifiers.is_empty() {
+                Node(
+                    h.identifier.name.to_string(),
+                    vec![hex_tokens_ascii_tree(&h.sub_patterns)],
+                )
+            } else {
+                Node(
+                    format!(
+                        "{} {}",
+                        h.identifier.name.to_string(),
+                        h.modifiers.iter().map(|m| m.to_string()).join(" ")
+                    ),
+                    vec![hex_tokens_ascii_tree(&h.sub_patterns)],
+                )
+            }
+        }
         Pattern::Regexp(r) => Leaf(vec![format!(
             "{} = /{}/{}{} {}",
             r.identifier.name,

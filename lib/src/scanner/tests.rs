@@ -586,8 +586,9 @@ fn private_patterns() {
             strings:
                 $a = "foo" private
                 $b = "bar"
+                $c = { aa bb cc } private
             condition:
-                $a and $b
+                $a and $b and $c
         }
         "#,
         )
@@ -596,7 +597,8 @@ fn private_patterns() {
     let rules = compiler.build();
 
     let mut scanner = Scanner::new(&rules);
-    let scan_results = scanner.scan(b"foobar").expect("scan should not fail");
+    let scan_results =
+        scanner.scan(b"foobar\xaa\xbb\xcc").expect("scan should not fail");
 
     assert_eq!(scan_results.matching_rules().len(), 1);
 
@@ -609,10 +611,12 @@ fn private_patterns() {
     assert!(patterns.next().is_none());
 
     let mut patterns = rule.patterns().include_private(true);
-    assert_eq!(patterns.len(), 2);
+    assert_eq!(patterns.len(), 3);
     assert_eq!(patterns.next().unwrap().identifier(), "$a");
-    assert_eq!(patterns.len(), 1);
+    assert_eq!(patterns.len(), 2);
     assert_eq!(patterns.next().unwrap().identifier(), "$b");
+    assert_eq!(patterns.len(), 1);
+    assert_eq!(patterns.next().unwrap().identifier(), "$c");
     assert_eq!(patterns.len(), 0);
     assert!(patterns.next().is_none());
 
@@ -623,6 +627,9 @@ fn private_patterns() {
     assert_eq!(patterns.len(), 0);
 
     let mut patterns = patterns.include_private(true);
+    assert_eq!(patterns.len(), 1);
+    assert_eq!(patterns.next().unwrap().identifier(), "$c");
+    assert_eq!(patterns.len(), 0);
     assert!(patterns.next().is_none());
 }
 
