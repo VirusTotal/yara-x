@@ -438,7 +438,7 @@ pub(crate) fn pattern_ascii_tree(pattern: &Pattern) -> Tree {
         Pattern::Hex(h) => Node(
             format!(
                 "{} {}",
-                h.identifier.name.to_string(),
+                h.identifier.name,
                 h.modifiers.iter().map(|m| m.to_string()).join(" ")
             ),
             vec![hex_tokens_ascii_tree(&h.sub_patterns)],
