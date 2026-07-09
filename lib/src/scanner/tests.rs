@@ -587,8 +587,9 @@ fn private_patterns() {
                 $a = "foo" private
                 $b = "bar"
                 $c = { aa bb cc } private
+                $d = /fo.ba./ private
             condition:
-                $a and $b and $c
+                $a and $b and $c and $d
         }
         "#,
         )
@@ -610,25 +611,38 @@ fn private_patterns() {
     assert_eq!(patterns.len(), 0);
     assert!(patterns.next().is_none());
 
+    // Iterate all patterns, including private ones.
     let mut patterns = rule.patterns().include_private(true);
-    assert_eq!(patterns.len(), 3);
+    assert_eq!(patterns.len(), 4);
     assert_eq!(patterns.next().unwrap().identifier(), "$a");
-    assert_eq!(patterns.len(), 2);
+    assert_eq!(patterns.len(), 3);
     assert_eq!(patterns.next().unwrap().identifier(), "$b");
-    assert_eq!(patterns.len(), 1);
+    assert_eq!(patterns.len(), 2);
     assert_eq!(patterns.next().unwrap().identifier(), "$c");
+    assert_eq!(patterns.len(), 1);
+    assert_eq!(patterns.next().unwrap().identifier(), "$d");
     assert_eq!(patterns.len(), 0);
     assert!(patterns.next().is_none());
 
+    // Start iterating non-private patterns only...
     let mut patterns = rule.patterns();
 
+    // There is only one, which is $b.
     assert_eq!(patterns.len(), 1);
     assert_eq!(patterns.next().unwrap().identifier(), "$b");
     assert_eq!(patterns.len(), 0);
 
+    // Turn on private patterns after $b.
     let mut patterns = patterns.include_private(true);
-    assert_eq!(patterns.len(), 1);
+
+    // Now we have $c and $d.
+    assert_eq!(patterns.len(), 2);
     assert_eq!(patterns.next().unwrap().identifier(), "$c");
+
+    // Turn off private patterns again after $c.
+    let mut patterns = patterns.include_private(false);
+
+    // No more patterns, $d is not returned because it is private.
     assert_eq!(patterns.len(), 0);
     assert!(patterns.next().is_none());
 }
