@@ -10,7 +10,7 @@
 
  rule test
  ├─ strings
- │  └─ $
+ │  └─ $ 
  │     └─ hex
  │        ├─ 0x00 mask: 0xFF
  │        ├─ 0x01 mask: 0xFF
@@ -23,7 +23,7 @@
 
  rule test
  ├─ strings
- │  └─ $a
+ │  └─ $a 
  │     └─ hex
  │        ├─ 0x01 mask: 0xFF
  │        ├─ 0x02 mask: 0x0F
