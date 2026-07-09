@@ -160,12 +160,12 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
 
     let mut flags = PatternFlags::empty();
 
-    if ascii.is_some() || wide.is_none() {
-        flags.insert(PatternFlags::Ascii);
-    }
-
     if wide.is_some() {
-        flags.insert(PatternFlags::Wide);
+        if ascii.is_some() {
+            flags.insert(PatternFlags::WideAndAscii);
+        } else {
+            flags.insert(PatternFlags::WideOnly);
+        }
     }
 
     if nocase.is_some() {
@@ -283,10 +283,10 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
     ctx: &mut CompileContext,
     pattern: &ast::HexPattern<'src>,
 ) -> Result<PatternInRule<'src>, CompileError> {
-    // The only modifier accepted by hex patterns is `private`.
-    let mut pattern_flags = PatternFlags::Ascii;
+    let mut pattern_flags = PatternFlags::empty();
     for modifier in pattern.modifiers.iter() {
         match modifier {
+            // The only modifier accepted by hex patterns is `private`.
             ast::PatternModifier::Private { .. } => {
                 pattern_flags |= PatternFlags::Private;
             }
@@ -377,14 +377,12 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
 
     let mut flags = PatternFlags::empty();
 
-    if pattern.modifiers.ascii().is_some()
-        || pattern.modifiers.wide().is_none()
-    {
-        flags |= PatternFlags::Ascii;
-    }
-
     if pattern.modifiers.wide().is_some() {
-        flags |= PatternFlags::Wide;
+        if pattern.modifiers.ascii().is_some() {
+            flags |= PatternFlags::WideAndAscii;
+        } else {
+            flags |= PatternFlags::WideOnly;
+        }
     }
 
     if pattern.modifiers.fullword().is_some() {

@@ -71,19 +71,21 @@ mod tests;
 bitflags! {
     /// Flags associated to rule patterns.
     ///
-    /// Each of these flags correspond to one of the allowed YARA pattern
-    /// modifiers, and generally they are set if the corresponding modifier
-    /// appears alongside the pattern in the source code. The only exception is
-    /// the `Ascii` flag, which will be set when `Wide` is not set regardless
-    /// of what the source code says. This follows the semantics of YARA
-    /// pattern modifiers, in which a pattern is considered `ascii` by default
-    /// when neither `ascii` nor `wide` modifiers are used.
+    /// These flags roughly correspond to the allowed YARA pattern modifiers,
+    /// and they are set according to the combination of modifiers that appears
+    /// alongside the pattern in the source code. For text and regexp patterns,
+    /// the `WideOnly` flag will be set when `wide` is used without `ascii`, and
+    /// `WideAndAscii` will be set when both `wide` and `ascii` are used. When
+    /// neither modifier is used (default ASCII mode) or for hex patterns,
+    /// neither of these two flags is set.
     ///
-    /// In resume either the `Ascii` or the `Wide` flags (or both) will be set.
+    /// There are also additional flags that are not related to pattern
+    /// modifiers (like: `NonAnchorable`), but convey information about the
+    /// pattern itself.
     #[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize, PartialEq, Eq)]
     pub struct PatternFlags: u16 {
-        const Ascii                = 0x0001;
-        const Wide                 = 0x0002;
+        const WideOnly             = 0x0001;
+        const WideAndAscii         = 0x0002;
         const Nocase               = 0x0004;
         const Base64               = 0x0008;
         const Base64Wide           = 0x0010;
@@ -1053,7 +1055,8 @@ impl IR {
                     // from them.
                     let excluded_flags = PatternFlags::Xor
                         | PatternFlags::Nocase
-                        | PatternFlags::Wide
+                        | PatternFlags::WideOnly
+                        | PatternFlags::WideAndAscii
                         | PatternFlags::Base64
                         | PatternFlags::Base64Wide;
 
@@ -1068,8 +1071,7 @@ impl IR {
                     // the list below.
                     debug_assert_eq!(
                         excluded_flags.complement(),
-                        PatternFlags::Ascii
-                            | PatternFlags::Fullword
+                        PatternFlags::Fullword
                             | PatternFlags::Private
                             | PatternFlags::NonAnchorable
                     );
