@@ -1,8 +1,8 @@
  rule test
  ├─ strings
  │  ├─ $a = "foo" 
- │  ├─ $b = /foo/ 
- │  └─ $c
+ │  ├─ $b = /foo/ private
+ │  └─ $c 
  │     └─ hex
  │        └─ 0xAB mask: 0xFF
  └─ condition

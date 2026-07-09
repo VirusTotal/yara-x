@@ -1,5 +1,5 @@
-SOURCE_FILE@0..87
-  RULE_DECL@0..87
+SOURCE_FILE@0..95
+  RULE_DECL@0..95
     RULE_KW@0..4 "rule"
     WHITESPACE@4..5 " "
     IDENT@5..9 "test"
@@ -7,7 +7,7 @@ SOURCE_FILE@0..87
     L_BRACE@10..11 "{"
     NEWLINE@11..12 "\n"
     WHITESPACE@12..13 "\t"
-    PATTERNS_BLK@13..64
+    PATTERNS_BLK@13..72
       STRINGS_KW@13..20 "strings"
       COLON@20..21 ":"
       NEWLINE@21..22 "\n"
@@ -20,35 +20,39 @@ SOURCE_FILE@0..87
         STRING_LIT@30..35 "\"foo\""
       NEWLINE@35..36 "\n"
       WHITESPACE@36..39 "\t  "
-      PATTERN_DEF@39..49
+      PATTERN_DEF@39..57
         PATTERN_IDENT@39..41 "$b"
         WHITESPACE@41..42 " "
         EQUAL@42..43 "="
         WHITESPACE@43..44 " "
         REGEXP@44..49 "/foo/"
-      NEWLINE@49..50 "\n"
-      WHITESPACE@50..53 "\t  "
-      PATTERN_DEF@53..64
-        PATTERN_IDENT@53..55 "$c"
-        WHITESPACE@55..56 " "
-        EQUAL@56..57 "="
-        WHITESPACE@57..58 " "
-        HEX_PATTERN@58..64
-          L_BRACE@58..59 "{"
-          WHITESPACE@59..60 " "
-          HEX_SUB_PATTERN@60..62
-            HEX_BYTE@60..62 "ab"
-          WHITESPACE@62..63 " "
-          R_BRACE@63..64 "}"
-    NEWLINE@64..65 "\n"
-    WHITESPACE@65..67 "  "
-    CONDITION_BLK@67..85
-      CONDITION_KW@67..76 "condition"
-      COLON@76..77 ":"
-      NEWLINE@77..78 "\n"
-      WHITESPACE@78..81 "\t  "
-      BOOLEAN_EXPR@81..85
-        BOOLEAN_TERM@81..85
-          TRUE_KW@81..85 "true"
-    NEWLINE@85..86 "\n"
-    R_BRACE@86..87 "}"
+        WHITESPACE@49..50 " "
+        PATTERN_MODS@50..57
+          PATTERN_MOD@50..57
+            PRIVATE_KW@50..57 "private"
+      NEWLINE@57..58 "\n"
+      WHITESPACE@58..61 "\t  "
+      PATTERN_DEF@61..72
+        PATTERN_IDENT@61..63 "$c"
+        WHITESPACE@63..64 " "
+        EQUAL@64..65 "="
+        WHITESPACE@65..66 " "
+        HEX_PATTERN@66..72
+          L_BRACE@66..67 "{"
+          WHITESPACE@67..68 " "
+          HEX_SUB_PATTERN@68..70
+            HEX_BYTE@68..70 "ab"
+          WHITESPACE@70..71 " "
+          R_BRACE@71..72 "}"
+    NEWLINE@72..73 "\n"
+    WHITESPACE@73..75 "  "
+    CONDITION_BLK@75..93
+      CONDITION_KW@75..84 "condition"
+      COLON@84..85 ":"
+      NEWLINE@85..86 "\n"
+      WHITESPACE@86..89 "\t  "
+      BOOLEAN_EXPR@89..93
+        BOOLEAN_TERM@89..93
+          TRUE_KW@89..93 "true"
+    NEWLINE@93..94 "\n"
+    R_BRACE@94..95 "}"
