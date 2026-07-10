@@ -15,6 +15,9 @@ use crate::modules::protos::olecf::*;
 
 pub mod parser;
 
+#[cfg(test)]
+mod tests;
+
 fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<Olecf, ModuleError> {
     let mut olecf = Olecf::new();
 

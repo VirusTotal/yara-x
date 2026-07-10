@@ -7,6 +7,7 @@ use nom::{
     multi::count,
     number::complete::{le_u16, le_u32},
 };
+use std::borrow::Cow;
 
 const OLECF_SIGNATURE: &[u8] =
     &[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
@@ -25,6 +26,11 @@ const ENDOFCHAIN: u32 = 0xFFFFFFFE;
 const FREESECT: u32 = 0xFFFFFFFF;
 const MAX_REGULAR_SECTOR: u32 = 0xFFFFFFFA;
 
+/// A parser for OLE Compound File Binary Format (MS-CFB) files.
+///
+/// `OLECFParser` analyzes file headers, FAT/DIFAT allocation chains, directory
+/// entries, and stream contents for OLE compound documents (e.g., DOC, XLS,
+/// PPT, MSI).
 pub struct OLECFParser<'a> {
     data: &'a [u8],
     sector_size: usize,
@@ -37,6 +43,7 @@ pub struct OLECFParser<'a> {
     mini_stream_size: u64,
 }
 
+/// Represents a single entry in the MS-CFB directory stream.
 pub struct DirectoryEntry {
     pub name: String,
     pub size: u64,
@@ -45,6 +52,9 @@ pub struct DirectoryEntry {
 }
 
 impl<'a> OLECFParser<'a> {
+    /// Creates a new `OLECFParser` from a byte slice and initializes internal
+    /// data structures by parsing the file header, FAT/DIFAT tables, and
+    /// directory entries.
     pub fn new(data: &'a [u8]) -> Result<Self, &'static str> {
         let mut parser = OLECFParser {
             data,
@@ -64,6 +74,8 @@ impl<'a> OLECFParser<'a> {
         }
     }
 
+    /// Parses the top-level OLECF file structure, including the 8-byte signature,
+    /// header fields, and directory chains.
     fn parse(&mut self, input: &'a [u8]) -> IResult<&'a [u8], ()> {
         // (A) Check the 8-byte OLECF signature.
         let (input, _) =
@@ -79,6 +91,8 @@ impl<'a> OLECFParser<'a> {
         Ok((input, ()))
     }
 
+    /// Parses the MS-CFB header, including sector shifts, FAT/DIFAT sectors,
+    /// directory sector chains, and MiniFAT tables.
     fn parse_header(&mut self, input: &'a [u8]) -> IResult<&'a [u8], ()> {
         let (
             mut input,
@@ -219,6 +233,8 @@ impl<'a> OLECFParser<'a> {
         Ok((input, ()))
     }
 
+    /// Traverses the directory sector chain and extracts all directory entries,
+    /// indexing standard streams and root storage metadata.
     fn parse_directory(&mut self, _input: &'a [u8]) -> IResult<&'a [u8], ()> {
         if self.directory_sectors.is_empty() {
             return Err(nom::Err::Error(NomError::new(
@@ -253,7 +269,8 @@ impl<'a> OLECFParser<'a> {
                         || entry.stream_type == STREAM_TYPE
                         || entry.stream_type == ROOT_STORAGE_TYPE
                     {
-                        let overwrite = match self.dir_entries.get(&entry.name) {
+                        let overwrite = match self.dir_entries.get(&entry.name)
+                        {
                             Some(existing) => {
                                 entry.stream_type == STREAM_TYPE
                                     || existing.stream_type != STREAM_TYPE
@@ -272,11 +289,17 @@ impl<'a> OLECFParser<'a> {
         Ok((_input, ()))
     }
 
+    /// Returns `true` if the underlying byte slice starts with a valid 8-byte
+    /// OLECF signature (`0xD0CF11E0A1B11AE1`), or `false` otherwise.
     pub fn is_valid_header(&self) -> bool {
         self.data.len() >= OLECF_SIGNATURE.len()
             && &self.data[..OLECF_SIGNATURE.len()] == OLECF_SIGNATURE
     }
 
+    /// Returns a vector containing the names of all streams found in the
+    /// directory.
+    ///
+    /// Returns an error if the directory contains no streams.
     pub fn get_stream_names(&self) -> Result<Vec<String>, &'static str> {
         if self.dir_entries.is_empty() {
             return Err("No streams found");
@@ -284,12 +307,16 @@ impl<'a> OLECFParser<'a> {
         Ok(self.dir_entries.keys().cloned().collect())
     }
 
+    /// Returns an iterator over all parsed directory entries and their names.
     pub fn get_streams(
         &self,
     ) -> impl Iterator<Item = (&str, &DirectoryEntry)> {
         self.dir_entries.iter().map(|(k, v)| (k.as_str(), v))
     }
 
+    /// Retrieves the size in bytes of the specified stream by name.
+    ///
+    /// Returns an error if the stream does not exist in the directory.
     pub fn get_stream_size(
         &self,
         stream_name: &str,
@@ -300,10 +327,17 @@ impl<'a> OLECFParser<'a> {
             .ok_or("Stream not found")
     }
 
+    /// Retrieves the contents of the specified stream by name.
+    ///
+    /// Streams smaller than 4,096 bytes (excluding the Root Storage stream) are
+    /// read from the Mini Stream via MiniFAT. Larger streams and the Root
+    /// Storage stream are read from regular sectors via the FAT. If the stream
+    /// data is contiguous in the underlying file, a zero-copy borrowed slice
+    /// is returned.
     pub fn get_stream_data(
         &self,
         stream_name: &str,
-    ) -> Result<Vec<u8>, &'static str> {
+    ) -> Result<Cow<'a, [u8]>, &'static str> {
         let entry =
             self.dir_entries.get(stream_name).ok_or("Stream not found")?;
 
@@ -314,6 +348,10 @@ impl<'a> OLECFParser<'a> {
         }
     }
 
+    /// Converts a 0-indexed regular sector number into an absolute byte offset
+    /// within the file data.
+    ///
+    /// Regular sectors begin after the 512-byte MS-CFB header.
     fn sector_to_offset(&self, sector: u32) -> u64 {
         // The first sector begins at byte offset 512. The theoretical maximum
         // offset for a v3 OLE file (512-byte sectors, max sector number
@@ -322,6 +360,11 @@ impl<'a> OLECFParser<'a> {
         512u64 + sector as u64 * self.sector_size as u64
     }
 
+    /// Reads a single regular sector from the file data as a slice of length
+    /// `self.sector_size`.
+    ///
+    /// Returns an error if the sector offset or size extends beyond the file
+    /// data.
     fn read_sector(&self, sector: u32) -> Result<&'a [u8], &'static str> {
         let offset = self.sector_to_offset(sector);
         // Narrow to usize for slice indexing; any offset that doesn't fit in
@@ -334,6 +377,8 @@ impl<'a> OLECFParser<'a> {
         Ok(&self.data[offset..offset + self.sector_size])
     }
 
+    /// Retrieves the next sector number in the File Allocation Table (FAT)
+    /// chain for the given regular sector.
     fn get_fat_entry(&self, sector: u32) -> Result<u32, &'static str> {
         let entry_index = sector as usize;
         let entries_per_sector = self.sector_size / 4;
@@ -347,6 +392,9 @@ impl<'a> OLECFParser<'a> {
         parse_u32_at(fat, fat_entry_offset)
     }
 
+    /// Traverses a regular FAT sector chain starting from `start_sector`,
+    /// collecting all sector numbers until `ENDOFCHAIN`, `FREESECT`, or a
+    /// cycle is encountered.
     fn follow_chain(&self, start_sector: u32) -> Vec<u32> {
         let mut chain = Vec::new();
         if start_sector >= MAX_REGULAR_SECTOR {
@@ -381,6 +429,9 @@ impl<'a> OLECFParser<'a> {
         chain
     }
 
+    /// Parses a 128-byte MS-CFB Directory Entry from the given byte offset,
+    /// decoding its UTF-16LE name and stripping any leading system control
+    /// characters.
     fn read_directory_entry(
         &self,
         offset: usize,
@@ -431,30 +482,71 @@ impl<'a> OLECFParser<'a> {
         Ok(DirectoryEntry { name, size, start_sector, stream_type })
     }
 
-    fn get_regular_stream_data(
+    /// Core helper that extracts stream data by following a FAT or MiniFAT
+    /// chain.
+    ///
+    /// Attempts zero-copy slicing from `source_slice` if provided and if the
+    /// sector chain is strictly sequential. Falls back to allocating a vector
+    /// and reading sectors from `fallback_slice`.
+    fn get_stream_data_by_chain(
         &self,
+        source_slice: Option<&'a [u8]>,
+        fallback_slice: &[u8],
+        base_offset: u64,
+        sector_size: usize,
         start_sector: u32,
-        size: u64,
-    ) -> Result<Vec<u8>, &'static str> {
-        if size > MAX_STREAM_SIZE {
-            return Err("Stream size exceeds maximum allowed size");
+        size: usize,
+        next_sector_fn: impl Fn(u32) -> Result<u32, &'static str>,
+    ) -> Result<Cow<'a, [u8]>, &'static str> {
+        if size == 0 {
+            return Ok(Cow::Borrowed(&[]));
         }
 
-        let mut data = Vec::with_capacity(size as usize);
+        // Fast path: zero-copy slicing.
+        if let Some(src) = source_slice {
+            if let Ok(slice) = self.try_get_stream_slice(
+                src,
+                base_offset,
+                sector_size,
+                start_sector,
+                size,
+                &next_sector_fn,
+            ) {
+                return Ok(Cow::Borrowed(slice));
+            }
+        }
+
+        // Fallback: Sector-by-sector gathering.
+        let mut data = Vec::with_capacity(size);
         let mut current_sector = start_sector;
-        let mut total_read = 0;
+        let mut visited = Vec::new();
 
-        while current_sector < MAX_REGULAR_SECTOR && total_read < size as usize
-        {
-            let sector_data = self.read_sector(current_sector)?;
-            let bytes_to_read =
-                std::cmp::min(self.sector_size, size as usize - total_read);
+        while current_sector < MAX_REGULAR_SECTOR && data.len() < size {
+            if visited.contains(&current_sector) {
+                return Err("Circular reference detected in sector chain");
+            }
+            visited.push(current_sector);
 
-            data.extend_from_slice(&sector_data[..bytes_to_read]);
-            total_read += bytes_to_read;
+            let sector_offset = base_offset
+                .saturating_add(current_sector as u64 * sector_size as u64);
+            let offset = usize::try_from(sector_offset)
+                .map_err(|_| "Sector offset exceeds address space")?;
 
-            if total_read < size as usize {
-                let next = self.get_fat_entry(current_sector)?;
+            if offset >= fallback_slice.len() {
+                return Err("Sector read out of bounds");
+            }
+
+            let bytes_to_read = std::cmp::min(sector_size, size - data.len());
+            if offset + bytes_to_read > fallback_slice.len() {
+                return Err("Sector read extends beyond available data");
+            }
+
+            data.extend_from_slice(
+                &fallback_slice[offset..offset + bytes_to_read],
+            );
+
+            if data.len() < size {
+                let next = next_sector_fn(current_sector)?;
                 if next == ENDOFCHAIN || next >= MAX_REGULAR_SECTOR {
                     break;
                 }
@@ -462,20 +554,96 @@ impl<'a> OLECFParser<'a> {
             }
         }
 
-        if data.len() != size as usize {
+        if data.len() != size {
             return Err("Incomplete stream data");
         }
 
-        Ok(data)
+        Ok(Cow::Owned(data))
     }
 
-    fn get_root_mini_stream_data(&self) -> Result<Vec<u8>, &'static str> {
+    /// Verifies whether a sector chain for `size` bytes starting from `start_sector`
+    /// is strictly sequential and within bounds of `src`.
+    ///
+    /// If so, returns a zero-copy slice of `src`. Returns an error if the chain is
+    /// fragmented or out of bounds.
+    fn try_get_stream_slice(
+        &self,
+        src: &'a [u8],
+        base_offset: u64,
+        sector_size: usize,
+        start_sector: u32,
+        size: usize,
+        next_sector_fn: &impl Fn(u32) -> Result<u32, &'static str>,
+    ) -> Result<&'a [u8], &'static str> {
+        if start_sector >= MAX_REGULAR_SECTOR {
+            return Err("Invalid start sector");
+        }
+
+        let needed_sectors = (size + sector_size - 1) / sector_size;
+        let mut current_sector = start_sector;
+
+        for _ in 1..needed_sectors {
+            let next = next_sector_fn(current_sector)?;
+            if next != current_sector + 1
+                || next == ENDOFCHAIN
+                || next >= MAX_REGULAR_SECTOR
+            {
+                return Err("Stream is fragmented");
+            }
+            current_sector = next;
+        }
+
+        let start_offset = base_offset
+            .saturating_add(start_sector as u64 * sector_size as u64);
+        let start_offset = usize::try_from(start_offset)
+            .map_err(|_| "Sector offset exceeds address space")?;
+        let total_span_size = needed_sectors * sector_size;
+
+        if start_offset + total_span_size > src.len() {
+            return Err("Stream sectors out of bounds");
+        }
+
+        Ok(&src[start_offset..start_offset + size])
+    }
+
+    /// Retrieves the contents of a regular stream starting at `start_sector`
+    /// with length `size`.
+    ///
+    /// Attempts to return a zero-copy borrowed slice if the sector chain is
+    /// strictly sequential and unfragmented. Otherwise, allocates a vector and
+    /// gathers sectors.
+    fn get_regular_stream_data(
+        &self,
+        start_sector: u32,
+        size: u64,
+    ) -> Result<Cow<'a, [u8]>, &'static str> {
+        if size > MAX_STREAM_SIZE {
+            return Err("Stream size exceeds maximum allowed size");
+        }
+        self.get_stream_data_by_chain(
+            Some(self.data),
+            self.data,
+            512,
+            self.sector_size,
+            start_sector,
+            size as usize,
+            |sec| self.get_fat_entry(sec),
+        )
+    }
+
+    /// Retrieves the contents of the Root Storage stream (also known as the
+    /// Mini Stream), which contains the data sectors for all mini streams.
+    fn get_root_mini_stream_data(
+        &self,
+    ) -> Result<Cow<'a, [u8]>, &'static str> {
         self.get_regular_stream_data(
             self.mini_stream_start,
             self.mini_stream_size,
         )
     }
 
+    /// Retrieves the next mini sector number in the MiniFAT chain for the given
+    /// mini sector.
     fn get_minifat_entry(
         &self,
         mini_sector: u32,
@@ -496,11 +664,17 @@ impl<'a> OLECFParser<'a> {
         parse_u32_at(fat, offset)
     }
 
+    /// Retrieves the contents of a mini stream starting at `start_mini_sector`
+    /// with length `size`.
+    ///
+    /// Attempts zero-copy slicing if both the Root Storage stream and MiniFAT
+    /// sector chain are contiguous. Otherwise, allocates a vector and gathers
+    /// mini sectors.
     fn get_mini_stream_data(
         &self,
         start_mini_sector: u32,
         size: u64,
-    ) -> Result<Vec<u8>, &'static str> {
+    ) -> Result<Cow<'a, [u8]>, &'static str> {
         if size > MAX_STREAM_SIZE {
             return Err("Stream size exceeds maximum allowed size");
         }
@@ -510,55 +684,25 @@ impl<'a> OLECFParser<'a> {
         }
 
         let mini_stream_data = self.get_root_mini_stream_data()?;
-        let mini_data_len = mini_stream_data.len();
+        let source_slice = match &mini_stream_data {
+            Cow::Borrowed(slice) => Some(*slice),
+            Cow::Owned(_) => None,
+        };
 
-        let mut data = Vec::with_capacity(size as usize);
-        let mut current = start_mini_sector;
-        let mut visited = Vec::new();
-
-        while current < MAX_REGULAR_SECTOR && data.len() < size as usize {
-            if visited.contains(&current) {
-                return Err("Circular reference detected in MiniFAT chain");
-            }
-            visited.push(current);
-
-            let mini_offset =
-                usize::try_from(current as u64 * self.mini_sector_size as u64)
-                    .map_err(|_| "Mini sector offset exceeds address space")?;
-
-            if mini_offset >= mini_data_len {
-                return Err("Mini stream offset out of range");
-            }
-
-            let bytes_to_read = std::cmp::min(
-                self.mini_sector_size,
-                size as usize - data.len(),
-            );
-            if mini_offset + bytes_to_read > mini_data_len {
-                return Err("Mini stream extends beyond available data");
-            }
-
-            data.extend_from_slice(
-                &mini_stream_data[mini_offset..mini_offset + bytes_to_read],
-            );
-
-            if data.len() < size as usize {
-                let next = self.get_minifat_entry(current)?;
-                if next == ENDOFCHAIN || next >= MAX_REGULAR_SECTOR {
-                    break;
-                }
-                current = next;
-            }
-        }
-
-        if data.len() != size as usize {
-            return Err("Incomplete mini stream data");
-        }
-
-        Ok(data)
+        self.get_stream_data_by_chain(
+            source_slice,
+            &mini_stream_data,
+            0,
+            self.mini_sector_size,
+            start_mini_sector,
+            size as usize,
+            |sec| self.get_minifat_entry(sec),
+        )
     }
 }
 
+/// Helper function to parse a little-endian `u16` from a byte slice at the
+/// given offset.
 fn parse_u16_at(data: &[u8], offset: usize) -> Result<u16, &'static str> {
     if offset + 2 > data.len() {
         return Err("Buffer too small for u16");
@@ -570,6 +714,8 @@ fn parse_u16_at(data: &[u8], offset: usize) -> Result<u16, &'static str> {
     }
 }
 
+/// Helper function to parse a little-endian `u32` from a byte slice at the
+/// given offset.
 fn parse_u32_at(data: &[u8], offset: usize) -> Result<u32, &'static str> {
     if offset + 4 > data.len() {
         return Err("Buffer too small for u32");

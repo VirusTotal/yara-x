@@ -1,4 +1,5 @@
 use rustc_hash::FxHashMap as HashMap;
+use std::borrow::Cow;
 
 use nom::combinator::opt;
 use nom::multi::length_data;
@@ -189,7 +190,7 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
 
 pub fn parse<'a>(
     dir_stream: &'a [u8],
-    module_streams: &HashMap<String, Vec<u8>>,
+    module_streams: &HashMap<String, Cow<'_, [u8]>>,
 ) -> Result<Vba, nom::Err<Error<'a>>> {
     let mut vba = Vba::new();
     let input = dir_stream;
@@ -464,7 +465,7 @@ fn parse_references(
 fn parse_modules<'a>(
     mut input: &'a [u8],
     modules_count: u16,
-    module_streams: &HashMap<String, Vec<u8>>,
+    module_streams: &HashMap<String, Cow<'_, [u8]>>,
     vba: &mut Vba,
     codepage: u16,
 ) -> Result<(&'a [u8], ()), nom::Err<Error<'a>>> {
