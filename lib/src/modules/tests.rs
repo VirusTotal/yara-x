@@ -33,10 +33,10 @@ pub fn create_binary_from_zipped_ihex<P: AsRef<Path>>(path: P) -> Vec<u8> {
     let path = path.as_ref();
 
     let f = File::open(path)
-        .unwrap_or_else(|_| panic!("can not open file: {:?}", &path));
+        .unwrap_or_else(|_| panic!("can not open file: {path:?}"));
 
     let mut zip = zip::ZipArchive::new(f)
-        .unwrap_or_else(|_| panic!("can not unzip file: {:?}", &path));
+        .unwrap_or_else(|_| panic!("can not unzip file: {path:?}"));
 
     // The name of the file inside the ZIP must be equal to the name of the
     // ZIP file, but without the .zip extension.
@@ -47,19 +47,18 @@ pub fn create_binary_from_zipped_ihex<P: AsRef<Path>>(path: P) -> Vec<u8> {
     // Read the content of the .in file.
     let mut inner_file = zip.by_name(inner_file_name).unwrap_or_else(|_| {
         panic!(
-            "ZIP archive {:?} doesn't contain file: {:?}",
-            &path, &inner_file_name
+            "ZIP archive {path:?} doesn't contain file: {inner_file_name:?}"
         )
     });
 
     let mut ihex = String::new();
 
     inner_file.read_to_string(&mut ihex).unwrap_or_else(|_| {
-        panic!("can not read ihex content from : {:?}", &path)
+        panic!("can not read ihex content from : {path:?}")
     });
 
     create_binary_from_ihex(ihex.as_str())
-        .unwrap_or_else(|_| panic!("invalid ihex content in: {:?}", &path))
+        .unwrap_or_else(|_| panic!("invalid ihex content in: {path:?}"))
 }
 
 /// This function tests YARA modules by comparing the output produced by the
