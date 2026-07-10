@@ -11,8 +11,6 @@ use std::borrow::Cow;
 
 const OLECF_SIGNATURE: &[u8] =
     &[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
-const SECTOR_SHIFT: u16 = 9;
-const MINI_SECTOR_SHIFT: u16 = 6;
 const DIRECTORY_ENTRY_SIZE: u64 = 128;
 const MAX_STREAM_SIZE: u64 = 256 * 1024 * 1024;
 
@@ -58,14 +56,14 @@ impl<'a> OLECFParser<'a> {
     pub fn new(data: &'a [u8]) -> Result<Self, &'static str> {
         let mut parser = OLECFParser {
             data,
-            sector_size: 1 << SECTOR_SHIFT,
-            mini_sector_size: 1 << MINI_SECTOR_SHIFT,
+            sector_size: 0,
+            mini_sector_size: 0,
+            mini_stream_start: 0,
+            mini_stream_size: 0,
             fat_sectors: Vec::new(),
             directory_sectors: Vec::new(),
             mini_fat_sectors: Vec::new(),
             dir_entries: IndexMap::new(),
-            mini_stream_start: 0,
-            mini_stream_size: 0,
         };
 
         match parser.parse(data) {
@@ -97,12 +95,14 @@ impl<'a> OLECFParser<'a> {
         let (
             mut input,
             (
-                _skip_20,
+                _,
                 byte_order,
-                _skip_14,
+                sector_shift,
+                mini_sector_shift,
+                _,
                 num_fat_sectors,
                 first_dir_sector,
-                _skip_8,
+                _,
                 first_mini_fat,
                 mini_fat_count,
                 first_difat_sector,
@@ -110,25 +110,48 @@ impl<'a> OLECFParser<'a> {
             ),
         ) = (
             take(20usize), // skip 20 bytes
-            le_u16,        // parse byte_order
-            take(14usize), // skip 14 bytes
-            le_u32,        // parse num_fat_sectors
+            le_u16,        // byte_order
+            le_u16,        // sector_shift
+            le_u16,        // mini_sector_shift
+            take(10usize), // skip 10 bytes
+            le_u32,        // num_fat_sectors
             le_u32,        // parse first_dir_sector
             take(8usize),  // skip 8 bytes
-            le_u32,        // parse first_mini_fat
-            le_u32,        // parse mini_fat_count
-            le_u32,        // parse first_difat_sector
-            le_u32,        // parse difat_count
+            le_u32,        // first_mini_fat
+            le_u32,        // mini_fat_count
+            le_u32,        // first_difat_sector
+            le_u32,        // difat_count
         )
             .parse(input)?;
 
-        // (A) Verify `byte_order == 0xFFFE`.
+        // (A) Verify `byte_order == 0xFFFE` and valid sector shifts.
         if byte_order != 0xFFFE {
             return Err(nom::Err::Error(NomError::new(
                 input,
                 ErrorKind::Verify,
             )));
         }
+
+        // sector_size is 2 ^ sector_shift
+        match sector_shift {
+            // Version 4.
+            12 => self.sector_size = 4096,
+            // Version 3.
+            9 => self.sector_size = 512,
+            // Other sector sizes are not valid.
+            _ => {
+                return Err(nom::Err::Error(NomError::new(
+                    input,
+                    ErrorKind::Verify,
+                )));
+            }
+        }
+
+        self.mini_sector_size = if (1..=16).contains(&mini_sector_shift) {
+            1 << mini_sector_shift
+        } else {
+            64
+        };
 
         // (B) Parse up to 109 DIFAT entries from `input`
         //     109 is the max allowed number of DIFAT entries in the header.
@@ -351,13 +374,12 @@ impl<'a> OLECFParser<'a> {
     /// Converts a 0-indexed regular sector number into an absolute byte offset
     /// within the file data.
     ///
-    /// Regular sectors begin after the 512-byte MS-CFB header.
+    /// Regular sectors begin after the MS-CFB header sector (`self.sector_size`).
     fn sector_to_offset(&self, sector: u32) -> u64 {
-        // The first sector begins at byte offset 512. The theoretical maximum
-        // offset for a v3 OLE file (512-byte sectors, max sector number
-        // 0xFFFFFFF9) is ~2 TB, so the result must be u64 — it does not fit
-        // in a 32-bit usize on 32-bit targets.
-        512u64 + sector as u64 * self.sector_size as u64
+        // The first regular sector begins at byte offset `self.sector_size` (512 in v3,
+        // 4096 in v4). The theoretical maximum offset for an OLE file is ~2 TB,
+        // so the result must be u64 — it does not fit in a 32-bit usize on 32-bit targets.
+        self.sector_size as u64 + sector as u64 * self.sector_size as u64
     }
 
     /// Reads a single regular sector from the file data as a slice of length
@@ -623,7 +645,7 @@ impl<'a> OLECFParser<'a> {
         self.get_stream_data_by_chain(
             Some(self.data),
             self.data,
-            512,
+            self.sector_size as u64,
             self.sector_size,
             start_sector,
             size as usize,

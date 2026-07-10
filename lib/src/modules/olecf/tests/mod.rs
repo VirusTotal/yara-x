@@ -90,4 +90,16 @@ fn test_stream_data_extraction() {
     let parser = OLECFParser::new(&data).unwrap();
     let err = parser.get_stream_data("TruncatedStream").unwrap_err();
     assert_eq!(err, "Incomplete stream data");
+
+    // 10. v4_stream (version 4 file with 4096-byte sector size -> Cow::Borrowed)
+    let data = create_binary_from_zipped_ihex(
+        "src/modules/olecf/tests/testdata/v4_stream.in.zip",
+    );
+    let parser = OLECFParser::new(&data).unwrap();
+    let stream = parser.get_stream_data("V4DataStream").unwrap();
+    assert!(matches!(stream, Cow::Borrowed(_)));
+    assert_eq!(stream.len(), 5000);
+    assert_eq!(stream[0], 0xDD);
+    assert_eq!(stream[4096], 0xEE);
 }
+
