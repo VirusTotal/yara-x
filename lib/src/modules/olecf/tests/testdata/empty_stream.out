@@ -1,0 +1,8 @@
+is_olecf: true
+streams:
+  - name: "Root Entry"
+    type: ROOT
+    size: 64
+  - name: "EmptyStream"
+    type: STREAM
+    size: 0

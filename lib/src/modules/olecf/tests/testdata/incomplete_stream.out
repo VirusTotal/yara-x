@@ -1,0 +1,5 @@
+is_olecf: true
+streams:
+  - name: "TruncatedStream"
+    type: STREAM
+    size: 10000
