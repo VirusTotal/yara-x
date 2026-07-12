@@ -1,9 +1,20 @@
 import { defineConfig } from "vite";
+import { readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+const yaraXPackage = JSON.parse(
+  readFileSync(
+    new URL("./node_modules/@virustotal/yara-x/package.json", import.meta.url),
+    "utf-8",
+  ),
+) as { version: string };
+
 export default defineConfig({
   base: process.env.GITHUB_ACTIONS ? "/yara-x/playground/" : "/",
+  define: {
+    __YARA_X_VERSION__: JSON.stringify(yaraXPackage.version),
+  },
   worker: {
     format: "es",
   },

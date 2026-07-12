@@ -1,39 +1,51 @@
 import { DEFAULT_SAMPLE_INPUT, DEFAULT_SAMPLE_RULE } from "../data/sample";
-import type {
-  ExecutionState,
-  LoadedSampleFile,
-  ResultMode,
-  SampleMode,
-} from "../types/execution";
-import { LitElement, html } from "lit";
+import { LitElement, html, type PropertyValues } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
 
 import { YaraFile } from "../components/yara-file";
+import "../components/yara-help-dialog";
 import "../components/yara-result-panel";
+import "../components/yara-settings-dialog";
 import "../components/yara-status-bar";
+import { PlaygroundEditorController } from "../controllers/playground-editor-controller";
+import { PlaygroundSessionController } from "../controllers/playground-session-controller";
 import { SplitResizeController } from "../controllers/split-resize-controller";
+import { updateYaraConfig } from "../editor/yara-monaco";
 import {
-  createPlainTextEditor,
-  createYaraEditor,
-  type EditorHandle,
-} from "../editor/yara-monaco";
+  loadStoredPlaygroundSettings,
+  storePlaygroundSettings,
+} from "../persistence/playground-settings-storage";
+import type { ExecutionState, ResultMode } from "../results/result-types";
 import { summarizeResult } from "../results/summarize-result";
-import { getWasmYaraEngine } from "../services/wasm-yara-engine";
-import type { ServiceStatus } from "../types/service-status";
-import type {
-  YaraCompiler,
-  YaraEngine,
-  YaraRules,
-} from "../services/yara-engine";
+import { createSampleHighlights } from "../sample/sample-highlights";
+import type { LoadedSampleFile } from "../sample/sample-file";
+import { isInlineSampleMode, type SampleMode } from "../sample/sample-modes";
+import {
+  ScanCancelledError,
+  type ScanInput,
+  type ScanService,
+  type ScanProgressStage,
+} from "../scan/scan-service";
+import { createScanWorkerClient } from "../scan/scan-worker-client";
+import {
+  clonePlaygroundSettings,
+  createDefaultPlaygroundSettings,
+  toYaraConfig,
+  type PlaygroundSettings,
+} from "../settings/playground-settings";
+import type { LanguageServerStatus } from "../language-server/language-server";
 
 const INITIAL_EXECUTION: ExecutionState = {
   raw: {
     message: "Local YARA-X playground ready",
     hint: "Edit the rule, tweak the sample text, then run the scanner.",
   },
+  consoleOutput: [],
   durationMs: null,
   summary: summarizeResult({}, "scan"),
 };
+
+const MIN_SCAN_INDICATOR_MS = 300;
 
 @customElement("yara-playground-app")
 export class YaraPlaygroundApp extends LitElement {
@@ -59,13 +71,10 @@ export class YaraPlaygroundApp extends LitElement {
   private sampleMode: SampleMode = "text";
 
   @state()
-  private isBusy = false;
+  private scanStage: ScanProgressStage = "idle";
 
   @state()
-  private lspStatus: ServiceStatus = "idle";
-
-  @state()
-  private coreStatus: ServiceStatus = "idle";
+  private lspStatus: LanguageServerStatus = "idle";
 
   @state()
   private editorSplit = 49.6;
@@ -79,9 +88,40 @@ export class YaraPlaygroundApp extends LitElement {
   @state()
   private loadedSampleFile: LoadedSampleFile | null = null;
 
-  private ruleEditor?: EditorHandle;
-  private sampleEditor?: EditorHandle;
-  private engine?: YaraEngine;
+  @state()
+  private settingsModalOpen = false;
+
+  @state()
+  private helpModalOpen = false;
+
+  @state()
+  private languageServerVersion: string | null = null;
+
+  @state()
+  private settings = createDefaultPlaygroundSettings();
+
+  private scanService?: ScanService;
+  private sampleEditorLayoutFrameId?: number;
+
+  private readonly sessionController = new PlaygroundSessionController(
+    this,
+    DEFAULT_SAMPLE_RULE,
+    DEFAULT_SAMPLE_INPUT,
+    {
+      onSampleChange: () => {
+        this.clearSampleHighlights();
+      },
+    },
+  );
+
+  private readonly editorController = new PlaygroundEditorController(this, {
+    onLanguageServerVersion: (version) => {
+      this.languageServerVersion = version;
+    },
+    onStatus: (status) => {
+      this.lspStatus = status;
+    },
+  });
 
   private readonly editorResizeController = new SplitResizeController(this, {
     getElement: () => this.editorRegion ?? null,
@@ -109,6 +149,20 @@ export class YaraPlaygroundApp extends LitElement {
   }
 
   private readonly handleKeydown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") {
+      if (this.settingsModalOpen) {
+        event.preventDefault();
+        this.handleSettingsClose();
+        return;
+      }
+
+      if (this.helpModalOpen) {
+        event.preventDefault();
+        this.handleHelpClose();
+        return;
+      }
+    }
+
     if (
       (event.metaKey || event.ctrlKey) &&
       !event.shiftKey &&
@@ -137,6 +191,9 @@ export class YaraPlaygroundApp extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    this.sampleMode = this.sessionController.inlineSampleMode;
+    this.settings = loadStoredPlaygroundSettings();
+    updateYaraConfig(toYaraConfig(this.settings));
     window.addEventListener("keydown", this.handleKeydown);
   }
 
@@ -144,17 +201,20 @@ export class YaraPlaygroundApp extends LitElement {
     await this.filePane.updateComplete;
 
     try {
-      const [ruleEditor, sampleEditor] = await Promise.all([
-        createYaraEditor(this.ruleEditorHost, DEFAULT_SAMPLE_RULE),
-        createPlainTextEditor(this.sampleEditorHost, DEFAULT_SAMPLE_INPUT),
-      ]);
+      const { ruleEditor, sampleEditor } =
+        await this.editorController.initialize(
+          this.ruleEditorHost,
+          this.sampleEditorHost,
+          this.sessionController.initialRuleValue,
+          this.sessionController.getSampleDraft(
+            this.sessionController.inlineSampleMode,
+          ),
+        );
 
-      this.ruleEditor = ruleEditor;
-      this.sampleEditor = sampleEditor;
-      this.lspStatus = "ready";
+      this.sessionController.bindRuleEditor(ruleEditor);
+      this.sessionController.bindSampleEditor(sampleEditor);
     } catch (error) {
       console.error("failed to initialize editors", error);
-      this.lspStatus = "error";
       this.execution = {
         raw: {
           errors: [error instanceof Error ? error.message : String(error)],
@@ -162,6 +222,7 @@ export class YaraPlaygroundApp extends LitElement {
           matching_rules: [],
           non_matching_rules: [],
         },
+        consoleOutput: [],
         durationMs: null,
         summary: summarizeResult(
           {
@@ -175,20 +236,32 @@ export class YaraPlaygroundApp extends LitElement {
 
   disconnectedCallback() {
     window.removeEventListener("keydown", this.handleKeydown);
-    this.ruleEditor?.dispose();
-    this.sampleEditor?.dispose();
+    if (this.sampleEditorLayoutFrameId != null) {
+      window.cancelAnimationFrame(this.sampleEditorLayoutFrameId);
+    }
+    this.scanService?.dispose();
     super.disconnectedCallback();
   }
 
+  protected updated(changedProperties: PropertyValues) {
+    if (changedProperties.has("sampleMode") && this.sampleMode !== "file") {
+      this.scheduleSampleEditorLayout();
+    }
+  }
+
   private get editorsReady() {
-    return Boolean(this.ruleEditor && this.sampleEditor);
+    return this.editorController.isReady;
+  }
+
+  private get isBusy() {
+    return this.scanStage !== "idle";
   }
 
   private get canRun() {
     return (
       this.editorsReady &&
       !this.isBusy &&
-      (this.sampleMode === "text" || this.loadedSampleFile !== null)
+      (this.sampleMode !== "file" || this.loadedSampleFile !== null)
     );
   }
 
@@ -196,55 +269,160 @@ export class YaraPlaygroundApp extends LitElement {
     return window.innerWidth <= 900;
   }
 
-  private async ensureEngine() {
-    this.coreStatus = "loading";
+  private clearSampleHighlights() {
+    this.editorController.sample?.clearHighlights();
+  }
 
-    try {
-      if (!this.engine) {
-        this.engine = getWasmYaraEngine();
+  private syncSampleHighlights(raw: unknown, mode: SampleMode, source: string) {
+    if (!this.editorController.sample || mode === "file" || mode === "base64") {
+      this.clearSampleHighlights();
+      return;
+    }
+
+    this.editorController.sample.setHighlights(
+      createSampleHighlights(raw, mode, source),
+    );
+  }
+
+  private scheduleSampleEditorLayout() {
+    if (!this.editorController.sample) return;
+
+    if (this.sampleEditorLayoutFrameId != null) {
+      window.cancelAnimationFrame(this.sampleEditorLayoutFrameId);
+    }
+
+    this.sampleEditorLayoutFrameId = window.requestAnimationFrame(() => {
+      this.sampleEditorLayoutFrameId = undefined;
+      this.editorController.sample?.layout();
+    });
+  }
+
+  private ensureScanService() {
+    if (!this.scanService) {
+      this.scanService = createScanWorkerClient({
+        onStage: (stage) => {
+          this.scanStage = stage;
+        },
+      });
+    }
+
+    return this.scanService;
+  }
+
+  private async waitForMinimumScanIndicator(startedAt: number) {
+    const remainingMs = MIN_SCAN_INDICATOR_MS - (performance.now() - startedAt);
+
+    if (remainingMs <= 0) {
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, remainingMs);
+    });
+  }
+
+  private createScanInput(): ScanInput {
+    const ruleSource = this.editorController.rule?.getValue() ?? "";
+    const maxMatchesPerPattern = this.settings.scanner.maxMatchesPerPattern;
+
+    if (this.sampleMode === "file") {
+      const file = this.loadedSampleFile?.file;
+
+      if (!file) {
+        throw new Error("Choose a file before running the scan.");
       }
 
-      this.coreStatus = "ready";
-      return this.engine;
-    } catch (error) {
-      this.coreStatus = "error";
-      throw error;
+      return {
+        ruleSource,
+        sample: { mode: "file", file },
+        maxMatchesPerPattern,
+      };
     }
+
+    return {
+      ruleSource,
+      sample: {
+        mode: this.sampleMode,
+        source: this.editorController.sample?.getValue() ?? "",
+      },
+      maxMatchesPerPattern,
+    };
+  }
+
+  private setScanExecution(
+    raw: unknown,
+    consoleOutput: string[],
+    durationMs: number,
+  ) {
+    this.execution = {
+      raw,
+      consoleOutput,
+      durationMs,
+      summary: summarizeResult(raw, "scan"),
+    };
+  }
+
+  private async publishScanExecution(
+    raw: unknown,
+    consoleOutput: string[],
+    startedAt: number,
+    finishedAt: number,
+  ) {
+    await this.waitForMinimumScanIndicator(startedAt);
+    this.setScanExecution(
+      raw,
+      consoleOutput,
+      Math.round(finishedAt - startedAt),
+    );
+  }
+
+  private syncScanHighlights(raw: unknown, input: ScanInput) {
+    if (
+      input.sample.mode === "file" ||
+      input.sample.mode === "base64" ||
+      input.sample.mode !== this.sampleMode ||
+      this.editorController.sample?.getValue() !== input.sample.source
+    ) {
+      this.clearSampleHighlights();
+      return;
+    }
+
+    this.syncSampleHighlights(raw, input.sample.mode, input.sample.source);
   }
 
   private async runScan() {
     if (!this.canRun) return;
 
-    this.isBusy = true;
+    this.scanStage = "preparing";
     const startedAt = performance.now();
-    let compiler: YaraCompiler | undefined;
-    let rules: YaraRules | undefined;
 
     try {
-      const engine = await this.ensureEngine();
-      let sampleBytes: Uint8Array;
+      const input = this.createScanInput();
+      const scanResponse = await this.ensureScanService().run(input);
+      const finishedAt = performance.now();
 
-      if (this.sampleMode === "file") {
-        sampleBytes = this.loadedSampleFile?.bytes ?? new Uint8Array();
-      } else {
-        sampleBytes = new TextEncoder().encode(
-          this.sampleEditor?.getValue() ?? "",
+      await this.publishScanExecution(
+        scanResponse.raw,
+        scanResponse.consoleOutput,
+        startedAt,
+        finishedAt,
+      );
+      this.syncScanHighlights(scanResponse.raw, input);
+    } catch (error) {
+      if (error instanceof ScanCancelledError) {
+        const raw = { cancelled: true };
+
+        this.setScanExecution(
+          raw,
+          [],
+          Math.round(performance.now() - startedAt),
         );
+        this.clearSampleHighlights();
+        return;
       }
 
-      compiler = await engine.createCompiler();
-      compiler.addSource(this.ruleEditor?.getValue() ?? "");
-
-      rules = compiler.build();
-      const raw = rules.scan(sampleBytes);
-
-      this.execution = {
-        raw,
-        durationMs: Math.round(performance.now() - startedAt),
-        summary: summarizeResult(raw, "scan"),
-      };
-    } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      const finishedAt = performance.now();
       const raw = {
         errors: [message],
         warnings: [],
@@ -252,22 +430,17 @@ export class YaraPlaygroundApp extends LitElement {
         non_matching_rules: [],
       };
 
-      this.execution = {
-        raw,
-        durationMs: Math.round(performance.now() - startedAt),
-        summary: summarizeResult(raw, "scan"),
-      };
+      await this.publishScanExecution(raw, [], startedAt, finishedAt);
+      this.clearSampleHighlights();
     } finally {
-      rules?.dispose();
-      compiler?.dispose();
-      this.isBusy = false;
+      this.scanStage = "idle";
     }
   }
 
   private async formatRule() {
-    if (!this.ruleEditor || this.lspStatus !== "ready") return;
+    if (!this.editorController.rule || this.lspStatus !== "ready") return;
 
-    const formatted = await this.ruleEditor.format();
+    const formatted = await this.editorController.formatRule();
     if (!formatted) {
       console.warn("format action is not available for the YARA editor");
     }
@@ -277,33 +450,104 @@ export class YaraPlaygroundApp extends LitElement {
     void this.runScan();
   };
 
+  private handleCancelRequest = () => {
+    this.scanService?.cancel();
+  };
+
   private handleSampleModeChange = (event: CustomEvent<SampleMode>) => {
+    if (event.detail === this.sampleMode) return;
+
     this.sampleMode = event.detail;
+
+    if (isInlineSampleMode(event.detail)) {
+      this.sessionController.selectInlineSampleMode(event.detail);
+    } else {
+      this.sessionController.selectFileMode();
+    }
+
+    this.clearSampleHighlights();
   };
 
   private handleSampleFileLoad = (event: CustomEvent<LoadedSampleFile>) => {
+    this.sessionController.selectFileMode();
     this.loadedSampleFile = event.detail;
     this.sampleMode = "file";
+    this.clearSampleHighlights();
   };
 
   private handleSampleFileClear = () => {
+    const inlineSampleMode = this.sessionController.inlineSampleMode;
+
     this.loadedSampleFile = null;
-    this.sampleMode = "text";
+    this.sampleMode = inlineSampleMode;
+    this.sessionController.restoreActiveSampleDraft();
+    this.clearSampleHighlights();
   };
 
   private handleResultModeChange = (event: CustomEvent<ResultMode>) => {
     this.resultMode = event.detail;
   };
 
+  private handleSettingsRequest = () => {
+    this.settingsModalOpen = true;
+  };
+
+  private handleSettingsClose = () => {
+    this.settingsModalOpen = false;
+  };
+
+  private handleHelpRequest = () => {
+    this.helpModalOpen = true;
+  };
+
+  private handleHelpClose = () => {
+    this.helpModalOpen = false;
+  };
+
+  private async recreateRuleEditor() {
+    if (!this.editorController.rule) return;
+
+    try {
+      const ruleEditor = await this.editorController.recreateRuleEditor(
+        this.ruleEditorHost,
+      );
+
+      if (ruleEditor) {
+        this.sessionController.bindRuleEditor(ruleEditor);
+      }
+    } catch (error) {
+      console.error("failed to reinitialize yara editor", error);
+    }
+  }
+
+  private handleSettingsApply = async (
+    event: CustomEvent<PlaygroundSettings>,
+  ) => {
+    const nextSettings = clonePlaygroundSettings(event.detail);
+    const lspSettingsChanged =
+      JSON.stringify(toYaraConfig(this.settings)) !==
+      JSON.stringify(toYaraConfig(nextSettings));
+
+    this.settings = nextSettings;
+    updateYaraConfig(toYaraConfig(nextSettings));
+    storePlaygroundSettings(nextSettings);
+    this.settingsModalOpen = false;
+
+    if (lspSettingsChanged) {
+      await this.recreateRuleEditor();
+    }
+  };
+
   render() {
     return html`
       <main class="studio">
         <yara-status-bar
-          .coreStatus=${this.coreStatus}
-          .lspStatus=${this.lspStatus}
           .isBusy=${this.isBusy}
           .canRun=${this.canRun}
           @run-request=${this.handleRunRequest}
+          @cancel-request=${this.handleCancelRequest}
+          @help-request=${this.handleHelpRequest}
+          @settings-request=${this.handleSettingsRequest}
         ></yara-status-bar>
 
         <section
@@ -361,6 +605,19 @@ export class YaraPlaygroundApp extends LitElement {
             @result-mode-change=${this.handleResultModeChange}
           ></yara-result-panel>
         </section>
+
+        <yara-settings-dialog
+          .open=${this.settingsModalOpen}
+          .settings=${this.settings}
+          @settings-close=${this.handleSettingsClose}
+          @settings-apply=${this.handleSettingsApply}
+        ></yara-settings-dialog>
+
+        <yara-help-dialog
+          .open=${this.helpModalOpen}
+          .languageServerVersion=${this.languageServerVersion}
+          @help-close=${this.handleHelpClose}
+        ></yara-help-dialog>
       </main>
     `;
   }
