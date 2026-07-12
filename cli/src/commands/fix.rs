@@ -182,7 +182,7 @@ pub fn exec_fix_warnings(
         .get_many::<(Option<String>, PathBuf)>("[NAMESPACE:]RULES_PATH")
         .unwrap();
 
-    let rules = compile_rules(rules_path, args, config)?;
+    let (rules, _) = compile_rules(rules_path, args, config)?;
 
     let mut patches_per_origin = HashMap::new();
     let mut num_warnings = 0;

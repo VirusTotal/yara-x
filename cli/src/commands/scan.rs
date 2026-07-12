@@ -253,7 +253,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
         rules
     } else {
-        compile_rules(rules_path, args, config)?
+        compile_rules(rules_path, args, config)?.0
     };
 
     let rules_ref = &rules;

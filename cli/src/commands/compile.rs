@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::path::PathBuf;
 
-use anyhow::Context;
+use anyhow::{Context, bail};
 use clap::{Arg, ArgAction, ArgMatches, Command, arg, value_parser};
 
 use crate::commands::{
@@ -32,11 +32,19 @@ pub fn exec_compile(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         .unwrap();
 
     let output_path = args.get_one::<PathBuf>("output").unwrap();
-    let rules = compile_rules(rules_path, args, config)?;
+    let (rules, errors_found) = compile_rules(rules_path, args, config)?;
 
     let output_file = File::create(output_path).with_context(|| {
         format!("can not write `{}`", output_path.display())
     })?;
 
-    Ok(rules.serialize_into(&output_file)?)
+    rules.serialize_into(&output_file)?;
+
+    // With `--skip-invalid-rules` the valid rules are still written, but exit
+    // with an error so the "errors were found" signal is preserved.
+    if errors_found {
+        bail!("some rules were skipped due to compilation errors");
+    }
+
+    Ok(())
 }

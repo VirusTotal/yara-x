@@ -216,7 +216,7 @@ pub fn create_compiler<'a>(
     Ok(compiler)
 }
 
-pub fn compilation_args() -> [Arg; 6] {
+pub fn compilation_args() -> [Arg; 7] {
     [
         arg!(-d --"define")
             .help("Define external variable")
@@ -245,6 +245,8 @@ pub fn compilation_args() -> [Arg; 6] {
             .help("Use file path as rule namespace"),
         arg!(--"relaxed-re-syntax")
             .help("Use a more relaxed syntax check while parsing regular expressions"),
+        arg!(--"skip-invalid-rules")
+            .help("Skip rules that fail to compile and continue with the valid ones"),
     ]
 }
 
@@ -252,11 +254,12 @@ pub fn compile_rules<'a, P>(
     paths: P,
     args: &ArgMatches,
     config: &Config,
-) -> Result<Rules, anyhow::Error>
+) -> Result<(Rules, bool), anyhow::Error>
 where
     P: Iterator<Item = &'a (Option<String>, PathBuf)>,
 {
     let external_vars = get_external_vars(args);
+    let skip_invalid_rules = args.get_flag("skip-invalid-rules");
     let mut compiler = create_compiler(external_vars, args, config)?;
 
     let mut pb = if stdout().is_tty() {
@@ -336,13 +339,20 @@ where
         eprintln!("{error}");
     }
 
-    if !compiler.errors().is_empty() {
+    let errors_found = !compiler.errors().is_empty();
+
+    // Without `--skip-invalid-rules` any compilation error is fatal. With the
+    // flag, the rules that compiled correctly are kept (the compiler already
+    // discards only the individual rules that failed) and compilation
+    // continues. The errors are still reported above, and `errors_found` is
+    // returned so the caller can preserve the "errors were found" exit signal.
+    if errors_found && !skip_invalid_rules {
         bail!("{} error(s) found", compiler.errors().len());
     }
 
     let rules = compiler.build();
 
-    Ok(rules)
+    Ok((rules, errors_found))
 }
 
 struct CompileState {
