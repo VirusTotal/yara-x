@@ -43,7 +43,17 @@ use crate::wasm::runtime::{
     AsContext, AsContextMut, Global, GlobalType, Instance, MemoryType,
     Mutability, Store, TypedFunc, Val, ValType,
 };
-use crate::{Variable, teddy, wasm};
+use crate::{Variable, wasm};
+
+#[cfg(any(
+    all(target_arch = "x86_64", target_feature = "sse2"),
+    all(
+        target_arch = "aarch64",
+        target_feature = "neon",
+        target_endian = "little"
+    )
+))]
+use crate::teddy;
 
 /// Represents the states in which a scanner can be.
 pub(crate) enum ScanState<'a> {
