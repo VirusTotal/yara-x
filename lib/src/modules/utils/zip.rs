@@ -40,7 +40,6 @@ impl<'a> CachedZip<'a> {
     ) -> Option<&'b [u8]> {
         if !self.cached_contents.contains_key(path) {
             let entry = self.archive.find_file(path).ok()?;
-            let uncompressed_size = entry.uncompressed_size();
             let data_range = entry.data_range().ok()?.data_range;
             let start = data_range.start as usize;
             let end = data_range.end as usize;
@@ -51,8 +50,14 @@ impl<'a> CachedZip<'a> {
                 Ok(tinyzip::Compression::Deflated) => {
                     let mut decoder =
                         flate2::read::DeflateDecoder::new(raw_bytes);
-                    let mut buf =
-                        Vec::with_capacity(uncompressed_size as usize);
+                    // Pre-allocate based on the compressed data we actually
+                    // have, not the entry's `uncompressed_size` header field,
+                    // which is attacker-controlled (up to u64::MAX via a Zip64
+                    // extra field) and unvalidated -- trusting it makes
+                    // `Vec::with_capacity` panic with "capacity overflow" or
+                    // request a huge allocation. `read_to_end` grows the
+                    // buffer as needed.
+                    let mut buf = Vec::with_capacity(raw_bytes.len());
                     decoder.read_to_end(&mut buf).ok()?;
                     Cow::Owned(buf)
                 }
