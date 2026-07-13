@@ -778,12 +778,7 @@ fn expr_from_ast(
                 _ => {
                     let at = match anchor {
                         MatchAnchor::At(expr) => {
-                            let value = ctx.ir.get(expr).type_value();
-                            if value.is_const() {
-                                value.try_as_integer()
-                            } else {
-                                None
-                            }
+                            ctx.ir.get(expr).try_as_const_integer()
                         }
                         _ => None,
                     };
