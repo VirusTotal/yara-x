@@ -40,7 +40,7 @@ use crate::walk::Draw;
 use crate::walk::Walker;
 use crate::{APP_HELP_TEMPLATE, commands, help};
 
-use yara_x::{Compiler, Rules, SourceCode};
+use yara_x::{Compiler, IgnoredRule, Rules, SourceCode};
 
 pub fn command(name: &'static str) -> Command {
     Command::new(name).help_template(
@@ -254,7 +254,7 @@ pub fn compile_rules<'a, P>(
     paths: P,
     args: &ArgMatches,
     config: &Config,
-) -> Result<(Rules, bool), anyhow::Error>
+) -> Result<(Rules, Vec<IgnoredRule>), anyhow::Error>
 where
     P: Iterator<Item = &'a (Option<String>, PathBuf)>,
 {
@@ -341,18 +341,18 @@ where
 
     let errors_found = !compiler.errors().is_empty();
 
-    // Without `--skip-invalid-rules` any compilation error is fatal. With the
+    // Without `--ignore-invalid-rules` any compilation error is fatal. With the
     // flag, the rules that compiled correctly are kept (the compiler already
     // discards only the individual rules that failed) and compilation
-    // continues. The errors are still reported above, and `errors_found` is
-    // returned so the caller can preserve the "errors were found" exit signal.
+    // continues. The errors are still reported above.
     if errors_found && !ignore_invalid_rules {
         bail!("{} error(s) found", compiler.errors().len());
     }
 
+    let ignored_rules = compiler.ignored_rules().to_vec();
     let rules = compiler.build();
 
-    Ok((rules, errors_found))
+    Ok((rules, ignored_rules))
 }
 
 struct CompileState {

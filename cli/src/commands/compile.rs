@@ -1,8 +1,12 @@
 use std::fs::File;
 use std::path::PathBuf;
 
-use anyhow::{Context, bail};
+use anyhow::Context;
 use clap::{Arg, ArgAction, ArgMatches, Command, arg, value_parser};
+use yansi::Color::Cyan;
+use yansi::Paint;
+
+use yara_x::IgnoredRuleReason;
 
 use crate::commands::{
     compilation_args, compile_rules, path_with_namespace_parser,
@@ -32,7 +36,7 @@ pub fn exec_compile(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         .unwrap();
 
     let output_path = args.get_one::<PathBuf>("output").unwrap();
-    let (rules, errors_found) = compile_rules(rules_path, args, config)?;
+    let (rules, ignored_rules) = compile_rules(rules_path, args, config)?;
 
     let output_file = File::create(output_path).with_context(|| {
         format!("can not write `{}`", output_path.display())
@@ -40,10 +44,40 @@ pub fn exec_compile(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
     rules.serialize_into(&output_file)?;
 
-    // With `--skip-invalid-rules` the valid rules are still written, but exit
-    // with an error so the "errors were found" signal is preserved.
-    if errors_found {
-        bail!("some rules were skipped due to compilation errors");
+    // With `--ignore-invalid-rules` the valid rules are still written, but exit
+    // with an error listing the ignored rules and reasons.
+    if !ignored_rules.is_empty() {
+        eprintln!(
+            "{} {}",
+            "note:".paint(Cyan).bold(),
+            Paint::bold(&"the following rules were ignored:")
+        );
+
+        for rule in &ignored_rules {
+            match rule.reason() {
+                IgnoredRuleReason::IgnoredModule(module) => {
+                    eprintln!(
+                        "  - {}: depends on ignored module `{}`",
+                        rule.rule_name().paint(Cyan).bold(),
+                        module
+                    );
+                }
+                IgnoredRuleReason::IgnoredRule(parent_rule) => {
+                    eprintln!(
+                        "  - {}: depends on ignored rule `{}`",
+                        rule.rule_name().paint(Cyan).bold(),
+                        parent_rule
+                    );
+                }
+                IgnoredRuleReason::CompileError(err) => {
+                    eprintln!(
+                        "  - {}: error: {}",
+                        rule.rule_name().paint(Cyan).bold(),
+                        err.title(),
+                    );
+                }
+            }
+        }
     }
 
     Ok(())
