@@ -433,7 +433,7 @@ pub struct Compiler<'a> {
     linters: Vec<Box<dyn linters::Linter + 'a>>,
 
     /// Grouped RegexSets constructed during IR creation for or-expressions.
-    pub(crate) regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
+    regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
 }
 
 impl<'a> Compiler<'a> {
