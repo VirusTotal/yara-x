@@ -12,8 +12,8 @@ importers:
         specifier: ^25.1.2
         version: 25.1.2
       '@virustotal/yara-x':
-        specifier: ^0.1.1
-        version: 0.1.1
+        specifier: 1.15.0
+        version: 1.15.0
       lit:
         specifier: ^3.3.2
         version: 3.3.2
@@ -593,8 +593,8 @@ packages:
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
-  '@virustotal/yara-x@0.1.1':
-    resolution: {integrity: sha512-8n6DvE2n75Eehui1A/M2UEpb4IMcG67Mmfim8LOtdc3LFbmJzkLOTVbufNstWWF6kiba+cVOU7TNOqf9+yF9TA==}
+  '@virustotal/yara-x@1.15.0':
+    resolution: {integrity: sha512-tR+Ue5ci9bURbD7/qjXY0VLVXDUP+NK/uvvgjX6UvSXN+3msfMtpAMaiCdsltFEciU+tXaZeGbHu3N07bvfjsw==}
 
   '@vscode/iconv-lite-umd@0.7.1':
     resolution: {integrity: sha512-tK6k0DXFHW7q5+GGuGZO+phpAqpxO4WXl+BLc/8/uOk3RsM2ssAL3CQUQDb1TGfwltjsauhN6S4ghYZzs4sPFw==}
@@ -1413,7 +1413,7 @@ snapshots:
 
   '@types/trusted-types@2.0.7': {}
 
-  '@virustotal/yara-x@0.1.1': {}
+  '@virustotal/yara-x@1.15.0': {}
 
   '@vscode/iconv-lite-umd@0.7.1': {}
 

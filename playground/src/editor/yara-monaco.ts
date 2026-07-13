@@ -11,26 +11,26 @@ import { CloseAction, ErrorAction } from "vscode-languageclient/browser.js";
 import { MonacoLanguageClient } from "monaco-languageclient";
 import { MonacoVscodeApiWrapper } from "monaco-languageclient/vscodeApiWrapper";
 import { configureDefaultWorkerFactory } from "monaco-languageclient/workerFactory";
-import { getWasmYaraLanguageServer } from "../services/wasm-yara-language-server";
+import {
+  createDefaultYaraConfig,
+  type YaraConfig,
+} from "../settings/playground-settings";
+import { createLanguageServerWorker } from "../language-server/language-server-worker-client";
 
 const RULE_URI = monaco.Uri.file("/workspace/main.yar");
 const SAMPLE_URI = monaco.Uri.file("/workspace/sample.txt");
 const THEME_NAME = "yara-studio";
 
-export const YARA_CONFIG = {
-  codeFormatting: {
-    alignMetadata: true,
-    alignPatterns: true,
-    indentSectionHeaders: true,
-    indentSectionContents: true,
-    newlineBeforeCurlyBrace: false,
-    emptyLineBeforeSectionHeader: false,
-    emptyLineAfterSectionHeader: false,
-  },
-  metadataValidation: [],
-  ruleNameValidation: null,
-  cacheWorkspace: false,
-};
+export const YARA_CONFIG: YaraConfig = createDefaultYaraConfig();
+
+export function updateYaraConfig(nextConfig: YaraConfig) {
+  YARA_CONFIG.codeFormatting = { ...nextConfig.codeFormatting };
+  YARA_CONFIG.metadataValidation = nextConfig.metadataValidation.map(
+    (rule) => ({ ...rule }),
+  );
+  YARA_CONFIG.ruleNameValidation = nextConfig.ruleNameValidation;
+  YARA_CONFIG.cacheWorkspace = nextConfig.cacheWorkspace;
+}
 
 const YARA_KEYWORDS = [
   "rule",
@@ -71,10 +71,21 @@ const YARA_OPERATORS = [
 
 export type EditorHandle = {
   editor: monaco.editor.IStandaloneCodeEditor;
+  languageServerVersion: string | null;
   getValue: () => string;
   setValue: (value: string) => void;
+  layout: () => void;
+  setHighlights: (highlights: EditorHighlight[]) => void;
+  clearHighlights: () => void;
+  onDidChangeValue: (listener: () => void) => { dispose: () => void };
   format: () => Promise<boolean>;
   dispose: () => void;
+};
+
+export type EditorHighlight = {
+  start: number;
+  end: number;
+  hoverMessage?: string;
 };
 
 let vscodeApiInitPromise: Promise<void> | undefined;
@@ -233,7 +244,7 @@ async function createEditorModel(
 }
 
 async function createYaraLanguageClient() {
-  const worker = await getWasmYaraLanguageServer().createWorker();
+  const worker = await createLanguageServerWorker();
   const reader = new BrowserMessageReader(worker);
   const writer = new BrowserMessageWriter(worker);
 
@@ -259,6 +270,7 @@ async function createYaraLanguageClient() {
   await client.start();
 
   return {
+    languageServerVersion: client.initializeResult?.serverInfo?.version ?? null,
     dispose: () => {
       void client.stop().catch((error) => {
         console.error("failed to stop yara-x language client", error);
@@ -279,7 +291,7 @@ function buildEditor(
     colorDecorators: false,
     fixedOverflowWidgets: true,
     links: false,
-    minimap: { enabled: false },
+    minimap: { enabled: true },
     scrollBeyondLastLine: false,
     fontSize: 14,
     lineHeight: 22,
@@ -311,11 +323,55 @@ function toHandle(
   editor: monaco.editor.IStandaloneCodeEditor,
   modelRef: { dispose: () => void },
   extraDispose?: () => void,
+  languageServerVersion: string | null = null,
 ): EditorHandle {
+  const decorations = editor.createDecorationsCollection();
+
   return {
     editor,
+    languageServerVersion,
     getValue: () => editor.getValue(),
     setValue: (value) => editor.setValue(value),
+    layout: () => editor.layout(),
+    setHighlights: (highlights) => {
+      const model = editor.getModel();
+
+      if (!model) {
+        decorations.clear();
+        return;
+      }
+
+      decorations.set(
+        highlights
+          .filter((highlight) => highlight.end > highlight.start)
+          .map((highlight) => {
+            const start = model.getPositionAt(highlight.start);
+            const end = model.getPositionAt(highlight.end);
+
+            return {
+              range: {
+                startLineNumber: start.lineNumber,
+                startColumn: start.column,
+                endLineNumber: end.lineNumber,
+                endColumn: end.column,
+              },
+              options: {
+                inlineClassName: "sample-match-highlight",
+                hoverMessage: highlight.hoverMessage
+                  ? {
+                      value: highlight.hoverMessage,
+                    }
+                  : undefined,
+              },
+            };
+          }),
+      );
+    },
+    clearHighlights: () => decorations.clear(),
+    onDidChangeValue: (listener) =>
+      editor.onDidChangeModelContent(() => {
+        listener();
+      }),
     format: async () => {
       const action = editor.getAction("editor.action.formatDocument");
       if (!action) return false;
@@ -324,6 +380,7 @@ function toHandle(
     },
     dispose: () => {
       extraDispose?.();
+      decorations.clear();
       editor.dispose();
       modelRef.dispose();
     },
@@ -351,10 +408,15 @@ export async function createYaraEditor(
   const editorAction = registerYaraEditorActions(editor);
   const languageClient = await createYaraLanguageClient();
 
-  return toHandle(editor, modelRef, () => {
-    editorAction.dispose();
-    languageClient.dispose();
-  });
+  return toHandle(
+    editor,
+    modelRef,
+    () => {
+      editorAction.dispose();
+      languageClient.dispose();
+    },
+    languageClient.languageServerVersion,
+  );
 }
 
 export async function createPlainTextEditor(

@@ -21,20 +21,12 @@ export type InitInput =
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly runWorkerServer: () => [number, number];
-  readonly wasm_bindgen__closure__destroy__haec1d41666d082cd: (
-    a: number,
-    b: number,
-  ) => void;
-  readonly wasm_bindgen__closure__destroy__h336cf33eb97e424f: (
-    a: number,
-    b: number,
-  ) => void;
-  readonly wasm_bindgen__convert__closures_____invoke__hd7b2ac8475ad8621: (
+  readonly wasm_bindgen__convert__closures_____invoke__h3a5a07f45bf14f3b: (
     a: number,
     b: number,
     c: any,
   ) => [number, number];
-  readonly wasm_bindgen__convert__closures_____invoke__hd2325b3c85219782: (
+  readonly wasm_bindgen__convert__closures_____invoke__h09ac2f2146a400db: (
     a: number,
     b: number,
     c: any,
@@ -54,6 +46,10 @@ export interface InitOutput {
   readonly __wbindgen_exn_store_command_export: (a: number) => void;
   readonly __externref_table_alloc_command_export: () => number;
   readonly __wbindgen_externrefs: WebAssembly.Table;
+  readonly __wbindgen_destroy_closure_command_export: (
+    a: number,
+    b: number,
+  ) => void;
   readonly __externref_table_dealloc_command_export: (a: number) => void;
   readonly __wbindgen_start: () => void;
 }
