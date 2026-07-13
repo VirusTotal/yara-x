@@ -232,6 +232,8 @@ pub fn compilation_args() -> [Arg; 7] {
             .require_equals(true)
             .value_delimiter(',')
             .action(ArgAction::Append),
+        arg!(--"ignore-invalid-rules")
+            .help("Ignore rules that fail to compile and continue with the valid ones"),
         arg!(-I --"ignore-module" <MODULE>)
             .help("Ignore rules that use the specified module")
             .long_help(help::IGNORE_MODULE_LONG_HELP)
@@ -245,8 +247,6 @@ pub fn compilation_args() -> [Arg; 7] {
             .help("Use file path as rule namespace"),
         arg!(--"relaxed-re-syntax")
             .help("Use a more relaxed syntax check while parsing regular expressions"),
-        arg!(--"skip-invalid-rules")
-            .help("Skip rules that fail to compile and continue with the valid ones"),
     ]
 }
 
@@ -259,7 +259,7 @@ where
     P: Iterator<Item = &'a (Option<String>, PathBuf)>,
 {
     let external_vars = get_external_vars(args);
-    let skip_invalid_rules = args.get_flag("skip-invalid-rules");
+    let ignore_invalid_rules = args.get_flag("ignore-invalid-rules");
     let mut compiler = create_compiler(external_vars, args, config)?;
 
     let mut pb = if stdout().is_tty() {
@@ -346,7 +346,7 @@ where
     // discards only the individual rules that failed) and compilation
     // continues. The errors are still reported above, and `errors_found` is
     // returned so the caller can preserve the "errors were found" exit signal.
-    if errors_found && !skip_invalid_rules {
+    if errors_found && !ignore_invalid_rules {
         bail!("{} error(s) found", compiler.errors().len());
     }
 
