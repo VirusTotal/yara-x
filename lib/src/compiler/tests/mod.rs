@@ -1566,6 +1566,14 @@ fn test_filesize_bounds() {
         &[89, 80, 3],
         &[90, 100],
     );
+
+    // 18. float filesize bounds
+    check_filesize_bound("filesize > 10.5", &[11, 20], &[10, 9, 3]);
+    check_filesize_bound("filesize >= 10.5", &[11, 20], &[10, 9, 3]);
+    check_filesize_bound("filesize < 10.5", &[10, 9, 3], &[11, 20]);
+    check_filesize_bound("filesize <= 10.5", &[10, 9, 3], &[11, 20]);
+    check_filesize_bound("10.5 < filesize", &[11, 20], &[10, 9, 3]);
+    check_filesize_bound("10.5 > filesize", &[10, 9, 3], &[11, 20]);
 }
 
 fn check_header_constraint(

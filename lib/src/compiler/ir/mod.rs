@@ -925,6 +925,54 @@ impl IR {
         self.root.unwrap()
     }
 
+    fn lower_bound_from_const(
+        c: &TypeValue,
+        inclusive: bool,
+    ) -> Option<Bound<i64>> {
+        match c {
+            TypeValue::Integer { value: Const(v), .. } => {
+                if inclusive {
+                    Some(Bound::Included(*v))
+                } else {
+                    Some(Bound::Excluded(*v))
+                }
+            }
+            TypeValue::Float { value: Const(v), .. } if v.is_finite() => {
+                let floor = v.floor();
+                if inclusive && floor == *v {
+                    Some(Bound::Included(floor as i64))
+                } else {
+                    Some(Bound::Excluded(floor as i64))
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn upper_bound_from_const(
+        c: &TypeValue,
+        inclusive: bool,
+    ) -> Option<Bound<i64>> {
+        match c {
+            TypeValue::Integer { value: Const(v), .. } => {
+                if inclusive {
+                    Some(Bound::Included(*v))
+                } else {
+                    Some(Bound::Excluded(*v))
+                }
+            }
+            TypeValue::Float { value: Const(v), .. } if v.is_finite() => {
+                let ceil = v.ceil();
+                if inclusive && ceil == *v {
+                    Some(Bound::Included(ceil as i64))
+                } else {
+                    Some(Bound::Excluded(ceil as i64))
+                }
+            }
+            _ => None,
+        }
+    }
+
     /// Determines the constraints on `filesize` imposed by a rule condition.
     ///
     /// This function analyzes the rule’s condition to determine whether it
@@ -951,11 +999,19 @@ impl IR {
                     match (self.get(*lhs), self.get(*rhs)) {
                         // constant > filesize
                         (Expr::Const(c), Expr::Filesize) => {
-                            result.min_end(Bound::Excluded(c.as_integer()));
+                            if let Some(bound) =
+                                Self::upper_bound_from_const(c, false)
+                            {
+                                result.min_end(bound);
+                            }
                         }
                         // filesize > constant
                         (Expr::Filesize, Expr::Const(c)) => {
-                            result.max_start(Bound::Excluded(c.as_integer()));
+                            if let Some(bound) =
+                                Self::lower_bound_from_const(c, false)
+                            {
+                                result.max_start(bound);
+                            }
                         }
                         _ => {}
                     }
@@ -964,11 +1020,19 @@ impl IR {
                     match (self.get(*lhs), self.get(*rhs)) {
                         // constant >= filesize
                         (Expr::Const(c), Expr::Filesize) => {
-                            result.min_end(Bound::Included(c.as_integer()));
+                            if let Some(bound) =
+                                Self::upper_bound_from_const(c, true)
+                            {
+                                result.min_end(bound);
+                            }
                         }
                         // filesize >= constant
                         (Expr::Filesize, Expr::Const(c)) => {
-                            result.max_start(Bound::Included(c.as_integer()));
+                            if let Some(bound) =
+                                Self::lower_bound_from_const(c, true)
+                            {
+                                result.max_start(bound);
+                            }
                         }
                         _ => {}
                     }
@@ -977,24 +1041,40 @@ impl IR {
                     match (self.get(*lhs), self.get(*rhs)) {
                         // constant < filesize
                         (Expr::Const(c), Expr::Filesize) => {
-                            result.max_start(Bound::Excluded(c.as_integer()));
+                            if let Some(bound) =
+                                Self::lower_bound_from_const(c, false)
+                            {
+                                result.max_start(bound);
+                            }
                         }
                         // filesize < constant
                         (Expr::Filesize, Expr::Const(c)) => {
-                            result.min_end(Bound::Excluded(c.as_integer()));
+                            if let Some(bound) =
+                                Self::upper_bound_from_const(c, false)
+                            {
+                                result.min_end(bound);
+                            }
                         }
                         _ => {}
                     }
                 }
                 Expr::Le { lhs, rhs } => {
                     match (self.get(*lhs), self.get(*rhs)) {
-                        // constant < filesize
+                        // constant <= filesize
                         (Expr::Const(c), Expr::Filesize) => {
-                            result.max_start(Bound::Included(c.as_integer()));
+                            if let Some(bound) =
+                                Self::lower_bound_from_const(c, true)
+                            {
+                                result.max_start(bound);
+                            }
                         }
-                        // filesize < constant
+                        // filesize <= constant
                         (Expr::Filesize, Expr::Const(c)) => {
-                            result.min_end(Bound::Included(c.as_integer()));
+                            if let Some(bound) =
+                                Self::upper_bound_from_const(c, true)
+                            {
+                                result.min_end(bound);
+                            }
                         }
                         _ => {}
                     }

@@ -3408,6 +3408,36 @@ fn filesize_bounds() {
         1 // test_2 matches, but test_1 do not.
     );
 
+    // Compare filesize with float.
+    let rules = crate::compile(
+        r#"
+        rule test_1 {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a and filesize > 6.1
+        }
+        rule test_2 {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(
+        scanner
+            .scan(b"foobar")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1 // test_2 matches, but test_1 do not.
+    );
+
     let rules = crate::compile(
         r#"
         rule test {
@@ -3450,6 +3480,16 @@ fn filesize_bounds() {
         "#,
     )
     .expect_err("should fail");
+
+    crate::compile(
+        r#"
+        rule test_1 {
+          condition:
+            filesize > 100.3
+        }
+        "#,
+    )
+    .unwrap();
 }
 
 #[test]
