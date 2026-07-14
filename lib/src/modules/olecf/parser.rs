@@ -536,13 +536,12 @@ impl<'a> Olecf<'a> {
     /// Core helper that extracts stream data by following a FAT or MiniFAT
     /// chain.
     ///
-    /// Attempts zero-copy slicing from `source_slice` if provided and if the
-    /// sector chain is strictly sequential. Falls back to allocating a vector
-    /// and reading sectors from `fallback_slice`.
+    /// Attempts zero-copy slicing from `stream_data` if it is a borrowed slice
+    /// and if the sector chain is strictly sequential. Falls back to allocating
+    /// a vector and reading sectors from `stream_data`.
     fn get_stream_data_by_chain(
         &self,
-        source_slice: Option<&'a [u8]>,
-        fallback_slice: &[u8],
+        stream_data: &Cow<'a, [u8]>,
         base_offset: u64,
         sector_size: usize,
         start_sector: u32,
@@ -553,8 +552,8 @@ impl<'a> Olecf<'a> {
             return Ok(Cow::Borrowed(&[]));
         }
 
-        // Fast path: zero-copy slicing.
-        if let Some(src) = source_slice
+        // Fast path: zero-copy slicing if stream_data is borrowed.
+        if let Cow::Borrowed(src) = stream_data
             && let Ok(slice) = self.try_get_stream_slice(
                 src,
                 base_offset,
@@ -568,6 +567,7 @@ impl<'a> Olecf<'a> {
         }
 
         // Fallback: Sector-by-sector gathering.
+        let fallback_slice = stream_data.as_ref();
         let mut data = Vec::with_capacity(size);
         let mut current_sector = start_sector;
         let mut visited = Vec::new();
@@ -672,8 +672,7 @@ impl<'a> Olecf<'a> {
             return Err("Stream size exceeds maximum allowed size");
         }
         self.get_stream_data_by_chain(
-            Some(self.data),
-            self.data,
+            &Cow::Borrowed(self.data),
             self.sector_size as u64,
             self.sector_size,
             start_sector,
@@ -735,13 +734,8 @@ impl<'a> Olecf<'a> {
         }
 
         let mini_stream_data = self.get_root_mini_stream_data()?;
-        let source_slice = match &mini_stream_data {
-            Cow::Borrowed(slice) => Some(*slice),
-            Cow::Owned(_) => None,
-        };
 
         self.get_stream_data_by_chain(
-            source_slice,
             &mini_stream_data,
             0,
             self.mini_sector_size,
