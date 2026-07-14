@@ -2,7 +2,11 @@ import { LitElement, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 
 import { classMap } from "lit/directives/class-map.js";
-import type { ExecutionState, ResultMode } from "../results/result-types";
+import type {
+  ExecutionState,
+  MatchRange,
+  ResultMode,
+} from "../results/result-types";
 import { summarizeResult } from "../results/summarize-result";
 
 const EMPTY_EXECUTION: ExecutionState = {
@@ -50,6 +54,12 @@ export class YaraResultPanel extends LitElement {
   @property({ attribute: false })
   execution: ExecutionState = EMPTY_EXECUTION;
 
+  @property({ type: Boolean })
+  canNavigateMatches = false;
+
+  @property({ attribute: false })
+  activeMatchRange: MatchRange | null = null;
+
   @state()
   private copiedMode: CopyableResultMode | null = null;
 
@@ -92,6 +102,23 @@ export class YaraResultPanel extends LitElement {
         bubbles: true,
         composed: true,
       }),
+    );
+  }
+
+  private dispatchMatchRangeRequest(range: MatchRange) {
+    this.dispatchEvent(
+      new CustomEvent<MatchRange>("match-range-request", {
+        detail: range,
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
+  private isActiveMatchRange(range: MatchRange) {
+    return (
+      this.activeMatchRange?.start === range.start &&
+      this.activeMatchRange.end === range.end
     );
   }
 
@@ -154,10 +181,38 @@ export class YaraResultPanel extends LitElement {
                           (pattern) => html`
                             <div class="pattern-row">
                               <span>${pattern.identifier}</span>
-                              <code
-                                >${pattern.ranges.join(", ") ||
-                                "No ranges"}</code
-                              >
+                              <div class="match-range-list">
+                                ${pattern.ranges.length === 0
+                                  ? html`<code>No ranges</code>`
+                                  : pattern.ranges.map((range) => {
+                                      const isActive =
+                                        this.isActiveMatchRange(range);
+
+                                      return html`
+                                        <button
+                                          type="button"
+                                          class=${classMap({
+                                            "match-range-button": true,
+                                            "is-active": isActive,
+                                          })}
+                                          title=${this.canNavigateMatches
+                                            ? "Show this match in the sample editor"
+                                            : "Scan in progress"}
+                                          aria-pressed=${isActive
+                                            ? "true"
+                                            : "false"}
+                                          ?disabled=${!this.canNavigateMatches}
+                                          @click=${() => {
+                                            this.dispatchMatchRangeRequest(
+                                              range,
+                                            );
+                                          }}
+                                        >
+                                          ${range.start}-${range.end}
+                                        </button>
+                                      `;
+                                    })}
+                              </div>
                             </div>
                           `,
                         )}

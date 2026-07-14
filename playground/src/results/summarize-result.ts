@@ -1,5 +1,9 @@
-import type { ResultSummary, RuleSummary } from "./result-types";
-import { normalizeScanResult, type ScanResultRule } from "./scan-result";
+import type { MatchRange, ResultSummary, RuleSummary } from "./result-types";
+import {
+  normalizeScanResult,
+  type ScanResultMatch,
+  type ScanResultRule,
+} from "./scan-result";
 import { asRecord } from "../validation/guards";
 
 function formatIssue(value: unknown): string {
@@ -17,19 +21,24 @@ function formatIssue(value: unknown): string {
   }
 }
 
-function formatRange(start: number | null, end: number | null): string | null {
-  if (start === null || end === null) {
+function summarizeRange(match: ScanResultMatch): MatchRange | null {
+  if (match.start === null || match.end === null) {
     return null;
   }
 
-  return `${start}-${end}`;
+  return {
+    start: match.start,
+    end: match.end,
+  };
+}
+
+function isMatchRange(range: MatchRange | null): range is MatchRange {
+  return range !== null;
 }
 
 function summarizeRule(rule: ScanResultRule): RuleSummary {
   const patterns = rule.patterns.map((pattern) => {
-    const ranges = pattern.matches
-      .map((match) => formatRange(match.start, match.end))
-      .filter((value): value is string => Boolean(value));
+    const ranges = pattern.matches.map(summarizeRange).filter(isMatchRange);
 
     return {
       identifier: pattern.identifier,

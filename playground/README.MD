@@ -16,7 +16,7 @@ Write, format and test YARA rules in the browser. Everything runs locally on Web
   - go-to-definition
   - formatting
 - **Sample modes**: Text, Base64, Hex and local File
-- **Match highlighting**: inline highlights in Text and Hex modes, with rule, pattern, and byte-range details on hover
+- **Match highlighting**: click a match range in Summary to focus it in Text and Hex modes, with rule, pattern, and byte-range details on hover
 - **Persistence**: rule source, sample drafts, and settings saved to Local Storage across refreshes
 - **Metadata validation**: formatting and validation rules aligned with the [YARA VS Code extension](https://marketplace.visualstudio.com/items?itemName=VirusTotal.yara-x-ls) configuration
 - **Scanner limits**: configurable maximum matches per pattern for noisy samples
@@ -26,10 +26,10 @@ Write, format and test YARA rules in the browser. Everything runs locally on Web
 
 ### Shortcuts
 
-| Shortcut | Action |
-| --- | --- |
-| `Cmd/Ctrl + S` | Format the current YARA rule |
-| `Cmd/Ctrl + Space` | Trigger autocompletion |
+| Shortcut           | Action                                  |
+| ------------------ | --------------------------------------- |
+| `Cmd/Ctrl + S`     | Format the current YARA rule            |
+| `Cmd/Ctrl + Space` | Trigger autocompletion                  |
 | `Cmd/Ctrl + Enter` | Run the rule against the current sample |
 
 ### Sample Modes

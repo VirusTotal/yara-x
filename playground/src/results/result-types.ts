@@ -11,7 +11,12 @@ export type ResultTone =
 export type PatternSummary = {
   identifier: string;
   hits: number;
-  ranges: string[];
+  ranges: MatchRange[];
+};
+
+export type MatchRange = {
+  start: number;
+  end: number;
 };
 
 export type RuleSummary = {

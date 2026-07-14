@@ -3,6 +3,7 @@ import type { ReactiveController, ReactiveControllerHost } from "lit";
 import {
   createPlainTextEditor,
   createYaraEditor,
+  type EditorActionHandlers,
   type EditorHandle,
 } from "../editor/yara-monaco";
 import type { LanguageServerStatus } from "../language-server/language-server";
@@ -10,6 +11,8 @@ import type { LanguageServerStatus } from "../language-server/language-server";
 type PlaygroundEditorEvents = {
   onLanguageServerVersion: (version: string | null) => void;
   onStatus: (status: LanguageServerStatus) => void;
+  onFormatRequest: () => void;
+  onRunRequest: () => void;
 };
 
 export class PlaygroundEditorController implements ReactiveController {
@@ -45,8 +48,12 @@ export class PlaygroundEditorController implements ReactiveController {
 
     try {
       const [ruleEditor, sampleEditor] = await Promise.all([
-        createYaraEditor(ruleHost, ruleSource),
-        createPlainTextEditor(sampleHost, sampleSource),
+        createYaraEditor(ruleHost, ruleSource, this.ruleEditorActions),
+        createPlainTextEditor(
+          sampleHost,
+          sampleSource,
+          this.sampleEditorActions,
+        ),
       ]);
 
       this.ruleEditor = ruleEditor;
@@ -75,7 +82,11 @@ export class PlaygroundEditorController implements ReactiveController {
     this.events.onLanguageServerVersion(null);
 
     try {
-      const ruleEditor = await createYaraEditor(ruleHost, ruleSource);
+      const ruleEditor = await createYaraEditor(
+        ruleHost,
+        ruleSource,
+        this.ruleEditorActions,
+      );
       this.ruleEditor = ruleEditor;
       this.events.onLanguageServerVersion(ruleEditor.languageServerVersion);
       this.events.onStatus("ready");
@@ -103,5 +114,18 @@ export class PlaygroundEditorController implements ReactiveController {
     this.sampleEditor?.dispose();
     this.ruleEditor = undefined;
     this.sampleEditor = undefined;
+  }
+
+  private get ruleEditorActions(): EditorActionHandlers {
+    return {
+      onFormatRequest: this.events.onFormatRequest,
+      onRunRequest: this.events.onRunRequest,
+    };
+  }
+
+  private get sampleEditorActions(): EditorActionHandlers {
+    return {
+      onRunRequest: this.events.onRunRequest,
+    };
   }
 }

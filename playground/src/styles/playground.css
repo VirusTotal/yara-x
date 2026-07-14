@@ -1270,6 +1270,20 @@ yara-help-dialog {
   border-radius: 3px;
 }
 
+.sample-editor.has-active-match
+  .view-line
+  > span
+  > span:not(.sample-match-highlight) {
+  opacity: 0.15;
+}
+
+.sample-editor.has-active-match .sample-match-highlight:not(.is-active) {
+  animation: none;
+  background-color: rgba(146, 242, 223, 0.06);
+  background-image: none;
+  box-shadow: inset 0 0 0 1px rgba(146, 242, 223, 0.14);
+}
+
 @keyframes sample-match-sweep {
   0% {
     background-position: 130% 0;
@@ -1471,6 +1485,49 @@ yara-help-dialog {
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid rgba(134, 170, 249, 0.08);
+}
+
+.match-range-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.match-range-button {
+  appearance: none;
+  border: 1px solid rgba(134, 170, 249, 0.18);
+  border-radius: 999px;
+  padding: 0.26rem 0.52rem;
+  background: rgba(134, 170, 249, 0.07);
+  color: #86aaf9;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.76rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.match-range-button:hover:not(:disabled),
+.match-range-button:focus-visible {
+  border-color: rgba(146, 242, 223, 0.5);
+  background: rgba(146, 242, 223, 0.12);
+  color: #d8fff4;
+  outline: 0;
+}
+
+.match-range-button.is-active {
+  border-color: rgba(146, 242, 223, 0.5);
+  background: rgba(146, 242, 223, 0.12);
+  color: #d8fff4;
+}
+
+.match-range-button:disabled {
+  opacity: 1;
+  cursor: default;
 }
 
 .token-row {

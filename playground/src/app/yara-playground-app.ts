@@ -15,9 +15,16 @@ import {
   loadStoredPlaygroundSettings,
   storePlaygroundSettings,
 } from "../persistence/playground-settings-storage";
-import type { ExecutionState, ResultMode } from "../results/result-types";
+import type {
+  ExecutionState,
+  MatchRange,
+  ResultMode,
+} from "../results/result-types";
 import { summarizeResult } from "../results/summarize-result";
-import { createSampleHighlights } from "../sample/sample-highlights";
+import {
+  createSampleHighlights,
+  mapSampleByteRangeToEditorRange,
+} from "../sample/sample-highlights";
 import type { LoadedSampleFile } from "../sample/sample-file";
 import { isInlineSampleMode, type SampleMode } from "../sample/sample-modes";
 import {
@@ -100,6 +107,12 @@ export class YaraPlaygroundApp extends LitElement {
   @state()
   private settings = createDefaultPlaygroundSettings();
 
+  @state()
+  private canNavigateMatches = false;
+
+  @state()
+  private activeMatchRange: MatchRange | null = null;
+
   private scanService?: ScanService;
   private sampleEditorLayoutFrameId?: number;
 
@@ -110,6 +123,7 @@ export class YaraPlaygroundApp extends LitElement {
     {
       onSampleChange: () => {
         this.clearSampleHighlights();
+        this.invalidateMatchNavigation();
       },
     },
   );
@@ -120,6 +134,12 @@ export class YaraPlaygroundApp extends LitElement {
     },
     onStatus: (status) => {
       this.lspStatus = status;
+    },
+    onFormatRequest: () => {
+      void this.formatRule();
+    },
+    onRunRequest: () => {
+      void this.runScan();
     },
   });
 
@@ -161,6 +181,10 @@ export class YaraPlaygroundApp extends LitElement {
         this.handleHelpClose();
         return;
       }
+    }
+
+    if (event.defaultPrevented) {
+      return;
     }
 
     if (
@@ -280,8 +304,26 @@ export class YaraPlaygroundApp extends LitElement {
     }
 
     this.editorController.sample.setHighlights(
-      createSampleHighlights(raw, mode, source),
+      createSampleHighlights(raw, mode, source, this.activeMatchRange),
     );
+  }
+
+  private refreshCurrentSampleHighlights() {
+    if (!isInlineSampleMode(this.sampleMode)) {
+      return;
+    }
+
+    const source = this.editorController.sample?.getValue();
+    if (!source) {
+      return;
+    }
+
+    this.syncSampleHighlights(this.execution.raw, this.sampleMode, source);
+  }
+
+  private invalidateMatchNavigation() {
+    this.activeMatchRange = null;
+    this.canNavigateMatches = false;
   }
 
   private scheduleSampleEditorLayout() {
@@ -384,15 +426,21 @@ export class YaraPlaygroundApp extends LitElement {
       this.editorController.sample?.getValue() !== input.sample.source
     ) {
       this.clearSampleHighlights();
-      return;
+      return false;
     }
 
     this.syncSampleHighlights(raw, input.sample.mode, input.sample.source);
+    return true;
   }
 
   private async runScan() {
     if (!this.canRun) return;
 
+    const hadActiveMatchRange = this.activeMatchRange !== null;
+    this.invalidateMatchNavigation();
+    if (hadActiveMatchRange) {
+      this.refreshCurrentSampleHighlights();
+    }
     this.scanStage = "preparing";
     const startedAt = performance.now();
 
@@ -407,7 +455,10 @@ export class YaraPlaygroundApp extends LitElement {
         startedAt,
         finishedAt,
       );
-      this.syncScanHighlights(scanResponse.raw, input);
+      this.canNavigateMatches = this.syncScanHighlights(
+        scanResponse.raw,
+        input,
+      );
     } catch (error) {
       if (error instanceof ScanCancelledError) {
         const raw = { cancelled: true };
@@ -418,6 +469,7 @@ export class YaraPlaygroundApp extends LitElement {
           Math.round(performance.now() - startedAt),
         );
         this.clearSampleHighlights();
+        this.invalidateMatchNavigation();
         return;
       }
 
@@ -432,6 +484,7 @@ export class YaraPlaygroundApp extends LitElement {
 
       await this.publishScanExecution(raw, [], startedAt, finishedAt);
       this.clearSampleHighlights();
+      this.invalidateMatchNavigation();
     } finally {
       this.scanStage = "idle";
     }
@@ -466,6 +519,7 @@ export class YaraPlaygroundApp extends LitElement {
     }
 
     this.clearSampleHighlights();
+    this.invalidateMatchNavigation();
   };
 
   private handleSampleFileLoad = (event: CustomEvent<LoadedSampleFile>) => {
@@ -473,6 +527,7 @@ export class YaraPlaygroundApp extends LitElement {
     this.loadedSampleFile = event.detail;
     this.sampleMode = "file";
     this.clearSampleHighlights();
+    this.invalidateMatchNavigation();
   };
 
   private handleSampleFileClear = () => {
@@ -482,10 +537,47 @@ export class YaraPlaygroundApp extends LitElement {
     this.sampleMode = inlineSampleMode;
     this.sessionController.restoreActiveSampleDraft();
     this.clearSampleHighlights();
+    this.invalidateMatchNavigation();
   };
 
   private handleResultModeChange = (event: CustomEvent<ResultMode>) => {
     this.resultMode = event.detail;
+  };
+
+  private handleMatchRangeRequest = (event: CustomEvent<MatchRange>) => {
+    if (
+      !this.canNavigateMatches ||
+      (this.sampleMode !== "text" && this.sampleMode !== "hex")
+    ) {
+      return;
+    }
+
+    const source = this.editorController.sample?.getValue();
+    if (!source) {
+      return;
+    }
+
+    const isActiveRange =
+      this.activeMatchRange?.start === event.detail.start &&
+      this.activeMatchRange.end === event.detail.end;
+
+    if (isActiveRange) {
+      this.activeMatchRange = null;
+      this.syncSampleHighlights(this.execution.raw, this.sampleMode, source);
+      return;
+    }
+
+    const range = mapSampleByteRangeToEditorRange(
+      this.sampleMode,
+      source,
+      event.detail,
+    );
+
+    if (range) {
+      this.activeMatchRange = event.detail;
+      this.syncSampleHighlights(this.execution.raw, this.sampleMode, source);
+      this.editorController.sample?.revealRange(range.start, range.end);
+    }
   };
 
   private handleSettingsRequest = () => {
@@ -602,7 +694,10 @@ export class YaraPlaygroundApp extends LitElement {
           <yara-result-panel
             .resultMode=${this.resultMode}
             .execution=${this.execution}
+            .canNavigateMatches=${this.canNavigateMatches}
+            .activeMatchRange=${this.activeMatchRange}
             @result-mode-change=${this.handleResultModeChange}
+            @match-range-request=${this.handleMatchRangeRequest}
           ></yara-result-panel>
         </section>
 
