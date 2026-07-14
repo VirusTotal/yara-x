@@ -1718,71 +1718,82 @@ impl Compiler<'_> {
             }
         }
 
-        // In case of error, restore the compiler to the state it was before
-        // entering this function. Also, if the error is due to an unknown
-        // identifier, but the identifier is one of the unsupported modules,
-        // the error is tolerated and a warning is issued instead.
         let mut condition = match condition {
             Ok(condition) => condition,
-            Err(CompileError::UnknownIdentifier(unknown))
-                if self
-                    .rules_depending_on_unsupported_modules
-                    .contains_key(unknown.identifier())
-                    || self.ignored_modules.contains(unknown.identifier()) =>
-            {
-                self.restore_snapshot(snapshot);
-
-                if let Some(module_name) = self
-                    .rules_depending_on_unsupported_modules
-                    .get(unknown.identifier())
-                {
-                    self.warnings.add(|| {
-                        warnings::IgnoredRule::build(
-                            &self.report_builder,
-                            module_name.clone(),
-                            rule.identifier.name.to_string(),
-                            unknown.identifier_location().clone(),
-                        )
-                    });
-                    self.rules_depending_on_unsupported_modules.insert(
-                        rule.identifier.name.to_string(),
-                        module_name.clone(),
-                    );
-                    self.ignored_rules.push((
-                        rule.identifier.name.to_string(),
-                        IgnoredRuleReasonInternal::IgnoredRule(
-                            unknown.identifier().to_string(),
-                        ),
-                    ));
-                } else {
-                    self.warnings.add(|| {
-                        warnings::IgnoredModule::build(
-                            &self.report_builder,
-                            unknown.identifier().to_string(),
-                            unknown.identifier_location().clone(),
-                            Some(format!(
-                                "the whole rule `{}` will be ignored",
-                                rule.identifier.name
-                            )),
-                        )
-                    });
-                    self.rules_depending_on_unsupported_modules.insert(
-                        rule.identifier.name.to_string(),
-                        unknown.identifier().to_string(),
-                    );
-                    self.ignored_rules.push((
-                        rule.identifier.name.to_string(),
-                        IgnoredRuleReasonInternal::IgnoredModule(
-                            unknown.identifier().to_string(),
-                        ),
-                    ));
-                }
-
-                return Ok(());
-            }
             Err(err) => {
+                // In case of error, restore the compiler to the state it was
+                // before entering this function.
                 self.restore_snapshot(snapshot);
-                return Err(err);
+
+                return match err {
+                    // If the error is due to an unknown identifier, and the
+                    // identifier is one of the ignored modules, the error
+                    // is tolerated and a warning is issued instead.
+                    CompileError::UnknownIdentifier(unknown)
+                        if self
+                            .ignored_modules
+                            .contains(unknown.identifier()) =>
+                    {
+                        self.warnings.add(|| {
+                            IgnoredModule::build(
+                                &self.report_builder,
+                                unknown.identifier().to_string(),
+                                unknown.identifier_location().clone(),
+                                Some(format!(
+                                    "the whole rule `{}` will be ignored",
+                                    rule.identifier.name
+                                )),
+                            )
+                        });
+                        self.rules_depending_on_unsupported_modules.insert(
+                            rule.identifier.name.to_string(),
+                            unknown.identifier().to_string(),
+                        );
+                        self.ignored_rules.push((
+                            rule.identifier.name.to_string(),
+                            IgnoredRuleReasonInternal::IgnoredModule(
+                                unknown.identifier().to_string(),
+                            ),
+                        ));
+
+                        Ok(())
+                    }
+                    // If the unknown identifier corresponds to one of the rules
+                    // that depends directly or indirectly on an ignored module,
+                    // the error is tolerated and a warning is issued instead.
+                    CompileError::UnknownIdentifier(unknown) => {
+                        if let Some(unsupported_module) = self
+                            .rules_depending_on_unsupported_modules
+                            .get(unknown.identifier())
+                        {
+                            self.warnings.add(|| {
+                                IgnoredRule::build(
+                                    &self.report_builder,
+                                    unsupported_module.clone(),
+                                    rule.identifier.name.to_string(),
+                                    unknown.identifier_location().clone(),
+                                )
+                            });
+                            self.rules_depending_on_unsupported_modules
+                                .insert(
+                                    rule.identifier.name.to_string(),
+                                    unsupported_module.clone(),
+                                );
+                            self.ignored_rules.push((
+                                rule.identifier.name.to_string(),
+                                IgnoredRuleReasonInternal::IgnoredRule(
+                                    unknown.identifier().to_string(),
+                                ),
+                            ));
+
+                            Ok(())
+                        } else {
+                            Err(CompileError::UnknownIdentifier(unknown))
+                        }
+                    }
+                    // Any other kind of error is not tolerated.
+                    _ => Err(err),
+                };
             }
         };
 
