@@ -106,6 +106,10 @@
               "format": {
                 "type": "string",
                 "description": "The expected format of the date string (e.g., `%Y-%m-%d`)."
+              },
+              "regex": {
+                "type": "string",
+                "description": "A regular expression that string metadata values must match (e.g., ^(draft|reviewed|approved)$)."
               }
             }
           }
