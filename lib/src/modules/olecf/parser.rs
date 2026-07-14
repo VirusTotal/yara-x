@@ -332,6 +332,11 @@ impl<'a> OLECF<'a> {
         Ok((_input, ()))
     }
 
+    /// Returns the sector size in bytes.
+    pub fn sector_size(&self) -> usize {
+        self.sector_size
+    }
+
     /// Returns `true` if the underlying byte slice starts with a valid 8-byte
     /// OLECF signature (`0xD0CF11E0A1B11AE1`), or `false` otherwise.
     pub fn is_valid_header(&self) -> bool {
@@ -544,8 +549,8 @@ impl<'a> OLECF<'a> {
         }
 
         // Fast path: zero-copy slicing.
-        if let Some(src) = source_slice {
-            if let Ok(slice) = self.try_get_stream_slice(
+        if let Some(src) = source_slice
+            && let Ok(slice) = self.try_get_stream_slice(
                 src,
                 base_offset,
                 sector_size,
@@ -555,7 +560,6 @@ impl<'a> OLECF<'a> {
             ) {
                 return Ok(Cow::Borrowed(slice));
             }
-        }
 
         // Fallback: Sector-by-sector gathering.
         let mut data = Vec::with_capacity(size);
@@ -620,7 +624,7 @@ impl<'a> OLECF<'a> {
             return Err("Invalid start sector");
         }
 
-        let needed_sectors = (size + sector_size - 1) / sector_size;
+        let needed_sectors = size.div_ceil(sector_size);
         let mut current_sector = start_sector;
 
         for _ in 1..needed_sectors {

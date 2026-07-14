@@ -267,6 +267,11 @@ pub mod mods {
     /// Data structure returned by the `olecf` module.
     pub use super::protos::olecf::Olecf;
 
+    /// Data structures defined by the `msi` module.
+    pub use super::protos::msi;
+    /// Data structure returned by the `msi` module.
+    pub use super::protos::msi::Msi;
+
     /// Data structures defined by the `vba` module.
     ///
     /// The main structure produced by the module is [`vba::Vba`]. The rest
@@ -379,6 +384,7 @@ pub mod mods {
         info.vba = protobuf::MessageField(invoke::<Vba>(data));
         info.crx = protobuf::MessageField(invoke::<Crx>(data));
         info.dex = protobuf::MessageField(invoke::<Dex>(data));
+        info.msi = protobuf::MessageField(invoke::<Msi>(data));
         info
     }
 

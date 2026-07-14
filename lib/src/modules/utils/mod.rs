@@ -2,6 +2,9 @@
 pub mod asn1;
 
 #[cfg(feature = "crypto")]
+pub mod authenticode;
+
+#[cfg(feature = "crypto")]
 pub mod crypto;
 
 #[cfg(feature = "crypto")]

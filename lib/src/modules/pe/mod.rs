@@ -24,7 +24,6 @@ use crate::types::Struct;
 #[cfg(test)]
 mod tests;
 
-mod authenticode;
 pub mod parser;
 mod rva2off;
 

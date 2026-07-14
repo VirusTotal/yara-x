@@ -24,11 +24,11 @@ use nom::number::complete::{le_u16, le_u32, le_u64, u8};
 use nom::{Err, IResult, Parser, ToUsize};
 use protobuf::{EnumOrUnknown, MessageField};
 
-use crate::modules::pe::authenticode::{
-    AuthenticodeHasher, AuthenticodeParser, AuthenticodeSignature,
-};
 use crate::modules::pe::rva2off;
 use crate::modules::protos;
+use crate::modules::utils::authenticode::{
+    AuthenticodeHasher, AuthenticodeParser, AuthenticodeSignature,
+};
 
 type Error<'a> = nom::error::Error<&'a [u8]>;
 
