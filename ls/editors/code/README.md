@@ -88,6 +88,10 @@ the following properties:
     date string. The format string supports specifiers like `%Y` (year), `%m` (month), `%d` (day), `%H` (hour),
     `%M` (minute), and `%S` (second). For example, for a date like `"2024-01-25"`, the format should be `"%Y-%m-%d"`.
     For more information see: https://docs.rs/chrono/latest/chrono/format/strftime/index.html
+*   `regex` (string, optional): When `type` is `"string"`, this property specifies a regular expression that the
+    metadata value must match. Use `^` and `$` to require a full-value match. For example,
+    `"^(draft|reviewed|approved)$"` restricts the field to those values. Patterns use Rust's regex syntax.
+    For more information see: https://docs.rs/regex/latest/regex/
 
 For accessing these settings go to the Settings
 
