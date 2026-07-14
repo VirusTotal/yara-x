@@ -41,8 +41,14 @@ pub enum ModuleError {
 #[derive(Default)]
 pub struct ModuleContext<'a> {
     module_metadata: FxHashMap<&'static str, &'a [u8]>,
+    #[cfg(any(
+        feature = "olecf-module",
+        feature = "msi-module",
+        feature = "vba-module"
+    ))]
+    pub(crate) olecf_cache: Option<utils::olecf::CachedOlecf<'a>>,
     #[cfg(any(feature = "zip-module", feature = "vba-module"))]
-    pub(crate) zip_cache: Option<utils::zip::ZipCache<'a>>,
+    pub(crate) zip_cache: Option<utils::zip::CachedZip<'a>>,
 }
 
 impl<'a> ModuleContext<'a> {

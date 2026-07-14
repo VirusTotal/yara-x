@@ -5,27 +5,27 @@ use protobuf::Enum;
 use rustc_hash::FxHashMap;
 use tinyzip::Archive;
 
-use crate::modules::protos::zip::{Compression, Entry, Zip};
+use crate::modules::protos::zip::{Compression, Entry, Zip as ZipProto};
 
-pub(crate) enum ZipCache<'a> {
+pub(crate) enum CachedZip<'a> {
     NotZip,
-    Cached(CachedZip<'a>),
+    Zip(Zip<'a>),
 }
 
-pub(crate) struct CachedZip<'a> {
+pub(crate) struct Zip<'a> {
     pub data: &'a [u8],
     pub archive: Archive<&'a [u8]>,
     pub cached_contents: FxHashMap<String, Cow<'a, [u8]>>,
 }
 
-impl<'a> ZipCache<'a> {
+impl<'a> CachedZip<'a> {
     pub(crate) fn new(data: &'a [u8]) -> Self {
         let archive = match Archive::open(data) {
             Ok(arch) => arch,
-            Err(_) => return ZipCache::NotZip,
+            Err(_) => return CachedZip::NotZip,
         };
 
-        ZipCache::Cached(CachedZip {
+        CachedZip::Zip(Zip {
             data,
             archive,
             cached_contents: FxHashMap::default(),
@@ -33,11 +33,13 @@ impl<'a> ZipCache<'a> {
     }
 }
 
-impl<'a> CachedZip<'a> {
+impl<'a> Zip<'a> {
     pub(crate) fn get_file_content<'b>(
         &'b mut self,
         path: &str,
     ) -> Option<&'b [u8]> {
+        // Check if the content for the given path is already cached, it not,
+        // put it into the cache.
         if !self.cached_contents.contains_key(path) {
             let entry = self.archive.find_file(path).ok()?;
             let data_range = entry.data_range().ok()?.data_range;
@@ -67,13 +69,15 @@ impl<'a> CachedZip<'a> {
             self.cached_contents.insert(path.to_string(), content);
         }
 
+        // At this point the content for the given path must be already in the
+        // cache.
         Some(self.cached_contents.get(path).unwrap().as_ref())
     }
 }
 
-impl<'a> From<&CachedZip<'a>> for Zip {
-    fn from(cached: &CachedZip<'a>) -> Self {
-        let mut zip = Zip::new();
+impl<'a> From<&Zip<'a>> for ZipProto {
+    fn from(cached: &Zip<'a>) -> Self {
+        let mut zip = ZipProto::new();
         zip.set_is_zip(true);
 
         let mut entries = Vec::new();
@@ -124,17 +128,17 @@ mod tests {
     #[test]
     fn test_zip_cache() {
         assert!(matches!(
-            ZipCache::new(b"invalid zip data"),
-            ZipCache::NotZip
+            CachedZip::new(b"invalid zip data"),
+            CachedZip::NotZip
         ));
 
         let eocd = [
             0x50, 0x4b, 0x05, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ];
-        if let ZipCache::Cached(mut cached) = ZipCache::new(&eocd) {
+        if let CachedZip::Zip(mut cached) = CachedZip::new(&eocd) {
             assert!(cached.get_file_content("missing.txt").is_none());
-            let zip_proto: Zip = (&cached).into();
+            let zip_proto: ZipProto = (&cached).into();
             assert!(zip_proto.is_zip());
             assert_eq!(zip_proto.entries.len(), 0);
         }

@@ -44,10 +44,10 @@ impl From<u8> for DirEntryType {
 
 /// A parser for OLE Compound File Binary Format (MS-CFB) files.
 ///
-/// `OLECF` analyzes file headers, FAT/DIFAT allocation chains, directory
+/// `Olecf` analyzes file headers, FAT/DIFAT allocation chains, directory
 /// entries, and stream contents for OLE compound documents (e.g., DOC, XLS,
 /// PPT, MSI).
-pub struct OLECF<'a> {
+pub struct Olecf<'a> {
     data: &'a [u8],
     sector_size: usize,
     mini_sector_size: usize,
@@ -67,12 +67,12 @@ pub struct DirectoryEntry {
     pub stream_type: DirEntryType,
 }
 
-impl<'a> OLECF<'a> {
-    /// Creates a new `OLECF` from a byte slice and initializes internal
+impl<'a> Olecf<'a> {
+    /// Creates a new `Olecf` from a byte slice and initializes internal
     /// data structures by parsing the file header, FAT/DIFAT tables, and
     /// directory entries.
     pub fn parse(data: &'a [u8]) -> Result<Self, &'static str> {
-        let mut olecf = OLECF {
+        let mut olecf = Olecf {
             data,
             sector_size: 0,
             mini_sector_size: 0,
@@ -332,6 +332,11 @@ impl<'a> OLECF<'a> {
         Ok((_input, ()))
     }
 
+    /// Returns the underlying byte slice.
+    pub fn data(&self) -> &'a [u8] {
+        self.data
+    }
+
     /// Returns the sector size in bytes.
     pub fn sector_size(&self) -> usize {
         self.sector_size
@@ -557,9 +562,10 @@ impl<'a> OLECF<'a> {
                 start_sector,
                 size,
                 &next_sector_fn,
-            ) {
-                return Ok(Cow::Borrowed(slice));
-            }
+            )
+        {
+            return Ok(Cow::Borrowed(slice));
+        }
 
         // Fallback: Sector-by-sector gathering.
         let mut data = Vec::with_capacity(size);

@@ -1,6 +1,6 @@
-use std::borrow::Cow;
+use crate::modules::olecf::parser::Olecf;
 use crate::modules::tests::create_binary_from_zipped_ihex;
-use crate::modules::olecf::parser::OLECF;
+use std::borrow::Cow;
 
 #[test]
 fn test_stream_data_extraction() {
@@ -8,7 +8,7 @@ fn test_stream_data_extraction() {
     let data = create_binary_from_zipped_ihex(
         "src/modules/olecf/tests/testdata/reg_contiguous.in.zip",
     );
-    let olecf = OLECF::parse(&data).unwrap();
+    let olecf = Olecf::parse(&data).unwrap();
     let stream = olecf.get_stream_data("ContiguousReg").unwrap();
     assert!(matches!(stream, Cow::Borrowed(_)));
     assert_eq!(stream.len(), 5000);
@@ -19,7 +19,7 @@ fn test_stream_data_extraction() {
     let data = create_binary_from_zipped_ihex(
         "src/modules/olecf/tests/testdata/reg_fragmented.in.zip",
     );
-    let olecf = OLECF::parse(&data).unwrap();
+    let olecf = Olecf::parse(&data).unwrap();
     let stream = olecf.get_stream_data("FragReg").unwrap();
     assert!(matches!(stream, Cow::Owned(_)));
     assert_eq!(stream.len(), 5000);
@@ -30,7 +30,7 @@ fn test_stream_data_extraction() {
     let data = create_binary_from_zipped_ihex(
         "src/modules/olecf/tests/testdata/reg_cycle.in.zip",
     );
-    let olecf = OLECF::parse(&data).unwrap();
+    let olecf = Olecf::parse(&data).unwrap();
     let err = olecf.get_stream_data("CycleReg").unwrap_err();
     assert_eq!(err, "Circular reference detected in sector chain");
 
@@ -38,7 +38,7 @@ fn test_stream_data_extraction() {
     let data = create_binary_from_zipped_ihex(
         "src/modules/olecf/tests/testdata/mini_contiguous.in.zip",
     );
-    let olecf = OLECF::parse(&data).unwrap();
+    let olecf = Olecf::parse(&data).unwrap();
     let stream = olecf.get_stream_data("ContiguousMini").unwrap();
     assert!(matches!(stream, Cow::Borrowed(_)));
     assert_eq!(stream.len(), 120);
@@ -49,7 +49,7 @@ fn test_stream_data_extraction() {
     let data = create_binary_from_zipped_ihex(
         "src/modules/olecf/tests/testdata/mini_fragmented.in.zip",
     );
-    let olecf = OLECF::parse(&data).unwrap();
+    let olecf = Olecf::parse(&data).unwrap();
     let stream = olecf.get_stream_data("FragMini").unwrap();
     assert!(matches!(stream, Cow::Owned(_)));
     assert_eq!(stream.len(), 120);
@@ -60,7 +60,7 @@ fn test_stream_data_extraction() {
     let data = create_binary_from_zipped_ihex(
         "src/modules/olecf/tests/testdata/mini_in_frag_root.in.zip",
     );
-    let olecf = OLECF::parse(&data).unwrap();
+    let olecf = Olecf::parse(&data).unwrap();
     let stream = olecf.get_stream_data("MiniInFragRoot").unwrap();
     assert!(matches!(stream, Cow::Owned(_)));
     assert_eq!(stream.len(), 64);
@@ -70,7 +70,7 @@ fn test_stream_data_extraction() {
     let data = create_binary_from_zipped_ihex(
         "src/modules/olecf/tests/testdata/mini_cycle.in.zip",
     );
-    let olecf = OLECF::parse(&data).unwrap();
+    let olecf = Olecf::parse(&data).unwrap();
     let err = olecf.get_stream_data("CycleMini").unwrap_err();
     assert_eq!(err, "Circular reference detected in sector chain");
 
@@ -78,7 +78,7 @@ fn test_stream_data_extraction() {
     let data = create_binary_from_zipped_ihex(
         "src/modules/olecf/tests/testdata/empty_stream.in.zip",
     );
-    let olecf = OLECF::parse(&data).unwrap();
+    let olecf = Olecf::parse(&data).unwrap();
     let stream = olecf.get_stream_data("EmptyStream").unwrap();
     assert!(matches!(stream, Cow::Borrowed(_)));
     assert!(stream.is_empty());
@@ -87,7 +87,7 @@ fn test_stream_data_extraction() {
     let data = create_binary_from_zipped_ihex(
         "src/modules/olecf/tests/testdata/incomplete_stream.in.zip",
     );
-    let olecf = OLECF::parse(&data).unwrap();
+    let olecf = Olecf::parse(&data).unwrap();
     let err = olecf.get_stream_data("TruncatedStream").unwrap_err();
     assert_eq!(err, "Incomplete stream data");
 
@@ -95,11 +95,10 @@ fn test_stream_data_extraction() {
     let data = create_binary_from_zipped_ihex(
         "src/modules/olecf/tests/testdata/v4_stream.in.zip",
     );
-    let olecf = OLECF::parse(&data).unwrap();
+    let olecf = Olecf::parse(&data).unwrap();
     let stream = olecf.get_stream_data("V4DataStream").unwrap();
     assert!(matches!(stream, Cow::Borrowed(_)));
     assert_eq!(stream.len(), 5000);
     assert_eq!(stream[0], 0xDD);
     assert_eq!(stream[4096], 0xEE);
 }
-

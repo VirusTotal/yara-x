@@ -276,6 +276,44 @@
     "label": "math"
   },
   {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"msi\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "msi"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"olecf\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "olecf"
+  },
+  {
     "kind": 9,
     "label": "pe"
   },
@@ -354,6 +392,25 @@
     ],
     "kind": 9,
     "label": "time"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"vba\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "vba"
   },
   {
     "additionalTextEdits": [

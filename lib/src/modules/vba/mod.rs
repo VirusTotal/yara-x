@@ -10,24 +10,18 @@ use rustc_hash::FxHashMap as HashMap;
 use std::borrow::Cow;
 
 use crate::mods::prelude::*;
-use crate::modules::olecf::parser::OLECF;
+use crate::modules::olecf::parser::Olecf;
 use crate::modules::protos::vba::*;
-use crate::modules::utils::zip::ZipCache;
+use crate::modules::utils::olecf::CachedOlecf;
+use crate::modules::utils::zip::{CachedZip, Zip};
 
 mod parser;
 
-#[derive(Debug)]
-struct VbaExtractor<'a> {
-    data: &'a [u8],
-}
+struct VbaExtractor;
 
-impl<'a> VbaExtractor<'a> {
-    fn new(data: &'a [u8]) -> Self {
-        Self { data }
-    }
-
-    fn read_stream_data(
-        olecf: &OLECF<'a>,
+impl VbaExtractor {
+    fn read_stream_data<'a>(
+        olecf: &Olecf<'a>,
         name: &str,
     ) -> Result<Cow<'a, [u8]>, &'static str> {
         let size = olecf.get_stream_size(name)? as usize;
@@ -37,9 +31,8 @@ impl<'a> VbaExtractor<'a> {
         olecf.get_stream_data(name)
     }
 
-    fn extract_from_ole_bytes(ole_data: &'a [u8]) -> Result<Vba, &'static str> {
-        let olecf = OLECF::parse(ole_data)?;
-        let stream_names = olecf.get_stream_names()?;
+    fn extract_from_olecf<'a>(olecf: &Olecf<'a>) -> Result<Vba, &'static str> {
+        let stream_names = olecf.stream_names()?;
 
         let mut vba_dir = None;
         let mut modules = HashMap::default();
@@ -47,7 +40,7 @@ impl<'a> VbaExtractor<'a> {
         // First process the dir stream
         if let Some(dir_name) =
             stream_names.iter().find(|n| n.trim().eq_ignore_ascii_case("dir"))
-            && let Ok(data) = Self::read_stream_data(&olecf, dir_name)
+            && let Ok(data) = Self::read_stream_data(olecf, dir_name)
         {
             vba_dir = Some(data);
         }
@@ -55,7 +48,7 @@ impl<'a> VbaExtractor<'a> {
         // Then process other streams
         for name in &stream_names {
             if !name.trim().eq_ignore_ascii_case("dir")
-                && let Ok(data) = Self::read_stream_data(&olecf, name)
+                && let Ok(data) = Self::read_stream_data(olecf, name)
                 && !data.is_empty()
             {
                 let lowercase_name = name.to_lowercase();
@@ -73,35 +66,23 @@ impl<'a> VbaExtractor<'a> {
         }
     }
 
-    fn extract_from_ole(&self) -> Result<Vba, &'static str> {
-        Self::extract_from_ole_bytes(self.data)
-    }
-}
+    fn extract_from_zip<'a>(zip: &mut Zip<'a>) -> Result<Vba, &'static str> {
+        let vba_project_names = [
+            "word/vbaProject.bin",
+            "xl/vbaProject.bin",
+            "ppt/vbaProject.bin",
+            "vbaProject.bin",
+        ];
 
-fn extract_from_zip<'a>(
-    ctx: &mut ModuleContext<'a>,
-    data: &'a [u8],
-) -> Result<Vba, &'static str> {
-    let zip_cache = ctx.zip_cache.get_or_insert_with(|| ZipCache::new(data));
-
-    let ZipCache::Cached(cached_zip) = zip_cache else {
-        return Err("no VBA project found in ZIP");
-    };
-
-    let vba_project_names = [
-        "word/vbaProject.bin",
-        "xl/vbaProject.bin",
-        "ppt/vbaProject.bin",
-        "vbaProject.bin",
-    ];
-
-    for name in &vba_project_names {
-        if let Some(contents) = cached_zip.get_file_content(name) {
-            return VbaExtractor::extract_from_ole_bytes(contents);
+        for name in &vba_project_names {
+            if let Some(contents) = zip.get_file_content(name) {
+                let olecf = Olecf::parse(contents)?;
+                return Self::extract_from_olecf(&olecf);
+            }
         }
-    }
 
-    Err("no VBA project found in ZIP")
+        Err("no VBA project found in ZIP")
+    }
 }
 
 fn main<'a>(
@@ -111,9 +92,15 @@ fn main<'a>(
     let is_zip = data.starts_with(&[0x50, 0x4B, 0x03, 0x04]);
 
     let project = if is_zip {
-        extract_from_zip(ctx, data)
+        match ctx.zip_cache.get_or_insert_with(|| CachedZip::new(data)) {
+            CachedZip::Zip(z) => VbaExtractor::extract_from_zip(z),
+            CachedZip::NotZip => Err("not a valid ZIP archive"),
+        }
     } else {
-        VbaExtractor::new(data).extract_from_ole()
+        match ctx.olecf_cache.get_or_insert_with(|| CachedOlecf::new(data)) {
+            CachedOlecf::Olecf(o) => VbaExtractor::extract_from_olecf(o),
+            CachedOlecf::NotOlecf => Err("not a valid OLECF file"),
+        }
     };
 
     let vba = match project {
