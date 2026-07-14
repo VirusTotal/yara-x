@@ -40,7 +40,7 @@ use crate::walk::Draw;
 use crate::walk::Walker;
 use crate::{APP_HELP_TEMPLATE, commands, help};
 
-use yara_x::{Compiler, IgnoredRule, Rules, SourceCode};
+use yara_x::{Compiler, IgnoredRuleReason, Rules, SourceCode};
 
 pub fn command(name: &'static str) -> Command {
     Command::new(name).help_template(
@@ -254,7 +254,7 @@ pub fn compile_rules<'a, P>(
     paths: P,
     args: &ArgMatches,
     config: &Config,
-) -> Result<(Rules, Vec<IgnoredRule>), anyhow::Error>
+) -> Result<(Rules, Vec<(String, String)>), anyhow::Error>
 where
     P: Iterator<Item = &'a (Option<String>, PathBuf)>,
 {
@@ -349,7 +349,24 @@ where
         bail!("{} error(s) found", compiler.errors().len());
     }
 
-    let ignored_rules = compiler.ignored_rules().to_vec();
+    let ignored_rules: Vec<(String, String)> = compiler
+        .ignored_rules()
+        .map(|(rule_name, reason)| {
+            let reason_str = match reason {
+                IgnoredRuleReason::IgnoredModule(module) => {
+                    format!("depends on ignored module `{module}`")
+                }
+                IgnoredRuleReason::IgnoredRule(parent_rule) => {
+                    format!("depends on ignored rule `{parent_rule}`")
+                }
+                IgnoredRuleReason::CompileError(err) => {
+                    format!("error: {}", err.title())
+                }
+            };
+            (rule_name.to_string(), reason_str)
+        })
+        .collect();
+
     let rules = compiler.build();
 
     Ok((rules, ignored_rules))

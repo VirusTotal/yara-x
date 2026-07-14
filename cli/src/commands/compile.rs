@@ -6,8 +6,6 @@ use clap::{Arg, ArgAction, ArgMatches, Command, arg, value_parser};
 use yansi::Color::Cyan;
 use yansi::Paint;
 
-use yara_x::IgnoredRuleReason;
-
 use crate::commands::{
     compilation_args, compile_rules, path_with_namespace_parser,
 };
@@ -53,30 +51,8 @@ pub fn exec_compile(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             Paint::bold(&"the following rules were ignored:")
         );
 
-        for rule in &ignored_rules {
-            match rule.reason() {
-                IgnoredRuleReason::IgnoredModule(module) => {
-                    eprintln!(
-                        "  - {}: depends on ignored module `{}`",
-                        rule.rule_name().paint(Cyan).bold(),
-                        module
-                    );
-                }
-                IgnoredRuleReason::IgnoredRule(parent_rule) => {
-                    eprintln!(
-                        "  - {}: depends on ignored rule `{}`",
-                        rule.rule_name().paint(Cyan).bold(),
-                        parent_rule
-                    );
-                }
-                IgnoredRuleReason::CompileError(err) => {
-                    eprintln!(
-                        "  - {}: error: {}",
-                        rule.rule_name().paint(Cyan).bold(),
-                        err.title(),
-                    );
-                }
-            }
+        for (rule_name, reason) in &ignored_rules {
+            eprintln!("  - {}: {}", rule_name.paint(Cyan).bold(), reason);
         }
     }
 

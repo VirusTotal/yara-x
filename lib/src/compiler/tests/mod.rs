@@ -5,9 +5,7 @@ use std::mem::size_of;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
-use crate::compiler::{
-    IgnoredRule, IgnoredRuleReason, SubPattern, VarStack, linters,
-};
+use crate::compiler::{IgnoredRuleReason, SubPattern, VarStack, linters};
 use crate::errors::{SerializationError, VariableError};
 use crate::types::Type;
 use crate::{Compiler, Rules, Scanner, SourceCode, compile};
@@ -624,21 +622,13 @@ fn unsupported_modules() {
         )
         .unwrap();
 
+    let ignored: Vec<_> = compiler.ignored_rules().collect();
     assert_eq!(
-        compiler.ignored_rules(),
-        &[
-            IgnoredRule::new(
-                "ignored_1",
-                IgnoredRuleReason::IgnoredModule("foo_module".to_string())
-            ),
-            IgnoredRule::new(
-                "ignored_2",
-                IgnoredRuleReason::IgnoredRule("ignored_1".to_string())
-            ),
-            IgnoredRule::new(
-                "ignored_3",
-                IgnoredRuleReason::IgnoredRule("ignored_2".to_string())
-            ),
+        ignored,
+        vec![
+            ("ignored_1", IgnoredRuleReason::IgnoredModule("foo_module")),
+            ("ignored_2", IgnoredRuleReason::IgnoredRule("ignored_1")),
+            ("ignored_3", IgnoredRuleReason::IgnoredRule("ignored_2")),
         ]
     );
 
@@ -669,17 +659,17 @@ fn test_ignored_rules() {
         "#,
     );
 
-    let ignored = compiler.ignored_rules();
+    let ignored: Vec<_> = compiler.ignored_rules().collect();
     assert_eq!(ignored.len(), 2);
 
-    assert_eq!(ignored[0].rule_name(), "rule_ignored_module");
+    assert_eq!(ignored[0].0, "rule_ignored_module");
     assert_eq!(
-        ignored[0].reason(),
-        &IgnoredRuleReason::IgnoredModule("unsupported_mod".to_string())
+        ignored[0].1,
+        IgnoredRuleReason::IgnoredModule("unsupported_mod")
     );
 
-    assert_eq!(ignored[1].rule_name(), "rule_failed_compile");
-    assert!(matches!(ignored[1].reason(), IgnoredRuleReason::CompileError(_)));
+    assert_eq!(ignored[1].0, "rule_failed_compile");
+    assert!(matches!(ignored[1].1, IgnoredRuleReason::CompileError(_)));
 }
 
 #[cfg(feature = "test_proto2-module")]
