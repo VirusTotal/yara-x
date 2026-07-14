@@ -21,19 +21,19 @@ mod tests;
 fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<Olecf, ModuleError> {
     let mut olecf = Olecf::new();
 
-    match parser::OLECFParser::new(data) {
-        Ok(parser) => {
-            olecf.set_is_olecf(parser.is_valid_header());
-            olecf.streams = parser
-                .get_streams()
+    match parser::OLECF::parse(data) {
+        Ok(parsed) => {
+            olecf.set_is_olecf(parsed.is_valid_header());
+            olecf.streams = parsed
+                .streams()
                 .map(|(name, entry)| {
                     let mut s = Stream::new();
                     s.set_name(name.to_string());
                     s.set_size(entry.size);
                     s.set_type(match entry.stream_type {
-                        1 => StreamType::STORAGE,
-                        2 => StreamType::STREAM,
-                        5 => StreamType::ROOT,
+                        parser::DirEntryType::Storage => StreamType::STORAGE,
+                        parser::DirEntryType::Stream => StreamType::STREAM,
+                        parser::DirEntryType::RootStorage => StreamType::ROOT,
                         _ => StreamType::UNKNOWN,
                     });
                     s

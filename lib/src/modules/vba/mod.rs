@@ -10,7 +10,7 @@ use rustc_hash::FxHashMap as HashMap;
 use std::borrow::Cow;
 
 use crate::mods::prelude::*;
-use crate::modules::olecf::parser::OLECFParser;
+use crate::modules::olecf::parser::OLECF;
 use crate::modules::protos::vba::*;
 use crate::modules::utils::zip::ZipCache;
 
@@ -27,19 +27,19 @@ impl<'a> VbaExtractor<'a> {
     }
 
     fn read_stream_data(
-        ole_parser: &OLECFParser<'a>,
+        olecf: &OLECF<'a>,
         name: &str,
     ) -> Result<Cow<'a, [u8]>, &'static str> {
-        let size = ole_parser.get_stream_size(name)? as usize;
+        let size = olecf.get_stream_size(name)? as usize;
         if size == 0 {
             return Err("Stream is empty");
         }
-        ole_parser.get_stream_data(name)
+        olecf.get_stream_data(name)
     }
 
     fn extract_from_ole_bytes(ole_data: &'a [u8]) -> Result<Vba, &'static str> {
-        let ole_parser = OLECFParser::new(ole_data)?;
-        let stream_names = ole_parser.get_stream_names()?;
+        let olecf = OLECF::parse(ole_data)?;
+        let stream_names = olecf.get_stream_names()?;
 
         let mut vba_dir = None;
         let mut modules = HashMap::default();
@@ -47,7 +47,7 @@ impl<'a> VbaExtractor<'a> {
         // First process the dir stream
         if let Some(dir_name) =
             stream_names.iter().find(|n| n.trim().eq_ignore_ascii_case("dir"))
-            && let Ok(data) = Self::read_stream_data(&ole_parser, dir_name)
+            && let Ok(data) = Self::read_stream_data(&olecf, dir_name)
         {
             vba_dir = Some(data);
         }
@@ -55,7 +55,7 @@ impl<'a> VbaExtractor<'a> {
         // Then process other streams
         for name in &stream_names {
             if !name.trim().eq_ignore_ascii_case("dir")
-                && let Ok(data) = Self::read_stream_data(&ole_parser, name)
+                && let Ok(data) = Self::read_stream_data(&olecf, name)
                 && !data.is_empty()
             {
                 let lowercase_name = name.to_lowercase();
