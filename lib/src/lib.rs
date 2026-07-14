@@ -46,6 +46,8 @@ assert_eq!(results.matching_rules().len(), 1);
 extern crate core;
 
 pub use compiler::Compiler;
+pub use compiler::IgnoredRuleReason;
+pub use compiler::IgnoredRules;
 pub use compiler::Patch;
 pub use compiler::Rules;
 pub use compiler::RulesIter;

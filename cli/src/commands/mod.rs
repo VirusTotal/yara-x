@@ -40,7 +40,7 @@ use crate::walk::Draw;
 use crate::walk::Walker;
 use crate::{APP_HELP_TEMPLATE, commands, help};
 
-use yara_x::{Compiler, Rules, SourceCode};
+use yara_x::{Compiler, IgnoredRuleReason, Rules, SourceCode};
 
 pub fn command(name: &'static str) -> Command {
     Command::new(name).help_template(
@@ -216,7 +216,7 @@ pub fn create_compiler<'a>(
     Ok(compiler)
 }
 
-pub fn compilation_args() -> [Arg; 6] {
+pub fn compilation_args() -> [Arg; 7] {
     [
         arg!(-d --"define")
             .help("Define external variable")
@@ -232,6 +232,8 @@ pub fn compilation_args() -> [Arg; 6] {
             .require_equals(true)
             .value_delimiter(',')
             .action(ArgAction::Append),
+        arg!(--"ignore-invalid-rules")
+            .help("Ignore rules that fail to compile and continue with the valid ones"),
         arg!(-I --"ignore-module" <MODULE>)
             .help("Ignore rules that use the specified module")
             .long_help(help::IGNORE_MODULE_LONG_HELP)
@@ -252,11 +254,12 @@ pub fn compile_rules<'a, P>(
     paths: P,
     args: &ArgMatches,
     config: &Config,
-) -> Result<Rules, anyhow::Error>
+) -> Result<(Rules, Vec<(String, String)>), anyhow::Error>
 where
     P: Iterator<Item = &'a (Option<String>, PathBuf)>,
 {
     let external_vars = get_external_vars(args);
+    let ignore_invalid_rules = args.get_flag("ignore-invalid-rules");
     let mut compiler = create_compiler(external_vars, args, config)?;
 
     let mut pb = if stdout().is_tty() {
@@ -336,13 +339,37 @@ where
         eprintln!("{error}");
     }
 
-    if !compiler.errors().is_empty() {
+    let errors_found = !compiler.errors().is_empty();
+
+    // Without `--ignore-invalid-rules` any compilation error is fatal. With the
+    // flag, the rules that compiled correctly are kept (the compiler already
+    // discards only the individual rules that failed) and compilation
+    // continues. The errors are still reported above.
+    if errors_found && !ignore_invalid_rules {
         bail!("{} error(s) found", compiler.errors().len());
     }
 
+    let ignored_rules: Vec<(String, String)> = compiler
+        .ignored_rules()
+        .map(|(rule_name, reason)| {
+            let reason_str = match reason {
+                IgnoredRuleReason::IgnoredModule(module) => {
+                    format!("depends on ignored module `{module}`")
+                }
+                IgnoredRuleReason::IgnoredRule(parent_rule) => {
+                    format!("depends on ignored rule `{parent_rule}`")
+                }
+                IgnoredRuleReason::CompileError(err) => {
+                    format!("error: {}", err.title())
+                }
+            };
+            (rule_name.to_string(), reason_str)
+        })
+        .collect();
+
     let rules = compiler.build();
 
-    Ok(rules)
+    Ok((rules, ignored_rules))
 }
 
 struct CompileState {
