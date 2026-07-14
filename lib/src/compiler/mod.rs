@@ -85,8 +85,9 @@ pub mod wsh;
 /// The reason why a rule was ignored during compilation.
 #[derive(Debug, PartialEq, Eq)]
 pub enum IgnoredRuleReason<'a> {
-    /// The rule was ignored because it depends on an ignored module.
-    /// Contains the name of the ignored module.
+    /// The rule was ignored because it depends on a module that was ignored
+    /// with [`Compiler::ignore_module`]. Contains the name of the ignored
+    /// module.
     IgnoredModule(&'a str),
     /// The rule was ignored because it depends on another rule that was
     /// ignored. Contains the name of the ignored rule it depends on.
