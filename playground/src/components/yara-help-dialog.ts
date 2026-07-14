@@ -158,8 +158,9 @@ export class YaraHelpDialog extends LitElement {
                 when testing that modifier.
               </p>
               <p>
-                Text and Hex highlight matching ranges in the editor. Hover a
-                highlight to see the rule, pattern, and exact byte range.
+                Text and Hex highlight matching ranges in the editor. Click a
+                match range in Summary to focus it, or hover a highlight to see
+                the rule, pattern, and exact byte range.
               </p>
             </section>
 

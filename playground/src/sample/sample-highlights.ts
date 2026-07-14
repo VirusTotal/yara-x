@@ -1,4 +1,5 @@
 import type { EditorHighlight } from "../editor/yara-monaco";
+import type { MatchRange } from "../results/result-types";
 import { normalizeScanResult } from "../results/scan-result";
 import type { InlineSampleMode } from "./sample-modes";
 
@@ -11,6 +12,11 @@ type ByteHighlight = {
 type HighlightOffsets = {
   start: number | null;
   end: number | null;
+};
+
+export type SampleEditorRange = {
+  start: number;
+  end: number;
 };
 
 type TextBoundary = {
@@ -200,19 +206,28 @@ function isEditorHighlight(
 function toEditorHighlights(
   highlights: ByteHighlight[],
   offsets: HighlightOffsets[],
+  activeRange: MatchRange | null,
 ): EditorHighlight[] {
   return highlights
     .map<EditorHighlight | null>((highlight, index) => {
-      const { start, end } = offsets[index]!;
+      const offset = offsets[index];
 
-      if (start == null || end == null || end <= start) {
+      if (
+        offset == null ||
+        offset.start == null ||
+        offset.end == null ||
+        offset.end <= offset.start
+      ) {
         return null;
       }
 
       return {
-        start,
-        end,
+        start: offset.start,
+        end: offset.end,
         hoverMessage: highlight.labels.join("\n"),
+        isActive:
+          activeRange?.start === highlight.start &&
+          activeRange?.end === highlight.end,
       };
     })
     .filter(isEditorHighlight);
@@ -307,25 +322,63 @@ function mapHexHighlightOffsets(
   return offsets;
 }
 
+function mapHighlightOffsets(
+  mode: InlineSampleMode,
+  source: string,
+  highlights: ByteHighlight[],
+): HighlightOffsets[] {
+  switch (mode) {
+    case "text":
+      return mapTextHighlightOffsets(source, highlights);
+    case "hex":
+      return mapHexHighlightOffsets(source, highlights);
+    case "base64":
+      return [];
+  }
+}
+
+export function mapSampleByteRangeToEditorRange(
+  mode: InlineSampleMode,
+  source: string,
+  range: { start: number; end: number },
+): SampleEditorRange | null {
+  if (range.start < 0 || range.end <= range.start) {
+    return null;
+  }
+
+  const [offsets] = mapHighlightOffsets(mode, source, [
+    { ...range, labels: [] },
+  ]);
+
+  if (
+    offsets?.start == null ||
+    offsets.end == null ||
+    offsets.end <= offsets.start
+  ) {
+    return null;
+  }
+
+  return {
+    start: offsets.start,
+    end: offsets.end,
+  };
+}
+
 export function createSampleHighlights(
   raw: unknown,
   mode: InlineSampleMode,
   source: string,
+  activeRange: MatchRange | null = null,
 ): EditorHighlight[] {
+  if (mode === "base64") {
+    return [];
+  }
+
   const highlights = extractByteHighlights(raw);
 
-  switch (mode) {
-    case "text":
-      return toEditorHighlights(
-        highlights,
-        mapTextHighlightOffsets(source, highlights),
-      );
-    case "hex":
-      return toEditorHighlights(
-        highlights,
-        mapHexHighlightOffsets(source, highlights),
-      );
-    case "base64":
-      return [];
-  }
+  return toEditorHighlights(
+    highlights,
+    mapHighlightOffsets(mode, source, highlights),
+    activeRange,
+  );
 }
