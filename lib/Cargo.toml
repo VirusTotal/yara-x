@@ -209,6 +209,12 @@ magic-module = [
 # The `math` module.
 math-module = []
 
+# The `msi` module parses MSI files.
+msi-module = [
+    "olecf-module",
+    "crypto",
+]
+
 # The `olecf` module
 olecf-module = [
     "dep:nom"
@@ -234,6 +240,8 @@ time-module = []
 
 # The `vba` module
 vba-module = [
+    "olecf-module",
+    "zip-module",
     "dep:codepage",
     "dep:encoding_rs",
     "dep:nom",
@@ -259,19 +267,18 @@ default-modules = [
     "dex-module",
     "dotnet-module",
     "elf-module",
+    "lnk-module",
     "macho-module",
     "math-module",
+    "msi-module",
     "hash-module",
-    # Still experimental
-    # "olecf-module",
+    "olecf-module",
     "pe-module",
     "string-module",
     "time-module",
-    "lnk-module",
-    # Still experimental
-    # "vba-module",
     "test_proto2-module",
     "test_proto3-module",
+    "vba-module",
     "vt-module",
     "zip-module",
 ]

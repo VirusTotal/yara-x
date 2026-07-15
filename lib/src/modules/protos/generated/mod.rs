@@ -16,6 +16,7 @@ pub mod macho;
 pub mod magic;
 pub mod math;
 pub mod mods;
+pub mod msi;
 pub mod net_analysis;
 pub mod olecf;
 pub mod pe;

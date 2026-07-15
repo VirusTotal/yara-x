@@ -1,0 +1,19 @@
+syntax = "proto2";
+
+import "yara.proto";
+import "pe.proto";
+
+package msi;
+
+option (yara.module_options) = {
+  name : "msi"
+  root_message: "msi.Msi"
+  cargo_feature: "msi-module"
+};
+
+message Msi {
+  // True if the file is an MSI file and contains a digital signature.
+  optional bool is_signed = 1;
+  // Digital signatures present in the MSI file.
+  repeated pe.Signature signatures = 2;
+}

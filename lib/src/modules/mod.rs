@@ -41,8 +41,14 @@ pub enum ModuleError {
 #[derive(Default)]
 pub struct ModuleContext<'a> {
     module_metadata: FxHashMap<&'static str, &'a [u8]>,
+    #[cfg(any(
+        feature = "olecf-module",
+        feature = "msi-module",
+        feature = "vba-module"
+    ))]
+    pub(crate) olecf_cache: Option<utils::olecf::CachedOlecf<'a>>,
     #[cfg(any(feature = "zip-module", feature = "vba-module"))]
-    pub(crate) zip_cache: Option<utils::zip::ZipCache<'a>>,
+    pub(crate) zip_cache: Option<utils::zip::CachedZip<'a>>,
 }
 
 impl<'a> ModuleContext<'a> {
@@ -267,6 +273,11 @@ pub mod mods {
     /// Data structure returned by the `olecf` module.
     pub use super::protos::olecf::Olecf;
 
+    /// Data structures defined by the `msi` module.
+    pub use super::protos::msi;
+    /// Data structure returned by the `msi` module.
+    pub use super::protos::msi::Msi;
+
     /// Data structures defined by the `vba` module.
     ///
     /// The main structure produced by the module is [`vba::Vba`]. The rest
@@ -379,6 +390,7 @@ pub mod mods {
         info.vba = protobuf::MessageField(invoke::<Vba>(data));
         info.crx = protobuf::MessageField(invoke::<Crx>(data));
         info.dex = protobuf::MessageField(invoke::<Dex>(data));
+        info.msi = protobuf::MessageField(invoke::<Msi>(data));
         info
     }
 

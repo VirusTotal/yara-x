@@ -22,9 +22,9 @@ use log::error;
 
 use crate::modules::protos;
 use crate::modules::utils::asn1::{
-    oid, oid_to_object_identifier, oid_to_str, Attribute, Certificate,
-    ContentInfo, DigestInfo, SignedData, SignerInfo, SpcIndirectDataContent,
-    SpcSpOpusInfo, TstInfo,
+    Attribute, Certificate, ContentInfo, DigestInfo, SignedData, SignerInfo,
+    SpcIndirectDataContent, SpcSpOpusInfo, TstInfo, oid,
+    oid_to_object_identifier, oid_to_str,
 };
 use crate::modules::utils::crypto::PublicKey;
 
@@ -46,7 +46,8 @@ pub enum ParseError {
     /// The number of digest algorithms is not 1.
     InvalidNumDigestAlgorithms(usize),
 
-    /// The encapsulated content type does not match [`SPC_INDIRECT_DATA_OBJID`].
+    /// The encapsulated content type does not match
+    /// [`SPC_INDIRECT_DATA_OBJID`].
     InvalidEncapsulatedContentType(String),
 
     /// The encapsulated content is not valid [`SpcIndirectDataContent`].
@@ -81,9 +82,9 @@ pub trait AuthenticodeHasher {
 /// Parses Authenticode signatures in a PE file.
 ///
 /// Some resources for understanding Authenticode signatures:
-/// https://blog.trailofbits.com/2020/05/27/verifying-windows-binaries-without-windows/
-/// https://docs.clamav.net/appendix/Authenticode.html
-/// https://download.microsoft.com/download/9/c/5/9c5b2167-8017-4bae-9fde-d599bac8184a/authenticode_pe.docx
+/// - <https://blog.trailofbits.com/2020/05/27/verifying-windows-binaries-without-windows/>
+/// - <https://docs.clamav.net/appendix/Authenticode.html>
+/// - <https://download.microsoft.com/download/9/c/5/9c5b2167/8017-4bae-9fde-d599bac8184a/authenticode_pe.docx>
 pub struct AuthenticodeParser {}
 
 impl AuthenticodeParser {
@@ -184,7 +185,7 @@ impl AuthenticodeParser {
             match signed_data.content_info.content.try_into() {
                 Ok(idc) => idc,
                 Err(_) => {
-                    return Err(ParseError::InvalidSpcIndirectDataContent)
+                    return Err(ParseError::InvalidSpcIndirectDataContent);
                 }
             };
 
@@ -212,9 +213,10 @@ impl AuthenticodeParser {
                             && let Ok(nested) = Self::parse_content_info(
                                 content_info,
                                 authenticode_hasher,
-                            ) {
-                                nested_signatures.extend(nested);
-                            };
+                            )
+                        {
+                            nested_signatures.extend(nested);
+                        };
                     }
                 }
                 oid::MS_COUNTERSIGN => {
@@ -523,17 +525,19 @@ impl<'a> AuthenticodeSignature<'a> {
 
     /// Returns `true` if the [`AuthenticodeSignature`] is valid.
     ///
-    /// A valid Authenticode signature must comply with the following requisites:
+    /// A valid Authenticode signature must comply with the following
+    /// requisites:
     ///
     /// * The Authenticode hash included in the file (in the `message_digest`
     ///   field of [`SpcIndirectDataContent`]) must match the hash computed by
     ///   ourselves using [`PE::authenticode_hash`]. This ensures that the file
     ///   has not been modified.
     ///
-    /// * The message digest stored the signed attribute [`rfc6268::ID_MESSAGE_DIGEST`]
-    ///   of [`SignerInfo`], must match the one computed by ourselves by hashing
-    ///   the `econtent` field in [`EncapsulatedContentInfo`]. This ensures that
-    ///   the Authenticode hash included in the file has not been tampered.
+    /// * The message digest stored the signed attribute
+    ///   [`rfc6268::ID_MESSAGE_DIGEST`] of [`SignerInfo`], must match the one
+    ///   computed by ourselves by hashing the `econtent` field in
+    ///   [`EncapsulatedContentInfo`]. This ensures that the Authenticode hash
+    ///   included in the file has not been tampered.
     ///
     /// * The signature in [`SignerInfo`] must be valid. This signature is the
     ///   result of signing the hash of the DER encoding of the signed
@@ -610,17 +614,18 @@ impl From<&AuthenticodeSignature<'_>> for protos::pe::Signature {
         // `chain` field in `SignerInfo` didn't exist in previous versions of
         // YARA.
         if let Some(signer_info) = sig.signer_info.as_ref()
-            && let Some(cert) = signer_info.chain.first() {
-                sig.version = cert.version;
-                sig.thumbprint.clone_from(&cert.thumbprint);
-                sig.issuer.clone_from(&cert.issuer);
-                sig.subject.clone_from(&cert.subject);
-                sig.serial.clone_from(&cert.serial);
-                sig.not_after = cert.not_after;
-                sig.not_before = cert.not_before;
-                sig.algorithm.clone_from(&cert.algorithm);
-                sig.algorithm_oid.clone_from(&cert.algorithm_oid);
-            }
+            && let Some(cert) = signer_info.chain.first()
+        {
+            sig.version = cert.version;
+            sig.thumbprint.clone_from(&cert.thumbprint);
+            sig.issuer.clone_from(&cert.issuer);
+            sig.subject.clone_from(&cert.subject);
+            sig.serial.clone_from(&cert.serial);
+            sig.not_after = cert.not_after;
+            sig.not_before = cert.not_before;
+            sig.algorithm.clone_from(&cert.algorithm);
+            sig.algorithm_oid.clone_from(&cert.algorithm_oid);
+        }
 
         sig
     }
@@ -678,14 +683,14 @@ impl From<&Certificate<'_>> for protos::pe::Certificate {
 /// resulting string follows the [RFC 4514], resulting in something like:
 ///
 /// ```text
-/// CN=Thawte Timestamping CA,OU=Thawte Certification,O=Thawte,L=Durbanville,ST=Western Cape,C=ZA
+/// CN=Thawte Timestamping CA,OU=Thawte Certification,O=Thawte, L=Durbanville,ST=Western Cape,C=ZA
 /// ```
 ///
 /// However, the format traditionally used by YARA is inherited from OpenSSL
 /// and looks like:
 ///
 /// ```text
-/// /C=ZA/ST=Western Cape/L=Durbanville/O=Thawte/OU=Thawte Certification/CN=Thawte Timestamping CA
+/// /C=ZA/ST=Western Cape/L=Durbanville/O=Thawte/OU=Thawte Certification/ CN=Thawte Timestamping CA
 /// ```
 ///
 /// [RFC 4514]: https://datatracker.ietf.org/doc/html/rfc4514
@@ -1006,13 +1011,15 @@ impl<'a, 'b> Iterator for CertificateChain<'a, 'b> {
                 self.next = self
                     .certs
                     .iter()
-                    // The next certificate must be the issuer of the current one...
+                    // The next certificate must be the issuer of the
+                    // current one...
                     .find(|c| {
                         c.x509.tbs_certificate.subject
                             == next.x509.tbs_certificate.issuer
                     })
-                    // ... except if the issuer was already returned by the iterator,
-                    // which indicates that the certificate chain contains a loop.
+                    // ... except if the issuer was already returned by the
+                    // iterator, which indicates that the certificate chain
+                    // contains a loop.
                     .filter(|c| {
                         self.seen
                             .insert(c.x509.tbs_certificate.subject.as_raw())

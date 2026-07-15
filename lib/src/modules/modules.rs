@@ -21,6 +21,8 @@ mod macho;
 mod magic;
 #[cfg(feature = "math-module")]
 mod math;
+#[cfg(feature = "msi-module")]
+mod msi;
 #[cfg(feature = "olecf-module")]
 mod olecf;
 #[cfg(feature = "pe-module")]

@@ -44,10 +44,10 @@ impl From<u8> for DirEntryType {
 
 /// A parser for OLE Compound File Binary Format (MS-CFB) files.
 ///
-/// `OLECF` analyzes file headers, FAT/DIFAT allocation chains, directory
+/// `Olecf` analyzes file headers, FAT/DIFAT allocation chains, directory
 /// entries, and stream contents for OLE compound documents (e.g., DOC, XLS,
 /// PPT, MSI).
-pub struct OLECF<'a> {
+pub struct Olecf<'a> {
     data: &'a [u8],
     sector_size: usize,
     mini_sector_size: usize,
@@ -67,12 +67,12 @@ pub struct DirectoryEntry {
     pub stream_type: DirEntryType,
 }
 
-impl<'a> OLECF<'a> {
-    /// Creates a new `OLECF` from a byte slice and initializes internal
+impl<'a> Olecf<'a> {
+    /// Creates a new `Olecf` from a byte slice and initializes internal
     /// data structures by parsing the file header, FAT/DIFAT tables, and
     /// directory entries.
     pub fn parse(data: &'a [u8]) -> Result<Self, &'static str> {
-        let mut olecf = OLECF {
+        let mut olecf = Olecf {
             data,
             sector_size: 0,
             mini_sector_size: 0,
@@ -332,6 +332,16 @@ impl<'a> OLECF<'a> {
         Ok((_input, ()))
     }
 
+    /// Returns the underlying byte slice.
+    pub fn data(&self) -> &'a [u8] {
+        self.data
+    }
+
+    /// Returns the sector size in bytes.
+    pub fn sector_size(&self) -> usize {
+        self.sector_size
+    }
+
     /// Returns `true` if the underlying byte slice starts with a valid 8-byte
     /// OLECF signature (`0xD0CF11E0A1B11AE1`), or `false` otherwise.
     pub fn is_valid_header(&self) -> bool {
@@ -526,13 +536,12 @@ impl<'a> OLECF<'a> {
     /// Core helper that extracts stream data by following a FAT or MiniFAT
     /// chain.
     ///
-    /// Attempts zero-copy slicing from `source_slice` if provided and if the
-    /// sector chain is strictly sequential. Falls back to allocating a vector
-    /// and reading sectors from `fallback_slice`.
+    /// Attempts zero-copy slicing from `stream_data` if it is a borrowed slice
+    /// and if the sector chain is strictly sequential. Falls back to allocating
+    /// a vector and reading sectors from `stream_data`.
     fn get_stream_data_by_chain(
         &self,
-        source_slice: Option<&'a [u8]>,
-        fallback_slice: &[u8],
+        stream_data: &Cow<'a, [u8]>,
         base_offset: u64,
         sector_size: usize,
         start_sector: u32,
@@ -543,21 +552,22 @@ impl<'a> OLECF<'a> {
             return Ok(Cow::Borrowed(&[]));
         }
 
-        // Fast path: zero-copy slicing.
-        if let Some(src) = source_slice {
-            if let Ok(slice) = self.try_get_stream_slice(
+        // Fast path: zero-copy slicing if stream_data is borrowed.
+        if let Cow::Borrowed(src) = stream_data
+            && let Ok(slice) = self.try_get_stream_slice(
                 src,
                 base_offset,
                 sector_size,
                 start_sector,
                 size,
                 &next_sector_fn,
-            ) {
-                return Ok(Cow::Borrowed(slice));
-            }
+            )
+        {
+            return Ok(Cow::Borrowed(slice));
         }
 
         // Fallback: Sector-by-sector gathering.
+        let fallback_slice = stream_data.as_ref();
         let mut data = Vec::with_capacity(size);
         let mut current_sector = start_sector;
         let mut visited = Vec::new();
@@ -620,7 +630,7 @@ impl<'a> OLECF<'a> {
             return Err("Invalid start sector");
         }
 
-        let needed_sectors = (size + sector_size - 1) / sector_size;
+        let needed_sectors = size.div_ceil(sector_size);
         let mut current_sector = start_sector;
 
         for _ in 1..needed_sectors {
@@ -662,8 +672,7 @@ impl<'a> OLECF<'a> {
             return Err("Stream size exceeds maximum allowed size");
         }
         self.get_stream_data_by_chain(
-            Some(self.data),
-            self.data,
+            &Cow::Borrowed(self.data),
             self.sector_size as u64,
             self.sector_size,
             start_sector,
@@ -725,13 +734,8 @@ impl<'a> OLECF<'a> {
         }
 
         let mini_stream_data = self.get_root_mini_stream_data()?;
-        let source_slice = match &mini_stream_data {
-            Cow::Borrowed(slice) => Some(*slice),
-            Cow::Owned(_) => None,
-        };
 
         self.get_stream_data_by_chain(
-            source_slice,
             &mini_stream_data,
             0,
             self.mini_sector_size,
