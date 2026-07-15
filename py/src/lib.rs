@@ -437,6 +437,15 @@ impl Module {
     }
 }
 
+/// Reasons a rule can be ignored by the compiler.
+#[pyclass(eq, eq_int, from_py_object)]
+#[derive(PartialEq, Clone)]
+enum IgnoredRuleReason {
+    IgnoredModule,
+    IgnoredRule,
+    CompileError,
+}
+
 /// Structure that represents invalid rules by the compiler. See
 /// [`Compiler::ignore_invalid_rules`].
 #[pyclass]
@@ -444,7 +453,9 @@ struct IgnoredRule {
     #[pyo3(get)]
     name: String,
     #[pyo3(get)]
-    reason: String,
+    message: String,
+    #[pyo3(get)]
+    reason: IgnoredRuleReason,
 }
 
 /// Returns the names of the supported modules.
@@ -510,7 +521,7 @@ impl Compiler {
     /// patterns as errors, instead of warnings.
     ///
     /// `ignore_invalid_rules` argument tells the compiler to report reasons for
-    /// ignoring invalid rules in [`Compiler::invalid_rules`].
+    /// ignoring invalid rules in [`Compiler::ignored_rules`].
     #[new]
     #[pyo3(signature = (relaxed_re_syntax=false, error_on_slow_pattern=false, includes_enabled=true, ignore_invalid_rules=false)
     )]
@@ -770,22 +781,29 @@ impl Compiler {
     ///
     /// Returns a list of tuples where the first item is the rule name and the
     /// second item is the reason.
-    fn ignored_rules(&mut self) -> Vec<IgnoredRule> {
+    fn ignored_rules<'py>(&'py self) -> Vec<IgnoredRule> {
         self.inner
             .ignored_rules()
             .map(|(name, reason)| {
-                let reason_str = match reason {
-                    yrx::IgnoredRuleReason::IgnoredModule(module) => {
-                        format!("depends on ignored module `{module}`")
-                    }
-                    yrx::IgnoredRuleReason::IgnoredRule(parent_rule) => {
-                        format!("depends on ignored_rule `{parent_rule}`")
-                    }
-                    yrx::IgnoredRuleReason::CompileError(err) => {
-                        format!("error: {}", err.title())
-                    }
+                let (message, reason_type) = match reason {
+                    yrx::IgnoredRuleReason::IgnoredModule(module) => (
+                        format!("depends on ignored module `{module}`"),
+                        IgnoredRuleReason::IgnoredModule,
+                    ),
+                    yrx::IgnoredRuleReason::IgnoredRule(parent_rule) => (
+                        format!("depends on ignored rule `{parent_rule}`"),
+                        IgnoredRuleReason::IgnoredRule,
+                    ),
+                    yrx::IgnoredRuleReason::CompileError(err) => (
+                        format!("error: {}", err.title()),
+                        IgnoredRuleReason::CompileError,
+                    ),
                 };
-                IgnoredRule { name: name.to_string(), reason: reason_str }
+                IgnoredRule {
+                    name: name.to_string(),
+                    message,
+                    reason: reason_type,
+                }
             })
             .collect()
     }
@@ -1634,6 +1652,7 @@ fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Module>()?;
     m.add_class::<MetaType>()?;
     m.add_class::<IgnoredRule>()?;
+    m.add_class::<IgnoredRuleReason>()?;
     // This module still exposes unsendable classes and uses unsafe lifetime
     // extensions in the bindings, so it should not advertise free-threaded
     // safety until the API is properly audited and redesigned.

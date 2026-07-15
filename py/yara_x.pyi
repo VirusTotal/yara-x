@@ -211,6 +211,12 @@ class Compiler:
         ...
 
 @final
+class IgnoredRuleReason(Enum):
+    IgnoredModule: int
+    IgnoredRule: int
+    CompileError: int
+
+@final
 class IgnoredRule:
     r"""
     Names and reasons for any ignored rules during compilation.
@@ -223,9 +229,15 @@ class IgnoredRule:
         """
         ...
 
-    def reason() -> str:
+    def message() -> str:
         r"""
-        Reason the rule was ignored.
+        Message for why the rule was ignored.
+        """
+        ...
+
+    def reason() -> IgnoredRuleReason:
+        r"""
+        Reason for why the rule was ignored.
         """
         ...
 
