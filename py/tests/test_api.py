@@ -40,6 +40,18 @@ def test_invalid_allowed_metadata_regexp():
   with pytest.raises(ValueError):
     compiler.allowed_metadata('author', yara_x.MetaType.STRING, regexp='(AXS|ERS')
 
+def test_ignore_invalid_rules():
+  compiler = yara_x.Compiler(ignore_invalid_rules=True)
+  compiler.add_source(r'rule test { condition: foo } rule test2 { condition: bar }')
+  assert len(compiler.ignored_rules()) == 2
+  assert compiler.ignored_rules()[0].name == 'test'
+  assert compiler.ignored_rules()[0].reason == 'error: unknown identifier `foo`'
+  assert compiler.ignored_rules()[1].name == 'test2'
+  assert compiler.ignored_rules()[1].reason == 'error: unknown identifier `bar`'
+  # Turn off ignore_invalid_rules and we should get a compile error now.
+  compiler.ignore_invalid_rules(False)
+  with pytest.raises(yara_x.CompileError):
+    compiler.add_source(r'rule test { condition: AXSERS }')
 
 def test_int_globals():
   compiler = yara_x.Compiler()

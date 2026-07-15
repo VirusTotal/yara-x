@@ -135,6 +135,15 @@ class Compiler:
         """
         ...
 
+    def ignore_invalid_rules(self, yes: bool) -> None:
+        r"""
+        Tell the compiler to ignore any rules that are invalid.
+
+        Any ignored rules and the reasons for them being ignored are available
+        in [`Compiler::ignored_rules`].
+        """
+        ...
+
     def build(self) -> Rules:
         r"""
         Builds the source code previously added to the compiler.

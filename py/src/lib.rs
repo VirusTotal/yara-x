@@ -437,6 +437,16 @@ impl Module {
     }
 }
 
+/// Structure that represents invalid rules by the compiler. See
+/// [`Compiler::ignore_invalid_rules`].
+#[pyclass]
+struct IgnoredRule {
+    #[pyo3(get)]
+    name: String,
+    #[pyo3(get)]
+    reason: String,
+}
+
 /// Returns the names of the supported modules.
 ///
 /// These are the modules that can be used in `import` statements in your
@@ -465,6 +475,7 @@ struct Compiler {
     relaxed_re_syntax: bool,
     error_on_slow_pattern: bool,
     includes_enabled: bool,
+    ignore_invalid_rules: bool,
 }
 
 impl Compiler {
@@ -497,19 +508,24 @@ impl Compiler {
     ///
     /// The `error_on_slow_pattern` argument tells the compiler to treat slow
     /// patterns as errors, instead of warnings.
+    ///
+    /// `ignore_invalid_rules` argument tells the compiler to report reasons for
+    /// ignoring invalid rules in [`Compiler::invalid_rules`].
     #[new]
-    #[pyo3(signature = (relaxed_re_syntax=false, error_on_slow_pattern=false, includes_enabled=true)
+    #[pyo3(signature = (relaxed_re_syntax=false, error_on_slow_pattern=false, includes_enabled=true, ignore_invalid_rules=false)
     )]
     fn new(
         relaxed_re_syntax: bool,
         error_on_slow_pattern: bool,
         includes_enabled: bool,
+        ignore_invalid_rules: bool,
     ) -> Self {
         let mut compiler = Self {
             inner: Self::new_inner(relaxed_re_syntax, error_on_slow_pattern),
             relaxed_re_syntax,
             error_on_slow_pattern,
             includes_enabled,
+            ignore_invalid_rules,
         };
         compiler.inner.enable_includes(includes_enabled);
         compiler
@@ -564,9 +580,14 @@ impl Compiler {
             src = src.with_origin(origin)
         }
 
-        self.inner
-            .add_source(src)
-            .map_err(|err| CompileError::new_err(err.to_string()))?;
+        match self.inner.add_source(src) {
+            Ok(_) => {}
+            Err(err) => {
+                if !self.ignore_invalid_rules {
+                    return Err(CompileError::new_err(err.to_string()));
+                }
+            }
+        };
 
         Ok(())
     }
@@ -685,6 +706,20 @@ impl Compiler {
         self.inner.max_warnings(n);
     }
 
+    /// Enables or disables ignoring invalid rules. If `True` the ignored rules
+    /// and the reasons for them being ignored are available in
+    /// [`Compiler::ignored_rules`] method.
+    ///
+    /// # Example
+    /// ```python
+    /// import yara_x
+    ///
+    /// compiler = yara_x.Compiler()
+    /// compiler.ignore_invalid_rules(True)
+    /// ```
+    fn ignore_invalid_rules(&mut self, yes: bool) {
+        self.ignore_invalid_rules = yes
+    }
     /// Builds the source code previously added to the compiler.
     ///
     /// This function returns an instance of [`Rules`] containing all the rules
@@ -729,6 +764,30 @@ impl Compiler {
         let warnings_json = warnings_json
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
         json_loads.call((warnings_json,), None)
+    }
+
+    /// Retrieves all ignored rules from the compiler.
+    ///
+    /// Returns a list of tuples where the first item is the rule name and the
+    /// second item is the reason.
+    fn ignored_rules(&mut self) -> Vec<IgnoredRule> {
+        self.inner
+            .ignored_rules()
+            .map(|(name, reason)| {
+                let reason_str = match reason {
+                    yrx::IgnoredRuleReason::IgnoredModule(module) => {
+                        format!("depends on ignored module `{module}`")
+                    }
+                    yrx::IgnoredRuleReason::IgnoredRule(parent_rule) => {
+                        format!("depends on ignored_rule `{parent_rule}`")
+                    }
+                    yrx::IgnoredRuleReason::CompileError(err) => {
+                        format!("error: {}", err.title())
+                    }
+                };
+                IgnoredRule { name: name.to_string(), reason: reason_str }
+            })
+            .collect()
     }
 
     #[pyo3(signature = (tags, error = false))]
@@ -1574,6 +1633,7 @@ fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Formatter>()?;
     m.add_class::<Module>()?;
     m.add_class::<MetaType>()?;
+    m.add_class::<IgnoredRule>()?;
     // This module still exposes unsendable classes and uses unsafe lifetime
     // extensions in the bindings, so it should not advertise free-threaded
     // safety until the API is properly audited and redesigned.
