@@ -27,25 +27,30 @@ pub trait String: Default {
 /// [`RuntimeString`] to and from WASM, it must be represented as one of those
 /// primitive types.
 ///
-/// The `u64` value contains all the information required for uniquely
+/// The `i64` value contains all the information required for uniquely
 /// identifying the string. This is how the information is encoded:
 ///
-/// * `RuntimeString:Undef` -> `0`
-///   A zero represents an undefined string.
-///
-/// * `RuntimeString:Literal` -> `LiteralId << 2 | 1`
-///   If the two lower bits are equal to 1, it's a literal string, where the
+/// * `RuntimeString:Literal` -> `LiteralId << 2 | 0`
+///   If the two lower bits are equal to 0, it's a literal string, where the
 ///   remaining bits represent the `LiteralId`.
 ///
-/// * `RuntimeString:Rc` -> `RuntimeStringId << 2 | 2`
-///   If the two lower bits are equal to 2, it's a runtime string, where the
-///   remaining bits represent the handle of a string object.
+/// * `RuntimeString:Rc` -> `RuntimeObjectHandle | 1`
+///   If the two lower bits are equal to 1, it's a reference-counted string,
+///   where the handle is the pointer to the string object (which is aligned to
+///   at least 4 bytes, so its 2 lower bits are 0).
 ///
-/// * `RuntimeString:ScannedDataSlice` -> `Offset << 18 | Len << 2 | 3)`
-///   If the two lower bits are 3, it's a string backed by the scanned data.
-///   Bits 18:3 ar used for representing the string length (up to 64KB),
-///   while bits 64:19 represent the offset (up to 70,368,744,177,663).
+/// * `RuntimeString:ScannedDataSlice` -> `Offset << 18 | Len << 2 | 2`
+///   If the two lower bits are 2, it's a string backed by the scanned data.
+///   Bits 17:2 are used for representing the string length (up to 64KB),
+///   while bits 63:18 represent the offset (up to 70,368,744,177,663).
 ///
+/// Tags are stored in the lower 2 bits rather than the higher bits because
+/// heap pointers (`RuntimeObjectHandle`) in Rust are aligned to at least
+/// 4-byte boundaries (meaning their two lower bits are guaranteed to be `00`).
+/// Storing the tag in the lower bits via bitwise OR (`handle | 1`) preserves
+/// all 64 bits of pointer addresses without bit-shifting. This avoids bit
+/// truncation or sign-extension overflow issues across high 64-bit memory
+/// address spaces (such as ASLR).
 pub(crate) type RuntimeStringWasm = i64;
 
 /// String types handled by YARA's WASM runtime.
@@ -106,7 +111,7 @@ impl String for RuntimeString {
             Self::Literal(id) => i64::from(id) << 2,
             Self::Rc(s) => {
                 let handle: i64 = ctx.store_string(s).into();
-                (handle << 2) | 1
+                handle | 1
             }
             Self::ScannedDataSlice { offset, length } => {
                 if length >= u16::MAX as usize {
@@ -191,7 +196,7 @@ impl RuntimeString {
         match s & 0x3 {
             0 => Self::Literal(LiteralId::from((s >> 2) as u32)),
             1 => {
-                let handle = RuntimeObjectHandle::from(s >> 2);
+                let handle = RuntimeObjectHandle::from(s & !3);
                 let s = cast!(
                     ctx.runtime_objects.get(&handle).unwrap(),
                     RuntimeObject::String
