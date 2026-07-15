@@ -144,6 +144,14 @@ class Compiler:
         """
         ...
 
+    def ignored_rules() -> List[IgnoredRule]:
+        r"""
+        Retrieve all ignored rules during compilation.
+
+        Returns a list of [`IgnoredRule`] objects.
+        """
+        ...
+
     def build(self) -> Rules:
         r"""
         Builds the source code previously added to the compiler.
@@ -200,6 +208,25 @@ class Compiler:
             regexp: Optional[str],
             error: bool = False):
         r"""Define expected type and value for metadata on rules."""
+        ...
+
+@final
+class IgnoredRule:
+    r"""
+    Names and reasons for any ignored rules during compilation.
+
+    See [`Compiler::ignore_invalid_rules] for details.
+    """
+    def name() -> str:
+        r"""
+        Name of the ignored rule.
+        """
+        ...
+
+    def reason() -> str:
+        r"""
+        Reason the rule was ignored.
+        """
         ...
 
 @final
