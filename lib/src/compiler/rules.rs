@@ -671,17 +671,15 @@ impl Rules {
     #[inline]
     pub(crate) fn filesize_bounds(
         &self,
-        pattern_id: PatternId,
-    ) -> Option<&FilesizeBounds> {
-        self.filesize_bounds.get(&pattern_id)
+    ) -> &FxHashMap<PatternId, FilesizeBounds> {
+        &self.filesize_bounds
     }
 
     #[inline]
     pub(crate) fn header_constraints(
         &self,
-        pattern_id: PatternId,
-    ) -> Option<&HeaderConstraint> {
-        self.header_constraints.get(&pattern_id)
+    ) -> &FxHashMap<PatternId, HeaderConstraint> {
+        &self.header_constraints
     }
 
     #[inline]
