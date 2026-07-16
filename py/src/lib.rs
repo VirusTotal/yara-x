@@ -781,7 +781,7 @@ impl Compiler {
     ///
     /// Returns a list of tuples where the first item is the rule name and the
     /// second item is the reason.
-    fn ignored_rules<'py>(&'py self) -> Vec<IgnoredRule> {
+    fn ignored_rules(&self) -> Vec<IgnoredRule> {
         self.inner
             .ignored_rules()
             .map(|(name, reason)| {
