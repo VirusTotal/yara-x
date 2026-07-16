@@ -71,6 +71,14 @@ enum SupportedModules {
     Crx,
     #[cfg(feature = "dex-module")]
     Dex,
+    #[cfg(feature = "olecf-module")]
+    Olecf,
+    #[cfg(feature = "msi-module")]
+    Msi,
+    #[cfg(feature = "vba-module")]
+    Vba,
+    #[cfg(feature = "zip-module")]
+    Zip,
 }
 
 // These are copies from the checker in the CLI, but exposing them in the API
@@ -424,6 +432,22 @@ impl Module {
                 #[cfg(feature = "dex-module")]
                 SupportedModules::Dex => {
                     yrx::mods::invoke_dyn::<yrx::mods::Dex>(data)
+                }
+                #[cfg(feature = "msi-module")]
+                SupportedModules::Msi=> {
+                    yrx::mods::invoke_dyn::<yrx::mods::Msi>(data)
+                }
+                #[cfg(feature = "olecf-module")]
+                SupportedModules::Olecf=> {
+                    yrx::mods::invoke_dyn::<yrx::mods::Olecf>(data)
+                }
+                #[cfg(feature = "vba-module")]
+                SupportedModules::Vba=> {
+                    yrx::mods::invoke_dyn::<yrx::mods::Vba>(data)
+                }
+                #[cfg(feature = "zip-module")]
+                SupportedModules::Zip=> {
+                    yrx::mods::invoke_dyn::<yrx::mods::Zip>(data)
                 }
                 _ => return Ok(py.None().into_bound(py)),
             };

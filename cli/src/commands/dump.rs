@@ -24,6 +24,8 @@ enum SupportedModules {
     Vba,
     Crx,
     Dex,
+    Msi,
+    Zip,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
