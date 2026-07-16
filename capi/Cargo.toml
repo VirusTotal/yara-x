@@ -50,6 +50,12 @@ rules-profiling = ["yara-x/rules-profiling"]
 # This feature is disabled by default.
 magic-module = ["yara-x/magic-module"]
 
+# Enables automatic initialization of `env_logger`.
+#
+# This feature is disabled by default.
+env-logger = ["yara-x/env-logger"]
+
+
 [lib]
 name = "yara_x_capi"
 crate-type = ["staticlib", "cdylib"]

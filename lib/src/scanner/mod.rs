@@ -201,6 +201,7 @@ pub struct Scanner<'r> {
 impl<'r> Scanner<'r> {
     /// Creates a new scanner.
     pub fn new(rules: &'r Rules) -> Self {
+        crate::init_logger();
         let wasm_store = create_wasm_store_and_ctx(rules);
         Self { _rules: rules, wasm_store, use_mmap: true, max_scan_size: None }
     }

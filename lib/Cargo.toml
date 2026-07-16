@@ -77,6 +77,9 @@ protoc = []
 # Enables debug logs.
 logging = ["dep:log", "dep:quanta"]
 
+# Automatically initializes `env_logger` when creating a Compiler or Scanner.
+env-logger = ["dep:env_logger", "logging"]
+
 # When enabled, the serialization of compiled rules include native code for
 # the platform in which the rules where compiled. This reduces the load time,
 # as the native code is already included in the serialized rules and doesn't
@@ -310,6 +313,7 @@ digest = { workspace = true, optional = true }
 dsa = { workspace = true, optional = true }
 ecdsa = { workspace = true, optional = true }
 encoding_rs = { workspace = true, optional = true }
+env_logger = { workspace = true, optional = true }
 flate2 = { workspace = true, optional = true }
 memmap2 = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }

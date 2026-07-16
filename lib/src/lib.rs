@@ -180,3 +180,19 @@ pub unsafe fn finalize() {
         wasm::free_engine();
     }
 }
+
+#[cfg(feature = "env-logger")]
+/// Initializes the `env_logger` backend for logging output to stdout/stderr.
+///
+/// This function is called automatically when creating a [`Compiler`] or [`Scanner`]
+/// if the `env-logger` feature is enabled. It uses `env_logger::try_init()`, which
+/// reads the `RUST_LOG` environment variable and safely ignores initialization if
+/// a logger was already registered.
+pub fn init_logger() {
+    let _ = env_logger::try_init();
+}
+
+#[cfg(not(feature = "env-logger"))]
+#[inline]
+pub(crate) fn init_logger() {}
+
