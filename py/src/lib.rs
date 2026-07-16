@@ -434,19 +434,19 @@ impl Module {
                     yrx::mods::invoke_dyn::<yrx::mods::Dex>(data)
                 }
                 #[cfg(feature = "msi-module")]
-                SupportedModules::Msi=> {
+                SupportedModules::Msi => {
                     yrx::mods::invoke_dyn::<yrx::mods::Msi>(data)
                 }
                 #[cfg(feature = "olecf-module")]
-                SupportedModules::Olecf=> {
+                SupportedModules::Olecf => {
                     yrx::mods::invoke_dyn::<yrx::mods::Olecf>(data)
                 }
                 #[cfg(feature = "vba-module")]
-                SupportedModules::Vba=> {
+                SupportedModules::Vba => {
                     yrx::mods::invoke_dyn::<yrx::mods::Vba>(data)
                 }
                 #[cfg(feature = "zip-module")]
-                SupportedModules::Zip=> {
+                SupportedModules::Zip => {
                     yrx::mods::invoke_dyn::<yrx::mods::Zip>(data)
                 }
                 _ => return Ok(py.None().into_bound(py)),
