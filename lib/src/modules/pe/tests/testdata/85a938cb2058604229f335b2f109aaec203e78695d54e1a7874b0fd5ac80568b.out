@@ -1,0 +1,458 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_CUI
+os_version:
+    major: 4
+    minor: 0
+subsystem_version:
+    major: 4
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 0
+    minor: 0
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
+characteristics: 0x102  # EXECUTABLE_IMAGE | MACHINE_32BIT
+dll_characteristics: 0x0
+timestamp: 0  # 1970-01-01 00:00:00 UTC
+image_base: 0x400000
+checksum: 0
+base_of_code: 0x1000
+base_of_data: 0x2000
+entry_point: 0x200
+entry_point_raw: 0x1000
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xe0
+size_of_code: 0x400
+size_of_initialized_data: 0x400
+size_of_uninitialized_data: 0x0
+size_of_image: 0x3000
+size_of_headers: 0x200
+size_of_stack_reserve: 0x100000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 1
+number_of_imported_functions: 118
+number_of_delayed_imported_functions: 0
+number_of_resources: 0
+number_of_version_infos: 0
+number_of_imports: 1
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 0
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0x400
+    raw_data_offset: 0x200
+    virtual_address: 0x1000
+    virtual_size: 0x1000
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x1000
+    size: 0x200
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+import_details:
+  - library_name: "wsock32.dll"
+    number_of_functions: 118
+    functions:
+      - name: "accept"
+        ordinal: 1
+        rva: 0x1040
+      - name: "bind"
+        ordinal: 2
+        rva: 0x1044
+      - name: "closesocket"
+        ordinal: 3
+        rva: 0x1048
+      - name: "connect"
+        ordinal: 4
+        rva: 0x104c
+      - name: "getpeername"
+        ordinal: 5
+        rva: 0x1050
+      - name: "getsockname"
+        ordinal: 6
+        rva: 0x1054
+      - name: "getsockopt"
+        ordinal: 7
+        rva: 0x1058
+      - name: "htonl"
+        ordinal: 8
+        rva: 0x105c
+      - name: "htons"
+        ordinal: 9
+        rva: 0x1060
+      - name: "ioctlsocket"
+        ordinal: 10
+        rva: 0x1064
+      - name: "inet_addr"
+        ordinal: 11
+        rva: 0x1068
+      - name: "inet_ntoa"
+        ordinal: 12
+        rva: 0x106c
+      - name: "listen"
+        ordinal: 13
+        rva: 0x1070
+      - name: "ntohl"
+        ordinal: 14
+        rva: 0x1074
+      - name: "ntohs"
+        ordinal: 15
+        rva: 0x1078
+      - name: "recv"
+        ordinal: 16
+        rva: 0x107c
+      - name: "recvfrom"
+        ordinal: 17
+        rva: 0x1080
+      - name: "select"
+        ordinal: 18
+        rva: 0x1084
+      - name: "send"
+        ordinal: 19
+        rva: 0x1088
+      - name: "sendto"
+        ordinal: 20
+        rva: 0x108c
+      - name: "setsockopt"
+        ordinal: 21
+        rva: 0x1090
+      - name: "shutdown"
+        ordinal: 22
+        rva: 0x1094
+      - name: "socket"
+        ordinal: 23
+        rva: 0x1098
+      - name: "GetAddrInfoW"
+        ordinal: 24
+        rva: 0x109c
+      - name: "GetNameInfoW"
+        ordinal: 25
+        rva: 0x10a0
+      - name: "WSApSetPostRoutine"
+        ordinal: 26
+        rva: 0x10a4
+      - name: "FreeAddrInfoW"
+        ordinal: 27
+        rva: 0x10a8
+      - name: "WPUCompleteOverlappedRequest"
+        ordinal: 28
+        rva: 0x10ac
+      - name: "WSAAccept"
+        ordinal: 29
+        rva: 0x10b0
+      - name: "WSAAddressToStringA"
+        ordinal: 30
+        rva: 0x10b4
+      - name: "WSAAddressToStringW"
+        ordinal: 31
+        rva: 0x10b8
+      - name: "WSACloseEvent"
+        ordinal: 32
+        rva: 0x10bc
+      - name: "WSAConnect"
+        ordinal: 33
+        rva: 0x10c0
+      - name: "WSACreateEvent"
+        ordinal: 34
+        rva: 0x10c4
+      - name: "WSADuplicateSocketA"
+        ordinal: 35
+        rva: 0x10c8
+      - name: "WSADuplicateSocketW"
+        ordinal: 36
+        rva: 0x10cc
+      - name: "WSAEnumNameSpaceProvidersA"
+        ordinal: 37
+        rva: 0x10d0
+      - name: "WSAEnumNameSpaceProvidersW"
+        ordinal: 38
+        rva: 0x10d4
+      - name: "WSAEnumNetworkEvents"
+        ordinal: 39
+        rva: 0x10d8
+      - name: "WSAEnumProtocolsA"
+        ordinal: 40
+        rva: 0x10dc
+      - name: "WSAEnumProtocolsW"
+        ordinal: 41
+        rva: 0x10e0
+      - name: "WSAEventSelect"
+        ordinal: 42
+        rva: 0x10e4
+      - name: "WSAGetOverlappedResult"
+        ordinal: 43
+        rva: 0x10e8
+      - name: "WSAGetQOSByName"
+        ordinal: 44
+        rva: 0x10ec
+      - name: "WSAGetServiceClassInfoA"
+        ordinal: 45
+        rva: 0x10f0
+      - name: "WSAGetServiceClassInfoW"
+        ordinal: 46
+        rva: 0x10f4
+      - name: "WSAGetServiceClassNameByClassIdA"
+        ordinal: 47
+        rva: 0x10f8
+      - name: "WSAGetServiceClassNameByClassIdW"
+        ordinal: 48
+        rva: 0x10fc
+      - name: "WSAHtonl"
+        ordinal: 49
+        rva: 0x1100
+      - name: "WSAHtons"
+        ordinal: 50
+        rva: 0x1104
+      - name: "gethostbyaddr"
+        ordinal: 51
+        rva: 0x1108
+      - name: "gethostbyname"
+        ordinal: 52
+        rva: 0x110c
+      - name: "getprotobyname"
+        ordinal: 53
+        rva: 0x1110
+      - name: "getprotobynumber"
+        ordinal: 54
+        rva: 0x1114
+      - name: "getservbyname"
+        ordinal: 55
+        rva: 0x1118
+      - name: "getservbyport"
+        ordinal: 56
+        rva: 0x111c
+      - name: "gethostname"
+        ordinal: 57
+        rva: 0x1120
+      - name: "WSAInstallServiceClassA"
+        ordinal: 58
+        rva: 0x1124
+      - name: "WSAInstallServiceClassW"
+        ordinal: 59
+        rva: 0x1128
+      - name: "WSAIoctl"
+        ordinal: 60
+        rva: 0x112c
+      - name: "WSAJoinLeaf"
+        ordinal: 61
+        rva: 0x1130
+      - name: "WSALookupServiceBeginA"
+        ordinal: 62
+        rva: 0x1134
+      - name: "WSALookupServiceBeginW"
+        ordinal: 63
+        rva: 0x1138
+      - name: "WSALookupServiceEnd"
+        ordinal: 64
+        rva: 0x113c
+      - name: "WSALookupServiceNextA"
+        ordinal: 65
+        rva: 0x1140
+      - name: "WSALookupServiceNextW"
+        ordinal: 66
+        rva: 0x1144
+      - name: "WSANSPIoctl"
+        ordinal: 67
+        rva: 0x1148
+      - name: "WSANtohl"
+        ordinal: 68
+        rva: 0x114c
+      - name: "WSANtohs"
+        ordinal: 69
+        rva: 0x1150
+      - name: "WSAProviderConfigChange"
+        ordinal: 70
+        rva: 0x1154
+      - name: "WSARecv"
+        ordinal: 71
+        rva: 0x1158
+      - name: "WSARecvDisconnect"
+        ordinal: 72
+        rva: 0x115c
+      - name: "WSARecvFrom"
+        ordinal: 73
+        rva: 0x1160
+      - name: "WSARemoveServiceClass"
+        ordinal: 74
+        rva: 0x1164
+      - name: "WSAResetEvent"
+        ordinal: 75
+        rva: 0x1168
+      - name: "WSASend"
+        ordinal: 76
+        rva: 0x116c
+      - name: "WSASendDisconnect"
+        ordinal: 77
+        rva: 0x1170
+      - name: "WSASendTo"
+        ordinal: 78
+        rva: 0x1174
+      - name: "WSASetEvent"
+        ordinal: 79
+        rva: 0x1178
+      - name: "WSASetServiceA"
+        ordinal: 80
+        rva: 0x117c
+      - name: "WSASetServiceW"
+        ordinal: 81
+        rva: 0x1180
+      - name: "WSASocketA"
+        ordinal: 82
+        rva: 0x1184
+      - name: "WSASocketW"
+        ordinal: 83
+        rva: 0x1188
+      - name: "WSAStringToAddressA"
+        ordinal: 84
+        rva: 0x118c
+      - name: "WSAStringToAddressW"
+        ordinal: 85
+        rva: 0x1190
+      - name: "WSAWaitForMultipleEvents"
+        ordinal: 86
+        rva: 0x1194
+      - name: "WSCDeinstallProvider"
+        ordinal: 87
+        rva: 0x1198
+      - name: "WSCEnableNSProvider"
+        ordinal: 88
+        rva: 0x119c
+      - name: "WSCEnumProtocols"
+        ordinal: 89
+        rva: 0x11a0
+      - name: "WSCGetProviderPath"
+        ordinal: 90
+        rva: 0x11a4
+      - name: "WSCInstallNameSpace"
+        ordinal: 91
+        rva: 0x11a8
+      - name: "WSCInstallProvider"
+        ordinal: 92
+        rva: 0x11ac
+      - name: "WSCUnInstallNameSpace"
+        ordinal: 93
+        rva: 0x11b0
+      - name: "WSCUpdateProvider"
+        ordinal: 94
+        rva: 0x11b4
+      - name: "WSCWriteNameSpaceOrder"
+        ordinal: 95
+        rva: 0x11b8
+      - name: "WSCWriteProviderOrder"
+        ordinal: 96
+        rva: 0x11bc
+      - name: "freeaddrinfo"
+        ordinal: 97
+        rva: 0x11c0
+      - name: "getaddrinfo"
+        ordinal: 98
+        rva: 0x11c4
+      - name: "getnameinfo"
+        ordinal: 99
+        rva: 0x11c8
+      - name: "WSAAsyncSelect"
+        ordinal: 101
+        rva: 0x11cc
+      - name: "WSAAsyncGetHostByAddr"
+        ordinal: 102
+        rva: 0x11d0
+      - name: "WSAAsyncGetHostByName"
+        ordinal: 103
+        rva: 0x11d4
+      - name: "WSAAsyncGetProtoByNumber"
+        ordinal: 104
+        rva: 0x11d8
+      - name: "WSAAsyncGetProtoByName"
+        ordinal: 105
+        rva: 0x11dc
+      - name: "WSAAsyncGetServByPort"
+        ordinal: 106
+        rva: 0x11e0
+      - name: "WSAAsyncGetServByName"
+        ordinal: 107
+        rva: 0x11e4
+      - name: "WSACancelAsyncRequest"
+        ordinal: 108
+        rva: 0x11e8
+      - name: "WSASetBlockingHook"
+        ordinal: 109
+        rva: 0x11ec
+      - name: "WSAUnhookBlockingHook"
+        ordinal: 110
+        rva: 0x11f0
+      - name: "WSAGetLastError"
+        ordinal: 111
+        rva: 0x11f4
+      - name: "WSASetLastError"
+        ordinal: 112
+        rva: 0x11f8
+      - name: "WSACancelBlockingCall"
+        ordinal: 113
+        rva: 0x11fc
+      - name: "WSAIsBlocking"
+        ordinal: 114
+        rva: 0x1200
+      - name: "WSAStartup"
+        ordinal: 115
+        rva: 0x1204
+      - name: "WSACleanup"
+        ordinal: 116
+        rva: 0x1208
+      - name: "__WSAFDIsSet"
+        ordinal: 151
+        rva: 0x120c
+      - name: "WEP"
+        ordinal: 500
+        rva: 0x1210
+      - name: "ord999"
+        ordinal: 999
+        rva: 0x1214
+is_signed: false
+overlay:
+    offset: 0x0
+    size: 0x0
