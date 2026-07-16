@@ -1131,9 +1131,7 @@ impl ScanContext<'_, '_> {
 
         if !block_scanning_mode {
             let filesize = self.get_filesize();
-            for (pattern_id, bounds) in
-                self.compiled_rules.filesize_bounds()
-            {
+            for (pattern_id, bounds) in self.compiled_rules.filesize_bounds() {
                 if !bounds.contains(filesize) {
                     self.tracker.disabled_patterns.insert(*pattern_id);
                 }
