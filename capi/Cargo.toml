@@ -50,7 +50,8 @@ rules-profiling = ["yara-x/rules-profiling"]
 # This feature is disabled by default.
 magic-module = ["yara-x/magic-module"]
 
-# Enables automatic initialization of `env_logger`.
+# Enables internal logging and automatically initializes the `env_logger` backend
+# when constructing compiler or scanner objects in C/Go applications.
 #
 # This feature is disabled by default.
 env-logger = ["yara-x/env-logger"]

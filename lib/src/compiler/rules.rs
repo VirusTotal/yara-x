@@ -322,6 +322,8 @@ impl Rules {
             });
         }
 
+        crate::init_logger();
+
         #[cfg(feature = "logging")]
         let start = Instant::now();
 

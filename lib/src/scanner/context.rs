@@ -744,7 +744,7 @@ impl ScanContext<'_, '_> {
         let rule = self.compiled_rules.get(rule_id);
 
         #[cfg(feature = "logging")]
-        log::info!(
+        log::debug!(
             "Rule match: {}:{}  {:?}",
             self.compiled_rules
                 .ident_pool()
@@ -2048,6 +2048,8 @@ impl From<i64> for RuntimeObjectHandle {
 pub fn create_wasm_store_and_ctx<'r>(
     rules: &'r Rules,
 ) -> Pin<Box<Store<ScanContext<'static, 'static>>>> {
+    crate::init_logger();
+
     let num_rules = rules.num_rules() as u32;
     let num_patterns = rules.num_patterns() as u32;
 

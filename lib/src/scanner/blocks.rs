@@ -89,7 +89,6 @@ pub struct Scanner<'r> {
 impl<'r> Scanner<'r> {
     /// Creates a new block scanner.
     pub fn new(rules: &'r Rules) -> Scanner<'r> {
-        crate::init_logger();
         Scanner {
             _rules: rules,
             wasm_store: create_wasm_store_and_ctx(rules),

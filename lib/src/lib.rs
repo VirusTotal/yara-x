@@ -184,15 +184,29 @@ pub unsafe fn finalize() {
 #[cfg(feature = "env-logger")]
 /// Initializes the `env_logger` backend for logging output to stdout/stderr.
 ///
-/// This function is called automatically when creating a [`Compiler`] or [`Scanner`]
-/// if the `env-logger` feature is enabled. It uses `env_logger::try_init()`, which
-/// reads the `RUST_LOG` environment variable and safely ignores initialization if
-/// a logger was already registered.
-pub fn init_logger() {
-    let _ = env_logger::try_init();
+/// This function is called automatically when creating a [`Compiler`] or
+/// [`Scanner`] if the `env-logger` feature is enabled. It uses
+/// `env_logger::try_init()`, which reads the `RUST_LOG` environment variable
+/// and safely ignores initialization if a logger was already registered.
+pub(crate) fn init_logger() {
+    static INIT_LOGGER: std::sync::Once = std::sync::Once::new();
+    INIT_LOGGER.call_once(|| {
+        let mut builder = env_logger::Builder::from_default_env();
+
+        for noise_module in [
+            "cranelift_codegen",
+            "cranelift_frontend",
+            "wasmtime",
+            "wasmtime_internal_cranelift",
+            "walrus",
+        ] {
+            builder.filter_module(noise_module, log::LevelFilter::Info);
+        }
+
+        let _ = builder.try_init();
+    });
 }
 
 #[cfg(not(feature = "env-logger"))]
 #[inline]
 pub(crate) fn init_logger() {}
-
