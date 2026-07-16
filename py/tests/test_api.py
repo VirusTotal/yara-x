@@ -40,6 +40,27 @@ def test_invalid_allowed_metadata_regexp():
   with pytest.raises(ValueError):
     compiler.allowed_metadata('author', yara_x.MetaType.STRING, regexp='(AXS|ERS')
 
+def test_ignore_invalid_rules():
+  compiler = yara_x.Compiler(ignore_invalid_rules=True)
+  compiler.ignore_module("foo")
+  # "test" should be ignored because it depends on an ignored module.
+  # "test2" should be ignored because it depends on an ignored rule (test).
+  # "test3" should be ignored because it is a compilation error.
+  compiler.add_source(r'import "foo" rule test { condition: foo.bar == 1 } rule test2 { condition: test } rule test3 { condition: AXSERS }')
+  assert len(compiler.ignored_rules()) == 3
+  assert compiler.ignored_rules()[0].name == 'test'
+  assert compiler.ignored_rules()[0].message == 'depends on ignored module `foo`'
+  assert compiler.ignored_rules()[0].reason == yara_x.IgnoredRuleReason.IgnoredModule
+  assert compiler.ignored_rules()[1].name == 'test2'
+  assert compiler.ignored_rules()[1].message == 'depends on ignored rule `test`'
+  assert compiler.ignored_rules()[1].reason == yara_x.IgnoredRuleReason.IgnoredRule
+  assert compiler.ignored_rules()[2].name == 'test3'
+  assert compiler.ignored_rules()[2].message == 'error: unknown identifier `AXSERS`'
+  assert compiler.ignored_rules()[2].reason == yara_x.IgnoredRuleReason.CompileError
+  # Turn off ignore_invalid_rules and we should raise a compile error now.
+  compiler.ignore_invalid_rules(False)
+  with pytest.raises(yara_x.CompileError):
+    compiler.add_source(r'rule test { condition: AXSERS }')
 
 def test_int_globals():
   compiler = yara_x.Compiler()

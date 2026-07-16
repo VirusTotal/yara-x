@@ -135,6 +135,23 @@ class Compiler:
         """
         ...
 
+    def ignore_invalid_rules(self, yes: bool) -> None:
+        r"""
+        Tell the compiler to ignore any rules that are invalid.
+
+        Any ignored rules and the reasons for them being ignored are available
+        in [`Compiler::ignored_rules`].
+        """
+        ...
+
+    def ignored_rules() -> List[IgnoredRule]:
+        r"""
+        Retrieve all ignored rules during compilation.
+
+        Returns a list of [`IgnoredRule`] objects.
+        """
+        ...
+
     def build(self) -> Rules:
         r"""
         Builds the source code previously added to the compiler.
@@ -191,6 +208,37 @@ class Compiler:
             regexp: Optional[str],
             error: bool = False):
         r"""Define expected type and value for metadata on rules."""
+        ...
+
+@final
+class IgnoredRuleReason(Enum):
+    IgnoredModule: int
+    IgnoredRule: int
+    CompileError: int
+
+@final
+class IgnoredRule:
+    r"""
+    Names and reasons for any ignored rules during compilation.
+
+    See [`Compiler::ignore_invalid_rules] for details.
+    """
+    def name() -> str:
+        r"""
+        Name of the ignored rule.
+        """
+        ...
+
+    def message() -> str:
+        r"""
+        Message for why the rule was ignored.
+        """
+        ...
+
+    def reason() -> IgnoredRuleReason:
+        r"""
+        Reason for why the rule was ignored.
+        """
         ...
 
 @final
