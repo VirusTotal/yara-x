@@ -22,14 +22,33 @@ use protobuf::reflect::{EnumValueDescriptor, Syntax};
 use protobuf::{MessageDyn, MessageField};
 use serde::{Deserialize, Serialize};
 
-/// Each of the entries in an Access Control List (ACL)
+/// An entry in a field's Access Control List (ACL).
 ///
-/// When defining the structure of a module in a `.proto` file, you can specify
-/// that certain fields are accessible only when one or more features are
-/// enabled in the compiler with using [`crate::Compiler::enable_feature`]. For
-/// example, the field ``requires_foo_and_bar` in the snippet below has an ACL
-/// indicating that the field can be accessed only if features "foo" and "bar"
-/// are enabled in the compiler.
+/// When defining the structure of a module in a `.proto` file, fields can be
+/// assigned an ACL (`acl`) containing one or more `AclEntry` items. Access to
+/// a structure field during YARA rule compilation is evaluated against the set
+/// of features enabled in the compiler via [`crate::Compiler::enable_feature`].
+///
+/// # Evaluation Rules
+///
+/// - All `AclEntry` items in a field's `acl` vector are evaluated sequentially
+///   in order. Every single entry must be satisfied for the field to be
+///   accessible. Evaluation stops at the first failing entry, which immediately
+///   triggers a compilation error using that entry's `error_title` and
+///  `error_label`.
+///
+/// - An `accept_if` list contains feature names. An entry is accepted if
+///  `accept_if` is empty, or if at least one (ANY) of the listed features is
+///   enabled in the compiler. For example, `accept_if: ["foo", "bar"]` means
+///   the field is accepted if either "foo" or "bar" is enabled.
+///
+/// - A `reject_if` list contains feature names. An entry is rejected if at
+///   least one (ANY) of the listed features is enabled in the compiler. If any
+///   feature in `reject_if` is enabled, access is denied regardless of
+///   `accept_if`. For example, `reject_if: ["legacy", "deprecated"]` denies
+///   access if either `"legacy"` or `"deprecated"` is enabled.
+///
+/// # Protobuf Example
 ///
 /// ```protobuf
 /// optional uint64 requires_foo_and_bar = 500 [
@@ -50,9 +69,8 @@ use serde::{Deserialize, Serialize};
 /// ];
 /// ```
 ///
-/// If some of the required features are not enabled, using this field in
-/// a YARA rule will cause an error while compiling the rules. The error
-/// looks like:
+/// If some of the required conditions are not met, using this field in a YARA
+/// rule causes a compilation error like:
 ///
 /// ```text
 /// error[E034]: foo is required
@@ -62,14 +80,18 @@ use serde::{Deserialize, Serialize};
 ///   |              ^^^^^^^^^^^^^^^^^^^^ this field was used without foo
 ///   |
 /// ```
-///
-/// Notice that both the title and label in the error message are defined
-/// in the .proto file.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct AclEntry {
+    /// Title of the compilation error raised if this ACL entry fails.
     pub error_title: String,
+    /// Label pointing to the code location in the error report if this ACL
+    /// entry fails.
     pub error_label: String,
+    /// Features that grant access. At least one feature in this list must be
+    /// enabled (logical OR). If empty, access is accepted by default.
     pub accept_if: Vec<String>,
+    /// Features that deny access. If any feature in this list is enabled
+    /// (logical OR), access is rejected.
     pub reject_if: Vec<String>,
 }
 
