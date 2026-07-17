@@ -45,11 +45,11 @@ const SRC_SUGGESTIONS: [(&str, Option<&str>); 5] = [
         "rule",
         Some(
             r#"rule ${1:ident} {
-  strings:
-    $${2:a} = "${3}"
-  condition:
-    $${2:a}${0}
- }"#,
+    strings:
+        $${2:a} = "${3}"
+    condition:
+        $${2:a}${0}
+}"#,
         ),
     ),
     ("import", Some("import \"${1:}\"${0}")),
@@ -66,9 +66,9 @@ const CONDITION_SUGGESTIONS: [(&str, Option<&str>); 16] = [
     ("none", None),
     ("of", None),
     ("at", Some("at ${1:expression}")),
-    ("in", Some("in ${1:}..${2:}")),
+    ("in", Some("in (${1:}..${2:})")),
     ("filesize", None),
-    ("entrypoint", None),
+    ("entrypoint", "pe.entry_point"),
     ("true", None),
     ("false", None),
     ("not", None),
