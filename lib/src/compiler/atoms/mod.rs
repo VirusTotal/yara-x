@@ -89,7 +89,7 @@ pub(crate) const DESIRED_ATOM_SIZE: usize = 4;
 /// from a regexp, instead of lower number of shorter atoms. Longer atoms are
 /// preferred, but too many of them increase the size of the Aho-Corasick
 /// automaton and its build time.
-pub(crate) const MAX_ATOMS_PER_REGEXP: usize = 10000;
+pub(crate) const MAX_ATOMS_PER_REGEXP: usize = 16384;
 
 /// A substring extracted from a rule pattern. See the module documentation for
 /// a general explanation of what is an atom.
