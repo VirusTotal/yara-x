@@ -170,6 +170,11 @@ fn atoms() {
         itertools::iproduct!(0x00..=0xff, 0x10..=0x1f)
             .map(|(b2, b3)| [0x11, b2, b3, 0x11]),
     );
+
+    check_atoms(
+        "{ FF ?? 10 }",
+        (0x00..=0xff).map(|b| [0xff, b, 0x10]),
+    );
 }
 
 #[test]

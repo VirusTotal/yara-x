@@ -103,7 +103,7 @@ impl BestAtomFinder {
             let zeros = mask.count_zeros() as i32;
             let ones = mask.count_ones() as i32;
             if zeros == 8 {
-                q -= 15;
+                q -= 13;
             } else {
                 q += 2 * ones - zeros;
             }
@@ -561,6 +561,11 @@ mod test {
             [0xff, 0x00, 0x00, 0xff].iter(),
         );
 
+        let q_ffxx01 = masked_atom_quality(
+            [0xff, 0x00, 0x01].iter(),
+            [0xff, 0x00, 0xff].iter(),
+        );
+
         assert!(q_00000001 > q_00000000);
         assert!(q_00000001 > q_000001);
         assert!(q_000001 > q_0001);
@@ -602,6 +607,7 @@ mod test {
         assert!(q_ab > q_000001);
         assert!(q_01xx03 > q_01);
         assert!(q_01xxxx04 < q_01);
+        assert!(q_ffxx01> q_01);
     }
 
     #[test]
@@ -743,7 +749,7 @@ mod test {
                 &[0x01, 0x02, 0x00, 0x04],
                 &[0xFF, 0xFF, 0x00, 0xFF]
             ),
-            (0..4, 51),
+            (0..4, 53),
         );
 
         assert_eq!(
@@ -776,6 +782,14 @@ mod test {
                 &[0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF],
             ),
             (1..4, 64),
+        );
+
+        assert_eq!(
+            atoms::best_range_in_masked_bytes(
+                &[0xFF, 0x00, 0x10],
+                &[0xFF, 0x00, 0xFF],
+            ),
+            (0..3, 23),
         );
     }
 
@@ -817,8 +831,8 @@ mod test {
         }
 
         assert_eq!(finder_2.finalize(), (Some(0..2), 44));
-        assert_eq!(finder_3.finalize(), (Some(0..3), 29));
-        assert_eq!(finder_4.finalize(), (Some(0..4), 51));
+        assert_eq!(finder_3.finalize(), (Some(0..3), 31));
+        assert_eq!(finder_4.finalize(), (Some(0..4), 53));
 
         let bytes = &[0x01, 0x00, 0x00, 0x04, 0x05];
         let masks = &[0xFF, 0x00, 0x00, 0xFF, 0xFF];
@@ -834,8 +848,8 @@ mod test {
         }
 
         assert_eq!(finder_2.finalize(), (Some(3..5), 44));
-        assert_eq!(finder_3.finalize(), (Some(2..5), 29));
-        assert_eq!(finder_4.finalize(), (Some(0..4), 14));
+        assert_eq!(finder_3.finalize(), (Some(2..5), 31));
+        assert_eq!(finder_4.finalize(), (Some(0..4), 18));
 
         let bytes = &[0x00, 0xA1, 0x81, 0x52, 0x00, 0x41, 0xA0, 0x72];
         let masks = &[0x00, 0xFF, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF];
@@ -852,6 +866,6 @@ mod test {
 
         assert_eq!(finder_2.finalize(), (Some(1..3), 44));
         assert_eq!(finder_3.finalize(), (Some(1..4), 64));
-        assert_eq!(finder_4.finalize(), (Some(0..4), 49));
+        assert_eq!(finder_4.finalize(), (Some(0..4), 51));
     }
 }
