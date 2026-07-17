@@ -7,8 +7,8 @@ warning[slow_pattern]: slow pattern
  5 | |    2D B? FF FF FF ?? ?? |
  6 | |    2D C? FF FF FF ?? ?? |
 ...  |
-55 | |    8D 76 ( 2? | 3? | 4? | 5? ) ?? ?? |
-56 | |    8D 7F ( 2? | 3? | 4? | 5? ) ?? ?? ) }
+19 | |    8D 7? ( 2? | 3? | 4? | 5? ) ?? ?? |
+20 | |    8D 8? ( 2? | 3? | 4? | 5? ) ?? ?? ) }
    | |________________________________________- this pattern may slow down the scan
    |
    = note: this is an exceptionally extreme case that may severely degrade scanning throughput
