@@ -35,10 +35,10 @@ use serde::{Deserialize, Serialize};
 ///   in order. Every single entry must be satisfied for the field to be
 ///   accessible. Evaluation stops at the first failing entry, which immediately
 ///   triggers a compilation error using that entry's `error_title` and
-///  `error_label`.
+///   `error_label`.
 ///
 /// - An `accept_if` list contains feature names. An entry is accepted if
-///  `accept_if` is empty, or if at least one (ANY) of the listed features is
+///   `accept_if` is empty, or if at least one (ANY) of the listed features is
 ///   enabled in the compiler. For example, `accept_if: ["foo", "bar"]` means
 ///   the field is accepted if either "foo" or "bar" is enabled.
 ///
