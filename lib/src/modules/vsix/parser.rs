@@ -90,9 +90,9 @@ impl Vsix {
             if let Some(content) = zip.get_file_content(path)
                 && let Ok(manifest) =
                     serde_json::from_slice::<VsixManifest>(&content)
-                {
-                    return Some(manifest);
-                }
+            {
+                return Some(manifest);
+            }
         }
 
         // Try to find package.json in any subdirectory
@@ -102,12 +102,12 @@ impl Vsix {
         for entry in zip.archive.entries().filter_map(|e| e.ok()) {
             if let Ok(path_bytes) = entry.read_path(&mut path_buf)
                 && path_bytes.ends_with_str("/package.json")
-                    && let Some(content) = zip.get_file_content(path_bytes)
-                        && let Ok(manifest) =
-                            serde_json::from_slice::<VsixManifest>(&content)
-                        {
-                            return Some(manifest);
-                        }
+                && let Some(content) = zip.get_file_content(path_bytes)
+                && let Ok(manifest) =
+                    serde_json::from_slice::<VsixManifest>(&content)
+            {
+                return Some(manifest);
+            }
         }
 
         None
@@ -121,9 +121,16 @@ impl From<Vsix> for protos::vsix::Vsix {
         result.files = vsix.files;
 
         if let Some(manifest) = vsix.manifest {
-            result.name = manifest.name.clone();
+            // Compute extension ID as publisher.name
+            if let (Some(publisher), Some(name)) =
+                (&manifest.publisher, &manifest.name)
+            {
+                result.id = Some(format!("{publisher}.{name}"));
+            }
+
+            result.name = manifest.name;
             result.display_name = manifest.display_name;
-            result.publisher = manifest.publisher.clone();
+            result.publisher = manifest.publisher;
             result.version = manifest.version;
             result.description = manifest.description;
             result.main = manifest.main;
@@ -133,13 +140,6 @@ impl From<Vsix> for protos::vsix::Vsix {
             result.homepage = manifest.homepage;
             result.categories = manifest.categories;
             result.keywords = manifest.keywords;
-
-            // Compute extension ID as publisher.name
-            if let (Some(publisher), Some(name)) =
-                (&manifest.publisher, &manifest.name)
-            {
-                result.id = Some(format!("{publisher}.{name}"));
-            }
 
             // Extract vscode version from engines
             if let Some(engines) = manifest.engines {
