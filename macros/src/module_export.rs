@@ -1,6 +1,6 @@
 use darling::FromMeta;
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{Expr, FnArg, ItemFn, Pat, Result};
@@ -10,6 +10,7 @@ use syn::{Expr, FnArg, ItemFn, Pat, Result};
 pub struct ModuleExportsArgs {
     name: Option<String>,
     method_of: Option<String>,
+    sync: Option<String>,
 }
 
 /// Implementation for the `#[module_export]` attribute macro.
@@ -61,9 +62,11 @@ pub(crate) fn impl_module_export_macro(
     // `&ScanContext` to `&mut Caller<'_, ScanContext>`.
     let mut fn_args: Punctuated<FnArg, Comma> = Punctuated::new();
 
-    fn_args.push(syn::parse2(quote! {
+    let caller_arg = syn::parse2(quote! {
         caller: &mut Caller<'_, ScanContext>
-    })?);
+    })?;
+
+    fn_args.push(caller_arg);
 
     fn_args.extend(func.sig.inputs.into_iter().skip(1));
 
@@ -83,6 +86,8 @@ pub(crate) fn impl_module_export_macro(
 
     let rust_fn_name = func.sig.ident;
     let fn_name = attr_args.name.unwrap_or(rust_fn_name.to_string());
+    let sync = attr_args.sync.unwrap_or_else(|| "none".to_owned());
+    let method_of = attr_args.method_of;
 
     // Modify the original function and convert it into the thunk function.
     func.sig.ident = format_ident!("__thunk__{}", rust_fn_name);
@@ -90,13 +95,15 @@ pub(crate) fn impl_module_export_macro(
 
     func.block = syn::parse2(quote! {{
         #rust_fn_name(caller.data_mut(), #arg_pats)
-    }})
-    .unwrap();
+    }})?;
 
-    let wasm_export = if let Some(method_of) = attr_args.method_of {
-        quote! { #[wasm_export(name = #fn_name, public = true, method_of = #method_of)] }
-    } else {
-        quote! { #[wasm_export(name = #fn_name, public = true)] }
+    let wasm_export = match &method_of {
+        Some(m) => {
+            quote! { #[wasm_export(name = #fn_name, public = true, method_of = #m, sync = #sync)] }
+        }
+        None => {
+            quote! { #[wasm_export(name = #fn_name, public = true, sync = #sync)] }
+        }
     };
 
     // Add the thunk function to the output.

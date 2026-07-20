@@ -2,7 +2,7 @@
 
 The scanner takes the rules produces by the compiler and scans data with them.
 */
-use std::collections::{hash_map, BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::io::Read;
@@ -11,30 +11,34 @@ use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::slice::Iter;
-use std::sync::atomic::AtomicU64;
 use std::sync::Once;
+use std::sync::atomic::AtomicU64;
 use std::time::Duration;
 
 use bitvec::prelude::*;
+#[cfg(unix)]
+use memmap2::Advice;
 use memmap2::{Mmap, MmapOptions};
 use protobuf::{CodedInputStream, MessageDyn};
+use rustc_hash::FxHashMap as HashMap;
 use thiserror::Error;
-use wasmtime::Store;
 
+use crate::Variable;
 use crate::compiler::{RuleId, Rules};
 use crate::models::Rule;
-use crate::modules::{Module, ModuleError, BUILTIN_MODULES};
-use crate::scanner::context::create_wasm_store_and_ctx;
-use crate::types::{Struct, TypeValue};
-use crate::variables::VariableError;
-use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::{modules, Variable};
-
+use crate::modules::{
+    ModuleContext, ModuleError, RegisteredModule, module_by_name,
+};
 pub(crate) use crate::scanner::context::RuntimeObject;
 pub(crate) use crate::scanner::context::RuntimeObjectHandle;
 pub(crate) use crate::scanner::context::ScanContext;
 pub(crate) use crate::scanner::context::ScanState;
+use crate::scanner::context::create_wasm_store_and_ctx;
 pub(crate) use crate::scanner::matches::Match;
+use crate::types::{Struct, TypeValue};
+use crate::variables::VariableError;
+use crate::wasm::MATCHING_RULES_BITMAP_BASE;
+use crate::wasm::runtime::Store;
 
 mod context;
 mod matches;
@@ -68,7 +72,9 @@ pub enum ScanError {
         err: std::io::Error,
     },
     /// Could not deserialize the protobuf message for some YARA module.
-    #[error("can not deserialize protobuf message for YARA module `{module}`: {err}")]
+    #[error(
+        "can not deserialize protobuf message for YARA module `{module}`: {err}"
+    )]
     ProtoError {
         /// Module name.
         module: String,
@@ -106,7 +112,7 @@ static INIT_HEARTBEAT: Once = Once::new();
 pub enum ScannedData<'d> {
     Slice(&'d [u8]),
     Vec(Vec<u8>),
-    Mmap(Mmap),
+    Mmap { mmap: Mmap, len: usize },
 }
 
 impl AsRef<[u8]> for ScannedData<'_> {
@@ -114,8 +120,15 @@ impl AsRef<[u8]> for ScannedData<'_> {
         match self {
             ScannedData::Slice(s) => s,
             ScannedData::Vec(v) => v.as_ref(),
-            ScannedData::Mmap(m) => m.as_ref(),
+            ScannedData::Mmap { mmap, len } => &mmap.as_ref()[..*len],
         }
+    }
+}
+
+impl ScannedData<'_> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.as_ref().len()
     }
 }
 
@@ -182,13 +195,14 @@ pub struct Scanner<'r> {
     _rules: &'r Rules,
     wasm_store: Pin<Box<Store<ScanContext<'static, 'static>>>>,
     use_mmap: bool,
+    max_scan_size: Option<usize>,
 }
 
 impl<'r> Scanner<'r> {
     /// Creates a new scanner.
     pub fn new(rules: &'r Rules) -> Self {
         let wasm_store = create_wasm_store_and_ctx(rules);
-        Self { _rules: rules, wasm_store, use_mmap: true }
+        Self { _rules: rules, wasm_store, use_mmap: true, max_scan_size: None }
     }
 
     /// Sets a timeout for scan operations.
@@ -209,7 +223,66 @@ impl<'r> Scanner<'r> {
     /// When some pattern reaches the maximum number of patterns it won't
     /// produce more matches.
     pub fn max_matches_per_pattern(&mut self, n: usize) -> &mut Self {
-        self.scan_context_mut().pattern_matches.max_matches_per_pattern(n);
+        self.scan_context_mut()
+            .tracker
+            .pattern_matches
+            .max_matches_per_pattern(n);
+        self
+    }
+
+    /// Enables or disables fast scan mode.
+    ///
+    /// During rule compilation, the compiler analyzes rule conditions to
+    /// identify patterns that are only ever used in simple boolean existence
+    /// checks (e.g., `$a` in YARA). If a pattern is never queried for its match
+    /// count (`#a`), specific match offset (`@a`), match length (`!a`), or
+    /// evaluated inside a loop, it is classified as a fast-scan pattern.
+    ///
+    /// In fast scan mode, the scanner optimizes scans by stopping the search
+    /// and match tracking for these fast-scan patterns once their **very first
+    /// match** is found. Subsequent occurrences in the input data are ignored,
+    /// preventing redundant Aho-Corasick scans, regex evaluations, and match
+    /// memory allocations.
+    ///
+    /// Note that using fast scan mode implies that not all matches will be
+    /// reported. For instance, when iterating matches using [`ScanResults`],
+    /// you won't get all occurrences of the pattern in the file, only the first
+    /// one.
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// # use yara_x::{Compiler, Scanner};
+    /// let mut compiler = Compiler::new();
+    /// compiler.add_source(r#"
+    ///     rule test {
+    ///         strings:
+    ///             $a = "abc"
+    ///         condition:
+    ///             $a
+    ///     }
+    /// "#).unwrap();
+    ///
+    /// let rules = compiler.build();
+    /// let mut scanner = Scanner::new(&rules);
+    ///
+    /// // Enable fast scan mode.
+    /// scanner.fast_scan(true);
+    ///
+    /// // The haystack contains two matches of "abc".
+    /// let results = scanner.scan(b"abc...abc").unwrap();
+    ///
+    /// // Find the matching rule.
+    /// let matching_rule = results.matching_rules().next().unwrap();
+    ///
+    /// // Only a single match is returned for pattern $a.
+    /// let pattern = matching_rule.patterns().next().unwrap();
+    /// let mut matches = pattern.matches();
+    /// assert_eq!(matches.next().unwrap().range().start, 0); // The first match
+    /// assert!(matches.next().is_none()); // No other matches are returned
+    /// ```
+    pub fn fast_scan(&mut self, yes: bool) -> &mut Self {
+        self.scan_context_mut().tracker.fast_scan = yes;
         self
     }
 
@@ -229,6 +302,21 @@ impl<'r> Scanner<'r> {
         self
     }
 
+    /// Sets the maximum size of the data that will be scanned.
+    ///
+    /// If the scanned data (either a file or an in-memory buffer) is larger
+    /// than this value, it will be truncated to the given size.
+    ///
+    /// The value returned by `filesize` will be also limited to the given
+    /// size.
+    ///
+    /// Also notice that some modules (pe, elf, macho, etc) may be unable
+    /// to properly parse truncated files.
+    pub fn max_scan_size(&mut self, size: usize) -> &mut Self {
+        self.max_scan_size = Some(size);
+        self
+    }
+
     /// Sets a callback that is invoked every time a YARA rule calls the
     /// `console` module.
     ///
@@ -244,12 +332,29 @@ impl<'r> Scanner<'r> {
         self
     }
 
+    /// Sets the context size for matches.
+    ///
+    /// This specifies how many bytes at the left and right of each match will
+    /// be reported by [`crate::Match::data_with_context`]. By default, the
+    /// match context size is 0, which means that [`crate::Match::data_with_context`]
+    /// will return exactly the same data as [`crate::Match::data`].
+    pub fn match_context_size(&mut self, size: usize) -> &mut Self {
+        self.scan_context_mut().match_context_size = size;
+        self
+    }
+
     /// Scans in-memory data.
     pub fn scan<'a>(
         &'a mut self,
         data: &'a [u8],
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_impl(data.try_into()?, None)
+        let mut data = data;
+        if let Some(max) = self.max_scan_size
+            && data.len() > max
+        {
+            data = &data[..max];
+        }
+        self.scan_impl(ScannedData::Slice(data), None)
     }
 
     /// Scans a file.
@@ -269,6 +374,12 @@ impl<'r> Scanner<'r> {
         data: &'a [u8],
         options: ScanOptions<'opts>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
+        let mut data = data;
+        if let Some(max) = self.max_scan_size
+            && data.len() > max
+        {
+            data = &data[..max];
+        }
         self.scan_impl(ScannedData::Slice(data), Some(options))
     }
 
@@ -350,9 +461,8 @@ impl<'r> Scanner<'r> {
 
         // Check if the protobuf message passed to this function corresponds
         // with any of the existing modules.
-        if !BUILTIN_MODULES
-            .iter()
-            .any(|m| m.1.root_struct_descriptor.full_name() == full_name)
+        if !crate::modules::registered_modules()
+            .any(|m| m.root_descriptor().full_name() == full_name)
         {
             return Err(ScanError::UnknownModule {
                 module: full_name.to_string(),
@@ -380,17 +490,15 @@ impl<'r> Scanner<'r> {
         // Try to find the module by name first, if not found, then try
         // to find a module where the fully-qualified name for its protobuf
         // message matches the `name` arguments.
-        let descriptor = if let Some(module) = BUILTIN_MODULES.get(name) {
-            Some(&module.root_struct_descriptor)
-        } else {
-            BUILTIN_MODULES.values().find_map(|module| {
-                if module.root_struct_descriptor.full_name() == name {
-                    Some(&module.root_struct_descriptor)
-                } else {
-                    None
-                }
-            })
-        };
+        let descriptor = module_by_name(name)
+            .map(|module| module.root_descriptor())
+            .or_else(|| {
+                crate::modules::registered_modules()
+                    .find(|module| {
+                        module.root_descriptor().full_name() == name
+                    })
+                    .map(|module| module.root_descriptor())
+            });
 
         if descriptor.is_none() {
             return Err(ScanError::UnknownModule { module: name.to_string() });
@@ -455,29 +563,38 @@ impl<'r> Scanner<'r> {
         &self,
         path: &Path,
     ) -> Result<ScannedData<'a>, ScanError> {
-        let mut file = fs::File::open(path).map_err(|err| {
+        let file = fs::File::open(path).map_err(|err| {
             ScanError::OpenError { path: path.to_path_buf(), err }
         })?;
 
-        let size = file.metadata().map(|m| m.len()).unwrap_or(0);
+        let mut size = file.metadata().map(|m| m.len()).unwrap_or(0) as usize;
 
-        let mut buffered_file;
-        let mapped_file;
+        if let Some(max_scan_size) = self.max_scan_size {
+            size = std::cmp::min(size, max_scan_size);
+        }
 
         // For files smaller than ~500MB reading the whole file is faster than
         // using a memory-mapped file.
         let data = if self.use_mmap && size > 500_000_000 {
-            mapped_file = unsafe {
+            let mapped_file = unsafe {
                 MmapOptions::new().map_copy_read_only(&file).map_err(|err| {
                     ScanError::MapError { path: path.to_path_buf(), err }
                 })
             }?;
-            ScannedData::Mmap(mapped_file)
-        } else {
-            buffered_file = Vec::with_capacity(size as usize);
-            file.read_to_end(&mut buffered_file).map_err(|err| {
-                ScanError::OpenError { path: path.to_path_buf(), err }
+            #[cfg(unix)]
+            mapped_file.advise(Advice::Sequential).map_err(|err| {
+                ScanError::MapError { path: path.to_path_buf(), err }
             })?;
+            ScannedData::Mmap { mmap: mapped_file, len: size }
+        } else {
+            let mut buffered_file = Vec::with_capacity(size);
+            (&file)
+                .take(size as u64)
+                .read_to_end(&mut buffered_file)
+                .map_err(|err| ScanError::OpenError {
+                    path: path.to_path_buf(),
+                    err,
+                })?;
             ScannedData::Vec(buffered_file)
         };
 
@@ -495,18 +612,39 @@ impl<'r> Scanner<'r> {
         ctx.reset();
 
         // Set the global variable `filesize` to the size of the scanned data.
-        ctx.set_filesize(data.as_ref().len() as i64);
+        ctx.set_filesize(data.len() as i64);
+
+        // Create the context that will be passed to the main function of each
+        // module.
+        let mut mod_ctx = ModuleContext::default();
+
+        // For each item in options.module_metadata, check if the module name
+        // is actually a registered module, and then add the corresponding
+        // metadata to mod_ctx.
+        for (module, meta) in options
+            .map(|options| options.module_metadata)
+            .into_iter()
+            .flatten()
+            .filter_map(|(name, meta)| Some((module_by_name(name)?, meta)))
+        {
+            mod_ctx.set_module_metadata(module.name(), meta);
+        }
 
         // Indicate that the scanner is currently scanning the given data.
         ctx.scan_state = ScanState::ScanningData(data);
 
+        let data = match &ctx.scan_state {
+            ScanState::ScanningData(data) => data.as_ref(),
+            _ => unreachable!(),
+        };
+
         for module_name in ctx.compiled_rules.imports() {
-            // Lookup the module in the list of built-in modules.
-            let module = modules::BUILTIN_MODULES
-                .get(module_name)
+            // Look up the module in the module registry.
+            let module = module_by_name(module_name)
                 .unwrap_or_else(|| panic!("module `{module_name}` not found"));
 
-            let root_struct_name = module.root_struct_descriptor.full_name();
+            let module_root_descriptor = module.root_descriptor();
+            let root_struct_name = module_root_descriptor.full_name();
 
             let module_output;
             // If the user already provided some output for the module by
@@ -517,24 +655,14 @@ impl<'r> Scanner<'r> {
                 ctx.user_provided_module_outputs.remove(root_struct_name)
             {
                 module_output = Some(output);
+            } else if let Some(main_res) = module.main_fn(&mut mod_ctx, data) {
+                module_output =
+                    Some(main_res.map_err(|err| ScanError::ModuleError {
+                        module: module_name.to_string(),
+                        err,
+                    })?);
             } else {
-                let meta: Option<&'opts [u8]> =
-                    options.as_ref().and_then(|options| {
-                        options.module_metadata.get(module_name).copied()
-                    });
-
-                if let Some(main_fn) = module.main_fn {
-                    module_output = Some(
-                        main_fn(ctx.scanned_data().unwrap(), meta).map_err(
-                            |err| ScanError::ModuleError {
-                                module: module_name.to_string(),
-                                err,
-                            },
-                        )?,
-                    );
-                } else {
-                    module_output = None;
-                }
+                module_output = None;
             }
 
             if let Some(module_output) = &module_output {
@@ -542,10 +670,10 @@ impl<'r> Scanner<'r> {
                 // the expected type.
                 debug_assert_eq!(
                     module_output.descriptor_dyn().full_name(),
-                    module.root_struct_descriptor.full_name(),
+                    root_struct_name,
                     "main function of module `{}` must return `{}`, but returned `{}`",
                     module_name,
-                    module.root_struct_descriptor.full_name(),
+                    root_struct_name,
                     module_output.descriptor_dyn().full_name(),
                 );
 
@@ -557,7 +685,7 @@ impl<'r> Scanner<'r> {
                     module_output.is_initialized_dyn(),
                     "module `{}` returned a protobuf `{}` where some required fields are not initialized ",
                     module_name,
-                    module.root_struct_descriptor.full_name()
+                    root_struct_name
                 );
             }
 
@@ -576,9 +704,10 @@ impl<'r> Scanner<'r> {
                 !cfg!(feature = "constant-folding");
 
             let module_struct = Struct::from_proto_descriptor_and_msg(
-                &module.root_struct_descriptor,
+                &module_root_descriptor,
                 module_output.as_deref(),
                 generate_fields_for_enums,
+                false,
             );
 
             if let Some(module_output) = module_output {
@@ -598,6 +727,9 @@ impl<'r> Scanner<'r> {
         // the user has set outputs for modules that are not even imported
         // by the rules.
         ctx.user_provided_module_outputs.clear();
+
+        // Clear the flag that indicates that the search phase was done.
+        ctx.set_pattern_search_done(false);
 
         // Evaluate the conditions of every rule, this will call
         // `ScanContext::search_for_patterns` if necessary.
@@ -639,22 +771,65 @@ pub(crate) enum DataSnippets<'d> {
 
 impl DataSnippets<'_> {
     pub(crate) fn get(&self, range: Range<usize>) -> Option<&[u8]> {
+        self.get_with_context(range, 0).map(|(data, _)| data)
+    }
+
+    /// Gets the data for the given `range`, but adding `context_size` additional
+    /// bytes to the left and right.
+    ///
+    /// Returns a tuple where the first item is the data slice with context,
+    /// and the second item is a range relative to the slice indicating where
+    /// the `range` part is located.
+    ///
+    /// The result will be `None` only if the data for `range` can't be found.
+    /// The additional bytes at the left and right will be added if possible,
+    /// but otherwise won't affect the result.
+    pub(crate) fn get_with_context(
+        &self,
+        range: Range<usize>,
+        context_size: usize,
+    ) -> Option<(&[u8], Range<usize>)> {
         match self {
-            Self::SingleBlock(data) => data.as_ref().get(range),
+            Self::SingleBlock(data) => {
+                let start = range.start.saturating_sub(context_size);
+                let end = range.end.saturating_add(context_size);
+                let end = std::cmp::min(end, data.len());
+
+                let slice = data.as_ref().get(start..end)?;
+                let rel_start = range.start - start;
+                let rel_end = range.end - start;
+
+                Some((slice, rel_start..rel_end))
+            }
             Self::MultiBlock(btree) => {
-                // Find in the btree the snippet that starts exactly at the
-                // offset indicated by range.start, if not found, take the
-                // previous one, which may also contain the requested range.
-                let (snippet_offset, snippet_data) =
-                    btree.range(..=range.start).next_back()?;
+                for (snippet_offset, snippet_data) in
+                    btree.range(..=range.start).rev()
+                {
+                    // Calculate the start and end of the slice within the snippet.
+                    let start = range.start.saturating_sub(*snippet_offset);
+                    let end = range.end.saturating_sub(*snippet_offset);
 
-                // Calculate the start and end of the slice within the snippet.
-                let start = range.start - snippet_offset;
-                let end = range.end - snippet_offset;
+                    if end > snippet_data.len() {
+                        continue;
+                    }
 
-                // Returns the data, or `None` if `start` and `end` are not
-                // within the snippet boundaries.
-                snippet_data.get(start..end)
+                    let start = start.saturating_sub(context_size);
+                    let end = end.saturating_add(context_size);
+                    let end = std::cmp::min(end, snippet_data.len());
+
+                    match snippet_data.get(start..end) {
+                        Some(data) if !data.is_empty() => {
+                            let rel_start =
+                                range.start - (*snippet_offset + start);
+                            let rel_end =
+                                range.end - (*snippet_offset + start);
+                            return Some((data, rel_start..rel_end));
+                        }
+                        _ => continue,
+                    }
+                }
+
+                None
             }
         }
     }
@@ -698,11 +873,12 @@ impl<'a, 'r> ScanResults<'a, 'r> {
         &self,
         module_name: &str,
     ) -> Option<&'a dyn MessageDyn> {
-        let module = BUILTIN_MODULES.get(module_name)?;
+        let module_descriptor =
+            module_by_name(module_name).map(|m| m.root_descriptor())?;
         let module_output = self
             .ctx
             .module_outputs
-            .get(module.root_struct_descriptor.full_name())?
+            .get(module_descriptor.full_name())?
             .as_ref();
         Some(module_output)
     }
@@ -797,9 +973,10 @@ impl<'a, 'r> NonMatchingRules<'a, 'r> {
     fn new(ctx: &'a ScanContext<'r, 'a>) -> Self {
         let num_rules = ctx.compiled_rules.num_rules();
         let main_memory = ctx
-            .wasm_main_memory
+            .wasm
+            .main_memory
             .unwrap()
-            .data(unsafe { ctx.wasm_store.as_ref() });
+            .data(unsafe { ctx.wasm.store.as_ref() });
 
         let base = MATCHING_RULES_BITMAP_BASE as usize;
 
@@ -874,7 +1051,7 @@ impl ExactSizeIterator for NonMatchingRules<'_, '_> {
 pub struct ModuleOutputs<'a, 'r> {
     ctx: &'a ScanContext<'r, 'a>,
     len: usize,
-    iterator: hash_map::Iter<'a, &'a str, Module>,
+    iterator: Box<dyn Iterator<Item = &'static dyn RegisteredModule> + 'a>,
 }
 
 impl<'a, 'r> ModuleOutputs<'a, 'r> {
@@ -882,7 +1059,7 @@ impl<'a, 'r> ModuleOutputs<'a, 'r> {
         Self {
             ctx,
             len: ctx.module_outputs.len(),
-            iterator: BUILTIN_MODULES.iter(),
+            iterator: Box::new(crate::modules::registered_modules()),
         }
     }
 }
@@ -899,13 +1076,13 @@ impl<'a> Iterator for ModuleOutputs<'a, '_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let (name, module) = self.iterator.next()?;
+            let module = self.iterator.next()?;
             if let Some(module_output) = self
                 .ctx
                 .module_outputs
-                .get(module.root_struct_descriptor.full_name())
+                .get(module.root_descriptor().full_name())
             {
-                return Some((*name, module_output.as_ref()));
+                return Some((module.name(), module_output.as_ref()));
             }
         }
     }
@@ -917,21 +1094,82 @@ mod snippet_tests {
     use std::collections::BTreeMap;
 
     #[test]
-    fn snippets() {
+    fn snippets_multiblock() {
         let mut btree_map = BTreeMap::new();
 
-        btree_map.insert(0, vec![1, 2, 3, 4, 5, 6, 7, 8, 9]);
-        btree_map.insert(50, vec![51, 52, 53, 54]);
+        btree_map.insert(0, vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        btree_map.insert(50, vec![50, 51, 52, 53, 54]);
+        btree_map.insert(52, vec![52, 53]);
+        btree_map.insert(100, vec![100, 101, 102, 103]);
 
         let snippets = DataSnippets::MultiBlock(btree_map);
 
-        assert_eq!(snippets.get(0..2), Some([1, 2].as_slice()));
-        assert_eq!(snippets.get(1..3), Some([2, 3].as_slice()));
-        assert_eq!(snippets.get(8..9), Some([9].as_slice()));
-        assert_eq!(snippets.get(9..10), None);
-        assert_eq!(snippets.get(50..51), Some([51].as_slice()));
-        assert_eq!(snippets.get(50..54), Some([51, 52, 53, 54].as_slice()));
-        assert_eq!(snippets.get(52..54), Some([53, 54].as_slice()));
+        assert_eq!(snippets.get(0..2), Some([0, 1].as_slice()));
+        assert_eq!(snippets.get(1..3), Some([1, 2].as_slice()));
+        assert_eq!(snippets.get(8..9), Some([8].as_slice()));
+        assert_eq!(snippets.get(10..11), None);
+        assert_eq!(snippets.get(50..51), Some([50].as_slice()));
+        assert_eq!(snippets.get(51..53), Some([51, 52].as_slice()));
+        assert_eq!(snippets.get(50..54), Some([50, 51, 52, 53].as_slice()));
+        assert_eq!(snippets.get(52..54), Some([52, 53].as_slice()));
+        assert_eq!(snippets.get(52..55), Some([52, 53, 54].as_slice()));
+        assert_eq!(snippets.get(52..53), Some([52].as_slice()));
         assert_eq!(snippets.get(50..56), None);
+        assert_eq!(snippets.get(100..101), Some([100].as_slice()));
+        assert_eq!(snippets.get(101..103), Some([101, 102].as_slice()));
+
+        assert_eq!(
+            snippets.get_with_context(0..2, 1),
+            Some(([0, 1, 2].as_slice(), 0..2))
+        );
+
+        assert_eq!(
+            snippets.get_with_context(0..2, 2),
+            Some(([0, 1, 2, 3].as_slice(), 0..2))
+        );
+
+        assert_eq!(
+            snippets.get_with_context(2..4, 2),
+            Some(([0, 1, 2, 3, 4, 5].as_slice(), 2..4))
+        );
+
+        assert_eq!(
+            snippets.get_with_context(51..52, 3),
+            Some(([50, 51, 52, 53, 54].as_slice(), 1..2))
+        );
+
+        assert_eq!(
+            snippets.get_with_context(102..103, 3),
+            Some(([100, 101, 102, 103].as_slice(), 2..3))
+        );
+    }
+
+    #[test]
+    fn snippets_singleblock() {
+        let data = b"Lorem ipsum dolor sit amet".to_vec();
+        let scanned_data = super::ScannedData::Vec(data);
+        let snippets = DataSnippets::SingleBlock(scanned_data);
+
+        // Test get
+        assert_eq!(snippets.get(6..11), Some(b"ipsum".as_slice()));
+        assert_eq!(snippets.get(0..5), Some(b"Lorem".as_slice()));
+        assert_eq!(snippets.get(20..26), Some(b"t amet".as_slice()));
+        assert_eq!(snippets.get(27..30), None);
+
+        // Test get_with_context
+        // context_size = 5
+        assert_eq!(
+            snippets.get_with_context(6..11, 5),
+            Some((b"orem ipsum dolo".as_slice(), 5..10))
+        );
+        assert_eq!(
+            snippets.get_with_context(0..5, 5),
+            Some((b"Lorem ipsu".as_slice(), 0..5))
+        );
+        assert_eq!(
+            snippets.get_with_context(20..26, 5),
+            Some((b"or sit amet".as_slice(), 5..11))
+        );
+        assert_eq!(snippets.get_with_context(32..35, 5), None);
     }
 }

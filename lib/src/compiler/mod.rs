@@ -5,7 +5,6 @@ module implements the YARA compiler.
 */
 
 use std::cell::RefCell;
-use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -16,7 +15,7 @@ use std::{env, fmt, fs, io, iter};
 
 use bitflags::bitflags;
 use bstr::{BStr, ByteSlice};
-use itertools::{izip, Itertools, MinMaxResult};
+use itertools::{Itertools, MinMaxResult, izip};
 #[cfg(feature = "logging")]
 use log::*;
 use regex_syntax::hir;
@@ -25,12 +24,12 @@ use serde::{Deserialize, Serialize};
 use walrus::FunctionId;
 
 use yara_x_parser::ast;
-use yara_x_parser::ast::{Ident, Import, Include, RuleFlags, WithSpan, AST};
+use yara_x_parser::ast::{AST, Ident, Import, Include, RuleFlags, WithSpan};
 use yara_x_parser::cst::CSTStream;
 use yara_x_parser::{Parser, Span};
 
 use crate::compiler::base64::base64_patterns;
-use crate::compiler::emit::{emit_rule_condition, EmitContext};
+use crate::compiler::emit::{EmitContext, emit_rule_condition};
 use crate::compiler::errors::{
     CompileError, ConflictingRuleIdentifier, CustomError, DuplicateRule,
     DuplicateTag, EmitWasmError, InvalidRegexp, InvalidUTF8, UnknownModule,
@@ -38,15 +37,14 @@ use crate::compiler::errors::{
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{CompileContext, VarStack};
-use crate::modules::BUILTIN_MODULES;
 use crate::re::hir::{ChainedPattern, ChainedPatternGap};
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup, SymbolTable};
 use crate::types::{Func, Struct, TypeValue};
 use crate::utils::cast;
-use crate::variables::{is_valid_identifier, Variable, VariableError};
+use crate::variables::{Variable, VariableError, is_valid_identifier};
 use crate::wasm::builder::WasmModuleBuilder;
-use crate::wasm::{wasm_exports, WasmExport, WasmSymbols};
+use crate::wasm::{WasmSymbols, wasm_exports};
 use crate::{re, wasm};
 
 pub(crate) use crate::compiler::atoms::*;
@@ -83,6 +81,63 @@ pub mod errors;
 pub mod linters;
 pub mod warnings;
 pub mod wsh;
+
+/// The reason why a rule was ignored during compilation.
+#[derive(Debug, PartialEq, Eq)]
+pub enum IgnoredRuleReason<'a> {
+    /// The rule was ignored because it depends on a module that was ignored
+    /// with [`Compiler::ignore_module`]. Contains the name of the ignored
+    /// module.
+    IgnoredModule(&'a str),
+    /// The rule was ignored because it depends on another rule that was
+    /// ignored. Contains the name of the ignored rule it depends on.
+    IgnoredRule(&'a str),
+    /// The rule was ignored because of a compilation error. Contains a
+    /// reference to the error that caused compilation to fail.
+    CompileError(&'a CompileError),
+}
+
+/// Internal version of [`IgnoredRuleReason`].
+///
+/// This is the version that is stored in the compiler.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum IgnoredRuleReasonInternal {
+    IgnoredModule(String),
+    IgnoredRule(String),
+    CompileError(usize),
+}
+
+/// Iterator that yields rules ignored during compilation.
+pub struct IgnoredRules<'a> {
+    iter: std::slice::Iter<'a, (String, IgnoredRuleReasonInternal)>,
+    errors: &'a [CompileError],
+}
+
+impl<'a> Iterator for IgnoredRules<'a> {
+    type Item = (&'a str, IgnoredRuleReason<'a>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (rule_name, reason) = self.iter.next()?;
+        let reason = match reason {
+            IgnoredRuleReasonInternal::IgnoredModule(module) => {
+                IgnoredRuleReason::IgnoredModule(module.as_str())
+            }
+            IgnoredRuleReasonInternal::IgnoredRule(rule_name) => {
+                IgnoredRuleReason::IgnoredRule(rule_name.as_str())
+            }
+            IgnoredRuleReasonInternal::CompileError(err_idx) => {
+                IgnoredRuleReason::CompileError(&self.errors[*err_idx])
+            }
+        };
+        Some((rule_name, reason))
+    }
+}
+
+impl ExactSizeIterator for IgnoredRules<'_> {
+    fn len(&self) -> usize {
+        self.iter.len()
+    }
+}
 
 /// A structure that describes some YARA source code.
 ///
@@ -230,7 +285,7 @@ struct Namespace {
 ///     .add_source(r#"
 ///         rule always_false {
 ///             condition: false
-///         }"#)?;///
+///         }"#)?;
 ///
 /// let rules = compiler.build();
 ///
@@ -238,7 +293,7 @@ struct Namespace {
 /// ```
 ///
 pub struct Compiler<'a> {
-    /// Mimics YARA behaviour with respect to regular expressions, allowing
+    /// Mimics YARA behavior with respect to regular expressions, allowing
     /// some constructs that are invalid in YARA-X by default, like invalid
     /// escape sequences.
     relaxed_re_syntax: bool,
@@ -299,7 +354,7 @@ pub struct Compiler<'a> {
 
     /// Similar to `ident_pool` but for regular expressions found in rule
     /// conditions.
-    regexp_pool: StringPool<RegexpId>,
+    regex_pool: StringPool<RegexId>,
 
     /// Similar to `ident_pool` but for string literals found in the source
     /// code. As literal strings in YARA can contain arbitrary bytes, a pool
@@ -338,12 +393,29 @@ pub struct Compiler<'a> {
     /// `FilesizeBounds{start: Bound::Unbounded, end: Bound:Excluded(1000)}`.
     filesize_bounds: FxHashMap<PatternId, FilesizeBounds>,
 
+    /// Map that associates a `PatternId` to a certain constraint on the
+    /// file header (e.g. magic bytes at offset 0), if any.
+    ///
+    /// A condition like `uint16(0) == 0x5A4D and $a` or `$mz at 0 and $a`
+    /// (were $mz = "MZ") only matches if the file starts with "MZ" (0x5A4D).
+    /// In this case the map will contain an entry associating `$a` to a
+    /// `HeaderConstraint` that requires the file to start with those two
+    /// bytes.
+    ///
+    /// This allows skipping pattern checks entirely if the scanned data doesn't
+    /// start with the expected header prefix.
+    header_constraints: FxHashMap<PatternId, HeaderConstraint>,
+
     /// A vector with all the rules that has been compiled. A [`RuleId`] is
     /// an index in this vector.
     rules: Vec<RuleInfo>,
 
     /// Next (not used yet) [`PatternId`].
     next_pattern_id: PatternId,
+
+    /// Vector where the N-th boolean indicates whether the pattern with
+    /// PatternId = N is a fast-scan pattern.
+    fast_scan_patterns: bitvec::vec::BitVec,
 
     /// Map used for de-duplicating pattern. Keys are the pattern's IR and
     /// values are the `PatternId` assigned to each pattern. Every time a rule
@@ -389,10 +461,14 @@ pub struct Compiler<'a> {
     /// if the banned module is imported.
     banned_modules: FxHashMap<String, (String, String)>,
 
+    /// Vector containing the names of the rules that were ignored during
+    /// compilation, along with the reason why they were ignored.
+    ignored_rules: Vec<(String, IgnoredRuleReasonInternal)>,
+
     /// Keys in this map are the name of rules that will be ignored because they
     /// depend on unsupported modules, either directly or indirectly. Values are
     /// the names of the unsupported modules they depend on.
-    ignored_rules: FxHashMap<String, String>,
+    rules_depending_on_unsupported_modules: FxHashMap<String, String>,
 
     /// Structure where each field corresponds to a global identifier or a module
     /// imported by the rules. For fields corresponding to modules, the value is
@@ -416,6 +492,9 @@ pub struct Compiler<'a> {
     /// Linters applied to each rule during compilation. The linters are added
     /// to the compiler using [`Compiler::add_linter`]:
     linters: Vec<Box<dyn linters::Linter + 'a>>,
+
+    /// Grouped RegexSets constructed during IR creation for or-expressions.
+    regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
 }
 
 impl<'a> Compiler<'a> {
@@ -481,6 +560,7 @@ impl<'a> Compiler<'a> {
             error_on_slow_pattern: false,
             error_on_slow_loop: false,
             next_pattern_id: PatternId(0),
+            fast_scan_patterns: bitvec::vec::BitVec::new(),
             current_namespace: default_namespace,
             features: FxHashSet::default(),
             warnings: Warnings::default(),
@@ -493,18 +573,21 @@ impl<'a> Compiler<'a> {
             imported_modules: Vec::new(),
             ignored_modules: FxHashSet::default(),
             banned_modules: FxHashMap::default(),
-            ignored_rules: FxHashMap::default(),
+            ignored_rules: Vec::new(),
+            rules_depending_on_unsupported_modules: FxHashMap::default(),
             filesize_bounds: FxHashMap::default(),
+            header_constraints: FxHashMap::default(),
             root_struct: Struct::new().make_root(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
-            regexp_pool: StringPool::new(),
+            regex_pool: StringPool::new(),
             patterns: FxHashMap::default(),
             ir_writer: None,
             linters: Vec::new(),
             include_dirs: None,
             includes_enabled: true,
             include_stack: Vec::new(),
+            regex_sets: FxHashMap::default(),
         }
     }
 
@@ -646,6 +729,12 @@ impl<'a> Compiler<'a> {
     /// `i64`, `i32`, `i16`, `i8`, `u32`, `u16`, `u8`, `f64`, `f32`, `bool`,
     /// `&str`, `String` and [`serde_json::Value`].
     ///
+    /// When using a [`serde_json::Value`] there are certain limitations: keys
+    /// in maps must be valid YARA identifiers (the first character must be `_`
+    /// or a letter, the remaining ones must be `_`, a letter or a digit),
+    /// because these maps are translated into YARA structures. Also, all items
+    /// in an array must have the same type.
+    ///
     /// ```
     /// # use yara_x::Compiler;
     /// assert!(Compiler::new()
@@ -735,7 +824,7 @@ impl<'a> Compiler<'a> {
             ident_id: self.ident_pool.get_or_intern(namespace),
             symbols: self.symbol_table.push_new(),
         };
-        self.ignored_rules.clear();
+        self.rules_depending_on_unsupported_modules.clear();
         self.wasm_mod.new_namespace();
         self
     }
@@ -755,7 +844,7 @@ impl<'a> Compiler<'a> {
         // if the WASM code is invalid, which should not happen as the code is
         // emitted by YARA itself. If this ever happens is probably because
         // wrong WASM code is being emitted.
-        let compiled_wasm_mod = wasmtime::Module::from_binary(
+        let compiled_wasm_mod = wasm::runtime::Module::from_binary(
             wasm::get_engine(),
             wasm_mod.as_slice(),
         )
@@ -786,10 +875,10 @@ impl<'a> Compiler<'a> {
             wasm_mod,
             compiled_wasm_mod: Some(compiled_wasm_mod),
             relaxed_re_syntax: self.relaxed_re_syntax,
-            ac: None,
+            ac: AhoCorasick::default(),
             num_patterns: self.next_pattern_id.0 as usize,
             ident_pool: self.ident_pool,
-            regexp_pool: self.regexp_pool,
+            regex_pool: self.regex_pool,
             lit_pool: self.lit_pool,
             imported_modules: self.imported_modules,
             rules: self.rules,
@@ -799,6 +888,10 @@ impl<'a> Compiler<'a> {
             re_code: self.re_code,
             warnings: self.warnings.into(),
             filesize_bounds: self.filesize_bounds,
+            header_constraints: self.header_constraints,
+            regex_sets: self.regex_sets,
+            fast_scan_patterns: self.fast_scan_patterns,
+            rules_profiling_enabled: cfg!(feature = "rules-profiling"),
         };
 
         rules.build_ac_automaton();
@@ -944,6 +1037,14 @@ impl<'a> Compiler<'a> {
         self
     }
 
+    /// Sets the maximum number of warnings.
+    ///
+    /// The compiler will report only the first `n` warnings.
+    pub fn max_warnings(&mut self, n: usize) -> &mut Self {
+        self.warnings.max_warnings = Some(n);
+        self
+    }
+
     /// Enables a more relaxed syntax check for regular expressions.
     ///
     /// YARA-X enforces stricter regular expression syntax compared to YARA.
@@ -1037,6 +1138,16 @@ impl<'a> Compiler<'a> {
     #[inline]
     pub fn warnings(&self) -> &[Warning] {
         self.warnings.as_slice()
+    }
+
+    /// Returns an iterator over the rules that were ignored during
+    /// compilation, along with the reason why they were ignored.
+    #[inline]
+    pub fn ignored_rules(&self) -> IgnoredRules<'_> {
+        IgnoredRules {
+            iter: self.ignored_rules.iter(),
+            errors: self.errors.as_slice(),
+        }
     }
 
     /// Emits a `.wasm` file with the WASM module generated by the compiler.
@@ -1172,6 +1283,7 @@ impl Compiler<'_> {
             re_code_len: self.re_code.len(),
             sub_patterns_len: self.sub_patterns.len(),
             symbol_table_len: self.symbol_table.len(),
+            fast_scan_patterns_len: self.fast_scan_patterns.len(),
         }
     }
 
@@ -1186,6 +1298,7 @@ impl Compiler<'_> {
         self.re_code.truncate(snapshot.re_code_len);
         self.atoms.truncate(snapshot.atoms_len);
         self.symbol_table.truncate(snapshot.symbol_table_len);
+        self.fast_scan_patterns.truncate(snapshot.fast_scan_patterns_len);
 
         // Pattern IDs that are >= next_pattern_id, are being discarded. Any pattern
         // or file size bound associated to such IDs must be removed.
@@ -1195,10 +1308,18 @@ impl Compiler<'_> {
 
         self.filesize_bounds
             .retain(|pattern_id, _| *pattern_id < snapshot.next_pattern_id);
+
+        self.header_constraints
+            .retain(|pattern_id, _| *pattern_id < snapshot.next_pattern_id);
     }
 
-    /// Returns true if the bytes in the slice are all 0x00, 0x90, or 0xff.
-    fn common_byte_repetition(bytes: &[u8]) -> bool {
+    /// Returns true if the slice contains a single byte, or if the bytes in
+    /// the slice are all 0x00, 0x90, or 0xff.
+    fn is_slow_pattern_bytes(bytes: &[u8]) -> bool {
+        if bytes.len() == 1 {
+            return true;
+        }
+
         let mut all_x00 = true;
         let mut all_x90 = true;
         let mut all_xff = true;
@@ -1224,7 +1345,7 @@ impl Compiler<'_> {
             }
         }
 
-        true
+        !bytes.is_empty()
     }
 
     /// Reads the file specified by an `include` statement.
@@ -1247,10 +1368,9 @@ impl Compiler<'_> {
 
                 if let Ok(cwd) =
                     env::current_dir().and_then(|dir| dir.canonicalize())
+                    && let Ok(relative_path) = path.strip_prefix(cwd)
                 {
-                    if let Ok(relative_path) = path.strip_prefix(cwd) {
-                        path = relative_path.to_path_buf();
-                    }
+                    path = relative_path.to_path_buf();
                 }
 
                 Ok((content, path))
@@ -1260,10 +1380,9 @@ impl Compiler<'_> {
         // include stack.
         if let Some(dir) =
             self.include_stack.last().and_then(|path| path.parent())
+            && let Ok(result) = read_file(dir.join(include.file_name))
         {
-            if let Ok(result) = read_file(dir.join(include.file_name)) {
-                return Ok(result);
-            }
+            return Ok(result);
         }
 
         // If one or more include directory were specified, try to find the
@@ -1414,6 +1533,12 @@ impl Compiler<'_> {
                 }
                 ast::Item::Rule(rule) => {
                     if let Err(err) = self.c_rule(rule) {
+                        self.ignored_rules.push((
+                            rule.identifier.name.to_string(),
+                            IgnoredRuleReasonInternal::CompileError(
+                                self.errors.len(),
+                            ),
+                        ));
                         self.errors.push(err);
                     }
                 }
@@ -1432,6 +1557,7 @@ impl Compiler<'_> {
         }
 
         // Check the rule with all the linters.
+        let mut first_linter_err: Option<CompileError> = None;
         for linter in self.linters.iter() {
             match linter.check(&self.report_builder, rule) {
                 LinterResult::Ok => {}
@@ -1443,8 +1569,17 @@ impl Compiler<'_> {
                         self.warnings.add(|| warning);
                     }
                 }
-                LinterResult::Err(err) => return Err(err),
+                LinterResult::Err(err) => {
+                    if first_linter_err.is_none() {
+                        first_linter_err = Some(err);
+                    } else {
+                        self.errors.push(err);
+                    }
+                }
             }
+        }
+        if let Some(err) = first_linter_err {
+            return Err(err);
         }
 
         // Take snapshot of the current compiler state. In case of error
@@ -1506,6 +1641,8 @@ impl Compiler<'_> {
             for_of_depth: 0,
             features: &self.features,
             loop_iteration_multiplier: 1,
+            regex_sets: &mut self.regex_sets,
+            regex_pool: &mut self.regex_pool,
         };
 
         // Convert the patterns from AST to IR. This populates the
@@ -1556,8 +1693,18 @@ impl Compiler<'_> {
                     Pattern::Regexp(re) => re.hir.as_literal_bytes(),
                     Pattern::Hex(re) => re.hir.as_literal_bytes(),
                 };
-                if let Some(literal_bytes) = literal_bytes {
-                    if Self::common_byte_repetition(literal_bytes) {
+                if let Some(literal_bytes) = literal_bytes
+                    && Self::is_slow_pattern_bytes(literal_bytes)
+                {
+                    if self.error_on_slow_pattern {
+                        self.restore_snapshot(snapshot);
+                        return Err(errors::SlowPattern::build(
+                            &self.report_builder,
+                            self.report_builder
+                                .span_to_code_loc(pat.span().clone()),
+                            None,
+                        ));
+                    } else {
                         self.warnings.add(|| {
                             warnings::SlowPattern::build(
                                 &self.report_builder,
@@ -1571,56 +1718,82 @@ impl Compiler<'_> {
             }
         }
 
-        // In case of error, restore the compiler to the state it was before
-        // entering this function. Also, if the error is due to an unknown
-        // identifier, but the identifier is one of the unsupported modules,
-        // the error is tolerated and a warning is issued instead.
         let mut condition = match condition {
             Ok(condition) => condition,
-            Err(CompileError::UnknownIdentifier(unknown))
-                if self.ignored_rules.contains_key(unknown.identifier())
-                    || self.ignored_modules.contains(unknown.identifier()) =>
-            {
-                self.restore_snapshot(snapshot);
-
-                if let Some(module_name) =
-                    self.ignored_rules.get(unknown.identifier())
-                {
-                    self.warnings.add(|| {
-                        warnings::IgnoredRule::build(
-                            &self.report_builder,
-                            module_name.clone(),
-                            rule.identifier.name.to_string(),
-                            unknown.identifier_location().clone(),
-                        )
-                    });
-                    self.ignored_rules.insert(
-                        rule.identifier.name.to_string(),
-                        module_name.clone(),
-                    );
-                } else {
-                    self.warnings.add(|| {
-                        warnings::IgnoredModule::build(
-                            &self.report_builder,
-                            unknown.identifier().to_string(),
-                            unknown.identifier_location().clone(),
-                            Some(format!(
-                                "the whole rule `{}` will be ignored",
-                                rule.identifier.name
-                            )),
-                        )
-                    });
-                    self.ignored_rules.insert(
-                        rule.identifier.name.to_string(),
-                        unknown.identifier().to_string(),
-                    );
-                }
-
-                return Ok(());
-            }
             Err(err) => {
+                // In case of error, restore the compiler to the state it was
+                // before entering this function.
                 self.restore_snapshot(snapshot);
-                return Err(err);
+
+                return match err {
+                    // If the error is due to an unknown identifier, and the
+                    // identifier is one of the ignored modules, the error
+                    // is tolerated and a warning is issued instead.
+                    CompileError::UnknownIdentifier(unknown)
+                        if self
+                            .ignored_modules
+                            .contains(unknown.identifier()) =>
+                    {
+                        self.warnings.add(|| {
+                            IgnoredModule::build(
+                                &self.report_builder,
+                                unknown.identifier().to_string(),
+                                unknown.identifier_location().clone(),
+                                Some(format!(
+                                    "the whole rule `{}` will be ignored",
+                                    rule.identifier.name
+                                )),
+                            )
+                        });
+                        self.rules_depending_on_unsupported_modules.insert(
+                            rule.identifier.name.to_string(),
+                            unknown.identifier().to_string(),
+                        );
+                        self.ignored_rules.push((
+                            rule.identifier.name.to_string(),
+                            IgnoredRuleReasonInternal::IgnoredModule(
+                                unknown.identifier().to_string(),
+                            ),
+                        ));
+
+                        Ok(())
+                    }
+                    // If the unknown identifier corresponds to one of the rules
+                    // that depends directly or indirectly on an ignored module,
+                    // the error is tolerated and a warning is issued instead.
+                    CompileError::UnknownIdentifier(unknown) => {
+                        if let Some(unsupported_module) = self
+                            .rules_depending_on_unsupported_modules
+                            .get(unknown.identifier())
+                        {
+                            self.warnings.add(|| {
+                                IgnoredRule::build(
+                                    &self.report_builder,
+                                    unsupported_module.clone(),
+                                    rule.identifier.name.to_string(),
+                                    unknown.identifier_location().clone(),
+                                )
+                            });
+                            self.rules_depending_on_unsupported_modules
+                                .insert(
+                                    rule.identifier.name.to_string(),
+                                    unsupported_module.clone(),
+                                );
+                            self.ignored_rules.push((
+                                rule.identifier.name.to_string(),
+                                IgnoredRuleReasonInternal::IgnoredRule(
+                                    unknown.identifier().to_string(),
+                                ),
+                            ));
+
+                            Ok(())
+                        } else {
+                            Err(CompileError::UnknownIdentifier(unknown))
+                        }
+                    }
+                    // Any other kind of error is not tolerated.
+                    _ => Err(err),
+                };
             }
         };
 
@@ -1632,6 +1805,12 @@ impl Compiler<'_> {
         // `filesize`, if any.
         let filesize_bounds = self.ir.filesize_bounds();
 
+        // Analyze the condition and determine if it imposes some constraint
+        // to the file header (ex: `uint16(0) == 0x5a4d`).
+        let header_constraints = self.ir.header_constraints(|pat_idx| {
+            rule_patterns[pat_idx.as_usize()].pattern()
+        });
+
         // Set the bounds to all patterns in the rule. This must be done
         // before assigning the PatternId to each pattern, as the filesize
         // bounds are taken into account when determining if the pattern
@@ -1639,6 +1818,15 @@ impl Compiler<'_> {
         if !filesize_bounds.unbounded() {
             for pattern in &mut rule_patterns {
                 pattern.pattern_mut().set_filesize_bounds(&filesize_bounds);
+            }
+        }
+
+        // Set header constraints to all patterns in the rule.
+        if !header_constraints.unconstrained() {
+            for pattern in &mut rule_patterns {
+                pattern
+                    .pattern_mut()
+                    .set_header_constraints(&header_constraints);
             }
         }
 
@@ -1672,27 +1860,29 @@ impl Compiler<'_> {
                 num_private_patterns += 1;
             }
 
-            // Check if this pattern has been declared before, in this rule or
-            // in some other rule. In such cases the pattern ID is re-used, and
-            // we don't need to process (i.e: extract atoms and add them to
-            // Aho-Corasick automaton) the pattern again. Two patterns are
-            // considered equal if they are exactly the same, including any
-            // modifiers associated to the pattern, both are non-anchored
-            // or anchored at the same file offset, and if they have the same
-            // file size bounds.
             let pattern_id =
-                match self.patterns.entry(pattern.pattern().clone()) {
-                    // The pattern already exists, return the existing ID.
-                    Entry::Occupied(entry) => *entry.get(),
-                    // The pattern didn't exist.
-                    Entry::Vacant(entry) => {
-                        let pattern_id = self.next_pattern_id;
-                        self.next_pattern_id.incr(1);
-                        pending_patterns.insert(pattern_id);
-                        entry.insert(pattern_id);
-                        pattern_id
-                    }
+                // Check if this pattern has been declared before, in this rule or
+                // in some other rule. In such cases the pattern ID is re-used, and
+                // we don't need to process (i.e: extract atoms and add them to
+                // Aho-Corasick automaton) the pattern again. Two patterns are
+                // considered equal if they are exactly the same, including any
+                // modifiers associated to the pattern, both are non-anchored
+                // or anchored at the same file offset, and if they have the same
+                // file size bounds.
+                if let Some(pattern_id) = self.patterns.get(pattern.pattern()) {
+                    *pattern_id
+                } else {
+                    let pattern_id = self.next_pattern_id;
+                    self.next_pattern_id.incr(1);
+                    self.fast_scan_patterns.push(true);
+                    pending_patterns.insert(pattern_id);
+                    self.patterns.insert(pattern.pattern().clone(), pattern_id);
+                    pattern_id
                 };
+
+            if !pattern.fast_scan_allowed() {
+                self.fast_scan_patterns.set(usize::from(pattern_id), false);
+            }
 
             let kind = match pattern.pattern() {
                 Pattern::Text(_) => PatternKind::Text,
@@ -1765,7 +1955,20 @@ impl Compiler<'_> {
                         .is_some()
                 {
                     // This should not happen.
-                    panic!("modifying the file size bounds of an existing pattern")
+                    panic!(
+                        "modifying the file size bounds of an existing pattern"
+                    )
+                }
+                if !header_constraints.unconstrained()
+                    && self
+                        .header_constraints
+                        .insert(*pattern_id, header_constraints.clone())
+                        .is_some()
+                {
+                    // This should not happen.
+                    panic!(
+                        "modifying the header constraints of an existing pattern"
+                    )
                 }
                 pending_patterns.remove(pattern_id);
             }
@@ -1799,7 +2002,7 @@ impl Compiler<'_> {
         let mut ctx = EmitContext {
             current_rule: self.rules.last_mut().unwrap(),
             lit_pool: &mut self.lit_pool,
-            regexp_pool: &mut self.regexp_pool,
+            regex_pool: &mut self.regex_pool,
             wasm_symbols: &self.wasm_symbols,
             wasm_exports: &self.wasm_exports,
             exception_handler_stack: Vec::new(),
@@ -1820,7 +2023,7 @@ impl Compiler<'_> {
 
     fn c_import(&mut self, import: &Import) -> Result<(), CompileError> {
         let module_name = import.module_name;
-        let module = BUILTIN_MODULES.get(module_name);
+        let module = crate::modules::module_by_name(module_name);
 
         // Does a module with the given name actually exist? ...
         if module.is_none() {
@@ -1858,52 +2061,8 @@ impl Compiler<'_> {
             self.imported_modules
                 .push(self.ident_pool.get_or_intern(module_name));
 
-            // Create the structure that describes the module.
-            let mut module_struct = Struct::from_proto_descriptor_and_msg(
-                &module.root_struct_descriptor,
-                None,
-                true,
-            );
-
-            // Get a mutable reference for the module's structure. This is
-            // possible because there's only one Rc pointing to the structure,
-            // otherwise the `.unwrap()` panics.
-            let module_struct_mut =
-                Rc::<Struct>::get_mut(&mut module_struct).unwrap();
-
-            // If the YARA module has an associated Rust module, check if it
-            // exports some function and add it to the structure.
-            if let Some(rust_module_name) = module.rust_module_name {
-                let functions = WasmExport::get_functions(|export| {
-                    export.public
-                        && export.rust_module_path.contains(rust_module_name)
-                });
-                for (name, func) in functions {
-                    let func = TypeValue::Func(Rc::new(func));
-                    if module_struct_mut.add_field(name, func).is_some() {
-                        panic!(
-                            "function `{name}` has the same name than a field in `{rust_module_name}`",
-                        )
-                    };
-                }
-            }
-
-            // Iterate over all substructures of the module's main structure and
-            // add any methods defined for them.
-            module_struct_mut.enum_substructures(&mut |sub_struct| {
-                let methods = sub_struct.protobuf_type_name().map(WasmExport::get_methods);
-                if let Some(methods) = methods {
-                    for (name, func) in methods {
-                        let func = TypeValue::Func(Rc::new(func));
-                        if sub_struct.add_field(name, func).is_some() {
-                            panic!(
-                                "method `{name}` has the same name than a field in `{}`",
-                                sub_struct.protobuf_type_name().unwrap(),
-                            )
-                        };
-                    }
-                }
-            });
+            // Create the `Struct` that describes the module.
+            let module_struct = Rc::<Struct>::from(module);
 
             // Insert the module in the struct that contains all imported
             // modules. This struct contains all modules imported, from
@@ -1967,7 +2126,10 @@ impl Compiler<'_> {
         let mut main_patterns = Vec::new();
         let wide_pattern;
 
-        if pattern.flags.contains(PatternFlags::Wide) {
+        if pattern
+            .flags
+            .intersects(PatternFlags::WideOnly | PatternFlags::WideAndAscii)
+        {
             wide_pattern = make_wide(pattern.text.as_bytes());
             main_patterns.push((
                 wide_pattern.as_slice(),
@@ -1976,7 +2138,7 @@ impl Compiler<'_> {
             ));
         }
 
-        if pattern.flags.contains(PatternFlags::Ascii) {
+        if !pattern.flags.contains(PatternFlags::WideOnly) {
             main_patterns.push((
                 pattern.text.as_bytes(),
                 best_atom_in_bytes(pattern.text.as_bytes()),
@@ -2170,7 +2332,7 @@ impl Compiler<'_> {
         }
 
         // If this point is reached, this is a pattern that can't be split into
-        // multiple chained patterns, and is neither a literal or alternation
+        // multiple chained patterns, and is neither a literal nor alternation
         // of literals. Most patterns fall in this category.
         let mut flags = SubPatternFlags::empty();
 
@@ -2187,13 +2349,38 @@ impl Compiler<'_> {
             flags.insert(SubPatternFlags::GreedyRegexp);
         }
 
+        // If the pattern doesn't have the `nocase` or `wide` modifier, and it
+        // is a simple literal pattern with masks (e.g., `{ 01 02 ?? 04 }` or
+        // `{ 1? 2? 3? }`), we can treat it as a `LiteralWithMask` sub-pattern.
+        // This is much more efficient than executing it as a regular expression.
+        if !pattern.flags.contains(PatternFlags::Nocase)
+            && !pattern.flags.intersects(
+                PatternFlags::WideOnly | PatternFlags::WideAndAscii,
+            )
+            && let Some((pattern, mask, atoms)) =
+                head.try_extract_literal_with_mask()
+        {
+            let pattern = self.intern_literal(pattern.as_slice(), false);
+            let mask = self.intern_literal(mask.as_slice(), false);
+            self.add_sub_pattern(
+                pattern_id,
+                SubPattern::LiteralWithMask { pattern, mask, flags },
+                atoms,
+                SubPatternAtom::from_atom,
+            );
+            return Ok(());
+        };
+
         let (atoms, is_fast_regexp) = self.c_regexp(&head, span)?;
 
         if is_fast_regexp {
             flags.insert(SubPatternFlags::FastRegexp);
         }
 
-        if pattern.flags.contains(PatternFlags::Wide) {
+        if pattern
+            .flags
+            .intersects(PatternFlags::WideOnly | PatternFlags::WideAndAscii)
+        {
             self.add_sub_pattern(
                 pattern_id,
                 SubPattern::Regexp { flags: flags | SubPatternFlags::Wide },
@@ -2202,7 +2389,7 @@ impl Compiler<'_> {
             );
         }
 
-        if pattern.flags.contains(PatternFlags::Ascii) {
+        if !pattern.flags.contains(PatternFlags::WideOnly) {
             self.add_sub_pattern(
                 pattern_id,
                 SubPattern::Regexp { flags },
@@ -2221,8 +2408,9 @@ impl Compiler<'_> {
         anchored_at: Option<usize>,
         flags: PatternFlags,
     ) -> Result<(), CompileError> {
-        let ascii = flags.contains(PatternFlags::Ascii);
-        let wide = flags.contains(PatternFlags::Wide);
+        let raw = !flags.contains(PatternFlags::WideOnly);
+        let wide = flags
+            .intersects(PatternFlags::WideOnly | PatternFlags::WideAndAscii);
         let case_insensitive = flags.contains(PatternFlags::Nocase);
         let full_word = flags.contains(PatternFlags::Fullword);
 
@@ -2282,7 +2470,7 @@ impl Compiler<'_> {
 
         match hir.kind() {
             hir::HirKind::Literal(literal) => {
-                if ascii {
+                if raw {
                     process_literal(literal, false);
                 }
                 if wide {
@@ -2294,7 +2482,7 @@ impl Compiler<'_> {
                     .iter()
                     .map(|l| cast!(l.kind(), hir::HirKind::Literal));
                 for literal in literals {
-                    if ascii {
+                    if raw {
                         process_literal(literal, false);
                     }
                     if wide {
@@ -2316,8 +2504,9 @@ impl Compiler<'_> {
         flags: PatternFlags,
         span: Span,
     ) -> Result<(), CompileError> {
-        let ascii = flags.contains(PatternFlags::Ascii);
-        let wide = flags.contains(PatternFlags::Wide);
+        let raw = !flags.contains(PatternFlags::WideOnly);
+        let wide = flags
+            .intersects(PatternFlags::WideOnly | PatternFlags::WideAndAscii);
         let case_insensitive = flags.contains(PatternFlags::Nocase);
         let full_word = flags.contains(PatternFlags::Fullword);
 
@@ -2331,7 +2520,7 @@ impl Compiler<'_> {
             common_flags.insert(SubPatternFlags::GreedyRegexp);
         }
 
-        let mut prev_sub_pattern_ascii = SubPatternId(0);
+        let mut prev_sub_pattern_raw = SubPatternId(0);
         let mut prev_sub_pattern_wide = SubPatternId(0);
 
         if let hir::HirKind::Literal(literal) = leading.kind() {
@@ -2341,8 +2530,8 @@ impl Compiler<'_> {
                 flags.insert(SubPatternFlags::FullwordLeft);
             }
 
-            if ascii {
-                prev_sub_pattern_ascii =
+            if raw {
+                prev_sub_pattern_raw =
                     self.c_literal_chain_head(pattern_id, literal, flags);
             }
 
@@ -2378,8 +2567,8 @@ impl Compiler<'_> {
                 );
             }
 
-            if ascii {
-                prev_sub_pattern_ascii = self.add_sub_pattern(
+            if raw {
+                prev_sub_pattern_raw = self.add_sub_pattern(
                     pattern_id,
                     SubPattern::RegexpChainHead { flags },
                     atoms.into_iter(),
@@ -2412,11 +2601,11 @@ impl Compiler<'_> {
                         flags | SubPatternFlags::Wide,
                     );
                 };
-                if ascii {
-                    prev_sub_pattern_ascii = self.c_literal_chain_tail(
+                if raw {
+                    prev_sub_pattern_raw = self.c_literal_chain_tail(
                         pattern_id,
                         literal,
-                        prev_sub_pattern_ascii,
+                        prev_sub_pattern_raw,
                         p.gap.clone(),
                         flags,
                     );
@@ -2446,11 +2635,11 @@ impl Compiler<'_> {
                     )
                 }
 
-                if ascii {
-                    prev_sub_pattern_ascii = self.add_sub_pattern(
+                if raw {
+                    prev_sub_pattern_raw = self.add_sub_pattern(
                         pattern_id,
                         SubPattern::RegexpChainTail {
-                            chained_to: prev_sub_pattern_ascii,
+                            chained_to: prev_sub_pattern_raw,
                             gap: p.gap.clone(),
                             flags,
                         },
@@ -2640,7 +2829,7 @@ impl From<IdentId> for u32 {
 /// ID associated to each literal string in the literals pool.
 #[derive(PartialEq, Debug, Copy, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-pub(crate) struct LiteralId(u32);
+pub struct LiteralId(u32);
 
 impl From<i32> for LiteralId {
     fn from(v: i32) -> Self {
@@ -2676,6 +2865,13 @@ impl From<LiteralId> for u64 {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub(crate) struct NamespaceId(i32);
+
+impl From<i32> for NamespaceId {
+    #[inline]
+    fn from(v: i32) -> Self {
+        Self(v)
+    }
+}
 
 /// ID associated to each rule.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash)]
@@ -2720,48 +2916,81 @@ impl From<RuleId> for i32 {
 }
 
 /// ID associated to each regexp used in a rule condition.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub(crate) struct RegexpId(i32);
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub(crate) struct RegexId(i32);
 
-impl From<i32> for RegexpId {
+impl From<i32> for RegexId {
     #[inline]
     fn from(value: i32) -> Self {
         Self(value)
     }
 }
 
-impl From<u32> for RegexpId {
+impl From<u32> for RegexId {
     #[inline]
     fn from(value: u32) -> Self {
         Self(value.try_into().unwrap())
     }
 }
 
-impl From<i64> for RegexpId {
+impl From<i64> for RegexId {
     #[inline]
     fn from(value: i64) -> Self {
         Self(value.try_into().unwrap())
     }
 }
 
-impl From<RegexpId> for usize {
+impl From<RegexId> for usize {
     #[inline]
-    fn from(value: RegexpId) -> Self {
+    fn from(value: RegexId) -> Self {
         value.0 as usize
     }
 }
 
-impl From<RegexpId> for i32 {
+impl From<RegexId> for i32 {
     #[inline]
-    fn from(value: RegexpId) -> Self {
+    fn from(value: RegexId) -> Self {
         value.0
     }
 }
 
-impl From<RegexpId> for u32 {
+impl From<RegexId> for u32 {
     #[inline]
-    fn from(value: RegexpId) -> Self {
+    fn from(value: RegexId) -> Self {
         value.0.try_into().unwrap()
+    }
+}
+
+/// ID associated to each grouped `RegexSet`.
+///
+/// When compiling multiple rules, identical string expressions (such as a
+/// specific field access like `vt.net.domain.raw`) are frequently matched
+/// against multiple distinct regular expressions. To optimize these
+/// evaluations, the compiler identifies identical targets, assigns them a
+/// unique `RegexSetId`, and groups all their associated regular expressions
+/// together. At runtime, the entire set is evaluated simultaneously in a
+/// single pass.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub(crate) struct RegexSetId(i32);
+
+impl From<i32> for RegexSetId {
+    #[inline]
+    fn from(value: i32) -> Self {
+        Self(value)
+    }
+}
+
+impl From<RegexSetId> for usize {
+    #[inline]
+    fn from(value: RegexSetId) -> Self {
+        value.0 as usize
+    }
+}
+
+impl From<RegexSetId> for i32 {
+    #[inline]
+    fn from(value: RegexSetId) -> Self {
+        value.0
     }
 }
 
@@ -2834,7 +3063,18 @@ impl From<PatternId> for usize {
 /// For each pattern there's one or more sub-patterns, depending on the pattern
 /// and its modifiers. For example the pattern `"foo" ascii wide` may have one
 /// subpattern for the ascii case and another one for the wide case.
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+)]
 #[serde(transparent)]
 pub(crate) struct SubPatternId(u32);
 
@@ -2887,6 +3127,12 @@ pub(crate) enum SubPattern {
     Literal {
         pattern: LiteralId,
         anchored_at: Option<usize>,
+        flags: SubPatternFlags,
+    },
+
+    LiteralWithMask {
+        pattern: LiteralId,
+        mask: LiteralId,
         flags: SubPatternFlags,
     },
 
@@ -2967,6 +3213,7 @@ struct Snapshot {
     re_code_len: usize,
     sub_patterns_len: usize,
     symbol_table_len: usize,
+    fast_scan_patterns_len: usize,
 }
 
 /// Represents a list of warnings.
@@ -2974,27 +3221,18 @@ struct Snapshot {
 /// This is a wrapper around a `Vec<Warning>` that contains additional logic
 /// for limiting the number of warnings stored in the vector and silencing some
 /// warnings types.
+#[derive(Default)]
 pub(crate) struct Warnings {
     warnings: Vec<Warning>,
-    /// Maximum number of warnings that will be stored in `warnings`.
-    max_warnings: usize,
+    /// Maximum number of warnings that will be stored in `warnings`. If this
+    /// is `None`, there will no limits.
+    max_warnings: Option<usize>,
     /// Warnings that are globally disabled.
     disabled_warnings: HashSet<String>,
     /// Warnings that are suppressed for a specific code span. Keys are
     /// warning identifiers, and values are the code spans in which the
     /// warning is disabled.
     suppressed_warnings: HashMap<String, Vec<Span>>,
-}
-
-impl Default for Warnings {
-    fn default() -> Self {
-        Self {
-            warnings: Vec::new(),
-            max_warnings: 100,
-            disabled_warnings: HashSet::default(),
-            suppressed_warnings: HashMap::default(),
-        }
-    }
 }
 
 impl Warnings {
@@ -3004,20 +3242,19 @@ impl Warnings {
     /// added.
     #[inline]
     pub fn add(&mut self, f: impl FnOnce() -> Warning) {
-        if self.warnings.len() < self.max_warnings {
+        if self.warnings.len() < self.max_warnings.unwrap_or(usize::MAX) {
             let warning = f();
             let mut warn = !self.disabled_warnings.contains(warning.code());
 
-            if warn {
-                if let Some(spans) =
+            if warn
+                && let Some(spans) =
                     self.suppressed_warnings.get(warning.code())
-                {
-                    'l: for disabled_span in spans {
-                        for label in warning.labels() {
-                            if disabled_span.contains(label.span()) {
-                                warn = false;
-                                break 'l;
-                            }
+            {
+                'l: for disabled_span in spans {
+                    for label in warning.labels() {
+                        if disabled_span.contains(label.span()) {
+                            warn = false;
+                            break 'l;
                         }
                     }
                 }

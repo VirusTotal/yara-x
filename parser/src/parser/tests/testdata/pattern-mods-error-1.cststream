@@ -28,7 +28,6 @@ Token { kind: NEWLINE, span: Span(39..40) }
 Token { kind: WHITESPACE, span: Span(40..42) }
 Begin { kind: CONDITION_BLK, span: Span(42..60) }
 Token { kind: CONDITION_KW, span: Span(42..51) }
-Error { message: "expecting pattern modifier, pattern identifier or `condition`, found `foo`", span: Span(36..39) }
 Token { kind: COLON, span: Span(51..52) }
 Token { kind: NEWLINE, span: Span(52..53) }
 Token { kind: WHITESPACE, span: Span(53..56) }
@@ -41,6 +40,7 @@ End { kind: CONDITION_BLK, span: Span(42..60) }
 Token { kind: NEWLINE, span: Span(60..61) }
 Token { kind: R_BRACE, span: Span(61..62) }
 End { kind: RULE_DECL, span: Span(0..62) }
+Error { message: "expecting pattern modifier, pattern identifier or `condition`, found `foo`", span: Span(36..39) }
 Token { kind: NEWLINE, span: Span(62..63) }
 Token { kind: NEWLINE, span: Span(63..64) }
 Begin { kind: RULE_DECL, span: Span(64..131) }
@@ -74,7 +74,6 @@ Token { kind: NEWLINE, span: Span(108..109) }
 Token { kind: WHITESPACE, span: Span(109..111) }
 Begin { kind: CONDITION_BLK, span: Span(111..129) }
 Token { kind: CONDITION_KW, span: Span(111..120) }
-Error { message: "expecting STRING, found `)`", span: Span(107..108) }
 Token { kind: COLON, span: Span(120..121) }
 Token { kind: NEWLINE, span: Span(121..122) }
 Token { kind: WHITESPACE, span: Span(122..125) }
@@ -87,4 +86,5 @@ End { kind: CONDITION_BLK, span: Span(111..129) }
 Token { kind: NEWLINE, span: Span(129..130) }
 Token { kind: R_BRACE, span: Span(130..131) }
 End { kind: RULE_DECL, span: Span(64..131) }
+Error { message: "expecting STRING, found `)`", span: Span(107..108) }
 End { kind: SOURCE_FILE, span: Span(0..131) }

@@ -5,7 +5,7 @@ use std::num::NonZeroUsize;
 use nom::bytes::complete::{take, take_while};
 use nom::combinator::{cond, map_res, verify};
 use nom::multi::{fold_many0, length_value, many_till};
-use nom::number::complete::{le_u128, le_u16, le_u32, le_u64};
+use nom::number::complete::{le_u16, le_u32, le_u64, le_u128};
 use nom::{Err, Input, ToUsize};
 use nom::{IResult, Needed, Parser};
 use protobuf::EnumOrUnknown;
@@ -367,7 +367,7 @@ impl LnkParser {
                             .unwrap_or(None);
                 }
             } else if let Some(string) =
-                input.get(volume_label_offset as usize..)
+                volume_id.get(volume_label_offset as usize..)
             {
                 self.result.volume_label = Self::parse_string(string)
                     .map(|(_, label)| Some(label))
@@ -572,4 +572,22 @@ impl LnkParser {
 #[inline]
 fn filetime_to_unix_timestamp(filetime: u64) -> Option<u64> {
     (filetime / 10000000).checked_sub(11644473600)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_filetime_to_unix_timestamp() {
+        assert_eq!(filetime_to_unix_timestamp(0), None);
+        assert_eq!(filetime_to_unix_timestamp(116444736000000000), Some(0));
+        assert_eq!(filetime_to_unix_timestamp(116444736000000000 + 10000000), Some(1));
+    }
+
+    #[test]
+    fn test_lnk_parser_invalid() {
+        let mut parser = LnkParser::new();
+        assert!(parser.parse(b"too short").is_err());
+    }
 }

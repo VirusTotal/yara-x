@@ -2,6 +2,7 @@ mod check;
 mod compile;
 mod completion;
 mod debug;
+mod deps;
 mod dump;
 mod fix;
 mod fmt;
@@ -12,6 +13,7 @@ pub use compile::*;
 pub use completion::*;
 #[cfg(feature = "debug-cmd")]
 pub use debug::*;
+pub use deps::*;
 pub use dump::*;
 pub use fix::*;
 pub use fmt::*;
@@ -22,21 +24,23 @@ use std::fs;
 use std::io::stdout;
 use std::path::PathBuf;
 
-use anyhow::{anyhow, bail, Context};
+use anyhow::{Context, anyhow, bail};
 use clap::{
-    arg, command, crate_authors, value_parser, Arg, ArgAction, ArgMatches,
-    Command,
+    Arg, ArgAction, ArgMatches, Command, arg, command, crate_authors,
+    value_parser,
 };
 use crossterm::tty::IsTty;
-use superconsole::{Component, Line, Lines, Span, SuperConsole};
+use indicatif::{ProgressBar, ProgressStyle};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use yansi::Color::Green;
 use yansi::Paint;
 
 use crate::config::Config;
+use crate::walk::Draw;
 use crate::walk::Walker;
-use crate::{commands, help, APP_HELP_TEMPLATE};
-use yara_x::{Compiler, Rules, SourceCode};
+use crate::{APP_HELP_TEMPLATE, commands, help};
+
+use yara_x::{Compiler, IgnoredRuleReason, Rules, SourceCode};
 
 pub fn command(name: &'static str) -> Command {
     Command::new(name).help_template(
@@ -70,6 +74,7 @@ pub fn cli() -> Command {
             commands::fmt(),
             commands::fix(),
             commands::completion(),
+            commands::deps(),
         ])
 }
 
@@ -142,11 +147,7 @@ fn path_with_namespace_parser(
 /// Parses a path and makes sure that it exists.
 fn existing_path_parser(input: &str) -> Result<PathBuf, anyhow::Error> {
     let path = PathBuf::from(input);
-    if path.try_exists()? {
-        Ok(path)
-    } else {
-        Err(anyhow!("file not found"))
-    }
+    if path.try_exists()? { Ok(path) } else { Err(anyhow!("file not found")) }
 }
 
 pub fn create_compiler<'a>(
@@ -215,7 +216,7 @@ pub fn create_compiler<'a>(
     Ok(compiler)
 }
 
-pub fn compilation_args() -> [Arg; 6] {
+pub fn compilation_args() -> [Arg; 7] {
     [
         arg!(-d --"define")
             .help("Define external variable")
@@ -231,6 +232,8 @@ pub fn compilation_args() -> [Arg; 6] {
             .require_equals(true)
             .value_delimiter(',')
             .action(ArgAction::Append),
+        arg!(--"ignore-invalid-rules")
+            .help("Ignore rules that fail to compile and continue with the valid ones"),
         arg!(-I --"ignore-module" <MODULE>)
             .help("Ignore rules that use the specified module")
             .long_help(help::IGNORE_MODULE_LONG_HELP)
@@ -251,15 +254,21 @@ pub fn compile_rules<'a, P>(
     paths: P,
     args: &ArgMatches,
     config: &Config,
-) -> Result<Rules, anyhow::Error>
+) -> Result<(Rules, Vec<(String, String)>), anyhow::Error>
 where
     P: Iterator<Item = &'a (Option<String>, PathBuf)>,
 {
     let external_vars = get_external_vars(args);
+    let ignore_invalid_rules = args.get_flag("ignore-invalid-rules");
     let mut compiler = create_compiler(external_vars, args, config)?;
 
-    let mut console =
-        if stdout().is_tty() { SuperConsole::new() } else { None };
+    let mut pb = if stdout().is_tty() {
+        let pb = ProgressBar::new_spinner();
+        pb.set_style(ProgressStyle::default_spinner().template("{msg}")?);
+        Some(pb)
+    } else {
+        None
+    };
 
     let mut state = CompileState::new();
 
@@ -280,8 +289,11 @@ where
             |file_path| {
                 state.file_in_progress = Some(file_path.into());
 
-                if let Some(console) = console.as_mut() {
-                    console.render(&state).unwrap();
+                if let Some(pb) = pb.as_mut() {
+                    let width = crossterm::terminal::size()
+                        .map(|(w, _)| w as usize)
+                        .unwrap_or(80);
+                    pb.set_message(state.draw(width));
                 }
 
                 let src = fs::read(file_path).with_context(|| {
@@ -308,15 +320,15 @@ where
             // Any error occurred during walk is aborts the walk.
             Err,
         ) {
-            if let Some(console) = console {
-                console.finalize(&state)?;
+            if let Some(pb) = pb {
+                pb.finish_and_clear();
             }
             return Err(err);
         }
     }
 
-    if let Some(console) = console {
-        console.finalize(&state)?;
+    if let Some(pb) = pb {
+        pb.finish_and_clear();
     }
 
     for warning in compiler.warnings() {
@@ -327,13 +339,37 @@ where
         eprintln!("{error}");
     }
 
-    if !compiler.errors().is_empty() {
+    let errors_found = !compiler.errors().is_empty();
+
+    // Without `--ignore-invalid-rules` any compilation error is fatal. With the
+    // flag, the rules that compiled correctly are kept (the compiler already
+    // discards only the individual rules that failed) and compilation
+    // continues. The errors are still reported above.
+    if errors_found && !ignore_invalid_rules {
         bail!("{} error(s) found", compiler.errors().len());
     }
 
+    let ignored_rules: Vec<(String, String)> = compiler
+        .ignored_rules()
+        .map(|(rule_name, reason)| {
+            let reason_str = match reason {
+                IgnoredRuleReason::IgnoredModule(module) => {
+                    format!("depends on ignored module `{module}`")
+                }
+                IgnoredRuleReason::IgnoredRule(parent_rule) => {
+                    format!("depends on ignored rule `{parent_rule}`")
+                }
+                IgnoredRuleReason::CompileError(err) => {
+                    format!("error: {}", err.title())
+                }
+            };
+            (rule_name.to_string(), reason_str)
+        })
+        .collect();
+
     let rules = compiler.build();
 
-    Ok(rules)
+    Ok((rules, ignored_rules))
 }
 
 struct CompileState {
@@ -347,25 +383,17 @@ impl CompileState {
     }
 }
 
-impl Component for CompileState {
-    fn draw_unchecked(
-        &self,
-        _dimensions: superconsole::Dimensions,
-        mode: superconsole::DrawMode,
-    ) -> anyhow::Result<Lines> {
-        let mut lines = Lines::new();
-
-        if mode == superconsole::DrawMode::Normal {
-            if let Some(file) = &self.file_in_progress {
-                lines.push(Line::from_iter([Span::new_unstyled(format!(
-                    "{} {}...",
-                    "Compiling".paint(Green).bold(),
-                    file.display(),
-                ))?]));
-            }
+impl Draw for CompileState {
+    fn draw(&self, _width: usize) -> String {
+        if let Some(file) = &self.file_in_progress {
+            format!(
+                "{} {}...",
+                "Compiling".paint(Green).bold(),
+                file.display(),
+            )
+        } else {
+            String::new()
         }
-
-        Ok(lines)
     }
 }
 

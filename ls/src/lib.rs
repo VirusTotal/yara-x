@@ -8,11 +8,14 @@ use tower::ServiceBuilder;
 use crate::server::YARALanguageServer;
 use crate::tracing::MessageTracingLayer;
 
-mod document;
+mod configuration;
+mod documents;
 mod features;
 mod server;
 mod tracing;
 mod utils;
+#[cfg(any(target_family = "wasm", test))]
+mod worker;
 
 #[cfg(test)]
 mod tests;

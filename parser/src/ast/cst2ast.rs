@@ -8,11 +8,11 @@ use bstr::{ByteSlice, ByteVec};
 use itertools::Itertools;
 use num_traits::{Bounded, CheckedMul, FromPrimitive, Num};
 
+use crate::Span;
 use crate::ast::errors::Error;
 use crate::ast::*;
 use crate::cst::SyntaxKind::*;
 use crate::cst::{Event, SyntaxKind};
-use crate::Span;
 
 #[derive(Debug)]
 enum BuilderError {
@@ -151,9 +151,7 @@ macro_rules! new_n_ary_expr {
 }
 
 macro_rules! new_binary_expr {
-    ($variant:path, $lhs:ident, $rhs:ident) => {{
-        $variant(Box::new(BinaryExpr { lhs: $lhs, rhs: $rhs }))
-    }};
+    ($variant:path, $lhs:ident, $rhs:ident) => {{ $variant(Box::new(BinaryExpr { lhs: $lhs, rhs: $rhs })) }};
 }
 
 impl<'src, I> Builder<'src, I>

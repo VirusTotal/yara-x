@@ -497,6 +497,30 @@ where
         }
         loop {
             match self.events.next()? {
+                // When an ERROR node is encountered, we want to preserve its
+                // original source text exactly as it is in the input, without
+                // applying any formatting to its contents. To do this, we
+                // extract the original bytes from the span of the ERROR node,
+                // skip all parsing events inside this node, and return a
+                // single literal token containing the original text.
+                Event::Begin { kind: SyntaxKind::ERROR, span } => {
+                    let error_bytes = &self.source[span.range()];
+                    let mut depth = 1;
+                    while depth > 0 {
+                        match self.events.next()? {
+                            Event::Begin {
+                                kind: SyntaxKind::ERROR, ..
+                            } => {
+                                depth += 1;
+                            }
+                            Event::End { kind: SyntaxKind::ERROR, .. } => {
+                                depth -= 1;
+                            }
+                            _ => {}
+                        }
+                    }
+                    return Some(Token::Literal(error_bytes));
+                }
                 Event::Begin { kind, .. } => return Some(Token::Begin(kind)),
                 Event::End { kind, .. } => return Some(Token::End(kind)),
                 Event::Token { kind, span } => {

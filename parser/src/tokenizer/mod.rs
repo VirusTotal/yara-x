@@ -104,7 +104,7 @@ impl<'src> Tokenizer<'src> {
                             token,
                             Span::from(lexer.span())
                                 .offset(self.lexer_starting_pos as isize),
-                        ))
+                        ));
                     }
                     Err(()) => {
                         // Found a token that was not expected in hex pattern
@@ -126,7 +126,7 @@ impl<'src> Tokenizer<'src> {
                             token,
                             Span::from(lexer.span())
                                 .offset(self.lexer_starting_pos as isize),
-                        ))
+                        ));
                     }
                     Err(()) => {
                         // Found a token that was not expected in hex jump
@@ -153,16 +153,11 @@ impl<'src> Tokenizer<'src> {
     /// back to normal mode when encounters the closing brace (`}`).
     ///
     /// See [`Tokenizer`] for more details about operation modes.
-    ///
-    /// # Panics
-    ///
-    /// If the tokenizer is not currently in normal mode.
     pub fn enter_hex_pattern_mode(&mut self) {
         self.lexer_starting_pos += match &self.mode {
+            Mode::HexPattern(_) => return,
             Mode::Normal(lexer) => lexer.span().end,
-            mode => {
-                panic!(r"enter_hex_pattern_mode called from mode: {mode:?}")
-            }
+            Mode::HexJump(lexer) => lexer.span().end,
         };
         self.mode = Mode::HexPattern(Logos::lexer(
             &self.source[self.lexer_starting_pos..],
@@ -176,16 +171,11 @@ impl<'src> Tokenizer<'src> {
     /// back to hex pattern mode when encounters the closing bracket (`]`).
     ///
     /// See [`Tokenizer`] for more details about operation modes.
-    ///
-    /// # Panics
-    ///
-    /// If the tokenizer is not currently in hex pattern mode.
     pub fn enter_hex_jump_mode(&mut self) {
         self.lexer_starting_pos += match &self.mode {
+            Mode::HexJump(_) => return,
+            Mode::Normal(lexer) => lexer.span().end,
             Mode::HexPattern(lexer) => lexer.span().end,
-            mode => {
-                panic!(r"enter_hex_jump_mode called from mode: {mode:?}")
-            }
         };
         self.mode = Mode::HexJump(Logos::lexer(
             &self.source[self.lexer_starting_pos..],
@@ -541,7 +531,9 @@ enum NormalToken<'src> {
     // Space, tab, and many other Unicode characters that are considered spaces.
     // https://www.compart.com/en/unicode/U+00A0
     // https://www.compart.com/en/unicode/bidiclass/WS
-    #[regex("[ \t\u{a0}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+")]
+    #[regex(
+        "[ \t\u{a0}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+"
+    )]
     Whitespace,
 
     #[token("\n")]
@@ -588,7 +580,9 @@ enum HexPatternToken {
     // Space, tab, and many other Unicode characters that are considered spaces.
     // https://www.compart.com/en/unicode/U+00A0
     // https://www.compart.com/en/unicode/bidiclass/WS
-    #[regex("[ \t\u{a0}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+")]
+    #[regex(
+        "[ \t\u{a0}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+"
+    )]
     Whitespace,
 
     #[token("\n")]
@@ -645,7 +639,9 @@ enum HexJumpToken<'src> {
     // Space, tab, and many other Unicode characters that are considered spaces.
     // https://www.compart.com/en/unicode/U+00A0
     // https://www.compart.com/en/unicode/bidiclass/WS
-    #[regex("[ \t\u{a0}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+")]
+    #[regex(
+        "[ \t\u{a0}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+"
+    )]
     Whitespace,
 
     #[token("\n")]

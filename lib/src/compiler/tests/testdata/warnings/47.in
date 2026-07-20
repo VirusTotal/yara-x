@@ -1,0 +1,7 @@
+rule duplicate_pattern_value_test {
+  strings:
+    $a = "duplicate_literal"
+    $b = "duplicate_literal"
+  condition:
+    $a and $b
+}

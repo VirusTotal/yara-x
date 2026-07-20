@@ -1,5 +1,5 @@
-use crate::compiler::RegexpId;
-use crate::modules::prelude::*;
+use crate::compiler::RegexId;
+use crate::mods::prelude::*;
 use crate::modules::protos::cuckoo::*;
 
 mod schema;
@@ -22,9 +22,11 @@ fn set_local(value: schema::CuckooJson) {
     });
 }
 
-#[module_main]
-fn main(_data: &[u8], meta: Option<&[u8]>) -> Result<Cuckoo, ModuleError> {
-    let meta = match meta {
+fn main(
+    _ctx: &mut ModuleContext,
+    _data: &[u8],
+) -> Result<Cuckoo, ModuleError> {
+    let meta = match _ctx.get_module_metadata("cuckoo") {
         None | Some([]) => {
             set_local(schema::CuckooJson::default());
             return Ok(Cuckoo::new());
@@ -45,8 +47,10 @@ fn main(_data: &[u8], meta: Option<&[u8]>) -> Result<Cuckoo, ModuleError> {
     Ok(Cuckoo::new())
 }
 
+/// Returns true if the Cuckoo report contains a DNS lookup where the domain
+/// matches the given regular expression.
 #[module_export(name = "network.dns_lookup")]
-fn network_dns_lookup_r(ctx: &ScanContext, regexp_id: RegexpId) -> i64 {
+fn network_dns_lookup_r(ctx: &ScanContext, regexp_id: RegexId) -> i64 {
     get_local()
         .as_ref()
         .and_then(|local| local.network.as_ref())
@@ -62,8 +66,10 @@ fn network_dns_lookup_r(ctx: &ScanContext, regexp_id: RegexpId) -> i64 {
         .unwrap_or(0)
 }
 
+/// Returns true if the Cuckoo report contains an HTTP request (either, GET,
+/// or any other method) to some URI that matches the given regular expression.
 #[module_export(name = "network.http_request")]
-fn network_http_request_r(ctx: &ScanContext, regexp_id: RegexpId) -> i64 {
+fn network_http_request_r(ctx: &ScanContext, regexp_id: RegexId) -> i64 {
     get_local()
         .as_ref()
         .and_then(|local| local.network.as_ref())
@@ -79,8 +85,10 @@ fn network_http_request_r(ctx: &ScanContext, regexp_id: RegexpId) -> i64 {
         .unwrap_or(0)
 }
 
+/// Returns true if the Cuckoo report contains an HTTP GET request to some URI
+/// that matches the given regular expression.
 #[module_export(name = "network.http_get")]
-fn network_http_get_r(ctx: &ScanContext, regexp_id: RegexpId) -> i64 {
+fn network_http_get_r(ctx: &ScanContext, regexp_id: RegexId) -> i64 {
     get_local()
         .as_ref()
         .and_then(|local| local.network.as_ref())
@@ -99,8 +107,10 @@ fn network_http_get_r(ctx: &ScanContext, regexp_id: RegexpId) -> i64 {
         .unwrap_or(0)
 }
 
+/// Returns true if the Cuckoo report contains an HTTP POST request to some URI
+/// that matches the given regular expression.
 #[module_export(name = "network.http_post")]
-fn network_http_post_r(ctx: &ScanContext, regexp_id: RegexpId) -> i64 {
+fn network_http_post_r(ctx: &ScanContext, regexp_id: RegexId) -> i64 {
     get_local()
         .as_ref()
         .and_then(|local| local.network.as_ref())
@@ -119,8 +129,10 @@ fn network_http_post_r(ctx: &ScanContext, regexp_id: RegexpId) -> i64 {
         .unwrap_or(0)
 }
 
+/// Returns true if the Cuckoo report contains an HTTP where the User-Agent
+/// header matches the given regular expression.
 #[module_export(name = "network.http_user_agent")]
-fn network_http_user_agent_r(ctx: &ScanContext, regexp_id: RegexpId) -> i64 {
+fn network_http_user_agent_r(ctx: &ScanContext, regexp_id: RegexId) -> i64 {
     get_local()
         .as_ref()
         .and_then(|local| local.network.as_ref())
@@ -136,8 +148,11 @@ fn network_http_user_agent_r(ctx: &ScanContext, regexp_id: RegexpId) -> i64 {
         .unwrap_or(0)
 }
 
+/// Returns true if the Cuckoo report contains some TCP connection to the
+/// destination `port` where the destination domain matches the given regular
+/// expression
 #[module_export(name = "network.tcp")]
-fn network_tcp_ri(ctx: &ScanContext, dst_re: RegexpId, port: i64) -> i64 {
+fn network_tcp_ri(ctx: &ScanContext, dst_re: RegexId, port: i64) -> i64 {
     get_local()
         .as_ref()
         .and_then(|local| local.network.as_ref())
@@ -159,8 +174,11 @@ fn network_tcp_ri(ctx: &ScanContext, dst_re: RegexpId, port: i64) -> i64 {
         .unwrap_or(0)
 }
 
+/// Returns true if the Cuckoo report contains some UDP connection to the
+/// destination `port` where the destination domain matches the given regular
+/// expression
 #[module_export(name = "network.udp")]
-fn network_udp_ri(ctx: &ScanContext, dst_re: RegexpId, port: i64) -> i64 {
+fn network_udp_ri(ctx: &ScanContext, dst_re: RegexId, port: i64) -> i64 {
     get_local()
         .as_ref()
         .and_then(|local| local.network.as_ref())
@@ -180,8 +198,10 @@ fn network_udp_ri(ctx: &ScanContext, dst_re: RegexpId, port: i64) -> i64 {
         .unwrap_or(0)
 }
 
+/// Returns true if the Cuckoo report contains an HTTP request where the Host
+/// header matches the given regular expression.
 #[module_export(name = "network.host")]
-fn network_host_r(ctx: &ScanContext, re: RegexpId) -> i64 {
+fn network_host_r(ctx: &ScanContext, re: RegexId) -> i64 {
     get_local()
         .as_ref()
         .and_then(|local| local.network.as_ref())
@@ -195,8 +215,10 @@ fn network_host_r(ctx: &ScanContext, re: RegexpId) -> i64 {
         .unwrap_or(0)
 }
 
+/// Returns true if the Cuckoo contains some mutex operation where the name
+/// of the mutex matches the given regular expression.
 #[module_export(name = "sync.mutex")]
-fn sync_mutex_r(ctx: &ScanContext, mutex_re: RegexpId) -> i64 {
+fn sync_mutex_r(ctx: &ScanContext, mutex_re: RegexId) -> i64 {
     get_local()
         .as_ref()
         .and_then(|local| local.behavior.as_ref())
@@ -212,8 +234,10 @@ fn sync_mutex_r(ctx: &ScanContext, mutex_re: RegexpId) -> i64 {
         .unwrap_or(0)
 }
 
+/// Returns true if the Cuckoo contains some file access operation where the
+/// file path matches the given regular expression.
 #[module_export(name = "filesystem.file_access")]
-fn filesystem_file_access_r(ctx: &ScanContext, regexp_id: RegexpId) -> i64 {
+fn filesystem_file_access_r(ctx: &ScanContext, regexp_id: RegexId) -> i64 {
     get_local()
         .as_ref()
         .and_then(|local| local.behavior.as_ref())
@@ -229,8 +253,10 @@ fn filesystem_file_access_r(ctx: &ScanContext, regexp_id: RegexpId) -> i64 {
         .unwrap_or(0)
 }
 
+/// Returns true if the Cuckoo contains some registry access operation where
+/// the registry key matches the given regular expression.
 #[module_export(name = "registry.key_access")]
-fn registry_key_access_r(ctx: &ScanContext, regexp_id: RegexpId) -> i64 {
+fn registry_key_access_r(ctx: &ScanContext, regexp_id: RegexId) -> i64 {
     get_local()
         .as_ref()
         .and_then(|local| local.behavior.as_ref())
@@ -245,3 +271,5 @@ fn registry_key_access_r(ctx: &ScanContext, regexp_id: RegexpId) -> i64 {
         })
         .unwrap_or(0)
 }
+
+register_module!("cuckoo", Cuckoo, main);

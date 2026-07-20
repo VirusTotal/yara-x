@@ -1,6 +1,6 @@
 {
   "textDocument": {
-    "uri": "file:///semantic_tokens_range.yar"
+    "uri": "${test_dir}/semantic_tokens_range.yar"
   },
   "range": {
     "start": {

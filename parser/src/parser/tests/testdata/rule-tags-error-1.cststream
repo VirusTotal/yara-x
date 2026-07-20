@@ -9,7 +9,6 @@ Token { kind: COLON, span: Span(10..11) }
 Token { kind: WHITESPACE, span: Span(11..12) }
 End { kind: ERROR, span: Span(10..12) }
 Token { kind: L_BRACE, span: Span(12..13) }
-Error { message: "expecting identifier, found `{`", span: Span(12..13) }
 Token { kind: NEWLINE, span: Span(13..14) }
 Token { kind: WHITESPACE, span: Span(14..16) }
 Begin { kind: CONDITION_BLK, span: Span(16..34) }
@@ -26,4 +25,5 @@ End { kind: CONDITION_BLK, span: Span(16..34) }
 Token { kind: NEWLINE, span: Span(34..35) }
 Token { kind: R_BRACE, span: Span(35..36) }
 End { kind: RULE_DECL, span: Span(0..36) }
+Error { message: "expecting identifier, found `{`", span: Span(12..13) }
 End { kind: SOURCE_FILE, span: Span(0..36) }

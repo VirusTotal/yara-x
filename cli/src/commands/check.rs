@@ -3,15 +3,15 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{fs, io, process};
 
 use anyhow::Context;
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
+use clap::{ArgAction, ArgMatches, Command, arg, value_parser};
 use crossterm::tty::IsTty;
-use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Green, Red, Yellow};
 use yansi::Paint;
-use yara_x::{linters, SourceCode};
+use yara_x::{SourceCode, linters};
 use yara_x_parser::ast::MetaValue;
 
 use crate::config::{Config, MetaValueType};
+use crate::walk::Draw;
 use crate::walk::Message;
 use crate::{help, walk};
 
@@ -212,40 +212,45 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
             compiler.colorize_errors(io::stdout().is_tty());
 
-            match compiler.add_source(src) {
-                Ok(compiler) => {
-                    if compiler.warnings().is_empty() {
-                        state.files_passed.fetch_add(1, Ordering::Relaxed);
-                        lines.push(format!(
-                            "[ {} ] {}",
-                            "PASS".paint(Green).bold(),
-                            file_path.display()
-                        ));
-                    } else {
-                        state.warnings.fetch_add(
-                            compiler.warnings().len(),
-                            Ordering::Relaxed,
-                        );
-                        lines.push(format!(
-                            "[ {} ] {}",
-                            "WARN".paint(Yellow).bold(),
-                            file_path.display()
-                        ));
-                        for warning in compiler.warnings() {
-                            eprintln!("{warning}");
-                        }
+            let _ = compiler.add_source(src);
+
+            if compiler.errors().is_empty() && compiler.warnings().is_empty() {
+                state.files_passed.fetch_add(1, Ordering::Relaxed);
+                lines.push(format!(
+                    "[ {} ] {}",
+                    "PASS".paint(Green).bold(),
+                    file_path.display()
+                ));
+            } else {
+                if !compiler.errors().is_empty() {
+                    state.errors.fetch_add(
+                        compiler.errors().len(),
+                        Ordering::Relaxed,
+                    );
+                    lines.push(format!(
+                        "[ {} ] {}",
+                        "FAIL".paint(Red).bold(),
+                        file_path.display()
+                    ));
+                    for error in compiler.errors() {
+                        eprintln!("{error}");
                     }
                 }
-                Err(err) => {
-                    state.errors.fetch_add(1, Ordering::Relaxed);
+                if !compiler.warnings().is_empty() {
+                    state.warnings.fetch_add(
+                        compiler.warnings().len(),
+                        Ordering::Relaxed,
+                    );
                     lines.push(format!(
-                        "[ {} ] {}\n{}",
-                        "FAIL".paint(Red).bold(),
-                        file_path.display(),
-                        err,
+                        "[ {} ] {}",
+                        "WARN".paint(Yellow).bold(),
+                        file_path.display()
                     ));
+                    for warning in compiler.warnings() {
+                        eprintln!("{warning}");
+                    }
                 }
-            };
+            }
 
             output.send(Message::Info(lines.join("\n")))?;
 
@@ -298,36 +303,24 @@ impl CheckState {
     }
 }
 
-impl Component for CheckState {
-    fn draw_unchecked(
-        &self,
-        _dimensions: superconsole::Dimensions,
-        mode: superconsole::DrawMode,
-    ) -> anyhow::Result<superconsole::Lines> {
-        let res = match mode {
-            superconsole::DrawMode::Normal | superconsole::DrawMode::Final => {
-                let ok = format!(
-                    "{} file(s) ok. ",
-                    self.files_passed.load(Ordering::Relaxed)
-                );
+impl Draw for CheckState {
+    fn draw(&self, _width: usize) -> String {
+        let ok = format!(
+            "{} file(s) ok. ",
+            self.files_passed.load(Ordering::Relaxed)
+        );
 
-                let warnings = format!(
-                    "warnings: {}. ",
-                    self.warnings.load(Ordering::Relaxed)
-                );
+        let warnings =
+            format!("warnings: {}. ", self.warnings.load(Ordering::Relaxed));
 
-                let errors = format!(
-                    "errors: {}.",
-                    self.errors.load(Ordering::Relaxed)
-                );
+        let errors =
+            format!("errors: {}.", self.errors.load(Ordering::Relaxed));
 
-                Line::from_iter([
-                    Span::new_unstyled(ok.paint(Green).bold())?,
-                    Span::new_unstyled(warnings.paint(Yellow).bold())?,
-                    Span::new_unstyled(errors.paint(Red).bold())?,
-                ])
-            }
-        };
-        Ok(Lines(vec![res]))
+        format!(
+            "{}{}{}",
+            ok.paint(Green).bold(),
+            warnings.paint(Yellow).bold(),
+            errors.paint(Red).bold()
+        )
     }
 }

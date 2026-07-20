@@ -4,9 +4,8 @@ import "yara.proto";
 package vsix;
 
 option (yara.module_options) = {
-  name : "vsix"
+  name: "vsix"
   root_message: "vsix.Vsix"
-  rust_module: "vsix"
   cargo_feature: "vsix-module"
 };
 

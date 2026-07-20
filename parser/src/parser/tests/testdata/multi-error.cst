@@ -1,0 +1,80 @@
+SOURCE_FILE@0..132
+  RULE_DECL@0..49
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..11 "test_1"
+    WHITESPACE@11..12 " "
+    L_BRACE@12..13 "{"
+    NEWLINE@13..14 "\n"
+    WHITESPACE@14..18 "    "
+    CONDITION_BLK@18..47
+      CONDITION_KW@18..27 "condition"
+      COLON@27..28 ":"
+      NEWLINE@28..29 "\n"
+      WHITESPACE@29..37 "        "
+      ERROR@37..47
+        WITH_KW@37..41 "with"
+        WHITESPACE@41..42 " "
+        IDENT@42..43 "a"
+        WHITESPACE@43..44 " "
+        COLON@44..45 ":"
+        WHITESPACE@45..46 " "
+        L_PAREN@46..47 "("
+    NEWLINE@47..48 "\n"
+    R_BRACE@48..49 "}"
+  NEWLINE@49..50 "\n"
+  NEWLINE@50..51 "\n"
+  RULE_DECL@51..97
+    RULE_KW@51..55 "rule"
+    WHITESPACE@55..56 " "
+    IDENT@56..62 "test_2"
+    WHITESPACE@62..63 " "
+    L_BRACE@63..64 "{"
+    NEWLINE@64..65 "\n"
+    WHITESPACE@65..69 "    "
+    ERROR@69..82
+      STRINGS_KW@69..76 "strings"
+      COLON@76..77 ":"
+      WHITESPACE@77..78 " "
+      ERROR@78..82
+        PATTERN_IDENT@78..80 "$a"
+        WHITESPACE@80..81 " "
+        EQUAL@81..82 "="
+    WHITESPACE@82..83 " "
+    ERROR@83..84
+      L_BRACE@83..84 "{"
+    WHITESPACE@84..85 " "
+    CONDITION_BLK@85..96
+      CONDITION_KW@85..94 "condition"
+      COLON@94..95 ":"
+      WHITESPACE@95..96 " "
+    R_BRACE@96..97 "}"
+  NEWLINE@97..98 "\n"
+  NEWLINE@98..99 "\n"
+  ERROR@99..132
+    RULE_KW@99..103 "rule"
+    WHITESPACE@103..104 " "
+    IDENT@104..110 "test_3"
+    WHITESPACE@110..111 " "
+    L_BRACE@111..112 "{"
+    NEWLINE@112..113 "\n"
+    WHITESPACE@113..117 "    "
+    ERROR@117..130
+      STRINGS_KW@117..124 "strings"
+      COLON@124..125 ":"
+      WHITESPACE@125..126 " "
+      ERROR@126..130
+        PATTERN_IDENT@126..128 "$a"
+        WHITESPACE@128..129 " "
+        EQUAL@129..130 "="
+    WHITESPACE@130..131 " "
+    ERROR@131..132
+      L_BRACE@131..132 "{"
+
+ERRORS:
+- [44..45]: expecting `=`, found `:`
+- [48..49]: expecting expression or identifier, found `}`
+- [132..132]: expecting `)`, found end of file
+- [85..94]: expecting BYTE or `(`, found `condition`
+- [96..97]: expecting expression or identifier, found `}`
+- [132..132]: expecting BYTE or `(`, found end of file

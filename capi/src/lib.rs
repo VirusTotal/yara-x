@@ -90,11 +90,12 @@ includes:
 
 #![deny(missing_docs)]
 #![allow(non_camel_case_types)]
+#![allow(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::missing_safety_doc)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 use std::cell::RefCell;
-use std::ffi::{c_char, CStr, CString};
+use std::ffi::{CStr, CString, c_char};
 use std::ptr::slice_from_raw_parts_mut;
 
 use yara_x::errors::CompileError;
@@ -167,14 +168,10 @@ pub enum YRX_RESULT {
 /// function, as it can modify the last error and render the pointer to
 /// a previous error message invalid. Also, the pointer will be null if
 /// the most recent function was successfully.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_last_error() -> *const c_char {
     LAST_ERROR.with_borrow(|err| {
-        if let Some(err) = err {
-            err.as_ptr()
-        } else {
-            std::ptr::null()
-        }
+        if let Some(err) = err { err.as_ptr() } else { std::ptr::null() }
     })
 }
 
@@ -208,20 +205,25 @@ impl Drop for YRX_BUFFER {
 }
 
 /// Destroys a [`YRX_BUFFER`] object.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_buffer_destroy(buf: *mut YRX_BUFFER) {
-    drop(Box::from_raw(buf));
+    if !buf.is_null() {
+        drop(Box::from_raw(buf));
+    }
 }
 
 /// Compiles YARA source code and creates a [`YRX_RULES`] object that contains
 /// the compiled rules.
 ///
 /// The rules must be destroyed with [`yrx_rules_destroy`].
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compile(
     src: *const c_char,
     rules: &mut *mut YRX_RULES,
 ) -> YRX_RESULT {
+    if src.is_null() {
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
     let c_str = CStr::from_ptr(src);
     match yara_x::compile(c_str.to_bytes()) {
         Ok(r) => {
@@ -262,7 +264,7 @@ pub unsafe extern "C" fn yrx_compile(
 ///   to undefined behavior.
 ///
 /// [wasmtime]: https://wasmtime.dev/
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_finalize() {
     yara_x::finalize();
 }

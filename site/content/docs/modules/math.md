@@ -73,6 +73,10 @@ Examples:
 
 Returns the serial correlation for the given string.
 
+Examples:
+
+`math.serial_correlation("BCA")` &rarr; `-0.5`
+
 ### mean(offset, size)
 
 Returns the mean for the size bytes starting at offset. When scanning a running
@@ -86,6 +90,10 @@ Examples:
 ### mean(string)
 
 Returns the mean for the given string.
+
+Examples:
+
+`math.mean("ABCABC")` &rarr; `66.0`
 
 ### deviation(offset, size, mean)
 
@@ -111,7 +119,7 @@ comparisons are inclusive.
 
 Examples:
 
-`math.in_range(math.deviation(0, filesize, math.MEAN_BYTES), 63.9, 64,1)`
+`math.in_range(math.deviation(0, filesize, math.MEAN_BYTES), 63.9, 64.1)`
 
 ### max(int, int)
 
@@ -185,7 +193,9 @@ Converts the given integer to a string. Note: integers in YARA are signed.
 
 Examples:
 
-`math.to_string(10) == "10" Example: math.to_string(-1) == "-1"`
+`math.to_string(10) == "10"`
+
+`math.to_string(-1) == "-1"`
 
 ### to_string(int, base)
 

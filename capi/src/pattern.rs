@@ -20,7 +20,7 @@ impl<'a, 'r> YRX_PATTERN<'a, 'r> {
 /// null-terminated, and the pointer will be valid as long as the `YRX_RULES`
 /// object that contains the pattern is not freed. The name is guaranteed to be
 /// a valid UTF-8 string.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_pattern_identifier(
     pattern: *const YRX_PATTERN,
     ident: &mut *const u8,
@@ -56,7 +56,7 @@ pub type YRX_MATCH_CALLBACK =
 /// callback function.
 ///
 /// See [`YRX_MATCH_CALLBACK`] for more details.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_pattern_iter_matches(
     pattern: *const YRX_PATTERN,
     callback: YRX_MATCH_CALLBACK,

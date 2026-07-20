@@ -1,6 +1,7 @@
 import collections
 
-from typing import Any, Dict, BinaryIO, TextIO, Optional, Tuple, final
+from typing import Any, Dict, BinaryIO, TextIO, Optional, Tuple, final, List
+from enum import Enum
 
 class CompileError(Exception):
     r"""
@@ -86,6 +87,12 @@ class Compiler:
         """
         ...
 
+    def max_warnings(self, n: int) -> None:
+        r"""
+        Sets the maximum number of warnings.
+        """
+        ...
+
     def define_global(self, ident: str, value: Any) -> None:
         r"""
         Defines a global variable and sets its initial value.
@@ -96,7 +103,10 @@ class Compiler:
         each scanner can change the variable's value by calling
         [`crate::Scanner::set_global`].
 
-        The type of `value` must be: bool, str, bytes, int or float.
+        The type of `value` must be: bool, str, bytes, int, float or dict. When
+        the value is a dict, keys must be of type string and valid YARA identifiers
+        (the first character must be `_` or a letter, and the remaining ones must
+        be a `_`, a letter or a digit).
 
         # Raises
 
@@ -122,6 +132,23 @@ class Compiler:
         errors, but a warning will be issued. Any rule that make use of an
         ignored module will be ignored, while the rest of rules that
         don't rely on that module will be correctly compiled.
+        """
+        ...
+
+    def ignore_invalid_rules(self, yes: bool) -> None:
+        r"""
+        Tell the compiler to ignore any rules that are invalid.
+
+        Any ignored rules and the reasons for them being ignored are available
+        in [`Compiler::ignored_rules`].
+        """
+        ...
+
+    def ignored_rules() -> List[IgnoredRule]:
+        r"""
+        Retrieve all ignored rules during compilation.
+
+        Returns a list of [`IgnoredRule`] objects.
         """
         ...
 
@@ -153,7 +180,7 @@ class Compiler:
         """
         ...
 
-    def rule_name_regexp(self, regexp: str) -> None:
+    def allowed_rule_name(self, regexp: str, error: bool = False) -> None:
         r"""
         Tell the compiler that any rule must match this regular expression or it
         will result in a compiler warning.
@@ -164,6 +191,74 @@ class Compiler:
         if the regular expression is invalid.
         """
         ...
+
+    def allowed_tags(self, tags: List[str], error: bool = False) -> None:
+        r"""List the allowed tags for rules."""
+        ...
+
+    def allowed_tags_regex(self, regexp: str, error: bool = False) -> None:
+        r"""A regular expression that must match all tags on rules."""
+        ...
+
+    def allowed_metadata(
+            self,
+            identifier: str,
+            value_type: MetaType,
+            required: bool,
+            regexp: Optional[str],
+            error: bool = False):
+        r"""Define expected type and value for metadata on rules."""
+        ...
+
+@final
+class IgnoredRuleReason(Enum):
+    IgnoredModule: int
+    IgnoredRule: int
+    CompileError: int
+
+@final
+class IgnoredRule:
+    r"""
+    Names and reasons for any ignored rules during compilation.
+
+    See [`Compiler::ignore_invalid_rules] for details.
+    """
+    def name() -> str:
+        r"""
+        Name of the ignored rule.
+        """
+        ...
+
+    def message() -> str:
+        r"""
+        Message for why the rule was ignored.
+        """
+        ...
+
+    def reason() -> IgnoredRuleReason:
+        r"""
+        Reason for why the rule was ignored.
+        """
+        ...
+
+@final
+class ScanOptions:
+    r"""
+    Optional information for the scan operation.
+    """
+
+    def __new__(cls) -> ScanOptions:
+        r"""
+        Creates a new [`ScanOptions`].
+        """
+        ...
+
+    def set_module_metadata(self, module: str, metadata: bytes) -> None:
+        r"""
+        Sets the data associated with a YARA module.
+        """
+        ...
+
 
 @final
 class Scanner:
@@ -190,6 +285,18 @@ class Scanner:
     def scan_file(self, path: str) -> ScanResults:
         r"""
         Scans a file
+        """
+        ...
+
+    def scan_with_options(self, data: bytes, options: ScanOptions) -> ScanResults:
+        r"""
+        Like `scan`, but with options.
+        """
+        ...
+
+    def scan_file_with_options(self, path: str, options: ScanOptions) -> ScanResults:
+        r"""
+        Like `scan_file`, but with options.
         """
         ...
 
@@ -226,6 +333,20 @@ class Scanner:
         Sets the maximum number of matches per pattern.
 
         When some pattern reaches the specified number of `matches` it won't produce more matches.
+        """
+        ...
+
+    def fast_scan(self, yes: bool) -> None:
+        r"""
+        Enables or disables fast scan mode.
+
+        In fast scan mode, the scanner avoids tracking matches for patterns when
+        it is not necessary (e.g. when a rule condition only performs a simple
+        boolean check `$a`).
+
+        Note that using fast scan mode implies that not all matches will be
+        reported. For instance, when iterating matches, you won't get all occurrences
+        of the pattern in the file, only the first one.
         """
         ...
 
@@ -318,7 +439,7 @@ class Pattern:
         ...
 
     @property
-    def matches(self) -> tuple:
+    def matches(self) -> Tuple[Match, ...]:
         r"""
         Matches found for this pattern.
         """
@@ -345,14 +466,14 @@ class Rule:
         ...
 
     @property
-    def tags(self) -> tuple:
+    def tags(self) -> Tuple[str, ...]:
         r"""
         Returns the rule's tags.
         """
         ...
 
     @property
-    def metadata(self) -> tuple:
+    def metadata(self) -> Tuple[Tuple[str, Any], ...]:
         r"""
         A tuple of pairs `(identifier, value)` with the metadata associated to
         the rule.
@@ -360,7 +481,7 @@ class Rule:
         ...
 
     @property
-    def patterns(self) -> tuple:
+    def patterns(self) -> Tuple[Pattern, ...]:
         r"""
         Patterns defined by the rule.
         """
@@ -380,6 +501,12 @@ class Rules:
     def scan(self, data: bytes) -> ScanResults:
         r"""
         Scans in-memory data with these rules.
+        """
+        ...
+
+    def scan_with_options(self, data: bytes, options: ScanOptions) -> ScanResults:
+        r"""
+        Like `scan`, but with options.
         """
         ...
 
@@ -439,4 +566,34 @@ class Module:
         ...
     def invoke(self, data: str) -> Any:
         r"""Parse the data and collect module metadata."""
+        ...
+
+@final
+class MetaType(Enum):
+    STRING: int
+    INTEGER: int
+    FLOAT: int
+    BOOL: int
+    SHA256: int
+    SHA1: int
+    MD5: int
+    HASH: int
+
+@final
+class CheckResult:
+    r"""Result from the [`Compiler::check`] method after checking source code."""
+    def warning(self) -> bool:
+        r"""True if the result is a warning, false if it is an error."""
+        ...
+
+    def code(self) -> bool:
+        r"""The string representation of the result code."""
+        ...
+
+    def title(self) -> str:
+        r"""The title of the result code."""
+        ...
+
+    def message(self) -> str:
+        r"""A multi-line message containing code, title and full compiler details."""
         ...

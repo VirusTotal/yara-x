@@ -5,8 +5,8 @@ use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::{mem, ptr};
-use walrus::ir::InstrSeqType;
 use walrus::ValType;
+use walrus::ir::InstrSeqType;
 
 use crate::modules::protos::yara::enum_value_options::Value as EnumValue;
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
@@ -461,29 +461,30 @@ impl TypeValue {
 
     #[inline]
     pub fn as_integer(&self) -> i64 {
-        self.try_as_integer()
-            .expect("TypeValue doesn't have an associated value")
+        self.try_as_integer().expect(
+            "TypeValue is not integer or doesn't have an associated value",
+        )
     }
 
     #[inline]
     pub fn as_float(&self) -> f64 {
-        self.try_as_float()
-            .expect("TypeValue doesn't have an associated value")
+        self.try_as_float().expect(
+            "TypeValue is not float or doesn't have an associated value",
+        )
     }
 
     #[inline]
     pub fn as_string(&self) -> Rc<BString> {
-        self.try_as_string()
-            .expect("TypeValue doesn't have an associated value")
+        self.try_as_string().expect(
+            "TypeValue is not string or doesn't have an associated value",
+        )
     }
 
     pub fn try_as_bool(&self) -> Option<bool> {
         if let TypeValue::Bool { value } = self {
             value.extract().cloned()
         } else {
-            panic!(
-                "called `try_as_bool` on a TypeValue that is not TypeValue::Bool, it is: {self:?}"
-            )
+            None
         }
     }
 
@@ -491,9 +492,7 @@ impl TypeValue {
         if let TypeValue::Integer { value, .. } = self {
             value.extract().cloned()
         } else {
-            panic!(
-                "called `try_as_integer` on a TypeValue that is not TypeValue::Integer, it is: {self:?}"
-            )
+            None
         }
     }
 
@@ -501,9 +500,7 @@ impl TypeValue {
         if let TypeValue::Float { value } = self {
             value.extract().cloned()
         } else {
-            panic!(
-                "called `try_as_float` on a TypeValue that is not TypeValue::Float, it is: {self:?}"
-            )
+            None
         }
     }
 
@@ -511,9 +508,7 @@ impl TypeValue {
         if let TypeValue::String { value, .. } = self {
             value.extract().cloned()
         } else {
-            panic!(
-                "called `try_as_string` on a TypeValue that is not TypeValue::String, it is: {self:?}"
-            )
+            None
         }
     }
 

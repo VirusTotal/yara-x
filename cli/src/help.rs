@@ -8,6 +8,17 @@ pub const COMPILED_RULES_LONG_HELP: &str = r#"Indicate that <RULES_PATH> is a fi
 YARA rules can be compiled with the `yr compile` command. The file produced by
 this command can be passed later to `yr scan` by using this flag."#;
 
+pub const FAST_SCAN_LONG_HELP: &str = r#"Enable fast-scan mode
+
+In fast-scan mode, scanning is optimized for speed by avoiding tracking multiple
+matches for patterns when they are only used in simple boolean checks. The scanner
+stops tracking matches for a pattern as soon as the first match is found, provided
+that the pattern is not used in any context that requires knowing all occurrences
+(like #a, @a, !a).
+
+As a consequence, options like `--print-strings` won't output all matching patterns,
+but only the first occurrence of some of the patterns."#;
+
 pub const COMPLETION_LONG_HELP: &str = r#"Output shell completion code for the specified shell
 
 Examples:
@@ -83,8 +94,9 @@ When no filter is specified, the following ones are used by default:
 
 pub const FMT_CHECK_MODE: &str = r#"Run in 'check' mode
 
-Doesn't modify the files. Exits with 0 if files are formatted correctly. Exits
-with 1 if formatting is required."#;
+Doesn't modify the files. If formatting is required prints the names of files
+that would be modified and exits with 1. Exits with 0 if all files were already
+formatted correctly."#;
 
 pub const FMT_TAB_SIZE: &str = r#"Tab size (in spaces) used in source files
 

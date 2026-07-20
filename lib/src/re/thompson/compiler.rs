@@ -6,8 +6,9 @@ More specifically, the compiler produces two instruction sequences, one that
 matches the regexp left-to-right, and another one that matches right-to-left.
 */
 
+use itertools::Itertools;
+use rustc_hash::FxHashMap as HashMap;
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use std::iter::zip;
@@ -20,15 +21,15 @@ use bitvec::order::Lsb0;
 use regex_syntax::hir;
 use regex_syntax::hir::literal::Seq;
 use regex_syntax::hir::{
-    visit, Class, ClassBytes, Hir, HirKind, Literal, Look, Repetition, Visitor,
+    Class, ClassBytes, Hir, HirKind, Literal, Look, Repetition, Visitor, visit,
 };
 
 use super::instr;
-use super::instr::{literal_code_length, Instr, NumAlt, OPCODE_PREFIX};
+use super::instr::{Instr, NumAlt, OPCODE_PREFIX, literal_code_length};
 
 use crate::compiler::{
-    best_atom_in_bytes, Atom, AtomsQuality, DESIRED_ATOM_SIZE,
-    MAX_ATOMS_PER_REGEXP,
+    Atom, AtomsQuality, DESIRED_ATOM_SIZE, MAX_ATOMS_PER_REGEXP,
+    best_atom_in_bytes,
 };
 
 use crate::re;
@@ -219,6 +220,10 @@ impl Compiler {
 }
 
 impl Compiler {
+    /// Repetition threshold. Repetitions with count(s) below or equal to this
+    /// threshold are unrolled (i.e., the repeated expression's code is
+    /// duplicated). Repetitions with count(s) above this threshold are
+    /// compiled using the `repeat` instruction to avoid bloated bytecode.
     const REPEAT_INSTR_THRESHOLD: u32 = 10;
 
     pub(super) fn compile_internal(
@@ -317,7 +322,7 @@ impl Compiler {
         // All chunks in `last_n_chucks` will be appended to the backward code
         // in reverse order. The offset where each chunk resides in the backward
         // code is stored in the hash map.
-        let mut chunk_locations = HashMap::new();
+        let mut chunk_locations = HashMap::default();
 
         for (location, chunk) in
             zip(locations.iter_mut(), last_n_chunks.iter()).rev()
@@ -678,7 +683,7 @@ impl Compiler {
             }
             // e{0,max} (not inside repetition_start/repetition_end yet)
             //
-            // l1: split_a l4 ( split_a for the non-greedy e{0,max}? )
+            // l1: split_a l4 ( split_b for the non-greedy e{0,max}? )
             // l2  ... code for e ...
             // l3: repeat l2, 0, max
             // l4:
@@ -1252,6 +1257,10 @@ impl hir::Visitor for Compiler {
             for atom in atoms.iter_mut() {
                 atom.make_inexact();
             }
+            // Since atoms with different exactness may have become identical
+            // after make_inexact(), sort and dedup them to remove duplicates.
+            atoms.sort();
+            atoms.dedup();
         }
 
         let best_atoms = self.best_atoms_stack.last_mut().unwrap();
@@ -1718,6 +1727,10 @@ impl Display for InstrSeq {
                 Instr::Byte(byte) => {
                     writeln!(f, "{addr:05x}: LIT {byte:#04x}")?;
                 }
+                Instr::Bytes(iter) => {
+                    let bytes: Vec<u8> = iter.clone().collect();
+                    writeln!(f, "{addr:05x}: BYTES {:?}", bytes)?;
+                }
                 Instr::MaskedByte { byte, mask } => {
                     writeln!(
                         f,
@@ -1872,11 +1885,30 @@ fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
         _ => {}
     }
 
+    // Count of the number of sequences at the tail that can be empty.
+    // For instance, if we have sequences [s1, s2, s3], the result will
+    // be 2 if both s2 and s3 can be empty.
+    let empty_tail = seqs
+        .iter()
+        .rev()
+        .map_while(|seq| {
+            if matches!(seq.min_literal_len(), Some(x) if x == 0) {
+                Some(seq)
+            } else {
+                None
+            }
+        })
+        .count();
+
+    // The sequences that can be empty at the tail won't be candidates for
+    // concatenation.
+    let seqs_considered = seqs.len() - empty_tail;
+
     let mut seqs_added = 0;
     let mut total_min_literal_len = 0;
     let mut result = Seq::singleton(hir::literal::Literal::exact(vec![]));
 
-    for seq in seqs.iter() {
+    for seq in seqs.iter().take(seqs_considered) {
         match seq.min_literal_len() {
             Some(min_literal_len) => {
                 // If the cross product of `result` with `seq` produces too many
@@ -1943,7 +1975,7 @@ fn optimize_seq(mut seq: Seq) -> Option<Seq> {
     // literal. For instance, if the sequence contains literals `01 02 03` and
     // `01 02 04`, the key `01 02` will contain a bitmap where bits 3 and 4
     // are set, while the rest of the bits are unset.
-    let mut map = HashMap::new();
+    let mut map = HashMap::default();
 
     for lit in literals {
         // `prefix` contains all bytes in the literal except the last one.
@@ -1967,7 +1999,7 @@ fn optimize_seq(mut seq: Seq) -> Option<Seq> {
         return Some(seq);
     }
 
-    for (_, bitmap) in map.iter_mut() {
+    for bitmap in map.values_mut() {
         bitmap.set(0, true);
     }
 
@@ -1996,9 +2028,52 @@ fn optimize_seq(mut seq: Seq) -> Option<Seq> {
 }
 
 fn seq_to_atoms(seq: Seq) -> Option<Vec<Atom>> {
-    optimize_seq(seq)?
+    let mut atoms: Vec<Atom> = optimize_seq(seq)?
         .literals()
-        .map(|literals| literals.iter().map(Atom::from).collect())
+        .map(|literals| literals.iter().map(Atom::from).collect())?;
+
+    // `regex-syntax`'s `Seq::dedup()` only removes consecutive duplicates.
+    // The Cartesian product can produce identical literals that are not
+    // consecutive, so we must sort and dedup here to remove them.
+    atoms.sort();
+    atoms.dedup();
+
+    // For any pair of atoms, if one is a prefix of the other, the shorter
+    // one must be made inexact, and the longer one can be completely removed.
+    //
+    // Since the atoms are sorted lexicographically, any prefix of an atom
+    // must be adjacent to it in the sorted list.
+    let mut to_make_inexact = Vec::new();
+    let mut to_remove = Vec::new();
+
+    for ((atom_idx, atom), (next_idx, next)) in
+        atoms.iter().map(|atom| atom.as_ref()).enumerate().tuple_windows()
+    {
+        if atom == next {
+            // If they have the same bytes, the exact one (which sorts
+            // after the inexact one) must be removed.
+            to_remove.push(next_idx);
+        } else if next.starts_with(atom) {
+            // If the next atom contains the current one as a prefix,
+            // the next one must be removed and the current one marked
+            // as inexact.
+            to_make_inexact.push(atom_idx);
+            to_remove.push(next_idx);
+        }
+    }
+
+    for idx in to_make_inexact {
+        atoms[idx].make_inexact();
+    }
+
+    // Since to_remove was populated in ascending order, by iterating it
+    // in reverse order we get indexes in descending order to safely remove
+    // elements without index shifting.
+    for idx in to_remove.into_iter().rev() {
+        atoms.remove(idx);
+    }
+
+    Some(atoms)
 }
 
 /// A list of [`RegexpAtom`] that contains additional information, like the

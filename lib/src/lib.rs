@@ -45,12 +45,14 @@ assert_eq!(results.matching_rules().len(), 1);
 #![cfg_attr(docsrs, feature(doc_cfg))]
 extern crate core;
 
-pub use compiler::compile;
 pub use compiler::Compiler;
+pub use compiler::IgnoredRuleReason;
+pub use compiler::IgnoredRules;
 pub use compiler::Patch;
 pub use compiler::Rules;
 pub use compiler::RulesIter;
 pub use compiler::SourceCode;
+pub use compiler::compile;
 pub use models::Match;
 pub use models::Matches;
 pub use models::MetaValue;
@@ -60,7 +62,6 @@ pub use models::PatternKind;
 pub use models::Patterns;
 pub use models::Rule;
 pub use modules::mods;
-pub use scanner::blocks;
 pub use scanner::MatchingRules;
 pub use scanner::ModuleOutputs;
 pub use scanner::NonMatchingRules;
@@ -70,6 +71,7 @@ pub use scanner::ScanError;
 pub use scanner::ScanOptions;
 pub use scanner::ScanResults;
 pub use scanner::Scanner;
+pub use scanner::blocks;
 pub use variables::Variable;
 
 mod compiler;
@@ -78,6 +80,7 @@ mod re;
 mod scanner;
 mod string_pool;
 mod symbols;
+mod teddy;
 mod types;
 mod variables;
 mod wasm;
@@ -173,5 +176,7 @@ mod utils {
 ///
 /// [wasmtime]: https://wasmtime.dev/
 pub unsafe fn finalize() {
-    wasm::free_engine();
+    unsafe {
+        wasm::free_engine();
+    }
 }

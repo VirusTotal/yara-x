@@ -1,0 +1,333 @@
+magic: 0xfeedfacf
+cputype: 0x1000012
+cpusubtype: 0x0
+filetype: 1
+ncmds: 3
+sizeofcmds: 656
+flags: 0x2000
+reserved: 0
+number_of_segments: 1
+symtab:
+    symoff: 2968
+    nsyms: 93
+    stroff: 4456
+    strsize: 788
+    entries:
+      - "/Users/gkhanna/build2/powerpc-apple-darwin8.8.0/ppc64/libiberty/"
+      - "../../../../gcc-4.2-20061007/libiberty/make-temp-file.c"
+      - "gcc2_compiled."
+      - "_memoized_tmpdir"
+      - "_vartmp"
+      - "_usrtmp"
+      - "_tmp"
+      - "choose_tmpdir:F(0,1)=*(0,2)=r(0,2);0;127;"
+      - "char:t(0,2)"
+      - "base:r(0,3)=*(0,4)=k(0,2)"
+      - "tmpdir:r(0,1)"
+      - "len:r(0,5)=r(0,5);0;037777777777;"
+      - "unsigned int:t(0,5)"
+      - "make_temp_file:F(0,1)"
+      - "suffix:P(0,3)"
+      - "base:r(0,3)"
+      - "suffix_len:r(0,6)=r(0,6);-2147483648;2147483647;"
+      - "int:t(0,6)"
+      - "tmp:S(0,7)=ar(0,8)=@s64;r(0,8);0;01777777777777777777777;;0;04;(0,4)"
+      - "long unsigned int:t(0,9)=@s64;r(0,9);0;01777777777777777777777;"
+      - "usrtmp:S(0,10)=ar(0,8);0;010;(0,4)"
+      - "vartmp:S(0,11)=ar(0,8);0;010;(0,4)"
+      - "memoized_tmpdir:S(0,1)"
+      - "_choose_tmpdir"
+      - "_make_temp_file"
+      - "_abort"
+      - "_access"
+      - "_close"
+      - "_getenv"
+      - "_mkstemps"
+      - "_strcpy"
+      - "_strlen"
+      - "_xmalloc"
+      - "dyld_stub_binding_helper"
+    nlists:
+      - n_strx: 122
+        n_type: 100
+        n_sect: 1
+        n_desc: 2
+        n_value: 0
+      - n_strx: 187
+        n_type: 100
+        n_sect: 1
+        n_desc: 2
+        n_value: 0
+      - n_strx: 243
+        n_type: 60
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 258
+        n_type: 14
+        n_sect: 4
+        n_desc: 0
+        n_value: 1216
+      - n_strx: 275
+        n_type: 14
+        n_sect: 3
+        n_desc: 0
+        n_value: 856
+      - n_strx: 283
+        n_type: 14
+        n_sect: 3
+        n_desc: 0
+        n_value: 872
+      - n_strx: 291
+        n_type: 14
+        n_sect: 3
+        n_desc: 0
+        n_value: 888
+      - n_strx: 296
+        n_type: 36
+        n_sect: 1
+        n_desc: 98
+        n_value: 0
+      - n_strx: 338
+        n_type: 128
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 350
+        n_type: 64
+        n_sect: 0
+        n_desc: 99
+        n_value: 28
+      - n_strx: 376
+        n_type: 64
+        n_sect: 0
+        n_desc: 100
+        n_value: 30
+      - n_strx: 390
+        n_type: 64
+        n_sect: 0
+        n_desc: 101
+        n_value: 29
+      - n_strx: 424
+        n_type: 128
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 447
+        n_type: 36
+        n_sect: 1
+        n_desc: 149
+        n_value: 528
+      - n_strx: 469
+        n_type: 64
+        n_sect: 0
+        n_desc: 148
+        n_value: 27
+      - n_strx: 483
+        n_type: 64
+        n_sect: 0
+        n_desc: 150
+        n_value: 26
+      - n_strx: 495
+        n_type: 64
+        n_sect: 0
+        n_desc: 152
+        n_value: 28
+      - n_strx: 544
+        n_type: 128
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 558
+        n_type: 38
+        n_sect: 3
+        n_desc: 77
+        n_value: 888
+      - n_strx: 627
+        n_type: 128
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 691
+        n_type: 38
+        n_sect: 3
+        n_desc: 78
+        n_value: 872
+      - n_strx: 726
+        n_type: 38
+        n_sect: 3
+        n_desc: 80
+        n_value: 856
+      - n_strx: 761
+        n_type: 40
+        n_sect: 4
+        n_desc: 83
+        n_value: 1216
+      - n_strx: 1
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 0
+      - n_strx: 16
+        n_type: 15
+        n_sect: 1
+        n_desc: 0
+        n_value: 528
+      - n_strx: 100
+        n_type: 1
+        n_sect: 0
+        n_desc: 1
+        n_value: 0
+      - n_strx: 57
+        n_type: 1
+        n_sect: 0
+        n_desc: 1
+        n_value: 0
+      - n_strx: 107
+        n_type: 1
+        n_sect: 0
+        n_desc: 1
+        n_value: 0
+      - n_strx: 82
+        n_type: 1
+        n_sect: 0
+        n_desc: 1
+        n_value: 0
+      - n_strx: 90
+        n_type: 1
+        n_sect: 0
+        n_desc: 1
+        n_value: 0
+      - n_strx: 65
+        n_type: 1
+        n_sect: 0
+        n_desc: 1
+        n_value: 0
+      - n_strx: 114
+        n_type: 1
+        n_sect: 0
+        n_desc: 1
+        n_value: 0
+      - n_strx: 73
+        n_type: 1
+        n_sect: 0
+        n_desc: 1
+        n_value: 0
+      - n_strx: 32
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 82
+    iextdefsym: 82
+    nextdefsym: 2
+    tocoff: 84
+    ntoc: 9
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 2904
+    nextrel: 16
+    locreloff: 0
+    nlocrel: 0
+segments:
+  - segname: ""
+    vmaddr: 0x0
+    vmsize: 0x4c8
+    fileoff: 688
+    filesize: 1216
+    maxprot: 0x7
+    initprot: 0x7
+    nsects: 6
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0x0
+        size: 0x310
+        offset: 688
+        align: 4
+        reloff: 1904
+        nreloc: 85
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__cstring"
+        addr: 0x310
+        size: 0x41
+        offset: 1472
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__const"
+        addr: 0x358
+        size: 0x25
+        offset: 1544
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__bss"
+        addr: 0x4c0
+        size: 0x8
+        offset: 0
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x1
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__picsymbolstub1"
+        addr: 0x380
+        size: 0x100
+        offset: 1584
+        align: 5
+        reloff: 2584
+        nreloc: 32
+        flags: 0x80000408
+        reserved1: 0
+        reserved2: 32
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__la_symbol_ptr"
+        addr: 0x480
+        size: 0x40
+        offset: 1840
+        align: 2
+        reloff: 2840
+        nreloc: 8
+        flags: 0x7
+        reserved1: 8
+        reserved2: 0
+        reserved3: 0
+exports:
+  - "_choose_tmpdir"
+  - "_make_temp_file"
+imports:
+  - "_abort"
+  - "_access"
+  - "_close"
+  - "_getenv"
+  - "_mkstemps"
+  - "_strcpy"
+  - "_strlen"
+  - "_xmalloc"
+  - "dyld_stub_binding_helper"

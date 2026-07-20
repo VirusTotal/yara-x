@@ -1,0 +1,16 @@
+syntax = "proto2";
+
+package foobar;
+
+import "yara.proto";
+
+option (yara.module_options) = {
+    name: "foobar"
+    root_message: "foobar.Foobar"
+};
+
+message Foobar {
+    optional uint64 count = 1;
+    optional string label = 2;
+    repeated string tags = 3;
+}

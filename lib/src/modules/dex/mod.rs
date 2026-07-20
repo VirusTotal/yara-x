@@ -2,12 +2,11 @@
 
 This allows creating YARA rules based on metadata extracted from those files.
  */
-
 use sha1::{Digest, Sha1};
 use simd_adler32::Adler32;
 use std::cell::RefCell;
 
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::dex::*;
 
 pub mod parser;
@@ -21,10 +20,12 @@ thread_local!(
         const { RefCell::new(None) };
 );
 
-#[module_main]
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Dex, ModuleError> {
+fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<Dex, ModuleError> {
+    CHECKSUM_CACHE.with(|cache| *cache.borrow_mut() = None);
+    SIGNATURE_CACHE.with(|cache| *cache.borrow_mut() = None);
+
     match parser::Dex::parse(data) {
-        Ok(dex) => Ok(dex.into()),
+        Ok(dex) => Ok(dex),
         Err(_) => {
             let mut dex = Dex::new();
             dex.set_is_dex(false);
@@ -135,7 +136,7 @@ fn contains_method(
         Err(_) => return None,
     };
 
-    Some(dex.methods.binary_search_by(|item| item.name.cmp(&str)).is_ok())
+    Some(dex.methods.iter().any(|item| item.name.as_deref() == str.as_deref()))
 }
 
 /// Function that checks whether the DEX file contains the specified class
@@ -154,3 +155,5 @@ fn contains_class(
             .is_ok(),
     )
 }
+
+register_module!("dex", Dex, main);

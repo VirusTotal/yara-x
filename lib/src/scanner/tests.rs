@@ -5,8 +5,8 @@ use serde_json::json;
 
 use crate::models::MetaValue;
 use crate::variables::VariableError;
-use crate::Scanner;
-use crate::{mods, ScanOptions};
+use crate::{Rule, Scanner};
+use crate::{ScanOptions, mods};
 
 #[cfg(feature = "rules-profiling")]
 use std::time::Duration;
@@ -417,6 +417,36 @@ fn variables_2() {
 }
 
 #[test]
+fn variables_3() {
+    let mut compiler = crate::Compiler::new();
+
+    compiler
+        .define_global("some_array", json!(["foo", "bar", "baz"]))
+        .unwrap()
+        .add_source(
+            r#"
+        rule test {
+            condition:
+                for any s in some_array : ( s == "bar" )
+        }
+        "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(
+        scanner
+            .scan(&[])
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+}
+
+#[test]
 fn global_rules() {
     let mut compiler = crate::Compiler::new();
 
@@ -556,8 +586,10 @@ fn private_patterns() {
             strings:
                 $a = "foo" private
                 $b = "bar"
+                $c = { aa bb cc } private
+                $d = /fo.ba./ private
             condition:
-                $a and $b
+                $a and $b and $c and $d
         }
         "#,
         )
@@ -566,7 +598,8 @@ fn private_patterns() {
     let rules = compiler.build();
 
     let mut scanner = Scanner::new(&rules);
-    let scan_results = scanner.scan(b"foobar").expect("scan should not fail");
+    let scan_results =
+        scanner.scan(b"foobar\xaa\xbb\xcc").expect("scan should not fail");
 
     assert_eq!(scan_results.matching_rules().len(), 1);
 
@@ -578,21 +611,39 @@ fn private_patterns() {
     assert_eq!(patterns.len(), 0);
     assert!(patterns.next().is_none());
 
+    // Iterate all patterns, including private ones.
     let mut patterns = rule.patterns().include_private(true);
-    assert_eq!(patterns.len(), 2);
+    assert_eq!(patterns.len(), 4);
     assert_eq!(patterns.next().unwrap().identifier(), "$a");
-    assert_eq!(patterns.len(), 1);
+    assert_eq!(patterns.len(), 3);
     assert_eq!(patterns.next().unwrap().identifier(), "$b");
+    assert_eq!(patterns.len(), 2);
+    assert_eq!(patterns.next().unwrap().identifier(), "$c");
+    assert_eq!(patterns.len(), 1);
+    assert_eq!(patterns.next().unwrap().identifier(), "$d");
     assert_eq!(patterns.len(), 0);
     assert!(patterns.next().is_none());
 
+    // Start iterating non-private patterns only...
     let mut patterns = rule.patterns();
 
+    // There is only one, which is $b.
     assert_eq!(patterns.len(), 1);
     assert_eq!(patterns.next().unwrap().identifier(), "$b");
     assert_eq!(patterns.len(), 0);
 
+    // Turn on private patterns after $b.
     let mut patterns = patterns.include_private(true);
+
+    // Now we have $c and $d.
+    assert_eq!(patterns.len(), 2);
+    assert_eq!(patterns.next().unwrap().identifier(), "$c");
+
+    // Turn off private patterns again after $c.
+    let mut patterns = patterns.include_private(false);
+
+    // No more patterns, $d is not returned because it is private.
+    assert_eq!(patterns.len(), 0);
     assert!(patterns.next().is_none());
 }
 
@@ -801,6 +852,63 @@ fn scan_no_mmap() {
     assert_eq!(scan_results.matching_rules().len(), 1);
 }
 
+#[test]
+fn rule_serialization() {
+    let rules = crate::compile(
+        r#"
+    rule test: foo bar {
+      meta:
+        foo = "foo"
+        bar = 1
+        baz = 2.0
+        qux = true
+      strings:
+        $a = "aaaa"
+      condition:
+        $a
+    }
+    "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+
+    let scan_results = scanner.scan(b"aaaa").unwrap();
+    let matching_rules: Vec<Rule> = scan_results.matching_rules().collect();
+
+    let expected = json!([{
+        "identifier": "test",
+        "namespace": "default",
+        "is_global": false,
+        "is_private": false,
+        "metadata": [
+            ["foo", "foo"],
+            ["bar", 1],
+            ["baz", 2.0],
+            ["qux", true],
+        ],
+        "tags": ["foo", "bar"],
+        "patterns": [
+            {
+                "identifier": "$a",
+                "kind": "Text",
+                "is_private": false,
+                "matches": [
+                    {
+                        "range": {
+                            "start": 0,
+                            "end": 4
+                        },
+                        "xor_key": null
+                    }
+                ]
+            }
+        ]
+    }]);
+
+    assert_eq!(serde_json::to_value(&matching_rules).unwrap(), expected);
+}
+
 #[cfg(feature = "rules-profiling")]
 #[test]
 fn rules_profiling() {
@@ -829,4 +937,186 @@ fn rules_profiling() {
 
     let slowest_rules = scanner.slowest_rules(10);
     assert_eq!(slowest_rules.len(), 0);
+}
+
+#[test]
+fn max_scan_size() {
+    let rules = crate::compile(
+        r#"
+    rule test {
+      strings:
+        $a = "aaaa"
+      condition:
+        $a
+    }
+    "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+
+    // Without truncation, it matches
+    assert_eq!(scanner.scan(b"aaaabbbb").unwrap().matching_rules().len(), 1);
+    assert_eq!(
+        scanner
+            .scan_file("src/tests/testdata/jumps.bin")
+            .unwrap()
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    // With truncation to 2 bytes, it shouldn't match "aaaa" (4 bytes)
+    scanner.max_scan_size(2);
+    assert_eq!(scanner.scan(b"aaaabbbb").unwrap().matching_rules().len(), 0);
+    assert_eq!(
+        scanner
+            .scan_file("src/tests/testdata/jumps.bin")
+            .unwrap()
+            .matching_rules()
+            .len(),
+        0
+    );
+}
+
+#[cfg(feature = "test_proto2-module")]
+#[test]
+fn regex_set_optimization() {
+    let rules = crate::compile(
+        r#"
+        import "test_proto2"
+        rule test {
+            condition:
+                test_proto2.string_foo matches /foo/ and
+                test_proto2.string_foo matches /bar/
+        }
+        rule test_match {
+            condition:
+                test_proto2.string_foo matches /foo/ or
+                test_proto2.string_foo matches /bar/
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::Scanner::new(&rules);
+    let results = scanner.scan(b"").unwrap();
+
+    let matching_rules: Vec<_> =
+        results.matching_rules().map(|r| r.identifier().to_string()).collect();
+    assert_eq!(matching_rules, vec!["test_match"]);
+}
+
+#[test]
+fn fast_scan_mode() {
+    let rules = crate::compile(
+        r#"
+    rule test_boolean {
+      strings:
+        $a = "foo"
+        $b = "bar"
+      condition:
+        $a and $b
+    }
+    rule test_count {
+      strings:
+        $c = "baz"
+      condition:
+        #c > 1
+    }
+    "#,
+    )
+    .unwrap();
+
+    // Test standard scan first (fast_scan = false by default)
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(b"foofoobarbarbazbaz").unwrap();
+
+    // Check pattern $a matches
+    let test_boolean = results
+        .matching_rules()
+        .find(|r| r.identifier() == "test_boolean")
+        .unwrap();
+    let mut patterns_a =
+        test_boolean.patterns().filter(|p| p.identifier() == "$a");
+    assert_eq!(patterns_a.next().unwrap().matches().len(), 2); // foofoo has 2 matches
+
+    // Check pattern $c matches
+    let test_count = results
+        .matching_rules()
+        .find(|r| r.identifier() == "test_count")
+        .unwrap();
+    let mut patterns_c =
+        test_count.patterns().filter(|p| p.identifier() == "$c");
+    assert_eq!(patterns_c.next().unwrap().matches().len(), 2); // bazbaz has 2 matches
+
+    // Test fast scan mode (fast_scan = true)
+    let mut scanner = Scanner::new(&rules);
+    scanner.fast_scan(true);
+    let results = scanner.scan(b"foofoobarbarbazbaz").unwrap();
+
+    // Rule test_boolean still matches
+    let test_boolean = results
+        .matching_rules()
+        .find(|r| r.identifier() == "test_boolean")
+        .unwrap();
+    // But pattern $a must only have 1 match because it is fast-scanned!
+    let mut patterns_a =
+        test_boolean.patterns().filter(|p| p.identifier() == "$a");
+    assert_eq!(patterns_a.next().unwrap().matches().len(), 1);
+
+    // Pattern $c must still have 2 matches because #c is used, disabling fast scan!
+    let test_count = results
+        .matching_rules()
+        .find(|r| r.identifier() == "test_count")
+        .unwrap();
+    let mut patterns_c =
+        test_count.patterns().filter(|p| p.identifier() == "$c");
+    assert_eq!(patterns_c.next().unwrap().matches().len(), 2);
+}
+
+#[test]
+fn test_pikevm_literal_run_optimization() {
+    let rules = crate::compile(
+        r#"
+        rule test_opt {
+            strings:
+                $a = /abcdefg.*hijk.*lmno/
+            condition:
+                $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+
+    let results = scanner.scan(b"abcdefg_hijk_lmno").unwrap();
+    assert_eq!(results.matching_rules().count(), 1);
+
+    let results = scanner.scan(b"abcdefg_hijk_lmn").unwrap();
+    assert_eq!(results.matching_rules().count(), 0);
+
+    let results = scanner.scan(b"abcdef_hijk_lmno").unwrap();
+    assert_eq!(results.matching_rules().count(), 0);
+}
+
+#[test]
+fn test_slow_rule_hang() {
+    let rules = crate::compile(
+        r#"
+        rule test {
+            strings:
+                $zero_padding = /\x00{860,}/
+            condition:
+                $zero_padding
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    let data = vec![0u8; 2000];
+    let results = scanner.scan(&data).unwrap();
+    assert_eq!(results.matching_rules().count(), 1);
 }

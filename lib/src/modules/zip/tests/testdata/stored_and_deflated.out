@@ -1,0 +1,10 @@
+is_zip: true
+entries:
+  - file_path: "deflated_file.txt"
+    compression: DEFLATED
+    uncompressed_size: 21
+    compressed_size: 23
+  - file_path: "stored_file.txt"
+    compression: STORED
+    uncompressed_size: 19
+    compressed_size: 19

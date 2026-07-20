@@ -18,8 +18,8 @@ mod tests;
 
 use error::TlshError;
 use helper::{
-    bit_distance, find_quartiles, l_capturing, mod_diff, pearson_hash,
-    BUCKET_SIZE, WINDOW_SIZE,
+    BUCKET_SIZE, WINDOW_SIZE, bit_distance, find_quartiles, l_capturing,
+    mod_diff, pearson_hash,
 };
 
 const BUCKETS_A: [BucketKind; 2] =
@@ -295,9 +295,9 @@ impl TlshBuilder {
             (j0 + WINDOW_SIZE - 4) % WINDOW_SIZE,
         );
 
-        let mut fed_len = self.data_len;
-
-        for item in data.iter().skip(offset).take(len) {
+        for (fed_len, item) in
+            (self.data_len..).zip(data.iter().skip(offset).take(len))
+        {
             self.slide_window[j0] = *item;
 
             if fed_len >= 4 {
@@ -374,8 +374,6 @@ impl TlshBuilder {
                 );
                 self.buckets[r as usize] += 1;
             }
-
-            fed_len += 1;
 
             let tmp = j4;
 

@@ -2,11 +2,12 @@ use std::ops::Range;
 use std::slice::Iter;
 
 use bstr::{BStr, ByteSlice};
-use serde::{Deserialize, Serialize};
+use serde::ser::SerializeStruct;
+use serde::{Deserialize, Serialize, Serializer};
 
 use crate::compiler::{IdentId, PatternId, PatternInfo, RuleInfo};
 use crate::scanner::{ScanContext, ScanState};
-use crate::{compiler, scanner, Rules};
+use crate::{Rules, compiler, scanner};
 
 /// Kinds of patterns.
 #[derive(Serialize, Deserialize, Clone, Copy)]
@@ -80,6 +81,31 @@ impl<'a, 'r> Rule<'a, 'r> {
                 - self.rule_info.num_private_patterns,
             len_private: self.rule_info.num_private_patterns,
         }
+    }
+}
+
+impl Serialize for Rule<'_, '_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("rule", 7)?;
+
+        s.serialize_field("identifier", &self.identifier())?;
+        s.serialize_field("namespace", &self.namespace())?;
+        s.serialize_field("is_global", &self.is_global())?;
+        s.serialize_field("is_private", &self.is_private())?;
+
+        let metadata: Vec<_> = self.metadata().collect();
+        s.serialize_field("metadata", &metadata)?;
+
+        let tags: Vec<_> = self.tags().collect();
+        s.serialize_field("tags", &tags)?;
+
+        let patterns: Vec<_> = self.patterns().include_private(true).collect();
+        s.serialize_field("patterns", &patterns)?;
+
+        s.end()
     }
 }
 
@@ -177,9 +203,7 @@ impl<'r> Iterator for Metadata<'_, 'r> {
             compiler::MetaValue::Float(f) => MetaValue::Float(*f),
             compiler::MetaValue::String(id) => {
                 let s = self.rules.lit_pool().get(*id).unwrap();
-                // We can be sure that s is a valid UTF-8 string, because
-                // the type of meta is MetaValue::String.
-                let s = unsafe { s.to_str_unchecked() };
+                let s = s.to_str().unwrap();
                 MetaValue::String(s)
             }
             compiler::MetaValue::Bytes(id) => {
@@ -239,6 +263,15 @@ impl<'r> Tag<'r> {
     /// Returns the tag's identifier.
     pub fn identifier(&self) -> &'r str {
         self.rules.ident_pool().get(self.ident_id).unwrap()
+    }
+}
+
+impl<'r> Serialize for Tag<'r> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.identifier())
     }
 }
 
@@ -339,15 +372,35 @@ impl<'a, 'r> Pattern<'a, 'r> {
     }
 
     /// Returns the matches found for this pattern.
+    ///
+    /// The returned matches are affected by [`crate::Scanner::fast_scan`].
+    /// If fast scan mode is enabled, not all matches are guaranteed to be
+    /// returned.
     pub fn matches(&self) -> Matches<'a, 'r> {
         Matches {
             ctx: self.ctx,
             iterator: self.ctx.and_then(|ctx| {
-                ctx.pattern_matches
+                ctx.tracker
+                    .pattern_matches
                     .get(self.pattern_id)
                     .map(|matches| matches.iter())
             }),
         }
+    }
+}
+
+impl<'a, 'r> Serialize for Pattern<'a, 'r> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("pattern", 4)?;
+        s.serialize_field("identifier", &self.identifier())?;
+        s.serialize_field("kind", &self.kind())?;
+        s.serialize_field("is_private", &self.is_private())?;
+        let matches: Vec<_> = self.matches().collect();
+        s.serialize_field("matches", &matches)?;
+        s.end()
     }
 }
 
@@ -388,12 +441,29 @@ impl<'a> Match<'a, '_> {
     /// Slice containing the data that matched.
     #[inline]
     pub fn data(&self) -> &'a [u8] {
-        let data = match &self.ctx.scan_state {
-            ScanState::Finished(snippets) => snippets.get(self.range()),
-            _ => None,
-        };
+        match &self.ctx.scan_state {
+            ScanState::Finished(snippets) => {
+                snippets.get(self.range()).unwrap()
+            }
+            _ => panic!("invalid scan state"),
+        }
+    }
 
-        data.unwrap()
+    /// Similar to [`Match::data`] but returns a slice that covers the match
+    /// and some extra bytes at its left and right. The returned range indicates
+    /// the portion of the slice that corresponds to the match itself.
+    ///
+    /// Calling this function only makes sense if [`crate::Scanner::match_context_size`]
+    /// is used for indicating how many bytes at the left and right of each
+    /// match are desired. Otherwise, this function will return the same result
+    /// as [`Match::data`].
+    pub fn data_with_context(&self) -> (&'a [u8], Range<usize>) {
+        match &self.ctx.scan_state {
+            ScanState::Finished(snippets) => snippets
+                .get_with_context(self.range(), self.ctx.match_context_size)
+                .unwrap(),
+            _ => panic!("invalid scan state"),
+        }
     }
 
     /// XOR key used for decrypting the data if the pattern had the `xor`
@@ -401,5 +471,17 @@ impl<'a> Match<'a, '_> {
     #[inline]
     pub fn xor_key(&self) -> Option<u8> {
         self.inner.xor_key
+    }
+}
+
+impl<'a, 'r> Serialize for Match<'a, 'r> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("match", 2)?;
+        s.serialize_field("range", &self.range())?;
+        s.serialize_field("xor_key", &self.xor_key())?;
+        s.end()
     }
 }

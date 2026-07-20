@@ -1,0 +1,5 @@
+is_olecf: true
+streams:
+  - name: "ContiguousReg"
+    type: STREAM
+    size: 5000

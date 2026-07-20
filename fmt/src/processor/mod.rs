@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::iter::Peekable;
 use yara_x_parser::cst::SyntaxKind;
 
-use crate::tokens::{categories, Token, TokenStream};
+use crate::tokens::{Token, TokenStream, categories};
 
 // The line below could be uncommented and all occurrences of
 // Iterator<Item = Token<'a>> replaced with TokenIterator<'a>, which would
@@ -411,10 +411,10 @@ where
                 // start or the end of a rule.
                 if let Token::Begin(rule) = token {
                     self.stack.push(rule)
-                } else if let Token::End(rule) = token {
-                    if let Some(top) = self.stack.pop() {
-                        assert_eq!(top, rule);
-                    }
+                } else if let Token::End(rule) = token
+                    && let Some(top) = self.stack.pop()
+                {
+                    assert_eq!(top, rule);
                 }
                 self.output.push_back(token);
             } else {

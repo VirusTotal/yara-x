@@ -1,1 +1,28 @@
-null
+[
+  {
+    "kind": 3,
+    "range": {
+      "end": {
+        "character": 1,
+        "line": 3
+      },
+      "start": {
+        "character": 0,
+        "line": 0
+      }
+    }
+  },
+  {
+    "kind": 2,
+    "range": {
+      "end": {
+        "character": 9,
+        "line": 7
+      },
+      "start": {
+        "character": 4,
+        "line": 7
+      }
+    }
+  }
+]

@@ -1,0 +1,8 @@
+magic: 0xfeedface
+cputype: 0xb3b3b3b3
+cpusubtype: 0xfe76742e
+filetype: 1957934078
+ncmds: 1987313966
+sizeofcmds: 1953759232
+flags: 0x43b300
+number_of_segments: 0

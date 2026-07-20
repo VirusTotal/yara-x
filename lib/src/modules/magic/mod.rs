@@ -4,10 +4,10 @@ This allows creating YARA rules that use the file type provided by [libmagic][1]
 
 [1]: https://man7.org/linux/man-pages/man3/libmagic.3.html
  */
-
-use crate::modules::prelude::*;
-use crate::modules::protos::magic::*;
 use std::cell::RefCell;
+
+use crate::mods::prelude::*;
+use crate::modules::protos::magic::*;
 
 #[cfg(feature = "logging")]
 use log::*;
@@ -27,8 +27,7 @@ thread_local! {
     static MIME_TYPE_CACHE: RefCell<Option<String>> = const { RefCell::new(None) };
 }
 
-#[module_main]
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Magic, ModuleError> {
+fn main(_ctx: &mut ModuleContext, _data: &[u8]) -> Result<Magic, ModuleError> {
     // With every scanned file the cache must be cleared.
     TYPE_CACHE.set(None);
     MIME_TYPE_CACHE.set(None);
@@ -36,6 +35,7 @@ fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Magic, ModuleError> {
     Ok(Magic::new())
 }
 
+/// Returns the file type provided by libmagic.
 #[module_export(name = "type")]
 fn file_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let cached = TYPE_CACHE.with(|cache| cache.borrow().clone());
@@ -58,6 +58,7 @@ fn file_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
     }
 }
 
+/// Returns the MIME type provided by libmagic.
 #[module_export(name = "mime_type")]
 fn mime_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let cached = MIME_TYPE_CACHE.with(|cache| cache.borrow().clone());
@@ -95,3 +96,5 @@ fn get_mime_type(data: &[u8]) -> Result<String, magic::cookie::Error> {
 
     MAGIC.with(|magic| magic.buffer(data))
 }
+
+register_module!("magic", Magic, main);

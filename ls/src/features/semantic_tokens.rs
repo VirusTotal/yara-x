@@ -1,14 +1,17 @@
 use std::collections::VecDeque;
+use std::sync::Arc;
 
-use async_lsp::lsp_types;
+use async_lsp::lsp_types::{self, Url};
 use async_lsp::lsp_types::{
     Position, Range, SemanticToken, SemanticTokenType, SemanticTokens,
 };
 use bitflags::bitflags;
+use dashmap::mapref::one::Ref;
 
 use yara_x_parser::cst::{Immutable, SyntaxKind, Token, Utf16};
 
-use crate::document::Document;
+use crate::documents::document::Document;
+use crate::documents::storage::DocumentStorage;
 
 pub const SEMANTIC_TOKEN_TYPES: &[SemanticTokenType] = &[
     SemanticTokenType::KEYWORD,
@@ -178,7 +181,7 @@ struct SemanticTokensIter {
 }
 
 impl SemanticTokensIter {
-    fn new(document: &Document, range: Option<Range>) -> Self {
+    fn new(document: Ref<'_, Url, Document>, range: Option<Range>) -> Self {
         let first_token = if let Some(range) = range {
             document.cst.root().token_at_position::<Utf16, _>((
                 range.start.line as usize,
@@ -250,10 +253,10 @@ impl Iterator for SemanticTokensIter {
                 let mut column = self.position.character;
 
                 // If we've passed the range, stop iterating early.
-                if let Some(range) = self.range {
-                    if range.end.line < line {
-                        return None;
-                    }
+                if let Some(range) = self.range
+                    && range.end.line < line
+                {
+                    return None;
                 }
 
                 // Multi-line tokens are not supported by the LSP client,
@@ -330,9 +333,11 @@ impl Iterator for SemanticTokensIter {
 /// An optional range can be specified, in which case only the tokens in that
 /// range will be returned.
 pub fn semantic_tokens(
-    document: &Document,
+    documents: Arc<DocumentStorage>,
+    uri: Url,
     range: Option<Range>,
-) -> SemanticTokens {
+) -> Option<SemanticTokens> {
+    let document = documents.get(&uri)?;
     let tokens = SemanticTokensIter::new(document, range);
     let mut prev_position = Position::default();
     let mut result: Vec<SemanticToken> = Vec::new();
@@ -352,7 +357,7 @@ pub fn semantic_tokens(
         prev_position = position
     }
 
-    SemanticTokens { data: result, ..Default::default() }
+    Some(SemanticTokens { data: result, ..Default::default() })
 }
 
 #[cfg(test)]

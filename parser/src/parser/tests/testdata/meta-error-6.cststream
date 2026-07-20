@@ -22,13 +22,11 @@ Token { kind: NEWLINE, span: Span(29..30) }
 Token { kind: WHITESPACE, span: Span(30..32) }
 Begin { kind: ERROR, span: Span(32..39) }
 Token { kind: STRINGS_KW, span: Span(32..39) }
-Error { message: "expecting `-`, INTEGER, FLOAT, STRING, `true` or `false`, found `strings`", span: Span(32..39) }
 End { kind: ERROR, span: Span(32..39) }
 Token { kind: NEWLINE, span: Span(39..40) }
 Token { kind: WHITESPACE, span: Span(40..44) }
 Begin { kind: ERROR, span: Span(44..81) }
 Token { kind: IDENT, span: Span(44..47) }
-Error { message: "expecting `:`, found `bar`", span: Span(44..47) }
 Token { kind: WHITESPACE, span: Span(47..48) }
 Token { kind: EQUAL, span: Span(48..49) }
 Token { kind: WHITESPACE, span: Span(49..50) }
@@ -61,4 +59,6 @@ End { kind: CONDITION_BLK, span: Span(84..103) }
 Token { kind: NEWLINE, span: Span(103..104) }
 Token { kind: R_BRACE, span: Span(104..105) }
 End { kind: RULE_DECL, span: Span(0..105) }
+Error { message: "expecting `-`, INTEGER, FLOAT, STRING, `true` or `false`, found `strings`", span: Span(32..39) }
+Error { message: "expecting `:`, found `bar`", span: Span(44..47) }
 End { kind: SOURCE_FILE, span: Span(0..105) }

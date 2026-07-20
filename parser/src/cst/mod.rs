@@ -17,12 +17,12 @@ use std::iter;
 use std::iter::Cloned;
 use std::marker::PhantomData;
 use std::slice::Iter;
-use std::str::{from_utf8, Utf8Error};
+use std::str::{Utf8Error, from_utf8};
 
 pub use syntax_kind::SyntaxKind;
 
-use crate::cst::error_merger::ErrorMerger;
 use crate::cst::SyntaxKind::{COMMENT, NEWLINE, WHITESPACE};
+use crate::cst::error_merger::ErrorMerger;
 use crate::{Parser, Span};
 
 pub(crate) mod error_merger;
@@ -200,7 +200,7 @@ impl<'a> Iterator for CSTIter<'a> {
                                 span: Span::from(token.text_range()),
                             })
                         }
-                    }
+                    };
                 }
                 rowan::WalkEvent::Leave(e) => {
                     if let rowan::SyntaxElement::Node(node) = e {
@@ -248,13 +248,13 @@ impl rowan::Language for YARA {
 /// NOTE: This API is still unstable and should not be used by third-party code.
 #[doc(hidden)]
 pub struct CST {
-    tree: rowan::SyntaxNode<YARA>,
+    root: rowan::GreenNode,
     errors: Vec<(Span, String)>,
 }
 
 impl Debug for CST {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:#?}", self.tree)?;
+        write!(f, "{:#?}", self.root())?;
         if !self.errors.is_empty() {
             writeln!(f, "\nERRORS:")?;
             for (span, err) in &self.errors {
@@ -271,13 +271,14 @@ impl CST {
     /// The node is initially immutable, but it can be converted into a mutable
     /// one by calling [`Node::into_mut`].
     pub fn root(&self) -> Node<Immutable> {
-        Node::new(self.tree.clone())
+        Node::new(rowan::SyntaxNode::new_root(self.root.clone()))
     }
 
     /// Returns the parsed source code as an iterator of [`Event`].
     pub fn iter(&self) -> impl Iterator<Item = Event> + '_ {
         CSTIter {
-            iter: self.tree.preorder_with_tokens(),
+            iter: rowan::SyntaxNode::new_root(self.root.clone())
+                .preorder_with_tokens(),
             errors: self.errors.iter().cloned(),
         }
     }
@@ -342,10 +343,7 @@ where
             }
         }
 
-        Ok(Self {
-            tree: rowan::SyntaxNode::new_root(builder.finish()),
-            errors,
-        })
+        Ok(Self { root: builder.finish(), errors })
     }
 }
 
@@ -778,7 +776,7 @@ impl Token<Mutable> {
     }
 
     pub fn replace(&mut self, text: &str) -> Node<Mutable> {
-        Node::new(rowan::SyntaxNode::new_root(
+        Node::new(rowan::SyntaxNode::new_root_mut(
             self.inner.replace_with(rowan::GreenToken::new(
                 self.kind().into(),
                 text,
@@ -932,10 +930,16 @@ impl<M> From<NodeOrToken<M>> for rowan::SyntaxElement<YARA> {
 ///
 /// NOTE: This API is still unstable and should not be used by third-party code.
 #[doc(hidden)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Node<M> {
     inner: rowan::SyntaxNode<YARA>,
     _mutability: PhantomData<M>,
+}
+
+impl<M> Debug for Node<M> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:#?}", self.inner)
+    }
 }
 
 impl<M> Node<M> {

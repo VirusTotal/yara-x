@@ -31,9 +31,7 @@ import (
 	"runtime/cgo"
 	"time"
 	"unsafe"
-)
 
-import (
 	"google.golang.org/protobuf/proto"
 )
 
@@ -116,6 +114,20 @@ func (s *Scanner) SetTimeout(timeout time.Duration) {
 	runtime.KeepAlive(s)
 }
 
+// FastScan enables or disables fast scan mode.
+//
+// In fast scan mode, the scanner avoids tracking matches for patterns when it
+// is not necessary (e.g. when a rule condition only performs a simple boolean
+// check `$a`).
+//
+// Note that using fast scan mode implies that not all matches will be
+// reported. For instance, when iterating matches, you won't get all occurrences
+// of the pattern in the file, only the first one.
+func (s *Scanner) FastScan(yes bool) {
+	C.yrx_scanner_fast_scan(s.cScanner, C.bool(yes))
+	runtime.KeepAlive(s)
+}
+
 var ErrTimeout = errors.New("timeout")
 
 // SetGlobal sets the value of a global variable.
@@ -149,7 +161,7 @@ func (s *Scanner) SetGlobal(ident string, value interface{}) error {
 		ret = C.int(C.yrx_scanner_set_global_str(s.cScanner, cIdent, cValue))
 	case float64:
 		ret = C.int(C.yrx_scanner_set_global_float(s.cScanner, cIdent, C.double(v)))
-	case map[string]interface{}, []interface{}:
+	case map[string]any, []any:
 		jsonStr, err := json.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("failed to marshal '%s' to json: '%v'", ident, err)
@@ -302,7 +314,8 @@ func slowestRulesCallback(
 	rule *C.char,
 	patternMatchingTime C.double,
 	conditionExecTime C.double,
-	handle C.uintptr_t) {
+	handle C.uintptr_t,
+) {
 	h := cgo.Handle(handle)
 	profilingInfo, ok := h.Value().(*[]ProfilingInfo)
 	if !ok {
@@ -344,17 +357,17 @@ func (s *Scanner) SlowestRules(n int) []ProfilingInfo {
 	return profilingInfo
 }
 
-/// ClearProfilingData resets the profiling data collected during rule execution
-/// across scanned files. Use it to start a new profiling session, ensuring the
-/// results reflect only the data gathered after this method is called.
+// ClearProfilingData resets the profiling data collected during rule execution
+// across scanned files. Use it to start a new profiling session, ensuring the
+// results reflect only the data gathered after this method is called.
 //
 // In order to use this function, the YARA-X C library must be built with
 // support for rules profiling by enabling the `rules-profiling` feature.
 // Otherwise, calling this function will cause a panic.
 func (s *Scanner) ClearProfilingData() {
-  if C.yrx_scanner_clear_profiling_data(s.cScanner) == C.YRX_NOT_SUPPORTED {
-     panic("ClearProfilingData requires that the YARA-X C library is built with the `rules-profiling` feature")
-  }
+	if C.yrx_scanner_clear_profiling_data(s.cScanner) == C.YRX_NOT_SUPPORTED {
+		panic("ClearProfilingData requires that the YARA-X C library is built with the `rules-profiling` feature")
+	}
 }
 
 // Destroy destroys the scanner.

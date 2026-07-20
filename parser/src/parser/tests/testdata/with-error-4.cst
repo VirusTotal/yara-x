@@ -1,0 +1,50 @@
+SOURCE_FILE@0..80
+  RULE_DECL@0..80
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..16 "    "
+    CONDITION_BLK@16..78
+      CONDITION_KW@16..25 "condition"
+      COLON@25..26 ":"
+      NEWLINE@26..27 "\n"
+      WHITESPACE@27..35 "        "
+      BOOLEAN_EXPR@35..78
+        BOOLEAN_TERM@35..78
+          WITH_EXPR@35..78
+            WITH_KW@35..39 "with"
+            WHITESPACE@39..40 " "
+            WITH_DECLS@40..47
+              WITH_DECL@40..47
+                IDENT@40..43 "foo"
+                WHITESPACE@43..44 " "
+                EQUAL@44..45 "="
+                WHITESPACE@45..46 " "
+                EXPR@46..47
+                  TERM@46..47
+                    INTEGER_LIT@46..47 "1"
+            WHITESPACE@47..48 " "
+            COLON@48..49 ":"
+            WHITESPACE@49..50 " "
+            L_PAREN@50..51 "("
+            NEWLINE@51..52 "\n"
+            WHITESPACE@52..64 "            "
+            BOOLEAN_EXPR@64..67
+              BOOLEAN_TERM@64..67
+                EXPR@64..67
+                  TERM@64..67
+                    PRIMARY_EXPR@64..67
+                      IDENT@64..67 "foo"
+            ERROR@67..68
+              DOT@67..68 "."
+            NEWLINE@68..69 "\n"
+            WHITESPACE@69..77 "        "
+            R_PAREN@77..78 ")"
+    NEWLINE@78..79 "\n"
+    R_BRACE@79..80 "}"
+
+ERRORS:
+- [77..78]: expecting identifier, found `)`

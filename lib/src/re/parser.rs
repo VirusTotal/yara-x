@@ -100,11 +100,17 @@ impl Regexp for types::Regexp {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CaseSensitiveness {
+    Sensitive,
+    Insensitive,
+}
+
 /// A regular expression parser.
 ///
 /// Takes an [`ast::Regexp`] and produces its corresponding [`re::hir::Hir`].
 pub(crate) struct Parser {
-    force_case_insensitive: bool,
+    force_case_sensitiveness: Option<CaseSensitiveness>,
     allow_mixed_greediness: bool,
     relaxed_re_syntax: bool,
 }
@@ -112,16 +118,19 @@ pub(crate) struct Parser {
 impl Parser {
     pub fn new() -> Self {
         Self {
-            force_case_insensitive: false,
+            force_case_sensitiveness: None,
             allow_mixed_greediness: true,
             relaxed_re_syntax: false,
         }
     }
 
-    /// Parses the regexp as a case-insensitive one, no matter whether the regexp
-    /// was actually flagged as case-insensitive or not.
-    pub fn force_case_insensitive(mut self, yes: bool) -> Self {
-        self.force_case_insensitive = yes;
+    /// Forces the regular expression to be parsed with a specific case sensitiveness,
+    /// overriding any modifiers in the regular expression itself.
+    pub fn force_case_sensitiveness(
+        mut self,
+        sensitiveness: Option<CaseSensitiveness>,
+    ) -> Self {
+        self.force_case_sensitiveness = sensitiveness;
         self
     }
 
@@ -281,10 +290,10 @@ impl Parser {
             .dot_matches_new_line(regexp.dot_matches_new_line())
             .validate(&ast)?;
 
-        let case_insensitive = if self.force_case_insensitive {
-            true
-        } else {
-            regexp.case_insensitive()
+        let case_insensitive = match self.force_case_sensitiveness {
+            Some(CaseSensitiveness::Sensitive) => false,
+            Some(CaseSensitiveness::Insensitive) => true,
+            None => regexp.case_insensitive(),
         };
 
         let mut translator = re::hir::translate::TranslatorBuilder::new()

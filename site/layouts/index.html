@@ -133,6 +133,9 @@
       <a class="btn btn-primary btn-cta rounded-pill btn-lg my-3"
          href="docs/{{ if site.Params.doks.docsVersioning }}{{ site.Params.doks.docsVersion }}/{{ end }}intro/getting-started/"
          role="button">{{ i18n "get_started" }}</a>
+      <a class="btn btn-outline-secondary btn-cta rounded-pill btn-lg my-3"
+         href="playground/"
+         role="button">Playground</a>
       {{ .Content }}
     </div>
   </div>
@@ -172,16 +175,4 @@
 {{ end }}
 
 {{ define "sidebar-footer" }}
-{{ if site.Params.doks.sectionFooter -}}
-<section class="section section-md container-fluid bg-light">
-  <div class="row justify-content-center text-center">
-    <div class="col-lg-7">
-      <h2 class="mt-2">Start building with Doks today</h2>
-      <a class="btn btn-primary rounded-pill px-4 my-2"
-         href="/docs/{{ if site.Params.doks.docsVersioning }}{{ site.Params.doks.docsVersion }}/{{ end }}prologue/introduction/"
-         role="button">{{ i18n "get-started" }}</a>
-    </div>
-  </div>
-</section>
-{{ end -}}
 {{ end }}

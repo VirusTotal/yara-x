@@ -1,7 +1,8 @@
-use assert_cmd::{cargo_bin, Command};
-use assert_fs::prelude::*;
+use assert_cmd::{Command, cargo_bin};
 use assert_fs::TempDir;
+use assert_fs::prelude::*;
 use predicates::prelude::*;
+use serde_json;
 
 #[test]
 fn always_true() {
@@ -355,4 +356,136 @@ fn issue_280() {
         .arg(r#".\"#)
         .assert()
         .success();
+}
+
+#[test]
+fn json_output_duplicate_meta_keys() {
+    // Test that duplicate metadata keys are preserved as arrays in JSON output
+    let output = Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=json")
+        .arg("--print-meta")
+        .arg("src/tests/testdata/duplicate_meta.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value =
+        serde_json::from_slice(&output).expect("valid JSON output");
+
+    // Navigate to the meta object
+    let meta = &json["matches"][0]["meta"];
+
+    // Single-value keys should remain as single values
+    assert_eq!(meta["author"], "Test Author");
+    assert_eq!(meta["description"], "Rule with duplicate metadata keys");
+
+    // Duplicate keys should become arrays
+    let hash = &meta["hash"];
+    assert!(hash.is_array(), "hash should be an array");
+    let hash_array = hash.as_array().unwrap();
+    assert_eq!(hash_array.len(), 3);
+    assert!(hash_array.contains(&serde_json::json!("aaa111")));
+    assert!(hash_array.contains(&serde_json::json!("bbb222")));
+    assert!(hash_array.contains(&serde_json::json!("ccc333")));
+}
+
+#[test]
+fn json_output_single_meta_not_array() {
+    // Test that single metadata values are NOT wrapped in arrays
+    let output = Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=json")
+        .arg("--print-meta")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value =
+        serde_json::from_slice(&output).expect("valid JSON output");
+
+    let meta = &json["matches"][0]["meta"];
+
+    // All values should be single values, not arrays
+    assert!(meta["string"].is_string());
+    assert!(meta["bool"].is_boolean());
+    assert!(meta["int"].is_i64());
+    assert!(meta["float"].is_f64());
+}
+
+#[test]
+fn fast_scan() {
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--fast-scan")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("foo src/tests/testdata/dummy.file"));
+
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("-f")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("foo src/tests/testdata/dummy.file"));
+}
+
+#[test]
+fn cpu_limit() {
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--cpu-limit=50")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success();
+}
+
+#[test]
+fn ignore_invalid_rules() {
+    let temp_dir = TempDir::new().unwrap();
+    let yar_file = temp_dir.child("test.yar");
+
+    yar_file
+        .write_str(
+            r#"
+            rule valid_rule {
+                condition: true
+            }
+            rule invalid_rule {
+                condition: undefined_var == 1
+            }
+            "#,
+        )
+        .unwrap();
+
+    // Without --ignore-invalid-rules, scan should fail on compile error.
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg(yar_file.path())
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("1 error(s) found"));
+
+    // With --ignore-invalid-rules, scan should succeed and match valid_rule.
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--ignore-invalid-rules")
+        .arg(yar_file.path())
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("valid_rule"));
 }

@@ -18,19 +18,18 @@ pub fn code_actions(
     let mut actions = Vec::new();
 
     for diagnostic in diagnostics {
-        if let Some(data) = &diagnostic.data {
-            if let Ok(data) =
+        if let Some(data) = &diagnostic.data
+            && let Ok(data) =
                 serde_json::from_value::<DiagnosticData>(data.clone())
-            {
-                for patch in data.patches {
-                    let action = create_code_action(
-                        format!("Fix: {}", diagnostic.message),
-                        uri.clone(),
-                        patch.range,
-                        patch.replacement,
-                    );
-                    actions.push(CodeActionOrCommand::CodeAction(action));
-                }
+        {
+            for patch in data.patches {
+                let action = create_code_action(
+                    format!("Fix: {}", diagnostic.message),
+                    uri.clone(),
+                    patch.range,
+                    patch.replacement,
+                );
+                actions.push(CodeActionOrCommand::CodeAction(action));
             }
         }
     }

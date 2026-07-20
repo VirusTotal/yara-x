@@ -1,25 +1,25 @@
 [
   {
-    "range": {
-      "start": {
-        "line": 0,
-        "character": 0
-      },
-      "end": {
-        "line": 3,
-        "character": 2
-      }
-    },
     "parent": {
       "range": {
-        "start": {
-          "line": 0,
-          "character": 0
-        },
         "end": {
-          "line": 7,
-          "character": 1
+          "character": 1,
+          "line": 7
+        },
+        "start": {
+          "character": 0,
+          "line": 0
         }
+      }
+    },
+    "range": {
+      "end": {
+        "character": 2,
+        "line": 3
+      },
+      "start": {
+        "character": 0,
+        "line": 0
       }
     }
   }

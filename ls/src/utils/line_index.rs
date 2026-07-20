@@ -40,4 +40,53 @@ impl LineIndex {
             end: self.offset_to_position(span.end()),
         }
     }
+
+    /// Converts an LSP `Range` to a `Span` (byte range) in the text.
+    pub(crate) fn range_to_span(
+        &self,
+        range: async_lsp::lsp_types::Range,
+    ) -> Span {
+        let start = self.line_starts[range.start.line as usize] as u32
+            + range.start.character;
+        let end = self.line_starts[range.end.line as usize] as u32
+            + range.end.character;
+        Span(start..end)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_line_index_conversions() {
+        let text = "first line\nsecond line\nthird";
+        let index = LineIndex::new(text);
+
+        // Offset 0 -> line 0, char 0
+        let pos = index.offset_to_position(0);
+        assert_eq!(pos.line, 0);
+        assert_eq!(pos.character, 0);
+
+        // Offset 10 ('\n' at end of first line)
+        let pos = index.offset_to_position(10);
+        assert_eq!(pos.line, 0);
+        assert_eq!(pos.character, 10);
+
+        // Offset 11 (start of second line)
+        let pos = index.offset_to_position(11);
+        assert_eq!(pos.line, 1);
+        assert_eq!(pos.character, 0);
+
+        // Span roundtrip
+        let span = Span(11..22); // "second line"
+        let range = index.span_to_range(span.clone());
+        assert_eq!(range.start.line, 1);
+        assert_eq!(range.start.character, 0);
+        assert_eq!(range.end.line, 1);
+        assert_eq!(range.end.character, 11);
+
+        let roundtrip_span = index.range_to_span(range);
+        assert_eq!(roundtrip_span, span);
+    }
 }

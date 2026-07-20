@@ -1,4 +1,4 @@
-use crate::cst::{CSTStream, Event, SyntaxKind, Utf16, Utf32, Utf8, CST};
+use crate::cst::{CST, CSTStream, Event, SyntaxKind, Utf8, Utf16, Utf32};
 use crate::{Parser, Span};
 
 #[test]
@@ -151,11 +151,7 @@ fn cst_3() {
     assert_eq!(chunks, ["condition", ":", " ", "true"]);
 
     let result = text.try_for_each_chunks(|s| {
-        if s == ":" {
-            anyhow::bail!("colon found")
-        } else {
-            Ok(())
-        }
+        if s == ":" { anyhow::bail!("colon found") } else { Ok(()) }
     });
 
     assert!(result.is_err());
@@ -527,4 +523,21 @@ test {
         cst.next(),
         Some(Event::Token { kind: SyntaxKind::L_BRACE, span: Span(25..26) })
     );
+}
+
+#[test]
+fn cst_recovery_and_error_merging() {
+    let stream = CSTStream::from(Parser::new(b"rule /* unclosed comment"));
+    let mut has_error = false;
+    for event in stream {
+        if matches!(
+            event,
+            Event::Begin { kind: SyntaxKind::ERROR, .. }
+                | Event::Token { kind: SyntaxKind::ERROR, .. }
+                | Event::End { kind: SyntaxKind::ERROR, .. }
+        ) {
+            has_error = true;
+        }
+    }
+    assert!(has_error);
 }

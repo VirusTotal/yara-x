@@ -556,6 +556,37 @@ The `for..in` operator is similar to `for..of`, but the latter iterates over a
 set of patterns, while the former iterates over ranges, enumerations, arrays
 and dictionaries.
 
+## Built-in `.len()` method
+
+YARA-X provides a `.len()` method that can be called on strings, arrays and
+dictionaries. It returns an integer representing the size of the value it is
+called on:
+
+- On **strings**, `.len()` returns the number of bytes in the string.
+- On **arrays**, `.len()` returns the number of elements.
+- On **dictionaries** (maps), `.len()` returns the number of entries.
+
+```yara
+import "some_module"
+
+rule LenExample {
+    condition:
+        some_module.some_string.len() > 0 and
+        some_module.some_array.len() >= 3 and
+        some_module.some_dict.len() == 1
+}
+```
+
+{{< callout title="Notice">}}
+
+The `.len()` method is not the same as the `string.length()` function from the
+[string module](/docs/modules/string). The `.len()` method is a built-in that
+can be called directly on any string, array or dictionary value, while
+`string.length()` is a function in the `string` module that takes a string
+argument.
+
+{{< /callout >}}
+
 ## The "with" statement
 
 YARA-X now supports the `with` statement defined by [RFC](https://github.com/VirusTotal/yara/discussions/1783), which allows you to define identifiers

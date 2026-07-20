@@ -4,9 +4,8 @@ use std::mem;
 use bitvec::array::BitArray;
 
 use super::instr::{Instr, InstrParser, Offset};
-use crate::re::bitmapset::BitmapSet;
 use crate::re::thompson::instr::SplitId;
-use crate::re::{Action, CodeLoc, WideIter, DEFAULT_SCAN_LIMIT};
+use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT, WideIter};
 
 /// Represents a [Pike's VM](https://swtch.com/~rsc/regexp/regexp2.html) that
 /// executes VM code produced by the [compiler][`crate::re::compiler::Compiler`].
@@ -17,10 +16,10 @@ pub(crate) struct PikeVM<'r> {
     /// position within the VM code, pointing to some VM instruction. Each item
     /// in the set is unique, the VM guarantees that there aren't two active
     /// threads at the same VM instruction.
-    threads: BitmapSet<u32>,
+    threads: Vec<(usize, u32)>,
     /// The set of threads that will become the active threads when the next
     /// byte is read from the input.
-    next_threads: BitmapSet<u32>,
+    next_threads: Vec<(usize, u32)>,
     /// Maximum number of bytes to scan. The VM will abort after ingesting
     /// this number of bytes from the input.
     scan_limit: u16,
@@ -33,8 +32,8 @@ impl<'r> PikeVM<'r> {
     pub fn new(code: &'r [u8]) -> Self {
         Self {
             code,
-            threads: BitmapSet::new(),
-            next_threads: BitmapSet::new(),
+            threads: Vec::new(),
+            next_threads: Vec::new(),
             cache: EpsilonClosureState::new(),
             scan_limit: DEFAULT_SCAN_LIMIT,
         }
@@ -163,7 +162,6 @@ impl<'r> PikeVM<'r> {
         F: Iterator<Item = &'a u8>,
         B: Iterator<Item = &'a u8>,
     {
-        let step = 1;
         let mut current_pos = 0;
         let mut curr_byte = fwd_input.next();
 
@@ -182,17 +180,86 @@ impl<'r> PikeVM<'r> {
         );
 
         while !self.threads.is_empty() {
-            let next_byte = fwd_input.next();
+            let mut next_byte = fwd_input.next();
+            // When there is only a single active thread in the VM (that is,
+            // `self.threads.len() == 1`), we can optimize execution by
+            // decoding a contiguous run of literal bytes (`Instr::Bytes`) and
+            // matching them in a fast loop.
+            //
+            // This is only safe when there is one thread active. If there were
+            // multiple concurrent threads, matching a byte run would consume
+            // multiple bytes from the input on the fly, which would
+            // desynchronize and bypass other threads matching at different
+            // positions or branches. It's safe to set decode_literal_runs
+            // always to false, it will simply disable the optimization.
+            let decode_literal_runs = self.threads.len() == 1;
 
             for (ip, rep_count) in self.threads.iter() {
-                let (instr, instr_size) = InstrParser::decode_instr(unsafe {
-                    self.code.get_unchecked(*ip..)
-                });
+                let (instr, mut instr_size) = InstrParser::decode_instr(
+                    unsafe { self.code.get_unchecked(*ip..) },
+                    decode_literal_runs,
+                );
 
                 let is_match = match instr {
                     Instr::AnyByte => curr_byte.is_some(),
                     Instr::Byte(byte) => {
                         matches!(curr_byte, Some(b) if *b == byte)
+                    }
+                    // `Instr::Bytes` matches a sequence of literal bytes in
+                    // a single VM step. This bypasses standard VM thread
+                    // scheduling and state updates, matching the sequence
+                    // directly against the input stream in a fast loop. This
+                    // is returned only when decode_literal_runs is true.
+                    Instr::Bytes(mut lit_bytes) => {
+                        let is_match = 'is_match: {
+                            let first = match lit_bytes.next() {
+                                Some(first) => first,
+                                None => break 'is_match false,
+                            };
+
+                            if !matches!(curr_byte, Some(b) if *b == first) {
+                                break 'is_match false;
+                            }
+
+                            let second = match lit_bytes.next() {
+                                Some(second) => second,
+                                None => break 'is_match true,
+                            };
+
+                            if !matches!(next_byte, Some(b) if *b == second) {
+                                break 'is_match false;
+                            }
+
+                            curr_byte = next_byte;
+                            current_pos += 1;
+
+                            // Match the remaining literal bytes in the
+                            // sequence by consuming bytes from the input
+                            // stream.
+                            for expected_byte in lit_bytes.by_ref() {
+                                curr_byte = fwd_input.next();
+                                match curr_byte {
+                                    Some(curr_byte) => {
+                                        current_pos += 1;
+                                        if *curr_byte != expected_byte {
+                                            break 'is_match false;
+                                        }
+                                    }
+                                    None => break 'is_match false,
+                                }
+                            }
+
+                            next_byte = fwd_input.next();
+                            break 'is_match true;
+                        };
+
+                        // Since the instruction size is not known
+                        // statically when decoding `Instr::Bytes`, we
+                        // retrieve the number of consumed bytecode bytes
+                        // from the iterator to advance the instruction
+                        // pointer correctly.
+                        instr_size = lit_bytes.consumed();
+                        is_match
                     }
                     Instr::MaskedByte { byte, mask } => {
                         matches!(curr_byte, Some(b) if *b & mask == byte)
@@ -227,7 +294,7 @@ impl<'r> PikeVM<'r> {
             }
 
             curr_byte = next_byte;
-            current_pos += step;
+            current_pos += 1;
 
             mem::swap(&mut self.threads, &mut self.next_threads);
             self.next_threads.clear();
@@ -317,7 +384,7 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
     curr_byte: Option<&u8>,
     prev_byte: Option<&u8>,
     state: &mut EpsilonClosureState,
-    closure: &mut BitmapSet<u32>,
+    closure: &mut Vec<(usize, u32)>,
 ) {
     state.threads.push((start.location(), rep_count));
     state.dirty = true;
@@ -329,17 +396,22 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
     };
 
     while let Some((ip, mut rep_count)) = state.threads.pop() {
-        let (instr, instr_size) =
-            InstrParser::decode_instr(unsafe { code.get_unchecked(ip..) });
+        let (instr, instr_size) = InstrParser::decode_instr(
+            unsafe { code.get_unchecked(ip..) },
+            false,
+        );
         match instr {
             Instr::AnyByte
             | Instr::Byte(_)
+            | Instr::Bytes(_)
             | Instr::MaskedByte { .. }
             | Instr::CaseInsensitiveChar(_)
             | Instr::ClassBitmap(_)
             | Instr::ClassRanges(_)
             | Instr::Match => {
-                closure.insert(ip, rep_count);
+                if !closure.iter().any(|(i, _)| *i == ip) {
+                    closure.push((ip, rep_count));
+                }
             }
             Instr::SplitA(id, offset) => {
                 if !state.executed(id) {

@@ -4,12 +4,12 @@ use std::io::stdout;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
+use clap::{ArgAction, ArgMatches, Command, arg, value_parser};
 
 use yara_x::SourceCode;
+use yara_x_parser::Parser;
 use yara_x_parser::ast::AST;
 use yara_x_parser::cst::CST;
-use yara_x_parser::Parser;
 
 use crate::commands::{
     create_compiler, external_var_parser, get_external_vars,

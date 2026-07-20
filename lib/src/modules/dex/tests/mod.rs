@@ -91,7 +91,8 @@ fn methods() {
         import "dex"
         rule test {
             condition:
-                dex.contains_method("getPackageName")
+                dex.contains_method("getPackageName") and
+                dex.contains_method("loadLibrary")
         }
         "#,
         &dex

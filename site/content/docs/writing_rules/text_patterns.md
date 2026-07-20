@@ -87,17 +87,16 @@ rule WideCharTextExample2 {
 }
 ```
 
-The `ascii` modifier can appear alone, without an accompanying `wide` modifier,
-but it's not necessary to write it because in absence of `wide` the string is
-assumed to be ASCII by default.
+Using the `ascii` modifier without `wide` is allowed but unnecessary; strings
+without `wide` are assumed to be ASCII by default.
 
 ## "xor" modifier
 
 The `xor` modifier can be used to search for strings that are XORed with a
 single byte.
 
-The following rule will search for every single byte XOR applied to the string "
-This program cannot" (including the plaintext string):
+The following rule will search for every single byte XOR applied to the string
+"This program cannot" (including the plaintext string):
 
 ```yara
 rule XorExample1 {
@@ -210,15 +209,13 @@ RoaXMgcHJvZ3JhbSBjYW5ub3
 UaGlzIHByb2dyYW0gY2Fubm90
 ```
 
-The `base64wide` modifier works just like the `base64` modifier but the results
-of the `base64` modifier are converted to wide.
+The `base64wide` modifier converts the results of the `base64` modifier to
+`wide` format.
 
-The interaction between `base64` (or `base64wide`) and `wide` and `ascii` is as
-you might expect. `wide` and `ascii` are applied to the string first, and then
-the `base64` and `base64wide` modifiers are applied. At no point is the
-plaintext of the `ascii` or `wide` versions of the strings included in the
-search. If you want to also include those you can put them in a secondary
-pattern.
+First, `wide` and `ascii` are applied to the string, then the `base64` and
+`base64wide` modifiers are applied. The plaintext versions of the `ascii` or
+`wide` strings are never included in the search. If you want to include
+the plaintext string, put it in a second pattern.
 
 The `base64` and `base64wide` modifiers also support a custom alphabet. For
 example:
@@ -234,11 +231,11 @@ rule Base64Example2 {
 
 The alphabet must be 64 bytes long.
 
-The `base64` and `base64wide` modifiers are only supported for text patterns
-that are at least 3 bytes long. Using these modifiers with a hex patterns,
-regular expression, or text patterns that are too short, will cause a compiler
-error. Also, the `xor`, `fullword`, and `nocase` modifiers used in combination
-with `base64` or `base64wide` will cause a compiler error.
+The `base64` and `base64wide` modifiers are only supported for patterns that
+are at least 3 bytes long. Using these modifiers with a hex pattern, regular
+expression, or text pattern that is too short will cause a compiler error. Also,
+the `xor`, `fullword`, and `nocase` modifiers used in combination with `base64`
+or `base64wide` will cause a compiler error.
 
 {{< callout title="Incompatibility notice">}}
 

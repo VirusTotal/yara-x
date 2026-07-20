@@ -276,6 +276,8 @@ fn string_operations() {
 
     condition_true!(r#""foo" icontains "FOO""#);
     condition_true!(r#""foo" icontains "OO""#);
+    condition_true!(r#""CAFÉ" icontains "fé""#);
+    condition_true!(r#""mañana" istartswith "MAÑ""#);
     condition_true!(r#""foo" istartswith "Fo""#);
     condition_true!(r#""foo" iendswith "OO""#);
 
@@ -1260,31 +1262,59 @@ fn hex_patterns() {
     // https://github.com/VirusTotal/yara-x/issues/383
     pattern_match!(
         r#"{
-		    ( 2D A? FF FF FF  |
-		      81 E8 ( A? | B? | C? | D? ) FF  |
-		      81 E9 ( A? | B? | C? | D? ) FF  |
-		      81 EA ( A? | B? | C? | D? ) FF  |
-		      81 EB ( A? | B? | C? | D? ) FF  |
-		      81 ED ( A? | B? | C? | D? ) FF  |
-		      81 EE ( A? | B? | C? | D? ) FF  |
-		      81 EF ( A? | B? | C? | D? ) FF  |
-		      6A 2? 03 ?? 24 ( 58 | 59 | 5A | 5B | 5D | 5E | 5F ) |
-		      6A 3? 03 ?? 24 ( 58 | 59 | 5A | 5B | 5D | 5E | 5F ) |
-		      6A 4? 03 ?? 24 ( 58 | 59 | 5A | 5B | 5D | 5E | 5F ) |
-		      6A 5? 03 ?? 24 ( 58 | 59 | 5A | 5B | 5D | 5E | 5F ) |
-		      83 C0 ( 2? | 3? | 4? | 5? )  |
-		      83 C1 ( 2? | 3? | 4? | 5? )  |
-		      83 C2 ( 2? | 3? | 4? | 5? )  |
-		      83 C3 ( 2? | 3? | 4? | 5? )  |
-		      8D 40 ( 2? | 3? | 4? | 5? )  |
-		      8D 49 ( 2? | 3? | 4? | 5? )  |
-		      8D 6D ( 2? | 3? | 4? | 5? )  |
-		      8D 76 ( 2? | 3? | 4? | 5? )  |
-		      8D 7F ( 2? | 3? | 4? | 5? )
-		    )
-		}"#,
+            ( 2D A? FF FF FF  |
+              81 E8 ( A? | B? | C? | D? ) FF  |
+              81 E9 ( A? | B? | C? | D? ) FF  |
+              81 EA ( A? | B? | C? | D? ) FF  |
+              81 EB ( A? | B? | C? | D? ) FF  |
+              81 ED ( A? | B? | C? | D? ) FF  |
+              81 EE ( A? | B? | C? | D? ) FF  |
+              81 EF ( A? | B? | C? | D? ) FF  |
+              6A 2? 03 ?? 24 ( 58 | 59 | 5A | 5B | 5D | 5E | 5F ) |
+              6A 3? 03 ?? 24 ( 58 | 59 | 5A | 5B | 5D | 5E | 5F ) |
+              6A 4? 03 ?? 24 ( 58 | 59 | 5A | 5B | 5D | 5E | 5F ) |
+              6A 5? 03 ?? 24 ( 58 | 59 | 5A | 5B | 5D | 5E | 5F ) |
+              83 C0 ( 2? | 3? | 4? | 5? )  |
+              83 C1 ( 2? | 3? | 4? | 5? )  |
+              83 C2 ( 2? | 3? | 4? | 5? )  |
+              83 C3 ( 2? | 3? | 4? | 5? )  |
+              8D 40 ( 2? | 3? | 4? | 5? )  |
+              8D 49 ( 2? | 3? | 4? | 5? )  |
+              8D 6D ( 2? | 3? | 4? | 5? )  |
+              8D 76 ( 2? | 3? | 4? | 5? )  |
+              8D 7F ( 2? | 3? | 4? | 5? )
+            )
+        }"#,
         &[0x2D, 0xA0, 0xFF, 0xFF, 0xFF],
         &[0x2D, 0xA0, 0xFF, 0xFF, 0xFF]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 ?? }"#,
+        &[
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+            0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13,
+        ],
+        &[
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+            0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13,
+        ]
+    );
+
+    pattern_false!(
+        r#"{ 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 ?? }"#,
+        &[
+            0x01, 0x02, 0x03, 0xff, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+            0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13
+        ]
+    );
+
+    pattern_false!(
+        r#"{ 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 ?? }"#,
+        &[
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+            0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12,
+        ]
     );
 }
 
@@ -1353,15 +1383,7 @@ fn regexp_patterns_1() {
     pattern_match!(r#"/a(.*)*/"#, b"a", b"a");
     pattern_match!(r#"/a(.*){2}/"#, b"a", b"a");
     pattern_match!(r#"/a(.*){2,4}/"#, b"a", b"a");
-
-    // TODO: known issue related to exact atoms. The matching string
-    // should be "abbb" and not "abb". When the `exact-atoms` feature
-    // is disabled it works correctly.
-    #[cfg(not(feature = "exact-atoms"))]
     pattern_match!(r#"/a(bb|b)b/"#, b"abbbbbbbb", b"abbb");
-    #[cfg(feature = "exact-atoms")]
-    pattern_match!(r#"/a(bb|b)b/"#, b"abbbbbbbb", b"abb");
-
     pattern_match!(r#"/a(b|bb)b/"#, b"abbbbbbbb", b"abb");
 
     pattern_match!(
@@ -3386,6 +3408,36 @@ fn filesize_bounds() {
         1 // test_2 matches, but test_1 do not.
     );
 
+    // Compare filesize with float.
+    let rules = crate::compile(
+        r#"
+        rule test_1 {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a and filesize > 6.1
+        }
+        rule test_2 {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(
+        scanner
+            .scan(b"foobar")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1 // test_2 matches, but test_1 do not.
+    );
+
     let rules = crate::compile(
         r#"
         rule test {
@@ -3424,6 +3476,90 @@ fn filesize_bounds() {
             $a = "foobar"
           condition:
             $a and filesize <= 10
+        }
+        "#,
+    )
+    .expect_err("should fail");
+
+    crate::compile(
+        r#"
+        rule test_1 {
+          condition:
+            filesize > 100.3
+        }
+        "#,
+    )
+    .unwrap();
+}
+
+#[test]
+fn header_constraints() {
+    let rules = crate::compile(
+        r#"
+        rule test_1 {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            uint16(0) == 0x5a4d and $a
+        }
+        rule test_2 {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(
+        scanner
+            .scan(b"foobar")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1 // test_2 matches, but test_1 do not.
+    );
+
+    let rules = crate::compile(
+        r#"
+        rule test {
+          strings:
+            $a = /foo.*bar/
+          condition:
+            $a and filesize == 6
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(
+        scanner
+            .scan(b"foobar")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    crate::compile(
+        r#"
+        rule test_1 {
+          strings:
+            $a = "foo"
+            $b = /a*/
+          condition:
+            uint16(0) == 0x5a4d and $a and $b
+        }
+        rule test_2 {
+          strings:
+            $c = "bar"
+          condition:
+            uint16(0) == 0x5a4d and $c
         }
         "#,
     )
@@ -3952,5 +4088,281 @@ fn short_circuit() {
         }
         "#,
         b"foobar"
+    );
+}
+
+#[test]
+fn header_constraints_optimization() {
+    // ELF magic check.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "ELF"
+            condition:
+                uint32(0) == 0x464c457f and $a
+        }
+        "#,
+        b"\x7fELF\0\0\0\0"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "ELF"
+            condition:
+                uint32(0) == 0x464c457f and $a
+        }
+        "#,
+        b"\0\0\0\0ELF"
+    );
+
+    // PE magic check.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "PE"
+            condition:
+                uint16(0) == 0x5a4d and $a
+        }
+        "#,
+        b"MZ\0\0PE"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "PE"
+            condition:
+                uint16(0) == 0x5a4d and $a
+        }
+        "#,
+        b"\0\0MZPE"
+    );
+
+    // Pattern at 0 check.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "MZ"
+            condition:
+                $a at 0
+        }
+        "#,
+        b"MZ"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "MZ"
+            condition:
+                $a at 0
+        }
+        "#,
+        b"\0MZ"
+    );
+
+    // Multiple constraints combined.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "ELF"
+            condition:
+                uint32(0) == 0x464c457f and uint16(4) == 0x0102 and $a
+        }
+        "#,
+        b"\x7fELF\x02\x01"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "ELF"
+            condition:
+                uint32(0) == 0x464c457f and uint16(4) == 0x0102 and $a
+        }
+        "#,
+        b"\x7fELF\x99\x99"
+    );
+
+    // Deduplication test: A pattern used in both a constrained and an unconstrained rule.
+    // When the header does not match, only the unconstrained rule should match (exactly 1 rule).
+    rule_true!(
+        r#"
+        rule constrained {
+            strings:
+                $a = "foo"
+            condition:
+                uint32(0) == 0x464c457f and $a
+        }
+        rule unconstrained {
+            strings:
+                $a = "foo"
+            condition:
+                $a
+        }
+        "#,
+        b"\0\0\0\0foo"
+    );
+
+    // When the header matches, both rules should match (exactly 2 rules).
+    test_rule!(
+        r#"
+        rule constrained {
+            strings:
+                $a = "foo"
+            condition:
+                uint32(0) == 0x464c457f and $a
+        }
+        rule unconstrained {
+            strings:
+                $a = "foo"
+            condition:
+                $a
+        }
+        "#,
+        b"\x7fELFfoo",
+        2
+    );
+
+    // Non-contiguous offsets for uint8.
+    rule_true!(
+        r#"
+        rule constrained {
+            strings:
+                $a = "MZ"
+            condition:
+                uint8(0) == 0x00 and uint8(2) == 0x5a and $a
+        }
+        "#,
+        b"\0MZ"
+    );
+
+    // Patterns whose on-disk bytes differ from their literal text (because of
+    // the `xor`, `nocase`, `wide`, `base64` or `base64wide` modifiers) must not
+    // derive a header constraint from the literal text. Otherwise `$a at 0`
+    // would wrongly require the file to start with the plaintext bytes and the
+    // pattern would be pruned even though it matches at offset 0.
+
+    // `xor`: "Hello" XORed with key 0x01 -> 49 64 6d 6d 6e.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "Hello" xor
+            condition:
+                $a at 0
+        }
+        "#,
+        b"\x49\x64\x6d\x6d\x6e"
+    );
+
+    // `nocase`: data has a different case than the literal.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "HELLO" nocase
+            condition:
+                $a at 0
+        }
+        "#,
+        b"hello"
+    );
+
+    // `wide`: the literal bytes are interleaved with zeroes.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "Hello" wide
+            condition:
+                $a at 0
+        }
+        "#,
+        b"H\0e\0l\0l\0o\0"
+    );
+
+    // `base64`: "Hello" base64-encoded.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "Hello" base64
+            condition:
+                $a at 0
+        }
+        "#,
+        b"SGVsbG8="
+    );
+
+    // `base64wide`: "Hello" base64-encoded and then made wide.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "Hello" base64wide
+            condition:
+                $a at 0
+        }
+        "#,
+        b"S\0G\0V\0s\0b\0G\08\0"
+    );
+
+    // A regexp that reduces to a literal, with the `wide` modifier. For regexps
+    // the `wide` transformation is applied when lowering to sub-patterns, so it
+    // is not visible in the HIR and `as_literal_bytes()` returns the non-wide
+    // bytes. The header constraint must still not be derived from them.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = /Hello/ wide
+            condition:
+                $a at 0
+        }
+        "#,
+        b"H\0e\0l\0l\0o\0"
+    );
+
+    // The bytes that actually appear in the data are not constrained to the
+    // literal text, but matching itself must still work correctly: a pattern
+    // with a byte-transforming modifier anchored at 0 must not match when its
+    // encoded form is absent at offset 0.
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "Hello" xor
+            condition:
+                $a at 0
+        }
+        "#,
+        b"\0\0\0\0\x49\x64\x6d\x6d\x6e"
+    );
+
+    // A modifier pattern anchored at 0 must not contaminate the header
+    // constraint derived from a plain literal in the same rule. Here the file
+    // starts with "MZ" (so `$plain at 0` holds) and contains "Hello" XORed with
+    // key 0x01 somewhere; `$x` must not be pruned by `$plain`'s constraint.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $plain = "MZ"
+                $x = "Hello" xor
+            condition:
+                $plain at 0 and $x
+        }
+        "#,
+        b"MZ\x49\x64\x6d\x6d\x6e"
     );
 }

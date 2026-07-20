@@ -1,11 +1,12 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::VecDeque;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::{mem, ptr};
 
 #[cfg(test)]
 use bstr::BString;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::compiler::{RuleId, Var};
 use crate::types::{AclEntry, DeprecationNotice, Func, Type, TypeValue};
@@ -192,14 +193,17 @@ impl SymbolLookup for Option<Symbol> {
 /// object that also implements the [`SymbolLookup`] trait, possibly another
 /// [`SymbolTable`].
 pub(crate) struct SymbolTable {
-    map: HashMap<String, Symbol>,
-    used: RefCell<HashSet<String>>,
+    map: FxHashMap<String, Symbol>,
+    used: RefCell<FxHashSet<String>>,
 }
 
 impl SymbolTable {
     /// Creates a new symbol table.
     pub fn new() -> Self {
-        Self { map: HashMap::new(), used: RefCell::new(HashSet::new()) }
+        Self {
+            map: FxHashMap::default(),
+            used: RefCell::new(FxHashSet::default()),
+        }
     }
 
     /// Inserts a new symbol into the symbol table.
@@ -244,7 +248,10 @@ impl Default for SymbolTable {
 impl SymbolLookup for &SymbolTable {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         if let Some(symbol) = self.map.get(ident) {
-            self.used.borrow_mut().insert(ident.to_string());
+            let mut used = self.used.borrow_mut();
+            if !used.contains(ident) {
+                used.insert(ident.to_string());
+            }
             Some(symbol.clone())
         } else {
             None
@@ -349,14 +356,15 @@ mod tests {
     fn message_lookup() {
         use protobuf::{Enum, MessageFull};
 
+        use crate::modules::protos::test_proto2::TestProto2;
         use crate::modules::protos::test_proto2::test_proto2::Enumeration;
         use crate::modules::protos::test_proto2::test_proto2::Enumeration2;
-        use crate::modules::protos::test_proto2::TestProto2;
 
         let test = Struct::from_proto_descriptor_and_msg(
             &TestProto2::descriptor(),
             None,
             true,
+            false,
         );
 
         assert_eq!(test.lookup("int32_zero").unwrap().ty(), Type::Integer);
@@ -383,9 +391,9 @@ mod tests {
     fn message_dyn_lookup() {
         use protobuf::{Enum, Message, MessageField, MessageFull};
 
-        use crate::modules::protos::test_proto2::test_proto2::Enumeration;
         use crate::modules::protos::test_proto2::NestedProto2;
         use crate::modules::protos::test_proto2::TestProto2;
+        use crate::modules::protos::test_proto2::test_proto2::Enumeration;
 
         let mut test = TestProto2::new();
         let mut nested = NestedProto2::new();
@@ -436,6 +444,7 @@ mod tests {
             &descriptor,
             Some(message.as_ref()),
             true,
+            false,
         );
 
         assert_eq!(

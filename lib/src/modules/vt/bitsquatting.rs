@@ -11,7 +11,7 @@ pub fn bitsquatting(a: &str, b: &str) -> bool {
         match (next_a, next_b) {
             (Some(next_a), Some(next_b)) => {
                 if next_a != next_b {
-                    if !next_a.is_ascii() || !next_a.is_ascii() {
+                    if !next_a.is_ascii() || !next_b.is_ascii() {
                         return false;
                     }
                     let xor = next_a as u8 ^ next_b as u8;
@@ -37,5 +37,8 @@ mod tests {
         assert!(bitsquatting("aa", "qa"));
         assert!(bitsquatting("aaa", "aqa"));
         assert!(!bitsquatting("aaa", "aqq"));
+
+        assert!(!bitsquatting("a", "á"));
+        assert!(!bitsquatting("á", "a"));
     }
 }

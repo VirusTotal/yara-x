@@ -6,7 +6,6 @@ package string;
 option (yara.module_options) = {
   name : "string"
   root_message: "string.String"
-  rust_module: "string"
   cargo_feature: "string-module"
 };
 

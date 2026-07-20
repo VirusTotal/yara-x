@@ -2,6 +2,7 @@ package yara_x
 
 // #include <yara_x.h>
 import "C"
+
 import (
 	"encoding/json"
 	"errors"
@@ -28,7 +29,7 @@ type CompileOption func(c *Compiler) error
 //
 // Valid value types include: int, int32, int64, bool, string, float32 and
 // float64.
-func Globals(vars map[string]interface{}) CompileOption {
+func Globals(vars map[string]any) CompileOption {
 	return func(c *Compiler) error {
 		for ident, value := range vars {
 			c.vars[ident] = value
@@ -138,6 +139,17 @@ func ErrorOnSlowLoop(yes bool) CompileOption {
 func EnableIncludes(yes bool) CompileOption {
 	return func(c *Compiler) error {
 		c.includesEnabled = yes
+		return nil
+	}
+}
+
+// MaxWarnings is an option for [NewCompiler] and [Compile] that sets the
+// maximum number of warnings.
+//
+// The compiler will report only the first n warnings.
+func MaxWarnings(n int) CompileOption {
+	return func(c *Compiler) error {
+		c.maxWarnings = &n
 		return nil
 	}
 }
@@ -278,9 +290,10 @@ type Compiler struct {
 	includesEnabled       bool
 	ignoredModules        map[string]bool
 	bannedModules         map[string]bannedModule
-	vars                  map[string]interface{}
+	vars                  map[string]any
 	features              []string
 	includeDirs           []string
+	maxWarnings           *int
 }
 
 // NewCompiler creates a new compiler.
@@ -289,7 +302,7 @@ func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 		includesEnabled: true,
 		ignoredModules:  make(map[string]bool),
 		bannedModules:   make(map[string]bannedModule),
-		vars:            make(map[string]interface{}),
+		vars:            make(map[string]any),
 		features:        make([]string, 0),
 		includeDirs:     make([]string, 0),
 	}
@@ -332,6 +345,9 @@ func NewCompiler(opts ...CompileOption) (*Compiler, error) {
 }
 
 func (c *Compiler) initialize() error {
+	if c.maxWarnings != nil {
+		c.setMaxWarnings(*c.maxWarnings)
+	}
 	for name := range c.ignoredModules {
 		c.ignoreModule(name)
 	}
@@ -448,6 +464,13 @@ func (c *Compiler) ignoreModule(module string) {
 	runtime.KeepAlive(c)
 }
 
+// setMaxWarnings sets the maximum number of warnings.
+// See: [MaxWarnings].
+func (c *Compiler) setMaxWarnings(n int) {
+	C.yrx_compiler_max_warnings(c.cCompiler, C.size_t(n))
+	runtime.KeepAlive(c)
+}
+
 func (c *Compiler) banModule(module, error_title, error_message string) {
 	cModule := C.CString(module)
 	defer C.free(unsafe.Pointer(cModule))
@@ -536,7 +559,7 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 		ret = C.int(C.yrx_compiler_define_global_float(c.cCompiler, cIdent, C.double(v)))
 	case float64:
 		ret = C.int(C.yrx_compiler_define_global_float(c.cCompiler, cIdent, C.double(v)))
-	case map[string]interface{}, []interface{}:
+	case map[string]any, []any:
 		jsonStr, err := json.Marshal(v)
 		if err != nil {
 			return fmt.Errorf("failed to marshal '%s' to json: '%v'", ident, err)

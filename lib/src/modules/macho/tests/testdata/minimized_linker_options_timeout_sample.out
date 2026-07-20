@@ -1,0 +1,9 @@
+magic: 0xcffaedfe
+cputype: 0x1fdffff
+cpusubtype: 0xffff0000
+filetype: 4294901520
+ncmds: 184496351
+sizeofcmds: 4294901760
+flags: 0xffffffff
+reserved: 65328
+number_of_segments: 0

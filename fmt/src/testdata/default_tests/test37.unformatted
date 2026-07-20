@@ -1,0 +1,6 @@
+rule test {
+    strings:
+        $c1 = { s00 01 1a 2b }
+    condition:
+        any of them
+}

@@ -6,7 +6,6 @@ package lnk;
 option (yara.module_options) = {
   name : "lnk"
   root_message: "lnk.Lnk"
-  rust_module: "lnk"
   cargo_feature: "lnk-module"
 };
 

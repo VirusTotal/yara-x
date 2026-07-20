@@ -16,15 +16,14 @@ use nom::character::complete::u8;
 use nom::combinator::map;
 use nom::number::complete::{le_u16, le_u32};
 
-use crate::compiler::RegexpId;
-use crate::modules::prelude::*;
+use crate::compiler::RegexId;
+use crate::mods::prelude::*;
 use crate::modules::protos::pe::*;
 use crate::types::Struct;
 
 #[cfg(test)]
 mod tests;
 
-mod authenticode;
 pub mod parser;
 mod rva2off;
 
@@ -35,8 +34,7 @@ thread_local!(
     static CHECKSUM_CACHE: RefCell<Option<i64>> = const { RefCell::new(None) };
 );
 
-#[module_main]
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<PE, ModuleError> {
+fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<PE, ModuleError> {
     IMPHASH_CACHE.with(|cache| *cache.borrow_mut() = None);
     CHECKSUM_CACHE.with(|cache| *cache.borrow_mut() = None);
 
@@ -250,23 +248,16 @@ fn imphash(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
     let mut first = true;
 
     for import in &pe.import_details {
-        let original_dll_name =
-            import.library_name.as_deref().unwrap().to_lowercase();
-        let mut dll_name = original_dll_name.as_str();
-        // If extension is '.dll', '.sys' or '.ocx', remove it.
-        for extension in [".dll", ".sys", ".ocx"] {
-            dll_name = dll_name.trim_end_matches(extension);
-        }
+        let dll_name = trim_import_library_extension(
+            import.library_name.as_deref().unwrap(),
+        );
         for func in &import.functions {
             if !first {
                 Digest::update(&mut md5_hash, ",".as_bytes())
             }
-            Digest::update(&mut md5_hash, dll_name);
+            update_lowercase(&mut md5_hash, dll_name);
             Digest::update(&mut md5_hash, ".".as_bytes());
-            Digest::update(
-                &mut md5_hash,
-                func.name.as_deref().unwrap().to_lowercase().as_bytes(),
-            );
+            update_lowercase(&mut md5_hash, func.name.as_deref().unwrap());
             first = false;
         }
     }
@@ -280,16 +271,55 @@ fn imphash(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
     Some(Lowercase::<FixedLenString<32>>::new(digest))
 }
 
+fn trim_import_library_extension(name: &str) -> &str {
+    for extension in [".dll", ".sys", ".ocx"] {
+        let extension = extension.as_bytes();
+        let name_bytes = name.as_bytes();
+        if name_bytes.len() >= extension.len()
+            && name_bytes[name_bytes.len() - extension.len()..]
+                .eq_ignore_ascii_case(extension)
+        {
+            return &name[..name_bytes.len() - extension.len()];
+        }
+    }
+    name
+}
+
+fn update_lowercase<D: Digest>(hasher: &mut D, s: &str) {
+    let bytes = s.as_bytes();
+    if bytes.is_ascii() {
+        if !bytes.iter().any(u8::is_ascii_uppercase) {
+            Digest::update(hasher, bytes);
+            return;
+        }
+
+        let mut buf = [0; 256];
+        for chunk in bytes.chunks(buf.len()) {
+            for (dst, src) in buf.iter_mut().zip(chunk) {
+                *dst = src.to_ascii_lowercase();
+            }
+            Digest::update(hasher, &buf[..chunk.len()]);
+        }
+        return;
+    }
+
+    let lowercase = s.to_lowercase();
+    Digest::update(hasher, lowercase.as_bytes());
+}
+
+/// Returns the number of toolid records with the given toolid.
 #[module_export(name = "rich_signature.toolid")]
 fn rich_toolid(ctx: &mut ScanContext, toolid: i64) -> Option<i64> {
     rich_version_impl(ctx.module_output::<PE>()?, Some(toolid), None)
 }
 
+/// Returns the number of toolid records matching the given version.
 #[module_export(name = "rich_signature.version")]
 fn rich_version(ctx: &mut ScanContext, version: i64) -> Option<i64> {
     rich_version_impl(ctx.module_output::<PE>()?, None, Some(version))
 }
 
+/// Returns the number of toolid records matching the given toolid and version.
 #[module_export(name = "rich_signature.version")]
 fn rich_version_toolid(
     ctx: &mut ScanContext,
@@ -299,6 +329,7 @@ fn rich_version_toolid(
     rich_version_impl(ctx.module_output::<PE>()?, Some(toolid), Some(version))
 }
 
+/// Returns the number of toolid records matching the given toolid and version.
 #[module_export(name = "rich_signature.toolid")]
 fn rich_toolid_version(
     ctx: &mut ScanContext,
@@ -399,8 +430,8 @@ fn standard_imports_ordinal(
 #[module_export(name = "imports")]
 fn standard_imports_regexp(
     ctx: &ScanContext,
-    dll_name: RegexpId,
-    func_name: RegexpId,
+    dll_name: RegexId,
+    func_name: RegexId,
 ) -> Option<i64> {
     imports_impl(
         ctx,
@@ -485,8 +516,8 @@ fn imports_ordinal(
 fn imports_regexp(
     ctx: &ScanContext,
     import_flags: i64,
-    dll_name: RegexpId,
-    func_name: RegexpId,
+    dll_name: RegexId,
+    func_name: RegexId,
 ) -> Option<i64> {
     imports_impl(
         ctx,
@@ -586,7 +617,7 @@ fn exports_ordinal(ctx: &ScanContext, ordinal: i64) -> Option<bool> {
 /// Returns true if the PE file exports a function with a name that matches
 /// the given regular expression.
 #[module_export(name = "exports")]
-fn exports_regexp(ctx: &ScanContext, func_name: RegexpId) -> Option<bool> {
+fn exports_regexp(ctx: &ScanContext, func_name: RegexId) -> Option<bool> {
     let (found, _) = exports_impl(ctx, MatchCriteria::Regexp(func_name))?;
     Some(found)
 }
@@ -615,10 +646,7 @@ fn exports_index_ordinal(ctx: &ScanContext, ordinal: i64) -> Option<i64> {
 /// Returns true if the PE file exports a function with a name that matches
 /// the given regular expression.
 #[module_export(name = "exports_index")]
-fn exports_index_regexp(
-    ctx: &ScanContext,
-    func_name: RegexpId,
-) -> Option<i64> {
+fn exports_index_regexp(ctx: &ScanContext, func_name: RegexId) -> Option<i64> {
     match exports_impl(ctx, MatchCriteria::Regexp(func_name)) {
         Some((true, position)) => Some(position as i64),
         _ => None,
@@ -684,7 +712,7 @@ fn valid_on(
 
 enum MatchCriteria<'a> {
     Any,
-    Regexp(RegexpId),
+    Regexp(RegexId),
     Name(&'a BStr),
     Ordinal(i64),
 }
@@ -824,3 +852,5 @@ fn exports_impl(
         })
         .map_or(Some((false, 0)), |(position, _)| Some((true, position)))
 }
+
+register_module!("pe", PE, main);

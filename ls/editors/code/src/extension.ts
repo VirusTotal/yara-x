@@ -1,4 +1,4 @@
-import { ExtensionContext, window } from "vscode";
+import { ExtensionContext, window, workspace } from "vscode";
 import {
   Executable,
   LanguageClient,
@@ -11,6 +11,7 @@ import * as path from "path";
 let client: LanguageClient | null = null;
 
 export async function activate(context: ExtensionContext) {
+  const config = workspace.getConfiguration("YARA");
   const platform = os.platform();
   const arch = os.arch();
 
@@ -39,6 +40,7 @@ export async function activate(context: ExtensionContext) {
     documentSelector: [{ scheme: "file", language: "yara" }],
     outputChannel: outputChannel,
     traceOutputChannel: outputChannel,
+    initializationOptions: config
   };
 
   client = new LanguageClient(

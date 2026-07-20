@@ -1,0 +1,7 @@
+rule single_byte_pattern {
+  strings:
+    $a = "a"
+    $b = { 01 }
+  condition:
+    $a or $b
+}

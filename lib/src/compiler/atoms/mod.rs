@@ -54,6 +54,8 @@ and `"efg"` will be used because `"a"` and `"h"` are too short.
 
 mod mask;
 mod quality;
+#[cfg(test)]
+mod tests;
 
 use std::collections::Bound;
 use std::iter;
@@ -64,13 +66,13 @@ use std::slice::SliceIndex;
 use itertools::{Itertools, MultiProduct};
 use regex_syntax::hir::literal::Literal;
 use serde::{Deserialize, Serialize};
-use smallvec::{smallvec, SmallVec, ToSmallVec};
+use smallvec::{SmallVec, ToSmallVec, smallvec};
 
 pub(crate) use crate::compiler::atoms::mask::ByteMaskCombinator;
+pub(crate) use crate::compiler::atoms::quality::AtomsQuality;
 pub(crate) use crate::compiler::atoms::quality::best_atom_in_bytes;
 pub(crate) use crate::compiler::atoms::quality::best_range_in_bytes;
 pub(crate) use crate::compiler::atoms::quality::best_range_in_masked_bytes;
-pub(crate) use crate::compiler::atoms::quality::AtomsQuality;
 
 use crate::compiler::SubPatternFlags;
 
@@ -87,7 +89,7 @@ pub(crate) const DESIRED_ATOM_SIZE: usize = 4;
 /// from a regexp, instead of lower number of shorter atoms. Longer atoms are
 /// preferred, but too many of them increase the size of the Aho-Corasick
 /// automaton and its build time.
-pub(crate) const MAX_ATOMS_PER_REGEXP: usize = 10000;
+pub(crate) const MAX_ATOMS_PER_REGEXP: usize = 16384;
 
 /// A substring extracted from a rule pattern. See the module documentation for
 /// a general explanation of what is an atom.
@@ -105,7 +107,9 @@ pub(crate) const MAX_ATOMS_PER_REGEXP: usize = 10000;
 /// For instance, in the regexp `/ab(cd|ef)/` we can extract two atoms: `abcd`
 /// and `abef`. If any of the atoms is found the regexp matches. Both of these
 /// atoms are exact.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, Eq, PartialOrd, Ord, PartialEq, Serialize, Deserialize,
+)]
 pub(crate) struct Atom {
     bytes: SmallVec<[u8; DESIRED_ATOM_SIZE]>,
     exact: bool,
@@ -168,29 +172,29 @@ impl Atom {
     /// # Example
     ///
     /// ```ignore
-    /// let atom = Atom::from_slice_range(&[0x00, 0x01, 0x02, 0x03], 1..=2);
+    /// let atom = Atom::from_slice_range(&[0x00, 0x01, 0x02, 0x03], 1..=2)?;
     /// assert_eq!(atom.as_ref(), &[0x01, 0x02]);
     /// assert_eq!(atom.backtrack, 1)
     /// assert(!atom.is_exact);
     /// ```
     ///
-    pub fn from_slice_range<R>(s: &[u8], range: R) -> Self
+    pub fn from_slice_range<R>(s: &[u8], range: R) -> Option<Self>
     where
         R: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]>,
     {
         let backtrack = match range.start_bound() {
-            Bound::Included(b) => *b as u16,
-            Bound::Excluded(b) => (*b + 1) as u16,
+            Bound::Included(b) => u16::try_from(*b).ok()?,
+            Bound::Excluded(b) => u16::try_from(*b + 1).ok()?,
             Bound::Unbounded => 0,
         };
 
-        let atom: &[u8] = &s[range];
+        let atom: &[u8] = s.get(range)?;
 
-        Self {
+        Some(Self {
             bytes: atom.to_smallvec(),
             backtrack,
             exact: atom.len() == s.len(),
-        }
+        })
     }
 
     #[inline]
@@ -262,25 +266,68 @@ impl Atom {
 
     /// Returns a [`CaseCombinations`] iterator that produces all possible case
     /// combinations of this atom.
-    pub fn case_combinations(self) -> CaseCombinations {
+    pub fn case_combinations(&self) -> CaseCombinations {
         CaseCombinations::new(self)
+    }
+}
+
+/// An association of an [`Atom`] and a mask of exactly the same length.
+///
+/// This type is used to generate all possible atoms that match a masked
+/// pattern (e.g. `1? 2?` -> `10 20`, `10 21`, ..., `1f 2f`).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct MaskedAtom {
+    pub(crate) atom: Atom,
+    pub(crate) mask: SmallVec<[u8; DESIRED_ATOM_SIZE]>,
+}
+
+impl MaskedAtom {
+    /// Creates a [`MaskedAtom`] from a slice range of a pattern and its
+    /// corresponding mask.
+    ///
+    /// The pattern slice `s` and the `mask` slice must have the same length.
+    ///
+    /// The backtrack value of the resulting atom will be equal to the start
+    /// offset of the range within the slices.
+    pub fn from_slice_range<R>(s: &[u8], mask: &[u8], range: R) -> Option<Self>
+    where
+        R: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]> + Clone,
+    {
+        assert_eq!(s.len(), mask.len());
+        let atom = Atom::from_slice_range(s, range.clone())?;
+        let mask_slice = mask.get(range)?;
+        Some(Self { atom, mask: SmallVec::from_slice(mask_slice) })
     }
 
     /// Returns a [`MaskCombinations`] iterator which produces all possible
-    /// combinations that result from applying a given mask to the atom.
-    ///
-    /// The mask's length must be identical to the atom's length. In scenarios
-    /// where the mask is shorter than the atom, the iterator will yield atoms
-    /// matching the mask's length. If the mask is longer than the atom, it
-    /// gets truncated to the atom's length.
+    /// combinations that result from applying the mask to the atom.
     ///
     /// The mask's binary 1 bits are constant, adopting the corresponding bits
     /// from the atom. Conversely, binary 0 bits within the mask are variable;
     /// consequently, the resultant atoms encompass all feasible permutations
     /// for these variable bits.
-    #[allow(dead_code)]
-    pub fn mask_combinations(self, mask: &[u8]) -> MaskCombinations {
-        MaskCombinations::new(self, mask)
+    pub fn mask_combinations(&self) -> MaskCombinations {
+        MaskCombinations::new(self)
+    }
+
+    /// Reduces the length of the atom by 1 byte, removing the last byte.
+    ///
+    /// If the resulting atom ends with a full mask `??` (which is represented
+    /// by a mask byte of `0x00`), that byte is also removed. This process continues
+    /// until the last byte of the atom is not fully masked with `??` or the atom
+    /// becomes empty.
+    pub fn trim(&mut self) {
+        if self.atom.bytes.is_empty() {
+            return;
+        }
+        self.atom.bytes.pop();
+        self.mask.pop();
+        self.atom.set_exact(false);
+
+        while self.mask.last() == Some(&0x00) {
+            self.atom.bytes.pop();
+            self.mask.pop();
+        }
     }
 }
 
@@ -303,7 +350,7 @@ pub(crate) fn extract_atoms(
     }
 
     if flags.contains(SubPatternFlags::Nocase) {
-        Box::new(CaseCombinations::new(best_atom))
+        Box::new(CaseCombinations::new(&best_atom))
     } else {
         Box::new(iter::once(best_atom))
     }
@@ -334,15 +381,21 @@ pub(crate) struct MaskCombinations {
     cartesian_product: MultiProduct<ByteMaskCombinator>,
     backtrack: u16,
     exact: bool,
+    total_combinations: usize,
 }
 
 impl MaskCombinations {
-    fn new(atom: Atom, mask: &[u8]) -> Self {
+    fn new(masked_atom: &MaskedAtom) -> Self {
         Self {
-            exact: atom.exact,
-            backtrack: atom.backtrack,
-            cartesian_product: zip(atom.bytes, mask)
-                .map(|(byte, mask)| ByteMaskCombinator::new(byte, *mask))
+            exact: masked_atom.atom.exact,
+            backtrack: masked_atom.atom.backtrack,
+            total_combinations: masked_atom
+                .mask
+                .iter()
+                .map(|m| 1 << m.count_zeros())
+                .product(),
+            cartesian_product: zip(&masked_atom.atom.bytes, &masked_atom.mask)
+                .map(|(byte, mask)| ByteMaskCombinator::new(*byte, *mask))
                 .multi_cartesian_product(),
         }
     }
@@ -356,6 +409,12 @@ impl Iterator for MaskCombinations {
         atom.backtrack = self.backtrack;
         atom.exact = self.exact;
         Some(atom)
+    }
+}
+
+impl ExactSizeIterator for MaskCombinations {
+    fn len(&self) -> usize {
+        self.total_combinations
     }
 }
 
@@ -374,7 +433,7 @@ pub(crate) struct CaseCombinations {
 }
 
 impl CaseCombinations {
-    fn new(atom: Atom) -> Self {
+    fn new(atom: &Atom) -> Self {
         Self {
             exact: atom.exact,
             backtrack: atom.backtrack,
@@ -438,78 +497,5 @@ impl Iterator for XorCombinations {
         atom.backtrack = self.atom.backtrack;
         atom.exact = false;
         Some(atom)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use pretty_assertions::assert_eq;
-
-    use crate::compiler::atoms::Atom;
-
-    #[test]
-    fn mask_combinations() {
-        let atom = Atom::exact([0x11, 0x22, 0x33, 0x44]);
-        let mut c = atom.mask_combinations(&[0xff, 0xf0, 0xff, 0xff]);
-
-        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x20, 0x33, 0x44])));
-        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x21, 0x33, 0x44])));
-        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x22, 0x33, 0x44])));
-
-        let mut c = c.skip(10);
-
-        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x2d, 0x33, 0x44])));
-        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x2e, 0x33, 0x44])));
-        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x2f, 0x33, 0x44])));
-        assert_eq!(c.next(), None);
-    }
-
-    #[test]
-    fn case_combinations() {
-        let atom = Atom::exact(b"a1B2c");
-        let mut c = atom.case_combinations();
-
-        assert_eq!(c.next(), Some(Atom::exact(b"a1b2c")));
-        assert_eq!(c.next(), Some(Atom::exact(b"a1b2C")));
-        assert_eq!(c.next(), Some(Atom::exact(b"a1B2c")));
-        assert_eq!(c.next(), Some(Atom::exact(b"a1B2C")));
-        assert_eq!(c.next(), Some(Atom::exact(b"A1b2c")));
-        assert_eq!(c.next(), Some(Atom::exact(b"A1b2C")));
-        assert_eq!(c.next(), Some(Atom::exact(b"A1B2c")));
-        assert_eq!(c.next(), Some(Atom::exact(b"A1B2C")));
-        assert_eq!(c.next(), None);
-
-        let mut atom = Atom::exact([0x00_u8, 0x01, 0x02]);
-        atom.set_backtrack(2);
-
-        let mut c = atom.clone().case_combinations();
-
-        assert_eq!(c.next(), Some(atom));
-        assert_eq!(c.next(), None);
-    }
-
-    #[test]
-    fn xor_combinations() {
-        let atom = Atom::exact([0x00_u8, 0x01, 0x02]);
-        let mut c = atom.xor_combinations(0..=1);
-
-        assert_eq!(c.next(), Some(Atom::inexact([0x00, 0x01, 0x02])));
-        assert_eq!(c.next(), Some(Atom::inexact([0x01, 0x00, 0x03])));
-        assert_eq!(c.next(), None);
-    }
-
-    #[test]
-    fn make_wide() {
-        let mut atom = Atom::exact([0x01_u8, 0x02, 0x03]);
-        atom.set_backtrack(2);
-
-        let atom = atom.make_wide();
-
-        assert_eq!(
-            atom.bytes.as_slice(),
-            &[0x01, 0x00, 0x02, 0x00, 0x03, 0x00]
-        );
-
-        assert_eq!(atom.backtrack, 4);
     }
 }

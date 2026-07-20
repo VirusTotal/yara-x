@@ -2,7 +2,9 @@ use std::fs::File;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use clap::{arg, value_parser, Arg, ArgAction, ArgMatches, Command};
+use clap::{Arg, ArgAction, ArgMatches, Command, arg, value_parser};
+use yansi::Color::Cyan;
+use yansi::Paint;
 
 use crate::commands::{
     compilation_args, compile_rules, path_with_namespace_parser,
@@ -32,11 +34,27 @@ pub fn exec_compile(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         .unwrap();
 
     let output_path = args.get_one::<PathBuf>("output").unwrap();
-    let rules = compile_rules(rules_path, args, config)?;
+    let (rules, ignored_rules) = compile_rules(rules_path, args, config)?;
 
     let output_file = File::create(output_path).with_context(|| {
         format!("can not write `{}`", output_path.display())
     })?;
 
-    Ok(rules.serialize_into(&output_file)?)
+    rules.serialize_into(&output_file)?;
+
+    // With `--ignore-invalid-rules` the valid rules are still written, but exit
+    // with an error listing the ignored rules and reasons.
+    if !ignored_rules.is_empty() {
+        eprintln!(
+            "{} {}",
+            "note:".paint(Cyan).bold(),
+            Paint::bold(&"the following rules were ignored:")
+        );
+
+        for (rule_name, reason) in &ignored_rules {
+            eprintln!("  - {}: {}", rule_name.paint(Cyan).bold(), reason);
+        }
+    }
+
+    Ok(())
 }

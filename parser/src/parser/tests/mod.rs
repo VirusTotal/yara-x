@@ -1,10 +1,10 @@
-use crate::ast::{Error, AST};
+use crate::ast::{AST, Error};
 use rayon::prelude::*;
 use std::fs;
 use std::io::BufWriter;
 use std::io::Write;
 
-use crate::cst::{CSTStream, CST};
+use crate::cst::{CST, CSTStream};
 use crate::{Parser, Span};
 
 #[test]

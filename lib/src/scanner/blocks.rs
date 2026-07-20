@@ -4,18 +4,18 @@ This scanner is designed for scenarios where the data to be scanned is not
 available as a single contiguous block of memory, but rather arrives in
 smaller, discrete blocks, allowing for incremental scanning.
 */
-use std::collections::btree_map::Entry;
+use std::cmp;
 use std::collections::BTreeMap;
+use std::collections::btree_map::Entry;
 use std::mem;
 use std::mem::transmute;
 use std::pin::Pin;
 use std::time::Duration;
 
-use wasmtime::Store;
-
 use crate::errors::VariableError;
-use crate::scanner::context::{create_wasm_store_and_ctx, ScanState};
+use crate::scanner::context::{ScanState, create_wasm_store_and_ctx};
 use crate::scanner::{DataSnippets, ScanContext};
+use crate::wasm::runtime::Store;
 use crate::{Rules, ScanError, ScanResults, Variable};
 
 /// Scans data in blocks
@@ -96,6 +96,17 @@ impl<'r> Scanner<'r> {
             snippets: BTreeMap::new(),
         }
     }
+
+    /// Sets the context size for matches.
+    ///
+    /// This specifies how many bytes at the left and right of each match will
+    /// be reported by [`crate::Match::data_with_context`]. By default, the
+    /// match context size is 0, which means that [`crate::Match::data_with_context`]
+    /// will return exactly the same data as [`crate::Match::data`].
+    pub fn match_context_size(&mut self, size: usize) -> &mut Self {
+        self.scan_context_mut().match_context_size = size;
+        self
+    }
 }
 impl<'r> Scanner<'r> {
     /// Scans a block of data.
@@ -145,15 +156,21 @@ impl<'r> Scanner<'r> {
         // cannot span blocks. To maintain a simple, uniform rule — that matches
         // never cross block boundaries — we clear all unconfirmed matches here.
         else {
-            self.scan_context_mut().unconfirmed_matches.clear();
+            self.scan_context_mut().tracker.unconfirmed_matches.clear();
         }
 
         let ctx = self.scan_context_mut();
 
         ctx.scan_state = ScanState::ScanningBlock((base, data));
+
+        ctx.set_pattern_search_done(false);
         ctx.search_for_patterns()?;
 
-        for (_, match_list) in ctx.pattern_matches.matches_per_pattern() {
+        ctx.scan_state = ScanState::Idle;
+
+        for (_, match_list) in
+            ctx.tracker.pattern_matches.matches_per_pattern()
+        {
             // Here we iterate the matches in order to gather snippets of data
             // from where the matches occurred. Notice however that we are only
             // interested in the matches that occurred in the recently scanned
@@ -161,28 +178,30 @@ impl<'r> Scanner<'r> {
             for match_ in
                 match_list.iter().filter(|match_| match_.base == base)
             {
-                if let Some(match_data) = data.get(match_.block_range()) {
-                    // Snippets are indexed by their offsets within the scanned
-                    // data. This offset is not relative to the start of the
-                    // memory block, it takes into account the block's base
-                    // offset.
-                    //
-                    // The matching data is stored into the snippets B-tree map.
-                    // If an entry exists for the same offset, it will be replaced
-                    // with the new matching data only if it's larger than the
-                    // existing one.
-                    match self.snippets.entry(match_.range.start) {
+                let context_start = cmp::max(
+                    match_.range.start.saturating_sub(ctx.match_context_size),
+                    base,
+                );
+
+                let context_end = cmp::min(
+                    match_.range.end + ctx.match_context_size,
+                    base + data.len(),
+                );
+
+                let block_start = context_start - base;
+                let block_end = context_end - base;
+
+                if let Some(context_data) = data.get(block_start..block_end) {
+                    // Snippets are indexed by the offset where the context starts.
+                    match self.snippets.entry(context_start) {
                         Entry::Occupied(mut entry) => {
                             let snippet = entry.get_mut();
-                            if match_data.len() > snippet.len() {
-                                debug_assert!(match_data.starts_with(snippet));
-                                entry.insert(match_data.to_vec());
-                            } else {
-                                debug_assert!(snippet.starts_with(match_data));
+                            if context_data.len() > snippet.len() {
+                                entry.insert(context_data.to_vec());
                             }
                         }
                         Entry::Vacant(entry) => {
-                            entry.insert(match_data.to_vec());
+                            entry.insert(context_data.to_vec());
                         }
                     }
                 } else {
@@ -254,7 +273,25 @@ impl<'r> Scanner<'r> {
     /// When some pattern reaches the maximum number of patterns it won't
     /// produce more matches.
     pub fn max_matches_per_pattern(&mut self, n: usize) -> &mut Self {
-        self.scan_context_mut().pattern_matches.max_matches_per_pattern(n);
+        self.scan_context_mut()
+            .tracker
+            .pattern_matches
+            .max_matches_per_pattern(n);
+        self
+    }
+
+    /// Enables or disables fast scan mode.
+    ///
+    /// In fast scan mode, the scanner avoids tracking matches for patterns
+    /// when it is not necessary (e.g. when a rule condition only performs a
+    /// simple boolean check `$a`).
+    ///
+    /// Note that using fast scan mode implies that not all matches will be
+    /// reported. For instance, when iterating matches using [`ScanResults`],
+    /// you won't get all occurrences of the pattern in the file, only the first
+    /// one.
+    pub fn fast_scan(&mut self, yes: bool) -> &mut Self {
+        self.scan_context_mut().tracker.fast_scan = yes;
         self
     }
 
@@ -333,7 +370,7 @@ impl<'r> From<crate::scanner::Scanner<'r>> for Scanner<'r> {
 #[cfg(test)]
 mod tests {
     use crate::scanner::blocks::Scanner;
-    use crate::{compile, Compiler};
+    use crate::{Compiler, compile};
     use std::time::Duration;
 
     #[test]
@@ -367,6 +404,42 @@ mod tests {
         let match2 = matches.next().unwrap();
         assert_eq!(match2.data(), b"ipsum".as_slice());
         assert_eq!(match2.range(), 1006..1011);
+    }
+
+    #[test]
+    fn block_scanner_context() {
+        let rules = compile(
+            r#"
+            rule test { strings: $a = "ipsum" condition: $a }"#,
+        )
+        .unwrap();
+
+        let mut scanner = Scanner::new(&rules);
+
+        let results = scanner
+            .match_context_size(5)
+            .scan(0, b"Lorem ipsum sit amet")
+            .unwrap()
+            .scan(1000, b"dolor ipsum sit amet")
+            .unwrap()
+            .finish()
+            .unwrap();
+
+        assert_eq!(results.matching_rules().len(), 1);
+
+        let rule = results.matching_rules().next().unwrap();
+        let pattern = rule.patterns().next().unwrap();
+        let mut matches = pattern.matches();
+
+        let match1 = matches.next().unwrap();
+        let (data1, range1) = match1.data_with_context();
+        assert_eq!(data1, b"orem ipsum sit ".as_slice());
+        assert_eq!(range1, 5..10);
+
+        let match2 = matches.next().unwrap();
+        let (data2, range2) = match2.data_with_context();
+        assert_eq!(data2, b"olor ipsum sit ".as_slice());
+        assert_eq!(range2, 5..10);
     }
 
     #[test]
@@ -502,5 +575,40 @@ mod tests {
         let results = scanner.finish().unwrap();
 
         assert_eq!(results.matching_rules().len(), 1);
+    }
+
+    #[test]
+    fn block_scanner_fast_scan() {
+        let rules = compile(
+            r#"
+            rule test {
+                strings:
+                    $a = "foo"
+                condition:
+                    $a
+            }"#,
+        )
+        .unwrap();
+
+        let mut scanner = Scanner::new(&rules);
+        let results = scanner
+            .fast_scan(true)
+            .scan(0, b"foofoofoo")
+            .unwrap()
+            .finish()
+            .unwrap();
+
+        assert_eq!(results.matching_rules().len(), 1);
+
+        let rule = results.matching_rules().next().unwrap();
+        let pattern = rule.patterns().next().unwrap();
+        let mut matches = pattern.matches();
+
+        // Only a single match is returned because of the fast scan mode!
+        let match1 = matches.next().unwrap();
+        assert_eq!(match1.data(), b"foo".as_slice());
+        assert_eq!(match1.range(), 0..3);
+
+        assert!(matches.next().is_none());
     }
 }

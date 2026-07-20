@@ -1,3 +1,4 @@
+
 ---
 title: "Commands"
 description: "The commands supported by the YARA-X CLI"
@@ -20,8 +21,8 @@ seo:
 
 YARA-X provides a modern command-line interface (CLI) for performing common
 tasks, like scanning files with YARA rules, compiling rules, etc. This tool
-is named `yr` and is always followed by a top-level command, such as `scan`,
-`compile`, `help` and so on.
+is named `yr` and is always followed by a top-level command, such as [`scan`](#scan),
+[`compile`](#compile), `help` and so on.
 
 Let's see the output of `yr help`:
 
@@ -34,7 +35,9 @@ Commands:
   scan        Scan a file or directory
   compile     Compile rules to binary form
   dump        Show the data produced by YARA modules for a file
+  deps        Show rule dependencies
   fmt         Format YARA source files
+  fix         Utilities for fixing source code
   completion  Output shell completion code for the specified shell
   help        Print this message or the help of the given subcommand(s)
 
@@ -45,6 +48,15 @@ Options:
 
 You can get more help for a specific command by using `yr help [COMMAND]` or
 `yr [COMMAND] --help` (e.g: `yr help scan`, `yr scan --help`)
+
+Click on the commands below to learn more about them:
+
+* [`scan`](#scan)
+* [`compile`](#compile)
+* [`dump`](#dump)
+* [`deps`](#deps)
+* [`fmt`](#fmt)
+* [`fix`](#fix)
 
 ------
 
@@ -85,6 +97,18 @@ YARA rules are compiled using the [compile](#compile) command.
 Prints the number of matching rules per file. Instead of printing the
 names of the rules that matches each file, it prints the number the
 total number of rules matching each file.
+
+### --cpu-limit \<PERCENTAGE\>
+
+Limit the CPU usage of the scan (percentage from 1 to 99).
+
+This option dynamically restricts CPU utilization per scan thread to the
+specified percentage. The scanner achieves this by measuring the exact 
+duration spent scanning each file and introducing a sleep delay before 
+moving to the next file.
+
+This is useful for running background scan tasks on production servers 
+or multi-user systems without saturating CPU capacity.
 
 ### --define <VAR=VALUE>
 
@@ -450,8 +474,27 @@ This command is similar in spirit to other code formatting tools like `gofmt`
 and `rustfmt`.
 
 ```
-yr fmt <FILE>...
+yr fmt <PATH>...
 ```
+
+The path can be either a file or directory. If a directory is used, every `.yar` 
+or `.yara` file contained in the directory will be formated. 
+
+### -r, --recursive=[MAX_DEPTH]
+
+Walk directories recursively. When <PATH> is a directory, this option enables 
+recursive directory traversal. You can optionally specify a `MAX_DEPTH` to 
+limit how deep the traversal goes:
+
+Examples:
+
+```
+--recursive     formats nested subdirectories with no limits.
+--recursive=0   formats only the files in <PATH> (no subdirectories)
+--recursive=3   formats up to 3 levels deep, including nested subdirectories
+```
+
+If --recursive is not specified, the default behavior is equivalent to --recursive=0.
 
 ### --check, -c
 
@@ -459,7 +502,7 @@ Run in "check" mode. Doesn't modify any file, but exits error code 0 if the
 files are formatted correctly and no change is necessary, or error code 1
 if otherwise.
 
-### -t, --tab-size \<NUM_SPACES>\
+### -t, --tab-size \<NUM_SPACES>
 
 Tab size (in spaces) used in source files
 
@@ -468,3 +511,93 @@ many spaces each tab represents. Setting this incorrectly can lead to misaligned
 formatting when the code mixes tabs and spaces.
 
 By default, it uses 4 spaces.
+
+------
+
+## fix
+
+Utilities for fixing source code.
+
+```
+yr fix [COMMAND]
+```
+
+These command has two sub-commands:
+
+* [`encoding`](#encoding)  Convert source files to UTF-8
+* [`warnings`](#warnings)  Automatically fix warnings
+
+### encoding
+
+Convert source files to UTF-8
+
+YARA-X is stricter that YARA with respect to invalid UTF-8 characters in source
+code. This command allows to convert your YARA source files to UTF-8 encoding if
+they are not.
+
+```
+yr fix encoding [OPTIONS] <RULES_PATH>
+```
+
+### warnings
+
+This command automatically resolves fixable YARA-X warnings. It accepts the same
+options as the compile command; however, instead of outputting a compiled rules file,
+it directly modifies the source files to fix the warnings.
+
+```
+yr fix encoding [OPTIONS] <RULES_PATH>
+```
+
+------
+
+## deps
+
+Show rule dependencies and modules.
+
+This command shows a tree-like structure that tells which rules depend on
+other rules, and which modules are used by each rule.
+
+For example, if you have the following rules:
+
+```yara
+import "pe"
+
+rule rule_1 {
+  condition:
+    pe.is_dll()
+}
+
+rule rule_2 {
+  condition:
+    rule_1
+}
+```
+
+The `deps` command will show:
+
+```
+ rule_1
+ └─ mod: pe
+
+ rule_2
+ └─ rule_1
+    └─ mod: pe
+```
+
+This indicates that `rule_2` depends on `rule_1`, which in turns uses the `pe`
+module.
+
+The syntax for this command is:
+
+```
+yr deps [OPTIONS] <RULES_PATH>
+```
+
+### --rule <RULE_NAME>
+
+Show information about the specified rule(s) only. If this option is not used,
+the command shows information about all the rules in the file. This option can
+be used multiple times.
+
+------

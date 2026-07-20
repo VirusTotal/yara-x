@@ -1,4 +1,4 @@
-# YARA-X for Visual Studio Code
+# YARA for Visual Studio Code
 
 This extension brings support for the [YARA](https://virustotal.github.io/yara-x/)
 language to Visual Studio Code, powered by the official YARA-X Language Server. It
@@ -45,17 +45,58 @@ An image is worth a thousand words...
 
 ## Configuration
 
-This extension respects the standard Visual Studio Code settings for formatting and other editor features. There are no YARA-X specific settings at this time.
-
-The extension contributes the following default settings for the `[yara]` language:
+This extension provides configurations through VSCode's configuration settings. All configurations are under `YARA.*`.
 
 ```json
-"[yara]": {
-  "editor.tabSize": 4,
-  "editor.insertSpaces": false,
-  "editor.detectIndentation": false,
-  "editor.formatOnSave": true
-}
+"YARA.ruleNameValidation": "^APT_.+$",
+"YARA.metadataValidation": [
+  {
+    "identifier": "author",
+    "required": true,
+    "type": "string"
+  },
+  {
+    "identifier": "version",
+    "required": true,
+    "type": "integer"
+  }
+]
 ```
 
-You can override these in your user or workspace settings.
+### `YARA.ruleNameValidation`
+
+Type: `string`
+Default: `""` (no validation)
+
+A regular expression that rule names must conform to. If a rule name does not match this pattern, a warning will be 
+generated.
+
+### `YARA.metadataValidation`
+
+Type: `array` of objects
+Default: `[]` (no validation)
+
+An array of objects, where each object defines validation rules for a specific metadata field. Each object can have
+the following properties:
+
+*   `identifier` (string, required): The name of the metadata field to validate (e.g., `author`, `version`).
+*   `required` (boolean, optional): If `true`, the metadata field must be present in the rule. Defaults to `false`.
+*   `type` (string, optional): Specifies the expected type of the metadata value. Valid values are
+    `"string"`, `"integer"`, `"float"`, `"bool"`, and `"date"`. If the value does not match the specified type, a 
+    warning will be generated.
+*   `format` (string, optional): When `type` is `"date"`, this property specifies the expected format of the
+    date string. The format string supports specifiers like `%Y` (year), `%m` (month), `%d` (day), `%H` (hour),
+    `%M` (minute), and `%S` (second). For example, for a date like `"2024-01-25"`, the format should be `"%Y-%m-%d"`.
+    For more information see: https://docs.rs/chrono/latest/chrono/format/strftime/index.html
+*   `regex` (string, optional): When `type` is `"string"`, this property specifies a regular expression that the
+    metadata value must match. Use `^` and `$` to require a full-value match. For example,
+    `"^(draft|reviewed|approved)$"` restricts the field to those values. Patterns use Rust's regex syntax.
+    For more information see: https://docs.rs/regex/latest/regex/
+
+For accessing these settings go to the Settings
+
+<p align="center">
+<img src="images/settings.gif" width="95%" alt="Demo">
+<br/>
+<em>(Demo)</em>
+</p>

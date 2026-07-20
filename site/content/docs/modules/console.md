@@ -50,6 +50,28 @@ Logs the given message and string.
 
 Example: `console.log("The imphash is: ", pe.imphash())`
 
+### log(offset, length)
+
+{{< callout >}}
+New in version 1.15.0
+{{< /callout >}}
+
+Logs the bytes starting at offset and continuing for length. The result is an
+ASCII escaped string.
+
+Example: `console.log(10, 5)`
+
+### log(message, offset, length)
+
+{{< callout >}}
+New in version 1.15.0
+{{< /callout >}}
+
+Logs the bytes starting at offset and continuing for length. The result is an
+ASCII escaped string.
+
+Example: `console.log("5 BYTES AT 10: ", 10, 5)`
+
 ### log(integer)
 
 Logs the given integer.

@@ -5,7 +5,7 @@ use std::path::Path;
 use rayon::prelude::*;
 
 use crate::mods;
-use crate::mods::reflect::FieldKind;
+use crate::mods::reflect::Type;
 use crate::mods::{invoke_all, module_names};
 
 /// Utility function that receives the content of an [`Intel HEX`][1] (ihex)
@@ -33,10 +33,10 @@ pub fn create_binary_from_zipped_ihex<P: AsRef<Path>>(path: P) -> Vec<u8> {
     let path = path.as_ref();
 
     let f = File::open(path)
-        .unwrap_or_else(|_| panic!("can not open file: {:?}", &path));
+        .unwrap_or_else(|_| panic!("can not open file: {path:?}"));
 
     let mut zip = zip::ZipArchive::new(f)
-        .unwrap_or_else(|_| panic!("can not unzip file: {:?}", &path));
+        .unwrap_or_else(|_| panic!("can not unzip file: {path:?}"));
 
     // The name of the file inside the ZIP must be equal to the name of the
     // ZIP file, but without the .zip extension.
@@ -47,19 +47,18 @@ pub fn create_binary_from_zipped_ihex<P: AsRef<Path>>(path: P) -> Vec<u8> {
     // Read the content of the .in file.
     let mut inner_file = zip.by_name(inner_file_name).unwrap_or_else(|_| {
         panic!(
-            "ZIP archive {:?} doesn't contain file: {:?}",
-            &path, &inner_file_name
+            "ZIP archive {path:?} doesn't contain file: {inner_file_name:?}"
         )
     });
 
     let mut ihex = String::new();
 
     inner_file.read_to_string(&mut ihex).unwrap_or_else(|_| {
-        panic!("can not read ihex content from : {:?}", &path)
+        panic!("can not read ihex content from : {path:?}")
     });
 
     create_binary_from_ihex(ihex.as_str())
-        .unwrap_or_else(|_| panic!("invalid ihex content in: {:?}", &path))
+        .unwrap_or_else(|_| panic!("invalid ihex content in: {path:?}"))
 }
 
 /// This function tests YARA modules by comparing the output produced by the
@@ -138,6 +137,11 @@ fn test_modules() {
             .map(|s| s.as_os_str().to_str().unwrap())
             .expect("can not extract module name from tests path");
 
+        // Ignore the module of not among the registered modules.
+        if !module_names().any(|n| n == module_name) {
+            return;
+        }
+
         // Construct a dummy YARA rule that only imports the module.
         let rule = format!(
             r#"import "{module_name}" rule test {{ condition: false }}"#
@@ -164,12 +168,13 @@ fn test_modules() {
                 panic!("module `{module_name}` should produce some output")
             });
 
-        let output_file = mint.new_goldenfile(out_path).unwrap();
+        let output_file =
+            mint.new_goldenfile(out_path).expect("can not create goldenfile");
 
         // Render the module's output as YAML.
-        let mut yaml = yara_x_proto_yaml::Serializer::new(output_file);
+        let mut yaml = yara_x_proto::yaml::Serializer::new(output_file);
 
-        yaml.serialize(output).unwrap();
+        assert!(yaml.serialize(output).is_ok());
     });
 }
 
@@ -216,263 +221,322 @@ fn test_reflect() {
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "int32_zero");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "int64_zero");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "sint32_zero");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "sint64_zero");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "uint32_zero");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "uint64_zero");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "fixed32_zero");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "fixed64_zero");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "sfixed32_zero");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "sfixed64_zero");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "float_zero");
-    assert_eq!(field.kind(), FieldKind::Float);
+    assert_eq!(field.ty(), Type::Float);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "double_zero");
-    assert_eq!(field.kind(), FieldKind::Float);
+    assert_eq!(field.ty(), Type::Float);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "int32_one");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "int64_one");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "sint32_one");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "sint64_one");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "uint32_one");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "uint64_one");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "fixed32_one");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "fixed64_one");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "sfixed32_one");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "sfixed64_one");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "float_one");
-    assert_eq!(field.kind(), FieldKind::Float);
+    assert_eq!(field.ty(), Type::Float);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "double_one");
-    assert_eq!(field.kind(), FieldKind::Float);
+    assert_eq!(field.ty(), Type::Float);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "int32_undef");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "int64_undef");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "sint32_undef");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "sint64_undef");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "uint32_undef");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "uint64_undef");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "fixed32_undef");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "fixed64_undef");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "sfixed32_undef");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "sfixed64_undef");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "float_undef");
-    assert_eq!(field.kind(), FieldKind::Float);
+    assert_eq!(field.ty(), Type::Float);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "double_undef");
-    assert_eq!(field.kind(), FieldKind::Float);
+    assert_eq!(field.ty(), Type::Float);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "string_foo");
-    assert_eq!(field.kind(), FieldKind::String);
+    assert_eq!(field.ty(), Type::String);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "string_bar");
-    assert_eq!(field.kind(), FieldKind::String);
+    assert_eq!(field.ty(), Type::String);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "string_undef");
-    assert_eq!(field.kind(), FieldKind::String);
+    assert_eq!(field.ty(), Type::String);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "bytes_foo");
-    assert_eq!(field.kind(), FieldKind::String);
+    assert_eq!(field.ty(), Type::String);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "bytes_bar");
-    assert_eq!(field.kind(), FieldKind::String);
+    assert_eq!(field.ty(), Type::String);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "bytes_raw");
-    assert_eq!(field.kind(), FieldKind::String);
+    assert_eq!(field.ty(), Type::String);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "bytes_undef");
-    assert_eq!(field.kind(), FieldKind::String);
+    assert_eq!(field.ty(), Type::String);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "enumeration");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "nested");
-    assert!(matches!(field.kind(), FieldKind::Struct(_)));
+    assert!(matches!(field.ty(), Type::Struct(_)));
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "array_int64");
-    assert!(matches!(field.kind(), FieldKind::Array(_)));
+    assert!(matches!(field.ty(), Type::Array(_)));
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "array_float");
-    assert!(matches!(field.kind(), FieldKind::Array(_)));
+    assert!(matches!(field.ty(), Type::Array(_)));
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "array_bool");
-    assert!(matches!(field.kind(), FieldKind::Array(_)));
+    assert!(matches!(field.ty(), Type::Array(_)));
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "array_string");
-    assert!(matches!(field.kind(), FieldKind::Array(_)));
+    assert!(matches!(field.ty(), Type::Array(_)));
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "array_struct");
-    assert!(matches!(field.kind(), FieldKind::Array(_)));
+    assert!(matches!(field.ty(), Type::Array(_)));
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "map_string_struct");
-    assert!(matches!(field.kind(), FieldKind::Map(_, _)));
+    assert!(matches!(field.ty(), Type::Map(_, _)));
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "map_string_int64");
-    assert!(matches!(field.kind(), FieldKind::Map(_, _)));
+    assert!(matches!(field.ty(), Type::Map(_, _)));
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "map_string_string");
-    assert!(matches!(field.kind(), FieldKind::Map(_, _)));
+    assert!(matches!(field.ty(), Type::Map(_, _)));
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "map_string_bool");
-    assert!(matches!(field.kind(), FieldKind::Map(_, _)));
+    assert!(matches!(field.ty(), Type::Map(_, _)));
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "map_string_float");
-    assert!(matches!(field.kind(), FieldKind::Map(_, _)));
+    assert!(matches!(field.ty(), Type::Map(_, _)));
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "map_int64_struct");
-    assert!(matches!(field.kind(), FieldKind::Map(_, _)));
+    assert!(matches!(field.ty(), Type::Map(_, _)));
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "map_int64_int64");
-    assert!(matches!(field.kind(), FieldKind::Map(_, _)));
+    assert!(matches!(field.ty(), Type::Map(_, _)));
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "map_int64_string");
-    assert!(matches!(field.kind(), FieldKind::Map(_, _)));
+    assert!(matches!(field.ty(), Type::Map(_, _)));
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "map_int64_bool");
-    assert!(matches!(field.kind(), FieldKind::Map(_, _)));
+    assert!(matches!(field.ty(), Type::Map(_, _)));
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "map_int64_float");
-    assert!(matches!(field.kind(), FieldKind::Map(_, _)));
+    assert!(matches!(field.ty(), Type::Map(_, _)));
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "timestamp");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "bool_yara");
-    assert_eq!(field.kind(), FieldKind::Bool);
+    assert_eq!(field.ty(), Type::Bool);
+
+    assert_eq!(
+        field.doc(),
+        Some(
+            "This field will be visible in YARA as `bool_yara` instead of `bool_proto`."
+        )
+    );
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "file_size");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "requires_foo_and_bar");
-    assert_eq!(field.kind(), FieldKind::Integer);
+    assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "deprecated");
-    assert_eq!(field.kind(), FieldKind::String);
+    assert_eq!(field.ty(), Type::String);
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "metadata");
+    assert_eq!(field.ty(), Type::String);
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "Enumeration");
+    assert!(matches!(field.ty(), Type::Struct(_)));
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "items");
+    assert!(matches!(field.ty(), Type::Struct(_)));
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "NestedProto2");
+    assert!(matches!(field.ty(), Type::Struct(_)));
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "TopLevelEnumeration");
+    assert!(matches!(field.ty(), Type::Struct(_)));
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "INLINE_0x1000");
+    assert_eq!(field.ty(), Type::Integer);
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "INLINE_0x2000");
+    assert_eq!(field.ty(), Type::Integer);
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "add");
+    assert!(matches!(field.ty(), Type::Func(_)));
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "get_foo");
+    assert!(matches!(field.ty(), Type::Func(_)));
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "head");
+    assert!(matches!(field.ty(), Type::Func(_)));
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "to_int");
+    assert!(matches!(field.ty(), Type::Func(_)));
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "undef_i64");
+    assert!(matches!(field.ty(), Type::Func(_)));
+
+    let field = fields.next().unwrap();
+    assert_eq!(field.name(), "uppercase");
+    assert!(matches!(field.ty(), Type::Func(_)));
 
     assert!(fields.next().is_none());
 }

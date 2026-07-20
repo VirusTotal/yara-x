@@ -2,21 +2,17 @@ use std::borrow::Cow;
 use std::cmp::min;
 use std::fs::File;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
-use anyhow::{bail, Context, Error};
+use anyhow::{Context, Error, bail};
 use clap::{
-    arg, value_parser, Arg, ArgAction, ArgMatches, Command, ValueEnum,
+    Arg, ArgAction, ArgMatches, Command, ValueEnum, arg, value_parser,
 };
 use crossbeam::channel::Sender;
 use itertools::Itertools;
-use superconsole::style::Stylize;
-use superconsole::{Component, Line, Lines, Span};
-#[cfg(feature = "rules-profiling")]
-use yansi::Color::Green;
-use yansi::Color::{Cyan, Red, Yellow};
+use yansi::Color::{Cyan, Green, Red, Yellow};
 use yansi::Paint;
 
 use yara_x::errors::ScanError;
@@ -27,6 +23,7 @@ use crate::commands::{
     meta_file_value_parser, path_with_namespace_parser,
     truncate_with_ellipsis,
 };
+use crate::walk::Draw;
 use crate::walk::Message;
 use crate::{help, walk};
 
@@ -63,8 +60,14 @@ pub fn scan() -> Command {
                 .long_help(help::COMPILED_RULES_LONG_HELP),
             arg!(-c --"count")
                 .help("Print only the number of matches per file"),
+            arg!(--"cpu-limit" <PERCENTAGE>)
+                .help("Limit the CPU usage of the scan (percentage from 1 to 99)")
+                .value_parser(value_parser!(u8).range(1..=99)),
             arg!(--"disable-console-logs")
                 .help("Disable printing console log messages"),
+            arg!(-f --"fast-scan")
+                .help("Enable fast-scan mode")
+                .long_help(help::FAST_SCAN_LONG_HELP),
             arg!(--"max-matches-per-pattern" <MATCHES>)
                 .help("Maximum number of matches per pattern")
                 .long_help(help::MAX_MATCHES_PER_PATTERN_LONG_HELP)
@@ -121,7 +124,6 @@ pub fn scan() -> Command {
             arg!(-a --"timeout" <SECONDS>)
                 .help("Abort scanning after the given number of seconds")
                 .value_parser(value_parser!(u64).range(1..))
-
     ]))
 }
 
@@ -179,11 +181,14 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let compiled_rules = args.get_flag("compiled-rules");
     let profiling = args.get_flag("profiling");
     let num_threads = args.get_one::<u8>("threads");
+
+    let cpu_limit = args.get_one::<u8>("cpu-limit");
     let skip_larger = args.get_one::<u64>("skip-larger");
     let disable_console_logs = args.get_flag("disable-console-logs");
     let scan_list = args.get_flag("scan-list");
     let recursive = args.get_one::<usize>("recursive");
     let no_mmap = args.get_flag("no-mmap");
+    let fast_scan = args.get_flag("fast-scan");
     let max_matches_per_pattern =
         args.get_one::<usize>("max-matches-per-pattern");
 
@@ -232,7 +237,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         }
 
         let file = File::open(rules_path)
-            .with_context(|| format!("can not open {:?}", &rules_path))?;
+            .with_context(|| format!("can not open {:?}", rules_path))?;
 
         let rules = Rules::deserialize_from(file)?;
 
@@ -248,10 +253,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
         rules
     } else {
-        // With `take()` we pass the external variables to `compile_rules`,
-        // while leaving a `None` in `external_vars`. This way external
-        // variables are not set again in the scanner.
-        compile_rules(rules_path, args, config)?
+        compile_rules(rules_path, args, config)?.0
     };
 
     let rules_ref = &rules;
@@ -264,6 +266,10 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
     if let Some(num_threads) = num_threads {
         w.num_threads(*num_threads);
+    }
+
+    if let Some(limit) = cpu_limit {
+        w.cpu_limit(*limit);
     }
 
     if let Some(max_file_size) = skip_larger {
@@ -317,6 +323,10 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                 scanner.use_mmap(false);
             }
 
+            if fast_scan {
+                scanner.fast_scan(true);
+            }
+
             if let Some(max_matches_per_pattern) = max_matches_per_pattern {
                 scanner.max_matches_per_pattern(*max_matches_per_pattern);
             }
@@ -330,7 +340,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                 let path = file_path.display().to_string();
                 scanner.console_log(move |msg| {
                     output
-                        .send(Message::Error(format!("{}: {}", &path.paint(Yellow), msg.paint(Yellow))))
+                        .send(Message::Error(format!("{}: {}", path.paint(Yellow), msg.paint(Yellow))))
                         .unwrap();
                 });
             }
@@ -364,7 +374,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
             let scan_results = scanner
                 .scan_file_with_options(file_path.as_path(), scan_options)
-                .with_context(|| format!("scanning {:?}", &file_path));
+                .with_context(|| format!("scanning {:?}", file_path));
 
             state
                 .files_in_progress
@@ -435,11 +445,10 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             let _ = output.send(Message::Error(msg));
 
             // In case of timeout walk is aborted.
-            if let Ok(scan_err) = err.downcast::<ScanError>() {
-                if matches!(scan_err, ScanError::Timeout) {
+            if let Ok(scan_err) = err.downcast::<ScanError>()
+                && matches!(scan_err, ScanError::Timeout) {
                     return Err(scan_err.into());
                 }
-            }
 
             Ok(())
         },
@@ -511,28 +520,19 @@ fn replace_whitespace(path: &Path) -> Cow<'_, str> {
     if s.chars().any(|c| c != ' ' && c.is_whitespace()) {
         let mut r = String::with_capacity(s.len());
         for c in s.chars() {
-            if c.is_whitespace() {
-                r.push(' ')
-            } else {
-                r.push(c)
-            }
+            if c.is_whitespace() { r.push(' ') } else { r.push(c) }
         }
         s = Cow::Owned(r);
     }
     s
 }
 
-impl Component for ScanState {
-    fn draw_unchecked(
-        &self,
-        dimensions: superconsole::Dimensions,
-        mode: superconsole::DrawMode,
-    ) -> anyhow::Result<Lines> {
-        let mut lines = Lines::new();
+impl Draw for ScanState {
+    fn draw(&self, width: usize) -> String {
+        let mut output = String::new();
 
-        lines.push(Line::from_iter([Span::new_unstyled(
-            "─".repeat(dimensions.width),
-        )?]));
+        output.push_str(&"─".repeat(width));
+        output.push('\n');
 
         let scanned = format!(
             " {} file(s) scanned in {:.1}s. ",
@@ -545,45 +545,39 @@ impl Component for ScanState {
 
         let matched = format!("{num_matching_files} file(s) matched.");
 
-        lines.push(Line::from_iter([
-            Span::new_unstyled(scanned)?,
-            Span::new_styled(if num_matching_files > 0 {
-                matched.red().bold()
-            } else {
-                matched.green().bold()
-            })?,
-        ]));
+        output.push_str(&scanned);
+        if num_matching_files > 0 {
+            output.push_str(&format!("{}", matched.paint(Red).bold()));
+        } else {
+            output.push_str(&format!("{}", matched.paint(Green).bold()));
+        }
+        output.push('\n');
 
-        if matches!(mode, superconsole::DrawMode::Normal) {
-            lines.push(Line::from_iter([Span::new_unstyled(
-                "╶".repeat(dimensions.width),
-            )?]));
+        output.push_str(&"╶".repeat(width));
+        output.push('\n');
 
-            for (file, start_time) in
-                self.files_in_progress.lock().unwrap().iter()
-            {
-                // The length of the elapsed time is 7 characters.
-                let max_path_with = dimensions.width.saturating_sub(7);
+        for (file, start_time) in self.files_in_progress.lock().unwrap().iter()
+        {
+            let max_path_with = width.saturating_sub(7);
 
-                let (path, path_width) = truncate_with_ellipsis(
-                    replace_whitespace(file),
-                    max_path_with,
-                );
+            let (path, path_width) = truncate_with_ellipsis(
+                replace_whitespace(file),
+                max_path_with,
+            );
 
-                let spaces =
-                    " ".repeat(max_path_with.saturating_sub(path_width));
+            let spaces = " ".repeat(max_path_with.saturating_sub(path_width));
 
-                let line = format!(
-                    "{}{}{:6.1}s",
-                    path,
-                    spaces,
-                    Instant::elapsed(start_time).as_secs_f32()
-                );
-                lines.push(Line::from_iter([Span::new_unstyled(line)?]))
-            }
+            let line = format!(
+                "{}{}{:6.1}s",
+                path,
+                spaces,
+                Instant::elapsed(start_time).as_secs_f32()
+            );
+            output.push_str(&line);
+            output.push('\n');
         }
 
-        Ok(lines)
+        output
     }
 }
 
@@ -749,7 +743,7 @@ mod output_handler {
                 output
                     .send(Message::Info(format!(
                         "{}: {}",
-                        &file_path.display().to_string(),
+                        file_path.display(),
                         scan_results.len()
                     )))
                     .unwrap();
@@ -759,13 +753,12 @@ mod output_handler {
             let mut result = false;
 
             for matching_rule in scan_results {
-                if let Some(ref only_tag) = self.output_options.only_tag {
-                    if !matching_rule
+                if let Some(ref only_tag) = self.output_options.only_tag
+                    && !matching_rule
                         .tags()
                         .any(|tag| tag.identifier() == only_tag)
-                    {
-                        continue;
-                    }
+                {
+                    continue;
                 }
 
                 result = true;
@@ -1069,8 +1062,7 @@ mod output_handler {
             scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
             _output: &Sender<Message>,
         ) -> bool {
-            let path = file_path
-                .canonicalize()
+            let path = dunce::canonicalize(file_path)
                 .ok()
                 .as_ref()
                 .and_then(|absolute| absolute.to_str())
@@ -1088,15 +1080,30 @@ mod output_handler {
                 })
                 .map(|rule| {
                     let meta = self.output_options.include_meta.then(|| {
-                        rule.metadata()
-                            .map(|(meta_key, meta_val)| {
-                                let meta_key = meta_key.to_owned();
-                                let meta_val = serde_json::to_value(meta_val)
-                                    .expect(
-                                    "Derived Serialize impl should never fail",
-                                );
+                        // Group metadata by key to handle duplicate keys.
+                        let mut grouped: HashMap<
+                            String,
+                            Vec<serde_json::Value>,
+                        > = HashMap::new();
 
-                                (meta_key, meta_val)
+                        for (meta_key, meta_val) in rule.metadata() {
+                            let key = meta_key.to_owned();
+                            let val = serde_json::to_value(meta_val).expect(
+                                "Derived Serialize impl should never fail",
+                            );
+                            grouped.entry(key).or_default().push(val);
+                        }
+
+                        // Single values stay as-is, multiple values become arrays.
+                        grouped
+                            .into_iter()
+                            .map(|(k, mut v)| {
+                                let val = if v.len() == 1 {
+                                    v.pop().unwrap()
+                                } else {
+                                    serde_json::Value::Array(v)
+                                };
+                                (k, val)
                             })
                             .collect::<HashMap<_, _>>()
                     });

@@ -82,3 +82,15 @@ fn test_hash_module() {
         b"TEST STRING"
     );
 }
+
+#[test]
+#[cfg(feature = "hash-module")]
+fn checksum32_chunks_match_byte_sum() {
+    let data = (0..257).map(|n| n as u8).collect::<Vec<_>>();
+    let expected = data
+        .iter()
+        .fold(0_u32, |sum, byte| sum.wrapping_add(*byte as u32));
+
+    assert_eq!(super::checksum32(&data), expected);
+    assert_eq!(super::checksum32(&[255; 257]), 65_535);
+}

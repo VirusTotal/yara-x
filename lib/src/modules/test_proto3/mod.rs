@@ -1,8 +1,7 @@
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::test_proto3::TestProto3;
 
-#[module_main]
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<TestProto3, ModuleError> {
+fn main(_ctx: &mut ModuleContext, _data: &[u8]) -> Result<TestProto3, ModuleError> {
     let mut test = TestProto3::new();
 
     test.int32_zero = 0;
@@ -37,3 +36,5 @@ fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<TestProto3, ModuleError> {
 
     Ok(test)
 }
+
+register_module!("test_proto3", TestProto3, main);

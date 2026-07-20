@@ -6,7 +6,7 @@ use std::ops::Add;
 
 use darling::FromMeta;
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 use syn::visit::Visit;
 use syn::{
     AngleBracketedGenericArguments, Error, Expr, ExprLit, GenericArgument,
@@ -16,12 +16,12 @@ use syn::{
 
 /// Parses the signature of a Rust function and returns its mangled named.
 struct FuncSignatureParser<'ast> {
-    arg_types: Option<VecDeque<&'ast Type>>,
+    args: Option<VecDeque<(String, &'ast Type)>>,
 }
 
 impl<'ast> FuncSignatureParser<'ast> {
     fn new() -> Self {
-        Self { arg_types: None }
+        Self { args: None }
     }
 
     #[inline(always)]
@@ -76,7 +76,7 @@ impl<'ast> FuncSignatureParser<'ast> {
             "bool" => Ok(Cow::Borrowed("b")),
 
             "PatternId" | "RuleId" => Ok(Cow::Borrowed("i")),
-            "RegexpId" => Ok(Cow::Borrowed("r")),
+            "RegexId" => Ok(Cow::Borrowed("r")),
             "Rc" => Ok(Cow::Borrowed("i")),
             "RuntimeObjectHandle" => Ok(Cow::Borrowed("i")),
             "RuntimeString" => Ok(Cow::Borrowed("s")),
@@ -180,23 +180,23 @@ impl<'ast> FuncSignatureParser<'ast> {
     }
 
     fn parse(&mut self, func: &'ast ItemFn) -> Result<String> {
-        self.arg_types = Some(VecDeque::new());
+        self.args = Some(VecDeque::new());
 
         // This loop traverses the function arguments' AST, populating
-        // `self.arg_types`.
+        // `self.args`.
         for fn_arg in func.sig.inputs.iter() {
             self.visit_fn_arg(fn_arg);
         }
 
-        let mut arg_types = self.arg_types.take().unwrap();
+        let mut args = self.args.take().unwrap();
 
         let mut first_argument_is_ok = false;
 
         // Make sure that the first argument is `&mut Caller`.
-        if let Some(Type::Reference(ref_type)) = arg_types.pop_front() {
-            if let Type::Path(type_) = ref_type.elem.as_ref() {
-                first_argument_is_ok = Self::type_ident(type_) == "Caller";
-            }
+        if let Some((_, Type::Reference(ref_type))) = args.pop_front()
+            && let Type::Path(type_) = ref_type.elem.as_ref()
+        {
+            first_argument_is_ok = Self::type_ident(type_) == "Caller";
         }
 
         if !first_argument_is_ok {
@@ -204,14 +204,24 @@ impl<'ast> FuncSignatureParser<'ast> {
                 &func.sig,
                 format!(
                     "the first argument for function `{}` must be `&mut Caller<'_, ScanContext>`",
-                    func.sig.ident),
+                    func.sig.ident
+                ),
             ));
         }
 
         let mut mangled_name = String::from("@");
 
-        for arg_type in arg_types {
+        let mut first = true;
+        for (arg_name, arg_type) in args {
+            if !first {
+                mangled_name.push(',');
+            }
+            if !arg_name.is_empty() {
+                mangled_name.push_str(&arg_name);
+                mangled_name.push(':');
+            }
             mangled_name.push_str(Self::mangled_type(arg_type)?.as_ref());
+            first = false;
         }
 
         mangled_name.push('@');
@@ -223,7 +233,12 @@ impl<'ast> FuncSignatureParser<'ast> {
 
 impl<'ast> Visit<'ast> for FuncSignatureParser<'ast> {
     fn visit_pat_type(&mut self, pat_type: &'ast PatType) {
-        self.arg_types.as_mut().unwrap().push_back(pat_type.ty.as_ref());
+        let name = if let syn::Pat::Ident(ident) = &*pat_type.pat {
+            ident.ident.to_string()
+        } else {
+            "".to_string()
+        };
+        self.args.as_mut().unwrap().push_back((name, pat_type.ty.as_ref()));
     }
 }
 
@@ -232,27 +247,45 @@ impl<'ast> Visit<'ast> for FuncSignatureParser<'ast> {
 pub struct WasmExportArgs {
     name: Option<String>,
     method_of: Option<String>,
+    sync: Option<String>,
     #[darling(default)]
     public: bool,
+}
+
+fn sync_flags_literal(
+    sync: Option<&str>,
+    default: &str,
+) -> Result<TokenStream> {
+    let sync = sync.unwrap_or(default);
+    let bits = match sync {
+        "none" => 0_u32,
+        "before" => 1_u32,
+        "after" => 2_u32,
+        "both" => 3_u32,
+        _ => {
+            return Err(Error::new(
+                proc_macro2::Span::call_site(),
+                format!(
+                    "invalid sync mode `{sync}`, expected one of: none, before, after, both"
+                ),
+            ));
+        }
+    };
+    Ok(quote! { #bits })
 }
 
 /// Implementation for the `#[wasm_export]` attribute macro.
 ///
 /// This attribute is used in functions that will be called from WASM.
-/// For each function using this attribute adds an entry in a global
-/// registry that tracks all the functions that may be called from WASM.
-///
-/// Under the hood, this macro uses either the `linkme` or the `inventory`
-/// crate for maintaining the global registry. In the first case, a
-/// `WasmExport` is added to the global `WASM_EXPORTS` slice, while in
-/// the second cases it uses the `inventory::submit!` for adding a
-/// `WasmExport` struct to the inventory.
+/// For each function using this attribute it registers the function in the
+/// global `inventory` registry so that it can be discovered at runtime.
 ///
 /// # Example
 ///
 /// Suppose that our function is:
 ///
 /// ```text
+/// /// This function adds two numbers.
 /// #[wasm_export]
 /// fn add(caller: &mut Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {
 ///     a + b
@@ -262,24 +295,16 @@ pub struct WasmExportArgs {
 /// The code generated will be:
 ///
 /// ```text
-/// #[cfg_attr(not(feature = "inventory"), distributed_slice(WASM_EXPORTS))]
-/// pub(crate) static export__add: WasmExport = WasmExport {
-///     name: "add",
-///     mangled_name: "add@ii@i",
-///     rust_module_path: "yara_x::modules::my_module",
-///     method_of: None,
-///     func: &WasmExportedFn2 { target_fn: &add },
-/// };
-///
-/// #[cfg(feature = "inventory")]
 /// inventory::submit! {
 ///     WasmExport {
-///         name: #fn_name,
-///         mangled_name: #mangled_fn_name,
-///         public: #public,
-///         rust_module_path: module_path!(),
-///         method_of: #method_of,
-///         func: &#exported_fn_ident { target_fn: &#rust_fn_name },
+///         name: "add",
+///         mangled_name: "add@ii@i",
+///         public: false,
+///         rust_module_path: "yara_x::modules::my_module",
+///         method_of: None,
+///         sync_flags: 3,
+///         func: &WasmExportedFn2 { target_fn: &add },
+///         description: Some(Cow::Borrowed("This function adds two numbers.")),
 ///     }
 /// }
 /// ```
@@ -298,9 +323,38 @@ pub(crate) fn impl_wasm_export_macro(
         return Err(Error::new_spanned(
             &func.sig,
             format!(
-                "function `{rust_fn_name}` must have at least one argument of type `&mut Caller<'_, ScanContext>`"),
+                "function `{rust_fn_name}` must have at least one argument of type `&mut Caller<'_, ScanContext>`"
+            ),
         ));
     }
+
+    // `///` comments are parsed as `#[doc = "..."]` attributes. Collect all
+    // of them and join the resulting lines into a single string.
+    let docs = func
+        .attrs
+        .iter()
+        .filter_map(|attr| {
+            if let Ok(name_value) = attr.meta.require_name_value()
+                && let Ok(ident) = name_value.path.require_ident()
+                && ident == "doc"
+                && let syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(doc_str),
+                    ..
+                }) = &name_value.value
+            {
+                Some(doc_str.value())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<String>>()
+        .join("\n");
+
+    let description = if docs.is_empty() {
+        quote! { None }
+    } else {
+        quote! { Some(std::borrow::Cow::Borrowed(#docs)) }
+    };
 
     // By default, the name of the function in YARA is equal to the name in
     // Rust, but the YARA name can be changed with the `name` argument, as
@@ -316,6 +370,7 @@ pub(crate) fn impl_wasm_export_macro(
     let export_ident = format_ident!("export__{}", rust_fn_name);
     let exported_fn_ident = format_ident!("WasmExportedFn{}", num_args);
     let args_signature = FuncSignatureParser::new().parse(&func)?;
+    let sync_flags = sync_flags_literal(attr_args.sync.as_deref(), "both")?;
 
     let method_of = attr_args
         .method_of
@@ -330,17 +385,17 @@ pub(crate) fn impl_wasm_export_macro(
 
     let fn_descriptor = quote! {
         #[allow(non_upper_case_globals)]
-        #[cfg_attr(not(feature = "inventory"), distributed_slice(WASM_EXPORTS))]
         pub(crate) static #export_ident: WasmExport = WasmExport {
             name: #fn_name,
             mangled_name: #mangled_fn_name,
             public: #public,
             rust_module_path: module_path!(),
             method_of: #method_of,
+            sync_flags: #sync_flags,
             func: &#exported_fn_ident { target_fn: &#rust_fn_name },
+            description: #description,
         };
 
-        #[cfg(feature = "inventory")]
         inventory::submit! {
             WasmExport {
                 name: #fn_name,
@@ -348,7 +403,9 @@ pub(crate) fn impl_wasm_export_macro(
                 public: #public,
                 rust_module_path: module_path!(),
                 method_of: #method_of,
+                sync_flags: #sync_flags,
                 func: &#exported_fn_ident { target_fn: &#rust_fn_name },
+                description: #description,
             }
         }
     };
@@ -390,7 +447,7 @@ mod tests {
           fn foo(caller: &mut Caller<'_, ScanContext>, a: i32, b: i32) -> i32 { a + b }
         };
 
-        assert_eq!(parser.parse(&func).unwrap(), "@ii@i");
+        assert_eq!(parser.parse(&func).unwrap(), "@a:i,b:i@i");
 
         let func = parse_quote! {
           fn foo(caller: &mut Caller<'_, ScanContext>) -> Option<()> { None }

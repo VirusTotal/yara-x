@@ -8,7 +8,7 @@ mod parser;
 use sha2::{Digest, Sha256};
 use std::cell::RefCell;
 
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::vsix::*;
 
 #[cfg(test)]
@@ -19,8 +19,7 @@ thread_local!(
         const { RefCell::new(None) };
 );
 
-#[module_main]
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<Vsix, ModuleError> {
+fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<Vsix, ModuleError> {
     ACTIVATIONHASH_CACHE.with(|cache| *cache.borrow_mut() = None);
     match parser::Vsix::parse(data) {
         Ok(vsix) => Ok(vsix.into()),
@@ -99,3 +98,5 @@ fn has_activation_event(
     let event_str = event.as_bstr(ctx);
     Some(vsix.activation_events.iter().any(|e| e.as_bytes() == event_str.as_bytes()))
 }
+
+register_module!("vsix", Vsix, main);

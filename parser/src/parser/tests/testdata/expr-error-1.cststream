@@ -34,8 +34,8 @@ End { kind: ERROR, span: Span(34..36) }
 End { kind: CONDITION_BLK, span: Span(15..36) }
 Token { kind: NEWLINE, span: Span(36..37) }
 Token { kind: R_BRACE, span: Span(37..38) }
-Error { message: "expecting expression or identifier, found `}`", span: Span(37..38) }
 End { kind: RULE_DECL, span: Span(0..38) }
+Error { message: "expecting expression or identifier, found `}`", span: Span(37..38) }
 Token { kind: NEWLINE, span: Span(38..39) }
 Token { kind: NEWLINE, span: Span(39..40) }
 Begin { kind: RULE_DECL, span: Span(40..81) }
@@ -74,8 +74,8 @@ End { kind: ERROR, span: Span(70..79) }
 End { kind: CONDITION_BLK, span: Span(55..79) }
 Token { kind: NEWLINE, span: Span(79..80) }
 Token { kind: R_BRACE, span: Span(80..81) }
-Error { message: "expecting expression or identifier, found `+`", span: Span(71..72) }
 End { kind: RULE_DECL, span: Span(40..81) }
+Error { message: "expecting expression or identifier, found `+`", span: Span(71..72) }
 Token { kind: NEWLINE, span: Span(81..82) }
 Token { kind: NEWLINE, span: Span(82..83) }
 Begin { kind: RULE_DECL, span: Span(83..121) }
@@ -111,8 +111,8 @@ End { kind: ERROR, span: Span(113..119) }
 End { kind: CONDITION_BLK, span: Span(98..119) }
 Token { kind: NEWLINE, span: Span(119..120) }
 Token { kind: R_BRACE, span: Span(120..121) }
-Error { message: "expecting expression or identifier, found `==`", span: Span(115..117) }
 End { kind: RULE_DECL, span: Span(83..121) }
+Error { message: "expecting expression or identifier, found `==`", span: Span(115..117) }
 Token { kind: NEWLINE, span: Span(121..122) }
 Token { kind: NEWLINE, span: Span(122..123) }
 Begin { kind: RULE_DECL, span: Span(123..167) }
@@ -154,8 +154,8 @@ End { kind: ERROR, span: Span(162..165) }
 End { kind: CONDITION_BLK, span: Span(138..165) }
 Token { kind: NEWLINE, span: Span(165..166) }
 Token { kind: R_BRACE, span: Span(166..167) }
-Error { message: "expecting expression, `%`, operator, `of` or `}`, found `(`", span: Span(162..163) }
 End { kind: RULE_DECL, span: Span(123..167) }
+Error { message: "expecting expression, `%`, operator, `of` or `}`, found `(`", span: Span(162..163) }
 Token { kind: NEWLINE, span: Span(167..168) }
 Token { kind: NEWLINE, span: Span(168..169) }
 Begin { kind: RULE_DECL, span: Span(169..250) }
@@ -213,7 +213,7 @@ End { kind: ERROR, span: Span(238..248) }
 End { kind: CONDITION_BLK, span: Span(214..248) }
 Token { kind: NEWLINE, span: Span(248..249) }
 Token { kind: R_BRACE, span: Span(249..250) }
-Error { message: "expecting operator or `}`, found `in`", span: Span(238..240) }
 End { kind: RULE_DECL, span: Span(169..250) }
+Error { message: "expecting operator or `}`, found `in`", span: Span(238..240) }
 Token { kind: NEWLINE, span: Span(250..251) }
 End { kind: SOURCE_FILE, span: Span(0..251) }

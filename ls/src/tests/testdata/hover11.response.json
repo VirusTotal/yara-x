@@ -1,0 +1,6 @@
+{
+  "contents": {
+    "kind": "markdown",
+    "value": "### `is_pe: bool`\n\n***\n\nTrue if the file is a valid PE binary.\n\n***"
+  }
+}

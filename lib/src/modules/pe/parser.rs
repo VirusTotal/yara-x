@@ -4,7 +4,7 @@ use std::collections::{HashMap, VecDeque};
 use std::default::Default;
 use std::iter::zip;
 use std::mem;
-use std::str::{from_utf8, FromStr};
+use std::str::{FromStr, from_utf8};
 use std::sync::OnceLock;
 
 use bstr::{BStr, ByteSlice};
@@ -14,21 +14,21 @@ use memchr::memmem;
 use nom::branch::{alt, permutation};
 use nom::bytes::complete::{take, take_till, take_while_m_n};
 use nom::combinator::{
-    cond, consumed, iterator, map, opt, success, verify, Success,
+    Success, cond, consumed, iterator, map, opt, success, verify,
 };
 use nom::error::ErrorKind;
 use nom::multi::{
-    count, fold_many0, fold_many1, length_data, many0, many1, many_m_n,
+    count, fold_many0, fold_many1, length_data, many_m_n, many0, many1,
 };
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
 use nom::{Err, IResult, Parser, ToUsize};
 use protobuf::{EnumOrUnknown, MessageField};
 
-use crate::modules::pe::authenticode::{
-    AuthenticodeHasher, AuthenticodeParser, AuthenticodeSignature,
-};
 use crate::modules::pe::rva2off;
 use crate::modules::protos;
+use crate::modules::utils::authenticode::{
+    AuthenticodeHasher, AuthenticodeParser, AuthenticodeSignature,
+};
 
 type Error<'a> = nom::error::Error<&'a [u8]>;
 
@@ -898,22 +898,17 @@ impl<'a> PE<'a> {
             //
             // 2e9c671b8a0411f2b397544b368c44d7f095eb395779de0ad1ac946914dfa34c
             //
-            if let Some(string_table) = string_table {
-                if let Some(offset) = section
+            if let Some(string_table) = string_table
+                && let Some(offset) = section
                     .name
                     .to_str()
                     .ok()
                     .and_then(|name| name.strip_prefix('/'))
                     .and_then(|offset| u32::from_str(offset).ok())
-                {
-                    if let Some(s) = string_table.get(offset as usize..) {
-                        if let Ok((_, s)) =
-                            take_till::<_, &[u8], Error>(|c| c == 0)(s)
-                        {
-                            section.full_name = Some(BStr::new(s));
-                        }
-                    }
-                }
+                && let Some(s) = string_table.get(offset as usize..)
+                && let Ok((_, s)) = take_till::<_, &[u8], Error>(|c| c == 0)(s)
+            {
+                section.full_name = Some(BStr::new(s));
             }
 
             Ok((remainder, section))
@@ -1470,30 +1465,28 @@ impl<'a> PE<'a> {
                     }
                     if let Ok((_, rsrc_entry)) =
                         Self::parse_rsrc_entry(entry_data)
-                    {
-                        if rsrc_entry.size > 0 && rsrc_entry.offset > 0
+                        && rsrc_entry.size > 0 && rsrc_entry.offset > 0
                         // We could use the PE's size as an upper bound for
                         // the entry size, but there are some truncated files
                         // where the PE size is lower. Use a reasonably large
                         // value as the upper bound and avoid some completely
                         // corrupt entries with random values.
                         && (rsrc_entry.size as usize) < 0x3FFFFFFF
-                        {
-                            resources.push(Resource {
-                                type_id: ids.0,
-                                rsrc_id: ids.1,
-                                lang_id: ids.2,
-                                // `rsrc_entry.offset` is relative to the start of
-                                // the resource section, so it's actually an RVA.
-                                // Here we convert it to a file offset.
-                                offset: self.rva_to_offset(rsrc_entry.offset),
-                                rva: rsrc_entry.offset,
-                                length: rsrc_entry.size,
-                            });
+                    {
+                        resources.push(Resource {
+                            type_id: ids.0,
+                            rsrc_id: ids.1,
+                            lang_id: ids.2,
+                            // `rsrc_entry.offset` is relative to the start of
+                            // the resource section, so it's actually an RVA.
+                            // Here we convert it to a file offset.
+                            offset: self.rva_to_offset(rsrc_entry.offset),
+                            rva: rsrc_entry.offset,
+                            length: rsrc_entry.size,
+                        });
 
-                            if resources.len() == Self::MAX_PE_RESOURCES {
-                                return Some((resources_info, resources));
-                            }
+                        if resources.len() == Self::MAX_PE_RESOURCES {
+                            return Some((resources_info, resources));
                         }
                     }
                 }
@@ -1531,8 +1524,10 @@ impl<'a> PE<'a> {
     /// Returns a parser that parses a WIN_CERTIFICATE structure.
     fn win_cert_parser(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<AuthenticodeSignature<'a>>>
-           + '_ {
+    ) -> impl FnMut(
+        &'a [u8],
+    ) -> IResult<&'a [u8], Vec<AuthenticodeSignature<'a>>>
+    + '_ {
         move |input: &'a [u8]| {
             // Parse the WIN_CERTIFICATE structure.
             let (remainder, (length, _revision, _cert_type)) = (
@@ -1562,8 +1557,10 @@ impl<'a> PE<'a> {
     /// Authenticode signature.
     fn signature_parser(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<AuthenticodeSignature<'a>>>
-           + '_ {
+    ) -> impl FnMut(
+        &'a [u8],
+    ) -> IResult<&'a [u8], Vec<AuthenticodeSignature<'a>>>
+    + '_ {
         move |input: &'a [u8]| {
             let signatures = AuthenticodeParser::parse(input, self)
                 .map_err(|_| Err::Error(Error::new(input, ErrorKind::Fail)))?;
@@ -1678,7 +1675,7 @@ impl<'a> PE<'a> {
             .parse(cv_info)
             {
                 Ok((_, (_signature, _padding, pdb_path))) => {
-                    return Some(pdb_path)
+                    return Some(pdb_path);
                 }
                 Err(_) => continue,
             };
@@ -1799,7 +1796,9 @@ impl<'a> PE<'a> {
         let is_32_bits =
             self.optional_hdr.magic != Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC;
 
-        let mut imported_funcs = Vec::new();
+        let estimated_descriptors =
+            min(input.len() / Self::SIZE_OF_DIR_ENTRY, Self::MAX_PE_IMPORTS);
+        let mut imported_funcs = Vec::with_capacity(estimated_descriptors);
 
         // Parse import descriptors until finding one that is empty (filled
         // with null values), which indicates the end of the directory table;
@@ -1846,6 +1845,16 @@ impl<'a> PE<'a> {
                     continue;
                 };
 
+            let import_dll = if dll_name.eq_ignore_ascii_case("ws2_32.dll")
+                || dll_name.eq_ignore_ascii_case("wsock32.dll")
+            {
+                ImportDll::Wsock32
+            } else if dll_name.eq_ignore_ascii_case("oleaut32.dll") {
+                ImportDll::Oleaut32
+            } else {
+                ImportDll::Other
+            };
+
             // Use the INT (a.k.a: OriginalFirstThunk) if it is non-zero, but
             // fallback to using the IAT (a.k.a: FirstThunk).
             let thunks = if descriptor.import_name_table > 0 {
@@ -1855,20 +1864,25 @@ impl<'a> PE<'a> {
             }
             .or_else(|| self.data_at_rva(descriptor.import_address_table));
 
-            let thunks = match thunks {
+            let thunks_slice = match thunks {
                 Some(thunk) => thunk,
                 None => continue,
             };
+
+            let estimated_funcs = min(
+                thunks_slice.len() / if is_32_bits { 4 } else { 8 },
+                Self::MAX_PE_IMPORTS,
+            );
 
             // Parse the thunks, which are an array of 64-bits or 32-bits
             // values, depending on whether this is 64-bits PE file. The
             // array is terminated by a null thunk.
             let thunks = iterator(
-                thunks,
+                thunks_slice,
                 verify(uint(is_32_bits), |thunk| *thunk != 0),
             );
 
-            let mut funcs = Vec::new();
+            let mut funcs = Vec::with_capacity(estimated_funcs);
 
             for (i, mut thunk) in
                 &mut thunks.take(Self::MAX_PE_IMPORTS).enumerate()
@@ -1903,7 +1917,7 @@ impl<'a> PE<'a> {
                 if import_by_ordinal {
                     let ordinal = (thunk & 0xffff) as u16;
                     func.ordinal = Some(ordinal);
-                    func.name = ord_to_name(dll_name, ordinal);
+                    func.name = ord_to_name(import_dll, ordinal);
                 } else {
                     // When descriptor values are virtual addresses, thunks are
                     // virtual addresses too and need to be converted to RVAs.
@@ -1915,7 +1929,9 @@ impl<'a> PE<'a> {
                     if let Ok(rva) = TryInto::<u32>::try_into(thunk) {
                         func.name = self
                             .parse_at_rva(rva, Self::parse_import_by_name)
-                            .and_then(|s| String::from_utf8(s.to_vec()).ok())
+                            .and_then(|s| {
+                                from_utf8(s).ok().map(|s| s.to_string())
+                            })
                     }
                 }
 
@@ -2115,17 +2131,16 @@ impl<'a> PE<'a> {
 
         // Create a vector with one item per exported function. Items in the
         // array initially have function RVA and ordinal only.
-        let mut exported_funcs: Vec<_> = func_rvas
-            .take(num_exports)
-            .enumerate()
-            .filter_map(|(i, rva)| {
-                Some(ExportedFunc {
+        let mut exported_funcs = Vec::with_capacity(num_exports);
+        for (i, rva) in func_rvas.take(num_exports).enumerate() {
+            if let Some(ordinal) = exports.base.checked_add(i as u32) {
+                exported_funcs.push(ExportedFunc {
                     rva,
-                    ordinal: exports.base.checked_add(i as u32)?,
+                    ordinal,
                     ..Default::default()
-                })
-            })
-            .collect();
+                });
+            }
+        }
 
         let names = self
             .parse_at_rva(exports.address_of_names, count(le_u32, num_names))
@@ -2145,11 +2160,10 @@ impl<'a> PE<'a> {
                     .find_position(|ordinal| {
                         *ordinal as u32 == f.ordinal - exports.base
                     })
+                && let Some(name_rva) = names.get(idx)
             {
-                if let Some(name_rva) = names.get(idx) {
-                    f.name =
-                        self.str_at_rva(*name_rva, Self::MAX_FUNC_NAME_LENGTH);
-                }
+                f.name =
+                    self.str_at_rva(*name_rva, Self::MAX_FUNC_NAME_LENGTH);
             }
 
             // If the function's RVA is within the exports section (as given
@@ -2830,16 +2844,23 @@ fn utf16_le_string() -> impl FnMut(&[u8]) -> IResult<&[u8], String> {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum ImportDll {
+    Wsock32,
+    Oleaut32,
+    Other,
+}
+
 /// Convert ordinal number to function name.
 ///
 /// For some well-known DLLs the returned name is the one that that corresponds
 /// to the given ordinal. For the remaining DLLs the returned name has the form
 /// "ordN" where N is the ordinal (e.g: "ord1", "ord23").
-fn ord_to_name(dll_name: &str, ordinal: u16) -> Option<String> {
-    let func_name = match dll_name.to_ascii_lowercase().as_str() {
-        "ws2_32.dll" | "wsock32.dll" => wsock32_ord_to_name(ordinal),
-        "oleaut32.dll" => oleaut32_ord_to_name(ordinal),
-        _ => None,
+fn ord_to_name(well_known: ImportDll, ordinal: u16) -> Option<String> {
+    let func_name = match well_known {
+        ImportDll::Wsock32 => wsock32_ord_to_name(ordinal),
+        ImportDll::Oleaut32 => oleaut32_ord_to_name(ordinal),
+        ImportDll::Other => None,
     };
 
     func_name.map(|n| n.to_owned()).or_else(|| Some(format!("ord{ordinal}")))
@@ -3258,130 +3279,124 @@ fn oleaut32_ord_to_name(ordinal: u16) -> Option<&'static str> {
 
 /// Convert ordinal number to function name for wsock32.dll and ws2_32.dll.
 fn wsock32_ord_to_name(ordinal: u16) -> Option<&'static str> {
-    static WSOCK32_ORD_TO_NAME: OnceLock<HashMap<u16, &'static str>> =
-        OnceLock::new();
-
-    let m = WSOCK32_ORD_TO_NAME.get_or_init(|| {
-        let mut m = HashMap::new();
-        m.insert(1, "accept");
-        m.insert(2, "bind");
-        m.insert(3, "closesocket");
-        m.insert(4, "connect");
-        m.insert(5, "getpeername");
-        m.insert(6, "getsockname");
-        m.insert(7, "getsockopt");
-        m.insert(8, "htonl");
-        m.insert(9, "htons");
-        m.insert(10, "ioctlsocket");
-        m.insert(11, "inet_addr");
-        m.insert(12, "inet_ntoa");
-        m.insert(13, "listen");
-        m.insert(14, "ntohl");
-        m.insert(15, "ntohs");
-        m.insert(16, "recv");
-        m.insert(17, "recvfrom");
-        m.insert(18, "select");
-        m.insert(19, "send");
-        m.insert(20, "sendto");
-        m.insert(21, "setsockopt");
-        m.insert(22, "shutdown");
-        m.insert(23, "socket");
-        m.insert(24, "GetAddrInfoW");
-        m.insert(25, "GetNameInfoW");
-        m.insert(26, "WSApSetPostRoutine");
-        m.insert(27, "FreeAddrInfoW");
-        m.insert(28, "WPUCompleteOverlappedRequest");
-        m.insert(29, "WSAAccept");
-        m.insert(30, "WSAAddressToStringA");
-        m.insert(31, "WSAAddressToStringW");
-        m.insert(32, "WSACloseEvent");
-        m.insert(33, "WSAConnect");
-        m.insert(34, "WSACreateEvent");
-        m.insert(35, "WSADuplicateSocketA");
-        m.insert(36, "WSADuplicateSocketW");
-        m.insert(37, "WSAEnumNameSpaceProvidersA");
-        m.insert(38, "WSAEnumNameSpaceProvidersW");
-        m.insert(39, "WSAEnumNetworkEvents");
-        m.insert(40, "WSAEnumProtocolsA");
-        m.insert(41, "WSAEnumProtocolsW");
-        m.insert(42, "WSAEventSelect");
-        m.insert(43, "WSAGetOverlappedResult");
-        m.insert(44, "WSAGetQOSByName");
-        m.insert(45, "WSAGetServiceClassInfoA");
-        m.insert(46, "WSAGetServiceClassInfoW");
-        m.insert(47, "WSAGetServiceClassNameByClassIdA");
-        m.insert(48, "WSAGetServiceClassNameByClassIdW");
-        m.insert(49, "WSAHtonl");
-        m.insert(50, "WSAHtons");
-        m.insert(51, "gethostbyaddr");
-        m.insert(52, "gethostbyname");
-        m.insert(53, "getprotobyname");
-        m.insert(54, "getprotobynumber");
-        m.insert(55, "getservbyname");
-        m.insert(56, "getservbyport");
-        m.insert(57, "gethostname");
-        m.insert(58, "WSAInstallServiceClassA");
-        m.insert(59, "WSAInstallServiceClassW");
-        m.insert(60, "WSAIoctl");
-        m.insert(61, "WSAJoinLeaf");
-        m.insert(62, "WSALookupServiceBeginA");
-        m.insert(63, "WSALookupServiceBeginW");
-        m.insert(64, "WSALookupServiceEnd");
-        m.insert(65, "WSALookupServiceNextA");
-        m.insert(66, "WSALookupServiceNextW");
-        m.insert(67, "WSANSPIoctl");
-        m.insert(68, "WSANtohl");
-        m.insert(69, "WSANtohs");
-        m.insert(70, "WSAProviderConfigChange");
-        m.insert(71, "WSARecv");
-        m.insert(72, "WSARecvDisconnect");
-        m.insert(73, "WSARecvFrom");
-        m.insert(74, "WSARemoveServiceClass");
-        m.insert(75, "WSAResetEvent");
-        m.insert(76, "WSASend");
-        m.insert(77, "WSASendDisconnect");
-        m.insert(78, "WSASendTo");
-        m.insert(79, "WSASetEvent");
-        m.insert(80, "WSASetServiceA");
-        m.insert(81, "WSASetServiceW");
-        m.insert(82, "WSASocketA");
-        m.insert(83, "WSASocketW");
-        m.insert(84, "WSAStringToAddressA");
-        m.insert(85, "WSAStringToAddressW");
-        m.insert(86, "WSAWaitForMultipleEvents");
-        m.insert(87, "WSCDeinstallProvider");
-        m.insert(88, "WSCEnableNSProvider");
-        m.insert(89, "WSCEnumProtocols");
-        m.insert(90, "WSCGetProviderPath");
-        m.insert(91, "WSCInstallNameSpace");
-        m.insert(92, "WSCInstallProvider");
-        m.insert(93, "WSCUnInstallNameSpace");
-        m.insert(94, "WSCUpdateProvider");
-        m.insert(95, "WSCWriteNameSpaceOrder");
-        m.insert(96, "WSCWriteProviderOrder");
-        m.insert(97, "freeaddrinfo");
-        m.insert(98, "getaddrinfo");
-        m.insert(99, "getnameinfo");
-        m.insert(101, "WSAAsyncSelect");
-        m.insert(102, "WSAAsyncGetHostByAddr");
-        m.insert(103, "WSAAsyncGetHostByName");
-        m.insert(104, "WSAAsyncGetProtoByNumber");
-        m.insert(105, "WSAAsyncGetProtoByName");
-        m.insert(106, "WSAAsyncGetServByPort");
-        m.insert(107, "WSAAsyncGetServByName");
-        m.insert(108, "WSACancelAsyncRequest");
-        m.insert(109, "WSASetBlockingHook");
-        m.insert(110, "WSAUnhookBlockingHook");
-        m.insert(111, "WSAGetLastError");
-        m.insert(112, "WSASetLastError");
-        m.insert(113, "WSACancelBlockingCall");
-        m.insert(114, "WSAIsBlocking");
-        m.insert(115, "WSAStartup");
-        m.insert(116, "WSACleanup");
-        m.insert(151, "__WSAFDIsSet");
-        m.insert(500, "WEP");
-        m
-    });
-
-    m.get(&ordinal).copied()
+    match ordinal {
+        1 => Some("accept"),
+        2 => Some("bind"),
+        3 => Some("closesocket"),
+        4 => Some("connect"),
+        5 => Some("getpeername"),
+        6 => Some("getsockname"),
+        7 => Some("getsockopt"),
+        8 => Some("htonl"),
+        9 => Some("htons"),
+        10 => Some("ioctlsocket"),
+        11 => Some("inet_addr"),
+        12 => Some("inet_ntoa"),
+        13 => Some("listen"),
+        14 => Some("ntohl"),
+        15 => Some("ntohs"),
+        16 => Some("recv"),
+        17 => Some("recvfrom"),
+        18 => Some("select"),
+        19 => Some("send"),
+        20 => Some("sendto"),
+        21 => Some("setsockopt"),
+        22 => Some("shutdown"),
+        23 => Some("socket"),
+        24 => Some("GetAddrInfoW"),
+        25 => Some("GetNameInfoW"),
+        26 => Some("WSApSetPostRoutine"),
+        27 => Some("FreeAddrInfoW"),
+        28 => Some("WPUCompleteOverlappedRequest"),
+        29 => Some("WSAAccept"),
+        30 => Some("WSAAddressToStringA"),
+        31 => Some("WSAAddressToStringW"),
+        32 => Some("WSACloseEvent"),
+        33 => Some("WSAConnect"),
+        34 => Some("WSACreateEvent"),
+        35 => Some("WSADuplicateSocketA"),
+        36 => Some("WSADuplicateSocketW"),
+        37 => Some("WSAEnumNameSpaceProvidersA"),
+        38 => Some("WSAEnumNameSpaceProvidersW"),
+        39 => Some("WSAEnumNetworkEvents"),
+        40 => Some("WSAEnumProtocolsA"),
+        41 => Some("WSAEnumProtocolsW"),
+        42 => Some("WSAEventSelect"),
+        43 => Some("WSAGetOverlappedResult"),
+        44 => Some("WSAGetQOSByName"),
+        45 => Some("WSAGetServiceClassInfoA"),
+        46 => Some("WSAGetServiceClassInfoW"),
+        47 => Some("WSAGetServiceClassNameByClassIdA"),
+        48 => Some("WSAGetServiceClassNameByClassIdW"),
+        49 => Some("WSAHtonl"),
+        50 => Some("WSAHtons"),
+        51 => Some("gethostbyaddr"),
+        52 => Some("gethostbyname"),
+        53 => Some("getprotobyname"),
+        54 => Some("getprotobynumber"),
+        55 => Some("getservbyname"),
+        56 => Some("getservbyport"),
+        57 => Some("gethostname"),
+        58 => Some("WSAInstallServiceClassA"),
+        59 => Some("WSAInstallServiceClassW"),
+        60 => Some("WSAIoctl"),
+        61 => Some("WSAJoinLeaf"),
+        62 => Some("WSALookupServiceBeginA"),
+        63 => Some("WSALookupServiceBeginW"),
+        64 => Some("WSALookupServiceEnd"),
+        65 => Some("WSALookupServiceNextA"),
+        66 => Some("WSALookupServiceNextW"),
+        67 => Some("WSANSPIoctl"),
+        68 => Some("WSANtohl"),
+        69 => Some("WSANtohs"),
+        70 => Some("WSAProviderConfigChange"),
+        71 => Some("WSARecv"),
+        72 => Some("WSARecvDisconnect"),
+        73 => Some("WSARecvFrom"),
+        74 => Some("WSARemoveServiceClass"),
+        75 => Some("WSAResetEvent"),
+        76 => Some("WSASend"),
+        77 => Some("WSASendDisconnect"),
+        78 => Some("WSASendTo"),
+        79 => Some("WSASetEvent"),
+        80 => Some("WSASetServiceA"),
+        81 => Some("WSASetServiceW"),
+        82 => Some("WSASocketA"),
+        83 => Some("WSASocketW"),
+        84 => Some("WSAStringToAddressA"),
+        85 => Some("WSAStringToAddressW"),
+        86 => Some("WSAWaitForMultipleEvents"),
+        87 => Some("WSCDeinstallProvider"),
+        88 => Some("WSCEnableNSProvider"),
+        89 => Some("WSCEnumProtocols"),
+        90 => Some("WSCGetProviderPath"),
+        91 => Some("WSCInstallNameSpace"),
+        92 => Some("WSCInstallProvider"),
+        93 => Some("WSCUnInstallNameSpace"),
+        94 => Some("WSCUpdateProvider"),
+        95 => Some("WSCWriteNameSpaceOrder"),
+        96 => Some("WSCWriteProviderOrder"),
+        97 => Some("freeaddrinfo"),
+        98 => Some("getaddrinfo"),
+        99 => Some("getnameinfo"),
+        101 => Some("WSAAsyncSelect"),
+        102 => Some("WSAAsyncGetHostByAddr"),
+        103 => Some("WSAAsyncGetHostByName"),
+        104 => Some("WSAAsyncGetProtoByNumber"),
+        105 => Some("WSAAsyncGetProtoByName"),
+        106 => Some("WSAAsyncGetServByPort"),
+        107 => Some("WSAAsyncGetServByName"),
+        108 => Some("WSACancelAsyncRequest"),
+        109 => Some("WSASetBlockingHook"),
+        110 => Some("WSAUnhookBlockingHook"),
+        111 => Some("WSAGetLastError"),
+        112 => Some("WSASetLastError"),
+        113 => Some("WSACancelBlockingCall"),
+        114 => Some("WSAIsBlocking"),
+        115 => Some("WSAStartup"),
+        116 => Some("WSACleanup"),
+        151 => Some("__WSAFDIsSet"),
+        500 => Some("WEP"),
+        _ => None,
+    }
 }

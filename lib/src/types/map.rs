@@ -65,7 +65,9 @@ impl Map {
     pub fn with_integer_keys(&self) -> &IndexMap<i64, TypeValue> {
         match self {
             Map::IntegerKeys { map, .. } => map,
-            _ => panic!("calling `with_integers_keys` on an map that is not `Map::IntegerKeys`"),
+            _ => panic!(
+                "calling `with_integers_keys` on an map that is not `Map::IntegerKeys`"
+            ),
         }
     }
 
@@ -77,7 +79,9 @@ impl Map {
     pub fn with_string_keys(&self) -> &IndexMap<BString, TypeValue> {
         match self {
             Map::StringKeys { map, .. } => map,
-            _ => panic!("calling `with_string_keys` on an map that is not `Map::StringKeys`"),
+            _ => panic!(
+                "calling `with_string_keys` on an map that is not `Map::StringKeys`"
+            ),
         }
     }
 

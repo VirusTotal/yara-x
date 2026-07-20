@@ -1,32 +1,21 @@
-use std::sync::LazyLock;
-
-use protobuf::reflect::MessageDescriptor;
 use protobuf::MessageDyn;
+use protobuf::reflect::MessageDescriptor;
 use rustc_hash::FxHashMap;
-
 use thiserror::Error;
 
 pub mod protos {
+    #[cfg(feature = "generate-proto-code")]
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
+
+    #[cfg(not(feature = "generate-proto-code"))]
+    include!("protos/generated/mod.rs");
 }
 
 #[cfg(test)]
 mod tests;
 
-#[allow(unused_imports)]
-pub(crate) mod prelude {
-    pub(crate) use crate::scanner::ScanContext;
-    pub(crate) use crate::wasm::string::FixedLenString;
-    pub(crate) use crate::wasm::string::RuntimeString;
-    pub(crate) use crate::wasm::string::String as _;
-    pub(crate) use crate::wasm::string::{Lowercase, Uppercase};
-    pub(crate) use crate::wasm::*;
-    pub(crate) use bstr::ByteSlice;
-    #[cfg(not(feature = "inventory"))]
-    pub(crate) use linkme::distributed_slice;
-    pub(crate) use wasmtime::Caller;
-    pub(crate) use yara_x_macros::{module_export, module_main, wasm_export};
-}
+pub(crate) mod field_docs;
+pub(crate) mod utils;
 
 include!("modules.rs");
 
@@ -48,100 +37,162 @@ pub enum ModuleError {
     },
 }
 
-/// Signature of a module's main function.
-type MainFn =
-    fn(&[u8], Option<&[u8]>) -> Result<Box<dyn MessageDyn>, ModuleError>;
+/// Context passed to the main function of YARA modules.
+#[derive(Default)]
+pub struct ModuleContext<'a> {
+    module_metadata: FxHashMap<&'static str, &'a [u8]>,
+    #[cfg(any(
+        feature = "olecf-module",
+        feature = "msi-module",
+        feature = "vba-module"
+    ))]
+    pub(crate) olecf_cache: Option<utils::olecf::CachedOlecf<'a>>,
+    #[cfg(any(feature = "zip-module", feature = "vba-module"))]
+    pub(crate) zip_cache: Option<utils::zip::CachedZip<'a>>,
+}
 
-/// A structure describing a YARA module.
-pub(crate) struct Module {
-    /// Pointer to the module's main function.
-    pub main_fn: Option<MainFn>,
-    /// Name of the Rust module, if any, that contains code for this YARA
-    /// module (e.g: "test_proto2").
+impl<'a> ModuleContext<'a> {
+    /// Set the metadata associated to the module with the given name.
+    pub fn set_module_metadata(
+        &mut self,
+        module_name: &'static str,
+        metadata: &'a [u8],
+    ) {
+        self.module_metadata.insert(module_name, metadata);
+    }
+
+    /// Returns the metadata explicitly provided to the module with the given
+    /// name, if any.
+    pub fn get_module_metadata(&self, module_name: &str) -> Option<&[u8]> {
+        self.module_metadata.get(module_name).copied()
+    }
+}
+
+/// The trait implemented by all registered modules.
+pub trait RegisteredModule: Send + Sync {
+    /// Name used for the module in `import` statements (e.g. `"my_module"`).
+    fn name(&self) -> &'static str;
+
+    /// Returns the descriptor of the protobuf message that defines the
+    /// module's root structure.
+    fn root_descriptor(&self) -> MessageDescriptor;
+
+    /// Main function called every time YARA scans some data, before
+    /// evaluating the rules. Set to `None` for data-only modules.
+    fn main_fn<'a>(
+        &self,
+        ctx: &mut ModuleContext<'a>,
+        data: &'a [u8],
+    ) -> Option<Result<Box<dyn MessageDyn>, ModuleError>>;
+
+    /// Rust module path of the submodule inside the external crate that
+    /// contains functions registered with `#[module_export(yara_x_crate = ...)]`.
+    ///
+    /// Must match the value that `module_path!()` expands to at those
+    /// functions' definition site (e.g. `"my_crate::my_mod"`). Set to
+    /// `None` for data-only modules that export no callable functions.
+    fn rust_module_name(&self) -> Option<&'static str>;
+}
+
+pub type ModuleMainFn<T> =
+    for<'a> fn(&mut ModuleContext<'a>, &'a [u8]) -> Result<T, ModuleError>;
+
+/// Description of a YARA module, generic over the type `T` returned by the
+/// main function.
+pub struct Module<T>
+where
+    T: protobuf::MessageFull + 'static,
+{
+    /// Name used for the module in `import` statements (e.g. `"my_module"`).
+    pub name: &'static str,
+    /// Main function called every time YARA scans some data, before
+    /// evaluating the rules. Set to `None` for data-only modules.
+    pub main_fn: Option<ModuleMainFn<T>>,
+    /// Rust module path of the submodule inside the external crate that
+    /// contains functions registered with `#[module_export(yara_x_crate = ...)]`.
     pub rust_module_name: Option<&'static str>,
-    /// A [`MessageDescriptor`] that describes the module's structure. This
-    /// corresponds to the protobuf message declared in the "root_message"
-    /// for the YARA module. It allows iterating the fields declared by the
-    /// module and obtaining their names and types.
-    pub root_struct_descriptor: MessageDescriptor,
 }
 
-/// Macro that adds a module to the `BUILTIN_MODULES` map.
-///
-/// This macro is used by `add_modules.rs`, a file that is automatically
-/// generated by `build.rs` based on the Protocol Buffers defined in the
-/// `src/modules/protos` directory.
-///
-/// # Example
-///
-/// add_module!(modules, "test", test, "Test", test_mod, Some(test::main as
-/// MainFn));
-macro_rules! add_module {
-    ($modules:expr, $name:literal, $proto:ident, $root_message:literal, $rust_module_name:expr, $main_fn:expr) => {{
-        use std::stringify;
-        let root_struct_descriptor = protos::$proto::file_descriptor()
-            // message_by_full_name expects a dot (.) at the beginning
-            // of the name.
-            .message_by_full_name(format!(".{}", $root_message).as_str())
-            .expect(format!(
-                "`root_message` option in protobuf `{}` is wrong, message `{}` is not defined",
-                stringify!($proto),
-                $root_message
-            ).as_str());
+impl<T> RegisteredModule for Module<T>
+where
+    T: protobuf::MessageFull + 'static,
+{
+    fn name(&self) -> &'static str {
+        self.name
+    }
 
-        $modules.insert(
-            $name,
-            Module {
-                main_fn: $main_fn,
-                rust_module_name: $rust_module_name,
-                root_struct_descriptor,
-            },
-        );
-    }};
+    fn root_descriptor(&self) -> MessageDescriptor {
+        T::descriptor()
+    }
+
+    fn main_fn<'a>(
+        &self,
+        ctx: &mut ModuleContext<'a>,
+        data: &'a [u8],
+    ) -> Option<Result<Box<dyn MessageDyn>, ModuleError>> {
+        self.main_fn.map(|f| {
+            f(ctx, data).map(|ok| Box::new(ok) as Box<dyn MessageDyn>)
+        })
+    }
+
+    fn rust_module_name(&self) -> Option<&'static str> {
+        self.rust_module_name
+    }
 }
 
-/// `BUILTIN_MODULES` is a static, global map where keys are module names
-/// and values are [`Module`] structures that describe a YARA module.
+/// Macro used to register a YARA module.
 ///
-/// This table is populated with the modules defined by a `.proto` file in
-/// `src/modules/protos`. Each `.proto` file that contains a statement like
-/// the following one defines a YARA module:
+/// # Examples
 ///
-/// ```protobuf
-/// option (yara.module_options) = {
-///   name : "foo"
-///   root_message: "Foo"
-///   rust_module: "foo"
-/// };
+/// Registering a module with a main function:
+///
+/// ```ignore
+/// register_module!("my_module", MyModuleProto, main);
 /// ```
 ///
-/// The `name` field is the module's name (i.e: the name used in `import`
-/// statements), which is also the key in `BUILTIN_MODULES`. `root_message`
-/// is the name of the message that describes the module's structure. This
-/// is required because a `.proto` file can define more than one message.
+/// Registering a data-only module with no main function:
 ///
-/// `rust_module` is the name of the Rust module where functions exported
-/// by the YARA module are defined. This field is optional, if not provided
-/// the module is considered a data-only module.
-pub(crate) static BUILTIN_MODULES: LazyLock<FxHashMap<&'static str, Module>> =
-    LazyLock::new(|| {
-        let mut modules = FxHashMap::default();
-        // The `add_modules.rs` file is automatically generated at compile time
-        // by `build.rs`. This is an example of how `add_modules.rs` looks like:
-        //
-        // {
-        //  #[cfg(feature = "pe_module")]
-        //  add_module!(modules, "pe", pe, "pe.PE", Some("pe"), Some(pe::__main__ as MainFn));
-        //
-        //  #[cfg(feature = "elf_module")]
-        //  add_module!(modules, "elf", elf, "elf.ELF", Some("elf"), Some(elf::__main__ as MainFn));
-        // }
-        //
-        // `add_modules.rs` will contain an `add_module!` statement for each
-        // protobuf in `src/modules/protos` defining a YARA module.
-        include!("add_modules.rs");
-        modules
-    });
+/// ```ignore
+/// register_module!("my_module", MyModuleProto);
+/// ```
+#[macro_export]
+macro_rules! register_module {
+    ($name:literal, $root_message:ty, $main_fn:path) => {
+        $crate::mods::prelude::inventory::submit! {
+            &$crate::mods::prelude::Module::<$root_message> {
+                name: $name,
+                main_fn: Some($main_fn),
+                rust_module_name: Some(module_path!()),
+            } as &dyn $crate::mods::prelude::RegisteredModule
+        }
+    };
+    ($name:literal, $root_message:ty) => {
+        $crate::mods::prelude::inventory::submit! {
+            &$crate::mods::prelude::Module::<$root_message> {
+                name: $name,
+                main_fn: None,
+                rust_module_name: None,
+            } as &dyn $crate::mods::prelude::RegisteredModule
+        }
+    };
+}
+
+inventory::collect!(&'static dyn RegisteredModule);
+
+/// Returns an iterator over all registered modules.
+#[inline]
+pub(crate) fn registered_modules()
+-> impl Iterator<Item = &'static dyn RegisteredModule> {
+    inventory::iter::<&'static dyn RegisteredModule>().copied()
+}
+
+/// Returns a registered module given its name.
+#[inline]
+pub(crate) fn module_by_name(
+    name: &str,
+) -> Option<&'static dyn RegisteredModule> {
+    registered_modules().find(|m| m.name() == name)
+}
 
 pub mod mods {
     /*! Utility functions and structures that allow invoking YARA modules directly.
@@ -171,7 +222,6 @@ pub mod mods {
     pub use super::protos::crx;
     /// Data structure returned by the `crx` module.
     pub use super::protos::crx::Crx;
-
     /// Data structures defined by the `dex` module.
     ///
     /// The main structure produced by the module is [`dex::Dex`]. The rest
@@ -180,7 +230,6 @@ pub mod mods {
     pub use super::protos::dex;
     /// Data structure returned by the `dex` module.
     pub use super::protos::dex::Dex;
-
     /// Data structures defined by the `dotnet` module.
     ///
     /// The main structure produced by the module is [`dotnet::Dotnet`]. The
@@ -189,7 +238,6 @@ pub mod mods {
     pub use super::protos::dotnet;
     /// Data structure returned by the `dotnet` module.
     pub use super::protos::dotnet::Dotnet;
-
     /// Data structures defined by the `elf` module.
     ///
     /// The main structure produced by the module is [`elf::ELF`]. The rest of
@@ -198,7 +246,6 @@ pub mod mods {
     pub use super::protos::elf;
     /// Data structure returned by the `elf` module.
     pub use super::protos::elf::ELF;
-
     /// Data structures defined by the `lnk` module.
     ///
     /// The main structure produced by the module is [`lnk::Lnk`]. The rest of
@@ -216,6 +263,29 @@ pub mod mods {
     pub use super::protos::macho;
     /// Data structure returned by the `macho` module.
     pub use super::protos::macho::Macho;
+
+    /// Data structures defined by the `olecf` module.
+    ///
+    /// The main structure produced by the module is [`olecf:Olecf`]. The rest
+    /// of them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::olecf;
+    /// Data structure returned by the `olecf` module.
+    pub use super::protos::olecf::Olecf;
+
+    /// Data structures defined by the `msi` module.
+    pub use super::protos::msi;
+    /// Data structure returned by the `msi` module.
+    pub use super::protos::msi::Msi;
+
+    /// Data structures defined by the `vba` module.
+    ///
+    /// The main structure produced by the module is [`vba::Vba`]. The rest
+    /// of them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::vba;
+    /// Data structure returned by the `macho` module.
+    pub use super::protos::vba::Vba;
 
     /// Data structures defined by the `pe` module.
     ///
@@ -295,12 +365,17 @@ pub mod mods {
     ) -> Option<Box<dyn protobuf::MessageDyn>> {
         let descriptor = T::descriptor();
         let proto_name = descriptor.full_name();
-        let (_, module) =
-            super::BUILTIN_MODULES.iter().find(|(_, module)| {
-                module.root_struct_descriptor.full_name() == proto_name
-            })?;
 
-        module.main_fn?(data, meta).ok()
+        let module = super::registered_modules()
+            .find(|m| m.root_descriptor().full_name() == proto_name)?;
+
+        let mut ctx = super::ModuleContext::default();
+
+        if let Some(m) = meta {
+            ctx.module_metadata.insert(module.name(), m);
+        }
+
+        module.main_fn(&mut ctx, data)?.ok()
     }
 
     /// Invokes all YARA modules and returns the data produced by them.
@@ -320,25 +395,64 @@ pub mod mods {
         info.dotnet = protobuf::MessageField(invoke::<Dotnet>(data));
         info.macho = protobuf::MessageField(invoke::<Macho>(data));
         info.lnk = protobuf::MessageField(invoke::<Lnk>(data));
+        info.olecf = protobuf::MessageField(invoke::<Olecf>(data));
+        info.vba = protobuf::MessageField(invoke::<Vba>(data));
         info.crx = protobuf::MessageField(invoke::<Crx>(data));
         info.dex = protobuf::MessageField(invoke::<Dex>(data));
+        info.msi = protobuf::MessageField(invoke::<Msi>(data));
         info.vsix = protobuf::MessageField(invoke::<Vsix>(data));
         info
     }
 
-    /// Iterator over built-in module names.
+    /// Iterator over all registered module names.
     ///
     /// See the "debug modules" command.
     pub fn module_names() -> impl Iterator<Item = &'static str> {
         use itertools::Itertools;
-        super::BUILTIN_MODULES.keys().sorted_by_key(|k| **k).copied()
+        super::registered_modules().map(|m| m.name()).sorted()
     }
 
     /// Returns the definition of the module with the given name.
     pub fn module_definition(name: &str) -> Option<reflect::Struct> {
-        super::BUILTIN_MODULES
-            .get(name)
-            .map(|m| reflect::Struct::new(m.root_struct_descriptor.clone()))
+        use std::rc::Rc;
+        super::module_by_name(name)
+            .map(|m| reflect::Struct::new(Rc::<crate::types::Struct>::from(m)))
+    }
+
+    /// Everything needed to implement your own YARA-X modules.
+    #[allow(unused_imports)]
+    #[allow(missing_docs)]
+    pub mod prelude {
+        pub use crate::modules::Module;
+        pub use crate::modules::ModuleContext;
+        pub use crate::modules::ModuleError;
+        pub use crate::modules::RegisteredModule;
+        pub use crate::register_module;
+        pub use crate::wasm::runtime::Caller;
+        pub use crate::wasm::string::FixedLenString;
+        pub use crate::wasm::string::RuntimeString;
+        pub use crate::wasm::string::String as _;
+        pub use crate::wasm::string::{Lowercase, Uppercase};
+        pub use crate::wasm::*;
+        pub use bstr::ByteSlice;
+        pub use inventory;
+        pub use protobuf::MessageFull;
+        pub use yara_x_macros::wasm_export;
+
+        /// Opaque scan context passed as first argument to functions exported from a
+        /// [`Module`] via `#[module_export]`.
+        ///
+        /// Functions only receive a reference to it; all fields are private.
+        pub type ScanContext<'r, 'd> = crate::scanner::ScanContext<'r, 'd>;
+
+        /// Attribute macro for exporting a callable function from a [`Module`].
+        ///
+        /// ```ignore
+        /// use yara_x::mods::prelude::*;
+        /// #[module_export]
+        /// fn add(_ctx: &ScanContext, a: i64, b: i64) -> i64 { a + b }
+        /// ```
+        pub use yara_x_macros::module_export;
     }
 
     /// Types that allow for module introspection.
@@ -346,98 +460,127 @@ pub mod mods {
     /// This API is unstable and not ready for public use.
     #[doc(hidden)]
     pub mod reflect {
-        use crate::modules::protos::yara::exts::field_options;
         use std::borrow::Cow;
+        use std::rc::Rc;
+
+        use crate::types;
+        use crate::types::{Map, TypeValue};
 
         /// Describes a structure or module.
         #[derive(Clone, Debug, PartialEq)]
         pub struct Struct {
-            descriptor: protobuf::reflect::MessageDescriptor,
+            inner: Rc<types::Struct>,
         }
 
         impl Struct {
-            pub(super) fn new(
-                descriptor: protobuf::reflect::MessageDescriptor,
-            ) -> Self {
-                Self { descriptor }
+            pub(super) fn new(inner: Rc<types::Struct>) -> Self {
+                Self { inner }
             }
 
             /// Returns an iterator over the fields defined in the structure.
-            pub fn fields(&self) -> impl Iterator<Item = Field> + '_ {
-                self.descriptor.fields().filter_map(|field_descriptor| {
-                    let ignore = field_options
-                        .get(&field_descriptor.proto().options)
-                        .and_then(|options| options.ignore)
-                        .unwrap_or_default();
-                    if ignore {
-                        None
-                    } else {
-                        Some(Field::new(field_descriptor))
-                    }
-                })
+            ///
+            /// The fields are sorted by name.
+            pub fn fields(&self) -> impl Iterator<Item = Field<'_>> + '_ {
+                self.inner
+                    .fields()
+                    .map(|(name, field)| Field::new(name, field))
+            }
+        }
+
+        /// Describes a function.
+        #[derive(Clone, Debug, PartialEq)]
+        pub struct Func {
+            /// All the existing signatures for this function. A function
+            /// can have multiple signatures that differ in their arguments
+            /// or return type.
+            pub signatures: Vec<FuncSignature>,
+        }
+
+        impl From<Rc<types::Func>> for Func {
+            fn from(func: Rc<types::Func>) -> Self {
+                let mut signatures =
+                    Vec::with_capacity(func.signatures().len());
+
+                for signature in func.signatures() {
+                    signatures.push(FuncSignature {
+                        args: signature
+                            .args
+                            .iter()
+                            .map(|(name, ty)| (name.clone(), Type::from(ty)))
+                            .collect(),
+                        ret: Type::from(&signature.result),
+                        doc: signature.doc.clone(),
+                    });
+                }
+
+                Func { signatures }
+            }
+        }
+
+        /// Describes a function signature.
+        #[derive(Clone, Debug, PartialEq)]
+        pub struct FuncSignature {
+            /// The names and types of the function arguments.
+            args: Vec<(String, Type)>,
+            /// The return type for the function.
+            ret: Type,
+            /// Function's documentation.
+            doc: Option<Cow<'static, str>>,
+        }
+
+        impl FuncSignature {
+            /// The names and types of the function arguments.
+            pub fn args(
+                &self,
+            ) -> impl ExactSizeIterator<Item = (&str, &Type)> {
+                self.args.iter().map(|(name, ty)| (name.as_str(), ty))
+            }
+
+            /// The return type for the function.
+            pub fn ret_type(&self) -> &Type {
+                &self.ret
+            }
+
+            /// Function's documentation.
+            pub fn doc(&self) -> Option<&str> {
+                self.doc.as_deref()
             }
         }
 
         /// Describes a field within a structure or module.
         #[derive(Clone)]
-        pub struct Field {
-            descriptor: protobuf::reflect::FieldDescriptor,
+        pub struct Field<'a> {
+            name: &'a str,
+            struct_field: &'a types::StructField,
         }
 
-        impl Field {
-            fn new(descriptor: protobuf::reflect::FieldDescriptor) -> Self {
-                Self { descriptor }
+        impl<'a> Field<'a> {
+            fn new(
+                name: &'a str,
+                struct_field: &'a types::StructField,
+            ) -> Self {
+                Self { name, struct_field }
             }
 
             /// Returns the name of the field.
-            pub fn name(&self) -> Cow<'_, str> {
-                field_options
-                    .get(&self.descriptor.proto().options)
-                    .and_then(|options| options.name)
-                    .map(Cow::Owned)
-                    .unwrap_or_else(|| Cow::Borrowed(self.descriptor.name()))
+            pub fn name(&self) -> &'a str {
+                self.name
             }
 
-            /// Returns the kind of the field.
-            pub fn kind(&self) -> FieldKind {
-                use protobuf::reflect::RuntimeFieldType;
-                use protobuf::reflect::RuntimeType;
+            /// Returns the type of the field.
+            pub fn ty(&self) -> Type {
+                Type::from(&self.struct_field.type_value)
+            }
 
-                let convert_type = |t: RuntimeType| -> FieldKind {
-                    match t {
-                        RuntimeType::I32
-                        | RuntimeType::I64
-                        | RuntimeType::U32
-                        | RuntimeType::U64 => FieldKind::Integer,
-                        RuntimeType::F32 | RuntimeType::F64 => {
-                            FieldKind::Float
-                        }
-                        RuntimeType::Bool => FieldKind::Bool,
-                        RuntimeType::String => FieldKind::String,
-                        RuntimeType::VecU8 => FieldKind::String,
-                        RuntimeType::Enum(_) => FieldKind::Integer,
-                        RuntimeType::Message(m) => {
-                            FieldKind::Struct(Struct::new(m))
-                        }
-                    }
-                };
-
-                match self.descriptor.runtime_field_type() {
-                    RuntimeFieldType::Singular(t) => convert_type(t),
-                    RuntimeFieldType::Repeated(t) => {
-                        FieldKind::Array(Box::new(convert_type(t)))
-                    }
-                    RuntimeFieldType::Map(k, v) => FieldKind::Map(
-                        Box::new(convert_type(k)),
-                        Box::new(convert_type(v)),
-                    ),
-                }
+            /// Returns the documentation for the current field.
+            pub fn doc(&self) -> Option<&str> {
+                self.struct_field.doc
             }
         }
 
-        /// The kind of a field.
+        /// The type of field, function argument or return value.
         #[derive(Clone, Debug, PartialEq)]
-        pub enum FieldKind {
+        pub enum Type {
             /// An integer.
             Integer,
             /// A float.
@@ -446,15 +589,46 @@ pub mod mods {
             Bool,
             /// A string.
             String,
+            /// A regular expression
+            Regexp,
             /// A structure.
             Struct(Struct),
             /// An array.
-            Array(Box<FieldKind>),
+            Array(Box<Type>),
             /// A map.
-            Map(Box<FieldKind>, Box<FieldKind>),
+            Map(Box<Type>, Box<Type>),
+            /// A function.
+            Func(Func),
+        }
+
+        impl From<&TypeValue> for Type {
+            fn from(type_value: &TypeValue) -> Self {
+                match type_value {
+                    TypeValue::Bool { .. } => Type::Bool,
+                    TypeValue::Float { .. } => Type::Float,
+                    TypeValue::Integer { .. } => Type::Integer,
+                    TypeValue::String { .. } => Type::String,
+                    TypeValue::Regexp(_) => Type::Regexp,
+                    TypeValue::Struct(s) => {
+                        Type::Struct(Struct::new(s.clone()))
+                    }
+                    TypeValue::Array(a) => {
+                        Type::Array(Box::new(Type::from(&a.deputy())))
+                    }
+                    TypeValue::Map(m) => {
+                        let key_kind = match **m {
+                            Map::IntegerKeys { .. } => Type::Integer,
+                            Map::StringKeys { .. } => Type::String,
+                        };
+                        Type::Map(
+                            Box::new(key_kind),
+                            Box::new(Type::from(&m.deputy())),
+                        )
+                    }
+                    TypeValue::Func(func) => Type::Func(func.clone().into()),
+                    TypeValue::Unknown => unreachable!(),
+                }
+            }
         }
     }
 }
-
-#[cfg(feature = "crypto")]
-pub(crate) mod utils;

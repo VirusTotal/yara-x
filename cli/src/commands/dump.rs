@@ -1,15 +1,15 @@
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command, ValueEnum};
+use clap::{ArgAction, ArgMatches, Command, ValueEnum, arg, value_parser};
 
 use crossterm::tty::IsTty;
 use protobuf::MessageField;
 use std::fs::File;
-use std::io::{stdin, stdout, Read};
+use std::io::{Read, stdin, stdout};
 use std::path::PathBuf;
 use strum_macros::Display;
 
 use yara_x::mods::*;
-use yara_x_proto_json::Serializer as JsonSerializer;
-use yara_x_proto_yaml::Serializer as YamlSerializer;
+use yara_x_proto::json::Serializer as JsonSerializer;
+use yara_x_proto::yaml::Serializer as YamlSerializer;
 
 use crate::help;
 
@@ -20,6 +20,8 @@ enum SupportedModules {
     Elf,
     Pe,
     Dotnet,
+    Olecf,
+    Vba,
     Crx,
     Dex,
 }
@@ -119,6 +121,12 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         if !requested_modules.contains(&&SupportedModules::Dex) {
             module_output.dex = MessageField::none()
         }
+        if !requested_modules.contains(&&SupportedModules::Olecf) {
+            module_output.olecf = MessageField::none()
+        }
+        if !requested_modules.contains(&&SupportedModules::Vba) {
+            module_output.vba = MessageField::none()
+        }
     } else {
         // Module was not specified, only show those that produced meaningful
         // results, the rest are cleared out.
@@ -144,6 +152,12 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         }
         if !module_output.dex.is_dex() {
             module_output.dex = MessageField::none()
+        }
+        if !module_output.olecf.is_olecf() {
+            module_output.olecf = MessageField::none()
+        }
+        if !module_output.vba.has_macros() {
+            module_output.vba = MessageField::none()
         }
     }
 

@@ -1,4 +1,4 @@
-use std::ffi::{c_char, c_void, CString};
+use std::ffi::{CString, c_char, c_void};
 use yara_x::MetaValue;
 
 use crate::{
@@ -24,7 +24,7 @@ impl<'a, 'r> YRX_RULE<'a, 'r> {
 /// null-terminated, and the pointer will be valid as long as the `YRX_RULES`
 /// object that contains the rule is not freed. The name is guaranteed to be a
 /// valid UTF-8 string.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_rule_identifier(
     rule: *const YRX_RULE,
     ident: &mut *const u8,
@@ -48,7 +48,7 @@ pub unsafe extern "C" fn yrx_rule_identifier(
 /// null-terminated, and the pointer will be valid as long as the `YRX_RULES`
 /// object that contains the rule is not freed. The namespace is guaranteed to
 /// be a valid UTF-8 string.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_rule_namespace(
     rule: *const YRX_RULE,
     ns: &mut *const u8,
@@ -84,7 +84,7 @@ pub type YRX_METADATA_CALLBACK =
 /// callback function.
 ///
 /// See [`YRX_METADATA_CALLBACK`] for more details.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_rule_iter_metadata(
     rule: *const YRX_RULE,
     callback: YRX_METADATA_CALLBACK,
@@ -162,7 +162,7 @@ pub type YRX_PATTERN_CALLBACK =
 /// callback function.
 ///
 /// See [`YRX_PATTERN_CALLBACK`] for more details.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_rule_iter_patterns(
     rule: *const YRX_RULE,
     callback: YRX_PATTERN_CALLBACK,
@@ -201,7 +201,7 @@ pub type YRX_TAG_CALLBACK =
 /// callback function.
 ///
 /// See [`YRX_TAG_CALLBACK`] for more details.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_rule_iter_tags(
     rule: *const YRX_RULE,
     callback: YRX_TAG_CALLBACK,

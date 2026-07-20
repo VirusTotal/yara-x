@@ -1,4 +1,3 @@
-use std::collections::Bound;
 use std::fs;
 use std::io::Write;
 use std::mem::size_of;
@@ -6,10 +5,10 @@ use std::mem::size_of;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
-use crate::compiler::{linters, FilesizeBounds, SubPattern, VarStack};
+use crate::compiler::{IgnoredRuleReason, SubPattern, VarStack, linters};
 use crate::errors::{SerializationError, VariableError};
 use crate::types::Type;
-use crate::{compile, Compiler, Rules, Scanner, SourceCode};
+use crate::{Compiler, Rules, Scanner, SourceCode, compile};
 
 #[test]
 fn serialization() {
@@ -20,7 +19,43 @@ fn serialization() {
 
     assert!(matches!(
         Rules::deserialize(b"YARA-X").err().unwrap(),
+        SerializationError::InvalidFormat
+    ));
+
+    // A valid file starts with `MAGIC` and a version number, but the rest of
+    // the content is invalid because it is too short. This must produce a
+    // `DecodeError`.
+    let mut data = Vec::new();
+    data.extend(b"YARA-X\0\0");
+    data.extend(6u32.to_le_bytes());
+    data.extend(b"foo");
+
+    assert!(matches!(
+        Rules::deserialize(&data).err().unwrap(),
         SerializationError::DecodeError(_)
+    ));
+
+    // This is a valid file, but with a version number that is not the current
+    // one. This must produce an `InvalidVersion` error.
+    let mut data = Vec::new();
+    data.extend(b"YARA-X\0\0");
+    data.extend(0u32.to_le_bytes());
+    data.extend(b"foo");
+
+    assert!(matches!(
+        Rules::deserialize(&data).err().unwrap(),
+        SerializationError::InvalidVersion { expected: _, actual: 0 }
+    ));
+
+    // A mismatched rules profiling flag should produce an InvalidWASM error.
+    let mut rules = compile(r#"rule test { condition: true }"#).unwrap();
+    rules.rules_profiling_enabled = !rules.rules_profiling_enabled;
+
+    let rules_bytes = rules.serialize().unwrap();
+
+    assert!(matches!(
+        Rules::deserialize(&rules_bytes).err().unwrap(),
+        SerializationError::InvalidWASM(_)
     ));
 
     let rules = compile(r#"rule test { strings: $a = "foo" condition: $a }"#)
@@ -49,34 +84,40 @@ fn namespaces() {
     // correctly.
     let mut compiler = Compiler::new();
 
-    assert!(compiler
-        .add_source("rule foo {condition: true}")
-        .unwrap()
-        .add_source("rule bar {condition: foo}")
-        .is_ok());
+    assert!(
+        compiler
+            .add_source("rule foo {condition: true}")
+            .unwrap()
+            .add_source("rule bar {condition: foo}")
+            .is_ok()
+    );
 
     let mut compiler = Compiler::new();
 
     // `bar` can't use `foo` because they are in different namespaces, this
     // be a compilation error.
-    assert!(compiler
-        .add_source("rule foo {condition: true}")
-        .unwrap()
-        .new_namespace("bar")
-        .add_source("rule bar {condition: foo}")
-        .is_err());
+    assert!(
+        compiler
+            .add_source("rule foo {condition: true}")
+            .unwrap()
+            .new_namespace("bar")
+            .add_source("rule bar {condition: foo}")
+            .is_err()
+    );
 
     let mut compiler = Compiler::new();
 
     // `bar` can use `foo` because they are in the same namespace, the second
     // call to `new_namespace` has no effect.
-    assert!(compiler
-        .new_namespace("foo")
-        .add_source("rule foo {condition: true}")
-        .unwrap()
-        .new_namespace("foo")
-        .add_source("rule bar {condition: foo}")
-        .is_ok());
+    assert!(
+        compiler
+            .new_namespace("foo")
+            .add_source("rule foo {condition: true}")
+            .unwrap()
+            .new_namespace("foo")
+            .add_source("rule bar {condition: foo}")
+            .is_ok()
+    );
 }
 
 #[test]
@@ -498,9 +539,16 @@ fn globals_json() {
 
     assert_eq!(
         Compiler::new()
-            .define_global("invalid_array", json!({ "foo": null }))
+            .define_global("invalid_struct", json!({ "foo": null }))
             .unwrap_err(),
         VariableError::UnexpectedNull
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .define_global("invalid_struct", json!({ "/foo": 1 }))
+            .unwrap_err(),
+        VariableError::InvalidIdentifier("/foo".to_string())
     );
 }
 
@@ -574,6 +622,16 @@ fn unsupported_modules() {
         )
         .unwrap();
 
+    let ignored: Vec<_> = compiler.ignored_rules().collect();
+    assert_eq!(
+        ignored,
+        vec![
+            ("ignored_1", IgnoredRuleReason::IgnoredModule("foo_module")),
+            ("ignored_2", IgnoredRuleReason::IgnoredRule("ignored_1")),
+            ("ignored_3", IgnoredRuleReason::IgnoredRule("ignored_2")),
+        ]
+    );
+
     let rules = compiler.build();
 
     assert_eq!(
@@ -584,6 +642,34 @@ fn unsupported_modules() {
             .len(),
         1
     );
+}
+
+#[test]
+fn test_ignored_rules() {
+    let mut compiler = Compiler::new();
+    compiler.ignore_module("unsupported_mod");
+
+    let _ = compiler.add_source(
+        r#"
+        import "unsupported_mod"
+
+        rule rule_ok { condition: true }
+        rule rule_ignored_module { condition: unsupported_mod.field == 1 }
+        rule rule_failed_compile { condition: undefined_symbol == 1 }
+        "#,
+    );
+
+    let ignored: Vec<_> = compiler.ignored_rules().collect();
+    assert_eq!(ignored.len(), 2);
+
+    assert_eq!(ignored[0].0, "rule_ignored_module");
+    assert_eq!(
+        ignored[0].1,
+        IgnoredRuleReason::IgnoredModule("unsupported_mod")
+    );
+
+    assert_eq!(ignored[1].0, "rule_failed_compile");
+    assert!(matches!(ignored[1].1, IgnoredRuleReason::CompileError(_)));
 }
 
 #[cfg(feature = "test_proto2-module")]
@@ -739,14 +825,20 @@ fn linter_tags_regexp() {
 
 #[test]
 fn linter_rule_name() {
-    assert!(Compiler::new()
-        .add_linter(linters::rule_name("r_.+").unwrap())
-        .add_source(r#"rule r_foo { strings: $foo = "foo" condition: $foo }"#)
-        .unwrap()
-        .add_source(r#"rule r_bar { strings: $bar = "bar" condition: $bar }"#)
-        .unwrap()
-        .warnings()
-        .is_empty());
+    assert!(
+        Compiler::new()
+            .add_linter(linters::rule_name("r_.+").unwrap())
+            .add_source(
+                r#"rule r_foo { strings: $foo = "foo" condition: $foo }"#
+            )
+            .unwrap()
+            .add_source(
+                r#"rule r_bar { strings: $bar = "bar" condition: $bar }"#
+            )
+            .unwrap()
+            .warnings()
+            .is_empty()
+    );
 
     assert_eq!(
         Compiler::new()
@@ -829,35 +921,39 @@ fn linter_required_metadata() {
 #[test]
 fn import_modules() {
     let mut compiler = Compiler::new();
-    assert!(compiler
-        .add_source(
-            r#"
+    assert!(
+        compiler
+            .add_source(
+                r#"
             import "test_proto2"
             rule foo {condition: test_proto2.int32_zero == 0}"#
-        )
-        .unwrap()
-        .add_source(
-            r#"
+            )
+            .unwrap()
+            .add_source(
+                r#"
             import "test_proto2"
             rule bar {condition: test_proto2.int32_zero == 0}"#
-        )
-        .is_ok());
+            )
+            .is_ok()
+    );
 
     let mut compiler = Compiler::new();
-    assert!(compiler
-        .add_source(
-            r#"
+    assert!(
+        compiler
+            .add_source(
+                r#"
             import "test_proto2"
             rule foo {condition: test_proto2.int32_zero == 0}"#
-        )
-        .unwrap()
-        .new_namespace("namespace1")
-        .add_source(
-            r#"
+            )
+            .unwrap()
+            .new_namespace("namespace1")
+            .add_source(
+                r#"
             import "test_proto2"
             rule bar {condition: test_proto2.int32_zero == 0}"#
-        )
-        .is_ok());
+            )
+            .is_ok()
+    );
 }
 
 #[cfg(feature = "pe-module")]
@@ -919,9 +1015,10 @@ fn continue_after_error() {
     let mut compiler = Compiler::new();
 
     // This rule won't compile because $b is not used.
-    assert!(compiler
-        .add_source(
-            r#"
+    assert!(
+        compiler
+            .add_source(
+                r#"
             rule test {
                 strings:
                     $a = "foo"
@@ -929,23 +1026,26 @@ fn continue_after_error() {
                 condition:
                     $a
             }"#
-        )
-        .is_err());
+            )
+            .is_err()
+    );
 
     // Adding a rule with the same name after the previous one failed should
     // be ok. Notice that the rule also reuses a pattern that was defined
     // by the rule that failed before.
-    assert!(compiler
-        .add_source(
-            r#"
+    assert!(
+        compiler
+            .add_source(
+                r#"
             rule test {
                 strings:
                     $a = "foo" 
                 condition: 
                     $a 
             }"#
-        )
-        .is_ok());
+            )
+            .is_ok()
+    );
 
     let rules = compiler.build();
     let mut scanner = Scanner::new(&rules);
@@ -956,9 +1056,10 @@ fn continue_after_error() {
     let mut compiler = Compiler::new();
     compiler.new_namespace("namespace1");
 
-    assert!(compiler
-        .add_source(
-            r#"
+    assert!(
+        compiler
+            .add_source(
+                r#"
             rule test {
                 strings:
                     $a = "foo"
@@ -966,22 +1067,25 @@ fn continue_after_error() {
                 condition:
                     $a
             }"#
-        )
-        .is_err());
+            )
+            .is_err()
+    );
 
     compiler.new_namespace("namespace2");
 
-    assert!(compiler
-        .add_source(
-            r#"
+    assert!(
+        compiler
+            .add_source(
+                r#"
             rule test {
                 strings:
                     $a = "foo" 
                 condition: 
                     $a 
             }"#
-        )
-        .is_ok());
+            )
+            .is_ok()
+    );
 
     let rules = compiler.build();
     let mut scanner = Scanner::new(&rules);
@@ -1233,6 +1337,27 @@ fn test_switch_all_warnings() {
 }
 
 #[test]
+fn test_max_warnings() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        .max_warnings(1)
+        .add_source(
+            r#"
+            rule test1 {
+                condition: true
+            }
+            rule test2 {
+                condition: true
+            }
+            "#,
+        )
+        .unwrap();
+
+    assert_eq!(compiler.warnings().len(), 1);
+}
+
+#[test]
 fn test_errors() {
     let mut mint = goldenfile::Mint::new(".");
 
@@ -1330,32 +1455,298 @@ fn test_warnings() {
     }
 }
 
+fn check_filesize_bound(
+    condition: &str,
+    matching_sizes: &[usize],
+    non_matching_sizes: &[usize],
+) {
+    let source = format!(
+        r#"
+        rule test {{
+            strings:
+                $a = "foo"
+            condition:
+                $a and ({})
+        }}
+        "#,
+        condition
+    );
+    let rules = compile(source.as_str()).unwrap();
+
+    for &size in matching_sizes {
+        let mut data = vec![b' '; size];
+        if size >= 3 {
+            data[0..3].copy_from_slice(b"foo");
+        }
+        let mut scanner = Scanner::new(&rules);
+        let results = scanner.scan(&data).unwrap();
+        assert_eq!(
+            results.matching_rules().len(),
+            1,
+            "Expected match for condition '{}' with size {}",
+            condition,
+            size
+        );
+    }
+
+    for &size in non_matching_sizes {
+        let mut data = vec![b' '; size];
+        if size >= 3 {
+            data[0..3].copy_from_slice(b"foo");
+        }
+        let mut scanner = Scanner::new(&rules);
+        let results = scanner.scan(&data).unwrap();
+        assert_eq!(
+            results.matching_rules().len(),
+            0,
+            "Expected NO match for condition '{}' with size {}",
+            condition,
+            size
+        );
+    }
+}
+
 #[test]
 fn test_filesize_bounds() {
-    let mut bounds = FilesizeBounds::default();
+    // 1. filesize > 10 (Excluded start 10)
+    check_filesize_bound("filesize > 10", &[11, 20], &[10, 9, 3]);
 
-    // Initially unbounded.
-    assert_eq!(bounds, FilesizeBounds::from(..));
+    // 2. filesize >= 10 (Included start 10)
+    check_filesize_bound("filesize >= 10", &[10, 11, 20], &[9, 3]);
 
-    bounds.min_end(Bound::Included(1000));
-    // Now the end must be <= 1000.
-    assert_eq!(bounds, FilesizeBounds::from(..=1000));
+    // 3. filesize < 10 (Excluded end 10)
+    check_filesize_bound("filesize < 10", &[9, 3], &[10, 11]);
 
-    bounds.min_end(Bound::Excluded(1000));
-    // Now the end must be < 1000, 1000 was excluded.
-    assert_eq!(bounds, FilesizeBounds::from(..1000));
+    // 4. filesize <= 10 (Included end 10)
+    check_filesize_bound("filesize <= 10", &[10, 9, 3], &[11, 20]);
 
-    bounds.min_end(Bound::Excluded(2000));
-    // The bounds remain the same, the previous call didn't change the
-    // bounds as the existing bounds were already more restrictive.
-    assert_eq!(bounds, FilesizeBounds::from(..1000));
+    // 5. 10 < filesize (Excluded start 10, reversed)
+    check_filesize_bound("10 < filesize", &[11, 20], &[10, 9, 3]);
 
-    bounds.max_start(Bound::Included(1));
-    assert_eq!(bounds, FilesizeBounds::from(1..1000));
+    // 6. 10 <= filesize (Included start 10, reversed)
+    check_filesize_bound("10 <= filesize", &[10, 11, 20], &[9, 3]);
 
-    bounds.max_start(Bound::Excluded(1));
-    assert_eq!(
-        bounds,
-        FilesizeBounds::from((Bound::Excluded(1), Bound::Excluded(1000)))
+    // 7. 10 > filesize (Excluded end 10, reversed)
+    check_filesize_bound("10 > filesize", &[9, 3], &[10, 11]);
+
+    // 8. 10 >= filesize (Included end 10, reversed)
+    check_filesize_bound("10 >= filesize", &[10, 9, 3], &[11, 20]);
+
+    // 9. filesize > 10 and filesize < 20
+    check_filesize_bound(
+        "filesize > 10 and filesize < 20",
+        &[11, 15, 19],
+        &[10, 20, 21, 3],
     );
+
+    // 10. max_start merging: (Included, Included) with new > current
+    check_filesize_bound(
+        "filesize >= 10 and filesize >= 20",
+        &[20, 25],
+        &[19, 10, 9, 3],
+    );
+
+    // 11. max_start merging: (Included, Excluded) with new >= current
+    check_filesize_bound(
+        "filesize >= 10 and filesize > 10",
+        &[11, 15],
+        &[10, 9, 3],
+    );
+    check_filesize_bound(
+        "filesize >= 10 and filesize > 20",
+        &[21, 25],
+        &[20, 19, 10, 3],
+    );
+
+    // 12. max_start merging: (Excluded, Included) with new > current
+    check_filesize_bound(
+        "filesize > 10 and filesize >= 20",
+        &[20, 25],
+        &[19, 10, 9, 3],
+    );
+
+    // 13. max_start merging: (Excluded, Excluded) with new > current
+    check_filesize_bound(
+        "filesize > 10 and filesize > 20",
+        &[21, 25],
+        &[20, 10, 9, 3],
+    );
+
+    // 14. min_end merging: (Included, Included) with new < current
+    check_filesize_bound(
+        "filesize <= 100 and filesize <= 90",
+        &[90, 85, 3],
+        &[91, 100],
+    );
+
+    // 15. min_end merging: (Included, Excluded) with new <= current
+    check_filesize_bound(
+        "filesize <= 100 and filesize < 100",
+        &[99, 90, 3],
+        &[100, 101],
+    );
+    check_filesize_bound(
+        "filesize <= 100 and filesize < 90",
+        &[89, 80, 3],
+        &[90, 100],
+    );
+
+    // 16. min_end merging: (Excluded, Included) with new < current
+    check_filesize_bound(
+        "filesize < 100 and filesize <= 90",
+        &[90, 85, 3],
+        &[91, 100],
+    );
+
+    // 17. min_end merging: (Excluded, Excluded) with new < current
+    check_filesize_bound(
+        "filesize < 100 and filesize < 90",
+        &[89, 80, 3],
+        &[90, 100],
+    );
+
+    // 18. float filesize bounds
+    check_filesize_bound("filesize > 10.5", &[11, 20], &[10, 9, 3]);
+    check_filesize_bound("filesize >= 10.5", &[11, 20], &[10, 9, 3]);
+    check_filesize_bound("filesize < 10.5", &[10, 9, 3], &[11, 20]);
+    check_filesize_bound("filesize <= 10.5", &[10, 9, 3], &[11, 20]);
+    check_filesize_bound("10.5 < filesize", &[11, 20], &[10, 9, 3]);
+    check_filesize_bound("10.5 > filesize", &[10, 9, 3], &[11, 20]);
+}
+
+fn check_header_constraint(
+    condition: &str,
+    matching_headers: &[&[u8]],
+    non_matching_headers: &[&[u8]],
+) {
+    let source = format!(
+        r#"
+        rule test {{
+            strings:
+                $a = "foo"
+            condition:
+                $a and ({})
+        }}
+        "#,
+        condition
+    );
+    let rules = compile(source.as_str()).unwrap();
+
+    for &header in matching_headers {
+        let mut data = header.to_vec();
+        if data.len() < 3 {
+            data.extend(vec![b' '; 3 - data.len()]);
+        }
+        data.extend(b"foo");
+        let mut scanner = Scanner::new(&rules);
+        let results = scanner.scan(&data).unwrap();
+        assert_eq!(
+            results.matching_rules().len(),
+            1,
+            "Expected match for header condition '{}' with prefix {:?}",
+            condition,
+            header
+        );
+    }
+
+    for &header in non_matching_headers {
+        let mut data = header.to_vec();
+        if data.len() < 3 {
+            data.extend(vec![b' '; 3 - data.len()]);
+        }
+        data.extend(b"foo");
+        let mut scanner = Scanner::new(&rules);
+        let results = scanner.scan(&data).unwrap();
+        assert_eq!(
+            results.matching_rules().len(),
+            0,
+            "Expected NO match for header condition '{}' with prefix {:?}",
+            condition,
+            header
+        );
+    }
+}
+
+#[test]
+fn test_header_constraints() {
+    // 1. Constrained
+    check_header_constraint(
+        "uint32(0) == 0x464c457f",
+        &[b"\x7FELF"],
+        &[b"MZ\x00\x00"],
+    );
+
+    // 2. Unsatisfiable
+    check_header_constraint(
+        "uint8(0) == 1 and uint8(0) == 2",
+        &[],
+        &[b"\x01", b"\x02", b"\x03"],
+    );
+}
+
+#[test]
+fn test_rules_warnings() {
+    let mut compiler = Compiler::new();
+    compiler
+        .add_source(
+            r#"
+            import "math"
+            import "math"
+            rule test { condition: true }
+            "#,
+        )
+        .unwrap();
+    let rules = compiler.build();
+    assert!(!rules.warnings().is_empty());
+}
+
+#[test]
+fn test_rules_debug() {
+    let mut compiler = Compiler::new();
+    compiler.add_source("rule test { condition: true }").unwrap();
+    let rules = compiler.build();
+
+    let debug_str = format!("{:?}", rules);
+    assert!(debug_str.contains("RuleId(0)"));
+    assert!(debug_str.contains("name: test"));
+}
+
+#[test]
+fn test_rules_serialization() {
+    let mut compiler = Compiler::new();
+    compiler.add_source("rule test { condition: true }").unwrap();
+    let rules = compiler.build();
+
+    let serialized = rules.serialize().unwrap();
+    let deserialized = Rules::deserialize_from(&serialized[..]).unwrap();
+    assert_eq!(deserialized.iter().len(), 1);
+
+    let mut iter = deserialized.iter();
+    assert_eq!(iter.len(), 1);
+    let r = iter.next().unwrap();
+    assert_eq!(r.identifier(), "test");
+    assert!(iter.next().is_none());
+}
+
+#[test]
+fn test_rules_matches_many() {
+    let mut compiler = Compiler::new();
+    compiler
+        .define_global("str_foo", "foo")
+        .unwrap()
+        .add_source(
+            r#"
+            rule test {
+                condition:
+                    str_foo matches /ba[rs]/ or str_foo matches /ba[zt]/
+            }
+            "#,
+        )
+        .unwrap();
+    let rules = compiler.build();
+    // Scan using these rules to trigger get_regex_set at scan time
+    let mut scanner = Scanner::new(&rules);
+    scanner.set_global("str_foo", "bar").unwrap();
+    let scan_results = scanner.scan(&[]).unwrap();
+    assert_eq!(scan_results.matching_rules().len(), 1);
 }

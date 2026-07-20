@@ -11,7 +11,7 @@ use itertools::Itertools;
 use md5::{Digest, Md5};
 use rustc_hash::FxHashSet;
 
-use crate::modules::prelude::*;
+use crate::mods::prelude::*;
 use crate::modules::protos::elf::*;
 
 pub mod parser;
@@ -26,8 +26,7 @@ thread_local!(
     static TLSH_CACHE: RefCell<Option<String>> = const { RefCell::new(None) };
 );
 
-#[module_main]
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<ELF, ModuleError> {
+fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<ELF, ModuleError> {
     IMPORT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
     TLSH_CACHE.with(|cache| *cache.borrow_mut() = None);
 
@@ -37,6 +36,7 @@ fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<ELF, ModuleError> {
     }
 }
 
+/// Returns an MD5 hash of the ELF's imported symbols.
 #[module_export]
 fn import_md5(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
     let cached = IMPORT_MD5_CACHE.with(
@@ -169,9 +169,11 @@ fn telfhash(ctx: &mut ScanContext) -> Option<Uppercase<FixedLenString<72>>> {
 
     let digest = builder.build().ok()?.hash();
 
-    IMPORT_MD5_CACHE.with(|cache| {
+    TLSH_CACHE.with(|cache| {
         *cache.borrow_mut() = Some(digest.clone());
     });
 
     Some(Uppercase::<FixedLenString<72>>::new(digest))
 }
+
+register_module!("elf", ELF, main);

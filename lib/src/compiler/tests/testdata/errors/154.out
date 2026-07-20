@@ -1,0 +1,11 @@
+error[E009]: unknown identifier `test_proto2`
+ --> line:4:5
+  |
+4 |     test_proto2.int32_zero == 0
+  |     ^^^^^^^^^^^ this identifier has not been declared
+  |
+  = note: there is a module named `test_proto2`, but the `import "test_proto2"` statement is missing
+help: consider the following change
+  |
+1 + import "test_proto2"
+  |
