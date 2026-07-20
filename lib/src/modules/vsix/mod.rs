@@ -10,6 +10,7 @@ use std::cell::RefCell;
 
 use crate::mods::prelude::*;
 use crate::modules::protos::vsix::*;
+use crate::modules::utils::zip::CachedZip;
 
 #[cfg(test)]
 mod tests;
@@ -19,16 +20,28 @@ thread_local!(
         const { RefCell::new(None) };
 );
 
-fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<Vsix, ModuleError> {
+fn main<'a>(
+    ctx: &mut ModuleContext<'a>,
+    data: &'a [u8],
+) -> Result<Vsix, ModuleError> {
     ACTIVATIONHASH_CACHE.with(|cache| *cache.borrow_mut() = None);
-    match parser::Vsix::parse(data) {
-        Ok(vsix) => Ok(vsix.into()),
-        Err(_) => {
+    let vsix = match ctx.zip_cache.get_or_insert_with(|| CachedZip::new(data))
+    {
+        CachedZip::Zip(zip) => match parser::Vsix::parse(zip) {
+            Ok(vsix) => vsix.into(),
+            Err(_) => {
+                let mut vsix = Vsix::new();
+                vsix.set_is_vsix(false);
+                vsix
+            }
+        },
+        CachedZip::NotZip => {
             let mut vsix = Vsix::new();
             vsix.set_is_vsix(false);
-            Ok(vsix)
+            vsix
         }
-    }
+    };
+    Ok(vsix)
 }
 
 /// Returns the SHA-256 hash of the sorted activation events.
@@ -96,7 +109,11 @@ fn has_activation_event(
     }
 
     let event_str = event.as_bstr(ctx);
-    Some(vsix.activation_events.iter().any(|e| e.as_bytes() == event_str.as_bytes()))
+    Some(
+        vsix.activation_events
+            .iter()
+            .any(|e| e.as_bytes() == event_str.as_bytes()),
+    )
 }
 
 register_module!("vsix", Vsix, main);

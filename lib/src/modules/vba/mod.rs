@@ -66,7 +66,7 @@ impl VbaExtractor {
         }
     }
 
-    fn extract_from_zip<'a>(zip: &mut Zip<'a>) -> Result<Vba, &'static str> {
+    fn extract_from_zip<'a>(zip: &Zip<'a>) -> Result<Vba, &'static str> {
         let vba_project_names = [
             "word/vbaProject.bin",
             "xl/vbaProject.bin",
@@ -76,7 +76,7 @@ impl VbaExtractor {
 
         for name in &vba_project_names {
             if let Some(contents) = zip.get_file_content(name) {
-                let olecf = Olecf::parse(contents)?;
+                let olecf = Olecf::parse(&contents)?;
                 return Self::extract_from_olecf(&olecf);
             }
         }

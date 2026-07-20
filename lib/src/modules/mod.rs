@@ -47,7 +47,11 @@ pub struct ModuleContext<'a> {
         feature = "vba-module"
     ))]
     pub(crate) olecf_cache: Option<utils::olecf::CachedOlecf<'a>>,
-    #[cfg(any(feature = "zip-module", feature = "vba-module"))]
+    #[cfg(any(
+        feature = "zip-module",
+        feature = "vba-module",
+        feature = "vsix-module"
+    ))]
     pub(crate) zip_cache: Option<utils::zip::CachedZip<'a>>,
 }
 

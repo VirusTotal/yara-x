@@ -1,10 +1,8 @@
-use std::io::{Cursor, Read, Seek};
-
+use bstr::ByteSlice;
 use strum_macros::Display;
-use zip::result::ZipResult;
-use zip::ZipArchive;
 
 use crate::modules::protos;
+use crate::modules::utils::zip::Zip;
 
 #[derive(Display)]
 pub enum Error {
@@ -69,58 +67,48 @@ impl VsixRepository {
 }
 
 impl Vsix {
-    pub fn parse(data: &[u8]) -> Result<Self, Error> {
-        let mut zip = Self::read_zip(data).map_err(|_| Error::InvalidVsix)?;
+    pub(crate) fn parse(zip: &mut Zip) -> Result<Self, Error> {
+        let manifest = Self::read_manifest(zip).ok_or(Error::InvalidVsix)?;
 
-        // Collect all file names from the archive as in-memory strings for YARA
-        // rule matching. Note: While file.name() can contain path traversal
-        // sequences like "../", this is only a security concern when extracting
-        // files to disk. Here, names are stored as opaque strings for pattern
-        // matching, never used as paths.
-        let files = zip.file_names().map(String::from).collect::<Vec<_>>();
+        let mut files = Vec::new();
+        let mut path_buf = vec![0u8; 65536];
 
-        // Try to find and parse package.json
-        let manifest = Self::read_manifest(&mut zip);
-
-        // If no manifest found, this is not a valid VSIX
-        if manifest.is_none() {
-            return Err(Error::InvalidVsix);
+        for entry in zip.archive.entries().filter_map(|entry| entry.ok()) {
+            if let Ok(path_bytes) = entry.read_path(&mut path_buf) {
+                files.push(String::from_utf8_lossy(path_bytes).into_owned());
+            }
         }
 
-        Ok(Vsix { manifest, files })
+        Ok(Vsix { manifest: Some(manifest), files })
     }
 
-    fn read_zip(zip_data: &[u8]) -> ZipResult<ZipArchive<Cursor<&[u8]>>> {
-        zip::ZipArchive::new(Cursor::new(zip_data))
-    }
-
-    fn read_manifest<R: Read + Seek>(
-        zip: &mut ZipArchive<R>,
-    ) -> Option<VsixManifest> {
+    fn read_manifest(zip: &Zip) -> Option<VsixManifest> {
         // Try common locations for package.json
         let paths = ["extension/package.json", "package.json"];
 
         for path in paths {
-            if let Ok(file) = zip.by_name(path) {
+            if let Some(content) = zip.get_file_content(path) {
                 if let Ok(manifest) =
-                    serde_json::from_reader::<_, VsixManifest>(file)
+                    serde_json::from_slice::<VsixManifest>(&content)
                 {
                     return Some(manifest);
                 }
             }
         }
 
-        // Try to find package.json in any subdirectory (e.g., publisher.name-version/)
-        for i in 0..zip.len() {
-            if let Ok(file) = zip.by_index(i) {
-                let name = file.name();
-                if name.ends_with("/package.json")
-                    && name.matches('/').count() == 1
-                {
-                    if let Ok(manifest) =
-                        serde_json::from_reader::<_, VsixManifest>(file)
-                    {
-                        return Some(manifest);
+        // Try to find package.json in any subdirectory
+        // (e.g., publisher.name-version/)
+        let mut path_buf = vec![0u8; 65536];
+
+        for entry in zip.archive.entries().filter_map(|e| e.ok()) {
+            if let Ok(path_bytes) = entry.read_path(&mut path_buf) {
+                if path_bytes.ends_with_str("/package.json") {
+                    if let Some(content) = zip.get_file_content(path_bytes) {
+                        if let Ok(manifest) =
+                            serde_json::from_slice::<VsixManifest>(&content)
+                        {
+                            return Some(manifest);
+                        }
                     }
                 }
             }

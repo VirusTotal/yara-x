@@ -258,8 +258,8 @@ vt-module = [
 
 # The `vsix` module parses Visual Studio Code Extension files.
 vsix-module = [
+    "zip-module",
     "dep:sha2",
-    "dep:zip",
 ]
 
 # The `zip` module provides container file extraction capabilities.

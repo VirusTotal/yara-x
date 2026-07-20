@@ -1,5 +1,6 @@
-use std::borrow::Cow;
+use std::cell::RefCell;
 use std::io::Read;
+use std::rc::Rc;
 
 use protobuf::Enum;
 use rustc_hash::FxHashMap;
@@ -15,7 +16,7 @@ pub(crate) enum CachedZip<'a> {
 pub(crate) struct Zip<'a> {
     pub data: &'a [u8],
     pub archive: Archive<&'a [u8]>,
-    pub cached_contents: FxHashMap<String, Cow<'a, [u8]>>,
+    pub cached_contents: RefCell<FxHashMap<Vec<u8>, Rc<[u8]>>>,
 }
 
 impl<'a> CachedZip<'a> {
@@ -28,50 +29,52 @@ impl<'a> CachedZip<'a> {
         CachedZip::Zip(Zip {
             data,
             archive,
-            cached_contents: FxHashMap::default(),
+            cached_contents: RefCell::new(FxHashMap::default()),
         })
     }
 }
 
 impl<'a> Zip<'a> {
-    pub(crate) fn get_file_content<'b>(
-        &'b mut self,
-        path: &str,
-    ) -> Option<&'b [u8]> {
-        // Check if the content for the given path is already cached, it not,
-        // put it into the cache.
-        if !self.cached_contents.contains_key(path) {
-            let entry = self.archive.find_file(path).ok()?;
-            let data_range = entry.data_range().ok()?.data_range;
-            let start = data_range.start as usize;
-            let end = data_range.end as usize;
-            let raw_bytes = self.data.get(start..end)?;
+    pub(crate) fn get_file_content<P: AsRef<[u8]>>(
+        &self,
+        path: P,
+    ) -> Option<Rc<[u8]>> {
+        let path_bytes = path.as_ref();
 
-            let content = match entry.compression() {
-                Ok(tinyzip::Compression::Stored) => Cow::Borrowed(raw_bytes),
-                Ok(tinyzip::Compression::Deflated) => {
-                    let mut decoder =
-                        flate2::read::DeflateDecoder::new(raw_bytes);
-                    // Pre-allocate based on the compressed data we actually
-                    // have, not the entry's `uncompressed_size` header field,
-                    // which is attacker-controlled (up to u64::MAX via a Zip64
-                    // extra field) and unvalidated -- trusting it makes
-                    // `Vec::with_capacity` panic with "capacity overflow" or
-                    // request a huge allocation. `read_to_end` grows the
-                    // buffer as needed.
-                    let mut buf = Vec::with_capacity(raw_bytes.len());
-                    decoder.read_to_end(&mut buf).ok()?;
-                    Cow::Owned(buf)
-                }
-                _ => return None,
-            };
-
-            self.cached_contents.insert(path.to_string(), content);
+        if let Some(content) = self.cached_contents.borrow().get(path_bytes) {
+            return Some(Rc::clone(content));
         }
 
-        // At this point the content for the given path must be already in the
-        // cache.
-        Some(self.cached_contents.get(path).unwrap().as_ref())
+        let entry = self.archive.find_file(&path).ok()?;
+        let data_range = entry.data_range().ok()?.data_range;
+        let start = data_range.start as usize;
+        let end = data_range.end as usize;
+        let raw_bytes = self.data.get(start..end)?;
+
+        let content: Rc<[u8]> = match entry.compression() {
+            Ok(tinyzip::Compression::Stored) => Rc::from(raw_bytes),
+            Ok(tinyzip::Compression::Deflated) => {
+                let mut decoder =
+                    flate2::read::DeflateDecoder::new(raw_bytes);
+                // Pre-allocate based on the compressed data we actually
+                // have, not the entry's `uncompressed_size` header field,
+                // which is attacker-controlled (up to u64::MAX via a Zip64
+                // extra field) and unvalidated -- trusting it makes
+                // `Vec::with_capacity` panic with "capacity overflow" or
+                // request a huge allocation. `read_to_end` grows the
+                // buffer as needed.
+                let mut buf = Vec::with_capacity(raw_bytes.len());
+                decoder.read_to_end(&mut buf).ok()?;
+                Rc::from(buf.into_boxed_slice())
+            }
+            _ => return None,
+        };
+
+        self.cached_contents
+            .borrow_mut()
+            .insert(path_bytes.to_vec(), Rc::clone(&content));
+
+        Some(content)
     }
 }
 
@@ -136,7 +139,7 @@ mod tests {
             0x50, 0x4b, 0x05, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ];
-        if let CachedZip::Zip(mut cached) = CachedZip::new(&eocd) {
+        if let CachedZip::Zip(cached) = CachedZip::new(&eocd) {
             assert!(cached.get_file_content("missing.txt").is_none());
             let zip_proto: ZipProto = (&cached).into();
             assert!(zip_proto.is_zip());
