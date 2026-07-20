@@ -87,13 +87,12 @@ impl Vsix {
         let paths = ["extension/package.json", "package.json"];
 
         for path in paths {
-            if let Some(content) = zip.get_file_content(path) {
-                if let Ok(manifest) =
+            if let Some(content) = zip.get_file_content(path)
+                && let Ok(manifest) =
                     serde_json::from_slice::<VsixManifest>(&content)
                 {
                     return Some(manifest);
                 }
-            }
         }
 
         // Try to find package.json in any subdirectory
@@ -101,17 +100,14 @@ impl Vsix {
         let mut path_buf = vec![0u8; 65536];
 
         for entry in zip.archive.entries().filter_map(|e| e.ok()) {
-            if let Ok(path_bytes) = entry.read_path(&mut path_buf) {
-                if path_bytes.ends_with_str("/package.json") {
-                    if let Some(content) = zip.get_file_content(path_bytes) {
-                        if let Ok(manifest) =
+            if let Ok(path_bytes) = entry.read_path(&mut path_buf)
+                && path_bytes.ends_with_str("/package.json")
+                    && let Some(content) = zip.get_file_content(path_bytes)
+                        && let Ok(manifest) =
                             serde_json::from_slice::<VsixManifest>(&content)
                         {
                             return Some(manifest);
                         }
-                    }
-                }
-            }
         }
 
         None

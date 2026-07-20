@@ -54,8 +54,7 @@ impl<'a> Zip<'a> {
         let content: Rc<[u8]> = match entry.compression() {
             Ok(tinyzip::Compression::Stored) => Rc::from(raw_bytes),
             Ok(tinyzip::Compression::Deflated) => {
-                let mut decoder =
-                    flate2::read::DeflateDecoder::new(raw_bytes);
+                let mut decoder = flate2::read::DeflateDecoder::new(raw_bytes);
                 // Pre-allocate based on the compressed data we actually
                 // have, not the entry's `uncompressed_size` header field,
                 // which is attacker-controlled (up to u64::MAX via a Zip64
