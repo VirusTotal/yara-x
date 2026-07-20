@@ -68,7 +68,7 @@ const CONDITION_SUGGESTIONS: [(&str, Option<&str>); 16] = [
     ("at", Some("at ${1:expression}")),
     ("in", Some("in (${1:}..${2:})")),
     ("filesize", None),
-    ("entrypoint", "pe.entry_point"),
+    ("entrypoint", Some("pe.entry_point")),
     ("true", None),
     ("false", None),
     ("not", None),
