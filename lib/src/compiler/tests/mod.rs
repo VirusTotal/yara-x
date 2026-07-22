@@ -1759,5 +1759,3 @@ fn test_var_stack_overflow() {
     let rule = format!("rule test {{ condition: with {vars} : ( true ) }}");
     assert!(compiler.add_source(rule.as_str()).is_err());
 }
-
-
