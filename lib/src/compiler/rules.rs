@@ -475,20 +475,11 @@ impl Rules {
         let parser = re::parser::Parser::new()
             .relaxed_re_syntax(self.relaxed_re_syntax);
 
-        let hir = parser.parse(&re).unwrap().into_inner();
+        let hir = parser.parse(&re).unwrap();
 
-        // Set a size limit for the NFA automata. The default limit (10MB) is
-        // too small for certain regexps seen in YARA rules in the wild, see:
-        // https://github.com/VirusTotal/yara-x/issues/85
-        let config = regex_automata::meta::Config::new()
-            .nfa_size_limit(Some(50 * 1024 * 1024));
-
-        regex_automata::meta::Builder::new()
-            .configure(config)
-            .build_from_hir(&hir)
-            .unwrap_or_else(|err| {
-                panic!("error compiling regex `{}`: {:#?}", re.as_str(), err)
-            })
+        hir.build_automata().unwrap_or_else(|err| {
+            panic!("error compiling regex `{}`: {:#?}", re.as_str(), err)
+        })
     }
 
     /// Returns a compiled multi-pattern `RegexSet` for a given `RegexSetId`.

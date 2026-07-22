@@ -519,12 +519,21 @@ fn expr_from_ast(
         }
 
         ast::Expr::Regexp(regexp) => {
-            re::parser::Parser::new()
+            let hir = re::parser::Parser::new()
                 .relaxed_re_syntax(ctx.relaxed_re_syntax)
                 .parse(regexp.as_ref())
                 .map_err(|err| {
                     re_error_to_compile_error(ctx.report_builder, regexp, err)
                 })?;
+
+            hir.build_automata().map_err(|err| {
+                InvalidRegexp::build(
+                    ctx.report_builder,
+                    err.to_string(),
+                    ctx.report_builder.span_to_code_loc(regexp.span()),
+                    None,
+                )
+            })?;
 
             ctx.ir
                 .constant(TypeValue::Regexp(Some(Regexp::new(regexp.literal))))
