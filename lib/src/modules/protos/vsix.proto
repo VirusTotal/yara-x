@@ -10,32 +10,54 @@ option (yara.module_options) = {
 };
 
 message Vsix {
-  // True if the file is a valid VSIX extension.
+  // True if the file is a valid Visual Studio Code Extension (VSIX) package.
   optional bool is_vsix = 1;
 
-  // Extension identity
+  // Internal extension name extracted from the manifest (package.json).
   optional string name = 2;
+
+  // User-friendly extension display name extracted from the manifest.
   optional string display_name = 3;
+
+  // Publisher name or identifier of the extension.
   optional string publisher = 4;
+
+  // Extension version string (e.g. "1.2.3").
   optional string version = 5;
-  optional string id = 6;                    // publisher.name
+
+  // Fully qualified extension identifier in format "publisher.name".
+  optional string id = 6;
+
+  // Short summary or description of the extension.
   optional string description = 7;
 
-  // Entry points (security-critical)
+  // Path to the primary extension entry point script (e.g. "./out/extension.js").
   optional string main = 8;
+
+  // Path to the Web Worker / browser entry point script.
   optional string browser = 9;
 
-  // Activation events (security-critical)
+  // List of activation events that trigger extension loading (e.g. "*", "onCommand:...").
   repeated string activation_events = 10;
 
-  // Metadata
-  optional string vscode_version = 11;       // engines.vscode
+  // VS Code version compatibility requirement from engines.vscode (e.g. "^1.80.0").
+  optional string vscode_version = 11;
+
+  // Repository URL where the extension source code is hosted.
   optional string repository = 12;
+
+  // Homepage URL for the extension.
   optional string homepage = 13;
+
+  // License identifier or description (e.g. "MIT").
   optional string license = 14;
+
+  // List of extension categories (e.g. "Themes", "Snippets", "Programming Languages").
   repeated string categories = 15;
+
+  // List of search keywords associated with the extension.
   repeated string keywords = 16;
 
-  // Files in archive
+  // Relative paths of all files contained within the VSIX archive.
   repeated string files = 17;
 }
