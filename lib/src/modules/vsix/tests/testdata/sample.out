@@ -1,0 +1,24 @@
+is_vsix: true
+name: "my-extension"
+display_name: "My Extension"
+publisher: "my-publisher"
+version: "1.2.3"
+id: "my-publisher.my-extension"
+description: "A test extension"
+main: "./out/extension.js"
+browser: "./out/browser.js"
+activation_events:
+  - "onCommand:test.run"
+  - "*"
+  - "onLanguage:rust"
+vscode_version: "^1.80.0"
+repository: "https://github.com/test/repo"
+categories:
+  - "Themes"
+  - "Snippets"
+keywords:
+  - "rust"
+  - "cargo"
+files:
+  - "extension/package.json"
+  - "extension/extension.js"
