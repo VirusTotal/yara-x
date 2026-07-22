@@ -204,17 +204,20 @@ impl VarStack {
     ///
     /// Each stack frame has its own frame ID, which its unique among all
     /// the frames returned by this function.
-    pub fn new_frame(&mut self, capacity: i32) -> VarStackFrame {
-        let start = self.used;
-
-        self.used += capacity;
-        self.frame_id += 1;
-
-        if self.used > wasm::MAX_VARS {
-            panic!("variables stack overflow");
+    pub fn new_frame(&mut self, capacity: i32) -> Option<VarStackFrame> {
+        let new_used = self.used.checked_add(capacity)?;
+        if new_used > wasm::MAX_VARS {
+            return None;
         }
-
-        VarStackFrame { frame_id: self.frame_id, start, capacity, used: 0 }
+        let start = self.used;
+        self.used = new_used;
+        self.frame_id += 1;
+        Some(VarStackFrame {
+            frame_id: self.frame_id,
+            start,
+            capacity,
+            used: 0,
+        })
     }
 
     /// Unwinds the stack freeing all frames that were allocated after the

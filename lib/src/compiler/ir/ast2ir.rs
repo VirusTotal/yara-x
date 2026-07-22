@@ -22,7 +22,7 @@ use crate::compiler::errors::{
     InvalidBase64Alphabet, InvalidModifier, InvalidModifierCombination,
     InvalidPattern, InvalidRange, InvalidRegexp, MismatchingTypes,
     MixedGreediness, NumberOutOfRange, SyntaxError, TooManyPatterns,
-    UnexpectedNegativeNumber, WrongArguments, WrongType,
+    TooManyVariables, UnexpectedNegativeNumber, WrongArguments, WrongType,
 };
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
@@ -1122,7 +1122,13 @@ fn of_expr_from_ast(
     of: &ast::Of,
 ) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &of.quantifier)?;
-    let mut stack_frame = ctx.vars.new_frame(VarStack::OF_FRAME_SIZE);
+    let mut stack_frame =
+        ctx.vars.new_frame(VarStack::OF_FRAME_SIZE).ok_or_else(|| {
+            TooManyVariables::build(
+                ctx.report_builder,
+                ctx.report_builder.span_to_code_loc(of.span()),
+            )
+        })?;
 
     let (items, next_item_var) = match &of.items {
         // `x of (<boolean expr>, <boolean expr>, ...)`
@@ -1275,7 +1281,13 @@ fn for_of_expr_from_ast(
 ) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
     let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set)?;
-    let mut stack_frame = ctx.vars.new_frame(VarStack::FOR_OF_FRAME_SIZE);
+    let mut stack_frame =
+        ctx.vars.new_frame(VarStack::FOR_OF_FRAME_SIZE).ok_or_else(|| {
+            TooManyVariables::build(
+                ctx.report_builder,
+                ctx.report_builder.span_to_code_loc(for_of.span()),
+            )
+        })?;
 
     let for_vars = ForVars {
         n: stack_frame.new_var(Type::Integer),
@@ -1487,7 +1499,13 @@ fn for_in_expr_from_ast(
         ));
     }
 
-    let mut stack_frame = ctx.vars.new_frame(VarStack::FOR_IN_FRAME_SIZE);
+    let mut stack_frame =
+        ctx.vars.new_frame(VarStack::FOR_IN_FRAME_SIZE).ok_or_else(|| {
+            TooManyVariables::build(
+                ctx.report_builder,
+                ctx.report_builder.span_to_code_loc(for_in.span()),
+            )
+        })?;
 
     let for_vars = ForVars {
         n: stack_frame.new_var(Type::Integer),
@@ -1529,7 +1547,16 @@ fn with_expr_from_ast(
     with: &ast::With,
 ) -> Result<ExprId, CompileError> {
     // Create stack frame with capacity for the with statement variables
-    let mut stack_frame = ctx.vars.new_frame(with.declarations.len() as i32);
+    let mut stack_frame = ctx
+        .vars
+        .new_frame(with.declarations.len() as i32)
+        .ok_or_else(|| {
+        TooManyVariables::build(
+            ctx.report_builder,
+            ctx.report_builder.span_to_code_loc(with.declarations.span()),
+        )
+    })?;
+
     let mut declarations = Vec::new();
 
     // Create a new symbol table that will hold the variables declared by the
