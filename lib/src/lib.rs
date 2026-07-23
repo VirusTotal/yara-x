@@ -180,3 +180,33 @@ pub unsafe fn finalize() {
         wasm::free_engine();
     }
 }
+
+#[cfg(feature = "stderr-logs")]
+/// Initializes the `env_logger` backend for logging output to stdout/stderr.
+///
+/// This function is called automatically when creating a [`Compiler`] or
+/// [`Scanner`] if the `stderr-logs` feature is enabled. It uses
+/// `env_logger::try_init()`, which reads the `YRX_LOG` environment variable
+/// and safely ignores initialization if a logger was already registered.
+pub(crate) fn init_logger() {
+    static INIT_LOGGER: std::sync::Once = std::sync::Once::new();
+    INIT_LOGGER.call_once(|| {
+        let mut builder = env_logger::Builder::from_env("YRX_LOG");
+
+        for noisy_module in [
+            "cranelift_codegen",
+            "cranelift_frontend",
+            "wasmtime",
+            "wasmtime_internal_cranelift",
+            "walrus",
+        ] {
+            builder.filter_module(noisy_module, log::LevelFilter::Info);
+        }
+
+        let _ = builder.try_init();
+    });
+}
+
+#[cfg(not(feature = "stderr-logs"))]
+#[inline]
+pub(crate) fn init_logger() {}

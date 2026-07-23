@@ -500,6 +500,8 @@ pub struct Compiler<'a> {
 impl<'a> Compiler<'a> {
     /// Creates a new YARA compiler.
     pub fn new() -> Self {
+        crate::init_logger();
+
         let mut ident_pool = StringPool::new();
         let mut symbol_table = StackedSymbolTable::new();
 

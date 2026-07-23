@@ -34,6 +34,35 @@ rustdoc-args = ["--cfg", "docsrs"]
 # actually computes the expression.
 constant-folding = []
 
+# Enables internal log statements inside YARA-X via the standard `log` crate
+# facade.
+#
+# When this feature is enabled, YARA-X emits internal log messages (using
+# `log::info!`,`log::error!`, etc.). However, it does not initialize any
+# concrete logger implementation. The host application remains responsible
+# for configuring and initializing its own logger (e.g., `env_logger`,
+# `tracing-subscriber`, or a custom logger).
+logging = ["dep:log", "dep:quanta"]
+
+# Enables internal logging and automatically logs messages to stderr.
+#
+# Unlike `logging` (which only emits log events and relies on the host
+# application to set up a logger), `stderr-logs` actually writes log messages
+# to stderr. This is particularly useful when YARA-X is embedded in non-Rust
+# host binaries, allowing log output to be configured via the `YRX_LOG`
+# environment variable.
+#
+# Log output can be configured by setting `YRX_LOG` to any of the log levels:
+# `error`, `warn`, `info`, `debug`, or `trace`.
+#
+# You can also specify different log levels for specific targets/modules using
+# comma-separated `target=level` directives:
+#
+#   YRX_LOG=info                        # Global level set to info
+#   YRX_LOG=yara_x=debug                # Debug level for the yara_x crate
+#   YRX_LOG=warn,yara_x::compiler=trace  # Global warn, trace for yara_x::compiler
+stderr-logs = ["dep:env_logger", "logging"]
+
 # Enables the use of exact atoms for speeding up matches. Exact atoms are those
 # that don't require further verification, the sole presence of the atom
 # indicates that the pattern containing the atom matches. For instance, in
@@ -73,9 +102,6 @@ generate-module-docs = ["protoc"]
 # to have protoc installed in your system, together with the protoc-gen-rust
 # plugin. Follow the instructions in: https://lib.rs/crates/protobuf-codegen3
 protoc = []
-
-# Enables debug logs.
-logging = ["dep:log", "dep:quanta"]
 
 # When enabled, the serialization of compiled rules include native code for
 # the platform in which the rules where compiled. This reduces the load time,
@@ -310,6 +336,7 @@ digest = { workspace = true, optional = true }
 dsa = { workspace = true, optional = true }
 ecdsa = { workspace = true, optional = true }
 encoding_rs = { workspace = true, optional = true }
+env_logger = { workspace = true, optional = true }
 flate2 = { workspace = true, optional = true }
 memmap2 = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
