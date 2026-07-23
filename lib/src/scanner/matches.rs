@@ -69,16 +69,19 @@ impl MatchList {
     /// is false, the existing match will remain untouched and the new one will
     /// be ignored.
     ///
+    /// Returns `true` if a new match was added to the list, or `false` if an
+    /// existing match was updated or ignored.
+    ///
     /// This operation is O(1) in the most common case, which is inserting
     /// the new match at an offset that is higher than those from previous
     /// matches.
-    pub fn add(&mut self, new_match: Match, replace_if_longer: bool) {
+    pub fn add(&mut self, new_match: Match, replace_if_longer: bool) -> bool {
         match self.matches.last_mut() {
             // The new match starts at some offset greater than the offset of
             // the last match, we can simply push the new match at the end.
             Some(last) if new_match.range.start > last.range.start => {
                 self.matches.push(new_match);
-                return;
+                true
             }
             // The new match starts has the same offset as the last match. We
             // only need to update its end position when replace_if_longer is
@@ -87,34 +90,38 @@ impl MatchList {
                 if replace_if_longer {
                     last.range.end = new_match.range.end;
                 }
-                return;
+                false
             }
             // No matches so far, the match is first one.
             None => {
                 self.matches.push(new_match);
-                return;
+                true
             }
-            _ => {}
-        }
-        // If not at the end, use binary search to find the insertion point.
-        match self
-            .matches
-            .binary_search_by_key(&new_match.range.start, |m| m.range.start)
-        {
-            // Found, and replace_if_longer is true.
-            Ok(index) if replace_if_longer => {
-                let existing_match = &mut self.matches[index];
-                if existing_match.range.end < new_match.range.end {
-                    existing_match.range.end = new_match.range.end;
+            _ => {
+                // If not at the end, use binary search to find the insertion point.
+                match self
+                    .matches
+                    .binary_search_by_key(&new_match.range.start, |m| {
+                        m.range.start
+                    }) {
+                    // Found, and replace_if_longer is true.
+                    Ok(index) if replace_if_longer => {
+                        let existing_match = &mut self.matches[index];
+                        if existing_match.range.end < new_match.range.end {
+                            existing_match.range.end = new_match.range.end;
+                        }
+                        false
+                    }
+                    // Not found, insert at the corresponding position.
+                    Err(index) => {
+                        self.matches.insert(index, new_match);
+                        true
+                    }
+                    // Found, but replace_if_longer is false, do nothing and keep the
+                    // existing match.
+                    _ => false,
                 }
             }
-            // Not found, insert at the corresponding position.
-            Err(index) => {
-                self.matches.insert(index, new_match);
-            }
-            // Found, but replace_if_longer is false, do nothing and keep the
-            // existing match.
-            _ => {}
         }
     }
 
@@ -213,6 +220,16 @@ pub struct UnconfirmedMatch {
     pub chain_length: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AddResult {
+    /// A new match was inserted into the list, growing it to the given length.
+    Inserted(usize),
+    /// An existing match was updated or ignored (list length did not increase).
+    Updated,
+    /// Pattern has reached `max_matches_per_pattern` limit and the match was rejected.
+    MaxMatchesReached,
+}
+
 /// A hash map that tracks matches for each pattern.
 ///
 /// Each key in this map is a [`PatternId`], and its associated value is a
@@ -288,33 +305,37 @@ impl PatternMatches {
     /// replaced. If the argument is `false` the new match will be ignored and
     /// the existing one will remain.
     ///
-    /// This function returns `true` if the new match was added, or `false`
-    /// if the pattern already reached the maximum number of matches and
-    /// therefore the new match was not added.
+    /// Returns [`AddResult`] indicating whether a new match was inserted, an
+    /// existing match was updated, or the maximum match limit was reached.
     pub fn add(
         &mut self,
         pattern_id: PatternId,
         m: Match,
         replace_if_longer: bool,
-    ) -> bool {
+    ) -> AddResult {
         match self.matches.entry(pattern_id) {
             Entry::Occupied(mut entry) => {
                 let matches = entry.get_mut();
                 if matches.len() < self.max_matches_per_pattern {
                     self.capacity -= matches.capacity();
-                    matches.add(m, replace_if_longer);
+                    let inserted = matches.add(m, replace_if_longer);
                     self.capacity += matches.capacity();
-                    true
+                    if inserted {
+                        AddResult::Inserted(matches.len())
+                    } else {
+                        AddResult::Updated
+                    }
                 } else {
-                    false
+                    AddResult::MaxMatchesReached
                 }
             }
             Entry::Vacant(entry) => {
                 let mut matches = MatchList::with_capacity(8);
                 self.capacity += matches.capacity();
                 matches.add(m, replace_if_longer);
+                let len = matches.len();
                 entry.insert(matches);
-                true
+                AddResult::Inserted(len)
             }
         }
     }
@@ -328,7 +349,7 @@ impl PatternMatches {
 
 #[cfg(test)]
 mod test {
-    use crate::scanner::matches::{Match, MatchList};
+    use crate::scanner::matches::{Match, MatchList, PatternMatches};
     use std::ops::Range;
 
     #[test]
@@ -346,5 +367,25 @@ mod test {
             ml.iter().map(|m| m.range.clone()).collect::<Vec<Range<usize>>>(),
             vec![(1..15), (2..10), (3..10), (4..10), (5..10)]
         )
+    }
+
+    #[test]
+    fn match_list_growth() {
+        let mut ml = MatchList::with_capacity(10_000);
+        for i in 0..10_000 {
+            ml.add(Match::new(i..i + 1), false);
+        }
+        assert_eq!(ml.len(), 10_000);
+    }
+
+    #[test]
+    fn pattern_matches_growth() {
+        use crate::compiler::PatternId;
+        let mut pm = PatternMatches::new();
+        let pid = PatternId::from(0);
+        for i in 0..10_000 {
+            pm.add(pid, Match::new(i..i + 1), false);
+        }
+        assert_eq!(pm.get(pid).unwrap().len(), 10_000);
     }
 }

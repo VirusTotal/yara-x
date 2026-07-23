@@ -34,7 +34,9 @@ use crate::re::hir::ChainedPatternGap;
 use crate::re::thompson::PikeVM;
 #[cfg(feature = "rules-profiling")]
 use crate::scanner::ProfilingData;
-use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
+use crate::scanner::matches::{
+    AddResult, Match, PatternMatches, UnconfirmedMatch,
+};
 use crate::scanner::{DataSnippets, ScanError, ScannedData};
 use crate::scanner::{HEARTBEAT_COUNTER, INIT_HEARTBEAT};
 use crate::types::{Array, Map, Struct, TypeValue};
@@ -1918,12 +1920,46 @@ fn track_pattern_match(
 
     bits.set(pattern_id.into(), true);
 
-    let added =
-        tracker.pattern_matches.add(pattern_id, match_, replace_if_longer);
-    if !added
-        || (tracker.fast_scan
-            && tracker.compiled_rules.is_fast_scan(pattern_id))
-    {
+    // If we are in fast scan mode, and this pattern is suitable to be disabled
+    // in fast scan mode, disabled it because we already found the first match.
+    let mut disable_pattern =
+        tracker.fast_scan && tracker.compiled_rules.is_fast_scan(pattern_id);
+
+    match tracker.pattern_matches.add(pattern_id, match_, replace_if_longer) {
+        #[cfg(feature = "logging")]
+        AddResult::Inserted(len) if len % 100_000 == 0 => {
+            let (rule, pattern) = tracker
+                .compiled_rules
+                .get_rule_and_pattern_by_pattern_id(pattern_id)
+                .unwrap();
+
+            log::warn!(
+                "Pattern `{}` in rule `{}:{}` grew to {} matches",
+                tracker
+                    .compiled_rules
+                    .ident_pool()
+                    .get(pattern.ident_id)
+                    .unwrap(),
+                tracker
+                    .compiled_rules
+                    .ident_pool()
+                    .get(rule.namespace_ident_id)
+                    .unwrap(),
+                tracker
+                    .compiled_rules
+                    .ident_pool()
+                    .get(rule.ident_id)
+                    .unwrap(),
+                len
+            );
+        }
+        AddResult::MaxMatchesReached => {
+            disable_pattern = true;
+        }
+        _ => {}
+    }
+
+    if disable_pattern {
         tracker.disabled_patterns.insert(pattern_id);
     }
 }

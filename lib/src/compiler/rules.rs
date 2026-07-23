@@ -528,13 +528,21 @@ impl Rules {
     pub(crate) fn get_rule_and_pattern_by_sub_pattern_id(
         &self,
         sub_pattern_id: SubPatternId,
-    ) -> Option<(RuleId, IdentId)> {
-        let (target_pattern_id, _) = self.get_sub_pattern(sub_pattern_id);
-        for (rule_id, rule) in self.rules.iter().enumerate() {
+    ) -> Option<(&RuleInfo, &PatternInfo)> {
+        let (pattern_id, _) = self.get_sub_pattern(sub_pattern_id);
+        self.get_rule_and_pattern_by_pattern_id(*pattern_id)
+    }
+
+    #[cfg(feature = "logging")]
+    pub(crate) fn get_rule_and_pattern_by_pattern_id(
+        &self,
+        pattern_id: PatternId,
+    ) -> Option<(&RuleInfo, &PatternInfo)> {
+        for rule in &self.rules {
             for p in &rule.patterns {
-                if p.pattern_id == *target_pattern_id {
-                    return Some((rule_id.into(), p.ident_id));
-                };
+                if p.pattern_id == pattern_id {
+                    return Some((rule, p));
+                }
             }
         }
         None
@@ -593,15 +601,13 @@ impl Rules {
             }
 
             if x.atom.len() < 2 {
-                let (rule_id, pattern_ident_id) = self
+                let (rule, pattern) = self
                     .get_rule_and_pattern_by_sub_pattern_id(x.sub_pattern_id)
                     .unwrap();
 
-                let rule = self.get(rule_id);
-
                 warn!(
                     "Very short atom in pattern `{}` in rule `{}:{}` (length: {})",
-                    self.ident_pool.get(pattern_ident_id).unwrap(),
+                    self.ident_pool.get(pattern.ident_id).unwrap(),
                     self.ident_pool.get(rule.namespace_ident_id).unwrap(),
                     self.ident_pool.get(rule.ident_id).unwrap(),
                     x.atom.len()
