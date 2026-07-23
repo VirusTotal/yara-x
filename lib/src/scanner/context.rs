@@ -1440,7 +1440,7 @@ fn verify_chain_of_matches(
         match &tracker.compiled_rules.get_sub_pattern(id).1 {
             SubPattern::LiteralChainHead { flags, .. }
             | SubPattern::RegexpChainHead { flags, .. } => {
-                track_pattern_match(
+                track_match(
                     tracker,
                     wasm_state,
                     pattern_id,
@@ -1851,12 +1851,10 @@ fn handle_sub_pattern_match(
         | SubPattern::Base64Wide { .. }
         | SubPattern::CustomBase64 { .. }
         | SubPattern::CustomBase64Wide { .. } => {
-            track_pattern_match(
-                tracker, wasm_state, pattern_id, match_, false,
-            );
+            track_match(tracker, wasm_state, pattern_id, match_, false);
         }
         SubPattern::Regexp { flags, .. } => {
-            track_pattern_match(
+            track_match(
                 tracker,
                 wasm_state,
                 pattern_id,
@@ -1865,11 +1863,13 @@ fn handle_sub_pattern_match(
             );
         }
         SubPattern::LiteralChainHead { .. }
-        | SubPattern::RegexpChainHead { .. } => tracker
-            .unconfirmed_matches
-            .entry(sub_pattern_id)
-            .or_default()
-            .push(UnconfirmedMatch { range: match_.range, chain_length: 0 }),
+        | SubPattern::RegexpChainHead { .. } => {
+            track_unconfirmed_match(
+                tracker,
+                sub_pattern_id,
+                UnconfirmedMatch { range: match_.range, chain_length: 0 },
+            );
+        }
         SubPattern::LiteralChainTail { chained_to, gap, flags, .. }
         | SubPattern::RegexpChainTail { chained_to, gap, flags, .. } => {
             if within_valid_distance(
@@ -1887,21 +1887,53 @@ fn handle_sub_pattern_match(
                         match_,
                     );
                 } else {
-                    tracker
-                        .unconfirmed_matches
-                        .entry(sub_pattern_id)
-                        .or_default()
-                        .push(UnconfirmedMatch {
+                    track_unconfirmed_match(
+                        tracker,
+                        sub_pattern_id,
+                        UnconfirmedMatch {
                             range: match_.range,
                             chain_length: 0,
-                        });
+                        },
+                    );
                 }
             }
         }
     }
 }
 
-fn track_pattern_match(
+#[inline]
+fn track_unconfirmed_match(
+    tracker: &mut MatchTracker,
+    sub_pattern_id: SubPatternId,
+    unconfirmed_match: UnconfirmedMatch,
+) {
+    let unconfirmed_matches =
+        tracker.unconfirmed_matches.entry(sub_pattern_id).or_default();
+
+    unconfirmed_matches.push(unconfirmed_match);
+
+    #[cfg(feature = "logging")]
+    if unconfirmed_matches.len() % 100_000 == 0 {
+        let (rule, pattern) = tracker
+            .compiled_rules
+            .get_rule_and_pattern_by_sub_pattern_id(sub_pattern_id)
+            .unwrap();
+
+        log::warn!(
+            "Pattern `{}` in rule `{}:{}` grew to {} unconfirmed matches",
+            tracker.compiled_rules.ident_pool().get(pattern.ident_id).unwrap(),
+            tracker
+                .compiled_rules
+                .ident_pool()
+                .get(rule.namespace_ident_id)
+                .unwrap(),
+            tracker.compiled_rules.ident_pool().get(rule.ident_id).unwrap(),
+            unconfirmed_matches.len()
+        );
+    }
+}
+
+fn track_match(
     tracker: &mut MatchTracker,
     wasm_state: &mut WasmState,
     pattern_id: PatternId,
