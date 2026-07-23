@@ -50,6 +50,23 @@ rules-profiling = ["yara-x/rules-profiling"]
 # This feature is disabled by default.
 magic-module = ["yara-x/magic-module"]
 
+# Enables internal logging and automatically writes log messages to stderr.
+#
+# When this feature is enabled, log output can be configured via the `YRX_LOG`
+# environment variable set to any of the log levels: `error`, `warn`, `info`,
+# `debug`, or `trace`.
+#
+# You can also specify different log levels for specific targets/modules using
+# comma-separated `target=level` directives:
+#
+#   YRX_LOG=info
+#   YRX_LOG=yara_x=debug
+#   YRX_LOG=warn,yara_x::compiler=trace
+#
+# This feature is disabled by default.
+stderr-logs = ["yara-x/stderr-logs"]
+
+
 [lib]
 name = "yara_x_capi"
 crate-type = ["staticlib", "cdylib"]
