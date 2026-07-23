@@ -64,7 +64,7 @@ magic-module = ["yara-x/magic-module"]
 #   YRX_LOG=warn,yara_x::compiler=trace
 #
 # This feature is disabled by default.
-stderr-logger = ["yara-x/stderr-logger"]
+stderr-logs = ["yara-x/stderr-logs"]
 
 
 [lib]

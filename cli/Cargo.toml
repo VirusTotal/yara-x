@@ -43,7 +43,7 @@ debug-cmd = []
 #   YRX_LOG=info ./yr scan some_rule.yar some_file
 #   YRX_LOG=yara_x=debug ./yr scan some_rule.yar some_file
 #   YRX_LOG=warn,yara_x::compiler=trace ./yr scan some_rule.yar some_file
-stderr-logger = ["yara-x/stderr-logger"]
+stderr-logs = ["yara-x/stderr-logs"]
 
 # Enables rules profiling. Notice that profiling has an impact on scan
 # performance.

@@ -181,11 +181,11 @@ pub unsafe fn finalize() {
     }
 }
 
-#[cfg(feature = "stderr-logger")]
+#[cfg(feature = "stderr-logs")]
 /// Initializes the `env_logger` backend for logging output to stdout/stderr.
 ///
 /// This function is called automatically when creating a [`Compiler`] or
-/// [`Scanner`] if the `stderr-logger` feature is enabled. It uses
+/// [`Scanner`] if the `stderr-logs` feature is enabled. It uses
 /// `env_logger::try_init()`, which reads the `YRX_LOG` environment variable
 /// and safely ignores initialization if a logger was already registered.
 pub(crate) fn init_logger() {
@@ -207,6 +207,6 @@ pub(crate) fn init_logger() {
     });
 }
 
-#[cfg(not(feature = "stderr-logger"))]
+#[cfg(not(feature = "stderr-logs"))]
 #[inline]
 pub(crate) fn init_logger() {}
