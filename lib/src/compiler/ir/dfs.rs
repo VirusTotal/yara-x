@@ -611,7 +611,7 @@ mod tests {
         let mut ir = IR::new();
 
         let mut var_stack = VarStack::new();
-        let mut var_frame = var_stack.new_frame(1);
+        let mut var_frame = var_stack.new_frame(1).unwrap();
 
         let const_1 = ir.constant(TypeValue::const_integer_from(2));
         let with_body = ir.constant(TypeValue::const_bool_from(true));

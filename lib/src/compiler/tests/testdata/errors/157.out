@@ -1,0 +1,11 @@
+error[E047]: too many variables
+    --> line:4:7
+     |
+   4 | /       v0=0,
+   5 | |       v1=0,
+   6 | |       v2=0,
+   7 | |       v3=0,
+...    |
+2052 | |       v2048=0,
+2053 | |       v2049=0 : ( true )
+     | |_____________^ too many local variables

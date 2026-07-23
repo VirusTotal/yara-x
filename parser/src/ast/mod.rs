@@ -1381,6 +1381,20 @@ impl WithSpan for PatternMatch<'_> {
     }
 }
 
+impl WithSpan for Vec<WithDeclaration<'_>> {
+    fn span(&self) -> Span {
+        let first = self
+            .first()
+            .expect("calling span() on an empty Vec<WithDeclaration>");
+
+        let last = self
+            .last()
+            .expect("calling span() on an empty Vec<WithDeclaration>");
+
+        first.span().combine(&last.span())
+    }
+}
+
 impl WithSpan for MatchAnchor<'_> {
     fn span(&self) -> Span {
         match self {
