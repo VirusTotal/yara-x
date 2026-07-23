@@ -599,7 +599,7 @@ impl Rules {
 
                 let rule = self.get(rule_id);
 
-                info!(
+                warn!(
                     "Very short atom in pattern `{}` in rule `{}:{}` (length: {})",
                     self.ident_pool.get(pattern_ident_id).unwrap(),
                     self.ident_pool.get(rule.namespace_ident_id).unwrap(),

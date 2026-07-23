@@ -35,23 +35,6 @@ fn main() -> anyhow::Result<()> {
         println!("could not enable ANSI support: {err}")
     }
 
-    #[cfg(feature = "logging")]
-    {
-        let mut builder = env_logger::Builder::from_default_env();
-
-        for noise_module in [
-            "cranelift_codegen",
-            "cranelift_frontend",
-            "wasmtime",
-            "wasmtime_internal_cranelift",
-            "walrus",
-        ] {
-            builder.filter_module(noise_module, log::LevelFilter::Info);
-        }
-
-        builder.init();
-    }
-
     // If stdout is not a tty (for example, because it was redirected to a
     // file) turn off colors. This way you can redirect the output to a file
     // without ANSI escape codes messing up the file content.

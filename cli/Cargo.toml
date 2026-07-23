@@ -28,8 +28,8 @@ test = false
 # Enable the "debug" command for developers.
 debug-cmd = []
 
-# When this feature is enabled the CLI program prints debug logs if
-# the RUST_LOG environment variable is set to any of the debug levels:
+# When this feature is enabled the CLI program prints debug logs to stderr if
+# the YRX_LOG environment variable is set to any of the log levels:
 #
 #   error
 #   warn
@@ -37,8 +37,13 @@ debug-cmd = []
 #   debug
 #   trace
 #
-# Example: RUST_LOG=info ./yr scan some_rule.yar some_file
-logging = ["dep:log", "dep:env_logger"]
+# You can also specify different log levels for specific targets/modules using
+# comma-separated `target=level` directives:
+#
+#   YRX_LOG=info ./yr scan some_rule.yar some_file
+#   YRX_LOG=yara_x=debug ./yr scan some_rule.yar some_file
+#   YRX_LOG=warn,yara_x::compiler=trace ./yr scan some_rule.yar some_file
+stderr-logger = ["yara-x/stderr-logger"]
 
 # Enables rules profiling. Notice that profiling has an impact on scan
 # performance.
@@ -58,8 +63,6 @@ figment = { workspace = true, features = ["toml"] }
 globwalk = { workspace = true }
 home = { workspace = true }
 itertools = { workspace = true }
-env_logger = { workspace = true, optional = true, features = ["auto-color"] }
-log = { workspace = true, optional = true }
 protobuf = { workspace = true }
 regex = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }

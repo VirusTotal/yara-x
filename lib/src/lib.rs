@@ -181,32 +181,32 @@ pub unsafe fn finalize() {
     }
 }
 
-#[cfg(feature = "env-logger")]
+#[cfg(feature = "stderr-logger")]
 /// Initializes the `env_logger` backend for logging output to stdout/stderr.
 ///
 /// This function is called automatically when creating a [`Compiler`] or
-/// [`Scanner`] if the `env-logger` feature is enabled. It uses
-/// `env_logger::try_init()`, which reads the `RUST_LOG` environment variable
+/// [`Scanner`] if the `stderr-logger` feature is enabled. It uses
+/// `env_logger::try_init()`, which reads the `YRX_LOG` environment variable
 /// and safely ignores initialization if a logger was already registered.
 pub(crate) fn init_logger() {
     static INIT_LOGGER: std::sync::Once = std::sync::Once::new();
     INIT_LOGGER.call_once(|| {
-        let mut builder = env_logger::Builder::from_default_env();
+        let mut builder = env_logger::Builder::from_env("YRX_LOG");
 
-        for noise_module in [
+        for noisy_module in [
             "cranelift_codegen",
             "cranelift_frontend",
             "wasmtime",
             "wasmtime_internal_cranelift",
             "walrus",
         ] {
-            builder.filter_module(noise_module, log::LevelFilter::Info);
+            builder.filter_module(noisy_module, log::LevelFilter::Info);
         }
 
         let _ = builder.try_init();
     });
 }
 
-#[cfg(not(feature = "env-logger"))]
+#[cfg(not(feature = "stderr-logger"))]
 #[inline]
 pub(crate) fn init_logger() {}

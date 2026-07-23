@@ -539,10 +539,10 @@ impl<'a> ParWalker<'a> {
                 }
             }));
 
-            // `multi_progress` will be `None` if the `logging` feature is
-            // enabled or if either stdout or stderr is not a tty (for example
-            // when any of them are redirected to a file).
-            let multi_progress = if cfg!(feature = "logging") {
+            // `multi_progress` will be `None` if the `stderr-logger` feature
+            // is enabled or if either stdout or stderr is not a tty (for
+            // example when any of them are redirected to a file).
+            let multi_progress = if cfg!(feature = "stderr-logger") {
                 None
             } else if io::stdout().is_tty() {
                 Some(MultiProgress::new())

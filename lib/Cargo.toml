@@ -40,20 +40,28 @@ constant-folding = []
 # When this feature is enabled, YARA-X emits internal log messages (using
 # `log::info!`,`log::error!`, etc.). However, it does not initialize any
 # concrete logger implementation. The host application remains responsible
-# for configuring and initializing its own logger
-# (e.g., `env_logger`, `tracing-subscriber`, or a custom logger).
+# for configuring and initializing its own logger (e.g., `env_logger`,
+# `tracing-subscriber`, or a custom logger).
 logging = ["dep:log", "dep:quanta"]
 
-# Enables internal logging and automatically initializes the `env_logger` backend
-# when creating a `Compiler` or `Scanner`.
+# Enables internal logging and automatically logs messages to stderr.
 #
-# Unlike `logging` (which only emits log events and relies on the host application
-# to set up a logger), `env-logger` pulls in the `env_logger` crate and calls
-# `env_logger::try_init()` automatically. This is particularly useful when
-# YARA-X is embedded in non-Rust host binaries that do not initialize a Rust
-# logger facade, allowing log output to be configured via the `RUST_LOG`
+# Unlike `logging` (which only emits log events and relies on the host
+# application to set up a logger), `stderr-logger` actually writes log messages
+# to stderr. This is particularly useful when YARA-X is embedded in non-Rust
+# host binaries, allowing log output to be configured via the `YRX_LOG`
 # environment variable.
-env-logger = ["dep:env_logger", "logging"]
+#
+# Log output can be configured by setting `YRX_LOG` to any of the log levels:
+# `error`, `warn`, `info`, `debug`, or `trace`.
+#
+# You can also specify different log levels for specific targets/modules using
+# comma-separated `target=level` directives:
+#
+#   YRX_LOG=info                        # Global level set to info
+#   YRX_LOG=yara_x=debug                # Debug level for the yara_x crate
+#   YRX_LOG=warn,yara_x::compiler=trace  # Global warn, trace for yara_x::compiler
+stderr-logger = ["dep:env_logger", "logging"]
 
 # Enables the use of exact atoms for speeding up matches. Exact atoms are those
 # that don't require further verification, the sole presence of the atom
