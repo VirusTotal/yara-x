@@ -245,7 +245,7 @@ pub(crate) struct PatternMatches {
 
 impl PatternMatches {
     /// The maximum number of matches accepted for each pattern by default.
-    const DEFAULT_MAX_MATCHES_PER_PATTERN: usize = 1_000_000;
+    const DEFAULT_MAX_MATCHES_PER_PATTERN: usize = 10_000;
 
     pub fn new() -> Self {
         Self {
