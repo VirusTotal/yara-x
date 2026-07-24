@@ -100,6 +100,10 @@ use std::ptr::slice_from_raw_parts_mut;
 
 use yara_x::errors::CompileError;
 
+#[cfg(feature = "dhat-heap")]
+#[global_allocator]
+static ALLOC: yara_x::DhatThresholdAllocator = yara_x::DhatThresholdAllocator;
+
 pub use metadata::*;
 pub use pattern::*;
 pub use rule::*;

@@ -45,6 +45,11 @@ pulley = ["yara-x/pulley"]
 # This feature is disabled by default.
 rules-profiling = ["yara-x/rules-profiling"]
 
+# Enables DHAT heap memory profiling.
+#
+# This feature is disabled by default.
+dhat-heap = ["yara-x/dhat-heap"]
+
 # Enables the `magic` module.
 #
 # This feature is disabled by default.

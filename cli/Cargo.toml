@@ -49,6 +49,9 @@ stderr-logs = ["yara-x/stderr-logs"]
 # performance.
 rules-profiling = ["yara-x/rules-profiling"]
 
+# Enables DHAT heap memory profiling.
+dhat-heap = ["yara-x/dhat-heap"]
+
 # Enables the use of wasmtime's Pulley bytecode interpreter instead of the default
 # Cranelift JIT compiler. See the documentation in the `yara-x` core library for details.
 pulley = ["yara-x/pulley"]

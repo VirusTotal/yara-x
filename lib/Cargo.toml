@@ -143,6 +143,9 @@ pulley = ["wasmtime/pulley"]
 # scan. Notice that profiling itself has a noticeable impact on performance.
 rules-profiling = ["logging", "dep:quanta"]
 
+# Enables DHAT memory profiling and automatic early report dump when soft memory limit is hit.
+dhat-heap = ["dep:dhat"]
+
 crypto = [
     "dep:const-oid",
     "dep:der-parser",
@@ -332,6 +335,7 @@ const-oid = { workspace = true, optional = true, features = ["db"] }
 crc32fast = { workspace = true, optional = true }
 daachorse = { workspace = true }
 der-parser = { workspace = true, optional = true, features = ["bigint"] }
+dhat = { workspace = true, optional = true }
 digest = { workspace = true, optional = true }
 dsa = { workspace = true, optional = true }
 ecdsa = { workspace = true, optional = true }

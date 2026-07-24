@@ -16,6 +16,10 @@ use yansi::Paint;
 use crate::commands::cli;
 use crate::config::load_config_from_file;
 
+#[cfg(feature = "dhat-heap")]
+#[global_allocator]
+static ALLOC: yara_x::DhatThresholdAllocator = yara_x::DhatThresholdAllocator;
+
 const APP_HELP_TEMPLATE: &str = r#"YARA-X {version}, the pattern matching swiss army knife.
 
 {author-with-newline}
@@ -29,6 +33,9 @@ const EXIT_ERROR: i32 = 1;
 const CONFIG_FILE: &str = ".yara-x.toml";
 
 fn main() -> anyhow::Result<()> {
+    #[cfg(feature = "dhat-heap")]
+    yara_x::init_dhat_profiler();
+
     // Enable support for ANSI escape codes in Windows.
     #[cfg(target_os = "windows")]
     if let Err(err) = enable_ansi_support::enable_ansi_support() {

@@ -74,6 +74,11 @@ pub use scanner::Scanner;
 pub use scanner::blocks;
 pub use variables::Variable;
 
+#[cfg(feature = "dhat-heap")]
+pub mod memory_profiler;
+#[cfg(feature = "dhat-heap")]
+pub use memory_profiler::*;
+
 mod compiler;
 mod modules;
 mod re;
