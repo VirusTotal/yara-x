@@ -18,7 +18,8 @@ use crate::{
     yrx_rules_destroy, yrx_rules_iter, yrx_rules_iter_imports,
     yrx_rules_serialize, yrx_scanner_clear_profiling_data, yrx_scanner_create,
     yrx_scanner_destroy, yrx_scanner_fast_scan, yrx_scanner_finish,
-    yrx_scanner_iter_slowest_rules, yrx_scanner_on_console_log,
+    yrx_scanner_iter_slowest_rules, yrx_scanner_max_matches_per_pattern,
+    yrx_scanner_on_console_log,
     yrx_scanner_on_matching_rule, yrx_scanner_scan, yrx_scanner_scan_block,
     yrx_scanner_scan_file, yrx_scanner_set_global_bool,
     yrx_scanner_set_global_float, yrx_scanner_set_global_int,
@@ -572,6 +573,40 @@ fn capi_fast_scan() {
 }
 
 #[test]
+fn capi_max_matches_per_pattern() {
+    unsafe {
+        let mut compiler = std::ptr::null_mut();
+        yrx_compiler_create(0, &mut compiler);
+
+        let src = c"rule test { strings: $a = \"foo\" condition: #a == 1 }";
+        yrx_compiler_add_source(compiler, src.as_ptr());
+
+        let rules = yrx_compiler_build(compiler);
+        yrx_compiler_destroy(compiler);
+
+        let mut scanner = std::ptr::null_mut();
+        yrx_scanner_create(rules, &mut scanner);
+
+        yrx_scanner_max_matches_per_pattern(scanner, 1);
+
+        let mut matches = 0;
+        yrx_scanner_on_matching_rule(
+            scanner,
+            on_rule_match_increase_counter,
+            &mut matches as *mut i32 as *mut c_void,
+        );
+
+        let data = b"foofoofoo";
+        yrx_scanner_scan(scanner, data.as_ptr(), data.len());
+
+        assert_eq!(matches, 1);
+
+        yrx_scanner_destroy(scanner);
+        yrx_rules_destroy(rules);
+    }
+}
+
+#[test]
 fn capi_null_args() {
     unsafe {
         assert_eq!(
@@ -773,6 +808,10 @@ fn capi_null_args() {
         );
         assert_eq!(
             yrx_scanner_fast_scan(std::ptr::null_mut(), true),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert_eq!(
+            yrx_scanner_max_matches_per_pattern(std::ptr::null_mut(), 10),
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
         assert_eq!(
