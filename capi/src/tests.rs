@@ -19,13 +19,12 @@ use crate::{
     yrx_rules_serialize, yrx_scanner_clear_profiling_data, yrx_scanner_create,
     yrx_scanner_destroy, yrx_scanner_fast_scan, yrx_scanner_finish,
     yrx_scanner_iter_slowest_rules, yrx_scanner_max_matches_per_pattern,
-    yrx_scanner_on_console_log,
-    yrx_scanner_on_matching_rule, yrx_scanner_scan, yrx_scanner_scan_block,
-    yrx_scanner_scan_file, yrx_scanner_set_global_bool,
-    yrx_scanner_set_global_float, yrx_scanner_set_global_int,
-    yrx_scanner_set_global_json, yrx_scanner_set_global_str,
-    yrx_scanner_set_module_data, yrx_scanner_set_module_output,
-    yrx_scanner_set_timeout,
+    yrx_scanner_on_console_log, yrx_scanner_on_matching_rule,
+    yrx_scanner_scan, yrx_scanner_scan_block, yrx_scanner_scan_file,
+    yrx_scanner_set_global_bool, yrx_scanner_set_global_float,
+    yrx_scanner_set_global_int, yrx_scanner_set_global_json,
+    yrx_scanner_set_global_str, yrx_scanner_set_module_data,
+    yrx_scanner_set_module_output, yrx_scanner_set_timeout,
 };
 
 use std::ffi::{CStr, c_char, c_void};
