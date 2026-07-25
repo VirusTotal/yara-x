@@ -26,6 +26,8 @@ message EmlPart {
     // the body of the Eml file from after the headers
     required bytes body = 2;
     optional bytes decoded_body = 3;
+    // filename from Content-Disposition or Content-Type name parameter
+    optional bytes filename = 4;
 }
 
 // Structure used to represent a header key: value pair

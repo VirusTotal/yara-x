@@ -58,23 +58,8 @@ impl EmlParser {
             if let Some(ct) = headers.get(b"content-type".as_slice()).and_then(|v| v.first()).map(Vec::as_slice) {
                 #[allow(clippy::collapsible_if)]
                 if ct.starts_with(b"multipart/") {
-                    // Parse parameters by splitting on ';', find the boundary param by name
-                    // to avoid false-positive substring matches like `x-my-boundary=val`
-                    let boundary_bytes = ct.split_str(b";").skip(1).find_map(|param| {
-                        let param = param.trim();
-                        let (name, value) = param.split_once_str(b"=")?;
-                        if !name.trim().eq_ignore_ascii_case(b"boundary") {
-                            return None;
-                        }
-                        let value = value.trim();
-                        let bytes = if value.starts_with(b"\"") {
-                            // quoted: extract content between the quotes
-                            value.split_str(b"\"").nth(1)?
-                        } else {
-                            value
-                        };
-                        if bytes.is_empty() { None } else { Some(bytes) }
-                    });
+                    // split on ';', find the boundary param by name
+                    let boundary_bytes = Self::get_mime_param(ct, b"boundary");
 
                     if let Some(b) = boundary_bytes {
                         let mut delimiter = b"--".to_vec();
@@ -95,10 +80,23 @@ impl EmlParser {
                     stack.push(trimmed);
                 }
             } else if !is_root {
+                let filename = headers
+                    .get(b"content-disposition".as_slice())
+                    .and_then(|v| v.first())
+                    .and_then(|v| Self::get_mime_param(v, b"filename"))
+                    .or_else(|| {
+                        headers
+                            .get(b"content-type".as_slice())
+                            .and_then(|v| v.first())
+                            .and_then(|v| Self::get_mime_param(v, b"name"))
+                    })
+                    .map(|b| b.to_vec());
+
                 self.result.parts.push(EmlPart {
                     headers: self.map_to_proto_headers(&headers),
                     body: Some(body.to_vec()),
                     decoded_body: self.decode_body(&headers, body),
+                    filename: filename,
                     ..Default::default()
                 });
             }
@@ -151,6 +149,27 @@ impl EmlParser {
                 })
             })
             .collect()
+    }
+
+    /// Extract a named parameter value from a MIME header value.
+    /// e.g. `get_mime_param(b"multipart/mixed; boundary=abc", b"boundary")` → `Some(b"abc")`
+    /// Handles both quoted (`boundary="abc"`) and unquoted (`boundary=abc`) forms.
+    /// Case-insensitive matching
+    fn get_mime_param<'a>(header_value: &'a [u8], param_name: &[u8]) -> Option<&'a [u8]> {
+        header_value.split_str(b";").skip(1).find_map(|param| {
+            let param = param.trim();
+            let (name, value) = param.split_once_str(b"=")?;
+            if !name.trim().eq_ignore_ascii_case(param_name) {
+                return None;
+            }
+            let value = value.trim();
+            let bytes = if value.starts_with(b"\"") {
+                value.split_str(b"\"").nth(1)?
+            } else {
+                value
+            };
+            if bytes.is_empty() { None } else { Some(bytes) }
+        })
     }
 
     fn parse_headers(&self, headers_raw: &[u8]) -> Headers {
