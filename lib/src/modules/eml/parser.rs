@@ -8,7 +8,7 @@ use nom::Err;
 
 // type NomError<'a> = nom::error::Error<&'a [u8]>;
 
-type Headers = IndexMap<Vec<u8>, Vec<u8>>;
+type Headers = IndexMap<Vec<u8>, Vec<Vec<u8>>>;
 
 /// An Eml parser
 pub struct EmlParser {
@@ -55,8 +55,7 @@ impl EmlParser {
 
             // Content-Type should be checked for multipart and boundary
             let mut found_boundary = None;
-            if let Some(content_type) = headers.get(b"content-type".as_slice()) {
-                let ct = content_type.as_slice();
+            if let Some(ct) = headers.get(b"content-type".as_slice()).and_then(|v| v.first()).map(Vec::as_slice) {
                 // check if starts with multipart/
                 #[allow(clippy::collapsible_if)]
                 if ct.starts_with(b"multipart/") {
@@ -122,7 +121,7 @@ impl EmlParser {
         headers: &Headers,
         body: &[u8],
     ) -> Option<Vec<u8>> {
-        let enc = headers.get(b"content-transfer-encoding".as_slice())?;
+        let enc = headers.get(b"content-transfer-encoding".as_slice()).and_then(|v| v.first())?;
         match enc.to_ascii_lowercase().as_slice() {
             b"base64" => {
                 let cleaned: Vec<u8> =
@@ -142,10 +141,12 @@ impl EmlParser {
     ) -> Vec<Header> {
         headers
             .iter()
-            .map(|(k, v)| Header {
-                key: Some(k.clone()),
-                value: Some(v.clone()),
-                ..Default::default()
+            .flat_map(|(k, values)| {
+                values.iter().map(|v| Header {
+                    key: Some(k.clone()),
+                    value: Some(v.clone()),
+                    ..Default::default()
+                })
             })
             .collect()
     }
@@ -158,15 +159,17 @@ impl EmlParser {
             #[allow(clippy::collapsible_if)]
             if line.starts_with(b" ") || line.starts_with(b"\t") {
                 if let Some(k) = &last_key {
-                    if let Some(v) = headers.get_mut(k.as_slice()) {
-                        v.push(b' ');
-                        v.extend_from_slice(line.trim());
+                    if let Some(values) = headers.get_mut(k.as_slice()) {
+                        if let Some(last_val) = values.last_mut() {
+                            last_val.push(b' ');
+                            last_val.extend_from_slice(line.trim());
+                        }
                     }
                 }
             } else if let Some((key, value)) = line.split_once_str(":") {
                 let key = key.trim().to_ascii_lowercase();
                 let value = value.trim().to_vec();
-                headers.insert(key.clone(), value);
+                headers.entry(key.clone()).or_default().push(value);
                 last_key = Some(key);
             }
         }
