@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem};
+use std::mem;
 
 use crate::modules::protos::eml::{Eml, EmlPart, Header};
 use base64::prelude::*;
@@ -8,6 +8,8 @@ use nom::Err;
 
 // type NomError<'a> = nom::error::Error<&'a [u8]>;
 
+type Headers = IndexMap<Vec<u8>, Vec<u8>>;
+
 /// An Eml parser
 pub struct EmlParser {
     result: Eml,
@@ -16,6 +18,7 @@ pub struct EmlParser {
 // the anatomy of an email can be defined like so:
 // headers (check for content-type)
 // body
+// and nest
 //
 impl EmlParser {
     /// Creates a new parser for Eml files
@@ -42,33 +45,34 @@ impl EmlParser {
             }
 
             let (header, body) = self.split_message(current_data);
-            let (headers, lookup) = self.parse_headers(header);
+            let headers = self.parse_headers(header);
 
             if is_root {
                 self.result.headers = self.map_to_proto_headers(&headers);
                 self.result.body = Some(body.to_vec());
-                self.result.decoded_body = self.decode_body(&lookup, body);
+                self.result.decoded_body = self.decode_body(&headers, body);
             }
 
             // Content-Type should be checked for multipart and boundary
             let mut found_boundary = None;
-            if let Some(content_type) = lookup.get(b"content-type".as_ref()) {
+            if let Some(content_type) = headers.get(b"content-type".as_slice()) {
                 let ct = content_type.as_slice();
                 // check if starts with multipart/
+                #[allow(clippy::collapsible_if)]
                 if ct.starts_with(b"multipart/") {
                     if let Some(pos) = ct.find("boundary=") {
-                        // if so, find pos of boundary=
-                        let start = pos + "boundary=".len();
-                        let remainder = ct[start..].trim();
+                    // if so, find pos of boundary=
+                    let start = pos + "boundary=".len();
+                    let remainder = ct[start..].trim();
 
-                        // value could be "value" or value
-                        let boundary_bytes = if remainder.starts_with(b"\"") {
-                            // enclosed by ""
-                            remainder.split_str("\"").nth(1).unwrap_or(&[])
-                        } else {
-                            // no quotes but may be multiple items in here, split and grab 0th
-                            remainder.split_str(";").next().unwrap_or(&[]).trim()
-                        };
+                    // value could be "value" or value
+                    let boundary_bytes = if remainder.starts_with(b"\"") {
+                        // enclosed by ""
+                        remainder.split_str("\"").nth(1).unwrap_or(&[])
+                    } else {
+                        // no quotes but may be multiple items in here, split and grab 0th
+                        remainder.split_str(";").next().unwrap_or(&[]).trim()
+                    };
 
                         if !boundary_bytes.is_empty() {
                             let mut delimiter = b"--".to_vec();
@@ -93,7 +97,7 @@ impl EmlParser {
                 self.result.parts.push(EmlPart {
                     headers: self.map_to_proto_headers(&headers),
                     body: Some(body.to_vec()),
-                    decoded_body: self.decode_body(&lookup, body),
+                    decoded_body: self.decode_body(&headers, body),
                     ..Default::default()
                 });
             }
@@ -115,10 +119,10 @@ impl EmlParser {
 
     fn decode_body(
         &self,
-        lookup: &HashMap<Vec<u8>, Vec<u8>>,
+        headers: &Headers,
         body: &[u8],
     ) -> Option<Vec<u8>> {
-        let enc = lookup.get(b"content-transfer-encoding".as_ref())?;
+        let enc = headers.get(b"content-transfer-encoding".as_slice())?;
         match enc.to_ascii_lowercase().as_slice() {
             b"base64" => {
                 let cleaned: Vec<u8> =
@@ -134,47 +138,39 @@ impl EmlParser {
 
     fn map_to_proto_headers(
         &self,
-        headers: &IndexMap<&[u8], Vec<u8>>,
+        headers: &Headers,
     ) -> Vec<Header> {
         headers
             .iter()
             .map(|(k, v)| Header {
-                key: Some(k.to_vec()),
-                value: Some(v.to_vec()),
+                key: Some(k.clone()),
+                value: Some(v.clone()),
                 ..Default::default()
             })
             .collect()
     }
 
-    fn parse_headers<'a>(
-        &self,
-        headers_raw: &'a [u8],
-    ) -> (IndexMap<&'a [u8], Vec<u8>>, HashMap<Vec<u8>, Vec<u8>>) {
-        let mut last_key: Option<&[u8]> = None;
-        let mut ordered = IndexMap::<&[u8], Vec<u8>>::new();
-        let mut lookup = HashMap::<Vec<u8>, Vec<u8>>::new();
+    fn parse_headers(&self, headers_raw: &[u8]) -> Headers {
+        let mut last_key: Option<Vec<u8>> = None;
+        let mut headers = Headers::new();
 
         for line in headers_raw.lines() {
+            #[allow(clippy::collapsible_if)]
             if line.starts_with(b" ") || line.starts_with(b"\t") {
-                if let Some(k) = last_key {
-                    if let Some(v) = ordered.get_mut(k) {
-                        v.push(b' ');
-                        v.extend_from_slice(line.trim());
-                    }
-                    if let Some(v) = lookup.get_mut(&k.to_ascii_lowercase()) {
+                if let Some(k) = &last_key {
+                    if let Some(v) = headers.get_mut(k.as_slice()) {
                         v.push(b' ');
                         v.extend_from_slice(line.trim());
                     }
                 }
             } else if let Some((key, value)) = line.split_once_str(":") {
-                let key = key.trim();
+                let key = key.trim().to_ascii_lowercase();
                 let value = value.trim().to_vec();
-                ordered.insert(key, value.clone());
-                lookup.insert(key.to_ascii_lowercase(), value);
+                headers.insert(key.clone(), value);
                 last_key = Some(key);
             }
         }
 
-        (ordered, lookup)
+        headers
     }
 }
