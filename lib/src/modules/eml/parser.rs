@@ -96,7 +96,7 @@ impl EmlParser {
                     headers: self.map_to_proto_headers(&headers),
                     body: Some(body.to_vec()),
                     decoded_body: self.decode_body(&headers, body),
-                    filename: filename,
+                    filename,
                     ..Default::default()
                 });
             }
