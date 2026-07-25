@@ -56,28 +56,30 @@ impl EmlParser {
             // Content-Type should be checked for multipart and boundary
             let mut found_boundary = None;
             if let Some(ct) = headers.get(b"content-type".as_slice()).and_then(|v| v.first()).map(Vec::as_slice) {
-                // check if starts with multipart/
                 #[allow(clippy::collapsible_if)]
                 if ct.starts_with(b"multipart/") {
-                    if let Some(pos) = ct.find("boundary=") {
-                    // if so, find pos of boundary=
-                    let start = pos + "boundary=".len();
-                    let remainder = ct[start..].trim();
-
-                    // value could be "value" or value
-                    let boundary_bytes = if remainder.starts_with(b"\"") {
-                        // enclosed by ""
-                        remainder.split_str("\"").nth(1).unwrap_or(&[])
-                    } else {
-                        // no quotes but may be multiple items in here, split and grab 0th
-                        remainder.split_str(";").next().unwrap_or(&[]).trim()
-                    };
-
-                        if !boundary_bytes.is_empty() {
-                            let mut delimiter = b"--".to_vec();
-                            delimiter.extend_from_slice(boundary_bytes);
-                            found_boundary = Some(delimiter);
+                    // Parse parameters by splitting on ';', find the boundary param by name
+                    // to avoid false-positive substring matches like `x-my-boundary=val`
+                    let boundary_bytes = ct.split_str(b";").skip(1).find_map(|param| {
+                        let param = param.trim();
+                        let (name, value) = param.split_once_str(b"=")?;
+                        if !name.trim().eq_ignore_ascii_case(b"boundary") {
+                            return None;
                         }
+                        let value = value.trim();
+                        let bytes = if value.starts_with(b"\"") {
+                            // quoted: extract content between the quotes
+                            value.split_str(b"\"").nth(1)?
+                        } else {
+                            value
+                        };
+                        if bytes.is_empty() { None } else { Some(bytes) }
+                    });
+
+                    if let Some(b) = boundary_bytes {
+                        let mut delimiter = b"--".to_vec();
+                        delimiter.extend_from_slice(b);
+                        found_boundary = Some(delimiter);
                     }
                 }
             }
