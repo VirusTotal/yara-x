@@ -1086,7 +1086,8 @@ impl Scanner {
 
     /// Sets the maximum number of matches per pattern.
     ///
-    /// When some pattern reaches the specified number of `matches` it won't produce more matches.
+    /// When some pattern reaches the specified number of `matches` it won't
+    /// produce more matches.
     fn max_matches_per_pattern(&mut self, matches: usize) {
         self.inner.max_matches_per_pattern(matches);
     }

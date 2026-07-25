@@ -178,3 +178,19 @@ func TestScannerFastScan(t *testing.T) {
 	assert.Len(t, matchingRules[0].Patterns(), 1)
 	assert.Len(t, matchingRules[0].Patterns()[0].Matches(), 1)
 }
+
+func TestScannerMaxMatchesPerPattern(t *testing.T) {
+	r, _ := Compile(`
+    rule t {
+        strings:
+            $a = "foo"
+        condition:
+            #a == 1
+    }`)
+	s := NewScanner(r)
+	s.MaxMatchesPerPattern(1)
+	scanResults, _ := s.Scan([]byte("foofoofoo"))
+	matchingRules := scanResults.MatchingRules()
+
+	assert.Len(t, matchingRules, 1)
+}

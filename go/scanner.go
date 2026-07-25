@@ -128,6 +128,12 @@ func (s *Scanner) FastScan(yes bool) {
 	runtime.KeepAlive(s)
 }
 
+// MaxMatchesPerPattern sets the maximum number of matches per pattern.
+func (s *Scanner) MaxMatchesPerPattern(n int) {
+	C.yrx_scanner_max_matches_per_pattern(s.cScanner, C.size_t(n))
+	runtime.KeepAlive(s)
+}
+
 var ErrTimeout = errors.New("timeout")
 
 // SetGlobal sets the value of a global variable.

@@ -764,6 +764,21 @@ pattern in the file, only the first one.
 
 ------
 
+### yrx_scanner_max_matches_per_pattern
+
+```c
+enum YRX_RESULT yrx_scanner_max_matches_per_pattern(
+    struct YRX_SCANNER *scanner,
+    size_t n);
+```
+
+Sets the maximum number of matches per pattern.
+
+When a pattern reaches the maximum number of matches it won't produce more
+matches.
+
+------
+
 ### yrx_scanner_set_global_xxxx
 
 ```c
