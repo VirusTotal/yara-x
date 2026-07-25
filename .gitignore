@@ -14,3 +14,7 @@ site/node_modules
 site/public
 site/resources
 __pycache__
+
+# Nix build result symlinks
+/result
+/result-*

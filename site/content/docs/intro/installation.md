@@ -30,6 +30,38 @@ In macOS, you can also use `brew`:
 brew install yara-x
 ```
 
+### Nix (Flakes)
+
+For users who already have Nix with flakes enabled:
+
+```bash
+# Run without installing (prebuilt binary, default)
+nix run github:VirusTotal/yara-x
+
+# Install into your profile
+nix profile add github:VirusTotal/yara-x
+
+# Explicitly choose prebuilt or source
+nix run github:VirusTotal/yara-x#prebuilt
+nix run github:VirusTotal/yara-x#source
+```
+
+The flake tracks the default branch and is auto-bumped to the latest release
+daily, so `github:VirusTotal/yara-x` is updated daily when the version-bump PR
+is merged. For reproducibility, pin to a specific commit SHA or use the nixpkgs
+package.
+
+**Updating:**
+
+```bash
+# For profile installs
+nix profile upgrade <index-or-name>
+
+# For flake-based installs (e.g., via flake inputs)
+# Run from the consuming flake directory with the actual input name (e.g. yara-x)
+nix flake update <input-name>
+```
+
 If you prefer to build YARA-X yourself, follow the guide below.
 
 ## Installing with cargo
