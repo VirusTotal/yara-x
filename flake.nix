@@ -31,7 +31,7 @@
     };
 
     systems = builtins.attrNames assets;
-    forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
+    forAllSystems = nixpkgs.lib.genAttrs systems;
 
     # Prebuilt binary from release tarball
     yara-xFor = system: let
@@ -46,7 +46,7 @@
 
       src = pkgs.fetchurl {
         url = "https://github.com/VirusTotal/yara-x/releases/download/v${version}/${asset.file}";
-        sha256 = asset.sha256;
+        inherit (asset) sha256;
       };
 
       sourceRoot = ".";
