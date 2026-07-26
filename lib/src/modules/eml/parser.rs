@@ -55,9 +55,8 @@ impl EmlParser {
 
             // Content-Type should be checked for multipart and boundary
             let mut found_boundary = None;
-            if let Some(ct) = headers.get(b"content-type".as_slice()).and_then(|v| v.first()).map(Vec::as_slice) {
-                #[allow(clippy::collapsible_if)]
-                if ct.starts_with(b"multipart/") {
+            if let Some(ct) = headers.get(b"content-type".as_slice()).and_then(|v| v.first()).map(Vec::as_slice) &&
+                ct.len() >= 10 && ct[..9].eq_ignore_ascii_case(b"multipart") {
                     // split on ';', find the boundary param by name
                     let boundary_bytes = Self::get_mime_param(ct, b"boundary");
 
@@ -65,7 +64,6 @@ impl EmlParser {
                         let mut delimiter = b"--".to_vec();
                         delimiter.extend_from_slice(b);
                         found_boundary = Some(delimiter);
-                    }
                 }
             }
 
