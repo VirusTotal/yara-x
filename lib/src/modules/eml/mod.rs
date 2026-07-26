@@ -20,4 +20,21 @@ fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<Eml, ModuleError> {
     }
 }
 
+/// Returns true if the Mach-O parsed entitlements contain `entitlement`
+///
+/// `entitlement` is case-insensitive.
+#[module_export]
+fn has_header(
+    ctx: &ScanContext,
+    header: RuntimeString,
+) -> Option<bool> {
+    let eml = ctx.module_output::<Eml>()?;
+    let header = header.as_bstr(ctx);
+    let headers = &eml.headers;
+
+    let found = headers.iter().any(|h| h.key().eq_ignore_ascii_case(header));
+
+    Some(found)
+}
+
 register_module!("eml", Eml, main);
