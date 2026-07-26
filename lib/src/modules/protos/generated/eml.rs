@@ -339,6 +339,8 @@ pub struct EmlPart {
     pub decoded_body: ::std::option::Option<::std::vec::Vec<u8>>,
     // @@protoc_insertion_point(field:eml.EmlPart.filename)
     pub filename: ::std::option::Option<::std::vec::Vec<u8>>,
+    // @@protoc_insertion_point(field:eml.EmlPart.disposition)
+    pub disposition: ::std::option::Option<::std::vec::Vec<u8>>,
     // special fields
     // @@protoc_insertion_point(special_field:eml.EmlPart.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -463,8 +465,44 @@ impl EmlPart {
         self.filename.take().unwrap_or_else(|| ::std::vec::Vec::new())
     }
 
+    // optional bytes disposition = 5;
+
+    pub fn disposition(&self) -> &[u8] {
+        match self.disposition.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_disposition(&mut self) {
+        self.disposition = ::std::option::Option::None;
+    }
+
+    pub fn has_disposition(&self) -> bool {
+        self.disposition.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_disposition(&mut self, v: ::std::vec::Vec<u8>) {
+        self.disposition = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_disposition(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.disposition.is_none() {
+            self.disposition = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.disposition.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_disposition(&mut self) -> ::std::vec::Vec<u8> {
+        self.disposition.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(4);
+        let mut fields = ::std::vec::Vec::with_capacity(5);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
             "headers",
@@ -485,6 +523,11 @@ impl EmlPart {
             "filename",
             |m: &EmlPart| { &m.filename },
             |m: &mut EmlPart| { &mut m.filename },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "disposition",
+            |m: &EmlPart| { &m.disposition },
+            |m: &mut EmlPart| { &mut m.disposition },
         ));
         ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<EmlPart>(
             "EmlPart",
@@ -524,6 +567,9 @@ impl ::protobuf::Message for EmlPart {
                 34 => {
                     self.filename = ::std::option::Option::Some(is.read_bytes()?);
                 },
+                42 => {
+                    self.disposition = ::std::option::Option::Some(is.read_bytes()?);
+                },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                 },
@@ -549,6 +595,9 @@ impl ::protobuf::Message for EmlPart {
         if let Some(v) = self.filename.as_ref() {
             my_size += ::protobuf::rt::bytes_size(4, &v);
         }
+        if let Some(v) = self.disposition.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(5, &v);
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
         my_size
@@ -566,6 +615,9 @@ impl ::protobuf::Message for EmlPart {
         }
         if let Some(v) = self.filename.as_ref() {
             os.write_bytes(4, v)?;
+        }
+        if let Some(v) = self.disposition.as_ref() {
+            os.write_bytes(5, v)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -588,6 +640,7 @@ impl ::protobuf::Message for EmlPart {
         self.body = ::std::option::Option::None;
         self.decoded_body = ::std::option::Option::None;
         self.filename = ::std::option::Option::None;
+        self.disposition = ::std::option::Option::None;
         self.special_fields.clear();
     }
 
@@ -597,6 +650,7 @@ impl ::protobuf::Message for EmlPart {
             body: ::std::option::Option::None,
             decoded_body: ::std::option::Option::None,
             filename: ::std::option::Option::None,
+            disposition: ::std::option::Option::None,
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -843,14 +897,14 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x06is_eml\x18\x01\x20\x02(\x08R\x05isEml\x12%\n\x07headers\x18\x02\x20\
     \x03(\x0b2\x0b.eml.HeaderR\x07headers\x12\x12\n\x04body\x18\x03\x20\x02(\
     \x0cR\x04body\x12!\n\x0cdecoded_body\x18\x04\x20\x01(\x0cR\x0bdecodedBod\
-    y\x12\"\n\x05parts\x18\x05\x20\x03(\x0b2\x0c.eml.EmlPartR\x05parts\"\x83\
+    y\x12\"\n\x05parts\x18\x05\x20\x03(\x0b2\x0c.eml.EmlPartR\x05parts\"\xa5\
     \x01\n\x07EmlPart\x12%\n\x07headers\x18\x01\x20\x03(\x0b2\x0b.eml.Header\
     R\x07headers\x12\x12\n\x04body\x18\x02\x20\x02(\x0cR\x04body\x12!\n\x0cd\
     ecoded_body\x18\x03\x20\x01(\x0cR\x0bdecodedBody\x12\x1a\n\x08filename\
-    \x18\x04\x20\x01(\x0cR\x08filename\"0\n\x06Header\x12\x10\n\x03key\x18\
-    \x01\x20\x02(\x0cR\x03key\x12\x14\n\x05value\x18\x02\x20\x02(\x0cR\x05va\
-    lueB\x1e\xfa\x92\x19\x1a\n\x03eml\x12\x07eml.Eml\x1a\neml-moduleb\x06pro\
-    to2\
+    \x18\x04\x20\x01(\x0cR\x08filename\x12\x20\n\x0bdisposition\x18\x05\x20\
+    \x01(\x0cR\x0bdisposition\"0\n\x06Header\x12\x10\n\x03key\x18\x01\x20\
+    \x02(\x0cR\x03key\x12\x14\n\x05value\x18\x02\x20\x02(\x0cR\x05valueB\x1e\
+    \xfa\x92\x19\x1a\n\x03eml\x12\x07eml.Eml\x1a\neml-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

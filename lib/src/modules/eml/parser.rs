@@ -92,11 +92,22 @@ impl EmlParser {
                     })
                     .map(|b| b.to_vec());
 
+                let disposition = headers.get(b"content-disposition".as_slice())
+                    .and_then(|v| v.first())
+                    .map(|v| {
+                        v.split_str(b";")
+                            .next()
+                            .unwrap_or(v)
+                            .trim()
+                            .to_ascii_lowercase()
+                    });
+
                 self.result.parts.push(EmlPart {
                     headers: self.map_to_proto_headers(&headers),
                     body: Some(body.to_vec()),
                     decoded_body: self.decode_body(&headers, body),
                     filename,
+                    disposition,
                     ..Default::default()
                 });
             }
