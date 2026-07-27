@@ -48,6 +48,44 @@ contained in those files to YARA.
 | overlay_size        | integer                     | Size in bytes of any extra data appended to the LNK file.                                                                                                                                                                       |
 | overlay_offset      | integer                     | Offset within the LNK file where the overlay starts.                                                                                                                                                                            |
 | tracker_data        | [TrackerData](#trackerdata) | Distributed link tracker information.                                                                                                                                                                                           |
+| target_id_list      | [ShellItem](#shellitem) array | Shell items parsed from the link target ID list. Describes the target of the shortcut as a chain of shell items (root folder, volume, file entry, control panel item, etc.).                                                   |
+
+### ShellItem
+
+These are the fields in each entry of the `target_id_list` array. Each entry
+corresponds to an `ItemID` within the `LinkTargetIDList` structure defined in
+the Microsoft [[MS-SHLLINK]](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-shllink/16cb4ca1-9339-4d0c-a68d-bf1d6cc0f943)
+specification (section 2.2). The internal layout of each shell item is not
+specified by Microsoft; the type-specific fields below follow the
+reverse-engineered Windows Shell Item format documentation. Which fields are
+populated depends on the shell item type (`item_type`); the raw `data` field is
+always populated, so rules can match on shell item types that are not decoded
+into a dedicated field. The fields are listed in order of the `item_type` they
+belong to.
+
+| Field            | Type    | Description                                                                                                                                          |
+|------------------|---------|------------------------------------------------------------------------------------------------------------------------------------------------------|
+| item_type        | integer | Shell item class type indicator, the byte that identifies the kind of shell item (e.g. 0x00 control panel CPL file, 0x1F root folder).                |
+| data             | string  | Raw class type specific data: all the bytes that follow the `item_type` byte. Always populated, so rules can match on shell items whose type is not decoded into a dedicated field. |
+| cpl_file_path    | string  | Path to the control panel CPL file. Populated for control panel CPL file shell items (item_type 0x00). This field is abused by CVE-2010-2568 to point to an arbitrary DLL. |
+| root_folder_id   | string  | Shell folder identifier (a GUID). Populated for root folder shell items (item_type 0x1E/0x1F).                                                       |
+| volume_name      | string  | Volume name. Populated for volume shell items (item_type 0x20-0x2F) that carry a name.                                                               |
+| volume_id        | string  | Volume identifier (a GUID). Populated for volume shell items (item_type 0x20-0x2F) that carry an identifier instead of a name.                       |
+| file_entry_name  | string  | File or directory name. Populated for file entry shell items (item_type 0x30-0x3F).                                                                 |
+| network_location | string  | Network location, usually a UNC path. Populated for network location shell items (item_type 0x40-0x4F).                                             |
+
+#### Example
+
+````
+import "lnk"
+
+rule lnk_suspicious_cpl_target {
+    condition:
+        for any item in lnk.target_id_list : (
+            item.cpl_file_path endswith ".dll"
+        )
+}
+````
 
 ### TrackerData
 

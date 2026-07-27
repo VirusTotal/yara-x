@@ -115,6 +115,60 @@ message Lnk {
 
   // Distributed link tracker information.
   optional TrackerData tracker_data = 21;
+
+  // Shell items parsed from the link target ID list (LINKTARGET_IDLIST). This
+  // list describes the target of the shortcut as a chain of shell items (root
+  // folder, volume, file entry, control panel item, etc.). It often contains
+  // the only meaningful information in shortcuts that lack a LINKINFO or
+  // STRING_DATA block, such as the control panel shortcuts abused by
+  // CVE-2010-2568.
+  repeated ShellItem target_id_list = 22;
+}
+
+// A single item within the link target ID list (an ItemID / shell item).
+//
+// The container (LinkTargetIDList / ItemID) is defined by Microsoft in
+// [MS-SHLLINK], but the internal layout of each shell item is not specified by
+// Microsoft. The type-specific fields below therefore follow the
+// reverse-engineered "Windows Shell Item format" documentation by Joachim Metz
+// (libfwsi). Which fields are populated depends on the shell item type (see
+// `item_type`); the raw `data` field is always populated.
+//
+// The fields are ordered by the `item_type` (range) they are extracted from.
+message ShellItem {
+  // Shell item class type indicator: the byte that identifies the kind of
+  // shell item (e.g. 0x00 control panel CPL file, 0x1F root folder).
+  optional uint32 item_type = 1;
+
+  // The raw class type specific data of the shell item: all the bytes that
+  // follow the `item_type` byte. Always populated, which allows rules to match
+  // on shell items whose type is not decoded into a dedicated field below.
+  optional bytes data = 2;
+
+  // Path to the control panel CPL file. Populated for control panel CPL file
+  // shell items (item_type 0x00). This is the file that gets loaded, and the
+  // field abused by CVE-2010-2568 to point to an arbitrary DLL.
+  optional string cpl_file_path = 3;
+
+  // Shell folder identifier (a GUID). Populated for root folder shell items
+  // (item_type 0x1E/0x1F).
+  optional string root_folder_id = 4;
+
+  // Volume name. Populated for volume shell items (item_type 0x20-0x2F) that
+  // carry a name.
+  optional string volume_name = 5;
+
+  // Volume identifier (a GUID). Populated for volume shell items
+  // (item_type 0x20-0x2F) that carry an identifier instead of a name.
+  optional string volume_id = 6;
+
+  // File or directory name. Populated for file entry shell items
+  // (item_type 0x30-0x3F).
+  optional string file_entry_name = 7;
+
+  // Network location (usually a UNC path). Populated for network location
+  // shell items (item_type 0x40-0x4F).
+  optional string network_location = 8;
 }
 
 // This structure contains data that can be used to resolve a link target if it

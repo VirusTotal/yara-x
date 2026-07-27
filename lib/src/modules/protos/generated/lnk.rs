@@ -70,6 +70,8 @@ pub struct Lnk {
     pub overlay_offset: ::std::option::Option<u64>,
     // @@protoc_insertion_point(field:lnk.Lnk.tracker_data)
     pub tracker_data: ::protobuf::MessageField<TrackerData>,
+    // @@protoc_insertion_point(field:lnk.Lnk.target_id_list)
+    pub target_id_list: ::std::vec::Vec<ShellItem>,
     // special fields
     // @@protoc_insertion_point(special_field:lnk.Lnk.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -609,7 +611,7 @@ impl Lnk {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(21);
+        let mut fields = ::std::vec::Vec::with_capacity(22);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "is_lnk",
@@ -716,6 +718,11 @@ impl Lnk {
             |m: &Lnk| { &m.tracker_data },
             |m: &mut Lnk| { &mut m.tracker_data },
         ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "target_id_list",
+            |m: &Lnk| { &m.target_id_list },
+            |m: &mut Lnk| { &mut m.target_id_list },
+        ));
         ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<Lnk>(
             "Lnk",
             fields,
@@ -732,6 +739,11 @@ impl ::protobuf::Message for Lnk {
             return false;
         }
         for v in &self.tracker_data {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.target_id_list {
             if !v.is_initialized() {
                 return false;
             }
@@ -804,6 +816,9 @@ impl ::protobuf::Message for Lnk {
                 },
                 170 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.tracker_data)?;
+                },
+                178 => {
+                    self.target_id_list.push(is.read_message()?);
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -881,6 +896,10 @@ impl ::protobuf::Message for Lnk {
             let len = v.compute_size();
             my_size += 2 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         }
+        for value in &self.target_id_list {
+            let len = value.compute_size();
+            my_size += 2 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
         my_size
@@ -950,6 +969,9 @@ impl ::protobuf::Message for Lnk {
         if let Some(v) = self.tracker_data.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(21, v, os)?;
         }
+        for v in &self.target_id_list {
+            ::protobuf::rt::write_message_field_with_cached_size(22, v, os)?;
+        };
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -988,6 +1010,7 @@ impl ::protobuf::Message for Lnk {
         self.overlay_size = ::std::option::Option::None;
         self.overlay_offset = ::std::option::Option::None;
         self.tracker_data.clear();
+        self.target_id_list.clear();
         self.special_fields.clear();
     }
 
@@ -1014,6 +1037,7 @@ impl ::protobuf::Message for Lnk {
             overlay_size: ::std::option::Option::None,
             overlay_offset: ::std::option::Option::None,
             tracker_data: ::protobuf::MessageField::none(),
+            target_id_list: ::std::vec::Vec::new(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -1034,6 +1058,525 @@ impl ::std::fmt::Display for Lnk {
 }
 
 impl ::protobuf::reflect::ProtobufValue for Lnk {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
+// @@protoc_insertion_point(message:lnk.ShellItem)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct ShellItem {
+    // message fields
+    // @@protoc_insertion_point(field:lnk.ShellItem.item_type)
+    pub item_type: ::std::option::Option<u32>,
+    // @@protoc_insertion_point(field:lnk.ShellItem.data)
+    pub data: ::std::option::Option<::std::vec::Vec<u8>>,
+    // @@protoc_insertion_point(field:lnk.ShellItem.cpl_file_path)
+    pub cpl_file_path: ::std::option::Option<::std::string::String>,
+    // @@protoc_insertion_point(field:lnk.ShellItem.root_folder_id)
+    pub root_folder_id: ::std::option::Option<::std::string::String>,
+    // @@protoc_insertion_point(field:lnk.ShellItem.volume_name)
+    pub volume_name: ::std::option::Option<::std::string::String>,
+    // @@protoc_insertion_point(field:lnk.ShellItem.volume_id)
+    pub volume_id: ::std::option::Option<::std::string::String>,
+    // @@protoc_insertion_point(field:lnk.ShellItem.file_entry_name)
+    pub file_entry_name: ::std::option::Option<::std::string::String>,
+    // @@protoc_insertion_point(field:lnk.ShellItem.network_location)
+    pub network_location: ::std::option::Option<::std::string::String>,
+    // special fields
+    // @@protoc_insertion_point(special_field:lnk.ShellItem.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a ShellItem {
+    fn default() -> &'a ShellItem {
+        <ShellItem as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl ShellItem {
+    pub fn new() -> ShellItem {
+        ::std::default::Default::default()
+    }
+
+    // optional uint32 item_type = 1;
+
+    pub fn item_type(&self) -> u32 {
+        self.item_type.unwrap_or(0)
+    }
+
+    pub fn clear_item_type(&mut self) {
+        self.item_type = ::std::option::Option::None;
+    }
+
+    pub fn has_item_type(&self) -> bool {
+        self.item_type.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_item_type(&mut self, v: u32) {
+        self.item_type = ::std::option::Option::Some(v);
+    }
+
+    // optional bytes data = 2;
+
+    pub fn data(&self) -> &[u8] {
+        match self.data.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_data(&mut self) {
+        self.data = ::std::option::Option::None;
+    }
+
+    pub fn has_data(&self) -> bool {
+        self.data.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_data(&mut self, v: ::std::vec::Vec<u8>) {
+        self.data = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_data(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.data.is_none() {
+            self.data = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.data.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_data(&mut self) -> ::std::vec::Vec<u8> {
+        self.data.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
+    // optional string cpl_file_path = 3;
+
+    pub fn cpl_file_path(&self) -> &str {
+        match self.cpl_file_path.as_ref() {
+            Some(v) => v,
+            None => "",
+        }
+    }
+
+    pub fn clear_cpl_file_path(&mut self) {
+        self.cpl_file_path = ::std::option::Option::None;
+    }
+
+    pub fn has_cpl_file_path(&self) -> bool {
+        self.cpl_file_path.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_cpl_file_path(&mut self, v: ::std::string::String) {
+        self.cpl_file_path = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_cpl_file_path(&mut self) -> &mut ::std::string::String {
+        if self.cpl_file_path.is_none() {
+            self.cpl_file_path = ::std::option::Option::Some(::std::string::String::new());
+        }
+        self.cpl_file_path.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_cpl_file_path(&mut self) -> ::std::string::String {
+        self.cpl_file_path.take().unwrap_or_else(|| ::std::string::String::new())
+    }
+
+    // optional string root_folder_id = 4;
+
+    pub fn root_folder_id(&self) -> &str {
+        match self.root_folder_id.as_ref() {
+            Some(v) => v,
+            None => "",
+        }
+    }
+
+    pub fn clear_root_folder_id(&mut self) {
+        self.root_folder_id = ::std::option::Option::None;
+    }
+
+    pub fn has_root_folder_id(&self) -> bool {
+        self.root_folder_id.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_root_folder_id(&mut self, v: ::std::string::String) {
+        self.root_folder_id = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_root_folder_id(&mut self) -> &mut ::std::string::String {
+        if self.root_folder_id.is_none() {
+            self.root_folder_id = ::std::option::Option::Some(::std::string::String::new());
+        }
+        self.root_folder_id.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_root_folder_id(&mut self) -> ::std::string::String {
+        self.root_folder_id.take().unwrap_or_else(|| ::std::string::String::new())
+    }
+
+    // optional string volume_name = 5;
+
+    pub fn volume_name(&self) -> &str {
+        match self.volume_name.as_ref() {
+            Some(v) => v,
+            None => "",
+        }
+    }
+
+    pub fn clear_volume_name(&mut self) {
+        self.volume_name = ::std::option::Option::None;
+    }
+
+    pub fn has_volume_name(&self) -> bool {
+        self.volume_name.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_volume_name(&mut self, v: ::std::string::String) {
+        self.volume_name = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_volume_name(&mut self) -> &mut ::std::string::String {
+        if self.volume_name.is_none() {
+            self.volume_name = ::std::option::Option::Some(::std::string::String::new());
+        }
+        self.volume_name.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_volume_name(&mut self) -> ::std::string::String {
+        self.volume_name.take().unwrap_or_else(|| ::std::string::String::new())
+    }
+
+    // optional string volume_id = 6;
+
+    pub fn volume_id(&self) -> &str {
+        match self.volume_id.as_ref() {
+            Some(v) => v,
+            None => "",
+        }
+    }
+
+    pub fn clear_volume_id(&mut self) {
+        self.volume_id = ::std::option::Option::None;
+    }
+
+    pub fn has_volume_id(&self) -> bool {
+        self.volume_id.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_volume_id(&mut self, v: ::std::string::String) {
+        self.volume_id = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_volume_id(&mut self) -> &mut ::std::string::String {
+        if self.volume_id.is_none() {
+            self.volume_id = ::std::option::Option::Some(::std::string::String::new());
+        }
+        self.volume_id.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_volume_id(&mut self) -> ::std::string::String {
+        self.volume_id.take().unwrap_or_else(|| ::std::string::String::new())
+    }
+
+    // optional string file_entry_name = 7;
+
+    pub fn file_entry_name(&self) -> &str {
+        match self.file_entry_name.as_ref() {
+            Some(v) => v,
+            None => "",
+        }
+    }
+
+    pub fn clear_file_entry_name(&mut self) {
+        self.file_entry_name = ::std::option::Option::None;
+    }
+
+    pub fn has_file_entry_name(&self) -> bool {
+        self.file_entry_name.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_file_entry_name(&mut self, v: ::std::string::String) {
+        self.file_entry_name = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_file_entry_name(&mut self) -> &mut ::std::string::String {
+        if self.file_entry_name.is_none() {
+            self.file_entry_name = ::std::option::Option::Some(::std::string::String::new());
+        }
+        self.file_entry_name.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_file_entry_name(&mut self) -> ::std::string::String {
+        self.file_entry_name.take().unwrap_or_else(|| ::std::string::String::new())
+    }
+
+    // optional string network_location = 8;
+
+    pub fn network_location(&self) -> &str {
+        match self.network_location.as_ref() {
+            Some(v) => v,
+            None => "",
+        }
+    }
+
+    pub fn clear_network_location(&mut self) {
+        self.network_location = ::std::option::Option::None;
+    }
+
+    pub fn has_network_location(&self) -> bool {
+        self.network_location.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_network_location(&mut self, v: ::std::string::String) {
+        self.network_location = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_network_location(&mut self) -> &mut ::std::string::String {
+        if self.network_location.is_none() {
+            self.network_location = ::std::option::Option::Some(::std::string::String::new());
+        }
+        self.network_location.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_network_location(&mut self) -> ::std::string::String {
+        self.network_location.take().unwrap_or_else(|| ::std::string::String::new())
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(8);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "item_type",
+            |m: &ShellItem| { &m.item_type },
+            |m: &mut ShellItem| { &mut m.item_type },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "data",
+            |m: &ShellItem| { &m.data },
+            |m: &mut ShellItem| { &mut m.data },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "cpl_file_path",
+            |m: &ShellItem| { &m.cpl_file_path },
+            |m: &mut ShellItem| { &mut m.cpl_file_path },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "root_folder_id",
+            |m: &ShellItem| { &m.root_folder_id },
+            |m: &mut ShellItem| { &mut m.root_folder_id },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "volume_name",
+            |m: &ShellItem| { &m.volume_name },
+            |m: &mut ShellItem| { &mut m.volume_name },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "volume_id",
+            |m: &ShellItem| { &m.volume_id },
+            |m: &mut ShellItem| { &mut m.volume_id },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "file_entry_name",
+            |m: &ShellItem| { &m.file_entry_name },
+            |m: &mut ShellItem| { &mut m.file_entry_name },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "network_location",
+            |m: &ShellItem| { &m.network_location },
+            |m: &mut ShellItem| { &mut m.network_location },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<ShellItem>(
+            "ShellItem",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for ShellItem {
+    const NAME: &'static str = "ShellItem";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                8 => {
+                    self.item_type = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                18 => {
+                    self.data = ::std::option::Option::Some(is.read_bytes()?);
+                },
+                26 => {
+                    self.cpl_file_path = ::std::option::Option::Some(is.read_string()?);
+                },
+                34 => {
+                    self.root_folder_id = ::std::option::Option::Some(is.read_string()?);
+                },
+                42 => {
+                    self.volume_name = ::std::option::Option::Some(is.read_string()?);
+                },
+                50 => {
+                    self.volume_id = ::std::option::Option::Some(is.read_string()?);
+                },
+                58 => {
+                    self.file_entry_name = ::std::option::Option::Some(is.read_string()?);
+                },
+                66 => {
+                    self.network_location = ::std::option::Option::Some(is.read_string()?);
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if let Some(v) = self.item_type {
+            my_size += ::protobuf::rt::uint32_size(1, v);
+        }
+        if let Some(v) = self.data.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(2, &v);
+        }
+        if let Some(v) = self.cpl_file_path.as_ref() {
+            my_size += ::protobuf::rt::string_size(3, &v);
+        }
+        if let Some(v) = self.root_folder_id.as_ref() {
+            my_size += ::protobuf::rt::string_size(4, &v);
+        }
+        if let Some(v) = self.volume_name.as_ref() {
+            my_size += ::protobuf::rt::string_size(5, &v);
+        }
+        if let Some(v) = self.volume_id.as_ref() {
+            my_size += ::protobuf::rt::string_size(6, &v);
+        }
+        if let Some(v) = self.file_entry_name.as_ref() {
+            my_size += ::protobuf::rt::string_size(7, &v);
+        }
+        if let Some(v) = self.network_location.as_ref() {
+            my_size += ::protobuf::rt::string_size(8, &v);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if let Some(v) = self.item_type {
+            os.write_uint32(1, v)?;
+        }
+        if let Some(v) = self.data.as_ref() {
+            os.write_bytes(2, v)?;
+        }
+        if let Some(v) = self.cpl_file_path.as_ref() {
+            os.write_string(3, v)?;
+        }
+        if let Some(v) = self.root_folder_id.as_ref() {
+            os.write_string(4, v)?;
+        }
+        if let Some(v) = self.volume_name.as_ref() {
+            os.write_string(5, v)?;
+        }
+        if let Some(v) = self.volume_id.as_ref() {
+            os.write_string(6, v)?;
+        }
+        if let Some(v) = self.file_entry_name.as_ref() {
+            os.write_string(7, v)?;
+        }
+        if let Some(v) = self.network_location.as_ref() {
+            os.write_string(8, v)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> ShellItem {
+        ShellItem::new()
+    }
+
+    fn clear(&mut self) {
+        self.item_type = ::std::option::Option::None;
+        self.data = ::std::option::Option::None;
+        self.cpl_file_path = ::std::option::Option::None;
+        self.root_folder_id = ::std::option::Option::None;
+        self.volume_name = ::std::option::Option::None;
+        self.volume_id = ::std::option::Option::None;
+        self.file_entry_name = ::std::option::Option::None;
+        self.network_location = ::std::option::Option::None;
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static ShellItem {
+        static instance: ShellItem = ShellItem {
+            item_type: ::std::option::Option::None,
+            data: ::std::option::Option::None,
+            cpl_file_path: ::std::option::Option::None,
+            root_folder_id: ::std::option::Option::None,
+            volume_name: ::std::option::Option::None,
+            volume_id: ::std::option::Option::None,
+            file_entry_name: ::std::option::Option::None,
+            network_location: ::std::option::Option::None,
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for ShellItem {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("ShellItem").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for ShellItem {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for ShellItem {
     type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
 }
 
@@ -1752,7 +2295,7 @@ impl DriveType {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\tlnk.proto\x12\x03lnk\x1a\nyara.proto\"\x95\x06\n\x03Lnk\x12\x15\n\
+    \n\tlnk.proto\x12\x03lnk\x1a\nyara.proto\"\xcb\x06\n\x03Lnk\x12\x15\n\
     \x06is_lnk\x18\x01\x20\x02(\x08R\x05isLnk\x12\x12\n\x04name\x18\x02\x20\
     \x01(\tR\x04name\x12#\n\rcreation_time\x18\x03\x20\x01(\x04R\x0ccreation\
     Time\x12\x1f\n\x0baccess_time\x18\x04\x20\x01(\x04R\naccessTime\x12\x1d\
@@ -1770,29 +2313,36 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     orkingDir\x12\"\n\rcmd_line_args\x18\x12\x20\x01(\tR\x0bcmdLineArgs\x12!\
     \n\x0coverlay_size\x18\x13\x20\x01(\x04R\x0boverlaySize\x12%\n\x0eoverla\
     y_offset\x18\x14\x20\x01(\x04R\roverlayOffset\x123\n\x0ctracker_data\x18\
-    \x15\x20\x01(\x0b2\x10.lnk.TrackerDataR\x0btrackerData\"\xf4\x01\n\x0bTr\
-    ackerData\x12\x18\n\x07version\x18\x01\x20\x01(\rR\x07version\x12\x1d\n\
-    \nmachine_id\x18\x02\x20\x01(\tR\tmachineId\x12&\n\x0fdroid_volume_id\
-    \x18\x03\x20\x01(\tR\rdroidVolumeId\x12\"\n\rdroid_file_id\x18\x04\x20\
-    \x01(\tR\x0bdroidFileId\x121\n\x15droid_birth_volume_id\x18\x05\x20\x01(\
-    \tR\x12droidBirthVolumeId\x12-\n\x13droid_birth_file_id\x18\x06\x20\x01(\
-    \tR\x10droidBirthFileId*\xca\x03\n\x0eFileAttributes\x12\x1b\n\x17FILE_A\
-    TTRIBUTE_READONLY\x10\x01\x12\x19\n\x15FILE_ATTRIBUTE_HIDDEN\x10\x02\x12\
-    \x19\n\x15FILE_ATTRIBUTE_SYSTEM\x10\x04\x12\x0e\n\nRESERVED_1\x10\x08\
-    \x12\x1c\n\x18FILE_ATTRIBUTE_DIRECTORY\x10\x10\x12\x1a\n\x16FILE_ATTRIBU\
-    TE_ARCHIVE\x10\x20\x12\x0e\n\nRESERVED_2\x10@\x12\x1a\n\x15FILE_ATTRIBUT\
-    E_NORMAL\x10\x80\x01\x12\x1d\n\x18FILE_ATTRIBUTE_TEMPORARY\x10\x80\x02\
-    \x12\x1f\n\x1aFILE_ATTRIBUTE_SPARSE_FILE\x10\x80\x04\x12!\n\x1cFILE_ATTR\
-    IBUTE_REPARSE_POINT\x10\x80\x08\x12\x1e\n\x19FILE_ATTRIBUTE_COMPRESSED\
-    \x10\x80\x10\x12\x1b\n\x16FILE_ATTRIBUTE_OFFLINE\x10\x80\x20\x12'\n\"FIL\
-    E_ATTRIBUTE_NOT_CONTENT_INDEXED\x10\x80@\x12\x1e\n\x18FILE_ATTRIBUTE_ENC\
-    RYPTED\x10\x80\x80\x01\x1a\x06\x92\x93\x19\x02\x10\x01*;\n\x0bShowComman\
-    d\x12\n\n\x06NORMAL\x10\x01\x12\r\n\tMAXIMIZED\x10\x03\x12\x11\n\rMIN_NO\
-    _ACTIVE\x10\x07*g\n\tDriveType\x12\x0b\n\x07UNKNOWN\x10\0\x12\x0f\n\x0bN\
-    O_ROOT_DIR\x10\x01\x12\r\n\tREMOVABLE\x10\x02\x12\t\n\x05FIXED\x10\x03\
-    \x12\n\n\x06REMOTE\x10\x04\x12\t\n\x05CDROM\x10\x05\x12\x0b\n\x07RAMDISK\
-    \x10\x06B\x1e\xfa\x92\x19\x1a\n\x03lnk\x12\x07lnk.Lnk\x1a\nlnk-moduleb\
-    \x06proto2\
+    \x15\x20\x01(\x0b2\x10.lnk.TrackerDataR\x0btrackerData\x124\n\x0etarget_\
+    id_list\x18\x16\x20\x03(\x0b2\x0e.lnk.ShellItemR\x0ctargetIdList\"\x97\
+    \x02\n\tShellItem\x12\x1b\n\titem_type\x18\x01\x20\x01(\rR\x08itemType\
+    \x12\x12\n\x04data\x18\x02\x20\x01(\x0cR\x04data\x12\"\n\rcpl_file_path\
+    \x18\x03\x20\x01(\tR\x0bcplFilePath\x12$\n\x0eroot_folder_id\x18\x04\x20\
+    \x01(\tR\x0crootFolderId\x12\x1f\n\x0bvolume_name\x18\x05\x20\x01(\tR\nv\
+    olumeName\x12\x1b\n\tvolume_id\x18\x06\x20\x01(\tR\x08volumeId\x12&\n\
+    \x0ffile_entry_name\x18\x07\x20\x01(\tR\rfileEntryName\x12)\n\x10network\
+    _location\x18\x08\x20\x01(\tR\x0fnetworkLocation\"\xf4\x01\n\x0bTrackerD\
+    ata\x12\x18\n\x07version\x18\x01\x20\x01(\rR\x07version\x12\x1d\n\nmachi\
+    ne_id\x18\x02\x20\x01(\tR\tmachineId\x12&\n\x0fdroid_volume_id\x18\x03\
+    \x20\x01(\tR\rdroidVolumeId\x12\"\n\rdroid_file_id\x18\x04\x20\x01(\tR\
+    \x0bdroidFileId\x121\n\x15droid_birth_volume_id\x18\x05\x20\x01(\tR\x12d\
+    roidBirthVolumeId\x12-\n\x13droid_birth_file_id\x18\x06\x20\x01(\tR\x10d\
+    roidBirthFileId*\xca\x03\n\x0eFileAttributes\x12\x1b\n\x17FILE_ATTRIBUTE\
+    _READONLY\x10\x01\x12\x19\n\x15FILE_ATTRIBUTE_HIDDEN\x10\x02\x12\x19\n\
+    \x15FILE_ATTRIBUTE_SYSTEM\x10\x04\x12\x0e\n\nRESERVED_1\x10\x08\x12\x1c\
+    \n\x18FILE_ATTRIBUTE_DIRECTORY\x10\x10\x12\x1a\n\x16FILE_ATTRIBUTE_ARCHI\
+    VE\x10\x20\x12\x0e\n\nRESERVED_2\x10@\x12\x1a\n\x15FILE_ATTRIBUTE_NORMAL\
+    \x10\x80\x01\x12\x1d\n\x18FILE_ATTRIBUTE_TEMPORARY\x10\x80\x02\x12\x1f\n\
+    \x1aFILE_ATTRIBUTE_SPARSE_FILE\x10\x80\x04\x12!\n\x1cFILE_ATTRIBUTE_REPA\
+    RSE_POINT\x10\x80\x08\x12\x1e\n\x19FILE_ATTRIBUTE_COMPRESSED\x10\x80\x10\
+    \x12\x1b\n\x16FILE_ATTRIBUTE_OFFLINE\x10\x80\x20\x12'\n\"FILE_ATTRIBUTE_\
+    NOT_CONTENT_INDEXED\x10\x80@\x12\x1e\n\x18FILE_ATTRIBUTE_ENCRYPTED\x10\
+    \x80\x80\x01\x1a\x06\x92\x93\x19\x02\x10\x01*;\n\x0bShowCommand\x12\n\n\
+    \x06NORMAL\x10\x01\x12\r\n\tMAXIMIZED\x10\x03\x12\x11\n\rMIN_NO_ACTIVE\
+    \x10\x07*g\n\tDriveType\x12\x0b\n\x07UNKNOWN\x10\0\x12\x0f\n\x0bNO_ROOT_\
+    DIR\x10\x01\x12\r\n\tREMOVABLE\x10\x02\x12\t\n\x05FIXED\x10\x03\x12\n\n\
+    \x06REMOTE\x10\x04\x12\t\n\x05CDROM\x10\x05\x12\x0b\n\x07RAMDISK\x10\x06\
+    B\x1e\xfa\x92\x19\x1a\n\x03lnk\x12\x07lnk.Lnk\x1a\nlnk-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -1811,8 +2361,9 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
         let generated_file_descriptor = generated_file_descriptor_lazy.get(|| {
             let mut deps = ::std::vec::Vec::with_capacity(1);
             deps.push(super::yara::file_descriptor().clone());
-            let mut messages = ::std::vec::Vec::with_capacity(2);
+            let mut messages = ::std::vec::Vec::with_capacity(3);
             messages.push(Lnk::generated_message_descriptor_data());
+            messages.push(ShellItem::generated_message_descriptor_data());
             messages.push(TrackerData::generated_message_descriptor_data());
             let mut enums = ::std::vec::Vec::with_capacity(3);
             enums.push(FileAttributes::generated_enum_descriptor_data());
