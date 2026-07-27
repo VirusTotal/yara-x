@@ -44,6 +44,29 @@ enum DriveType {
   RAMDISK       = 0x00000006;
 }
 
+// Category of a shell item, derived from its class type indicator byte.
+//
+// The values are the class type indicators defined in the reverse-engineered
+// "Windows Shell Item format" documentation by Joachim Metz (libfwsi) and used
+// by the LnkParse3 implementation. For the volume, file entry and network
+// location items the class type indicator is a range (0x20-0x2F, 0x30-0x3F and
+// 0x40-0x4F respectively); the value here is the base of the range (0x20, 0x30
+// and 0x40) obtained by masking the class type indicator with 0x70.
+enum ShellItemType {
+  CONTROL_PANEL_CPL      = 0x00;
+  CONTROL_PANEL_CATEGORY = 0x01;
+  ROOT_FOLDER            = 0x1F;
+  VOLUME                 = 0x20;
+  FILE_ENTRY             = 0x30;
+  NETWORK_LOCATION       = 0x40;
+  COMPRESSED_FOLDER      = 0x52;
+  URI                    = 0x61;
+  CONTROL_PANEL          = 0x71;
+  PRINTERS               = 0x72;
+  COMMON_PLACES_FOLDER   = 0x73;
+  USERS_FILES_FOLDER     = 0x74;
+}
+
 message Lnk {
   // True if the file is a LNK file.
   required bool is_lnk = 1;
@@ -118,10 +141,7 @@ message Lnk {
 
   // Shell items parsed from the link target ID list (LINKTARGET_IDLIST). This
   // list describes the target of the shortcut as a chain of shell items (root
-  // folder, volume, file entry, control panel item, etc.). It often contains
-  // the only meaningful information in shortcuts that lack a LINKINFO or
-  // STRING_DATA block, such as the control panel shortcuts abused by
-  // CVE-2010-2568.
+  // folder, volume, file entry, control panel item, etc.).
   repeated ShellItem target_id_list = 22;
 }
 
@@ -136,39 +156,44 @@ message Lnk {
 //
 // The fields are ordered by the `item_type` (range) they are extracted from.
 message ShellItem {
-  // Shell item class type indicator: the byte that identifies the kind of
-  // shell item (e.g. 0x00 control panel CPL file, 0x1F root folder).
-  optional uint32 item_type = 1;
+  // Type (category) of the shell item, derived from the class type indicator
+  // byte. Set when the class type indicator maps to a known category.
+  optional ShellItemType item_type = 1;
+
+  // Raw class type indicator byte, formatted in hexadecimal. Always populated
+  // (even when `item_type` is set), so rules can match on the exact numeric
+  // type of a shell item, including unrecognized ones.
+  optional uint32 item_type_code = 2 [(yara.field_options).fmt = "x"];
 
   // The raw class type specific data of the shell item: all the bytes that
-  // follow the `item_type` byte. Always populated, which allows rules to match
-  // on shell items whose type is not decoded into a dedicated field below.
-  optional bytes data = 2;
+  // follow the class type indicator byte. Always populated, which allows rules
+  // to match on shell items whose type is not decoded into a dedicated field
+  // below.
+  optional bytes data = 3;
 
   // Path to the control panel CPL file. Populated for control panel CPL file
-  // shell items (item_type 0x00). This is the file that gets loaded, and the
-  // field abused by CVE-2010-2568 to point to an arbitrary DLL.
-  optional string cpl_file_path = 3;
+  // shell items (item_type CONTROL_PANEL_CPL).
+  optional string cpl_file_path = 4;
 
   // Shell folder identifier (a GUID). Populated for root folder shell items
-  // (item_type 0x1E/0x1F).
-  optional string root_folder_id = 4;
+  // (item_type ROOT_FOLDER).
+  optional string root_folder_id = 5;
 
-  // Volume name. Populated for volume shell items (item_type 0x20-0x2F) that
+  // Volume name. Populated for volume shell items (item_type VOLUME) that
   // carry a name.
-  optional string volume_name = 5;
+  optional string volume_name = 6;
 
   // Volume identifier (a GUID). Populated for volume shell items
-  // (item_type 0x20-0x2F) that carry an identifier instead of a name.
-  optional string volume_id = 6;
+  // (item_type VOLUME) that carry an identifier instead of a name.
+  optional string volume_id = 7;
 
   // File or directory name. Populated for file entry shell items
-  // (item_type 0x30-0x3F).
-  optional string file_entry_name = 7;
+  // (item_type FILE_ENTRY).
+  optional string file_entry_name = 8;
 
   // Network location (usually a UNC path). Populated for network location
-  // shell items (item_type 0x40-0x4F).
-  optional string network_location = 8;
+  // shell items (item_type NETWORK_LOCATION).
+  optional string network_location = 9;
 }
 
 // This structure contains data that can be used to resolve a link target if it

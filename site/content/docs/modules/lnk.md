@@ -63,16 +63,17 @@ always populated, so rules can match on shell item types that are not decoded
 into a dedicated field. The fields are listed in order of the `item_type` they
 belong to.
 
-| Field            | Type    | Description                                                                                                                                          |
-|------------------|---------|------------------------------------------------------------------------------------------------------------------------------------------------------|
-| item_type        | integer | Shell item class type indicator, the byte that identifies the kind of shell item (e.g. 0x00 control panel CPL file, 0x1F root folder).                |
-| data             | string  | Raw class type specific data: all the bytes that follow the `item_type` byte. Always populated, so rules can match on shell items whose type is not decoded into a dedicated field. |
-| cpl_file_path    | string  | Path to the control panel CPL file. Populated for control panel CPL file shell items (item_type 0x00). This field is abused by CVE-2010-2568 to point to an arbitrary DLL. |
-| root_folder_id   | string  | Shell folder identifier (a GUID). Populated for root folder shell items (item_type 0x1E/0x1F).                                                       |
-| volume_name      | string  | Volume name. Populated for volume shell items (item_type 0x20-0x2F) that carry a name.                                                               |
-| volume_id        | string  | Volume identifier (a GUID). Populated for volume shell items (item_type 0x20-0x2F) that carry an identifier instead of a name.                       |
-| file_entry_name  | string  | File or directory name. Populated for file entry shell items (item_type 0x30-0x3F).                                                                 |
-| network_location | string  | Network location, usually a UNC path. Populated for network location shell items (item_type 0x40-0x4F).                                             |
+| Field            | Type                          | Description                                                                                                                                          |
+|------------------|-------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
+| item_type        | [ShellItemType](#shellitemtype) | Category of the shell item, derived from its class type indicator byte. Set when the class type indicator maps to a known category.                  |
+| item_type_code   | integer                       | Raw class type indicator byte (displayed in hexadecimal). Always populated, so rules can match on the exact numeric type of a shell item, including unrecognized ones. |
+| data             | string                        | Raw class type specific data: all the bytes that follow the class type indicator byte. Always populated, so rules can match on shell items whose type is not decoded into a dedicated field. |
+| cpl_file_path    | string                        | Path to the control panel CPL file. Populated for control panel CPL file shell items (item_type CONTROL_PANEL_CPL). This field is abused by CVE-2010-2568 to point to an arbitrary DLL. |
+| root_folder_id   | string                        | Shell folder identifier (a GUID). Populated for root folder shell items (item_type ROOT_FOLDER).                                                     |
+| volume_name      | string                        | Volume name. Populated for volume shell items (item_type VOLUME) that carry a name.                                                                  |
+| volume_id        | string                        | Volume identifier (a GUID). Populated for volume shell items (item_type VOLUME) that carry an identifier instead of a name.                          |
+| file_entry_name  | string                        | File or directory name. Populated for file entry shell items (item_type FILE_ENTRY).                                                                |
+| network_location | string                        | Network location, usually a UNC path. Populated for network location shell items (item_type NETWORK_LOCATION).                                       |
 
 #### Example
 
@@ -82,10 +83,34 @@ import "lnk"
 rule lnk_suspicious_cpl_target {
     condition:
         for any item in lnk.target_id_list : (
+            item.item_type == lnk.ShellItemType.CONTROL_PANEL_CPL and
             item.cpl_file_path endswith ".dll"
         )
 }
 ````
+
+### ShellItemType
+
+These are the possible values for the `item_type` field of a
+[ShellItem](#shellitem). The values are the class type indicators from the
+Windows Shell Item format; for the volume, file entry and network location
+items (whose class type indicator is a range) the value is the base of the
+range.
+
+| Name                                | Value |
+|-------------------------------------|------:|
+| ShellItemType.CONTROL_PANEL_CPL     |  0x00 |
+| ShellItemType.CONTROL_PANEL_CATEGORY|  0x01 |
+| ShellItemType.ROOT_FOLDER           |  0x1F |
+| ShellItemType.VOLUME                |  0x20 |
+| ShellItemType.FILE_ENTRY            |  0x30 |
+| ShellItemType.NETWORK_LOCATION      |  0x40 |
+| ShellItemType.COMPRESSED_FOLDER     |  0x52 |
+| ShellItemType.URI                   |  0x61 |
+| ShellItemType.CONTROL_PANEL         |  0x71 |
+| ShellItemType.PRINTERS              |  0x72 |
+| ShellItemType.COMMON_PLACES_FOLDER  |  0x73 |
+| ShellItemType.USERS_FILES_FOLDER    |  0x74 |
 
 ### TrackerData
 

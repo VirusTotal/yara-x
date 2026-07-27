@@ -14,7 +14,7 @@ use uuid::Uuid;
 type NomError<'a> = nom::error::Error<&'a [u8]>;
 
 use crate::modules::protos::lnk::{
-    DriveType, Lnk, ShellItem, ShowCommand, TrackerData,
+    DriveType, Lnk, ShellItem, ShellItemType, ShowCommand, TrackerData,
 };
 
 /// A Windows LNK file parser.
@@ -249,6 +249,34 @@ impl LnkParser {
         }
     }
 
+    /// Maps a shell item class type indicator to a [`ShellItemType`]
+    /// category. The mapping follows the type-indicator table in the
+    /// reverse-engineered shell item format documentation and the LnkParse3
+    /// implementation: the volume (0x20-0x2F), file entry (0x30-0x3F) and
+    /// network location (0x40-0x4F) items are identified by masking the class
+    /// type indicator with 0x70, while the remaining categories are matched
+    /// exactly. Returns `None` when the class type indicator is not
+    /// recognized.
+    fn classify_shell_item(class: u8) -> Option<ShellItemType> {
+        match class & 0x70 {
+            0x20 => Some(ShellItemType::VOLUME),
+            0x30 => Some(ShellItemType::FILE_ENTRY),
+            0x40 => Some(ShellItemType::NETWORK_LOCATION),
+            _ => match class {
+                0x00 => Some(ShellItemType::CONTROL_PANEL_CPL),
+                0x01 => Some(ShellItemType::CONTROL_PANEL_CATEGORY),
+                0x1E | 0x1F => Some(ShellItemType::ROOT_FOLDER),
+                0x52 => Some(ShellItemType::COMPRESSED_FOLDER),
+                0x61 => Some(ShellItemType::URI),
+                0x70 | 0x71 => Some(ShellItemType::CONTROL_PANEL),
+                0x72 => Some(ShellItemType::PRINTERS),
+                0x73 => Some(ShellItemType::COMMON_PLACES_FOLDER),
+                0x74 => Some(ShellItemType::USERS_FILES_FOLDER),
+                _ => None,
+            },
+        }
+    }
+
     /// Parses a single shell item (the `Data` field of an `ItemID`, without
     /// the leading `ItemIDSize` field) and appends the extracted information
     /// to the result.
@@ -277,11 +305,17 @@ impl LnkParser {
         };
 
         let mut item = ShellItem::new();
-        item.item_type = Some(class as u32);
-        // Always expose the raw class type specific data (everything after the
-        // class type indicator) so rules can match on shell item types that
-        // are not decoded into a dedicated field below.
+        // Always expose the raw class type indicator byte and the raw class
+        // type specific data (everything after the class type indicator) so
+        // rules can match on shell item types that are not decoded into a
+        // dedicated field below.
+        item.item_type_code = Some(class as u32);
         item.data = Some(data.get(1..).unwrap_or_default().to_vec());
+
+        // Set the category when the class type indicator maps to a known one.
+        if let Some(item_type) = Self::classify_shell_item(class) {
+            item.item_type = Some(EnumOrUnknown::new(item_type));
+        }
 
         match class {
             // Control panel CPL file shell item. Contains the path to the CPL
@@ -717,7 +751,10 @@ mod tests {
     fn test_filetime_to_unix_timestamp() {
         assert_eq!(filetime_to_unix_timestamp(0), None);
         assert_eq!(filetime_to_unix_timestamp(116444736000000000), Some(0));
-        assert_eq!(filetime_to_unix_timestamp(116444736000000000 + 10000000), Some(1));
+        assert_eq!(
+            filetime_to_unix_timestamp(116444736000000000 + 10000000),
+            Some(1)
+        );
     }
 
     #[test]
