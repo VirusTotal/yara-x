@@ -400,7 +400,10 @@ impl<W: Write> Serializer<W> {
             }
             ReflectValueRef::Enum(d, v) => match d.value_by_number(*v) {
                 Some(e) => write!(self.output, "{}", e.name())?,
-                None => write!(self.output, "{v}")?,
+                None => match get_field_format(field) {
+                    FieldFormat::Hex => write!(self.output, "0x{v:x}")?,
+                    _ => write!(self.output, "{v}")?,
+                },
             },
             ReflectValueRef::Message(msg) => self.write_msg(msg)?,
         }

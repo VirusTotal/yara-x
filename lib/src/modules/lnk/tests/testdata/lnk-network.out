@@ -17,3 +17,13 @@ tracker_data:
     droid_file_id: "9626757f-e43a-11ec-9776-0cdd24239e8a"
     droid_birth_volume_id: "d3575624-759e-423c-a55c-8b4ff424e1bc"
     droid_birth_file_id: "9626757f-e43a-11ec-9776-0cdd24239e8a"
+target_id_list:
+  - item_type: ROOT_FOLDER
+    data: "P\xe0O\xd0 \xea:i\x10\xa2\xd8\x08\x00+00\x9d"
+    root_folder_id: "20d04fe0-3aea-1069-a2d8-08002b30309d"
+  - item_type: VOLUME
+    data: "Z:\\\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    volume_name: "Z:\\"
+  - item_type: FILE_ENTRY
+    data: "\x00\x00l\x00\x00\x87O8I \x00calc.exe\x00\x00B\x00\t\x00\x04\x00\xef\xbe\xc5T1N\xc5T1N.\x00\x00\x00\x9cM\x01\x00\x00\x00\xb4\x00\x00\x00\x00\x00x\x00\x00\x00\x00\x00\x00\x00\x00\x00$\x13P\x00c\x00a\x00l\x00c\x00.\x00e\x00x\x00e\x00\x00\x00\x18\x00"
+    file_entry_name: "calc.exe"
