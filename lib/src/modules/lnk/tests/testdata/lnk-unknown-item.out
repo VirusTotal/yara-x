@@ -12,8 +12,7 @@ volume_label: ""
 local_base_path: "C:\\test\\a.txt"
 relative_path: ".\\a.txt"
 working_dir: "C:\\test"
-overlay_size: 12
-overlay_offset: 459
+overlay_size: 0
 tracker_data:
     version: 0
     machine_id: "chris-xps"
@@ -34,3 +33,5 @@ target_id_list:
   - item_type: FILE_ENTRY
     data: "\x00\x00\x00\x00\x00,9i\xa3 \x00a.txt\x004\x00\x07\x00\x04\x00\xef\xbe,9i\xa3,9i\xa3&\x00\x00\x00-n\x00\x00\x00\x00\x96\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00a\x00.\x00t\x00x\x00t\x00\x00\x00\x14\x00"
     file_entry_name: "a.txt"
+  - item_type: 0x88
+    data: "\xaa\xbb\xcc"

@@ -1067,8 +1067,6 @@ pub struct ShellItem {
     // message fields
     // @@protoc_insertion_point(field:lnk.ShellItem.item_type)
     pub item_type: ::std::option::Option<::protobuf::EnumOrUnknown<ShellItemType>>,
-    // @@protoc_insertion_point(field:lnk.ShellItem.item_type_code)
-    pub item_type_code: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:lnk.ShellItem.data)
     pub data: ::std::option::Option<::std::vec::Vec<u8>>,
     // @@protoc_insertion_point(field:lnk.ShellItem.cpl_file_path)
@@ -1119,25 +1117,6 @@ impl ShellItem {
     // Param is passed by value, moved
     pub fn set_item_type(&mut self, v: ShellItemType) {
         self.item_type = ::std::option::Option::Some(::protobuf::EnumOrUnknown::new(v));
-    }
-
-    // optional uint32 item_type_code = 2;
-
-    pub fn item_type_code(&self) -> u32 {
-        self.item_type_code.unwrap_or(0)
-    }
-
-    pub fn clear_item_type_code(&mut self) {
-        self.item_type_code = ::std::option::Option::None;
-    }
-
-    pub fn has_item_type_code(&self) -> bool {
-        self.item_type_code.is_some()
-    }
-
-    // Param is passed by value, moved
-    pub fn set_item_type_code(&mut self, v: u32) {
-        self.item_type_code = ::std::option::Option::Some(v);
     }
 
     // optional bytes data = 3;
@@ -1393,17 +1372,12 @@ impl ShellItem {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(9);
+        let mut fields = ::std::vec::Vec::with_capacity(8);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "item_type",
             |m: &ShellItem| { &m.item_type },
             |m: &mut ShellItem| { &mut m.item_type },
-        ));
-        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-            "item_type_code",
-            |m: &ShellItem| { &m.item_type_code },
-            |m: &mut ShellItem| { &mut m.item_type_code },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "data",
@@ -1461,9 +1435,6 @@ impl ::protobuf::Message for ShellItem {
                 8 => {
                     self.item_type = ::std::option::Option::Some(is.read_enum_or_unknown()?);
                 },
-                16 => {
-                    self.item_type_code = ::std::option::Option::Some(is.read_uint32()?);
-                },
                 26 => {
                     self.data = ::std::option::Option::Some(is.read_bytes()?);
                 },
@@ -1500,9 +1471,6 @@ impl ::protobuf::Message for ShellItem {
         if let Some(v) = self.item_type {
             my_size += ::protobuf::rt::int32_size(1, v.value());
         }
-        if let Some(v) = self.item_type_code {
-            my_size += ::protobuf::rt::uint32_size(2, v);
-        }
         if let Some(v) = self.data.as_ref() {
             my_size += ::protobuf::rt::bytes_size(3, &v);
         }
@@ -1532,9 +1500,6 @@ impl ::protobuf::Message for ShellItem {
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
         if let Some(v) = self.item_type {
             os.write_enum(1, ::protobuf::EnumOrUnknown::value(&v))?;
-        }
-        if let Some(v) = self.item_type_code {
-            os.write_uint32(2, v)?;
         }
         if let Some(v) = self.data.as_ref() {
             os.write_bytes(3, v)?;
@@ -1575,7 +1540,6 @@ impl ::protobuf::Message for ShellItem {
 
     fn clear(&mut self) {
         self.item_type = ::std::option::Option::None;
-        self.item_type_code = ::std::option::Option::None;
         self.data = ::std::option::Option::None;
         self.cpl_file_path = ::std::option::Option::None;
         self.root_folder_id = ::std::option::Option::None;
@@ -1589,7 +1553,6 @@ impl ::protobuf::Message for ShellItem {
     fn default_instance() -> &'static ShellItem {
         static instance: ShellItem = ShellItem {
             item_type: ::std::option::Option::None,
-            item_type_code: ::std::option::Option::None,
             data: ::std::option::Option::None,
             cpl_file_path: ::std::option::Option::None,
             root_folder_id: ::std::option::Option::None,
@@ -2479,43 +2442,42 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \n\x0coverlay_size\x18\x13\x20\x01(\x04R\x0boverlaySize\x12%\n\x0eoverla\
     y_offset\x18\x14\x20\x01(\x04R\roverlayOffset\x123\n\x0ctracker_data\x18\
     \x15\x20\x01(\x0b2\x10.lnk.TrackerDataR\x0btrackerData\x124\n\x0etarget_\
-    id_list\x18\x16\x20\x03(\x0b2\x0e.lnk.ShellItemR\x0ctargetIdList\"\xda\
-    \x02\n\tShellItem\x12/\n\titem_type\x18\x01\x20\x01(\x0e2\x12.lnk.ShellI\
-    temTypeR\x08itemType\x12-\n\x0eitem_type_code\x18\x02\x20\x01(\rR\x0cite\
-    mTypeCodeB\x07\x82\x93\x19\x03*\x01x\x12\x12\n\x04data\x18\x03\x20\x01(\
-    \x0cR\x04data\x12\"\n\rcpl_file_path\x18\x04\x20\x01(\tR\x0bcplFilePath\
-    \x12$\n\x0eroot_folder_id\x18\x05\x20\x01(\tR\x0crootFolderId\x12\x1f\n\
-    \x0bvolume_name\x18\x06\x20\x01(\tR\nvolumeName\x12\x1b\n\tvolume_id\x18\
-    \x07\x20\x01(\tR\x08volumeId\x12&\n\x0ffile_entry_name\x18\x08\x20\x01(\
-    \tR\rfileEntryName\x12)\n\x10network_location\x18\t\x20\x01(\tR\x0fnetwo\
-    rkLocation\"\xf4\x01\n\x0bTrackerData\x12\x18\n\x07version\x18\x01\x20\
-    \x01(\rR\x07version\x12\x1d\n\nmachine_id\x18\x02\x20\x01(\tR\tmachineId\
-    \x12&\n\x0fdroid_volume_id\x18\x03\x20\x01(\tR\rdroidVolumeId\x12\"\n\rd\
-    roid_file_id\x18\x04\x20\x01(\tR\x0bdroidFileId\x121\n\x15droid_birth_vo\
-    lume_id\x18\x05\x20\x01(\tR\x12droidBirthVolumeId\x12-\n\x13droid_birth_\
-    file_id\x18\x06\x20\x01(\tR\x10droidBirthFileId*\xca\x03\n\x0eFileAttrib\
-    utes\x12\x1b\n\x17FILE_ATTRIBUTE_READONLY\x10\x01\x12\x19\n\x15FILE_ATTR\
-    IBUTE_HIDDEN\x10\x02\x12\x19\n\x15FILE_ATTRIBUTE_SYSTEM\x10\x04\x12\x0e\
-    \n\nRESERVED_1\x10\x08\x12\x1c\n\x18FILE_ATTRIBUTE_DIRECTORY\x10\x10\x12\
-    \x1a\n\x16FILE_ATTRIBUTE_ARCHIVE\x10\x20\x12\x0e\n\nRESERVED_2\x10@\x12\
-    \x1a\n\x15FILE_ATTRIBUTE_NORMAL\x10\x80\x01\x12\x1d\n\x18FILE_ATTRIBUTE_\
-    TEMPORARY\x10\x80\x02\x12\x1f\n\x1aFILE_ATTRIBUTE_SPARSE_FILE\x10\x80\
-    \x04\x12!\n\x1cFILE_ATTRIBUTE_REPARSE_POINT\x10\x80\x08\x12\x1e\n\x19FIL\
-    E_ATTRIBUTE_COMPRESSED\x10\x80\x10\x12\x1b\n\x16FILE_ATTRIBUTE_OFFLINE\
-    \x10\x80\x20\x12'\n\"FILE_ATTRIBUTE_NOT_CONTENT_INDEXED\x10\x80@\x12\x1e\
-    \n\x18FILE_ATTRIBUTE_ENCRYPTED\x10\x80\x80\x01\x1a\x06\x92\x93\x19\x02\
-    \x10\x01*;\n\x0bShowCommand\x12\n\n\x06NORMAL\x10\x01\x12\r\n\tMAXIMIZED\
-    \x10\x03\x12\x11\n\rMIN_NO_ACTIVE\x10\x07*g\n\tDriveType\x12\x0b\n\x07UN\
-    KNOWN\x10\0\x12\x0f\n\x0bNO_ROOT_DIR\x10\x01\x12\r\n\tREMOVABLE\x10\x02\
-    \x12\t\n\x05FIXED\x10\x03\x12\n\n\x06REMOTE\x10\x04\x12\t\n\x05CDROM\x10\
-    \x05\x12\x0b\n\x07RAMDISK\x10\x06*\xf8\x01\n\rShellItemType\x12\x15\n\
-    \x11CONTROL_PANEL_CPL\x10\0\x12\x1a\n\x16CONTROL_PANEL_CATEGORY\x10\x01\
-    \x12\x0f\n\x0bROOT_FOLDER\x10\x1f\x12\n\n\x06VOLUME\x10\x20\x12\x0e\n\nF\
-    ILE_ENTRY\x100\x12\x14\n\x10NETWORK_LOCATION\x10@\x12\x15\n\x11COMPRESSE\
-    D_FOLDER\x10R\x12\x07\n\x03URI\x10a\x12\x11\n\rCONTROL_PANEL\x10q\x12\
-    \x0c\n\x08PRINTERS\x10r\x12\x18\n\x14COMMON_PLACES_FOLDER\x10s\x12\x16\n\
-    \x12USERS_FILES_FOLDER\x10tB\x1e\xfa\x92\x19\x1a\n\x03lnk\x12\x07lnk.Lnk\
-    \x1a\nlnk-moduleb\x06proto2\
+    id_list\x18\x16\x20\x03(\x0b2\x0e.lnk.ShellItemR\x0ctargetIdList\"\xb4\
+    \x02\n\tShellItem\x128\n\titem_type\x18\x01\x20\x01(\x0e2\x12.lnk.ShellI\
+    temTypeR\x08itemTypeB\x07\x82\x93\x19\x03*\x01x\x12\x12\n\x04data\x18\
+    \x03\x20\x01(\x0cR\x04data\x12\"\n\rcpl_file_path\x18\x04\x20\x01(\tR\
+    \x0bcplFilePath\x12$\n\x0eroot_folder_id\x18\x05\x20\x01(\tR\x0crootFold\
+    erId\x12\x1f\n\x0bvolume_name\x18\x06\x20\x01(\tR\nvolumeName\x12\x1b\n\
+    \tvolume_id\x18\x07\x20\x01(\tR\x08volumeId\x12&\n\x0ffile_entry_name\
+    \x18\x08\x20\x01(\tR\rfileEntryName\x12)\n\x10network_location\x18\t\x20\
+    \x01(\tR\x0fnetworkLocation\"\xf4\x01\n\x0bTrackerData\x12\x18\n\x07vers\
+    ion\x18\x01\x20\x01(\rR\x07version\x12\x1d\n\nmachine_id\x18\x02\x20\x01\
+    (\tR\tmachineId\x12&\n\x0fdroid_volume_id\x18\x03\x20\x01(\tR\rdroidVolu\
+    meId\x12\"\n\rdroid_file_id\x18\x04\x20\x01(\tR\x0bdroidFileId\x121\n\
+    \x15droid_birth_volume_id\x18\x05\x20\x01(\tR\x12droidBirthVolumeId\x12-\
+    \n\x13droid_birth_file_id\x18\x06\x20\x01(\tR\x10droidBirthFileId*\xca\
+    \x03\n\x0eFileAttributes\x12\x1b\n\x17FILE_ATTRIBUTE_READONLY\x10\x01\
+    \x12\x19\n\x15FILE_ATTRIBUTE_HIDDEN\x10\x02\x12\x19\n\x15FILE_ATTRIBUTE_\
+    SYSTEM\x10\x04\x12\x0e\n\nRESERVED_1\x10\x08\x12\x1c\n\x18FILE_ATTRIBUTE\
+    _DIRECTORY\x10\x10\x12\x1a\n\x16FILE_ATTRIBUTE_ARCHIVE\x10\x20\x12\x0e\n\
+    \nRESERVED_2\x10@\x12\x1a\n\x15FILE_ATTRIBUTE_NORMAL\x10\x80\x01\x12\x1d\
+    \n\x18FILE_ATTRIBUTE_TEMPORARY\x10\x80\x02\x12\x1f\n\x1aFILE_ATTRIBUTE_S\
+    PARSE_FILE\x10\x80\x04\x12!\n\x1cFILE_ATTRIBUTE_REPARSE_POINT\x10\x80\
+    \x08\x12\x1e\n\x19FILE_ATTRIBUTE_COMPRESSED\x10\x80\x10\x12\x1b\n\x16FIL\
+    E_ATTRIBUTE_OFFLINE\x10\x80\x20\x12'\n\"FILE_ATTRIBUTE_NOT_CONTENT_INDEX\
+    ED\x10\x80@\x12\x1e\n\x18FILE_ATTRIBUTE_ENCRYPTED\x10\x80\x80\x01\x1a\
+    \x06\x92\x93\x19\x02\x10\x01*;\n\x0bShowCommand\x12\n\n\x06NORMAL\x10\
+    \x01\x12\r\n\tMAXIMIZED\x10\x03\x12\x11\n\rMIN_NO_ACTIVE\x10\x07*g\n\tDr\
+    iveType\x12\x0b\n\x07UNKNOWN\x10\0\x12\x0f\n\x0bNO_ROOT_DIR\x10\x01\x12\
+    \r\n\tREMOVABLE\x10\x02\x12\t\n\x05FIXED\x10\x03\x12\n\n\x06REMOTE\x10\
+    \x04\x12\t\n\x05CDROM\x10\x05\x12\x0b\n\x07RAMDISK\x10\x06*\xf8\x01\n\rS\
+    hellItemType\x12\x15\n\x11CONTROL_PANEL_CPL\x10\0\x12\x1a\n\x16CONTROL_P\
+    ANEL_CATEGORY\x10\x01\x12\x0f\n\x0bROOT_FOLDER\x10\x1f\x12\n\n\x06VOLUME\
+    \x10\x20\x12\x0e\n\nFILE_ENTRY\x100\x12\x14\n\x10NETWORK_LOCATION\x10@\
+    \x12\x15\n\x11COMPRESSED_FOLDER\x10R\x12\x07\n\x03URI\x10a\x12\x11\n\rCO\
+    NTROL_PANEL\x10q\x12\x0c\n\x08PRINTERS\x10r\x12\x18\n\x14COMMON_PLACES_F\
+    OLDER\x10s\x12\x16\n\x12USERS_FILES_FOLDER\x10tB\x1e\xfa\x92\x19\x1a\n\
+    \x03lnk\x12\x07lnk.Lnk\x1a\nlnk-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

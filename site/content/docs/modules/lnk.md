@@ -65,8 +65,7 @@ belong to.
 
 | Field            | Type                          | Description                                                                                                                                          |
 |------------------|-------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
-| item_type        | [ShellItemType](#shellitemtype) | Category of the shell item, derived from its class type indicator byte. Set when the class type indicator maps to a known category.                  |
-| item_type_code   | integer                       | Raw class type indicator byte (displayed in hexadecimal). Always populated, so rules can match on the exact numeric type of a shell item, including unrecognized ones. |
+| item_type        | [ShellItemType](#shellitemtype) | Category of the shell item, derived from its class type indicator byte. Always set for every shell item (if the class type indicator does not map to a known category, the raw byte value is stored as an unknown value). |
 | data             | string                        | Raw class type specific data: all the bytes that follow the class type indicator byte. Always populated, so rules can match on shell items whose type is not decoded into a dedicated field. |
 | cpl_file_path    | string                        | Path to the control panel CPL file. Populated for control panel CPL file shell items (item_type CONTROL_PANEL_CPL). This field is abused by CVE-2010-2568 to point to an arbitrary DLL. |
 | root_folder_id   | string                        | Shell folder identifier (a GUID). Populated for root folder shell items (item_type ROOT_FOLDER).                                                     |

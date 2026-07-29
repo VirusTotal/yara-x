@@ -305,17 +305,13 @@ impl LnkParser {
         };
 
         let mut item = ShellItem::new();
-        // Always expose the raw class type indicator byte and the raw class
-        // type specific data (everything after the class type indicator) so
-        // rules can match on shell item types that are not decoded into a
-        // dedicated field below.
-        item.item_type_code = Some(class as u32);
         item.data = Some(data.get(1..).unwrap_or_default().to_vec());
 
-        // Set the category when the class type indicator maps to a known one.
-        if let Some(item_type) = Self::classify_shell_item(class) {
-            item.item_type = Some(EnumOrUnknown::new(item_type));
-        }
+        item.item_type = Some(
+            Self::classify_shell_item(class)
+                .map(EnumOrUnknown::new)
+                .unwrap_or_else(|| EnumOrUnknown::from_i32(class as i32)),
+        );
 
         match class {
             // Control panel CPL file shell item. Contains the path to the CPL
