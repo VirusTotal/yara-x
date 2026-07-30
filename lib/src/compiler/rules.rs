@@ -8,6 +8,7 @@ use std::time::Instant;
 
 use anyhow::anyhow;
 use daachorse::DoubleArrayAhoCorasick;
+use daachorse::prefilter::MultiPatternShiftOr;
 #[cfg(feature = "logging")]
 use log::*;
 use regex_automata::meta::Regex;
@@ -44,6 +45,11 @@ const SERIALIZATION_VERSION: u32 = 6;
 pub(crate) struct AhoCorasick {
     pub(crate) daachorse: DoubleArrayAhoCorasick<u32>,
     pub(crate) teddy: Option<teddy::Searcher>,
+    /// Shift-Or multi-pattern prefilter (Baeza-Yates & Gonnet §6).
+    /// Present only when the total byte-length of all atoms fits in 64 bits.
+    /// When `Some`, a search returning an empty Vec means no atom can appear
+    /// in the scanned data, so the full AC pass can be skipped.
+    pub(crate) prefilter: Option<MultiPatternShiftOr>,
 }
 
 impl Serialize for AhoCorasick {
@@ -64,7 +70,7 @@ impl<'de> Deserialize<'de> for AhoCorasick {
         let bytes = <&'de [u8]>::deserialize(deserializer)?;
         let (daachorse, _) = DoubleArrayAhoCorasick::deserialize(bytes)
             .map_err(|e| serde::de::Error::custom(format!("{}", e)))?;
-        Ok(Self { daachorse, teddy: None })
+        Ok(Self { daachorse, teddy: None, prefilter: None })
     }
 }
 
@@ -72,7 +78,7 @@ impl Default for AhoCorasick {
     fn default() -> Self {
         let daachorse =
             DoubleArrayAhoCorasick::new(std::iter::empty::<&[u8]>()).unwrap();
-        Self { daachorse, teddy: None }
+        Self { daachorse, teddy: None, prefilter: None }
     }
 }
 
@@ -84,9 +90,23 @@ impl AhoCorasick {
         let daachorse = DoubleArrayAhoCorasick::new(patterns.clone())
             .expect("failed to build Aho-Corasick automaton");
 
-        let mut ac = Self { daachorse, teddy: None };
-        ac.rebuild_teddy(patterns);
+        let mut ac = Self { daachorse, teddy: None, prefilter: None };
+        ac.rebuild_teddy(patterns.clone());
+        ac.rebuild_prefilter(patterns);
         ac
+    }
+
+    /// Build a [`MultiPatternShiftOr`] prefilter (§6 of Baeza-Yates & Gonnet 1992).
+    ///
+    /// Succeeds only when the total byte-length of all patterns fits within the
+    /// 64-bit word the algorithm uses. In that case every atom is represented
+    /// exactly — no false-negatives — so a zero-match result safely skips AC.
+    pub(crate) fn rebuild_prefilter<'a, I>(&mut self, patterns: I)
+    where
+        I: Iterator<Item = &'a [u8]>,
+    {
+        let pats: Vec<&[u8]> = patterns.filter(|p| !p.is_empty()).collect();
+        self.prefilter = MultiPatternShiftOr::new(&pats);
     }
 
     pub(crate) fn rebuild_teddy<'a, I>(&mut self, patterns: I)

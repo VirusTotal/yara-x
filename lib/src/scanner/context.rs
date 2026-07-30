@@ -791,7 +791,15 @@ impl ScanContext<'_, '_> {
         data: &[u8],
     ) -> Result<(), ScanError> {
         let ac = self.compiled_rules.ac_automaton();
-
+        // Shift-Or prefilter (Baeza-Yates & Gonnet §6, 1992).
+        // Only built when all atoms fit in 64 total bytes — in that case it is
+        // exact (no false-negatives): an empty result guarantees no atom can
+        // appear in this data block, so the full AC scan is safely skipped.
+        if let Some(prefilter) = &ac.prefilter {
+            if prefilter.search(data).is_empty() {
+                return Ok(());
+            }
+        }
 
         #[cfg(feature = "logging")]
         let mut atom_matches = 0_usize;
