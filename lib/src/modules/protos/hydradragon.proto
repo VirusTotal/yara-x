@@ -1,0 +1,14 @@
+syntax = "proto2";
+import "yara.proto";
+
+package hydradragon;
+
+option (yara.module_options) = {
+  name : "hydradragon"
+  root_message: "hydradragon.Hydradragon"
+  cargo_feature: "hydradragon-module"
+};
+
+message Hydradragon {
+  // This module contains only exported functions, and doesn't return any data
+}

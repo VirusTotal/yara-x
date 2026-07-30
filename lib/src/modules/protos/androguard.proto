@@ -1,0 +1,27 @@
+// Port of the Koodous `androguard` YARA module (Apache-2.0, The Koodous Authors)
+// to YARA-X. Like the `cuckoo` module it consumes an external JSON report — here
+// the androguard analysis of an APK — supplied by the host as module metadata
+// under the key "androguard". The exported functions query that report.
+syntax = "proto2";
+
+import "yara.proto";
+
+package androguard;
+
+option (yara.module_options) = {
+  name : "androguard"
+  root_message: "androguard.Androguard"
+  cargo_feature: "androguard-module"
+};
+
+message Androguard {
+  // SDK versions parsed from the report. The functions
+  // (certificate.*, url, app_name, permission, activity, main_activity,
+  // service, package_name) are provided via #[module_export] with dotted
+  // names, so they need no field here (same as the cuckoo module).
+  optional int64 min_sdk = 1;
+  optional int64 max_sdk = 2;
+  optional int64 target_sdk = 3;
+  // Number of declared permissions (used as `androguard.permissions_number`).
+  optional int64 permissions_number = 4;
+}

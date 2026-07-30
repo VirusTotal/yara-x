@@ -183,6 +183,18 @@ crx-module = [
 # the Cuckoo Sandbox seems to be abandoned since 2017.
 cuckoo-module = []
 
+# The `androguard` module queries an external androguard APK analysis report
+# (JSON), supplied by the host as module metadata under the key "androguard".
+# Port of the Koodous YARA `androguard` module. Like `cuckoo` it consumes an
+# external report rather than parsing the scanned file.
+androguard-module = []
+
+# The `hydradragon` module is the Android-native dynamic-analysis counterpart to
+# `cuckoo`: same network/registry/filesystem/sync API plus `hydradragon.url`,
+# fed live (as module metadata "hydradragon") from the device's DNS / Web-Shield
+# network monitor so rules can match what an app actually connects to.
+hydradragon-module = []
+
 # The `dex` module parses DEX files.
 dex-module = [
     "dep:nom",

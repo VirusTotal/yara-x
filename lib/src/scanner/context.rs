@@ -792,6 +792,14 @@ impl ScanContext<'_, '_> {
     ) -> Result<(), ScanError> {
         let ac = self.compiled_rules.ac_automaton();
 
+        if let Some(prefilter) = &ac.prefilter
+            && ac.prefilter_covers_all
+            && !prefilter.is_empty()
+            && prefilter.search(data).is_none()
+        {
+            return Ok(());
+        }
+
         #[cfg(feature = "logging")]
         let mut atom_matches = 0_usize;
 

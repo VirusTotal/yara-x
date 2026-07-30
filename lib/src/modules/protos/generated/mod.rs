@@ -1,6 +1,7 @@
 // @generated
 
 pub mod analysis;
+pub mod androguard;
 pub mod console;
 pub mod crx;
 pub mod cuckoo;
@@ -11,6 +12,7 @@ pub mod filetypes;
 pub mod gti_score;
 pub mod hash;
 pub mod hunting_gti_score;
+pub mod hydradragon;
 pub mod lnk;
 pub mod macho;
 pub mod magic;

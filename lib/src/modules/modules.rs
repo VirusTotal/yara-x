@@ -1,4 +1,6 @@
 // File generated automatically by build.rs. Do not edit.
+#[cfg(feature = "androguard-module")]
+mod androguard;
 #[cfg(feature = "console-module")]
 mod console;
 #[cfg(feature = "crx-module")]
@@ -13,6 +15,8 @@ mod dotnet;
 mod elf;
 #[cfg(feature = "hash-module")]
 mod hash;
+#[cfg(feature = "hydradragon-module")]
+mod hydradragon;
 #[cfg(feature = "lnk-module")]
 mod lnk;
 #[cfg(feature = "macho-module")]
