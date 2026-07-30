@@ -11,7 +11,7 @@ keywords = ["pattern-matching", "cybersecurity", "forensics", "malware", "yara"]
 # When updating rust-version also update MSRV in:
 #   .github/workflows/tests.yaml
 #
-rust-version = "1.91.0"
+rust-version = "1.93.0"
 
 [workspace]
 members = [
