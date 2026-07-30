@@ -8,7 +8,6 @@ use std::time::Instant;
 
 use anyhow::anyhow;
 use daachorse::DoubleArrayAhoCorasick;
-use daachorse::prefilter::MultiQgramPrefilter;
 #[cfg(feature = "logging")]
 use log::*;
 use regex_automata::meta::Regex;
@@ -45,8 +44,6 @@ const SERIALIZATION_VERSION: u32 = 6;
 pub(crate) struct AhoCorasick {
     pub(crate) daachorse: DoubleArrayAhoCorasick<u32>,
     pub(crate) teddy: Option<teddy::Searcher>,
-    pub(crate) prefilter: Option<MultiQgramPrefilter>,
-    pub(crate) prefilter_covers_all: bool,
 }
 
 impl Serialize for AhoCorasick {
@@ -67,12 +64,7 @@ impl<'de> Deserialize<'de> for AhoCorasick {
         let bytes = <&'de [u8]>::deserialize(deserializer)?;
         let (daachorse, _) = DoubleArrayAhoCorasick::deserialize(bytes)
             .map_err(|e| serde::de::Error::custom(format!("{}", e)))?;
-        Ok(Self {
-            daachorse,
-            teddy: None,
-            prefilter: None,
-            prefilter_covers_all: false,
-        })
+        Ok(Self { daachorse, teddy: None })
     }
 }
 
@@ -80,12 +72,7 @@ impl Default for AhoCorasick {
     fn default() -> Self {
         let daachorse =
             DoubleArrayAhoCorasick::new(std::iter::empty::<&[u8]>()).unwrap();
-        Self {
-            daachorse,
-            teddy: None,
-            prefilter: None,
-            prefilter_covers_all: false,
-        }
+        Self { daachorse, teddy: None }
     }
 }
 
@@ -97,36 +84,9 @@ impl AhoCorasick {
         let daachorse = DoubleArrayAhoCorasick::new(patterns.clone())
             .expect("failed to build Aho-Corasick automaton");
 
-        let mut ac = Self {
-            daachorse,
-            teddy: None,
-            prefilter: None,
-            prefilter_covers_all: false,
-        };
-        ac.rebuild_teddy(patterns.clone());
-        ac.rebuild_prefilter(patterns);
+        let mut ac = Self { daachorse, teddy: None };
+        ac.rebuild_teddy(patterns);
         ac
-    }
-
-    pub(crate) fn rebuild_prefilter<'a, I>(&mut self, patterns: I)
-    where
-        I: Iterator<Item = &'a [u8]>,
-    {
-        let mut all_long = true;
-        let pats: Vec<Vec<u8>> = patterns
-            .inspect(|p| {
-                if p.len() < 3 {
-                    all_long = false;
-                }
-            })
-            .map(|p| p.to_vec())
-            .collect();
-        self.prefilter_covers_all = all_long;
-        if pats.is_empty() {
-            self.prefilter = None;
-            return;
-        }
-        self.prefilter = Some(MultiQgramPrefilter::from_patterns(&pats));
     }
 
     pub(crate) fn rebuild_teddy<'a, I>(&mut self, patterns: I)
