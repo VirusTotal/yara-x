@@ -782,7 +782,7 @@ mod output_handler {
                     msg.push_str(" [");
                     for (pos, tag) in tags.with_position() {
                         msg.push_str(tag.identifier());
-                        if !matches!(pos, itertools::Position::Last) {
+                        if !pos.is_last {
                             msg.push(',');
                         }
                     }
@@ -813,7 +813,7 @@ mod output_handler {
                                 v.escape_ascii()
                             )),
                         };
-                        if !matches!(pos, itertools::Position::Last) {
+                        if !pos.is_last {
                             msg.push(',');
                         }
                     }
@@ -878,10 +878,7 @@ mod output_handler {
                                         match_str.push_str(
                                             format!("{b:02x}").as_str(),
                                         );
-                                        if !matches!(
-                                            pos,
-                                            itertools::Position::Last
-                                        ) {
+                                        if !pos.is_last {
                                             match_str.push(' ');
                                         }
                                     }
