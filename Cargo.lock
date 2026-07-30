@@ -914,9 +914,9 @@ dependencies = [
 
 [[package]]
 name = "daachorse"
-version = "3.0.3"
+version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5614204febbc33cc07a2806aa6440b904ac012b68eecc37f4493ea4a76455a3d"
+checksum = "d358f1fa877be3097baa74c1fc22288626450392cb37d844f850baa60e6439a0"
 
 [[package]]
 name = "darling"
