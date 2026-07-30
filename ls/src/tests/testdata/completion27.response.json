@@ -1,0 +1,741 @@
+[
+  {
+    "insertText": "int32_zero",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "int32_zero",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "int64_zero",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "int64_zero",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "sint32_zero",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "sint32_zero",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "sint64_zero",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "sint64_zero",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "uint32_zero",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "uint32_zero",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "uint64_zero",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "uint64_zero",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "fixed32_zero",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "fixed32_zero",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "fixed64_zero",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "fixed64_zero",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "sfixed32_zero",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "sfixed32_zero",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "sfixed64_zero",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "sfixed64_zero",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "float_zero",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "float_zero",
+    "labelDetails": {
+      "description": "float"
+    }
+  },
+  {
+    "insertText": "double_zero",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "double_zero",
+    "labelDetails": {
+      "description": "float"
+    }
+  },
+  {
+    "insertText": "int32_one",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "int32_one",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "int64_one",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "int64_one",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "sint32_one",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "sint32_one",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "sint64_one",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "sint64_one",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "uint32_one",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "uint32_one",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "uint64_one",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "uint64_one",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "fixed32_one",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "fixed32_one",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "fixed64_one",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "fixed64_one",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "sfixed32_one",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "sfixed32_one",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "sfixed64_one",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "sfixed64_one",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "float_one",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "float_one",
+    "labelDetails": {
+      "description": "float"
+    }
+  },
+  {
+    "insertText": "double_one",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "double_one",
+    "labelDetails": {
+      "description": "float"
+    }
+  },
+  {
+    "insertText": "int32_undef",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "int32_undef",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "int64_undef",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "int64_undef",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "sint32_undef",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "sint32_undef",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "sint64_undef",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "sint64_undef",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "uint32_undef",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "uint32_undef",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "uint64_undef",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "uint64_undef",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "fixed32_undef",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "fixed32_undef",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "fixed64_undef",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "fixed64_undef",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "sfixed32_undef",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "sfixed32_undef",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "sfixed64_undef",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "sfixed64_undef",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "float_undef",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "float_undef",
+    "labelDetails": {
+      "description": "float"
+    }
+  },
+  {
+    "insertText": "double_undef",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "double_undef",
+    "labelDetails": {
+      "description": "float"
+    }
+  },
+  {
+    "insertText": "string_foo",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "string_foo",
+    "labelDetails": {
+      "description": "string"
+    }
+  },
+  {
+    "insertText": "string_bar",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "string_bar",
+    "labelDetails": {
+      "description": "string"
+    }
+  },
+  {
+    "insertText": "string_undef",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "string_undef",
+    "labelDetails": {
+      "description": "string"
+    }
+  },
+  {
+    "insertText": "bytes_foo",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "bytes_foo",
+    "labelDetails": {
+      "description": "string"
+    }
+  },
+  {
+    "insertText": "bytes_bar",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "bytes_bar",
+    "labelDetails": {
+      "description": "string"
+    }
+  },
+  {
+    "insertText": "bytes_raw",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "bytes_raw",
+    "labelDetails": {
+      "description": "string"
+    }
+  },
+  {
+    "insertText": "bytes_undef",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "bytes_undef",
+    "labelDetails": {
+      "description": "string"
+    }
+  },
+  {
+    "insertText": "enumeration",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "enumeration",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "nested",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "nested",
+    "labelDetails": {
+      "description": "struct"
+    }
+  },
+  {
+    "insertText": "array_int64[${1}]${2}",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "array_int64",
+    "labelDetails": {
+      "description": "array<integer>"
+    }
+  },
+  {
+    "insertText": "array_float[${1}]${2}",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "array_float",
+    "labelDetails": {
+      "description": "array<float>"
+    }
+  },
+  {
+    "insertText": "array_bool[${1}]${2}",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "array_bool",
+    "labelDetails": {
+      "description": "array<bool>"
+    }
+  },
+  {
+    "insertText": "array_string[${1}]${2}",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "array_string",
+    "labelDetails": {
+      "description": "array<string>"
+    }
+  },
+  {
+    "insertText": "array_struct[${1}]${2}",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "array_struct",
+    "labelDetails": {
+      "description": "array<struct>"
+    }
+  },
+  {
+    "insertText": "map_string_struct",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "map_string_struct",
+    "labelDetails": {
+      "description": "map<string,struct>"
+    }
+  },
+  {
+    "insertText": "map_string_int64",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "map_string_int64",
+    "labelDetails": {
+      "description": "map<string,integer>"
+    }
+  },
+  {
+    "insertText": "map_string_string",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "map_string_string",
+    "labelDetails": {
+      "description": "map<string,string>"
+    }
+  },
+  {
+    "insertText": "map_string_bool",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "map_string_bool",
+    "labelDetails": {
+      "description": "map<string,bool>"
+    }
+  },
+  {
+    "insertText": "map_string_float",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "map_string_float",
+    "labelDetails": {
+      "description": "map<string,float>"
+    }
+  },
+  {
+    "insertText": "map_int64_struct",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "map_int64_struct",
+    "labelDetails": {
+      "description": "map<integer,struct>"
+    }
+  },
+  {
+    "insertText": "map_int64_int64",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "map_int64_int64",
+    "labelDetails": {
+      "description": "map<integer,integer>"
+    }
+  },
+  {
+    "insertText": "map_int64_string",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "map_int64_string",
+    "labelDetails": {
+      "description": "map<integer,string>"
+    }
+  },
+  {
+    "insertText": "map_int64_bool",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "map_int64_bool",
+    "labelDetails": {
+      "description": "map<integer,bool>"
+    }
+  },
+  {
+    "insertText": "map_int64_float",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "map_int64_float",
+    "labelDetails": {
+      "description": "map<integer,float>"
+    }
+  },
+  {
+    "insertText": "timestamp",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "timestamp",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "bool_yara",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "bool_yara",
+    "labelDetails": {
+      "description": "bool"
+    }
+  },
+  {
+    "insertText": "file_size",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "file_size",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "requires_foo_and_bar",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "requires_foo_and_bar",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "deprecated",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "deprecated",
+    "labelDetails": {
+      "description": "string"
+    }
+  },
+  {
+    "insertText": "metadata",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "metadata",
+    "labelDetails": {
+      "description": "string"
+    }
+  },
+  {
+    "insertText": "Enumeration",
+    "insertTextFormat": 2,
+    "kind": 13,
+    "label": "Enumeration",
+    "labelDetails": {
+      "description": "enum"
+    }
+  },
+  {
+    "insertText": "items",
+    "insertTextFormat": 2,
+    "kind": 13,
+    "label": "items",
+    "labelDetails": {
+      "description": "enum"
+    }
+  },
+  {
+    "insertText": "NestedProto2",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "NestedProto2",
+    "labelDetails": {
+      "description": "struct"
+    }
+  },
+  {
+    "insertText": "TopLevelEnumeration",
+    "insertTextFormat": 2,
+    "kind": 13,
+    "label": "TopLevelEnumeration",
+    "labelDetails": {
+      "description": "enum"
+    }
+  },
+  {
+    "insertText": "INLINE_0x1000",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "INLINE_0x1000",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "INLINE_0x2000",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "INLINE_0x2000",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `add(a: float, b: float) -> float`\n\n Adds two floats."
+    },
+    "insertText": "add(${1:a}, ${2:b})",
+    "insertTextFormat": 2,
+    "kind": 2,
+    "label": "add(a: float, b: float)",
+    "labelDetails": {
+      "description": "func()"
+    }
+  },
+  {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `add(a: integer, b: integer) -> integer`\n\n Adds two integers."
+    },
+    "insertText": "add(${1:a}, ${2:b})",
+    "insertTextFormat": 2,
+    "kind": 2,
+    "label": "add(a: integer, b: integer)",
+    "labelDetails": {
+      "description": "func()"
+    }
+  },
+  {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `get_foo() -> string`\n\n Gets foo from the protobuf."
+    },
+    "insertText": "get_foo()",
+    "insertTextFormat": 2,
+    "kind": 2,
+    "label": "get_foo()",
+    "labelDetails": {
+      "description": "func()"
+    }
+  },
+  {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `head(n: integer) -> string`\n\n Extracts the first n bytes of the scanned data."
+    },
+    "insertText": "head(${1:n})",
+    "insertTextFormat": 2,
+    "kind": 2,
+    "label": "head(n: integer)",
+    "labelDetails": {
+      "description": "func()"
+    }
+  },
+  {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `to_int(string: string) -> integer`\n\n Converts a string to an integer."
+    },
+    "insertText": "to_int(${1:string})",
+    "insertTextFormat": 2,
+    "kind": 2,
+    "label": "to_int(string: string)",
+    "labelDetails": {
+      "description": "func()"
+    }
+  },
+  {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `undef_i64() -> integer`\n\n Returns an undefined integer."
+    },
+    "insertText": "undef_i64()",
+    "insertTextFormat": 2,
+    "kind": 2,
+    "label": "undef_i64()",
+    "labelDetails": {
+      "description": "func()"
+    }
+  },
+  {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `uppercase(s: string) -> string`\n\n Converts a string to uppercase."
+    },
+    "insertText": "uppercase(${1:s})",
+    "insertTextFormat": 2,
+    "kind": 2,
+    "label": "uppercase(s: string)",
+    "labelDetails": {
+      "description": "func()"
+    }
+  }
+]

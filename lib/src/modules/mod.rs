@@ -467,6 +467,11 @@ pub mod mods {
                 Self { inner }
             }
 
+            /// Returns true if this structure represents an enum.
+            pub fn is_enum(&self) -> bool {
+                self.inner.is_enum()
+            }
+
             /// Returns an iterator over the fields defined in the structure.
             ///
             /// The fields are sorted by name.
@@ -560,6 +565,11 @@ pub mod mods {
             /// Returns the type of the field.
             pub fn ty(&self) -> Type {
                 Type::from(&self.struct_field.type_value)
+            }
+
+            /// Returns true if the field is a constant.
+            pub fn is_const(&self) -> bool {
+                self.struct_field.type_value.is_const()
             }
 
             /// Returns the documentation for the current field.

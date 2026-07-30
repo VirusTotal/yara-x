@@ -157,12 +157,14 @@ pub(crate) struct Struct {
     /// order in which they appear in the .proto source file is
     /// irrelevant.
     fields: IndexMap<String, StructField>,
+    /// The name of the protobuf type this struct was created from. If the struct
+    /// was not created from a protobuf type, this is `None`.
+    protobuf_type_name: Option<String>,
     /// True if this is the root structure. The root structure is the top-level
     /// structure that contains global variables and modules.
     is_root: bool,
-    /// The name of the protobuf type this enum was crated from. If the enum
-    /// was not created from a protobuf type, this is `None`.
-    protobuf_type_name: Option<String>,
+    /// True if this structure is representing an enum.
+    is_enum: bool,
 }
 
 impl SymbolLookup for Struct {
@@ -185,6 +187,7 @@ impl Struct {
             fields: IndexMap::new(),
             is_root: false,
             protobuf_type_name: None,
+            is_enum: false,
         }
     }
 
@@ -194,7 +197,13 @@ impl Struct {
         self
     }
 
-    /// Returns the protobuf type this enum was created from, if any.
+    /// Returns true if this structure represents an enum.
+    #[inline]
+    pub fn is_enum(&self) -> bool {
+        self.is_enum
+    }
+
+    /// Returns the protobuf type this struct was created from, if any.
     pub fn protobuf_type_name(&self) -> Option<&str> {
         self.protobuf_type_name.as_deref()
     }
@@ -271,7 +280,8 @@ impl Struct {
         let mut enclosing_msg = enum_descriptor.enclosing_message();
         let mut path = Vec::new();
 
-        if !Self::enum_is_inline(enum_descriptor) {
+        let is_inline = Self::enum_is_inline(enum_descriptor);
+        if !is_inline {
             path.push(Self::enum_name(enum_descriptor));
         }
 
@@ -284,13 +294,70 @@ impl Struct {
 
         let path = path.iter().rev().join(".");
 
-        for item in enum_descriptor.values() {
-            let field_name = if path.is_empty() {
-                item.name().to_owned()
+        if !is_inline {
+            let enum_struct = self.get_or_create_struct(&path);
+            enum_struct.is_enum = true;
+            for item in enum_descriptor.values() {
+                enum_struct
+                    .add_field(item.name(), Self::enum_value(&item).into());
+            }
+        } else {
+            for item in enum_descriptor.values() {
+                let field_name = if path.is_empty() {
+                    item.name().to_owned()
+                } else {
+                    format!("{}.{}", path, item.name())
+                };
+                self.add_field(field_name, Self::enum_value(&item).into());
+            }
+        }
+    }
+
+    fn get_or_create_struct(&mut self, path: &str) -> &mut Struct {
+        if let Some(dot) = path.find('.') {
+            let target = &path[0..dot];
+            let field = self
+                .field_entry_by_name(target.to_owned())
+                .or_insert_with(|| StructField {
+                    type_value: TypeValue::Struct(Rc::new(Struct::new())),
+                    number: 0,
+                    acl: None,
+                    deprecation_notice: None,
+                    doc: None,
+                });
+
+            if let TypeValue::Struct(ref mut s) = field.type_value {
+                let s = Rc::<Struct>::get_mut(s).unwrap_or_else(|| {
+                    panic!(
+                        "`get_or_create_struct` was called while an `Rc` or `Weak` pointer points to field `{}`",
+                        target
+                    )
+                });
+                s.get_or_create_struct(&path[dot + 1..])
             } else {
-                format!("{}.{}", path, item.name())
-            };
-            self.add_field(field_name, Self::enum_value(&item).into());
+                panic!("field `{}` is not a struct", target)
+            }
+        } else {
+            let field = self
+                .field_entry_by_name(path.to_owned())
+                .or_insert_with(|| StructField {
+                    type_value: TypeValue::Struct(Rc::new(Struct::new())),
+                    number: 0,
+                    acl: None,
+                    deprecation_notice: None,
+                    doc: None,
+                });
+
+            if let TypeValue::Struct(ref mut s) = field.type_value {
+                Rc::<Struct>::get_mut(s).unwrap_or_else(|| {
+                    panic!(
+                        "`get_or_create_struct` was called while an `Rc` or `Weak` pointer points to field `{}`",
+                        path
+                    )
+                })
+            } else {
+                panic!("field `{}` is not a struct", path)
+            }
         }
     }
 
@@ -502,6 +569,7 @@ impl Struct {
             fields: field_index,
             is_root: false,
             protobuf_type_name: Some(msg_descriptor.full_name().to_string()),
+            is_enum: false,
         };
 
         if generate_fields_for_enums && Self::is_module_root(msg_descriptor) {
@@ -1441,5 +1509,35 @@ mod tests {
         // At this point a != b again because field "foo" have a different type
         // on each structure.
         assert_ne!(a, b);
+    }
+
+    #[test]
+    fn test_is_enum() {
+        use crate::modules::protos::test_proto2::TestProto2;
+        use protobuf::MessageFull;
+
+        let s = Struct::new();
+        assert!(!s.is_enum());
+
+        let mut structure = Struct::from_proto_descriptor_and_msg(
+            &TestProto2::descriptor(),
+            None,
+            true,
+            true,
+        );
+
+        let structure = Rc::<Struct>::get_mut(&mut structure).unwrap();
+        let mut is_enum_flags = Vec::new();
+
+        structure.enum_substructures(&mut |sub| {
+            is_enum_flags.push(sub.is_enum());
+        });
+
+        // The root message and its nested messages (and intermediate container structs)
+        // are not enums, while the enum substructures are marked with is_enum = true.
+        assert_eq!(
+            vec![false, false, false, true, true, false, true, true],
+            is_enum_flags
+        );
     }
 }

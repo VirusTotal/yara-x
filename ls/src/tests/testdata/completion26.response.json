@@ -1,0 +1,38 @@
+[
+  {
+    "insertText": "ITEM_0",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "ITEM_0",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "ITEM_1",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "ITEM_1",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "ITEM_2",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "ITEM_2",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "ITEM_3",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "ITEM_3",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  }
+]
