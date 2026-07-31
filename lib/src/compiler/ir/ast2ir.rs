@@ -1259,6 +1259,25 @@ fn of_expr_from_ast(
 
     let anchor = anchor_from_ast(ctx, &of.anchor)?;
 
+    // When have `<quantifier> of <pattern set> at <anchor>`, all the patterns
+    // in the set must be anchored. If we have `<quantifier> of <pattern set>`
+    // all are marked as non-anchorable.
+    if let OfItems::PatternSet(ref pattern_set) = items {
+        let anchor_at = match anchor {
+            MatchAnchor::At(expr) => ctx.ir.get(expr).try_as_const_integer(),
+            _ => None,
+        };
+        for &pattern_idx in pattern_set {
+            let pattern =
+                &mut ctx.current_rule_patterns[pattern_idx.as_usize()];
+            if let Some(offset) = anchor_at {
+                pattern.anchor_at(offset as usize);
+            } else {
+                pattern.make_non_anchorable();
+            }
+        }
+    }
+
     ctx.vars.unwind(&stack_frame);
 
     let expr = match items {
@@ -1281,6 +1300,13 @@ fn for_of_expr_from_ast(
 ) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
     let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set)?;
+
+    // Patterns used in a `for .. of` expressions are marked as non-anchorable.
+    for &pattern_idx in &pattern_set {
+        ctx.current_rule_patterns[pattern_idx.as_usize()]
+            .make_non_anchorable();
+    }
+
     let mut stack_frame =
         ctx.vars.new_frame(VarStack::FOR_OF_FRAME_SIZE).ok_or_else(|| {
             TooManyVariables::build(
@@ -1800,10 +1826,9 @@ fn pattern_set_from_ast(
                 ));
             }
 
-            // Make all the patterns in the set non-anchorable and mark them
-            // as used.
+            // Mark all the patterns in the set as used.
             for pattern in ctx.current_rule_patterns.iter_mut() {
-                pattern.make_non_anchorable().mark_as_used();
+                pattern.mark_as_used();
             }
 
             let pattern_indexes: Vec<PatternIdx> =
@@ -1848,9 +1873,8 @@ fn pattern_set_from_ast(
                 // check if some of them matches the identifier.
                 if set.iter().any(|p| p.matches(pattern.identifier())) {
                     pattern_indexes.push(i.into());
-                    // All the patterns in the set are made non-anchorable, and
-                    // marked as used.
-                    pattern.make_non_anchorable().mark_as_used();
+                    // All the patterns in the set are marked as used.
+                    pattern.mark_as_used();
                 }
             }
 

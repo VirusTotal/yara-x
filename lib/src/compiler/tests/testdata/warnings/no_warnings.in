@@ -83,3 +83,13 @@ rule test_11 {
        a == 1 and b == 2 and c == 3
     )
 }
+
+rule test_12 {
+  strings:
+    // These short pattern don't produce warnings because they will anchored
+    // at position 0.
+    $s_1 = "#"
+    $s_2 = "-"
+  condition:
+    any of ($s_*) at 0
+}

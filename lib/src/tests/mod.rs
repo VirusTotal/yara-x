@@ -3837,6 +3837,50 @@ fn of() {
         "#,
         b"foo"
     );
+
+    // Pattern `$a` used in `any of ($a) at 0` and also unanchored (`or $a`).
+    // `$a` must be made non-anchorable (anchor removed) and match at
+    // offset > 0.
+    rule_true!(
+        r#"
+        rule test {
+          strings:
+            $a = "bar"
+          condition:
+            any of ($a) at 0 or $a
+        }
+        "#,
+        b"foobar"
+    );
+
+    // Pattern `$a` used in `1 of ($a) at 0` and also in `#a > 0`.
+    // The match count usage `#a` must remove the anchor from `$a`.
+    rule_true!(
+        r#"
+        rule test {
+          strings:
+            $a = "bar"
+          condition:
+            1 of ($a) at 0 or #a > 0
+        }
+        "#,
+        b"foobar"
+    );
+
+    // Pattern `$a` anchored at offset 0 via `any of ($a) at 0`, and anchored
+    // at offset 3 via `$a at 3`. Anchoring to different offsets makes `$a`
+    // non-anchorable, allowing it to match at offset 3.
+    rule_true!(
+        r#"
+        rule test {
+          strings:
+            $a = "bar"
+          condition:
+            any of ($a) at 0 or $a at 3
+        }
+        "#,
+        b"foobar"
+    );
 }
 
 #[test]
@@ -4364,5 +4408,20 @@ fn header_constraints_optimization() {
         }
         "#,
         b"MZ\x49\x64\x6d\x6d\x6e"
+    );
+
+    // Pattern sets anchored at an offset (e.g. `any of ($a) at 0`) anchor their
+    // constituent patterns to offset 0, but if a pattern is also used unanchored,
+    // its anchor must be removed.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "Hello"
+            condition:
+                any of ($a) at 0 and $a
+        }
+        "#,
+        b"Hello"
     );
 }
