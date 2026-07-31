@@ -1,0 +1,9 @@
+rule ambiguous_pattern_set_warning {
+  strings:
+    $s1 = "exec"
+    $s2 = "system"
+    $s3 = "spawn"
+    $start_byte = { 80 }
+  condition:
+    any of ($s*)
+}

@@ -1862,6 +1862,8 @@ fn pattern_set_from_ast(
                         }),
                     ));
                 }
+
+                check_wildcard_pattern_set_outliers(ctx, item);
             }
 
             let mut pattern_indexes: Vec<PatternIdx> = Vec::new();
@@ -1879,6 +1881,83 @@ fn pattern_set_from_ast(
             }
 
             Ok(pattern_indexes)
+        }
+    }
+}
+
+/// Checks a wildcard pattern set item (e.g. `$s*`) for pattern name outliers.
+///
+/// For pattern sets containing 3 or more matching patterns, this function
+/// calculates the average normalized Levenshtein similarity of each pattern
+/// identifier to all other identifiers in the set to find the medoid
+/// (representative pattern name).
+///
+/// If any pattern's similarity to the medoid is below 0.4, it is flagged as
+/// an outlier, and an [`warnings::UnintendedPatternInSet`] compiler warning
+/// is emitted.
+///
+/// For example, in a set matching `$s1`, `$s2`, `$s3` and `$start_byte`,
+/// `$start_byte` is identified as an outlier because its similarity to `$s1`
+/// is significantly lower than the similarity among `$s1..$s3`.
+fn check_wildcard_pattern_set_outliers(
+    ctx: &mut CompileContext,
+    item: &ast::PatternSetItem,
+) {
+    if !item.wildcard {
+        return;
+    }
+
+    let matching = ctx
+        .current_rule_patterns
+        .iter()
+        .filter(|p| item.matches(p.identifier()));
+
+    // Must match at least 3 patterns to establish a medoid baseline.
+    if matching.clone().take(3).count() < 3 {
+        return;
+    }
+
+    // Find the medoid pattern (the pattern with maximum total similarity to all other matching patterns).
+    let medoid = matching.clone().max_by(|p1, p2| {
+        let name1 = p1.identifier().name;
+        let name2 = p2.identifier().name;
+
+        let sim1: f64 = matching
+            .clone()
+            .filter(|p| p.identifier().name != name1)
+            .map(|p| {
+                strsim::normalized_levenshtein(name1, p.identifier().name)
+            })
+            .sum();
+
+        let sim2: f64 = matching
+            .clone()
+            .filter(|p| p.identifier().name != name2)
+            .map(|p| {
+                strsim::normalized_levenshtein(name2, p.identifier().name)
+            })
+            .sum();
+
+        sim1.partial_cmp(&sim2).unwrap()
+    });
+
+    if let Some(medoid) = medoid {
+        let medoid_name = medoid.identifier().name;
+        let prefix = item.identifier;
+
+        for p in matching.filter(|p| {
+            strsim::normalized_levenshtein(p.identifier().name, medoid_name)
+                < 0.4
+        }) {
+            ctx.warnings.add(|| {
+                warnings::UnintendedPatternInSet::build(
+                    ctx.report_builder,
+                    p.identifier().name.to_string(),
+                    format!("{}*", prefix),
+                    ctx.report_builder.span_to_code_loc(item.span()),
+                    ctx.report_builder.span_to_code_loc(p.span().clone()),
+                )
+            });
         }
     }
 }

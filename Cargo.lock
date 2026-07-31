@@ -4505,6 +4505,7 @@ dependencies = [
  "simd-adler32",
  "simd_cesu8",
  "smallvec",
+ "strsim",
  "strum_macros",
  "thiserror 2.0.18",
  "tinyzip",

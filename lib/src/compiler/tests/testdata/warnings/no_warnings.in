@@ -52,10 +52,10 @@ rule test_7 {
 }
 
 rule test_8 {
-    condition:
-        uint8(0) == 0 or uint8(0) == 0xFF or
-        uint16(0) == 0 or uint16(0) == 0xFFFF or
-        uint32(0) == 0 or uint32(0) == 0xFFFFFFFF
+   condition:
+     uint8(0) == 0 or uint8(0) == 0xFF or
+     uint16(0) == 0 or uint16(0) == 0xFFFF or
+     uint32(0) == 0 or uint32(0) == 0xFFFFFFFF
 }
 
 rule test_9 {
@@ -92,4 +92,14 @@ rule test_12 {
     $s_2 = "-"
   condition:
     any of ($s_*) at 0
+}
+
+rule test_13 {
+  strings:
+    $s1 = "exec"
+    $s2 = "system"
+    $s3 = "spawn"
+    $s4 = "shell"
+  condition:
+    any of ($s*)
 }

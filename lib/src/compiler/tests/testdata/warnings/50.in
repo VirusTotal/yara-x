@@ -1,0 +1,9 @@
+rule prefix_wildcard_outlier {
+  strings:
+    $prefix_1 = "foo"
+    $prefix_2 = "bar"
+    $prefix_3 = "baz"
+    $prefix_unrelated_long_suffix = "test"
+  condition:
+    any of ($prefix_*)
+}
