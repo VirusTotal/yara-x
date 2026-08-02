@@ -1,0 +1,97 @@
+package yara:runtime;
+
+interface host {
+  enum val-type {
+    i64,
+    i32,
+    f64-bits,
+    f32-bits,
+  }
+
+  variant extern-value {
+    global(u64),
+    memory(u64),
+  }
+
+  record function-import {
+    module: string,
+    name: string,
+    params: list<val-type>,
+    results: list<val-type>,
+    callback-id: u64,
+    sync-flags: u32,
+  }
+
+  record extern-import {
+    module: string,
+    name: string,
+    value: extern-value,
+  }
+
+  validate-module: func(bytes: list<u8>) -> result<_, string>;
+
+  instantiate: func(
+    session: u64,
+    module-bytes: list<u8>,
+    functions: list<function-import>,
+    externs: list<extern-import>,
+  ) -> result<u64, string>;
+
+  instance-destroy: func(session: u64, instance: u64) -> result<_, string>;
+
+  call-export: func(
+    session: u64,
+    instance: u64,
+    name: string,
+    params: list<u64>,
+    results: list<val-type>,
+    timeout-nanos: u64,
+  ) -> result<list<u64>, string>;
+
+  global-new: func(
+    session: u64,
+    val-type: val-type,
+    mutable: bool,
+    value: u64,
+  ) -> result<u64, string>;
+
+  global-get: func(
+    session: u64,
+    global: u64,
+    val-type: val-type,
+  ) -> result<u64, string>;
+
+  global-set: func(
+    session: u64,
+    global: u64,
+    val-type: val-type,
+    value: u64,
+  ) -> result<_, string>;
+
+  memory-new: func(
+    session: u64,
+    initial: u32,
+    maximum: option<u32>,
+  ) -> result<u64, string>;
+
+  memory-read: func(session: u64, memory: u64) -> result<list<u8>, string>;
+
+  memory-write: func(
+    session: u64,
+    memory: u64,
+    data: list<u8>,
+  ) -> result<_, string>;
+}
+
+interface callbacks {
+  invoke-callback: func(
+    session: u64,
+    callback-id: u64,
+    args: list<u64>,
+  ) -> result<list<u64>, string>;
+}
+
+world runtime {
+  import host;
+  export callbacks;
+}
