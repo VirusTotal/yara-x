@@ -2246,10 +2246,9 @@ fn check_unintended_patterns_in_sets<'src>(
                                 && pat_name.starts_with(prefix2)
                         });
 
-                    if used_explicitly_in_branch
-                        || matched_by_longer_prefix_set_in_branch
-                    {
-                        if reported.insert((pat_name, span1.clone())) {
+                    if (used_explicitly_in_branch
+                        || matched_by_longer_prefix_set_in_branch)
+                        && reported.insert((pat_name, span1.clone())) {
                             ctx.warnings.add(|| {
                                 warnings::UnintendedPatternInSet::build(
                                     ctx.report_builder,
@@ -2263,7 +2262,6 @@ fn check_unintended_patterns_in_sets<'src>(
                                 )
                             });
                         }
-                    }
                 }
             }
         }
