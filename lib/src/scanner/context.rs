@@ -5,6 +5,7 @@ use std::iter;
 use std::mem::{MaybeUninit, transmute};
 #[cfg(feature = "rules-profiling")]
 use std::ops::AddAssign;
+use std::ops::ControlFlow;
 use std::ops::{Deref, Range};
 use std::pin::Pin;
 use std::ptr::NonNull;
@@ -799,24 +800,37 @@ impl ScanContext<'_, '_> {
             // Use the Teddy algorithm if it was possible to create a Teddy
             // matcher and the data being scanned is long enough.
             Some(teddy) if data.len() >= teddy.minimum_len() => {
-                if HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline {
-                    return Err(ScanError::Timeout);
-                }
-                teddy.find_overlapping(data, 0, &mut |m| {
-                    #[cfg(feature = "logging")]
-                    {
-                        atom_matches += 1;
-                    }
-                    let match_offset =
-                        m.start() as usize - data.as_ptr() as usize;
+                match teddy.find_overlapping(
+                    data,
+                    0,
+                    |m| -> ControlFlow<ScanError> {
+                        if HEARTBEAT_COUNTER.load(Ordering::Relaxed)
+                            >= self.deadline
+                        {
+                            return ControlFlow::Break(ScanError::Timeout);
+                        }
+                        #[cfg(feature = "logging")]
+                        {
+                            atom_matches += 1;
+                        }
+                        let match_offset =
+                            m.start() as usize - data.as_ptr() as usize;
 
-                    self.handle_atom_match(
-                        m.pattern() as usize,
-                        match_offset,
-                        base,
-                        data,
-                    );
-                });
+                        self.handle_atom_match(
+                            m.pattern() as usize,
+                            match_offset,
+                            base,
+                            data,
+                        );
+
+                        ControlFlow::Continue(())
+                    },
+                ) {
+                    ControlFlow::Continue(_) => {}
+                    ControlFlow::Break(err) => {
+                        return Err(err);
+                    }
+                }
             }
             // Otherwise use the Aho-Corasick algorithm.
             _ => {
