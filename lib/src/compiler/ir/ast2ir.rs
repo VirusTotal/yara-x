@@ -1000,7 +1000,7 @@ fn expr_from_ast<'src>(
 
 pub(in crate::compiler) fn rule_condition_from_ast<'src>(
     ctx: &mut CompileContext<'_, 'src>,
-    rule: &ast::Rule<'src>,
+    rule: &'src ast::Rule<'src>,
 ) -> Result<ExprId, CompileError> {
     // Start with clean IR tree.
     ctx.ir.clear();
@@ -1028,7 +1028,7 @@ pub(in crate::compiler) fn rule_condition_from_ast<'src>(
 
     ctx.ir.root = Some(condition);
 
-    check_unintended_patterns_in_sets(ctx);
+    check_unintended_patterns_in_sets(ctx, &rule.condition);
 
     Ok(condition)
 }
@@ -1894,34 +1894,376 @@ fn pattern_set_from_ast<'src>(
     }
 }
 
-/// Checks wildcard pattern set items (e.g. `$s*`) for patterns that are included
-/// in the set but also explicitly used outside the set, or matched by another
-/// set with a more specific (longer) prefix.
+/// Represents a single conjunctive branch (a set of condition sub-expressions
+/// that must be true at the same time, i.e., joined by `AND` operators within
+/// an execution path).
+#[derive(Clone, Debug, Default)]
+pub(crate) struct ConjunctiveBranch<'src> {
+    exprs: Vec<&'src ast::Expr<'src>>,
+}
+
+impl<'src> ConjunctiveBranch<'src> {
+    /// Returns the AST sub-expressions in this conjunctive branch.
+    #[allow(dead_code)]
+    #[inline]
+    pub fn exprs(&self) -> &[&'src ast::Expr<'src>] {
+        &self.exprs
+    }
+
+    /// Merges another conjunctive branch into this branch.
+    #[allow(dead_code)]
+    pub fn merge(&mut self, other: &ConjunctiveBranch<'src>) {
+        self.exprs.extend_from_slice(&other.exprs);
+    }
+
+    /// Extracts all explicitly referenced pattern identifiers (e.g. `$s1`, `#foo`)
+    /// present in this branch.
+    pub fn explicit_patterns(&self) -> Vec<&'src str> {
+        let mut patterns = Vec::new();
+        for expr in &self.exprs {
+            match expr {
+                ast::Expr::PatternMatch(pm) => {
+                    if !pm.identifier.name.is_empty() {
+                        patterns.push(pm.identifier.name);
+                    }
+                }
+                ast::Expr::PatternCount(id) => {
+                    if !id.identifier.name.is_empty() {
+                        patterns.push(id.identifier.name);
+                    }
+                }
+                ast::Expr::PatternOffset(id) => {
+                    if !id.identifier.name.is_empty() {
+                        patterns.push(id.identifier.name);
+                    }
+                }
+                ast::Expr::PatternLength(id) => {
+                    if !id.identifier.name.is_empty() {
+                        patterns.push(id.identifier.name);
+                    }
+                }
+                ast::Expr::Of(of) => {
+                    if let ast::OfItems::PatternSet(ast::PatternSet::Set(
+                        set,
+                    )) = &of.items
+                    {
+                        for item in set {
+                            if !item.wildcard {
+                                patterns.push(item.identifier);
+                            }
+                        }
+                    }
+                }
+                ast::Expr::ForOf(for_of) => {
+                    if let ast::PatternSet::Set(set) = &for_of.pattern_set {
+                        for item in set {
+                            if !item.wildcard {
+                                patterns.push(item.identifier);
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        patterns
+    }
+
+    /// Extracts all wildcard pattern set specifications (e.g. `($s*)`, `($context_*)`)
+    /// present in this branch.
+    pub fn wildcard_pattern_sets(&self) -> Vec<(&'src str, Span)> {
+        let mut sets = Vec::new();
+        for expr in &self.exprs {
+            match expr {
+                ast::Expr::Of(of) => {
+                    if let ast::OfItems::PatternSet(ast::PatternSet::Set(
+                        set,
+                    )) = &of.items
+                    {
+                        for item in set {
+                            if item.wildcard {
+                                sets.push((item.identifier, item.span()));
+                            }
+                        }
+                    }
+                }
+                ast::Expr::ForOf(for_of) => {
+                    if let ast::PatternSet::Set(set) = &for_of.pattern_set {
+                        for item in set {
+                            if item.wildcard {
+                                sets.push((item.identifier, item.span()));
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        sets
+    }
+}
+
+/// Container for all conjunctive branches of an AST expression tree.
+///
+/// # Algorithm Overview
+///
+/// The conjunctive branch decomposition algorithm converts a boolean AST tree
+/// into Disjunctive Normal Form (DNF) execution paths (conjunctive branches).
+/// Each `ConjunctiveBranch` represents a set of terms that must be true at the
+/// same time in a single execution path of the rule condition.
+///
+/// The algorithm is implemented iteratively without call-stack recursion:
+///
+/// 1. **Workstack Traversal**: Maintains a heap-allocated workstack holding
+///    pairs of `(AST_node, accumulated_branch_so_far)`.
+/// 2. **`OR` Expression Handling**: Operands of an `OR` expression represent
+///    alternative independent execution paths. Each operand is pushed onto
+///    the workstack with a copy of the current branch state.
+/// 3. **`AND` Expression Handling**: Operands of an `AND` expression are
+///    combined sequentially across all active branch paths, performing a
+///    Cartesian product expansion of sub-branches.
+/// 4. **Nested Expression Handling**: Sub-expressions (unary, binary, loops,
+///    with/defined wrappers) expand their child nodes iteratively into active
+///    branches.
+/// 5. **Leaf Expression Collection**: Leaf nodes (pattern matches, pattern set
+///    specifications, literals) append themselves to the current branch.
+///
+/// The expansion is capped at `MAX_BRANCHES` (64) to prevent exponential
+/// combinatorial explosion on complex boolean trees.
+#[derive(Clone, Debug)]
+pub(crate) struct ConjunctiveBranches<'src> {
+    branches: Vec<ConjunctiveBranch<'src>>,
+}
+
+impl<'src> ConjunctiveBranches<'src> {
+    /// Maximum number of conjunctive branches to extract before capping
+    /// expansion (prevents exponential growth on complex boolean trees).
+    const MAX_BRANCHES: usize = 64;
+
+    /// Decomposes an AST expression tree into its conjunctive branches
+    /// iteratively without call-stack recursion.
+    pub fn from_expr(expr: &'src ast::Expr<'src>) -> Self {
+        Self { branches: Self::extract_branches_iter(expr) }
+    }
+
+    /// Returns the slice of conjunctive branches.
+    #[inline]
+    pub fn branches(&self) -> &[ConjunctiveBranch<'src>] {
+        &self.branches
+    }
+
+    fn extract_branches_iter(
+        root: &'src ast::Expr<'src>,
+    ) -> Vec<ConjunctiveBranch<'src>> {
+        let mut branches = Vec::new();
+        // Heap-allocated workstack storing (AST_node, accumulated_branch_so_far)
+        let mut workstack = vec![(root, ConjunctiveBranch::default())];
+
+        while let Some((expr, branch)) = workstack.pop() {
+            if branches.len() >= Self::MAX_BRANCHES {
+                break;
+            }
+
+            match expr {
+                ast::Expr::Or(nary) => {
+                    // OR operands represent independent alternative branches.
+                    for op in nary.operands().rev() {
+                        workstack.push((op, branch.clone()));
+                    }
+                }
+                ast::Expr::And(nary) => {
+                    // AND operands combine terms into the current branch path.
+                    let mut current_branches = vec![branch];
+                    for op in nary.operands() {
+                        let mut next_branches = Vec::new();
+                        for b in current_branches {
+                            let expanded = Self::expand_node_iter(op, b);
+                            next_branches.extend(expanded);
+                            if next_branches.len() >= Self::MAX_BRANCHES {
+                                break;
+                            }
+                        }
+                        current_branches = next_branches;
+                    }
+                    branches.extend(current_branches);
+                }
+                _ => {
+                    let expanded = Self::expand_node_iter(expr, branch);
+                    branches.extend(expanded);
+                }
+            }
+        }
+
+        if branches.is_empty() {
+            branches.push(ConjunctiveBranch::default());
+        }
+
+        branches
+    }
+
+    fn expand_node_iter(
+        expr: &'src ast::Expr<'src>,
+        mut branch: ConjunctiveBranch<'src>,
+    ) -> Vec<ConjunctiveBranch<'src>> {
+        let mut children = Vec::new();
+        match expr {
+            ast::Expr::ForOf(for_of) => {
+                branch.exprs.push(expr);
+                children.push(&for_of.body);
+            }
+            ast::Expr::ForIn(for_in) => {
+                children.push(&for_in.body);
+            }
+            ast::Expr::With(with) => {
+                children.push(&with.body);
+            }
+            ast::Expr::Defined(unary)
+            | ast::Expr::Not(unary)
+            | ast::Expr::Minus(unary)
+            | ast::Expr::BitwiseNot(unary) => {
+                children.push(&unary.operand);
+            }
+            ast::Expr::Shl(binary)
+            | ast::Expr::Shr(binary)
+            | ast::Expr::BitwiseAnd(binary)
+            | ast::Expr::BitwiseOr(binary)
+            | ast::Expr::BitwiseXor(binary)
+            | ast::Expr::Eq(binary)
+            | ast::Expr::Ne(binary)
+            | ast::Expr::Lt(binary)
+            | ast::Expr::Gt(binary)
+            | ast::Expr::Le(binary)
+            | ast::Expr::Ge(binary)
+            | ast::Expr::Contains(binary)
+            | ast::Expr::IContains(binary)
+            | ast::Expr::StartsWith(binary)
+            | ast::Expr::IStartsWith(binary)
+            | ast::Expr::EndsWith(binary)
+            | ast::Expr::IEndsWith(binary)
+            | ast::Expr::IEquals(binary)
+            | ast::Expr::Matches(binary) => {
+                children.push(&binary.lhs);
+                children.push(&binary.rhs);
+            }
+            ast::Expr::Add(nary)
+            | ast::Expr::Sub(nary)
+            | ast::Expr::Mul(nary)
+            | ast::Expr::Div(nary)
+            | ast::Expr::Mod(nary)
+            | ast::Expr::FieldAccess(nary) => {
+                children.extend(nary.operands());
+            }
+            ast::Expr::FuncCall(func_call) => {
+                if let Some(obj) = &func_call.object {
+                    children.push(obj);
+                }
+                children.extend(func_call.args.iter());
+            }
+            ast::Expr::Lookup(lookup) => {
+                children.push(&lookup.primary);
+                children.push(&lookup.index);
+            }
+            _ => {
+                branch.exprs.push(expr);
+                return vec![branch];
+            }
+        }
+
+        if children.is_empty() {
+            vec![branch]
+        } else {
+            let mut current = vec![branch];
+            for child in children {
+                let mut next = Vec::new();
+                for b in current {
+                    let mut child_workstack = vec![(child, b)];
+                    while let Some((node, curr_b)) = child_workstack.pop() {
+                        match node {
+                            ast::Expr::Or(nary) => {
+                                for op in nary.operands().rev() {
+                                    child_workstack.push((op, curr_b.clone()));
+                                }
+                            }
+                            ast::Expr::And(nary) => {
+                                let mut and_branches = vec![curr_b];
+                                for op in nary.operands() {
+                                    let mut next_and = Vec::new();
+                                    for ab in and_branches {
+                                        next_and.extend(
+                                            Self::expand_node_iter(op, ab),
+                                        );
+                                    }
+                                    and_branches = next_and;
+                                }
+                                next.extend(and_branches);
+                            }
+                            _ => {
+                                next.extend(Self::expand_node_iter(
+                                    node, curr_b,
+                                ));
+                            }
+                        }
+                    }
+                }
+                current = next;
+            }
+            current
+        }
+    }
+}
+
+/// Checks wildcard pattern set items (e.g. `$s*`) for patterns that are
+/// included in the set but also explicitly used outside the set in the same
+/// conjunctive branch (expressions that must be true at the same time), or
+/// matched by another set with a more specific (longer) prefix in the same
+/// branch.
 fn check_unintended_patterns_in_sets<'src>(
     ctx: &mut CompileContext<'_, 'src>,
+    condition: &'src ast::Expr<'src>,
 ) {
-    for (prefix1, span1) in &ctx.wildcard_pattern_sets {
-        for pattern in ctx.current_rule_patterns.iter() {
-            let pat_name = pattern.identifier().name;
-            if pat_name.starts_with(prefix1) {
-                let used_explicitly = pattern.in_use();
-                let matched_by_longer_prefix_set =
-                    ctx.wildcard_pattern_sets.iter().any(|(prefix2, _)| {
-                        prefix2.len() > prefix1.len()
-                            && pat_name.starts_with(prefix2)
-                    });
+    let conjunctive_branches = ConjunctiveBranches::from_expr(condition);
+    let mut reported = std::collections::HashSet::new();
 
-                if used_explicitly || matched_by_longer_prefix_set {
-                    ctx.warnings.add(|| {
-                        warnings::UnintendedPatternInSet::build(
-                            ctx.report_builder,
-                            pat_name.to_string(),
-                            format!("{}*", prefix1),
-                            ctx.report_builder.span_to_code_loc(span1.clone()),
-                            ctx.report_builder
-                                .span_to_code_loc(pattern.span().clone()),
-                        )
-                    });
+    for branch in conjunctive_branches.branches() {
+        let explicit_patterns = branch.explicit_patterns();
+        let wildcard_pattern_sets = branch.wildcard_pattern_sets();
+
+        for (prefix1, span1) in &wildcard_pattern_sets {
+            for pattern in ctx.current_rule_patterns.iter() {
+                let pat_name = pattern.identifier().name;
+                if pat_name.starts_with(prefix1) {
+                    let used_explicitly_in_branch =
+                        explicit_patterns.iter().any(|&name| {
+                            name == pat_name
+                                || (name.len() > 1
+                                    && pat_name.len() > 1
+                                    && name[1..] == pat_name[1..])
+                        });
+
+                    let matched_by_longer_prefix_set_in_branch =
+                        wildcard_pattern_sets.iter().any(|(prefix2, _)| {
+                            prefix2.len() > prefix1.len()
+                                && pat_name.starts_with(prefix2)
+                        });
+
+                    if used_explicitly_in_branch
+                        || matched_by_longer_prefix_set_in_branch
+                    {
+                        if reported.insert((pat_name, span1.clone())) {
+                            ctx.warnings.add(|| {
+                                warnings::UnintendedPatternInSet::build(
+                                    ctx.report_builder,
+                                    pattern.identifier().name.to_string(),
+                                    format!("{}*", prefix1),
+                                    ctx.report_builder
+                                        .span_to_code_loc(span1.clone()),
+                                    ctx.report_builder.span_to_code_loc(
+                                        pattern.span().clone(),
+                                    ),
+                                )
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -1930,7 +2272,8 @@ fn check_unintended_patterns_in_sets<'src>(
     // Mark all patterns matching any wildcard pattern set item as used.
     for (prefix, _) in &ctx.wildcard_pattern_sets {
         for pattern in ctx.current_rule_patterns.iter_mut() {
-            if pattern.identifier().name.starts_with(prefix) {
+            let pat_name = pattern.identifier().name;
+            if pat_name.starts_with(prefix) {
                 pattern.mark_as_used();
             }
         }

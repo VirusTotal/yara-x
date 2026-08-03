@@ -1757,7 +1757,7 @@ fn test_unintended_pattern_in_set() {
     );
 
     let mut compiler = Compiler::new();
-    // Rule WITH pattern matching multiple sets (e.g. $sc_check* and $s*) -> warnings emitted for $s*
+    // Rule WITH pattern matching multiple sets in the SAME AND branch -> warnings emitted
     compiler
         .add_source(
             r#"
@@ -1768,7 +1768,7 @@ fn test_unintended_pattern_in_set() {
                     $sc_check1 = "baz"
                     $sc_check2 = "test"
                 condition:
-                    1 of ($sc_check*) or 2 of ($s*)
+                    1 of ($sc_check*) and 2 of ($s*)
             }
             "#,
         )
@@ -1777,7 +1777,7 @@ fn test_unintended_pattern_in_set() {
     assert_eq!(
         warnings.len(),
         2,
-        "Expected 2 warnings for $sc_check1 and $sc_check2 matched by $s*, got: {:?}",
+        "Expected 2 warnings for $sc_check1 and $sc_check2 matched by $s* in same AND branch, got: {:?}",
         warnings
     );
     let warn_str = format!("{:?}", warnings);
@@ -1785,6 +1785,43 @@ fn test_unintended_pattern_in_set() {
         warn_str.contains("$sc_check1") && warn_str.contains("$sc_check2"),
         "Expected warnings for $sc_check1 and $sc_check2, got: {:?}",
         warnings
+    );
+
+    let mut compiler = Compiler::new();
+    // Rule with pattern matching in separate OR branches -> NO warnings
+    compiler
+        .add_source(
+            r#"
+            rule test4 {
+                strings:
+                    $placeholder_instruction = "a"
+                    $placeholder_ftp = "b"
+                    $context_ftp = "c"
+                    $context_other = "d"
+                    $harm_1 = "e"
+                condition:
+                    (
+                        $placeholder_instruction and
+                        1 of ($context_*) and
+                        1 of ($harm_*)
+                    ) or (
+                        $placeholder_ftp and
+                        $context_ftp and
+                        1 of ($harm_*)
+                    )
+            }
+            "#,
+        )
+        .unwrap();
+    let warnings = compiler.warnings();
+    let unintended_warnings: Vec<_> = warnings
+        .iter()
+        .filter(|w| format!("{:?}", w).contains("unintended_pattern_in_set"))
+        .collect();
+    assert!(
+        unintended_warnings.is_empty(),
+        "Expected no unintended_pattern_in_set warnings for separate OR branches, got: {:?}",
+        unintended_warnings
     );
 }
 
