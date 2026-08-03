@@ -29,8 +29,8 @@ use crate::compiler::{
     SubPatternAtom, SubPatternFlags, SubPatternId,
 };
 use crate::errors::VariableError;
-use crate::re::Action;
 use crate::re::fast::FastVM;
+
 use crate::re::hir::ChainedPatternGap;
 use crate::re::thompson::PikeVM;
 #[cfg(feature = "rules-profiling")]
@@ -1552,9 +1552,9 @@ fn verify_regexp(
                 |match_len| {
                     fwd_match_len = Some(match_len);
                     if flags.contains(SubPatternFlags::GreedyRegexp) {
-                        Action::Continue
+                        ControlFlow::Continue(())
                     } else {
-                        Action::Stop
+                        ControlFlow::Break(())
                     }
                 },
             );
@@ -1566,7 +1566,7 @@ fn verify_regexp(
                 flags.contains(SubPatternFlags::Wide),
                 |match_len| {
                     fwd_match_len = Some(match_len);
-                    Action::Stop
+                    ControlFlow::Break(())
                 },
             );
         }
@@ -1591,7 +1591,7 @@ fn verify_regexp(
                     if verify_full_word(scanned_data, &range, flags, None) {
                         f(range);
                     }
-                    Action::Continue
+                    ControlFlow::Continue(())
                 },
             );
         } else {
@@ -1606,7 +1606,7 @@ fn verify_regexp(
                     if verify_full_word(scanned_data, &range, flags, None) {
                         f(range);
                     }
-                    Action::Continue
+                    ControlFlow::Continue(())
                 },
             );
         }
