@@ -42,7 +42,7 @@ pub(crate) struct CompileContext<'a, 'src> {
     pub current_rule_patterns: &'a mut Vec<ir::PatternInRule<'src>>,
 
     /// Wildcard pattern set items found in the rule's condition.
-    pub wildcard_pattern_sets: Vec<(String, Span)>,
+    pub wildcard_pattern_sets: Vec<(&'src str, Span)>,
 
     /// Warnings generated during the compilation.
     pub warnings: &'a mut Warnings,

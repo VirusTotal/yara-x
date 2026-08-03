@@ -477,9 +477,9 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
 }
 
 /// Given the AST for some expression, creates its IR.
-fn expr_from_ast(
-    ctx: &mut CompileContext,
-    expr: &ast::Expr,
+fn expr_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    expr: &ast::Expr<'src>,
 ) -> Result<ExprId, CompileError> {
     let expr = match expr {
         ast::Expr::Entrypoint { span } => {
@@ -998,9 +998,9 @@ fn expr_from_ast(
     Ok(expr)
 }
 
-pub(in crate::compiler) fn rule_condition_from_ast(
-    ctx: &mut CompileContext,
-    rule: &ast::Rule,
+pub(in crate::compiler) fn rule_condition_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    rule: &ast::Rule<'src>,
 ) -> Result<ExprId, CompileError> {
     // Start with clean IR tree.
     ctx.ir.clear();
@@ -1033,9 +1033,9 @@ pub(in crate::compiler) fn rule_condition_from_ast(
     Ok(condition)
 }
 
-fn bool_expr_from_ast(
-    ctx: &mut CompileContext,
-    ast: &ast::Expr,
+fn bool_expr_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    ast: &ast::Expr<'src>,
 ) -> Result<ExprId, CompileError> {
     let expr = expr_from_ast(ctx, ast)?;
 
@@ -1119,9 +1119,9 @@ impl OfItems {
     }
 }
 
-fn of_expr_from_ast(
-    ctx: &mut CompileContext,
-    of: &ast::Of,
+fn of_expr_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    of: &ast::Of<'src>,
 ) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &of.quantifier)?;
     let mut stack_frame =
@@ -1296,9 +1296,9 @@ fn of_expr_from_ast(
     Ok(expr)
 }
 
-fn for_of_expr_from_ast(
-    ctx: &mut CompileContext,
-    for_of: &ast::ForOf,
+fn for_of_expr_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    for_of: &ast::ForOf<'src>,
 ) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
     let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set)?;
@@ -1426,9 +1426,9 @@ fn is_potentially_large_range(ctx: &CompileContext, range: &Range) -> bool {
         .is_some()
 }
 
-fn for_in_expr_from_ast(
-    ctx: &mut CompileContext,
-    for_in: &ast::ForIn,
+fn for_in_expr_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    for_in: &ast::ForIn<'src>,
 ) -> Result<ExprId, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_in.quantifier)?;
     let iterable = iterable_from_ast(ctx, &for_in.iterable)?;
@@ -1570,9 +1570,9 @@ fn for_in_expr_from_ast(
     Ok(ctx.ir.for_in(quantifier, variables, for_vars, iterable, body))
 }
 
-fn with_expr_from_ast(
-    ctx: &mut CompileContext,
-    with: &ast::With,
+fn with_expr_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    with: &ast::With<'src>,
 ) -> Result<ExprId, CompileError> {
     // Create stack frame with capacity for the with statement variables
     let mut stack_frame = ctx
@@ -1642,9 +1642,9 @@ fn with_expr_from_ast(
     Ok(ctx.ir.with(declarations, body))
 }
 
-fn iterable_from_ast(
-    ctx: &mut CompileContext,
-    iter: &ast::Iterable,
+fn iterable_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    iter: &ast::Iterable<'src>,
 ) -> Result<Iterable, CompileError> {
     match iter {
         ast::Iterable::Range(range) => {
@@ -1695,9 +1695,9 @@ fn iterable_from_ast(
     }
 }
 
-fn anchor_from_ast(
-    ctx: &mut CompileContext,
-    anchor: &Option<ast::MatchAnchor>,
+fn anchor_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    anchor: &Option<ast::MatchAnchor<'src>>,
 ) -> Result<MatchAnchor, CompileError> {
     match anchor {
         Some(ast::MatchAnchor::At(at_)) => {
@@ -1710,9 +1710,9 @@ fn anchor_from_ast(
     }
 }
 
-fn range_from_ast(
-    ctx: &mut CompileContext,
-    range: &ast::Range,
+fn range_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    range: &ast::Range<'src>,
 ) -> Result<Range, CompileError> {
     let lower_bound = non_negative_integer_from_ast(ctx, &range.lower_bound)?;
     let upper_bound = non_negative_integer_from_ast(ctx, &range.upper_bound)?;
@@ -1741,9 +1741,9 @@ fn range_from_ast(
     Ok(Range { lower_bound, upper_bound })
 }
 
-fn non_negative_integer_from_ast(
-    ctx: &mut CompileContext,
-    expr: &ast::Expr,
+fn non_negative_integer_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    expr: &ast::Expr<'src>,
 ) -> Result<ExprId, CompileError> {
     let span = expr.span();
     let expr = expr_from_ast(ctx, expr)?;
@@ -1763,9 +1763,9 @@ fn non_negative_integer_from_ast(
     Ok(expr)
 }
 
-fn integer_in_range_from_ast(
-    ctx: &mut CompileContext,
-    expr: &ast::Expr,
+fn integer_in_range_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    expr: &ast::Expr<'src>,
     range: RangeInclusive<i64>,
 ) -> Result<ExprId, CompileError> {
     let span = expr.span();
@@ -1791,9 +1791,9 @@ fn integer_in_range_from_ast(
     Ok(expr)
 }
 
-fn quantifier_from_ast(
-    ctx: &mut CompileContext,
-    quantifier: &ast::Quantifier,
+fn quantifier_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    quantifier: &ast::Quantifier<'src>,
 ) -> Result<Quantifier, CompileError> {
     match quantifier {
         ast::Quantifier::None { .. } => Ok(Quantifier::None),
@@ -1813,9 +1813,9 @@ fn quantifier_from_ast(
     }
 }
 
-fn pattern_set_from_ast(
-    ctx: &mut CompileContext,
-    pattern_set: &ast::PatternSet,
+fn pattern_set_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    pattern_set: &ast::PatternSet<'src>,
 ) -> Result<Vec<PatternIdx>, CompileError> {
     match pattern_set {
         // `x of them`
@@ -1867,7 +1867,7 @@ fn pattern_set_from_ast(
 
                 if item.wildcard {
                     ctx.wildcard_pattern_sets
-                        .push((item.identifier.to_string(), item.span()));
+                        .push((item.identifier, item.span()));
                 } else {
                     for pattern in ctx.current_rule_patterns.iter_mut() {
                         if item.matches(pattern.identifier()) {
@@ -1897,7 +1897,9 @@ fn pattern_set_from_ast(
 /// Checks wildcard pattern set items (e.g. `$s*`) for patterns that are included
 /// in the set but also explicitly used outside the set, or matched by another
 /// set with a more specific (longer) prefix.
-fn check_unintended_patterns_in_sets(ctx: &mut CompileContext) {
+fn check_unintended_patterns_in_sets<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+) {
     for (prefix1, span1) in &ctx.wildcard_pattern_sets {
         for pattern in ctx.current_rule_patterns.iter() {
             let pat_name = pattern.identifier().name;
@@ -1937,9 +1939,9 @@ fn check_unintended_patterns_in_sets(ctx: &mut CompileContext) {
     }
 }
 
-fn func_call_from_ast(
-    ctx: &mut CompileContext,
-    func_call: &ast::FuncCall,
+fn func_call_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    func_call: &ast::FuncCall<'src>,
 ) -> Result<ExprId, CompileError> {
     let mut object = if let Some(obj) = &func_call.object {
         let expr = expr_from_ast(ctx, obj)?;
@@ -2041,9 +2043,9 @@ fn func_call_from_ast(
     Ok(ctx.ir.func_call(object, args, matching_signature.clone()))
 }
 
-fn matches_expr_from_ast(
-    ctx: &mut CompileContext,
-    expr: &ast::BinaryExpr,
+fn matches_expr_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    expr: &ast::BinaryExpr<'src>,
 ) -> Result<ExprId, CompileError> {
     let lhs_span = expr.lhs.span();
     let rhs_span = expr.rhs.span();
@@ -2257,9 +2259,9 @@ pub(in crate::compiler) fn warn_if_not_bool(
 
 macro_rules! gen_unary_op {
     ($name:ident, $variant:ident, $( $accepted_types:path )|+, $check_fn:expr) => {
-        fn $name(
-            ctx: &mut CompileContext,
-            expr: &ast::UnaryExpr,
+        fn $name<'src>(
+            ctx: &mut CompileContext<'_, 'src>,
+            expr: &ast::UnaryExpr<'src>,
         ) -> Result<ExprId, CompileError> {
             let operand = expr_from_ast(ctx, &expr.operand)?;
 
@@ -2285,9 +2287,9 @@ macro_rules! gen_unary_op {
 
 macro_rules! gen_binary_op {
     ($name:ident, $variant:ident, $( $accepted_types:path )|+, $compatible_types:expr, $check_fn:expr) => {
-        fn $name(
-            ctx: &mut CompileContext,
-            expr: &ast::BinaryExpr,
+        fn $name<'src>(
+            ctx: &mut CompileContext<'_, 'src>,
+            expr: &ast::BinaryExpr<'src>,
         ) -> Result<ExprId, CompileError> {
             let lhs_span = expr.lhs.span();
             let rhs_span = expr.rhs.span();
@@ -2320,9 +2322,9 @@ macro_rules! gen_binary_op {
 
 macro_rules! gen_string_op {
     ($name:ident, $variant:ident) => {
-        fn $name(
-            ctx: &mut CompileContext,
-            expr: &ast::BinaryExpr,
+        fn $name<'src>(
+            ctx: &mut CompileContext<'_, 'src>,
+            expr: &ast::BinaryExpr<'src>,
         ) -> Result<ExprId, CompileError> {
             let lhs_span = expr.lhs.span();
             let rhs_span = expr.rhs.span();
@@ -2347,9 +2349,9 @@ macro_rules! gen_string_op {
 
 macro_rules! gen_n_ary_operation {
     ($name:ident, $variant:ident, $( $accepted_types:path )|+, $compatible_types:expr, $check_fn:expr) => {
-        fn $name(
-            ctx: &mut CompileContext,
-            expr: &ast::NAryExpr,
+        fn $name<'src>(
+            ctx: &mut CompileContext<'_, 'src>,
+            expr: &ast::NAryExpr<'src>,
         ) -> Result<ExprId, CompileError> {
             let span = expr.span();
             let accepted_types = &[$( $accepted_types ),+];
@@ -2445,9 +2447,9 @@ gen_n_ary_operation!(
     })
 );
 
-fn or_expr_from_ast(
-    ctx: &mut CompileContext,
-    expr: &ast::NAryExpr,
+fn or_expr_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    expr: &ast::NAryExpr<'src>,
 ) -> Result<ExprId, CompileError> {
     let span = expr.span();
     let accepted_types =
