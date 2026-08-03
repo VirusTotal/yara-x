@@ -231,6 +231,7 @@ fn is_available_avx2() -> bool {
 mod x86_64 {
     use super::{Match, Patterns, Searcher, SearcherT};
     use core::arch::x86_64::{__m128i, __m256i};
+    use std::ops::ControlFlow;
     use std::sync::Arc;
 
     #[derive(Clone, Debug)]
