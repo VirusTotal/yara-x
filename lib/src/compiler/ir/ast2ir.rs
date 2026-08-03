@@ -1905,10 +1905,8 @@ fn check_unintended_patterns_in_sets<'src>(
             let pat_name = pattern.identifier().name;
             if pat_name.starts_with(prefix1) {
                 let used_explicitly = pattern.in_use();
-                let matched_by_longer_prefix_set = ctx
-                    .wildcard_pattern_sets
-                    .iter()
-                    .any(|(prefix2, _)| {
+                let matched_by_longer_prefix_set =
+                    ctx.wildcard_pattern_sets.iter().any(|(prefix2, _)| {
                         prefix2.len() > prefix1.len()
                             && pat_name.starts_with(prefix2)
                     });
