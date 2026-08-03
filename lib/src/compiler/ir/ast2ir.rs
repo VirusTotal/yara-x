@@ -2248,20 +2248,20 @@ fn check_unintended_patterns_in_sets<'src>(
 
                     if (used_explicitly_in_branch
                         || matched_by_longer_prefix_set_in_branch)
-                        && reported.insert((pat_name, span1.clone())) {
-                            ctx.warnings.add(|| {
-                                warnings::UnintendedPatternInSet::build(
-                                    ctx.report_builder,
-                                    pattern.identifier().name.to_string(),
-                                    format!("{}*", prefix1),
-                                    ctx.report_builder
-                                        .span_to_code_loc(span1.clone()),
-                                    ctx.report_builder.span_to_code_loc(
-                                        pattern.span().clone(),
-                                    ),
-                                )
-                            });
-                        }
+                        && reported.insert((pat_name, span1.clone()))
+                    {
+                        ctx.warnings.add(|| {
+                            warnings::UnintendedPatternInSet::build(
+                                ctx.report_builder,
+                                pattern.identifier().name.to_string(),
+                                format!("{}*", prefix1),
+                                ctx.report_builder
+                                    .span_to_code_loc(span1.clone()),
+                                ctx.report_builder
+                                    .span_to_code_loc(pattern.span().clone()),
+                            )
+                        });
+                    }
                 }
             }
         }
