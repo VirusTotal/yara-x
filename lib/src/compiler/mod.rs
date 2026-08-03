@@ -1638,6 +1638,7 @@ impl Compiler<'_> {
             symbol_table: &mut self.symbol_table,
             report_builder: &self.report_builder,
             current_rule_patterns: &mut rule_patterns,
+            wildcard_pattern_sets: Vec::new(),
             warnings: &mut self.warnings,
             vars: VarStack::new(),
             for_of_depth: 0,

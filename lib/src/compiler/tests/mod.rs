@@ -1701,6 +1701,94 @@ fn test_rules_warnings() {
 }
 
 #[test]
+fn test_unintended_pattern_in_set() {
+    let mut compiler = Compiler::new();
+    // Rule without explicit usage outside the wildcard set -> no warning
+    compiler
+        .add_source(
+            r#"
+            rule test1 {
+                strings:
+                    $s1 = "foo"
+                    $s2 = "bar"
+                    $s3 = "baz"
+                    $suspicious = "test"
+                condition:
+                    any of ($s*)
+            }
+            "#,
+        )
+        .unwrap();
+    let warnings = compiler.warnings();
+    assert!(
+        warnings.is_empty(),
+        "Expected no warnings when no pattern is explicitly used outside the set, got: {:?}",
+        warnings
+    );
+
+    let mut compiler = Compiler::new();
+    // Rule WITH explicit usage outside the wildcard set -> warning emitted
+    compiler
+        .add_source(
+            r#"
+            rule test2 {
+                strings:
+                    $s1 = "foo"
+                    $s2 = "bar"
+                    $s3 = "baz"
+                    $suspicious = "test"
+                condition:
+                    $suspicious at 0 and any of ($s*)
+            }
+            "#,
+        )
+        .unwrap();
+    let warnings = compiler.warnings();
+    assert_eq!(
+        warnings.len(),
+        1,
+        "Expected 1 warning for pattern explicitly used outside the set, got: {:?}",
+        warnings
+    );
+    assert!(
+        format!("{:?}", warnings[0]).contains("unintended_pattern_in_set"),
+        "Expected unintended_pattern_in_set warning, got: {:?}",
+        warnings[0]
+    );
+
+    let mut compiler = Compiler::new();
+    // Rule WITH pattern matching multiple sets (e.g. $sc_check* and $s*) -> warnings emitted for $s*
+    compiler
+        .add_source(
+            r#"
+            rule test3 {
+                strings:
+                    $s1 = "foo"
+                    $s2 = "bar"
+                    $sc_check1 = "baz"
+                    $sc_check2 = "test"
+                condition:
+                    1 of ($sc_check*) or 2 of ($s*)
+            }
+            "#,
+        )
+        .unwrap();
+    let warnings = compiler.warnings();
+    assert_eq!(
+        warnings.len(),
+        2,
+        "Expected 2 warnings for $sc_check1 and $sc_check2 matched by $s*, got: {:?}",
+        warnings
+    );
+    let warn_str = format!("{:?}", warnings);
+    assert!(
+        warn_str.contains("$sc_check1") && warn_str.contains("$sc_check2"),
+        "Expected warnings for $sc_check1 and $sc_check2, got: {:?}",
+        warnings
+    );
+}
+
+#[test]
 fn test_rules_debug() {
     let mut compiler = Compiler::new();
     compiler.add_source("rule test { condition: true }").unwrap();

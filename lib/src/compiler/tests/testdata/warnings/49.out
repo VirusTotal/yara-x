@@ -4,8 +4,8 @@ warning[unintended_pattern_in_set]: pattern `$start_byte` is matched by set `$s*
 6 |     $start_byte = { 80 }
   |                   ------ pattern `$start_byte` defined here
 7 |   condition:
-8 |     any of ($s*)
-  |             --- pattern `$start_byte` is matched by this wildcard set
+8 |     $start_byte and any of ($s*)
+  |                             --- pattern `$start_byte` is matched by this wildcard set
 warning[slow_pattern]: slow pattern
  --> line:6:19
   |

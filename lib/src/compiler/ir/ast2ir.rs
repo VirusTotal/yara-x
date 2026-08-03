@@ -1028,6 +1028,8 @@ pub(in crate::compiler) fn rule_condition_from_ast(
 
     ctx.ir.root = Some(condition);
 
+    check_unintended_patterns_in_sets(ctx);
+
     Ok(condition)
 }
 
@@ -1863,7 +1865,16 @@ fn pattern_set_from_ast(
                     ));
                 }
 
-                check_wildcard_pattern_set_outliers(ctx, item);
+                if item.wildcard {
+                    ctx.wildcard_pattern_sets
+                        .push((item.identifier.to_string(), item.span()));
+                } else {
+                    for pattern in ctx.current_rule_patterns.iter_mut() {
+                        if item.matches(pattern.identifier()) {
+                            pattern.mark_as_used();
+                        }
+                    }
+                }
             }
 
             let mut pattern_indexes: Vec<PatternIdx> = Vec::new();
@@ -1875,8 +1886,6 @@ fn pattern_set_from_ast(
                 // check if some of them matches the identifier.
                 if set.iter().any(|p| p.matches(pattern.identifier())) {
                     pattern_indexes.push(i.into());
-                    // All the patterns in the set are marked as used.
-                    pattern.mark_as_used();
                 }
             }
 
@@ -1885,79 +1894,45 @@ fn pattern_set_from_ast(
     }
 }
 
-/// Checks a wildcard pattern set item (e.g. `$s*`) for pattern name outliers.
-///
-/// For pattern sets containing 3 or more matching patterns, this function
-/// calculates the average normalized Levenshtein similarity of each pattern
-/// identifier to all other identifiers in the set to find the medoid
-/// (representative pattern name).
-///
-/// If any pattern's similarity to the medoid is below 0.4, it is flagged as
-/// an outlier, and an [`warnings::UnintendedPatternInSet`] compiler warning
-/// is emitted.
-///
-/// For example, in a set matching `$s1`, `$s2`, `$s3` and `$start_byte`,
-/// `$start_byte` is identified as an outlier because its similarity to `$s1`
-/// is significantly lower than the similarity among `$s1..$s3`.
-fn check_wildcard_pattern_set_outliers(
-    ctx: &mut CompileContext,
-    item: &ast::PatternSetItem,
-) {
-    if !item.wildcard {
-        return;
+/// Checks wildcard pattern set items (e.g. `$s*`) for patterns that are included
+/// in the set but also explicitly used outside the set, or matched by another
+/// set with a more specific (longer) prefix.
+fn check_unintended_patterns_in_sets(ctx: &mut CompileContext) {
+    for (prefix1, span1) in &ctx.wildcard_pattern_sets {
+        for pattern in ctx.current_rule_patterns.iter() {
+            let pat_name = pattern.identifier().name;
+            if pat_name.starts_with(prefix1) {
+                let used_explicitly = pattern.in_use();
+                let matched_by_longer_prefix_set = ctx
+                    .wildcard_pattern_sets
+                    .iter()
+                    .any(|(prefix2, _)| {
+                        prefix2.len() > prefix1.len()
+                            && pat_name.starts_with(prefix2)
+                    });
+
+                if used_explicitly || matched_by_longer_prefix_set {
+                    ctx.warnings.add(|| {
+                        warnings::UnintendedPatternInSet::build(
+                            ctx.report_builder,
+                            pat_name.to_string(),
+                            format!("{}*", prefix1),
+                            ctx.report_builder.span_to_code_loc(span1.clone()),
+                            ctx.report_builder
+                                .span_to_code_loc(pattern.span().clone()),
+                        )
+                    });
+                }
+            }
+        }
     }
 
-    let matching = ctx
-        .current_rule_patterns
-        .iter()
-        .filter(|p| item.matches(p.identifier()));
-
-    // Must match at least 3 patterns to establish a medoid baseline.
-    if matching.clone().take(3).count() < 3 {
-        return;
-    }
-
-    // Find the medoid pattern (the pattern with maximum total similarity to all other matching patterns).
-    let medoid = matching.clone().max_by(|p1, p2| {
-        let name1 = p1.identifier().name;
-        let name2 = p2.identifier().name;
-
-        let sim1: f64 = matching
-            .clone()
-            .filter(|p| p.identifier().name != name1)
-            .map(|p| {
-                strsim::normalized_levenshtein(name1, p.identifier().name)
-            })
-            .sum();
-
-        let sim2: f64 = matching
-            .clone()
-            .filter(|p| p.identifier().name != name2)
-            .map(|p| {
-                strsim::normalized_levenshtein(name2, p.identifier().name)
-            })
-            .sum();
-
-        sim1.partial_cmp(&sim2).unwrap()
-    });
-
-    if let Some(medoid) = medoid {
-        let medoid_name = medoid.identifier().name;
-        let prefix = item.identifier;
-
-        for p in matching.filter(|p| {
-            strsim::normalized_levenshtein(p.identifier().name, medoid_name)
-                < 0.4
-        }) {
-            ctx.warnings.add(|| {
-                warnings::UnintendedPatternInSet::build(
-                    ctx.report_builder,
-                    p.identifier().name.to_string(),
-                    format!("{}*", prefix),
-                    ctx.report_builder.span_to_code_loc(item.span()),
-                    ctx.report_builder.span_to_code_loc(p.span().clone()),
-                )
-            });
+    // Mark all patterns matching any wildcard pattern set item as used.
+    for (prefix, _) in &ctx.wildcard_pattern_sets {
+        for pattern in ctx.current_rule_patterns.iter_mut() {
+            if pattern.identifier().name.starts_with(prefix) {
+                pattern.mark_as_used();
+            }
         }
     }
 }

@@ -41,6 +41,9 @@ pub(crate) struct CompileContext<'a, 'src> {
     /// in the current rule.
     pub current_rule_patterns: &'a mut Vec<ir::PatternInRule<'src>>,
 
+    /// Wildcard pattern set items found in the rule's condition.
+    pub wildcard_pattern_sets: Vec<(String, Span)>,
+
     /// Warnings generated during the compilation.
     pub warnings: &'a mut Warnings,
 
@@ -99,7 +102,10 @@ impl<'src> CompileContext<'_, 'src> {
         self.current_rule_patterns
             .iter_mut()
             .find_position(|p| p.identifier().name[1..] == ident.name[1..])
-            .map(|(pos, pattern)| (PatternIdx::from(pos), pattern))
+            .map(|(pos, pattern)| {
+                pattern.mark_as_used();
+                (PatternIdx::from(pos), pattern)
+            })
             .ok_or_else(|| {
                 UnknownPattern::build(
                     self.report_builder,

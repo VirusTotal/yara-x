@@ -5,5 +5,5 @@ rule prefix_wildcard_outlier {
     $prefix_3 = "baz"
     $prefix_unrelated_long_suffix = "test"
   condition:
-    any of ($prefix_*)
+    $prefix_unrelated_long_suffix at 0 and any of ($prefix_*)
 }

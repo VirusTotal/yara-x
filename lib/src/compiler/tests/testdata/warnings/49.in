@@ -5,5 +5,5 @@ rule ambiguous_pattern_set_warning {
     $s3 = "spawn"
     $start_byte = { 80 }
   condition:
-    any of ($s*)
+    $start_byte and any of ($s*)
 }

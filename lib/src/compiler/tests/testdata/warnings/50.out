@@ -4,5 +4,5 @@ warning[unintended_pattern_in_set]: pattern `$prefix_unrelated_long_suffix` is m
 6 |     $prefix_unrelated_long_suffix = "test"
   |     -------------------------------------- pattern `$prefix_unrelated_long_suffix` defined here
 7 |   condition:
-8 |     any of ($prefix_*)
-  |             --------- pattern `$prefix_unrelated_long_suffix` is matched by this wildcard set
+8 |     $prefix_unrelated_long_suffix at 0 and any of ($prefix_*)
+  |                                                    --------- pattern `$prefix_unrelated_long_suffix` is matched by this wildcard set
