@@ -239,7 +239,6 @@ mod tests {
             symbol_table: &mut symbol_table,
             report_builder: &mut report_builder,
             current_rule_patterns: &mut rule_patterns,
-            wildcard_pattern_sets: Vec::new(),
             warnings: &mut warnings,
             vars: VarStack::new(),
             for_of_depth: 0,
