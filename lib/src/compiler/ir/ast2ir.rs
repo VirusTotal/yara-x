@@ -2219,7 +2219,7 @@ fn check_unintended_patterns_in_sets<'src>(
                 let pat_name = pattern.identifier().name;
                 if pat_name.starts_with(prefix1) {
                     let used_explicitly_in_branch =
-                        explicit_patterns.iter().any(|&name| name == pat_name);
+                        explicit_patterns.contains(&pat_name);
 
                     let matched_by_longer_prefix_set_in_branch =
                         wildcard_pattern_sets.iter().any(|(prefix2, _)| {
