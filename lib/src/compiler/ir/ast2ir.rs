@@ -1864,12 +1864,6 @@ fn pattern_set_from_ast<'src>(
                         }),
                     ));
                 }
-
-                for pattern in ctx.current_rule_patterns.iter_mut() {
-                    if item.matches(pattern.identifier()) {
-                        pattern.mark_as_used();
-                    }
-                }
             }
 
             let mut pattern_indexes: Vec<PatternIdx> = Vec::new();
@@ -1881,6 +1875,8 @@ fn pattern_set_from_ast<'src>(
                 // check if some of them matches the identifier.
                 if set.iter().any(|p| p.matches(pattern.identifier())) {
                     pattern_indexes.push(i.into());
+                    // All the patterns in the set are marked as used.
+                    pattern.mark_as_used();
                 }
             }
 
