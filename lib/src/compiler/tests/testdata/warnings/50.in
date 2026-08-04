@@ -1,9 +1,9 @@
-rule prefix_wildcard_outlier {
+rule test {
   strings:
-    $prefix_1 = "foo"
-    $prefix_2 = "bar"
-    $prefix_3 = "baz"
-    $prefix_unrelated_long_suffix = "test"
+    $s1 = "foo"
+    $s2 = "bar"
+    $sc_check1 = "baz"
+    $sc_check2 = "test"
   condition:
-    $prefix_unrelated_long_suffix at 0 and any of ($prefix_*)
+    1 of ($sc_check*) and 2 of ($s*)
 }

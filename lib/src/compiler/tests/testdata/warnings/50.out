@@ -1,8 +1,16 @@
-warning[unintended_pattern_in_set]: pattern `$prefix_unrelated_long_suffix` is matched by set `$prefix_*`
+warning[unintended_pattern_in_set]: pattern `$sc_check1` is matched by set `$s*`
+ --> line:5:5
+  |
+5 |     $sc_check1 = "baz"
+  |     ------------------ pattern `$sc_check1` defined here
+...
+8 |     1 of ($sc_check*) and 2 of ($s*)
+  |                                 --- pattern `$sc_check1` is matched by this wildcard set
+warning[unintended_pattern_in_set]: pattern `$sc_check2` is matched by set `$s*`
  --> line:6:5
   |
-6 |     $prefix_unrelated_long_suffix = "test"
-  |     -------------------------------------- pattern `$prefix_unrelated_long_suffix` defined here
+6 |     $sc_check2 = "test"
+  |     ------------------- pattern `$sc_check2` defined here
 7 |   condition:
-8 |     $prefix_unrelated_long_suffix at 0 and any of ($prefix_*)
-  |                                                    --------- pattern `$prefix_unrelated_long_suffix` is matched by this wildcard set
+8 |     1 of ($sc_check*) and 2 of ($s*)
+  |                                 --- pattern `$sc_check2` is matched by this wildcard set
