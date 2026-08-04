@@ -1823,6 +1823,42 @@ fn test_unintended_pattern_in_set() {
         "Expected no unintended_pattern_in_set warnings for separate OR branches, got: {:?}",
         unintended_warnings
     );
+
+    let mut compiler = Compiler::new();
+    // Rule using #str, @str, !str outside wildcard pattern set -> NO warnings
+    compiler
+        .add_source(
+            r#"
+            rule test5 {
+                strings:
+                    $str1 = "foo"
+                    $str2 = "bar"
+                    $str3 = "baz"
+                    $str4 = "test"
+                    $str5 = "demo"
+                    $key1 = "k1"
+                condition:
+                    uint16(0) != 0x5A4D and
+                    all of ($str*) and
+                    3 of ($key*) and
+                    #str5 in (0 .. 1024) and
+                    #str3 > 30 and
+                    !str4 > 10 and
+                    @str1 == 0
+            }
+            "#,
+        )
+        .unwrap();
+    let warnings = compiler.warnings();
+    let unintended_warnings: Vec<_> = warnings
+        .iter()
+        .filter(|w| format!("{:?}", w).contains("unintended_pattern_in_set"))
+        .collect();
+    assert!(
+        unintended_warnings.is_empty(),
+        "Expected no unintended_pattern_in_set warnings when patterns are only referenced via #, @, or !, got: {:?}",
+        unintended_warnings
+    );
 }
 
 #[test]

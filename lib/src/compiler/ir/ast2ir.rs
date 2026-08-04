@@ -1916,8 +1916,9 @@ impl<'src> ConjunctiveBranch<'src> {
         self.exprs.extend_from_slice(&other.exprs);
     }
 
-    /// Extracts all explicitly referenced pattern identifiers (e.g. `$s1`, `#foo`)
-    /// present in this branch.
+    /// Extracts all explicitly referenced pattern identifiers (e.g. `$s1`)
+    /// present in this branch for pattern match expressions (`$pattern` or
+    /// explicit items in pattern sets).
     pub fn explicit_patterns(&self) -> Vec<&'src str> {
         let mut patterns = Vec::new();
         for expr in &self.exprs {
@@ -1925,21 +1926,6 @@ impl<'src> ConjunctiveBranch<'src> {
                 ast::Expr::PatternMatch(pm) => {
                     if !pm.identifier.name.is_empty() {
                         patterns.push(pm.identifier.name);
-                    }
-                }
-                ast::Expr::PatternCount(id) => {
-                    if !id.identifier.name.is_empty() {
-                        patterns.push(id.identifier.name);
-                    }
-                }
-                ast::Expr::PatternOffset(id) => {
-                    if !id.identifier.name.is_empty() {
-                        patterns.push(id.identifier.name);
-                    }
-                }
-                ast::Expr::PatternLength(id) => {
-                    if !id.identifier.name.is_empty() {
-                        patterns.push(id.identifier.name);
                     }
                 }
                 ast::Expr::Of(of) => {
@@ -2233,12 +2219,7 @@ fn check_unintended_patterns_in_sets<'src>(
                 let pat_name = pattern.identifier().name;
                 if pat_name.starts_with(prefix1) {
                     let used_explicitly_in_branch =
-                        explicit_patterns.iter().any(|&name| {
-                            name == pat_name
-                                || (name.len() > 1
-                                    && pat_name.len() > 1
-                                    && name[1..] == pat_name[1..])
-                        });
+                        explicit_patterns.iter().any(|&name| name == pat_name);
 
                     let matched_by_longer_prefix_set_in_branch =
                         wildcard_pattern_sets.iter().any(|(prefix2, _)| {
