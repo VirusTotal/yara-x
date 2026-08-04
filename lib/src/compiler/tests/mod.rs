@@ -1700,8 +1700,6 @@ fn test_rules_warnings() {
     assert!(!rules.warnings().is_empty());
 }
 
-
-
 #[test]
 fn test_rules_debug() {
     let mut compiler = Compiler::new();
