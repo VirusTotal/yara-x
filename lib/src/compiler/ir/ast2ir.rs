@@ -1870,11 +1870,6 @@ fn pattern_set_from_ast<'src>(
                         pattern.mark_as_used();
                     }
                 }
-
-                if item.wildcard {
-                    ctx.wildcard_pattern_sets
-                        .push((item.identifier, item.span()));
-                }
             }
 
             let mut pattern_indexes: Vec<PatternIdx> = Vec::new();
