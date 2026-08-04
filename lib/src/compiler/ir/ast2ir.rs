@@ -1913,10 +1913,11 @@ pub(crate) struct ConjunctiveBranches<'src> {
     branches: Vec<ConjunctiveBranch<'src>>,
 }
 
-/// Stack frame representing an execution step during iterative DNF AST expansion.
+/// Stack frame representing an execution step during iterative DNF AST
+/// expansion.
 enum Frame<'src> {
-    /// Evaluates a sequence of child AST sub-expressions sequentially, passing
-    /// accumulated conjunctive branches from one child to the next.
+    /// Evaluates a sequence of child AST sub-expressions sequentially,
+    /// passing accumulated conjunctive branches from one child to the next.
     Sequence {
         children: Vec<&'src ast::Expr<'src>>,
         idx: usize,
@@ -1930,63 +1931,6 @@ enum Frame<'src> {
         input_branches: Vec<ConjunctiveBranch<'src>>,
         results: Vec<ConjunctiveBranch<'src>>,
     },
-}
-
-/// Helper that inspects an AST expression and returns:
-/// - `push_leaf`: boolean indicating if this node itself should be recorded as a leaf expression in the conjunctive branch (e.g. `ForOf` or terminal AST nodes).
-/// - `children`: list of child AST expressions to traverse deeper into.
-fn extract_child_exprs<'src>(
-    expr: &'src ast::Expr<'src>,
-) -> (bool, Vec<&'src ast::Expr<'src>>) {
-    match expr {
-        ast::Expr::ForOf(for_of) => (true, vec![&for_of.body]),
-        ast::Expr::ForIn(for_in) => (false, vec![&for_in.body]),
-        ast::Expr::With(with) => (false, vec![&with.body]),
-        ast::Expr::Defined(unary)
-        | ast::Expr::Not(unary)
-        | ast::Expr::Minus(unary)
-        | ast::Expr::BitwiseNot(unary) => (false, vec![&unary.operand]),
-        ast::Expr::Shl(binary)
-        | ast::Expr::Shr(binary)
-        | ast::Expr::BitwiseAnd(binary)
-        | ast::Expr::BitwiseOr(binary)
-        | ast::Expr::BitwiseXor(binary)
-        | ast::Expr::Eq(binary)
-        | ast::Expr::Ne(binary)
-        | ast::Expr::Lt(binary)
-        | ast::Expr::Gt(binary)
-        | ast::Expr::Le(binary)
-        | ast::Expr::Ge(binary)
-        | ast::Expr::Contains(binary)
-        | ast::Expr::IContains(binary)
-        | ast::Expr::StartsWith(binary)
-        | ast::Expr::IStartsWith(binary)
-        | ast::Expr::EndsWith(binary)
-        | ast::Expr::IEndsWith(binary)
-        | ast::Expr::IEquals(binary)
-        | ast::Expr::Matches(binary) => {
-            (false, vec![&binary.lhs, &binary.rhs])
-        }
-        ast::Expr::Add(nary)
-        | ast::Expr::Sub(nary)
-        | ast::Expr::Mul(nary)
-        | ast::Expr::Div(nary)
-        | ast::Expr::Mod(nary)
-        | ast::Expr::FieldAccess(nary)
-        | ast::Expr::And(nary) => (false, nary.operands().collect()),
-        ast::Expr::FuncCall(func_call) => {
-            let mut children = Vec::new();
-            if let Some(obj) = &func_call.object {
-                children.push(obj);
-            }
-            children.extend(func_call.args.iter());
-            (false, children)
-        }
-        ast::Expr::Lookup(lookup) => {
-            (false, vec![&lookup.primary, &lookup.index])
-        }
-        _ => (true, Vec::new()),
-    }
 }
 
 /// Passes finished conjunctive branches from a completed frame to its parent frame on the stack.
@@ -2112,13 +2056,31 @@ impl<'src> ConjunctiveBranches<'src> {
                                 });
                             }
                             _ => {
-                                let (push_leaf, child_nodes) =
-                                    extract_child_exprs(child);
+                                let push_leaf = matches!(
+                                    child,
+                                    ast::Expr::ForOf(_)
+                                        | ast::Expr::True { .. }
+                                        | ast::Expr::False { .. }
+                                        | ast::Expr::Filesize { .. }
+                                        | ast::Expr::Entrypoint { .. }
+                                        | ast::Expr::LiteralString(_)
+                                        | ast::Expr::LiteralInteger(_)
+                                        | ast::Expr::LiteralFloat(_)
+                                        | ast::Expr::Regexp(_)
+                                        | ast::Expr::Ident(_)
+                                        | ast::Expr::PatternMatch(_)
+                                        | ast::Expr::PatternCount(_)
+                                        | ast::Expr::PatternOffset(_)
+                                        | ast::Expr::PatternLength(_)
+                                        | ast::Expr::Of(_)
+                                );
                                 if push_leaf {
                                     for b in &mut branches {
                                         b.exprs.push(child);
                                     }
                                 }
+                                let child_nodes: Vec<_> =
+                                    child.children().collect();
                                 if child_nodes.is_empty() {
                                     // Leaf expression with no children to traverse
                                     if let Some(final_branches) =
