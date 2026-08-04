@@ -2049,7 +2049,22 @@ impl<'src> ConjunctiveBranches<'src> {
                 children.push(&lookup.primary);
                 children.push(&lookup.index);
             }
-            _ => {
+            ast::Expr::True { .. }
+            | ast::Expr::False { .. }
+            | ast::Expr::Filesize { .. }
+            | ast::Expr::Entrypoint { .. }
+            | ast::Expr::LiteralString(_)
+            | ast::Expr::LiteralInteger(_)
+            | ast::Expr::LiteralFloat(_)
+            | ast::Expr::Regexp(_)
+            | ast::Expr::Ident(_)
+            | ast::Expr::PatternMatch(_)
+            | ast::Expr::PatternCount(_)
+            | ast::Expr::PatternOffset(_)
+            | ast::Expr::PatternLength(_)
+            | ast::Expr::And(_)
+            | ast::Expr::Or(_)
+            | ast::Expr::Of(_) => {
                 branch.exprs.push(expr);
                 return vec![branch];
             }
