@@ -1913,6 +1913,109 @@ pub(crate) struct ConjunctiveBranches<'src> {
     branches: Vec<ConjunctiveBranch<'src>>,
 }
 
+/// Stack frame representing an execution step during iterative DNF AST expansion.
+enum Frame<'src> {
+    /// Evaluates a sequence of child AST sub-expressions sequentially, passing
+    /// accumulated conjunctive branches from one child to the next.
+    Sequence {
+        children: Vec<&'src ast::Expr<'src>>,
+        idx: usize,
+        branches: Vec<ConjunctiveBranch<'src>>,
+    },
+    /// Evaluates disjunctive (`OR`) alternative branches independently,
+    /// feeding each operand a snapshot of the input branches and combining
+    /// the resulting branches from all operands.
+    Disjunction {
+        operands: Vec<&'src ast::Expr<'src>>,
+        input_branches: Vec<ConjunctiveBranch<'src>>,
+        results: Vec<ConjunctiveBranch<'src>>,
+    },
+}
+
+/// Helper that inspects an AST expression and returns:
+/// - `push_leaf`: boolean indicating if this node itself should be recorded as a leaf expression in the conjunctive branch (e.g. `ForOf` or terminal AST nodes).
+/// - `children`: list of child AST expressions to traverse deeper into.
+fn extract_child_exprs<'src>(
+    expr: &'src ast::Expr<'src>,
+) -> (bool, Vec<&'src ast::Expr<'src>>) {
+    match expr {
+        ast::Expr::ForOf(for_of) => (true, vec![&for_of.body]),
+        ast::Expr::ForIn(for_in) => (false, vec![&for_in.body]),
+        ast::Expr::With(with) => (false, vec![&with.body]),
+        ast::Expr::Defined(unary)
+        | ast::Expr::Not(unary)
+        | ast::Expr::Minus(unary)
+        | ast::Expr::BitwiseNot(unary) => (false, vec![&unary.operand]),
+        ast::Expr::Shl(binary)
+        | ast::Expr::Shr(binary)
+        | ast::Expr::BitwiseAnd(binary)
+        | ast::Expr::BitwiseOr(binary)
+        | ast::Expr::BitwiseXor(binary)
+        | ast::Expr::Eq(binary)
+        | ast::Expr::Ne(binary)
+        | ast::Expr::Lt(binary)
+        | ast::Expr::Gt(binary)
+        | ast::Expr::Le(binary)
+        | ast::Expr::Ge(binary)
+        | ast::Expr::Contains(binary)
+        | ast::Expr::IContains(binary)
+        | ast::Expr::StartsWith(binary)
+        | ast::Expr::IStartsWith(binary)
+        | ast::Expr::EndsWith(binary)
+        | ast::Expr::IEndsWith(binary)
+        | ast::Expr::IEquals(binary)
+        | ast::Expr::Matches(binary) => {
+            (false, vec![&binary.lhs, &binary.rhs])
+        }
+        ast::Expr::Add(nary)
+        | ast::Expr::Sub(nary)
+        | ast::Expr::Mul(nary)
+        | ast::Expr::Div(nary)
+        | ast::Expr::Mod(nary)
+        | ast::Expr::FieldAccess(nary)
+        | ast::Expr::And(nary) => (false, nary.operands().collect()),
+        ast::Expr::FuncCall(func_call) => {
+            let mut children = Vec::new();
+            if let Some(obj) = &func_call.object {
+                children.push(obj);
+            }
+            children.extend(func_call.args.iter());
+            (false, children)
+        }
+        ast::Expr::Lookup(lookup) => {
+            (false, vec![&lookup.primary, &lookup.index])
+        }
+        _ => (true, Vec::new()),
+    }
+}
+
+/// Passes finished conjunctive branches from a completed frame to its parent frame on the stack.
+/// If there is no parent frame remaining (i.e. top-level root frame completed), returns `Some(finished_branches)`.
+fn pass_branches_to_parent<'src>(
+    stack: &mut [Frame<'src>],
+    mut finished: Vec<ConjunctiveBranch<'src>>,
+) -> Option<Vec<ConjunctiveBranch<'src>>> {
+    if finished.is_empty() {
+        finished.push(ConjunctiveBranch::default());
+    }
+    if let Some(parent) = stack.last_mut() {
+        match parent {
+            Frame::Disjunction { results, .. } => {
+                // Collect alternative branches from this disjunction operand
+                results.extend(finished);
+                results.truncate(ConjunctiveBranches::MAX_BRANCHES);
+            }
+            Frame::Sequence { branches, .. } => {
+                // Update sequential input branches for the next sibling child
+                *branches = finished;
+            }
+        }
+        None
+    } else {
+        Some(finished)
+    }
+}
+
 impl<'src> ConjunctiveBranches<'src> {
     /// Maximum number of conjunctive branches to extract before capping
     /// expansion (prevents exponential growth on complex boolean trees).
@@ -1929,7 +2032,7 @@ impl<'src> ConjunctiveBranches<'src> {
     /// The expansion is capped at `MAX_BRANCHES` to prevent exponential
     /// combinatorial explosion on complex boolean trees.
     pub fn from_expr(expr: &'src ast::Expr<'src>) -> Self {
-        Self { branches: Self::extract_branches_iter(expr) }
+        Self { branches: Self::extract_branches(expr) }
     }
 
     /// Returns the slice of conjunctive branches.
@@ -1938,178 +2041,109 @@ impl<'src> ConjunctiveBranches<'src> {
         &self.branches
     }
 
-    fn extract_branches_iter(
+    /// Decomposes an AST expression tree into conjunctive branches.
+    fn extract_branches(
         root: &'src ast::Expr<'src>,
     ) -> Vec<ConjunctiveBranch<'src>> {
-        let mut branches = Vec::new();
-        // Heap-allocated workstack storing (AST_node, accumulated_branch_so_far)
-        let mut workstack = vec![(root, ConjunctiveBranch::default())];
+        let mut stack = vec![Frame::Sequence {
+            children: vec![root],
+            idx: 0,
+            branches: vec![ConjunctiveBranch::default()],
+        }];
 
-        while let Some((expr, branch)) = workstack.pop() {
-            if branches.len() >= Self::MAX_BRANCHES {
-                break;
-            }
-
-            match expr {
-                ast::Expr::Or(nary) => {
-                    // OR operands represent independent alternative branches.
-                    for op in nary.operands().rev() {
-                        workstack.push((op, branch.clone()));
-                    }
-                }
-                ast::Expr::And(nary) => {
-                    // AND operands combine terms into the current branch path.
-                    let mut current_branches = vec![branch];
-                    for op in nary.operands() {
-                        let mut next_branches = Vec::new();
-                        for b in current_branches {
-                            let expanded = Self::expand_node_iter(op, b);
-                            next_branches.extend(expanded);
-                            if next_branches.len() >= Self::MAX_BRANCHES {
-                                break;
-                            }
+        while let Some(frame) = stack.pop() {
+            match frame {
+                Frame::Disjunction {
+                    mut operands,
+                    input_branches,
+                    mut results,
+                } => {
+                    // Check if all OR operands have been processed or if branch limit reached
+                    if results.len() >= Self::MAX_BRANCHES
+                        || operands.is_empty()
+                    {
+                        results.truncate(Self::MAX_BRANCHES);
+                        if let Some(final_branches) =
+                            pass_branches_to_parent(&mut stack, results)
+                        {
+                            return final_branches;
                         }
-                        current_branches = next_branches;
+                    } else {
+                        // Pop next OR operand to process with input branch snapshot
+                        let op = operands.pop().unwrap();
+                        stack.push(Frame::Disjunction {
+                            operands,
+                            input_branches: input_branches.clone(),
+                            results,
+                        });
+                        stack.push(Frame::Sequence {
+                            children: vec![op],
+                            idx: 0,
+                            branches: input_branches,
+                        });
                     }
-                    branches.extend(current_branches);
                 }
-                _ => {
-                    let expanded = Self::expand_node_iter(expr, branch);
-                    branches.extend(expanded);
-                }
-            }
-        }
+                Frame::Sequence { children, idx, mut branches } => {
+                    if idx >= children.len() {
+                        // All sequential children in this frame completed
+                        branches.truncate(Self::MAX_BRANCHES);
+                        if let Some(final_branches) =
+                            pass_branches_to_parent(&mut stack, branches)
+                        {
+                            return final_branches;
+                        }
+                    } else {
+                        // Advance index for current sequence frame and process
+                        // next child
+                        let child = children[idx];
+                        stack.push(Frame::Sequence {
+                            children,
+                            idx: idx + 1,
+                            branches: Vec::new(),
+                        });
 
-        if branches.is_empty() {
-            branches.push(ConjunctiveBranch::default());
-        }
-
-        branches
-    }
-
-    fn expand_node_iter(
-        expr: &'src ast::Expr<'src>,
-        mut branch: ConjunctiveBranch<'src>,
-    ) -> Vec<ConjunctiveBranch<'src>> {
-        let mut children = Vec::new();
-        match expr {
-            ast::Expr::ForOf(for_of) => {
-                branch.exprs.push(expr);
-                children.push(&for_of.body);
-            }
-            ast::Expr::ForIn(for_in) => {
-                children.push(&for_in.body);
-            }
-            ast::Expr::With(with) => {
-                children.push(&with.body);
-            }
-            ast::Expr::Defined(unary)
-            | ast::Expr::Not(unary)
-            | ast::Expr::Minus(unary)
-            | ast::Expr::BitwiseNot(unary) => {
-                children.push(&unary.operand);
-            }
-            ast::Expr::Shl(binary)
-            | ast::Expr::Shr(binary)
-            | ast::Expr::BitwiseAnd(binary)
-            | ast::Expr::BitwiseOr(binary)
-            | ast::Expr::BitwiseXor(binary)
-            | ast::Expr::Eq(binary)
-            | ast::Expr::Ne(binary)
-            | ast::Expr::Lt(binary)
-            | ast::Expr::Gt(binary)
-            | ast::Expr::Le(binary)
-            | ast::Expr::Ge(binary)
-            | ast::Expr::Contains(binary)
-            | ast::Expr::IContains(binary)
-            | ast::Expr::StartsWith(binary)
-            | ast::Expr::IStartsWith(binary)
-            | ast::Expr::EndsWith(binary)
-            | ast::Expr::IEndsWith(binary)
-            | ast::Expr::IEquals(binary)
-            | ast::Expr::Matches(binary) => {
-                children.push(&binary.lhs);
-                children.push(&binary.rhs);
-            }
-            ast::Expr::Add(nary)
-            | ast::Expr::Sub(nary)
-            | ast::Expr::Mul(nary)
-            | ast::Expr::Div(nary)
-            | ast::Expr::Mod(nary)
-            | ast::Expr::FieldAccess(nary) => {
-                children.extend(nary.operands());
-            }
-            ast::Expr::FuncCall(func_call) => {
-                if let Some(obj) = &func_call.object {
-                    children.push(obj);
-                }
-                children.extend(func_call.args.iter());
-            }
-            ast::Expr::Lookup(lookup) => {
-                children.push(&lookup.primary);
-                children.push(&lookup.index);
-            }
-            ast::Expr::True { .. }
-            | ast::Expr::False { .. }
-            | ast::Expr::Filesize { .. }
-            | ast::Expr::Entrypoint { .. }
-            | ast::Expr::LiteralString(_)
-            | ast::Expr::LiteralInteger(_)
-            | ast::Expr::LiteralFloat(_)
-            | ast::Expr::Regexp(_)
-            | ast::Expr::Ident(_)
-            | ast::Expr::PatternMatch(_)
-            | ast::Expr::PatternCount(_)
-            | ast::Expr::PatternOffset(_)
-            | ast::Expr::PatternLength(_)
-            | ast::Expr::And(_)
-            | ast::Expr::Or(_)
-            | ast::Expr::Of(_) => {
-                branch.exprs.push(expr);
-                return vec![branch];
-            }
-        }
-
-        if children.is_empty() {
-            vec![branch]
-        } else {
-            let mut current = vec![branch];
-            for child in children {
-                let mut next = Vec::new();
-                for b in current {
-                    let mut child_workstack = vec![(child, b)];
-                    while let Some((node, curr_b)) = child_workstack.pop() {
-                        match node {
+                        match child {
                             ast::Expr::Or(nary) => {
-                                for op in nary.operands().rev() {
-                                    child_workstack.push((op, curr_b.clone()));
-                                }
-                            }
-                            ast::Expr::And(nary) => {
-                                let mut and_branches = vec![curr_b];
-                                for op in nary.operands() {
-                                    let mut next_and = Vec::new();
-                                    for ab in and_branches {
-                                        next_and.extend(
-                                            Self::expand_node_iter(op, ab),
-                                        );
-                                    }
-                                    and_branches = next_and;
-                                }
-                                next.extend(and_branches);
+                                // Disjunction: evaluate OR operands independently
+                                stack.push(Frame::Disjunction {
+                                    operands: nary.operands().rev().collect(),
+                                    input_branches: branches,
+                                    results: Vec::new(),
+                                });
                             }
                             _ => {
-                                next.extend(Self::expand_node_iter(
-                                    node, curr_b,
-                                ));
+                                let (push_leaf, child_nodes) =
+                                    extract_child_exprs(child);
+                                if push_leaf {
+                                    for b in &mut branches {
+                                        b.exprs.push(child);
+                                    }
+                                }
+                                if child_nodes.is_empty() {
+                                    // Leaf expression with no children to traverse
+                                    if let Some(final_branches) =
+                                        pass_branches_to_parent(
+                                            &mut stack, branches,
+                                        )
+                                    {
+                                        return final_branches;
+                                    }
+                                } else {
+                                    // Container expression with child nodes to process sequentially
+                                    stack.push(Frame::Sequence {
+                                        children: child_nodes,
+                                        idx: 0,
+                                        branches,
+                                    });
+                                }
                             }
                         }
                     }
                 }
-                current = next;
             }
-            current
         }
+
+        vec![ConjunctiveBranch::default()]
     }
 }
 
