@@ -2149,7 +2149,8 @@ fn check_unintended_patterns_in_sets<'src>(
                 // Direct pattern match (e.g. `$s1` or `$s1 at 100`).
                 ast::Expr::PatternMatch(pm) => {
                     if !pm.identifier.name.is_empty() {
-                        explicit_patterns.push(pm.identifier.name);
+                        explicit_patterns
+                            .push((pm.identifier.name, pm.identifier.span()));
                     }
                 }
                 // Pattern set in `of` expressions (e.g. `1 of ($s1, $s*)`).
@@ -2163,7 +2164,8 @@ fn check_unintended_patterns_in_sets<'src>(
                                 wildcard_pattern_sets
                                     .push((item.identifier, item.span()));
                             } else {
-                                explicit_patterns.push(item.identifier);
+                                explicit_patterns
+                                    .push((item.identifier, item.span()));
                             }
                         }
                     }
@@ -2176,7 +2178,8 @@ fn check_unintended_patterns_in_sets<'src>(
                                 wildcard_pattern_sets
                                     .push((item.identifier, item.span()));
                             } else {
-                                explicit_patterns.push(item.identifier);
+                                explicit_patterns
+                                    .push((item.identifier, item.span()));
                             }
                         }
                     }
@@ -2188,32 +2191,73 @@ fn check_unintended_patterns_in_sets<'src>(
         // For each wildcard pattern set in this branch, check if any rule
         // pattern matching the set's prefix is also explicitly used in the
         // same branch, or matched by a longer (more specific) prefix set.
-        for (prefix1, span1) in &wildcard_pattern_sets {
+        for (s1, span1) in &wildcard_pattern_sets {
             for pattern in ctx.current_rule_patterns.iter() {
-                let pat_name = pattern.identifier().name;
-                if pat_name.starts_with(prefix1) {
-                    let used_explicitly_in_branch =
-                        explicit_patterns.contains(&pat_name);
+                let pat = pattern.identifier().name;
+                if pat.starts_with(s1) {
+                    let (label1, span1, label2, span2) =
+                        if let Some((_, span2)) = explicit_patterns
+                            .iter()
+                            .find(|(name, _)| *name == pat)
+                        {
+                            if span1.start() < span2.start() {
+                                (
+                                    format!("`{pat}` is included in `{s1}*`"),
+                                    span1,
+                                    format!("`{pat}` is also used here"),
+                                    span2,
+                                )
+                            } else {
+                                (
+                                    format!("`{pat}` is used here"),
+                                    span2,
+                                    format!(
+                                        "`{pat}` is also included in `{s1}*`"
+                                    ),
+                                    span1,
+                                )
+                            }
+                        } else if let Some((s2, span2)) = wildcard_pattern_sets
+                            .iter()
+                            .find(|(prefix2, _)| {
+                                prefix2.len() > s1.len()
+                                    && pat.starts_with(prefix2)
+                            })
+                        {
+                            if span1.start() < span2.start() {
+                                (
+                                    format!("`{pat}` is included in `{s1}*`"),
+                                    span1,
+                                    format!(
+                                        "`{pat}` is also included in `{s2}*`"
+                                    ),
+                                    span2,
+                                )
+                            } else {
+                                (
+                                    format!("`{pat}` is included in `{s2}*`"),
+                                    span2,
+                                    format!(
+                                        "`{pat}` is also included in `{s1}*`"
+                                    ),
+                                    span1,
+                                )
+                            }
+                        } else {
+                            continue;
+                        };
 
-                    let matched_by_longer_prefix_set_in_branch =
-                        wildcard_pattern_sets.iter().any(|(prefix2, _)| {
-                            prefix2.len() > prefix1.len()
-                                && pat_name.starts_with(prefix2)
-                        });
-
-                    if (used_explicitly_in_branch
-                        || matched_by_longer_prefix_set_in_branch)
-                        && reported.insert((pat_name, span1.clone()))
-                    {
+                    if reported.insert((pat, span1.clone())) {
                         ctx.warnings.add(|| {
                             warnings::UnintendedPatternInSet::build(
                                 ctx.report_builder,
-                                pattern.identifier().name.to_string(),
-                                format!("{}*", prefix1),
+                                pat.to_string(),
+                                label1,
                                 ctx.report_builder
                                     .span_to_code_loc(span1.clone()),
+                                label2,
                                 ctx.report_builder
-                                    .span_to_code_loc(pattern.span().clone()),
+                                    .span_to_code_loc(span2.clone()),
                             )
                         });
                     }

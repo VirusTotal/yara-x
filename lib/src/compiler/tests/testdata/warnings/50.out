@@ -1,16 +1,28 @@
-warning[unintended_pattern_in_set]: pattern `$sc_check1` is matched by set `$s*`
- --> line:5:5
+warning[unintended_pattern_in_set]: pattern `$sc_check1` may be unintentionally included in pattern set
+ --> line:8:11
   |
-5 |     $sc_check1 = "baz"
-  |     ------------------ pattern `$sc_check1` defined here
-...
 8 |     1 of ($sc_check*) and 2 of ($s*)
-  |                                 --- pattern `$sc_check1` is matched by this wildcard set
-warning[unintended_pattern_in_set]: pattern `$sc_check2` is matched by set `$s*`
- --> line:6:5
+  |           ----------            --- `$sc_check1` is also included in `$s*`
+  |           |
+  |           `$sc_check1` is included in `$sc_check*`
+warning[unintended_pattern_in_set]: pattern `$sc_check2` may be unintentionally included in pattern set
+ --> line:8:11
   |
-6 |     $sc_check2 = "test"
-  |     ------------------- pattern `$sc_check2` defined here
-7 |   condition:
 8 |     1 of ($sc_check*) and 2 of ($s*)
-  |                                 --- pattern `$sc_check2` is matched by this wildcard set
+  |           ----------            --- `$sc_check2` is also included in `$s*`
+  |           |
+  |           `$sc_check2` is included in `$sc_check*`
+warning[unintended_pattern_in_set]: pattern `$sc_check1` may be unintentionally included in pattern set
+  --> line:18:11
+   |
+18 |     2 of ($s*) and 1 of ($sc_check*)
+   |           ---            ---------- `$sc_check1` is also included in `$sc_check*`
+   |           |
+   |           `$sc_check1` is included in `$s*`
+warning[unintended_pattern_in_set]: pattern `$sc_check2` may be unintentionally included in pattern set
+  --> line:18:11
+   |
+18 |     2 of ($s*) and 1 of ($sc_check*)
+   |           ---            ---------- `$sc_check2` is also included in `$sc_check*`
+   |           |
+   |           `$sc_check2` is included in `$s*`

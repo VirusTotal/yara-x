@@ -754,36 +754,37 @@ pub struct AmbiguousExpression {
     loc: CodeLoc,
 }
 
-/// A pattern set matches a pattern identifier that was probably unintended.
+/// A pattern may be unintentionally included in a pattern set.
 ///
 /// For instance, if a rule defines patterns `$s1`, `$s2`, `$s3` and
 /// `$suspicious_string`, and the condition is:
 ///
 ///   `$suspicious_string and any of ($s*)`
 ///
-/// `any of ($s*)` probably was intended to match `$s1`, `$s2` and `$s3`,
-/// but not `$suspicious_string`. However, `$s*` includes `$suspicious_string`
-/// and that's probably unintended.
+/// `any of ($s*)` was intended to match `$s1`, `$s2` and `$s3`, but not
+/// `$suspicious_string`. However, `$s*` includes `$suspicious_string`
+/// and that was unintended.
 #[derive(ErrorStruct, Debug, PartialEq, Eq)]
 #[associated_enum(Warning)]
 #[warning(
     code = "unintended_pattern_in_set",
-    title = "pattern `{pattern_ident}` is matched by set `{wildcard_pattern}`",
+    title = "pattern `{pattern_ident}` may be unintentionally included in pattern set",
 )]
 #[label(
-    "pattern `{pattern_ident}` is matched by this wildcard set",
-    wildcard_loc
+    "{first_label}",
+    first_loc
 )]
 #[label(
-    "pattern `{pattern_ident}` defined here",
-    pattern_loc
+    "{second_label}",
+    second_loc
 )]
 pub struct UnintendedPatternInSet {
     report: Report,
     pattern_ident: String,
-    wildcard_pattern: String,
-    wildcard_loc: CodeLoc,
-    pattern_loc: CodeLoc,
+    first_label: String,
+    first_loc: CodeLoc,
+    second_label: String,
+    second_loc: CodeLoc,
 }
 
 /// An identifier was declared but not used.
