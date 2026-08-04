@@ -1919,8 +1919,7 @@ enum Frame<'src> {
     /// Evaluates a sequence of child AST sub-expressions sequentially,
     /// passing accumulated conjunctive branches from one child to the next.
     Sequence {
-        children: Vec<&'src ast::Expr<'src>>,
-        idx: usize,
+        children: Box<dyn Iterator<Item = &'src ast::Expr<'src>> + 'src>,
         branches: Vec<ConjunctiveBranch<'src>>,
     },
     /// Evaluates disjunctive (`OR`) alternative branches independently,
@@ -1990,8 +1989,7 @@ impl<'src> ConjunctiveBranches<'src> {
         root: &'src ast::Expr<'src>,
     ) -> Vec<ConjunctiveBranch<'src>> {
         let mut stack = vec![Frame::Sequence {
-            children: vec![root],
-            idx: 0,
+            children: Box::new(iter::once(root)),
             branches: vec![ConjunctiveBranch::default()],
         }];
 
@@ -2021,28 +2019,16 @@ impl<'src> ConjunctiveBranches<'src> {
                             results,
                         });
                         stack.push(Frame::Sequence {
-                            children: vec![op],
-                            idx: 0,
+                            children: Box::new(std::iter::once(op)),
                             branches: input_branches,
                         });
                     }
                 }
-                Frame::Sequence { children, idx, mut branches } => {
-                    if idx >= children.len() {
-                        // All sequential children in this frame completed
-                        branches.truncate(Self::MAX_BRANCHES);
-                        if let Some(final_branches) =
-                            pass_branches_to_parent(&mut stack, branches)
-                        {
-                            return final_branches;
-                        }
-                    } else {
-                        // Advance index for current sequence frame and process
-                        // next child
-                        let child = children[idx];
+                Frame::Sequence { mut children, mut branches } => {
+                    if let Some(child) = children.next() {
+                        // Re-push current sequence frame with remaining iterator
                         stack.push(Frame::Sequence {
                             children,
-                            idx: idx + 1,
                             branches: Vec::new(),
                         });
 
@@ -2079,26 +2065,19 @@ impl<'src> ConjunctiveBranches<'src> {
                                         b.exprs.push(child);
                                     }
                                 }
-                                let child_nodes: Vec<_> =
-                                    child.children().collect();
-                                if child_nodes.is_empty() {
-                                    // Leaf expression with no children to traverse
-                                    if let Some(final_branches) =
-                                        pass_branches_to_parent(
-                                            &mut stack, branches,
-                                        )
-                                    {
-                                        return final_branches;
-                                    }
-                                } else {
-                                    // Container expression with child nodes to process sequentially
-                                    stack.push(Frame::Sequence {
-                                        children: child_nodes,
-                                        idx: 0,
-                                        branches,
-                                    });
-                                }
+                                stack.push(Frame::Sequence {
+                                    children: child.children(),
+                                    branches,
+                                });
                             }
+                        }
+                    } else {
+                        // All sequential children in this frame completed
+                        branches.truncate(Self::MAX_BRANCHES);
+                        if let Some(final_branches) =
+                            pass_branches_to_parent(&mut stack, branches)
+                        {
+                            return final_branches;
                         }
                     }
                 }
