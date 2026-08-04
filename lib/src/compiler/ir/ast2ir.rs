@@ -1865,15 +1865,15 @@ fn pattern_set_from_ast<'src>(
                     ));
                 }
 
+                for pattern in ctx.current_rule_patterns.iter_mut() {
+                    if item.matches(pattern.identifier()) {
+                        pattern.mark_as_used();
+                    }
+                }
+
                 if item.wildcard {
                     ctx.wildcard_pattern_sets
                         .push((item.identifier, item.span()));
-                } else {
-                    for pattern in ctx.current_rule_patterns.iter_mut() {
-                        if item.matches(pattern.identifier()) {
-                            pattern.mark_as_used();
-                        }
-                    }
                 }
             }
 
@@ -1904,7 +1904,6 @@ pub(crate) struct ConjunctiveBranch<'src> {
 
 impl<'src> ConjunctiveBranch<'src> {
     /// Returns the AST sub-expressions in this conjunctive branch.
-    #[allow(dead_code)]
     #[inline]
     pub fn exprs(&self) -> &[&'src ast::Expr<'src>] {
         &self.exprs
@@ -1914,78 +1913,6 @@ impl<'src> ConjunctiveBranch<'src> {
     #[allow(dead_code)]
     pub fn merge(&mut self, other: &ConjunctiveBranch<'src>) {
         self.exprs.extend_from_slice(&other.exprs);
-    }
-
-    /// Extracts all explicitly referenced pattern identifiers (e.g. `$s1`)
-    /// present in this branch for pattern match expressions (`$pattern` or
-    /// explicit items in pattern sets).
-    pub fn explicit_patterns(&self) -> Vec<&'src str> {
-        let mut patterns = Vec::new();
-        for expr in &self.exprs {
-            match expr {
-                ast::Expr::PatternMatch(pm) => {
-                    if !pm.identifier.name.is_empty() {
-                        patterns.push(pm.identifier.name);
-                    }
-                }
-                ast::Expr::Of(of) => {
-                    if let ast::OfItems::PatternSet(ast::PatternSet::Set(
-                        set,
-                    )) = &of.items
-                    {
-                        for item in set {
-                            if !item.wildcard {
-                                patterns.push(item.identifier);
-                            }
-                        }
-                    }
-                }
-                ast::Expr::ForOf(for_of) => {
-                    if let ast::PatternSet::Set(set) = &for_of.pattern_set {
-                        for item in set {
-                            if !item.wildcard {
-                                patterns.push(item.identifier);
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-        patterns
-    }
-
-    /// Extracts all wildcard pattern set specifications (e.g. `($s*)`, `($context_*)`)
-    /// present in this branch.
-    pub fn wildcard_pattern_sets(&self) -> Vec<(&'src str, Span)> {
-        let mut sets = Vec::new();
-        for expr in &self.exprs {
-            match expr {
-                ast::Expr::Of(of) => {
-                    if let ast::OfItems::PatternSet(ast::PatternSet::Set(
-                        set,
-                    )) = &of.items
-                    {
-                        for item in set {
-                            if item.wildcard {
-                                sets.push((item.identifier, item.span()));
-                            }
-                        }
-                    }
-                }
-                ast::Expr::ForOf(for_of) => {
-                    if let ast::PatternSet::Set(set) = &for_of.pattern_set {
-                        for item in set {
-                            if item.wildcard {
-                                sets.push((item.identifier, item.span()));
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-        sets
     }
 }
 
@@ -2207,13 +2134,60 @@ fn check_unintended_patterns_in_sets<'src>(
     ctx: &mut CompileContext<'_, 'src>,
     condition: &'src ast::Expr<'src>,
 ) {
+    // Decompose condition AST into DNF execution paths (conjunctive branches).
     let conjunctive_branches = ConjunctiveBranches::from_expr(condition);
     let mut reported = std::collections::HashSet::new();
 
     for branch in conjunctive_branches.branches() {
-        let explicit_patterns = branch.explicit_patterns();
-        let wildcard_pattern_sets = branch.wildcard_pattern_sets();
+        let mut explicit_patterns = Vec::new();
+        let mut wildcard_pattern_sets = Vec::new();
 
+        // Extract explicit pattern presence checks and wildcard pattern sets
+        // active within this specific conjunctive branch.
+        for expr in branch.exprs() {
+            match expr {
+                // Direct pattern match (e.g. `$s1` or `$s1 at 100`).
+                ast::Expr::PatternMatch(pm) => {
+                    if !pm.identifier.name.is_empty() {
+                        explicit_patterns.push(pm.identifier.name);
+                    }
+                }
+                // Pattern set in `of` expressions (e.g. `1 of ($s1, $s*)`).
+                ast::Expr::Of(of) => {
+                    if let ast::OfItems::PatternSet(ast::PatternSet::Set(
+                        set,
+                    )) = &of.items
+                    {
+                        for item in set {
+                            if item.wildcard {
+                                wildcard_pattern_sets
+                                    .push((item.identifier, item.span()));
+                            } else {
+                                explicit_patterns.push(item.identifier);
+                            }
+                        }
+                    }
+                }
+                // Pattern set in `for ... of` loops.
+                ast::Expr::ForOf(for_of) => {
+                    if let ast::PatternSet::Set(set) = &for_of.pattern_set {
+                        for item in set {
+                            if item.wildcard {
+                                wildcard_pattern_sets
+                                    .push((item.identifier, item.span()));
+                            } else {
+                                explicit_patterns.push(item.identifier);
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // For each wildcard pattern set in this branch, check if any rule
+        // pattern matching the set's prefix is also explicitly used in the
+        // same branch, or matched by a longer (more specific) prefix set.
         for (prefix1, span1) in &wildcard_pattern_sets {
             for pattern in ctx.current_rule_patterns.iter() {
                 let pat_name = pattern.identifier().name;
@@ -2244,16 +2218,6 @@ fn check_unintended_patterns_in_sets<'src>(
                         });
                     }
                 }
-            }
-        }
-    }
-
-    // Mark all patterns matching any wildcard pattern set item as used.
-    for (prefix, _) in &ctx.wildcard_pattern_sets {
-        for pattern in ctx.current_rule_patterns.iter_mut() {
-            let pat_name = pattern.identifier().name;
-            if pat_name.starts_with(prefix) {
-                pattern.mark_as_used();
             }
         }
     }
