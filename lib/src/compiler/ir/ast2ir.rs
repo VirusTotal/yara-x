@@ -1912,32 +1912,6 @@ impl<'src> ConjunctiveBranch<'src> {
 }
 
 /// Container for all conjunctive branches of an AST expression tree.
-///
-/// # Algorithm Overview
-///
-/// The conjunctive branch decomposition algorithm converts a boolean AST tree
-/// into Disjunctive Normal Form (DNF) execution paths (conjunctive branches).
-/// Each `ConjunctiveBranch` represents a set of terms that must be true at the
-/// same time in a single execution path of the rule condition.
-///
-/// The algorithm is implemented iteratively without call-stack recursion:
-///
-/// 1. **Workstack Traversal**: Maintains a heap-allocated workstack holding
-///    pairs of `(AST_node, accumulated_branch_so_far)`.
-/// 2. **`OR` Expression Handling**: Operands of an `OR` expression represent
-///    alternative independent execution paths. Each operand is pushed onto
-///    the workstack with a copy of the current branch state.
-/// 3. **`AND` Expression Handling**: Operands of an `AND` expression are
-///    combined sequentially across all active branch paths, performing a
-///    Cartesian product expansion of sub-branches.
-/// 4. **Nested Expression Handling**: Sub-expressions (unary, binary, loops,
-///    with/defined wrappers) expand their child nodes iteratively into active
-///    branches.
-/// 5. **Leaf Expression Collection**: Leaf nodes (pattern matches, pattern set
-///    specifications, literals) append themselves to the current branch.
-///
-/// The expansion is capped at `MAX_BRANCHES` (64) to prevent exponential
-/// combinatorial explosion on complex boolean trees.
 #[derive(Clone, Debug)]
 pub(crate) struct ConjunctiveBranches<'src> {
     branches: Vec<ConjunctiveBranch<'src>>,
@@ -1946,10 +1920,18 @@ pub(crate) struct ConjunctiveBranches<'src> {
 impl<'src> ConjunctiveBranches<'src> {
     /// Maximum number of conjunctive branches to extract before capping
     /// expansion (prevents exponential growth on complex boolean trees).
-    const MAX_BRANCHES: usize = 64;
+    const MAX_BRANCHES: usize = 256;
 
-    /// Decomposes an AST expression tree into its conjunctive branches
-    /// iteratively without call-stack recursion.
+    /// Decomposes an AST expression tree into its conjunctive branches.
+    ///
+    /// The conjunctive branch decomposition algorithm converts a boolean AST
+    /// tree into Disjunctive Normal Form (DNF) execution paths (conjunctive
+    /// branches). Each `ConjunctiveBranch` represents a set of terms that must
+    /// be true at the same time in a single execution path of the rule
+    /// condition.
+    ///
+    /// The expansion is capped at `MAX_BRANCHES` to prevent exponential
+    /// combinatorial explosion on complex boolean trees.
     pub fn from_expr(expr: &'src ast::Expr<'src>) -> Self {
         Self { branches: Self::extract_branches_iter(expr) }
     }
