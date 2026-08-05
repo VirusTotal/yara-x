@@ -2253,6 +2253,7 @@ fn check_unintended_patterns_in_sets<'src>(
                             warnings::UnintendedPatternInSet::build(
                                 ctx.report_builder,
                                 pat.to_string(),
+                                format!("{s1}*"),
                                 label1,
                                 ctx.report_builder
                                     .span_to_code_loc(span1.clone()),

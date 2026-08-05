@@ -768,7 +768,7 @@ pub struct AmbiguousExpression {
 #[associated_enum(Warning)]
 #[warning(
     code = "unintended_pattern_in_set",
-    title = "pattern `{pattern_ident}` may be unintentionally included in pattern set",
+    title = "pattern `{pattern_ident}` may be unintendedly or redundantly included in pattern set `{pattern_set}`",
 )]
 #[label(
     "{first_label}",
@@ -781,6 +781,7 @@ pub struct AmbiguousExpression {
 pub struct UnintendedPatternInSet {
     report: Report,
     pattern_ident: String,
+    pattern_set: String,
     first_label: String,
     first_loc: CodeLoc,
     second_label: String,
