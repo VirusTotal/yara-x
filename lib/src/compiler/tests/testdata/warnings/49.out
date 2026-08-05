@@ -1,0 +1,14 @@
+warning[unintended_pattern_in_set]: pattern `$start_bytes` may be unintendedly or redundantly included in pattern set `$s*`
+ --> line:8:5
+  |
+8 |     $start_bytes and any of ($s*)
+  |     ------------             --- `$start_bytes` is also included in `$s*`
+  |     |
+  |     `$start_bytes` is used here
+warning[unintended_pattern_in_set]: pattern `$start_bytes` may be unintendedly or redundantly included in pattern set `$s*`
+  --> line:18:13
+   |
+18 |     any of ($s*) and $start_bytes
+   |             ---      ------------ `$start_bytes` is also used here
+   |             |
+   |             `$start_bytes` is included in `$s*`

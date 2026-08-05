@@ -691,6 +691,82 @@ pub enum Expr<'src> {
     With(Box<With<'src>>),
 }
 
+impl<'src> Expr<'src> {
+    /// Returns an iterator over the child sub-expressions of this expression.
+    pub fn children(&self) -> Box<dyn Iterator<Item = &Expr<'src>> + '_> {
+        match self {
+            Expr::Defined(unary)
+            | Expr::Not(unary)
+            | Expr::Minus(unary)
+            | Expr::BitwiseNot(unary) => {
+                Box::new(std::iter::once(&unary.operand))
+            }
+
+            Expr::Shl(binary)
+            | Expr::Shr(binary)
+            | Expr::BitwiseAnd(binary)
+            | Expr::BitwiseOr(binary)
+            | Expr::BitwiseXor(binary)
+            | Expr::Eq(binary)
+            | Expr::Ne(binary)
+            | Expr::Lt(binary)
+            | Expr::Gt(binary)
+            | Expr::Le(binary)
+            | Expr::Ge(binary)
+            | Expr::Contains(binary)
+            | Expr::IContains(binary)
+            | Expr::StartsWith(binary)
+            | Expr::IStartsWith(binary)
+            | Expr::EndsWith(binary)
+            | Expr::IEndsWith(binary)
+            | Expr::IEquals(binary)
+            | Expr::Matches(binary) => {
+                Box::new([&binary.lhs, &binary.rhs].into_iter())
+            }
+
+            Expr::Add(nary)
+            | Expr::Sub(nary)
+            | Expr::Mul(nary)
+            | Expr::Div(nary)
+            | Expr::Mod(nary)
+            | Expr::FieldAccess(nary)
+            | Expr::And(nary)
+            | Expr::Or(nary) => Box::new(nary.operands()),
+
+            Expr::FuncCall(func_call) => Box::new(
+                func_call
+                    .object
+                    .as_ref()
+                    .into_iter()
+                    .chain(func_call.args.iter()),
+            ),
+
+            Expr::Lookup(lookup) => {
+                Box::new([&lookup.primary, &lookup.index].into_iter())
+            }
+
+            Expr::ForOf(for_of) => Box::new(std::iter::once(&for_of.body)),
+            Expr::ForIn(for_in) => Box::new(std::iter::once(&for_in.body)),
+            Expr::With(with) => Box::new(std::iter::once(&with.body)),
+
+            Expr::True { .. }
+            | Expr::False { .. }
+            | Expr::Filesize { .. }
+            | Expr::Entrypoint { .. }
+            | Expr::LiteralString(_)
+            | Expr::LiteralInteger(_)
+            | Expr::LiteralFloat(_)
+            | Expr::Regexp(_)
+            | Expr::Ident(_)
+            | Expr::PatternMatch(_)
+            | Expr::PatternCount(_)
+            | Expr::PatternOffset(_)
+            | Expr::PatternLength(_)
+            | Expr::Of(_) => Box::new(std::iter::empty()),
+        }
+    }
+}
+
 /// A set of modifiers associated to a pattern.
 #[derive(Debug, Default)]
 pub struct PatternModifiers<'src> {
