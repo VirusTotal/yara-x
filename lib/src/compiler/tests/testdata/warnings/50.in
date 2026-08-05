@@ -3,7 +3,7 @@ rule test_1 {
     $s1 = "foo"
     $s2 = "bar"
     $sc_check1 = "baz"
-    $sc_check2 = "test"
+    $sc_check2 = "qux"
   condition:
     1 of ($sc_check*) and 2 of ($s*)
 }
@@ -13,7 +13,7 @@ rule test_2 {
     $s1 = "foo"
     $s2 = "bar"
     $sc_check1 = "baz"
-    $sc_check2 = "test"
+    $sc_check2 = "qux"
   condition:
     2 of ($s*) and 1 of ($sc_check*)
 }

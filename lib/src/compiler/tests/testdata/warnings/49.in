@@ -1,8 +1,8 @@
 rule test_1 {
   strings:
-    $s1 = "exec"
-    $s2 = "system"
-    $s3 = "spawn"
+    $s1 = "foo"
+    $s2 = "bar"
+    $s3 = "baz"
     $start_bytes = { 80 90 }
   condition:
     $start_bytes and any of ($s*)
@@ -10,9 +10,9 @@ rule test_1 {
 
 rule test_2 {
   strings:
-    $s1 = "exec"
-    $s2 = "system"
-    $s3 = "spawn"
+    $s1 = "foo"
+    $s2 = "bar"
+    $s3 = "baz"
     $start_bytes = { 80 90 }
   condition:
     any of ($s*) and $start_bytes
