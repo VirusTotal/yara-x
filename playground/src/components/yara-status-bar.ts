@@ -2,6 +2,7 @@ import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
 
 const yaraMarkUrl = `${import.meta.env.BASE_URL}yara-mark.svg`;
+const yaraMarkLightUrl = `${import.meta.env.BASE_URL}yara-mark-light.svg`;
 
 @customElement("yara-status-bar")
 export class YaraStatusBar extends LitElement {
@@ -68,7 +69,11 @@ export class YaraStatusBar extends LitElement {
       <header class="topbar">
         <div class="brand">
           <div class="brand-mark">
-            <img src=${yaraMarkUrl} alt="" class="brand-mark-icon" />
+            <img
+              src=${this.theme === "light" ? yaraMarkLightUrl : yaraMarkUrl}
+              alt=""
+              class="brand-mark-icon"
+            />
           </div>
           <div class="brand-copy">
             <strong>YARA-X Playground</strong>
