@@ -27,10 +27,14 @@ lnk-module = ["yara-x/lnk-module"]
 macho-module = ["yara-x/macho-module"]
 magic-module = ["yara-x/magic-module"]
 math-module = ["yara-x/math-module"]
+msi-module = ["yara-x/msi-module"]
+olecf-module = ["yara-x/olecf-module"]
 pe-module = ["yara-x/pe-module"]
 string-module = ["yara-x/string-module"]
 time-module = ["yara-x/time-module"]
+vba-module = ["yara-x/vba-module"]
 vt-module = ["yara-x/vt-module"]
+zip-module = ["yara-x/zip-module"]
 test_proto2-module = ["yara-x/test_proto2-module"]
 test_proto3-module = ["yara-x/test_proto3-module"]
 
@@ -46,10 +50,14 @@ default = [
     "lnk-module",
     "macho-module",
     "math-module",
+    "msi-module",
+    "olecf-module",
     "pe-module",
     "string-module",
     "time-module",
+    "vba-module",
     "vt-module",
+    "zip-module",
 ]
 
 [dependencies]
