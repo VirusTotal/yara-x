@@ -2629,7 +2629,7 @@ yara-help-dialog {
 [data-bs-theme="light"] .settings-toggle input,
 [data-bs-theme="light"] .settings-check input {
   border: 1px solid #cbd5e1;
-  background: #ffffff;
+  background-color: #ffffff;
 }
 
 [data-theme="light"] .settings-toggle input:checked,
