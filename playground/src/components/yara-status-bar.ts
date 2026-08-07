@@ -11,6 +11,9 @@ export class YaraStatusBar extends LitElement {
   @property({ type: Boolean })
   canRun = false;
 
+  @property({ type: String })
+  theme: "dark" | "light" = "dark";
+
   protected createRenderRoot() {
     return this;
   }
@@ -51,6 +54,15 @@ export class YaraStatusBar extends LitElement {
     );
   };
 
+  private dispatchThemeToggle = () => {
+    this.dispatchEvent(
+      new CustomEvent("theme-toggle", {
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  };
+
   render() {
     return html`
       <header class="topbar">
@@ -65,6 +77,57 @@ export class YaraStatusBar extends LitElement {
         </div>
 
         <div class="topbar-actions">
+          <button
+            type="button"
+            class="toolbar-button"
+            title=${this.theme === "dark"
+              ? "Switch to light mode"
+              : "Switch to dark mode"}
+            aria-label=${this.theme === "dark"
+              ? "Switch to light mode"
+              : "Switch to dark mode"}
+            @click=${this.dispatchThemeToggle}
+          >
+            <span class="toolbar-button-icon" aria-hidden="true">
+              ${this.theme === "dark"
+                ? html`
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="4"></circle>
+                      <path d="M12 2v2"></path>
+                      <path d="M12 20v2"></path>
+                      <path d="m4.93 4.93 1.41 1.41"></path>
+                      <path d="m17.66 17.66 1.41 1.41"></path>
+                      <path d="M2 12h2"></path>
+                      <path d="M20 12h2"></path>
+                      <path d="m6.34 17.66-1.41 1.41"></path>
+                      <path d="m19.07 4.93-1.41 1.41"></path>
+                    </svg>
+                  `
+                : html`
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path
+                        d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z"
+                      ></path>
+                    </svg>
+                  `}
+            </span>
+            <span>${this.theme === "dark" ? "Light" : "Dark"}</span>
+          </button>
+
           <button
             type="button"
             class="toolbar-button"

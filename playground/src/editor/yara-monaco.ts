@@ -19,7 +19,10 @@ import { createLanguageServerWorker } from "../language-server/language-server-w
 
 const RULE_URI = monaco.Uri.file("/workspace/main.yar");
 const SAMPLE_URI = monaco.Uri.file("/workspace/sample.txt");
-const THEME_NAME = "yara-studio";
+export const THEME_DARK = "yara-studio-dark";
+export const THEME_LIGHT = "yara-studio-light";
+
+let activeTheme: "dark" | "light" = "dark";
 
 export const YARA_CONFIG: YaraConfig = createDefaultYaraConfig();
 
@@ -30,6 +33,16 @@ export function updateYaraConfig(nextConfig: YaraConfig) {
   );
   YARA_CONFIG.ruleNameValidation = nextConfig.ruleNameValidation;
   YARA_CONFIG.cacheWorkspace = nextConfig.cacheWorkspace;
+}
+
+export function setMonacoTheme(theme: "dark" | "light") {
+  activeTheme = theme;
+  registerStudioThemes();
+  monaco.editor.setTheme(theme === "light" ? THEME_LIGHT : THEME_DARK);
+}
+
+export function getActiveMonacoTheme(): "dark" | "light" {
+  return activeTheme;
 }
 
 const YARA_KEYWORDS = [
@@ -96,12 +109,12 @@ export type EditorHighlight = {
 };
 
 let vscodeApiInitPromise: Promise<void> | undefined;
-let themeRegistered = false;
+let themesRegistered = false;
 
-function registerStudioTheme() {
-  if (themeRegistered) return;
+function registerStudioThemes() {
+  if (themesRegistered) return;
 
-  monaco.editor.defineTheme(THEME_NAME, {
+  monaco.editor.defineTheme(THEME_DARK, {
     base: "vs-dark",
     inherit: true,
     rules: [
@@ -128,7 +141,34 @@ function registerStudioTheme() {
     },
   });
 
-  themeRegistered = true;
+  monaco.editor.defineTheme(THEME_LIGHT, {
+    base: "vs",
+    inherit: true,
+    rules: [
+      { token: "keyword", foreground: "5d2f86" },
+      { token: "variable", foreground: "0284c7" },
+      { token: "identifier", foreground: "1d2d35" },
+      { token: "string", foreground: "16a34a" },
+      { token: "number", foreground: "d97706" },
+      { token: "comment", foreground: "64748b" },
+    ],
+    colors: {
+      "editor.background": "#ffffff",
+      "editor.lineHighlightBackground": "#f8fafc",
+      "editor.foreground": "#1d2d35",
+      "editorCursor.foreground": "#7296ef",
+      "editorLineNumber.foreground": "#94a3b8",
+      "editorLineNumber.activeForeground": "#334155",
+      "editor.selectionBackground": "#dbeafe",
+      "editor.inactiveSelectionBackground": "#f1f5f9",
+      "editorIndentGuide.background1": "#e2e8f0",
+      "editorIndentGuide.activeBackground1": "#94a3b8",
+      "editorWidget.background": "#ffffff",
+      "editorWidget.border": "#cbd5e1",
+    },
+  });
+
+  themesRegistered = true;
 }
 
 async function ensureVscodeApi() {
@@ -149,8 +189,8 @@ async function ensureVscodeApi() {
     });
 
     await apiWrapper.start();
-    registerStudioTheme();
-    monaco.editor.setTheme(THEME_NAME);
+    registerStudioThemes();
+    monaco.editor.setTheme(activeTheme === "light" ? THEME_LIGHT : THEME_DARK);
   })();
 
   await vscodeApiInitPromise;
@@ -308,7 +348,7 @@ function buildEditor(
     lineHeight: 22,
     fontFamily: "IBM Plex Mono, ui-monospace, SFMono-Regular, monospace",
     padding: { top: 18, bottom: 18 },
-    theme: THEME_NAME,
+    theme: activeTheme === "light" ? THEME_LIGHT : THEME_DARK,
     ...options,
   });
 }

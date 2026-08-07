@@ -1,5 +1,6 @@
 import { LitElement, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import { classMap } from "lit/directives/class-map.js";
 
 import {
   clonePlaygroundSettings,
@@ -17,6 +18,9 @@ type SettingsTab = "editor" | "scanner";
 export class YaraSettingsDialog extends LitElement {
   @property({ type: Boolean })
   open = false;
+
+  @property({ type: String })
+  theme: "dark" | "light" = "dark";
 
   @property({ attribute: false })
   settings: PlaygroundSettings = createDefaultPlaygroundSettings();
@@ -342,8 +346,79 @@ export class YaraSettingsDialog extends LitElement {
     `;
   }
 
+  private dispatchThemeChange(theme: "dark" | "light") {
+    this.dispatchEvent(
+      new CustomEvent<"dark" | "light">("theme-change", {
+        detail: theme,
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
   private renderEditorTab() {
     return html`
+      <section class="settings-section">
+        <div class="settings-section-head">
+          <div>
+            <h3>Appearance</h3>
+            <p>Choose between dark and light color modes.</p>
+          </div>
+        </div>
+
+        <div class="settings-theme-selector">
+          <button
+            type="button"
+            class=${classMap({
+              "settings-theme-btn": true,
+              active: this.theme === "dark",
+            })}
+            @click=${() => this.dispatchThemeChange("dark")}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+            </svg>
+            <span>Dark mode</span>
+          </button>
+
+          <button
+            type="button"
+            class=${classMap({
+              "settings-theme-btn": true,
+              active: this.theme === "light",
+            })}
+            @click=${() => this.dispatchThemeChange("light")}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2"></path>
+              <path d="M12 20v2"></path>
+              <path d="m4.93 4.93 1.41 1.41"></path>
+              <path d="m17.66 17.66 1.41 1.41"></path>
+              <path d="M2 12h2"></path>
+              <path d="M20 12h2"></path>
+              <path d="m6.34 17.66-1.41 1.41"></path>
+              <path d="m19.07 4.93-1.41 1.41"></path>
+            </svg>
+            <span>Light mode</span>
+          </button>
+        </div>
+      </section>
+
       <section class="settings-section">
         <div class="settings-section-head">
           <div>

@@ -10,10 +10,14 @@ import "../components/yara-status-bar";
 import { PlaygroundEditorController } from "../controllers/playground-editor-controller";
 import { PlaygroundSessionController } from "../controllers/playground-session-controller";
 import { SplitResizeController } from "../controllers/split-resize-controller";
-import { updateYaraConfig } from "../editor/yara-monaco";
+import { setMonacoTheme, updateYaraConfig } from "../editor/yara-monaco";
 import {
   loadStoredPlaygroundSettings,
+  loadStoredPlaygroundTheme,
+  PLAYGROUND_THEME_STORAGE_KEY,
   storePlaygroundSettings,
+  storePlaygroundTheme,
+  type PlaygroundTheme,
 } from "../persistence/playground-settings-storage";
 import type {
   ExecutionState,
@@ -103,6 +107,9 @@ export class YaraPlaygroundApp extends LitElement {
 
   @state()
   private languageServerVersion: string | null = null;
+
+  @state()
+  private theme: PlaygroundTheme = "dark";
 
   @state()
   private settings = createDefaultPlaygroundSettings();
@@ -213,12 +220,47 @@ export class YaraPlaygroundApp extends LitElement {
     }
   };
 
+  private readonly handleSystemThemeChange = (event: MediaQueryListEvent) => {
+    try {
+      const stored = localStorage.getItem(PLAYGROUND_THEME_STORAGE_KEY);
+      if (!stored) {
+        this.applyTheme(event.matches ? "light" : "dark");
+      }
+    } catch {}
+  };
+
+  private applyTheme(theme: PlaygroundTheme) {
+    this.theme = theme;
+    document.documentElement.setAttribute("data-theme", theme);
+    document.documentElement.setAttribute("data-bs-theme", theme);
+    document.documentElement.style.colorScheme = theme;
+    setMonacoTheme(theme);
+    storePlaygroundTheme(theme);
+  }
+
+  private handleThemeToggle = () => {
+    const nextTheme: PlaygroundTheme = this.theme === "dark" ? "light" : "dark";
+    this.applyTheme(nextTheme);
+  };
+
+  private handleThemeChange = (event: CustomEvent<PlaygroundTheme>) => {
+    this.applyTheme(event.detail);
+  };
+
   connectedCallback() {
     super.connectedCallback();
     this.sampleMode = this.sessionController.inlineSampleMode;
     this.settings = loadStoredPlaygroundSettings();
     updateYaraConfig(toYaraConfig(this.settings));
+    this.theme = loadStoredPlaygroundTheme();
+    this.applyTheme(this.theme);
     window.addEventListener("keydown", this.handleKeydown);
+
+    if (typeof window !== "undefined" && window.matchMedia) {
+      window
+        .matchMedia("(prefers-color-scheme: light)")
+        .addEventListener("change", this.handleSystemThemeChange);
+    }
   }
 
   protected async firstUpdated() {
@@ -260,6 +302,11 @@ export class YaraPlaygroundApp extends LitElement {
 
   disconnectedCallback() {
     window.removeEventListener("keydown", this.handleKeydown);
+    if (typeof window !== "undefined" && window.matchMedia) {
+      window
+        .matchMedia("(prefers-color-scheme: light)")
+        .removeEventListener("change", this.handleSystemThemeChange);
+    }
     if (this.sampleEditorLayoutFrameId != null) {
       window.cancelAnimationFrame(this.sampleEditorLayoutFrameId);
     }
@@ -634,8 +681,10 @@ export class YaraPlaygroundApp extends LitElement {
     return html`
       <main class="studio">
         <yara-status-bar
+          .theme=${this.theme}
           .isBusy=${this.isBusy}
           .canRun=${this.canRun}
+          @theme-toggle=${this.handleThemeToggle}
           @run-request=${this.handleRunRequest}
           @cancel-request=${this.handleCancelRequest}
           @help-request=${this.handleHelpRequest}
@@ -703,7 +752,9 @@ export class YaraPlaygroundApp extends LitElement {
 
         <yara-settings-dialog
           .open=${this.settingsModalOpen}
+          .theme=${this.theme}
           .settings=${this.settings}
+          @theme-change=${this.handleThemeChange}
           @settings-close=${this.handleSettingsClose}
           @settings-apply=${this.handleSettingsApply}
         ></yara-settings-dialog>
