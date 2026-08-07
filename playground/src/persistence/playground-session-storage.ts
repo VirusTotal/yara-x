@@ -25,8 +25,10 @@ export function loadStoredPlaygroundSession(
 
   const nextSession = clonePlaygroundSession(defaults);
 
-  if (typeof stored.rule === "string") {
+  if (typeof stored.rule === "string" && stored.rule.trim().length > 0) {
     nextSession.rule = stored.rule;
+  } else {
+    nextSession.rule = rule;
   }
 
   if (
@@ -44,6 +46,13 @@ export function loadStoredPlaygroundSession(
         nextSession.sampleDrafts[id] = value;
       }
     }
+  }
+
+  if (
+    typeof nextSession.sampleDrafts.text !== "string" ||
+    nextSession.sampleDrafts.text.trim().length === 0
+  ) {
+    nextSession.sampleDrafts.text = sampleText;
   }
 
   return nextSession;

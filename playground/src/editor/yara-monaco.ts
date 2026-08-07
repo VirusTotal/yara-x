@@ -37,8 +37,13 @@ export function updateYaraConfig(nextConfig: YaraConfig) {
 
 export function setMonacoTheme(theme: "dark" | "light") {
   activeTheme = theme;
-  registerStudioThemes();
-  monaco.editor.setTheme(theme === "light" ? THEME_LIGHT : THEME_DARK);
+  if (themesRegistered) {
+    try {
+      monaco.editor.setTheme(theme === "light" ? THEME_LIGHT : THEME_DARK);
+    } catch (e) {
+      console.warn("Failed to set Monaco theme", e);
+    }
+  }
 }
 
 export function getActiveMonacoTheme(): "dark" | "light" {
@@ -283,6 +288,10 @@ async function createEditorModel(
   }
 
   monaco.editor.setModelLanguage(model, language);
+
+  if (initialValue != null && model.getValue() !== initialValue) {
+    model.setValue(initialValue);
+  }
 
   return {
     model,
