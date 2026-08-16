@@ -147,14 +147,6 @@ impl CodeLoc for BckCodeLoc {
     }
 }
 
-/// Value returned by the callback functions passed to [`PikeVM::try_match`]
-/// and [`FastVM::try_match`] for indicating if VM should continue trying to
-/// find more matches or stop without trying to find more matches.
-pub(crate) enum Action {
-    Continue,
-    Stop,
-}
-
 /// WideIter is an iterator that takes a byte iterator and consumes it two
 /// bytes at a time, returning one of the bytes and making sure that other
 /// is zero. Which of the two bytes is returned and which is zero depends

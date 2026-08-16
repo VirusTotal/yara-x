@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light;
+  color-scheme: dark;
   background: #161625;
   font-family: "Jost", "Avenir Next", "IBM Plex Sans", "Segoe UI", sans-serif;
   font-optical-sizing: auto;
@@ -7,6 +7,12 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-theme="light"],
+:root[data-bs-theme="light"] {
+  color-scheme: light;
+  background: #ffffff;
 }
 
 * {
@@ -24,6 +30,12 @@ body {
   overflow: hidden;
   color: #f5f7ff;
   background: #161625;
+}
+
+:root[data-theme="light"] body,
+:root[data-bs-theme="light"] body {
+  color: #1d2d35;
+  background: #ffffff;
 }
 
 @media (max-width: 900px) {

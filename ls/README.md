@@ -12,7 +12,7 @@ in TypeScript (see: editors/code).
     $ cargo build --bin yr-ls --release && mv target/release/yr-ls ls/editors/code/dist
     ```
 
-2. Move to the `ls/editors/code`, install dependencies and compile the extension:
+2. Move to the `ls/editors/code` directory, install dependencies and compile the extension:
     ```sh
     $ npm i
     $ npm run compile

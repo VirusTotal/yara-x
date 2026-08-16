@@ -11,7 +11,7 @@ keywords = ["pattern-matching", "cybersecurity", "forensics", "malware", "yara"]
 # When updating rust-version also update MSRV in:
 #   .github/workflows/tests.yaml
 #
-rust-version = "1.91.0"
+rust-version = "1.93.0"
 
 [workspace]
 members = [
@@ -31,12 +31,12 @@ resolver = "3"
 
 
 [workspace.dependencies]
-daachorse = "3.0.3"
+daachorse = "4.0.0"
 annotate-snippets = "0.12.16"
-anyhow = "1.0.103"
+anyhow = "1.0.104"
 hex = "0.4.3"
 ascii_tree = "0.1.1"
-base64 = "0.22.1"
+base64 = "0.23.0"
 bincode = "2.0.1"
 bitflags = "2.13.1"
 bitvec = "1.1.1"
@@ -65,7 +65,7 @@ indexmap = "2.14.0"
 intaglio = "1.15.1"
 inventory = "0.3.24"
 ipnet = "2.12.0"
-itertools = "0.14.0"
+itertools = "0.15.0"
 js-sys = "0.3.102"
 log = "0.4.32"
 magic = "0.16.7"
@@ -107,8 +107,8 @@ walrus = "0.26.4"
 wasm-bindgen = "0.2.125"
 wasm-bindgen-test = "0.3.75"
 wasm-opt = "0.116.1"
-wasmtime = { version = "43.0.2", default-features = false }
-x509-parser = "0.18.0"
+wasmtime = { version = "45.0.3", default-features = false }
+x509-parser = "0.18.1"
 yansi = "1.0.1"
 yara-x = { path = "lib", version = "1.19.0" }
 yara-x-fmt = { path = "fmt", version = "1.19.0" }
@@ -117,9 +117,9 @@ yara-x-parser = { path = "parser", version = "1.19.0" }
 yara-x-proto = { path = "proto", version = "1.19.0"}
 zip = { version = "8.2.0", default-features = false }
 tinyzip = "0.4.0"
-simd-adler32 = "0.3.9"
-simd_cesu8 = "1.1.1"
-assert-call = "0.1.2"
+simd-adler32 = "0.3.10"
+simd_cesu8 = "1.2.0"
+assert-call = "0.2.0"
 
 # Special profile that builds a release binary with link-time optimization.
 # Compiling with this profile takes a while, but the resulting binary is

@@ -5,6 +5,7 @@ use std::iter;
 use std::mem::{MaybeUninit, transmute};
 #[cfg(feature = "rules-profiling")]
 use std::ops::AddAssign;
+use std::ops::ControlFlow;
 use std::ops::{Deref, Range};
 use std::pin::Pin;
 use std::ptr::NonNull;
@@ -28,8 +29,8 @@ use crate::compiler::{
     SubPatternAtom, SubPatternFlags, SubPatternId,
 };
 use crate::errors::VariableError;
-use crate::re::Action;
 use crate::re::fast::FastVM;
+
 use crate::re::hir::ChainedPatternGap;
 use crate::re::thompson::PikeVM;
 #[cfg(feature = "rules-profiling")]
@@ -799,24 +800,37 @@ impl ScanContext<'_, '_> {
             // Use the Teddy algorithm if it was possible to create a Teddy
             // matcher and the data being scanned is long enough.
             Some(teddy) if data.len() >= teddy.minimum_len() => {
-                if HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline {
-                    return Err(ScanError::Timeout);
-                }
-                teddy.find_overlapping(data, 0, &mut |m| {
-                    #[cfg(feature = "logging")]
-                    {
-                        atom_matches += 1;
-                    }
-                    let match_offset =
-                        m.start() as usize - data.as_ptr() as usize;
+                match teddy.find_overlapping(
+                    data,
+                    0,
+                    |m| -> ControlFlow<ScanError> {
+                        if HEARTBEAT_COUNTER.load(Ordering::Relaxed)
+                            >= self.deadline
+                        {
+                            return ControlFlow::Break(ScanError::Timeout);
+                        }
+                        #[cfg(feature = "logging")]
+                        {
+                            atom_matches += 1;
+                        }
+                        let match_offset =
+                            m.start() as usize - data.as_ptr() as usize;
 
-                    self.handle_atom_match(
-                        m.pattern() as usize,
-                        match_offset,
-                        base,
-                        data,
-                    );
-                });
+                        self.handle_atom_match(
+                            m.pattern() as usize,
+                            match_offset,
+                            base,
+                            data,
+                        );
+
+                        ControlFlow::Continue(())
+                    },
+                ) {
+                    ControlFlow::Continue(_) => {}
+                    ControlFlow::Break(err) => {
+                        return Err(err);
+                    }
+                }
             }
             // Otherwise use the Aho-Corasick algorithm.
             _ => {
@@ -1538,9 +1552,9 @@ fn verify_regexp(
                 |match_len| {
                     fwd_match_len = Some(match_len);
                     if flags.contains(SubPatternFlags::GreedyRegexp) {
-                        Action::Continue
+                        ControlFlow::Continue(())
                     } else {
-                        Action::Stop
+                        ControlFlow::Break(())
                     }
                 },
             );
@@ -1552,7 +1566,7 @@ fn verify_regexp(
                 flags.contains(SubPatternFlags::Wide),
                 |match_len| {
                     fwd_match_len = Some(match_len);
-                    Action::Stop
+                    ControlFlow::Break(())
                 },
             );
         }
@@ -1577,7 +1591,7 @@ fn verify_regexp(
                     if verify_full_word(scanned_data, &range, flags, None) {
                         f(range);
                     }
-                    Action::Continue
+                    ControlFlow::Continue(())
                 },
             );
         } else {
@@ -1592,7 +1606,7 @@ fn verify_regexp(
                     if verify_full_word(scanned_data, &range, flags, None) {
                         f(range);
                     }
-                    Action::Continue
+                    ControlFlow::Continue(())
                 },
             );
         }

@@ -508,6 +508,7 @@ fn test_reflect() {
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "INLINE_0x1000");
     assert_eq!(field.ty(), Type::Integer);
+    assert!(field.is_const());
 
     let field = fields.next().unwrap();
     assert_eq!(field.name(), "INLINE_0x2000");

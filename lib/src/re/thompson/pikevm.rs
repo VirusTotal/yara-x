@@ -1,11 +1,11 @@
+use bitvec::array::BitArray;
 use std::cell::Cell;
 use std::mem;
-
-use bitvec::array::BitArray;
+use std::ops::ControlFlow;
 
 use super::instr::{Instr, InstrParser, Offset};
 use crate::re::thompson::instr::SplitId;
-use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT, WideIter};
+use crate::re::{CodeLoc, DEFAULT_SCAN_LIMIT, WideIter};
 
 /// Represents a [Pike's VM](https://swtch.com/~rsc/regexp/regexp2.html) that
 /// executes VM code produced by the [compiler][`crate::re::compiler::Compiler`].
@@ -70,8 +70,8 @@ impl<'r> PikeVM<'r> {
     ///                   starting point
     /// ```
     ///
-    /// The `f` function must return either [`Action::Continue`] or
-    /// [`Action::Stop`], the former will cause the VM to keep trying to find
+    /// The `f` function must return either [`ControlFlow::Continue`] or
+    /// [`ControlFlow::Break`], the former will cause the VM to keep trying to find
     /// longer matches, while the latter will stop the scanning.
     #[inline]
     pub(crate) fn try_match<C>(
@@ -80,7 +80,7 @@ impl<'r> PikeVM<'r> {
         right: &[u8],
         left: &[u8],
         wide: bool,
-        mut f: impl FnMut(usize) -> Action,
+        mut f: impl FnMut(usize) -> ControlFlow<()>,
     ) where
         C: CodeLoc,
     {
@@ -98,7 +98,7 @@ impl<'r> PikeVM<'r> {
                     WideIter::non_zero_first(right.iter(), &error_fwd),
                     WideIter::zero_first(left.iter().rev(), &error_bck),
                     |match_len| match error_fwd.get() {
-                        Some(pos) if pos < match_len => Action::Stop,
+                        Some(pos) if pos < match_len => ControlFlow::Break(()),
                         _ => f(match_len * 2),
                     },
                 )
@@ -116,7 +116,7 @@ impl<'r> PikeVM<'r> {
                     WideIter::zero_first(left.iter().rev(), &error_fwd),
                     WideIter::non_zero_first(right.iter(), &error_bck),
                     |match_len| match error_fwd.get() {
-                        Some(pos) if pos < match_len => Action::Stop,
+                        Some(pos) if pos < match_len => ControlFlow::Break(()),
                         _ => f(match_len * 2),
                     },
                 )
@@ -131,8 +131,8 @@ impl<'r> PikeVM<'r> {
     /// The number of matching bytes can be zero, as some regexps can match
     /// a zero-length string.
     ///
-    /// The `f` function must return either [`Action::Continue`] or
-    /// [`Action::Stop`], the former will cause the VM to keep trying to find
+    /// The `f` function must return either [`ControlFlow::Continue`] or
+    /// [`ControlFlow::Break`], the former will cause the VM to keep trying to find
     /// longer matches, while the latter will stop the scanning.
     ///
     /// `bck_input` is an iterator that returns the bytes that are before
@@ -156,7 +156,7 @@ impl<'r> PikeVM<'r> {
         start: C,
         mut fwd_input: F,
         mut bck_input: B,
-        mut f: impl FnMut(usize) -> Action,
+        mut f: impl FnMut(usize) -> ControlFlow<()>,
     ) where
         C: CodeLoc,
         F: Iterator<Item = &'a u8>,
@@ -274,8 +274,8 @@ impl<'r> PikeVM<'r> {
                         matches!(curr_byte, Some(b) if class.contains(*b))
                     }
                     Instr::Match => match f(current_pos) {
-                        Action::Stop => break,
-                        Action::Continue => false,
+                        ControlFlow::Break(_) => break,
+                        ControlFlow::Continue(_) => false,
                     },
                     _ => unreachable!(),
                 };

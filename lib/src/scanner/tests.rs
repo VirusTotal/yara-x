@@ -1120,3 +1120,31 @@ fn test_slow_rule_hang() {
     let results = scanner.scan(&data).unwrap();
     assert_eq!(results.matching_rules().count(), 1);
 }
+
+#[test]
+fn test_teddy_scan_timeout() {
+    use std::time::Duration;
+
+    let rules = crate::compile(
+        r#"
+        rule test {
+            strings:
+                $a = "abcd"
+            condition:
+                $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    scanner.set_timeout(Duration::from_secs(1));
+
+    let mut data = Vec::with_capacity(10_000_000);
+    for _ in 0..2_500_000 {
+        data.extend_from_slice(b"abcd");
+    }
+
+    let err = scanner.scan(&data).unwrap_err();
+    assert_eq!(err.to_string(), "timeout");
+}

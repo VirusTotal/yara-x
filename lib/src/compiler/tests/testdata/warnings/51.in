@@ -1,0 +1,9 @@
+rule test_1 {
+  strings:
+    $s1 = "foo"
+    $s2 = "far"
+    $s3 = "baz"
+    $start_bytes = { 80 90 }
+  condition:
+    ($start_bytes or $s1) and (any of ($s*))
+}

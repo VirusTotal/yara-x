@@ -67,3 +67,7 @@ battle-tested.
 Please test YARA-X and don’t hesitate
 to [open an issue](https://github.com/VirusTotal/yara-x/issues/new) if you
 find a bug or some feature that you want to see implemented.
+
+## Contributing
+
+Contributions to YARA-X are welcome! For details on the Google Contributor License Agreement (CLA) requirement, code style conventions, and how to submit pull requests, please read [CONTRIBUTING.md](CONTRIBUTING.md).
