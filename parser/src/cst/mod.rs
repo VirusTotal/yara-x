@@ -773,8 +773,7 @@ impl Token<Mutable> {
     /// Detach the token from the CST it belongs to, returning the new root node.
     pub fn detach(&self) -> Option<Node<Mutable>> {
         let parent = self.inner.parent()?;
-        let new_parent_green =
-            parent.green().remove_child(self.inner.index());
+        let new_parent_green = parent.green().remove_child(self.inner.index());
         Some(Node::new(rowan::SyntaxNode::new_root(
             parent.replace_with(new_parent_green),
         )))
@@ -1350,8 +1349,7 @@ impl Node<Mutable> {
     /// Detach the node from the CST it belongs to, returning the new root node.
     pub fn detach(&self) -> Option<Node<Mutable>> {
         let parent = self.inner.parent()?;
-        let new_parent_green =
-            parent.green().remove_child(self.inner.index());
+        let new_parent_green = parent.green().remove_child(self.inner.index());
         Some(Node::new(rowan::SyntaxNode::new_root(
             parent.replace_with(new_parent_green),
         )))

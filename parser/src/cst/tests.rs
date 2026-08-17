@@ -186,7 +186,8 @@ fn cst_4() {
 
     // Detach the first child or token of SOURCE_FILE, this node has a single
     // child that is the RULE_DECL node.
-    source_file = source_file.first_child_or_token().unwrap().detach().unwrap();
+    source_file =
+        source_file.first_child_or_token().unwrap().detach().unwrap();
 
     // After detaching the RULE_DECL node, SOURCE_FILE is empty.
     assert_eq!(source_file.last_token().map(|x| x.kind()), None);
