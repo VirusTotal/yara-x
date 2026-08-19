@@ -69,7 +69,7 @@ stderr-logs = ["yara-x/stderr-logs"]
 
 [lib]
 name = "yara_x_capi"
-crate-type = ["staticlib", "cdylib"]
+crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
 serde_json = { workspace = true }

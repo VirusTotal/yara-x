@@ -13,7 +13,7 @@ repository.workspace = true
 [lib]
 name = "yara_x"
 doc = false
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [features]
 console-module = ["yara-x/console-module"]
