@@ -11,7 +11,7 @@ repository.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "yara_x"
+name = "yara_x_py"
 doc = false
 crate-type = ["cdylib", "rlib"]
 
