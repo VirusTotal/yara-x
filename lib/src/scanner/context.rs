@@ -21,7 +21,7 @@ use bstr::{BString, ByteSlice};
 use indexmap::IndexMap;
 use protobuf::{MessageDyn, MessageFull};
 use regex_automata::meta::Regex;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 
 use crate::compiler::{
@@ -86,7 +86,11 @@ pub(crate) struct MatchTracker<'r> {
     /// the maximum number of matches or because they are meant to be ignored
     /// during this scan because they belong to some rule that we know that
     /// can't match.
-    pub disabled_patterns: FxHashSet<PatternId>,
+    ///
+    /// Indexed directly by `PatternId`, one entry per pattern in the
+    /// compiled rules. A flat vector is cheaper here than any set type,
+    /// since this is cleared and repopulated on every single scan.
+    pub disabled_patterns: Vec<bool>,
     /// The rules that are being used during the scan.
     pub compiled_rules: &'r Rules,
     /// Indicates whether fast mode is enabled. In fast mode the scanner
@@ -568,8 +572,8 @@ impl ScanContext<'_, '_> {
         // Free all runtime objects left around by previous scans.
         self.runtime_objects.clear();
 
-        // Clear the set that tracks the patterns that has been disabled.
-        self.tracker.disabled_patterns.clear();
+        // Clear the flags that track the patterns that have been disabled.
+        self.tracker.disabled_patterns.fill(false);
 
         self.tracker.unconfirmed_matches.clear();
         self.num_matching_private_rules = 0;
@@ -886,7 +890,7 @@ impl ScanContext<'_, '_> {
         let (pattern_id, sub_pattern) =
             &self.compiled_rules.get_sub_pattern(sub_pattern_id);
 
-        if self.tracker.disabled_patterns.contains(pattern_id) {
+        if self.tracker.disabled_patterns[usize::from(*pattern_id)] {
             return;
         }
 
@@ -1149,7 +1153,8 @@ impl ScanContext<'_, '_> {
             let filesize = self.get_filesize();
             for (pattern_id, bounds) in self.compiled_rules.filesize_bounds() {
                 if !bounds.contains(filesize) {
-                    self.tracker.disabled_patterns.insert(*pattern_id);
+                    self.tracker.disabled_patterns[usize::from(*pattern_id)] =
+                        true;
                 }
             }
         }
@@ -1159,7 +1164,8 @@ impl ScanContext<'_, '_> {
                 self.compiled_rules.header_constraints()
             {
                 if !constraints.is_satisfied(data) {
-                    self.tracker.disabled_patterns.insert(*pattern_id);
+                    self.tracker.disabled_patterns[usize::from(*pattern_id)] =
+                        true;
                 }
             }
         }
@@ -1216,7 +1222,7 @@ impl ScanContext<'_, '_> {
             .iter()
             .map(|id| (id, self.compiled_rules.get_sub_pattern(*id)))
         {
-            if self.tracker.disabled_patterns.contains(pattern_id) {
+            if self.tracker.disabled_patterns[usize::from(*pattern_id)] {
                 continue;
             }
             match sub_pattern {
@@ -2006,7 +2012,7 @@ fn track_match(
     }
 
     if disable_pattern {
-        tracker.disabled_patterns.insert(pattern_id);
+        tracker.disabled_patterns[usize::from(pattern_id)] = true;
     }
 }
 
@@ -2169,7 +2175,7 @@ pub fn create_wasm_store_and_ctx<'r>(
         tracker: MatchTracker {
             pattern_matches: PatternMatches::new(),
             unconfirmed_matches: FxHashMap::default(),
-            disabled_patterns: FxHashSet::default(),
+            disabled_patterns: vec![false; num_patterns as usize],
             compiled_rules: rules,
             fast_scan: false,
         },
