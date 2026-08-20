@@ -266,7 +266,7 @@ pub mod mods {
 
     /// Data structures defined by the `olecf` module.
     ///
-    /// The main structure produced by the module is [`olecf:Olecf`]. The rest
+    /// The main structure produced by the module is [`olecf::Olecf`]. The rest
     /// of them are used by one or more fields in the main structure.
     ///
     pub use super::protos::olecf;

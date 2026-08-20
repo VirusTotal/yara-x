@@ -1,3 +1,5 @@
+#![allow(rustdoc::private_intra_doc_links)]
+
 use bstr::{BStr, BString, ByteSlice, Utf8Error};
 use std::rc::Rc;
 
