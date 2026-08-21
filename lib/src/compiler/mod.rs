@@ -1813,19 +1813,25 @@ impl Compiler<'_> {
             rule_patterns[pat_idx.as_usize()].pattern()
         });
 
-        // Set the bounds to all patterns in the rule. This must be done
+        // Set the bounds to all regex patterns in the rule. This must be done
         // before assigning the PatternId to each pattern, as the filesize
         // bounds are taken into account when determining if the pattern
         // is unique or re-used from a previous rule.
         if !filesize_bounds.unbounded() {
-            for pattern in &mut rule_patterns {
+            for pattern in &mut rule_patterns
+                .iter_mut()
+                .filter(|p| p.pattern().is_regex())
+            {
                 pattern.pattern_mut().set_filesize_bounds(&filesize_bounds);
             }
         }
 
-        // Set header constraints to all patterns in the rule.
+        // Set header constraints to all regex patterns in the rule.
         if !header_constraints.unconstrained() {
-            for pattern in &mut rule_patterns {
+            for pattern in &mut rule_patterns
+                .iter_mut()
+                .filter(|p| p.pattern().is_regex())
+            {
                 pattern
                     .pattern_mut()
                     .set_header_constraints(&header_constraints);
