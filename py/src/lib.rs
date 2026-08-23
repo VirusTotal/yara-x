@@ -618,7 +618,7 @@ impl Compiler {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```python
     /// import yara_x
     /// compiler = yara_x.Compiler()
     /// compiler.add_include_dir("/path/to/rules")

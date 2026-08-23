@@ -6,7 +6,7 @@ and MSI. This module specializes in parsing OLE CF files and extracting
 metadata about their structure and contents.
 
 Read more about the Compound File Binary File format here:
-https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-cfb/53989ce4-7b05-4f8d-829b-d08d6148375b
+<https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-cfb/53989ce4-7b05-4f8d-829b-d08d6148375b>
 */
 
 use crate::errors::ModuleError;

@@ -32,6 +32,8 @@ words
     - [Adding callable functions to an external module](#adding-callable-functions-to-an-external-module)
     - [Overriding the module output at scan time](#overriding-the-module-output-at-scan-time)
     - [Ensuring the module is linked](#ensuring-the-module-is-linked)
+    - [Using external modules with C API](#using-external-modules-with-c-api)
+    - [Using external modules with Python](#using-external-modules-with-python)
 - [Tests](#tests)
     - [Structuring Testdata Input](#structuring-testdata-input)
         - [Linux](#linux)
@@ -1206,6 +1208,82 @@ my_module_crate::ensure_registered();
 let names: Vec<&str> = yara_x::mods::module_names().collect();
 assert!(names.contains(&"foobar"));
 ```
+
+### Using external modules with C API
+
+To use your custom module with the YARA-X C API, create a small wrapper crate
+that depends on both `yara-x-capi` and your custom module crate, and compiles
+as a `cdylib` / `staticlib`:
+
+`Cargo.toml`:
+```toml
+[package]
+name = "my-yara-capi"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "yara_x_capi"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+yara-x-capi = "1.19.0"
+my-custom-module = { path = "../my-custom-module" }
+```
+
+`src/lib.rs`:
+```rust
+// Re-export all C API symbols (yrx_*)
+pub use yara_x_capi::*;
+
+// Ensure custom module symbols and inventory registration are linked
+use my_custom_module as _;
+```
+
+Building this crate with `cargo build --release` produces `libyara_x_capi.so`
+(or `.dylib` / `.dll`) containing the full C API with your custom module
+included.
+
+### Using external modules with Python
+
+Similarly, to use your custom module from Python, create a wrapper crate that
+bundles `yara-x-py` and your custom module:
+
+`Cargo.toml`:
+```toml
+[package]
+name = "yara-x"
+version = "1.19.0"
+edition = "2024"
+
+[lib]
+name = "yara_x"
+crate-type = ["cdylib"]
+
+[dependencies]
+yara-x-py = { package = "yara-x-py", version = "1.19.0" }
+my-custom-module = { path = "../my-custom-module" }
+pyo3 = { version = "0.29.2", features = ["abi3", "abi3-py38", "extension-module"] }
+
+[build-dependencies]
+pyo3-build-config = "0.29.2"
+```
+
+`src/lib.rs`:
+```rust
+pub use yara_x_py::*;
+use my_custom_module as _;
+```
+
+`build.rs`:
+```rust
+fn main() {
+    pyo3_build_config::add_extension_module_link_args();
+}
+```
+
+Building with `maturin build` or `maturin develop` produces a Python wheel/extension
+module with your custom module available under `import yara_x`.
 
 ## Tests
 
