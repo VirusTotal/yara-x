@@ -91,3 +91,9 @@ jobs:
         run: npx @vscode/vsce publish --packagePath ${{ matrix.build }}.vsix
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Publish to Open VSX Registry
+        working-directory: ./ls/editors/code
+        run: npx ovsx publish --packagePath ${{ matrix.build }}.vsix
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
