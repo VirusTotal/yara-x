@@ -1,7 +1,6 @@
 name: Release
 permissions:
-  # Allow this action to create releases.
-  contents: write
+  contents: read
 on:
   create:
     tags:
@@ -208,6 +207,9 @@ jobs:
   publish:
     needs: [ build ]
     runs-on: ubuntu-latest
+    permissions:
+      # Allow this job to create releases.
+      contents: write
 
     steps:
     - name: Download artifacts
