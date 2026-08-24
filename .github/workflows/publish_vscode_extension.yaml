@@ -87,6 +87,7 @@ jobs:
 
       - name: Publish to Visual Studio Marketplace
         #if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        continue-on-error: true
         working-directory: ./ls/editors/code
         run: npx @vscode/vsce publish --packagePath ${{ matrix.build }}.vsix
         env:
