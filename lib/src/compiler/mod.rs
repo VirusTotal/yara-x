@@ -1941,6 +1941,7 @@ impl Compiler<'_> {
         {
             if pending_patterns.contains(pattern_id) {
                 let pattern_span = pattern.span().clone();
+                let is_regex = pattern.pattern().is_regex();
                 match pattern.into_pattern() {
                     Pattern::Text(pattern) => {
                         self.c_literal_pattern(*pattern_id, pattern);
@@ -1956,7 +1957,12 @@ impl Compiler<'_> {
                         }
                     }
                 };
-                if !filesize_bounds.unbounded()
+                // Only regex/hex patterns get filesize bounds and header
+                // constraints recorded for scan-time pruning: verifying a
+                // literal-text atom hit is already cheap, so the pruning
+                // isn't worth the per-scan bookkeeping cost for those.
+                if is_regex
+                    && !filesize_bounds.unbounded()
                     && self
                         .filesize_bounds
                         .insert(*pattern_id, filesize_bounds.clone())
@@ -1967,7 +1973,8 @@ impl Compiler<'_> {
                         "modifying the file size bounds of an existing pattern"
                     )
                 }
-                if !header_constraints.unconstrained()
+                if is_regex
+                    && !header_constraints.unconstrained()
                     && self
                         .header_constraints
                         .insert(*pattern_id, header_constraints.clone())
