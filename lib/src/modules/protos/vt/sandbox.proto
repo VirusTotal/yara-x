@@ -5,6 +5,7 @@ syntax = "proto3";
 
 package vt.fileanalysis;
 
+import "google/protobuf/timestamp.proto";
 import "vt/filetypes.proto";
 import "vt/sigma.proto";
 import "vt/tools/net_analysis.proto";
@@ -118,6 +119,7 @@ message BehaviourSummary {
   repeated FileCopy files_copied = 4;
   repeated string files_attribute_changed = 5;
   repeated DroppedFile files_dropped = 6;
+  repeated ExtractedPayload payloads_extracted = 84;
   string hosts_file = 7;
   repeated ProcessItem processes_list = 75;
   repeated string processes_created = 9;
@@ -205,6 +207,15 @@ message DroppedFile {
   string download_url = 5;
   string process_name = 6;
   string process_id = 7;
+}
+
+message ExtractedPayload {
+  string sha256 = 1;
+  vt.fileanalysis.FileType type = 2;
+  uint64 size = 3;
+  string payload_type = 4;
+  string process_name = 5;
+  google.protobuf.Timestamp timestamp = 6;
 }
 
 message PermissionCheck {

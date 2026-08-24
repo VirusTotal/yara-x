@@ -118,6 +118,7 @@ enum FileType {
   PYTHON_WHL = 320;
   PYTHON_PKG = 321;
   MSIX = 322;
+  SKILL = 323;
   TEXT = 400;
   SCRIPT = 401;
   PHP = 402;
@@ -168,6 +169,7 @@ enum FileType {
   CSV = 610;
   HTA = 611;
   INTERNET_SHORTCUT = 612;
+  CSS = 613;
   CAP = 700;
   ISOIMAGE = 800;
   SQUASHFS = 801;
@@ -189,4 +191,5 @@ enum FileType {
   PEM = 1300;
   PGP = 1301;
   CRT = 1302;
+  SHELLCODE = 1400;
 }
