@@ -226,6 +226,11 @@ pub(crate) enum Pattern {
 
 impl Pattern {
     #[inline]
+    pub fn is_regex(&self) -> bool {
+        matches!(self, Pattern::Regexp(_) | Pattern::Hex(_))
+    }
+
+    #[inline]
     pub fn flags(&self) -> &PatternFlags {
         match self {
             Pattern::Text(literal) => &literal.flags,
