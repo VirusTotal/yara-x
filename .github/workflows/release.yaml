@@ -47,6 +47,8 @@ jobs:
     steps:
     - name: Checkout sources
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # v1.97.1
@@ -58,7 +60,7 @@ jobs:
       run: |
         set -ex
         version=`cargo pkgid --manifest-path lib/Cargo.toml | cut -d "@" -f2`
-        if [ "${{ github.ref_name }}" != "v$version" ]; then
+        if [ "${GITHUB_REF_NAME}" != "v$version" ]; then
           exit 1
         fi
 
@@ -81,10 +83,10 @@ jobs:
       shell: bash
       run: |
         set -ex
-        pkgname=yara-x-${{ github.ref_name }}-${{ matrix.target }}
+        pkgname=yara-x-${GITHUB_REF_NAME}-${{ matrix.target }}
         if [ "${{ matrix.build }}" = "windows" ]; then
             7z a $pkgname.zip ./target/${{ matrix.target }}/release-lto/yr.exe
-            7z a yara-x-capi-${{ github.ref_name }}-${{ matrix.target }}.zip \
+            7z a yara-x-capi-${GITHUB_REF_NAME}-${{ matrix.target }}.zip \
                ./target/${{ matrix.target }}/release-lto/yara_x.h \
                ./target/${{ matrix.target }}/release-lto/yara_x_capi.def \
                ./target/${{ matrix.target }}/release-lto/yara_x_capi.lib \
@@ -134,8 +136,10 @@ jobs:
     steps:
     - name: Checkout sources
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
     - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # v1.97.1
       with:
         toolchain: stable
 
@@ -144,7 +148,7 @@ jobs:
       run: |
         set -ex
         version=`cargo pkgid --manifest-path lib/Cargo.toml | cut -d "@" -f2`
-        if [ "${{ github.ref_name }}" != "v$version" ]; then
+        if [ "${GITHUB_REF_NAME}" != "v$version" ]; then
           exit 1
         fi
 
@@ -227,6 +231,8 @@ jobs:
     steps:
     - name: Checkout sources
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: Publish crate
       env:

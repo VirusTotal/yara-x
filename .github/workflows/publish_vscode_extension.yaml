@@ -55,7 +55,7 @@ jobs:
         run: python .github/scripts/sync_version.py
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # v1.97.1
         with:
           toolchain: stable
           target: ${{ matrix.target }}
