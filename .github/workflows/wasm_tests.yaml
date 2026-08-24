@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # v1.97.1
@@ -36,7 +38,9 @@ jobs:
           install-chromedriver: true
 
       - name: Add ChromeDriver to PATH
-        run: echo "$(dirname '${{ steps.setup-chrome.outputs.chromedriver-path }}')" >> "$GITHUB_PATH"
+        env:
+          CHROMEDRIVER_PATH: ${{ steps.setup-chrome.outputs.chromedriver-path }}
+        run: echo "$(dirname "$CHROMEDRIVER_PATH")" >> "$GITHUB_PATH"
 
       - name: Install wasm-pack
         run: cargo install --locked wasm-pack --version 0.14.0
@@ -48,11 +52,13 @@ jobs:
         run: npm install --global terser
 
       - name: Write webdriver.json
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
         run: |
           cat > js-wasm/webdriver.json <<EOF
           {
             "goog:chromeOptions": {
-              "binary": "${{ steps.setup-chrome.outputs.chrome-path }}"
+              "binary": "$CHROME_PATH"
             }
           }
           EOF
