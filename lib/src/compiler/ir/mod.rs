@@ -319,6 +319,15 @@ impl Pattern {
         }
     }
 
+    #[inline]
+    pub fn filesize_bounds(&self) -> &FilesizeBounds {
+        match self {
+            Pattern::Text(literal) => &literal.filesize_bounds,
+            Pattern::Regexp(regexp) => &regexp.filesize_bounds,
+            Pattern::Hex(regexp) => &regexp.filesize_bounds,
+        }
+    }
+
     pub fn set_header_constraints(&mut self, constraints: &HeaderConstraint) {
         match self {
             Pattern::Text(literal) => {
@@ -327,6 +336,15 @@ impl Pattern {
             Pattern::Regexp(regexp) | Pattern::Hex(regexp) => {
                 regexp.header_constraints = constraints.clone();
             }
+        }
+    }
+
+    #[inline]
+    pub fn header_constraints(&self) -> &HeaderConstraint {
+        match self {
+            Pattern::Text(literal) => &literal.header_constraints,
+            Pattern::Regexp(regexp) => &regexp.header_constraints,
+            Pattern::Hex(regexp) => &regexp.header_constraints,
         }
     }
 }
