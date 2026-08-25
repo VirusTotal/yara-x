@@ -1166,9 +1166,8 @@ impl Scanner {
         module: &str,
         data: Bound<PyBytes>,
     ) -> PyResult<()> {
-        let data = data.extract::<Vec<u8>>()?;
         self.inner
-            .set_module_output_raw(module, data.as_slice())
+            .set_module_output_raw(module, data.as_bytes())
             .map_err(map_scan_err)?;
         Ok(())
     }
