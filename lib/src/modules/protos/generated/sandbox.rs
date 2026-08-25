@@ -40,6 +40,8 @@ pub struct BehaviourSummary {
     pub files_attribute_changed: ::std::vec::Vec<::std::string::String>,
     // @@protoc_insertion_point(field:vt.fileanalysis.BehaviourSummary.files_dropped)
     pub files_dropped: ::std::vec::Vec<DroppedFile>,
+    // @@protoc_insertion_point(field:vt.fileanalysis.BehaviourSummary.payloads_extracted)
+    pub payloads_extracted: ::std::vec::Vec<ExtractedPayload>,
     // @@protoc_insertion_point(field:vt.fileanalysis.BehaviourSummary.hosts_file)
     pub hosts_file: ::std::string::String,
     // @@protoc_insertion_point(field:vt.fileanalysis.BehaviourSummary.processes_list)
@@ -179,7 +181,7 @@ impl BehaviourSummary {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(67);
+        let mut fields = ::std::vec::Vec::with_capacity(68);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
             "files_opened",
@@ -210,6 +212,11 @@ impl BehaviourSummary {
             "files_dropped",
             |m: &BehaviourSummary| { &m.files_dropped },
             |m: &mut BehaviourSummary| { &mut m.files_dropped },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "payloads_extracted",
+            |m: &BehaviourSummary| { &m.payloads_extracted },
+            |m: &mut BehaviourSummary| { &mut m.payloads_extracted },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
             "hosts_file",
@@ -552,6 +559,9 @@ impl ::protobuf::Message for BehaviourSummary {
                 50 => {
                     self.files_dropped.push(is.read_message()?);
                 },
+                674 => {
+                    self.payloads_extracted.push(is.read_message()?);
+                },
                 58 => {
                     self.hosts_file = is.read_string()?;
                 },
@@ -773,6 +783,10 @@ impl ::protobuf::Message for BehaviourSummary {
             let len = value.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         };
+        for value in &self.payloads_extracted {
+            let len = value.compute_size();
+            my_size += 2 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
         if !self.hosts_file.is_empty() {
             my_size += ::protobuf::rt::string_size(7, &self.hosts_file);
         }
@@ -993,6 +1007,9 @@ impl ::protobuf::Message for BehaviourSummary {
         for v in &self.files_dropped {
             ::protobuf::rt::write_message_field_with_cached_size(6, v, os)?;
         };
+        for v in &self.payloads_extracted {
+            ::protobuf::rt::write_message_field_with_cached_size(84, v, os)?;
+        };
         if !self.hosts_file.is_empty() {
             os.write_string(7, &self.hosts_file)?;
         }
@@ -1195,6 +1212,7 @@ impl ::protobuf::Message for BehaviourSummary {
         self.files_copied.clear();
         self.files_attribute_changed.clear();
         self.files_dropped.clear();
+        self.payloads_extracted.clear();
         self.hosts_file.clear();
         self.processes_list.clear();
         self.processes_created.clear();
@@ -1267,6 +1285,7 @@ impl ::protobuf::Message for BehaviourSummary {
             files_copied: ::std::vec::Vec::new(),
             files_attribute_changed: ::std::vec::Vec::new(),
             files_dropped: ::std::vec::Vec::new(),
+            payloads_extracted: ::std::vec::Vec::new(),
             hosts_file: ::std::string::String::new(),
             processes_list: ::std::vec::Vec::new(),
             processes_created: ::std::vec::Vec::new(),
@@ -1997,6 +2016,219 @@ impl ::std::fmt::Display for DroppedFile {
 }
 
 impl ::protobuf::reflect::ProtobufValue for DroppedFile {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
+// @@protoc_insertion_point(message:vt.fileanalysis.ExtractedPayload)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct ExtractedPayload {
+    // message fields
+    // @@protoc_insertion_point(field:vt.fileanalysis.ExtractedPayload.sha256)
+    pub sha256: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.fileanalysis.ExtractedPayload.type)
+    pub type_: ::protobuf::EnumOrUnknown<super::filetypes::FileType>,
+    // @@protoc_insertion_point(field:vt.fileanalysis.ExtractedPayload.size)
+    pub size: u64,
+    // @@protoc_insertion_point(field:vt.fileanalysis.ExtractedPayload.payload_type)
+    pub payload_type: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.fileanalysis.ExtractedPayload.process_name)
+    pub process_name: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.fileanalysis.ExtractedPayload.timestamp)
+    pub timestamp: ::protobuf::MessageField<::protobuf::well_known_types::timestamp::Timestamp>,
+    // special fields
+    // @@protoc_insertion_point(special_field:vt.fileanalysis.ExtractedPayload.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a ExtractedPayload {
+    fn default() -> &'a ExtractedPayload {
+        <ExtractedPayload as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl ExtractedPayload {
+    pub fn new() -> ExtractedPayload {
+        ::std::default::Default::default()
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(6);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "sha256",
+            |m: &ExtractedPayload| { &m.sha256 },
+            |m: &mut ExtractedPayload| { &mut m.sha256 },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "type",
+            |m: &ExtractedPayload| { &m.type_ },
+            |m: &mut ExtractedPayload| { &mut m.type_ },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "size",
+            |m: &ExtractedPayload| { &m.size },
+            |m: &mut ExtractedPayload| { &mut m.size },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "payload_type",
+            |m: &ExtractedPayload| { &m.payload_type },
+            |m: &mut ExtractedPayload| { &mut m.payload_type },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "process_name",
+            |m: &ExtractedPayload| { &m.process_name },
+            |m: &mut ExtractedPayload| { &mut m.process_name },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, ::protobuf::well_known_types::timestamp::Timestamp>(
+            "timestamp",
+            |m: &ExtractedPayload| { &m.timestamp },
+            |m: &mut ExtractedPayload| { &mut m.timestamp },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<ExtractedPayload>(
+            "ExtractedPayload",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for ExtractedPayload {
+    const NAME: &'static str = "ExtractedPayload";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.sha256 = is.read_string()?;
+                },
+                16 => {
+                    self.type_ = is.read_enum_or_unknown()?;
+                },
+                24 => {
+                    self.size = is.read_uint64()?;
+                },
+                34 => {
+                    self.payload_type = is.read_string()?;
+                },
+                42 => {
+                    self.process_name = is.read_string()?;
+                },
+                50 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.timestamp)?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if !self.sha256.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.sha256);
+        }
+        if self.type_ != ::protobuf::EnumOrUnknown::new(super::filetypes::FileType::UNKNOWN) {
+            my_size += ::protobuf::rt::int32_size(2, self.type_.value());
+        }
+        if self.size != 0 {
+            my_size += ::protobuf::rt::uint64_size(3, self.size);
+        }
+        if !self.payload_type.is_empty() {
+            my_size += ::protobuf::rt::string_size(4, &self.payload_type);
+        }
+        if !self.process_name.is_empty() {
+            my_size += ::protobuf::rt::string_size(5, &self.process_name);
+        }
+        if let Some(v) = self.timestamp.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if !self.sha256.is_empty() {
+            os.write_string(1, &self.sha256)?;
+        }
+        if self.type_ != ::protobuf::EnumOrUnknown::new(super::filetypes::FileType::UNKNOWN) {
+            os.write_enum(2, ::protobuf::EnumOrUnknown::value(&self.type_))?;
+        }
+        if self.size != 0 {
+            os.write_uint64(3, self.size)?;
+        }
+        if !self.payload_type.is_empty() {
+            os.write_string(4, &self.payload_type)?;
+        }
+        if !self.process_name.is_empty() {
+            os.write_string(5, &self.process_name)?;
+        }
+        if let Some(v) = self.timestamp.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(6, v, os)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> ExtractedPayload {
+        ExtractedPayload::new()
+    }
+
+    fn clear(&mut self) {
+        self.sha256.clear();
+        self.type_ = ::protobuf::EnumOrUnknown::new(super::filetypes::FileType::UNKNOWN);
+        self.size = 0;
+        self.payload_type.clear();
+        self.process_name.clear();
+        self.timestamp.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static ExtractedPayload {
+        static instance: ExtractedPayload = ExtractedPayload {
+            sha256: ::std::string::String::new(),
+            type_: ::protobuf::EnumOrUnknown::from_i32(0),
+            size: 0,
+            payload_type: ::std::string::String::new(),
+            process_name: ::std::string::String::new(),
+            timestamp: ::protobuf::MessageField::none(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for ExtractedPayload {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("ExtractedPayload").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for ExtractedPayload {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for ExtractedPayload {
     type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
 }
 
@@ -5290,33 +5522,35 @@ impl ImpactSeverity {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x10vt/sandbox.proto\x12\x0fvt.fileanalysis\x1a\x12vt/filetypes.proto\
-    \x1a\x0evt/sigma.proto\x1a\x1bvt/tools/net_analysis.proto\x1a\nyara.prot\
-    o\"\xcd\x1b\n\x10BehaviourSummary\x12!\n\x0cfiles_opened\x18\x01\x20\x03\
-    (\tR\x0bfilesOpened\x12#\n\rfiles_written\x18\x02\x20\x03(\tR\x0cfilesWr\
-    itten\x12#\n\rfiles_deleted\x18\x03\x20\x03(\tR\x0cfilesDeleted\x12<\n\
-    \x0cfiles_copied\x18\x04\x20\x03(\x0b2\x19.vt.fileanalysis.FileCopyR\x0b\
-    filesCopied\x126\n\x17files_attribute_changed\x18\x05\x20\x03(\tR\x15fil\
-    esAttributeChanged\x12A\n\rfiles_dropped\x18\x06\x20\x03(\x0b2\x1c.vt.fi\
-    leanalysis.DroppedFileR\x0cfilesDropped\x12\x1d\n\nhosts_file\x18\x07\
-    \x20\x01(\tR\thostsFile\x12C\n\x0eprocesses_list\x18K\x20\x03(\x0b2\x1c.\
-    vt.fileanalysis.ProcessItemR\rprocessesList\x12+\n\x11processes_created\
-    \x18\t\x20\x03(\tR\x10processesCreated\x121\n\x14processes_terminated\
-    \x18\n\x20\x03(\tR\x13processesTerminated\x12)\n\x10processes_killed\x18\
-    \x0b\x20\x03(\tR\x0fprocessesKilled\x12-\n\x12processes_injected\x18\x0c\
-    \x20\x03(\tR\x11processesInjected\x12-\n\x12command_executions\x18\r\x20\
-    \x03(\tR\x11commandExecutions\x12'\n\x0fservices_opened\x18\x0e\x20\x03(\
-    \tR\x0eservicesOpened\x12)\n\x10services_created\x18\x0f\x20\x03(\tR\x0f\
-    servicesCreated\x12)\n\x10services_started\x18\x10\x20\x03(\tR\x0fservic\
-    esStarted\x12)\n\x10services_stopped\x18\x11\x20\x03(\tR\x0fservicesStop\
-    ped\x12)\n\x10services_deleted\x18\x12\x20\x03(\tR\x0fservicesDeleted\
-    \x12%\n\x0eservices_bound\x18\x13\x20\x03(\tR\rservicesBound\x12)\n\x10w\
-    indows_searched\x18\x14\x20\x03(\tR\x0fwindowsSearched\x12%\n\x0ewindows\
-    _hidden\x18\x15\x20\x03(\tR\rwindowsHidden\x12Q\n\x13permissions_checked\
-    \x18\x16\x20\x03(\x0b2\x20.vt.fileanalysis.PermissionCheckR\x12permissio\
-    nsChecked\x123\n\x15permissions_requested\x18\x17\x20\x03(\tR\x14permiss\
-    ionsRequested\x12%\n\x0emutexes_opened\x18\x18\x20\x03(\tR\rmutexesOpene\
-    d\x12'\n\x0fmutexes_created\x18\x19\x20\x03(\tR\x0emutexesCreated\x12)\n\
+    \n\x10vt/sandbox.proto\x12\x0fvt.fileanalysis\x1a\x1fgoogle/protobuf/tim\
+    estamp.proto\x1a\x12vt/filetypes.proto\x1a\x0evt/sigma.proto\x1a\x1bvt/t\
+    ools/net_analysis.proto\x1a\nyara.proto\"\x9f\x1c\n\x10BehaviourSummary\
+    \x12!\n\x0cfiles_opened\x18\x01\x20\x03(\tR\x0bfilesOpened\x12#\n\rfiles\
+    _written\x18\x02\x20\x03(\tR\x0cfilesWritten\x12#\n\rfiles_deleted\x18\
+    \x03\x20\x03(\tR\x0cfilesDeleted\x12<\n\x0cfiles_copied\x18\x04\x20\x03(\
+    \x0b2\x19.vt.fileanalysis.FileCopyR\x0bfilesCopied\x126\n\x17files_attri\
+    bute_changed\x18\x05\x20\x03(\tR\x15filesAttributeChanged\x12A\n\rfiles_\
+    dropped\x18\x06\x20\x03(\x0b2\x1c.vt.fileanalysis.DroppedFileR\x0cfilesD\
+    ropped\x12P\n\x12payloads_extracted\x18T\x20\x03(\x0b2!.vt.fileanalysis.\
+    ExtractedPayloadR\x11payloadsExtracted\x12\x1d\n\nhosts_file\x18\x07\x20\
+    \x01(\tR\thostsFile\x12C\n\x0eprocesses_list\x18K\x20\x03(\x0b2\x1c.vt.f\
+    ileanalysis.ProcessItemR\rprocessesList\x12+\n\x11processes_created\x18\
+    \t\x20\x03(\tR\x10processesCreated\x121\n\x14processes_terminated\x18\n\
+    \x20\x03(\tR\x13processesTerminated\x12)\n\x10processes_killed\x18\x0b\
+    \x20\x03(\tR\x0fprocessesKilled\x12-\n\x12processes_injected\x18\x0c\x20\
+    \x03(\tR\x11processesInjected\x12-\n\x12command_executions\x18\r\x20\x03\
+    (\tR\x11commandExecutions\x12'\n\x0fservices_opened\x18\x0e\x20\x03(\tR\
+    \x0eservicesOpened\x12)\n\x10services_created\x18\x0f\x20\x03(\tR\x0fser\
+    vicesCreated\x12)\n\x10services_started\x18\x10\x20\x03(\tR\x0fservicesS\
+    tarted\x12)\n\x10services_stopped\x18\x11\x20\x03(\tR\x0fservicesStopped\
+    \x12)\n\x10services_deleted\x18\x12\x20\x03(\tR\x0fservicesDeleted\x12%\
+    \n\x0eservices_bound\x18\x13\x20\x03(\tR\rservicesBound\x12)\n\x10window\
+    s_searched\x18\x14\x20\x03(\tR\x0fwindowsSearched\x12%\n\x0ewindows_hidd\
+    en\x18\x15\x20\x03(\tR\rwindowsHidden\x12Q\n\x13permissions_checked\x18\
+    \x16\x20\x03(\x0b2\x20.vt.fileanalysis.PermissionCheckR\x12permissionsCh\
+    ecked\x123\n\x15permissions_requested\x18\x17\x20\x03(\tR\x14permissions\
+    Requested\x12%\n\x0emutexes_opened\x18\x18\x20\x03(\tR\rmutexesOpened\
+    \x12'\n\x0fmutexes_created\x18\x19\x20\x03(\tR\x0emutexesCreated\x12)\n\
     \x10signals_observed\x18\x1a\x20\x03(\tR\x0fsignalsObserved\x12%\n\x0esi\
     gnals_hooked\x18\x1b\x20\x03(\tR\rsignalsHooked\x12%\n\x0emodules_loaded\
     \x18\x1c\x20\x03(\tR\rmodulesLoaded\x12+\n\x11calls_highlighted\x18\x1d\
@@ -5380,129 +5614,135 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     (\tR\x06sha256\x12-\n\x04type\x18\x03\x20\x01(\x0e2\x19.vt.fileanalysis.\
     FileTypeR\x04type\x12!\n\x0cdownload_url\x18\x05\x20\x01(\tR\x0bdownload\
     Url\x12!\n\x0cprocess_name\x18\x06\x20\x01(\tR\x0bprocessName\x12\x1d\n\
-    \nprocess_id\x18\x07\x20\x01(\tR\tprocessId\"G\n\x0fPermissionCheck\x12\
-    \x1e\n\npermission\x18\x01\x20\x01(\tR\npermission\x12\x14\n\x05owner\
-    \x18\x02\x20\x01(\tR\x05owner\"2\n\x08KeyValue\x12\x10\n\x03key\x18\x01\
-    \x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value\"\
-    \xcb\x06\n\x10HttpConversation\x12\x10\n\x03url\x18\x01\x20\x01(\tR\x03u\
-    rl\x12V\n\x0erequest_method\x18\x02\x20\x01(\x0e2/.vt.fileanalysis.HttpC\
-    onversation.RequestMethodR\rrequestMethod\x12^\n\x0frequest_headers\x18\
-    \x03\x20\x03(\x0b25.vt.fileanalysis.HttpConversation.RequestHeadersEntry\
-    R\x0erequestHeaders\x12a\n\x10response_headers\x18\x04\x20\x03(\x0b26.vt\
-    .fileanalysis.HttpConversation.ResponseHeadersEntryR\x0fresponseHeaders\
-    \x120\n\x14response_status_code\x18\x05\x20\x01(\x05R\x12responseStatusC\
-    ode\x12O\n\x16response_body_filetype\x18\x06\x20\x01(\x0e2\x19.vt.filean\
-    alysis.FileTypeR\x14responseBodyFiletype\x12@\n\x1dresponse_body_first_t\
-    en_bytes\x18\x07\x20\x01(\x0cR\x19responseBodyFirstTenBytes\x1aA\n\x13Re\
-    questHeadersEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\
-    \x05value\x18\x02\x20\x01(\tR\x05value:\x028\x01\x1aB\n\x14ResponseHeade\
-    rsEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\
-    \x18\x02\x20\x01(\tR\x05value:\x028\x01\"\xb1\x01\n\rRequestMethod\x12\
-    \x0b\n\x07UNKNOWN\x10\0\x12\x07\n\x03GET\x10\x01\x12\x08\n\x04HEAD\x10\
-    \x02\x12\x08\n\x04POST\x10\x03\x12\x07\n\x03PUT\x10\x04\x12\n\n\x06DELET\
-    E\x10\x05\x12\t\n\x05TRACE\x10\x06\x12\x0b\n\x07OPTIONS\x10\x07\x12\x0b\
-    \n\x07CONNECT\x10\x08\x12\t\n\x05PATCH\x10\t\x12\x0c\n\x08PROPFIND\x10\n\
-    \x12\t\n\x05SETUP\x10\x0b\x12\n\n\x06UNLOCK\x10\x0c\x1a\x0c\x92\x93\x19\
-    \x08\n\x06Method:\n\x8a\x93\x19\x06\n\x04Http\"k\n\tDnsLookup\x12\x1a\n\
-    \x08hostname\x18\x01\x20\x01(\tR\x08hostname\x12!\n\x0cresolved_ips\x18\
-    \x02\x20\x03(\tR\x0bresolvedIps\x12\x1f\n\x0btxt_records\x18\x03\x20\x03\
-    (\tR\ntxtRecords\"\xba\x03\n\tIpTraffic\x12%\n\x0edestination_ip\x18\x01\
-    \x20\x01(\tR\rdestinationIp\x12)\n\x10destination_port\x18\x02\x20\x01(\
-    \x05R\x0fdestinationPort\x12k\n\x18transport_layer_protocol\x18\x03\x20\
-    \x01(\x0e21.vt.fileanalysis.IpTraffic.TransportLayerProtocolR\x16transpo\
-    rtLayerProtocol\x12,\n\x12destination_ip_asn\x18\x04\x20\x01(\x03R\x10de\
-    stinationIpAsn\x121\n\x15destination_ip_as_int\x18\x05\x20\x01(\x03R\x12\
-    destinationIpAsInt\"\x81\x01\n\x16TransportLayerProtocol\x12\x0b\n\x07UN\
-    KNOWN\x10\0\x12\x08\n\x04ICMP\x10\x01\x12\x08\n\x04IGMP\x10\x02\x12\x07\
-    \n\x03TCP\x10\x06\x12\x07\n\x03UDP\x10\x11\x12\x07\n\x03ESP\x102\x12\x06\
-    \n\x02AH\x103\x12\x08\n\x04L2TP\x10s\x12\t\n\x04SCTP\x10\x84\x01\x1a\x0e\
-    \x92\x93\x19\n\n\x08Protocol:\t\x8a\x93\x19\x05\n\x03Net\"\xf2\x04\n\x10\
-    SmtpConversation\x12\x1a\n\x08hostname\x18\x01\x20\x01(\tR\x08hostname\
-    \x12%\n\x0edestination_ip\x18\x02\x20\x01(\tR\rdestinationIp\x12)\n\x10d\
-    estination_port\x18\x03\x20\x01(\rR\x0fdestinationPort\x12\x1b\n\tsmtp_f\
-    rom\x18\x04\x20\x01(\tR\x08smtpFrom\x12\x17\n\x07smtp_to\x18\x05\x20\x03\
-    (\tR\x06smtpTo\x12!\n\x0cmessage_from\x18\x06\x20\x03(\tR\x0bmessageFrom\
-    \x12\x1d\n\nmessage_to\x18\x07\x20\x03(\tR\tmessageTo\x12\x1d\n\nmessage\
-    _cc\x18\x08\x20\x03(\tR\tmessageCc\x12\x1f\n\x0bmessage_bcc\x18\t\x20\
-    \x03(\tR\nmessageBcc\x12\x1c\n\ttimestamp\x18\n\x20\x01(\tR\ttimestamp\
-    \x12\x18\n\x07subject\x18\x0b\x20\x01(\tR\x07subject\x12\x1b\n\thtml_bod\
-    y\x18\x0c\x20\x01(\tR\x08htmlBody\x12\x19\n\x08txt_body\x18\r\x20\x01(\t\
-    R\x07txtBody\x12\x1b\n\tauth_user\x18\x0e\x20\x01(\tR\x08authUser\x12\
-    \x1b\n\tauth_pass\x18\x0f\x20\x01(\tR\x08authPass\x123\n\x07headers\x18\
-    \x10\x20\x03(\x0b2\x19.vt.fileanalysis.KeyValueR\x07headers\x12>\n\x0bat\
-    tachments\x18\x11\x20\x03(\x0b2\x1c.vt.fileanalysis.DroppedFileR\x0batta\
-    chments\x12\x19\n\x08x_mailer\x18\x12\x20\x01(\tR\x07xMailer\";\n\x03Sms\
-    \x12\x20\n\x0bdestination\x18\x01\x20\x01(\tR\x0bdestination\x12\x12\n\
-    \x04body\x18\x02\x20\x01(\tR\x04body\"\xe4\x03\n\x0eSignatureMatch\x12\
-    \x0e\n\x02id\x18\x01\x20\x01(\tR\x02id\x12G\n\x06format\x18\x02\x20\x01(\
-    \x0e2/.vt.fileanalysis.SignatureMatch.SignatureFormatR\x06format\x12\x12\
-    \n\x04name\x18\x03\x20\x01(\tR\x04name\x12\x20\n\x0bdescription\x18\x04\
-    \x20\x01(\tR\x0bdescription\x12\x18\n\x07authors\x18\x05\x20\x03(\tR\x07\
-    authors\x12\x16\n\x06events\x18\x06\x20\x03(\tR\x06events\x12\x1d\n\nmat\
-    ch_data\x18\x07\x20\x03(\tR\tmatchData\x12\x19\n\x08rule_src\x18\x08\x20\
-    \x01(\tR\x07ruleSrc\x12;\n\x08severity\x18\t\x20\x01(\x0e2\x1f.vt.filean\
-    alysis.ImpactSeverityR\x08severity\"\x99\x01\n\x0fSignatureFormat\x12\
-    \x16\n\x12SIG_FORMAT_UNKNOWN\x10\0\x12\x13\n\x0fSIG_FORMAT_YARA\x10\x01\
-    \x12\x14\n\x10SIG_FORMAT_SIGMA\x10\x02\x12\x13\n\x0fSIG_FORMAT_CAPA\x10\
-    \x03\x12\x16\n\x12SIG_FORMAT_OPENIOC\x10\x04\x12\x16\n\x12SIG_FORMAT_KEY\
-    WORD\x10\x05\"\x98\x01\n\x14MitreAttackTechnique\x12\x0e\n\x02id\x18\x01\
-    \x20\x01(\tR\x02id\x12;\n\x08severity\x18\x02\x20\x01(\x0e2\x1f.vt.filea\
-    nalysis.ImpactSeverityR\x08severity\x123\n\x15signature_description\x18\
-    \x03\x20\x01(\tR\x14signatureDescription\"z\n\x16MalwareBehaviorCatalog\
-    \x12\x0e\n\x02id\x18\x01\x20\x01(\tR\x02id\x12\x1c\n\tobjective\x18\x02\
-    \x20\x01(\tR\tobjective\x12\x1a\n\x08behavior\x18\x03\x20\x01(\tR\x08beh\
-    avior\x12\x16\n\x06method\x18\x04\x20\x01(\tR\x06method\"\xe1\x02\n\x0bP\
-    rocessItem\x12\x1d\n\nprocess_id\x18\x01\x20\x01(\tR\tprocessId\x12*\n\
-    \x11parent_process_id\x18\x02\x20\x01(\tR\x0fparentProcessId\x12\x12\n\
-    \x04name\x18\x03\x20\x01(\tR\x04name\x12\x1d\n\nstart_time\x18\x04\x20\
-    \x01(\x04R\tstartTime\x12)\n\x10termination_time\x18\x05\x20\x01(\x04R\
-    \x0fterminationTime\x12!\n\x0cfiles_opened\x18\x06\x20\x03(\tR\x0bfilesO\
-    pened\x12#\n\rfiles_written\x18\x07\x20\x03(\tR\x0cfilesWritten\x12#\n\r\
-    files_deleted\x18\x08\x20\x03(\tR\x0cfilesDeleted\x12<\n\x0cfiles_copied\
-    \x18\t\x20\x03(\x0b2\x19.vt.fileanalysis.FileCopyR\x0bfilesCopied*\xde\n\
-    \n\x0cBehaviourTag\x12\x15\n\x11UNKNOWN_BEHAVIOUR\x10\0\x12\x1c\n\x18DET\
-    ECT_DEBUG_ENVIRONMENT\x10\x01\x12\x1b\n\x17DIRECT_CPU_CLOCK_ACCESS\x10\
-    \x02\x12\x0f\n\x0bLONG_SLEEPS\x10\x03\x12\x0f\n\x0bSELF_DELETE\x10\x04\
-    \x12\x12\n\x0eHOSTS_MODIFIER\x10\x05\x12\x1e\n\x1aINSTALLS_BROWSER_EXTEN\
-    SION\x10\x06\x12\x13\n\x0fPASSWORD_DIALOG\x10\x07\x12\x08\n\x04SUDO\x10\
-    \x08\x12\x0f\n\x0bPERSISTENCE\x10\t\x12\r\n\tSENDS_SMS\x10\n\x12\x0e\n\n\
-    CHECKS_GPS\x10\x0b\x12\x15\n\x11FTP_COMMUNICATION\x10\x0c\x12\x15\n\x11S\
-    SH_COMMUNICATION\x10\r\x12\x18\n\x14TELNET_COMMUNICATION\x10\x0e\x12\x16\
-    \n\x12SMTP_COMMUNICATION\x10\x0f\x12\x17\n\x13MYSQL_COMMUNICATION\x10\
-    \x1a\x12\x15\n\x11IRC_COMMUNICATION\x10\x11\x12\x12\n\x0eSUSPICIOUS_DNS\
-    \x10\x12\x12\x12\n\x0eSUSPICIOUS_UDP\x10\x13\x12\x10\n\x0cBIG_UPSTREAM\
-    \x10\x14\x12\r\n\tTUNNELING\x10\x15\x12\n\n\x06CRYPTO\x10\x16\x12\r\n\tT\
-    ELEPHONY\x10\x17\x12\x13\n\x0fRUNTIME_MODULES\x10\x18\x12\x0e\n\nREFLECT\
-    ION\x10\x19\x12\x10\n\x0cDECRYPTS_EXE\x10\x1b\x12\x11\n\rMACRO_ENVIRON\
-    \x10\x1c\x12\x13\n\x0fMACRO_OPEN_FILE\x10\x1d\x12\x14\n\x10MACRO_WRITE_F\
-    ILE\x10\x1e\x12\x15\n\x11MACRO_HANDLE_FILE\x10\x1f\x12\x13\n\x0fMACRO_CO\
-    PY_FILE\x10\x20\x12\x15\n\x11MACRO_CREATE_FILE\x10!\x12\x12\n\x0eMACRO_R\
-    UN_FILE\x10\"\x12\x12\n\x0eMACRO_HIDE_APP\x10#\x12\x14\n\x10MACRO_POWERS\
-    HELL\x10$\x12\x14\n\x10MACRO_CREATE_DIR\x10%\x12\x17\n\x13MACRO_SAVE_WOR\
-    KBOOK\x10&\x12\x14\n\x10MACRO_CREATE_OLE\x10'\x12\x16\n\x12MACRO_ENUM_WI\
-    NDOWS\x10(\x12\x11\n\rMACRO_RUN_DLL\x10)\x12\x16\n\x12MACRO_DOWNLOAD_URL\
-    \x10*\x12\x13\n\x0fMACRO_SEND_KEYS\x10+\x12\x12\n\x0eMACRO_REGISTRY\x10,\
-    \x12\x17\n\x13MACRO_ANTI_ANALYSIS\x10-\x12\x0e\n\nOBFUSCATED\x10.\x12\r\
-    \n\tCLIPBOARD\x10/\x12\x13\n\x0fCHECKS_CPU_NAME\x100\x12\x15\n\x11CHECKS\
-    _DISK_SPACE\x101\x12\x1b\n\x17CHECKS_MEMORY_AVAILABLE\x102\x12\x13\n\x0f\
-    CHECKS_HOSTNAME\x103\x12\x1b\n\x17CHECKS_NETWORK_ADAPTERS\x104\x12\x0f\n\
-    \x0bCHECKS_BIOS\x105\x12\x12\n\x0eCHECKS_PCI_BUS\x106\x12\x12\n\x0eCHECK\
-    S_USB_BUS\x107\x12\x19\n\x15EXECUTES_DROPPED_FILE\x108\x12\x19\n\x15REPE\
-    ATED_CLOCK_ACCESS\x109\x12\x15\n\x11CHECKS_USER_INPUT\x10:\x12\r\n\tCALL\
-    S_WMI\x10;\x12\x11\n\rEVAL_FUNCTION\x10<\x12\x08\n\x04IDLE\x10=\x12\x10\
-    \n\x0cSERVICE_SCAN\x10>\x12\x0b\n\x07LISTENS\x10?\x12\x15\n\x11SETS_PROC\
-    ESS_NAME\x10@\x12\x0b\n\x07QR_CODE\x10A\x1a\x14\x92\x93\x19\x10\n\x0eBeh\
-    aviourTrait*\xda\x01\n\nVerdictTag\x12\x13\n\x0fUNKNOWN_VERDICT\x10\0\
-    \x12\t\n\x05CLEAN\x10\x01\x12\x0b\n\x07MALWARE\x10\x02\x12\x0c\n\x08GREY\
-    WARE\x10\x03\x12\n\n\x06RANSOM\x10\x04\x12\x0c\n\x08PHISHING\x10\x05\x12\
-    \n\n\x06BANKER\x10\x06\x12\n\n\x06ADWARE\x10\x07\x12\x0b\n\x07EXPLOIT\
-    \x10\x08\x12\n\n\x06EVADER\x10\t\x12\x07\n\x03RAT\x10\n\x12\n\n\x06TROJA\
-    N\x10\x0b\x12\x0c\n\x08SPREADER\x10\x0c\x12\x0b\n\x07STEALER\x10\r\x1a\
-    \x16\x92\x93\x19\x12\n\x10BehaviourVerdict*\x96\x01\n\x0eImpactSeverity\
-    \x12\x1b\n\x17IMPACT_SEVERITY_UNKNOWN\x10\0\x12\x18\n\x14IMPACT_SEVERITY\
-    _INFO\x10\x01\x12\x17\n\x13IMPACT_SEVERITY_LOW\x10\x02\x12\x1a\n\x16IMPA\
-    CT_SEVERITY_MEDIUM\x10\x03\x12\x18\n\x14IMPACT_SEVERITY_HIGH\x10\x04b\
-    \x06proto3\
+    \nprocess_id\x18\x07\x20\x01(\tR\tprocessId\"\xed\x01\n\x10ExtractedPayl\
+    oad\x12\x16\n\x06sha256\x18\x01\x20\x01(\tR\x06sha256\x12-\n\x04type\x18\
+    \x02\x20\x01(\x0e2\x19.vt.fileanalysis.FileTypeR\x04type\x12\x12\n\x04si\
+    ze\x18\x03\x20\x01(\x04R\x04size\x12!\n\x0cpayload_type\x18\x04\x20\x01(\
+    \tR\x0bpayloadType\x12!\n\x0cprocess_name\x18\x05\x20\x01(\tR\x0bprocess\
+    Name\x128\n\ttimestamp\x18\x06\x20\x01(\x0b2\x1a.google.protobuf.Timesta\
+    mpR\ttimestamp\"G\n\x0fPermissionCheck\x12\x1e\n\npermission\x18\x01\x20\
+    \x01(\tR\npermission\x12\x14\n\x05owner\x18\x02\x20\x01(\tR\x05owner\"2\
+    \n\x08KeyValue\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05\
+    value\x18\x02\x20\x01(\tR\x05value\"\xcb\x06\n\x10HttpConversation\x12\
+    \x10\n\x03url\x18\x01\x20\x01(\tR\x03url\x12V\n\x0erequest_method\x18\
+    \x02\x20\x01(\x0e2/.vt.fileanalysis.HttpConversation.RequestMethodR\rreq\
+    uestMethod\x12^\n\x0frequest_headers\x18\x03\x20\x03(\x0b25.vt.fileanaly\
+    sis.HttpConversation.RequestHeadersEntryR\x0erequestHeaders\x12a\n\x10re\
+    sponse_headers\x18\x04\x20\x03(\x0b26.vt.fileanalysis.HttpConversation.R\
+    esponseHeadersEntryR\x0fresponseHeaders\x120\n\x14response_status_code\
+    \x18\x05\x20\x01(\x05R\x12responseStatusCode\x12O\n\x16response_body_fil\
+    etype\x18\x06\x20\x01(\x0e2\x19.vt.fileanalysis.FileTypeR\x14responseBod\
+    yFiletype\x12@\n\x1dresponse_body_first_ten_bytes\x18\x07\x20\x01(\x0cR\
+    \x19responseBodyFirstTenBytes\x1aA\n\x13RequestHeadersEntry\x12\x10\n\
+    \x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\t\
+    R\x05value:\x028\x01\x1aB\n\x14ResponseHeadersEntry\x12\x10\n\x03key\x18\
+    \x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\
+    \x028\x01\"\xb1\x01\n\rRequestMethod\x12\x0b\n\x07UNKNOWN\x10\0\x12\x07\
+    \n\x03GET\x10\x01\x12\x08\n\x04HEAD\x10\x02\x12\x08\n\x04POST\x10\x03\
+    \x12\x07\n\x03PUT\x10\x04\x12\n\n\x06DELETE\x10\x05\x12\t\n\x05TRACE\x10\
+    \x06\x12\x0b\n\x07OPTIONS\x10\x07\x12\x0b\n\x07CONNECT\x10\x08\x12\t\n\
+    \x05PATCH\x10\t\x12\x0c\n\x08PROPFIND\x10\n\x12\t\n\x05SETUP\x10\x0b\x12\
+    \n\n\x06UNLOCK\x10\x0c\x1a\x0c\x92\x93\x19\x08\n\x06Method:\n\x8a\x93\
+    \x19\x06\n\x04Http\"k\n\tDnsLookup\x12\x1a\n\x08hostname\x18\x01\x20\x01\
+    (\tR\x08hostname\x12!\n\x0cresolved_ips\x18\x02\x20\x03(\tR\x0bresolvedI\
+    ps\x12\x1f\n\x0btxt_records\x18\x03\x20\x03(\tR\ntxtRecords\"\xba\x03\n\
+    \tIpTraffic\x12%\n\x0edestination_ip\x18\x01\x20\x01(\tR\rdestinationIp\
+    \x12)\n\x10destination_port\x18\x02\x20\x01(\x05R\x0fdestinationPort\x12\
+    k\n\x18transport_layer_protocol\x18\x03\x20\x01(\x0e21.vt.fileanalysis.I\
+    pTraffic.TransportLayerProtocolR\x16transportLayerProtocol\x12,\n\x12des\
+    tination_ip_asn\x18\x04\x20\x01(\x03R\x10destinationIpAsn\x121\n\x15dest\
+    ination_ip_as_int\x18\x05\x20\x01(\x03R\x12destinationIpAsInt\"\x81\x01\
+    \n\x16TransportLayerProtocol\x12\x0b\n\x07UNKNOWN\x10\0\x12\x08\n\x04ICM\
+    P\x10\x01\x12\x08\n\x04IGMP\x10\x02\x12\x07\n\x03TCP\x10\x06\x12\x07\n\
+    \x03UDP\x10\x11\x12\x07\n\x03ESP\x102\x12\x06\n\x02AH\x103\x12\x08\n\x04\
+    L2TP\x10s\x12\t\n\x04SCTP\x10\x84\x01\x1a\x0e\x92\x93\x19\n\n\x08Protoco\
+    l:\t\x8a\x93\x19\x05\n\x03Net\"\xf2\x04\n\x10SmtpConversation\x12\x1a\n\
+    \x08hostname\x18\x01\x20\x01(\tR\x08hostname\x12%\n\x0edestination_ip\
+    \x18\x02\x20\x01(\tR\rdestinationIp\x12)\n\x10destination_port\x18\x03\
+    \x20\x01(\rR\x0fdestinationPort\x12\x1b\n\tsmtp_from\x18\x04\x20\x01(\tR\
+    \x08smtpFrom\x12\x17\n\x07smtp_to\x18\x05\x20\x03(\tR\x06smtpTo\x12!\n\
+    \x0cmessage_from\x18\x06\x20\x03(\tR\x0bmessageFrom\x12\x1d\n\nmessage_t\
+    o\x18\x07\x20\x03(\tR\tmessageTo\x12\x1d\n\nmessage_cc\x18\x08\x20\x03(\
+    \tR\tmessageCc\x12\x1f\n\x0bmessage_bcc\x18\t\x20\x03(\tR\nmessageBcc\
+    \x12\x1c\n\ttimestamp\x18\n\x20\x01(\tR\ttimestamp\x12\x18\n\x07subject\
+    \x18\x0b\x20\x01(\tR\x07subject\x12\x1b\n\thtml_body\x18\x0c\x20\x01(\tR\
+    \x08htmlBody\x12\x19\n\x08txt_body\x18\r\x20\x01(\tR\x07txtBody\x12\x1b\
+    \n\tauth_user\x18\x0e\x20\x01(\tR\x08authUser\x12\x1b\n\tauth_pass\x18\
+    \x0f\x20\x01(\tR\x08authPass\x123\n\x07headers\x18\x10\x20\x03(\x0b2\x19\
+    .vt.fileanalysis.KeyValueR\x07headers\x12>\n\x0battachments\x18\x11\x20\
+    \x03(\x0b2\x1c.vt.fileanalysis.DroppedFileR\x0battachments\x12\x19\n\x08\
+    x_mailer\x18\x12\x20\x01(\tR\x07xMailer\";\n\x03Sms\x12\x20\n\x0bdestina\
+    tion\x18\x01\x20\x01(\tR\x0bdestination\x12\x12\n\x04body\x18\x02\x20\
+    \x01(\tR\x04body\"\xe4\x03\n\x0eSignatureMatch\x12\x0e\n\x02id\x18\x01\
+    \x20\x01(\tR\x02id\x12G\n\x06format\x18\x02\x20\x01(\x0e2/.vt.fileanalys\
+    is.SignatureMatch.SignatureFormatR\x06format\x12\x12\n\x04name\x18\x03\
+    \x20\x01(\tR\x04name\x12\x20\n\x0bdescription\x18\x04\x20\x01(\tR\x0bdes\
+    cription\x12\x18\n\x07authors\x18\x05\x20\x03(\tR\x07authors\x12\x16\n\
+    \x06events\x18\x06\x20\x03(\tR\x06events\x12\x1d\n\nmatch_data\x18\x07\
+    \x20\x03(\tR\tmatchData\x12\x19\n\x08rule_src\x18\x08\x20\x01(\tR\x07rul\
+    eSrc\x12;\n\x08severity\x18\t\x20\x01(\x0e2\x1f.vt.fileanalysis.ImpactSe\
+    verityR\x08severity\"\x99\x01\n\x0fSignatureFormat\x12\x16\n\x12SIG_FORM\
+    AT_UNKNOWN\x10\0\x12\x13\n\x0fSIG_FORMAT_YARA\x10\x01\x12\x14\n\x10SIG_F\
+    ORMAT_SIGMA\x10\x02\x12\x13\n\x0fSIG_FORMAT_CAPA\x10\x03\x12\x16\n\x12SI\
+    G_FORMAT_OPENIOC\x10\x04\x12\x16\n\x12SIG_FORMAT_KEYWORD\x10\x05\"\x98\
+    \x01\n\x14MitreAttackTechnique\x12\x0e\n\x02id\x18\x01\x20\x01(\tR\x02id\
+    \x12;\n\x08severity\x18\x02\x20\x01(\x0e2\x1f.vt.fileanalysis.ImpactSeve\
+    rityR\x08severity\x123\n\x15signature_description\x18\x03\x20\x01(\tR\
+    \x14signatureDescription\"z\n\x16MalwareBehaviorCatalog\x12\x0e\n\x02id\
+    \x18\x01\x20\x01(\tR\x02id\x12\x1c\n\tobjective\x18\x02\x20\x01(\tR\tobj\
+    ective\x12\x1a\n\x08behavior\x18\x03\x20\x01(\tR\x08behavior\x12\x16\n\
+    \x06method\x18\x04\x20\x01(\tR\x06method\"\xe1\x02\n\x0bProcessItem\x12\
+    \x1d\n\nprocess_id\x18\x01\x20\x01(\tR\tprocessId\x12*\n\x11parent_proce\
+    ss_id\x18\x02\x20\x01(\tR\x0fparentProcessId\x12\x12\n\x04name\x18\x03\
+    \x20\x01(\tR\x04name\x12\x1d\n\nstart_time\x18\x04\x20\x01(\x04R\tstartT\
+    ime\x12)\n\x10termination_time\x18\x05\x20\x01(\x04R\x0fterminationTime\
+    \x12!\n\x0cfiles_opened\x18\x06\x20\x03(\tR\x0bfilesOpened\x12#\n\rfiles\
+    _written\x18\x07\x20\x03(\tR\x0cfilesWritten\x12#\n\rfiles_deleted\x18\
+    \x08\x20\x03(\tR\x0cfilesDeleted\x12<\n\x0cfiles_copied\x18\t\x20\x03(\
+    \x0b2\x19.vt.fileanalysis.FileCopyR\x0bfilesCopied*\xde\n\n\x0cBehaviour\
+    Tag\x12\x15\n\x11UNKNOWN_BEHAVIOUR\x10\0\x12\x1c\n\x18DETECT_DEBUG_ENVIR\
+    ONMENT\x10\x01\x12\x1b\n\x17DIRECT_CPU_CLOCK_ACCESS\x10\x02\x12\x0f\n\
+    \x0bLONG_SLEEPS\x10\x03\x12\x0f\n\x0bSELF_DELETE\x10\x04\x12\x12\n\x0eHO\
+    STS_MODIFIER\x10\x05\x12\x1e\n\x1aINSTALLS_BROWSER_EXTENSION\x10\x06\x12\
+    \x13\n\x0fPASSWORD_DIALOG\x10\x07\x12\x08\n\x04SUDO\x10\x08\x12\x0f\n\
+    \x0bPERSISTENCE\x10\t\x12\r\n\tSENDS_SMS\x10\n\x12\x0e\n\nCHECKS_GPS\x10\
+    \x0b\x12\x15\n\x11FTP_COMMUNICATION\x10\x0c\x12\x15\n\x11SSH_COMMUNICATI\
+    ON\x10\r\x12\x18\n\x14TELNET_COMMUNICATION\x10\x0e\x12\x16\n\x12SMTP_COM\
+    MUNICATION\x10\x0f\x12\x17\n\x13MYSQL_COMMUNICATION\x10\x1a\x12\x15\n\
+    \x11IRC_COMMUNICATION\x10\x11\x12\x12\n\x0eSUSPICIOUS_DNS\x10\x12\x12\
+    \x12\n\x0eSUSPICIOUS_UDP\x10\x13\x12\x10\n\x0cBIG_UPSTREAM\x10\x14\x12\r\
+    \n\tTUNNELING\x10\x15\x12\n\n\x06CRYPTO\x10\x16\x12\r\n\tTELEPHONY\x10\
+    \x17\x12\x13\n\x0fRUNTIME_MODULES\x10\x18\x12\x0e\n\nREFLECTION\x10\x19\
+    \x12\x10\n\x0cDECRYPTS_EXE\x10\x1b\x12\x11\n\rMACRO_ENVIRON\x10\x1c\x12\
+    \x13\n\x0fMACRO_OPEN_FILE\x10\x1d\x12\x14\n\x10MACRO_WRITE_FILE\x10\x1e\
+    \x12\x15\n\x11MACRO_HANDLE_FILE\x10\x1f\x12\x13\n\x0fMACRO_COPY_FILE\x10\
+    \x20\x12\x15\n\x11MACRO_CREATE_FILE\x10!\x12\x12\n\x0eMACRO_RUN_FILE\x10\
+    \"\x12\x12\n\x0eMACRO_HIDE_APP\x10#\x12\x14\n\x10MACRO_POWERSHELL\x10$\
+    \x12\x14\n\x10MACRO_CREATE_DIR\x10%\x12\x17\n\x13MACRO_SAVE_WORKBOOK\x10\
+    &\x12\x14\n\x10MACRO_CREATE_OLE\x10'\x12\x16\n\x12MACRO_ENUM_WINDOWS\x10\
+    (\x12\x11\n\rMACRO_RUN_DLL\x10)\x12\x16\n\x12MACRO_DOWNLOAD_URL\x10*\x12\
+    \x13\n\x0fMACRO_SEND_KEYS\x10+\x12\x12\n\x0eMACRO_REGISTRY\x10,\x12\x17\
+    \n\x13MACRO_ANTI_ANALYSIS\x10-\x12\x0e\n\nOBFUSCATED\x10.\x12\r\n\tCLIPB\
+    OARD\x10/\x12\x13\n\x0fCHECKS_CPU_NAME\x100\x12\x15\n\x11CHECKS_DISK_SPA\
+    CE\x101\x12\x1b\n\x17CHECKS_MEMORY_AVAILABLE\x102\x12\x13\n\x0fCHECKS_HO\
+    STNAME\x103\x12\x1b\n\x17CHECKS_NETWORK_ADAPTERS\x104\x12\x0f\n\x0bCHECK\
+    S_BIOS\x105\x12\x12\n\x0eCHECKS_PCI_BUS\x106\x12\x12\n\x0eCHECKS_USB_BUS\
+    \x107\x12\x19\n\x15EXECUTES_DROPPED_FILE\x108\x12\x19\n\x15REPEATED_CLOC\
+    K_ACCESS\x109\x12\x15\n\x11CHECKS_USER_INPUT\x10:\x12\r\n\tCALLS_WMI\x10\
+    ;\x12\x11\n\rEVAL_FUNCTION\x10<\x12\x08\n\x04IDLE\x10=\x12\x10\n\x0cSERV\
+    ICE_SCAN\x10>\x12\x0b\n\x07LISTENS\x10?\x12\x15\n\x11SETS_PROCESS_NAME\
+    \x10@\x12\x0b\n\x07QR_CODE\x10A\x1a\x14\x92\x93\x19\x10\n\x0eBehaviourTr\
+    ait*\xda\x01\n\nVerdictTag\x12\x13\n\x0fUNKNOWN_VERDICT\x10\0\x12\t\n\
+    \x05CLEAN\x10\x01\x12\x0b\n\x07MALWARE\x10\x02\x12\x0c\n\x08GREYWARE\x10\
+    \x03\x12\n\n\x06RANSOM\x10\x04\x12\x0c\n\x08PHISHING\x10\x05\x12\n\n\x06\
+    BANKER\x10\x06\x12\n\n\x06ADWARE\x10\x07\x12\x0b\n\x07EXPLOIT\x10\x08\
+    \x12\n\n\x06EVADER\x10\t\x12\x07\n\x03RAT\x10\n\x12\n\n\x06TROJAN\x10\
+    \x0b\x12\x0c\n\x08SPREADER\x10\x0c\x12\x0b\n\x07STEALER\x10\r\x1a\x16\
+    \x92\x93\x19\x12\n\x10BehaviourVerdict*\x96\x01\n\x0eImpactSeverity\x12\
+    \x1b\n\x17IMPACT_SEVERITY_UNKNOWN\x10\0\x12\x18\n\x14IMPACT_SEVERITY_INF\
+    O\x10\x01\x12\x17\n\x13IMPACT_SEVERITY_LOW\x10\x02\x12\x1a\n\x16IMPACT_S\
+    EVERITY_MEDIUM\x10\x03\x12\x18\n\x14IMPACT_SEVERITY_HIGH\x10\x04b\x06pro\
+    to3\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -5519,16 +5759,18 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
     static file_descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::FileDescriptor> = ::protobuf::rt::Lazy::new();
     file_descriptor.get(|| {
         let generated_file_descriptor = generated_file_descriptor_lazy.get(|| {
-            let mut deps = ::std::vec::Vec::with_capacity(4);
+            let mut deps = ::std::vec::Vec::with_capacity(5);
+            deps.push(::protobuf::well_known_types::timestamp::file_descriptor().clone());
             deps.push(super::filetypes::file_descriptor().clone());
             deps.push(super::sigma::file_descriptor().clone());
             deps.push(super::net_analysis::file_descriptor().clone());
             deps.push(super::yara::file_descriptor().clone());
-            let mut messages = ::std::vec::Vec::with_capacity(15);
+            let mut messages = ::std::vec::Vec::with_capacity(16);
             messages.push(BehaviourSummary::generated_message_descriptor_data());
             messages.push(TLS::generated_message_descriptor_data());
             messages.push(FileCopy::generated_message_descriptor_data());
             messages.push(DroppedFile::generated_message_descriptor_data());
+            messages.push(ExtractedPayload::generated_message_descriptor_data());
             messages.push(PermissionCheck::generated_message_descriptor_data());
             messages.push(KeyValue::generated_message_descriptor_data());
             messages.push(HttpConversation::generated_message_descriptor_data());
