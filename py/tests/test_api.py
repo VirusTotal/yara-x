@@ -294,6 +294,39 @@ def test_module_outputs():
   assert module_outputs['test_proto2']['bytes_raw'] == b'\xfcH\x83\xe4\xf0\xeb3]\x8bE\x00H'
   assert module_outputs['test_proto2']['timestamp'] == datetime.datetime(2025, 5, 30, 7, 50, 40, tzinfo=datetime.timezone.utc)
 
+def test_scanner_set_module_output():
+  # Raw bytes for a `pe.PE` protobuf message with `is_pe = true` and
+  # `entry_point = 1`.
+  pe_data = b'\x08\x01\x80\x01\x01'
+
+  rules = yara_x.compile('''
+import "pe"
+rule test {
+  condition:
+    pe.entry_point == 1
+}
+''')
+
+  scanner = yara_x.Scanner(rules)
+  scanner.set_module_output('pe', pe_data)
+
+  # The data being scanned is empty, but the output for the `pe` module
+  # was provided directly.
+  matching_rules = scanner.scan(b'').matching_rules
+  assert len(matching_rules) == 1
+
+  # The module's output is consumed by the previous scan, so this second
+  # scan doesn't find `pe.entry_point` defined.
+  matching_rules = scanner.scan(b'').matching_rules
+  assert len(matching_rules) == 0
+
+  with pytest.raises(yara_x.ScanError, match='unknown module `foobar`'):
+    scanner.set_module_output('foobar', b'')
+
+  with pytest.raises(yara_x.ScanError):
+    scanner.set_module_output('pe', b'\xff\xff\xff')
+
+
 def test_ignored_modules():
   compiler = yara_x.Compiler()
   compiler.ignore_module("unsupported_module")
