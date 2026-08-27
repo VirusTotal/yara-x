@@ -395,10 +395,18 @@ impl<'a, 'r> Pattern<'a, 'r> {
     pub fn atoms(&self) -> Atoms<'r> {
         let atoms = self.rules.atoms.as_slice();
 
+        // During rule compilation, patterns are processed sequentially, and
+        // atoms are appended to `Rules::atoms` in increasing order of
+        // `PatternId`. Because `Rules::atoms` is sorted by `PatternId`, we can
+        // use binary search (`partition_point`) to locate the slice of atoms
+        // belonging to this pattern in O(log N) time.
+        //
+        // `start` is the index of the first atom whose PatternId is >= self.pattern_id.
         let start = atoms.partition_point(|atom| {
             self.rules.get_sub_pattern(atom.sub_pattern_id()).0
                 < self.pattern_id
         });
+        // `end` is the index of the first atom whose PatternId is > self.pattern_id.
         let end = atoms.partition_point(|atom| {
             self.rules.get_sub_pattern(atom.sub_pattern_id()).0
                 <= self.pattern_id
