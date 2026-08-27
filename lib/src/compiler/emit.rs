@@ -210,6 +210,15 @@ pub(crate) struct EmitContext<'a> {
     /// Pool with literal strings used in the rules.
     pub lit_pool: &'a mut BStringPool<LiteralId>,
 
+    /// Maps root-structure field indexes to imported-module indexes.
+    pub(crate) module_root_indexes: &'a FxHashMap<usize, usize>,
+
+    /// Maps imported-module names to their indexes.
+    pub(crate) module_indexes: &'a FxHashMap<String, usize>,
+
+    /// Indicates which imported modules are referenced by emitted conditions.
+    pub(crate) used_modules: &'a mut [bool],
+
     /// Stack of installed exception handlers for catching undefined values.
     /// When an exception occurs the execution flow will jump out of the block
     /// identified by `InstrSeqId`.
@@ -293,6 +302,8 @@ fn emit_expr(
     expr: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
+    mark_module_used(ctx, ir, expr);
+
     match ir.get(expr) {
         Expr::Const(type_value) => match type_value {
             TypeValue::Integer { value: Const(value), .. } => {
@@ -694,6 +705,12 @@ fn emit_expr(
         },
 
         Expr::FuncCall(func_call) => {
+            if let Some(module_name) = func_call.plain_name().split('.').next()
+                && let Some(module_index) = ctx.module_indexes.get(module_name)
+            {
+                ctx.used_modules[*module_index] = true;
+            }
+
             // If this is method call, the target object (self or this in some
             // programming languages) is the first argument.
             if let Some(obj) = func_call.object {
@@ -957,6 +974,8 @@ fn emit_field_access(
     field_access: &FieldAccess,
     instr: &mut InstrSeqBuilder,
 ) {
+    mark_module_used(ctx, ir, field_access.operands[0]);
+
     // Iterate over the operands, excluding the last one. While the operands
     // are field identifiers they are simply added to `lookup_list`, and
     // during the last call to `emit_expr` a single field lookup operation
@@ -973,6 +992,15 @@ fn emit_field_access(
     }
 
     emit_expr(ctx, ir, *field_access.operands.last().unwrap(), instr);
+}
+
+fn mark_module_used(ctx: &mut EmitContext, ir: &IR, expr: ExprId) {
+    if let Expr::Symbol(symbol) = ir.get(expr)
+        && let Symbol::Field { index, is_root: true, .. } = symbol.as_ref()
+        && let Some(module_index) = ctx.module_root_indexes.get(index)
+    {
+        ctx.used_modules[*module_index] = true;
+    }
 }
 
 /// Emits code that ensures the pattern search phase is executed if it hasn't
