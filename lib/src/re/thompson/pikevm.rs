@@ -7,6 +7,8 @@ use super::instr::{Instr, InstrParser, Offset};
 use crate::re::thompson::instr::SplitId;
 use crate::re::{CodeLoc, DEFAULT_SCAN_LIMIT, WideIter};
 
+type Thread = (u32, u32);
+
 /// Represents a [Pike's VM](https://swtch.com/~rsc/regexp/regexp2.html) that
 /// executes VM code produced by the [compiler][`crate::re::compiler::Compiler`].
 pub(crate) struct PikeVM<'r> {
@@ -16,10 +18,10 @@ pub(crate) struct PikeVM<'r> {
     /// position within the VM code, pointing to some VM instruction. Each item
     /// in the set is unique, the VM guarantees that there aren't two active
     /// threads at the same VM instruction.
-    threads: Vec<(usize, u32)>,
+    threads: Vec<Thread>,
     /// The set of threads that will become the active threads when the next
     /// byte is read from the input.
-    next_threads: Vec<(usize, u32)>,
+    next_threads: Vec<Thread>,
     /// Maximum number of bytes to scan. The VM will abort after ingesting
     /// this number of bytes from the input.
     scan_limit: u16,
@@ -195,8 +197,9 @@ impl<'r> PikeVM<'r> {
             let decode_literal_runs = self.threads.len() == 1;
 
             for (ip, rep_count) in self.threads.iter() {
+                let ip = *ip as usize;
                 let (instr, mut instr_size) = InstrParser::decode_instr(
-                    unsafe { self.code.get_unchecked(*ip..) },
+                    unsafe { self.code.get_unchecked(ip..) },
                     decode_literal_runs,
                 );
 
@@ -283,7 +286,7 @@ impl<'r> PikeVM<'r> {
                 if is_match {
                     epsilon_closure(
                         self.code,
-                        C::from(*ip + instr_size),
+                        C::from(ip + instr_size),
                         *rep_count,
                         next_byte,
                         curr_byte,
@@ -313,7 +316,7 @@ impl<'r> PikeVM<'r> {
 pub struct EpsilonClosureState {
     /// Pairs (instruction pointer, repetition count) describing the existing
     /// threads.
-    threads: Vec<(usize, u32)>,
+    threads: Vec<Thread>,
     /// This bit array has one bit per possible value of SplitId. If the
     /// split instruction with SplitId = N is executed, the N-th bit in the
     /// array is set to 1.
@@ -384,20 +387,20 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
     curr_byte: Option<&u8>,
     prev_byte: Option<&u8>,
     state: &mut EpsilonClosureState,
-    closure: &mut Vec<(usize, u32)>,
+    closure: &mut Vec<Thread>,
 ) {
-    state.threads.push((start.location(), rep_count));
+    state.threads.push((start.location().try_into().unwrap(), rep_count));
     state.dirty = true;
 
     let is_word_char = |c: u8| c == b'_' || c.is_ascii_alphanumeric();
 
-    let apply_offset = |ip: usize, offset: Offset| -> usize {
+    let apply_offset = |ip: u32, offset: Offset| -> u32 {
         (ip as isize).saturating_add(offset.into()).try_into().unwrap()
     };
 
     while let Some((ip, mut rep_count)) = state.threads.pop() {
         let (instr, instr_size) = InstrParser::decode_instr(
-            unsafe { code.get_unchecked(ip..) },
+            unsafe { code.get_unchecked(ip as usize..) },
             false,
         );
         match instr {
