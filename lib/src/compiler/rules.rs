@@ -211,7 +211,7 @@ pub struct Rules {
     /// A vector that contains all the atoms extracted from the patterns. Each
     /// atom has an associated [`SubPatternId`] that indicates the sub-pattern
     /// it belongs to.
-    pub(in crate::compiler) atoms: Vec<SubPatternAtom>,
+    pub(crate) atoms: Vec<SubPatternAtom>,
 
     /// A vector that contains the code for all regexp patterns (this includes
     /// hex patterns which are just a special case of regexp). The code for
@@ -264,12 +264,6 @@ pub struct Rules {
     /// deserialization error.
     pub(in crate::compiler) rules_profiling_enabled: bool,
 }
-
-#[doc(hidden)]
-pub type DebugPatternAtoms<'a> = (&'a str, Vec<&'a [u8]>);
-
-#[doc(hidden)]
-pub type DebugRuleAtoms<'a> = (&'a str, Vec<DebugPatternAtoms<'a>>);
 
 impl Rules {
     /// An iterator that yields the name of the modules imported by the
@@ -689,44 +683,6 @@ impl Rules {
     #[inline]
     pub(crate) fn is_fast_scan(&self, pattern_id: PatternId) -> bool {
         *self.fast_scan_patterns.get(usize::from(pattern_id)).unwrap()
-    }
-
-    /// Returns the final atoms selected for each pattern, grouped by rule and
-    /// pattern identifier.
-    #[doc(hidden)]
-    pub fn debug_atoms(&self) -> Vec<DebugRuleAtoms<'_>> {
-        let mut result = Vec::new();
-
-        for rule in &self.rules {
-            let rule_name = self.ident_pool.get(rule.ident_id).unwrap();
-            let mut strings = Vec::new();
-
-            for pattern in &rule.patterns {
-                let string_name =
-                    self.ident_pool.get(pattern.ident_id).unwrap();
-
-                let atoms = self
-                    .atoms
-                    .iter()
-                    .filter_map(|atom| {
-                        let (pattern_id, _) =
-                            self.get_sub_pattern(atom.sub_pattern_id());
-
-                        if *pattern_id == pattern.pattern_id {
-                            Some(atom.as_slice())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-
-                strings.push((string_name, atoms));
-            }
-
-            result.push((rule_name, strings));
-        }
-
-        result
     }
 }
 

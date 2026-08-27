@@ -25,6 +25,7 @@ pub fn atoms() -> Command {
                 .help("Path to YARA source file")
                 .value_parser(value_parser!(PathBuf)),
         )
+        .arg(arg!(--json).help("Print output in JSON format"))
 }
 
 pub fn ast() -> Command {
@@ -182,8 +183,60 @@ fn exec_modules(_args: &ArgMatches, _config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn is_consecutive(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() || a.is_empty() {
+        return false;
+    }
+    let mut carry = 1u16;
+    for (byte_a, byte_b) in a.iter().rev().zip(b.iter().rev()) {
+        let sum = *byte_a as u16 + carry;
+        if (sum as u8) != *byte_b {
+            return false;
+        }
+        carry = sum >> 8;
+    }
+    carry == 0
+}
+
+fn is_printable(atom: &[u8]) -> bool {
+    !atom.is_empty() && atom.iter().all(|b| (0x20..=0x7E).contains(b))
+}
+
+fn print_atom_hex(atom: &[u8]) {
+    for byte in atom {
+        print!("{byte:02X}");
+    }
+}
+
+fn print_range(start: &[u8], end: &[u8]) {
+    print!("    ");
+    print_atom_hex(start);
+    if start != end {
+        print!("..");
+        print_atom_hex(end);
+    }
+    if is_printable(start) && is_printable(end) {
+        let s = std::str::from_utf8(start).unwrap();
+        if start == end {
+            print!(" ({s})");
+        } else {
+            let e = std::str::from_utf8(end).unwrap();
+            print!(" ({s}..{e})");
+        }
+    }
+    println!();
+}
+
+#[derive(serde::Serialize)]
+struct PatternAtomsJson<'a> {
+    rule: &'a str,
+    pattern: &'a str,
+    atoms: Vec<String>,
+}
+
 fn exec_atoms(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
+    let json = args.get_flag("json");
 
     let src = fs::read(rules_path)
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
@@ -197,20 +250,59 @@ fn exec_atoms(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
     let rules = compiler.build();
 
-    for (rule_name, strings) in rules.debug_atoms() {
-        println!("rule {rule_name}");
+    if json {
+        let mut output = Vec::new();
 
-        for (string_name, atoms) in strings {
-            println!("  {string_name}");
+        for rule in rules.iter() {
+            for pattern in rule.patterns().include_private(true) {
+                let atoms: Vec<String> = pattern
+                    .atoms()
+                    .map(|atom| {
+                        atom.as_slice()
+                            .iter()
+                            .map(|b| format!("{b:02X}"))
+                            .collect()
+                    })
+                    .collect();
 
-            for atom in atoms {
-                print!("    ");
+                output.push(PatternAtomsJson {
+                    rule: rule.identifier(),
+                    pattern: pattern.identifier(),
+                    atoms,
+                });
+            }
+        }
 
-                for byte in atom {
-                    print!("{byte:02X}");
+        println!("{}", serde_json::to_string_pretty(&output)?);
+    } else {
+        for rule in rules.iter() {
+            println!("rule {}", rule.identifier());
+
+            for pattern in rule.patterns().include_private(true) {
+                println!("  {}", pattern.identifier());
+
+                let mut current_range: Option<(&[u8], &[u8])> = None;
+
+                for atom in pattern.atoms() {
+                    let atom_slice = atom.as_slice();
+                    match current_range {
+                        None => {
+                            current_range = Some((atom_slice, atom_slice));
+                        }
+                        Some((start, end)) => {
+                            if is_consecutive(end, atom_slice) {
+                                current_range = Some((start, atom_slice));
+                            } else {
+                                print_range(start, end);
+                                current_range = Some((atom_slice, atom_slice));
+                            }
+                        }
+                    }
                 }
 
-                println!();
+                if let Some((start, end)) = current_range {
+                    print_range(start, end);
+                }
             }
         }
     }

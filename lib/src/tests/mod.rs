@@ -4340,3 +4340,102 @@ fn header_constraints_optimization() {
         b"Hello"
     );
 }
+
+#[test]
+fn test_pattern_atoms() {
+    let rules = crate::compile(
+        r#"
+        rule rule1 {
+            strings:
+                $a = "ABCD"
+                $b = { 01 02 03 04 }
+                $c = /foobar/
+            condition:
+                any of them
+        }
+        rule rule2 {
+            strings:
+                $x = "WIDE" wide
+                $y = "NOCASE" nocase
+            condition:
+                any of them
+        }
+        rule rule3 {
+            condition:
+                true
+        }
+        rule rule4 {
+            strings:
+                $anchored = "ANCHORED"
+            condition:
+                $anchored at 0
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut rules_iter = rules.iter();
+
+    // rule1
+    let rule1 = rules_iter.next().unwrap();
+    assert_eq!(rule1.identifier(), "rule1");
+    let mut patterns = rule1.patterns();
+    assert_eq!(patterns.len(), 3);
+
+    let pa = patterns.next().unwrap();
+    assert_eq!(pa.identifier(), "$a");
+    let pa_atoms: Vec<_> = pa.atoms().collect();
+    assert_eq!(pa_atoms.len(), 1);
+    assert_eq!(pa_atoms[0].as_slice(), b"ABCD");
+    assert_eq!(pa_atoms[0].as_ref(), b"ABCD");
+    assert_eq!(&*pa_atoms[0], b"ABCD");
+
+    let pb = patterns.next().unwrap();
+    assert_eq!(pb.identifier(), "$b");
+    let pb_atoms: Vec<_> = pb.atoms().collect();
+    assert_eq!(pb_atoms.len(), 1);
+    assert_eq!(pb_atoms[0].as_slice(), &[0x01, 0x02, 0x03, 0x04]);
+
+    let pc = patterns.next().unwrap();
+    assert_eq!(pc.identifier(), "$c");
+    let pc_atoms: Vec<_> = pc.atoms().collect();
+    assert_eq!(pc_atoms.len(), 1);
+    assert_eq!(pc_atoms[0].as_slice(), b"obar");
+
+    // rule2
+    let rule2 = rules_iter.next().unwrap();
+    assert_eq!(rule2.identifier(), "rule2");
+    let mut patterns = rule2.patterns();
+
+    let px = patterns.next().unwrap();
+    assert_eq!(px.identifier(), "$x");
+    let px_atoms: Vec<_> = px.atoms().collect();
+    assert_eq!(px_atoms.len(), 1);
+    assert_eq!(px_atoms[0].as_slice(), b"W\0I\0");
+
+    let py = patterns.next().unwrap();
+    assert_eq!(py.identifier(), "$y");
+    let py_atoms = py.atoms();
+    assert!(py_atoms.len() > 1);
+    // ExactSizeIterator check
+    assert_eq!(py_atoms.len(), py.atoms().collect::<Vec<_>>().len());
+    // DoubleEndedIterator check
+    let rev_atoms: Vec<_> = py.atoms().rev().collect();
+    let mut fwd_atoms: Vec<_> = py.atoms().collect();
+    fwd_atoms.reverse();
+    assert_eq!(rev_atoms, fwd_atoms);
+
+    // rule3 (no patterns)
+    let rule3 = rules_iter.next().unwrap();
+    assert_eq!(rule3.identifier(), "rule3");
+    assert_eq!(rule3.patterns().len(), 0);
+
+    // rule4 (anchored pattern has no atoms in Aho-Corasick)
+    let rule4 = rules_iter.next().unwrap();
+    assert_eq!(rule4.identifier(), "rule4");
+    let mut patterns = rule4.patterns();
+    let panchor = patterns.next().unwrap();
+    assert_eq!(panchor.identifier(), "$anchored");
+    assert_eq!(panchor.atoms().len(), 0);
+    assert!(panchor.atoms().next().is_none());
+}
