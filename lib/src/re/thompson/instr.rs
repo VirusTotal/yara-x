@@ -186,8 +186,9 @@ pub enum Instr<'a> {
     /// one per byte. If the N-th bit is set, the byte N is part of the class
     /// and should match. This instruction is quite large, it takes 2 bytes
     /// for the opcode plus 32 bytes (256 bits) for the mask. For classes with
-    /// a low number of non-adjacent byte ranges `ClassRanges` is preferred
-    /// due to its more compact representation.
+    /// at most three non-adjacent byte ranges `ClassRanges` is preferred due
+    /// to its more compact representation. Starting at four ranges, the
+    /// compiler prefers the bitmap's constant-time lookup.
     ClassBitmap(ClassBitmap<'a>),
 
     /// Matches a byte class. The class represents one or more byte ranges
@@ -195,9 +196,9 @@ pub enum Instr<'a> {
     /// follows one pair `[u8, u8]` per range, indicating starting and ending
     /// bytes for the range, both inclusive. With 16 ranges this instruction
     /// takes 35 bytes (2 bytes for the opcode + 1 byte for the number of
-    /// ranges + 32 bytes for the ranges), therefore it is used only when the
-    /// number of ranges is <= 15. For a larger number of ranges `ClassBitmap`
-    /// is preferred.
+    /// ranges + 32 bytes for the ranges). The compiler uses this compact form
+    /// for up to three ranges and prefers `ClassBitmap` for larger classes to
+    /// avoid a linear range scan for each input byte.
     ClassRanges(ClassRanges<'a>),
 
     /// Creates a new thread that starts at the current instruction pointer
