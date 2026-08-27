@@ -40,3 +40,40 @@ fn wasm() {
         panic!("`yr debug wasm` didn't create .wasm file")
     }
 }
+
+#[test]
+fn atoms() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.child("rule.yar");
+
+    input_file
+        .write_str(
+            r#"
+rule test {
+    strings:
+        $a = "ABCD"
+        $b = { 01 02 03 04 }
+
+    condition:
+        any of them
+}
+"#,
+        )
+        .unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .arg("debug")
+        .arg("atoms")
+        .arg(input_file.path())
+        .assert()
+        .success()
+        .stdout(
+            "\
+rule test
+  $a
+    41424344
+  $b
+    01020304
+",
+        );
+}

@@ -17,6 +17,16 @@ use crate::commands::{
 use crate::config::Config;
 use crate::help;
 
+pub fn atoms() -> Command {
+    super::command("atoms")
+        .about("Print final atoms selected for a YARA source file")
+        .arg(
+            arg!(<RULES_PATH>)
+                .help("Path to YARA source file")
+                .value_parser(value_parser!(PathBuf)),
+        )
+}
+
 pub fn ast() -> Command {
     super::command("ast")
         .about("Print Abstract Syntax Tree (AST) for a YARA source file")
@@ -88,6 +98,7 @@ pub fn debug() -> Command {
         .subcommand(ir())
         .subcommand(wasm())
         .subcommand(modules())
+        .subcommand(atoms())
 }
 
 pub fn exec_debug(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
@@ -97,6 +108,7 @@ pub fn exec_debug(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         Some(("ir", args)) => exec_ir(args, config),
         Some(("wasm", args)) => exec_wasm(args, config),
         Some(("modules", args)) => exec_modules(args, config),
+        Some(("atoms", args)) => exec_atoms(args, config),
         _ => unreachable!(),
     }
 }
@@ -167,5 +179,41 @@ fn exec_modules(_args: &ArgMatches, _config: &Config) -> anyhow::Result<()> {
     for name in yara_x::mods::module_names() {
         println!("{}", name);
     }
+    Ok(())
+}
+
+fn exec_atoms(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
+    let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
+
+    let src = fs::read(rules_path)
+        .with_context(|| format!("can not read `{}`", rules_path.display()))?;
+
+    let src = SourceCode::from(src.as_slice())
+        .with_origin(rules_path.as_os_str().to_str().unwrap());
+
+    let mut compiler = create_compiler(None, args, config)?;
+
+    compiler.add_source(src)?;
+
+    let rules = compiler.build();
+
+    for (rule_name, strings) in rules.debug_atoms() {
+        println!("rule {rule_name}");
+
+        for (string_name, atoms) in strings {
+            println!("  {string_name}");
+
+            for atom in atoms {
+                print!("    ");
+
+                for byte in atom {
+                    print!("{byte:02X}");
+                }
+
+                println!();
+            }
+        }
+    }
+
     Ok(())
 }

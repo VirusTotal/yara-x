@@ -265,6 +265,12 @@ pub struct Rules {
     pub(in crate::compiler) rules_profiling_enabled: bool,
 }
 
+#[doc(hidden)]
+pub type DebugPatternAtoms<'a> = (&'a str, Vec<&'a [u8]>);
+
+#[doc(hidden)]
+pub type DebugRuleAtoms<'a> = (&'a str, Vec<DebugPatternAtoms<'a>>);
+
 impl Rules {
     /// An iterator that yields the name of the modules imported by the
     /// rules.
@@ -683,6 +689,44 @@ impl Rules {
     #[inline]
     pub(crate) fn is_fast_scan(&self, pattern_id: PatternId) -> bool {
         *self.fast_scan_patterns.get(usize::from(pattern_id)).unwrap()
+    }
+
+    /// Returns the final atoms selected for each pattern, grouped by rule and
+    /// pattern identifier.
+    #[doc(hidden)]
+    pub fn debug_atoms(&self) -> Vec<DebugRuleAtoms<'_>> {
+        let mut result = Vec::new();
+
+        for rule in &self.rules {
+            let rule_name = self.ident_pool.get(rule.ident_id).unwrap();
+            let mut strings = Vec::new();
+
+            for pattern in &rule.patterns {
+                let string_name =
+                    self.ident_pool.get(pattern.ident_id).unwrap();
+
+                let atoms = self
+                    .atoms
+                    .iter()
+                    .filter_map(|atom| {
+                        let (pattern_id, _) =
+                            self.get_sub_pattern(atom.sub_pattern_id());
+
+                        if *pattern_id == pattern.pattern_id {
+                            Some(atom.as_slice())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                strings.push((string_name, atoms));
+            }
+
+            result.push((rule_name, strings));
+        }
+
+        result
     }
 }
 
