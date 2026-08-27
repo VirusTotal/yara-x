@@ -29,6 +29,7 @@ pub mod test_proto2;
 pub mod test_proto3;
 pub mod time;
 pub mod titan;
+pub mod urlheadless;
 pub mod vba;
 pub mod vtnet;
 pub mod yara;

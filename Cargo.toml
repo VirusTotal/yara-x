@@ -1,5 +1,5 @@
 [workspace.package]
-version = "1.19.0"
+version = "1.20.0"
 authors = ["Victor M. Alvarez <vmalvarez@virustotal.com>"]
 edition = "2024"
 homepage = "https://virustotal.github.io/yara-x"
@@ -110,11 +110,11 @@ wasm-opt = "0.116.1"
 wasmtime = { version = "45.0.3", default-features = false }
 x509-parser = "0.18.1"
 yansi = "1.0.1"
-yara-x = { path = "lib", version = "1.19.0" }
-yara-x-fmt = { path = "fmt", version = "1.19.0" }
-yara-x-macros = { path = "macros", version = "1.19.0" }
-yara-x-parser = { path = "parser", version = "1.19.0" }
-yara-x-proto = { path = "proto", version = "1.19.0"}
+yara-x = { path = "lib", version = "1.20.0" }
+yara-x-fmt = { path = "fmt", version = "1.20.0" }
+yara-x-macros = { path = "macros", version = "1.20.0" }
+yara-x-parser = { path = "parser", version = "1.20.0" }
+yara-x-proto = { path = "proto", version = "1.20.0"}
 zip = { version = "8.2.0", default-features = false }
 tinyzip = "0.4.0"
 simd-adler32 = "0.3.10"

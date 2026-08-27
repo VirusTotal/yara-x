@@ -73,7 +73,6 @@ package text;
 option (yara.module_options) = {
   name : "text"
   root_message: "text.Text"
-  rust_module: "text"
   cargo_feature: "text-module"
 };
 

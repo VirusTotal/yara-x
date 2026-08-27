@@ -382,30 +382,6 @@ pub struct Compiler<'a> {
     /// function name (e.g: `my_module.my_struct.my_func@ii@i`)
     wasm_exports: FxHashMap<String, FunctionId>,
 
-    /// Map that associates a `PatternId` to a certain filesize bound.
-    ///
-    /// A condition like `filesize < 1000 and $a` only matches if `filesize`
-    /// is less than 1000. Therefore, the pattern `$a` does not need be
-    /// checked for files of size 1000 bytes or larger.
-    ///
-    /// In this case, the map will contain an entry associating `$a` to a
-    /// `FilesizeBounds` value like:
-    /// `FilesizeBounds{start: Bound::Unbounded, end: Bound:Excluded(1000)}`.
-    filesize_bounds: FxHashMap<PatternId, FilesizeBounds>,
-
-    /// Map that associates a `PatternId` to a certain constraint on the
-    /// file header (e.g. magic bytes at offset 0), if any.
-    ///
-    /// A condition like `uint16(0) == 0x5A4D and $a` or `$mz at 0 and $a`
-    /// (were $mz = "MZ") only matches if the file starts with "MZ" (0x5A4D).
-    /// In this case the map will contain an entry associating `$a` to a
-    /// `HeaderConstraint` that requires the file to start with those two
-    /// bytes.
-    ///
-    /// This allows skipping pattern checks entirely if the scanned data doesn't
-    /// start with the expected header prefix.
-    header_constraints: FxHashMap<PatternId, HeaderConstraint>,
-
     /// A vector with all the rules that has been compiled. A [`RuleId`] is
     /// an index in this vector.
     rules: Vec<RuleInfo>,
@@ -577,8 +553,6 @@ impl<'a> Compiler<'a> {
             banned_modules: FxHashMap::default(),
             ignored_rules: Vec::new(),
             rules_depending_on_unsupported_modules: FxHashMap::default(),
-            filesize_bounds: FxHashMap::default(),
-            header_constraints: FxHashMap::default(),
             root_struct: Struct::new().make_root(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
@@ -872,6 +846,20 @@ impl<'a> Compiler<'a> {
         )
         .expect("failed to serialize global variables");
 
+        let mut filesize_bounds = FxHashMap::default();
+        let mut header_constraints = FxHashMap::default();
+
+        for (pattern, pattern_id) in self.patterns {
+            if !pattern.filesize_bounds().unbounded() {
+                filesize_bounds
+                    .insert(pattern_id, pattern.filesize_bounds().clone());
+            }
+            if !pattern.header_constraints().unconstrained() {
+                header_constraints
+                    .insert(pattern_id, pattern.header_constraints().clone());
+            }
+        }
+
         let mut rules = Rules {
             serialized_globals,
             wasm_mod,
@@ -889,8 +877,8 @@ impl<'a> Compiler<'a> {
             atoms: self.atoms,
             re_code: self.re_code,
             warnings: self.warnings.into(),
-            filesize_bounds: self.filesize_bounds,
-            header_constraints: self.header_constraints,
+            filesize_bounds,
+            header_constraints,
             regex_sets: self.regex_sets,
             fast_scan_patterns: self.fast_scan_patterns,
             rules_profiling_enabled: cfg!(feature = "rules-profiling"),
@@ -1302,17 +1290,10 @@ impl Compiler<'_> {
         self.symbol_table.truncate(snapshot.symbol_table_len);
         self.fast_scan_patterns.truncate(snapshot.fast_scan_patterns_len);
 
-        // Pattern IDs that are >= next_pattern_id, are being discarded. Any pattern
-        // or file size bound associated to such IDs must be removed.
-
+        // Pattern IDs that are >= next_pattern_id are being discarded. Any pattern
+        // associated to such IDs must be removed.
         self.patterns
             .retain(|_, pattern_id| *pattern_id < snapshot.next_pattern_id);
-
-        self.filesize_bounds
-            .retain(|pattern_id, _| *pattern_id < snapshot.next_pattern_id);
-
-        self.header_constraints
-            .retain(|pattern_id, _| *pattern_id < snapshot.next_pattern_id);
     }
 
     /// Returns true if the slice contains a single byte, or if the bytes in
@@ -1813,19 +1794,25 @@ impl Compiler<'_> {
             rule_patterns[pat_idx.as_usize()].pattern()
         });
 
-        // Set the bounds to all patterns in the rule. This must be done
+        // Set the bounds to all regex patterns in the rule. This must be done
         // before assigning the PatternId to each pattern, as the filesize
         // bounds are taken into account when determining if the pattern
         // is unique or re-used from a previous rule.
         if !filesize_bounds.unbounded() {
-            for pattern in &mut rule_patterns {
+            for pattern in &mut rule_patterns
+                .iter_mut()
+                .filter(|p| p.pattern().is_regex())
+            {
                 pattern.pattern_mut().set_filesize_bounds(&filesize_bounds);
             }
         }
 
-        // Set header constraints to all patterns in the rule.
+        // Set header constraints to all regex patterns in the rule.
         if !header_constraints.unconstrained() {
-            for pattern in &mut rule_patterns {
+            for pattern in &mut rule_patterns
+                .iter_mut()
+                .filter(|p| p.pattern().is_regex())
+            {
                 pattern
                     .pattern_mut()
                     .set_header_constraints(&header_constraints);
@@ -1950,28 +1937,6 @@ impl Compiler<'_> {
                         }
                     }
                 };
-                if !filesize_bounds.unbounded()
-                    && self
-                        .filesize_bounds
-                        .insert(*pattern_id, filesize_bounds.clone())
-                        .is_some()
-                {
-                    // This should not happen.
-                    panic!(
-                        "modifying the file size bounds of an existing pattern"
-                    )
-                }
-                if !header_constraints.unconstrained()
-                    && self
-                        .header_constraints
-                        .insert(*pattern_id, header_constraints.clone())
-                        .is_some()
-                {
-                    // This should not happen.
-                    panic!(
-                        "modifying the header constraints of an existing pattern"
-                    )
-                }
                 pending_patterns.remove(pattern_id);
             }
         }

@@ -1125,6 +1125,53 @@ impl Scanner {
         Ok(())
     }
 
+    /// Specifies the output data structure for a module, as raw data.
+    ///
+    /// Each YARA module generates an output consisting of a data structure
+    /// that contains information about the scanned file. This data
+    /// structure is represented by a Protocol Buffer message. Typically,
+    /// you won't need to provide this data yourself, as the YARA module
+    /// automatically generates different outputs for each file it scans.
+    ///
+    /// However, there are two scenarios in which you may want to provide
+    /// the output for a module yourself:
+    ///
+    /// 1) When the module does not produce any output on its own.
+    /// 2) When you already know the output of the module for the upcoming
+    ///    file to be scanned, and you prefer to reuse this data instead of
+    ///    generating it again.
+    ///
+    /// Case 1) applies to certain modules lacking a main function, thus
+    /// incapable of producing any output on their own. For such modules,
+    /// you must set the output before scanning the associated data. Since
+    /// the module's output typically varies with each scanned file, you
+    /// need to call this function prior to each invocation of `scan`.
+    /// Once `scan` is executed, the module's output is consumed and will
+    /// be empty unless set again before the subsequent call.
+    ///
+    /// Case 2) applies when you have previously stored the module's output
+    /// for certain scanned data. In such cases, when rescanning the data,
+    /// you can utilize this function to supply the module's output,
+    /// thereby preventing redundant computation by the module. This
+    /// optimization enhances performance by eliminating the need for the
+    /// module to reparse the scanned data.
+    ///
+    /// `module` can be either the YARA module name (i.e: "pe", "elf",
+    /// "dotnet", etc.) or the fully-qualified name for the protobuf message
+    /// associated to the module (i.e: "pe.PE", "elf.ELF", "dotnet.Dotnet",
+    /// etc.). `data` must be the Protocol Buffer message corresponding to
+    /// that module, serialized as raw bytes.
+    fn set_module_output(
+        &mut self,
+        module: &str,
+        data: Bound<PyBytes>,
+    ) -> PyResult<()> {
+        self.inner
+            .set_module_output_raw(module, data.as_bytes())
+            .map_err(map_scan_err)?;
+        Ok(())
+    }
+
     /// Scans in-memory data.
     fn scan(&mut self, data: &[u8]) -> PyResult<Py<ScanResults>> {
         let results = self.inner.scan(data).map_err(map_scan_err)?;

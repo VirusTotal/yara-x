@@ -211,7 +211,7 @@ pub struct Rules {
     /// A vector that contains all the atoms extracted from the patterns. Each
     /// atom has an associated [`SubPatternId`] that indicates the sub-pattern
     /// it belongs to.
-    pub(in crate::compiler) atoms: Vec<SubPatternAtom>,
+    pub(crate) atoms: Vec<SubPatternAtom>,
 
     /// A vector that contains the code for all regexp patterns (this includes
     /// hex patterns which are just a special case of regexp). The code for

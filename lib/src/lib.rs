@@ -53,6 +53,10 @@ pub use compiler::Rules;
 pub use compiler::RulesIter;
 pub use compiler::SourceCode;
 pub use compiler::compile;
+#[doc(hidden)]
+pub use models::Atom;
+#[doc(hidden)]
+pub use models::Atoms;
 pub use models::Match;
 pub use models::Matches;
 pub use models::MetaValue;

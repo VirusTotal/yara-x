@@ -10,6 +10,7 @@ import "vt/filetypes.proto";
 import "vt/hunting_gti_score.proto";
 import "vt/sandbox.proto";
 import "vt/submitter.proto";
+import "vt/urlheadless.proto";
 import "yara.proto";
 
 message Subject {
@@ -19,6 +20,9 @@ message Subject {
   string organizational_unit = 4;
   string locality = 5;
   string state = 6;
+  repeated string alternative_names = 7;
+  string street_address = 8;
+  string postal_code = 9;
 }
 
 message Validity {
@@ -34,6 +38,10 @@ message SSLCertificate {
   string signature = 5;
   string serial_number = 6;
   Subject issuer = 7;
+  string host = 8;
+  string version = 9;
+  string algorithm = 10;
+  string signature_algorithm = 11;
 }
 
 message Tracker {
@@ -92,6 +100,44 @@ message PopularityRank {
   string rank = 3;
 }
 
+message URLResource {
+  string url = 1;
+  vt.fileanalysis.HttpConversation.RequestMethod method = 2;
+  string sha256 = 3 [(yara.field_options) = { lowercase: true }];
+  int32 response_code = 4;
+  string remote_ip = 5 [(yara.field_options) = { name: "serving_ip_address" }];
+  int32 size = 6 [(yara.field_options) = { name: "content_length" }];
+  string reverse_dns = 7;
+  vt.fileanalysis.FileType type = 8;
+  vt.urlheadless.BrowserResourceType browser_type = 9;
+  map<string, string> response_headers = 10;
+  vt.urlheadless.NetError net_error = 11;
+  repeated string redirects = 12;
+}
+
+message ExtendedCookie {
+  string name = 1;
+  string value = 2;
+  string domain = 3;
+  int64 expires = 4;
+  bool secure = 5;
+  bool http_only = 6;
+  bool session = 7;
+  int32 size = 8;
+  vt.urlheadless.Cookie.CookiePriority priority = 9;
+}
+
+message ConsoleMessage {
+  string content = 1;
+  string source_file = 2;
+  vt.urlheadless.ConsoleMessage.LogLevel level = 3;
+}
+
+message WebTechnology {
+  string name = 1;
+  string version = 2;
+}
+
 message EnrichedURL {
   option (yara.message_options) = {
     name: "URL"
@@ -131,6 +177,14 @@ message EnrichedURL {
           accept_if: [ "gti", "staff" ]
         } ]
       }];
+  repeated URLResource resources = 40;
+  repeated ExtendedCookie cookies_extended = 45;
+  map<string, string> javascript_variables = 46;
+  repeated ConsoleMessage console_messages = 47;
+  repeated WebTechnology web_technologies = 48;
+  string filename = 49;
+  repeated SSLCertificate tls = 50;
+  string dom_sha256 = 51;
 }
 
 message EnrichedIP {

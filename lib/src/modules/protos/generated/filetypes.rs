@@ -251,6 +251,8 @@ pub enum FileType {
     PYTHON_PKG = 321,
     // @@protoc_insertion_point(enum_value:vt.fileanalysis.FileType.MSIX)
     MSIX = 322,
+    // @@protoc_insertion_point(enum_value:vt.fileanalysis.FileType.SKILL)
+    SKILL = 323,
     // @@protoc_insertion_point(enum_value:vt.fileanalysis.FileType.TEXT)
     TEXT = 400,
     // @@protoc_insertion_point(enum_value:vt.fileanalysis.FileType.SCRIPT)
@@ -351,6 +353,8 @@ pub enum FileType {
     HTA = 611,
     // @@protoc_insertion_point(enum_value:vt.fileanalysis.FileType.INTERNET_SHORTCUT)
     INTERNET_SHORTCUT = 612,
+    // @@protoc_insertion_point(enum_value:vt.fileanalysis.FileType.CSS)
+    CSS = 613,
     // @@protoc_insertion_point(enum_value:vt.fileanalysis.FileType.CAP)
     CAP = 700,
     // @@protoc_insertion_point(enum_value:vt.fileanalysis.FileType.ISOIMAGE)
@@ -393,6 +397,8 @@ pub enum FileType {
     PGP = 1301,
     // @@protoc_insertion_point(enum_value:vt.fileanalysis.FileType.CRT)
     CRT = 1302,
+    // @@protoc_insertion_point(enum_value:vt.fileanalysis.FileType.SHELLCODE)
+    SHELLCODE = 1400,
 }
 
 impl ::protobuf::Enum for FileType {
@@ -516,6 +522,7 @@ impl ::protobuf::Enum for FileType {
             320 => ::std::option::Option::Some(FileType::PYTHON_WHL),
             321 => ::std::option::Option::Some(FileType::PYTHON_PKG),
             322 => ::std::option::Option::Some(FileType::MSIX),
+            323 => ::std::option::Option::Some(FileType::SKILL),
             400 => ::std::option::Option::Some(FileType::TEXT),
             401 => ::std::option::Option::Some(FileType::SCRIPT),
             402 => ::std::option::Option::Some(FileType::PHP),
@@ -566,6 +573,7 @@ impl ::protobuf::Enum for FileType {
             610 => ::std::option::Option::Some(FileType::CSV),
             611 => ::std::option::Option::Some(FileType::HTA),
             612 => ::std::option::Option::Some(FileType::INTERNET_SHORTCUT),
+            613 => ::std::option::Option::Some(FileType::CSS),
             700 => ::std::option::Option::Some(FileType::CAP),
             800 => ::std::option::Option::Some(FileType::ISOIMAGE),
             801 => ::std::option::Option::Some(FileType::SQUASHFS),
@@ -587,6 +595,7 @@ impl ::protobuf::Enum for FileType {
             1300 => ::std::option::Option::Some(FileType::PEM),
             1301 => ::std::option::Option::Some(FileType::PGP),
             1302 => ::std::option::Option::Some(FileType::CRT),
+            1400 => ::std::option::Option::Some(FileType::SHELLCODE),
             _ => ::std::option::Option::None
         }
     }
@@ -705,6 +714,7 @@ impl ::protobuf::Enum for FileType {
             "PYTHON_WHL" => ::std::option::Option::Some(FileType::PYTHON_WHL),
             "PYTHON_PKG" => ::std::option::Option::Some(FileType::PYTHON_PKG),
             "MSIX" => ::std::option::Option::Some(FileType::MSIX),
+            "SKILL" => ::std::option::Option::Some(FileType::SKILL),
             "TEXT" => ::std::option::Option::Some(FileType::TEXT),
             "SCRIPT" => ::std::option::Option::Some(FileType::SCRIPT),
             "PHP" => ::std::option::Option::Some(FileType::PHP),
@@ -755,6 +765,7 @@ impl ::protobuf::Enum for FileType {
             "CSV" => ::std::option::Option::Some(FileType::CSV),
             "HTA" => ::std::option::Option::Some(FileType::HTA),
             "INTERNET_SHORTCUT" => ::std::option::Option::Some(FileType::INTERNET_SHORTCUT),
+            "CSS" => ::std::option::Option::Some(FileType::CSS),
             "CAP" => ::std::option::Option::Some(FileType::CAP),
             "ISOIMAGE" => ::std::option::Option::Some(FileType::ISOIMAGE),
             "SQUASHFS" => ::std::option::Option::Some(FileType::SQUASHFS),
@@ -776,6 +787,7 @@ impl ::protobuf::Enum for FileType {
             "PEM" => ::std::option::Option::Some(FileType::PEM),
             "PGP" => ::std::option::Option::Some(FileType::PGP),
             "CRT" => ::std::option::Option::Some(FileType::CRT),
+            "SHELLCODE" => ::std::option::Option::Some(FileType::SHELLCODE),
             _ => ::std::option::Option::None
         }
     }
@@ -893,6 +905,7 @@ impl ::protobuf::Enum for FileType {
         FileType::PYTHON_WHL,
         FileType::PYTHON_PKG,
         FileType::MSIX,
+        FileType::SKILL,
         FileType::TEXT,
         FileType::SCRIPT,
         FileType::PHP,
@@ -943,6 +956,7 @@ impl ::protobuf::Enum for FileType {
         FileType::CSV,
         FileType::HTA,
         FileType::INTERNET_SHORTCUT,
+        FileType::CSS,
         FileType::CAP,
         FileType::ISOIMAGE,
         FileType::SQUASHFS,
@@ -964,6 +978,7 @@ impl ::protobuf::Enum for FileType {
         FileType::PEM,
         FileType::PGP,
         FileType::CRT,
+        FileType::SHELLCODE,
     ];
 }
 
@@ -1087,77 +1102,80 @@ impl ::protobuf::EnumFull for FileType {
             FileType::PYTHON_WHL => 109,
             FileType::PYTHON_PKG => 110,
             FileType::MSIX => 111,
-            FileType::TEXT => 112,
-            FileType::SCRIPT => 113,
-            FileType::PHP => 114,
-            FileType::PYTHON => 115,
-            FileType::PERL => 116,
-            FileType::RUBY => 117,
-            FileType::C => 118,
-            FileType::CPP => 119,
-            FileType::JAVA => 120,
-            FileType::SHELLSCRIPT => 121,
-            FileType::PASCAL => 122,
-            FileType::AWK => 123,
-            FileType::DYALOG => 124,
-            FileType::FORTRAN => 125,
-            FileType::JAVASCRIPT => 126,
-            FileType::POWERSHELL => 127,
-            FileType::VBA => 128,
-            FileType::M4 => 129,
-            FileType::OBJETIVEC => 130,
-            FileType::JMOD => 131,
-            FileType::MAKEFILE => 132,
-            FileType::INI => 133,
-            FileType::UNUSED_CLJ => 134,
-            FileType::UNUSED_PDB => 135,
-            FileType::SQL => 136,
-            FileType::UNUSED_NEKO => 137,
-            FileType::UNUSED_WER => 138,
-            FileType::GOLANG => 139,
-            FileType::M3U => 140,
-            FileType::BAT => 141,
-            FileType::MSC => 142,
-            FileType::RDP => 143,
-            FileType::SYMBIAN => 144,
-            FileType::PALMOS => 145,
-            FileType::WINCE => 146,
-            FileType::ANDROID => 147,
-            FileType::IPHONE => 148,
-            FileType::HTML => 149,
-            FileType::XML => 150,
-            FileType::SWF => 151,
-            FileType::FLA => 152,
-            FileType::COOKIE => 153,
-            FileType::TORRENT => 154,
-            FileType::EMAIL => 155,
-            FileType::OUTLOOK => 156,
-            FileType::SGML => 157,
-            FileType::JSON => 158,
-            FileType::CSV => 159,
-            FileType::HTA => 160,
-            FileType::INTERNET_SHORTCUT => 161,
-            FileType::CAP => 162,
-            FileType::ISOIMAGE => 163,
-            FileType::SQUASHFS => 164,
-            FileType::VHD => 165,
-            FileType::VHDX => 166,
-            FileType::APPLE => 167,
-            FileType::MACINTOSH => 168,
-            FileType::APPLESINGLE => 169,
-            FileType::APPLEDOUBLE => 170,
-            FileType::MACINTOSH_HFS => 171,
-            FileType::APPLE_PLIST => 172,
-            FileType::MACINTOSH_LIB => 173,
-            FileType::APPLESCRIPT => 174,
-            FileType::APPLESCRIPT_COMPILED => 175,
-            FileType::CRX => 176,
-            FileType::XPI => 177,
-            FileType::ROM => 178,
-            FileType::IPS => 179,
-            FileType::PEM => 180,
-            FileType::PGP => 181,
-            FileType::CRT => 182,
+            FileType::SKILL => 112,
+            FileType::TEXT => 113,
+            FileType::SCRIPT => 114,
+            FileType::PHP => 115,
+            FileType::PYTHON => 116,
+            FileType::PERL => 117,
+            FileType::RUBY => 118,
+            FileType::C => 119,
+            FileType::CPP => 120,
+            FileType::JAVA => 121,
+            FileType::SHELLSCRIPT => 122,
+            FileType::PASCAL => 123,
+            FileType::AWK => 124,
+            FileType::DYALOG => 125,
+            FileType::FORTRAN => 126,
+            FileType::JAVASCRIPT => 127,
+            FileType::POWERSHELL => 128,
+            FileType::VBA => 129,
+            FileType::M4 => 130,
+            FileType::OBJETIVEC => 131,
+            FileType::JMOD => 132,
+            FileType::MAKEFILE => 133,
+            FileType::INI => 134,
+            FileType::UNUSED_CLJ => 135,
+            FileType::UNUSED_PDB => 136,
+            FileType::SQL => 137,
+            FileType::UNUSED_NEKO => 138,
+            FileType::UNUSED_WER => 139,
+            FileType::GOLANG => 140,
+            FileType::M3U => 141,
+            FileType::BAT => 142,
+            FileType::MSC => 143,
+            FileType::RDP => 144,
+            FileType::SYMBIAN => 145,
+            FileType::PALMOS => 146,
+            FileType::WINCE => 147,
+            FileType::ANDROID => 148,
+            FileType::IPHONE => 149,
+            FileType::HTML => 150,
+            FileType::XML => 151,
+            FileType::SWF => 152,
+            FileType::FLA => 153,
+            FileType::COOKIE => 154,
+            FileType::TORRENT => 155,
+            FileType::EMAIL => 156,
+            FileType::OUTLOOK => 157,
+            FileType::SGML => 158,
+            FileType::JSON => 159,
+            FileType::CSV => 160,
+            FileType::HTA => 161,
+            FileType::INTERNET_SHORTCUT => 162,
+            FileType::CSS => 163,
+            FileType::CAP => 164,
+            FileType::ISOIMAGE => 165,
+            FileType::SQUASHFS => 166,
+            FileType::VHD => 167,
+            FileType::VHDX => 168,
+            FileType::APPLE => 169,
+            FileType::MACINTOSH => 170,
+            FileType::APPLESINGLE => 171,
+            FileType::APPLEDOUBLE => 172,
+            FileType::MACINTOSH_HFS => 173,
+            FileType::APPLE_PLIST => 174,
+            FileType::MACINTOSH_LIB => 175,
+            FileType::APPLESCRIPT => 176,
+            FileType::APPLESCRIPT_COMPILED => 177,
+            FileType::CRX => 178,
+            FileType::XPI => 179,
+            FileType::ROM => 180,
+            FileType::IPS => 181,
+            FileType::PEM => 182,
+            FileType::PGP => 183,
+            FileType::CRT => 184,
+            FileType::SHELLCODE => 185,
         };
         Self::enum_descriptor().value_by_index(index)
     }
@@ -1176,7 +1194,7 @@ impl FileType {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x12vt/filetypes.proto\x12\x0fvt.fileanalysis*\xfa\x10\n\x08FileType\
+    \n\x12vt/filetypes.proto\x12\x0fvt.fileanalysis*\xa0\x11\n\x08FileType\
     \x12\x0b\n\x07UNKNOWN\x10\0\x12\n\n\x06PE_EXE\x10\x01\x12\n\n\x06PE_DLL\
     \x10\x02\x12\x07\n\x03MSI\x10\x03\x12\n\n\x06NE_EXE\x10\n\x12\n\n\x06NE_\
     DLL\x10\x0b\x12\x0b\n\x07DOS_EXE\x10\x14\x12\x0b\n\x07DOS_COM\x10\x15\
@@ -1220,38 +1238,39 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \xbb\x02\x12\t\n\x04ZLIB\x10\xbc\x02\x12\x08\n\x03TAR\x10\xbd\x02\x12\
     \x08\n\x03ZST\x10\xbe\x02\x12\n\n\x05LZFSE\x10\xbf\x02\x12\x0f\n\nPYTHON\
     _WHL\x10\xc0\x02\x12\x0f\n\nPYTHON_PKG\x10\xc1\x02\x12\t\n\x04MSIX\x10\
-    \xc2\x02\x12\t\n\x04TEXT\x10\x90\x03\x12\x0b\n\x06SCRIPT\x10\x91\x03\x12\
-    \x08\n\x03PHP\x10\x92\x03\x12\x0b\n\x06PYTHON\x10\x93\x03\x12\t\n\x04PER\
-    L\x10\x94\x03\x12\t\n\x04RUBY\x10\x95\x03\x12\x06\n\x01C\x10\x96\x03\x12\
-    \x08\n\x03CPP\x10\x97\x03\x12\t\n\x04JAVA\x10\x98\x03\x12\x10\n\x0bSHELL\
-    SCRIPT\x10\x99\x03\x12\x0b\n\x06PASCAL\x10\x9a\x03\x12\x08\n\x03AWK\x10\
-    \x9b\x03\x12\x0b\n\x06DYALOG\x10\x9c\x03\x12\x0c\n\x07FORTRAN\x10\x9d\
-    \x03\x12\x0f\n\nJAVASCRIPT\x10\x9e\x03\x12\x0f\n\nPOWERSHELL\x10\x9f\x03\
-    \x12\x08\n\x03VBA\x10\xa0\x03\x12\x07\n\x02M4\x10\xa1\x03\x12\x0e\n\tOBJ\
-    ETIVEC\x10\xa2\x03\x12\t\n\x04JMOD\x10\xa3\x03\x12\r\n\x08MAKEFILE\x10\
-    \xa4\x03\x12\x08\n\x03INI\x10\xa5\x03\x12\x0f\n\nUNUSED_CLJ\x10\xa6\x03\
-    \x12\x0f\n\nUNUSED_PDB\x10\xa9\x03\x12\x08\n\x03SQL\x10\xaa\x03\x12\x10\
-    \n\x0bUNUSED_NEKO\x10\xab\x03\x12\x0f\n\nUNUSED_WER\x10\xac\x03\x12\x0b\
-    \n\x06GOLANG\x10\xad\x03\x12\x08\n\x03M3U\x10\xae\x03\x12\x08\n\x03BAT\
-    \x10\xaf\x03\x12\x08\n\x03MSC\x10\xb0\x03\x12\x08\n\x03RDP\x10\xb1\x03\
-    \x12\x0c\n\x07SYMBIAN\x10\xf4\x03\x12\x0b\n\x06PALMOS\x10\xf5\x03\x12\n\
-    \n\x05WINCE\x10\xf6\x03\x12\x0c\n\x07ANDROID\x10\xf7\x03\x12\x0b\n\x06IP\
-    HONE\x10\xf8\x03\x12\t\n\x04HTML\x10\xd8\x04\x12\x08\n\x03XML\x10\xd9\
-    \x04\x12\x08\n\x03SWF\x10\xda\x04\x12\x08\n\x03FLA\x10\xdb\x04\x12\x0b\n\
-    \x06COOKIE\x10\xdc\x04\x12\x0c\n\x07TORRENT\x10\xdd\x04\x12\n\n\x05EMAIL\
-    \x10\xde\x04\x12\x0c\n\x07OUTLOOK\x10\xdf\x04\x12\t\n\x04SGML\x10\xe0\
-    \x04\x12\t\n\x04JSON\x10\xe1\x04\x12\x08\n\x03CSV\x10\xe2\x04\x12\x08\n\
-    \x03HTA\x10\xe3\x04\x12\x16\n\x11INTERNET_SHORTCUT\x10\xe4\x04\x12\x08\n\
-    \x03CAP\x10\xbc\x05\x12\r\n\x08ISOIMAGE\x10\xa0\x06\x12\r\n\x08SQUASHFS\
-    \x10\xa1\x06\x12\x08\n\x03VHD\x10\xa2\x06\x12\t\n\x04VHDX\x10\xa3\x06\
-    \x12\n\n\x05APPLE\x10\xe8\x07\x12\x0e\n\tMACINTOSH\x10\xe9\x07\x12\x10\n\
-    \x0bAPPLESINGLE\x10\xea\x07\x12\x10\n\x0bAPPLEDOUBLE\x10\xeb\x07\x12\x12\
-    \n\rMACINTOSH_HFS\x10\xec\x07\x12\x10\n\x0bAPPLE_PLIST\x10\xed\x07\x12\
-    \x12\n\rMACINTOSH_LIB\x10\xee\x07\x12\x10\n\x0bAPPLESCRIPT\x10\xef\x07\
-    \x12\x19\n\x14APPLESCRIPT_COMPILED\x10\xf0\x07\x12\x08\n\x03CRX\x10\xcc\
-    \x08\x12\x08\n\x03XPI\x10\xcd\x08\x12\x08\n\x03ROM\x10\xb0\t\x12\x08\n\
-    \x03IPS\x10\xb1\t\x12\x08\n\x03PEM\x10\x94\n\x12\x08\n\x03PGP\x10\x95\n\
-    \x12\x08\n\x03CRT\x10\x96\nb\x06proto3\
+    \xc2\x02\x12\n\n\x05SKILL\x10\xc3\x02\x12\t\n\x04TEXT\x10\x90\x03\x12\
+    \x0b\n\x06SCRIPT\x10\x91\x03\x12\x08\n\x03PHP\x10\x92\x03\x12\x0b\n\x06P\
+    YTHON\x10\x93\x03\x12\t\n\x04PERL\x10\x94\x03\x12\t\n\x04RUBY\x10\x95\
+    \x03\x12\x06\n\x01C\x10\x96\x03\x12\x08\n\x03CPP\x10\x97\x03\x12\t\n\x04\
+    JAVA\x10\x98\x03\x12\x10\n\x0bSHELLSCRIPT\x10\x99\x03\x12\x0b\n\x06PASCA\
+    L\x10\x9a\x03\x12\x08\n\x03AWK\x10\x9b\x03\x12\x0b\n\x06DYALOG\x10\x9c\
+    \x03\x12\x0c\n\x07FORTRAN\x10\x9d\x03\x12\x0f\n\nJAVASCRIPT\x10\x9e\x03\
+    \x12\x0f\n\nPOWERSHELL\x10\x9f\x03\x12\x08\n\x03VBA\x10\xa0\x03\x12\x07\
+    \n\x02M4\x10\xa1\x03\x12\x0e\n\tOBJETIVEC\x10\xa2\x03\x12\t\n\x04JMOD\
+    \x10\xa3\x03\x12\r\n\x08MAKEFILE\x10\xa4\x03\x12\x08\n\x03INI\x10\xa5\
+    \x03\x12\x0f\n\nUNUSED_CLJ\x10\xa6\x03\x12\x0f\n\nUNUSED_PDB\x10\xa9\x03\
+    \x12\x08\n\x03SQL\x10\xaa\x03\x12\x10\n\x0bUNUSED_NEKO\x10\xab\x03\x12\
+    \x0f\n\nUNUSED_WER\x10\xac\x03\x12\x0b\n\x06GOLANG\x10\xad\x03\x12\x08\n\
+    \x03M3U\x10\xae\x03\x12\x08\n\x03BAT\x10\xaf\x03\x12\x08\n\x03MSC\x10\
+    \xb0\x03\x12\x08\n\x03RDP\x10\xb1\x03\x12\x0c\n\x07SYMBIAN\x10\xf4\x03\
+    \x12\x0b\n\x06PALMOS\x10\xf5\x03\x12\n\n\x05WINCE\x10\xf6\x03\x12\x0c\n\
+    \x07ANDROID\x10\xf7\x03\x12\x0b\n\x06IPHONE\x10\xf8\x03\x12\t\n\x04HTML\
+    \x10\xd8\x04\x12\x08\n\x03XML\x10\xd9\x04\x12\x08\n\x03SWF\x10\xda\x04\
+    \x12\x08\n\x03FLA\x10\xdb\x04\x12\x0b\n\x06COOKIE\x10\xdc\x04\x12\x0c\n\
+    \x07TORRENT\x10\xdd\x04\x12\n\n\x05EMAIL\x10\xde\x04\x12\x0c\n\x07OUTLOO\
+    K\x10\xdf\x04\x12\t\n\x04SGML\x10\xe0\x04\x12\t\n\x04JSON\x10\xe1\x04\
+    \x12\x08\n\x03CSV\x10\xe2\x04\x12\x08\n\x03HTA\x10\xe3\x04\x12\x16\n\x11\
+    INTERNET_SHORTCUT\x10\xe4\x04\x12\x08\n\x03CSS\x10\xe5\x04\x12\x08\n\x03\
+    CAP\x10\xbc\x05\x12\r\n\x08ISOIMAGE\x10\xa0\x06\x12\r\n\x08SQUASHFS\x10\
+    \xa1\x06\x12\x08\n\x03VHD\x10\xa2\x06\x12\t\n\x04VHDX\x10\xa3\x06\x12\n\
+    \n\x05APPLE\x10\xe8\x07\x12\x0e\n\tMACINTOSH\x10\xe9\x07\x12\x10\n\x0bAP\
+    PLESINGLE\x10\xea\x07\x12\x10\n\x0bAPPLEDOUBLE\x10\xeb\x07\x12\x12\n\rMA\
+    CINTOSH_HFS\x10\xec\x07\x12\x10\n\x0bAPPLE_PLIST\x10\xed\x07\x12\x12\n\r\
+    MACINTOSH_LIB\x10\xee\x07\x12\x10\n\x0bAPPLESCRIPT\x10\xef\x07\x12\x19\n\
+    \x14APPLESCRIPT_COMPILED\x10\xf0\x07\x12\x08\n\x03CRX\x10\xcc\x08\x12\
+    \x08\n\x03XPI\x10\xcd\x08\x12\x08\n\x03ROM\x10\xb0\t\x12\x08\n\x03IPS\
+    \x10\xb1\t\x12\x08\n\x03PEM\x10\x94\n\x12\x08\n\x03PGP\x10\x95\n\x12\x08\
+    \n\x03CRT\x10\x96\n\x12\x0e\n\tSHELLCODE\x10\xf8\nb\x06proto3\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

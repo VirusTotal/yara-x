@@ -40,6 +40,12 @@ pub struct Subject {
     pub locality: ::std::string::String,
     // @@protoc_insertion_point(field:vt.net.Subject.state)
     pub state: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.Subject.alternative_names)
+    pub alternative_names: ::std::vec::Vec<::std::string::String>,
+    // @@protoc_insertion_point(field:vt.net.Subject.street_address)
+    pub street_address: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.Subject.postal_code)
+    pub postal_code: ::std::string::String,
     // special fields
     // @@protoc_insertion_point(special_field:vt.net.Subject.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -57,7 +63,7 @@ impl Subject {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(6);
+        let mut fields = ::std::vec::Vec::with_capacity(9);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
             "common_name",
@@ -88,6 +94,21 @@ impl Subject {
             "state",
             |m: &Subject| { &m.state },
             |m: &mut Subject| { &mut m.state },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "alternative_names",
+            |m: &Subject| { &m.alternative_names },
+            |m: &mut Subject| { &mut m.alternative_names },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "street_address",
+            |m: &Subject| { &m.street_address },
+            |m: &mut Subject| { &mut m.street_address },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "postal_code",
+            |m: &Subject| { &m.postal_code },
+            |m: &mut Subject| { &mut m.postal_code },
         ));
         ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<Subject>(
             "Subject",
@@ -125,6 +146,15 @@ impl ::protobuf::Message for Subject {
                 50 => {
                     self.state = is.read_string()?;
                 },
+                58 => {
+                    self.alternative_names.push(is.read_string()?);
+                },
+                66 => {
+                    self.street_address = is.read_string()?;
+                },
+                74 => {
+                    self.postal_code = is.read_string()?;
+                },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                 },
@@ -155,6 +185,15 @@ impl ::protobuf::Message for Subject {
         if !self.state.is_empty() {
             my_size += ::protobuf::rt::string_size(6, &self.state);
         }
+        for value in &self.alternative_names {
+            my_size += ::protobuf::rt::string_size(7, &value);
+        };
+        if !self.street_address.is_empty() {
+            my_size += ::protobuf::rt::string_size(8, &self.street_address);
+        }
+        if !self.postal_code.is_empty() {
+            my_size += ::protobuf::rt::string_size(9, &self.postal_code);
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
         my_size
@@ -179,6 +218,15 @@ impl ::protobuf::Message for Subject {
         if !self.state.is_empty() {
             os.write_string(6, &self.state)?;
         }
+        for v in &self.alternative_names {
+            os.write_string(7, &v)?;
+        };
+        if !self.street_address.is_empty() {
+            os.write_string(8, &self.street_address)?;
+        }
+        if !self.postal_code.is_empty() {
+            os.write_string(9, &self.postal_code)?;
+        }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -202,6 +250,9 @@ impl ::protobuf::Message for Subject {
         self.organizational_unit.clear();
         self.locality.clear();
         self.state.clear();
+        self.alternative_names.clear();
+        self.street_address.clear();
+        self.postal_code.clear();
         self.special_fields.clear();
     }
 
@@ -213,6 +264,9 @@ impl ::protobuf::Message for Subject {
             organizational_unit: ::std::string::String::new(),
             locality: ::std::string::String::new(),
             state: ::std::string::String::new(),
+            alternative_names: ::std::vec::Vec::new(),
+            street_address: ::std::string::String::new(),
+            postal_code: ::std::string::String::new(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -394,6 +448,14 @@ pub struct SSLCertificate {
     pub serial_number: ::std::string::String,
     // @@protoc_insertion_point(field:vt.net.SSLCertificate.issuer)
     pub issuer: ::protobuf::MessageField<Subject>,
+    // @@protoc_insertion_point(field:vt.net.SSLCertificate.host)
+    pub host: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.SSLCertificate.version)
+    pub version: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.SSLCertificate.algorithm)
+    pub algorithm: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.SSLCertificate.signature_algorithm)
+    pub signature_algorithm: ::std::string::String,
     // special fields
     // @@protoc_insertion_point(special_field:vt.net.SSLCertificate.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -411,7 +473,7 @@ impl SSLCertificate {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(7);
+        let mut fields = ::std::vec::Vec::with_capacity(11);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
             "thumbprint",
@@ -447,6 +509,26 @@ impl SSLCertificate {
             "issuer",
             |m: &SSLCertificate| { &m.issuer },
             |m: &mut SSLCertificate| { &mut m.issuer },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "host",
+            |m: &SSLCertificate| { &m.host },
+            |m: &mut SSLCertificate| { &mut m.host },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "version",
+            |m: &SSLCertificate| { &m.version },
+            |m: &mut SSLCertificate| { &mut m.version },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "algorithm",
+            |m: &SSLCertificate| { &m.algorithm },
+            |m: &mut SSLCertificate| { &mut m.algorithm },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "signature_algorithm",
+            |m: &SSLCertificate| { &m.signature_algorithm },
+            |m: &mut SSLCertificate| { &mut m.signature_algorithm },
         ));
         ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<SSLCertificate>(
             "SSLCertificate",
@@ -487,6 +569,18 @@ impl ::protobuf::Message for SSLCertificate {
                 58 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.issuer)?;
                 },
+                66 => {
+                    self.host = is.read_string()?;
+                },
+                74 => {
+                    self.version = is.read_string()?;
+                },
+                82 => {
+                    self.algorithm = is.read_string()?;
+                },
+                90 => {
+                    self.signature_algorithm = is.read_string()?;
+                },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                 },
@@ -523,6 +617,18 @@ impl ::protobuf::Message for SSLCertificate {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         }
+        if !self.host.is_empty() {
+            my_size += ::protobuf::rt::string_size(8, &self.host);
+        }
+        if !self.version.is_empty() {
+            my_size += ::protobuf::rt::string_size(9, &self.version);
+        }
+        if !self.algorithm.is_empty() {
+            my_size += ::protobuf::rt::string_size(10, &self.algorithm);
+        }
+        if !self.signature_algorithm.is_empty() {
+            my_size += ::protobuf::rt::string_size(11, &self.signature_algorithm);
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
         my_size
@@ -550,6 +656,18 @@ impl ::protobuf::Message for SSLCertificate {
         if let Some(v) = self.issuer.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(7, v, os)?;
         }
+        if !self.host.is_empty() {
+            os.write_string(8, &self.host)?;
+        }
+        if !self.version.is_empty() {
+            os.write_string(9, &self.version)?;
+        }
+        if !self.algorithm.is_empty() {
+            os.write_string(10, &self.algorithm)?;
+        }
+        if !self.signature_algorithm.is_empty() {
+            os.write_string(11, &self.signature_algorithm)?;
+        }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -574,6 +692,10 @@ impl ::protobuf::Message for SSLCertificate {
         self.signature.clear();
         self.serial_number.clear();
         self.issuer.clear();
+        self.host.clear();
+        self.version.clear();
+        self.algorithm.clear();
+        self.signature_algorithm.clear();
         self.special_fields.clear();
     }
 
@@ -586,6 +708,10 @@ impl ::protobuf::Message for SSLCertificate {
             signature: ::std::string::String::new(),
             serial_number: ::std::string::String::new(),
             issuer: ::protobuf::MessageField::none(),
+            host: ::std::string::String::new(),
+            version: ::std::string::String::new(),
+            algorithm: ::std::string::String::new(),
+            signature_algorithm: ::std::string::String::new(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -1994,6 +2120,897 @@ impl ::protobuf::reflect::ProtobufValue for PopularityRank {
     type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
 }
 
+// @@protoc_insertion_point(message:vt.net.URLResource)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct URLResource {
+    // message fields
+    // @@protoc_insertion_point(field:vt.net.URLResource.url)
+    pub url: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.URLResource.method)
+    pub method: ::protobuf::EnumOrUnknown<super::sandbox::http_conversation::RequestMethod>,
+    // @@protoc_insertion_point(field:vt.net.URLResource.sha256)
+    pub sha256: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.URLResource.response_code)
+    pub response_code: i32,
+    // @@protoc_insertion_point(field:vt.net.URLResource.remote_ip)
+    pub remote_ip: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.URLResource.size)
+    pub size: i32,
+    // @@protoc_insertion_point(field:vt.net.URLResource.reverse_dns)
+    pub reverse_dns: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.URLResource.type)
+    pub type_: ::protobuf::EnumOrUnknown<super::filetypes::FileType>,
+    // @@protoc_insertion_point(field:vt.net.URLResource.browser_type)
+    pub browser_type: ::protobuf::EnumOrUnknown<super::urlheadless::BrowserResourceType>,
+    // @@protoc_insertion_point(field:vt.net.URLResource.response_headers)
+    pub response_headers: ::std::collections::HashMap<::std::string::String, ::std::string::String>,
+    // @@protoc_insertion_point(field:vt.net.URLResource.net_error)
+    pub net_error: ::protobuf::EnumOrUnknown<super::urlheadless::NetError>,
+    // @@protoc_insertion_point(field:vt.net.URLResource.redirects)
+    pub redirects: ::std::vec::Vec<::std::string::String>,
+    // special fields
+    // @@protoc_insertion_point(special_field:vt.net.URLResource.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a URLResource {
+    fn default() -> &'a URLResource {
+        <URLResource as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl URLResource {
+    pub fn new() -> URLResource {
+        ::std::default::Default::default()
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(12);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "url",
+            |m: &URLResource| { &m.url },
+            |m: &mut URLResource| { &mut m.url },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "method",
+            |m: &URLResource| { &m.method },
+            |m: &mut URLResource| { &mut m.method },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "sha256",
+            |m: &URLResource| { &m.sha256 },
+            |m: &mut URLResource| { &mut m.sha256 },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "response_code",
+            |m: &URLResource| { &m.response_code },
+            |m: &mut URLResource| { &mut m.response_code },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "remote_ip",
+            |m: &URLResource| { &m.remote_ip },
+            |m: &mut URLResource| { &mut m.remote_ip },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "size",
+            |m: &URLResource| { &m.size },
+            |m: &mut URLResource| { &mut m.size },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "reverse_dns",
+            |m: &URLResource| { &m.reverse_dns },
+            |m: &mut URLResource| { &mut m.reverse_dns },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "type",
+            |m: &URLResource| { &m.type_ },
+            |m: &mut URLResource| { &mut m.type_ },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "browser_type",
+            |m: &URLResource| { &m.browser_type },
+            |m: &mut URLResource| { &mut m.browser_type },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_map_simpler_accessor_new::<_, _>(
+            "response_headers",
+            |m: &URLResource| { &m.response_headers },
+            |m: &mut URLResource| { &mut m.response_headers },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "net_error",
+            |m: &URLResource| { &m.net_error },
+            |m: &mut URLResource| { &mut m.net_error },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "redirects",
+            |m: &URLResource| { &m.redirects },
+            |m: &mut URLResource| { &mut m.redirects },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<URLResource>(
+            "URLResource",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for URLResource {
+    const NAME: &'static str = "URLResource";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.url = is.read_string()?;
+                },
+                16 => {
+                    self.method = is.read_enum_or_unknown()?;
+                },
+                26 => {
+                    self.sha256 = is.read_string()?;
+                },
+                32 => {
+                    self.response_code = is.read_int32()?;
+                },
+                42 => {
+                    self.remote_ip = is.read_string()?;
+                },
+                48 => {
+                    self.size = is.read_int32()?;
+                },
+                58 => {
+                    self.reverse_dns = is.read_string()?;
+                },
+                64 => {
+                    self.type_ = is.read_enum_or_unknown()?;
+                },
+                72 => {
+                    self.browser_type = is.read_enum_or_unknown()?;
+                },
+                82 => {
+                    let len = is.read_raw_varint32()?;
+                    let old_limit = is.push_limit(len as u64)?;
+                    let mut key = ::std::default::Default::default();
+                    let mut value = ::std::default::Default::default();
+                    while let Some(tag) = is.read_raw_tag_or_eof()? {
+                        match tag {
+                            10 => key = is.read_string()?,
+                            18 => value = is.read_string()?,
+                            _ => ::protobuf::rt::skip_field_for_tag(tag, is)?,
+                        };
+                    }
+                    is.pop_limit(old_limit);
+                    self.response_headers.insert(key, value);
+                },
+                88 => {
+                    self.net_error = is.read_enum_or_unknown()?;
+                },
+                98 => {
+                    self.redirects.push(is.read_string()?);
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if !self.url.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.url);
+        }
+        if self.method != ::protobuf::EnumOrUnknown::new(super::sandbox::http_conversation::RequestMethod::UNKNOWN) {
+            my_size += ::protobuf::rt::int32_size(2, self.method.value());
+        }
+        if !self.sha256.is_empty() {
+            my_size += ::protobuf::rt::string_size(3, &self.sha256);
+        }
+        if self.response_code != 0 {
+            my_size += ::protobuf::rt::int32_size(4, self.response_code);
+        }
+        if !self.remote_ip.is_empty() {
+            my_size += ::protobuf::rt::string_size(5, &self.remote_ip);
+        }
+        if self.size != 0 {
+            my_size += ::protobuf::rt::int32_size(6, self.size);
+        }
+        if !self.reverse_dns.is_empty() {
+            my_size += ::protobuf::rt::string_size(7, &self.reverse_dns);
+        }
+        if self.type_ != ::protobuf::EnumOrUnknown::new(super::filetypes::FileType::UNKNOWN) {
+            my_size += ::protobuf::rt::int32_size(8, self.type_.value());
+        }
+        if self.browser_type != ::protobuf::EnumOrUnknown::new(super::urlheadless::BrowserResourceType::BROWSER_RESOURCE_TYPE_OTHER) {
+            my_size += ::protobuf::rt::int32_size(9, self.browser_type.value());
+        }
+        for (k, v) in &self.response_headers {
+            let mut entry_size = 0;
+            entry_size += ::protobuf::rt::string_size(1, &k);
+            entry_size += ::protobuf::rt::string_size(2, &v);
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(entry_size) + entry_size
+        };
+        if self.net_error != ::protobuf::EnumOrUnknown::new(super::urlheadless::NetError::NET_ERROR_UNSPECIFIED) {
+            my_size += ::protobuf::rt::int32_size(11, self.net_error.value());
+        }
+        for value in &self.redirects {
+            my_size += ::protobuf::rt::string_size(12, &value);
+        };
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if !self.url.is_empty() {
+            os.write_string(1, &self.url)?;
+        }
+        if self.method != ::protobuf::EnumOrUnknown::new(super::sandbox::http_conversation::RequestMethod::UNKNOWN) {
+            os.write_enum(2, ::protobuf::EnumOrUnknown::value(&self.method))?;
+        }
+        if !self.sha256.is_empty() {
+            os.write_string(3, &self.sha256)?;
+        }
+        if self.response_code != 0 {
+            os.write_int32(4, self.response_code)?;
+        }
+        if !self.remote_ip.is_empty() {
+            os.write_string(5, &self.remote_ip)?;
+        }
+        if self.size != 0 {
+            os.write_int32(6, self.size)?;
+        }
+        if !self.reverse_dns.is_empty() {
+            os.write_string(7, &self.reverse_dns)?;
+        }
+        if self.type_ != ::protobuf::EnumOrUnknown::new(super::filetypes::FileType::UNKNOWN) {
+            os.write_enum(8, ::protobuf::EnumOrUnknown::value(&self.type_))?;
+        }
+        if self.browser_type != ::protobuf::EnumOrUnknown::new(super::urlheadless::BrowserResourceType::BROWSER_RESOURCE_TYPE_OTHER) {
+            os.write_enum(9, ::protobuf::EnumOrUnknown::value(&self.browser_type))?;
+        }
+        for (k, v) in &self.response_headers {
+            let mut entry_size = 0;
+            entry_size += ::protobuf::rt::string_size(1, &k);
+            entry_size += ::protobuf::rt::string_size(2, &v);
+            os.write_raw_varint32(82)?; // Tag.
+            os.write_raw_varint32(entry_size as u32)?;
+            os.write_string(1, &k)?;
+            os.write_string(2, &v)?;
+        };
+        if self.net_error != ::protobuf::EnumOrUnknown::new(super::urlheadless::NetError::NET_ERROR_UNSPECIFIED) {
+            os.write_enum(11, ::protobuf::EnumOrUnknown::value(&self.net_error))?;
+        }
+        for v in &self.redirects {
+            os.write_string(12, &v)?;
+        };
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> URLResource {
+        URLResource::new()
+    }
+
+    fn clear(&mut self) {
+        self.url.clear();
+        self.method = ::protobuf::EnumOrUnknown::new(super::sandbox::http_conversation::RequestMethod::UNKNOWN);
+        self.sha256.clear();
+        self.response_code = 0;
+        self.remote_ip.clear();
+        self.size = 0;
+        self.reverse_dns.clear();
+        self.type_ = ::protobuf::EnumOrUnknown::new(super::filetypes::FileType::UNKNOWN);
+        self.browser_type = ::protobuf::EnumOrUnknown::new(super::urlheadless::BrowserResourceType::BROWSER_RESOURCE_TYPE_OTHER);
+        self.response_headers.clear();
+        self.net_error = ::protobuf::EnumOrUnknown::new(super::urlheadless::NetError::NET_ERROR_UNSPECIFIED);
+        self.redirects.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static URLResource {
+        static instance: ::protobuf::rt::Lazy<URLResource> = ::protobuf::rt::Lazy::new();
+        instance.get(URLResource::new)
+    }
+}
+
+impl ::protobuf::MessageFull for URLResource {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("URLResource").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for URLResource {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for URLResource {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
+// @@protoc_insertion_point(message:vt.net.ExtendedCookie)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct ExtendedCookie {
+    // message fields
+    // @@protoc_insertion_point(field:vt.net.ExtendedCookie.name)
+    pub name: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.ExtendedCookie.value)
+    pub value: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.ExtendedCookie.domain)
+    pub domain: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.ExtendedCookie.expires)
+    pub expires: i64,
+    // @@protoc_insertion_point(field:vt.net.ExtendedCookie.secure)
+    pub secure: bool,
+    // @@protoc_insertion_point(field:vt.net.ExtendedCookie.http_only)
+    pub http_only: bool,
+    // @@protoc_insertion_point(field:vt.net.ExtendedCookie.session)
+    pub session: bool,
+    // @@protoc_insertion_point(field:vt.net.ExtendedCookie.size)
+    pub size: i32,
+    // @@protoc_insertion_point(field:vt.net.ExtendedCookie.priority)
+    pub priority: ::protobuf::EnumOrUnknown<super::urlheadless::cookie::CookiePriority>,
+    // special fields
+    // @@protoc_insertion_point(special_field:vt.net.ExtendedCookie.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a ExtendedCookie {
+    fn default() -> &'a ExtendedCookie {
+        <ExtendedCookie as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl ExtendedCookie {
+    pub fn new() -> ExtendedCookie {
+        ::std::default::Default::default()
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(9);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "name",
+            |m: &ExtendedCookie| { &m.name },
+            |m: &mut ExtendedCookie| { &mut m.name },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "value",
+            |m: &ExtendedCookie| { &m.value },
+            |m: &mut ExtendedCookie| { &mut m.value },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "domain",
+            |m: &ExtendedCookie| { &m.domain },
+            |m: &mut ExtendedCookie| { &mut m.domain },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "expires",
+            |m: &ExtendedCookie| { &m.expires },
+            |m: &mut ExtendedCookie| { &mut m.expires },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "secure",
+            |m: &ExtendedCookie| { &m.secure },
+            |m: &mut ExtendedCookie| { &mut m.secure },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "http_only",
+            |m: &ExtendedCookie| { &m.http_only },
+            |m: &mut ExtendedCookie| { &mut m.http_only },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "session",
+            |m: &ExtendedCookie| { &m.session },
+            |m: &mut ExtendedCookie| { &mut m.session },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "size",
+            |m: &ExtendedCookie| { &m.size },
+            |m: &mut ExtendedCookie| { &mut m.size },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "priority",
+            |m: &ExtendedCookie| { &m.priority },
+            |m: &mut ExtendedCookie| { &mut m.priority },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<ExtendedCookie>(
+            "ExtendedCookie",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for ExtendedCookie {
+    const NAME: &'static str = "ExtendedCookie";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.name = is.read_string()?;
+                },
+                18 => {
+                    self.value = is.read_string()?;
+                },
+                26 => {
+                    self.domain = is.read_string()?;
+                },
+                32 => {
+                    self.expires = is.read_int64()?;
+                },
+                40 => {
+                    self.secure = is.read_bool()?;
+                },
+                48 => {
+                    self.http_only = is.read_bool()?;
+                },
+                56 => {
+                    self.session = is.read_bool()?;
+                },
+                64 => {
+                    self.size = is.read_int32()?;
+                },
+                72 => {
+                    self.priority = is.read_enum_or_unknown()?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if !self.name.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.name);
+        }
+        if !self.value.is_empty() {
+            my_size += ::protobuf::rt::string_size(2, &self.value);
+        }
+        if !self.domain.is_empty() {
+            my_size += ::protobuf::rt::string_size(3, &self.domain);
+        }
+        if self.expires != 0 {
+            my_size += ::protobuf::rt::int64_size(4, self.expires);
+        }
+        if self.secure != false {
+            my_size += 1 + 1;
+        }
+        if self.http_only != false {
+            my_size += 1 + 1;
+        }
+        if self.session != false {
+            my_size += 1 + 1;
+        }
+        if self.size != 0 {
+            my_size += ::protobuf::rt::int32_size(8, self.size);
+        }
+        if self.priority != ::protobuf::EnumOrUnknown::new(super::urlheadless::cookie::CookiePriority::COOKIE_PRIORITY_UNDEFINED) {
+            my_size += ::protobuf::rt::int32_size(9, self.priority.value());
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if !self.name.is_empty() {
+            os.write_string(1, &self.name)?;
+        }
+        if !self.value.is_empty() {
+            os.write_string(2, &self.value)?;
+        }
+        if !self.domain.is_empty() {
+            os.write_string(3, &self.domain)?;
+        }
+        if self.expires != 0 {
+            os.write_int64(4, self.expires)?;
+        }
+        if self.secure != false {
+            os.write_bool(5, self.secure)?;
+        }
+        if self.http_only != false {
+            os.write_bool(6, self.http_only)?;
+        }
+        if self.session != false {
+            os.write_bool(7, self.session)?;
+        }
+        if self.size != 0 {
+            os.write_int32(8, self.size)?;
+        }
+        if self.priority != ::protobuf::EnumOrUnknown::new(super::urlheadless::cookie::CookiePriority::COOKIE_PRIORITY_UNDEFINED) {
+            os.write_enum(9, ::protobuf::EnumOrUnknown::value(&self.priority))?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> ExtendedCookie {
+        ExtendedCookie::new()
+    }
+
+    fn clear(&mut self) {
+        self.name.clear();
+        self.value.clear();
+        self.domain.clear();
+        self.expires = 0;
+        self.secure = false;
+        self.http_only = false;
+        self.session = false;
+        self.size = 0;
+        self.priority = ::protobuf::EnumOrUnknown::new(super::urlheadless::cookie::CookiePriority::COOKIE_PRIORITY_UNDEFINED);
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static ExtendedCookie {
+        static instance: ExtendedCookie = ExtendedCookie {
+            name: ::std::string::String::new(),
+            value: ::std::string::String::new(),
+            domain: ::std::string::String::new(),
+            expires: 0,
+            secure: false,
+            http_only: false,
+            session: false,
+            size: 0,
+            priority: ::protobuf::EnumOrUnknown::from_i32(0),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for ExtendedCookie {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("ExtendedCookie").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for ExtendedCookie {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for ExtendedCookie {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
+// @@protoc_insertion_point(message:vt.net.ConsoleMessage)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct ConsoleMessage {
+    // message fields
+    // @@protoc_insertion_point(field:vt.net.ConsoleMessage.content)
+    pub content: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.ConsoleMessage.source_file)
+    pub source_file: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.ConsoleMessage.level)
+    pub level: ::protobuf::EnumOrUnknown<super::urlheadless::console_message::LogLevel>,
+    // special fields
+    // @@protoc_insertion_point(special_field:vt.net.ConsoleMessage.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a ConsoleMessage {
+    fn default() -> &'a ConsoleMessage {
+        <ConsoleMessage as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl ConsoleMessage {
+    pub fn new() -> ConsoleMessage {
+        ::std::default::Default::default()
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(3);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "content",
+            |m: &ConsoleMessage| { &m.content },
+            |m: &mut ConsoleMessage| { &mut m.content },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "source_file",
+            |m: &ConsoleMessage| { &m.source_file },
+            |m: &mut ConsoleMessage| { &mut m.source_file },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "level",
+            |m: &ConsoleMessage| { &m.level },
+            |m: &mut ConsoleMessage| { &mut m.level },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<ConsoleMessage>(
+            "ConsoleMessage",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for ConsoleMessage {
+    const NAME: &'static str = "ConsoleMessage";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.content = is.read_string()?;
+                },
+                18 => {
+                    self.source_file = is.read_string()?;
+                },
+                24 => {
+                    self.level = is.read_enum_or_unknown()?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if !self.content.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.content);
+        }
+        if !self.source_file.is_empty() {
+            my_size += ::protobuf::rt::string_size(2, &self.source_file);
+        }
+        if self.level != ::protobuf::EnumOrUnknown::new(super::urlheadless::console_message::LogLevel::LOG_LEVEL_UNDEFINED) {
+            my_size += ::protobuf::rt::int32_size(3, self.level.value());
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if !self.content.is_empty() {
+            os.write_string(1, &self.content)?;
+        }
+        if !self.source_file.is_empty() {
+            os.write_string(2, &self.source_file)?;
+        }
+        if self.level != ::protobuf::EnumOrUnknown::new(super::urlheadless::console_message::LogLevel::LOG_LEVEL_UNDEFINED) {
+            os.write_enum(3, ::protobuf::EnumOrUnknown::value(&self.level))?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> ConsoleMessage {
+        ConsoleMessage::new()
+    }
+
+    fn clear(&mut self) {
+        self.content.clear();
+        self.source_file.clear();
+        self.level = ::protobuf::EnumOrUnknown::new(super::urlheadless::console_message::LogLevel::LOG_LEVEL_UNDEFINED);
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static ConsoleMessage {
+        static instance: ConsoleMessage = ConsoleMessage {
+            content: ::std::string::String::new(),
+            source_file: ::std::string::String::new(),
+            level: ::protobuf::EnumOrUnknown::from_i32(0),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for ConsoleMessage {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("ConsoleMessage").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for ConsoleMessage {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for ConsoleMessage {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
+// @@protoc_insertion_point(message:vt.net.WebTechnology)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct WebTechnology {
+    // message fields
+    // @@protoc_insertion_point(field:vt.net.WebTechnology.name)
+    pub name: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.WebTechnology.version)
+    pub version: ::std::string::String,
+    // special fields
+    // @@protoc_insertion_point(special_field:vt.net.WebTechnology.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a WebTechnology {
+    fn default() -> &'a WebTechnology {
+        <WebTechnology as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl WebTechnology {
+    pub fn new() -> WebTechnology {
+        ::std::default::Default::default()
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(2);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "name",
+            |m: &WebTechnology| { &m.name },
+            |m: &mut WebTechnology| { &mut m.name },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "version",
+            |m: &WebTechnology| { &m.version },
+            |m: &mut WebTechnology| { &mut m.version },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<WebTechnology>(
+            "WebTechnology",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for WebTechnology {
+    const NAME: &'static str = "WebTechnology";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.name = is.read_string()?;
+                },
+                18 => {
+                    self.version = is.read_string()?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if !self.name.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.name);
+        }
+        if !self.version.is_empty() {
+            my_size += ::protobuf::rt::string_size(2, &self.version);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if !self.name.is_empty() {
+            os.write_string(1, &self.name)?;
+        }
+        if !self.version.is_empty() {
+            os.write_string(2, &self.version)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> WebTechnology {
+        WebTechnology::new()
+    }
+
+    fn clear(&mut self) {
+        self.name.clear();
+        self.version.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static WebTechnology {
+        static instance: WebTechnology = WebTechnology {
+            name: ::std::string::String::new(),
+            version: ::std::string::String::new(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for WebTechnology {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("WebTechnology").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for WebTechnology {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for WebTechnology {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
 // @@protoc_insertion_point(message:vt.net.EnrichedURL)
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct EnrichedURL {
@@ -2052,6 +3069,22 @@ pub struct EnrichedURL {
     pub categories: ::std::collections::HashMap<::std::string::String, ::std::string::String>,
     // @@protoc_insertion_point(field:vt.net.EnrichedURL.gti_assessment)
     pub gti_assessment: ::protobuf::MessageField<super::hunting_gti_score::HuntingGtiScore>,
+    // @@protoc_insertion_point(field:vt.net.EnrichedURL.resources)
+    pub resources: ::std::vec::Vec<URLResource>,
+    // @@protoc_insertion_point(field:vt.net.EnrichedURL.cookies_extended)
+    pub cookies_extended: ::std::vec::Vec<ExtendedCookie>,
+    // @@protoc_insertion_point(field:vt.net.EnrichedURL.javascript_variables)
+    pub javascript_variables: ::std::collections::HashMap<::std::string::String, ::std::string::String>,
+    // @@protoc_insertion_point(field:vt.net.EnrichedURL.console_messages)
+    pub console_messages: ::std::vec::Vec<ConsoleMessage>,
+    // @@protoc_insertion_point(field:vt.net.EnrichedURL.web_technologies)
+    pub web_technologies: ::std::vec::Vec<WebTechnology>,
+    // @@protoc_insertion_point(field:vt.net.EnrichedURL.filename)
+    pub filename: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.EnrichedURL.tls)
+    pub tls: ::std::vec::Vec<SSLCertificate>,
+    // @@protoc_insertion_point(field:vt.net.EnrichedURL.dom_sha256)
+    pub dom_sha256: ::std::string::String,
     // special fields
     // @@protoc_insertion_point(special_field:vt.net.EnrichedURL.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -2069,7 +3102,7 @@ impl EnrichedURL {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(27);
+        let mut fields = ::std::vec::Vec::with_capacity(35);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
             "port",
@@ -2205,6 +3238,46 @@ impl EnrichedURL {
             "gti_assessment",
             |m: &EnrichedURL| { &m.gti_assessment },
             |m: &mut EnrichedURL| { &mut m.gti_assessment },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "resources",
+            |m: &EnrichedURL| { &m.resources },
+            |m: &mut EnrichedURL| { &mut m.resources },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "cookies_extended",
+            |m: &EnrichedURL| { &m.cookies_extended },
+            |m: &mut EnrichedURL| { &mut m.cookies_extended },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_map_simpler_accessor_new::<_, _>(
+            "javascript_variables",
+            |m: &EnrichedURL| { &m.javascript_variables },
+            |m: &mut EnrichedURL| { &mut m.javascript_variables },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "console_messages",
+            |m: &EnrichedURL| { &m.console_messages },
+            |m: &mut EnrichedURL| { &mut m.console_messages },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "web_technologies",
+            |m: &EnrichedURL| { &m.web_technologies },
+            |m: &mut EnrichedURL| { &mut m.web_technologies },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "filename",
+            |m: &EnrichedURL| { &m.filename },
+            |m: &mut EnrichedURL| { &mut m.filename },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "tls",
+            |m: &EnrichedURL| { &m.tls },
+            |m: &mut EnrichedURL| { &mut m.tls },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "dom_sha256",
+            |m: &EnrichedURL| { &m.dom_sha256 },
+            |m: &mut EnrichedURL| { &mut m.dom_sha256 },
         ));
         ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<EnrichedURL>(
             "EnrichedURL",
@@ -2365,6 +3438,42 @@ impl ::protobuf::Message for EnrichedURL {
                 314 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.gti_assessment)?;
                 },
+                322 => {
+                    self.resources.push(is.read_message()?);
+                },
+                362 => {
+                    self.cookies_extended.push(is.read_message()?);
+                },
+                370 => {
+                    let len = is.read_raw_varint32()?;
+                    let old_limit = is.push_limit(len as u64)?;
+                    let mut key = ::std::default::Default::default();
+                    let mut value = ::std::default::Default::default();
+                    while let Some(tag) = is.read_raw_tag_or_eof()? {
+                        match tag {
+                            10 => key = is.read_string()?,
+                            18 => value = is.read_string()?,
+                            _ => ::protobuf::rt::skip_field_for_tag(tag, is)?,
+                        };
+                    }
+                    is.pop_limit(old_limit);
+                    self.javascript_variables.insert(key, value);
+                },
+                378 => {
+                    self.console_messages.push(is.read_message()?);
+                },
+                386 => {
+                    self.web_technologies.push(is.read_message()?);
+                },
+                394 => {
+                    self.filename = is.read_string()?;
+                },
+                402 => {
+                    self.tls.push(is.read_message()?);
+                },
+                410 => {
+                    self.dom_sha256 = is.read_string()?;
+                },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                 },
@@ -2481,6 +3590,38 @@ impl ::protobuf::Message for EnrichedURL {
         if let Some(v) = self.gti_assessment.as_ref() {
             let len = v.compute_size();
             my_size += 2 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        for value in &self.resources {
+            let len = value.compute_size();
+            my_size += 2 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        for value in &self.cookies_extended {
+            let len = value.compute_size();
+            my_size += 2 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        for (k, v) in &self.javascript_variables {
+            let mut entry_size = 0;
+            entry_size += ::protobuf::rt::string_size(1, &k);
+            entry_size += ::protobuf::rt::string_size(2, &v);
+            my_size += 2 + ::protobuf::rt::compute_raw_varint64_size(entry_size) + entry_size
+        };
+        for value in &self.console_messages {
+            let len = value.compute_size();
+            my_size += 2 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        for value in &self.web_technologies {
+            let len = value.compute_size();
+            my_size += 2 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        if !self.filename.is_empty() {
+            my_size += ::protobuf::rt::string_size(49, &self.filename);
+        }
+        for value in &self.tls {
+            let len = value.compute_size();
+            my_size += 2 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        if !self.dom_sha256.is_empty() {
+            my_size += ::protobuf::rt::string_size(51, &self.dom_sha256);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
@@ -2599,6 +3740,36 @@ impl ::protobuf::Message for EnrichedURL {
         if let Some(v) = self.gti_assessment.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(39, v, os)?;
         }
+        for v in &self.resources {
+            ::protobuf::rt::write_message_field_with_cached_size(40, v, os)?;
+        };
+        for v in &self.cookies_extended {
+            ::protobuf::rt::write_message_field_with_cached_size(45, v, os)?;
+        };
+        for (k, v) in &self.javascript_variables {
+            let mut entry_size = 0;
+            entry_size += ::protobuf::rt::string_size(1, &k);
+            entry_size += ::protobuf::rt::string_size(2, &v);
+            os.write_raw_varint32(370)?; // Tag.
+            os.write_raw_varint32(entry_size as u32)?;
+            os.write_string(1, &k)?;
+            os.write_string(2, &v)?;
+        };
+        for v in &self.console_messages {
+            ::protobuf::rt::write_message_field_with_cached_size(47, v, os)?;
+        };
+        for v in &self.web_technologies {
+            ::protobuf::rt::write_message_field_with_cached_size(48, v, os)?;
+        };
+        if !self.filename.is_empty() {
+            os.write_string(49, &self.filename)?;
+        }
+        for v in &self.tls {
+            ::protobuf::rt::write_message_field_with_cached_size(50, v, os)?;
+        };
+        if !self.dom_sha256.is_empty() {
+            os.write_string(51, &self.dom_sha256)?;
+        }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -2643,6 +3814,14 @@ impl ::protobuf::Message for EnrichedURL {
         self.embedded_resources.clear();
         self.categories.clear();
         self.gti_assessment.clear();
+        self.resources.clear();
+        self.cookies_extended.clear();
+        self.javascript_variables.clear();
+        self.console_messages.clear();
+        self.web_technologies.clear();
+        self.filename.clear();
+        self.tls.clear();
+        self.dom_sha256.clear();
         self.special_fields.clear();
     }
 
@@ -3955,179 +5134,223 @@ impl ::protobuf::reflect::ProtobufValue for EnrichedNetloc {
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n\x0evt/vtnet.proto\x12\x06vt.net\x1a\x11vt/analysis.proto\x1a\x12vt/fi\
     letypes.proto\x1a\x1avt/hunting_gti_score.proto\x1a\x10vt/sandbox.proto\
-    \x1a\x12vt/submitter.proto\x1a\nyara.proto\"\xcb\x01\n\x07Subject\x12\
-    \x1f\n\x0bcommon_name\x18\x01\x20\x01(\tR\ncommonName\x12\x18\n\x07count\
-    ry\x18\x02\x20\x01(\tR\x07country\x12\"\n\x0corganization\x18\x03\x20\
-    \x01(\tR\x0corganization\x12/\n\x13organizational_unit\x18\x04\x20\x01(\
-    \tR\x12organizationalUnit\x12\x1a\n\x08locality\x18\x05\x20\x01(\tR\x08l\
-    ocality\x12\x14\n\x05state\x18\x06\x20\x01(\tR\x05state\"F\n\x08Validity\
-    \x12\x1b\n\tnot_after\x18\x01\x20\x01(\x03R\x08notAfter\x12\x1d\n\nnot_b\
-    efore\x18\x02\x20\x01(\x03R\tnotBefore\"\xaf\x02\n\x0eSSLCertificate\x12\
-    \x1e\n\nthumbprint\x18\x01\x20\x01(\tR\nthumbprint\x12)\n\x07subject\x18\
-    \x02\x20\x01(\x0b2\x0f.vt.net.SubjectR\x07subject\x12,\n\x08validity\x18\
-    \x03\x20\x01(\x0b2\x10.vt.net.ValidityR\x08validity\x128\n\x18subject_al\
-    ternative_name\x18\x04\x20\x03(\tR\x16subjectAlternativeName\x12\x1c\n\t\
-    signature\x18\x05\x20\x01(\tR\tsignature\x12#\n\rserial_number\x18\x06\
-    \x20\x01(\tR\x0cserialNumber\x12'\n\x06issuer\x18\x07\x20\x01(\x0b2\x0f.\
-    vt.net.SubjectR\x06issuer\"?\n\x07Tracker\x12\x12\n\x04name\x18\x01\x20\
-    \x01(\tR\x04name\x12\x0e\n\x02id\x18\x02\x20\x01(\tR\x02id\x12\x10\n\x03\
-    url\x18\x03\x20\x01(\tR\x03url\"\xa6\x02\n\tDNSRecord\x12\x12\n\x04type\
-    \x18\x02\x20\x01(\tR\x04type\x12\x1b\n\tdns_class\x18\x03\x20\x01(\tR\
-    \x08dnsClass\x12\x10\n\x03ttl\x18\x04\x20\x01(\x03R\x03ttl\x12\x14\n\x05\
-    mname\x18\x05\x20\x01(\tR\x05mname\x12\x14\n\x05rname\x18\x06\x20\x01(\t\
-    R\x05rname\x12\x1a\n\x08priority\x18\x07\x20\x01(\x03R\x08priority\x12\
-    \x16\n\x06serial\x18\x08\x20\x01(\x03R\x06serial\x12\x14\n\x05retry\x18\
-    \t\x20\x01(\x03R\x05retry\x12\x18\n\x07refresh\x18\n\x20\x01(\x03R\x07re\
-    fresh\x12\x16\n\x06expire\x18\x0b\x20\x01(\x03R\x06expire\x12\x18\n\x07m\
-    inimum\x18\x0c\x20\x01(\x03R\x07minimum\x12\x14\n\x05value\x18\r\x20\x01\
-    (\tR\x05value\"@\n\x07Favicon\x12\x1f\n\x07raw_md5\x18\x01\x20\x01(\tR\
-    \x06rawMd5B\x06\x82\x93\x19\x02\x20\x01\x12\x14\n\x05dhash\x18\x02\x20\
-    \x01(\tR\x05dhash\"4\n\x08KeyValue\x12\x10\n\x03key\x18\x01\x20\x01(\tR\
-    \x03key\x12\x16\n\x06values\x18\x02\x20\x03(\tR\x06values\"\xb0\x03\n\
-    \x0cFileMetadata\x12\x1e\n\x06sha256\x18\x01\x20\x01(\tR\x06sha256B\x06\
-    \x82\x93\x19\x02\x20\x01\x12\x1c\n\nnew_for_vt\x18\x03\x20\x01(\x08R\x08\
-    newForVt\x12A\n\x0eanalysis_stats\x18\x05\x20\x01(\x0b2\x1a.vt.analysis.\
-    AnalysisStatsR\ranalysisStats\x126\n\tfile_type\x18\x06\x20\x01(\x0e2\
-    \x19.vt.fileanalysis.FileTypeR\x08fileType\x12\x1e\n\x0bnew_for_url\x18\
-    \x07\x20\x01(\x08R\tnewForUrl\x12\x1c\n\nnew_for_ip\x18\x08\x20\x01(\x08\
-    R\x08newForIp\x12$\n\x0enew_for_domain\x18\t\x20\x01(\x08R\x0cnewForDoma\
-    in\x12D\n\nsignatures\x18\n\x20\x03(\x0b2$.vt.net.FileMetadata.Signature\
-    sEntryR\nsignatures\x1a=\n\x0fSignaturesEntry\x12\x10\n\x03key\x18\x01\
-    \x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x02\
-    8\x01\"\xde\x02\n\x14ResourceFileMetadata\x12\x1e\n\x06sha256\x18\x01\
-    \x20\x01(\tR\x06sha256B\x06\x82\x93\x19\x02\x20\x01\x12A\n\x0eanalysis_s\
-    tats\x18\x02\x20\x01(\x0b2\x1a.vt.analysis.AnalysisStatsR\ranalysisStats\
-    \x126\n\tfile_type\x18\x03\x20\x01(\x0e2\x19.vt.fileanalysis.FileTypeR\
-    \x08fileType\x12\x1e\n\x0bnew_for_url\x18\x04\x20\x01(\x08R\tnewForUrl\
-    \x12L\n\nsignatures\x18\x05\x20\x03(\x0b2,.vt.net.ResourceFileMetadata.S\
-    ignaturesEntryR\nsignatures\x1a=\n\x0fSignaturesEntry\x12\x10\n\x03key\
-    \x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05va\
-    lue:\x028\x01\"g\n\x0ePopularityRank\x12\x1a\n\x08position\x18\x01\x20\
-    \x01(\x03R\x08position\x12%\n\x0eingestion_time\x18\x02\x20\x01(\x03R\ri\
-    ngestionTime\x12\x12\n\x04rank\x18\x03\x20\x01(\tR\x04rank\"\xc4\r\n\x0b\
-    EnrichedURL\x12\x12\n\x04port\x18\x03\x20\x01(\x03R\x04port\x12+\n\x08tr\
-    ackers\x18\x04\x20\x03(\x0b2\x0f.vt.net.TrackerR\x08trackers\x12S\n\x10r\
-    esponse_headers\x18\x05\x20\x03(\x0b2(.vt.net.EnrichedURL.ResponseHeader\
-    sEntryR\x0fresponseHeaders\x12;\n\x1anumber_of_response_headers\x18!\x20\
-    \x01(\x03R\x17numberOfResponseHeaders\x12#\n\rresponse_code\x18\x06\x20\
-    \x01(\x03R\x0cresponseCode\x12:\n\x07cookies\x18\x07\x20\x03(\x0b2\x20.v\
-    t.net.EnrichedURL.CookiesEntryR\x07cookies\x12)\n\x07favicon\x18\x08\x20\
-    \x01(\x0b2\x0f.vt.net.FaviconR\x07favicon\x12%\n\x0eoutgoing_links\x18\t\
-    \x20\x03(\tR\routgoingLinks\x12\x1c\n\tredirects\x18\n\x20\x03(\tR\tredi\
-    rects\x12\x1d\n\nhtml_title\x18\x0b\x20\x01(\tR\thtmlTitle\x126\n\x0ehtm\
-    l_meta_tags\x18\x0c\x20\x03(\x0b2\x10.vt.net.KeyValueR\x0chtmlMetaTags\
-    \x12\x17\n\x07new_url\x18\x11\x20\x01(\x08R\x06newUrl\x12A\n\x0eanalysis\
-    _stats\x18\x12\x20\x01(\x0b2\x1a.vt.analysis.AnalysisStatsR\ranalysisSta\
-    ts\x122\n\x15first_submission_date\x18\x13\x20\x01(\x03R\x13firstSubmiss\
-    ionDate\x12C\n\nsignatures\x18\x14\x20\x03(\x0b2#.vt.net.EnrichedURL.Sig\
-    naturesEntryR\nsignatures\x125\n\tsubmitter\x18\x15\x20\x01(\x0b2\x17.vt\
-    .submitter.SubmitterR\tsubmitter\x12\x12\n\x04tags\x18\x18\x20\x03(\tR\
-    \x04tags\x12\x14\n\x05query\x18\"\x20\x01(\tR\x05query\x127\n\x06params\
-    \x18\x19\x20\x03(\x0b2\x1f.vt.net.EnrichedURL.ParamsEntryR\x06params\x12\
-    \x12\n\x04path\x18\x1a\x20\x01(\tR\x04path\x12\x1a\n\x08hostname\x18\x1b\
-    \x20\x01(\tR\x08hostname\x12\x10\n\x03raw\x18\x1c\x20\x01(\tR\x03raw\x12\
-    =\n\x0fdownloaded_file\x18\x1d\x20\x01(\x0b2\x14.vt.net.FileMetadataR\
-    \x0edownloadedFile\x12C\n\x12communicating_file\x18\x1e\x20\x01(\x0b2\
-    \x14.vt.net.FileMetadataR\x11communicatingFile\x12K\n\x12embedded_resour\
-    ces\x18\x1f\x20\x03(\x0b2\x1c.vt.net.ResourceFileMetadataR\x11embeddedRe\
-    sources\x12C\n\ncategories\x18#\x20\x03(\x0b2#.vt.net.EnrichedURL.Catego\
-    riesEntryR\ncategories\x12\xae\x01\n\x0egti_assessment\x18'\x20\x01(\x0b\
-    2%.vt.hunting_gti_score.HuntingGtiScoreR\rgtiAssessmentB`\x82\x93\x19\\\
-    \x1aZ\n(unknown\x20field\x20or\x20method\x20`gti_assessment`\x12\"this\
-    \x20field\x20or\x20method\x20doesn't\x20exist\x1a\x03gti\x1a\x05staff\
-    \x1aB\n\x14ResponseHeadersEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03\
-    key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x028\x01\x1a:\n\x0c\
-    CookiesEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05va\
-    lue\x18\x02\x20\x01(\tR\x05value:\x028\x01\x1a=\n\x0fSignaturesEntry\x12\
+    \x1a\x12vt/submitter.proto\x1a\x14vt/urlheadless.proto\x1a\nyara.proto\"\
+    \xc0\x02\n\x07Subject\x12\x1f\n\x0bcommon_name\x18\x01\x20\x01(\tR\ncomm\
+    onName\x12\x18\n\x07country\x18\x02\x20\x01(\tR\x07country\x12\"\n\x0cor\
+    ganization\x18\x03\x20\x01(\tR\x0corganization\x12/\n\x13organizational_\
+    unit\x18\x04\x20\x01(\tR\x12organizationalUnit\x12\x1a\n\x08locality\x18\
+    \x05\x20\x01(\tR\x08locality\x12\x14\n\x05state\x18\x06\x20\x01(\tR\x05s\
+    tate\x12+\n\x11alternative_names\x18\x07\x20\x03(\tR\x10alternativeNames\
+    \x12%\n\x0estreet_address\x18\x08\x20\x01(\tR\rstreetAddress\x12\x1f\n\
+    \x0bpostal_code\x18\t\x20\x01(\tR\npostalCode\"F\n\x08Validity\x12\x1b\n\
+    \tnot_after\x18\x01\x20\x01(\x03R\x08notAfter\x12\x1d\n\nnot_before\x18\
+    \x02\x20\x01(\x03R\tnotBefore\"\xac\x03\n\x0eSSLCertificate\x12\x1e\n\nt\
+    humbprint\x18\x01\x20\x01(\tR\nthumbprint\x12)\n\x07subject\x18\x02\x20\
+    \x01(\x0b2\x0f.vt.net.SubjectR\x07subject\x12,\n\x08validity\x18\x03\x20\
+    \x01(\x0b2\x10.vt.net.ValidityR\x08validity\x128\n\x18subject_alternativ\
+    e_name\x18\x04\x20\x03(\tR\x16subjectAlternativeName\x12\x1c\n\tsignatur\
+    e\x18\x05\x20\x01(\tR\tsignature\x12#\n\rserial_number\x18\x06\x20\x01(\
+    \tR\x0cserialNumber\x12'\n\x06issuer\x18\x07\x20\x01(\x0b2\x0f.vt.net.Su\
+    bjectR\x06issuer\x12\x12\n\x04host\x18\x08\x20\x01(\tR\x04host\x12\x18\n\
+    \x07version\x18\t\x20\x01(\tR\x07version\x12\x1c\n\talgorithm\x18\n\x20\
+    \x01(\tR\talgorithm\x12/\n\x13signature_algorithm\x18\x0b\x20\x01(\tR\
+    \x12signatureAlgorithm\"?\n\x07Tracker\x12\x12\n\x04name\x18\x01\x20\x01\
+    (\tR\x04name\x12\x0e\n\x02id\x18\x02\x20\x01(\tR\x02id\x12\x10\n\x03url\
+    \x18\x03\x20\x01(\tR\x03url\"\xa6\x02\n\tDNSRecord\x12\x12\n\x04type\x18\
+    \x02\x20\x01(\tR\x04type\x12\x1b\n\tdns_class\x18\x03\x20\x01(\tR\x08dns\
+    Class\x12\x10\n\x03ttl\x18\x04\x20\x01(\x03R\x03ttl\x12\x14\n\x05mname\
+    \x18\x05\x20\x01(\tR\x05mname\x12\x14\n\x05rname\x18\x06\x20\x01(\tR\x05\
+    rname\x12\x1a\n\x08priority\x18\x07\x20\x01(\x03R\x08priority\x12\x16\n\
+    \x06serial\x18\x08\x20\x01(\x03R\x06serial\x12\x14\n\x05retry\x18\t\x20\
+    \x01(\x03R\x05retry\x12\x18\n\x07refresh\x18\n\x20\x01(\x03R\x07refresh\
+    \x12\x16\n\x06expire\x18\x0b\x20\x01(\x03R\x06expire\x12\x18\n\x07minimu\
+    m\x18\x0c\x20\x01(\x03R\x07minimum\x12\x14\n\x05value\x18\r\x20\x01(\tR\
+    \x05value\"@\n\x07Favicon\x12\x1f\n\x07raw_md5\x18\x01\x20\x01(\tR\x06ra\
+    wMd5B\x06\x82\x93\x19\x02\x20\x01\x12\x14\n\x05dhash\x18\x02\x20\x01(\tR\
+    \x05dhash\"4\n\x08KeyValue\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\
+    \x12\x16\n\x06values\x18\x02\x20\x03(\tR\x06values\"\xb0\x03\n\x0cFileMe\
+    tadata\x12\x1e\n\x06sha256\x18\x01\x20\x01(\tR\x06sha256B\x06\x82\x93\
+    \x19\x02\x20\x01\x12\x1c\n\nnew_for_vt\x18\x03\x20\x01(\x08R\x08newForVt\
+    \x12A\n\x0eanalysis_stats\x18\x05\x20\x01(\x0b2\x1a.vt.analysis.Analysis\
+    StatsR\ranalysisStats\x126\n\tfile_type\x18\x06\x20\x01(\x0e2\x19.vt.fil\
+    eanalysis.FileTypeR\x08fileType\x12\x1e\n\x0bnew_for_url\x18\x07\x20\x01\
+    (\x08R\tnewForUrl\x12\x1c\n\nnew_for_ip\x18\x08\x20\x01(\x08R\x08newForI\
+    p\x12$\n\x0enew_for_domain\x18\t\x20\x01(\x08R\x0cnewForDomain\x12D\n\ns\
+    ignatures\x18\n\x20\x03(\x0b2$.vt.net.FileMetadata.SignaturesEntryR\nsig\
+    natures\x1a=\n\x0fSignaturesEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\
+    \x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x028\x01\"\xde\
+    \x02\n\x14ResourceFileMetadata\x12\x1e\n\x06sha256\x18\x01\x20\x01(\tR\
+    \x06sha256B\x06\x82\x93\x19\x02\x20\x01\x12A\n\x0eanalysis_stats\x18\x02\
+    \x20\x01(\x0b2\x1a.vt.analysis.AnalysisStatsR\ranalysisStats\x126\n\tfil\
+    e_type\x18\x03\x20\x01(\x0e2\x19.vt.fileanalysis.FileTypeR\x08fileType\
+    \x12\x1e\n\x0bnew_for_url\x18\x04\x20\x01(\x08R\tnewForUrl\x12L\n\nsigna\
+    tures\x18\x05\x20\x03(\x0b2,.vt.net.ResourceFileMetadata.SignaturesEntry\
+    R\nsignatures\x1a=\n\x0fSignaturesEntry\x12\x10\n\x03key\x18\x01\x20\x01\
+    (\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x028\x01\"g\
+    \n\x0ePopularityRank\x12\x1a\n\x08position\x18\x01\x20\x01(\x03R\x08posi\
+    tion\x12%\n\x0eingestion_time\x18\x02\x20\x01(\x03R\ringestionTime\x12\
+    \x12\n\x04rank\x18\x03\x20\x01(\tR\x04rank\"\x94\x05\n\x0bURLResource\
+    \x12\x10\n\x03url\x18\x01\x20\x01(\tR\x03url\x12G\n\x06method\x18\x02\
+    \x20\x01(\x0e2/.vt.fileanalysis.HttpConversation.RequestMethodR\x06metho\
+    d\x12\x1e\n\x06sha256\x18\x03\x20\x01(\tR\x06sha256B\x06\x82\x93\x19\x02\
+    \x20\x01\x12#\n\rresponse_code\x18\x04\x20\x01(\x05R\x0cresponseCode\x12\
+    5\n\tremote_ip\x18\x05\x20\x01(\tR\x08remoteIpB\x18\x82\x93\x19\x14\n\
+    \x12serving_ip_address\x12(\n\x04size\x18\x06\x20\x01(\x05R\x04sizeB\x14\
+    \x82\x93\x19\x10\n\x0econtent_length\x12\x1f\n\x0breverse_dns\x18\x07\
+    \x20\x01(\tR\nreverseDns\x12-\n\x04type\x18\x08\x20\x01(\x0e2\x19.vt.fil\
+    eanalysis.FileTypeR\x04type\x12F\n\x0cbrowser_type\x18\t\x20\x01(\x0e2#.\
+    vt.urlheadless.BrowserResourceTypeR\x0bbrowserType\x12S\n\x10response_he\
+    aders\x18\n\x20\x03(\x0b2(.vt.net.URLResource.ResponseHeadersEntryR\x0fr\
+    esponseHeaders\x125\n\tnet_error\x18\x0b\x20\x01(\x0e2\x18.vt.urlheadles\
+    s.NetErrorR\x08netError\x12\x1c\n\tredirects\x18\x0c\x20\x03(\tR\tredire\
+    cts\x1aB\n\x14ResponseHeadersEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\
+    \x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x028\x01\"\x92\
+    \x02\n\x0eExtendedCookie\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\
+    \x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value\x12\x16\n\x06domain\x18\
+    \x03\x20\x01(\tR\x06domain\x12\x18\n\x07expires\x18\x04\x20\x01(\x03R\
+    \x07expires\x12\x16\n\x06secure\x18\x05\x20\x01(\x08R\x06secure\x12\x1b\
+    \n\thttp_only\x18\x06\x20\x01(\x08R\x08httpOnly\x12\x18\n\x07session\x18\
+    \x07\x20\x01(\x08R\x07session\x12\x12\n\x04size\x18\x08\x20\x01(\x05R\
+    \x04size\x12A\n\x08priority\x18\t\x20\x01(\x0e2%.vt.urlheadless.Cookie.C\
+    ookiePriorityR\x08priority\"\x8a\x01\n\x0eConsoleMessage\x12\x18\n\x07co\
+    ntent\x18\x01\x20\x01(\tR\x07content\x12\x1f\n\x0bsource_file\x18\x02\
+    \x20\x01(\tR\nsourceFile\x12=\n\x05level\x18\x03\x20\x01(\x0e2'.vt.urlhe\
+    adless.ConsoleMessage.LogLevelR\x05level\"=\n\rWebTechnology\x12\x12\n\
+    \x04name\x18\x01\x20\x01(\tR\x04name\x12\x18\n\x07version\x18\x02\x20\
+    \x01(\tR\x07version\"\xcd\x11\n\x0bEnrichedURL\x12\x12\n\x04port\x18\x03\
+    \x20\x01(\x03R\x04port\x12+\n\x08trackers\x18\x04\x20\x03(\x0b2\x0f.vt.n\
+    et.TrackerR\x08trackers\x12S\n\x10response_headers\x18\x05\x20\x03(\x0b2\
+    (.vt.net.EnrichedURL.ResponseHeadersEntryR\x0fresponseHeaders\x12;\n\x1a\
+    number_of_response_headers\x18!\x20\x01(\x03R\x17numberOfResponseHeaders\
+    \x12#\n\rresponse_code\x18\x06\x20\x01(\x03R\x0cresponseCode\x12:\n\x07c\
+    ookies\x18\x07\x20\x03(\x0b2\x20.vt.net.EnrichedURL.CookiesEntryR\x07coo\
+    kies\x12)\n\x07favicon\x18\x08\x20\x01(\x0b2\x0f.vt.net.FaviconR\x07favi\
+    con\x12%\n\x0eoutgoing_links\x18\t\x20\x03(\tR\routgoingLinks\x12\x1c\n\
+    \tredirects\x18\n\x20\x03(\tR\tredirects\x12\x1d\n\nhtml_title\x18\x0b\
+    \x20\x01(\tR\thtmlTitle\x126\n\x0ehtml_meta_tags\x18\x0c\x20\x03(\x0b2\
+    \x10.vt.net.KeyValueR\x0chtmlMetaTags\x12\x17\n\x07new_url\x18\x11\x20\
+    \x01(\x08R\x06newUrl\x12A\n\x0eanalysis_stats\x18\x12\x20\x01(\x0b2\x1a.\
+    vt.analysis.AnalysisStatsR\ranalysisStats\x122\n\x15first_submission_dat\
+    e\x18\x13\x20\x01(\x03R\x13firstSubmissionDate\x12C\n\nsignatures\x18\
+    \x14\x20\x03(\x0b2#.vt.net.EnrichedURL.SignaturesEntryR\nsignatures\x125\
+    \n\tsubmitter\x18\x15\x20\x01(\x0b2\x17.vt.submitter.SubmitterR\tsubmitt\
+    er\x12\x12\n\x04tags\x18\x18\x20\x03(\tR\x04tags\x12\x14\n\x05query\x18\
+    \"\x20\x01(\tR\x05query\x127\n\x06params\x18\x19\x20\x03(\x0b2\x1f.vt.ne\
+    t.EnrichedURL.ParamsEntryR\x06params\x12\x12\n\x04path\x18\x1a\x20\x01(\
+    \tR\x04path\x12\x1a\n\x08hostname\x18\x1b\x20\x01(\tR\x08hostname\x12\
+    \x10\n\x03raw\x18\x1c\x20\x01(\tR\x03raw\x12=\n\x0fdownloaded_file\x18\
+    \x1d\x20\x01(\x0b2\x14.vt.net.FileMetadataR\x0edownloadedFile\x12C\n\x12\
+    communicating_file\x18\x1e\x20\x01(\x0b2\x14.vt.net.FileMetadataR\x11com\
+    municatingFile\x12K\n\x12embedded_resources\x18\x1f\x20\x03(\x0b2\x1c.vt\
+    .net.ResourceFileMetadataR\x11embeddedResources\x12C\n\ncategories\x18#\
+    \x20\x03(\x0b2#.vt.net.EnrichedURL.CategoriesEntryR\ncategories\x12\xae\
+    \x01\n\x0egti_assessment\x18'\x20\x01(\x0b2%.vt.hunting_gti_score.Huntin\
+    gGtiScoreR\rgtiAssessmentB`\x82\x93\x19\\\x1aZ\n(unknown\x20field\x20or\
+    \x20method\x20`gti_assessment`\x12\"this\x20field\x20or\x20method\x20doe\
+    sn't\x20exist\x1a\x03gti\x1a\x05staff\x121\n\tresources\x18(\x20\x03(\
+    \x0b2\x13.vt.net.URLResourceR\tresources\x12A\n\x10cookies_extended\x18-\
+    \x20\x03(\x0b2\x16.vt.net.ExtendedCookieR\x0fcookiesExtended\x12_\n\x14j\
+    avascript_variables\x18.\x20\x03(\x0b2,.vt.net.EnrichedURL.JavascriptVar\
+    iablesEntryR\x13javascriptVariables\x12A\n\x10console_messages\x18/\x20\
+    \x03(\x0b2\x16.vt.net.ConsoleMessageR\x0fconsoleMessages\x12@\n\x10web_t\
+    echnologies\x180\x20\x03(\x0b2\x15.vt.net.WebTechnologyR\x0fwebTechnolog\
+    ies\x12\x1a\n\x08filename\x181\x20\x01(\tR\x08filename\x12(\n\x03tls\x18\
+    2\x20\x03(\x0b2\x16.vt.net.SSLCertificateR\x03tls\x12\x1d\n\ndom_sha256\
+    \x183\x20\x01(\tR\tdomSha256\x1aB\n\x14ResponseHeadersEntry\x12\x10\n\
+    \x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\t\
+    R\x05value:\x028\x01\x1a:\n\x0cCookiesEntry\x12\x10\n\x03key\x18\x01\x20\
+    \x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x028\
+    \x01\x1a=\n\x0fSignaturesEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03k\
+    ey\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x028\x01\x1a9\n\x0bP\
+    aramsEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05valu\
+    e\x18\x02\x20\x01(\tR\x05value:\x028\x01\x1a=\n\x0fCategoriesEntry\x12\
     \x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\
-    \x01(\tR\x05value:\x028\x01\x1a9\n\x0bParamsEntry\x12\x10\n\x03key\x18\
-    \x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\
-    \x028\x01\x1a=\n\x0fCategoriesEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\
-    \x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x028\x01:\t\x8a\
-    \x93\x19\x05\n\x03URL\"\xf1\t\n\nEnrichedIP\x123\n\x05whois\x18\x03\x20\
-    \x03(\x0b2\x1d.vt.net.EnrichedIP.WhoisEntryR\x05whois\x12\x1b\n\twhois_r\
-    aw\x18\x16\x20\x01(\tR\x08whoisRaw\x12C\n\x11https_certificate\x18\x04\
-    \x20\x01(\x0b2\x16.vt.net.SSLCertificateR\x10httpsCertificate\x12\x12\n\
-    \x04jarm\x18\x05\x20\x01(\tR\x04jarm\x12\x1e\n\x0bip_as_owner\x18\x06\
-    \x20\x01(\tR\tipAsOwner\x12\x15\n\x06ip_asn\x18\x07\x20\x01(\x03R\x05ipA\
-    sn\x12\x1d\n\nip_country\x18\x08\x20\x01(\tR\tipCountry\x12A\n\x0eanalys\
-    is_stats\x18\r\x20\x01(\x0b2\x1a.vt.analysis.AnalysisStatsR\ranalysisSta\
-    ts\x12B\n\nsignatures\x18\x0e\x20\x03(\x0b2\".vt.net.EnrichedIP.Signatur\
-    esEntryR\nsignatures\x12\x12\n\x04tags\x18\x11\x20\x03(\tR\x04tags\x12\
-    \x10\n\x03raw\x18\x12\x20\x01(\tR\x03raw\x12=\n\x0fdownloaded_file\x18\
-    \x13\x20\x01(\x0b2\x14.vt.net.FileMetadataR\x0edownloadedFile\x12C\n\x12\
-    communicating_file\x18\x14\x20\x01(\x0b2\x14.vt.net.FileMetadataR\x11com\
-    municatingFile\x12\x1a\n\tip_as_int\x18\x17\x20\x01(\x03R\x07ipAsInt\x12\
-    \x9e\x01\n\x0bfirst_whois\x18\x18\x20\x01(\x08R\nfirstWhoisB}\x82\x93\
-    \x19y\x1aw\nCvt.net.ip.first_whois\x20is\x20supported\x20in\x20rulesets\
-    \x20matching\x20against\x20IPs\x12$this\x20field\x20is\x20supported\x20f\
-    or\x20IPs\x20only\x1a\nip_address\x12\x98\x01\n\tnew_whois\x18\x19\x20\
-    \x01(\x08R\x08newWhoisB{\x82\x93\x19w\x1au\nAvt.net.ip.new_whois\x20is\
+    \x01(\tR\x05value:\x028\x01\x1aF\n\x18JavascriptVariablesEntry\x12\x10\n\
+    \x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\t\
+    R\x05value:\x028\x01:\t\x8a\x93\x19\x05\n\x03URL\"\xf1\t\n\nEnrichedIP\
+    \x123\n\x05whois\x18\x03\x20\x03(\x0b2\x1d.vt.net.EnrichedIP.WhoisEntryR\
+    \x05whois\x12\x1b\n\twhois_raw\x18\x16\x20\x01(\tR\x08whoisRaw\x12C\n\
+    \x11https_certificate\x18\x04\x20\x01(\x0b2\x16.vt.net.SSLCertificateR\
+    \x10httpsCertificate\x12\x12\n\x04jarm\x18\x05\x20\x01(\tR\x04jarm\x12\
+    \x1e\n\x0bip_as_owner\x18\x06\x20\x01(\tR\tipAsOwner\x12\x15\n\x06ip_asn\
+    \x18\x07\x20\x01(\x03R\x05ipAsn\x12\x1d\n\nip_country\x18\x08\x20\x01(\t\
+    R\tipCountry\x12A\n\x0eanalysis_stats\x18\r\x20\x01(\x0b2\x1a.vt.analysi\
+    s.AnalysisStatsR\ranalysisStats\x12B\n\nsignatures\x18\x0e\x20\x03(\x0b2\
+    \".vt.net.EnrichedIP.SignaturesEntryR\nsignatures\x12\x12\n\x04tags\x18\
+    \x11\x20\x03(\tR\x04tags\x12\x10\n\x03raw\x18\x12\x20\x01(\tR\x03raw\x12\
+    =\n\x0fdownloaded_file\x18\x13\x20\x01(\x0b2\x14.vt.net.FileMetadataR\
+    \x0edownloadedFile\x12C\n\x12communicating_file\x18\x14\x20\x01(\x0b2\
+    \x14.vt.net.FileMetadataR\x11communicatingFile\x12\x1a\n\tip_as_int\x18\
+    \x17\x20\x01(\x03R\x07ipAsInt\x12\x9e\x01\n\x0bfirst_whois\x18\x18\x20\
+    \x01(\x08R\nfirstWhoisB}\x82\x93\x19y\x1aw\nCvt.net.ip.first_whois\x20is\
     \x20supported\x20in\x20rulesets\x20matching\x20against\x20IPs\x12$this\
-    \x20field\x20is\x20supported\x20for\x20IPs\x20only\x1a\nip_address\x12%\
-    \n\x0ereverse_lookup\x18\x1a\x20\x01(\tR\rreverseLookup\x12\xae\x01\n\
-    \x0egti_assessment\x18\x1e\x20\x01(\x0b2%.vt.hunting_gti_score.HuntingGt\
-    iScoreR\rgtiAssessmentB`\x82\x93\x19\\\x1aZ\n(unknown\x20field\x20or\x20\
-    method\x20`gti_assessment`\x12\"this\x20field\x20or\x20method\x20doesn't\
-    \x20exist\x1a\x03gti\x1a\x05staff\x1a8\n\nWhoisEntry\x12\x10\n\x03key\
+    \x20field\x20is\x20supported\x20for\x20IPs\x20only\x1a\nip_address\x12\
+    \x98\x01\n\tnew_whois\x18\x19\x20\x01(\x08R\x08newWhoisB{\x82\x93\x19w\
+    \x1au\nAvt.net.ip.new_whois\x20is\x20supported\x20in\x20rulesets\x20matc\
+    hing\x20against\x20IPs\x12$this\x20field\x20is\x20supported\x20for\x20IP\
+    s\x20only\x1a\nip_address\x12%\n\x0ereverse_lookup\x18\x1a\x20\x01(\tR\r\
+    reverseLookup\x12\xae\x01\n\x0egti_assessment\x18\x1e\x20\x01(\x0b2%.vt.\
+    hunting_gti_score.HuntingGtiScoreR\rgtiAssessmentB`\x82\x93\x19\\\x1aZ\n\
+    (unknown\x20field\x20or\x20method\x20`gti_assessment`\x12\"this\x20field\
+    \x20or\x20method\x20doesn't\x20exist\x1a\x03gti\x1a\x05staff\x1a8\n\nWho\
+    isEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\
+    \x18\x02\x20\x01(\tR\x05value:\x028\x01\x1a=\n\x0fSignaturesEntry\x12\
+    \x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\
+    \x01(\tR\x05value:\x028\x01:\x08\x8a\x93\x19\x04\n\x02IP\"\xfb\x0c\n\x0e\
+    EnrichedDomain\x12\x10\n\x03raw\x18\x12\x20\x01(\tR\x03raw\x12\x12\n\x04\
+    root\x18\x1b\x20\x01(\tR\x04root\x127\n\x05whois\x18\x03\x20\x03(\x0b2!.\
+    vt.net.EnrichedDomain.WhoisEntryR\x05whois\x12\x1b\n\twhois_raw\x18\x1a\
+    \x20\x01(\tR\x08whoisRaw\x12C\n\x11https_certificate\x18\x04\x20\x01(\
+    \x0b2\x16.vt.net.SSLCertificateR\x10httpsCertificate\x12\x12\n\x04jarm\
+    \x18\x05\x20\x01(\tR\x04jarm\x122\n\x0bdns_records\x18\x06\x20\x03(\x0b2\
+    \x11.vt.net.DNSRecordR\ndnsRecords\x12)\n\x07favicon\x18\x07\x20\x01(\
+    \x0b2\x0f.vt.net.FaviconR\x07favicon\x12A\n\x0eanalysis_stats\x18\x0c\
+    \x20\x01(\x0b2\x1a.vt.analysis.AnalysisStatsR\ranalysisStats\x12F\n\nsig\
+    natures\x18\r\x20\x03(\x0b2&.vt.net.EnrichedDomain.SignaturesEntryR\nsig\
+    natures\x12\x1d\n\nnew_domain\x18\x10\x20\x01(\x08R\tnewDomain\x12\x12\n\
+    \x04tags\x18\x11\x20\x03(\tR\x04tags\x12=\n\x0fdownloaded_file\x18\x13\
+    \x20\x01(\x0b2\x14.vt.net.FileMetadataR\x0edownloadedFile\x12C\n\x12comm\
+    unicating_file\x18\x14\x20\x01(\x0b2\x14.vt.net.FileMetadataR\x11communi\
+    catingFile\x12\x1f\n\x0bfirst_whois\x18\x15\x20\x01(\x08R\nfirstWhois\
+    \x12\x1b\n\tnew_whois\x18\x16\x20\x01(\x08R\x08newWhois\x12)\n\x10first_\
+    resolution\x18\x17\x20\x01(\x08R\x0ffirstResolution\x12%\n\x0enew_resolu\
+    tion\x18\x18\x20\x01(\x08R\rnewResolution\x12F\n\ncategories\x18\x1c\x20\
+    \x03(\x0b2&.vt.net.EnrichedDomain.CategoriesEntryR\ncategories\x12A\n\
+    \x10popularity_ranks\x18\x1e\x20\x03(\x0b2\x16.vt.net.PopularityRankR\
+    \x0fpopularityRanks\x12;\n\x1anumber_of_popularity_ranks\x18\x1f\x20\x01\
+    (\x03R\x17numberOfPopularityRanks\x12J\n\x15root_popularity_ranks\x18\
+    \x20\x20\x03(\x0b2\x16.vt.net.PopularityRankR\x13rootPopularityRanks\x12\
+    D\n\x1fnumber_of_root_popularity_ranks\x18!\x20\x01(\x03R\x1bnumberOfRoo\
+    tPopularityRanks\x12\xae\x01\n\x0egti_assessment\x18%\x20\x01(\x0b2%.vt.\
+    hunting_gti_score.HuntingGtiScoreR\rgtiAssessmentB`\x82\x93\x19\\\x1aZ\n\
+    (unknown\x20field\x20or\x20method\x20`gti_assessment`\x12\"this\x20field\
+    \x20or\x20method\x20doesn't\x20exist\x1a\x03gti\x1a\x05staff\x1a8\n\nWho\
+    isEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\
+    \x18\x02\x20\x01(\tR\x05value:\x028\x01\x1a=\n\x0fSignaturesEntry\x12\
+    \x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\
+    \x01(\tR\x05value:\x028\x01\x1a=\n\x0fCategoriesEntry\x12\x10\n\x03key\
     \x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05va\
-    lue:\x028\x01\x1a=\n\x0fSignaturesEntry\x12\x10\n\x03key\x18\x01\x20\x01\
-    (\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x028\x01:\
-    \x08\x8a\x93\x19\x04\n\x02IP\"\xfb\x0c\n\x0eEnrichedDomain\x12\x10\n\x03\
-    raw\x18\x12\x20\x01(\tR\x03raw\x12\x12\n\x04root\x18\x1b\x20\x01(\tR\x04\
-    root\x127\n\x05whois\x18\x03\x20\x03(\x0b2!.vt.net.EnrichedDomain.WhoisE\
-    ntryR\x05whois\x12\x1b\n\twhois_raw\x18\x1a\x20\x01(\tR\x08whoisRaw\x12C\
-    \n\x11https_certificate\x18\x04\x20\x01(\x0b2\x16.vt.net.SSLCertificateR\
-    \x10httpsCertificate\x12\x12\n\x04jarm\x18\x05\x20\x01(\tR\x04jarm\x122\
-    \n\x0bdns_records\x18\x06\x20\x03(\x0b2\x11.vt.net.DNSRecordR\ndnsRecord\
-    s\x12)\n\x07favicon\x18\x07\x20\x01(\x0b2\x0f.vt.net.FaviconR\x07favicon\
-    \x12A\n\x0eanalysis_stats\x18\x0c\x20\x01(\x0b2\x1a.vt.analysis.Analysis\
-    StatsR\ranalysisStats\x12F\n\nsignatures\x18\r\x20\x03(\x0b2&.vt.net.Enr\
-    ichedDomain.SignaturesEntryR\nsignatures\x12\x1d\n\nnew_domain\x18\x10\
-    \x20\x01(\x08R\tnewDomain\x12\x12\n\x04tags\x18\x11\x20\x03(\tR\x04tags\
-    \x12=\n\x0fdownloaded_file\x18\x13\x20\x01(\x0b2\x14.vt.net.FileMetadata\
-    R\x0edownloadedFile\x12C\n\x12communicating_file\x18\x14\x20\x01(\x0b2\
-    \x14.vt.net.FileMetadataR\x11communicatingFile\x12\x1f\n\x0bfirst_whois\
-    \x18\x15\x20\x01(\x08R\nfirstWhois\x12\x1b\n\tnew_whois\x18\x16\x20\x01(\
-    \x08R\x08newWhois\x12)\n\x10first_resolution\x18\x17\x20\x01(\x08R\x0ffi\
-    rstResolution\x12%\n\x0enew_resolution\x18\x18\x20\x01(\x08R\rnewResolut\
-    ion\x12F\n\ncategories\x18\x1c\x20\x03(\x0b2&.vt.net.EnrichedDomain.Cate\
-    goriesEntryR\ncategories\x12A\n\x10popularity_ranks\x18\x1e\x20\x03(\x0b\
-    2\x16.vt.net.PopularityRankR\x0fpopularityRanks\x12;\n\x1anumber_of_popu\
-    larity_ranks\x18\x1f\x20\x01(\x03R\x17numberOfPopularityRanks\x12J\n\x15\
-    root_popularity_ranks\x18\x20\x20\x03(\x0b2\x16.vt.net.PopularityRankR\
-    \x13rootPopularityRanks\x12D\n\x1fnumber_of_root_popularity_ranks\x18!\
-    \x20\x01(\x03R\x1bnumberOfRootPopularityRanks\x12\xae\x01\n\x0egti_asses\
-    sment\x18%\x20\x01(\x0b2%.vt.hunting_gti_score.HuntingGtiScoreR\rgtiAsse\
-    ssmentB`\x82\x93\x19\\\x1aZ\n(unknown\x20field\x20or\x20method\x20`gti_a\
-    ssessment`\x12\"this\x20field\x20or\x20method\x20doesn't\x20exist\x1a\
-    \x03gti\x1a\x05staff\x1a8\n\nWhoisEntry\x12\x10\n\x03key\x18\x01\x20\x01\
-    (\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x028\x01\
-    \x1a=\n\x0fSignaturesEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\
-    \x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x028\x01\x1a=\n\x0fCat\
-    egoriesEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05va\
-    lue\x18\x02\x20\x01(\tR\x05value:\x028\x01\"\x91\x01\n\x0bPermutation\
-    \x12\x0f\n\x03ALL\x10\0\x1a\x06\x9a\x93\x19\x02\x08\x1f\x12\x10\n\x04TYP\
-    O\x10\x01\x1a\x06\x9a\x93\x19\x02\x08\x01\x12\x15\n\tHOMOGLYPH\x10\x02\
-    \x1a\x06\x9a\x93\x19\x02\x08\x02\x12\x17\n\x0bHYPHENATION\x10\x03\x1a\
-    \x06\x9a\x93\x19\x02\x08\x04\x12\x15\n\tSUBDOMAIN\x10\x04\x1a\x06\x9a\
-    \x93\x19\x02\x08\x08\x12\x18\n\x0cBITSQUATTING\x10\x05\x1a\x06\x9a\x93\
-    \x19\x02\x08\x10:\x0c\x8a\x93\x19\x08\n\x06Domain\"\xd8\x04\n\x0eEnriche\
-    dNetloc\x12\x9f\x01\n\x03url\x18\x01\x20\x01(\x0b2\x13.vt.net.EnrichedUR\
-    LR\x03urlBx\x82\x93\x19t\x1ar\n>vt.net.url\x20is\x20supported\x20only\
-    \x20in\x20rulesets\x20matching\x20against\x20URLs\x12%this\x20field\x20i\
-    s\x20supported\x20for\x20URLs\x20only\x1a\x03url\x1a\x04file\x12\xd3\x01\
-    \n\x02ip\x18\x02\x20\x01(\x0b2\x12.vt.net.EnrichedIPR\x02ipB\xae\x01\x82\
-    \x93\x19\xa9\x01\x1a\xa6\x01\nMvt.net.ip\x20is\x20supported\x20only\x20i\
-    n\x20rulesets\x20matching\x20against\x20URLs,\x20domains\x20or\x20IPs\
-    \x126this\x20field\x20is\x20supported\x20for\x20URLs,\x20domains\x20and\
-    \x20IPs\x20only\x1a\x03url\x1a\x06domain\x1a\nip_address\x1a\x04file\x12\
-    \xcd\x01\n\x06domain\x18\x03\x20\x01(\x0b2\x16.vt.net.EnrichedDomainR\
-    \x06domainB\x9c\x01\x82\x93\x19\x97\x01\x1a\x94\x01\nLvt.net.domain\x20i\
-    s\x20supported\x20only\x20in\x20rulesets\x20matching\x20against\x20URLs\
-    \x20or\x20domains\x121this\x20field\x20is\x20supported\x20for\x20URLs\
-    \x20and\x20domains\x20only\x1a\x03url\x1a\x06domain\x1a\x04fileb\x06prot\
-    o3\
+    lue:\x028\x01\"\x91\x01\n\x0bPermutation\x12\x0f\n\x03ALL\x10\0\x1a\x06\
+    \x9a\x93\x19\x02\x08\x1f\x12\x10\n\x04TYPO\x10\x01\x1a\x06\x9a\x93\x19\
+    \x02\x08\x01\x12\x15\n\tHOMOGLYPH\x10\x02\x1a\x06\x9a\x93\x19\x02\x08\
+    \x02\x12\x17\n\x0bHYPHENATION\x10\x03\x1a\x06\x9a\x93\x19\x02\x08\x04\
+    \x12\x15\n\tSUBDOMAIN\x10\x04\x1a\x06\x9a\x93\x19\x02\x08\x08\x12\x18\n\
+    \x0cBITSQUATTING\x10\x05\x1a\x06\x9a\x93\x19\x02\x08\x10:\x0c\x8a\x93\
+    \x19\x08\n\x06Domain\"\xd8\x04\n\x0eEnrichedNetloc\x12\x9f\x01\n\x03url\
+    \x18\x01\x20\x01(\x0b2\x13.vt.net.EnrichedURLR\x03urlBx\x82\x93\x19t\x1a\
+    r\n>vt.net.url\x20is\x20supported\x20only\x20in\x20rulesets\x20matching\
+    \x20against\x20URLs\x12%this\x20field\x20is\x20supported\x20for\x20URLs\
+    \x20only\x1a\x03url\x1a\x04file\x12\xd3\x01\n\x02ip\x18\x02\x20\x01(\x0b\
+    2\x12.vt.net.EnrichedIPR\x02ipB\xae\x01\x82\x93\x19\xa9\x01\x1a\xa6\x01\
+    \nMvt.net.ip\x20is\x20supported\x20only\x20in\x20rulesets\x20matching\
+    \x20against\x20URLs,\x20domains\x20or\x20IPs\x126this\x20field\x20is\x20\
+    supported\x20for\x20URLs,\x20domains\x20and\x20IPs\x20only\x1a\x03url\
+    \x1a\x06domain\x1a\nip_address\x1a\x04file\x12\xcd\x01\n\x06domain\x18\
+    \x03\x20\x01(\x0b2\x16.vt.net.EnrichedDomainR\x06domainB\x9c\x01\x82\x93\
+    \x19\x97\x01\x1a\x94\x01\nLvt.net.domain\x20is\x20supported\x20only\x20i\
+    n\x20rulesets\x20matching\x20against\x20URLs\x20or\x20domains\x121this\
+    \x20field\x20is\x20supported\x20for\x20URLs\x20and\x20domains\x20only\
+    \x1a\x03url\x1a\x06domain\x1a\x04fileb\x06proto3\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -4144,14 +5367,15 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
     static file_descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::FileDescriptor> = ::protobuf::rt::Lazy::new();
     file_descriptor.get(|| {
         let generated_file_descriptor = generated_file_descriptor_lazy.get(|| {
-            let mut deps = ::std::vec::Vec::with_capacity(6);
+            let mut deps = ::std::vec::Vec::with_capacity(7);
             deps.push(super::analysis::file_descriptor().clone());
             deps.push(super::filetypes::file_descriptor().clone());
             deps.push(super::hunting_gti_score::file_descriptor().clone());
             deps.push(super::sandbox::file_descriptor().clone());
             deps.push(super::submitter::file_descriptor().clone());
+            deps.push(super::urlheadless::file_descriptor().clone());
             deps.push(super::yara::file_descriptor().clone());
-            let mut messages = ::std::vec::Vec::with_capacity(14);
+            let mut messages = ::std::vec::Vec::with_capacity(18);
             messages.push(Subject::generated_message_descriptor_data());
             messages.push(Validity::generated_message_descriptor_data());
             messages.push(SSLCertificate::generated_message_descriptor_data());
@@ -4162,6 +5386,10 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             messages.push(FileMetadata::generated_message_descriptor_data());
             messages.push(ResourceFileMetadata::generated_message_descriptor_data());
             messages.push(PopularityRank::generated_message_descriptor_data());
+            messages.push(URLResource::generated_message_descriptor_data());
+            messages.push(ExtendedCookie::generated_message_descriptor_data());
+            messages.push(ConsoleMessage::generated_message_descriptor_data());
+            messages.push(WebTechnology::generated_message_descriptor_data());
             messages.push(EnrichedURL::generated_message_descriptor_data());
             messages.push(EnrichedIP::generated_message_descriptor_data());
             messages.push(EnrichedDomain::generated_message_descriptor_data());

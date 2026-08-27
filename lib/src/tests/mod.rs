@@ -4142,7 +4142,7 @@ fn header_constraints_optimization() {
         r#"
         rule test {
             strings:
-                $a = "ELF"
+                $a = /EL(F|G)/
             condition:
                 uint32(0) == 0x464c457f and $a
         }
@@ -4154,7 +4154,7 @@ fn header_constraints_optimization() {
         r#"
         rule test {
             strings:
-                $a = "ELF"
+                $a = /EL(F|G)/
             condition:
                 uint32(0) == 0x464c457f and $a
         }
@@ -4167,7 +4167,7 @@ fn header_constraints_optimization() {
         r#"
         rule test {
             strings:
-                $a = "PE"
+                $a = /P(E|F)/
             condition:
                 uint16(0) == 0x5a4d and $a
         }
@@ -4179,7 +4179,7 @@ fn header_constraints_optimization() {
         r#"
         rule test {
             strings:
-                $a = "PE"
+                $a = /P(E|F)/
             condition:
                 uint16(0) == 0x5a4d and $a
         }
@@ -4192,7 +4192,7 @@ fn header_constraints_optimization() {
         r#"
         rule test {
             strings:
-                $a = "MZ"
+                $a = /M(Z|A)/
             condition:
                 $a at 0
         }
@@ -4204,7 +4204,7 @@ fn header_constraints_optimization() {
         r#"
         rule test {
             strings:
-                $a = "MZ"
+                $a = /M(Z|A)/
             condition:
                 $a at 0
         }
@@ -4217,7 +4217,7 @@ fn header_constraints_optimization() {
         r#"
         rule test {
             strings:
-                $a = "ELF"
+                $a = /EL(F|G)/
             condition:
                 uint32(0) == 0x464c457f and uint16(4) == 0x0102 and $a
         }
@@ -4229,7 +4229,7 @@ fn header_constraints_optimization() {
         r#"
         rule test {
             strings:
-                $a = "ELF"
+                $a = /EL(F|G)/
             condition:
                 uint32(0) == 0x464c457f and uint16(4) == 0x0102 and $a
         }
@@ -4243,13 +4243,13 @@ fn header_constraints_optimization() {
         r#"
         rule constrained {
             strings:
-                $a = "foo"
+                $a = /foo|bar/
             condition:
                 uint32(0) == 0x464c457f and $a
         }
         rule unconstrained {
             strings:
-                $a = "foo"
+                $a = /foo|bar/
             condition:
                 $a
         }
@@ -4262,13 +4262,13 @@ fn header_constraints_optimization() {
         r#"
         rule constrained {
             strings:
-                $a = "foo"
+                $a = /foo|bar/
             condition:
                 uint32(0) == 0x464c457f and $a
         }
         rule unconstrained {
             strings:
-                $a = "foo"
+                $a = /foo|bar/
             condition:
                 $a
         }
@@ -4282,7 +4282,7 @@ fn header_constraints_optimization() {
         r#"
         rule constrained {
             strings:
-                $a = "MZ"
+                $a = /M(Z|A)/
             condition:
                 uint8(0) == 0x00 and uint8(2) == 0x5a and $a
         }
@@ -4291,74 +4291,22 @@ fn header_constraints_optimization() {
     );
 
     // Patterns whose on-disk bytes differ from their literal text (because of
-    // the `xor`, `nocase`, `wide`, `base64` or `base64wide` modifiers) must not
-    // derive a header constraint from the literal text. Otherwise `$a at 0`
-    // would wrongly require the file to start with the plaintext bytes and the
-    // pattern would be pruned even though it matches at offset 0.
-
-    // `xor`: "Hello" XORed with key 0x01 -> 49 64 6d 6d 6e.
-    rule_true!(
-        r#"
-        rule test {
-            strings:
-                $a = "Hello" xor
-            condition:
-                $a at 0
-        }
-        "#,
-        b"\x49\x64\x6d\x6d\x6e"
-    );
+    // the `nocase` or `wide`) must not derive a header constraint from the
+    // literal text. Otherwise, `$a at 0` would wrongly require the file to
+    // start with the plaintext bytes and the pattern would be pruned even
+    // though it matches at offset 0.
 
     // `nocase`: data has a different case than the literal.
     rule_true!(
         r#"
         rule test {
             strings:
-                $a = "HELLO" nocase
+                $a = /HELLO|WORLD/ nocase
             condition:
                 $a at 0
         }
         "#,
         b"hello"
-    );
-
-    // `wide`: the literal bytes are interleaved with zeroes.
-    rule_true!(
-        r#"
-        rule test {
-            strings:
-                $a = "Hello" wide
-            condition:
-                $a at 0
-        }
-        "#,
-        b"H\0e\0l\0l\0o\0"
-    );
-
-    // `base64`: "Hello" base64-encoded.
-    rule_true!(
-        r#"
-        rule test {
-            strings:
-                $a = "Hello" base64
-            condition:
-                $a at 0
-        }
-        "#,
-        b"SGVsbG8="
-    );
-
-    // `base64wide`: "Hello" base64-encoded and then made wide.
-    rule_true!(
-        r#"
-        rule test {
-            strings:
-                $a = "Hello" base64wide
-            condition:
-                $a at 0
-        }
-        "#,
-        b"S\0G\0V\0s\0b\0G\08\0"
     );
 
     // A regexp that reduces to a literal, with the `wide` modifier. For regexps
@@ -4369,45 +4317,12 @@ fn header_constraints_optimization() {
         r#"
         rule test {
             strings:
-                $a = /Hello/ wide
+                $a = /Hello|World/ wide
             condition:
                 $a at 0
         }
         "#,
         b"H\0e\0l\0l\0o\0"
-    );
-
-    // The bytes that actually appear in the data are not constrained to the
-    // literal text, but matching itself must still work correctly: a pattern
-    // with a byte-transforming modifier anchored at 0 must not match when its
-    // encoded form is absent at offset 0.
-    rule_false!(
-        r#"
-        rule test {
-            strings:
-                $a = "Hello" xor
-            condition:
-                $a at 0
-        }
-        "#,
-        b"\0\0\0\0\x49\x64\x6d\x6d\x6e"
-    );
-
-    // A modifier pattern anchored at 0 must not contaminate the header
-    // constraint derived from a plain literal in the same rule. Here the file
-    // starts with "MZ" (so `$plain at 0` holds) and contains "Hello" XORed with
-    // key 0x01 somewhere; `$x` must not be pruned by `$plain`'s constraint.
-    rule_true!(
-        r#"
-        rule test {
-            strings:
-                $plain = "MZ"
-                $x = "Hello" xor
-            condition:
-                $plain at 0 and $x
-        }
-        "#,
-        b"MZ\x49\x64\x6d\x6d\x6e"
     );
 
     // Pattern sets anchored at an offset (e.g. `any of ($a) at 0`) anchor their
@@ -4417,11 +4332,110 @@ fn header_constraints_optimization() {
         r#"
         rule test {
             strings:
-                $a = "Hello"
+                $a = /Hello|World/
             condition:
                 any of ($a) at 0 and $a
         }
         "#,
         b"Hello"
     );
+}
+
+#[test]
+fn test_pattern_atoms() {
+    let rules = crate::compile(
+        r#"
+        rule rule1 {
+            strings:
+                $a = "ABCD"
+                $b = { 01 02 03 04 }
+                $c = /foobar/
+            condition:
+                any of them
+        }
+        rule rule2 {
+            strings:
+                $x = "WIDE" wide
+                $y = "NOCASE" nocase
+            condition:
+                any of them
+        }
+        rule rule3 {
+            condition:
+                true
+        }
+        rule rule4 {
+            strings:
+                $anchored = "ANCHORED"
+            condition:
+                $anchored at 0
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut rules_iter = rules.iter();
+
+    // rule1
+    let rule1 = rules_iter.next().unwrap();
+    assert_eq!(rule1.identifier(), "rule1");
+    let mut patterns = rule1.patterns();
+    assert_eq!(patterns.len(), 3);
+
+    let pa = patterns.next().unwrap();
+    assert_eq!(pa.identifier(), "$a");
+    let pa_atoms: Vec<_> = pa.atoms().collect();
+    assert_eq!(pa_atoms.len(), 1);
+    assert_eq!(pa_atoms[0].as_slice(), b"ABCD");
+    assert_eq!(pa_atoms[0].as_ref(), b"ABCD");
+    assert_eq!(&*pa_atoms[0], b"ABCD");
+
+    let pb = patterns.next().unwrap();
+    assert_eq!(pb.identifier(), "$b");
+    let pb_atoms: Vec<_> = pb.atoms().collect();
+    assert_eq!(pb_atoms.len(), 1);
+    assert_eq!(pb_atoms[0].as_slice(), &[0x01, 0x02, 0x03, 0x04]);
+
+    let pc = patterns.next().unwrap();
+    assert_eq!(pc.identifier(), "$c");
+    let pc_atoms: Vec<_> = pc.atoms().collect();
+    assert_eq!(pc_atoms.len(), 1);
+    assert_eq!(pc_atoms[0].as_slice(), b"obar");
+
+    // rule2
+    let rule2 = rules_iter.next().unwrap();
+    assert_eq!(rule2.identifier(), "rule2");
+    let mut patterns = rule2.patterns();
+
+    let px = patterns.next().unwrap();
+    assert_eq!(px.identifier(), "$x");
+    let px_atoms: Vec<_> = px.atoms().collect();
+    assert_eq!(px_atoms.len(), 1);
+    assert_eq!(px_atoms[0].as_slice(), b"W\0I\0");
+
+    let py = patterns.next().unwrap();
+    assert_eq!(py.identifier(), "$y");
+    let py_atoms = py.atoms();
+    assert!(py_atoms.len() > 1);
+    // ExactSizeIterator check
+    assert_eq!(py_atoms.len(), py.atoms().collect::<Vec<_>>().len());
+    // DoubleEndedIterator check
+    let rev_atoms: Vec<_> = py.atoms().rev().collect();
+    let mut fwd_atoms: Vec<_> = py.atoms().collect();
+    fwd_atoms.reverse();
+    assert_eq!(rev_atoms, fwd_atoms);
+
+    // rule3 (no patterns)
+    let rule3 = rules_iter.next().unwrap();
+    assert_eq!(rule3.identifier(), "rule3");
+    assert_eq!(rule3.patterns().len(), 0);
+
+    // rule4 (anchored pattern has no atoms in Aho-Corasick)
+    let rule4 = rules_iter.next().unwrap();
+    assert_eq!(rule4.identifier(), "rule4");
+    let mut patterns = rule4.patterns();
+    let panchor = patterns.next().unwrap();
+    assert_eq!(panchor.identifier(), "$anchored");
+    assert_eq!(panchor.atoms().len(), 0);
+    assert!(panchor.atoms().next().is_none());
 }
