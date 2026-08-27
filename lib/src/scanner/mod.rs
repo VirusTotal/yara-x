@@ -105,6 +105,12 @@ static HEARTBEAT_COUNTER: AtomicU64 = AtomicU64::new(0);
 /// Used for spawning the thread that increments `HEARTBEAT_COUNTER`.
 static INIT_HEARTBEAT: Once = Once::new();
 
+#[cfg(target_os = "linux")]
+const MMAP_THRESHOLD: usize = 768 * 1024;
+
+#[cfg(not(target_os = "linux"))]
+const MMAP_THRESHOLD: usize = 500_000_001;
+
 /// Represents the data being scanned.
 ///
 /// The scanned data can be backed by a slice owned by someone else, or a
@@ -573,9 +579,7 @@ impl<'r> Scanner<'r> {
             size = std::cmp::min(size, max_scan_size);
         }
 
-        // For files smaller than ~500MB reading the whole file is faster than
-        // using a memory-mapped file.
-        let data = if self.use_mmap && size > 500_000_000 {
+        let data = if self.use_mmap && size >= MMAP_THRESHOLD {
             let mapped_file = unsafe {
                 MmapOptions::new().map_copy_read_only(&file).map_err(|err| {
                     ScanError::MapError { path: path.to_path_buf(), err }
