@@ -142,6 +142,10 @@ impl<'a> Walker<'a> {
         F: FnMut(&Path) -> anyhow::Result<()>,
         E: FnMut(anyhow::Error) -> anyhow::Result<()>,
     {
+        if self.file_list && self.path == Path::new("-") {
+            return self.walk_file_list(f, e);
+        }
+
         let metadata =
             match self.path.metadata().with_context(|| {
                 format!("can't open `{}`", self.path.display())
@@ -170,14 +174,32 @@ impl<'a> Walker<'a> {
         }
     }
 
-    fn walk_file_list<F, E>(self, mut f: F, mut e: E) -> anyhow::Result<()>
+    fn walk_file_list<F, E>(self, f: F, e: E) -> anyhow::Result<()>
     where
         F: FnMut(&Path) -> anyhow::Result<()>,
         E: FnMut(anyhow::Error) -> anyhow::Result<()>,
     {
-        let file = File::open(self.path)?;
+        if self.path == Path::new("-") {
+            let stdin = io::stdin();
+            self.walk_file_list_lines(stdin.lock().lines(), f, e)
+        } else {
+            let file = File::open(self.path)?;
+            self.walk_file_list_lines(io::BufReader::new(file).lines(), f, e)
+        }
+    }
 
-        for line in io::BufReader::new(file).lines() {
+    fn walk_file_list_lines<F, E, I>(
+        self,
+        lines: I,
+        mut f: F,
+        mut e: E,
+    ) -> anyhow::Result<()>
+    where
+        F: FnMut(&Path) -> anyhow::Result<()>,
+        E: FnMut(anyhow::Error) -> anyhow::Result<()>,
+        I: Iterator<Item = io::Result<String>>,
+    {
+        for line in lines {
             let path = PathBuf::from(line?);
             let metadata = match path
                 .metadata()
