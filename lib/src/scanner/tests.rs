@@ -979,6 +979,56 @@ fn max_scan_size() {
     );
 }
 
+#[test]
+fn cached_header_reads_preserve_integer_semantics_and_scanner_reuse() {
+    let rules = crate::compile(
+        r#"
+        rule little_endian {
+          condition:
+            uint16(0) == 0x0201 and uint32(2) == 0x06050403
+        }
+        rule big_endian {
+          condition:
+            uint16be(0) == 0x0102 and uint32be(2) == 0x03040506
+        }
+        rule cache_boundary {
+          condition:
+            uint32(124) == 0x04030201
+        }
+        rule outside_cache {
+          condition:
+            uint32(125) == 0x05040302
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut data = [0_u8; 129];
+    data[..6].copy_from_slice(&[1, 2, 3, 4, 5, 6]);
+    data[124..].copy_from_slice(&[1, 2, 3, 4, 5]);
+
+    let mut scanner = Scanner::new(&rules);
+    let matching_rules: Vec<_> = scanner
+        .scan(&data)
+        .unwrap()
+        .matching_rules()
+        .map(|rule| rule.identifier())
+        .collect();
+    assert_eq!(
+        matching_rules,
+        ["little_endian", "big_endian", "cache_boundary", "outside_cache"]
+    );
+
+    // A short scan after a long one must not observe bytes left in the cache.
+    let matching_rules: Vec<_> = scanner
+        .scan(&data[..2])
+        .unwrap()
+        .matching_rules()
+        .map(|rule| rule.identifier())
+        .collect();
+    assert!(matching_rules.is_empty());
+}
+
 #[cfg(feature = "test_proto2-module")]
 #[test]
 fn regex_set_optimization() {

@@ -614,6 +614,8 @@ impl<'r> Scanner<'r> {
         // Set the global variable `filesize` to the size of the scanned data.
         ctx.set_filesize(data.len() as i64);
 
+        ctx.cache_input_header(data.as_ref());
+
         // Create the context that will be passed to the main function of each
         // module.
         let mut mod_ctx = ModuleContext::default();

@@ -36,6 +36,8 @@ The memory of these WASM modules is organized as follows.
   │                          │
   ├──────────────────────────┤ LOOKUP_INDEXES_START
   │ Field lookup indexes     │
+  ├──────────────────────────┤ CACHED_HEADER_LEN_BASE
+  │ Cached input header      │
   ├──────────────────────────┤ MATCHING_RULES_BITMAP_BASE
   │ Matching rules bitmap    │
   │                          │
@@ -123,10 +125,18 @@ pub(crate) const LOOKUP_INDEXES_START: i32 = VARS_STACK_END;
 /// Offset in module's main memory where the space for lookup indexes end.
 pub(crate) const LOOKUP_INDEXES_END: i32 = LOOKUP_INDEXES_START + 1024;
 
+/// Offset of the cached input-header length.
+pub(crate) const CACHED_HEADER_LEN_BASE: i32 = LOOKUP_INDEXES_END;
+/// Offset of the cached input bytes.
+pub(crate) const CACHED_HEADER_BASE: i32 = CACHED_HEADER_LEN_BASE + 4;
+/// Number of input-header bytes copied into WASM memory for direct reads.
+pub(crate) const CACHED_HEADER_CAPACITY: usize = 128;
+
 /// Offset in module's main memory where resides the bitmap that tells if a
 /// rule matches or not. This bitmap contains one bit per rule, if the N-th
 /// bit is set, it indicates that the rule with RuleId = N matched.
-pub(crate) const MATCHING_RULES_BITMAP_BASE: i32 = LOOKUP_INDEXES_END;
+pub(crate) const MATCHING_RULES_BITMAP_BASE: i32 =
+    CACHED_HEADER_BASE + CACHED_HEADER_CAPACITY as i32;
 
 inventory::collect!(WasmExport);
 

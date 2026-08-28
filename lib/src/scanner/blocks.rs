@@ -443,6 +443,23 @@ mod tests {
     }
 
     #[test]
+    fn block_scanner_does_not_read_the_contiguous_header_cache() {
+        let rules = compile(
+            r#"
+            rule test {
+              condition:
+                uint16(0) == 0 and uint32(2) == 0
+            }
+            "#,
+        )
+        .unwrap();
+
+        let mut scanner = Scanner::new(&rules);
+        let results = scanner.scan(0, &[0; 6]).unwrap().finish().unwrap();
+        assert!(results.matching_rules().next().is_none());
+    }
+
+    #[test]
     fn block_scanner_2() {
         let rules = compile(
             r#"

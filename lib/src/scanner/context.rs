@@ -41,10 +41,13 @@ use crate::scanner::matches::{
 use crate::scanner::{DataSnippets, ScanError, ScannedData};
 use crate::scanner::{HEARTBEAT_COUNTER, INIT_HEARTBEAT};
 use crate::types::{Array, Map, Struct, TypeValue};
-use crate::wasm::MATCHING_RULES_BITMAP_BASE;
 use crate::wasm::runtime::{
     AsContext, AsContextMut, Global, GlobalType, Instance, MemoryType,
     Mutability, Store, TypedFunc, Val, ValType,
+};
+use crate::wasm::{
+    CACHED_HEADER_BASE, CACHED_HEADER_CAPACITY, CACHED_HEADER_LEN_BASE,
+    MATCHING_RULES_BITMAP_BASE,
 };
 use crate::{Variable, wasm};
 
@@ -440,6 +443,18 @@ impl ScanContext<'_, '_> {
             .unwrap();
     }
 
+    /// Copies the beginning of a contiguous input into WASM memory.
+    pub(crate) fn cache_input_header(&mut self, data: &[u8]) {
+        let len = data.len().min(CACHED_HEADER_CAPACITY);
+        let store = self.wasm_store_mut();
+        let mem = self.wasm.main_memory.unwrap().data_mut(store);
+        mem[CACHED_HEADER_LEN_BASE as usize
+            ..CACHED_HEADER_LEN_BASE as usize + 4]
+            .copy_from_slice(&(len as u32).to_le_bytes());
+        mem[CACHED_HEADER_BASE as usize..CACHED_HEADER_BASE as usize + len]
+            .copy_from_slice(&data[..len]);
+    }
+
     /// Sets the value of the flag that indicates if the pattern search
     /// phase was already executed.
     pub(crate) fn set_pattern_search_done(&mut self, done: bool) {
@@ -564,6 +579,14 @@ impl ScanContext<'_, '_> {
         let num_patterns = self.compiled_rules.num_patterns();
 
         self.scan_state = ScanState::Idle;
+
+        {
+            let store = self.wasm_store_mut();
+            let mem = self.wasm.main_memory.unwrap().data_mut(store);
+            mem[CACHED_HEADER_LEN_BASE as usize
+                ..CACHED_HEADER_LEN_BASE as usize + 4]
+                .fill(0);
+        }
 
         // Free all runtime objects left around by previous scans.
         self.runtime_objects.clear();

@@ -21,6 +21,7 @@ use walrus::ir::{
 };
 use walrus::{FunctionId, InstrSeqBuilder, ValType};
 
+use crate::compiler::ir::FuncCall;
 use crate::compiler::ir::{
     Expr, ExprId, ForIn, ForOf, IR, Iterable, MatchAnchor, PatternIdx,
     Quantifier,
@@ -39,6 +40,7 @@ use crate::wasm;
 use crate::wasm::builder::WasmModuleBuilder;
 use crate::wasm::string::RuntimeString;
 use crate::wasm::{
+    CACHED_HEADER_BASE, CACHED_HEADER_CAPACITY, CACHED_HEADER_LEN_BASE,
     LOOKUP_INDEXES_END, LOOKUP_INDEXES_START, MATCHING_RULES_BITMAP_BASE,
     VARS_STACK_START, WasmSymbols,
 };
@@ -284,6 +286,129 @@ pub(crate) fn emit_rule_condition(
     ctx.emit_search_for_pattern_stack.pop();
     assert!(ctx.emit_search_for_pattern_stack.is_empty());
     builder.finish_rule();
+}
+
+/// Emits a direct load for unsigned integer reads at constant header offsets.
+///
+/// The contiguous scanner copies a small input prefix into WASM memory before
+/// evaluating conditions. If the current input is too short, retain the
+/// imported function as a fallback so undefined-value behavior is unchanged.
+fn emit_cached_header_read(
+    ctx: &mut EmitContext,
+    ir: &IR,
+    func_call: &FuncCall,
+    instr: &mut InstrSeqBuilder,
+) -> bool {
+    if func_call.object.is_some() || func_call.args.len() != 1 {
+        return false;
+    }
+
+    let (width, big_endian) = match func_call.plain_name() {
+        "uint16" => (2_usize, false),
+        "uint32" => (4_usize, false),
+        "uint16be" => (2_usize, true),
+        "uint32be" => (4_usize, true),
+        _ => return false,
+    };
+
+    let Some(offset) = ir
+        .get(func_call.args[0])
+        .try_as_const_integer()
+        .and_then(|offset| usize::try_from(offset).ok())
+    else {
+        return false;
+    };
+    let Some(end) = offset.checked_add(width) else {
+        return false;
+    };
+    if end > CACHED_HEADER_CAPACITY {
+        return false;
+    }
+
+    let memory = ctx.wasm_symbols.main_memory;
+    let tmp = ctx.wasm_symbols.i64_tmp_a;
+
+    let emit_value = |instr: &mut InstrSeqBuilder| {
+        instr.i32_const(0);
+        instr.load(
+            memory,
+            match width {
+                2 => LoadKind::I64_16 { kind: ZeroExtend },
+                4 => LoadKind::I64_32 { kind: ZeroExtend },
+                _ => unreachable!(),
+            },
+            MemArg {
+                align: 1,
+                offset: (CACHED_HEADER_BASE as usize + offset) as u64,
+            },
+        );
+
+        if big_endian {
+            instr.local_set(tmp);
+            match width {
+                2 => {
+                    instr
+                        .local_get(tmp)
+                        .i64_const(0xff)
+                        .binop(BinaryOp::I64And)
+                        .i64_const(8)
+                        .binop(BinaryOp::I64Shl)
+                        .local_get(tmp)
+                        .i64_const(8)
+                        .binop(BinaryOp::I64ShrU)
+                        .binop(BinaryOp::I64Or);
+                }
+                4 => {
+                    instr
+                        .local_get(tmp)
+                        .i64_const(0xff)
+                        .binop(BinaryOp::I64And)
+                        .i64_const(24)
+                        .binop(BinaryOp::I64Shl)
+                        .local_get(tmp)
+                        .i64_const(0xff00)
+                        .binop(BinaryOp::I64And)
+                        .i64_const(8)
+                        .binop(BinaryOp::I64Shl)
+                        .binop(BinaryOp::I64Or)
+                        .local_get(tmp)
+                        .i64_const(8)
+                        .binop(BinaryOp::I64ShrU)
+                        .i64_const(0xff00)
+                        .binop(BinaryOp::I64And)
+                        .binop(BinaryOp::I64Or)
+                        .local_get(tmp)
+                        .i64_const(24)
+                        .binop(BinaryOp::I64ShrU)
+                        .binop(BinaryOp::I64Or);
+                }
+                _ => unreachable!(),
+            }
+        }
+    };
+
+    let fn_id = ctx.function_id(func_call.mangled_name());
+
+    instr.i32_const(0);
+    instr.load(
+        memory,
+        LoadKind::I32 { atomic: false },
+        MemArg { align: 4, offset: CACHED_HEADER_LEN_BASE as u64 },
+    );
+    instr.i32_const(end as i32);
+    instr.binop(BinaryOp::I32GeU);
+    instr.if_else(
+        I64,
+        |then_| {
+            emit_value(then_);
+        },
+        |else_| {
+            else_.i64_const(offset as i64);
+            emit_call_and_handle_undef(ctx, else_, fn_id);
+        },
+    );
+
+    true
 }
 
 /// Emits WASM code for `expr` into the instruction sequence `instr`.
@@ -694,6 +819,10 @@ fn emit_expr(
         },
 
         Expr::FuncCall(func_call) => {
+            if emit_cached_header_read(ctx, ir, func_call, instr) {
+                return;
+            }
+
             // If this is method call, the target object (self or this in some
             // programming languages) is the first argument.
             if let Some(obj) = func_call.object {
