@@ -152,8 +152,9 @@ pub struct Rules {
     )]
     pub(in crate::compiler) compiled_wasm_mod: Option<wasm::runtime::Module>,
 
-    /// Vector with the names of all the imported modules. The vector contains
-    /// the [`IdentId`] corresponding to the module's identifier.
+    /// Vector with the names of the modules used by rule conditions. The
+    /// vector contains the [`IdentId`] corresponding to the module's
+    /// identifier. Imported modules that are not used are omitted.
     pub(in crate::compiler) imported_modules: Vec<IdentId>,
 
     /// Vector containing all the compiled rules. A [`RuleId`] is an index
@@ -266,8 +267,10 @@ pub struct Rules {
 }
 
 impl Rules {
-    /// An iterator that yields the name of the modules imported by the
-    /// rules.
+    /// An iterator that yields the names of modules used by the rules.
+    ///
+    /// Modules that are imported but not used by any rule condition are
+    /// omitted during compilation.
     pub fn imports(&self) -> Imports<'_> {
         Imports {
             iter: self.imported_modules.iter(),

@@ -425,6 +425,15 @@ pub struct Compiler<'a> {
     /// the [`IdentId`] corresponding to the module's identifier.
     imported_modules: Vec<IdentId>,
 
+    /// Maps root-structure field indexes to imported-module indexes.
+    module_root_indexes: FxHashMap<usize, usize>,
+
+    /// Maps imported-module names to their indexes.
+    module_indexes: FxHashMap<String, usize>,
+
+    /// Indicates which imported modules are used by emitted rule conditions.
+    used_modules: Vec<bool>,
+
     /// Names of modules that are known, but not supported. When an `import`
     /// statement with one of these modules is found, the statement is accepted
     /// without causing an error, but a warning is raised to let the user know
@@ -549,6 +558,9 @@ impl<'a> Compiler<'a> {
             atoms: Vec::new(),
             re_code: Vec::new(),
             imported_modules: Vec::new(),
+            module_root_indexes: FxHashMap::default(),
+            module_indexes: FxHashMap::default(),
+            used_modules: Vec::new(),
             ignored_modules: FxHashSet::default(),
             banned_modules: FxHashMap::default(),
             ignored_rules: Vec::new(),
@@ -860,6 +872,13 @@ impl<'a> Compiler<'a> {
             }
         }
 
+        let imported_modules = self
+            .imported_modules
+            .into_iter()
+            .zip(self.used_modules)
+            .filter_map(|(module, used)| used.then_some(module))
+            .collect();
+
         let mut rules = Rules {
             serialized_globals,
             wasm_mod,
@@ -870,7 +889,7 @@ impl<'a> Compiler<'a> {
             ident_pool: self.ident_pool,
             regex_pool: self.regex_pool,
             lit_pool: self.lit_pool,
-            imported_modules: self.imported_modules,
+            imported_modules,
             rules: self.rules,
             sub_patterns: self.sub_patterns,
             anchored_sub_patterns: self.anchored_sub_patterns,
@@ -1972,6 +1991,9 @@ impl Compiler<'_> {
             regex_pool: &mut self.regex_pool,
             wasm_symbols: &self.wasm_symbols,
             wasm_exports: &self.wasm_exports,
+            module_root_indexes: &self.module_root_indexes,
+            module_indexes: &self.module_indexes,
+            used_modules: &mut self.used_modules,
             exception_handler_stack: Vec::new(),
             lookup_list: Vec::new(),
             emit_search_for_pattern_stack: Vec::new(),
@@ -2025,8 +2047,11 @@ impl Compiler<'_> {
         // `self.imported_modules`, do it.
         if !self.root_struct.has_field(module_name) {
             // Add the module to the list of imported modules.
+            let module_index = self.imported_modules.len();
             self.imported_modules
                 .push(self.ident_pool.get_or_intern(module_name));
+            self.module_indexes.insert(module_name.to_string(), module_index);
+            self.used_modules.push(false);
 
             // Create the `Struct` that describes the module.
             let module_struct = Rc::<Struct>::from(module);
@@ -2041,6 +2066,13 @@ impl Compiler<'_> {
             {
                 panic!("duplicate module `{module_name}`")
             }
+
+            let root_index = self
+                .root_struct
+                .field_and_index_by_name(module_name)
+                .unwrap()
+                .1;
+            self.module_root_indexes.insert(root_index, module_index);
         }
 
         let mut symbol_table =
@@ -3045,7 +3077,7 @@ impl From<PatternId> for usize {
 #[serde(transparent)]
 pub(crate) struct SubPatternId(u32);
 
-/// Iterator that yields the names of the modules imported by the rules.
+/// Iterator that yields the names of the modules used by the rules.
 pub struct Imports<'a> {
     iter: std::slice::Iter<'a, IdentId>,
     ident_pool: &'a StringPool<IdentId>,
