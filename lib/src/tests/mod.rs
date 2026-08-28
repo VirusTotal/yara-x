@@ -3676,6 +3676,19 @@ fn of() {
           strings:
             $a1 = "foo"
             $a2 = "bar"
+          condition:
+            0 of them
+        }
+        "#,
+        &[]
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+          strings:
+            $a1 = "foo"
+            $a2 = "bar"
             $b1 = "baz"
           condition:
             all of ($a*, $b*)
