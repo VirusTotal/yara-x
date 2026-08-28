@@ -52,7 +52,9 @@ use crate::compiler::ir::dfs::{
     DFSIter, DFSWithScopeIter, Event, EventContext, dfs_common,
 };
 
-use crate::compiler::{FilesizeBounds, HeaderConstraint, RegexSetId};
+use crate::compiler::{
+    FilesizeBounds, HeaderConstraint, RegexSetId, RuleId,
+};
 use crate::re;
 use crate::symbols::Symbol;
 use crate::types::Value::Const;
@@ -1008,7 +1010,10 @@ impl IR {
     /// In contrast, the condition `filesize < 10MB or $a` does not impose a
     /// filesize constraint, since the use of `or` allows files larger than
     /// 10MB to also match.
-    pub fn filesize_bounds(&self) -> FilesizeBounds {
+    pub fn filesize_bounds<'a>(
+        &self,
+        rule_lookup: impl Fn(RuleId) -> Option<&'a FilesizeBounds>,
+    ) -> FilesizeBounds {
         let mut result = FilesizeBounds::default();
         let mut dfs = self.dfs_iter(self.root.unwrap());
 
@@ -1018,6 +1023,13 @@ impl IR {
                 _ => continue,
             };
             match expr {
+                Expr::Symbol(symbol) => {
+                    if let Symbol::Rule { rule_id, .. } = symbol.as_ref() {
+                        if let Some(rule_bounds) = rule_lookup(*rule_id) {
+                            result.merge(rule_bounds);
+                        }
+                    }
+                }
                 Expr::Gt { lhs, rhs } => {
                     match (self.get(*lhs), self.get(*rhs)) {
                         // constant > filesize
@@ -1128,6 +1140,7 @@ impl IR {
     pub fn header_constraints<'a>(
         &self,
         pattern_lookup: impl Fn(PatternIdx) -> &'a Pattern,
+        rule_lookup: impl Fn(RuleId) -> Option<&'a HeaderConstraint>,
     ) -> HeaderConstraint {
         let mut constrained_bytes = BTreeMap::new();
         let mut unsatisfiable = false;
@@ -1139,6 +1152,33 @@ impl IR {
                 _ => continue,
             };
             match expr {
+                Expr::Symbol(symbol) => {
+                    if let Symbol::Rule { rule_id, .. } = symbol.as_ref() {
+                        if let Some(rule_constraints) = rule_lookup(*rule_id) {
+                            match rule_constraints {
+                                HeaderConstraint::Unsatisfiable => {
+                                    unsatisfiable = true;
+                                }
+                                HeaderConstraint::Constrained(bytes) => {
+                                    for (i, &b) in bytes.iter().enumerate() {
+                                        match constrained_bytes.entry(i) {
+                                            Entry::Occupied(entry) => {
+                                                if *entry.get() != b {
+                                                    unsatisfiable = true;
+                                                    break;
+                                                }
+                                            }
+                                            Entry::Vacant(entry) => {
+                                                entry.insert(b);
+                                            }
+                                        }
+                                    }
+                                }
+                                HeaderConstraint::Unconstrained => {}
+                            }
+                        }
+                    }
+                }
                 Expr::Eq { lhs, rhs } => {
                     self.extract_header_constraints_from_eq(
                         *lhs,

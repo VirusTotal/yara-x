@@ -4342,6 +4342,220 @@ fn header_constraints_optimization() {
 }
 
 #[test]
+fn cross_rule_constraints() {
+    // 1. Header constraint propagated from referenced private rule.
+    let rules = crate::compile(
+        r#"
+        private rule IsPE {
+            condition:
+                uint16(0) == 0x5A4D
+        }
+        rule Amadey {
+            strings:
+                $re = /foo|bar/
+            condition:
+                IsPE and any of them
+        }
+        "#,
+    )
+    .unwrap();
+
+    // Verify header constraint is assigned to pattern.
+    let constraints: Vec<_> = rules.header_constraints().collect();
+    assert_eq!(constraints.len(), 1);
+    assert_eq!(
+        constraints[0].1,
+        &crate::compiler::HeaderConstraint::Constrained(vec![0x4D, 0x5A])
+    );
+
+    // Matches with PE header
+    let mut scanner = crate::Scanner::new(&rules);
+    let results = scanner.scan(b"MZ\0\0foo").unwrap();
+    assert_eq!(results.matching_rules().len(), 1);
+
+    // Does not match with non-PE header (pattern is disabled)
+    let results = scanner.scan(b"\0\0\0\0foo").unwrap();
+    assert_eq!(results.matching_rules().len(), 0);
+
+    // 2. Header constraint propagated from global rule without explicit reference.
+    let rules = crate::compile(
+        r#"
+        global private rule IsPE {
+            condition:
+                uint16(0) == 0x5A4D
+        }
+        rule Amadey {
+            strings:
+                $re = /foo|bar/
+            condition:
+                any of them
+        }
+        "#,
+    )
+    .unwrap();
+
+    let constraints: Vec<_> = rules.header_constraints().collect();
+    assert_eq!(constraints.len(), 1);
+    assert_eq!(
+        constraints[0].1,
+        &crate::compiler::HeaderConstraint::Constrained(vec![0x4D, 0x5A])
+    );
+
+    let mut scanner = crate::Scanner::new(&rules);
+    let results = scanner.scan(b"MZ\0\0foo").unwrap();
+    assert_eq!(results.matching_rules().len(), 1);
+    let results = scanner.scan(b"\0\0\0\0foo").unwrap();
+    assert_eq!(results.matching_rules().len(), 0);
+
+    // 3. Filesize bounds propagated from referenced rule.
+    let rules = crate::compile(
+        r#"
+        rule Small {
+            condition:
+                filesize < 100
+        }
+        rule Test {
+            strings:
+                $re = /foo|bar/
+            condition:
+                Small and $re
+        }
+        "#,
+    )
+    .unwrap();
+
+    let bounds: Vec<_> = rules.filesize_bounds().collect();
+    assert_eq!(bounds.len(), 1);
+    assert_eq!(
+        bounds[0].1,
+        &crate::compiler::FilesizeBounds::from(..100)
+    );
+
+    // 4. Filesize bounds propagated from global rule.
+    let rules = crate::compile(
+        r#"
+        global rule Small {
+            condition:
+                filesize < 100
+        }
+        rule Test {
+            strings:
+                $re = /foo|bar/
+            condition:
+                $re
+        }
+        "#,
+    )
+    .unwrap();
+
+    let bounds: Vec<_> = rules.filesize_bounds().collect();
+    assert_eq!(bounds.len(), 1);
+    assert_eq!(
+        bounds[0].1,
+        &crate::compiler::FilesizeBounds::from(..100)
+    );
+
+    // 5. Chained rule references: A -> B -> C
+    let rules = crate::compile(
+        r#"
+        rule A {
+            condition:
+                uint16(0) == 0x5A4D
+        }
+        rule B {
+            condition:
+                A and uint8(2) == 0x90
+        }
+        rule C {
+            strings:
+                $re = /foo|bar/
+            condition:
+                B and $re
+        }
+        "#,
+    )
+    .unwrap();
+
+    let constraints: Vec<_> = rules.header_constraints().collect();
+    assert_eq!(constraints.len(), 1);
+    assert_eq!(
+        constraints[0].1,
+        &crate::compiler::HeaderConstraint::Constrained(vec![0x4D, 0x5A, 0x90])
+    );
+
+    // 6. Contradictory header constraints (PE vs ELF)
+    let rules = crate::compile(
+        r#"
+        private rule IsPE {
+            condition:
+                uint16(0) == 0x5A4D
+        }
+        private rule IsELF {
+            condition:
+                uint32(0) == 0x464c457f
+        }
+        rule Impossible {
+            strings:
+                $re = /foo|bar/
+            condition:
+                IsPE and IsELF and $re
+        }
+        "#,
+    )
+    .unwrap();
+
+    let constraints: Vec<_> = rules.header_constraints().collect();
+    assert_eq!(constraints.len(), 1);
+    assert_eq!(
+        constraints[0].1,
+        &crate::compiler::HeaderConstraint::Unsatisfiable
+    );
+
+    let mut scanner = crate::Scanner::new(&rules);
+    let results = scanner.scan(b"MZ\0\0foo").unwrap();
+    assert_eq!(results.matching_rules().len(), 0);
+
+    // 7. Multi-namespace isolation: global rule in ns1 does not affect ns2
+    let mut compiler = crate::Compiler::new();
+    compiler.new_namespace("ns1");
+    compiler
+        .add_source(
+            r#"
+            global rule IsPE {
+                condition:
+                    uint16(0) == 0x5A4D
+            }
+            rule Rule1 {
+                strings:
+                    $re1 = /foo1/
+                condition:
+                    $re1
+            }
+            "#,
+        )
+        .unwrap();
+
+    compiler.new_namespace("ns2");
+    compiler
+        .add_source(
+            r#"
+            rule Rule2 {
+                strings:
+                    $re2 = /foo2/
+                condition:
+                    $re2
+            }
+            "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+    let constraints: std::collections::HashMap<_, _> =
+        rules.header_constraints().collect();
+    assert_eq!(constraints.len(), 1);
+}
+
+#[test]
 fn test_pattern_atoms() {
     let rules = crate::compile(
         r#"
