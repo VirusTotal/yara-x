@@ -514,7 +514,11 @@ impl<'a> Compiler<'a> {
         let mut wasm_mod = WasmModuleBuilder::new();
 
         wasm_mod.namespaces_per_func(20);
-        wasm_mod.rules_per_func(10);
+        wasm_mod.rules_per_func(if cfg!(feature = "rules-profiling") {
+            10
+        } else {
+            40
+        });
 
         let wasm_symbols = wasm_mod.wasm_symbols();
         let wasm_exports = wasm_mod.wasm_exports();
