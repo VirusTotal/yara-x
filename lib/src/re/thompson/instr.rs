@@ -349,6 +349,35 @@ impl<'a> InstrParser<'a> {
         code: &[u8],
         decode_literal_runs: bool,
     ) -> (Instr<'_>, usize) {
+        if code.len() >= 2 && code[0] == OPCODE_PREFIX {
+            match code[1] {
+                Instr::CLASS_BITMAP if code.len() >= 34 => {
+                    let bitmap = unsafe { code.get_unchecked(2..34) };
+                    return (Instr::ClassBitmap(ClassBitmap(bitmap)), 34);
+                }
+                Instr::REPEAT_GREEDY
+                    if code.len()
+                        >= 2 + size_of::<Offset>()
+                            + size_of::<u32>()
+                            + size_of::<u32>() =>
+                {
+                    let offset = Self::decode_offset(&code[2..]);
+                    let min =
+                        Self::decode_u32(&code[2 + size_of::<Offset>()..]);
+                    let max = Self::decode_u32(
+                        &code[2 + size_of::<Offset>() + size_of::<u32>()..],
+                    );
+                    return (
+                        Instr::RepeatGreedy { offset, min, max },
+                        2 + size_of::<Offset>()
+                            + size_of::<u32>()
+                            + size_of::<u32>(),
+                    );
+                }
+                _ => {}
+            }
+        }
+
         match code[..] {
             [OPCODE_PREFIX, Instr::ANY_BYTE, ..] => (Instr::AnyByte, 2),
             [OPCODE_PREFIX, Instr::MASKED_BYTE, byte, mask, ..] => {
