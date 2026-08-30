@@ -2267,7 +2267,7 @@ pub fn create_wasm_store_and_ctx<'r>(
     // Instantiate the module. This takes the wasm code provided by the
     // `wasm_mod` function and links its imported functions with the
     // implementations that YARA provides.
-    let wasm_instance = wasm::new_linker()
+    let wasm_instance = wasm::new_linker(rules.wasm_mod())
         .define(wasm_store.as_context(), "yara_x", "filesize", filesize)
         .unwrap()
         .define(
