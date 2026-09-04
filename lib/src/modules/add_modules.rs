@@ -8,6 +8,8 @@ add_module!(modules, "cuckoo", cuckoo, "cuckoo.Cuckoo", Some("cuckoo"), Some(cuc
 add_module!(modules, "dotnet", dotnet, "dotnet.Dotnet", Some("dotnet"), Some(dotnet::__main__ as MainFn));
 #[cfg(feature = "elf-module")]
 add_module!(modules, "elf", elf, "elf.ELF", Some("elf"), Some(elf::__main__ as MainFn));
+#[cfg(feature = "eml-module")]
+add_module!(modules, "eml", eml, "eml.Eml", Some("eml"), Some(eml::__main__ as MainFn));
 #[cfg(feature = "hash-module")]
 add_module!(modules, "hash", hash, "hash.Hash", Some("hash"), Some(hash::__main__ as MainFn));
 #[cfg(feature = "lnk-module")]

@@ -1,0 +1,39 @@
+syntax = "proto2";
+import "yara.proto";
+
+package eml;
+
+option (yara.module_options) = {
+  name : "eml"
+  root_message: "eml.Eml"
+  cargo_feature: "eml-module"
+};
+
+message Eml {
+  // True if the file is an Eml file.
+  required bool is_eml = 1;
+  // key:value pairs of headers from the Eml file.
+  repeated Header headers = 2;
+  // the body of the Eml file from after the headers
+  required bytes body = 3;
+  optional bytes decoded_body = 4;
+  repeated EmlPart parts = 5;
+}
+
+message EmlPart {
+    // key:value pairs of headers from the Eml file.
+    repeated Header headers = 1;
+    // the body of the Eml file from after the headers
+    required bytes body = 2;
+    optional bytes decoded_body = 3;
+    // filename from Content-Disposition or Content-Type name parameter
+    optional bytes filename = 4;
+    // determine if the part is an attachment or inline
+    optional bytes disposition = 5;
+}
+
+// Structure used to represent a header key: value pair
+message Header {
+    required bytes key = 1;
+    required bytes value = 2;
+}
