@@ -193,8 +193,9 @@ The default value is automatically determined based on the number of CPU cores."
 
 pub const SCAN_LIST_LONG_HELP: &str = r#"Indicate that TARGET_PATH is a file containing the paths to be scanned
 
-<TARGET_PATH> must be a text file containing one path per line. The paths must
-be either absolute paths, or relative to the current directory."#;
+<TARGET_PATH> must be a text file containing one path per line, or `-` to read
+paths from standard input until EOF. The paths must be either absolute paths,
+or relative to the current directory."#;
 
 pub const SCAN_LONG_HELP: &str = r#"Scan a file or directory
 

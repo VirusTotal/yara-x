@@ -33,6 +33,21 @@ fn negate() {
 }
 
 #[test]
+fn scan_list_from_stdin() {
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--count")
+        .arg("--scan-list")
+        .arg("--threads=1")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("-")
+        .write_stdin("src/tests/testdata/dummy.file\n")
+        .assert()
+        .success()
+        .stdout("src/tests/testdata/dummy.file: 1\n");
+}
+
+#[test]
 fn filter_by_tag() {
     Command::new(cargo_bin!("yr"))
         .arg("scan")

@@ -49,6 +49,10 @@ stderr-logs = ["yara-x/stderr-logs"]
 # performance.
 rules-profiling = ["yara-x/rules-profiling"]
 
+# Include precompiled native code in serialized rules. This reduces rule load
+# time at the cost of larger, platform-specific compiled-rule files.
+native-code-serialization = ["yara-x/native-code-serialization"]
+
 # Enables the use of wasmtime's Pulley bytecode interpreter instead of the default
 # Cranelift JIT compiler. See the documentation in the `yara-x` core library for details.
 pulley = ["yara-x/pulley"]
