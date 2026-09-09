@@ -1,4 +1,4 @@
-#[cfg(feature = "crypto")]
+#[cfg(any(feature = "crypto", feature = "macho-module"))]
 pub mod asn1;
 
 #[cfg(feature = "crypto")]
@@ -7,7 +7,7 @@ pub mod authenticode;
 #[cfg(feature = "crypto")]
 pub mod crypto;
 
-#[cfg(feature = "crypto")]
+#[cfg(any(feature = "macho-module", feature = "dex-module"))]
 pub mod leb128;
 #[cfg(any(
     feature = "olecf-module",

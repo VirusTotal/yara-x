@@ -221,9 +221,14 @@ lnk-module = [
 
 # The `macho` module parses Mach-O files.
 macho-module = [
-    "crypto",
+    "dep:const-oid",
+    "dep:der-parser",
+    "dep:digest",
+    "dep:md-5",
     "dep:nom",
     "dep:roxmltree",
+    "dep:sha1",
+    "dep:x509-parser",
 ]
 
 # The `magic` allows recognizing file types based on the output of the
