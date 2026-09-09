@@ -31,6 +31,7 @@ pe-module = ["yara-x/pe-module"]
 string-module = ["yara-x/string-module"]
 time-module = ["yara-x/time-module"]
 vt-module = ["yara-x/vt-module"]
+zip-module = ["yara-x/zip-module"]
 test_proto2-module = ["yara-x/test_proto2-module"]
 test_proto3-module = ["yara-x/test_proto3-module"]
 
@@ -50,6 +51,7 @@ default = [
     "string-module",
     "time-module",
     "vt-module",
+    "zip-module",
 ]
 
 [dependencies]
@@ -65,7 +67,12 @@ serde_json = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 
-yara-x = { workspace = true }
+yara-x = { path = "../lib", version = "1.20.0", default-features = false, features = [
+    "constant-folding",
+    "exact-atoms",
+    "fast-regexp",
+    "generate-proto-code",
+] }
 yara-x-proto = { workspace = true }
 yara-x-fmt = { workspace = true }
 yara-x-parser = { workspace = true }
