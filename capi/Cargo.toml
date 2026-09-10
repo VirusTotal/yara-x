@@ -13,8 +13,53 @@ repository.workspace = true
 
 [features]
 # The `capi` feature is required by `cargo-c`.
-default = ["capi"]
+default = ["capi", "default-modules"]
 capi = []
+
+# Features for enabling/disabling individual YARA-X modules. For each module
+# there's a `<module name>-module` feature that controls whether that module
+# is built into the C API, mirroring the module features `yara-x` itself
+# exposes.
+console-module = ["yara-x/console-module"]
+crx-module = ["yara-x/crx-module"]
+cuckoo-module = ["yara-x/cuckoo-module"]
+dex-module = ["yara-x/dex-module"]
+dotnet-module = ["yara-x/dotnet-module"]
+elf-module = ["yara-x/elf-module"]
+hash-module = ["yara-x/hash-module"]
+lnk-module = ["yara-x/lnk-module"]
+macho-module = ["yara-x/macho-module"]
+math-module = ["yara-x/math-module"]
+pe-module = ["yara-x/pe-module"]
+string-module = ["yara-x/string-module"]
+time-module = ["yara-x/time-module"]
+vt-module = ["yara-x/vt-module"]
+zip-module = ["yara-x/zip-module"]
+test_proto2-module = ["yara-x/test_proto2-module"]
+test_proto3-module = ["yara-x/test_proto3-module"]
+
+# Enables the modules that were built in by default before this crate's
+# `yara-x` dependency stopped inheriting `yara-x`'s own default features, so
+# existing consumers see no change in behavior.
+default-modules = [
+    "console-module",
+    "crx-module",
+    "cuckoo-module",
+    "dex-module",
+    "dotnet-module",
+    "elf-module",
+    "hash-module",
+    "lnk-module",
+    "macho-module",
+    "math-module",
+    "pe-module",
+    "string-module",
+    "time-module",
+    "test_proto2-module",
+    "test_proto3-module",
+    "vt-module",
+    "zip-module",
+]
 
 # When enabled, the serialization of compiled rules include native code for
 # the platform in which the rules where compiled. This reduces the load time,
@@ -73,7 +118,12 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
 serde_json = { workspace = true }
-yara-x = { workspace = true }
+yara-x = { path = "../lib", version = "1.20.0", default-features = false, features = [
+    "constant-folding",
+    "exact-atoms",
+    "fast-regexp",
+    "generate-proto-code",
+] }
 
 [build-dependencies]
 cbindgen = { workspace = true }
