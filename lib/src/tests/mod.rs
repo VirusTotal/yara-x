@@ -4426,10 +4426,7 @@ fn cross_rule_constraints() {
 
     let bounds: Vec<_> = rules.filesize_bounds().collect();
     assert_eq!(bounds.len(), 1);
-    assert_eq!(
-        bounds[0].1,
-        &crate::compiler::FilesizeBounds::from(..100)
-    );
+    assert_eq!(bounds[0].1, &crate::compiler::FilesizeBounds::from(..100));
 
     // 4. Filesize bounds propagated from global rule.
     let rules = crate::compile(
@@ -4450,10 +4447,7 @@ fn cross_rule_constraints() {
 
     let bounds: Vec<_> = rules.filesize_bounds().collect();
     assert_eq!(bounds.len(), 1);
-    assert_eq!(
-        bounds[0].1,
-        &crate::compiler::FilesizeBounds::from(..100)
-    );
+    assert_eq!(bounds[0].1, &crate::compiler::FilesizeBounds::from(..100));
 
     // 5. Chained rule references: A -> B -> C
     let rules = crate::compile(
@@ -4480,7 +4474,9 @@ fn cross_rule_constraints() {
     assert_eq!(constraints.len(), 1);
     assert_eq!(
         constraints[0].1,
-        &crate::compiler::HeaderConstraint::Constrained(vec![0x4D, 0x5A, 0x90])
+        &crate::compiler::HeaderConstraint::Constrained(vec![
+            0x4D, 0x5A, 0x90
+        ])
     );
 
     // 6. Contradictory header constraints (PE vs ELF)

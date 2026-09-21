@@ -52,9 +52,7 @@ use crate::compiler::ir::dfs::{
     DFSIter, DFSWithScopeIter, Event, EventContext, dfs_common,
 };
 
-use crate::compiler::{
-    FilesizeBounds, HeaderConstraint, RegexSetId, RuleId,
-};
+use crate::compiler::{FilesizeBounds, HeaderConstraint, RegexSetId, RuleId};
 use crate::re;
 use crate::symbols::Symbol;
 use crate::types::Value::Const;
