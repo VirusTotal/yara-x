@@ -171,5 +171,3 @@ rule test_2 {
 
     assert!(errors.is_empty(), "unexpected errors emitted: {errors:?}");
 }
-
-
