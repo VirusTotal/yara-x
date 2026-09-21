@@ -4053,7 +4053,7 @@ fn eight_rules() {
 }
 
 #[test]
-fn test_defined_1() {
+fn defined_1() {
     condition_true!(r#"defined 1"#);
     condition_true!(r#"defined 1.0"#);
     condition_true!(r#"defined false"#);
@@ -4065,7 +4065,7 @@ fn test_defined_1() {
 
 #[test]
 #[cfg(feature = "test_proto2-module")]
-fn test_defined_2() {
+fn defined_2() {
     condition_false!(r#"defined test_proto2.undef_i64()"#);
     condition_true!(r#"not defined test_proto2.undef_i64()"#);
     condition_true!(
@@ -4075,7 +4075,7 @@ fn test_defined_2() {
 
 #[test]
 #[cfg(feature = "test_proto3-module")]
-fn test_defined_3() {
+fn defined_3() {
     // In modules defined with a proto3 there's no such thing as undefined
     // fields. If the field was not explicitly set to some value, it will
     // have the default value for the type.
@@ -4606,7 +4606,7 @@ fn cross_rule_constraints() {
 }
 
 #[test]
-fn test_pattern_atoms() {
+fn pattern_atoms() {
     let rules = crate::compile(
         r#"
         rule rule1 {
@@ -4646,46 +4646,46 @@ fn test_pattern_atoms() {
     let mut patterns = rule1.patterns();
     assert_eq!(patterns.len(), 3);
 
-    let pa = patterns.next().unwrap();
-    assert_eq!(pa.identifier(), "$a");
-    let pa_atoms: Vec<_> = pa.atoms().collect();
-    assert_eq!(pa_atoms.len(), 1);
-    assert_eq!(pa_atoms[0].as_slice(), b"ABCD");
-    assert_eq!(pa_atoms[0].as_ref(), b"ABCD");
-    assert_eq!(&*pa_atoms[0], b"ABCD");
+    let pattern = patterns.next().unwrap();
+    assert_eq!(pattern.identifier(), "$a");
+    let atoms: Vec<_> = pattern.atoms().collect();
+    assert_eq!(atoms.len(), 1);
+    assert_eq!(atoms[0].as_slice(), b"ABCD");
+    assert_eq!(atoms[0].as_ref(), b"ABCD");
+    assert_eq!(&*atoms[0], b"ABCD");
 
-    let pb = patterns.next().unwrap();
-    assert_eq!(pb.identifier(), "$b");
-    let pb_atoms: Vec<_> = pb.atoms().collect();
-    assert_eq!(pb_atoms.len(), 1);
-    assert_eq!(pb_atoms[0].as_slice(), &[0x01, 0x02, 0x03, 0x04]);
+    let pattern = patterns.next().unwrap();
+    assert_eq!(pattern.identifier(), "$b");
+    let atoms: Vec<_> = pattern.atoms().collect();
+    assert_eq!(atoms.len(), 1);
+    assert_eq!(atoms[0].as_slice(), &[0x01, 0x02, 0x03, 0x04]);
 
-    let pc = patterns.next().unwrap();
-    assert_eq!(pc.identifier(), "$c");
-    let pc_atoms: Vec<_> = pc.atoms().collect();
-    assert_eq!(pc_atoms.len(), 1);
-    assert_eq!(pc_atoms[0].as_slice(), b"obar");
+    let pattern = patterns.next().unwrap();
+    assert_eq!(pattern.identifier(), "$c");
+    let atoms: Vec<_> = pattern.atoms().collect();
+    assert_eq!(atoms.len(), 1);
+    assert_eq!(atoms[0].as_slice(), b"obar");
 
     // rule2
     let rule2 = rules_iter.next().unwrap();
     assert_eq!(rule2.identifier(), "rule2");
     let mut patterns = rule2.patterns();
 
-    let px = patterns.next().unwrap();
-    assert_eq!(px.identifier(), "$x");
-    let px_atoms: Vec<_> = px.atoms().collect();
-    assert_eq!(px_atoms.len(), 1);
-    assert_eq!(px_atoms[0].as_slice(), b"W\0I\0");
+    let pattern = patterns.next().unwrap();
+    assert_eq!(pattern.identifier(), "$x");
+    let atoms: Vec<_> = pattern.atoms().collect();
+    assert_eq!(atoms.len(), 1);
+    assert_eq!(atoms[0].as_slice(), b"W\0I\0");
 
-    let py = patterns.next().unwrap();
-    assert_eq!(py.identifier(), "$y");
-    let py_atoms = py.atoms();
-    assert!(py_atoms.len() > 1);
+    let pattern = patterns.next().unwrap();
+    assert_eq!(pattern.identifier(), "$y");
+    let atoms = pattern.atoms();
+    assert!(atoms.len() > 1);
     // ExactSizeIterator check
-    assert_eq!(py_atoms.len(), py.atoms().collect::<Vec<_>>().len());
+    assert_eq!(atoms.len(), pattern.atoms().collect::<Vec<_>>().len());
     // DoubleEndedIterator check
-    let rev_atoms: Vec<_> = py.atoms().rev().collect();
-    let mut fwd_atoms: Vec<_> = py.atoms().collect();
+    let rev_atoms: Vec<_> = pattern.atoms().rev().collect();
+    let mut fwd_atoms: Vec<_> = pattern.atoms().collect();
     fwd_atoms.reverse();
     assert_eq!(rev_atoms, fwd_atoms);
 
@@ -4698,8 +4698,8 @@ fn test_pattern_atoms() {
     let rule4 = rules_iter.next().unwrap();
     assert_eq!(rule4.identifier(), "rule4");
     let mut patterns = rule4.patterns();
-    let panchor = patterns.next().unwrap();
-    assert_eq!(panchor.identifier(), "$anchored");
-    assert_eq!(panchor.atoms().len(), 0);
-    assert!(panchor.atoms().next().is_none());
+    let pattern = patterns.next().unwrap();
+    assert_eq!(pattern.identifier(), "$anchored");
+    assert_eq!(pattern.atoms().len(), 0);
+    assert!(pattern.atoms().next().is_none());
 }
