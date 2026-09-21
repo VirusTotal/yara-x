@@ -135,3 +135,41 @@ rule test_2 { condition: true }";
     assert_eq!(&ast.errors()[0], &Error::InvalidUTF8(Span(33..34)));
     assert_eq!(ast.rules().count(), 1);
 }
+
+#[test]
+fn clear_speculative_errors_after_top_level_item() {
+    let rules = br#"
+rule test_1 {
+  condition:
+    true
+}
+rule test_2 {
+  condition:
+    true
+}
+"#;
+
+    let mut parser = Parser::new(rules.as_slice());
+    // Give the parser just enough fuel to finish parsing `test_1` (5 `begin`
+    // calls: RULE_DECL, RULE_MODS, CONDITION_BLK, BOOLEAN_EXPR, BOOLEAN_TERM),
+    // so that it runs out of fuel at the very first `begin(RULE_DECL)` of
+    // `test_2`. When `test_2` aborts with `State::OutOfFuel`, `end()` invokes
+    // `handle_errors()`. If speculative errors from `test_1` were not cleared
+    // in `flush_errors()`, `handle_errors()` would emit a spurious syntax error
+    // (`expecting operator, found `}`) pointing back to the closing brace of
+    // the valid `test_1` rule.
+    parser.parser.fuel = 5;
+
+    let errors: Vec<_> = parser
+        .filter_map(|event| match event {
+            crate::cst::Event::Error { message, span } => {
+                Some((message, span))
+            }
+            _ => None,
+        })
+        .collect();
+
+    assert!(errors.is_empty(), "unexpected errors emitted: {errors:?}");
+}
+
+
