@@ -4352,6 +4352,47 @@ fn header_constraints_optimization() {
         "#,
         b"Hello"
     );
+
+    // Regression test for https://github.com/VirusTotal/yara-x/issues/771
+    // A literal pattern used in both a constrained rule and an unconstrained
+    // rule must not inherit the header constraint when deduplicated.
+    rule_false!(
+        r#"
+        rule trigger {
+            strings:
+                $s1 = "testtest" wide ascii
+            condition:
+                uint16(0) == 0x5a4d and $s1
+        }
+        rule bug {
+            strings:
+                $xor = "testtest" xor ascii wide
+                $plain = "testtest" ascii wide
+            condition:
+                $xor and not $plain
+        }
+        "#,
+        b"testtest\nudruudru\n"
+    );
+
+    rule_true!(
+        r#"
+        rule trigger {
+            strings:
+                $s1 = "testtest" wide ascii
+            condition:
+                uint16(0) == 0x5a4d and $s1
+        }
+        rule bug {
+            strings:
+                $xor = "testtest" xor ascii wide
+                $plain = "testtest" ascii wide
+            condition:
+                $xor and not $plain
+        }
+        "#,
+        b"aksdfjlkasj\nudruudru\n"
+    );
 }
 
 #[test]
