@@ -1024,10 +1024,10 @@ impl IR {
             };
             match expr {
                 Expr::Symbol(symbol) => {
-                    if let Symbol::Rule { rule_id, .. } = symbol.as_ref() {
-                        if let Some(rule_bounds) = rule_lookup(*rule_id) {
-                            result.merge(rule_bounds);
-                        }
+                    if let Symbol::Rule { rule_id, .. } = symbol.as_ref()
+                        && let Some(rule_bounds) = rule_lookup(*rule_id)
+                    {
+                        result.merge(rule_bounds);
                     }
                 }
                 Expr::Gt { lhs, rhs } => {
@@ -1153,29 +1153,29 @@ impl IR {
             };
             match expr {
                 Expr::Symbol(symbol) => {
-                    if let Symbol::Rule { rule_id, .. } = symbol.as_ref() {
-                        if let Some(rule_constraints) = rule_lookup(*rule_id) {
-                            match rule_constraints {
-                                HeaderConstraint::Unsatisfiable => {
-                                    unsatisfiable = true;
-                                }
-                                HeaderConstraint::Constrained(bytes) => {
-                                    for (i, &b) in bytes.iter().enumerate() {
-                                        match constrained_bytes.entry(i) {
-                                            Entry::Occupied(entry) => {
-                                                if *entry.get() != b {
-                                                    unsatisfiable = true;
-                                                    break;
-                                                }
+                    if let Symbol::Rule { rule_id, .. } = symbol.as_ref()
+                        && let Some(rule_constraints) = rule_lookup(*rule_id)
+                    {
+                        match rule_constraints {
+                            HeaderConstraint::Unsatisfiable => {
+                                unsatisfiable = true;
+                            }
+                            HeaderConstraint::Constrained(bytes) => {
+                                for (i, &b) in bytes.iter().enumerate() {
+                                    match constrained_bytes.entry(i) {
+                                        Entry::Occupied(entry) => {
+                                            if *entry.get() != b {
+                                                unsatisfiable = true;
+                                                break;
                                             }
-                                            Entry::Vacant(entry) => {
-                                                entry.insert(b);
-                                            }
+                                        }
+                                        Entry::Vacant(entry) => {
+                                            entry.insert(b);
                                         }
                                     }
                                 }
-                                HeaderConstraint::Unconstrained => {}
                             }
+                            HeaderConstraint::Unconstrained => {}
                         }
                     }
                 }
