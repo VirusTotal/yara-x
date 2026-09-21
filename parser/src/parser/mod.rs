@@ -860,6 +860,8 @@ impl<'src> ParserImpl<'src> {
     }
 
     fn flush_errors(&mut self) {
+        self.expected_token_errors.clear();
+        self.unexpected_token_errors.clear();
         for (span, error) in self.pending_errors.drain(0..) {
             self.output.push_error(error, span);
         }
