@@ -952,6 +952,13 @@ impl FilesizeBounds {
         }
         self
     }
+
+    /// Merges another set of filesize bounds into this one (intersection).
+    pub fn merge(&mut self, other: &Self) -> &mut Self {
+        self.max_start(other.start);
+        self.min_end(other.end);
+        self
+    }
 }
 
 /// Describes the requirements on the file header imposed by a rule condition.
@@ -978,6 +985,28 @@ impl HeaderConstraint {
             Self::Unconstrained => true,
             Self::Unsatisfiable => false,
             Self::Constrained(bytes) => data.starts_with(bytes),
+        }
+    }
+
+    /// Merges another header constraint into this one (intersection).
+    pub fn merge(&mut self, other: &Self) {
+        match (&self, other) {
+            (Self::Unsatisfiable, _) => {}
+            (_, Self::Unsatisfiable) => {
+                *self = Self::Unsatisfiable;
+            }
+            (Self::Unconstrained, _) => {
+                *self = other.clone();
+            }
+            (_, Self::Unconstrained) => {}
+            (Self::Constrained(a), Self::Constrained(b)) => {
+                let min_len = a.len().min(b.len());
+                if a[..min_len] != b[..min_len] {
+                    *self = Self::Unsatisfiable;
+                } else if b.len() > a.len() {
+                    *self = other.clone();
+                }
+            }
         }
     }
 }

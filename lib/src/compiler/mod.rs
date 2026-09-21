@@ -261,6 +261,8 @@ struct Namespace {
     id: NamespaceId,
     ident_id: IdentId,
     symbols: Rc<RefCell<SymbolTable>>,
+    global_filesize_bounds: FilesizeBounds,
+    global_header_constraints: HeaderConstraint,
 }
 
 /// Compiles YARA source code producing a set of compiled [`Rules`].
@@ -471,6 +473,10 @@ pub struct Compiler<'a> {
 
     /// Grouped RegexSets constructed during IR creation for or-expressions.
     regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
+
+    /// Constraints on filesize and header associated with each rule. A
+    /// [`RuleId`] is an index in this vector.
+    rule_constraints: Vec<(FilesizeBounds, HeaderConstraint)>,
 }
 
 impl<'a> Compiler<'a> {
@@ -501,6 +507,8 @@ impl<'a> Compiler<'a> {
             id: NamespaceId(0),
             ident_id: ident_pool.get_or_intern("default"),
             symbols: symbol_table.push_new(),
+            global_filesize_bounds: FilesizeBounds::default(),
+            global_header_constraints: HeaderConstraint::default(),
         };
 
         // At this point the symbol table (which is a stacked symbol table) has
@@ -564,6 +572,7 @@ impl<'a> Compiler<'a> {
             includes_enabled: true,
             include_stack: Vec::new(),
             regex_sets: FxHashMap::default(),
+            rule_constraints: Vec::new(),
         }
     }
 
@@ -799,6 +808,8 @@ impl<'a> Compiler<'a> {
             id: NamespaceId(self.current_namespace.id.0 + 1),
             ident_id: self.ident_pool.get_or_intern(namespace),
             symbols: self.symbol_table.push_new(),
+            global_filesize_bounds: FilesizeBounds::default(),
+            global_header_constraints: HeaderConstraint::default(),
         };
         self.rules_depending_on_unsupported_modules.clear();
         self.wasm_mod.new_namespace();
@@ -1274,6 +1285,15 @@ impl Compiler<'_> {
             sub_patterns_len: self.sub_patterns.len(),
             symbol_table_len: self.symbol_table.len(),
             fast_scan_patterns_len: self.fast_scan_patterns.len(),
+            rule_constraints_len: self.rule_constraints.len(),
+            global_filesize_bounds: self
+                .current_namespace
+                .global_filesize_bounds
+                .clone(),
+            global_header_constraints: self
+                .current_namespace
+                .global_header_constraints
+                .clone(),
         }
     }
 
@@ -1289,6 +1309,11 @@ impl Compiler<'_> {
         self.atoms.truncate(snapshot.atoms_len);
         self.symbol_table.truncate(snapshot.symbol_table_len);
         self.fast_scan_patterns.truncate(snapshot.fast_scan_patterns_len);
+        self.rule_constraints.truncate(snapshot.rule_constraints_len);
+        self.current_namespace.global_filesize_bounds =
+            snapshot.global_filesize_bounds;
+        self.current_namespace.global_header_constraints =
+            snapshot.global_header_constraints;
 
         // Pattern IDs that are >= next_pattern_id are being discarded. Any pattern
         // associated to such IDs must be removed.
@@ -1786,13 +1811,38 @@ impl Compiler<'_> {
 
         // Analyze the condition and determine the bounds it imposes to
         // `filesize`, if any.
-        let filesize_bounds = self.ir.filesize_bounds();
+        let mut filesize_bounds = self.ir.filesize_bounds(|rule_id| {
+            self.rule_constraints.get(rule_id.0 as usize).map(|(b, _)| b)
+        });
 
         // Analyze the condition and determine if it imposes some constraint
         // to the file header (ex: `uint16(0) == 0x5a4d`).
-        let header_constraints = self.ir.header_constraints(|pat_idx| {
-            rule_patterns[pat_idx.as_usize()].pattern()
-        });
+        let mut header_constraints = self.ir.header_constraints(
+            |pat_idx| rule_patterns[pat_idx.as_usize()].pattern(),
+            |rule_id| {
+                self.rule_constraints.get(rule_id.0 as usize).map(|(_, c)| c)
+            },
+        );
+
+        let is_global = rule.flags.contains(RuleFlags::Global);
+
+        if is_global {
+            self.current_namespace
+                .global_filesize_bounds
+                .merge(&filesize_bounds);
+            self.current_namespace
+                .global_header_constraints
+                .merge(&header_constraints);
+            filesize_bounds =
+                self.current_namespace.global_filesize_bounds.clone();
+            header_constraints =
+                self.current_namespace.global_header_constraints.clone();
+        } else {
+            filesize_bounds
+                .merge(&self.current_namespace.global_filesize_bounds);
+            header_constraints
+                .merge(&self.current_namespace.global_header_constraints);
+        }
 
         // Set the bounds to all regex patterns in the rule. This must be done
         // before assigning the PatternId to each pattern, as the filesize
@@ -1826,6 +1876,8 @@ impl Compiler<'_> {
                 writeln!(w, "{filesize_bounds:?}\n",).unwrap();
             }
         }
+
+        self.rule_constraints.push((filesize_bounds, header_constraints));
 
         let mut pattern_ids = Vec::with_capacity(rule_patterns.len());
         let mut patterns = Vec::with_capacity(rule_patterns.len());
@@ -3181,6 +3233,9 @@ struct Snapshot {
     sub_patterns_len: usize,
     symbol_table_len: usize,
     fast_scan_patterns_len: usize,
+    rule_constraints_len: usize,
+    global_filesize_bounds: FilesizeBounds,
+    global_header_constraints: HeaderConstraint,
 }
 
 /// Represents a list of warnings.
