@@ -624,7 +624,7 @@ impl Compiler {
     /// compiler.add_include_dir("/path/to/rules")
     /// compiler.add_include_dir("/another/path")
     /// ```
-    fn add_include_dir(&mut self, dir: &str) {
+    fn add_include_dir(&mut self, dir: PathBuf) {
         self.inner.add_include_dir(dir);
     }
 

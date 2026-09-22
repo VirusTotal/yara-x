@@ -1,4 +1,5 @@
 import io
+import pathlib
 import pytest
 import yara_x
 
@@ -461,6 +462,28 @@ def test_compiler_disables_includes():
   with pytest.raises(yara_x.CompileError,
                      match="include statements not allowed"):
     compiler.add_source(f'include "foo.yar"\nrule main {{ condition: true }}')
+
+
+def test_compiler_add_include_dir(tmp_path):
+  included = tmp_path / "included.yar"
+  included.write_text("rule included { condition: true }")
+
+  for include_dir in (str(tmp_path), pathlib.Path(tmp_path)):
+    compiler = yara_x.Compiler()
+
+    with pytest.raises(yara_x.CompileError):
+      compiler.add_source(
+          'include "included.yar"\nrule main { condition: included }'
+      )
+
+    compiler.add_include_dir(include_dir)
+    compiler.add_source(
+        'include "included.yar"\nrule main { condition: included }'
+    )
+
+    rules = compiler.build()
+    matching_rules = [r.identifier for r in rules.scan(b"").matching_rules]
+    assert matching_rules == ["included", "main"]
 
 
 def test_compiler_max_warnings():
