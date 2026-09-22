@@ -13,7 +13,7 @@ repository.workspace = true
 
 [features]
 # The `capi` feature is required by `cargo-c`.
-default = ["capi"]
+default = ["capi", "yara-x/default-modules"]
 capi = []
 
 # When enabled, the serialization of compiled rules include native code for
@@ -45,10 +45,25 @@ pulley = ["yara-x/pulley"]
 # This feature is disabled by default.
 rules-profiling = ["yara-x/rules-profiling"]
 
-# Enables the `magic` module.
-#
-# This feature is disabled by default.
+# Features for enabling individual YARA-X modules.
+console-module = ["yara-x/console-module"]
+crx-module = ["yara-x/crx-module"]
+cuckoo-module = ["yara-x/cuckoo-module"]
+dex-module = ["yara-x/dex-module"]
+dotnet-module = ["yara-x/dotnet-module"]
+elf-module = ["yara-x/elf-module"]
+hash-module = ["yara-x/hash-module"]
+lnk-module = ["yara-x/lnk-module"]
+macho-module = ["yara-x/macho-module"]
 magic-module = ["yara-x/magic-module"]
+math-module = ["yara-x/math-module"]
+pe-module = ["yara-x/pe-module"]
+string-module = ["yara-x/string-module"]
+time-module = ["yara-x/time-module"]
+vt-module = ["yara-x/vt-module"]
+zip-module = ["yara-x/zip-module"]
+test_proto2-module = ["yara-x/test_proto2-module"]
+test_proto3-module = ["yara-x/test_proto3-module"]
 
 # Enables internal logging and automatically writes log messages to stderr.
 #
