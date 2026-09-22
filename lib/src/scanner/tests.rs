@@ -1140,8 +1140,8 @@ fn test_teddy_scan_timeout() {
     let mut scanner = Scanner::new(&rules);
     scanner.set_timeout(Duration::from_secs(1));
 
-    let mut data = Vec::with_capacity(10_000_000);
-    for _ in 0..2_500_000 {
+    let mut data = Vec::with_capacity(40_000_000);
+    for _ in 0..10_000_000 {
         data.extend_from_slice(b"abcd");
     }
 
