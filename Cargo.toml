@@ -109,7 +109,12 @@ wasm-opt = "0.116.1"
 wasmtime = { version = "45.0.3", default-features = false }
 x509-parser = "0.18.1"
 yansi = "1.0.1"
-yara-x = { path = "lib", version = "1.20.0" }
+yara-x = { path = "lib", version = "1.20.0", default-features = false, features = [
+    "constant-folding",
+    "exact-atoms",
+    "fast-regexp",
+    "generate-proto-code",
+] }
 yara-x-fmt = { path = "fmt", version = "1.20.0" }
 yara-x-macros = { path = "macros", version = "1.20.0" }
 yara-x-parser = { path = "parser", version = "1.20.0" }
