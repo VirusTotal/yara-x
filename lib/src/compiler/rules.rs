@@ -1103,22 +1103,34 @@ mod tests {
             |bytes: &[u8]| HeaderConstraint::Constrained(bytes.to_vec());
 
         // (Unsatisfiable, _) => Unsatisfiable
-        assert_eq!(merge(unsatisfiable.clone(), &unsatisfiable), unsatisfiable);
-        assert_eq!(merge(unsatisfiable.clone(), &unconstrained), unsatisfiable);
+        assert_eq!(
+            merge(unsatisfiable.clone(), &unsatisfiable),
+            unsatisfiable
+        );
+        assert_eq!(
+            merge(unsatisfiable.clone(), &unconstrained),
+            unsatisfiable
+        );
         assert_eq!(
             merge(unsatisfiable.clone(), &constrained(&[0x4D, 0x5A])),
             unsatisfiable
         );
 
         // (_, Unsatisfiable) => Unsatisfiable
-        assert_eq!(merge(unconstrained.clone(), &unsatisfiable), unsatisfiable);
+        assert_eq!(
+            merge(unconstrained.clone(), &unsatisfiable),
+            unsatisfiable
+        );
         assert_eq!(
             merge(constrained(&[0x4D, 0x5A]), &unsatisfiable),
             unsatisfiable
         );
 
         // (Unconstrained, _) => other
-        assert_eq!(merge(unconstrained.clone(), &unconstrained), unconstrained);
+        assert_eq!(
+            merge(unconstrained.clone(), &unconstrained),
+            unconstrained
+        );
         assert_eq!(
             merge(unconstrained.clone(), &constrained(&[0x4D, 0x5A])),
             constrained(&[0x4D, 0x5A])
@@ -1175,4 +1187,3 @@ mod tests {
         );
     }
 }
-
