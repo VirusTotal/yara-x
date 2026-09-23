@@ -741,18 +741,17 @@ mod output_handler {
             if self.output_options.count_only {
                 let count = scan_results.count();
 
-                if count == 0 {
-                    return false;
+                if count > 0 {
+                    output
+                        .send(Message::Info(format!(
+                            "{}: {}",
+                            file_path.display(),
+                            count
+                        )))
+                        .unwrap();
                 }
 
-                output
-                    .send(Message::Info(format!(
-                        "{}: {}",
-                        file_path.display(),
-                        count
-                    )))
-                    .unwrap();
-                return true;
+                return count > 0;
             }
 
             let mut result = false;
@@ -930,16 +929,19 @@ mod output_handler {
             if self.output_options.count_only {
                 let count = scan_results.count();
 
-                if count == 0 {
-                    return false;
+                if count > 0 {
+                    output
+                        .send(Message::Info(
+                            serde_json::to_string(&JsonCountOutput {
+                                count,
+                                path,
+                            })
+                            .unwrap(),
+                        ))
+                        .unwrap();
                 }
 
-                let json =
-                    serde_json::to_string(&JsonCountOutput { count, path })
-                        .unwrap();
-
-                output.send(Message::Info(json)).unwrap();
-                return true;
+                return count > 0;
             }
 
             let matching_rules =
