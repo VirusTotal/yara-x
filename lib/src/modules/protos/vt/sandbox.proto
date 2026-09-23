@@ -360,6 +360,7 @@ message ProcessItem {
   string process_id = 1;
   string parent_process_id = 2;
   string name = 3;
+  string parent_name = 10;
   uint64 start_time = 4;
   uint64 termination_time = 5;
   repeated string files_opened = 6;
