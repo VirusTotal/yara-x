@@ -5,6 +5,7 @@ use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::hash::{Hash, Hasher};
 use std::iter;
+use std::num::NonZeroU32;
 use std::ops::{ControlFlow, RangeInclusive};
 use std::rc::Rc;
 
@@ -265,7 +266,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         identifier: pattern.identifier.clone(),
         in_use: false,
         span: pattern.span(),
-        fast_scan_allowed: true,
+        max_matches_in_fast_scan: NonZeroU32::new(1),
         pattern: Pattern::Text(LiteralPattern {
             flags,
             text,
@@ -326,7 +327,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
         identifier: pattern.identifier.clone(),
         in_use: false,
         span: pattern.span(),
-        fast_scan_allowed: true,
+        max_matches_in_fast_scan: NonZeroU32::new(1),
         pattern: Pattern::Hex(RegexpPattern {
             hir,
             flags: pattern_flags,
@@ -465,7 +466,7 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
         identifier: pattern.identifier.clone(),
         in_use: false,
         span: pattern.span(),
-        fast_scan_allowed: true,
+        max_matches_in_fast_scan: NonZeroU32::new(1),
         pattern: Pattern::Regexp(RegexpPattern {
             flags,
             hir,
@@ -849,10 +850,7 @@ fn expr_from_ast<'src>(
                 (_, None) => {
                     let (pattern_idx, pattern) =
                         ctx.get_pattern_mut(&p.identifier)?;
-                    pattern
-                        .make_non_anchorable()
-                        .mark_as_used()
-                        .disallow_fast_scan();
+                    pattern.make_non_anchorable().mark_as_used();
                     ctx.ir.pattern_count(pattern_idx, None)
                 }
             }
@@ -1027,6 +1025,19 @@ pub(in crate::compiler) fn rule_condition_from_ast<'src>(
     }
 
     ctx.ir.root = Some(condition);
+
+    for event in ctx.ir.dfs_iter(condition) {
+        if let dfs::Event::Enter((
+            expr_id,
+            Expr::PatternCount { pattern, range: None },
+            _,
+        )) = event
+        {
+            let limit = ctx.ir.required_matches_for_count(expr_id);
+            ctx.current_rule_patterns[pattern.as_usize()]
+                .update_max_matches_in_fast_scan(limit);
+        }
+    }
 
     check_unintended_patterns_in_sets(ctx, &rule.condition);
 
@@ -1277,6 +1288,9 @@ fn of_expr_from_ast<'src>(
             } else {
                 pattern.make_non_anchorable();
             }
+            if !matches!(anchor, MatchAnchor::None) {
+                pattern.disallow_fast_scan();
+            }
         }
     }
 
@@ -1340,32 +1354,39 @@ fn for_of_expr_from_ast<'src>(
 
     let body = bool_expr_from_ast(ctx, &for_of.body)?;
 
-    let mut allow_fast_scan = true;
+    let mut max_matches = NonZeroU32::new(1);
 
     for event in ctx.ir.dfs_iter(body) {
-        if let dfs::Event::Enter((_, expr, _)) = event
-            && (matches!(
-                expr,
-                Expr::PatternCountVar { .. }
-                    | Expr::PatternOffsetVar { .. }
-                    | Expr::PatternLengthVar { .. }
-            ) || (match expr {
-                Expr::PatternMatchVar { anchor, .. } => {
-                    !matches!(anchor, MatchAnchor::None)
+        if let dfs::Event::Enter((expr_id, expr, _)) = event {
+            let limit = match expr {
+                Expr::PatternOffsetVar { .. }
+                | Expr::PatternLengthVar { .. }
+                | Expr::PatternCountVar { range: Some(_), .. } => None,
+                Expr::PatternMatchVar { anchor, .. }
+                    if !matches!(anchor, MatchAnchor::None) =>
+                {
+                    None
                 }
-                _ => false,
-            }))
-        {
-            allow_fast_scan = false;
-            break;
+                Expr::PatternCountVar { range: None, .. } => {
+                    ctx.ir.required_matches_for_count(expr_id)
+                }
+                _ => continue,
+            };
+
+            max_matches = match (max_matches, limit) {
+                (Some(curr), Some(new)) => Some(curr.max(new)),
+                _ => None,
+            };
+
+            if max_matches.is_none() {
+                break;
+            }
         }
     }
 
-    if !allow_fast_scan {
-        for &pattern_idx in &pattern_set {
-            ctx.current_rule_patterns[pattern_idx.as_usize()]
-                .disallow_fast_scan();
-        }
+    for &pattern_idx in &pattern_set {
+        ctx.current_rule_patterns[pattern_idx.as_usize()]
+            .update_max_matches_in_fast_scan(max_matches);
     }
 
     ctx.for_of_depth -= 1;

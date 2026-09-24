@@ -1966,43 +1966,49 @@ fn track_match(
 
     bits.set(pattern_id.into(), true);
 
-    // If we are in fast scan mode, and this pattern is suitable to be disabled
-    // in fast scan mode, disabled it because we already found the first match.
-    let mut disable_pattern =
-        tracker.fast_scan && tracker.compiled_rules.is_fast_scan(pattern_id);
+    let mut disable_pattern = false;
 
     match tracker.pattern_matches.add(pattern_id, match_, replace_if_longer) {
-        #[cfg(feature = "logging")]
-        AddResult::Inserted(len) if len % 100_000 == 0 => {
-            let (rule, pattern) = tracker
-                .compiled_rules
-                .get_rule_and_pattern_by_pattern_id(pattern_id)
-                .unwrap();
+        AddResult::Inserted(len) => {
+            #[cfg(feature = "logging")]
+            if len % 100_000 == 0 {
+                let (rule, pattern) = tracker
+                    .compiled_rules
+                    .get_rule_and_pattern_by_pattern_id(pattern_id)
+                    .unwrap();
 
-            log::warn!(
-                "Pattern `{}` in rule `{}:{}` grew to {} matches",
-                tracker
-                    .compiled_rules
-                    .ident_pool()
-                    .get(pattern.ident_id)
-                    .unwrap(),
-                tracker
-                    .compiled_rules
-                    .ident_pool()
-                    .get(rule.namespace_ident_id)
-                    .unwrap(),
-                tracker
-                    .compiled_rules
-                    .ident_pool()
-                    .get(rule.ident_id)
-                    .unwrap(),
-                len
-            );
+                log::warn!(
+                    "Pattern `{}` in rule `{}:{}` grew to {} matches",
+                    tracker
+                        .compiled_rules
+                        .ident_pool()
+                        .get(pattern.ident_id)
+                        .unwrap(),
+                    tracker
+                        .compiled_rules
+                        .ident_pool()
+                        .get(rule.namespace_ident_id)
+                        .unwrap(),
+                    tracker
+                        .compiled_rules
+                        .ident_pool()
+                        .get(rule.ident_id)
+                        .unwrap(),
+                    len
+                );
+            }
+            if tracker.fast_scan
+                && let Some(max_matches) =
+                    tracker.compiled_rules.fast_scan_max_matches(pattern_id)
+                && len >= max_matches.get() as usize
+            {
+                disable_pattern = true;
+            }
         }
         AddResult::MaxMatchesReached => {
             disable_pattern = true;
         }
-        _ => {}
+        AddResult::Updated => {}
     }
 
     if disable_pattern {

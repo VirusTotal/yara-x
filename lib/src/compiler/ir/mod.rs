@@ -105,12 +105,14 @@ bitflags! {
 /// within the confines of a specific rule. If two distinct rules declare
 /// precisely the same pattern, including any modifiers, they will reference
 /// the same [`Pattern`] instance.
+use std::num::NonZeroU32;
+
 pub(crate) struct PatternInRule<'src> {
     identifier: Ident<'src>,
     pattern: Pattern,
     span: Span,
     in_use: bool,
-    fast_scan_allowed: bool,
+    max_matches_in_fast_scan: Option<NonZeroU32>,
 }
 
 impl<'src> PatternInRule<'src> {
@@ -188,24 +190,40 @@ impl<'src> PatternInRule<'src> {
         self
     }
 
-    /// Returns true if this pattern can be fast-scanned.
-    ///
-    /// A pattern can be fast-scanned if its occurrences are only evaluated
-    /// as simple boolean checks (e.g. `$a`), meaning the scanner can stop
-    /// tracking matches for it once the first match has been found.
+    /// Returns the maximum number of matches required for this pattern in
+    /// fast-scan mode, or `None` if all matches must be tracked.
     #[inline]
-    pub fn fast_scan_allowed(&self) -> bool {
-        self.fast_scan_allowed
+    pub fn max_matches_in_fast_scan(&self) -> Option<NonZeroU32> {
+        self.max_matches_in_fast_scan
+    }
+
+    /// Updates the maximum number of matches required for this pattern in
+    /// fast-scan mode.
+    ///
+    /// If both the current limit and `limit` are `Some`, the higher of the
+    /// two limits is kept. If either is `None`, fast-scanning is disallowed
+    /// (`None`).
+    #[inline]
+    pub fn update_max_matches_in_fast_scan(
+        &mut self,
+        limit: Option<NonZeroU32>,
+    ) -> &mut Self {
+        self.max_matches_in_fast_scan =
+            match (self.max_matches_in_fast_scan, limit) {
+                (Some(curr), Some(new)) => Some(curr.max(new)),
+                _ => None,
+            };
+        self
     }
 
     /// Disallows fast-scanning for this pattern.
     ///
     /// This is called when the pattern is used in a context that requires
-    /// tracking all matches (such as count `#a`, offset `@a`, length `!a`,
-    /// anchored checks, or loop equivalents).
+    /// tracking all matches (such as offset `@a`, length `!a`, range-bounded
+    /// count `#a in (..)`, anchored checks, or non-constant count comparisons).
     #[inline]
     pub fn disallow_fast_scan(&mut self) -> &mut Self {
-        self.fast_scan_allowed = false;
+        self.max_matches_in_fast_scan = None;
         self
     }
 }
@@ -504,6 +522,89 @@ impl IR {
     #[inline]
     pub fn set_parent(&mut self, expr_id: ExprId, parent_id: ExprId) {
         self.parents[expr_id.0 as usize] = parent_id;
+    }
+
+    /// Computes the maximum number of matches required to evaluate a
+    /// `PatternCount` or `PatternCountVar` expression (`count_expr_id`) in
+    /// fast-scan mode without altering the condition's result.
+    ///
+    /// Returns `Some(limit)` if tracking can stop once `limit` matches are
+    /// found, or `None` if all matches must be tracked.
+    pub(crate) fn required_matches_for_count(
+        &self,
+        count_expr_id: ExprId,
+    ) -> Option<NonZeroU32> {
+        let Some(parent_id) = self.get_parent(count_expr_id) else {
+            // Root condition is `#a` (evaluated as boolean `#a != 0`).
+            return NonZeroU32::new(1);
+        };
+
+        let limit_i64 = match self.get(parent_id) {
+            // Boolean contexts where `#a` is evaluated as `#a != 0`.
+            Expr::And { .. } | Expr::Or { .. } | Expr::Not { .. } => Some(1),
+            Expr::ForOf(for_of) if for_of.body == count_expr_id => Some(1),
+            Expr::ForIn(for_in) if for_in.body == count_expr_id => Some(1),
+            Expr::With(with) if with.body == count_expr_id => Some(1),
+            Expr::OfExprTuple(of) if of.items.contains(&count_expr_id) => {
+                Some(1)
+            }
+
+            // #a == K, K == #a, #a != K, K != #a -> K + 1
+            Expr::Eq { lhs, rhs } | Expr::Ne { lhs, rhs } => {
+                let other = if *lhs == count_expr_id { *rhs } else { *lhs };
+                self.get(other)
+                    .try_as_const_integer()
+                    .map(|k| k.saturating_add(1))
+            }
+
+            // #a > K (K + 1) or K > #a (K)
+            Expr::Gt { lhs, rhs } => {
+                if *lhs == count_expr_id {
+                    self.get(*rhs)
+                        .try_as_const_integer()
+                        .map(|k| k.saturating_add(1))
+                } else {
+                    self.get(*lhs).try_as_const_integer()
+                }
+            }
+
+            // #a >= K (K) or K >= #a (K + 1)
+            Expr::Ge { lhs, rhs } => {
+                if *lhs == count_expr_id {
+                    self.get(*rhs).try_as_const_integer()
+                } else {
+                    self.get(*lhs)
+                        .try_as_const_integer()
+                        .map(|k| k.saturating_add(1))
+                }
+            }
+
+            // #a < K (K) or K < #a (K + 1)
+            Expr::Lt { lhs, rhs } => {
+                if *lhs == count_expr_id {
+                    self.get(*rhs).try_as_const_integer()
+                } else {
+                    self.get(*lhs)
+                        .try_as_const_integer()
+                        .map(|k| k.saturating_add(1))
+                }
+            }
+
+            // #a <= K (K + 1) or K <= #a (K)
+            Expr::Le { lhs, rhs } => {
+                if *lhs == count_expr_id {
+                    self.get(*rhs)
+                        .try_as_const_integer()
+                        .map(|k| k.saturating_add(1))
+                } else {
+                    self.get(*lhs).try_as_const_integer()
+                }
+            }
+
+            _ => None,
+        }?;
+
+        u32::try_from(limit_i64.max(1)).ok().and_then(NonZeroU32::new)
     }
 
     /// Pushes an [`Expr`] into the IR tree.

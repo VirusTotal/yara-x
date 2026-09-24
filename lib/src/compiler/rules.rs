@@ -1,6 +1,7 @@
 use std::collections::hash_map;
 use std::fmt;
 use std::io::{BufWriter, Read, Write};
+use std::num::NonZeroU32;
 use std::ops::{Bound, RangeBounds};
 use std::slice::Iter;
 #[cfg(feature = "logging")]
@@ -245,16 +246,10 @@ pub struct Rules {
     /// set automata for single-pass evaluation.
     pub(in crate::compiler) regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
 
-    /// BitVec where the N-th bit indicates whether the pattern with
-    /// PatternId = N is a fast-scan pattern.
-    ///
-    /// A pattern can be fast-scanned if its occurrences are only evaluated
-    /// as simple boolean checks (e.g. `$a`), meaning the scanner can stop
-    /// tracking matches for it once the first match has been found. If a
-    /// pattern is used in a context that requires tracking all matches (such
-    /// as count `#a`, offset `@a`, length `!a`, anchored checks, or loop
-    /// equivalents), it cannot be fast-scanned.
-    pub(in crate::compiler) fast_scan_patterns: bitvec::vec::BitVec,
+    /// Vector where the N-th element indicates the maximum number of matches
+    /// required in fast-scan mode for the pattern with PatternId = N, or
+    /// `None` if all matches must be tracked.
+    pub(in crate::compiler) fast_scan_max_matches: Vec<Option<NonZeroU32>>,
 
     /// Indicates whether the rules were compiled with rules profiling enabled.
     ///
@@ -681,8 +676,11 @@ impl Rules {
     }
 
     #[inline]
-    pub(crate) fn is_fast_scan(&self, pattern_id: PatternId) -> bool {
-        *self.fast_scan_patterns.get(usize::from(pattern_id)).unwrap()
+    pub(crate) fn fast_scan_max_matches(
+        &self,
+        pattern_id: PatternId,
+    ) -> Option<NonZeroU32> {
+        self.fast_scan_max_matches[usize::from(pattern_id)]
     }
 }
 

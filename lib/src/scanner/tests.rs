@@ -1018,61 +1018,82 @@ fn fast_scan_mode() {
       condition:
         $a and $b
     }
-    rule test_count {
+    rule test_count_gt {
       strings:
         $c = "baz"
       condition:
-        #c > 1
+        #c > 2
+    }
+    rule test_count_lt {
+      strings:
+        $d = "qux"
+      condition:
+        not (#d < 3)
+    }
+    rule test_count_eq {
+      strings:
+        $e = "zap"
+      condition:
+        #e != 2
+    }
+    rule test_for_of_count {
+      strings:
+        $f = "wim"
+      condition:
+        for any of ($f) : ( # >= 3 )
+    }
+    rule test_unbounded_offset {
+      strings:
+        $g = "nub"
+      condition:
+        @g[1] >= 0
     }
     "#,
     )
     .unwrap();
 
+    let input = b"foofoobarbarbazbazbazbazquxquxquxquxzapzapzapzapwimwimwimwimnubnubnubnub";
+
     // Test standard scan first (fast_scan = false by default)
     let mut scanner = Scanner::new(&rules);
-    let results = scanner.scan(b"foofoobarbarbazbaz").unwrap();
+    let results = scanner.scan(input).unwrap();
 
-    // Check pattern $a matches
-    let test_boolean = results
-        .matching_rules()
-        .find(|r| r.identifier() == "test_boolean")
-        .unwrap();
-    let mut patterns_a =
-        test_boolean.patterns().filter(|p| p.identifier() == "$a");
-    assert_eq!(patterns_a.next().unwrap().matches().len(), 2); // foofoo has 2 matches
+    let get_match_count = |results: &crate::ScanResults, rule_name: &str, pat_name: &str| {
+        results
+            .matching_rules()
+            .find(|r| r.identifier() == rule_name)
+            .unwrap()
+            .patterns()
+            .find(|p| p.identifier() == pat_name)
+            .unwrap()
+            .matches()
+            .len()
+    };
 
-    // Check pattern $c matches
-    let test_count = results
-        .matching_rules()
-        .find(|r| r.identifier() == "test_count")
-        .unwrap();
-    let mut patterns_c =
-        test_count.patterns().filter(|p| p.identifier() == "$c");
-    assert_eq!(patterns_c.next().unwrap().matches().len(), 2); // bazbaz has 2 matches
+    assert_eq!(get_match_count(&results, "test_boolean", "$a"), 2);
+    assert_eq!(get_match_count(&results, "test_count_gt", "$c"), 4);
+    assert_eq!(get_match_count(&results, "test_count_lt", "$d"), 4);
+    assert_eq!(get_match_count(&results, "test_count_eq", "$e"), 4);
+    assert_eq!(get_match_count(&results, "test_for_of_count", "$f"), 4);
+    assert_eq!(get_match_count(&results, "test_unbounded_offset", "$g"), 4);
 
     // Test fast scan mode (fast_scan = true)
     let mut scanner = Scanner::new(&rules);
     scanner.fast_scan(true);
-    let results = scanner.scan(b"foofoobarbarbazbaz").unwrap();
+    let results = scanner.scan(input).unwrap();
 
-    // Rule test_boolean still matches
-    let test_boolean = results
-        .matching_rules()
-        .find(|r| r.identifier() == "test_boolean")
-        .unwrap();
-    // But pattern $a must only have 1 match because it is fast-scanned!
-    let mut patterns_a =
-        test_boolean.patterns().filter(|p| p.identifier() == "$a");
-    assert_eq!(patterns_a.next().unwrap().matches().len(), 1);
-
-    // Pattern $c must still have 2 matches because #c is used, disabling fast scan!
-    let test_count = results
-        .matching_rules()
-        .find(|r| r.identifier() == "test_count")
-        .unwrap();
-    let mut patterns_c =
-        test_count.patterns().filter(|p| p.identifier() == "$c");
-    assert_eq!(patterns_c.next().unwrap().matches().len(), 2);
+    // $a only needs 1 match
+    assert_eq!(get_match_count(&results, "test_boolean", "$a"), 1);
+    // #c > 2 stops after 2 + 1 = 3 matches (even though 4 exist in input)
+    assert_eq!(get_match_count(&results, "test_count_gt", "$c"), 3);
+    // #d < 3 stops after 3 matches (even though 4 exist in input)
+    assert_eq!(get_match_count(&results, "test_count_lt", "$d"), 3);
+    // #e != 2 stops after 2 + 1 = 3 matches (even though 4 exist in input)
+    assert_eq!(get_match_count(&results, "test_count_eq", "$e"), 3);
+    // for any of ($f) : ( # >= 3 ) stops after 3 matches
+    assert_eq!(get_match_count(&results, "test_for_of_count", "$f"), 3);
+    // @g[1] >= 0 disallows fast-scan, so all 4 matches are tracked
+    assert_eq!(get_match_count(&results, "test_unbounded_offset", "$g"), 4);
 }
 
 #[test]
