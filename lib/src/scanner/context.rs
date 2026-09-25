@@ -1999,7 +1999,7 @@ fn track_match(
                         .ident_pool()
                         .get(rule.ident_id)
                         .unwrap(),
-                    len
+                    current_matches
                 );
             }
             // If we are in fast-scan mode, and the current number of matches
