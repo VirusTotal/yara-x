@@ -1011,6 +1011,8 @@ fn regex_set_optimization() {
 fn fast_scan_mode() {
     let rules = crate::compile(
         r#"
+    import "math"
+
     rule test_boolean {
       strings:
         $a = "foo"
@@ -1048,11 +1050,18 @@ fn fast_scan_mode() {
       condition:
         @g[1] >= 0
     }
+    rule test_anchored_and_all_of_them {
+      strings:
+        $j = "$"
+        $k = "foo"
+      condition:
+        all of them and $j at 0
+    }
     "#,
     )
     .unwrap();
 
-    let input = b"foofoobarbarbazbazbazbazquxquxquxquxzapzapzapzapwimwimwimwimnubnubnubnub";
+    let input = b"$foofoobarbarbazbazbazbazquxquxquxquxzapzapzapzapwimwimwimwimnubnubnubnubzenzenzenzenorborborborb$$$";
 
     // Test standard scan first (fast_scan = false by default)
     let mut scanner = Scanner::new(&rules);
@@ -1077,6 +1086,16 @@ fn fast_scan_mode() {
     assert_eq!(get_match_count(&results, "test_count_eq", "$e"), 4);
     assert_eq!(get_match_count(&results, "test_for_of_count", "$f"), 4);
     assert_eq!(get_match_count(&results, "test_unbounded_offset", "$g"), 4);
+    // $j is anchored at 0 even when `all of them` is also present, so only the
+    // match at offset 0 is checked and recorded.
+    assert_eq!(
+        get_match_count(&results, "test_anchored_and_all_of_them", "$j"),
+        1
+    );
+    assert_eq!(
+        get_match_count(&results, "test_anchored_and_all_of_them", "$k"),
+        2
+    );
 
     // Test fast scan mode (fast_scan = true)
     let mut scanner = Scanner::new(&rules);
@@ -1095,6 +1114,15 @@ fn fast_scan_mode() {
     assert_eq!(get_match_count(&results, "test_for_of_count", "$f"), 3);
     // @g[1] >= 0 disallows fast-scan, so all 4 matches are tracked
     assert_eq!(get_match_count(&results, "test_unbounded_offset", "$g"), 4);
+    // $j is anchored at 0 and $k stops after 1 match in fast-scan mode
+    assert_eq!(
+        get_match_count(&results, "test_anchored_and_all_of_them", "$j"),
+        1
+    );
+    assert_eq!(
+        get_match_count(&results, "test_anchored_and_all_of_them", "$k"),
+        1
+    );
 }
 
 #[test]
