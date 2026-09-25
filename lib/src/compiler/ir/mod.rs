@@ -547,9 +547,6 @@ impl IR {
     ///   we can tell the difference between "exactly 1000 matches" and "more
     ///   than 1000 matches".
     ///
-    /// - For `math.min(#a, 100)` (or `math.min(100, #a)`), we can stop after
-    ///   100 matches because `math.min` caps the value at 100 anyway.
-    ///
     /// - When `#a` is used directly as a boolean (e.g., `condition: #a` or
     ///   `#a and $b`), we only need **1** match to know that `#a` is non-zero.
     ///
@@ -626,18 +623,6 @@ impl IR {
                 } else {
                     self.get(*lhs).try_as_const_integer()
                 }
-            }
-
-            // math.min(#a, K) or math.min(K, #a) -> K.
-            Expr::FuncCall(func_call)
-                if func_call.mangled_name() == "math.min@a:i,b:i@i" =>
-            {
-                let other = if func_call.args[0] == count_expr_id {
-                    func_call.args[1]
-                } else {
-                    func_call.args[0]
-                };
-                self.get(other).try_as_const_integer()
             }
 
             // Any other parent expression (arithmetic, non-constant comparison,
