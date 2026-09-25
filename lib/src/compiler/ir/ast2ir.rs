@@ -1026,6 +1026,15 @@ pub(in crate::compiler) fn rule_condition_from_ast<'src>(
 
     ctx.ir.root = Some(condition);
 
+    // Now that the full IR tree has been built and every node's parent is
+    // recorded in `ctx.ir`, traverse the condition to compute the fast-scan
+    // match limit for each unbounded pattern count (`#a`).
+    //
+    // Unlike range-bounded counts (`#a in (..)`), offsets (`@a`), or lengths
+    // (`!a`)—which immediately disallow fast-scan during AST-to-IR conversion—
+    // the number of matches required for `#a` depends on its parent expression
+    // in the IR (e.g., `#a > 1000` requires 1001 matches, `#a < 1000` requires
+    // 1000 matches, while `#a == #b` requires tracking all matches).
     for event in ctx.ir.dfs_iter(condition) {
         if let dfs::Event::Enter((
             expr_id,
@@ -1354,6 +1363,20 @@ fn for_of_expr_from_ast<'src>(
 
     let body = bool_expr_from_ast(ctx, &for_of.body)?;
 
+    // Traverse the loop's body to determine how the anonymous pattern variable
+    // (`$`, `#`, `@`, `!`) is used, and compute the fast-scan match limit that
+    // must be applied to all patterns in `pattern_set`:
+    //
+    // - By default, `max_matches` starts at 1 (suitable when the body only
+    //   performs un-anchored boolean checks like `$`).
+    // - If the body uses `@` (`PatternOffsetVar`), `!` (`PatternLengthVar`),
+    //   `# in (..)` (`PatternCountVar` with a range), or an anchored `$`
+    //   (`$ at ..` / `$ in (..)`), all matches must be tracked and we can stop
+    //   the traversal early.
+    // - If the body uses an unbounded `#` (`PatternCountVar` with `range: None`,
+    //   e.g. `# > 10`), `required_matches_for_count` inspects the parent
+    //   comparison node to determine how many matches are needed, and we keep
+    //   the maximum required count across all uses in the body.
     let mut max_matches = NonZeroU32::new(1);
 
     for event in ctx.ir.dfs_iter(body) {

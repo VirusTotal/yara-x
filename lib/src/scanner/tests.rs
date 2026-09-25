@@ -1058,17 +1058,18 @@ fn fast_scan_mode() {
     let mut scanner = Scanner::new(&rules);
     let results = scanner.scan(input).unwrap();
 
-    let get_match_count = |results: &crate::ScanResults, rule_name: &str, pat_name: &str| {
-        results
-            .matching_rules()
-            .find(|r| r.identifier() == rule_name)
-            .unwrap()
-            .patterns()
-            .find(|p| p.identifier() == pat_name)
-            .unwrap()
-            .matches()
-            .len()
-    };
+    let get_match_count =
+        |results: &crate::ScanResults, rule_name: &str, pat_name: &str| {
+            results
+                .matching_rules()
+                .find(|r| r.identifier() == rule_name)
+                .unwrap()
+                .patterns()
+                .find(|p| p.identifier() == pat_name)
+                .unwrap()
+                .matches()
+                .len()
+        };
 
     assert_eq!(get_match_count(&results, "test_boolean", "$a"), 2);
     assert_eq!(get_match_count(&results, "test_count_gt", "$c"), 4);
