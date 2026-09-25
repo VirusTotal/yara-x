@@ -1050,6 +1050,12 @@ fn fast_scan_mode() {
       condition:
         @g[1] >= 0
     }
+    rule test_shared_pattern_fast_scan {
+      strings:
+        $g = "nub"
+      condition:
+        $g
+    }
     rule test_anchored_and_all_of_them {
       strings:
         $j = "$"
@@ -1086,6 +1092,10 @@ fn fast_scan_mode() {
     assert_eq!(get_match_count(&results, "test_count_eq", "$e"), 4);
     assert_eq!(get_match_count(&results, "test_for_of_count", "$f"), 4);
     assert_eq!(get_match_count(&results, "test_unbounded_offset", "$g"), 4);
+    assert_eq!(
+        get_match_count(&results, "test_shared_pattern_fast_scan", "$g"),
+        4
+    );
     // $j is anchored at 0 even when `all of them` is also present, so only the
     // match at offset 0 is checked and recorded.
     assert_eq!(
@@ -1114,6 +1124,12 @@ fn fast_scan_mode() {
     assert_eq!(get_match_count(&results, "test_for_of_count", "$f"), 3);
     // @g[1] >= 0 disallows fast-scan, so all 4 matches are tracked
     assert_eq!(get_match_count(&results, "test_unbounded_offset", "$g"), 4);
+    // In test_shared_pattern_fast_scan, $g only needs 1 match even though
+    // test_unbounded_offset declares the same literal without fast-scan.
+    assert_eq!(
+        get_match_count(&results, "test_shared_pattern_fast_scan", "$g"),
+        1
+    );
     // $j is anchored at 0 and $k stops after 1 match in fast-scan mode
     assert_eq!(
         get_match_count(&results, "test_anchored_and_all_of_them", "$j"),
