@@ -55,6 +55,10 @@ impl Module {
         unsafe { wasmtime::Module::deserialize(engine, bytes).map(Module) }
     }
 
+    pub fn imports(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.0.imports().map(|import| (import.module(), import.name()))
+    }
+
     #[allow(dead_code)]
     pub fn serialize(&self) -> wasmtime::Result<Vec<u8>> {
         self.0.serialize()

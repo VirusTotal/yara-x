@@ -86,6 +86,8 @@ use std::sync::{LazyLock, OnceLock};
 
 use bstr::{BString, ByteSlice};
 use rustc_hash::FxHashMap;
+#[cfg(not(target_family = "wasm"))]
+use rustc_hash::FxHashSet;
 use smallvec::{SmallVec, smallvec};
 use yara_x_macros::wasm_export;
 
@@ -844,11 +846,25 @@ pub(crate) unsafe fn free_engine() {
     }
 }
 
-pub(crate) fn new_linker() -> Linker<ScanContext<'static, 'static>> {
+pub(crate) fn new_linker(
+    wasm_mod: &runtime::Module,
+) -> Linker<ScanContext<'static, 'static>> {
     let engine = get_engine();
     let mut linker = Linker::<ScanContext<'static, 'static>>::new(engine);
 
+    #[cfg(not(target_family = "wasm"))]
+    let imports: FxHashSet<_> = wasm_mod.imports().collect();
+    #[cfg(target_family = "wasm")]
+    let _ = wasm_mod;
+
     for export in wasm_exports() {
+        let name = export.fully_qualified_mangled_name();
+
+        #[cfg(not(target_family = "wasm"))]
+        if !imports.contains(&(export.rust_module_path, name.as_str())) {
+            continue;
+        }
+
         let func_type = FuncType::new(
             engine,
             export.func.wasmtime_args(),
@@ -860,7 +876,7 @@ pub(crate) fn new_linker() -> Linker<ScanContext<'static, 'static>> {
             linker
                 .func_new_unchecked(
                     export.rust_module_path,
-                    export.fully_qualified_mangled_name().as_str(),
+                    name.as_str(),
                     func_type,
                     export.sync_flags,
                     export.func.trampoline(),
