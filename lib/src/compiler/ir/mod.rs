@@ -112,7 +112,6 @@ pub(crate) struct PatternInRule<'src> {
     pattern: Pattern,
     span: Span,
     in_use: bool,
-    max_matches_in_fast_scan: Option<NonZeroU32>,
 }
 
 impl<'src> PatternInRule<'src> {
@@ -194,7 +193,7 @@ impl<'src> PatternInRule<'src> {
     /// fast-scan mode, or `None` if all matches must be tracked.
     #[inline]
     pub fn max_matches_in_fast_scan(&self) -> Option<NonZeroU32> {
-        self.max_matches_in_fast_scan
+        self.pattern.max_matches_in_fast_scan()
     }
 
     /// Updates the maximum number of matches required for this pattern in
@@ -208,11 +207,7 @@ impl<'src> PatternInRule<'src> {
         &mut self,
         limit: Option<NonZeroU32>,
     ) -> &mut Self {
-        self.max_matches_in_fast_scan =
-            match (self.max_matches_in_fast_scan, limit) {
-                (Some(curr), Some(new)) => Some(curr.max(new)),
-                _ => None,
-            };
+        self.pattern.update_max_matches_in_fast_scan(limit);
         self
     }
 
@@ -223,7 +218,7 @@ impl<'src> PatternInRule<'src> {
     /// count `#a in (..)`, anchored checks, or non-constant count comparisons).
     #[inline]
     pub fn disallow_fast_scan(&mut self) -> &mut Self {
-        self.max_matches_in_fast_scan = None;
+        self.pattern.disallow_fast_scan();
         self
     }
 }
@@ -365,6 +360,40 @@ impl Pattern {
             Pattern::Hex(regexp) => &regexp.header_constraints,
         }
     }
+
+    #[inline]
+    pub fn max_matches_in_fast_scan(&self) -> Option<NonZeroU32> {
+        match self {
+            Pattern::Text(literal) => literal.max_matches_in_fast_scan,
+            Pattern::Regexp(regexp) | Pattern::Hex(regexp) => {
+                regexp.max_matches_in_fast_scan
+            }
+        }
+    }
+
+    #[inline]
+    pub fn update_max_matches_in_fast_scan(&mut self, limit: Option<NonZeroU32>) {
+        let current = match self {
+            Pattern::Text(literal) => &mut literal.max_matches_in_fast_scan,
+            Pattern::Regexp(regexp) | Pattern::Hex(regexp) => {
+                &mut regexp.max_matches_in_fast_scan
+            }
+        };
+        *current = match (*current, limit) {
+            (Some(curr), Some(new)) => Some(curr.max(new)),
+            _ => None,
+        };
+    }
+
+    #[inline]
+    pub fn disallow_fast_scan(&mut self) {
+        match self {
+            Pattern::Text(literal) => literal.max_matches_in_fast_scan = None,
+            Pattern::Regexp(regexp) | Pattern::Hex(regexp) => {
+                regexp.max_matches_in_fast_scan = None
+            }
+        }
+    }
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -377,6 +406,7 @@ pub(crate) struct LiteralPattern {
     pub base64wide_alphabet: Option<String>,
     pub filesize_bounds: FilesizeBounds,
     pub header_constraints: HeaderConstraint,
+    pub max_matches_in_fast_scan: Option<NonZeroU32>,
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -386,6 +416,7 @@ pub(crate) struct RegexpPattern {
     pub anchored_at: Option<usize>,
     pub filesize_bounds: FilesizeBounds,
     pub header_constraints: HeaderConstraint,
+    pub max_matches_in_fast_scan: Option<NonZeroU32>,
 }
 
 /// The index of a pattern in the rule that declares it.

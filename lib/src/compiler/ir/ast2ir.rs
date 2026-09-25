@@ -266,7 +266,6 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         identifier: pattern.identifier.clone(),
         in_use: false,
         span: pattern.span(),
-        max_matches_in_fast_scan: NonZeroU32::new(1),
         pattern: Pattern::Text(LiteralPattern {
             flags,
             text,
@@ -276,6 +275,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
             anchored_at: None,
             filesize_bounds: FilesizeBounds::default(),
             header_constraints: HeaderConstraint::default(),
+            max_matches_in_fast_scan: NonZeroU32::new(1),
         }),
     })
 }
@@ -327,13 +327,13 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
         identifier: pattern.identifier.clone(),
         in_use: false,
         span: pattern.span(),
-        max_matches_in_fast_scan: NonZeroU32::new(1),
         pattern: Pattern::Hex(RegexpPattern {
             hir,
             flags: pattern_flags,
             anchored_at: None,
             filesize_bounds: FilesizeBounds::default(),
             header_constraints: HeaderConstraint::default(),
+            max_matches_in_fast_scan: NonZeroU32::new(1),
         }),
     })
 }
@@ -466,13 +466,13 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
         identifier: pattern.identifier.clone(),
         in_use: false,
         span: pattern.span(),
-        max_matches_in_fast_scan: NonZeroU32::new(1),
         pattern: Pattern::Regexp(RegexpPattern {
             flags,
             hir,
             anchored_at: None,
             filesize_bounds: FilesizeBounds::default(),
             header_constraints: HeaderConstraint::default(),
+            max_matches_in_fast_scan: NonZeroU32::new(1),
         }),
     })
 }
