@@ -1974,9 +1974,9 @@ fn track_match(
     let mut disable_pattern = false;
 
     match tracker.pattern_matches.add(pattern_id, match_, replace_if_longer) {
-        AddResult::Inserted(len) => {
+        AddResult::Inserted(current_matches) => {
             #[cfg(feature = "logging")]
-            if len % 100_000 == 0 {
+            if current_matches % 100_000 == 0 {
                 let (rule, pattern) = tracker
                     .compiled_rules
                     .get_rule_and_pattern_by_pattern_id(pattern_id)
@@ -2002,10 +2002,13 @@ fn track_match(
                     len
                 );
             }
+            // If we are in fast-scan mode, and the current number of matches
+            // for the pattern already equals or exceeds maximum matches, then
+            // the pattern can be disabled.
             if tracker.fast_scan
                 && let Some(max_matches) =
                     tracker.compiled_rules.fast_scan_max_matches(pattern_id)
-                && len >= max_matches.get() as usize
+                && current_matches >= max_matches.get() as usize
             {
                 disable_pattern = true;
             }
