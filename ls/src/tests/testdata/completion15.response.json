@@ -204,6 +204,25 @@
   {
     "additionalTextEdits": [
       {
+        "newText": "import \"eml\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "eml"
+  },
+  {
+    "additionalTextEdits": [
+      {
         "newText": "import \"hash\"\n",
         "range": {
           "end": {

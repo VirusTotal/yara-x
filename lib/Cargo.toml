@@ -123,7 +123,7 @@ native-code-serialization = []
 # This feature is disabled by default.
 parallel-compilation = ["wasmtime/parallel-compilation"]
 
-# Enables the use of wasmtime's Pulley bytecode interpreter instead of the 
+# Enables the use of wasmtime's Pulley bytecode interpreter instead of the
 # default Cranelift JIT compiler.
 #
 # When using Cranelift JIT, WebAssembly code generated from rule conditions is
@@ -133,7 +133,7 @@ parallel-compilation = ["wasmtime/parallel-compilation"]
 # natively supported by Cranelift.
 #
 # Enabling the `pulley` feature tells wasmtime to interpret the conditions using
-# the portable Pulley bytecode instruction virtual machine instead. This 
+# the portable Pulley bytecode instruction virtual machine instead. This
 # eliminates JIT memory constraints, improves compilation overhead, and provides
 # broad portability across architectures.
 pulley = ["wasmtime/pulley"]
@@ -202,6 +202,11 @@ dotnet-module = [
 elf-module = [
     "dep:nom",
     "dep:md-5",
+]
+
+# The `eml` module parses EML files.
+eml-module = [
+    "dep:quoted_printable"
 ]
 
 # The `hash` module provides functions for computing md5, sha1, sha-256,
@@ -293,6 +298,7 @@ default-modules = [
     "dex-module",
     "dotnet-module",
     "elf-module",
+    "eml-module",
     "lnk-module",
     "macho-module",
     "math-module",
@@ -362,6 +368,7 @@ p256 = { workspace = true, optional = true, features = ["ecdsa"] }
 protobuf = { workspace = true }
 psl = { workspace = true, optional = true }
 quanta = { workspace = true, optional = true }
+quoted_printable = { workspace = true, optional = true }
 rustc-hash = { workspace = true }
 regex = { workspace = true }
 regex-syntax = { workspace = true }

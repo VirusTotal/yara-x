@@ -1,0 +1,8 @@
+is_eml: true
+headers:
+  - key: "content-type"
+    value: "text/html; charset=UTF-8"
+  - key: "content-transfer-encoding"
+    value: "base64"
+body: "PGh0bWw+PGhlYWQ+PC9oZWFkPjxib2R5PjxwPkhlbGxvLCB0aGlzIGlzIGEgdGVzdCBlbWFpbCB3\naXRoIGJhc2U2NCBlbmNvZGVkIGJvZHkuPC9wPjwvYm9keT48L2h0bWw+\n"
+decoded_body: "<html><head></head><body><p>Hello, this is a test email with base64 encoded body.</p></body></html>"

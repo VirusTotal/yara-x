@@ -2665,6 +2665,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "quoted_printable"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "640c9bd8497b02465aeef5375144c26062e0dcd5939dfcbb0f5db76cb8c17c73"
+
+[[package]]
 name = "r-efi"
 version = "5.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4495,6 +4501,7 @@ dependencies = [
  "protobuf-parse",
  "psl",
  "quanta",
+ "quoted_printable",
  "rayon",
  "regex",
  "regex-automata",

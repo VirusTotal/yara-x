@@ -240,12 +240,20 @@ pub mod mods {
     pub use super::protos::dotnet::Dotnet;
     /// Data structures defined by the `elf` module.
     ///
-    /// The main structure produced by the module is [`elf::ELF`]. The rest of
-    /// them are used by one or more fields in the main structure.
+    /// The main structure produced by the module is [`elf::ELF`]. The rest
+    /// of them are used by one or more fields in the main structure.
     ///
     pub use super::protos::elf;
     /// Data structure returned by the `elf` module.
     pub use super::protos::elf::ELF;
+    /// Data structures defined by the `eml` module.
+    ///
+    /// The main structure produced by the module is [`eml::Eml`]. The rest
+    /// of them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::eml;
+    /// Data structure returned by the `eml` module.
+    pub use super::protos::eml::Eml;
     /// Data structures defined by the `lnk` module.
     ///
     /// The main structure produced by the module is [`lnk::Lnk`]. The rest of
