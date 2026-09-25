@@ -7,6 +7,7 @@ module implements the YARA compiler.
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
+use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 #[cfg(feature = "logging")]
@@ -391,9 +392,10 @@ pub struct Compiler<'a> {
     /// Next (not used yet) [`PatternId`].
     next_pattern_id: PatternId,
 
-    /// Vector where the N-th boolean indicates whether the pattern with
-    /// PatternId = N is a fast-scan pattern.
-    fast_scan_patterns: bitvec::vec::BitVec,
+    /// Vector where the N-th element indicates the maximum number of matches
+    /// required in fast-scan mode for the pattern with PatternId = N, or
+    /// `None` if all matches must be tracked.
+    fast_scan_max_matches: Vec<Option<NonZeroU32>>,
 
     /// Map used for de-duplicating pattern. Keys are the pattern's IR and
     /// values are the `PatternId` assigned to each pattern. Every time a rule
@@ -546,7 +548,7 @@ impl<'a> Compiler<'a> {
             error_on_slow_pattern: false,
             error_on_slow_loop: false,
             next_pattern_id: PatternId(0),
-            fast_scan_patterns: bitvec::vec::BitVec::new(),
+            fast_scan_max_matches: Vec::new(),
             current_namespace: default_namespace,
             features: FxHashSet::default(),
             warnings: Warnings::default(),
@@ -891,7 +893,7 @@ impl<'a> Compiler<'a> {
             filesize_bounds,
             header_constraints,
             regex_sets: self.regex_sets,
-            fast_scan_patterns: self.fast_scan_patterns,
+            fast_scan_max_matches: self.fast_scan_max_matches,
             rules_profiling_enabled: cfg!(feature = "rules-profiling"),
         };
 
@@ -1284,7 +1286,7 @@ impl Compiler<'_> {
             re_code_len: self.re_code.len(),
             sub_patterns_len: self.sub_patterns.len(),
             symbol_table_len: self.symbol_table.len(),
-            fast_scan_patterns_len: self.fast_scan_patterns.len(),
+            fast_scan_max_matches_len: self.fast_scan_max_matches.len(),
             rule_constraints_len: self.rule_constraints.len(),
             global_filesize_bounds: self
                 .current_namespace
@@ -1308,7 +1310,8 @@ impl Compiler<'_> {
         self.re_code.truncate(snapshot.re_code_len);
         self.atoms.truncate(snapshot.atoms_len);
         self.symbol_table.truncate(snapshot.symbol_table_len);
-        self.fast_scan_patterns.truncate(snapshot.fast_scan_patterns_len);
+        self.fast_scan_max_matches
+            .truncate(snapshot.fast_scan_max_matches_len);
         self.rule_constraints.truncate(snapshot.rule_constraints_len);
         self.current_namespace.global_filesize_bounds =
             snapshot.global_filesize_bounds;
@@ -1885,7 +1888,7 @@ impl Compiler<'_> {
         let mut num_private_patterns = 0;
 
         for pattern in &rule_patterns {
-            // Raise error is some pattern was not used, except if the pattern
+            // Raise error if some pattern was not used, except if the pattern
             // identifier starts with underscore.
             if !pattern.in_use() && !pattern.identifier().starts_with("$_") {
                 self.restore_snapshot(snapshot);
@@ -1896,7 +1899,9 @@ impl Compiler<'_> {
                         .span_to_code_loc(pattern.identifier().span()),
                 ));
             }
+        }
 
+        for pattern in &rule_patterns {
             if pattern.pattern().flags().contains(PatternFlags::Private) {
                 num_private_patterns += 1;
             }
@@ -1915,15 +1920,19 @@ impl Compiler<'_> {
                 } else {
                     let pattern_id = self.next_pattern_id;
                     self.next_pattern_id.incr(1);
-                    self.fast_scan_patterns.push(true);
+                    self.fast_scan_max_matches
+                        .push(pattern.max_matches_in_fast_scan());
                     pending_patterns.insert(pattern_id);
                     self.patterns.insert(pattern.pattern().clone(), pattern_id);
                     pattern_id
                 };
 
-            if !pattern.fast_scan_allowed() {
-                self.fast_scan_patterns.set(usize::from(pattern_id), false);
-            }
+            let current =
+                &mut self.fast_scan_max_matches[usize::from(pattern_id)];
+            *current = match (*current, pattern.max_matches_in_fast_scan()) {
+                (Some(a), Some(b)) => Some(a.max(b)),
+                _ => None,
+            };
 
             let kind = match pattern.pattern() {
                 Pattern::Text(_) => PatternKind::Text,
@@ -3232,7 +3241,7 @@ struct Snapshot {
     re_code_len: usize,
     sub_patterns_len: usize,
     symbol_table_len: usize,
-    fast_scan_patterns_len: usize,
+    fast_scan_max_matches_len: usize,
     rule_constraints_len: usize,
     global_filesize_bounds: FilesizeBounds,
     global_header_constraints: HeaderConstraint,
