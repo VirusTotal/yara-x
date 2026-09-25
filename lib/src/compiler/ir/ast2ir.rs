@@ -798,13 +798,12 @@ fn expr_from_ast<'src>(
 
                     pattern.mark_as_used();
 
-                    if let Some(offset) = at {
-                        pattern.anchor_at(offset as usize);
-                    } else {
-                        pattern.make_non_anchorable();
-                    }
-
                     if !matches!(anchor, MatchAnchor::None) {
+                        if let Some(offset) = at {
+                            pattern.anchor_at(offset as usize);
+                        } else {
+                            pattern.make_non_anchorable();
+                        }
                         pattern.disallow_fast_scan();
                     }
 
@@ -1026,25 +1025,56 @@ pub(in crate::compiler) fn rule_condition_from_ast<'src>(
 
     ctx.ir.root = Some(condition);
 
-    // Now that the full IR tree has been built and every node's parent is
-    // recorded in `ctx.ir`, traverse the condition to compute the fast-scan
-    // match limit for each unbounded pattern count (`#a`).
+    let mut top_level_anchors = vec![None; ctx.current_rule_patterns.len()];
+    ctx.ir.find_top_level_anchors(|pattern, offset| {
+        top_level_anchors[pattern.as_usize()] = Some(offset);
+    });
+
+    // Traverse the condition IR to finalize pattern anchoring and compute the
+    // fast-scan match limit for each unbounded pattern count (`#a`).
     //
-    // Unlike range-bounded counts (`#a in (..)`), offsets (`@a`), or lengths
-    // (`!a`)—which immediately disallow fast-scan during AST-to-IR conversion—
-    // the number of matches required for `#a` depends on its parent expression
-    // in the IR (e.g., `#a > 1000` requires 1001 matches, `#a < 1000` requires
-    // 1000 matches, while `#a == #b` requires tracking all matches).
+    // - If a pattern is used without an anchor (e.g., `$a`, `all of them`), it
+    //   can only remain anchored if the rule's condition requires it to match
+    //   at a fixed offset via a top-level conjunction (e.g.,
+    //   `all of them and $a at 0`). Otherwise (e.g., `$a at 0 or $a`), the
+    //   pattern must match at any offset and is marked non-anchorable.
+    // - Unlike range-bounded counts (`#a in (..)`), offsets (`@a`), or lengths
+    //   (`!a`)—which immediately disallow fast-scan during AST-to-IR conversion—
+    //   the number of matches required for `#a` depends on its parent expression
+    //   in the IR (e.g., `#a > 1000` requires 1001 matches, `#a < 1000` requires
+    //   1000 matches, while `#a == #b` requires tracking all matches).
     for event in ctx.ir.dfs_iter(condition) {
-        if let dfs::Event::Enter((
-            expr_id,
-            Expr::PatternCount { pattern, range: None },
-            _,
-        )) = event
-        {
-            let limit = ctx.ir.required_matches_for_count(expr_id);
-            ctx.current_rule_patterns[pattern.as_usize()]
-                .update_max_matches_in_fast_scan(limit);
+        match event {
+            dfs::Event::Enter((
+                _,
+                Expr::PatternMatch { pattern, anchor: MatchAnchor::None },
+                _,
+            )) => {
+                if top_level_anchors[pattern.as_usize()].is_none() {
+                    ctx.current_rule_patterns[pattern.as_usize()]
+                        .make_non_anchorable();
+                }
+            }
+            dfs::Event::Enter((_, Expr::OfPatternSet(of), _))
+                if matches!(of.anchor, MatchAnchor::None) =>
+            {
+                for pattern in &of.items {
+                    if top_level_anchors[pattern.as_usize()].is_none() {
+                        ctx.current_rule_patterns[pattern.as_usize()]
+                            .make_non_anchorable();
+                    }
+                }
+            }
+            dfs::Event::Enter((
+                expr_id,
+                Expr::PatternCount { pattern, range: None },
+                _,
+            )) => {
+                let limit = ctx.ir.required_matches_for_count(expr_id);
+                ctx.current_rule_patterns[pattern.as_usize()]
+                    .update_max_matches_in_fast_scan(limit);
+            }
+            _ => {}
         }
     }
 
@@ -1281,10 +1311,14 @@ fn of_expr_from_ast<'src>(
 
     let anchor = anchor_from_ast(ctx, &of.anchor)?;
 
-    // When have `<quantifier> of <pattern set> at <anchor>`, all the patterns
-    // in the set must be anchored. If we have `<quantifier> of <pattern set>`
-    // all are marked as non-anchorable.
-    if let OfItems::PatternSet(ref pattern_set) = items {
+    // When we have `<quantifier> of <pattern set> at <anchor>`, all the patterns
+    // in the set are anchored (if the offset is constant). When there is no
+    // anchor (`<quantifier> of <pattern set>`), `rule_condition_from_ast` will
+    // decide whether the pattern can still remain anchored via a top-level
+    // conjunction.
+    if !matches!(anchor, MatchAnchor::None)
+        && let OfItems::PatternSet(ref pattern_set) = items
+    {
         let anchor_at = match anchor {
             MatchAnchor::At(expr) => ctx.ir.get(expr).try_as_const_integer(),
             _ => None,
@@ -1297,9 +1331,7 @@ fn of_expr_from_ast<'src>(
             } else {
                 pattern.make_non_anchorable();
             }
-            if !matches!(anchor, MatchAnchor::None) {
-                pattern.disallow_fast_scan();
-            }
+            pattern.disallow_fast_scan();
         }
     }
 

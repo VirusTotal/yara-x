@@ -141,3 +141,10 @@ rule test_15 {
     @str1 == 0
 }
 
+rule test_16 {
+  strings:
+    $dollar = "$"
+    $other = "foobar"
+  condition:
+    all of them and $dollar at 0
+}

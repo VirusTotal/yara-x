@@ -547,6 +547,9 @@ impl IR {
     ///   we can tell the difference between "exactly 1000 matches" and "more
     ///   than 1000 matches".
     ///
+    /// - For `math.min(#a, 100)` (or `math.min(100, #a)`), we can stop after
+    ///   100 matches because `math.min` caps the value at 100 anyway.
+    ///
     /// - When `#a` is used directly as a boolean (e.g., `condition: #a` or
     ///   `#a and $b`), we only need **1** match to know that `#a` is non-zero.
     ///
@@ -623,6 +626,18 @@ impl IR {
                 } else {
                     self.get(*lhs).try_as_const_integer()
                 }
+            }
+
+            // math.min(#a, K) or math.min(K, #a) -> K.
+            Expr::FuncCall(func_call)
+                if func_call.mangled_name() == "math.min@a:i,b:i@i" =>
+            {
+                let other = if func_call.args[0] == count_expr_id {
+                    func_call.args[1]
+                } else {
+                    func_call.args[0]
+                };
+                self.get(other).try_as_const_integer()
             }
 
             // Any other parent expression (arithmetic, non-constant comparison,
@@ -1404,6 +1419,114 @@ impl IR {
             )
         } else {
             HeaderConstraint::Unconstrained
+        }
+    }
+
+    /// Traverses the condition IR starting at the root and invokes
+    /// `f(pattern, K)` for any pattern that is unconditionally required to
+    /// match at constant offset `K` for the rule condition to evaluate to
+    /// `true`.
+    ///
+    /// For example, in `all of them and $a at 0`, `$a at 0` is a top-level
+    /// conjunct, so the rule cannot match unless `$a` matches at offset 0. Even
+    /// though `all of them` also references `$a` without an anchor, knowing
+    /// that `$a` is required at offset 0 allows keeping `$a` anchored at 0.
+    /// Conversely, in `$a at 0 or $a`, the root is an `or` expression:
+    /// `$a at 0` is not a top-level requirement, so `$a` cannot be anchored.
+    pub fn find_top_level_anchors(
+        &self,
+        mut f: impl FnMut(PatternIdx, usize),
+    ) {
+        // Returns true if the quantifier requires every item in `of` to match
+        // (e.g., `all of ...`, `100% of ...`, `N of ...` where N >= num_items,
+        // or `any of ($a)` when there is only 1 item).
+        let quantifier_requires_all =
+            |quantifier: &Quantifier, num_items: usize| match quantifier {
+                Quantifier::All => true,
+                Quantifier::Any => num_items == 1,
+                Quantifier::Percentage(expr) => self
+                    .get(*expr)
+                    .try_as_const_integer()
+                    .is_some_and(|p| p >= 100),
+                Quantifier::Expr(expr) => self
+                    .get(*expr)
+                    .try_as_const_integer()
+                    .is_some_and(|n| n >= num_items as i64),
+                Quantifier::None => false,
+            };
+
+        let mut dfs = self.dfs_iter(self.root.unwrap());
+
+        while let Some(evt) = dfs.next() {
+            let (expr, ctx) = match evt {
+                Event::Enter((_, expr, ctx)) => (expr, ctx),
+                _ => continue,
+            };
+
+            match (expr, ctx) {
+                // For `with <decls> : ( <body> )`, `dfs_iter` visits both the
+                // variable declarations (`EventContext::WithDeclaration`) and
+                // the body (`EventContext::Body`). Only the body determines
+                // whether the `with` expression is true, so prune the
+                // declaration initializers.
+                (_, EventContext::WithDeclaration) => {
+                    dfs.prune();
+                }
+                // `and` and `with` expressions must hold for their
+                // operands/body to hold, so let the DFS descend into their
+                // children.
+                (Expr::And { .. } | Expr::With(_), _) => {}
+                // An `of (<expr>, ...)` tuple whose quantifier requires all
+                // items to be true (such as `all of ($a at 0, $b)`) is
+                // equivalent to an `and` over its items, so let the DFS
+                // descend into its children.
+                (Expr::OfExprTuple(of), _)
+                    if matches!(of.anchor, MatchAnchor::None)
+                        && quantifier_requires_all(
+                            &of.quantifier,
+                            of.items.len(),
+                        ) => {}
+                // `$a at <const>`: `$a` is unconditionally required at
+                // `<const>`.
+                (
+                    Expr::PatternMatch {
+                        pattern,
+                        anchor: MatchAnchor::At(offset_expr),
+                    },
+                    _,
+                ) => {
+                    if let Some(offset) =
+                        self.get(*offset_expr).try_as_const_integer()
+                    {
+                        f(*pattern, offset as usize);
+                    }
+                    dfs.prune();
+                }
+                // `<quantifier> of (<pattern set>) at <const>` where the
+                // quantifier requires every pattern in the set to match at
+                // `<const>` (e.g., `all of ($a*) at 0` or `any of ($a) at 0`).
+                (Expr::OfPatternSet(of), _) => {
+                    if let MatchAnchor::At(offset_expr) = of.anchor
+                        && quantifier_requires_all(
+                            &of.quantifier,
+                            of.items.len(),
+                        )
+                        && let Some(offset) =
+                            self.get(offset_expr).try_as_const_integer()
+                    {
+                        for pattern in &of.items {
+                            f(*pattern, offset as usize);
+                        }
+                    }
+                    dfs.prune();
+                }
+                // Any other expression (`or`, `not`, loops, comparisons, etc.)
+                // does not unconditionally require its sub-expressions to match
+                // at a fixed offset, so prune its children.
+                _ => {
+                    dfs.prune();
+                }
+            }
         }
     }
 

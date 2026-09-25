@@ -1011,6 +1011,8 @@ fn regex_set_optimization() {
 fn fast_scan_mode() {
     let rules = crate::compile(
         r#"
+    import "math"
+
     rule test_boolean {
       strings:
         $a = "foo"
@@ -1048,11 +1050,26 @@ fn fast_scan_mode() {
       condition:
         @g[1] >= 0
     }
+    rule test_math_min {
+      strings:
+        $h = "zen"
+        $i = "orb"
+      condition:
+        for any k in (1..math.min(#h, 2)) : ( k > 0 ) and
+        for any k in (1..math.min(3, #i)) : ( k > 0 )
+    }
+    rule test_anchored_and_all_of_them {
+      strings:
+        $j = "$"
+        $k = "foo"
+      condition:
+        all of them and $j at 0
+    }
     "#,
     )
     .unwrap();
 
-    let input = b"foofoobarbarbazbazbazbazquxquxquxquxzapzapzapzapwimwimwimwimnubnubnubnub";
+    let input = b"$foofoobarbarbazbazbazbazquxquxquxquxzapzapzapzapwimwimwimwimnubnubnubnubzenzenzenzenorborborborb$$$";
 
     // Test standard scan first (fast_scan = false by default)
     let mut scanner = Scanner::new(&rules);
@@ -1077,6 +1094,18 @@ fn fast_scan_mode() {
     assert_eq!(get_match_count(&results, "test_count_eq", "$e"), 4);
     assert_eq!(get_match_count(&results, "test_for_of_count", "$f"), 4);
     assert_eq!(get_match_count(&results, "test_unbounded_offset", "$g"), 4);
+    assert_eq!(get_match_count(&results, "test_math_min", "$h"), 4);
+    assert_eq!(get_match_count(&results, "test_math_min", "$i"), 4);
+    // $j is anchored at 0 even when `all of them` is also present, so only the
+    // match at offset 0 is checked and recorded.
+    assert_eq!(
+        get_match_count(&results, "test_anchored_and_all_of_them", "$j"),
+        1
+    );
+    assert_eq!(
+        get_match_count(&results, "test_anchored_and_all_of_them", "$k"),
+        2
+    );
 
     // Test fast scan mode (fast_scan = true)
     let mut scanner = Scanner::new(&rules);
@@ -1095,6 +1124,19 @@ fn fast_scan_mode() {
     assert_eq!(get_match_count(&results, "test_for_of_count", "$f"), 3);
     // @g[1] >= 0 disallows fast-scan, so all 4 matches are tracked
     assert_eq!(get_match_count(&results, "test_unbounded_offset", "$g"), 4);
+    // math.min(#h, 2) stops #h after 2 matches
+    assert_eq!(get_match_count(&results, "test_math_min", "$h"), 2);
+    // math.min(3, #i) stops #i after 3 matches
+    assert_eq!(get_match_count(&results, "test_math_min", "$i"), 3);
+    // $j is anchored at 0 and $k stops after 1 match in fast-scan mode
+    assert_eq!(
+        get_match_count(&results, "test_anchored_and_all_of_them", "$j"),
+        1
+    );
+    assert_eq!(
+        get_match_count(&results, "test_anchored_and_all_of_them", "$k"),
+        1
+    );
 }
 
 #[test]
