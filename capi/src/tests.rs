@@ -245,7 +245,8 @@ fn capi() {
                     some_float == 1.5 and 
                     some_map.str == "foo" and
                     some_map.array[0] == 1 and
-                    some_map.map.str == "bar" )
+                    some_map.map.str == "bar" and
+                    not pe.is_pe )
             }"#;
 
         let some_bool = c"some_bool";

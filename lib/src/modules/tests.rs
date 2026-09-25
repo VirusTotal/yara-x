@@ -142,9 +142,18 @@ fn test_modules() {
             return;
         }
 
-        // Construct a dummy YARA rule that only imports the module.
+        // Construct a dummy YARA rule that uses one non-constant field from
+        // the module, ensuring that the module produces its output.
+        let module = mods::module_definition(module_name).unwrap();
+        let field_name = module
+            .fields()
+            .find(|field| {
+                !field.is_const() && !matches!(field.ty(), Type::Func(_))
+            })
+            .unwrap()
+            .name();
         let rule = format!(
-            r#"import "{module_name}" rule test {{ condition: false }}"#
+            r#"import "{module_name}" rule test {{ condition: defined {module_name}.{field_name} }}"#
         );
 
         // Compile the rule.

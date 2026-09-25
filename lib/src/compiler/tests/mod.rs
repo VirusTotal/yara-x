@@ -956,6 +956,78 @@ fn import_modules() {
     );
 }
 
+#[cfg(feature = "test_proto2-module")]
+#[test]
+fn unused_modules_are_not_imported_by_compiled_rules() {
+    let mut compiler = Compiler::new();
+    compiler
+        .add_source(
+            r#"
+            import "test_proto2"
+            rule unused { condition: true }"#,
+        )
+        .unwrap();
+    let rules = compiler.build();
+    assert_eq!(rules.imports().count(), 0);
+    let rules = Rules::deserialize(rules.serialize().unwrap()).unwrap();
+    assert_eq!(rules.imports().count(), 0);
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(&[]).unwrap().module_outputs().count(), 0);
+
+    let mut compiler = Compiler::new();
+    compiler
+        .add_source(
+            r#"
+            import "test_proto2"
+            rule field { condition: test_proto2.int32_zero == 0 }"#,
+        )
+        .unwrap();
+    let rules = compiler.build();
+    assert_eq!(rules.imports().collect::<Vec<_>>(), ["test_proto2"]);
+    assert_eq!(
+        Scanner::new(&rules).scan(&[]).unwrap().matching_rules().len(),
+        1
+    );
+
+    let mut compiler = Compiler::new();
+    compiler
+        .add_source(
+            r#"
+            import "test_proto2"
+            rule function {
+                condition:
+                    test_proto2.get_foo() == "foo" and
+                    test_proto2.nested.nested_func()
+            }"#,
+        )
+        .unwrap();
+    let rules =
+        Rules::deserialize(compiler.build().serialize().unwrap()).unwrap();
+    assert_eq!(rules.imports().collect::<Vec<_>>(), ["test_proto2"]);
+    assert_eq!(
+        Scanner::new(&rules).scan(&[]).unwrap().matching_rules().len(),
+        1
+    );
+}
+
+#[cfg(all(feature = "test_proto2-module", feature = "test_proto3-module"))]
+#[test]
+fn only_used_modules_are_imported_by_compiled_rules() {
+    let rules = compile(
+        r#"
+        import "test_proto2"
+        import "test_proto3"
+        rule used { condition: test_proto3.int32_zero == 0 }"#,
+    )
+    .unwrap();
+
+    assert_eq!(rules.imports().collect::<Vec<_>>(), ["test_proto3"]);
+    assert_eq!(
+        Scanner::new(&rules).scan(&[]).unwrap().matching_rules().len(),
+        1
+    );
+}
+
 #[cfg(feature = "pe-module")]
 #[test]
 fn wrong_type() {
