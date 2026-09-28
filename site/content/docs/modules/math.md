@@ -34,6 +34,8 @@ Examples:
 
 `math.entropy(512, 256) >= 7` (checks the 256 bytes starting at offset 512, e.g. bytes 512-767)
 
+`math.entropy(0x7FFE1234A000, 4096) >= 7` (when scanning a running process, checks the 4096 bytes starting at virtual address `0x7FFE1234A000`)
+
 ### entropy(string)
 
 Returns the entropy for the given string.
