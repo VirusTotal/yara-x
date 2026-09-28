@@ -52,7 +52,7 @@ use crate::compiler::ir::dfs::{
     DFSIter, DFSWithScopeIter, Event, EventContext, dfs_common,
 };
 
-use crate::compiler::{FilesizeBounds, HeaderConstraint, RegexSetId};
+use crate::compiler::{FilesizeBounds, HeaderConstraint, RegexSetId, RuleId};
 use crate::re;
 use crate::symbols::Symbol;
 use crate::types::Value::Const;
@@ -105,12 +105,14 @@ bitflags! {
 /// within the confines of a specific rule. If two distinct rules declare
 /// precisely the same pattern, including any modifiers, they will reference
 /// the same [`Pattern`] instance.
+use std::num::NonZeroU32;
+
 pub(crate) struct PatternInRule<'src> {
     identifier: Ident<'src>,
     pattern: Pattern,
     span: Span,
     in_use: bool,
-    fast_scan_allowed: bool,
+    max_matches_in_fast_scan: Option<NonZeroU32>,
 }
 
 impl<'src> PatternInRule<'src> {
@@ -188,24 +190,40 @@ impl<'src> PatternInRule<'src> {
         self
     }
 
-    /// Returns true if this pattern can be fast-scanned.
-    ///
-    /// A pattern can be fast-scanned if its occurrences are only evaluated
-    /// as simple boolean checks (e.g. `$a`), meaning the scanner can stop
-    /// tracking matches for it once the first match has been found.
+    /// Returns the maximum number of matches required for this pattern in
+    /// fast-scan mode, or `None` if all matches must be tracked.
     #[inline]
-    pub fn fast_scan_allowed(&self) -> bool {
-        self.fast_scan_allowed
+    pub fn max_matches_in_fast_scan(&self) -> Option<NonZeroU32> {
+        self.max_matches_in_fast_scan
+    }
+
+    /// Updates the maximum number of matches required for this pattern in
+    /// fast-scan mode.
+    ///
+    /// If both the current limit and `limit` are `Some`, the higher of the
+    /// two limits is kept. If either is `None`, fast-scanning is disallowed
+    /// (`None`).
+    #[inline]
+    pub fn update_max_matches_in_fast_scan(
+        &mut self,
+        limit: Option<NonZeroU32>,
+    ) -> &mut Self {
+        self.max_matches_in_fast_scan =
+            match (self.max_matches_in_fast_scan, limit) {
+                (Some(curr), Some(new)) => Some(curr.max(new)),
+                _ => None,
+            };
+        self
     }
 
     /// Disallows fast-scanning for this pattern.
     ///
     /// This is called when the pattern is used in a context that requires
-    /// tracking all matches (such as count `#a`, offset `@a`, length `!a`,
-    /// anchored checks, or loop equivalents).
+    /// tracking all matches (such as offset `@a`, length `!a`, range-bounded
+    /// count `#a in (..)`, anchored checks, or non-constant count comparisons).
     #[inline]
     pub fn disallow_fast_scan(&mut self) -> &mut Self {
-        self.fast_scan_allowed = false;
+        self.max_matches_in_fast_scan = None;
         self
     }
 }
@@ -504,6 +522,117 @@ impl IR {
     #[inline]
     pub fn set_parent(&mut self, expr_id: ExprId, parent_id: ExprId) {
         self.parents[expr_id.0 as usize] = parent_id;
+    }
+
+    /// Given an expression that counts the occurrences of a pattern (`#a` or
+    /// `#` inside a `for .. of` loop), determines how many matches the scanner
+    /// actually needs to find in fast-scan mode.
+    ///
+    /// When `#a` is compared against a constant, we don't need to keep finding
+    /// matches forever, once a certain number of matches is reached, finding
+    /// additional matches won't change the outcome of the comparison:
+    ///
+    /// - For `#a < 1000` (or `#a >= 1000`), we can stop after 1000 matches.
+    ///   Once 1000 matches are found, `#a < 1000` is already `false` (and
+    ///   `#a >= 1000` is already `true`), and finding more matches won't
+    ///   change that.
+    ///
+    /// - For `#a > 1000` (or `#a <= 1000`), we must find up to 1001 matches.
+    ///   If we stopped at 1000, `#a` would remain at 1000 and `1000 > 1000`
+    ///   would evaluate to `false` even when the file has more than 1000
+    ///   matches. Finding one extra match (1001) is enough to make `#a > 1000`
+    ///   evaluate to `true`.
+    ///
+    /// - For `#a == 1000` (or `#a != 1000`), we also need 1001 matches so
+    ///   we can tell the difference between "exactly 1000 matches" and "more
+    ///   than 1000 matches".
+    ///
+    /// - When `#a` is used directly as a boolean (e.g., `condition: #a` or
+    ///   `#a and $b`), we only need **1** match to know that `#a` is non-zero.
+    ///
+    /// - If `#a` is used in any other way (such as `#a == #b` or `#a + 1 > 10`),
+    ///   this function returns `None`, indicating that the scanner cannot stop
+    ///   early and must track all matches.
+    pub(crate) fn required_matches_for_count(
+        &self,
+        count_expr_id: ExprId,
+    ) -> Option<NonZeroU32> {
+        let Some(parent_id) = self.get_parent(count_expr_id) else {
+            // Root condition is `#a` (evaluated as boolean `#a != 0`).
+            return NonZeroU32::new(1);
+        };
+
+        let limit_i64 = match self.get(parent_id) {
+            // Boolean contexts where `#a` is evaluated as `#a != 0`.
+            Expr::And { .. } | Expr::Or { .. } | Expr::Not { .. } => Some(1),
+            Expr::ForOf(for_of) if for_of.body == count_expr_id => Some(1),
+            Expr::ForIn(for_in) if for_in.body == count_expr_id => Some(1),
+            Expr::With(with) if with.body == count_expr_id => Some(1),
+            Expr::OfExprTuple(of) if of.items.contains(&count_expr_id) => {
+                Some(1)
+            }
+
+            // #a == K, K == #a, #a != K, K != #a -> K + 1 (to distinguish
+            // count == K from count > K).
+            Expr::Eq { lhs, rhs } | Expr::Ne { lhs, rhs } => {
+                let other = if *lhs == count_expr_id { *rhs } else { *lhs };
+                self.get(other)
+                    .try_as_const_integer()
+                    .map(|k| k.saturating_add(1))
+            }
+
+            // #a > K -> K + 1; K > #a (i.e. #a < K) -> K.
+            Expr::Gt { lhs, rhs } => {
+                if *lhs == count_expr_id {
+                    self.get(*rhs)
+                        .try_as_const_integer()
+                        .map(|k| k.saturating_add(1))
+                } else {
+                    self.get(*lhs).try_as_const_integer()
+                }
+            }
+
+            // #a >= K -> K; K >= #a (i.e. #a <= K) -> K + 1.
+            Expr::Ge { lhs, rhs } => {
+                if *lhs == count_expr_id {
+                    self.get(*rhs).try_as_const_integer()
+                } else {
+                    self.get(*lhs)
+                        .try_as_const_integer()
+                        .map(|k| k.saturating_add(1))
+                }
+            }
+
+            // #a < K -> K; K < #a (i.e. #a > K) -> K + 1.
+            Expr::Lt { lhs, rhs } => {
+                if *lhs == count_expr_id {
+                    self.get(*rhs).try_as_const_integer()
+                } else {
+                    self.get(*lhs)
+                        .try_as_const_integer()
+                        .map(|k| k.saturating_add(1))
+                }
+            }
+
+            // #a <= K -> K + 1; K <= #a (i.e. #a >= K) -> K.
+            Expr::Le { lhs, rhs } => {
+                if *lhs == count_expr_id {
+                    self.get(*rhs)
+                        .try_as_const_integer()
+                        .map(|k| k.saturating_add(1))
+                } else {
+                    self.get(*lhs).try_as_const_integer()
+                }
+            }
+
+            // Any other parent expression (arithmetic, non-constant comparison,
+            // function argument, etc.) requires tracking all matches.
+            _ => None,
+        }?;
+
+        // Clamp constants <= 0 (e.g. `#a >= 0` or `#a > -5`) to a minimum limit
+        // of 1, and return `None` if the limit exceeds `u32::MAX`.
+        u32::try_from(limit_i64.max(1)).ok().and_then(NonZeroU32::new)
     }
 
     /// Pushes an [`Expr`] into the IR tree.
@@ -1008,7 +1137,10 @@ impl IR {
     /// In contrast, the condition `filesize < 10MB or $a` does not impose a
     /// filesize constraint, since the use of `or` allows files larger than
     /// 10MB to also match.
-    pub fn filesize_bounds(&self) -> FilesizeBounds {
+    pub fn filesize_bounds<'a>(
+        &self,
+        rule_lookup: impl Fn(RuleId) -> Option<&'a FilesizeBounds>,
+    ) -> FilesizeBounds {
         let mut result = FilesizeBounds::default();
         let mut dfs = self.dfs_iter(self.root.unwrap());
 
@@ -1018,6 +1150,13 @@ impl IR {
                 _ => continue,
             };
             match expr {
+                Expr::Symbol(symbol) => {
+                    if let Symbol::Rule { rule_id, .. } = symbol.as_ref()
+                        && let Some(rule_bounds) = rule_lookup(*rule_id)
+                    {
+                        result.merge(rule_bounds);
+                    }
+                }
                 Expr::Gt { lhs, rhs } => {
                     match (self.get(*lhs), self.get(*rhs)) {
                         // constant > filesize
@@ -1128,6 +1267,7 @@ impl IR {
     pub fn header_constraints<'a>(
         &self,
         pattern_lookup: impl Fn(PatternIdx) -> &'a Pattern,
+        rule_lookup: impl Fn(RuleId) -> Option<&'a HeaderConstraint>,
     ) -> HeaderConstraint {
         let mut constrained_bytes = BTreeMap::new();
         let mut unsatisfiable = false;
@@ -1139,6 +1279,33 @@ impl IR {
                 _ => continue,
             };
             match expr {
+                Expr::Symbol(symbol) => {
+                    if let Symbol::Rule { rule_id, .. } = symbol.as_ref()
+                        && let Some(rule_constraints) = rule_lookup(*rule_id)
+                    {
+                        match rule_constraints {
+                            HeaderConstraint::Unsatisfiable => {
+                                unsatisfiable = true;
+                            }
+                            HeaderConstraint::Constrained(bytes) => {
+                                for (i, &b) in bytes.iter().enumerate() {
+                                    match constrained_bytes.entry(i) {
+                                        Entry::Occupied(entry) => {
+                                            if *entry.get() != b {
+                                                unsatisfiable = true;
+                                                break;
+                                            }
+                                        }
+                                        Entry::Vacant(entry) => {
+                                            entry.insert(b);
+                                        }
+                                    }
+                                }
+                            }
+                            HeaderConstraint::Unconstrained => {}
+                        }
+                    }
+                }
                 Expr::Eq { lhs, rhs } => {
                     self.extract_header_constraints_from_eq(
                         *lhs,
@@ -1237,6 +1404,114 @@ impl IR {
             )
         } else {
             HeaderConstraint::Unconstrained
+        }
+    }
+
+    /// Traverses the condition IR starting at the root and invokes
+    /// `f(pattern, K)` for any pattern that is unconditionally required to
+    /// match at constant offset `K` for the rule condition to evaluate to
+    /// `true`.
+    ///
+    /// For example, in `all of them and $a at 0`, `$a at 0` is a top-level
+    /// conjunct, so the rule cannot match unless `$a` matches at offset 0. Even
+    /// though `all of them` also references `$a` without an anchor, knowing
+    /// that `$a` is required at offset 0 allows keeping `$a` anchored at 0.
+    /// Conversely, in `$a at 0 or $a`, the root is an `or` expression:
+    /// `$a at 0` is not a top-level requirement, so `$a` cannot be anchored.
+    pub fn find_top_level_anchors(
+        &self,
+        mut f: impl FnMut(PatternIdx, usize),
+    ) {
+        // Returns true if the quantifier requires every item in `of` to match
+        // (e.g., `all of ...`, `100% of ...`, `N of ...` where N >= num_items,
+        // or `any of ($a)` when there is only 1 item).
+        let quantifier_requires_all =
+            |quantifier: &Quantifier, num_items: usize| match quantifier {
+                Quantifier::All => true,
+                Quantifier::Any => num_items == 1,
+                Quantifier::Percentage(expr) => self
+                    .get(*expr)
+                    .try_as_const_integer()
+                    .is_some_and(|p| p >= 100),
+                Quantifier::Expr(expr) => self
+                    .get(*expr)
+                    .try_as_const_integer()
+                    .is_some_and(|n| n >= num_items as i64),
+                Quantifier::None => false,
+            };
+
+        let mut dfs = self.dfs_iter(self.root.unwrap());
+
+        while let Some(evt) = dfs.next() {
+            let (expr, ctx) = match evt {
+                Event::Enter((_, expr, ctx)) => (expr, ctx),
+                _ => continue,
+            };
+
+            match (expr, ctx) {
+                // For `with <decls> : ( <body> )`, `dfs_iter` visits both the
+                // variable declarations (`EventContext::WithDeclaration`) and
+                // the body (`EventContext::Body`). Only the body determines
+                // whether the `with` expression is true, so prune the
+                // declaration initializers.
+                (_, EventContext::WithDeclaration) => {
+                    dfs.prune();
+                }
+                // `and` and `with` expressions must hold for their
+                // operands/body to hold, so let the DFS descend into their
+                // children.
+                (Expr::And { .. } | Expr::With(_), _) => {}
+                // An `of (<expr>, ...)` tuple whose quantifier requires all
+                // items to be true (such as `all of ($a at 0, $b)`) is
+                // equivalent to an `and` over its items, so let the DFS
+                // descend into its children.
+                (Expr::OfExprTuple(of), _)
+                    if matches!(of.anchor, MatchAnchor::None)
+                        && quantifier_requires_all(
+                            &of.quantifier,
+                            of.items.len(),
+                        ) => {}
+                // `$a at <const>`: `$a` is unconditionally required at
+                // `<const>`.
+                (
+                    Expr::PatternMatch {
+                        pattern,
+                        anchor: MatchAnchor::At(offset_expr),
+                    },
+                    _,
+                ) => {
+                    if let Some(offset) =
+                        self.get(*offset_expr).try_as_const_integer()
+                    {
+                        f(*pattern, offset as usize);
+                    }
+                    dfs.prune();
+                }
+                // `<quantifier> of (<pattern set>) at <const>` where the
+                // quantifier requires every pattern in the set to match at
+                // `<const>` (e.g., `all of ($a*) at 0` or `any of ($a) at 0`).
+                (Expr::OfPatternSet(of), _) => {
+                    if let MatchAnchor::At(offset_expr) = of.anchor
+                        && quantifier_requires_all(
+                            &of.quantifier,
+                            of.items.len(),
+                        )
+                        && let Some(offset) =
+                            self.get(offset_expr).try_as_const_integer()
+                    {
+                        for pattern in &of.items {
+                            f(*pattern, offset as usize);
+                        }
+                    }
+                    dfs.prune();
+                }
+                // Any other expression (`or`, `not`, loops, comparisons, etc.)
+                // does not unconditionally require its sub-expressions to match
+                // at a fixed offset, so prune its children.
+                _ => {
+                    dfs.prune();
+                }
+            }
         }
     }
 

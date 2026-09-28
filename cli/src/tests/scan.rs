@@ -66,6 +66,76 @@ fn filter_by_tag() {
         .assert()
         .success()
         .stdout(predicate::str::contains("foo src/tests/testdata/dummy.file"));
+
+    let temp_dir = TempDir::new().unwrap();
+    let rules_file = temp_dir.child("rules.yar");
+    rules_file
+        .write_str(
+            r#"
+            rule rule_a : tag_a { condition: true }
+            rule rule_b : tag_b { condition: true }
+            "#,
+        )
+        .unwrap();
+
+    // NDJSON: only rule_a should be returned when filtering by tag_a.
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=ndjson")
+        .arg("--tag=tag_a")
+        .arg(rules_file.path())
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .stdout("{\"path\":\"src/tests/testdata/dummy.file\",\"rules\":[{\"identifier\":\"rule_a\"}]}\n");
+
+    // NDJSON: nothing should be returned when filtering by a non-matching tag.
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=ndjson")
+        .arg("--tag=tag_c")
+        .arg(rules_file.path())
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .stdout("");
+
+    // JSON: only rule_a should be in `matches` when filtering by tag_a.
+    let output = Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=json")
+        .arg("--tag=tag_a")
+        .arg(rules_file.path())
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value =
+        serde_json::from_slice(&output).expect("valid JSON output");
+    let matches = json["matches"].as_array().unwrap();
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0]["rule"], "rule_a");
+
+    // JSON: `matches` should be empty when filtering by a non-matching tag.
+    let output = Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=json")
+        .arg("--tag=tag_c")
+        .arg(rules_file.path())
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value =
+        serde_json::from_slice(&output).expect("valid JSON output");
+    let matches = json["matches"].as_array().unwrap();
+    assert!(matches.is_empty());
 }
 
 #[test]
@@ -503,4 +573,95 @@ fn ignore_invalid_rules() {
         .assert()
         .success()
         .stdout(predicate::str::contains("valid_rule"));
+}
+
+#[test]
+fn format_ndjson_omits_non_matching_files() {
+    let temp_dir = TempDir::new().unwrap();
+    let matching_file = temp_dir.child("matching.file");
+    let non_matching_file = temp_dir.child("non_matching.file");
+
+    matching_file.write_str("foo").unwrap();
+    non_matching_file.write_str("bar").unwrap();
+
+    let expected_path = matching_file.path().to_str().unwrap();
+
+    // Non-matching files should not appear in ndjson output.
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=ndjson")
+        .arg("src/tests/testdata/foo.yar")
+        .arg(temp_dir.path())
+        .assert()
+        .success()
+        .stdout(format!(
+            "{{\"path\":{},\"rules\":[{{\"identifier\":\"foo\"}}]}}\n",
+            serde_json::to_string(expected_path).unwrap()
+        ));
+
+    // When --tag filters out all matching rules, nothing should be emitted.
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=ndjson")
+        .arg("--tag=non_existent_tag")
+        .arg("src/tests/testdata/foo.yar")
+        .arg(temp_dir.path())
+        .assert()
+        .success()
+        .stdout("");
+
+    // With --count, only files with count > 0 should be emitted.
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=ndjson")
+        .arg("--count")
+        .arg("src/tests/testdata/foo.yar")
+        .arg(temp_dir.path())
+        .assert()
+        .success()
+        .stdout(format!(
+            "{{\"path\":{},\"count\":1}}\n",
+            serde_json::to_string(expected_path).unwrap()
+        ));
+
+    // With --count and --tag filtering out matches, nothing should be emitted.
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=ndjson")
+        .arg("--count")
+        .arg("--tag=non_existent_tag")
+        .arg("src/tests/testdata/foo.yar")
+        .arg(temp_dir.path())
+        .assert()
+        .success()
+        .stdout("");
+}
+
+#[test]
+fn count_omits_non_matching_files() {
+    let temp_dir = TempDir::new().unwrap();
+    let matching_file = temp_dir.child("matching.file");
+    let non_matching_file = temp_dir.child("non_matching.file");
+
+    matching_file.write_str("foo").unwrap();
+    non_matching_file.write_str("bar").unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--count")
+        .arg("src/tests/testdata/foo.yar")
+        .arg(temp_dir.path())
+        .assert()
+        .success()
+        .stdout(format!("{}: 1\n", matching_file.path().display()));
+
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--count")
+        .arg("--tag=non_existent_tag")
+        .arg("src/tests/testdata/foo.yar")
+        .arg(temp_dir.path())
+        .assert()
+        .success()
+        .stdout("");
 }

@@ -256,24 +256,34 @@ rule HasSymTab {
 
 These are the possible values of the `machine` field.
 
-| Name           | Value  | Description               |
-|----------------|--------|---------------------------|
-| EM_NONE        | 0x0000 | No type                   |
-| EM_M32         | 0x0001 | AT&amp;T WE 32100         |
-| EM_SPARC       | 0x0002 | SPARC                     |
-| EM_386         | 0x0003 | Intel 80386               |
-| EM_68K         | 0x0004 | Motorola 68000            |
-| EM_88K         | 0x0005 | Motorola 88000            |
-| EM_IAMCU       | 0x0006 | Intel MCU                 |
-| EM_860         | 0x0007 | Intel 80860               |
-| EM_MIPS        | 0x0008 | MIPS I Architecture       |
-| EM_S370        | 0x0009 | IBM S370                  |
-| EM_MIPS_RS3_LE | 0x000A | MIPS RS3000 Little-endian |
-| EM_PPC         | 0x0014 | PowerPC                   |
-| EM_PPC64       | 0x0015 | 64-bit PowerPC            |
-| EM_ARM         | 0x0028 | ARM                       |
-| EM_X86_64      | 0x003E | AMD/Intel x86_64          |
-| EM_AARCH64     | 0x00B7 | 64-bit ARM                |
+| Name           | Value  | Description                       |
+|----------------|--------|-----------------------------------|
+| EM_NONE        | 0x0000 | No type                           |
+| EM_M32         | 0x0001 | AT&amp;T WE 32100                 |
+| EM_SPARC       | 0x0002 | SPARC                             |
+| EM_386         | 0x0003 | Intel 80386                       |
+| EM_68K         | 0x0004 | Motorola 68000                    |
+| EM_88K         | 0x0005 | Motorola 88000                    |
+| EM_IAMCU       | 0x0006 | Intel MCU                         |
+| EM_860         | 0x0007 | Intel 80860                       |
+| EM_MIPS        | 0x0008 | MIPS I Architecture               |
+| EM_S370        | 0x0009 | IBM S370                          |
+| EM_MIPS_RS3_LE | 0x000A | MIPS RS3000 Little-endian         |
+| EM_PARISC      | 0x000F | HP PA-RISC                        |
+| EM_SPARC32PLUS | 0x0012 | Sun's "v8plus"                    |
+| EM_PPC         | 0x0014 | PowerPC                           |
+| EM_PPC64       | 0x0015 | 64-bit PowerPC                    |
+| EM_S390        | 0x0016 | IBM S/390                         |
+| EM_MCORE       | 0x0027 | Motorola M*Core                   |
+| EM_RCE         | 0x0027 | Motorola RCE                      |
+| EM_ARM         | 0x0028 | ARM                               |
+| EM_SH          | 0x002A | Renesas (formerly Hitachi) SuperH |
+| EM_SPARCV9     | 0x002B | 64-bit SPARC v9                   |
+| EM_X86_64      | 0x003E | AMD/Intel x86_64                  |
+| EM_ARC_COMPACT | 0x005D | ARC International ARCompact       |
+| EM_AARCH64     | 0x00B7 | 64-bit ARM                        |
+| EM_BPF         | 0x00F7 | Linux BPF in-kernel virtual machine |
+| EM_LOONGARCH   | 0x0102 | LoongArch                         |
 
 #### Example
 
