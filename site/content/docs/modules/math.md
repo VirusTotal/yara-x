@@ -3,7 +3,7 @@ title: "math"
 description: ""
 summary: ""
 date: 2023-09-07T16:13:18+02:00
-lastmod: 2023-09-07T16:13:18+02:00
+lastmod: 2026-09-28T15:39:00-04:00
 draft: false
 menu:
   docs:
@@ -18,8 +18,7 @@ seo:
   noindex: false # false (default) or true
 ---
 
-The `math` module allows you to calculate certain values from portions of your
-file and create signatures based on those results.
+The `math` module lets you calculate certain values from portions of your file and create signatures based on those results.
 
 -------
 
@@ -27,13 +26,13 @@ file and create signatures based on those results.
 
 ### entropy(offset, size)
 
-Returns the entropy for size bytes starting at offset. When scanning a running
-process the offset argument should be a virtual address within the process
-address space. The returned value is a float.
+Returns the entropy for `size` bytes starting at `offset`. `offset` is a file offset in bytes, or a virtual address when scanning a running process. `size` is the byte count from the start `offset`. The returned value is a float between 0.0 and 8.0.
 
 Examples:
 
-`math.entropy(0, filesize) >= 7`
+`math.entropy(0, filesize) >= 7` (checks the entropy of the entire file)
+
+`math.entropy(512, 256) >= 7` (checks the 256 bytes starting at offset 512, e.g. bytes 512-767)
 
 ### entropy(string)
 
@@ -43,12 +42,20 @@ Examples:
 
 `math.entropy("dummy") > 7`
 
+#### Interpreting entropy
+
+Both variants of `entropy` compute the [Shannon entropy](https://en.wikipedia.org/wiki/Entropy_(information_theory)) of the byte sequence, using the standard formula `H = -sum(p(x) * log2(p(x)))`. Entropy is measured per byte (8 bits), so the result ranges from `0.0` to `8.0`:
+* `0.0` means every byte in the range is identical
+* `8.0` means all 256 byte values occur with equal frequency, which is
+  the maximum possible randomness for a byte stream
+
+Values above `7.0` are usually considered high entropy. Normal text, executable code, and most structured file formats have a fairly predictable byte distribution and typically score well below 7. Data that is compressed or encrypted has an almost uniform byte distribution because compression removes redundancy and encryption is designed to look indistinguishable from random data, so it tends to score close to 8.
+
+Malware authors frequently pack or encrypt their payloads to evade signature-based detection and to hide strings/code from static analysis, so a high-entropy section is a common indicator of packing or encryption.
+
 ### monte_carlo_pi(offset, size)
 
-Returns the percentage away from Pi for the size bytes starting at offset when
-run through the Monte Carlo from Pi test. When scanning a running process the
-offset argument should be a virtual address within the process address space.
-The returned value is a float.
+Returns the percentage away from Pi for the `size` bytes starting at `offset` when run through the Monte Carlo from Pi test. `offset` is a file offset, or a virtual address when scanning a running process. The returned value is a float.
 
 Examples:
 
@@ -60,10 +67,7 @@ Returns the percentage away from Pi for the given string.
 
 ### serial_correlation(offset, size)
 
-Returns the serial correlation for the size bytes starting at offset. When
-scanning a running process the offset argument should be a virtual address
-within the process address space. The returned value is a float between 0.0 and
-1.0.
+Returns the serial correlation for the `size` bytes starting at `offset`. `offset` is a file offset, or a virtual address when scanning a running process. The returned value is a float between 0.0 and 1.0.
 
 Examples:
 
@@ -71,7 +75,7 @@ Examples:
 
 ### serial_correlation(string)
 
-Returns the serial correlation for the given string.
+Returns the [serial correlation](https://en.wikipedia.org/wiki/Autocorrelation) for the given string.
 
 Examples:
 
@@ -79,9 +83,7 @@ Examples:
 
 ### mean(offset, size)
 
-Returns the mean for the size bytes starting at offset. When scanning a running
-process the offset argument should be a virtual address within the process
-address space. The returned value is a float.
+Returns the mean for the `size` bytes starting at offset. `offset` is a file offset, or a virtual address when scanning a running process. The returned value is a float.
 
 Examples:
 
@@ -97,12 +99,9 @@ Examples:
 
 ### deviation(offset, size, mean)
 
-Returns the deviation from the mean for the size bytes starting at offset. When
-scanning a running process the offset argument should be a virtual address
-within the process address space. The returned value is a float.
+Returns the deviation from the mean for the `size` bytes starting at `offset`. `offset` is a file offset, or a virtual address when scanning a running process. The returned value is a float.
 
-The mean of an equally distributed random sample of bytes is 127.5, which is
-available as the constant `math.MEAN_BYTES`.
+The mean of an equally distributed random sample of bytes is 127.5, which is available as the constant `math.MEAN_BYTES`.
 
 Examples:
 
@@ -131,13 +130,13 @@ Returns the minimum of two unsigned integer values.
 
 ### to_number(bool)
 
-Returns 0 or 1, it's useful when writing a score based rule.
+Returns 0 or 1. This can be useful when writing a score based rule.
 
 Examples:
 
 ```
-math.to_number(SubRule1) * 60 + 
-math.to_number(SubRule2) * 20 + 
+math.to_number(SubRule1) * 60 +
+math.to_number(SubRule2) * 20 +
 math.to_number(SubRule3) * 70 > 80
 ```
 
@@ -149,10 +148,7 @@ Example: `math.abs(@a - @b) == 1`
 
 ### count(byte, offset, size)
 
-Returns how often a specific byte occurs, starting at offset and looking at the
-next size bytes. When scanning a running process the offset argument should be a
-virtual address within the process address space. offset and size are optional;
-if left empty, the complete file is searched.
+Returns how often a specific byte occurs, starting at `offset` and looking at the next `size` bytes. `offset` is a file offset, or a virtual address when scanning a running process. `offset` and `size` are optional; if left empty, the complete file is searched.
 
 Examples:
 
@@ -162,11 +158,7 @@ Examples:
 
 ### percentage(byte, offset, size)
 
-Returns the occurrence rate of a specific byte, starting at offset and looking
-at the next size bytes. When scanning a running process the offset argument
-should be a virtual address within the process address space. The returned value
-is a float between 0 and 1. offset and size are optional; if left empty, the
-complete file is searched.
+Returns the occurrence rate of a specific byte, starting at `offset` and looking at the next `size` bytes. `offset` is a file offset, or a virtual address when scanning a running process. The returned value is a float between 0 and 1. `offset` and `size` are optional; if left empty, the complete file is searched.
 
 Examples:
 
@@ -176,10 +168,7 @@ Examples:
 
 ### mode(offset, size)
 
-Returns the most common byte, starting at offset and looking at the next size
-bytes. When scanning a running process the offset argument should be a virtual
-address within the process address space. The returned value is a float. offset
-and size are optional; if left empty, the complete file is searched.
+Returns the most common byte, starting at `offset` and looking at the next `size` bytes. When scanning a running process the offset argument should be a virtual address within the process address space. The returned value is a float. offset and size are optional; if left empty, the complete file is searched.
 
 Examples:
 
@@ -199,9 +188,7 @@ Examples:
 
 ### to_string(int, base)
 
-Converts the given integer to a string in the given base. Supported bases are
-10,
-8 and 16. Note: integers in YARA are signed.
+Converts the given integer to a string in the given base. Supported bases are 10, 8, and 16. Note: integers in YARA are signed.
 
 Examples:
 
