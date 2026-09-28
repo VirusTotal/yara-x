@@ -372,7 +372,10 @@ impl Pattern {
     }
 
     #[inline]
-    pub fn update_max_matches_in_fast_scan(&mut self, limit: Option<NonZeroU32>) {
+    pub fn update_max_matches_in_fast_scan(
+        &mut self,
+        limit: Option<NonZeroU32>,
+    ) {
         let current = match self {
             Pattern::Text(literal) => &mut literal.max_matches_in_fast_scan,
             Pattern::Regexp(regexp) | Pattern::Hex(regexp) => {
