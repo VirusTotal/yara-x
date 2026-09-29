@@ -816,9 +816,7 @@ impl ScanContext<'_, '_> {
                     data,
                     0,
                     |m| -> ControlFlow<ScanError> {
-                        if HEARTBEAT_COUNTER.load(Ordering::Relaxed)
-                            >= self.deadline
-                        {
+                        if self.timeout_expired() {
                             return ControlFlow::Break(ScanError::Timeout);
                         }
                         #[cfg(feature = "logging")]
