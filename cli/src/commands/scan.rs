@@ -385,9 +385,13 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
                         let mut wanted_rules = match args.get_flag("negate") {
                             true => Box::new(scan_results.non_matching_rules())
-                                as Box<dyn ExactSizeIterator<Item = Rule>>,
+                                as Box<dyn ExactSizeIterator<Item=Rule>>,
                             false => Box::new(scan_results.matching_rules()),
-                        };
+                        }.filter(|rule| {
+                            only_tag.is_none_or(|only_tag| {
+                                rule.tags().any(|tag| tag.identifier() == only_tag)
+                            })
+                        });
 
                         state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
 
@@ -413,19 +417,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                 .unwrap()
                 .retain(|(p, _)| !file_path.eq(p));
 
-            let scan_results = scan_results?;
-            let mut wanted_rules = match args.get_flag("negate") {
-                true => Box::new(scan_results.non_matching_rules())
-                    as Box<dyn Iterator<Item=Rule>>,
-                false => Box::new(scan_results.matching_rules()),
-            }
-            .filter(|rule| {
-                only_tag.is_none_or(|only_tag| {
-                    rule.tags().any(|tag| tag.identifier() == only_tag)
-                })
-            });
-
-            Ok(())
+            result.map(|_| ())
         },
         // Finalization
         #[allow(unused_variables)]
@@ -470,8 +462,8 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             // In case of timeout walk is aborted.
             if let Ok(scan_err) = err.downcast::<ScanError>()
                 && matches!(scan_err, ScanError::Timeout) {
-                    return Err(scan_err.into());
-                }
+                return Err(scan_err.into());
+            }
 
             Ok(())
         },
