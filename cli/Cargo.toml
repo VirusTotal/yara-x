@@ -28,8 +28,8 @@ test = false
 # Enable the "debug" command for developers.
 debug-cmd = []
 
-# When this feature is enabled the CLI program prints debug logs if
-# the RUST_LOG environment variable is set to any of the debug levels:
+# When this feature is enabled the CLI program prints debug logs to stderr if
+# the YRX_LOG environment variable is set to any of the log levels:
 #
 #   error
 #   warn
@@ -37,12 +37,21 @@ debug-cmd = []
 #   debug
 #   trace
 #
-# Example: RUST_LOG=info ./yr scan some_rule.yar some_file
-logging = ["dep:log", "dep:env_logger"]
+# You can also specify different log levels for specific targets/modules using
+# comma-separated `target=level` directives:
+#
+#   YRX_LOG=info ./yr scan some_rule.yar some_file
+#   YRX_LOG=yara_x=debug ./yr scan some_rule.yar some_file
+#   YRX_LOG=warn,yara_x::compiler=trace ./yr scan some_rule.yar some_file
+stderr-logs = ["yara-x/stderr-logs"]
 
 # Enables rules profiling. Notice that profiling has an impact on scan
 # performance.
 rules-profiling = ["yara-x/rules-profiling"]
+
+# Include precompiled native code in serialized rules. This reduces rule load
+# time at the cost of larger, platform-specific compiled-rule files.
+native-code-serialization = ["yara-x/native-code-serialization"]
 
 # Enables the use of wasmtime's Pulley bytecode interpreter instead of the default
 # Cranelift JIT compiler. See the documentation in the `yara-x` core library for details.
@@ -58,8 +67,6 @@ figment = { workspace = true, features = ["toml"] }
 globwalk = { workspace = true }
 home = { workspace = true }
 itertools = { workspace = true }
-env_logger = { workspace = true, optional = true, features = ["auto-color"] }
-log = { workspace = true, optional = true }
 protobuf = { workspace = true }
 regex = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
@@ -67,7 +74,7 @@ serde = { workspace = true, features = ["derive"] }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 yansi = { workspace = true }
-yara-x = { workspace = true, features = ["parallel-compilation"] }
+yara-x = { workspace = true, default-features = true, features = ["parallel-compilation"] }
 yara-x-parser = { workspace = true }
 yara-x-proto = { workspace = true }
 yara-x-fmt = { workspace = true }
@@ -76,7 +83,7 @@ chardetng = "1.0.0"
 crossbeam = "0.8.4"
 crossterm = "0.29.0"
 dunce = "1.0.5"
-indicatif = "0.18.4"
+indicatif = "0.18.6"
 unicode-width = "0.2.2"
 wild = "2.2.1"
 

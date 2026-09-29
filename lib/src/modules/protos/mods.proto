@@ -10,6 +10,7 @@ import "lnk.proto";
 import "macho.proto";
 import "olecf.proto";
 import "vba.proto";
+import "msi.proto";
 
 package mods;
 
@@ -24,4 +25,5 @@ message Modules {
     optional vba.Vba vba = 7;
     optional crx.Crx crx = 8;
     optional dex.Dex dex = 9;
+    optional msi.Msi msi = 10;
 }

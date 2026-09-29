@@ -2,7 +2,7 @@
 
 The scanner takes the rules produces by the compiler and scans data with them.
 */
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::io::Read;
@@ -20,6 +20,7 @@ use bitvec::prelude::*;
 use memmap2::Advice;
 use memmap2::{Mmap, MmapOptions};
 use protobuf::{CodedInputStream, MessageDyn};
+use rustc_hash::FxHashMap as HashMap;
 use thiserror::Error;
 
 use crate::Variable;
@@ -598,9 +599,11 @@ impl<'r> Scanner<'r> {
             size = std::cmp::min(size, max_scan_size);
         }
 
-        // For files smaller than ~500MB reading the whole file is faster than
-        // using a memory-mapped file.
-        let data = if use_mmap && size > 500_000_000 {
+        // For files smaller than ~32MB reading the whole file is faster than
+        // using a memory-mapped file. This may vary depending on the operating
+        // system and CPU cache size, but it is a good enough threshold in most
+        // cases.
+        let data = if use_mmap && size > 32_000_000 {
             let mapped_file = unsafe {
                 MmapOptions::new().map_copy_read_only(&file).map_err(|err| {
                     ScanError::MapError { path: path.to_path_buf(), err }

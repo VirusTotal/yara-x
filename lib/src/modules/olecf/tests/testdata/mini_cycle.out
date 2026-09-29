@@ -1,0 +1,8 @@
+is_olecf: true
+streams:
+  - name: "Root Entry"
+    type: ROOT
+    size: 512
+  - name: "CycleMini"
+    type: STREAM
+    size: 120

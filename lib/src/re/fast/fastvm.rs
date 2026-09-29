@@ -1,5 +1,5 @@
 use std::cell::Cell;
-use std::ops::RangeInclusive;
+use std::ops::{ControlFlow, RangeInclusive};
 use std::{cmp, mem};
 
 use bitflags::bitflags;
@@ -7,7 +7,7 @@ use itertools::izip;
 
 use crate::re::bitmapset::BitmapSet;
 use crate::re::fast::instr::{Instr, InstrParser};
-use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT, WideIter};
+use crate::re::{CodeLoc, DEFAULT_SCAN_LIMIT, WideIter};
 
 /// A faster but less general alternative to [PikeVM].
 ///
@@ -69,7 +69,7 @@ impl<'r> FastVM<'r> {
         start: C,
         input: &[u8],
         wide: bool,
-        mut f: impl FnMut(usize) -> Action,
+        mut f: impl FnMut(usize) -> ControlFlow<()>,
     ) where
         C: CodeLoc,
     {
@@ -125,11 +125,11 @@ impl<'r> FastVM<'r> {
                             }
                         }
                         match f(*position) {
-                            Action::Stop => {
+                            ControlFlow::Break(_) => {
                                 stop = true;
                                 break;
                             }
-                            Action::Continue => {}
+                            ControlFlow::Continue(_) => {}
                         }
                     }
                     if stop {

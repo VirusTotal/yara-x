@@ -716,6 +716,13 @@ enum YRX_RESULT yrx_scanner_set_timeout(struct YRX_SCANNER *scanner,
 enum YRX_RESULT yrx_scanner_fast_scan(struct YRX_SCANNER *scanner,
                                       bool yes);
 
+// Sets the maximum number of matches per pattern.
+//
+// When a pattern reaches the maximum number of matches it won't produce more
+// matches.
+enum YRX_RESULT yrx_scanner_max_matches_per_pattern(struct YRX_SCANNER *scanner,
+                                                    size_t n);
+
 // Scans a data buffer.
 //
 // `data` can be null as long as `len` is 0. In such cases its handled as

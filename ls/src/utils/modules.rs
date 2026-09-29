@@ -347,6 +347,7 @@ pub fn ty_to_string(ty: &Type) -> String {
         Type::Bool => "bool".to_string(),
         Type::String => "string".to_string(),
         Type::Regexp => "regexp".to_string(),
+        Type::Struct(s) if s.is_enum() => "enum".to_string(),
         Type::Struct(_) => "struct".to_string(),
         Type::Func(_) => "func()".to_string(),
         Type::Array(inner) => format!("array<{}>", ty_to_string(inner)),

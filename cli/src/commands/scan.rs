@@ -157,7 +157,6 @@ struct OutputOptions {
     include_meta: bool,
     include_tags: bool,
     include_strings: Option<usize>,
-    only_tag: Option<String>,
 }
 
 impl From<&ArgMatches> for OutputOptions {
@@ -168,7 +167,6 @@ impl From<&ArgMatches> for OutputOptions {
             include_meta: args.get_flag("print-meta"),
             include_tags: args.get_flag("print-tags"),
             include_strings: args.get_one::<usize>("print-strings").cloned(),
-            only_tag: args.get_one::<String>("tag").cloned(),
         }
     }
 }
@@ -190,6 +188,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let recursive = args.get_one::<usize>("recursive");
     let no_mmap = args.get_flag("no-mmap");
     let fast_scan = args.get_flag("fast-scan");
+    let only_tag = args.get_one::<String>("tag");
     let max_matches_per_pattern =
         args.get_one::<usize>("max-matches-per-pattern");
 
@@ -254,7 +253,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
         rules
     } else {
-        compile_rules(rules_path, args, config)?
+        compile_rules(rules_path, args, config)?.0
     };
 
     let rules_ref = &rules;
@@ -414,7 +413,17 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                 .unwrap()
                 .retain(|(p, _)| !file_path.eq(p));
 
-            let _ = result?;
+            let scan_results = scan_results?;
+            let mut wanted_rules = match args.get_flag("negate") {
+                true => Box::new(scan_results.non_matching_rules())
+                    as Box<dyn Iterator<Item=Rule>>,
+                false => Box::new(scan_results.matching_rules()),
+            }
+            .filter(|rule| {
+                only_tag.is_none_or(|only_tag| {
+                    rule.tags().any(|tag| tag.identifier() == only_tag)
+                })
+            });
 
             Ok(())
         },
@@ -641,14 +650,9 @@ mod output_handler {
 
     fn rules_to_json(
         output_options: &OutputOptions,
-        scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
+        scan_results: &mut dyn Iterator<Item = Rule>,
     ) -> Vec<RuleJson> {
         scan_results
-            .filter(move |rule| {
-                output_options.only_tag.as_ref().is_none_or(|only_tag| {
-                    rule.tags().any(|tag| tag.identifier() == only_tag)
-                })
-            })
             .map(move |rule| RuleJson {
                 identifier: rule.identifier().to_string(),
                 namespace: output_options
@@ -729,7 +733,7 @@ mod output_handler {
         fn on_file_scanned(
             &self,
             file_path: &Path,
-            scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
+            scan_results: &mut dyn Iterator<Item = Rule>,
             output: &Sender<Message>,
         ) -> bool;
         /// Called when the last file has been scanned.
@@ -750,31 +754,28 @@ mod output_handler {
         fn on_file_scanned(
             &self,
             file_path: &Path,
-            scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
+            scan_results: &mut dyn Iterator<Item = Rule>,
             output: &Sender<Message>,
         ) -> bool {
             if self.output_options.count_only {
-                output
-                    .send(Message::Info(format!(
-                        "{}: {}",
-                        file_path.display(),
-                        scan_results.len()
-                    )))
-                    .unwrap();
-                return true;
+                let count = scan_results.count();
+
+                if count > 0 {
+                    output
+                        .send(Message::Info(format!(
+                            "{}: {}",
+                            file_path.display(),
+                            count
+                        )))
+                        .unwrap();
+                }
+
+                return count > 0;
             }
 
             let mut result = false;
 
             for matching_rule in scan_results {
-                if let Some(ref only_tag) = self.output_options.only_tag
-                    && !matching_rule
-                        .tags()
-                        .any(|tag| tag.identifier() == only_tag)
-                {
-                    continue;
-                }
-
                 result = true;
 
                 let mut msg = if self.output_options.include_namespace {
@@ -796,7 +797,7 @@ mod output_handler {
                     msg.push_str(" [");
                     for (pos, tag) in tags.with_position() {
                         msg.push_str(tag.identifier());
-                        if !matches!(pos, itertools::Position::Last) {
+                        if !pos.is_last {
                             msg.push(',');
                         }
                     }
@@ -827,7 +828,7 @@ mod output_handler {
                                 v.escape_ascii()
                             )),
                         };
-                        if !matches!(pos, itertools::Position::Last) {
+                        if !pos.is_last {
                             msg.push(',');
                         }
                     }
@@ -892,10 +893,7 @@ mod output_handler {
                                         match_str.push_str(
                                             format!("{b:02x}").as_str(),
                                         );
-                                        if !matches!(
-                                            pos,
-                                            itertools::Position::Last
-                                        ) {
+                                        if !pos.is_last {
                                             match_str.push(' ');
                                         }
                                     }
@@ -942,24 +940,35 @@ mod output_handler {
         fn on_file_scanned(
             &self,
             file_path: &Path,
-            scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
+            scan_results: &mut dyn Iterator<Item = Rule>,
             output: &Sender<Message>,
         ) -> bool {
             let path = file_path.to_str().unwrap();
 
             if self.output_options.count_only {
-                let json = serde_json::to_string(&JsonCountOutput {
-                    count: scan_results.len(),
-                    path,
-                })
-                .unwrap();
+                let count = scan_results.count();
 
-                output.send(Message::Info(json)).unwrap();
-                return true;
+                if count > 0 {
+                    output
+                        .send(Message::Info(
+                            serde_json::to_string(&JsonCountOutput {
+                                count,
+                                path,
+                            })
+                            .unwrap(),
+                        ))
+                        .unwrap();
+                }
+
+                return count > 0;
             }
 
             let matching_rules =
                 rules_to_json(&self.output_options, scan_results);
+
+            if matching_rules.is_empty() {
+                return false;
+            }
 
             let line = serde_json::to_string(&JsonOutput {
                 path,
@@ -969,8 +978,7 @@ mod output_handler {
 
             output.send(Message::Info(line)).unwrap();
 
-            // Return `false` if `matching_rules` is empty.
-            !matching_rules.is_empty()
+            true
         }
 
         fn on_done(&self, _output: &Sender<Message>) {
@@ -1073,9 +1081,15 @@ mod output_handler {
         fn on_file_scanned(
             &self,
             file_path: &Path,
-            scan_results: &mut dyn ExactSizeIterator<Item = Rule>,
+            scan_results: &mut dyn Iterator<Item = Rule>,
             _output: &Sender<Message>,
         ) -> bool {
+            let mut matching_rules = scan_results.peekable();
+
+            if matching_rules.peek().is_none() {
+                return false;
+            }
+
             let path = dunce::canonicalize(file_path)
                 .ok()
                 .as_ref()
@@ -1084,75 +1098,65 @@ mod output_handler {
                 .unwrap_or_default();
 
             // prepare the increment *outside* the critical section
-            let matching_rules = scan_results
-                .filter(|rule| {
-                    self.output_options.only_tag.as_ref().is_none_or(
-                        |only_tag| {
-                            rule.tags().any(|tag| tag.identifier() == only_tag)
-                        },
-                    )
-                })
-                .map(|rule| {
-                    let meta = self.output_options.include_meta.then(|| {
-                        // Group metadata by key to handle duplicate keys.
-                        let mut grouped: HashMap<
-                            String,
-                            Vec<serde_json::Value>,
-                        > = HashMap::new();
+            let matching_rules = matching_rules.map(|rule| {
+                let meta = self.output_options.include_meta.then(|| {
+                    // Group metadata by key to handle duplicate keys.
+                    let mut grouped: HashMap<String, Vec<serde_json::Value>> =
+                        HashMap::new();
 
-                        for (meta_key, meta_val) in rule.metadata() {
-                            let key = meta_key.to_owned();
-                            let val = serde_json::to_value(meta_val).expect(
-                                "Derived Serialize impl should never fail",
-                            );
-                            grouped.entry(key).or_default().push(val);
-                        }
-
-                        // Single values stay as-is, multiple values become arrays.
-                        grouped
-                            .into_iter()
-                            .map(|(k, mut v)| {
-                                let val = if v.len() == 1 {
-                                    v.pop().unwrap()
-                                } else {
-                                    serde_json::Value::Array(v)
-                                };
-                                (k, val)
-                            })
-                            .collect::<HashMap<_, _>>()
-                    });
-
-                    let file = path.clone();
-
-                    let tags = self.output_options.include_tags.then(|| {
-                        rule.tags()
-                            .map(|t| t.identifier().to_string())
-                            .collect::<Vec<_>>()
-                    });
-
-                    let strings = self.output_options.include_strings.map(
-                        |strings_limit| {
-                            patterns_to_string_jsons(
-                                rule.patterns(),
-                                strings_limit,
-                            )
-                        },
-                    );
-
-                    MatchJson {
-                        rule: rule.identifier().to_string(),
-                        meta,
-                        file,
-                        tags,
-                        strings,
+                    for (meta_key, meta_val) in rule.metadata() {
+                        let key = meta_key.to_owned();
+                        let val = serde_json::to_value(meta_val).expect(
+                            "Derived Serialize impl should never fail",
+                        );
+                        grouped.entry(key).or_default().push(val);
                     }
+
+                    // Single values stay as-is, multiple values become arrays.
+                    grouped
+                        .into_iter()
+                        .map(|(k, mut v)| {
+                            let val = if v.len() == 1 {
+                                v.pop().unwrap()
+                            } else {
+                                serde_json::Value::Array(v)
+                            };
+                            (k, val)
+                        })
+                        .collect::<HashMap<_, _>>()
                 });
+
+                let file = path.clone();
+
+                let tags = self.output_options.include_tags.then(|| {
+                    rule.tags()
+                        .map(|t| t.identifier().to_string())
+                        .collect::<Vec<_>>()
+                });
+
+                let strings =
+                    self.output_options.include_strings.map(|strings_limit| {
+                        patterns_to_string_jsons(
+                            rule.patterns(),
+                            strings_limit,
+                        )
+                    });
+
+                MatchJson {
+                    rule: rule.identifier().to_string(),
+                    meta,
+                    file,
+                    tags,
+                    strings,
+                }
+            });
 
             {
                 let mut output = self.output_buffer.lock().unwrap();
                 output.extend(matching_rules);
-                !output.is_empty()
             }
+
+            true
         }
 
         fn on_done(&self, output: &Sender<Message>) {

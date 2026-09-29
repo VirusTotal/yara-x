@@ -5,7 +5,7 @@ use std::mem::size_of;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
-use crate::compiler::{SubPattern, VarStack, linters};
+use crate::compiler::{IgnoredRuleReason, SubPattern, VarStack, linters};
 use crate::errors::{SerializationError, VariableError};
 use crate::types::Type;
 use crate::{Compiler, Rules, Scanner, SourceCode, compile};
@@ -27,7 +27,7 @@ fn serialization() {
     // `DecodeError`.
     let mut data = Vec::new();
     data.extend(b"YARA-X\0\0");
-    data.extend(4u32.to_le_bytes());
+    data.extend(7u32.to_le_bytes());
     data.extend(b"foo");
 
     assert!(matches!(
@@ -124,8 +124,8 @@ fn namespaces() {
 fn var_stack() {
     let mut stack = VarStack::new();
 
-    let mut frame1 = stack.new_frame(4);
-    let mut frame2 = stack.new_frame(4);
+    let mut frame1 = stack.new_frame(4).unwrap();
+    let mut frame2 = stack.new_frame(4).unwrap();
 
     let var = frame1.new_var(Type::Integer);
 
@@ -622,6 +622,16 @@ fn unsupported_modules() {
         )
         .unwrap();
 
+    let ignored: Vec<_> = compiler.ignored_rules().collect();
+    assert_eq!(
+        ignored,
+        vec![
+            ("ignored_1", IgnoredRuleReason::IgnoredModule("foo_module")),
+            ("ignored_2", IgnoredRuleReason::IgnoredRule("ignored_1")),
+            ("ignored_3", IgnoredRuleReason::IgnoredRule("ignored_2")),
+        ]
+    );
+
     let rules = compiler.build();
 
     assert_eq!(
@@ -632,6 +642,34 @@ fn unsupported_modules() {
             .len(),
         1
     );
+}
+
+#[test]
+fn test_ignored_rules() {
+    let mut compiler = Compiler::new();
+    compiler.ignore_module("unsupported_mod");
+
+    let _ = compiler.add_source(
+        r#"
+        import "unsupported_mod"
+
+        rule rule_ok { condition: true }
+        rule rule_ignored_module { condition: unsupported_mod.field == 1 }
+        rule rule_failed_compile { condition: undefined_symbol == 1 }
+        "#,
+    );
+
+    let ignored: Vec<_> = compiler.ignored_rules().collect();
+    assert_eq!(ignored.len(), 2);
+
+    assert_eq!(ignored[0].0, "rule_ignored_module");
+    assert_eq!(
+        ignored[0].1,
+        IgnoredRuleReason::IgnoredModule("unsupported_mod")
+    );
+
+    assert_eq!(ignored[1].0, "rule_failed_compile");
+    assert!(matches!(ignored[1].1, IgnoredRuleReason::CompileError(_)));
 }
 
 #[cfg(feature = "test_proto2-module")]
@@ -1566,6 +1604,14 @@ fn test_filesize_bounds() {
         &[89, 80, 3],
         &[90, 100],
     );
+
+    // 18. float filesize bounds
+    check_filesize_bound("filesize > 10.5", &[11, 20], &[10, 9, 3]);
+    check_filesize_bound("filesize >= 10.5", &[11, 20], &[10, 9, 3]);
+    check_filesize_bound("filesize < 10.5", &[10, 9, 3], &[11, 20]);
+    check_filesize_bound("filesize <= 10.5", &[10, 9, 3], &[11, 20]);
+    check_filesize_bound("10.5 < filesize", &[11, 20], &[10, 9, 3]);
+    check_filesize_bound("10.5 > filesize", &[10, 9, 3], &[11, 20]);
 }
 
 fn check_header_constraint(
@@ -1703,4 +1749,13 @@ fn test_rules_matches_many() {
     scanner.set_global("str_foo", "bar").unwrap();
     let scan_results = scanner.scan(&[]).unwrap();
     assert_eq!(scan_results.matching_rules().len(), 1);
+}
+
+#[test]
+fn test_var_stack_overflow() {
+    let mut compiler = Compiler::new();
+    let vars =
+        (0..2050).map(|i| format!("v{i}=0")).collect::<Vec<_>>().join(",");
+    let rule = format!("rule test {{ condition: with {vars} : ( true ) }}");
+    assert!(compiler.add_source(rule.as_str()).is_err());
 }

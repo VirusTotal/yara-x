@@ -1,5 +1,5 @@
-SOURCE_FILE@0..85
-  RULE_DECL@0..85
+SOURCE_FILE@0..93
+  RULE_DECL@0..93
     RULE_KW@0..4 "rule"
     WHITESPACE@4..5 " "
     IDENT@5..9 "test"
@@ -7,12 +7,12 @@ SOURCE_FILE@0..85
     L_BRACE@10..11 "{"
     NEWLINE@11..12 "\n"
     WHITESPACE@12..13 "\t"
-    PATTERNS_BLK@13..64
+    PATTERNS_BLK@13..72
       STRINGS_KW@13..20 "strings"
       COLON@20..21 ":"
       NEWLINE@21..22 "\n"
       WHITESPACE@22..25 "\t  "
-      PATTERN_DEF@25..64
+      PATTERN_DEF@25..72
         PATTERN_IDENT@25..27 "$a"
         WHITESPACE@27..28 " "
         EQUAL@28..29 "="
@@ -41,15 +41,19 @@ SOURCE_FILE@0..85
             HEX_BYTE@60..62 "44"
           WHITESPACE@62..63 " "
           R_BRACE@63..64 "}"
-    NEWLINE@64..65 "\n"
-    WHITESPACE@65..67 "  "
-    CONDITION_BLK@67..83
-      CONDITION_KW@67..76 "condition"
-      COLON@76..77 ":"
-      NEWLINE@77..78 "\n"
-      WHITESPACE@78..81 "\t  "
-      BOOLEAN_EXPR@81..83
-        BOOLEAN_TERM@81..83
-          PATTERN_IDENT@81..83 "$a"
-    NEWLINE@83..84 "\n"
-    R_BRACE@84..85 "}"
+        WHITESPACE@64..65 " "
+        PATTERN_MODS@65..72
+          PATTERN_MOD@65..72
+            PRIVATE_KW@65..72 "private"
+    NEWLINE@72..73 "\n"
+    WHITESPACE@73..75 "  "
+    CONDITION_BLK@75..91
+      CONDITION_KW@75..84 "condition"
+      COLON@84..85 ":"
+      NEWLINE@85..86 "\n"
+      WHITESPACE@86..89 "\t  "
+      BOOLEAN_EXPR@89..91
+        BOOLEAN_TERM@89..91
+          PATTERN_IDENT@89..91 "$a"
+    NEWLINE@91..92 "\n"
+    R_BRACE@92..93 "}"

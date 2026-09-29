@@ -21,4 +21,5 @@ homepage = "https://virustotal.github.io/yara-x"
 repository = "https://github.com/VirusTotal/yara-x.git"
 
 [tool.maturin]
+module-name = "yara_x"
 features = ["pyo3/extension-module"]

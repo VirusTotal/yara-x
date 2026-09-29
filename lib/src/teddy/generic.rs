@@ -2,6 +2,7 @@
 use super::vector::{FatVector, Vector};
 use std::collections::BTreeMap;
 use std::fmt::Debug;
+use std::ops::ControlFlow;
 use std::sync::Arc;
 
 pub type PatternID = u32;
@@ -185,21 +186,29 @@ impl<V: Vector> Slim<V, 1> {
     }
 
     #[inline(always)]
-    pub(crate) unsafe fn find_overlapping(
+    pub(crate) unsafe fn find_overlapping<F>(
         &self,
         start: *const u8,
         end: *const u8,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             if (end as usize - start as usize) < self.minimum_len() {
-                return;
+                return ControlFlow::Continue(());
             }
             let mut cur = start;
             while cur <= end.sub(V::BYTES) {
                 let c = self.candidate(cur);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur, end, c, callback);
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur, end, c, &mut callback)
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
                 cur = cur.add(V::BYTES);
             }
@@ -207,14 +216,22 @@ impl<V: Vector> Slim<V, 1> {
                 let prev_bound = cur;
                 cur = end.sub(V::BYTES);
                 let c = self.candidate(cur);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur, end, c, &mut |m| {
-                        if m.start >= prev_bound {
-                            callback(m);
-                        }
-                    });
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur, end, c, |m| {
+                            if m.start >= prev_bound {
+                                callback(m)
+                            } else {
+                                ControlFlow::Continue(())
+                            }
+                        })
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
             }
+            ControlFlow::Continue(())
         }
     }
 }
@@ -923,13 +940,16 @@ impl Debug for FatMaskBuilder {
 
 impl<const BUCKETS: usize> Teddy<BUCKETS> {
     #[inline(always)]
-    pub unsafe fn verify64_all(
+    pub unsafe fn verify64_all<F>(
         &self,
         cur: *const u8,
         end: *const u8,
         mut candidate_chunk: u64,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             while candidate_chunk != 0 {
                 let bit = candidate_chunk.trailing_zeros() as usize;
@@ -939,84 +959,116 @@ impl<const BUCKETS: usize> Teddy<BUCKETS> {
                 debug_assert!(bucket < self.buckets.len());
                 for pid in self.buckets.get_unchecked(bucket).iter().copied() {
                     let pat = self.patterns.get_unchecked(pid);
-                    if pat.is_prefix_raw(match_cur, end) {
-                        callback(Match {
+                    if pat.is_prefix_raw(match_cur, end)
+                        && callback(Match {
                             pid,
                             start: match_cur,
                             end: match_cur.add(pat.len()),
-                        });
+                        })
+                        .is_break()
+                    {
+                        return ControlFlow::Break(());
                     }
                 }
             }
+            ControlFlow::Continue(())
         }
     }
 }
 
 impl Teddy<8> {
     #[inline(always)]
-    pub unsafe fn verify_all<V: Vector>(
+    pub unsafe fn verify_all<V: Vector, F>(
         &self,
         mut cur: *const u8,
         end: *const u8,
         candidate: V,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             debug_assert!(!candidate.is_zero());
+            let mut cf = ControlFlow::Continue(());
             candidate.for_each_64bit_lane(|_, chunk| {
-                self.verify64_all(cur, end, chunk, callback);
+                if self.verify64_all(cur, end, chunk, &mut callback).is_break()
+                {
+                    cf = ControlFlow::Break(());
+                    return Some(());
+                }
                 cur = cur.add(8);
                 None::<()>
             });
+            cf
         }
     }
 }
 
 impl Teddy<16> {
     #[inline(always)]
-    pub unsafe fn verify_all<V: FatVector>(
+    pub unsafe fn verify_all<V: FatVector, F>(
         &self,
         mut cur: *const u8,
         end: *const u8,
         candidate: V,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             debug_assert!(!candidate.is_zero());
             let swapped = candidate.swap_halves();
             let r1 = candidate.interleave_low_8bit_lanes(swapped);
             let r2 = candidate.interleave_high_8bit_lanes(swapped);
+            let mut cf = ControlFlow::Continue(());
             r1.for_each_low_64bit_lane(
                 r2,
                 #[inline(always)]
                 |_, chunk| {
-                    self.verify64_all(cur, end, chunk, callback);
+                    if self
+                        .verify64_all(cur, end, chunk, &mut callback)
+                        .is_break()
+                    {
+                        cf = ControlFlow::Break(());
+                        return Some(());
+                    }
                     cur = cur.add(4);
                     None::<()>
                 },
             );
+            cf
         }
     }
 }
 
 impl<V: Vector> Slim<V, 2> {
     #[inline(always)]
-    pub(crate) unsafe fn find_overlapping(
+    pub(crate) unsafe fn find_overlapping<F>(
         &self,
         start: *const u8,
         end: *const u8,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             if (end as usize - start as usize) < self.minimum_len() {
-                return;
+                return ControlFlow::Continue(());
             }
             let mut cur = start.add(1);
             let mut prev0 = V::splat(0xFF);
             while cur <= end.sub(V::BYTES) {
                 let c = self.candidate(cur, &mut prev0);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(1), end, c, callback);
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(1), end, c, &mut callback)
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
                 cur = cur.add(V::BYTES);
             }
@@ -1025,37 +1077,53 @@ impl<V: Vector> Slim<V, 2> {
                 cur = end.sub(V::BYTES);
                 prev0 = V::splat(0xFF);
                 let c = self.candidate(cur, &mut prev0);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(1), end, c, &mut |m| {
-                        if m.start >= prev_bound {
-                            callback(m);
-                        }
-                    });
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(1), end, c, |m| {
+                            if m.start >= prev_bound {
+                                callback(m)
+                            } else {
+                                ControlFlow::Continue(())
+                            }
+                        })
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
             }
+            ControlFlow::Continue(())
         }
     }
 }
 
 impl<V: Vector> Slim<V, 3> {
     #[inline(always)]
-    pub(crate) unsafe fn find_overlapping(
+    pub(crate) unsafe fn find_overlapping<F>(
         &self,
         start: *const u8,
         end: *const u8,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             if (end as usize - start as usize) < self.minimum_len() {
-                return;
+                return ControlFlow::Continue(());
             }
             let mut cur = start.add(2);
             let mut prev0 = V::splat(0xFF);
             let mut prev1 = V::splat(0xFF);
             while cur <= end.sub(V::BYTES) {
                 let c = self.candidate(cur, &mut prev0, &mut prev1);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(2), end, c, callback);
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(2), end, c, &mut callback)
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
                 cur = cur.add(V::BYTES);
             }
@@ -1065,29 +1133,40 @@ impl<V: Vector> Slim<V, 3> {
                 prev0 = V::splat(0xFF);
                 prev1 = V::splat(0xFF);
                 let c = self.candidate(cur, &mut prev0, &mut prev1);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(2), end, c, &mut |m| {
-                        if m.start >= prev_bound {
-                            callback(m);
-                        }
-                    });
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(2), end, c, |m| {
+                            if m.start >= prev_bound {
+                                callback(m)
+                            } else {
+                                ControlFlow::Continue(())
+                            }
+                        })
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
             }
+            ControlFlow::Continue(())
         }
     }
 }
 
 impl<V: Vector> Slim<V, 4> {
     #[inline(always)]
-    pub(crate) unsafe fn find_overlapping(
+    pub(crate) unsafe fn find_overlapping<F>(
         &self,
         start: *const u8,
         end: *const u8,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             if (end as usize - start as usize) < self.minimum_len() {
-                return;
+                return ControlFlow::Continue(());
             }
             let mut cur = start.add(3);
             let mut prev0 = V::splat(0xFF);
@@ -1096,8 +1175,13 @@ impl<V: Vector> Slim<V, 4> {
             while cur <= end.sub(V::BYTES) {
                 let c =
                     self.candidate(cur, &mut prev0, &mut prev1, &mut prev2);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(3), end, c, callback);
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(3), end, c, &mut callback)
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
                 cur = cur.add(V::BYTES);
             }
@@ -1109,35 +1193,51 @@ impl<V: Vector> Slim<V, 4> {
                 prev2 = V::splat(0xFF);
                 let c =
                     self.candidate(cur, &mut prev0, &mut prev1, &mut prev2);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(3), end, c, &mut |m| {
-                        if m.start >= prev_bound {
-                            callback(m);
-                        }
-                    });
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(3), end, c, |m| {
+                            if m.start >= prev_bound {
+                                callback(m)
+                            } else {
+                                ControlFlow::Continue(())
+                            }
+                        })
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
             }
+            ControlFlow::Continue(())
         }
     }
 }
 
 impl<V: FatVector> Fat<V, 1> {
     #[inline(always)]
-    pub(crate) unsafe fn find_overlapping(
+    pub(crate) unsafe fn find_overlapping<F>(
         &self,
         start: *const u8,
         end: *const u8,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             if (end as usize - start as usize) < self.minimum_len() {
-                return;
+                return ControlFlow::Continue(());
             }
             let mut cur = start;
             while cur <= end.sub(V::Half::BYTES) {
                 let c = self.candidate(cur);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur, end, c, callback);
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur, end, c, &mut callback)
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
                 cur = cur.add(V::Half::BYTES);
             }
@@ -1145,36 +1245,52 @@ impl<V: FatVector> Fat<V, 1> {
                 let prev_bound = cur;
                 cur = end.sub(V::Half::BYTES);
                 let c = self.candidate(cur);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur, end, c, &mut |m| {
-                        if m.start >= prev_bound {
-                            callback(m);
-                        }
-                    });
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur, end, c, |m| {
+                            if m.start >= prev_bound {
+                                callback(m)
+                            } else {
+                                ControlFlow::Continue(())
+                            }
+                        })
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
             }
+            ControlFlow::Continue(())
         }
     }
 }
 
 impl<V: FatVector> Fat<V, 2> {
     #[inline(always)]
-    pub(crate) unsafe fn find_overlapping(
+    pub(crate) unsafe fn find_overlapping<F>(
         &self,
         start: *const u8,
         end: *const u8,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             if (end as usize - start as usize) < self.minimum_len() {
-                return;
+                return ControlFlow::Continue(());
             }
             let mut cur = start.add(1);
             let mut prev0 = V::splat(0xFF);
             while cur <= end.sub(V::Half::BYTES) {
                 let c = self.candidate(cur, &mut prev0);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(1), end, c, callback);
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(1), end, c, &mut callback)
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
                 cur = cur.add(V::Half::BYTES);
             }
@@ -1183,37 +1299,53 @@ impl<V: FatVector> Fat<V, 2> {
                 cur = end.sub(V::Half::BYTES);
                 prev0 = V::splat(0xFF);
                 let c = self.candidate(cur, &mut prev0);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(1), end, c, &mut |m| {
-                        if m.start >= prev_bound {
-                            callback(m);
-                        }
-                    });
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(1), end, c, |m| {
+                            if m.start >= prev_bound {
+                                callback(m)
+                            } else {
+                                ControlFlow::Continue(())
+                            }
+                        })
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
             }
+            ControlFlow::Continue(())
         }
     }
 }
 
 impl<V: FatVector> Fat<V, 3> {
     #[inline(always)]
-    pub(crate) unsafe fn find_overlapping(
+    pub(crate) unsafe fn find_overlapping<F>(
         &self,
         start: *const u8,
         end: *const u8,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             if (end as usize - start as usize) < self.minimum_len() {
-                return;
+                return ControlFlow::Continue(());
             }
             let mut cur = start.add(2);
             let mut prev0 = V::splat(0xFF);
             let mut prev1 = V::splat(0xFF);
             while cur <= end.sub(V::Half::BYTES) {
                 let c = self.candidate(cur, &mut prev0, &mut prev1);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(2), end, c, callback);
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(2), end, c, &mut callback)
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
                 cur = cur.add(V::Half::BYTES);
             }
@@ -1223,29 +1355,40 @@ impl<V: FatVector> Fat<V, 3> {
                 prev0 = V::splat(0xFF);
                 prev1 = V::splat(0xFF);
                 let c = self.candidate(cur, &mut prev0, &mut prev1);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(2), end, c, &mut |m| {
-                        if m.start >= prev_bound {
-                            callback(m);
-                        }
-                    });
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(2), end, c, |m| {
+                            if m.start >= prev_bound {
+                                callback(m)
+                            } else {
+                                ControlFlow::Continue(())
+                            }
+                        })
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
             }
+            ControlFlow::Continue(())
         }
     }
 }
 
 impl<V: FatVector> Fat<V, 4> {
     #[inline(always)]
-    pub(crate) unsafe fn find_overlapping(
+    pub(crate) unsafe fn find_overlapping<F>(
         &self,
         start: *const u8,
         end: *const u8,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             if (end as usize - start as usize) < self.minimum_len() {
-                return;
+                return ControlFlow::Continue(());
             }
             let mut cur = start.add(3);
             let mut prev0 = V::splat(0xFF);
@@ -1254,8 +1397,13 @@ impl<V: FatVector> Fat<V, 4> {
             while cur <= end.sub(V::Half::BYTES) {
                 let c =
                     self.candidate(cur, &mut prev0, &mut prev1, &mut prev2);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(3), end, c, callback);
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(3), end, c, &mut callback)
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
                 cur = cur.add(V::Half::BYTES);
             }
@@ -1267,14 +1415,22 @@ impl<V: FatVector> Fat<V, 4> {
                 prev2 = V::splat(0xFF);
                 let c =
                     self.candidate(cur, &mut prev0, &mut prev1, &mut prev2);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(3), end, c, &mut |m| {
-                        if m.start >= prev_bound {
-                            callback(m);
-                        }
-                    });
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(3), end, c, |m| {
+                            if m.start >= prev_bound {
+                                callback(m)
+                            } else {
+                                ControlFlow::Continue(())
+                            }
+                        })
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
             }
+            ControlFlow::Continue(())
         }
     }
 }
@@ -1419,9 +1575,11 @@ mod tests {
         let candidate_chunk = 1 << 7;
         let mut matches = Vec::new();
         unsafe {
-            teddy.verify64_all(start, end, candidate_chunk, &mut |m| {
-                matches.push(m.pid);
-            });
+            let _ =
+                teddy.verify64_all(start, end, candidate_chunk, |m: Match| {
+                    matches.push(m.pid);
+                    ControlFlow::Continue(())
+                });
         }
         assert_eq!(matches, vec![0]);
     }
@@ -1448,7 +1606,8 @@ mod tests {
                     ($s:expr, $start:expr, $end:expr) => {{
                         let mut found = false;
                         $s.find_overlapping($start, $end, &mut |_| {
-                            found = true
+                            found = true;
+                            ControlFlow::Continue(())
                         });
                         assert!(found);
                     }};
@@ -1473,10 +1632,18 @@ mod tests {
                 let short_haystack = b"abc";
                 let s_start = short_haystack.as_ptr();
                 let s_end = s_start.add(short_haystack.len());
-                s1.find_overlapping(s_start, s_end, &mut |_| {});
-                s2.find_overlapping(s_start, s_end, &mut |_| {});
-                s3.find_overlapping(s_start, s_end, &mut |_| {});
-                s4.find_overlapping(s_start, s_end, &mut |_| {});
+                s1.find_overlapping(s_start, s_end, &mut |_| {
+                    ControlFlow::Continue(())
+                });
+                s2.find_overlapping(s_start, s_end, &mut |_| {
+                    ControlFlow::Continue(())
+                });
+                s3.find_overlapping(s_start, s_end, &mut |_| {
+                    ControlFlow::Continue(())
+                });
+                s4.find_overlapping(s_start, s_end, &mut |_| {
+                    ControlFlow::Continue(())
+                });
 
                 let mut tail_haystack = [0x01; 25];
                 tail_haystack[9..13].copy_from_slice(b"abcd");
@@ -1501,10 +1668,18 @@ mod tests {
                     assert_finds!(f3, start, end);
                     assert_finds!(f4, start, end);
 
-                    f1.find_overlapping(s_start, s_end, &mut |_| {});
-                    f2.find_overlapping(s_start, s_end, &mut |_| {});
-                    f3.find_overlapping(s_start, s_end, &mut |_| {});
-                    f4.find_overlapping(s_start, s_end, &mut |_| {});
+                    let _ = f1.find_overlapping(s_start, s_end, &mut |_| {
+                        ControlFlow::Continue(())
+                    });
+                    let _ = f2.find_overlapping(s_start, s_end, &mut |_| {
+                        ControlFlow::Continue(())
+                    });
+                    let _ = f3.find_overlapping(s_start, s_end, &mut |_| {
+                        ControlFlow::Continue(())
+                    });
+                    let _ = f4.find_overlapping(s_start, s_end, &mut |_| {
+                        ControlFlow::Continue(())
+                    });
 
                     assert_finds!(f1, t_start, t_end);
                     assert_finds!(f2, t_start, t_end);
@@ -1512,6 +1687,27 @@ mod tests {
                     assert_finds!(f4, t_start, t_end);
                 }
             }
+        }
+
+        #[test]
+        fn slim_searcher_early_termination() {
+            let pats = Arc::new(Patterns {
+                by_id: vec![b"abcd".to_vec()],
+                minimum_len: 4,
+            });
+            let s1 = unsafe { Slim::<__m128i, 1>::new(pats) };
+            let haystack = pad64(b"abcd abcd abcd abcd");
+            let start = haystack.as_ptr();
+            let end = unsafe { start.add(haystack.len()) };
+
+            let mut count = 0;
+            unsafe {
+                let _ = s1.find_overlapping(start, end, &mut |_| {
+                    count += 1;
+                    ControlFlow::Break(())
+                });
+            }
+            assert_eq!(count, 1);
         }
     }
 
@@ -1540,8 +1736,9 @@ mod tests {
                 macro_rules! assert_finds {
                     ($s:expr, $start:expr, $end:expr) => {{
                         let mut found = false;
-                        $s.find_overlapping($start, $end, &mut |_| {
-                            found = true
+                        let _ = $s.find_overlapping($start, $end, &mut |_| {
+                            found = true;
+                            ControlFlow::Continue(())
                         });
                         assert!(found);
                     }};
@@ -1566,10 +1763,18 @@ mod tests {
                 let short_haystack = b"abc";
                 let s_start = short_haystack.as_ptr();
                 let s_end = s_start.add(short_haystack.len());
-                s1.find_overlapping(s_start, s_end, &mut |_| {});
-                s2.find_overlapping(s_start, s_end, &mut |_| {});
-                s3.find_overlapping(s_start, s_end, &mut |_| {});
-                s4.find_overlapping(s_start, s_end, &mut |_| {});
+                let _ = s1.find_overlapping(s_start, s_end, &mut |_| {
+                    ControlFlow::Continue(())
+                });
+                let _ = s2.find_overlapping(s_start, s_end, &mut |_| {
+                    ControlFlow::Continue(())
+                });
+                let _ = s3.find_overlapping(s_start, s_end, &mut |_| {
+                    ControlFlow::Continue(())
+                });
+                let _ = s4.find_overlapping(s_start, s_end, &mut |_| {
+                    ControlFlow::Continue(())
+                });
 
                 let mut tail_haystack = [0x01; 25];
                 tail_haystack[9..13].copy_from_slice(b"abcd");
@@ -1581,6 +1786,27 @@ mod tests {
                 assert_finds!(s3, t_start, t_end);
                 assert_finds!(s4, t_start, t_end);
             }
+        }
+
+        #[test]
+        fn slim_searcher_early_termination_aarch64() {
+            let pats = Arc::new(Patterns {
+                by_id: vec![b"abcd".to_vec()],
+                minimum_len: 4,
+            });
+            let s1 = unsafe { Slim::<uint8x16_t, 1>::new(pats) };
+            let haystack = pad64(b"abcd abcd abcd abcd");
+            let start = haystack.as_ptr();
+            let end = unsafe { start.add(haystack.len()) };
+
+            let mut count = 0;
+            unsafe {
+                let _ = s1.find_overlapping(start, end, &mut |_| {
+                    count += 1;
+                    ControlFlow::Break(())
+                });
+            }
+            assert_eq!(count, 1);
         }
     }
 }

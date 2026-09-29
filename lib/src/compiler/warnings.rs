@@ -42,6 +42,7 @@ pub enum Warning {
     UnknownTag(Box<UnknownTag>),
     UnsatisfiableExpression(Box<UnsatisfiableExpression>),
     UnusedIdentifier(Box<UnusedIdentifier>),
+    UnintendedPatternInSet(Box<UnintendedPatternInSet>),
 }
 
 /// A hex pattern contains two or more consecutive jumps.
@@ -751,6 +752,40 @@ pub struct DeprecatedField {
 pub struct AmbiguousExpression {
     report: Report,
     loc: CodeLoc,
+}
+
+/// A pattern may be unintentionally included in a pattern set.
+///
+/// For instance, if a rule defines patterns `$s1`, `$s2`, `$s3` and
+/// `$suspicious_string`, and the condition is:
+///
+///   `$suspicious_string and any of ($s*)`
+///
+/// `any of ($s*)` was intended to match `$s1`, `$s2` and `$s3`, but not
+/// `$suspicious_string`. However, `$s*` includes `$suspicious_string`
+/// and that was unintended.
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "unintended_pattern_in_set",
+    title = "pattern `{pattern_ident}` may be unintendedly or redundantly included in pattern set `{pattern_set}`",
+)]
+#[label(
+    "{first_label}",
+    first_loc
+)]
+#[label(
+    "{second_label}",
+    second_loc
+)]
+pub struct UnintendedPatternInSet {
+    report: Report,
+    pattern_ident: String,
+    pattern_set: String,
+    first_label: String,
+    first_loc: CodeLoc,
+    second_label: String,
+    second_loc: CodeLoc,
 }
 
 /// An identifier was declared but not used.

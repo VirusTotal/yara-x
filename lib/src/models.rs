@@ -5,7 +5,9 @@ use bstr::{BStr, ByteSlice};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize, Serializer};
 
-use crate::compiler::{IdentId, PatternId, PatternInfo, RuleInfo};
+use crate::compiler::{
+    IdentId, PatternId, PatternInfo, RuleInfo, SubPatternAtom,
+};
 use crate::scanner::{ScanContext, ScanState};
 use crate::{Rules, compiler, scanner};
 
@@ -387,6 +389,31 @@ impl<'a, 'r> Pattern<'a, 'r> {
             }),
         }
     }
+
+    /// Returns an iterator over the atoms extracted from this pattern.
+    #[doc(hidden)]
+    pub fn atoms(&self) -> Atoms<'r> {
+        let atoms = self.rules.atoms.as_slice();
+
+        // During rule compilation, patterns are processed sequentially, and
+        // atoms are appended to `Rules::atoms` in increasing order of
+        // `PatternId`. Because `Rules::atoms` is sorted by `PatternId`, we can
+        // use binary search (`partition_point`) to locate the slice of atoms
+        // belonging to this pattern in O(log N) time.
+        //
+        // `start` is the index of the first atom whose PatternId is >= self.pattern_id.
+        let start = atoms.partition_point(|atom| {
+            self.rules.get_sub_pattern(atom.sub_pattern_id()).0
+                < self.pattern_id
+        });
+        // `end` is the index of the first atom whose PatternId is > self.pattern_id.
+        let end = atoms.partition_point(|atom| {
+            self.rules.get_sub_pattern(atom.sub_pattern_id()).0
+                <= self.pattern_id
+        });
+
+        Atoms { iterator: atoms[start..end].iter() }
+    }
 }
 
 impl<'a, 'r> Serialize for Pattern<'a, 'r> {
@@ -483,5 +510,115 @@ impl<'a, 'r> Serialize for Match<'a, 'r> {
         s.serialize_field("range", &self.range())?;
         s.serialize_field("xor_key", &self.xor_key())?;
         s.end()
+    }
+}
+
+/// Iterator that returns the atoms extracted from a pattern.
+#[doc(hidden)]
+pub struct Atoms<'r> {
+    iterator: Iter<'r, SubPatternAtom>,
+}
+
+impl<'r> Iterator for Atoms<'r> {
+    type Item = Atom<'r>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iterator.next().map(|atom| Atom { inner: atom })
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iterator.size_hint()
+    }
+}
+
+impl ExactSizeIterator for Atoms<'_> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.iterator.len()
+    }
+}
+
+impl DoubleEndedIterator for Atoms<'_> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.iterator.next_back().map(|atom| Atom { inner: atom })
+    }
+}
+
+/// Represents an atom extracted from a pattern.
+#[doc(hidden)]
+#[derive(Clone, Copy)]
+pub struct Atom<'r> {
+    inner: &'r SubPatternAtom,
+}
+
+impl<'r> Atom<'r> {
+    /// Returns the atom as a byte slice.
+    #[inline]
+    pub fn as_slice(&self) -> &'r [u8] {
+        self.inner.as_slice()
+    }
+}
+
+impl AsRef<[u8]> for Atom<'_> {
+    #[inline]
+    fn as_ref(&self) -> &[u8] {
+        self.as_slice()
+    }
+}
+
+impl std::ops::Deref for Atom<'_> {
+    type Target = [u8];
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.as_slice()
+    }
+}
+
+impl PartialEq for Atom<'_> {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+
+impl Eq for Atom<'_> {}
+
+impl PartialOrd for Atom<'_> {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Atom<'_> {
+    #[inline]
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.as_slice().cmp(other.as_slice())
+    }
+}
+
+impl std::hash::Hash for Atom<'_> {
+    #[inline]
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.as_slice().hash(state);
+    }
+}
+
+impl std::fmt::Debug for Atom<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Atom({:02X?})", self.as_slice())
+    }
+}
+
+impl Serialize for Atom<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_bytes(self.as_slice())
     }
 }

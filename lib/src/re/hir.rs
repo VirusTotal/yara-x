@@ -318,6 +318,30 @@ impl Hir {
         self.inner
     }
 
+    /// Builds a [`regex_automata::meta::Regex`] from this HIR.
+    pub fn build_automata(
+        &self,
+    ) -> Result<regex_automata::meta::Regex, anyhow::Error> {
+        // Set a size limit for the NFA automata. The default limit (10MB) is
+        // not enough for certain regular expressions seen in the wild, see:
+        // https://github.com/VirusTotal/yara-x/issues/85
+        let config = regex_automata::meta::Config::new()
+            .nfa_size_limit(Some(50 * 1024 * 1024));
+
+        regex_automata::meta::Builder::new()
+            .configure(config)
+            .build_from_hir(&self.inner)
+            .map_err(|err| {
+                if err.size_limit().is_some() {
+                    anyhow::anyhow!("regex is too large")
+                } else if let Some(syntax_error) = err.syntax_error() {
+                    anyhow::anyhow!("{}", syntax_error)
+                } else {
+                    anyhow::anyhow!("{}", err)
+                }
+            })
+    }
+
     /// Returns the length (in bytes) of the smallest string matched by this HIR.
     ///
     /// A return value of `0` is possible and occurs when the HIR can match an

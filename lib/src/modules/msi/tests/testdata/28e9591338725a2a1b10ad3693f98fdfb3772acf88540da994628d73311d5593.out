@@ -1,0 +1,66 @@
+is_signed: true
+signatures:
+  - subject: "/C=GB/ST=Greater Manchester/L=Salford/O=COMODO CA Limited/CN=COMODO Time Stamping Signer"
+    issuer: "/C=US/ST=UT/L=Salt Lake City/O=The USERTRUST Network/OU=http://www.usertrust.com/CN=UTN-USERFirst-Object"
+    thumbprint: "3dbb6db5085c6dd5a1ca7f9cf84ecb1a3910cac8"
+    version: 3
+    algorithm: "sha1WithRSAEncryption"
+    algorithm_oid: "1.2.840.113549.1.1.5"
+    serial: "47:8a:8e:fb:59:e1:d8:3f:0c:e1:42:d2:a2:87:07:be"
+    not_before: 1273449600  # 2010-05-10 00:00:00 UTC
+    not_after: 1431302399  # 2015-05-10 23:59:59 UTC
+    verified: false
+    digest_alg: "sha1"
+    digest: "046bddfc01a3a99d43f12d2eb398ca319de70bd7"
+    file_digest: "fd498f5737d19a6cd212dddc66876cb99bbe34a4"
+    number_of_certificates: 2
+    number_of_countersignatures: 1
+    signer_info:
+        program_name: "RAD PDF"
+        more_info: "http://www.radpdf.com "
+        digest: "32b81b8da4ad354b928ccc08fb5285fcbd83e199"
+        digest_alg: "sha1"
+        chain:
+          - issuer: "/C=US/ST=UT/L=Salt Lake City/O=The USERTRUST Network/OU=http://www.usertrust.com/CN=UTN-USERFirst-Object"
+            subject: "/C=GB/ST=Greater Manchester/L=Salford/O=COMODO CA Limited/CN=COMODO Time Stamping Signer"
+            thumbprint: "3dbb6db5085c6dd5a1ca7f9cf84ecb1a3910cac8"
+            version: 3
+            algorithm: "sha1WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.5"
+            serial: "47:8a:8e:fb:59:e1:d8:3f:0c:e1:42:d2:a2:87:07:be"
+            not_before: 1273449600  # 2010-05-10 00:00:00 UTC
+            not_after: 1431302399  # 2015-05-10 23:59:59 UTC
+    certificates:
+      - issuer: "/C=US/ST=UT/L=Salt Lake City/O=The USERTRUST Network/OU=http://www.usertrust.com/CN=UTN-USERFirst-Object"
+        subject: "/C=GB/ST=Greater Manchester/L=Salford/O=COMODO CA Limited/CN=COMODO Time Stamping Signer"
+        thumbprint: "3dbb6db5085c6dd5a1ca7f9cf84ecb1a3910cac8"
+        version: 3
+        algorithm: "sha1WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.5"
+        serial: "47:8a:8e:fb:59:e1:d8:3f:0c:e1:42:d2:a2:87:07:be"
+        not_before: 1273449600  # 2010-05-10 00:00:00 UTC
+        not_after: 1431302399  # 2015-05-10 23:59:59 UTC
+      - issuer: "/C=US/ST=UT/L=Salt Lake City/O=The USERTRUST Network/OU=http://www.usertrust.com/CN=UTN-USERFirst-Object"
+        subject: "/C=US/postalCode=92024/ST=CA/L=Encinitas/O=Red Software/CN=Red Software"
+        thumbprint: "66d2ec68659e9dd90646258905b59353d5a5d259"
+        version: 3
+        algorithm: "sha1WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.5"
+        serial: "1f:37:b6:d1:4d:22:11:b9:4b:d4:44:2d:da:ef:8a:1d"
+        not_before: 1294963200  # 2011-01-14 00:00:00 UTC
+        not_after: 1389657599  # 2014-01-13 23:59:59 UTC
+    countersignatures:
+      - verified: true
+        sign_time: 1381695422  # 2013-10-13 20:17:02 UTC
+        digest: "1e59b862158311a3fcfbf779dd908d157992ba2b"
+        digest_alg: "sha1"
+        chain:
+          - issuer: "/C=US/ST=UT/L=Salt Lake City/O=The USERTRUST Network/OU=http://www.usertrust.com/CN=UTN-USERFirst-Object"
+            subject: "/C=GB/ST=Greater Manchester/L=Salford/O=COMODO CA Limited/CN=COMODO Time Stamping Signer"
+            thumbprint: "3dbb6db5085c6dd5a1ca7f9cf84ecb1a3910cac8"
+            version: 3
+            algorithm: "sha1WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.5"
+            serial: "47:8a:8e:fb:59:e1:d8:3f:0c:e1:42:d2:a2:87:07:be"
+            not_before: 1273449600  # 2010-05-10 00:00:00 UTC
+            not_after: 1431302399  # 2015-05-10 23:59:59 UTC

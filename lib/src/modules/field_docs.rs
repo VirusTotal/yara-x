@@ -343,6 +343,8 @@ pub const FIELD_DOCS: &[(&str, u64, &str)] = &[
     ("macho.Symtab", 4, "Size in bytes of the string table."),
     ("macho.Symtab", 5, "Individual entries stored in the table."),
     ("macho.Symtab", 6, "Descriptive nlist entries for symbols."),
+    ("msi.Msi", 1, "True if the file is an MSI file and contains a digital signature."),
+    ("msi.Msi", 2, "Digital signatures present in the MSI file."),
     ("olecf.Olecf", 1, "True if file is an OLE CF file."),
     ("olecf.Olecf", 2, "Streams contained in the OLE CF file."),
     ("pe.Certificate", 1, "Issuer of this individual certificate."),

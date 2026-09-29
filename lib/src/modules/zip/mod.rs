@@ -4,9 +4,9 @@ use std::path::PathBuf;
 
 use crate::mods::prelude::*;
 use crate::modules::ModuleError;
-use crate::modules::protos::zip::Zip;
-use crate::modules::utils::zip::ZipCache;
 use crate::modules::ScannedDataWithPath;
+use crate::modules::protos::zip::Zip;
+use crate::modules::utils::zip::CachedZip;
 use crate::register_module;
 use crate::scanner::ScannedData;
 
@@ -14,9 +14,9 @@ pub fn main<'a>(
     ctx: &mut ModuleContext<'a>,
     data: &'a [u8],
 ) -> Result<Zip, ModuleError> {
-    match ctx.zip_cache.get_or_insert_with(|| ZipCache::new(data)) {
-        ZipCache::Cached(zip) => Ok(zip.deref().into()),
-        ZipCache::NotZip => {
+    match ctx.zip_cache.get_or_insert_with(|| CachedZip::new(data)) {
+        CachedZip::Zip(zip) => Ok(zip.deref().into()),
+        CachedZip::NotZip => {
             let mut zip = Zip::new();
             zip.set_is_zip(false);
             Ok(zip)

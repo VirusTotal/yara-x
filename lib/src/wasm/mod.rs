@@ -137,6 +137,7 @@ pub(crate) fn wasm_exports() -> impl Iterator<Item = &'static WasmExport> {
 }
 
 /// Describes a function that is exported to WASM code.
+#[allow(rustdoc::private_intra_doc_links)]
 pub struct WasmExport {
     /// Function's name.
     pub name: &'static str,
@@ -980,6 +981,11 @@ pub(crate) fn pat_range_match(
     let required = required.try_into().unwrap();
 
     let ctx = caller.data();
+
+    if ctx.tracker.pattern_matches.is_empty() {
+        return required == 0;
+    }
+
     let mut num_matches = 0;
 
     for pattern_id in range {

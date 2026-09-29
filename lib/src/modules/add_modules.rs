@@ -18,6 +18,8 @@ add_module!(modules, "macho", macho, "macho.Macho", Some("macho"), Some(macho::_
 add_module!(modules, "magic", magic, "magic.Magic", Some("magic"), Some(magic::__main__ as MainFn));
 #[cfg(feature = "math-module")]
 add_module!(modules, "math", math, "math.Math", Some("math"), Some(math::__main__ as MainFn));
+#[cfg(feature = "msi-module")]
+add_module!(modules, "msi", msi, "msi.Msi", Some("msi"), Some(msi::__main__ as MainFn));
 #[cfg(feature = "olecf-module")]
 add_module!(modules, "olecf", olecf, "olecf.Olecf", Some("olecf"), Some(olecf::__main__ as MainFn));
 #[cfg(feature = "pe-module")]

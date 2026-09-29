@@ -5,6 +5,7 @@ use std::iter;
 use std::mem::{MaybeUninit, transmute};
 #[cfg(feature = "rules-profiling")]
 use std::ops::AddAssign;
+use std::ops::ControlFlow;
 use std::ops::{Deref, Range};
 use std::pin::Pin;
 use std::ptr::NonNull;
@@ -16,11 +17,12 @@ use std::{cmp, mem, thread};
 use base64::Engine;
 use bitvec::order::Lsb0;
 use bitvec::slice::BitSlice;
+use bitvec::vec::BitVec;
 use bstr::{BString, ByteSlice};
 use indexmap::IndexMap;
 use protobuf::{MessageDyn, MessageFull};
 use regex_automata::meta::Regex;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 
 use crate::compiler::{
@@ -28,13 +30,15 @@ use crate::compiler::{
     SubPatternAtom, SubPatternFlags, SubPatternId,
 };
 use crate::errors::VariableError;
-use crate::re::Action;
 use crate::re::fast::FastVM;
+
 use crate::re::hir::ChainedPatternGap;
 use crate::re::thompson::PikeVM;
 #[cfg(feature = "rules-profiling")]
 use crate::scanner::ProfilingData;
-use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
+use crate::scanner::matches::{
+    AddResult, Match, PatternMatches, UnconfirmedMatch,
+};
 use crate::scanner::{DataSnippets, ScanError, ScannedData};
 use crate::scanner::{HEARTBEAT_COUNTER, INIT_HEARTBEAT};
 use crate::types::{Array, Map, Struct, TypeValue};
@@ -43,7 +47,17 @@ use crate::wasm::runtime::{
     AsContext, AsContextMut, Global, GlobalType, Instance, MemoryType,
     Mutability, Store, TypedFunc, Val, ValType,
 };
-use crate::{Variable, teddy, wasm};
+use crate::{Variable, wasm};
+
+#[cfg(any(
+    all(target_arch = "x86_64", target_feature = "sse2"),
+    all(
+        target_arch = "aarch64",
+        target_feature = "neon",
+        target_endian = "little"
+    )
+))]
+use crate::teddy;
 
 /// Represents the states in which a scanner can be.
 pub(crate) enum ScanState<'a> {
@@ -73,7 +87,7 @@ pub(crate) struct MatchTracker<'r> {
     /// the maximum number of matches or because they are meant to be ignored
     /// during this scan because they belong to some rule that we know that
     /// can't match.
-    pub disabled_patterns: FxHashSet<PatternId>,
+    pub disabled_patterns: BitVec,
     /// The rules that are being used during the scan.
     pub compiled_rules: &'r Rules,
     /// Indicates whether fast mode is enabled. In fast mode the scanner
@@ -563,7 +577,7 @@ impl ScanContext<'_, '_> {
         self.runtime_objects.clear();
 
         // Clear the set that tracks the patterns that has been disabled.
-        self.tracker.disabled_patterns.clear();
+        self.tracker.disabled_patterns.fill(false);
 
         self.tracker.unconfirmed_matches.clear();
         self.num_matching_private_rules = 0;
@@ -745,7 +759,7 @@ impl ScanContext<'_, '_> {
         let rule = self.compiled_rules.get(rule_id);
 
         #[cfg(feature = "logging")]
-        log::info!(
+        log::debug!(
             "Rule match: {}:{}  {:?}",
             self.compiled_rules
                 .ident_pool()
@@ -798,24 +812,37 @@ impl ScanContext<'_, '_> {
             // Use the Teddy algorithm if it was possible to create a Teddy
             // matcher and the data being scanned is long enough.
             Some(teddy) if data.len() >= teddy.minimum_len() => {
-                if self.timeout_expired() {
-                    return Err(ScanError::Timeout);
-                }
-                teddy.find_overlapping(data, 0, &mut |m| {
-                    #[cfg(feature = "logging")]
-                    {
-                        atom_matches += 1;
-                    }
-                    let match_offset =
-                        m.start() as usize - data.as_ptr() as usize;
+                match teddy.find_overlapping(
+                    data,
+                    0,
+                    |m| -> ControlFlow<ScanError> {
+                        if HEARTBEAT_COUNTER.load(Ordering::Relaxed)
+                            >= self.deadline
+                        {
+                            return ControlFlow::Break(ScanError::Timeout);
+                        }
+                        #[cfg(feature = "logging")]
+                        {
+                            atom_matches += 1;
+                        }
+                        let match_offset =
+                            m.start() as usize - data.as_ptr() as usize;
 
-                    self.handle_atom_match(
-                        m.pattern() as usize,
-                        match_offset,
-                        base,
-                        data,
-                    );
-                });
+                        self.handle_atom_match(
+                            m.pattern() as usize,
+                            match_offset,
+                            base,
+                            data,
+                        );
+
+                        ControlFlow::Continue(())
+                    },
+                ) {
+                    ControlFlow::Continue(_) => {}
+                    ControlFlow::Break(err) => {
+                        return Err(err);
+                    }
+                }
             }
             // Otherwise use the Aho-Corasick algorithm.
             _ => {
@@ -869,7 +896,7 @@ impl ScanContext<'_, '_> {
         let (pattern_id, sub_pattern) =
             &self.compiled_rules.get_sub_pattern(sub_pattern_id);
 
-        if self.tracker.disabled_patterns.contains(pattern_id) {
+        if self.tracker.disabled_patterns[usize::from(*pattern_id)] {
             return;
         }
 
@@ -900,6 +927,20 @@ impl ScanContext<'_, '_> {
                     *pattern_id,
                     Match::new(match_range).rebase(base),
                 );
+            }
+
+            #[cfg(feature = "rules-profiling")]
+            {
+                let time_spent = self
+                    .clock
+                    .delta_as_nanos(verification_start, self.clock.raw());
+
+                self.time_spent_in_pattern
+                    .entry(*pattern_id)
+                    .and_modify(|t| {
+                        t.add_assign(time_spent);
+                    })
+                    .or_insert(time_spent);
             }
 
             return;
@@ -1101,6 +1142,9 @@ impl ScanContext<'_, '_> {
     /// In case of timeout, this function returns [ScanError::Timeout] and sets
     /// the scan state to [ScanState::Timeout].
     pub(crate) fn search_for_patterns(&mut self) -> Result<(), ScanError> {
+        #[cfg(any(feature = "rules-profiling", feature = "logging"))]
+        let scan_start = self.clock.raw();
+
         // Take ownership of the scan state, while searching for
         // the patterns, `self.scan_state` is left as `Idle`.
         let state = self.scan_state.take();
@@ -1113,31 +1157,26 @@ impl ScanContext<'_, '_> {
 
         if !block_scanning_mode {
             let filesize = self.get_filesize();
-            for pattern_id in 0..self.compiled_rules.num_patterns() {
-                let pattern_id = PatternId::from(pattern_id);
-                if let Some(bounds) =
-                    self.compiled_rules.filesize_bounds(pattern_id)
-                    && !bounds.contains(filesize)
-                {
-                    self.tracker.disabled_patterns.insert(pattern_id);
+            for (pattern_id, bounds) in self.compiled_rules.filesize_bounds() {
+                if !bounds.contains(filesize) {
+                    self.tracker
+                        .disabled_patterns
+                        .set(usize::from(*pattern_id), true);
                 }
             }
         }
 
         if base == 0 {
-            for pattern_id in 0..self.compiled_rules.num_patterns() {
-                let pattern_id = PatternId::from(pattern_id);
-                if let Some(constraints) =
-                    self.compiled_rules.header_constraints(pattern_id)
-                    && !constraints.is_satisfied(data)
-                {
-                    self.tracker.disabled_patterns.insert(pattern_id);
+            for (pattern_id, constraints) in
+                self.compiled_rules.header_constraints()
+            {
+                if !constraints.is_satisfied(data) {
+                    self.tracker
+                        .disabled_patterns
+                        .set(usize::from(*pattern_id), true);
                 }
             }
         }
-
-        #[cfg(any(feature = "rules-profiling", feature = "logging"))]
-        let scan_start = self.clock.raw();
 
         // Verify the anchored pattern first. These are patterns that can
         // match at a single known offset within the data.
@@ -1191,7 +1230,7 @@ impl ScanContext<'_, '_> {
             .iter()
             .map(|id| (id, self.compiled_rules.get_sub_pattern(*id)))
         {
-            if self.tracker.disabled_patterns.contains(pattern_id) {
+            if self.tracker.disabled_patterns[usize::from(*pattern_id)] {
                 continue;
             }
             match sub_pattern {
@@ -1429,7 +1468,7 @@ fn verify_chain_of_matches(
         match &tracker.compiled_rules.get_sub_pattern(id).1 {
             SubPattern::LiteralChainHead { flags, .. }
             | SubPattern::RegexpChainHead { flags, .. } => {
-                track_pattern_match(
+                track_match(
                     tracker,
                     wasm_state,
                     pattern_id,
@@ -1527,9 +1566,9 @@ fn verify_regexp(
                 |match_len| {
                     fwd_match_len = Some(match_len);
                     if flags.contains(SubPatternFlags::GreedyRegexp) {
-                        Action::Continue
+                        ControlFlow::Continue(())
                     } else {
-                        Action::Stop
+                        ControlFlow::Break(())
                     }
                 },
             );
@@ -1541,7 +1580,7 @@ fn verify_regexp(
                 flags.contains(SubPatternFlags::Wide),
                 |match_len| {
                     fwd_match_len = Some(match_len);
-                    Action::Stop
+                    ControlFlow::Break(())
                 },
             );
         }
@@ -1566,7 +1605,7 @@ fn verify_regexp(
                     if verify_full_word(scanned_data, &range, flags, None) {
                         f(range);
                     }
-                    Action::Continue
+                    ControlFlow::Continue(())
                 },
             );
         } else {
@@ -1581,7 +1620,7 @@ fn verify_regexp(
                     if verify_full_word(scanned_data, &range, flags, None) {
                         f(range);
                     }
-                    Action::Continue
+                    ControlFlow::Continue(())
                 },
             );
         }
@@ -1840,12 +1879,10 @@ fn handle_sub_pattern_match(
         | SubPattern::Base64Wide { .. }
         | SubPattern::CustomBase64 { .. }
         | SubPattern::CustomBase64Wide { .. } => {
-            track_pattern_match(
-                tracker, wasm_state, pattern_id, match_, false,
-            );
+            track_match(tracker, wasm_state, pattern_id, match_, false);
         }
         SubPattern::Regexp { flags, .. } => {
-            track_pattern_match(
+            track_match(
                 tracker,
                 wasm_state,
                 pattern_id,
@@ -1854,11 +1891,13 @@ fn handle_sub_pattern_match(
             );
         }
         SubPattern::LiteralChainHead { .. }
-        | SubPattern::RegexpChainHead { .. } => tracker
-            .unconfirmed_matches
-            .entry(sub_pattern_id)
-            .or_default()
-            .push(UnconfirmedMatch { range: match_.range, chain_length: 0 }),
+        | SubPattern::RegexpChainHead { .. } => {
+            track_unconfirmed_match(
+                tracker,
+                sub_pattern_id,
+                UnconfirmedMatch { range: match_.range, chain_length: 0 },
+            );
+        }
         SubPattern::LiteralChainTail { chained_to, gap, flags, .. }
         | SubPattern::RegexpChainTail { chained_to, gap, flags, .. } => {
             if within_valid_distance(
@@ -1876,21 +1915,53 @@ fn handle_sub_pattern_match(
                         match_,
                     );
                 } else {
-                    tracker
-                        .unconfirmed_matches
-                        .entry(sub_pattern_id)
-                        .or_default()
-                        .push(UnconfirmedMatch {
+                    track_unconfirmed_match(
+                        tracker,
+                        sub_pattern_id,
+                        UnconfirmedMatch {
                             range: match_.range,
                             chain_length: 0,
-                        });
+                        },
+                    );
                 }
             }
         }
     }
 }
 
-fn track_pattern_match(
+#[inline]
+fn track_unconfirmed_match(
+    tracker: &mut MatchTracker,
+    sub_pattern_id: SubPatternId,
+    unconfirmed_match: UnconfirmedMatch,
+) {
+    let unconfirmed_matches =
+        tracker.unconfirmed_matches.entry(sub_pattern_id).or_default();
+
+    unconfirmed_matches.push(unconfirmed_match);
+
+    #[cfg(feature = "logging")]
+    if unconfirmed_matches.len() % 100_000 == 0 {
+        let (rule, pattern) = tracker
+            .compiled_rules
+            .get_rule_and_pattern_by_sub_pattern_id(sub_pattern_id)
+            .unwrap();
+
+        log::warn!(
+            "Pattern `{}` in rule `{}:{}` grew to {} unconfirmed matches",
+            tracker.compiled_rules.ident_pool().get(pattern.ident_id).unwrap(),
+            tracker
+                .compiled_rules
+                .ident_pool()
+                .get(rule.namespace_ident_id)
+                .unwrap(),
+            tracker.compiled_rules.ident_pool().get(rule.ident_id).unwrap(),
+            unconfirmed_matches.len()
+        );
+    }
+}
+
+fn track_match(
     tracker: &mut MatchTracker,
     wasm_state: &mut WasmState,
     pattern_id: PatternId,
@@ -1909,13 +1980,56 @@ fn track_pattern_match(
 
     bits.set(pattern_id.into(), true);
 
-    let added =
-        tracker.pattern_matches.add(pattern_id, match_, replace_if_longer);
-    if !added
-        || (tracker.fast_scan
-            && tracker.compiled_rules.is_fast_scan(pattern_id))
-    {
-        tracker.disabled_patterns.insert(pattern_id);
+    let mut disable_pattern = false;
+
+    match tracker.pattern_matches.add(pattern_id, match_, replace_if_longer) {
+        AddResult::Inserted(current_matches) => {
+            #[cfg(feature = "logging")]
+            if current_matches % 100_000 == 0 {
+                let (rule, pattern) = tracker
+                    .compiled_rules
+                    .get_rule_and_pattern_by_pattern_id(pattern_id)
+                    .unwrap();
+
+                log::warn!(
+                    "Pattern `{}` in rule `{}:{}` grew to {} matches",
+                    tracker
+                        .compiled_rules
+                        .ident_pool()
+                        .get(pattern.ident_id)
+                        .unwrap(),
+                    tracker
+                        .compiled_rules
+                        .ident_pool()
+                        .get(rule.namespace_ident_id)
+                        .unwrap(),
+                    tracker
+                        .compiled_rules
+                        .ident_pool()
+                        .get(rule.ident_id)
+                        .unwrap(),
+                    current_matches
+                );
+            }
+            // If we are in fast-scan mode, and the current number of matches
+            // for the pattern already equals or exceeds maximum matches, then
+            // the pattern can be disabled.
+            if tracker.fast_scan
+                && let Some(max_matches) =
+                    tracker.compiled_rules.fast_scan_max_matches(pattern_id)
+                && current_matches >= max_matches.get() as usize
+            {
+                disable_pattern = true;
+            }
+        }
+        AddResult::MaxMatchesReached => {
+            disable_pattern = true;
+        }
+        AddResult::Updated => {}
+    }
+
+    if disable_pattern {
+        tracker.disabled_patterns.set(usize::from(pattern_id), true);
     }
 }
 
@@ -2047,6 +2161,8 @@ impl From<i64> for RuntimeObjectHandle {
 pub fn create_wasm_store_and_ctx<'r>(
     rules: &'r Rules,
 ) -> Pin<Box<Store<ScanContext<'static, 'static>>>> {
+    crate::init_logger();
+
     let num_rules = rules.num_rules() as u32;
     let num_patterns = rules.num_patterns() as u32;
 
@@ -2076,7 +2192,7 @@ pub fn create_wasm_store_and_ctx<'r>(
         tracker: MatchTracker {
             pattern_matches: PatternMatches::new(),
             unconfirmed_matches: FxHashMap::default(),
-            disabled_patterns: FxHashSet::default(),
+            disabled_patterns: BitVec::repeat(false, num_patterns as usize),
             compiled_rules: rules,
             fast_scan: false,
         },

@@ -4,7 +4,7 @@ use std::num::NonZeroUsize;
 
 use nom::bytes::complete::{take, take_while};
 use nom::combinator::{cond, map_res, verify};
-use nom::multi::{fold_many0, length_value, many_till};
+use nom::multi::{fold_many0, many_till};
 use nom::number::complete::{le_u16, le_u32, le_u64, le_u128};
 use nom::{Err, Input, ToUsize};
 use nom::{IResult, Needed, Parser};
@@ -13,7 +13,9 @@ use uuid::Uuid;
 
 type NomError<'a> = nom::error::Error<&'a [u8]>;
 
-use crate::modules::protos::lnk::{DriveType, Lnk, ShowCommand, TrackerData};
+use crate::modules::protos::lnk::{
+    DriveType, Lnk, ShellItem, ShellItemType, ShowCommand, TrackerData,
+};
 
 /// A Windows LNK file parser.
 pub struct LnkParser {
@@ -43,7 +45,7 @@ impl LnkParser {
         let total_size = input.len();
         // Parse the header.
         let (
-            mut input,
+            input,
             (
                 _header_size,
                 _clsid,
@@ -98,6 +100,28 @@ impl LnkParser {
 
         let unicode = link_flags & Self::IS_UNICODE != 0;
 
+        // Parse the sections that come after the header. Malformed or
+        // malicious files (e.g. CVE-2010-2568 exploits) may declare structure
+        // sizes that exceed the actual file, causing this to fail. In that
+        // case the header metadata that was already extracted is still
+        // returned, instead of discarding everything and reporting the file
+        // as not being a LNK file.
+        let _ = self.parse_body(input, link_flags, unicode, total_size);
+
+        Ok(mem::take(&mut self.result))
+    }
+
+    /// Parses the sections that follow the header: the link target ID list,
+    /// the link info, the string data, and the extra data. Any of these can
+    /// fail on malformed files, in which case the error is returned and the
+    /// caller keeps whatever was parsed so far.
+    fn parse_body<'a>(
+        &mut self,
+        mut input: &'a [u8],
+        link_flags: u32,
+        unicode: bool,
+        total_size: usize,
+    ) -> IResult<&'a [u8], ()> {
         // Parse the link target list (LINKTARGET_IDLIST), if present.
         //
         // IDLIST = *ITEMID TERMINALID
@@ -171,7 +195,7 @@ impl LnkParser {
             self.result.overlay_size = overlay.len().try_into().ok();
         }
 
-        Ok(mem::take(&mut self.result))
+        Ok((input, ()))
     }
 }
 
@@ -192,32 +216,173 @@ impl LnkParser {
         &mut self,
     ) -> impl FnMut(&[u8]) -> IResult<&[u8], ()> + '_ {
         move |input: &[u8]| {
-            let (remainder, _) = length_value(
-                le_u16,
-                many_till(
-                    self.parse_link_target_id(),
-                    // An item ID with size 0 is the terminal one.
-                    verify(le_u16, |size| *size == 0),
-                ),
-            )
-            .parse(input)?;
+            // The list starts with a 2-byte size for the whole IDList (the
+            // sequence of ItemIDs plus the terminal ID). The size does not
+            // include the size field itself.
+            let (after_size, list_size) = le_u16(input)?;
+
+            // Clamp the declared size to what is actually available. Some
+            // malformed or malicious files (e.g. CVE-2010-2568 exploits)
+            // declare a size larger than the file. Being lenient here allows
+            // the shell items to still be parsed.
+            let list_size = min(list_size as usize, after_size.len());
+            let (remainder, mut list) = take(list_size)(after_size)?;
+
+            // Iterate over the ItemIDs until the terminal ID (an item with
+            // size 0) or the end of the list is found.
+            while list.len() >= 2 {
+                let (rest, item_size) = le_u16(list)?;
+                // An item ID with size 0 is the terminal one.
+                if item_size == 0 {
+                    break;
+                }
+                // The size includes the 2-byte size field itself. Clamp the
+                // item's data to what is available.
+                let data_len =
+                    min((item_size as usize).saturating_sub(2), rest.len());
+                let (after_item, item_data) = take(data_len)(rest)?;
+                self.parse_shell_item(item_data);
+                list = after_item;
+            }
 
             Ok((remainder, ()))
         }
     }
 
-    fn parse_link_target_id(
-        &mut self,
-    ) -> impl FnMut(&[u8]) -> IResult<&[u8], ()> + '_ {
-        move |input: &[u8]| {
-            // Each item ID starts with a 2-bytes length that includes
-            // the length itself its data.
-            let (remainder, _data) = Self::length_data(le_u16).parse(input)?;
-            // TODO(vmalvarez): Implement the parsing of link targets if
-            // there's enough demand for it.
-            // A possible reference implementation is:
-            // https://github.com/Matmaus/LnkParse3/blob/master/LnkParse3/target_factory.py#L1
-            Ok((remainder, ()))
+    /// Maps a shell item class type indicator to a [`ShellItemType`]
+    /// category. The mapping follows the type-indicator table in the
+    /// reverse-engineered shell item format documentation and the LnkParse3
+    /// implementation: the volume (0x20-0x2F), file entry (0x30-0x3F) and
+    /// network location (0x40-0x4F) items are identified by masking the class
+    /// type indicator with 0x70, while the remaining categories are matched
+    /// exactly. Returns `None` when the class type indicator is not
+    /// recognized.
+    fn classify_shell_item(class: u8) -> Option<ShellItemType> {
+        match class & 0x70 {
+            0x20 => Some(ShellItemType::VOLUME),
+            0x30 => Some(ShellItemType::FILE_ENTRY),
+            0x40 => Some(ShellItemType::NETWORK_LOCATION),
+            _ => match class {
+                0x00 => Some(ShellItemType::CONTROL_PANEL_CPL),
+                0x01 => Some(ShellItemType::CONTROL_PANEL_CATEGORY),
+                0x1E | 0x1F => Some(ShellItemType::ROOT_FOLDER),
+                0x52 => Some(ShellItemType::COMPRESSED_FOLDER),
+                0x61 => Some(ShellItemType::URI),
+                0x70 | 0x71 => Some(ShellItemType::CONTROL_PANEL),
+                0x72 => Some(ShellItemType::PRINTERS),
+                0x73 => Some(ShellItemType::COMMON_PLACES_FOLDER),
+                0x74 => Some(ShellItemType::USERS_FILES_FOLDER),
+                _ => None,
+            },
+        }
+    }
+
+    /// Parses a single shell item (the `Data` field of an `ItemID`, without
+    /// the leading `ItemIDSize` field) and appends the extracted information
+    /// to the result.
+    ///
+    /// The `LinkTargetIDList` and `ItemID` container structures are defined in
+    /// the Microsoft [MS-SHLLINK] specification (sections 2.2 and 2.2.2).
+    /// However, MS-SHLLINK explicitly leaves the internal layout of each
+    /// `ItemID`'s `Data` field undefined: it states that the data "is defined
+    /// by the source that corresponds to the location in the target namespace"
+    /// (i.e. by the shell folder / namespace extension that produced it), and
+    /// Microsoft does not publish a specification for those structures.
+    ///
+    /// The class type indicator values dispatched on below (0x00 control panel
+    /// CPL file, 0x1E/0x1F root folder, 0x20-0x2F volume, 0x30-0x3F file entry,
+    /// 0x40-0x4F network location), the `& 0x70` masking, and the per-type
+    /// field offsets therefore come from the community's reverse-engineered
+    /// documentation of the shell item format, primarily [libfwsi] by Joachim
+    /// Metz. They are decoded on a best-effort basis.
+    ///
+    /// [MS-SHLLINK]: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-shllink/16cb4ca1-9339-4d0c-a68d-bf1d6cc0f943
+    /// [libfwsi]: https://github.com/libyal/libfwsi/blob/main/documentation/Windows%20Shell%20Item%20format.asciidoc
+    fn parse_shell_item(&mut self, data: &[u8]) {
+        let class = match data.first() {
+            Some(class) => *class,
+            None => return,
+        };
+
+        let mut item = ShellItem::new();
+        item.data = Some(data.get(1..).unwrap_or_default().to_vec());
+
+        item.item_type = Some(
+            Self::classify_shell_item(class)
+                .map(EnumOrUnknown::new)
+                .unwrap_or_else(|| EnumOrUnknown::from_i32(class as i32)),
+        );
+
+        match class {
+            // Control panel CPL file shell item. Contains the path to the CPL
+            // file, which is the payload abused by CVE-2010-2568.
+            0x00 => {
+                item.cpl_file_path = Self::parse_cpl_file_path(data);
+            }
+            // Root folder shell item, carries a shell folder GUID.
+            0x1E | 0x1F => {
+                item.root_folder_id = Self::parse_shell_guid(data);
+            }
+            _ => match class & 0x70 {
+                // Volume shell item. When the "has name" flag (0x01) is set it
+                // carries a volume name, otherwise a volume identifier (GUID).
+                0x20 => {
+                    if class & 0x01 != 0 {
+                        item.volume_name = data
+                            .get(1..21)
+                            .map(|s| Self::parse_shell_string(s, false));
+                    } else {
+                        item.volume_id = Self::parse_shell_guid(data);
+                    }
+                }
+                // File entry shell item, carries the file or directory name.
+                0x30 => {
+                    let unicode = class & 0x04 != 0;
+                    item.file_entry_name = data
+                        .get(12..)
+                        .map(|s| Self::parse_shell_string(s, unicode));
+                }
+                // Network location shell item, carries a UNC path.
+                0x40 => {
+                    item.network_location = data
+                        .get(3..)
+                        .map(|s| Self::parse_shell_string(s, false));
+                }
+                _ => {}
+            },
+        }
+
+        self.result.target_id_list.push(item);
+    }
+
+    /// Parses the CPL file path of a control panel CPL file shell item.
+    fn parse_cpl_file_path(data: &[u8]) -> Option<String> {
+        // The strings can be stored either in ASCII or UTF-16. They are told
+        // apart by inspecting byte 10: in the UTF-16 layout the strings start
+        // at offset 22 and byte 10 is the null high byte of a character, while
+        // in the ASCII layout the string starts at offset 10.
+        let unicode = *data.get(10)? == 0x00;
+        if unicode {
+            data.get(22..).map(|s| Self::parse_shell_string(s, true))
+        } else {
+            data.get(10..).map(|s| Self::parse_shell_string(s, false))
+        }
+    }
+
+    /// Parses a shell folder GUID located right after the class type
+    /// indicator and its sort index / flags byte (offset 2, 16 bytes).
+    fn parse_shell_guid(data: &[u8]) -> Option<String> {
+        data.get(2..18)
+            .and_then(|s| Uuid::from_slice_le(s).ok())
+            .map(|uuid| uuid.to_string())
+    }
+
+    /// Parses a null-terminated string in either ASCII or UTF-16 encoding.
+    fn parse_shell_string(input: &[u8], unicode: bool) -> String {
+        if unicode {
+            Self::parse_utf16_string(input).map(|(_, s)| s).unwrap_or_default()
+        } else {
+            Self::parse_string(input).map(|(_, s)| s).unwrap_or_default()
         }
     }
 
@@ -582,7 +747,10 @@ mod tests {
     fn test_filetime_to_unix_timestamp() {
         assert_eq!(filetime_to_unix_timestamp(0), None);
         assert_eq!(filetime_to_unix_timestamp(116444736000000000), Some(0));
-        assert_eq!(filetime_to_unix_timestamp(116444736000000000 + 10000000), Some(1));
+        assert_eq!(
+            filetime_to_unix_timestamp(116444736000000000 + 10000000),
+            Some(1)
+        );
     }
 
     #[test]

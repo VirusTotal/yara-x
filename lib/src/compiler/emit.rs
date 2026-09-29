@@ -12,7 +12,7 @@ use std::ops::RangeInclusive;
 use std::rc::Rc;
 
 use bstr::ByteSlice;
-use itertools::{Itertools, Position};
+use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use walrus::ValType::{I32, I64};
 use walrus::ir::ExtendedLoad::ZeroExtend;
@@ -805,7 +805,7 @@ fn emit_and(
                 emit_bool_expr(ctx, ir, *operand, instr);
                 // For all operands except the last one, check the result
                 // and exit early from the block if it is false.
-                if matches!(position, Position::First | Position::Middle) {
+                if !position.is_last {
                     instr.if_else(
                         None,
                         |_| {},
@@ -877,7 +877,7 @@ fn emit_or(
                 );
                 // For all operands except the last one, check the result
                 // and exit early from the block if it is true.
-                if matches!(position, Position::First | Position::Middle) {
+                if !position.is_last {
                     block.if_else(
                         None,
                         |then_| {
@@ -1485,7 +1485,7 @@ fn emit_of_pattern_set(
                     // For every call, except the last one, check the result
                     // and exit early from the block if any of the patterns
                     // were found.
-                    if matches!(position, Position::First | Position::Middle) {
+                    if !position.is_last {
                         instr.if_else(
                             None,
                             |then_| {
@@ -1519,7 +1519,7 @@ fn emit_of_pattern_set(
                     // For every call, except the last one, check the result
                     // and exit early from the block if some of the patterns
                     // was not found.
-                    if !matches!(position, Position::Only | Position::Last) {
+                    if !position.is_last {
                         instr.if_else(
                             None,
                             |_| {},

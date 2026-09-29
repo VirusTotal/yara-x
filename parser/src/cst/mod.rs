@@ -770,13 +770,17 @@ impl<M> Debug for Token<M> {
 
 impl Token<Mutable> {
     #[inline]
-    /// Detach the token from the CST it belongs to.
-    pub fn detach(&self) {
-        self.inner.detach()
+    /// Detach the token from the CST it belongs to, returning the new root node.
+    pub fn detach(&self) -> Option<Node<Mutable>> {
+        let parent = self.inner.parent()?;
+        let new_parent_green = parent.green().remove_child(self.inner.index());
+        Some(Node::new(rowan::SyntaxNode::new_root(
+            parent.replace_with(new_parent_green),
+        )))
     }
 
     pub fn replace(&mut self, text: &str) -> Node<Mutable> {
-        Node::new(rowan::SyntaxNode::new_root_mut(
+        Node::new(rowan::SyntaxNode::new_root(
             self.inner.replace_with(rowan::GreenToken::new(
                 self.kind().into(),
                 text,
@@ -891,7 +895,7 @@ impl<M: Clone> NodeOrToken<M> {
 
 impl NodeOrToken<Mutable> {
     /// Detach the node or token from the CST it belongs to.
-    pub fn detach(&self) {
+    pub fn detach(&self) -> Option<Node<Mutable>> {
         match self {
             NodeOrToken::Node(n) => n.detach(),
             NodeOrToken::Token(t) => t.detach(),
@@ -1337,14 +1341,18 @@ impl<M: Clone> Node<M> {
 impl Node<Immutable> {
     /// Converts an immutable node into a mutable one.
     pub fn into_mut(self) -> Node<Mutable> {
-        Node::new(self.inner.clone_for_update())
+        Node::new(self.inner)
     }
 }
 
 impl Node<Mutable> {
-    /// Detach the node from the CST it belongs to.
-    pub fn detach(&self) {
-        self.inner.detach()
+    /// Detach the node from the CST it belongs to, returning the new root node.
+    pub fn detach(&self) -> Option<Node<Mutable>> {
+        let parent = self.inner.parent()?;
+        let new_parent_green = parent.green().remove_child(self.inner.index());
+        Some(Node::new(rowan::SyntaxNode::new_root(
+            parent.replace_with(new_parent_green),
+        )))
     }
 }
 
