@@ -24,6 +24,8 @@ enum SupportedModules {
     Vba,
     Crx,
     Dex,
+    Msi,
+    Zip,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -127,6 +129,9 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         if !requested_modules.contains(&&SupportedModules::Vba) {
             module_output.vba = MessageField::none()
         }
+        if !requested_modules.contains(&&SupportedModules::Msi) {
+            module_output.msi = MessageField::none()
+        }
     } else {
         // Module was not specified, only show those that produced meaningful
         // results, the rest are cleared out.
@@ -158,6 +163,9 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         }
         if !module_output.vba.has_macros() {
             module_output.vba = MessageField::none()
+        }
+        if !module_output.msi.is_signed() {
+            module_output.msi = MessageField::none()
         }
     }
 
