@@ -1,5 +1,5 @@
 [workspace.package]
-version = "1.20.0"
+version = "1.21.0"
 authors = ["Victor M. Alvarez <vmalvarez@virustotal.com>"]
 edition = "2024"
 homepage = "https://virustotal.github.io/yara-x"
@@ -115,10 +115,10 @@ yara-x = { path = "lib", version = "1.20.0", default-features = false, features 
     "fast-regexp",
     "generate-proto-code",
 ] }
-yara-x-fmt = { path = "fmt", version = "1.20.0" }
-yara-x-macros = { path = "macros", version = "1.20.0" }
-yara-x-parser = { path = "parser", version = "1.20.0" }
-yara-x-proto = { path = "proto", version = "1.20.0"}
+yara-x-fmt = { path = "fmt", version = "1.21.0" }
+yara-x-macros = { path = "macros", version = "1.21.0" }
+yara-x-parser = { path = "parser", version = "1.21.0" }
+yara-x-proto = { path = "proto", version = "1.21.0"}
 zip = { version = "8.2.0", default-features = false }
 tinyzip = "0.4.0"
 simd-adler32 = "0.3.10"
