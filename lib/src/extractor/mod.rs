@@ -4,7 +4,6 @@ This module provides the [`Extractor`] type, which extracts archive and containe
 formats (e.g., ZIP archives) supported by YARA modules.
 */
 
-use std::collections::VecDeque;
 use std::ops::ControlFlow;
 use std::path::Path;
 
@@ -59,10 +58,10 @@ impl Extractor {
     /// control over extraction traversal and early termination:
     ///
     /// - Returning [`std::ops::ControlFlow::Continue(())`] instructs the extractor
-    ///   to proceed normally to the next file in the queue.
+    ///   to proceed normally to the next file.
     ///
     /// - Returning [`std::ops::ControlFlow::Break(b)`] immediately halts further
-    ///   extraction recursion, returning `ControlFlow::Break(b)`.
+    ///   extraction, returning `ControlFlow::Break(b)`.
     pub fn extract<F, B>(&self, data: &[u8], mut callback: F) -> ControlFlow<B>
     where
         F: FnMut(&dyn RegisteredModule, &Path, &[u8]) -> ControlFlow<B>,
@@ -71,22 +70,18 @@ impl Extractor {
             return ControlFlow::Continue(());
         }
 
-        let mut queue = VecDeque::new();
-        self.extract_children(&ScannedData::Slice(data), None, 1, &mut queue);
+        let mut stack = Vec::new();
+        self.extract_children(&ScannedData::Slice(data), None, 1, &mut stack);
 
-        while let Some((item, module, depth)) = queue.pop_front() {
-            if let ControlFlow::Break(b) =
-                callback(module, &item.path, item.data.as_ref())
-            {
-                return ControlFlow::Break(b);
-            }
+        while let Some((item, module, depth)) = stack.pop() {
+            callback(module, &item.path, item.data.as_ref())?;
 
             if depth < self.max_depth {
                 self.extract_children(
                     &item.data,
                     Some(&item.path),
                     depth + 1,
-                    &mut queue,
+                    &mut stack,
                 );
             }
         }
@@ -99,7 +94,7 @@ impl Extractor {
         data: &ScannedData<'a>,
         parent_path: Option<&Path>,
         depth: usize,
-        queue: &mut VecDeque<(
+        stack: &mut Vec<(
             ScannedDataWithPath<'a>,
             &'static dyn RegisteredModule,
             usize,
@@ -118,8 +113,11 @@ impl Extractor {
                         child.path = path.join(&child.path);
                     }
                 }
-                queue.extend(
-                    children.into_iter().map(|child| (child, module, depth)),
+                stack.extend(
+                    children
+                        .into_iter()
+                        .rev()
+                        .map(|child| (child, module, depth)),
                 );
             }
         }

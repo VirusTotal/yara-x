@@ -3,7 +3,7 @@
 This scanner is designed for recursive scanning scenarios where the data to be
 scanned contains archive or container files (e.g., ZIP archives). It unpacks
 supported container formats and traverses the extracted file hierarchy in
-breadth-first search order.
+depth-first search order.
 */
 
 use std::ops::ControlFlow;
@@ -22,7 +22,7 @@ use crate::{Rules, ScanError, ScanResults, Variable};
 /// This scanner is designed for recursive scanning scenarios where the input
 /// data contains archive or container formats (e.g., ZIP archives). Unlike the
 /// standard [`crate::Scanner`], `Scanner` unpacks container files automatically
-/// and traverses the extracted file tree in breadth-first search (BFS) order up
+/// and traverses the extracted file tree in depth-first search (DFS) order up
 /// to a maximum extraction depth.
 ///
 /// The `callback` function is invoked for the main data buffer and for every

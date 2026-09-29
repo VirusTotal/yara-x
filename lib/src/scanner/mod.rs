@@ -10,6 +10,7 @@ use std::mem::transmute;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
+use std::rc::Rc;
 use std::slice::Iter;
 use std::sync::Once;
 use std::sync::atomic::AtomicU64;
@@ -109,20 +110,21 @@ static INIT_HEARTBEAT: Once = Once::new();
 /// Represents the data being scanned.
 ///
 /// The scanned data can be backed by a slice owned by someone else, or a
-/// vector or memory-mapped file owned by `ScannedData` itself.
-#[derive(Debug)]
+/// reference-counted vector or memory-mapped file owned by `ScannedData`
+/// itself.
+#[derive(Debug, Clone)]
 pub enum ScannedData<'d> {
     Slice(&'d [u8]),
-    Vec(Vec<u8>),
-    Mmap { mmap: Mmap, len: usize },
+    Vec { data: Rc<Vec<u8>>, range: Range<usize> },
+    Mmap { mmap: Rc<Mmap>, range: Range<usize> },
 }
 
 impl AsRef<[u8]> for ScannedData<'_> {
     fn as_ref(&self) -> &[u8] {
         match self {
             ScannedData::Slice(s) => s,
-            ScannedData::Vec(v) => v.as_ref(),
-            ScannedData::Mmap { mmap, len } => &mmap.as_ref()[..*len],
+            ScannedData::Vec { data, range } => &data[range.clone()],
+            ScannedData::Mmap { mmap, range } => &mmap.as_ref()[range.clone()],
         }
     }
 }
@@ -138,12 +140,37 @@ impl<'d> ScannedData<'d> {
         self.as_ref().is_empty()
     }
 
-    pub fn from_vec(vec: Vec<u8>) -> Self {
-        Self::Vec(vec)
-    }
-
     pub fn from_slice(slice: &'d [u8]) -> Self {
         Self::Slice(slice)
+    }
+
+    pub fn from_mmap(mmap: Mmap) -> Self {
+        let len = mmap.len();
+        Self::Mmap { mmap: Rc::new(mmap), range: 0..len }
+    }
+
+    pub fn from_vec(vec: Vec<u8>) -> Self {
+        let len = vec.len();
+        Self::Vec { data: Rc::new(vec), range: 0..len }
+    }
+
+    /// Returns a subslice of the [`ScannedData`] for the given `range` without
+    /// copying the underlying bytes.
+    pub fn slice(&self, range: Range<usize>) -> Option<Self> {
+        if range.start > range.end || range.end > self.len() {
+            return None;
+        }
+        match self {
+            Self::Slice(s) => s.get(range).map(Self::Slice),
+            Self::Vec { data, range: base } => Some(Self::Vec {
+                data: Rc::clone(data),
+                range: (base.start + range.start)..(base.start + range.end),
+            }),
+            Self::Mmap { mmap, range: base } => Some(Self::Mmap {
+                mmap: Rc::clone(mmap),
+                range: (base.start + range.start)..(base.start + range.end),
+            }),
+        }
     }
 }
 
@@ -613,7 +640,7 @@ impl<'r> Scanner<'r> {
             mapped_file.advise(Advice::Sequential).map_err(|err| {
                 ScanError::MapError { path: path.to_path_buf(), err }
             })?;
-            ScannedData::Mmap { mmap: mapped_file, len: size }
+            ScannedData::from_mmap(mapped_file)
         } else {
             let mut buffered_file = Vec::with_capacity(size);
             (&file)
@@ -623,7 +650,7 @@ impl<'r> Scanner<'r> {
                     path: path.to_path_buf(),
                     err,
                 })?;
-            ScannedData::Vec(buffered_file)
+            ScannedData::from_vec(buffered_file)
         };
 
         Ok(data)
@@ -1176,7 +1203,7 @@ mod snippet_tests {
     #[test]
     fn snippets_singleblock() {
         let data = b"Lorem ipsum dolor sit amet".to_vec();
-        let scanned_data = super::ScannedData::Vec(data);
+        let scanned_data = super::ScannedData::from_vec(data);
         let snippets = DataSnippets::SingleBlock(scanned_data);
 
         // Test get

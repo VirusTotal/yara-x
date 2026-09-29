@@ -73,15 +73,7 @@ pub fn extract_zip<'a>(
         };
 
         let decompressed_data = match entry.compression() {
-            Ok(tinyzip::Compression::Stored) => match data {
-                ScannedData::Slice(s) => {
-                    s.get(start..end).map(ScannedData::from_slice)
-                }
-                _ => data
-                    .as_ref()
-                    .get(start..end)
-                    .map(|bytes| ScannedData::from_vec(bytes.to_vec())),
-            },
+            Ok(tinyzip::Compression::Stored) => data.slice(start..end),
             Ok(tinyzip::Compression::Deflated) => {
                 data.as_ref().get(start..end).and_then(|compressed_data| {
                     let decoder =
