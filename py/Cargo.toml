@@ -11,9 +11,9 @@ repository.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "yara_x"
+name = "yara_x_py"
 doc = false
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [features]
 console-module = ["yara-x/console-module"]
@@ -31,6 +31,7 @@ pe-module = ["yara-x/pe-module"]
 string-module = ["yara-x/string-module"]
 time-module = ["yara-x/time-module"]
 vt-module = ["yara-x/vt-module"]
+zip-module = ["yara-x/zip-module"]
 test_proto2-module = ["yara-x/test_proto2-module"]
 test_proto3-module = ["yara-x/test_proto3-module"]
 
@@ -50,12 +51,13 @@ default = [
     "string-module",
     "time-module",
     "vt-module",
+    "zip-module",
 ]
 
 [dependencies]
 base64 = { workspace = true }
 protobuf = { workspace = true }
-pyo3 = { version = "0.28.3", features = [
+pyo3 = { version = "0.29.2", features = [
     "abi3",
     "abi3-py38",
     "extension-module",
@@ -66,9 +68,9 @@ strum = { workspace = true }
 strum_macros = { workspace = true }
 
 yara-x = { workspace = true }
-yara-x-proto-json = { workspace = true }
+yara-x-proto = { workspace = true }
 yara-x-fmt = { workspace = true }
 yara-x-parser = { workspace = true }
 
 [build-dependencies]
-pyo3-build-config = "0.28.3"
+pyo3-build-config = "0.29.2"

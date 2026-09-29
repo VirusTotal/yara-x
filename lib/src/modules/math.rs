@@ -19,7 +19,7 @@ thread_local!(
     > = RefCell::new(FxHashMap::default());
 );
 
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Math, ModuleError> {
+fn main(_ctx: &mut ModuleContext, _data: &[u8]) -> Result<Math, ModuleError> {
     DISTRIBUTION_CACHE.with(|cache| cache.borrow_mut().clear());
 
     // Nothing to do, but we have to return our protobuf
@@ -424,7 +424,7 @@ fn monte_carlo_pi(data: &[u8]) -> Option<f64> {
     let mut inmont = 0;
     let mut mcount = 0;
 
-    for chunk in data.chunks_exact(6) {
+    for chunk in data.as_chunks::<6>().0 {
         let mut mx = 0.0_f64;
         let mut my = 0.0_f64;
 

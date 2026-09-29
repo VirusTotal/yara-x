@@ -1,0 +1,26 @@
+has_macros: true
+modules:
+  - name: "ThisDocument"
+    type: MODULE_TYPE_CLASS
+    code: |
+        Attribute VB_Name = "ThisDocument"
+        Attribute VB_Base = "1Normal.ThisDocument"
+        Attribute VB_GlobalNameSpace = False
+        Attribute VB_Creatable = False
+        Attribute VB_PredeclaredId = True
+        Attribute VB_Exposed = True
+        Attribute VB_TemplateDerived = True
+        Attribute VB_Customizable = True
+        
+        Private Sub Document_New()
+            MsgBox "Hello, world!"
+        End Sub
+        
+project_info:
+    name: "Project"
+    version: "1769106437.10"
+    references:
+      - "stdole"
+      - "Normal"
+      - "Office"
+    module_count: 1

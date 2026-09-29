@@ -1,0 +1,251 @@
+has_macros: true
+modules:
+  - name: "DieseArbeitsmappe"
+    type: MODULE_TYPE_CLASS
+    code: |
+        Attribute VB_Name = "DieseArbeitsmappe"
+        Attribute VB_Base = "0{00020819-0000-0000-C000-000000000046}"
+        Attribute VB_GlobalNameSpace = False
+        Attribute VB_Creatable = False
+        Attribute VB_PredeclaredId = True
+        Attribute VB_Exposed = True
+        Attribute VB_TemplateDerived = False
+        Attribute VB_Customizable = True
+        Private Sub Workbook_Open()
+           'neue Instanz der Vorlage?
+           If Not ActiveWorkbook.Path <> "" Then
+              'Sprache auf Excel-Sprache setzen
+              If Application.International(xlCountryCode) <> 33 Then
+                 ActiveWorkbook.Names("tw_language").RefersToRange.Value = 2
+              Else 'franz.
+                 ActiveWorkbook.Names("tw_language").RefersToRange.Value = 3
+              End If
+              Call setSheetProps
+           End If
+        End Sub
+        
+        Private Sub Workbook_BeforePrint(Cancel As Boolean)
+           Dim mysheet As Worksheet
+           Set mysheet = ActiveSheet
+        End Sub
+        
+        
+  - name: "Tabelle1"
+    type: MODULE_TYPE_CLASS
+    code: |
+        Attribute VB_Name = "Tabelle1"
+        Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+        Attribute VB_GlobalNameSpace = False
+        Attribute VB_Creatable = False
+        Attribute VB_PredeclaredId = True
+        Attribute VB_Exposed = True
+        Attribute VB_TemplateDerived = False
+        Attribute VB_Customizable = True
+        Attribute VB_Control = "IA_WithSecondPillar, 179, 0, MSForms, ComboBox"
+        Attribute VB_Control = "IA_ChildrenCount, 178, 1, MSForms, ComboBox"
+        Attribute VB_Control = "IA_ParishSecond, 177, 2, MSForms, ComboBox"
+        Attribute VB_Control = "IA_ParishLeading, 176, 3, MSForms, ComboBox"
+        Attribute VB_Control = "IA_Denomination, 175, 4, MSForms, ComboBox"
+        Attribute VB_Control = "IA_DenominationLeading, 174, 5, MSForms, ComboBox"
+        Attribute VB_Control = "IA_PartnershipType, 173, 6, MSForms, ComboBox"
+        Attribute VB_Control = "IA_Municipality, 172, 7, MSForms, ComboBox"
+        Attribute VB_Control = "IA_Canton, 171, 8, MSForms, ComboBox"
+        Attribute VB_Control = "IA_Year, 170, 9, MSForms, ComboBox"
+        Attribute VB_Control = "cbxLanguage, 168, 10, MSForms, ComboBox"
+        Attribute VB_Control = "chbLocked, 169, 11, MSForms, CheckBox"
+        Public deferred As Boolean
+        
+        ' Code für Sprachwahl
+        Private Sub cbxLanguage_Change()
+           If deferred Then
+              deferred = False
+              Exit Sub
+           End If
+           
+           On Error Resume Next
+           ActiveWorkbook.Names("tw_language").RefersToRange.Value = cbxLanguage.ListIndex + 2
+           'Call setSheetProps
+           'Call SetCellComments
+        End Sub
+        
+        ' Code, um Sheets zu benennen und zu sperren
+        Private Sub chbLocked_Click()
+            On Error Resume Next
+            
+            Dim alertUnlock(0 To 3) As String
+            alertUnlock(0) = "Achtung: TaxWare speichert nur die Werte in den vorgesehenen Eingabefeldern. Wenn Sie weitere Anpassungen an der Arbeitsmappe vornehmen, müssen Sie diese zwingend als Excel Datei speichern."
+            alertUnlock(1) = "Attention: TaxWare sauvegarde seulement les valeurs dans les champs de saisie appropriés. Si vous faites d'autres modifications au classeur, vous devez l'enregistrer nécessairement sous forme d'un fichier Excel."
+            alertUnlock(2) = "Attention: TaxWare stores only the values in the appropriate input fields. If you make further changes to the workbook, you must save it as an Excel file."
+            alertUnlock(3) = "Attenzione: Taxware salva solo i valori nei campi di immissione appropriati. Se si apportano ulteriori modifiche alla cartella di lavoro, è necessario salvarlo come un file di Excel."
+            
+            Dim langIndex As Integer
+            langIndex = ActiveWorkbook.Names("tw_language").RefersToRange.Value - 2
+            
+            ActiveWorkbook.Names("Locked").RefersToRange.Value = chbLocked.Value * -1
+            If Not chbLocked.Value Then
+                MsgBox alertUnlock(langIndex), vbInformation
+            End If
+            Call setSheetProps
+        End Sub
+        
+        
+        Private Sub Worksheet_Activate()
+           deferred = True
+           On Error Resume Next
+           cbxLanguage.ListIndex = ActiveWorkbook.Names("tw_language").RefersToRange.Value - 2
+           chbLocked.Value = ActiveWorkbook.Names("Locked").RefersToRange.Value
+           deferred = False
+        End Sub
+        
+  - name: "mdlSheetProps"
+    type: MODULE_TYPE_STANDARD
+    code: |
+        Attribute VB_Name = "mdlSheetProps"
+        Public isSettingProps As Boolean
+        Public lastVariantsValue  As String
+        Const colID = 1
+        Const colHide = 2
+        
+        Public Sub setSheetProps()
+            Dim aSheet As Excel.Worksheet, curSheet As Excel.Worksheet
+            Dim sheetProps() As String
+            Dim row As Integer, col As Integer
+            Dim langIndex As Integer, locked, scrnupdating As Boolean
+            Set curSheet = ActiveSheet
+            
+            scrnupdating = Application.ScreenUpdating
+            Application.ScreenUpdating = False
+            Application.Calculation = xlCalculationManual
+           
+            If isSettingProps = False Then
+                On Error Resume Next
+                langIndex = ActiveWorkbook.Names("tw_language").RefersToRange.Value
+                If Err.Number <> 0 Then
+                   langIndex = 2
+                   Err.Clear
+                End If
+                locked = ActiveWorkbook.Names("Locked").RefersToRange.Value 'default: false
+                Err.Clear
+                isSettingProps = True
+                ActiveWorkbook.Unprotect
+                With ActiveWorkbook.Names("SheetProps").RefersToRange
+                   For row = 1 To .Rows.Count
+                      Set aSheet = ActiveWorkbook.Sheets(.Cells(row, colID))
+                      aSheet.Name = .Cells(row, 1 + langIndex)
+                      If locked Then
+                         If .Cells(row, colHide) = 1 Then
+                            aSheet.Visible = xlSheetHidden
+                         Else
+                            aSheet.Protect
+                         End If
+                         aSheet.Activate
+                         ActiveWindow.DisplayHeadings = False
+                      Else
+                         aSheet.Activate
+                         aSheet.Unprotect
+                         aSheet.Visible = xlSheetVisible
+                         ActiveWindow.DisplayHeadings = True
+                      End If
+                      If .Cells(row, colHide) = 2 Then
+                        Set curSheet = aSheet
+                      End If
+                   Next
+                End With
+                curSheet.Activate
+                'ActiveWorkbook.Protect Structure:=True, Windows:=False
+                isSettingProps = False
+            End If
+            
+            Application.Calculation = xlCalculationAutomatic
+            Application.ScreenUpdating = scrnupdating
+        End Sub
+        
+        Public Sub SetCellComments()
+            'setzt alle Kommentare, welche in comments aufgelistet sind, in die korrekte Sprache
+            
+            Dim row As Integer
+            Dim cmt_Range As Excel.Range, iCmt As Integer, myCmt As Excel.Range
+            Dim myWb As Excel.Workbook
+            Dim aSheet As Excel.Worksheet
+            Dim langIndex As Integer
+            Dim cmt_Name As String
+            Dim locked, scrnupdating As Boolean
+            
+            scrnupdating = Application.ScreenUpdating
+            Application.ScreenUpdating = False
+            Set myWb = ActiveWorkbook
+            
+            On Error Resume Next
+            
+            Set cmt_Range = myWb.Names("comments").RefersToRange
+            If Err.Number <> 0 Then Exit Sub
+            
+            langIndex = myWb.Names("tw_language").RefersToRange.Value
+            If Err.Number <> 0 Then
+                langIndex = 2
+                Err.Clear
+            End If
+            
+           locked = ActiveWorkbook.Names("Locked").RefersToRange.Value 'default: false
+            
+            'Freischaltung der Blätter, um Kommentarfelder umzubenennen
+            With ActiveWorkbook.Names("SheetProps").RefersToRange
+              For row = 1 To .Rows.Count
+                 Set aSheet = ActiveWorkbook.Sheets(.Cells(row, colID))
+                 aSheet.Unprotect
+              Next
+            End With
+            
+            For iCmt = 1 To cmt_Range.Rows.Count
+                cmt_Name = cmt_Range.Cells(iCmt, 1).Value
+                If cmt_Name <> "" Then
+                    Set myCmt = myWb.Names(cmt_Name).RefersToRange
+                    If Not myCmt Is Nothing Then
+                        myCmt.Comment.Text cmt_Range.Cells(iCmt, langIndex).Value
+                    End If
+                End If
+            Next
+            
+            'Schutz der Blätter
+            If locked Then
+                With ActiveWorkbook.Names("SheetProps").RefersToRange
+                  For row = 1 To .Rows.Count
+                    If .Cells(row, colHide) = 0 Then
+                        Set aSheet = ActiveWorkbook.Sheets(.Cells(row, colID))
+                        aSheet.Protect
+                    End If
+                  Next
+                End With
+            End If
+            
+            Application.ScreenUpdating = scrnupdating
+        
+        End Sub
+        
+        
+  - name: "Feuil1"
+    type: MODULE_TYPE_CLASS
+    code: |
+        Attribute VB_Name = "Feuil1"
+        Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+        Attribute VB_GlobalNameSpace = False
+        Attribute VB_Creatable = False
+        Attribute VB_PredeclaredId = True
+        Attribute VB_Exposed = True
+        Attribute VB_TemplateDerived = False
+        Attribute VB_Customizable = True
+        Private Sub Worksheet_Change(ByVal Target As Range)
+           If ActiveWorkbook.Names("tw_language").RefersToRange.Address = Target.Address And ActiveWorkbook.Names("tw_language").RefersToRange.Worksheet.Name = Target.Worksheet.Name Then
+              Call setSheetProps
+              Call SetCellComments
+           End If
+        End Sub
+        
+project_info:
+    name: "VBAProject"
+    version: "1433157262.2"
+    references:
+      - "stdole"
+      - "Office"
+      - "MSForms"
+    module_count: 4

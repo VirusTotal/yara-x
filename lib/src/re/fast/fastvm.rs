@@ -1,5 +1,5 @@
 use std::cell::Cell;
-use std::ops::RangeInclusive;
+use std::ops::{ControlFlow, RangeInclusive};
 use std::{cmp, mem};
 
 use bitflags::bitflags;
@@ -7,7 +7,7 @@ use itertools::izip;
 
 use crate::re::bitmapset::BitmapSet;
 use crate::re::fast::instr::{Instr, InstrParser};
-use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT, WideIter};
+use crate::re::{CodeLoc, DEFAULT_SCAN_LIMIT, WideIter};
 
 /// A faster but less general alternative to [PikeVM].
 ///
@@ -69,7 +69,7 @@ impl<'r> FastVM<'r> {
         start: C,
         input: &[u8],
         wide: bool,
-        mut f: impl FnMut(usize) -> Action,
+        mut f: impl FnMut(usize) -> ControlFlow<()>,
     ) where
         C: CodeLoc,
     {
@@ -125,11 +125,11 @@ impl<'r> FastVM<'r> {
                             }
                         }
                         match f(*position) {
-                            Action::Stop => {
+                            ControlFlow::Break(_) => {
                                 stop = true;
                                 break;
                             }
-                            Action::Continue => {}
+                            ControlFlow::Continue(_) => {}
                         }
                     }
                     if stop {
@@ -405,7 +405,8 @@ impl FastVM<'_> {
             // Iterate the input in chunks of two bytes, where the first one
             // must match a byte in the literal, and the second one is the
             // interleaved zero.
-            for (chunk, byte) in izip!(input.chunks_exact(2), literal.iter()) {
+            let (chunks, _) = input.as_chunks::<2>();
+            for (chunk, byte) in izip!(chunks, literal.iter()) {
                 if chunk[0] != *byte || chunk[1] != 0 {
                     return false;
                 }

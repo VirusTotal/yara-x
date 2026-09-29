@@ -1,5 +1,7 @@
+use std::collections::hash_map;
 use std::fmt;
 use std::io::{BufWriter, Read, Write};
+use std::num::NonZeroU32;
 use std::ops::{Bound, RangeBounds};
 use std::slice::Iter;
 use std::sync::OnceLock;
@@ -34,7 +36,7 @@ const MAGIC: &[u8] = b"YARA-X\0\0";
 ///
 /// This version is incremented every time a change is made to the binary
 /// format in a way that breaks backwards compatibility.
-const SERIALIZATION_VERSION: u32 = 2;
+const SERIALIZATION_VERSION: u32 = 7;
 
 /// Aho-Corasick automaton bundled with an optional Teddy scanner if the
 /// number of patterns is low enough. If the Teddy scanner is present, and
@@ -44,6 +46,75 @@ const SERIALIZATION_VERSION: u32 = 2;
 pub(crate) struct AhoCorasick {
     pub(crate) daachorse: DoubleArrayAhoCorasick<u32>,
     pub(crate) teddy: Option<teddy::Searcher>,
+}
+
+impl Serialize for AhoCorasick {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let bytes = self.daachorse.serialize();
+        bytes.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for AhoCorasick {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let bytes = <&'de [u8]>::deserialize(deserializer)?;
+        let (daachorse, _) = DoubleArrayAhoCorasick::deserialize(bytes)
+            .map_err(|e| serde::de::Error::custom(format!("{}", e)))?;
+        Ok(Self { daachorse, teddy: None })
+    }
+}
+
+impl Default for AhoCorasick {
+    fn default() -> Self {
+        let daachorse =
+            DoubleArrayAhoCorasick::new(std::iter::empty::<&[u8]>()).unwrap();
+        Self { daachorse, teddy: None }
+    }
+}
+
+impl AhoCorasick {
+    pub(crate) fn new<'a, I>(patterns: I) -> Self
+    where
+        I: Iterator<Item = &'a [u8]> + ExactSizeIterator + Clone,
+    {
+        let daachorse = DoubleArrayAhoCorasick::new(patterns.clone())
+            .expect("failed to build Aho-Corasick automaton");
+
+        let mut ac = Self { daachorse, teddy: None };
+        ac.rebuild_teddy(patterns);
+        ac
+    }
+
+    pub(crate) fn rebuild_teddy<'a, I>(&mut self, patterns: I)
+    where
+        I: Iterator<Item = &'a [u8]> + ExactSizeIterator,
+    {
+        // Teddy only works from 1 to 64 patterns.
+        let len = patterns.len();
+        if len == 0 || len > 64 {
+            self.teddy = None;
+            return;
+        }
+
+        let mut teddy_builder = teddy::Builder::new();
+
+        for pattern in patterns {
+            // Teddy doesn't admit empty patterns.
+            if pattern.is_empty() {
+                self.teddy = None;
+                return;
+            }
+            teddy_builder.add(pattern);
+        }
+
+        self.teddy = teddy_builder.build();
+    }
 }
 
 /// A set of YARA rules in compiled form.
@@ -120,6 +191,20 @@ pub struct Rules {
     pub(in crate::compiler) filesize_bounds:
         FxHashMap<PatternId, FilesizeBounds>,
 
+    /// Map that associates a `PatternId` to a certain constraint on the
+    /// file header (e.g. magic bytes at offset 0), if any.
+    ///
+    /// A condition like `uint16(0) == 0x5A4D and $a` or `$mz at 0 and $a`
+    /// (where $mz = "MZ") only matches if the file starts with "MZ" (0x5A4D).
+    /// In this case, the map will contain an entry associating `$a` to a
+    /// `HeaderConstraint` that requires the file to start with those two
+    /// bytes.
+    ///
+    /// This allows skipping pattern checks entirely if the scanned data
+    /// doesn't start with the expected header prefix.
+    pub(in crate::compiler) header_constraints:
+        FxHashMap<PatternId, HeaderConstraint>,
+
     /// Vector that contains the [`SubPatternId`] for sub-patterns that can
     /// match only at a fixed offset within the scanned data. These sub-patterns
     /// are not added to the Aho-Corasick automaton.
@@ -128,7 +213,7 @@ pub struct Rules {
     /// A vector that contains all the atoms extracted from the patterns. Each
     /// atom has an associated [`SubPatternId`] that indicates the sub-pattern
     /// it belongs to.
-    pub(in crate::compiler) atoms: Vec<SubPatternAtom>,
+    pub(crate) atoms: Vec<SubPatternAtom>,
 
     /// A vector that contains the code for all regexp patterns (this includes
     /// hex patterns which are just a special case of regexp). The code for
@@ -144,12 +229,8 @@ pub struct Rules {
 
     /// Aho-Corasick automaton containing the atoms extracted from the patterns.
     /// This allows to search for all the atoms in the scanned data at the same
-    /// time in an efficient manner. The automaton is not serialized during when
-    /// [`Rules::serialize`] is called, it needs to be wrapped in [`Option`] so
-    /// that we can use `#[serde(skip)]` on it because [`AhoCorasick`] doesn't
-    /// implement the [`Default`] trait.
-    #[serde(skip)]
-    pub(in crate::compiler) ac: Option<AhoCorasick>,
+    /// time in an efficient manner.
+    pub(in crate::compiler) ac: AhoCorasick,
 
     /// Warnings that were produced while compiling these rules. These warnings
     /// are not serialized, rules that are obtained by deserializing previously
@@ -177,16 +258,18 @@ pub struct Rules {
     pub(in crate::compiler) compiled_regex_sets:
         Vec<OnceLock<regex::bytes::RegexSet>>,
 
-    /// BitVec where the N-th bit indicates whether the pattern with
-    /// PatternId = N is a fast-scan pattern.
+    /// Vector where the N-th element indicates the maximum number of matches
+    /// required in fast-scan mode for the pattern with PatternId = N, or
+    /// `None` if all matches must be tracked.
+    pub(in crate::compiler) fast_scan_max_matches: Vec<Option<NonZeroU32>>,
+
+    /// Indicates whether the rules were compiled with rules profiling enabled.
     ///
-    /// A pattern can be fast-scanned if its occurrences are only evaluated
-    /// as simple boolean checks (e.g. `$a`), meaning the scanner can stop
-    /// tracking matches for it once the first match has been found. If a
-    /// pattern is used in a context that requires tracking all matches (such
-    /// as count `#a`, offset `@a`, length `!a`, anchored checks, or loop
-    /// equivalents), it cannot be fast-scanned.
-    pub(in crate::compiler) fast_scan_patterns: bitvec::vec::BitVec,
+    /// This flag is checked during deserialization to ensure that the YARA-X
+    /// binary performing deserialization is built with the same profiling
+    /// settings as the compiled rules. A mismatch will result in a
+    /// deserialization error.
+    pub(in crate::compiler) rules_profiling_enabled: bool,
 }
 
 impl Rules {
@@ -216,6 +299,14 @@ impl Rules {
 
     /// Deserializes the rules from a sequence of bytes produced by
     /// [`Rules::serialize`].
+    ///
+    /// # Safety
+    ///
+    /// As long as you are deserializing rules from binary content produced
+    /// by [`Rules::serialize`] you are safe. But you should never attempt
+    /// to do so from binary content that was produced or could be manipulated
+    /// by a third party. This implies a security risk and your program may
+    /// panic during scanning.
     pub fn deserialize<B>(bytes: B) -> Result<Self, SerializationError>
     where
         B: AsRef<[u8]>,
@@ -239,6 +330,8 @@ impl Rules {
             });
         }
 
+        crate::init_logger();
+
         #[cfg(feature = "logging")]
         let start = Instant::now();
 
@@ -251,6 +344,16 @@ impl Rules {
 
         #[cfg(feature = "logging")]
         info!("Deserialization time: {:?}", Instant::elapsed(&start));
+
+        let profiling_enabled = cfg!(feature = "rules-profiling");
+
+        if rules.rules_profiling_enabled != profiling_enabled {
+            return Err(SerializationError::InvalidWASM(anyhow!(
+                "rules profiling mismatch: rules compiled with profiling enabled = {}, but YARA-X compiled with profiling enabled = {}",
+                rules.rules_profiling_enabled,
+                profiling_enabled
+            )));
+        }
 
         // `rules.compiled_wasm_mod` can be `None` for two reasons:
         //
@@ -281,7 +384,22 @@ impl Rules {
         }
 
         rules.init_regex_set_cache();
-        rules.build_ac_automaton();
+        rules.ac.rebuild_teddy(rules.atoms.iter().map(|x| x.atom.as_ref()));
+
+        // Make sure that the maximum SubPatternId is within the boundaries
+        // of sub_patterns array. This check is important because during
+        // the scanning phase we use SubPatternId as indexes in the array
+        // without boundary checks for better performance.
+        let max_sub_pattern_id = rules
+            .atoms
+            .iter()
+            .map(|atom| atom.sub_pattern_id)
+            .max()
+            .unwrap_or(SubPatternId(0));
+
+        if rules.sub_patterns.len() < max_sub_pattern_id.0 as usize {
+            return Err(SerializationError::InvalidFormat);
+        }
 
         Ok(rules)
     }
@@ -367,20 +485,11 @@ impl Rules {
         let parser = re::parser::Parser::new()
             .relaxed_re_syntax(self.relaxed_re_syntax);
 
-        let hir = parser.parse(&re).unwrap().into_inner();
+        let hir = parser.parse(&re).unwrap();
 
-        // Set a size limit for the NFA automata. The default limit (10MB) is
-        // too small for certain regexps seen in YARA rules in the wild, see:
-        // https://github.com/VirusTotal/yara-x/issues/85
-        let config = regex_automata::meta::Config::new()
-            .nfa_size_limit(Some(50 * 1024 * 1024));
-
-        regex_automata::meta::Builder::new()
-            .configure(config)
-            .build_from_hir(&hir)
-            .unwrap_or_else(|err| {
-                panic!("error compiling regex `{}`: {:#?}", re.as_str(), err)
-            })
+        hir.build_automata().unwrap_or_else(|err| {
+            panic!("error compiling regex `{}`: {:#?}", re.as_str(), err)
+        })
     }
 
     /// Initializes the runtime-only cache for compiled `RegexSet` automata.
@@ -443,13 +552,21 @@ impl Rules {
     pub(crate) fn get_rule_and_pattern_by_sub_pattern_id(
         &self,
         sub_pattern_id: SubPatternId,
-    ) -> Option<(RuleId, IdentId)> {
-        let (target_pattern_id, _) = self.get_sub_pattern(sub_pattern_id);
-        for (rule_id, rule) in self.rules.iter().enumerate() {
+    ) -> Option<(&RuleInfo, &PatternInfo)> {
+        let (pattern_id, _) = self.get_sub_pattern(sub_pattern_id);
+        self.get_rule_and_pattern_by_pattern_id(*pattern_id)
+    }
+
+    #[cfg(feature = "logging")]
+    pub(crate) fn get_rule_and_pattern_by_pattern_id(
+        &self,
+        pattern_id: PatternId,
+    ) -> Option<(&RuleInfo, &PatternInfo)> {
+        for rule in &self.rules {
             for p in &rule.patterns {
-                if p.pattern_id == *target_pattern_id {
-                    return Some((rule_id.into(), p.ident_id));
-                };
+                if p.pattern_id == pattern_id {
+                    return Some((rule, p));
+                }
             }
         }
         None
@@ -490,14 +607,10 @@ impl Rules {
     /// atoms.
     #[inline]
     pub(crate) fn ac_automaton(&self) -> &AhoCorasick {
-        self.ac.as_ref().expect("Aho-Corasick automaton not compiled")
+        &self.ac
     }
 
     pub(crate) fn build_ac_automaton(&mut self) {
-        if self.ac.is_some() {
-            return;
-        }
-
         #[cfg(feature = "logging")]
         let start = Instant::now();
 
@@ -512,15 +625,13 @@ impl Rules {
             }
 
             if x.atom.len() < 2 {
-                let (rule_id, pattern_ident_id) = self
+                let (rule, pattern) = self
                     .get_rule_and_pattern_by_sub_pattern_id(x.sub_pattern_id)
                     .unwrap();
 
-                let rule = self.get(rule_id);
-
-                info!(
+                warn!(
                     "Very short atom in pattern `{}` in rule `{}:{}` (length: {})",
-                    self.ident_pool.get(pattern_ident_id).unwrap(),
+                    self.ident_pool.get(pattern.ident_id).unwrap(),
                     self.ident_pool.get(rule.namespace_ident_id).unwrap(),
                     self.ident_pool.get(rule.ident_id).unwrap(),
                     x.atom.len()
@@ -528,26 +639,7 @@ impl Rules {
             }
         }
 
-        // The Teddy algorithm can't be used in all cases. It will be used if:
-        // - The number of atoms is between 1 and 64.
-        // - None of the atoms is empty.
-        let use_teddy = self.atoms.len() <= 64
-            && !self.atoms.is_empty()
-            && !self.atoms.iter().any(|x| x.atom.as_ref().is_empty());
-
-        let teddy_searcher = if use_teddy {
-            let mut teddy_builder = teddy::Builder::new();
-            self.atoms.iter().for_each(|x| teddy_builder.add(x.atom.as_ref()));
-            teddy_builder.build()
-        } else {
-            None
-        };
-
-        let atoms = self.atoms.iter().map(|x| x.atom.as_ref());
-        let ac = DoubleArrayAhoCorasick::new(atoms)
-            .expect("failed to build Aho-Corasick automaton");
-
-        self.ac = Some(AhoCorasick { daachorse: ac, teddy: teddy_searcher });
+        self.ac = AhoCorasick::new(self.atoms.iter().map(|x| x.atom.as_ref()));
 
         #[cfg(feature = "logging")]
         {
@@ -601,14 +693,23 @@ impl Rules {
     #[inline]
     pub(crate) fn filesize_bounds(
         &self,
-        pattern_id: PatternId,
-    ) -> Option<&FilesizeBounds> {
-        self.filesize_bounds.get(&pattern_id)
+    ) -> hash_map::Iter<'_, PatternId, FilesizeBounds> {
+        self.filesize_bounds.iter()
     }
 
     #[inline]
-    pub(crate) fn is_fast_scan(&self, pattern_id: PatternId) -> bool {
-        *self.fast_scan_patterns.get(usize::from(pattern_id)).unwrap()
+    pub(crate) fn header_constraints(
+        &self,
+    ) -> hash_map::Iter<'_, PatternId, HeaderConstraint> {
+        self.header_constraints.iter()
+    }
+
+    #[inline]
+    pub(crate) fn fast_scan_max_matches(
+        &self,
+        pattern_id: PatternId,
+    ) -> Option<NonZeroU32> {
+        self.fast_scan_max_matches[usize::from(pattern_id)]
     }
 }
 
@@ -650,9 +751,7 @@ where
 {
     let bytes: Option<&[u8]> = Deserialize::deserialize(deserializer)?;
     let module = if let Some(bytes) = bytes {
-        unsafe {
-            wasm::runtime::Module::deserialize(wasm::get_engine(), bytes).ok()
-        }
+        wasm::runtime::Module::deserialize(wasm::get_engine(), bytes).ok()
     } else {
         None
     };
@@ -880,6 +979,63 @@ impl FilesizeBounds {
         }
         self
     }
+
+    /// Merges another set of filesize bounds into this one (intersection).
+    pub fn merge(&mut self, other: &Self) -> &mut Self {
+        self.max_start(other.start);
+        self.min_end(other.end);
+        self
+    }
+}
+
+/// Describes the requirements on the file header imposed by a rule condition.
+///
+/// For example, the condition `uint32(0) == 0x464c457f` requires that the first
+/// 4 bytes of the file are `0x7f, 0x45, 0x4c, 0x46`.
+#[derive(
+    Debug, PartialEq, Serialize, Deserialize, Clone, Hash, Eq, Default,
+)]
+pub(crate) enum HeaderConstraint {
+    #[default]
+    Unconstrained,
+    Unsatisfiable,
+    Constrained(Vec<u8>),
+}
+
+impl HeaderConstraint {
+    pub fn unconstrained(&self) -> bool {
+        matches!(self, Self::Unconstrained)
+    }
+
+    pub fn is_satisfied(&self, data: &[u8]) -> bool {
+        match self {
+            Self::Unconstrained => true,
+            Self::Unsatisfiable => false,
+            Self::Constrained(bytes) => data.starts_with(bytes),
+        }
+    }
+
+    /// Merges another header constraint into this one (intersection).
+    pub fn merge(&mut self, other: &Self) {
+        match (&self, other) {
+            (Self::Unsatisfiable, _) => {}
+            (_, Self::Unsatisfiable) => {
+                *self = Self::Unsatisfiable;
+            }
+            (Self::Unconstrained, _) => {
+                *self = other.clone();
+            }
+            (_, Self::Unconstrained) => {}
+            (Self::Constrained(a), Self::Constrained(b)) => {
+                let min_len = a.len().min(b.len());
+                if a[..min_len] != b[..min_len] {
+                    *self = Self::Unsatisfiable;
+                } else if b.len() > a.len() {
+                    *self = other.clone();
+                }
+            }
+        }
+    }
 }
 
 /// Represents an atom extracted from a pattern and added to the Aho-Corasick
@@ -953,5 +1109,108 @@ impl SubPatternAtom {
     #[inline]
     pub(crate) fn bck_code(&self) -> Option<BckCodeLoc> {
         self.bck_code
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::HeaderConstraint;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn header_constraint_merge() {
+        let merge = |mut a: HeaderConstraint, b: &HeaderConstraint| {
+            a.merge(b);
+            a
+        };
+
+        let unconstrained = HeaderConstraint::Unconstrained;
+        let unsatisfiable = HeaderConstraint::Unsatisfiable;
+        let constrained =
+            |bytes: &[u8]| HeaderConstraint::Constrained(bytes.to_vec());
+
+        // (Unsatisfiable, _) => Unsatisfiable
+        assert_eq!(
+            merge(unsatisfiable.clone(), &unsatisfiable),
+            unsatisfiable
+        );
+        assert_eq!(
+            merge(unsatisfiable.clone(), &unconstrained),
+            unsatisfiable
+        );
+        assert_eq!(
+            merge(unsatisfiable.clone(), &constrained(&[0x4D, 0x5A])),
+            unsatisfiable
+        );
+
+        // (_, Unsatisfiable) => Unsatisfiable
+        assert_eq!(
+            merge(unconstrained.clone(), &unsatisfiable),
+            unsatisfiable
+        );
+        assert_eq!(
+            merge(constrained(&[0x4D, 0x5A]), &unsatisfiable),
+            unsatisfiable
+        );
+
+        // (Unconstrained, _) => other
+        assert_eq!(
+            merge(unconstrained.clone(), &unconstrained),
+            unconstrained
+        );
+        assert_eq!(
+            merge(unconstrained.clone(), &constrained(&[0x4D, 0x5A])),
+            constrained(&[0x4D, 0x5A])
+        );
+
+        // (_, Unconstrained) => self
+        assert_eq!(
+            merge(constrained(&[0x4D, 0x5A]), &unconstrained),
+            constrained(&[0x4D, 0x5A])
+        );
+
+        // (Constrained(a), Constrained(b)) where a == b
+        assert_eq!(
+            merge(constrained(&[0x4D, 0x5A]), &constrained(&[0x4D, 0x5A])),
+            constrained(&[0x4D, 0x5A])
+        );
+
+        // (Constrained(a), Constrained(b)) where a is a prefix of b (b.len() > a.len())
+        assert_eq!(
+            merge(
+                constrained(&[0x4D, 0x5A]),
+                &constrained(&[0x4D, 0x5A, 0x90])
+            ),
+            constrained(&[0x4D, 0x5A, 0x90])
+        );
+
+        // (Constrained(a), Constrained(b)) where b is a prefix of a (a.len() > b.len())
+        assert_eq!(
+            merge(
+                constrained(&[0x4D, 0x5A, 0x90]),
+                &constrained(&[0x4D, 0x5A])
+            ),
+            constrained(&[0x4D, 0x5A, 0x90])
+        );
+
+        // (Constrained(a), Constrained(b)) with conflicting prefixes
+        assert_eq!(
+            merge(constrained(&[0x4D, 0x5A]), &constrained(&[0x4D, 0x00])),
+            unsatisfiable
+        );
+        assert_eq!(
+            merge(
+                constrained(&[0x4D, 0x5A]),
+                &constrained(&[0x7F, 0x45, 0x4C, 0x46])
+            ),
+            unsatisfiable
+        );
+        assert_eq!(
+            merge(
+                constrained(&[0x7F, 0x45, 0x4C, 0x46]),
+                &constrained(&[0x4D, 0x5A])
+            ),
+            unsatisfiable
+        );
     }
 }

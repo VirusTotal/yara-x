@@ -1,0 +1,7 @@
+warning[duplicate_pattern_value]: duplicate pattern value
+ --> line:3:5
+  |
+3 |     $a = "duplicate_literal"
+  |     ------------------------ pattern `$a` defined here first
+4 |     $b = "duplicate_literal"
+  |     ------------------------ duplicate of pattern `$a`

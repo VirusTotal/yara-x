@@ -22,14 +22,33 @@ use protobuf::reflect::{EnumValueDescriptor, Syntax};
 use protobuf::{MessageDyn, MessageField};
 use serde::{Deserialize, Serialize};
 
-/// Each of the entries in an Access Control List (ACL)
+/// An entry in a field's Access Control List (ACL).
 ///
-/// When defining the structure of a module in a `.proto` file, you can specify
-/// that certain fields are accessible only when one or more features are
-/// enabled in the compiler with using [`crate::Compiler::enable_feature`]. For
-/// example, the field ``requires_foo_and_bar` in the snippet below has an ACL
-/// indicating that the field can be accessed only if features "foo" and "bar"
-/// are enabled in the compiler.
+/// When defining the structure of a module in a `.proto` file, fields can be
+/// assigned an ACL (`acl`) containing one or more `AclEntry` items. Access to
+/// a structure field during YARA rule compilation is evaluated against the set
+/// of features enabled in the compiler via [`crate::Compiler::enable_feature`].
+///
+/// # Evaluation Rules
+///
+/// - All `AclEntry` items in a field's `acl` vector are evaluated sequentially
+///   in order. Every single entry must be satisfied for the field to be
+///   accessible. Evaluation stops at the first failing entry, which immediately
+///   triggers a compilation error using that entry's `error_title` and
+///   `error_label`.
+///
+/// - An `accept_if` list contains feature names. An entry is accepted if
+///   `accept_if` is empty, or if at least one (ANY) of the listed features is
+///   enabled in the compiler. For example, `accept_if: ["foo", "bar"]` means
+///   the field is accepted if either "foo" or "bar" is enabled.
+///
+/// - A `reject_if` list contains feature names. An entry is rejected if at
+///   least one (ANY) of the listed features is enabled in the compiler. If any
+///   feature in `reject_if` is enabled, access is denied regardless of
+///   `accept_if`. For example, `reject_if: ["legacy", "deprecated"]` denies
+///   access if either `"legacy"` or `"deprecated"` is enabled.
+///
+/// # Protobuf Example
 ///
 /// ```protobuf
 /// optional uint64 requires_foo_and_bar = 500 [
@@ -50,9 +69,8 @@ use serde::{Deserialize, Serialize};
 /// ];
 /// ```
 ///
-/// If some of the required features are not enabled, using this field in
-/// a YARA rule will cause an error while compiling the rules. The error
-/// looks like:
+/// If some of the required conditions are not met, using this field in a YARA
+/// rule causes a compilation error like:
 ///
 /// ```text
 /// error[E034]: foo is required
@@ -62,14 +80,18 @@ use serde::{Deserialize, Serialize};
 ///   |              ^^^^^^^^^^^^^^^^^^^^ this field was used without foo
 ///   |
 /// ```
-///
-/// Notice that both the title and label in the error message are defined
-/// in the .proto file.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct AclEntry {
+    /// Title of the compilation error raised if this ACL entry fails.
     pub error_title: String,
+    /// Label pointing to the code location in the error report if this ACL
+    /// entry fails.
     pub error_label: String,
+    /// Features that grant access. At least one feature in this list must be
+    /// enabled (logical OR). If empty, access is accepted by default.
     pub accept_if: Vec<String>,
+    /// Features that deny access. If any feature in this list is enabled
+    /// (logical OR), access is rejected.
     pub reject_if: Vec<String>,
 }
 
@@ -99,12 +121,15 @@ pub(crate) struct StructField {
     /// Field type and value.
     pub type_value: TypeValue,
     /// Access control list (ACL) for accessing this struct field.
+    #[serde(skip)]
     pub acl: Option<Vec<AclEntry>>,
     /// Deprecation notice that must be shown when the field is used in a
     /// rule. This is `None` for non-deprecated fields.
+    #[serde(skip)]
     pub deprecation_notice: Option<DeprecationNotice>,
     /// Description of the field extracted from the .proto file.
-    pub doc: Option<String>,
+    #[serde(skip)]
+    pub doc: Option<&'static str>,
 }
 
 /// A dynamic structure with one or more fields.
@@ -132,12 +157,14 @@ pub(crate) struct Struct {
     /// order in which they appear in the .proto source file is
     /// irrelevant.
     fields: IndexMap<String, StructField>,
+    /// The name of the protobuf type this struct was created from. If the struct
+    /// was not created from a protobuf type, this is `None`.
+    protobuf_type_name: Option<String>,
     /// True if this is the root structure. The root structure is the top-level
     /// structure that contains global variables and modules.
     is_root: bool,
-    /// The name of the protobuf type this enum was crated from. If the enum
-    /// was not created from a protobuf type, this is `None`.
-    protobuf_type_name: Option<String>,
+    /// True if this structure is representing an enum.
+    is_enum: bool,
 }
 
 impl SymbolLookup for Struct {
@@ -160,6 +187,7 @@ impl Struct {
             fields: IndexMap::new(),
             is_root: false,
             protobuf_type_name: None,
+            is_enum: false,
         }
     }
 
@@ -169,7 +197,13 @@ impl Struct {
         self
     }
 
-    /// Returns the protobuf type this enum was created from, if any.
+    /// Returns true if this structure represents an enum.
+    #[inline]
+    pub fn is_enum(&self) -> bool {
+        self.is_enum
+    }
+
+    /// Returns the protobuf type this struct was created from, if any.
     pub fn protobuf_type_name(&self) -> Option<&str> {
         self.protobuf_type_name.as_deref()
     }
@@ -246,7 +280,8 @@ impl Struct {
         let mut enclosing_msg = enum_descriptor.enclosing_message();
         let mut path = Vec::new();
 
-        if !Self::enum_is_inline(enum_descriptor) {
+        let is_inline = Self::enum_is_inline(enum_descriptor);
+        if !is_inline {
             path.push(Self::enum_name(enum_descriptor));
         }
 
@@ -259,13 +294,70 @@ impl Struct {
 
         let path = path.iter().rev().join(".");
 
-        for item in enum_descriptor.values() {
-            let field_name = if path.is_empty() {
-                item.name().to_owned()
+        if !is_inline {
+            let enum_struct = self.get_or_create_struct(&path);
+            enum_struct.is_enum = true;
+            for item in enum_descriptor.values() {
+                enum_struct
+                    .add_field(item.name(), Self::enum_value(&item).into());
+            }
+        } else {
+            for item in enum_descriptor.values() {
+                let field_name = if path.is_empty() {
+                    item.name().to_owned()
+                } else {
+                    format!("{}.{}", path, item.name())
+                };
+                self.add_field(field_name, Self::enum_value(&item).into());
+            }
+        }
+    }
+
+    fn get_or_create_struct(&mut self, path: &str) -> &mut Struct {
+        if let Some(dot) = path.find('.') {
+            let target = &path[0..dot];
+            let field = self
+                .field_entry_by_name(target.to_owned())
+                .or_insert_with(|| StructField {
+                    type_value: TypeValue::Struct(Rc::new(Struct::new())),
+                    number: 0,
+                    acl: None,
+                    deprecation_notice: None,
+                    doc: None,
+                });
+
+            if let TypeValue::Struct(ref mut s) = field.type_value {
+                let s = Rc::<Struct>::get_mut(s).unwrap_or_else(|| {
+                    panic!(
+                        "`get_or_create_struct` was called while an `Rc` or `Weak` pointer points to field `{}`",
+                        target
+                    )
+                });
+                s.get_or_create_struct(&path[dot + 1..])
             } else {
-                format!("{}.{}", path, item.name())
-            };
-            self.add_field(field_name, Self::enum_value(&item).into());
+                panic!("field `{}` is not a struct", target)
+            }
+        } else {
+            let field = self
+                .field_entry_by_name(path.to_owned())
+                .or_insert_with(|| StructField {
+                    type_value: TypeValue::Struct(Rc::new(Struct::new())),
+                    number: 0,
+                    acl: None,
+                    deprecation_notice: None,
+                    doc: None,
+                });
+
+            if let TypeValue::Struct(ref mut s) = field.type_value {
+                Rc::<Struct>::get_mut(s).unwrap_or_else(|| {
+                    panic!(
+                        "`get_or_create_struct` was called while an `Rc` or `Weak` pointer points to field `{}`",
+                        path
+                    )
+                })
+            } else {
+                panic!("field `{}` is not a struct", path)
+            }
         }
     }
 
@@ -347,11 +439,8 @@ impl Struct {
     /// be [`None`].
     ///
     /// The `generate_fields_for_enums` controls whether the enums defined
-    /// by the proto will be included as fields in the structure. Enums are
-    /// required only at compile time, so that the compiler can look up the
-    /// enums by name and resolve their values, but at scan time enums are
-    /// not necessary because their values are already embedded in the code.
-    /// The scanner never asks for an enum by field index.
+    /// by the proto will be included in the structure. These are required
+    /// only at compile time, or when constant folding is disabled.
     ///
     /// Also notice that a .proto file can define enums at the top level,
     /// outside any message. Those enums will be handled as if they were
@@ -383,6 +472,7 @@ impl Struct {
         msg_descriptor: &MessageDescriptor,
         msg: Option<&dyn MessageDyn>,
         generate_fields_for_enums: bool,
+        generate_compile_time_fields: bool,
     ) -> Rc<Self> {
         let syntax = msg_descriptor.file_descriptor().syntax();
         let mut fields = Vec::new();
@@ -403,18 +493,21 @@ impl Struct {
                     &ty,
                     msg.and_then(|msg| fd.get_singular(msg)),
                     generate_fields_for_enums,
+                    generate_compile_time_fields,
                     syntax,
                 ),
                 RuntimeFieldType::Repeated(ty) => Self::new_array(
                     &ty,
                     msg.map(|msg| fd.get_repeated(msg)),
                     generate_fields_for_enums,
+                    generate_compile_time_fields,
                 ),
                 RuntimeFieldType::Map(key_ty, value_ty) => Self::new_map(
                     &key_ty,
                     &value_ty,
                     msg.map(|msg| fd.get_map(msg)),
                     generate_fields_for_enums,
+                    generate_compile_time_fields,
                     syntax,
                 ),
             };
@@ -437,10 +530,22 @@ impl Struct {
                 StructField {
                     // Index is initially zero, will be adjusted later.
                     type_value: value,
-                    acl: Self::acl(&fd),
-                    deprecation_notice: Self::deprecation_notice(&fd),
+                    acl: if generate_compile_time_fields {
+                        Self::acl(&fd)
+                    } else {
+                        None
+                    },
+                    deprecation_notice: if generate_compile_time_fields {
+                        Self::deprecation_notice(&fd)
+                    } else {
+                        None
+                    },
                     number,
-                    doc: Self::field_doc(msg_descriptor.full_name(), number),
+                    doc: if generate_compile_time_fields {
+                        Self::field_doc(msg_descriptor.full_name(), number)
+                    } else {
+                        None
+                    },
                 },
             ));
         }
@@ -464,6 +569,7 @@ impl Struct {
             fields: field_index,
             is_root: false,
             protobuf_type_name: Some(msg_descriptor.full_name().to_string()),
+            is_enum: false,
         };
 
         if generate_fields_for_enums && Self::is_module_root(msg_descriptor) {
@@ -788,7 +894,7 @@ impl Struct {
             })
     }
 
-    fn field_doc(msg_name: &str, field_number: u64) -> Option<String> {
+    fn field_doc(msg_name: &str, field_number: u64) -> Option<&'static str> {
         use crate::modules::field_docs::FIELD_DOCS;
         let idx = FIELD_DOCS
             .binary_search_by(|&(name, number, _)| match name.cmp(msg_name) {
@@ -796,7 +902,7 @@ impl Struct {
                 ord => ord,
             })
             .ok()?;
-        Some(FIELD_DOCS[idx].2.to_string())
+        Some(FIELD_DOCS[idx].2)
     }
 
     /// Given a protobuf type and value returns a [`TypeValue`].
@@ -823,6 +929,7 @@ impl Struct {
         ty: &RuntimeType,
         value: Option<ReflectValueRef>,
         enum_as_fields: bool,
+        generate_compile_time_fields: bool,
         syntax: Syntax,
     ) -> TypeValue {
         match ty {
@@ -880,12 +987,14 @@ impl Struct {
                         msg_descriptor,
                         value,
                         enum_as_fields,
+                        generate_compile_time_fields,
                     )
                 } else {
                     Self::from_proto_descriptor_and_msg(
                         msg_descriptor,
                         None,
                         enum_as_fields,
+                        generate_compile_time_fields,
                     )
                 };
                 TypeValue::Struct(structure)
@@ -897,6 +1006,7 @@ impl Struct {
         ty: &RuntimeType,
         repeated: Option<ReflectRepeatedRef>,
         enum_as_fields: bool,
+        generate_compile_time_fields: bool,
     ) -> TypeValue {
         let array = match ty {
             RuntimeType::I32 => {
@@ -904,7 +1014,7 @@ impl Struct {
                     Array::Integers(
                         repeated
                             .into_iter()
-                            .map(|value| value.to_i32().unwrap() as i64)
+                            .map(|value| Self::value_as_i64(value))
                             .collect(),
                     )
                 } else {
@@ -916,7 +1026,7 @@ impl Struct {
                     Array::Integers(
                         repeated
                             .into_iter()
-                            .map(|value| value.to_i64().unwrap())
+                            .map(|value| Self::value_as_i64(value))
                             .collect(),
                     )
                 } else {
@@ -928,7 +1038,7 @@ impl Struct {
                     Array::Integers(
                         repeated
                             .into_iter()
-                            .map(|value| value.to_u32().unwrap() as i64)
+                            .map(|value| Self::value_as_i64(value))
                             .collect(),
                     )
                 } else {
@@ -936,14 +1046,23 @@ impl Struct {
                 }
             }
             RuntimeType::U64 => {
-                todo!()
+                if let Some(repeated) = repeated {
+                    Array::Integers(
+                        repeated
+                            .into_iter()
+                            .map(|value| Self::value_as_i64(value))
+                            .collect(),
+                    )
+                } else {
+                    Array::Integers(vec![])
+                }
             }
             RuntimeType::F32 => {
                 if let Some(repeated) = repeated {
                     Array::Floats(
                         repeated
                             .into_iter()
-                            .map(|value| value.to_f32().unwrap() as f64)
+                            .map(|value| Self::value_as_f64(value))
                             .collect(),
                     )
                 } else {
@@ -955,7 +1074,7 @@ impl Struct {
                     Array::Floats(
                         repeated
                             .into_iter()
-                            .map(|value| value.to_f64().unwrap())
+                            .map(|value| Self::value_as_f64(value))
                             .collect(),
                     )
                 } else {
@@ -967,7 +1086,7 @@ impl Struct {
                     Array::Bools(
                         repeated
                             .into_iter()
-                            .map(|value| value.to_bool().unwrap())
+                            .map(|value| Self::value_as_bool(value))
                             .collect(),
                     )
                 } else {
@@ -1026,6 +1145,7 @@ impl Struct {
                                     msg_descriptor,
                                     value,
                                     enum_as_fields,
+                                    generate_compile_time_fields,
                                 )
                             })
                             .collect(),
@@ -1036,6 +1156,7 @@ impl Struct {
                             msg_descriptor,
                             None,
                             enum_as_fields,
+                            generate_compile_time_fields,
                         ),
                     ])
                 }
@@ -1050,6 +1171,7 @@ impl Struct {
         value_ty: &RuntimeType,
         map: Option<ReflectMapRef>,
         enum_as_fields: bool,
+        generate_compile_time_fields: bool,
         syntax: Syntax,
     ) -> TypeValue {
         let map = match key_ty {
@@ -1057,6 +1179,7 @@ impl Struct {
                 value_ty,
                 map,
                 enum_as_fields,
+                generate_compile_time_fields,
                 syntax,
             ),
             RuntimeType::I32
@@ -1066,6 +1189,7 @@ impl Struct {
                 value_ty,
                 map,
                 enum_as_fields,
+                generate_compile_time_fields,
                 syntax,
             ),
             ty => {
@@ -1080,6 +1204,7 @@ impl Struct {
         value_ty: &RuntimeType,
         map: Option<ReflectMapRef>,
         enum_as_fields: bool,
+        generate_compile_time_fields: bool,
         syntax: Syntax,
     ) -> Map {
         if let Some(map) = map {
@@ -1091,6 +1216,7 @@ impl Struct {
                         value_ty,
                         Some(value),
                         enum_as_fields,
+                        generate_compile_time_fields,
                         syntax,
                     ),
                 );
@@ -1102,6 +1228,7 @@ impl Struct {
                     value_ty,
                     None,
                     enum_as_fields,
+                    generate_compile_time_fields,
                     syntax,
                 )),
                 map: Default::default(),
@@ -1113,6 +1240,7 @@ impl Struct {
         value_ty: &RuntimeType,
         map: Option<ReflectMapRef>,
         enum_as_fields: bool,
+        generate_compile_time_fields: bool,
         syntax: Syntax,
     ) -> Map {
         if let Some(map) = map {
@@ -1124,6 +1252,7 @@ impl Struct {
                         value_ty,
                         Some(value),
                         enum_as_fields,
+                        generate_compile_time_fields,
                         syntax,
                     ),
                 );
@@ -1135,6 +1264,7 @@ impl Struct {
                     value_ty,
                     None,
                     enum_as_fields,
+                    generate_compile_time_fields,
                     syntax,
                 )),
                 map: Default::default(),
@@ -1146,12 +1276,14 @@ impl Struct {
         msg_descriptor: &MessageDescriptor,
         value: ReflectValueRef,
         enum_as_fields: bool,
+        generate_compile_time_fields: bool,
     ) -> Rc<Self> {
         if let ReflectValueRef::Message(m) = value {
             Struct::from_proto_descriptor_and_msg(
                 msg_descriptor,
                 Some(m.deref()),
                 enum_as_fields,
+                generate_compile_time_fields,
             )
         } else {
             unreachable!()
@@ -1225,6 +1357,7 @@ impl From<&dyn RegisteredModule> for Rc<Struct> {
         let mut module_struct = Struct::from_proto_descriptor_and_msg(
             &module.root_descriptor(),
             None,
+            true,
             true,
         );
 
@@ -1308,6 +1441,7 @@ mod tests {
             &TestProto2::descriptor(),
             None,
             true,
+            true,
         );
 
         let structure = Rc::<Struct>::get_mut(&mut structure).unwrap();
@@ -1375,5 +1509,35 @@ mod tests {
         // At this point a != b again because field "foo" have a different type
         // on each structure.
         assert_ne!(a, b);
+    }
+
+    #[test]
+    fn test_is_enum() {
+        use crate::modules::protos::test_proto2::TestProto2;
+        use protobuf::MessageFull;
+
+        let s = Struct::new();
+        assert!(!s.is_enum());
+
+        let mut structure = Struct::from_proto_descriptor_and_msg(
+            &TestProto2::descriptor(),
+            None,
+            true,
+            true,
+        );
+
+        let structure = Rc::<Struct>::get_mut(&mut structure).unwrap();
+        let mut is_enum_flags = Vec::new();
+
+        structure.enum_substructures(&mut |sub| {
+            is_enum_flags.push(sub.is_enum());
+        });
+
+        // The root message and its nested messages (and intermediate container structs)
+        // are not enums, while the enum substructures are marked with is_enum = true.
+        assert_eq!(
+            vec![false, false, false, true, true, false, true, true],
+            is_enum_flags
+        );
     }
 }

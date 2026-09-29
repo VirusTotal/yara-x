@@ -38,10 +38,16 @@ pub struct Modules {
     pub macho: ::protobuf::MessageField<super::macho::Macho>,
     // @@protoc_insertion_point(field:mods.Modules.lnk)
     pub lnk: ::protobuf::MessageField<super::lnk::Lnk>,
+    // @@protoc_insertion_point(field:mods.Modules.olecf)
+    pub olecf: ::protobuf::MessageField<super::olecf::Olecf>,
+    // @@protoc_insertion_point(field:mods.Modules.vba)
+    pub vba: ::protobuf::MessageField<super::vba::Vba>,
     // @@protoc_insertion_point(field:mods.Modules.crx)
     pub crx: ::protobuf::MessageField<super::crx::Crx>,
     // @@protoc_insertion_point(field:mods.Modules.dex)
     pub dex: ::protobuf::MessageField<super::dex::Dex>,
+    // @@protoc_insertion_point(field:mods.Modules.msi)
+    pub msi: ::protobuf::MessageField<super::msi::Msi>,
     // special fields
     // @@protoc_insertion_point(special_field:mods.Modules.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -59,7 +65,7 @@ impl Modules {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(7);
+        let mut fields = ::std::vec::Vec::with_capacity(10);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, super::pe::PE>(
             "pe",
@@ -86,6 +92,16 @@ impl Modules {
             |m: &Modules| { &m.lnk },
             |m: &mut Modules| { &mut m.lnk },
         ));
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, super::olecf::Olecf>(
+            "olecf",
+            |m: &Modules| { &m.olecf },
+            |m: &mut Modules| { &mut m.olecf },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, super::vba::Vba>(
+            "vba",
+            |m: &Modules| { &m.vba },
+            |m: &mut Modules| { &mut m.vba },
+        ));
         fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, super::crx::Crx>(
             "crx",
             |m: &Modules| { &m.crx },
@@ -95,6 +111,11 @@ impl Modules {
             "dex",
             |m: &Modules| { &m.dex },
             |m: &mut Modules| { &mut m.dex },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, super::msi::Msi>(
+            "msi",
+            |m: &Modules| { &m.msi },
+            |m: &mut Modules| { &mut m.msi },
         ));
         ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<Modules>(
             "Modules",
@@ -133,12 +154,27 @@ impl ::protobuf::Message for Modules {
                 return false;
             }
         };
+        for v in &self.olecf {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.vba {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
         for v in &self.crx {
             if !v.is_initialized() {
                 return false;
             }
         };
         for v in &self.dex {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.msi {
             if !v.is_initialized() {
                 return false;
             }
@@ -165,10 +201,19 @@ impl ::protobuf::Message for Modules {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.lnk)?;
                 },
                 50 => {
-                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.crx)?;
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.olecf)?;
                 },
                 58 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.vba)?;
+                },
+                66 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.crx)?;
+                },
+                74 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.dex)?;
+                },
+                82 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.msi)?;
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -202,11 +247,23 @@ impl ::protobuf::Message for Modules {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         }
+        if let Some(v) = self.olecf.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.vba.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
         if let Some(v) = self.crx.as_ref() {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         }
         if let Some(v) = self.dex.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.msi.as_ref() {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         }
@@ -231,11 +288,20 @@ impl ::protobuf::Message for Modules {
         if let Some(v) = self.lnk.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(5, v, os)?;
         }
-        if let Some(v) = self.crx.as_ref() {
+        if let Some(v) = self.olecf.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(6, v, os)?;
         }
-        if let Some(v) = self.dex.as_ref() {
+        if let Some(v) = self.vba.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(7, v, os)?;
+        }
+        if let Some(v) = self.crx.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(8, v, os)?;
+        }
+        if let Some(v) = self.dex.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(9, v, os)?;
+        }
+        if let Some(v) = self.msi.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(10, v, os)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -259,8 +325,11 @@ impl ::protobuf::Message for Modules {
         self.dotnet.clear();
         self.macho.clear();
         self.lnk.clear();
+        self.olecf.clear();
+        self.vba.clear();
         self.crx.clear();
         self.dex.clear();
+        self.msi.clear();
         self.special_fields.clear();
     }
 
@@ -271,8 +340,11 @@ impl ::protobuf::Message for Modules {
             dotnet: ::protobuf::MessageField::none(),
             macho: ::protobuf::MessageField::none(),
             lnk: ::protobuf::MessageField::none(),
+            olecf: ::protobuf::MessageField::none(),
+            vba: ::protobuf::MessageField::none(),
             crx: ::protobuf::MessageField::none(),
             dex: ::protobuf::MessageField::none(),
+            msi: ::protobuf::MessageField::none(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -299,13 +371,16 @@ impl ::protobuf::reflect::ProtobufValue for Modules {
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n\nmods.proto\x12\x04mods\x1a\nyara.proto\x1a\tcrx.proto\x1a\tdex.proto\
     \x1a\x0cdotnet.proto\x1a\telf.proto\x1a\x08pe.proto\x1a\tlnk.proto\x1a\
-    \x0bmacho.proto\"\xdd\x01\n\x07Modules\x12\x16\n\x02pe\x18\x01\x20\x01(\
-    \x0b2\x06.pe.PER\x02pe\x12\x1a\n\x03elf\x18\x02\x20\x01(\x0b2\x08.elf.EL\
-    FR\x03elf\x12&\n\x06dotnet\x18\x03\x20\x01(\x0b2\x0e.dotnet.DotnetR\x06d\
-    otnet\x12\"\n\x05macho\x18\x04\x20\x01(\x0b2\x0c.macho.MachoR\x05macho\
-    \x12\x1a\n\x03lnk\x18\x05\x20\x01(\x0b2\x08.lnk.LnkR\x03lnk\x12\x1a\n\
-    \x03crx\x18\x06\x20\x01(\x0b2\x08.crx.CrxR\x03crx\x12\x1a\n\x03dex\x18\
-    \x07\x20\x01(\x0b2\x08.dex.DexR\x03dexb\x06proto2\
+    \x0bmacho.proto\x1a\x0bolecf.proto\x1a\tvba.proto\x1a\tmsi.proto\"\xb9\
+    \x02\n\x07Modules\x12\x16\n\x02pe\x18\x01\x20\x01(\x0b2\x06.pe.PER\x02pe\
+    \x12\x1a\n\x03elf\x18\x02\x20\x01(\x0b2\x08.elf.ELFR\x03elf\x12&\n\x06do\
+    tnet\x18\x03\x20\x01(\x0b2\x0e.dotnet.DotnetR\x06dotnet\x12\"\n\x05macho\
+    \x18\x04\x20\x01(\x0b2\x0c.macho.MachoR\x05macho\x12\x1a\n\x03lnk\x18\
+    \x05\x20\x01(\x0b2\x08.lnk.LnkR\x03lnk\x12\"\n\x05olecf\x18\x06\x20\x01(\
+    \x0b2\x0c.olecf.OlecfR\x05olecf\x12\x1a\n\x03vba\x18\x07\x20\x01(\x0b2\
+    \x08.vba.VbaR\x03vba\x12\x1a\n\x03crx\x18\x08\x20\x01(\x0b2\x08.crx.CrxR\
+    \x03crx\x12\x1a\n\x03dex\x18\t\x20\x01(\x0b2\x08.dex.DexR\x03dex\x12\x1a\
+    \n\x03msi\x18\n\x20\x01(\x0b2\x08.msi.MsiR\x03msib\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -322,7 +397,7 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
     static file_descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::FileDescriptor> = ::protobuf::rt::Lazy::new();
     file_descriptor.get(|| {
         let generated_file_descriptor = generated_file_descriptor_lazy.get(|| {
-            let mut deps = ::std::vec::Vec::with_capacity(8);
+            let mut deps = ::std::vec::Vec::with_capacity(11);
             deps.push(super::yara::file_descriptor().clone());
             deps.push(super::crx::file_descriptor().clone());
             deps.push(super::dex::file_descriptor().clone());
@@ -331,6 +406,9 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             deps.push(super::pe::file_descriptor().clone());
             deps.push(super::lnk::file_descriptor().clone());
             deps.push(super::macho::file_descriptor().clone());
+            deps.push(super::olecf::file_descriptor().clone());
+            deps.push(super::vba::file_descriptor().clone());
+            deps.push(super::msi::file_descriptor().clone());
             let mut messages = ::std::vec::Vec::with_capacity(1);
             messages.push(Modules::generated_message_descriptor_data());
             let mut enums = ::std::vec::Vec::with_capacity(0);

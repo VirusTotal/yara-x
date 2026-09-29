@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::mods::prelude::*;
 use crate::modules::protos::console::*;
 
-fn main(_data: &[u8], _meta: Option<&[u8]>) -> Result<Console, ModuleError> {
+fn main(_ctx: &mut ModuleContext, _data: &[u8]) -> Result<Console, ModuleError> {
     // Nothing to do, but we have to return our protobuf
     Ok(Console::new())
 }
@@ -212,6 +212,13 @@ mod tests {
                 r"\x00\x11AB",
             ]
         );
+    }
+
+    #[test]
+    fn test_escape() {
+        assert_eq!(super::escape(b"hello"), "hello");
+        assert_eq!(super::escape(b"hello\nworld"), "hello\\nworld");
+        assert_eq!(super::escape(b"\xff\xfe"), "\\xff\\xfe");
     }
 }
 

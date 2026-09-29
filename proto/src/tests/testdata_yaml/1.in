@@ -1,0 +1,70 @@
+int32_hex: 123
+timestamp: 999999999
+int32_dec: 123
+str: "foo"
+repeated_msg {
+  int32_dec: 456
+  str: "bar\nbar"
+}
+repeated_msg {
+  int32_dec: 789
+  str: "foo\\bar"
+  map_string_string {
+    key: "foo\nbar"
+    value: "bar"
+  }
+}
+repeated_msg {
+  str: "c0-esc\x1b"
+}
+repeated_msg {
+  str: "c0-esc-multiline\nhello\x1b"
+}
+repeated_msg {
+  str: "del\x7f"
+}
+repeated_msg {
+  str: "del-multiline\nhello\x7f"
+}
+repeated_msg {
+  str: "tab-in-literal-block\nhello\tworld"
+}
+repeated_msg {
+  str: "single'quote"
+}
+repeated_msg {
+  str: "double\"quote"
+}
+repeated_msg {
+  str: "cr-only\rtest"
+}
+repeated_msg {
+  str: "crlf\r\nline1\r\nline2"
+}
+repeated_msg {
+  str: "tab-only\tworld"
+}
+repeated_msg {
+  str: "c1-ctrl\xc2\x80test"
+}
+repeated_msg {
+  str: "c1-ctrl2\xc2\x9ftest"
+}
+repeated_msg {
+  str: "nel-test\xc2\x85printable"
+}
+repeated_msg {
+  str: "non-char\xef\xbf\xbe"
+}
+nested_msg {
+  int32_dec: 1234
+  str: "qux\nfoo"
+  map_string_string {
+    key: "foo"
+    value: "bar"
+  }
+  map_string_string {
+    key: "bar"
+    value: "baz"
+  }
+}

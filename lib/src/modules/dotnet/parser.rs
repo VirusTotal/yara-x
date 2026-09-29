@@ -1549,21 +1549,9 @@ impl<'a> Dotnet<'a> {
             |(flags, name, namespace, extends, _field_list, method_list)| {
                 TypeDef {
                     flags,
-                    name: name.and_then(|v| {
-                        if v.is_empty() {
-                            None
-                        } else {
-                            Some(v)
-                        }
-                    }),
+                    name: name.filter(|&v| !v.is_empty()),
                     // The namespace can be an empty string (""),
-                    namespace: namespace.and_then(|v| {
-                        if v.is_empty() {
-                            None
-                        } else {
-                            Some(v)
-                        }
-                    }),
+                    namespace: namespace.filter(|&v| !v.is_empty()),
                     method_list,
                     extends,
                 }
@@ -1956,13 +1944,7 @@ impl<'a> Dotnet<'a> {
                     // cases return `None` instead. Empty strings are against
                     // the specification, but it happens with files like:
                     // 756684f4017ba7e931a26724ae61606b16b5f8cc84ed38a260a34e50c5016f59
-                    culture: culture.and_then(|v| {
-                        if v.is_empty() {
-                            None
-                        } else {
-                            Some(v)
-                        }
-                    }),
+                    culture: culture.filter(|&v| !v.is_empty()),
                     version: Version {
                         major_version,
                         minor_version,
@@ -2009,13 +1991,7 @@ impl<'a> Dotnet<'a> {
             )| AssemblyRef {
                 // public_key_or_token sometimes have an empty string (""),
                 // in such cases return `None` instead.
-                public_key_or_token: public_key_or_token.and_then(|v| {
-                    if v.is_empty() {
-                        None
-                    } else {
-                        Some(v)
-                    }
-                }),
+                public_key_or_token: public_key_or_token.filter(|&v| !v.is_empty()),
                 name,
                 version: Version {
                     major_version,

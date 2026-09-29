@@ -436,3 +436,135 @@ pub fn get_includes(root: &Node<Immutable>, base: &Url) -> Vec<Url> {
         });
     includes
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use async_lsp::lsp_types::Position;
+
+    fn find_tokens(
+        node: &Node<Immutable>,
+        target: &str,
+    ) -> Vec<Token<Immutable>> {
+        let mut tokens = Vec::new();
+        let mut stack = vec![NodeOrToken::Node(node.clone())];
+        while let Some(nt) = stack.pop() {
+            match nt {
+                NodeOrToken::Node(n) => stack.extend(n.children_with_tokens()),
+                NodeOrToken::Token(t) => {
+                    if t.text() == target {
+                        tokens.push(t);
+                    }
+                }
+            }
+        }
+        tokens
+    }
+
+    #[test]
+    fn test_token_and_ident_at_position() {
+        let text = "rule test_rule {\n  strings:\n    $my_str = \"hello\"\n  condition:\n    $my_str and test_rule\n}";
+        let cst = CST::from(text);
+
+        let pos = Position::new(0, 6);
+        let token = ident_at_position(&cst, pos).expect("ident found");
+        assert_eq!(token.text(), "test_rule");
+        assert_eq!(token.kind(), SyntaxKind::IDENT);
+
+        let pos_past = Position::new(0, 14);
+        let token =
+            ident_at_position(&cst, pos_past).expect("ident found past end");
+        assert_eq!(token.text(), "test_rule");
+
+        let pos_str = Position::new(2, 6);
+        let token =
+            ident_at_position(&cst, pos_str).expect("pattern ident found");
+        assert_eq!(token.text(), "$my_str");
+        assert_eq!(token.kind(), SyntaxKind::PATTERN_IDENT);
+    }
+
+    #[test]
+    fn test_rule_and_pattern_queries() {
+        let text = "rule r1 {\n  strings:\n    $s1 = \"abc\"\n    $s2 = \"xyz\"\n  condition:\n    #s1 > 0 and @s2[1] == 0\n}";
+        let cst = CST::from(text);
+        let root = cst.root();
+
+        let r1_token = find_tokens(&root, "r1").pop().unwrap();
+
+        let rule_node = rule_from_ident(&root, &r1_token).expect("rule node");
+        assert_eq!(rule_node.kind(), SyntaxKind::RULE_DECL);
+        assert_eq!(
+            rule_containing_token(&r1_token).unwrap().kind(),
+            SyntaxKind::RULE_DECL
+        );
+
+        let hash_s1_token = find_tokens(&root, "#s1").pop().unwrap();
+
+        let pattern_def = pattern_from_ident(&rule_node, &hash_s1_token)
+            .expect("pattern def");
+        assert_eq!(pattern_def.kind(), SyntaxKind::PATTERN_DEF);
+
+        let usages = pattern_usages(&rule_node, &hash_s1_token)
+            .expect("pattern usages");
+        assert_eq!(usages.len(), 1);
+        assert_eq!(usages[0].text(), "#s1");
+    }
+
+    #[test]
+    fn test_rule_usages() {
+        let text =
+            "rule helper { condition: true }\nrule main { condition: helper }";
+        let cst = CST::from(text);
+        let root = cst.root();
+
+        let helper_ident = find_tokens(&root, "helper").pop().unwrap();
+
+        let usages = rule_usages(&root, &helper_ident).expect("usages");
+        assert_eq!(usages.len(), 1);
+        assert_eq!(usages[0].text(), "helper");
+    }
+
+    #[test]
+    fn test_with_and_for_declarations() {
+        let text = "rule loop_test {\n  condition:\n    for any x in (1..10) : ( x == 5 ) and with y = 2 : ( y == 2 )\n}";
+        let cst = CST::from(text);
+        let root = cst.root();
+
+        let x_tokens = find_tokens(&root, "x");
+        let x_in_cond = x_tokens.first().unwrap(); // due to stack pop, tokens might be reversed or forward; let's pick one that works or test each
+
+        let (decl_ident, decl_node) =
+            find_declaration(x_in_cond).expect("finds x declaration");
+        assert_eq!(decl_ident.text(), "x");
+        assert_eq!(decl_node.kind(), SyntaxKind::FOR_EXPR);
+
+        let idents_for: Vec<_> = idents_declared_by_for(&decl_node).collect();
+        assert_eq!(idents_for.len(), 1);
+        assert_eq!(idents_for[0].text(), "x");
+
+        let y_tokens = find_tokens(&root, "y");
+        let y_in_cond = y_tokens.first().unwrap();
+
+        let (y_decl, y_node) =
+            find_declaration(y_in_cond).expect("finds y declaration");
+        assert_eq!(y_decl.text(), "y");
+        assert_eq!(y_node.kind(), SyntaxKind::WITH_EXPR);
+
+        let occ = occurrences_in_with_for(&y_node, &y_decl)
+            .expect("occurrences of y");
+        assert_eq!(occ.len(), 1);
+        assert_eq!(occ[0].text(), "y");
+    }
+
+    #[test]
+    fn test_get_includes() {
+        let text = "include \"common.yar\"\ninclude \"sub/rules.yar\"\nrule foo { condition: true }";
+        let cst = CST::from(text);
+        let base = Url::parse("file:///project/main.yar").unwrap();
+
+        let incs = get_includes(&cst.root(), &base);
+        assert_eq!(incs.len(), 2);
+        assert_eq!(incs[0].as_str(), "file:///project/common.yar");
+        assert_eq!(incs[1].as_str(), "file:///project/sub/rules.yar");
+    }
+}

@@ -437,6 +437,27 @@ impl Module {
     }
 }
 
+/// Reasons a rule can be ignored by the compiler.
+#[pyclass(eq, eq_int, from_py_object)]
+#[derive(PartialEq, Clone)]
+enum IgnoredRuleReason {
+    IgnoredModule,
+    IgnoredRule,
+    CompileError,
+}
+
+/// Structure that represents invalid rules by the compiler. See
+/// [`Compiler::ignore_invalid_rules`].
+#[pyclass]
+struct IgnoredRule {
+    #[pyo3(get)]
+    name: String,
+    #[pyo3(get)]
+    message: String,
+    #[pyo3(get)]
+    reason: IgnoredRuleReason,
+}
+
 /// Returns the names of the supported modules.
 ///
 /// These are the modules that can be used in `import` statements in your
@@ -465,6 +486,7 @@ struct Compiler {
     relaxed_re_syntax: bool,
     error_on_slow_pattern: bool,
     includes_enabled: bool,
+    ignore_invalid_rules: bool,
 }
 
 impl Compiler {
@@ -497,19 +519,24 @@ impl Compiler {
     ///
     /// The `error_on_slow_pattern` argument tells the compiler to treat slow
     /// patterns as errors, instead of warnings.
+    ///
+    /// `ignore_invalid_rules` argument tells the compiler to report reasons for
+    /// ignoring invalid rules in [`Compiler::ignored_rules`].
     #[new]
-    #[pyo3(signature = (relaxed_re_syntax=false, error_on_slow_pattern=false, includes_enabled=true)
+    #[pyo3(signature = (relaxed_re_syntax=false, error_on_slow_pattern=false, includes_enabled=true, ignore_invalid_rules=false)
     )]
     fn new(
         relaxed_re_syntax: bool,
         error_on_slow_pattern: bool,
         includes_enabled: bool,
+        ignore_invalid_rules: bool,
     ) -> Self {
         let mut compiler = Self {
             inner: Self::new_inner(relaxed_re_syntax, error_on_slow_pattern),
             relaxed_re_syntax,
             error_on_slow_pattern,
             includes_enabled,
+            ignore_invalid_rules,
         };
         compiler.inner.enable_includes(includes_enabled);
         compiler
@@ -564,9 +591,14 @@ impl Compiler {
             src = src.with_origin(origin)
         }
 
-        self.inner
-            .add_source(src)
-            .map_err(|err| CompileError::new_err(err.to_string()))?;
+        match self.inner.add_source(src) {
+            Ok(_) => {}
+            Err(err) => {
+                if !self.ignore_invalid_rules {
+                    return Err(CompileError::new_err(err.to_string()));
+                }
+            }
+        };
 
         Ok(())
     }
@@ -586,13 +618,13 @@ impl Compiler {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```python
     /// import yara_x
     /// compiler = yara_x.Compiler()
     /// compiler.add_include_dir("/path/to/rules")
     /// compiler.add_include_dir("/another/path")
     /// ```
-    fn add_include_dir(&mut self, dir: &str) {
+    fn add_include_dir(&mut self, dir: PathBuf) {
         self.inner.add_include_dir(dir);
     }
 
@@ -685,6 +717,20 @@ impl Compiler {
         self.inner.max_warnings(n);
     }
 
+    /// Enables or disables ignoring invalid rules. If `True` the ignored rules
+    /// and the reasons for them being ignored are available in
+    /// [`Compiler::ignored_rules`] method.
+    ///
+    /// # Example
+    /// ```python
+    /// import yara_x
+    ///
+    /// compiler = yara_x.Compiler()
+    /// compiler.ignore_invalid_rules(True)
+    /// ```
+    fn ignore_invalid_rules(&mut self, yes: bool) {
+        self.ignore_invalid_rules = yes
+    }
     /// Builds the source code previously added to the compiler.
     ///
     /// This function returns an instance of [`Rules`] containing all the rules
@@ -729,6 +775,37 @@ impl Compiler {
         let warnings_json = warnings_json
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
         json_loads.call((warnings_json,), None)
+    }
+
+    /// Retrieves all ignored rules from the compiler.
+    ///
+    /// Returns a list of tuples where the first item is the rule name and the
+    /// second item is the reason.
+    fn ignored_rules(&self) -> Vec<IgnoredRule> {
+        self.inner
+            .ignored_rules()
+            .map(|(name, reason)| {
+                let (message, reason_type) = match reason {
+                    yrx::IgnoredRuleReason::IgnoredModule(module) => (
+                        format!("depends on ignored module `{module}`"),
+                        IgnoredRuleReason::IgnoredModule,
+                    ),
+                    yrx::IgnoredRuleReason::IgnoredRule(parent_rule) => (
+                        format!("depends on ignored rule `{parent_rule}`"),
+                        IgnoredRuleReason::IgnoredRule,
+                    ),
+                    yrx::IgnoredRuleReason::CompileError(err) => (
+                        format!("error: {}", err.title()),
+                        IgnoredRuleReason::CompileError,
+                    ),
+                };
+                IgnoredRule {
+                    name: name.to_string(),
+                    message,
+                    reason: reason_type,
+                }
+            })
+            .collect()
     }
 
     #[pyo3(signature = (tags, error = false))]
@@ -1009,7 +1086,8 @@ impl Scanner {
 
     /// Sets the maximum number of matches per pattern.
     ///
-    /// When some pattern reaches the specified number of `matches` it won't produce more matches.
+    /// When some pattern reaches the specified number of `matches` it won't
+    /// produce more matches.
     fn max_matches_per_pattern(&mut self, matches: usize) {
         self.inner.max_matches_per_pattern(matches);
     }
@@ -1044,6 +1122,53 @@ impl Scanner {
                 callback.call1(py, (msg,))
             });
         });
+        Ok(())
+    }
+
+    /// Specifies the output data structure for a module, as raw data.
+    ///
+    /// Each YARA module generates an output consisting of a data structure
+    /// that contains information about the scanned file. This data
+    /// structure is represented by a Protocol Buffer message. Typically,
+    /// you won't need to provide this data yourself, as the YARA module
+    /// automatically generates different outputs for each file it scans.
+    ///
+    /// However, there are two scenarios in which you may want to provide
+    /// the output for a module yourself:
+    ///
+    /// 1) When the module does not produce any output on its own.
+    /// 2) When you already know the output of the module for the upcoming
+    ///    file to be scanned, and you prefer to reuse this data instead of
+    ///    generating it again.
+    ///
+    /// Case 1) applies to certain modules lacking a main function, thus
+    /// incapable of producing any output on their own. For such modules,
+    /// you must set the output before scanning the associated data. Since
+    /// the module's output typically varies with each scanned file, you
+    /// need to call this function prior to each invocation of `scan`.
+    /// Once `scan` is executed, the module's output is consumed and will
+    /// be empty unless set again before the subsequent call.
+    ///
+    /// Case 2) applies when you have previously stored the module's output
+    /// for certain scanned data. In such cases, when rescanning the data,
+    /// you can utilize this function to supply the module's output,
+    /// thereby preventing redundant computation by the module. This
+    /// optimization enhances performance by eliminating the need for the
+    /// module to reparse the scanned data.
+    ///
+    /// `module` can be either the YARA module name (i.e: "pe", "elf",
+    /// "dotnet", etc.) or the fully-qualified name for the protobuf message
+    /// associated to the module (i.e: "pe.PE", "elf.ELF", "dotnet.Dotnet",
+    /// etc.). `data` must be the Protocol Buffer message corresponding to
+    /// that module, serialized as raw bytes.
+    fn set_module_output(
+        &mut self,
+        module: &str,
+        data: Bound<PyBytes>,
+    ) -> PyResult<()> {
+        self.inner
+            .set_module_output_raw(module, data.as_bytes())
+            .map_err(map_scan_err)?;
         Ok(())
     }
 
@@ -1496,7 +1621,7 @@ fn proto_to_json<'py>(
     let mut module_output_json = Vec::new();
 
     let mut serializer =
-        yara_x_proto_json::Serializer::new(&mut module_output_json);
+        yara_x_proto::json::Serializer::new(&mut module_output_json);
 
     serializer
         .serialize(proto)
@@ -1574,6 +1699,8 @@ fn yara_x(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Formatter>()?;
     m.add_class::<Module>()?;
     m.add_class::<MetaType>()?;
+    m.add_class::<IgnoredRule>()?;
+    m.add_class::<IgnoredRuleReason>()?;
     // This module still exposes unsendable classes and uses unsafe lifetime
     // extensions in the bindings, so it should not advertise free-threaded
     // safety until the API is properly audited and redesigned.

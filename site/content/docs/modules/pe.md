@@ -580,30 +580,43 @@ rule WdmDriver {
 
 Each of the possible values in the `machine` field.
 
-| Name              | Number |
-|-------------------|--------|
-| MACHINE_UNKNOWN   | 0      |
-| MACHINE_AM33      | 467    |
-| MACHINE_AMD64     | 34404  |
-| MACHINE_ARM       | 448    |
-| MACHINE_ARMNT     | 452    |
-| MACHINE_ARM64     | 43620  |
-| MACHINE_EBC       | 3772   |
-| MACHINE_I386      | 332    |
-| MACHINE_IA64      | 512    |
-| MACHINE_M32R      | 36929  |
-| MACHINE_MIPS16    | 614    |
-| MACHINE_MIPSFPU   | 870    |
-| MACHINE_MIPSFPU16 | 1126   |
-| MACHINE_POWERPC   | 496    |
-| MACHINE_POWERPCFP | 497    |
-| MACHINE_R4000     | 358    |
-| MACHINE_SH3       | 418    |
-| MACHINE_SH3DSP    | 419    |
-| MACHINE_SH4       | 422    |
-| MACHINE_SH5       | 424    |
-| MACHINE_THUMB     | 450    |
-| MACHINE_WCEMIPSV2 | 361    |
+| Name                | Number |
+|---------------------|--------|
+| MACHINE_UNKNOWN     | 0      |
+| MACHINE_ALPHA       | 388    |
+| MACHINE_ALPHA64     | 644    |
+| MACHINE_AM33        | 467    |
+| MACHINE_AMD64       | 34404  |
+| MACHINE_ARM         | 448    |
+| MACHINE_ARM64       | 43620  |
+| MACHINE_ARM64EC     | 42561  |
+| MACHINE_ARM64X      | 42574  |
+| MACHINE_ARMNT       | 452    |
+| MACHINE_AXP64       | 644    |
+| MACHINE_EBC         | 3772   |
+| MACHINE_I386        | 332    |
+| MACHINE_IA64        | 512    |
+| MACHINE_LOONGARCH32 | 25138  |
+| MACHINE_LOONGARCH64 | 25188  |
+| MACHINE_M32R        | 36929  |
+| MACHINE_MIPS16      | 614    |
+| MACHINE_MIPSFPU     | 870    |
+| MACHINE_MIPSFPU16   | 1126   |
+| MACHINE_POWERPC     | 496    |
+| MACHINE_POWERPCFP   | 497    |
+| MACHINE_R3000BE     | 352    |
+| MACHINE_R3000       | 354    |
+| MACHINE_R4000       | 358    |
+| MACHINE_R10000      | 360    |
+| MACHINE_RISCV32     | 20530  |
+| MACHINE_RISCV64     | 20580  |
+| MACHINE_RISCV128    | 20776  |
+| MACHINE_SH3         | 418    |
+| MACHINE_SH3DSP      | 419    |
+| MACHINE_SH4         | 422    |
+| MACHINE_SH5         | 424    |
+| MACHINE_THUMB       | 450    |
+| MACHINE_WCEMIPSV2   | 361    |
 
 #### Example
 

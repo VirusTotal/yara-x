@@ -371,10 +371,10 @@ fn generate_proto_code() {
             };
 
             let path = fs::canonicalize(&path)
-                .with_context(|| format!("`{:?}`", &path))
+                .with_context(|| format!("`{:?}`", path))
                 .expect("can not read file");
 
-            println!("cargo:warning=using extra proto: {:?}", &path);
+            println!("cargo:warning=using extra proto: {:?}", path);
 
             let base_path = path.with_file_name("");
 

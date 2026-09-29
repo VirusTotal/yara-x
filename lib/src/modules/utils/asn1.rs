@@ -674,7 +674,9 @@ fn string_from_utf16be(v: &[u8]) -> Option<String> {
     }
 
     let codepoints = v
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|chunk| u16::from_be_bytes([chunk[0], chunk[1]]));
 
     let x: String =

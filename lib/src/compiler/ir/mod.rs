@@ -29,7 +29,8 @@ allows using the same regex engine for matching both types of patterns.
 [Hir]: regex_syntax::hir::Hir
 */
 
-use std::collections::Bound;
+use std::collections::btree_map::Entry;
+use std::collections::{BTreeMap, Bound};
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem;
@@ -39,7 +40,7 @@ use std::ops::{Add, Index};
 use std::rc::Rc;
 
 use bitflags::bitflags;
-use bstr::BString;
+use bstr::{BString, ByteSlice};
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 
@@ -51,7 +52,7 @@ use crate::compiler::ir::dfs::{
     DFSIter, DFSWithScopeIter, Event, EventContext, dfs_common,
 };
 
-use crate::compiler::{FilesizeBounds, RegexSetId};
+use crate::compiler::{FilesizeBounds, HeaderConstraint, RegexSetId, RuleId};
 use crate::re;
 use crate::symbols::Symbol;
 use crate::types::Value::Const;
@@ -70,19 +71,21 @@ mod tests;
 bitflags! {
     /// Flags associated to rule patterns.
     ///
-    /// Each of these flags correspond to one of the allowed YARA pattern
-    /// modifiers, and generally they are set if the corresponding modifier
-    /// appears alongside the pattern in the source code. The only exception is
-    /// the `Ascii` flag, which will be set when `Wide` is not set regardless
-    /// of what the source code says. This follows the semantics of YARA
-    /// pattern modifiers, in which a pattern is considered `ascii` by default
-    /// when neither `ascii` nor `wide` modifiers are used.
+    /// These flags roughly correspond to the allowed YARA pattern modifiers,
+    /// and they are set according to the combination of modifiers that appears
+    /// alongside the pattern in the source code. For text and regexp patterns,
+    /// the `WideOnly` flag will be set when `wide` is used without `ascii`, and
+    /// `WideAndAscii` will be set when both `wide` and `ascii` are used. When
+    /// neither modifier is used (default ASCII mode) or for hex patterns,
+    /// neither of these two flags is set.
     ///
-    /// In resume either the `Ascii` or the `Wide` flags (or both) will be set.
+    /// There are also additional flags that are not related to pattern
+    /// modifiers (like: `NonAnchorable`), but convey information about the
+    /// pattern itself.
     #[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize, PartialEq, Eq)]
     pub struct PatternFlags: u16 {
-        const Ascii                = 0x0001;
-        const Wide                 = 0x0002;
+        const WideOnly             = 0x0001;
+        const WideAndAscii         = 0x0002;
         const Nocase               = 0x0004;
         const Base64               = 0x0008;
         const Base64Wide           = 0x0010;
@@ -102,12 +105,13 @@ bitflags! {
 /// within the confines of a specific rule. If two distinct rules declare
 /// precisely the same pattern, including any modifiers, they will reference
 /// the same [`Pattern`] instance.
+use std::num::NonZeroU32;
+
 pub(crate) struct PatternInRule<'src> {
     identifier: Ident<'src>,
     pattern: Pattern,
     span: Span,
     in_use: bool,
-    fast_scan_allowed: bool,
 }
 
 impl<'src> PatternInRule<'src> {
@@ -185,24 +189,36 @@ impl<'src> PatternInRule<'src> {
         self
     }
 
-    /// Returns true if this pattern can be fast-scanned.
-    ///
-    /// A pattern can be fast-scanned if its occurrences are only evaluated
-    /// as simple boolean checks (e.g. `$a`), meaning the scanner can stop
-    /// tracking matches for it once the first match has been found.
+    /// Returns the maximum number of matches required for this pattern in
+    /// fast-scan mode, or `None` if all matches must be tracked.
     #[inline]
-    pub fn fast_scan_allowed(&self) -> bool {
-        self.fast_scan_allowed
+    pub fn max_matches_in_fast_scan(&self) -> Option<NonZeroU32> {
+        self.pattern.max_matches_in_fast_scan()
+    }
+
+    /// Updates the maximum number of matches required for this pattern in
+    /// fast-scan mode.
+    ///
+    /// If both the current limit and `limit` are `Some`, the higher of the
+    /// two limits is kept. If either is `None`, fast-scanning is disallowed
+    /// (`None`).
+    #[inline]
+    pub fn update_max_matches_in_fast_scan(
+        &mut self,
+        limit: Option<NonZeroU32>,
+    ) -> &mut Self {
+        self.pattern.update_max_matches_in_fast_scan(limit);
+        self
     }
 
     /// Disallows fast-scanning for this pattern.
     ///
     /// This is called when the pattern is used in a context that requires
-    /// tracking all matches (such as count `#a`, offset `@a`, length `!a`,
-    /// anchored checks, or loop equivalents).
+    /// tracking all matches (such as offset `@a`, length `!a`, range-bounded
+    /// count `#a in (..)`, anchored checks, or non-constant count comparisons).
     #[inline]
     pub fn disallow_fast_scan(&mut self) -> &mut Self {
-        self.fast_scan_allowed = false;
+        self.pattern.disallow_fast_scan();
         self
     }
 }
@@ -222,6 +238,11 @@ pub(crate) enum Pattern {
 }
 
 impl Pattern {
+    #[inline]
+    pub fn is_regex(&self) -> bool {
+        matches!(self, Pattern::Regexp(_) | Pattern::Hex(_))
+    }
+
     #[inline]
     pub fn flags(&self) -> &PatternFlags {
         match self {
@@ -310,6 +331,72 @@ impl Pattern {
             }
         }
     }
+
+    #[inline]
+    pub fn filesize_bounds(&self) -> &FilesizeBounds {
+        match self {
+            Pattern::Text(literal) => &literal.filesize_bounds,
+            Pattern::Regexp(regexp) => &regexp.filesize_bounds,
+            Pattern::Hex(regexp) => &regexp.filesize_bounds,
+        }
+    }
+
+    pub fn set_header_constraints(&mut self, constraints: &HeaderConstraint) {
+        match self {
+            Pattern::Text(literal) => {
+                literal.header_constraints = constraints.clone();
+            }
+            Pattern::Regexp(regexp) | Pattern::Hex(regexp) => {
+                regexp.header_constraints = constraints.clone();
+            }
+        }
+    }
+
+    #[inline]
+    pub fn header_constraints(&self) -> &HeaderConstraint {
+        match self {
+            Pattern::Text(literal) => &literal.header_constraints,
+            Pattern::Regexp(regexp) => &regexp.header_constraints,
+            Pattern::Hex(regexp) => &regexp.header_constraints,
+        }
+    }
+
+    #[inline]
+    pub fn max_matches_in_fast_scan(&self) -> Option<NonZeroU32> {
+        match self {
+            Pattern::Text(literal) => literal.max_matches_in_fast_scan,
+            Pattern::Regexp(regexp) | Pattern::Hex(regexp) => {
+                regexp.max_matches_in_fast_scan
+            }
+        }
+    }
+
+    #[inline]
+    pub fn update_max_matches_in_fast_scan(
+        &mut self,
+        limit: Option<NonZeroU32>,
+    ) {
+        let current = match self {
+            Pattern::Text(literal) => &mut literal.max_matches_in_fast_scan,
+            Pattern::Regexp(regexp) | Pattern::Hex(regexp) => {
+                &mut regexp.max_matches_in_fast_scan
+            }
+        };
+        *current = match (*current, limit) {
+            (Some(curr), Some(new)) => Some(curr.max(new)),
+            _ => None,
+        };
+    }
+
+    #[inline]
+    pub fn disallow_fast_scan(&mut self) {
+        match self {
+            Pattern::Text(literal) => literal.max_matches_in_fast_scan = None,
+            Pattern::Regexp(regexp) | Pattern::Hex(regexp) => {
+                regexp.max_matches_in_fast_scan = None
+            }
+        }
+    }
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -321,6 +408,8 @@ pub(crate) struct LiteralPattern {
     pub base64_alphabet: Option<String>,
     pub base64wide_alphabet: Option<String>,
     pub filesize_bounds: FilesizeBounds,
+    pub header_constraints: HeaderConstraint,
+    pub max_matches_in_fast_scan: Option<NonZeroU32>,
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -329,6 +418,8 @@ pub(crate) struct RegexpPattern {
     pub hir: re::hir::Hir,
     pub anchored_at: Option<usize>,
     pub filesize_bounds: FilesizeBounds,
+    pub header_constraints: HeaderConstraint,
+    pub max_matches_in_fast_scan: Option<NonZeroU32>,
 }
 
 /// The index of a pattern in the rule that declares it.
@@ -465,6 +556,117 @@ impl IR {
     #[inline]
     pub fn set_parent(&mut self, expr_id: ExprId, parent_id: ExprId) {
         self.parents[expr_id.0 as usize] = parent_id;
+    }
+
+    /// Given an expression that counts the occurrences of a pattern (`#a` or
+    /// `#` inside a `for .. of` loop), determines how many matches the scanner
+    /// actually needs to find in fast-scan mode.
+    ///
+    /// When `#a` is compared against a constant, we don't need to keep finding
+    /// matches forever, once a certain number of matches is reached, finding
+    /// additional matches won't change the outcome of the comparison:
+    ///
+    /// - For `#a < 1000` (or `#a >= 1000`), we can stop after 1000 matches.
+    ///   Once 1000 matches are found, `#a < 1000` is already `false` (and
+    ///   `#a >= 1000` is already `true`), and finding more matches won't
+    ///   change that.
+    ///
+    /// - For `#a > 1000` (or `#a <= 1000`), we must find up to 1001 matches.
+    ///   If we stopped at 1000, `#a` would remain at 1000 and `1000 > 1000`
+    ///   would evaluate to `false` even when the file has more than 1000
+    ///   matches. Finding one extra match (1001) is enough to make `#a > 1000`
+    ///   evaluate to `true`.
+    ///
+    /// - For `#a == 1000` (or `#a != 1000`), we also need 1001 matches so
+    ///   we can tell the difference between "exactly 1000 matches" and "more
+    ///   than 1000 matches".
+    ///
+    /// - When `#a` is used directly as a boolean (e.g., `condition: #a` or
+    ///   `#a and $b`), we only need **1** match to know that `#a` is non-zero.
+    ///
+    /// - If `#a` is used in any other way (such as `#a == #b` or `#a + 1 > 10`),
+    ///   this function returns `None`, indicating that the scanner cannot stop
+    ///   early and must track all matches.
+    pub(crate) fn required_matches_for_count(
+        &self,
+        count_expr_id: ExprId,
+    ) -> Option<NonZeroU32> {
+        let Some(parent_id) = self.get_parent(count_expr_id) else {
+            // Root condition is `#a` (evaluated as boolean `#a != 0`).
+            return NonZeroU32::new(1);
+        };
+
+        let limit_i64 = match self.get(parent_id) {
+            // Boolean contexts where `#a` is evaluated as `#a != 0`.
+            Expr::And { .. } | Expr::Or { .. } | Expr::Not { .. } => Some(1),
+            Expr::ForOf(for_of) if for_of.body == count_expr_id => Some(1),
+            Expr::ForIn(for_in) if for_in.body == count_expr_id => Some(1),
+            Expr::With(with) if with.body == count_expr_id => Some(1),
+            Expr::OfExprTuple(of) if of.items.contains(&count_expr_id) => {
+                Some(1)
+            }
+
+            // #a == K, K == #a, #a != K, K != #a -> K + 1 (to distinguish
+            // count == K from count > K).
+            Expr::Eq { lhs, rhs } | Expr::Ne { lhs, rhs } => {
+                let other = if *lhs == count_expr_id { *rhs } else { *lhs };
+                self.get(other)
+                    .try_as_const_integer()
+                    .map(|k| k.saturating_add(1))
+            }
+
+            // #a > K -> K + 1; K > #a (i.e. #a < K) -> K.
+            Expr::Gt { lhs, rhs } => {
+                if *lhs == count_expr_id {
+                    self.get(*rhs)
+                        .try_as_const_integer()
+                        .map(|k| k.saturating_add(1))
+                } else {
+                    self.get(*lhs).try_as_const_integer()
+                }
+            }
+
+            // #a >= K -> K; K >= #a (i.e. #a <= K) -> K + 1.
+            Expr::Ge { lhs, rhs } => {
+                if *lhs == count_expr_id {
+                    self.get(*rhs).try_as_const_integer()
+                } else {
+                    self.get(*lhs)
+                        .try_as_const_integer()
+                        .map(|k| k.saturating_add(1))
+                }
+            }
+
+            // #a < K -> K; K < #a (i.e. #a > K) -> K + 1.
+            Expr::Lt { lhs, rhs } => {
+                if *lhs == count_expr_id {
+                    self.get(*rhs).try_as_const_integer()
+                } else {
+                    self.get(*lhs)
+                        .try_as_const_integer()
+                        .map(|k| k.saturating_add(1))
+                }
+            }
+
+            // #a <= K -> K + 1; K <= #a (i.e. #a >= K) -> K.
+            Expr::Le { lhs, rhs } => {
+                if *lhs == count_expr_id {
+                    self.get(*rhs)
+                        .try_as_const_integer()
+                        .map(|k| k.saturating_add(1))
+                } else {
+                    self.get(*lhs).try_as_const_integer()
+                }
+            }
+
+            // Any other parent expression (arithmetic, non-constant comparison,
+            // function argument, etc.) requires tracking all matches.
+            _ => None,
+        }?;
+
+        // Clamp constants <= 0 (e.g. `#a >= 0` or `#a > -5`) to a minimum limit
+        // of 1, and return `None` if the limit exceeds `u32::MAX`.
+        u32::try_from(limit_i64.max(1)).ok().and_then(NonZeroU32::new)
     }
 
     /// Pushes an [`Expr`] into the IR tree.
@@ -909,6 +1111,54 @@ impl IR {
         self.root.unwrap()
     }
 
+    fn lower_bound_from_const(
+        c: &TypeValue,
+        inclusive: bool,
+    ) -> Option<Bound<i64>> {
+        match c {
+            TypeValue::Integer { value: Const(v), .. } => {
+                if inclusive {
+                    Some(Bound::Included(*v))
+                } else {
+                    Some(Bound::Excluded(*v))
+                }
+            }
+            TypeValue::Float { value: Const(v), .. } if v.is_finite() => {
+                let floor = v.floor();
+                if inclusive && floor == *v {
+                    Some(Bound::Included(floor as i64))
+                } else {
+                    Some(Bound::Excluded(floor as i64))
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn upper_bound_from_const(
+        c: &TypeValue,
+        inclusive: bool,
+    ) -> Option<Bound<i64>> {
+        match c {
+            TypeValue::Integer { value: Const(v), .. } => {
+                if inclusive {
+                    Some(Bound::Included(*v))
+                } else {
+                    Some(Bound::Excluded(*v))
+                }
+            }
+            TypeValue::Float { value: Const(v), .. } if v.is_finite() => {
+                let ceil = v.ceil();
+                if inclusive && ceil == *v {
+                    Some(Bound::Included(ceil as i64))
+                } else {
+                    Some(Bound::Excluded(ceil as i64))
+                }
+            }
+            _ => None,
+        }
+    }
+
     /// Determines the constraints on `filesize` imposed by a rule condition.
     ///
     /// This function analyzes the rule’s condition to determine whether it
@@ -921,7 +1171,10 @@ impl IR {
     /// In contrast, the condition `filesize < 10MB or $a` does not impose a
     /// filesize constraint, since the use of `or` allows files larger than
     /// 10MB to also match.
-    pub fn filesize_bounds(&self) -> FilesizeBounds {
+    pub fn filesize_bounds<'a>(
+        &self,
+        rule_lookup: impl Fn(RuleId) -> Option<&'a FilesizeBounds>,
+    ) -> FilesizeBounds {
         let mut result = FilesizeBounds::default();
         let mut dfs = self.dfs_iter(self.root.unwrap());
 
@@ -931,15 +1184,30 @@ impl IR {
                 _ => continue,
             };
             match expr {
+                Expr::Symbol(symbol) => {
+                    if let Symbol::Rule { rule_id, .. } = symbol.as_ref()
+                        && let Some(rule_bounds) = rule_lookup(*rule_id)
+                    {
+                        result.merge(rule_bounds);
+                    }
+                }
                 Expr::Gt { lhs, rhs } => {
                     match (self.get(*lhs), self.get(*rhs)) {
                         // constant > filesize
                         (Expr::Const(c), Expr::Filesize) => {
-                            result.min_end(Bound::Excluded(c.as_integer()));
+                            if let Some(bound) =
+                                Self::upper_bound_from_const(c, false)
+                            {
+                                result.min_end(bound);
+                            }
                         }
                         // filesize > constant
                         (Expr::Filesize, Expr::Const(c)) => {
-                            result.max_start(Bound::Excluded(c.as_integer()));
+                            if let Some(bound) =
+                                Self::lower_bound_from_const(c, false)
+                            {
+                                result.max_start(bound);
+                            }
                         }
                         _ => {}
                     }
@@ -948,11 +1216,19 @@ impl IR {
                     match (self.get(*lhs), self.get(*rhs)) {
                         // constant >= filesize
                         (Expr::Const(c), Expr::Filesize) => {
-                            result.min_end(Bound::Included(c.as_integer()));
+                            if let Some(bound) =
+                                Self::upper_bound_from_const(c, true)
+                            {
+                                result.min_end(bound);
+                            }
                         }
                         // filesize >= constant
                         (Expr::Filesize, Expr::Const(c)) => {
-                            result.max_start(Bound::Included(c.as_integer()));
+                            if let Some(bound) =
+                                Self::lower_bound_from_const(c, true)
+                            {
+                                result.max_start(bound);
+                            }
                         }
                         _ => {}
                     }
@@ -961,24 +1237,40 @@ impl IR {
                     match (self.get(*lhs), self.get(*rhs)) {
                         // constant < filesize
                         (Expr::Const(c), Expr::Filesize) => {
-                            result.max_start(Bound::Excluded(c.as_integer()));
+                            if let Some(bound) =
+                                Self::lower_bound_from_const(c, false)
+                            {
+                                result.max_start(bound);
+                            }
                         }
                         // filesize < constant
                         (Expr::Filesize, Expr::Const(c)) => {
-                            result.min_end(Bound::Excluded(c.as_integer()));
+                            if let Some(bound) =
+                                Self::upper_bound_from_const(c, false)
+                            {
+                                result.min_end(bound);
+                            }
                         }
                         _ => {}
                     }
                 }
                 Expr::Le { lhs, rhs } => {
                     match (self.get(*lhs), self.get(*rhs)) {
-                        // constant < filesize
+                        // constant <= filesize
                         (Expr::Const(c), Expr::Filesize) => {
-                            result.max_start(Bound::Included(c.as_integer()));
+                            if let Some(bound) =
+                                Self::lower_bound_from_const(c, true)
+                            {
+                                result.max_start(bound);
+                            }
                         }
-                        // filesize < constant
+                        // filesize <= constant
                         (Expr::Filesize, Expr::Const(c)) => {
-                            result.min_end(Bound::Included(c.as_integer()));
+                            if let Some(bound) =
+                                Self::upper_bound_from_const(c, true)
+                            {
+                                result.min_end(bound);
+                            }
                         }
                         _ => {}
                     }
@@ -991,6 +1283,437 @@ impl IR {
         }
 
         result
+    }
+
+    /// Determines the constraints on the file header imposed by a rule condition.
+    ///
+    /// This function analyzes the rule's condition to determine whether it
+    /// restricts matching to files that start with a specific sequence of bytes.
+    ///
+    /// For example, the condition `uint32(0) == 0x464c457f and $a` requires that
+    /// the first 4 bytes of the file are `0x7f, 0x45, 0x4c, 0x46` (little-endian).
+    /// Similarly, `$a at 0` imposes a header constraint if `$a` has a known
+    /// constant prefix.
+    ///
+    /// In contrast, the condition `uint32(0) == 0x464c457f or $a` does not impose
+    /// a header constraint, since the use of `or` allows files with a different
+    /// header to also match.
+    pub fn header_constraints<'a>(
+        &self,
+        pattern_lookup: impl Fn(PatternIdx) -> &'a Pattern,
+        rule_lookup: impl Fn(RuleId) -> Option<&'a HeaderConstraint>,
+    ) -> HeaderConstraint {
+        let mut constrained_bytes = BTreeMap::new();
+        let mut unsatisfiable = false;
+        let mut dfs = self.dfs_iter(self.root.unwrap());
+
+        while let Some(evt) = dfs.next() {
+            let expr = match evt {
+                Event::Enter((_, expr, _)) => expr,
+                _ => continue,
+            };
+            match expr {
+                Expr::Symbol(symbol) => {
+                    if let Symbol::Rule { rule_id, .. } = symbol.as_ref()
+                        && let Some(rule_constraints) = rule_lookup(*rule_id)
+                    {
+                        match rule_constraints {
+                            HeaderConstraint::Unsatisfiable => {
+                                unsatisfiable = true;
+                            }
+                            HeaderConstraint::Constrained(bytes) => {
+                                for (i, &b) in bytes.iter().enumerate() {
+                                    match constrained_bytes.entry(i) {
+                                        Entry::Occupied(entry) => {
+                                            if *entry.get() != b {
+                                                unsatisfiable = true;
+                                                break;
+                                            }
+                                        }
+                                        Entry::Vacant(entry) => {
+                                            entry.insert(b);
+                                        }
+                                    }
+                                }
+                            }
+                            HeaderConstraint::Unconstrained => {}
+                        }
+                    }
+                }
+                Expr::Eq { lhs, rhs } => {
+                    self.extract_header_constraints_from_eq(
+                        *lhs,
+                        *rhs,
+                        &mut constrained_bytes,
+                        &mut unsatisfiable,
+                    );
+                }
+                Expr::PatternMatch { pattern: pattern_idx, anchor } => {
+                    let pattern = pattern_lookup(*pattern_idx);
+                    // A pattern that has any of these flags it's not eligible
+                    // as a constraint. Modifiers like `xor`, `nocase`, `wide`,
+                    // `base64` and `base64wide` make the bytes that actually
+                    // appear in the data differ from the literal text (they
+                    // are XORed, case-folded, interleaved with zeroes or
+                    // base64-encoded), so no header constraint can be derived
+                    // from them.
+                    let excluded_flags = PatternFlags::Xor
+                        | PatternFlags::Nocase
+                        | PatternFlags::WideOnly
+                        | PatternFlags::WideAndAscii
+                        | PatternFlags::Base64
+                        | PatternFlags::Base64Wide;
+
+                    if pattern.flags().intersects(excluded_flags) {
+                        continue;
+                    }
+
+                    // Make sure that if we add a new flag in the future, we
+                    // take it into account here. The new flag either makes
+                    // the pattern ineligible as a header constraint (and must
+                    // be added to `excluded_flags`, or it must be added to
+                    // the list below.
+                    debug_assert_eq!(
+                        excluded_flags.complement(),
+                        PatternFlags::Fullword
+                            | PatternFlags::Private
+                            | PatternFlags::NonAnchorable
+                    );
+
+                    if let MatchAnchor::At(offset_expr) = anchor
+                        && let Some(0) =
+                            self.get(*offset_expr).try_as_const_integer()
+                        && let Some(pattern_bytes) = match pattern {
+                            Pattern::Text(literal) => {
+                                Some(literal.text.as_bytes())
+                            }
+                            Pattern::Regexp(re) | Pattern::Hex(re) => {
+                                re.hir.as_literal_bytes()
+                            }
+                        }
+                    {
+                        for (i, &b) in pattern_bytes.iter().enumerate() {
+                            match constrained_bytes.entry(i) {
+                                Entry::Occupied(entry) => {
+                                    if *entry.get() != b {
+                                        unsatisfiable = true;
+                                        break;
+                                    }
+                                }
+                                Entry::Vacant(entry) => {
+                                    entry.insert(b);
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+            if unsatisfiable {
+                break;
+            }
+            if !matches!(expr, Expr::And { .. }) {
+                dfs.prune();
+            }
+        }
+
+        if unsatisfiable {
+            return HeaderConstraint::Unsatisfiable;
+        }
+
+        // If the first byte in `constrained_bytes` is at offset 0, we can
+        // return HeaderConstraint::Constrained.
+        if let Some((0, _)) = constrained_bytes.first_key_value() {
+            HeaderConstraint::Constrained(
+                // Take only the bytes at consecutive offsets starting at 0.
+                constrained_bytes
+                    .into_iter()
+                    .enumerate()
+                    .map_while(
+                        |(i, (offset, byte))| {
+                            if i == offset { Some(byte) } else { None }
+                        },
+                    )
+                    .collect(),
+            )
+        } else {
+            HeaderConstraint::Unconstrained
+        }
+    }
+
+    /// Traverses the condition IR starting at the root and invokes
+    /// `f(pattern, K)` for any pattern that is unconditionally required to
+    /// match at constant offset `K` for the rule condition to evaluate to
+    /// `true`.
+    ///
+    /// For example, in `all of them and $a at 0`, `$a at 0` is a top-level
+    /// conjunct, so the rule cannot match unless `$a` matches at offset 0. Even
+    /// though `all of them` also references `$a` without an anchor, knowing
+    /// that `$a` is required at offset 0 allows keeping `$a` anchored at 0.
+    /// Conversely, in `$a at 0 or $a`, the root is an `or` expression:
+    /// `$a at 0` is not a top-level requirement, so `$a` cannot be anchored.
+    pub fn find_top_level_anchors(
+        &self,
+        mut f: impl FnMut(PatternIdx, usize),
+    ) {
+        // Returns true if the quantifier requires every item in `of` to match
+        // (e.g., `all of ...`, `100% of ...`, `N of ...` where N >= num_items,
+        // or `any of ($a)` when there is only 1 item).
+        let quantifier_requires_all =
+            |quantifier: &Quantifier, num_items: usize| match quantifier {
+                Quantifier::All => true,
+                Quantifier::Any => num_items == 1,
+                Quantifier::Percentage(expr) => self
+                    .get(*expr)
+                    .try_as_const_integer()
+                    .is_some_and(|p| p >= 100),
+                Quantifier::Expr(expr) => self
+                    .get(*expr)
+                    .try_as_const_integer()
+                    .is_some_and(|n| n >= num_items as i64),
+                Quantifier::None => false,
+            };
+
+        let mut dfs = self.dfs_iter(self.root.unwrap());
+
+        while let Some(evt) = dfs.next() {
+            let (expr, ctx) = match evt {
+                Event::Enter((_, expr, ctx)) => (expr, ctx),
+                _ => continue,
+            };
+
+            match (expr, ctx) {
+                // For `with <decls> : ( <body> )`, `dfs_iter` visits both the
+                // variable declarations (`EventContext::WithDeclaration`) and
+                // the body (`EventContext::Body`). Only the body determines
+                // whether the `with` expression is true, so prune the
+                // declaration initializers.
+                (_, EventContext::WithDeclaration) => {
+                    dfs.prune();
+                }
+                // `and` and `with` expressions must hold for their
+                // operands/body to hold, so let the DFS descend into their
+                // children.
+                (Expr::And { .. } | Expr::With(_), _) => {}
+                // An `of (<expr>, ...)` tuple whose quantifier requires all
+                // items to be true (such as `all of ($a at 0, $b)`) is
+                // equivalent to an `and` over its items, so let the DFS
+                // descend into its children.
+                (Expr::OfExprTuple(of), _)
+                    if matches!(of.anchor, MatchAnchor::None)
+                        && quantifier_requires_all(
+                            &of.quantifier,
+                            of.items.len(),
+                        ) => {}
+                // `$a at <const>`: `$a` is unconditionally required at
+                // `<const>`.
+                (
+                    Expr::PatternMatch {
+                        pattern,
+                        anchor: MatchAnchor::At(offset_expr),
+                    },
+                    _,
+                ) => {
+                    if let Some(offset) =
+                        self.get(*offset_expr).try_as_const_integer()
+                    {
+                        f(*pattern, offset as usize);
+                    }
+                    dfs.prune();
+                }
+                // `<quantifier> of (<pattern set>) at <const>` where the
+                // quantifier requires every pattern in the set to match at
+                // `<const>` (e.g., `all of ($a*) at 0` or `any of ($a) at 0`).
+                (Expr::OfPatternSet(of), _) => {
+                    if let MatchAnchor::At(offset_expr) = of.anchor
+                        && quantifier_requires_all(
+                            &of.quantifier,
+                            of.items.len(),
+                        )
+                        && let Some(offset) =
+                            self.get(offset_expr).try_as_const_integer()
+                    {
+                        for pattern in &of.items {
+                            f(*pattern, offset as usize);
+                        }
+                    }
+                    dfs.prune();
+                }
+                // Any other expression (`or`, `not`, loops, comparisons, etc.)
+                // does not unconditionally require its sub-expressions to match
+                // at a fixed offset, so prune its children.
+                _ => {
+                    dfs.prune();
+                }
+            }
+        }
+    }
+
+    fn extract_header_constraints_from_eq(
+        &self,
+        lhs: ExprId,
+        rhs: ExprId,
+        constrained_bytes: &mut BTreeMap<usize, u8>,
+        unsatisfiable: &mut bool,
+    ) {
+        if let Some(val) = self.get(rhs).try_as_const_integer()
+            && self.apply_int_read_constraint(
+                constrained_bytes,
+                unsatisfiable,
+                lhs,
+                val,
+            )
+        {
+            return;
+        }
+        if let Some(val) = self.get(lhs).try_as_const_integer() {
+            self.apply_int_read_constraint(
+                constrained_bytes,
+                unsatisfiable,
+                rhs,
+                val,
+            );
+        }
+    }
+
+    fn add_constraint(
+        &self,
+        constrained_bytes: &mut BTreeMap<usize, u8>,
+        unsatisfiable: &mut bool,
+        offset: usize,
+        value: u8,
+    ) {
+        if *unsatisfiable {
+            return;
+        }
+        match constrained_bytes.entry(offset) {
+            Entry::Occupied(entry) => {
+                if *entry.get() != value {
+                    *unsatisfiable = true;
+                }
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(value);
+            }
+        }
+    }
+
+    fn apply_int_read_constraint(
+        &self,
+        constrained_bytes: &mut BTreeMap<usize, u8>,
+        unsatisfiable: &mut bool,
+        expr_id: ExprId,
+        val: i64,
+    ) -> bool {
+        let func_call = match self.get(expr_id) {
+            Expr::FuncCall(func_call) => func_call,
+            _ => return false,
+        };
+
+        if let Some(offset) = func_call
+            .args
+            .first()
+            .and_then(|arg| self.get(*arg).try_as_const_integer())
+            && offset >= 0
+        {
+            match func_call.plain_name() {
+                "uint8" | "int8" | "uint8be" | "int8be" => {
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize,
+                        val as u8,
+                    );
+                    return true;
+                }
+                "uint16" | "int16" => {
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize,
+                        (val as u16 & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 1,
+                        ((val as u16 >> 8) & 0xff) as u8,
+                    );
+                    return true;
+                }
+                "uint16be" | "int16be" => {
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize,
+                        ((val as u16 >> 8) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 1,
+                        (val as u16 & 0xff) as u8,
+                    );
+                    return true;
+                }
+                "uint32" | "int32" => {
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize,
+                        (val as u32 & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 1,
+                        ((val as u32 >> 8) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 2,
+                        ((val as u32 >> 16) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 3,
+                        ((val as u32 >> 24) & 0xff) as u8,
+                    );
+                    return true;
+                }
+                "uint32be" | "int32be" => {
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize,
+                        ((val as u32 >> 24) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 1,
+                        ((val as u32 >> 16) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 2,
+                        ((val as u32 >> 8) & 0xff) as u8,
+                    );
+                    self.add_constraint(
+                        constrained_bytes,
+                        unsatisfiable,
+                        offset as usize + 3,
+                        (val as u32 & 0xff) as u8,
+                    );
+                    return true;
+                }
+                _ => {}
+            }
+        }
+        false
     }
 }
 
@@ -2366,6 +3089,12 @@ impl FuncCall {
     /// Returns the mangled function name for this function call.
     pub fn mangled_name(&self) -> &str {
         self.signature().mangled_name.as_str()
+    }
+
+    /// Returns the plain function name, without argument or return type
+    /// information (i.e: everything before the `@` in the name).
+    pub fn plain_name(&self) -> &str {
+        self.signature().mangled_name.plain_name()
     }
 }
 

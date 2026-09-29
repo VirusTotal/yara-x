@@ -1,6 +1,6 @@
  rule test
  ├─ strings
- │  └─ $a
+ │  └─ $a private
  │     └─ hex
  │        ├─ 0x00 mask: 0xFF
  │        ├─ 0x11 mask: 0xFF

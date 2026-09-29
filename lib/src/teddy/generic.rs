@@ -1,34 +1,10 @@
-#![allow(dead_code)]
 #![allow(unused_variables)]
 use super::vector::{FatVector, Vector};
 use std::collections::BTreeMap;
 use std::fmt::Debug;
+use std::ops::ControlFlow;
 use std::sync::Arc;
 
-pub(crate) trait Pointer {
-    unsafe fn distance(self, origin: Self) -> usize;
-    fn as_usize(self) -> usize;
-}
-impl<T> Pointer for *const T {
-    #[inline(always)]
-    unsafe fn distance(self, origin: *const T) -> usize {
-        (self as usize).saturating_sub(origin as usize)
-    }
-    #[inline(always)]
-    fn as_usize(self) -> usize {
-        self as usize
-    }
-}
-impl<T> Pointer for *mut T {
-    #[inline(always)]
-    unsafe fn distance(self, origin: *mut T) -> usize {
-        unsafe { (self as *const T).distance(origin as *const T) }
-    }
-    #[inline(always)]
-    fn as_usize(self) -> usize {
-        self as usize
-    }
-}
 pub type PatternID = u32;
 
 #[derive(Clone, Debug)]
@@ -181,13 +157,6 @@ impl<V: Vector, const BYTES: usize> Slim<V, BYTES> {
         }
     }
 
-    /// Returns the approximate total amount of heap used by this type, in
-    /// units of bytes.
-    #[inline(always)]
-    pub(crate) fn memory_usage(&self) -> usize {
-        self.teddy.memory_usage()
-    }
-
     /// Returns the minimum length, in bytes, that a haystack must be in order
     /// to use it with this searcher.
     #[inline(always)]
@@ -197,73 +166,6 @@ impl<V: Vector, const BYTES: usize> Slim<V, BYTES> {
 }
 
 impl<V: Vector> Slim<V, 1> {
-    /// Look for an occurrences of the patterns in this finder in the haystack
-    /// given by the `start` and `end` pointers.
-    ///
-    /// If no match could be found, then `None` is returned.
-    ///
-    /// # Safety
-    ///
-    /// The given pointers representing the haystack must be valid to read
-    /// from. They must also point to a region of memory that is at least the
-    /// minimum length required by this searcher.
-    ///
-    /// Callers must ensure that this is okay to call in the current target for
-    /// the current CPU.
-    #[inline(always)]
-    pub(crate) unsafe fn find(
-        &self,
-        start: *const u8,
-        end: *const u8,
-    ) -> Option<Match> {
-        unsafe {
-            let len = end.distance(start);
-            debug_assert!(len >= self.minimum_len());
-            let mut cur = start;
-            while cur <= end.sub(V::BYTES) {
-                if let Some(m) = self.find_one(cur, end) {
-                    return Some(m);
-                }
-                cur = cur.add(V::BYTES);
-            }
-            if cur < end {
-                cur = end.sub(V::BYTES);
-                if let Some(m) = self.find_one(cur, end) {
-                    return Some(m);
-                }
-            }
-            None
-        }
-    }
-
-    /// Look for a match starting at the `V::BYTES` at and after `cur`. If
-    /// there isn't one, then `None` is returned.
-    ///
-    /// # Safety
-    ///
-    /// The given pointers representing the haystack must be valid to read
-    /// from. They must also point to a region of memory that is at least the
-    /// minimum length required by this searcher.
-    ///
-    /// Callers must ensure that this is okay to call in the current target for
-    /// the current CPU.
-    #[inline(always)]
-    unsafe fn find_one(
-        &self,
-        cur: *const u8,
-        end: *const u8,
-    ) -> Option<Match> {
-        unsafe {
-            let c = self.candidate(cur);
-            if !c.is_zero()
-                && let Some(m) = self.teddy.verify(cur, end, c)
-            {
-                return Some(m);
-            }
-            None
-        }
-    }
-
     /// Look for a candidate match (represented as a vector) starting at the
     /// `V::BYTES` at and after `cur`. If there isn't one, then a vector with
     /// all bits set to zero is returned.
@@ -282,57 +184,59 @@ impl<V: Vector> Slim<V, 1> {
             Mask::members1(chunk, self.masks)
         }
     }
-}
 
-impl<V: Vector> Slim<V, 2> {
-    /// See Slim<V, 1>::find.
     #[inline(always)]
-    pub(crate) unsafe fn find(
+    pub(crate) unsafe fn find_overlapping<F>(
         &self,
         start: *const u8,
         end: *const u8,
-    ) -> Option<Match> {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
-            let len = end.distance(start);
-            debug_assert!(len >= self.minimum_len());
-            let mut cur = start.add(1);
-            let mut prev0 = V::splat(0xFF);
+            if (end as usize - start as usize) < self.minimum_len() {
+                return ControlFlow::Continue(());
+            }
+            let mut cur = start;
             while cur <= end.sub(V::BYTES) {
-                if let Some(m) = self.find_one(cur, end, &mut prev0) {
-                    return Some(m);
+                let c = self.candidate(cur);
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur, end, c, &mut callback)
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
                 cur = cur.add(V::BYTES);
             }
             if cur < end {
+                let prev_bound = cur;
                 cur = end.sub(V::BYTES);
-                prev0 = V::splat(0xFF);
-                if let Some(m) = self.find_one(cur, end, &mut prev0) {
-                    return Some(m);
+                let c = self.candidate(cur);
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur, end, c, |m| {
+                            if m.start >= prev_bound {
+                                callback(m)
+                            } else {
+                                ControlFlow::Continue(())
+                            }
+                        })
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
             }
-            None
+            ControlFlow::Continue(())
         }
     }
+}
 
-    /// See Slim<V, 1>::find_one.
-    #[inline(always)]
-    unsafe fn find_one(
-        &self,
-        cur: *const u8,
-        end: *const u8,
-        prev0: &mut V,
-    ) -> Option<Match> {
-        unsafe {
-            let c = self.candidate(cur, prev0);
-            if !c.is_zero()
-                && let Some(m) = self.teddy.verify(cur.sub(1), end, c)
-            {
-                return Some(m);
-            }
-            None
-        }
-    }
-
+impl<V: Vector> Slim<V, 2> {
     /// See Slim<V, 1>::candidate.
     #[inline(always)]
     unsafe fn candidate(&self, cur: *const u8, prev0: &mut V) -> V {
@@ -348,61 +252,6 @@ impl<V: Vector> Slim<V, 2> {
 }
 
 impl<V: Vector> Slim<V, 3> {
-    /// See Slim<V, 1>::find.
-    #[inline(always)]
-    pub(crate) unsafe fn find(
-        &self,
-        start: *const u8,
-        end: *const u8,
-    ) -> Option<Match> {
-        unsafe {
-            let len = end.distance(start);
-            debug_assert!(len >= self.minimum_len());
-            let mut cur = start.add(2);
-            let mut prev0 = V::splat(0xFF);
-            let mut prev1 = V::splat(0xFF);
-            while cur <= end.sub(V::BYTES) {
-                if let Some(m) =
-                    self.find_one(cur, end, &mut prev0, &mut prev1)
-                {
-                    return Some(m);
-                }
-                cur = cur.add(V::BYTES);
-            }
-            if cur < end {
-                cur = end.sub(V::BYTES);
-                prev0 = V::splat(0xFF);
-                prev1 = V::splat(0xFF);
-                if let Some(m) =
-                    self.find_one(cur, end, &mut prev0, &mut prev1)
-                {
-                    return Some(m);
-                }
-            }
-            None
-        }
-    }
-
-    /// See Slim<V, 1>::find_one.
-    #[inline(always)]
-    unsafe fn find_one(
-        &self,
-        cur: *const u8,
-        end: *const u8,
-        prev0: &mut V,
-        prev1: &mut V,
-    ) -> Option<Match> {
-        unsafe {
-            let c = self.candidate(cur, prev0, prev1);
-            if !c.is_zero()
-                && let Some(m) = self.teddy.verify(cur.sub(2), end, c)
-            {
-                return Some(m);
-            }
-            None
-        }
-    }
-
     /// See Slim<V, 1>::candidate.
     #[inline(always)]
     unsafe fn candidate(
@@ -425,64 +274,6 @@ impl<V: Vector> Slim<V, 3> {
 }
 
 impl<V: Vector> Slim<V, 4> {
-    /// See Slim<V, 1>::find.
-    #[inline(always)]
-    pub(crate) unsafe fn find(
-        &self,
-        start: *const u8,
-        end: *const u8,
-    ) -> Option<Match> {
-        unsafe {
-            let len = end.distance(start);
-            debug_assert!(len >= self.minimum_len());
-            let mut cur = start.add(3);
-            let mut prev0 = V::splat(0xFF);
-            let mut prev1 = V::splat(0xFF);
-            let mut prev2 = V::splat(0xFF);
-            while cur <= end.sub(V::BYTES) {
-                if let Some(m) =
-                    self.find_one(cur, end, &mut prev0, &mut prev1, &mut prev2)
-                {
-                    return Some(m);
-                }
-                cur = cur.add(V::BYTES);
-            }
-            if cur < end {
-                cur = end.sub(V::BYTES);
-                prev0 = V::splat(0xFF);
-                prev1 = V::splat(0xFF);
-                prev2 = V::splat(0xFF);
-                if let Some(m) =
-                    self.find_one(cur, end, &mut prev0, &mut prev1, &mut prev2)
-                {
-                    return Some(m);
-                }
-            }
-            None
-        }
-    }
-
-    /// See Slim<V, 1>::find_one.
-    #[inline(always)]
-    unsafe fn find_one(
-        &self,
-        cur: *const u8,
-        end: *const u8,
-        prev0: &mut V,
-        prev1: &mut V,
-        prev2: &mut V,
-    ) -> Option<Match> {
-        unsafe {
-            let c = self.candidate(cur, prev0, prev1, prev2);
-            if !c.is_zero()
-                && let Some(m) = self.teddy.verify(cur.sub(3), end, c)
-            {
-                return Some(m);
-            }
-            None
-        }
-    }
-
     /// See Slim<V, 1>::candidate.
     #[inline(always)]
     unsafe fn candidate(
@@ -544,13 +335,6 @@ impl<V: FatVector, const BYTES: usize> Fat<V, BYTES> {
         }
     }
 
-    /// Returns the approximate total amount of heap used by this type, in
-    /// units of bytes.
-    #[inline(always)]
-    pub(crate) fn memory_usage(&self) -> usize {
-        self.teddy.memory_usage()
-    }
-
     /// Returns the minimum length, in bytes, that a haystack must be in order
     /// to use it with this searcher.
     #[inline(always)]
@@ -560,73 +344,6 @@ impl<V: FatVector, const BYTES: usize> Fat<V, BYTES> {
 }
 
 impl<V: FatVector> Fat<V, 1> {
-    /// Look for an occurrences of the patterns in this finder in the haystack
-    /// given by the `start` and `end` pointers.
-    ///
-    /// If no match could be found, then `None` is returned.
-    ///
-    /// # Safety
-    ///
-    /// The given pointers representing the haystack must be valid to read
-    /// from. They must also point to a region of memory that is at least the
-    /// minimum length required by this searcher.
-    ///
-    /// Callers must ensure that this is okay to call in the current target for
-    /// the current CPU.
-    #[inline(always)]
-    pub(crate) unsafe fn find(
-        &self,
-        start: *const u8,
-        end: *const u8,
-    ) -> Option<Match> {
-        unsafe {
-            let len = end.distance(start);
-            debug_assert!(len >= self.minimum_len());
-            let mut cur = start;
-            while cur <= end.sub(V::Half::BYTES) {
-                if let Some(m) = self.find_one(cur, end) {
-                    return Some(m);
-                }
-                cur = cur.add(V::Half::BYTES);
-            }
-            if cur < end {
-                cur = end.sub(V::Half::BYTES);
-                if let Some(m) = self.find_one(cur, end) {
-                    return Some(m);
-                }
-            }
-            None
-        }
-    }
-
-    /// Look for a match starting at the `V::BYTES` at and after `cur`. If
-    /// there isn't one, then `None` is returned.
-    ///
-    /// # Safety
-    ///
-    /// The given pointers representing the haystack must be valid to read
-    /// from. They must also point to a region of memory that is at least the
-    /// minimum length required by this searcher.
-    ///
-    /// Callers must ensure that this is okay to call in the current target for
-    /// the current CPU.
-    #[inline(always)]
-    unsafe fn find_one(
-        &self,
-        cur: *const u8,
-        end: *const u8,
-    ) -> Option<Match> {
-        unsafe {
-            let c = self.candidate(cur);
-            if !c.is_zero()
-                && let Some(m) = self.teddy.verify(cur, end, c)
-            {
-                return Some(m);
-            }
-            None
-        }
-    }
-
     /// Look for a candidate match (represented as a vector) starting at the
     /// `V::BYTES` at and after `cur`. If there isn't one, then a vector with
     /// all bits set to zero is returned.
@@ -648,54 +365,6 @@ impl<V: FatVector> Fat<V, 1> {
 }
 
 impl<V: FatVector> Fat<V, 2> {
-    /// See `Fat<V, 1>::find`.
-    #[inline(always)]
-    pub(crate) unsafe fn find(
-        &self,
-        start: *const u8,
-        end: *const u8,
-    ) -> Option<Match> {
-        unsafe {
-            let len = end.distance(start);
-            debug_assert!(len >= self.minimum_len());
-            let mut cur = start.add(1);
-            let mut prev0 = V::splat(0xFF);
-            while cur <= end.sub(V::Half::BYTES) {
-                if let Some(m) = self.find_one(cur, end, &mut prev0) {
-                    return Some(m);
-                }
-                cur = cur.add(V::Half::BYTES);
-            }
-            if cur < end {
-                cur = end.sub(V::Half::BYTES);
-                prev0 = V::splat(0xFF);
-                if let Some(m) = self.find_one(cur, end, &mut prev0) {
-                    return Some(m);
-                }
-            }
-            None
-        }
-    }
-
-    /// See `Fat<V, 1>::find_one`.
-    #[inline(always)]
-    unsafe fn find_one(
-        &self,
-        cur: *const u8,
-        end: *const u8,
-        prev0: &mut V,
-    ) -> Option<Match> {
-        unsafe {
-            let c = self.candidate(cur, prev0);
-            if !c.is_zero()
-                && let Some(m) = self.teddy.verify(cur.sub(1), end, c)
-            {
-                return Some(m);
-            }
-            None
-        }
-    }
-
     /// See `Fat<V, 1>::candidate`.
     #[inline(always)]
     unsafe fn candidate(&self, cur: *const u8, prev0: &mut V) -> V {
@@ -711,61 +380,6 @@ impl<V: FatVector> Fat<V, 2> {
 }
 
 impl<V: FatVector> Fat<V, 3> {
-    /// See `Fat<V, 1>::find`.
-    #[inline(always)]
-    pub(crate) unsafe fn find(
-        &self,
-        start: *const u8,
-        end: *const u8,
-    ) -> Option<Match> {
-        unsafe {
-            let len = end.distance(start);
-            debug_assert!(len >= self.minimum_len());
-            let mut cur = start.add(2);
-            let mut prev0 = V::splat(0xFF);
-            let mut prev1 = V::splat(0xFF);
-            while cur <= end.sub(V::Half::BYTES) {
-                if let Some(m) =
-                    self.find_one(cur, end, &mut prev0, &mut prev1)
-                {
-                    return Some(m);
-                }
-                cur = cur.add(V::Half::BYTES);
-            }
-            if cur < end {
-                cur = end.sub(V::Half::BYTES);
-                prev0 = V::splat(0xFF);
-                prev1 = V::splat(0xFF);
-                if let Some(m) =
-                    self.find_one(cur, end, &mut prev0, &mut prev1)
-                {
-                    return Some(m);
-                }
-            }
-            None
-        }
-    }
-
-    /// See `Fat<V, 1>::find_one`.
-    #[inline(always)]
-    unsafe fn find_one(
-        &self,
-        cur: *const u8,
-        end: *const u8,
-        prev0: &mut V,
-        prev1: &mut V,
-    ) -> Option<Match> {
-        unsafe {
-            let c = self.candidate(cur, prev0, prev1);
-            if !c.is_zero()
-                && let Some(m) = self.teddy.verify(cur.sub(2), end, c)
-            {
-                return Some(m);
-            }
-            None
-        }
-    }
-
     /// See `Fat<V, 1>::candidate`.
     #[inline(always)]
     unsafe fn candidate(
@@ -788,64 +402,6 @@ impl<V: FatVector> Fat<V, 3> {
 }
 
 impl<V: FatVector> Fat<V, 4> {
-    /// See `Fat<V, 1>::find`.
-    #[inline(always)]
-    pub(crate) unsafe fn find(
-        &self,
-        start: *const u8,
-        end: *const u8,
-    ) -> Option<Match> {
-        unsafe {
-            let len = end.distance(start);
-            debug_assert!(len >= self.minimum_len());
-            let mut cur = start.add(3);
-            let mut prev0 = V::splat(0xFF);
-            let mut prev1 = V::splat(0xFF);
-            let mut prev2 = V::splat(0xFF);
-            while cur <= end.sub(V::Half::BYTES) {
-                if let Some(m) =
-                    self.find_one(cur, end, &mut prev0, &mut prev1, &mut prev2)
-                {
-                    return Some(m);
-                }
-                cur = cur.add(V::Half::BYTES);
-            }
-            if cur < end {
-                cur = end.sub(V::Half::BYTES);
-                prev0 = V::splat(0xFF);
-                prev1 = V::splat(0xFF);
-                prev2 = V::splat(0xFF);
-                if let Some(m) =
-                    self.find_one(cur, end, &mut prev0, &mut prev1, &mut prev2)
-                {
-                    return Some(m);
-                }
-            }
-            None
-        }
-    }
-
-    /// See `Fat<V, 1>::find_one`.
-    #[inline(always)]
-    unsafe fn find_one(
-        &self,
-        cur: *const u8,
-        end: *const u8,
-        prev0: &mut V,
-        prev1: &mut V,
-        prev2: &mut V,
-    ) -> Option<Match> {
-        unsafe {
-            let c = self.candidate(cur, prev0, prev1, prev2);
-            if !c.is_zero()
-                && let Some(m) = self.teddy.verify(cur.sub(3), end, c)
-            {
-                return Some(m);
-            }
-            None
-        }
-    }
-
     /// See `Fat<V, 1>::candidate`.
     #[inline(always)]
     unsafe fn candidate(
@@ -966,71 +522,6 @@ impl<const BUCKETS: usize> Teddy<BUCKETS> {
         t
     }
 
-    /// Verify whether there are any matches starting at or after `cur` in the
-    /// haystack. The candidate chunk given should correspond to 8-bit bitsets
-    /// for N buckets.
-    ///
-    /// # Safety
-    ///
-    /// The given pointers representing the haystack must be valid to read
-    /// from.
-    #[inline(always)]
-    unsafe fn verify64(
-        &self,
-        cur: *const u8,
-        end: *const u8,
-        mut candidate_chunk: u64,
-    ) -> Option<Match> {
-        unsafe {
-            while candidate_chunk != 0 {
-                let bit = candidate_chunk.trailing_zeros() as usize;
-                candidate_chunk &= !(1 << bit);
-
-                let cur = cur.add(bit / BUCKETS);
-                let bucket = bit % BUCKETS;
-                if let Some(m) = self.verify_bucket(cur, end, bucket) {
-                    return Some(m);
-                }
-            }
-            None
-        }
-    }
-
-    /// Verify whether there are any matches starting at `at` in the given
-    /// `haystack` corresponding only to patterns in the given bucket.
-    ///
-    /// # Safety
-    ///
-    /// The given pointers representing the haystack must be valid to read
-    /// from.
-    ///
-    /// The bucket index must be less than or equal to `self.buckets.len()`.
-    #[inline(always)]
-    unsafe fn verify_bucket(
-        &self,
-        cur: *const u8,
-        end: *const u8,
-        bucket: usize,
-    ) -> Option<Match> {
-        unsafe {
-            debug_assert!(bucket < self.buckets.len());
-            // SAFETY: The caller must ensure that the bucket index is correct.
-            for pid in self.buckets.get_unchecked(bucket).iter().copied() {
-                // SAFETY: This is safe because we are guaranteed that every
-                // index in a Teddy bucket is a valid index into `pats`, by
-                // construction.
-                debug_assert!((pid as usize) < self.patterns.len());
-                let pat = self.patterns.get_unchecked(pid);
-                if pat.is_prefix_raw(cur, end) {
-                    let start = cur;
-                    let end = start.add(pat.len());
-                    return Some(Match { pid, start, end });
-                }
-            }
-            None
-        }
-    }
-
     /// Returns the total number of masks required by the patterns in this
     /// Teddy searcher.
     ///
@@ -1044,122 +535,6 @@ impl<const BUCKETS: usize> Teddy<BUCKETS> {
     /// bytes.
     fn mask_len(&self) -> usize {
         core::cmp::min(4, self.patterns.minimum_len())
-    }
-
-    /// Returns the approximate total amount of heap used by this type, in
-    /// units of bytes.
-    fn memory_usage(&self) -> usize {
-        // This is an upper bound rather than a precise accounting. No
-        // particular reason, other than it's probably very close to actual
-        // memory usage in practice.
-        self.patterns.len() * core::mem::size_of::<PatternID>()
-    }
-}
-
-impl Teddy<8> {
-    /// Runs the verification routine for "slim" Teddy.
-    ///
-    /// The candidate given should be a collection of 8-bit bitsets (one bitset
-    /// per lane), where the ith bit is set in the jth lane if and only if the
-    /// byte occurring at `at + j` in `cur` is in the bucket `i`.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that this is okay to call in the current target for
-    /// the current CPU.
-    ///
-    /// The given pointers must be valid to read from.
-    #[inline(always)]
-    unsafe fn verify<V: Vector>(
-        &self,
-        mut cur: *const u8,
-        end: *const u8,
-        candidate: V,
-    ) -> Option<Match> {
-        unsafe {
-            debug_assert!(!candidate.is_zero());
-            // Convert the candidate into 64-bit chunks, and then verify each of
-            // those chunks.
-            candidate.for_each_64bit_lane(
-                #[inline(always)]
-                |_, chunk| {
-                    let result = self.verify64(cur, end, chunk);
-                    cur = cur.add(8);
-                    result
-                },
-            )
-        }
-    }
-}
-
-impl Teddy<16> {
-    /// Runs the verification routine for "fat" Teddy.
-    ///
-    /// The candidate given should be a collection of 8-bit bitsets (one bitset
-    /// per lane), where the ith bit is set in the jth lane if and only if the
-    /// byte occurring at `at + (j < 16 ? j : j - 16)` in `cur` is in the
-    /// bucket `j < 16 ? i : i + 8`.
-    ///
-    /// # Safety
-    ///
-    /// Callers must ensure that this is okay to call in the current target for
-    /// the current CPU.
-    ///
-    /// The given pointers must be valid to read from.
-    #[inline(always)]
-    unsafe fn verify<V: FatVector>(
-        &self,
-        mut cur: *const u8,
-        end: *const u8,
-        candidate: V,
-    ) -> Option<Match> {
-        unsafe {
-            // This is a bit tricky, but we basically want to convert our
-            // candidate, which looks like this (assuming a 256-bit vector):
-            //
-            //     a31 a30 ... a17 a16 a15 a14 ... a01 a00
-            //
-            // where each a(i) is an 8-bit bitset corresponding to the activated
-            // buckets, to this
-            //
-            //     a31 a15 a30 a14 a29 a13 ... a18 a02 a17 a01 a16 a00
-            //
-            // Namely, for Fat Teddy, the high 128-bits of the candidate correspond
-            // to the same bytes in the haystack in the low 128-bits (so we only
-            // scan 16 bytes at a time), but are for buckets 8-15 instead of 0-7.
-            //
-            // The verification routine wants to look at all potentially matching
-            // buckets before moving on to the next lane. So for example, both
-            // a16 and a00 both correspond to the first byte in our window; a00
-            // contains buckets 0-7 and a16 contains buckets 8-15. Specifically,
-            // a16 should be checked before a01. So the transformation shown above
-            // allows us to use our normal verification procedure with one small
-            // change: we treat each bitset as 16 bits instead of 8 bits.
-            debug_assert!(!candidate.is_zero());
-
-            // Swap the 128-bit lanes in the candidate vector.
-            let swapped = candidate.swap_halves();
-            // Interleave the bytes from the low 128-bit lanes, starting with
-            // cand first.
-            let r1 = candidate.interleave_low_8bit_lanes(swapped);
-            // Interleave the bytes from the high 128-bit lanes, starting with
-            // cand first.
-            let r2 = candidate.interleave_high_8bit_lanes(swapped);
-            // Now just take the 2 low 64-bit integers from both r1 and r2. We
-            // can drop the high 64-bit integers because they are a mirror image
-            // of the low 64-bit integers. All we care about are the low 128-bit
-            // lanes of r1 and r2. Combined, they contain all our 16-bit bitsets
-            // laid out in the desired order, as described above.
-            r1.for_each_low_64bit_lane(
-                r2,
-                #[inline(always)]
-                |_, chunk| {
-                    let result = self.verify64(cur, end, chunk);
-                    cur = cur.add(4);
-                    result
-                },
-            )
-        }
     }
 }
 
@@ -1565,13 +940,16 @@ impl Debug for FatMaskBuilder {
 
 impl<const BUCKETS: usize> Teddy<BUCKETS> {
     #[inline(always)]
-    pub unsafe fn verify64_all(
+    pub unsafe fn verify64_all<F>(
         &self,
         cur: *const u8,
         end: *const u8,
         mut candidate_chunk: u64,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             while candidate_chunk != 0 {
                 let bit = candidate_chunk.trailing_zeros() as usize;
@@ -1581,120 +959,116 @@ impl<const BUCKETS: usize> Teddy<BUCKETS> {
                 debug_assert!(bucket < self.buckets.len());
                 for pid in self.buckets.get_unchecked(bucket).iter().copied() {
                     let pat = self.patterns.get_unchecked(pid);
-                    if pat.is_prefix_raw(match_cur, end) {
-                        callback(Match {
+                    if pat.is_prefix_raw(match_cur, end)
+                        && callback(Match {
                             pid,
                             start: match_cur,
                             end: match_cur.add(pat.len()),
-                        });
+                        })
+                        .is_break()
+                    {
+                        return ControlFlow::Break(());
                     }
                 }
             }
+            ControlFlow::Continue(())
         }
     }
 }
 
 impl Teddy<8> {
     #[inline(always)]
-    pub unsafe fn verify_all<V: Vector>(
+    pub unsafe fn verify_all<V: Vector, F>(
         &self,
         mut cur: *const u8,
         end: *const u8,
         candidate: V,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             debug_assert!(!candidate.is_zero());
+            let mut cf = ControlFlow::Continue(());
             candidate.for_each_64bit_lane(|_, chunk| {
-                self.verify64_all(cur, end, chunk, callback);
+                if self.verify64_all(cur, end, chunk, &mut callback).is_break()
+                {
+                    cf = ControlFlow::Break(());
+                    return Some(());
+                }
                 cur = cur.add(8);
                 None::<()>
             });
+            cf
         }
     }
 }
 
 impl Teddy<16> {
     #[inline(always)]
-    pub unsafe fn verify_all<V: FatVector>(
+    pub unsafe fn verify_all<V: FatVector, F>(
         &self,
         mut cur: *const u8,
         end: *const u8,
         candidate: V,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             debug_assert!(!candidate.is_zero());
             let swapped = candidate.swap_halves();
             let r1 = candidate.interleave_low_8bit_lanes(swapped);
             let r2 = candidate.interleave_high_8bit_lanes(swapped);
+            let mut cf = ControlFlow::Continue(());
             r1.for_each_low_64bit_lane(
                 r2,
                 #[inline(always)]
                 |_, chunk| {
-                    self.verify64_all(cur, end, chunk, callback);
+                    if self
+                        .verify64_all(cur, end, chunk, &mut callback)
+                        .is_break()
+                    {
+                        cf = ControlFlow::Break(());
+                        return Some(());
+                    }
                     cur = cur.add(4);
                     None::<()>
                 },
             );
-        }
-    }
-}
-
-impl<V: Vector> Slim<V, 1> {
-    #[inline(always)]
-    pub(crate) unsafe fn find_overlapping(
-        &self,
-        start: *const u8,
-        end: *const u8,
-        callback: &mut dyn FnMut(Match),
-    ) {
-        unsafe {
-            if (end as usize - start as usize) < self.minimum_len() {
-                return;
-            }
-            let mut cur = start;
-            while cur <= end.sub(V::BYTES) {
-                let c = self.candidate(cur);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur, end, c, callback);
-                }
-                cur = cur.add(V::BYTES);
-            }
-            if cur < end {
-                let prev_bound = cur;
-                cur = end.sub(V::BYTES);
-                let c = self.candidate(cur);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur, end, c, &mut |m| {
-                        if m.start >= prev_bound {
-                            callback(m);
-                        }
-                    });
-                }
-            }
+            cf
         }
     }
 }
 
 impl<V: Vector> Slim<V, 2> {
     #[inline(always)]
-    pub(crate) unsafe fn find_overlapping(
+    pub(crate) unsafe fn find_overlapping<F>(
         &self,
         start: *const u8,
         end: *const u8,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             if (end as usize - start as usize) < self.minimum_len() {
-                return;
+                return ControlFlow::Continue(());
             }
             let mut cur = start.add(1);
             let mut prev0 = V::splat(0xFF);
             while cur <= end.sub(V::BYTES) {
                 let c = self.candidate(cur, &mut prev0);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(1), end, c, callback);
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(1), end, c, &mut callback)
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
                 cur = cur.add(V::BYTES);
             }
@@ -1703,37 +1077,53 @@ impl<V: Vector> Slim<V, 2> {
                 cur = end.sub(V::BYTES);
                 prev0 = V::splat(0xFF);
                 let c = self.candidate(cur, &mut prev0);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(1), end, c, &mut |m| {
-                        if m.start >= prev_bound {
-                            callback(m);
-                        }
-                    });
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(1), end, c, |m| {
+                            if m.start >= prev_bound {
+                                callback(m)
+                            } else {
+                                ControlFlow::Continue(())
+                            }
+                        })
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
             }
+            ControlFlow::Continue(())
         }
     }
 }
 
 impl<V: Vector> Slim<V, 3> {
     #[inline(always)]
-    pub(crate) unsafe fn find_overlapping(
+    pub(crate) unsafe fn find_overlapping<F>(
         &self,
         start: *const u8,
         end: *const u8,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             if (end as usize - start as usize) < self.minimum_len() {
-                return;
+                return ControlFlow::Continue(());
             }
             let mut cur = start.add(2);
             let mut prev0 = V::splat(0xFF);
             let mut prev1 = V::splat(0xFF);
             while cur <= end.sub(V::BYTES) {
                 let c = self.candidate(cur, &mut prev0, &mut prev1);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(2), end, c, callback);
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(2), end, c, &mut callback)
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
                 cur = cur.add(V::BYTES);
             }
@@ -1743,29 +1133,40 @@ impl<V: Vector> Slim<V, 3> {
                 prev0 = V::splat(0xFF);
                 prev1 = V::splat(0xFF);
                 let c = self.candidate(cur, &mut prev0, &mut prev1);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(2), end, c, &mut |m| {
-                        if m.start >= prev_bound {
-                            callback(m);
-                        }
-                    });
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(2), end, c, |m| {
+                            if m.start >= prev_bound {
+                                callback(m)
+                            } else {
+                                ControlFlow::Continue(())
+                            }
+                        })
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
             }
+            ControlFlow::Continue(())
         }
     }
 }
 
 impl<V: Vector> Slim<V, 4> {
     #[inline(always)]
-    pub(crate) unsafe fn find_overlapping(
+    pub(crate) unsafe fn find_overlapping<F>(
         &self,
         start: *const u8,
         end: *const u8,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             if (end as usize - start as usize) < self.minimum_len() {
-                return;
+                return ControlFlow::Continue(());
             }
             let mut cur = start.add(3);
             let mut prev0 = V::splat(0xFF);
@@ -1774,8 +1175,13 @@ impl<V: Vector> Slim<V, 4> {
             while cur <= end.sub(V::BYTES) {
                 let c =
                     self.candidate(cur, &mut prev0, &mut prev1, &mut prev2);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(3), end, c, callback);
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(3), end, c, &mut callback)
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
                 cur = cur.add(V::BYTES);
             }
@@ -1787,35 +1193,51 @@ impl<V: Vector> Slim<V, 4> {
                 prev2 = V::splat(0xFF);
                 let c =
                     self.candidate(cur, &mut prev0, &mut prev1, &mut prev2);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(3), end, c, &mut |m| {
-                        if m.start >= prev_bound {
-                            callback(m);
-                        }
-                    });
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(3), end, c, |m| {
+                            if m.start >= prev_bound {
+                                callback(m)
+                            } else {
+                                ControlFlow::Continue(())
+                            }
+                        })
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
             }
+            ControlFlow::Continue(())
         }
     }
 }
 
 impl<V: FatVector> Fat<V, 1> {
     #[inline(always)]
-    pub(crate) unsafe fn find_overlapping(
+    pub(crate) unsafe fn find_overlapping<F>(
         &self,
         start: *const u8,
         end: *const u8,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             if (end as usize - start as usize) < self.minimum_len() {
-                return;
+                return ControlFlow::Continue(());
             }
             let mut cur = start;
             while cur <= end.sub(V::Half::BYTES) {
                 let c = self.candidate(cur);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur, end, c, callback);
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur, end, c, &mut callback)
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
                 cur = cur.add(V::Half::BYTES);
             }
@@ -1823,36 +1245,52 @@ impl<V: FatVector> Fat<V, 1> {
                 let prev_bound = cur;
                 cur = end.sub(V::Half::BYTES);
                 let c = self.candidate(cur);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur, end, c, &mut |m| {
-                        if m.start >= prev_bound {
-                            callback(m);
-                        }
-                    });
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur, end, c, |m| {
+                            if m.start >= prev_bound {
+                                callback(m)
+                            } else {
+                                ControlFlow::Continue(())
+                            }
+                        })
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
             }
+            ControlFlow::Continue(())
         }
     }
 }
 
 impl<V: FatVector> Fat<V, 2> {
     #[inline(always)]
-    pub(crate) unsafe fn find_overlapping(
+    pub(crate) unsafe fn find_overlapping<F>(
         &self,
         start: *const u8,
         end: *const u8,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             if (end as usize - start as usize) < self.minimum_len() {
-                return;
+                return ControlFlow::Continue(());
             }
             let mut cur = start.add(1);
             let mut prev0 = V::splat(0xFF);
             while cur <= end.sub(V::Half::BYTES) {
                 let c = self.candidate(cur, &mut prev0);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(1), end, c, callback);
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(1), end, c, &mut callback)
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
                 cur = cur.add(V::Half::BYTES);
             }
@@ -1861,37 +1299,53 @@ impl<V: FatVector> Fat<V, 2> {
                 cur = end.sub(V::Half::BYTES);
                 prev0 = V::splat(0xFF);
                 let c = self.candidate(cur, &mut prev0);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(1), end, c, &mut |m| {
-                        if m.start >= prev_bound {
-                            callback(m);
-                        }
-                    });
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(1), end, c, |m| {
+                            if m.start >= prev_bound {
+                                callback(m)
+                            } else {
+                                ControlFlow::Continue(())
+                            }
+                        })
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
             }
+            ControlFlow::Continue(())
         }
     }
 }
 
 impl<V: FatVector> Fat<V, 3> {
     #[inline(always)]
-    pub(crate) unsafe fn find_overlapping(
+    pub(crate) unsafe fn find_overlapping<F>(
         &self,
         start: *const u8,
         end: *const u8,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             if (end as usize - start as usize) < self.minimum_len() {
-                return;
+                return ControlFlow::Continue(());
             }
             let mut cur = start.add(2);
             let mut prev0 = V::splat(0xFF);
             let mut prev1 = V::splat(0xFF);
             while cur <= end.sub(V::Half::BYTES) {
                 let c = self.candidate(cur, &mut prev0, &mut prev1);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(2), end, c, callback);
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(2), end, c, &mut callback)
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
                 cur = cur.add(V::Half::BYTES);
             }
@@ -1901,29 +1355,40 @@ impl<V: FatVector> Fat<V, 3> {
                 prev0 = V::splat(0xFF);
                 prev1 = V::splat(0xFF);
                 let c = self.candidate(cur, &mut prev0, &mut prev1);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(2), end, c, &mut |m| {
-                        if m.start >= prev_bound {
-                            callback(m);
-                        }
-                    });
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(2), end, c, |m| {
+                            if m.start >= prev_bound {
+                                callback(m)
+                            } else {
+                                ControlFlow::Continue(())
+                            }
+                        })
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
             }
+            ControlFlow::Continue(())
         }
     }
 }
 
 impl<V: FatVector> Fat<V, 4> {
     #[inline(always)]
-    pub(crate) unsafe fn find_overlapping(
+    pub(crate) unsafe fn find_overlapping<F>(
         &self,
         start: *const u8,
         end: *const u8,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<()>
+    where
+        F: FnMut(Match) -> ControlFlow<()>,
+    {
         unsafe {
             if (end as usize - start as usize) < self.minimum_len() {
-                return;
+                return ControlFlow::Continue(());
             }
             let mut cur = start.add(3);
             let mut prev0 = V::splat(0xFF);
@@ -1932,8 +1397,13 @@ impl<V: FatVector> Fat<V, 4> {
             while cur <= end.sub(V::Half::BYTES) {
                 let c =
                     self.candidate(cur, &mut prev0, &mut prev1, &mut prev2);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(3), end, c, callback);
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(3), end, c, &mut callback)
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
                 cur = cur.add(V::Half::BYTES);
             }
@@ -1945,14 +1415,22 @@ impl<V: FatVector> Fat<V, 4> {
                 prev2 = V::splat(0xFF);
                 let c =
                     self.candidate(cur, &mut prev0, &mut prev1, &mut prev2);
-                if !c.is_zero() {
-                    self.teddy.verify_all(cur.sub(3), end, c, &mut |m| {
-                        if m.start >= prev_bound {
-                            callback(m);
-                        }
-                    });
+                if !c.is_zero()
+                    && self
+                        .teddy
+                        .verify_all(cur.sub(3), end, c, |m| {
+                            if m.start >= prev_bound {
+                                callback(m)
+                            } else {
+                                ControlFlow::Continue(())
+                            }
+                        })
+                        .is_break()
+                {
+                    return ControlFlow::Break(());
                 }
             }
+            ControlFlow::Continue(())
         }
     }
 }
@@ -1961,27 +1439,6 @@ impl<V: FatVector> Fat<V, 4> {
 mod tests {
     use super::*;
     use std::sync::Arc;
-
-    #[test]
-    fn pointer_trait() {
-        let arr = [0u8; 10];
-        let p1 = &arr[0] as *const u8;
-        let p2 = &arr[5] as *const u8;
-        unsafe {
-            assert_eq!(p2.distance(p1), 5);
-            assert_eq!(p1.distance(p2), 0);
-        }
-        assert_eq!(p1.as_usize(), p1 as usize);
-
-        let mut arr_mut = [0u8; 10];
-        let m1 = &mut arr_mut[0] as *mut u8;
-        let m2 = &mut arr_mut[5] as *mut u8;
-        unsafe {
-            assert_eq!(m2.distance(m1), 5);
-            assert_eq!(m1.distance(m2), 0);
-        }
-        assert_eq!(m1.as_usize(), m1 as usize);
-    }
 
     #[test]
     fn patterns_and_pattern() {
@@ -2074,7 +1531,6 @@ mod tests {
         });
         let teddy_8 = Teddy::<8>::new(pats.clone());
         assert_eq!(teddy_8.mask_len(), 3);
-        assert!(teddy_8.memory_usage() > 0);
 
         let teddy_16 = Teddy::<16>::new(pats);
         assert_eq!(teddy_16.mask_len(), 3);
@@ -2106,34 +1562,6 @@ mod tests {
     }
 
     #[test]
-    fn teddy_verify64() {
-        let pats = Arc::new(Patterns {
-            by_id: vec![b"abc".to_vec()],
-            minimum_len: 3,
-        });
-        let teddy = Teddy::<8>::new(pats);
-        let haystack = b"abcdefg";
-        let start = haystack.as_ptr();
-        let end = unsafe { start.add(haystack.len()) };
-
-        let candidate_chunk = 1 << 7;
-        unsafe {
-            let m = teddy.verify64(start, end, candidate_chunk);
-            assert!(m.is_some());
-            let m = m.unwrap();
-            assert_eq!(m.pattern(), 0);
-            assert_eq!(m.start(), start);
-            assert_eq!(m.end(), start.add(3));
-        }
-
-        let candidate_chunk_no_match = 1 << 0;
-        unsafe {
-            let m = teddy.verify64(start, end, candidate_chunk_no_match);
-            assert!(m.is_none());
-        }
-    }
-
-    #[test]
     fn teddy_verify64_all() {
         let pats = Arc::new(Patterns {
             by_id: vec![b"abc".to_vec()],
@@ -2147,9 +1575,11 @@ mod tests {
         let candidate_chunk = 1 << 7;
         let mut matches = Vec::new();
         unsafe {
-            teddy.verify64_all(start, end, candidate_chunk, &mut |m| {
-                matches.push(m.pid);
-            });
+            let _ =
+                teddy.verify64_all(start, end, candidate_chunk, |m: Match| {
+                    matches.push(m.pid);
+                    ControlFlow::Continue(())
+                });
         }
         assert_eq!(matches, vec![0]);
     }
@@ -2172,52 +1602,58 @@ mod tests {
                 minimum_len: 4,
             });
             unsafe {
+                macro_rules! assert_finds {
+                    ($s:expr, $start:expr, $end:expr) => {{
+                        let mut found = false;
+                        $s.find_overlapping($start, $end, &mut |_| {
+                            found = true;
+                            ControlFlow::Continue(())
+                        });
+                        assert!(found);
+                    }};
+                }
+
                 let s1 = Slim::<__m128i, 1>::new(pats.clone());
                 let s2 = Slim::<__m128i, 2>::new(pats.clone());
                 let s3 = Slim::<__m128i, 3>::new(pats.clone());
                 let s4 = Slim::<__m128i, 4>::new(pats.clone());
 
-                assert!(s1.memory_usage() > 0);
                 assert!(s1.minimum_len() >= 4);
 
                 let haystack = pad64(b"xyzabcdefgh");
                 let start = haystack.as_ptr();
                 let end = start.add(haystack.len());
 
-                assert!(s1.find(start, end).is_some());
-                s1.find_overlapping(start, end, &mut |_| {});
-
-                assert!(s2.find(start, end).is_some());
-                s2.find_overlapping(start, end, &mut |_| {});
-
-                assert!(s3.find(start, end).is_some());
-                s3.find_overlapping(start, end, &mut |_| {});
-
-                assert!(s4.find(start, end).is_some());
-                s4.find_overlapping(start, end, &mut |_| {});
+                assert_finds!(s1, start, end);
+                assert_finds!(s2, start, end);
+                assert_finds!(s3, start, end);
+                assert_finds!(s4, start, end);
 
                 let short_haystack = b"abc";
                 let s_start = short_haystack.as_ptr();
                 let s_end = s_start.add(short_haystack.len());
-                s1.find_overlapping(s_start, s_end, &mut |_| {});
-                s2.find_overlapping(s_start, s_end, &mut |_| {});
-                s3.find_overlapping(s_start, s_end, &mut |_| {});
-                s4.find_overlapping(s_start, s_end, &mut |_| {});
+                s1.find_overlapping(s_start, s_end, &mut |_| {
+                    ControlFlow::Continue(())
+                });
+                s2.find_overlapping(s_start, s_end, &mut |_| {
+                    ControlFlow::Continue(())
+                });
+                s3.find_overlapping(s_start, s_end, &mut |_| {
+                    ControlFlow::Continue(())
+                });
+                s4.find_overlapping(s_start, s_end, &mut |_| {
+                    ControlFlow::Continue(())
+                });
 
                 let mut tail_haystack = [0x01; 25];
                 tail_haystack[9..13].copy_from_slice(b"abcd");
                 let t_start = tail_haystack.as_ptr();
                 let t_end = t_start.add(tail_haystack.len());
 
-                assert!(s1.find(t_start, t_end).is_some());
-                assert!(s2.find(t_start, t_end).is_some());
-                assert!(s3.find(t_start, t_end).is_some());
-                assert!(s4.find(t_start, t_end).is_some());
-
-                s1.find_overlapping(t_start, t_end, &mut |_| {});
-                s2.find_overlapping(t_start, t_end, &mut |_| {});
-                s3.find_overlapping(t_start, t_end, &mut |_| {});
-                s4.find_overlapping(t_start, t_end, &mut |_| {});
+                assert_finds!(s1, t_start, t_end);
+                assert_finds!(s2, t_start, t_end);
+                assert_finds!(s3, t_start, t_end);
+                assert_finds!(s4, t_start, t_end);
 
                 if std::is_x86_feature_detected!("avx2") {
                     let f1 = Fat::<__m256i, 1>::new(pats.clone());
@@ -2225,37 +1661,53 @@ mod tests {
                     let f3 = Fat::<__m256i, 3>::new(pats.clone());
                     let f4 = Fat::<__m256i, 4>::new(pats.clone());
 
-                    assert!(f1.memory_usage() > 0);
                     assert!(f1.minimum_len() >= 4);
 
-                    assert!(f1.find(start, end).is_some());
-                    f1.find_overlapping(start, end, &mut |_| {});
+                    assert_finds!(f1, start, end);
+                    assert_finds!(f2, start, end);
+                    assert_finds!(f3, start, end);
+                    assert_finds!(f4, start, end);
 
-                    assert!(f2.find(start, end).is_some());
-                    f2.find_overlapping(start, end, &mut |_| {});
+                    let _ = f1.find_overlapping(s_start, s_end, &mut |_| {
+                        ControlFlow::Continue(())
+                    });
+                    let _ = f2.find_overlapping(s_start, s_end, &mut |_| {
+                        ControlFlow::Continue(())
+                    });
+                    let _ = f3.find_overlapping(s_start, s_end, &mut |_| {
+                        ControlFlow::Continue(())
+                    });
+                    let _ = f4.find_overlapping(s_start, s_end, &mut |_| {
+                        ControlFlow::Continue(())
+                    });
 
-                    assert!(f3.find(start, end).is_some());
-                    f3.find_overlapping(start, end, &mut |_| {});
-
-                    assert!(f4.find(start, end).is_some());
-                    f4.find_overlapping(start, end, &mut |_| {});
-
-                    f1.find_overlapping(s_start, s_end, &mut |_| {});
-                    f2.find_overlapping(s_start, s_end, &mut |_| {});
-                    f3.find_overlapping(s_start, s_end, &mut |_| {});
-                    f4.find_overlapping(s_start, s_end, &mut |_| {});
-
-                    assert!(f1.find(t_start, t_end).is_some());
-                    assert!(f2.find(t_start, t_end).is_some());
-                    assert!(f3.find(t_start, t_end).is_some());
-                    assert!(f4.find(t_start, t_end).is_some());
-
-                    f1.find_overlapping(t_start, t_end, &mut |_| {});
-                    f2.find_overlapping(t_start, t_end, &mut |_| {});
-                    f3.find_overlapping(t_start, t_end, &mut |_| {});
-                    f4.find_overlapping(t_start, t_end, &mut |_| {});
+                    assert_finds!(f1, t_start, t_end);
+                    assert_finds!(f2, t_start, t_end);
+                    assert_finds!(f3, t_start, t_end);
+                    assert_finds!(f4, t_start, t_end);
                 }
             }
+        }
+
+        #[test]
+        fn slim_searcher_early_termination() {
+            let pats = Arc::new(Patterns {
+                by_id: vec![b"abcd".to_vec()],
+                minimum_len: 4,
+            });
+            let s1 = unsafe { Slim::<__m128i, 1>::new(pats) };
+            let haystack = pad64(b"abcd abcd abcd abcd");
+            let start = haystack.as_ptr();
+            let end = unsafe { start.add(haystack.len()) };
+
+            let mut count = 0;
+            unsafe {
+                let _ = s1.find_overlapping(start, end, &mut |_| {
+                    count += 1;
+                    ControlFlow::Break(())
+                });
+            }
+            assert_eq!(count, 1);
         }
     }
 
@@ -2281,53 +1733,80 @@ mod tests {
                 minimum_len: 4,
             });
             unsafe {
+                macro_rules! assert_finds {
+                    ($s:expr, $start:expr, $end:expr) => {{
+                        let mut found = false;
+                        let _ = $s.find_overlapping($start, $end, &mut |_| {
+                            found = true;
+                            ControlFlow::Continue(())
+                        });
+                        assert!(found);
+                    }};
+                }
+
                 let s1 = Slim::<uint8x16_t, 1>::new(pats.clone());
                 let s2 = Slim::<uint8x16_t, 2>::new(pats.clone());
                 let s3 = Slim::<uint8x16_t, 3>::new(pats.clone());
                 let s4 = Slim::<uint8x16_t, 4>::new(pats.clone());
 
-                assert!(s1.memory_usage() > 0);
                 assert!(s1.minimum_len() >= 4);
 
                 let haystack = pad64(b"xyzabcdefgh");
                 let start = haystack.as_ptr();
                 let end = start.add(haystack.len());
 
-                assert!(s1.find(start, end).is_some());
-                s1.find_overlapping(start, end, &mut |_| {});
-
-                assert!(s2.find(start, end).is_some());
-                s2.find_overlapping(start, end, &mut |_| {});
-
-                assert!(s3.find(start, end).is_some());
-                s3.find_overlapping(start, end, &mut |_| {});
-
-                assert!(s4.find(start, end).is_some());
-                s4.find_overlapping(start, end, &mut |_| {});
+                assert_finds!(s1, start, end);
+                assert_finds!(s2, start, end);
+                assert_finds!(s3, start, end);
+                assert_finds!(s4, start, end);
 
                 let short_haystack = b"abc";
                 let s_start = short_haystack.as_ptr();
                 let s_end = s_start.add(short_haystack.len());
-                s1.find_overlapping(s_start, s_end, &mut |_| {});
-                s2.find_overlapping(s_start, s_end, &mut |_| {});
-                s3.find_overlapping(s_start, s_end, &mut |_| {});
-                s4.find_overlapping(s_start, s_end, &mut |_| {});
+                let _ = s1.find_overlapping(s_start, s_end, &mut |_| {
+                    ControlFlow::Continue(())
+                });
+                let _ = s2.find_overlapping(s_start, s_end, &mut |_| {
+                    ControlFlow::Continue(())
+                });
+                let _ = s3.find_overlapping(s_start, s_end, &mut |_| {
+                    ControlFlow::Continue(())
+                });
+                let _ = s4.find_overlapping(s_start, s_end, &mut |_| {
+                    ControlFlow::Continue(())
+                });
 
                 let mut tail_haystack = [0x01; 25];
                 tail_haystack[9..13].copy_from_slice(b"abcd");
                 let t_start = tail_haystack.as_ptr();
                 let t_end = t_start.add(tail_haystack.len());
 
-                assert!(s1.find(t_start, t_end).is_some());
-                assert!(s2.find(t_start, t_end).is_some());
-                assert!(s3.find(t_start, t_end).is_some());
-                assert!(s4.find(t_start, t_end).is_some());
-
-                s1.find_overlapping(t_start, t_end, &mut |_| {});
-                s2.find_overlapping(t_start, t_end, &mut |_| {});
-                s3.find_overlapping(t_start, t_end, &mut |_| {});
-                s4.find_overlapping(t_start, t_end, &mut |_| {});
+                assert_finds!(s1, t_start, t_end);
+                assert_finds!(s2, t_start, t_end);
+                assert_finds!(s3, t_start, t_end);
+                assert_finds!(s4, t_start, t_end);
             }
+        }
+
+        #[test]
+        fn slim_searcher_early_termination_aarch64() {
+            let pats = Arc::new(Patterns {
+                by_id: vec![b"abcd".to_vec()],
+                minimum_len: 4,
+            });
+            let s1 = unsafe { Slim::<uint8x16_t, 1>::new(pats) };
+            let haystack = pad64(b"abcd abcd abcd abcd");
+            let start = haystack.as_ptr();
+            let end = unsafe { start.add(haystack.len()) };
+
+            let mut count = 0;
+            unsafe {
+                let _ = s1.find_overlapping(start, end, &mut |_| {
+                    count += 1;
+                    ControlFlow::Break(())
+                });
+            }
+            assert_eq!(count, 1);
         }
     }
 }

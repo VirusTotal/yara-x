@@ -47,6 +47,19 @@ impl<'r> InnerScanner<'r> {
         self
     }
 
+    fn max_matches_per_pattern(&mut self, n: usize) -> &mut Self {
+        match self {
+            InnerScanner::SingleBlock(s) => {
+                s.max_matches_per_pattern(n);
+            }
+            InnerScanner::MultiBlock(s) => {
+                s.max_matches_per_pattern(n);
+            }
+            InnerScanner::None => unreachable!(),
+        }
+        self
+    }
+
     fn make_multi_block(&mut self) -> &mut yara_x::blocks::Scanner<'r> {
         // Already a multi-block scanner, nothing else to do.
         if let Self::MultiBlock(s) = self {
@@ -141,7 +154,9 @@ pub unsafe extern "C" fn yrx_scanner_create(
 /// Destroys a [`YRX_SCANNER`] object.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_destroy(scanner: *mut YRX_SCANNER) {
-    drop(Box::from_raw(scanner))
+    if !scanner.is_null() {
+        drop(Box::from_raw(scanner))
+    }
 }
 
 /// Sets a timeout (in seconds) for scan operations.
@@ -187,6 +202,25 @@ pub unsafe extern "C" fn yrx_scanner_fast_scan(
     };
 
     scanner.inner.fast_scan(yes);
+
+    YRX_RESULT::YRX_SUCCESS
+}
+
+/// Sets the maximum number of matches per pattern.
+///
+/// When a pattern reaches the maximum number of matches it won't produce more
+/// matches.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn yrx_scanner_max_matches_per_pattern(
+    scanner: *mut YRX_SCANNER,
+    n: usize,
+) -> YRX_RESULT {
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+    };
+
+    scanner.inner.max_matches_per_pattern(n);
 
     YRX_RESULT::YRX_SUCCESS
 }
@@ -812,6 +846,9 @@ unsafe fn slice_from_ptr_and_len<'a>(
 }
 
 unsafe fn str_from_ptr<'a>(s: *const c_char) -> Result<&'a str, YRX_RESULT> {
+    if s.is_null() {
+        return Err(YRX_RESULT::YRX_INVALID_ARGUMENT);
+    }
     match CStr::from_ptr(s).to_str() {
         Ok(s) => Ok(s),
         Err(err) => {

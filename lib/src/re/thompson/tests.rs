@@ -90,6 +90,23 @@ macro_rules! assert_re_num_atoms {
 }
 
 #[test]
+fn class_representation_threshold() {
+    let compile = |regexp| {
+        let parser = re::parser::Parser::new();
+        Compiler::new()
+            .compile_internal(
+                &parser.parse(&Regexp::new(format!("/{regexp}/s"))).unwrap(),
+            )
+            .unwrap()
+            .0
+            .to_string()
+    };
+
+    assert!(compile("[a-ce-gi]").contains("CLASS_RANGES"));
+    assert!(compile("[a-ce-gik]").contains("CLASS_BITMAP"));
+}
+
+#[test]
 fn re_code_1() {
     assert_re_code!(
         "(?s)abcd",
@@ -887,19 +904,14 @@ fn re_code_17() {
 00049: LIT 0x61
 0004a: MATCH
 "#,
-        // Atoms
         vec![
             RegexpAtom {
                 atom: Atom::inexact(vec![]),
-                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x4A },
+                code_loc: CodeLoc { fwd: 0x0D, bck_seq_id: 0, bck: 0x41 },
             },
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61, 0x62, 0x63]),
-                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x4A },
-            },
-            RegexpAtom {
-                atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x61]),
-                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x4A },
+                code_loc: CodeLoc { fwd: 0x13, bck_seq_id: 0, bck: 0x4A },
             },
         ],
         // Epsilon closure starting at forward code 0.
@@ -1337,7 +1349,6 @@ fn re_atoms() {
         r#"ab.*cd"#,
         vec![
             Atom::inexact(b"ab"),
-            Atom::exact("abcd"),
         ]
     );
 
@@ -1519,6 +1530,13 @@ fn re_atoms() {
             .collect::<Vec<Atom>>());
         v.sort();
         v
+    });
+
+    assert_re_atoms!(r#"(com|net)[^{}]{0,100}"#, {
+        vec![
+            Atom::inexact(b"com"),
+            Atom::inexact(b"net"),
+        ]
     });
 
     assert_re_atoms!(

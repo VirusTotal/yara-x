@@ -1,8 +1,9 @@
-import { LitElement, html } from "lit";
-import type { LoadedSampleFile, SampleMode } from "../types/execution";
+import { LitElement, html, nothing } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 
 import { classMap } from "lit/directives/class-map.js";
+import type { LoadedSampleFile } from "../sample/sample-file";
+import { SAMPLE_MODES, type SampleMode } from "../sample/sample-modes";
 
 @customElement("yara-file")
 export class YaraFile extends LitElement {
@@ -32,16 +33,16 @@ export class YaraFile extends LitElement {
     );
   }
 
-  private async createLoadedSampleFile(file: File): Promise<LoadedSampleFile> {
+  private createLoadedSampleFile(file: File): LoadedSampleFile {
     return {
+      file,
       name: file.name,
       size: file.size,
-      bytes: new Uint8Array(await file.arrayBuffer()),
     };
   }
 
-  private async emitLoadedSampleFile(file: File) {
-    const loadedSampleFile = await this.createLoadedSampleFile(file);
+  private emitLoadedSampleFile(file: File) {
+    const loadedSampleFile = this.createLoadedSampleFile(file);
 
     this.dispatchEvent(
       new CustomEvent<LoadedSampleFile>("sample-file-load", {
@@ -56,13 +57,13 @@ export class YaraFile extends LitElement {
     this.sampleFileInput?.click();
   };
 
-  private async handleFileChange(event: Event) {
+  private handleFileChange(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
 
     if (!file) return;
 
-    await this.emitLoadedSampleFile(file);
+    this.emitLoadedSampleFile(file);
     input.value = "";
   }
 
@@ -95,7 +96,7 @@ export class YaraFile extends LitElement {
     this.isDragActive = false;
   };
 
-  private handleDrop = async (event: DragEvent) => {
+  private handleDrop = (event: DragEvent) => {
     if (this.sampleMode !== "file") return;
 
     event.preventDefault();
@@ -105,7 +106,7 @@ export class YaraFile extends LitElement {
 
     if (!file) return;
 
-    await this.emitLoadedSampleFile(file);
+    this.emitLoadedSampleFile(file);
   };
 
   private clearLoadedFile = () => {
@@ -123,23 +124,39 @@ export class YaraFile extends LitElement {
     return `${(size / (1024 * 1024)).toFixed(1)} MB`;
   }
 
-  private renderModeChip(mode: SampleMode, label: string) {
+  private renderModeChip({ id, label }: (typeof SAMPLE_MODES)[number]) {
+    const hasTooltip = id === "base64";
+
     return html`
       <label
         class=${classMap({
           "mode-chip": true,
-          active: this.sampleMode === mode,
+          active: this.sampleMode === id,
+          "has-tooltip": hasTooltip,
         })}
       >
         <input
           type="radio"
           name="sample-mode"
-          .checked=${this.sampleMode === mode}
+          .checked=${this.sampleMode === id}
+          aria-describedby=${hasTooltip ? "base64-mode-tooltip" : nothing}
           @change=${() => {
-            this.dispatchSampleModeChange(mode);
+            this.dispatchSampleModeChange(id);
           }}
         />
-        <span>${label}</span>
+        <span class="mode-chip-label">${label}</span>
+        ${hasTooltip
+          ? html`
+              <span
+                id="base64-mode-tooltip"
+                class="mode-tooltip"
+                role="tooltip"
+              >
+                Decoded before scanning. For the <code>base64</code> modifier,
+                use Text mode.
+              </span>
+            `
+          : nothing}
       </label>
     `;
   }
@@ -173,8 +190,9 @@ export class YaraFile extends LitElement {
           <span class="eyebrow">File ready</span>
           <h3>${this.loadedSampleFile.name}</h3>
           <p>
-            ${this.formatBytes(this.loadedSampleFile.size)} loaded locally in
-            memory for this session. Drop another file here to replace it.
+            ${this.formatBytes(this.loadedSampleFile.size)} ready to scan
+            locally in this browser session. Drop another file here to replace
+            it.
           </p>
         </div>
         <div class="file-state-actions">
@@ -208,8 +226,7 @@ export class YaraFile extends LitElement {
         <div class="sample-pane-controls">
           <div class="sample-head-actions">
             <div class="mode-switch" role="tablist" aria-label="Sample source">
-              ${this.renderModeChip("text", "Text")}
-              ${this.renderModeChip("file", "File")}
+              ${SAMPLE_MODES.map((mode) => this.renderModeChip(mode))}
             </div>
 
             <input
@@ -232,7 +249,9 @@ export class YaraFile extends LitElement {
           @drop=${this.handleDrop}
         >
           <div class="editor-shell sample-editor"></div>
-          <div class="file-state-shell">${this.renderFileState()}</div>
+          <div class="file-state-shell playground-scroll">
+            ${this.renderFileState()}
+          </div>
         </div>
       </article>
     `;

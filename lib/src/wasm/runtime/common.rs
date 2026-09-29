@@ -793,7 +793,7 @@ impl<B: RuntimeBackend> Module<B> {
     ///
     /// Custom runtimes simply rebuild the module from raw WASM bytes, while
     /// the native runtime preserves Wasmtime's unsafe deserialization API.
-    pub unsafe fn deserialize(engine: &Engine, bytes: &[u8]) -> Result<Self> {
+    pub fn deserialize(engine: &Engine, bytes: &[u8]) -> Result<Self> {
         Self::from_binary(engine, bytes)
     }
 }

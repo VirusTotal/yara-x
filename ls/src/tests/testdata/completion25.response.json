@@ -1,0 +1,28 @@
+[
+  {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `mime_type() -> string`\n\n Returns the MIME type provided by libmagic."
+    },
+    "insertText": "mime_type()",
+    "insertTextFormat": 2,
+    "kind": 2,
+    "label": "mime_type()",
+    "labelDetails": {
+      "description": "func()"
+    }
+  },
+  {
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `type() -> string`\n\n Returns the file type provided by libmagic."
+    },
+    "insertText": "type()",
+    "insertTextFormat": 2,
+    "kind": 2,
+    "label": "type()",
+    "labelDetails": {
+      "description": "func()"
+    }
+  }
+]

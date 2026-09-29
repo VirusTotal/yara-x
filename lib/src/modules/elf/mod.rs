@@ -26,7 +26,7 @@ thread_local!(
     static TLSH_CACHE: RefCell<Option<String>> = const { RefCell::new(None) };
 );
 
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<ELF, ModuleError> {
+fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<ELF, ModuleError> {
     IMPORT_MD5_CACHE.with(|cache| *cache.borrow_mut() = None);
     TLSH_CACHE.with(|cache| *cache.borrow_mut() = None);
 

@@ -1,7 +1,6 @@
 name: Release
 permissions:
-  # Allow this action to create releases.
-  contents: write
+  contents: read
 on:
   create:
     tags:
@@ -46,10 +45,12 @@ jobs:
 
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
       with:
         toolchain: stable
 
@@ -58,7 +59,7 @@ jobs:
       run: |
         set -ex
         version=`cargo pkgid --manifest-path lib/Cargo.toml | cut -d "@" -f2`
-        if [ "${{ github.ref_name }}" != "v$version" ]; then
+        if [ "${GITHUB_REF_NAME}" != "v$version" ]; then
           exit 1
         fi
 
@@ -81,21 +82,21 @@ jobs:
       shell: bash
       run: |
         set -ex
-        pkgname=yara-x-${{ github.ref_name }}-${{ matrix.target }}
+        pkgname=yara-x-${GITHUB_REF_NAME}-${{ matrix.target }}
         if [ "${{ matrix.build }}" = "windows" ]; then
             7z a $pkgname.zip ./target/${{ matrix.target }}/release-lto/yr.exe
-            7z a yara-x-capi-${{ github.ref_name }}-${{ matrix.target }}.zip \
+            7z a yara-x-capi-${GITHUB_REF_NAME}-${{ matrix.target }}.zip \
                ./target/${{ matrix.target }}/release-lto/yara_x.h \
                ./target/${{ matrix.target }}/release-lto/yara_x_capi.def \
                ./target/${{ matrix.target }}/release-lto/yara_x_capi.lib \
                ./target/${{ matrix.target }}/release-lto/yara_x_capi.dll.lib \
                ./target/${{ matrix.target }}/release-lto/yara_x_capi.dll
         else
-            tar czf $pkgname.gz -C target/${{ matrix.target }}/release-lto yr      
+            tar czf $pkgname.tar.gz -C target/${{ matrix.target }}/release-lto yr
         fi
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1  # v4.6.1
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: yr-${{ matrix.target }}
         path: yara-x-*
@@ -133,9 +134,11 @@ jobs:
 
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
     - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
       with:
         toolchain: stable
 
@@ -144,12 +147,12 @@ jobs:
       run: |
         set -ex
         version=`cargo pkgid --manifest-path lib/Cargo.toml | cut -d "@" -f2`
-        if [ "${{ github.ref_name }}" != "v$version" ]; then
+        if [ "${GITHUB_REF_NAME}" != "v$version" ]; then
           exit 1
         fi
 
     - name: Install Python
-      uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38  # v5.4.0
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: '3.12'
 
@@ -190,13 +193,13 @@ jobs:
         MACOSX_DEPLOYMENT_TARGET: '14.0'
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1  # v4.6.1
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: pypi-${{ matrix.build }}-${{ matrix.python-version }}
         path: ./wheelhouse/*.whl
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1  # v4.6.1
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: pypi-source-${{ strategy.job-index }}
         path: ./wheelhouse/*.tar.gz
@@ -204,10 +207,13 @@ jobs:
   publish:
     needs: [ build ]
     runs-on: ubuntu-latest
+    permissions:
+      # Allow this job to create releases.
+      contents: write
 
     steps:
     - name: Download artifacts
-      uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806  # v4.1.9
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         pattern: yr-*
 
@@ -216,7 +222,7 @@ jobs:
       run: ls
 
     - name: Release
-      uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda  # v2.2.1
+      uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
       with:
         draft: true
         files: yr-*/yara-x-*
@@ -226,7 +232,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout sources
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     - name: Publish crate
       env:
@@ -240,8 +248,6 @@ jobs:
         cargo login ${{ secrets.CRATES_IO_API_TOKEN }}
         cargo publish -p yara-x-macros
         cargo publish -p yara-x-proto
-        cargo publish -p yara-x-proto-json
-        cargo publish -p yara-x-proto-yaml
         cargo publish -p yara-x-parser
         cargo publish -p yara-x-fmt
         cargo publish -p yara-x
@@ -258,14 +264,14 @@ jobs:
       id-token: write
     steps:
     - name: Download artifacts
-      uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806  # v4.1.9
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         pattern: pypi-*
         merge-multiple: true
         path: dist
 
     - name: Publish package distributions to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1.12
+      uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
       with:
         #repository-url: https://test.pypi.org/legacy/
         skip-existing: true

@@ -1,0 +1,1031 @@
+magic: 0xcffaedfe
+cputype: 0x100000c
+cpusubtype: 0x0
+filetype: 1
+ncmds: 5
+sizeofcmds: 1656
+flags: 0x2000
+reserved: 0
+number_of_segments: 1
+symtab:
+    symoff: 5744
+    nsyms: 115
+    stroff: 7584
+    strsize: 3296
+    entries:
+      - "ltmp0"
+      - "ltmp1"
+      - "lCPI1_0"
+      - "l_OBJC_CLASS_REF_$_RCAVrpek"
+      - "L_selector(init)"
+      - "L_selector(setVrpw:)"
+      - "L_selector(vrpqArray)"
+      - "L_selector(addObject:)"
+      - "l_OBJC_CLASS_REF_$_RCAVrpek_Vrpel"
+      - "L_selector(data)"
+      - "l_metadata"
+      - "_$s19RecaptchaEnterprise5RCedfO5rcecg_5rcgqh5rcgqiys6UInt32V_AA5RCcrzCSaySo14RCAWspeu_WspduCGtKFZySayypSgGcfU_TA"
+      - "l_objectdestroy"
+      - "ltmp2"
+      - "l_.str.19.RecaptchaEnterprise"
+      - "ltmp3"
+      - "l_.str.5.RCedf"
+      - "ltmp4"
+      - "ltmp5"
+      - "ltmp6"
+      - "l_got.$s19RecaptchaEnterprise5RCecfMp"
+      - "ltmp7"
+      - "ltmp8"
+      - "l__swift5_reflection_descriptor"
+      - "ltmp9"
+      - "ltmp10"
+      - "L_selector_data(init)"
+      - "ltmp11"
+      - "L_selector_data(setVrpw:)"
+      - "L_selector_data(vrpqArray)"
+      - "L_selector_data(addObject:)"
+      - "L_selector_data(data)"
+      - "ltmp12"
+      - "l_$s19RecaptchaEnterprise5RCedfOAA5RCecfAAHc"
+      - "ltmp13"
+      - "l_$s19RecaptchaEnterprise5RCedfOHn"
+      - "ltmp14"
+      - "l_llvm.swift_module_hash"
+      - "ltmp15"
+      - "ltmp16"
+      - "ltmp17"
+      - "_$s10Foundation4DataV15_RepresentationOWOe"
+      - "_$s19RecaptchaEnterprise5RCcnaOACs5ErrorAAWL"
+      - "_$s19RecaptchaEnterprise5RCcnaOACs5ErrorAAWl"
+      - "_$s19RecaptchaEnterprise5RCedfO5rcecg_5rcgqh5rcgqiys6UInt32V_AA5RCcrzCSaySo14RCAWspeu_WspduCGtKFZTf4nnnd_n"
+      - "_$s19RecaptchaEnterprise5RCedfO5rcecg_5rcgqh5rcgqiys6UInt32V_AA5RCcrzCSaySo14RCAWspeu_WspduCGtKFZySayypSgGcfU_"
+      - "_$s19RecaptchaEnterprise5RCedfOAA5RCecfA2aDP5rcecg_5rcgqh5rcgqiys6UInt32V_AA5RCcrzCSaySo14RCAWspeu_WspduCGtKFZTW"
+      - "_$s19RecaptchaEnterprise5RCedfOAA5RCecfAAMc"
+      - "_$s19RecaptchaEnterprise5RCedfOAA5RCecfAAWP"
+      - "_$s19RecaptchaEnterprise5RCedfOMF"
+      - "_$s19RecaptchaEnterprise5RCedfOMa"
+      - "_$s19RecaptchaEnterprise5RCedfOMf"
+      - "_$s19RecaptchaEnterprise5RCedfOMn"
+      - "_$s19RecaptchaEnterprise5RCedfON"
+      - "_$s19RecaptchaEnterpriseMXM"
+      - "_$sSSWOh"
+      - "_$ss23_ContiguousArrayStorageCySSGMR"
+      - "_$ss23_ContiguousArrayStorageCySSGMd"
+      - "_$sypSgMR"
+      - "_$sypSgMd"
+      - "_$sypSgWOc"
+      - "_$sypSgWOh"
+      - "_$sypWOb"
+      - "_$sypWOc"
+      - "___swift_destroy_boxed_opaque_existential_0"
+      - "___swift_instantiateConcreteTypeFromMangledNameV2"
+      - "___swift_reflection_version"
+      - "_symbolic SS"
+      - "_symbolic _____ 19RecaptchaEnterprise5RCcrzC"
+      - "_symbolic _____ 19RecaptchaEnterprise5RCedfO"
+      - "_symbolic _____ySSG s23_ContiguousArrayStorageC"
+      - "_symbolic ypSg"
+      - "_$s10Foundation4DataV19base64EncodedString7optionsSSSo27NSDataBase64EncodingOptionsV_tF"
+      - "_$s10Foundation4DataV36_unconditionallyBridgeFromObjectiveCyACSo6NSDataCSgFZ"
+      - "_$s19RecaptchaEnterprise5RCcnaON"
+      - "_$s19RecaptchaEnterprise5RCcnaOs5ErrorAAMc"
+      - "_$s19RecaptchaEnterprise5RCcrzCMn"
+      - "_$s19RecaptchaEnterprise5RCecfMp"
+      - "_$s19RecaptchaEnterprise5RCevuC5rcewoyxSo14RCAWspeu_WspduCKlFSS_Tg5"
+      - "_$s19RecaptchaEnterprise5RCevuC5rcewoyxSo14RCAWspeu_WspduCKlFs5Int32V_Tg5"
+      - "_$s19RecaptchaEnterprise5RCfzyO5rcfzz5rcgaa5rcgsfyps5Int32V_ySayypSgGctKFZ"
+      - "_$s19RecaptchaEnterprise5RCgarC5rcgauyySS_SSdtF"
+      - "_$sSDyq_Sgxciss6UInt32V_ypTg5"
+      - "_$sSS10FoundationE19_bridgeToObjectiveCSo8NSStringCyF"
+      - "_$sSS10describingSSx_tclufC"
+      - "_$sSSN"
+      - "_$ss12_ArrayBufferV19_getElementSlowPathyyXlSiFyXl_Ts5"
+      - "_$ss18_CocoaArrayWrapperV8endIndexSivg"
+      - "_$ss23_ContiguousArrayStorageCMn"
+      - "_$sypN"
+      - "_$sytWV"
+      - "_OBJC_CLASS_$_RCAVrpek"
+      - "_OBJC_CLASS_$_RCAVrpek_Vrpel"
+      - "_objc_allocWithZone"
+      - "_objc_msgSend"
+      - "_objc_release_x21"
+      - "_objc_release_x23"
+      - "_objc_release_x24"
+      - "_objc_release_x25"
+      - "_objc_release_x26"
+      - "_objc_retainAutoreleasedReturnValue"
+      - "_objc_retain_x21"
+      - "_swift_allocError"
+      - "_swift_allocObject"
+      - "_swift_beginAccess"
+      - "_swift_bridgeObjectRelease"
+      - "_swift_deallocObject"
+      - "_swift_endAccess"
+      - "_swift_getTypeByMangledNameInContext2"
+      - "_swift_getWitnessTable"
+      - "_swift_initStackObject"
+      - "_swift_release"
+      - "_swift_retain"
+      - "_swift_setDeallocating"
+      - "_swift_willThrow"
+    nlists:
+      - n_strx: 2999
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2951
+        n_type: 14
+        n_sect: 2
+        n_desc: 0
+        n_value: 1808
+      - n_strx: 3049
+        n_type: 14
+        n_sect: 2
+        n_desc: 0
+        n_value: 1808
+      - n_strx: 670
+        n_type: 14
+        n_sect: 10
+        n_desc: 0
+        n_value: 2128
+      - n_strx: 3113
+        n_type: 14
+        n_sect: 12
+        n_desc: 0
+        n_value: 2184
+      - n_strx: 3191
+        n_type: 14
+        n_sect: 12
+        n_desc: 0
+        n_value: 2192
+      - n_strx: 3064
+        n_type: 14
+        n_sect: 12
+        n_desc: 0
+        n_value: 2200
+      - n_strx: 3238
+        n_type: 14
+        n_sect: 12
+        n_desc: 0
+        n_value: 2208
+      - n_strx: 568
+        n_type: 14
+        n_sect: 10
+        n_desc: 0
+        n_value: 2136
+      - n_strx: 3152
+        n_type: 14
+        n_sect: 12
+        n_desc: 0
+        n_value: 2216
+      - n_strx: 1285
+        n_type: 14
+        n_sect: 5
+        n_desc: 0
+        n_value: 1984
+      - n_strx: 2361
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 1352
+      - n_strx: 1
+        n_type: 14
+        n_sect: 1
+        n_desc: 0
+        n_value: 1308
+      - n_strx: 2888
+        n_type: 14
+        n_sect: 3
+        n_desc: 0
+        n_value: 1824
+      - n_strx: 905
+        n_type: 14
+        n_sect: 3
+        n_desc: 0
+        n_value: 1824
+      - n_strx: 2819
+        n_type: 14
+        n_sect: 4
+        n_desc: 0
+        n_value: 1892
+      - n_strx: 820
+        n_type: 14
+        n_sect: 3
+        n_desc: 0
+        n_value: 1844
+      - n_strx: 2788
+        n_type: 14
+        n_sect: 5
+        n_desc: 0
+        n_value: 1936
+      - n_strx: 2585
+        n_type: 14
+        n_sect: 6
+        n_desc: 0
+        n_value: 2032
+      - n_strx: 2499
+        n_type: 14
+        n_sect: 7
+        n_desc: 0
+        n_value: 2064
+      - n_strx: 216
+        n_type: 14
+        n_sect: 5
+        n_desc: 0
+        n_value: 2024
+      - n_strx: 2486
+        n_type: 14
+        n_sect: 8
+        n_desc: 0
+        n_value: 2080
+      - n_strx: 2480
+        n_type: 14
+        n_sect: 9
+        n_desc: 0
+        n_value: 2104
+      - n_strx: 133
+        n_type: 14
+        n_sect: 9
+        n_desc: 32
+        n_value: 2104
+      - n_strx: 2474
+        n_type: 14
+        n_sect: 10
+        n_desc: 0
+        n_value: 2128
+      - n_strx: 3057
+        n_type: 14
+        n_sect: 11
+        n_desc: 0
+        n_value: 2144
+      - n_strx: 3130
+        n_type: 14
+        n_sect: 11
+        n_desc: 0
+        n_value: 2144
+      - n_strx: 2992
+        n_type: 14
+        n_sect: 12
+        n_desc: 0
+        n_value: 2184
+      - n_strx: 3212
+        n_type: 14
+        n_sect: 11
+        n_desc: 0
+        n_value: 2149
+      - n_strx: 3086
+        n_type: 14
+        n_sect: 11
+        n_desc: 0
+        n_value: 2158
+      - n_strx: 3261
+        n_type: 14
+        n_sect: 11
+        n_desc: 0
+        n_value: 2168
+      - n_strx: 3169
+        n_type: 14
+        n_sect: 11
+        n_desc: 0
+        n_value: 2179
+      - n_strx: 2944
+        n_type: 14
+        n_sect: 13
+        n_desc: 0
+        n_value: 2224
+      - n_strx: 1231
+        n_type: 14
+        n_sect: 13
+        n_desc: 32
+        n_value: 2224
+      - n_strx: 2843
+        n_type: 14
+        n_sect: 14
+        n_desc: 0
+        n_value: 2228
+      - n_strx: 504
+        n_type: 14
+        n_sect: 14
+        n_desc: 32
+        n_value: 2228
+      - n_strx: 2812
+        n_type: 14
+        n_sect: 15
+        n_desc: 0
+        n_value: 2232
+      - n_strx: 698
+        n_type: 14
+        n_sect: 15
+        n_desc: 32
+        n_value: 2232
+      - n_strx: 2781
+        n_type: 14
+        n_sect: 16
+        n_desc: 0
+        n_value: 2248
+      - n_strx: 2523
+        n_type: 14
+        n_sect: 17
+        n_desc: 0
+        n_value: 2256
+      - n_strx: 2492
+        n_type: 14
+        n_sect: 18
+        n_desc: 0
+        n_value: 2384
+      - n_strx: 1020
+        n_type: 31
+        n_sect: 1
+        n_desc: 192
+        n_value: 1728
+      - n_strx: 1971
+        n_type: 31
+        n_sect: 8
+        n_desc: 128
+        n_value: 2080
+      - n_strx: 602
+        n_type: 31
+        n_sect: 1
+        n_desc: 192
+        n_value: 1244
+      - n_strx: 296
+        n_type: 31
+        n_sect: 1
+        n_desc: 192
+        n_value: 588
+      - n_strx: 1330
+        n_type: 31
+        n_sect: 1
+        n_desc: 192
+        n_value: 16
+      - n_strx: 1593
+        n_type: 31
+        n_sect: 1
+        n_desc: 128
+        n_value: 568
+      - n_strx: 1187
+        n_type: 31
+        n_sect: 3
+        n_desc: 0
+        n_value: 1852
+      - n_strx: 1774
+        n_type: 31
+        n_sect: 5
+        n_desc: 0
+        n_value: 1968
+      - n_strx: 2206
+        n_type: 31
+        n_sect: 7
+        n_desc: 160
+        n_value: 2064
+      - n_strx: 1296
+        n_type: 31
+        n_sect: 1
+        n_desc: 0
+        n_value: 0
+      - n_strx: 835
+        n_type: 31
+        n_sect: 5
+        n_desc: 128
+        n_value: 1936
+      - n_strx: 403
+        n_type: 31
+        n_sect: 4
+        n_desc: 0
+        n_value: 1904
+      - n_strx: 1877
+        n_type: 31
+        n_sect: 5
+        n_desc: 512
+        n_value: 1952
+      - n_strx: 1943
+        n_type: 31
+        n_sect: 4
+        n_desc: 128
+        n_value: 1892
+      - n_strx: 734
+        n_type: 31
+        n_sect: 1
+        n_desc: 192
+        n_value: 1676
+      - n_strx: 1737
+        n_type: 31
+        n_sect: 3
+        n_desc: 128
+        n_value: 1880
+      - n_strx: 1087
+        n_type: 31
+        n_sect: 8
+        n_desc: 128
+        n_value: 2096
+      - n_strx: 1727
+        n_type: 31
+        n_sect: 3
+        n_desc: 128
+        n_value: 1872
+      - n_strx: 1077
+        n_type: 31
+        n_sect: 8
+        n_desc: 128
+        n_value: 2088
+      - n_strx: 1133
+        n_type: 31
+        n_sect: 1
+        n_desc: 192
+        n_value: 1424
+      - n_strx: 723
+        n_type: 31
+        n_sect: 1
+        n_desc: 192
+        n_value: 1572
+      - n_strx: 1276
+        n_type: 31
+        n_sect: 1
+        n_desc: 192
+        n_value: 1792
+      - n_strx: 1124
+        n_type: 31
+        n_sect: 1
+        n_desc: 192
+        n_value: 1364
+      - n_strx: 3005
+        n_type: 31
+        n_sect: 1
+        n_desc: 192
+        n_value: 1644
+      - n_strx: 2894
+        n_type: 31
+        n_sect: 1
+        n_desc: 192
+        n_value: 1504
+      - n_strx: 254
+        n_type: 31
+        n_sect: 3
+        n_desc: 160
+        n_value: 1888
+      - n_strx: 1714
+        n_type: 31
+        n_sect: 6
+        n_desc: 128
+        n_value: 2044
+      - n_strx: 2240
+        n_type: 31
+        n_sect: 6
+        n_desc: 128
+        n_value: 2038
+      - n_strx: 1818
+        n_type: 31
+        n_sect: 6
+        n_desc: 128
+        n_value: 2032
+      - n_strx: 2313
+        n_type: 31
+        n_sect: 6
+        n_desc: 128
+        n_value: 2054
+      - n_strx: 805
+        n_type: 31
+        n_sect: 6
+        n_desc: 128
+        n_value: 2048
+      - n_strx: 2118
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 1441
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 1910
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 1144
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 437
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 183
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2695
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2621
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 1518
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2070
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2591
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2016
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2285
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 1870
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2530
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 743
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 471
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 1863
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 1706
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 647
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 539
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 977
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 1063
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2974
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2825
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2794
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2763
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2505
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 869
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2957
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 165
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 78
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 97
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 950
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 57
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 116
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 2850
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 997
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 34
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 935
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 282
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 782
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+      - n_strx: 17
+        n_type: 1
+        n_sect: 0
+        n_desc: 0
+        n_value: 0
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 41
+    iextdefsym: 41
+    nextdefsym: 31
+    tocoff: 72
+    ntoc: 43
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 0
+    nextrel: 0
+    locreloff: 0
+    nlocrel: 0
+segments:
+  - segname: ""
+    vmaddr: 0x0
+    vmsize: 0x998
+    fileoff: 1688
+    filesize: 2456
+    maxprot: 0x7
+    initprot: 0x7
+    nsects: 18
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0x0
+        size: 0x710
+        offset: 1688
+        align: 2
+        reloff: 4144
+        nreloc: 130
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__literal16"
+        addr: 0x710
+        size: 0x10
+        offset: 3496
+        align: 4
+        reloff: 0
+        nreloc: 0
+        flags: 0xe
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__const"
+        addr: 0x720
+        size: 0x42
+        offset: 3512
+        align: 4
+        reloff: 5184
+        nreloc: 10
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__constg_swiftt"
+        addr: 0x764
+        size: 0x28
+        offset: 3580
+        align: 2
+        reloff: 5264
+        nreloc: 10
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__const"
+        addr: 0x790
+        size: 0x60
+        offset: 3624
+        align: 3
+        reloff: 5344
+        nreloc: 7
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__swift5_typeref"
+        addr: 0x7f0
+        size: 0x20
+        offset: 3720
+        align: 1
+        reloff: 5400
+        nreloc: 4
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__swift5_fieldmd"
+        addr: 0x810
+        size: 0x10
+        offset: 3752
+        align: 2
+        reloff: 5432
+        nreloc: 2
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__data"
+        addr: 0x820
+        size: 0x18
+        offset: 3768
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__swift5_capture"
+        addr: 0x838
+        size: 0x14
+        offset: 3792
+        align: 2
+        reloff: 5448
+        nreloc: 4
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_classrefs"
+        addr: 0x850
+        size: 0x10
+        offset: 3816
+        align: 3
+        reloff: 5480
+        nreloc: 2
+        flags: 0x10000000
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__objc_methname"
+        addr: 0x860
+        size: 0x28
+        offset: 3832
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_selrefs"
+        addr: 0x888
+        size: 0x28
+        offset: 3872
+        align: 3
+        reloff: 5496
+        nreloc: 5
+        flags: 0x10000005
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__swift5_proto"
+        addr: 0x8b0
+        size: 0x4
+        offset: 3912
+        align: 2
+        reloff: 5536
+        nreloc: 2
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__swift5_types"
+        addr: 0x8b4
+        size: 0x4
+        offset: 3916
+        align: 2
+        reloff: 5552
+        nreloc: 2
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__LLVM"
+        sectname: "__swift_modhash"
+        addr: 0x8b8
+        size: 0x10
+        offset: 3920
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_imageinfo"
+        addr: 0x8c8
+        size: 0x8
+        offset: 3936
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x10000000
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__LD"
+        sectname: "__compact_unwind"
+        addr: 0x8d0
+        size: 0x80
+        offset: 3944
+        align: 3
+        reloff: 5568
+        nreloc: 4
+        flags: 0x2000000
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__eh_frame"
+        addr: 0x950
+        size: 0x48
+        offset: 4072
+        align: 3
+        reloff: 5600
+        nreloc: 2
+        flags: 0x6800000b
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+build_version:
+    platform: 11
+    minos: "1.0.0"
+    sdk: "26.2.0"
+    ntools: 0
+exports:
+  - "_$s10Foundation4DataV15_RepresentationOWOe"
+  - "_$s19RecaptchaEnterprise5RCcnaOACs5ErrorAAWL"
+  - "_$s19RecaptchaEnterprise5RCcnaOACs5ErrorAAWl"
+  - "_$s19RecaptchaEnterprise5RCedfO5rcecg_5rcgqh5rcgqiys6UInt32V_AA5RCcrzCSaySo14RCAWspeu_WspduCGtKFZTf4nnnd_n"
+  - "_$s19RecaptchaEnterprise5RCedfO5rcecg_5rcgqh5rcgqiys6UInt32V_AA5RCcrzCSaySo14RCAWspeu_WspduCGtKFZySayypSgGcfU_"
+  - "_$s19RecaptchaEnterprise5RCedfOAA5RCecfA2aDP5rcecg_5rcgqh5rcgqiys6UInt32V_AA5RCcrzCSaySo14RCAWspeu_WspduCGtKFZTW"
+  - "_$s19RecaptchaEnterprise5RCedfOAA5RCecfAAMc"
+  - "_$s19RecaptchaEnterprise5RCedfOAA5RCecfAAWP"
+  - "_$s19RecaptchaEnterprise5RCedfOMF"
+  - "_$s19RecaptchaEnterprise5RCedfOMa"
+  - "_$s19RecaptchaEnterprise5RCedfOMf"
+  - "_$s19RecaptchaEnterprise5RCedfOMn"
+  - "_$s19RecaptchaEnterprise5RCedfON"
+  - "_$s19RecaptchaEnterpriseMXM"
+  - "_$sSSWOh"
+  - "_$ss23_ContiguousArrayStorageCySSGMR"
+  - "_$ss23_ContiguousArrayStorageCySSGMd"
+  - "_$sypSgMR"
+  - "_$sypSgMd"
+  - "_$sypSgWOc"
+  - "_$sypSgWOh"
+  - "_$sypWOb"
+  - "_$sypWOc"
+  - "___swift_destroy_boxed_opaque_existential_0"
+  - "___swift_instantiateConcreteTypeFromMangledNameV2"
+  - "___swift_reflection_version"
+  - "_symbolic SS"
+  - "_symbolic _____ 19RecaptchaEnterprise5RCcrzC"
+  - "_symbolic _____ 19RecaptchaEnterprise5RCedfO"
+  - "_symbolic _____ySSG s23_ContiguousArrayStorageC"
+  - "_symbolic ypSg"
+imports:
+  - "_$s10Foundation4DataV19base64EncodedString7optionsSSSo27NSDataBase64EncodingOptionsV_tF"
+  - "_$s10Foundation4DataV36_unconditionallyBridgeFromObjectiveCyACSo6NSDataCSgFZ"
+  - "_$s19RecaptchaEnterprise5RCcnaON"
+  - "_$s19RecaptchaEnterprise5RCcnaOs5ErrorAAMc"
+  - "_$s19RecaptchaEnterprise5RCcrzCMn"
+  - "_$s19RecaptchaEnterprise5RCecfMp"
+  - "_$s19RecaptchaEnterprise5RCevuC5rcewoyxSo14RCAWspeu_WspduCKlFSS_Tg5"
+  - "_$s19RecaptchaEnterprise5RCevuC5rcewoyxSo14RCAWspeu_WspduCKlFs5Int32V_Tg5"
+  - "_$s19RecaptchaEnterprise5RCfzyO5rcfzz5rcgaa5rcgsfyps5Int32V_ySayypSgGctKFZ"
+  - "_$s19RecaptchaEnterprise5RCgarC5rcgauyySS_SSdtF"
+  - "_$sSDyq_Sgxciss6UInt32V_ypTg5"
+  - "_$sSS10FoundationE19_bridgeToObjectiveCSo8NSStringCyF"
+  - "_$sSS10describingSSx_tclufC"
+  - "_$sSSN"
+  - "_$ss12_ArrayBufferV19_getElementSlowPathyyXlSiFyXl_Ts5"
+  - "_$ss18_CocoaArrayWrapperV8endIndexSivg"
+  - "_$ss23_ContiguousArrayStorageCMn"
+  - "_$sypN"
+  - "_$sytWV"
+  - "_OBJC_CLASS_$_RCAVrpek"
+  - "_OBJC_CLASS_$_RCAVrpek_Vrpel"
+  - "_objc_allocWithZone"
+  - "_objc_msgSend"
+  - "_objc_release_x21"
+  - "_objc_release_x23"
+  - "_objc_release_x24"
+  - "_objc_release_x25"
+  - "_objc_release_x26"
+  - "_objc_retainAutoreleasedReturnValue"
+  - "_objc_retain_x21"
+  - "_swift_allocError"
+  - "_swift_allocObject"
+  - "_swift_beginAccess"
+  - "_swift_bridgeObjectRelease"
+  - "_swift_deallocObject"
+  - "_swift_endAccess"
+  - "_swift_getTypeByMangledNameInContext2"
+  - "_swift_getWitnessTable"
+  - "_swift_initStackObject"
+  - "_swift_release"
+  - "_swift_retain"
+  - "_swift_setDeallocating"
+  - "_swift_willThrow"

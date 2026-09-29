@@ -1,0 +1,77 @@
+{
+  "items": [
+    {
+      "code": "invalid_rule_name",
+      "data": {
+        "patches": []
+      },
+      "message": "rule name does not match regex `^[A-Z][a-zA-Z0-9_]*$`",
+      "range": {
+        "end": {
+          "character": 18,
+          "line": 0
+        },
+        "start": {
+          "character": 5,
+          "line": 0
+        }
+      },
+      "relatedInformation": [
+        {
+          "location": {
+            "range": {
+              "end": {
+                "character": 18,
+                "line": 0
+              },
+              "start": {
+                "character": 5,
+                "line": 0
+              }
+            },
+            "uri": "${test_dir}/diagnostics9.yar"
+          },
+          "message": "this rule name does not match regex `^[A-Z][a-zA-Z0-9_]*$`"
+        }
+      ],
+      "severity": 2
+    },
+    {
+      "code": "missing_metadata",
+      "data": {
+        "patches": []
+      },
+      "message": "required metadata is missing",
+      "range": {
+        "end": {
+          "character": 18,
+          "line": 0
+        },
+        "start": {
+          "character": 5,
+          "line": 0
+        }
+      },
+      "relatedInformation": [
+        {
+          "location": {
+            "range": {
+              "end": {
+                "character": 18,
+                "line": 0
+              },
+              "start": {
+                "character": 5,
+                "line": 0
+              }
+            },
+            "uri": "${test_dir}/diagnostics9.yar"
+          },
+          "message": "required metadata `author` not found"
+        }
+      ],
+      "severity": 2
+    }
+  ],
+  "kind": "full"
+}

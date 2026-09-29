@@ -76,3 +76,34 @@ pub fn sleb128(input: &[u8]) -> IResult<&[u8], i64> {
 
     Ok((data, val))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nom::error::ErrorKind;
+
+    #[test]
+    fn test_uleb128() {
+        assert_eq!(uleb128(&[0x00]), Ok((&[][..], 0)));
+        assert_eq!(uleb128(&[0x01]), Ok((&[][..], 1)));
+        assert_eq!(uleb128(&[0xe5, 0x8e, 0x26]), Ok((&[][..], 624485)));
+        assert_eq!(uleb128(&[0x80, 0x01, 0xff]), Ok((&[0xff][..], 128)));
+        let overflow = [0x80; 11];
+        assert!(
+            matches!(uleb128(&overflow), Err(nom::Err::Error(e)) if e.code == ErrorKind::TooLarge)
+        );
+    }
+
+    #[test]
+    fn test_sleb128() {
+        assert_eq!(sleb128(&[0x00]), Ok((&[][..], 0)));
+        assert_eq!(sleb128(&[0x01]), Ok((&[][..], 1)));
+        assert_eq!(sleb128(&[0x7f]), Ok((&[][..], -1)));
+        assert_eq!(sleb128(&[0x80, 0x7f]), Ok((&[][..], -128)));
+        assert_eq!(sleb128(&[0x9b, 0xf1, 0x59]), Ok((&[][..], -624485)));
+        let overflow = [0x80; 11];
+        assert!(
+            matches!(sleb128(&overflow), Err(nom::Err::Error(e)) if e.code == ErrorKind::TooLarge)
+        );
+    }
+}

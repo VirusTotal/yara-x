@@ -6,6 +6,17 @@ use crate::yara::exts::field_options;
 
 include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 
+/// File name used by the protobuf extension definitions consumed by YARA-X
+/// module schemas.
+pub const YARA_PROTO_FILE_NAME: &str = "yara.proto";
+
+/// Protobuf extension definitions used by YARA-X module schemas.
+///
+/// Downstream crates that generate protobuf-backed YARA-X modules can write
+/// this content to their build output directory and add that directory to their
+/// `protobuf_codegen::Codegen` include paths.
+pub const YARA_PROTO: &str = include_str!("yara.proto");
+
 /// Possible formats applied to values in YARA modules.
 ///
 /// In the protobufs defining a YARA module, values can be formatted in various
@@ -92,3 +103,9 @@ pub fn get_field_format(field_descriptor: &FieldDescriptor) -> FieldFormat {
 
     FieldFormat::None
 }
+
+pub mod json;
+pub mod yaml;
+
+#[cfg(test)]
+mod tests;

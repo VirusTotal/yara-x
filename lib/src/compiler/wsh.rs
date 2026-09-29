@@ -88,7 +88,7 @@ where
             f: None,
             line_span: None,
             cst_stream: cst_events.into(),
-            suppress_re: Regex::new(r"suppress: (\w+)").unwrap(),
+            suppress_re: Regex::new(r"suppress: ([\w\s,]+)").unwrap(),
             pending_comments: vec![],
         }
     }
@@ -116,14 +116,14 @@ where
                     }
                     if let Some(code_span) = &comment.code_span
                         && let Some(hook) = &mut self.f
-                        && let Some(warning_id) = self
-                            .suppress_re
-                            .captures(comment.text)
-                            .and_then(|captures| captures.get(1))
-                            .map(|m| m.as_bytes())
-                            .and_then(|m| from_utf8(m).ok())
+                        && let Some(captures) =
+                            self.suppress_re.captures(comment.text)
+                        && let Some(m) = captures.get(1)
+                        && let Ok(s) = from_utf8(m.as_bytes())
                     {
-                        hook(warning_id, code_span.clone());
+                        for warning_id in s.split(',') {
+                            hook(warning_id.trim(), code_span.clone());
+                        }
                     }
                     comment.code_span.is_none()
                 });
@@ -201,6 +201,39 @@ rule test_2 { strings: /* suppress: bar */ $a = { 00 01 } condition: true }
             ("bar", vec![Span(18..31), Span(110..132)]),
             // baz is suppressed for "condition: true"
             ("baz", vec![Span(74..89)]),
+        ]
+        .into_iter()
+        .collect();
+
+        assert_eq!(map, expected);
+    }
+
+    #[test]
+    fn multi_warning_suppression() {
+        let parser = Parser::new(
+            b"
+// suppress: foo, bar
+rule test_1 {
+    // suppress: baz, qux
+    condition: true
+}
+        ",
+        );
+
+        let mut map: HashMap<&str, Vec<Span>> = HashMap::new();
+
+        let cst =
+            WarningSuppressionHook::from(parser).hook(|warning, span| {
+                map.entry(warning).or_default().push(span);
+            });
+
+        let _ = cst.collect::<Vec<Event>>();
+
+        let expected: HashMap<_, _> = vec![
+            ("foo", vec![Span(23..84)]),
+            ("bar", vec![Span(23..84)]),
+            ("baz", vec![Span(67..82)]),
+            ("qux", vec![Span(67..82)]),
         ]
         .into_iter()
         .collect();

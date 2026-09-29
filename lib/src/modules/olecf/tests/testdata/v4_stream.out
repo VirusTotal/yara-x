@@ -1,0 +1,8 @@
+is_olecf: true
+streams:
+  - name: "Root Entry"
+    type: ROOT
+    size: 0
+  - name: "V4DataStream"
+    type: STREAM
+    size: 5000

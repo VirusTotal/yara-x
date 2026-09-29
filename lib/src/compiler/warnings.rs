@@ -23,6 +23,7 @@ pub enum Warning {
     ConsecutiveJumps(Box<ConsecutiveJumps>),
     DeprecatedField(Box<DeprecatedField>),
     DuplicateImport(Box<DuplicateImport>),
+    DuplicatePatternValue(Box<DuplicatePatternValue>),
     GlobalRuleMisuse(Box<GlobalRuleMisuse>),
     IgnoredModule(Box<IgnoredModule>),
     IgnoredRule(Box<IgnoredRule>),
@@ -41,6 +42,7 @@ pub enum Warning {
     UnknownTag(Box<UnknownTag>),
     UnsatisfiableExpression(Box<UnsatisfiableExpression>),
     UnusedIdentifier(Box<UnusedIdentifier>),
+    UnintendedPatternInSet(Box<UnintendedPatternInSet>),
 }
 
 /// A hex pattern contains two or more consecutive jumps.
@@ -752,6 +754,40 @@ pub struct AmbiguousExpression {
     loc: CodeLoc,
 }
 
+/// A pattern may be unintentionally included in a pattern set.
+///
+/// For instance, if a rule defines patterns `$s1`, `$s2`, `$s3` and
+/// `$suspicious_string`, and the condition is:
+///
+///   `$suspicious_string and any of ($s*)`
+///
+/// `any of ($s*)` was intended to match `$s1`, `$s2` and `$s3`, but not
+/// `$suspicious_string`. However, `$s*` includes `$suspicious_string`
+/// and that was unintended.
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "unintended_pattern_in_set",
+    title = "pattern `{pattern_ident}` may be unintendedly or redundantly included in pattern set `{pattern_set}`",
+)]
+#[label(
+    "{first_label}",
+    first_loc
+)]
+#[label(
+    "{second_label}",
+    second_loc
+)]
+pub struct UnintendedPatternInSet {
+    report: Report,
+    pattern_ident: String,
+    pattern_set: String,
+    first_label: String,
+    first_loc: CodeLoc,
+    second_label: String,
+    second_loc: CodeLoc,
+}
+
 /// An identifier was declared but not used.
 ///
 /// ## Example
@@ -814,4 +850,44 @@ pub struct GlobalRuleMisuse {
     report: Report,
     loc: CodeLoc,
     note: Option<String>,
+}
+
+/// Multiple patterns in the same rule have identical values.
+///
+/// This warning indicates that two or more patterns in the same rule have
+/// identical literal or regular expression values, which can lead to redundant
+/// scanning work.
+///
+/// ## Example
+///
+/// ```text
+/// warning[duplicate_pattern_value]: duplicate pattern value
+///  --> test.yar:4:9
+///   |
+/// 3 |         $a = "exact_duplicate_string"
+///   |              ------------------------ pattern `$a` defined here first
+/// 4 |         $b = "exact_duplicate_string"
+///   |              ------------------------ duplicate of pattern `$a`
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "duplicate_pattern_value",
+    title = "duplicate pattern value"
+)]
+#[label(
+    "duplicate of pattern `{existing_ident}`",
+    duplicate_loc
+)]
+#[label(
+    "pattern `{existing_ident}` defined here first",
+    existing_loc,
+    Level::NOTE
+)]
+pub struct DuplicatePatternValue {
+    report: Report,
+    existing_ident: String,
+    duplicate_loc: CodeLoc,
+    existing_loc: CodeLoc,
 }

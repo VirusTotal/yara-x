@@ -1,27 +1,40 @@
 //! Browser worker entry point for the YARA language server.
 
+#[cfg(target_family = "wasm")]
 use std::pin::Pin;
+#[cfg(target_family = "wasm")]
 use std::task::{Context, Poll};
 
+#[cfg(target_family = "wasm")]
 use futures::StreamExt;
+#[cfg(target_family = "wasm")]
 use futures::channel::mpsc::{UnboundedReceiver, unbounded};
+#[cfg(target_family = "wasm")]
 use futures::io::{AsyncRead, AsyncWrite};
+#[cfg(target_family = "wasm")]
 use js_sys::JSON;
+#[cfg(target_family = "wasm")]
 use wasm_bindgen::JsCast;
+#[cfg(target_family = "wasm")]
 use wasm_bindgen::prelude::*;
+#[cfg(target_family = "wasm")]
 use wasm_bindgen_futures::spawn_local;
+#[cfg(target_family = "wasm")]
 use web_sys::{DedicatedWorkerGlobalScope, MessageEvent};
 
+#[cfg(target_family = "wasm")]
 struct WorkerReader {
     receiver: UnboundedReceiver<Vec<u8>>,
     buffer: Vec<u8>,
 }
 
+#[cfg(target_family = "wasm")]
 struct WorkerWriter {
     scope: DedicatedWorkerGlobalScope,
     buffer: Vec<u8>,
 }
 
+#[cfg(target_family = "wasm")]
 impl AsyncRead for WorkerReader {
     fn poll_read(
         mut self: Pin<&mut Self>,
@@ -46,6 +59,7 @@ impl AsyncRead for WorkerReader {
     }
 }
 
+#[cfg(target_family = "wasm")]
 impl AsyncWrite for WorkerWriter {
     fn poll_write(
         mut self: Pin<&mut Self>,
@@ -126,6 +140,7 @@ fn take_lsp_message(buffer: &mut Vec<u8>) -> Option<String> {
     Some(String::from_utf8_lossy(&body).into_owned())
 }
 
+#[cfg(target_family = "wasm")]
 fn event_data_as_text(event: &MessageEvent) -> Option<String> {
     if let Some(text) = event.data().as_string() {
         return Some(text);
@@ -140,6 +155,7 @@ fn event_data_as_text(event: &MessageEvent) -> Option<String> {
 /// `Content-Length` framing expected by [`crate::serve`]. Outgoing LSP
 /// messages are parsed and posted back as JSON values when possible, or
 /// as raw strings otherwise.
+#[cfg(target_family = "wasm")]
 #[wasm_bindgen(js_name = "runWorkerServer")]
 pub fn run_worker_server() -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
@@ -173,4 +189,60 @@ pub fn run_worker_server() -> Result<(), JsValue> {
     });
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_push_lsp_message() {
+        let mut buf = Vec::new();
+        push_lsp_message(&mut buf, b"hello");
+        assert_eq!(buf, b"Content-Length: 5\r\n\r\nhello");
+    }
+
+    #[test]
+    fn test_find_header_end() {
+        assert_eq!(
+            find_header_end(b"Content-Length: 10\r\n\r\nbody"),
+            Some(18)
+        );
+        assert_eq!(find_header_end(b"Content-Length: 10\r\n"), None);
+        assert_eq!(find_header_end(b"short"), None);
+    }
+
+    #[test]
+    fn test_parse_content_length() {
+        assert_eq!(parse_content_length(b"Content-Length: 42"), Some(42));
+        assert_eq!(
+            parse_content_length(b"content-length: 100\r\nOther: foo"),
+            Some(100)
+        );
+        assert_eq!(parse_content_length(b"Content-Length: abc"), None);
+        assert_eq!(parse_content_length(b"Other: 10"), None);
+    }
+
+    #[test]
+    fn test_take_lsp_message() {
+        let mut buf = Vec::new();
+        assert_eq!(take_lsp_message(&mut buf), None);
+
+        // Incomplete body
+        buf.extend_from_slice(b"Content-Length: 10\r\n\r\nshort");
+        assert_eq!(take_lsp_message(&mut buf), None);
+
+        // Complete message
+        buf.extend_from_slice(b"body!");
+        assert_eq!(take_lsp_message(&mut buf), Some("shortbody!".to_string()));
+        assert!(buf.is_empty());
+
+        // Chained messages
+        buf.extend_from_slice(
+            b"Content-Length: 3\r\n\r\nfooContent-Length: 3\r\n\r\nbar",
+        );
+        assert_eq!(take_lsp_message(&mut buf), Some("foo".to_string()));
+        assert_eq!(take_lsp_message(&mut buf), Some("bar".to_string()));
+        assert!(buf.is_empty());
+    }
 }

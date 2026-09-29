@@ -1,0 +1,125 @@
+[
+  {
+    "children": [
+      {
+        "kind": 14,
+        "name": "author",
+        "range": {
+          "end": {
+            "character": 20,
+            "line": 2
+          },
+          "start": {
+            "character": 4,
+            "line": 2
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 20,
+            "line": 2
+          },
+          "start": {
+            "character": 4,
+            "line": 2
+          }
+        }
+      },
+      {
+        "kind": 14,
+        "name": "version",
+        "range": {
+          "end": {
+            "character": 15,
+            "line": 3
+          },
+          "start": {
+            "character": 4,
+            "line": 3
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 15,
+            "line": 3
+          },
+          "start": {
+            "character": 4,
+            "line": 3
+          }
+        }
+      },
+      {
+        "kind": 14,
+        "name": "description",
+        "range": {
+          "end": {
+            "character": 43,
+            "line": 4
+          },
+          "start": {
+            "character": 4,
+            "line": 4
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 43,
+            "line": 4
+          },
+          "start": {
+            "character": 4,
+            "line": 4
+          }
+        }
+      },
+      {
+        "kind": 17,
+        "name": "condition",
+        "range": {
+          "end": {
+            "character": 8,
+            "line": 6
+          },
+          "start": {
+            "character": 4,
+            "line": 6
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 8,
+            "line": 6
+          },
+          "start": {
+            "character": 4,
+            "line": 6
+          }
+        }
+      }
+    ],
+    "detail": "rule",
+    "kind": 12,
+    "name": "rule_with_metadata",
+    "range": {
+      "end": {
+        "character": 23,
+        "line": 0
+      },
+      "start": {
+        "character": 5,
+        "line": 0
+      }
+    },
+    "selectionRange": {
+      "end": {
+        "character": 23,
+        "line": 0
+      },
+      "start": {
+        "character": 5,
+        "line": 0
+      }
+    }
+  }
+]

@@ -50,7 +50,6 @@ func Example_compilerAndScanner() {
 		condition:
 		$bar
 	}`)
-
 	if err != nil {
 		panic(err)
 	}

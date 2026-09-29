@@ -45,11 +45,11 @@ const SRC_SUGGESTIONS: [(&str, Option<&str>); 5] = [
         "rule",
         Some(
             r#"rule ${1:ident} {
-  strings:
-    $${2:a} = "${3}"
-  condition:
-    $${2:a}${0}
- }"#,
+    strings:
+        $${2:a} = "${3}"
+    condition:
+        $${2:a}${0}
+}"#,
         ),
     ),
     ("import", Some("import \"${1:}\"${0}")),
@@ -66,9 +66,9 @@ const CONDITION_SUGGESTIONS: [(&str, Option<&str>); 16] = [
     ("none", None),
     ("of", None),
     ("at", Some("at ${1:expression}")),
-    ("in", Some("in ${1:}..${2:}")),
+    ("in", Some("in (${1:}..${2:})")),
     ("filesize", None),
-    ("entrypoint", None),
+    ("entrypoint", Some("pe.entry_point")),
     ("true", None),
     ("false", None),
     ("not", None),
@@ -393,80 +393,94 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
             let name = f.name();
             let ty = f.ty();
 
-            if let Type::Func(ref func_def) = ty {
-                func_def
-                    .signatures
-                    .iter()
-                    .map(|sig| {
-                        let args = sig
-                            .args()
-                            .map(|(name, ty)| format!("{}: {}", name, ty_to_string(ty)))
-                            .collect::<Vec<_>>();
+            match ty {
+                Type::Func(ref func_def) => {
+                    func_def
+                        .signatures
+                        .iter()
+                        .map(|sig| {
+                            let args = sig
+                                .args()
+                                .map(|(name, ty)| format!("{}: {}", name, ty_to_string(ty)))
+                                .collect::<Vec<_>>();
 
-                        let args_template = sig
-                            .args()
-                            .enumerate()
-                            .map(|(n, (name, _))| {
-                                format!("${{{}:{name}}}", n + 1)
-                            })
-                            .join(", ");
+                            let args_template = sig
+                                .args()
+                                .enumerate()
+                                .map(|(n, (name, _))| {
+                                    format!("${{{}:{name}}}", n + 1)
+                                })
+                                .join(", ");
 
-                        CompletionItem {
-                            label: format!(
-                                "{}({})",
-                                name,
-                                args.join(", ")
-                            ),
-                            kind: Some(CompletionItemKind::METHOD),
-                            insert_text: Some(format!(
-                                "{name}({args_template})",
-                            )),
-                            insert_text_format: Some(
-                                InsertTextFormat::SNIPPET,
-                            ),
-                            label_details: Some(CompletionItemLabelDetails {
-                                description: Some(ty_to_string(&ty)),
+                            CompletionItem {
+                                label: format!(
+                                    "{}({})",
+                                    name,
+                                    args.join(", ")
+                                ),
+                                kind: Some(CompletionItemKind::METHOD),
+                                insert_text: Some(format!(
+                                    "{name}({args_template})",
+                                )),
+                                insert_text_format: Some(
+                                    InsertTextFormat::SNIPPET,
+                                ),
+                                label_details: Some(CompletionItemLabelDetails {
+                                    description: Some(ty_to_string(&ty)),
+                                    ..Default::default()
+                                }),
+                                documentation: sig.doc().map(
+                                    |docs| {
+                                        async_lsp::lsp_types::Documentation::MarkupContent(
+                                            async_lsp::lsp_types::MarkupContent {
+                                                kind: async_lsp::lsp_types::MarkupKind::Markdown,
+                                                value: format!(
+                                                    "## `{}({}) -> {}`\n\n{}",
+                                                    name,
+                                                    sig.args()
+                                                        .map(|(name, ty)| format!("{}: {}", name, ty_to_string(ty)))
+                                                        .join(", "),
+                                                    ty_to_string(sig.ret_type()),
+                                                    docs
+                                                ),
+                                            },
+                                        )
+                                    },
+                                ),
                                 ..Default::default()
-                            }),
-                            documentation: sig.doc().map(
-                                |docs| {
-                                    async_lsp::lsp_types::Documentation::MarkupContent(
-                                        async_lsp::lsp_types::MarkupContent {
-                                            kind: async_lsp::lsp_types::MarkupKind::Markdown,
-                                            value: format!(
-                                                "## `{}({}) -> {}`\n\n{}",
-                                                name,
-                                                sig.args()
-                                                    .map(|(name, ty)| format!("{}: {}", name, ty_to_string(ty)))
-                                                    .join(", "),
-                                                ty_to_string(sig.ret_type()),
-                                                docs
-                                            ),
-                                        },
-                                    )
-                                },
-                            ),
-                            ..Default::default()
-                        }
-                    })
-                    .collect()
-            } else {
-                let insert_text = match &ty {
-                    Type::Array(_) => format!("{name}[${{1}}]${{2}}"),
-                    _ => name.to_string(),
-                };
+                            }
+                        })
+                        .collect()
+                }
+                _ => {
+                    let insert_text = match &ty {
+                        Type::Array(_) => format!("{name}[${{1}}]${{2}}"),
+                        _ => name.to_string(),
+                    };
 
-                vec![CompletionItem {
-                    label: name.to_string(),
-                    kind: Some(CompletionItemKind::FIELD),
-                    insert_text: Some(insert_text),
-                    insert_text_format: Some(InsertTextFormat::SNIPPET),
-                    label_details: Some(CompletionItemLabelDetails {
-                        description: Some(ty_to_string(&ty)),
+                    let mut description = ty_to_string(&ty);
+
+                    let kind = if matches!(ty, Type::Struct(ref s) if s.is_enum())  {
+                        CompletionItemKind::ENUM
+                    } else if f.is_const() {
+                        description.insert_str(0, "const ");
+                        CompletionItemKind::CONSTANT
+                    } else {
+                        CompletionItemKind::FIELD
+                    };
+
+                    vec![CompletionItem {
+                        label: name.to_string(),
+                        kind: Some(kind),
+                        insert_text: Some(insert_text),
+                        insert_text_format: Some(InsertTextFormat::SNIPPET),
+                        label_details: Some(CompletionItemLabelDetails {
+                            description: Some(description),
+                            ..Default::default()
+                        }),
                         ..Default::default()
-                    }),
-                    ..Default::default()
-                }]
+                    }]
+                }
             }
         })
         .collect();

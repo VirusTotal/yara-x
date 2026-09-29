@@ -1,1 +1,125 @@
-null
+[
+  {
+    "children": [
+      {
+        "kind": 15,
+        "name": "$pattern_one",
+        "range": {
+          "end": {
+            "character": 28,
+            "line": 2
+          },
+          "start": {
+            "character": 4,
+            "line": 2
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 28,
+            "line": 2
+          },
+          "start": {
+            "character": 4,
+            "line": 2
+          }
+        }
+      },
+      {
+        "kind": 15,
+        "name": "$pattern_two",
+        "range": {
+          "end": {
+            "character": 28,
+            "line": 3
+          },
+          "start": {
+            "character": 4,
+            "line": 3
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 28,
+            "line": 3
+          },
+          "start": {
+            "character": 4,
+            "line": 3
+          }
+        }
+      },
+      {
+        "kind": 15,
+        "name": "$pattern_three",
+        "range": {
+          "end": {
+            "character": 30,
+            "line": 4
+          },
+          "start": {
+            "character": 4,
+            "line": 4
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 30,
+            "line": 4
+          },
+          "start": {
+            "character": 4,
+            "line": 4
+          }
+        }
+      },
+      {
+        "kind": 17,
+        "name": "condition",
+        "range": {
+          "end": {
+            "character": 8,
+            "line": 6
+          },
+          "start": {
+            "character": 4,
+            "line": 6
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 8,
+            "line": 6
+          },
+          "start": {
+            "character": 4,
+            "line": 6
+          }
+        }
+      }
+    ],
+    "detail": "rule",
+    "kind": 12,
+    "name": "multiple_pattern",
+    "range": {
+      "end": {
+        "character": 21,
+        "line": 0
+      },
+      "start": {
+        "character": 5,
+        "line": 0
+      }
+    },
+    "selectionRange": {
+      "end": {
+        "character": 21,
+        "line": 0
+      },
+      "start": {
+        "character": 5,
+        "line": 0
+      }
+    }
+  }
+]

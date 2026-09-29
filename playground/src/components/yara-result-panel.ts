@@ -1,15 +1,50 @@
-import type { ExecutionState, ResultMode } from "../types/execution";
 import { LitElement, html, nothing } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 
 import { classMap } from "lit/directives/class-map.js";
+import type {
+  ExecutionState,
+  MatchRange,
+  ResultMode,
+} from "../results/result-types";
 import { summarizeResult } from "../results/summarize-result";
 
 const EMPTY_EXECUTION: ExecutionState = {
   raw: {},
+  consoleOutput: [],
   durationMs: null,
   summary: summarizeResult({}, "scan"),
 };
+
+type CopyableResultMode = "raw" | "console";
+
+const RAW_OUTPUT_CLASS = "raw-output output-content playground-scroll";
+const CONSOLE_OUTPUT_CLASS = `${RAW_OUTPUT_CLASS} console-output`;
+
+function formatSeconds(durationMs: number) {
+  return (durationMs / 1000).toFixed(2).replace(/\.?0+$/, "");
+}
+
+function formatDuration(durationMs: number | null) {
+  if (durationMs === null) {
+    return "--";
+  }
+
+  if (durationMs < 1000) {
+    return `${durationMs} ms`;
+  }
+
+  if (durationMs < 60_000) {
+    return `${formatSeconds(durationMs)} s`;
+  }
+
+  const minutes = Math.floor(durationMs / 60_000);
+  const remainingMs = durationMs % 60_000;
+
+  return remainingMs === 0
+    ? `${minutes} min`
+    : `${minutes} min ${formatSeconds(remainingMs)} s`;
+}
 
 @customElement("yara-result-panel")
 export class YaraResultPanel extends LitElement {
@@ -19,8 +54,28 @@ export class YaraResultPanel extends LitElement {
   @property({ attribute: false })
   execution: ExecutionState = EMPTY_EXECUTION;
 
+  @property({ type: Boolean })
+  canNavigateMatches = false;
+
+  @property({ attribute: false })
+  activeMatchRange: MatchRange | null = null;
+
+  @state()
+  private copiedMode: CopyableResultMode | null = null;
+
+  private copyFeedbackTimeoutId: number | null = null;
+
   protected createRenderRoot() {
     return this;
+  }
+
+  disconnectedCallback() {
+    if (this.copyFeedbackTimeoutId !== null) {
+      window.clearTimeout(this.copyFeedbackTimeoutId);
+      this.copyFeedbackTimeoutId = null;
+    }
+
+    super.disconnectedCallback();
   }
 
   private get resultLabel() {
@@ -33,6 +88,8 @@ export class YaraResultPanel extends LitElement {
         return "Warnings";
       case "issues":
         return "Issues";
+      case "cancelled":
+        return "Cancelled";
       default:
         return "Ready";
     }
@@ -45,6 +102,23 @@ export class YaraResultPanel extends LitElement {
         bubbles: true,
         composed: true,
       }),
+    );
+  }
+
+  private dispatchMatchRangeRequest(range: MatchRange) {
+    this.dispatchEvent(
+      new CustomEvent<MatchRange>("match-range-request", {
+        detail: range,
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
+  private isActiveMatchRange(range: MatchRange) {
+    return (
+      this.activeMatchRange?.start === range.start &&
+      this.activeMatchRange.end === range.end
     );
   }
 
@@ -107,10 +181,38 @@ export class YaraResultPanel extends LitElement {
                           (pattern) => html`
                             <div class="pattern-row">
                               <span>${pattern.identifier}</span>
-                              <code
-                                >${pattern.ranges.join(", ") ||
-                                "No ranges"}</code
-                              >
+                              <div class="match-range-list">
+                                ${pattern.ranges.length === 0
+                                  ? html`<code>No ranges</code>`
+                                  : pattern.ranges.map((range) => {
+                                      const isActive =
+                                        this.isActiveMatchRange(range);
+
+                                      return html`
+                                        <button
+                                          type="button"
+                                          class=${classMap({
+                                            "match-range-button": true,
+                                            "is-active": isActive,
+                                          })}
+                                          title=${this.canNavigateMatches
+                                            ? "Show this match in the sample editor"
+                                            : "Scan in progress"}
+                                          aria-pressed=${isActive
+                                            ? "true"
+                                            : "false"}
+                                          ?disabled=${!this.canNavigateMatches}
+                                          @click=${() => {
+                                            this.dispatchMatchRangeRequest(
+                                              range,
+                                            );
+                                          }}
+                                        >
+                                          ${range.start}-${range.end}
+                                        </button>
+                                      `;
+                                    })}
+                              </div>
                             </div>
                           `,
                         )}
@@ -177,10 +279,124 @@ export class YaraResultPanel extends LitElement {
     `;
   }
 
+  private get rawOutputText() {
+    return JSON.stringify(this.execution.raw, null, 2) ?? "null";
+  }
+
+  private get consoleOutputText() {
+    return this.execution.consoleOutput.join("\n");
+  }
+
+  private async writeTextToClipboard(text: string) {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "true");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.append(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    textarea.remove();
+  }
+
+  private async copyOutput(mode: CopyableResultMode, text: string) {
+    if (!text) {
+      return;
+    }
+
+    try {
+      await this.writeTextToClipboard(text);
+      this.copiedMode = mode;
+
+      if (this.copyFeedbackTimeoutId !== null) {
+        window.clearTimeout(this.copyFeedbackTimeoutId);
+      }
+
+      this.copyFeedbackTimeoutId = window.setTimeout(() => {
+        this.copiedMode = null;
+        this.copyFeedbackTimeoutId = null;
+      }, 1600);
+    } catch {
+      this.copiedMode = null;
+    }
+  }
+
+  private renderCopyButton(mode: CopyableResultMode, text: string) {
+    if (text.trim().length === 0) {
+      return nothing;
+    }
+
+    const isCopied = this.copiedMode === mode;
+
+    return html`
+      <button
+        type="button"
+        class="copy-output-button"
+        @click=${() => {
+          void this.copyOutput(mode, text);
+        }}
+      >
+        ${isCopied ? "Copied" : "Copy"}
+      </button>
+    `;
+  }
+
   private renderRawResults() {
-    return html`<pre class="raw-output">
-${JSON.stringify(this.execution.raw, null, 2)}</pre
-    >`;
+    return html`
+      <section class="output-shell">
+        <div class="output-toolbar">
+          <div class="section-heading">Raw output</div>
+          ${this.renderCopyButton("raw", this.rawOutputText)}
+        </div>
+        <pre class=${RAW_OUTPUT_CLASS}>${this.rawOutputText}</pre>
+      </section>
+    `;
+  }
+
+  private renderConsoleResults() {
+    if (this.execution.consoleOutput.length === 0) {
+      return html`
+        <section class="output-shell">
+          <div class="output-toolbar">
+            <div class="section-heading">Console output</div>
+            ${this.renderCopyButton("console", this.consoleOutputText)}
+          </div>
+          <div class="console-empty-state output-content playground-scroll">
+            <p class="empty-copy">
+              Nothing here yet. Import the <code>console</code> module and call
+              <code>console.log()</code> in your rule to see output after
+              running a scan.
+            </p>
+            <div class="console-example-block">
+              <span class="eyebrow">Example</span>
+              <pre class="raw-output console-output">
+import "console"
+
+rule debug_console_example {
+    condition:
+        console.log("Hello") and console.log("World!")
+}</pre
+              >
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+    return html`
+      <section class="output-shell">
+        <div class="output-toolbar">
+          <div class="section-heading">Console output</div>
+          ${this.renderCopyButton("console", this.consoleOutputText)}
+        </div>
+        <pre class=${CONSOLE_OUTPUT_CLASS}>${this.consoleOutputText}</pre>
+      </section>
+    `;
   }
 
   private renderModeChip(mode: ResultMode, label: string) {
@@ -199,7 +415,7 @@ ${JSON.stringify(this.execution.raw, null, 2)}</pre
             this.dispatchResultModeChange(mode);
           }}
         />
-        <span>${label}</span>
+        <span class="mode-chip-label">${label}</span>
       </label>
     `;
   }
@@ -216,19 +432,20 @@ ${JSON.stringify(this.execution.raw, null, 2)}</pre
             <div class="mode-switch" role="tablist" aria-label="Result mode">
               ${this.renderModeChip("summary", "Summary")}
               ${this.renderModeChip("raw", "Raw")}
+              ${this.renderModeChip("console", "Console")}
             </div>
             <span class="duration-chip">
-              ${this.execution.durationMs === null
-                ? "--"
-                : `${this.execution.durationMs} ms`}
+              ${formatDuration(this.execution.durationMs)}
             </span>
           </div>
         </header>
 
-        <div class="results-body">
+        <div class="results-body playground-scroll">
           ${this.resultMode === "summary"
             ? this.renderSummaryResults()
-            : this.renderRawResults()}
+            : this.resultMode === "raw"
+              ? this.renderRawResults()
+              : this.renderConsoleResults()}
         </div>
       </section>
     `;

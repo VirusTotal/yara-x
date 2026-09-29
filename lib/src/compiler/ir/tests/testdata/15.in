@@ -1,0 +1,31 @@
+import "pe"
+
+rule test {
+    strings:
+        $a = "foo"
+        $b = "bar"
+        $r1 = /regex1/
+        $r2 = /regex2/
+    condition:
+        $a and $a at 0 and $a in (0..100) and
+        #a > 0 and #a in (0..100) > 0 and
+        @a > 0 and @a[1] > 0 and
+        !a > 0 and !a[1] > 0 and
+        for any of ($a*) : ( $ and $ at 0 and $ in (0..100) ) and
+        for any of ($a*) : ( # > 0 and # in (0..100) > 0 ) and
+        for any of ($a*) : ( @ > 0 and @[1] > 0 ) and
+        for any of ($a*) : ( ! > 0 and ![1] > 0 ) and
+        for any of ($r*) : ( $ ) and
+        any of (true, false) and
+        all of ($a, $b) and
+        for 1 of ($a*) : ( $ ) and
+        for any i in (1..5) : ( i + 1 == 2 ) and
+        ~1 != 0 and (1 & 2) == 0 and (1 | 2) == 3 and (1 ^ 2) == 3 and
+        -1 < 0 and (5 - 3) == 2 and (2 * 3) == 6 and (6 \ 2) == 3 and (5 % 2) == 1 and
+        (1 << 2) == 4 and (8 >> 1) == 4 and
+        "foo" contains "f" and "foo" icontains "F" and
+        "foo" startswith "f" and "foo" istartswith "F" and
+        "foo" endswith "o" and "foo" iendswith "O" and
+        "foo" iequals "FOO" and "foo" matches /foo/ and
+        defined pe.number_of_sections and pe.sections[0].name == ".text"
+}

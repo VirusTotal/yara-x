@@ -1,0 +1,40 @@
+syntax = "proto2";
+import "yara.proto";
+
+package vba;
+
+option (yara.module_options) = {
+  name: "vba"
+  root_message: "vba.Vba"
+  cargo_feature: "vba-module"
+};
+
+enum ModuleType {
+  option (yara.enum_options).inline = true;
+  MODULE_TYPE_STANDARD = 1;
+  MODULE_TYPE_CLASS = 2;
+  MODULE_TYPE_UNKNOWN = 3;
+}
+
+message Vba {
+  // True if VBA macros are present
+  optional bool has_macros = 1;
+  message Module {
+    optional string name = 1;
+    optional ModuleType type = 2;
+    optional string code = 3;
+  }
+
+  // VBA macro modules found
+  repeated Module modules = 2;
+  
+  // Project metadata
+  message ProjectInfo {
+    optional string name = 1;
+    optional string version = 2;
+    repeated string references = 3;
+    optional int32 module_count = 4;
+  }
+
+  optional ProjectInfo project_info = 5;
+}

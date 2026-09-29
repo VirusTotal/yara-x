@@ -24,7 +24,6 @@ use crate::types::Struct;
 #[cfg(test)]
 mod tests;
 
-mod authenticode;
 pub mod parser;
 mod rva2off;
 
@@ -35,7 +34,7 @@ thread_local!(
     static CHECKSUM_CACHE: RefCell<Option<i64>> = const { RefCell::new(None) };
 );
 
-fn main(data: &[u8], _meta: Option<&[u8]>) -> Result<PE, ModuleError> {
+fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<PE, ModuleError> {
     IMPHASH_CACHE.with(|cache| *cache.borrow_mut() = None);
     CHECKSUM_CACHE.with(|cache| *cache.borrow_mut() = None);
 
@@ -147,21 +146,10 @@ fn calculate_checksum(ctx: &mut ScanContext) -> Option<i64> {
         map(u8, |v| v as u32),
     ));
 
+    let mut carry = false;
+
     for v in &mut nom::combinator::iterator(data, data_parser) {
-        // TODO: use carrying_add when it becomes stable.
-        // This:
-        //   sum = match sum.overflowing_add(v) {
-        //      (s, true) => s + 1,
-        //      (s, false) => s,
-        //   }
-        // Becomes this:
-        //   (sum, carry) = sum.carrying_add(v, carry);
-        //
-        // Where `carry` must be initialized to false outside of the loop.
-        sum = match sum.overflowing_add(v) {
-            (s, true) => s + 1, // carry
-            (s, false) => s,    // no carry
-        }
+        (sum, carry) = sum.carrying_add(v, carry);
     }
 
     sum = match sum.overflowing_sub(pe.checksum?) {

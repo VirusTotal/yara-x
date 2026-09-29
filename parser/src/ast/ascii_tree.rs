@@ -379,10 +379,7 @@ fn build_tree_for_expr(expr: &Expr, children: Vec<Tree>) -> Tree {
                             .iter()
                             .flat_map(|d| {
                                 vec![
-                                    Leaf(vec![format!(
-                                        "{}",
-                                        d.identifier.name
-                                    )]),
+                                    Leaf(vec![d.identifier.name.to_string()]),
                                     children_iter.next().unwrap(),
                                 ]
                             })
@@ -439,7 +436,11 @@ pub(crate) fn pattern_ascii_tree(pattern: &Pattern) -> Tree {
             s.modifiers.iter().map(|m| m.to_string()).join(" ")
         )]),
         Pattern::Hex(h) => Node(
-            h.identifier.name.to_string(),
+            format!(
+                "{} {}",
+                h.identifier.name,
+                h.modifiers.iter().map(|m| m.to_string()).join(" ")
+            ),
             vec![hex_tokens_ascii_tree(&h.sub_patterns)],
         ),
         Pattern::Regexp(r) => Leaf(vec![format!(

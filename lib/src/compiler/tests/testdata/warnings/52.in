@@ -1,0 +1,9 @@
+rule test {
+  strings:
+    $prefix_s_1 = "foo"
+    $prefix_s_2 = "bar"
+
+  condition:
+    all of ($prefix_*) and
+    all of ($prefix_s_*)
+}

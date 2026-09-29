@@ -85,11 +85,23 @@ enum Machine {
   EM_MIPS = 8;         // 0x0008 MIPS I Architecture
   EM_S370 = 9;         // 0x0009 IBM S370
   EM_MIPS_RS3_LE = 10; // 0x000A MIPS RS3000 Little-endian
+  EM_PARISC = 15;      // 0x000F HP PA-RISC
+  EM_SPARC32PLUS = 18; // 0x0012 Sun's "v8plus"
   EM_PPC = 20;         // 0x0014 PowerPC
   EM_PPC64 = 21;       // 0x0015 64-bit PowerPC
+  EM_S390 = 22;        // 0x0016 IBM S/390
+  EM_MCORE = 39;       // 0x0027 Motorola M*Core.
+  // EM_RCE was the original name for EM_MCORE and is still what some
+  // toolchains emit. Same value, exposed so either name works in a rule.
+  EM_RCE = 0x10027 [(yara.enum_value).i64 = 39];
   EM_ARM = 40;         // 0x0028 ARM
+  EM_SH = 42;          // 0x002A Renesas (formerly Hitachi) SuperH
+  EM_SPARCV9 = 43;     // 0x002B 64-bit SPARC v9
   EM_X86_64 = 62;      // 0x003E AMD/Intel x86_64
+  EM_ARC_COMPACT = 93; // 0x005D ARC International ARCompact
   EM_AARCH64 = 183;    // 0x00B7 64-bit ARM
+  EM_BPF = 247;        // 0x00F7 Linux BPF in-kernel virtual machine
+  EM_LOONGARCH = 258;  // 0x0102 LoongArch
 }
 
 enum OsAbi {

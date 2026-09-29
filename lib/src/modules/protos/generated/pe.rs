@@ -7592,80 +7592,167 @@ impl ResourceType {
     }
 }
 
-#[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+// Note: you cannot use pattern matching for enums with allow_alias option
+#[derive(Clone,Copy,Eq,Debug)]
 // @@protoc_insertion_point(enum:pe.Machine)
 pub enum Machine {
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_UNKNOWN)
-    MACHINE_UNKNOWN = 0,
+    MACHINE_UNKNOWN, // 0
+    // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_ALPHA)
+    MACHINE_ALPHA, // 388
+    // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_ALPHA64)
+    MACHINE_ALPHA64, // 644
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_AM33)
-    MACHINE_AM33 = 467,
+    MACHINE_AM33, // 467
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_AMD64)
-    MACHINE_AMD64 = 34404,
+    MACHINE_AMD64, // 34404
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_ARM)
-    MACHINE_ARM = 448,
-    // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_ARMNT)
-    MACHINE_ARMNT = 452,
+    MACHINE_ARM, // 448
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_ARM64)
-    MACHINE_ARM64 = 43620,
+    MACHINE_ARM64, // 43620
+    // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_ARM64EC)
+    MACHINE_ARM64EC, // 42561
+    // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_ARM64X)
+    MACHINE_ARM64X, // 42574
+    // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_ARMNT)
+    MACHINE_ARMNT, // 452
+    // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_AXP64)
+    MACHINE_AXP64, // 644
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_EBC)
-    MACHINE_EBC = 3772,
+    MACHINE_EBC, // 3772
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_I386)
-    MACHINE_I386 = 332,
+    MACHINE_I386, // 332
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_IA64)
-    MACHINE_IA64 = 512,
+    MACHINE_IA64, // 512
+    // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_LOONGARCH32)
+    MACHINE_LOONGARCH32, // 25138
+    // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_LOONGARCH64)
+    MACHINE_LOONGARCH64, // 25188
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_M32R)
-    MACHINE_M32R = 36929,
+    MACHINE_M32R, // 36929
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_MIPS16)
-    MACHINE_MIPS16 = 614,
+    MACHINE_MIPS16, // 614
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_MIPSFPU)
-    MACHINE_MIPSFPU = 870,
+    MACHINE_MIPSFPU, // 870
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_MIPSFPU16)
-    MACHINE_MIPSFPU16 = 1126,
+    MACHINE_MIPSFPU16, // 1126
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_POWERPC)
-    MACHINE_POWERPC = 496,
+    MACHINE_POWERPC, // 496
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_POWERPCFP)
-    MACHINE_POWERPCFP = 497,
+    MACHINE_POWERPCFP, // 497
+    // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_R3000BE)
+    MACHINE_R3000BE, // 352
+    // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_R3000)
+    MACHINE_R3000, // 354
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_R4000)
-    MACHINE_R4000 = 358,
+    MACHINE_R4000, // 358
+    // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_R10000)
+    MACHINE_R10000, // 360
+    // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_RISCV32)
+    MACHINE_RISCV32, // 20530
+    // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_RISCV64)
+    MACHINE_RISCV64, // 20580
+    // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_RISCV128)
+    MACHINE_RISCV128, // 20776
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_SH3)
-    MACHINE_SH3 = 418,
+    MACHINE_SH3, // 418
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_SH3DSP)
-    MACHINE_SH3DSP = 419,
+    MACHINE_SH3DSP, // 419
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_SH4)
-    MACHINE_SH4 = 422,
+    MACHINE_SH4, // 422
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_SH5)
-    MACHINE_SH5 = 424,
+    MACHINE_SH5, // 424
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_THUMB)
-    MACHINE_THUMB = 450,
+    MACHINE_THUMB, // 450
     // @@protoc_insertion_point(enum_value:pe.Machine.MACHINE_WCEMIPSV2)
-    MACHINE_WCEMIPSV2 = 361,
+    MACHINE_WCEMIPSV2, // 361
+}
+
+impl ::std::cmp::PartialEq for Machine {
+    fn eq(&self, other: &Self) -> bool {
+        ::protobuf::Enum::value(self) == ::protobuf::Enum::value(other)
+    }
+}
+
+impl ::std::hash::Hash for Machine {
+    fn hash<H : ::std::hash::Hasher>(&self, state: &mut H) {
+        state.write_i32(::protobuf::Enum::value(self))
+    }
 }
 
 impl ::protobuf::Enum for Machine {
     const NAME: &'static str = "Machine";
 
     fn value(&self) -> i32 {
-        *self as i32
+        match *self {
+            Machine::MACHINE_UNKNOWN => 0,
+            Machine::MACHINE_ALPHA => 388,
+            Machine::MACHINE_ALPHA64 => 644,
+            Machine::MACHINE_AM33 => 467,
+            Machine::MACHINE_AMD64 => 34404,
+            Machine::MACHINE_ARM => 448,
+            Machine::MACHINE_ARM64 => 43620,
+            Machine::MACHINE_ARM64EC => 42561,
+            Machine::MACHINE_ARM64X => 42574,
+            Machine::MACHINE_ARMNT => 452,
+            Machine::MACHINE_AXP64 => 644,
+            Machine::MACHINE_EBC => 3772,
+            Machine::MACHINE_I386 => 332,
+            Machine::MACHINE_IA64 => 512,
+            Machine::MACHINE_LOONGARCH32 => 25138,
+            Machine::MACHINE_LOONGARCH64 => 25188,
+            Machine::MACHINE_M32R => 36929,
+            Machine::MACHINE_MIPS16 => 614,
+            Machine::MACHINE_MIPSFPU => 870,
+            Machine::MACHINE_MIPSFPU16 => 1126,
+            Machine::MACHINE_POWERPC => 496,
+            Machine::MACHINE_POWERPCFP => 497,
+            Machine::MACHINE_R3000BE => 352,
+            Machine::MACHINE_R3000 => 354,
+            Machine::MACHINE_R4000 => 358,
+            Machine::MACHINE_R10000 => 360,
+            Machine::MACHINE_RISCV32 => 20530,
+            Machine::MACHINE_RISCV64 => 20580,
+            Machine::MACHINE_RISCV128 => 20776,
+            Machine::MACHINE_SH3 => 418,
+            Machine::MACHINE_SH3DSP => 419,
+            Machine::MACHINE_SH4 => 422,
+            Machine::MACHINE_SH5 => 424,
+            Machine::MACHINE_THUMB => 450,
+            Machine::MACHINE_WCEMIPSV2 => 361,
+        }
     }
 
     fn from_i32(value: i32) -> ::std::option::Option<Machine> {
         match value {
             0 => ::std::option::Option::Some(Machine::MACHINE_UNKNOWN),
+            388 => ::std::option::Option::Some(Machine::MACHINE_ALPHA),
+            644 => ::std::option::Option::Some(Machine::MACHINE_ALPHA64),
             467 => ::std::option::Option::Some(Machine::MACHINE_AM33),
             34404 => ::std::option::Option::Some(Machine::MACHINE_AMD64),
             448 => ::std::option::Option::Some(Machine::MACHINE_ARM),
-            452 => ::std::option::Option::Some(Machine::MACHINE_ARMNT),
             43620 => ::std::option::Option::Some(Machine::MACHINE_ARM64),
+            42561 => ::std::option::Option::Some(Machine::MACHINE_ARM64EC),
+            42574 => ::std::option::Option::Some(Machine::MACHINE_ARM64X),
+            452 => ::std::option::Option::Some(Machine::MACHINE_ARMNT),
             3772 => ::std::option::Option::Some(Machine::MACHINE_EBC),
             332 => ::std::option::Option::Some(Machine::MACHINE_I386),
             512 => ::std::option::Option::Some(Machine::MACHINE_IA64),
+            25138 => ::std::option::Option::Some(Machine::MACHINE_LOONGARCH32),
+            25188 => ::std::option::Option::Some(Machine::MACHINE_LOONGARCH64),
             36929 => ::std::option::Option::Some(Machine::MACHINE_M32R),
             614 => ::std::option::Option::Some(Machine::MACHINE_MIPS16),
             870 => ::std::option::Option::Some(Machine::MACHINE_MIPSFPU),
             1126 => ::std::option::Option::Some(Machine::MACHINE_MIPSFPU16),
             496 => ::std::option::Option::Some(Machine::MACHINE_POWERPC),
             497 => ::std::option::Option::Some(Machine::MACHINE_POWERPCFP),
+            352 => ::std::option::Option::Some(Machine::MACHINE_R3000BE),
+            354 => ::std::option::Option::Some(Machine::MACHINE_R3000),
             358 => ::std::option::Option::Some(Machine::MACHINE_R4000),
+            360 => ::std::option::Option::Some(Machine::MACHINE_R10000),
+            20530 => ::std::option::Option::Some(Machine::MACHINE_RISCV32),
+            20580 => ::std::option::Option::Some(Machine::MACHINE_RISCV64),
+            20776 => ::std::option::Option::Some(Machine::MACHINE_RISCV128),
             418 => ::std::option::Option::Some(Machine::MACHINE_SH3),
             419 => ::std::option::Option::Some(Machine::MACHINE_SH3DSP),
             422 => ::std::option::Option::Some(Machine::MACHINE_SH4),
@@ -7679,21 +7766,33 @@ impl ::protobuf::Enum for Machine {
     fn from_str(str: &str) -> ::std::option::Option<Machine> {
         match str {
             "MACHINE_UNKNOWN" => ::std::option::Option::Some(Machine::MACHINE_UNKNOWN),
+            "MACHINE_ALPHA" => ::std::option::Option::Some(Machine::MACHINE_ALPHA),
+            "MACHINE_ALPHA64" => ::std::option::Option::Some(Machine::MACHINE_ALPHA64),
             "MACHINE_AM33" => ::std::option::Option::Some(Machine::MACHINE_AM33),
             "MACHINE_AMD64" => ::std::option::Option::Some(Machine::MACHINE_AMD64),
             "MACHINE_ARM" => ::std::option::Option::Some(Machine::MACHINE_ARM),
-            "MACHINE_ARMNT" => ::std::option::Option::Some(Machine::MACHINE_ARMNT),
             "MACHINE_ARM64" => ::std::option::Option::Some(Machine::MACHINE_ARM64),
+            "MACHINE_ARM64EC" => ::std::option::Option::Some(Machine::MACHINE_ARM64EC),
+            "MACHINE_ARM64X" => ::std::option::Option::Some(Machine::MACHINE_ARM64X),
+            "MACHINE_ARMNT" => ::std::option::Option::Some(Machine::MACHINE_ARMNT),
             "MACHINE_EBC" => ::std::option::Option::Some(Machine::MACHINE_EBC),
             "MACHINE_I386" => ::std::option::Option::Some(Machine::MACHINE_I386),
             "MACHINE_IA64" => ::std::option::Option::Some(Machine::MACHINE_IA64),
+            "MACHINE_LOONGARCH32" => ::std::option::Option::Some(Machine::MACHINE_LOONGARCH32),
+            "MACHINE_LOONGARCH64" => ::std::option::Option::Some(Machine::MACHINE_LOONGARCH64),
             "MACHINE_M32R" => ::std::option::Option::Some(Machine::MACHINE_M32R),
             "MACHINE_MIPS16" => ::std::option::Option::Some(Machine::MACHINE_MIPS16),
             "MACHINE_MIPSFPU" => ::std::option::Option::Some(Machine::MACHINE_MIPSFPU),
             "MACHINE_MIPSFPU16" => ::std::option::Option::Some(Machine::MACHINE_MIPSFPU16),
             "MACHINE_POWERPC" => ::std::option::Option::Some(Machine::MACHINE_POWERPC),
             "MACHINE_POWERPCFP" => ::std::option::Option::Some(Machine::MACHINE_POWERPCFP),
+            "MACHINE_R3000BE" => ::std::option::Option::Some(Machine::MACHINE_R3000BE),
+            "MACHINE_R3000" => ::std::option::Option::Some(Machine::MACHINE_R3000),
             "MACHINE_R4000" => ::std::option::Option::Some(Machine::MACHINE_R4000),
+            "MACHINE_R10000" => ::std::option::Option::Some(Machine::MACHINE_R10000),
+            "MACHINE_RISCV32" => ::std::option::Option::Some(Machine::MACHINE_RISCV32),
+            "MACHINE_RISCV64" => ::std::option::Option::Some(Machine::MACHINE_RISCV64),
+            "MACHINE_RISCV128" => ::std::option::Option::Some(Machine::MACHINE_RISCV128),
             "MACHINE_SH3" => ::std::option::Option::Some(Machine::MACHINE_SH3),
             "MACHINE_SH3DSP" => ::std::option::Option::Some(Machine::MACHINE_SH3DSP),
             "MACHINE_SH4" => ::std::option::Option::Some(Machine::MACHINE_SH4),
@@ -7706,21 +7805,34 @@ impl ::protobuf::Enum for Machine {
 
     const VALUES: &'static [Machine] = &[
         Machine::MACHINE_UNKNOWN,
+        Machine::MACHINE_ALPHA,
+        Machine::MACHINE_ALPHA64,
         Machine::MACHINE_AM33,
         Machine::MACHINE_AMD64,
         Machine::MACHINE_ARM,
-        Machine::MACHINE_ARMNT,
         Machine::MACHINE_ARM64,
+        Machine::MACHINE_ARM64EC,
+        Machine::MACHINE_ARM64X,
+        Machine::MACHINE_ARMNT,
+        Machine::MACHINE_AXP64,
         Machine::MACHINE_EBC,
         Machine::MACHINE_I386,
         Machine::MACHINE_IA64,
+        Machine::MACHINE_LOONGARCH32,
+        Machine::MACHINE_LOONGARCH64,
         Machine::MACHINE_M32R,
         Machine::MACHINE_MIPS16,
         Machine::MACHINE_MIPSFPU,
         Machine::MACHINE_MIPSFPU16,
         Machine::MACHINE_POWERPC,
         Machine::MACHINE_POWERPCFP,
+        Machine::MACHINE_R3000BE,
+        Machine::MACHINE_R3000,
         Machine::MACHINE_R4000,
+        Machine::MACHINE_R10000,
+        Machine::MACHINE_RISCV32,
+        Machine::MACHINE_RISCV64,
+        Machine::MACHINE_RISCV128,
         Machine::MACHINE_SH3,
         Machine::MACHINE_SH3DSP,
         Machine::MACHINE_SH4,
@@ -7739,27 +7851,40 @@ impl ::protobuf::EnumFull for Machine {
     fn descriptor(&self) -> ::protobuf::reflect::EnumValueDescriptor {
         let index = match self {
             Machine::MACHINE_UNKNOWN => 0,
-            Machine::MACHINE_AM33 => 1,
-            Machine::MACHINE_AMD64 => 2,
-            Machine::MACHINE_ARM => 3,
-            Machine::MACHINE_ARMNT => 4,
-            Machine::MACHINE_ARM64 => 5,
-            Machine::MACHINE_EBC => 6,
-            Machine::MACHINE_I386 => 7,
-            Machine::MACHINE_IA64 => 8,
-            Machine::MACHINE_M32R => 9,
-            Machine::MACHINE_MIPS16 => 10,
-            Machine::MACHINE_MIPSFPU => 11,
-            Machine::MACHINE_MIPSFPU16 => 12,
-            Machine::MACHINE_POWERPC => 13,
-            Machine::MACHINE_POWERPCFP => 14,
-            Machine::MACHINE_R4000 => 15,
-            Machine::MACHINE_SH3 => 16,
-            Machine::MACHINE_SH3DSP => 17,
-            Machine::MACHINE_SH4 => 18,
-            Machine::MACHINE_SH5 => 19,
-            Machine::MACHINE_THUMB => 20,
-            Machine::MACHINE_WCEMIPSV2 => 21,
+            Machine::MACHINE_ALPHA => 1,
+            Machine::MACHINE_ALPHA64 => 2,
+            Machine::MACHINE_AM33 => 3,
+            Machine::MACHINE_AMD64 => 4,
+            Machine::MACHINE_ARM => 5,
+            Machine::MACHINE_ARM64 => 6,
+            Machine::MACHINE_ARM64EC => 7,
+            Machine::MACHINE_ARM64X => 8,
+            Machine::MACHINE_ARMNT => 9,
+            Machine::MACHINE_AXP64 => 10,
+            Machine::MACHINE_EBC => 11,
+            Machine::MACHINE_I386 => 12,
+            Machine::MACHINE_IA64 => 13,
+            Machine::MACHINE_LOONGARCH32 => 14,
+            Machine::MACHINE_LOONGARCH64 => 15,
+            Machine::MACHINE_M32R => 16,
+            Machine::MACHINE_MIPS16 => 17,
+            Machine::MACHINE_MIPSFPU => 18,
+            Machine::MACHINE_MIPSFPU16 => 19,
+            Machine::MACHINE_POWERPC => 20,
+            Machine::MACHINE_POWERPCFP => 21,
+            Machine::MACHINE_R3000BE => 22,
+            Machine::MACHINE_R3000 => 23,
+            Machine::MACHINE_R4000 => 24,
+            Machine::MACHINE_R10000 => 25,
+            Machine::MACHINE_RISCV32 => 26,
+            Machine::MACHINE_RISCV64 => 27,
+            Machine::MACHINE_RISCV128 => 28,
+            Machine::MACHINE_SH3 => 29,
+            Machine::MACHINE_SH3DSP => 30,
+            Machine::MACHINE_SH4 => 31,
+            Machine::MACHINE_SH5 => 32,
+            Machine::MACHINE_THUMB => 33,
+            Machine::MACHINE_WCEMIPSV2 => 34,
         };
         Self::enum_descriptor().value_by_index(index)
     }
@@ -8883,23 +9008,31 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \n\x16RESOURCE_TYPE_PLUGPLAY\x10\x13\x12\x15\n\x11RESOURCE_TYPE_VXD\x10\
     \x14\x12\x1b\n\x17RESOURCE_TYPE_ANICURSOR\x10\x15\x12\x19\n\x15RESOURCE_\
     TYPE_ANIICON\x10\x16\x12\x16\n\x12RESOURCE_TYPE_HTML\x10\x17\x12\x1a\n\
-    \x16RESOURCE_TYPE_MANIFEST\x10\x18\x1a\x06\x92\x93\x19\x02\x10\x01*\xd1\
-    \x03\n\x07Machine\x12\x13\n\x0fMACHINE_UNKNOWN\x10\0\x12\x11\n\x0cMACHIN\
-    E_AM33\x10\xd3\x03\x12\x13\n\rMACHINE_AMD64\x10\xe4\x8c\x02\x12\x10\n\
-    \x0bMACHINE_ARM\x10\xc0\x03\x12\x12\n\rMACHINE_ARMNT\x10\xc4\x03\x12\x13\
-    \n\rMACHINE_ARM64\x10\xe4\xd4\x02\x12\x10\n\x0bMACHINE_EBC\x10\xbc\x1d\
-    \x12\x11\n\x0cMACHINE_I386\x10\xcc\x02\x12\x11\n\x0cMACHINE_IA64\x10\x80\
-    \x04\x12\x12\n\x0cMACHINE_M32R\x10\xc1\xa0\x02\x12\x13\n\x0eMACHINE_MIPS\
-    16\x10\xe6\x04\x12\x14\n\x0fMACHINE_MIPSFPU\x10\xe6\x06\x12\x16\n\x11MAC\
-    HINE_MIPSFPU16\x10\xe6\x08\x12\x14\n\x0fMACHINE_POWERPC\x10\xf0\x03\x12\
-    \x16\n\x11MACHINE_POWERPCFP\x10\xf1\x03\x12\x12\n\rMACHINE_R4000\x10\xe6\
-    \x02\x12\x10\n\x0bMACHINE_SH3\x10\xa2\x03\x12\x13\n\x0eMACHINE_SH3DSP\
-    \x10\xa3\x03\x12\x10\n\x0bMACHINE_SH4\x10\xa6\x03\x12\x10\n\x0bMACHINE_S\
-    H5\x10\xa8\x03\x12\x12\n\rMACHINE_THUMB\x10\xc2\x03\x12\x16\n\x11MACHINE\
-    _WCEMIPSV2\x10\xe9\x02\x1a\x06\x92\x93\x19\x02\x10\x01*\xa3\x03\n\tSubsy\
-    stem\x12\x15\n\x11SUBSYSTEM_UNKNOWN\x10\0\x12\x14\n\x10SUBSYSTEM_NATIVE\
-    \x10\x01\x12\x19\n\x15SUBSYSTEM_WINDOWS_GUI\x10\x02\x12\x19\n\x15SUBSYST\
-    EM_WINDOWS_CUI\x10\x03\x12\x15\n\x11SUBSYSTEM_OS2_CUI\x10\x05\x12\x17\n\
+    \x16RESOURCE_TYPE_MANIFEST\x10\x18\x1a\x06\x92\x93\x19\x02\x10\x01*\xf9\
+    \x05\n\x07Machine\x12\x13\n\x0fMACHINE_UNKNOWN\x10\0\x12\x12\n\rMACHINE_\
+    ALPHA\x10\x84\x03\x12\x14\n\x0fMACHINE_ALPHA64\x10\x84\x05\x12\x11\n\x0c\
+    MACHINE_AM33\x10\xd3\x03\x12\x13\n\rMACHINE_AMD64\x10\xe4\x8c\x02\x12\
+    \x10\n\x0bMACHINE_ARM\x10\xc0\x03\x12\x13\n\rMACHINE_ARM64\x10\xe4\xd4\
+    \x02\x12\x15\n\x0fMACHINE_ARM64EC\x10\xc1\xcc\x02\x12\x14\n\x0eMACHINE_A\
+    RM64X\x10\xce\xcc\x02\x12\x12\n\rMACHINE_ARMNT\x10\xc4\x03\x12\x12\n\rMA\
+    CHINE_AXP64\x10\x84\x05\x12\x10\n\x0bMACHINE_EBC\x10\xbc\x1d\x12\x11\n\
+    \x0cMACHINE_I386\x10\xcc\x02\x12\x11\n\x0cMACHINE_IA64\x10\x80\x04\x12\
+    \x19\n\x13MACHINE_LOONGARCH32\x10\xb2\xc4\x01\x12\x19\n\x13MACHINE_LOONG\
+    ARCH64\x10\xe4\xc4\x01\x12\x12\n\x0cMACHINE_M32R\x10\xc1\xa0\x02\x12\x13\
+    \n\x0eMACHINE_MIPS16\x10\xe6\x04\x12\x14\n\x0fMACHINE_MIPSFPU\x10\xe6\
+    \x06\x12\x16\n\x11MACHINE_MIPSFPU16\x10\xe6\x08\x12\x14\n\x0fMACHINE_POW\
+    ERPC\x10\xf0\x03\x12\x16\n\x11MACHINE_POWERPCFP\x10\xf1\x03\x12\x14\n\
+    \x0fMACHINE_R3000BE\x10\xe0\x02\x12\x12\n\rMACHINE_R3000\x10\xe2\x02\x12\
+    \x12\n\rMACHINE_R4000\x10\xe6\x02\x12\x13\n\x0eMACHINE_R10000\x10\xe8\
+    \x02\x12\x15\n\x0fMACHINE_RISCV32\x10\xb2\xa0\x01\x12\x15\n\x0fMACHINE_R\
+    ISCV64\x10\xe4\xa0\x01\x12\x16\n\x10MACHINE_RISCV128\x10\xa8\xa2\x01\x12\
+    \x10\n\x0bMACHINE_SH3\x10\xa2\x03\x12\x13\n\x0eMACHINE_SH3DSP\x10\xa3\
+    \x03\x12\x10\n\x0bMACHINE_SH4\x10\xa6\x03\x12\x10\n\x0bMACHINE_SH5\x10\
+    \xa8\x03\x12\x12\n\rMACHINE_THUMB\x10\xc2\x03\x12\x16\n\x11MACHINE_WCEMI\
+    PSV2\x10\xe9\x02\x1a\x08\x10\x01\x92\x93\x19\x02\x10\x01*\xa3\x03\n\tSub\
+    system\x12\x15\n\x11SUBSYSTEM_UNKNOWN\x10\0\x12\x14\n\x10SUBSYSTEM_NATIV\
+    E\x10\x01\x12\x19\n\x15SUBSYSTEM_WINDOWS_GUI\x10\x02\x12\x19\n\x15SUBSYS\
+    TEM_WINDOWS_CUI\x10\x03\x12\x15\n\x11SUBSYSTEM_OS2_CUI\x10\x05\x12\x17\n\
     \x13SUBSYSTEM_POSIX_CUI\x10\x07\x12\x1c\n\x18SUBSYSTEM_NATIVE_WINDOWS\
     \x10\x08\x12\x1c\n\x18SUBSYSTEM_WINDOWS_CE_GUI\x10\t\x12\x1d\n\x19SUBSYS\
     TEM_EFI_APPLICATION\x10\n\x12%\n!SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER\x10\

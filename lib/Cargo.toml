@@ -34,6 +34,35 @@ rustdoc-args = ["--cfg", "docsrs"]
 # actually computes the expression.
 constant-folding = []
 
+# Enables internal log statements inside YARA-X via the standard `log` crate
+# facade.
+#
+# When this feature is enabled, YARA-X emits internal log messages (using
+# `log::info!`,`log::error!`, etc.). However, it does not initialize any
+# concrete logger implementation. The host application remains responsible
+# for configuring and initializing its own logger (e.g., `env_logger`,
+# `tracing-subscriber`, or a custom logger).
+logging = ["dep:log", "dep:quanta"]
+
+# Enables internal logging and automatically logs messages to stderr.
+#
+# Unlike `logging` (which only emits log events and relies on the host
+# application to set up a logger), `stderr-logs` actually writes log messages
+# to stderr. This is particularly useful when YARA-X is embedded in non-Rust
+# host binaries, allowing log output to be configured via the `YRX_LOG`
+# environment variable.
+#
+# Log output can be configured by setting `YRX_LOG` to any of the log levels:
+# `error`, `warn`, `info`, `debug`, or `trace`.
+#
+# You can also specify different log levels for specific targets/modules using
+# comma-separated `target=level` directives:
+#
+#   YRX_LOG=info                        # Global level set to info
+#   YRX_LOG=yara_x=debug                # Debug level for the yara_x crate
+#   YRX_LOG=warn,yara_x::compiler=trace  # Global warn, trace for yara_x::compiler
+stderr-logs = ["dep:env_logger", "logging"]
+
 # Enables the use of exact atoms for speeding up matches. Exact atoms are those
 # that don't require further verification, the sole presence of the atom
 # indicates that the pattern containing the atom matches. For instance, in
@@ -74,9 +103,6 @@ generate-module-docs = ["protoc"]
 # plugin. Follow the instructions in: https://lib.rs/crates/protobuf-codegen3
 protoc = []
 
-# Enables debug logs.
-logging = ["dep:log", "dep:quanta"]
-
 # When enabled, the serialization of compiled rules include native code for
 # the platform in which the rules where compiled. This reduces the load time,
 # as the native code is already included in the serialized rules and doesn't
@@ -104,7 +130,7 @@ parallel-compilation = ["wasmtime/parallel-compilation"]
 # compiled directly to native host machine instructions at runtime. This yields
 # maximum execution performance but requires executable memory pages (which may
 # be restricted in sandbox/secure environments) and is limited to architectures
-#natively supported by Cranelift.
+# natively supported by Cranelift.
 #
 # Enabling the `pulley` feature tells wasmtime to interpret the conditions using
 # the portable Pulley bytecode instruction virtual machine instead. This 
@@ -209,6 +235,17 @@ magic-module = [
 # The `math` module.
 math-module = []
 
+# The `msi` module parses MSI files.
+msi-module = [
+    "olecf-module",
+    "crypto",
+]
+
+# The `olecf` module
+olecf-module = [
+    "dep:nom"
+]
+
 # The `pe` module parses PE files.
 pe-module = [
     "crypto",
@@ -227,12 +264,26 @@ test_proto3-module = []
 # conditions of a rule to check against other epoch time.
 time-module = []
 
+# The `vba` module
+vba-module = [
+    "olecf-module",
+    "zip-module",
+    "dep:codepage",
+    "dep:encoding_rs",
+    "dep:nom",
+    "dep:tinyzip",
+    "dep:flate2",
+]
+
 # The `vt` module is a VirusTotal-specific module that provides access to
 # the metadata that VirusTotal has about the scanned file.
 vt-module = [
     "dep:ipnet",
     "dep:psl",
 ]
+
+# The `zip` module provides container file extraction capabilities.
+zip-module = ["dep:tinyzip", "dep:flate2"]
 
 # Enables all the default modules.
 default-modules = [
@@ -242,16 +293,23 @@ default-modules = [
     "dex-module",
     "dotnet-module",
     "elf-module",
+    "lnk-module",
     "macho-module",
     "math-module",
+    # Still experimental
+    # "msi-module",
     "hash-module",
+    # Still experimental
+    # "olecf-module",
     "pe-module",
     "string-module",
     "time-module",
-    "lnk-module",
     "test_proto2-module",
     "test_proto3-module",
+    # Still experimental
+    # "vba-module",
     "vt-module",
+    "zip-module",
 ]
 
 # Features that are enabled by default.
@@ -272,6 +330,7 @@ bincode = { workspace = true, features = ["serde"] }
 bitflags = { workspace = true, features = ["serde"] }
 bitvec = { workspace = true, features = ["serde"] }
 bstr = { workspace = true, features = ["serde"] }
+codepage = { workspace = true, optional = true }
 const-oid = { workspace = true, optional = true, features = ["db"] }
 crc32fast = { workspace = true, optional = true }
 daachorse = { workspace = true }
@@ -279,6 +338,9 @@ der-parser = { workspace = true, optional = true, features = ["bigint"] }
 digest = { workspace = true, optional = true }
 dsa = { workspace = true, optional = true }
 ecdsa = { workspace = true, optional = true }
+encoding_rs = { workspace = true, optional = true }
+env_logger = { workspace = true, optional = true }
+flate2 = { workspace = true, optional = true }
 memmap2 = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 intaglio = { workspace = true }
@@ -317,6 +379,7 @@ x509-parser = { workspace = true, optional = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true, features = ["serde"] }
 zip = { workspace = true, optional = true, features = ["deflate"] }
+tinyzip = { workspace = true, optional = true }
 simd-adler32 = { workspace = true, optional = true }
 simd_cesu8 = { workspace = true, optional = true }
 
@@ -344,13 +407,13 @@ protobuf-parse = { workspace = true, optional = true }
 yara-x-proto = { workspace = true, optional = true }
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.8"
 globwalk = { workspace = true }
 goldenfile = { workspace = true }
 ihex = { workspace = true }
 pretty_assertions = { workspace = true }
 rayon = { workspace = true }
-yara-x-proto-yaml = { workspace = true }
+yara-x-proto = { workspace = true }
 zip = { workspace = true }
 
 [[bench]]

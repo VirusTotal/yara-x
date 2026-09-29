@@ -8,13 +8,14 @@ use yara_x_fmt::{Formatter, Indentation};
 
 use crate::config::Config;
 use crate::help;
+use crate::walk;
 
 pub fn fmt() -> Command {
     super::command("fmt")
         .about("Format YARA source files")
         .arg(
-            arg!(<FILE>)
-                .help("Path to YARA source file")
+            arg!(<PATH>)
+                .help("Path to YARA source file or directory")
                 .required(true)
                 .value_parser(value_parser!(PathBuf))
                 .action(ArgAction::Append),
@@ -22,6 +23,14 @@ pub fn fmt() -> Command {
         .arg(
             arg!(-c --check  "Run in 'check' mode")
                 .long_help(help::FMT_CHECK_MODE),
+        )
+        .arg(
+            arg!(-r - -"recursive"[MAX_DEPTH])
+                .help("Walk directories recursively up to a given depth")
+                .long_help(help::RECURSIVE_LONG_HELP)
+                .default_missing_value("1000")
+                .require_equals(true)
+                .value_parser(value_parser!(usize)),
         )
         .arg(
             arg!(-t - -"tab-size" <NUM_SPACES>)
@@ -33,9 +42,10 @@ pub fn fmt() -> Command {
 }
 
 pub fn exec_fmt(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
-    let files = args.get_many::<PathBuf>("FILE").unwrap();
+    let paths = args.get_many::<PathBuf>("PATH").unwrap();
     let check = args.get_flag("check");
     let tab_size = args.get_one::<usize>("tab-size").unwrap();
+    let recursive = args.get_one::<usize>("recursive");
 
     let formatter = Formatter::new()
         .input_tab_size(*tab_size)
@@ -56,27 +66,42 @@ pub fn exec_fmt(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             config.fmt.rule.empty_line_after_section_header,
         );
 
-    let mut modified_files: Vec<&PathBuf> = Vec::new();
+    let mut modified_files: Vec<PathBuf> = Vec::new();
 
-    for file in files {
-        let input = fs::read(file.as_path())?;
-        let file_modified = if check {
-            formatter.format(input.as_slice(), io::sink())?
+    for path in paths {
+        let mut walker = walk::Walker::path(path);
+        if let Some(recursive) = recursive {
+            walker.max_depth(*recursive);
         } else {
-            let mut formatted = Cursor::new(Vec::with_capacity(input.len()));
-            if formatter.format(input.as_slice(), &mut formatted)? {
-                formatted.seek(SeekFrom::Start(0))?;
-                let mut output_file = File::create(file.as_path())?;
-                io::copy(&mut formatted, &mut output_file)?;
-                true
-            } else {
-                false
-            }
-        };
-
-        if file_modified {
-            modified_files.push(file);
+            walker.max_depth(0);
         }
+        walker.filter("**/*.yar").filter("**/*.yara");
+
+        walker.walk(
+            |file_path| {
+                let input = fs::read(file_path)?;
+                let file_modified = if check {
+                    formatter.format(input.as_slice(), io::sink())?
+                } else {
+                    let mut formatted =
+                        Cursor::new(Vec::with_capacity(input.len()));
+                    if formatter.format(input.as_slice(), &mut formatted)? {
+                        formatted.seek(SeekFrom::Start(0))?;
+                        let mut output_file = File::create(file_path)?;
+                        io::copy(&mut formatted, &mut output_file)?;
+                        true
+                    } else {
+                        false
+                    }
+                };
+
+                if file_modified {
+                    modified_files.push(file_path.to_path_buf());
+                }
+                Ok(())
+            },
+            Err,
+        )?;
     }
 
     if !modified_files.is_empty() {
