@@ -296,6 +296,15 @@ pub mod mods {
     /// Data structure returned by the `pe` module.
     pub use super::protos::pe::PE;
 
+    /// Data structures defined by the `zip` module.
+    ///
+    /// The main structure produced by the module is [`zip::Zip`]. The rest
+    /// of them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::zip;
+    /// Data structure returned by the `zip` module.
+    pub use super::protos::zip::Zip;
+
     /// A data structure containing the data returned by all modules.
     pub use super::protos::mods::Modules;
 
@@ -391,6 +400,7 @@ pub mod mods {
         info.crx = protobuf::MessageField(invoke::<Crx>(data));
         info.dex = protobuf::MessageField(invoke::<Dex>(data));
         info.msi = protobuf::MessageField(invoke::<Msi>(data));
+        info.zip = protobuf::MessageField(invoke::<Zip>(data));
         info
     }
 
