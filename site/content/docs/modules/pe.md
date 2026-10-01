@@ -156,6 +156,10 @@ Returns true if the file is Dynamic Link Library (DLL).
 
 Given a relative virtual address (RVA) returns the corresponding file offset.
 
+### offset_to_rva(offset)
+
+Given a file offset returns the corresponding relative virtual address (RVA).
+
 ### calculate_checksum()
 
 Calculate the PE checksum. Useful for checking if the checksum in the header is
