@@ -1605,7 +1605,7 @@ mod tests {
                 macro_rules! assert_finds {
                     ($s:expr, $start:expr, $end:expr) => {{
                         let mut found = false;
-                        $s.find_overlapping($start, $end, &mut |_| {
+                        let _ = $s.find_overlapping($start, $end, &mut |_| {
                             found = true;
                             ControlFlow::Continue(())
                         });
@@ -1624,24 +1624,24 @@ mod tests {
                 let start = haystack.as_ptr();
                 let end = start.add(haystack.len());
 
-                let _ = assert_finds!(s1, start, end);
-                let _ = assert_finds!(s2, start, end);
-                let _ = assert_finds!(s3, start, end);
-                let _ = assert_finds!(s4, start, end);
+                assert_finds!(s1, start, end);
+                assert_finds!(s2, start, end);
+                assert_finds!(s3, start, end);
+                assert_finds!(s4, start, end);
 
                 let short_haystack = b"abc";
                 let s_start = short_haystack.as_ptr();
                 let s_end = s_start.add(short_haystack.len());
-                s1.find_overlapping(s_start, s_end, &mut |_| {
+                let _ = s1.find_overlapping(s_start, s_end, &mut |_| {
                     ControlFlow::Continue(())
                 });
-                s2.find_overlapping(s_start, s_end, &mut |_| {
+                let _ = s2.find_overlapping(s_start, s_end, &mut |_| {
                     ControlFlow::Continue(())
                 });
-                s3.find_overlapping(s_start, s_end, &mut |_| {
+                let _ = s3.find_overlapping(s_start, s_end, &mut |_| {
                     ControlFlow::Continue(())
                 });
-                s4.find_overlapping(s_start, s_end, &mut |_| {
+                let _ = s4.find_overlapping(s_start, s_end, &mut |_| {
                     ControlFlow::Continue(())
                 });
 
@@ -1650,10 +1650,10 @@ mod tests {
                 let t_start = tail_haystack.as_ptr();
                 let t_end = t_start.add(tail_haystack.len());
 
-                let _ = assert_finds!(s1, t_start, t_end);
-                let _ = assert_finds!(s2, t_start, t_end);
-                let _ = assert_finds!(s3, t_start, t_end);
-                let _ = assert_finds!(s4, t_start, t_end);
+                assert_finds!(s1, t_start, t_end);
+                assert_finds!(s2, t_start, t_end);
+                assert_finds!(s3, t_start, t_end);
+                assert_finds!(s4, t_start, t_end);
 
                 if std::is_x86_feature_detected!("avx2") {
                     let f1 = Fat::<__m256i, 1>::new(pats.clone());
@@ -1663,10 +1663,10 @@ mod tests {
 
                     assert!(f1.minimum_len() >= 4);
 
-                    let _ = assert_finds!(f1, start, end);
-                    let _ = assert_finds!(f2, start, end);
-                    let _ = assert_finds!(f3, start, end);
-                    let _ = assert_finds!(f4, start, end);
+                    assert_finds!(f1, start, end);
+                    assert_finds!(f2, start, end);
+                    assert_finds!(f3, start, end);
+                    assert_finds!(f4, start, end);
 
                     let _ = f1.find_overlapping(s_start, s_end, &mut |_| {
                         ControlFlow::Continue(())
@@ -1681,10 +1681,10 @@ mod tests {
                         ControlFlow::Continue(())
                     });
 
-                    let _ = assert_finds!(f1, t_start, t_end);
-                    let _ = assert_finds!(f2, t_start, t_end);
-                    let _ = assert_finds!(f3, t_start, t_end);
-                    let _ = assert_finds!(f4, t_start, t_end);
+                    assert_finds!(f1, t_start, t_end);
+                    assert_finds!(f2, t_start, t_end);
+                    assert_finds!(f3, t_start, t_end);
+                    assert_finds!(f4, t_start, t_end);
                 }
             }
         }
