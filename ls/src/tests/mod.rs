@@ -12,7 +12,7 @@ use async_lsp::lsp_types::request::{
     DocumentHighlightRequest, DocumentSymbolRequest, Formatting,
     GotoDefinition, HoverRequest, InlayHintRequest, References, Rename,
     Request, SelectionRangeRequest, SemanticTokensFullRequest,
-    SemanticTokensRangeRequest, SignatureHelpRequest,
+    SemanticTokensRangeRequest, SignatureHelpRequest, WorkspaceSymbolRequest,
 };
 use async_lsp::lsp_types::{
     ClientCapabilities, DiagnosticClientCapabilities,
@@ -32,8 +32,11 @@ use crate::server::YARALanguageServer;
 
 struct ClientState;
 
-async fn lsp_test<F, R>(initialization_options: Option<Value>, f: F)
-where
+async fn lsp_test<F, R>(
+    testdata_path: &Path,
+    initialization_options: Option<Value>,
+    f: F,
+) where
     R: Future<Output = ServerSocket>,
     F: Fn(ServerSocket) -> R,
 {
@@ -59,9 +62,8 @@ where
         _ = server.run_buffered(server_rx, server_tx) => {}
         _ = client.run_buffered(client_rx, client_tx) => {}
         _ = async {
-            let root_path = PathBuf::from("src/tests/testdata");
             let root_uri = Url::from_file_path(
-                root_path.canonicalize().unwrap()
+                testdata_path.canonicalize().unwrap()
             ).unwrap();
 
             // Send request to initialize the server.
@@ -129,7 +131,20 @@ async fn lsp_request<P: AsRef<Path>, R: Request>(path: P)
 where
     R::Result: serde::Serialize + serde::de::DeserializeOwned + Debug,
 {
-    let path = PathBuf::from("src/tests/testdata").join(path);
+    lsp_request_testdata_path::<P, R>(
+        path,
+        &PathBuf::from("src/tests/testdata"),
+    )
+    .await;
+}
+
+async fn lsp_request_testdata_path<P: AsRef<Path>, R: Request>(
+    path: P,
+    testdata_path: &Path,
+) where
+    R::Result: serde::Serialize + serde::de::DeserializeOwned + Debug,
+{
+    let path = testdata_path.join(path);
     let abs_path = path.canonicalize().unwrap();
     let test_dir = Url::from_file_path(abs_path.parent().unwrap()).unwrap();
 
@@ -143,7 +158,7 @@ where
         None
     };
 
-    lsp_test(initialization_options, async |server_socket| {
+    lsp_test(testdata_path, initialization_options, async |server_socket| {
         open_document(&server_socket, &abs_path).await;
 
         let mut mint = goldenfile::Mint::new(".");
@@ -440,4 +455,25 @@ async fn signature_help() {
 #[tokio::test]
 async fn inlay_hint() {
     lsp_request::<_, InlayHintRequest>("inlay_hint.yar").await;
+}
+
+#[tokio::test]
+async fn workspace_symbols() {
+    let workspace_testdata_path =
+        PathBuf::from("src/tests/testdata/workspace_symbols");
+    lsp_request_testdata_path::<_, WorkspaceSymbolRequest>(
+        "workspace_symbols1.yar",
+        &workspace_testdata_path,
+    )
+    .await;
+    lsp_request_testdata_path::<_, WorkspaceSymbolRequest>(
+        "workspace_symbols2.yar",
+        &workspace_testdata_path,
+    )
+    .await;
+    lsp_request_testdata_path::<_, WorkspaceSymbolRequest>(
+        "workspace_symbols3.yar",
+        &workspace_testdata_path,
+    )
+    .await;
 }
