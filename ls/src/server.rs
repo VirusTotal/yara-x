@@ -69,7 +69,9 @@ use crate::features::semantic_tokens::{
     SEMANTIC_TOKEN_MODIFIERS, SEMANTIC_TOKEN_TYPES, semantic_tokens,
 };
 use crate::features::signature_help::signature_help;
-use crate::features::workspace_symbol::{workspace_symbol, workspace_symbol_resolve};
+use crate::features::workspace_symbol::{
+    workspace_symbol, workspace_symbol_resolve,
+};
 
 macro_rules! in_thread {
     ($code:expr) => {{
@@ -177,12 +179,15 @@ impl LanguageServer for YARALanguageServer {
                     });
             self.client_capabilities.support_config_requests =
                 workspace_client_capabilities.configuration == Some(true);
-            
+
             // Check if client can resolve additional information for Workspace symbols (location).
-            self.client_capabilities.workspace_resolve_location = 
-                if let Some(symbol) = &workspace_client_capabilities.symbol 
-                    && let Some(resolve_support) = &symbol.resolve_support {
-                    resolve_support.properties.contains(&"location.range".to_string())
+            self.client_capabilities.workspace_resolve_location =
+                if let Some(symbol) = &workspace_client_capabilities.symbol
+                    && let Some(resolve_support) = &symbol.resolve_support
+                {
+                    resolve_support
+                        .properties
+                        .contains(&"location.range".to_string())
                 } else {
                     false
                 };
@@ -270,7 +275,7 @@ impl LanguageServer for YARALanguageServer {
                     }),
                     inlay_hint_provider: Some(OneOf::Left(true)),
                     workspace_symbol_provider: Some(OneOf::Right(WorkspaceSymbolOptions{
-                        resolve_provider: Some(true), 
+                        resolve_provider: Some(true),
                         work_done_progress_options: WorkDoneProgressOptions::default()
                     })),
                     workspace: Some(WorkspaceServerCapabilities{
@@ -634,9 +639,16 @@ impl LanguageServer for YARALanguageServer {
     ) -> BoxFuture<'static, Result<Option<WorkspaceSymbolResponse>, Self::Error>>
     {
         let documents = Arc::clone(&self.documents);
-        let workspace_resolve_location = self.client_capabilities.workspace_resolve_location;
+        let workspace_resolve_location =
+            self.client_capabilities.workspace_resolve_location;
 
-        Box::pin(async move { Ok(workspace_symbol(documents, workspace_resolve_location, &params.query)) })
+        Box::pin(async move {
+            Ok(workspace_symbol(
+                documents,
+                workspace_resolve_location,
+                &params.query,
+            ))
+        })
     }
 
     /// This method is called to resolve additional information for ceratin
@@ -648,7 +660,9 @@ impl LanguageServer for YARALanguageServer {
     ) -> BoxFuture<'static, Result<WorkspaceSymbol, Self::Error>> {
         let documents = Arc::clone(&self.documents);
 
-        Box::pin(async move { Ok(workspace_symbol_resolve(documents, params)) })
+        Box::pin(
+            async move { Ok(workspace_symbol_resolve(documents, params)) },
+        )
     }
 
     /// This method is called when a document is opened.
