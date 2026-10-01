@@ -1,0 +1,85 @@
+name: WASM tests
+
+on:
+  create:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-wasm:
+    name: Browser WASM
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+
+      - name: Install Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Install Chrome and ChromeDriver
+        id: setup-chrome
+        uses: browser-actions/setup-chrome@48ad923757ca74d66703209fe939badbdf80f2f4 # v2.2.0
+        with:
+          chrome-version: stable
+          install-dependencies: true
+          install-chromedriver: true
+
+      - name: Add ChromeDriver to PATH
+        env:
+          CHROMEDRIVER_PATH: ${{ steps.setup-chrome.outputs.chromedriver-path }}
+        run: echo "$(dirname "$CHROMEDRIVER_PATH")" >> "$GITHUB_PATH"
+
+      - name: Install wasm-pack
+        run: cargo install --locked wasm-pack --version 0.14.0
+
+      - name: Install wasm-bindgen CLI
+        run: cargo install --locked wasm-bindgen-cli --version 0.2.113
+
+      - name: Install terser
+        run: npm install --global terser
+
+      - name: Write webdriver.json
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+        run: |
+          cat > js-wasm/webdriver.json <<EOF
+          {
+            "goog:chromeOptions": {
+              "binary": "$CHROME_PATH"
+            }
+          }
+          EOF
+
+      - name: Run Node-targeted Rust tests
+        run: npm --prefix js-wasm run test:wasm-node
+
+      - name: Run headless browser Rust tests
+        run: npm --prefix js-wasm run test:wasm-browser
+        env:
+          CHROMEDRIVER: ${{ steps.setup-chrome.outputs.chromedriver-path }}
+          WASM_BINDGEN_TEST_WEBDRIVER_JSON: ${{ github.workspace }}/js-wasm/webdriver.json
+
+      - name: Build browser package
+        run: npm --prefix js-wasm run build:web
+
+      - name: Run JS integration tests
+        run: npm --prefix js-wasm run test:js
+
+      - name: Validate npm package contents
+        run: npm --prefix js-wasm run pack:dry-run

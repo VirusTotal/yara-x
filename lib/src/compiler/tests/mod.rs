@@ -27,7 +27,7 @@ fn serialization() {
     // `DecodeError`.
     let mut data = Vec::new();
     data.extend(b"YARA-X\0\0");
-    data.extend(6u32.to_le_bytes());
+    data.extend(7u32.to_le_bytes());
     data.extend(b"foo");
 
     assert!(matches!(
@@ -124,8 +124,8 @@ fn namespaces() {
 fn var_stack() {
     let mut stack = VarStack::new();
 
-    let mut frame1 = stack.new_frame(4);
-    let mut frame2 = stack.new_frame(4);
+    let mut frame1 = stack.new_frame(4).unwrap();
+    let mut frame2 = stack.new_frame(4).unwrap();
 
     let var = frame1.new_var(Type::Integer);
 
@@ -1749,4 +1749,13 @@ fn test_rules_matches_many() {
     scanner.set_global("str_foo", "bar").unwrap();
     let scan_results = scanner.scan(&[]).unwrap();
     assert_eq!(scan_results.matching_rules().len(), 1);
+}
+
+#[test]
+fn test_var_stack_overflow() {
+    let mut compiler = Compiler::new();
+    let vars =
+        (0..2050).map(|i| format!("v{i}=0")).collect::<Vec<_>>().join(",");
+    let rule = format!("rule test {{ condition: with {vars} : ( true ) }}");
+    assert!(compiler.add_source(rule.as_str()).is_err());
 }

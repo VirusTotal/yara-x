@@ -35,9 +35,6 @@ fn main() -> anyhow::Result<()> {
         println!("could not enable ANSI support: {err}")
     }
 
-    #[cfg(feature = "logging")]
-    env_logger::init();
-
     // If stdout is not a tty (for example, because it was redirected to a
     // file) turn off colors. This way you can redirect the output to a file
     // without ANSI escape codes messing up the file content.

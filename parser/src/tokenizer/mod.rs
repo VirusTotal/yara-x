@@ -238,7 +238,7 @@ enum Mode<'src> {
 /// Tokens recognized in normal mode.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(logos::Logos, Debug, PartialEq)]
-#[logos(source = [u8])]
+#[logos(utf8 = false)]
 enum NormalToken<'src> {
     // Keywords
     #[token("all")]
@@ -462,7 +462,7 @@ enum NormalToken<'src> {
     // they contain either an escape sequence, or anything that is not a quote
     // newline or backslash, including non UTF-8 characters.
     #[regex(
-        r#"(?x)                         # allow comments in the regexp
+        r#"(?x-u)                       # allow comments in the regexp, don't enforce unicode
         "                               # starts with double quotes
         (                               # any number of
           \\.                           #   escape sequence
@@ -478,7 +478,7 @@ enum NormalToken<'src> {
     // quotes they contain either an escape sequence, or anything that is not a
     // quote or backslash, including non UTF-8 characters.
     #[regex(
-        r#"(?x)                         # allow comments in the regexp
+        r#"(?x-u)                       # allow comments in the regexp, don't enforce unicode
         """                             # starts with 3 double quotes
         (                               # any number of
           \\.                           #   escape sequence
@@ -492,7 +492,7 @@ enum NormalToken<'src> {
 
     // Regular expression.
     #[regex(
-        r#"(?x)                         # allow comments in the regexp
+        r#"(?x-u)                       # allow comments in the regexp, don't enforce unicode
         /                               # starts with /
         (\\.|[^*/\\\n])                 # followed by escape sequence or anything that is
                                         # not *, /, \, or newline. This prevents collision
@@ -510,7 +510,7 @@ enum NormalToken<'src> {
 
     // Block comment.
     #[regex(
-        r#"(?x)                        # allow comments in the regexp
+        r#"(?x-u)                      # allow comments in the regexp, don't enforce unicode
         /\*                            # starts with /*
         [^*]*                          # zero or more characters except *
         \*+                            # one or more *
@@ -525,7 +525,7 @@ enum NormalToken<'src> {
     BlockComment,
 
     // Single-line comment
-    #[regex(r#"//[^\n]*"#)]
+    #[regex(r#"(?-u)//[^\n]*"#, allow_greedy = true)]
     Comment,
 
     // Space, tab, and many other Unicode characters that are considered spaces.
@@ -549,7 +549,7 @@ enum NormalToken<'src> {
 /// Tokens recognized in hex pattern mode.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(logos::Logos, Debug, PartialEq)]
-#[logos(source = [u8])]
+#[logos(utf8 = false)]
 enum HexPatternToken {
     // A hex byte is an optional tilde ~, followed by two hex digits or
     // question marks. The following are valid tokens:
@@ -611,14 +611,14 @@ enum HexPatternToken {
     BlockComment,
 
     // Single-line comment
-    #[regex(r#"//[^\n]*"#)]
+    #[regex(r#"(?-u)//[^\n]*"#, allow_greedy = true)]
     Comment,
 }
 
 /// Tokens recognized in hex jump mode.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(logos::Logos, Debug, PartialEq)]
-#[logos(source = [u8])]
+#[logos(utf8 = false)]
 enum HexJumpToken<'src> {
     #[token("-")]
     Hyphen,

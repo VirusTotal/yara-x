@@ -1,0 +1,4 @@
+rule test {
+   condition:
+      "abc" matches /([a-z]{2000}){1000}/
+}

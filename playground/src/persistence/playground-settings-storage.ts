@@ -9,6 +9,33 @@ import {
 import { isPositiveInteger, isRecord } from "../validation/guards";
 
 export const PLAYGROUND_SETTINGS_STORAGE_KEY = "yara-x-playground.settings.v1";
+export const PLAYGROUND_THEME_STORAGE_KEY = "theme";
+
+export type PlaygroundTheme = "dark" | "light";
+
+export function loadStoredPlaygroundTheme(): PlaygroundTheme {
+  try {
+    const stored = localStorage.getItem(PLAYGROUND_THEME_STORAGE_KEY);
+    if (stored === "dark" || stored === "light") {
+      return stored;
+    }
+  } catch {}
+
+  if (
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-color-scheme: light)")?.matches
+  ) {
+    return "light";
+  }
+
+  return "dark";
+}
+
+export function storePlaygroundTheme(theme: PlaygroundTheme) {
+  try {
+    localStorage.setItem(PLAYGROUND_THEME_STORAGE_KEY, theme);
+  } catch {}
+}
 
 function isMetadataValidationType(value: unknown) {
   return (

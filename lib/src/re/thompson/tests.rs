@@ -90,6 +90,23 @@ macro_rules! assert_re_num_atoms {
 }
 
 #[test]
+fn class_representation_threshold() {
+    let compile = |regexp| {
+        let parser = re::parser::Parser::new();
+        Compiler::new()
+            .compile_internal(
+                &parser.parse(&Regexp::new(format!("/{regexp}/s"))).unwrap(),
+            )
+            .unwrap()
+            .0
+            .to_string()
+    };
+
+    assert!(compile("[a-ce-gi]").contains("CLASS_RANGES"));
+    assert!(compile("[a-ce-gik]").contains("CLASS_BITMAP"));
+}
+
+#[test]
 fn re_code_1() {
     assert_re_code!(
         "(?s)abcd",

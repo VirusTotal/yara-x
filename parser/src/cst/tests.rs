@@ -162,10 +162,10 @@ fn cst_4() {
     let cst: CST =
         Parser::new(b"rule test { condition: true }").try_into().unwrap();
 
-    let source_file = cst.root().into_mut();
+    let mut source_file = cst.root().into_mut();
 
     // Detach the first token, which is the `rule` keyword.
-    source_file.first_token().unwrap().detach();
+    source_file = source_file.first_token().unwrap().detach().unwrap();
 
     // After detaching the `rule` keyword, the first token is the
     // whitespace that comes after the keyword.
@@ -175,7 +175,7 @@ fn cst_4() {
     );
 
     // Detach the last token, which is the closing }.
-    source_file.last_token().unwrap().detach();
+    source_file = source_file.last_token().unwrap().detach().unwrap();
 
     // After detaching the closing }, the first token is the
     // whitespace that comes before.
@@ -184,11 +184,12 @@ fn cst_4() {
         Some(SyntaxKind::WHITESPACE)
     );
 
-    // Detach the first child of token of SOURCE_CODE, this node has a single
+    // Detach the first child or token of SOURCE_FILE, this node has a single
     // child that is the RULE_DECL node.
-    source_file.first_child_or_token().unwrap().detach();
+    source_file =
+        source_file.first_child_or_token().unwrap().detach().unwrap();
 
-    // After detaching the RULE_DECL node, SOURCE_CODE is empty.
+    // After detaching the RULE_DECL node, SOURCE_FILE is empty.
     assert_eq!(source_file.last_token().map(|x| x.kind()), None);
 }
 

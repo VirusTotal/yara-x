@@ -1,0 +1,7 @@
+error[E016]: no matching patterns
+ --> line:1:31
+  |
+1 | rule test { condition: 50% of them }
+  |                               ^^^^ there's no pattern in this set
+  |
+  = note: this rule doesn't define any patterns

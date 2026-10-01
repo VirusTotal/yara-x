@@ -55,7 +55,10 @@ export class PlaygroundSessionController implements ReactiveController {
 
   bindRuleEditor(editor: EditorHandle) {
     this.ruleEditorSubscription?.dispose();
-    this.ruleValue = editor.getValue();
+    const currentVal = editor.getValue();
+    if (currentVal.trim().length > 0) {
+      this.ruleValue = currentVal;
+    }
     this.ruleEditorSubscription = editor.onDidChangeValue(() => {
       this.ruleValue = editor.getValue();
       this.schedulePersist();
@@ -65,7 +68,10 @@ export class PlaygroundSessionController implements ReactiveController {
   bindSampleEditor(editor: EditorHandle) {
     this.sampleEditorSubscription?.dispose();
     this.sampleEditor = editor;
-    this.captureActiveSampleDraft();
+    const currentVal = editor.getValue();
+    if (currentVal.trim().length > 0) {
+      this.captureActiveSampleDraft();
+    }
     this.sampleEditorSubscription = editor.onDidChangeValue(() => {
       this.captureActiveSampleDraft();
       this.events.onSampleChange();

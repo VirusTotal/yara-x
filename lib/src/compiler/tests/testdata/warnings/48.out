@@ -8,3 +8,8 @@ warning[slow_pattern]: slow pattern
   |
 4 |     $b = { 01 }
   |          ------ this pattern may slow down the scan
+warning[slow_pattern]: slow pattern
+  --> line:13:6
+   |
+13 |      $a = "a"
+   |      -------- this pattern may slow down the scan

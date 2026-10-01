@@ -7,6 +7,7 @@ module implements the YARA compiler.
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
+use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 #[cfg(feature = "logging")]
@@ -261,6 +262,8 @@ struct Namespace {
     id: NamespaceId,
     ident_id: IdentId,
     symbols: Rc<RefCell<SymbolTable>>,
+    global_filesize_bounds: FilesizeBounds,
+    global_header_constraints: HeaderConstraint,
 }
 
 /// Compiles YARA source code producing a set of compiled [`Rules`].
@@ -382,30 +385,6 @@ pub struct Compiler<'a> {
     /// function name (e.g: `my_module.my_struct.my_func@ii@i`)
     wasm_exports: FxHashMap<String, FunctionId>,
 
-    /// Map that associates a `PatternId` to a certain filesize bound.
-    ///
-    /// A condition like `filesize < 1000 and $a` only matches if `filesize`
-    /// is less than 1000. Therefore, the pattern `$a` does not need be
-    /// checked for files of size 1000 bytes or larger.
-    ///
-    /// In this case, the map will contain an entry associating `$a` to a
-    /// `FilesizeBounds` value like:
-    /// `FilesizeBounds{start: Bound::Unbounded, end: Bound:Excluded(1000)}`.
-    filesize_bounds: FxHashMap<PatternId, FilesizeBounds>,
-
-    /// Map that associates a `PatternId` to a certain constraint on the
-    /// file header (e.g. magic bytes at offset 0), if any.
-    ///
-    /// A condition like `uint16(0) == 0x5A4D and $a` or `$mz at 0 and $a`
-    /// (were $mz = "MZ") only matches if the file starts with "MZ" (0x5A4D).
-    /// In this case the map will contain an entry associating `$a` to a
-    /// `HeaderConstraint` that requires the file to start with those two
-    /// bytes.
-    ///
-    /// This allows skipping pattern checks entirely if the scanned data doesn't
-    /// start with the expected header prefix.
-    header_constraints: FxHashMap<PatternId, HeaderConstraint>,
-
     /// A vector with all the rules that has been compiled. A [`RuleId`] is
     /// an index in this vector.
     rules: Vec<RuleInfo>,
@@ -413,9 +392,10 @@ pub struct Compiler<'a> {
     /// Next (not used yet) [`PatternId`].
     next_pattern_id: PatternId,
 
-    /// Vector where the N-th boolean indicates whether the pattern with
-    /// PatternId = N is a fast-scan pattern.
-    fast_scan_patterns: bitvec::vec::BitVec,
+    /// Vector where the N-th element indicates the maximum number of matches
+    /// required in fast-scan mode for the pattern with PatternId = N, or
+    /// `None` if all matches must be tracked.
+    fast_scan_max_matches: Vec<Option<NonZeroU32>>,
 
     /// Map used for de-duplicating pattern. Keys are the pattern's IR and
     /// values are the `PatternId` assigned to each pattern. Every time a rule
@@ -495,11 +475,17 @@ pub struct Compiler<'a> {
 
     /// Grouped RegexSets constructed during IR creation for or-expressions.
     regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
+
+    /// Constraints on filesize and header associated with each rule. A
+    /// [`RuleId`] is an index in this vector.
+    rule_constraints: Vec<(FilesizeBounds, HeaderConstraint)>,
 }
 
 impl<'a> Compiler<'a> {
     /// Creates a new YARA compiler.
     pub fn new() -> Self {
+        crate::init_logger();
+
         let mut ident_pool = StringPool::new();
         let mut symbol_table = StackedSymbolTable::new();
 
@@ -523,6 +509,8 @@ impl<'a> Compiler<'a> {
             id: NamespaceId(0),
             ident_id: ident_pool.get_or_intern("default"),
             symbols: symbol_table.push_new(),
+            global_filesize_bounds: FilesizeBounds::default(),
+            global_header_constraints: HeaderConstraint::default(),
         };
 
         // At this point the symbol table (which is a stacked symbol table) has
@@ -560,7 +548,7 @@ impl<'a> Compiler<'a> {
             error_on_slow_pattern: false,
             error_on_slow_loop: false,
             next_pattern_id: PatternId(0),
-            fast_scan_patterns: bitvec::vec::BitVec::new(),
+            fast_scan_max_matches: Vec::new(),
             current_namespace: default_namespace,
             features: FxHashSet::default(),
             warnings: Warnings::default(),
@@ -575,8 +563,6 @@ impl<'a> Compiler<'a> {
             banned_modules: FxHashMap::default(),
             ignored_rules: Vec::new(),
             rules_depending_on_unsupported_modules: FxHashMap::default(),
-            filesize_bounds: FxHashMap::default(),
-            header_constraints: FxHashMap::default(),
             root_struct: Struct::new().make_root(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
@@ -588,6 +574,7 @@ impl<'a> Compiler<'a> {
             includes_enabled: true,
             include_stack: Vec::new(),
             regex_sets: FxHashMap::default(),
+            rule_constraints: Vec::new(),
         }
     }
 
@@ -823,6 +810,8 @@ impl<'a> Compiler<'a> {
             id: NamespaceId(self.current_namespace.id.0 + 1),
             ident_id: self.ident_pool.get_or_intern(namespace),
             symbols: self.symbol_table.push_new(),
+            global_filesize_bounds: FilesizeBounds::default(),
+            global_header_constraints: HeaderConstraint::default(),
         };
         self.rules_depending_on_unsupported_modules.clear();
         self.wasm_mod.new_namespace();
@@ -870,6 +859,20 @@ impl<'a> Compiler<'a> {
         )
         .expect("failed to serialize global variables");
 
+        let mut filesize_bounds = FxHashMap::default();
+        let mut header_constraints = FxHashMap::default();
+
+        for (pattern, pattern_id) in self.patterns {
+            if !pattern.filesize_bounds().unbounded() {
+                filesize_bounds
+                    .insert(pattern_id, pattern.filesize_bounds().clone());
+            }
+            if !pattern.header_constraints().unconstrained() {
+                header_constraints
+                    .insert(pattern_id, pattern.header_constraints().clone());
+            }
+        }
+
         let mut rules = Rules {
             serialized_globals,
             wasm_mod,
@@ -887,10 +890,10 @@ impl<'a> Compiler<'a> {
             atoms: self.atoms,
             re_code: self.re_code,
             warnings: self.warnings.into(),
-            filesize_bounds: self.filesize_bounds,
-            header_constraints: self.header_constraints,
+            filesize_bounds,
+            header_constraints,
             regex_sets: self.regex_sets,
-            fast_scan_patterns: self.fast_scan_patterns,
+            fast_scan_max_matches: self.fast_scan_max_matches,
             rules_profiling_enabled: cfg!(feature = "rules-profiling"),
         };
 
@@ -1283,7 +1286,16 @@ impl Compiler<'_> {
             re_code_len: self.re_code.len(),
             sub_patterns_len: self.sub_patterns.len(),
             symbol_table_len: self.symbol_table.len(),
-            fast_scan_patterns_len: self.fast_scan_patterns.len(),
+            fast_scan_max_matches_len: self.fast_scan_max_matches.len(),
+            rule_constraints_len: self.rule_constraints.len(),
+            global_filesize_bounds: self
+                .current_namespace
+                .global_filesize_bounds
+                .clone(),
+            global_header_constraints: self
+                .current_namespace
+                .global_header_constraints
+                .clone(),
         }
     }
 
@@ -1298,19 +1310,18 @@ impl Compiler<'_> {
         self.re_code.truncate(snapshot.re_code_len);
         self.atoms.truncate(snapshot.atoms_len);
         self.symbol_table.truncate(snapshot.symbol_table_len);
-        self.fast_scan_patterns.truncate(snapshot.fast_scan_patterns_len);
+        self.fast_scan_max_matches
+            .truncate(snapshot.fast_scan_max_matches_len);
+        self.rule_constraints.truncate(snapshot.rule_constraints_len);
+        self.current_namespace.global_filesize_bounds =
+            snapshot.global_filesize_bounds;
+        self.current_namespace.global_header_constraints =
+            snapshot.global_header_constraints;
 
-        // Pattern IDs that are >= next_pattern_id, are being discarded. Any pattern
-        // or file size bound associated to such IDs must be removed.
-
+        // Pattern IDs that are >= next_pattern_id are being discarded. Any pattern
+        // associated to such IDs must be removed.
         self.patterns
             .retain(|_, pattern_id| *pattern_id < snapshot.next_pattern_id);
-
-        self.filesize_bounds
-            .retain(|pattern_id, _| *pattern_id < snapshot.next_pattern_id);
-
-        self.header_constraints
-            .retain(|pattern_id, _| *pattern_id < snapshot.next_pattern_id);
     }
 
     /// Returns true if the slice contains a single byte, or if the bytes in
@@ -1803,27 +1814,58 @@ impl Compiler<'_> {
 
         // Analyze the condition and determine the bounds it imposes to
         // `filesize`, if any.
-        let filesize_bounds = self.ir.filesize_bounds();
+        let mut filesize_bounds = self.ir.filesize_bounds(|rule_id| {
+            self.rule_constraints.get(rule_id.0 as usize).map(|(b, _)| b)
+        });
 
         // Analyze the condition and determine if it imposes some constraint
         // to the file header (ex: `uint16(0) == 0x5a4d`).
-        let header_constraints = self.ir.header_constraints(|pat_idx| {
-            rule_patterns[pat_idx.as_usize()].pattern()
-        });
+        let mut header_constraints = self.ir.header_constraints(
+            |pat_idx| rule_patterns[pat_idx.as_usize()].pattern(),
+            |rule_id| {
+                self.rule_constraints.get(rule_id.0 as usize).map(|(_, c)| c)
+            },
+        );
 
-        // Set the bounds to all patterns in the rule. This must be done
+        let is_global = rule.flags.contains(RuleFlags::Global);
+
+        if is_global {
+            self.current_namespace
+                .global_filesize_bounds
+                .merge(&filesize_bounds);
+            self.current_namespace
+                .global_header_constraints
+                .merge(&header_constraints);
+            filesize_bounds =
+                self.current_namespace.global_filesize_bounds.clone();
+            header_constraints =
+                self.current_namespace.global_header_constraints.clone();
+        } else {
+            filesize_bounds
+                .merge(&self.current_namespace.global_filesize_bounds);
+            header_constraints
+                .merge(&self.current_namespace.global_header_constraints);
+        }
+
+        // Set the bounds to all regex patterns in the rule. This must be done
         // before assigning the PatternId to each pattern, as the filesize
         // bounds are taken into account when determining if the pattern
         // is unique or re-used from a previous rule.
         if !filesize_bounds.unbounded() {
-            for pattern in &mut rule_patterns {
+            for pattern in &mut rule_patterns
+                .iter_mut()
+                .filter(|p| p.pattern().is_regex())
+            {
                 pattern.pattern_mut().set_filesize_bounds(&filesize_bounds);
             }
         }
 
-        // Set header constraints to all patterns in the rule.
+        // Set header constraints to all regex patterns in the rule.
         if !header_constraints.unconstrained() {
-            for pattern in &mut rule_patterns {
+            for pattern in &mut rule_patterns
+                .iter_mut()
+                .filter(|p| p.pattern().is_regex())
+            {
                 pattern
                     .pattern_mut()
                     .set_header_constraints(&header_constraints);
@@ -1838,13 +1880,15 @@ impl Compiler<'_> {
             }
         }
 
+        self.rule_constraints.push((filesize_bounds, header_constraints));
+
         let mut pattern_ids = Vec::with_capacity(rule_patterns.len());
         let mut patterns = Vec::with_capacity(rule_patterns.len());
         let mut pending_patterns = HashSet::new();
         let mut num_private_patterns = 0;
 
         for pattern in &rule_patterns {
-            // Raise error is some pattern was not used, except if the pattern
+            // Raise error if some pattern was not used, except if the pattern
             // identifier starts with underscore.
             if !pattern.in_use() && !pattern.identifier().starts_with("$_") {
                 self.restore_snapshot(snapshot);
@@ -1855,7 +1899,9 @@ impl Compiler<'_> {
                         .span_to_code_loc(pattern.identifier().span()),
                 ));
             }
+        }
 
+        for pattern in &rule_patterns {
             if pattern.pattern().flags().contains(PatternFlags::Private) {
                 num_private_patterns += 1;
             }
@@ -1867,22 +1913,20 @@ impl Compiler<'_> {
                 // Aho-Corasick automaton) the pattern again. Two patterns are
                 // considered equal if they are exactly the same, including any
                 // modifiers associated to the pattern, both are non-anchored
-                // or anchored at the same file offset, and if they have the same
-                // file size bounds.
+                // or anchored at the same file offset, if they have the same
+                // file size bounds, and if they have the same limit of matches
+                // in fast-scan mode.
                 if let Some(pattern_id) = self.patterns.get(pattern.pattern()) {
                     *pattern_id
                 } else {
                     let pattern_id = self.next_pattern_id;
                     self.next_pattern_id.incr(1);
-                    self.fast_scan_patterns.push(true);
+                    self.fast_scan_max_matches
+                        .push(pattern.max_matches_in_fast_scan());
                     pending_patterns.insert(pattern_id);
                     self.patterns.insert(pattern.pattern().clone(), pattern_id);
                     pattern_id
                 };
-
-            if !pattern.fast_scan_allowed() {
-                self.fast_scan_patterns.set(usize::from(pattern_id), false);
-            }
 
             let kind = match pattern.pattern() {
                 Pattern::Text(_) => PatternKind::Text,
@@ -1948,28 +1992,6 @@ impl Compiler<'_> {
                         }
                     }
                 };
-                if !filesize_bounds.unbounded()
-                    && self
-                        .filesize_bounds
-                        .insert(*pattern_id, filesize_bounds.clone())
-                        .is_some()
-                {
-                    // This should not happen.
-                    panic!(
-                        "modifying the file size bounds of an existing pattern"
-                    )
-                }
-                if !header_constraints.unconstrained()
-                    && self
-                        .header_constraints
-                        .insert(*pattern_id, header_constraints.clone())
-                        .is_some()
-                {
-                    // This should not happen.
-                    panic!(
-                        "modifying the header constraints of an existing pattern"
-                    )
-                }
                 pending_patterns.remove(pattern_id);
             }
         }
@@ -3213,7 +3235,10 @@ struct Snapshot {
     re_code_len: usize,
     sub_patterns_len: usize,
     symbol_table_len: usize,
-    fast_scan_patterns_len: usize,
+    fast_scan_max_matches_len: usize,
+    rule_constraints_len: usize,
+    global_filesize_bounds: FilesizeBounds,
+    global_header_constraints: HeaderConstraint,
 }
 
 /// Represents a list of warnings.

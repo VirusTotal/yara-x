@@ -266,7 +266,7 @@ pub mod mods {
 
     /// Data structures defined by the `olecf` module.
     ///
-    /// The main structure produced by the module is [`olecf:Olecf`]. The rest
+    /// The main structure produced by the module is [`olecf::Olecf`]. The rest
     /// of them are used by one or more fields in the main structure.
     ///
     pub use super::protos::olecf;
@@ -295,6 +295,15 @@ pub mod mods {
     pub use super::protos::pe;
     /// Data structure returned by the `pe` module.
     pub use super::protos::pe::PE;
+
+    /// Data structures defined by the `zip` module.
+    ///
+    /// The main structure produced by the module is [`zip::Zip`]. The rest
+    /// of them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::zip;
+    /// Data structure returned by the `zip` module.
+    pub use super::protos::zip::Zip;
 
     /// A data structure containing the data returned by all modules.
     pub use super::protos::mods::Modules;
@@ -391,6 +400,7 @@ pub mod mods {
         info.crx = protobuf::MessageField(invoke::<Crx>(data));
         info.dex = protobuf::MessageField(invoke::<Dex>(data));
         info.msi = protobuf::MessageField(invoke::<Msi>(data));
+        info.zip = protobuf::MessageField(invoke::<Zip>(data));
         info
     }
 
@@ -465,6 +475,11 @@ pub mod mods {
         impl Struct {
             pub(super) fn new(inner: Rc<types::Struct>) -> Self {
                 Self { inner }
+            }
+
+            /// Returns true if this structure represents an enum.
+            pub fn is_enum(&self) -> bool {
+                self.inner.is_enum()
             }
 
             /// Returns an iterator over the fields defined in the structure.
@@ -560,6 +575,11 @@ pub mod mods {
             /// Returns the type of the field.
             pub fn ty(&self) -> Type {
                 Type::from(&self.struct_field.type_value)
+            }
+
+            /// Returns true if the field is a constant.
+            pub fn is_const(&self) -> bool {
+                self.struct_field.type_value.is_const()
             }
 
             /// Returns the documentation for the current field.

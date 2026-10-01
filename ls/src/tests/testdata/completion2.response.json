@@ -51,7 +51,7 @@
     "label": "at"
   },
   {
-    "insertText": "in ${1:}..${2:}",
+    "insertText": "in (${1:}..${2:})",
     "insertTextFormat": 2,
     "kind": 14,
     "label": "in"
@@ -61,6 +61,8 @@
     "label": "filesize"
   },
   {
+    "insertText": "pe.entry_point",
+    "insertTextFormat": 2,
     "kind": 14,
     "label": "entrypoint"
   },
@@ -285,44 +287,6 @@
   {
     "additionalTextEdits": [
       {
-        "newText": "import \"msi\"\n",
-        "range": {
-          "end": {
-            "character": 0,
-            "line": 0
-          },
-          "start": {
-            "character": 0,
-            "line": 0
-          }
-        }
-      }
-    ],
-    "kind": 9,
-    "label": "msi"
-  },
-  {
-    "additionalTextEdits": [
-      {
-        "newText": "import \"olecf\"\n",
-        "range": {
-          "end": {
-            "character": 0,
-            "line": 0
-          },
-          "start": {
-            "character": 0,
-            "line": 0
-          }
-        }
-      }
-    ],
-    "kind": 9,
-    "label": "olecf"
-  },
-  {
-    "additionalTextEdits": [
-      {
         "newText": "import \"pe\"\n",
         "range": {
           "end": {
@@ -414,25 +378,6 @@
     ],
     "kind": 9,
     "label": "time"
-  },
-  {
-    "additionalTextEdits": [
-      {
-        "newText": "import \"vba\"\n",
-        "range": {
-          "end": {
-            "character": 0,
-            "line": 0
-          },
-          "start": {
-            "character": 0,
-            "line": 0
-          }
-        }
-      }
-    ],
-    "kind": 9,
-    "label": "vba"
   },
   {
     "additionalTextEdits": [

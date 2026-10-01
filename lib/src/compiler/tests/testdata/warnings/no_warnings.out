@@ -1,0 +1,39 @@
+warning[slow_pattern]: slow pattern
+   --> line:109:5
+    |
+109 |     $placeholder_instruction = "a"
+    |     ------------------------------ this pattern may slow down the scan
+warning[slow_pattern]: slow pattern
+   --> line:110:5
+    |
+110 |     $placeholder_ftp = "b"
+    |     ---------------------- this pattern may slow down the scan
+warning[slow_pattern]: slow pattern
+   --> line:111:5
+    |
+111 |     $context_ftp = "c"
+    |     ------------------ this pattern may slow down the scan
+warning[slow_pattern]: slow pattern
+   --> line:112:5
+    |
+112 |     $context_other = "d"
+    |     -------------------- this pattern may slow down the scan
+warning[slow_pattern]: slow pattern
+   --> line:113:5
+    |
+113 |     $harm_1 = "e"
+    |     ------------- this pattern may slow down the scan
+warning[invariant_expr]: invariant boolean expression
+   --> line:137:5
+    |
+137 |     3 of ($key*) and
+    |     ----------- this expression is always false
+    |
+    = note: the expression requires 3 matching patterns out of 1
+warning[non_bool_expr]: non-boolean expression used as boolean
+   --> line:138:5
+    |
+138 |     #str5 in (0 .. 1024) and
+    |     -------------------- this expression is `integer` but is being used as `bool`
+    |
+    = note: non-zero integers are considered `true`, while zero is `false`

@@ -1,6 +1,6 @@
 [
   {
-    "insertText": "rule ${1:ident} {\n  strings:\n    $${2:a} = \"${3}\"\n  condition:\n    $${2:a}${0}\n }",
+    "insertText": "rule ${1:ident} {\n    strings:\n        $${2:a} = \"${3}\"\n    condition:\n        $${2:a}${0}\n}",
     "insertTextFormat": 2,
     "insertTextMode": 2,
     "kind": 2,

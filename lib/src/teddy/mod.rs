@@ -10,6 +10,7 @@ with minor modifications.
 #![allow(clippy::new_ret_no_self)]
 
 use core::fmt::Debug;
+use std::ops::ControlFlow;
 use std::sync::Arc;
 
 mod generic;
@@ -22,8 +23,8 @@ pub(crate) trait SearcherT: Debug + Send + Sync {
         &self,
         start: *const u8,
         end: *const u8,
-        callback: &mut dyn FnMut(Match),
-    );
+        callback: &mut dyn FnMut(Match) -> ControlFlow<()>,
+    ) -> ControlFlow<()>;
 }
 
 #[derive(Clone, Debug)]
@@ -155,22 +156,42 @@ pub(crate) struct Searcher {
 
 impl Searcher {
     #[inline(always)]
-    pub(crate) fn find_overlapping(
+    pub(crate) fn find_overlapping<B, C, F>(
         &self,
         haystack: &[u8],
         at: usize,
-        callback: &mut dyn FnMut(Match),
-    ) {
+        mut callback: F,
+    ) -> ControlFlow<B, C>
+    where
+        F: FnMut(Match) -> ControlFlow<B, C>,
+        C: Default,
+    {
         if haystack[at..].len() < self.minimum_len {
-            return;
+            return ControlFlow::Continue(C::default());
         }
         let hayptr = haystack.as_ptr();
+        let mut break_val = None;
+        let mut last_continue = None;
         unsafe {
-            self.imp.find_overlapping(
+            let res = self.imp.find_overlapping(
                 hayptr.add(at),
                 hayptr.add(haystack.len()),
-                callback,
+                &mut |m| match callback(m) {
+                    ControlFlow::Continue(c) => {
+                        last_continue = Some(c);
+                        ControlFlow::Continue(())
+                    }
+                    ControlFlow::Break(b) => {
+                        break_val = Some(b);
+                        ControlFlow::Break(())
+                    }
+                },
             );
+            if res.is_break() {
+                ControlFlow::Break(break_val.unwrap())
+            } else {
+                ControlFlow::Continue(last_continue.unwrap_or_default())
+            }
         }
     }
 
@@ -210,6 +231,7 @@ fn is_available_avx2() -> bool {
 mod x86_64 {
     use super::{Match, Patterns, Searcher, SearcherT};
     use core::arch::x86_64::{__m128i, __m256i};
+    use std::ops::ControlFlow;
     use std::sync::Arc;
 
     #[derive(Clone, Debug)]
@@ -238,11 +260,11 @@ mod x86_64 {
                     &self,
                     start: *const u8,
                     end: *const u8,
-                    callback: &mut dyn FnMut(Match),
-                ) {
+                    callback: &mut dyn FnMut(Match) -> ControlFlow<()>,
+                ) -> ControlFlow<()> {
                     unsafe {
                         self.slim128.find_overlapping(start, end, callback)
-                    };
+                    }
                 }
             }
         };
@@ -284,17 +306,17 @@ mod x86_64 {
                     &self,
                     start: *const u8,
                     end: *const u8,
-                    callback: &mut dyn FnMut(Match),
-                ) {
+                    callback: &mut dyn FnMut(Match) -> ControlFlow<()>,
+                ) -> ControlFlow<()> {
                     let len = (end as usize).saturating_sub(start as usize);
                     if len < self.slim256.minimum_len() {
                         unsafe {
                             self.slim128.find_overlapping(start, end, callback)
-                        };
+                        }
                     } else {
                         unsafe {
                             self.slim256.find_overlapping(start, end, callback)
-                        };
+                        }
                     }
                 }
             }
@@ -331,11 +353,11 @@ mod x86_64 {
                     &self,
                     start: *const u8,
                     end: *const u8,
-                    callback: &mut dyn FnMut(Match),
-                ) {
+                    callback: &mut dyn FnMut(Match) -> ControlFlow<()>,
+                ) -> ControlFlow<()> {
                     unsafe {
                         self.fat256.find_overlapping(start, end, callback)
-                    };
+                    }
                 }
             }
         };
@@ -354,6 +376,7 @@ mod x86_64 {
 mod aarch64 {
     use super::{Match, Patterns, Searcher, SearcherT};
     use core::arch::aarch64::uint8x16_t;
+    use std::ops::ControlFlow;
     use std::sync::Arc;
 
     #[derive(Clone, Debug)]
@@ -382,10 +405,10 @@ mod aarch64 {
                     &self,
                     start: *const u8,
                     end: *const u8,
-                    callback: &mut dyn FnMut(Match),
-                ) {
+                    callback: &mut dyn FnMut(Match) -> ControlFlow<()>,
+                ) -> ControlFlow<()> {
                     unsafe {
-                        self.slim128.find_overlapping(start, end, callback);
+                        self.slim128.find_overlapping(start, end, callback)
                     }
                 }
             }
@@ -417,11 +440,16 @@ mod tests {
         let searcher = builder.build()?;
         let base = haystack.as_ptr() as usize;
         let mut matches = Vec::new();
-        searcher.find_overlapping(haystack, at, &mut |m| {
-            let start = m.start() as usize - base;
-            let end = m.end() as usize - base;
-            matches.push((m.pattern(), start, end));
-        });
+        let _ = searcher.find_overlapping(
+            haystack,
+            at,
+            |m: Match| -> ControlFlow<()> {
+                let start = m.start() as usize - base;
+                let end = m.end() as usize - base;
+                matches.push((m.pattern(), start, end));
+                ControlFlow::Continue(())
+            },
+        );
         Some(matches)
     }
 
@@ -756,5 +784,26 @@ mod tests {
             return;
         };
         assert!(s.minimum_len() >= 2);
+    }
+
+    #[test]
+    fn searcher_early_exit_on_timeout() {
+        let mut b = Builder::new();
+        b.add(b"abcd");
+        let Some(searcher) = b.build() else {
+            return;
+        };
+        let haystack = pad64(b"abcd abcd abcd abcd");
+        let mut count = 0;
+        let res = searcher.find_overlapping(
+            &haystack,
+            0,
+            |_m: Match| -> ControlFlow<&'static str> {
+                count += 1;
+                ControlFlow::Break("timeout")
+            },
+        );
+        assert_eq!(count, 1);
+        assert_eq!(res, ControlFlow::Break("timeout"));
     }
 }

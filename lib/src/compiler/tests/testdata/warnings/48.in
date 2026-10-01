@@ -1,7 +1,16 @@
-rule single_byte_pattern {
+rule single_byte_pattern_1{
   strings:
     $a = "a"
     $b = { 01 }
   condition:
     $a or $b
+}
+
+rule single_byte_pattern_2 {
+   strings:
+     // This pattern should raise a warning because it won't be anchored due to
+     // the use of `$a` in the condition.
+     $a = "a"
+   condition:
+     any of ($a) at 0 or $a
 }

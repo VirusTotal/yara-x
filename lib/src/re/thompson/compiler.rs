@@ -1493,11 +1493,9 @@ impl InstrSeq {
     /// instruction resides.
     pub fn emit_class(&mut self, c: &ClassBytes) -> usize {
         let location = self.location();
-        // When the number of ranges is <= 15 `Instr::ClassRanges` is
-        // preferred over `Instr::ClassBitmap` because of its more compact
-        // representation. With 16 ranges or more `Instr::ClassBitmap` becomes
-        // more compact.
-        if c.ranges().len() < 16 {
+        // Keep very small classes compact. Starting at four ranges, prefer the
+        // constant-time bitmap lookup over scanning each range.
+        if c.ranges().len() < 4 {
             self.seq
                 .write_all(&[
                     OPCODE_PREFIX,
