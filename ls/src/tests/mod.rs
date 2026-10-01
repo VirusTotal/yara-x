@@ -13,12 +13,15 @@ use async_lsp::lsp_types::request::{
     GotoDefinition, HoverRequest, InlayHintRequest, References, Rename,
     Request, SelectionRangeRequest, SemanticTokensFullRequest,
     SemanticTokensRangeRequest, SignatureHelpRequest, WorkspaceSymbolRequest,
+    WorkspaceSymbolResolve,
 };
 use async_lsp::lsp_types::{
     ClientCapabilities, DiagnosticClientCapabilities,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
     InitializedParams, TextDocumentClientCapabilities, TextDocumentIdentifier,
-    TextDocumentItem, Url, WorkspaceFolder,
+    TextDocumentItem, Url, WorkspaceClientCapabilities, WorkspaceFolder,
+    WorkspaceSymbolClientCapabilities,
+    WorkspaceSymbolResolveSupportCapability,
 };
 use async_lsp::router::Router;
 use async_lsp::server::LifecycleLayer;
@@ -74,15 +77,26 @@ async fn lsp_test<F, R>(
                         name: "testdata".to_string(),
                     }]),
                      capabilities: ClientCapabilities {
-                         text_document: Some(TextDocumentClientCapabilities {
-                             diagnostic: Some(DiagnosticClientCapabilities {
-                                 dynamic_registration: Some(true),
-                                 ..Default::default()
-                             }),
-                             ..Default::default()
-                         }),
-                         ..Default::default()
-                     },
+                        text_document: Some(TextDocumentClientCapabilities {
+                            diagnostic: Some(DiagnosticClientCapabilities {
+                                dynamic_registration: Some(true),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                        }),
+                        workspace: Some(WorkspaceClientCapabilities {
+                            symbol: Some(WorkspaceSymbolClientCapabilities {
+                                resolve_support: Some(
+                                    WorkspaceSymbolResolveSupportCapability {
+                                        properties: vec![String::from("location.range")],
+                                    },
+                                ),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    },
                      initialization_options,
                      ..Default::default()
                  })
@@ -473,6 +487,17 @@ async fn workspace_symbols() {
     .await;
     lsp_request_testdata_path::<_, WorkspaceSymbolRequest>(
         "workspace_symbols3.yar",
+        &workspace_testdata_path,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn workspace_symbols_resolve() {
+    let workspace_testdata_path =
+        PathBuf::from("src/tests/testdata/workspace_symbols");
+    lsp_request_testdata_path::<_, WorkspaceSymbolResolve>(
+        "workspace_symbols_resolve1.yar",
         &workspace_testdata_path,
     )
     .await;
