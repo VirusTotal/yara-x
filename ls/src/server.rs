@@ -630,13 +630,13 @@ impl LanguageServer for YARALanguageServer {
     /// entire workspace.
     fn symbol(
         &mut self,
-        _params: WorkspaceSymbolParams,
+        params: WorkspaceSymbolParams,
     ) -> BoxFuture<'static, Result<Option<WorkspaceSymbolResponse>, Self::Error>>
     {
         let documents = Arc::clone(&self.documents);
         let workspace_resolve_location = self.client_capabilities.workspace_resolve_location;
 
-        Box::pin(async move { Ok(workspace_symbol(documents, workspace_resolve_location)) })
+        Box::pin(async move { Ok(workspace_symbol(documents, workspace_resolve_location, &params.query)) })
     }
 
     /// This method is called to resolve additional information for ceratin

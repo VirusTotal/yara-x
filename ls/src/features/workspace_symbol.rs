@@ -9,13 +9,25 @@ use crate::{
     documents::storage::DocumentStorage, utils::position::node_to_range,
 };
 
+/// Returns true, when the workspace symbol name matches the user query using
+/// relaxed, case-insensitive matching. As stated in the protocol specification,
+/// the language server should not do the prefix, substring or other strict matching.
+fn relaxed_query_matching(name: &str, query: &str) -> bool {
+    let mut name_chars = name.chars().flat_map(char::to_lowercase);
+
+    query.chars().flat_map(char::to_lowercase).all(|query_char| {
+        name_chars.by_ref().any(|name_char| name_char == query_char)
+    })
+}
+
 pub fn workspace_symbol(
     documents: Arc<DocumentStorage>,
     workspace_resolve_location: bool,
+    query: &str,
 ) -> Option<WorkspaceSymbolResponse> {
-    // If client does support resolve for workspace symbols, then the language server
-    // can compute the location of the symbols later. Otherwise, language server has
-    // to compute the position right away here.
+    // If client supports resolve operation for workspace symbols, then the language
+    // server can compute the location of the symbols later. Otherwise, language server
+    // has to compute the position right away here.
     let location = if workspace_resolve_location {
         |uri: Url, _node: Node<Immutable>| {
             OneOf::Right(WorkspaceLocation { uri })
@@ -29,9 +41,8 @@ pub fn workspace_symbol(
     Some(WorkspaceSymbolResponse::Nested(
         documents
             .workspace_rules()?
-            .map(|(rule_decl, uri)| WorkspaceSymbol {
-                // Find the name of the rule
-                name: rule_decl
+            .filter_map(|(rule_decl, uri)| {
+                if let Some(name) = rule_decl
                     .children_with_tokens()
                     .find_map(|ident| {
                         if ident.kind() == SyntaxKind::IDENT {
@@ -41,13 +52,20 @@ pub fn workspace_symbol(
                         }
                     })
                     .map(|token| token.text().to_string())
-                    .unwrap_or_default(),
-                // The same kind for rules as in Document Symbols feature
-                kind: SymbolKind::FUNCTION,
-                tags: None,
-                container_name: None,
-                location: location(uri, rule_decl),
-                data: None,
+                    && relaxed_query_matching(&name, query)
+                {
+                    Some(WorkspaceSymbol {
+                        name,
+                        // The same kind for rules as in Document Symbols feature
+                        kind: SymbolKind::FUNCTION,
+                        tags: None,
+                        container_name: None,
+                        location: location(uri, rule_decl),
+                        data: None,
+                    })
+                } else {
+                    None
+                }
             })
             .collect(),
     ))
