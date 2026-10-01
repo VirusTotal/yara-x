@@ -82,6 +82,19 @@ fn rva_to_offset(ctx: &ScanContext, rva: i64) -> Option<i64> {
     Some(offset.into())
 }
 
+/// Convert a file offset to a relative virtual address (RVA).
+#[module_export]
+fn offset_to_rva(ctx: &ScanContext, offset: i64) -> Option<i64> {
+    let pe = ctx.module_output::<PE>()?;
+    let rva = rva2off::offset_to_rva(
+        offset.try_into().ok()?,
+        pe.sections.as_slice(),
+        pe.file_alignment?,
+        pe.section_alignment?,
+    )?;
+    Some(rva.into())
+}
+
 /// Returns the PE checksum, as calculated by YARA.
 ///
 /// This is useful for comparing with the checksum appearing in the PE header

@@ -2235,6 +2235,19 @@
   {
     "documentation": {
       "kind": "markdown",
+      "value": "## `offset_to_rva(offset: integer) -> integer`\n\n Convert a file offset to a relative virtual address (RVA)."
+    },
+    "insertText": "offset_to_rva(${1:offset})",
+    "insertTextFormat": 2,
+    "kind": 2,
+    "label": "offset_to_rva(offset: integer)",
+    "labelDetails": {
+      "description": "func()"
+    }
+  },
+  {
+    "documentation": {
+      "kind": "markdown",
       "value": "## `rva_to_offset(rva: integer) -> integer`\n\n Convert a relative virtual address (RVA) to a file offset."
     },
     "insertText": "rva_to_offset(${1:rva})",

@@ -489,6 +489,29 @@ fn rva_to_offset() {
 }
 
 #[test]
+fn offset_to_rva() {
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/c6f9709feccf42f2d9e22057182fe185f177fb9daaa2649b4669a24f2ee7e3ba.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.offset_to_rva(0) == 0 and
+            pe.offset_to_rva(512) == 512 and
+            pe.offset_to_rva(1024) == 4096 and
+            pe.offset_to_rva(17409) == 20481 and
+            not defined pe.offset_to_rva(-1) and
+            not defined pe.offset_to_rva(0x40000)
+        }
+        "#,
+        &pe
+    );
+}
+
+#[test]
 fn valid_on() {
     let pe = create_binary_from_zipped_ihex(
         "src/modules/pe/tests/testdata/079a472d22290a94ebb212aa8015cdc8dd28a968c6b4d3b88acdd58ce2d3b885.in.zip",
