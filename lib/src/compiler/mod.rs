@@ -893,10 +893,12 @@ impl<'a> Compiler<'a> {
             filesize_bounds,
             header_constraints,
             regex_sets: self.regex_sets,
+            compiled_regex_sets: Default::default(),
             fast_scan_max_matches: self.fast_scan_max_matches,
             rules_profiling_enabled: cfg!(feature = "rules-profiling"),
         };
 
+        rules.init_regex_set_cache();
         rules.build_ac_automaton();
         rules
     }
