@@ -3,11 +3,11 @@
     "kind": 3,
     "range": {
       "end": {
-        "character": 1,
-        "line": 4
+        "character": 10,
+        "line": 1
       },
       "start": {
-        "character": 0,
+        "character": 5,
         "line": 1
       }
     }
