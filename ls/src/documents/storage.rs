@@ -11,7 +11,9 @@ use yara_x_parser::cst::{CST, Immutable, Node, SyntaxKind, Token};
 
 use crate::{
     documents::document::Document,
-    utils::cst_traversal::{get_includes, rule_from_ident, rule_usages},
+    utils::cst_traversal::{
+        get_includes, rule_from_ident, rule_from_ident_string, rule_usages,
+    },
 };
 
 #[cfg(not(target_family = "wasm"))]
@@ -121,6 +123,38 @@ impl DocumentStorage {
     #[cfg(target_family = "wasm")]
     fn walk_workspace(&self) -> Option<impl Iterator<Item = Url>> {
         None::<std::iter::Empty<Url>>
+    }
+
+    /// Returns an iterator with all rule declaration nodes from the workspace.
+    pub fn workspace_rules(
+        &self,
+    ) -> Option<impl Iterator<Item = (Node<Immutable>, Url)>> {
+        Some(
+            self.walk_workspace()?
+                .filter_map(|url| {
+                    self.get_document_cst_root(&url).map(|root| (root, url))
+                })
+                .flat_map(|(root, url)| {
+                    root.children().filter_map(move |node| {
+                        if node.kind() == SyntaxKind::RULE_DECL {
+                            Some((node, url.clone()))
+                        } else {
+                            None
+                        }
+                    })
+                }),
+        )
+    }
+
+    /// This method tries to find rule declaration in document by given
+    /// `uri` and `name` of the rule.
+    pub fn workspace_resolve(
+        &self,
+        uri: &Url,
+        name: &str,
+    ) -> Option<Node<Immutable>> {
+        self.get_document_cst_root(uri)
+            .and_then(|root| rule_from_ident_string(&root, name))
     }
 
     /// Finds the definition of the rule with the given `ident`.

@@ -87,13 +87,22 @@ pub(crate) fn ident_at_position(
     None
 }
 
-/// Returns the `RULE_DECL` node for the rule with the given `ident`.
+/// Returns the `RULE_DECL` node for the rule with the given `ident` token.
 pub(crate) fn rule_from_ident(
     source_file: &Node<Immutable>,
     ident: &Token<Immutable>,
 ) -> Option<Node<Immutable>> {
-    assert_eq!(source_file.kind(), SyntaxKind::SOURCE_FILE);
     assert_eq!(ident.kind(), SyntaxKind::IDENT);
+
+    rule_from_ident_string(source_file, ident.text())
+}
+
+/// Returns the `RULE_DECL` node for the rule with the given `ident` string.
+pub(crate) fn rule_from_ident_string(
+    source_file: &Node<Immutable>,
+    ident: &str,
+) -> Option<Node<Immutable>> {
+    assert_eq!(source_file.kind(), SyntaxKind::SOURCE_FILE);
 
     // Iterator over all rule declarations in the CST
     let rules = source_file
@@ -105,7 +114,7 @@ pub(crate) fn rule_from_ident(
             .children_with_tokens()
             .find(|n| n.kind() == SyntaxKind::IDENT)
             .and_then(|node| node.into_token())
-            && rule_ident.text() == ident.text()
+            && rule_ident.text() == ident
         {
             return Some(rule);
         }
@@ -497,6 +506,10 @@ mod tests {
             rule_containing_token(&r1_token).unwrap().kind(),
             SyntaxKind::RULE_DECL
         );
+
+        let rule_node_string =
+            rule_from_ident_string(&root, "r1").expect("rule node");
+        assert_eq!(rule_node_string.kind(), SyntaxKind::RULE_DECL);
 
         let hash_s1_token = find_tokens(&root, "#s1").pop().unwrap();
 
