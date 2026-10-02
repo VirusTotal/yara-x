@@ -665,3 +665,112 @@ fn count_omits_non_matching_files() {
         .success()
         .stdout("");
 }
+
+// Regression test for https://github.com/VirusTotal/yara-x/issues/785.
+//
+// When `yr scan` runs in an interactive terminal (both `stdout` and `stderr`
+// are TTYs), `ParWalker` uses an `indicatif::ProgressBar` to display the scan
+// progress. Previously, output lines were printed via `MultiProgress::println`,
+// which pads lines with spaces up to the terminal width instead of writing `\n`
+// characters.
+//
+// Standard `Command` tests pipe `stdout` and `stderr`, so `is_tty()` is `false`
+// and the progress bar code path is not exercised. To test the interactive
+// terminal behavior, we allocate a pseudo-terminal (PTY) pair via `openpty` and
+// attach the child process's `stdin`, `stdout`, and `stderr` to the `slave` end
+// of the PTY while reading the combined terminal stream from the `master` end.
+#[cfg(unix)]
+#[test]
+fn issue_785() {
+    use std::fs::File;
+    use std::io::Read;
+    use std::os::fd::FromRawFd;
+    use std::process::Stdio;
+    use std::ptr;
+
+    #[repr(C)]
+    struct Winsize {
+        ws_row: u16,
+        ws_col: u16,
+        ws_xpixel: u16,
+        ws_ypixel: u16,
+    }
+
+    unsafe extern "C" {
+        fn openpty(
+            amaster: *mut std::ffi::c_int,
+            aslave: *mut std::ffi::c_int,
+            name: *mut std::ffi::c_char,
+            termp: *const std::ffi::c_void,
+            winp: *const Winsize,
+        ) -> std::ffi::c_int;
+    }
+
+    let mut master_fd = -1;
+    let mut slave_fd = -1;
+
+    // Set a non-zero terminal window size (80x24) so `indicatif` / `console`
+    // detects valid terminal dimensions when querying `TIOCGWINSZ`.
+    let ws = Winsize { ws_row: 24, ws_col: 80, ws_xpixel: 0, ws_ypixel: 0 };
+
+    let ret = unsafe {
+        openpty(
+            &mut master_fd,
+            &mut slave_fd,
+            ptr::null_mut(),
+            ptr::null(),
+            &ws,
+        )
+    };
+    assert_eq!(ret, 0);
+
+    let mut master = unsafe { File::from_raw_fd(master_fd) };
+    let slave = unsafe { File::from_raw_fd(slave_fd) };
+
+    let mut cmd = std::process::Command::new(cargo_bin!("yr"));
+
+    cmd.arg("scan")
+        .arg("--print-strings")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("src/tests/testdata/dummy.file")
+        // `TERM` must be set to a value other than `"dumb"` because `indicatif`
+        // checks `console::is_dumb()`, which on Unix returns `true` if `TERM` is
+        // unset or `"dumb"` (as is common in CI environments). When `is_dumb()` is
+        // `true`, `indicatif` falls back to a hidden draw target and bypasses its
+        // terminal rendering logic.
+        .env("TERM", "xterm-256color")
+        .stdin(Stdio::from(slave.try_clone().unwrap()))
+        .stdout(Stdio::from(slave.try_clone().unwrap()))
+        .stderr(Stdio::from(slave));
+
+    let mut child = cmd.spawn().unwrap();
+
+    // `cmd` holds the `Stdio` file descriptors duplicated from `slave`. Drop
+    // `cmd` immediately after spawning so no `slave` file descriptors remain
+    // open in the parent process; otherwise, reading from `master` below would
+    // block forever after the child exits.
+    drop(cmd);
+
+    // Read all output produced by the child from the PTY master until the
+    // slave side is closed. Once the child exits and all slave descriptors are
+    // closed, `read` returns `Ok(0)` on macOS/BSD or `Err(EIO)` on Linux.
+    let mut output = Vec::new();
+    let mut buf = [0u8; 1024];
+    loop {
+        match master.read(&mut buf) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => output.extend_from_slice(&buf[..n]),
+        }
+    }
+
+    assert!(child.wait().unwrap().success());
+
+    // The PTY line discipline translates `\n` into `\r\n` (`ONLCR`). Verify
+    // that each output line is terminated by `\r\n` rather than padded with
+    // spaces to the 80-column terminal width.
+    let output = String::from_utf8(output).unwrap();
+    assert!(
+        output.contains("0x0:3:$foo: foo\r\n0x0:3:$foo_hex: 66 6f 6f\r\n"),
+        "unexpected terminal output: {output:?}"
+    );
+}
