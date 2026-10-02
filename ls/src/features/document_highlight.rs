@@ -80,8 +80,14 @@ pub fn document_highlight(
             }
 
             if let Some(range) = rule_from_ident(&cst.root(), &ident)
+                .and_then(|node| {
+                    node.children_with_tokens().find(|node_or_token| {
+                        node_or_token.kind() == SyntaxKind::IDENT
+                    })
+                })
+                .and_then(|node_or_token| node_or_token.into_token())
                 .as_ref()
-                .and_then(node_to_range)
+                .and_then(token_to_range)
             {
                 result.push(DocumentHighlight {
                     range,
