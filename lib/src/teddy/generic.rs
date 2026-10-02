@@ -1605,7 +1605,7 @@ mod tests {
                 macro_rules! assert_finds {
                     ($s:expr, $start:expr, $end:expr) => {{
                         let mut found = false;
-                        $s.find_overlapping($start, $end, &mut |_| {
+                        let _ = $s.find_overlapping($start, $end, &mut |_| {
                             found = true;
                             ControlFlow::Continue(())
                         });
@@ -1632,16 +1632,16 @@ mod tests {
                 let short_haystack = b"abc";
                 let s_start = short_haystack.as_ptr();
                 let s_end = s_start.add(short_haystack.len());
-                s1.find_overlapping(s_start, s_end, &mut |_| {
+                let _ = s1.find_overlapping(s_start, s_end, &mut |_| {
                     ControlFlow::Continue(())
                 });
-                s2.find_overlapping(s_start, s_end, &mut |_| {
+                let _ = s2.find_overlapping(s_start, s_end, &mut |_| {
                     ControlFlow::Continue(())
                 });
-                s3.find_overlapping(s_start, s_end, &mut |_| {
+                let _ = s3.find_overlapping(s_start, s_end, &mut |_| {
                     ControlFlow::Continue(())
                 });
-                s4.find_overlapping(s_start, s_end, &mut |_| {
+                let _ = s4.find_overlapping(s_start, s_end, &mut |_| {
                     ControlFlow::Continue(())
                 });
 
