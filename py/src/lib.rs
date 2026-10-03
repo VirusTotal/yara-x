@@ -90,7 +90,7 @@ fn is_md5(s: &str) -> bool {
 
 /// Supported metadata types used to add linters to the compiler.
 #[pyclass(from_py_object)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(clippy::upper_case_acronyms)]
 enum MetaType {
     STRING,

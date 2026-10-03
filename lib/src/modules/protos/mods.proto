@@ -12,6 +12,7 @@ import "eml.proto";
 import "olecf.proto";
 import "vba.proto";
 import "msi.proto";
+import "zip.proto";
 
 package mods;
 
@@ -28,4 +29,5 @@ message Modules {
     optional dex.Dex dex = 9;
     optional msi.Msi msi = 10;
     optional eml.Eml eml = 11;
+    optional zip.Zip zip = 12;
 }

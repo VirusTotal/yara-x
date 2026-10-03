@@ -274,6 +274,19 @@ impl<'a> PE<'a> {
         )
     }
 
+    /// Convert a file offset to a relative virtual address (RVA).
+    ///
+    /// An RVA is an offset relative to the base address of the executable
+    /// program.
+    pub fn offset_to_rva(&self, offset: u32) -> Option<u32> {
+        rva2off::offset_to_rva(
+            offset,
+            self.sections.as_slice(),
+            self.optional_hdr.file_alignment,
+            self.optional_hdr.section_alignment,
+        )
+    }
+
     /// Given an RVA, returns a byte slice with the content of the PE that
     /// goes from that RVA to the end of the file.
     #[inline]

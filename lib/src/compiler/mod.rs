@@ -1913,8 +1913,9 @@ impl Compiler<'_> {
                 // Aho-Corasick automaton) the pattern again. Two patterns are
                 // considered equal if they are exactly the same, including any
                 // modifiers associated to the pattern, both are non-anchored
-                // or anchored at the same file offset, and if they have the same
-                // file size bounds.
+                // or anchored at the same file offset, if they have the same
+                // file size bounds, and if they have the same limit of matches
+                // in fast-scan mode.
                 if let Some(pattern_id) = self.patterns.get(pattern.pattern()) {
                     *pattern_id
                 } else {
@@ -1926,13 +1927,6 @@ impl Compiler<'_> {
                     self.patterns.insert(pattern.pattern().clone(), pattern_id);
                     pattern_id
                 };
-
-            let current =
-                &mut self.fast_scan_max_matches[usize::from(pattern_id)];
-            *current = match (*current, pattern.max_matches_in_fast_scan()) {
-                (Some(a), Some(b)) => Some(a.max(b)),
-                _ => None,
-            };
 
             let kind = match pattern.pattern() {
                 Pattern::Text(_) => PatternKind::Text,

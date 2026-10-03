@@ -573,9 +573,11 @@ impl<'r> Scanner<'r> {
             size = std::cmp::min(size, max_scan_size);
         }
 
-        // For files smaller than ~500MB reading the whole file is faster than
-        // using a memory-mapped file.
-        let data = if self.use_mmap && size > 500_000_000 {
+        // For files smaller than ~32MB reading the whole file is faster than
+        // using a memory-mapped file. This may vary depending on the operating
+        // system and CPU cache size, but it is a good enough threshold in most
+        // cases.
+        let data = if self.use_mmap && size > 32_000_000 {
             let mapped_file = unsafe {
                 MmapOptions::new().map_copy_read_only(&file).map_err(|err| {
                     ScanError::MapError { path: path.to_path_buf(), err }
