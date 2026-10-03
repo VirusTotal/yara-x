@@ -59,16 +59,17 @@ fn split_segments(input: &[u8]) -> Vec<Segment<'_>> {
     let mut i = 0;
 
     while i + 1 < input.len() {
-        if input[i] == b'=' && input[i + 1] == b'?' {
-            if let Some((end, encoding, bytes)) = parse_word(input, i) {
-                if lit_start < i {
-                    segments.push(Segment::Literal(&input[lit_start..i]));
-                }
-                segments.push(Segment::Encoded(encoding, bytes));
-                i = end;
-                lit_start = end;
-                continue;
+        if input[i] == b'='
+            && input[i + 1] == b'?'
+            && let Some((end, encoding, bytes)) = parse_word(input, i)
+        {
+            if lit_start < i {
+                segments.push(Segment::Literal(&input[lit_start..i]));
             }
+            segments.push(Segment::Encoded(encoding, bytes));
+            i = end;
+            lit_start = end;
+            continue;
         }
         i += 1;
     }
