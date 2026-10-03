@@ -38,6 +38,22 @@ pub struct Eml {
     pub decoded_body: ::std::option::Option<::std::vec::Vec<u8>>,
     // @@protoc_insertion_point(field:eml.Eml.parts)
     pub parts: ::std::vec::Vec<EmlPart>,
+    // @@protoc_insertion_point(field:eml.Eml.from)
+    pub from: ::std::vec::Vec<Address>,
+    // @@protoc_insertion_point(field:eml.Eml.to)
+    pub to: ::std::vec::Vec<Address>,
+    // @@protoc_insertion_point(field:eml.Eml.cc)
+    pub cc: ::std::vec::Vec<Address>,
+    // @@protoc_insertion_point(field:eml.Eml.subject)
+    pub subject: ::std::option::Option<::std::vec::Vec<u8>>,
+    // @@protoc_insertion_point(field:eml.Eml.message_id)
+    pub message_id: ::std::option::Option<::std::vec::Vec<u8>>,
+    // @@protoc_insertion_point(field:eml.Eml.date)
+    pub date: ::std::option::Option<::std::vec::Vec<u8>>,
+    // @@protoc_insertion_point(field:eml.Eml.reply_to)
+    pub reply_to: ::std::vec::Vec<Address>,
+    // @@protoc_insertion_point(field:eml.Eml.return_path)
+    pub return_path: ::protobuf::MessageField<Address>,
     // special fields
     // @@protoc_insertion_point(special_field:eml.Eml.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -145,8 +161,116 @@ impl Eml {
         self.decoded_body.take().unwrap_or_else(|| ::std::vec::Vec::new())
     }
 
+    // optional bytes subject = 9;
+
+    pub fn subject(&self) -> &[u8] {
+        match self.subject.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_subject(&mut self) {
+        self.subject = ::std::option::Option::None;
+    }
+
+    pub fn has_subject(&self) -> bool {
+        self.subject.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_subject(&mut self, v: ::std::vec::Vec<u8>) {
+        self.subject = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_subject(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.subject.is_none() {
+            self.subject = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.subject.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_subject(&mut self) -> ::std::vec::Vec<u8> {
+        self.subject.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
+    // optional bytes message_id = 10;
+
+    pub fn message_id(&self) -> &[u8] {
+        match self.message_id.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_message_id(&mut self) {
+        self.message_id = ::std::option::Option::None;
+    }
+
+    pub fn has_message_id(&self) -> bool {
+        self.message_id.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_message_id(&mut self, v: ::std::vec::Vec<u8>) {
+        self.message_id = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_message_id(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.message_id.is_none() {
+            self.message_id = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.message_id.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_message_id(&mut self) -> ::std::vec::Vec<u8> {
+        self.message_id.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
+    // optional bytes date = 11;
+
+    pub fn date(&self) -> &[u8] {
+        match self.date.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_date(&mut self) {
+        self.date = ::std::option::Option::None;
+    }
+
+    pub fn has_date(&self) -> bool {
+        self.date.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_date(&mut self, v: ::std::vec::Vec<u8>) {
+        self.date = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_date(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.date.is_none() {
+            self.date = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.date.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_date(&mut self) -> ::std::vec::Vec<u8> {
+        self.date.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(5);
+        let mut fields = ::std::vec::Vec::with_capacity(13);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "is_eml",
@@ -172,6 +296,46 @@ impl Eml {
             "parts",
             |m: &Eml| { &m.parts },
             |m: &mut Eml| { &mut m.parts },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "from",
+            |m: &Eml| { &m.from },
+            |m: &mut Eml| { &mut m.from },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "to",
+            |m: &Eml| { &m.to },
+            |m: &mut Eml| { &mut m.to },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "cc",
+            |m: &Eml| { &m.cc },
+            |m: &mut Eml| { &mut m.cc },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "subject",
+            |m: &Eml| { &m.subject },
+            |m: &mut Eml| { &mut m.subject },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "message_id",
+            |m: &Eml| { &m.message_id },
+            |m: &mut Eml| { &mut m.message_id },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "date",
+            |m: &Eml| { &m.date },
+            |m: &mut Eml| { &mut m.date },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "reply_to",
+            |m: &Eml| { &m.reply_to },
+            |m: &mut Eml| { &mut m.reply_to },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, Address>(
+            "return_path",
+            |m: &Eml| { &m.return_path },
+            |m: &mut Eml| { &mut m.return_path },
         ));
         ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<Eml>(
             "Eml",
@@ -201,6 +365,31 @@ impl ::protobuf::Message for Eml {
                 return false;
             }
         };
+        for v in &self.from {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.to {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.cc {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.reply_to {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.return_path {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
         true
     }
 
@@ -221,6 +410,30 @@ impl ::protobuf::Message for Eml {
                 },
                 42 => {
                     self.parts.push(is.read_message()?);
+                },
+                50 => {
+                    self.from.push(is.read_message()?);
+                },
+                58 => {
+                    self.to.push(is.read_message()?);
+                },
+                66 => {
+                    self.cc.push(is.read_message()?);
+                },
+                74 => {
+                    self.subject = ::std::option::Option::Some(is.read_bytes()?);
+                },
+                82 => {
+                    self.message_id = ::std::option::Option::Some(is.read_bytes()?);
+                },
+                90 => {
+                    self.date = ::std::option::Option::Some(is.read_bytes()?);
+                },
+                98 => {
+                    self.reply_to.push(is.read_message()?);
+                },
+                106 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.return_path)?;
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -251,6 +464,35 @@ impl ::protobuf::Message for Eml {
             let len = value.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         };
+        for value in &self.from {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        for value in &self.to {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        for value in &self.cc {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        if let Some(v) = self.subject.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(9, &v);
+        }
+        if let Some(v) = self.message_id.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(10, &v);
+        }
+        if let Some(v) = self.date.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(11, &v);
+        }
+        for value in &self.reply_to {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        if let Some(v) = self.return_path.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
         my_size
@@ -272,6 +514,30 @@ impl ::protobuf::Message for Eml {
         for v in &self.parts {
             ::protobuf::rt::write_message_field_with_cached_size(5, v, os)?;
         };
+        for v in &self.from {
+            ::protobuf::rt::write_message_field_with_cached_size(6, v, os)?;
+        };
+        for v in &self.to {
+            ::protobuf::rt::write_message_field_with_cached_size(7, v, os)?;
+        };
+        for v in &self.cc {
+            ::protobuf::rt::write_message_field_with_cached_size(8, v, os)?;
+        };
+        if let Some(v) = self.subject.as_ref() {
+            os.write_bytes(9, v)?;
+        }
+        if let Some(v) = self.message_id.as_ref() {
+            os.write_bytes(10, v)?;
+        }
+        if let Some(v) = self.date.as_ref() {
+            os.write_bytes(11, v)?;
+        }
+        for v in &self.reply_to {
+            ::protobuf::rt::write_message_field_with_cached_size(12, v, os)?;
+        };
+        if let Some(v) = self.return_path.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(13, v, os)?;
+        }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -294,6 +560,14 @@ impl ::protobuf::Message for Eml {
         self.body = ::std::option::Option::None;
         self.decoded_body = ::std::option::Option::None;
         self.parts.clear();
+        self.from.clear();
+        self.to.clear();
+        self.cc.clear();
+        self.subject = ::std::option::Option::None;
+        self.message_id = ::std::option::Option::None;
+        self.date = ::std::option::Option::None;
+        self.reply_to.clear();
+        self.return_path.clear();
         self.special_fields.clear();
     }
 
@@ -304,6 +578,14 @@ impl ::protobuf::Message for Eml {
             body: ::std::option::Option::None,
             decoded_body: ::std::option::Option::None,
             parts: ::std::vec::Vec::new(),
+            from: ::std::vec::Vec::new(),
+            to: ::std::vec::Vec::new(),
+            cc: ::std::vec::Vec::new(),
+            subject: ::std::option::Option::None,
+            message_id: ::std::option::Option::None,
+            date: ::std::option::Option::None,
+            reply_to: ::std::vec::Vec::new(),
+            return_path: ::protobuf::MessageField::none(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -324,6 +606,218 @@ impl ::std::fmt::Display for Eml {
 }
 
 impl ::protobuf::reflect::ProtobufValue for Eml {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
+// @@protoc_insertion_point(message:eml.Address)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct Address {
+    // message fields
+    // @@protoc_insertion_point(field:eml.Address.name)
+    pub name: ::std::option::Option<::std::vec::Vec<u8>>,
+    // @@protoc_insertion_point(field:eml.Address.address)
+    pub address: ::std::option::Option<::std::vec::Vec<u8>>,
+    // special fields
+    // @@protoc_insertion_point(special_field:eml.Address.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a Address {
+    fn default() -> &'a Address {
+        <Address as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl Address {
+    pub fn new() -> Address {
+        ::std::default::Default::default()
+    }
+
+    // optional bytes name = 1;
+
+    pub fn name(&self) -> &[u8] {
+        match self.name.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_name(&mut self) {
+        self.name = ::std::option::Option::None;
+    }
+
+    pub fn has_name(&self) -> bool {
+        self.name.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_name(&mut self, v: ::std::vec::Vec<u8>) {
+        self.name = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_name(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.name.is_none() {
+            self.name = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.name.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_name(&mut self) -> ::std::vec::Vec<u8> {
+        self.name.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
+    // optional bytes address = 2;
+
+    pub fn address(&self) -> &[u8] {
+        match self.address.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_address(&mut self) {
+        self.address = ::std::option::Option::None;
+    }
+
+    pub fn has_address(&self) -> bool {
+        self.address.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_address(&mut self, v: ::std::vec::Vec<u8>) {
+        self.address = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_address(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.address.is_none() {
+            self.address = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.address.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_address(&mut self) -> ::std::vec::Vec<u8> {
+        self.address.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(2);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "name",
+            |m: &Address| { &m.name },
+            |m: &mut Address| { &mut m.name },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "address",
+            |m: &Address| { &m.address },
+            |m: &mut Address| { &mut m.address },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<Address>(
+            "Address",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for Address {
+    const NAME: &'static str = "Address";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.name = ::std::option::Option::Some(is.read_bytes()?);
+                },
+                18 => {
+                    self.address = ::std::option::Option::Some(is.read_bytes()?);
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if let Some(v) = self.name.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(1, &v);
+        }
+        if let Some(v) = self.address.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(2, &v);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if let Some(v) = self.name.as_ref() {
+            os.write_bytes(1, v)?;
+        }
+        if let Some(v) = self.address.as_ref() {
+            os.write_bytes(2, v)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> Address {
+        Address::new()
+    }
+
+    fn clear(&mut self) {
+        self.name = ::std::option::Option::None;
+        self.address = ::std::option::Option::None;
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static Address {
+        static instance: Address = Address {
+            name: ::std::option::Option::None,
+            address: ::std::option::Option::None,
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for Address {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("Address").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for Address {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for Address {
     type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
 }
 
@@ -893,18 +1387,27 @@ impl ::protobuf::reflect::ProtobufValue for Header {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\teml.proto\x12\x03eml\x1a\nyara.proto\"\x9e\x01\n\x03Eml\x12\x15\n\
+    \n\teml.proto\x12\x03eml\x1a\nyara.proto\"\xa1\x03\n\x03Eml\x12\x15\n\
     \x06is_eml\x18\x01\x20\x02(\x08R\x05isEml\x12%\n\x07headers\x18\x02\x20\
     \x03(\x0b2\x0b.eml.HeaderR\x07headers\x12\x12\n\x04body\x18\x03\x20\x02(\
     \x0cR\x04body\x12!\n\x0cdecoded_body\x18\x04\x20\x01(\x0cR\x0bdecodedBod\
-    y\x12\"\n\x05parts\x18\x05\x20\x03(\x0b2\x0c.eml.EmlPartR\x05parts\"\xa5\
-    \x01\n\x07EmlPart\x12%\n\x07headers\x18\x01\x20\x03(\x0b2\x0b.eml.Header\
-    R\x07headers\x12\x12\n\x04body\x18\x02\x20\x02(\x0cR\x04body\x12!\n\x0cd\
-    ecoded_body\x18\x03\x20\x01(\x0cR\x0bdecodedBody\x12\x1a\n\x08filename\
-    \x18\x04\x20\x01(\x0cR\x08filename\x12\x20\n\x0bdisposition\x18\x05\x20\
-    \x01(\x0cR\x0bdisposition\"0\n\x06Header\x12\x10\n\x03key\x18\x01\x20\
-    \x02(\x0cR\x03key\x12\x14\n\x05value\x18\x02\x20\x02(\x0cR\x05valueB\x1e\
-    \xfa\x92\x19\x1a\n\x03eml\x12\x07eml.Eml\x1a\neml-moduleb\x06proto2\
+    y\x12\"\n\x05parts\x18\x05\x20\x03(\x0b2\x0c.eml.EmlPartR\x05parts\x12\
+    \x20\n\x04from\x18\x06\x20\x03(\x0b2\x0c.eml.AddressR\x04from\x12\x1c\n\
+    \x02to\x18\x07\x20\x03(\x0b2\x0c.eml.AddressR\x02to\x12\x1c\n\x02cc\x18\
+    \x08\x20\x03(\x0b2\x0c.eml.AddressR\x02cc\x12\x18\n\x07subject\x18\t\x20\
+    \x01(\x0cR\x07subject\x12\x1d\n\nmessage_id\x18\n\x20\x01(\x0cR\tmessage\
+    Id\x12\x12\n\x04date\x18\x0b\x20\x01(\x0cR\x04date\x12'\n\x08reply_to\
+    \x18\x0c\x20\x03(\x0b2\x0c.eml.AddressR\x07replyTo\x12-\n\x0breturn_path\
+    \x18\r\x20\x01(\x0b2\x0c.eml.AddressR\nreturnPath\"7\n\x07Address\x12\
+    \x12\n\x04name\x18\x01\x20\x01(\x0cR\x04name\x12\x18\n\x07address\x18\
+    \x02\x20\x01(\x0cR\x07address\"\xa5\x01\n\x07EmlPart\x12%\n\x07headers\
+    \x18\x01\x20\x03(\x0b2\x0b.eml.HeaderR\x07headers\x12\x12\n\x04body\x18\
+    \x02\x20\x02(\x0cR\x04body\x12!\n\x0cdecoded_body\x18\x03\x20\x01(\x0cR\
+    \x0bdecodedBody\x12\x1a\n\x08filename\x18\x04\x20\x01(\x0cR\x08filename\
+    \x12\x20\n\x0bdisposition\x18\x05\x20\x01(\x0cR\x0bdisposition\"0\n\x06H\
+    eader\x12\x10\n\x03key\x18\x01\x20\x02(\x0cR\x03key\x12\x14\n\x05value\
+    \x18\x02\x20\x02(\x0cR\x05valueB\x1e\xfa\x92\x19\x1a\n\x03eml\x12\x07eml\
+    .Eml\x1a\neml-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -923,8 +1426,9 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
         let generated_file_descriptor = generated_file_descriptor_lazy.get(|| {
             let mut deps = ::std::vec::Vec::with_capacity(1);
             deps.push(super::yara::file_descriptor().clone());
-            let mut messages = ::std::vec::Vec::with_capacity(3);
+            let mut messages = ::std::vec::Vec::with_capacity(4);
             messages.push(Eml::generated_message_descriptor_data());
+            messages.push(Address::generated_message_descriptor_data());
             messages.push(EmlPart::generated_message_descriptor_data());
             messages.push(Header::generated_message_descriptor_data());
             let mut enums = ::std::vec::Vec::with_capacity(0);

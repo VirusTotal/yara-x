@@ -1,6 +1,7 @@
 use std::mem;
 
-use crate::modules::protos::eml::{Eml, EmlPart, Header};
+use crate::modules::eml::address::parse_address_list;
+use crate::modules::protos::eml::{Address, Eml, EmlPart, Header};
 use base64::prelude::*;
 use bstr::ByteSlice;
 use indexmap::IndexMap;
@@ -51,6 +52,19 @@ impl EmlParser {
                 self.result.headers = self.map_to_proto_headers(&headers);
                 self.result.body = Some(body.to_vec());
                 self.result.decoded_body = self.decode_body(&headers, body);
+                self.result.from = Self::addresses(&headers, b"from");
+                self.result.to = Self::addresses(&headers, b"to");
+                self.result.cc = Self::addresses(&headers, b"cc");
+                self.result.subject = Self::first_header(&headers, b"subject");
+                self.result.message_id =
+                    Self::first_header(&headers, b"message-id");
+                self.result.date = Self::first_header(&headers, b"date");
+                self.result.reply_to = Self::addresses(&headers, b"reply-to");
+                self.result.return_path =
+                    Self::addresses(&headers, b"return-path")
+                        .into_iter()
+                        .next()
+                        .into();
             }
 
             // Content-Type should be checked for multipart and boundary
@@ -142,6 +156,21 @@ impl EmlParser {
             }
             _ => None,
         }
+    }
+
+    /// Returns the first value of the header `name`, which must be lowercase.
+    fn first_header(headers: &Headers, name: &[u8]) -> Option<Vec<u8>> {
+        headers.get(name).and_then(|v| v.first()).cloned()
+    }
+
+    /// Parses all occurrences of the address header `name` (lowercase).
+    fn addresses(headers: &Headers, name: &[u8]) -> Vec<Address> {
+        headers
+            .get(name)
+            .into_iter()
+            .flatten()
+            .flat_map(|v| parse_address_list(v))
+            .collect()
     }
 
     fn map_to_proto_headers(

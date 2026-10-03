@@ -39,3 +39,13 @@ parts:
     body: "<!DOCTYPE html>\n<html>\n<head>\n    <title>Quarterly Report</title>\n</head>\n<body>\n    <h1>Q2 2026 Performance</h1>\n    <p>Revenue is up 15% this quarter.</p>\n</body>\n</html>"
     filename: "quarterly_report.html"
     disposition: "attachment"
+from:
+  - name: "Jane Doe"
+    address: "sender@example.com"
+to:
+  - name: "John Smith"
+    address: "recipient@example.com"
+subject: "Meeting Agenda & Attached Report"
+date: "Sat, 25 Jul 2026 10:15:00 -0400"
+return_path:
+    address: "sender@example.com"

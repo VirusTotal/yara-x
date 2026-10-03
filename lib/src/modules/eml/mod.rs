@@ -7,7 +7,11 @@ An EML file is the standard file format for email, according to RFC 2045 [1]
 
 use crate::mods::prelude::*;
 use crate::modules::protos::eml::*;
+mod address;
 pub mod parser;
+
+#[cfg(test)]
+mod tests;
 
 fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<Eml, ModuleError> {
     match parser::EmlParser::new().parse(data) {
@@ -20,9 +24,9 @@ fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<Eml, ModuleError> {
     }
 }
 
-/// Returns true if the Mach-O parsed entitlements contain `entitlement`
+/// Returns true if the top-level headers contain a header named `header`.
 ///
-/// `entitlement` is case-insensitive.
+/// `header` is case-insensitive.
 #[module_export]
 fn has_header(
     ctx: &ScanContext,

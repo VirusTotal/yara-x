@@ -18,6 +18,28 @@ message Eml {
   required bytes body = 3;
   optional bytes decoded_body = 4;
   repeated EmlPart parts = 5;
+
+  // Convenience fields taken from the top-level headers. Address headers are
+  // parsed into individual mailboxes; RFC 2047 encoded words are not decoded.
+  repeated Address from = 6;
+  repeated Address to = 7;
+  repeated Address cc = 8;
+  // Raw value of the Subject header.
+  optional bytes subject = 9;
+  // Raw value of the Message-ID header.
+  optional bytes message_id = 10;
+  // Raw value of the Date header.
+  optional bytes date = 11;
+  repeated Address reply_to = 12;
+  optional Address return_path = 13;
+}
+
+// A mailbox, like `John Doe <john@example.com>`.
+message Address {
+    // Display name, with quotes removed. Absent if there is none.
+    optional bytes name = 1;
+    // The address itself, like `john@example.com`.
+    optional bytes address = 2;
 }
 
 message EmlPart {
