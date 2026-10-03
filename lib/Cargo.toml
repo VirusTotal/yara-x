@@ -207,7 +207,6 @@ elf-module = [
 # The `eml` module parses EML files.
 eml-module = [
     "dep:encoding_rs",
-    "dep:nom",
     "dep:quoted_printable"
 ]
 

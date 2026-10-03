@@ -89,7 +89,7 @@ impl Eml {
         self.is_eml = ::std::option::Option::Some(v);
     }
 
-    // required bytes body = 3;
+    // optional bytes body = 3;
 
     pub fn body(&self) -> &[u8] {
         match self.body.as_ref() {
@@ -350,9 +350,6 @@ impl ::protobuf::Message for Eml {
 
     fn is_initialized(&self) -> bool {
         if self.is_eml.is_none() {
-            return false;
-        }
-        if self.body.is_none() {
             return false;
         }
         for v in &self.headers {
@@ -1588,7 +1585,7 @@ impl ::protobuf::reflect::ProtobufValue for Header {
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n\teml.proto\x12\x03eml\x1a\nyara.proto\"\xa1\x03\n\x03Eml\x12\x15\n\
     \x06is_eml\x18\x01\x20\x02(\x08R\x05isEml\x12%\n\x07headers\x18\x02\x20\
-    \x03(\x0b2\x0b.eml.HeaderR\x07headers\x12\x12\n\x04body\x18\x03\x20\x02(\
+    \x03(\x0b2\x0b.eml.HeaderR\x07headers\x12\x12\n\x04body\x18\x03\x20\x01(\
     \x0cR\x04body\x12!\n\x0cdecoded_body\x18\x04\x20\x01(\x0cR\x0bdecodedBod\
     y\x12\"\n\x05parts\x18\x05\x20\x03(\x0b2\x0c.eml.EmlPartR\x05parts\x12\
     \x20\n\x04from\x18\x06\x20\x03(\x0b2\x0c.eml.AddressR\x04from\x12\x1c\n\

@@ -15,7 +15,7 @@ message Eml {
   // key:value pairs of headers from the Eml file.
   repeated Header headers = 2;
   // the body of the Eml file from after the headers
-  required bytes body = 3;
+  optional bytes body = 3;
   optional bytes decoded_body = 4;
   repeated EmlPart parts = 5;
 

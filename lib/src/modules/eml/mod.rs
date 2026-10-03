@@ -15,7 +15,7 @@ mod rfc2047;
 mod tests;
 
 fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<Eml, ModuleError> {
-    match parser::EmlParser::new().parse(data) {
+    match parser::EmlParser::parse(data) {
         Ok(eml) => Ok(eml),
         Err(_) => {
             let mut eml = Eml::new();
@@ -29,17 +29,8 @@ fn main(_ctx: &mut ModuleContext, data: &[u8]) -> Result<Eml, ModuleError> {
 ///
 /// `header` is case-insensitive.
 #[module_export]
-fn has_header(
-    ctx: &ScanContext,
-    header: RuntimeString,
-) -> Option<bool> {
-    let eml = ctx.module_output::<Eml>()?;
-    let header = header.as_bstr(ctx);
-    let headers = &eml.headers;
-
-    let found = headers.iter().any(|h| h.key().eq_ignore_ascii_case(header));
-
-    Some(found)
+fn has_header(ctx: &ScanContext, header: RuntimeString) -> Option<bool> {
+    Some(header_count(ctx, header)? > 0)
 }
 
 /// Returns the value of the first top-level header named `name`, or

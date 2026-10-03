@@ -28,7 +28,7 @@ exposes their headers, addresses, body and MIME parts to YARA.
 
 | Field        | Type                          | Description                                                                                                                                                                       |
 |--------------|-------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| is_eml       | bool                          | True if the file was parsed as an EML file.                                                                                                                                       |
+| is_eml       | bool                          | True if the file looks like an email message, which means that it has at least one common header (`From`, `To`, `Subject`, `Date`, `Message-ID`, `Received`, `MIME-Version` or `Content-Type`). If false, the rest of the fields are undefined. |
 | headers      | [Header](#header) array       | All the top-level headers, in the order they appear, with repeated headers kept as separate entries. Folded headers are unfolded.                                                 |
 | body         | string                        | The body of the message, exactly as it appears after the headers.                                                                                                                 |
 | decoded_body | string                        | The body after decoding its `Content-Transfer-Encoding`. Only set for `base64` and `quoted-printable` bodies.                                                                    |

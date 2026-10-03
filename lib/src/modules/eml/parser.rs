@@ -1,21 +1,33 @@
-use std::mem;
-
 use crate::modules::eml::address::parse_address_list;
 use crate::modules::eml::rfc2047::decode_encoded_words;
 use crate::modules::protos::eml::{Address, Eml, EmlPart, Header};
 use base64::prelude::*;
 use bstr::ByteSlice;
 use indexmap::IndexMap;
-use nom::Err;
-
-// type NomError<'a> = nom::error::Error<&'a [u8]>;
 
 type Headers = IndexMap<Vec<u8>, Vec<Vec<u8>>>;
 
-/// An Eml parser
-pub struct EmlParser {
-    result: Eml,
+#[derive(Debug)]
+pub enum Error {
+    /// The data doesn't look like an email message.
+    NotEml,
 }
+
+/// Headers that make a piece of data look like an email message. At least
+/// one of them must be present.
+const COMMON_HEADERS: [&[u8]; 8] = [
+    b"from",
+    b"to",
+    b"subject",
+    b"date",
+    b"message-id",
+    b"received",
+    b"mime-version",
+    b"content-type",
+];
+
+/// An Eml parser
+pub struct EmlParser;
 
 // the anatomy of an email can be defined like so:
 // headers (check for content-type)
@@ -23,16 +35,9 @@ pub struct EmlParser {
 // and nest
 //
 impl EmlParser {
-    /// Creates a new parser for Eml files
-    pub fn new() -> Self {
-        Self { result: Eml::default() }
-    }
-
-    pub fn parse<'a>(
-        &mut self,
-        input: &'a [u8],
-    ) -> Result<Eml, Err<nom::error::Error<&'a [u8]>>> {
-        self.result.is_eml = Some(true);
+    /// Parses an EML message.
+    pub fn parse(input: &[u8]) -> Result<Eml, Error> {
+        let mut result = Eml { is_eml: Some(true), ..Default::default() };
 
         // stack for processing
         let mut stack: Vec<&[u8]> = vec![input];
@@ -46,45 +51,39 @@ impl EmlParser {
                 break;
             }
 
-            let (header, body) = self.split_message(current_data);
-            let headers = self.parse_headers(header);
+            let (header, body) = Self::split_message(current_data);
+            let headers = Self::parse_headers(header);
 
             if is_root {
-                self.result.headers = self.map_to_proto_headers(&headers);
-                self.result.body = Some(body.to_vec());
-                self.result.decoded_body = self.decode_body(&headers, body);
-                self.result.from = Self::addresses(&headers, b"from");
-                self.result.to = Self::addresses(&headers, b"to");
-                self.result.cc = Self::addresses(&headers, b"cc");
-                self.result.subject =
-                    Self::first_header(&headers, b"subject")
-                        .map(|v| decode_encoded_words(&v));
-                self.result.message_id =
-                    Self::first_header(&headers, b"message-id");
-                self.result.date = Self::first_header(&headers, b"date");
-                self.result.reply_to = Self::addresses(&headers, b"reply-to");
-                self.result.return_path =
-                    Self::addresses(&headers, b"return-path")
-                        .into_iter()
-                        .next()
-                        .into();
+                if !COMMON_HEADERS.iter().any(|h| headers.contains_key(*h)) {
+                    return Err(Error::NotEml);
+                }
+                result.headers = Self::map_to_proto_headers(&headers);
+                result.body = Some(body.to_vec());
+                result.decoded_body = Self::decode_body(&headers, body);
+                result.from = Self::addresses(&headers, b"from");
+                result.to = Self::addresses(&headers, b"to");
+                result.cc = Self::addresses(&headers, b"cc");
+                result.subject = Self::first_header(&headers, b"subject")
+                    .map(|v| decode_encoded_words(&v));
+                result.message_id = Self::first_header(&headers, b"message-id");
+                result.date = Self::first_header(&headers, b"date");
+                result.reply_to = Self::addresses(&headers, b"reply-to");
+                result.return_path = Self::addresses(&headers, b"return-path")
+                    .into_iter()
+                    .next()
+                    .into();
             }
 
             // Content-Type should be checked for multipart and boundary
-            let mut found_boundary = None;
-            if let Some(ct) = headers.get(b"content-type".as_slice()).and_then(|v| v.first()).map(Vec::as_slice) &&
-                ct.len() >= 10 && ct[..9].eq_ignore_ascii_case(b"multipart") {
-                    // split on ';', find the boundary param by name
-                    let boundary_bytes = Self::get_mime_param(ct, b"boundary");
+            let boundary = Self::main_value(&headers, b"content-type")
+                .filter(|ct| ct.starts_with(b"multipart"))
+                .and_then(|_| {
+                    Self::param(&headers, b"content-type", b"boundary")
+                });
 
-                    if let Some(b) = boundary_bytes {
-                        let mut delimiter = b"--".to_vec();
-                        delimiter.extend_from_slice(b);
-                        found_boundary = Some(delimiter);
-                }
-            }
-
-            if let Some(delimiter) = found_boundary {
+            if let Some(boundary) = boundary {
+                let delimiter = [b"--".as_slice(), &boundary].concat();
                 // The first element is the preamble, not a part.
                 let parts: Vec<&[u8]> =
                     body.split_str(&delimiter).skip(1).collect();
@@ -97,39 +96,29 @@ impl EmlParser {
                     stack.push(trimmed);
                 }
             } else if !is_root {
-                let filename = headers
-                    .get(b"content-disposition".as_slice())
-                    .and_then(|v| v.first())
-                    .and_then(|v| Self::get_mime_param(v, b"filename"))
-                    .or_else(|| {
-                        headers
-                            .get(b"content-type".as_slice())
-                            .and_then(|v| v.first())
-                            .and_then(|v| Self::get_mime_param(v, b"name"))
-                    })
-                    .map(|b| b.to_vec());
-
-                let charset = headers
-                    .get(b"content-type".as_slice())
-                    .and_then(|v| v.first())
-                    .and_then(|v| Self::get_mime_param(v, b"charset"))
-                    .map(|b| b.to_vec());
-
-                let content_id = Self::first_header(&headers, b"content-id")
-                    .map(|v| v.trim_with(|c| c == '<' || c == '>').to_vec());
-
-                let decoded_body = self.decode_body(&headers, body);
+                let decoded_body = Self::decode_body(&headers, body);
                 let size = decoded_body.as_ref().map_or(body.len(), Vec::len);
 
-                self.result.parts.push(EmlPart {
-                    headers: self.map_to_proto_headers(&headers),
+                result.parts.push(EmlPart {
+                    headers: Self::map_to_proto_headers(&headers),
                     body: Some(body.to_vec()),
                     decoded_body,
-                    filename,
-                    disposition: Self::main_value(&headers, b"content-disposition"),
+                    filename: Self::param(
+                        &headers,
+                        b"content-disposition",
+                        b"filename",
+                    )
+                    .or_else(|| Self::param(&headers, b"content-type", b"name")),
+                    disposition: Self::main_value(
+                        &headers,
+                        b"content-disposition",
+                    ),
                     content_type: Self::main_value(&headers, b"content-type"),
-                    charset,
-                    content_id,
+                    charset: Self::param(&headers, b"content-type", b"charset"),
+                    content_id: Self::first_header(&headers, b"content-id")
+                        .map(|v| {
+                            v.trim_with(|c| c == '<' || c == '>').to_vec()
+                        }),
                     size: Some(size as i64),
                     ..Default::default()
                 });
@@ -137,10 +126,10 @@ impl EmlParser {
             is_root = false;
         }
 
-        Ok(mem::take(&mut self.result))
+        Ok(result)
     }
 
-    fn split_message<'a>(&self, input: &'a [u8]) -> (&'a [u8], &'a [u8]) {
+    fn split_message(input: &[u8]) -> (&[u8], &[u8]) {
         if let Some(pos) = input.find("\r\n\r\n") {
             (&input[..pos], &input[pos + 4..])
         } else if let Some(pos) = input.find("\n\n") {
@@ -150,21 +139,24 @@ impl EmlParser {
         }
     }
 
-    fn decode_body(
-        &self,
-        headers: &Headers,
-        body: &[u8],
-    ) -> Option<Vec<u8>> {
-        let enc = headers.get(b"content-transfer-encoding".as_slice()).and_then(|v| v.first())?;
+    fn decode_body(headers: &Headers, body: &[u8]) -> Option<Vec<u8>> {
+        let enc = headers
+            .get(b"content-transfer-encoding".as_slice())
+            .and_then(|v| v.first())?;
         match enc.to_ascii_lowercase().as_slice() {
             b"base64" => {
-                let cleaned: Vec<u8> =
-                    body.iter().filter(|&&b| !b.is_ascii_whitespace()).cloned().collect();
+                let cleaned: Vec<u8> = body
+                    .iter()
+                    .filter(|&&b| !b.is_ascii_whitespace())
+                    .cloned()
+                    .collect();
                 BASE64_STANDARD.decode(cleaned).ok()
             }
-            b"quoted-printable" => {
-                quoted_printable::decode(body, quoted_printable::ParseMode::Robust).ok()
-            }
+            b"quoted-printable" => quoted_printable::decode(
+                body,
+                quoted_printable::ParseMode::Robust,
+            )
+            .ok(),
             _ => None,
         }
     }
@@ -182,6 +174,17 @@ impl EmlParser {
         Some(main.trim().to_ascii_lowercase())
     }
 
+    /// Returns the parameter `param_name` of the first value of the header
+    /// `header` (lowercase): `param(h, b"content-type", b"charset")`.
+    fn param(
+        headers: &Headers,
+        header: &[u8],
+        param_name: &[u8],
+    ) -> Option<Vec<u8>> {
+        Self::get_mime_param(headers.get(header)?.first()?, param_name)
+            .map(<[u8]>::to_vec)
+    }
+
     /// Parses all occurrences of the address header `name` (lowercase).
     fn addresses(headers: &Headers, name: &[u8]) -> Vec<Address> {
         headers
@@ -192,10 +195,7 @@ impl EmlParser {
             .collect()
     }
 
-    fn map_to_proto_headers(
-        &self,
-        headers: &Headers,
-    ) -> Vec<Header> {
+    fn map_to_proto_headers(headers: &Headers) -> Vec<Header> {
         headers
             .iter()
             .flat_map(|(k, values)| {
@@ -212,7 +212,10 @@ impl EmlParser {
     /// e.g. `get_mime_param(b"multipart/mixed; boundary=abc", b"boundary")` → `Some(b"abc")`
     /// Handles both quoted (`boundary="abc"`) and unquoted (`boundary=abc`) forms.
     /// Case-insensitive matching
-    fn get_mime_param<'a>(header_value: &'a [u8], param_name: &[u8]) -> Option<&'a [u8]> {
+    fn get_mime_param<'a>(
+        header_value: &'a [u8],
+        param_name: &[u8],
+    ) -> Option<&'a [u8]> {
         header_value.split_str(b";").skip(1).find_map(|param| {
             let param = param.trim();
             let (name, value) = param.split_once_str(b"=")?;
@@ -229,20 +232,20 @@ impl EmlParser {
         })
     }
 
-    fn parse_headers(&self, headers_raw: &[u8]) -> Headers {
+    fn parse_headers(headers_raw: &[u8]) -> Headers {
         let mut last_key: Option<Vec<u8>> = None;
         let mut headers = Headers::new();
 
         for line in headers_raw.lines() {
-            #[allow(clippy::collapsible_if)]
             if line.starts_with(b" ") || line.starts_with(b"\t") {
-                if let Some(k) = &last_key {
-                    if let Some(values) = headers.get_mut(k.as_slice()) {
-                        if let Some(last_val) = values.last_mut() {
-                            last_val.push(b' ');
-                            last_val.extend_from_slice(line.trim());
-                        }
-                    }
+                // Continuation of the previous header: unfold it.
+                if let Some(last_val) = last_key
+                    .as_ref()
+                    .and_then(|k| headers.get_mut(k))
+                    .and_then(|values| values.last_mut())
+                {
+                    last_val.push(b' ');
+                    last_val.extend_from_slice(line.trim());
                 }
             } else if let Some((key, value)) = line.split_once_str(":") {
                 let key = key.trim().to_ascii_lowercase();

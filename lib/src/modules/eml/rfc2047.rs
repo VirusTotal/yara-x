@@ -2,47 +2,47 @@ use base64::prelude::*;
 use bstr::ByteSlice;
 use encoding_rs::Encoding;
 
-enum Segment<'a> {
-    Literal(&'a [u8]),
-    Encoded(&'static Encoding, Vec<u8>),
-}
-
 /// Decodes RFC 2047 encoded words (`=?charset?B|Q?text?=`) found in `input`
 /// and returns the result as UTF-8.
 ///
 /// The decoder is lenient: anything that isn't a well-formed encoded word, or
 /// that uses an unknown charset, is left untouched.
 pub(super) fn decode_encoded_words(input: &[u8]) -> Vec<u8> {
-    let segments = split_segments(input);
     let mut result = Vec::with_capacity(input.len());
     // Consecutive encoded words with the same charset are decoded together,
     // as a multibyte character can be split across two of them.
     let mut pending: Option<(&'static Encoding, Vec<u8>)> = None;
+    let mut literal_start = 0;
+    let mut i = 0;
 
-    for (i, segment) in segments.iter().enumerate() {
-        match segment {
-            Segment::Literal(lit) => {
-                // Whitespace between two encoded words is not significant.
-                let between_words = lit.iter().all(u8::is_ascii_whitespace)
-                    && i > 0
-                    && matches!(segments[i - 1], Segment::Encoded(..))
-                    && matches!(segments.get(i + 1), Some(Segment::Encoded(..)));
-                if between_words {
-                    continue;
-                }
+    while i + 1 < input.len() {
+        if input[i] == b'='
+            && input[i + 1] == b'?'
+            && let Some((end, encoding, bytes)) = parse_word(input, i)
+        {
+            let literal = &input[literal_start..i];
+            // Whitespace between two encoded words is not significant.
+            if pending.is_none() || !literal.iter().all(u8::is_ascii_whitespace)
+            {
                 flush(&mut pending, &mut result);
-                result.extend_from_slice(lit);
+                result.extend_from_slice(literal);
             }
-            Segment::Encoded(encoding, bytes) => match &mut pending {
-                Some((e, b)) if e == encoding => b.extend_from_slice(bytes),
+            match &mut pending {
+                Some((e, b)) if *e == encoding => b.extend_from_slice(&bytes),
                 _ => {
                     flush(&mut pending, &mut result);
-                    pending = Some((encoding, bytes.clone()));
+                    pending = Some((encoding, bytes));
                 }
-            },
+            }
+            i = end;
+            literal_start = end;
+            continue;
         }
+        i += 1;
     }
+
     flush(&mut pending, &mut result);
+    result.extend_from_slice(&input[literal_start..]);
     result
 }
 
@@ -51,33 +51,6 @@ fn flush(pending: &mut Option<(&'static Encoding, Vec<u8>)>, out: &mut Vec<u8>) 
         let (text, _) = encoding.decode_without_bom_handling(&bytes);
         out.extend_from_slice(text.as_bytes());
     }
-}
-
-fn split_segments(input: &[u8]) -> Vec<Segment<'_>> {
-    let mut segments = Vec::new();
-    let mut lit_start = 0;
-    let mut i = 0;
-
-    while i + 1 < input.len() {
-        if input[i] == b'='
-            && input[i + 1] == b'?'
-            && let Some((end, encoding, bytes)) = parse_word(input, i)
-        {
-            if lit_start < i {
-                segments.push(Segment::Literal(&input[lit_start..i]));
-            }
-            segments.push(Segment::Encoded(encoding, bytes));
-            i = end;
-            lit_start = end;
-            continue;
-        }
-        i += 1;
-    }
-
-    if lit_start < input.len() {
-        segments.push(Segment::Literal(&input[lit_start..]));
-    }
-    segments
 }
 
 /// Tries to parse an encoded word starting at `start`, which must point to
@@ -165,6 +138,12 @@ mod tests {
     fn whitespace_between_words_is_dropped() {
         assert_eq!(decode("=?UTF-8?Q?a?= =?UTF-8?Q?b?="), "ab");
         assert_eq!(decode("=?UTF-8?Q?a?=\r\n =?UTF-8?Q?b?="), "ab");
+    }
+
+    #[test]
+    fn whitespace_around_a_single_word_is_kept() {
+        assert_eq!(decode("a =?UTF-8?Q?b?= c"), "a b c");
+        assert_eq!(decode("=?UTF-8?Q?a?= "), "a ");
     }
 
     #[test]

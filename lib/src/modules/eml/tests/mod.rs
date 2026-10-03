@@ -21,6 +21,30 @@ fn has_header() {
 }
 
 #[test]
+fn is_eml() {
+    rule_true!(
+        r#"
+        import "eml"
+        rule test {
+          condition:
+            not eml.is_eml
+        }
+        "#,
+        b"\x7fELF\x02\x01\x01\x00 not an email: at all"
+    );
+    rule_true!(
+        r#"
+        import "eml"
+        rule test {
+          condition:
+            eml.is_eml
+        }
+        "#,
+        b"Subject: hi\r\n\r\nbody".as_slice()
+    );
+}
+
+#[test]
 fn header_and_header_count() {
     let eml = b"Received: from a\r\n\
                 Received: from b\r\n\
