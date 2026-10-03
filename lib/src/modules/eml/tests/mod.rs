@@ -21,6 +21,32 @@ fn has_header() {
 }
 
 #[test]
+fn header_and_header_count() {
+    let eml = b"Received: from a\r\n\
+                Received: from b\r\n\
+                X-Mailer: PHPMailer\r\n\
+                Subject: hi\r\n\
+                \r\n\
+                body";
+
+    rule_true!(
+        r#"
+        import "eml"
+        rule test {
+          condition:
+            eml.header("X-MAILER") == "PHPMailer" and
+            eml.header("received") == "from a" and
+            not defined eml.header("x-missing") and
+            eml.header_count("Received") == 2 and
+            eml.header_count("subject") == 1 and
+            eml.header_count("x-missing") == 0
+        }
+        "#,
+        eml.as_slice()
+    );
+}
+
+#[test]
 fn encoded_words() {
     let eml = b"From: =?UTF-8?B?SsO8cmdlbg==?= <j@example.com>\r\n\
                 Subject: =?ISO-8859-1?Q?Caf=E9_menu?=\r\n\
