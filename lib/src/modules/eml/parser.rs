@@ -163,7 +163,7 @@ impl EmlParser {
 
     /// Returns the first value of the header `name`, which must be lowercase.
     fn first_header(headers: &Headers, name: &[u8]) -> Option<Vec<u8>> {
-        headers.get(name).and_then(|v| v.first()).cloned()
+        headers.get(name)?.first().cloned()
     }
 
     /// Parses all occurrences of the address header `name` (lowercase).

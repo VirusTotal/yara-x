@@ -1,20 +1,10 @@
-use base64::alphabet;
-use base64::engine::general_purpose::{GeneralPurpose, GeneralPurposeConfig};
-use base64::engine::DecodePaddingMode;
-use base64::Engine;
+use base64::prelude::*;
 use bstr::ByteSlice;
-
-/// Base64 engine that accepts both padded and unpadded input, as encoded
-/// words found in the wild are not always correctly padded.
-const BASE64: GeneralPurpose = GeneralPurpose::new(
-    &alphabet::STANDARD,
-    GeneralPurposeConfig::new()
-        .with_decode_padding_mode(DecodePaddingMode::Indifferent),
-);
+use encoding_rs::Encoding;
 
 enum Segment<'a> {
     Literal(&'a [u8]),
-    Encoded { charset: &'a [u8], bytes: Vec<u8>, raw: &'a [u8] },
+    Encoded(&'static Encoding, Vec<u8>),
 }
 
 /// Decodes RFC 2047 encoded words (`=?charset?B|Q?text?=`) found in `input`
@@ -23,15 +13,11 @@ enum Segment<'a> {
 /// The decoder is lenient: anything that isn't a well-formed encoded word, or
 /// that uses an unknown charset, is left untouched.
 pub(super) fn decode_encoded_words(input: &[u8]) -> Vec<u8> {
-    if !input.contains_str("=?") {
-        return input.to_vec();
-    }
-
     let segments = split_segments(input);
     let mut result = Vec::with_capacity(input.len());
     // Consecutive encoded words with the same charset are decoded together,
     // as a multibyte character can be split across two of them.
-    let mut pending: Option<(&[u8], Vec<u8>, Vec<u8>)> = None;
+    let mut pending: Option<(&'static Encoding, Vec<u8>)> = None;
 
     for (i, segment) in segments.iter().enumerate() {
         match segment {
@@ -39,23 +25,19 @@ pub(super) fn decode_encoded_words(input: &[u8]) -> Vec<u8> {
                 // Whitespace between two encoded words is not significant.
                 let between_words = lit.iter().all(u8::is_ascii_whitespace)
                     && i > 0
-                    && matches!(segments[i - 1], Segment::Encoded { .. })
-                    && matches!(segments.get(i + 1), Some(Segment::Encoded { .. }));
+                    && matches!(segments[i - 1], Segment::Encoded(..))
+                    && matches!(segments.get(i + 1), Some(Segment::Encoded(..)));
                 if between_words {
                     continue;
                 }
                 flush(&mut pending, &mut result);
                 result.extend_from_slice(lit);
             }
-            Segment::Encoded { charset, bytes, raw } => match &mut pending {
-                Some((c, b, r)) if c.eq_ignore_ascii_case(charset) => {
-                    b.extend_from_slice(bytes);
-                    r.push(b' ');
-                    r.extend_from_slice(raw);
-                }
+            Segment::Encoded(encoding, bytes) => match &mut pending {
+                Some((e, b)) if e == encoding => b.extend_from_slice(bytes),
                 _ => {
                     flush(&mut pending, &mut result);
-                    pending = Some((charset, bytes.clone(), raw.to_vec()));
+                    pending = Some((encoding, bytes.clone()));
                 }
             },
         }
@@ -64,17 +46,10 @@ pub(super) fn decode_encoded_words(input: &[u8]) -> Vec<u8> {
     result
 }
 
-fn flush(pending: &mut Option<(&[u8], Vec<u8>, Vec<u8>)>, out: &mut Vec<u8>) {
-    if let Some((charset, bytes, raw)) = pending.take() {
-        // Drop the optional RFC 2231 language suffix (`UTF-8*en`).
-        let label = charset.split_str(b"*").next().unwrap_or(charset);
-        match encoding_rs::Encoding::for_label(label) {
-            Some(encoding) => {
-                let (text, _) = encoding.decode_without_bom_handling(&bytes);
-                out.extend_from_slice(text.as_bytes());
-            }
-            None => out.extend_from_slice(&raw),
-        }
+fn flush(pending: &mut Option<(&'static Encoding, Vec<u8>)>, out: &mut Vec<u8>) {
+    if let Some((encoding, bytes)) = pending.take() {
+        let (text, _) = encoding.decode_without_bom_handling(&bytes);
+        out.extend_from_slice(text.as_bytes());
     }
 }
 
@@ -85,15 +60,11 @@ fn split_segments(input: &[u8]) -> Vec<Segment<'_>> {
 
     while i + 1 < input.len() {
         if input[i] == b'=' && input[i + 1] == b'?' {
-            if let Some((end, charset, bytes)) = parse_word(input, i) {
+            if let Some((end, encoding, bytes)) = parse_word(input, i) {
                 if lit_start < i {
                     segments.push(Segment::Literal(&input[lit_start..i]));
                 }
-                segments.push(Segment::Encoded {
-                    charset,
-                    bytes,
-                    raw: &input[i..end],
-                });
+                segments.push(Segment::Encoded(encoding, bytes));
                 i = end;
                 lit_start = end;
                 continue;
@@ -110,16 +81,22 @@ fn split_segments(input: &[u8]) -> Vec<Segment<'_>> {
 
 /// Tries to parse an encoded word starting at `start`, which must point to
 /// `=?`. Returns the end offset, the charset and the decoded bytes.
-fn parse_word(input: &[u8], start: usize) -> Option<(usize, &[u8], Vec<u8>)> {
+fn parse_word(
+    input: &[u8],
+    start: usize,
+) -> Option<(usize, &'static Encoding, Vec<u8>)> {
     let rest = &input[start + 2..];
 
     let charset_len = rest.iter().position(|&b| b == b'?')?;
     let charset = &rest[..charset_len];
-    if charset.is_empty() || charset.iter().any(u8::is_ascii_whitespace) {
+    if charset.iter().any(u8::is_ascii_whitespace) {
         return None;
     }
+    // Drop the optional RFC 2231 language suffix (`UTF-8*en`).
+    let label = charset.split_once_str("*").map_or(charset, |(l, _)| l);
+    let encoding = Encoding::for_label(label)?;
 
-    let encoding = *rest.get(charset_len + 1)?;
+    let kind = *rest.get(charset_len + 1)?;
     if *rest.get(charset_len + 2)? != b'?' {
         return None;
     }
@@ -134,41 +111,21 @@ fn parse_word(input: &[u8], start: usize) -> Option<(usize, &[u8], Vec<u8>)> {
         return None;
     }
 
-    let bytes = match encoding {
-        b'B' | b'b' => BASE64.decode(text).ok()?,
-        b'Q' | b'q' => decode_q(text),
+    let bytes = match kind {
+        // Padding is optional in the wild.
+        b'B' | b'b' => BASE64_STANDARD_NO_PAD
+            .decode(text.trim_end_with(|c| c == '='))
+            .ok()?,
+        // "Q" is quoted-printable where `_` means space.
+        b'Q' | b'q' => quoted_printable::decode(
+            text.replace("_", " "),
+            quoted_printable::ParseMode::Robust,
+        )
+        .ok()?,
         _ => return None,
     };
 
-    let end = start + 2 + text_start + text_len + 2;
-    Some((end, charset, bytes))
-}
-
-/// Decodes the "Q" encoding: like quoted-printable, but `_` means space.
-fn decode_q(text: &[u8]) -> Vec<u8> {
-    let mut out = Vec::with_capacity(text.len());
-    let mut i = 0;
-    while i < text.len() {
-        match text[i] {
-            b'_' => out.push(b' '),
-            b'=' => {
-                let hex = text.get(i + 1..i + 3).and_then(|h| {
-                    let h = std::str::from_utf8(h).ok()?;
-                    u8::from_str_radix(h, 16).ok()
-                });
-                match hex {
-                    Some(byte) => {
-                        out.push(byte);
-                        i += 2;
-                    }
-                    None => out.push(b'='),
-                }
-            }
-            b => out.push(b),
-        }
-        i += 1;
-    }
-    out
+    Some((start + 2 + text_start + text_len + 2, encoding, bytes))
 }
 
 #[cfg(test)]

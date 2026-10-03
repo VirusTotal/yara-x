@@ -2,22 +2,61 @@ use super::rfc2047::decode_encoded_words;
 use crate::modules::protos::eml::Address;
 use bstr::ByteSlice;
 
+/// A mailbox being accumulated by [`parse_address_list`].
+#[derive(Default)]
+struct Mailbox {
+    /// Text outside angle brackets and comments, with quotes removed.
+    outside: Vec<u8>,
+    /// Text inside angle brackets.
+    inner: Vec<u8>,
+    /// Text of the last top-level comment.
+    comment: Vec<u8>,
+    saw_angle: bool,
+}
+
+impl Mailbox {
+    fn push(&mut self, b: u8, in_comment: bool, in_angle: bool) {
+        if in_comment {
+            self.comment.push(b);
+        } else if in_angle {
+            self.inner.push(b);
+        } else {
+            self.outside.push(b);
+        }
+    }
+
+    /// `Name <addr>`, `<addr>`, `addr` or `addr (Name)`.
+    fn into_address(self) -> Option<Address> {
+        let (name, address) = if self.saw_angle {
+            (self.outside, self.inner)
+        } else {
+            (self.comment, self.outside)
+        };
+
+        let name = decode_encoded_words(name.trim());
+        let address = address.trim().to_vec();
+
+        if name.is_empty() && address.is_empty() {
+            return None;
+        }
+
+        Some(Address {
+            name: (!name.is_empty()).then_some(name),
+            address: (!address.is_empty()).then_some(address),
+            ..Default::default()
+        })
+    }
+}
+
 /// Parses the value of an address-list header (`From`, `To`, `Cc`,
 /// `Reply-To`...) into a list of [`Address`].
 ///
 /// This is a lenient parser for the subset of RFC 5322 that appears in real
 /// mail: quoted display names, `Name <addr>` and bare `addr` forms,
-/// `addr (Name)` comments, and groups (`Group: a@x, b@y;`). Encoded words
-/// (RFC 2047) are not decoded.
+/// `addr (Name)` comments, and groups (`Group: a@x, b@y;`).
 pub(super) fn parse_address_list(input: &[u8]) -> Vec<Address> {
-    split_mailboxes(input).iter().filter_map(|s| parse_mailbox(s)).collect()
-}
-
-/// Splits an address list into individual mailbox strings, honoring quoted
-/// strings, angle brackets, comments and groups.
-fn split_mailboxes(input: &[u8]) -> Vec<Vec<u8>> {
     let mut result = Vec::new();
-    let mut current = Vec::new();
+    let mut mailbox = Mailbox::default();
     let mut in_quote = false;
     let mut escape = false;
     let mut in_angle = false;
@@ -26,147 +65,51 @@ fn split_mailboxes(input: &[u8]) -> Vec<Vec<u8>> {
     for &b in input {
         if escape {
             escape = false;
-            current.push(b);
-            continue;
-        }
-        if in_quote {
-            match b {
-                b'\\' => escape = true,
-                b'"' => in_quote = false,
-                _ => {}
-            }
-            current.push(b);
-            continue;
-        }
-        if comment_depth > 0 {
-            match b {
-                b'\\' => escape = true,
-                b'(' => comment_depth += 1,
-                b')' => comment_depth -= 1,
-                _ => {}
-            }
-            current.push(b);
-            continue;
-        }
-        match b {
-            b'"' => {
-                in_quote = true;
-                current.push(b);
-            }
-            b'(' => {
-                comment_depth = 1;
-                current.push(b);
-            }
-            b'<' => {
-                in_angle = true;
-                current.push(b);
-            }
-            b'>' => {
-                in_angle = false;
-                current.push(b);
-            }
-            // Start of a group: discard the group name.
-            b':' if !in_angle => current.clear(),
-            b',' | b';' if !in_angle => {
-                result.push(std::mem::take(&mut current));
-            }
-            _ => current.push(b),
-        }
-    }
-    result.push(current);
-    result
-}
-
-/// Parses a single mailbox: `Name <addr>`, `<addr>`, `addr` or `addr (Name)`.
-fn parse_mailbox(input: &[u8]) -> Option<Address> {
-    // Text outside angle brackets and comments, with quotes removed.
-    let mut outside = Vec::new();
-    // Text inside angle brackets.
-    let mut inner = Vec::new();
-    // Text of the first top-level comment.
-    let mut comment = Vec::new();
-
-    let mut saw_angle = false;
-    let mut in_angle = false;
-    let mut in_quote = false;
-    let mut escape = false;
-    let mut comment_depth = 0usize;
-
-    for &b in input {
-        if escape {
-            escape = false;
-            if comment_depth > 0 {
-                comment.push(b);
-            } else if in_angle {
-                inner.push(b);
-            } else {
-                outside.push(b);
-            }
-            continue;
-        }
-        if comment_depth > 0 {
+            mailbox.push(b, comment_depth > 0, in_angle);
+        } else if comment_depth > 0 {
             match b {
                 b'\\' => escape = true,
                 b'(' => {
                     comment_depth += 1;
-                    comment.push(b);
+                    mailbox.comment.push(b);
                 }
                 b')' => {
                     comment_depth -= 1;
                     if comment_depth > 0 {
-                        comment.push(b);
+                        mailbox.comment.push(b);
                     }
                 }
-                _ => comment.push(b),
+                _ => mailbox.comment.push(b),
             }
-            continue;
-        }
-        if in_quote {
+        } else if in_quote {
             match b {
                 b'\\' => escape = true,
                 b'"' => in_quote = false,
-                _ if in_angle => inner.push(b),
-                _ => outside.push(b),
+                _ => mailbox.push(b, false, in_angle),
             }
-            continue;
-        }
-        match b {
-            b'"' => in_quote = true,
-            b'(' => {
-                // Only keep the first comment.
-                comment_depth = 1;
-                if !comment.is_empty() {
-                    comment.clear();
+        } else {
+            match b {
+                b'"' => in_quote = true,
+                b'(' => {
+                    comment_depth = 1;
+                    mailbox.comment.clear();
                 }
+                b'<' if !in_angle && !mailbox.saw_angle => {
+                    in_angle = true;
+                    mailbox.saw_angle = true;
+                }
+                b'>' if in_angle => in_angle = false,
+                // Start of a group: discard the group name.
+                b':' if !in_angle => mailbox = Mailbox::default(),
+                b',' | b';' if !in_angle => {
+                    result.extend(std::mem::take(&mut mailbox).into_address());
+                }
+                _ => mailbox.push(b, false, in_angle),
             }
-            b'<' if !in_angle && !saw_angle => {
-                in_angle = true;
-                saw_angle = true;
-            }
-            b'>' if in_angle => in_angle = false,
-            _ if in_angle => inner.push(b),
-            _ => outside.push(b),
         }
     }
-
-    let (name, address) = if saw_angle {
-        (outside, inner)
-    } else {
-        (comment, outside)
-    };
-
-    let name = decode_encoded_words(name.trim());
-    let address = address.trim().to_vec();
-
-    if name.is_empty() && address.is_empty() {
-        return None;
-    }
-
-    Some(Address {
-        name: if name.is_empty() { None } else { Some(name) },
-        address: if address.is_empty() { None } else { Some(address) },
-        ..Default::default()
-    })
+    result.extend(mailbox.into_address());
+    result
 }
 
 #[cfg(test)]
