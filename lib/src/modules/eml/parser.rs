@@ -85,7 +85,9 @@ impl EmlParser {
             }
 
             if let Some(delimiter) = found_boundary {
-                let parts: Vec<&[u8]> = body.split_str(&delimiter).collect();
+                // The first element is the preamble, not a part.
+                let parts: Vec<&[u8]> =
+                    body.split_str(&delimiter).skip(1).collect();
                 for part in parts.into_iter().rev() {
                     let trimmed = part.trim();
 
@@ -107,22 +109,28 @@ impl EmlParser {
                     })
                     .map(|b| b.to_vec());
 
-                let disposition = headers.get(b"content-disposition".as_slice())
+                let charset = headers
+                    .get(b"content-type".as_slice())
                     .and_then(|v| v.first())
-                    .map(|v| {
-                        v.split_str(b";")
-                            .next()
-                            .unwrap_or(v)
-                            .trim()
-                            .to_ascii_lowercase()
-                    });
+                    .and_then(|v| Self::get_mime_param(v, b"charset"))
+                    .map(|b| b.to_vec());
+
+                let content_id = Self::first_header(&headers, b"content-id")
+                    .map(|v| v.trim_with(|c| c == '<' || c == '>').to_vec());
+
+                let decoded_body = self.decode_body(&headers, body);
+                let size = decoded_body.as_ref().map_or(body.len(), Vec::len);
 
                 self.result.parts.push(EmlPart {
                     headers: self.map_to_proto_headers(&headers),
                     body: Some(body.to_vec()),
-                    decoded_body: self.decode_body(&headers, body),
+                    decoded_body,
                     filename,
-                    disposition,
+                    disposition: Self::main_value(&headers, b"content-disposition"),
+                    content_type: Self::main_value(&headers, b"content-type"),
+                    charset,
+                    content_id,
+                    size: Some(size as i64),
                     ..Default::default()
                 });
             }
@@ -164,6 +172,14 @@ impl EmlParser {
     /// Returns the first value of the header `name`, which must be lowercase.
     fn first_header(headers: &Headers, name: &[u8]) -> Option<Vec<u8>> {
         headers.get(name)?.first().cloned()
+    }
+
+    /// Returns the first value of the header `name` (lowercase) without its
+    /// parameters, lowercased: `Text/HTML; charset=x` becomes `text/html`.
+    fn main_value(headers: &Headers, name: &[u8]) -> Option<Vec<u8>> {
+        let value = Self::first_header(headers, name)?;
+        let main = value.split_once_str(";").map_or(&value[..], |(m, _)| m);
+        Some(main.trim().to_ascii_lowercase())
     }
 
     /// Parses all occurrences of the address header `name` (lowercase).

@@ -43,6 +43,56 @@ fn encoded_words() {
 }
 
 #[test]
+fn part_fields() {
+    let eml = create_binary_from_zipped_ihex(
+        "src/modules/eml/tests/testdata/1bd008595eefab8ab0653ccaeac7857989178d75f842f8b147b6cc7e1701aca5.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "eml"
+        rule test {
+          condition:
+            eml.parts[0].content_type == "text/plain" and
+            eml.parts[0].charset == "UTF-8" and
+            eml.parts[0].size == 143 and
+            not defined eml.parts[0].content_id and
+            eml.parts[2].content_type == "text/html" and
+            eml.parts[2].disposition == "attachment" and
+            eml.parts[2].size == 172
+        }
+        "#,
+        &eml
+    );
+}
+
+#[test]
+fn part_content_id_and_decoded_size() {
+    let eml = b"Content-Type: multipart/related; boundary=\"b\"\r\n\
+                \r\n\
+                --b\r\n\
+                Content-Type: IMAGE/PNG\r\n\
+                Content-ID: <logo@example.com>\r\n\
+                Content-Transfer-Encoding: base64\r\n\
+                \r\n\
+                aGVsbG8=\r\n\
+                --b--\r\n";
+
+    rule_true!(
+        r#"
+        import "eml"
+        rule test {
+          condition:
+            eml.parts[0].content_type == "image/png" and
+            eml.parts[0].content_id == "logo@example.com" and
+            eml.parts[0].size == 5
+        }
+        "#,
+        eml.as_slice()
+    );
+}
+
+#[test]
 fn convenience_fields() {
     let eml = create_binary_from_zipped_ihex(
         "src/modules/eml/tests/testdata/1bd008595eefab8ab0653ccaeac7857989178d75f842f8b147b6cc7e1701aca5.in.zip",

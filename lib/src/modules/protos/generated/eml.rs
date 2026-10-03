@@ -835,6 +835,14 @@ pub struct EmlPart {
     pub filename: ::std::option::Option<::std::vec::Vec<u8>>,
     // @@protoc_insertion_point(field:eml.EmlPart.disposition)
     pub disposition: ::std::option::Option<::std::vec::Vec<u8>>,
+    // @@protoc_insertion_point(field:eml.EmlPart.content_type)
+    pub content_type: ::std::option::Option<::std::vec::Vec<u8>>,
+    // @@protoc_insertion_point(field:eml.EmlPart.charset)
+    pub charset: ::std::option::Option<::std::vec::Vec<u8>>,
+    // @@protoc_insertion_point(field:eml.EmlPart.content_id)
+    pub content_id: ::std::option::Option<::std::vec::Vec<u8>>,
+    // @@protoc_insertion_point(field:eml.EmlPart.size)
+    pub size: ::std::option::Option<i64>,
     // special fields
     // @@protoc_insertion_point(special_field:eml.EmlPart.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -995,8 +1003,135 @@ impl EmlPart {
         self.disposition.take().unwrap_or_else(|| ::std::vec::Vec::new())
     }
 
+    // optional bytes content_type = 6;
+
+    pub fn content_type(&self) -> &[u8] {
+        match self.content_type.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_content_type(&mut self) {
+        self.content_type = ::std::option::Option::None;
+    }
+
+    pub fn has_content_type(&self) -> bool {
+        self.content_type.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_content_type(&mut self, v: ::std::vec::Vec<u8>) {
+        self.content_type = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_content_type(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.content_type.is_none() {
+            self.content_type = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.content_type.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_content_type(&mut self) -> ::std::vec::Vec<u8> {
+        self.content_type.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
+    // optional bytes charset = 7;
+
+    pub fn charset(&self) -> &[u8] {
+        match self.charset.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_charset(&mut self) {
+        self.charset = ::std::option::Option::None;
+    }
+
+    pub fn has_charset(&self) -> bool {
+        self.charset.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_charset(&mut self, v: ::std::vec::Vec<u8>) {
+        self.charset = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_charset(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.charset.is_none() {
+            self.charset = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.charset.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_charset(&mut self) -> ::std::vec::Vec<u8> {
+        self.charset.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
+    // optional bytes content_id = 8;
+
+    pub fn content_id(&self) -> &[u8] {
+        match self.content_id.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_content_id(&mut self) {
+        self.content_id = ::std::option::Option::None;
+    }
+
+    pub fn has_content_id(&self) -> bool {
+        self.content_id.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_content_id(&mut self, v: ::std::vec::Vec<u8>) {
+        self.content_id = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_content_id(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.content_id.is_none() {
+            self.content_id = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.content_id.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_content_id(&mut self) -> ::std::vec::Vec<u8> {
+        self.content_id.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
+    // optional int64 size = 9;
+
+    pub fn size(&self) -> i64 {
+        self.size.unwrap_or(0)
+    }
+
+    pub fn clear_size(&mut self) {
+        self.size = ::std::option::Option::None;
+    }
+
+    pub fn has_size(&self) -> bool {
+        self.size.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_size(&mut self, v: i64) {
+        self.size = ::std::option::Option::Some(v);
+    }
+
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(5);
+        let mut fields = ::std::vec::Vec::with_capacity(9);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
             "headers",
@@ -1022,6 +1157,26 @@ impl EmlPart {
             "disposition",
             |m: &EmlPart| { &m.disposition },
             |m: &mut EmlPart| { &mut m.disposition },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "content_type",
+            |m: &EmlPart| { &m.content_type },
+            |m: &mut EmlPart| { &mut m.content_type },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "charset",
+            |m: &EmlPart| { &m.charset },
+            |m: &mut EmlPart| { &mut m.charset },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "content_id",
+            |m: &EmlPart| { &m.content_id },
+            |m: &mut EmlPart| { &mut m.content_id },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "size",
+            |m: &EmlPart| { &m.size },
+            |m: &mut EmlPart| { &mut m.size },
         ));
         ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<EmlPart>(
             "EmlPart",
@@ -1064,6 +1219,18 @@ impl ::protobuf::Message for EmlPart {
                 42 => {
                     self.disposition = ::std::option::Option::Some(is.read_bytes()?);
                 },
+                50 => {
+                    self.content_type = ::std::option::Option::Some(is.read_bytes()?);
+                },
+                58 => {
+                    self.charset = ::std::option::Option::Some(is.read_bytes()?);
+                },
+                66 => {
+                    self.content_id = ::std::option::Option::Some(is.read_bytes()?);
+                },
+                72 => {
+                    self.size = ::std::option::Option::Some(is.read_int64()?);
+                },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                 },
@@ -1092,6 +1259,18 @@ impl ::protobuf::Message for EmlPart {
         if let Some(v) = self.disposition.as_ref() {
             my_size += ::protobuf::rt::bytes_size(5, &v);
         }
+        if let Some(v) = self.content_type.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(6, &v);
+        }
+        if let Some(v) = self.charset.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(7, &v);
+        }
+        if let Some(v) = self.content_id.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(8, &v);
+        }
+        if let Some(v) = self.size {
+            my_size += ::protobuf::rt::int64_size(9, v);
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
         my_size
@@ -1112,6 +1291,18 @@ impl ::protobuf::Message for EmlPart {
         }
         if let Some(v) = self.disposition.as_ref() {
             os.write_bytes(5, v)?;
+        }
+        if let Some(v) = self.content_type.as_ref() {
+            os.write_bytes(6, v)?;
+        }
+        if let Some(v) = self.charset.as_ref() {
+            os.write_bytes(7, v)?;
+        }
+        if let Some(v) = self.content_id.as_ref() {
+            os.write_bytes(8, v)?;
+        }
+        if let Some(v) = self.size {
+            os.write_int64(9, v)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -1135,6 +1326,10 @@ impl ::protobuf::Message for EmlPart {
         self.decoded_body = ::std::option::Option::None;
         self.filename = ::std::option::Option::None;
         self.disposition = ::std::option::Option::None;
+        self.content_type = ::std::option::Option::None;
+        self.charset = ::std::option::Option::None;
+        self.content_id = ::std::option::Option::None;
+        self.size = ::std::option::Option::None;
         self.special_fields.clear();
     }
 
@@ -1145,6 +1340,10 @@ impl ::protobuf::Message for EmlPart {
             decoded_body: ::std::option::Option::None,
             filename: ::std::option::Option::None,
             disposition: ::std::option::Option::None,
+            content_type: ::std::option::Option::None,
+            charset: ::std::option::Option::None,
+            content_id: ::std::option::Option::None,
+            size: ::std::option::Option::None,
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -1400,14 +1599,17 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x18\x0c\x20\x03(\x0b2\x0c.eml.AddressR\x07replyTo\x12-\n\x0breturn_path\
     \x18\r\x20\x01(\x0b2\x0c.eml.AddressR\nreturnPath\"7\n\x07Address\x12\
     \x12\n\x04name\x18\x01\x20\x01(\x0cR\x04name\x12\x18\n\x07address\x18\
-    \x02\x20\x01(\x0cR\x07address\"\xa5\x01\n\x07EmlPart\x12%\n\x07headers\
+    \x02\x20\x01(\x0cR\x07address\"\x95\x02\n\x07EmlPart\x12%\n\x07headers\
     \x18\x01\x20\x03(\x0b2\x0b.eml.HeaderR\x07headers\x12\x12\n\x04body\x18\
     \x02\x20\x02(\x0cR\x04body\x12!\n\x0cdecoded_body\x18\x03\x20\x01(\x0cR\
     \x0bdecodedBody\x12\x1a\n\x08filename\x18\x04\x20\x01(\x0cR\x08filename\
-    \x12\x20\n\x0bdisposition\x18\x05\x20\x01(\x0cR\x0bdisposition\"0\n\x06H\
-    eader\x12\x10\n\x03key\x18\x01\x20\x02(\x0cR\x03key\x12\x14\n\x05value\
-    \x18\x02\x20\x02(\x0cR\x05valueB\x1e\xfa\x92\x19\x1a\n\x03eml\x12\x07eml\
-    .Eml\x1a\neml-moduleb\x06proto2\
+    \x12\x20\n\x0bdisposition\x18\x05\x20\x01(\x0cR\x0bdisposition\x12!\n\
+    \x0ccontent_type\x18\x06\x20\x01(\x0cR\x0bcontentType\x12\x18\n\x07chars\
+    et\x18\x07\x20\x01(\x0cR\x07charset\x12\x1d\n\ncontent_id\x18\x08\x20\
+    \x01(\x0cR\tcontentId\x12\x12\n\x04size\x18\t\x20\x01(\x03R\x04size\"0\n\
+    \x06Header\x12\x10\n\x03key\x18\x01\x20\x02(\x0cR\x03key\x12\x14\n\x05va\
+    lue\x18\x02\x20\x02(\x0cR\x05valueB\x1e\xfa\x92\x19\x1a\n\x03eml\x12\x07\
+    eml.Eml\x1a\neml-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
