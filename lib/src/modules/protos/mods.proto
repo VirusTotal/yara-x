@@ -8,6 +8,7 @@ import "elf.proto";
 import "pe.proto";
 import "lnk.proto";
 import "macho.proto";
+import "eml.proto";
 import "olecf.proto";
 import "vba.proto";
 import "msi.proto";
@@ -27,5 +28,6 @@ message Modules {
     optional crx.Crx crx = 8;
     optional dex.Dex dex = 9;
     optional msi.Msi msi = 10;
-    optional zip.Zip zip = 11;
+    optional eml.Eml eml = 11;
+    optional zip.Zip zip = 12;
 }
