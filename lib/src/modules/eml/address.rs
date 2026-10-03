@@ -1,3 +1,4 @@
+use super::rfc2047::decode_encoded_words;
 use crate::modules::protos::eml::Address;
 use bstr::ByteSlice;
 
@@ -154,7 +155,7 @@ fn parse_mailbox(input: &[u8]) -> Option<Address> {
         (comment, outside)
     };
 
-    let name = name.trim().to_vec();
+    let name = decode_encoded_words(name.trim());
     let address = address.trim().to_vec();
 
     if name.is_empty() && address.is_empty() {
@@ -226,6 +227,14 @@ mod tests {
         assert_eq!(
             parse("john@example.com (John Doe)"),
             vec![pair(Some("John Doe"), "john@example.com")]
+        );
+    }
+
+    #[test]
+    fn encoded_display_name() {
+        assert_eq!(
+            parse("=?UTF-8?B?w6k=?= <e@x.com>, \"=?UTF-8?Q?a_b?=\" <f@x.com>"),
+            vec![pair(Some("é"), "e@x.com"), pair(Some("a b"), "f@x.com")]
         );
     }
 

@@ -21,6 +21,28 @@ fn has_header() {
 }
 
 #[test]
+fn encoded_words() {
+    let eml = b"From: =?UTF-8?B?SsO8cmdlbg==?= <j@example.com>\r\n\
+                Subject: =?ISO-8859-1?Q?Caf=E9_menu?=\r\n\
+                \r\n\
+                body";
+
+    rule_true!(
+        r#"
+        import "eml"
+        rule test {
+          condition:
+            eml.from[0].name == "Jürgen" and
+            eml.from[0].address == "j@example.com" and
+            eml.subject == "Café menu" and
+            eml.headers[1].value == "=?ISO-8859-1?Q?Caf=E9_menu?="
+        }
+        "#,
+        eml.as_slice()
+    );
+}
+
+#[test]
 fn convenience_fields() {
     let eml = create_binary_from_zipped_ihex(
         "src/modules/eml/tests/testdata/1bd008595eefab8ab0653ccaeac7857989178d75f842f8b147b6cc7e1701aca5.in.zip",

@@ -9,6 +9,7 @@ use crate::mods::prelude::*;
 use crate::modules::protos::eml::*;
 mod address;
 pub mod parser;
+mod rfc2047;
 
 #[cfg(test)]
 mod tests;

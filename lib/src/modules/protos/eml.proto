@@ -20,11 +20,13 @@ message Eml {
   repeated EmlPart parts = 5;
 
   // Convenience fields taken from the top-level headers. Address headers are
-  // parsed into individual mailboxes; RFC 2047 encoded words are not decoded.
+  // parsed into individual mailboxes. RFC 2047 encoded words in `subject` and
+  // in display names are decoded to UTF-8; the raw values remain available in
+  // `headers`.
   repeated Address from = 6;
   repeated Address to = 7;
   repeated Address cc = 8;
-  // Raw value of the Subject header.
+  // Value of the Subject header, with encoded words decoded.
   optional bytes subject = 9;
   // Raw value of the Message-ID header.
   optional bytes message_id = 10;

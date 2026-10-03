@@ -1,6 +1,7 @@
 use std::mem;
 
 use crate::modules::eml::address::parse_address_list;
+use crate::modules::eml::rfc2047::decode_encoded_words;
 use crate::modules::protos::eml::{Address, Eml, EmlPart, Header};
 use base64::prelude::*;
 use bstr::ByteSlice;
@@ -55,7 +56,9 @@ impl EmlParser {
                 self.result.from = Self::addresses(&headers, b"from");
                 self.result.to = Self::addresses(&headers, b"to");
                 self.result.cc = Self::addresses(&headers, b"cc");
-                self.result.subject = Self::first_header(&headers, b"subject");
+                self.result.subject =
+                    Self::first_header(&headers, b"subject")
+                        .map(|v| decode_encoded_words(&v));
                 self.result.message_id =
                     Self::first_header(&headers, b"message-id");
                 self.result.date = Self::first_header(&headers, b"date");
