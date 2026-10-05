@@ -13,11 +13,14 @@ use crate::{
 /// relaxed, case-insensitive matching. As stated in the protocol specification,
 /// the language server should not do the prefix, substring or other strict matching.
 fn relaxed_query_matching(name: &str, query: &str) -> bool {
-    let mut name_chars = name.chars().flat_map(char::to_lowercase);
+    // Queries that are longer than the name won't ever match.
+    if name.len() < query.len() {
+        return false;
+    }
 
-    query.chars().flat_map(char::to_lowercase).all(|query_char| {
-        name_chars.by_ref().any(|name_char| name_char == query_char)
-    })
+    let mut name_chars = name.chars();
+
+    query.chars().all(|q| name_chars.any(|n| n.eq_ignore_ascii_case(&q)))
 }
 
 pub fn workspace_symbol(
@@ -42,20 +45,18 @@ pub fn workspace_symbol(
         documents
             .workspace_rules()?
             .filter_map(|(rule_decl, uri)| {
-                if let Some(name) = rule_decl
-                    .children_with_tokens()
-                    .find_map(|ident| {
+                let ident =
+                    rule_decl.children_with_tokens().find_map(|ident| {
                         if ident.kind() == SyntaxKind::IDENT {
                             ident.into_token()
                         } else {
                             None
                         }
-                    })
-                    .map(|token| token.text().to_string())
-                    && relaxed_query_matching(&name, query)
-                {
+                    })?;
+
+                if relaxed_query_matching(ident.text(), query) {
                     Some(WorkspaceSymbol {
-                        name,
+                        name: ident.text().to_string(),
                         // The same kind for rules as in Document Symbols
                         // feature
                         kind: SymbolKind::FUNCTION,
