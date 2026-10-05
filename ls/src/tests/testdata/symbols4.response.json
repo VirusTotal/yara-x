@@ -1,55 +1,5 @@
 [
   {
-    "detail": "include",
-    "kind": 1,
-    "name": "foo",
-    "range": {
-      "end": {
-        "character": 13,
-        "line": 0
-      },
-      "start": {
-        "character": 0,
-        "line": 0
-      }
-    },
-    "selectionRange": {
-      "end": {
-        "character": 13,
-        "line": 0
-      },
-      "start": {
-        "character": 0,
-        "line": 0
-      }
-    }
-  },
-  {
-    "detail": "import",
-    "kind": 2,
-    "name": "foo",
-    "range": {
-      "end": {
-        "character": 12,
-        "line": 2
-      },
-      "start": {
-        "character": 0,
-        "line": 2
-      }
-    },
-    "selectionRange": {
-      "end": {
-        "character": 12,
-        "line": 2
-      },
-      "start": {
-        "character": 0,
-        "line": 2
-      }
-    }
-  },
-  {
     "children": [
       {
         "kind": 17,
@@ -97,6 +47,56 @@
       "start": {
         "character": 5,
         "line": 4
+      }
+    }
+  },
+  {
+    "detail": "import",
+    "kind": 2,
+    "name": "foo",
+    "range": {
+      "end": {
+        "character": 12,
+        "line": 2
+      },
+      "start": {
+        "character": 0,
+        "line": 2
+      }
+    },
+    "selectionRange": {
+      "end": {
+        "character": 12,
+        "line": 2
+      },
+      "start": {
+        "character": 0,
+        "line": 2
+      }
+    }
+  },
+  {
+    "detail": "include",
+    "kind": 1,
+    "name": "foo",
+    "range": {
+      "end": {
+        "character": 13,
+        "line": 0
+      },
+      "start": {
+        "character": 0,
+        "line": 0
+      }
+    },
+    "selectionRange": {
+      "end": {
+        "character": 13,
+        "line": 0
+      },
+      "start": {
+        "character": 0,
+        "line": 0
       }
     }
   }

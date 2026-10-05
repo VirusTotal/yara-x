@@ -248,10 +248,10 @@ fn replace_in_json(value: &mut Value, from: &str, to: &str) {
     }
 }
 
-/// Sort maps by key in JSON values.
+/// Sort maps by key and arrays of objects in JSON values.
 ///
-/// This guarantees that items in maps have always the same order, which
-/// makes the responses in test cases predictable.
+/// This guarantees that items in maps and arrays of objects have always the
+/// same order, which makes the responses in test cases predictable.
 fn sort_json(value: &mut Value) {
     match value {
         Value::Object(obj) => {
@@ -266,8 +266,11 @@ fn sort_json(value: &mut Value) {
             obj.extend(entries);
         }
         Value::Array(arr) => {
-            for v in arr {
+            for v in arr.iter_mut() {
                 sort_json(v);
+            }
+            if arr.iter().all(Value::is_object) {
+                arr.sort_by_cached_key(|v| v.to_string());
             }
         }
         _ => {}

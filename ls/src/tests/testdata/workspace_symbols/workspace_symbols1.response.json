@@ -2,20 +2,6 @@
   {
     "kind": 12,
     "location": {
-      "uri": "${test_dir}/workspace_symbols_resolve1.yar"
-    },
-    "name": "some_rule_for_resolve_1"
-  },
-  {
-    "kind": 12,
-    "location": {
-      "uri": "${test_dir}/workspace_symbols_resolve1.yar"
-    },
-    "name": "some_rule_for_resolve_2"
-  },
-  {
-    "kind": 12,
-    "location": {
       "uri": "${test_dir}/workspace_symbols1.yar"
     },
     "name": "some_rule"
@@ -33,5 +19,19 @@
       "uri": "${test_dir}/workspace_symbols3.yar"
     },
     "name": "xx_some_rule"
+  },
+  {
+    "kind": 12,
+    "location": {
+      "uri": "${test_dir}/workspace_symbols_resolve1.yar"
+    },
+    "name": "some_rule_for_resolve_1"
+  },
+  {
+    "kind": 12,
+    "location": {
+      "uri": "${test_dir}/workspace_symbols_resolve1.yar"
+    },
+    "name": "some_rule_for_resolve_2"
   }
 ]
