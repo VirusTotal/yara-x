@@ -23,15 +23,22 @@ impl<'a, 'r> YRX_PATTERN<'a, 'r> {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_pattern_identifier(
     pattern: *const YRX_PATTERN,
-    ident: &mut *const u8,
-    len: &mut usize,
+    ident: *mut *const u8,
+    len: *mut usize,
 ) -> YRX_RESULT {
+    if ident.is_null() || len.is_null() {
+        _yrx_set_last_error(Some("`ident` and `len` pointers cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
     if let Some(pattern) = pattern.as_ref() {
         *ident = pattern.0.identifier().as_ptr();
         *len = pattern.0.identifier().len();
         _yrx_set_last_error::<String>(None);
         YRX_RESULT::YRX_SUCCESS
     } else {
+        *ident = std::ptr::null();
+        *len = 0;
+        _yrx_set_last_error(Some("`pattern` pointer cannot be null"));
         YRX_RESULT::YRX_INVALID_ARGUMENT
     }
 }
@@ -47,7 +54,7 @@ pub unsafe extern "C" fn yrx_pattern_identifier(
 /// The callback also receives a `user_data` pointer that can point to arbitrary
 /// data owned by the user.
 pub type YRX_MATCH_CALLBACK =
-    extern "C" fn(match_: *const YRX_MATCH, user_data: *mut c_void) -> ();
+    Option<extern "C" fn(match_: *const YRX_MATCH, user_data: *mut c_void) -> ()>;
 
 /// Iterates over the matches of a pattern, calling the callback with a pointer
 /// to a [`YRX_MATCH`] structure for each pattern.
@@ -65,6 +72,12 @@ pub unsafe extern "C" fn yrx_pattern_iter_matches(
     let matches_iter = if let Some(pattern) = pattern.as_ref() {
         pattern.0.matches()
     } else {
+        _yrx_set_last_error(Some("`pattern` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    let Some(callback) = callback else {
+        _yrx_set_last_error(Some("`callback` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
@@ -75,5 +88,6 @@ pub unsafe extern "C" fn yrx_pattern_iter_matches(
         )
     }
 
+    _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }

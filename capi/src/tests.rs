@@ -121,7 +121,7 @@ extern "C" fn on_pattern_iter(
         assert_eq!(
             yrx_pattern_iter_matches(
                 pattern,
-                on_pattern_match_iter,
+                Some(on_pattern_match_iter),
                 &mut match_count as *mut i32 as *mut c_void,
             ),
             YRX_RESULT::YRX_SUCCESS
@@ -146,7 +146,7 @@ extern "C" fn on_rule_match(rule: *const YRX_RULE, user_data: *mut c_void) {
         let mut count = 0;
         yrx_rule_iter_metadata(
             rule,
-            on_metadata_iter,
+            Some(on_metadata_iter),
             &mut count as *mut i32 as *mut c_void,
         );
         // The rule has five metadata entries.
@@ -155,7 +155,7 @@ extern "C" fn on_rule_match(rule: *const YRX_RULE, user_data: *mut c_void) {
         let mut count = 0;
         yrx_rule_iter_patterns(
             rule,
-            on_pattern_iter,
+            Some(on_pattern_iter),
             &mut count as *mut i32 as *mut c_void,
         );
         // The rule has one pattern.
@@ -164,7 +164,7 @@ extern "C" fn on_rule_match(rule: *const YRX_RULE, user_data: *mut c_void) {
         let mut count = 0;
         yrx_rule_iter_tags(
             rule,
-            on_tag_iter,
+            Some(on_tag_iter),
             &mut count as *mut i32 as *mut c_void,
         );
         // The rule has two tags.
@@ -210,7 +210,7 @@ fn capi_console_log() {
 
         let mut scanner = std::ptr::null_mut();
         yrx_scanner_create(rules, &mut scanner);
-        yrx_scanner_on_console_log(scanner, on_console_log);
+        yrx_scanner_on_console_log(scanner, Some(on_console_log));
         let mut recorder = CallRecorder::new_local();
         yrx_scanner_scan(scanner, std::ptr::null(), 0);
         recorder.verify("AXSERS");
@@ -291,7 +291,7 @@ fn capi() {
         let mut num_rules = 0;
         yrx_rules_iter(
             rules,
-            on_rule_iter,
+            Some(on_rule_iter),
             &mut num_rules as *mut i32 as *mut c_void,
         );
         assert_eq!(num_rules, 1);
@@ -300,7 +300,7 @@ fn capi() {
         let mut num_imports = 0;
         yrx_rules_iter_imports(
             rules,
-            on_import_iter,
+            Some(on_import_iter),
             &mut num_imports as *mut i32 as *mut c_void,
         );
         assert_eq!(num_imports, 1);
@@ -319,7 +319,7 @@ fn capi() {
         yrx_scanner_set_timeout(scanner, 60);
         yrx_scanner_on_matching_rule(
             scanner,
-            on_rule_match,
+            Some(on_rule_match),
             &mut matches as *mut i32 as *mut c_void,
         );
 
@@ -407,7 +407,7 @@ fn capi_modules() {
         let mut matches = 0;
         yrx_scanner_on_matching_rule(
             scanner,
-            on_rule_match_increase_counter,
+            Some(on_rule_match_increase_counter),
             &mut matches as *mut i32 as *mut c_void,
         );
         yrx_scanner_scan(scanner, std::ptr::null(), 0);
@@ -479,7 +479,7 @@ rule test2 { strings: $a = "bar" condition: $a }
         let mut matches = 0;
         yrx_scanner_on_matching_rule(
             scanner,
-            on_rule_match_increase_counter,
+            Some(on_rule_match_increase_counter),
             &mut matches as *mut i32 as *mut c_void,
         );
 
@@ -557,7 +557,7 @@ fn capi_fast_scan() {
         let mut matches = 0;
         yrx_scanner_on_matching_rule(
             scanner,
-            on_rule_match_increase_counter,
+            Some(on_rule_match_increase_counter),
             &mut matches as *mut i32 as *mut c_void,
         );
 
@@ -591,7 +591,7 @@ fn capi_max_matches_per_pattern() {
         let mut matches = 0;
         yrx_scanner_on_matching_rule(
             scanner,
-            on_rule_match_increase_counter,
+            Some(on_rule_match_increase_counter),
             &mut matches as *mut i32 as *mut c_void,
         );
 
@@ -609,9 +609,22 @@ fn capi_max_matches_per_pattern() {
 fn capi_null_args() {
     unsafe {
         assert_eq!(
+            yrx_compile(std::ptr::null(), std::ptr::null_mut()),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert!(!yrx_last_error().is_null());
+
+        assert_eq!(
+            yrx_compiler_create(0, std::ptr::null_mut()),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert!(!yrx_last_error().is_null());
+
+        assert_eq!(
             yrx_compiler_add_source(std::ptr::null_mut(), std::ptr::null()),
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
+        assert!(!yrx_last_error().is_null());
         assert_eq!(
             yrx_compiler_add_source_with_origin(
                 std::ptr::null_mut(),
@@ -704,9 +717,20 @@ fn capi_null_args() {
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
         assert_eq!(
+            yrx_compiler_errors_json(std::ptr::null_mut(), std::ptr::null_mut()),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert_eq!(
             yrx_compiler_warnings_json(
                 std::ptr::null_mut(),
                 &mut std::ptr::null_mut()
+            ),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert_eq!(
+            yrx_compiler_warnings_json(
+                std::ptr::null_mut(),
+                std::ptr::null_mut()
             ),
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
@@ -719,9 +743,21 @@ fn capi_null_args() {
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
         assert_eq!(
+            yrx_rules_serialize(std::ptr::null(), std::ptr::null_mut()),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert_eq!(
+            yrx_rules_deserialize(
+                std::ptr::null(),
+                0,
+                std::ptr::null_mut()
+            ),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert_eq!(
             yrx_rules_iter(
                 std::ptr::null(),
-                on_rule_iter,
+                Some(on_rule_iter),
                 std::ptr::null_mut()
             ),
             YRX_RESULT::YRX_INVALID_ARGUMENT
@@ -729,7 +765,7 @@ fn capi_null_args() {
         assert_eq!(
             yrx_rules_iter_imports(
                 std::ptr::null(),
-                on_import_iter,
+                Some(on_import_iter),
                 std::ptr::null_mut()
             ),
             YRX_RESULT::YRX_INVALID_ARGUMENT
@@ -745,6 +781,14 @@ fn capi_null_args() {
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
         assert_eq!(
+            yrx_rule_identifier(
+                std::ptr::null(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut()
+            ),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert_eq!(
             yrx_rule_namespace(
                 std::ptr::null(),
                 &mut std::ptr::null(),
@@ -753,9 +797,17 @@ fn capi_null_args() {
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
         assert_eq!(
+            yrx_rule_namespace(
+                std::ptr::null(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut()
+            ),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert_eq!(
             yrx_rule_iter_metadata(
                 std::ptr::null(),
-                on_metadata_iter,
+                Some(on_metadata_iter),
                 std::ptr::null_mut()
             ),
             YRX_RESULT::YRX_INVALID_ARGUMENT
@@ -763,7 +815,7 @@ fn capi_null_args() {
         assert_eq!(
             yrx_rule_iter_patterns(
                 std::ptr::null(),
-                on_pattern_iter,
+                Some(on_pattern_iter),
                 std::ptr::null_mut()
             ),
             YRX_RESULT::YRX_INVALID_ARGUMENT
@@ -771,7 +823,7 @@ fn capi_null_args() {
         assert_eq!(
             yrx_rule_iter_tags(
                 std::ptr::null(),
-                on_tag_iter,
+                Some(on_tag_iter),
                 std::ptr::null_mut()
             ),
             YRX_RESULT::YRX_INVALID_ARGUMENT
@@ -786,9 +838,17 @@ fn capi_null_args() {
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
         assert_eq!(
+            yrx_pattern_identifier(
+                std::ptr::null(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut()
+            ),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert_eq!(
             yrx_pattern_iter_matches(
                 std::ptr::null(),
-                on_pattern_match_iter,
+                Some(on_pattern_match_iter),
                 std::ptr::null_mut()
             ),
             YRX_RESULT::YRX_INVALID_ARGUMENT
@@ -798,6 +858,13 @@ fn capi_null_args() {
             yrx_scanner_create(
                 std::ptr::null_mut(),
                 &mut std::ptr::null_mut()
+            ),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert_eq!(
+            yrx_scanner_create(
+                std::ptr::null_mut(),
+                std::ptr::null_mut()
             ),
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
@@ -837,7 +904,7 @@ fn capi_null_args() {
         assert_eq!(
             yrx_scanner_on_matching_rule(
                 std::ptr::null_mut(),
-                on_rule_match_increase_counter,
+                Some(on_rule_match_increase_counter),
                 std::ptr::null_mut()
             ),
             YRX_RESULT::YRX_INVALID_ARGUMENT
@@ -900,11 +967,11 @@ fn capi_null_args() {
             ),
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
-        yrx_scanner_on_console_log(std::ptr::null_mut(), on_console_log);
+        yrx_scanner_on_console_log(std::ptr::null_mut(), Some(on_console_log));
         let res = yrx_scanner_iter_slowest_rules(
             std::ptr::null_mut(),
             5,
-            on_slowest_rule_iter,
+            Some(on_slowest_rule_iter),
             std::ptr::null_mut(),
         );
         assert!(
@@ -1009,7 +1076,7 @@ fn capi_scanner_extra() {
         let res = yrx_scanner_iter_slowest_rules(
             scanner,
             10,
-            on_slowest_rule_iter,
+            Some(on_slowest_rule_iter),
             &mut count as *mut i32 as *mut c_void,
         );
         assert!(
@@ -1033,8 +1100,9 @@ fn capi_serialization_and_compile() {
             YRX_RESULT::YRX_SUCCESS
         );
         assert!(!rules.is_null());
+        assert!(yrx_last_error().is_null());
 
-        let mut bad_rules = std::ptr::null_mut();
+        let mut bad_rules = rules;
         assert_eq!(
             yrx_compile(
                 c"rule bad { condition: foo }".as_ptr(),
@@ -1042,10 +1110,12 @@ fn capi_serialization_and_compile() {
             ),
             YRX_RESULT::YRX_SYNTAX_ERROR
         );
+        assert!(bad_rules.is_null());
+        assert!(!yrx_last_error().is_null());
 
         // Test deserialize with invalid data
         let invalid_bytes = b"not valid yara rules";
-        let mut des_rules = std::ptr::null_mut();
+        let mut des_rules = rules;
         assert_eq!(
             yrx_rules_deserialize(
                 invalid_bytes.as_ptr(),
@@ -1054,6 +1124,8 @@ fn capi_serialization_and_compile() {
             ),
             YRX_RESULT::YRX_SERIALIZATION_ERROR
         );
+        assert!(des_rules.is_null());
+        assert!(!yrx_last_error().is_null());
 
         yrx_rules_destroy(rules);
     }

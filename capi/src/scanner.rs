@@ -119,7 +119,10 @@ impl<'r> InnerScanner<'r> {
 /// A scanner that scans data with a set of compiled YARA rules.
 pub struct YRX_SCANNER<'r, 'm> {
     inner: InnerScanner<'r>,
-    on_matching_rule: Option<(YRX_RULE_CALLBACK, *mut c_void)>,
+    on_matching_rule: Option<(
+        extern "C" fn(rule: *const YRX_RULE, user_data: *mut c_void),
+        *mut c_void,
+    )>,
     module_data: HashMap<&'m str, &'m [u8]>,
 }
 
@@ -134,11 +137,19 @@ pub struct YRX_SCANNER<'r, 'm> {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_scanner_create(
     rules: *const YRX_RULES,
-    scanner: &mut *mut YRX_SCANNER,
+    scanner: *mut *mut YRX_SCANNER,
 ) -> YRX_RESULT {
+    if scanner.is_null() {
+        _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
+
+    *scanner = std::ptr::null_mut();
+
     let rules = if let Some(rules) = rules.as_ref() {
         rules
     } else {
+        _yrx_set_last_error(Some("`rules` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
@@ -148,6 +159,7 @@ pub unsafe extern "C" fn yrx_scanner_create(
         module_data: HashMap::new(),
     }));
 
+    _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }
 
@@ -173,11 +185,15 @@ pub unsafe extern "C" fn yrx_scanner_set_timeout(
 ) -> YRX_RESULT {
     let scanner = match scanner.as_mut() {
         Some(s) => s,
-        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        None => {
+            _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     scanner.inner.set_timeout(Duration::from_secs(timeout));
 
+    _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }
 
@@ -198,11 +214,15 @@ pub unsafe extern "C" fn yrx_scanner_fast_scan(
 ) -> YRX_RESULT {
     let scanner = match scanner.as_mut() {
         Some(s) => s,
-        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        None => {
+            _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     scanner.inner.fast_scan(yes);
 
+    _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }
 
@@ -217,11 +237,15 @@ pub unsafe extern "C" fn yrx_scanner_max_matches_per_pattern(
 ) -> YRX_RESULT {
     let scanner = match scanner.as_mut() {
         Some(s) => s,
-        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        None => {
+            _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     scanner.inner.max_matches_per_pattern(n);
 
+    _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }
 
@@ -240,12 +264,20 @@ pub unsafe extern "C" fn yrx_scanner_scan(
 
     let scanner = match scanner.as_mut() {
         Some(s) => s,
-        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        None => {
+            _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     let data = match slice_from_ptr_and_len(data, len) {
         Some(data) => data,
-        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        None => {
+            _yrx_set_last_error(Some(
+                "`data` pointer cannot be null when `len` is greater than 0",
+            ));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     let options = scanner
@@ -257,7 +289,12 @@ pub unsafe extern "C" fn yrx_scanner_scan(
 
     let scan_results = match &mut scanner.inner {
         InnerScanner::SingleBlock(s) => s.scan_with_options(data, options),
-        InnerScanner::MultiBlock(_) => return YRX_RESULT::YRX_INVALID_STATE,
+        InnerScanner::MultiBlock(_) => {
+            _yrx_set_last_error(Some(
+                "cannot use `yrx_scanner_scan` on a scanner in multi-block mode",
+            ));
+            return YRX_RESULT::YRX_INVALID_STATE;
+        }
         InnerScanner::None => unreachable!(),
     };
 
@@ -294,7 +331,10 @@ pub unsafe extern "C" fn yrx_scanner_scan_file(
 
     let scanner = match scanner.as_mut() {
         Some(s) => s,
-        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        None => {
+            _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     let path = match str_from_ptr(path) {
@@ -313,7 +353,12 @@ pub unsafe extern "C" fn yrx_scanner_scan_file(
         InnerScanner::SingleBlock(s) => {
             s.scan_file_with_options(path, options)
         }
-        InnerScanner::MultiBlock(_) => return YRX_RESULT::YRX_INVALID_STATE,
+        InnerScanner::MultiBlock(_) => {
+            _yrx_set_last_error(Some(
+                "cannot use `yrx_scanner_scan_file` on a scanner in multi-block mode",
+            ));
+            return YRX_RESULT::YRX_INVALID_STATE;
+        }
         InnerScanner::None => unreachable!(),
     };
 
@@ -400,12 +445,20 @@ pub unsafe extern "C" fn yrx_scanner_scan_block(
 
     let scanner = match scanner.as_mut() {
         Some(s) => s,
-        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        None => {
+            _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     let data = match slice_from_ptr_and_len(data, len) {
         Some(data) => data,
-        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        None => {
+            _yrx_set_last_error(Some(
+                "`data` pointer cannot be null when `len` is greater than 0",
+            ));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     match scanner.inner.make_multi_block().scan(base, data) {
@@ -439,7 +492,10 @@ pub unsafe extern "C" fn yrx_scanner_finish(
 
     let scanner = match scanner.as_mut() {
         Some(s) => s,
-        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        None => {
+            _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     match scanner.inner.make_multi_block().finish() {
@@ -477,9 +533,11 @@ pub unsafe extern "C" fn yrx_scanner_on_matching_rule(
     user_data: *mut std::ffi::c_void,
 ) -> YRX_RESULT {
     if let Some(scanner) = scanner.as_mut() {
-        scanner.on_matching_rule = Some((callback, user_data));
+        scanner.on_matching_rule = callback.map(|cb| (cb, user_data));
+        _yrx_set_last_error::<&str>(None);
         YRX_RESULT::YRX_SUCCESS
     } else {
+        _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
         YRX_RESULT::YRX_INVALID_ARGUMENT
     }
 }
@@ -528,7 +586,10 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
 ) -> YRX_RESULT {
     let scanner = match scanner.as_mut() {
         Some(s) => s,
-        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        None => {
+            _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     let module_name = match str_from_ptr(name) {
@@ -538,7 +599,12 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
 
     let data = match slice_from_ptr_and_len(data, len) {
         Some(data) => data,
-        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        None => {
+            _yrx_set_last_error(Some(
+                "`data` pointer cannot be null when `len` is greater than 0",
+            ));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     match &mut scanner.inner {
@@ -556,7 +622,12 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
         }
         // This function produces an error if invoked while the scanner
         // is in block scanning mode.
-        InnerScanner::MultiBlock(_) => YRX_RESULT::YRX_INVALID_STATE,
+        InnerScanner::MultiBlock(_) => {
+            _yrx_set_last_error(Some(
+                "cannot use `yrx_scanner_set_module_output` on a scanner in multi-block mode",
+            ));
+            YRX_RESULT::YRX_INVALID_STATE
+        }
         InnerScanner::None => unreachable!(),
     }
 }
@@ -583,7 +654,10 @@ pub unsafe extern "C" fn yrx_scanner_set_module_data(
 ) -> YRX_RESULT {
     let scanner = match scanner.as_mut() {
         Some(s) => s,
-        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        None => {
+            _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     let name = match str_from_ptr(name) {
@@ -593,15 +667,24 @@ pub unsafe extern "C" fn yrx_scanner_set_module_data(
 
     let data = match slice_from_ptr_and_len(data, len) {
         Some(data) => data,
-        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        None => {
+            _yrx_set_last_error(Some(
+                "`data` pointer cannot be null when `len` is greater than 0",
+            ));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     if matches!(scanner.inner, InnerScanner::MultiBlock(_)) {
+        _yrx_set_last_error(Some(
+            "cannot use `yrx_scanner_set_module_data` on a scanner in multi-block mode",
+        ));
         return YRX_RESULT::YRX_INVALID_STATE;
     }
 
     scanner.module_data.insert(name, data);
 
+    _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }
 
@@ -614,7 +697,10 @@ unsafe extern "C" fn yrx_scanner_set_global<
 ) -> YRX_RESULT {
     let scanner = match scanner.as_mut() {
         Some(s) => s,
-        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        None => {
+            _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     let ident = match str_from_ptr(ident) {
@@ -698,7 +784,10 @@ pub unsafe extern "C" fn yrx_scanner_set_global_json(
 
     let value: serde_json::Value = match serde_json::from_str(value) {
         Ok(json_value) => json_value,
-        Err(_) => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     yrx_scanner_set_global(scanner, ident, value)
@@ -709,7 +798,7 @@ pub unsafe extern "C" fn yrx_scanner_set_global_json(
 /// The callback function is invoked with a string representing the message
 /// being logged. The function can print the message to stdout, append it to a
 /// file, etc. If no callback is set these messages are ignored.
-pub type YRX_CONSOLE_CALLBACK = extern "C" fn(message: *const c_char) -> ();
+pub type YRX_CONSOLE_CALLBACK = Option<extern "C" fn(message: *const c_char) -> ()>;
 
 /// Sets the callback for console module.
 #[unsafe(no_mangle)]
@@ -719,11 +808,23 @@ pub unsafe extern "C" fn yrx_scanner_on_console_log(
 ) -> YRX_RESULT {
     let scanner = match scanner.as_mut() {
         Some(s) => s,
-        None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        None => {
+            _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
+    };
+
+    let Some(callback) = callback else {
+        _yrx_set_last_error(Some("`callback` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     let wrapper = move |message: String| {
-        let msg = CString::new(message).unwrap();
+        let msg = CString::new(message).unwrap_or_else(|e| {
+            let mut bytes = e.into_vec();
+            bytes.retain(|&b| b != 0);
+            CString::new(bytes).unwrap()
+        });
         callback(msg.as_ptr());
     };
 
@@ -737,6 +838,7 @@ pub unsafe extern "C" fn yrx_scanner_on_console_log(
         InnerScanner::None => unreachable!(),
     }
 
+    _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }
 
@@ -751,13 +853,15 @@ pub unsafe extern "C" fn yrx_scanner_on_console_log(
 /// data owned by the user.
 ///
 /// Requires the `rules-profiling` feature.
-pub type YRX_SLOWEST_RULES_CALLBACK = extern "C" fn(
-    namespace_: *const c_char,
-    rule: *const c_char,
-    pattern_matching_time: f64,
-    condition_exec_time: f64,
-    user_data: *mut c_void,
-) -> ();
+pub type YRX_SLOWEST_RULES_CALLBACK = Option<
+    extern "C" fn(
+        namespace_: *const c_char,
+        rule: *const c_char,
+        pattern_matching_time: f64,
+        condition_exec_time: f64,
+        user_data: *mut c_void,
+    ) -> (),
+>;
 
 /// Iterates over the slowest N rules, calling the callback for each rule.
 ///
@@ -774,13 +878,24 @@ pub unsafe extern "C" fn yrx_scanner_iter_slowest_rules(
     user_data: *mut c_void,
 ) -> YRX_RESULT {
     #[cfg(not(feature = "rules-profiling"))]
-    return YRX_RESULT::YRX_NOT_SUPPORTED;
+    {
+        _yrx_set_last_error(Some("`rules-profiling` feature is not enabled"));
+        YRX_RESULT::YRX_NOT_SUPPORTED
+    }
 
     #[cfg(feature = "rules-profiling")]
     {
         let scanner = match scanner.as_ref() {
             Some(s) => s,
-            None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+            None => {
+                _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+                return YRX_RESULT::YRX_INVALID_ARGUMENT;
+            }
+        };
+
+        let Some(callback) = callback else {
+            _yrx_set_last_error(Some("`callback` pointer cannot be null"));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
         };
 
         for profiling_info in scanner.inner.slowest_rules(n) {
@@ -796,6 +911,7 @@ pub unsafe extern "C" fn yrx_scanner_iter_slowest_rules(
             );
         }
 
+        _yrx_set_last_error::<&str>(None);
         YRX_RESULT::YRX_SUCCESS
     }
 }
@@ -815,15 +931,22 @@ pub unsafe extern "C" fn yrx_scanner_clear_profiling_data(
     scanner: *mut YRX_SCANNER,
 ) -> YRX_RESULT {
     #[cfg(not(feature = "rules-profiling"))]
-    return YRX_RESULT::YRX_NOT_SUPPORTED;
+    {
+        _yrx_set_last_error(Some("`rules-profiling` feature is not enabled"));
+        YRX_RESULT::YRX_NOT_SUPPORTED
+    }
 
     #[cfg(feature = "rules-profiling")]
     {
         match scanner.as_mut() {
             Some(s) => s.inner.clear_profiling_data(),
-            None => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+            None => {
+                _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+                return YRX_RESULT::YRX_INVALID_ARGUMENT;
+            }
         };
 
+        _yrx_set_last_error::<&str>(None);
         YRX_RESULT::YRX_SUCCESS
     }
 }
@@ -847,6 +970,7 @@ unsafe fn slice_from_ptr_and_len<'a>(
 
 unsafe fn str_from_ptr<'a>(s: *const c_char) -> Result<&'a str, YRX_RESULT> {
     if s.is_null() {
+        _yrx_set_last_error(Some("string pointer cannot be null"));
         return Err(YRX_RESULT::YRX_INVALID_ARGUMENT);
     }
     match CStr::from_ptr(s).to_str() {

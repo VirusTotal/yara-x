@@ -58,7 +58,7 @@ test program, like this:
 cat <<EOF > test.c
 #include <yara_x.h>
 int main() {
-    YRX_RULES* rules;
+    YRX_RULES* rules = NULL;
     yrx_compile("rule dummy { condition: true }", &rules);
     yrx_rules_destroy(rules);
 }
@@ -124,7 +124,13 @@ fn _yrx_set_last_error<E>(err: Option<E>)
 where
     E: ToString,
 {
-    LAST_ERROR.set(err.map(|err| CString::new(err.to_string()).unwrap()))
+    LAST_ERROR.set(err.map(|err| {
+        CString::new(err.to_string()).unwrap_or_else(|e| {
+            let mut bytes = e.into_vec();
+            bytes.retain(|&b| b != 0);
+            CString::new(bytes).unwrap()
+        })
+    }))
 }
 
 /// Error codes returned by functions in this API.
@@ -219,9 +225,15 @@ pub unsafe extern "C" fn yrx_buffer_destroy(buf: *mut YRX_BUFFER) {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compile(
     src: *const c_char,
-    rules: &mut *mut YRX_RULES,
+    rules: *mut *mut YRX_RULES,
 ) -> YRX_RESULT {
+    if rules.is_null() {
+        _yrx_set_last_error(Some("`rules` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
+    *rules = std::ptr::null_mut();
     if src.is_null() {
+        _yrx_set_last_error(Some("`src` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     }
     let c_str = CStr::from_ptr(src);
