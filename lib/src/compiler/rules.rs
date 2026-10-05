@@ -373,18 +373,38 @@ impl Rules {
 
         rules.ac.rebuild_teddy(rules.atoms.iter().map(|x| x.atom.as_ref()));
 
-        // Make sure that the maximum SubPatternId is within the boundaries
-        // of sub_patterns array. This check is important because during
-        // the scanning phase we use SubPatternId as indexes in the array
-        // without boundary checks for better performance.
-        let max_sub_pattern_id = rules
-            .atoms
-            .iter()
-            .map(|atom| atom.sub_pattern_id)
-            .max()
-            .unwrap_or(SubPatternId(0));
+        // Validate that all SubPatternId, PatternId, FwdCodeLoc, and BckCodeLoc
+        // values are within the boundaries of their respective arrays. This is
+        // important because during the scanning phase some of these IDs and
+        // offsets are used for indexing arrays without boundary checks for
+        // better performance.
+        let num_sub_patterns = rules.sub_patterns.len();
+        let re_code_len = rules.re_code.len();
 
-        if rules.sub_patterns.len() < max_sub_pattern_id.0 as usize {
+        let valid_atoms = rules.atoms.iter().all(|atom| {
+            (atom.sub_pattern_id.0 as usize) < num_sub_patterns
+                && atom.fwd_code.is_none_or(|loc| {
+                    re::CodeLoc::location(&loc) < re_code_len
+                })
+                && atom.bck_code.is_none_or(|loc| {
+                    re::CodeLoc::location(&loc) < re_code_len
+                })
+        });
+
+        let valid_anchored = rules
+            .anchored_sub_patterns
+            .iter()
+            .all(|id| (id.0 as usize) < num_sub_patterns);
+
+        let valid_sub_patterns =
+            rules.sub_patterns.iter().all(|(pattern_id, sub_pattern)| {
+                usize::from(*pattern_id) < rules.num_patterns
+                    && sub_pattern
+                        .chained_to()
+                        .is_none_or(|id| (id.0 as usize) < num_sub_patterns)
+            });
+
+        if !valid_atoms || !valid_anchored || !valid_sub_patterns {
             return Err(SerializationError::InvalidFormat);
         }
 
@@ -1183,5 +1203,92 @@ mod tests {
             ),
             unsatisfiable
         );
+    }
+
+    #[test]
+    fn deserialize_validation() {
+        use crate::compile;
+        use crate::compiler::errors::SerializationError;
+        use crate::compiler::{PatternId, SubPattern, SubPatternId};
+        use crate::re::{BckCodeLoc, FwdCodeLoc};
+        use crate::Rules;
+
+        // Invalid SubPatternId in atoms (including off-by-one == sub_patterns.len()).
+        let mut rules =
+            compile(r#"rule t { strings: $a = "aaaa" condition: $a }"#)
+                .unwrap();
+        rules.atoms[0].sub_pattern_id =
+            SubPatternId(rules.sub_patterns.len() as u32);
+        let bytes = rules.serialize().unwrap();
+        assert!(matches!(
+            Rules::deserialize(&bytes),
+            Err(SerializationError::InvalidFormat)
+        ));
+
+        // Invalid SubPatternId in anchored_sub_patterns.
+        let mut rules =
+            compile(r#"rule t { strings: $a = "aaaa" condition: $a at 0 }"#)
+                .unwrap();
+        rules.anchored_sub_patterns[0] =
+            SubPatternId(rules.sub_patterns.len() as u32);
+        let bytes = rules.serialize().unwrap();
+        assert!(matches!(
+            Rules::deserialize(&bytes),
+            Err(SerializationError::InvalidFormat)
+        ));
+
+        // Invalid chained_to SubPatternId in sub_patterns.
+        let mut rules = compile(
+            r#"rule t { strings: $a = { 01 02 03 04 [-] 05 06 07 08 } condition: $a }"#,
+        )
+        .unwrap();
+        let num_sub_patterns = rules.sub_patterns.len() as u32;
+        for (_, sp) in &mut rules.sub_patterns {
+            if let SubPattern::LiteralChainTail { chained_to, .. }
+            | SubPattern::RegexpChainTail { chained_to, .. } = sp
+            {
+                *chained_to = SubPatternId(num_sub_patterns);
+            }
+        }
+        let bytes = rules.serialize().unwrap();
+        assert!(matches!(
+            Rules::deserialize(&bytes),
+            Err(SerializationError::InvalidFormat)
+        ));
+
+        // Invalid PatternId in sub_patterns.
+        let mut rules =
+            compile(r#"rule t { strings: $a = "aaaa" condition: $a }"#)
+                .unwrap();
+        rules.sub_patterns[0].0 = PatternId::from(rules.num_patterns);
+        let bytes = rules.serialize().unwrap();
+        assert!(matches!(
+            Rules::deserialize(&bytes),
+            Err(SerializationError::InvalidFormat)
+        ));
+
+        // Invalid FwdCodeLoc and BckCodeLoc in atoms.
+        let mut rules = compile(
+            r#"rule t { strings: $a = /foo[a-z]+bar/ condition: $a }"#,
+        )
+        .unwrap();
+        let re_code_len = rules.re_code.len();
+        rules.atoms[0].fwd_code = Some(FwdCodeLoc::from(re_code_len));
+        let bytes = rules.serialize().unwrap();
+        assert!(matches!(
+            Rules::deserialize(&bytes),
+            Err(SerializationError::InvalidFormat)
+        ));
+
+        let mut rules = compile(
+            r#"rule t { strings: $a = /foo[a-z]+bar/ condition: $a }"#,
+        )
+        .unwrap();
+        rules.atoms[0].bck_code = Some(BckCodeLoc::from(re_code_len));
+        let bytes = rules.serialize().unwrap();
+        assert!(matches!(
+            Rules::deserialize(&bytes),
+            Err(SerializationError::InvalidFormat)
+        ));
     }
 }
