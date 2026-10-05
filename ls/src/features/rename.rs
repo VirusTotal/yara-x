@@ -7,7 +7,7 @@ use yara_x_parser::cst::SyntaxKind;
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
     find_declaration, ident_at_position, occurrences_in_with_for,
-    pattern_from_ident, pattern_usages, rule_containing_token,
+    pattern_from_ident, pattern_usages, rule_containing_token, rule_ident,
 };
 use crate::utils::position::token_to_range;
 
@@ -101,14 +101,7 @@ pub fn rename(
                 );
             }
 
-            let definition_token = occurrences
-                .definition
-                .1
-                .children_with_tokens()
-                .find(|node_or_token| {
-                    node_or_token.kind() == SyntaxKind::IDENT
-                })
-                .and_then(|node_or_token| node_or_token.into_token())?;
+            let definition_token = rule_ident(&occurrences.definition.1)?;
 
             result.entry(occurrences.definition.0).or_default().push(
                 TextEdit {

@@ -3,10 +3,11 @@ use async_lsp::lsp_types::{
     WorkspaceSymbolResponse,
 };
 use std::sync::Arc;
-use yara_x_parser::cst::{Immutable, Node, SyntaxKind};
+use yara_x_parser::cst::{Immutable, Node};
 
 use crate::{
-    documents::storage::DocumentStorage, utils::position::node_to_range,
+    documents::storage::DocumentStorage,
+    utils::{cst_traversal::rule_ident, position::node_to_range},
 };
 
 /// Returns true, when the workspace symbol name matches the user query using
@@ -45,14 +46,7 @@ pub fn workspace_symbol(
         documents
             .workspace_rules()?
             .filter_map(|(rule_decl, uri)| {
-                let ident =
-                    rule_decl.children_with_tokens().find_map(|ident| {
-                        if ident.kind() == SyntaxKind::IDENT {
-                            ident.into_token()
-                        } else {
-                            None
-                        }
-                    })?;
+                let ident = rule_ident(&rule_decl)?;
 
                 if relaxed_query_matching(ident.text(), query) {
                     Some(WorkspaceSymbol {

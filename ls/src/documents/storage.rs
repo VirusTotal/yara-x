@@ -12,7 +12,8 @@ use yara_x_parser::cst::{CST, Immutable, Node, SyntaxKind, Token};
 use crate::{
     documents::document::Document,
     utils::cst_traversal::{
-        get_includes, rule_from_ident, rule_from_ident_string, rule_usages,
+        get_includes, rule_from_ident, rule_from_ident_string, rule_ident,
+        rule_usages,
     },
 };
 
@@ -351,15 +352,7 @@ impl DocumentStorage {
                     root.children()
                         .filter(|child| child.kind() == SyntaxKind::RULE_DECL)
                         .for_each(|rule_decl| {
-                            if let Some(ident) = rule_decl
-                                .children_with_tokens()
-                                .find(|node_or_token| {
-                                    node_or_token.kind() == SyntaxKind::IDENT
-                                })
-                                .and_then(|node_or_token| {
-                                    node_or_token.into_token()
-                                })
-                            {
+                            if let Some(ident) = rule_ident(&rule_decl) {
                                 rules.push((relative_path.clone(), ident));
                             }
                         });

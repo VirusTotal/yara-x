@@ -87,6 +87,15 @@ pub(crate) fn ident_at_position(
     None
 }
 
+/// Returns the `IDENT` token for the given `RULE_DECL` node.
+pub(crate) fn rule_ident(rule: &Node<Immutable>) -> Option<Token<Immutable>> {
+    assert_eq!(rule.kind(), SyntaxKind::RULE_DECL);
+
+    rule.children_with_tokens()
+        .find(|n| n.kind() == SyntaxKind::IDENT)
+        .and_then(|n| n.into_token())
+}
+
 /// Returns the `RULE_DECL` node for the rule with the given `ident` token.
 pub(crate) fn rule_from_ident(
     source_file: &Node<Immutable>,
@@ -110,11 +119,8 @@ pub(crate) fn rule_from_ident_string(
         .filter(|node| node.kind() == SyntaxKind::RULE_DECL);
 
     for rule in rules {
-        if let Some(rule_ident) = rule
-            .children_with_tokens()
-            .find(|n| n.kind() == SyntaxKind::IDENT)
-            .and_then(|node| node.into_token())
-            && rule_ident.text() == ident
+        if let Some(ident_token) = rule_ident(&rule)
+            && ident_token.text() == ident
         {
             return Some(rule);
         }
