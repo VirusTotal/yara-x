@@ -1207,11 +1207,11 @@ mod tests {
 
     #[test]
     fn deserialize_validation() {
+        use crate::Rules;
         use crate::compile;
         use crate::compiler::errors::SerializationError;
         use crate::compiler::{PatternId, SubPattern, SubPatternId};
         use crate::re::{BckCodeLoc, FwdCodeLoc};
-        use crate::Rules;
 
         // Invalid SubPatternId in atoms (including off-by-one == sub_patterns.len()).
         let mut rules =
