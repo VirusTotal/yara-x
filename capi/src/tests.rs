@@ -717,7 +717,10 @@ fn capi_null_args() {
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
         assert_eq!(
-            yrx_compiler_errors_json(std::ptr::null_mut(), std::ptr::null_mut()),
+            yrx_compiler_errors_json(
+                std::ptr::null_mut(),
+                std::ptr::null_mut()
+            ),
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
         assert_eq!(
@@ -747,11 +750,7 @@ fn capi_null_args() {
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
         assert_eq!(
-            yrx_rules_deserialize(
-                std::ptr::null(),
-                0,
-                std::ptr::null_mut()
-            ),
+            yrx_rules_deserialize(std::ptr::null(), 0, std::ptr::null_mut()),
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
         assert_eq!(
@@ -862,10 +861,7 @@ fn capi_null_args() {
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
         assert_eq!(
-            yrx_scanner_create(
-                std::ptr::null_mut(),
-                std::ptr::null_mut()
-            ),
+            yrx_scanner_create(std::ptr::null_mut(), std::ptr::null_mut()),
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
         assert_eq!(

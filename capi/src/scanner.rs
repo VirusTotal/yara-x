@@ -798,7 +798,8 @@ pub unsafe extern "C" fn yrx_scanner_set_global_json(
 /// The callback function is invoked with a string representing the message
 /// being logged. The function can print the message to stdout, append it to a
 /// file, etc. If no callback is set these messages are ignored.
-pub type YRX_CONSOLE_CALLBACK = Option<extern "C" fn(message: *const c_char) -> ()>;
+pub type YRX_CONSOLE_CALLBACK =
+    Option<extern "C" fn(message: *const c_char) -> ()>;
 
 /// Sets the callback for console module.
 #[unsafe(no_mangle)]

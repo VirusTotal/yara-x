@@ -53,8 +53,9 @@ pub unsafe extern "C" fn yrx_pattern_identifier(
 ///
 /// The callback also receives a `user_data` pointer that can point to arbitrary
 /// data owned by the user.
-pub type YRX_MATCH_CALLBACK =
-    Option<extern "C" fn(match_: *const YRX_MATCH, user_data: *mut c_void) -> ()>;
+pub type YRX_MATCH_CALLBACK = Option<
+    extern "C" fn(match_: *const YRX_MATCH, user_data: *mut c_void) -> (),
+>;
 
 /// Iterates over the matches of a pattern, calling the callback with a pointer
 /// to a [`YRX_MATCH`] structure for each pattern.
