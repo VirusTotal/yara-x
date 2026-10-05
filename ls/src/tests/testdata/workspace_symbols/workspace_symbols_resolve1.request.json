@@ -1,0 +1,7 @@
+{
+  "kind": 12,
+  "location": {
+    "uri": "${test_dir}/workspace_symbols_resolve1.yar"
+  },
+  "name": "some_rule_for_resolve_2"
+}

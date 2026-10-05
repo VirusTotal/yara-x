@@ -1,93 +1,5 @@
 [
   {
-    "kind": 6,
-    "label": "completion_include",
-    "labelDetails": {
-      "description": "Rule"
-    }
-  },
-  {
-    "kind": 6,
-    "label": "test",
-    "labelDetails": {
-      "description": "completion13.yar"
-    }
-  },
-  {
-    "kind": 14,
-    "label": "and"
-  },
-  {
-    "kind": 14,
-    "label": "or"
-  },
-  {
-    "kind": 14,
-    "label": "all"
-  },
-  {
-    "kind": 14,
-    "label": "any"
-  },
-  {
-    "kind": 14,
-    "label": "none"
-  },
-  {
-    "kind": 14,
-    "label": "of"
-  },
-  {
-    "insertText": "at ${1:expression}",
-    "insertTextFormat": 2,
-    "kind": 14,
-    "label": "at"
-  },
-  {
-    "insertText": "in (${1:}..${2:})",
-    "insertTextFormat": 2,
-    "kind": 14,
-    "label": "in"
-  },
-  {
-    "kind": 14,
-    "label": "filesize"
-  },
-  {
-    "insertText": "pe.entry_point",
-    "insertTextFormat": 2,
-    "kind": 14,
-    "label": "entrypoint"
-  },
-  {
-    "kind": 14,
-    "label": "true"
-  },
-  {
-    "kind": 14,
-    "label": "false"
-  },
-  {
-    "kind": 14,
-    "label": "not"
-  },
-  {
-    "kind": 14,
-    "label": "defined"
-  },
-  {
-    "insertText": "for ${1:quantifier} ${2:iterable} : ( ${3:expression} )",
-    "insertTextFormat": 2,
-    "kind": 14,
-    "label": "for"
-  },
-  {
-    "insertText": "with ${1:declarations} : ( ${3:expression} )",
-    "insertTextFormat": 2,
-    "kind": 14,
-    "label": "with"
-  },
-  {
     "additionalTextEdits": [
       {
         "newText": "import \"console\"\n",
@@ -278,10 +190,6 @@
     "label": "math"
   },
   {
-    "kind": 9,
-    "label": "pe"
-  },
-  {
     "additionalTextEdits": [
       {
         "newText": "import \"string\"\n",
@@ -394,5 +302,97 @@
     ],
     "kind": 9,
     "label": "zip"
+  },
+  {
+    "insertText": "at ${1:expression}",
+    "insertTextFormat": 2,
+    "kind": 14,
+    "label": "at"
+  },
+  {
+    "insertText": "for ${1:quantifier} ${2:iterable} : ( ${3:expression} )",
+    "insertTextFormat": 2,
+    "kind": 14,
+    "label": "for"
+  },
+  {
+    "insertText": "in (${1:}..${2:})",
+    "insertTextFormat": 2,
+    "kind": 14,
+    "label": "in"
+  },
+  {
+    "insertText": "pe.entry_point",
+    "insertTextFormat": 2,
+    "kind": 14,
+    "label": "entrypoint"
+  },
+  {
+    "insertText": "with ${1:declarations} : ( ${3:expression} )",
+    "insertTextFormat": 2,
+    "kind": 14,
+    "label": "with"
+  },
+  {
+    "kind": 14,
+    "label": "all"
+  },
+  {
+    "kind": 14,
+    "label": "and"
+  },
+  {
+    "kind": 14,
+    "label": "any"
+  },
+  {
+    "kind": 14,
+    "label": "defined"
+  },
+  {
+    "kind": 14,
+    "label": "false"
+  },
+  {
+    "kind": 14,
+    "label": "filesize"
+  },
+  {
+    "kind": 14,
+    "label": "none"
+  },
+  {
+    "kind": 14,
+    "label": "not"
+  },
+  {
+    "kind": 14,
+    "label": "of"
+  },
+  {
+    "kind": 14,
+    "label": "or"
+  },
+  {
+    "kind": 14,
+    "label": "true"
+  },
+  {
+    "kind": 6,
+    "label": "completion_include",
+    "labelDetails": {
+      "description": "Rule"
+    }
+  },
+  {
+    "kind": 6,
+    "label": "test",
+    "labelDetails": {
+      "description": "completion13.yar"
+    }
+  },
+  {
+    "kind": 9,
+    "label": "pe"
   }
 ]
