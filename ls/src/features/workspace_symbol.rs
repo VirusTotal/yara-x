@@ -25,9 +25,9 @@ pub fn workspace_symbol(
     workspace_resolve_location: bool,
     query: &str,
 ) -> Option<WorkspaceSymbolResponse> {
-    // If client supports resolve operation for workspace symbols, then the language
-    // server can compute the location of the symbols later. Otherwise, language server
-    // has to compute the position right away here.
+    // If client supports resolve operation for workspace symbols, then the
+    // language server can compute the location of the symbols later. Otherwise,
+    // language server has to compute the position right away here.
     let location = if workspace_resolve_location {
         |uri: Url, _node: Node<Immutable>| {
             OneOf::Right(WorkspaceLocation { uri })
@@ -56,7 +56,8 @@ pub fn workspace_symbol(
                 {
                     Some(WorkspaceSymbol {
                         name,
-                        // The same kind for rules as in Document Symbols feature
+                        // The same kind for rules as in Document Symbols
+                        // feature
                         kind: SymbolKind::FUNCTION,
                         tags: None,
                         container_name: None,

@@ -168,7 +168,8 @@ impl LanguageServer for YARALanguageServer {
                             == Some(true)
                     });
 
-            // Check if client supportst the dynmiac registration of watched files change notifications.
+            // Check if client supportst the dynmiac registration of watched
+            // files change notifications.
             self.client_capabilities.dynamic_registration_watched_files =
                 workspace_client_capabilities
                     .did_change_watched_files
@@ -180,7 +181,8 @@ impl LanguageServer for YARALanguageServer {
             self.client_capabilities.support_config_requests =
                 workspace_client_capabilities.configuration == Some(true);
 
-            // Check if client can resolve additional information for Workspace symbols (location).
+            // Check if client can resolve additional information for
+            // Workspace symbols (location).
             self.client_capabilities.workspace_resolve_location =
                 if let Some(symbol) = &workspace_client_capabilities.symbol
                     && let Some(resolve_support) = &symbol.resolve_support
