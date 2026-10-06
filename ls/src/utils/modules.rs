@@ -24,7 +24,7 @@ pub enum Segment {
 ///
 /// Returns an `Option<Type>` representing the type of the structure or field
 /// identified by the token. Returns `None` if the type cannot be determined.
-pub fn get_type(token: &Token<Immutable>) -> Option<Type> {
+pub fn get_type(token: &Token<Immutable>) -> Option<(Type, String)> {
     let mut path = Vec::new();
     let mut curr = Some(token.clone());
 
@@ -106,7 +106,7 @@ pub fn get_type(token: &Token<Immutable>) -> Option<Type> {
         }
     }
 
-    Some(current_kind)
+    Some((current_kind, module_name.clone()))
 }
 
 /// Resolves the `Type` of an identifier declared within `for` or `with` statements.
@@ -130,7 +130,7 @@ pub fn get_type_from_declaration(
     declaration: &Node<Immutable>,
     ident: &Token<Immutable>,
     path: impl Iterator<Item = Segment>,
-) -> Option<Type> {
+) -> Option<(Type, String)> {
     match declaration.kind() {
         SyntaxKind::WITH_EXPR => {
             let with_decls = declaration
@@ -143,7 +143,8 @@ pub fn get_type_from_declaration(
                     continue;
                 }
 
-                let mut current_type = get_type(&with_decl.last_token()?)?;
+                let (mut current_type, module_name) =
+                    get_type(&with_decl.last_token()?)?;
 
                 for segment in path {
                     match segment {
@@ -166,7 +167,7 @@ pub fn get_type_from_declaration(
                         }
                     }
                 }
-                return Some(current_type);
+                return Some((current_type, module_name));
             }
             return None;
         }
@@ -177,7 +178,7 @@ pub fn get_type_from_declaration(
                 .into_token()?;
 
             let iterable_last_token = prev_non_trivia_token(&colon)?;
-            let iterable_type = get_type(&iterable_last_token)?;
+            let (iterable_type, module_name) = get_type(&iterable_last_token)?;
 
             let mut current_type = match iterable_type {
                 Type::Array(inner) => *inner,
@@ -206,7 +207,7 @@ pub fn get_type_from_declaration(
                     }
                 }
             }
-            return Some(current_type);
+            return Some((current_type, module_name));
         }
         _ => {}
     }
@@ -433,12 +434,16 @@ mod tests {
         let root = cst.root();
 
         let char_token = find_tokens(&root, "characteristics").pop().unwrap();
-        let ty = get_type(&char_token).expect("characteristics type");
+        let (ty, module_name) =
+            get_type(&char_token).expect("characteristics type");
         assert!(matches!(ty, Type::Integer));
+        assert!(matches!(module_name.as_str(), "pe"));
 
         let name_token = find_tokens(&root, "name").first().unwrap().clone();
-        let name_ty = get_type(&name_token).expect("sections[0].name type");
+        let (name_ty, module_name) =
+            get_type(&name_token).expect("sections[0].name type");
         assert!(matches!(name_ty, Type::String));
+        assert!(matches!(module_name.as_str(), "pe"));
     }
 
     #[test]
@@ -450,13 +455,17 @@ mod tests {
         let s_tokens = find_tokens(&root, "s");
         let s_token = s_tokens.first().unwrap();
 
-        let s_ty = get_type(s_token).expect("type of s in for loop");
+        let (s_ty, module_name) =
+            get_type(s_token).expect("type of s in for loop");
         assert!(matches!(s_ty, Type::Struct(_)));
+        assert!(matches!(module_name.as_str(), "pe"));
 
         let name_tokens = find_tokens(&root, "name");
         let name_token = name_tokens.first().unwrap();
 
-        let name_ty = get_type(name_token).expect("type of s.name in loop");
+        let (name_ty, module_name) =
+            get_type(name_token).expect("type of s.name in loop");
         assert!(matches!(name_ty, Type::String));
+        assert!(matches!(module_name.as_str(), "pe"));
     }
 }

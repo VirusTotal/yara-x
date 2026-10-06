@@ -4,6 +4,8 @@ These functions are mainly used in [`crate::features`] module to find
 rules and patterns within the CST based on provided identifiers or positions.
  */
 
+use std::collections::HashSet;
+
 use async_lsp::lsp_types::{Position, Url};
 use yara_x_parser::cst::{
     CST, Immutable, Node, NodeOrToken, SyntaxKind, Token, Utf16,
@@ -450,6 +452,24 @@ pub fn get_includes(root: &Node<Immutable>, base: &Url) -> Vec<Url> {
             }
         });
     includes
+}
+/// Collect already imported modules and returns it as a set.
+pub fn get_imported_modules(root: &Node<Immutable>) -> HashSet<String> {
+    root.children()
+        .filter_map(|node| {
+            if node.kind() == SyntaxKind::IMPORT_STMT {
+                // The last token in IMPORT_STMT is a STRING_LIT with
+                // the module name.
+                node.last_token()
+            } else {
+                None
+            }
+        })
+        .map(|module_name| {
+            // Strip the quotes from the module name.
+            module_name.text().trim_matches('"').to_string()
+        })
+        .collect::<HashSet<String>>()
 }
 
 #[cfg(test)]

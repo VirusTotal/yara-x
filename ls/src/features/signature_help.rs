@@ -54,7 +54,7 @@ pub fn signature_help(
     let last_ident = curr?;
 
     let func = match get_type(&last_ident) {
-        Some(Type::Func(func)) => Some(func),
+        Some((Type::Func(func), _)) => Some(func),
         _ => None,
     }?;
 

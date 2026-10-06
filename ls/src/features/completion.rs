@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_lsp::lsp_types::{
@@ -14,8 +13,9 @@ use yara_x_parser::cst::{CST, Immutable, Node, SyntaxKind, Token};
 
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
-    idents_declared_by_expr, non_error_parent, prev_non_trivia_token,
-    rule_containing_token, rule_ident, token_at_position,
+    get_imported_modules, idents_declared_by_expr, non_error_parent,
+    prev_non_trivia_token, rule_containing_token, rule_ident,
+    token_at_position,
 };
 
 use crate::utils::modules::{get_type, ty_to_string};
@@ -202,23 +202,7 @@ fn condition_suggestions(
                 })
             });
 
-            // Collect already imported modules.
-            let imported = root
-                .children()
-                .filter_map(|node| {
-                    if node.kind() == SyntaxKind::IMPORT_STMT {
-                        // The last token in IMPORT_STMT is a STRING_LIT with
-                        // the module name.
-                        node.last_token()
-                    } else {
-                        None
-                    }
-                })
-                .map(|module_name| {
-                    // Strip the quotes from the module name.
-                    module_name.text().trim_matches('"').to_string()
-                })
-                .collect::<HashSet<String>>();
+            let imported = get_imported_modules(&root);
 
             // Suggest module names.
             module_names().for_each(|module_name| {
@@ -376,10 +360,25 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
         _ => None,
     }?;
 
-    let current_struct = match get_type(&token)? {
-        Type::Struct(s) => s,
+    let (current_struct, module_name) = match get_type(&token)? {
+        (Type::Struct(s), module_name) => (s, module_name),
         _ => return None,
     };
+
+    let additional_text_edits =
+        if token.parent().map(|p| p.root()).is_some_and(|root| {
+            !get_imported_modules(&root).contains(&module_name)
+        }) {
+            Some(vec![TextEdit {
+                range: Range {
+                    start: Position { line: 0, character: 0 },
+                    end: Position { line: 0, character: 0 },
+                },
+                new_text: format!("import \"{}\"\n", module_name),
+            }])
+        } else {
+            None
+        };
 
     // Now `current_struct` is the structure before the cursor.
     // We want to suggest fields for this structure.
@@ -443,6 +442,7 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
                                         )
                                     },
                                 ),
+                                additional_text_edits: additional_text_edits.clone(),
                                 ..Default::default()
                             }
                         })
