@@ -2260,10 +2260,11 @@ fn check_unintended_patterns_in_sets<'src>(
             match expr {
                 // Direct pattern match (e.g. `$s1` or `$s1 at 100`).
                 ast::Expr::PatternMatch(pm)
-                    if !pm.identifier.name.is_empty() => {
-                        explicit_patterns
-                            .push((pm.identifier.name, pm.identifier.span()));
-                    }
+                    if !pm.identifier.name.is_empty() =>
+                {
+                    explicit_patterns
+                        .push((pm.identifier.name, pm.identifier.span()));
+                }
                 // Pattern set in `of` expressions (e.g. `1 of ($s1, $s*)`).
                 ast::Expr::Of(of) => {
                     if let ast::OfItems::PatternSet(ast::PatternSet::Set(
