@@ -248,15 +248,12 @@ impl Hir {
                     pattern.extend_from_slice(bytes);
                     mask.extend(repeat_n(0xff, bytes.len()));
                 }
-                HirKind::Repetition(Repetition { min, max, sub, .. }) => {
-                    if *max == Some(*min) && any_byte(sub.kind()) {
+                HirKind::Repetition(Repetition { min, max, sub, .. })
+                    if *max == Some(*min) && any_byte(sub.kind()) => {
                         let count = *min as usize;
                         pattern.extend(repeat_n(0x00, count));
                         mask.extend(repeat_n(0x00, count));
-                    } else {
-                        return None;
                     }
-                }
                 HirKind::Concat(sub_hirs) => {
                     // Push in reverse order so they are processed left-to-right.
                     for sub in sub_hirs.iter().rev() {
