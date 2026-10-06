@@ -11,9 +11,9 @@ use async_lsp::lsp_types::request::{
     CodeActionRequest, Completion, DocumentDiagnosticRequest,
     DocumentHighlightRequest, DocumentSymbolRequest, Formatting,
     GotoDefinition, HoverRequest, InlayHintRequest, References, Rename,
-    Request, SelectionRangeRequest, SemanticTokensFullRequest,
-    SemanticTokensRangeRequest, SignatureHelpRequest, WorkspaceSymbolRequest,
-    WorkspaceSymbolResolve,
+    Request, ResolveCompletionItem, SelectionRangeRequest,
+    SemanticTokensFullRequest, SemanticTokensRangeRequest,
+    SignatureHelpRequest, WorkspaceSymbolRequest, WorkspaceSymbolResolve,
 };
 use async_lsp::lsp_types::{
     ClientCapabilities, DiagnosticClientCapabilities,
@@ -439,6 +439,8 @@ async fn completion() {
 
     #[cfg(not(feature = "magic-module"))]
     lsp_request::<_, Completion>("completion27.yar").await;
+
+    lsp_request::<_, ResolveCompletionItem>("completion_resolve1.yar").await;
 }
 
 #[tokio::test]
