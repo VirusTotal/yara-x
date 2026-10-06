@@ -5,76 +5,15 @@ use async_lsp::lsp_types::{
 };
 use itertools::Itertools;
 use yara_x::mods::reflect::Type;
-use yara_x_parser::cst::{Immutable, Node, NodeOrToken, SyntaxKind, Utf8};
+use yara_x_parser::cst::{NodeOrToken, SyntaxKind, Utf8};
 
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
-    find_declaration, pattern_from_ident, prev_non_trivia_token,
-    rule_containing_token, token_at_position,
+    find_declaration, prev_non_trivia_token, token_at_position,
 };
 
 use crate::utils::modules::{get_type, ty_to_string};
-
-/// Builder for hover Markdown representation of a rule.
-struct RuleHoverBuilder {
-    name: String,
-    metas: Option<Node<Immutable>>,
-    patterns: Option<Node<Immutable>>,
-    condition: Option<Node<Immutable>>,
-}
-
-impl RuleHoverBuilder {
-    /// Creates a new RuleHoverBuilder with the given rule identifier.
-    pub fn new(name: &str) -> Self {
-        RuleHoverBuilder {
-            name: String::from(name),
-            metas: None,
-            patterns: None,
-            condition: None,
-        }
-    }
-
-    /// Creates the Markdown representation of the rule.
-    /// It includes the rule name, metas, strings, and condition.
-    pub fn get_markdown(&self) -> String {
-        let mut markdown = format!("### rule `{}`\n", self.name);
-
-        if let Some(metas) = &self.process_metas() {
-            markdown.push_str("```\n");
-            markdown.push_str(metas);
-            markdown.push_str("\n```\n");
-        }
-
-        markdown
-    }
-
-    /// Processes the meta block and returns its markdown representation.
-    fn process_metas(&self) -> Option<String> {
-        Some(
-            self.metas
-                .as_ref()?
-                // All children in METAS_BLK should be META_DEF.
-                .children()
-                .map(|node| format!("{}\n", node.text()))
-                .collect(),
-        )
-    }
-
-    /// Sets the meta block of the rule.
-    pub fn set_metas(&mut self, meta: Node<Immutable>) {
-        self.metas = Some(meta);
-    }
-
-    /// Sets the strings block of the rule.
-    pub fn set_patterns(&mut self, strings: Node<Immutable>) {
-        self.patterns = Some(strings);
-    }
-
-    /// Sets the condition block of the rule.
-    pub fn set_condition(&mut self, condition: Node<Immutable>) {
-        self.condition = Some(condition);
-    }
-}
+use crate::utils::rule_documentation::RuleDocumentationBuilder;
 
 pub fn hover(
     documents: Arc<DocumentStorage>,
@@ -96,13 +35,9 @@ pub fn hover(
         | SyntaxKind::PATTERN_LENGTH
             if token.len::<Utf8>() >= 2 =>
         {
-            let rule = rule_containing_token(&token)?;
-            let pattern = pattern_from_ident(&rule, &token)?;
-
-            Some(HoverContents::Markup(MarkupContent {
-                kind: MarkupKind::Markdown,
-                value: format!("Pattern value is:\n\n`{}`", pattern.text()),
-            }))
+            RuleDocumentationBuilder::from_token(&token)
+                .and_then(|builder| builder.pattern_markdown(token.text()))
+                .map(HoverContents::Markup)
         }
         // Other identifiers.
         SyntaxKind::IDENT => {
@@ -195,27 +130,9 @@ pub fn hover(
 
             let (rule, _) = documents.find_rule_definition(&uri, &token)?;
 
-            let mut builder = RuleHoverBuilder::new(token.text());
+            let builder = RuleDocumentationBuilder::new(rule);
 
-            for child in rule.children() {
-                match child.kind() {
-                    SyntaxKind::META_BLK => {
-                        builder.set_metas(child);
-                    }
-                    SyntaxKind::PATTERNS_BLK => {
-                        builder.set_patterns(child);
-                    }
-                    SyntaxKind::CONDITION_BLK => {
-                        builder.set_condition(child);
-                    }
-                    _ => {}
-                }
-            }
-
-            Some(HoverContents::Markup(MarkupContent {
-                kind: MarkupKind::Markdown,
-                value: builder.get_markdown(),
-            }))
+            Some(HoverContents::Markup(builder.rule_markdown()))
         }
         _ => None,
     }

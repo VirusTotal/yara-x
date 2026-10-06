@@ -138,19 +138,21 @@ pub(crate) fn rule_containing_token(
 }
 
 /// Returns the `PATTERN_DEF` node containing the declaration of the pattern
-/// identified as `ident`, within the given `rule`.
+/// identified as `ident` token, within the given `rule`.
 pub(crate) fn pattern_from_ident(
     rule: &Node<Immutable>,
     ident: &Token<Immutable>,
 ) -> Option<Node<Immutable>> {
+    pattern_from_string(rule, ident.text())
+}
+
+/// Returns the `PATTERN_DEF` node containing the declaration of the pattern
+/// identified as `ident` string, within the given `rule`.
+pub(crate) fn pattern_from_string(
+    rule: &Node<Immutable>,
+    ident: &str,
+) -> Option<Node<Immutable>> {
     assert_eq!(rule.kind(), SyntaxKind::RULE_DECL);
-    assert!(matches!(
-        ident.kind(),
-        SyntaxKind::PATTERN_IDENT
-            | SyntaxKind::PATTERN_COUNT
-            | SyntaxKind::PATTERN_OFFSET
-            | SyntaxKind::PATTERN_LENGTH
-    ));
 
     // Find "strings" block.
     let patterns_blk = rule
@@ -170,7 +172,7 @@ pub(crate) fn pattern_from_ident(
         {
             // Ignore first character ($, @, # or !) to compare only the actual
             // identifier.
-            if pattern_ident.text()[1..] == ident.text()[1..] {
+            if pattern_ident.text()[1..] == ident[1..] {
                 return Some(pattern);
             }
         }
