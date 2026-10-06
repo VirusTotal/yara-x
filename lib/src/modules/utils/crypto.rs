@@ -91,10 +91,47 @@ impl TryFrom<&SubjectPublicKeyInfo<'_>> for PublicKey {
                 let (_, g) = parse_ber_integer(rem)
                     .map_err(|err| PublicKeyError::Der(err.into()))?;
 
-                let p = dsa::BigUint::from_bytes_be(p.content.as_slice()?);
-                let q = dsa::BigUint::from_bytes_be(q.content.as_slice()?);
-                let g = dsa::BigUint::from_bytes_be(g.content.as_slice()?);
-                let y = dsa::BigUint::from_bytes_be(y.content.as_slice()?);
+                let mut p_bytes = p.content.as_slice()?;
+                let mut q_bytes = q.content.as_slice()?;
+                let mut g_bytes = g.content.as_slice()?;
+                let mut y_bytes = y.content.as_slice()?;
+
+                while let Some((&0, rest)) = p_bytes.split_first() {
+                    p_bytes = rest;
+                }
+                while let Some((&0, rest)) = q_bytes.split_first() {
+                    q_bytes = rest;
+                }
+                while let Some((&0, rest)) = g_bytes.split_first() {
+                    g_bytes = rest;
+                }
+                while let Some((&0, rest)) = y_bytes.split_first() {
+                    y_bytes = rest;
+                }
+
+                let p = dsa::BoxedUint::from_be_slice(
+                    p_bytes,
+                    (p_bytes.len() * 8) as u32,
+                )
+                .map_err(|_| PublicKeyError::InvalidAlgorithm)?;
+
+                let q = dsa::BoxedUint::from_be_slice(
+                    q_bytes,
+                    (q_bytes.len() * 8) as u32,
+                )
+                .map_err(|_| PublicKeyError::InvalidAlgorithm)?;
+
+                let g = dsa::BoxedUint::from_be_slice(
+                    g_bytes,
+                    (g_bytes.len() * 8) as u32,
+                )
+                .map_err(|_| PublicKeyError::InvalidAlgorithm)?;
+
+                let y = dsa::BoxedUint::from_be_slice(
+                    y_bytes,
+                    (y_bytes.len() * 8) as u32,
+                )
+                .map_err(|_| PublicKeyError::InvalidAlgorithm)?;
 
                 let components = Components::from_components(p, q, g)?;
                 let key = dsa::VerifyingKey::from_components(components, y)?;
@@ -228,6 +265,7 @@ impl PublicKey {
             }
             Self::Dsa(key) => {
                 use dsa::pkcs8::der::Decode;
+                use dsa::signature::hazmat::PrehashVerifier;
                 dsa::Signature::from_der(signature).is_ok_and(|s| {
                     key.verify_prehash(hash.as_slice(), &s).is_ok()
                 })
