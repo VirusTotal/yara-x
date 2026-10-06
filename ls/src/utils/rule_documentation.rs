@@ -18,10 +18,7 @@ macro_rules! code_block {
     };
 }
 
-/// Builder for the Markdown representation of a rule.
-///
-/// Only the rule's `RULE_DECL` node is stored; the Markdown fragments are
-/// computed from it on demand.
+/// Builder for the Markdown representation of a rule and its patterns.
 pub(crate) struct RuleDocumentationBuilder {
     rule: Node<Immutable>,
 }
@@ -40,7 +37,7 @@ impl RuleDocumentationBuilder {
     }
 
     /// Creates the Markdown representation of the pattern identified as
-    /// `name`.
+    /// `name` string.
     ///
     /// Returns `None` if the rule doesn't declare such pattern.
     pub fn pattern_single_markdown(
@@ -125,7 +122,7 @@ impl RuleDocumentationBuilder {
 
     /// Creates the Markdown representation of the rule's condition.
     ///
-    /// Returns `None` if the rule does not contain the condition block.
+    /// Returns `None` if it failed to find the condition block.
     fn condition_block_markdown(&self) -> Option<String> {
         Some(code_block!(
             "### Condition:",
