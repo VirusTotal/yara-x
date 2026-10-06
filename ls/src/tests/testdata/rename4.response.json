@@ -6,19 +6,6 @@
         "range": {
           "end": {
             "character": 19,
-            "line": 9
-          },
-          "start": {
-            "character": 4,
-            "line": 9
-          }
-        }
-      },
-      {
-        "newText": "new_rule_identifier",
-        "range": {
-          "end": {
-            "character": 19,
             "line": 14
           },
           "start": {
@@ -37,6 +24,19 @@
           "start": {
             "character": 4,
             "line": 19
+          }
+        }
+      },
+      {
+        "newText": "new_rule_identifier",
+        "range": {
+          "end": {
+            "character": 19,
+            "line": 9
+          },
+          "start": {
+            "character": 4,
+            "line": 9
           }
         }
       },

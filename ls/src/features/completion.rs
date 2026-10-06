@@ -15,7 +15,7 @@ use yara_x_parser::cst::{CST, Immutable, Node, SyntaxKind, Token};
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
     idents_declared_by_expr, non_error_parent, prev_non_trivia_token,
-    rule_containing_token, token_at_position,
+    rule_containing_token, rule_ident, token_at_position,
 };
 
 use crate::utils::modules::{get_type, ty_to_string};
@@ -150,13 +150,9 @@ fn condition_suggestions(
             for rule_decl in
                 root.children().filter(|n| n.kind() == SyntaxKind::RULE_DECL)
             {
-                if let Some(rule_ident) = rule_decl
-                    .children_with_tokens()
-                    .find(|n| n.kind() == SyntaxKind::IDENT)
-                    .and_then(|n| n.into_token())
-                {
+                if let Some(ident) = rule_ident(&rule_decl) {
                     result.push(CompletionItem {
-                        label: rule_ident.text().to_string(),
+                        label: ident.text().to_string(),
                         label_details: Some(CompletionItemLabelDetails {
                             description: Some("Rule".to_string()),
                             ..Default::default()

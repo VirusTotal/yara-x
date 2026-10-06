@@ -669,7 +669,7 @@ impl ScanContext<'_, '_> {
                         thread::sleep(Duration::from_secs(1));
                         wasm::get_engine().increment_epoch();
                         HEARTBEAT_COUNTER
-                            .fetch_update(
+                            .try_update(
                                 Ordering::SeqCst,
                                 Ordering::SeqCst,
                                 |x| Some(x + 1),

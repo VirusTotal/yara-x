@@ -10,7 +10,7 @@ use anyhow::{Context, bail};
 use crossbeam::channel::{RecvTimeoutError, SendError, Sender};
 use crossterm::tty::IsTty;
 use globwalk::FileType;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::{ProgressBar, ProgressStyle};
 
 pub trait Draw {
     fn draw(&self, width: usize) -> String;
@@ -561,24 +561,12 @@ impl<'a> ParWalker<'a> {
                 }
             }));
 
-            // `multi_progress` will be `None` if the `stderr-logs` feature
-            // is enabled or if either stdout or stderr is not a tty (for
-            // example when any of them are redirected to a file).
-            let multi_progress = if cfg!(feature = "stderr-logs") {
-                None
-            } else if io::stdout().is_tty() {
-                Some(MultiProgress::new())
-            } else {
-                None
-            };
-
             let render_period = Duration::from_secs_f64(0.150);
 
             output_messages(
                 render_period,
                 Instant::now(),
                 msg_recv,
-                multi_progress.as_ref(),
                 state.clone(),
             );
 
@@ -589,13 +577,11 @@ impl<'a> ParWalker<'a> {
 
             let handle = {
                 let state = state.clone();
-                let multi_progress = multi_progress.clone();
                 thread::spawn(move || {
                     output_messages(
                         render_period,
                         Instant::now(),
                         msg_recv,
-                        multi_progress.as_ref(),
                         state.clone(),
                     );
                 })
@@ -620,32 +606,39 @@ fn output_messages<S>(
     render_period: Duration,
     last_render: Instant,
     msg_recv: crossbeam::channel::Receiver<Message>,
-    multi_progress: Option<&MultiProgress>,
     state: Arc<S>,
 ) where
     S: Draw,
 {
     let mut last_render = last_render;
-    let pb = multi_progress.map(|mp| {
-        let pb = mp.add(ProgressBar::new_spinner());
+
+    // `pb` will be `None` if the `stderr-logs` feature is enabled or if
+    // either stdout or stderr is not a tty (for example when any of them
+    // are redirected to a file).
+    let pb = if cfg!(feature = "stderr-logs") {
+        None
+    } else if io::stdout().is_tty() && io::stderr().is_tty() {
+        let pb = ProgressBar::new_spinner();
         pb.set_style(
             ProgressStyle::default_spinner().template("{msg}").unwrap(),
         );
-        pb
-    });
+        Some(pb)
+    } else {
+        None
+    };
 
     loop {
         match msg_recv.recv_timeout(render_period) {
             Ok(Message::Info(s)) => {
-                if let Some(mp) = multi_progress {
-                    let _ = mp.println(s);
+                if let Some(pb) = &pb {
+                    pb.suspend(|| println!("{s}"));
                 } else {
                     println!("{s}")
                 }
             }
             Ok(Message::Error(s)) => {
-                if let Some(mp) = multi_progress {
-                    let _ = mp.println(s);
+                if let Some(pb) = &pb {
+                    pb.suspend(|| eprintln!("{s}"));
                 } else {
                     eprintln!("{s}")
                 }
