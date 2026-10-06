@@ -88,6 +88,8 @@ mod tests {
         assert!(config.metadata_validation.is_empty());
         assert!(config.rule_name_validation.is_none());
         assert!(!config.cache_workspace);
+        assert!(!config.documentation.show_rule_string_block);
+        assert!(!config.documentation.show_rule_condition_block);
     }
 
     #[test]
@@ -106,7 +108,11 @@ mod tests {
                 }
             ],
             "ruleNameValidation": "^[a-z_]+$",
-            "cacheWorkspace": true
+            "cacheWorkspace": true,
+            "documentation": {
+                "showRuleStringBlock": true,
+                "showRuleConditionBlock": false
+            }
         }"#;
 
         let config: Config = serde_json::from_str(json).unwrap();
@@ -121,5 +127,7 @@ mod tests {
         assert_eq!(rule.regex.as_deref(), Some("^[A-Za-z ]+$"));
         assert_eq!(config.rule_name_validation.as_deref(), Some("^[a-z_]+$"));
         assert!(config.cache_workspace);
+        assert!(config.documentation.show_rule_string_block);
+        assert!(!config.documentation.show_rule_condition_block);
     }
 }
