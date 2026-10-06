@@ -153,6 +153,9 @@ pub(crate) fn pattern_from_string(
     ident: &str,
 ) -> Option<Node<Immutable>> {
     assert_eq!(rule.kind(), SyntaxKind::RULE_DECL);
+    if ident.len() < 2 {
+        return None;
+    }
 
     // Find "strings" block.
     let patterns_blk = rule

@@ -336,24 +336,21 @@ impl DocumentStorage {
         &self,
         base_root: Node<Immutable>,
         base: &Url,
-    ) -> Vec<(String, Token<Immutable>)> {
+    ) -> Vec<(Url, Token<Immutable>)> {
         let mut includes = get_includes(&base_root, base);
         let mut accessed: HashSet<Url> = HashSet::new();
-        let mut rules: Vec<(String, Token<Immutable>)> = vec![];
+        let mut rules: Vec<(Url, Token<Immutable>)> = vec![];
 
         while let Some(included) = includes.pop() {
             if !accessed.contains(&included) {
                 if let Some(root) = self.get_document_cst_root(&included) {
                     includes.extend(get_includes(&root, &included));
 
-                    let relative_path =
-                        base.make_relative(&included).unwrap_or_default();
-
                     root.children()
                         .filter(|child| child.kind() == SyntaxKind::RULE_DECL)
                         .for_each(|rule_decl| {
                             if let Some(ident) = rule_ident(&rule_decl) {
-                                rules.push((relative_path.clone(), ident));
+                                rules.push((included.clone(), ident));
                             }
                         });
                 }
@@ -533,7 +530,7 @@ mod tests {
 
         let included = storage.included_rules(root, &uri2);
         assert_eq!(included.len(), 1);
-        assert_eq!(included[0].0, "inc.yar");
+        assert_eq!(included[0].0, uri1);
         assert_eq!(included[0].1.text(), "inc_rule");
     }
 

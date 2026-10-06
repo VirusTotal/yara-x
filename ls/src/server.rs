@@ -19,7 +19,7 @@ use async_lsp::lsp_types::DidChangeWatchedFilesParams;
 
 use async_lsp::lsp_types::{
     CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
-    CompletionOptions, CompletionParams, CompletionResponse,
+    CompletionItem, CompletionOptions, CompletionParams, CompletionResponse,
     ConfigurationItem, ConfigurationParams, DiagnosticOptions,
     DiagnosticServerCapabilities, DidChangeConfigurationParams,
     DidChangeTextDocumentParams, DidChangeWatchedFilesRegistrationOptions,
@@ -54,7 +54,7 @@ use serde_json::{from_value, to_value};
 use crate::configuration::Config;
 use crate::documents::storage::DocumentStorage;
 use crate::features::code_action::code_actions;
-use crate::features::completion::completion;
+use crate::features::completion::{completion, resolve_completion};
 use crate::features::diagnostics::diagnostics;
 use crate::features::document_highlight::document_highlight;
 use crate::features::document_symbol::document_symbol;
@@ -233,7 +233,7 @@ impl LanguageServer for YARALanguageServer {
                     references_provider: Some(OneOf::Left(true)),
                     document_formatting_provider: Some(OneOf::Left(true)),
                     completion_provider: Some(CompletionOptions {
-                        resolve_provider: Some(false),
+                        resolve_provider: Some(true),
                         trigger_characters: Some(vec![
                             ".".to_string(),
                             "!".to_string(),
@@ -439,6 +439,16 @@ impl LanguageServer for YARALanguageServer {
             Ok(completion(documents, position, uri, context)
                 .map(CompletionResponse::Array))
         })
+    }
+
+    /// This method resolves additional information for a completion item.
+    fn completion_item_resolve(
+        &mut self,
+        item: CompletionItem,
+    ) -> BoxFuture<'static, Result<CompletionItem, Self::Error>> {
+        let documents = Arc::clone(&self.documents);
+
+        Box::pin(async move { Ok(resolve_completion(documents, item)) })
     }
 
     /// This method is called when the user requests to highlight occurrences
