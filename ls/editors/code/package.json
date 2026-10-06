@@ -123,6 +123,26 @@
           "type": "boolean",
           "default": true,
           "description": "Specifies if the language server should cache all files from the workspace."
+        },
+        "YARA.documentation": {
+          "type": "object",
+          "default": {
+            "showRuleStringBlock": false,
+            "showRuleConditionBlock": false
+          },
+          "description": "Options for documentation settings that affect Code Completion and Hover language features.",
+          "properties": {
+            "showRuleStringBlock": {
+              "type": "boolean",
+              "default": false,
+              "description": "If this is true, the language server will show string block in documentation."
+            },
+            "showRuleConditionBlock": {
+              "type": "boolean",
+              "default": false,
+              "description": "If this is true, the language server will show condition block in documentation."
+            }
+          }
         }
       }
     },

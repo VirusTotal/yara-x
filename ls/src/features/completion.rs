@@ -12,6 +12,7 @@ use itertools::Itertools;
 use yara_x::mods::{module_names, reflect::Type};
 use yara_x_parser::cst::{CST, Immutable, Node, SyntaxKind, Token};
 
+use crate::configuration::DocumentationConfiguration;
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
     idents_declared_by_expr, non_error_parent, prev_non_trivia_token,
@@ -134,6 +135,7 @@ pub fn completion(
 /// Resolves additional documentation for a rule completion item.
 pub fn resolve_completion(
     documents: Arc<DocumentStorage>,
+    documentation_configuration: &DocumentationConfiguration,
     mut item: CompletionItem,
 ) -> CompletionItem {
     if let Some(uri) = item
@@ -145,7 +147,8 @@ pub fn resolve_completion(
         && let Some(rule) = documents.workspace_resolve(&uri, &item.label)
     {
         item.documentation = Some(Documentation::MarkupContent(
-            RuleDocumentationBuilder::new(rule).rule_markdown(),
+            RuleDocumentationBuilder::new(rule)
+                .rule_markdown(documentation_configuration),
         ));
         item.data = None;
     }

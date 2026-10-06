@@ -7,6 +7,7 @@ use itertools::Itertools;
 use yara_x::mods::reflect::Type;
 use yara_x_parser::cst::{NodeOrToken, SyntaxKind, Utf8};
 
+use crate::configuration::DocumentationConfiguration;
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
     find_declaration, prev_non_trivia_token, token_at_position,
@@ -19,6 +20,7 @@ pub fn hover(
     documents: Arc<DocumentStorage>,
     uri: Url,
     pos: Position,
+    documentation_configuration: &DocumentationConfiguration,
 ) -> Option<HoverContents> {
     let document = documents.get(&uri)?;
 
@@ -36,7 +38,9 @@ pub fn hover(
             if token.len::<Utf8>() >= 2 =>
         {
             RuleDocumentationBuilder::from_token(&token)
-                .and_then(|builder| builder.pattern_markdown(token.text()))
+                .and_then(|builder| {
+                    builder.pattern_single_markdown(token.text())
+                })
                 .map(HoverContents::Markup)
         }
         // Other identifiers.
@@ -132,7 +136,9 @@ pub fn hover(
 
             let builder = RuleDocumentationBuilder::new(rule);
 
-            Some(HoverContents::Markup(builder.rule_markdown()))
+            Some(HoverContents::Markup(
+                builder.rule_markdown(documentation_configuration),
+            ))
         }
         _ => None,
     }

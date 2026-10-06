@@ -13,6 +13,8 @@ pub struct Config {
     pub rule_name_validation: Option<String>,
     #[serde(default)]
     pub cache_workspace: bool,
+    #[serde(default)]
+    pub documentation: DocumentationConfiguration,
 }
 
 /// This structure represents settings for the YARA-X formatter.
@@ -60,6 +62,13 @@ pub struct MetadataValidationRule {
     /// Regex pattern to validate the metadata entry, if type is "string".
     #[serde(default)]
     pub regex: Option<String>,
+}
+
+#[derive(Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct DocumentationConfiguration {
+    pub show_rule_string_block: bool,
+    pub show_rule_condition_block: bool,
 }
 
 #[cfg(test)]

@@ -355,9 +355,10 @@ impl LanguageServer for YARALanguageServer {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
         let documents = Arc::clone(&self.documents);
+        let config = Arc::clone(&self.config);
 
         Box::pin(async move {
-            Ok(hover(documents, uri, position)
+            Ok(hover(documents, uri, position, &config.documentation)
                 .map(|contents| Hover { contents, range: None }))
         })
     }
@@ -447,8 +448,11 @@ impl LanguageServer for YARALanguageServer {
         item: CompletionItem,
     ) -> BoxFuture<'static, Result<CompletionItem, Self::Error>> {
         let documents = Arc::clone(&self.documents);
+        let config = Arc::clone(&self.config);
 
-        Box::pin(async move { Ok(resolve_completion(documents, item)) })
+        Box::pin(async move {
+            Ok(resolve_completion(documents, &config.documentation, item))
+        })
     }
 
     /// This method is called when the user requests to highlight occurrences
