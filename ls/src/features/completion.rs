@@ -14,9 +14,9 @@ use yara_x_parser::cst::{CST, Immutable, Node, SyntaxKind, Token};
 
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
-    get_imported_modules, idents_declared_by_expr, non_error_parent,
-    prev_non_trivia_token, rule_containing_token, rule_ident,
-    token_at_position,
+    first_line_range_after_comment, get_imported_modules,
+    idents_declared_by_expr, non_error_parent, prev_non_trivia_token,
+    rule_containing_token, rule_ident, token_at_position,
 };
 
 use crate::utils::modules::{get_type, ty_to_string};
@@ -208,8 +208,11 @@ fn condition_suggestions(
             // Suggest module names.
             module_names().for_each(|module_name| {
                 // Automatically imports the module if it is not already imported.
-                let additional_text_edits =
-                    get_additional_text_edits_modules(&imported, module_name);
+                let additional_text_edits = get_additional_text_edits_modules(
+                    &imported,
+                    module_name,
+                    first_line_range_after_comment(&root),
+                );
                 result.push(CompletionItem {
                     label: module_name.to_string(),
                     kind: Some(CompletionItemKind::MODULE),
@@ -357,13 +360,13 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
         _ => return None,
     };
 
-    let additional_text_edits =
-        token.parent().map(|p| p.root()).and_then(|root| {
-            get_additional_text_edits_modules(
-                &get_imported_modules(&root),
-                &module_name,
-            )
-        });
+    let root = token.parent().map(|p| p.root())?;
+
+    let additional_text_edits = get_additional_text_edits_modules(
+        &get_imported_modules(&root),
+        &module_name,
+        first_line_range_after_comment(&root),
+    );
 
     // Now `current_struct` is the structure before the cursor.
     // We want to suggest fields for this structure.
@@ -476,15 +479,13 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
 fn get_additional_text_edits_modules(
     imported: &HashSet<String>,
     module_name: &str,
+    range: Range,
 ) -> Option<Vec<TextEdit>> {
     if imported.contains(module_name) {
         None
     } else {
         Some(vec![TextEdit {
-            range: Range {
-                start: Position { line: 0, character: 0 },
-                end: Position { line: 0, character: 0 },
-            },
+            range,
             new_text: format!("import \"{}\"\n", module_name),
         }])
     }
