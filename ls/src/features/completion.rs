@@ -1,10 +1,9 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_lsp::lsp_types::{
     CompletionContext, CompletionItem, CompletionItemKind,
     CompletionItemLabelDetails, CompletionTriggerKind, Documentation,
-    InsertTextFormat, InsertTextMode, Position, Range, TextEdit, Url,
+    InsertTextFormat, InsertTextMode, Position, Url,
 };
 
 use itertools::Itertools;
@@ -15,11 +14,11 @@ use yara_x_parser::cst::{CST, Immutable, Node, SyntaxKind, Token};
 use crate::configuration::DocumentationConfiguration;
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
-    first_line_range_after_comment, get_imported_modules,
     idents_declared_by_expr, non_error_parent, prev_non_trivia_token,
     rule_containing_token, rule_ident, token_at_position,
 };
 
+use crate::utils::imports::ModuleImports;
 use crate::utils::modules::{ResolvedType, get_type, ty_to_string};
 use crate::utils::rule_documentation::RuleDocumentationBuilder;
 
@@ -234,21 +233,15 @@ fn condition_suggestions(
                 })
             });
 
-            let imported = get_imported_modules(&root);
-            let range = first_line_range_after_comment(&root);
-
-            // Suggest module names.
+            // Suggest module names, importing them automatically if they
+            // are not imported yet.
+            let imports = ModuleImports::new(&root);
             module_names().for_each(|module_name| {
-                // Automatically imports the module if it is not already imported.
-                let additional_text_edits = get_additional_text_edits_modules(
-                    &imported,
-                    module_name,
-                    range,
-                );
                 result.push(CompletionItem {
                     label: module_name.to_string(),
                     kind: Some(CompletionItemKind::MODULE),
-                    additional_text_edits,
+                    additional_text_edits: imports
+                        .edits_to_import(module_name),
                     ..Default::default()
                 })
             });
@@ -400,13 +393,10 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
         return None;
     };
 
+    // Accepting any of the suggested fields imports the module, if it's not
+    // imported yet.
     let root = token.parent().map(|p| p.root())?;
-
-    let additional_text_edits = get_additional_text_edits_modules(
-        &get_imported_modules(&root),
-        &module_name,
-        first_line_range_after_comment(&root),
-    );
+    let auto_import = ModuleImports::new(&root).edits_to_import(&module_name);
 
     // Now `current_struct` is the structure before the cursor.
     // We want to suggest fields for this structure.
@@ -470,7 +460,7 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
                                         )
                                     },
                                 ),
-                                additional_text_edits: additional_text_edits.clone(),
+                                additional_text_edits: auto_import.clone(),
                                 ..Default::default()
                             }
                         })
@@ -502,7 +492,7 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
                             description: Some(description),
                             ..Default::default()
                         }),
-                        additional_text_edits: additional_text_edits.clone(),
+                        additional_text_edits: auto_import.clone(),
                         ..Default::default()
                     }]
                 }
@@ -511,22 +501,4 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
         .collect();
 
     Some(suggestions)
-}
-
-/// Returns a vector of text edits containing auto-import of the module, if
-/// this module is not contained in the set (not imported). Otherwise, returns
-/// `None`.
-fn get_additional_text_edits_modules(
-    imported: &HashSet<String>,
-    module_name: &str,
-    range: Range,
-) -> Option<Vec<TextEdit>> {
-    if imported.contains(module_name) {
-        None
-    } else {
-        Some(vec![TextEdit {
-            range,
-            new_text: format!("import \"{}\"\n", module_name),
-        }])
-    }
 }
