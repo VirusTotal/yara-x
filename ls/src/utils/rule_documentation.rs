@@ -108,7 +108,7 @@ impl RuleDocumentationBuilder {
     /// Returns `None` if the rule does not contain the pattern block.
     fn pattern_block_markdown(&self) -> Option<String> {
         Some(code_block!(
-            "### Strings:",
+            "### strings:",
             self.rule
                 .children()
                 .find(|node| node.kind() == SyntaxKind::PATTERNS_BLK)?
@@ -125,7 +125,7 @@ impl RuleDocumentationBuilder {
     /// Returns `None` if it failed to find the condition block.
     fn condition_block_markdown(&self) -> Option<String> {
         Some(code_block!(
-            "### Condition:",
+            "### condition:",
             self.rule
                 .children()
                 .find(|node| node.kind() == SyntaxKind::CONDITION_BLK)?
@@ -203,7 +203,7 @@ mod tests {
                 "author = \"me\"\n",
                 "date = \"2026-10-06\"\n",
                 "```\n",
-                "### Strings:\n",
+                "### strings:\n",
                 "\n",
                 "```\n",
                 "$a = \"foo\"\n",
@@ -220,7 +220,7 @@ mod tests {
                 "author = \"me\"\n",
                 "date = \"2026-10-06\"\n",
                 "```\n",
-                "### Condition:\n",
+                "### condition:\n",
                 "\n",
                 "```\n",
                 "$a and $b\n",
@@ -236,13 +236,13 @@ mod tests {
                 "author = \"me\"\n",
                 "date = \"2026-10-06\"\n",
                 "```\n",
-                "### Strings:\n",
+                "### strings:\n",
                 "\n",
                 "```\n",
                 "$a = \"foo\"\n",
                 "$b = { 01 02 }\n",
                 "```\n",
-                "### Condition:\n",
+                "### condition:\n",
                 "\n",
                 "```\n",
                 "$a and $b\n",
@@ -260,7 +260,7 @@ mod tests {
             markdown(&builder, true, true),
             concat!(
                 "## rule `test`\n",
-                "### Condition:\n",
+                "### condition:\n",
                 "\n",
                 "```\n",
                 "true\n",
