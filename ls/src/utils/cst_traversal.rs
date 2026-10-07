@@ -138,12 +138,11 @@ pub(crate) fn rule_containing_token(
 }
 
 /// Returns the `PATTERN_DEF` node containing the declaration of the pattern
-/// identified as `ident`, within the given `rule`.
+/// identified as `ident` token, within the given `rule`.
 pub(crate) fn pattern_from_ident(
     rule: &Node<Immutable>,
     ident: &Token<Immutable>,
 ) -> Option<Node<Immutable>> {
-    assert_eq!(rule.kind(), SyntaxKind::RULE_DECL);
     assert!(matches!(
         ident.kind(),
         SyntaxKind::PATTERN_IDENT
@@ -151,6 +150,23 @@ pub(crate) fn pattern_from_ident(
             | SyntaxKind::PATTERN_OFFSET
             | SyntaxKind::PATTERN_LENGTH
     ));
+    pattern_from_string(rule, ident.text())
+}
+
+/// Returns the `PATTERN_DEF` node containing the declaration of the pattern
+/// identified as `ident` string, within the given `rule`.
+pub(crate) fn pattern_from_string(
+    rule: &Node<Immutable>,
+    ident: &str,
+) -> Option<Node<Immutable>> {
+    assert_eq!(rule.kind(), SyntaxKind::RULE_DECL);
+
+    // Strip the leading sigil ($, @, # or !) to compare only the actual
+    // identifier. Anonymous patterns ("$") have an empty name after stripping
+    // the sigil and cannot match.
+    let ident_name = ident
+        .strip_prefix(['$', '@', '#', '!'])
+        .filter(|name| !name.is_empty())?;
 
     // Find "strings" block.
     let patterns_blk = rule
@@ -167,12 +183,9 @@ pub(crate) fn pattern_from_ident(
             .children_with_tokens()
             .find(|n| n.kind() == SyntaxKind::PATTERN_IDENT)
             .and_then(|n| n.into_token())
+            && pattern_ident.text().strip_prefix('$') == Some(ident_name)
         {
-            // Ignore first character ($, @, # or !) to compare only the actual
-            // identifier.
-            if pattern_ident.text()[1..] == ident.text()[1..] {
-                return Some(pattern);
-            }
+            return Some(pattern);
         }
     }
 

@@ -13,6 +13,8 @@ pub struct Config {
     pub rule_name_validation: Option<String>,
     #[serde(default)]
     pub cache_workspace: bool,
+    #[serde(default)]
+    pub documentation: DocumentationConfiguration,
 }
 
 /// This structure represents settings for the YARA-X formatter.
@@ -62,6 +64,13 @@ pub struct MetadataValidationRule {
     pub regex: Option<String>,
 }
 
+#[derive(Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct DocumentationConfiguration {
+    pub show_rule_strings_block: bool,
+    pub show_rule_condition_block: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -79,6 +88,8 @@ mod tests {
         assert!(config.metadata_validation.is_empty());
         assert!(config.rule_name_validation.is_none());
         assert!(!config.cache_workspace);
+        assert!(!config.documentation.show_rule_strings_block);
+        assert!(!config.documentation.show_rule_condition_block);
     }
 
     #[test]
@@ -97,7 +108,11 @@ mod tests {
                 }
             ],
             "ruleNameValidation": "^[a-z_]+$",
-            "cacheWorkspace": true
+            "cacheWorkspace": true,
+            "documentation": {
+                "showRuleStringsBlock": true,
+                "showRuleConditionBlock": false
+            }
         }"#;
 
         let config: Config = serde_json::from_str(json).unwrap();
@@ -112,5 +127,7 @@ mod tests {
         assert_eq!(rule.regex.as_deref(), Some("^[A-Za-z ]+$"));
         assert_eq!(config.rule_name_validation.as_deref(), Some("^[a-z_]+$"));
         assert!(config.cache_workspace);
+        assert!(config.documentation.show_rule_strings_block);
+        assert!(!config.documentation.show_rule_condition_block);
     }
 }

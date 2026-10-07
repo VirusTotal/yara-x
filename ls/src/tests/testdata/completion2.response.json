@@ -323,6 +323,36 @@
     "label": "zip"
   },
   {
+    "data": {
+      "uri": "${test_dir}/completion2.yar"
+    },
+    "kind": 6,
+    "label": "first_rule",
+    "labelDetails": {
+      "description": "Rule"
+    }
+  },
+  {
+    "data": {
+      "uri": "${test_dir}/completion2.yar"
+    },
+    "kind": 6,
+    "label": "rule_ident_propose_on_the_end",
+    "labelDetails": {
+      "description": "Rule"
+    }
+  },
+  {
+    "data": {
+      "uri": "${test_dir}/completion2.yar"
+    },
+    "kind": 6,
+    "label": "second_rule",
+    "labelDetails": {
+      "description": "Rule"
+    }
+  },
+  {
     "insertText": "at ${1:expression}",
     "insertTextFormat": 2,
     "kind": 14,
@@ -395,26 +425,5 @@
   {
     "kind": 14,
     "label": "true"
-  },
-  {
-    "kind": 6,
-    "label": "first_rule",
-    "labelDetails": {
-      "description": "Rule"
-    }
-  },
-  {
-    "kind": 6,
-    "label": "rule_ident_propose_on_the_end",
-    "labelDetails": {
-      "description": "Rule"
-    }
-  },
-  {
-    "kind": 6,
-    "label": "second_rule",
-    "labelDetails": {
-      "description": "Rule"
-    }
   }
 ]

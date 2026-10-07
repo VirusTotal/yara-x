@@ -19,7 +19,7 @@ use async_lsp::lsp_types::DidChangeWatchedFilesParams;
 
 use async_lsp::lsp_types::{
     CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
-    CompletionOptions, CompletionParams, CompletionResponse,
+    CompletionItem, CompletionOptions, CompletionParams, CompletionResponse,
     ConfigurationItem, ConfigurationParams, DiagnosticOptions,
     DiagnosticServerCapabilities, DidChangeConfigurationParams,
     DidChangeTextDocumentParams, DidChangeWatchedFilesRegistrationOptions,
@@ -54,7 +54,7 @@ use serde_json::{from_value, to_value};
 use crate::configuration::Config;
 use crate::documents::storage::DocumentStorage;
 use crate::features::code_action::code_actions;
-use crate::features::completion::completion;
+use crate::features::completion::{completion, resolve_completion};
 use crate::features::diagnostics::diagnostics;
 use crate::features::document_highlight::document_highlight;
 use crate::features::document_symbol::document_symbol;
@@ -233,7 +233,7 @@ impl LanguageServer for YARALanguageServer {
                     references_provider: Some(OneOf::Left(true)),
                     document_formatting_provider: Some(OneOf::Left(true)),
                     completion_provider: Some(CompletionOptions {
-                        resolve_provider: Some(false),
+                        resolve_provider: Some(true),
                         trigger_characters: Some(vec![
                             ".".to_string(),
                             "!".to_string(),
@@ -355,9 +355,10 @@ impl LanguageServer for YARALanguageServer {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
         let documents = Arc::clone(&self.documents);
+        let config = Arc::clone(&self.config);
 
         Box::pin(async move {
-            Ok(hover(documents, uri, position)
+            Ok(hover(documents, uri, position, &config.documentation)
                 .map(|contents| Hover { contents, range: None }))
         })
     }
@@ -438,6 +439,19 @@ impl LanguageServer for YARALanguageServer {
         Box::pin(async move {
             Ok(completion(documents, position, uri, context)
                 .map(CompletionResponse::Array))
+        })
+    }
+
+    /// This method resolves additional information for a completion item.
+    fn completion_item_resolve(
+        &mut self,
+        item: CompletionItem,
+    ) -> BoxFuture<'static, Result<CompletionItem, Self::Error>> {
+        let documents = Arc::clone(&self.documents);
+        let config = Arc::clone(&self.config);
+
+        Box::pin(async move {
+            Ok(resolve_completion(documents, &config.documentation, item))
         })
     }
 
