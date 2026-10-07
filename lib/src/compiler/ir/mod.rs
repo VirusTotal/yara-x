@@ -3701,7 +3701,7 @@ impl Expr {
                 if *is_float {
                     TypeValue::unknown_float()
                 } else {
-                    TypeValue::unknown_integer()
+                    TypeValue::unknown_signed_integer()
                 }
             }
 
@@ -3712,9 +3712,9 @@ impl Expr {
                 if *is_float {
                     TypeValue::unknown_float()
                 } else if *is_unsigned {
-                    TypeValue::unknown_unsigned()
+                    TypeValue::unknown_unsigned_integer()
                 } else {
-                    TypeValue::unknown_integer()
+                    TypeValue::unknown_signed_integer()
                 }
             }
 
@@ -3726,9 +3726,9 @@ impl Expr {
             | Expr::Shl { is_unsigned, .. }
             | Expr::Shr { is_unsigned, .. } => {
                 if *is_unsigned {
-                    TypeValue::unknown_unsigned()
+                    TypeValue::unknown_unsigned_integer()
                 } else {
-                    TypeValue::unknown_integer()
+                    TypeValue::unknown_signed_integer()
                 }
             }
 
@@ -3738,7 +3738,9 @@ impl Expr {
             | Expr::PatternOffset { .. }
             | Expr::PatternOffsetVar { .. }
             | Expr::PatternLength { .. }
-            | Expr::PatternLengthVar { .. } => TypeValue::unknown_integer(),
+            | Expr::PatternLengthVar { .. } => {
+                TypeValue::unknown_signed_integer()
+            }
 
             Expr::Symbol(symbol) => symbol.type_value().clone(),
             Expr::FieldAccess(field_access) => field_access.type_value.clone(),

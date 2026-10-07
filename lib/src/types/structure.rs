@@ -941,7 +941,7 @@ impl Struct {
                     // values.
                     TypeValue::var_unsigned_from(0_u64)
                 } else {
-                    TypeValue::unknown_unsigned()
+                    TypeValue::unknown_unsigned_integer()
                 }
             }
             RuntimeType::I32
@@ -955,7 +955,7 @@ impl Struct {
                     // values.
                     TypeValue::var_integer_from(0)
                 } else {
-                    TypeValue::unknown_integer()
+                    TypeValue::unknown_signed_integer()
                 }
             }
             RuntimeType::F32 | RuntimeType::F64 => {
@@ -1489,7 +1489,7 @@ mod tests {
     fn struct_eq() {
         let mut sub: Struct = Struct::default();
 
-        sub.add_field("integer", TypeValue::unknown_integer());
+        sub.add_field("integer", TypeValue::unknown_signed_integer());
         sub.add_field("string", TypeValue::unknown_string());
         sub.add_field("boolean", TypeValue::unknown_bool());
 
@@ -1521,7 +1521,7 @@ mod tests {
         assert_eq!(a, b);
 
         a.add_field("foo", TypeValue::var_bool_from(false));
-        b.add_field("foo", TypeValue::unknown_integer());
+        b.add_field("foo", TypeValue::unknown_signed_integer());
 
         // At this point a != b again because field "foo" have a different type
         // on each structure.

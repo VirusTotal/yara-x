@@ -179,7 +179,7 @@ impl MangledFnName {
                 }
 
                 let mut type_value = if constraints.is_empty() {
-                    TypeValue::unknown_integer()
+                    TypeValue::unknown_signed_integer()
                 } else {
                     TypeValue::unknown_integer_with_constraints(constraints)
                 };
@@ -397,17 +397,17 @@ mod test {
     fn mangled_name() {
         assert_eq!(
             MangledFnName::from("foo@@i").unmangle(),
-            (vec![], TypeValue::unknown_integer())
+            (vec![], TypeValue::unknown_signed_integer())
         );
 
         assert_eq!(
             MangledFnName::from("foo@a:i,b:i@i").unmangle(),
             (
                 vec![
-                    ("a", TypeValue::unknown_integer()),
-                    ("b", TypeValue::unknown_integer())
+                    ("a", TypeValue::unknown_signed_integer()),
+                    ("b", TypeValue::unknown_signed_integer())
                 ],
-                TypeValue::unknown_integer()
+                TypeValue::unknown_signed_integer()
             )
         );
 
@@ -540,14 +540,14 @@ mod test {
 
         assert_eq!(
             MangledFnName::from("foo@@i:U").unmangle(),
-            (vec![], TypeValue::unknown_unsigned())
+            (vec![], TypeValue::unknown_unsigned_integer())
         );
 
         assert_eq!(
             MangledFnName::from("foo@a:i:U@i:Uu").unmangle(),
             (
-                vec![("a", TypeValue::unknown_unsigned())],
-                TypeValue::unknown_unsigned()
+                vec![("a", TypeValue::unknown_unsigned_integer())],
+                TypeValue::unknown_unsigned_integer()
             )
         );
 

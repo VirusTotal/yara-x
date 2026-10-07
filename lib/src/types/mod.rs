@@ -377,8 +377,12 @@ impl TypeValue {
     pub fn clone_without_value(&self) -> Self {
         match self {
             Self::Unknown => Self::Unknown,
-            Self::Integer { unsigned: false, .. } => Self::unknown_integer(),
-            Self::Integer { unsigned: true, .. } => Self::unknown_unsigned(),
+            Self::Integer { unsigned: false, .. } => {
+                Self::unknown_signed_integer()
+            }
+            Self::Integer { unsigned: true, .. } => {
+                Self::unknown_unsigned_integer()
+            }
             Self::Float { .. } => Self::unknown_float(),
             Self::Bool { .. } => Self::unknown_bool(),
             Self::String { .. } => Self::unknown_string(),
@@ -668,9 +672,9 @@ impl TypeValue {
         Self::Float { value: Value::Unknown }
     }
 
-    /// Creates a new [`TypeValue`] consisting of an unknown integer.
+    /// Creates a new [`TypeValue`] consisting of an unknown signed integer.
     #[inline]
-    pub fn unknown_integer() -> Self {
+    pub fn unknown_signed_integer() -> Self {
         Self::Integer {
             value: Value::Unknown,
             constraints: None,
@@ -700,7 +704,7 @@ impl TypeValue {
 
     /// Creates a new [`TypeValue`] consisting of an unknown unsigned integer.
     #[inline]
-    pub fn unknown_unsigned() -> Self {
+    pub fn unknown_unsigned_integer() -> Self {
         Self::Integer {
             value: Value::Unknown,
             constraints: None,
@@ -880,7 +884,7 @@ mod tests {
         let unknown = unsigned.clone_without_value();
         assert!(unknown.is_unsigned());
         assert!(unknown.eq_type(&unsigned));
-        assert_eq!(unknown, TypeValue::unknown_unsigned());
+        assert_eq!(unknown, TypeValue::unknown_unsigned_integer());
         assert_eq!(format!("{unknown:?}"), "unsigned(unknown)");
 
         assert!(TypeValue::var_unsigned_from(1_u64).is_unsigned());

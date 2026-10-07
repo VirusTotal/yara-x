@@ -1426,7 +1426,7 @@ fn for_of_expr_from_ast<'src>(
         "$",
         Symbol::Var {
             var: for_vars.item,
-            type_value: TypeValue::unknown_integer(),
+            type_value: TypeValue::unknown_signed_integer(),
         },
     );
 
@@ -1588,7 +1588,7 @@ fn for_in_expr_from_ast<'src>(
                     })
                 }
             }
-            (vec![TypeValue::unknown_integer()], Type::Unknown)
+            (vec![TypeValue::unknown_signed_integer()], Type::Unknown)
         }
         Iterable::ExprTuple(expressions) => {
             // All expressions in the tuple have the same type, we can use
@@ -1610,9 +1610,9 @@ fn for_in_expr_from_ast<'src>(
             // the signedness of arithmetic operations.
             if let TypeValue::Integer { .. } = type_value {
                 type_value = if ctx.ir.is_unsigned_result(expressions) {
-                    TypeValue::unknown_unsigned()
+                    TypeValue::unknown_unsigned_integer()
                 } else {
-                    TypeValue::unknown_integer()
+                    TypeValue::unknown_signed_integer()
                 };
             }
 
@@ -1622,7 +1622,7 @@ fn for_in_expr_from_ast<'src>(
             TypeValue::Array(array) => (vec![array.deputy()], Type::Array),
             TypeValue::Map(map) => match map.as_ref() {
                 Map::IntegerKeys { .. } => (
-                    vec![TypeValue::unknown_integer(), map.deputy()],
+                    vec![TypeValue::unknown_signed_integer(), map.deputy()],
                     Type::Map,
                 ),
                 Map::StringKeys { .. } => (
