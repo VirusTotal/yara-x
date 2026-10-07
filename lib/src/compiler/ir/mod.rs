@@ -1562,7 +1562,12 @@ impl IR {
         constrained_bytes: &mut BTreeMap<usize, u8>,
         unsatisfiable: &mut bool,
     ) {
-        if let Some(val) = self.get(rhs).try_as_const_integer()
+        // The bit pattern of the constant is used, even for unsigned
+        // constants greater than `i64::MAX`. If the integer read from the
+        // data can't be equal to the constant (e.g: `int64(0)` compared with
+        // an unsigned integer greater than `i64::MAX`), the expression is
+        // unsatisfiable anyway, and the constraint is harmless.
+        if let Some(val) = self.const_integer_bits(rhs)
             && self.apply_int_read_constraint(
                 constrained_bytes,
                 unsatisfiable,
@@ -1572,7 +1577,7 @@ impl IR {
         {
             return;
         }
-        if let Some(val) = self.get(lhs).try_as_const_integer() {
+        if let Some(val) = self.const_integer_bits(lhs) {
             self.apply_int_read_constraint(
                 constrained_bytes,
                 unsatisfiable,
@@ -1624,8 +1629,8 @@ impl IR {
             "uint16be" | "int16be" => (2, true),
             "uint32" | "int32" => (4, false),
             "uint32be" | "int32be" => (4, true),
-            "int64" => (8, false),
-            "int64be" => (8, true),
+            "uint64" | "int64" => (8, false),
+            "uint64be" | "int64be" => (8, true),
             _ => return false,
         };
 

@@ -600,6 +600,54 @@ fn int64xx() {
 }
 
 #[test]
+fn uint64xx() {
+    let data = [
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    ];
+
+    condition_true!("uint64(0) == 0x0807060504030201", &data);
+    condition_true!("uint64(1) == 0x0908070605040302", &data);
+    condition_true!("uint64(10) == 0xFFFFFFFFFFFFFFFF", &data);
+    condition_true!("uint64(12) == 18446744073709551615", &data);
+
+    // Bytes 04 05 06 07 08 09 0A FF, the most significant byte is 0xFF, but
+    // the result is unsigned.
+    condition_true!("uint64(3) > 0", &data);
+    condition_true!("uint64(3) == 0xFF0A090807060504", &data);
+    condition_true!("uint64(3) > 0x7FFFFFFFFFFFFFFF", &data);
+    condition_true!("uint64(10) > -1", &data);
+    condition_false!("uint64(10) == -1", &data);
+    // `uint64` and `int64` read the same bits, but the values are different.
+    condition_false!("uint64(10) == int64(10)", &data);
+    condition_true!("uint64(10) > int64(10)", &data);
+    condition_true!("uint64(0) == int64(0)", &data);
+
+    // Arithmetic with unsigned results.
+    condition_true!(r"uint64(10) \ 2 == 0x7FFFFFFFFFFFFFFF", &data);
+    condition_true!("uint64(10) % 10 == 5", &data);
+    condition_true!("uint64(10) >> 60 == 15", &data);
+    condition_true!("uint64(10) + 1 == 0", &data);
+    condition_true!("uint64(10) - 1 == 0xFFFFFFFFFFFFFFFE", &data);
+    condition_true!("uint64(10) == 18446744073709551615.0", &data);
+
+    condition_true!("uint64be(0) == 0x0102030405060708", &data);
+    condition_true!("uint64be(1) == 0x0203040506070809", &data);
+    condition_true!("uint64be(10) == 0xFFFFFFFFFFFFFFFF", &data);
+    condition_true!("uint64be(3) == 0x0405060708090aff", &data);
+    condition_true!("uint64be(5) == 0x060708090AFFFFFF", &data);
+
+    // Reading past the end of the data, or at a negative offset, returns
+    // an undefined value.
+    condition_false!("uint64(13) == 0", &data);
+    condition_false!("uint64(13) != 0", &data);
+    condition_false!("uint64be(13) == 0", &data);
+    condition_false!("uint64be(13) != 0", &data);
+    condition_false!("uint64(-1) == 0", &data);
+    condition_false!("uint64(-1) != 0", &data);
+}
+
+#[test]
 fn floatxx() {
     condition_true!("float32(0) == 1.0", &[0x00, 0x00, 0x80, 0x3f]);
     condition_true!("float32be(0) == 1.0", &[0x3f, 0x80, 0x00, 0x00]);
@@ -4899,6 +4947,52 @@ fn header_constraints_int64() {
 
     let results =
         scanner.scan(b"\x01\x02\x03\x04\x05\x06\x07\x08bary").unwrap();
+    assert_eq!(results.matching_rules().len(), 1);
+
+    let results = scanner.scan(b"\0\0\0\0\0\0\0\0\0\0foox bary").unwrap();
+    assert_eq!(results.matching_rules().len(), 0);
+}
+
+#[test]
+fn header_constraints_uint64() {
+    let rules = crate::compile(
+        r#"
+        rule test_le {
+            strings:
+                $a = /foo.*x/
+            condition:
+                uint64(0) == 0xFFFFFFFFFFFFFFFE and $a
+        }
+        rule test_be {
+            strings:
+                $b = /bar.*y/
+            condition:
+                uint64be(0) == 0x8000000000000001 and $b
+        }
+        "#,
+    )
+    .unwrap();
+
+    let constraints: Vec<_> = rules.header_constraints().collect();
+    assert_eq!(constraints.len(), 2);
+    assert!(constraints.iter().any(|(_, c)| {
+        *c == &crate::compiler::HeaderConstraint::Constrained(vec![
+            0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        ])
+    }));
+    assert!(constraints.iter().any(|(_, c)| {
+        *c == &crate::compiler::HeaderConstraint::Constrained(vec![
+            0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+        ])
+    }));
+
+    let mut scanner = crate::Scanner::new(&rules);
+    let results =
+        scanner.scan(b"\xFE\xFF\xFF\xFF\xFF\xFF\xFF\xFFfoox").unwrap();
+    assert_eq!(results.matching_rules().len(), 1);
+
+    let results =
+        scanner.scan(b"\x80\x00\x00\x00\x00\x00\x00\x01bary").unwrap();
     assert_eq!(results.matching_rules().len(), 1);
 
     let results = scanner.scan(b"\0\0\0\0\0\0\0\0\0\0foox bary").unwrap();

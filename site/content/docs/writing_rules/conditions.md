@@ -324,6 +324,7 @@ int64(<offset>)
 uint8(<offset>)
 uint16(<offset>)
 uint32(<offset>)
+uint64(<offset>)
 
 int8be(<offset>)
 int16be(<offset>)
@@ -333,6 +334,7 @@ int64be(<offset>)
 uint8be(<offset>)
 uint16be(<offset>)
 uint32be(<offset>)
+uint64be(<offset>)
 
 float32(<offset>)
 float64(<offset>)
@@ -342,7 +344,10 @@ float64be(<offset>)
 ```
 
 The `intXX` functions read 8, 16, 32 and 64 bits signed integers from the given
-offset, while functions `uintXX` read 8, 16 and 32 bits unsigned integers. IEEE 754 floating
+offset, while functions `uintXX` read 8, 16, 32 and 64 bits unsigned integers.
+The result of `uint64` is an unsigned integer (see
+[Signed and unsigned integers](#signed-and-unsigned-integers)), so values
+greater than `0x7FFFFFFFFFFFFFFF` are never negative. IEEE 754 floating
 point numbers are read using `floatXX`. The order in which multiple bytes are
 read defaults to little-endian. If you want to read a big-endian number use the
 corresponding function ending in `be`. The offset parameter can be any

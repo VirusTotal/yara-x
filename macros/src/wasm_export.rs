@@ -72,6 +72,7 @@ impl<'ast> FuncSignatureParser<'ast> {
     ) -> Result<Cow<'static, str>> {
         match Self::type_ident(type_path).to_string().as_str() {
             "i32" | "i64" => Ok(Cow::Borrowed("i")),
+            "u64" => Ok(Cow::Borrowed("i:U")),
             "f32" | "f64" => Ok(Cow::Borrowed("f")),
             "bool" => Ok(Cow::Borrowed("b")),
 

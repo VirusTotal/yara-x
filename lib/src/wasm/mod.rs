@@ -450,6 +450,18 @@ impl WasmResult for i64 {
     }
 }
 
+impl WasmResult for u64 {
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        // Unsigned integers are passed to WASM code as an `i64` with the
+        // same bit pattern.
+        smallvec![ValRaw::i64(self as i64)]
+    }
+
+    fn types() -> WasmResultArray<ValType> {
+        smallvec![ValType::I64]
+    }
+}
+
 impl<const MIN: i64, const MAX: i64> WasmResult for RangedInteger<MIN, MAX> {
     fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
         smallvec![ValRaw::i64(self.value())]
@@ -1687,26 +1699,34 @@ gen_int_fn!(int16be, i16, from_be_bytes, -32_768, 32_767);
 gen_int_fn!(int32be, i32, from_be_bytes, -2_147_483_648, 2_147_483_647);
 
 macro_rules! gen_int64_fn {
-    ($name:ident, $from_fn:ident) => {
+    ($name:ident, $return_type:ty, $from_fn:ident) => {
         #[wasm_export(public = true, sync = "none")]
         pub(crate) fn $name(
             caller: &mut Caller<'_, ScanContext>,
             offset: i64,
-        ) -> Option<i64> {
+        ) -> Option<$return_type> {
             let offset = usize::try_from(offset).ok()?;
             caller
                 .data()
                 .scanned_data()?
-                .get(offset..offset.checked_add(mem::size_of::<i64>())?)
-                .map(|bytes| i64::$from_fn(bytes.try_into().unwrap()))
+                .get(
+                    offset
+                        ..offset.checked_add(mem::size_of::<$return_type>())?,
+                )
+                .map(|bytes| {
+                    <$return_type>::$from_fn(bytes.try_into().unwrap())
+                })
         }
     };
 }
 
 // The result of `int64` and `int64be` can be any `i64`, therefore they return
-// `Option<i64>` instead of a `RangedInteger`.
-gen_int64_fn!(int64, from_le_bytes);
-gen_int64_fn!(int64be, from_be_bytes);
+// `Option<i64>` instead of a `RangedInteger`. Similarly, `uint64` and
+// `uint64be` return `Option<u64>`, which is an unsigned integer in YARA.
+gen_int64_fn!(int64, i64, from_le_bytes);
+gen_int64_fn!(int64be, i64, from_be_bytes);
+gen_int64_fn!(uint64, u64, from_le_bytes);
+gen_int64_fn!(uint64be, u64, from_be_bytes);
 
 macro_rules! gen_float_fn {
     ($name:ident, $return_type:ty, $from_fn:ident) => {

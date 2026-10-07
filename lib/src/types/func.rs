@@ -74,6 +74,7 @@ use std::str::Chars;
 /// foo() -> 32-byte lowercase string   -> foo@@s:N32:L
 /// foo() -> 32-byte uppercase string   -> foo@@s:N32:U
 /// foo() -> integer in the range 0-255 -> foo@@i:R0:255
+/// foo() -> unsigned integer           -> foo@@i:U
 /// ```
 ///
 /// Multiple constraints can be chained by appending them in sequence after
@@ -156,6 +157,7 @@ impl MangledFnName {
             Some('b') => Some(TypeValue::unknown_bool()),
             Some('i') => {
                 let mut constraints = Vec::new();
+                let mut unsigned = false;
 
                 while let Some(':') = chars.peek() {
                     chars.next(); // consume the colon (:)
@@ -167,17 +169,27 @@ impl MangledFnName {
                             constraints
                                 .push(IntegerConstraint::Range(min, max));
                         }
+                        Some('U') => {
+                            unsigned = true;
+                        }
                         None | Some(_) => {
                             panic!("invalid mangled name: `{}`", self.0)
                         }
                     }
                 }
 
-                Some(if constraints.is_empty() {
+                let mut type_value = if constraints.is_empty() {
                     TypeValue::unknown_integer()
                 } else {
                     TypeValue::unknown_integer_with_constraints(constraints)
-                })
+                };
+
+                if let TypeValue::Integer { unsigned: u, .. } = &mut type_value
+                {
+                    *u = unsigned;
+                }
+
+                Some(type_value)
             }
             Some('s') => {
                 let mut constraints = Vec::new();
@@ -523,6 +535,19 @@ mod test {
                 TypeValue::unknown_integer_with_constraints(vec![
                     IntegerConstraint::Range(-100, 1000),
                 ])
+            )
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@@i:U").unmangle(),
+            (vec![], TypeValue::unknown_unsigned())
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@a:i:U@i:Uu").unmangle(),
+            (
+                vec![("a", TypeValue::unknown_unsigned())],
+                TypeValue::unknown_unsigned()
             )
         );
 
