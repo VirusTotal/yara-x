@@ -235,6 +235,7 @@ fn condition_suggestions(
             });
 
             let imported = get_imported_modules(&root);
+            let range = first_line_range_after_comment(&root);
 
             // Suggest module names.
             module_names().for_each(|module_name| {
@@ -242,7 +243,7 @@ fn condition_suggestions(
                 let additional_text_edits = get_additional_text_edits_modules(
                     &imported,
                     module_name,
-                    first_line_range_after_comment(&root),
+                    range,
                 );
                 result.push(CompletionItem {
                     label: module_name.to_string(),
