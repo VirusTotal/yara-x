@@ -607,4 +607,16 @@ mod tests {
         assert_eq!(incs[0].as_str(), "file:///project/common.yar");
         assert_eq!(incs[1].as_str(), "file:///project/sub/rules.yar");
     }
+
+    #[test]
+    fn test_imported_modules() {
+        let text =
+            "import \"pe\"\nimport \"math\"\nrule foo { condition: true }";
+        let cst = CST::from(text);
+
+        let imports = get_imported_modules(&cst.root());
+        assert_eq!(imports.len(), 2);
+        assert!(imports.contains("pe"));
+        assert!(imports.contains("math"));
+    }
 }
