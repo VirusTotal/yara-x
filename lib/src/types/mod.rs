@@ -186,9 +186,18 @@ pub(crate) enum TypeValue {
     Float {
         value: Value<f64>,
     },
+    /// A 64-bit integer.
+    ///
+    /// The value is always stored as an `i64`. When `unsigned` is true the
+    /// integer is unsigned, and the `i64` must be interpreted as the bit
+    /// pattern of an `u64` (i.e: `value as u64`). Signed and unsigned
+    /// integers share the same [`Type::Integer`] type, signedness only
+    /// matters for operations where the result depends on it, like
+    /// comparisons, divisions, right shifts, and conversions to float.
     Integer {
         value: Value<i64>,
         constraints: Option<Vec<IntegerConstraint>>,
+        unsigned: bool,
     },
     String {
         value: Value<Rc<BString>>,
@@ -224,7 +233,12 @@ impl Hash for TypeValue {
         mem::discriminant(self).hash(state);
         match self {
             TypeValue::Unknown => {}
-            TypeValue::Integer { value, .. } => {
+            TypeValue::Integer { value, unsigned, .. } => {
+                // Signedness is hashed only for unsigned integers, so that
+                // hashes for signed integers are unaffected.
+                if *unsigned {
+                    true.hash(state);
+                }
                 mem::discriminant(value).hash(state);
                 if let Value::Const(c) = value {
                     c.hash(state);
@@ -293,7 +307,10 @@ impl TypeValue {
     /// the same fields and the type of each field matches.
     pub fn eq_type(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Integer { .. }, Self::Integer { .. }) => true,
+            (
+                Self::Integer { unsigned: lhs, .. },
+                Self::Integer { unsigned: rhs, .. },
+            ) => lhs == rhs,
             (Self::Float { .. }, Self::Float { .. }) => true,
             (Self::String { .. }, Self::String { .. }) => true,
             (Self::Bool { .. }, Self::Bool { .. }) => true,
@@ -360,7 +377,8 @@ impl TypeValue {
     pub fn clone_without_value(&self) -> Self {
         match self {
             Self::Unknown => Self::Unknown,
-            Self::Integer { .. } => Self::unknown_integer(),
+            Self::Integer { unsigned: false, .. } => Self::unknown_integer(),
+            Self::Integer { unsigned: true, .. } => Self::unknown_unsigned(),
             Self::Float { .. } => Self::unknown_float(),
             Self::Bool { .. } => Self::unknown_bool(),
             Self::String { .. } => Self::unknown_string(),
@@ -496,6 +514,28 @@ impl TypeValue {
         }
     }
 
+    /// Returns the value of an unsigned integer as an `u64`.
+    ///
+    /// Returns [`None`] if the [`TypeValue`] is not an unsigned integer, or
+    /// if its value is unknown.
+    // TODO: remove when unsigned integers are produced by the language (#26).
+    #[allow(dead_code)]
+    pub fn try_as_unsigned(&self) -> Option<u64> {
+        if let TypeValue::Integer { value, unsigned: true, .. } = self {
+            value.extract().map(|v| *v as u64)
+        } else {
+            None
+        }
+    }
+
+    /// Returns true if the [`TypeValue`] is an unsigned integer.
+    // TODO: remove when unsigned integers are produced by the language (#26).
+    #[allow(dead_code)]
+    #[inline]
+    pub fn is_unsigned(&self) -> bool {
+        matches!(self, TypeValue::Integer { unsigned: true, .. })
+    }
+
     pub fn try_as_float(&self) -> Option<f64> {
         if let TypeValue::Float { value } = self {
             value.extract().cloned()
@@ -515,7 +555,11 @@ impl TypeValue {
     /// Creates a new [`TypeValue`] consisting of a variable integer.
     #[inline]
     pub fn var_integer_from<T: Into<i64>>(i: T) -> Self {
-        Self::Integer { value: Value::Var(i.into()), constraints: None }
+        Self::Integer {
+            value: Value::Var(i.into()),
+            constraints: None,
+            unsigned: false,
+        }
     }
 
     /// Creates a new [`TypeValue`] consisting of a variable float.
@@ -542,7 +586,11 @@ impl TypeValue {
     /// Creates a new [`TypeValue`] consisting of a constant integer.
     #[inline]
     pub fn const_integer_from<T: Into<i64>>(i: T) -> Self {
-        Self::Integer { value: Value::Const(i.into()), constraints: None }
+        Self::Integer {
+            value: Value::Const(i.into()),
+            constraints: None,
+            unsigned: false,
+        }
     }
 
     /// Creates a new [`TypeValue`] consisting of a constant float.
@@ -581,7 +629,45 @@ impl TypeValue {
     /// Creates a new [`TypeValue`] consisting of an unknown integer.
     #[inline]
     pub fn unknown_integer() -> Self {
-        Self::Integer { value: Value::Unknown, constraints: None }
+        Self::Integer {
+            value: Value::Unknown,
+            constraints: None,
+            unsigned: false,
+        }
+    }
+
+    /// Creates a new [`TypeValue`] consisting of a variable unsigned integer.
+    // TODO: remove when unsigned integers are produced by the language (#26).
+    #[allow(dead_code)]
+    #[inline]
+    pub fn var_unsigned_from<T: Into<u64>>(i: T) -> Self {
+        Self::Integer {
+            value: Value::Var(i.into() as i64),
+            constraints: None,
+            unsigned: true,
+        }
+    }
+
+    /// Creates a new [`TypeValue`] consisting of a constant unsigned integer.
+    // TODO: remove when unsigned integers are produced by the language (#26).
+    #[allow(dead_code)]
+    #[inline]
+    pub fn const_unsigned_from<T: Into<u64>>(i: T) -> Self {
+        Self::Integer {
+            value: Value::Const(i.into() as i64),
+            constraints: None,
+            unsigned: true,
+        }
+    }
+
+    /// Creates a new [`TypeValue`] consisting of an unknown unsigned integer.
+    #[inline]
+    pub fn unknown_unsigned() -> Self {
+        Self::Integer {
+            value: Value::Unknown,
+            constraints: None,
+            unsigned: true,
+        }
     }
 
     /// Creates a new [`TypeValue`] consisting of an unknown string.
@@ -613,6 +699,7 @@ impl TypeValue {
         Self::Integer {
             value: Value::Unknown,
             constraints: Some(constraints.into()),
+            unsigned: false,
         }
     }
 }
@@ -634,11 +721,18 @@ impl Debug for TypeValue {
                     write!(f, "boolean(unknown)")
                 }
             }
-            Self::Integer { value, .. } => {
+            Self::Integer { value, unsigned: false, .. } => {
                 if let Some(v) = value.extract() {
                     write!(f, "integer({v:?})")
                 } else {
                     write!(f, "integer(unknown)")
+                }
+            }
+            Self::Integer { value, unsigned: true, .. } => {
+                if let Some(v) = value.extract() {
+                    write!(f, "unsigned({:?})", *v as u64)
+                } else {
+                    write!(f, "unsigned(unknown)")
                 }
             }
             Self::Float { value } => {
@@ -688,9 +782,9 @@ impl PartialEq for TypeValue {
                 Self::String { value: rhs, .. },
             ) => lhs == rhs,
             (
-                Self::Integer { value: lhs, .. },
-                Self::Integer { value: rhs, .. },
-            ) => lhs == rhs,
+                Self::Integer { value: lhs, unsigned: lhs_unsigned, .. },
+                Self::Integer { value: rhs, unsigned: rhs_unsigned, .. },
+            ) => lhs == rhs && lhs_unsigned == rhs_unsigned,
             (Self::Float { value: lhs }, Self::Float { value: rhs }) => {
                 lhs == rhs
             }
@@ -708,3 +802,50 @@ impl PartialEq for TypeValue {
 }
 
 impl Eq for TypeValue {}
+
+#[cfg(test)]
+mod tests {
+    use std::hash::{DefaultHasher, Hash, Hasher};
+
+    use super::{Type, TypeValue};
+
+    fn hash(tv: &TypeValue) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        tv.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    #[test]
+    fn unsigned_integers() {
+        let signed = TypeValue::const_integer_from(-1);
+        let unsigned = TypeValue::const_unsigned_from(u64::MAX);
+
+        // Both are integers, and have the same bit pattern.
+        assert_eq!(signed.ty(), Type::Integer);
+        assert_eq!(unsigned.ty(), Type::Integer);
+        assert_eq!(signed.try_as_integer(), unsigned.try_as_integer());
+
+        // ... but they are not equal, nor have the same type.
+        assert!(!signed.is_unsigned());
+        assert!(unsigned.is_unsigned());
+        assert_ne!(signed, unsigned);
+        assert_ne!(hash(&signed), hash(&unsigned));
+        assert!(!signed.eq_type(&unsigned));
+
+        assert_eq!(signed.try_as_unsigned(), None);
+        assert_eq!(unsigned.try_as_unsigned(), Some(u64::MAX));
+
+        assert_eq!(format!("{signed:?}"), "integer(-1)");
+        assert_eq!(format!("{unsigned:?}"), "unsigned(18446744073709551615)");
+
+        // Signedness is preserved when the value is removed.
+        let unknown = unsigned.clone_without_value();
+        assert!(unknown.is_unsigned());
+        assert!(unknown.eq_type(&unsigned));
+        assert_eq!(unknown, TypeValue::unknown_unsigned());
+        assert_eq!(format!("{unknown:?}"), "unsigned(unknown)");
+
+        assert!(TypeValue::var_unsigned_from(1_u64).is_unsigned());
+        assert!(!TypeValue::var_unsigned_from(1_u64).is_const());
+    }
+}
