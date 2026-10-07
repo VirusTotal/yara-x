@@ -342,7 +342,7 @@ fn emit_expr(
             }
             // Unsigned integers are represented in WASM as an `i64` with
             // the same bit pattern.
-            TypeValue::UnsignedInteger { value: Const(value) } => {
+            TypeValue::UnsignedInteger { value: Const(value), .. } => {
                 instr.i64_const(*value as i64);
             }
             TypeValue::Float { value: Const(value) } => {

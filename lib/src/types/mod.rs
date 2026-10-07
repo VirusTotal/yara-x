@@ -199,6 +199,7 @@ pub(crate) enum TypeValue {
     /// float.
     UnsignedInteger {
         value: Value<u64>,
+        constraints: Option<Vec<IntegerConstraint>>,
     },
     String {
         value: Value<Rc<BString>>,
@@ -225,8 +226,12 @@ pub(crate) enum StringConstraint {
 /// Each of the constraints allowed for integer types.
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub(crate) enum IntegerConstraint {
-    /// The integer is guaranteed to be within the given range.
-    Range(i64, i64),
+    /// The integer is guaranteed to be within the given range (both ends
+    /// inclusive).
+    ///
+    /// The range is expressed with `i128` values, so that it can represent
+    /// ranges for both signed (`i64`) and unsigned (`u64`) integers.
+    Range(i128, i128),
 }
 
 impl Hash for TypeValue {
@@ -240,7 +245,7 @@ impl Hash for TypeValue {
                     c.hash(state);
                 }
             }
-            TypeValue::UnsignedInteger { value } => {
+            TypeValue::UnsignedInteger { value, .. } => {
                 mem::discriminant(value).hash(state);
                 if let Value::Const(c) = value {
                     c.hash(state);
@@ -290,7 +295,7 @@ impl TypeValue {
         match self {
             TypeValue::Unknown => false,
             TypeValue::SignedInteger { value, .. } => value.is_const(),
-            TypeValue::UnsignedInteger { value } => value.is_const(),
+            TypeValue::UnsignedInteger { value, .. } => value.is_const(),
             TypeValue::Float { value } => value.is_const(),
             TypeValue::Bool { value } => value.is_const(),
             TypeValue::String { value, .. } => value.is_const(),
@@ -412,13 +417,13 @@ impl TypeValue {
                 Self::Bool { value: Value::Const(*i != 0) }
             }
 
-            Self::UnsignedInteger { value: Value::Unknown } => {
+            Self::UnsignedInteger { value: Value::Unknown, .. } => {
                 Self::Bool { value: Value::Unknown }
             }
-            Self::UnsignedInteger { value: Value::Var(i) } => {
+            Self::UnsignedInteger { value: Value::Var(i), .. } => {
                 Self::Bool { value: Value::Var(*i != 0) }
             }
-            Self::UnsignedInteger { value: Value::Const(i) } => {
+            Self::UnsignedInteger { value: Value::Const(i), .. } => {
                 Self::Bool { value: Value::Const(*i != 0) }
             }
 
@@ -542,7 +547,7 @@ impl TypeValue {
     /// if its value is unknown.
     #[cfg(test)]
     pub fn try_as_unsigned_integer(&self) -> Option<u64> {
-        if let TypeValue::UnsignedInteger { value } = self {
+        if let TypeValue::UnsignedInteger { value, .. } = self {
             value.extract().cloned()
         } else {
             None
@@ -560,7 +565,7 @@ impl TypeValue {
     pub fn try_as_integer_bits(&self) -> Option<i64> {
         match self {
             TypeValue::SignedInteger { value, .. } => value.extract().cloned(),
-            TypeValue::UnsignedInteger { value } => {
+            TypeValue::UnsignedInteger { value, .. } => {
                 value.extract().map(|v| *v as i64)
             }
             _ => None,
@@ -576,7 +581,7 @@ impl TypeValue {
             TypeValue::SignedInteger { value: Value::Const(v), .. } => {
                 Some(*v as i128)
             }
-            TypeValue::UnsignedInteger { value: Value::Const(v) } => {
+            TypeValue::UnsignedInteger { value: Value::Const(v), .. } => {
                 Some(*v as i128)
             }
             _ => None,
@@ -605,6 +610,17 @@ impl TypeValue {
             Self::const_unsigned_integer_from(bits as u64)
         } else {
             Self::const_signed_integer_from(bits)
+        }
+    }
+
+    /// Returns the constraints of a signed or unsigned integer, if any.
+    pub fn integer_constraints(&self) -> Option<&[IntegerConstraint]> {
+        match self {
+            TypeValue::SignedInteger { constraints, .. }
+            | TypeValue::UnsignedInteger { constraints, .. } => {
+                constraints.as_deref()
+            }
+            _ => None,
         }
     }
 
@@ -708,19 +724,25 @@ impl TypeValue {
     /// Creates a new [`TypeValue`] consisting of a variable unsigned integer.
     #[inline]
     pub fn var_unsigned_integer_from<T: Into<u64>>(i: T) -> Self {
-        Self::UnsignedInteger { value: Value::Var(i.into()) }
+        Self::UnsignedInteger {
+            value: Value::Var(i.into()),
+            constraints: None,
+        }
     }
 
     /// Creates a new [`TypeValue`] consisting of a constant unsigned integer.
     #[inline]
     pub fn const_unsigned_integer_from<T: Into<u64>>(i: T) -> Self {
-        Self::UnsignedInteger { value: Value::Const(i.into()) }
+        Self::UnsignedInteger {
+            value: Value::Const(i.into()),
+            constraints: None,
+        }
     }
 
     /// Creates a new [`TypeValue`] consisting of an unknown unsigned integer.
     #[inline]
     pub fn unknown_unsigned_integer() -> Self {
-        Self::UnsignedInteger { value: Value::Unknown }
+        Self::UnsignedInteger { value: Value::Unknown, constraints: None }
     }
 
     /// Creates a new [`TypeValue`] consisting of an unknown string.
@@ -754,6 +776,20 @@ impl TypeValue {
             constraints: Some(constraints.into()),
         }
     }
+
+    /// Creates a new [`TypeValue`] consisting of an unknown unsigned integer
+    /// with the given constraints.
+    #[inline]
+    pub fn unknown_unsigned_integer_with_constraints<
+        C: Into<Vec<IntegerConstraint>>,
+    >(
+        constraints: C,
+    ) -> Self {
+        Self::UnsignedInteger {
+            value: Value::Unknown,
+            constraints: Some(constraints.into()),
+        }
+    }
 }
 
 impl Display for TypeValue {
@@ -780,7 +816,7 @@ impl Debug for TypeValue {
                     write!(f, "integer(unknown)")
                 }
             }
-            Self::UnsignedInteger { value } => {
+            Self::UnsignedInteger { value, .. } => {
                 if let Some(v) = value.extract() {
                     write!(f, "unsigned({v:?})")
                 } else {
@@ -838,8 +874,8 @@ impl PartialEq for TypeValue {
                 Self::SignedInteger { value: rhs, .. },
             ) => lhs == rhs,
             (
-                Self::UnsignedInteger { value: lhs },
-                Self::UnsignedInteger { value: rhs },
+                Self::UnsignedInteger { value: lhs, .. },
+                Self::UnsignedInteger { value: rhs, .. },
             ) => lhs == rhs,
             (Self::Float { value: lhs }, Self::Float { value: rhs }) => {
                 lhs == rhs

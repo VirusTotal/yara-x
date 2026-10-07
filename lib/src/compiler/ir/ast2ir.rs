@@ -3301,13 +3301,12 @@ fn eq_check(
         |ctx: &mut CompileContext,
          const_integer: i128,
          const_integer_span: Span,
-         constraints: Vec<IntegerConstraint>,
+         constraints: &[IntegerConstraint],
          constrained_integer_span: Span| {
             for constraint in constraints {
                 match constraint {
                     IntegerConstraint::Range(min, max)
-                        if !(min as i128..=max as i128)
-                            .contains(&const_integer) =>
+                        if !(min..=max).contains(&&const_integer) =>
                     {
                         ctx.warnings.add(|| {
                                 UnsatisfiableExpression::build(
@@ -3334,6 +3333,30 @@ fn eq_check(
             }
         };
 
+    // Integer constants compared with constrained integers. Both the
+    // constant and the constrained integer can be signed or unsigned.
+    if let (Some(const_integer), Some(constraints)) =
+        (lhs.try_as_const_i128(), rhs.integer_constraints())
+    {
+        check_integer_constraints(
+            ctx,
+            const_integer,
+            lhs_span.clone(),
+            constraints,
+            rhs_span.clone(),
+        );
+    } else if let (Some(constraints), Some(const_integer)) =
+        (lhs.integer_constraints(), rhs.try_as_const_i128())
+    {
+        check_integer_constraints(
+            ctx,
+            const_integer,
+            rhs_span.clone(),
+            constraints,
+            lhs_span.clone(),
+        );
+    }
+
     match (lhs, rhs, lhs_span, rhs_span) {
         (
             TypeValue::String { value: Const(const_string), .. },
@@ -3352,35 +3375,6 @@ fn eq_check(
             const_string_span,
             constraints,
             constrained_string_span,
-        ),
-        (
-            const_integer @ (TypeValue::SignedInteger {
-                value: Const(_), ..
-            }
-            | TypeValue::UnsignedInteger { value: Const(_) }),
-            TypeValue::SignedInteger {
-                constraints: Some(constraints), ..
-            },
-            const_integer_span,
-            constrained_integer_span,
-        )
-        | (
-            TypeValue::SignedInteger {
-                constraints: Some(constraints), ..
-            },
-            const_integer @ (TypeValue::SignedInteger {
-                value: Const(_), ..
-            }
-            | TypeValue::UnsignedInteger { value: Const(_) }),
-            constrained_integer_span,
-            const_integer_span,
-        ) => check_integer_constraints(
-            ctx,
-            // It's safe to unwrap, `const_integer` is a constant integer.
-            const_integer.try_as_const_i128().unwrap(),
-            const_integer_span,
-            constraints,
-            constrained_integer_span,
         ),
         _ => {}
     };

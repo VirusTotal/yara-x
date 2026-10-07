@@ -7,7 +7,7 @@ use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::iter::Peekable;
 use std::rc::Rc;
-use std::str::Chars;
+use std::str::{Chars, FromStr};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 /// Represents a mangled function name.
@@ -163,9 +163,9 @@ impl MangledFnName {
                     chars.next(); // consume the colon (:)
                     match chars.next() {
                         Some('R') => {
-                            let min = self.parse_i64(chars);
+                            let min = self.parse_int::<i128>(chars);
                             assert_eq!(chars.next(), Some(':'));
-                            let max = self.parse_i64(chars);
+                            let max = self.parse_int::<i128>(chars);
                             constraints
                                 .push(IntegerConstraint::Range(min, max));
                         }
@@ -186,9 +186,10 @@ impl MangledFnName {
                         )
                     }
                     (true, true) => TypeValue::unknown_unsigned_integer(),
-                    // Constraints are not supported for unsigned integers.
                     (true, false) => {
-                        panic!("invalid mangled name: `{}`", self.0)
+                        TypeValue::unknown_unsigned_integer_with_constraints(
+                            constraints,
+                        )
                     }
                 })
             }
@@ -205,10 +206,8 @@ impl MangledFnName {
                             constraints.push(StringConstraint::Uppercase);
                         }
                         Some('N') => {
-                            let n = self.parse_i64(chars);
-                            constraints.push(StringConstraint::ExactLength(
-                                n as usize,
-                            ));
+                            let n = self.parse_int::<usize>(chars);
+                            constraints.push(StringConstraint::ExactLength(n));
                         }
                         None | Some(_) => {
                             panic!("invalid mangled name: `{}`", self.0)
@@ -229,12 +228,12 @@ impl MangledFnName {
         }
     }
 
-    fn parse_i64(&self, chars: &mut Peekable<Chars>) -> i64 {
+    fn parse_int<T: FromStr>(&self, chars: &mut Peekable<Chars>) -> T {
         chars
             .by_ref()
             .peeking_take_while(|&c| c.is_ascii_digit() || c == '-')
             .collect::<String>()
-            .parse::<i64>()
+            .parse::<T>()
             .unwrap_or_else(|_| panic!("invalid mangled name: `{}`", self.0))
     }
 }
@@ -542,6 +541,16 @@ mod test {
         assert_eq!(
             MangledFnName::from("foo@@i:U").unmangle(),
             (vec![], TypeValue::unknown_unsigned_integer())
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@@i:U:R0:18446744073709551615").unmangle(),
+            (
+                vec![],
+                TypeValue::unknown_unsigned_integer_with_constraints(vec![
+                    IntegerConstraint::Range(0, u64::MAX as i128),
+                ])
+            )
         );
 
         assert_eq!(

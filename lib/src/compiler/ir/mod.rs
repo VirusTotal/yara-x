@@ -1824,7 +1824,7 @@ impl IR {
                         TypeValue::const_signed_integer_from(v.wrapping_neg()),
                     );
                 }
-                TypeValue::UnsignedInteger { value: Const(v) } => {
+                TypeValue::UnsignedInteger { value: Const(v), .. } => {
                     return self.constant(
                         TypeValue::const_signed_integer_from(
                             (v as i64).wrapping_neg(),
@@ -2689,7 +2689,9 @@ impl IR {
     fn const_integer_bits(&self, expr: ExprId) -> Option<i64> {
         match self.get(expr).type_value() {
             TypeValue::SignedInteger { value: Const(v), .. } => Some(v),
-            TypeValue::UnsignedInteger { value: Const(v) } => Some(v as i64),
+            TypeValue::UnsignedInteger { value: Const(v), .. } => {
+                Some(v as i64)
+            }
             _ => None,
         }
     }
@@ -2722,7 +2724,9 @@ impl IR {
                     TypeValue::SignedInteger { value: Const(v), .. } => {
                         v as f64
                     }
-                    TypeValue::UnsignedInteger { value: Const(v) } => v as f64,
+                    TypeValue::UnsignedInteger { value: Const(v), .. } => {
+                        v as f64
+                    }
                     TypeValue::Float { value: Const(v) } => v,
                     _ => unreachable!(),
                 })
