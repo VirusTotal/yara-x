@@ -156,6 +156,7 @@ Integers are signed by default, with values in the range
 [-9223372036854775808, 9223372036854775807]. Integer literals that don't fit
 in that range, but fit in a 64-bit unsigned integer, are unsigned (e.g:
 `0xFFFFFFFFFFFFFFFF` or `18446744073709551615`).
+Module fields of type `uint64` are unsigned integers too.
 
 When signed and unsigned integers are mixed, the following rules apply:
 

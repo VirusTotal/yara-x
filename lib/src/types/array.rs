@@ -15,6 +15,9 @@ thread_local! {
 #[derive(Serialize, Deserialize)]
 pub(crate) enum Array {
     Integers(Vec<i64>),
+    /// Array of unsigned integers. Each item is stored as an `i64` with the
+    /// same bit pattern than the unsigned value.
+    UnsignedIntegers(Vec<i64>),
     Floats(Vec<f64>),
     Bools(Vec<bool>),
     Strings(Vec<Rc<BString>>),
@@ -38,6 +41,7 @@ impl Array {
     pub fn deputy(&self) -> TypeValue {
         match self {
             Array::Integers(_) => TypeValue::unknown_integer(),
+            Array::UnsignedIntegers(_) => TypeValue::unknown_unsigned(),
             Array::Floats(_) => TypeValue::unknown_float(),
             Array::Bools(_) => TypeValue::unknown_bool(),
             Array::Strings(_) => TypeValue::unknown_string(),
@@ -48,6 +52,7 @@ impl Array {
     pub fn len(&self) -> usize {
         match self {
             Array::Integers(a) => a.len(),
+            Array::UnsignedIntegers(a) => a.len(),
             Array::Floats(a) => a.len(),
             Array::Bools(a) => a.len(),
             Array::Strings(a) => a.len(),
@@ -56,7 +61,10 @@ impl Array {
     }
 
     pub fn as_integer_array(&self) -> &Vec<i64> {
-        if let Self::Integers(v) = self { v } else { panic!() }
+        match self {
+            Self::Integers(v) | Self::UnsignedIntegers(v) => v,
+            _ => panic!(),
+        }
     }
 
     pub fn as_float_array(&self) -> &Vec<f64> {

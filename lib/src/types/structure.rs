@@ -933,10 +933,20 @@ impl Struct {
         syntax: Syntax,
     ) -> TypeValue {
         match ty {
+            RuntimeType::U64 => {
+                if let Some(v) = value {
+                    TypeValue::var_unsigned_from(Self::value_as_u64(v))
+                } else if syntax == Syntax::Proto3 {
+                    // In proto3 unknown values are set to their default
+                    // values.
+                    TypeValue::var_unsigned_from(0_u64)
+                } else {
+                    TypeValue::unknown_unsigned()
+                }
+            }
             RuntimeType::I32
             | RuntimeType::I64
             | RuntimeType::U32
-            | RuntimeType::U64
             | RuntimeType::Enum(_) => {
                 if let Some(v) = value {
                     TypeValue::var_integer_from(Self::value_as_i64(v))
@@ -1047,14 +1057,14 @@ impl Struct {
             }
             RuntimeType::U64 => {
                 if let Some(repeated) = repeated {
-                    Array::Integers(
+                    Array::UnsignedIntegers(
                         repeated
                             .into_iter()
-                            .map(|value| Self::value_as_i64(value))
+                            .map(|value| Self::value_as_u64(value) as i64)
                             .collect(),
                     )
                 } else {
-                    Array::Integers(vec![])
+                    Array::UnsignedIntegers(vec![])
                 }
             }
             RuntimeType::F32 => {
@@ -1297,6 +1307,13 @@ impl Struct {
             ReflectValueRef::I32(v) => v as i64,
             ReflectValueRef::I64(v) => v,
             ReflectValueRef::Enum(_, v) => v as i64,
+            _ => panic!(),
+        }
+    }
+
+    fn value_as_u64(value: ReflectValueRef) -> u64 {
+        match value {
+            ReflectValueRef::U64(v) => v,
             _ => panic!(),
         }
     }

@@ -679,8 +679,6 @@ impl TypeValue {
     }
 
     /// Creates a new [`TypeValue`] consisting of a variable unsigned integer.
-    // TODO: remove when unsigned integers are produced by modules (#26).
-    #[allow(dead_code)]
     #[inline]
     pub fn var_unsigned_from<T: Into<u64>>(i: T) -> Self {
         Self::Integer {

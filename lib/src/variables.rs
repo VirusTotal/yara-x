@@ -299,6 +299,8 @@ impl TryFrom<&serde_json::Value> for Variable {
                             };
                         }
                     }
+                    // Arrays created from JSON are never unsigned.
+                    Array::UnsignedIntegers(_) => unreachable!(),
                 }
                 Ok(Variable(TypeValue::Array(Rc::new(array))))
             }

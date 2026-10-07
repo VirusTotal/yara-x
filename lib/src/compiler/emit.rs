@@ -1442,7 +1442,9 @@ fn emit_array_indexing(
     array: &Rc<Array>,
 ) {
     let func = match array.as_ref() {
-        Array::Integers(_) => &wasm::export__array_indexing_integer,
+        Array::Integers(_) | Array::UnsignedIntegers(_) => {
+            &wasm::export__array_indexing_integer
+        }
         Array::Floats(_) => &wasm::export__array_indexing_float,
         Array::Bools(_) => &wasm::export__array_indexing_bool,
         Array::Strings(_) => &wasm::export__array_indexing_string,
