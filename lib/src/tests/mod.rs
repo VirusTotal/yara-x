@@ -445,6 +445,36 @@ fn intxx() {
 }
 
 #[test]
+fn int64xx() {
+    let data = [
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    ];
+
+    condition_true!("int64(0) == 0x0807060504030201", &data);
+    condition_true!("int64(1) == 0x0908070605040302", &data);
+    condition_true!("int64(10) == -1", &data);
+    condition_true!("int64(12) == -1", &data);
+    // Bytes 04 05 06 07 08 09 0A FF, the most significant byte is 0xFF.
+    condition_true!("int64(3) < 0", &data);
+    condition_true!("int64(3) == -0x00f5f6f7f8f9fafc", &data);
+
+    condition_true!("int64be(0) == 0x0102030405060708", &data);
+    condition_true!("int64be(1) == 0x0203040506070809", &data);
+    condition_true!("int64be(10) == -1", &data);
+    condition_true!("int64be(3) == 0x0405060708090aff", &data);
+
+    // Reading past the end of the data, or at a negative offset, returns
+    // an undefined value.
+    condition_false!("int64(13) == 0", &data);
+    condition_false!("int64(13) != 0", &data);
+    condition_false!("int64be(13) == 0", &data);
+    condition_false!("int64be(13) != 0", &data);
+    condition_false!("int64(-1) == 0", &data);
+    condition_false!("int64(-1) != 0", &data);
+}
+
+#[test]
 fn floatxx() {
     condition_true!("float32(0) == 1.0", &[0x00, 0x00, 0x80, 0x3f]);
     condition_true!("float32be(0) == 1.0", &[0x3f, 0x80, 0x00, 0x00]);
@@ -4702,4 +4732,50 @@ fn pattern_atoms() {
     assert_eq!(pattern.identifier(), "$anchored");
     assert_eq!(pattern.atoms().len(), 0);
     assert!(pattern.atoms().next().is_none());
+}
+
+#[test]
+fn header_constraints_int64() {
+    let rules = crate::compile(
+        r#"
+        rule test_le {
+            strings:
+                $a = /foo.*x/
+            condition:
+                int64(0) == -2 and $a
+        }
+        rule test_be {
+            strings:
+                $b = /bar.*y/
+            condition:
+                int64be(0) == 0x0102030405060708 and $b
+        }
+        "#,
+    )
+    .unwrap();
+
+    let constraints: Vec<_> = rules.header_constraints().collect();
+    assert_eq!(constraints.len(), 2);
+    assert!(constraints.iter().any(|(_, c)| {
+        *c == &crate::compiler::HeaderConstraint::Constrained(vec![
+            0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+        ])
+    }));
+    assert!(constraints.iter().any(|(_, c)| {
+        *c == &crate::compiler::HeaderConstraint::Constrained(vec![
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+        ])
+    }));
+
+    let mut scanner = crate::Scanner::new(&rules);
+    let results =
+        scanner.scan(b"\xFE\xFF\xFF\xFF\xFF\xFF\xFF\xFFfoox").unwrap();
+    assert_eq!(results.matching_rules().len(), 1);
+
+    let results =
+        scanner.scan(b"\x01\x02\x03\x04\x05\x06\x07\x08bary").unwrap();
+    assert_eq!(results.matching_rules().len(), 1);
+
+    let results = scanner.scan(b"\0\0\0\0\0\0\0\0\0\0foox bary").unwrap();
+    assert_eq!(results.matching_rules().len(), 0);
 }
