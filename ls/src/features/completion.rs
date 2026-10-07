@@ -474,6 +474,7 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
                             description: Some(description),
                             ..Default::default()
                         }),
+                        additional_text_edits: additional_text_edits.clone(),
                         ..Default::default()
                     }]
                 }
