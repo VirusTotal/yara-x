@@ -294,6 +294,7 @@ the following functions to read data from the file at the given offset:
 int8(<offset>)
 int16(<offset>)
 int32(<offset>)
+int64(<offset>)
 
 uint8(<offset>)
 uint16(<offset>)
@@ -302,6 +303,7 @@ uint32(<offset>)
 int8be(<offset>)
 int16be(<offset>)
 int32be(<offset>)
+int64be(<offset>)
 
 uint8be(<offset>)
 uint16be(<offset>)
@@ -314,8 +316,8 @@ float32be(<offset>)
 float64be(<offset>)
 ```
 
-The `intXX` functions read 8, 16, and 32 bits signed integers from the given
-offset, while functions `uintXX` read unsigned integers. IEEE 754 floating
+The `intXX` functions read 8, 16, 32 and 64 bits signed integers from the given
+offset, while functions `uintXX` read 8, 16 and 32 bits unsigned integers. IEEE 754 floating
 point numbers are read using `floatXX`. The order in which multiple bytes are
 read defaults to little-endian. If you want to read a big-endian number use the
 corresponding function ending in `be`. The offset parameter can be any
