@@ -143,6 +143,13 @@ pub(crate) fn pattern_from_ident(
     rule: &Node<Immutable>,
     ident: &Token<Immutable>,
 ) -> Option<Node<Immutable>> {
+    assert!(matches!(
+        ident.kind(),
+        SyntaxKind::PATTERN_IDENT
+            | SyntaxKind::PATTERN_COUNT
+            | SyntaxKind::PATTERN_OFFSET
+            | SyntaxKind::PATTERN_LENGTH
+    ));
     pattern_from_string(rule, ident.text())
 }
 
@@ -153,9 +160,13 @@ pub(crate) fn pattern_from_string(
     ident: &str,
 ) -> Option<Node<Immutable>> {
     assert_eq!(rule.kind(), SyntaxKind::RULE_DECL);
-    if ident.len() < 2 {
-        return None;
-    }
+
+    // Strip the leading sigil ($, @, # or !) to compare only the actual
+    // identifier. Anonymous patterns ("$") have an empty name after stripping
+    // the sigil and cannot match.
+    let ident_name = ident
+        .strip_prefix(['$', '@', '#', '!'])
+        .filter(|name| !name.is_empty())?;
 
     // Find "strings" block.
     let patterns_blk = rule
@@ -172,12 +183,9 @@ pub(crate) fn pattern_from_string(
             .children_with_tokens()
             .find(|n| n.kind() == SyntaxKind::PATTERN_IDENT)
             .and_then(|n| n.into_token())
+            && pattern_ident.text().strip_prefix('$') == Some(ident_name)
         {
-            // Ignore first character ($, @, # or !) to compare only the actual
-            // identifier.
-            if pattern_ident.text()[1..] == ident[1..] {
-                return Some(pattern);
-            }
+            return Some(pattern);
         }
     }
 

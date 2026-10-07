@@ -341,6 +341,7 @@ async fn hover() {
     lsp_request::<_, HoverRequest>("hover10.yar").await;
     lsp_request::<_, HoverRequest>("hover11.yar").await;
     lsp_request::<_, HoverRequest>("hover12.yar").await;
+    lsp_request::<_, HoverRequest>("hover13.yar").await;
 }
 
 #[tokio::test]
@@ -441,6 +442,7 @@ async fn completion() {
     lsp_request::<_, Completion>("completion27.yar").await;
 
     lsp_request::<_, ResolveCompletionItem>("completion_resolve1.yar").await;
+    lsp_request::<_, ResolveCompletionItem>("completion_resolve2.yar").await;
 }
 
 #[tokio::test]

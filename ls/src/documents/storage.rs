@@ -330,8 +330,8 @@ impl DocumentStorage {
     }
 
     /// This function collects all rules that were included from other
-    /// files as [`yara_x_parser::cst::Token`] and also stores its
-    /// relative path to the `base` URI of the origin document.
+    /// files as [`yara_x_parser::cst::Token`] along with the [`Url`] of
+    /// the document where each rule is defined.
     pub fn included_rules(
         &self,
         base_root: Node<Immutable>,

@@ -67,7 +67,7 @@ pub struct MetadataValidationRule {
 #[derive(Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct DocumentationConfiguration {
-    pub show_rule_string_block: bool,
+    pub show_rule_strings_block: bool,
     pub show_rule_condition_block: bool,
 }
 
@@ -88,7 +88,7 @@ mod tests {
         assert!(config.metadata_validation.is_empty());
         assert!(config.rule_name_validation.is_none());
         assert!(!config.cache_workspace);
-        assert!(!config.documentation.show_rule_string_block);
+        assert!(!config.documentation.show_rule_strings_block);
         assert!(!config.documentation.show_rule_condition_block);
     }
 
@@ -110,7 +110,7 @@ mod tests {
             "ruleNameValidation": "^[a-z_]+$",
             "cacheWorkspace": true,
             "documentation": {
-                "showRuleStringBlock": true,
+                "showRuleStringsBlock": true,
                 "showRuleConditionBlock": false
             }
         }"#;
@@ -127,7 +127,7 @@ mod tests {
         assert_eq!(rule.regex.as_deref(), Some("^[A-Za-z ]+$"));
         assert_eq!(config.rule_name_validation.as_deref(), Some("^[a-z_]+$"));
         assert!(config.cache_workspace);
-        assert!(config.documentation.show_rule_string_block);
+        assert!(config.documentation.show_rule_strings_block);
         assert!(!config.documentation.show_rule_condition_block);
     }
 }

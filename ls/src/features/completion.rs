@@ -287,9 +287,11 @@ fn condition_suggestions(
                     .children_with_tokens()
                     .find(|n| n.kind() == SyntaxKind::PATTERN_IDENT)
                     .and_then(|n| n.into_token())
+                    && let Some(label) = pattern_ident.text().strip_prefix('$')
+                    && !label.is_empty()
                 {
                     result.push(CompletionItem {
-                        label: String::from(&pattern_ident.text()[1..]),
+                        label: label.to_string(),
                         label_details: Some(CompletionItemLabelDetails {
                             description: Some("Pattern".to_string()),
                             ..Default::default()
