@@ -27,12 +27,12 @@ magic-module = ["yara-x/magic-module"]
 [dependencies]
 bitflags = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
-dashmap = { version = "6.1.0" }
-futures = "0.3.32"
+dashmap = { version = "6.2.1" }
+futures = "0.3.34"
 regex = { workspace = true }
-tower = { version = "0.5.2" }
+tower = { version = "0.5.3" }
 tracing = { version = "0.1.44", optional = true }
-tracing-subscriber = { version = "0.3.22", optional = true }
+tracing-subscriber = { version = "0.3.23", optional = true }
 itertools = { workspace = true}
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -1,5 +1,31 @@
 [
   {
+    "kind": 2,
+    "range": {
+      "end": {
+        "character": 19,
+        "line": 12
+      },
+      "start": {
+        "character": 4,
+        "line": 12
+      }
+    }
+  },
+  {
+    "kind": 2,
+    "range": {
+      "end": {
+        "character": 19,
+        "line": 7
+      },
+      "start": {
+        "character": 4,
+        "line": 7
+      }
+    }
+  },
+  {
     "kind": 3,
     "range": {
       "end": {
@@ -9,32 +35,6 @@
       "start": {
         "character": 5,
         "line": 0
-      }
-    }
-  },
-  {
-    "kind": 2,
-    "range": {
-      "end": {
-        "character": 19,
-        "line": 7
-      },
-      "start": {
-        "character": 4,
-        "line": 7
-      }
-    }
-  },
-  {
-    "kind": 2,
-    "range": {
-      "end": {
-        "character": 19,
-        "line": 12
-      },
-      "start": {
-        "character": 4,
-        "line": 12
       }
     }
   }

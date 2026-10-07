@@ -5,6 +5,42 @@
       "data": {
         "patches": []
       },
+      "message": "metadata `created` is not valid",
+      "range": {
+        "end": {
+          "character": 26,
+          "line": 7
+        },
+        "start": {
+          "character": 14,
+          "line": 7
+        }
+      },
+      "relatedInformation": [
+        {
+          "location": {
+            "range": {
+              "end": {
+                "character": 26,
+                "line": 7
+              },
+              "start": {
+                "character": 14,
+                "line": 7
+              }
+            },
+            "uri": "${test_dir}/diagnostics10.yar"
+          },
+          "message": "`created` must be a `date` with format `%Y-%m-%d`"
+        }
+      ],
+      "severity": 2
+    },
+    {
+      "code": "invalid_metadata",
+      "data": {
+        "patches": []
+      },
       "message": "metadata `description` is not valid",
       "range": {
         "end": {
@@ -32,114 +68,6 @@
             "uri": "${test_dir}/diagnostics10.yar"
           },
           "message": "`description` must be a `string`"
-        }
-      ],
-      "severity": 2
-    },
-    {
-      "code": "invalid_metadata",
-      "data": {
-        "patches": []
-      },
-      "message": "metadata `id` is not valid",
-      "range": {
-        "end": {
-          "character": 17,
-          "line": 3
-        },
-        "start": {
-          "character": 9,
-          "line": 3
-        }
-      },
-      "relatedInformation": [
-        {
-          "location": {
-            "range": {
-              "end": {
-                "character": 17,
-                "line": 3
-              },
-              "start": {
-                "character": 9,
-                "line": 3
-              }
-            },
-            "uri": "${test_dir}/diagnostics10.yar"
-          },
-          "message": "`id` must be a string and match the pattern `^[A-Z]{3}-[0-9]{3}$`"
-        }
-      ],
-      "severity": 2
-    },
-    {
-      "code": "invalid_metadata",
-      "data": {
-        "patches": []
-      },
-      "message": "metadata `version` is not valid",
-      "range": {
-        "end": {
-          "character": 19,
-          "line": 4
-        },
-        "start": {
-          "character": 14,
-          "line": 4
-        }
-      },
-      "relatedInformation": [
-        {
-          "location": {
-            "range": {
-              "end": {
-                "character": 19,
-                "line": 4
-              },
-              "start": {
-                "character": 14,
-                "line": 4
-              }
-            },
-            "uri": "${test_dir}/diagnostics10.yar"
-          },
-          "message": "`version` must be a `integer`"
-        }
-      ],
-      "severity": 2
-    },
-    {
-      "code": "invalid_metadata",
-      "data": {
-        "patches": []
-      },
-      "message": "metadata `score` is not valid",
-      "range": {
-        "end": {
-          "character": 14,
-          "line": 5
-        },
-        "start": {
-          "character": 12,
-          "line": 5
-        }
-      },
-      "relatedInformation": [
-        {
-          "location": {
-            "range": {
-              "end": {
-                "character": 14,
-                "line": 5
-              },
-              "start": {
-                "character": 12,
-                "line": 5
-              }
-            },
-            "uri": "${test_dir}/diagnostics10.yar"
-          },
-          "message": "`score` must be a `float`"
         }
       ],
       "severity": 2
@@ -185,15 +113,15 @@
       "data": {
         "patches": []
       },
-      "message": "metadata `created` is not valid",
+      "message": "metadata `id` is not valid",
       "range": {
         "end": {
-          "character": 26,
-          "line": 7
+          "character": 17,
+          "line": 3
         },
         "start": {
-          "character": 14,
-          "line": 7
+          "character": 9,
+          "line": 3
         }
       },
       "relatedInformation": [
@@ -201,17 +129,53 @@
           "location": {
             "range": {
               "end": {
-                "character": 26,
-                "line": 7
+                "character": 17,
+                "line": 3
               },
               "start": {
-                "character": 14,
-                "line": 7
+                "character": 9,
+                "line": 3
               }
             },
             "uri": "${test_dir}/diagnostics10.yar"
           },
-          "message": "`created` must be a `date` with format `%Y-%m-%d`"
+          "message": "`id` must be a string and match the pattern `^[A-Z]{3}-[0-9]{3}$`"
+        }
+      ],
+      "severity": 2
+    },
+    {
+      "code": "invalid_metadata",
+      "data": {
+        "patches": []
+      },
+      "message": "metadata `score` is not valid",
+      "range": {
+        "end": {
+          "character": 14,
+          "line": 5
+        },
+        "start": {
+          "character": 12,
+          "line": 5
+        }
+      },
+      "relatedInformation": [
+        {
+          "location": {
+            "range": {
+              "end": {
+                "character": 14,
+                "line": 5
+              },
+              "start": {
+                "character": 12,
+                "line": 5
+              }
+            },
+            "uri": "${test_dir}/diagnostics10.yar"
+          },
+          "message": "`score` must be a `float`"
         }
       ],
       "severity": 2
@@ -248,6 +212,42 @@
             "uri": "${test_dir}/diagnostics10.yar"
           },
           "message": "`updated` must be a `date` with format `%d/%m/%Y`"
+        }
+      ],
+      "severity": 2
+    },
+    {
+      "code": "invalid_metadata",
+      "data": {
+        "patches": []
+      },
+      "message": "metadata `version` is not valid",
+      "range": {
+        "end": {
+          "character": 19,
+          "line": 4
+        },
+        "start": {
+          "character": 14,
+          "line": 4
+        }
+      },
+      "relatedInformation": [
+        {
+          "location": {
+            "range": {
+              "end": {
+                "character": 19,
+                "line": 4
+              },
+              "start": {
+                "character": 14,
+                "line": 4
+              }
+            },
+            "uri": "${test_dir}/diagnostics10.yar"
+          },
+          "message": "`version` must be a `integer`"
         }
       ],
       "severity": 2

@@ -1,18 +1,18 @@
 [
   {
-    "insertText": "virtual_address",
+    "insertText": "size",
     "insertTextFormat": 2,
     "kind": 5,
-    "label": "virtual_address",
+    "label": "size",
     "labelDetails": {
       "description": "integer"
     }
   },
   {
-    "insertText": "size",
+    "insertText": "virtual_address",
     "insertTextFormat": 2,
     "kind": 5,
-    "label": "size",
+    "label": "virtual_address",
     "labelDetails": {
       "description": "integer"
     }

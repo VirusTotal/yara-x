@@ -12,13 +12,16 @@ use async_lsp::lsp_types::request::{
     DocumentHighlightRequest, DocumentSymbolRequest, Formatting,
     GotoDefinition, HoverRequest, InlayHintRequest, References, Rename,
     Request, SelectionRangeRequest, SemanticTokensFullRequest,
-    SemanticTokensRangeRequest, SignatureHelpRequest,
+    SemanticTokensRangeRequest, SignatureHelpRequest, WorkspaceSymbolRequest,
+    WorkspaceSymbolResolve,
 };
 use async_lsp::lsp_types::{
     ClientCapabilities, DiagnosticClientCapabilities,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams,
     InitializedParams, TextDocumentClientCapabilities, TextDocumentIdentifier,
-    TextDocumentItem, Url, WorkspaceFolder,
+    TextDocumentItem, Url, WorkspaceClientCapabilities, WorkspaceFolder,
+    WorkspaceSymbolClientCapabilities,
+    WorkspaceSymbolResolveSupportCapability,
 };
 use async_lsp::router::Router;
 use async_lsp::server::LifecycleLayer;
@@ -32,8 +35,11 @@ use crate::server::YARALanguageServer;
 
 struct ClientState;
 
-async fn lsp_test<F, R>(initialization_options: Option<Value>, f: F)
-where
+async fn lsp_test<F, R>(
+    testdata_path: &Path,
+    initialization_options: Option<Value>,
+    f: F,
+) where
     R: Future<Output = ServerSocket>,
     F: Fn(ServerSocket) -> R,
 {
@@ -59,9 +65,8 @@ where
         _ = server.run_buffered(server_rx, server_tx) => {}
         _ = client.run_buffered(client_rx, client_tx) => {}
         _ = async {
-            let root_path = PathBuf::from("src/tests/testdata");
             let root_uri = Url::from_file_path(
-                root_path.canonicalize().unwrap()
+                testdata_path.canonicalize().unwrap()
             ).unwrap();
 
             // Send request to initialize the server.
@@ -72,15 +77,26 @@ where
                         name: "testdata".to_string(),
                     }]),
                      capabilities: ClientCapabilities {
-                         text_document: Some(TextDocumentClientCapabilities {
-                             diagnostic: Some(DiagnosticClientCapabilities {
-                                 dynamic_registration: Some(true),
-                                 ..Default::default()
-                             }),
-                             ..Default::default()
-                         }),
-                         ..Default::default()
-                     },
+                        text_document: Some(TextDocumentClientCapabilities {
+                            diagnostic: Some(DiagnosticClientCapabilities {
+                                dynamic_registration: Some(true),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                        }),
+                        workspace: Some(WorkspaceClientCapabilities {
+                            symbol: Some(WorkspaceSymbolClientCapabilities {
+                                resolve_support: Some(
+                                    WorkspaceSymbolResolveSupportCapability {
+                                        properties: vec![String::from("location.range")],
+                                    },
+                                ),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    },
                      initialization_options,
                      ..Default::default()
                  })
@@ -129,7 +145,20 @@ async fn lsp_request<P: AsRef<Path>, R: Request>(path: P)
 where
     R::Result: serde::Serialize + serde::de::DeserializeOwned + Debug,
 {
-    let path = PathBuf::from("src/tests/testdata").join(path);
+    lsp_request_testdata_path::<P, R>(
+        path,
+        &PathBuf::from("src/tests/testdata"),
+    )
+    .await;
+}
+
+async fn lsp_request_testdata_path<P: AsRef<Path>, R: Request>(
+    path: P,
+    testdata_path: &Path,
+) where
+    R::Result: serde::Serialize + serde::de::DeserializeOwned + Debug,
+{
+    let path = testdata_path.join(path);
     let abs_path = path.canonicalize().unwrap();
     let test_dir = Url::from_file_path(abs_path.parent().unwrap()).unwrap();
 
@@ -143,7 +172,7 @@ where
         None
     };
 
-    lsp_test(initialization_options, async |server_socket| {
+    lsp_test(testdata_path, initialization_options, async |server_socket| {
         open_document(&server_socket, &abs_path).await;
 
         let mut mint = goldenfile::Mint::new(".");
@@ -219,10 +248,10 @@ fn replace_in_json(value: &mut Value, from: &str, to: &str) {
     }
 }
 
-/// Sort maps by key in JSON values.
+/// Sort maps by key and arrays of objects in JSON values.
 ///
-/// This guarantees that items in maps have always the same order, which
-/// makes the responses in test cases predictable.
+/// This guarantees that items in maps and arrays of objects have always the
+/// same order, which makes the responses in test cases predictable.
 fn sort_json(value: &mut Value) {
     match value {
         Value::Object(obj) => {
@@ -237,8 +266,11 @@ fn sort_json(value: &mut Value) {
             obj.extend(entries);
         }
         Value::Array(arr) => {
-            for v in arr {
+            for v in arr.iter_mut() {
                 sort_json(v);
+            }
+            if arr.iter().all(Value::is_object) {
+                arr.sort_by_cached_key(|v| v.to_string());
             }
         }
         _ => {}
@@ -440,4 +472,36 @@ async fn signature_help() {
 #[tokio::test]
 async fn inlay_hint() {
     lsp_request::<_, InlayHintRequest>("inlay_hint.yar").await;
+}
+
+#[tokio::test]
+async fn workspace_symbols() {
+    let workspace_testdata_path =
+        PathBuf::from("src/tests/testdata/workspace_symbols");
+    lsp_request_testdata_path::<_, WorkspaceSymbolRequest>(
+        "workspace_symbols1.yar",
+        &workspace_testdata_path,
+    )
+    .await;
+    lsp_request_testdata_path::<_, WorkspaceSymbolRequest>(
+        "workspace_symbols2.yar",
+        &workspace_testdata_path,
+    )
+    .await;
+    lsp_request_testdata_path::<_, WorkspaceSymbolRequest>(
+        "workspace_symbols3.yar",
+        &workspace_testdata_path,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn workspace_symbols_resolve() {
+    let workspace_testdata_path =
+        PathBuf::from("src/tests/testdata/workspace_symbols");
+    lsp_request_testdata_path::<_, WorkspaceSymbolResolve>(
+        "workspace_symbols_resolve1.yar",
+        &workspace_testdata_path,
+    )
+    .await;
 }

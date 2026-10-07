@@ -98,7 +98,9 @@ impl SplitId {
 
     #[inline]
     pub fn from_le_bytes(bytes: [u8; size_of::<Self>()]) -> Self {
-        Self(u16::from_le_bytes(bytes))
+        // Masks decoded u16 values with Self::MAX as u16 (0x1FFF) so decoded
+        // SplitIds are guaranteed to be <= Self::MAX.
+        Self(u16::from_le_bytes(bytes) & (Self::MAX as u16))
     }
 
     /// Add a given amount to the split id, returning [`None`] if the result
@@ -745,5 +747,10 @@ mod tests {
         let (instr, size) = InstrParser::decode_instr(&code, true);
         assert_eq!(size, 2);
         assert!(matches!(instr, Instr::Byte(OPCODE_PREFIX)));
+
+        assert_eq!(
+            usize::from(SplitId::from_le_bytes([0xFF, 0xFF])),
+            SplitId::MAX
+        );
     }
 }

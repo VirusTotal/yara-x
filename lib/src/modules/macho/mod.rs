@@ -367,7 +367,7 @@ fn dylib_hash(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
 
     md5_hash.update(dylibs_to_hash.as_bytes());
 
-    let digest = format!("{:x}", md5_hash.finalize());
+    let digest = hex::encode(md5_hash.finalize());
 
     DYLIB_MD5_CACHE.with(|cache| {
         *cache.borrow_mut() = Some(digest.clone());
@@ -418,7 +418,7 @@ fn entitlement_hash(
 
     md5_hash.update(entitlements_str.as_bytes());
 
-    let digest = format!("{:x}", md5_hash.finalize());
+    let digest = hex::encode(md5_hash.finalize());
 
     ENTITLEMENT_MD5_CACHE.with(|cache| {
         *cache.borrow_mut() = Some(digest.clone());
@@ -469,7 +469,7 @@ fn export_hash(
 
     md5_hash.update(exports_str.as_bytes());
 
-    let digest = format!("{:x}", md5_hash.finalize());
+    let digest = hex::encode(md5_hash.finalize());
 
     EXPORT_MD5_CACHE.with(|cache| {
         *cache.borrow_mut() = Some(digest.clone());
@@ -520,7 +520,7 @@ fn import_hash(
 
     md5_hash.update(imports_str.as_bytes());
 
-    let digest = format!("{:x}", md5_hash.finalize());
+    let digest = hex::encode(md5_hash.finalize());
 
     IMPORT_MD5_CACHE.with(|cache| {
         *cache.borrow_mut() = Some(digest.clone());
@@ -584,7 +584,7 @@ fn symhash(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
 
     md5_hash.update(symtab_hash_entries);
 
-    let digest = format!("{:x}", md5_hash.finalize());
+    let digest = hex::encode(md5_hash.finalize());
 
     SYM_MD5_CACHE.with(|cache| {
         *cache.borrow_mut() = Some(digest.clone());

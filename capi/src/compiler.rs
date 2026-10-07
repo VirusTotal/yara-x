@@ -78,13 +78,19 @@ fn _yrx_compiler_create<'a>(flags: u32) -> yara_x::Compiler<'a> {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_create(
     flags: u32,
-    compiler: &mut *mut YRX_COMPILER,
+    compiler: *mut *mut YRX_COMPILER,
 ) -> YRX_RESULT {
+    if compiler.is_null() {
+        _yrx_set_last_error(Some("`compiler` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
+
     *compiler = Box::into_raw(Box::new(YRX_COMPILER {
         inner: _yrx_compiler_create(flags),
         flags,
     }));
 
+    _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }
 
@@ -124,10 +130,12 @@ pub unsafe extern "C" fn yrx_compiler_add_source_with_origin(
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
+        _yrx_set_last_error(Some("`compiler` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     if src.is_null() {
+        _yrx_set_last_error(Some("`src` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     }
 
@@ -138,7 +146,10 @@ pub unsafe extern "C" fn yrx_compiler_add_source_with_origin(
         let origin = CStr::from_ptr(origin);
         src = match origin.to_str() {
             Ok(origin) => src.with_origin(origin),
-            Err(_) => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+            Err(err) => {
+                _yrx_set_last_error(Some(err));
+                return YRX_RESULT::YRX_INVALID_ARGUMENT;
+            }
         };
     }
 
@@ -171,21 +182,26 @@ pub unsafe extern "C" fn yrx_compiler_add_include_dir(
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
+        _yrx_set_last_error(Some("`compiler` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     if dir.is_null() {
+        _yrx_set_last_error(Some("`dir` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     }
 
-    let dir = if let Ok(dir) = CStr::from_ptr(dir).to_str() {
-        dir
-    } else {
-        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    let dir = match CStr::from_ptr(dir).to_str() {
+        Ok(dir) => dir,
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     compiler.inner.add_include_dir(dir);
 
+    _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }
 
@@ -203,21 +219,26 @@ pub unsafe extern "C" fn yrx_compiler_ignore_module(
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
+        _yrx_set_last_error(Some("`compiler` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     if module.is_null() {
+        _yrx_set_last_error(Some("`module` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     }
 
-    let module = if let Ok(module) = CStr::from_ptr(module).to_str() {
-        module
-    } else {
-        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    let module = match CStr::from_ptr(module).to_str() {
+        Ok(module) => module,
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     compiler.inner.ignore_module(module);
 
+    _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }
 
@@ -232,11 +253,13 @@ pub unsafe extern "C" fn yrx_compiler_max_warnings(
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
+        _yrx_set_last_error(Some("`compiler` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     compiler.inner.max_warnings(n);
 
+    _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }
 
@@ -295,21 +318,26 @@ pub unsafe extern "C" fn yrx_compiler_enable_feature(
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
+        _yrx_set_last_error(Some("`compiler` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     if feature.is_null() {
+        _yrx_set_last_error(Some("`feature` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     }
 
-    let feature = if let Ok(module) = CStr::from_ptr(feature).to_str() {
-        module
-    } else {
-        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    let feature = match CStr::from_ptr(feature).to_str() {
+        Ok(module) => module,
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     compiler.inner.enable_feature(feature);
 
+    _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }
 
@@ -330,34 +358,44 @@ pub unsafe extern "C" fn yrx_compiler_ban_module(
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
+        _yrx_set_last_error(Some("`compiler` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     if module.is_null() || error_title.is_null() || error_msg.is_null() {
+        _yrx_set_last_error(Some(
+            "`module`, `error_title`, and `error_msg` pointers cannot be null",
+        ));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     }
 
-    let module = if let Ok(module) = CStr::from_ptr(module).to_str() {
-        module
-    } else {
-        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    let module = match CStr::from_ptr(module).to_str() {
+        Ok(module) => module,
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
-    let err_title = if let Ok(err_title) = CStr::from_ptr(error_title).to_str()
-    {
-        err_title
-    } else {
-        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    let err_title = match CStr::from_ptr(error_title).to_str() {
+        Ok(err_title) => err_title,
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
-    let err_msg = if let Ok(err_msg) = CStr::from_ptr(error_msg).to_str() {
-        err_msg
-    } else {
-        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    let err_msg = match CStr::from_ptr(error_msg).to_str() {
+        Ok(err_msg) => err_msg,
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     compiler.inner.ban_module(module, err_title, err_msg);
 
+    _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }
 
@@ -376,21 +414,26 @@ pub unsafe extern "C" fn yrx_compiler_new_namespace(
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
+        _yrx_set_last_error(Some("`compiler` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     if namespace.is_null() {
+        _yrx_set_last_error(Some("`namespace` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     }
 
-    let namespace = if let Ok(namespace) = CStr::from_ptr(namespace).to_str() {
-        namespace
-    } else {
-        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    let namespace = match CStr::from_ptr(namespace).to_str() {
+        Ok(namespace) => namespace,
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     compiler.inner.new_namespace(namespace);
 
+    _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }
 
@@ -411,17 +454,21 @@ unsafe fn yrx_compiler_define_global<
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
+        _yrx_set_last_error(Some("`compiler` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
     if ident.is_null() {
+        _yrx_set_last_error(Some("`ident` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     }
 
-    let ident = if let Ok(ident) = CStr::from_ptr(ident).to_str() {
-        ident
-    } else {
-        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    let ident = match CStr::from_ptr(ident).to_str() {
+        Ok(ident) => ident,
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     match compiler.inner.define_global(ident, value) {
@@ -444,13 +491,16 @@ pub unsafe extern "C" fn yrx_compiler_define_global_str(
     value: *const c_char,
 ) -> YRX_RESULT {
     if value.is_null() {
+        _yrx_set_last_error(Some("`value` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     }
 
-    let value = if let Ok(value) = CStr::from_ptr(value).to_str() {
-        value
-    } else {
-        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    let value = match CStr::from_ptr(value).to_str() {
+        Ok(value) => value,
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     yrx_compiler_define_global(compiler, ident, value)
@@ -502,18 +552,24 @@ pub unsafe extern "C" fn yrx_compiler_define_global_json(
     value: *const c_char,
 ) -> YRX_RESULT {
     if value.is_null() {
+        _yrx_set_last_error(Some("`value` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     }
 
-    let value = if let Ok(value) = CStr::from_ptr(value).to_str() {
-        value
-    } else {
-        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    let value = match CStr::from_ptr(value).to_str() {
+        Ok(value) => value,
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     let value: serde_json::Value = match serde_json::from_str(value) {
         Ok(json_value) => json_value,
-        Err(_) => return YRX_RESULT::YRX_INVALID_ARGUMENT,
+        Err(err) => {
+            _yrx_set_last_error(Some(err));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
     };
 
     yrx_compiler_define_global(compiler, ident, value)
@@ -559,11 +615,19 @@ pub unsafe extern "C" fn yrx_compiler_define_global_json(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_errors_json(
     compiler: *mut YRX_COMPILER,
-    buf: &mut *mut YRX_BUFFER,
+    buf: *mut *mut YRX_BUFFER,
 ) -> YRX_RESULT {
+    if buf.is_null() {
+        _yrx_set_last_error(Some("`buf` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
+
+    *buf = std::ptr::null_mut();
+
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
+        _yrx_set_last_error(Some("`compiler` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
@@ -625,11 +689,19 @@ pub unsafe extern "C" fn yrx_compiler_errors_json(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_compiler_warnings_json(
     compiler: *mut YRX_COMPILER,
-    buf: &mut *mut YRX_BUFFER,
+    buf: *mut *mut YRX_BUFFER,
 ) -> YRX_RESULT {
+    if buf.is_null() {
+        _yrx_set_last_error(Some("`buf` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
+
+    *buf = std::ptr::null_mut();
+
     let compiler = if let Some(compiler) = compiler.as_mut() {
         compiler
     } else {
+        _yrx_set_last_error(Some("`compiler` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 

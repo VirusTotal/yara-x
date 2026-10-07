@@ -393,10 +393,9 @@ wasmtime = { workspace = true, default-features = false, features = [
 [target.'cfg(target_family = "wasm")'.dependencies]
 js-sys = "0.3.90"
 wasm-bindgen = { workspace = true }
-# When compiling for WASM the `js` feature is needed. The dependency chain for
-# getrandom is: dsa -> num-bigint-dig -> rand -> rand_core -> getrandom. When
-# `dsa` gets upgraded to a newer version this may not be required anymore.
-getrandom = { version = "0.2.17", features = ["js"]}
+# When compiling for WASM the `wasm_js` feature is needed. The dependency chain
+# for getrandom is: dsa -> crypto-bigint -> getrandom.
+getrandom = { workspace = true, features = ["wasm_js"] }
 
 [build-dependencies]
 anyhow = { workspace = true }

@@ -8,56 +8,6 @@
             "range": {
               "end": {
                 "character": 11,
-                "line": 1
-              },
-              "start": {
-                "character": 0,
-                "line": 1
-              }
-            },
-            "replacement": ""
-          }
-        ]
-      },
-      "message": "duplicate import statement",
-      "range": {
-        "end": {
-          "character": 11,
-          "line": 1
-        },
-        "start": {
-          "character": 0,
-          "line": 1
-        }
-      },
-      "relatedInformation": [
-        {
-          "location": {
-            "range": {
-              "end": {
-                "character": 11,
-                "line": 1
-              },
-              "start": {
-                "character": 0,
-                "line": 1
-              }
-            },
-            "uri": "${test_dir}/diagnostics6.yar"
-          },
-          "message": "duplicate import"
-        }
-      ],
-      "severity": 2
-    },
-    {
-      "code": "duplicate_import",
-      "data": {
-        "patches": [
-          {
-            "range": {
-              "end": {
-                "character": 11,
                 "line": 0
               },
               "start": {
@@ -96,6 +46,56 @@
             "uri": "${test_dir}/diagnostics6.yar"
           },
           "message": "`pe` imported here for the first time"
+        }
+      ],
+      "severity": 2
+    },
+    {
+      "code": "duplicate_import",
+      "data": {
+        "patches": [
+          {
+            "range": {
+              "end": {
+                "character": 11,
+                "line": 1
+              },
+              "start": {
+                "character": 0,
+                "line": 1
+              }
+            },
+            "replacement": ""
+          }
+        ]
+      },
+      "message": "duplicate import statement",
+      "range": {
+        "end": {
+          "character": 11,
+          "line": 1
+        },
+        "start": {
+          "character": 0,
+          "line": 1
+        }
+      },
+      "relatedInformation": [
+        {
+          "location": {
+            "range": {
+              "end": {
+                "character": 11,
+                "line": 1
+              },
+              "start": {
+                "character": 0,
+                "line": 1
+              }
+            },
+            "uri": "${test_dir}/diagnostics6.yar"
+          },
+          "message": "duplicate import"
         }
       ],
       "severity": 2

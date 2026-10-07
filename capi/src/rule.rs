@@ -27,15 +27,22 @@ impl<'a, 'r> YRX_RULE<'a, 'r> {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_rule_identifier(
     rule: *const YRX_RULE,
-    ident: &mut *const u8,
-    len: &mut usize,
+    ident: *mut *const u8,
+    len: *mut usize,
 ) -> YRX_RESULT {
+    if ident.is_null() || len.is_null() {
+        _yrx_set_last_error(Some("`ident` and `len` pointers cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
     if let Some(rule) = rule.as_ref() {
         *ident = rule.0.identifier().as_ptr();
         *len = rule.0.identifier().len();
         _yrx_set_last_error::<String>(None);
         YRX_RESULT::YRX_SUCCESS
     } else {
+        *ident = std::ptr::null();
+        *len = 0;
+        _yrx_set_last_error(Some("`rule` pointer cannot be null"));
         YRX_RESULT::YRX_INVALID_ARGUMENT
     }
 }
@@ -51,15 +58,22 @@ pub unsafe extern "C" fn yrx_rule_identifier(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_rule_namespace(
     rule: *const YRX_RULE,
-    ns: &mut *const u8,
-    len: &mut usize,
+    ns: *mut *const u8,
+    len: *mut usize,
 ) -> YRX_RESULT {
+    if ns.is_null() || len.is_null() {
+        _yrx_set_last_error(Some("`ns` and `len` pointers cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
     if let Some(rule) = rule.as_ref() {
         *ns = rule.0.namespace().as_ptr();
         *len = rule.0.namespace().len();
         _yrx_set_last_error::<String>(None);
         YRX_RESULT::YRX_SUCCESS
     } else {
+        *ns = std::ptr::null();
+        *len = 0;
+        _yrx_set_last_error(Some("`rule` pointer cannot be null"));
         YRX_RESULT::YRX_INVALID_ARGUMENT
     }
 }
@@ -74,8 +88,9 @@ pub unsafe extern "C" fn yrx_rule_namespace(
 ///
 /// The callback also receives a `user_data` pointer that can point to arbitrary
 /// data owned by the user.
-pub type YRX_METADATA_CALLBACK =
-    extern "C" fn(metadata: *const YRX_METADATA, user_data: *mut c_void) -> ();
+pub type YRX_METADATA_CALLBACK = Option<
+    extern "C" fn(metadata: *const YRX_METADATA, user_data: *mut c_void) -> (),
+>;
 
 /// Iterates over the metadata of a rule, calling the callback with a pointer
 /// to a [`YRX_METADATA`] structure for each metadata in the rule.
@@ -93,6 +108,12 @@ pub unsafe extern "C" fn yrx_rule_iter_metadata(
     let metadata_iter = if let Some(rule) = rule.as_ref() {
         rule.0.metadata()
     } else {
+        _yrx_set_last_error(Some("`rule` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    let Some(callback) = callback else {
+        _yrx_set_last_error(Some("`callback` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
@@ -139,6 +160,7 @@ pub unsafe extern "C" fn yrx_rule_iter_metadata(
         )
     }
 
+    _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }
 
@@ -152,8 +174,9 @@ pub unsafe extern "C" fn yrx_rule_iter_metadata(
 ///
 /// The callback also receives a `user_data` pointer that can point to arbitrary
 /// data owned by the user.
-pub type YRX_PATTERN_CALLBACK =
-    extern "C" fn(pattern: *const YRX_PATTERN, user_data: *mut c_void) -> ();
+pub type YRX_PATTERN_CALLBACK = Option<
+    extern "C" fn(pattern: *const YRX_PATTERN, user_data: *mut c_void) -> (),
+>;
 
 /// Iterates over the patterns in a rule, calling the callback with a pointer
 /// to a [`YRX_PATTERN`] structure for each pattern.
@@ -171,6 +194,12 @@ pub unsafe extern "C" fn yrx_rule_iter_patterns(
     let patterns_iter = if let Some(rule) = rule.as_ref() {
         rule.0.patterns()
     } else {
+        _yrx_set_last_error(Some("`rule` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    let Some(callback) = callback else {
+        _yrx_set_last_error(Some("`callback` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
@@ -178,6 +207,7 @@ pub unsafe extern "C" fn yrx_rule_iter_patterns(
         callback(&YRX_PATTERN::new(pattern), user_data)
     }
 
+    _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }
 
@@ -192,7 +222,7 @@ pub unsafe extern "C" fn yrx_rule_iter_patterns(
 /// The callback also receives a `user_data` pointer that can point to arbitrary
 /// data owned by the user.
 pub type YRX_TAG_CALLBACK =
-    extern "C" fn(tag: *const c_char, user_data: *mut c_void) -> ();
+    Option<extern "C" fn(tag: *const c_char, user_data: *mut c_void) -> ()>;
 
 /// Iterates over the tags in a rule, calling the callback with a pointer
 /// to each tag.
@@ -210,6 +240,12 @@ pub unsafe extern "C" fn yrx_rule_iter_tags(
     let tags_iter = if let Some(rule) = rule.as_ref() {
         rule.0.tags()
     } else {
+        _yrx_set_last_error(Some("`rule` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    let Some(callback) = callback else {
+        _yrx_set_last_error(Some("`callback` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
@@ -218,5 +254,6 @@ pub unsafe extern "C" fn yrx_rule_iter_tags(
         callback(tag_name.as_ptr(), user_data)
     }
 
+    _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }

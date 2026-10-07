@@ -1,0 +1,17 @@
+{
+  "kind": 12,
+  "location": {
+    "range": {
+      "end": {
+        "character": 1,
+        "line": 8
+      },
+      "start": {
+        "character": 0,
+        "line": 5
+      }
+    },
+    "uri": "${test_dir}/workspace_symbols_resolve1.yar"
+  },
+  "name": "some_rule_for_resolve_2"
+}

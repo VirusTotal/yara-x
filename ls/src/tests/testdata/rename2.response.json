@@ -18,24 +18,11 @@
         "newText": "newpattern",
         "range": {
           "end": {
-            "character": 51,
+            "character": 12,
             "line": 4
           },
           "start": {
-            "character": 44,
-            "line": 4
-          }
-        }
-      },
-      {
-        "newText": "newpattern",
-        "range": {
-          "end": {
-            "character": 38,
-            "line": 4
-          },
-          "start": {
-            "character": 31,
+            "character": 5,
             "line": 4
           }
         }
@@ -57,11 +44,24 @@
         "newText": "newpattern",
         "range": {
           "end": {
-            "character": 12,
+            "character": 38,
             "line": 4
           },
           "start": {
-            "character": 5,
+            "character": 31,
+            "line": 4
+          }
+        }
+      },
+      {
+        "newText": "newpattern",
+        "range": {
+          "end": {
+            "character": 51,
+            "line": 4
+          },
+          "start": {
+            "character": 44,
             "line": 4
           }
         }

@@ -1,18 +1,5 @@
 [
   {
-    "kind": 3,
-    "range": {
-      "end": {
-        "character": 11,
-        "line": 9
-      },
-      "start": {
-        "character": 6,
-        "line": 9
-      }
-    }
-  },
-  {
     "kind": 2,
     "range": {
       "end": {
@@ -21,6 +8,19 @@
       },
       "start": {
         "character": 19,
+        "line": 9
+      }
+    }
+  },
+  {
+    "kind": 3,
+    "range": {
+      "end": {
+        "character": 11,
+        "line": 9
+      },
+      "start": {
+        "character": 6,
         "line": 9
       }
     }

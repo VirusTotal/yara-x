@@ -5,11 +5,11 @@
         "newText": "c",
         "range": {
           "end": {
-            "character": 7,
+            "character": 34,
             "line": 4
           },
           "start": {
-            "character": 6,
+            "character": 33,
             "line": 4
           }
         }
@@ -31,11 +31,11 @@
         "newText": "c",
         "range": {
           "end": {
-            "character": 34,
+            "character": 7,
             "line": 4
           },
           "start": {
-            "character": 33,
+            "character": 6,
             "line": 4
           }
         }
