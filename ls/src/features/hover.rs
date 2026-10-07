@@ -49,8 +49,12 @@ pub fn hover(
                 .filter(|token| token.kind() == SyntaxKind::DOT)
                 .and_then(|token| prev_non_trivia_token(&token))
                 .and_then(|token| get_type(&token))
-                .and_then(|(ty, _)| {
-                    if let Type::Struct(s) = ty { Some(s) } else { None }
+                .and_then(|resolved| {
+                    if let Type::Struct(s) = resolved.ty {
+                        Some(s)
+                    } else {
+                        None
+                    }
                 });
 
             let field = structure

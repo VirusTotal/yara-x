@@ -20,7 +20,7 @@ use crate::utils::cst_traversal::{
     rule_containing_token, rule_ident, token_at_position,
 };
 
-use crate::utils::modules::{get_type, ty_to_string};
+use crate::utils::modules::{ResolvedType, get_type, ty_to_string};
 use crate::utils::rule_documentation::RuleDocumentationBuilder;
 
 const PATTERN_MODS: &[(SyntaxKind, &[&str])] = &[
@@ -394,9 +394,10 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
         _ => None,
     }?;
 
-    let (current_struct, module_name) = match get_type(&token)? {
-        (Type::Struct(s), module_name) => (s, module_name),
-        _ => return None,
+    let ResolvedType { ty: Type::Struct(current_struct), module: module_name } =
+        get_type(&token)?
+    else {
+        return None;
     };
 
     let root = token.parent().map(|p| p.root())?;
