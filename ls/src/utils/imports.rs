@@ -71,10 +71,13 @@ fn imported_modules(root: &Node<Immutable>) -> HashSet<String> {
 ///    comments.
 /// 3. After the comments at the top of the file, if they are followed by an
 ///    empty line. Those comments are considered a file header.
-/// 4. At the start of the file. This includes the case in which comments
-///    at the top of the file are immediately followed by a rule, as those
-///    comments most likely describe the rule and should stay attached to
-///    it.
+/// 4. After the block comment (`/* ... */`) at the very top of the file, if
+///    any. Block comments at the top of the file are usually file headers
+///    (e.g. license or copyright notices) and imports should go below them.
+/// 5. At the start of the file. This includes the case in which line
+///    comments (`// ...`) at the top of the file are immediately followed by
+///    a rule, as those comments most likely describe the rule and should
+///    stay attached to it.
 fn import_insertion_point(root: &Node<Immutable>) -> Position {
     let line_start =
         |line: usize| Position::new(line.try_into().unwrap_or(u32::MAX), 0);
@@ -87,19 +90,36 @@ fn import_insertion_point(root: &Node<Immutable>) -> Position {
 
     let mut seen_comment = false;
     let mut newlines_in_a_row = 0;
+    // True right after a block comment that is the first thing in the file.
+    let mut after_block_header = false;
+    // Line that follows the block comment at the top of the file, if any.
+    let mut block_header_end = None;
 
     for child in root.children_with_tokens() {
         match child.kind() {
             SyntaxKind::COMMENT => {
+                if !seen_comment
+                    && child
+                        .clone()
+                        .into_token()
+                        .is_some_and(|t| t.text().starts_with("/*"))
+                {
+                    after_block_header = true;
+                }
                 seen_comment = true;
                 newlines_in_a_row = 0;
             }
             SyntaxKind::WHITESPACE => {}
             SyntaxKind::NEWLINE => {
+                let line = child.start_pos::<Utf16>().line;
+                if after_block_header {
+                    block_header_end = Some(line + 1);
+                    after_block_header = false;
+                }
                 newlines_in_a_row += 1;
                 // An empty line after the header comment, insert there.
                 if seen_comment && newlines_in_a_row > 1 {
-                    return line_start(child.start_pos::<Utf16>().line);
+                    return line_start(line);
                 }
             }
             SyntaxKind::INCLUDE_STMT => {
@@ -109,7 +129,7 @@ fn import_insertion_point(root: &Node<Immutable>) -> Position {
         }
     }
 
-    Position::default()
+    block_header_end.map(line_start).unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -183,16 +203,37 @@ mod tests {
         // Include preceded only by comments: insert before it.
         assert_eq!(insertion_line("// header\ninclude \"foo.yar\""), 1);
 
-        // Comment immediately followed by a rule: the comment most likely
-        // describes the rule, insert above the comment.
+        // Line comment immediately followed by a rule: the comment most
+        // likely describes the rule, insert above the comment.
         assert_eq!(
             insertion_line("// comment\nrule foo { condition: true }"),
             0
         );
+
+        // Block comment at the top of the file immediately followed by a
+        // rule: the comment is a file header, insert below it.
         assert_eq!(
-            insertion_line("/* comment */\nrule foo { condition: true }"),
+            insertion_line("/* license */\nrule foo { condition: true }"),
+            1
+        );
+        assert_eq!(
+            insertion_line(
+                "/*\n * Copyright\n */\n// Rule comment\nrule foo { condition: true }"
+            ),
+            3
+        );
+
+        // A block comment that is not the first comment in the file is not
+        // a header.
+        assert_eq!(
+            insertion_line(
+                "// comment\n/* comment */\nrule foo { condition: true }"
+            ),
             0
         );
+
+        // A file consisting only of a block comment without trailing newline.
+        assert_eq!(insertion_line("/* comment */"), 0);
 
         // Several line comments followed by an empty line.
         assert_eq!(
