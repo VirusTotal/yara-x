@@ -150,6 +150,31 @@ Integers are always 64-bits long, even the results of functions like `uint8`,
 into account, specially while using bitwise operators (for example, `~0x01` is
 not `0xFE` but `0xFFFFFFFFFFFFFFFE`).
 
+#### Signed and unsigned integers
+
+Integers are signed by default, with values in the range
+[-9223372036854775808, 9223372036854775807]. Integer literals that don't fit
+in that range, but fit in a 64-bit unsigned integer, are unsigned (e.g:
+`0xFFFFFFFFFFFFFFFF` or `18446744073709551615`).
+
+When signed and unsigned integers are mixed, the following rules apply:
+
+* Comparisons (`==`, `!=`, `<`, `<=`, `>`, `>=`) are mathematically exact. For
+  instance, `0xFFFFFFFFFFFFFFFF > -1` is always true, and an unsigned integer
+  is never equal to a negative signed integer.
+* Arithmetic and bitwise operations (`+`, `-`, `*`, `\`, `%`, `&`, `|`, `^`)
+  produce an unsigned result only if both operands are unsigned, or if one of
+  them is unsigned and the other one is a non-negative constant. Otherwise,
+  the result is signed. Results wrap around on overflow at runtime, and
+  constant expressions whose result doesn't fit in the result type are
+  rejected by the compiler.
+* In shift operations (`<<`, `>>`), the result has the signedness of the left
+  operand. Right shifts of unsigned integers are logical (zeroes are shifted
+  in), while right shifts of signed integers are arithmetic.
+* Unary minus (`-`) always produces a signed integer, and bitwise not (`~`)
+  preserves signedness. The compiler emits a warning when any of them is
+  applied to an unsigned integer.
+
 ### Float literals
 
 Float literals are represented in the standard notation (scientific notation is not

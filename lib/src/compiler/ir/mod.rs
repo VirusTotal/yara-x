@@ -1116,7 +1116,10 @@ impl IR {
         inclusive: bool,
     ) -> Option<Bound<i64>> {
         match c {
-            TypeValue::Integer { value: Const(v), .. } => {
+            // Unsigned constants that don't fit in an `i64` are ignored.
+            TypeValue::Integer { value: Const(v), unsigned, .. }
+                if !(*unsigned && *v < 0) =>
+            {
                 if inclusive {
                     Some(Bound::Included(*v))
                 } else {
@@ -1140,7 +1143,10 @@ impl IR {
         inclusive: bool,
     ) -> Option<Bound<i64>> {
         match c {
-            TypeValue::Integer { value: Const(v), .. } => {
+            // Unsigned constants that don't fit in an `i64` are ignored.
+            TypeValue::Integer { value: Const(v), unsigned, .. }
+                if !(*unsigned && *v < 0) =>
+            {
                 if inclusive {
                     Some(Bound::Included(*v))
                 } else {
@@ -1804,8 +1810,12 @@ impl IR {
     pub fn minus(&mut self, operand: ExprId) -> ExprId {
         if self.constant_folding {
             match self.get(operand).type_value() {
+                // The result of negating an integer is always signed, even
+                // if the operand is unsigned. Overflows wrap around.
                 TypeValue::Integer { value: Const(v), .. } => {
-                    return self.constant(TypeValue::const_integer_from(-v));
+                    return self.constant(TypeValue::const_integer_from(
+                        v.wrapping_neg(),
+                    ));
                 }
                 TypeValue::Float { value: Const(v), .. } => {
                     return self.constant(TypeValue::const_float_from(-v));
@@ -1837,94 +1847,110 @@ impl IR {
 
     /// Creates a new [`Expr::BitwiseNot`].
     pub fn bitwise_not(&mut self, operand: ExprId) -> ExprId {
+        let type_value = self.get(operand).type_value();
+        let is_unsigned = type_value.is_unsigned();
+
         if self.constant_folding
-            && let Some(val) = self.get(operand).try_as_const_integer()
+            && let TypeValue::Integer { value: Const(val), .. } = type_value
         {
-            return self.constant(TypeValue::const_integer_from(!val));
+            return self.constant(TypeValue::const_integer_from_bits(
+                !val,
+                is_unsigned,
+            ));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[operand.0 as usize] = expr_id;
         self.parents.push(ExprId::none());
-        self.nodes.push(Expr::BitwiseNot { operand });
+        self.nodes.push(Expr::BitwiseNot { is_unsigned, operand });
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
     }
 
     /// Creates a new [`Expr::BitwiseAnd`].
     pub fn bitwise_and(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let is_unsigned = self.is_unsigned_result(&[lhs, rhs]);
+
         if self.constant_folding
-            && let (Some(lhs_val), Some(rhs_val)) = (
-                self.get(lhs).try_as_const_integer(),
-                self.get(rhs).try_as_const_integer(),
-            )
+            && let (Some(lhs_val), Some(rhs_val)) =
+                (self.const_integer_bits(lhs), self.const_integer_bits(rhs))
         {
-            return self
-                .constant(TypeValue::const_integer_from(lhs_val & rhs_val));
+            return self.constant(TypeValue::const_integer_from_bits(
+                lhs_val & rhs_val,
+                is_unsigned,
+            ));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[lhs.0 as usize] = expr_id;
         self.parents[rhs.0 as usize] = expr_id;
         self.parents.push(ExprId::none());
-        self.nodes.push(Expr::BitwiseAnd { lhs, rhs });
+        self.nodes.push(Expr::BitwiseAnd { is_unsigned, lhs, rhs });
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
     }
 
     /// Creates a new [`Expr::BitwiseOr`].
     pub fn bitwise_or(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let is_unsigned = self.is_unsigned_result(&[lhs, rhs]);
+
         if self.constant_folding
-            && let (Some(lhs_val), Some(rhs_val)) = (
-                self.get(lhs).try_as_const_integer(),
-                self.get(rhs).try_as_const_integer(),
-            )
+            && let (Some(lhs_val), Some(rhs_val)) =
+                (self.const_integer_bits(lhs), self.const_integer_bits(rhs))
         {
-            return self
-                .constant(TypeValue::const_integer_from(lhs_val | rhs_val));
+            return self.constant(TypeValue::const_integer_from_bits(
+                lhs_val | rhs_val,
+                is_unsigned,
+            ));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[lhs.0 as usize] = expr_id;
         self.parents[rhs.0 as usize] = expr_id;
         self.parents.push(ExprId::none());
-        self.nodes.push(Expr::BitwiseOr { lhs, rhs });
+        self.nodes.push(Expr::BitwiseOr { is_unsigned, lhs, rhs });
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
     }
 
     /// Creates a new [`Expr::BitwiseXor`].
     pub fn bitwise_xor(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        let is_unsigned = self.is_unsigned_result(&[lhs, rhs]);
+
         if self.constant_folding
-            && let (Some(lhs_val), Some(rhs_val)) = (
-                self.get(lhs).try_as_const_integer(),
-                self.get(rhs).try_as_const_integer(),
-            )
+            && let (Some(lhs_val), Some(rhs_val)) =
+                (self.const_integer_bits(lhs), self.const_integer_bits(rhs))
         {
-            return self
-                .constant(TypeValue::const_integer_from(lhs_val ^ rhs_val));
+            return self.constant(TypeValue::const_integer_from_bits(
+                lhs_val ^ rhs_val,
+                is_unsigned,
+            ));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[lhs.0 as usize] = expr_id;
         self.parents[rhs.0 as usize] = expr_id;
         self.parents.push(ExprId::none());
-        self.nodes.push(Expr::BitwiseXor { lhs, rhs });
+        self.nodes.push(Expr::BitwiseXor { is_unsigned, lhs, rhs });
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
     }
 
     /// Creates a new [`Expr::Shl`].
     pub fn shl(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        // The signedness of the result is the signedness of the left operand.
+        let is_unsigned = self.get(lhs).type_value().is_unsigned();
+
         if self.constant_folding
             && let (Some(lhs_val), Some(rhs_val)) = (
-                self.get(lhs).try_as_const_integer(),
-                self.get(rhs).try_as_const_integer(),
+                self.const_integer_bits(lhs),
+                self.get(rhs).type_value().try_as_const_i128(),
             )
             && rhs_val >= 0
         {
-            return self.constant(TypeValue::const_integer_from(
+            return self.constant(TypeValue::const_integer_from_bits(
                 if rhs_val >= 64 { 0 } else { lhs_val << rhs_val },
+                is_unsigned,
             ));
         }
 
@@ -1932,22 +1958,35 @@ impl IR {
         self.parents[lhs.0 as usize] = expr_id;
         self.parents[rhs.0 as usize] = expr_id;
         self.parents.push(ExprId::none());
-        self.nodes.push(Expr::Shl { lhs, rhs });
+        self.nodes.push(Expr::Shl { is_unsigned, lhs, rhs });
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
     }
 
     /// Creates a new [`Expr::Shr`].
     pub fn shr(&mut self, lhs: ExprId, rhs: ExprId) -> ExprId {
+        // The signedness of the result is the signedness of the left operand.
+        // Unsigned integers are shifted logically, while signed integers are
+        // shifted arithmetically.
+        let is_unsigned = self.get(lhs).type_value().is_unsigned();
+
         if self.constant_folding
             && let (Some(lhs_val), Some(rhs_val)) = (
-                self.get(lhs).try_as_const_integer(),
-                self.get(rhs).try_as_const_integer(),
+                self.const_integer_bits(lhs),
+                self.get(rhs).type_value().try_as_const_i128(),
             )
             && rhs_val >= 0
         {
-            return self.constant(TypeValue::const_integer_from(
-                if rhs_val >= 64 { 0 } else { lhs_val >> rhs_val },
+            let value = if rhs_val >= 64 {
+                0
+            } else if is_unsigned {
+                ((lhs_val as u64) >> rhs_val) as i64
+            } else {
+                lhs_val >> rhs_val
+            };
+            return self.constant(TypeValue::const_integer_from_bits(
+                value,
+                is_unsigned,
             ));
         }
 
@@ -1955,7 +1994,7 @@ impl IR {
         self.parents[lhs.0 as usize] = expr_id;
         self.parents[rhs.0 as usize] = expr_id;
         self.parents.push(ExprId::none());
-        self.nodes.push(Expr::Shr { lhs, rhs });
+        self.nodes.push(Expr::Shr { is_unsigned, lhs, rhs });
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
     }
@@ -1966,11 +2005,15 @@ impl IR {
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
 
+        let is_unsigned = !is_float && self.is_unsigned_result(&operands);
+
         if self.constant_folding
             && let Some(value) = self.fold_arithmetic(
                 operands.as_slice(),
                 is_float,
+                is_unsigned,
                 |acc, x| acc + x,
+                |acc, x| acc.checked_add(x),
             )?
         {
             return Ok(self.constant(value));
@@ -1981,7 +2024,7 @@ impl IR {
             self.parents[operand.0 as usize] = expr_id;
         }
         self.parents.push(ExprId::none());
-        self.nodes.push(Expr::Add { operands, is_float });
+        self.nodes.push(Expr::Add { operands, is_float, is_unsigned });
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         Ok(expr_id)
     }
@@ -1992,11 +2035,15 @@ impl IR {
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
 
+        let is_unsigned = !is_float && self.is_unsigned_result(&operands);
+
         if self.constant_folding
             && let Some(value) = self.fold_arithmetic(
                 operands.as_slice(),
                 is_float,
+                is_unsigned,
                 |acc, x| acc - x,
+                |acc, x| acc.checked_sub(x),
             )?
         {
             return Ok(self.constant(value));
@@ -2007,7 +2054,7 @@ impl IR {
             self.parents[operand.0 as usize] = expr_id;
         }
         self.parents.push(ExprId::none());
-        self.nodes.push(Expr::Sub { operands, is_float });
+        self.nodes.push(Expr::Sub { operands, is_float, is_unsigned });
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         Ok(expr_id)
     }
@@ -2018,11 +2065,15 @@ impl IR {
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
 
+        let is_unsigned = !is_float && self.is_unsigned_result(&operands);
+
         if self.constant_folding
             && let Some(value) = self.fold_arithmetic(
                 operands.as_slice(),
                 is_float,
+                is_unsigned,
                 |acc, x| acc * x,
+                |acc, x| acc.checked_mul(x),
             )?
         {
             return Ok(self.constant(value));
@@ -2033,7 +2084,7 @@ impl IR {
             self.parents[operand.0 as usize] = expr_id;
         }
         self.parents.push(ExprId::none());
-        self.nodes.push(Expr::Mul { operands, is_float });
+        self.nodes.push(Expr::Mul { operands, is_float, is_unsigned });
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         Ok(expr_id)
     }
@@ -2043,24 +2094,26 @@ impl IR {
         let is_float = operands
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
+        let is_unsigned = !is_float && self.is_unsigned_result(&operands);
         let expr_id = ExprId::from(self.nodes.len());
         for operand in operands.iter() {
             self.parents[operand.0 as usize] = expr_id;
         }
         self.parents.push(ExprId::none());
-        self.nodes.push(Expr::Div { operands, is_float });
+        self.nodes.push(Expr::Div { operands, is_float, is_unsigned });
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         Ok(expr_id)
     }
 
     /// Creates a new [`Expr::Mod`].
     pub fn modulus(&mut self, operands: Vec<ExprId>) -> Result<ExprId, Error> {
+        let is_unsigned = self.is_unsigned_result(&operands);
         let expr_id = ExprId::from(self.nodes.len());
         for operand in operands.iter() {
             self.parents[operand.0 as usize] = expr_id;
         }
         self.parents.push(ExprId::none());
-        self.nodes.push(Expr::Mod { operands });
+        self.nodes.push(Expr::Mod { operands, is_unsigned });
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         Ok(expr_id)
     }
@@ -2595,14 +2648,48 @@ impl IR {
 }
 
 impl IR {
-    fn fold_arithmetic<F>(
+    /// Returns true if the result of an integer operation with the given
+    /// operands is an unsigned integer.
+    ///
+    /// The result is unsigned if at least one of the operands is unsigned,
+    /// and the remaining ones are either unsigned or non-negative constants.
+    /// This means that non-negative constants adopt the signedness of the
+    /// other operands (e.g: `uint64(0) + 1` is unsigned, but `1 + 1` is
+    /// signed). In all other cases the result is signed.
+    pub(crate) fn is_unsigned_result(&self, operands: &[ExprId]) -> bool {
+        let mut any_unsigned = false;
+        for operand in operands {
+            let type_value = self.get(*operand).type_value();
+            if type_value.is_unsigned() {
+                any_unsigned = true;
+            } else if !matches!(type_value.try_as_const_i128(), Some(v) if v >= 0)
+            {
+                return false;
+            }
+        }
+        any_unsigned
+    }
+
+    /// If the expression is a constant integer, returns the bit pattern of
+    /// its value, regardless of its signedness.
+    fn const_integer_bits(&self, expr: ExprId) -> Option<i64> {
+        match self.get(expr).type_value() {
+            TypeValue::Integer { value: Const(v), .. } => Some(v),
+            _ => None,
+        }
+    }
+
+    fn fold_arithmetic<F, I>(
         &mut self,
         operands: &[ExprId],
         is_float: bool,
-        f: F,
+        is_unsigned: bool,
+        float_op: F,
+        mut int_op: I,
     ) -> Result<Option<TypeValue>, Error>
     where
         F: FnMut(f64, f64) -> f64,
+        I: FnMut(i128, i128) -> Option<i128>,
     {
         debug_assert!(!operands.is_empty());
 
@@ -2611,25 +2698,46 @@ impl IR {
             return Ok(None);
         }
 
-        // Fold all operands into a single value.
-        let folded = operands
-            .iter()
-            .map(|op| match self.get(*op).type_value() {
-                TypeValue::Integer { value: Const(v), .. } => v as f64,
-                TypeValue::Float { value: Const(v) } => v,
-                _ => unreachable!(),
-            })
-            .reduce(f) // It's safe to call unwrap because there must be at least
-            // one operand.
-            .unwrap();
-
         if is_float {
-            Ok(Some(TypeValue::const_float_from(folded)))
-        } else if folded >= i64::MIN as f64 && folded <= i64::MAX as f64 {
-            Ok(Some(TypeValue::const_integer_from(folded as i64)))
-        } else {
-            Err(Error::NumberOutOfRange)
+            // Fold all operands into a single value. It's safe to call
+            // unwrap because there must be at least one operand.
+            let folded = operands
+                .iter()
+                .map(|op| match self.get(*op).type_value() {
+                    TypeValue::Integer {
+                        value: Const(v), unsigned, ..
+                    } => {
+                        if unsigned {
+                            v as u64 as f64
+                        } else {
+                            v as f64
+                        }
+                    }
+                    TypeValue::Float { value: Const(v) } => v,
+                    _ => unreachable!(),
+                })
+                .reduce(float_op)
+                .unwrap();
+
+            return Ok(Some(TypeValue::const_float_from(folded)));
         }
+
+        // Integers are folded using exact arithmetic. Folding fails if the
+        // result doesn't fit in the type of the result.
+        let mut values = operands
+            .iter()
+            .map(|op| self.get(*op).type_value().try_as_const_i128().unwrap());
+
+        // It's safe to call unwrap because there must be at least one operand.
+        let first = values.next().unwrap();
+
+        values
+            .try_fold(first, &mut int_op)
+            .and_then(|folded| {
+                TypeValue::const_integer_from_i128(folded, is_unsigned)
+            })
+            .map(Some)
+            .ok_or(Error::NumberOutOfRange)
     }
 }
 
@@ -2859,38 +2967,42 @@ pub(crate) enum Expr {
     /// Arithmetic minus.
     Minus { is_float: bool, operand: ExprId },
 
+    // In the integer operations below, `is_unsigned` indicates that the
+    // result of the operation is an unsigned integer. See
+    // `IR::is_unsigned_result` for the rules that determine the signedness
+    // of the result.
     /// Arithmetic addition (`+`) expression.
-    Add { is_float: bool, operands: Vec<ExprId> },
+    Add { is_float: bool, is_unsigned: bool, operands: Vec<ExprId> },
 
     /// Arithmetic subtraction (`-`) expression.
-    Sub { is_float: bool, operands: Vec<ExprId> },
+    Sub { is_float: bool, is_unsigned: bool, operands: Vec<ExprId> },
 
     /// Arithmetic multiplication (`*`) expression.
-    Mul { is_float: bool, operands: Vec<ExprId> },
+    Mul { is_float: bool, is_unsigned: bool, operands: Vec<ExprId> },
 
     /// Arithmetic division (`\`) expression.
-    Div { is_float: bool, operands: Vec<ExprId> },
+    Div { is_float: bool, is_unsigned: bool, operands: Vec<ExprId> },
 
     /// Arithmetic modulus (`%`) expression.
-    Mod { operands: Vec<ExprId> },
+    Mod { is_unsigned: bool, operands: Vec<ExprId> },
 
     /// Bitwise not (`~`) expression.
-    BitwiseNot { operand: ExprId },
+    BitwiseNot { is_unsigned: bool, operand: ExprId },
 
     /// Bitwise and (`&`) expression.
-    BitwiseAnd { rhs: ExprId, lhs: ExprId },
+    BitwiseAnd { is_unsigned: bool, rhs: ExprId, lhs: ExprId },
 
     /// Bitwise shift left (`<<`) expression.
-    Shl { rhs: ExprId, lhs: ExprId },
+    Shl { is_unsigned: bool, rhs: ExprId, lhs: ExprId },
 
     /// Bitwise shift right (`>>`) expression.
-    Shr { rhs: ExprId, lhs: ExprId },
+    Shr { is_unsigned: bool, rhs: ExprId, lhs: ExprId },
 
     /// Bitwise or (`|`) expression.
-    BitwiseOr { rhs: ExprId, lhs: ExprId },
+    BitwiseOr { is_unsigned: bool, rhs: ExprId, lhs: ExprId },
 
     /// Bitwise xor (`^`) expression.
-    BitwiseXor { rhs: ExprId, lhs: ExprId },
+    BitwiseXor { is_unsigned: bool, rhs: ExprId, lhs: ExprId },
 
     /// Equal (`==`) expression.
     Eq { rhs: ExprId, lhs: ExprId },
@@ -3349,7 +3461,7 @@ impl Expr {
             Expr::Not { operand }
             | Expr::Minus { operand, .. }
             | Expr::Defined { operand }
-            | Expr::BitwiseNot { operand } => {
+            | Expr::BitwiseNot { operand, .. } => {
                 if *operand == child {
                     *operand = replacement;
                 }
@@ -3365,11 +3477,11 @@ impl Expr {
                 replace_in_slice(operands.as_mut_slice());
             }
 
-            Expr::BitwiseAnd { lhs, rhs }
-            | Expr::Shl { lhs, rhs }
-            | Expr::Shr { lhs, rhs }
-            | Expr::BitwiseOr { lhs, rhs }
-            | Expr::BitwiseXor { lhs, rhs }
+            Expr::BitwiseAnd { lhs, rhs, .. }
+            | Expr::Shl { lhs, rhs, .. }
+            | Expr::Shr { lhs, rhs, .. }
+            | Expr::BitwiseOr { lhs, rhs, .. }
+            | Expr::BitwiseXor { lhs, rhs, .. }
             | Expr::Eq { lhs, rhs }
             | Expr::Ne { lhs, rhs }
             | Expr::Lt { lhs, rhs }
@@ -3588,12 +3700,28 @@ impl Expr {
                 }
             }
 
-            Expr::Add { is_float, .. }
-            | Expr::Sub { is_float, .. }
-            | Expr::Mul { is_float, .. }
-            | Expr::Div { is_float, .. } => {
+            Expr::Add { is_float, is_unsigned, .. }
+            | Expr::Sub { is_float, is_unsigned, .. }
+            | Expr::Mul { is_float, is_unsigned, .. }
+            | Expr::Div { is_float, is_unsigned, .. } => {
                 if *is_float {
                     TypeValue::unknown_float()
+                } else if *is_unsigned {
+                    TypeValue::unknown_unsigned()
+                } else {
+                    TypeValue::unknown_integer()
+                }
+            }
+
+            Expr::Mod { is_unsigned, .. }
+            | Expr::BitwiseNot { is_unsigned, .. }
+            | Expr::BitwiseAnd { is_unsigned, .. }
+            | Expr::BitwiseOr { is_unsigned, .. }
+            | Expr::BitwiseXor { is_unsigned, .. }
+            | Expr::Shl { is_unsigned, .. }
+            | Expr::Shr { is_unsigned, .. } => {
+                if *is_unsigned {
+                    TypeValue::unknown_unsigned()
                 } else {
                     TypeValue::unknown_integer()
                 }
@@ -3605,14 +3733,7 @@ impl Expr {
             | Expr::PatternOffset { .. }
             | Expr::PatternOffsetVar { .. }
             | Expr::PatternLength { .. }
-            | Expr::PatternLengthVar { .. }
-            | Expr::Mod { .. }
-            | Expr::BitwiseNot { .. }
-            | Expr::BitwiseAnd { .. }
-            | Expr::BitwiseOr { .. }
-            | Expr::BitwiseXor { .. }
-            | Expr::Shl { .. }
-            | Expr::Shr { .. } => TypeValue::unknown_integer(),
+            | Expr::PatternLengthVar { .. } => TypeValue::unknown_integer(),
 
             Expr::Symbol(symbol) => symbol.type_value().clone(),
             Expr::FieldAccess(field_access) => field_access.type_value.clone(),
@@ -3634,11 +3755,12 @@ impl Expr {
 
     /// If the expression is a constant integer, returns its value, if not
     /// returns [`None`]
+    ///
+    /// Also returns [`None`] for unsigned constants that don't fit in an
+    /// `i64`.
     pub fn try_as_const_integer(&self) -> Option<i64> {
-        if let TypeValue::Integer { value: Const(v), .. } = self.type_value() {
-            Some(v)
-        } else {
-            None
-        }
+        self.type_value()
+            .try_as_const_i128()
+            .and_then(|v| i64::try_from(v).ok())
     }
 }

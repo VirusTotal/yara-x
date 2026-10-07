@@ -1,0 +1,14 @@
+rule test_1 {
+  condition:
+    -0xFFFFFFFFFFFFFFFF == 1
+}
+
+rule test_2 {
+  condition:
+    ~0xFFFFFFFFFFFFFFFF == 0
+}
+
+rule test_3 {
+  condition:
+    uint32(0) == 0xFFFFFFFFFFFFFFFF
+}

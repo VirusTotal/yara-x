@@ -175,9 +175,11 @@ fn replace_child() {
     expr.replace_child(c1, repl);
     assert!(matches!(expr, Expr::Defined { operand } if operand == repl));
 
-    let mut expr = Expr::BitwiseNot { operand: c1 };
+    let mut expr = Expr::BitwiseNot { operand: c1, is_unsigned: false };
     expr.replace_child(c1, repl);
-    assert!(matches!(expr, Expr::BitwiseNot { operand } if operand == repl));
+    assert!(
+        matches!(expr, Expr::BitwiseNot { operand, .. } if operand == repl)
+    );
 
     // Expr::And, Expr::Or, Expr::Add, Expr::Sub, Expr::Mul, Expr::Div, Expr::Mod
     let mut expr = Expr::And { operands: vec![c1, c2] };
@@ -192,31 +194,47 @@ fn replace_child() {
         matches!(expr, Expr::Or { operands } if operands == vec![repl, c2])
     );
 
-    let mut expr = Expr::Add { operands: vec![c1, c2], is_float: false };
+    let mut expr = Expr::Add {
+        operands: vec![c1, c2],
+        is_float: false,
+        is_unsigned: false,
+    };
     expr.replace_child(c1, repl);
     assert!(
         matches!(expr, Expr::Add { operands, .. } if operands == vec![repl, c2])
     );
 
-    let mut expr = Expr::Sub { operands: vec![c1, c2], is_float: false };
+    let mut expr = Expr::Sub {
+        operands: vec![c1, c2],
+        is_float: false,
+        is_unsigned: false,
+    };
     expr.replace_child(c1, repl);
     assert!(
         matches!(expr, Expr::Sub { operands, .. } if operands == vec![repl, c2])
     );
 
-    let mut expr = Expr::Mul { operands: vec![c1, c2], is_float: false };
+    let mut expr = Expr::Mul {
+        operands: vec![c1, c2],
+        is_float: false,
+        is_unsigned: false,
+    };
     expr.replace_child(c1, repl);
     assert!(
         matches!(expr, Expr::Mul { operands, .. } if operands == vec![repl, c2])
     );
 
-    let mut expr = Expr::Div { operands: vec![c1, c2], is_float: false };
+    let mut expr = Expr::Div {
+        operands: vec![c1, c2],
+        is_float: false,
+        is_unsigned: false,
+    };
     expr.replace_child(c1, repl);
     assert!(
         matches!(expr, Expr::Div { operands, .. } if operands == vec![repl, c2])
     );
 
-    let mut expr = Expr::Mod { operands: vec![c1, c2] };
+    let mut expr = Expr::Mod { operands: vec![c1, c2], is_unsigned: false };
     expr.replace_child(c1, repl);
     assert!(
         matches!(expr, Expr::Mod { operands, .. } if operands == vec![repl, c2])

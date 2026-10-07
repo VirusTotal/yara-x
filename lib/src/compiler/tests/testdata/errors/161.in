@@ -1,0 +1,4 @@
+rule test {
+  condition:
+    0xFFFFFFFFFFFFFFFF + 1 == 0
+}

@@ -518,7 +518,7 @@ impl TypeValue {
     ///
     /// Returns [`None`] if the [`TypeValue`] is not an unsigned integer, or
     /// if its value is unknown.
-    // TODO: remove when unsigned integers are produced by the language (#26).
+    // TODO: remove when unsigned integers are produced by modules (#26).
     #[allow(dead_code)]
     pub fn try_as_unsigned(&self) -> Option<u64> {
         if let TypeValue::Integer { value, unsigned: true, .. } = self {
@@ -528,9 +528,51 @@ impl TypeValue {
         }
     }
 
+    /// Returns the exact value of a constant integer as an `i128`, taking
+    /// signedness into account.
+    ///
+    /// Returns [`None`] if the [`TypeValue`] is not a constant integer.
+    pub fn try_as_const_i128(&self) -> Option<i128> {
+        match self {
+            TypeValue::Integer {
+                value: Value::Const(v), unsigned, ..
+            } => {
+                if *unsigned {
+                    Some(*v as u64 as i128)
+                } else {
+                    Some(*v as i128)
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// Creates a constant integer from an `i128`, with the given signedness.
+    ///
+    /// Returns [`None`] if the value doesn't fit in an `i64` (for signed
+    /// integers) or an `u64` (for unsigned integers).
+    pub fn const_integer_from_i128(
+        value: i128,
+        unsigned: bool,
+    ) -> Option<Self> {
+        if unsigned {
+            u64::try_from(value).ok().map(Self::const_unsigned_from)
+        } else {
+            i64::try_from(value).ok().map(Self::const_integer_from)
+        }
+    }
+
+    /// Creates a constant integer from the bit pattern `bits`, with the
+    /// given signedness.
+    pub fn const_integer_from_bits(bits: i64, unsigned: bool) -> Self {
+        Self::Integer {
+            value: Value::Const(bits),
+            constraints: None,
+            unsigned,
+        }
+    }
+
     /// Returns true if the [`TypeValue`] is an unsigned integer.
-    // TODO: remove when unsigned integers are produced by the language (#26).
-    #[allow(dead_code)]
     #[inline]
     pub fn is_unsigned(&self) -> bool {
         matches!(self, TypeValue::Integer { unsigned: true, .. })
@@ -637,7 +679,7 @@ impl TypeValue {
     }
 
     /// Creates a new [`TypeValue`] consisting of a variable unsigned integer.
-    // TODO: remove when unsigned integers are produced by the language (#26).
+    // TODO: remove when unsigned integers are produced by modules (#26).
     #[allow(dead_code)]
     #[inline]
     pub fn var_unsigned_from<T: Into<u64>>(i: T) -> Self {
@@ -649,8 +691,6 @@ impl TypeValue {
     }
 
     /// Creates a new [`TypeValue`] consisting of a constant unsigned integer.
-    // TODO: remove when unsigned integers are produced by the language (#26).
-    #[allow(dead_code)]
     #[inline]
     pub fn const_unsigned_from<T: Into<u64>>(i: T) -> Self {
         Self::Integer {

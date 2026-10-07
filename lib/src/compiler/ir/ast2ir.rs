@@ -508,7 +508,12 @@ fn expr_from_ast<'src>(
         }
 
         ast::Expr::LiteralInteger(lit) => {
-            ctx.ir.constant(TypeValue::const_integer_from(lit.value))
+            if lit.unsigned {
+                ctx.ir
+                    .constant(TypeValue::const_unsigned_from(lit.value as u64))
+            } else {
+                ctx.ir.constant(TypeValue::const_integer_from(lit.value))
+            }
         }
 
         ast::Expr::LiteralFloat(lit) => {
@@ -1593,16 +1598,25 @@ fn for_in_expr_from_ast<'src>(
             // type as the first item in the tuple, but we don't want to
             // clone its actual value if known. The actual value for the
             // loop variable is not known until the loop is executed.
-            (
-                vec![
-                    expressions
-                        .first()
-                        .map(|node_idx| ctx.ir.get(*node_idx).type_value())
-                        .unwrap()
-                        .clone_without_value(),
-                ],
-                Type::Unknown,
-            )
+            let mut type_value = expressions
+                .first()
+                .map(|node_idx| ctx.ir.get(*node_idx).type_value())
+                .unwrap()
+                .clone_without_value();
+
+            // If the items are integers, the loop variable is unsigned when
+            // the items are unsigned or non-negative constants, and at least
+            // one of them is unsigned. The same rule used for determining
+            // the signedness of arithmetic operations.
+            if let TypeValue::Integer { .. } = type_value {
+                type_value = if ctx.ir.is_unsigned_result(expressions) {
+                    TypeValue::unknown_unsigned()
+                } else {
+                    TypeValue::unknown_integer()
+                };
+            }
+
+            (vec![type_value], Type::Unknown)
         }
         Iterable::Expr(expr) => match ctx.ir.get(*expr).type_value() {
             TypeValue::Array(array) => (vec![array.deputy()], Type::Array),
@@ -1832,12 +1846,9 @@ fn range_from_ast<'src>(
     // that lower_bound <= upper_bound. If they are not know (because they are
     // variables, for example) we can't raise an error at compile time, but it
     // will be handled at scan time.
-    if let (
-        TypeValue::Integer { value: Const(lower_bound), .. },
-        TypeValue::Integer { value: Const(upper_bound), .. },
-    ) = (
-        ctx.ir.get(lower_bound).type_value(),
-        ctx.ir.get(upper_bound).type_value(),
+    if let (Some(lower_bound), Some(upper_bound)) = (
+        ctx.ir.get(lower_bound).type_value().try_as_const_i128(),
+        ctx.ir.get(upper_bound).type_value().try_as_const_i128(),
     ) && lower_bound > upper_bound
     {
         return Err(InvalidRange::build(
@@ -1861,8 +1872,7 @@ fn non_negative_integer_from_ast<'src>(
 
     check_type(ctx, expr, span.clone(), &[Type::Integer])?;
 
-    let type_value = ctx.ir.get(expr).type_value();
-    if let TypeValue::Integer { value: Const(value), .. } = type_value
+    if let Some(value) = ctx.ir.get(expr).type_value().try_as_const_i128()
         && value < 0
     {
         return Err(UnexpectedNegativeNumber::build(
@@ -1886,10 +1896,8 @@ fn integer_in_range_from_ast<'src>(
 
     // If the value is known at compile time make sure that it is within
     // the given range.
-    let type_value = ctx.ir.get(expr).type_value();
-
-    if let TypeValue::Integer { value: Const(value), .. } = type_value
-        && !range.contains(&value)
+    if let Some(value) = ctx.ir.get(expr).type_value().try_as_const_i128()
+        && !(*range.start() as i128..=*range.end() as i128).contains(&value)
     {
         return Err(NumberOutOfRange::build(
             ctx.report_builder,
@@ -2666,6 +2674,27 @@ fn re_error_to_compile_error(
 }
 
 /// Produce a warning if the expression is not boolean.
+/// Raises a [`warnings::UnsignedUnaryOperation`] warning if `operand` is an
+/// unsigned integer.
+fn warn_if_unsigned(
+    ctx: &mut CompileContext,
+    operand: ExprId,
+    span: Span,
+    operator: &str,
+    note: &str,
+) {
+    if ctx.ir.get(operand).type_value().is_unsigned() {
+        ctx.warnings.add(|| {
+            warnings::UnsignedUnaryOperation::build(
+                ctx.report_builder,
+                operator.to_string(),
+                ctx.report_builder.span_to_code_loc(span),
+                Some(note.to_string()),
+            )
+        });
+    }
+}
+
 pub(in crate::compiler) fn warn_if_not_bool(
     ctx: &mut CompileContext,
     ty: Type,
@@ -3006,7 +3035,21 @@ fn or_expr_from_ast<'src>(
     })
 }
 
-gen_unary_op!(minus_expr_from_ast, minus, Type::Integer | Type::Float, None);
+gen_unary_op!(
+    minus_expr_from_ast,
+    minus,
+    Type::Integer | Type::Float,
+    Some(|ctx, operand, span| {
+        warn_if_unsigned(
+            ctx,
+            operand,
+            span,
+            "-",
+            "the result is a signed integer, which wraps around if the unsigned value is greater than 0x7FFFFFFFFFFFFFFF",
+        );
+        Ok(())
+    })
+);
 
 gen_n_ary_operation!(
     add_expr_from_ast,
@@ -3042,7 +3085,21 @@ gen_n_ary_operation!(
 
 gen_n_ary_operation!(mod_expr_from_ast, modulus, Type::Integer, &[], None);
 
-gen_unary_op!(bitwise_not_expr_from_ast, bitwise_not, Type::Integer, None);
+gen_unary_op!(
+    bitwise_not_expr_from_ast,
+    bitwise_not,
+    Type::Integer,
+    Some(|ctx, operand, span| {
+        warn_if_unsigned(
+            ctx,
+            operand,
+            span,
+            "~",
+            "the result is an unsigned integer with all its 64 bits inverted",
+        );
+        Ok(())
+    })
+);
 
 gen_binary_op!(shl_expr_from_ast, shl, Type::Integer, &[], Some(shx_check));
 gen_binary_op!(shr_expr_from_ast, shr, Type::Integer, &[], Some(shx_check));
@@ -3242,14 +3299,15 @@ fn eq_check(
 
     let check_integer_constraints =
         |ctx: &mut CompileContext,
-         const_integer: i64,
+         const_integer: i128,
          const_integer_span: Span,
          constraints: Vec<IntegerConstraint>,
          constrained_integer_span: Span| {
             for constraint in constraints {
                 match constraint {
                     IntegerConstraint::Range(min, max)
-                        if !(min..=max).contains(&const_integer) =>
+                        if !(min as i128..=max as i128)
+                            .contains(&const_integer) =>
                     {
                         ctx.warnings.add(|| {
                                 UnsatisfiableExpression::build(
@@ -3296,19 +3354,20 @@ fn eq_check(
             constrained_string_span,
         ),
         (
-            TypeValue::Integer { value: Const(const_integer), .. },
+            const_integer @ TypeValue::Integer { value: Const(_), .. },
             TypeValue::Integer { constraints: Some(constraints), .. },
             const_integer_span,
             constrained_integer_span,
         )
         | (
             TypeValue::Integer { constraints: Some(constraints), .. },
-            TypeValue::Integer { value: Const(const_integer), .. },
+            const_integer @ TypeValue::Integer { value: Const(_), .. },
             constrained_integer_span,
             const_integer_span,
         ) => check_integer_constraints(
             ctx,
-            const_integer,
+            // It's safe to unwrap, `const_integer` is a constant integer.
+            const_integer.try_as_const_i128().unwrap(),
             const_integer_span,
             constraints,
             constrained_integer_span,
@@ -3327,8 +3386,7 @@ fn shx_check(
     _lhs_span: Span,
     rhs_span: Span,
 ) -> Result<(), CompileError> {
-    if let TypeValue::Integer { value: Const(value), .. } =
-        ctx.ir.get(rhs).type_value()
+    if let Some(value) = ctx.ir.get(rhs).type_value().try_as_const_i128()
         && value < 0
     {
         return Err(UnexpectedNegativeNumber::build(

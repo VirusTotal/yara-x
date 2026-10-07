@@ -445,6 +445,131 @@ fn intxx() {
 }
 
 #[test]
+fn unsigned_integers() {
+    // Literals that don't fit in an i64 are unsigned.
+    condition_true!("0xFFFFFFFFFFFFFFFF == 18446744073709551615");
+    condition_true!("0x8000000000000000 == 9223372036854775808");
+    condition_true!("0o1777777777777777777777 == 0xFFFFFFFFFFFFFFFF");
+
+    // The minimum i64 can be written as a literal.
+    condition_true!("-9223372036854775808 == -0x7FFFFFFFFFFFFFFF - 1");
+    condition_true!("-9223372036854775808 < 0");
+
+    // Comparisons between unsigned integers.
+    condition_true!("0xFFFFFFFFFFFFFFFF > 0x8000000000000000");
+    condition_true!("0x8000000000000000 < 0xFFFFFFFFFFFFFFFF");
+    condition_true!("0xFFFFFFFFFFFFFFFF >= 0xFFFFFFFFFFFFFFFF");
+    condition_true!("0x8000000000000000 <= 0xFFFFFFFFFFFFFFFF");
+
+    // Comparisons between unsigned and signed integers are mathematically
+    // correct, unsigned integers are greater than any negative integer.
+    condition_true!("0xFFFFFFFFFFFFFFFF > 0x7FFFFFFFFFFFFFFF");
+    condition_true!("0x8000000000000000 > 0");
+    condition_true!("0xFFFFFFFFFFFFFFFF > -1");
+    condition_true!("0xFFFFFFFFFFFFFFFF >= -1");
+    condition_true!("0xFFFFFFFFFFFFFFFF != -1");
+    condition_true!("-1 < 0xFFFFFFFFFFFFFFFF");
+    condition_true!("-1 <= 0xFFFFFFFFFFFFFFFF");
+    condition_true!("-1 != 0xFFFFFFFFFFFFFFFF");
+    condition_false!("0xFFFFFFFFFFFFFFFF == -1");
+    condition_false!("0xFFFFFFFFFFFFFFFF < -1");
+    condition_false!("0xFFFFFFFFFFFFFFFF <= -1");
+    condition_false!("-1 == 0xFFFFFFFFFFFFFFFF");
+    condition_false!("-1 > 0xFFFFFFFFFFFFFFFF");
+    condition_false!("-1 >= 0xFFFFFFFFFFFFFFFF");
+
+    // Comparisons between unsigned integers and floats.
+    condition_true!("0xFFFFFFFFFFFFFFFF > 1.0");
+    condition_true!("0x8000000000000000 == 9223372036854775808.0");
+
+    // Constant folding.
+    condition_true!("0xFFFFFFFFFFFFFFFF - 1 == 0xFFFFFFFFFFFFFFFE");
+    condition_true!("0x8000000000000000 - 1 == 0x7FFFFFFFFFFFFFFF");
+    condition_true!(
+        "0x8000000000000000 + 0x7FFFFFFFFFFFFFFF == 0xFFFFFFFFFFFFFFFF"
+    );
+    condition_true!("0xFFFFFFFFFFFFFFFF * 1 == 0xFFFFFFFFFFFFFFFF");
+    condition_true!("0xFFFFFFFFFFFFFFFF & 0xFF == 0xFF");
+    condition_true!("0xFFFFFFFFFFFFFFFF ^ 0xFF == 0xFFFFFFFFFFFFFF00");
+    condition_true!("0x8000000000000000 | 1 == 0x8000000000000001");
+    condition_true!("0xFFFFFFFFFFFFFFFF >> 60 == 15");
+    condition_true!("0xFFFFFFFFFFFFFFFF << 4 == 0xFFFFFFFFFFFFFFF0");
+    condition_true!("0x8000000000000000 + 0.0 == 9223372036854775808.0");
+    condition_true!("9007199254740993 + 0 == 9007199254740993");
+
+    // Division and modulus are unsigned.
+    condition_true!(r"0xFFFFFFFFFFFFFFFF \ 2 == 0x7FFFFFFFFFFFFFFF");
+    condition_true!("0xFFFFFFFFFFFFFFFF % 10 == 5");
+
+    // Same operations but with values not known at compile time.
+    condition_true!(
+        "for all x in (0xFFFFFFFFFFFFFFFF) : (
+            x > 0 and x > -1 and x >= -1 and x != -1 and not x == -1 and
+            -1 < x and -1 <= x and -1 != x and not -1 == x and
+            x > 0x7FFFFFFFFFFFFFFF and x == 0xFFFFFFFFFFFFFFFF
+        )"
+    );
+    condition_true!(
+        r"for all x in (0xFFFFFFFFFFFFFFFF) : (
+            x \ 2 == 0x7FFFFFFFFFFFFFFF and
+            x % 10 == 5 and
+            x >> 60 == 15 and
+            x << 4 == 0xFFFFFFFFFFFFFFF0 and
+            x - 1 == 0xFFFFFFFFFFFFFFFE and
+            x + 1 == 0 and
+            x * 1.0 == 18446744073709551615.0 and
+            x > 1.0
+        )"
+    );
+
+    // Comparisons between unsigned and signed values not known at compile
+    // time.
+    condition_true!(
+        "for all x in (0xFFFFFFFFFFFFFFFF) : (
+            for all y in (-1) : (
+                x > y and x >= y and x != y and not x == y and
+                y < x and y <= x and y != x and not y == x
+            )
+        )"
+    );
+    condition_true!(
+        "for all x in (0x8000000000000000) : (
+            for all y in (1) : (x > y and y < x)
+        )"
+    );
+
+    // When an unsigned integer is mixed with a signed integer that is not
+    // a non-negative constant, the result is signed.
+    condition_true!(
+        "for all x in (0xFFFFFFFFFFFFFFFF) : (
+            for all y in (1) : (x - y == -2 and x - y < 0)
+        )"
+    );
+
+    // Shifts take the signedness of the left operand.
+    condition_true!(
+        "for all x in (0xFFFFFFFFFFFFFFFF) : (
+            for all y in (60) : (x >> y == 15)
+        )"
+    );
+    condition_true!(
+        "for all x in (-1) : (
+            for all y in (0x8000000000000000) : (x >> y == 0)
+        )"
+    );
+
+    // Tuples that mix unsigned integers and non-negative constants are
+    // unsigned.
+    condition_true!("for all x in (1, 0xFFFFFFFFFFFFFFFF) : (x > 0)");
+
+    // Unary minus produces a signed integer, while the bitwise not of an
+    // unsigned integer is unsigned.
+    condition_true!("-0xFFFFFFFFFFFFFFFF == 1");
+    condition_true!("~0xFFFFFFFFFFFFFFFF == 0");
+    condition_true!("~0x7FFFFFFFFFFFFFFF == -9223372036854775808");
+}
+
+#[test]
 fn int64xx() {
     let data = [
         0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0xff,

@@ -1,0 +1,21 @@
+warning[unsigned_unary_op]: `-` applied to an unsigned integer
+ --> line:3:6
+  |
+3 |     -0xFFFFFFFFFFFFFFFF == 1
+  |      ------------------ this is an unsigned integer
+  |
+  = note: the result is a signed integer, which wraps around if the unsigned value is greater than 0x7FFFFFFFFFFFFFFF
+warning[unsigned_unary_op]: `~` applied to an unsigned integer
+ --> line:8:6
+  |
+8 |     ~0xFFFFFFFFFFFFFFFF == 0
+  |      ------------------ this is an unsigned integer
+  |
+  = note: the result is an unsigned integer with all its 64 bits inverted
+warning[unsatisfiable_expr]: unsatisfiable expression
+  --> line:13:5
+   |
+13 |     uint32(0) == 0xFFFFFFFFFFFFFFFF
+   |     ---------    ------------------ this integer is outside the range [0,4294967295]
+   |     |
+   |     this expression is an integer in the range [0,4294967295]

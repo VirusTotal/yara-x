@@ -264,7 +264,7 @@ pub(super) fn dfs_common(
         Expr::Not { operand }
         | Expr::Defined { operand }
         | Expr::Minus { operand, .. }
-        | Expr::BitwiseNot { operand } => {
+        | Expr::BitwiseNot { operand, .. } => {
             stack.push(Event::Enter((*operand, EventContext::None)));
         }
 
@@ -286,11 +286,11 @@ pub(super) fn dfs_common(
         | Expr::Gt { lhs, rhs }
         | Expr::Le { lhs, rhs }
         | Expr::Lt { lhs, rhs }
-        | Expr::Shl { lhs, rhs }
-        | Expr::Shr { lhs, rhs }
-        | Expr::BitwiseAnd { lhs, rhs }
-        | Expr::BitwiseOr { lhs, rhs }
-        | Expr::BitwiseXor { lhs, rhs }
+        | Expr::Shl { lhs, rhs, .. }
+        | Expr::Shr { lhs, rhs, .. }
+        | Expr::BitwiseAnd { lhs, rhs, .. }
+        | Expr::BitwiseOr { lhs, rhs, .. }
+        | Expr::BitwiseXor { lhs, rhs, .. }
         | Expr::Contains { lhs, rhs }
         | Expr::IContains { lhs, rhs }
         | Expr::StartsWith { lhs, rhs }

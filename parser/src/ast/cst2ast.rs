@@ -1333,11 +1333,13 @@ where
                 }))
             }
             Event::Token { kind: INTEGER_LIT, .. } => {
-                let (value, literal, span) = self.integer_lit()?;
+                let (value, unsigned, literal, span) =
+                    self.signed_or_unsigned_integer_lit()?;
                 Expr::LiteralInteger(Box::new(LiteralInteger {
                     span,
                     literal,
                     value,
+                    unsigned,
                 }))
             }
             Event::Token { kind: STRING_LIT, .. } => {
@@ -1451,10 +1453,24 @@ where
                     // `--1` (which would become `--1`) or `-(1)` (which would
                     // become `-(1`).
                     Expr::LiteralInteger(mut integer)
-                        if integer.value.is_positive()
+                        if !integer.unsigned
+                            && integer.value.is_positive()
                             && !literal.contains('(') =>
                     {
                         integer.value = -integer.value;
+                        integer.literal = literal;
+                        integer.span = span;
+                        Expr::LiteralInteger(integer)
+                    }
+                    // `-9223372036854775808` is a valid `i64` (i64::MIN),
+                    // but `9223372036854775808` alone doesn't fit in an
+                    // `i64`, so it was parsed as an unsigned integer.
+                    Expr::LiteralInteger(mut integer)
+                        if integer.unsigned
+                            && integer.value == i64::MIN
+                            && !literal.contains('(') =>
+                    {
+                        integer.unsigned = false;
                         integer.literal = literal;
                         integer.span = span;
                         Expr::LiteralInteger(integer)
@@ -1604,18 +1620,78 @@ where
         T: Num + Bounded + CheckedMul + FromPrimitive + std::fmt::Display,
     {
         let span = self.expect(INTEGER_LIT)?;
-        let mut literal = self.get_source_str(&span)?;
-        let mut multiplier = 1;
+        let literal = self.get_source_str(&span)?;
 
-        if let Some(without_suffix) = literal.strip_suffix("KB") {
-            literal = without_suffix;
-            multiplier = 1024;
+        match Self::parse_integer::<T>(literal) {
+            Some(value) => {
+                Ok((value, Self::strip_size_suffix(literal).0, span))
+            }
+            None => {
+                self.errors.push(Error::InvalidInteger {
+                    message: format!(
+                        "this number is out of the valid range: [{}, {}]",
+                        T::min_value(),
+                        T::max_value()
+                    ),
+                    span,
+                });
+                Err(BuilderError::Abort)
+            }
+        }
+    }
+
+    /// Parses an integer literal that can be either an `i64` or an `u64`.
+    ///
+    /// Literals that fit in an `i64` are signed. Literals that don't fit in
+    /// an `i64`, but fit in an `u64`, are unsigned. In the latter case the
+    /// returned value is the bit pattern of the `u64`, and the returned
+    /// boolean is `true`.
+    fn signed_or_unsigned_integer_lit(
+        &mut self,
+    ) -> Result<(i64, bool, &'src str, Span), BuilderError> {
+        let span = self.expect(INTEGER_LIT)?;
+        let literal = self.get_source_str(&span)?;
+
+        if let Some(value) = Self::parse_integer::<i64>(literal) {
+            return Ok((
+                value,
+                false,
+                Self::strip_size_suffix(literal).0,
+                span,
+            ));
         }
 
-        if let Some(without_suffix) = literal.strip_suffix("MB") {
-            literal = without_suffix;
-            multiplier = 1024 * 1024;
+        if let Some(value) = Self::parse_integer::<u64>(literal) {
+            return Ok((
+                value as i64,
+                true,
+                Self::strip_size_suffix(literal).0,
+                span,
+            ));
         }
+
+        self.errors.push(Error::InvalidInteger {
+            message: format!(
+                "this number is out of the valid range: [{}, {}]",
+                i64::MIN,
+                u64::MAX
+            ),
+            span,
+        });
+
+        Err(BuilderError::Abort)
+    }
+
+    /// Parses the value of an integer literal, returning [`None`] if the
+    /// value doesn't fit in type `T`.
+    ///
+    /// The grammar guarantees that the literal is a valid integer, so the
+    /// only possible error is that the value doesn't fit in type `T`.
+    fn parse_integer<T>(literal: &str) -> Option<T>
+    where
+        T: Num + CheckedMul + FromPrimitive,
+    {
+        let (literal, multiplier) = Self::strip_size_suffix(literal);
 
         let literal_no_underscores = literal.replace('_', "");
         let value = if literal_no_underscores.as_str().starts_with("0x") {
@@ -1632,38 +1708,26 @@ where
             T::from_str_radix(literal_no_underscores.as_str(), 10)
         };
 
-        let build_error = |span: &Span| Error::InvalidInteger {
-            message: format!(
-                "this number is out of the valid range: [{}, {}]",
-                T::min_value(),
-                T::max_value()
-            ),
-            span: span.clone(),
-        };
+        // Some errors (like invalid characters or empty literals) never
+        // occur, because the grammar ensures that only valid integers reach
+        // this point, however the grammar doesn't make sure that the integer
+        // fits in type T. Neither the multiplier, nor the value after
+        // applying the multiplier, are guaranteed to fit in type T.
+        value.ok()?.checked_mul(&T::from_i32(multiplier)?)
+    }
 
-        // Report errors that occur while parsing the literal. Some errors
-        // (like invalid characters or empty literals) never occur, because
-        // the grammar ensures that only valid integers reach this point,
-        // however the grammar doesn't make sure that the integer fits in
-        // type T.
-        let value = value.map_err(|_| {
-            self.errors.push(build_error(&span));
-            BuilderError::Abort
-        })?;
-
-        // The multiplier may not fit in type T.
-        let multiplier = T::from_i32(multiplier).ok_or_else(|| {
-            self.errors.push(build_error(&span));
-            BuilderError::Abort
-        })?;
-
-        // The value after applying the multiplier may not fit in type T.
-        let value = value.checked_mul(&multiplier).ok_or_else(|| {
-            self.errors.push(build_error(&span));
-            BuilderError::Abort
-        })?;
-
-        Ok((value, literal, span))
+    /// Removes the `KB` or `MB` suffix from an integer literal, if present.
+    ///
+    /// Returns the literal without the suffix, and the multiplier
+    /// corresponding to the suffix.
+    fn strip_size_suffix(literal: &str) -> (&str, i32) {
+        if let Some(without_suffix) = literal.strip_suffix("KB") {
+            (without_suffix, 1024)
+        } else if let Some(without_suffix) = literal.strip_suffix("MB") {
+            (without_suffix, 1024 * 1024)
+        } else {
+            (literal, 1)
+        }
     }
 
     fn float_lit(&mut self) -> Result<(f64, &'src str, Span), BuilderError> {
