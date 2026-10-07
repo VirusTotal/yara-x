@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_lsp::lsp_types::{
@@ -207,17 +208,8 @@ fn condition_suggestions(
             // Suggest module names.
             module_names().for_each(|module_name| {
                 // Automatically imports the module if it is not already imported.
-                let additional_text_edits = if imported.contains(module_name) {
-                    None
-                } else {
-                    Some(vec![TextEdit {
-                        range: Range {
-                            start: Position { line: 0, character: 0 },
-                            end: Position { line: 0, character: 0 },
-                        },
-                        new_text: format!("import \"{}\"\n", module_name),
-                    }])
-                };
+                let additional_text_edits =
+                    get_additional_text_edits_modules(&imported, module_name);
                 result.push(CompletionItem {
                     label: module_name.to_string(),
                     kind: Some(CompletionItemKind::MODULE),
@@ -366,19 +358,12 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
     };
 
     let additional_text_edits =
-        if token.parent().map(|p| p.root()).is_some_and(|root| {
-            !get_imported_modules(&root).contains(&module_name)
-        }) {
-            Some(vec![TextEdit {
-                range: Range {
-                    start: Position { line: 0, character: 0 },
-                    end: Position { line: 0, character: 0 },
-                },
-                new_text: format!("import \"{}\"\n", module_name),
-            }])
-        } else {
-            None
-        };
+        token.parent().map(|p| p.root()).and_then(|root| {
+            get_additional_text_edits_modules(
+                &get_imported_modules(&root),
+                &module_name,
+            )
+        });
 
     // Now `current_struct` is the structure before the cursor.
     // We want to suggest fields for this structure.
@@ -483,4 +468,24 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
         .collect();
 
     Some(suggestions)
+}
+
+/// Returns a vector of text edits containing auto-import of the module, if
+/// this module is not contained in the set (not imported). Otherwise, returns
+/// `None`.
+fn get_additional_text_edits_modules(
+    imported: &HashSet<String>,
+    module_name: &str,
+) -> Option<Vec<TextEdit>> {
+    if imported.contains(module_name) {
+        None
+    } else {
+        Some(vec![TextEdit {
+            range: Range {
+                start: Position { line: 0, character: 0 },
+                end: Position { line: 0, character: 0 },
+            },
+            new_text: format!("import \"{}\"\n", module_name),
+        }])
+    }
 }
