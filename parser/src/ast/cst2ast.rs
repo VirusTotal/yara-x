@@ -1333,13 +1333,12 @@ where
                 }))
             }
             Event::Token { kind: INTEGER_LIT, .. } => {
-                let (value, unsigned, literal, span) =
+                let (value, literal, span) =
                     self.signed_or_unsigned_integer_lit()?;
                 Expr::LiteralInteger(Box::new(LiteralInteger {
                     span,
                     literal,
                     value,
-                    unsigned,
                 }))
             }
             Event::Token { kind: STRING_LIT, .. } => {
@@ -1452,28 +1451,38 @@ where
                     // is positive and not parenthesized. This avoids cases like
                     // `--1` (which would become `--1`) or `-(1)` (which would
                     // become `-(1`).
+                    //
+                    // `-9223372036854775808` is also merged into a single
+                    // literal. This is a valid `i64` (i64::MIN), but
+                    // `9223372036854775808` alone doesn't fit in an `i64`,
+                    // so it was parsed as an unsigned integer.
                     Expr::LiteralInteger(mut integer)
-                        if !integer.unsigned
-                            && integer.value.is_positive()
-                            && !literal.contains('(') =>
+                        if !literal.contains('(') =>
                     {
-                        integer.value = -integer.value;
-                        integer.literal = literal;
-                        integer.span = span;
-                        Expr::LiteralInteger(integer)
-                    }
-                    // `-9223372036854775808` is a valid `i64` (i64::MIN),
-                    // but `9223372036854775808` alone doesn't fit in an
-                    // `i64`, so it was parsed as an unsigned integer.
-                    Expr::LiteralInteger(mut integer)
-                        if integer.unsigned
-                            && integer.value == i64::MIN
-                            && !literal.contains('(') =>
-                    {
-                        integer.unsigned = false;
-                        integer.literal = literal;
-                        integer.span = span;
-                        Expr::LiteralInteger(integer)
+                        let negated = match integer.value {
+                            IntegerValue::Signed(value)
+                                if value.is_positive() =>
+                            {
+                                Some(-value)
+                            }
+                            IntegerValue::Unsigned(value)
+                                if value == i64::MIN.unsigned_abs() =>
+                            {
+                                Some(i64::MIN)
+                            }
+                            _ => None,
+                        };
+                        if let Some(value) = negated {
+                            integer.value = IntegerValue::Signed(value);
+                            integer.literal = literal;
+                            integer.span = span;
+                            Expr::LiteralInteger(integer)
+                        } else {
+                            Expr::Minus(Box::new(UnaryExpr {
+                                span,
+                                operand: Expr::LiteralInteger(integer),
+                            }))
+                        }
                     }
                     _ => Expr::Minus(Box::new(UnaryExpr { span, operand })),
                 }
@@ -1648,26 +1657,18 @@ where
     /// boolean is `true`.
     fn signed_or_unsigned_integer_lit(
         &mut self,
-    ) -> Result<(i64, bool, &'src str, Span), BuilderError> {
+    ) -> Result<(IntegerValue, &'src str, Span), BuilderError> {
         let span = self.expect(INTEGER_LIT)?;
         let literal = self.get_source_str(&span)?;
 
-        if let Some(value) = Self::parse_integer::<i64>(literal) {
-            return Ok((
-                value,
-                false,
-                Self::strip_size_suffix(literal).0,
-                span,
-            ));
-        }
+        let value = Self::parse_integer::<i64>(literal)
+            .map(IntegerValue::Signed)
+            .or_else(|| {
+                Self::parse_integer::<u64>(literal).map(IntegerValue::Unsigned)
+            });
 
-        if let Some(value) = Self::parse_integer::<u64>(literal) {
-            return Ok((
-                value as i64,
-                true,
-                Self::strip_size_suffix(literal).0,
-                span,
-            ));
+        if let Some(value) = value {
+            return Ok((value, Self::strip_size_suffix(literal).0, span));
         }
 
         self.errors.push(Error::InvalidInteger {
