@@ -342,6 +342,16 @@
     "label": "zip"
   },
   {
+    "data": {
+      "uri": "${test_dir}/completion24.yar"
+    },
+    "kind": 6,
+    "label": "test_magic_import",
+    "labelDetails": {
+      "description": "Rule"
+    }
+  },
+  {
     "insertText": "at ${1:expression}",
     "insertTextFormat": 2,
     "kind": 14,
@@ -414,12 +424,5 @@
   {
     "kind": 14,
     "label": "true"
-  },
-  {
-    "kind": 6,
-    "label": "test_magic_import",
-    "labelDetails": {
-      "description": "Rule"
-    }
   }
 ]
