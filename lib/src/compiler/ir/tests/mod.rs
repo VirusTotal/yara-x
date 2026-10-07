@@ -23,9 +23,9 @@ fn expr_size() {
 fn ancestors() {
     let mut ir = IR::new();
 
-    let const_1 = ir.constant(TypeValue::const_integer_from(1));
-    let const_2 = ir.constant(TypeValue::const_integer_from(2));
-    let const_3 = ir.constant(TypeValue::const_integer_from(3));
+    let const_1 = ir.constant(TypeValue::const_signed_integer_from(1));
+    let const_2 = ir.constant(TypeValue::const_signed_integer_from(2));
+    let const_3 = ir.constant(TypeValue::const_signed_integer_from(3));
     let add = ir.add(vec![const_2, const_3]).unwrap();
     let root = ir.add(vec![const_1, add]).unwrap();
 
@@ -46,9 +46,9 @@ fn ancestors() {
 fn children() {
     let mut ir = IR::new();
 
-    let const_1 = ir.constant(TypeValue::const_integer_from(1));
-    let const_2 = ir.constant(TypeValue::const_integer_from(2));
-    let const_3 = ir.constant(TypeValue::const_integer_from(3));
+    let const_1 = ir.constant(TypeValue::const_signed_integer_from(1));
+    let const_2 = ir.constant(TypeValue::const_signed_integer_from(2));
+    let const_3 = ir.constant(TypeValue::const_signed_integer_from(3));
     let add = ir.add(vec![const_2, const_3]).unwrap();
     let root = ir.add(vec![const_1, add]).unwrap();
 

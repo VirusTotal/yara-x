@@ -1818,9 +1818,9 @@ impl IR {
                 // The result of negating an integer is always signed, even
                 // if the operand is unsigned. Overflows wrap around.
                 TypeValue::Integer { value: Const(v), .. } => {
-                    return self.constant(TypeValue::const_integer_from(
-                        v.wrapping_neg(),
-                    ));
+                    return self.constant(
+                        TypeValue::const_signed_integer_from(v.wrapping_neg()),
+                    );
                 }
                 TypeValue::Float { value: Const(v), .. } => {
                     return self.constant(TypeValue::const_float_from(-v));

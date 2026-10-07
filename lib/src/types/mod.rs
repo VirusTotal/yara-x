@@ -556,9 +556,9 @@ impl TypeValue {
         unsigned: bool,
     ) -> Option<Self> {
         if unsigned {
-            u64::try_from(value).ok().map(Self::const_unsigned_from)
+            u64::try_from(value).ok().map(Self::const_unsigned_integer_from)
         } else {
-            i64::try_from(value).ok().map(Self::const_integer_from)
+            i64::try_from(value).ok().map(Self::const_signed_integer_from)
         }
     }
 
@@ -625,9 +625,9 @@ impl TypeValue {
         }
     }
 
-    /// Creates a new [`TypeValue`] consisting of a constant integer.
+    /// Creates a new [`TypeValue`] consisting of a constant signed integer.
     #[inline]
-    pub fn const_integer_from<T: Into<i64>>(i: T) -> Self {
+    pub fn const_signed_integer_from<T: Into<i64>>(i: T) -> Self {
         Self::Integer {
             value: Value::Const(i.into()),
             constraints: None,
@@ -690,7 +690,7 @@ impl TypeValue {
 
     /// Creates a new [`TypeValue`] consisting of a constant unsigned integer.
     #[inline]
-    pub fn const_unsigned_from<T: Into<u64>>(i: T) -> Self {
+    pub fn const_unsigned_integer_from<T: Into<u64>>(i: T) -> Self {
         Self::Integer {
             value: Value::Const(i.into() as i64),
             constraints: None,
@@ -805,7 +805,7 @@ impl Debug for TypeValue {
 impl From<EnumValue> for TypeValue {
     fn from(value: EnumValue) -> Self {
         match value {
-            EnumValue::I64(v) => Self::const_integer_from(v),
+            EnumValue::I64(v) => Self::const_signed_integer_from(v),
             EnumValue::F64(v) => Self::const_float_from(v),
         }
     }
@@ -855,8 +855,8 @@ mod tests {
 
     #[test]
     fn unsigned_integers() {
-        let signed = TypeValue::const_integer_from(-1);
-        let unsigned = TypeValue::const_unsigned_from(u64::MAX);
+        let signed = TypeValue::const_signed_integer_from(-1);
+        let unsigned = TypeValue::const_unsigned_integer_from(u64::MAX);
 
         // Both are integers, and have the same bit pattern.
         assert_eq!(signed.ty(), Type::Integer);
