@@ -178,20 +178,19 @@ impl MangledFnName {
                     }
                 }
 
-                let mut type_value = if constraints.is_empty() {
-                    TypeValue::unknown_signed_integer()
-                } else {
-                    TypeValue::unknown_signed_integer_with_constraints(
-                        constraints,
-                    )
-                };
-
-                if let TypeValue::Integer { unsigned: u, .. } = &mut type_value
-                {
-                    *u = unsigned;
-                }
-
-                Some(type_value)
+                Some(match (unsigned, constraints.is_empty()) {
+                    (false, true) => TypeValue::unknown_signed_integer(),
+                    (false, false) => {
+                        TypeValue::unknown_signed_integer_with_constraints(
+                            constraints,
+                        )
+                    }
+                    (true, true) => TypeValue::unknown_unsigned_integer(),
+                    // Constraints are not supported for unsigned integers.
+                    (true, false) => {
+                        panic!("invalid mangled name: `{}`", self.0)
+                    }
+                })
             }
             Some('s') => {
                 let mut constraints = Vec::new();

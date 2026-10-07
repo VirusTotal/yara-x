@@ -1341,18 +1341,18 @@ fn of_expr_from_ast<'src>(
             Quantifier::All => items.len() > 1,
             // `<expr> of <items> at <expr>: the warning is raised if <expr> is
             // 2 or more.
-            Quantifier::Expr(expr) => match ctx.ir.get(*expr).type_value() {
-                TypeValue::Integer { value: Const(value), .. } => value >= 2,
-                _ => false,
-            },
+            Quantifier::Expr(expr) => matches!(
+                ctx.ir.get(*expr).type_value().try_as_const_i128(),
+                Some(value) if value >= 2
+            ),
             // `<expr>% of <items> at <expr>: the warning is raised if the
             // <expr> percent of the items is 2 or more.
             Quantifier::Percentage(expr) => {
-                match ctx.ir.get(*expr).type_value() {
-                    TypeValue::Integer {
-                        value: Const(percentage), ..
-                    } => items.len() as f64 * percentage as f64 / 100.0 >= 2.0,
-                    _ => false,
+                match ctx.ir.get(*expr).type_value().try_as_const_i128() {
+                    Some(percentage) => {
+                        items.len() as f64 * percentage as f64 / 100.0 >= 2.0
+                    }
+                    None => false,
                 }
             }
             Quantifier::None | Quantifier::Any => false,
@@ -1608,7 +1608,7 @@ fn for_in_expr_from_ast<'src>(
             // the items are unsigned or non-negative constants, and at least
             // one of them is unsigned. The same rule used for determining
             // the signedness of arithmetic operations.
-            if let TypeValue::Integer { .. } = type_value {
+            if type_value.ty() == Type::Integer {
                 type_value = if ctx.ir.is_unsigned_result(expressions) {
                     TypeValue::unknown_unsigned_integer()
                 } else {
@@ -3354,14 +3354,16 @@ fn eq_check(
             constrained_string_span,
         ),
         (
-            const_integer @ TypeValue::Integer { value: Const(_), .. },
+            const_integer @ (TypeValue::Integer { value: Const(_), .. }
+            | TypeValue::UnsignedInteger { value: Const(_) }),
             TypeValue::Integer { constraints: Some(constraints), .. },
             const_integer_span,
             constrained_integer_span,
         )
         | (
             TypeValue::Integer { constraints: Some(constraints), .. },
-            const_integer @ TypeValue::Integer { value: Const(_), .. },
+            const_integer @ (TypeValue::Integer { value: Const(_), .. }
+            | TypeValue::UnsignedInteger { value: Const(_) }),
             constrained_integer_span,
             const_integer_span,
         ) => check_integer_constraints(

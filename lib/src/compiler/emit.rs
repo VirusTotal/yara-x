@@ -340,6 +340,11 @@ fn emit_expr(
             TypeValue::Integer { value: Const(value), .. } => {
                 instr.i64_const(*value);
             }
+            // Unsigned integers are represented in WASM as an `i64` with
+            // the same bit pattern.
+            TypeValue::UnsignedInteger { value: Const(value) } => {
+                instr.i64_const(*value as i64);
+            }
             TypeValue::Float { value: Const(value) } => {
                 instr.f64_const(*value);
             }
@@ -401,7 +406,8 @@ fn emit_expr(
                     let index: i32 = (*index).try_into().unwrap();
 
                     match type_value {
-                        TypeValue::Integer { .. } => {
+                        TypeValue::Integer { .. }
+                        | TypeValue::UnsignedInteger { .. } => {
                             ctx.lookup_list.push((index, *is_root));
                             emit_lookup_integer(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());

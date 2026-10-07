@@ -1115,17 +1115,18 @@ impl IR {
         c: &TypeValue,
         inclusive: bool,
     ) -> Option<Bound<i64>> {
+        // Integer constants, either signed or unsigned. Unsigned constants
+        // that don't fit in an `i64` are ignored.
+        if let Some(v) =
+            c.try_as_const_i128().and_then(|v| i64::try_from(v).ok())
+        {
+            return if inclusive {
+                Some(Bound::Included(v))
+            } else {
+                Some(Bound::Excluded(v))
+            };
+        }
         match c {
-            // Unsigned constants that don't fit in an `i64` are ignored.
-            TypeValue::Integer { value: Const(v), unsigned, .. }
-                if !(*unsigned && *v < 0) =>
-            {
-                if inclusive {
-                    Some(Bound::Included(*v))
-                } else {
-                    Some(Bound::Excluded(*v))
-                }
-            }
             TypeValue::Float { value: Const(v), .. } if v.is_finite() => {
                 let floor = v.floor();
                 if inclusive && floor == *v {
@@ -1142,17 +1143,18 @@ impl IR {
         c: &TypeValue,
         inclusive: bool,
     ) -> Option<Bound<i64>> {
+        // Integer constants, either signed or unsigned. Unsigned constants
+        // that don't fit in an `i64` are ignored.
+        if let Some(v) =
+            c.try_as_const_i128().and_then(|v| i64::try_from(v).ok())
+        {
+            return if inclusive {
+                Some(Bound::Included(v))
+            } else {
+                Some(Bound::Excluded(v))
+            };
+        }
         match c {
-            // Unsigned constants that don't fit in an `i64` are ignored.
-            TypeValue::Integer { value: Const(v), unsigned, .. }
-                if !(*unsigned && *v < 0) =>
-            {
-                if inclusive {
-                    Some(Bound::Included(*v))
-                } else {
-                    Some(Bound::Excluded(*v))
-                }
-            }
             TypeValue::Float { value: Const(v), .. } if v.is_finite() => {
                 let ceil = v.ceil();
                 if inclusive && ceil == *v {
@@ -1822,6 +1824,13 @@ impl IR {
                         TypeValue::const_signed_integer_from(v.wrapping_neg()),
                     );
                 }
+                TypeValue::UnsignedInteger { value: Const(v) } => {
+                    return self.constant(
+                        TypeValue::const_signed_integer_from(
+                            (v as i64).wrapping_neg(),
+                        ),
+                    );
+                }
                 TypeValue::Float { value: Const(v), .. } => {
                     return self.constant(TypeValue::const_float_from(-v));
                 }
@@ -1856,7 +1865,7 @@ impl IR {
         let is_unsigned = type_value.is_unsigned();
 
         if self.constant_folding
-            && let TypeValue::Integer { value: Const(val), .. } = type_value
+            && let Some(val) = self.const_integer_bits(operand)
         {
             return self.constant(TypeValue::const_integer_from_bits(
                 !val,
@@ -2680,6 +2689,7 @@ impl IR {
     fn const_integer_bits(&self, expr: ExprId) -> Option<i64> {
         match self.get(expr).type_value() {
             TypeValue::Integer { value: Const(v), .. } => Some(v),
+            TypeValue::UnsignedInteger { value: Const(v) } => Some(v as i64),
             _ => None,
         }
     }
@@ -2709,15 +2719,8 @@ impl IR {
             let folded = operands
                 .iter()
                 .map(|op| match self.get(*op).type_value() {
-                    TypeValue::Integer {
-                        value: Const(v), unsigned, ..
-                    } => {
-                        if unsigned {
-                            v as u64 as f64
-                        } else {
-                            v as f64
-                        }
-                    }
+                    TypeValue::Integer { value: Const(v), .. } => v as f64,
+                    TypeValue::UnsignedInteger { value: Const(v) } => v as f64,
                     TypeValue::Float { value: Const(v) } => v,
                     _ => unreachable!(),
                 })
