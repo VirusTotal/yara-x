@@ -453,7 +453,8 @@ pub fn get_includes(root: &Node<Immutable>, base: &Url) -> Vec<Url> {
         });
     includes
 }
-/// Collect already imported modules and returns it as a set.
+
+/// Collect already imported modules and returns them as a set.
 pub fn get_imported_modules(root: &Node<Immutable>) -> HashSet<String> {
     root.children()
         .filter_map(|node| {
