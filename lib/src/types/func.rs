@@ -181,7 +181,9 @@ impl MangledFnName {
                 let mut type_value = if constraints.is_empty() {
                     TypeValue::unknown_signed_integer()
                 } else {
-                    TypeValue::unknown_integer_with_constraints(constraints)
+                    TypeValue::unknown_signed_integer_with_constraints(
+                        constraints,
+                    )
                 };
 
                 if let TypeValue::Integer { unsigned: u, .. } = &mut type_value
@@ -522,7 +524,7 @@ mod test {
             MangledFnName::from("foo@@i:R0:10").unmangle(),
             (
                 vec![],
-                TypeValue::unknown_integer_with_constraints(vec![
+                TypeValue::unknown_signed_integer_with_constraints(vec![
                     IntegerConstraint::Range(0, 10),
                 ])
             )
@@ -532,7 +534,7 @@ mod test {
             MangledFnName::from("foo@@i:R-100:1000").unmangle(),
             (
                 vec![],
-                TypeValue::unknown_integer_with_constraints(vec![
+                TypeValue::unknown_signed_integer_with_constraints(vec![
                     IntegerConstraint::Range(-100, 1000),
                 ])
             )

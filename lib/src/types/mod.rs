@@ -524,7 +524,7 @@ impl TypeValue {
     /// if its value is unknown.
     // TODO: remove when unsigned integers are produced by modules (#26).
     #[allow(dead_code)]
-    pub fn try_as_unsigned(&self) -> Option<u64> {
+    pub fn try_as_unsigned_integer(&self) -> Option<u64> {
         if let TypeValue::Integer { value, unsigned: true, .. } = self {
             value.extract().map(|v| *v as u64)
         } else {
@@ -598,9 +598,9 @@ impl TypeValue {
         }
     }
 
-    /// Creates a new [`TypeValue`] consisting of a variable integer.
+    /// Creates a new [`TypeValue`] consisting of a variable signed integer.
     #[inline]
-    pub fn var_integer_from<T: Into<i64>>(i: T) -> Self {
+    pub fn var_signed_integer_from<T: Into<i64>>(i: T) -> Self {
         Self::Integer {
             value: Value::Var(i.into()),
             constraints: None,
@@ -684,7 +684,7 @@ impl TypeValue {
 
     /// Creates a new [`TypeValue`] consisting of a variable unsigned integer.
     #[inline]
-    pub fn var_unsigned_from<T: Into<u64>>(i: T) -> Self {
+    pub fn var_unsigned_integer_from<T: Into<u64>>(i: T) -> Self {
         Self::Integer {
             value: Value::Var(i.into() as i64),
             constraints: None,
@@ -730,10 +730,10 @@ impl TypeValue {
         }
     }
 
-    /// Creates a new [`TypeValue`] consisting of an unknown integer with
-    /// the given constraints.
+    /// Creates a new [`TypeValue`] consisting of an unknown signed integer
+    /// with the given constraints.
     #[inline]
-    pub fn unknown_integer_with_constraints<
+    pub fn unknown_signed_integer_with_constraints<
         C: Into<Vec<IntegerConstraint>>,
     >(
         constraints: C,
@@ -874,8 +874,8 @@ mod tests {
         assert_ne!(hash(&signed), hash(&unsigned));
         assert!(!signed.eq_type(&unsigned));
 
-        assert_eq!(signed.try_as_unsigned(), None);
-        assert_eq!(unsigned.try_as_unsigned(), Some(u64::MAX));
+        assert_eq!(signed.try_as_unsigned_integer(), None);
+        assert_eq!(unsigned.try_as_unsigned_integer(), Some(u64::MAX));
 
         assert_eq!(format!("{signed:?}"), "integer(-1)");
         assert_eq!(format!("{unsigned:?}"), "unsigned(18446744073709551615)");
@@ -887,7 +887,7 @@ mod tests {
         assert_eq!(unknown, TypeValue::unknown_unsigned_integer());
         assert_eq!(format!("{unknown:?}"), "unsigned(unknown)");
 
-        assert!(TypeValue::var_unsigned_from(1_u64).is_unsigned());
-        assert!(!TypeValue::var_unsigned_from(1_u64).is_const());
+        assert!(TypeValue::var_unsigned_integer_from(1_u64).is_unsigned());
+        assert!(!TypeValue::var_unsigned_integer_from(1_u64).is_const());
     }
 }

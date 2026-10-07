@@ -935,11 +935,11 @@ impl Struct {
         match ty {
             RuntimeType::U64 => {
                 if let Some(v) = value {
-                    TypeValue::var_unsigned_from(Self::value_as_u64(v))
+                    TypeValue::var_unsigned_integer_from(Self::value_as_u64(v))
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
-                    TypeValue::var_unsigned_from(0_u64)
+                    TypeValue::var_unsigned_integer_from(0_u64)
                 } else {
                     TypeValue::unknown_unsigned_integer()
                 }
@@ -949,11 +949,11 @@ impl Struct {
             | RuntimeType::U32
             | RuntimeType::Enum(_) => {
                 if let Some(v) = value {
-                    TypeValue::var_integer_from(Self::value_as_i64(v))
+                    TypeValue::var_signed_integer_from(Self::value_as_i64(v))
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
-                    TypeValue::var_integer_from(0)
+                    TypeValue::var_signed_integer_from(0)
                 } else {
                     TypeValue::unknown_signed_integer()
                 }
@@ -1438,7 +1438,7 @@ mod tests {
         let foo = Struct::default();
 
         root.add_field("foo", TypeValue::Struct(Rc::new(foo)));
-        root.add_field("bar", TypeValue::var_integer_from(1));
+        root.add_field("bar", TypeValue::var_signed_integer_from(1));
 
         let field1 = root.field_by_name("foo").unwrap();
         let field2 = root.field_by_index(0).unwrap();
@@ -1446,7 +1446,7 @@ mod tests {
         assert_eq!(field1.type_value.ty(), Type::Struct);
         assert_eq!(field1.type_value.ty(), field2.type_value.ty());
 
-        root.add_field("foo.bar", TypeValue::var_integer_from(1));
+        root.add_field("foo.bar", TypeValue::var_signed_integer_from(1));
     }
     #[test]
     fn test_proto_struct() {
@@ -1499,7 +1499,7 @@ mod tests {
         let mut b = Struct::default();
 
         a.add_field("boolean", TypeValue::var_bool_from(true));
-        a.add_field("integer", TypeValue::var_integer_from(1));
+        a.add_field("integer", TypeValue::var_signed_integer_from(1));
         a.add_field("structure", TypeValue::Struct(sub.clone()));
         a.add_field(
             "floats_array",
@@ -1510,7 +1510,7 @@ mod tests {
         assert_ne!(a, b);
 
         b.add_field("boolean", TypeValue::var_bool_from(false));
-        b.add_field("integer", TypeValue::var_integer_from(1));
+        b.add_field("integer", TypeValue::var_signed_integer_from(1));
         b.add_field("structure", TypeValue::Struct(sub));
         b.add_field(
             "floats_array",
