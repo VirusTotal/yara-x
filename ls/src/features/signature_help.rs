@@ -53,7 +53,7 @@ pub fn signature_help(
 
     let last_ident = curr?;
 
-    let func = match get_type(&last_ident) {
+    let func = match get_type(&last_ident).map(|resolved| resolved.ty) {
         Some(Type::Func(func)) => Some(func),
         _ => None,
     }?;

@@ -441,6 +441,12 @@ async fn completion() {
     #[cfg(not(feature = "magic-module"))]
     lsp_request::<_, Completion>("completion27.yar").await;
 
+    // Auto-import of the module when completing its fields, directly or
+    // through variables declared in `for` and `with` statements.
+    lsp_request::<_, Completion>("completion28.yar").await;
+    lsp_request::<_, Completion>("completion29.yar").await;
+    lsp_request::<_, Completion>("completion30.yar").await;
+
     lsp_request::<_, ResolveCompletionItem>("completion_resolve1.yar").await;
     lsp_request::<_, ResolveCompletionItem>("completion_resolve2.yar").await;
 }
