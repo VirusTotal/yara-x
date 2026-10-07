@@ -189,7 +189,7 @@ pub(crate) enum TypeValue {
     /// A 64-bit signed integer.
     SignedInteger {
         value: Value<i64>,
-        constraints: Option<Vec<IntegerConstraint>>,
+        constraints: Option<Box<[IntegerConstraint]>>,
     },
     /// A 64-bit unsigned integer.
     ///
@@ -199,7 +199,7 @@ pub(crate) enum TypeValue {
     /// float.
     UnsignedInteger {
         value: Value<u64>,
-        constraints: Option<Vec<IntegerConstraint>>,
+        constraints: Option<Box<[IntegerConstraint]>>,
     },
     String {
         value: Value<Rc<BString>>,
@@ -767,7 +767,7 @@ impl TypeValue {
     /// with the given constraints.
     #[inline]
     pub fn unknown_signed_integer_with_constraints<
-        C: Into<Vec<IntegerConstraint>>,
+        C: Into<Box<[IntegerConstraint]>>,
     >(
         constraints: C,
     ) -> Self {
@@ -781,7 +781,7 @@ impl TypeValue {
     /// with the given constraints.
     #[inline]
     pub fn unknown_unsigned_integer_with_constraints<
-        C: Into<Vec<IntegerConstraint>>,
+        C: Into<Box<[IntegerConstraint]>>,
     >(
         constraints: C,
     ) -> Self {
