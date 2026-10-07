@@ -1610,110 +1610,49 @@ impl IR {
             _ => return false,
         };
 
-        if let Some(offset) = func_call
+        // Width in bytes and endianness of each built-in function that
+        // reads an integer from the scanned data.
+        let (width, big_endian) = match func_call.plain_name() {
+            "uint8" | "int8" | "uint8be" | "int8be" => (1, false),
+            "uint16" | "int16" => (2, false),
+            "uint16be" | "int16be" => (2, true),
+            "uint32" | "int32" => (4, false),
+            "uint32be" | "int32be" => (4, true),
+            "int64" => (8, false),
+            "int64be" => (8, true),
+            _ => return false,
+        };
+
+        let offset = match func_call
             .args
             .first()
             .and_then(|arg| self.get(*arg).try_as_const_integer())
-            && offset >= 0
+            .and_then(|offset| usize::try_from(offset).ok())
         {
-            match func_call.plain_name() {
-                "uint8" | "int8" | "uint8be" | "int8be" => {
-                    self.add_constraint(
-                        constrained_bytes,
-                        unsatisfiable,
-                        offset as usize,
-                        val as u8,
-                    );
-                    return true;
-                }
-                "uint16" | "int16" => {
-                    self.add_constraint(
-                        constrained_bytes,
-                        unsatisfiable,
-                        offset as usize,
-                        (val as u16 & 0xff) as u8,
-                    );
-                    self.add_constraint(
-                        constrained_bytes,
-                        unsatisfiable,
-                        offset as usize + 1,
-                        ((val as u16 >> 8) & 0xff) as u8,
-                    );
-                    return true;
-                }
-                "uint16be" | "int16be" => {
-                    self.add_constraint(
-                        constrained_bytes,
-                        unsatisfiable,
-                        offset as usize,
-                        ((val as u16 >> 8) & 0xff) as u8,
-                    );
-                    self.add_constraint(
-                        constrained_bytes,
-                        unsatisfiable,
-                        offset as usize + 1,
-                        (val as u16 & 0xff) as u8,
-                    );
-                    return true;
-                }
-                "uint32" | "int32" => {
-                    self.add_constraint(
-                        constrained_bytes,
-                        unsatisfiable,
-                        offset as usize,
-                        (val as u32 & 0xff) as u8,
-                    );
-                    self.add_constraint(
-                        constrained_bytes,
-                        unsatisfiable,
-                        offset as usize + 1,
-                        ((val as u32 >> 8) & 0xff) as u8,
-                    );
-                    self.add_constraint(
-                        constrained_bytes,
-                        unsatisfiable,
-                        offset as usize + 2,
-                        ((val as u32 >> 16) & 0xff) as u8,
-                    );
-                    self.add_constraint(
-                        constrained_bytes,
-                        unsatisfiable,
-                        offset as usize + 3,
-                        ((val as u32 >> 24) & 0xff) as u8,
-                    );
-                    return true;
-                }
-                "uint32be" | "int32be" => {
-                    self.add_constraint(
-                        constrained_bytes,
-                        unsatisfiable,
-                        offset as usize,
-                        ((val as u32 >> 24) & 0xff) as u8,
-                    );
-                    self.add_constraint(
-                        constrained_bytes,
-                        unsatisfiable,
-                        offset as usize + 1,
-                        ((val as u32 >> 16) & 0xff) as u8,
-                    );
-                    self.add_constraint(
-                        constrained_bytes,
-                        unsatisfiable,
-                        offset as usize + 2,
-                        ((val as u32 >> 8) & 0xff) as u8,
-                    );
-                    self.add_constraint(
-                        constrained_bytes,
-                        unsatisfiable,
-                        offset as usize + 3,
-                        (val as u32 & 0xff) as u8,
-                    );
-                    return true;
-                }
-                _ => {}
-            }
+            Some(offset) => offset,
+            None => return false,
+        };
+
+        // Take the `width` least significant bytes of `val`, in the order
+        // in which they appear in the scanned data.
+        let le_bytes = val.to_le_bytes();
+        let be_bytes = val.to_be_bytes();
+        let bytes = if big_endian {
+            &be_bytes[8 - width..]
+        } else {
+            &le_bytes[..width]
+        };
+
+        for (i, byte) in bytes.iter().enumerate() {
+            self.add_constraint(
+                constrained_bytes,
+                unsatisfiable,
+                offset + i,
+                *byte,
+            );
         }
-        false
+
+        true
     }
 }
 

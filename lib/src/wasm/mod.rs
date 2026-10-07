@@ -1686,6 +1686,28 @@ gen_int_fn!(int8be, i8, from_be_bytes, -128, 127);
 gen_int_fn!(int16be, i16, from_be_bytes, -32_768, 32_767);
 gen_int_fn!(int32be, i32, from_be_bytes, -2_147_483_648, 2_147_483_647);
 
+macro_rules! gen_int64_fn {
+    ($name:ident, $from_fn:ident) => {
+        #[wasm_export(public = true, sync = "none")]
+        pub(crate) fn $name(
+            caller: &mut Caller<'_, ScanContext>,
+            offset: i64,
+        ) -> Option<i64> {
+            let offset = usize::try_from(offset).ok()?;
+            caller
+                .data()
+                .scanned_data()?
+                .get(offset..offset.checked_add(mem::size_of::<i64>())?)
+                .map(|bytes| i64::$from_fn(bytes.try_into().unwrap()))
+        }
+    };
+}
+
+// The result of `int64` and `int64be` can be any `i64`, therefore they return
+// `Option<i64>` instead of a `RangedInteger`.
+gen_int64_fn!(int64, from_le_bytes);
+gen_int64_fn!(int64be, from_be_bytes);
+
 macro_rules! gen_float_fn {
     ($name:ident, $return_type:ty, $from_fn:ident) => {
         #[wasm_export(public = true, sync = "none")]
