@@ -482,52 +482,42 @@ pub fn get_imported_modules(root: &Node<Immutable>) -> HashSet<String> {
 /// the rule, and the text is inserted at the beginning of the file instead,
 /// so the comment stays attached to its rule.
 pub fn first_line_range_after_comment(root: &Node<Immutable>) -> Range {
-    // Walk the leading trivia, remembering the last comment and the first
-    // non-trivia item.
-    let mut last_comment: Option<Token<Immutable>> = None;
-    let mut next_item: Option<NodeOrToken<Immutable>> = None;
+    let mut newlines_in_a_row = 0;
 
     for child in root.children_with_tokens() {
         match child.kind() {
-            SyntaxKind::COMMENT => last_comment = child.into_token(),
-            SyntaxKind::NEWLINE | SyntaxKind::WHITESPACE => {}
-            _ => {
-                next_item = Some(child);
-                break;
+            // Comments and whitespaces are skipped, a comment doesn't reset
+            // the empty line detection, as it belongs to the same line.
+            SyntaxKind::COMMENT => {
+                newlines_in_a_row = 0;
             }
+            SyntaxKind::WHITESPACE => {}
+            SyntaxKind::NEWLINE => {
+                newlines_in_a_row += 1;
+                // An empty line: insert into it.
+                if newlines_in_a_row > 1 {
+                    let pos = child.start_pos::<Utf16>();
+                    return Range {
+                        start: Position::new(pos.line as u32, 0),
+                        end: Position::new(pos.line as u32, 0),
+                    };
+                }
+            }
+            // Import or include: insert right above it.
+            SyntaxKind::IMPORT_STMT | SyntaxKind::INCLUDE_STMT => {
+                let pos = child.start_pos::<Utf16>();
+                return Range {
+                    start: Position::new(pos.line as u32, 0),
+                    end: Position::new(pos.line as u32, 0),
+                };
+            }
+            // Anything else (e.g., a rule declaration): the comments above
+            // it most likely describe it, insert at the top of the file.
+            _ => return Range::default(),
         }
     }
 
-    let Some(comment) = last_comment else {
-        return Range::default();
-    };
-
-    let next_line = comment.end_pos::<Utf16>().line.saturating_add(1) as u32;
-
-    // A rule declaration right after the comment: the comment describes the
-    // rule, insert at the beginning of the file.
-    if next_item.is_some_and(|item| {
-        let (start_line, is_rule) = match item {
-            NodeOrToken::Node(node) => (
-                node.start_pos::<Utf16>().line,
-                node.kind() == SyntaxKind::RULE_DECL,
-            ),
-            NodeOrToken::Token(token) => (
-                token.start_pos::<Utf16>().line,
-                token
-                    .parent()
-                    .is_some_and(|p| p.kind() == SyntaxKind::RULE_DECL),
-            ),
-        };
-        is_rule && start_line as u32 == next_line
-    }) {
-        return Range::default();
-    }
-
-    Range {
-        start: Position::new(next_line, 0),
-        end: Position::new(next_line, 0),
-    }
+    Range::default()
 }
 
 #[cfg(test)]
@@ -689,16 +679,16 @@ mod tests {
         assert_eq!(range.end.character, 0);
 
         // A rule declaration on the line right after the comment: the
-        // comment most likely describes the rule, insertion at the very
-        // beginning of the file.
+        // comment most likely describes the rule, insertion above the
+        // comment.
         let text = "// comment\nrule foo { condition: true }";
         let cst = CST::from(text);
         let range = first_line_range_after_comment(&cst.root());
         assert_eq!(range.start.line, 0);
         assert_eq!(range.start.character, 0);
 
-        // Several line comments followed by an empty line: insertion at the
-        // beginning of the line right after the last comment.
+        // Several line comments followed by an empty line: insertion right
+        // after the comments.
         let text =
             "// First line\n// Second line\n\nrule foo { condition: true }";
         let cst = CST::from(text);
@@ -707,16 +697,16 @@ mod tests {
         assert_eq!(range.start.character, 0);
 
         // Block comment followed by a rule declaration on the next line: the
-        // comment most likely describes the rule, insertion at the very
-        // beginning of the file.
+        // comment most likely describes the rule, insertion above the
+        // comment.
         let text = "/* comment */\nrule foo { condition: true }";
         let cst = CST::from(text);
         let range = first_line_range_after_comment(&cst.root());
         assert_eq!(range.start.line, 0);
         assert_eq!(range.start.character, 0);
 
-        // Multiline block comment with no rule declaration on the next
-        // line: insertion at the beginning of the next line.
+        // Multiline block comment followed by an empty line: insertion right
+        // after the comment.
         let text = "/* comment\ncomment */\n\nrule foo { condition: true }";
         let cst = CST::from(text);
         let range = first_line_range_after_comment(&cst.root());
@@ -724,12 +714,24 @@ mod tests {
         assert_eq!(range.start.character, 0);
 
         // A rule declaration on the line right after the comment: the
-        // comment most likely describes the rule, insertion at the very
-        // beginning of the file.
+        // comment most likely describes the rule, insertion above the
+        // comment.
         let text = "//Rule description\nrule name { condition: true }";
         let cst = CST::from(text);
         let range = first_line_range_after_comment(&cst.root());
         assert_eq!(range.start.line, 0);
+        assert_eq!(range.start.character, 0);
+
+        let text = "/*\nComment\n*/\n\n// Rule comment\nrule name {\n  condition:\n    elf.\n}";
+        let cst = CST::from(text);
+        let range = first_line_range_after_comment(&cst.root());
+        assert_eq!(range.start.line, 3);
+        assert_eq!(range.start.character, 0);
+
+        let text = "/* File header */\n\n// Note\n// Note\n\n// Rule comment\nrule name { condition: true }";
+        let cst = CST::from(text);
+        let range = first_line_range_after_comment(&cst.root());
+        assert_eq!(range.start.line, 1);
         assert_eq!(range.start.character, 0);
     }
 }
