@@ -1,5 +1,5 @@
 RULE test
-  171: AND -- hash: 0x550720c3956843bf
+  171: AND -- hash: 0x139ac59899f3eaec
     0: PATTERN_MATCH PatternIdx(0) -- hash: 0x5a276c8d75077d2b
     2: PATTERN_MATCH PatternIdx(0) AT -- hash: 0xfb7f3424e7aabb50
       1: CONST integer(0)
@@ -153,35 +153,35 @@ RULE test
     132: EQ -- hash: 0x7b057a8f6f1c6ec1
       130: CONST integer(4)
       131: CONST integer(4)
-    135: CONTAINS -- hash: 0x660fc7ce052cb681
+    135: CONTAINS -- hash: 0x9d754db85faf1098
       133: CONST string("foo")
       134: CONST string("f")
-    138: ICONTAINS -- hash: 0x377f84bcc413903b
+    138: ICONTAINS -- hash: 0x6ee50aa71e95ea52
       136: CONST string("foo")
       137: CONST string("F")
-    141: STARTS_WITH -- hash: 0xd2d5574eed1ea15b
+    141: STARTS_WITH -- hash: 0xa3add3947a0fb73
       139: CONST string("foo")
       140: CONST string("f")
-    144: ISTARTS_WITH -- hash: 0xa445143dac057b15
+    144: ISTARTS_WITH -- hash: 0xdbaa9a280687d52c
       142: CONST string("foo")
       143: CONST string("F")
-    147: ENDS_WITH -- hash: 0xaf9269de21654fff
+    147: ENDS_WITH -- hash: 0xe6f7efc87be7aa16
       145: CONST string("foo")
       146: CONST string("o")
-    150: IENDS_WITH -- hash: 0xf81ff13400fb2d99
+    150: IENDS_WITH -- hash: 0x2f85771e5b7d87b1
       148: CONST string("foo")
       149: CONST string("O")
-    153: IEQUALS -- hash: 0x59f750b89300b823
+    153: IEQUALS -- hash: 0x915cd6a2e983123a
       151: CONST string("foo")
       152: CONST string("FOO")
-    157: CONTAINS -- hash: 0x69900714c5de042c
+    157: CONTAINS -- hash: 0xa0f58cff1c605e43
       154: CONST string("foo")
       156: CONST string("foo")
     161: DEFINED -- hash: 0xc649804070cd56ad
       160: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
         158: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
         159: SYMBOL Field { index: 36, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
-    170: EQ -- hash: 0xc86bbac0d41a5b9c
+    170: EQ -- hash: 0xbc0e96769bef45cb
       168: FIELD_ACCESS -- hash: 0x6af92ddf1af8a3f2
         166: LOOKUP -- hash: 0xb7e6fdca077aa568
           164: FIELD_ACCESS -- hash: 0xb93ff31706b0e381

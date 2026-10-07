@@ -1,11 +1,11 @@
 RULE test
-  12: OR -- hash: 0xd63a6b052500bffc
-    5: EQ -- hash: 0xf6558ac091593c37
+  12: OR -- hash: 0x5e691dd84c3bdab7
+    5: EQ -- hash: 0xe9f86676552e2666
       3: FN_CALL hash.md5@offset:i,size:i@s:N32:Lu -- hash: 0x1816d7edf1a573dc
         1: CONST integer(0)
         2: FILESIZE
       4: CONST string("feba6c919e3797e7778e8f2e85fa033d")
-    11: EQ -- hash: 0x4434c578c46781a4
+    11: EQ -- hash: 0x37d7a12e883c6bd3
       9: FN_CALL hash.md5@offset:i,size:i@s:N32:Lu -- hash: 0x1816d7edf1a573dc
         7: CONST integer(0)
         8: FILESIZE

@@ -595,7 +595,7 @@ fn expr_from_ast<'src>(
                 match (lhs_expr.type_value(), rhs_expr.type_value()) {
                     (
                         TypeValue::Bool { .. },
-                        TypeValue::Integer { value: Const(0), .. },
+                        TypeValue::SignedInteger { value: Const(0), .. },
                     ) => Some((
                         ctx.ir.not(lhs),
                         format!(
@@ -604,7 +604,7 @@ fn expr_from_ast<'src>(
                         ),
                     )),
                     (
-                        TypeValue::Integer { value: Const(0), .. },
+                        TypeValue::SignedInteger { value: Const(0), .. },
                         TypeValue::Bool { .. },
                     ) => Some((
                         ctx.ir.not(rhs),
@@ -615,10 +615,10 @@ fn expr_from_ast<'src>(
                     )),
                     (
                         TypeValue::Bool { .. },
-                        TypeValue::Integer { value: Const(1), .. },
+                        TypeValue::SignedInteger { value: Const(1), .. },
                     ) => Some((lhs, ctx.report_builder.get_snippet(lhs_span))),
                     (
-                        TypeValue::Integer { value: Const(1), .. },
+                        TypeValue::SignedInteger { value: Const(1), .. },
                         TypeValue::Bool { .. },
                     ) => Some((rhs, ctx.report_builder.get_snippet(rhs_span))),
                     _ => None,
@@ -3354,15 +3354,23 @@ fn eq_check(
             constrained_string_span,
         ),
         (
-            const_integer @ (TypeValue::Integer { value: Const(_), .. }
+            const_integer @ (TypeValue::SignedInteger {
+                value: Const(_), ..
+            }
             | TypeValue::UnsignedInteger { value: Const(_) }),
-            TypeValue::Integer { constraints: Some(constraints), .. },
+            TypeValue::SignedInteger {
+                constraints: Some(constraints), ..
+            },
             const_integer_span,
             constrained_integer_span,
         )
         | (
-            TypeValue::Integer { constraints: Some(constraints), .. },
-            const_integer @ (TypeValue::Integer { value: Const(_), .. }
+            TypeValue::SignedInteger {
+                constraints: Some(constraints), ..
+            },
+            const_integer @ (TypeValue::SignedInteger {
+                value: Const(_), ..
+            }
             | TypeValue::UnsignedInteger { value: Const(_) }),
             constrained_integer_span,
             const_integer_span,

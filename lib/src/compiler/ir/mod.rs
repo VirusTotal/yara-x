@@ -1819,7 +1819,7 @@ impl IR {
             match self.get(operand).type_value() {
                 // The result of negating an integer is always signed, even
                 // if the operand is unsigned. Overflows wrap around.
-                TypeValue::Integer { value: Const(v), .. } => {
+                TypeValue::SignedInteger { value: Const(v), .. } => {
                     return self.constant(
                         TypeValue::const_signed_integer_from(v.wrapping_neg()),
                     );
@@ -2688,7 +2688,7 @@ impl IR {
     /// its value, regardless of its signedness.
     fn const_integer_bits(&self, expr: ExprId) -> Option<i64> {
         match self.get(expr).type_value() {
-            TypeValue::Integer { value: Const(v), .. } => Some(v),
+            TypeValue::SignedInteger { value: Const(v), .. } => Some(v),
             TypeValue::UnsignedInteger { value: Const(v) } => Some(v as i64),
             _ => None,
         }
@@ -2719,7 +2719,9 @@ impl IR {
             let folded = operands
                 .iter()
                 .map(|op| match self.get(*op).type_value() {
-                    TypeValue::Integer { value: Const(v), .. } => v as f64,
+                    TypeValue::SignedInteger { value: Const(v), .. } => {
+                        v as f64
+                    }
                     TypeValue::UnsignedInteger { value: Const(v) } => v as f64,
                     TypeValue::Float { value: Const(v) } => v,
                     _ => unreachable!(),

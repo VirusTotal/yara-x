@@ -187,9 +187,18 @@ pub(crate) enum TypeValue {
         value: Value<f64>,
     },
     /// A 64-bit signed integer.
-    Integer {
+    SignedInteger {
         value: Value<i64>,
         constraints: Option<Vec<IntegerConstraint>>,
+    },
+    /// A 64-bit unsigned integer.
+    ///
+    /// Signed and unsigned integers share the same [`Type::Integer`] type,
+    /// signedness only matters for operations where the result depends on
+    /// it, like comparisons, divisions, right shifts, and conversions to
+    /// float.
+    UnsignedInteger {
+        value: Value<u64>,
     },
     String {
         value: Value<Rc<BString>>,
@@ -200,18 +209,6 @@ pub(crate) enum TypeValue {
     Array(Rc<Array>),
     Map(Rc<Map>),
     Func(Rc<Func>),
-    /// A 64-bit unsigned integer.
-    ///
-    /// Signed and unsigned integers share the same [`Type::Integer`] type,
-    /// signedness only matters for operations where the result depends on
-    /// it, like comparisons, divisions, right shifts, and conversions to
-    /// float.
-    ///
-    /// This variant is the last one so that the discriminants of the other
-    /// variants, which are used in IR hashes, remain unchanged.
-    UnsignedInteger {
-        value: Value<u64>,
-    },
 }
 
 /// Each of the constraints allowed for string types.
@@ -237,7 +234,7 @@ impl Hash for TypeValue {
         mem::discriminant(self).hash(state);
         match self {
             TypeValue::Unknown => {}
-            TypeValue::Integer { value, .. } => {
+            TypeValue::SignedInteger { value, .. } => {
                 mem::discriminant(value).hash(state);
                 if let Value::Const(c) = value {
                     c.hash(state);
@@ -292,7 +289,7 @@ impl TypeValue {
     pub fn is_const(&self) -> bool {
         match self {
             TypeValue::Unknown => false,
-            TypeValue::Integer { value, .. } => value.is_const(),
+            TypeValue::SignedInteger { value, .. } => value.is_const(),
             TypeValue::UnsignedInteger { value } => value.is_const(),
             TypeValue::Float { value } => value.is_const(),
             TypeValue::Bool { value } => value.is_const(),
@@ -313,7 +310,7 @@ impl TypeValue {
     /// the same fields and the type of each field matches.
     pub fn eq_type(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Integer { .. }, Self::Integer { .. }) => true,
+            (Self::SignedInteger { .. }, Self::SignedInteger { .. }) => true,
             (Self::UnsignedInteger { .. }, Self::UnsignedInteger { .. }) => {
                 true
             }
@@ -368,7 +365,7 @@ impl TypeValue {
     pub fn ty(&self) -> Type {
         match self {
             Self::Unknown => Type::Unknown,
-            Self::Integer { .. } => Type::Integer,
+            Self::SignedInteger { .. } => Type::Integer,
             Self::UnsignedInteger { .. } => Type::Integer,
             Self::Float { .. } => Type::Float,
             Self::Bool { .. } => Type::Bool,
@@ -384,7 +381,7 @@ impl TypeValue {
     pub fn clone_without_value(&self) -> Self {
         match self {
             Self::Unknown => Self::Unknown,
-            Self::Integer { .. } => Self::unknown_signed_integer(),
+            Self::SignedInteger { .. } => Self::unknown_signed_integer(),
             Self::UnsignedInteger { .. } => Self::unknown_unsigned_integer(),
             Self::Float { .. } => Self::unknown_float(),
             Self::Bool { .. } => Self::unknown_bool(),
@@ -405,13 +402,13 @@ impl TypeValue {
     /// integers, floats, and strings and bools can be casted to bool.
     pub fn cast_to_bool(&self) -> Self {
         match self {
-            Self::Integer { value: Value::Unknown, .. } => {
+            Self::SignedInteger { value: Value::Unknown, .. } => {
                 Self::Bool { value: Value::Unknown }
             }
-            Self::Integer { value: Value::Var(i), .. } => {
+            Self::SignedInteger { value: Value::Var(i), .. } => {
                 Self::Bool { value: Value::Var(*i != 0) }
             }
-            Self::Integer { value: Value::Const(i), .. } => {
+            Self::SignedInteger { value: Value::Const(i), .. } => {
                 Self::Bool { value: Value::Const(*i != 0) }
             }
 
@@ -532,7 +529,7 @@ impl TypeValue {
     /// Returns [`None`] if the [`TypeValue`] is not a signed integer, or if
     /// its value is unknown.
     pub fn try_as_integer(&self) -> Option<i64> {
-        if let TypeValue::Integer { value, .. } = self {
+        if let TypeValue::SignedInteger { value, .. } = self {
             value.extract().cloned()
         } else {
             None
@@ -562,7 +559,7 @@ impl TypeValue {
     /// value is unknown.
     pub fn try_as_integer_bits(&self) -> Option<i64> {
         match self {
-            TypeValue::Integer { value, .. } => value.extract().cloned(),
+            TypeValue::SignedInteger { value, .. } => value.extract().cloned(),
             TypeValue::UnsignedInteger { value } => {
                 value.extract().map(|v| *v as i64)
             }
@@ -576,7 +573,7 @@ impl TypeValue {
     /// Returns [`None`] if the [`TypeValue`] is not a constant integer.
     pub fn try_as_const_i128(&self) -> Option<i128> {
         match self {
-            TypeValue::Integer { value: Value::Const(v), .. } => {
+            TypeValue::SignedInteger { value: Value::Const(v), .. } => {
                 Some(*v as i128)
             }
             TypeValue::UnsignedInteger { value: Value::Const(v) } => {
@@ -636,7 +633,7 @@ impl TypeValue {
     /// Creates a new [`TypeValue`] consisting of a variable signed integer.
     #[inline]
     pub fn var_signed_integer_from<T: Into<i64>>(i: T) -> Self {
-        Self::Integer { value: Value::Var(i.into()), constraints: None }
+        Self::SignedInteger { value: Value::Var(i.into()), constraints: None }
     }
 
     /// Creates a new [`TypeValue`] consisting of a variable float.
@@ -663,7 +660,10 @@ impl TypeValue {
     /// Creates a new [`TypeValue`] consisting of a constant signed integer.
     #[inline]
     pub fn const_signed_integer_from<T: Into<i64>>(i: T) -> Self {
-        Self::Integer { value: Value::Const(i.into()), constraints: None }
+        Self::SignedInteger {
+            value: Value::Const(i.into()),
+            constraints: None,
+        }
     }
 
     /// Creates a new [`TypeValue`] consisting of a constant float.
@@ -702,7 +702,7 @@ impl TypeValue {
     /// Creates a new [`TypeValue`] consisting of an unknown signed integer.
     #[inline]
     pub fn unknown_signed_integer() -> Self {
-        Self::Integer { value: Value::Unknown, constraints: None }
+        Self::SignedInteger { value: Value::Unknown, constraints: None }
     }
 
     /// Creates a new [`TypeValue`] consisting of a variable unsigned integer.
@@ -749,7 +749,7 @@ impl TypeValue {
     >(
         constraints: C,
     ) -> Self {
-        Self::Integer {
+        Self::SignedInteger {
             value: Value::Unknown,
             constraints: Some(constraints.into()),
         }
@@ -773,7 +773,7 @@ impl Debug for TypeValue {
                     write!(f, "boolean(unknown)")
                 }
             }
-            Self::Integer { value, .. } => {
+            Self::SignedInteger { value, .. } => {
                 if let Some(v) = value.extract() {
                     write!(f, "integer({v:?})")
                 } else {
@@ -834,8 +834,8 @@ impl PartialEq for TypeValue {
                 Self::String { value: rhs, .. },
             ) => lhs == rhs,
             (
-                Self::Integer { value: lhs, .. },
-                Self::Integer { value: rhs, .. },
+                Self::SignedInteger { value: lhs, .. },
+                Self::SignedInteger { value: rhs, .. },
             ) => lhs == rhs,
             (
                 Self::UnsignedInteger { value: lhs },
