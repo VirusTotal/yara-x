@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use async_lsp::lsp_types::{
     CompletionContext, CompletionItem, CompletionItemKind,
-    CompletionItemLabelDetails, CompletionTriggerKind, InsertTextFormat,
-    InsertTextMode, Position, Range, TextEdit, Url,
+    CompletionItemLabelDetails, CompletionTriggerKind, Documentation,
+    InsertTextFormat, InsertTextMode, Position, Range, TextEdit, Url,
 };
 
 use itertools::Itertools;
@@ -12,6 +12,7 @@ use itertools::Itertools;
 use yara_x::mods::{module_names, reflect::Type};
 use yara_x_parser::cst::{CST, Immutable, Node, SyntaxKind, Token};
 
+use crate::configuration::DocumentationConfiguration;
 use crate::documents::storage::DocumentStorage;
 use crate::utils::cst_traversal::{
     idents_declared_by_expr, non_error_parent, prev_non_trivia_token,
@@ -19,6 +20,7 @@ use crate::utils::cst_traversal::{
 };
 
 use crate::utils::modules::{get_type, ty_to_string};
+use crate::utils::rule_documentation::RuleDocumentationBuilder;
 
 const PATTERN_MODS: &[(SyntaxKind, &[&str])] = &[
     (
@@ -130,6 +132,29 @@ pub fn completion(
     Some(vec![])
 }
 
+/// Resolves additional documentation for a rule completion item.
+pub fn resolve_completion(
+    documents: Arc<DocumentStorage>,
+    documentation_configuration: &DocumentationConfiguration,
+    mut item: CompletionItem,
+) -> CompletionItem {
+    if let Some(uri) = item
+        .data
+        .as_ref()
+        .and_then(|data| data.get("uri"))
+        .and_then(serde_json::Value::as_str)
+        .and_then(|uri_str| Url::parse(uri_str).ok())
+        && let Some(rule) = documents.workspace_resolve(&uri, &item.label)
+    {
+        item.documentation = Some(Documentation::MarkupContent(
+            RuleDocumentationBuilder::new(rule)
+                .rule_markdown(documentation_configuration),
+        ));
+        item.data = None;
+    }
+    item
+}
+
 /// Collects completion suggestions for a condition block.
 fn condition_suggestions(
     cst: &CST,
@@ -157,6 +182,9 @@ fn condition_suggestions(
                             description: Some("Rule".to_string()),
                             ..Default::default()
                         }),
+                        data: Some(serde_json::json!({
+                            "uri": uri,
+                        })),
                         kind: Some(CompletionItemKind::VARIABLE),
                         ..Default::default()
                     });
@@ -164,13 +192,16 @@ fn condition_suggestions(
             }
             result.extend(
                 documents.included_rules(cst.root(), &uri).into_iter().map(
-                    |(desc, token)| CompletionItem {
+                    |(included_uri, token)| CompletionItem {
                         label: token.text().to_string(),
                         label_details: Some(CompletionItemLabelDetails {
-                            description: Some(desc),
+                            description: uri.make_relative(&included_uri),
                             ..Default::default()
                         }),
                         kind: Some(CompletionItemKind::VARIABLE),
+                        data: Some(serde_json::json!({
+                            "uri": included_uri,
+                        })),
                         ..Default::default()
                     },
                 ),
@@ -256,13 +287,20 @@ fn condition_suggestions(
                     .children_with_tokens()
                     .find(|n| n.kind() == SyntaxKind::PATTERN_IDENT)
                     .and_then(|n| n.into_token())
+                    && let Some(label) = pattern_ident.text().strip_prefix('$')
+                    && !label.is_empty()
                 {
                     result.push(CompletionItem {
-                        label: String::from(&pattern_ident.text()[1..]),
+                        label: label.to_string(),
                         label_details: Some(CompletionItemLabelDetails {
                             description: Some("Pattern".to_string()),
                             ..Default::default()
                         }),
+                        documentation: Some(Documentation::MarkupContent(
+                            RuleDocumentationBuilder::pattern_node_markdown(
+                                &pattern_def,
+                            ),
+                        )),
                         kind: Some(CompletionItemKind::TEXT),
                         ..Default::default()
                     });
@@ -427,7 +465,7 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
                                 }),
                                 documentation: sig.doc().map(
                                     |docs| {
-                                        async_lsp::lsp_types::Documentation::MarkupContent(
+                                        Documentation::MarkupContent(
                                             async_lsp::lsp_types::MarkupContent {
                                                 kind: async_lsp::lsp_types::MarkupKind::Markdown,
                                                 value: format!(

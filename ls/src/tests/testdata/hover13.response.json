@@ -1,0 +1,6 @@
+{
+  "contents": {
+    "kind": "markdown",
+    "value": "## rule `hover_config_rule`\n```\nauthor = \"author\"\n```\n### strings:\n\n```\n$a = \"foo\"\n```\n### condition:\n\n```\nfor any i in (1..2) : (\n  $a and i == 1\n)\n```\n"
+  }
+}
