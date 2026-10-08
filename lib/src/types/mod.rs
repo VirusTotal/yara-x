@@ -618,9 +618,22 @@ impl TypeValue {
     /// Returns the constraints of a signed or unsigned integer, if any.
     pub fn integer_constraints(&self) -> Option<&[IntegerConstraint]> {
         match self {
-            TypeValue::SignedInteger { constraints, .. }
-            | TypeValue::UnsignedInteger { constraints, .. } => {
-                constraints.as_deref()
+            TypeValue::SignedInteger { constraints: Some(c), .. }
+            | TypeValue::UnsignedInteger { constraints: Some(c), .. } => {
+                Some(c.as_ref())
+            }
+            TypeValue::SignedInteger { constraints: None, .. }
+                if !self.is_const() =>
+            {
+                Some(&[IntegerConstraint::Range(
+                    i64::MIN as i128,
+                    i64::MAX as i128,
+                )])
+            }
+            TypeValue::UnsignedInteger { constraints: None, .. }
+                if !self.is_const() =>
+            {
+                Some(&[IntegerConstraint::Range(0, u64::MAX as i128)])
             }
             _ => None,
         }

@@ -19,3 +19,17 @@ warning[unsatisfiable_expr]: unsatisfiable expression
    |     ---------    ------------------ this integer is outside the range [0,4294967295]
    |     |
    |     this expression is an integer in the range [0,4294967295]
+warning[unsatisfiable_expr]: unsatisfiable expression
+  --> line:18:5
+   |
+18 |     uint64(0) == -1
+   |     ---------    -- this integer is outside the range [0,18446744073709551615]
+   |     |
+   |     this expression is an integer in the range [0,18446744073709551615]
+warning[unsatisfiable_expr]: unsatisfiable expression
+  --> line:23:5
+   |
+23 |     int64(0) == 0x8000000000000000
+   |     --------    ------------------ this integer is outside the range [-9223372036854775808,9223372036854775807]
+   |     |
+   |     this expression is an integer in the range [-9223372036854775808,9223372036854775807]

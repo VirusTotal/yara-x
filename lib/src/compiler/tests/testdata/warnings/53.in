@@ -12,3 +12,13 @@ rule test_3 {
   condition:
     uint32(0) == 0xFFFFFFFFFFFFFFFF
 }
+
+rule test_4 {
+  condition:
+    uint64(0) == -1
+}
+
+rule test_5 {
+  condition:
+    int64(0) == 0x8000000000000000
+}
