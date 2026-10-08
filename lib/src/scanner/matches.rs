@@ -131,15 +131,16 @@ impl MatchList {
     }
 
     /// Returns the number of matches that start within the given range.
-    pub fn matches_in_range(&self, range: RangeInclusive<isize>) -> i64 {
+    pub fn matches_in_range(&self, range: RangeInclusive<i64>) -> i64 {
         // If the end of the range is negative there can't be any matches in
         // that range.
         if range.end().is_negative() {
             return 0;
         }
 
-        let start: usize = (*range.start()).try_into().unwrap_or(0);
-        let end: usize = (*range.end()).try_into().unwrap();
+        let start: usize =
+            (*range.start()).max(0).try_into().unwrap_or(usize::MAX);
+        let end: usize = (*range.end()).try_into().unwrap_or(usize::MAX);
 
         // Find the index of the match that starts at `start`, or the index
         // where it should be. Any match starting at some offset >= `start`,

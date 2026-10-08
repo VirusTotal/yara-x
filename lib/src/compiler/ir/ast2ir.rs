@@ -1872,13 +1872,20 @@ fn non_negative_integer_from_ast<'src>(
 
     check_type(ctx, expr, span.clone(), &[Type::Integer])?;
 
-    if let Some(value) = ctx.ir.get(expr).type_value().try_as_const_i128()
-        && value < 0
-    {
-        return Err(UnexpectedNegativeNumber::build(
-            ctx.report_builder,
-            ctx.report_builder.span_to_code_loc(span),
-        ));
+    if let Some(value) = ctx.ir.get(expr).type_value().try_as_const_i128() {
+        if value < 0 {
+            return Err(UnexpectedNegativeNumber::build(
+                ctx.report_builder,
+                ctx.report_builder.span_to_code_loc(span),
+            ));
+        } else if value > i64::MAX as i128 {
+            return Err(NumberOutOfRange::build(
+                ctx.report_builder,
+                0,
+                i64::MAX,
+                ctx.report_builder.span_to_code_loc(span),
+            ));
+        }
     }
 
     Ok(expr)

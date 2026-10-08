@@ -1940,14 +1940,38 @@ fn emit_for_in_range(
                         emit_expr(ctx, ir, range.upper_bound, instr);
                         emit_expr(ctx, ir, range.lower_bound, instr);
 
-                        // Store lower_bound in temp variable, without removing
-                        // it from the stack.
-                        instr.local_tee(ctx.wasm_symbols.i64_tmp_a);
+                        // Store lower_bound in tmp_a and upper_bound in tmp_b.
+                        instr.local_set(ctx.wasm_symbols.i64_tmp_a);
+                        instr.local_set(ctx.wasm_symbols.i64_tmp_b);
 
-                        // Compute upper_bound - lower_bound + 1.
-                        instr.binop(BinaryOp::I64Sub);
-                        instr.i64_const(1);
-                        instr.binop(BinaryOp::I64Add);
+                        // Both bounds must be >= 0 and lower_bound <= upper_bound.
+                        // Checking `lower_bound < 0 || upper_bound < lower_bound`
+                        // using signed comparison guarantees `0 <= lower_bound <= upper_bound <= i64::MAX`
+                        // (note that unsigned integers > i64::MAX have a negative
+                        // bit pattern as i64).
+                        instr.local_get(ctx.wasm_symbols.i64_tmp_a);
+                        instr.i64_const(0);
+                        instr.binop(BinaryOp::I64LtS);
+
+                        instr.local_get(ctx.wasm_symbols.i64_tmp_b);
+                        instr.local_get(ctx.wasm_symbols.i64_tmp_a);
+                        instr.binop(BinaryOp::I64LtS);
+
+                        instr.binop(BinaryOp::I32Or);
+                        instr.if_else(
+                            I64,
+                            |then_| {
+                                then_.i64_const(0);
+                            },
+                            |else_| {
+                                // Compute upper_bound - lower_bound + 1.
+                                else_.local_get(ctx.wasm_symbols.i64_tmp_b);
+                                else_.local_get(ctx.wasm_symbols.i64_tmp_a);
+                                else_.binop(BinaryOp::I64Sub);
+                                else_.i64_const(1);
+                                else_.binop(BinaryOp::I64Add);
+                            },
+                        );
                     },
                     |_, instr| {
                         instr.i64_const(0);
@@ -2431,9 +2455,13 @@ fn emit_for<I, B, C, A>(
                             incr_var(ctx, then_, count);
 
                             // Is counter >= quantifier?.
+                            // Using unsigned comparison ensures that if
+                            // `max_count` is negative (or an unsigned integer
+                            // > i64::MAX), it is treated as larger than `count`
+                            // and the condition evaluates to false.
                             load_var(ctx, then_, count);
                             load_var(ctx, then_, max_count);
-                            then_.binop(BinaryOp::I64GeS);
+                            then_.binop(BinaryOp::I64GeU);
 
                             then_.if_else(
                                 None,

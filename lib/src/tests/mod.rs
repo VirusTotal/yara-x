@@ -659,6 +659,42 @@ fn uint64xx() {
     condition_false!("uint64be(13) != 0", &data);
     condition_false!("uint64(-1) == 0", &data);
     condition_false!("uint64(-1) != 0", &data);
+    condition_false!("uint8(0x7FFFFFFFFFFFFFFF) == 0", &data);
+    condition_false!("float64(0x7FFFFFFFFFFFFFFF) == 0.0", &data);
+
+    // Using `uint64` (> i64::MAX) or negative `int8` at runtime in
+    // quantifiers, range bounds, and pattern anchors.
+    condition_false!("uint64(10) of (true)", &data);
+    condition_false!("int8(10) of (true)", &data);
+    condition_false!("for uint64(10) i in (0..1) : (true)", &data);
+    condition_false!("for int8(10) i in (0..1) : (true)", &data);
+    condition_false!("for any i in (0..uint64(10)) : (true)", &data);
+    condition_false!("for any i in (5..uint64(10)) : (true)", &data);
+    condition_false!("for any i in (uint64(10)..5) : (true)", &data);
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = { 01 02 }
+            condition:
+                uint64(10) of ($a) or int8(10) of ($a)
+        }
+        "#,
+        &data
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = { 01 02 }
+            condition:
+                $a at uint64(10) or $a in (0..uint64(10)) or #a in (0..uint64(10)) > 0
+        }
+        "#,
+        &data
+    );
 }
 
 #[test]

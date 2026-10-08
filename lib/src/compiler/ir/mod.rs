@@ -35,8 +35,7 @@ use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem;
 use std::mem::discriminant;
-use std::ops::RangeInclusive;
-use std::ops::{Add, Index};
+use std::ops::{Index, RangeInclusive};
 use std::rc::Rc;
 
 use bitflags::bitflags;
@@ -3276,7 +3275,9 @@ impl Iterable {
                     lower_bound.try_as_const_integer(),
                     upper_bound.try_as_const_integer(),
                 ) {
-                    upper_val.add(1).checked_sub(lower_val)
+                    upper_val
+                        .checked_sub(lower_val)
+                        .map(|d| d.saturating_add(1))
                 } else {
                     None
                 }
