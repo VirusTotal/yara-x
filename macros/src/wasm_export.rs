@@ -93,7 +93,11 @@ impl<'ast> FuncSignatureParser<'ast> {
                     .get(1)
                     .ok_or_else(|| Error::new_spanned(type_path, error_msg))?;
 
-                Ok(Cow::Owned(format!("i:R{min:?}:{max:?}")))
+                if *min >= 0 {
+                    Ok(Cow::Owned(format!("i:U:R{min:?}:{max:?}")))
+                } else {
+                    Ok(Cow::Owned(format!("i:R{min:?}:{max:?}")))
+                }
             }
             "FixedLenString" => {
                 let error_msg = "FixedLenString must have a constant length (i.e: FixedLenString<32>)";

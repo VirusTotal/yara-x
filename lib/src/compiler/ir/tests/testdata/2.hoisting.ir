@@ -44,29 +44,29 @@ RULE test
                       12: LE -- hash: 0x683a1d546192136c
                         9: FIELD_ACCESS -- hash: 0xee456a1e00eeb5a2
                           7: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 25 }, type_value: struct }
-                          8: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
+                          8: SYMBOL Field { index: 0, is_root: false, type_value: unsigned(unknown), acl: None, deprecation_notice: None }
                         11: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 9 }, type_value: integer(unknown) }
                       22: LE -- hash: 0xb98d168c82aae133
                         14: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 10 }, type_value: integer(unknown) }
                         21: ADD -- hash: 0x8f76cc0b5cc1808c
                           17: FIELD_ACCESS -- hash: 0xee456a1e00eeb5a2
                             15: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 25 }, type_value: struct }
-                            16: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
+                            16: SYMBOL Field { index: 0, is_root: false, type_value: unsigned(unknown), acl: None, deprecation_notice: None }
                           20: FIELD_ACCESS -- hash: 0xa32310e4653f548f
                             18: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 25 }, type_value: struct }
-                            19: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
+                            19: SYMBOL Field { index: 1, is_root: false, type_value: unsigned(unknown), acl: None, deprecation_notice: None }
                       28: LE -- hash: 0x56bffd34177d98b5
                         25: FIELD_ACCESS -- hash: 0xee456a1e00eeb5a2
                           23: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 25 }, type_value: struct }
-                          24: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
+                          24: SYMBOL Field { index: 0, is_root: false, type_value: unsigned(unknown), acl: None, deprecation_notice: None }
                         27: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 18 }, type_value: integer(unknown) }
                       38: LE -- hash: 0xe1c6482c7820f9d
                         30: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 19 }, type_value: integer(unknown) }
                         37: ADD -- hash: 0x8f76cc0b5cc1808c
                           33: FIELD_ACCESS -- hash: 0xee456a1e00eeb5a2
                             31: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 25 }, type_value: struct }
-                            32: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
+                            32: SYMBOL Field { index: 0, is_root: false, type_value: unsigned(unknown), acl: None, deprecation_notice: None }
                           36: FIELD_ACCESS -- hash: 0xa32310e4653f548f
                             34: SYMBOL Var { var: Var { frame_id: 3, ty: struct, index: 25 }, type_value: struct }
-                            35: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
+                            35: SYMBOL Field { index: 1, is_root: false, type_value: unsigned(unknown), acl: None, deprecation_notice: None }
 

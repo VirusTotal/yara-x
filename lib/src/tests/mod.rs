@@ -639,6 +639,14 @@ fn uint64xx() {
 
     // Arithmetic with unsigned results.
     condition_true!(r"uint64(10) \ 2 == 0x7FFFFFFFFFFFFFFF", &data);
+    condition_true!(r"uint64(10) \ uint8(1) == 0x7FFFFFFFFFFFFFFF", &data);
+    condition_true!(r"uint64(10) % uint8(9) == 5", &data);
+    condition_true!("uint64(10) + uint8(0) == 0", &data);
+    condition_true!("uint64(10) - uint16(0) == 0xFFFFFFFFFFFFFDFE", &data);
+    condition_true!("uint64(10) - uint32(0) == 0xFFFFFFFFFBFCFDFE", &data);
+    condition_true!("uint8(0) - 2 == 0xFFFFFFFFFFFFFFFF", &data);
+    condition_true!("uint16(0) - 0x0202 == 0xFFFFFFFFFFFFFFFF", &data);
+    condition_true!("uint32(0) - 0x04030202 == 0xFFFFFFFFFFFFFFFF", &data);
     condition_true!("uint64(10) % 10 == 5", &data);
     condition_true!("uint64(10) >> 60 == 15", &data);
     condition_true!("uint64(10) + 1 == 0", &data);

@@ -180,7 +180,7 @@ RULE test
     161: DEFINED -- hash: 0xc649804070cd56ad
       160: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
         158: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
-        159: SYMBOL Field { index: 36, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
+        159: SYMBOL Field { index: 36, is_root: false, type_value: unsigned(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
     170: EQ -- hash: 0xbc0e96769bef45cb
       168: FIELD_ACCESS -- hash: 0x6af92ddf1af8a3f2
         166: LOOKUP -- hash: 0xb7e6fdca077aa568

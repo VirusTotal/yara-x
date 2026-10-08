@@ -9,7 +9,9 @@ use crate::modules::protos::yara::exts::{
     enum_options, enum_value, field_options, message_options, module_options,
 };
 use crate::symbols::{Symbol, SymbolLookup};
-use crate::types::{Array, Map, StringConstraint, TypeValue};
+use crate::types::{
+    Array, IntegerConstraint, Map, StringConstraint, TypeValue, Value,
+};
 use crate::wasm::WasmExport;
 use bstr::BString;
 use indexmap::{IndexMap, IndexSet};
@@ -944,10 +946,27 @@ impl Struct {
                     TypeValue::unknown_unsigned_integer()
                 }
             }
-            RuntimeType::I32
-            | RuntimeType::I64
-            | RuntimeType::U32
-            | RuntimeType::Enum(_) => {
+            RuntimeType::U32 => {
+                let constraints = if generate_compile_time_fields {
+                    Some(
+                        vec![IntegerConstraint::Range(0, u32::MAX as i128)]
+                            .into_boxed_slice(),
+                    )
+                } else {
+                    None
+                };
+                let value = if let Some(v) = value {
+                    Value::Var(Self::value_as_u64(v))
+                } else if syntax == Syntax::Proto3 {
+                    // In proto3 unknown values are set to their default
+                    // values.
+                    Value::Var(0_u64)
+                } else {
+                    Value::Unknown
+                };
+                TypeValue::UnsignedInteger { value, constraints }
+            }
+            RuntimeType::I32 | RuntimeType::I64 | RuntimeType::Enum(_) => {
                 if let Some(v) = value {
                     TypeValue::var_signed_integer_from(Self::value_as_i64(v))
                 } else if syntax == Syntax::Proto3 {
@@ -1043,19 +1062,7 @@ impl Struct {
                     Array::Integers(vec![])
                 }
             }
-            RuntimeType::U32 => {
-                if let Some(repeated) = repeated {
-                    Array::Integers(
-                        repeated
-                            .into_iter()
-                            .map(|value| Self::value_as_i64(value))
-                            .collect(),
-                    )
-                } else {
-                    Array::Integers(vec![])
-                }
-            }
-            RuntimeType::U64 => {
+            RuntimeType::U32 | RuntimeType::U64 => {
                 if let Some(repeated) = repeated {
                     Array::UnsignedIntegers(
                         repeated
@@ -1313,6 +1320,7 @@ impl Struct {
 
     fn value_as_u64(value: ReflectValueRef) -> u64 {
         match value {
+            ReflectValueRef::U32(v) => v as u64,
             ReflectValueRef::U64(v) => v,
             _ => panic!(),
         }

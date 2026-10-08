@@ -27,13 +27,21 @@ fn test_proto2_module() {
     condition_true!(r#"test_proto2.int64_one * test_proto2.int64_one == 1"#);
     condition_true!(r#"test_proto2.int64_one - test_proto2.int64_one == 0"#);
 
-    // Fields of type uint64 are unsigned integers.
+    // Fields of type uint32 and uint64 are unsigned integers.
+    condition_true!(r#"test_proto2.uint32_zero == 0"#);
+    condition_true!(r#"test_proto2.uint32_one == 1"#);
+    condition_true!(r#"test_proto2.uint32_one > -1"#);
+    condition_true!(r#"test_proto2.uint32_one - 2 == 0xFFFFFFFFFFFFFFFF"#);
+    condition_true!(r#"test_proto2.uint32_one - 2 > 0"#);
     condition_true!(r#"test_proto2.uint64_zero == 0"#);
     condition_true!(r#"test_proto2.uint64_one == 1"#);
     condition_true!(r#"test_proto2.uint64_one > -1"#);
     condition_true!(r#"test_proto2.uint64_one - 2 == 0xFFFFFFFFFFFFFFFF"#);
     condition_true!(r#"test_proto2.uint64_one - 2 > 0"#);
     condition_true!(r"(test_proto2.uint64_zero - 1) \ 2 == 0x7FFFFFFFFFFFFFFF");
+    condition_true!(
+        r"(test_proto2.uint64_zero - 1) \ (test_proto2.uint32_one + 1) == 0x7FFFFFFFFFFFFFFF"
+    );
     condition_true!(r#"(test_proto2.uint64_zero - 1) >> 63 == 1"#);
     condition_true!(r#"test_proto2.int64_one - 2 == -1"#);
     condition_false!(r#"test_proto2.uint64_undef == 0"#);
