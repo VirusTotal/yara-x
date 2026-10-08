@@ -686,9 +686,7 @@ fn emit_expr(
                     emit_array_indexing(ctx, instr, &array);
                 }
                 TypeValue::Map(map) => {
-                    let index_unsigned =
-                        ir.get(lookup.index).type_value().is_unsigned();
-                    emit_map_lookup(ctx, instr, map, index_unsigned);
+                    emit_map_lookup(ctx, instr, map);
                 }
                 _ => unreachable!(),
             };
@@ -1525,13 +1523,9 @@ fn emit_map_lookup(
     ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     map: Rc<Map>,
-    index_unsigned: bool,
 ) {
     match map.as_ref() {
         Map::IntegerKeys { deputy, .. } => {
-            if index_unsigned {
-                throw_undef_if_negative(ctx, instr);
-            }
             emit_map_integer_key_lookup(ctx, instr, deputy.as_ref().unwrap())
         }
         Map::StringKeys { deputy, .. } => {
@@ -3157,28 +3151,6 @@ fn throw_undef_if_zero(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
         },
         |else_| {
             // Non-zero, put back the value into the stack.
-            else_.local_get(tmp);
-        },
-    );
-}
-
-/// Similar to [`throw_undef`], but throws the exception if the top of the
-/// stack is negative (when interpreted as a signed `i64`). If the top of the
-/// stack is non-negative, calling this function is a no-op.
-fn throw_undef_if_negative(
-    ctx: &mut EmitContext,
-    instr: &mut InstrSeqBuilder,
-) {
-    let tmp = ctx.wasm_symbols.i64_tmp_a;
-    instr.local_tee(tmp);
-    instr.i64_const(0);
-    instr.binop(BinaryOp::I64LtS);
-    instr.if_else(
-        I64,
-        |then| {
-            throw_undef(ctx, then);
-        },
-        |else_| {
             else_.local_get(tmp);
         },
     );
