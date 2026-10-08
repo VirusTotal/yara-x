@@ -1,10 +1,9 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_lsp::lsp_types::{
     CompletionContext, CompletionItem, CompletionItemKind,
     CompletionItemLabelDetails, CompletionTriggerKind, Documentation,
-    InsertTextFormat, InsertTextMode, Position, Range, TextEdit, Url,
+    InsertTextFormat, InsertTextMode, Position, Url,
 };
 
 use itertools::Itertools;
@@ -19,7 +18,8 @@ use crate::utils::cst_traversal::{
     rule_containing_token, rule_ident, token_at_position,
 };
 
-use crate::utils::modules::{get_type, ty_to_string};
+use crate::utils::imports::ModuleImports;
+use crate::utils::modules::{ResolvedType, get_type, ty_to_string};
 use crate::utils::rule_documentation::RuleDocumentationBuilder;
 
 const PATTERN_MODS: &[(SyntaxKind, &[&str])] = &[
@@ -233,42 +233,15 @@ fn condition_suggestions(
                 })
             });
 
-            // Collect already imported modules.
-            let imported = root
-                .children()
-                .filter_map(|node| {
-                    if node.kind() == SyntaxKind::IMPORT_STMT {
-                        // The last token in IMPORT_STMT is a STRING_LIT with
-                        // the module name.
-                        node.last_token()
-                    } else {
-                        None
-                    }
-                })
-                .map(|module_name| {
-                    // Strip the quotes from the module name.
-                    module_name.text().trim_matches('"').to_string()
-                })
-                .collect::<HashSet<String>>();
-
-            // Suggest module names.
+            // Suggest module names, importing them automatically if they
+            // are not imported yet.
+            let imports = ModuleImports::new(&root);
             module_names().for_each(|module_name| {
-                // Automatically imports the module if it is not already imported.
-                let additional_text_edits = if imported.contains(module_name) {
-                    None
-                } else {
-                    Some(vec![TextEdit {
-                        range: Range {
-                            start: Position { line: 0, character: 0 },
-                            end: Position { line: 0, character: 0 },
-                        },
-                        new_text: format!("import \"{}\"\n", module_name),
-                    }])
-                };
                 result.push(CompletionItem {
                     label: module_name.to_string(),
                     kind: Some(CompletionItemKind::MODULE),
-                    additional_text_edits,
+                    additional_text_edits: imports
+                        .edits_to_import(module_name),
                     ..Default::default()
                 })
             });
@@ -414,10 +387,16 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
         _ => None,
     }?;
 
-    let current_struct = match get_type(&token)? {
-        Type::Struct(s) => s,
-        _ => return None,
+    let ResolvedType { ty: Type::Struct(current_struct), module: module_name } =
+        get_type(&token)?
+    else {
+        return None;
     };
+
+    // Accepting any of the suggested fields imports the module, if it's not
+    // imported yet.
+    let root = token.parent().map(|p| p.root())?;
+    let auto_import = ModuleImports::new(&root).edits_to_import(&module_name);
 
     // Now `current_struct` is the structure before the cursor.
     // We want to suggest fields for this structure.
@@ -481,6 +460,7 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
                                         )
                                     },
                                 ),
+                                additional_text_edits: auto_import.clone(),
                                 ..Default::default()
                             }
                         })
@@ -512,6 +492,7 @@ fn field_suggestions(token: &Token<Immutable>) -> Option<Vec<CompletionItem>> {
                             description: Some(description),
                             ..Default::default()
                         }),
+                        additional_text_edits: auto_import.clone(),
                         ..Default::default()
                     }]
                 }

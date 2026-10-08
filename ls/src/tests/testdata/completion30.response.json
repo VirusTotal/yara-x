@@ -1,0 +1,146 @@
+[
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"elf\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "insertText": "address",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "address",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"elf\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "insertText": "flags",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "flags",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"elf\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "insertText": "name",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "name",
+    "labelDetails": {
+      "description": "string"
+    }
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"elf\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "insertText": "offset",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "offset",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"elf\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "insertText": "size",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "size",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"elf\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "insertText": "type",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "type",
+    "labelDetails": {
+      "description": "integer"
+    }
+  }
+]
