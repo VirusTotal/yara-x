@@ -27,6 +27,7 @@ magic-module = ["yara-x/magic-module"]
 [dependencies]
 bitflags = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
+clap = { workspace = true, features = ["cargo"] }
 dashmap = { version = "6.2.1" }
 futures = "0.3.34"
 regex = { workspace = true }
