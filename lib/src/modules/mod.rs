@@ -616,8 +616,7 @@ pub mod mods {
                 match type_value {
                     TypeValue::Bool { .. } => Type::Bool,
                     TypeValue::Float { .. } => Type::Float,
-                    TypeValue::SignedInteger { .. } => Type::Integer,
-                    TypeValue::UnsignedInteger { .. } => Type::Integer,
+                    TypeValue::Integer { .. } => Type::Integer,
                     TypeValue::String { .. } => Type::String,
                     TypeValue::Regexp(_) => Type::Regexp,
                     TypeValue::Struct(s) => {

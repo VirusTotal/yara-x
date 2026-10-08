@@ -516,9 +516,8 @@ impl Struct {
 
             if Self::lowercase(&fd) {
                 if let TypeValue::String { constraints, .. } = &mut value {
-                    constraints
-                        .get_or_insert_default()
-                        .push(StringConstraint::Lowercase);
+                    *constraints =
+                        Some(Box::new([StringConstraint::Lowercase]));
                 } else {
                     panic!(
                         "`lowercase = true` in non-string field: {}",
@@ -956,15 +955,15 @@ impl Struct {
                     None
                 };
                 let value = if let Some(v) = value {
-                    Value::Var(Self::value_as_u64(v))
+                    Value::Var(Self::value_as_u64(v) as i64)
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
-                    Value::Var(0_u64)
+                    Value::Var(0)
                 } else {
                     Value::Unknown
                 };
-                TypeValue::UnsignedInteger { value, constraints }
+                TypeValue::Integer { value, is_unsigned: true, constraints }
             }
             RuntimeType::I32 | RuntimeType::I64 | RuntimeType::Enum(_) => {
                 if let Some(v) = value {

@@ -1818,16 +1818,9 @@ impl IR {
             match self.get(operand).type_value() {
                 // The result of negating an integer is always signed, even
                 // if the operand is unsigned. Overflows wrap around.
-                TypeValue::SignedInteger { value: Const(v), .. } => {
+                TypeValue::Integer { value: Const(v), .. } => {
                     return self.constant(
                         TypeValue::const_signed_integer_from(v.wrapping_neg()),
-                    );
-                }
-                TypeValue::UnsignedInteger { value: Const(v), .. } => {
-                    return self.constant(
-                        TypeValue::const_signed_integer_from(
-                            (v as i64).wrapping_neg(),
-                        ),
                     );
                 }
                 TypeValue::Float { value: Const(v), .. } => {
@@ -2700,12 +2693,12 @@ impl IR {
     /// If the expression is a constant integer, returns the bit pattern of
     /// its value, regardless of its signedness.
     fn const_integer_bits(&self, expr: ExprId) -> Option<i64> {
-        match self.get(expr).type_value() {
-            TypeValue::SignedInteger { value: Const(v), .. } => Some(v),
-            TypeValue::UnsignedInteger { value: Const(v), .. } => {
-                Some(v as i64)
-            }
-            _ => None,
+        if let TypeValue::Integer { value: Const(v), .. } =
+            self.get(expr).type_value()
+        {
+            Some(v)
+        } else {
+            None
         }
     }
 
@@ -2734,12 +2727,16 @@ impl IR {
             let folded = operands
                 .iter()
                 .map(|op| match self.get(*op).type_value() {
-                    TypeValue::SignedInteger { value: Const(v), .. } => {
-                        v as f64
-                    }
-                    TypeValue::UnsignedInteger { value: Const(v), .. } => {
-                        v as f64
-                    }
+                    TypeValue::Integer {
+                        value: Const(v),
+                        is_unsigned: false,
+                        ..
+                    } => v as f64,
+                    TypeValue::Integer {
+                        value: Const(v),
+                        is_unsigned: true,
+                        ..
+                    } => (v as u64) as f64,
                     TypeValue::Float { value: Const(v) } => v,
                     _ => unreachable!(),
                 })
@@ -2775,8 +2772,16 @@ impl IR {
         }
 
         let to_f64 = |tv: &TypeValue| match tv {
-            TypeValue::SignedInteger { value: Const(v), .. } => *v as f64,
-            TypeValue::UnsignedInteger { value: Const(v), .. } => *v as f64,
+            TypeValue::Integer {
+                value: Const(v),
+                is_unsigned: false,
+                ..
+            } => *v as f64,
+            TypeValue::Integer {
+                value: Const(v),
+                is_unsigned: true,
+                ..
+            } => (*v as u64) as f64,
             TypeValue::Float { value: Const(v) } => *v,
             _ => unreachable!(),
         };
@@ -2791,8 +2796,8 @@ impl IR {
             {
                 acc = TypeValue::const_float_from(to_f64(&acc) / to_f64(&rhs));
             } else {
-                let lhs_bits = acc.try_as_integer_bits()?;
-                let rhs_bits = rhs.try_as_integer_bits()?;
+                let lhs_bits = acc.try_as_integer()?;
+                let rhs_bits = rhs.try_as_integer()?;
 
                 // Division by zero (or signed overflow) evaluates to undefined
                 // at runtime, so do not fold it into a constant.
@@ -2820,8 +2825,8 @@ impl IR {
 
         for (i, operand) in operands.iter().enumerate().skip(1) {
             let rhs = self.get(*operand).type_value();
-            let lhs_bits = acc.try_as_integer_bits()?;
-            let rhs_bits = rhs.try_as_integer_bits()?;
+            let lhs_bits = acc.try_as_integer()?;
+            let rhs_bits = rhs.try_as_integer()?;
 
             // Modulo by zero evaluates to undefined at runtime, so do not fold
             // it into a constant.

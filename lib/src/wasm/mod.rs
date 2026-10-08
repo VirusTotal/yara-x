@@ -1271,20 +1271,7 @@ macro_rules! gen_lookup_fn {
     };
 }
 
-/// Lookup a field of integer type in a struct, returning its value.
-///
-/// Both signed and unsigned integers are returned as an `i64`. For unsigned
-/// integers the result has the same bit pattern than the unsigned value.
-///
-/// See [`lookup_field`].
-#[wasm_export(sync = "before")]
-pub(crate) fn lookup_integer(
-    caller: &mut Caller<'_, ScanContext>,
-    structure: Option<Rc<Struct>>,
-    num_lookup_indexes: i32,
-) -> Option<i64> {
-    lookup_field(caller, structure, num_lookup_indexes).try_as_integer_bits()
-}
+gen_lookup_fn!(lookup_integer, i64, TypeValue::Integer);
 
 gen_lookup_fn!(lookup_float, f64, TypeValue::Float);
 gen_lookup_fn!(lookup_bool, bool, TypeValue::Bool);
@@ -1342,7 +1329,7 @@ macro_rules! gen_map_lookup_fn {
             i64,
             i64,
             with_integer_keys,
-            as_integer_bits
+            as_integer
         );
     };
     ($name:ident, i64, f64) => {
@@ -1357,7 +1344,7 @@ macro_rules! gen_map_lookup_fn {
             RuntimeString,
             i64,
             with_string_keys,
-            as_integer_bits
+            as_integer
         );
     };
     ($name:ident, RuntimeString, f64) => {
@@ -1516,7 +1503,7 @@ gen_map_lookup_by_index_fn!(
     i64,
     i64,
     with_integer_keys,
-    as_integer_bits
+    as_integer
 );
 
 #[rustfmt::skip]
@@ -1543,7 +1530,7 @@ gen_map_lookup_by_index_fn!(
     RuntimeString,
     i64,
     with_string_keys,
-    as_integer_bits
+    as_integer
 );
 
 #[rustfmt::skip]

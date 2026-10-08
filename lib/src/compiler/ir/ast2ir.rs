@@ -507,14 +507,9 @@ fn expr_from_ast<'src>(
             ctx.ir.constant(TypeValue::const_bool_from(false))
         }
 
-        ast::Expr::LiteralInteger(lit) => match lit.value {
-            ast::IntegerValue::I64(value) => {
-                ctx.ir.constant(TypeValue::const_signed_integer_from(value))
-            }
-            ast::IntegerValue::U64(value) => {
-                ctx.ir.constant(TypeValue::const_unsigned_integer_from(value))
-            }
-        },
+        ast::Expr::LiteralInteger(lit) => ctx.ir.constant(
+            TypeValue::const_integer_from_bits(lit.value, lit.is_unsigned),
+        ),
 
         ast::Expr::LiteralFloat(lit) => {
             ctx.ir.constant(TypeValue::const_float_from(lit.value))
@@ -595,7 +590,7 @@ fn expr_from_ast<'src>(
                 match (lhs_expr.type_value(), rhs_expr.type_value()) {
                     (
                         TypeValue::Bool { .. },
-                        TypeValue::SignedInteger { value: Const(0), .. },
+                        TypeValue::Integer { value: Const(0), .. },
                     ) => Some((
                         ctx.ir.not(lhs),
                         format!(
@@ -604,7 +599,7 @@ fn expr_from_ast<'src>(
                         ),
                     )),
                     (
-                        TypeValue::SignedInteger { value: Const(0), .. },
+                        TypeValue::Integer { value: Const(0), .. },
                         TypeValue::Bool { .. },
                     ) => Some((
                         ctx.ir.not(rhs),
@@ -615,10 +610,10 @@ fn expr_from_ast<'src>(
                     )),
                     (
                         TypeValue::Bool { .. },
-                        TypeValue::SignedInteger { value: Const(1), .. },
+                        TypeValue::Integer { value: Const(1), .. },
                     ) => Some((lhs, ctx.report_builder.get_snippet(lhs_span))),
                     (
-                        TypeValue::SignedInteger { value: Const(1), .. },
+                        TypeValue::Integer { value: Const(1), .. },
                         TypeValue::Bool { .. },
                     ) => Some((rhs, ctx.report_builder.get_snippet(rhs_span))),
                     _ => None,
@@ -3219,7 +3214,7 @@ fn eq_check(
         |ctx: &mut CompileContext,
          const_string: Rc<BString>,
          const_string_span: Span,
-         constraints: Vec<StringConstraint>,
+         constraints: Box<[StringConstraint]>,
          constrained_string_span: Span| {
             for constraint in constraints {
                 match constraint {

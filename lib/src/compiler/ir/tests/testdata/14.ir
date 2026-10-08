@@ -56,7 +56,7 @@ RULE test_2
           9: CONST integer(0)
 
 RULE test_3
-  19: FOR_IN -- hash: 0x340ca64b0ad8ea85
+  19: FOR_IN -- hash: 0x9f80cf2da772b9f9
         n: Var { frame_id: 1, ty: integer, index: 0 }
         i: Var { frame_id: 1, ty: integer, index: 1 }
         max_count: Var { frame_id: 1, ty: integer, index: 2 }
@@ -66,8 +66,8 @@ RULE test_3
     3: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
       1: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
       2: SYMBOL Field { index: 36, is_root: false, type_value: unsigned(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
-    18: AND -- hash: 0x9890267e16184dd1
-      12: EQ -- hash: 0xcbae923e5fcabc6e
+    18: AND -- hash: 0x4044f60b2b21d46
+      12: EQ -- hash: 0xd80bb6889bf5d23f
         10: FIELD_ACCESS -- hash: 0xf6f8e9b23f513dd1
           8: LOOKUP -- hash: 0x7e699c8d78b13901
             6: FIELD_ACCESS -- hash: 0xb93ff31706b0e381

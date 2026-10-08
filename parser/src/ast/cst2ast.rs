@@ -1333,12 +1333,13 @@ where
                 }))
             }
             Event::Token { kind: INTEGER_LIT, .. } => {
-                let (value, literal, span) =
+                let ((value, is_unsigned), literal, span) =
                     self.signed_or_unsigned_integer_lit()?;
                 Expr::LiteralInteger(Box::new(LiteralInteger {
                     span,
                     literal,
                     value,
+                    is_unsigned,
                 }))
             }
             Event::Token { kind: STRING_LIT, .. } => {
@@ -1459,21 +1460,16 @@ where
                     Expr::LiteralInteger(mut integer)
                         if !literal.contains('(') =>
                     {
-                        let negated = match integer.value {
-                            IntegerValue::I64(value)
-                                if value.is_positive() =>
-                            {
-                                Some(-value)
-                            }
-                            IntegerValue::U64(value)
-                                if value == i64::MIN.unsigned_abs() =>
-                            {
-                                Some(i64::MIN)
-                            }
-                            _ => None,
-                        };
-                        if let Some(value) = negated {
-                            integer.value = IntegerValue::I64(value);
+                        if !integer.is_unsigned && integer.value.is_positive()
+                        {
+                            integer.value = -integer.value;
+                            integer.literal = literal;
+                            integer.span = span;
+                            Expr::LiteralInteger(integer)
+                        } else if integer.is_unsigned
+                            && integer.value == i64::MIN
+                        {
+                            integer.is_unsigned = false;
                             integer.literal = literal;
                             integer.span = span;
                             Expr::LiteralInteger(integer)
@@ -1657,14 +1653,14 @@ where
     /// boolean is `true`.
     fn signed_or_unsigned_integer_lit(
         &mut self,
-    ) -> Result<(IntegerValue, &'src str, Span), BuilderError> {
+    ) -> Result<((i64, bool), &'src str, Span), BuilderError> {
         let span = self.expect(INTEGER_LIT)?;
         let literal = self.get_source_str(&span)?;
 
         let value = Self::parse_integer::<i64>(literal)
-            .map(IntegerValue::I64)
+            .map(|v| (v, false))
             .or_else(|| {
-                Self::parse_integer::<u64>(literal).map(IntegerValue::U64)
+                Self::parse_integer::<u64>(literal).map(|v| (v as i64, true))
             });
 
         if let Some(value) = value {
