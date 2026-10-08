@@ -180,6 +180,8 @@ fn main(
     test.map_int64_float.insert(100, 1000.0);
     test.map_int64_string.insert(100, "one thousand".into());
     test.map_int64_bool.insert(100, true);
+    test.map_uint64_int64.insert(100, 1000);
+    test.map_uint64_int64.insert(u64::MAX, 2000);
 
     test.array_struct.push(nested.clone());
 

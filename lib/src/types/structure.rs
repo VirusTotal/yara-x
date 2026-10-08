@@ -1199,16 +1199,26 @@ impl Struct {
                 generate_compile_time_fields,
                 syntax,
             ),
-            RuntimeType::I32
-            | RuntimeType::I64
-            | RuntimeType::U32
-            | RuntimeType::U64 => Self::new_map_with_integer_key(
-                value_ty,
-                map,
-                enum_as_fields,
-                generate_compile_time_fields,
-                syntax,
-            ),
+            RuntimeType::I32 | RuntimeType::I64 => {
+                Self::new_map_with_integer_key(
+                    false,
+                    value_ty,
+                    map,
+                    enum_as_fields,
+                    generate_compile_time_fields,
+                    syntax,
+                )
+            }
+            RuntimeType::U32 | RuntimeType::U64 => {
+                Self::new_map_with_integer_key(
+                    true,
+                    value_ty,
+                    map,
+                    enum_as_fields,
+                    generate_compile_time_fields,
+                    syntax,
+                )
+            }
             ty => {
                 panic!("maps in YARA can't have keys of type `{ty}`");
             }
@@ -1218,13 +1228,14 @@ impl Struct {
     }
 
     fn new_map_with_integer_key(
+        unsigned: bool,
         value_ty: &RuntimeType,
         map: Option<ReflectMapRef>,
         enum_as_fields: bool,
         generate_compile_time_fields: bool,
         syntax: Syntax,
     ) -> Map {
-        if let Some(map) = map {
+        let (deputy, map) = if let Some(map) = map {
             let mut result = IndexMap::default();
             for (key, value) in map.into_iter() {
                 result.insert(
@@ -1238,18 +1249,24 @@ impl Struct {
                     ),
                 );
             }
-            Map::IntegerKeys { deputy: None, map: result }
+            (None, result)
         } else {
-            Map::IntegerKeys {
-                deputy: Some(Self::new_value(
+            (
+                Some(Self::new_value(
                     value_ty,
                     None,
                     enum_as_fields,
                     generate_compile_time_fields,
                     syntax,
                 )),
-                map: Default::default(),
-            }
+                Default::default(),
+            )
+        };
+
+        if unsigned {
+            Map::UnsignedIntegerKeys { deputy, map }
+        } else {
+            Map::IntegerKeys { deputy, map }
         }
     }
 

@@ -148,6 +148,8 @@ pub struct TestProto2 {
     pub map_int64_bool: ::std::collections::HashMap<i64, bool>,
     // @@protoc_insertion_point(field:test_proto2.TestProto2.map_int64_float)
     pub map_int64_float: ::std::collections::HashMap<i64, f32>,
+    // @@protoc_insertion_point(field:test_proto2.TestProto2.map_uint64_int64)
+    pub map_uint64_int64: ::std::collections::HashMap<u64, i64>,
     // @@protoc_insertion_point(field:test_proto2.TestProto2.timestamp)
     pub timestamp: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:test_proto2.TestProto2.bool_proto)
@@ -1304,7 +1306,7 @@ impl TestProto2 {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(67);
+        let mut fields = ::std::vec::Vec::with_capacity(68);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "int32_zero",
@@ -1606,6 +1608,11 @@ impl TestProto2 {
             |m: &TestProto2| { &m.map_int64_float },
             |m: &mut TestProto2| { &mut m.map_int64_float },
         ));
+        fields.push(::protobuf::reflect::rt::v2::make_map_simpler_accessor_new::<_, _>(
+            "map_uint64_int64",
+            |m: &TestProto2| { &m.map_uint64_int64 },
+            |m: &mut TestProto2| { &mut m.map_uint64_int64 },
+        ));
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "timestamp",
             |m: &TestProto2| { &m.timestamp },
@@ -1750,6 +1757,7 @@ impl ::protobuf::Message for TestProto2 {
                 return false;
             }
         };
+        // TODO: check map values are initialized
         // TODO: check map values are initialized
         // TODO: check map values are initialized
         // TODO: check map values are initialized
@@ -2075,6 +2083,21 @@ impl ::protobuf::Message for TestProto2 {
                     is.pop_limit(old_limit);
                     self.map_int64_float.insert(key, value);
                 },
+                2450 => {
+                    let len = is.read_raw_varint32()?;
+                    let old_limit = is.push_limit(len as u64)?;
+                    let mut key = ::std::default::Default::default();
+                    let mut value = ::std::default::Default::default();
+                    while let Some(tag) = is.read_raw_tag_or_eof()? {
+                        match tag {
+                            8 => key = is.read_uint64()?,
+                            16 => value = is.read_int64()?,
+                            _ => ::protobuf::rt::skip_field_for_tag(tag, is)?,
+                        };
+                    }
+                    is.pop_limit(old_limit);
+                    self.map_uint64_int64.insert(key, value);
+                },
                 2440 => {
                     self.timestamp = ::std::option::Option::Some(is.read_int64()?);
                 },
@@ -2316,6 +2339,12 @@ impl ::protobuf::Message for TestProto2 {
             let mut entry_size = 0;
             entry_size += ::protobuf::rt::int64_size(1, *k);
             entry_size += 1 + 4;
+            my_size += 2 + ::protobuf::rt::compute_raw_varint64_size(entry_size) + entry_size
+        };
+        for (k, v) in &self.map_uint64_int64 {
+            let mut entry_size = 0;
+            entry_size += ::protobuf::rt::uint64_size(1, *k);
+            entry_size += ::protobuf::rt::int64_size(2, *v);
             my_size += 2 + ::protobuf::rt::compute_raw_varint64_size(entry_size) + entry_size
         };
         if let Some(v) = self.timestamp {
@@ -2587,6 +2616,15 @@ impl ::protobuf::Message for TestProto2 {
             os.write_int64(1, *k)?;
             os.write_float(2, *v)?;
         };
+        for (k, v) in &self.map_uint64_int64 {
+            let mut entry_size = 0;
+            entry_size += ::protobuf::rt::uint64_size(1, *k);
+            entry_size += ::protobuf::rt::int64_size(2, *v);
+            os.write_raw_varint32(2450)?; // Tag.
+            os.write_raw_varint32(entry_size as u32)?;
+            os.write_uint64(1, *k)?;
+            os.write_int64(2, *v)?;
+        };
         if let Some(v) = self.timestamp {
             os.write_int64(305, v)?;
         }
@@ -2685,6 +2723,7 @@ impl ::protobuf::Message for TestProto2 {
         self.map_int64_string.clear();
         self.map_int64_bool.clear();
         self.map_int64_float.clear();
+        self.map_uint64_int64.clear();
         self.timestamp = ::std::option::Option::None;
         self.bool_proto = ::std::option::Option::None;
         self.ignored = ::std::option::Option::None;
@@ -3417,7 +3456,7 @@ impl InlineEnumeration {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x11test_proto2.proto\x12\x0btest_proto2\x1a\nyara.proto\"\x9b\x1f\n\n\
+    \n\x11test_proto2.proto\x12\x0btest_proto2\x1a\nyara.proto\"\xb6\x20\n\n\
     TestProto2\x12\x1d\n\nint32_zero\x18\x01\x20\x02(\x05R\tint32Zero\x12\
     \x1d\n\nint64_zero\x18\x02\x20\x02(\x03R\tint64Zero\x12\x1f\n\x0bsint32_\
     zero\x18\x03\x20\x02(\x11R\nsint32Zero\x12\x1f\n\x0bsint64_zero\x18\x04\
@@ -3475,57 +3514,61 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     to2.TestProto2.MapInt64StringEntryR\x0emapInt64String\x12P\n\x0emap_int6\
     4_bool\x18\xaf\x02\x20\x03(\x0b2).test_proto2.TestProto2.MapInt64BoolEnt\
     ryR\x0cmapInt64Bool\x12S\n\x0fmap_int64_float\x18\xb0\x02\x20\x03(\x0b2*\
-    .test_proto2.TestProto2.MapInt64FloatEntryR\rmapInt64Float\x12&\n\ttimes\
-    tamp\x18\xb1\x02\x20\x01(\x03R\ttimestampB\x07\x82\x93\x19\x03*\x01t\x12\
-    /\n\nbool_proto\x18\xde\x02\x20\x01(\x08R\tboolProtoB\x0f\x82\x93\x19\
-    \x0b\n\tbool_yara\x12!\n\x07ignored\x18\xdf\x02\x20\x01(\x08R\x07ignored\
-    B\x06\x82\x93\x19\x02\x10\x01\x12\x1c\n\tfile_size\x18\x90\x03\x20\x01(\
-    \x04R\x08fileSize\x12\xe6\x01\n\x14requires_foo_and_bar\x18\xf4\x03\x20\
-    \x01(\x04R\x11requiresFooAndBarB\xb3\x01\x82\x93\x19\xae\x01\x1a<\n\x0ff\
-    oo\x20is\x20required\x12\x1fthis\x20field\x20was\x20used\x20without\x20f\
-    oo\x1a\x03foo\x1a\x03FOO\x1a7\n\x0fbar\x20is\x20required\x12\x1fthis\x20\
-    field\x20was\x20used\x20without\x20bar\x1a\x03bar\x1a5\n\x10baz\x20is\
-    \x20forbidden\x12\x1cthis\x20field\x20was\x20used\x20with\x20baz\"\x03ba\
-    z\x12J\n\ndeprecated\x18\xf5\x03\x20\x01(\tR\ndeprecatedB)\x82\x93\x19%2\
-    #\n\tdon't\x20use\x12\x11use\x20`foo`\x20instead\x1a\x03foo\x12\x1b\n\
-    \x08metadata\x18\xf6\x03\x20\x01(\x0cR\x08metadata\x1a]\n\x14MapStringSt\
-    ructEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12/\n\x05value\
-    \x18\x02\x20\x01(\x0b2\x19.test_proto2.NestedProto2R\x05value:\x028\x01\
-    \x1aA\n\x13MapStringInt64Entry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03k\
-    ey\x12\x14\n\x05value\x18\x02\x20\x01(\x03R\x05value:\x028\x01\x1aB\n\
-    \x14MapStringStringEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\
-    \x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x028\x01\x1a@\n\x12MapStri\
-    ngBoolEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05val\
-    ue\x18\x02\x20\x01(\x08R\x05value:\x028\x01\x1aA\n\x13MapStringFloatEntr\
-    y\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\
-    \x20\x01(\x02R\x05value:\x028\x01\x1a\\\n\x13MapInt64StructEntry\x12\x10\
-    \n\x03key\x18\x01\x20\x01(\x03R\x03key\x12/\n\x05value\x18\x02\x20\x01(\
-    \x0b2\x19.test_proto2.NestedProto2R\x05value:\x028\x01\x1a@\n\x12MapInt6\
-    4Int64Entry\x12\x10\n\x03key\x18\x01\x20\x01(\x03R\x03key\x12\x14\n\x05v\
-    alue\x18\x02\x20\x01(\x03R\x05value:\x028\x01\x1aA\n\x13MapInt64StringEn\
-    try\x12\x10\n\x03key\x18\x01\x20\x01(\x03R\x03key\x12\x14\n\x05value\x18\
-    \x02\x20\x01(\tR\x05value:\x028\x01\x1a?\n\x11MapInt64BoolEntry\x12\x10\
+    .test_proto2.TestProto2.MapInt64FloatEntryR\rmapInt64Float\x12V\n\x10map\
+    _uint64_int64\x18\xb2\x02\x20\x03(\x0b2+.test_proto2.TestProto2.MapUint6\
+    4Int64EntryR\x0emapUint64Int64\x12&\n\ttimestamp\x18\xb1\x02\x20\x01(\
+    \x03R\ttimestampB\x07\x82\x93\x19\x03*\x01t\x12/\n\nbool_proto\x18\xde\
+    \x02\x20\x01(\x08R\tboolProtoB\x0f\x82\x93\x19\x0b\n\tbool_yara\x12!\n\
+    \x07ignored\x18\xdf\x02\x20\x01(\x08R\x07ignoredB\x06\x82\x93\x19\x02\
+    \x10\x01\x12\x1c\n\tfile_size\x18\x90\x03\x20\x01(\x04R\x08fileSize\x12\
+    \xe6\x01\n\x14requires_foo_and_bar\x18\xf4\x03\x20\x01(\x04R\x11requires\
+    FooAndBarB\xb3\x01\x82\x93\x19\xae\x01\x1a<\n\x0ffoo\x20is\x20required\
+    \x12\x1fthis\x20field\x20was\x20used\x20without\x20foo\x1a\x03foo\x1a\
+    \x03FOO\x1a7\n\x0fbar\x20is\x20required\x12\x1fthis\x20field\x20was\x20u\
+    sed\x20without\x20bar\x1a\x03bar\x1a5\n\x10baz\x20is\x20forbidden\x12\
+    \x1cthis\x20field\x20was\x20used\x20with\x20baz\"\x03baz\x12J\n\ndepreca\
+    ted\x18\xf5\x03\x20\x01(\tR\ndeprecatedB)\x82\x93\x19%2#\n\tdon't\x20use\
+    \x12\x11use\x20`foo`\x20instead\x1a\x03foo\x12\x1b\n\x08metadata\x18\xf6\
+    \x03\x20\x01(\x0cR\x08metadata\x1a]\n\x14MapStringStructEntry\x12\x10\n\
+    \x03key\x18\x01\x20\x01(\tR\x03key\x12/\n\x05value\x18\x02\x20\x01(\x0b2\
+    \x19.test_proto2.NestedProto2R\x05value:\x028\x01\x1aA\n\x13MapStringInt\
+    64Entry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\
+    \x18\x02\x20\x01(\x03R\x05value:\x028\x01\x1aB\n\x14MapStringStringEntry\
+    \x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\
+    \x20\x01(\tR\x05value:\x028\x01\x1a@\n\x12MapStringBoolEntry\x12\x10\n\
+    \x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\
+    \x08R\x05value:\x028\x01\x1aA\n\x13MapStringFloatEntry\x12\x10\n\x03key\
+    \x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\x02R\x05\
+    value:\x028\x01\x1a\\\n\x13MapInt64StructEntry\x12\x10\n\x03key\x18\x01\
+    \x20\x01(\x03R\x03key\x12/\n\x05value\x18\x02\x20\x01(\x0b2\x19.test_pro\
+    to2.NestedProto2R\x05value:\x028\x01\x1a@\n\x12MapInt64Int64Entry\x12\
+    \x10\n\x03key\x18\x01\x20\x01(\x03R\x03key\x12\x14\n\x05value\x18\x02\
+    \x20\x01(\x03R\x05value:\x028\x01\x1aA\n\x13MapInt64StringEntry\x12\x10\
     \n\x03key\x18\x01\x20\x01(\x03R\x03key\x12\x14\n\x05value\x18\x02\x20\
-    \x01(\x08R\x05value:\x028\x01\x1a@\n\x12MapInt64FloatEntry\x12\x10\n\x03\
-    key\x18\x01\x20\x01(\x03R\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\x02\
-    R\x05value:\x028\x01\"\\\n\x0bEnumeration\x12\n\n\x06ITEM_0\x10\0\x12\n\
-    \n\x06ITEM_1\x10\x01\x12\x18\n\x06ITEM_2\x10\x02\x1a\x0c\x9a\x93\x19\x08\
-    \x08\xff\xff\xff\xff\xff\xff\x1f\x12\x1b\n\x06ITEM_3\x10\x03\x1a\x0f\x9a\
-    \x93\x19\x0b\x08\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"3\n\x0cEnumera\
-    tion2\x12\n\n\x06ITEM_4\x10\0\x12\n\n\x06ITEM_5\x10\x01\x1a\x0b\x92\x93\
-    \x19\x07\n\x05items\"\xdb\x02\n\x0cNestedProto2\x12*\n\x11nested_int32_z\
-    ero\x18\x01\x20\x01(\x05R\x0fnestedInt32Zero\x12*\n\x11nested_int64_zero\
-    \x18\x02\x20\x01(\x03R\x0fnestedInt64Zero\x12(\n\x10nested_int32_one\x18\
-    \x03\x20\x01(\x05R\x0enestedInt32One\x12(\n\x10nested_int64_one\x18\x04\
-    \x20\x01(\x03R\x0enestedInt64One\x12\x1f\n\x0bnested_bool\x18\x05\x20\
-    \x01(\x08R\nnestedBool\x12#\n\rnested_string\x18\x06\x20\x01(\tR\x0cnest\
-    edString\x12,\n\x12nested_array_int64\x18\x07\x20\x03(\x03R\x10nestedArr\
-    ayInt64\"+\n\x11NestedEnumeration\x12\n\n\x06ITEM_0\x10\0\x12\n\n\x06ITE\
-    M_1\x10\x01*9\n\x13TopLevelEnumeration\x12\x10\n\x0bITEM_0x1000\x10\x80\
-    \x20\x12\x10\n\x0bITEM_0x2000\x10\x80@*C\n\x11InlineEnumeration\x12\x12\
-    \n\rINLINE_0x1000\x10\x80\x20\x12\x12\n\rINLINE_0x2000\x10\x80@\x1a\x06\
-    \x92\x93\x19\x02\x10\x01B=\xfa\x92\x199\n\x0btest_proto2\x12\x16test_pro\
-    to2.TestProto2\x1a\x12test_proto2-moduleb\x06proto2\
+    \x01(\tR\x05value:\x028\x01\x1a?\n\x11MapInt64BoolEntry\x12\x10\n\x03key\
+    \x18\x01\x20\x01(\x03R\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\x08R\
+    \x05value:\x028\x01\x1a@\n\x12MapInt64FloatEntry\x12\x10\n\x03key\x18\
+    \x01\x20\x01(\x03R\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\x02R\x05va\
+    lue:\x028\x01\x1aA\n\x13MapUint64Int64Entry\x12\x10\n\x03key\x18\x01\x20\
+    \x01(\x04R\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\x03R\x05value:\x02\
+    8\x01\"\\\n\x0bEnumeration\x12\n\n\x06ITEM_0\x10\0\x12\n\n\x06ITEM_1\x10\
+    \x01\x12\x18\n\x06ITEM_2\x10\x02\x1a\x0c\x9a\x93\x19\x08\x08\xff\xff\xff\
+    \xff\xff\xff\x1f\x12\x1b\n\x06ITEM_3\x10\x03\x1a\x0f\x9a\x93\x19\x0b\x08\
+    \xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\"3\n\x0cEnumeration2\x12\n\n\
+    \x06ITEM_4\x10\0\x12\n\n\x06ITEM_5\x10\x01\x1a\x0b\x92\x93\x19\x07\n\x05\
+    items\"\xdb\x02\n\x0cNestedProto2\x12*\n\x11nested_int32_zero\x18\x01\
+    \x20\x01(\x05R\x0fnestedInt32Zero\x12*\n\x11nested_int64_zero\x18\x02\
+    \x20\x01(\x03R\x0fnestedInt64Zero\x12(\n\x10nested_int32_one\x18\x03\x20\
+    \x01(\x05R\x0enestedInt32One\x12(\n\x10nested_int64_one\x18\x04\x20\x01(\
+    \x03R\x0enestedInt64One\x12\x1f\n\x0bnested_bool\x18\x05\x20\x01(\x08R\n\
+    nestedBool\x12#\n\rnested_string\x18\x06\x20\x01(\tR\x0cnestedString\x12\
+    ,\n\x12nested_array_int64\x18\x07\x20\x03(\x03R\x10nestedArrayInt64\"+\n\
+    \x11NestedEnumeration\x12\n\n\x06ITEM_0\x10\0\x12\n\n\x06ITEM_1\x10\x01*\
+    9\n\x13TopLevelEnumeration\x12\x10\n\x0bITEM_0x1000\x10\x80\x20\x12\x10\
+    \n\x0bITEM_0x2000\x10\x80@*C\n\x11InlineEnumeration\x12\x12\n\rINLINE_0x\
+    1000\x10\x80\x20\x12\x12\n\rINLINE_0x2000\x10\x80@\x1a\x06\x92\x93\x19\
+    \x02\x10\x01B=\xfa\x92\x199\n\x0btest_proto2\x12\x16test_proto2.TestProt\
+    o2\x1a\x12test_proto2-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
