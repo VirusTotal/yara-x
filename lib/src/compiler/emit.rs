@@ -1077,15 +1077,46 @@ fn emit_div(
 
         if is_float {
             instr.binop(BinaryOp::F64Div);
-        } else {
+        } else if ir.is_unsigned_result(&operands[..=i]) {
             // In integer division make sure that the divisor is not
             // zero, if that's the case the result is undefined.
             throw_undef_if_zero(ctx, instr);
-            if ir.is_unsigned_result(&operands[..=i]) {
-                instr.binop(BinaryOp::I64DivU);
-            } else {
-                instr.binop(BinaryOp::I64DivS);
-            }
+            instr.binop(BinaryOp::I64DivU);
+        } else {
+            let lhs = ctx.wasm_symbols.i64_tmp_a;
+            let rhs = ctx.wasm_symbols.i64_tmp_b;
+
+            instr.local_set(rhs);
+            instr.local_set(lhs);
+
+            // In signed integer division the result is undefined if the
+            // divisor is zero, or if the dividend is i64::MIN and the
+            // divisor is -1 (which overflows i64 and traps in WASM).
+            instr.local_get(rhs);
+            instr.unop(UnaryOp::I64Eqz);
+
+            instr.local_get(lhs);
+            instr.i64_const(i64::MIN);
+            instr.binop(BinaryOp::I64Eq);
+
+            instr.local_get(rhs);
+            instr.i64_const(-1);
+            instr.binop(BinaryOp::I64Eq);
+
+            instr.binop(BinaryOp::I32And);
+            instr.binop(BinaryOp::I32Or);
+
+            instr.if_else(
+                I64,
+                |then_| {
+                    throw_undef(ctx, then_);
+                },
+                |else_| {
+                    else_.local_get(lhs);
+                    else_.local_get(rhs);
+                    else_.binop(BinaryOp::I64DivS);
+                },
+            );
         }
     }
 }
