@@ -112,44 +112,22 @@ macro_rules! emit_arithmetic_op {
 }
 
 /// Emits the code for a comparison operation.
-///
-/// `$int_op` and `$uint_op` are the instructions used for comparing signed and
-/// unsigned integers, respectively. When a signed integer is compared with an
-/// unsigned one, the comparison is mathematically correct (e.g: an unsigned
-/// integer is always greater than a negative integer). `$neg_lhs` is the result
-/// of the comparison when the left operand is signed and negative, and the
-/// right one is unsigned, while `$neg_rhs` is the result when the right operand
-/// is signed and negative, and the left one is unsigned.
 macro_rules! emit_comparison_op {
-    ($ctx:ident, $ir:ident, $lhs:expr, $rhs:expr, $int_op:tt, $uint_op:tt, $neg_lhs:expr, $neg_rhs:expr, $float_op:tt, $str_op:expr, $instr:ident) => {{
+    ($ctx:ident, $ir:ident, $lhs:expr, $rhs:expr, $int_op:tt, $float_op:tt, $str_op:expr, $instr:ident) => {{
         let lhs = $lhs;
         let rhs = $rhs;
         match emit_operands!($ctx, $ir, lhs, rhs, $instr) {
             (Type::Integer, Type::Integer)
             | (Type::Bool, Type::Integer)
             | (Type::Integer, Type::Bool) => {
-                match int_comparison_kind($ir, lhs, rhs) {
-                    IntComparison::Signed => {
-                        $instr.binop(BinaryOp::$int_op);
-                    }
-                    IntComparison::Unsigned => {
-                        $instr.binop(BinaryOp::$uint_op);
-                    }
-                    IntComparison::SignedLhs => emit_mixed_int_comparison(
-                        $ctx,
-                        $instr,
-                        true,
-                        BinaryOp::$uint_op,
-                        $neg_lhs,
-                    ),
-                    IntComparison::SignedRhs => emit_mixed_int_comparison(
-                        $ctx,
-                        $instr,
-                        false,
-                        BinaryOp::$uint_op,
-                        $neg_rhs,
-                    ),
-                }
+                emit_int_comparison(
+                    $ctx,
+                    $ir,
+                    lhs,
+                    rhs,
+                    BinaryOp::$int_op,
+                    $instr,
+                );
             }
             (Type::Bool, Type::Bool) => {
                 $instr.binop(BinaryOp::$int_op);
@@ -572,9 +550,6 @@ fn emit_expr(
                 *lhs,
                 *rhs,
                 I64Eq,
-                I64Eq,
-                false,
-                false,
                 F64Eq,
                 wasm::export__str_eq.mangled_name,
                 instr
@@ -587,9 +562,6 @@ fn emit_expr(
                 *lhs,
                 *rhs,
                 I64Ne,
-                I64Ne,
-                true,
-                true,
                 F64Ne,
                 wasm::export__str_ne.mangled_name,
                 instr
@@ -602,9 +574,6 @@ fn emit_expr(
                 *lhs,
                 *rhs,
                 I64LtS,
-                I64LtU,
-                true,
-                false,
                 F64Lt,
                 wasm::export__str_lt.mangled_name,
                 instr
@@ -617,9 +586,6 @@ fn emit_expr(
                 *lhs,
                 *rhs,
                 I64GtS,
-                I64GtU,
-                false,
-                true,
                 F64Gt,
                 wasm::export__str_gt.mangled_name,
                 instr
@@ -632,9 +598,6 @@ fn emit_expr(
                 *lhs,
                 *rhs,
                 I64LeS,
-                I64LeU,
-                true,
-                false,
                 F64Le,
                 wasm::export__str_le.mangled_name,
                 instr
@@ -647,9 +610,6 @@ fn emit_expr(
                 *lhs,
                 *rhs,
                 I64GeS,
-                I64GeU,
-                false,
-                true,
                 F64Ge,
                 wasm::export__str_ge.mangled_name,
                 instr
@@ -967,23 +927,30 @@ fn int_to_float_op(ir: &IR, expr: ExprId) -> UnaryOp {
     }
 }
 
-/// Describes how two integers (or an integer and a boolean) must be compared.
-enum IntComparison {
-    /// Both operands are signed.
-    Signed,
-    /// Both operands are unsigned, or one of them is unsigned and the other
-    /// one is known to be non-negative.
-    Unsigned,
-    /// The left operand is signed and the right one unsigned.
-    SignedLhs,
-    /// The left operand is unsigned and the right one signed.
-    SignedRhs,
-}
-
-/// Determines how the integers produced by `lhs` and `rhs` must be compared.
-fn int_comparison_kind(ir: &IR, lhs: ExprId, rhs: ExprId) -> IntComparison {
+/// Emits the code that compares the integers (or booleans) produced by `lhs`
+/// and `rhs`.
+///
+/// Both operands must be at the top of the stack, the left operand first.
+fn emit_int_comparison(
+    ctx: &mut EmitContext,
+    ir: &IR,
+    lhs: ExprId,
+    rhs: ExprId,
+    signed_op: BinaryOp,
+    instr: &mut InstrSeqBuilder,
+) {
     let lhs = ir.get(lhs).type_value();
     let rhs = ir.get(rhs).type_value();
+
+    let (unsigned_op, result_if_negative) = match signed_op {
+        BinaryOp::I64Eq => (BinaryOp::I64Eq, false),
+        BinaryOp::I64Ne => (BinaryOp::I64Ne, true),
+        BinaryOp::I64LtS => (BinaryOp::I64LtU, !lhs.is_unsigned()),
+        BinaryOp::I64LeS => (BinaryOp::I64LeU, !lhs.is_unsigned()),
+        BinaryOp::I64GtS => (BinaryOp::I64GtU, !rhs.is_unsigned()),
+        BinaryOp::I64GeS => (BinaryOp::I64GeU, !rhs.is_unsigned()),
+        _ => unreachable!(),
+    };
 
     // Booleans and non-negative constants can be compared with both signed
     // and unsigned integers.
@@ -993,48 +960,46 @@ fn int_comparison_kind(ir: &IR, lhs: ExprId, rhs: ExprId) -> IntComparison {
     };
 
     match (lhs.is_unsigned(), rhs.is_unsigned()) {
-        (false, false) => IntComparison::Signed,
-        (true, true) => IntComparison::Unsigned,
-        (true, false) if non_negative(&rhs) => IntComparison::Unsigned,
-        (false, true) if non_negative(&lhs) => IntComparison::Unsigned,
-        (true, false) => IntComparison::SignedRhs,
-        (false, true) => IntComparison::SignedLhs,
+        (false, false) => {
+            instr.binop(signed_op);
+        }
+        (true, true) => {
+            instr.binop(unsigned_op);
+        }
+        (true, false) if non_negative(&rhs) => {
+            instr.binop(unsigned_op);
+        }
+        (false, true) if non_negative(&lhs) => {
+            instr.binop(unsigned_op);
+        }
+        // One operand is signed (and may be negative at runtime) and the
+        // other one is unsigned. If the signed operand is negative, the
+        // comparison result is known without comparing the bit patterns,
+        // because any negative integer is smaller than any unsigned integer.
+        (false, true) | (true, false) => {
+            let signed_is_lhs = !lhs.is_unsigned();
+            let lhs_tmp = ctx.wasm_symbols.i64_tmp_a;
+            let rhs_tmp = ctx.wasm_symbols.i64_tmp_b;
+
+            instr.local_set(rhs_tmp);
+            instr.local_set(lhs_tmp);
+
+            instr.local_get(if signed_is_lhs { lhs_tmp } else { rhs_tmp });
+            instr.i64_const(0);
+            instr.binop(BinaryOp::I64LtS);
+            instr.if_else(
+                I32,
+                |then_| {
+                    then_.i32_const(result_if_negative as i32);
+                },
+                |else_| {
+                    else_.local_get(lhs_tmp);
+                    else_.local_get(rhs_tmp);
+                    else_.binop(unsigned_op);
+                },
+            );
+        }
     }
-}
-
-/// Emits the code that compares a signed integer with an unsigned one.
-///
-/// Both operands must be at the top of the stack, the left operand first.
-/// If the signed operand is negative, the result is `result_if_negative`,
-/// as negative numbers are lower than any unsigned integer. If not, both
-/// operands are compared with `unsigned_op`.
-fn emit_mixed_int_comparison(
-    ctx: &mut EmitContext,
-    instr: &mut InstrSeqBuilder,
-    signed_is_lhs: bool,
-    unsigned_op: BinaryOp,
-    result_if_negative: bool,
-) {
-    let lhs = ctx.wasm_symbols.i64_tmp_a;
-    let rhs = ctx.wasm_symbols.i64_tmp_b;
-
-    instr.local_set(rhs);
-    instr.local_set(lhs);
-
-    instr.local_get(if signed_is_lhs { lhs } else { rhs });
-    instr.i64_const(0);
-    instr.binop(BinaryOp::I64LtS);
-    instr.if_else(
-        I32,
-        |then_| {
-            then_.i32_const(result_if_negative as i32);
-        },
-        |else_| {
-            else_.local_get(lhs);
-            else_.local_get(rhs);
-            else_.binop(unsigned_op);
-        },
-    );
 }
 
 /// Emits the code for `div` operations.
