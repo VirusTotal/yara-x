@@ -1475,9 +1475,7 @@ fn emit_array_indexing(
     array: &Rc<Array>,
 ) {
     let func = match array.as_ref() {
-        Array::Integers(_) | Array::UnsignedIntegers(_) => {
-            &wasm::export__array_indexing_integer
-        }
+        Array::Integers(_) => &wasm::export__array_indexing_integer,
         Array::Floats(_) => &wasm::export__array_indexing_float,
         Array::Bools(_) => &wasm::export__array_indexing_bool,
         Array::Strings(_) => &wasm::export__array_indexing_string,
@@ -1506,8 +1504,7 @@ fn emit_map_lookup_by_index(
     map: &Rc<Map>,
 ) {
     let func = match map.as_ref() {
-        Map::IntegerKeys { deputy, .. }
-        | Map::UnsignedIntegerKeys { deputy, .. } => {
+        Map::IntegerKeys { deputy, .. } => {
             match deputy.as_ref().unwrap().ty() {
                 Type::Integer => {
                     wasm::export__map_lookup_by_index_integer_integer
@@ -1568,12 +1565,6 @@ fn emit_map_lookup(
     match map.as_ref() {
         Map::IntegerKeys { deputy, .. } => {
             if index_unsigned {
-                throw_undef_if_negative(ctx, instr);
-            }
-            emit_map_integer_key_lookup(ctx, instr, deputy.as_ref().unwrap())
-        }
-        Map::UnsignedIntegerKeys { deputy, .. } => {
-            if !index_unsigned {
                 throw_undef_if_negative(ctx, instr);
             }
             emit_map_integer_key_lookup(ctx, instr, deputy.as_ref().unwrap())

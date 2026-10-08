@@ -14,7 +14,7 @@ thread_local! {
 
 #[derive(Serialize, Deserialize)]
 pub(crate) enum Map {
-    /// A map that has signed integer keys.
+    /// A map that has integer keys.
     IntegerKeys {
         // The deputy value is one that acts as a representative of the values
         // stored in the map. This value only contains type information, not
@@ -28,12 +28,6 @@ pub(crate) enum Map {
         // item not only by key, but also by index. HashMap doesn't offer
         // that functionality (it doesn't even have a stable iterator that
         // returns the items in a predictable order).
-        map: IndexMap<i64, TypeValue>,
-    },
-    /// A map that has unsigned integer keys. Each key is stored as an `i64`
-    /// with the same bit pattern as the unsigned value.
-    UnsignedIntegerKeys {
-        deputy: Option<TypeValue>,
         map: IndexMap<i64, TypeValue>,
     },
     /// A map that has string keys.
@@ -56,8 +50,7 @@ impl Map {
 
     pub fn deputy(&self) -> TypeValue {
         match self {
-            Map::IntegerKeys { deputy, .. }
-            | Map::UnsignedIntegerKeys { deputy, .. } => {
+            Map::IntegerKeys { deputy, .. } => {
                 deputy.as_ref().unwrap().clone()
             }
             Map::StringKeys { deputy, .. } => deputy.as_ref().unwrap().clone(),
@@ -68,14 +61,12 @@ impl Map {
     ///
     /// # Panics
     ///
-    /// If the map is not the [`Map::IntegerKeys`] or [`Map::UnsignedIntegerKeys`]
-    /// variant.
+    /// If the map is not the [`Map::IntegerKeys`] variant.
     pub fn with_integer_keys(&self) -> &IndexMap<i64, TypeValue> {
         match self {
-            Map::IntegerKeys { map, .. }
-            | Map::UnsignedIntegerKeys { map, .. } => map,
+            Map::IntegerKeys { map, .. } => map,
             _ => panic!(
-                "calling `with_integers_keys` on a map that is not `Map::IntegerKeys` or `Map::UnsignedIntegerKeys`"
+                "calling `with_integers_keys` on an map that is not `Map::IntegerKeys`"
             ),
         }
     }
@@ -97,8 +88,7 @@ impl Map {
     /// Returns the number of items in the map.
     pub fn len(&self) -> usize {
         match self {
-            Map::IntegerKeys { map, .. }
-            | Map::UnsignedIntegerKeys { map, .. } => map.len(),
+            Map::IntegerKeys { map, .. } => map.len(),
             Map::StringKeys { map, .. } => map.len(),
         }
     }

@@ -935,11 +935,9 @@ fn expr_from_ast<'src>(
                 }
                 TypeValue::Map(map) => {
                     let (key_ty, deputy_value) = match map.borrow() {
-                        Map::IntegerKeys { deputy: Some(value), .. }
-                        | Map::UnsignedIntegerKeys {
-                            deputy: Some(value),
-                            ..
-                        } => (Type::Integer, value),
+                        Map::IntegerKeys { deputy: Some(value), .. } => {
+                            (Type::Integer, value)
+                        }
                         Map::StringKeys { deputy: Some(value), .. } => {
                             (Type::String, value)
                         }
@@ -1620,10 +1618,6 @@ fn for_in_expr_from_ast<'src>(
             TypeValue::Map(map) => match map.as_ref() {
                 Map::IntegerKeys { .. } => (
                     vec![TypeValue::unknown_signed_integer(), map.deputy()],
-                    Type::Map,
-                ),
-                Map::UnsignedIntegerKeys { .. } => (
-                    vec![TypeValue::unknown_unsigned_integer(), map.deputy()],
                     Type::Map,
                 ),
                 Map::StringKeys { .. } => (

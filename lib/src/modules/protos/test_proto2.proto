@@ -160,7 +160,6 @@ message TestProto2 {
   map<int64, string>          map_int64_string = 302;
   map<int64, bool>            map_int64_bool = 303;
   map<int64, float>           map_int64_float = 304;
-  map<uint64, int64>          map_uint64_int64 = 306;
 
   optional int64              timestamp = 305 [(yara.field_options).fmt = "t"];
 

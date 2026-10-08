@@ -627,8 +627,7 @@ pub mod mods {
                     }
                     TypeValue::Map(m) => {
                         let key_kind = match **m {
-                            Map::IntegerKeys { .. }
-                            | Map::UnsignedIntegerKeys { .. } => Type::Integer,
+                            Map::IntegerKeys { .. } => Type::Integer,
                             Map::StringKeys { .. } => Type::String,
                         };
                         Type::Map(

@@ -229,22 +229,6 @@ fn test_proto2_module() {
            )"#
     );
 
-    condition_true!(r#"test_proto2.map_uint64_int64[100] == 1000"#);
-    condition_true!(
-        r#"test_proto2.map_uint64_int64[0xFFFFFFFFFFFFFFFF] == 2000"#
-    );
-    condition_false!(r#"defined test_proto2.map_uint64_int64[-1]"#);
-    condition_true!(
-        r#"for all key, value in test_proto2.map_uint64_int64 : (
-             key > 0 and test_proto2.map_uint64_int64[key] == value
-           )"#
-    );
-    condition_true!(
-        r#"for any key, value in test_proto2.map_uint64_int64 : (
-             key == 0xFFFFFFFFFFFFFFFF and value == 2000 and key != -1
-           )"#
-    );
-
     condition_true!(
         r#"for any key, value in test_proto2.map_int64_string : (
              key == 100 and value == "one thousand"

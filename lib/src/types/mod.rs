@@ -322,11 +322,9 @@ impl TypeValue {
                 (Map::StringKeys { .. }, Map::StringKeys { .. }) => {
                     a.deputy().eq_type(&b.deputy())
                 }
-                (Map::IntegerKeys { .. }, Map::IntegerKeys { .. })
-                | (
-                    Map::UnsignedIntegerKeys { .. },
-                    Map::UnsignedIntegerKeys { .. },
-                ) => a.deputy().eq_type(&b.deputy()),
+                (Map::IntegerKeys { .. }, Map::IntegerKeys { .. }) => {
+                    a.deputy().eq_type(&b.deputy())
+                }
                 _ => false,
             },
             (Self::Struct(a), Self::Struct(b)) => a.eq(b),

@@ -463,10 +463,6 @@ fn test_reflect() {
     assert_eq!(field.ty(), Type::Integer);
 
     let field = fields.next().unwrap();
-    assert_eq!(field.name(), "map_uint64_int64");
-    assert!(matches!(field.ty(), Type::Map(_, _)));
-
-    let field = fields.next().unwrap();
     assert_eq!(field.name(), "bool_yara");
     assert_eq!(field.ty(), Type::Bool);
 
