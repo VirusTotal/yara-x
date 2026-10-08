@@ -1,5 +1,5 @@
 RULE test
-  171: AND -- hash: 0x139ac59899f3eaec
+  171: AND -- hash: 0x9f16d9c6d9d36628
     0: PATTERN_MATCH PatternIdx(0) -- hash: 0x5a276c8d75077d2b
     2: PATTERN_MATCH PatternIdx(0) AT -- hash: 0xfb7f3424e7aabb50
       1: CONST integer(0)
@@ -137,15 +137,11 @@ RULE test
     112: EQ -- hash: 0xa4cec2653c77a348
       110: CONST integer(6)
       111: CONST integer(6)
-    117: EQ -- hash: 0x37b6700f88d99369
-      115: DIV -- hash: 0xe3d346244ff8cc57
-        113: CONST integer(6)
-        114: CONST integer(2)
+    117: EQ -- hash: 0xe620d6a4866ed47d
+      115: CONST integer(3)
       116: CONST integer(3)
-    122: EQ -- hash: 0x1a81b6c621408d88
-      120: MOD -- hash: 0x3b6ad7150dbd77e8
-        118: CONST integer(5)
-        119: CONST integer(2)
+    122: EQ -- hash: 0xbc578eceb5139ff6
+      120: CONST integer(1)
       121: CONST integer(1)
     127: EQ -- hash: 0x7b057a8f6f1c6ec1
       125: CONST integer(4)

@@ -2108,6 +2108,13 @@ impl IR {
             .iter()
             .any(|op| matches!(self.get(*op).ty(), Type::Float));
         let is_unsigned = !is_float && self.is_unsigned_result(&operands);
+
+        if self.constant_folding
+            && let Some(value) = self.fold_div(operands.as_slice())
+        {
+            return Ok(self.constant(value));
+        }
+
         let expr_id = ExprId::from(self.nodes.len());
         for operand in operands.iter() {
             self.parents[operand.0 as usize] = expr_id;
@@ -2121,6 +2128,13 @@ impl IR {
     /// Creates a new [`Expr::Mod`].
     pub fn modulus(&mut self, operands: Vec<ExprId>) -> Result<ExprId, Error> {
         let is_unsigned = self.is_unsigned_result(&operands);
+
+        if self.constant_folding
+            && let Some(value) = self.fold_rem(operands.as_slice())
+        {
+            return Ok(self.constant(value));
+        }
+
         let expr_id = ExprId::from(self.nodes.len());
         for operand in operands.iter() {
             self.parents[operand.0 as usize] = expr_id;
@@ -2751,6 +2765,80 @@ impl IR {
             })
             .map(Some)
             .ok_or(Error::NumberOutOfRange)
+    }
+
+    fn fold_div(&self, operands: &[ExprId]) -> Option<TypeValue> {
+        debug_assert!(!operands.is_empty());
+
+        if !operands.iter().all(|op| self.get(*op).type_value().is_const()) {
+            return None;
+        }
+
+        let to_f64 = |tv: &TypeValue| match tv {
+            TypeValue::SignedInteger { value: Const(v), .. } => *v as f64,
+            TypeValue::UnsignedInteger { value: Const(v), .. } => *v as f64,
+            TypeValue::Float { value: Const(v) } => *v,
+            _ => unreachable!(),
+        };
+
+        let mut acc = self.get(operands[0]).type_value();
+
+        for (i, operand) in operands.iter().enumerate().skip(1) {
+            let rhs = self.get(*operand).type_value();
+
+            if matches!(acc.ty(), Type::Float)
+                || matches!(rhs.ty(), Type::Float)
+            {
+                acc = TypeValue::const_float_from(to_f64(&acc) / to_f64(&rhs));
+            } else {
+                let lhs_bits = acc.try_as_integer_bits()?;
+                let rhs_bits = rhs.try_as_integer_bits()?;
+
+                // Division by zero (or signed overflow) evaluates to undefined
+                // at runtime, so do not fold it into a constant.
+                if self.is_unsigned_result(&operands[..=i]) {
+                    let q = (lhs_bits as u64).checked_div(rhs_bits as u64)?;
+                    acc = TypeValue::const_unsigned_integer_from(q);
+                } else {
+                    let q = lhs_bits.checked_div(rhs_bits)?;
+                    acc = TypeValue::const_signed_integer_from(q);
+                }
+            }
+        }
+
+        Some(acc)
+    }
+
+    fn fold_rem(&self, operands: &[ExprId]) -> Option<TypeValue> {
+        debug_assert!(!operands.is_empty());
+
+        if !operands.iter().all(|op| self.get(*op).type_value().is_const()) {
+            return None;
+        }
+
+        let mut acc = self.get(operands[0]).type_value();
+
+        for (i, operand) in operands.iter().enumerate().skip(1) {
+            let rhs = self.get(*operand).type_value();
+            let lhs_bits = acc.try_as_integer_bits()?;
+            let rhs_bits = rhs.try_as_integer_bits()?;
+
+            // Modulo by zero evaluates to undefined at runtime, so do not fold
+            // it into a constant.
+            if rhs_bits == 0 {
+                return None;
+            }
+
+            if self.is_unsigned_result(&operands[..=i]) {
+                let r = (lhs_bits as u64).checked_rem(rhs_bits as u64)?;
+                acc = TypeValue::const_unsigned_integer_from(r);
+            } else {
+                let r = lhs_bits.wrapping_rem(rhs_bits);
+                acc = TypeValue::const_signed_integer_from(r);
+            }
+        }
+
+        Some(acc)
     }
 }
 

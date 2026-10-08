@@ -500,6 +500,8 @@ fn unsigned_integers() {
     // Division and modulus are unsigned.
     condition_true!(r"0xFFFFFFFFFFFFFFFF \ 2 == 0x7FFFFFFFFFFFFFFF");
     condition_true!("0xFFFFFFFFFFFFFFFF % 10 == 5");
+    condition_true!(r"(4 \ 2) * (0xFFFFFFFFFFFFFFFF \ 2) == 0xFFFFFFFFFFFFFFFE");
+    condition_true!(r"(5 % 3) * (0xFFFFFFFFFFFFFFFF \ 2) == 0xFFFFFFFFFFFFFFFE");
 
     // Same operations but with values not known at compile time.
     condition_true!(
