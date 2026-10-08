@@ -1324,13 +1324,7 @@ pub(crate) fn array_indexing_struct(
 
 macro_rules! gen_map_lookup_fn {
     ($name:ident, i64, i64) => {
-        gen_map_lookup_fn!(
-            $name,
-            i64,
-            i64,
-            with_integer_keys,
-            as_integer
-        );
+        gen_map_lookup_fn!($name, i64, i64, with_integer_keys, as_integer);
     };
     ($name:ident, i64, f64) => {
         gen_map_lookup_fn!($name, i64, f64, with_integer_keys, as_float);

@@ -581,15 +581,17 @@ impl TypeValue {
                 Some(c.as_ref())
             }
             TypeValue::Integer {
-                constraints: None, is_unsigned: false, ..
-            } if !self.is_const() => {
-                Some(&[IntegerConstraint::Range(
-                    i64::MIN as i128,
-                    i64::MAX as i128,
-                )])
-            }
+                constraints: None,
+                is_unsigned: false,
+                ..
+            } if !self.is_const() => Some(&[IntegerConstraint::Range(
+                i64::MIN as i128,
+                i64::MAX as i128,
+            )]),
             TypeValue::Integer {
-                constraints: None, is_unsigned: true, ..
+                constraints: None,
+                is_unsigned: true,
+                ..
             } if !self.is_const() => {
                 Some(&[IntegerConstraint::Range(0, u64::MAX as i128)])
             }
@@ -742,7 +744,9 @@ impl TypeValue {
     /// Creates a new [`TypeValue`] consisting of an unknown string with
     /// the given constraints.
     #[inline]
-    pub fn unknown_string_with_constraints<C: Into<Box<[StringConstraint]>>>(
+    pub fn unknown_string_with_constraints<
+        C: Into<Box<[StringConstraint]>>,
+    >(
         constraints: C,
     ) -> Self {
         Self::String {

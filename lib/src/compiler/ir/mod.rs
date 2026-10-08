@@ -2773,14 +2773,10 @@ impl IR {
 
         let to_f64 = |tv: &TypeValue| match tv {
             TypeValue::Integer {
-                value: Const(v),
-                is_unsigned: false,
-                ..
+                value: Const(v), is_unsigned: false, ..
             } => *v as f64,
             TypeValue::Integer {
-                value: Const(v),
-                is_unsigned: true,
-                ..
+                value: Const(v), is_unsigned: true, ..
             } => (*v as u64) as f64,
             TypeValue::Float { value: Const(v) } => *v,
             _ => unreachable!(),
