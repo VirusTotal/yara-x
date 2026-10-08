@@ -1,0 +1,68 @@
+syntax = "proto2";
+import "yara.proto";
+
+package ooxml;
+
+option (yara.module_options) = {
+  name : "ooxml"
+  root_message: "ooxml.Ooxml"
+  cargo_feature: "ooxml-module"
+};
+
+// Metadata of an entry in the ZIP central directory.
+message Entry {
+  // Name of the entry (e.g. "word/document.xml"), as stored in the archive.
+  // Undefined if the entry has an empty name.
+  optional bytes name_string = 1;
+  // Length of the entry's name in bytes. Undefined if the name is empty.
+  optional uint32 name_length = 2;
+  // Compressed size of the entry in bytes.
+  optional uint32 compressed_size = 3;
+  // Uncompressed size of the entry in bytes.
+  optional uint32 uncompressed_size = 4;
+  // CRC-32 checksum of the entry's uncompressed data.
+  optional uint32 crc32_checksum = 5 [(yara.field_options).fmt = "x"];
+  // Raw value of the compression method (e.g. 8 for Deflate).
+  optional uint32 compression_method_value = 6;
+  // Name of the compression method (e.g. "Deflate", "Store"), or "Unknown".
+  optional string compression_method_name = 7;
+  // Last modification time in MS-DOS format, as stored in the archive.
+  optional uint32 mod_time_raw = 8 [(yara.field_options).fmt = "x"];
+  // Last modification date in MS-DOS format, as stored in the archive.
+  optional uint32 mod_date_raw = 9 [(yara.field_options).fmt = "x"];
+  // General purpose bit flags.
+  optional uint32 flags = 10 [(yara.field_options).fmt = "x"];
+  // Minimum ZIP specification version needed to extract the entry.
+  optional uint32 version_needed = 11;
+  // Raw "version made by" value. The upper byte identifies the host operating
+  // system and the lower byte the ZIP specification version.
+  optional uint32 version_made_by = 12 [(yara.field_options).fmt = "x"];
+  // Name of the host operating system that created the entry (e.g. "Unix",
+  // "NTFS"), derived from the upper byte of `version_made_by`, or "Unknown".
+  optional string os_name = 13;
+  // ZIP specification version used to create the entry, derived from the lower
+  // byte of `version_made_by` (e.g. 20 for version 2.0).
+  optional uint32 spec_version = 14;
+}
+
+message Ooxml {
+  // True if the file is an OOXML document (a ZIP archive with a
+  // "[Content_Types].xml" entry, as in DOCX, XLSX and PPTX files). False for
+  // other ZIP archives. Undefined if the file is not a ZIP archive.
+  optional bool is_ooxml = 1;
+  // Number of central directory entries on this disk.
+  optional uint32 number_of_on_disk_entries = 2;
+  // Total number of central directory entries. Normally equal to
+  // `number_of_on_disk_entries`.
+  optional uint32 number_of_total_entries = 3;
+  // Size of the central directory in bytes.
+  optional uint32 central_dir_size = 4;
+  // Offset of the central directory within the file.
+  optional uint32 central_dir_offset = 5 [(yara.field_options).fmt = "x"];
+  // Length of the ZIP file comment in bytes.
+  optional uint32 zip_comment_len = 6;
+  // ZIP file comment. Undefined if the archive has no comment.
+  optional bytes zip_comment_str = 7;
+  // Entries in the central directory.
+  repeated Entry entries = 8;
+}

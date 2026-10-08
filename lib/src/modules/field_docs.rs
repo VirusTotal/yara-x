@@ -347,6 +347,35 @@ pub const FIELD_DOCS: &[(&str, u64, &str)] = &[
     ("msi.Msi", 2, "Digital signatures present in the MSI file."),
     ("olecf.Olecf", 1, "True if file is an OLE CF file."),
     ("olecf.Olecf", 2, "Streams contained in the OLE CF file."),
+    ("ooxml.Entry", 1, "Name of the entry (e.g. \"word/document.xml\"), as stored in the archive.
+ Undefined if the entry has an empty name."),
+    ("ooxml.Entry", 2, "Length of the entry's name in bytes. Undefined if the name is empty."),
+    ("ooxml.Entry", 3, "Compressed size of the entry in bytes."),
+    ("ooxml.Entry", 4, "Uncompressed size of the entry in bytes."),
+    ("ooxml.Entry", 5, "CRC-32 checksum of the entry's uncompressed data."),
+    ("ooxml.Entry", 6, "Raw value of the compression method (e.g. 8 for Deflate)."),
+    ("ooxml.Entry", 7, "Name of the compression method (e.g. \"Deflate\", \"Store\"), or \"Unknown\"."),
+    ("ooxml.Entry", 8, "Last modification time in MS-DOS format, as stored in the archive."),
+    ("ooxml.Entry", 9, "Last modification date in MS-DOS format, as stored in the archive."),
+    ("ooxml.Entry", 10, "General purpose bit flags."),
+    ("ooxml.Entry", 11, "Minimum ZIP specification version needed to extract the entry."),
+    ("ooxml.Entry", 12, "Raw \"version made by\" value. The upper byte identifies the host operating
+ system and the lower byte the ZIP specification version."),
+    ("ooxml.Entry", 13, "Name of the host operating system that created the entry (e.g. \"Unix\",
+ \"NTFS\"), derived from the upper byte of `version_made_by`, or \"Unknown\"."),
+    ("ooxml.Entry", 14, "ZIP specification version used to create the entry, derived from the lower
+ byte of `version_made_by` (e.g. 20 for version 2.0)."),
+    ("ooxml.Ooxml", 1, "True if the file is an OOXML document (a ZIP archive with a
+ \"[Content_Types].xml\" entry, as in DOCX, XLSX and PPTX files). False for
+ other ZIP archives. Undefined if the file is not a ZIP archive."),
+    ("ooxml.Ooxml", 2, "Number of central directory entries on this disk."),
+    ("ooxml.Ooxml", 3, "Total number of central directory entries. Normally equal to
+ `number_of_on_disk_entries`."),
+    ("ooxml.Ooxml", 4, "Size of the central directory in bytes."),
+    ("ooxml.Ooxml", 5, "Offset of the central directory within the file."),
+    ("ooxml.Ooxml", 6, "Length of the ZIP file comment in bytes."),
+    ("ooxml.Ooxml", 7, "ZIP file comment. Undefined if the archive has no comment."),
+    ("ooxml.Ooxml", 8, "Entries in the central directory."),
     ("pe.Certificate", 1, "Issuer of this individual certificate."),
     ("pe.Certificate", 2, "Intended subject of this certificate."),
     ("pe.Certificate", 3, "Thumbprint identifying the certificate."),

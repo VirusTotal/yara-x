@@ -25,6 +25,8 @@ mod math;
 mod msi;
 #[cfg(feature = "olecf-module")]
 mod olecf;
+#[cfg(feature = "ooxml-module")]
+mod ooxml;
 #[cfg(feature = "pe-module")]
 mod pe;
 #[cfg(feature = "string-module")]
