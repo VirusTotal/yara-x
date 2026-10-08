@@ -1460,12 +1460,12 @@ where
                         if !literal.contains('(') =>
                     {
                         let negated = match integer.value {
-                            IntegerValue::Signed(value)
+                            IntegerValue::I64(value)
                                 if value.is_positive() =>
                             {
                                 Some(-value)
                             }
-                            IntegerValue::Unsigned(value)
+                            IntegerValue::U64(value)
                                 if value == i64::MIN.unsigned_abs() =>
                             {
                                 Some(i64::MIN)
@@ -1473,7 +1473,7 @@ where
                             _ => None,
                         };
                         if let Some(value) = negated {
-                            integer.value = IntegerValue::Signed(value);
+                            integer.value = IntegerValue::I64(value);
                             integer.literal = literal;
                             integer.span = span;
                             Expr::LiteralInteger(integer)
@@ -1662,9 +1662,9 @@ where
         let literal = self.get_source_str(&span)?;
 
         let value = Self::parse_integer::<i64>(literal)
-            .map(IntegerValue::Signed)
+            .map(IntegerValue::I64)
             .or_else(|| {
-                Self::parse_integer::<u64>(literal).map(IntegerValue::Unsigned)
+                Self::parse_integer::<u64>(literal).map(IntegerValue::U64)
             });
 
         if let Some(value) = value {

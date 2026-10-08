@@ -1051,9 +1051,9 @@ pub struct LiteralInteger<'src> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IntegerValue {
     /// A signed integer.
-    Signed(i64),
+    I64(i64),
     /// An unsigned integer greater than `i64::MAX`.
-    Unsigned(u64),
+    U64(u64),
 }
 
 /// A literal float (e.g: `2.0`, `3.14`).

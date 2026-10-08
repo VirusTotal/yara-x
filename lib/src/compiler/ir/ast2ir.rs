@@ -508,10 +508,10 @@ fn expr_from_ast<'src>(
         }
 
         ast::Expr::LiteralInteger(lit) => match lit.value {
-            ast::IntegerValue::Signed(value) => {
+            ast::IntegerValue::I64(value) => {
                 ctx.ir.constant(TypeValue::const_signed_integer_from(value))
             }
-            ast::IntegerValue::Unsigned(value) => {
+            ast::IntegerValue::U64(value) => {
                 ctx.ir.constant(TypeValue::const_unsigned_integer_from(value))
             }
         },
