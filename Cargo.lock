@@ -4682,6 +4682,7 @@ dependencies = [
  "async-lsp",
  "bitflags 2.13.2",
  "chrono",
+ "clap",
  "console_error_panic_hook",
  "dashmap",
  "futures",

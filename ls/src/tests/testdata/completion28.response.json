@@ -1,0 +1,30 @@
+[
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"time\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 3
+          },
+          "start": {
+            "character": 0,
+            "line": 3
+          }
+        }
+      }
+    ],
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `now() -> integer`\n\n Returns the current time as the number of seconds since January 1, 1970 (UTC)."
+    },
+    "insertText": "now()",
+    "insertTextFormat": 2,
+    "kind": 2,
+    "label": "now()",
+    "labelDetails": {
+      "description": "func()"
+    }
+  }
+]
