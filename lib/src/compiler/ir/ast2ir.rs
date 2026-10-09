@@ -3328,10 +3328,14 @@ fn eq_check(
             }
         };
 
-    // Integer constants compared with ranged integers. Both the constant and
-    // the ranged integer can be signed or unsigned.
-    if let (Some(const_integer), Some(range)) =
-        (lhs.try_as_const_i128(), rhs.integer_range())
+    // Integer constants compared with non-constant integers, whose values
+    // are limited to the range of their types. Both the constant and the
+    // non-constant integer can be signed or unsigned. Comparisons between
+    // two constants are not checked, the range of a constant's type is
+    // irrelevant because its value is known.
+    if !rhs.is_const()
+        && let (Some(const_integer), Some(range)) =
+            (lhs.try_as_const_i128(), rhs.integer_range())
     {
         check_integer_range(
             ctx,
@@ -3340,8 +3344,9 @@ fn eq_check(
             range,
             rhs_span.clone(),
         );
-    } else if let (Some(range), Some(const_integer)) =
-        (lhs.integer_range(), rhs.try_as_const_i128())
+    } else if !lhs.is_const()
+        && let (Some(range), Some(const_integer)) =
+            (lhs.integer_range(), rhs.try_as_const_i128())
     {
         check_integer_range(
             ctx,

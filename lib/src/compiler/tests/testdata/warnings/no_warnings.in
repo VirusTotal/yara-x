@@ -148,3 +148,10 @@ rule test_16 {
   condition:
     all of them and $dollar at 0
 }
+
+rule test_17 {
+  condition:
+    // Constants with different signedness are not checked against the
+    // range of each other's type.
+    0xFFFFFFFFFFFFFFFF == -1 or -1 == 0xFFFFFFFFFFFFFFFF
+}

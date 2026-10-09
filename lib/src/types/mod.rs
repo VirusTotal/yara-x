@@ -710,13 +710,13 @@ impl TypeValue {
         }
     }
 
-    /// Returns the valid value range `(min, max)` (both inclusive) for a
-    /// non-constant integer [`TypeValue`], or [`None`] if it is constant or
-    /// not an integer.
+    /// Returns the range `(min, max)` (both inclusive) of the values that an
+    /// integer [`TypeValue`] can have according to its type, or [`None`] if
+    /// it is not an integer.
+    ///
+    /// The range depends only on the type. For constants, this is the range
+    /// of their type, not their actual value.
     pub fn integer_range(&self) -> Option<(i128, i128)> {
-        if self.is_const() {
-            return None;
-        }
         match self {
             TypeValue::Int8(_) => Some((i8::MIN as i128, i8::MAX as i128)),
             TypeValue::Int16(_) => Some((i16::MIN as i128, i16::MAX as i128)),
@@ -1069,6 +1069,13 @@ mod tests {
 
         assert!(TypeValue::var_unsigned_integer_from(1_u64).is_unsigned());
         assert!(!TypeValue::var_unsigned_integer_from(1_u64).is_const());
+
+        // The integer range depends only on the type, even for constants.
+        assert_eq!(
+            signed.integer_range(),
+            Some((i64::MIN as i128, i64::MAX as i128))
+        );
+        assert_eq!(unsigned.integer_range(), Some((0, u64::MAX as i128)));
 
         // Narrower integer variants.
         let u32_val = TypeValue::Uint32(Value::Var(10));
