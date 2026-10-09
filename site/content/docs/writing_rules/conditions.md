@@ -198,12 +198,14 @@ uint64(0) >= 0           // always true
 
 ##### Arithmetic and bitwise operations (`+`, `-`, `*`, `\`, `%`, `&`, `|`, `^`)
 
-Non-negative constants adapt to the signedness of the other operand, so adding
-or masking an unsigned value with a regular positive number keeps the result
-unsigned. More specifically:
+Non-negative constants and functions guaranteed to return non-negative values
+(such as `uint8`, `uint16`, and `uint32`) adapt to the signedness of the other
+operand, so combining an unsigned value with a positive number or a
+`uint8`/`uint16`/`uint32` keeps the result unsigned. More specifically:
 
 * The result is **unsigned** if at least one operand is unsigned and the other
-  is either unsigned or a non-negative constant.
+  is either unsigned or guaranteed to be non-negative (a non-negative constant
+  or `uint8`/`uint16`/`uint32`).
 * Otherwise, the result is **signed** (for instance, when both operands are
   signed, or when an unsigned value is combined with a signed variable or a
   negative constant).
@@ -213,10 +215,12 @@ type are rejected with an error. At runtime, operations wrap around on overflow.
 
 ```yara
 uint64(0) + 1           // unsigned (unsigned + non-negative constant)
+uint64(0) \ uint8(1)    // unsigned (unsigned \ non-negative uint8)
 uint64(0) & 0xFF        // unsigned (unsigned & non-negative constant)
 0x8000000000000000 + 1  // unsigned (9223372036854775809)
 1 + 1                   // signed (both operands are signed)
-uint64(0) + int64(0)    // signed (unsigned mixed with a signed non-constant)
+uint8(0) - 2            // signed (both operands are signed)
+uint64(0) + int64(0)    // signed (unsigned mixed with a potentially negative signed value)
 uint64(0) + (-1)        // signed (unsigned mixed with a negative constant)
 0xFFFFFFFFFFFFFFFF + 1  // compile error: overflows 64-bit unsigned integer
 ```

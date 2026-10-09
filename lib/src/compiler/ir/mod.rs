@@ -2672,18 +2672,20 @@ impl IR {
     /// operands is an unsigned integer.
     ///
     /// The result is unsigned if at least one of the operands is unsigned,
-    /// and the remaining ones are either unsigned or non-negative constants.
-    /// This means that non-negative constants adopt the signedness of the
-    /// other operands (e.g: `uint64(0) + 1` is unsigned, but `1 + 1` is
-    /// signed). In all other cases the result is signed.
+    /// and the remaining ones are either unsigned or guaranteed to be
+    /// non-negative (such as non-negative constants or the results of
+    /// `uint8`, `uint16`, and `uint32`). This means that non-negative
+    /// integers adopt the signedness of the other operands (e.g:
+    /// `uint64(0) + 1` and `uint64(0) \ uint8(1)` are unsigned, while
+    /// `1 + 1` and `uint8(0) - 2` are signed). In all other cases the
+    /// result is signed.
     pub(crate) fn is_unsigned_result(&self, operands: &[ExprId]) -> bool {
         let mut any_unsigned = false;
         for operand in operands {
             let type_value = self.get(*operand).type_value();
             if type_value.is_unsigned() {
                 any_unsigned = true;
-            } else if !matches!(type_value.try_as_const_i128(), Some(v) if v >= 0)
-            {
+            } else if !type_value.is_non_negative() {
                 return false;
             }
         }

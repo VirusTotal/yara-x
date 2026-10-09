@@ -950,11 +950,10 @@ fn emit_int_comparison(
         _ => unreachable!(),
     };
 
-    // Booleans and non-negative constants can be compared with both signed
+    // Booleans and non-negative integers can be compared with both signed
     // and unsigned integers.
     let non_negative = |tv: &TypeValue| {
-        matches!(tv, TypeValue::Bool { .. })
-            || matches!(tv.try_as_const_i128(), Some(v) if v >= 0)
+        matches!(tv, TypeValue::Bool { .. }) || tv.is_non_negative()
     };
 
     match (lhs.is_unsigned(), rhs.is_unsigned()) {

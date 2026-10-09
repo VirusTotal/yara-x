@@ -218,9 +218,12 @@ impl Regexp {
 ///   32-bit unsigned value in 64-bit signed arithmetic never overflows,
 ///   and would require extra runtime branching when comparing against
 ///   signed integers like `filesize` or `int32(...)`.
-/// * Meanwhile, their [`IntegerConstraint::Range`] still allows the
-///   compiler to detect unsatisfiable or invariant comparisons such as
-///   `uint32(0) == -1` or `uint32(0) >= 0` at compile time.
+/// * Meanwhile, their non-negative [`IntegerConstraint::Range`] still allows
+///   the compiler to treat them as non-negative when combined with an
+///   unsigned `uint64` (so `uint64(0) \ uint8(1)` remains unsigned, just
+///   like `uint64(0) \ 2`), and to detect unsatisfiable or invariant
+///   comparisons such as `uint32(0) == -1` or `uint32(0) >= 0` at compile
+///   time.
 ///
 /// See [`crate::compiler::ir::IR::is_unsigned_result`] for how signedness
 /// propagates through arithmetic and bitwise operations.
@@ -641,6 +644,27 @@ impl TypeValue {
     #[inline]
     pub fn is_unsigned(&self) -> bool {
         matches!(self, TypeValue::Integer { is_unsigned: true, .. })
+    }
+
+    /// Returns true if the [`TypeValue`] is an integer guaranteed to be
+    /// non-negative (`>= 0`).
+    ///
+    /// This includes unsigned integers, non-negative constant integers, and
+    /// signed integers constrained to a non-negative range (such as the
+    /// results of `uint8`, `uint16`, and `uint32`).
+    pub fn is_non_negative(&self) -> bool {
+        if self.is_unsigned() {
+            return true;
+        }
+        if matches!(self.try_as_const_i128(), Some(v) if v >= 0) {
+            return true;
+        }
+        if let Some(constraints) = self.integer_constraints() {
+            return constraints.iter().any(|c| match c {
+                IntegerConstraint::Range(min, _) => *min >= 0,
+            });
+        }
+        false
     }
 
     pub fn try_as_float(&self) -> Option<f64> {
