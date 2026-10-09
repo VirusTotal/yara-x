@@ -198,30 +198,32 @@ uint64(0) >= 0           // always true
 
 ##### Arithmetic and bitwise operations (`+`, `-`, `*`, `\`, `%`, `&`, `|`, `^`)
 
-Non-negative constants and functions guaranteed to return non-negative values
-(such as `uint8`, `uint16`, and `uint32`) adapt to the signedness of the other
-operand, so combining an unsigned value with a positive number or a
-`uint8`/`uint16`/`uint32` keeps the result unsigned. More specifically:
+* The result is **unsigned** if at least one operand is unsigned. In that case
+  the signed operands are interpreted as unsigned integers, which means that
+  negative values wrap around (for example, `-1` is interpreted as
+  `0xFFFFFFFFFFFFFFFF`, and `-2` as `0xFFFFFFFFFFFFFFFE`).
+* Otherwise, the result is **signed** (this includes `uint8`, `uint16`, and
+  `uint32`, which are signed integers as explained above).
 
-* The result is **unsigned** if at least one operand is unsigned and the other
-  is either unsigned or guaranteed to be non-negative (a non-negative constant
-  or `uint8`/`uint16`/`uint32`).
-* Otherwise, the result is **signed** (for instance, when both operands are
-  signed, or when an unsigned value is combined with a signed variable or a
-  negative constant).
+The signedness of the result depends only on the operands being signed or
+unsigned, not on their values. Keep in mind that subtracting from an unsigned
+integer produces an unsigned integer, which is never negative. For instance,
+`uint64(0) - 1 < 0` is always false, because `uint64(0) - 1` is unsigned. If
+`uint64(0)` returns zero, `uint64(0) - 1` wraps around and results in
+`0xFFFFFFFFFFFFFFFF`.
 
 At compile time, constant expressions whose result does not fit in the result
 type are rejected with an error. At runtime, operations wrap around on overflow.
 
 ```yara
-uint64(0) + 1           // unsigned (unsigned + non-negative constant)
-uint64(0) \ uint8(1)    // unsigned (unsigned \ non-negative uint8)
-uint64(0) & 0xFF        // unsigned (unsigned & non-negative constant)
+uint64(0) + 1           // unsigned
+uint64(0) \ uint8(1)    // unsigned
+uint64(0) & 0xFF        // unsigned
+uint64(0) + int64(0)    // unsigned (int64(0) is interpreted as unsigned)
+uint64(0) + (-1)        // unsigned (equivalent to uint64(0) - 1)
 0x8000000000000000 + 1  // unsigned (9223372036854775809)
 1 + 1                   // signed (both operands are signed)
 uint8(0) - 2            // signed (uint8 is promoted to a signed 64-bit integer)
-uint64(0) + int64(0)    // signed (uint64 mixed with a potentially negative signed value)
-uint64(0) + (-1)        // signed (uint64 mixed with a negative constant)
 0xFFFFFFFFFFFFFFFF + 1  // compile error: overflows 64-bit unsigned integer
 ```
 

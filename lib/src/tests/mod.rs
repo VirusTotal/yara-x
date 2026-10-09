@@ -500,21 +500,27 @@ fn unsigned_integers() {
     // Division and modulus are unsigned.
     condition_true!(r"0xFFFFFFFFFFFFFFFF \ 2 == 0x7FFFFFFFFFFFFFFF");
     condition_true!("0xFFFFFFFFFFFFFFFF % 10 == 5");
-    // These require constant folding. Without it `4 \ 2` and `5 % 3` are not
-    // folded into non-negative constants, they are signed expressions whose
-    // value is not known at compile time, and therefore the multiplication
-    // is signed.
-    #[cfg(feature = "constant-folding")]
-    condition_true!(
-        r"(4 \ 2) * (0xFFFFFFFFFFFFFFFF \ 2) == 0xFFFFFFFFFFFFFFFE"
-    );
-    #[cfg(feature = "constant-folding")]
-    condition_true!(
-        r"(5 % 3) * (0xFFFFFFFFFFFFFFFF \ 2) == 0xFFFFFFFFFFFFFFFE"
-    );
     condition_true!(r"0x8000000000000000 \ 2.0 == 4611686018427387904.0");
     condition_true!(r"9223372036854775808.0 \ 0x8000000000000000 == 1.0");
     condition_true!(r"-1 \ 2.0 == -0.5");
+
+    // When signed and unsigned integers are mixed, the result is unsigned,
+    // regardless of the values of the signed integers. Negative integers are
+    // interpreted as unsigned, so they wrap around.
+    condition_true!(
+        r"(4 \ 2) * (0xFFFFFFFFFFFFFFFF \ 2) == 0xFFFFFFFFFFFFFFFE"
+    );
+    condition_true!(
+        r"(5 % 3) * (0xFFFFFFFFFFFFFFFF \ 2) == 0xFFFFFFFFFFFFFFFE"
+    );
+    condition_true!(
+        r"(5 - 3) * (0xFFFFFFFFFFFFFFFF \ 2) == 0xFFFFFFFFFFFFFFFE"
+    );
+    condition_true!("0xFFFFFFFFFFFFFFFF + (-1) == 0xFFFFFFFFFFFFFFFE");
+    condition_true!("(-1) + 0xFFFFFFFFFFFFFFFF == 0xFFFFFFFFFFFFFFFE");
+    condition_true!("((-1) | 0x8000000000000000) == 0xFFFFFFFFFFFFFFFF");
+    condition_true!(r"0xFFFFFFFFFFFFFFFF \ (-2) == 1");
+    condition_true!("0xFFFFFFFFFFFFFFFF % (-2) == 1");
 
     // Same operations but with values not known at compile time.
     condition_true!(
@@ -561,11 +567,24 @@ fn unsigned_integers() {
         )"
     );
 
-    // When an unsigned integer is mixed with a signed integer that is not
-    // a non-negative constant, the result is signed.
+    // When an unsigned integer is mixed with a signed integer the result is
+    // unsigned, even if the value of the signed integer is not known at
+    // compile time, or is negative.
     condition_true!(
         "for all x in (0xFFFFFFFFFFFFFFFF) : (
-            for all y in (1) : (x - y == -2 and x - y < 0)
+            for all y in (1) : (x - y == 0xFFFFFFFFFFFFFFFE and x - y > 0)
+        )"
+    );
+    condition_true!(
+        "for all x in (0xFFFFFFFFFFFFFFFF) : (
+            for all y in (-1) : (
+                x + y == 0xFFFFFFFFFFFFFFFE and x * y == 1 and x % y == 0
+            )
+        )"
+    );
+    condition_true!(
+        r"for all i in (2..2) : (
+            i * (0xFFFFFFFFFFFFFFFF \ 2) == 0xFFFFFFFFFFFFFFFE
         )"
     );
 
@@ -581,9 +600,11 @@ fn unsigned_integers() {
         )"
     );
 
-    // Tuples that mix unsigned integers and non-negative constants are
-    // unsigned.
+    // Tuples that mix unsigned and signed integers are unsigned.
     condition_true!("for all x in (1, 0xFFFFFFFFFFFFFFFF) : (x > 0)");
+    condition_true!(
+        "for all x in (-5, 0xFFFFFFFFFFFFFFFF) : (x > 0xFFFFFFFFFFFFFFFA)"
+    );
 
     // Unary minus produces a signed integer, while the bitwise not of an
     // unsigned integer is unsigned.
@@ -595,9 +616,12 @@ fn unsigned_integers() {
     // to undefined instead of trapping at runtime.
     condition_false!(r"-9223372036854775808 \ -1 == 0");
     condition_true!(r"not defined (-9223372036854775808 \ -1)");
-    condition_false!(r"0x8000000000000000 \ -1 == 0");
-    condition_true!(r"not defined (0x8000000000000000 \ -1)");
     condition_true!("-9223372036854775808 % -1 == 0");
+
+    // Dividing an unsigned integer by -1 is an unsigned division, where -1
+    // is interpreted as 0xFFFFFFFFFFFFFFFF.
+    condition_true!(r"0x8000000000000000 \ -1 == 0");
+    condition_true!(r"0xFFFFFFFFFFFFFFFF \ -1 == 1");
 }
 
 #[test]
@@ -4466,8 +4490,8 @@ fn proto3_integers() {
     condition_true!(r#"test_proto3.uint32_one - 2 == -1"#);
     condition_true!(r#"test_proto3.uint64_one - 2 == 0xFFFFFFFFFFFFFFFF"#);
 
-    // As `uint32_one` is known to be non-negative, dividing an unsigned
-    // integer by it produces an unsigned result.
+    // Dividing an unsigned integer by a signed one (`uint32` fields are
+    // signed integers) produces an unsigned result.
     condition_true!(
         r#"(test_proto3.uint64_zero - 1) \ test_proto3.uint32_one == 0xFFFFFFFFFFFFFFFF"#
     );

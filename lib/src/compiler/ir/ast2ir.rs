@@ -1596,9 +1596,9 @@ fn for_in_expr_from_ast<'src>(
                 .clone_without_value();
 
             // If the items are integers, the loop variable is unsigned when
-            // the items are unsigned or non-negative constants, and at least
-            // one of them is unsigned. The same rule used for determining
-            // the signedness of arithmetic operations.
+            // at least one of the items is unsigned, which is the same rule
+            // used for determining the signedness of arithmetic operations.
+            // In that case the signed items are interpreted as unsigned.
             if type_value.ty() == Type::Integer {
                 type_value = if ctx.ir.is_unsigned_result(expressions) {
                     TypeValue::unknown_unsigned_integer()

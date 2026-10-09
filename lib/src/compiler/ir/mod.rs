@@ -2671,24 +2671,26 @@ impl IR {
     /// operands is an unsigned integer.
     ///
     /// The result is unsigned if at least one of the operands is unsigned,
-    /// and the remaining ones are either unsigned or guaranteed to be
-    /// non-negative (such as non-negative constants or the results of
-    /// `uint8`, `uint16`, and `uint32`). This means that non-negative
-    /// integers adopt the signedness of the other operands (e.g:
-    /// `uint64(0) + 1` and `uint64(0) \ uint8(1)` are unsigned, while
-    /// `1 + 1` and `uint8(0) - 2` are signed). In all other cases the
-    /// result is signed.
+    /// regardless of the remaining operands, which are interpreted as
+    /// unsigned integers. Negative values wrap around, for instance, in
+    /// `uint64(0) + (-1)` the `-1` is interpreted as `0xFFFFFFFFFFFFFFFF`.
+    /// If all the operands are signed the result is signed. This is similar
+    /// to the usual arithmetic conversions in C, where mixing `int64_t` and
+    /// `uint64_t` produces an `uint64_t`.
+    ///
+    /// Notice that `uint8`, `uint16` and `uint32` are treated as signed
+    /// integers (see [`TypeValue::is_unsigned`]), so `uint8(0) - 2` is
+    /// signed, while `uint64(0) + 1` and `uint64(0) \ uint8(1)` are
+    /// unsigned.
+    ///
+    /// The signedness of the result depends only on the types of the
+    /// operands, never on their values. This guarantees that it doesn't
+    /// change depending on whether constant folding is enabled or not, or
+    /// on whether the operands are constants or variables.
     pub(crate) fn is_unsigned_result(&self, operands: &[ExprId]) -> bool {
-        let mut any_unsigned = false;
-        for operand in operands {
-            let type_value = self.get(*operand).type_value();
-            if type_value.is_unsigned() {
-                any_unsigned = true;
-            } else if !type_value.is_non_negative() {
-                return false;
-            }
-        }
-        any_unsigned
+        operands
+            .iter()
+            .any(|operand| self.get(*operand).type_value().is_unsigned())
     }
 
     /// If the expression is a constant integer, returns the bit pattern of

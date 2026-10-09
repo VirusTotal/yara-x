@@ -207,10 +207,10 @@ impl Regexp {
 ///   combined with a `Uint64`. This prevents 64-bit unsigned underflow wrap-around
 ///   in expressions like `uint32(0) - 10` or `uint32(0) - uint32(4)`, and avoids
 ///   false-positive `unsigned_unary_op` warnings on `-uint32(0)`.
-/// * Meanwhile, [`TypeValue::is_non_negative`] returns `true` for all unsigned
-///   variants (`Uint8`, `Uint16`, `Uint32`, `Uint64`), so combining them with a
-///   `Uint64` (e.g., `uint64(0) \ uint8(1)`) keeps the operation unsigned, just
-///   like `uint64(0) \ 2`.
+/// * Any integer combined with a `Uint64` in arithmetic and bitwise operations
+///   produces an unsigned result (e.g., `uint64(0) \ uint8(1)`, `uint64(0) \ 2`
+///   and `uint64(0) + (-1)` are all unsigned). The signed operand is
+///   interpreted as unsigned, so negative values wrap around.
 ///
 /// See [`crate::compiler::ir::IR::is_unsigned_result`] for how signedness
 /// propagates through arithmetic and bitwise operations.

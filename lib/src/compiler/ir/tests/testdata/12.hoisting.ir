@@ -86,5 +86,5 @@ RULE test
                               37: ADD -- hash: 0xf0090450afb43658
                                 35: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 11 }, type_value: integer(unknown) }
                                 36: SYMBOL Var { var: Var { frame_id: 4, ty: integer, index: 26 }, type_value: integer(unknown) }
-                            48: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 20 }, type_value: integer(unknown) }
+                            48: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 20 }, type_value: unsigned(unknown) }
 
