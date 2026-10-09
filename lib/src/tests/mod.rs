@@ -506,6 +506,9 @@ fn unsigned_integers() {
     condition_true!(
         r"(5 % 3) * (0xFFFFFFFFFFFFFFFF \ 2) == 0xFFFFFFFFFFFFFFFE"
     );
+    condition_true!(r"0x8000000000000000 \ 2.0 == 4611686018427387904.0");
+    condition_true!(r"9223372036854775808.0 \ 0x8000000000000000 == 1.0");
+    condition_true!(r"-1 \ 2.0 == -0.5");
 
     // Same operations but with values not known at compile time.
     condition_true!(
@@ -518,6 +521,8 @@ fn unsigned_integers() {
     condition_true!(
         r"for all x in (0xFFFFFFFFFFFFFFFF) : (
             x \ 2 == 0x7FFFFFFFFFFFFFFF and
+            x \ 1.0 == 18446744073709551615.0 and
+            18446744073709551615.0 \ x == 1.0 and
             x % 10 == 5 and
             x >> 60 == 15 and
             x << 4 == 0xFFFFFFFFFFFFFFF0 and
@@ -525,6 +530,12 @@ fn unsigned_integers() {
             x + 1 == 0 and
             x * 1.0 == 18446744073709551615.0 and
             x > 1.0
+        )"
+    );
+    condition_true!(
+        r"for all x in (-1) : (
+            x \ 2.0 == -0.5 and
+            2.0 \ x == -2.0
         )"
     );
 
@@ -594,6 +605,7 @@ fn int64xx() {
     condition_true!("int64(1) == 0x0908070605040302", &data);
     condition_true!("int64(10) == -1", &data);
     condition_true!("int64(12) == -1", &data);
+    condition_true!(r"int64(10) \ 2.0 == -0.5", &data);
     // Bytes 04 05 06 07 08 09 0A FF, the most significant byte is 0xFF.
     condition_true!("int64(3) < 0", &data);
     condition_true!("int64(3) == -0x00f5f6f7f8f9fafc", &data);
@@ -660,6 +672,7 @@ fn uint64xx() {
     condition_true!("uint64(10) + 1 == 0", &data);
     condition_true!("uint64(10) - 1 == 0xFFFFFFFFFFFFFFFE", &data);
     condition_true!("uint64(10) == 18446744073709551615.0", &data);
+    condition_true!(r"uint64(10) \ 1.0 == 18446744073709551615.0", &data);
 
     condition_true!("uint64be(0) == 0x0102030405060708", &data);
     condition_true!("uint64be(1) == 0x0203040506070809", &data);
