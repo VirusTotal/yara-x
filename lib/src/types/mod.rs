@@ -203,14 +203,16 @@ impl Regexp {
 ///   and therefore requires 64-bit unsigned WASM instructions (`i64.div_u`,
 ///   `i64.lt_u`, etc.).
 /// * Narrower unsigned integers (`Uint8`, `Uint16`, `Uint32`) promote to signed
-///   64-bit integers (`Int64`) in arithmetic and unary operations unless
-///   combined with a `Uint64`. This prevents 64-bit unsigned underflow wrap-around
-///   in expressions like `uint32(0) - 10` or `uint32(0) - uint32(4)`, and avoids
-///   false-positive `unsigned_unary_op` warnings on `-uint32(0)`.
-/// * Any integer combined with a `Uint64` in arithmetic and bitwise operations
-///   produces an unsigned result (e.g., `uint64(0) \ uint8(1)`, `uint64(0) \ 2`
-///   and `uint64(0) + (-1)` are all unsigned). The signed operand is
-///   interpreted as unsigned, so negative values wrap around.
+///   64-bit integers (`Int64`) in arithmetic and unary operations, which keeps
+///   the semantics of YARA, where all integers are signed. This prevents 64-bit
+///   unsigned underflow wrap-around in expressions like `uint32(0) - 10` or
+///   `uint32(0) - uint32(4)`, and avoids false-positive `unsigned_unary_op`
+///   warnings on `-uint32(0)`.
+/// * Any integer combined with a `Uint64` in arithmetic and bitwise operations,
+///   including the promoted ones, produces an unsigned result (e.g.,
+///   `uint64(0) \ uint8(1)`, `uint64(0) \ 2` and `uint64(0) + (-1)` are all
+///   unsigned). The signed operand is interpreted as unsigned, so negative
+///   values wrap around.
 ///
 /// See [`crate::compiler::ir::IR::is_unsigned_result`] for how signedness
 /// propagates through arithmetic and bitwise operations.

@@ -4484,14 +4484,14 @@ fn defined_3() {
 #[test]
 #[cfg(feature = "test_proto3-module")]
 fn proto3_integers() {
-    // Like in proto2 modules, fields of type uint32 are signed integers
-    // constrained to the range [0, u32::MAX], while fields of type uint64 are
-    // unsigned integers.
+    // Like in proto2 modules, fields of type uint32 are promoted to signed
+    // integers (their values are in the range [0, u32::MAX]), while fields of
+    // type uint64 are unsigned integers.
     condition_true!(r#"test_proto3.uint32_one - 2 == -1"#);
     condition_true!(r#"test_proto3.uint64_one - 2 == 0xFFFFFFFFFFFFFFFF"#);
 
-    // Dividing an unsigned integer by a signed one (`uint32` fields are
-    // signed integers) produces an unsigned result.
+    // Dividing an unsigned integer by a promoted `uint32` field produces an
+    // unsigned result, like with any other signed integer.
     condition_true!(
         r#"(test_proto3.uint64_zero - 1) \ test_proto3.uint32_one == 0xFFFFFFFFFFFFFFFF"#
     );

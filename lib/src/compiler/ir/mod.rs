@@ -2678,10 +2678,11 @@ impl IR {
     /// to the usual arithmetic conversions in C, where mixing `int64_t` and
     /// `uint64_t` produces an `uint64_t`.
     ///
-    /// Notice that `uint8`, `uint16` and `uint32` are treated as signed
-    /// integers (see [`TypeValue::is_unsigned`]), so `uint8(0) - 2` is
-    /// signed, while `uint64(0) + 1` and `uint64(0) \ uint8(1)` are
-    /// unsigned.
+    /// The results of `uint8`, `uint16` and `uint32` are promoted to signed
+    /// integers, as all their values fit in an `i64`, just like C promotes
+    /// integer types narrower than `int` to `int` (see
+    /// [`TypeValue::is_unsigned`]). So, `uint8(0) - 2` is signed, while
+    /// `uint64(0) + 1` and `uint64(0) \ uint8(1)` are unsigned.
     ///
     /// The signedness of the result depends only on the types of the
     /// operands, never on their values. This guarantees that it doesn't

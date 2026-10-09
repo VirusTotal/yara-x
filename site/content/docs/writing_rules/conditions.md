@@ -155,9 +155,14 @@ not `0xFE` but `0xFFFFFFFFFFFFFFFE`).
 By default, integers in YARA-X are **64-bit signed integers**, which can hold
 values from `-9223372036854775808` (`-0x8000000000000000`) to
 `9223372036854775807` (`0x7FFFFFFFFFFFFFFF`). This includes most integer
-literals, `filesize`, `int8`/`int16`/`int32`/`int64`, and even `uint8`,
-`uint16`, and `uint32` (since their values always fit within the positive range
-of a 64-bit signed integer).
+literals, `filesize`, and the results of `int8`/`int16`/`int32`/`int64`.
+
+The values returned by `uint8`, `uint16` and `uint32` (and module fields of
+type `uint32`) are never negative, but they are **promoted** to 64-bit signed
+integers, because all of them fit within the positive range of a 64-bit signed
+integer. This is similar to C, where integer types narrower than `int` are
+promoted to `int` before operating with them, and keeps them compatible with
+YARA, where all integers are 64-bit signed integers.
 
 An integer is a **64-bit unsigned integer** (capable of holding values from `0`
 to `18446744073709551615`, or `0xFFFFFFFFFFFFFFFF`) in the following cases:
@@ -170,12 +175,15 @@ to `18446744073709551615`, or `0xFFFFFFFFFFFFFFFF`) in the following cases:
 * **Module fields and functions** declared with type `uint64` (for example,
   `pe.image_base`).
 
+These values can exceed the maximum 64-bit signed value, so they can't be
+promoted to signed integers.
+
 ```yara
 42                  // signed integer
 0x7FFFFFFFFFFFFFFF  // signed integer (maximum signed 64-bit value)
 0x8000000000000000  // unsigned integer (too large for signed 64-bit)
 0xFFFFFFFFFFFFFFFF  // unsigned integer (maximum unsigned 64-bit value)
-uint32(0)           // signed integer (0..4294967295 fits in signed 64-bit)
+uint32(0)           // signed integer (promoted, 0..4294967295 fits in signed 64-bit)
 uint64(0)           // unsigned integer
 ```
 
@@ -202,15 +210,21 @@ uint64(0) >= 0           // always true
   the signed operands are interpreted as unsigned integers, which means that
   negative values wrap around (for example, `-1` is interpreted as
   `0xFFFFFFFFFFFFFFFF`, and `-2` as `0xFFFFFFFFFFFFFFFE`).
-* Otherwise, the result is **signed** (this includes `uint8`, `uint16`, and
-  `uint32`, which are signed integers as explained above).
+* Otherwise, the result is **signed**. This includes operations with the
+  values returned by `uint8`, `uint16` and `uint32`, which are promoted to
+  signed integers as explained above.
 
 The signedness of the result depends only on the operands being signed or
 unsigned, not on their values. Keep in mind that subtracting from an unsigned
-integer produces an unsigned integer, which is never negative. For instance,
-`uint64(0) - 1 < 0` is always false, because `uint64(0) - 1` is unsigned. If
-`uint64(0)` returns zero, `uint64(0) - 1` wraps around and results in
-`0xFFFFFFFFFFFFFFFF`.
+integer produces an unsigned integer, which is never negative, while
+subtracting from a promoted `uint8`, `uint16` or `uint32` value can produce a
+negative result:
+
+```yara
+uint32(0) - 1 < 0       // true if uint32(0) returns 0 (the result is -1)
+uint64(0) - 1 < 0       // always false (if uint64(0) returns 0, the result
+                        // wraps around to 0xFFFFFFFFFFFFFFFF)
+```
 
 At compile time, constant expressions whose result does not fit in the result
 type are rejected with an error. At runtime, operations wrap around on overflow.
