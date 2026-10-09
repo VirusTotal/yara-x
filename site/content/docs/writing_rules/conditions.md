@@ -152,29 +152,109 @@ not `0xFE` but `0xFFFFFFFFFFFFFFFE`).
 
 #### Signed and unsigned integers
 
-Integers are signed by default, with values in the range
-[-9223372036854775808, 9223372036854775807]. Integer literals that don't fit
-in that range, but fit in a 64-bit unsigned integer, are unsigned (e.g:
-`0xFFFFFFFFFFFFFFFF` or `18446744073709551615`).
-Module fields of type `uint64` are unsigned integers too.
+By default, integers in YARA-X are **64-bit signed integers**, which can hold
+values from `-9223372036854775808` (`-0x8000000000000000`) to
+`9223372036854775807` (`0x7FFFFFFFFFFFFFFF`). This includes most integer
+literals, `filesize`, `int8`/`int16`/`int32`/`int64`, and even `uint8`,
+`uint16`, and `uint32` (since their values always fit within the positive range
+of a 64-bit signed integer).
 
-When signed and unsigned integers are mixed, the following rules apply:
+An integer is a **64-bit unsigned integer** (capable of holding values from `0`
+to `18446744073709551615`, or `0xFFFFFFFFFFFFFFFF`) in the following cases:
 
-* Comparisons (`==`, `!=`, `<`, `<=`, `>`, `>=`) are mathematically exact. For
-  instance, `0xFFFFFFFFFFFFFFFF > -1` is always true, and an unsigned integer
-  is never equal to a negative signed integer.
-* Arithmetic and bitwise operations (`+`, `-`, `*`, `\`, `%`, `&`, `|`, `^`)
-  produce an unsigned result only if both operands are unsigned, or if one of
-  them is unsigned and the other one is a non-negative constant. Otherwise,
-  the result is signed. Results wrap around on overflow at runtime, and
-  constant expressions whose result doesn't fit in the result type are
-  rejected by the compiler.
-* In shift operations (`<<`, `>>`), the result has the signedness of the left
-  operand. Right shifts of unsigned integers are logical (zeroes are shifted
-  in), while right shifts of signed integers are arithmetic.
-* Unary minus (`-`) always produces a signed integer, and bitwise not (`~`)
-  preserves signedness. The compiler emits a warning when any of them is
-  applied to an unsigned integer.
+* **Large integer literals** that exceed the maximum 64-bit signed value
+  (`9223372036854775807` / `0x7FFFFFFFFFFFFFFF`), up to `18446744073709551615`
+  (`0xFFFFFFFFFFFFFFFF`).
+* **The `uint64` and `uint64be` functions**, which read 64-bit unsigned integers
+  from the scanned data.
+* **Module fields and functions** declared with type `uint64` (for example,
+  `pe.image_base`).
+
+```yara
+42                  // signed integer
+0x7FFFFFFFFFFFFFFF  // signed integer (maximum signed 64-bit value)
+0x8000000000000000  // unsigned integer (too large for signed 64-bit)
+0xFFFFFFFFFFFFFFFF  // unsigned integer (maximum unsigned 64-bit value)
+uint32(0)           // signed integer (0..4294967295 fits in signed 64-bit)
+uint64(0)           // unsigned integer
+```
+
+When working with or mixing signed and unsigned integers, YARA-X applies the
+following rules:
+
+##### Comparisons (`==`, `!=`, `<`, `<=`, `>`, `>=`)
+
+Comparisons between signed and unsigned integers are **mathematically exact**—they
+compare the actual numeric values rather than their raw 64-bit bit patterns.
+Because an unsigned integer is never negative, it is always greater than (and
+never equal to) a negative signed integer:
+
+```yara
+0xFFFFFFFFFFFFFFFF > 0   // true (18446744073709551615 > 0)
+0xFFFFFFFFFFFFFFFF > -1  // true
+0xFFFFFFFFFFFFFFFF == -1 // false (never equal)
+uint64(0) >= 0           // always true
+```
+
+##### Arithmetic and bitwise operations (`+`, `-`, `*`, `\`, `%`, `&`, `|`, `^`)
+
+Non-negative constants adapt to the signedness of the other operand, so adding
+or masking an unsigned value with a regular positive number keeps the result
+unsigned. More specifically:
+
+* The result is **unsigned** if at least one operand is unsigned and the other
+  is either unsigned or a non-negative constant.
+* Otherwise, the result is **signed** (for instance, when both operands are
+  signed, or when an unsigned value is combined with a signed variable or a
+  negative constant).
+
+At compile time, constant expressions whose result does not fit in the result
+type are rejected with an error. At runtime, operations wrap around on overflow.
+
+```yara
+uint64(0) + 1           // unsigned (unsigned + non-negative constant)
+uint64(0) & 0xFF        // unsigned (unsigned & non-negative constant)
+0x8000000000000000 + 1  // unsigned (9223372036854775809)
+1 + 1                   // signed (both operands are signed)
+uint64(0) + int64(0)    // signed (unsigned mixed with a signed non-constant)
+uint64(0) + (-1)        // signed (unsigned mixed with a negative constant)
+0xFFFFFFFFFFFFFFFF + 1  // compile error: overflows 64-bit unsigned integer
+```
+
+##### Shift operations (`<<`, `>>`)
+
+In shift operations, the result always has the **same signedness as the left
+operand** (the value being shifted):
+
+* Right-shifting an **unsigned** integer (`>>`) performs a *logical shift*,
+  filling the most significant bits with `0`.
+* Right-shifting a **signed** integer (`>>`) performs an *arithmetic shift*,
+  preserving the sign bit (filling with `1` if negative, or `0` if positive).
+
+```yara
+0x8000000000000000 >> 1 // 0x4000000000000000 (unsigned logical shift: fills with 0)
+(-2) >> 1               // -1 (signed arithmetic shift: preserves sign bit)
+uint64(0) << 4          // unsigned (left operand is unsigned)
+int64(0) << 4           // signed (left operand is signed)
+```
+
+##### Unary operators (`-`, `~`)
+
+* **Unary minus (`-`)** always produces a **signed** integer. If applied to an
+  unsigned value greater than `0x7FFFFFFFFFFFFFFF`, the result wraps around.
+* **Bitwise NOT (`~`)** inverts all 64 bits and **preserves** the signedness of
+  its operand.
+
+Because applying `-` or `~` to an unsigned integer often yields unexpected
+results, the compiler emits an [`unsigned_unary_op`](/docs/warnings/#unsigned_unary_op)
+warning when either operator is used on an unsigned value:
+
+```yara
+-100                 // -100 (signed)
+-0xFFFFFFFFFFFFFFFF  // 1 (signed, wraps around; emits warning)
+~0x01                // -2, or 0xFFFFFFFFFFFFFFFE (signed)
+~0xFFFFFFFFFFFFFFFF  // 0 (unsigned; emits warning)
+```
 
 ### Float literals
 
