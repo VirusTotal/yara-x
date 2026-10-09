@@ -1,22 +1,22 @@
 RULE test
-  19: OR -- hash: 0x15c1b9fd8bb07934
-    9: AND -- hash: 0x4f03f88669200ec7
-      3: EQ -- hash: 0x6636f0caaaf0ce1
-        1: FN_CALL uint16@offset:i@i:R0:65535u -- hash: 0xd9c315b7872786ad
+  19: OR -- hash: 0xc7d5dccd1b9f9a83
+    9: AND -- hash: 0xba386265c089d07c
+      3: EQ -- hash: 0xbfed2b648a1fa158
+        1: FN_CALL uint16@offset:i64@u16u -- hash: 0xd5c98200cab9ecbc
           0: CONST integer(0)
         2: CONST integer(23117)
-      8: EQ -- hash: 0x23d5cb37154e6e05
-        6: FN_CALL uint32@offset:i@i:R0:4294967295u -- hash: 0x114d562bc44dc92b
-          5: FN_CALL uint32@offset:i@i:R0:4294967295u -- hash: 0x70d97345f01748c4
+      8: EQ -- hash: 0xfa4fa5580fa24129
+        6: FN_CALL uint32@offset:i64@u32u -- hash: 0x35acc123a0c6b588
+          5: FN_CALL uint32@offset:i64@u32u -- hash: 0x43eac38d4f74562c
             4: CONST integer(60)
         7: CONST integer(17744)
-    18: AND -- hash: 0xeb59fd3df0f925fc
-      13: EQ -- hash: 0x8bd5c0fe8f781437
-        11: FN_CALL uint32@offset:i@i:R0:4294967295u -- hash: 0xe55cf41d41f52588
+    18: AND -- hash: 0xec64151bc9844631
+      13: EQ -- hash: 0x42a56cb706a85bf9
+        11: FN_CALL uint32@offset:i64@u32u -- hash: 0xb86e44649d5232f0
           10: CONST integer(0)
         12: CONST integer(1179403647)
-      17: NE -- hash: 0x303c2970e8fcb487
-        15: FN_CALL uint16@offset:i@i:R0:65535u -- hash: 0xd9c315b7872786ad
+      17: NE -- hash: 0xe9c5e5c8c86d48fe
+        15: FN_CALL uint16@offset:i64@u16u -- hash: 0xd5c98200cab9ecbc
           14: CONST integer(0)
         16: CONST integer(0)
 

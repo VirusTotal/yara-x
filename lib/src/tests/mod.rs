@@ -500,9 +500,15 @@ fn unsigned_integers() {
     // Division and modulus are unsigned.
     condition_true!(r"0xFFFFFFFFFFFFFFFF \ 2 == 0x7FFFFFFFFFFFFFFF");
     condition_true!("0xFFFFFFFFFFFFFFFF % 10 == 5");
+    // These require constant folding. Without it `4 \ 2` and `5 % 3` are not
+    // folded into non-negative constants, they are signed expressions whose
+    // value is not known at compile time, and therefore the multiplication
+    // is signed.
+    #[cfg(feature = "constant-folding")]
     condition_true!(
         r"(4 \ 2) * (0xFFFFFFFFFFFFFFFF \ 2) == 0xFFFFFFFFFFFFFFFE"
     );
+    #[cfg(feature = "constant-folding")]
     condition_true!(
         r"(5 % 3) * (0xFFFFFFFFFFFFFFFF \ 2) == 0xFFFFFFFFFFFFFFFE"
     );
