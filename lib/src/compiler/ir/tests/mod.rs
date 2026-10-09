@@ -16,7 +16,7 @@ fn expr_size() {
     assert_eq!(size_of::<Expr>(), 32);
 
     #[cfg(all(target_pointer_width = "32", target_family = "unix"))]
-    assert_eq!(size_of::<Expr>(), 24);
+    assert_eq!(size_of::<Expr>(), 20);
 }
 
 #[test]
