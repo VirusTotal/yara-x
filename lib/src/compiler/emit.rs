@@ -2321,6 +2321,26 @@ fn emit_for<I, B, C, A>(
                         load_var(ctx, instr, n);
                         instr.unop(UnaryOp::F64ConvertSI64);
                         emit_expr(ctx, ir, *quantifier, instr);
+
+                        // Negative percentages (only possible when they are
+                        // computed at runtime) can't be satisfied, so they are
+                        // replaced with i64::MAX, which produces a `max_count`
+                        // that `count` never reaches. Otherwise, when
+                        // `n * percentage` is in the range (-100, 0),
+                        // `max_count` would be 0, which means `none`.
+                        let percentage = ir.get(*quantifier).type_value();
+
+                        if !percentage.is_non_negative() {
+                            let tmp = ctx.wasm_symbols.i64_tmp_a;
+                            instr.local_tee(tmp);
+                            instr.i64_const(i64::MAX);
+                            instr.local_get(tmp);
+                            instr.i64_const(0);
+                            instr.binop(BinaryOp::I64GeS);
+                            // percentage >= 0 ? percentage : i64::MAX
+                            instr.select(None);
+                        }
+
                         instr.unop(int_to_float_op(ir, *quantifier));
                         instr.binop(BinaryOp::F64Mul);
 

@@ -835,6 +835,17 @@ fn for_in() {
         &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
     );
 
+    // Negative percentages can't be satisfied either, even when
+    // `n * percentage / 100` is rounded to 0, which would mean `none`.
+    condition_false!("for int8(0) % i in (0..9) : ( false )", &[0xFF]);
+    condition_false!("for int8(0) % i in (0..9) : ( true )", &[0xFF]);
+    condition_false!("for int8(0) % i in (0..1000) : ( true )", &[0xFF]);
+
+    // Negative quantifiers computed at runtime can't be satisfied.
+    condition_false!("for int8(0) i in (0..9) : ( true )", &[0xFF]);
+    condition_false!("for int8(0) i in (0..9) : ( false )", &[0xFF]);
+    condition_false!("int8(0) of (true, false)", &[0xFF]);
+
     // If the range's lower bound is greater than the upper bound
     // the `for` loop is always false. The outer loop is only for
     // being able to write a loop with a range (i+1..i) where

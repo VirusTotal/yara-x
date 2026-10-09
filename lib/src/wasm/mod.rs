@@ -963,6 +963,10 @@ pub(crate) fn pat_range_match(
     let range: RangeInclusive<usize> =
         pattern_id_start.into()..=pattern_id_end.into();
 
+    // Negative values, which are possible only when the quantifier is computed
+    // at runtime (e.g: `int8(0) of ($a, $b)`), can't be satisfied. The same
+    // applies to unsigned quantifiers greater than i64::MAX, which are received
+    // here as negative numbers, and to values that don't fit in `usize`.
     let Ok(required) = usize::try_from(required) else {
         return false;
     };
