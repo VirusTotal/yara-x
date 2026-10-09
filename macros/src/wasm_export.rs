@@ -71,29 +71,22 @@ impl<'ast> FuncSignatureParser<'ast> {
         type_path: &TypePath,
     ) -> Result<Cow<'static, str>> {
         match Self::type_ident(type_path).to_string().as_str() {
-            "i32" | "i64" => Ok(Cow::Borrowed("i")),
+            "i8" => Ok(Cow::Borrowed("i8")),
+            "i16" => Ok(Cow::Borrowed("i16")),
+            "i32" => Ok(Cow::Borrowed("i32")),
+            "i64" => Ok(Cow::Borrowed("i64")),
+            "u8" => Ok(Cow::Borrowed("u8")),
+            "u16" => Ok(Cow::Borrowed("u16")),
+            "u32" => Ok(Cow::Borrowed("u32")),
+            "u64" => Ok(Cow::Borrowed("u64")),
             "f32" | "f64" => Ok(Cow::Borrowed("f")),
             "bool" => Ok(Cow::Borrowed("b")),
 
-            "PatternId" | "RuleId" => Ok(Cow::Borrowed("i")),
+            "PatternId" | "RuleId" => Ok(Cow::Borrowed("i64")),
             "RegexId" => Ok(Cow::Borrowed("r")),
-            "Rc" => Ok(Cow::Borrowed("i")),
-            "RuntimeObjectHandle" => Ok(Cow::Borrowed("i")),
+            "Rc" => Ok(Cow::Borrowed("i64")),
+            "RuntimeObjectHandle" => Ok(Cow::Borrowed("i64")),
             "RuntimeString" => Ok(Cow::Borrowed("s")),
-            "RangedInteger" => {
-                let error_msg = "RangedInteger must have MIN and MAX arguments (i.e: RangedInteger<0,256>)";
-                let args = Self::type_args_as_integers(type_path, error_msg)?;
-
-                let min = args
-                    .first()
-                    .ok_or_else(|| Error::new_spanned(type_path, error_msg))?;
-
-                let max = args
-                    .get(1)
-                    .ok_or_else(|| Error::new_spanned(type_path, error_msg))?;
-
-                Ok(Cow::Owned(format!("i:R{min:?}:{max:?}")))
-            }
             "FixedLenString" => {
                 let error_msg = "FixedLenString must have a constant length (i.e: FixedLenString<32>)";
                 let args = Self::type_args_as_integers(type_path, error_msg)?;
@@ -435,19 +428,19 @@ mod tests {
           fn foo(caller: &mut Caller<'_, ScanContext>) -> i32 { 0 }
         };
 
-        assert_eq!(parser.parse(&func).unwrap(), "@@i");
+        assert_eq!(parser.parse(&func).unwrap(), "@@i32");
 
         let func = parse_quote! {
           fn foo(caller: &mut Caller<'_, ScanContext>) -> (i32, i32) { (0,0) }
         };
 
-        assert_eq!(parser.parse(&func).unwrap(), "@@ii");
+        assert_eq!(parser.parse(&func).unwrap(), "@@i32i32");
 
         let func = parse_quote! {
           fn foo(caller: &mut Caller<'_, ScanContext>, a: i32, b: i32) -> i32 { a + b }
         };
 
-        assert_eq!(parser.parse(&func).unwrap(), "@a:i,b:i@i");
+        assert_eq!(parser.parse(&func).unwrap(), "@a:i32,b:i32@i32");
 
         let func = parse_quote! {
           fn foo(caller: &mut Caller<'_, ScanContext>) -> Option<()> { None }
@@ -459,19 +452,19 @@ mod tests {
           fn foo(caller: &mut Caller<'_, ScanContext>) -> Option<i64> { None }
         };
 
-        assert_eq!(parser.parse(&func).unwrap(), "@@iu");
+        assert_eq!(parser.parse(&func).unwrap(), "@@i64u");
 
         let func = parse_quote! {
-          fn foo(caller: &mut Caller<'_, ScanContext>) -> Option<i64> { None }
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> Option<u8> { None }
         };
 
-        assert_eq!(parser.parse(&func).unwrap(), "@@iu");
+        assert_eq!(parser.parse(&func).unwrap(), "@@u8u");
 
         let func = parse_quote! {
           fn foo(caller: &mut Caller<'_, ScanContext>) -> Option<(i64, f64)> { None }
         };
 
-        assert_eq!(parser.parse(&func).unwrap(), "@@ifu");
+        assert_eq!(parser.parse(&func).unwrap(), "@@i64fu");
 
         let func = parse_quote! {
           fn foo(caller: &mut Caller<'_, ScanContext>)  {  }
@@ -483,7 +476,7 @@ mod tests {
           fn foo(caller: &mut Caller<'_, ScanContext>) -> (i64, RuntimeString) {  }
         };
 
-        assert_eq!(parser.parse(&func).unwrap(), "@@is");
+        assert_eq!(parser.parse(&func).unwrap(), "@@i64s");
 
         let func = parse_quote! {
           fn foo(caller: &mut Caller<'_, ScanContext>) -> Lowercase<RuntimeString> {  }

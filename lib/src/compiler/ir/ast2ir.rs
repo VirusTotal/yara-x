@@ -41,9 +41,7 @@ use crate::re;
 use crate::re::parser::CaseSensitiveness;
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
 use crate::types::Value::Const;
-use crate::types::{
-    IntegerConstraint, Map, Regexp, StringConstraint, Type, TypeValue,
-};
+use crate::types::{Map, Regexp, StringConstraint, Type, TypeValue};
 use crate::warnings::UnsatisfiableExpression;
 
 /// How many patterns a rule can have. If a rule has more than this number of
@@ -507,9 +505,9 @@ fn expr_from_ast<'src>(
             ctx.ir.constant(TypeValue::const_bool_from(false))
         }
 
-        ast::Expr::LiteralInteger(lit) => {
-            ctx.ir.constant(TypeValue::const_integer_from(lit.value))
-        }
+        ast::Expr::LiteralInteger(lit) => ctx.ir.constant(
+            TypeValue::const_integer_from_bits(lit.value, lit.is_unsigned),
+        ),
 
         ast::Expr::LiteralFloat(lit) => {
             ctx.ir.constant(TypeValue::const_float_from(lit.value))
@@ -586,38 +584,36 @@ fn expr_from_ast<'src>(
             // expression with an integer constant (e.g: `pe.is_signed == 0`).
             // This is quite common in YARA rules, it is accepted without
             // errors, but a warning is raised.
-            let replacement =
-                match (lhs_expr.type_value(), rhs_expr.type_value()) {
-                    (
-                        TypeValue::Bool { .. },
-                        TypeValue::Integer { value: Const(0), .. },
-                    ) => Some((
-                        ctx.ir.not(lhs),
-                        format!(
-                            "not {}",
-                            ctx.report_builder.get_snippet(lhs_span)
-                        ),
-                    )),
-                    (
-                        TypeValue::Integer { value: Const(0), .. },
-                        TypeValue::Bool { .. },
-                    ) => Some((
-                        ctx.ir.not(rhs),
-                        format!(
-                            "not {}",
-                            ctx.report_builder.get_snippet(rhs_span)
-                        ),
-                    )),
-                    (
-                        TypeValue::Bool { .. },
-                        TypeValue::Integer { value: Const(1), .. },
-                    ) => Some((lhs, ctx.report_builder.get_snippet(lhs_span))),
-                    (
-                        TypeValue::Integer { value: Const(1), .. },
-                        TypeValue::Bool { .. },
-                    ) => Some((rhs, ctx.report_builder.get_snippet(rhs_span))),
-                    _ => None,
-                };
+            let lhs_tv = lhs_expr.type_value();
+            let rhs_tv = rhs_expr.type_value();
+            let replacement = match (
+                &lhs_tv,
+                lhs_tv.try_as_const_i128(),
+                &rhs_tv,
+                rhs_tv.try_as_const_i128(),
+            ) {
+                (TypeValue::Bool { .. }, _, _, Some(0)) => Some((
+                    ctx.ir.not(lhs),
+                    format!(
+                        "not {}",
+                        ctx.report_builder.get_snippet(lhs_span)
+                    ),
+                )),
+                (_, Some(0), TypeValue::Bool { .. }, _) => Some((
+                    ctx.ir.not(rhs),
+                    format!(
+                        "not {}",
+                        ctx.report_builder.get_snippet(rhs_span)
+                    ),
+                )),
+                (TypeValue::Bool { .. }, _, _, Some(1)) => {
+                    Some((lhs, ctx.report_builder.get_snippet(lhs_span)))
+                }
+                (_, Some(1), TypeValue::Bool { .. }, _) => {
+                    Some((rhs, ctx.report_builder.get_snippet(rhs_span)))
+                }
+                _ => None,
+            };
 
             if let Some((replacement_expr, replacement)) = replacement {
                 let code_loc = ctx.report_builder.span_to_code_loc(span);
@@ -1203,8 +1199,8 @@ fn bool_expr_from_ast<'src>(
                 None,
             ));
         }
-        type_value => {
-            warn_if_not_bool(ctx, type_value.ty(), ast.span());
+        _ => {
+            warn_if_not_bool(ctx, expr, ast.span());
         }
     }
 
@@ -1336,18 +1332,18 @@ fn of_expr_from_ast<'src>(
             Quantifier::All => items.len() > 1,
             // `<expr> of <items> at <expr>: the warning is raised if <expr> is
             // 2 or more.
-            Quantifier::Expr(expr) => match ctx.ir.get(*expr).type_value() {
-                TypeValue::Integer { value: Const(value), .. } => value >= 2,
-                _ => false,
-            },
+            Quantifier::Expr(expr) => matches!(
+                ctx.ir.get(*expr).type_value().try_as_const_i128(),
+                Some(value) if value >= 2
+            ),
             // `<expr>% of <items> at <expr>: the warning is raised if the
             // <expr> percent of the items is 2 or more.
             Quantifier::Percentage(expr) => {
-                match ctx.ir.get(*expr).type_value() {
-                    TypeValue::Integer {
-                        value: Const(percentage), ..
-                    } => items.len() as f64 * percentage as f64 / 100.0 >= 2.0,
-                    _ => false,
+                match ctx.ir.get(*expr).type_value().try_as_const_i128() {
+                    Some(percentage) => {
+                        items.len() as f64 * percentage as f64 / 100.0 >= 2.0
+                    }
+                    None => false,
                 }
             }
             Quantifier::None | Quantifier::Any => false,
@@ -1421,7 +1417,7 @@ fn for_of_expr_from_ast<'src>(
         "$",
         Symbol::Var {
             var: for_vars.item,
-            type_value: TypeValue::unknown_integer(),
+            type_value: TypeValue::unknown_signed_integer(),
         },
     );
 
@@ -1528,7 +1524,7 @@ fn is_potentially_large_range(ctx: &CompileContext, range: &Range) -> bool {
                     func.signature
                         .mangled_name
                         .as_str()
-                        .eq("math.min@a:i,b:i@i")
+                        .eq("math.min@a:i64,b:i64@i64")
                 } else {
                     false
                 }
@@ -1583,7 +1579,7 @@ fn for_in_expr_from_ast<'src>(
                     })
                 }
             }
-            (vec![TypeValue::unknown_integer()], Type::Unknown)
+            (vec![TypeValue::unknown_signed_integer()], Type::Unknown)
         }
         Iterable::ExprTuple(expressions) => {
             // All expressions in the tuple have the same type, we can use
@@ -1593,22 +1589,31 @@ fn for_in_expr_from_ast<'src>(
             // type as the first item in the tuple, but we don't want to
             // clone its actual value if known. The actual value for the
             // loop variable is not known until the loop is executed.
-            (
-                vec![
-                    expressions
-                        .first()
-                        .map(|node_idx| ctx.ir.get(*node_idx).type_value())
-                        .unwrap()
-                        .clone_without_value(),
-                ],
-                Type::Unknown,
-            )
+            let mut type_value = expressions
+                .first()
+                .map(|node_idx| ctx.ir.get(*node_idx).type_value())
+                .unwrap()
+                .clone_without_value();
+
+            // If the items are integers, the loop variable is unsigned when
+            // at least one of the items is unsigned, which is the same rule
+            // used for determining the signedness of arithmetic operations.
+            // In that case the signed items are interpreted as unsigned.
+            if type_value.ty() == Type::Integer {
+                type_value = if ctx.ir.is_unsigned_result(expressions) {
+                    TypeValue::unknown_unsigned_integer()
+                } else {
+                    TypeValue::unknown_signed_integer()
+                };
+            }
+
+            (vec![type_value], Type::Unknown)
         }
         Iterable::Expr(expr) => match ctx.ir.get(*expr).type_value() {
             TypeValue::Array(array) => (vec![array.deputy()], Type::Array),
             TypeValue::Map(map) => match map.as_ref() {
                 Map::IntegerKeys { .. } => (
-                    vec![TypeValue::unknown_integer(), map.deputy()],
+                    vec![TypeValue::unknown_signed_integer(), map.deputy()],
                     Type::Map,
                 ),
                 Map::StringKeys { .. } => (
@@ -1832,12 +1837,9 @@ fn range_from_ast<'src>(
     // that lower_bound <= upper_bound. If they are not know (because they are
     // variables, for example) we can't raise an error at compile time, but it
     // will be handled at scan time.
-    if let (
-        TypeValue::Integer { value: Const(lower_bound), .. },
-        TypeValue::Integer { value: Const(upper_bound), .. },
-    ) = (
-        ctx.ir.get(lower_bound).type_value(),
-        ctx.ir.get(upper_bound).type_value(),
+    if let (Some(lower_bound), Some(upper_bound)) = (
+        ctx.ir.get(lower_bound).type_value().try_as_const_i128(),
+        ctx.ir.get(upper_bound).type_value().try_as_const_i128(),
     ) && lower_bound > upper_bound
     {
         return Err(InvalidRange::build(
@@ -1861,14 +1863,20 @@ fn non_negative_integer_from_ast<'src>(
 
     check_type(ctx, expr, span.clone(), &[Type::Integer])?;
 
-    let type_value = ctx.ir.get(expr).type_value();
-    if let TypeValue::Integer { value: Const(value), .. } = type_value
-        && value < 0
-    {
-        return Err(UnexpectedNegativeNumber::build(
-            ctx.report_builder,
-            ctx.report_builder.span_to_code_loc(span),
-        ));
+    if let Some(value) = ctx.ir.get(expr).type_value().try_as_const_i128() {
+        if value < 0 {
+            return Err(UnexpectedNegativeNumber::build(
+                ctx.report_builder,
+                ctx.report_builder.span_to_code_loc(span),
+            ));
+        } else if value > i64::MAX as i128 {
+            return Err(NumberOutOfRange::build(
+                ctx.report_builder,
+                0,
+                i64::MAX,
+                ctx.report_builder.span_to_code_loc(span),
+            ));
+        }
     }
 
     Ok(expr)
@@ -1886,10 +1894,8 @@ fn integer_in_range_from_ast<'src>(
 
     // If the value is known at compile time make sure that it is within
     // the given range.
-    let type_value = ctx.ir.get(expr).type_value();
-
-    if let TypeValue::Integer { value: Const(value), .. } = type_value
-        && !range.contains(&value)
+    if let Some(value) = ctx.ir.get(expr).type_value().try_as_const_i128()
+        && !(*range.start() as i128..=*range.end() as i128).contains(&value)
     {
         return Err(NumberOutOfRange::build(
             ctx.report_builder,
@@ -2665,12 +2671,36 @@ fn re_error_to_compile_error(
     }
 }
 
-/// Produce a warning if the expression is not boolean.
-pub(in crate::compiler) fn warn_if_not_bool(
+/// Raises a [`warnings::UnsignedUnaryOperation`] warning if `operand` is an
+/// unsigned integer. `operator` is the unary operator applied to `operand`,
+/// either `-` or `~`.
+fn warn_if_unsigned(
     ctx: &mut CompileContext,
-    ty: Type,
+    operand: ExprId,
     span: Span,
+    operator: char,
 ) {
+    if ctx.ir.get(operand).type_value().is_unsigned() {
+        ctx.warnings.add(|| {
+            let note = match operator {
+                '-' => "the result is a signed integer, which wraps around if the unsigned value is greater than 0x7FFFFFFFFFFFFFFF",
+                '~' => "the result is an unsigned integer with all its 64 bits inverted",
+                _ => unreachable!("unexpected unary operator `{operator}`"),
+            };
+            warnings::UnsignedUnaryOperation::build(
+                ctx.report_builder,
+                operator.to_string(),
+                ctx.report_builder.span_to_code_loc(span),
+                Some(note.to_string()),
+            )
+        });
+    }
+}
+
+/// Raises a [`warnings::NonBooleanAsBoolean`] warning if `expr` is not
+/// boolean.
+fn warn_if_not_bool(ctx: &mut CompileContext, expr: ExprId, span: Span) {
+    let ty = ctx.ir.get(expr).ty();
     if !matches!(ty, Type::Bool) {
         ctx.warnings.add(|| {
             let note = match ty {
@@ -2859,8 +2889,7 @@ gen_unary_op!(
     Type::Bool | Type::Integer | Type::Float | Type::String,
     // Raise warning if the operand is not bool.
     Some(|ctx, operand, span| {
-        let ty = ctx.ir.get(operand).ty();
-        warn_if_not_bool(ctx, ty, span);
+        warn_if_not_bool(ctx, operand, span);
         Ok(())
     })
 );
@@ -2882,8 +2911,7 @@ gen_n_ary_operation!(
         (Type::Float, Type::Bool)
     ],
     Some(|ctx, operand, span| {
-        let ty = ctx.ir.get(operand).ty();
-        warn_if_not_bool(ctx, ty, span);
+        warn_if_not_bool(ctx, operand, span);
         Ok(())
     })
 );
@@ -2913,8 +2941,7 @@ fn or_expr_from_ast<'src>(
         .collect::<Result<Vec<ExprId>, CompileError>>()?;
 
     for (hir, ast) in iter::zip(or_operands.iter(), expr.operands()) {
-        let ty = ctx.ir.get(*hir).ty();
-        warn_if_not_bool(ctx, ty, ast.span());
+        warn_if_not_bool(ctx, *hir, ast.span());
     }
 
     for ((lhs_hir, lhs_ast), (rhs_hir, rhs_ast)) in
@@ -3006,7 +3033,34 @@ fn or_expr_from_ast<'src>(
     })
 }
 
-gen_unary_op!(minus_expr_from_ast, minus, Type::Integer | Type::Float, None);
+fn minus_expr_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    expr: &ast::UnaryExpr<'src>,
+) -> Result<ExprId, CompileError> {
+    let operand = expr_from_ast(ctx, &expr.operand)?;
+
+    check_type(
+        ctx,
+        operand,
+        expr.operand.span(),
+        &[Type::Integer, Type::Float],
+    )?;
+
+    // Negating a constant fails if the result doesn't fit in a signed
+    // integer, as in `-(-9223372036854775808)` or `-(0xFFFFFFFFFFFFFFFF)`.
+    let minus = ctx.ir.minus(operand).map_err(|err| match err {
+        Error::NumberOutOfRange => NumberOutOfRange::build(
+            ctx.report_builder,
+            i64::MIN,
+            i64::MAX,
+            ctx.report_builder.span_to_code_loc(expr.span()),
+        ),
+    })?;
+
+    warn_if_unsigned(ctx, operand, expr.operand.span(), '-');
+
+    Ok(minus)
+}
 
 gen_n_ary_operation!(
     add_expr_from_ast,
@@ -3042,7 +3096,15 @@ gen_n_ary_operation!(
 
 gen_n_ary_operation!(mod_expr_from_ast, modulus, Type::Integer, &[], None);
 
-gen_unary_op!(bitwise_not_expr_from_ast, bitwise_not, Type::Integer, None);
+gen_unary_op!(
+    bitwise_not_expr_from_ast,
+    bitwise_not,
+    Type::Integer,
+    Some(|ctx, operand, span| {
+        warn_if_unsigned(ctx, operand, span, '~');
+        Ok(())
+    })
+);
 
 gen_binary_op!(shl_expr_from_ast, shl, Type::Integer, &[], Some(shx_check));
 gen_binary_op!(shr_expr_from_ast, shr, Type::Integer, &[], Some(shx_check));
@@ -3149,7 +3211,7 @@ fn eq_check(
         |ctx: &mut CompileContext,
          const_string: Rc<BString>,
          const_string_span: Span,
-         constraints: Vec<StringConstraint>,
+         constraints: Box<[StringConstraint]>,
          constrained_string_span: Span| {
             for constraint in constraints {
                 match constraint {
@@ -3240,41 +3302,60 @@ fn eq_check(
             }
         };
 
-    let check_integer_constraints =
+    let check_integer_range =
         |ctx: &mut CompileContext,
-         const_integer: i64,
+         const_integer: i128,
          const_integer_span: Span,
-         constraints: Vec<IntegerConstraint>,
-         constrained_integer_span: Span| {
-            for constraint in constraints {
-                match constraint {
-                    IntegerConstraint::Range(min, max)
-                        if !(min..=max).contains(&const_integer) =>
-                    {
-                        ctx.warnings.add(|| {
-                                UnsatisfiableExpression::build(
-                                    ctx.report_builder,
-                                    format!(
-                                        "this expression is an integer in the range [{min},{max}]",
-                                    ),
-                                    format!(
-                                        "this integer is outside the range [{min},{max}]",
-                                    ),
-                                    ctx.report_builder.span_to_code_loc(
-                                        constrained_integer_span.clone(),
-                                    ),
-                                    ctx.report_builder.span_to_code_loc(
-                                        const_integer_span.clone(),
-                                    ),
-                                    None,
-                                )
-                            });
-                    }
-
-                    _ => {}
-                }
+         (min, max): (i128, i128),
+         ranged_integer_span: Span| {
+            if !(min..=max).contains(&const_integer) {
+                ctx.warnings.add(|| {
+                    UnsatisfiableExpression::build(
+                        ctx.report_builder,
+                        format!(
+                            "this expression is an integer in the range [{min},{max}]",
+                        ),
+                        format!(
+                            "this integer is outside the range [{min},{max}]",
+                        ),
+                        ctx.report_builder
+                            .span_to_code_loc(ranged_integer_span.clone()),
+                        ctx.report_builder
+                            .span_to_code_loc(const_integer_span.clone()),
+                        None,
+                    )
+                });
             }
         };
+
+    // Integer constants compared with non-constant integers, whose values
+    // are limited to the range of their types. Both the constant and the
+    // non-constant integer can be signed or unsigned. Comparisons between
+    // two constants are not checked, the range of a constant's type is
+    // irrelevant because its value is known.
+    if !rhs.is_const()
+        && let (Some(const_integer), Some(range)) =
+            (lhs.try_as_const_i128(), rhs.integer_range())
+    {
+        check_integer_range(
+            ctx,
+            const_integer,
+            lhs_span.clone(),
+            range,
+            rhs_span.clone(),
+        );
+    } else if !lhs.is_const()
+        && let (Some(range), Some(const_integer)) =
+            (lhs.integer_range(), rhs.try_as_const_i128())
+    {
+        check_integer_range(
+            ctx,
+            const_integer,
+            rhs_span.clone(),
+            range,
+            lhs_span.clone(),
+        );
+    }
 
     match (lhs, rhs, lhs_span, rhs_span) {
         (
@@ -3295,24 +3376,6 @@ fn eq_check(
             constraints,
             constrained_string_span,
         ),
-        (
-            TypeValue::Integer { value: Const(const_integer), .. },
-            TypeValue::Integer { constraints: Some(constraints), .. },
-            const_integer_span,
-            constrained_integer_span,
-        )
-        | (
-            TypeValue::Integer { constraints: Some(constraints), .. },
-            TypeValue::Integer { value: Const(const_integer), .. },
-            constrained_integer_span,
-            const_integer_span,
-        ) => check_integer_constraints(
-            ctx,
-            const_integer,
-            const_integer_span,
-            constraints,
-            constrained_integer_span,
-        ),
         _ => {}
     };
 
@@ -3327,8 +3390,7 @@ fn shx_check(
     _lhs_span: Span,
     rhs_span: Span,
 ) -> Result<(), CompileError> {
-    if let TypeValue::Integer { value: Const(value), .. } =
-        ctx.ir.get(rhs).type_value()
+    if let Some(value) = ctx.ir.get(rhs).type_value().try_as_const_i128()
         && value < 0
     {
         return Err(UnexpectedNegativeNumber::build(

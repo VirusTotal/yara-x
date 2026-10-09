@@ -59,7 +59,7 @@ macro_rules! emit_operands {
         // If the left operand is integer, but the right one is float,
         // convert the left operand to float.
         if lhs_type == Type::Integer && rhs_type == Type::Float {
-            $instr.unop(UnaryOp::F64ConvertSI64);
+            $instr.unop(int_to_float_op($ir, lhs));
             lhs_type = Type::Float;
         }
 
@@ -73,7 +73,7 @@ macro_rules! emit_operands {
         // If the right operand is integer, but the left one is float,
         // convert the right operand to float.
         if lhs_type == Type::Float && rhs_type == Type::Integer {
-            $instr.unop(UnaryOp::F64ConvertSI64);
+            $instr.unop(int_to_float_op($ir, rhs));
             rhs_type = Type::Float;
         }
 
@@ -94,14 +94,14 @@ macro_rules! emit_arithmetic_op {
         emit_expr($ctx, $ir, *first_operand, $instr);
 
         if $is_float && matches!($ir.get(*first_operand).ty(), Type::Integer) {
-            $instr.unop(UnaryOp::F64ConvertSI64);
+            $instr.unop(int_to_float_op($ir, *first_operand));
         }
 
         while let Some(operand) = operands.next() {
             emit_expr($ctx, $ir, *operand, $instr);
             if $is_float {
                 if matches!($ir.get(*operand).ty(), Type::Integer) {
-                    $instr.unop(UnaryOp::F64ConvertSI64);
+                    $instr.unop(int_to_float_op($ir, *operand));
                 }
                 $instr.binop(BinaryOp::$float_op);
             } else {
@@ -111,13 +111,25 @@ macro_rules! emit_arithmetic_op {
     }};
 }
 
+/// Emits the code for a comparison operation.
 macro_rules! emit_comparison_op {
     ($ctx:ident, $ir:ident, $lhs:expr, $rhs:expr, $int_op:tt, $float_op:tt, $str_op:expr, $instr:ident) => {{
-        match emit_operands!($ctx, $ir, $lhs, $rhs, $instr) {
+        let lhs = $lhs;
+        let rhs = $rhs;
+        match emit_operands!($ctx, $ir, lhs, rhs, $instr) {
             (Type::Integer, Type::Integer)
-            | (Type::Bool, Type::Bool)
             | (Type::Bool, Type::Integer)
             | (Type::Integer, Type::Bool) => {
+                emit_int_comparison(
+                    $ctx,
+                    $ir,
+                    lhs,
+                    rhs,
+                    BinaryOp::$int_op,
+                    $instr,
+                );
+            }
+            (Type::Bool, Type::Bool) => {
                 $instr.binop(BinaryOp::$int_op);
             }
             (Type::Float, Type::Float) => {
@@ -133,7 +145,9 @@ macro_rules! emit_comparison_op {
 
 macro_rules! emit_shift_op {
     ($ctx:ident, $ir:ident, $lhs:expr, $rhs:expr, $int_op:tt, $instr:ident) => {{
-        match emit_operands!($ctx, $ir, $lhs, $rhs, $instr) {
+        let lhs = $lhs;
+        let rhs = $rhs;
+        match emit_operands!($ctx, $ir, lhs, rhs, $instr) {
             (Type::Integer, Type::Integer) => {
                 // When the left operand is >= 64, shift operations don't
                 // behave in the same way in WebAssembly and YARA. In YARA,
@@ -162,7 +176,13 @@ macro_rules! emit_shift_op {
                 $instr.local_set($ctx.wasm_symbols.i64_tmp_a);
                 $instr.local_get($ctx.wasm_symbols.i64_tmp_b);
                 $instr.i64_const(64);
-                $instr.binop(BinaryOp::I64LtS);
+                // If the shift amount is unsigned, it must be compared as
+                // unsigned, values >= 2^63 would be negative otherwise.
+                if $ir.get(rhs).type_value().is_unsigned() {
+                    $instr.binop(BinaryOp::I64LtU);
+                } else {
+                    $instr.binop(BinaryOp::I64LtS);
+                }
                 $instr.if_else(
                     I64,
                     |then_| {
@@ -295,8 +315,15 @@ fn emit_expr(
 ) {
     match ir.get(expr) {
         Expr::Const(type_value) => match type_value {
-            TypeValue::Integer { value: Const(value), .. } => {
-                instr.i64_const(*value);
+            TypeValue::Int8(_)
+            | TypeValue::Int16(_)
+            | TypeValue::Int32(_)
+            | TypeValue::Int64(_)
+            | TypeValue::Uint8(_)
+            | TypeValue::Uint16(_)
+            | TypeValue::Uint32(_)
+            | TypeValue::Uint64(_) => {
+                instr.i64_const(type_value.as_integer());
             }
             TypeValue::Float { value: Const(value) } => {
                 instr.f64_const(*value);
@@ -359,7 +386,14 @@ fn emit_expr(
                     let index: i32 = (*index).try_into().unwrap();
 
                     match type_value {
-                        TypeValue::Integer { .. } => {
+                        TypeValue::Int8(_)
+                        | TypeValue::Int16(_)
+                        | TypeValue::Int32(_)
+                        | TypeValue::Int64(_)
+                        | TypeValue::Uint8(_)
+                        | TypeValue::Uint16(_)
+                        | TypeValue::Uint32(_)
+                        | TypeValue::Uint64(_) => {
                             ctx.lookup_list.push((index, *is_root));
                             emit_lookup_integer(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
@@ -477,24 +511,24 @@ fn emit_expr(
                 instr.binop(BinaryOp::I64Sub);
             }
         }
-        Expr::BitwiseNot { operand } => {
+        Expr::BitwiseNot { operand, .. } => {
             emit_expr(ctx, ir, *operand, instr);
             // WebAssembly does not have an instruction for bitwise not,
             // it is implemented as i64.xor(x, -1)
             instr.i64_const(-1);
             instr.binop(BinaryOp::I64Xor);
         }
-        Expr::Add { operands, is_float } => {
+        Expr::Add { operands, is_float, .. } => {
             emit_arithmetic_op!(
                 ctx, ir, operands, *is_float, I64Add, F64Add, instr
             );
         }
-        Expr::Sub { operands, is_float } => {
+        Expr::Sub { operands, is_float, .. } => {
             emit_arithmetic_op!(
                 ctx, ir, operands, *is_float, I64Sub, F64Sub, instr
             );
         }
-        Expr::Mul { operands, is_float } => {
+        Expr::Mul { operands, is_float, .. } => {
             emit_arithmetic_op!(
                 ctx, ir, operands, *is_float, I64Mul, F64Mul, instr
             );
@@ -502,22 +536,25 @@ fn emit_expr(
         Expr::Div { operands, .. } => {
             emit_div(ctx, ir, operands.as_slice(), instr)
         }
-        Expr::Mod { operands } => {
+        Expr::Mod { operands, .. } => {
             emit_mod(ctx, ir, operands.as_slice(), instr)
         }
-        Expr::Shl { lhs, rhs } => {
+        Expr::Shl { lhs, rhs, .. } => {
             emit_shift_op!(ctx, ir, *lhs, *rhs, I64Shl, instr);
         }
-        Expr::Shr { lhs, rhs } => {
+        Expr::Shr { lhs, rhs, is_unsigned: false } => {
             emit_shift_op!(ctx, ir, *lhs, *rhs, I64ShrS, instr);
         }
-        Expr::BitwiseAnd { lhs, rhs } => {
+        Expr::Shr { lhs, rhs, is_unsigned: true } => {
+            emit_shift_op!(ctx, ir, *lhs, *rhs, I64ShrU, instr);
+        }
+        Expr::BitwiseAnd { lhs, rhs, .. } => {
             emit_bitwise_op!(ctx, ir, *lhs, *rhs, I64And, instr);
         }
-        Expr::BitwiseOr { lhs, rhs } => {
+        Expr::BitwiseOr { lhs, rhs, .. } => {
             emit_bitwise_op!(ctx, ir, *lhs, *rhs, I64Or, instr);
         }
-        Expr::BitwiseXor { lhs, rhs } => {
+        Expr::BitwiseXor { lhs, rhs, .. } => {
             emit_bitwise_op!(ctx, ir, *lhs, *rhs, I64Xor, instr);
         }
         Expr::Eq { lhs, rhs } => {
@@ -892,6 +929,90 @@ fn emit_or(
     );
 }
 
+/// Returns the instruction that converts the integer produced by `expr`
+/// to float, taking into account the signedness of the integer.
+fn int_to_float_op(ir: &IR, expr: ExprId) -> UnaryOp {
+    if ir.get(expr).type_value().is_unsigned() {
+        UnaryOp::F64ConvertUI64
+    } else {
+        UnaryOp::F64ConvertSI64
+    }
+}
+
+/// Emits the code that compares the integers (or booleans) produced by `lhs`
+/// and `rhs`.
+///
+/// Both operands must be at the top of the stack, the left operand first.
+fn emit_int_comparison(
+    ctx: &mut EmitContext,
+    ir: &IR,
+    lhs: ExprId,
+    rhs: ExprId,
+    signed_op: BinaryOp,
+    instr: &mut InstrSeqBuilder,
+) {
+    let lhs = ir.get(lhs).type_value();
+    let rhs = ir.get(rhs).type_value();
+
+    let (unsigned_op, result_if_negative) = match signed_op {
+        BinaryOp::I64Eq => (BinaryOp::I64Eq, false),
+        BinaryOp::I64Ne => (BinaryOp::I64Ne, true),
+        BinaryOp::I64LtS => (BinaryOp::I64LtU, !lhs.is_unsigned()),
+        BinaryOp::I64LeS => (BinaryOp::I64LeU, !lhs.is_unsigned()),
+        BinaryOp::I64GtS => (BinaryOp::I64GtU, !rhs.is_unsigned()),
+        BinaryOp::I64GeS => (BinaryOp::I64GeU, !rhs.is_unsigned()),
+        _ => unreachable!(),
+    };
+
+    // Booleans and non-negative integers can be compared with both signed
+    // and unsigned integers.
+    let non_negative = |tv: &TypeValue| {
+        matches!(tv, TypeValue::Bool { .. }) || tv.is_non_negative()
+    };
+
+    match (lhs.is_unsigned(), rhs.is_unsigned()) {
+        (false, false) => {
+            instr.binop(signed_op);
+        }
+        (true, true) => {
+            instr.binop(unsigned_op);
+        }
+        (true, false) if non_negative(&rhs) => {
+            instr.binop(unsigned_op);
+        }
+        (false, true) if non_negative(&lhs) => {
+            instr.binop(unsigned_op);
+        }
+        // One operand is signed (and may be negative at runtime) and the
+        // other one is unsigned. If the signed operand is negative, the
+        // comparison result is known without comparing the bit patterns,
+        // because any negative integer is smaller than any unsigned integer.
+        (false, true) | (true, false) => {
+            let signed_is_lhs = !lhs.is_unsigned();
+            let lhs_tmp = ctx.wasm_symbols.i64_tmp_a;
+            let rhs_tmp = ctx.wasm_symbols.i64_tmp_b;
+
+            instr.local_set(rhs_tmp);
+            instr.local_set(lhs_tmp);
+
+            instr.local_get(if signed_is_lhs { lhs_tmp } else { rhs_tmp });
+            instr.i64_const(0);
+            instr.binop(BinaryOp::I64LtS);
+            instr.if_else(
+                I32,
+                |then_| {
+                    then_.i32_const(result_if_negative as i32);
+                },
+                |else_| {
+                    else_.local_get(lhs_tmp);
+                    else_.local_get(rhs_tmp);
+                    else_.binop(unsigned_op);
+                },
+            );
+        }
+    }
+}
+
 /// Emits the code for `div` operations.
 fn emit_div(
     ctx: &mut EmitContext,
@@ -899,35 +1020,75 @@ fn emit_div(
     operands: &[ExprId],
     instr: &mut InstrSeqBuilder,
 ) {
-    let mut operands = operands.iter();
-    let first_operand = operands.next().unwrap();
+    let first_operand = operands.first().unwrap();
     let mut is_float = matches!(ir.get(*first_operand).ty(), Type::Float);
 
     emit_expr(ctx, ir, *first_operand, instr);
 
-    for operand in operands {
+    for (i, operand) in operands.iter().enumerate().skip(1) {
         let operand_ty = ir.get(*operand).ty();
 
         // The previous operand is not float but this one is float,
-        // we must convert the previous operand to float.
+        // we must convert the previous operand to float. The previous
+        // operand is the result of dividing all the operands before
+        // this one.
         if !is_float && matches!(operand_ty, Type::Float) {
-            instr.unop(UnaryOp::F64ConvertSI64);
+            if ir.is_unsigned_result(&operands[..i]) {
+                instr.unop(UnaryOp::F64ConvertUI64);
+            } else {
+                instr.unop(UnaryOp::F64ConvertSI64);
+            }
             is_float = true;
         }
 
         emit_expr(ctx, ir, *operand, instr);
 
         if is_float && matches!(operand_ty, Type::Integer) {
-            instr.unop(UnaryOp::F64ConvertSI64);
+            instr.unop(int_to_float_op(ir, *operand));
         }
 
         if is_float {
             instr.binop(BinaryOp::F64Div);
-        } else {
+        } else if ir.is_unsigned_result(&operands[..=i]) {
             // In integer division make sure that the divisor is not
             // zero, if that's the case the result is undefined.
             throw_undef_if_zero(ctx, instr);
-            instr.binop(BinaryOp::I64DivS);
+            instr.binop(BinaryOp::I64DivU);
+        } else {
+            let lhs = ctx.wasm_symbols.i64_tmp_a;
+            let rhs = ctx.wasm_symbols.i64_tmp_b;
+
+            instr.local_set(rhs);
+            instr.local_set(lhs);
+
+            // In signed integer division the result is undefined if the
+            // divisor is zero, or if the dividend is i64::MIN and the
+            // divisor is -1 (which overflows i64 and traps in WASM).
+            instr.local_get(rhs);
+            instr.unop(UnaryOp::I64Eqz);
+
+            instr.local_get(lhs);
+            instr.i64_const(i64::MIN);
+            instr.binop(BinaryOp::I64Eq);
+
+            instr.local_get(rhs);
+            instr.i64_const(-1);
+            instr.binop(BinaryOp::I64Eq);
+
+            instr.binop(BinaryOp::I32And);
+            instr.binop(BinaryOp::I32Or);
+
+            instr.if_else(
+                I64,
+                |then_| {
+                    throw_undef(ctx, then_);
+                },
+                |else_| {
+                    else_.local_get(lhs);
+                    else_.local_get(rhs);
+                    else_.binop(BinaryOp::I64DivS);
+                },
+            );
         }
     }
 }
@@ -939,15 +1100,18 @@ fn emit_mod(
     operands: &[ExprId],
     instr: &mut InstrSeqBuilder,
 ) {
-    let mut operands = operands.iter();
-    let first_operand = operands.next().unwrap();
+    let first_operand = operands.first().unwrap();
 
     emit_expr(ctx, ir, *first_operand, instr);
 
-    for operand in operands {
+    for (i, operand) in operands.iter().enumerate().skip(1) {
         emit_expr(ctx, ir, *operand, instr);
         throw_undef_if_zero(ctx, instr);
-        instr.binop(BinaryOp::I64RemS);
+        if ir.is_unsigned_result(&operands[..=i]) {
+            instr.binop(BinaryOp::I64RemU);
+        } else {
+            instr.binop(BinaryOp::I64RemS);
+        }
     }
 }
 
@@ -1743,17 +1907,58 @@ fn emit_for_in_range(
                     I64,
                     instr,
                     |ctx, instr| {
+                        let lower_tmp = ctx.wasm_symbols.i64_tmp_a;
+                        let upper_tmp = ctx.wasm_symbols.i64_tmp_b;
+
                         emit_expr(ctx, ir, range.upper_bound, instr);
                         emit_expr(ctx, ir, range.lower_bound, instr);
 
-                        // Store lower_bound in temp variable, without removing
-                        // it from the stack.
-                        instr.local_tee(ctx.wasm_symbols.i64_tmp_a);
+                        // Store lower_bound in tmp_a and upper_bound in tmp_b.
+                        instr.local_set(lower_tmp);
+                        instr.local_set(upper_tmp);
 
-                        // Compute upper_bound - lower_bound + 1.
-                        instr.binop(BinaryOp::I64Sub);
-                        instr.i64_const(1);
-                        instr.binop(BinaryOp::I64Add);
+                        // The range is empty if upper_bound < lower_bound.
+                        // Checking this explicitly, instead of relying on
+                        // `n <= 0`, prevents `upper_bound - lower_bound + 1`
+                        // from wrapping around into a positive number.
+                        instr.local_get(upper_tmp);
+                        instr.local_get(lower_tmp);
+                        instr.binop(BinaryOp::I64LtS);
+
+                        // Unsigned bounds greater than i64::MAX can't be
+                        // represented by the loop variable, which is a signed
+                        // integer. Those bounds have a negative bit pattern
+                        // when interpreted as i64, and they also make the
+                        // range empty. This doesn't apply to signed bounds,
+                        // which can be negative at runtime (e.g: a lower
+                        // bound computed as `filesize - 10`), and in that
+                        // case the loop iterates over the negative values.
+                        for (bound, tmp) in [
+                            (range.lower_bound, lower_tmp),
+                            (range.upper_bound, upper_tmp),
+                        ] {
+                            if ir.get(bound).type_value().is_unsigned() {
+                                instr.local_get(tmp);
+                                instr.i64_const(0);
+                                instr.binop(BinaryOp::I64LtS);
+                                instr.binop(BinaryOp::I32Or);
+                            }
+                        }
+
+                        instr.if_else(
+                            I64,
+                            |then_| {
+                                then_.i64_const(0);
+                            },
+                            |else_| {
+                                // Compute upper_bound - lower_bound + 1.
+                                else_.local_get(upper_tmp);
+                                else_.local_get(lower_tmp);
+                                else_.binop(BinaryOp::I64Sub);
+                                else_.i64_const(1);
+                                else_.binop(BinaryOp::I64Add);
+                            },
+                        );
                     },
                     |_, instr| {
                         instr.i64_const(0);
@@ -2116,14 +2321,42 @@ fn emit_for<I, B, C, A>(
                         load_var(ctx, instr, n);
                         instr.unop(UnaryOp::F64ConvertSI64);
                         emit_expr(ctx, ir, *quantifier, instr);
-                        instr.unop(UnaryOp::F64ConvertSI64);
+
+                        // Negative percentages (only possible when they are
+                        // computed at runtime) can't be satisfied, so they are
+                        // replaced with i64::MAX, which produces a `max_count`
+                        // that `count` never reaches. Otherwise, when
+                        // `n * percentage` is in the range (-100, 0),
+                        // `max_count` would be 0, which means `none`.
+                        let percentage = ir.get(*quantifier).type_value();
+
+                        if !percentage.is_non_negative() {
+                            let tmp = ctx.wasm_symbols.i64_tmp_a;
+                            instr.local_tee(tmp);
+                            instr.i64_const(i64::MAX);
+                            instr.local_get(tmp);
+                            instr.i64_const(0);
+                            instr.binop(BinaryOp::I64GeS);
+                            // percentage >= 0 ? percentage : i64::MAX
+                            instr.select(None);
+                        }
+
+                        instr.unop(int_to_float_op(ir, *quantifier));
                         instr.binop(BinaryOp::F64Mul);
 
                         // / 100
                         instr.f64_const(100.0);
                         instr.binop(BinaryOp::F64Div);
                         instr.unop(UnaryOp::F64Ceil);
-                        instr.unop(UnaryOp::I64TruncSF64);
+
+                        // The percentage is guaranteed to be in the range
+                        // [0, 100] only when it is a constant. Percentages
+                        // computed at runtime (e.g: `int64(0)%`) can have any
+                        // value, and the result may not fit in an i64. In
+                        // such cases `i64.trunc_f64_s` traps, but the
+                        // saturating conversion produces i64::MIN or i64::MAX
+                        // instead, values that `count` never reaches.
+                        instr.unop(UnaryOp::I64TruncSSatF64);
                     } else {
                         // Quantifier is not a percentage, use it as is.
                         emit_expr(ctx, ir, *quantifier, instr);
@@ -2237,9 +2470,13 @@ fn emit_for<I, B, C, A>(
                             incr_var(ctx, then_, count);
 
                             // Is counter >= quantifier?.
+                            // Using unsigned comparison ensures that if
+                            // `max_count` is negative (or an unsigned integer
+                            // > i64::MAX), it is treated as larger than `count`
+                            // and the condition evaluates to false.
                             load_var(ctx, then_, count);
                             load_var(ctx, then_, max_count);
-                            then_.binop(BinaryOp::I64GeS);
+                            then_.binop(BinaryOp::I64GeU);
 
                             then_.if_else(
                                 None,

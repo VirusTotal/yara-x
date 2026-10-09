@@ -361,6 +361,23 @@ warning[unsatisfiable_expr]: unsatisfiable expression
   = note: a lowercase string can't be equal to a string containing uppercase characters
 ```
 
+## unsigned_unary_op {#unsigned_unary_op}
+
+A unary minus (`-`) or bitwise not (`~`) operator is applied to an unsigned
+integer. Negating an unsigned integer produces a signed integer that wraps
+around when the unsigned value is greater than `0x7FFFFFFFFFFFFFFF`. The bitwise
+not of an unsigned integer inverts all its 64 bits.
+
+```text
+warning[unsigned_unary_op]: `-` applied to an unsigned integer
+ --> line:1:25
+  |
+1 | rule test { condition: -uint64(0) == 1 }
+  |                         --------- this is an unsigned integer
+  |
+  = note: the result is a signed integer, which wraps around if the unsigned value is greater than 0x7FFFFFFFFFFFFFFF
+```
+
 ## unsupported_module {#unsupported_module}
 
 A rule uses a module that has been marked as ignored via the compiler's ignored

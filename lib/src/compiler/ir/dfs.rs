@@ -264,7 +264,7 @@ pub(super) fn dfs_common(
         Expr::Not { operand }
         | Expr::Defined { operand }
         | Expr::Minus { operand, .. }
-        | Expr::BitwiseNot { operand } => {
+        | Expr::BitwiseNot { operand, .. } => {
             stack.push(Event::Enter((*operand, EventContext::None)));
         }
 
@@ -286,11 +286,11 @@ pub(super) fn dfs_common(
         | Expr::Gt { lhs, rhs }
         | Expr::Le { lhs, rhs }
         | Expr::Lt { lhs, rhs }
-        | Expr::Shl { lhs, rhs }
-        | Expr::Shr { lhs, rhs }
-        | Expr::BitwiseAnd { lhs, rhs }
-        | Expr::BitwiseOr { lhs, rhs }
-        | Expr::BitwiseXor { lhs, rhs }
+        | Expr::Shl { lhs, rhs, .. }
+        | Expr::Shr { lhs, rhs, .. }
+        | Expr::BitwiseAnd { lhs, rhs, .. }
+        | Expr::BitwiseOr { lhs, rhs, .. }
+        | Expr::BitwiseXor { lhs, rhs, .. }
         | Expr::Contains { lhs, rhs }
         | Expr::IContains { lhs, rhs }
         | Expr::StartsWith { lhs, rhs }
@@ -420,9 +420,9 @@ mod tests {
     fn dfs() {
         let mut ir = IR::new();
 
-        let const_1 = ir.constant(TypeValue::const_integer_from(1));
-        let const_2 = ir.constant(TypeValue::const_integer_from(2));
-        let const_3 = ir.constant(TypeValue::const_integer_from(2));
+        let const_1 = ir.constant(TypeValue::const_signed_integer_from(1));
+        let const_2 = ir.constant(TypeValue::const_signed_integer_from(2));
+        let const_3 = ir.constant(TypeValue::const_signed_integer_from(2));
         let add = ir.add(vec![const_2, const_3]).unwrap();
         let root = ir.add(vec![const_1, add]).unwrap();
 
@@ -586,9 +586,9 @@ mod tests {
     fn dfs_mut() {
         let mut ir = IR::new();
 
-        let const_1 = ir.constant(TypeValue::const_integer_from(1));
-        let const_2 = ir.constant(TypeValue::const_integer_from(2));
-        let const_3 = ir.constant(TypeValue::const_integer_from(2));
+        let const_1 = ir.constant(TypeValue::const_signed_integer_from(1));
+        let const_2 = ir.constant(TypeValue::const_signed_integer_from(2));
+        let const_3 = ir.constant(TypeValue::const_signed_integer_from(2));
         let add = ir.add(vec![const_2, const_3]).unwrap();
         let root = ir.add(vec![const_1, add]).unwrap();
 
@@ -613,7 +613,7 @@ mod tests {
         let mut var_stack = VarStack::new();
         let mut var_frame = var_stack.new_frame(1).unwrap();
 
-        let const_1 = ir.constant(TypeValue::const_integer_from(2));
+        let const_1 = ir.constant(TypeValue::const_signed_integer_from(2));
         let with_body = ir.constant(TypeValue::const_bool_from(true));
 
         let with = ir.with(

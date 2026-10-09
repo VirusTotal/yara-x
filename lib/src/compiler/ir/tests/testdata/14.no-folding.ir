@@ -1,0 +1,631 @@
+RULE test_1
+  20: FOR_IN -- hash: 0xa5bb24463dab02f0
+        n: Var { frame_id: 1, ty: integer, index: 0 }
+        i: Var { frame_id: 1, ty: integer, index: 1 }
+        max_count: Var { frame_id: 1, ty: integer, index: 2 }
+        count: Var { frame_id: 1, ty: integer, index: 3 }
+        item: Var { frame_id: 1, ty: unknown, index: 4 }
+    0: CONST integer(1)
+    1: CONST integer(5)
+    19: FOR_IN -- hash: 0x33c0a964cfedf1fd
+          n: Var { frame_id: 2, ty: integer, index: 7 }
+          i: Var { frame_id: 2, ty: integer, index: 8 }
+          max_count: Var { frame_id: 2, ty: integer, index: 9 }
+          count: Var { frame_id: 2, ty: integer, index: 10 }
+          item: Var { frame_id: 2, ty: unknown, index: 11 }
+      2: CONST integer(1)
+      3: CONST integer(5)
+      18: FOR_IN -- hash: 0xd9bd02d89cf13c32
+            n: Var { frame_id: 3, ty: integer, index: 14 }
+            i: Var { frame_id: 3, ty: integer, index: 15 }
+            max_count: Var { frame_id: 3, ty: integer, index: 16 }
+            count: Var { frame_id: 3, ty: integer, index: 17 }
+            item: Var { frame_id: 3, ty: unknown, index: 18 }
+        4: CONST integer(1)
+        5: CONST integer(5)
+        17: OR -- hash: 0x66a072ae6085ed
+          10: GT -- hash: 0xf7baed677bbb93c4
+            8: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
+              6: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+              7: SYMBOL Field { index: 36, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
+            9: CONST integer(0)
+          13: EQ -- hash: 0x13416d9c9193702
+            11: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            12: CONST integer(3)
+          16: EQ -- hash: 0x44b345795ed3f70e
+            14: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 12 }, type_value: integer(unknown) }
+            15: CONST integer(4)
+
+RULE test_2
+  13: WITH -- hash: 0x5a029ab07e20f6db
+    0: CONST integer(10)
+    12: FOR_IN -- hash: 0x3ad03fea96f88a3a
+          n: Var { frame_id: 2, ty: integer, index: 1 }
+          i: Var { frame_id: 2, ty: integer, index: 2 }
+          max_count: Var { frame_id: 2, ty: integer, index: 3 }
+          count: Var { frame_id: 2, ty: integer, index: 4 }
+          item: Var { frame_id: 2, ty: unknown, index: 5 }
+      1: CONST integer(1)
+      2: CONST integer(5)
+      11: AND -- hash: 0xe8ed296766ed3d38
+        7: EQ -- hash: 0x7953ec8ab9332489
+          5: ADD -- hash: 0x262fb96bb361a7aa
+            3: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 0 }, type_value: integer(10) }
+            4: CONST integer(1)
+          6: CONST integer(11)
+        10: GT -- hash: 0xb6718bc3c260f1cc
+          8: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 6 }, type_value: integer(unknown) }
+          9: CONST integer(0)
+
+RULE test_3
+  19: FOR_IN -- hash: 0xe8169726ba7ce13d
+        n: Var { frame_id: 1, ty: integer, index: 0 }
+        i: Var { frame_id: 1, ty: integer, index: 1 }
+        max_count: Var { frame_id: 1, ty: integer, index: 2 }
+        count: Var { frame_id: 1, ty: integer, index: 3 }
+        item: Var { frame_id: 1, ty: unknown, index: 4 }
+    0: CONST integer(0)
+    3: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
+      1: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+      2: SYMBOL Field { index: 36, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
+    18: AND -- hash: 0x4a94f53b4a956532
+      12: EQ -- hash: 0x817fb880f6c83988
+        10: FIELD_ACCESS -- hash: 0xf6f8e9b23f513dd1
+          8: LOOKUP -- hash: 0x7e699c8d78b13901
+            6: FIELD_ACCESS -- hash: 0xb93ff31706b0e381
+              4: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+              5: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None, deprecation_notice: None }
+            7: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+          9: SYMBOL Field { index: 0, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+        11: CONST string(".text")
+      17: GT -- hash: 0xf7baed677bbb93c4
+        15: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
+          13: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+          14: SYMBOL Field { index: 36, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
+        16: CONST integer(0)
+
+RULE test_4
+  532: FOR_IN -- hash: 0x9339914899905b55
+        n: Var { frame_id: 1, ty: integer, index: 0 }
+        i: Var { frame_id: 1, ty: integer, index: 1 }
+        max_count: Var { frame_id: 1, ty: integer, index: 2 }
+        count: Var { frame_id: 1, ty: integer, index: 3 }
+        item: Var { frame_id: 1, ty: unknown, index: 4 }
+    0: CONST integer(1)
+    1: CONST integer(5)
+    531: FOR_IN -- hash: 0x2828a715a83936f1
+          n: Var { frame_id: 2, ty: integer, index: 7 }
+          i: Var { frame_id: 2, ty: integer, index: 8 }
+          max_count: Var { frame_id: 2, ty: integer, index: 9 }
+          count: Var { frame_id: 2, ty: integer, index: 10 }
+          item: Var { frame_id: 2, ty: unknown, index: 11 }
+      2: CONST integer(1)
+      3: CONST integer(5)
+      530: AND -- hash: 0x6f7d9a9f8ca5244
+        8: EQ -- hash: 0x373c9ba6b5e8b9cf
+          6: ADD -- hash: 0x1a4dad17c028a776
+            4: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            5: CONST integer(0)
+          7: CONST integer(10)
+        13: EQ -- hash: 0x2367b4ea8ad17e27
+          11: ADD -- hash: 0xc30737bed7ed7d61
+            9: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            10: CONST integer(1)
+          12: CONST integer(10)
+        18: EQ -- hash: 0xf92ce2e5fba427f
+          16: ADD -- hash: 0x6bc0c265ebb2534d
+            14: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            15: CONST integer(2)
+          17: CONST integer(10)
+        23: EQ -- hash: 0xfbbde77230a306d6
+          21: ADD -- hash: 0x147a4d0cff772939
+            19: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            20: CONST integer(3)
+          22: CONST integer(10)
+        28: EQ -- hash: 0xe7e900b6058bcb2e
+          26: ADD -- hash: 0xbd33d7b4133bff24
+            24: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            25: CONST integer(4)
+          27: CONST integer(10)
+        33: EQ -- hash: 0xd41419f9da748f86
+          31: ADD -- hash: 0x65ed625b2700d510
+            29: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            30: CONST integer(5)
+          32: CONST integer(10)
+        38: EQ -- hash: 0xc03f333daf5d53de
+          36: ADD -- hash: 0xea6ed023ac5aafc
+            34: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            35: CONST integer(6)
+          37: CONST integer(10)
+        43: EQ -- hash: 0xac6a4c8180461836
+          41: ADD -- hash: 0xb76077a94e8a80e7
+            39: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            40: CONST integer(7)
+          42: CONST integer(10)
+        48: EQ -- hash: 0x989565c5552edc8e
+          46: ADD -- hash: 0x601a0250624f56d3
+            44: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            45: CONST integer(8)
+          47: CONST integer(10)
+        53: EQ -- hash: 0x84c07f092a17a0e6
+          51: ADD -- hash: 0x8d38cf776142cbf
+            49: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            50: CONST integer(9)
+          52: CONST integer(10)
+        58: EQ -- hash: 0x70eb984cff00653e
+          56: ADD -- hash: 0xb18d179e89d902aa
+            54: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            55: CONST integer(10)
+          57: CONST integer(10)
+        63: EQ -- hash: 0x5d16b190d3e92996
+          61: ADD -- hash: 0x5a46a2459d9dd896
+            59: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            60: CONST integer(11)
+          62: CONST integer(10)
+        68: EQ -- hash: 0x4941cad4a4d1edee
+          66: ADD -- hash: 0x3002cecb162ae82
+            64: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            65: CONST integer(12)
+          67: CONST integer(10)
+        73: EQ -- hash: 0x356ce41879bab246
+          71: ADD -- hash: 0xabb9b793c527846d
+            69: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            70: CONST integer(13)
+          72: CONST integer(10)
+        78: EQ -- hash: 0x2197fd5c4ea3769e
+          76: ADD -- hash: 0x5473423ad8ec5a59
+            74: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            75: CONST integer(14)
+          77: CONST integer(10)
+        83: EQ -- hash: 0xdc316a0238c3af6
+          81: ADD -- hash: 0xfd2ccce1ecb13044
+            79: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            80: CONST integer(15)
+          82: CONST integer(10)
+        88: EQ -- hash: 0xf9ee2fe3f474ff4d
+          86: ADD -- hash: 0xa5e6578900760630
+            84: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            85: CONST integer(16)
+          87: CONST integer(10)
+        93: EQ -- hash: 0xe6194927c95dc3a5
+          91: ADD -- hash: 0x4e9fe230143adc1c
+            89: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            90: CONST integer(17)
+          92: CONST integer(10)
+        98: EQ -- hash: 0xd244626b9e4687fd
+          96: ADD -- hash: 0xf7596cd72bffb207
+            94: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            95: CONST integer(18)
+          97: CONST integer(10)
+        103: EQ -- hash: 0xbe6f7baf732f4c55
+          101: ADD -- hash: 0xa012f77e3fc487f3
+            99: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            100: CONST integer(19)
+          102: CONST integer(10)
+        108: EQ -- hash: 0xaa9a94f3441810ad
+          106: ADD -- hash: 0x48cc822553895ddf
+            104: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            105: CONST integer(20)
+          107: CONST integer(10)
+        113: EQ -- hash: 0x96c5ae371900d505
+          111: ADD -- hash: 0xf1860ccc674e33ca
+            109: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            110: CONST integer(21)
+          112: CONST integer(10)
+        118: EQ -- hash: 0x82f0c77aede9995d
+          116: ADD -- hash: 0x9a3f97737b1309b6
+            114: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            115: CONST integer(22)
+          117: CONST integer(10)
+        123: EQ -- hash: 0x6f1be0bec2d25db5
+          121: ADD -- hash: 0x42f9221a8ed7dfa2
+            119: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            120: CONST integer(23)
+          122: CONST integer(10)
+        128: EQ -- hash: 0x5b46fa0297bb220d
+          126: ADD -- hash: 0xebb2acc1a29cb58d
+            124: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            125: CONST integer(24)
+          127: CONST integer(10)
+        133: EQ -- hash: 0x4772134668a3e665
+          131: ADD -- hash: 0x946c3768b6618b79
+            129: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            130: CONST integer(25)
+          132: CONST integer(10)
+        138: EQ -- hash: 0x339d2c8a3d8caabd
+          136: ADD -- hash: 0x3d25c20fca266165
+            134: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            135: CONST integer(26)
+          137: CONST integer(10)
+        143: EQ -- hash: 0x1fc845ce12756f15
+          141: ADD -- hash: 0xe5df4cb6ddeb3750
+            139: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            140: CONST integer(27)
+          142: CONST integer(10)
+        148: EQ -- hash: 0xbf35f11e75e336d
+          146: ADD -- hash: 0x8e98d75df1b00d3c
+            144: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            145: CONST integer(28)
+          147: CONST integer(10)
+        153: EQ -- hash: 0xf81e7855b846f7c4
+          151: ADD -- hash: 0x375262050574e328
+            149: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            150: CONST integer(29)
+          152: CONST integer(10)
+        158: EQ -- hash: 0xe44991998d2fbc1c
+          156: ADD -- hash: 0xe00becac1939b913
+            154: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            155: CONST integer(30)
+          157: CONST integer(10)
+        163: EQ -- hash: 0xd074aadd62188074
+          161: ADD -- hash: 0x88c577532cfe8eff
+            159: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            160: CONST integer(31)
+          162: CONST integer(10)
+        168: EQ -- hash: 0xbc9fc421370144cc
+          166: ADD -- hash: 0x317f01fa40c364eb
+            164: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            165: CONST integer(32)
+          167: CONST integer(10)
+        173: EQ -- hash: 0xa8cadd650bea0924
+          171: ADD -- hash: 0xda388ca154883ad6
+            169: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            170: CONST integer(33)
+          172: CONST integer(10)
+        178: EQ -- hash: 0x94f5f6a8dcd2cd7c
+          176: ADD -- hash: 0x82f21748684d10c2
+            174: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            175: CONST integer(34)
+          177: CONST integer(10)
+        183: EQ -- hash: 0x81210fecb1bb91d4
+          181: ADD -- hash: 0x2baba1ef7c11e6ae
+            179: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            180: CONST integer(35)
+          182: CONST integer(10)
+        188: EQ -- hash: 0x6d4c293086a4562c
+          186: ADD -- hash: 0xd4652c9693d6bc99
+            184: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            185: CONST integer(36)
+          187: CONST integer(10)
+        193: EQ -- hash: 0x597742745b8d1a84
+          191: ADD -- hash: 0x7d1eb73da79b9285
+            189: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            190: CONST integer(37)
+          192: CONST integer(10)
+        198: EQ -- hash: 0x45a25bb82c75dedc
+          196: ADD -- hash: 0x25d841e4bb606871
+            194: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            195: CONST integer(38)
+          197: CONST integer(10)
+        203: EQ -- hash: 0x31cd74fc015ea334
+          201: ADD -- hash: 0xce91cc8bcf253e5c
+            199: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            200: CONST integer(39)
+          202: CONST integer(10)
+        208: EQ -- hash: 0x1df88e3fd647678c
+          206: ADD -- hash: 0x774b5732e2ea1448
+            204: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            205: CONST integer(40)
+          207: CONST integer(10)
+        213: EQ -- hash: 0xa23a783ab302be4
+          211: ADD -- hash: 0x2004e1d9f6aeea34
+            209: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            210: CONST integer(41)
+          212: CONST integer(10)
+        218: EQ -- hash: 0xf64ec0c77c18f03b
+          216: ADD -- hash: 0xc8be6c810a73c01f
+            214: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            215: CONST integer(42)
+          217: CONST integer(10)
+        223: EQ -- hash: 0xe279da0b5101b493
+          221: ADD -- hash: 0x7177f7281e38960b
+            219: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            220: CONST integer(43)
+          222: CONST integer(10)
+        228: EQ -- hash: 0xcea4f34f25ea78eb
+          226: ADD -- hash: 0x1a3181cf31fd6bf7
+            224: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            225: CONST integer(44)
+          227: CONST integer(10)
+        233: EQ -- hash: 0xbad00c92fad33d43
+          231: ADD -- hash: 0xc2eb0c7645c241e2
+            229: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            230: CONST integer(45)
+          232: CONST integer(10)
+        238: EQ -- hash: 0xa6fb25d6cfbc019b
+          236: ADD -- hash: 0x6ba4971d598717ce
+            234: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            235: CONST integer(46)
+          237: CONST integer(10)
+        243: EQ -- hash: 0x93263f1aa0a4c5f3
+          241: ADD -- hash: 0x145e21c46d4bedba
+            239: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            240: CONST integer(47)
+          242: CONST integer(10)
+        248: EQ -- hash: 0x7f51585e758d8a4b
+          246: ADD -- hash: 0xbd17ac6b8110c3a5
+            244: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            245: CONST integer(48)
+          247: CONST integer(10)
+        253: EQ -- hash: 0x6b7c71a24a764ea3
+          251: ADD -- hash: 0x65d1371294d59991
+            249: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            250: CONST integer(49)
+          252: CONST integer(10)
+        258: EQ -- hash: 0x57a78ae61f5f12fb
+          256: ADD -- hash: 0xe8ac1b9a89a6f7d
+            254: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            255: CONST integer(50)
+          257: CONST integer(10)
+        263: EQ -- hash: 0x43d2a429f047d753
+          261: ADD -- hash: 0xb7444c60bc5f4568
+            259: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            260: CONST integer(51)
+          262: CONST integer(10)
+        268: EQ -- hash: 0x2ffdbd6dc5309bab
+          266: ADD -- hash: 0x5ffdd707d0241b54
+            264: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            265: CONST integer(52)
+          267: CONST integer(10)
+        273: EQ -- hash: 0x1c28d6b19a196003
+          271: ADD -- hash: 0x8b761aee7e8f140
+            269: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            270: CONST integer(53)
+          272: CONST integer(10)
+        278: EQ -- hash: 0x853eff56f02245b
+          276: ADD -- hash: 0xb170ec55fbadc72b
+            274: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            275: CONST integer(54)
+          277: CONST integer(10)
+        283: EQ -- hash: 0xf47f093943eae8b2
+          281: ADD -- hash: 0x5a2a76fd0f729d17
+            279: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            280: CONST integer(55)
+          282: CONST integer(10)
+        288: EQ -- hash: 0xe0aa227d14d3ad0a
+          286: ADD -- hash: 0x2e401a423377303
+            284: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            285: CONST integer(56)
+          287: CONST integer(10)
+        293: EQ -- hash: 0xccd53bc0e9bc7162
+          291: ADD -- hash: 0xab9d8c4b36fc48ee
+            289: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            290: CONST integer(57)
+          292: CONST integer(10)
+        298: EQ -- hash: 0xb9005504bea535ba
+          296: ADD -- hash: 0x545716f24ac11eda
+            294: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            295: CONST integer(58)
+          297: CONST integer(10)
+        303: EQ -- hash: 0xa52b6e48938dfa12
+          301: ADD -- hash: 0xfd10a1995e85f4c5
+            299: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            300: CONST integer(59)
+          302: CONST integer(10)
+        308: EQ -- hash: 0x9156878c6476be6a
+          306: ADD -- hash: 0xa5ca2c40724acab1
+            304: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            305: CONST integer(60)
+          307: CONST integer(10)
+        313: EQ -- hash: 0x7d81a0d0395f82c2
+          311: ADD -- hash: 0x4e83b6e7860fa09d
+            309: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            310: CONST integer(61)
+          312: CONST integer(10)
+        318: EQ -- hash: 0x69acba140e48471a
+          316: ADD -- hash: 0xf73d418e99d47688
+            314: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            315: CONST integer(62)
+          317: CONST integer(10)
+        323: EQ -- hash: 0x55d7d357e3310b72
+          321: ADD -- hash: 0x9ff6cc35ad994c74
+            319: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            320: CONST integer(63)
+          322: CONST integer(10)
+        328: EQ -- hash: 0x4202ec9bb419cfca
+          326: ADD -- hash: 0x48b056dcc15e2260
+            324: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            325: CONST integer(64)
+          327: CONST integer(10)
+        333: EQ -- hash: 0x2e2e05df89029422
+          331: ADD -- hash: 0xf169e183d522f84b
+            329: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            330: CONST integer(65)
+          332: CONST integer(10)
+        338: EQ -- hash: 0x1a591f235deb587a
+          336: ADD -- hash: 0x9a236c2ae8e7ce37
+            334: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            335: CONST integer(66)
+          337: CONST integer(10)
+        343: EQ -- hash: 0x684386732d41cd2
+          341: ADD -- hash: 0x42dcf6d1fcaca423
+            339: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            340: CONST integer(67)
+          342: CONST integer(10)
+        348: EQ -- hash: 0xf2af51ab07bce129
+          346: ADD -- hash: 0xeb96817910717a0e
+            344: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            345: CONST integer(68)
+          347: CONST integer(10)
+        353: EQ -- hash: 0xdeda6aeed8a5a581
+          351: ADD -- hash: 0x94500c2024364ffa
+            349: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            350: CONST integer(69)
+          352: CONST integer(10)
+        358: EQ -- hash: 0xcb058432ad8e69d9
+          356: ADD -- hash: 0x3d0996c73bfb25e6
+            354: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            355: CONST integer(70)
+          357: CONST integer(10)
+        363: EQ -- hash: 0xb7309d7682772e31
+          361: ADD -- hash: 0xe5c3216e4fbffbd1
+            359: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            360: CONST integer(71)
+          362: CONST integer(10)
+        368: EQ -- hash: 0xa35bb6ba575ff289
+          366: ADD -- hash: 0x8e7cac156384d1bd
+            364: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            365: CONST integer(72)
+          367: CONST integer(10)
+        373: EQ -- hash: 0x8f86cffe2848b6e1
+          371: ADD -- hash: 0x373636bc7749a7a9
+            369: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            370: CONST integer(73)
+          372: CONST integer(10)
+        378: EQ -- hash: 0x7bb1e941fd317b39
+          376: ADD -- hash: 0xdfefc1638b0e7d94
+            374: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            375: CONST integer(74)
+          377: CONST integer(10)
+        383: EQ -- hash: 0x67dd0285d21a3f91
+          381: ADD -- hash: 0x88a94c0a9ed35380
+            379: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            380: CONST integer(75)
+          382: CONST integer(10)
+        388: EQ -- hash: 0x54081bc9a70303e9
+          386: ADD -- hash: 0x3162d6b1b298296c
+            384: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            385: CONST integer(76)
+          387: CONST integer(10)
+        393: EQ -- hash: 0x4033350d7bebc841
+          391: ADD -- hash: 0xda1c6158c65cff57
+            389: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            390: CONST integer(77)
+          392: CONST integer(10)
+        398: EQ -- hash: 0x2c5e4e514cd48c99
+          396: ADD -- hash: 0x82d5ebffda21d543
+            394: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            395: CONST integer(78)
+          397: CONST integer(10)
+        403: EQ -- hash: 0x1889679521bd50f1
+          401: ADD -- hash: 0x2b8f76a6ede6ab2f
+            399: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            400: CONST integer(79)
+          402: CONST integer(10)
+        408: EQ -- hash: 0x4b480d8f6a61549
+          406: ADD -- hash: 0xd449014e01ab811a
+            404: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            405: CONST integer(80)
+          407: CONST integer(10)
+        413: EQ -- hash: 0xf0df9a1ccb8ed9a0
+          411: ADD -- hash: 0x7d028bf515705706
+            409: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            410: CONST integer(81)
+          412: CONST integer(10)
+        418: EQ -- hash: 0xdd0ab3609c779df8
+          416: ADD -- hash: 0x25bc169c29352cf2
+            414: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            415: CONST integer(82)
+          417: CONST integer(10)
+        423: EQ -- hash: 0xc935cca471606250
+          421: ADD -- hash: 0xce75a1433cfa02dd
+            419: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            420: CONST integer(83)
+          422: CONST integer(10)
+        428: EQ -- hash: 0xb560e5e8464926a8
+          426: ADD -- hash: 0x772f2bea50bed8c9
+            424: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            425: CONST integer(84)
+          427: CONST integer(10)
+        433: EQ -- hash: 0xa18bff2c1b31eb00
+          431: ADD -- hash: 0x1fe8b6916483aeb5
+            429: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            430: CONST integer(85)
+          432: CONST integer(10)
+        438: EQ -- hash: 0x8db7186fec1aaf58
+          436: ADD -- hash: 0xc8a24138784884a0
+            434: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            435: CONST integer(86)
+          437: CONST integer(10)
+        443: EQ -- hash: 0x79e231b3c10373b0
+          441: ADD -- hash: 0x715bcbdf8c0d5a8c
+            439: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            440: CONST integer(87)
+          442: CONST integer(10)
+        448: EQ -- hash: 0x660d4af795ec3808
+          446: ADD -- hash: 0x1a155686a3d23078
+            444: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            445: CONST integer(88)
+          447: CONST integer(10)
+        453: EQ -- hash: 0x5238643b6ad4fc60
+          451: ADD -- hash: 0xc2cee12db7970663
+            449: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            450: CONST integer(89)
+          452: CONST integer(10)
+        458: EQ -- hash: 0x3e637d7f3fbdc0b8
+          456: ADD -- hash: 0x6b886bd4cb5bdc4f
+            454: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            455: CONST integer(90)
+          457: CONST integer(10)
+        463: EQ -- hash: 0x2a8e96c310a68510
+          461: ADD -- hash: 0x1441f67bdf20b23b
+            459: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            460: CONST integer(91)
+          462: CONST integer(10)
+        468: EQ -- hash: 0x16b9b006e58f4968
+          466: ADD -- hash: 0xbcfb8122f2e58826
+            464: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            465: CONST integer(92)
+          467: CONST integer(10)
+        473: EQ -- hash: 0x2e4c94aba780dc0
+          471: ADD -- hash: 0x65b50bca06aa5e12
+            469: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            470: CONST integer(93)
+          472: CONST integer(10)
+        478: EQ -- hash: 0xef0fe28e8f60d217
+          476: ADD -- hash: 0xe6e96711a6f33fe
+            474: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            475: CONST integer(94)
+          477: CONST integer(10)
+        483: EQ -- hash: 0xdb3afbd26049966f
+          481: ADD -- hash: 0xb72821182e3409e9
+            479: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            480: CONST integer(95)
+          482: CONST integer(10)
+        488: EQ -- hash: 0xc766151635325ac7
+          486: ADD -- hash: 0x5fe1abbf41f8dfd5
+            484: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            485: CONST integer(96)
+          487: CONST integer(10)
+        493: EQ -- hash: 0xb3912e5a0a1b1f1f
+          491: ADD -- hash: 0x89b366655bdb5c1
+            489: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            490: CONST integer(97)
+          492: CONST integer(10)
+        498: EQ -- hash: 0x9fbc479ddf03e377
+          496: ADD -- hash: 0xb154c10d69828bac
+            494: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            495: CONST integer(98)
+          497: CONST integer(10)
+        503: EQ -- hash: 0x8be760e1b3eca7cf
+          501: ADD -- hash: 0x5a0e4bb47d476198
+            499: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            500: CONST integer(99)
+          502: CONST integer(10)
+        508: EQ -- hash: 0x78127a2584d56c27
+          506: ADD -- hash: 0x2c7d65b910c3784
+            504: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            505: CONST integer(100)
+          507: CONST integer(10)
+        513: EQ -- hash: 0x643d936959be307f
+          511: ADD -- hash: 0xab816102a4d10d6f
+            509: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            510: CONST integer(101)
+          512: CONST integer(10)
+        518: EQ -- hash: 0x5068acad2ea6f4d7
+          516: ADD -- hash: 0x543aeba9b895e35b
+            514: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            515: CONST integer(102)
+          517: CONST integer(10)
+        523: EQ -- hash: 0x3c93c5f1038fb92f
+          521: ADD -- hash: 0xfcf47650cc5ab946
+            519: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            520: CONST integer(103)
+          522: CONST integer(10)
+        528: EQ -- hash: 0x28bedf34d4787d87
+          526: ADD -- hash: 0xa5ae00f7e01f8f32
+            524: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
+            525: CONST integer(104)
+          527: CONST integer(10)
+        529: CONST boolean(true)
+

@@ -143,7 +143,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772
         with:
           toolchain: ${{ matrix.rust }}
           target: ${{ matrix.target }}
@@ -177,6 +177,18 @@ jobs:
 
       - name: Run tests
         run: cargo test --target ${{ matrix.target }} ${{ matrix.args }}
+        env:
+          RUSTFLAGS: ${{ matrix.rust_flags }}
+
+      # When the whole workspace is tested, Cargo unifies the features enabled
+      # for `yara-x` across all workspace members. Several members depend on
+      # `yara-x` through the `[workspace.dependencies]` entry, which enables
+      # features like `constant-folding`, so the step above doesn't actually
+      # disable them. Testing the `yara-x` crate alone makes sure that its
+      # tests run without its default features.
+      - name: Run tests for yara-x without default features
+        if: matrix.build == 'no-default-features'
+        run: cargo test --target ${{ matrix.target }} -p yara-x ${{ matrix.args }}
         env:
           RUSTFLAGS: ${{ matrix.rust_flags }}
 

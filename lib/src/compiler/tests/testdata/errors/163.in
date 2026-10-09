@@ -1,0 +1,4 @@
+rule test {
+  condition:
+    for any i in (0..0x8000000000000000) : (true)
+}

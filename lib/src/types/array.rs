@@ -37,7 +37,7 @@ impl Array {
 
     pub fn deputy(&self) -> TypeValue {
         match self {
-            Array::Integers(_) => TypeValue::unknown_integer(),
+            Array::Integers(_) => TypeValue::unknown_signed_integer(),
             Array::Floats(_) => TypeValue::unknown_float(),
             Array::Bools(_) => TypeValue::unknown_bool(),
             Array::Strings(_) => TypeValue::unknown_string(),

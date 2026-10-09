@@ -150,6 +150,137 @@ Integers are always 64-bits long, even the results of functions like `uint8`,
 into account, specially while using bitwise operators (for example, `~0x01` is
 not `0xFE` but `0xFFFFFFFFFFFFFFFE`).
 
+#### Signed and unsigned integers
+
+By default, integers in YARA-X are **64-bit signed integers**, which can hold
+values from `-9223372036854775808` (`-0x8000000000000000`) to
+`9223372036854775807` (`0x7FFFFFFFFFFFFFFF`). This includes most integer
+literals, `filesize`, and the results of `int8`/`int16`/`int32`/`int64`.
+
+The values returned by `uint8`, `uint16` and `uint32` (and module fields of
+type `uint32`) are never negative, but they are **promoted** to 64-bit signed
+integers, because all of them fit within the positive range of a 64-bit signed
+integer. This is similar to C, where integer types narrower than `int` are
+promoted to `int` before operating with them, and keeps them compatible with
+YARA, where all integers are 64-bit signed integers.
+
+An integer is a **64-bit unsigned integer** (capable of holding values from `0`
+to `18446744073709551615`, or `0xFFFFFFFFFFFFFFFF`) in the following cases:
+
+* **Large integer literals** that exceed the maximum 64-bit signed value
+  (`9223372036854775807` / `0x7FFFFFFFFFFFFFFF`), up to `18446744073709551615`
+  (`0xFFFFFFFFFFFFFFFF`).
+* **The `uint64` and `uint64be` functions**, which read 64-bit unsigned integers
+  from the scanned data.
+* **Module fields and functions** declared with type `uint64` (for example,
+  `pe.image_base`).
+
+These values can exceed the maximum 64-bit signed value, so they can't be
+promoted to signed integers.
+
+```yara
+42                  // signed integer
+0x7FFFFFFFFFFFFFFF  // signed integer (maximum signed 64-bit value)
+0x8000000000000000  // unsigned integer (too large for signed 64-bit)
+0xFFFFFFFFFFFFFFFF  // unsigned integer (maximum unsigned 64-bit value)
+uint32(0)           // signed integer (promoted, 0..4294967295 fits in signed 64-bit)
+uint64(0)           // unsigned integer
+```
+
+When working with or mixing signed and unsigned integers, YARA-X applies the
+following rules:
+
+##### Comparisons (`==`, `!=`, `<`, `<=`, `>`, `>=`)
+
+Comparisons between signed and unsigned integers are **mathematically exact**—they
+compare the actual numeric values rather than their raw 64-bit bit patterns.
+Because an unsigned integer is never negative, it is always greater than (and
+never equal to) a negative signed integer:
+
+```yara
+0xFFFFFFFFFFFFFFFF > 0   // true (18446744073709551615 > 0)
+0xFFFFFFFFFFFFFFFF > -1  // true
+0xFFFFFFFFFFFFFFFF == -1 // false (never equal)
+uint64(0) >= 0           // always true
+```
+
+##### Arithmetic and bitwise operations (`+`, `-`, `*`, `\`, `%`, `&`, `|`, `^`)
+
+* The result is **unsigned** if at least one operand is unsigned. In that case
+  the signed operands are interpreted as unsigned integers, which means that
+  negative values wrap around (for example, `-1` is interpreted as
+  `0xFFFFFFFFFFFFFFFF`, and `-2` as `0xFFFFFFFFFFFFFFFE`).
+* Otherwise, the result is **signed**. This includes operations with the
+  values returned by `uint8`, `uint16` and `uint32`, which are promoted to
+  signed integers as explained above.
+
+The signedness of the result depends only on the operands being signed or
+unsigned, not on their values. Keep in mind that subtracting from an unsigned
+integer produces an unsigned integer, which is never negative, while
+subtracting from a promoted `uint8`, `uint16` or `uint32` value can produce a
+negative result:
+
+```yara
+uint32(0) - 1 < 0       // true if uint32(0) returns 0 (the result is -1)
+uint64(0) - 1 < 0       // always false (if uint64(0) returns 0, the result
+                        // wraps around to 0xFFFFFFFFFFFFFFFF)
+```
+
+At compile time, constant expressions whose result does not fit in the result
+type are rejected with an error. At runtime, operations wrap around on overflow.
+
+```yara
+uint64(0) + 1           // unsigned
+uint64(0) \ uint8(1)    // unsigned
+uint64(0) & 0xFF        // unsigned
+uint64(0) + int64(0)    // unsigned (int64(0) is interpreted as unsigned)
+uint64(0) + (-1)        // unsigned (equivalent to uint64(0) - 1)
+0x8000000000000000 + 1  // unsigned (9223372036854775809)
+1 + 1                   // signed (both operands are signed)
+uint8(0) - 2            // signed (uint8 is promoted to a signed 64-bit integer)
+0xFFFFFFFFFFFFFFFF + 1  // compile error: overflows 64-bit unsigned integer
+```
+
+##### Shift operations (`<<`, `>>`)
+
+In shift operations, the result always has the **same signedness as the left
+operand** (the value being shifted):
+
+* Right-shifting an **unsigned** integer (`>>`) performs a *logical shift*,
+  filling the most significant bits with `0`.
+* Right-shifting a **signed** integer (`>>`) performs an *arithmetic shift*,
+  preserving the sign bit (filling with `1` if negative, or `0` if positive).
+
+```yara
+0x8000000000000000 >> 1 // 0x4000000000000000 (unsigned logical shift: fills with 0)
+(-2) >> 1               // -1 (signed arithmetic shift: preserves sign bit)
+uint64(0) << 4          // unsigned (left operand is unsigned)
+int64(0) << 4           // signed (left operand is signed)
+```
+
+##### Unary operators (`-`, `~`)
+
+* **Unary minus (`-`)** always produces a **signed** integer. If applied to an
+  unsigned value greater than `0x7FFFFFFFFFFFFFFF` at runtime, the result wraps
+  around. However, negating a constant whose result doesn't fit in a signed
+  integer is rejected at compile time with an error, and the same happens with
+  negative literals smaller than `-9223372036854775808`.
+* **Bitwise NOT (`~`)** inverts all 64 bits and **preserves** the signedness of
+  its operand.
+
+Because applying `-` or `~` to an unsigned integer often yields unexpected
+results, the compiler emits an [`unsigned_unary_op`](/docs/warnings/#unsigned_unary_op)
+warning when either operator is used on an unsigned value:
+
+```yara
+-100                  // -100 (signed)
+-uint64(0)            // signed, wraps around if uint64(0) > 0x7FFFFFFFFFFFFFFF (emits warning)
+-(0xFFFFFFFFFFFFFFFF) // compile error: number out of range
+-9223372036854775809  // compile error: invalid integer
+~0x01                 // -2, or 0xFFFFFFFFFFFFFFFE (signed)
+~0xFFFFFFFFFFFFFFFF   // 0 (unsigned; emits warning)
+```
+
 ### Float literals
 
 Float literals are represented in the standard notation (scientific notation is not
@@ -294,18 +425,22 @@ the following functions to read data from the file at the given offset:
 int8(<offset>)
 int16(<offset>)
 int32(<offset>)
+int64(<offset>)
 
 uint8(<offset>)
 uint16(<offset>)
 uint32(<offset>)
+uint64(<offset>)
 
 int8be(<offset>)
 int16be(<offset>)
 int32be(<offset>)
+int64be(<offset>)
 
 uint8be(<offset>)
 uint16be(<offset>)
 uint32be(<offset>)
+uint64be(<offset>)
 
 float32(<offset>)
 float64(<offset>)
@@ -314,8 +449,11 @@ float32be(<offset>)
 float64be(<offset>)
 ```
 
-The `intXX` functions read 8, 16, and 32 bits signed integers from the given
-offset, while functions `uintXX` read unsigned integers. IEEE 754 floating
+The `intXX` functions read 8, 16, 32 and 64 bits signed integers from the given
+offset, while functions `uintXX` read 8, 16, 32 and 64 bits unsigned integers.
+The result of `uint64` is an unsigned integer (see
+[Signed and unsigned integers](#signed-and-unsigned-integers)), so values
+greater than `0x7FFFFFFFFFFFFFFF` are never negative. IEEE 754 floating
 point numbers are read using `floatXX`. The order in which multiple bytes are
 read defaults to little-endian. If you want to read a big-endian number use the
 corresponding function ending in `be`. The offset parameter can be any

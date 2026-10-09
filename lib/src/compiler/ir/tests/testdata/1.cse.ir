@@ -1,12 +1,12 @@
 RULE test_1
-  6: EQ -- hash: 0xbc578eceb5139ff6
+  6: EQ -- hash: 0x63dd2c34aff5373d
     4: CONST integer(1)
     5: CONST integer(1)
 
 RULE test_2
-  10: EQ -- hash: 0xa60cf135438e6090
-    8: SUB -- hash: 0xdc58c9f57c354387
-      4: ADD -- hash: 0x73cffc9d7ea6b7e5
+  10: EQ -- hash: 0xdbcfcb8f295da674
+    8: SUB -- hash: 0x498b4cfd4b59ce13
+      4: ADD -- hash: 0xaa8dc0aa5abeac00
         2: FIELD_ACCESS -- hash: 0x4a147f30f75a8a38
           0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
           1: SYMBOL Field { index: 13, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
@@ -17,37 +17,35 @@ RULE test_2
     9: CONST integer(1)
 
 RULE test_3
-  6: GT -- hash: 0x61dcf8602bb009ae
-    4: DIV -- hash: 0x8a6d566de890e50c
-      2: CONST integer(2)
-      3: CONST integer(1)
+  6: GT -- hash: 0x1b5044163ce64b4e
+    4: CONST integer(2)
     5: CONST integer(1)
 
 RULE test_4
-  6: LE -- hash: 0x6046db8bec76f9db
+  6: LE -- hash: 0x7cc78f1e7589122
     4: CONST integer(2)
     5: CONST integer(2)
 
 RULE test_5
-  6: EQ -- hash: 0xce980a3b0dd2d7cf
+  6: EQ -- hash: 0x761da7a104b46f16
     4: CONST integer(8)
     5: CONST integer(8)
 
 RULE test_6
-  9: EQ -- hash: 0x94adc1565ee528a6
+  9: EQ -- hash: 0x3c335ebc55c6bfed
     2: CONST integer(3)
     8: CONST integer(1)
 
 RULE test_7
-  8: AND -- hash: 0x5ff91274637c63b1
-    4: EQ -- hash: 0x2e8ba46ec7871b51
+  8: AND -- hash: 0x96b6d6813f9457cc
+    4: EQ -- hash: 0x6549687ba39f0f6c
       2: FIELD_ACCESS -- hash: 0xcfb0ade44793171f
         0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
         1: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
       3: CONST integer(0)
 
 RULE test_8
-  5: ADD -- hash: 0x1d972cb4137a7747
+  5: ADD -- hash: 0xc51cca1a0a5c0e8d
     2: FIELD_ACCESS -- hash: 0xcfb0ade44793171f
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
       1: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
@@ -55,23 +53,23 @@ RULE test_8
     4: CONST integer(2)
 
 RULE test_9
-  18: AND -- hash: 0x87ea037bd606baac
-    2: CONTAINS -- hash: 0xbabdc2c62427fdc
+  18: AND -- hash: 0xb5086cf4e50137b8
+    2: CONTAINS -- hash: 0x8f728594cbd2f67e
       0: CONST string("foobar")
       1: CONST string("bar")
-    5: ICONTAINS -- hash: 0xc2864620e881ca78
+    5: ICONTAINS -- hash: 0x464cef895212411b
       3: CONST string("foobar")
       4: CONST string("BAR")
-    8: STARTS_WITH -- hash: 0x58ec6fc7a36541b2
+    8: STARTS_WITH -- hash: 0xdcb3193008f5b854
       6: CONST string("foobar")
       7: CONST string("foo")
-    11: ISTARTS_WITH -- hash: 0x3965d2a92aab2a87
+    11: ISTARTS_WITH -- hash: 0xbd2c7c11903ba129
       9: CONST string("foobar")
       10: CONST string("FOO")
-    14: ENDS_WITH -- hash: 0xe536fb2e32265590
+    14: ENDS_WITH -- hash: 0x68fda4969bb6cc33
       12: CONST string("foobar")
       13: CONST string("bar")
-    17: IENDS_WITH -- hash: 0x9c116522b865a02d
+    17: IENDS_WITH -- hash: 0x1fd80e8b21f616d0
       15: CONST string("foobar")
       16: CONST string("BAR")
 
