@@ -219,7 +219,7 @@ uint64(0) \ uint8(1)    // unsigned (unsigned \ non-negative uint8)
 uint64(0) & 0xFF        // unsigned (unsigned & non-negative constant)
 0x8000000000000000 + 1  // unsigned (9223372036854775809)
 1 + 1                   // signed (both operands are signed)
-uint8(0) - 2            // signed (both operands are signed)
+uint8(0) - 2            // signed (uint8 is promoted to a signed 64-bit integer)
 uint64(0) + int64(0)    // signed (unsigned mixed with a potentially negative signed value)
 uint64(0) + (-1)        // signed (unsigned mixed with a negative constant)
 0xFFFFFFFFFFFFFFFF + 1  // compile error: overflows 64-bit unsigned integer
