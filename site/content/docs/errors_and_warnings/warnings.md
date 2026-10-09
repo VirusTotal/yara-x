@@ -134,6 +134,21 @@ warning[global_rule_misuse]: global rule used in condition
   = note: referencing a global rule in a condition is redundant, and may result in an unsatisfiable condition
 ```
 
+## greedy_dot_star {#greedy_dot_star}
+
+A regular expression contains a greedy `.*` repetition, which can cause
+performance issues due to excessive backtracking. Consider using the non-greedy
+`.*?` variant instead.
+
+```text
+warning[greedy_dot_star]: greedy `.*` in pattern `$a`
+ --> line:3:14
+  |
+3 |     $a = /foo.*bar/
+  |              -- consider using `.*?` instead
+  |
+```
+
 ## ignored_rule {#ignored_rule}
 
 A rule will be ignored because it depends on another rule that uses an
