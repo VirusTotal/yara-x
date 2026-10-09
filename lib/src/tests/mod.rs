@@ -804,6 +804,31 @@ fn for_in() {
     condition_true!("for 10% i in (0..9) : ( i == 0 )");
     condition_false!("for 11% i in (0..9) : ( i == 0 )");
 
+    // Percentages computed at runtime can be outside the range [0, 100], and
+    // `n * percentage / 100` may not fit in an i64. This must not trap. Such
+    // percentages can't be satisfied, as the number of iterations that must
+    // be true is either negative or larger than the number of iterations.
+    condition_false!(
+        "for int64(0) % i in (0..1000) : ( true )",
+        &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80]
+    );
+    condition_false!(
+        "for int64(0) % i in (0..1000) : ( true )",
+        &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F]
+    );
+    condition_false!(
+        "for uint64(0) % i in (0..1000) : ( true )",
+        &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+    );
+
+    // Unsigned percentages are never negative. If `uint64(0)` was converted
+    // to float as a signed integer it would be -1, `n * -1 / 100` would be
+    // rounded to 0, and the loop would behave as `for none ...`.
+    condition_false!(
+        "for uint64(0) % i in (0..9) : ( false )",
+        &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+    );
+
     // If the range's lower bound is greater than the upper bound
     // the `for` loop is always false. The outer loop is only for
     // being able to write a loop with a range (i+1..i) where

@@ -2307,14 +2307,22 @@ fn emit_for<I, B, C, A>(
                         load_var(ctx, instr, n);
                         instr.unop(UnaryOp::F64ConvertSI64);
                         emit_expr(ctx, ir, *quantifier, instr);
-                        instr.unop(UnaryOp::F64ConvertSI64);
+                        instr.unop(int_to_float_op(ir, *quantifier));
                         instr.binop(BinaryOp::F64Mul);
 
                         // / 100
                         instr.f64_const(100.0);
                         instr.binop(BinaryOp::F64Div);
                         instr.unop(UnaryOp::F64Ceil);
-                        instr.unop(UnaryOp::I64TruncSF64);
+
+                        // The percentage is guaranteed to be in the range
+                        // [0, 100] only when it is a constant. Percentages
+                        // computed at runtime (e.g: `int64(0)%`) can have any
+                        // value, and the result may not fit in an i64. In
+                        // such cases `i64.trunc_f64_s` traps, but the
+                        // saturating conversion produces i64::MIN or i64::MAX
+                        // instead, values that `count` never reaches.
+                        instr.unop(UnaryOp::I64TruncSSatF64);
                     } else {
                         // Quantifier is not a percentage, use it as is.
                         emit_expr(ctx, ir, *quantifier, instr);
