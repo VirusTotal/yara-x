@@ -842,6 +842,49 @@ fn for_in() {
         )"
     );
 
+    // Negative lower bounds known at compile time are rejected by the
+    // compiler, but the lower bound can be negative at runtime (e.g: when it
+    // is computed from `filesize` or a pattern offset). In such cases the
+    // loop iterates over the negative values as usual.
+    condition_true!("for any x in (-3) : ( for any i in (x..0) : ( i == -3 ) )");
+    condition_true!("for any x in (-3) : ( for 4 i in (x..0) : ( i <= 0 ) )");
+    condition_true!(
+        "for any i in (filesize - 10..filesize) : ( uint8(i) == 0x41 )",
+        b"A"
+    );
+
+    // A negative (signed) lower bound with an unsigned upper bound that fits
+    // in an `i64`.
+    condition_true!(
+        "for any x in (-2) : ( for 4 i in (x..uint64(0)) : ( true ) )",
+        &[0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+    );
+
+    // The range is empty when upper_bound < lower_bound, even if computing
+    // `upper_bound - lower_bound + 1` wraps around into a positive number.
+    condition_false!(
+        "for any x in (0x7FFFFFFFFFFFFFFF) : (
+            for any y in (-9223372036854775808) : (
+                for any i in (x..y) : ( true )
+            )
+        )"
+    );
+
+    // Unsigned bounds greater than i64::MAX can't be represented by the loop
+    // variable, so the range is empty.
+    condition_false!(
+        "for any x in (0xFFFFFFFFFFFFFFFE) : (
+            for any y in (0xFFFFFFFFFFFFFFFF) : (
+                for any i in (x..y) : ( true )
+            )
+        )"
+    );
+    condition_false!(
+        "for any x in (0xFFFFFFFFFFFFFFFF) : (
+            for any i in (0..x) : ( true )
+        )"
+    );
+
     condition_true!(r#"for any e in (1,2,3) : (e == 3)"#);
     condition_true!(r#"for any e in (1+1,2+2) : (e == 2)"#);
     condition_false!(r#"for any e in (1+1,2+2) : (e == 3)"#);
