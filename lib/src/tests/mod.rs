@@ -4441,6 +4441,22 @@ fn defined_3() {
 }
 
 #[test]
+#[cfg(feature = "test_proto3-module")]
+fn proto3_integers() {
+    // Like in proto2 modules, fields of type uint32 are signed integers
+    // constrained to the range [0, u32::MAX], while fields of type uint64 are
+    // unsigned integers.
+    condition_true!(r#"test_proto3.uint32_one - 2 == -1"#);
+    condition_true!(r#"test_proto3.uint64_one - 2 == 0xFFFFFFFFFFFFFFFF"#);
+
+    // As `uint32_one` is known to be non-negative, dividing an unsigned
+    // integer by it produces an unsigned result.
+    condition_true!(
+        r#"(test_proto3.uint64_zero - 1) \ test_proto3.uint32_one == 0xFFFFFFFFFFFFFFFF"#
+    );
+}
+
+#[test]
 #[cfg(feature = "test_proto2-module")]
 fn short_circuit() {
     rule_true!(

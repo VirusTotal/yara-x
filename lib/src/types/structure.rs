@@ -946,19 +946,29 @@ impl Struct {
                 }
             }
             RuntimeType::U32 => {
-                if let Some(v) = value {
+                let mut type_value = if let Some(v) = value {
                     TypeValue::var_signed_integer_from(Self::value_as_i64(v))
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
                     TypeValue::var_signed_integer_from(0)
-                } else if generate_compile_time_fields {
-                    TypeValue::unknown_signed_integer_with_constraints([
-                        IntegerConstraint::Range(0, u32::MAX as i128),
-                    ])
                 } else {
                     TypeValue::unknown_signed_integer()
+                };
+                // `uint32` fields are signed integers constrained to the
+                // range [0, u32::MAX]. The constraint must be set regardless
+                // of the field's value, as fields in proto3 modules always
+                // have a value, even at compile time.
+                if generate_compile_time_fields
+                    && let TypeValue::Integer { constraints, .. } =
+                        &mut type_value
+                {
+                    *constraints = Some(Box::new([IntegerConstraint::Range(
+                        0,
+                        u32::MAX as i128,
+                    )]));
                 }
+                type_value
             }
             RuntimeType::I32 | RuntimeType::I64 | RuntimeType::Enum(_) => {
                 if let Some(v) = value {
