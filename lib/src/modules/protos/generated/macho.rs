@@ -4751,7 +4751,7 @@ pub struct File {
     // @@protoc_insertion_point(field:macho.File.reserved)
     pub reserved: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:macho.File.number_of_segments)
-    pub number_of_segments: ::std::option::Option<u32>,
+    pub number_of_segments: ::std::option::Option<u64>,
     // @@protoc_insertion_point(field:macho.File.dynamic_linker)
     pub dynamic_linker: ::std::option::Option<::std::vec::Vec<u8>>,
     // @@protoc_insertion_point(field:macho.File.entry_point)
@@ -4958,9 +4958,9 @@ impl File {
         self.reserved = ::std::option::Option::Some(v);
     }
 
-    // optional uint32 number_of_segments = 9;
+    // optional uint64 number_of_segments = 9;
 
-    pub fn number_of_segments(&self) -> u32 {
+    pub fn number_of_segments(&self) -> u64 {
         self.number_of_segments.unwrap_or(0)
     }
 
@@ -4973,7 +4973,7 @@ impl File {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_segments(&mut self, v: u32) {
+    pub fn set_number_of_segments(&mut self, v: u64) {
         self.number_of_segments = ::std::option::Option::Some(v);
     }
 
@@ -5354,7 +5354,7 @@ impl ::protobuf::Message for File {
                     self.reserved = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 72 => {
-                    self.number_of_segments = ::std::option::Option::Some(is.read_uint32()?);
+                    self.number_of_segments = ::std::option::Option::Some(is.read_uint64()?);
                 },
                 82 => {
                     self.dynamic_linker = ::std::option::Option::Some(is.read_bytes()?);
@@ -5450,7 +5450,7 @@ impl ::protobuf::Message for File {
             my_size += ::protobuf::rt::uint32_size(8, v);
         }
         if let Some(v) = self.number_of_segments {
-            my_size += ::protobuf::rt::uint32_size(9, v);
+            my_size += ::protobuf::rt::uint64_size(9, v);
         }
         if let Some(v) = self.dynamic_linker.as_ref() {
             my_size += ::protobuf::rt::bytes_size(10, &v);
@@ -5549,7 +5549,7 @@ impl ::protobuf::Message for File {
             os.write_uint32(8, v)?;
         }
         if let Some(v) = self.number_of_segments {
-            os.write_uint32(9, v)?;
+            os.write_uint64(9, v)?;
         }
         if let Some(v) = self.dynamic_linker.as_ref() {
             os.write_bytes(10, v)?;
@@ -5730,7 +5730,7 @@ pub struct Macho {
     // @@protoc_insertion_point(field:macho.Macho.reserved)
     pub reserved: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:macho.Macho.number_of_segments)
-    pub number_of_segments: ::std::option::Option<u32>,
+    pub number_of_segments: ::std::option::Option<u64>,
     // @@protoc_insertion_point(field:macho.Macho.dynamic_linker)
     pub dynamic_linker: ::std::option::Option<::std::vec::Vec<u8>>,
     // @@protoc_insertion_point(field:macho.Macho.entry_point)
@@ -5945,9 +5945,9 @@ impl Macho {
         self.reserved = ::std::option::Option::Some(v);
     }
 
-    // optional uint32 number_of_segments = 9;
+    // optional uint64 number_of_segments = 9;
 
-    pub fn number_of_segments(&self) -> u32 {
+    pub fn number_of_segments(&self) -> u64 {
         self.number_of_segments.unwrap_or(0)
     }
 
@@ -5960,7 +5960,7 @@ impl Macho {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_segments(&mut self, v: u32) {
+    pub fn set_number_of_segments(&mut self, v: u64) {
         self.number_of_segments = ::std::option::Option::Some(v);
     }
 
@@ -6409,7 +6409,7 @@ impl ::protobuf::Message for Macho {
                     self.reserved = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 72 => {
-                    self.number_of_segments = ::std::option::Option::Some(is.read_uint32()?);
+                    self.number_of_segments = ::std::option::Option::Some(is.read_uint64()?);
                 },
                 82 => {
                     self.dynamic_linker = ::std::option::Option::Some(is.read_bytes()?);
@@ -6517,7 +6517,7 @@ impl ::protobuf::Message for Macho {
             my_size += ::protobuf::rt::uint32_size(8, v);
         }
         if let Some(v) = self.number_of_segments {
-            my_size += ::protobuf::rt::uint32_size(9, v);
+            my_size += ::protobuf::rt::uint64_size(9, v);
         }
         if let Some(v) = self.dynamic_linker.as_ref() {
             my_size += ::protobuf::rt::bytes_size(10, &v);
@@ -6630,7 +6630,7 @@ impl ::protobuf::Message for Macho {
             os.write_uint32(8, v)?;
         }
         if let Some(v) = self.number_of_segments {
-            os.write_uint32(9, v)?;
+            os.write_uint64(9, v)?;
         }
         if let Some(v) = self.dynamic_linker.as_ref() {
             os.write_bytes(10, v)?;
@@ -8903,8 +8903,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x05ncmds\x12\x1e\n\nsizeofcmds\x18\x06\x20\x01(\rR\nsizeofcmds\x12*\n\
     \x05flags\x18\x07\x20\x01(\rR\x05flagsB\x14\x82\x93\x19\x10*\x0eflags:Fi\
     leFlag\x12\x1a\n\x08reserved\x18\x08\x20\x01(\rR\x08reserved\x12|\n\x12n\
-    umber_of_segments\x18\t\x20\x01(\rR\x10numberOfSegmentsBN\x82\x93\x19J2H\
-    \n\x18this\x20field\x20is\x20deprecated\x12\x1cuse\x20`segments.len()`\
+    umber_of_segments\x18\t\x20\x01(\x04R\x10numberOfSegmentsBN\x82\x93\x19J\
+    2H\n\x18this\x20field\x20is\x20deprecated\x12\x1cuse\x20`segments.len()`\
     \x20instead\x1a\x0esegments.len()\x12%\n\x0edynamic_linker\x18\n\x20\x01\
     (\x0cR\rdynamicLinker\x12\x1f\n\x0bentry_point\x18\x0b\x20\x01(\x04R\nen\
     tryPoint\x12\x1d\n\nstack_size\x18\x0c\x20\x01(\x04R\tstackSize\x12%\n\
@@ -8931,10 +8931,10 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x1e\n\nsizeofcmds\x18\x06\x20\x01(\rR\nsizeofcmds\x12\x1d\n\x05flags\
     \x18\x07\x20\x01(\rR\x05flagsB\x07\x82\x93\x19\x03*\x01x\x12\x1a\n\x08re\
     served\x18\x08\x20\x01(\rR\x08reserved\x12\x82\x01\n\x12number_of_segmen\
-    ts\x18\t\x20\x01(\rR\x10numberOfSegmentsBT\x82\x93\x19P2N\n\x18this\x20f\
-    ield\x20is\x20deprecated\x12\"use\x20`macho.segments.len()`\x20instead\
-    \x1a\x0esegments.len()\x12%\n\x0edynamic_linker\x18\n\x20\x01(\x0cR\rdyn\
-    amicLinker\x12\x1f\n\x0bentry_point\x18\x0b\x20\x01(\x04R\nentryPoint\
+    ts\x18\t\x20\x01(\x04R\x10numberOfSegmentsBT\x82\x93\x19P2N\n\x18this\
+    \x20field\x20is\x20deprecated\x12\"use\x20`macho.segments.len()`\x20inst\
+    ead\x1a\x0esegments.len()\x12%\n\x0edynamic_linker\x18\n\x20\x01(\x0cR\r\
+    dynamicLinker\x12\x1f\n\x0bentry_point\x18\x0b\x20\x01(\x04R\nentryPoint\
     \x12\x1d\n\nstack_size\x18\x0c\x20\x01(\x04R\tstackSize\x12%\n\x0esource\
     _version\x18\r\x20\x01(\tR\rsourceVersion\x12%\n\x06symtab\x18\x0e\x20\
     \x01(\x0b2\r.macho.SymtabR\x06symtab\x12+\n\x08dysymtab\x18\x0f\x20\x01(\

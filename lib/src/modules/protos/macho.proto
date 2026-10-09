@@ -239,7 +239,7 @@ message File {
   optional uint32 reserved = 8;
 
   // Number of segments parsed from the binary.
-  optional uint32 number_of_segments = 9 [(yara.field_options).deprecation_notice = {
+  optional uint64 number_of_segments = 9 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `segments.len()` instead",
     replacement: "segments.len()"
@@ -304,7 +304,7 @@ message Macho {
   optional uint32 reserved = 8;
 
   // Number of segments parsed.
-  optional uint32 number_of_segments = 9 [(yara.field_options).deprecation_notice = {
+  optional uint64 number_of_segments = 9 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `macho.segments.len()` instead",
     replacement: "segments.len()"
