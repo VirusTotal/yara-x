@@ -607,8 +607,12 @@ fn unsigned_integers() {
     );
 
     // Unary minus produces a signed integer, while the bitwise not of an
-    // unsigned integer is unsigned.
-    condition_true!("-0xFFFFFFFFFFFFFFFF == 1");
+    // unsigned integer is unsigned. Negating an unsigned integer greater
+    // than 0x7FFFFFFFFFFFFFFF wraps around at runtime, but negating a
+    // constant that produces a result that doesn't fit in a signed integer
+    // is an error (e.g: `-(0xFFFFFFFFFFFFFFFF)`).
+    condition_true!("for all x in (0xFFFFFFFFFFFFFFFF) : (-x == 1)");
+    condition_true!("-(0x8000000000000000) == -9223372036854775808");
     condition_true!("~0xFFFFFFFFFFFFFFFF == 0");
     condition_true!("~0x7FFFFFFFFFFFFFFF == -9223372036854775808");
 

@@ -2671,7 +2671,6 @@ fn re_error_to_compile_error(
     }
 }
 
-/// Produce a warning if the expression is not boolean.
 /// Raises a [`warnings::UnsignedUnaryOperation`] warning if `operand` is an
 /// unsigned integer.
 fn warn_if_unsigned(
@@ -2693,6 +2692,8 @@ fn warn_if_unsigned(
     }
 }
 
+/// Raises a [`warnings::NonBooleanAsBoolean`] warning if the type is not
+/// boolean.
 pub(in crate::compiler) fn warn_if_not_bool(
     ctx: &mut CompileContext,
     ty: Type,
@@ -3033,21 +3034,40 @@ fn or_expr_from_ast<'src>(
     })
 }
 
-gen_unary_op!(
-    minus_expr_from_ast,
-    minus,
-    Type::Integer | Type::Float,
-    Some(|ctx, operand, span| {
-        warn_if_unsigned(
-            ctx,
-            operand,
-            span,
-            "-",
-            "the result is a signed integer, which wraps around if the unsigned value is greater than 0x7FFFFFFFFFFFFFFF",
-        );
-        Ok(())
-    })
-);
+fn minus_expr_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    expr: &ast::UnaryExpr<'src>,
+) -> Result<ExprId, CompileError> {
+    let operand = expr_from_ast(ctx, &expr.operand)?;
+
+    check_type(
+        ctx,
+        operand,
+        expr.operand.span(),
+        &[Type::Integer, Type::Float],
+    )?;
+
+    // Negating a constant fails if the result doesn't fit in a signed
+    // integer, as in `-(-9223372036854775808)` or `-(0xFFFFFFFFFFFFFFFF)`.
+    let minus = ctx.ir.minus(operand).map_err(|err| match err {
+        Error::NumberOutOfRange => NumberOutOfRange::build(
+            ctx.report_builder,
+            i64::MIN,
+            i64::MAX,
+            ctx.report_builder.span_to_code_loc(expr.span()),
+        ),
+    })?;
+
+    warn_if_unsigned(
+        ctx,
+        operand,
+        expr.operand.span(),
+        "-",
+        "the result is a signed integer, which wraps around if the unsigned value is greater than 0x7FFFFFFFFFFFFFFF",
+    );
+
+    Ok(minus)
+}
 
 gen_n_ary_operation!(
     add_expr_from_ast,

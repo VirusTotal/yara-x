@@ -1813,19 +1813,20 @@ impl IR {
     }
 
     /// Creates a new [`Expr::Minus`].
-    pub fn minus(&mut self, operand: ExprId) -> ExprId {
+    pub fn minus(&mut self, operand: ExprId) -> Result<ExprId, Error> {
         if self.constant_folding {
             let tv = self.get(operand).type_value();
-            if tv.is_const() {
-                if let Some(v) = tv.try_as_integer() {
-                    // The result of negating an integer is always signed, even
-                    // if the operand is unsigned. Overflows wrap around.
-                    return self.constant(
-                        TypeValue::const_signed_integer_from(v.wrapping_neg()),
-                    );
-                } else if let TypeValue::Float { value: Const(v) } = tv {
-                    return self.constant(TypeValue::const_float_from(-v));
-                }
+            if let Some(v) = tv.try_as_const_i128() {
+                // The result of negating an integer is always signed, even
+                // if the operand is unsigned. Like in other arithmetic
+                // operations, folding fails if the result doesn't fit in
+                // the result's type, as in `-(-9223372036854775808)` or
+                // `-(0xFFFFFFFFFFFFFFFF)`.
+                return TypeValue::const_integer_from_i128(-v, false)
+                    .map(|value| self.constant(value))
+                    .ok_or(Error::NumberOutOfRange);
+            } else if let TypeValue::Float { value: Const(v) } = tv {
+                return Ok(self.constant(TypeValue::const_float_from(-v)));
             }
         }
 
@@ -1837,7 +1838,7 @@ impl IR {
             is_float: matches!(self.get(operand).ty(), Type::Float),
         });
         debug_assert_eq!(self.parents.len(), self.nodes.len());
-        expr_id
+        Ok(expr_id)
     }
 
     /// Creates a new [`Expr::Defined`].

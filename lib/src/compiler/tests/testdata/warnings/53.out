@@ -1,8 +1,8 @@
 warning[unsigned_unary_op]: `-` applied to an unsigned integer
  --> line:3:6
   |
-3 |     -0xFFFFFFFFFFFFFFFF == 1
-  |      ------------------ this is an unsigned integer
+3 |     -uint64(0) == 1
+  |      --------- this is an unsigned integer
   |
   = note: the result is a signed integer, which wraps around if the unsigned value is greater than 0x7FFFFFFFFFFFFFFF
 warning[unsigned_unary_op]: `~` applied to an unsigned integer

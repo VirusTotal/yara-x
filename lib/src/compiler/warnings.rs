@@ -892,6 +892,7 @@ pub struct DuplicatePatternValue {
     duplicate_loc: CodeLoc,
     existing_loc: CodeLoc,
 }
+
 /// A unary minus (`-`) or bitwise not (`~`) is applied to an unsigned integer.
 ///
 /// Negating an unsigned integer produces a signed integer, and the result
@@ -905,8 +906,8 @@ pub struct DuplicatePatternValue {
 /// warning[unsigned_unary_op]: `-` applied to an unsigned integer
 ///  --> line:1:25
 ///   |
-/// 1 | rule test { condition: -0xFFFFFFFFFFFFFFFF == 1 }
-///   |                         ------------------ this is an unsigned integer
+/// 1 | rule test { condition: -uint64(0) == 1 }
+///   |                         --------- this is an unsigned integer
 ///   |
 ///   = note: the result is a signed integer, which wraps around if the unsigned value is greater than 0x7FFFFFFFFFFFFFFF
 /// ```

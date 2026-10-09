@@ -372,8 +372,8 @@ not of an unsigned integer inverts all its 64 bits.
 warning[unsigned_unary_op]: `-` applied to an unsigned integer
  --> line:1:25
   |
-1 | rule test { condition: -0xFFFFFFFFFFFFFFFF == 1 }
-  |                         ------------------ this is an unsigned integer
+1 | rule test { condition: -uint64(0) == 1 }
+  |                         --------- this is an unsigned integer
   |
   = note: the result is a signed integer, which wraps around if the unsigned value is greater than 0x7FFFFFFFFFFFFFFF
 ```

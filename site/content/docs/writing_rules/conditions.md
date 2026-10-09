@@ -261,7 +261,10 @@ int64(0) << 4           // signed (left operand is signed)
 ##### Unary operators (`-`, `~`)
 
 * **Unary minus (`-`)** always produces a **signed** integer. If applied to an
-  unsigned value greater than `0x7FFFFFFFFFFFFFFF`, the result wraps around.
+  unsigned value greater than `0x7FFFFFFFFFFFFFFF` at runtime, the result wraps
+  around. However, negating a constant whose result doesn't fit in a signed
+  integer is rejected at compile time with an error, and the same happens with
+  negative literals smaller than `-9223372036854775808`.
 * **Bitwise NOT (`~`)** inverts all 64 bits and **preserves** the signedness of
   its operand.
 
@@ -270,10 +273,12 @@ results, the compiler emits an [`unsigned_unary_op`](/docs/warnings/#unsigned_un
 warning when either operator is used on an unsigned value:
 
 ```yara
--100                 // -100 (signed)
--0xFFFFFFFFFFFFFFFF  // 1 (signed, wraps around; emits warning)
-~0x01                // -2, or 0xFFFFFFFFFFFFFFFE (signed)
-~0xFFFFFFFFFFFFFFFF  // 0 (unsigned; emits warning)
+-100                  // -100 (signed)
+-uint64(0)            // signed, wraps around if uint64(0) > 0x7FFFFFFFFFFFFFFF (emits warning)
+-(0xFFFFFFFFFFFFFFFF) // compile error: number out of range
+-9223372036854775809  // compile error: invalid integer
+~0x01                 // -2, or 0xFFFFFFFFFFFFFFFE (signed)
+~0xFFFFFFFFFFFFFFFF   // 0 (unsigned; emits warning)
 ```
 
 ### Float literals

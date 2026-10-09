@@ -1456,7 +1456,10 @@ where
                     // `-9223372036854775808` is also merged into a single
                     // literal. This is a valid `i64` (i64::MIN), but
                     // `9223372036854775808` alone doesn't fit in an `i64`,
-                    // so it was parsed as an unsigned integer.
+                    // so it was parsed as an unsigned integer. Any other
+                    // unsigned integer preceded by a minus sign produces a
+                    // negative number that doesn't fit in an `i64`, like
+                    // `-9223372036854775809`, which is an error.
                     Expr::LiteralInteger(mut integer)
                         if !literal.contains('(') =>
                     {
@@ -1473,6 +1476,16 @@ where
                             integer.literal = literal;
                             integer.span = span;
                             Expr::LiteralInteger(integer)
+                        } else if integer.is_unsigned {
+                            self.errors.push(Error::InvalidInteger {
+                                message: format!(
+                                    "this number is out of the valid range: [{}, {}]",
+                                    i64::MIN,
+                                    u64::MAX
+                                ),
+                                span,
+                            });
+                            return Err(BuilderError::Abort);
                         } else {
                             Expr::Minus(Box::new(UnaryExpr {
                                 span,
