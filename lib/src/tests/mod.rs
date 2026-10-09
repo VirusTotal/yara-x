@@ -871,7 +871,9 @@ fn for_in() {
     // compiler, but the lower bound can be negative at runtime (e.g: when it
     // is computed from `filesize` or a pattern offset). In such cases the
     // loop iterates over the negative values as usual.
-    condition_true!("for any x in (-3) : ( for any i in (x..0) : ( i == -3 ) )");
+    condition_true!(
+        "for any x in (-3) : ( for any i in (x..0) : ( i == -3 ) )"
+    );
     condition_true!("for any x in (-3) : ( for 4 i in (x..0) : ( i <= 0 ) )");
     condition_true!(
         "for any i in (filesize - 10..filesize) : ( uint8(i) == 0x41 )",
