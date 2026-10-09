@@ -9,9 +9,7 @@ use crate::modules::protos::yara::exts::{
     enum_options, enum_value, field_options, message_options, module_options,
 };
 use crate::symbols::{Symbol, SymbolLookup};
-use crate::types::{
-    Array, IntegerConstraint, Map, StringConstraint, TypeValue,
-};
+use crate::types::{Array, Map, StringConstraint, TypeValue, Value};
 use crate::wasm::WasmExport;
 use bstr::BString;
 use indexmap::{IndexMap, IndexSet};
@@ -946,31 +944,28 @@ impl Struct {
                 }
             }
             RuntimeType::U32 => {
-                let mut type_value = if let Some(v) = value {
-                    TypeValue::var_signed_integer_from(Self::value_as_i64(v))
+                if let Some(v) = value {
+                    TypeValue::Uint32(Value::Var(Self::value_as_u32(v)))
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
-                    TypeValue::var_signed_integer_from(0)
+                    TypeValue::Uint32(Value::Var(0))
                 } else {
-                    TypeValue::unknown_signed_integer()
-                };
-                // `uint32` fields are signed integers constrained to the
-                // range [0, u32::MAX]. The constraint must be set regardless
-                // of the field's value, as fields in proto3 modules always
-                // have a value, even at compile time.
-                if generate_compile_time_fields
-                    && let TypeValue::Integer { constraints, .. } =
-                        &mut type_value
-                {
-                    *constraints = Some(Box::new([IntegerConstraint::Range(
-                        0,
-                        u32::MAX as i128,
-                    )]));
+                    TypeValue::Uint32(Value::Unknown)
                 }
-                type_value
             }
-            RuntimeType::I32 | RuntimeType::I64 | RuntimeType::Enum(_) => {
+            RuntimeType::I32 => {
+                if let Some(v) = value {
+                    TypeValue::Int32(Value::Var(Self::value_as_i32(v)))
+                } else if syntax == Syntax::Proto3 {
+                    // In proto3 unknown values are set to their default
+                    // values.
+                    TypeValue::Int32(Value::Var(0))
+                } else {
+                    TypeValue::Int32(Value::Unknown)
+                }
+            }
+            RuntimeType::I64 | RuntimeType::Enum(_) => {
                 if let Some(v) = value {
                     TypeValue::var_signed_integer_from(Self::value_as_i64(v))
                 } else if syntax == Syntax::Proto3 {
@@ -1287,6 +1282,20 @@ impl Struct {
             )
         } else {
             unreachable!()
+        }
+    }
+
+    fn value_as_i32(value: ReflectValueRef) -> i32 {
+        match value {
+            ReflectValueRef::I32(v) => v,
+            _ => panic!(),
+        }
+    }
+
+    fn value_as_u32(value: ReflectValueRef) -> u32 {
+        match value {
+            ReflectValueRef::U32(v) => v,
+            _ => panic!(),
         }
     }
 

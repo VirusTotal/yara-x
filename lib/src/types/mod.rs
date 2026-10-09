@@ -176,55 +176,41 @@ impl Regexp {
 /// Some types can have an optional set of constraints that gives additional
 /// information about the value. For instance, strings can have a constraint
 /// [`StringConstraint::Lowercase`], which indicates that the string is always
-/// lowercase, and integer types can have [IntegerConstraint::Range] telling
-/// the range in which values be contained.
+/// lowercase.
 ///
-/// # Integer signedness.
+/// # Integer types and signedness promotion
 ///
-/// Signed and unsigned integers share the same [`Type::Integer`] type;
-/// signedness only matters for operations where the result depends on
-/// it, such as comparisons, divisions, right shifts, and conversions to
-/// float. For unsigned integers, `value` holds the `i64` with the same
-/// bit pattern as the `u64` value.
+/// All integer variants (`Int8`, `Int16`, `Int32`, `Int64`, `Uint8`, `Uint16`,
+/// `Uint32`, `Uint64`) share the same high-level [`Type::Integer`] type, and at
+/// runtime all integers in WASM are widened to 64-bit values (`i64`).
 ///
-/// ## Which integers are unsigned?
+/// The narrower variants (`Int8`, `Int16`, `Int32`, `Uint8`, `Uint16`, `Uint32`)
+/// preserve the exact domain of built-in functions (such as `uint8`, `int32`)
+/// and protobuf module fields (`int32`, `uint32`), allowing the compiler to
+/// know their value ranges (see [`TypeValue::integer_range`]) and detect
+/// unsatisfiable or invariant comparisons such as `uint32(0) == -1` or
+/// `uint32(0) >= 0` at compile time.
 ///
-/// By default, integers in YARA-X are 64-bit signed (`is_unsigned: false`).
-/// An integer is unsigned (`is_unsigned: true`) only when its domain can
-/// exceed `i64::MAX` (`0x7FFFFFFFFFFFFFFF`), specifically:
+/// ## Integer promotion in 64-bit arithmetic
 ///
-/// * Integer literals in the range `0x8000000000000000..=0xFFFFFFFFFFFFFFFF`.
-/// * Results of `uint64` and `uint64be`.
-/// * Module fields and functions of type `uint64`.
+/// Because all arithmetic in YARA-X is evaluated at 64-bit width (analogous to
+/// C's integer promotion to `int64_t`), narrower unsigned integers (`Uint8`,
+/// `Uint16`, `Uint32`) fit entirely within the positive range of `i64`
+/// (`0..=i64::MAX`, where the 64-bit sign bit is never set). Consequently:
 ///
-/// ## Why `uint8`, `uint16`, and `uint32` are signed
-///
-/// Functions like `uint8`, `uint16`, and `uint32` (which return
-/// [`crate::wasm::integer::RangedInteger`]), as well as protobuf `uint32`
-/// module fields, produce **signed** 64-bit integers with a non-negative
-/// [`IntegerConstraint::Range`] (`0..=255`, `0..=65535`, `0..=4294967295`),
-/// rather than unsigned integers:
-///
-/// * Because all integers are widened to 64 bits, their values already fit
-///   within the positive range of `i64` (the sign bit is never set).
-/// * If they were marked as unsigned, subtracting a larger constant or
-///   another `uint32` (e.g., `uint32(0) - 10` or `uint32(0) - uint32(4)`)
-///   would produce an unsigned 64-bit integer that wraps around on
-///   underflow to a huge positive value (`0xFFFFFFFFFFFFFFF6`), making
-///   expressions like `uint32(0) - 10 > 100` unexpectedly evaluate to
-///   `true` when `uint32(0) < 10`, and `uint32(0) - uint32(4) < 0` always
-///   `false`.
-/// * Marking them as unsigned would also trigger false-positive
-///   `unsigned_unary_op` warnings on `-uint32(0)`, even though negating a
-///   32-bit unsigned value in 64-bit signed arithmetic never overflows,
-///   and would require extra runtime branching when comparing against
-///   signed integers like `filesize` or `int32(...)`.
-/// * Meanwhile, their non-negative [`IntegerConstraint::Range`] still allows
-///   the compiler to treat them as non-negative when combined with an
-///   unsigned `uint64` (so `uint64(0) \ uint8(1)` remains unsigned, just
-///   like `uint64(0) \ 2`), and to detect unsatisfiable or invariant
-///   comparisons such as `uint32(0) == -1` or `uint32(0) >= 0` at compile
-///   time.
+/// * [`TypeValue::is_unsigned`] returns `true` **only** for [`TypeValue::Uint64`],
+///   whose domain (`0..=u64::MAX`) can exceed `i64::MAX` (`0x7FFFFFFFFFFFFFFF`)
+///   and therefore requires 64-bit unsigned WASM instructions (`i64.div_u`,
+///   `i64.lt_u`, etc.).
+/// * Narrower unsigned integers (`Uint8`, `Uint16`, `Uint32`) promote to signed
+///   64-bit integers (`Int64`) in arithmetic and unary operations unless
+///   combined with a `Uint64`. This prevents 64-bit unsigned underflow wrap-around
+///   in expressions like `uint32(0) - 10` or `uint32(0) - uint32(4)`, and avoids
+///   false-positive `unsigned_unary_op` warnings on `-uint32(0)`.
+/// * Meanwhile, [`TypeValue::is_non_negative`] returns `true` for all unsigned
+///   variants (`Uint8`, `Uint16`, `Uint32`, `Uint64`), so combining them with a
+///   `Uint64` (e.g., `uint64(0) \ uint8(1)`) keeps the operation unsigned, just
+///   like `uint64(0) \ 2`.
 ///
 /// See [`crate::compiler::ir::IR::is_unsigned_result`] for how signedness
 /// propagates through arithmetic and bitwise operations.
@@ -237,11 +223,14 @@ pub(crate) enum TypeValue {
     Float {
         value: Value<f64>,
     },
-    Integer {
-        value: Value<i64>,
-        is_unsigned: bool,
-        constraints: Option<Box<[IntegerConstraint]>>,
-    },
+    Int8(Value<i8>),
+    Int16(Value<i16>),
+    Int32(Value<i32>),
+    Int64(Value<i64>),
+    Uint8(Value<u8>),
+    Uint16(Value<u16>),
+    Uint32(Value<u32>),
+    Uint64(Value<u64>),
     String {
         value: Value<Rc<BString>>,
         constraints: Option<Box<[StringConstraint]>>,
@@ -264,26 +253,54 @@ pub(crate) enum StringConstraint {
     ExactLength(usize),
 }
 
-/// Each of the constraints allowed for integer types.
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub(crate) enum IntegerConstraint {
-    /// The integer is guaranteed to be within the given range (both ends
-    /// inclusive).
-    ///
-    /// The range is expressed with `i128` values, so that it can represent
-    /// ranges for both signed (`i64`) and unsigned (`u64`) integers.
-    Range(i128, i128),
-}
-
 impl Hash for TypeValue {
     fn hash<H: Hasher>(&self, state: &mut H) {
         mem::discriminant(self).hash(state);
         match self {
             TypeValue::Unknown => {}
-            TypeValue::Integer { value, is_unsigned, .. } => {
-                if *is_unsigned {
-                    true.hash(state);
+            TypeValue::Int8(value) => {
+                mem::discriminant(value).hash(state);
+                if let Value::Const(c) = value {
+                    c.hash(state);
                 }
+            }
+            TypeValue::Int16(value) => {
+                mem::discriminant(value).hash(state);
+                if let Value::Const(c) = value {
+                    c.hash(state);
+                }
+            }
+            TypeValue::Int32(value) => {
+                mem::discriminant(value).hash(state);
+                if let Value::Const(c) = value {
+                    c.hash(state);
+                }
+            }
+            TypeValue::Int64(value) => {
+                mem::discriminant(value).hash(state);
+                if let Value::Const(c) = value {
+                    c.hash(state);
+                }
+            }
+            TypeValue::Uint8(value) => {
+                mem::discriminant(value).hash(state);
+                if let Value::Const(c) = value {
+                    c.hash(state);
+                }
+            }
+            TypeValue::Uint16(value) => {
+                mem::discriminant(value).hash(state);
+                if let Value::Const(c) = value {
+                    c.hash(state);
+                }
+            }
+            TypeValue::Uint32(value) => {
+                mem::discriminant(value).hash(state);
+                if let Value::Const(c) = value {
+                    c.hash(state);
+                }
+            }
+            TypeValue::Uint64(value) => {
                 mem::discriminant(value).hash(state);
                 if let Value::Const(c) = value {
                     c.hash(state);
@@ -332,7 +349,14 @@ impl TypeValue {
     pub fn is_const(&self) -> bool {
         match self {
             TypeValue::Unknown => false,
-            TypeValue::Integer { value, .. } => value.is_const(),
+            TypeValue::Int8(value) => value.is_const(),
+            TypeValue::Int16(value) => value.is_const(),
+            TypeValue::Int32(value) => value.is_const(),
+            TypeValue::Int64(value) => value.is_const(),
+            TypeValue::Uint8(value) => value.is_const(),
+            TypeValue::Uint16(value) => value.is_const(),
+            TypeValue::Uint32(value) => value.is_const(),
+            TypeValue::Uint64(value) => value.is_const(),
             TypeValue::Float { value } => value.is_const(),
             TypeValue::Bool { value } => value.is_const(),
             TypeValue::String { value, .. } => value.is_const(),
@@ -352,10 +376,14 @@ impl TypeValue {
     /// the same fields and the type of each field matches.
     pub fn eq_type(&self, other: &Self) -> bool {
         match (self, other) {
-            (
-                Self::Integer { is_unsigned: a, .. },
-                Self::Integer { is_unsigned: b, .. },
-            ) => a == b,
+            (Self::Int8(_), Self::Int8(_)) => true,
+            (Self::Int16(_), Self::Int16(_)) => true,
+            (Self::Int32(_), Self::Int32(_)) => true,
+            (Self::Int64(_), Self::Int64(_)) => true,
+            (Self::Uint8(_), Self::Uint8(_)) => true,
+            (Self::Uint16(_), Self::Uint16(_)) => true,
+            (Self::Uint32(_), Self::Uint32(_)) => true,
+            (Self::Uint64(_), Self::Uint64(_)) => true,
             (Self::Float { .. }, Self::Float { .. }) => true,
             (Self::String { .. }, Self::String { .. }) => true,
             (Self::Bool { .. }, Self::Bool { .. }) => true,
@@ -407,7 +435,14 @@ impl TypeValue {
     pub fn ty(&self) -> Type {
         match self {
             Self::Unknown => Type::Unknown,
-            Self::Integer { .. } => Type::Integer,
+            Self::Int8(_)
+            | Self::Int16(_)
+            | Self::Int32(_)
+            | Self::Int64(_)
+            | Self::Uint8(_)
+            | Self::Uint16(_)
+            | Self::Uint32(_)
+            | Self::Uint64(_) => Type::Integer,
             Self::Float { .. } => Type::Float,
             Self::Bool { .. } => Type::Bool,
             Self::String { .. } => Type::String,
@@ -422,12 +457,14 @@ impl TypeValue {
     pub fn clone_without_value(&self) -> Self {
         match self {
             Self::Unknown => Self::Unknown,
-            Self::Integer { is_unsigned: false, .. } => {
-                Self::unknown_signed_integer()
-            }
-            Self::Integer { is_unsigned: true, .. } => {
-                Self::unknown_unsigned_integer()
-            }
+            Self::Int8(_) => Self::Int8(Value::Unknown),
+            Self::Int16(_) => Self::Int16(Value::Unknown),
+            Self::Int32(_) => Self::Int32(Value::Unknown),
+            Self::Int64(_) => Self::Int64(Value::Unknown),
+            Self::Uint8(_) => Self::Uint8(Value::Unknown),
+            Self::Uint16(_) => Self::Uint16(Value::Unknown),
+            Self::Uint32(_) => Self::Uint32(Value::Unknown),
+            Self::Uint64(_) => Self::Uint64(Value::Unknown),
             Self::Float { .. } => Self::unknown_float(),
             Self::Bool { .. } => Self::unknown_bool(),
             Self::String { .. } => Self::unknown_string(),
@@ -447,13 +484,62 @@ impl TypeValue {
     /// integers, floats, and strings and bools can be casted to bool.
     pub fn cast_to_bool(&self) -> Self {
         match self {
-            Self::Integer { value: Value::Unknown, .. } => {
+            Self::Int8(Value::Unknown)
+            | Self::Int16(Value::Unknown)
+            | Self::Int32(Value::Unknown)
+            | Self::Int64(Value::Unknown)
+            | Self::Uint8(Value::Unknown)
+            | Self::Uint16(Value::Unknown)
+            | Self::Uint32(Value::Unknown)
+            | Self::Uint64(Value::Unknown) => {
                 Self::Bool { value: Value::Unknown }
             }
-            Self::Integer { value: Value::Var(i), .. } => {
+            Self::Int8(Value::Var(i)) => {
                 Self::Bool { value: Value::Var(*i != 0) }
             }
-            Self::Integer { value: Value::Const(i), .. } => {
+            Self::Int16(Value::Var(i)) => {
+                Self::Bool { value: Value::Var(*i != 0) }
+            }
+            Self::Int32(Value::Var(i)) => {
+                Self::Bool { value: Value::Var(*i != 0) }
+            }
+            Self::Int64(Value::Var(i)) => {
+                Self::Bool { value: Value::Var(*i != 0) }
+            }
+            Self::Uint8(Value::Var(i)) => {
+                Self::Bool { value: Value::Var(*i != 0) }
+            }
+            Self::Uint16(Value::Var(i)) => {
+                Self::Bool { value: Value::Var(*i != 0) }
+            }
+            Self::Uint32(Value::Var(i)) => {
+                Self::Bool { value: Value::Var(*i != 0) }
+            }
+            Self::Uint64(Value::Var(i)) => {
+                Self::Bool { value: Value::Var(*i != 0) }
+            }
+            Self::Int8(Value::Const(i)) => {
+                Self::Bool { value: Value::Const(*i != 0) }
+            }
+            Self::Int16(Value::Const(i)) => {
+                Self::Bool { value: Value::Const(*i != 0) }
+            }
+            Self::Int32(Value::Const(i)) => {
+                Self::Bool { value: Value::Const(*i != 0) }
+            }
+            Self::Int64(Value::Const(i)) => {
+                Self::Bool { value: Value::Const(*i != 0) }
+            }
+            Self::Uint8(Value::Const(i)) => {
+                Self::Bool { value: Value::Const(*i != 0) }
+            }
+            Self::Uint16(Value::Const(i)) => {
+                Self::Bool { value: Value::Const(*i != 0) }
+            }
+            Self::Uint32(Value::Const(i)) => {
+                Self::Bool { value: Value::Const(*i != 0) }
+            }
+            Self::Uint64(Value::Const(i)) => {
                 Self::Bool { value: Value::Const(*i != 0) }
             }
 
@@ -556,7 +642,9 @@ impl TypeValue {
     }
 
     /// Returns the value of a signed or unsigned integer as an `i64` with
-    /// the same bit pattern.
+    /// the same 64-bit representation (sign-extended for `Int8`..`Int32`,
+    /// zero-extended for `Uint8`..`Uint32`, and same bit pattern for `Int64`
+    /// and `Uint64`).
     ///
     /// This is how integers are represented in WASM code, where signedness
     /// is determined by the instructions used for operating with them.
@@ -564,10 +652,16 @@ impl TypeValue {
     /// Returns [`None`] if the [`TypeValue`] is not an integer, or if its
     /// value is unknown.
     pub fn try_as_integer(&self) -> Option<i64> {
-        if let TypeValue::Integer { value, .. } = self {
-            value.extract().cloned()
-        } else {
-            None
+        match self {
+            TypeValue::Int8(value) => value.extract().map(|&v| v as i64),
+            TypeValue::Int16(value) => value.extract().map(|&v| v as i64),
+            TypeValue::Int32(value) => value.extract().map(|&v| v as i64),
+            TypeValue::Int64(value) => value.extract().copied(),
+            TypeValue::Uint8(value) => value.extract().map(|&v| v as i64),
+            TypeValue::Uint16(value) => value.extract().map(|&v| v as i64),
+            TypeValue::Uint32(value) => value.extract().map(|&v| v as i64),
+            TypeValue::Uint64(value) => value.extract().map(|&v| v as i64),
+            _ => None,
         }
     }
 
@@ -577,16 +671,14 @@ impl TypeValue {
     /// Returns [`None`] if the [`TypeValue`] is not a constant integer.
     pub fn try_as_const_i128(&self) -> Option<i128> {
         match self {
-            TypeValue::Integer {
-                value: Value::Const(v),
-                is_unsigned: false,
-                ..
-            } => Some(*v as i128),
-            TypeValue::Integer {
-                value: Value::Const(v),
-                is_unsigned: true,
-                ..
-            } => Some((*v as u64) as i128),
+            TypeValue::Int8(Value::Const(v)) => Some(*v as i128),
+            TypeValue::Int16(Value::Const(v)) => Some(*v as i128),
+            TypeValue::Int32(Value::Const(v)) => Some(*v as i128),
+            TypeValue::Int64(Value::Const(v)) => Some(*v as i128),
+            TypeValue::Uint8(Value::Const(v)) => Some(*v as i128),
+            TypeValue::Uint16(Value::Const(v)) => Some(*v as i128),
+            TypeValue::Uint32(Value::Const(v)) => Some(*v as i128),
+            TypeValue::Uint64(Value::Const(v)) => Some(*v as i128),
             _ => None,
         }
     }
@@ -609,63 +701,57 @@ impl TypeValue {
     /// Creates a constant integer from the bit pattern `bits`, with the
     /// given signedness.
     pub fn const_integer_from_bits(bits: i64, is_unsigned: bool) -> Self {
-        Self::Integer {
-            value: Value::Const(bits),
-            is_unsigned,
-            constraints: None,
+        if is_unsigned {
+            Self::Uint64(Value::Const(bits as u64))
+        } else {
+            Self::Int64(Value::Const(bits))
         }
     }
 
-    /// Returns the constraints of a signed or unsigned integer, if any.
-    pub fn integer_constraints(&self) -> Option<&[IntegerConstraint]> {
+    /// Returns the valid value range `(min, max)` (both inclusive) for a
+    /// non-constant integer [`TypeValue`], or [`None`] if it is constant or
+    /// not an integer.
+    pub fn integer_range(&self) -> Option<(i128, i128)> {
+        if self.is_const() {
+            return None;
+        }
         match self {
-            TypeValue::Integer { constraints: Some(c), .. } => {
-                Some(c.as_ref())
-            }
-            TypeValue::Integer {
-                constraints: None,
-                is_unsigned: false,
-                ..
-            } if !self.is_const() => Some(&[IntegerConstraint::Range(
-                i64::MIN as i128,
-                i64::MAX as i128,
-            )]),
-            TypeValue::Integer {
-                constraints: None,
-                is_unsigned: true,
-                ..
-            } if !self.is_const() => {
-                Some(&[IntegerConstraint::Range(0, u64::MAX as i128)])
-            }
+            TypeValue::Int8(_) => Some((i8::MIN as i128, i8::MAX as i128)),
+            TypeValue::Int16(_) => Some((i16::MIN as i128, i16::MAX as i128)),
+            TypeValue::Int32(_) => Some((i32::MIN as i128, i32::MAX as i128)),
+            TypeValue::Int64(_) => Some((i64::MIN as i128, i64::MAX as i128)),
+            TypeValue::Uint8(_) => Some((0, u8::MAX as i128)),
+            TypeValue::Uint16(_) => Some((0, u16::MAX as i128)),
+            TypeValue::Uint32(_) => Some((0, u32::MAX as i128)),
+            TypeValue::Uint64(_) => Some((0, u64::MAX as i128)),
             _ => None,
         }
     }
 
-    /// Returns true if the [`TypeValue`] is an unsigned integer.
+    /// Returns true if the [`TypeValue`] is an unsigned 64-bit integer
+    /// ([`TypeValue::Uint64`]).
+    ///
+    /// Note that narrower unsigned types (`Uint8`, `Uint16`, `Uint32`) return
+    /// `false` because their values fit in the positive half of `i64` and
+    /// promote to signed 64-bit integers in WASM arithmetic.
     #[inline]
     pub fn is_unsigned(&self) -> bool {
-        matches!(self, TypeValue::Integer { is_unsigned: true, .. })
+        matches!(self, TypeValue::Uint64(_))
     }
 
     /// Returns true if the [`TypeValue`] is an integer guaranteed to be
     /// non-negative (`>= 0`).
     ///
-    /// This includes unsigned integers, non-negative constant integers, and
-    /// signed integers constrained to a non-negative range (such as the
-    /// results of `uint8`, `uint16`, and `uint32`).
+    /// This includes all unsigned integer variants (`Uint8`, `Uint16`,
+    /// `Uint32`, `Uint64`) and non-negative constant signed integers.
     pub fn is_non_negative(&self) -> bool {
-        if self.is_unsigned() {
-            return true;
-        }
-        if matches!(self.try_as_const_i128(), Some(v) if v >= 0) {
-            return true;
-        }
-        if let Some(constraints) = self.integer_constraints() {
-            return constraints.iter().any(|c| match c {
-                IntegerConstraint::Range(min, _) => *min >= 0,
-            });
-        }
-        false
+        matches!(
+            self,
+            TypeValue::Uint8(_)
+                | TypeValue::Uint16(_)
+                | TypeValue::Uint32(_)
+                | TypeValue::Uint64(_)
+        ) || matches!(self.try_as_const_i128(), Some(v) if v >= 0)
     }
 
     pub fn try_as_float(&self) -> Option<f64> {
@@ -684,14 +770,10 @@ impl TypeValue {
         }
     }
 
-    /// Creates a new [`TypeValue`] consisting of a variable signed integer.
+    /// Creates a new [`TypeValue`] consisting of a variable signed 64-bit integer.
     #[inline]
     pub fn var_signed_integer_from<T: Into<i64>>(i: T) -> Self {
-        Self::Integer {
-            value: Value::Var(i.into()),
-            is_unsigned: false,
-            constraints: None,
-        }
+        Self::Int64(Value::Var(i.into()))
     }
 
     /// Creates a new [`TypeValue`] consisting of a variable float.
@@ -715,14 +797,10 @@ impl TypeValue {
         }
     }
 
-    /// Creates a new [`TypeValue`] consisting of a constant signed integer.
+    /// Creates a new [`TypeValue`] consisting of a constant signed 64-bit integer.
     #[inline]
     pub fn const_signed_integer_from<T: Into<i64>>(i: T) -> Self {
-        Self::Integer {
-            value: Value::Const(i.into()),
-            is_unsigned: false,
-            constraints: None,
-        }
+        Self::Int64(Value::Const(i.into()))
     }
 
     /// Creates a new [`TypeValue`] consisting of a constant float.
@@ -746,56 +824,40 @@ impl TypeValue {
         }
     }
 
-    /// Creates a new [`TypeValue`] consisting of an unknown string.
+    /// Creates a new [`TypeValue`] consisting of an unknown boolean.
     #[inline]
     pub fn unknown_bool() -> Self {
         Self::Bool { value: Value::Unknown }
     }
 
-    /// Creates a new [`TypeValue`] consisting of an unknown integer.
+    /// Creates a new [`TypeValue`] consisting of an unknown float.
     #[inline]
     pub fn unknown_float() -> Self {
         Self::Float { value: Value::Unknown }
     }
 
-    /// Creates a new [`TypeValue`] consisting of an unknown signed integer.
+    /// Creates a new [`TypeValue`] consisting of an unknown signed 64-bit integer.
     #[inline]
     pub fn unknown_signed_integer() -> Self {
-        Self::Integer {
-            value: Value::Unknown,
-            is_unsigned: false,
-            constraints: None,
-        }
+        Self::Int64(Value::Unknown)
     }
 
-    /// Creates a new [`TypeValue`] consisting of a variable unsigned integer.
+    /// Creates a new [`TypeValue`] consisting of a variable unsigned 64-bit integer.
     #[inline]
     pub fn var_unsigned_integer_from<T: Into<u64>>(i: T) -> Self {
-        Self::Integer {
-            value: Value::Var(i.into() as i64),
-            is_unsigned: true,
-            constraints: None,
-        }
+        Self::Uint64(Value::Var(i.into()))
     }
 
-    /// Creates a new [`TypeValue`] consisting of a constant unsigned integer.
+    /// Creates a new [`TypeValue`] consisting of a constant unsigned 64-bit integer.
     #[inline]
     pub fn const_unsigned_integer_from<T: Into<u64>>(i: T) -> Self {
-        Self::Integer {
-            value: Value::Const(i.into() as i64),
-            is_unsigned: true,
-            constraints: None,
-        }
+        Self::Uint64(Value::Const(i.into()))
     }
 
-    /// Creates a new [`TypeValue`] consisting of an unknown unsigned integer.
+    /// Creates a new [`TypeValue`] consisting of an unknown unsigned 64-bit integer.
     #[inline]
     pub fn unknown_unsigned_integer() -> Self {
-        Self::Integer {
-            value: Value::Unknown,
-            is_unsigned: true,
-            constraints: None,
-        }
+        Self::Uint64(Value::Unknown)
     }
 
     /// Creates a new [`TypeValue`] consisting of an unknown string.
@@ -814,36 +876,6 @@ impl TypeValue {
     ) -> Self {
         Self::String {
             value: Value::Unknown,
-            constraints: Some(constraints.into()),
-        }
-    }
-
-    /// Creates a new [`TypeValue`] consisting of an unknown signed integer
-    /// with the given constraints.
-    #[inline]
-    pub fn unknown_signed_integer_with_constraints<
-        C: Into<Box<[IntegerConstraint]>>,
-    >(
-        constraints: C,
-    ) -> Self {
-        Self::Integer {
-            value: Value::Unknown,
-            is_unsigned: false,
-            constraints: Some(constraints.into()),
-        }
-    }
-
-    /// Creates a new [`TypeValue`] consisting of an unknown unsigned integer
-    /// with the given constraints.
-    #[inline]
-    pub fn unknown_unsigned_integer_with_constraints<
-        C: Into<Box<[IntegerConstraint]>>,
-    >(
-        constraints: C,
-    ) -> Self {
-        Self::Integer {
-            value: Value::Unknown,
-            is_unsigned: true,
             constraints: Some(constraints.into()),
         }
     }
@@ -866,16 +898,58 @@ impl Debug for TypeValue {
                     write!(f, "boolean(unknown)")
                 }
             }
-            Self::Integer { value, is_unsigned: false, .. } => {
+            Self::Int8(value) => {
                 if let Some(v) = value.extract() {
                     write!(f, "integer({v:?})")
                 } else {
                     write!(f, "integer(unknown)")
                 }
             }
-            Self::Integer { value, is_unsigned: true, .. } => {
+            Self::Int16(value) => {
                 if let Some(v) = value.extract() {
-                    write!(f, "unsigned({:?})", *v as u64)
+                    write!(f, "integer({v:?})")
+                } else {
+                    write!(f, "integer(unknown)")
+                }
+            }
+            Self::Int32(value) => {
+                if let Some(v) = value.extract() {
+                    write!(f, "integer({v:?})")
+                } else {
+                    write!(f, "integer(unknown)")
+                }
+            }
+            Self::Int64(value) => {
+                if let Some(v) = value.extract() {
+                    write!(f, "integer({v:?})")
+                } else {
+                    write!(f, "integer(unknown)")
+                }
+            }
+            Self::Uint8(value) => {
+                if let Some(v) = value.extract() {
+                    write!(f, "integer({v:?})")
+                } else {
+                    write!(f, "integer(unknown)")
+                }
+            }
+            Self::Uint16(value) => {
+                if let Some(v) = value.extract() {
+                    write!(f, "integer({v:?})")
+                } else {
+                    write!(f, "integer(unknown)")
+                }
+            }
+            Self::Uint32(value) => {
+                if let Some(v) = value.extract() {
+                    write!(f, "integer({v:?})")
+                } else {
+                    write!(f, "integer(unknown)")
+                }
+            }
+            Self::Uint64(value) => {
+                if let Some(v) = value.extract() {
+                    write!(f, "unsigned({v:?})")
                 } else {
                     write!(f, "unsigned(unknown)")
                 }
@@ -926,10 +1000,14 @@ impl PartialEq for TypeValue {
                 Self::String { value: lhs, .. },
                 Self::String { value: rhs, .. },
             ) => lhs == rhs,
-            (
-                Self::Integer { value: lhs, is_unsigned: lhs_u, .. },
-                Self::Integer { value: rhs, is_unsigned: rhs_u, .. },
-            ) => lhs == rhs && lhs_u == rhs_u,
+            (Self::Int8(lhs), Self::Int8(rhs)) => lhs == rhs,
+            (Self::Int16(lhs), Self::Int16(rhs)) => lhs == rhs,
+            (Self::Int32(lhs), Self::Int32(rhs)) => lhs == rhs,
+            (Self::Int64(lhs), Self::Int64(rhs)) => lhs == rhs,
+            (Self::Uint8(lhs), Self::Uint8(rhs)) => lhs == rhs,
+            (Self::Uint16(lhs), Self::Uint16(rhs)) => lhs == rhs,
+            (Self::Uint32(lhs), Self::Uint32(rhs)) => lhs == rhs,
+            (Self::Uint64(lhs), Self::Uint64(rhs)) => lhs == rhs,
             (Self::Float { value: lhs }, Self::Float { value: rhs }) => {
                 lhs == rhs
             }
@@ -952,7 +1030,7 @@ impl Eq for TypeValue {}
 mod tests {
     use std::hash::{DefaultHasher, Hash, Hasher};
 
-    use super::{Type, TypeValue};
+    use super::{Type, TypeValue, Value};
 
     fn hash(tv: &TypeValue) -> u64 {
         let mut hasher = DefaultHasher::new();
@@ -989,5 +1067,16 @@ mod tests {
 
         assert!(TypeValue::var_unsigned_integer_from(1_u64).is_unsigned());
         assert!(!TypeValue::var_unsigned_integer_from(1_u64).is_const());
+
+        // Narrower integer variants.
+        let u32_val = TypeValue::Uint32(Value::Var(10));
+        assert_eq!(u32_val.ty(), Type::Integer);
+        assert!(!u32_val.is_unsigned());
+        assert!(u32_val.is_non_negative());
+        assert_eq!(u32_val.integer_range(), Some((0, u32::MAX as i128)));
+        assert_eq!(
+            u32_val.clone_without_value(),
+            TypeValue::Uint32(Value::Unknown)
+        );
     }
 }

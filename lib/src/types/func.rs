@@ -1,4 +1,4 @@
-use crate::types::{IntegerConstraint, StringConstraint, TypeValue};
+use crate::types::{StringConstraint, TypeValue, Value};
 use itertools::Itertools;
 use std::borrow::Cow;
 
@@ -23,22 +23,24 @@ use std::str::{Chars, FromStr};
 /// is a method of the type identified by `<type name>`. `<arguments>` is a
 /// comma-separated list of `<name>:<type>` pairs, where `<name>` is the name
 /// of the argument, and `<type>` is a sequence of characters that specify the
-/// argument's type. Allowed type characters are:
+/// argument's type. Allowed type specifiers are:
 ///
 /// ```text
-///  i: integer
+///  i8, i16, i32, i64: signed integers
+///  u8, u16, u32, u64: unsigned integers
 ///  f: float
 ///  b: bool
 ///  s: string
 ///  r: regexp
 /// ```
 ///
-/// `<return type>` is a sequence of one or more of the characters above,
+/// `<return type>` is a sequence of one or more of the specifiers above,
 /// specifying the type returned by the function (except `r`, because
 /// functions can't return regular expressions). For example, a function `add`
-/// with two integer arguments `a` and `b` that returns another integer
-/// would have the mangled name `add@a:i,b:i@i`. A function `foo` that takes no
-/// arguments and returns a tuple of two integers has the mangled name `foo@@ii`.
+/// with two 64-bit integer arguments `a` and `b` that returns another 64-bit
+/// integer would have the mangled name `add@a:i64,b:i64@i64`. A function `foo`
+/// that takes no arguments and returns a tuple of two 32-bit integers has the
+/// mangled name `foo@@i32i32`.
 ///
 /// Additionally, the return type may be followed by a `u` character if
 /// the returned value may be undefined. For example, a function `foo` that
@@ -51,8 +53,8 @@ use std::str::{Chars, FromStr};
 ///
 /// ```text
 /// foo()                          ->  foo@@
-/// foo(a: i64)                    ->  foo@a:i@
-/// foo() -> i32                   ->  foo@@i
+/// foo(a: i64)                    ->  foo@a:i64@
+/// foo() -> i32                   ->  foo@@i32
 /// foo() -> Option<()>            ->  foo@@u
 /// foo() -> Option<f32>           ->  foo@@fu
 /// foo() -> Option<(f64,f64)>     ->  foo@@ffu
@@ -60,7 +62,7 @@ use std::str::{Chars, FromStr};
 ///
 /// ### Type Constraints
 ///
-/// Types may include constraints that specify additional restrictions on
+/// String types may include constraints that specify additional restrictions on
 /// their values. A constraint follows the type character, separated by a
 /// colon, and consists of an uppercase letter (representing the constraint
 /// type) and possibly additional characters, depending on the constraint.
@@ -68,13 +70,11 @@ use std::str::{Chars, FromStr};
 /// Examples:
 ///
 /// ```text
-/// foo() -> lowercase string           _> foo@@s:L
-/// foo() -> uppercase string           _> foo@@s:U
-/// foo() -> string of length 32        _> foo@@s:N32
+/// foo() -> lowercase string           -> foo@@s:L
+/// foo() -> uppercase string           -> foo@@s:U
+/// foo() -> string of length 32        -> foo@@s:N32
 /// foo() -> 32-byte lowercase string   -> foo@@s:N32:L
 /// foo() -> 32-byte uppercase string   -> foo@@s:N32:U
-/// foo() -> integer in the range 0-255 -> foo@@i:R0:255
-/// foo() -> unsigned integer           -> foo@@i:U
 /// ```
 ///
 /// Multiple constraints can be chained by appending them in sequence after
@@ -151,48 +151,29 @@ impl MangledFnName {
 
     fn next_type(&self, chars: &mut Peekable<Chars>) -> Option<TypeValue> {
         match chars.next() {
-            Some('u') => Some(TypeValue::Unknown),
+            Some('u') => {
+                if chars.peek().is_some_and(|c| c.is_ascii_digit()) {
+                    Some(match self.parse_int::<u8>(chars) {
+                        8 => TypeValue::Uint8(Value::Unknown),
+                        16 => TypeValue::Uint16(Value::Unknown),
+                        32 => TypeValue::Uint32(Value::Unknown),
+                        64 => TypeValue::Uint64(Value::Unknown),
+                        _ => panic!("invalid mangled name: `{}`", self.0),
+                    })
+                } else {
+                    Some(TypeValue::Unknown)
+                }
+            }
             Some('r') => Some(TypeValue::Regexp(None)),
             Some('f') => Some(TypeValue::unknown_float()),
             Some('b') => Some(TypeValue::unknown_bool()),
-            Some('i') => {
-                let mut constraints = Vec::new();
-                let mut unsigned = false;
-
-                while let Some(':') = chars.peek() {
-                    chars.next(); // consume the colon (:)
-                    match chars.next() {
-                        Some('R') => {
-                            let min = self.parse_int::<i128>(chars);
-                            assert_eq!(chars.next(), Some(':'));
-                            let max = self.parse_int::<i128>(chars);
-                            constraints
-                                .push(IntegerConstraint::Range(min, max));
-                        }
-                        Some('U') => {
-                            unsigned = true;
-                        }
-                        None | Some(_) => {
-                            panic!("invalid mangled name: `{}`", self.0)
-                        }
-                    }
-                }
-
-                Some(match (unsigned, constraints.is_empty()) {
-                    (false, true) => TypeValue::unknown_signed_integer(),
-                    (false, false) => {
-                        TypeValue::unknown_signed_integer_with_constraints(
-                            constraints,
-                        )
-                    }
-                    (true, true) => TypeValue::unknown_unsigned_integer(),
-                    (true, false) => {
-                        TypeValue::unknown_unsigned_integer_with_constraints(
-                            constraints,
-                        )
-                    }
-                })
-            }
+            Some('i') => Some(match self.parse_int::<u8>(chars) {
+                8 => TypeValue::Int8(Value::Unknown),
+                16 => TypeValue::Int16(Value::Unknown),
+                32 => TypeValue::Int32(Value::Unknown),
+                64 => TypeValue::Int64(Value::Unknown),
+                _ => panic!("invalid mangled name: `{}`", self.0),
+            }),
             Some('s') => {
                 let mut constraints = Vec::new();
 
@@ -388,20 +369,18 @@ impl Func {
 
 #[cfg(test)]
 mod test {
-    use crate::types::{
-        IntegerConstraint, MangledFnName, StringConstraint, TypeValue,
-    };
+    use crate::types::{MangledFnName, StringConstraint, TypeValue, Value};
     use pretty_assertions::assert_eq;
 
     #[test]
     fn mangled_name() {
         assert_eq!(
-            MangledFnName::from("foo@@i").unmangle(),
+            MangledFnName::from("foo@@i64").unmangle(),
             (vec![], TypeValue::unknown_signed_integer())
         );
 
         assert_eq!(
-            MangledFnName::from("foo@a:i,b:i@i").unmangle(),
+            MangledFnName::from("foo@a:i64,b:i64@i64").unmangle(),
             (
                 vec![
                     ("a", TypeValue::unknown_signed_integer()),
@@ -519,42 +498,36 @@ mod test {
         );
 
         assert_eq!(
-            MangledFnName::from("foo@@i:R0:10").unmangle(),
+            MangledFnName::from("foo@a:i8,b:i16,c:i32@i32").unmangle(),
             (
-                vec![],
-                TypeValue::unknown_signed_integer_with_constraints(vec![
-                    IntegerConstraint::Range(0, 10),
-                ])
+                vec![
+                    ("a", TypeValue::Int8(Value::Unknown)),
+                    ("b", TypeValue::Int16(Value::Unknown)),
+                    ("c", TypeValue::Int32(Value::Unknown)),
+                ],
+                TypeValue::Int32(Value::Unknown)
             )
         );
 
         assert_eq!(
-            MangledFnName::from("foo@@i:R-100:1000").unmangle(),
+            MangledFnName::from("foo@a:u8,b:u16,c:u32@u32u").unmangle(),
             (
-                vec![],
-                TypeValue::unknown_signed_integer_with_constraints(vec![
-                    IntegerConstraint::Range(-100, 1000),
-                ])
+                vec![
+                    ("a", TypeValue::Uint8(Value::Unknown)),
+                    ("b", TypeValue::Uint16(Value::Unknown)),
+                    ("c", TypeValue::Uint32(Value::Unknown)),
+                ],
+                TypeValue::Uint32(Value::Unknown)
             )
         );
 
         assert_eq!(
-            MangledFnName::from("foo@@i:U").unmangle(),
+            MangledFnName::from("foo@@u64").unmangle(),
             (vec![], TypeValue::unknown_unsigned_integer())
         );
 
         assert_eq!(
-            MangledFnName::from("foo@@i:U:R0:18446744073709551615").unmangle(),
-            (
-                vec![],
-                TypeValue::unknown_unsigned_integer_with_constraints(vec![
-                    IntegerConstraint::Range(0, u64::MAX as i128),
-                ])
-            )
-        );
-
-        assert_eq!(
-            MangledFnName::from("foo@a:i:U@i:Uu").unmangle(),
+            MangledFnName::from("foo@a:u64@u64u").unmangle(),
             (
                 vec![("a", TypeValue::unknown_unsigned_integer())],
                 TypeValue::unknown_unsigned_integer()
@@ -562,25 +535,34 @@ mod test {
         );
 
         assert_eq!(
-            MangledFnName::from("Bar::foo@a:i,b:i@iu").method_of(),
+            MangledFnName::from("Bar::foo@a:i64,b:i64@i64u").method_of(),
             Some("Bar")
         );
 
         assert_eq!(
-            MangledFnName::from("bar.Bar::foo@a:i,b:i@iu").method_of(),
+            MangledFnName::from("bar.Bar::foo@a:i64,b:i64@i64u").method_of(),
             Some("bar.Bar")
         );
 
-        assert_eq!(MangledFnName::from("foo@a:i,b:i@iu").method_of(), None);
+        assert_eq!(
+            MangledFnName::from("foo@a:i64,b:i64@i64u").method_of(),
+            None
+        );
 
-        assert!(!MangledFnName::from("foo@a:i,b:i@i").result_may_be_undef());
-        assert!(MangledFnName::from("foo@a:i,b:i@iu").result_may_be_undef());
+        assert!(
+            !MangledFnName::from("foo@a:i64,b:i64@i64").result_may_be_undef()
+        );
+        assert!(
+            MangledFnName::from("foo@a:i64,b:i64@i64u").result_may_be_undef()
+        );
+        assert!(!MangledFnName::from("foo@@u8").result_may_be_undef());
+        assert!(MangledFnName::from("foo@@u8u").result_may_be_undef());
     }
 
     #[test]
     #[should_panic]
     fn invalid_mangled_name_1() {
-        MangledFnName::from("foo@a:i").unmangle();
+        MangledFnName::from("foo@a:i64").unmangle();
     }
 
     #[test]
@@ -592,12 +574,12 @@ mod test {
     #[test]
     #[should_panic]
     fn invalid_mangled_name_3() {
-        MangledFnName::from("foo@a:x@i").unmangle();
+        MangledFnName::from("foo@a:x@i64").unmangle();
     }
 
     #[test]
     #[should_panic]
     fn missing_argument_name() {
-        MangledFnName::from("foo@i@i").unmangle();
+        MangledFnName::from("foo@i64@i64").unmangle();
     }
 }

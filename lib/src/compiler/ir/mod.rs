@@ -1815,18 +1815,17 @@ impl IR {
     /// Creates a new [`Expr::Minus`].
     pub fn minus(&mut self, operand: ExprId) -> ExprId {
         if self.constant_folding {
-            match self.get(operand).type_value() {
-                // The result of negating an integer is always signed, even
-                // if the operand is unsigned. Overflows wrap around.
-                TypeValue::Integer { value: Const(v), .. } => {
+            let tv = self.get(operand).type_value();
+            if tv.is_const() {
+                if let Some(v) = tv.try_as_integer() {
+                    // The result of negating an integer is always signed, even
+                    // if the operand is unsigned. Overflows wrap around.
                     return self.constant(
                         TypeValue::const_signed_integer_from(v.wrapping_neg()),
                     );
-                }
-                TypeValue::Float { value: Const(v), .. } => {
+                } else if let TypeValue::Float { value: Const(v) } = tv {
                     return self.constant(TypeValue::const_float_from(-v));
                 }
-                _ => {}
             }
         }
 
@@ -2695,13 +2694,8 @@ impl IR {
     /// If the expression is a constant integer, returns the bit pattern of
     /// its value, regardless of its signedness.
     fn const_integer_bits(&self, expr: ExprId) -> Option<i64> {
-        if let TypeValue::Integer { value: Const(v), .. } =
-            self.get(expr).type_value()
-        {
-            Some(v)
-        } else {
-            None
-        }
+        let tv = self.get(expr).type_value();
+        if tv.is_const() { tv.try_as_integer() } else { None }
     }
 
     fn fold_arithmetic<F, I>(
@@ -2728,19 +2722,15 @@ impl IR {
             // unwrap because there must be at least one operand.
             let folded = operands
                 .iter()
-                .map(|op| match self.get(*op).type_value() {
-                    TypeValue::Integer {
-                        value: Const(v),
-                        is_unsigned: false,
-                        ..
-                    } => v as f64,
-                    TypeValue::Integer {
-                        value: Const(v),
-                        is_unsigned: true,
-                        ..
-                    } => (v as u64) as f64,
-                    TypeValue::Float { value: Const(v) } => v,
-                    _ => unreachable!(),
+                .map(|op| {
+                    let tv = self.get(*op).type_value();
+                    if let Some(v) = tv.try_as_const_i128() {
+                        v as f64
+                    } else if let TypeValue::Float { value: Const(v) } = tv {
+                        v
+                    } else {
+                        unreachable!()
+                    }
                 })
                 .reduce(float_op)
                 .unwrap();
@@ -2773,15 +2763,14 @@ impl IR {
             return None;
         }
 
-        let to_f64 = |tv: &TypeValue| match tv {
-            TypeValue::Integer {
-                value: Const(v), is_unsigned: false, ..
-            } => *v as f64,
-            TypeValue::Integer {
-                value: Const(v), is_unsigned: true, ..
-            } => (*v as u64) as f64,
-            TypeValue::Float { value: Const(v) } => *v,
-            _ => unreachable!(),
+        let to_f64 = |tv: &TypeValue| {
+            if let Some(v) = tv.try_as_const_i128() {
+                v as f64
+            } else if let TypeValue::Float { value: Const(v) } = tv {
+                *v
+            } else {
+                unreachable!()
+            }
         };
 
         let mut acc = self.get(operands[0]).type_value();

@@ -1,5 +1,5 @@
 RULE test
-  42: FOR_IN -- hash: 0x5a8b495d9ca0365f
+  42: FOR_IN -- hash: 0x59589124b44d2eba
         n: Var { frame_id: 1, ty: integer, index: 0 }
         i: Var { frame_id: 1, ty: integer, index: 1 }
         max_count: Var { frame_id: 1, ty: integer, index: 2 }
@@ -7,7 +7,7 @@ RULE test
         item: Var { frame_id: 1, ty: unknown, index: 4 }
     0: CONST integer(0)
     1: PATTERN_COUNT PatternIdx(0) -- hash: 0x295099eb5fc21fe8
-    41: FOR_IN -- hash: 0xc59e62932f94ad94
+    41: FOR_IN -- hash: 0xf6de9ef5aba7ec05
           n: Var { frame_id: 2, ty: integer, index: 7 }
           i: Var { frame_id: 2, ty: integer, index: 8 }
           max_count: Var { frame_id: 2, ty: integer, index: 9 }

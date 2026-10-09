@@ -134,11 +134,7 @@ impl Symbol {
 
     #[cfg(test)]
     fn as_integer(&self) -> Option<i64> {
-        if let TypeValue::Integer { value, .. } = self.type_value() {
-            value.extract().cloned()
-        } else {
-            None
-        }
+        self.type_value().try_as_integer()
     }
 
     #[cfg(test)]

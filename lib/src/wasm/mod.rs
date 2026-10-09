@@ -94,7 +94,6 @@ use crate::scanner::{RuntimeObjectHandle, ScanContext};
 use crate::types::{
     Array, Func, FuncSignature, Map, Struct, TypeValue, Value,
 };
-use crate::wasm::integer::RangedInteger;
 use crate::wasm::runtime::{
     AsContext, AsContextMut, Caller, Config, Engine, FuncType, Linker,
     Trampoline, TrampolineResult, ValRaw, ValType,
@@ -104,7 +103,6 @@ use crate::wasm::string::String as _;
 use crate::{ScanError, wasm};
 
 pub(crate) mod builder;
-pub(crate) mod integer;
 pub(crate) mod runtime;
 pub(crate) mod string;
 
@@ -430,47 +428,23 @@ impl WasmResult for () {
     }
 }
 
-impl WasmResult for i32 {
-    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
-        smallvec![ValRaw::i32(self)]
-    }
+macro_rules! impl_wasm_result_for_int {
+    ($($ty:ty),*) => {
+        $(
+            impl WasmResult for $ty {
+                fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
+                    smallvec![ValRaw::i64(self as i64)]
+                }
 
-    fn types() -> WasmResultArray<ValType> {
-        smallvec![ValType::I32]
-    }
+                fn types() -> WasmResultArray<ValType> {
+                    smallvec![ValType::I64]
+                }
+            }
+        )*
+    };
 }
 
-impl WasmResult for i64 {
-    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
-        smallvec![ValRaw::i64(self)]
-    }
-
-    fn types() -> WasmResultArray<ValType> {
-        smallvec![ValType::I64]
-    }
-}
-
-impl WasmResult for u64 {
-    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
-        // Unsigned integers are passed to WASM code as an `i64` with the
-        // same bit pattern.
-        smallvec![ValRaw::i64(self as i64)]
-    }
-
-    fn types() -> WasmResultArray<ValType> {
-        smallvec![ValType::I64]
-    }
-}
-
-impl<const MIN: i64, const MAX: i64> WasmResult for RangedInteger<MIN, MAX> {
-    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
-        smallvec![ValRaw::i64(self.value())]
-    }
-
-    fn types() -> WasmResultArray<ValType> {
-        smallvec![ValType::I64]
-    }
-}
+impl_wasm_result_for_int!(i8, i16, i32, i64, u8, u16, u32, u64);
 
 impl WasmResult for f32 {
     fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
@@ -1253,28 +1227,21 @@ pub(crate) fn lookup_object(
 }
 
 macro_rules! gen_lookup_fn {
-    ($name:ident, $return_type:ty, $type:path) => {
+    ($name:ident, $return_type:ty, $extract_fn:ident) => {
         #[wasm_export(sync = "before")]
         pub(crate) fn $name(
             caller: &mut Caller<'_, ScanContext>,
             structure: Option<Rc<Struct>>,
             num_lookup_indexes: i32,
         ) -> Option<$return_type> {
-            if let $type { value, .. } =
-                lookup_field(caller, structure, num_lookup_indexes)
-            {
-                value.extract().cloned()
-            } else {
-                None
-            }
+            lookup_field(caller, structure, num_lookup_indexes).$extract_fn()
         }
     };
 }
 
-gen_lookup_fn!(lookup_integer, i64, TypeValue::Integer);
-
-gen_lookup_fn!(lookup_float, f64, TypeValue::Float);
-gen_lookup_fn!(lookup_bool, bool, TypeValue::Bool);
+gen_lookup_fn!(lookup_integer, i64, try_as_integer);
+gen_lookup_fn!(lookup_float, f64, try_as_float);
+gen_lookup_fn!(lookup_bool, bool, try_as_bool);
 
 macro_rules! gen_array_indexing_fn {
     ($name:ident, $fn:ident, $return_type:ty) => {
@@ -1670,49 +1637,6 @@ pub(crate) fn str_matches_regex_set(
 }
 
 macro_rules! gen_int_fn {
-    ($name:ident, $return_type:ty, $from_fn:ident, $min:expr, $max:expr) => {
-        #[wasm_export(public = true, sync = "none")]
-        pub(crate) fn $name(
-            caller: &mut Caller<'_, ScanContext>,
-            offset: i64,
-        ) -> Option<RangedInteger<$min, $max>> {
-            let offset = usize::try_from(offset).ok()?;
-            caller
-                .data()
-                .scanned_data()?
-                .get(
-                    offset
-                        ..offset.checked_add(mem::size_of::<$return_type>())?,
-                )
-                .map(|bytes| {
-                    <$return_type>::$from_fn(bytes.try_into().unwrap()) as i64
-                })
-                .map(|i| RangedInteger::<$min, $max>::new(i))
-        }
-    };
-}
-
-// Note that `uint8`, `uint16`, and `uint32` return a `RangedInteger` (which is
-// a signed 64-bit integer constrained to `[0, MAX]`) rather than an unsigned
-// integer. Because all integers in YARA-X are 64-bit wide, their values fit in
-// the positive range of `i64`, and keeping them signed avoids unsigned
-// wrap-around in subtractions like `uint32(0) - 10`. See `TypeValue::Integer`
-// for a detailed explanation.
-gen_int_fn!(uint8, u8, from_le_bytes, 0, 255);
-gen_int_fn!(uint16, u16, from_le_bytes, 0, 65_535);
-gen_int_fn!(uint32, u32, from_le_bytes, 0, 4_294_967_295);
-gen_int_fn!(uint8be, u8, from_be_bytes, 0, 255);
-gen_int_fn!(uint16be, u16, from_be_bytes, 0, 65_535);
-gen_int_fn!(uint32be, u32, from_be_bytes, 0, 4_294_967_295);
-
-gen_int_fn!(int8, i8, from_le_bytes, -128, 127);
-gen_int_fn!(int16, i16, from_le_bytes, -32_768, 32_767);
-gen_int_fn!(int32, i32, from_le_bytes, -2_147_483_648, 2_147_483_647);
-gen_int_fn!(int8be, i8, from_be_bytes, -128, 127);
-gen_int_fn!(int16be, i16, from_be_bytes, -32_768, 32_767);
-gen_int_fn!(int32be, i32, from_be_bytes, -2_147_483_648, 2_147_483_647);
-
-macro_rules! gen_int64_fn {
     ($name:ident, $return_type:ty, $from_fn:ident) => {
         #[wasm_export(public = true, sync = "none")]
         pub(crate) fn $name(
@@ -1734,13 +1658,23 @@ macro_rules! gen_int64_fn {
     };
 }
 
-// The result of `int64` and `int64be` can be any `i64`, therefore they return
-// `Option<i64>` instead of a `RangedInteger`. Similarly, `uint64` and
-// `uint64be` return `Option<u64>`, which is an unsigned integer in YARA.
-gen_int64_fn!(int64, i64, from_le_bytes);
-gen_int64_fn!(int64be, i64, from_be_bytes);
-gen_int64_fn!(uint64, u64, from_le_bytes);
-gen_int64_fn!(uint64be, u64, from_be_bytes);
+gen_int_fn!(uint8, u8, from_le_bytes);
+gen_int_fn!(uint16, u16, from_le_bytes);
+gen_int_fn!(uint32, u32, from_le_bytes);
+gen_int_fn!(uint64, u64, from_le_bytes);
+gen_int_fn!(uint8be, u8, from_be_bytes);
+gen_int_fn!(uint16be, u16, from_be_bytes);
+gen_int_fn!(uint32be, u32, from_be_bytes);
+gen_int_fn!(uint64be, u64, from_be_bytes);
+
+gen_int_fn!(int8, i8, from_le_bytes);
+gen_int_fn!(int16, i16, from_le_bytes);
+gen_int_fn!(int32, i32, from_le_bytes);
+gen_int_fn!(int64, i64, from_le_bytes);
+gen_int_fn!(int8be, i8, from_be_bytes);
+gen_int_fn!(int16be, i16, from_be_bytes);
+gen_int_fn!(int32be, i32, from_be_bytes);
+gen_int_fn!(int64be, i64, from_be_bytes);
 
 macro_rules! gen_float_fn {
     ($name:ident, $return_type:ty, $from_fn:ident) => {

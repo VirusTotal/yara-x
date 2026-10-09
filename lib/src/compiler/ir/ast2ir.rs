@@ -41,9 +41,7 @@ use crate::re;
 use crate::re::parser::CaseSensitiveness;
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
 use crate::types::Value::Const;
-use crate::types::{
-    IntegerConstraint, Map, Regexp, StringConstraint, Type, TypeValue,
-};
+use crate::types::{Map, Regexp, StringConstraint, Type, TypeValue};
 use crate::warnings::UnsatisfiableExpression;
 
 /// How many patterns a rule can have. If a rule has more than this number of
@@ -586,38 +584,36 @@ fn expr_from_ast<'src>(
             // expression with an integer constant (e.g: `pe.is_signed == 0`).
             // This is quite common in YARA rules, it is accepted without
             // errors, but a warning is raised.
-            let replacement =
-                match (lhs_expr.type_value(), rhs_expr.type_value()) {
-                    (
-                        TypeValue::Bool { .. },
-                        TypeValue::Integer { value: Const(0), .. },
-                    ) => Some((
-                        ctx.ir.not(lhs),
-                        format!(
-                            "not {}",
-                            ctx.report_builder.get_snippet(lhs_span)
-                        ),
-                    )),
-                    (
-                        TypeValue::Integer { value: Const(0), .. },
-                        TypeValue::Bool { .. },
-                    ) => Some((
-                        ctx.ir.not(rhs),
-                        format!(
-                            "not {}",
-                            ctx.report_builder.get_snippet(rhs_span)
-                        ),
-                    )),
-                    (
-                        TypeValue::Bool { .. },
-                        TypeValue::Integer { value: Const(1), .. },
-                    ) => Some((lhs, ctx.report_builder.get_snippet(lhs_span))),
-                    (
-                        TypeValue::Integer { value: Const(1), .. },
-                        TypeValue::Bool { .. },
-                    ) => Some((rhs, ctx.report_builder.get_snippet(rhs_span))),
-                    _ => None,
-                };
+            let lhs_tv = lhs_expr.type_value();
+            let rhs_tv = rhs_expr.type_value();
+            let replacement = match (
+                &lhs_tv,
+                lhs_tv.try_as_const_i128(),
+                &rhs_tv,
+                rhs_tv.try_as_const_i128(),
+            ) {
+                (TypeValue::Bool { .. }, _, _, Some(0)) => Some((
+                    ctx.ir.not(lhs),
+                    format!(
+                        "not {}",
+                        ctx.report_builder.get_snippet(lhs_span)
+                    ),
+                )),
+                (_, Some(0), TypeValue::Bool { .. }, _) => Some((
+                    ctx.ir.not(rhs),
+                    format!(
+                        "not {}",
+                        ctx.report_builder.get_snippet(rhs_span)
+                    ),
+                )),
+                (TypeValue::Bool { .. }, _, _, Some(1)) => {
+                    Some((lhs, ctx.report_builder.get_snippet(lhs_span)))
+                }
+                (_, Some(1), TypeValue::Bool { .. }, _) => {
+                    Some((rhs, ctx.report_builder.get_snippet(rhs_span)))
+                }
+                _ => None,
+            };
 
             if let Some((replacement_expr, replacement)) = replacement {
                 let code_loc = ctx.report_builder.span_to_code_loc(span);
@@ -1528,7 +1524,7 @@ fn is_potentially_large_range(ctx: &CompileContext, range: &Range) -> bool {
                     func.signature
                         .mangled_name
                         .as_str()
-                        .eq("math.min@a:i,b:i@i")
+                        .eq("math.min@a:i64,b:i64@i64")
                 } else {
                     false
                 }
@@ -3299,62 +3295,52 @@ fn eq_check(
             }
         };
 
-    let check_integer_constraints =
+    let check_integer_range =
         |ctx: &mut CompileContext,
          const_integer: i128,
          const_integer_span: Span,
-         constraints: &[IntegerConstraint],
-         constrained_integer_span: Span| {
-            for constraint in constraints {
-                match constraint {
-                    IntegerConstraint::Range(min, max)
-                        if !(min..=max).contains(&&const_integer) =>
-                    {
-                        ctx.warnings.add(|| {
-                                UnsatisfiableExpression::build(
-                                    ctx.report_builder,
-                                    format!(
-                                        "this expression is an integer in the range [{min},{max}]",
-                                    ),
-                                    format!(
-                                        "this integer is outside the range [{min},{max}]",
-                                    ),
-                                    ctx.report_builder.span_to_code_loc(
-                                        constrained_integer_span.clone(),
-                                    ),
-                                    ctx.report_builder.span_to_code_loc(
-                                        const_integer_span.clone(),
-                                    ),
-                                    None,
-                                )
-                            });
-                    }
-
-                    _ => {}
-                }
+         (min, max): (i128, i128),
+         ranged_integer_span: Span| {
+            if !(min..=max).contains(&const_integer) {
+                ctx.warnings.add(|| {
+                    UnsatisfiableExpression::build(
+                        ctx.report_builder,
+                        format!(
+                            "this expression is an integer in the range [{min},{max}]",
+                        ),
+                        format!(
+                            "this integer is outside the range [{min},{max}]",
+                        ),
+                        ctx.report_builder
+                            .span_to_code_loc(ranged_integer_span.clone()),
+                        ctx.report_builder
+                            .span_to_code_loc(const_integer_span.clone()),
+                        None,
+                    )
+                });
             }
         };
 
-    // Integer constants compared with constrained integers. Both the
-    // constant and the constrained integer can be signed or unsigned.
-    if let (Some(const_integer), Some(constraints)) =
-        (lhs.try_as_const_i128(), rhs.integer_constraints())
+    // Integer constants compared with ranged integers. Both the constant and
+    // the ranged integer can be signed or unsigned.
+    if let (Some(const_integer), Some(range)) =
+        (lhs.try_as_const_i128(), rhs.integer_range())
     {
-        check_integer_constraints(
+        check_integer_range(
             ctx,
             const_integer,
             lhs_span.clone(),
-            constraints,
+            range,
             rhs_span.clone(),
         );
-    } else if let (Some(constraints), Some(const_integer)) =
-        (lhs.integer_constraints(), rhs.try_as_const_i128())
+    } else if let (Some(range), Some(const_integer)) =
+        (lhs.integer_range(), rhs.try_as_const_i128())
     {
-        check_integer_constraints(
+        check_integer_range(
             ctx,
             const_integer,
             rhs_span.clone(),
-            constraints,
+            range,
             lhs_span.clone(),
         );
     }

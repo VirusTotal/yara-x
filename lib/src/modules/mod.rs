@@ -616,7 +616,14 @@ pub mod mods {
                 match type_value {
                     TypeValue::Bool { .. } => Type::Bool,
                     TypeValue::Float { .. } => Type::Float,
-                    TypeValue::Integer { .. } => Type::Integer,
+                    TypeValue::Int8(_)
+                    | TypeValue::Int16(_)
+                    | TypeValue::Int32(_)
+                    | TypeValue::Int64(_)
+                    | TypeValue::Uint8(_)
+                    | TypeValue::Uint16(_)
+                    | TypeValue::Uint32(_)
+                    | TypeValue::Uint64(_) => Type::Integer,
                     TypeValue::String { .. } => Type::String,
                     TypeValue::Regexp(_) => Type::Regexp,
                     TypeValue::Struct(s) => {

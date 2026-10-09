@@ -315,8 +315,15 @@ fn emit_expr(
 ) {
     match ir.get(expr) {
         Expr::Const(type_value) => match type_value {
-            TypeValue::Integer { value: Const(value), .. } => {
-                instr.i64_const(*value);
+            TypeValue::Int8(_)
+            | TypeValue::Int16(_)
+            | TypeValue::Int32(_)
+            | TypeValue::Int64(_)
+            | TypeValue::Uint8(_)
+            | TypeValue::Uint16(_)
+            | TypeValue::Uint32(_)
+            | TypeValue::Uint64(_) => {
+                instr.i64_const(type_value.as_integer());
             }
             TypeValue::Float { value: Const(value) } => {
                 instr.f64_const(*value);
@@ -379,7 +386,14 @@ fn emit_expr(
                     let index: i32 = (*index).try_into().unwrap();
 
                     match type_value {
-                        TypeValue::Integer { .. } => {
+                        TypeValue::Int8(_)
+                        | TypeValue::Int16(_)
+                        | TypeValue::Int32(_)
+                        | TypeValue::Int64(_)
+                        | TypeValue::Uint8(_)
+                        | TypeValue::Uint16(_)
+                        | TypeValue::Uint32(_)
+                        | TypeValue::Uint64(_) => {
                             ctx.lookup_list.push((index, *is_root));
                             emit_lookup_integer(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
