@@ -195,14 +195,15 @@ impl Regexp {
 ///
 /// * Integer literals in the range `0x8000000000000000..=0xFFFFFFFFFFFFFFFF`.
 /// * Results of `uint64` and `uint64be`.
-/// * Module fields and functions of type `uint64` (and protobuf `uint32`).
+/// * Module fields and functions of type `uint64`.
 ///
 /// ## Why `uint8`, `uint16`, and `uint32` are signed
 ///
 /// Functions like `uint8`, `uint16`, and `uint32` (which return
-/// [`crate::wasm::integer::RangedInteger`]) produce **signed** 64-bit
-/// integers with a non-negative [`IntegerConstraint::Range`] (`0..=255`,
-/// `0..=65535`, `0..=4294967295`), rather than unsigned integers:
+/// [`crate::wasm::integer::RangedInteger`]), as well as protobuf `uint32`
+/// module fields, produce **signed** 64-bit integers with a non-negative
+/// [`IntegerConstraint::Range`] (`0..=255`, `0..=65535`, `0..=4294967295`),
+/// rather than unsigned integers:
 ///
 /// * Because all integers are widened to 64 bits, their values already fit
 ///   within the positive range of `i64` (the sign bit is never set).

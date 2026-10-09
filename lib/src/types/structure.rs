@@ -10,7 +10,7 @@ use crate::modules::protos::yara::exts::{
 };
 use crate::symbols::{Symbol, SymbolLookup};
 use crate::types::{
-    Array, IntegerConstraint, Map, StringConstraint, TypeValue, Value,
+    Array, IntegerConstraint, Map, StringConstraint, TypeValue,
 };
 use crate::wasm::WasmExport;
 use bstr::BString;
@@ -946,24 +946,19 @@ impl Struct {
                 }
             }
             RuntimeType::U32 => {
-                let constraints = if generate_compile_time_fields {
-                    Some(
-                        vec![IntegerConstraint::Range(0, u32::MAX as i128)]
-                            .into_boxed_slice(),
-                    )
-                } else {
-                    None
-                };
-                let value = if let Some(v) = value {
-                    Value::Var(Self::value_as_u64(v) as i64)
+                if let Some(v) = value {
+                    TypeValue::var_signed_integer_from(Self::value_as_i64(v))
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
-                    Value::Var(0)
+                    TypeValue::var_signed_integer_from(0)
+                } else if generate_compile_time_fields {
+                    TypeValue::unknown_signed_integer_with_constraints([
+                        IntegerConstraint::Range(0, u32::MAX as i128),
+                    ])
                 } else {
-                    Value::Unknown
-                };
-                TypeValue::Integer { value, is_unsigned: true, constraints }
+                    TypeValue::unknown_signed_integer()
+                }
             }
             RuntimeType::I32 | RuntimeType::I64 | RuntimeType::Enum(_) => {
                 if let Some(v) = value {

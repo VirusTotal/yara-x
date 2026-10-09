@@ -27,7 +27,7 @@ RULE test_1
           10: GT -- hash: 0xc0fd295a9fa39fa9
             8: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
               6: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
-              7: SYMBOL Field { index: 36, is_root: false, type_value: unsigned(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
+              7: SYMBOL Field { index: 36, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
             9: CONST integer(0)
           13: EQ -- hash: 0xca7652cced0142e6
             11: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
@@ -65,7 +65,7 @@ RULE test_3
     0: CONST integer(0)
     3: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
       1: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
-      2: SYMBOL Field { index: 36, is_root: false, type_value: unsigned(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
+      2: SYMBOL Field { index: 36, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
     18: AND -- hash: 0x4044f60b2b21d46
       12: EQ -- hash: 0xd80bb6889bf5d23f
         10: FIELD_ACCESS -- hash: 0xf6f8e9b23f513dd1
@@ -79,7 +79,7 @@ RULE test_3
       17: GT -- hash: 0xc0fd295a9fa39fa9
         15: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
           13: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
-          14: SYMBOL Field { index: 36, is_root: false, type_value: unsigned(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
+          14: SYMBOL Field { index: 36, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
         16: CONST integer(0)
 
 RULE test_4

@@ -2,10 +2,10 @@ RULE test_1
   22: WITH -- hash: 0xf1f8589cad533195
     21: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
       6: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
-      7: SYMBOL Field { index: 36, is_root: false, type_value: unsigned(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
+      7: SYMBOL Field { index: 36, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
     24: WITH -- hash: 0xe9d24d3dd581f591
       23: GT -- hash: 0xab8149e485a34c2f
-        8: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: unsigned(unknown) }
+        8: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: integer(unknown) }
         9: CONST integer(0)
       20: FOR_IN -- hash: 0x289160cf1aef79ef
             n: Var { frame_id: 1, ty: integer, index: 2 }
@@ -71,10 +71,10 @@ RULE test_3
     23: WITH -- hash: 0x2bdd89b0621abc52
       22: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
         13: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
-        14: SYMBOL Field { index: 36, is_root: false, type_value: unsigned(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
+        14: SYMBOL Field { index: 36, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
       25: WITH -- hash: 0x5e8125f5e8c90cc4
         24: GT -- hash: 0x97ac63285a8c1087
-          15: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 1 }, type_value: unsigned(unknown) }
+          15: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 1 }, type_value: integer(unknown) }
           16: CONST integer(0)
         19: FOR_IN -- hash: 0x4552833c8a799f1f
               n: Var { frame_id: 1, ty: integer, index: 3 }
@@ -85,7 +85,7 @@ RULE test_3
           0: CONST integer(0)
           3: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
             1: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
-            2: SYMBOL Field { index: 36, is_root: false, type_value: unsigned(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
+            2: SYMBOL Field { index: 36, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
           18: AND -- hash: 0x5675239764a27d36
             12: EQ -- hash: 0xa98a2af112833467
               10: FIELD_ACCESS -- hash: 0xe5b8fd8695fb770c
