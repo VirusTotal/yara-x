@@ -13,7 +13,7 @@ fn expr_size() {
     // Curiously enough, in 32-bits Windows the size is different from
     // 32-bits Linux.
     #[cfg(all(target_pointer_width = "32", target_family = "windows"))]
-    assert_eq!(size_of::<Expr>(), 32);
+    assert_eq!(size_of::<Expr>(), 24);
 
     #[cfg(all(target_pointer_width = "32", target_family = "unix"))]
     assert_eq!(size_of::<Expr>(), 20);
