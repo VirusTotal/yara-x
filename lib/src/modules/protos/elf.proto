@@ -29,25 +29,25 @@ message ELF {
   optional uint32 ph_entry_size = 7;
 
   // Number of section header entries in the table.
-  optional uint64 number_of_sections = 8  [(yara.field_options).deprecation_notice = {
+  optional uint32 number_of_sections = 8  [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `elf.sections.len()` instead",
     replacement: "sections.len()"
   }];
 
   // Number of program header entries in the table.
-  optional uint64 number_of_segments = 9 [(yara.field_options).deprecation_notice = {
+  optional uint32 number_of_segments = 9 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `elf.segments.len()` instead",
     replacement: "segments.len()"
   }];
 
   // Count of symbols stored in the static symbol table.
-  optional uint64 symtab_entries = 10;
+  optional uint32 symtab_entries = 10;
   // Count of symbols stored in the dynamic symbol table.
-  optional uint64 dynsym_entries = 11;
+  optional uint32 dynsym_entries = 11;
   // Count of entries present in the dynamic linking section.
-  optional uint64 dynamic_section_entries = 12;
+  optional uint32 dynamic_section_entries = 12;
 
   // Array of sections described by the section header table.
   repeated Section sections = 13;

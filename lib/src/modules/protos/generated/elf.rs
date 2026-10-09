@@ -45,15 +45,15 @@ pub struct ELF {
     // @@protoc_insertion_point(field:elf.ELF.ph_entry_size)
     pub ph_entry_size: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:elf.ELF.number_of_sections)
-    pub number_of_sections: ::std::option::Option<u64>,
+    pub number_of_sections: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:elf.ELF.number_of_segments)
-    pub number_of_segments: ::std::option::Option<u64>,
+    pub number_of_segments: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:elf.ELF.symtab_entries)
-    pub symtab_entries: ::std::option::Option<u64>,
+    pub symtab_entries: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:elf.ELF.dynsym_entries)
-    pub dynsym_entries: ::std::option::Option<u64>,
+    pub dynsym_entries: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:elf.ELF.dynamic_section_entries)
-    pub dynamic_section_entries: ::std::option::Option<u64>,
+    pub dynamic_section_entries: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:elf.ELF.sections)
     pub sections: ::std::vec::Vec<Section>,
     // @@protoc_insertion_point(field:elf.ELF.segments)
@@ -241,9 +241,9 @@ impl ELF {
         self.ph_entry_size = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_sections = 8;
+    // optional uint32 number_of_sections = 8;
 
-    pub fn number_of_sections(&self) -> u64 {
+    pub fn number_of_sections(&self) -> u32 {
         self.number_of_sections.unwrap_or(0)
     }
 
@@ -256,13 +256,13 @@ impl ELF {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_sections(&mut self, v: u64) {
+    pub fn set_number_of_sections(&mut self, v: u32) {
         self.number_of_sections = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_segments = 9;
+    // optional uint32 number_of_segments = 9;
 
-    pub fn number_of_segments(&self) -> u64 {
+    pub fn number_of_segments(&self) -> u32 {
         self.number_of_segments.unwrap_or(0)
     }
 
@@ -275,13 +275,13 @@ impl ELF {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_segments(&mut self, v: u64) {
+    pub fn set_number_of_segments(&mut self, v: u32) {
         self.number_of_segments = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 symtab_entries = 10;
+    // optional uint32 symtab_entries = 10;
 
-    pub fn symtab_entries(&self) -> u64 {
+    pub fn symtab_entries(&self) -> u32 {
         self.symtab_entries.unwrap_or(0)
     }
 
@@ -294,13 +294,13 @@ impl ELF {
     }
 
     // Param is passed by value, moved
-    pub fn set_symtab_entries(&mut self, v: u64) {
+    pub fn set_symtab_entries(&mut self, v: u32) {
         self.symtab_entries = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 dynsym_entries = 11;
+    // optional uint32 dynsym_entries = 11;
 
-    pub fn dynsym_entries(&self) -> u64 {
+    pub fn dynsym_entries(&self) -> u32 {
         self.dynsym_entries.unwrap_or(0)
     }
 
@@ -313,13 +313,13 @@ impl ELF {
     }
 
     // Param is passed by value, moved
-    pub fn set_dynsym_entries(&mut self, v: u64) {
+    pub fn set_dynsym_entries(&mut self, v: u32) {
         self.dynsym_entries = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 dynamic_section_entries = 12;
+    // optional uint32 dynamic_section_entries = 12;
 
-    pub fn dynamic_section_entries(&self) -> u64 {
+    pub fn dynamic_section_entries(&self) -> u32 {
         self.dynamic_section_entries.unwrap_or(0)
     }
 
@@ -332,7 +332,7 @@ impl ELF {
     }
 
     // Param is passed by value, moved
-    pub fn set_dynamic_section_entries(&mut self, v: u64) {
+    pub fn set_dynamic_section_entries(&mut self, v: u32) {
         self.dynamic_section_entries = ::std::option::Option::Some(v);
     }
 
@@ -497,19 +497,19 @@ impl ::protobuf::Message for ELF {
                     self.ph_entry_size = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 64 => {
-                    self.number_of_sections = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_sections = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 72 => {
-                    self.number_of_segments = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_segments = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 80 => {
-                    self.symtab_entries = ::std::option::Option::Some(is.read_uint64()?);
+                    self.symtab_entries = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 88 => {
-                    self.dynsym_entries = ::std::option::Option::Some(is.read_uint64()?);
+                    self.dynsym_entries = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 96 => {
-                    self.dynamic_section_entries = ::std::option::Option::Some(is.read_uint64()?);
+                    self.dynamic_section_entries = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 106 => {
                     self.sections.push(is.read_message()?);
@@ -563,19 +563,19 @@ impl ::protobuf::Message for ELF {
             my_size += ::protobuf::rt::uint32_size(7, v);
         }
         if let Some(v) = self.number_of_sections {
-            my_size += ::protobuf::rt::uint64_size(8, v);
+            my_size += ::protobuf::rt::uint32_size(8, v);
         }
         if let Some(v) = self.number_of_segments {
-            my_size += ::protobuf::rt::uint64_size(9, v);
+            my_size += ::protobuf::rt::uint32_size(9, v);
         }
         if let Some(v) = self.symtab_entries {
-            my_size += ::protobuf::rt::uint64_size(10, v);
+            my_size += ::protobuf::rt::uint32_size(10, v);
         }
         if let Some(v) = self.dynsym_entries {
-            my_size += ::protobuf::rt::uint64_size(11, v);
+            my_size += ::protobuf::rt::uint32_size(11, v);
         }
         if let Some(v) = self.dynamic_section_entries {
-            my_size += ::protobuf::rt::uint64_size(12, v);
+            my_size += ::protobuf::rt::uint32_size(12, v);
         }
         for value in &self.sections {
             let len = value.compute_size();
@@ -628,19 +628,19 @@ impl ::protobuf::Message for ELF {
             os.write_uint32(7, v)?;
         }
         if let Some(v) = self.number_of_sections {
-            os.write_uint64(8, v)?;
+            os.write_uint32(8, v)?;
         }
         if let Some(v) = self.number_of_segments {
-            os.write_uint64(9, v)?;
+            os.write_uint32(9, v)?;
         }
         if let Some(v) = self.symtab_entries {
-            os.write_uint64(10, v)?;
+            os.write_uint32(10, v)?;
         }
         if let Some(v) = self.dynsym_entries {
-            os.write_uint64(11, v)?;
+            os.write_uint32(11, v)?;
         }
         if let Some(v) = self.dynamic_section_entries {
-            os.write_uint64(12, v)?;
+            os.write_uint32(12, v)?;
         }
         for v in &self.sections {
             ::protobuf::rt::write_message_field_with_cached_size(13, v, os)?;
@@ -3507,114 +3507,114 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     R\x08shOffset\x12\"\n\rsh_entry_size\x18\x05\x20\x01(\rR\x0bshEntrySize\
     \x12\x1b\n\tph_offset\x18\x06\x20\x01(\x04R\x08phOffset\x12\"\n\rph_entr\
     y_size\x18\x07\x20\x01(\rR\x0bphEntrySize\x12\x80\x01\n\x12number_of_sec\
-    tions\x18\x08\x20\x01(\x04R\x10numberOfSectionsBR\x82\x93\x19N2L\n\x18th\
-    is\x20field\x20is\x20deprecated\x12\x20use\x20`elf.sections.len()`\x20in\
-    stead\x1a\x0esections.len()\x12\x80\x01\n\x12number_of_segments\x18\t\
-    \x20\x01(\x04R\x10numberOfSegmentsBR\x82\x93\x19N2L\n\x18this\x20field\
-    \x20is\x20deprecated\x12\x20use\x20`elf.segments.len()`\x20instead\x1a\
-    \x0esegments.len()\x12%\n\x0esymtab_entries\x18\n\x20\x01(\x04R\rsymtabE\
-    ntries\x12%\n\x0edynsym_entries\x18\x0b\x20\x01(\x04R\rdynsymEntries\x12\
-    6\n\x17dynamic_section_entries\x18\x0c\x20\x01(\x04R\x15dynamicSectionEn\
-    tries\x12(\n\x08sections\x18\r\x20\x03(\x0b2\x0c.elf.SectionR\x08section\
-    s\x12(\n\x08segments\x18\x0e\x20\x03(\x0b2\x0c.elf.SegmentR\x08segments\
-    \x12\x20\n\x06symtab\x18\x0f\x20\x03(\x0b2\x08.elf.SymR\x06symtab\x12\
-    \x20\n\x06dynsym\x18\x10\x20\x03(\x0b2\x08.elf.SymR\x06dynsym\x12\"\n\
-    \x07dynamic\x18\x11\x20\x03(\x0b2\x08.elf.DynR\x07dynamic\"\x9f\x01\n\
-    \x07Section\x12$\n\x04type\x18\x01\x20\x02(\x0e2\x10.elf.SectionTypeR\
-    \x04type\x12\x14\n\x05flags\x18\x02\x20\x02(\x04R\x05flags\x12\x18\n\x07\
-    address\x18\x03\x20\x02(\x04R\x07address\x12\x12\n\x04size\x18\x04\x20\
-    \x02(\x04R\x04size\x12\x16\n\x06offset\x18\x05\x20\x02(\x04R\x06offset\
-    \x12\x12\n\x04name\x18\x06\x20\x01(\tR\x04name\"\xa7\x02\n\x07Segment\
-    \x12$\n\x04type\x18\x01\x20\x02(\x0e2\x10.elf.SegmentTypeR\x04type\x12.\
-    \n\x05flags\x18\x02\x20\x02(\rR\x05flagsB\x18\x82\x93\x19\x14*\x12flags:\
-    SegmentFlags\x12\x16\n\x06offset\x18\x03\x20\x02(\x04R\x06offset\x12'\n\
-    \x0fvirtual_address\x18\x04\x20\x02(\x04R\x0evirtualAddress\x12)\n\x10ph\
-    ysical_address\x18\x05\x20\x02(\x04R\x0fphysicalAddress\x12\x1b\n\tfile_\
-    size\x18\x06\x20\x02(\x04R\x08fileSize\x12\x1f\n\x0bmemory_size\x18\x07\
-    \x20\x02(\x04R\nmemorySize\x12\x1c\n\talignment\x18\x08\x20\x02(\x04R\ta\
-    lignment\"\xd1\x01\n\x03Sym\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04nam\
-    e\x12\x14\n\x05value\x18\x02\x20\x02(\x04R\x05value\x12\x12\n\x04size\
-    \x18\x03\x20\x02(\x04R\x04size\x12\x20\n\x04type\x18\x04\x20\x02(\x0e2\
-    \x0c.elf.SymTypeR\x04type\x12\x20\n\x04bind\x18\x05\x20\x02(\x0e2\x0c.el\
-    f.SymBindR\x04bind\x12\x14\n\x05shndx\x18\x06\x20\x02(\rR\x05shndx\x122\
-    \n\nvisibility\x18\x07\x20\x02(\x0e2\x12.elf.SymVisibilityR\nvisibility\
-    \"9\n\x03Dyn\x12\x20\n\x04type\x18\x01\x20\x01(\x0e2\x0c.elf.DynTypeR\
-    \x04type\x12\x10\n\x03val\x18\x02\x20\x01(\x04R\x03val*n\n\x04Type\x12\
-    \x0b\n\x07ET_NONE\x10\0\x12\n\n\x06ET_REL\x10\x01\x12\x0b\n\x07ET_EXEC\
-    \x10\x02\x12\n\n\x06ET_DYN\x10\x03\x12\x0b\n\x07ET_CORE\x10\x04\x12\x0f\
-    \n\tET_LOPROC\x10\x80\xfe\x03\x12\x0e\n\tET_HIPROC\x10\xff\x01\x1a\x06\
-    \x92\x93\x19\x02\x10\x01*\x8d\x03\n\x07Machine\x12\x0b\n\x07EM_NONE\x10\
-    \0\x12\n\n\x06EM_M32\x10\x01\x12\x0c\n\x08EM_SPARC\x10\x02\x12\n\n\x06EM\
-    _386\x10\x03\x12\n\n\x06EM_68K\x10\x04\x12\n\n\x06EM_88K\x10\x05\x12\x0c\
-    \n\x08EM_IAMCU\x10\x06\x12\n\n\x06EM_860\x10\x07\x12\x0b\n\x07EM_MIPS\
-    \x10\x08\x12\x0b\n\x07EM_S370\x10\t\x12\x12\n\x0eEM_MIPS_RS3_LE\x10\n\
-    \x12\r\n\tEM_PARISC\x10\x0f\x12\x12\n\x0eEM_SPARC32PLUS\x10\x12\x12\n\n\
-    \x06EM_PPC\x10\x14\x12\x0c\n\x08EM_PPC64\x10\x15\x12\x0b\n\x07EM_S390\
-    \x10\x16\x12\x0c\n\x08EM_MCORE\x10'\x12\x14\n\x06EM_RCE\x10\xa7\x80\x04\
-    \x1a\x06\x9a\x93\x19\x02\x08'\x12\n\n\x06EM_ARM\x10(\x12\t\n\x05EM_SH\
-    \x10*\x12\x0e\n\nEM_SPARCV9\x10+\x12\r\n\tEM_X86_64\x10>\x12\x12\n\x0eEM\
-    _ARC_COMPACT\x10]\x12\x0f\n\nEM_AARCH64\x10\xb7\x01\x12\x0b\n\x06EM_BPF\
-    \x10\xf7\x01\x12\x11\n\x0cEM_LOONGARCH\x10\x82\x02\x1a\x06\x92\x93\x19\
-    \x02\x10\x01*\x8a\x03\n\x05OsAbi\x12\x0e\n\nOSABI_NONE\x10\0\x12\x0e\n\n\
-    OSABI_HPUX\x10\x01\x12\x10\n\x0cOSABI_NETBSD\x10\x02\x12\x0f\n\x0bOSABI_\
-    LINUX\x10\x03\x12\x12\n\x0eOSABI_GNU_HURD\x10\x04\x12\x11\n\rOSABI_SOLAR\
-    IS\x10\x06\x12\r\n\tOSABI_AIX\x10\x07\x12\x0e\n\nOSABI_IRIX\x10\x08\x12\
-    \x12\n\x0eOSABI_FREE_BSD\x10\t\x12\x0f\n\x0bOSABI_TRU64\x10\n\x12\x11\n\
-    \rOSABI_MODESTO\x10\x0b\x12\x11\n\rOSABI_OPENBSD\x10\x0c\x12\x11\n\rOSAB\
-    I_OPENVMS\x10\r\x12\r\n\tOSABI_NSK\x10\x0e\x12\x0e\n\nOSABI_AROS\x10\x0f\
-    \x12\x11\n\rOSABI_FENIXOS\x10\x10\x12\x12\n\x0eOSABI_CLOUDABI\x10\x11\
-    \x12\x11\n\rOSABI_OPENVOS\x10\x12\x12\x13\n\x0fOSABI_ARM_AEABI\x10@\x12\
-    \r\n\tOSABI_ARM\x10a\x12\x15\n\x10OSABI_STANDALONE\x10\xff\x01\x1a\x06\
-    \x92\x93\x19\x02\x10\x01*\xf4\x01\n\x0bSectionType\x12\x0c\n\x08SHT_NULL\
-    \x10\0\x12\x10\n\x0cSHT_PROGBITS\x10\x01\x12\x0e\n\nSHT_SYMTAB\x10\x02\
-    \x12\x0e\n\nSHT_STRTAB\x10\x03\x12\x0c\n\x08SHT_RELA\x10\x04\x12\x0c\n\
-    \x08SHT_HASH\x10\x05\x12\x0f\n\x0bSHT_DYNAMIC\x10\x06\x12\x0c\n\x08SHT_N\
-    OTE\x10\x07\x12\x0e\n\nSHT_NOBITS\x10\x08\x12\x0b\n\x07SHT_REL\x10\t\x12\
-    \r\n\tSHT_SHLIB\x10\n\x12\x0e\n\nSHT_DYNSYM\x10\x0b\x12\x12\n\x0eSHT_INI\
-    T_ARRAY\x10\x0e\x12\x12\n\x0eSHT_FINI_ARRAY\x10\x0f\x1a\x06\x92\x93\x19\
-    \x02\x10\x01*\xe0\x01\n\x0bSegmentType\x12\x0b\n\x07PT_NULL\x10\0\x12\
-    \x0b\n\x07PT_LOAD\x10\x01\x12\x0e\n\nPT_DYNAMIC\x10\x02\x12\r\n\tPT_INTE\
-    RP\x10\x03\x12\x0b\n\x07PT_NOTE\x10\x04\x12\x0c\n\x08PT_SHLIB\x10\x05\
-    \x12\x0b\n\x07PT_PHDR\x10\x06\x12\n\n\x06PT_TLS\x10\x07\x12\x17\n\x0fPT_\
-    GNU_EH_FRAME\x10\xd0\xca\xd3\xa3\x06\x12\x14\n\x0cPT_GNU_STACK\x10\xd1\
-    \xca\xd3\xa3\x06\x12\x14\n\x0cPT_GNU_RELRO\x10\xd2\xca\xd3\xa3\x06\x12\
-    \x17\n\x0fPT_GNU_PROPERTY\x10\xd3\xca\xd3\xa3\x06\x1a\x06\x92\x93\x19\
-    \x02\x10\x01*4\n\x0cSegmentFlags\x12\x08\n\x04PF_X\x10\x01\x12\x08\n\x04\
-    PF_W\x10\x02\x12\x08\n\x04PF_R\x10\x04\x1a\x06\x92\x93\x19\x02\x10\x01*{\
-    \n\x07SymType\x12\x0e\n\nSTT_NOTYPE\x10\0\x12\x0e\n\nSTT_OBJECT\x10\x01\
-    \x12\x0c\n\x08STT_FUNC\x10\x02\x12\x0f\n\x0bSTT_SECTION\x10\x03\x12\x0c\
-    \n\x08STT_FILE\x10\x04\x12\x0e\n\nSTT_COMMON\x10\x05\x12\x0b\n\x07STT_TL\
-    S\x10\x06\x1a\x06\x92\x93\x19\x02\x10\x01*>\n\x07SymBind\x12\r\n\tSTB_LO\
-    CAL\x10\0\x12\x0e\n\nSTB_GLOBAL\x10\x01\x12\x0c\n\x08STB_WEAK\x10\x02\
-    \x1a\x06\x92\x93\x19\x02\x10\x01*]\n\rSymVisibility\x12\x0f\n\x0bSTV_DEF\
-    AULT\x10\0\x12\x10\n\x0cSTV_INTERNAL\x10\x01\x12\x0e\n\nSTV_HIDDEN\x10\
-    \x02\x12\x11\n\rSTV_PROTECTED\x10\x03\x1a\x06\x92\x93\x19\x02\x10\x01*\
-    \xc2\x06\n\x07DynType\x12\x0b\n\x07DT_NULL\x10\0\x12\r\n\tDT_NEEDED\x10\
-    \x01\x12\x0f\n\x0bDT_PLTRELSZ\x10\x02\x12\r\n\tDT_PLTGOT\x10\x03\x12\x0b\
-    \n\x07DT_HASH\x10\x04\x12\r\n\tDT_STRTAB\x10\x05\x12\r\n\tDT_SYMTAB\x10\
-    \x06\x12\x0b\n\x07DT_RELA\x10\x07\x12\r\n\tDT_RELASZ\x10\x08\x12\x0e\n\n\
-    DT_RELAENT\x10\t\x12\x0c\n\x08DT_STRSZ\x10\n\x12\r\n\tDT_SYMENT\x10\x0b\
-    \x12\x0b\n\x07DT_INIT\x10\x0c\x12\x0b\n\x07DT_FINI\x10\r\x12\r\n\tDT_SON\
-    AME\x10\x0e\x12\x0c\n\x08DT_RPATH\x10\x0f\x12\x0f\n\x0bDT_SYMBOLIC\x10\
-    \x10\x12\n\n\x06DT_REL\x10\x11\x12\x0c\n\x08DT_RELSZ\x10\x12\x12\r\n\tDT\
-    _RELENT\x10\x13\x12\r\n\tDT_PLTREL\x10\x14\x12\x0c\n\x08DT_DEBUG\x10\x15\
-    \x12\x0e\n\nDT_TEXTREL\x10\x16\x12\r\n\tDT_JMPREL\x10\x17\x12\x0f\n\x0bD\
-    T_BIND_NOW\x10\x18\x12\x11\n\rDT_INIT_ARRAY\x10\x19\x12\x11\n\rDT_FINI_A\
-    RRAY\x10\x1a\x12\x13\n\x0fDT_INIT_ARRAYSZ\x10\x1b\x12\x13\n\x0fDT_FINI_A\
-    RRAYSZ\x10\x1c\x12\x0e\n\nDT_RUNPATH\x10\x1d\x12\x0c\n\x08DT_FLAGS\x10\
-    \x1e\x12\x0f\n\x0bDT_ENCODING\x10\x20\x12\x0f\n\x07DT_LOOS\x10\x8d\x80\
-    \x80\x80\x06\x12\x0f\n\x07DT_HIOS\x10\x80\xe0\xff\xff\x06\x12\x13\n\x0bD\
-    T_VALRNGLO\x10\x80\xfa\xff\xff\x06\x12\x13\n\x0bDT_VALRNGHI\x10\xff\xfb\
-    \xff\xff\x06\x12\x14\n\x0cDT_ADDRRNGLO\x10\x80\xfc\xff\xff\x06\x12\x14\n\
-    \x0cDT_ADDRRNGHI\x10\xff\xfd\xff\xff\x06\x12\x11\n\tDT_VERSYM\x10\xf0\
-    \xff\xff\xff\x06\x12\x14\n\x0cDT_RELACOUNT\x10\xf9\xff\xff\xff\x06\x12\
-    \x13\n\x0bDT_RELCOUNT\x10\xfa\xff\xff\xff\x06\x12\x12\n\nDT_FLAGS_1\x10\
-    \xfb\xff\xff\xff\x06\x12\x11\n\tDT_VERDEF\x10\xfc\xff\xff\xff\x06\x12\
-    \x14\n\x0cDT_VERDEFNUM\x10\xfd\xff\xff\xff\x06\x12\x12\n\nDT_VERNEED\x10\
-    \xfe\xff\xff\xff\x06\x12\x15\n\rDT_VERNEEDNUM\x10\xff\xff\xff\xff\x06\
-    \x12\x11\n\tDT_LOPROC\x10\x80\x80\x80\x80\x07\x12\x11\n\tDT_HIPROC\x10\
-    \xff\xff\xff\xff\x07\x1a\x06\x92\x93\x19\x02\x10\x01B\x1e\xfa\x92\x19\
-    \x1a\n\x03elf\x12\x07elf.ELF\x1a\nelf-moduleb\x06proto2\
+    tions\x18\x08\x20\x01(\rR\x10numberOfSectionsBR\x82\x93\x19N2L\n\x18this\
+    \x20field\x20is\x20deprecated\x12\x20use\x20`elf.sections.len()`\x20inst\
+    ead\x1a\x0esections.len()\x12\x80\x01\n\x12number_of_segments\x18\t\x20\
+    \x01(\rR\x10numberOfSegmentsBR\x82\x93\x19N2L\n\x18this\x20field\x20is\
+    \x20deprecated\x12\x20use\x20`elf.segments.len()`\x20instead\x1a\x0esegm\
+    ents.len()\x12%\n\x0esymtab_entries\x18\n\x20\x01(\rR\rsymtabEntries\x12\
+    %\n\x0edynsym_entries\x18\x0b\x20\x01(\rR\rdynsymEntries\x126\n\x17dynam\
+    ic_section_entries\x18\x0c\x20\x01(\rR\x15dynamicSectionEntries\x12(\n\
+    \x08sections\x18\r\x20\x03(\x0b2\x0c.elf.SectionR\x08sections\x12(\n\x08\
+    segments\x18\x0e\x20\x03(\x0b2\x0c.elf.SegmentR\x08segments\x12\x20\n\
+    \x06symtab\x18\x0f\x20\x03(\x0b2\x08.elf.SymR\x06symtab\x12\x20\n\x06dyn\
+    sym\x18\x10\x20\x03(\x0b2\x08.elf.SymR\x06dynsym\x12\"\n\x07dynamic\x18\
+    \x11\x20\x03(\x0b2\x08.elf.DynR\x07dynamic\"\x9f\x01\n\x07Section\x12$\n\
+    \x04type\x18\x01\x20\x02(\x0e2\x10.elf.SectionTypeR\x04type\x12\x14\n\
+    \x05flags\x18\x02\x20\x02(\x04R\x05flags\x12\x18\n\x07address\x18\x03\
+    \x20\x02(\x04R\x07address\x12\x12\n\x04size\x18\x04\x20\x02(\x04R\x04siz\
+    e\x12\x16\n\x06offset\x18\x05\x20\x02(\x04R\x06offset\x12\x12\n\x04name\
+    \x18\x06\x20\x01(\tR\x04name\"\xa7\x02\n\x07Segment\x12$\n\x04type\x18\
+    \x01\x20\x02(\x0e2\x10.elf.SegmentTypeR\x04type\x12.\n\x05flags\x18\x02\
+    \x20\x02(\rR\x05flagsB\x18\x82\x93\x19\x14*\x12flags:SegmentFlags\x12\
+    \x16\n\x06offset\x18\x03\x20\x02(\x04R\x06offset\x12'\n\x0fvirtual_addre\
+    ss\x18\x04\x20\x02(\x04R\x0evirtualAddress\x12)\n\x10physical_address\
+    \x18\x05\x20\x02(\x04R\x0fphysicalAddress\x12\x1b\n\tfile_size\x18\x06\
+    \x20\x02(\x04R\x08fileSize\x12\x1f\n\x0bmemory_size\x18\x07\x20\x02(\x04\
+    R\nmemorySize\x12\x1c\n\talignment\x18\x08\x20\x02(\x04R\talignment\"\
+    \xd1\x01\n\x03Sym\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\x14\
+    \n\x05value\x18\x02\x20\x02(\x04R\x05value\x12\x12\n\x04size\x18\x03\x20\
+    \x02(\x04R\x04size\x12\x20\n\x04type\x18\x04\x20\x02(\x0e2\x0c.elf.SymTy\
+    peR\x04type\x12\x20\n\x04bind\x18\x05\x20\x02(\x0e2\x0c.elf.SymBindR\x04\
+    bind\x12\x14\n\x05shndx\x18\x06\x20\x02(\rR\x05shndx\x122\n\nvisibility\
+    \x18\x07\x20\x02(\x0e2\x12.elf.SymVisibilityR\nvisibility\"9\n\x03Dyn\
+    \x12\x20\n\x04type\x18\x01\x20\x01(\x0e2\x0c.elf.DynTypeR\x04type\x12\
+    \x10\n\x03val\x18\x02\x20\x01(\x04R\x03val*n\n\x04Type\x12\x0b\n\x07ET_N\
+    ONE\x10\0\x12\n\n\x06ET_REL\x10\x01\x12\x0b\n\x07ET_EXEC\x10\x02\x12\n\n\
+    \x06ET_DYN\x10\x03\x12\x0b\n\x07ET_CORE\x10\x04\x12\x0f\n\tET_LOPROC\x10\
+    \x80\xfe\x03\x12\x0e\n\tET_HIPROC\x10\xff\x01\x1a\x06\x92\x93\x19\x02\
+    \x10\x01*\x8d\x03\n\x07Machine\x12\x0b\n\x07EM_NONE\x10\0\x12\n\n\x06EM_\
+    M32\x10\x01\x12\x0c\n\x08EM_SPARC\x10\x02\x12\n\n\x06EM_386\x10\x03\x12\
+    \n\n\x06EM_68K\x10\x04\x12\n\n\x06EM_88K\x10\x05\x12\x0c\n\x08EM_IAMCU\
+    \x10\x06\x12\n\n\x06EM_860\x10\x07\x12\x0b\n\x07EM_MIPS\x10\x08\x12\x0b\
+    \n\x07EM_S370\x10\t\x12\x12\n\x0eEM_MIPS_RS3_LE\x10\n\x12\r\n\tEM_PARISC\
+    \x10\x0f\x12\x12\n\x0eEM_SPARC32PLUS\x10\x12\x12\n\n\x06EM_PPC\x10\x14\
+    \x12\x0c\n\x08EM_PPC64\x10\x15\x12\x0b\n\x07EM_S390\x10\x16\x12\x0c\n\
+    \x08EM_MCORE\x10'\x12\x14\n\x06EM_RCE\x10\xa7\x80\x04\x1a\x06\x9a\x93\
+    \x19\x02\x08'\x12\n\n\x06EM_ARM\x10(\x12\t\n\x05EM_SH\x10*\x12\x0e\n\nEM\
+    _SPARCV9\x10+\x12\r\n\tEM_X86_64\x10>\x12\x12\n\x0eEM_ARC_COMPACT\x10]\
+    \x12\x0f\n\nEM_AARCH64\x10\xb7\x01\x12\x0b\n\x06EM_BPF\x10\xf7\x01\x12\
+    \x11\n\x0cEM_LOONGARCH\x10\x82\x02\x1a\x06\x92\x93\x19\x02\x10\x01*\x8a\
+    \x03\n\x05OsAbi\x12\x0e\n\nOSABI_NONE\x10\0\x12\x0e\n\nOSABI_HPUX\x10\
+    \x01\x12\x10\n\x0cOSABI_NETBSD\x10\x02\x12\x0f\n\x0bOSABI_LINUX\x10\x03\
+    \x12\x12\n\x0eOSABI_GNU_HURD\x10\x04\x12\x11\n\rOSABI_SOLARIS\x10\x06\
+    \x12\r\n\tOSABI_AIX\x10\x07\x12\x0e\n\nOSABI_IRIX\x10\x08\x12\x12\n\x0eO\
+    SABI_FREE_BSD\x10\t\x12\x0f\n\x0bOSABI_TRU64\x10\n\x12\x11\n\rOSABI_MODE\
+    STO\x10\x0b\x12\x11\n\rOSABI_OPENBSD\x10\x0c\x12\x11\n\rOSABI_OPENVMS\
+    \x10\r\x12\r\n\tOSABI_NSK\x10\x0e\x12\x0e\n\nOSABI_AROS\x10\x0f\x12\x11\
+    \n\rOSABI_FENIXOS\x10\x10\x12\x12\n\x0eOSABI_CLOUDABI\x10\x11\x12\x11\n\
+    \rOSABI_OPENVOS\x10\x12\x12\x13\n\x0fOSABI_ARM_AEABI\x10@\x12\r\n\tOSABI\
+    _ARM\x10a\x12\x15\n\x10OSABI_STANDALONE\x10\xff\x01\x1a\x06\x92\x93\x19\
+    \x02\x10\x01*\xf4\x01\n\x0bSectionType\x12\x0c\n\x08SHT_NULL\x10\0\x12\
+    \x10\n\x0cSHT_PROGBITS\x10\x01\x12\x0e\n\nSHT_SYMTAB\x10\x02\x12\x0e\n\n\
+    SHT_STRTAB\x10\x03\x12\x0c\n\x08SHT_RELA\x10\x04\x12\x0c\n\x08SHT_HASH\
+    \x10\x05\x12\x0f\n\x0bSHT_DYNAMIC\x10\x06\x12\x0c\n\x08SHT_NOTE\x10\x07\
+    \x12\x0e\n\nSHT_NOBITS\x10\x08\x12\x0b\n\x07SHT_REL\x10\t\x12\r\n\tSHT_S\
+    HLIB\x10\n\x12\x0e\n\nSHT_DYNSYM\x10\x0b\x12\x12\n\x0eSHT_INIT_ARRAY\x10\
+    \x0e\x12\x12\n\x0eSHT_FINI_ARRAY\x10\x0f\x1a\x06\x92\x93\x19\x02\x10\x01\
+    *\xe0\x01\n\x0bSegmentType\x12\x0b\n\x07PT_NULL\x10\0\x12\x0b\n\x07PT_LO\
+    AD\x10\x01\x12\x0e\n\nPT_DYNAMIC\x10\x02\x12\r\n\tPT_INTERP\x10\x03\x12\
+    \x0b\n\x07PT_NOTE\x10\x04\x12\x0c\n\x08PT_SHLIB\x10\x05\x12\x0b\n\x07PT_\
+    PHDR\x10\x06\x12\n\n\x06PT_TLS\x10\x07\x12\x17\n\x0fPT_GNU_EH_FRAME\x10\
+    \xd0\xca\xd3\xa3\x06\x12\x14\n\x0cPT_GNU_STACK\x10\xd1\xca\xd3\xa3\x06\
+    \x12\x14\n\x0cPT_GNU_RELRO\x10\xd2\xca\xd3\xa3\x06\x12\x17\n\x0fPT_GNU_P\
+    ROPERTY\x10\xd3\xca\xd3\xa3\x06\x1a\x06\x92\x93\x19\x02\x10\x01*4\n\x0cS\
+    egmentFlags\x12\x08\n\x04PF_X\x10\x01\x12\x08\n\x04PF_W\x10\x02\x12\x08\
+    \n\x04PF_R\x10\x04\x1a\x06\x92\x93\x19\x02\x10\x01*{\n\x07SymType\x12\
+    \x0e\n\nSTT_NOTYPE\x10\0\x12\x0e\n\nSTT_OBJECT\x10\x01\x12\x0c\n\x08STT_\
+    FUNC\x10\x02\x12\x0f\n\x0bSTT_SECTION\x10\x03\x12\x0c\n\x08STT_FILE\x10\
+    \x04\x12\x0e\n\nSTT_COMMON\x10\x05\x12\x0b\n\x07STT_TLS\x10\x06\x1a\x06\
+    \x92\x93\x19\x02\x10\x01*>\n\x07SymBind\x12\r\n\tSTB_LOCAL\x10\0\x12\x0e\
+    \n\nSTB_GLOBAL\x10\x01\x12\x0c\n\x08STB_WEAK\x10\x02\x1a\x06\x92\x93\x19\
+    \x02\x10\x01*]\n\rSymVisibility\x12\x0f\n\x0bSTV_DEFAULT\x10\0\x12\x10\n\
+    \x0cSTV_INTERNAL\x10\x01\x12\x0e\n\nSTV_HIDDEN\x10\x02\x12\x11\n\rSTV_PR\
+    OTECTED\x10\x03\x1a\x06\x92\x93\x19\x02\x10\x01*\xc2\x06\n\x07DynType\
+    \x12\x0b\n\x07DT_NULL\x10\0\x12\r\n\tDT_NEEDED\x10\x01\x12\x0f\n\x0bDT_P\
+    LTRELSZ\x10\x02\x12\r\n\tDT_PLTGOT\x10\x03\x12\x0b\n\x07DT_HASH\x10\x04\
+    \x12\r\n\tDT_STRTAB\x10\x05\x12\r\n\tDT_SYMTAB\x10\x06\x12\x0b\n\x07DT_R\
+    ELA\x10\x07\x12\r\n\tDT_RELASZ\x10\x08\x12\x0e\n\nDT_RELAENT\x10\t\x12\
+    \x0c\n\x08DT_STRSZ\x10\n\x12\r\n\tDT_SYMENT\x10\x0b\x12\x0b\n\x07DT_INIT\
+    \x10\x0c\x12\x0b\n\x07DT_FINI\x10\r\x12\r\n\tDT_SONAME\x10\x0e\x12\x0c\n\
+    \x08DT_RPATH\x10\x0f\x12\x0f\n\x0bDT_SYMBOLIC\x10\x10\x12\n\n\x06DT_REL\
+    \x10\x11\x12\x0c\n\x08DT_RELSZ\x10\x12\x12\r\n\tDT_RELENT\x10\x13\x12\r\
+    \n\tDT_PLTREL\x10\x14\x12\x0c\n\x08DT_DEBUG\x10\x15\x12\x0e\n\nDT_TEXTRE\
+    L\x10\x16\x12\r\n\tDT_JMPREL\x10\x17\x12\x0f\n\x0bDT_BIND_NOW\x10\x18\
+    \x12\x11\n\rDT_INIT_ARRAY\x10\x19\x12\x11\n\rDT_FINI_ARRAY\x10\x1a\x12\
+    \x13\n\x0fDT_INIT_ARRAYSZ\x10\x1b\x12\x13\n\x0fDT_FINI_ARRAYSZ\x10\x1c\
+    \x12\x0e\n\nDT_RUNPATH\x10\x1d\x12\x0c\n\x08DT_FLAGS\x10\x1e\x12\x0f\n\
+    \x0bDT_ENCODING\x10\x20\x12\x0f\n\x07DT_LOOS\x10\x8d\x80\x80\x80\x06\x12\
+    \x0f\n\x07DT_HIOS\x10\x80\xe0\xff\xff\x06\x12\x13\n\x0bDT_VALRNGLO\x10\
+    \x80\xfa\xff\xff\x06\x12\x13\n\x0bDT_VALRNGHI\x10\xff\xfb\xff\xff\x06\
+    \x12\x14\n\x0cDT_ADDRRNGLO\x10\x80\xfc\xff\xff\x06\x12\x14\n\x0cDT_ADDRR\
+    NGHI\x10\xff\xfd\xff\xff\x06\x12\x11\n\tDT_VERSYM\x10\xf0\xff\xff\xff\
+    \x06\x12\x14\n\x0cDT_RELACOUNT\x10\xf9\xff\xff\xff\x06\x12\x13\n\x0bDT_R\
+    ELCOUNT\x10\xfa\xff\xff\xff\x06\x12\x12\n\nDT_FLAGS_1\x10\xfb\xff\xff\
+    \xff\x06\x12\x11\n\tDT_VERDEF\x10\xfc\xff\xff\xff\x06\x12\x14\n\x0cDT_VE\
+    RDEFNUM\x10\xfd\xff\xff\xff\x06\x12\x12\n\nDT_VERNEED\x10\xfe\xff\xff\
+    \xff\x06\x12\x15\n\rDT_VERNEEDNUM\x10\xff\xff\xff\xff\x06\x12\x11\n\tDT_\
+    LOPROC\x10\x80\x80\x80\x80\x07\x12\x11\n\tDT_HIPROC\x10\xff\xff\xff\xff\
+    \x07\x1a\x06\x92\x93\x19\x02\x10\x01B\x1e\xfa\x92\x19\x1a\n\x03elf\x12\
+    \x07elf.ELF\x1a\nelf-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

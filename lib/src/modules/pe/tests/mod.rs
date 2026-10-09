@@ -546,3 +546,28 @@ fn valid_on() {
         &pe
     );
 }
+
+#[test]
+fn integer_signedness() {
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/2775d97f8bdb3311ace960a42eee35dbec84b9d71a6abbacb26c14e83f5897e4.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            // Counts like `number_of_exports` are non-negative signed
+            // integers, so subtractions don't wrap around.
+            pe.number_of_exports == 0 and
+            pe.number_of_exports - 1 == -1 and
+            pe.number_of_imports - pe.number_of_delayed_imports == -5 and
+            // Fields like `image_base` are unsigned 64-bit integers.
+            pe.image_base == 0x400000 and
+            pe.image_base - 0x400001 == 0xFFFFFFFFFFFFFFFF
+        }
+        "#,
+        &pe
+    );
+}

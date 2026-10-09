@@ -2397,8 +2397,11 @@ impl From<PE<'_>> for protos::pe::PE {
             }
         }
 
-        result.set_number_of_imported_functions(num_imported_funcs as u64);
-        result.set_number_of_delayed_imported_functions(num_delayed_imported_funcs as u64);
+        result.set_number_of_imported_functions(
+            num_imported_funcs.try_into().unwrap());
+
+        result.set_number_of_delayed_imported_functions(
+            num_delayed_imported_funcs.try_into().unwrap());
 
         if let Some(exports) = pe.get_exports() {
             result.dll_name = exports.dll_name.map(|name| name.to_owned());

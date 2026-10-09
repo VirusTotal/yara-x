@@ -35,25 +35,25 @@ pub struct Dotnet {
     // @@protoc_insertion_point(field:dotnet.Dotnet.version)
     pub version: ::std::option::Option<::std::string::String>,
     // @@protoc_insertion_point(field:dotnet.Dotnet.number_of_streams)
-    pub number_of_streams: ::std::option::Option<u64>,
+    pub number_of_streams: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dotnet.Dotnet.number_of_guids)
-    pub number_of_guids: ::std::option::Option<u64>,
+    pub number_of_guids: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dotnet.Dotnet.number_of_resources)
-    pub number_of_resources: ::std::option::Option<u64>,
+    pub number_of_resources: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dotnet.Dotnet.number_of_generic_parameters)
-    pub number_of_generic_parameters: ::std::option::Option<u64>,
+    pub number_of_generic_parameters: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dotnet.Dotnet.number_of_classes)
-    pub number_of_classes: ::std::option::Option<u64>,
+    pub number_of_classes: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dotnet.Dotnet.number_of_assembly_refs)
-    pub number_of_assembly_refs: ::std::option::Option<u64>,
+    pub number_of_assembly_refs: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dotnet.Dotnet.number_of_modulerefs)
-    pub number_of_modulerefs: ::std::option::Option<u64>,
+    pub number_of_modulerefs: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dotnet.Dotnet.number_of_user_strings)
-    pub number_of_user_strings: ::std::option::Option<u64>,
+    pub number_of_user_strings: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dotnet.Dotnet.number_of_constants)
-    pub number_of_constants: ::std::option::Option<u64>,
+    pub number_of_constants: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dotnet.Dotnet.number_of_field_offsets)
-    pub number_of_field_offsets: ::std::option::Option<u64>,
+    pub number_of_field_offsets: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dotnet.Dotnet.typelib)
     pub typelib: ::std::option::Option<::std::string::String>,
     // @@protoc_insertion_point(field:dotnet.Dotnet.streams)
@@ -183,9 +183,9 @@ impl Dotnet {
         self.version.take().unwrap_or_else(|| ::std::string::String::new())
     }
 
-    // optional uint64 number_of_streams = 4;
+    // optional uint32 number_of_streams = 4;
 
-    pub fn number_of_streams(&self) -> u64 {
+    pub fn number_of_streams(&self) -> u32 {
         self.number_of_streams.unwrap_or(0)
     }
 
@@ -198,13 +198,13 @@ impl Dotnet {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_streams(&mut self, v: u64) {
+    pub fn set_number_of_streams(&mut self, v: u32) {
         self.number_of_streams = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_guids = 5;
+    // optional uint32 number_of_guids = 5;
 
-    pub fn number_of_guids(&self) -> u64 {
+    pub fn number_of_guids(&self) -> u32 {
         self.number_of_guids.unwrap_or(0)
     }
 
@@ -217,13 +217,13 @@ impl Dotnet {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_guids(&mut self, v: u64) {
+    pub fn set_number_of_guids(&mut self, v: u32) {
         self.number_of_guids = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_resources = 6;
+    // optional uint32 number_of_resources = 6;
 
-    pub fn number_of_resources(&self) -> u64 {
+    pub fn number_of_resources(&self) -> u32 {
         self.number_of_resources.unwrap_or(0)
     }
 
@@ -236,13 +236,13 @@ impl Dotnet {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_resources(&mut self, v: u64) {
+    pub fn set_number_of_resources(&mut self, v: u32) {
         self.number_of_resources = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_generic_parameters = 7;
+    // optional uint32 number_of_generic_parameters = 7;
 
-    pub fn number_of_generic_parameters(&self) -> u64 {
+    pub fn number_of_generic_parameters(&self) -> u32 {
         self.number_of_generic_parameters.unwrap_or(0)
     }
 
@@ -255,13 +255,13 @@ impl Dotnet {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_generic_parameters(&mut self, v: u64) {
+    pub fn set_number_of_generic_parameters(&mut self, v: u32) {
         self.number_of_generic_parameters = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_classes = 10;
+    // optional uint32 number_of_classes = 10;
 
-    pub fn number_of_classes(&self) -> u64 {
+    pub fn number_of_classes(&self) -> u32 {
         self.number_of_classes.unwrap_or(0)
     }
 
@@ -274,13 +274,13 @@ impl Dotnet {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_classes(&mut self, v: u64) {
+    pub fn set_number_of_classes(&mut self, v: u32) {
         self.number_of_classes = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_assembly_refs = 11;
+    // optional uint32 number_of_assembly_refs = 11;
 
-    pub fn number_of_assembly_refs(&self) -> u64 {
+    pub fn number_of_assembly_refs(&self) -> u32 {
         self.number_of_assembly_refs.unwrap_or(0)
     }
 
@@ -293,13 +293,13 @@ impl Dotnet {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_assembly_refs(&mut self, v: u64) {
+    pub fn set_number_of_assembly_refs(&mut self, v: u32) {
         self.number_of_assembly_refs = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_modulerefs = 12;
+    // optional uint32 number_of_modulerefs = 12;
 
-    pub fn number_of_modulerefs(&self) -> u64 {
+    pub fn number_of_modulerefs(&self) -> u32 {
         self.number_of_modulerefs.unwrap_or(0)
     }
 
@@ -312,13 +312,13 @@ impl Dotnet {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_modulerefs(&mut self, v: u64) {
+    pub fn set_number_of_modulerefs(&mut self, v: u32) {
         self.number_of_modulerefs = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_user_strings = 13;
+    // optional uint32 number_of_user_strings = 13;
 
-    pub fn number_of_user_strings(&self) -> u64 {
+    pub fn number_of_user_strings(&self) -> u32 {
         self.number_of_user_strings.unwrap_or(0)
     }
 
@@ -331,13 +331,13 @@ impl Dotnet {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_user_strings(&mut self, v: u64) {
+    pub fn set_number_of_user_strings(&mut self, v: u32) {
         self.number_of_user_strings = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_constants = 14;
+    // optional uint32 number_of_constants = 14;
 
-    pub fn number_of_constants(&self) -> u64 {
+    pub fn number_of_constants(&self) -> u32 {
         self.number_of_constants.unwrap_or(0)
     }
 
@@ -350,13 +350,13 @@ impl Dotnet {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_constants(&mut self, v: u64) {
+    pub fn set_number_of_constants(&mut self, v: u32) {
         self.number_of_constants = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_field_offsets = 15;
+    // optional uint32 number_of_field_offsets = 15;
 
-    pub fn number_of_field_offsets(&self) -> u64 {
+    pub fn number_of_field_offsets(&self) -> u32 {
         self.number_of_field_offsets.unwrap_or(0)
     }
 
@@ -369,7 +369,7 @@ impl Dotnet {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_field_offsets(&mut self, v: u64) {
+    pub fn set_number_of_field_offsets(&mut self, v: u32) {
         self.number_of_field_offsets = ::std::option::Option::Some(v);
     }
 
@@ -585,34 +585,34 @@ impl ::protobuf::Message for Dotnet {
                     self.version = ::std::option::Option::Some(is.read_string()?);
                 },
                 32 => {
-                    self.number_of_streams = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_streams = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 40 => {
-                    self.number_of_guids = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_guids = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 48 => {
-                    self.number_of_resources = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_resources = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 56 => {
-                    self.number_of_generic_parameters = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_generic_parameters = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 80 => {
-                    self.number_of_classes = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_classes = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 88 => {
-                    self.number_of_assembly_refs = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_assembly_refs = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 96 => {
-                    self.number_of_modulerefs = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_modulerefs = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 104 => {
-                    self.number_of_user_strings = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_user_strings = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 112 => {
-                    self.number_of_constants = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_constants = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 120 => {
-                    self.number_of_field_offsets = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_field_offsets = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 130 => {
                     self.typelib = ::std::option::Option::Some(is.read_string()?);
@@ -672,34 +672,34 @@ impl ::protobuf::Message for Dotnet {
             my_size += ::protobuf::rt::string_size(3, &v);
         }
         if let Some(v) = self.number_of_streams {
-            my_size += ::protobuf::rt::uint64_size(4, v);
+            my_size += ::protobuf::rt::uint32_size(4, v);
         }
         if let Some(v) = self.number_of_guids {
-            my_size += ::protobuf::rt::uint64_size(5, v);
+            my_size += ::protobuf::rt::uint32_size(5, v);
         }
         if let Some(v) = self.number_of_resources {
-            my_size += ::protobuf::rt::uint64_size(6, v);
+            my_size += ::protobuf::rt::uint32_size(6, v);
         }
         if let Some(v) = self.number_of_generic_parameters {
-            my_size += ::protobuf::rt::uint64_size(7, v);
+            my_size += ::protobuf::rt::uint32_size(7, v);
         }
         if let Some(v) = self.number_of_classes {
-            my_size += ::protobuf::rt::uint64_size(10, v);
+            my_size += ::protobuf::rt::uint32_size(10, v);
         }
         if let Some(v) = self.number_of_assembly_refs {
-            my_size += ::protobuf::rt::uint64_size(11, v);
+            my_size += ::protobuf::rt::uint32_size(11, v);
         }
         if let Some(v) = self.number_of_modulerefs {
-            my_size += ::protobuf::rt::uint64_size(12, v);
+            my_size += ::protobuf::rt::uint32_size(12, v);
         }
         if let Some(v) = self.number_of_user_strings {
-            my_size += ::protobuf::rt::uint64_size(13, v);
+            my_size += ::protobuf::rt::uint32_size(13, v);
         }
         if let Some(v) = self.number_of_constants {
-            my_size += ::protobuf::rt::uint64_size(14, v);
+            my_size += ::protobuf::rt::uint32_size(14, v);
         }
         if let Some(v) = self.number_of_field_offsets {
-            my_size += ::protobuf::rt::uint64_size(15, v);
+            my_size += ::protobuf::rt::uint32_size(15, v);
         }
         if let Some(v) = self.typelib.as_ref() {
             my_size += ::protobuf::rt::string_size(16, &v);
@@ -755,34 +755,34 @@ impl ::protobuf::Message for Dotnet {
             os.write_string(3, v)?;
         }
         if let Some(v) = self.number_of_streams {
-            os.write_uint64(4, v)?;
+            os.write_uint32(4, v)?;
         }
         if let Some(v) = self.number_of_guids {
-            os.write_uint64(5, v)?;
+            os.write_uint32(5, v)?;
         }
         if let Some(v) = self.number_of_resources {
-            os.write_uint64(6, v)?;
+            os.write_uint32(6, v)?;
         }
         if let Some(v) = self.number_of_generic_parameters {
-            os.write_uint64(7, v)?;
+            os.write_uint32(7, v)?;
         }
         if let Some(v) = self.number_of_classes {
-            os.write_uint64(10, v)?;
+            os.write_uint32(10, v)?;
         }
         if let Some(v) = self.number_of_assembly_refs {
-            os.write_uint64(11, v)?;
+            os.write_uint32(11, v)?;
         }
         if let Some(v) = self.number_of_modulerefs {
-            os.write_uint64(12, v)?;
+            os.write_uint32(12, v)?;
         }
         if let Some(v) = self.number_of_user_strings {
-            os.write_uint64(13, v)?;
+            os.write_uint32(13, v)?;
         }
         if let Some(v) = self.number_of_constants {
-            os.write_uint64(14, v)?;
+            os.write_uint32(14, v)?;
         }
         if let Some(v) = self.number_of_field_offsets {
-            os.write_uint64(15, v)?;
+            os.write_uint32(15, v)?;
         }
         if let Some(v) = self.typelib.as_ref() {
             os.write_string(16, v)?;
@@ -2141,11 +2141,11 @@ pub struct Class {
     // @@protoc_insertion_point(field:dotnet.Class.sealed)
     pub sealed: ::std::option::Option<bool>,
     // @@protoc_insertion_point(field:dotnet.Class.number_of_base_types)
-    pub number_of_base_types: ::std::option::Option<u64>,
+    pub number_of_base_types: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dotnet.Class.number_of_generic_parameters)
-    pub number_of_generic_parameters: ::std::option::Option<u64>,
+    pub number_of_generic_parameters: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dotnet.Class.number_of_methods)
-    pub number_of_methods: ::std::option::Option<u64>,
+    pub number_of_methods: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dotnet.Class.base_types)
     pub base_types: ::std::vec::Vec<::std::string::String>,
     // @@protoc_insertion_point(field:dotnet.Class.generic_parameters)
@@ -2386,9 +2386,9 @@ impl Class {
         self.sealed = ::std::option::Option::Some(v);
     }
 
-    // required uint64 number_of_base_types = 8;
+    // required uint32 number_of_base_types = 8;
 
-    pub fn number_of_base_types(&self) -> u64 {
+    pub fn number_of_base_types(&self) -> u32 {
         self.number_of_base_types.unwrap_or(0)
     }
 
@@ -2401,13 +2401,13 @@ impl Class {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_base_types(&mut self, v: u64) {
+    pub fn set_number_of_base_types(&mut self, v: u32) {
         self.number_of_base_types = ::std::option::Option::Some(v);
     }
 
-    // required uint64 number_of_generic_parameters = 9;
+    // required uint32 number_of_generic_parameters = 9;
 
-    pub fn number_of_generic_parameters(&self) -> u64 {
+    pub fn number_of_generic_parameters(&self) -> u32 {
         self.number_of_generic_parameters.unwrap_or(0)
     }
 
@@ -2420,13 +2420,13 @@ impl Class {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_generic_parameters(&mut self, v: u64) {
+    pub fn set_number_of_generic_parameters(&mut self, v: u32) {
         self.number_of_generic_parameters = ::std::option::Option::Some(v);
     }
 
-    // required uint64 number_of_methods = 10;
+    // required uint32 number_of_methods = 10;
 
-    pub fn number_of_methods(&self) -> u64 {
+    pub fn number_of_methods(&self) -> u32 {
         self.number_of_methods.unwrap_or(0)
     }
 
@@ -2439,7 +2439,7 @@ impl Class {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_methods(&mut self, v: u64) {
+    pub fn set_number_of_methods(&mut self, v: u32) {
         self.number_of_methods = ::std::option::Option::Some(v);
     }
 
@@ -2571,13 +2571,13 @@ impl ::protobuf::Message for Class {
                     self.sealed = ::std::option::Option::Some(is.read_bool()?);
                 },
                 64 => {
-                    self.number_of_base_types = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_base_types = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 72 => {
-                    self.number_of_generic_parameters = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_generic_parameters = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 80 => {
-                    self.number_of_methods = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_methods = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 90 => {
                     self.base_types.push(is.read_string()?);
@@ -2622,13 +2622,13 @@ impl ::protobuf::Message for Class {
             my_size += 1 + 1;
         }
         if let Some(v) = self.number_of_base_types {
-            my_size += ::protobuf::rt::uint64_size(8, v);
+            my_size += ::protobuf::rt::uint32_size(8, v);
         }
         if let Some(v) = self.number_of_generic_parameters {
-            my_size += ::protobuf::rt::uint64_size(9, v);
+            my_size += ::protobuf::rt::uint32_size(9, v);
         }
         if let Some(v) = self.number_of_methods {
-            my_size += ::protobuf::rt::uint64_size(10, v);
+            my_size += ::protobuf::rt::uint32_size(10, v);
         }
         for value in &self.base_types {
             my_size += ::protobuf::rt::string_size(11, &value);
@@ -2668,13 +2668,13 @@ impl ::protobuf::Message for Class {
             os.write_bool(7, v)?;
         }
         if let Some(v) = self.number_of_base_types {
-            os.write_uint64(8, v)?;
+            os.write_uint32(8, v)?;
         }
         if let Some(v) = self.number_of_generic_parameters {
-            os.write_uint64(9, v)?;
+            os.write_uint32(9, v)?;
         }
         if let Some(v) = self.number_of_methods {
-            os.write_uint64(10, v)?;
+            os.write_uint32(10, v)?;
         }
         for v in &self.base_types {
             os.write_string(11, &v)?;
@@ -2775,9 +2775,9 @@ pub struct Method {
     // @@protoc_insertion_point(field:dotnet.Method.return_type)
     pub return_type: ::std::option::Option<::std::string::String>,
     // @@protoc_insertion_point(field:dotnet.Method.number_of_generic_parameters)
-    pub number_of_generic_parameters: ::std::option::Option<u64>,
+    pub number_of_generic_parameters: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dotnet.Method.number_of_parameters)
-    pub number_of_parameters: ::std::option::Option<u64>,
+    pub number_of_parameters: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dotnet.Method.generic_parameters)
     pub generic_parameters: ::std::vec::Vec<::std::string::String>,
     // @@protoc_insertion_point(field:dotnet.Method.parameters)
@@ -2982,9 +2982,9 @@ impl Method {
         self.return_type.take().unwrap_or_else(|| ::std::string::String::new())
     }
 
-    // required uint64 number_of_generic_parameters = 8;
+    // required uint32 number_of_generic_parameters = 8;
 
-    pub fn number_of_generic_parameters(&self) -> u64 {
+    pub fn number_of_generic_parameters(&self) -> u32 {
         self.number_of_generic_parameters.unwrap_or(0)
     }
 
@@ -2997,13 +2997,13 @@ impl Method {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_generic_parameters(&mut self, v: u64) {
+    pub fn set_number_of_generic_parameters(&mut self, v: u32) {
         self.number_of_generic_parameters = ::std::option::Option::Some(v);
     }
 
-    // required uint64 number_of_parameters = 9;
+    // required uint32 number_of_parameters = 9;
 
-    pub fn number_of_parameters(&self) -> u64 {
+    pub fn number_of_parameters(&self) -> u32 {
         self.number_of_parameters.unwrap_or(0)
     }
 
@@ -3016,7 +3016,7 @@ impl Method {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_parameters(&mut self, v: u64) {
+    pub fn set_number_of_parameters(&mut self, v: u32) {
         self.number_of_parameters = ::std::option::Option::Some(v);
     }
 
@@ -3141,10 +3141,10 @@ impl ::protobuf::Message for Method {
                     self.return_type = ::std::option::Option::Some(is.read_string()?);
                 },
                 64 => {
-                    self.number_of_generic_parameters = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_generic_parameters = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 72 => {
-                    self.number_of_parameters = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_parameters = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 82 => {
                     self.generic_parameters.push(is.read_string()?);
@@ -3186,10 +3186,10 @@ impl ::protobuf::Message for Method {
             my_size += ::protobuf::rt::string_size(7, &v);
         }
         if let Some(v) = self.number_of_generic_parameters {
-            my_size += ::protobuf::rt::uint64_size(8, v);
+            my_size += ::protobuf::rt::uint32_size(8, v);
         }
         if let Some(v) = self.number_of_parameters {
-            my_size += ::protobuf::rt::uint64_size(9, v);
+            my_size += ::protobuf::rt::uint32_size(9, v);
         }
         for value in &self.generic_parameters {
             my_size += ::protobuf::rt::string_size(10, &value);
@@ -3226,10 +3226,10 @@ impl ::protobuf::Message for Method {
             os.write_string(7, v)?;
         }
         if let Some(v) = self.number_of_generic_parameters {
-            os.write_uint64(8, v)?;
+            os.write_uint32(8, v)?;
         }
         if let Some(v) = self.number_of_parameters {
-            os.write_uint64(9, v)?;
+            os.write_uint32(9, v)?;
         }
         for v in &self.generic_parameters {
             os.write_string(10, &v)?;
@@ -3524,91 +3524,90 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x12\x1b\n\tis_dotnet\x18\x01\x20\x01(\x08R\x08isDotnet\x12\x1f\n\x0bmod\
     ule_name\x18\x02\x20\x01(\tR\nmoduleName\x12\x18\n\x07version\x18\x03\
     \x20\x01(\tR\x07version\x12\x7f\n\x11number_of_streams\x18\x04\x20\x01(\
-    \x04R\x0fnumberOfStreamsBS\x82\x93\x19O2M\n\x18this\x20field\x20is\x20de\
-    precated\x12\"use\x20`dotnet.streams.len()`\x20instead\x1a\rstreams.len(\
-    )\x12w\n\x0fnumber_of_guids\x18\x05\x20\x01(\x04R\rnumberOfGuidsBO\x82\
-    \x93\x19K2I\n\x18this\x20field\x20is\x20deprecated\x12\x20use\x20`dotnet\
-    .guids.len()`\x20instead\x1a\x0bguids.len()\x12\x87\x01\n\x13number_of_r\
-    esources\x18\x06\x20\x01(\x04R\x11numberOfResourcesBW\x82\x93\x19S2Q\n\
-    \x18this\x20field\x20is\x20deprecated\x12$use\x20`dotnet.resources.len()\
-    `\x20instead\x1a\x0fresources.len()\x12?\n\x1cnumber_of_generic_paramete\
-    rs\x18\x07\x20\x01(\x04R\x19numberOfGenericParameters\x12\x7f\n\x11numbe\
-    r_of_classes\x18\n\x20\x01(\x04R\x0fnumberOfClassesBS\x82\x93\x19O2M\n\
-    \x18this\x20field\x20is\x20deprecated\x12\"use\x20`dotnet.classes.len()`\
-    \x20instead\x1a\rclasses.len()\x12\x96\x01\n\x17number_of_assembly_refs\
-    \x18\x0b\x20\x01(\x04R\x14numberOfAssemblyRefsB_\x82\x93\x19[2Y\n\x18thi\
-    s\x20field\x20is\x20deprecated\x12(use\x20`dotnet.assembly_refs.len()`\
-    \x20instead\x1a\x13assembly_refs.len()\x12\x8b\x01\n\x14number_of_module\
-    refs\x18\x0c\x20\x01(\x04R\x12numberOfModulerefsBY\x82\x93\x19U2S\n\x18t\
-    his\x20field\x20is\x20deprecated\x12%use\x20`dotnet.modulerefs.len()`\
-    \x20instead\x1a\x10modulerefs.len()\x12\x92\x01\n\x16number_of_user_stri\
-    ngs\x18\r\x20\x01(\x04R\x13numberOfUserStringsB]\x82\x93\x19Y2W\n\x18thi\
-    s\x20field\x20is\x20deprecated\x12'use\x20`dotnet.user_strings.len()`\
-    \x20instead\x1a\x12user_strings.len()\x12\x87\x01\n\x13number_of_constan\
-    ts\x18\x0e\x20\x01(\x04R\x11numberOfConstantsBW\x82\x93\x19S2Q\n\x18this\
-    \x20field\x20is\x20deprecated\x12$use\x20`dotnet.constants.len()`\x20ins\
-    tead\x1a\x0fconstants.len()\x12\x96\x01\n\x17number_of_field_offsets\x18\
-    \x0f\x20\x01(\x04R\x14numberOfFieldOffsetsB_\x82\x93\x19[2Y\n\x18this\
-    \x20field\x20is\x20deprecated\x12(use\x20`dotnet.field_offsets.len()`\
-    \x20instead\x1a\x13field_offsets.len()\x12\x18\n\x07typelib\x18\x10\x20\
-    \x01(\tR\x07typelib\x12(\n\x07streams\x18\x11\x20\x03(\x0b2\x0e.dotnet.S\
-    treamR\x07streams\x12\x14\n\x05guids\x18\x12\x20\x03(\tR\x05guids\x12\
-    \x1c\n\tconstants\x18\x13\x20\x03(\x0cR\tconstants\x12,\n\x08assembly\
-    \x18\x14\x20\x01(\x0b2\x10.dotnet.AssemblyR\x08assembly\x128\n\rassembly\
-    _refs\x18\x15\x20\x03(\x0b2\x13.dotnet.AssemblyRefR\x0cassemblyRefs\x12.\
-    \n\tresources\x18\x16\x20\x03(\x0b2\x10.dotnet.ResourceR\tresources\x12'\
-    \n\x07classes\x18\x17\x20\x03(\x0b2\r.dotnet.ClassR\x07classes\x12#\n\rf\
-    ield_offsets\x18\x18\x20\x03(\rR\x0cfieldOffsets\x12!\n\x0cuser_strings\
-    \x18\x19\x20\x03(\x0cR\x0buserStrings\x12\x1e\n\nmodulerefs\x18\x1a\x20\
-    \x03(\tR\nmodulerefs\"c\n\x08Assembly\x12\x12\n\x04name\x18\x01\x20\x01(\
-    \tR\x04name\x12\x18\n\x07culture\x18\x02\x20\x01(\tR\x07culture\x12)\n\
-    \x07version\x18\x03\x20\x02(\x0b2\x0f.dotnet.VersionR\x07version\"{\n\
-    \x0bAssemblyRef\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12-\n\x13\
-    public_key_or_token\x18\x02\x20\x01(\x0cR\x10publicKeyOrToken\x12)\n\x07\
-    version\x18\x03\x20\x02(\x0b2\x0f.dotnet.VersionR\x07version\"Z\n\x06Str\
-    eam\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\x1f\n\x06offset\
-    \x18\x02\x20\x02(\rR\x06offsetB\x07\x82\x93\x19\x03*\x01x\x12\x1b\n\x04s\
-    ize\x18\x03\x20\x02(\rR\x04sizeB\x07\x82\x93\x19\x03*\x01x\"\x81\x01\n\
-    \x07Version\x12\x14\n\x05major\x18\x01\x20\x02(\rR\x05major\x12\x14\n\
-    \x05minor\x18\x02\x20\x02(\rR\x05minor\x12!\n\x0cbuild_number\x18\x03\
-    \x20\x02(\rR\x0bbuildNumber\x12'\n\x0frevision_number\x18\x04\x20\x02(\r\
-    R\x0erevisionNumber\"`\n\x08Resource\x12\x1f\n\x06offset\x18\x01\x20\x01\
-    (\rR\x06offsetB\x07\x82\x93\x19\x03*\x01x\x12\x1f\n\x06length\x18\x02\
-    \x20\x01(\rR\x06lengthB\x07\x82\x93\x19\x03*\x01x\x12\x12\n\x04name\x18\
-    \x03\x20\x01(\tR\x04name\"\xdb\x05\n\x05Class\x12\x1a\n\x08fullname\x18\
-    \x01\x20\x01(\tR\x08fullname\x12\x12\n\x04name\x18\x02\x20\x01(\tR\x04na\
-    me\x12\x1c\n\tnamespace\x18\x03\x20\x01(\tR\tnamespace\x12\x1e\n\nvisibi\
-    lity\x18\x04\x20\x01(\tR\nvisibility\x12\x12\n\x04type\x18\x05\x20\x01(\
-    \tR\x04type\x12\x1a\n\x08abstract\x18\x06\x20\x02(\x08R\x08abstract\x12\
-    \x16\n\x06sealed\x18\x07\x20\x02(\x08R\x06sealed\x12\x83\x01\n\x14number\
-    _of_base_types\x18\x08\x20\x02(\x04R\x11numberOfBaseTypesBR\x82\x93\x19N\
-    2L\n\x18this\x20field\x20is\x20deprecated\x12\x1euse\x20`base_types.len(\
-    )`\x20instead\x1a\x10base_types.len()\x12\xa3\x01\n\x1cnumber_of_generic\
-    _parameters\x18\t\x20\x02(\x04R\x19numberOfGenericParametersBb\x82\x93\
-    \x19^2\\\n\x18this\x20field\x20is\x20deprecated\x12&use\x20`generic_para\
-    meters.len()`\x20instead\x1a\x18generic_parameters.len()\x12x\n\x11numbe\
-    r_of_methods\x18\n\x20\x02(\x04R\x0fnumberOfMethodsBL\x82\x93\x19H2F\n\
-    \x18this\x20field\x20is\x20deprecated\x12\x1buse\x20`methods.len()`\x20i\
-    nstead\x1a\rmethods.len()\x12\x1d\n\nbase_types\x18\x0b\x20\x03(\tR\tbas\
-    eTypes\x12-\n\x12generic_parameters\x18\x0c\x20\x03(\tR\x11genericParame\
-    ters\x12(\n\x07methods\x18\r\x20\x03(\x0b2\x0e.dotnet.MethodR\x07methods\
-    \"\xcc\x04\n\x06Method\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\
-    \x1e\n\nvisibility\x18\x02\x20\x01(\tR\nvisibility\x12\x1a\n\x08abstract\
-    \x18\x03\x20\x02(\x08R\x08abstract\x12\x16\n\x06static\x18\x04\x20\x02(\
-    \x08R\x06static\x12\x18\n\x07virtual\x18\x05\x20\x02(\x08R\x07virtual\
-    \x12\x14\n\x05final\x18\x06\x20\x02(\x08R\x05final\x12\x1f\n\x0breturn_t\
-    ype\x18\x07\x20\x01(\tR\nreturnType\x12\xa3\x01\n\x1cnumber_of_generic_p\
-    arameters\x18\x08\x20\x02(\x04R\x19numberOfGenericParametersBb\x82\x93\
-    \x19^2\\\n\x18this\x20field\x20is\x20deprecated\x12&use\x20`generic_para\
-    meters.len()`\x20instead\x1a\x18generic_parameters.len()\x12\x84\x01\n\
-    \x14number_of_parameters\x18\t\x20\x02(\x04R\x12numberOfParametersBR\x82\
-    \x93\x19N2L\n\x18this\x20field\x20is\x20deprecated\x12\x1euse\x20`parame\
-    ters.len()`\x20instead\x1a\x10parameters.len()\x12-\n\x12generic_paramet\
-    ers\x18\n\x20\x03(\tR\x11genericParameters\x12-\n\nparameters\x18\x0b\
-    \x20\x03(\x0b2\r.dotnet.ParamR\nparameters\"/\n\x05Param\x12\x12\n\x04na\
-    me\x18\x01\x20\x02(\tR\x04name\x12\x12\n\x04type\x18\x02\x20\x01(\tR\x04\
-    typeB*\xfa\x92\x19&\n\x06dotnet\x12\rdotnet.Dotnet\x1a\rdotnet-moduleb\
-    \x06proto2\
+    \rR\x0fnumberOfStreamsBS\x82\x93\x19O2M\n\x18this\x20field\x20is\x20depr\
+    ecated\x12\"use\x20`dotnet.streams.len()`\x20instead\x1a\rstreams.len()\
+    \x12w\n\x0fnumber_of_guids\x18\x05\x20\x01(\rR\rnumberOfGuidsBO\x82\x93\
+    \x19K2I\n\x18this\x20field\x20is\x20deprecated\x12\x20use\x20`dotnet.gui\
+    ds.len()`\x20instead\x1a\x0bguids.len()\x12\x87\x01\n\x13number_of_resou\
+    rces\x18\x06\x20\x01(\rR\x11numberOfResourcesBW\x82\x93\x19S2Q\n\x18this\
+    \x20field\x20is\x20deprecated\x12$use\x20`dotnet.resources.len()`\x20ins\
+    tead\x1a\x0fresources.len()\x12?\n\x1cnumber_of_generic_parameters\x18\
+    \x07\x20\x01(\rR\x19numberOfGenericParameters\x12\x7f\n\x11number_of_cla\
+    sses\x18\n\x20\x01(\rR\x0fnumberOfClassesBS\x82\x93\x19O2M\n\x18this\x20\
+    field\x20is\x20deprecated\x12\"use\x20`dotnet.classes.len()`\x20instead\
+    \x1a\rclasses.len()\x12\x96\x01\n\x17number_of_assembly_refs\x18\x0b\x20\
+    \x01(\rR\x14numberOfAssemblyRefsB_\x82\x93\x19[2Y\n\x18this\x20field\x20\
+    is\x20deprecated\x12(use\x20`dotnet.assembly_refs.len()`\x20instead\x1a\
+    \x13assembly_refs.len()\x12\x8b\x01\n\x14number_of_modulerefs\x18\x0c\
+    \x20\x01(\rR\x12numberOfModulerefsBY\x82\x93\x19U2S\n\x18this\x20field\
+    \x20is\x20deprecated\x12%use\x20`dotnet.modulerefs.len()`\x20instead\x1a\
+    \x10modulerefs.len()\x12\x92\x01\n\x16number_of_user_strings\x18\r\x20\
+    \x01(\rR\x13numberOfUserStringsB]\x82\x93\x19Y2W\n\x18this\x20field\x20i\
+    s\x20deprecated\x12'use\x20`dotnet.user_strings.len()`\x20instead\x1a\
+    \x12user_strings.len()\x12\x87\x01\n\x13number_of_constants\x18\x0e\x20\
+    \x01(\rR\x11numberOfConstantsBW\x82\x93\x19S2Q\n\x18this\x20field\x20is\
+    \x20deprecated\x12$use\x20`dotnet.constants.len()`\x20instead\x1a\x0fcon\
+    stants.len()\x12\x96\x01\n\x17number_of_field_offsets\x18\x0f\x20\x01(\r\
+    R\x14numberOfFieldOffsetsB_\x82\x93\x19[2Y\n\x18this\x20field\x20is\x20d\
+    eprecated\x12(use\x20`dotnet.field_offsets.len()`\x20instead\x1a\x13fiel\
+    d_offsets.len()\x12\x18\n\x07typelib\x18\x10\x20\x01(\tR\x07typelib\x12(\
+    \n\x07streams\x18\x11\x20\x03(\x0b2\x0e.dotnet.StreamR\x07streams\x12\
+    \x14\n\x05guids\x18\x12\x20\x03(\tR\x05guids\x12\x1c\n\tconstants\x18\
+    \x13\x20\x03(\x0cR\tconstants\x12,\n\x08assembly\x18\x14\x20\x01(\x0b2\
+    \x10.dotnet.AssemblyR\x08assembly\x128\n\rassembly_refs\x18\x15\x20\x03(\
+    \x0b2\x13.dotnet.AssemblyRefR\x0cassemblyRefs\x12.\n\tresources\x18\x16\
+    \x20\x03(\x0b2\x10.dotnet.ResourceR\tresources\x12'\n\x07classes\x18\x17\
+    \x20\x03(\x0b2\r.dotnet.ClassR\x07classes\x12#\n\rfield_offsets\x18\x18\
+    \x20\x03(\rR\x0cfieldOffsets\x12!\n\x0cuser_strings\x18\x19\x20\x03(\x0c\
+    R\x0buserStrings\x12\x1e\n\nmodulerefs\x18\x1a\x20\x03(\tR\nmodulerefs\"\
+    c\n\x08Assembly\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\x18\n\
+    \x07culture\x18\x02\x20\x01(\tR\x07culture\x12)\n\x07version\x18\x03\x20\
+    \x02(\x0b2\x0f.dotnet.VersionR\x07version\"{\n\x0bAssemblyRef\x12\x12\n\
+    \x04name\x18\x01\x20\x01(\tR\x04name\x12-\n\x13public_key_or_token\x18\
+    \x02\x20\x01(\x0cR\x10publicKeyOrToken\x12)\n\x07version\x18\x03\x20\x02\
+    (\x0b2\x0f.dotnet.VersionR\x07version\"Z\n\x06Stream\x12\x12\n\x04name\
+    \x18\x01\x20\x01(\tR\x04name\x12\x1f\n\x06offset\x18\x02\x20\x02(\rR\x06\
+    offsetB\x07\x82\x93\x19\x03*\x01x\x12\x1b\n\x04size\x18\x03\x20\x02(\rR\
+    \x04sizeB\x07\x82\x93\x19\x03*\x01x\"\x81\x01\n\x07Version\x12\x14\n\x05\
+    major\x18\x01\x20\x02(\rR\x05major\x12\x14\n\x05minor\x18\x02\x20\x02(\r\
+    R\x05minor\x12!\n\x0cbuild_number\x18\x03\x20\x02(\rR\x0bbuildNumber\x12\
+    '\n\x0frevision_number\x18\x04\x20\x02(\rR\x0erevisionNumber\"`\n\x08Res\
+    ource\x12\x1f\n\x06offset\x18\x01\x20\x01(\rR\x06offsetB\x07\x82\x93\x19\
+    \x03*\x01x\x12\x1f\n\x06length\x18\x02\x20\x01(\rR\x06lengthB\x07\x82\
+    \x93\x19\x03*\x01x\x12\x12\n\x04name\x18\x03\x20\x01(\tR\x04name\"\xdb\
+    \x05\n\x05Class\x12\x1a\n\x08fullname\x18\x01\x20\x01(\tR\x08fullname\
+    \x12\x12\n\x04name\x18\x02\x20\x01(\tR\x04name\x12\x1c\n\tnamespace\x18\
+    \x03\x20\x01(\tR\tnamespace\x12\x1e\n\nvisibility\x18\x04\x20\x01(\tR\nv\
+    isibility\x12\x12\n\x04type\x18\x05\x20\x01(\tR\x04type\x12\x1a\n\x08abs\
+    tract\x18\x06\x20\x02(\x08R\x08abstract\x12\x16\n\x06sealed\x18\x07\x20\
+    \x02(\x08R\x06sealed\x12\x83\x01\n\x14number_of_base_types\x18\x08\x20\
+    \x02(\rR\x11numberOfBaseTypesBR\x82\x93\x19N2L\n\x18this\x20field\x20is\
+    \x20deprecated\x12\x1euse\x20`base_types.len()`\x20instead\x1a\x10base_t\
+    ypes.len()\x12\xa3\x01\n\x1cnumber_of_generic_parameters\x18\t\x20\x02(\
+    \rR\x19numberOfGenericParametersBb\x82\x93\x19^2\\\n\x18this\x20field\
+    \x20is\x20deprecated\x12&use\x20`generic_parameters.len()`\x20instead\
+    \x1a\x18generic_parameters.len()\x12x\n\x11number_of_methods\x18\n\x20\
+    \x02(\rR\x0fnumberOfMethodsBL\x82\x93\x19H2F\n\x18this\x20field\x20is\
+    \x20deprecated\x12\x1buse\x20`methods.len()`\x20instead\x1a\rmethods.len\
+    ()\x12\x1d\n\nbase_types\x18\x0b\x20\x03(\tR\tbaseTypes\x12-\n\x12generi\
+    c_parameters\x18\x0c\x20\x03(\tR\x11genericParameters\x12(\n\x07methods\
+    \x18\r\x20\x03(\x0b2\x0e.dotnet.MethodR\x07methods\"\xcc\x04\n\x06Method\
+    \x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\x1e\n\nvisibility\x18\
+    \x02\x20\x01(\tR\nvisibility\x12\x1a\n\x08abstract\x18\x03\x20\x02(\x08R\
+    \x08abstract\x12\x16\n\x06static\x18\x04\x20\x02(\x08R\x06static\x12\x18\
+    \n\x07virtual\x18\x05\x20\x02(\x08R\x07virtual\x12\x14\n\x05final\x18\
+    \x06\x20\x02(\x08R\x05final\x12\x1f\n\x0breturn_type\x18\x07\x20\x01(\tR\
+    \nreturnType\x12\xa3\x01\n\x1cnumber_of_generic_parameters\x18\x08\x20\
+    \x02(\rR\x19numberOfGenericParametersBb\x82\x93\x19^2\\\n\x18this\x20fie\
+    ld\x20is\x20deprecated\x12&use\x20`generic_parameters.len()`\x20instead\
+    \x1a\x18generic_parameters.len()\x12\x84\x01\n\x14number_of_parameters\
+    \x18\t\x20\x02(\rR\x12numberOfParametersBR\x82\x93\x19N2L\n\x18this\x20f\
+    ield\x20is\x20deprecated\x12\x1euse\x20`parameters.len()`\x20instead\x1a\
+    \x10parameters.len()\x12-\n\x12generic_parameters\x18\n\x20\x03(\tR\x11g\
+    enericParameters\x12-\n\nparameters\x18\x0b\x20\x03(\x0b2\r.dotnet.Param\
+    R\nparameters\"/\n\x05Param\x12\x12\n\x04name\x18\x01\x20\x02(\tR\x04nam\
+    e\x12\x12\n\x04type\x18\x02\x20\x01(\tR\x04typeB*\xfa\x92\x19&\n\x06dotn\
+    et\x12\rdotnet.Dotnet\x1a\rdotnet-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

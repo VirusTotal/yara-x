@@ -99,28 +99,28 @@ message PE {
   }];
 
   // Number of imported functions across all imported libraries.
-  optional uint64 number_of_imported_functions = 38;
+  optional uint32 number_of_imported_functions = 38;
   // Number of delayed imported functions across all delayed libraries.
-  optional uint64 number_of_delayed_imported_functions = 39;
+  optional uint32 number_of_delayed_imported_functions = 39;
   
   // Number of resources contained within the file.
-  optional uint64 number_of_resources = 40  [(yara.field_options).deprecation_notice = {
+  optional uint32 number_of_resources = 40  [(yara.field_options).deprecation_notice = {
       text: "this field is deprecated",
       help: "use `pe.resources.len()` instead",
       replacement: "resources.len()"
   }];
   
   // Number of string-value pairs within the version info resource.
-  optional uint64 number_of_version_infos = 41;
+  optional uint32 number_of_version_infos = 41;
   // Number of imported libraries.
-  optional uint64 number_of_imports = 42;
+  optional uint32 number_of_imports = 42;
   // Number of delayed imported libraries.
-  optional uint64 number_of_delayed_imports = 43;
+  optional uint32 number_of_delayed_imports = 43;
   // Number of exported symbols.
-  optional uint64 number_of_exports = 44;
+  optional uint32 number_of_exports = 44;
 
   // Number of digital signatures found in the file.
-  optional uint64 number_of_signatures = 45  [(yara.field_options).deprecation_notice = {
+  optional uint32 number_of_signatures = 45  [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `pe.signatures.len()` instead",
     replacement: "signatures.len()"
@@ -206,7 +206,7 @@ message Import {
   // Target library filename (e.g., "kernel32.dll").
   required string library_name = 1;
   // Total count of functions imported from this library.
-  required uint64 number_of_functions = 2;
+  required uint32 number_of_functions = 2;
   // Individual functions imported from the library.
   repeated Function functions = 3;
 }
@@ -262,9 +262,9 @@ message Signature {
   // Digest computed directly from the binary payload.
   optional string file_digest = 13;
   // Number of certificates embedded in the signature chain.
-  optional uint64 number_of_certificates = 14;
+  optional uint32 number_of_certificates = 14;
   // Number of countersignatures associated with this signature.
-  optional uint64 number_of_countersignatures = 15;
+  optional uint32 number_of_countersignatures = 15;
   // Details regarding the primary signer entity.
   optional SignerInfo signer_info = 16;
   // Certificates making up the signing chain.

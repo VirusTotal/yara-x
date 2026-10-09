@@ -103,21 +103,21 @@ pub struct PE {
     // @@protoc_insertion_point(field:pe.PE.number_of_sections)
     pub number_of_sections: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:pe.PE.number_of_imported_functions)
-    pub number_of_imported_functions: ::std::option::Option<u64>,
+    pub number_of_imported_functions: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:pe.PE.number_of_delayed_imported_functions)
-    pub number_of_delayed_imported_functions: ::std::option::Option<u64>,
+    pub number_of_delayed_imported_functions: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:pe.PE.number_of_resources)
-    pub number_of_resources: ::std::option::Option<u64>,
+    pub number_of_resources: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:pe.PE.number_of_version_infos)
-    pub number_of_version_infos: ::std::option::Option<u64>,
+    pub number_of_version_infos: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:pe.PE.number_of_imports)
-    pub number_of_imports: ::std::option::Option<u64>,
+    pub number_of_imports: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:pe.PE.number_of_delayed_imports)
-    pub number_of_delayed_imports: ::std::option::Option<u64>,
+    pub number_of_delayed_imports: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:pe.PE.number_of_exports)
-    pub number_of_exports: ::std::option::Option<u64>,
+    pub number_of_exports: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:pe.PE.number_of_signatures)
-    pub number_of_signatures: ::std::option::Option<u64>,
+    pub number_of_signatures: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:pe.PE.version_info)
     pub version_info: ::std::collections::HashMap<::std::string::String, ::std::string::String>,
     // @@protoc_insertion_point(field:pe.PE.version_info_list)
@@ -817,9 +817,9 @@ impl PE {
         self.number_of_sections = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_imported_functions = 38;
+    // optional uint32 number_of_imported_functions = 38;
 
-    pub fn number_of_imported_functions(&self) -> u64 {
+    pub fn number_of_imported_functions(&self) -> u32 {
         self.number_of_imported_functions.unwrap_or(0)
     }
 
@@ -832,13 +832,13 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_imported_functions(&mut self, v: u64) {
+    pub fn set_number_of_imported_functions(&mut self, v: u32) {
         self.number_of_imported_functions = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_delayed_imported_functions = 39;
+    // optional uint32 number_of_delayed_imported_functions = 39;
 
-    pub fn number_of_delayed_imported_functions(&self) -> u64 {
+    pub fn number_of_delayed_imported_functions(&self) -> u32 {
         self.number_of_delayed_imported_functions.unwrap_or(0)
     }
 
@@ -851,13 +851,13 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_delayed_imported_functions(&mut self, v: u64) {
+    pub fn set_number_of_delayed_imported_functions(&mut self, v: u32) {
         self.number_of_delayed_imported_functions = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_resources = 40;
+    // optional uint32 number_of_resources = 40;
 
-    pub fn number_of_resources(&self) -> u64 {
+    pub fn number_of_resources(&self) -> u32 {
         self.number_of_resources.unwrap_or(0)
     }
 
@@ -870,13 +870,13 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_resources(&mut self, v: u64) {
+    pub fn set_number_of_resources(&mut self, v: u32) {
         self.number_of_resources = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_version_infos = 41;
+    // optional uint32 number_of_version_infos = 41;
 
-    pub fn number_of_version_infos(&self) -> u64 {
+    pub fn number_of_version_infos(&self) -> u32 {
         self.number_of_version_infos.unwrap_or(0)
     }
 
@@ -889,13 +889,13 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_version_infos(&mut self, v: u64) {
+    pub fn set_number_of_version_infos(&mut self, v: u32) {
         self.number_of_version_infos = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_imports = 42;
+    // optional uint32 number_of_imports = 42;
 
-    pub fn number_of_imports(&self) -> u64 {
+    pub fn number_of_imports(&self) -> u32 {
         self.number_of_imports.unwrap_or(0)
     }
 
@@ -908,13 +908,13 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_imports(&mut self, v: u64) {
+    pub fn set_number_of_imports(&mut self, v: u32) {
         self.number_of_imports = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_delayed_imports = 43;
+    // optional uint32 number_of_delayed_imports = 43;
 
-    pub fn number_of_delayed_imports(&self) -> u64 {
+    pub fn number_of_delayed_imports(&self) -> u32 {
         self.number_of_delayed_imports.unwrap_or(0)
     }
 
@@ -927,13 +927,13 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_delayed_imports(&mut self, v: u64) {
+    pub fn set_number_of_delayed_imports(&mut self, v: u32) {
         self.number_of_delayed_imports = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_exports = 44;
+    // optional uint32 number_of_exports = 44;
 
-    pub fn number_of_exports(&self) -> u64 {
+    pub fn number_of_exports(&self) -> u32 {
         self.number_of_exports.unwrap_or(0)
     }
 
@@ -946,13 +946,13 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_exports(&mut self, v: u64) {
+    pub fn set_number_of_exports(&mut self, v: u32) {
         self.number_of_exports = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_signatures = 45;
+    // optional uint32 number_of_signatures = 45;
 
-    pub fn number_of_signatures(&self) -> u64 {
+    pub fn number_of_signatures(&self) -> u32 {
         self.number_of_signatures.unwrap_or(0)
     }
 
@@ -965,7 +965,7 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_signatures(&mut self, v: u64) {
+    pub fn set_number_of_signatures(&mut self, v: u32) {
         self.number_of_signatures = ::std::option::Option::Some(v);
     }
 
@@ -1555,28 +1555,28 @@ impl ::protobuf::Message for PE {
                     self.number_of_sections = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 304 => {
-                    self.number_of_imported_functions = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_imported_functions = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 312 => {
-                    self.number_of_delayed_imported_functions = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_delayed_imported_functions = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 320 => {
-                    self.number_of_resources = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_resources = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 328 => {
-                    self.number_of_version_infos = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_version_infos = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 336 => {
-                    self.number_of_imports = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_imports = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 344 => {
-                    self.number_of_delayed_imports = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_delayed_imports = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 352 => {
-                    self.number_of_exports = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_exports = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 360 => {
-                    self.number_of_signatures = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_signatures = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 370 => {
                     let len = is.read_raw_varint32()?;
@@ -1763,28 +1763,28 @@ impl ::protobuf::Message for PE {
             my_size += ::protobuf::rt::uint32_size(37, v);
         }
         if let Some(v) = self.number_of_imported_functions {
-            my_size += ::protobuf::rt::uint64_size(38, v);
+            my_size += ::protobuf::rt::uint32_size(38, v);
         }
         if let Some(v) = self.number_of_delayed_imported_functions {
-            my_size += ::protobuf::rt::uint64_size(39, v);
+            my_size += ::protobuf::rt::uint32_size(39, v);
         }
         if let Some(v) = self.number_of_resources {
-            my_size += ::protobuf::rt::uint64_size(40, v);
+            my_size += ::protobuf::rt::uint32_size(40, v);
         }
         if let Some(v) = self.number_of_version_infos {
-            my_size += ::protobuf::rt::uint64_size(41, v);
+            my_size += ::protobuf::rt::uint32_size(41, v);
         }
         if let Some(v) = self.number_of_imports {
-            my_size += ::protobuf::rt::uint64_size(42, v);
+            my_size += ::protobuf::rt::uint32_size(42, v);
         }
         if let Some(v) = self.number_of_delayed_imports {
-            my_size += ::protobuf::rt::uint64_size(43, v);
+            my_size += ::protobuf::rt::uint32_size(43, v);
         }
         if let Some(v) = self.number_of_exports {
-            my_size += ::protobuf::rt::uint64_size(44, v);
+            my_size += ::protobuf::rt::uint32_size(44, v);
         }
         if let Some(v) = self.number_of_signatures {
-            my_size += ::protobuf::rt::uint64_size(45, v);
+            my_size += ::protobuf::rt::uint32_size(45, v);
         }
         for (k, v) in &self.version_info {
             let mut entry_size = 0;
@@ -1963,28 +1963,28 @@ impl ::protobuf::Message for PE {
             os.write_uint32(37, v)?;
         }
         if let Some(v) = self.number_of_imported_functions {
-            os.write_uint64(38, v)?;
+            os.write_uint32(38, v)?;
         }
         if let Some(v) = self.number_of_delayed_imported_functions {
-            os.write_uint64(39, v)?;
+            os.write_uint32(39, v)?;
         }
         if let Some(v) = self.number_of_resources {
-            os.write_uint64(40, v)?;
+            os.write_uint32(40, v)?;
         }
         if let Some(v) = self.number_of_version_infos {
-            os.write_uint64(41, v)?;
+            os.write_uint32(41, v)?;
         }
         if let Some(v) = self.number_of_imports {
-            os.write_uint64(42, v)?;
+            os.write_uint32(42, v)?;
         }
         if let Some(v) = self.number_of_delayed_imports {
-            os.write_uint64(43, v)?;
+            os.write_uint32(43, v)?;
         }
         if let Some(v) = self.number_of_exports {
-            os.write_uint64(44, v)?;
+            os.write_uint32(44, v)?;
         }
         if let Some(v) = self.number_of_signatures {
-            os.write_uint64(45, v)?;
+            os.write_uint32(45, v)?;
         }
         for (k, v) in &self.version_info {
             let mut entry_size = 0;
@@ -3230,7 +3230,7 @@ pub struct Import {
     // @@protoc_insertion_point(field:pe.Import.library_name)
     pub library_name: ::std::option::Option<::std::string::String>,
     // @@protoc_insertion_point(field:pe.Import.number_of_functions)
-    pub number_of_functions: ::std::option::Option<u64>,
+    pub number_of_functions: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:pe.Import.functions)
     pub functions: ::std::vec::Vec<Function>,
     // special fields
@@ -3285,9 +3285,9 @@ impl Import {
         self.library_name.take().unwrap_or_else(|| ::std::string::String::new())
     }
 
-    // required uint64 number_of_functions = 2;
+    // required uint32 number_of_functions = 2;
 
-    pub fn number_of_functions(&self) -> u64 {
+    pub fn number_of_functions(&self) -> u32 {
         self.number_of_functions.unwrap_or(0)
     }
 
@@ -3300,7 +3300,7 @@ impl Import {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_functions(&mut self, v: u64) {
+    pub fn set_number_of_functions(&mut self, v: u32) {
         self.number_of_functions = ::std::option::Option::Some(v);
     }
 
@@ -3355,7 +3355,7 @@ impl ::protobuf::Message for Import {
                     self.library_name = ::std::option::Option::Some(is.read_string()?);
                 },
                 16 => {
-                    self.number_of_functions = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_functions = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 26 => {
                     self.functions.push(is.read_message()?);
@@ -3376,7 +3376,7 @@ impl ::protobuf::Message for Import {
             my_size += ::protobuf::rt::string_size(1, &v);
         }
         if let Some(v) = self.number_of_functions {
-            my_size += ::protobuf::rt::uint64_size(2, v);
+            my_size += ::protobuf::rt::uint32_size(2, v);
         }
         for value in &self.functions {
             let len = value.compute_size();
@@ -3392,7 +3392,7 @@ impl ::protobuf::Message for Import {
             os.write_string(1, v)?;
         }
         if let Some(v) = self.number_of_functions {
-            os.write_uint64(2, v)?;
+            os.write_uint32(2, v)?;
         }
         for v in &self.functions {
             ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
@@ -4043,9 +4043,9 @@ pub struct Signature {
     // @@protoc_insertion_point(field:pe.Signature.file_digest)
     pub file_digest: ::std::option::Option<::std::string::String>,
     // @@protoc_insertion_point(field:pe.Signature.number_of_certificates)
-    pub number_of_certificates: ::std::option::Option<u64>,
+    pub number_of_certificates: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:pe.Signature.number_of_countersignatures)
-    pub number_of_countersignatures: ::std::option::Option<u64>,
+    pub number_of_countersignatures: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:pe.Signature.signer_info)
     pub signer_info: ::protobuf::MessageField<SignerInfo>,
     // @@protoc_insertion_point(field:pe.Signature.certificates)
@@ -4468,9 +4468,9 @@ impl Signature {
         self.file_digest.take().unwrap_or_else(|| ::std::string::String::new())
     }
 
-    // optional uint64 number_of_certificates = 14;
+    // optional uint32 number_of_certificates = 14;
 
-    pub fn number_of_certificates(&self) -> u64 {
+    pub fn number_of_certificates(&self) -> u32 {
         self.number_of_certificates.unwrap_or(0)
     }
 
@@ -4483,13 +4483,13 @@ impl Signature {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_certificates(&mut self, v: u64) {
+    pub fn set_number_of_certificates(&mut self, v: u32) {
         self.number_of_certificates = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_countersignatures = 15;
+    // optional uint32 number_of_countersignatures = 15;
 
-    pub fn number_of_countersignatures(&self) -> u64 {
+    pub fn number_of_countersignatures(&self) -> u32 {
         self.number_of_countersignatures.unwrap_or(0)
     }
 
@@ -4502,7 +4502,7 @@ impl Signature {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_countersignatures(&mut self, v: u64) {
+    pub fn set_number_of_countersignatures(&mut self, v: u32) {
         self.number_of_countersignatures = ::std::option::Option::Some(v);
     }
 
@@ -4657,10 +4657,10 @@ impl ::protobuf::Message for Signature {
                     self.file_digest = ::std::option::Option::Some(is.read_string()?);
                 },
                 112 => {
-                    self.number_of_certificates = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_certificates = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 120 => {
-                    self.number_of_countersignatures = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_countersignatures = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 130 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.signer_info)?;
@@ -4723,10 +4723,10 @@ impl ::protobuf::Message for Signature {
             my_size += ::protobuf::rt::string_size(13, &v);
         }
         if let Some(v) = self.number_of_certificates {
-            my_size += ::protobuf::rt::uint64_size(14, v);
+            my_size += ::protobuf::rt::uint32_size(14, v);
         }
         if let Some(v) = self.number_of_countersignatures {
-            my_size += ::protobuf::rt::uint64_size(15, v);
+            my_size += ::protobuf::rt::uint32_size(15, v);
         }
         if let Some(v) = self.signer_info.as_ref() {
             let len = v.compute_size();
@@ -4786,10 +4786,10 @@ impl ::protobuf::Message for Signature {
             os.write_string(13, v)?;
         }
         if let Some(v) = self.number_of_certificates {
-            os.write_uint64(14, v)?;
+            os.write_uint32(14, v)?;
         }
         if let Some(v) = self.number_of_countersignatures {
-            os.write_uint64(15, v)?;
+            os.write_uint32(15, v)?;
         }
         if let Some(v) = self.signer_info.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(16, v, os)?;
@@ -8885,240 +8885,240 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x18%\x20\x01(\rR\x10numberOfSectionsBQ\x82\x93\x19M2K\n\x18this\x20fiel\
     d\x20is\x20deprecated\x12\x1fuse\x20`pe.sections.len()`\x20instead\x1a\
     \x0esections.len()\x12?\n\x1cnumber_of_imported_functions\x18&\x20\x01(\
-    \x04R\x19numberOfImportedFunctions\x12N\n$number_of_delayed_imported_fun\
-    ctions\x18'\x20\x01(\x04R\x20numberOfDelayedImportedFunctions\x12\x83\
-    \x01\n\x13number_of_resources\x18(\x20\x01(\x04R\x11numberOfResourcesBS\
-    \x82\x93\x19O2M\n\x18this\x20field\x20is\x20deprecated\x12\x20use\x20`pe\
-    .resources.len()`\x20instead\x1a\x0fresources.len()\x125\n\x17number_of_\
-    version_infos\x18)\x20\x01(\x04R\x14numberOfVersionInfos\x12*\n\x11numbe\
-    r_of_imports\x18*\x20\x01(\x04R\x0fnumberOfImports\x129\n\x19number_of_d\
-    elayed_imports\x18+\x20\x01(\x04R\x16numberOfDelayedImports\x12*\n\x11nu\
-    mber_of_exports\x18,\x20\x01(\x04R\x0fnumberOfExports\x12\x87\x01\n\x14n\
-    umber_of_signatures\x18-\x20\x01(\x04R\x12numberOfSignaturesBU\x82\x93\
-    \x19Q2O\n\x18this\x20field\x20is\x20deprecated\x12!use\x20`pe.signatures\
-    .len()`\x20instead\x1a\x10signatures.len()\x12:\n\x0cversion_info\x18.\
-    \x20\x03(\x0b2\x17.pe.PE.VersionInfoEntryR\x0bversionInfo\x128\n\x11vers\
-    ion_info_list\x18/\x20\x03(\x0b2\x0c.pe.KeyValueR\x0fversionInfoList\x12\
-    8\n\x0erich_signature\x180\x20\x01(\x0b2\x11.pe.RichSignatureR\rrichSign\
-    ature\x12\x19\n\x08pdb_path\x181\x20\x01(\x0cR\x07pdbPath\x12'\n\x08sect\
-    ions\x182\x20\x03(\x0b2\x0b.pe.SectionR\x08sections\x127\n\x10data_direc\
-    tories\x183\x20\x03(\x0b2\x0c.pe.DirEntryR\x0fdataDirectories\x126\n\x12\
-    resource_timestamp\x184\x20\x01(\x04R\x11resourceTimestampB\x07\x82\x93\
-    \x19\x03*\x01t\x126\n\x10resource_version\x185\x20\x01(\x0b2\x0b.pe.Vers\
-    ionR\x0fresourceVersion\x12*\n\tresources\x186\x20\x03(\x0b2\x0c.pe.Reso\
-    urceR\tresources\x121\n\x0eimport_details\x187\x20\x03(\x0b2\n.pe.Import\
-    R\rimportDetails\x12@\n\x16delayed_import_details\x188\x20\x03(\x0b2\n.p\
-    e.ImportR\x14delayedImportDetails\x121\n\x0eexport_details\x189\x20\x03(\
-    \x0b2\n.pe.ExportR\rexportDetails\x12\x1b\n\tis_signed\x18:\x20\x01(\x08\
-    R\x08isSigned\x12-\n\nsignatures\x18;\x20\x03(\x0b2\r.pe.SignatureR\nsig\
-    natures\x12%\n\x07overlay\x18<\x20\x01(\x0b2\x0b.pe.OverlayR\x07overlay\
-    \x1a>\n\x10VersionInfoEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\
-    \x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x028\x01\"5\n\x07Versi\
-    on\x12\x14\n\x05major\x18\x01\x20\x02(\rR\x05major\x12\x14\n\x05minor\
-    \x18\x02\x20\x02(\rR\x05minor\"2\n\x08KeyValue\x12\x10\n\x03key\x18\x01\
-    \x20\x02(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x02(\tR\x05value\"Y\n\
-    \x08DirEntry\x120\n\x0fvirtual_address\x18\x01\x20\x02(\rR\x0evirtualAdd\
-    ressB\x07\x82\x93\x19\x03*\x01x\x12\x1b\n\x04size\x18\x02\x20\x02(\rR\
-    \x04sizeB\x07\x82\x93\x19\x03*\x01x\"\xa4\x02\n\x08Resource\x12\x1f\n\
-    \x06length\x18\x01\x20\x02(\rR\x06lengthB\x07\x82\x93\x19\x03*\x01x\x12\
-    \x19\n\x03rva\x18\x02\x20\x02(\rR\x03rvaB\x07\x82\x93\x19\x03*\x01x\x12\
-    \x1f\n\x06offset\x18\x03\x20\x01(\rR\x06offsetB\x07\x82\x93\x19\x03*\x01\
-    x\x12$\n\x04type\x18\x04\x20\x01(\x0e2\x10.pe.ResourceTypeR\x04type\x12\
-    \x0e\n\x02id\x18\x05\x20\x01(\rR\x02id\x12\x1a\n\x08language\x18\x06\x20\
-    \x01(\rR\x08language\x12\x1f\n\x0btype_string\x18\x07\x20\x01(\x0cR\ntyp\
-    eString\x12\x1f\n\x0bname_string\x18\x08\x20\x01(\x0cR\nnameString\x12'\
-    \n\x0flanguage_string\x18\t\x20\x01(\x0cR\x0elanguageString\"\x87\x01\n\
-    \x06Import\x12!\n\x0clibrary_name\x18\x01\x20\x02(\tR\x0blibraryName\x12\
-    .\n\x13number_of_functions\x18\x02\x20\x02(\x04R\x11numberOfFunctions\
-    \x12*\n\tfunctions\x18\x03\x20\x03(\x0b2\x0c.pe.FunctionR\tfunctions\"\
-    \x95\x01\n\x06Export\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\
-    \x18\n\x07ordinal\x18\x02\x20\x02(\rR\x07ordinal\x12\x19\n\x03rva\x18\
-    \x03\x20\x02(\rR\x03rvaB\x07\x82\x93\x19\x03*\x01x\x12\x1f\n\x06offset\
-    \x18\x04\x20\x01(\rR\x06offsetB\x07\x82\x93\x19\x03*\x01x\x12!\n\x0cforw\
-    ard_name\x18\x05\x20\x01(\tR\x0bforwardName\"S\n\x08Function\x12\x12\n\
-    \x04name\x18\x01\x20\x01(\tR\x04name\x12\x18\n\x07ordinal\x18\x02\x20\
-    \x01(\rR\x07ordinal\x12\x19\n\x03rva\x18\x03\x20\x02(\rR\x03rvaB\x07\x82\
-    \x93\x19\x03*\x01x\"\xb4\x05\n\tSignature\x12\x18\n\x07subject\x18\x01\
-    \x20\x01(\tR\x07subject\x12\x16\n\x06issuer\x18\x02\x20\x01(\tR\x06issue\
-    r\x12\x1e\n\nthumbprint\x18\x03\x20\x01(\tR\nthumbprint\x12\x18\n\x07ver\
-    sion\x18\x04\x20\x01(\x03R\x07version\x12\x1c\n\talgorithm\x18\x05\x20\
-    \x01(\tR\talgorithm\x12#\n\ralgorithm_oid\x18\x06\x20\x01(\tR\x0calgorit\
-    hmOid\x12\x16\n\x06serial\x18\x07\x20\x01(\tR\x06serial\x12&\n\nnot_befo\
-    re\x18\x08\x20\x01(\x03R\tnotBeforeB\x07\x82\x93\x19\x03*\x01t\x12$\n\tn\
-    ot_after\x18\t\x20\x01(\x03R\x08notAfterB\x07\x82\x93\x19\x03*\x01t\x12\
-    \x1a\n\x08verified\x18\n\x20\x01(\x08R\x08verified\x12\x1d\n\ndigest_alg\
-    \x18\x0b\x20\x01(\tR\tdigestAlg\x12\x16\n\x06digest\x18\x0c\x20\x01(\tR\
-    \x06digest\x12\x1f\n\x0bfile_digest\x18\r\x20\x01(\tR\nfileDigest\x124\n\
-    \x16number_of_certificates\x18\x0e\x20\x01(\x04R\x14numberOfCertificates\
-    \x12>\n\x1bnumber_of_countersignatures\x18\x0f\x20\x01(\x04R\x19numberOf\
-    Countersignatures\x12/\n\x0bsigner_info\x18\x10\x20\x01(\x0b2\x0e.pe.Sig\
-    nerInfoR\nsignerInfo\x123\n\x0ccertificates\x18\x11\x20\x03(\x0b2\x0f.pe\
-    .CertificateR\x0ccertificates\x12B\n\x11countersignatures\x18\x12\x20\
-    \x03(\x0b2\x14.pe.CounterSignatureR\x11countersignatures\"\xaa\x01\n\nSi\
-    gnerInfo\x12!\n\x0cprogram_name\x18\x01\x20\x01(\tR\x0bprogramName\x12\
-    \x1b\n\tmore_info\x18\x02\x20\x01(\tR\x08moreInfo\x12\x16\n\x06digest\
-    \x18\x03\x20\x01(\tR\x06digest\x12\x1d\n\ndigest_alg\x18\x04\x20\x01(\tR\
-    \tdigestAlg\x12%\n\x05chain\x18\x05\x20\x03(\x0b2\x0f.pe.CertificateR\
-    \x05chain\"\xa2\x02\n\x0bCertificate\x12\x16\n\x06issuer\x18\x01\x20\x01\
-    (\tR\x06issuer\x12\x18\n\x07subject\x18\x02\x20\x01(\tR\x07subject\x12\
-    \x1e\n\nthumbprint\x18\x03\x20\x01(\tR\nthumbprint\x12\x18\n\x07version\
-    \x18\x04\x20\x01(\x03R\x07version\x12\x1c\n\talgorithm\x18\x05\x20\x01(\
-    \tR\talgorithm\x12#\n\ralgorithm_oid\x18\x06\x20\x01(\tR\x0calgorithmOid\
-    \x12\x16\n\x06serial\x18\x07\x20\x01(\tR\x06serial\x12&\n\nnot_before\
-    \x18\x08\x20\x01(\x03R\tnotBeforeB\x07\x82\x93\x19\x03*\x01t\x12$\n\tnot\
-    _after\x18\t\x20\x01(\x03R\x08notAfterB\x07\x82\x93\x19\x03*\x01t\"\xb2\
-    \x01\n\x10CounterSignature\x12\x1a\n\x08verified\x18\x01\x20\x01(\x08R\
-    \x08verified\x12$\n\tsign_time\x18\x02\x20\x01(\x03R\x08signTimeB\x07\
-    \x82\x93\x19\x03*\x01t\x12\x16\n\x06digest\x18\x0c\x20\x01(\tR\x06digest\
-    \x12\x1d\n\ndigest_alg\x18\x03\x20\x01(\tR\tdigestAlg\x12%\n\x05chain\
-    \x18\x04\x20\x03(\x0b2\x0f.pe.CertificateR\x05chain\"\xac\x04\n\x07Secti\
-    on\x12\x12\n\x04name\x18\x01\x20\x02(\x0cR\x04name\x12\x1b\n\tfull_name\
-    \x18\x02\x20\x02(\x0cR\x08fullName\x12L\n\x0fcharacteristics\x18\x03\x20\
-    \x02(\rR\x0fcharacteristicsB\"\x82\x93\x19\x1e*\x1cflags:SectionCharacte\
-    ristics\x12+\n\rraw_data_size\x18\x04\x20\x02(\rR\x0brawDataSizeB\x07\
-    \x82\x93\x19\x03*\x01x\x12/\n\x0fraw_data_offset\x18\x05\x20\x02(\rR\rra\
-    wDataOffsetB\x07\x82\x93\x19\x03*\x01x\x120\n\x0fvirtual_address\x18\x06\
-    \x20\x02(\rR\x0evirtualAddressB\x07\x82\x93\x19\x03*\x01x\x12*\n\x0cvirt\
-    ual_size\x18\x07\x20\x02(\rR\x0bvirtualSizeB\x07\x82\x93\x19\x03*\x01x\
-    \x12=\n\x16pointer_to_relocations\x18\x08\x20\x02(\rR\x14pointerToReloca\
-    tionsB\x07\x82\x93\x19\x03*\x01x\x12>\n\x17pointer_to_line_numbers\x18\t\
-    \x20\x02(\rR\x14pointerToLineNumbersB\x07\x82\x93\x19\x03*\x01x\x122\n\
-    \x15number_of_relocations\x18\n\x20\x02(\rR\x13numberOfRelocations\x123\
-    \n\x16number_of_line_numbers\x18\x0b\x20\x02(\rR\x13numberOfLineNumbers\
-    \"\xc1\x01\n\rRichSignature\x12\x1f\n\x06offset\x18\x01\x20\x02(\rR\x06o\
-    ffsetB\x07\x82\x93\x19\x03*\x01x\x12\x1f\n\x06length\x18\x02\x20\x02(\rR\
-    \x06lengthB\x07\x82\x93\x19\x03*\x01x\x12\x10\n\x03key\x18\x03\x20\x02(\
-    \rR\x03key\x12\x19\n\x08raw_data\x18\x04\x20\x02(\x0cR\x07rawData\x12\
-    \x1d\n\nclear_data\x18\x05\x20\x02(\x0cR\tclearData\x12\"\n\x05tools\x18\
-    \x06\x20\x03(\x0b2\x0c.pe.RichToolR\x05tools\"R\n\x08RichTool\x12\x16\n\
-    \x06toolid\x18\x01\x20\x02(\rR\x06toolid\x12\x18\n\x07version\x18\x02\
-    \x20\x02(\rR\x07version\x12\x14\n\x05times\x18\x03\x20\x02(\rR\x05times\
-    \"G\n\x07Overlay\x12\x1f\n\x06offset\x18\x01\x20\x02(\x04R\x06offsetB\
-    \x07\x82\x93\x19\x03*\x01x\x12\x1b\n\x04size\x18\x02\x20\x02(\x04R\x04si\
-    zeB\x07\x82\x93\x19\x03*\x01x*\xd0\x04\n\x0cResourceType\x12\x18\n\x14RE\
-    SOURCE_TYPE_CURSOR\x10\x01\x12\x18\n\x14RESOURCE_TYPE_BITMAP\x10\x02\x12\
-    \x16\n\x12RESOURCE_TYPE_ICON\x10\x03\x12\x16\n\x12RESOURCE_TYPE_MENU\x10\
-    \x04\x12\x18\n\x14RESOURCE_TYPE_DIALOG\x10\x05\x12\x18\n\x14RESOURCE_TYP\
-    E_STRING\x10\x06\x12\x19\n\x15RESOURCE_TYPE_FONTDIR\x10\x07\x12\x16\n\
-    \x12RESOURCE_TYPE_FONT\x10\x08\x12\x1d\n\x19RESOURCE_TYPE_ACCELERATOR\
-    \x10\t\x12\x18\n\x14RESOURCE_TYPE_RCDATA\x10\n\x12\x1e\n\x1aRESOURCE_TYP\
-    E_MESSAGETABLE\x10\x0b\x12\x1e\n\x1aRESOURCE_TYPE_GROUP_CURSOR\x10\x0c\
-    \x12\x1c\n\x18RESOURCE_TYPE_GROUP_ICON\x10\x0e\x12\x19\n\x15RESOURCE_TYP\
-    E_VERSION\x10\x10\x12\x1c\n\x18RESOURCE_TYPE_DLGINCLUDE\x10\x11\x12\x1a\
-    \n\x16RESOURCE_TYPE_PLUGPLAY\x10\x13\x12\x15\n\x11RESOURCE_TYPE_VXD\x10\
-    \x14\x12\x1b\n\x17RESOURCE_TYPE_ANICURSOR\x10\x15\x12\x19\n\x15RESOURCE_\
-    TYPE_ANIICON\x10\x16\x12\x16\n\x12RESOURCE_TYPE_HTML\x10\x17\x12\x1a\n\
-    \x16RESOURCE_TYPE_MANIFEST\x10\x18\x1a\x06\x92\x93\x19\x02\x10\x01*\xf9\
-    \x05\n\x07Machine\x12\x13\n\x0fMACHINE_UNKNOWN\x10\0\x12\x12\n\rMACHINE_\
-    ALPHA\x10\x84\x03\x12\x14\n\x0fMACHINE_ALPHA64\x10\x84\x05\x12\x11\n\x0c\
-    MACHINE_AM33\x10\xd3\x03\x12\x13\n\rMACHINE_AMD64\x10\xe4\x8c\x02\x12\
-    \x10\n\x0bMACHINE_ARM\x10\xc0\x03\x12\x13\n\rMACHINE_ARM64\x10\xe4\xd4\
-    \x02\x12\x15\n\x0fMACHINE_ARM64EC\x10\xc1\xcc\x02\x12\x14\n\x0eMACHINE_A\
-    RM64X\x10\xce\xcc\x02\x12\x12\n\rMACHINE_ARMNT\x10\xc4\x03\x12\x12\n\rMA\
-    CHINE_AXP64\x10\x84\x05\x12\x10\n\x0bMACHINE_EBC\x10\xbc\x1d\x12\x11\n\
-    \x0cMACHINE_I386\x10\xcc\x02\x12\x11\n\x0cMACHINE_IA64\x10\x80\x04\x12\
-    \x19\n\x13MACHINE_LOONGARCH32\x10\xb2\xc4\x01\x12\x19\n\x13MACHINE_LOONG\
-    ARCH64\x10\xe4\xc4\x01\x12\x12\n\x0cMACHINE_M32R\x10\xc1\xa0\x02\x12\x13\
-    \n\x0eMACHINE_MIPS16\x10\xe6\x04\x12\x14\n\x0fMACHINE_MIPSFPU\x10\xe6\
-    \x06\x12\x16\n\x11MACHINE_MIPSFPU16\x10\xe6\x08\x12\x14\n\x0fMACHINE_POW\
-    ERPC\x10\xf0\x03\x12\x16\n\x11MACHINE_POWERPCFP\x10\xf1\x03\x12\x14\n\
-    \x0fMACHINE_R3000BE\x10\xe0\x02\x12\x12\n\rMACHINE_R3000\x10\xe2\x02\x12\
-    \x12\n\rMACHINE_R4000\x10\xe6\x02\x12\x13\n\x0eMACHINE_R10000\x10\xe8\
-    \x02\x12\x15\n\x0fMACHINE_RISCV32\x10\xb2\xa0\x01\x12\x15\n\x0fMACHINE_R\
-    ISCV64\x10\xe4\xa0\x01\x12\x16\n\x10MACHINE_RISCV128\x10\xa8\xa2\x01\x12\
-    \x10\n\x0bMACHINE_SH3\x10\xa2\x03\x12\x13\n\x0eMACHINE_SH3DSP\x10\xa3\
-    \x03\x12\x10\n\x0bMACHINE_SH4\x10\xa6\x03\x12\x10\n\x0bMACHINE_SH5\x10\
-    \xa8\x03\x12\x12\n\rMACHINE_THUMB\x10\xc2\x03\x12\x16\n\x11MACHINE_WCEMI\
-    PSV2\x10\xe9\x02\x1a\x08\x10\x01\x92\x93\x19\x02\x10\x01*\xa3\x03\n\tSub\
-    system\x12\x15\n\x11SUBSYSTEM_UNKNOWN\x10\0\x12\x14\n\x10SUBSYSTEM_NATIV\
-    E\x10\x01\x12\x19\n\x15SUBSYSTEM_WINDOWS_GUI\x10\x02\x12\x19\n\x15SUBSYS\
-    TEM_WINDOWS_CUI\x10\x03\x12\x15\n\x11SUBSYSTEM_OS2_CUI\x10\x05\x12\x17\n\
-    \x13SUBSYSTEM_POSIX_CUI\x10\x07\x12\x1c\n\x18SUBSYSTEM_NATIVE_WINDOWS\
-    \x10\x08\x12\x1c\n\x18SUBSYSTEM_WINDOWS_CE_GUI\x10\t\x12\x1d\n\x19SUBSYS\
-    TEM_EFI_APPLICATION\x10\n\x12%\n!SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER\x10\
-    \x0b\x12\x20\n\x1cSUBSYSTEM_EFI_RUNTIME_DRIVER\x10\x0c\x12\x1b\n\x17SUBS\
-    YSTEM_EFI_ROM_IMAGE\x10\r\x12\x12\n\x0eSUBSYSTEM_XBOX\x10\x0e\x12&\n\"SU\
-    BSYSTEM_WINDOWS_BOOT_APPLICATION\x10\x10\x1a\x06\x92\x93\x19\x02\x10\x01\
-    *N\n\x0bImportFlags\x12\x13\n\x0fIMPORT_STANDARD\x10\x01\x12\x12\n\x0eIM\
-    PORT_DELAYED\x10\x02\x12\x0e\n\nIMPORT_ANY\x10\x03\x1a\x06\x92\x93\x19\
-    \x02\x10\x01*\xe2\x02\n\x0fCharacteristics\x12\x13\n\x0fRELOCS_STRIPPED\
-    \x10\x01\x12\x14\n\x10EXECUTABLE_IMAGE\x10\x02\x12\x16\n\x12LINE_NUMS_ST\
-    RIPPED\x10\x04\x12\x17\n\x13LOCAL_SYMS_STRIPPED\x10\x08\x12\x15\n\x11AGG\
-    RESIVE_WS_TRIM\x10\x10\x12\x17\n\x13LARGE_ADDRESS_AWARE\x10\x20\x12\x16\
-    \n\x11BYTES_REVERSED_LO\x10\x80\x01\x12\x12\n\rMACHINE_32BIT\x10\x80\x02\
-    \x12\x13\n\x0eDEBUG_STRIPPED\x10\x80\x04\x12\x1c\n\x17REMOVABLE_RUN_FROM\
-    _SWAP\x10\x80\x08\x12\x16\n\x11NET_RUN_FROM_SWAP\x10\x80\x10\x12\x0b\n\
-    \x06SYSTEM\x10\x80\x20\x12\x08\n\x03DLL\x10\x80@\x12\x14\n\x0eUP_SYSTEM_\
-    ONLY\x10\x80\x80\x01\x12\x17\n\x11BYTES_REVERSED_HI\x10\x80\x80\x02\x1a\
-    \x06\x92\x93\x19\x02\x10\x01*\x82\x01\n\rOptionalMagic\x12\"\n\x1dIMAGE_\
-    NT_OPTIONAL_HDR32_MAGIC\x10\x8b\x02\x12\"\n\x1dIMAGE_NT_OPTIONAL_HDR64_M\
-    AGIC\x10\x8b\x04\x12!\n\x1cIMAGE_ROM_OPTIONAL_HDR_MAGIC\x10\x87\x02\x1a\
-    \x06\x92\x93\x19\x02\x10\x01*\xe0\x05\n\x0eDirectoryEntry\x12(\n\x1cIMAG\
-    E_DIRECTORY_ENTRY_EXPORT\x10\0\x1a\x06\x9a\x93\x19\x02\x08\0\x12(\n\x1cI\
-    MAGE_DIRECTORY_ENTRY_IMPORT\x10\x01\x1a\x06\x9a\x93\x19\x02\x08\x01\x12*\
-    \n\x1eIMAGE_DIRECTORY_ENTRY_RESOURCE\x10\x02\x1a\x06\x9a\x93\x19\x02\x08\
-    \x02\x12+\n\x1fIMAGE_DIRECTORY_ENTRY_EXCEPTION\x10\x03\x1a\x06\x9a\x93\
-    \x19\x02\x08\x03\x12*\n\x1eIMAGE_DIRECTORY_ENTRY_SECURITY\x10\x04\x1a\
-    \x06\x9a\x93\x19\x02\x08\x04\x12+\n\x1fIMAGE_DIRECTORY_ENTRY_BASERELOC\
-    \x10\x05\x1a\x06\x9a\x93\x19\x02\x08\x05\x12'\n\x1bIMAGE_DIRECTORY_ENTRY\
-    _DEBUG\x10\x06\x1a\x06\x9a\x93\x19\x02\x08\x06\x12+\n\x1fIMAGE_DIRECTORY\
-    _ENTRY_COPYRIGHT\x10\x07\x1a\x06\x9a\x93\x19\x02\x08\x07\x12.\n\"IMAGE_D\
-    IRECTORY_ENTRY_ARCHITECTURE\x10\x08\x1a\x06\x9a\x93\x19\x02\x08\x07\x12+\
-    \n\x1fIMAGE_DIRECTORY_ENTRY_GLOBALPTR\x10\t\x1a\x06\x9a\x93\x19\x02\x08\
-    \x08\x12%\n\x19IMAGE_DIRECTORY_ENTRY_TLS\x10\n\x1a\x06\x9a\x93\x19\x02\
-    \x08\t\x12-\n!IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG\x10\x0b\x1a\x06\x9a\x93\
-    \x19\x02\x08\n\x12.\n\"IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT\x10\x0c\x1a\
-    \x06\x9a\x93\x19\x02\x08\x0b\x12%\n\x19IMAGE_DIRECTORY_ENTRY_IAT\x10\r\
-    \x1a\x06\x9a\x93\x19\x02\x08\x0c\x12.\n\"IMAGE_DIRECTORY_ENTRY_DELAY_IMP\
-    ORT\x10\x0e\x1a\x06\x9a\x93\x19\x02\x08\r\x120\n$IMAGE_DIRECTORY_ENTRY_C\
-    OM_DESCRIPTOR\x10\x0f\x1a\x06\x9a\x93\x19\x02\x08\x0e\x1a\x06\x92\x93\
-    \x19\x02\x10\x01*\x81\n\n\x16SectionCharacteristics\x12\x1a\n\x0eSECTION\
-    _NO_PAD\x10\x01\x1a\x06\x9a\x93\x19\x02\x08\x08\x12\x1c\n\x10SECTION_CNT\
-    _CODE\x10\x02\x1a\x06\x9a\x93\x19\x02\x08\x20\x12(\n\x1cSECTION_CNT_INIT\
-    IALIZED_DATA\x10\x03\x1a\x06\x9a\x93\x19\x02\x08@\x12+\n\x1eSECTION_CNT_\
-    UNINITIALIZED_DATA\x10\x04\x1a\x07\x9a\x93\x19\x03\x08\x80\x01\x12\x1e\n\
-    \x11SECTION_LNK_OTHER\x10\x05\x1a\x07\x9a\x93\x19\x03\x08\x80\x02\x12\
-    \x1d\n\x10SECTION_LNK_INFO\x10\x06\x1a\x07\x9a\x93\x19\x03\x08\x80\x04\
-    \x12\x1f\n\x12SECTION_LNK_REMOVE\x10\x07\x1a\x07\x9a\x93\x19\x03\x08\x80\
-    \x10\x12\x1f\n\x12SECTION_LNK_COMDAT\x10\x08\x1a\x07\x9a\x93\x19\x03\x08\
-    \x80\x20\x12'\n\x19SECTION_NO_DEFER_SPEC_EXC\x10\t\x1a\x08\x9a\x93\x19\
-    \x04\x08\x80\x80\x01\x12\x1b\n\rSECTION_GPREL\x10\n\x1a\x08\x9a\x93\x19\
-    \x04\x08\x80\x80\x02\x12\"\n\x14SECTION_ALIGN_1BYTES\x10\x0b\x1a\x08\x9a\
-    \x93\x19\x04\x08\x80\x80@\x12#\n\x14SECTION_ALIGN_2BYTES\x10\x0c\x1a\t\
-    \x9a\x93\x19\x05\x08\x80\x80\x80\x01\x12#\n\x14SECTION_ALIGN_4BYTES\x10\
-    \r\x1a\t\x9a\x93\x19\x05\x08\x80\x80\xc0\x01\x12#\n\x14SECTION_ALIGN_8BY\
-    TES\x10\x0e\x1a\t\x9a\x93\x19\x05\x08\x80\x80\x80\x02\x12$\n\x15SECTION_\
-    ALIGN_16BYTES\x10\x0f\x1a\t\x9a\x93\x19\x05\x08\x80\x80\xc0\x02\x12$\n\
-    \x15SECTION_ALIGN_32BYTES\x10\x10\x1a\t\x9a\x93\x19\x05\x08\x80\x80\x80\
-    \x03\x12$\n\x15SECTION_ALIGN_64BYTES\x10\x11\x1a\t\x9a\x93\x19\x05\x08\
-    \x80\x80\xc0\x03\x12%\n\x16SECTION_ALIGN_128BYTES\x10\x12\x1a\t\x9a\x93\
-    \x19\x05\x08\x80\x80\x80\x04\x12%\n\x16SECTION_ALIGN_256BYTES\x10\x13\
-    \x1a\t\x9a\x93\x19\x05\x08\x80\x80\xc0\x04\x12%\n\x16SECTION_ALIGN_512BY\
-    TES\x10\x14\x1a\t\x9a\x93\x19\x05\x08\x80\x80\x80\x05\x12&\n\x17SECTION_\
-    ALIGN_1024BYTES\x10\x15\x1a\t\x9a\x93\x19\x05\x08\x80\x80\xc0\x05\x12&\n\
-    \x17SECTION_ALIGN_2048BYTES\x10\x16\x1a\t\x9a\x93\x19\x05\x08\x80\x80\
-    \x80\x06\x12&\n\x17SECTION_ALIGN_4096BYTES\x10\x17\x1a\t\x9a\x93\x19\x05\
-    \x08\x80\x80\xc0\x06\x12&\n\x17SECTION_ALIGN_8192BYTES\x10\x18\x1a\t\x9a\
-    \x93\x19\x05\x08\x80\x80\x80\x07\x12!\n\x12SECTION_ALIGN_MASK\x10\x19\
-    \x1a\t\x9a\x93\x19\x05\x08\x80\x80\xc0\x07\x12&\n\x17SECTION_LNK_NRELOC_\
-    OVFL\x10\x1a\x1a\t\x9a\x93\x19\x05\x08\x80\x80\x80\x08\x12&\n\x17SECTION\
-    _MEM_DISCARDABLE\x10\x1b\x1a\t\x9a\x93\x19\x05\x08\x80\x80\x80\x10\x12%\
-    \n\x16SECTION_MEM_NOT_CACHED\x10\x1c\x1a\t\x9a\x93\x19\x05\x08\x80\x80\
-    \x80\x20\x12$\n\x15SECTION_MEM_NOT_PAGED\x10\x1d\x1a\t\x9a\x93\x19\x05\
-    \x08\x80\x80\x80@\x12\"\n\x12SECTION_MEM_SHARED\x10\x1e\x1a\n\x9a\x93\
-    \x19\x06\x08\x80\x80\x80\x80\x01\x12#\n\x13SECTION_MEM_EXECUTE\x10\x1f\
-    \x1a\n\x9a\x93\x19\x06\x08\x80\x80\x80\x80\x02\x12\x20\n\x10SECTION_MEM_\
-    READ\x10\x20\x1a\n\x9a\x93\x19\x06\x08\x80\x80\x80\x80\x04\x12!\n\x11SEC\
-    TION_MEM_WRITE\x10!\x1a\n\x9a\x93\x19\x06\x08\x80\x80\x80\x80\x08\x12\
-    \x1f\n\x13SECTION_SCALE_INDEX\x10\"\x1a\x06\x9a\x93\x19\x02\x08\x01\x1a\
-    \x06\x92\x93\x19\x02\x10\x01*\xe8\x01\n\x12DllCharacteristics\x12\x13\n\
-    \x0fHIGH_ENTROPY_VA\x10\x20\x12\x10\n\x0cDYNAMIC_BASE\x10@\x12\x14\n\x0f\
-    FORCE_INTEGRITY\x10\x80\x01\x12\x0e\n\tNX_COMPAT\x10\x80\x02\x12\x11\n\
-    \x0cNO_ISOLATION\x10\x80\x04\x12\x0b\n\x06NO_SEH\x10\x80\x08\x12\x0c\n\
-    \x07NO_BIND\x10\x80\x10\x12\x11\n\x0cAPPCONTAINER\x10\x80\x20\x12\x0f\n\
-    \nWDM_DRIVER\x10\x80@\x12\x0e\n\x08GUARD_CF\x10\x80\x80\x01\x12\x1b\n\
-    \x15TERMINAL_SERVER_AWARE\x10\x80\x80\x02\x1a\x06\x92\x93\x19\x02\x10\
-    \x01B\x1a\xfa\x92\x19\x16\n\x02pe\x12\x05pe.PE\x1a\tpe-moduleb\x06proto2\
+    \rR\x19numberOfImportedFunctions\x12N\n$number_of_delayed_imported_funct\
+    ions\x18'\x20\x01(\rR\x20numberOfDelayedImportedFunctions\x12\x83\x01\n\
+    \x13number_of_resources\x18(\x20\x01(\rR\x11numberOfResourcesBS\x82\x93\
+    \x19O2M\n\x18this\x20field\x20is\x20deprecated\x12\x20use\x20`pe.resourc\
+    es.len()`\x20instead\x1a\x0fresources.len()\x125\n\x17number_of_version_\
+    infos\x18)\x20\x01(\rR\x14numberOfVersionInfos\x12*\n\x11number_of_impor\
+    ts\x18*\x20\x01(\rR\x0fnumberOfImports\x129\n\x19number_of_delayed_impor\
+    ts\x18+\x20\x01(\rR\x16numberOfDelayedImports\x12*\n\x11number_of_export\
+    s\x18,\x20\x01(\rR\x0fnumberOfExports\x12\x87\x01\n\x14number_of_signatu\
+    res\x18-\x20\x01(\rR\x12numberOfSignaturesBU\x82\x93\x19Q2O\n\x18this\
+    \x20field\x20is\x20deprecated\x12!use\x20`pe.signatures.len()`\x20instea\
+    d\x1a\x10signatures.len()\x12:\n\x0cversion_info\x18.\x20\x03(\x0b2\x17.\
+    pe.PE.VersionInfoEntryR\x0bversionInfo\x128\n\x11version_info_list\x18/\
+    \x20\x03(\x0b2\x0c.pe.KeyValueR\x0fversionInfoList\x128\n\x0erich_signat\
+    ure\x180\x20\x01(\x0b2\x11.pe.RichSignatureR\rrichSignature\x12\x19\n\
+    \x08pdb_path\x181\x20\x01(\x0cR\x07pdbPath\x12'\n\x08sections\x182\x20\
+    \x03(\x0b2\x0b.pe.SectionR\x08sections\x127\n\x10data_directories\x183\
+    \x20\x03(\x0b2\x0c.pe.DirEntryR\x0fdataDirectories\x126\n\x12resource_ti\
+    mestamp\x184\x20\x01(\x04R\x11resourceTimestampB\x07\x82\x93\x19\x03*\
+    \x01t\x126\n\x10resource_version\x185\x20\x01(\x0b2\x0b.pe.VersionR\x0fr\
+    esourceVersion\x12*\n\tresources\x186\x20\x03(\x0b2\x0c.pe.ResourceR\tre\
+    sources\x121\n\x0eimport_details\x187\x20\x03(\x0b2\n.pe.ImportR\rimport\
+    Details\x12@\n\x16delayed_import_details\x188\x20\x03(\x0b2\n.pe.ImportR\
+    \x14delayedImportDetails\x121\n\x0eexport_details\x189\x20\x03(\x0b2\n.p\
+    e.ExportR\rexportDetails\x12\x1b\n\tis_signed\x18:\x20\x01(\x08R\x08isSi\
+    gned\x12-\n\nsignatures\x18;\x20\x03(\x0b2\r.pe.SignatureR\nsignatures\
+    \x12%\n\x07overlay\x18<\x20\x01(\x0b2\x0b.pe.OverlayR\x07overlay\x1a>\n\
+    \x10VersionInfoEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\
+    \n\x05value\x18\x02\x20\x01(\tR\x05value:\x028\x01\"5\n\x07Version\x12\
+    \x14\n\x05major\x18\x01\x20\x02(\rR\x05major\x12\x14\n\x05minor\x18\x02\
+    \x20\x02(\rR\x05minor\"2\n\x08KeyValue\x12\x10\n\x03key\x18\x01\x20\x02(\
+    \tR\x03key\x12\x14\n\x05value\x18\x02\x20\x02(\tR\x05value\"Y\n\x08DirEn\
+    try\x120\n\x0fvirtual_address\x18\x01\x20\x02(\rR\x0evirtualAddressB\x07\
+    \x82\x93\x19\x03*\x01x\x12\x1b\n\x04size\x18\x02\x20\x02(\rR\x04sizeB\
+    \x07\x82\x93\x19\x03*\x01x\"\xa4\x02\n\x08Resource\x12\x1f\n\x06length\
+    \x18\x01\x20\x02(\rR\x06lengthB\x07\x82\x93\x19\x03*\x01x\x12\x19\n\x03r\
+    va\x18\x02\x20\x02(\rR\x03rvaB\x07\x82\x93\x19\x03*\x01x\x12\x1f\n\x06of\
+    fset\x18\x03\x20\x01(\rR\x06offsetB\x07\x82\x93\x19\x03*\x01x\x12$\n\x04\
+    type\x18\x04\x20\x01(\x0e2\x10.pe.ResourceTypeR\x04type\x12\x0e\n\x02id\
+    \x18\x05\x20\x01(\rR\x02id\x12\x1a\n\x08language\x18\x06\x20\x01(\rR\x08\
+    language\x12\x1f\n\x0btype_string\x18\x07\x20\x01(\x0cR\ntypeString\x12\
+    \x1f\n\x0bname_string\x18\x08\x20\x01(\x0cR\nnameString\x12'\n\x0flangua\
+    ge_string\x18\t\x20\x01(\x0cR\x0elanguageString\"\x87\x01\n\x06Import\
+    \x12!\n\x0clibrary_name\x18\x01\x20\x02(\tR\x0blibraryName\x12.\n\x13num\
+    ber_of_functions\x18\x02\x20\x02(\rR\x11numberOfFunctions\x12*\n\tfuncti\
+    ons\x18\x03\x20\x03(\x0b2\x0c.pe.FunctionR\tfunctions\"\x95\x01\n\x06Exp\
+    ort\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\x18\n\x07ordinal\
+    \x18\x02\x20\x02(\rR\x07ordinal\x12\x19\n\x03rva\x18\x03\x20\x02(\rR\x03\
+    rvaB\x07\x82\x93\x19\x03*\x01x\x12\x1f\n\x06offset\x18\x04\x20\x01(\rR\
+    \x06offsetB\x07\x82\x93\x19\x03*\x01x\x12!\n\x0cforward_name\x18\x05\x20\
+    \x01(\tR\x0bforwardName\"S\n\x08Function\x12\x12\n\x04name\x18\x01\x20\
+    \x01(\tR\x04name\x12\x18\n\x07ordinal\x18\x02\x20\x01(\rR\x07ordinal\x12\
+    \x19\n\x03rva\x18\x03\x20\x02(\rR\x03rvaB\x07\x82\x93\x19\x03*\x01x\"\
+    \xb4\x05\n\tSignature\x12\x18\n\x07subject\x18\x01\x20\x01(\tR\x07subjec\
+    t\x12\x16\n\x06issuer\x18\x02\x20\x01(\tR\x06issuer\x12\x1e\n\nthumbprin\
+    t\x18\x03\x20\x01(\tR\nthumbprint\x12\x18\n\x07version\x18\x04\x20\x01(\
+    \x03R\x07version\x12\x1c\n\talgorithm\x18\x05\x20\x01(\tR\talgorithm\x12\
+    #\n\ralgorithm_oid\x18\x06\x20\x01(\tR\x0calgorithmOid\x12\x16\n\x06seri\
+    al\x18\x07\x20\x01(\tR\x06serial\x12&\n\nnot_before\x18\x08\x20\x01(\x03\
+    R\tnotBeforeB\x07\x82\x93\x19\x03*\x01t\x12$\n\tnot_after\x18\t\x20\x01(\
+    \x03R\x08notAfterB\x07\x82\x93\x19\x03*\x01t\x12\x1a\n\x08verified\x18\n\
+    \x20\x01(\x08R\x08verified\x12\x1d\n\ndigest_alg\x18\x0b\x20\x01(\tR\tdi\
+    gestAlg\x12\x16\n\x06digest\x18\x0c\x20\x01(\tR\x06digest\x12\x1f\n\x0bf\
+    ile_digest\x18\r\x20\x01(\tR\nfileDigest\x124\n\x16number_of_certificate\
+    s\x18\x0e\x20\x01(\rR\x14numberOfCertificates\x12>\n\x1bnumber_of_counte\
+    rsignatures\x18\x0f\x20\x01(\rR\x19numberOfCountersignatures\x12/\n\x0bs\
+    igner_info\x18\x10\x20\x01(\x0b2\x0e.pe.SignerInfoR\nsignerInfo\x123\n\
+    \x0ccertificates\x18\x11\x20\x03(\x0b2\x0f.pe.CertificateR\x0ccertificat\
+    es\x12B\n\x11countersignatures\x18\x12\x20\x03(\x0b2\x14.pe.CounterSigna\
+    tureR\x11countersignatures\"\xaa\x01\n\nSignerInfo\x12!\n\x0cprogram_nam\
+    e\x18\x01\x20\x01(\tR\x0bprogramName\x12\x1b\n\tmore_info\x18\x02\x20\
+    \x01(\tR\x08moreInfo\x12\x16\n\x06digest\x18\x03\x20\x01(\tR\x06digest\
+    \x12\x1d\n\ndigest_alg\x18\x04\x20\x01(\tR\tdigestAlg\x12%\n\x05chain\
+    \x18\x05\x20\x03(\x0b2\x0f.pe.CertificateR\x05chain\"\xa2\x02\n\x0bCerti\
+    ficate\x12\x16\n\x06issuer\x18\x01\x20\x01(\tR\x06issuer\x12\x18\n\x07su\
+    bject\x18\x02\x20\x01(\tR\x07subject\x12\x1e\n\nthumbprint\x18\x03\x20\
+    \x01(\tR\nthumbprint\x12\x18\n\x07version\x18\x04\x20\x01(\x03R\x07versi\
+    on\x12\x1c\n\talgorithm\x18\x05\x20\x01(\tR\talgorithm\x12#\n\ralgorithm\
+    _oid\x18\x06\x20\x01(\tR\x0calgorithmOid\x12\x16\n\x06serial\x18\x07\x20\
+    \x01(\tR\x06serial\x12&\n\nnot_before\x18\x08\x20\x01(\x03R\tnotBeforeB\
+    \x07\x82\x93\x19\x03*\x01t\x12$\n\tnot_after\x18\t\x20\x01(\x03R\x08notA\
+    fterB\x07\x82\x93\x19\x03*\x01t\"\xb2\x01\n\x10CounterSignature\x12\x1a\
+    \n\x08verified\x18\x01\x20\x01(\x08R\x08verified\x12$\n\tsign_time\x18\
+    \x02\x20\x01(\x03R\x08signTimeB\x07\x82\x93\x19\x03*\x01t\x12\x16\n\x06d\
+    igest\x18\x0c\x20\x01(\tR\x06digest\x12\x1d\n\ndigest_alg\x18\x03\x20\
+    \x01(\tR\tdigestAlg\x12%\n\x05chain\x18\x04\x20\x03(\x0b2\x0f.pe.Certifi\
+    cateR\x05chain\"\xac\x04\n\x07Section\x12\x12\n\x04name\x18\x01\x20\x02(\
+    \x0cR\x04name\x12\x1b\n\tfull_name\x18\x02\x20\x02(\x0cR\x08fullName\x12\
+    L\n\x0fcharacteristics\x18\x03\x20\x02(\rR\x0fcharacteristicsB\"\x82\x93\
+    \x19\x1e*\x1cflags:SectionCharacteristics\x12+\n\rraw_data_size\x18\x04\
+    \x20\x02(\rR\x0brawDataSizeB\x07\x82\x93\x19\x03*\x01x\x12/\n\x0fraw_dat\
+    a_offset\x18\x05\x20\x02(\rR\rrawDataOffsetB\x07\x82\x93\x19\x03*\x01x\
+    \x120\n\x0fvirtual_address\x18\x06\x20\x02(\rR\x0evirtualAddressB\x07\
+    \x82\x93\x19\x03*\x01x\x12*\n\x0cvirtual_size\x18\x07\x20\x02(\rR\x0bvir\
+    tualSizeB\x07\x82\x93\x19\x03*\x01x\x12=\n\x16pointer_to_relocations\x18\
+    \x08\x20\x02(\rR\x14pointerToRelocationsB\x07\x82\x93\x19\x03*\x01x\x12>\
+    \n\x17pointer_to_line_numbers\x18\t\x20\x02(\rR\x14pointerToLineNumbersB\
+    \x07\x82\x93\x19\x03*\x01x\x122\n\x15number_of_relocations\x18\n\x20\x02\
+    (\rR\x13numberOfRelocations\x123\n\x16number_of_line_numbers\x18\x0b\x20\
+    \x02(\rR\x13numberOfLineNumbers\"\xc1\x01\n\rRichSignature\x12\x1f\n\x06\
+    offset\x18\x01\x20\x02(\rR\x06offsetB\x07\x82\x93\x19\x03*\x01x\x12\x1f\
+    \n\x06length\x18\x02\x20\x02(\rR\x06lengthB\x07\x82\x93\x19\x03*\x01x\
+    \x12\x10\n\x03key\x18\x03\x20\x02(\rR\x03key\x12\x19\n\x08raw_data\x18\
+    \x04\x20\x02(\x0cR\x07rawData\x12\x1d\n\nclear_data\x18\x05\x20\x02(\x0c\
+    R\tclearData\x12\"\n\x05tools\x18\x06\x20\x03(\x0b2\x0c.pe.RichToolR\x05\
+    tools\"R\n\x08RichTool\x12\x16\n\x06toolid\x18\x01\x20\x02(\rR\x06toolid\
+    \x12\x18\n\x07version\x18\x02\x20\x02(\rR\x07version\x12\x14\n\x05times\
+    \x18\x03\x20\x02(\rR\x05times\"G\n\x07Overlay\x12\x1f\n\x06offset\x18\
+    \x01\x20\x02(\x04R\x06offsetB\x07\x82\x93\x19\x03*\x01x\x12\x1b\n\x04siz\
+    e\x18\x02\x20\x02(\x04R\x04sizeB\x07\x82\x93\x19\x03*\x01x*\xd0\x04\n\
+    \x0cResourceType\x12\x18\n\x14RESOURCE_TYPE_CURSOR\x10\x01\x12\x18\n\x14\
+    RESOURCE_TYPE_BITMAP\x10\x02\x12\x16\n\x12RESOURCE_TYPE_ICON\x10\x03\x12\
+    \x16\n\x12RESOURCE_TYPE_MENU\x10\x04\x12\x18\n\x14RESOURCE_TYPE_DIALOG\
+    \x10\x05\x12\x18\n\x14RESOURCE_TYPE_STRING\x10\x06\x12\x19\n\x15RESOURCE\
+    _TYPE_FONTDIR\x10\x07\x12\x16\n\x12RESOURCE_TYPE_FONT\x10\x08\x12\x1d\n\
+    \x19RESOURCE_TYPE_ACCELERATOR\x10\t\x12\x18\n\x14RESOURCE_TYPE_RCDATA\
+    \x10\n\x12\x1e\n\x1aRESOURCE_TYPE_MESSAGETABLE\x10\x0b\x12\x1e\n\x1aRESO\
+    URCE_TYPE_GROUP_CURSOR\x10\x0c\x12\x1c\n\x18RESOURCE_TYPE_GROUP_ICON\x10\
+    \x0e\x12\x19\n\x15RESOURCE_TYPE_VERSION\x10\x10\x12\x1c\n\x18RESOURCE_TY\
+    PE_DLGINCLUDE\x10\x11\x12\x1a\n\x16RESOURCE_TYPE_PLUGPLAY\x10\x13\x12\
+    \x15\n\x11RESOURCE_TYPE_VXD\x10\x14\x12\x1b\n\x17RESOURCE_TYPE_ANICURSOR\
+    \x10\x15\x12\x19\n\x15RESOURCE_TYPE_ANIICON\x10\x16\x12\x16\n\x12RESOURC\
+    E_TYPE_HTML\x10\x17\x12\x1a\n\x16RESOURCE_TYPE_MANIFEST\x10\x18\x1a\x06\
+    \x92\x93\x19\x02\x10\x01*\xf9\x05\n\x07Machine\x12\x13\n\x0fMACHINE_UNKN\
+    OWN\x10\0\x12\x12\n\rMACHINE_ALPHA\x10\x84\x03\x12\x14\n\x0fMACHINE_ALPH\
+    A64\x10\x84\x05\x12\x11\n\x0cMACHINE_AM33\x10\xd3\x03\x12\x13\n\rMACHINE\
+    _AMD64\x10\xe4\x8c\x02\x12\x10\n\x0bMACHINE_ARM\x10\xc0\x03\x12\x13\n\rM\
+    ACHINE_ARM64\x10\xe4\xd4\x02\x12\x15\n\x0fMACHINE_ARM64EC\x10\xc1\xcc\
+    \x02\x12\x14\n\x0eMACHINE_ARM64X\x10\xce\xcc\x02\x12\x12\n\rMACHINE_ARMN\
+    T\x10\xc4\x03\x12\x12\n\rMACHINE_AXP64\x10\x84\x05\x12\x10\n\x0bMACHINE_\
+    EBC\x10\xbc\x1d\x12\x11\n\x0cMACHINE_I386\x10\xcc\x02\x12\x11\n\x0cMACHI\
+    NE_IA64\x10\x80\x04\x12\x19\n\x13MACHINE_LOONGARCH32\x10\xb2\xc4\x01\x12\
+    \x19\n\x13MACHINE_LOONGARCH64\x10\xe4\xc4\x01\x12\x12\n\x0cMACHINE_M32R\
+    \x10\xc1\xa0\x02\x12\x13\n\x0eMACHINE_MIPS16\x10\xe6\x04\x12\x14\n\x0fMA\
+    CHINE_MIPSFPU\x10\xe6\x06\x12\x16\n\x11MACHINE_MIPSFPU16\x10\xe6\x08\x12\
+    \x14\n\x0fMACHINE_POWERPC\x10\xf0\x03\x12\x16\n\x11MACHINE_POWERPCFP\x10\
+    \xf1\x03\x12\x14\n\x0fMACHINE_R3000BE\x10\xe0\x02\x12\x12\n\rMACHINE_R30\
+    00\x10\xe2\x02\x12\x12\n\rMACHINE_R4000\x10\xe6\x02\x12\x13\n\x0eMACHINE\
+    _R10000\x10\xe8\x02\x12\x15\n\x0fMACHINE_RISCV32\x10\xb2\xa0\x01\x12\x15\
+    \n\x0fMACHINE_RISCV64\x10\xe4\xa0\x01\x12\x16\n\x10MACHINE_RISCV128\x10\
+    \xa8\xa2\x01\x12\x10\n\x0bMACHINE_SH3\x10\xa2\x03\x12\x13\n\x0eMACHINE_S\
+    H3DSP\x10\xa3\x03\x12\x10\n\x0bMACHINE_SH4\x10\xa6\x03\x12\x10\n\x0bMACH\
+    INE_SH5\x10\xa8\x03\x12\x12\n\rMACHINE_THUMB\x10\xc2\x03\x12\x16\n\x11MA\
+    CHINE_WCEMIPSV2\x10\xe9\x02\x1a\x08\x10\x01\x92\x93\x19\x02\x10\x01*\xa3\
+    \x03\n\tSubsystem\x12\x15\n\x11SUBSYSTEM_UNKNOWN\x10\0\x12\x14\n\x10SUBS\
+    YSTEM_NATIVE\x10\x01\x12\x19\n\x15SUBSYSTEM_WINDOWS_GUI\x10\x02\x12\x19\
+    \n\x15SUBSYSTEM_WINDOWS_CUI\x10\x03\x12\x15\n\x11SUBSYSTEM_OS2_CUI\x10\
+    \x05\x12\x17\n\x13SUBSYSTEM_POSIX_CUI\x10\x07\x12\x1c\n\x18SUBSYSTEM_NAT\
+    IVE_WINDOWS\x10\x08\x12\x1c\n\x18SUBSYSTEM_WINDOWS_CE_GUI\x10\t\x12\x1d\
+    \n\x19SUBSYSTEM_EFI_APPLICATION\x10\n\x12%\n!SUBSYSTEM_EFI_BOOT_SERVICE_\
+    DRIVER\x10\x0b\x12\x20\n\x1cSUBSYSTEM_EFI_RUNTIME_DRIVER\x10\x0c\x12\x1b\
+    \n\x17SUBSYSTEM_EFI_ROM_IMAGE\x10\r\x12\x12\n\x0eSUBSYSTEM_XBOX\x10\x0e\
+    \x12&\n\"SUBSYSTEM_WINDOWS_BOOT_APPLICATION\x10\x10\x1a\x06\x92\x93\x19\
+    \x02\x10\x01*N\n\x0bImportFlags\x12\x13\n\x0fIMPORT_STANDARD\x10\x01\x12\
+    \x12\n\x0eIMPORT_DELAYED\x10\x02\x12\x0e\n\nIMPORT_ANY\x10\x03\x1a\x06\
+    \x92\x93\x19\x02\x10\x01*\xe2\x02\n\x0fCharacteristics\x12\x13\n\x0fRELO\
+    CS_STRIPPED\x10\x01\x12\x14\n\x10EXECUTABLE_IMAGE\x10\x02\x12\x16\n\x12L\
+    INE_NUMS_STRIPPED\x10\x04\x12\x17\n\x13LOCAL_SYMS_STRIPPED\x10\x08\x12\
+    \x15\n\x11AGGRESIVE_WS_TRIM\x10\x10\x12\x17\n\x13LARGE_ADDRESS_AWARE\x10\
+    \x20\x12\x16\n\x11BYTES_REVERSED_LO\x10\x80\x01\x12\x12\n\rMACHINE_32BIT\
+    \x10\x80\x02\x12\x13\n\x0eDEBUG_STRIPPED\x10\x80\x04\x12\x1c\n\x17REMOVA\
+    BLE_RUN_FROM_SWAP\x10\x80\x08\x12\x16\n\x11NET_RUN_FROM_SWAP\x10\x80\x10\
+    \x12\x0b\n\x06SYSTEM\x10\x80\x20\x12\x08\n\x03DLL\x10\x80@\x12\x14\n\x0e\
+    UP_SYSTEM_ONLY\x10\x80\x80\x01\x12\x17\n\x11BYTES_REVERSED_HI\x10\x80\
+    \x80\x02\x1a\x06\x92\x93\x19\x02\x10\x01*\x82\x01\n\rOptionalMagic\x12\"\
+    \n\x1dIMAGE_NT_OPTIONAL_HDR32_MAGIC\x10\x8b\x02\x12\"\n\x1dIMAGE_NT_OPTI\
+    ONAL_HDR64_MAGIC\x10\x8b\x04\x12!\n\x1cIMAGE_ROM_OPTIONAL_HDR_MAGIC\x10\
+    \x87\x02\x1a\x06\x92\x93\x19\x02\x10\x01*\xe0\x05\n\x0eDirectoryEntry\
+    \x12(\n\x1cIMAGE_DIRECTORY_ENTRY_EXPORT\x10\0\x1a\x06\x9a\x93\x19\x02\
+    \x08\0\x12(\n\x1cIMAGE_DIRECTORY_ENTRY_IMPORT\x10\x01\x1a\x06\x9a\x93\
+    \x19\x02\x08\x01\x12*\n\x1eIMAGE_DIRECTORY_ENTRY_RESOURCE\x10\x02\x1a\
+    \x06\x9a\x93\x19\x02\x08\x02\x12+\n\x1fIMAGE_DIRECTORY_ENTRY_EXCEPTION\
+    \x10\x03\x1a\x06\x9a\x93\x19\x02\x08\x03\x12*\n\x1eIMAGE_DIRECTORY_ENTRY\
+    _SECURITY\x10\x04\x1a\x06\x9a\x93\x19\x02\x08\x04\x12+\n\x1fIMAGE_DIRECT\
+    ORY_ENTRY_BASERELOC\x10\x05\x1a\x06\x9a\x93\x19\x02\x08\x05\x12'\n\x1bIM\
+    AGE_DIRECTORY_ENTRY_DEBUG\x10\x06\x1a\x06\x9a\x93\x19\x02\x08\x06\x12+\n\
+    \x1fIMAGE_DIRECTORY_ENTRY_COPYRIGHT\x10\x07\x1a\x06\x9a\x93\x19\x02\x08\
+    \x07\x12.\n\"IMAGE_DIRECTORY_ENTRY_ARCHITECTURE\x10\x08\x1a\x06\x9a\x93\
+    \x19\x02\x08\x07\x12+\n\x1fIMAGE_DIRECTORY_ENTRY_GLOBALPTR\x10\t\x1a\x06\
+    \x9a\x93\x19\x02\x08\x08\x12%\n\x19IMAGE_DIRECTORY_ENTRY_TLS\x10\n\x1a\
+    \x06\x9a\x93\x19\x02\x08\t\x12-\n!IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG\x10\
+    \x0b\x1a\x06\x9a\x93\x19\x02\x08\n\x12.\n\"IMAGE_DIRECTORY_ENTRY_BOUND_I\
+    MPORT\x10\x0c\x1a\x06\x9a\x93\x19\x02\x08\x0b\x12%\n\x19IMAGE_DIRECTORY_\
+    ENTRY_IAT\x10\r\x1a\x06\x9a\x93\x19\x02\x08\x0c\x12.\n\"IMAGE_DIRECTORY_\
+    ENTRY_DELAY_IMPORT\x10\x0e\x1a\x06\x9a\x93\x19\x02\x08\r\x120\n$IMAGE_DI\
+    RECTORY_ENTRY_COM_DESCRIPTOR\x10\x0f\x1a\x06\x9a\x93\x19\x02\x08\x0e\x1a\
+    \x06\x92\x93\x19\x02\x10\x01*\x81\n\n\x16SectionCharacteristics\x12\x1a\
+    \n\x0eSECTION_NO_PAD\x10\x01\x1a\x06\x9a\x93\x19\x02\x08\x08\x12\x1c\n\
+    \x10SECTION_CNT_CODE\x10\x02\x1a\x06\x9a\x93\x19\x02\x08\x20\x12(\n\x1cS\
+    ECTION_CNT_INITIALIZED_DATA\x10\x03\x1a\x06\x9a\x93\x19\x02\x08@\x12+\n\
+    \x1eSECTION_CNT_UNINITIALIZED_DATA\x10\x04\x1a\x07\x9a\x93\x19\x03\x08\
+    \x80\x01\x12\x1e\n\x11SECTION_LNK_OTHER\x10\x05\x1a\x07\x9a\x93\x19\x03\
+    \x08\x80\x02\x12\x1d\n\x10SECTION_LNK_INFO\x10\x06\x1a\x07\x9a\x93\x19\
+    \x03\x08\x80\x04\x12\x1f\n\x12SECTION_LNK_REMOVE\x10\x07\x1a\x07\x9a\x93\
+    \x19\x03\x08\x80\x10\x12\x1f\n\x12SECTION_LNK_COMDAT\x10\x08\x1a\x07\x9a\
+    \x93\x19\x03\x08\x80\x20\x12'\n\x19SECTION_NO_DEFER_SPEC_EXC\x10\t\x1a\
+    \x08\x9a\x93\x19\x04\x08\x80\x80\x01\x12\x1b\n\rSECTION_GPREL\x10\n\x1a\
+    \x08\x9a\x93\x19\x04\x08\x80\x80\x02\x12\"\n\x14SECTION_ALIGN_1BYTES\x10\
+    \x0b\x1a\x08\x9a\x93\x19\x04\x08\x80\x80@\x12#\n\x14SECTION_ALIGN_2BYTES\
+    \x10\x0c\x1a\t\x9a\x93\x19\x05\x08\x80\x80\x80\x01\x12#\n\x14SECTION_ALI\
+    GN_4BYTES\x10\r\x1a\t\x9a\x93\x19\x05\x08\x80\x80\xc0\x01\x12#\n\x14SECT\
+    ION_ALIGN_8BYTES\x10\x0e\x1a\t\x9a\x93\x19\x05\x08\x80\x80\x80\x02\x12$\
+    \n\x15SECTION_ALIGN_16BYTES\x10\x0f\x1a\t\x9a\x93\x19\x05\x08\x80\x80\
+    \xc0\x02\x12$\n\x15SECTION_ALIGN_32BYTES\x10\x10\x1a\t\x9a\x93\x19\x05\
+    \x08\x80\x80\x80\x03\x12$\n\x15SECTION_ALIGN_64BYTES\x10\x11\x1a\t\x9a\
+    \x93\x19\x05\x08\x80\x80\xc0\x03\x12%\n\x16SECTION_ALIGN_128BYTES\x10\
+    \x12\x1a\t\x9a\x93\x19\x05\x08\x80\x80\x80\x04\x12%\n\x16SECTION_ALIGN_2\
+    56BYTES\x10\x13\x1a\t\x9a\x93\x19\x05\x08\x80\x80\xc0\x04\x12%\n\x16SECT\
+    ION_ALIGN_512BYTES\x10\x14\x1a\t\x9a\x93\x19\x05\x08\x80\x80\x80\x05\x12\
+    &\n\x17SECTION_ALIGN_1024BYTES\x10\x15\x1a\t\x9a\x93\x19\x05\x08\x80\x80\
+    \xc0\x05\x12&\n\x17SECTION_ALIGN_2048BYTES\x10\x16\x1a\t\x9a\x93\x19\x05\
+    \x08\x80\x80\x80\x06\x12&\n\x17SECTION_ALIGN_4096BYTES\x10\x17\x1a\t\x9a\
+    \x93\x19\x05\x08\x80\x80\xc0\x06\x12&\n\x17SECTION_ALIGN_8192BYTES\x10\
+    \x18\x1a\t\x9a\x93\x19\x05\x08\x80\x80\x80\x07\x12!\n\x12SECTION_ALIGN_M\
+    ASK\x10\x19\x1a\t\x9a\x93\x19\x05\x08\x80\x80\xc0\x07\x12&\n\x17SECTION_\
+    LNK_NRELOC_OVFL\x10\x1a\x1a\t\x9a\x93\x19\x05\x08\x80\x80\x80\x08\x12&\n\
+    \x17SECTION_MEM_DISCARDABLE\x10\x1b\x1a\t\x9a\x93\x19\x05\x08\x80\x80\
+    \x80\x10\x12%\n\x16SECTION_MEM_NOT_CACHED\x10\x1c\x1a\t\x9a\x93\x19\x05\
+    \x08\x80\x80\x80\x20\x12$\n\x15SECTION_MEM_NOT_PAGED\x10\x1d\x1a\t\x9a\
+    \x93\x19\x05\x08\x80\x80\x80@\x12\"\n\x12SECTION_MEM_SHARED\x10\x1e\x1a\
+    \n\x9a\x93\x19\x06\x08\x80\x80\x80\x80\x01\x12#\n\x13SECTION_MEM_EXECUTE\
+    \x10\x1f\x1a\n\x9a\x93\x19\x06\x08\x80\x80\x80\x80\x02\x12\x20\n\x10SECT\
+    ION_MEM_READ\x10\x20\x1a\n\x9a\x93\x19\x06\x08\x80\x80\x80\x80\x04\x12!\
+    \n\x11SECTION_MEM_WRITE\x10!\x1a\n\x9a\x93\x19\x06\x08\x80\x80\x80\x80\
+    \x08\x12\x1f\n\x13SECTION_SCALE_INDEX\x10\"\x1a\x06\x9a\x93\x19\x02\x08\
+    \x01\x1a\x06\x92\x93\x19\x02\x10\x01*\xe8\x01\n\x12DllCharacteristics\
+    \x12\x13\n\x0fHIGH_ENTROPY_VA\x10\x20\x12\x10\n\x0cDYNAMIC_BASE\x10@\x12\
+    \x14\n\x0fFORCE_INTEGRITY\x10\x80\x01\x12\x0e\n\tNX_COMPAT\x10\x80\x02\
+    \x12\x11\n\x0cNO_ISOLATION\x10\x80\x04\x12\x0b\n\x06NO_SEH\x10\x80\x08\
+    \x12\x0c\n\x07NO_BIND\x10\x80\x10\x12\x11\n\x0cAPPCONTAINER\x10\x80\x20\
+    \x12\x0f\n\nWDM_DRIVER\x10\x80@\x12\x0e\n\x08GUARD_CF\x10\x80\x80\x01\
+    \x12\x1b\n\x15TERMINAL_SERVER_AWARE\x10\x80\x80\x02\x1a\x06\x92\x93\x19\
+    \x02\x10\x01B\x1a\xfa\x92\x19\x16\n\x02pe\x12\x05pe.PE\x1a\tpe-moduleb\
+    \x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
