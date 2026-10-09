@@ -30,3 +30,9 @@ uuid = { workspace = true, features = ["js"] }
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = { workspace = true }
 zip = { workspace = true, features = ["deflate"] }
+# Enables the test modules when building the WASM tests. Not included in the
+# published npm package.
+yara-x = { workspace = true, features = [
+    "test_proto2-module",
+    "test_proto3-module",
+] }

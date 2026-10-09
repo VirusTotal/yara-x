@@ -62,3 +62,10 @@ web-sys = { version = "0.3.90", features = [
 
 [dev-dependencies]
 goldenfile = { workspace = true }
+# Enables the test modules when building the LS tests, so they are suggested
+# in completion tests. Doesn't affect the release build of the language
+# server.
+yara-x = { workspace = true, features = [
+    "test_proto2-module",
+    "test_proto3-module",
+] }
