@@ -170,13 +170,60 @@ impl Regexp {
 /// always have a reference to a [`Struct`], [`Array`] or [`Map`] respectively.
 /// However, those structures, arrays, and maps don't contain actual values at
 /// compile time, they only provide details about the type, like, for example,
-/// which are the fields in a struct, or what's the type of the items in an
+/// which are the fields in a struct, or what's the type of the items the
 /// array.
 ///
-/// Some types can have an optional set of constraints that give additional
+/// Some types can have an optional set of constraints that gives additional
 /// information about the value. For instance, strings can have a constraint
 /// [`StringConstraint::Lowercase`], which indicates that the string is always
-/// lowercase.
+/// lowercase, and integer types can have [IntegerConstraint::Range] telling
+/// the range in which values be contained.
+///
+/// # Integer signedness.
+///
+/// Signed and unsigned integers share the same [`Type::Integer`] type;
+/// signedness only matters for operations where the result depends on
+/// it, such as comparisons, divisions, right shifts, and conversions to
+/// float. For unsigned integers, `value` holds the `i64` with the same
+/// bit pattern as the `u64` value.
+///
+/// ## Which integers are unsigned?
+///
+/// By default, integers in YARA-X are 64-bit signed (`is_unsigned: false`).
+/// An integer is unsigned (`is_unsigned: true`) only when its domain can
+/// exceed `i64::MAX` (`0x7FFFFFFFFFFFFFFF`), specifically:
+///
+/// * Integer literals in the range `0x8000000000000000..=0xFFFFFFFFFFFFFFFF`.
+/// * Results of `uint64` and `uint64be`.
+/// * Module fields and functions of type `uint64` (and protobuf `uint32`).
+///
+/// ## Why `uint8`, `uint16`, and `uint32` are signed
+///
+/// Functions like `uint8`, `uint16`, and `uint32` (which return
+/// [`crate::wasm::integer::RangedInteger`]) produce **signed** 64-bit
+/// integers with a non-negative [`IntegerConstraint::Range`] (`0..=255`,
+/// `0..=65535`, `0..=4294967295`), rather than unsigned integers:
+///
+/// * Because all integers are widened to 64 bits, their values already fit
+///   within the positive range of `i64` (the sign bit is never set).
+/// * If they were marked as unsigned, subtracting a larger constant or
+///   another `uint32` (e.g., `uint32(0) - 10` or `uint32(0) - uint32(4)`)
+///   would produce an unsigned 64-bit integer that wraps around on
+///   underflow to a huge positive value (`0xFFFFFFFFFFFFFFF6`), making
+///   expressions like `uint32(0) - 10 > 100` unexpectedly evaluate to
+///   `true` when `uint32(0) < 10`, and `uint32(0) - uint32(4) < 0` always
+///   `false`.
+/// * Marking them as unsigned would also trigger false-positive
+///   `unsigned_unary_op` warnings on `-uint32(0)`, even though negating a
+///   32-bit unsigned value in 64-bit signed arithmetic never overflows,
+///   and would require extra runtime branching when comparing against
+///   signed integers like `filesize` or `int32(...)`.
+/// * Meanwhile, their [`IntegerConstraint::Range`] still allows the
+///   compiler to detect unsatisfiable or invariant comparisons such as
+///   `uint32(0) == -1` or `uint32(0) >= 0` at compile time.
+///
+/// See [`crate::compiler::ir::IR::is_unsigned_result`] for how signedness
+/// propagates through arithmetic and bitwise operations.
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) enum TypeValue {
     Unknown,
@@ -186,13 +233,6 @@ pub(crate) enum TypeValue {
     Float {
         value: Value<f64>,
     },
-    /// A 64-bit signed or unsigned integer.
-    ///
-    /// Signed and unsigned integers share the same [`Type::Integer`] type,
-    /// signedness only matters for operations where the result depends on
-    /// it, like comparisons, divisions, right shifts, and conversions to
-    /// float. For unsigned integers, `value` holds the `i64` with the same
-    /// bit pattern as the `u64` value.
     Integer {
         value: Value<i64>,
         is_unsigned: bool,

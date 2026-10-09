@@ -93,11 +93,11 @@ impl<'ast> FuncSignatureParser<'ast> {
                     .get(1)
                     .ok_or_else(|| Error::new_spanned(type_path, error_msg))?;
 
-                if *min >= 0 {
-                    Ok(Cow::Owned(format!("i:U:R{min:?}:{max:?}")))
-                } else {
-                    Ok(Cow::Owned(format!("i:R{min:?}:{max:?}")))
-                }
+                // `RangedInteger` always produces a signed 64-bit integer with
+                // a range constraint, even when `min >= 0` (such as `uint8`,
+                // `uint16`, and `uint32`), because its bounds are `i64` and
+                // therefore always fit in a signed 64-bit integer.
+                Ok(Cow::Owned(format!("i:R{min:?}:{max:?}")))
             }
             "FixedLenString" => {
                 let error_msg = "FixedLenString must have a constant length (i.e: FixedLenString<32>)";

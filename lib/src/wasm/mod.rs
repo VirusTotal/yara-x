@@ -1692,6 +1692,12 @@ macro_rules! gen_int_fn {
     };
 }
 
+// Note that `uint8`, `uint16`, and `uint32` return a `RangedInteger` (which is
+// a signed 64-bit integer constrained to `[0, MAX]`) rather than an unsigned
+// integer. Because all integers in YARA-X are 64-bit wide, their values fit in
+// the positive range of `i64`, and keeping them signed avoids unsigned
+// wrap-around in subtractions like `uint32(0) - 10`. See `TypeValue::Integer`
+// for a detailed explanation.
 gen_int_fn!(uint8, u8, from_le_bytes, 0, 255);
 gen_int_fn!(uint16, u16, from_le_bytes, 0, 65_535);
 gen_int_fn!(uint32, u32, from_le_bytes, 0, 4_294_967_295);
