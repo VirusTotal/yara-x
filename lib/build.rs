@@ -280,9 +280,19 @@ fn generate_module_docs(
 
     for (msg_name, field_number, comments) in docs {
         let escaped_comments = comments.replace("\"", "\\\"");
+        // Testing proto modules don't end up in release builds.
+        let cfg_attr = if msg_name.starts_with("test_proto") {
+            format!(
+                r#"#[cfg(feature = "{}-module")]
+    "#,
+                msg_name.split_once('.').unwrap().0
+            )
+        } else {
+            String::new()
+        };
         writeln!(
             field_docs_rs,
-            r#"    ("{}", {}, "{}"),"#,
+            r#"{cfg_attr}    ("{}", {}, "{}"),"#,
             msg_name, field_number, escaped_comments
         )
         .unwrap();
@@ -388,6 +398,28 @@ fn generate_proto_code() {
     // Generate .rs files for .proto files in src/modules/protos
     proto_compiler.run_from_script();
 
+    let out_dir = env::var("OUT_DIR").unwrap();
+
+    // The test protos are compiled only when the corresponding feature is
+    // enabled, keeping the test modules out of release builds. The `cfg`
+    // attributes are added here (instead of skipping the generation of the
+    // files) so the generated code doesn't depend on the enabled features.
+    let out_mod_rs_path =
+        PathBuf::from(&out_dir).join("protos").join("mod.rs");
+    let out_mod_rs = fs::read_to_string(&out_mod_rs_path).unwrap();
+    let out_mod_rs = out_mod_rs
+        .replace(
+            "pub mod test_proto2;",
+            r#"#[cfg(feature = "test_proto2-module")]
+pub mod test_proto2;"#,
+        )
+        .replace(
+            "pub mod test_proto3;",
+            r#"#[cfg(feature = "test_proto3-module")]
+pub mod test_proto3;"#,
+        );
+    fs::write(&out_mod_rs_path, out_mod_rs).unwrap();
+
     // Decide whether `modules.rs` and the content of the `protos/generated`
     // directory should be re-generated. By default, they will be re-generated.
     let mut regenerate = true;
@@ -415,7 +447,6 @@ fn generate_proto_code() {
         #[cfg(feature = "generate-module-docs")]
         generate_module_docs(&proto_files, &modules);
 
-        let out_dir = env::var("OUT_DIR").unwrap();
         let src_dir = PathBuf::from("src/modules/protos/generated");
         let _ = fs::create_dir_all(&src_dir);
 
