@@ -1199,8 +1199,8 @@ fn bool_expr_from_ast<'src>(
                 None,
             ));
         }
-        type_value => {
-            warn_if_not_bool(ctx, type_value.ty(), ast.span());
+        _ => {
+            warn_if_not_bool(ctx, expr, ast.span());
         }
     }
 
@@ -2672,16 +2672,21 @@ fn re_error_to_compile_error(
 }
 
 /// Raises a [`warnings::UnsignedUnaryOperation`] warning if `operand` is an
-/// unsigned integer.
+/// unsigned integer. `operator` is the unary operator applied to `operand`,
+/// either `-` or `~`.
 fn warn_if_unsigned(
     ctx: &mut CompileContext,
     operand: ExprId,
     span: Span,
-    operator: &str,
-    note: &str,
+    operator: char,
 ) {
     if ctx.ir.get(operand).type_value().is_unsigned() {
         ctx.warnings.add(|| {
+            let note = match operator {
+                '-' => "the result is a signed integer, which wraps around if the unsigned value is greater than 0x7FFFFFFFFFFFFFFF",
+                '~' => "the result is an unsigned integer with all its 64 bits inverted",
+                _ => unreachable!("unexpected unary operator `{operator}`"),
+            };
             warnings::UnsignedUnaryOperation::build(
                 ctx.report_builder,
                 operator.to_string(),
@@ -2692,13 +2697,10 @@ fn warn_if_unsigned(
     }
 }
 
-/// Raises a [`warnings::NonBooleanAsBoolean`] warning if the type is not
+/// Raises a [`warnings::NonBooleanAsBoolean`] warning if `expr` is not
 /// boolean.
-pub(in crate::compiler) fn warn_if_not_bool(
-    ctx: &mut CompileContext,
-    ty: Type,
-    span: Span,
-) {
+fn warn_if_not_bool(ctx: &mut CompileContext, expr: ExprId, span: Span) {
+    let ty = ctx.ir.get(expr).ty();
     if !matches!(ty, Type::Bool) {
         ctx.warnings.add(|| {
             let note = match ty {
@@ -2887,8 +2889,7 @@ gen_unary_op!(
     Type::Bool | Type::Integer | Type::Float | Type::String,
     // Raise warning if the operand is not bool.
     Some(|ctx, operand, span| {
-        let ty = ctx.ir.get(operand).ty();
-        warn_if_not_bool(ctx, ty, span);
+        warn_if_not_bool(ctx, operand, span);
         Ok(())
     })
 );
@@ -2910,8 +2911,7 @@ gen_n_ary_operation!(
         (Type::Float, Type::Bool)
     ],
     Some(|ctx, operand, span| {
-        let ty = ctx.ir.get(operand).ty();
-        warn_if_not_bool(ctx, ty, span);
+        warn_if_not_bool(ctx, operand, span);
         Ok(())
     })
 );
@@ -2941,8 +2941,7 @@ fn or_expr_from_ast<'src>(
         .collect::<Result<Vec<ExprId>, CompileError>>()?;
 
     for (hir, ast) in iter::zip(or_operands.iter(), expr.operands()) {
-        let ty = ctx.ir.get(*hir).ty();
-        warn_if_not_bool(ctx, ty, ast.span());
+        warn_if_not_bool(ctx, *hir, ast.span());
     }
 
     for ((lhs_hir, lhs_ast), (rhs_hir, rhs_ast)) in
@@ -3058,13 +3057,7 @@ fn minus_expr_from_ast<'src>(
         ),
     })?;
 
-    warn_if_unsigned(
-        ctx,
-        operand,
-        expr.operand.span(),
-        "-",
-        "the result is a signed integer, which wraps around if the unsigned value is greater than 0x7FFFFFFFFFFFFFFF",
-    );
+    warn_if_unsigned(ctx, operand, expr.operand.span(), '-');
 
     Ok(minus)
 }
@@ -3108,13 +3101,7 @@ gen_unary_op!(
     bitwise_not,
     Type::Integer,
     Some(|ctx, operand, span| {
-        warn_if_unsigned(
-            ctx,
-            operand,
-            span,
-            "~",
-            "the result is an unsigned integer with all its 64 bits inverted",
-        );
+        warn_if_unsigned(ctx, operand, span, '~');
         Ok(())
     })
 );
