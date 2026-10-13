@@ -616,6 +616,12 @@ fn unsigned_integers() {
     condition_true!("~0xFFFFFFFFFFFFFFFF == 0");
     condition_true!("~0x7FFFFFFFFFFFFFFF == -9223372036854775808");
 
+    // Dividing i64::MIN by -1 overflows signed 64-bit integer and evaluates
+    // to undefined instead of trapping at runtime.
+    condition_false!(r"-9223372036854775808 \ -1 == 0");
+    condition_true!(r"not defined (-9223372036854775808 \ -1)");
+    condition_true!("-9223372036854775808 % -1 == 0");
+
     // Dividing an unsigned integer by -1 is an unsigned division, where -1
     // is interpreted as 0xFFFFFFFFFFFFFFFF.
     condition_true!(r"0x8000000000000000 \ -1 == 0");
@@ -642,6 +648,12 @@ fn int64xx() {
     condition_true!("int64be(1) == 0x0203040506070809", &data);
     condition_true!("int64be(10) == -1", &data);
     condition_true!("int64be(3) == 0x0405060708090aff", &data);
+
+    // Dividing i64::MIN by -1 returns undefined.
+    condition_true!(
+        r"not defined (int64(0) \ -1)",
+        &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80]
+    );
 
     // Reading past the end of the data, or at a negative offset, returns
     // an undefined value.
