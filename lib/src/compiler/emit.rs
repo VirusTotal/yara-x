@@ -1206,33 +1206,6 @@ fn emit_lazy_call_to_search_for_patterns(
     }
 }
 
-/// Emits the code for a range bound, which is an integer expression.
-///
-/// Range bounds are handled as `i64` values, both by `for` loops and by the
-/// functions that look for pattern matches in a range, so unsigned bounds
-/// greater than `i64::MAX` would be interpreted as negative numbers. Instead,
-/// they are saturated to `i64::MAX`. In pattern anchors, this gives exact
-/// results because matches can't occur at offsets greater than `i64::MAX`.
-fn emit_saturated_bound(
-    ctx: &mut EmitContext,
-    ir: &IR,
-    bound: ExprId,
-    instr: &mut InstrSeqBuilder,
-) {
-    emit_expr(ctx, ir, bound, instr);
-
-    if ir.get(bound).type_value().is_unsigned() {
-        let tmp = ctx.wasm_symbols.i64_tmp_a;
-        instr.local_tee(tmp);
-        instr.i64_const(i64::MAX);
-        instr.local_get(tmp);
-        instr.i64_const(0);
-        instr.binop(BinaryOp::I64GeS);
-        // bound >= 0 ? bound : i64::MAX
-        instr.select(None);
-    }
-}
-
 fn emit_pattern_match(
     ctx: &mut EmitContext,
     ir: &IR,
@@ -1275,8 +1248,8 @@ fn emit_pattern_match(
             );
         }
         MatchAnchor::In(range) => {
-            emit_saturated_bound(ctx, ir, range.lower_bound, instr);
-            emit_saturated_bound(ctx, ir, range.upper_bound, instr);
+            emit_expr(ctx, ir, range.lower_bound, instr);
+            emit_expr(ctx, ir, range.upper_bound, instr);
             instr.call(
                 ctx.function_id(wasm::export__is_pat_match_in.mangled_name),
             );
@@ -1316,8 +1289,8 @@ fn emit_pattern_count(
 
     match range {
         Some(range) => {
-            emit_saturated_bound(ctx, ir, range.lower_bound, instr);
-            emit_saturated_bound(ctx, ir, range.upper_bound, instr);
+            emit_expr(ctx, ir, range.lower_bound, instr);
+            emit_expr(ctx, ir, range.upper_bound, instr);
             instr.call(
                 ctx.function_id(wasm::export__pat_matches_in.mangled_name),
             );
@@ -1797,8 +1770,8 @@ fn emit_of_pattern_set_with_loop(
                     ));
                 }
                 MatchAnchor::In(range) => {
-                    emit_saturated_bound(ctx, ir, range.lower_bound, instr);
-                    emit_saturated_bound(ctx, ir, range.upper_bound, instr);
+                    emit_expr(ctx, ir, range.lower_bound, instr);
+                    emit_expr(ctx, ir, range.upper_bound, instr);
                     instr.call(ctx.function_id(
                         wasm::export__is_pat_match_in.mangled_name,
                     ));
@@ -1937,15 +1910,7 @@ fn emit_for_in_range(
                         let lower_tmp = ctx.wasm_symbols.i64_tmp_a;
                         let upper_tmp = ctx.wasm_symbols.i64_tmp_b;
 
-                        // The loop variable is a signed integer, so unsigned
-                        // upper bounds greater than i64::MAX are saturated to
-                        // i64::MAX.
-                        emit_saturated_bound(
-                            ctx,
-                            ir,
-                            range.upper_bound,
-                            instr,
-                        );
+                        emit_expr(ctx, ir, range.upper_bound, instr);
                         emit_expr(ctx, ir, range.lower_bound, instr);
 
                         // Store lower_bound in tmp_a and upper_bound in tmp_b.
@@ -1960,20 +1925,31 @@ fn emit_for_in_range(
                         instr.local_get(lower_tmp);
                         instr.binop(BinaryOp::I64LtS);
 
-                        // Unsigned lower bounds greater than i64::MAX can't be
-                        // represented by the loop variable, so they also make
-                        // the range empty. Those bounds have a negative bit
-                        // pattern when interpreted as i64. This doesn't apply
-                        // to signed lower bounds, which can be negative at
-                        // runtime (e.g: a lower bound computed as
-                        // `filesize - 10`), and in that case the loop iterates
-                        // over the negative values.
-                        if ir.get(range.lower_bound).type_value().is_unsigned()
-                        {
-                            instr.local_get(lower_tmp);
-                            instr.i64_const(0);
-                            instr.binop(BinaryOp::I64LtS);
-                            instr.binop(BinaryOp::I32Or);
+                        // Unsigned bounds greater than i64::MAX can't be
+                        // represented by the loop variable, which is a signed
+                        // integer. Those bounds have a negative bit pattern
+                        // when interpreted as i64, and they also make the
+                        // range empty. This doesn't apply to signed bounds,
+                        // which can be negative at runtime (e.g: a lower
+                        // bound computed as `filesize - 10`), and in that
+                        // case the loop iterates over the negative values.
+                        //
+                        // Notice that saturating these bounds to i64::MAX is
+                        // not a good idea. In practice, they are the result of
+                        // an unsigned subtraction that wrapped around, like
+                        // `N - 1` when `N` is zero, where a negative number was
+                        // intended. Saturating `(0..N - 1)` to `(0..i64::MAX)`
+                        // makes the loop run until the scan times out.
+                        for (bound, tmp) in [
+                            (range.lower_bound, lower_tmp),
+                            (range.upper_bound, upper_tmp),
+                        ] {
+                            if ir.get(bound).type_value().is_unsigned() {
+                                instr.local_get(tmp);
+                                instr.i64_const(0);
+                                instr.binop(BinaryOp::I64LtS);
+                                instr.binop(BinaryOp::I32Or);
+                            }
                         }
 
                         instr.if_else(
