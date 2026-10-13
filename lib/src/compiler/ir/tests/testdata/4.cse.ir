@@ -1,10 +1,10 @@
 RULE test
-  52: WITH -- hash: 0x6d7701fe081d983f
+  52: WITH -- hash: 0xada43ca02df899a3
     2: FIELD_ACCESS -- hash: 0x9536d86a9309eb4b
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
       1: SYMBOL Field { index: 12, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
-    51: AND -- hash: 0x9bd969653383cc22
-      22: FOR_IN -- hash: 0x2c6eaee06da3665a
+    51: AND -- hash: 0xdc06a407555ecd86
+      22: FOR_IN -- hash: 0x40df9e93b62314a1
             n: Var { frame_id: 2, ty: integer, index: 1 }
             i: Var { frame_id: 2, ty: integer, index: 2 }
             max_count: Var { frame_id: 2, ty: integer, index: 3 }
@@ -12,23 +12,23 @@ RULE test
             item: Var { frame_id: 2, ty: unknown, index: 5 }
         3: CONST integer(0)
         4: CONST integer(1)
-        21: AND -- hash: 0x82951fe9ebf8c896
+        21: AND -- hash: 0x48e31ea99906f350
           7: EQ -- hash: 0x1e7413311b1944fa
             5: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 6 }, type_value: integer(unknown) }
             6: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 0 }, type_value: integer(unknown) }
-          13: EQ -- hash: 0x55a86ac488e1462e
-            11: FN_CALL test_proto2.add@a:i,b:i@i -- hash: 0x5c8149efefc0401a
+          13: EQ -- hash: 0x445a445dad705f2f
+            11: FN_CALL test_proto2.add@a:i64,b:i64@i64 -- hash: 0xc4dda0bcb64d09ea
               9: CONST integer(1)
               10: CONST integer(2)
             12: CONST integer(3)
-          20: EQ -- hash: 0x84cf5cf12dbe27a0
-            18: ADD -- hash: 0xf519dc2b10fbedfc
+          20: EQ -- hash: 0xf597364a4887cacb
+            18: ADD -- hash: 0x2bd7a037ed13e218
               16: FIELD_ACCESS -- hash: 0x2b7b8addca68ad72
                 14: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
                 15: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None, deprecation_notice: None }
               17: CONST integer(1)
             19: CONST float(1.0)
-      39: FOR_IN -- hash: 0xce4208fea0a2e539
+      39: FOR_IN -- hash: 0xf177f0dccab7500c
             n: Var { frame_id: 3, ty: integer, index: 1 }
             i: Var { frame_id: 3, ty: integer, index: 2 }
             max_count: Var { frame_id: 3, ty: integer, index: 3 }
@@ -36,20 +36,20 @@ RULE test
             item: Var { frame_id: 3, ty: unknown, index: 5 }
         23: CONST integer(0)
         24: CONST integer(1)
-        38: OR -- hash: 0x634779ad4e349e70
-          30: NE -- hash: 0x5d2d23e537a8a59
-            28: FN_CALL test_proto2.add@a:i,b:i@i -- hash: 0x5c8149efefc0401a
+        38: OR -- hash: 0x2995786cff42c92a
+          30: NE -- hash: 0xf484abd77409a359
+            28: FN_CALL test_proto2.add@a:i64,b:i64@i64 -- hash: 0xc4dda0bcb64d09ea
               26: CONST integer(1)
               27: CONST integer(2)
             29: CONST integer(0)
-          37: EQ -- hash: 0x84cf5cf12dbe27a0
-            35: ADD -- hash: 0xf519dc2b10fbedfc
+          37: EQ -- hash: 0xf597364a4887cacb
+            35: ADD -- hash: 0x2bd7a037ed13e218
               33: FIELD_ACCESS -- hash: 0x2b7b8addca68ad72
                 31: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
                 32: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None, deprecation_notice: None }
               34: CONST integer(1)
             36: CONST float(1.0)
-      50: FOR_IN -- hash: 0x313e311089e8c59
+      50: FOR_IN -- hash: 0x31d0fd869d40df51
             n: Var { frame_id: 4, ty: integer, index: 1 }
             i: Var { frame_id: 4, ty: integer, index: 2 }
             max_count: Var { frame_id: 4, ty: integer, index: 3 }
@@ -57,9 +57,9 @@ RULE test
             item: Var { frame_id: 4, ty: unknown, index: 5 }
         40: CONST integer(0)
         41: CONST integer(1)
-        49: NOT -- hash: 0xb2812a5ab7cd6b73
-          48: EQ -- hash: 0x84cf5cf12c2f67a0
-            46: ADD -- hash: 0xf519dc2b10fbedfc
+        49: NOT -- hash: 0x234903b3d2970e9f
+          48: EQ -- hash: 0xf597364a4af90acb
+            46: ADD -- hash: 0x2bd7a037ed13e218
               44: FIELD_ACCESS -- hash: 0x2b7b8addca68ad72
                 42: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
                 43: SYMBOL Field { index: 10, is_root: false, type_value: float(unknown), acl: None, deprecation_notice: None }

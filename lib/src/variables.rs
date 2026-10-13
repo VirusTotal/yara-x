@@ -82,49 +82,49 @@ impl TryFrom<bool> for Variable {
 impl TryFrom<i64> for Variable {
     type Error = VariableError;
     fn try_from(value: i64) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::var_integer_from(value)))
+        Ok(Variable(TypeValue::var_signed_integer_from(value)))
     }
 }
 
 impl TryFrom<i32> for Variable {
     type Error = VariableError;
     fn try_from(value: i32) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::var_integer_from(value)))
+        Ok(Variable(TypeValue::var_signed_integer_from(value)))
     }
 }
 
 impl TryFrom<i16> for Variable {
     type Error = VariableError;
     fn try_from(value: i16) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::var_integer_from(value)))
+        Ok(Variable(TypeValue::var_signed_integer_from(value)))
     }
 }
 
 impl TryFrom<i8> for Variable {
     type Error = VariableError;
     fn try_from(value: i8) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::var_integer_from(value)))
+        Ok(Variable(TypeValue::var_signed_integer_from(value)))
     }
 }
 
 impl TryFrom<u32> for Variable {
     type Error = VariableError;
     fn try_from(value: u32) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::var_integer_from(value)))
+        Ok(Variable(TypeValue::var_signed_integer_from(value)))
     }
 }
 
 impl TryFrom<u16> for Variable {
     type Error = VariableError;
     fn try_from(value: u16) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::var_integer_from(value)))
+        Ok(Variable(TypeValue::var_signed_integer_from(value)))
     }
 }
 
 impl TryFrom<u8> for Variable {
     type Error = VariableError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::var_integer_from(value)))
+        Ok(Variable(TypeValue::var_signed_integer_from(value)))
     }
 }
 
@@ -183,9 +183,9 @@ impl TryFrom<&serde_json::Value> for Variable {
                     let n: i64 = n
                         .try_into()
                         .map_err(|_| VariableError::IntegerOutOfRange)?;
-                    Ok(Variable(TypeValue::var_integer_from(n)))
+                    Ok(Variable(TypeValue::var_signed_integer_from(n)))
                 } else if let Some(n) = n.as_i64() {
-                    Ok(Variable(TypeValue::var_integer_from(n)))
+                    Ok(Variable(TypeValue::var_signed_integer_from(n)))
                 } else if let Some(n) = n.as_f64() {
                     Ok(Variable(TypeValue::var_float_from(n)))
                 } else {

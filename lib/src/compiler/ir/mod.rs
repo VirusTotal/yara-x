@@ -1115,14 +1115,18 @@ impl IR {
         c: &TypeValue,
         inclusive: bool,
     ) -> Option<Bound<i64>> {
+        // Integer constants, either signed or unsigned. Unsigned constants
+        // that don't fit in an `i64` are ignored.
+        if let Some(v) =
+            c.try_as_const_i128().and_then(|v| i64::try_from(v).ok())
+        {
+            return if inclusive {
+                Some(Bound::Included(v))
+            } else {
+                Some(Bound::Excluded(v))
+            };
+        }
         match c {
-            TypeValue::Integer { value: Const(v), .. } => {
-                if inclusive {
-                    Some(Bound::Included(*v))
-                } else {
-                    Some(Bound::Excluded(*v))
-                }
-            }
             TypeValue::Float { value: Const(v), .. } if v.is_finite() => {
                 let floor = v.floor();
                 if inclusive && floor == *v {
@@ -1139,14 +1143,18 @@ impl IR {
         c: &TypeValue,
         inclusive: bool,
     ) -> Option<Bound<i64>> {
+        // Integer constants, either signed or unsigned. Unsigned constants
+        // that don't fit in an `i64` are ignored.
+        if let Some(v) =
+            c.try_as_const_i128().and_then(|v| i64::try_from(v).ok())
+        {
+            return if inclusive {
+                Some(Bound::Included(v))
+            } else {
+                Some(Bound::Excluded(v))
+            };
+        }
         match c {
-            TypeValue::Integer { value: Const(v), .. } => {
-                if inclusive {
-                    Some(Bound::Included(*v))
-                } else {
-                    Some(Bound::Excluded(*v))
-                }
-            }
             TypeValue::Float { value: Const(v), .. } if v.is_finite() => {
                 let ceil = v.ceil();
                 if inclusive && ceil == *v {
@@ -1804,8 +1812,9 @@ impl IR {
     pub fn minus(&mut self, operand: ExprId) -> ExprId {
         if self.constant_folding {
             match self.get(operand).type_value() {
-                TypeValue::Integer { value: Const(v), .. } => {
-                    return self.constant(TypeValue::const_integer_from(-v));
+                TypeValue::Int64(Const(v)) => {
+                    return self
+                        .constant(TypeValue::const_signed_integer_from(-v));
                 }
                 TypeValue::Float { value: Const(v), .. } => {
                     return self.constant(TypeValue::const_float_from(-v));
@@ -1840,7 +1849,7 @@ impl IR {
         if self.constant_folding
             && let Some(val) = self.get(operand).try_as_const_integer()
         {
-            return self.constant(TypeValue::const_integer_from(!val));
+            return self.constant(TypeValue::const_signed_integer_from(!val));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
@@ -1859,8 +1868,9 @@ impl IR {
                 self.get(rhs).try_as_const_integer(),
             )
         {
-            return self
-                .constant(TypeValue::const_integer_from(lhs_val & rhs_val));
+            return self.constant(TypeValue::const_signed_integer_from(
+                lhs_val & rhs_val,
+            ));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
@@ -1880,8 +1890,9 @@ impl IR {
                 self.get(rhs).try_as_const_integer(),
             )
         {
-            return self
-                .constant(TypeValue::const_integer_from(lhs_val | rhs_val));
+            return self.constant(TypeValue::const_signed_integer_from(
+                lhs_val | rhs_val,
+            ));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
@@ -1901,8 +1912,9 @@ impl IR {
                 self.get(rhs).try_as_const_integer(),
             )
         {
-            return self
-                .constant(TypeValue::const_integer_from(lhs_val ^ rhs_val));
+            return self.constant(TypeValue::const_signed_integer_from(
+                lhs_val ^ rhs_val,
+            ));
         }
 
         let expr_id = ExprId::from(self.nodes.len());
@@ -1923,7 +1935,7 @@ impl IR {
             )
             && rhs_val >= 0
         {
-            return self.constant(TypeValue::const_integer_from(
+            return self.constant(TypeValue::const_signed_integer_from(
                 if rhs_val >= 64 { 0 } else { lhs_val << rhs_val },
             ));
         }
@@ -1946,7 +1958,7 @@ impl IR {
             )
             && rhs_val >= 0
         {
-            return self.constant(TypeValue::const_integer_from(
+            return self.constant(TypeValue::const_signed_integer_from(
                 if rhs_val >= 64 { 0 } else { lhs_val >> rhs_val },
             ));
         }
@@ -2614,10 +2626,15 @@ impl IR {
         // Fold all operands into a single value.
         let folded = operands
             .iter()
-            .map(|op| match self.get(*op).type_value() {
-                TypeValue::Integer { value: Const(v), .. } => v as f64,
-                TypeValue::Float { value: Const(v) } => v,
-                _ => unreachable!(),
+            .map(|op| {
+                let tv = self.get(*op).type_value();
+                if let Some(v) = tv.try_as_const_i128() {
+                    v as f64
+                } else if let TypeValue::Float { value: Const(v) } = tv {
+                    v
+                } else {
+                    unreachable!()
+                }
             })
             .reduce(f) // It's safe to call unwrap because there must be at least
             // one operand.
@@ -2626,7 +2643,7 @@ impl IR {
         if is_float {
             Ok(Some(TypeValue::const_float_from(folded)))
         } else if folded >= i64::MIN as f64 && folded <= i64::MAX as f64 {
-            Ok(Some(TypeValue::const_integer_from(folded as i64)))
+            Ok(Some(TypeValue::const_signed_integer_from(folded as i64)))
         } else {
             Err(Error::NumberOutOfRange)
         }
@@ -3584,7 +3601,7 @@ impl Expr {
                 if *is_float {
                     TypeValue::unknown_float()
                 } else {
-                    TypeValue::unknown_integer()
+                    TypeValue::unknown_signed_integer()
                 }
             }
 
@@ -3595,7 +3612,7 @@ impl Expr {
                 if *is_float {
                     TypeValue::unknown_float()
                 } else {
-                    TypeValue::unknown_integer()
+                    TypeValue::unknown_signed_integer()
                 }
             }
 
@@ -3612,7 +3629,7 @@ impl Expr {
             | Expr::BitwiseOr { .. }
             | Expr::BitwiseXor { .. }
             | Expr::Shl { .. }
-            | Expr::Shr { .. } => TypeValue::unknown_integer(),
+            | Expr::Shr { .. } => TypeValue::unknown_signed_integer(),
 
             Expr::Symbol(symbol) => symbol.type_value().clone(),
             Expr::FieldAccess(field_access) => field_access.type_value.clone(),
@@ -3635,10 +3652,8 @@ impl Expr {
     /// If the expression is a constant integer, returns its value, if not
     /// returns [`None`]
     pub fn try_as_const_integer(&self) -> Option<i64> {
-        if let TypeValue::Integer { value: Const(v), .. } = self.type_value() {
-            Some(v)
-        } else {
-            None
-        }
+        self.type_value()
+            .try_as_const_i128()
+            .and_then(|v| i64::try_from(v).ok())
     }
 }

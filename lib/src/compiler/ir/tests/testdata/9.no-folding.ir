@@ -1,28 +1,28 @@
 RULE test_1
-  7: AND -- hash: 0xc5b3f5bfb52edf4f
+  7: AND -- hash: 0x9f9a110def31b3b2
     0: PATTERN_MATCH PatternIdx(0) -- hash: 0x5a276c8d75077d2b
-    3: EQ -- hash: 0x29ac06b50265bae
+    3: EQ -- hash: 0x395884782c3e4fc9
       1: PATTERN_COUNT PatternIdx(0) -- hash: 0x295099eb5fc21fe8
       2: CONST integer(1)
-    6: EQ -- hash: 0xa5111bffa7929d34
+    6: EQ -- hash: 0xdbcee00c83aa914f
       4: PATTERN_OFFSET PatternIdx(0) -- hash: 0xf879c749467cc2a4
       5: CONST integer(0)
 
 RULE test_2
-  1: PATTERN_MATCH PatternIdx(0) AT -- hash: 0xfb7f3424e7aabb50
+  1: PATTERN_MATCH PatternIdx(0) AT -- hash: 0x323cf831c3c2af6c
     0: CONST integer(0)
 
 RULE test_3
-  6: FOR_OF -- hash: 0x38da77c23a5f1b4e
+  6: FOR_OF -- hash: 0xe6679b840075b57e
         n: Var { frame_id: 1, ty: integer, index: 0 }
         i: Var { frame_id: 1, ty: integer, index: 1 }
         max_count: Var { frame_id: 1, ty: integer, index: 2 }
         count: Var { frame_id: 1, ty: integer, index: 3 }
         item: Var { frame_id: 1, ty: integer, index: 4 }
-    5: OR -- hash: 0x9da4149814c75f48
-      1: PATTERN_MATCH Var { var: Var { frame_id: 1, ty: integer, index: 4 }, type_value: integer(unknown) } AT -- hash: 0x1951a046c05c8a50
+    5: OR -- hash: 0x4b313859deddf979
+      1: PATTERN_MATCH Var { var: Var { frame_id: 1, ty: integer, index: 4 }, type_value: integer(unknown) } AT -- hash: 0x500f64539c747e6b
         0: CONST integer(0)
-      4: GT -- hash: 0x80a2d25fc44a3ad3
+      4: GT -- hash: 0xb760966ca0622eee
         2: PATTERN_COUNT Var { var: Var { frame_id: 1, ty: integer, index: 4 }, type_value: integer(unknown) } -- hash: 0x1f3792db5a762e26
         3: CONST integer(0)
 
