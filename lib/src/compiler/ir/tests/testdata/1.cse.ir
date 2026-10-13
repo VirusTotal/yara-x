@@ -17,10 +17,8 @@ RULE test_2
     9: CONST integer(1)
 
 RULE test_3
-  6: GT -- hash: 0xac8aed077c7c813c
-    4: DIV -- hash: 0x31f2f3d3e3727c53
-      2: CONST integer(2)
-      3: CONST integer(1)
+  6: GT -- hash: 0x1b5044163ce64b4e
+    4: CONST integer(2)
     5: CONST integer(1)
 
 RULE test_4
