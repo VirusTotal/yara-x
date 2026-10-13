@@ -172,6 +172,9 @@ to `18446744073709551615`, or `0xFFFFFFFFFFFFFFFF`) in the following cases:
   (`0xFFFFFFFFFFFFFFFF`).
 * **The `uint64` and `uint64be` functions**, which read 64-bit unsigned integers
   from the scanned data.
+* **Module fields and functions** of type `uint64`. Notice however that the
+  built-in modules don't have fields of this type. Fields like `pe.image_base`
+  or `pe.number_of_exports` are signed integers, like in YARA.
 
 These values can exceed the maximum 64-bit signed value, so they can't be
 promoted to signed integers.

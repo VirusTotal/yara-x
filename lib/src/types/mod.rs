@@ -185,10 +185,11 @@ impl Regexp {
 /// runtime all integers in WASM are widened to 64-bit values (`i64`).
 ///
 /// The narrower variants (`Int8`, `Int16`, `Int32`, `Uint8`, `Uint16`, `Uint32`)
-/// preserve the exact domain of built-in functions (such as `uint8`, `int32`),
-/// allowing the compiler to know their value ranges (see
-/// [`TypeValue::integer_range`]) and detect unsatisfiable comparisons such as
-/// `uint32(0) == -1` at compile time.
+/// preserve the exact domain of built-in functions (such as `uint8`, `int32`)
+/// and protobuf module fields (`int32`, `uint32`), allowing the compiler to
+/// know their value ranges (see [`TypeValue::integer_range`]) and detect
+/// unsatisfiable or invariant comparisons such as `uint32(0) == -1` or
+/// `uint32(0) >= 0` at compile time.
 ///
 /// ## Integer promotion in 64-bit arithmetic
 ///
@@ -843,6 +844,12 @@ impl TypeValue {
         Self::Int64(Value::Unknown)
     }
 
+    /// Creates a new [`TypeValue`] consisting of a variable unsigned 64-bit integer.
+    #[inline]
+    pub fn var_unsigned_integer_from<T: Into<u64>>(i: T) -> Self {
+        Self::Uint64(Value::Var(i.into()))
+    }
+
     /// Creates a new [`TypeValue`] consisting of a constant unsigned 64-bit integer.
     #[inline]
     pub fn const_unsigned_integer_from<T: Into<u64>>(i: T) -> Self {
@@ -1059,6 +1066,9 @@ mod tests {
         assert!(unknown.eq_type(&unsigned));
         assert_eq!(unknown, TypeValue::unknown_unsigned_integer());
         assert_eq!(format!("{unknown:?}"), "unsigned(unknown)");
+
+        assert!(TypeValue::var_unsigned_integer_from(1_u64).is_unsigned());
+        assert!(!TypeValue::var_unsigned_integer_from(1_u64).is_const());
 
         // The integer range depends only on the type, even for constants.
         assert_eq!(
