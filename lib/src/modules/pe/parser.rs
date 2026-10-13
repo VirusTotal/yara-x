@@ -2317,13 +2317,13 @@ impl From<PE<'_>> for protos::pe::PE {
         result.set_dll_characteristics(pe.optional_hdr.dll_characteristics.into());
         result.set_checksum(pe.optional_hdr.checksum);
         result.set_win32_version_value(pe.optional_hdr.win32_version);
-        result.set_size_of_stack_reserve(pe.optional_hdr.size_of_stack_reserve);
-        result.set_size_of_stack_commit(pe.optional_hdr.size_of_stack_commit);
-        result.set_size_of_heap_reserve(pe.optional_hdr.size_of_heap_reserve);
-        result.set_size_of_heap_commit(pe.optional_hdr.size_of_heap_commit);
+        result.set_size_of_stack_reserve(pe.optional_hdr.size_of_stack_reserve as i64);
+        result.set_size_of_stack_commit(pe.optional_hdr.size_of_stack_commit as i64);
+        result.set_size_of_heap_reserve(pe.optional_hdr.size_of_heap_reserve as i64);
+        result.set_size_of_heap_commit(pe.optional_hdr.size_of_heap_commit as i64);
         result.pdb_path = pe.get_pdb_path().map(|path| path.to_vec());
         result.set_number_of_rva_and_sizes(pe.optional_hdr.number_of_rva_and_sizes);
-        result.set_image_base(pe.optional_hdr.image_base);
+        result.set_image_base(pe.optional_hdr.image_base as i64);
         result.set_size_of_image(pe.optional_hdr.size_of_image);
         result.set_size_of_headers(pe.optional_hdr.size_of_headers);
         result.set_size_of_initialized_data(pe.optional_hdr.size_of_initialized_data);
@@ -2397,8 +2397,8 @@ impl From<PE<'_>> for protos::pe::PE {
             }
         }
 
-        result.set_number_of_imported_functions(num_imported_funcs as u64);
-        result.set_number_of_delayed_imported_functions(num_delayed_imported_funcs as u64);
+        result.set_number_of_imported_functions(num_imported_funcs as i64);
+        result.set_number_of_delayed_imported_functions(num_delayed_imported_funcs as i64);
 
         if let Some(exports) = pe.get_exports() {
             result.dll_name = exports.dll_name.map(|name| name.to_owned());
@@ -2439,7 +2439,7 @@ impl From<PE<'_>> for protos::pe::PE {
         }
 
         if let Some(res) = pe.get_resource_dir() {
-            result.resource_timestamp = Some(res.timestamp as u64);
+            result.resource_timestamp = Some(res.timestamp as i64);
             result.resource_version = MessageField::some(protos::pe::Version {
                 major: Some(res.major_version.into()),
                 minor: Some(res.minor_version.into()),
@@ -2488,8 +2488,8 @@ impl From<PE<'_>> for protos::pe::PE {
         result.overlay =
             MessageField::some(match (overlay_offset, overlay_size) {
                 (Some(offset), Some(size)) if size > 0 => protos::pe::Overlay {
-                    offset: Some(offset),
-                    size: Some(size),
+                    offset: Some(offset as i64),
+                    size: Some(size as i64),
                     ..Default::default()
                 },
                 _ => protos::pe::Overlay {

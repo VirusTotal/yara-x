@@ -169,6 +169,28 @@ fn imports() {
 }
 
 #[test]
+fn signed_fields() {
+    // This file has no exports. Fields like `number_of_exports` are signed
+    // integers, like in YARA, so subtracting 1 from them produces -1.
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/2775d97f8bdb3311ace960a42eee35dbec84b9d71a6abbacb26c14e83f5897e4.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.number_of_exports - 1 == -1 and
+            pe.number_of_exports - 1 < 10 and
+            not for any i in (0..pe.number_of_exports - 1) : (true)
+        }
+        "#,
+        &pe
+    );
+}
+
+#[test]
 fn import_rva() {
     let pe = create_binary_from_zipped_ihex(
         "src/modules/pe/tests/testdata/0ba6042247d90a187919dd88dc2d55cd882c80e5afc511c4f7b2e0e193968f7f.in.zip",

@@ -139,7 +139,7 @@ fn ep_for_arch_type(ctx: &mut ScanContext, type_arg: i64) -> Option<i64> {
         {
             let file_offset = arch.offset?;
             let entry_point = macho.file.get(i)?.entry_point?;
-            return file_offset.checked_add(entry_point).map(|sum| sum as i64);
+            return file_offset.checked_add(entry_point);
         }
     }
 
@@ -183,7 +183,7 @@ fn ep_for_arch_subtype(
         {
             let file_offset = arch.offset?;
             let entry_point = macho.file.get(i)?.entry_point?;
-            return file_offset.checked_add(entry_point).map(|sum| sum as i64);
+            return file_offset.checked_add(entry_point);
         }
     }
 

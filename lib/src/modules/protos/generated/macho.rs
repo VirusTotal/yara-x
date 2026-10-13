@@ -2014,7 +2014,7 @@ pub struct Nlist {
     // @@protoc_insertion_point(field:macho.Nlist.n_desc)
     pub n_desc: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:macho.Nlist.n_value)
-    pub n_value: ::std::option::Option<u64>,
+    pub n_value: ::std::option::Option<i64>,
     // special fields
     // @@protoc_insertion_point(special_field:macho.Nlist.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -2107,9 +2107,9 @@ impl Nlist {
         self.n_desc = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 n_value = 5;
+    // optional int64 n_value = 5;
 
-    pub fn n_value(&self) -> u64 {
+    pub fn n_value(&self) -> i64 {
         self.n_value.unwrap_or(0)
     }
 
@@ -2122,7 +2122,7 @@ impl Nlist {
     }
 
     // Param is passed by value, moved
-    pub fn set_n_value(&mut self, v: u64) {
+    pub fn set_n_value(&mut self, v: i64) {
         self.n_value = ::std::option::Option::Some(v);
     }
 
@@ -2185,7 +2185,7 @@ impl ::protobuf::Message for Nlist {
                     self.n_desc = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 40 => {
-                    self.n_value = ::std::option::Option::Some(is.read_uint64()?);
+                    self.n_value = ::std::option::Option::Some(is.read_int64()?);
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -2212,7 +2212,7 @@ impl ::protobuf::Message for Nlist {
             my_size += ::protobuf::rt::uint32_size(4, v);
         }
         if let Some(v) = self.n_value {
-            my_size += ::protobuf::rt::uint64_size(5, v);
+            my_size += ::protobuf::rt::int64_size(5, v);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
@@ -2233,7 +2233,7 @@ impl ::protobuf::Message for Nlist {
             os.write_uint32(4, v)?;
         }
         if let Some(v) = self.n_value {
-            os.write_uint64(5, v)?;
+            os.write_int64(5, v)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -3358,9 +3358,9 @@ pub struct Section {
     // @@protoc_insertion_point(field:macho.Section.sectname)
     pub sectname: ::std::option::Option<::std::vec::Vec<u8>>,
     // @@protoc_insertion_point(field:macho.Section.addr)
-    pub addr: ::std::option::Option<u64>,
+    pub addr: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:macho.Section.size)
-    pub size: ::std::option::Option<u64>,
+    pub size: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:macho.Section.offset)
     pub offset: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:macho.Section.align)
@@ -3465,9 +3465,9 @@ impl Section {
         self.sectname.take().unwrap_or_else(|| ::std::vec::Vec::new())
     }
 
-    // optional uint64 addr = 3;
+    // optional int64 addr = 3;
 
-    pub fn addr(&self) -> u64 {
+    pub fn addr(&self) -> i64 {
         self.addr.unwrap_or(0)
     }
 
@@ -3480,13 +3480,13 @@ impl Section {
     }
 
     // Param is passed by value, moved
-    pub fn set_addr(&mut self, v: u64) {
+    pub fn set_addr(&mut self, v: i64) {
         self.addr = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 size = 4;
+    // optional int64 size = 4;
 
-    pub fn size(&self) -> u64 {
+    pub fn size(&self) -> i64 {
         self.size.unwrap_or(0)
     }
 
@@ -3499,7 +3499,7 @@ impl Section {
     }
 
     // Param is passed by value, moved
-    pub fn set_size(&mut self, v: u64) {
+    pub fn set_size(&mut self, v: i64) {
         self.size = ::std::option::Option::Some(v);
     }
 
@@ -3743,10 +3743,10 @@ impl ::protobuf::Message for Section {
                     self.sectname = ::std::option::Option::Some(is.read_bytes()?);
                 },
                 24 => {
-                    self.addr = ::std::option::Option::Some(is.read_uint64()?);
+                    self.addr = ::std::option::Option::Some(is.read_int64()?);
                 },
                 32 => {
-                    self.size = ::std::option::Option::Some(is.read_uint64()?);
+                    self.size = ::std::option::Option::Some(is.read_int64()?);
                 },
                 40 => {
                     self.offset = ::std::option::Option::Some(is.read_uint32()?);
@@ -3791,10 +3791,10 @@ impl ::protobuf::Message for Section {
             my_size += ::protobuf::rt::bytes_size(2, &v);
         }
         if let Some(v) = self.addr {
-            my_size += ::protobuf::rt::uint64_size(3, v);
+            my_size += ::protobuf::rt::int64_size(3, v);
         }
         if let Some(v) = self.size {
-            my_size += ::protobuf::rt::uint64_size(4, v);
+            my_size += ::protobuf::rt::int64_size(4, v);
         }
         if let Some(v) = self.offset {
             my_size += ::protobuf::rt::uint32_size(5, v);
@@ -3833,10 +3833,10 @@ impl ::protobuf::Message for Section {
             os.write_bytes(2, v)?;
         }
         if let Some(v) = self.addr {
-            os.write_uint64(3, v)?;
+            os.write_int64(3, v)?;
         }
         if let Some(v) = self.size {
-            os.write_uint64(4, v)?;
+            os.write_int64(4, v)?;
         }
         if let Some(v) = self.offset {
             os.write_uint32(5, v)?;
@@ -3938,13 +3938,13 @@ pub struct Segment {
     // @@protoc_insertion_point(field:macho.Segment.segname)
     pub segname: ::std::option::Option<::std::vec::Vec<u8>>,
     // @@protoc_insertion_point(field:macho.Segment.vmaddr)
-    pub vmaddr: ::std::option::Option<u64>,
+    pub vmaddr: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:macho.Segment.vmsize)
-    pub vmsize: ::std::option::Option<u64>,
+    pub vmsize: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:macho.Segment.fileoff)
-    pub fileoff: ::std::option::Option<u64>,
+    pub fileoff: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:macho.Segment.filesize)
-    pub filesize: ::std::option::Option<u64>,
+    pub filesize: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:macho.Segment.maxprot)
     pub maxprot: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:macho.Segment.initprot)
@@ -4007,9 +4007,9 @@ impl Segment {
         self.segname.take().unwrap_or_else(|| ::std::vec::Vec::new())
     }
 
-    // optional uint64 vmaddr = 4;
+    // optional int64 vmaddr = 4;
 
-    pub fn vmaddr(&self) -> u64 {
+    pub fn vmaddr(&self) -> i64 {
         self.vmaddr.unwrap_or(0)
     }
 
@@ -4022,13 +4022,13 @@ impl Segment {
     }
 
     // Param is passed by value, moved
-    pub fn set_vmaddr(&mut self, v: u64) {
+    pub fn set_vmaddr(&mut self, v: i64) {
         self.vmaddr = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 vmsize = 5;
+    // optional int64 vmsize = 5;
 
-    pub fn vmsize(&self) -> u64 {
+    pub fn vmsize(&self) -> i64 {
         self.vmsize.unwrap_or(0)
     }
 
@@ -4041,13 +4041,13 @@ impl Segment {
     }
 
     // Param is passed by value, moved
-    pub fn set_vmsize(&mut self, v: u64) {
+    pub fn set_vmsize(&mut self, v: i64) {
         self.vmsize = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 fileoff = 6;
+    // optional int64 fileoff = 6;
 
-    pub fn fileoff(&self) -> u64 {
+    pub fn fileoff(&self) -> i64 {
         self.fileoff.unwrap_or(0)
     }
 
@@ -4060,13 +4060,13 @@ impl Segment {
     }
 
     // Param is passed by value, moved
-    pub fn set_fileoff(&mut self, v: u64) {
+    pub fn set_fileoff(&mut self, v: i64) {
         self.fileoff = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 filesize = 7;
+    // optional int64 filesize = 7;
 
-    pub fn filesize(&self) -> u64 {
+    pub fn filesize(&self) -> i64 {
         self.filesize.unwrap_or(0)
     }
 
@@ -4079,7 +4079,7 @@ impl Segment {
     }
 
     // Param is passed by value, moved
-    pub fn set_filesize(&mut self, v: u64) {
+    pub fn set_filesize(&mut self, v: i64) {
         self.filesize = ::std::option::Option::Some(v);
     }
 
@@ -4234,16 +4234,16 @@ impl ::protobuf::Message for Segment {
                     self.segname = ::std::option::Option::Some(is.read_bytes()?);
                 },
                 32 => {
-                    self.vmaddr = ::std::option::Option::Some(is.read_uint64()?);
+                    self.vmaddr = ::std::option::Option::Some(is.read_int64()?);
                 },
                 40 => {
-                    self.vmsize = ::std::option::Option::Some(is.read_uint64()?);
+                    self.vmsize = ::std::option::Option::Some(is.read_int64()?);
                 },
                 48 => {
-                    self.fileoff = ::std::option::Option::Some(is.read_uint64()?);
+                    self.fileoff = ::std::option::Option::Some(is.read_int64()?);
                 },
                 56 => {
-                    self.filesize = ::std::option::Option::Some(is.read_uint64()?);
+                    self.filesize = ::std::option::Option::Some(is.read_int64()?);
                 },
                 64 => {
                     self.maxprot = ::std::option::Option::Some(is.read_uint32()?);
@@ -4276,16 +4276,16 @@ impl ::protobuf::Message for Segment {
             my_size += ::protobuf::rt::bytes_size(3, &v);
         }
         if let Some(v) = self.vmaddr {
-            my_size += ::protobuf::rt::uint64_size(4, v);
+            my_size += ::protobuf::rt::int64_size(4, v);
         }
         if let Some(v) = self.vmsize {
-            my_size += ::protobuf::rt::uint64_size(5, v);
+            my_size += ::protobuf::rt::int64_size(5, v);
         }
         if let Some(v) = self.fileoff {
-            my_size += ::protobuf::rt::uint64_size(6, v);
+            my_size += ::protobuf::rt::int64_size(6, v);
         }
         if let Some(v) = self.filesize {
-            my_size += ::protobuf::rt::uint64_size(7, v);
+            my_size += ::protobuf::rt::int64_size(7, v);
         }
         if let Some(v) = self.maxprot {
             my_size += ::protobuf::rt::uint32_size(8, v);
@@ -4313,16 +4313,16 @@ impl ::protobuf::Message for Segment {
             os.write_bytes(3, v)?;
         }
         if let Some(v) = self.vmaddr {
-            os.write_uint64(4, v)?;
+            os.write_int64(4, v)?;
         }
         if let Some(v) = self.vmsize {
-            os.write_uint64(5, v)?;
+            os.write_int64(5, v)?;
         }
         if let Some(v) = self.fileoff {
-            os.write_uint64(6, v)?;
+            os.write_int64(6, v)?;
         }
         if let Some(v) = self.filesize {
-            os.write_uint64(7, v)?;
+            os.write_int64(7, v)?;
         }
         if let Some(v) = self.maxprot {
             os.write_uint32(8, v)?;
@@ -4413,9 +4413,9 @@ pub struct FatArch {
     // @@protoc_insertion_point(field:macho.FatArch.cpusubtype)
     pub cpusubtype: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:macho.FatArch.offset)
-    pub offset: ::std::option::Option<u64>,
+    pub offset: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:macho.FatArch.size)
-    pub size: ::std::option::Option<u64>,
+    pub size: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:macho.FatArch.align)
     pub align: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:macho.FatArch.reserved)
@@ -4474,9 +4474,9 @@ impl FatArch {
         self.cpusubtype = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 offset = 3;
+    // optional int64 offset = 3;
 
-    pub fn offset(&self) -> u64 {
+    pub fn offset(&self) -> i64 {
         self.offset.unwrap_or(0)
     }
 
@@ -4489,13 +4489,13 @@ impl FatArch {
     }
 
     // Param is passed by value, moved
-    pub fn set_offset(&mut self, v: u64) {
+    pub fn set_offset(&mut self, v: i64) {
         self.offset = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 size = 4;
+    // optional int64 size = 4;
 
-    pub fn size(&self) -> u64 {
+    pub fn size(&self) -> i64 {
         self.size.unwrap_or(0)
     }
 
@@ -4508,7 +4508,7 @@ impl FatArch {
     }
 
     // Param is passed by value, moved
-    pub fn set_size(&mut self, v: u64) {
+    pub fn set_size(&mut self, v: i64) {
         self.size = ::std::option::Option::Some(v);
     }
 
@@ -4608,10 +4608,10 @@ impl ::protobuf::Message for FatArch {
                     self.cpusubtype = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 24 => {
-                    self.offset = ::std::option::Option::Some(is.read_uint64()?);
+                    self.offset = ::std::option::Option::Some(is.read_int64()?);
                 },
                 32 => {
-                    self.size = ::std::option::Option::Some(is.read_uint64()?);
+                    self.size = ::std::option::Option::Some(is.read_int64()?);
                 },
                 40 => {
                     self.align = ::std::option::Option::Some(is.read_uint32()?);
@@ -4638,10 +4638,10 @@ impl ::protobuf::Message for FatArch {
             my_size += ::protobuf::rt::uint32_size(2, v);
         }
         if let Some(v) = self.offset {
-            my_size += ::protobuf::rt::uint64_size(3, v);
+            my_size += ::protobuf::rt::int64_size(3, v);
         }
         if let Some(v) = self.size {
-            my_size += ::protobuf::rt::uint64_size(4, v);
+            my_size += ::protobuf::rt::int64_size(4, v);
         }
         if let Some(v) = self.align {
             my_size += ::protobuf::rt::uint32_size(5, v);
@@ -4662,10 +4662,10 @@ impl ::protobuf::Message for FatArch {
             os.write_uint32(2, v)?;
         }
         if let Some(v) = self.offset {
-            os.write_uint64(3, v)?;
+            os.write_int64(3, v)?;
         }
         if let Some(v) = self.size {
-            os.write_uint64(4, v)?;
+            os.write_int64(4, v)?;
         }
         if let Some(v) = self.align {
             os.write_uint32(5, v)?;
@@ -4751,13 +4751,13 @@ pub struct File {
     // @@protoc_insertion_point(field:macho.File.reserved)
     pub reserved: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:macho.File.number_of_segments)
-    pub number_of_segments: ::std::option::Option<u64>,
+    pub number_of_segments: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:macho.File.dynamic_linker)
     pub dynamic_linker: ::std::option::Option<::std::vec::Vec<u8>>,
     // @@protoc_insertion_point(field:macho.File.entry_point)
-    pub entry_point: ::std::option::Option<u64>,
+    pub entry_point: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:macho.File.stack_size)
-    pub stack_size: ::std::option::Option<u64>,
+    pub stack_size: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:macho.File.source_version)
     pub source_version: ::std::option::Option<::std::string::String>,
     // @@protoc_insertion_point(field:macho.File.segments)
@@ -4958,9 +4958,9 @@ impl File {
         self.reserved = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_segments = 9;
+    // optional int64 number_of_segments = 9;
 
-    pub fn number_of_segments(&self) -> u64 {
+    pub fn number_of_segments(&self) -> i64 {
         self.number_of_segments.unwrap_or(0)
     }
 
@@ -4973,7 +4973,7 @@ impl File {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_segments(&mut self, v: u64) {
+    pub fn set_number_of_segments(&mut self, v: i64) {
         self.number_of_segments = ::std::option::Option::Some(v);
     }
 
@@ -5013,9 +5013,9 @@ impl File {
         self.dynamic_linker.take().unwrap_or_else(|| ::std::vec::Vec::new())
     }
 
-    // optional uint64 entry_point = 11;
+    // optional int64 entry_point = 11;
 
-    pub fn entry_point(&self) -> u64 {
+    pub fn entry_point(&self) -> i64 {
         self.entry_point.unwrap_or(0)
     }
 
@@ -5028,13 +5028,13 @@ impl File {
     }
 
     // Param is passed by value, moved
-    pub fn set_entry_point(&mut self, v: u64) {
+    pub fn set_entry_point(&mut self, v: i64) {
         self.entry_point = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 stack_size = 12;
+    // optional int64 stack_size = 12;
 
-    pub fn stack_size(&self) -> u64 {
+    pub fn stack_size(&self) -> i64 {
         self.stack_size.unwrap_or(0)
     }
 
@@ -5047,7 +5047,7 @@ impl File {
     }
 
     // Param is passed by value, moved
-    pub fn set_stack_size(&mut self, v: u64) {
+    pub fn set_stack_size(&mut self, v: i64) {
         self.stack_size = ::std::option::Option::Some(v);
     }
 
@@ -5354,16 +5354,16 @@ impl ::protobuf::Message for File {
                     self.reserved = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 72 => {
-                    self.number_of_segments = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_segments = ::std::option::Option::Some(is.read_int64()?);
                 },
                 82 => {
                     self.dynamic_linker = ::std::option::Option::Some(is.read_bytes()?);
                 },
                 88 => {
-                    self.entry_point = ::std::option::Option::Some(is.read_uint64()?);
+                    self.entry_point = ::std::option::Option::Some(is.read_int64()?);
                 },
                 96 => {
-                    self.stack_size = ::std::option::Option::Some(is.read_uint64()?);
+                    self.stack_size = ::std::option::Option::Some(is.read_int64()?);
                 },
                 106 => {
                     self.source_version = ::std::option::Option::Some(is.read_string()?);
@@ -5450,16 +5450,16 @@ impl ::protobuf::Message for File {
             my_size += ::protobuf::rt::uint32_size(8, v);
         }
         if let Some(v) = self.number_of_segments {
-            my_size += ::protobuf::rt::uint64_size(9, v);
+            my_size += ::protobuf::rt::int64_size(9, v);
         }
         if let Some(v) = self.dynamic_linker.as_ref() {
             my_size += ::protobuf::rt::bytes_size(10, &v);
         }
         if let Some(v) = self.entry_point {
-            my_size += ::protobuf::rt::uint64_size(11, v);
+            my_size += ::protobuf::rt::int64_size(11, v);
         }
         if let Some(v) = self.stack_size {
-            my_size += ::protobuf::rt::uint64_size(12, v);
+            my_size += ::protobuf::rt::int64_size(12, v);
         }
         if let Some(v) = self.source_version.as_ref() {
             my_size += ::protobuf::rt::string_size(13, &v);
@@ -5549,16 +5549,16 @@ impl ::protobuf::Message for File {
             os.write_uint32(8, v)?;
         }
         if let Some(v) = self.number_of_segments {
-            os.write_uint64(9, v)?;
+            os.write_int64(9, v)?;
         }
         if let Some(v) = self.dynamic_linker.as_ref() {
             os.write_bytes(10, v)?;
         }
         if let Some(v) = self.entry_point {
-            os.write_uint64(11, v)?;
+            os.write_int64(11, v)?;
         }
         if let Some(v) = self.stack_size {
-            os.write_uint64(12, v)?;
+            os.write_int64(12, v)?;
         }
         if let Some(v) = self.source_version.as_ref() {
             os.write_string(13, v)?;
@@ -5730,13 +5730,13 @@ pub struct Macho {
     // @@protoc_insertion_point(field:macho.Macho.reserved)
     pub reserved: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:macho.Macho.number_of_segments)
-    pub number_of_segments: ::std::option::Option<u64>,
+    pub number_of_segments: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:macho.Macho.dynamic_linker)
     pub dynamic_linker: ::std::option::Option<::std::vec::Vec<u8>>,
     // @@protoc_insertion_point(field:macho.Macho.entry_point)
-    pub entry_point: ::std::option::Option<u64>,
+    pub entry_point: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:macho.Macho.stack_size)
-    pub stack_size: ::std::option::Option<u64>,
+    pub stack_size: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:macho.Macho.source_version)
     pub source_version: ::std::option::Option<::std::string::String>,
     // @@protoc_insertion_point(field:macho.Macho.symtab)
@@ -5945,9 +5945,9 @@ impl Macho {
         self.reserved = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_segments = 9;
+    // optional int64 number_of_segments = 9;
 
-    pub fn number_of_segments(&self) -> u64 {
+    pub fn number_of_segments(&self) -> i64 {
         self.number_of_segments.unwrap_or(0)
     }
 
@@ -5960,7 +5960,7 @@ impl Macho {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_segments(&mut self, v: u64) {
+    pub fn set_number_of_segments(&mut self, v: i64) {
         self.number_of_segments = ::std::option::Option::Some(v);
     }
 
@@ -6000,9 +6000,9 @@ impl Macho {
         self.dynamic_linker.take().unwrap_or_else(|| ::std::vec::Vec::new())
     }
 
-    // optional uint64 entry_point = 11;
+    // optional int64 entry_point = 11;
 
-    pub fn entry_point(&self) -> u64 {
+    pub fn entry_point(&self) -> i64 {
         self.entry_point.unwrap_or(0)
     }
 
@@ -6015,13 +6015,13 @@ impl Macho {
     }
 
     // Param is passed by value, moved
-    pub fn set_entry_point(&mut self, v: u64) {
+    pub fn set_entry_point(&mut self, v: i64) {
         self.entry_point = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 stack_size = 12;
+    // optional int64 stack_size = 12;
 
-    pub fn stack_size(&self) -> u64 {
+    pub fn stack_size(&self) -> i64 {
         self.stack_size.unwrap_or(0)
     }
 
@@ -6034,7 +6034,7 @@ impl Macho {
     }
 
     // Param is passed by value, moved
-    pub fn set_stack_size(&mut self, v: u64) {
+    pub fn set_stack_size(&mut self, v: i64) {
         self.stack_size = ::std::option::Option::Some(v);
     }
 
@@ -6409,16 +6409,16 @@ impl ::protobuf::Message for Macho {
                     self.reserved = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 72 => {
-                    self.number_of_segments = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_segments = ::std::option::Option::Some(is.read_int64()?);
                 },
                 82 => {
                     self.dynamic_linker = ::std::option::Option::Some(is.read_bytes()?);
                 },
                 88 => {
-                    self.entry_point = ::std::option::Option::Some(is.read_uint64()?);
+                    self.entry_point = ::std::option::Option::Some(is.read_int64()?);
                 },
                 96 => {
-                    self.stack_size = ::std::option::Option::Some(is.read_uint64()?);
+                    self.stack_size = ::std::option::Option::Some(is.read_int64()?);
                 },
                 106 => {
                     self.source_version = ::std::option::Option::Some(is.read_string()?);
@@ -6517,16 +6517,16 @@ impl ::protobuf::Message for Macho {
             my_size += ::protobuf::rt::uint32_size(8, v);
         }
         if let Some(v) = self.number_of_segments {
-            my_size += ::protobuf::rt::uint64_size(9, v);
+            my_size += ::protobuf::rt::int64_size(9, v);
         }
         if let Some(v) = self.dynamic_linker.as_ref() {
             my_size += ::protobuf::rt::bytes_size(10, &v);
         }
         if let Some(v) = self.entry_point {
-            my_size += ::protobuf::rt::uint64_size(11, v);
+            my_size += ::protobuf::rt::int64_size(11, v);
         }
         if let Some(v) = self.stack_size {
-            my_size += ::protobuf::rt::uint64_size(12, v);
+            my_size += ::protobuf::rt::int64_size(12, v);
         }
         if let Some(v) = self.source_version.as_ref() {
             my_size += ::protobuf::rt::string_size(13, &v);
@@ -6630,16 +6630,16 @@ impl ::protobuf::Message for Macho {
             os.write_uint32(8, v)?;
         }
         if let Some(v) = self.number_of_segments {
-            os.write_uint64(9, v)?;
+            os.write_int64(9, v)?;
         }
         if let Some(v) = self.dynamic_linker.as_ref() {
             os.write_bytes(10, v)?;
         }
         if let Some(v) = self.entry_point {
-            os.write_uint64(11, v)?;
+            os.write_int64(11, v)?;
         }
         if let Some(v) = self.stack_size {
-            os.write_uint64(12, v)?;
+            os.write_int64(12, v)?;
         }
         if let Some(v) = self.source_version.as_ref() {
             os.write_string(13, v)?;
@@ -8851,7 +8851,7 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     trx\x18\x01\x20\x01(\rR\x05nStrx\x12\x15\n\x06n_type\x18\x02\x20\x01(\rR\
     \x05nType\x12\x15\n\x06n_sect\x18\x03\x20\x01(\rR\x05nSect\x12\x15\n\x06\
     n_desc\x18\x04\x20\x01(\rR\x05nDesc\x12\x17\n\x07n_value\x18\x05\x20\x01\
-    (\x04R\x06nValue\"\xa8\x01\n\x06Symtab\x12\x16\n\x06symoff\x18\x01\x20\
+    (\x03R\x06nValue\"\xa8\x01\n\x06Symtab\x12\x16\n\x06symoff\x18\x01\x20\
     \x01(\rR\x06symoff\x12\x14\n\x05nsyms\x18\x02\x20\x01(\rR\x05nsyms\x12\
     \x16\n\x06stroff\x18\x03\x20\x01(\rR\x06stroff\x12\x18\n\x07strsize\x18\
     \x04\x20\x01(\rR\x07strsize\x12\x18\n\x07entries\x18\x05\x20\x03(\x0cR\
@@ -8872,8 +8872,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \tlocreloff\x12\x18\n\x07nlocrel\x18\x14\x20\x01(\rR\x07nlocrel\"\xd0\
     \x02\n\x07Section\x12\x18\n\x07segname\x18\x01\x20\x01(\x0cR\x07segname\
     \x12\x1a\n\x08sectname\x18\x02\x20\x01(\x0cR\x08sectname\x12\x1b\n\x04ad\
-    dr\x18\x03\x20\x01(\x04R\x04addrB\x07\x82\x93\x19\x03*\x01x\x12\x1b\n\
-    \x04size\x18\x04\x20\x01(\x04R\x04sizeB\x07\x82\x93\x19\x03*\x01x\x12\
+    dr\x18\x03\x20\x01(\x03R\x04addrB\x07\x82\x93\x19\x03*\x01x\x12\x1b\n\
+    \x04size\x18\x04\x20\x01(\x03R\x04sizeB\x07\x82\x93\x19\x03*\x01x\x12\
     \x16\n\x06offset\x18\x05\x20\x01(\rR\x06offset\x12\x14\n\x05align\x18\
     \x06\x20\x01(\rR\x05align\x12\x16\n\x06reloff\x18\x07\x20\x01(\rR\x06rel\
     off\x12\x16\n\x06nreloc\x18\x08\x20\x01(\rR\x06nreloc\x12\x1d\n\x05flags\
@@ -8881,10 +8881,10 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     ed1\x18\n\x20\x01(\rR\treserved1\x12\x1c\n\treserved2\x18\x0b\x20\x01(\r\
     R\treserved2\x12\x1c\n\treserved3\x18\x0c\x20\x01(\rR\treserved3\"\xd6\
     \x02\n\x07Segment\x12\x18\n\x07segname\x18\x03\x20\x01(\x0cR\x07segname\
-    \x12\x1f\n\x06vmaddr\x18\x04\x20\x01(\x04R\x06vmaddrB\x07\x82\x93\x19\
-    \x03*\x01x\x12\x1f\n\x06vmsize\x18\x05\x20\x01(\x04R\x06vmsizeB\x07\x82\
-    \x93\x19\x03*\x01x\x12\x18\n\x07fileoff\x18\x06\x20\x01(\x04R\x07fileoff\
-    \x12\x1a\n\x08filesize\x18\x07\x20\x01(\x04R\x08filesize\x12!\n\x07maxpr\
+    \x12\x1f\n\x06vmaddr\x18\x04\x20\x01(\x03R\x06vmaddrB\x07\x82\x93\x19\
+    \x03*\x01x\x12\x1f\n\x06vmsize\x18\x05\x20\x01(\x03R\x06vmsizeB\x07\x82\
+    \x93\x19\x03*\x01x\x12\x18\n\x07fileoff\x18\x06\x20\x01(\x03R\x07fileoff\
+    \x12\x1a\n\x08filesize\x18\x07\x20\x01(\x03R\x08filesize\x12!\n\x07maxpr\
     ot\x18\x08\x20\x01(\rR\x07maxprotB\x07\x82\x93\x19\x03*\x01x\x12#\n\x08i\
     nitprot\x18\t\x20\x01(\rR\x08initprotB\x07\x82\x93\x19\x03*\x01x\x12\x16\
     \n\x06nsects\x18\n\x20\x01(\rR\x06nsects\x12-\n\x05flags\x18\x0b\x20\x01\
@@ -8892,8 +8892,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     ons\x18\x0c\x20\x03(\x0b2\x0e.macho.SectionR\x08sections\"\xb3\x01\n\x07\
     FatArch\x12!\n\x07cputype\x18\x01\x20\x01(\rR\x07cputypeB\x07\x82\x93\
     \x19\x03*\x01x\x12'\n\ncpusubtype\x18\x02\x20\x01(\rR\ncpusubtypeB\x07\
-    \x82\x93\x19\x03*\x01x\x12\x16\n\x06offset\x18\x03\x20\x01(\x04R\x06offs\
-    et\x12\x12\n\x04size\x18\x04\x20\x01(\x04R\x04size\x12\x14\n\x05align\
+    \x82\x93\x19\x03*\x01x\x12\x16\n\x06offset\x18\x03\x20\x01(\x03R\x06offs\
+    et\x12\x12\n\x04size\x18\x04\x20\x01(\x03R\x04size\x12\x14\n\x05align\
     \x18\x05\x20\x01(\rR\x05align\x12\x1a\n\x08reserved\x18\x06\x20\x01(\rR\
     \x08reserved\"\x81\t\n\x04File\x12\x1d\n\x05magic\x18\x01\x20\x01(\rR\
     \x05magicB\x07\x82\x93\x19\x03*\x01x\x12!\n\x07cputype\x18\x02\x20\x01(\
@@ -8903,11 +8903,11 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x05ncmds\x12\x1e\n\nsizeofcmds\x18\x06\x20\x01(\rR\nsizeofcmds\x12*\n\
     \x05flags\x18\x07\x20\x01(\rR\x05flagsB\x14\x82\x93\x19\x10*\x0eflags:Fi\
     leFlag\x12\x1a\n\x08reserved\x18\x08\x20\x01(\rR\x08reserved\x12|\n\x12n\
-    umber_of_segments\x18\t\x20\x01(\x04R\x10numberOfSegmentsBN\x82\x93\x19J\
+    umber_of_segments\x18\t\x20\x01(\x03R\x10numberOfSegmentsBN\x82\x93\x19J\
     2H\n\x18this\x20field\x20is\x20deprecated\x12\x1cuse\x20`segments.len()`\
     \x20instead\x1a\x0esegments.len()\x12%\n\x0edynamic_linker\x18\n\x20\x01\
-    (\x0cR\rdynamicLinker\x12\x1f\n\x0bentry_point\x18\x0b\x20\x01(\x04R\nen\
-    tryPoint\x12\x1d\n\nstack_size\x18\x0c\x20\x01(\x04R\tstackSize\x12%\n\
+    (\x0cR\rdynamicLinker\x12\x1f\n\x0bentry_point\x18\x0b\x20\x01(\x03R\nen\
+    tryPoint\x12\x1d\n\nstack_size\x18\x0c\x20\x01(\x03R\tstackSize\x12%\n\
     \x0esource_version\x18\r\x20\x01(\tR\rsourceVersion\x12*\n\x08segments\
     \x18\x0e\x20\x03(\x0b2\x0e.macho.SegmentR\x08segments\x12$\n\x06dylibs\
     \x18\x0f\x20\x03(\x0b2\x0c.macho.DylibR\x06dylibs\x12\x16\n\x06rpaths\
@@ -8931,11 +8931,11 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x1e\n\nsizeofcmds\x18\x06\x20\x01(\rR\nsizeofcmds\x12\x1d\n\x05flags\
     \x18\x07\x20\x01(\rR\x05flagsB\x07\x82\x93\x19\x03*\x01x\x12\x1a\n\x08re\
     served\x18\x08\x20\x01(\rR\x08reserved\x12\x82\x01\n\x12number_of_segmen\
-    ts\x18\t\x20\x01(\x04R\x10numberOfSegmentsBT\x82\x93\x19P2N\n\x18this\
+    ts\x18\t\x20\x01(\x03R\x10numberOfSegmentsBT\x82\x93\x19P2N\n\x18this\
     \x20field\x20is\x20deprecated\x12\"use\x20`macho.segments.len()`\x20inst\
     ead\x1a\x0esegments.len()\x12%\n\x0edynamic_linker\x18\n\x20\x01(\x0cR\r\
-    dynamicLinker\x12\x1f\n\x0bentry_point\x18\x0b\x20\x01(\x04R\nentryPoint\
-    \x12\x1d\n\nstack_size\x18\x0c\x20\x01(\x04R\tstackSize\x12%\n\x0esource\
+    dynamicLinker\x12\x1f\n\x0bentry_point\x18\x0b\x20\x01(\x03R\nentryPoint\
+    \x12\x1d\n\nstack_size\x18\x0c\x20\x01(\x03R\tstackSize\x12%\n\x0esource\
     _version\x18\r\x20\x01(\tR\rsourceVersion\x12%\n\x06symtab\x18\x0e\x20\
     \x01(\x0b2\r.macho.SymtabR\x06symtab\x12+\n\x08dysymtab\x18\x0f\x20\x01(\
     \x0b2\x0f.macho.DysymtabR\x08dysymtab\x12C\n\x13code_signature_data\x18\

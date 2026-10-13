@@ -31,8 +31,8 @@ enum Compression {
 message Entry {
   optional string file_path = 1;
   optional Compression compression = 2;
-  optional uint64 uncompressed_size = 3;
-  optional uint64 compressed_size = 4;
+  optional int64 uncompressed_size = 3;
+  optional int64 compressed_size = 4;
 }
 
 message Zip {
