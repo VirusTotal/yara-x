@@ -732,6 +732,9 @@ fn uint64xx() {
     condition_false!("int8(10) of (true)", &data);
     condition_false!("for uint64(10) i in (0..1) : (true)", &data);
     condition_false!("for int8(10) i in (0..1) : (true)", &data);
+    condition_false!("for any i in (0..uint64(10)) : (true)", &data);
+    condition_false!("for any i in (5..uint64(10)) : (true)", &data);
+    condition_false!("for any i in (uint64(10)..5) : (true)", &data);
 
     rule_false!(
         r#"
@@ -895,6 +898,66 @@ fn for_in() {
             for none j in (i + 1..i) : (
                 false
             )
+        )"
+    );
+
+    // Negative lower bounds known at compile time are rejected by the
+    // compiler, but the lower bound can be negative at runtime (e.g: when it
+    // is computed from `filesize` or a pattern offset). In such cases the
+    // loop iterates over the negative values as usual.
+    condition_true!(
+        "for any x in (-3) : ( for any i in (x..0) : ( i == -3 ) )"
+    );
+    condition_true!("for any x in (-3) : ( for 4 i in (x..0) : ( i <= 0 ) )");
+    condition_true!(
+        "for any i in (filesize - 10..filesize) : ( uint8(i) == 0x41 )",
+        b"A"
+    );
+
+    // A negative (signed) lower bound with an unsigned upper bound that fits
+    // in an `i64`.
+    condition_true!(
+        "for any x in (-2) : ( for 4 i in (x..uint64(0)) : ( true ) )",
+        &[0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+    );
+
+    // The range is empty when upper_bound < lower_bound, even if computing
+    // `upper_bound - lower_bound + 1` wraps around into a positive number.
+    condition_false!(
+        "for any x in (0x7FFFFFFFFFFFFFFF) : (
+            for any y in (-9223372036854775808) : (
+                for any i in (x..y) : ( true )
+            )
+        )"
+    );
+
+    // Unsigned bounds greater than i64::MAX can't be represented by the loop
+    // variable, so the range is empty. Usually, these bounds are the result of
+    // an unsigned subtraction that wrapped around, like `x - 1` when `x` is 0.
+    condition_false!(
+        "for any x in (0xFFFFFFFFFFFFFFFE) : (
+            for any y in (0xFFFFFFFFFFFFFFFF) : (
+                for any i in (x..y) : ( true )
+            )
+        )"
+    );
+    condition_false!(
+        "for any x in (0xFFFFFFFFFFFFFFFF) : (
+            for any i in (0..x) : ( true )
+        )"
+    );
+    condition_false!(
+        "for any x in (0, 0xFFFFFFFFFFFFFFFF) : (
+            for any i in (0..x - 1) : ( true )
+        )"
+    );
+
+    // Ranges with more than i64::MAX items are iterated, even though the
+    // number of items doesn't fit in an `i64`.
+    condition_true!("for any i in (0..0x7FFFFFFFFFFFFFFF) : ( i == 1 )");
+    condition_true!(
+        "for any x in (-9223372036854775808) : (
+            for any i in (x..0x7FFFFFFFFFFFFFFF) : ( i == x + 1 )
         )"
     );
 

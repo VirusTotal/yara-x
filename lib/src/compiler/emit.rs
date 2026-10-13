@@ -1907,17 +1907,80 @@ fn emit_for_in_range(
                     I64,
                     instr,
                     |ctx, instr| {
+                        let lower_tmp = ctx.wasm_symbols.i64_tmp_a;
+                        let upper_tmp = ctx.wasm_symbols.i64_tmp_b;
+
                         emit_expr(ctx, ir, range.upper_bound, instr);
                         emit_expr(ctx, ir, range.lower_bound, instr);
 
-                        // Store lower_bound in temp variable, without removing
-                        // it from the stack.
-                        instr.local_tee(ctx.wasm_symbols.i64_tmp_a);
+                        // Store lower_bound in tmp_a and upper_bound in tmp_b.
+                        instr.local_set(lower_tmp);
+                        instr.local_set(upper_tmp);
 
-                        // Compute upper_bound - lower_bound + 1.
-                        instr.binop(BinaryOp::I64Sub);
-                        instr.i64_const(1);
-                        instr.binop(BinaryOp::I64Add);
+                        // The range is empty if upper_bound < lower_bound.
+                        // Checking this explicitly, instead of relying on
+                        // `n <= 0`, prevents `upper_bound - lower_bound + 1`
+                        // from wrapping around into a positive number.
+                        instr.local_get(upper_tmp);
+                        instr.local_get(lower_tmp);
+                        instr.binop(BinaryOp::I64LtS);
+
+                        // Unsigned bounds greater than i64::MAX can't be
+                        // represented by the loop variable, which is a signed
+                        // integer. Those bounds have a negative bit pattern
+                        // when interpreted as i64, and they also make the
+                        // range empty. This doesn't apply to signed bounds,
+                        // which can be negative at runtime (e.g: a lower
+                        // bound computed as `filesize - 10`), and in that
+                        // case the loop iterates over the negative values.
+                        //
+                        // Notice that saturating these bounds to i64::MAX is
+                        // not a good idea. In practice, they are the result of
+                        // an unsigned subtraction that wrapped around, like
+                        // `N - 1` when `N` is zero, where a negative number was
+                        // intended. Saturating `(0..N - 1)` to `(0..i64::MAX)`
+                        // makes the loop run until the scan times out.
+                        for (bound, tmp) in [
+                            (range.lower_bound, lower_tmp),
+                            (range.upper_bound, upper_tmp),
+                        ] {
+                            if ir.get(bound).type_value().is_unsigned() {
+                                instr.local_get(tmp);
+                                instr.i64_const(0);
+                                instr.binop(BinaryOp::I64LtS);
+                                instr.binop(BinaryOp::I32Or);
+                            }
+                        }
+
+                        instr.if_else(
+                            I64,
+                            |then_| {
+                                then_.i64_const(0);
+                            },
+                            |else_| {
+                                // Compute n = upper_bound - lower_bound + 1,
+                                // which doesn't fit in an i64 if the range has
+                                // more than i64::MAX items. As upper_bound is
+                                // not lower than lower_bound at this point,
+                                // diff = upper_bound - lower_bound is exact
+                                // when interpreted as unsigned, and the range
+                                // is too large if diff >= i64::MAX. In that
+                                // case n is saturated to i64::MAX.
+                                else_.i64_const(i64::MAX);
+                                else_.local_get(upper_tmp);
+                                else_.local_get(lower_tmp);
+                                else_.binop(BinaryOp::I64Sub);
+                                else_.i64_const(1);
+                                else_.binop(BinaryOp::I64Add);
+                                else_.local_get(upper_tmp);
+                                else_.local_get(lower_tmp);
+                                else_.binop(BinaryOp::I64Sub);
+                                else_.i64_const(i64::MAX);
+                                else_.binop(BinaryOp::I64GeU);
+                                // diff >= i64::MAX ? i64::MAX : diff + 1
+                                else_.select(None);
+                            },
+                        );
                     },
                     |_, instr| {
                         instr.i64_const(0);
