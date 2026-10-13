@@ -200,6 +200,16 @@ rule text_with_100_words {
 }
 ```
 
+Notice that `num_lines` and `num_words` are `int64` fields. Fields of type
+`int64`, `int32` and `uint32` are signed integers in YARA rules, while fields
+of type `uint64` are unsigned integers. Arithmetic with unsigned integers wraps
+around instead of producing negative numbers. For instance, if `num_words` were
+a `uint64` field equal to zero, `text.num_words - 1` would be
+`0xFFFFFFFFFFFFFFFF` instead of `-1`, which is probably not what the author of
+the rule expects. For this reason, it's better to use `int64` for counts, sizes
+and offsets, as the built-in modules do, and use `uint64` only for values that
+can exceed `0x7FFFFFFFFFFFFFFF`.
+
 Of course, we are not done yet. So far we have defined the structure of our
 module, but we need to populate that structure with actual values extracted from
 the scanned files. That's where the module's main function enters into play. But
