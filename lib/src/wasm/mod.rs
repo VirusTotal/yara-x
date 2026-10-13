@@ -910,14 +910,15 @@ pub(crate) fn is_pat_match_at(
     pattern_id: PatternId,
     offset: i64,
 ) -> bool {
-    // Matches can't occur at negative offsets.
-    if offset < 0 {
+    // Matches can't occur at negative offsets or offsets larger than
+    // usize::MAX.
+    let Ok(offset) = usize::try_from(offset) else {
         return false;
-    }
+    };
     if let Some(matches) =
         caller.data().tracker.pattern_matches.get(pattern_id)
     {
-        matches.search(offset.try_into().unwrap()).is_ok()
+        matches.search(offset).is_ok()
     } else {
         false
     }
@@ -938,9 +939,7 @@ pub(crate) fn is_pat_match_in(
     if let Some(matches) =
         caller.data().tracker.pattern_matches.get(pattern_id)
     {
-        matches
-            .matches_in_range(lower_bound as isize..=upper_bound as isize)
-            .is_positive()
+        matches.matches_in_range(lower_bound..=upper_bound).is_positive()
     } else {
         false
     }
@@ -1025,7 +1024,7 @@ pub(crate) fn pat_matches_in(
     if let Some(matches) =
         caller.data().tracker.pattern_matches.get(pattern_id)
     {
-        matches.matches_in_range(lower_bound as isize..=upper_bound as isize)
+        matches.matches_in_range(lower_bound..=upper_bound)
     } else {
         0
     }
@@ -1256,7 +1255,8 @@ macro_rules! gen_array_indexing_fn {
             array: Rc<Array>,
             index: i64,
         ) -> Option<$return_type> {
-            array.$fn().get(index as usize).map(|value| *value)
+            let index = usize::try_from(index).ok()?;
+            array.$fn().get(index).copied()
         }
     };
 }
@@ -1272,9 +1272,10 @@ pub(crate) fn array_indexing_string(
     array: Rc<Array>,
     index: i64,
 ) -> Option<Rc<BString>> {
+    let index = usize::try_from(index).ok()?;
     array
         .as_string_array()
-        .get(index as usize)
+        .get(index)
         .cloned()
 }
 
@@ -1285,9 +1286,10 @@ pub(crate) fn array_indexing_struct(
     array: Rc<Array>,
     index: i64,
 ) -> Option<Rc<Struct>> {
+    let index = usize::try_from(index).ok()?;
     array
         .as_struct_array()
-        .get(index as usize)
+        .get(index)
         .cloned()
 }
 
@@ -1689,7 +1691,10 @@ macro_rules! gen_float_fn {
             caller
                 .data()
                 .scanned_data()?
-                .get(offset..offset + mem::size_of::<$return_type>())
+                .get(
+                    offset
+                        ..offset.checked_add(mem::size_of::<$return_type>())?,
+                )
                 .map(|bytes| {
                     <$return_type>::$from_fn(bytes.try_into().unwrap()) as f64
                 })
