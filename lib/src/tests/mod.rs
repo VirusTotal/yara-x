@@ -722,6 +722,8 @@ fn uint64xx() {
     condition_false!("uint64be(13) != 0", &data);
     condition_false!("uint64(-1) == 0", &data);
     condition_false!("uint64(-1) != 0", &data);
+    condition_false!("uint8(0x7FFFFFFFFFFFFFFF) == 0", &data);
+    condition_false!("float64(0x7FFFFFFFFFFFFFFF) == 0.0", &data);
 
     // Using `uint64` (> i64::MAX) or negative `int8` at runtime in
     // quantifiers, range bounds, and pattern anchors. Unsigned values greater
@@ -743,6 +745,18 @@ fn uint64xx() {
                 $a = { 01 02 }
             condition:
                 uint64(10) of ($a) or int8(10) of ($a)
+        }
+        "#,
+        &data
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = { 01 02 }
+            condition:
+                $a at uint64(10) or $a in (0..uint64(10)) or #a in (0..uint64(10)) > 0
         }
         "#,
         &data
