@@ -43,6 +43,7 @@ pub enum Warning {
     UnsatisfiableExpression(Box<UnsatisfiableExpression>),
     UnusedIdentifier(Box<UnusedIdentifier>),
     UnintendedPatternInSet(Box<UnintendedPatternInSet>),
+    UnsignedUnaryOperation(Box<UnsignedUnaryOperation>),
 }
 
 /// A hex pattern contains two or more consecutive jumps.
@@ -890,4 +891,37 @@ pub struct DuplicatePatternValue {
     existing_ident: String,
     duplicate_loc: CodeLoc,
     existing_loc: CodeLoc,
+}
+
+/// A unary minus (`-`) or bitwise not (`~`) is applied to an unsigned integer.
+///
+/// Negating an unsigned integer produces a signed integer, and the result
+/// wraps around for values greater than `0x7FFFFFFFFFFFFFFF`. The bitwise not
+/// of an unsigned integer is an unsigned integer with all its 64 bits
+/// inverted.
+///
+/// ## Example
+///
+/// ```text
+/// warning[unsigned_unary_op]: `-` applied to an unsigned integer
+///  --> line:1:25
+///   |
+/// 1 | rule test { condition: -uint64(0) == 1 }
+///   |                         --------- this is an unsigned integer
+///   |
+///   = note: the result is a signed integer, which wraps around if the unsigned value is greater than 0x7FFFFFFFFFFFFFFF
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "unsigned_unary_op",
+    title = "`{operator}` applied to an unsigned integer"
+)]
+#[label("this is an unsigned integer", operand_loc)]
+#[footer(note)]
+pub struct UnsignedUnaryOperation {
+    report: Report,
+    operator: String,
+    operand_loc: CodeLoc,
+    note: Option<String>,
 }

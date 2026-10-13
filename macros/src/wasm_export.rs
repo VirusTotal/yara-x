@@ -78,6 +78,7 @@ impl<'ast> FuncSignatureParser<'ast> {
             "u8" => Ok(Cow::Borrowed("u8")),
             "u16" => Ok(Cow::Borrowed("u16")),
             "u32" => Ok(Cow::Borrowed("u32")),
+            "u64" => Ok(Cow::Borrowed("u64")),
             "f32" | "f64" => Ok(Cow::Borrowed("f")),
             "bool" => Ok(Cow::Borrowed("b")),
 

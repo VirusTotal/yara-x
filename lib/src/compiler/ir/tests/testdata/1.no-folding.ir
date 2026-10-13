@@ -79,23 +79,23 @@ RULE test_8
     4: CONST integer(2)
 
 RULE test_9
-  18: AND -- hash: 0x6571cb9a75269392
-    2: CONTAINS -- hash: 0x580cffaa71509c67
+  18: AND -- hash: 0xb5086cf4e50137b8
+    2: CONTAINS -- hash: 0x8f728594cbd2f67e
       0: CONST string("foobar")
       1: CONST string("bar")
-    5: ICONTAINS -- hash: 0xee7699efb8fe704
+    5: ICONTAINS -- hash: 0x464cef895212411b
       3: CONST string("foobar")
       4: CONST string("BAR")
-    8: STARTS_WITH -- hash: 0xa54d9345b2735e3d
+    8: STARTS_WITH -- hash: 0xdcb3193008f5b854
       6: CONST string("foobar")
       7: CONST string("foo")
-    11: ISTARTS_WITH -- hash: 0x85c6f62739b94712
+    11: ISTARTS_WITH -- hash: 0xbd2c7c11903ba129
       9: CONST string("foobar")
       10: CONST string("FOO")
-    14: ENDS_WITH -- hash: 0x31981eac4134721c
+    14: ENDS_WITH -- hash: 0x68fda4969bb6cc33
       12: CONST string("foobar")
       13: CONST string("bar")
-    17: IENDS_WITH -- hash: 0xe87288a0cb73bcb8
+    17: IENDS_WITH -- hash: 0x1fd80e8b21f616d0
       15: CONST string("foobar")
       16: CONST string("BAR")
 

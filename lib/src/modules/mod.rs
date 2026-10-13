@@ -622,7 +622,8 @@ pub mod mods {
                     | TypeValue::Int64(_)
                     | TypeValue::Uint8(_)
                     | TypeValue::Uint16(_)
-                    | TypeValue::Uint32(_) => Type::Integer,
+                    | TypeValue::Uint32(_)
+                    | TypeValue::Uint64(_) => Type::Integer,
                     TypeValue::String { .. } => Type::String,
                     TypeValue::Regexp(_) => Type::Regexp,
                     TypeValue::Struct(s) => {

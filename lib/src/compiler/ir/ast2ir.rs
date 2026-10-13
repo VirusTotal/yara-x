@@ -505,22 +505,9 @@ fn expr_from_ast<'src>(
             ctx.ir.constant(TypeValue::const_bool_from(false))
         }
 
-        ast::Expr::LiteralInteger(lit) => {
-            // Literals greater than `i64::MAX` are parsed as unsigned
-            // integers, which are not supported yet.
-            if lit.is_unsigned {
-                return Err(crate::compiler::errors::InvalidInteger::build(
-                    ctx.report_builder,
-                    format!(
-                        "this number is out of the valid range: [{}, {}]",
-                        i64::MIN,
-                        i64::MAX
-                    ),
-                    ctx.report_builder.span_to_code_loc(lit.span()),
-                ));
-            }
-            ctx.ir.constant(TypeValue::const_signed_integer_from(lit.value))
-        }
+        ast::Expr::LiteralInteger(lit) => ctx.ir.constant(
+            TypeValue::const_integer_from_bits(lit.value, lit.is_unsigned),
+        ),
 
         ast::Expr::LiteralFloat(lit) => {
             ctx.ir.constant(TypeValue::const_float_from(lit.value))
@@ -1212,8 +1199,8 @@ fn bool_expr_from_ast<'src>(
                 None,
             ));
         }
-        type_value => {
-            warn_if_not_bool(ctx, type_value.ty(), ast.span());
+        _ => {
+            warn_if_not_bool(ctx, expr, ast.span());
         }
     }
 
@@ -1608,11 +1595,17 @@ fn for_in_expr_from_ast<'src>(
                 .unwrap()
                 .clone_without_value();
 
-            // If the items are integers, they can have different types (e.g:
-            // `uint8(0)` and `1000`), so the loop variable is a 64-bit
-            // integer that can hold any of them.
+            // If the items are integers, the loop variable is unsigned when
+            // at least one of the items is unsigned, which is the same rule
+            // used for determining the signedness of arithmetic operations.
+            // In that case the signed items are interpreted as unsigned, and
+            // negative constants change their values.
             if type_value.ty() == Type::Integer {
-                type_value = TypeValue::unknown_signed_integer();
+                if ctx.ir.is_unsigned_result(expressions) {
+                    type_value = TypeValue::unknown_unsigned_integer();
+                } else {
+                    type_value = TypeValue::unknown_signed_integer();
+                }
             }
 
             (vec![type_value], Type::Unknown)
@@ -1871,13 +1864,20 @@ fn non_negative_integer_from_ast<'src>(
 
     check_type(ctx, expr, span.clone(), &[Type::Integer])?;
 
-    if let Some(value) = ctx.ir.get(expr).type_value().try_as_const_i128()
-        && value < 0
-    {
-        return Err(UnexpectedNegativeNumber::build(
-            ctx.report_builder,
-            ctx.report_builder.span_to_code_loc(span),
-        ));
+    if let Some(value) = ctx.ir.get(expr).type_value().try_as_const_i128() {
+        if value < 0 {
+            return Err(UnexpectedNegativeNumber::build(
+                ctx.report_builder,
+                ctx.report_builder.span_to_code_loc(span),
+            ));
+        } else if value > i64::MAX as i128 {
+            return Err(NumberOutOfRange::build(
+                ctx.report_builder,
+                0,
+                i64::MAX,
+                ctx.report_builder.span_to_code_loc(span),
+            ));
+        }
     }
 
     Ok(expr)
@@ -2672,12 +2672,36 @@ fn re_error_to_compile_error(
     }
 }
 
-/// Produce a warning if the expression is not boolean.
-pub(in crate::compiler) fn warn_if_not_bool(
+/// Raises a [`warnings::UnsignedUnaryOperation`] warning if `operand` is an
+/// unsigned integer. `operator` is the unary operator applied to `operand`,
+/// either `-` or `~`.
+fn warn_if_unsigned(
     ctx: &mut CompileContext,
-    ty: Type,
+    operand: ExprId,
     span: Span,
+    operator: char,
 ) {
+    if ctx.ir.get(operand).type_value().is_unsigned() {
+        ctx.warnings.add(|| {
+            let note = match operator {
+                '-' => "the result is a signed integer, which wraps around if the unsigned value is greater than 0x7FFFFFFFFFFFFFFF",
+                '~' => "the result is an unsigned integer with all its 64 bits inverted",
+                _ => unreachable!("unexpected unary operator `{operator}`"),
+            };
+            warnings::UnsignedUnaryOperation::build(
+                ctx.report_builder,
+                operator.to_string(),
+                ctx.report_builder.span_to_code_loc(span),
+                Some(note.to_string()),
+            )
+        });
+    }
+}
+
+/// Raises a [`warnings::NonBooleanAsBoolean`] warning if `expr` is not
+/// boolean.
+fn warn_if_not_bool(ctx: &mut CompileContext, expr: ExprId, span: Span) {
+    let ty = ctx.ir.get(expr).ty();
     if !matches!(ty, Type::Bool) {
         ctx.warnings.add(|| {
             let note = match ty {
@@ -2866,8 +2890,7 @@ gen_unary_op!(
     Type::Bool | Type::Integer | Type::Float | Type::String,
     // Raise warning if the operand is not bool.
     Some(|ctx, operand, span| {
-        let ty = ctx.ir.get(operand).ty();
-        warn_if_not_bool(ctx, ty, span);
+        warn_if_not_bool(ctx, operand, span);
         Ok(())
     })
 );
@@ -2889,8 +2912,7 @@ gen_n_ary_operation!(
         (Type::Float, Type::Bool)
     ],
     Some(|ctx, operand, span| {
-        let ty = ctx.ir.get(operand).ty();
-        warn_if_not_bool(ctx, ty, span);
+        warn_if_not_bool(ctx, operand, span);
         Ok(())
     })
 );
@@ -2920,8 +2942,7 @@ fn or_expr_from_ast<'src>(
         .collect::<Result<Vec<ExprId>, CompileError>>()?;
 
     for (hir, ast) in iter::zip(or_operands.iter(), expr.operands()) {
-        let ty = ctx.ir.get(*hir).ty();
-        warn_if_not_bool(ctx, ty, ast.span());
+        warn_if_not_bool(ctx, *hir, ast.span());
     }
 
     for ((lhs_hir, lhs_ast), (rhs_hir, rhs_ast)) in
@@ -3013,7 +3034,34 @@ fn or_expr_from_ast<'src>(
     })
 }
 
-gen_unary_op!(minus_expr_from_ast, minus, Type::Integer | Type::Float, None);
+fn minus_expr_from_ast<'src>(
+    ctx: &mut CompileContext<'_, 'src>,
+    expr: &ast::UnaryExpr<'src>,
+) -> Result<ExprId, CompileError> {
+    let operand = expr_from_ast(ctx, &expr.operand)?;
+
+    check_type(
+        ctx,
+        operand,
+        expr.operand.span(),
+        &[Type::Integer, Type::Float],
+    )?;
+
+    // Negating a constant fails if the result doesn't fit in a signed
+    // integer, as in `-(-9223372036854775808)` or `-(0xFFFFFFFFFFFFFFFF)`.
+    let minus = ctx.ir.minus(operand).map_err(|err| match err {
+        Error::NumberOutOfRange => NumberOutOfRange::build(
+            ctx.report_builder,
+            i64::MIN,
+            i64::MAX,
+            ctx.report_builder.span_to_code_loc(expr.span()),
+        ),
+    })?;
+
+    warn_if_unsigned(ctx, operand, expr.operand.span(), '-');
+
+    Ok(minus)
+}
 
 gen_n_ary_operation!(
     add_expr_from_ast,
@@ -3049,7 +3097,15 @@ gen_n_ary_operation!(
 
 gen_n_ary_operation!(mod_expr_from_ast, modulus, Type::Integer, &[], None);
 
-gen_unary_op!(bitwise_not_expr_from_ast, bitwise_not, Type::Integer, None);
+gen_unary_op!(
+    bitwise_not_expr_from_ast,
+    bitwise_not,
+    Type::Integer,
+    Some(|ctx, operand, span| {
+        warn_if_unsigned(ctx, operand, span, '~');
+        Ok(())
+    })
+);
 
 gen_binary_op!(shl_expr_from_ast, shl, Type::Integer, &[], Some(shx_check));
 gen_binary_op!(shr_expr_from_ast, shr, Type::Integer, &[], Some(shx_check));

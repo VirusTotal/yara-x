@@ -34,20 +34,20 @@ RULE test_2
         4: CONST integer(0)
 
 RULE test_3
-  18: OR -- hash: 0xaf95f4b787f06433
-    5: CONTAINS -- hash: 0x9d6dd84a54370fff
+  18: OR -- hash: 0x709d2825e3e030e1
+    5: CONTAINS -- hash: 0x9110b400180bfa2e
       3: FIELD_ACCESS -- hash: 0x63bc9bc95d660aee
         0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
         1: SYMBOL Field { index: 44, is_root: false, type_value: struct, acl: None, deprecation_notice: None }
         2: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
       4: CONST string("foo")
-    11: CONTAINS -- hash: 0x9d6dd84a54370fff
+    11: CONTAINS -- hash: 0x9110b400180bfa2e
       9: FIELD_ACCESS -- hash: 0x63bc9bc95d660aee
         6: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
         7: SYMBOL Field { index: 44, is_root: false, type_value: struct, acl: None, deprecation_notice: None }
         8: SYMBOL Field { index: 5, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
       10: CONST string("foo")
-    17: CONTAINS -- hash: 0xbcf2d42fff063903
+    17: CONTAINS -- hash: 0xb095afe5c2db2332
       15: FIELD_ACCESS -- hash: 0x63bc9bc95d660aee
         12: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
         13: SYMBOL Field { index: 44, is_root: false, type_value: struct, acl: None, deprecation_notice: None }
