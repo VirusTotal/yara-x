@@ -726,14 +726,20 @@ fn uint64xx() {
     condition_false!("float64(0x7FFFFFFFFFFFFFFF) == 0.0", &data);
 
     // Using `uint64` (> i64::MAX) or negative `int8` at runtime in
-    // quantifiers, range bounds, and pattern anchors.
+    // quantifiers. Such quantifiers can't be satisfied.
     condition_false!("uint64(10) of (true)", &data);
     condition_false!("int8(10) of (true)", &data);
     condition_false!("for uint64(10) i in (0..1) : (true)", &data);
     condition_false!("for int8(10) i in (0..1) : (true)", &data);
-    condition_false!("for any i in (0..uint64(10)) : (true)", &data);
-    condition_false!("for any i in (5..uint64(10)) : (true)", &data);
+
+    // Range bounds greater than i64::MAX in loops. The loop variable is a
+    // signed integer, so upper bounds like these are saturated to i64::MAX,
+    // and lower bounds like these make the range empty.
+    condition_true!("for any i in (0..uint64(10)) : (i == 3)", &data);
+    condition_true!("for any i in (5..uint64(10)) : (true)", &data);
+    condition_false!("for none i in (0..uint64(10)) : (i == 3)", &data);
     condition_false!("for any i in (uint64(10)..5) : (true)", &data);
+    condition_false!("for any i in (uint64(3)..uint64(10)) : (true)", &data);
 
     rule_false!(
         r#"
@@ -747,13 +753,34 @@ fn uint64xx() {
         &data
     );
 
+    // Range bounds greater than i64::MAX in pattern anchors. Matches can't
+    // occur at offsets greater than i64::MAX.
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = { 01 02 }
+                $b = { 03 04 }
+            condition:
+                $a in (0..uint64(10)) and
+                #a in (0..uint64(10)) == 1 and
+                all of them in (0..uint64(10))
+        }
+        "#,
+        &data
+    );
+
     rule_false!(
         r#"
         rule test {
             strings:
                 $a = { 01 02 }
             condition:
-                $a at uint64(10) or $a in (0..uint64(10)) or #a in (0..uint64(10)) > 0
+                $a at uint64(10) or
+                $a in (uint64(10)..100) or
+                $a in (uint64(3)..uint64(10)) or
+                #a in (uint64(10)..100) > 0 or
+                any of them in (uint64(10)..100)
         }
         "#,
         &data
@@ -942,8 +969,8 @@ fn for_in() {
         )"
     );
 
-    // Unsigned bounds greater than i64::MAX can't be represented by the loop
-    // variable, so the range is empty.
+    // Unsigned lower bounds greater than i64::MAX can't be represented by the
+    // loop variable, so the range is empty.
     condition_false!(
         "for any x in (0xFFFFFFFFFFFFFFFE) : (
             for any y in (0xFFFFFFFFFFFFFFFF) : (
@@ -951,9 +978,20 @@ fn for_in() {
             )
         )"
     );
-    condition_false!(
+
+    // Unsigned upper bounds greater than i64::MAX are saturated to i64::MAX.
+    condition_true!(
         "for any x in (0xFFFFFFFFFFFFFFFF) : (
-            for any i in (0..x) : ( true )
+            for any i in (0..x) : ( i == 1 )
+        )"
+    );
+
+    // Ranges with more than i64::MAX items are iterated too, even though the
+    // number of items doesn't fit in an `i64`.
+    condition_true!("for any i in (0..0x7FFFFFFFFFFFFFFF) : ( i == 1 )");
+    condition_true!(
+        "for any x in (-9223372036854775808) : (
+            for any i in (x..0x7FFFFFFFFFFFFFFF) : ( i == x + 1 )
         )"
     );
 
