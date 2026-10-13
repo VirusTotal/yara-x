@@ -2280,6 +2280,26 @@ fn emit_for<I, B, C, A>(
                         load_var(ctx, instr, n);
                         instr.unop(UnaryOp::F64ConvertSI64);
                         emit_expr(ctx, ir, *quantifier, instr);
+
+                        // Negative percentages (only possible when they are
+                        // computed at runtime) can't be satisfied, so they are
+                        // replaced with i64::MAX, which produces a `max_count`
+                        // that `count` never reaches. Otherwise, when
+                        // `n * percentage` is in the range (-100, 0),
+                        // `max_count` would be 0, which means `none`.
+                        let percentage = ir.get(*quantifier).type_value();
+
+                        if !percentage.is_non_negative() {
+                            let tmp = ctx.wasm_symbols.i64_tmp_a;
+                            instr.local_tee(tmp);
+                            instr.i64_const(i64::MAX);
+                            instr.local_get(tmp);
+                            instr.i64_const(0);
+                            instr.binop(BinaryOp::I64GeS);
+                            // percentage >= 0 ? percentage : i64::MAX
+                            instr.select(None);
+                        }
+
                         instr.unop(int_to_float_op(ir, *quantifier));
                         instr.binop(BinaryOp::F64Mul);
 
@@ -2287,7 +2307,15 @@ fn emit_for<I, B, C, A>(
                         instr.f64_const(100.0);
                         instr.binop(BinaryOp::F64Div);
                         instr.unop(UnaryOp::F64Ceil);
-                        instr.unop(UnaryOp::I64TruncSF64);
+
+                        // The percentage is guaranteed to be in the range
+                        // [0, 100] only when it is a constant. Percentages
+                        // computed at runtime (e.g: `int64(0)%`) can have any
+                        // value, and the result may not fit in an i64. In
+                        // such cases `i64.trunc_f64_s` traps, but the
+                        // saturating conversion produces i64::MIN or i64::MAX
+                        // instead, values that `count` never reaches.
+                        instr.unop(UnaryOp::I64TruncSSatF64);
                     } else {
                         // Quantifier is not a percentage, use it as is.
                         emit_expr(ctx, ir, *quantifier, instr);
@@ -2401,9 +2429,13 @@ fn emit_for<I, B, C, A>(
                             incr_var(ctx, then_, count);
 
                             // Is counter >= quantifier?.
+                            // Using unsigned comparison ensures that if
+                            // `max_count` is negative (or an unsigned integer
+                            // > i64::MAX), it is treated as larger than `count`
+                            // and the condition evaluates to false.
                             load_var(ctx, then_, count);
                             load_var(ctx, then_, max_count);
-                            then_.binop(BinaryOp::I64GeS);
+                            then_.binop(BinaryOp::I64GeU);
 
                             then_.if_else(
                                 None,
