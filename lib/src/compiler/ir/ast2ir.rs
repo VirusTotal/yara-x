@@ -1603,6 +1603,16 @@ fn for_in_expr_from_ast<'src>(
             if type_value.ty() == Type::Integer {
                 if ctx.ir.is_unsigned_result(expressions) {
                     type_value = TypeValue::unknown_unsigned_integer();
+                    if let ast::Iterable::ExprTuple(items) = &for_in.iterable {
+                        for (item, ast_item) in iter::zip(expressions, items) {
+                            warn_if_sign_conversion(
+                                ctx,
+                                *item,
+                                ast_item.span(),
+                                &type_value,
+                            );
+                        }
+                    }
                 } else {
                     type_value = TypeValue::unknown_signed_integer();
                 }
@@ -2482,6 +2492,22 @@ fn func_call_from_ast<'src>(
 
     let matching_signature = matching_signature.unwrap();
 
+    // Arguments are passed to functions as they are, so an unsigned constant
+    // greater than i64::MAX is received as a negative number by a function
+    // that expects a signed integer. In methods, the first argument in the
+    // signature is the object, which doesn't appear among the arguments.
+    let params = if matching_signature.method_of().is_some() {
+        &matching_signature.args[1..]
+    } else {
+        &matching_signature.args[..]
+    };
+
+    for ((arg, ast_arg), (_, param)) in
+        iter::zip(iter::zip(&args, &func_call.args), params)
+    {
+        warn_if_sign_conversion(ctx, *arg, ast_arg.span(), param);
+    }
+
     // The object is necessary only when this is a method call, if this
     // is a function call no object is required.
     if matching_signature.method_of().is_none() {
@@ -2729,6 +2755,48 @@ fn warn_if_not_bool(ctx: &mut CompileContext, expr: ExprId, span: Span) {
     }
 }
 
+/// Raises a [`warnings::SignConversion`] warning if `expr` is an integer
+/// constant that changes its value when converted to the type of `target`.
+///
+/// This happens with negative constants converted to unsigned, and with
+/// unsigned constants greater than `i64::MAX` converted to signed. Unsigned
+/// targets are the result of mixing signed and unsigned integers, while
+/// signed targets are function arguments.
+fn warn_if_sign_conversion(
+    ctx: &mut CompileContext,
+    expr: ExprId,
+    span: Span,
+    target: &TypeValue,
+) {
+    if target.ty() != Type::Integer {
+        return;
+    }
+
+    let Some(value) = ctx.ir.get(expr).type_value().try_as_const_i128() else {
+        return;
+    };
+
+    let (converted_value, note) = if target.is_unsigned() && value < 0 {
+        (
+            (value as u64).to_string(),
+            "signed integers are converted to unsigned when mixed with unsigned integers",
+        )
+    } else if !target.is_unsigned() && value > i64::MAX as i128 {
+        ((value as i64).to_string(), "the function expects a signed integer")
+    } else {
+        return;
+    };
+
+    ctx.warnings.add(|| {
+        warnings::SignConversion::build(
+            ctx.report_builder,
+            converted_value,
+            ctx.report_builder.span_to_code_loc(span),
+            Some(note.to_string()),
+        )
+    });
+}
+
 macro_rules! gen_unary_op {
     ($name:ident, $variant:ident, $( $accepted_types:path )|+, $check_fn:expr) => {
         fn $name<'src>(
@@ -2820,7 +2888,7 @@ macro_rules! gen_string_op {
 }
 
 macro_rules! gen_n_ary_operation {
-    ($name:ident, $variant:ident, $( $accepted_types:path )|+, $compatible_types:expr, $check_fn:expr) => {
+    ($name:ident, $variant:ident, $( $accepted_types:path )|+, $compatible_types:expr, $check_fn:expr, $operands_check_fn:expr) => {
         fn $name<'src>(
             ctx: &mut CompileContext<'_, 'src>,
             expr: &ast::NAryExpr<'src>,
@@ -2857,6 +2925,18 @@ macro_rules! gen_n_ary_operation {
                     accepted_types,
                     compatible_types,
                 )?;
+            }
+
+            // Unlike `check_fn`, which checks the operands one by one,
+            // `operands_check_fn` receives all the operands at once.
+            let operands_check_fn:
+                Option<fn(&mut CompileContext, &[ExprId], &[Span]) -> Result<(), CompileError>>
+                = $operands_check_fn;
+
+            if let Some(operands_check_fn) = operands_check_fn {
+                let spans: Vec<Span> =
+                    expr.operands().map(|operand| operand.span()).collect();
+                operands_check_fn(ctx, &operands_hir, &spans)?;
             }
 
             ctx.ir.$variant(operands_hir).map_err(|err| {
@@ -2914,7 +2994,8 @@ gen_n_ary_operation!(
     Some(|ctx, operand, span| {
         warn_if_not_bool(ctx, operand, span);
         Ok(())
-    })
+    }),
+    None
 );
 
 fn or_expr_from_ast<'src>(
@@ -3063,11 +3144,17 @@ fn minus_expr_from_ast<'src>(
     Ok(minus)
 }
 
+// In additions, subtractions and multiplications, converting a negative
+// constant to unsigned doesn't change the result, because these operations
+// produce the same bits with signed and unsigned operands. For instance,
+// `uint64(0) + -1` is the same as `uint64(0) - 1`. This is not true for
+// divisions and remainders, which are checked by `div_check`.
 gen_n_ary_operation!(
     add_expr_from_ast,
     add,
     Type::Integer | Type::Float,
     &[(Type::Integer, Type::Float)],
+    None,
     None
 );
 
@@ -3076,6 +3163,7 @@ gen_n_ary_operation!(
     sub,
     Type::Integer | Type::Float,
     &[(Type::Integer, Type::Float)],
+    None,
     None
 );
 
@@ -3084,6 +3172,7 @@ gen_n_ary_operation!(
     mul,
     Type::Integer | Type::Float,
     &[(Type::Integer, Type::Float)],
+    None,
     None
 );
 
@@ -3092,10 +3181,18 @@ gen_n_ary_operation!(
     div,
     Type::Integer | Type::Float,
     &[(Type::Integer, Type::Float)],
-    None
+    None,
+    Some(div_check)
 );
 
-gen_n_ary_operation!(mod_expr_from_ast, modulus, Type::Integer, &[], None);
+gen_n_ary_operation!(
+    mod_expr_from_ast,
+    modulus,
+    Type::Integer,
+    &[],
+    None,
+    Some(div_check)
+);
 
 gen_unary_op!(
     bitwise_not_expr_from_ast,
@@ -3399,5 +3496,46 @@ fn shx_check(
             ctx.report_builder.span_to_code_loc(rhs_span),
         ));
     }
+    Ok(())
+}
+
+/// Checks the operands for division and remainder operations.
+///
+/// The operations in an expression like `a \ b \ c` are performed from left
+/// to right, and each of them is unsigned if any of the operands involved so
+/// far is unsigned. Negative constants that participate in an unsigned
+/// operation are converted to unsigned, which changes their values. Those are
+/// the right operand of each operation, and the left operand of the first one.
+/// Once a float is involved, the remaining operations are performed with
+/// floats and no conversion to unsigned takes place.
+fn div_check(
+    ctx: &mut CompileContext,
+    operands: &[ExprId],
+    spans: &[Span],
+) -> Result<(), CompileError> {
+    let unsigned = TypeValue::unknown_unsigned_integer();
+
+    for i in 1..operands.len() {
+        let involved = &operands[..=i];
+
+        if involved.iter().any(|op| ctx.ir.get(*op).ty() == Type::Float) {
+            break;
+        }
+
+        if ctx.ir.is_unsigned_result(involved) {
+            let first = if i == 1 { 0 } else { i };
+            for (operand, span) in
+                iter::zip(&operands[first..=i], &spans[first..=i])
+            {
+                warn_if_sign_conversion(
+                    ctx,
+                    *operand,
+                    span.clone(),
+                    &unsigned,
+                );
+            }
+        }
+    }
+
     Ok(())
 }
