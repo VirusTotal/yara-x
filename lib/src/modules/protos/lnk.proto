@@ -76,13 +76,13 @@ message Lnk {
   optional string name = 2;
 
   // Time when the LNK file was created.
-  optional uint64 creation_time = 3;
+  optional int64 creation_time = 3;
 
   // Time when the LNK file was last accessed.
-  optional uint64 access_time = 4;
+  optional int64 access_time = 4;
 
   // Time when the LNK files was last modified.
-  optional uint64 write_time = 5;
+  optional int64 write_time = 5;
 
   // Size of the target file in bytes. The target file is the file that this
   // link references to. If the link target file is larger than 0xFFFFFFFF,
@@ -131,10 +131,10 @@ message Lnk {
   optional string cmd_line_args = 18;
 
   // Size in bytes of any extra data appended to the LNK file.
-  optional uint64 overlay_size = 19;
+  optional int64 overlay_size = 19;
 
   // Offset within the LNK file where the overlay starts.
-  optional uint64 overlay_offset = 20;
+  optional int64 overlay_offset = 20;
 
   // Distributed link tracker information.
   optional TrackerData tracker_data = 21;

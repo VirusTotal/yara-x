@@ -33,9 +33,9 @@ pub struct Entry {
     // @@protoc_insertion_point(field:zip.Entry.compression)
     pub compression: ::std::option::Option<::protobuf::EnumOrUnknown<Compression>>,
     // @@protoc_insertion_point(field:zip.Entry.uncompressed_size)
-    pub uncompressed_size: ::std::option::Option<u64>,
+    pub uncompressed_size: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:zip.Entry.compressed_size)
-    pub compressed_size: ::std::option::Option<u64>,
+    pub compressed_size: ::std::option::Option<i64>,
     // special fields
     // @@protoc_insertion_point(special_field:zip.Entry.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -110,9 +110,9 @@ impl Entry {
         self.compression = ::std::option::Option::Some(::protobuf::EnumOrUnknown::new(v));
     }
 
-    // optional uint64 uncompressed_size = 3;
+    // optional int64 uncompressed_size = 3;
 
-    pub fn uncompressed_size(&self) -> u64 {
+    pub fn uncompressed_size(&self) -> i64 {
         self.uncompressed_size.unwrap_or(0)
     }
 
@@ -125,13 +125,13 @@ impl Entry {
     }
 
     // Param is passed by value, moved
-    pub fn set_uncompressed_size(&mut self, v: u64) {
+    pub fn set_uncompressed_size(&mut self, v: i64) {
         self.uncompressed_size = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 compressed_size = 4;
+    // optional int64 compressed_size = 4;
 
-    pub fn compressed_size(&self) -> u64 {
+    pub fn compressed_size(&self) -> i64 {
         self.compressed_size.unwrap_or(0)
     }
 
@@ -144,7 +144,7 @@ impl Entry {
     }
 
     // Param is passed by value, moved
-    pub fn set_compressed_size(&mut self, v: u64) {
+    pub fn set_compressed_size(&mut self, v: i64) {
         self.compressed_size = ::std::option::Option::Some(v);
     }
 
@@ -196,10 +196,10 @@ impl ::protobuf::Message for Entry {
                     self.compression = ::std::option::Option::Some(is.read_enum_or_unknown()?);
                 },
                 24 => {
-                    self.uncompressed_size = ::std::option::Option::Some(is.read_uint64()?);
+                    self.uncompressed_size = ::std::option::Option::Some(is.read_int64()?);
                 },
                 32 => {
-                    self.compressed_size = ::std::option::Option::Some(is.read_uint64()?);
+                    self.compressed_size = ::std::option::Option::Some(is.read_int64()?);
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -220,10 +220,10 @@ impl ::protobuf::Message for Entry {
             my_size += ::protobuf::rt::int32_size(2, v.value());
         }
         if let Some(v) = self.uncompressed_size {
-            my_size += ::protobuf::rt::uint64_size(3, v);
+            my_size += ::protobuf::rt::int64_size(3, v);
         }
         if let Some(v) = self.compressed_size {
-            my_size += ::protobuf::rt::uint64_size(4, v);
+            my_size += ::protobuf::rt::int64_size(4, v);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
@@ -238,10 +238,10 @@ impl ::protobuf::Message for Entry {
             os.write_enum(2, ::protobuf::EnumOrUnknown::value(&v))?;
         }
         if let Some(v) = self.uncompressed_size {
-            os.write_uint64(3, v)?;
+            os.write_int64(3, v)?;
         }
         if let Some(v) = self.compressed_size {
-            os.write_uint64(4, v)?;
+            os.write_int64(4, v)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -603,8 +603,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \n\tzip.proto\x12\x03zip\x1a\nyara.proto\"\xae\x01\n\x05Entry\x12\x1b\n\
     \tfile_path\x18\x01\x20\x01(\tR\x08filePath\x122\n\x0bcompression\x18\
     \x02\x20\x01(\x0e2\x10.zip.CompressionR\x0bcompression\x12+\n\x11uncompr\
-    essed_size\x18\x03\x20\x01(\x04R\x10uncompressedSize\x12'\n\x0fcompresse\
-    d_size\x18\x04\x20\x01(\x04R\x0ecompressedSize\"B\n\x03Zip\x12\x15\n\x06\
+    essed_size\x18\x03\x20\x01(\x03R\x10uncompressedSize\x12'\n\x0fcompresse\
+    d_size\x18\x04\x20\x01(\x03R\x0ecompressedSize\"B\n\x03Zip\x12\x15\n\x06\
     is_zip\x18\x01\x20\x01(\x08R\x05isZip\x12$\n\x07entries\x18\x02\x20\x03(\
     \x0b2\n.zip.EntryR\x07entries*\xdf\x01\n\x0bCompression\x12\n\n\x06STORE\
     D\x10\0\x12\n\n\x06SHRUNK\x10\x01\x12\r\n\tREDUCED_1\x10\x02\x12\r\n\tRE\

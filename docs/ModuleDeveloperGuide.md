@@ -1054,7 +1054,7 @@ syntax = "proto2";
 package foobar;
 
 message Foobar {
-  optional uint64 count = 1;
+  optional int64 count = 1;
   optional string label = 2;
   repeated string tags = 3;
 }
@@ -1101,7 +1101,7 @@ fn foobar_main(
     data: &[u8],
 ) -> Result<Foobar, ModuleError> {
     let mut out = Foobar::new();
-    out.count = Some(data.len() as u64);
+    out.count = Some(data.len() as i64);
     out.label = Some("foobar".to_owned());
     Ok(out)
 }

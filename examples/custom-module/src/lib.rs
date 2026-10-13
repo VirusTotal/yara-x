@@ -23,7 +23,7 @@ fn foobar_main(
     data: &[u8],
 ) -> Result<Foobar, ModuleError> {
     let mut out = Foobar::new();
-    out.count = Some(data.len() as u64);
+    out.count = Some(data.len() as i64);
     out.label = Some("foobar".to_owned());
     Ok(out)
 }

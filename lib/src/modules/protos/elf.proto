@@ -18,36 +18,36 @@ message ELF {
   optional OsAbi osabi = 18;
 
   // Entry point address of the executable.
-  optional uint64 entry_point = 3;
+  optional int64 entry_point = 3;
   // File offset pointing to the section header table.
-  optional uint64 sh_offset = 4;
+  optional int64 sh_offset = 4;
   // Size in bytes of a single section header entry.
   optional uint32 sh_entry_size = 5;
   // File offset pointing to the program header table.
-  optional uint64 ph_offset = 6;
+  optional int64 ph_offset = 6;
   // Size in bytes of a single program header entry.
   optional uint32 ph_entry_size = 7;
 
   // Number of section header entries in the table.
-  optional uint64 number_of_sections = 8  [(yara.field_options).deprecation_notice = {
+  optional int64 number_of_sections = 8  [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `elf.sections.len()` instead",
     replacement: "sections.len()"
   }];
 
   // Number of program header entries in the table.
-  optional uint64 number_of_segments = 9 [(yara.field_options).deprecation_notice = {
+  optional int64 number_of_segments = 9 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `elf.segments.len()` instead",
     replacement: "segments.len()"
   }];
 
   // Count of symbols stored in the static symbol table.
-  optional uint64 symtab_entries = 10;
+  optional int64 symtab_entries = 10;
   // Count of symbols stored in the dynamic symbol table.
-  optional uint64 dynsym_entries = 11;
+  optional int64 dynsym_entries = 11;
   // Count of entries present in the dynamic linking section.
-  optional uint64 dynamic_section_entries = 12;
+  optional int64 dynamic_section_entries = 12;
 
   // Array of sections described by the section header table.
   repeated Section sections = 13;
@@ -133,13 +133,13 @@ message Section {
   // Section type classification (e.g., PROGBITS, SYMTAB).
   required SectionType type = 1;
   // Section attributes represented as bitwise flags.
-  required uint64 flags = 2;
+  required int64 flags = 2;
   // Virtual address where the section resides in memory.
-  required uint64 address = 3;
+  required int64 address = 3;
   // Size in bytes of the section data.
-  required uint64 size = 4;
+  required int64 size = 4;
   // Physical file offset pointing to the section contents.
-  required uint64 offset = 5;
+  required int64 offset = 5;
   // Name of the section as a string.
   optional string name = 6;
 }
@@ -168,17 +168,17 @@ message Segment {
   // Access permissions and flags of the segment.
   required uint32 flags = 2 [(yara.field_options).fmt = "flags:SegmentFlags"];
   // Physical file offset pointing to the beginning of the segment.
-  required uint64 offset = 3;
+  required int64 offset = 3;
   // Virtual address where the segment is loaded in memory.
-  required uint64 virtual_address = 4;
+  required int64 virtual_address = 4;
   // Physical address of the segment, used on systems without virtual memory.
-  required uint64 physical_address = 5;
+  required int64 physical_address = 5;
   // Size of the segment inside the file.
-  required uint64 file_size = 6;
+  required int64 file_size = 6;
   // Size of the segment when mapped into memory.
-  required uint64 memory_size = 7;
+  required int64 memory_size = 7;
   // Required alignment boundary of the segment in memory and on disk.
-  required uint64 alignment = 8;
+  required int64 alignment = 8;
 }
 
 enum SegmentType {
@@ -208,9 +208,9 @@ message Sym {
   // Name of the symbol as a string.
   optional string name = 1;
   // Value associated with the symbol (typically an address or offset).
-  required uint64 value = 2;
+  required int64 value = 2;
   // Size in bytes of the object referenced by the symbol.
-  required uint64 size = 3;
+  required int64 size = 3;
   // Symbol type classification (e.g., FUNC, OBJECT).
   required SymType type = 4;
   // Binding attributes of the symbol (e.g., GLOBAL, LOCAL).
@@ -251,7 +251,7 @@ message Dyn {
   // Classification type of the dynamic entry (e.g., NEEDED, STRTAB).
   optional DynType type = 1;
   // Value or address associated with the dynamic entry.
-  optional uint64 val = 2;
+  optional int64 val = 2;
 }
 
 enum DynType {

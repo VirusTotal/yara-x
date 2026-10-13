@@ -33,11 +33,11 @@ pub struct Lnk {
     // @@protoc_insertion_point(field:lnk.Lnk.name)
     pub name: ::std::option::Option<::std::string::String>,
     // @@protoc_insertion_point(field:lnk.Lnk.creation_time)
-    pub creation_time: ::std::option::Option<u64>,
+    pub creation_time: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:lnk.Lnk.access_time)
-    pub access_time: ::std::option::Option<u64>,
+    pub access_time: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:lnk.Lnk.write_time)
-    pub write_time: ::std::option::Option<u64>,
+    pub write_time: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:lnk.Lnk.file_size)
     pub file_size: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:lnk.Lnk.file_attributes)
@@ -65,9 +65,9 @@ pub struct Lnk {
     // @@protoc_insertion_point(field:lnk.Lnk.cmd_line_args)
     pub cmd_line_args: ::std::option::Option<::std::string::String>,
     // @@protoc_insertion_point(field:lnk.Lnk.overlay_size)
-    pub overlay_size: ::std::option::Option<u64>,
+    pub overlay_size: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:lnk.Lnk.overlay_offset)
-    pub overlay_offset: ::std::option::Option<u64>,
+    pub overlay_offset: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:lnk.Lnk.tracker_data)
     pub tracker_data: ::protobuf::MessageField<TrackerData>,
     // @@protoc_insertion_point(field:lnk.Lnk.target_id_list)
@@ -143,9 +143,9 @@ impl Lnk {
         self.name.take().unwrap_or_else(|| ::std::string::String::new())
     }
 
-    // optional uint64 creation_time = 3;
+    // optional int64 creation_time = 3;
 
-    pub fn creation_time(&self) -> u64 {
+    pub fn creation_time(&self) -> i64 {
         self.creation_time.unwrap_or(0)
     }
 
@@ -158,13 +158,13 @@ impl Lnk {
     }
 
     // Param is passed by value, moved
-    pub fn set_creation_time(&mut self, v: u64) {
+    pub fn set_creation_time(&mut self, v: i64) {
         self.creation_time = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 access_time = 4;
+    // optional int64 access_time = 4;
 
-    pub fn access_time(&self) -> u64 {
+    pub fn access_time(&self) -> i64 {
         self.access_time.unwrap_or(0)
     }
 
@@ -177,13 +177,13 @@ impl Lnk {
     }
 
     // Param is passed by value, moved
-    pub fn set_access_time(&mut self, v: u64) {
+    pub fn set_access_time(&mut self, v: i64) {
         self.access_time = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 write_time = 5;
+    // optional int64 write_time = 5;
 
-    pub fn write_time(&self) -> u64 {
+    pub fn write_time(&self) -> i64 {
         self.write_time.unwrap_or(0)
     }
 
@@ -196,7 +196,7 @@ impl Lnk {
     }
 
     // Param is passed by value, moved
-    pub fn set_write_time(&mut self, v: u64) {
+    pub fn set_write_time(&mut self, v: i64) {
         self.write_time = ::std::option::Option::Some(v);
     }
 
@@ -572,9 +572,9 @@ impl Lnk {
         self.cmd_line_args.take().unwrap_or_else(|| ::std::string::String::new())
     }
 
-    // optional uint64 overlay_size = 19;
+    // optional int64 overlay_size = 19;
 
-    pub fn overlay_size(&self) -> u64 {
+    pub fn overlay_size(&self) -> i64 {
         self.overlay_size.unwrap_or(0)
     }
 
@@ -587,13 +587,13 @@ impl Lnk {
     }
 
     // Param is passed by value, moved
-    pub fn set_overlay_size(&mut self, v: u64) {
+    pub fn set_overlay_size(&mut self, v: i64) {
         self.overlay_size = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 overlay_offset = 20;
+    // optional int64 overlay_offset = 20;
 
-    pub fn overlay_offset(&self) -> u64 {
+    pub fn overlay_offset(&self) -> i64 {
         self.overlay_offset.unwrap_or(0)
     }
 
@@ -606,7 +606,7 @@ impl Lnk {
     }
 
     // Param is passed by value, moved
-    pub fn set_overlay_offset(&mut self, v: u64) {
+    pub fn set_overlay_offset(&mut self, v: i64) {
         self.overlay_offset = ::std::option::Option::Some(v);
     }
 
@@ -761,13 +761,13 @@ impl ::protobuf::Message for Lnk {
                     self.name = ::std::option::Option::Some(is.read_string()?);
                 },
                 24 => {
-                    self.creation_time = ::std::option::Option::Some(is.read_uint64()?);
+                    self.creation_time = ::std::option::Option::Some(is.read_int64()?);
                 },
                 32 => {
-                    self.access_time = ::std::option::Option::Some(is.read_uint64()?);
+                    self.access_time = ::std::option::Option::Some(is.read_int64()?);
                 },
                 40 => {
-                    self.write_time = ::std::option::Option::Some(is.read_uint64()?);
+                    self.write_time = ::std::option::Option::Some(is.read_int64()?);
                 },
                 48 => {
                     self.file_size = ::std::option::Option::Some(is.read_uint32()?);
@@ -809,10 +809,10 @@ impl ::protobuf::Message for Lnk {
                     self.cmd_line_args = ::std::option::Option::Some(is.read_string()?);
                 },
                 152 => {
-                    self.overlay_size = ::std::option::Option::Some(is.read_uint64()?);
+                    self.overlay_size = ::std::option::Option::Some(is.read_int64()?);
                 },
                 160 => {
-                    self.overlay_offset = ::std::option::Option::Some(is.read_uint64()?);
+                    self.overlay_offset = ::std::option::Option::Some(is.read_int64()?);
                 },
                 170 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.tracker_data)?;
@@ -839,13 +839,13 @@ impl ::protobuf::Message for Lnk {
             my_size += ::protobuf::rt::string_size(2, &v);
         }
         if let Some(v) = self.creation_time {
-            my_size += ::protobuf::rt::uint64_size(3, v);
+            my_size += ::protobuf::rt::int64_size(3, v);
         }
         if let Some(v) = self.access_time {
-            my_size += ::protobuf::rt::uint64_size(4, v);
+            my_size += ::protobuf::rt::int64_size(4, v);
         }
         if let Some(v) = self.write_time {
-            my_size += ::protobuf::rt::uint64_size(5, v);
+            my_size += ::protobuf::rt::int64_size(5, v);
         }
         if let Some(v) = self.file_size {
             my_size += ::protobuf::rt::uint32_size(6, v);
@@ -887,10 +887,10 @@ impl ::protobuf::Message for Lnk {
             my_size += ::protobuf::rt::string_size(18, &v);
         }
         if let Some(v) = self.overlay_size {
-            my_size += ::protobuf::rt::uint64_size(19, v);
+            my_size += ::protobuf::rt::int64_size(19, v);
         }
         if let Some(v) = self.overlay_offset {
-            my_size += ::protobuf::rt::uint64_size(20, v);
+            my_size += ::protobuf::rt::int64_size(20, v);
         }
         if let Some(v) = self.tracker_data.as_ref() {
             let len = v.compute_size();
@@ -913,13 +913,13 @@ impl ::protobuf::Message for Lnk {
             os.write_string(2, v)?;
         }
         if let Some(v) = self.creation_time {
-            os.write_uint64(3, v)?;
+            os.write_int64(3, v)?;
         }
         if let Some(v) = self.access_time {
-            os.write_uint64(4, v)?;
+            os.write_int64(4, v)?;
         }
         if let Some(v) = self.write_time {
-            os.write_uint64(5, v)?;
+            os.write_int64(5, v)?;
         }
         if let Some(v) = self.file_size {
             os.write_uint32(6, v)?;
@@ -961,10 +961,10 @@ impl ::protobuf::Message for Lnk {
             os.write_string(18, v)?;
         }
         if let Some(v) = self.overlay_size {
-            os.write_uint64(19, v)?;
+            os.write_int64(19, v)?;
         }
         if let Some(v) = self.overlay_offset {
-            os.write_uint64(20, v)?;
+            os.write_int64(20, v)?;
         }
         if let Some(v) = self.tracker_data.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(21, v, os)?;
@@ -2425,9 +2425,9 @@ impl ShellItemType {
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n\tlnk.proto\x12\x03lnk\x1a\nyara.proto\"\xcb\x06\n\x03Lnk\x12\x15\n\
     \x06is_lnk\x18\x01\x20\x02(\x08R\x05isLnk\x12\x12\n\x04name\x18\x02\x20\
-    \x01(\tR\x04name\x12#\n\rcreation_time\x18\x03\x20\x01(\x04R\x0ccreation\
-    Time\x12\x1f\n\x0baccess_time\x18\x04\x20\x01(\x04R\naccessTime\x12\x1d\
-    \n\nwrite_time\x18\x05\x20\x01(\x04R\twriteTime\x12\x1b\n\tfile_size\x18\
+    \x01(\tR\x04name\x12#\n\rcreation_time\x18\x03\x20\x01(\x03R\x0ccreation\
+    Time\x12\x1f\n\x0baccess_time\x18\x04\x20\x01(\x03R\naccessTime\x12\x1d\
+    \n\nwrite_time\x18\x05\x20\x01(\x03R\twriteTime\x12\x1b\n\tfile_size\x18\
     \x06\x20\x01(\rR\x08fileSize\x12'\n\x0ffile_attributes\x18\x07\x20\x01(\
     \rR\x0efileAttributes\x12#\n\ricon_location\x18\x08\x20\x01(\tR\x0ciconL\
     ocation\x12\x1d\n\nicon_index\x18\t\x20\x01(\rR\ticonIndex\x123\n\x0csho\
@@ -2439,8 +2439,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x0f\x20\x01(\tR\x10commonPathSuffix\x12#\n\rrelative_path\x18\x10\x20\
     \x01(\tR\x0crelativePath\x12\x1f\n\x0bworking_dir\x18\x11\x20\x01(\tR\nw\
     orkingDir\x12\"\n\rcmd_line_args\x18\x12\x20\x01(\tR\x0bcmdLineArgs\x12!\
-    \n\x0coverlay_size\x18\x13\x20\x01(\x04R\x0boverlaySize\x12%\n\x0eoverla\
-    y_offset\x18\x14\x20\x01(\x04R\roverlayOffset\x123\n\x0ctracker_data\x18\
+    \n\x0coverlay_size\x18\x13\x20\x01(\x03R\x0boverlaySize\x12%\n\x0eoverla\
+    y_offset\x18\x14\x20\x01(\x03R\roverlayOffset\x123\n\x0ctracker_data\x18\
     \x15\x20\x01(\x0b2\x10.lnk.TrackerDataR\x0btrackerData\x124\n\x0etarget_\
     id_list\x18\x16\x20\x03(\x0b2\x0e.lnk.ShellItemR\x0ctargetIdList\"\xb4\
     \x02\n\tShellItem\x128\n\titem_type\x18\x01\x20\x01(\x0e2\x12.lnk.ShellI\
