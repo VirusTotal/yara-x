@@ -1657,9 +1657,11 @@ macro_rules! gen_int_fn {
 gen_int_fn!(uint8, u8, from_le_bytes);
 gen_int_fn!(uint16, u16, from_le_bytes);
 gen_int_fn!(uint32, u32, from_le_bytes);
+gen_int_fn!(uint64, u64, from_le_bytes);
 gen_int_fn!(uint8be, u8, from_be_bytes);
 gen_int_fn!(uint16be, u16, from_be_bytes);
 gen_int_fn!(uint32be, u32, from_be_bytes);
+gen_int_fn!(uint64be, u64, from_be_bytes);
 
 gen_int_fn!(int8, i8, from_le_bytes);
 gen_int_fn!(int16, i16, from_le_bytes);

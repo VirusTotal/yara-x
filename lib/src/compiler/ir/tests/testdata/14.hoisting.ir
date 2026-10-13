@@ -64,19 +64,19 @@ RULE test_2
             9: CONST integer(0)
 
 RULE test_3
-  21: WITH -- hash: 0x51b5cbd1e844433
+  21: WITH -- hash: 0x48de06f1b131b41b
     20: FIELD_ACCESS -- hash: 0xb93ff31706b0e381
       4: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
       5: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None, deprecation_notice: None }
-    23: WITH -- hash: 0x7325bf2c0296a0cc
+    23: WITH -- hash: 0xb6e86960954410b4
       22: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
         13: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
         14: SYMBOL Field { index: 36, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
-      25: WITH -- hash: 0xa5c95b718944f13e
+      25: WITH -- hash: 0xe98c05a61ff26126
         24: GT -- hash: 0xce6a273536a404a2
           15: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 1 }, type_value: integer(unknown) }
           16: CONST integer(0)
-        19: FOR_IN -- hash: 0xd6ee5fa08f77c79f
+        19: FOR_IN -- hash: 0x1ab109d522253788
               n: Var { frame_id: 1, ty: integer, index: 3 }
               i: Var { frame_id: 1, ty: integer, index: 4 }
               max_count: Var { frame_id: 1, ty: integer, index: 5 }
@@ -86,8 +86,8 @@ RULE test_3
           3: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
             1: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
             2: SYMBOL Field { index: 36, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
-          18: AND -- hash: 0xed0520d2dcb31ca7
-            12: EQ -- hash: 0x5f5b5133a980b181
+          18: AND -- hash: 0x30c7cb0773608c90
+            12: EQ -- hash: 0x52fe2ce96d559bb0
               10: FIELD_ACCESS -- hash: 0xe5b8fd8695fb770c
                 8: LOOKUP -- hash: 0xba759ee69162285b
                   6: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array }

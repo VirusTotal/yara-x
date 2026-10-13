@@ -27,7 +27,7 @@ use std::str::{Chars, FromStr};
 ///
 /// ```text
 ///  i8, i16, i32, i64: signed integers
-///  u8, u16, u32: unsigned integers
+///  u8, u16, u32, u64: unsigned integers
 ///  f: float
 ///  b: bool
 ///  s: string
@@ -157,6 +157,7 @@ impl MangledFnName {
                         8 => TypeValue::Uint8(Value::Unknown),
                         16 => TypeValue::Uint16(Value::Unknown),
                         32 => TypeValue::Uint32(Value::Unknown),
+                        64 => TypeValue::Uint64(Value::Unknown),
                         _ => panic!("invalid mangled name: `{}`", self.0),
                     })
                 } else {
@@ -517,6 +518,19 @@ mod test {
                     ("c", TypeValue::Uint32(Value::Unknown)),
                 ],
                 TypeValue::Uint32(Value::Unknown)
+            )
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@@u64").unmangle(),
+            (vec![], TypeValue::unknown_unsigned_integer())
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@a:u64@u64u").unmangle(),
+            (
+                vec![("a", TypeValue::unknown_unsigned_integer())],
+                TypeValue::unknown_unsigned_integer()
             )
         );
 
