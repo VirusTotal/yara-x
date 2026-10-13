@@ -1,0 +1,9 @@
+[
+  {
+    "kind": 12,
+    "location": {
+      "uri": "${test_dir}/workspace_symbols2.yar"
+    },
+    "name": "abxx_some_rule"
+  }
+]

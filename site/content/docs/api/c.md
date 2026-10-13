@@ -54,9 +54,10 @@ test program, like this:
 
 ```shell
 cat <<EOF > test.c
+#include <stddef.h>
 #include <yara_x.h>
 int main() {
-    YRX_RULES* rules;
+    YRX_RULES* rules = NULL;
     yrx_compile("rule dummy { condition: true }", &rules);
     yrx_rules_destroy(rules);
 }

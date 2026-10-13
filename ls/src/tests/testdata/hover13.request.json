@@ -1,0 +1,9 @@
+{
+  "textDocument": {
+    "uri": "${test_dir}/hover13.yar"
+  },
+  "position": {
+    "line": 13,
+    "character": 6
+  }
+}

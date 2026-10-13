@@ -27,13 +27,13 @@ Pre-built binaries are available for Linux, macOS, and Windows. Download the
 appropriate archive, extract it to your preferred location, and you're ready to
 run YARA-X.
 
-## Installing from source
-
 On macOS, you can also use `brew`:
 
 ```shell
 brew install yara-x
 ```
+
+## Installing from source
 
 For building YARA-X, you will need a recent version of Rust. Follow the
 instructions in the

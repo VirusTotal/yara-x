@@ -34,7 +34,7 @@ impl YRX_RULES {
 /// It also receives the `user_data` pointer that can point to arbitrary data
 /// owned by the user.
 pub type YRX_RULE_CALLBACK =
-    extern "C" fn(rule: *const YRX_RULE, user_data: *mut c_void) -> ();
+    Option<extern "C" fn(rule: *const YRX_RULE, user_data: *mut c_void) -> ()>;
 
 /// Iterates over the compiled rules, calling the callback function for each
 /// rule.
@@ -49,15 +49,23 @@ pub unsafe extern "C" fn yrx_rules_iter(
     callback: YRX_RULE_CALLBACK,
     user_data: *mut c_void,
 ) -> YRX_RESULT {
-    if let Some(rules) = rules.as_ref() {
-        for r in rules.inner().iter() {
-            let rule = YRX_RULE::new(r);
-            callback(&rule as *const YRX_RULE, user_data);
-        }
-        YRX_RESULT::YRX_SUCCESS
-    } else {
-        YRX_RESULT::YRX_INVALID_ARGUMENT
+    let Some(rules) = rules.as_ref() else {
+        _yrx_set_last_error(Some("`rules` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    let Some(callback) = callback else {
+        _yrx_set_last_error(Some("`callback` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    for r in rules.inner().iter() {
+        let rule = YRX_RULE::new(r);
+        callback(&rule as *const YRX_RULE, user_data);
     }
+
+    _yrx_set_last_error::<&str>(None);
+    YRX_RESULT::YRX_SUCCESS
 }
 
 /// Returns the total number of rules.
@@ -66,8 +74,10 @@ pub unsafe extern "C" fn yrx_rules_iter(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_rules_count(rules: *mut YRX_RULES) -> c_int {
     if let Some(rules) = rules.as_ref() {
+        _yrx_set_last_error::<&str>(None);
         rules.inner().iter().len() as c_int
     } else {
+        _yrx_set_last_error(Some("`rules` pointer cannot be null"));
         -1
     }
 }
@@ -83,8 +93,15 @@ pub unsafe extern "C" fn yrx_rules_count(rules: *mut YRX_RULES) -> c_int {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_rules_serialize(
     rules: *const YRX_RULES,
-    buf: &mut *mut YRX_BUFFER,
+    buf: *mut *mut YRX_BUFFER,
 ) -> YRX_RESULT {
+    if buf.is_null() {
+        _yrx_set_last_error(Some("`buf` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
+
+    *buf = std::ptr::null_mut();
+
     if let Some(rules) = rules.as_ref() {
         match rules.inner().serialize() {
             Ok(serialized) => {
@@ -103,6 +120,7 @@ pub unsafe extern "C" fn yrx_rules_serialize(
             }
         }
     } else {
+        _yrx_set_last_error(Some("`rules` pointer cannot be null"));
         YRX_RESULT::YRX_INVALID_ARGUMENT
     }
 }
@@ -113,11 +131,19 @@ pub unsafe extern "C" fn yrx_rules_serialize(
 pub unsafe extern "C" fn yrx_rules_deserialize(
     data: *const u8,
     len: usize,
-    rules: &mut *mut YRX_RULES,
+    rules: *mut *mut YRX_RULES,
 ) -> YRX_RESULT {
-    if data.is_null() {
+    if rules.is_null() {
+        _yrx_set_last_error(Some("`rules` pointer cannot be null"));
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     }
+
+    if data.is_null() {
+        *rules = std::ptr::null_mut();
+        _yrx_set_last_error(Some("`data` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
+
     match yara_x::Rules::deserialize(slice::from_raw_parts(data, len)) {
         Ok(r) => {
             *rules = Box::into_raw(YRX_RULES::boxed(r));
@@ -125,6 +151,7 @@ pub unsafe extern "C" fn yrx_rules_deserialize(
             YRX_RESULT::YRX_SUCCESS
         }
         Err(err) => {
+            *rules = std::ptr::null_mut();
             _yrx_set_last_error(Some(err));
             YRX_RESULT::YRX_SERIALIZATION_ERROR
         }
@@ -141,8 +168,9 @@ pub unsafe extern "C" fn yrx_rules_deserialize(
 ///
 /// The callback also receives a `user_data` pointer that can point to arbitrary
 /// data owned by the user.
-pub type YRX_IMPORT_CALLBACK =
-    extern "C" fn(module_name: *const c_char, user_data: *mut c_void) -> ();
+pub type YRX_IMPORT_CALLBACK = Option<
+    extern "C" fn(module_name: *const c_char, user_data: *mut c_void) -> (),
+>;
 
 /// Iterates over the modules imported by the rules, calling the callback with
 /// the name of each imported module.
@@ -157,15 +185,23 @@ pub unsafe extern "C" fn yrx_rules_iter_imports(
     callback: YRX_IMPORT_CALLBACK,
     user_data: *mut c_void,
 ) -> YRX_RESULT {
-    if let Some(rules) = rules.as_ref() {
-        for import in rules.inner().imports() {
-            let import = CString::new(import).unwrap();
-            callback(import.as_ptr(), user_data);
-        }
-        YRX_RESULT::YRX_SUCCESS
-    } else {
-        YRX_RESULT::YRX_INVALID_ARGUMENT
+    let Some(rules) = rules.as_ref() else {
+        _yrx_set_last_error(Some("`rules` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    let Some(callback) = callback else {
+        _yrx_set_last_error(Some("`callback` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    for import in rules.inner().imports() {
+        let import = CString::new(import).unwrap();
+        callback(import.as_ptr(), user_data);
     }
+
+    _yrx_set_last_error::<&str>(None);
+    YRX_RESULT::YRX_SUCCESS
 }
 
 /// Destroys a [`YRX_RULES`] object.

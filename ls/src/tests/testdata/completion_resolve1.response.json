@@ -1,0 +1,7 @@
+{
+  "documentation": {
+    "kind": "markdown",
+    "value": "## rule `resolve_example_rule`\n```\nauthor = \"author\"\ndescription = \"description\"\n```\n"
+  },
+  "label": "resolve_example_rule"
+}

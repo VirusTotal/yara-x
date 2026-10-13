@@ -415,7 +415,7 @@ func (c *Compiler) AddSource(src string, opts ...SourceOption) error {
 	// different thread in-between the two calls to the C API.
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	if C.yrx_compiler_add_source_with_origin(c.cCompiler, cSrc, cOrigin) == C.YRX_SYNTAX_ERROR {
+	if C.yrx_compiler_add_source_with_origin(c.cCompiler, cSrc, cOrigin) != C.YRX_SUCCESS {
 		return errors.New(C.GoString(C.yrx_last_error()))
 	}
 	// After the call to yrx_compiler_add_source, c is not live anymore and
@@ -573,7 +573,7 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 
 	runtime.KeepAlive(c)
 
-	if ret == C.YRX_VARIABLE_ERROR {
+	if ret != C.YRX_SUCCESS {
 		return errors.New(C.GoString(C.yrx_last_error()))
 	}
 

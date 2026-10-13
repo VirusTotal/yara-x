@@ -9,42 +9,6 @@
       "range": {
         "end": {
           "character": 6,
-          "line": 3
-        },
-        "start": {
-          "character": 4,
-          "line": 3
-        }
-      },
-      "relatedInformation": [
-        {
-          "location": {
-            "range": {
-              "end": {
-                "character": 6,
-                "line": 3
-              },
-              "start": {
-                "character": 4,
-                "line": 3
-              }
-            },
-            "uri": "${test_dir}/diagnostics5.yar"
-          },
-          "message": "duplicate declaration of `$a`"
-        }
-      ],
-      "severity": 1
-    },
-    {
-      "code": "E023",
-      "data": {
-        "patches": []
-      },
-      "message": "duplicate pattern `$a`",
-      "range": {
-        "end": {
-          "character": 6,
           "line": 2
         },
         "start": {
@@ -68,6 +32,42 @@
             "uri": "${test_dir}/diagnostics5.yar"
           },
           "message": "`$a` declared here for the first time"
+        }
+      ],
+      "severity": 1
+    },
+    {
+      "code": "E023",
+      "data": {
+        "patches": []
+      },
+      "message": "duplicate pattern `$a`",
+      "range": {
+        "end": {
+          "character": 6,
+          "line": 3
+        },
+        "start": {
+          "character": 4,
+          "line": 3
+        }
+      },
+      "relatedInformation": [
+        {
+          "location": {
+            "range": {
+              "end": {
+                "character": 6,
+                "line": 3
+              },
+              "start": {
+                "character": 4,
+                "line": 3
+              }
+            },
+            "uri": "${test_dir}/diagnostics5.yar"
+          },
+          "message": "duplicate declaration of `$a`"
         }
       ],
       "severity": 1

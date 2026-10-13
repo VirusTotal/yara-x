@@ -27,30 +27,6 @@
       },
       {
         "kind": 15,
-        "name": "$pattern_two",
-        "range": {
-          "end": {
-            "character": 28,
-            "line": 3
-          },
-          "start": {
-            "character": 4,
-            "line": 3
-          }
-        },
-        "selectionRange": {
-          "end": {
-            "character": 28,
-            "line": 3
-          },
-          "start": {
-            "character": 4,
-            "line": 3
-          }
-        }
-      },
-      {
-        "kind": 15,
         "name": "$pattern_three",
         "range": {
           "end": {
@@ -70,6 +46,30 @@
           "start": {
             "character": 4,
             "line": 4
+          }
+        }
+      },
+      {
+        "kind": 15,
+        "name": "$pattern_two",
+        "range": {
+          "end": {
+            "character": 28,
+            "line": 3
+          },
+          "start": {
+            "character": 4,
+            "line": 3
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 28,
+            "line": 3
+          },
+          "start": {
+            "character": 4,
+            "line": 3
           }
         }
       },

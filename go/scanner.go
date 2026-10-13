@@ -181,7 +181,7 @@ func (s *Scanner) SetGlobal(ident string, value interface{}) error {
 
 	runtime.KeepAlive(s)
 
-	if ret == C.YRX_VARIABLE_ERROR {
+	if ret != C.YRX_SUCCESS {
 		return errors.New(C.GoString(C.yrx_last_error()))
 	}
 
@@ -352,6 +352,8 @@ func (s *Scanner) SlowestRules(n int) []ProfilingInfo {
 		C.YRX_SLOWEST_RULES_CALLBACK(C.slowestRulesCallback),
 		C.uintptr_t(slowestRules))
 
+	runtime.KeepAlive(s)
+
 	if result == C.YRX_NOT_SUPPORTED {
 		panic("SlowestRules requires that the YARA-X C library is built with the `rules-profiling` feature")
 	}
@@ -374,6 +376,7 @@ func (s *Scanner) ClearProfilingData() {
 	if C.yrx_scanner_clear_profiling_data(s.cScanner) == C.YRX_NOT_SUPPORTED {
 		panic("ClearProfilingData requires that the YARA-X C library is built with the `rules-profiling` feature")
 	}
+	runtime.KeepAlive(s)
 }
 
 // Destroy destroys the scanner.

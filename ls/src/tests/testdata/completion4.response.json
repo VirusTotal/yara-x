@@ -5,7 +5,15 @@
   },
   {
     "kind": 14,
-    "label": "wide"
+    "label": "base64"
+  },
+  {
+    "kind": 14,
+    "label": "base64wide"
+  },
+  {
+    "kind": 14,
+    "label": "fullword"
   },
   {
     "kind": 14,
@@ -17,15 +25,7 @@
   },
   {
     "kind": 14,
-    "label": "fullword"
-  },
-  {
-    "kind": 14,
-    "label": "base64"
-  },
-  {
-    "kind": 14,
-    "label": "base64wide"
+    "label": "wide"
   },
   {
     "kind": 14,

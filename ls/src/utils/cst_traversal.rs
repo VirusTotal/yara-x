@@ -87,13 +87,31 @@ pub(crate) fn ident_at_position(
     None
 }
 
-/// Returns the `RULE_DECL` node for the rule with the given `ident`.
+/// Returns the `IDENT` token for the given `RULE_DECL` node.
+pub(crate) fn rule_ident(rule: &Node<Immutable>) -> Option<Token<Immutable>> {
+    assert_eq!(rule.kind(), SyntaxKind::RULE_DECL);
+
+    rule.children_with_tokens()
+        .find(|n| n.kind() == SyntaxKind::IDENT)
+        .and_then(|n| n.into_token())
+}
+
+/// Returns the `RULE_DECL` node for the rule with the given `ident` token.
 pub(crate) fn rule_from_ident(
     source_file: &Node<Immutable>,
     ident: &Token<Immutable>,
 ) -> Option<Node<Immutable>> {
-    assert_eq!(source_file.kind(), SyntaxKind::SOURCE_FILE);
     assert_eq!(ident.kind(), SyntaxKind::IDENT);
+
+    rule_from_ident_string(source_file, ident.text())
+}
+
+/// Returns the `RULE_DECL` node for the rule with the given `ident` string.
+pub(crate) fn rule_from_ident_string(
+    source_file: &Node<Immutable>,
+    ident: &str,
+) -> Option<Node<Immutable>> {
+    assert_eq!(source_file.kind(), SyntaxKind::SOURCE_FILE);
 
     // Iterator over all rule declarations in the CST
     let rules = source_file
@@ -101,11 +119,8 @@ pub(crate) fn rule_from_ident(
         .filter(|node| node.kind() == SyntaxKind::RULE_DECL);
 
     for rule in rules {
-        if let Some(rule_ident) = rule
-            .children_with_tokens()
-            .find(|n| n.kind() == SyntaxKind::IDENT)
-            .and_then(|node| node.into_token())
-            && rule_ident.text() == ident.text()
+        if let Some(ident_token) = rule_ident(&rule)
+            && ident_token.text() == ident
         {
             return Some(rule);
         }
@@ -123,12 +138,11 @@ pub(crate) fn rule_containing_token(
 }
 
 /// Returns the `PATTERN_DEF` node containing the declaration of the pattern
-/// identified as `ident`, within the given `rule`.
+/// identified as `ident` token, within the given `rule`.
 pub(crate) fn pattern_from_ident(
     rule: &Node<Immutable>,
     ident: &Token<Immutable>,
 ) -> Option<Node<Immutable>> {
-    assert_eq!(rule.kind(), SyntaxKind::RULE_DECL);
     assert!(matches!(
         ident.kind(),
         SyntaxKind::PATTERN_IDENT
@@ -136,6 +150,23 @@ pub(crate) fn pattern_from_ident(
             | SyntaxKind::PATTERN_OFFSET
             | SyntaxKind::PATTERN_LENGTH
     ));
+    pattern_from_string(rule, ident.text())
+}
+
+/// Returns the `PATTERN_DEF` node containing the declaration of the pattern
+/// identified as `ident` string, within the given `rule`.
+pub(crate) fn pattern_from_string(
+    rule: &Node<Immutable>,
+    ident: &str,
+) -> Option<Node<Immutable>> {
+    assert_eq!(rule.kind(), SyntaxKind::RULE_DECL);
+
+    // Strip the leading sigil ($, @, # or !) to compare only the actual
+    // identifier. Anonymous patterns ("$") have an empty name after stripping
+    // the sigil and cannot match.
+    let ident_name = ident
+        .strip_prefix(['$', '@', '#', '!'])
+        .filter(|name| !name.is_empty())?;
 
     // Find "strings" block.
     let patterns_blk = rule
@@ -152,12 +183,9 @@ pub(crate) fn pattern_from_ident(
             .children_with_tokens()
             .find(|n| n.kind() == SyntaxKind::PATTERN_IDENT)
             .and_then(|n| n.into_token())
+            && pattern_ident.text().strip_prefix('$') == Some(ident_name)
         {
-            // Ignore first character ($, @, # or !) to compare only the actual
-            // identifier.
-            if pattern_ident.text()[1..] == ident.text()[1..] {
-                return Some(pattern);
-            }
+            return Some(pattern);
         }
     }
 
@@ -497,6 +525,10 @@ mod tests {
             rule_containing_token(&r1_token).unwrap().kind(),
             SyntaxKind::RULE_DECL
         );
+
+        let rule_node_string =
+            rule_from_ident_string(&root, "r1").expect("rule node");
+        assert_eq!(rule_node_string.kind(), SyntaxKind::RULE_DECL);
 
         let hash_s1_token = find_tokens(&root, "#s1").pop().unwrap();
 

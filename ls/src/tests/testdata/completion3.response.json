@@ -1,5 +1,9 @@
 [
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "Pattern value is:\n\n```\n$pattern_length = \"pattern\"\n```\n"
+    },
     "kind": 1,
     "label": "pattern_length",
     "labelDetails": {

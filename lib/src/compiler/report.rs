@@ -200,6 +200,20 @@ impl Report {
             .push((code_loc, replacement.into()));
         self
     }
+
+    pub(crate) fn code_url(&self) -> Option<String> {
+        match self.level {
+            Level::ERROR if self.code != "E100" => Some(format!(
+                "https://virustotal.github.io/yara-x/docs/errors/#{}",
+                self.code
+            )),
+            Level::WARNING => Some(format!(
+                "https://virustotal.github.io/yara-x/docs/warnings/#{}",
+                self.code
+            )),
+            _ => None,
+        }
+    }
 }
 
 impl Serialize for Report {
@@ -255,9 +269,19 @@ impl Display for Report {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let code_cache = self.code_cache.read();
 
-        let mut group = Group::with_title(
-            self.level.clone().primary_title(&self.title).id(self.code),
-        );
+        let mut title =
+            self.level.clone().primary_title(&self.title).id(self.code);
+
+        // `annotate_snippets` renders `id_url` using ANSI OSC 8 escape
+        // sequences even when `Renderer::plain()` is used, so only set it
+        // when `with_colors` is enabled.
+        if self.with_colors
+            && let Some(url) = self.code_url()
+        {
+            title = title.id_url(url);
+        }
+
+        let mut group = Group::with_title(title);
 
         let mut source_ids = Vec::new();
         for (_, label_ref, _) in &self.labels {
@@ -757,5 +781,100 @@ mod tests {
         assert_eq!(helper(text, 8), None); // Position in the middle of '你'
         assert_eq!(helper(text, 10), Some((1, 9))); // Position of '好'
         assert_eq!(helper(text, 13), Some((1, 10))); // Position of '!'
+    }
+
+    #[test]
+    fn report_code_url() {
+        use crate::SourceCode;
+        use crate::compiler::report::{Level, ReportBuilder};
+        use yara_x_parser::Span;
+
+        let mut builder = ReportBuilder::new();
+        builder.register_source(&SourceCode::from(
+            "rule test { condition: true }",
+        ));
+        let loc = builder.span_to_code_loc(Span(0..4));
+
+        // Without colors, OSC 8 URL sequences must not be emitted.
+        let report_plain = builder.create_report(
+            Level::ERROR,
+            "E001",
+            "syntax error".to_string(),
+            vec![(Level::ERROR, loc.clone(), "error here".to_string())],
+            vec![],
+        );
+        assert!(!report_plain.to_string().contains("\x1B]8;;"));
+
+        // With colors enabled, error and warning codes include documentation URLs.
+        builder.with_colors(true);
+
+        let error_report = builder.create_report(
+            Level::ERROR,
+            "E001",
+            "syntax error".to_string(),
+            vec![(Level::ERROR, loc.clone(), "error here".to_string())],
+            vec![],
+        );
+        assert!(error_report.to_string().contains(
+            "\x1B]8;;https://virustotal.github.io/yara-x/docs/errors/#E001\x1B\\"
+        ));
+
+        let warning_report = builder.create_report(
+            Level::WARNING,
+            "slow_pattern",
+            "slow pattern".to_string(),
+            vec![(Level::WARNING, loc.clone(), "warning here".to_string())],
+            vec![],
+        );
+        assert!(warning_report.to_string().contains(
+            "\x1B]8;;https://virustotal.github.io/yara-x/docs/warnings/#slow_pattern\x1B\\"
+        ));
+
+        // Custom error E100 should not include a documentation URL.
+        let custom_error = builder.create_report(
+            Level::ERROR,
+            "E100",
+            "custom error".to_string(),
+            vec![(Level::ERROR, loc, "custom error here".to_string())],
+            vec![],
+        );
+        assert!(!custom_error.to_string().contains("\x1B]8;;"));
+    }
+
+    #[test]
+    fn all_codes_are_documented() {
+        use crate::errors::CompileError;
+        use crate::warnings::Warning;
+        use std::fs;
+        use std::path::Path;
+
+        let errors_md =
+            Path::new("../site/content/docs/errors_and_warnings/errors.md");
+        if errors_md.exists() {
+            let content = fs::read_to_string(errors_md).unwrap();
+            for code in CompileError::all_codes() {
+                if code == "E100" {
+                    continue;
+                }
+                let heading = format!("## {code} {{#{code}}}");
+                assert!(
+                    content.contains(&heading),
+                    "error code `{code}` is missing `{heading}` in {errors_md:?}"
+                );
+            }
+        }
+
+        let warnings_md =
+            Path::new("../site/content/docs/errors_and_warnings/warnings.md");
+        if warnings_md.exists() {
+            let content = fs::read_to_string(warnings_md).unwrap();
+            for code in Warning::all_codes() {
+                let heading = format!("## {code} {{#{code}}}");
+                assert!(
+                    content.contains(&heading),
+                    "warning code `{code}` is missing `{heading}` in {warnings_md:?}"
+                );
+            }
+        }
     }
 }

@@ -2,12 +2,12 @@
   {
     "range": {
       "end": {
-        "character": 37,
-        "line": 2
+        "character": 12,
+        "line": 4
       },
       "start": {
         "character": 4,
-        "line": 2
+        "line": 4
       }
     },
     "uri": "${test_dir}/references1.yar"
@@ -15,12 +15,12 @@
   {
     "range": {
       "end": {
-        "character": 12,
-        "line": 4
+        "character": 37,
+        "line": 2
       },
       "start": {
         "character": 4,
-        "line": 4
+        "line": 2
       }
     },
     "uri": "${test_dir}/references1.yar"

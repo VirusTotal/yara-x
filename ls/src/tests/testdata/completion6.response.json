@@ -1,5 +1,14 @@
 [
   {
+    "insertText": "condition:\n\t",
+    "insertTextMode": 2,
+    "kind": 14,
+    "label": "condition",
+    "labelDetails": {
+      "description": "Block of condition"
+    }
+  },
+  {
     "insertText": "meta:\n\t",
     "insertTextMode": 2,
     "kind": 14,
@@ -15,15 +24,6 @@
     "label": "strings",
     "labelDetails": {
       "description": "Block of strings"
-    }
-  },
-  {
-    "insertText": "condition:\n\t",
-    "insertTextMode": 2,
-    "kind": 14,
-    "label": "condition",
-    "labelDetails": {
-      "description": "Block of condition"
     }
   }
 ]

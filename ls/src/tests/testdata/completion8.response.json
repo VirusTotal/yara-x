@@ -1,549 +1,710 @@
 [
   {
-    "insertText": "is_pe",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `calculate_checksum() -> integer`\n\n Returns the PE checksum, as calculated by YARA.\n\n This is useful for comparing with the checksum appearing in the PE header\n (pe.checksum) in order to verify if the actual checksum matches the one\n in the header."
+    },
+    "insertText": "calculate_checksum()",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "is_pe",
+    "kind": 2,
+    "label": "calculate_checksum()",
     "labelDetails": {
-      "description": "bool"
+      "description": "func()"
     }
   },
   {
-    "insertText": "machine",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `delayed_import_rva(dll_name: string, func_name: string) -> integer`\n\n Returns the RVA of a delayed import where the DLL name matches\n `dll_name` and the function name matches `func_name`.\n\n Both `dll_name` and `func_name` are case-insensitive."
+    },
+    "insertText": "delayed_import_rva(${1:dll_name}, ${2:func_name})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "machine",
+    "kind": 2,
+    "label": "delayed_import_rva(dll_name: string, func_name: string)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "subsystem",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `delayed_import_rva(dll_name: string, ordinal: integer) -> integer`\n\n Returns the RVA of an import where the DLL name matches\n `dll_name` and the ordinal number is `ordinal`.\n\n `dll_name` is case-insensitive."
+    },
+    "insertText": "delayed_import_rva(${1:dll_name}, ${2:ordinal})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "subsystem",
+    "kind": 2,
+    "label": "delayed_import_rva(dll_name: string, ordinal: integer)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "os_version",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `exports(func_name: regexp) -> bool`\n\n Returns true if the PE file exports a function with a name that matches\n the given regular expression."
+    },
+    "insertText": "exports(${1:func_name})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "os_version",
+    "kind": 2,
+    "label": "exports(func_name: regexp)",
     "labelDetails": {
-      "description": "struct"
+      "description": "func()"
     }
   },
   {
-    "insertText": "subsystem_version",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `exports(func_name: string) -> bool`\n\n Returns true if the PE file exports a function with the given name."
+    },
+    "insertText": "exports(${1:func_name})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "subsystem_version",
+    "kind": 2,
+    "label": "exports(func_name: string)",
     "labelDetails": {
-      "description": "struct"
+      "description": "func()"
     }
   },
   {
-    "insertText": "image_version",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `exports(ordinal: integer) -> bool`\n\n Returns true if the PE file exports a function with the given ordinal."
+    },
+    "insertText": "exports(${1:ordinal})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "image_version",
+    "kind": 2,
+    "label": "exports(ordinal: integer)",
     "labelDetails": {
-      "description": "struct"
+      "description": "func()"
     }
   },
   {
-    "insertText": "linker_version",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `exports_index(func_name: regexp) -> integer`\n\n Returns true if the PE file exports a function with a name that matches\n the given regular expression."
+    },
+    "insertText": "exports_index(${1:func_name})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "linker_version",
+    "kind": 2,
+    "label": "exports_index(func_name: regexp)",
     "labelDetails": {
-      "description": "struct"
+      "description": "func()"
     }
   },
   {
-    "insertText": "opthdr_magic",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `exports_index(func_name: string) -> integer`\n\n Returns true if the PE file exports a function with the given name."
+    },
+    "insertText": "exports_index(${1:func_name})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "opthdr_magic",
+    "kind": 2,
+    "label": "exports_index(func_name: string)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "characteristics",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `exports_index(ordinal: integer) -> integer`\n\n Returns true if the PE file exports a function with the given ordinal."
+    },
+    "insertText": "exports_index(${1:ordinal})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "characteristics",
+    "kind": 2,
+    "label": "exports_index(ordinal: integer)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "dll_characteristics",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imphash() -> string`\n\n Returns the PE import hash.\n\n The import hash represents the MD5 checksum of the PE's import table\n following a normalization process. PE files sharing the same import hash\n import precisely identical functions from the same DLLs. This characteristic\n often signifies file similarity, despite not being byte-for-byte identical.\n For additional details, refer to:\n https://www.mandiant.com/resources/blog/tracking-malware-import-hashing\n\n The resulting hash string is consistently in lowercase."
+    },
+    "insertText": "imphash()",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "dll_characteristics",
+    "kind": 2,
+    "label": "imphash()",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "timestamp",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `import_rva(dll_name: string, func_name: string) -> integer`\n\n Returns the RVA of an import where the DLL name matches\n `dll_name` and the function name matches `func_name`.\n\n Both `dll_name` and `func_name` are case-insensitive."
+    },
+    "insertText": "import_rva(${1:dll_name}, ${2:func_name})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "timestamp",
+    "kind": 2,
+    "label": "import_rva(dll_name: string, func_name: string)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "image_base",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `import_rva(dll_name: string, ordinal: integer) -> integer`\n\n Returns the RVA of an import where the DLL name matches\n `dll_name` and the ordinal number is `ordinal`.\n\n `dll_name` is case-insensitive."
+    },
+    "insertText": "import_rva(${1:dll_name}, ${2:ordinal})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "image_base",
+    "kind": 2,
+    "label": "import_rva(dll_name: string, ordinal: integer)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "checksum",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imports(dll_name: regexp, func_name: regexp) -> integer`\n\n Returns the number of imported functions where the function's name matches\n `func_name` and the DLL name matches `dll_name`.\n\n Both `dll_name` and `func_name` are case-sensitive unless you use the \"/i\"\n modifier in the regexp, as shown in the example below."
+    },
+    "insertText": "imports(${1:dll_name}, ${2:func_name})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "checksum",
+    "kind": 2,
+    "label": "imports(dll_name: regexp, func_name: regexp)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "base_of_code",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imports(dll_name: string) -> integer`\n\n Returns the number of functions imported by the PE from `dll_name`.\n\n `dll_name` is case-insensitive."
+    },
+    "insertText": "imports(${1:dll_name})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "base_of_code",
+    "kind": 2,
+    "label": "imports(dll_name: string)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "base_of_data",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imports(dll_name: string, func_name: string) -> bool`\n\n Returns true if the PE imports `func_name` from `dll_name`.\n\n Both `func_name` and `dll_name` are case-insensitive."
+    },
+    "insertText": "imports(${1:dll_name}, ${2:func_name})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "base_of_data",
+    "kind": 2,
+    "label": "imports(dll_name: string, func_name: string)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "entry_point",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imports(dll_name: string, ordinal: integer) -> integer`\n\n Returns true if the PE imports `ordinal` from `dll_name`.\n\n `dll_name` is case-insensitive."
+    },
+    "insertText": "imports(${1:dll_name}, ${2:ordinal})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "entry_point",
+    "kind": 2,
+    "label": "imports(dll_name: string, ordinal: integer)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "entry_point_raw",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imports(import_flags: integer, dll_name: regexp, func_name: regexp) -> integer`\n\n Returns the number of imported functions where the function's name matches\n `func_name` and the DLL name matches `dll_name`.\n\n Both `dll_name` and `func_name` are case-sensitive unless you use the \"/i\"\n modifier in the regexp, as shown in the example below. See [`imports_dll`]\n for details about the `import_flags` argument."
+    },
+    "insertText": "imports(${1:import_flags}, ${2:dll_name}, ${3:func_name})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "entry_point_raw",
+    "kind": 2,
+    "label": "imports(import_flags: integer, dll_name: regexp, func_name: regexp)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "dll_name",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imports(import_flags: integer, dll_name: string) -> integer`\n\n Returns the number of functions imported by the PE from `dll_name`.\n\n `dll_name` is case-insensitive. `import_flags` specify the types of\n import which should be taken into account. This value can be composed\n by a bitwise OR of the following values:\n\n * `pe.IMPORT_STANDARD` : standard import only\n * `pe.IMPORT_DELAYED` : delayed imports only\n * `pe.IMPORT_ANY` : both standard and delayed imports"
+    },
+    "insertText": "imports(${1:import_flags}, ${2:dll_name})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "dll_name",
+    "kind": 2,
+    "label": "imports(import_flags: integer, dll_name: string)",
     "labelDetails": {
-      "description": "string"
+      "description": "func()"
     }
   },
   {
-    "insertText": "export_timestamp",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imports(import_flags: integer, dll_name: string, func_name: string) -> bool`\n\n Returns true if the PE imports `func_name` from `dll_name`.\n\n Both `func_name` and `dll_name` are case-insensitive. See [`imports_dll`]\n for details about the `import_flags` argument."
+    },
+    "insertText": "imports(${1:import_flags}, ${2:dll_name}, ${3:func_name})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "export_timestamp",
+    "kind": 2,
+    "label": "imports(import_flags: integer, dll_name: string, func_name: string)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "section_alignment",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `imports(import_flags: integer, dll_name: string, ordinal: integer) -> bool`\n\n Returns true if the PE imports `ordinal` from `dll_name`.\n\n `dll_name` is case-insensitive. See [`imports_dll`] for details about\n the `import_flags` argument."
+    },
+    "insertText": "imports(${1:import_flags}, ${2:dll_name}, ${3:ordinal})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "section_alignment",
+    "kind": 2,
+    "label": "imports(import_flags: integer, dll_name: string, ordinal: integer)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "file_alignment",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `is_32bit() -> bool`\n\n Returns true if the file is a 32-bit PE."
+    },
+    "insertText": "is_32bit()",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "file_alignment",
+    "kind": 2,
+    "label": "is_32bit()",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "loader_flags",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `is_64bit() -> bool`\n\n Returns true if the file is a 64-bit PE."
+    },
+    "insertText": "is_64bit()",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "loader_flags",
+    "kind": 2,
+    "label": "is_64bit()",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "size_of_optional_header",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `is_dll() -> bool`\n\n Returns true if the file is dynamic link library (DLL)"
+    },
+    "insertText": "is_dll()",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "size_of_optional_header",
+    "kind": 2,
+    "label": "is_dll()",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "size_of_code",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `language(lang: integer) -> bool`\n\n Returns true if the PE contains some resource with the specified language\n identifier.\n\n Language identifiers are the lowest 8-bit of locale identifiers and can\n be found here:\n https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/available-language-packs-for-windows?view=windows-11"
+    },
+    "insertText": "language(${1:lang})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "size_of_code",
+    "kind": 2,
+    "label": "language(lang: integer)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "size_of_initialized_data",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `locale(loc: integer) -> bool`\n\n Returns true if the PE contains some resource with the specified locale\n identifier.\n\n Locale identifiers are 16-bit integers and can be found here:\n https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/available-language-packs-for-windows?view=windows-11"
+    },
+    "insertText": "locale(${1:loc})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "size_of_initialized_data",
+    "kind": 2,
+    "label": "locale(loc: integer)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "size_of_uninitialized_data",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `offset_to_rva(offset: integer) -> integer`\n\n Convert a file offset to a relative virtual address (RVA)."
+    },
+    "insertText": "offset_to_rva(${1:offset})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "size_of_uninitialized_data",
+    "kind": 2,
+    "label": "offset_to_rva(offset: integer)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "size_of_image",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `rva_to_offset(rva: integer) -> integer`\n\n Convert a relative virtual address (RVA) to a file offset."
+    },
+    "insertText": "rva_to_offset(${1:rva})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "size_of_image",
+    "kind": 2,
+    "label": "rva_to_offset(rva: integer)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "size_of_headers",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `section_index(name: string) -> integer`\n\n Returns the index in the section table of the first section with the given\n name."
+    },
+    "insertText": "section_index(${1:name})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "size_of_headers",
+    "kind": 2,
+    "label": "section_index(name: string)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "size_of_stack_reserve",
+    "documentation": {
+      "kind": "markdown",
+      "value": "## `section_index(offset: integer) -> integer`\n\n Returns the index in the section table of the first section that contains\n the given file offset."
+    },
+    "insertText": "section_index(${1:offset})",
     "insertTextFormat": 2,
-    "kind": 5,
-    "label": "size_of_stack_reserve",
+    "kind": 2,
+    "label": "section_index(offset: integer)",
     "labelDetails": {
-      "description": "integer"
+      "description": "func()"
     }
   },
   {
-    "insertText": "size_of_stack_commit",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "size_of_stack_commit",
-    "labelDetails": {
-      "description": "integer"
-    }
-  },
-  {
-    "insertText": "size_of_heap_reserve",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "size_of_heap_reserve",
-    "labelDetails": {
-      "description": "integer"
-    }
-  },
-  {
-    "insertText": "size_of_heap_commit",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "size_of_heap_commit",
-    "labelDetails": {
-      "description": "integer"
-    }
-  },
-  {
-    "insertText": "pointer_to_symbol_table",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "pointer_to_symbol_table",
-    "labelDetails": {
-      "description": "integer"
-    }
-  },
-  {
-    "insertText": "win32_version_value",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "win32_version_value",
-    "labelDetails": {
-      "description": "integer"
-    }
-  },
-  {
-    "insertText": "number_of_symbols",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "number_of_symbols",
-    "labelDetails": {
-      "description": "integer"
-    }
-  },
-  {
-    "insertText": "number_of_rva_and_sizes",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "number_of_rva_and_sizes",
-    "labelDetails": {
-      "description": "integer"
-    }
-  },
-  {
-    "insertText": "number_of_sections",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "number_of_sections",
-    "labelDetails": {
-      "description": "integer"
-    }
-  },
-  {
-    "insertText": "number_of_imported_functions",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "number_of_imported_functions",
-    "labelDetails": {
-      "description": "integer"
-    }
-  },
-  {
-    "insertText": "number_of_delayed_imported_functions",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "number_of_delayed_imported_functions",
-    "labelDetails": {
-      "description": "integer"
-    }
-  },
-  {
-    "insertText": "number_of_resources",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "number_of_resources",
-    "labelDetails": {
-      "description": "integer"
-    }
-  },
-  {
-    "insertText": "number_of_version_infos",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "number_of_version_infos",
-    "labelDetails": {
-      "description": "integer"
-    }
-  },
-  {
-    "insertText": "number_of_imports",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "number_of_imports",
-    "labelDetails": {
-      "description": "integer"
-    }
-  },
-  {
-    "insertText": "number_of_delayed_imports",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "number_of_delayed_imports",
-    "labelDetails": {
-      "description": "integer"
-    }
-  },
-  {
-    "insertText": "number_of_exports",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "number_of_exports",
-    "labelDetails": {
-      "description": "integer"
-    }
-  },
-  {
-    "insertText": "number_of_signatures",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "number_of_signatures",
-    "labelDetails": {
-      "description": "integer"
-    }
-  },
-  {
-    "insertText": "version_info",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "version_info",
-    "labelDetails": {
-      "description": "map<string,string>"
-    }
-  },
-  {
-    "insertText": "version_info_list[${1}]${2}",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "version_info_list",
-    "labelDetails": {
-      "description": "array<struct>"
-    }
-  },
-  {
-    "insertText": "rich_signature",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "rich_signature",
-    "labelDetails": {
-      "description": "struct"
-    }
-  },
-  {
-    "insertText": "pdb_path",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "pdb_path",
-    "labelDetails": {
-      "description": "string"
-    }
-  },
-  {
-    "insertText": "sections[${1}]${2}",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "sections",
-    "labelDetails": {
-      "description": "array<struct>"
-    }
-  },
-  {
-    "insertText": "data_directories[${1}]${2}",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "data_directories",
-    "labelDetails": {
-      "description": "array<struct>"
-    }
-  },
-  {
-    "insertText": "resource_timestamp",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "resource_timestamp",
-    "labelDetails": {
-      "description": "integer"
-    }
-  },
-  {
-    "insertText": "resource_version",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "resource_version",
-    "labelDetails": {
-      "description": "struct"
-    }
-  },
-  {
-    "insertText": "resources[${1}]${2}",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "resources",
-    "labelDetails": {
-      "description": "array<struct>"
-    }
-  },
-  {
-    "insertText": "import_details[${1}]${2}",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "import_details",
-    "labelDetails": {
-      "description": "array<struct>"
-    }
-  },
-  {
-    "insertText": "delayed_import_details[${1}]${2}",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "delayed_import_details",
-    "labelDetails": {
-      "description": "array<struct>"
-    }
-  },
-  {
-    "insertText": "export_details[${1}]${2}",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "export_details",
-    "labelDetails": {
-      "description": "array<struct>"
-    }
-  },
-  {
-    "insertText": "is_signed",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "is_signed",
-    "labelDetails": {
-      "description": "bool"
-    }
-  },
-  {
-    "insertText": "signatures[${1}]${2}",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "signatures",
-    "labelDetails": {
-      "description": "array<struct>"
-    }
-  },
-  {
-    "insertText": "overlay",
-    "insertTextFormat": 2,
-    "kind": 5,
-    "label": "overlay",
-    "labelDetails": {
-      "description": "struct"
-    }
-  },
-  {
-    "insertText": "MACHINE_UNKNOWN",
+    "insertText": "AGGRESIVE_WS_TRIM",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "MACHINE_UNKNOWN",
+    "label": "AGGRESIVE_WS_TRIM",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "APPCONTAINER",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "APPCONTAINER",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "BYTES_REVERSED_HI",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "BYTES_REVERSED_HI",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "BYTES_REVERSED_LO",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "BYTES_REVERSED_LO",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "DEBUG_STRIPPED",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "DEBUG_STRIPPED",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "DLL",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "DLL",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "DYNAMIC_BASE",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "DYNAMIC_BASE",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "EXECUTABLE_IMAGE",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "EXECUTABLE_IMAGE",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "FORCE_INTEGRITY",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "FORCE_INTEGRITY",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "GUARD_CF",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "GUARD_CF",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "HIGH_ENTROPY_VA",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "HIGH_ENTROPY_VA",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_ARCHITECTURE",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_DIRECTORY_ENTRY_ARCHITECTURE",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_BASERELOC",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_DIRECTORY_ENTRY_BASERELOC",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_COPYRIGHT",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_DIRECTORY_ENTRY_COPYRIGHT",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_DEBUG",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_DIRECTORY_ENTRY_DEBUG",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_EXCEPTION",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_DIRECTORY_ENTRY_EXCEPTION",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_EXPORT",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_DIRECTORY_ENTRY_EXPORT",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_GLOBALPTR",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_DIRECTORY_ENTRY_GLOBALPTR",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_IAT",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_DIRECTORY_ENTRY_IAT",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_IMPORT",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_DIRECTORY_ENTRY_IMPORT",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_RESOURCE",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_DIRECTORY_ENTRY_RESOURCE",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_SECURITY",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_DIRECTORY_ENTRY_SECURITY",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_DIRECTORY_ENTRY_TLS",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_DIRECTORY_ENTRY_TLS",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_NT_OPTIONAL_HDR32_MAGIC",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_NT_OPTIONAL_HDR32_MAGIC",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_NT_OPTIONAL_HDR64_MAGIC",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_NT_OPTIONAL_HDR64_MAGIC",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMAGE_ROM_OPTIONAL_HDR_MAGIC",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMAGE_ROM_OPTIONAL_HDR_MAGIC",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMPORT_ANY",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMPORT_ANY",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMPORT_DELAYED",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMPORT_DELAYED",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "IMPORT_STANDARD",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "IMPORT_STANDARD",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "LARGE_ADDRESS_AWARE",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "LARGE_ADDRESS_AWARE",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "LINE_NUMS_STRIPPED",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "LINE_NUMS_STRIPPED",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "LOCAL_SYMS_STRIPPED",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "LOCAL_SYMS_STRIPPED",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "MACHINE_32BIT",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "MACHINE_32BIT",
     "labelDetails": {
       "description": "const integer"
     }
@@ -738,10 +899,10 @@
     }
   },
   {
-    "insertText": "MACHINE_R3000BE",
+    "insertText": "MACHINE_R10000",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "MACHINE_R3000BE",
+    "label": "MACHINE_R10000",
     "labelDetails": {
       "description": "const integer"
     }
@@ -756,6 +917,15 @@
     }
   },
   {
+    "insertText": "MACHINE_R3000BE",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "MACHINE_R3000BE",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
     "insertText": "MACHINE_R4000",
     "insertTextFormat": 2,
     "kind": 21,
@@ -765,10 +935,10 @@
     }
   },
   {
-    "insertText": "MACHINE_R10000",
+    "insertText": "MACHINE_RISCV128",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "MACHINE_R10000",
+    "label": "MACHINE_RISCV128",
     "labelDetails": {
       "description": "const integer"
     }
@@ -787,15 +957,6 @@
     "insertTextFormat": 2,
     "kind": 21,
     "label": "MACHINE_RISCV64",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "MACHINE_RISCV128",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "MACHINE_RISCV128",
     "labelDetails": {
       "description": "const integer"
     }
@@ -846,6 +1007,15 @@
     }
   },
   {
+    "insertText": "MACHINE_UNKNOWN",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "MACHINE_UNKNOWN",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
     "insertText": "MACHINE_WCEMIPSV2",
     "insertTextFormat": 2,
     "kind": 21,
@@ -855,226 +1025,64 @@
     }
   },
   {
-    "insertText": "SUBSYSTEM_UNKNOWN",
+    "insertText": "NET_RUN_FROM_SWAP",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "SUBSYSTEM_UNKNOWN",
+    "label": "NET_RUN_FROM_SWAP",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "SUBSYSTEM_NATIVE",
+    "insertText": "NO_BIND",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "SUBSYSTEM_NATIVE",
+    "label": "NO_BIND",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "SUBSYSTEM_WINDOWS_GUI",
+    "insertText": "NO_ISOLATION",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "SUBSYSTEM_WINDOWS_GUI",
+    "label": "NO_ISOLATION",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "SUBSYSTEM_WINDOWS_CUI",
+    "insertText": "NO_SEH",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "SUBSYSTEM_WINDOWS_CUI",
+    "label": "NO_SEH",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "SUBSYSTEM_OS2_CUI",
+    "insertText": "NX_COMPAT",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "SUBSYSTEM_OS2_CUI",
+    "label": "NX_COMPAT",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "SUBSYSTEM_POSIX_CUI",
+    "insertText": "RELOCS_STRIPPED",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "SUBSYSTEM_POSIX_CUI",
+    "label": "RELOCS_STRIPPED",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "SUBSYSTEM_NATIVE_WINDOWS",
+    "insertText": "REMOVABLE_RUN_FROM_SWAP",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "SUBSYSTEM_NATIVE_WINDOWS",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SUBSYSTEM_WINDOWS_CE_GUI",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SUBSYSTEM_WINDOWS_CE_GUI",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SUBSYSTEM_EFI_APPLICATION",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SUBSYSTEM_EFI_APPLICATION",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SUBSYSTEM_EFI_RUNTIME_DRIVER",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SUBSYSTEM_EFI_RUNTIME_DRIVER",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SUBSYSTEM_EFI_ROM_IMAGE",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SUBSYSTEM_EFI_ROM_IMAGE",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SUBSYSTEM_XBOX",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SUBSYSTEM_XBOX",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SUBSYSTEM_WINDOWS_BOOT_APPLICATION",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SUBSYSTEM_WINDOWS_BOOT_APPLICATION",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "IMAGE_NT_OPTIONAL_HDR32_MAGIC",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "IMAGE_NT_OPTIONAL_HDR32_MAGIC",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "IMAGE_NT_OPTIONAL_HDR64_MAGIC",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "IMAGE_NT_OPTIONAL_HDR64_MAGIC",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "IMAGE_ROM_OPTIONAL_HDR_MAGIC",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "IMAGE_ROM_OPTIONAL_HDR_MAGIC",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "RESOURCE_TYPE_CURSOR",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "RESOURCE_TYPE_CURSOR",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "RESOURCE_TYPE_BITMAP",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "RESOURCE_TYPE_BITMAP",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "RESOURCE_TYPE_ICON",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "RESOURCE_TYPE_ICON",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "RESOURCE_TYPE_MENU",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "RESOURCE_TYPE_MENU",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "RESOURCE_TYPE_DIALOG",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "RESOURCE_TYPE_DIALOG",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "RESOURCE_TYPE_STRING",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "RESOURCE_TYPE_STRING",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "RESOURCE_TYPE_FONTDIR",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "RESOURCE_TYPE_FONTDIR",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "RESOURCE_TYPE_FONT",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "RESOURCE_TYPE_FONT",
+    "label": "REMOVABLE_RUN_FROM_SWAP",
     "labelDetails": {
       "description": "const integer"
     }
@@ -1084,78 +1092,6 @@
     "insertTextFormat": 2,
     "kind": 21,
     "label": "RESOURCE_TYPE_ACCELERATOR",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "RESOURCE_TYPE_RCDATA",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "RESOURCE_TYPE_RCDATA",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "RESOURCE_TYPE_MESSAGETABLE",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "RESOURCE_TYPE_MESSAGETABLE",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "RESOURCE_TYPE_GROUP_CURSOR",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "RESOURCE_TYPE_GROUP_CURSOR",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "RESOURCE_TYPE_GROUP_ICON",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "RESOURCE_TYPE_GROUP_ICON",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "RESOURCE_TYPE_VERSION",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "RESOURCE_TYPE_VERSION",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "RESOURCE_TYPE_DLGINCLUDE",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "RESOURCE_TYPE_DLGINCLUDE",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "RESOURCE_TYPE_PLUGPLAY",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "RESOURCE_TYPE_PLUGPLAY",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "RESOURCE_TYPE_VXD",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "RESOURCE_TYPE_VXD",
     "labelDetails": {
       "description": "const integer"
     }
@@ -1179,10 +1115,91 @@
     }
   },
   {
+    "insertText": "RESOURCE_TYPE_BITMAP",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "RESOURCE_TYPE_BITMAP",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "RESOURCE_TYPE_CURSOR",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "RESOURCE_TYPE_CURSOR",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "RESOURCE_TYPE_DIALOG",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "RESOURCE_TYPE_DIALOG",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "RESOURCE_TYPE_DLGINCLUDE",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "RESOURCE_TYPE_DLGINCLUDE",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "RESOURCE_TYPE_FONT",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "RESOURCE_TYPE_FONT",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "RESOURCE_TYPE_FONTDIR",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "RESOURCE_TYPE_FONTDIR",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "RESOURCE_TYPE_GROUP_CURSOR",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "RESOURCE_TYPE_GROUP_CURSOR",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "RESOURCE_TYPE_GROUP_ICON",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "RESOURCE_TYPE_GROUP_ICON",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
     "insertText": "RESOURCE_TYPE_HTML",
     "insertTextFormat": 2,
     "kind": 21,
     "label": "RESOURCE_TYPE_HTML",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "RESOURCE_TYPE_ICON",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "RESOURCE_TYPE_ICON",
     "labelDetails": {
       "description": "const integer"
     }
@@ -1197,316 +1214,199 @@
     }
   },
   {
-    "insertText": "IMPORT_STANDARD",
+    "insertText": "RESOURCE_TYPE_MENU",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "IMPORT_STANDARD",
+    "label": "RESOURCE_TYPE_MENU",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "IMPORT_DELAYED",
+    "insertText": "RESOURCE_TYPE_MESSAGETABLE",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "IMPORT_DELAYED",
+    "label": "RESOURCE_TYPE_MESSAGETABLE",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "IMPORT_ANY",
+    "insertText": "RESOURCE_TYPE_PLUGPLAY",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "IMPORT_ANY",
+    "label": "RESOURCE_TYPE_PLUGPLAY",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "RELOCS_STRIPPED",
+    "insertText": "RESOURCE_TYPE_RCDATA",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "RELOCS_STRIPPED",
+    "label": "RESOURCE_TYPE_RCDATA",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "EXECUTABLE_IMAGE",
+    "insertText": "RESOURCE_TYPE_STRING",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "EXECUTABLE_IMAGE",
+    "label": "RESOURCE_TYPE_STRING",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "LINE_NUMS_STRIPPED",
+    "insertText": "RESOURCE_TYPE_VERSION",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "LINE_NUMS_STRIPPED",
+    "label": "RESOURCE_TYPE_VERSION",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "LOCAL_SYMS_STRIPPED",
+    "insertText": "RESOURCE_TYPE_VXD",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "LOCAL_SYMS_STRIPPED",
+    "label": "RESOURCE_TYPE_VXD",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "AGGRESIVE_WS_TRIM",
+    "insertText": "SECTION_ALIGN_1024BYTES",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "AGGRESIVE_WS_TRIM",
+    "label": "SECTION_ALIGN_1024BYTES",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "LARGE_ADDRESS_AWARE",
+    "insertText": "SECTION_ALIGN_128BYTES",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "LARGE_ADDRESS_AWARE",
+    "label": "SECTION_ALIGN_128BYTES",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "BYTES_REVERSED_LO",
+    "insertText": "SECTION_ALIGN_16BYTES",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "BYTES_REVERSED_LO",
+    "label": "SECTION_ALIGN_16BYTES",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "MACHINE_32BIT",
+    "insertText": "SECTION_ALIGN_1BYTES",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "MACHINE_32BIT",
+    "label": "SECTION_ALIGN_1BYTES",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "DEBUG_STRIPPED",
+    "insertText": "SECTION_ALIGN_2048BYTES",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "DEBUG_STRIPPED",
+    "label": "SECTION_ALIGN_2048BYTES",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "REMOVABLE_RUN_FROM_SWAP",
+    "insertText": "SECTION_ALIGN_256BYTES",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "REMOVABLE_RUN_FROM_SWAP",
+    "label": "SECTION_ALIGN_256BYTES",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "NET_RUN_FROM_SWAP",
+    "insertText": "SECTION_ALIGN_2BYTES",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "NET_RUN_FROM_SWAP",
+    "label": "SECTION_ALIGN_2BYTES",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "SYSTEM",
+    "insertText": "SECTION_ALIGN_32BYTES",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "SYSTEM",
+    "label": "SECTION_ALIGN_32BYTES",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "DLL",
+    "insertText": "SECTION_ALIGN_4096BYTES",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "DLL",
+    "label": "SECTION_ALIGN_4096BYTES",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "UP_SYSTEM_ONLY",
+    "insertText": "SECTION_ALIGN_4BYTES",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "UP_SYSTEM_ONLY",
+    "label": "SECTION_ALIGN_4BYTES",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "BYTES_REVERSED_HI",
+    "insertText": "SECTION_ALIGN_512BYTES",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "BYTES_REVERSED_HI",
+    "label": "SECTION_ALIGN_512BYTES",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "IMAGE_DIRECTORY_ENTRY_EXPORT",
+    "insertText": "SECTION_ALIGN_64BYTES",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "IMAGE_DIRECTORY_ENTRY_EXPORT",
+    "label": "SECTION_ALIGN_64BYTES",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "IMAGE_DIRECTORY_ENTRY_IMPORT",
+    "insertText": "SECTION_ALIGN_8192BYTES",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "IMAGE_DIRECTORY_ENTRY_IMPORT",
+    "label": "SECTION_ALIGN_8192BYTES",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "IMAGE_DIRECTORY_ENTRY_RESOURCE",
+    "insertText": "SECTION_ALIGN_8BYTES",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "IMAGE_DIRECTORY_ENTRY_RESOURCE",
+    "label": "SECTION_ALIGN_8BYTES",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "IMAGE_DIRECTORY_ENTRY_EXCEPTION",
+    "insertText": "SECTION_ALIGN_MASK",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "IMAGE_DIRECTORY_ENTRY_EXCEPTION",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "IMAGE_DIRECTORY_ENTRY_SECURITY",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "IMAGE_DIRECTORY_ENTRY_SECURITY",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "IMAGE_DIRECTORY_ENTRY_BASERELOC",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "IMAGE_DIRECTORY_ENTRY_BASERELOC",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "IMAGE_DIRECTORY_ENTRY_DEBUG",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "IMAGE_DIRECTORY_ENTRY_DEBUG",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "IMAGE_DIRECTORY_ENTRY_COPYRIGHT",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "IMAGE_DIRECTORY_ENTRY_COPYRIGHT",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "IMAGE_DIRECTORY_ENTRY_ARCHITECTURE",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "IMAGE_DIRECTORY_ENTRY_ARCHITECTURE",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "IMAGE_DIRECTORY_ENTRY_GLOBALPTR",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "IMAGE_DIRECTORY_ENTRY_GLOBALPTR",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "IMAGE_DIRECTORY_ENTRY_TLS",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "IMAGE_DIRECTORY_ENTRY_TLS",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "IMAGE_DIRECTORY_ENTRY_IAT",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "IMAGE_DIRECTORY_ENTRY_IAT",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_NO_PAD",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_NO_PAD",
+    "label": "SECTION_ALIGN_MASK",
     "labelDetails": {
       "description": "const integer"
     }
@@ -1539,28 +1439,10 @@
     }
   },
   {
-    "insertText": "SECTION_LNK_OTHER",
+    "insertText": "SECTION_GPREL",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "SECTION_LNK_OTHER",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_LNK_INFO",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_LNK_INFO",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_LNK_REMOVE",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_LNK_REMOVE",
+    "label": "SECTION_GPREL",
     "labelDetails": {
       "description": "const integer"
     }
@@ -1575,154 +1457,10 @@
     }
   },
   {
-    "insertText": "SECTION_NO_DEFER_SPEC_EXC",
+    "insertText": "SECTION_LNK_INFO",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "SECTION_NO_DEFER_SPEC_EXC",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_GPREL",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_GPREL",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_ALIGN_1BYTES",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_ALIGN_1BYTES",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_ALIGN_2BYTES",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_ALIGN_2BYTES",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_ALIGN_4BYTES",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_ALIGN_4BYTES",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_ALIGN_8BYTES",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_ALIGN_8BYTES",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_ALIGN_16BYTES",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_ALIGN_16BYTES",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_ALIGN_32BYTES",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_ALIGN_32BYTES",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_ALIGN_64BYTES",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_ALIGN_64BYTES",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_ALIGN_128BYTES",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_ALIGN_128BYTES",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_ALIGN_256BYTES",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_ALIGN_256BYTES",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_ALIGN_512BYTES",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_ALIGN_512BYTES",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_ALIGN_1024BYTES",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_ALIGN_1024BYTES",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_ALIGN_2048BYTES",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_ALIGN_2048BYTES",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_ALIGN_4096BYTES",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_ALIGN_4096BYTES",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_ALIGN_8192BYTES",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_ALIGN_8192BYTES",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_ALIGN_MASK",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_ALIGN_MASK",
+    "label": "SECTION_LNK_INFO",
     "labelDetails": {
       "description": "const integer"
     }
@@ -1737,10 +1475,37 @@
     }
   },
   {
+    "insertText": "SECTION_LNK_OTHER",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "SECTION_LNK_OTHER",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "SECTION_LNK_REMOVE",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "SECTION_LNK_REMOVE",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
     "insertText": "SECTION_MEM_DISCARDABLE",
     "insertTextFormat": 2,
     "kind": 21,
     "label": "SECTION_MEM_DISCARDABLE",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "SECTION_MEM_EXECUTE",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "SECTION_MEM_EXECUTE",
     "labelDetails": {
       "description": "const integer"
     }
@@ -1764,28 +1529,19 @@
     }
   },
   {
-    "insertText": "SECTION_MEM_SHARED",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_MEM_SHARED",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
-    "insertText": "SECTION_MEM_EXECUTE",
-    "insertTextFormat": 2,
-    "kind": 21,
-    "label": "SECTION_MEM_EXECUTE",
-    "labelDetails": {
-      "description": "const integer"
-    }
-  },
-  {
     "insertText": "SECTION_MEM_READ",
     "insertTextFormat": 2,
     "kind": 21,
     "label": "SECTION_MEM_READ",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "SECTION_MEM_SHARED",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "SECTION_MEM_SHARED",
     "labelDetails": {
       "description": "const integer"
     }
@@ -1800,6 +1556,24 @@
     }
   },
   {
+    "insertText": "SECTION_NO_DEFER_SPEC_EXC",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "SECTION_NO_DEFER_SPEC_EXC",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "SECTION_NO_PAD",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "SECTION_NO_PAD",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
     "insertText": "SECTION_SCALE_INDEX",
     "insertTextFormat": 2,
     "kind": 21,
@@ -1809,91 +1583,136 @@
     }
   },
   {
-    "insertText": "HIGH_ENTROPY_VA",
+    "insertText": "SUBSYSTEM_EFI_APPLICATION",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "HIGH_ENTROPY_VA",
+    "label": "SUBSYSTEM_EFI_APPLICATION",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "DYNAMIC_BASE",
+    "insertText": "SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "DYNAMIC_BASE",
+    "label": "SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "FORCE_INTEGRITY",
+    "insertText": "SUBSYSTEM_EFI_ROM_IMAGE",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "FORCE_INTEGRITY",
+    "label": "SUBSYSTEM_EFI_ROM_IMAGE",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "NX_COMPAT",
+    "insertText": "SUBSYSTEM_EFI_RUNTIME_DRIVER",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "NX_COMPAT",
+    "label": "SUBSYSTEM_EFI_RUNTIME_DRIVER",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "NO_ISOLATION",
+    "insertText": "SUBSYSTEM_NATIVE",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "NO_ISOLATION",
+    "label": "SUBSYSTEM_NATIVE",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "NO_SEH",
+    "insertText": "SUBSYSTEM_NATIVE_WINDOWS",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "NO_SEH",
+    "label": "SUBSYSTEM_NATIVE_WINDOWS",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "NO_BIND",
+    "insertText": "SUBSYSTEM_OS2_CUI",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "NO_BIND",
+    "label": "SUBSYSTEM_OS2_CUI",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "APPCONTAINER",
+    "insertText": "SUBSYSTEM_POSIX_CUI",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "APPCONTAINER",
+    "label": "SUBSYSTEM_POSIX_CUI",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "WDM_DRIVER",
+    "insertText": "SUBSYSTEM_UNKNOWN",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "WDM_DRIVER",
+    "label": "SUBSYSTEM_UNKNOWN",
     "labelDetails": {
       "description": "const integer"
     }
   },
   {
-    "insertText": "GUARD_CF",
+    "insertText": "SUBSYSTEM_WINDOWS_BOOT_APPLICATION",
     "insertTextFormat": 2,
     "kind": 21,
-    "label": "GUARD_CF",
+    "label": "SUBSYSTEM_WINDOWS_BOOT_APPLICATION",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "SUBSYSTEM_WINDOWS_CE_GUI",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "SUBSYSTEM_WINDOWS_CE_GUI",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "SUBSYSTEM_WINDOWS_CUI",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "SUBSYSTEM_WINDOWS_CUI",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "SUBSYSTEM_WINDOWS_GUI",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "SUBSYSTEM_WINDOWS_GUI",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "SUBSYSTEM_XBOX",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "SUBSYSTEM_XBOX",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "SYSTEM",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "SYSTEM",
     "labelDetails": {
       "description": "const integer"
     }
@@ -1908,380 +1727,561 @@
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `calculate_checksum() -> integer`\n\n Returns the PE checksum, as calculated by YARA.\n\n This is useful for comparing with the checksum appearing in the PE header\n (pe.checksum) in order to verify if the actual checksum matches the one\n in the header."
-    },
-    "insertText": "calculate_checksum()",
+    "insertText": "UP_SYSTEM_ONLY",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "calculate_checksum()",
+    "kind": 21,
+    "label": "UP_SYSTEM_ONLY",
     "labelDetails": {
-      "description": "func()"
+      "description": "const integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `delayed_import_rva(dll_name: string, func_name: string) -> integer`\n\n Returns the RVA of a delayed import where the DLL name matches\n `dll_name` and the function name matches `func_name`.\n\n Both `dll_name` and `func_name` are case-insensitive."
-    },
-    "insertText": "delayed_import_rva(${1:dll_name}, ${2:func_name})",
+    "insertText": "WDM_DRIVER",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "delayed_import_rva(dll_name: string, func_name: string)",
+    "kind": 21,
+    "label": "WDM_DRIVER",
     "labelDetails": {
-      "description": "func()"
+      "description": "const integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `delayed_import_rva(dll_name: string, ordinal: integer) -> integer`\n\n Returns the RVA of an import where the DLL name matches\n `dll_name` and the ordinal number is `ordinal`.\n\n `dll_name` is case-insensitive."
-    },
-    "insertText": "delayed_import_rva(${1:dll_name}, ${2:ordinal})",
+    "insertText": "base_of_code",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "delayed_import_rva(dll_name: string, ordinal: integer)",
+    "kind": 5,
+    "label": "base_of_code",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `exports(func_name: regexp) -> bool`\n\n Returns true if the PE file exports a function with a name that matches\n the given regular expression."
-    },
-    "insertText": "exports(${1:func_name})",
+    "insertText": "base_of_data",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "exports(func_name: regexp)",
+    "kind": 5,
+    "label": "base_of_data",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `exports(func_name: string) -> bool`\n\n Returns true if the PE file exports a function with the given name."
-    },
-    "insertText": "exports(${1:func_name})",
+    "insertText": "characteristics",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "exports(func_name: string)",
+    "kind": 5,
+    "label": "characteristics",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `exports(ordinal: integer) -> bool`\n\n Returns true if the PE file exports a function with the given ordinal."
-    },
-    "insertText": "exports(${1:ordinal})",
+    "insertText": "checksum",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "exports(ordinal: integer)",
+    "kind": 5,
+    "label": "checksum",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `exports_index(func_name: regexp) -> integer`\n\n Returns true if the PE file exports a function with a name that matches\n the given regular expression."
-    },
-    "insertText": "exports_index(${1:func_name})",
+    "insertText": "data_directories[${1}]${2}",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "exports_index(func_name: regexp)",
+    "kind": 5,
+    "label": "data_directories",
     "labelDetails": {
-      "description": "func()"
+      "description": "array<struct>"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `exports_index(func_name: string) -> integer`\n\n Returns true if the PE file exports a function with the given name."
-    },
-    "insertText": "exports_index(${1:func_name})",
+    "insertText": "delayed_import_details[${1}]${2}",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "exports_index(func_name: string)",
+    "kind": 5,
+    "label": "delayed_import_details",
     "labelDetails": {
-      "description": "func()"
+      "description": "array<struct>"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `exports_index(ordinal: integer) -> integer`\n\n Returns true if the PE file exports a function with the given ordinal."
-    },
-    "insertText": "exports_index(${1:ordinal})",
+    "insertText": "dll_characteristics",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "exports_index(ordinal: integer)",
+    "kind": 5,
+    "label": "dll_characteristics",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `imphash() -> string`\n\n Returns the PE import hash.\n\n The import hash represents the MD5 checksum of the PE's import table\n following a normalization process. PE files sharing the same import hash\n import precisely identical functions from the same DLLs. This characteristic\n often signifies file similarity, despite not being byte-for-byte identical.\n For additional details, refer to:\n https://www.mandiant.com/resources/blog/tracking-malware-import-hashing\n\n The resulting hash string is consistently in lowercase."
-    },
-    "insertText": "imphash()",
+    "insertText": "dll_name",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "imphash()",
+    "kind": 5,
+    "label": "dll_name",
     "labelDetails": {
-      "description": "func()"
+      "description": "string"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `import_rva(dll_name: string, func_name: string) -> integer`\n\n Returns the RVA of an import where the DLL name matches\n `dll_name` and the function name matches `func_name`.\n\n Both `dll_name` and `func_name` are case-insensitive."
-    },
-    "insertText": "import_rva(${1:dll_name}, ${2:func_name})",
+    "insertText": "entry_point",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "import_rva(dll_name: string, func_name: string)",
+    "kind": 5,
+    "label": "entry_point",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `import_rva(dll_name: string, ordinal: integer) -> integer`\n\n Returns the RVA of an import where the DLL name matches\n `dll_name` and the ordinal number is `ordinal`.\n\n `dll_name` is case-insensitive."
-    },
-    "insertText": "import_rva(${1:dll_name}, ${2:ordinal})",
+    "insertText": "entry_point_raw",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "import_rva(dll_name: string, ordinal: integer)",
+    "kind": 5,
+    "label": "entry_point_raw",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `imports(dll_name: regexp, func_name: regexp) -> integer`\n\n Returns the number of imported functions where the function's name matches\n `func_name` and the DLL name matches `dll_name`.\n\n Both `dll_name` and `func_name` are case-sensitive unless you use the \"/i\"\n modifier in the regexp, as shown in the example below."
-    },
-    "insertText": "imports(${1:dll_name}, ${2:func_name})",
+    "insertText": "export_details[${1}]${2}",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "imports(dll_name: regexp, func_name: regexp)",
+    "kind": 5,
+    "label": "export_details",
     "labelDetails": {
-      "description": "func()"
+      "description": "array<struct>"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `imports(dll_name: string, func_name: string) -> bool`\n\n Returns true if the PE imports `func_name` from `dll_name`.\n\n Both `func_name` and `dll_name` are case-insensitive."
-    },
-    "insertText": "imports(${1:dll_name}, ${2:func_name})",
+    "insertText": "export_timestamp",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "imports(dll_name: string, func_name: string)",
+    "kind": 5,
+    "label": "export_timestamp",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `imports(dll_name: string, ordinal: integer) -> integer`\n\n Returns true if the PE imports `ordinal` from `dll_name`.\n\n `dll_name` is case-insensitive."
-    },
-    "insertText": "imports(${1:dll_name}, ${2:ordinal})",
+    "insertText": "file_alignment",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "imports(dll_name: string, ordinal: integer)",
+    "kind": 5,
+    "label": "file_alignment",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `imports(dll_name: string) -> integer`\n\n Returns the number of functions imported by the PE from `dll_name`.\n\n `dll_name` is case-insensitive."
-    },
-    "insertText": "imports(${1:dll_name})",
+    "insertText": "image_base",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "imports(dll_name: string)",
+    "kind": 5,
+    "label": "image_base",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `imports(import_flags: integer, dll_name: regexp, func_name: regexp) -> integer`\n\n Returns the number of imported functions where the function's name matches\n `func_name` and the DLL name matches `dll_name`.\n\n Both `dll_name` and `func_name` are case-sensitive unless you use the \"/i\"\n modifier in the regexp, as shown in the example below. See [`imports_dll`]\n for details about the `import_flags` argument."
-    },
-    "insertText": "imports(${1:import_flags}, ${2:dll_name}, ${3:func_name})",
+    "insertText": "image_version",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "imports(import_flags: integer, dll_name: regexp, func_name: regexp)",
+    "kind": 5,
+    "label": "image_version",
     "labelDetails": {
-      "description": "func()"
+      "description": "struct"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `imports(import_flags: integer, dll_name: string, func_name: string) -> bool`\n\n Returns true if the PE imports `func_name` from `dll_name`.\n\n Both `func_name` and `dll_name` are case-insensitive. See [`imports_dll`]\n for details about the `import_flags` argument."
-    },
-    "insertText": "imports(${1:import_flags}, ${2:dll_name}, ${3:func_name})",
+    "insertText": "import_details[${1}]${2}",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "imports(import_flags: integer, dll_name: string, func_name: string)",
+    "kind": 5,
+    "label": "import_details",
     "labelDetails": {
-      "description": "func()"
+      "description": "array<struct>"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `imports(import_flags: integer, dll_name: string, ordinal: integer) -> bool`\n\n Returns true if the PE imports `ordinal` from `dll_name`.\n\n `dll_name` is case-insensitive. See [`imports_dll`] for details about\n the `import_flags` argument."
-    },
-    "insertText": "imports(${1:import_flags}, ${2:dll_name}, ${3:ordinal})",
+    "insertText": "is_pe",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "imports(import_flags: integer, dll_name: string, ordinal: integer)",
+    "kind": 5,
+    "label": "is_pe",
     "labelDetails": {
-      "description": "func()"
+      "description": "bool"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `imports(import_flags: integer, dll_name: string) -> integer`\n\n Returns the number of functions imported by the PE from `dll_name`.\n\n `dll_name` is case-insensitive. `import_flags` specify the types of\n import which should be taken into account. This value can be composed\n by a bitwise OR of the following values:\n\n * `pe.IMPORT_STANDARD` : standard import only\n * `pe.IMPORT_DELAYED` : delayed imports only\n * `pe.IMPORT_ANY` : both standard and delayed imports"
-    },
-    "insertText": "imports(${1:import_flags}, ${2:dll_name})",
+    "insertText": "is_signed",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "imports(import_flags: integer, dll_name: string)",
+    "kind": 5,
+    "label": "is_signed",
     "labelDetails": {
-      "description": "func()"
+      "description": "bool"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `is_32bit() -> bool`\n\n Returns true if the file is a 32-bit PE."
-    },
-    "insertText": "is_32bit()",
+    "insertText": "linker_version",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "is_32bit()",
+    "kind": 5,
+    "label": "linker_version",
     "labelDetails": {
-      "description": "func()"
+      "description": "struct"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `is_64bit() -> bool`\n\n Returns true if the file is a 64-bit PE."
-    },
-    "insertText": "is_64bit()",
+    "insertText": "loader_flags",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "is_64bit()",
+    "kind": 5,
+    "label": "loader_flags",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `is_dll() -> bool`\n\n Returns true if the file is dynamic link library (DLL)"
-    },
-    "insertText": "is_dll()",
+    "insertText": "machine",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "is_dll()",
+    "kind": 5,
+    "label": "machine",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `language(lang: integer) -> bool`\n\n Returns true if the PE contains some resource with the specified language\n identifier.\n\n Language identifiers are the lowest 8-bit of locale identifiers and can\n be found here:\n https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/available-language-packs-for-windows?view=windows-11"
-    },
-    "insertText": "language(${1:lang})",
+    "insertText": "number_of_delayed_imported_functions",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "language(lang: integer)",
+    "kind": 5,
+    "label": "number_of_delayed_imported_functions",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `locale(loc: integer) -> bool`\n\n Returns true if the PE contains some resource with the specified locale\n identifier.\n\n Locale identifiers are 16-bit integers and can be found here:\n https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/available-language-packs-for-windows?view=windows-11"
-    },
-    "insertText": "locale(${1:loc})",
+    "insertText": "number_of_delayed_imports",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "locale(loc: integer)",
+    "kind": 5,
+    "label": "number_of_delayed_imports",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `offset_to_rva(offset: integer) -> integer`\n\n Convert a file offset to a relative virtual address (RVA)."
-    },
-    "insertText": "offset_to_rva(${1:offset})",
+    "insertText": "number_of_exports",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "offset_to_rva(offset: integer)",
+    "kind": 5,
+    "label": "number_of_exports",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `rva_to_offset(rva: integer) -> integer`\n\n Convert a relative virtual address (RVA) to a file offset."
-    },
-    "insertText": "rva_to_offset(${1:rva})",
+    "insertText": "number_of_imported_functions",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "rva_to_offset(rva: integer)",
+    "kind": 5,
+    "label": "number_of_imported_functions",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `section_index(name: string) -> integer`\n\n Returns the index in the section table of the first section with the given\n name."
-    },
-    "insertText": "section_index(${1:name})",
+    "insertText": "number_of_imports",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "section_index(name: string)",
+    "kind": 5,
+    "label": "number_of_imports",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
     }
   },
   {
-    "documentation": {
-      "kind": "markdown",
-      "value": "## `section_index(offset: integer) -> integer`\n\n Returns the index in the section table of the first section that contains\n the given file offset."
-    },
-    "insertText": "section_index(${1:offset})",
+    "insertText": "number_of_resources",
     "insertTextFormat": 2,
-    "kind": 2,
-    "label": "section_index(offset: integer)",
+    "kind": 5,
+    "label": "number_of_resources",
     "labelDetails": {
-      "description": "func()"
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "number_of_rva_and_sizes",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "number_of_rva_and_sizes",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "number_of_sections",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "number_of_sections",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "number_of_signatures",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "number_of_signatures",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "number_of_symbols",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "number_of_symbols",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "number_of_version_infos",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "number_of_version_infos",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "opthdr_magic",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "opthdr_magic",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "os_version",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "os_version",
+    "labelDetails": {
+      "description": "struct"
+    }
+  },
+  {
+    "insertText": "overlay",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "overlay",
+    "labelDetails": {
+      "description": "struct"
+    }
+  },
+  {
+    "insertText": "pdb_path",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "pdb_path",
+    "labelDetails": {
+      "description": "string"
+    }
+  },
+  {
+    "insertText": "pointer_to_symbol_table",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "pointer_to_symbol_table",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "resource_timestamp",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "resource_timestamp",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "resource_version",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "resource_version",
+    "labelDetails": {
+      "description": "struct"
+    }
+  },
+  {
+    "insertText": "resources[${1}]${2}",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "resources",
+    "labelDetails": {
+      "description": "array<struct>"
+    }
+  },
+  {
+    "insertText": "rich_signature",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "rich_signature",
+    "labelDetails": {
+      "description": "struct"
+    }
+  },
+  {
+    "insertText": "section_alignment",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "section_alignment",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "sections[${1}]${2}",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "sections",
+    "labelDetails": {
+      "description": "array<struct>"
+    }
+  },
+  {
+    "insertText": "signatures[${1}]${2}",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "signatures",
+    "labelDetails": {
+      "description": "array<struct>"
+    }
+  },
+  {
+    "insertText": "size_of_code",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "size_of_code",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "size_of_headers",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "size_of_headers",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "size_of_heap_commit",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "size_of_heap_commit",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "size_of_heap_reserve",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "size_of_heap_reserve",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "size_of_image",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "size_of_image",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "size_of_initialized_data",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "size_of_initialized_data",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "size_of_optional_header",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "size_of_optional_header",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "size_of_stack_commit",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "size_of_stack_commit",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "size_of_stack_reserve",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "size_of_stack_reserve",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "size_of_uninitialized_data",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "size_of_uninitialized_data",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "subsystem",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "subsystem",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "subsystem_version",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "subsystem_version",
+    "labelDetails": {
+      "description": "struct"
+    }
+  },
+  {
+    "insertText": "timestamp",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "timestamp",
+    "labelDetails": {
+      "description": "integer"
+    }
+  },
+  {
+    "insertText": "version_info",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "version_info",
+    "labelDetails": {
+      "description": "map<string,string>"
+    }
+  },
+  {
+    "insertText": "version_info_list[${1}]${2}",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "version_info_list",
+    "labelDetails": {
+      "description": "array<struct>"
+    }
+  },
+  {
+    "insertText": "win32_version_value",
+    "insertTextFormat": 2,
+    "kind": 5,
+    "label": "win32_version_value",
+    "labelDetails": {
+      "description": "integer"
     }
   }
 ]

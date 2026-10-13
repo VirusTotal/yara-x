@@ -11,7 +11,10 @@ use yara_x_parser::cst::{CST, Immutable, Node, SyntaxKind, Token};
 
 use crate::{
     documents::document::Document,
-    utils::cst_traversal::{get_includes, rule_from_ident, rule_usages},
+    utils::cst_traversal::{
+        get_includes, rule_from_ident, rule_from_ident_string, rule_ident,
+        rule_usages,
+    },
 };
 
 #[cfg(not(target_family = "wasm"))]
@@ -121,6 +124,38 @@ impl DocumentStorage {
     #[cfg(target_family = "wasm")]
     fn walk_workspace(&self) -> Option<impl Iterator<Item = Url>> {
         None::<std::iter::Empty<Url>>
+    }
+
+    /// Returns an iterator with all rule declaration nodes from the workspace.
+    pub fn workspace_rules(
+        &self,
+    ) -> Option<impl Iterator<Item = (Node<Immutable>, Url)>> {
+        Some(
+            self.walk_workspace()?
+                .filter_map(|url| {
+                    self.get_document_cst_root(&url).map(|root| (root, url))
+                })
+                .flat_map(|(root, url)| {
+                    root.children().filter_map(move |node| {
+                        if node.kind() == SyntaxKind::RULE_DECL {
+                            Some((node, url.clone()))
+                        } else {
+                            None
+                        }
+                    })
+                }),
+        )
+    }
+
+    /// This method tries to find rule declaration in document by given
+    /// `uri` and `name` of the rule.
+    pub fn workspace_resolve(
+        &self,
+        uri: &Url,
+        name: &str,
+    ) -> Option<Node<Immutable>> {
+        self.get_document_cst_root(uri)
+            .and_then(|root| rule_from_ident_string(&root, name))
     }
 
     /// Finds the definition of the rule with the given `ident`.
@@ -295,38 +330,27 @@ impl DocumentStorage {
     }
 
     /// This function collects all rules that were included from other
-    /// files as [`yara_x_parser::cst::Token`] and also stores its
-    /// relative path to the `base` URI of the origin document.
+    /// files as [`yara_x_parser::cst::Token`] along with the [`Url`] of
+    /// the document where each rule is defined.
     pub fn included_rules(
         &self,
         base_root: Node<Immutable>,
         base: &Url,
-    ) -> Vec<(String, Token<Immutable>)> {
+    ) -> Vec<(Url, Token<Immutable>)> {
         let mut includes = get_includes(&base_root, base);
         let mut accessed: HashSet<Url> = HashSet::new();
-        let mut rules: Vec<(String, Token<Immutable>)> = vec![];
+        let mut rules: Vec<(Url, Token<Immutable>)> = vec![];
 
         while let Some(included) = includes.pop() {
             if !accessed.contains(&included) {
                 if let Some(root) = self.get_document_cst_root(&included) {
                     includes.extend(get_includes(&root, &included));
 
-                    let relative_path =
-                        base.make_relative(&included).unwrap_or_default();
-
                     root.children()
                         .filter(|child| child.kind() == SyntaxKind::RULE_DECL)
                         .for_each(|rule_decl| {
-                            if let Some(ident) = rule_decl
-                                .children_with_tokens()
-                                .find(|node_or_token| {
-                                    node_or_token.kind() == SyntaxKind::IDENT
-                                })
-                                .and_then(|node_or_token| {
-                                    node_or_token.into_token()
-                                })
-                            {
-                                rules.push((relative_path.clone(), ident));
+                            if let Some(ident) = rule_ident(&rule_decl) {
+                                rules.push((included.clone(), ident));
                             }
                         });
                 }
@@ -506,7 +530,7 @@ mod tests {
 
         let included = storage.included_rules(root, &uri2);
         assert_eq!(included.len(), 1);
-        assert_eq!(included[0].0, "inc.yar");
+        assert_eq!(included[0].0, uri1);
         assert_eq!(included[0].1.text(), "inc_rule");
     }
 

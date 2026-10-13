@@ -504,10 +504,14 @@ pub const FIELD_DOCS: &[(&str, u64, &str)] = &[
     ("pe.SignerInfo", 5, "Certificate chain validating the signer."),
     ("pe.Version", 1, "Major version number."),
     ("pe.Version", 2, "Minor version number."),
+    #[cfg(feature = "test_proto2-module")]
     ("test_proto2.TestProto2", 350, "This field will be visible in YARA as `bool_yara` instead of `bool_proto`."),
+    #[cfg(feature = "test_proto2-module")]
     ("test_proto2.TestProto2", 351, "This field won't be visible to YARA."),
+    #[cfg(feature = "test_proto2-module")]
     ("test_proto2.TestProto2", 500, "This field is accessible only if the features \"foo\" (or \"FOO\") and \"bar\"
  are enabled while compiling the YARA rules."),
+    #[cfg(feature = "test_proto2-module")]
     ("test_proto2.TestProto2", 502, "The metadata received by the module is copied into this field."),
     ("vba.Vba", 1, "True if VBA macros are present"),
     ("vba.Vba", 2, "VBA macro modules found"),

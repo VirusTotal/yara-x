@@ -27,30 +27,6 @@
       },
       {
         "kind": 14,
-        "name": "version",
-        "range": {
-          "end": {
-            "character": 15,
-            "line": 3
-          },
-          "start": {
-            "character": 4,
-            "line": 3
-          }
-        },
-        "selectionRange": {
-          "end": {
-            "character": 15,
-            "line": 3
-          },
-          "start": {
-            "character": 4,
-            "line": 3
-          }
-        }
-      },
-      {
-        "kind": 14,
         "name": "description",
         "range": {
           "end": {
@@ -70,6 +46,30 @@
           "start": {
             "character": 4,
             "line": 4
+          }
+        }
+      },
+      {
+        "kind": 14,
+        "name": "version",
+        "range": {
+          "end": {
+            "character": 15,
+            "line": 3
+          },
+          "start": {
+            "character": 4,
+            "line": 3
+          }
+        },
+        "selectionRange": {
+          "end": {
+            "character": 15,
+            "line": 3
+          },
+          "start": {
+            "character": 4,
+            "line": 3
           }
         }
       },

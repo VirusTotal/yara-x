@@ -19,7 +19,7 @@ use async_lsp::lsp_types::DidChangeWatchedFilesParams;
 
 use async_lsp::lsp_types::{
     CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
-    CompletionOptions, CompletionParams, CompletionResponse,
+    CompletionItem, CompletionOptions, CompletionParams, CompletionResponse,
     ConfigurationItem, ConfigurationParams, DiagnosticOptions,
     DiagnosticServerCapabilities, DidChangeConfigurationParams,
     DidChangeTextDocumentParams, DidChangeWatchedFilesRegistrationOptions,
@@ -41,8 +41,10 @@ use async_lsp::lsp_types::{
     SignatureHelpOptions, SignatureHelpParams, TextDocumentSyncCapability,
     TextDocumentSyncKind, TextDocumentSyncOptions,
     TextDocumentSyncSaveOptions, TextEdit, Unregistration,
-    UnregistrationParams, Url, WatchKind, WorkspaceEdit,
-    WorkspaceFoldersServerCapabilities, WorkspaceServerCapabilities,
+    UnregistrationParams, Url, WatchKind, WorkDoneProgressOptions,
+    WorkspaceEdit, WorkspaceFoldersServerCapabilities,
+    WorkspaceServerCapabilities, WorkspaceSymbol, WorkspaceSymbolOptions,
+    WorkspaceSymbolParams, WorkspaceSymbolResponse,
 };
 use async_lsp::router::Router;
 use async_lsp::{ClientSocket, LanguageClient, LanguageServer, ResponseError};
@@ -52,7 +54,7 @@ use serde_json::{from_value, to_value};
 use crate::configuration::Config;
 use crate::documents::storage::DocumentStorage;
 use crate::features::code_action::code_actions;
-use crate::features::completion::completion;
+use crate::features::completion::{completion, resolve_completion};
 use crate::features::diagnostics::diagnostics;
 use crate::features::document_highlight::document_highlight;
 use crate::features::document_symbol::document_symbol;
@@ -67,6 +69,9 @@ use crate::features::semantic_tokens::{
     SEMANTIC_TOKEN_MODIFIERS, SEMANTIC_TOKEN_TYPES, semantic_tokens,
 };
 use crate::features::signature_help::signature_help;
+use crate::features::workspace_symbol::{
+    workspace_symbol, workspace_symbol_resolve,
+};
 
 macro_rules! in_thread {
     ($code:expr) => {{
@@ -101,6 +106,9 @@ struct ClientCapabilities {
     /// Flag indicating if the client supports `workspace/configuration`
     /// requests.
     support_config_requests: bool,
+    /// Whether a client can resolve additional information for Workspace
+    /// symbols, which in this case is the location of the symbol.
+    workspace_resolve_location: bool,
 }
 
 /// Represents a YARA language server.
@@ -160,7 +168,8 @@ impl LanguageServer for YARALanguageServer {
                             == Some(true)
                     });
 
-            // Check if client supportst the dynmiac registration of watched files change notifications.
+            // Check if client supportst the dynmiac registration of watched
+            // files change notifications.
             self.client_capabilities.dynamic_registration_watched_files =
                 workspace_client_capabilities
                     .did_change_watched_files
@@ -171,6 +180,19 @@ impl LanguageServer for YARALanguageServer {
                     });
             self.client_capabilities.support_config_requests =
                 workspace_client_capabilities.configuration == Some(true);
+
+            // Check if client can resolve additional information for
+            // Workspace symbols (location).
+            self.client_capabilities.workspace_resolve_location =
+                if let Some(symbol) = &workspace_client_capabilities.symbol
+                    && let Some(resolve_support) = &symbol.resolve_support
+                {
+                    resolve_support
+                        .properties
+                        .contains(&"location.range".to_string())
+                } else {
+                    false
+                };
         }
 
         if let Some(folder) = params
@@ -211,7 +233,7 @@ impl LanguageServer for YARALanguageServer {
                     references_provider: Some(OneOf::Left(true)),
                     document_formatting_provider: Some(OneOf::Left(true)),
                     completion_provider: Some(CompletionOptions {
-                        resolve_provider: Some(false),
+                        resolve_provider: Some(true),
                         trigger_characters: Some(vec![
                             ".".to_string(),
                             "!".to_string(),
@@ -254,6 +276,10 @@ impl LanguageServer for YARALanguageServer {
                         ..Default::default()
                     }),
                     inlay_hint_provider: Some(OneOf::Left(true)),
+                    workspace_symbol_provider: Some(OneOf::Right(WorkspaceSymbolOptions{
+                        resolve_provider: Some(true),
+                        work_done_progress_options: WorkDoneProgressOptions::default()
+                    })),
                     workspace: Some(WorkspaceServerCapabilities{
                         workspace_folders: Some(WorkspaceFoldersServerCapabilities{
                             supported: Some(true),
@@ -329,9 +355,10 @@ impl LanguageServer for YARALanguageServer {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
         let documents = Arc::clone(&self.documents);
+        let config = Arc::clone(&self.config);
 
         Box::pin(async move {
-            Ok(hover(documents, uri, position)
+            Ok(hover(documents, uri, position, &config.documentation)
                 .map(|contents| Hover { contents, range: None }))
         })
     }
@@ -412,6 +439,19 @@ impl LanguageServer for YARALanguageServer {
         Box::pin(async move {
             Ok(completion(documents, position, uri, context)
                 .map(CompletionResponse::Array))
+        })
+    }
+
+    /// This method resolves additional information for a completion item.
+    fn completion_item_resolve(
+        &mut self,
+        item: CompletionItem,
+    ) -> BoxFuture<'static, Result<CompletionItem, Self::Error>> {
+        let documents = Arc::clone(&self.documents);
+        let config = Arc::clone(&self.config);
+
+        Box::pin(async move {
+            Ok(resolve_completion(documents, &config.documentation, item))
         })
     }
 
@@ -605,6 +645,40 @@ impl LanguageServer for YARALanguageServer {
         let range = params.range;
 
         Box::pin(async move { Ok(inlay_hint(documents, uri, range)) })
+    }
+
+    /// This method is called to search for the rule declaration in the
+    /// entire workspace.
+    fn symbol(
+        &mut self,
+        params: WorkspaceSymbolParams,
+    ) -> BoxFuture<'static, Result<Option<WorkspaceSymbolResponse>, Self::Error>>
+    {
+        let documents = Arc::clone(&self.documents);
+        let workspace_resolve_location =
+            self.client_capabilities.workspace_resolve_location;
+
+        Box::pin(async move {
+            Ok(workspace_symbol(
+                documents,
+                workspace_resolve_location,
+                &params.query,
+            ))
+        })
+    }
+
+    /// This method is called to resolve additional information for ceratin
+    /// workspace symbol, when user chose one. In this case, the language
+    /// server will find the position of the rule declaration.
+    fn workspace_symbol_resolve(
+        &mut self,
+        params: WorkspaceSymbol,
+    ) -> BoxFuture<'static, Result<WorkspaceSymbol, Self::Error>> {
+        let documents = Arc::clone(&self.documents);
+
+        Box::pin(
+            async move { Ok(workspace_symbol_resolve(documents, params)) },
+        )
     }
 
     /// This method is called when a document is opened.
