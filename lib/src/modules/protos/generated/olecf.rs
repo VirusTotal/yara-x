@@ -201,7 +201,7 @@ pub struct Stream {
     // @@protoc_insertion_point(field:olecf.Stream.type)
     pub type_: ::std::option::Option<::protobuf::EnumOrUnknown<StreamType>>,
     // @@protoc_insertion_point(field:olecf.Stream.size)
-    pub size: ::std::option::Option<u64>,
+    pub size: ::std::option::Option<i64>,
     // special fields
     // @@protoc_insertion_point(special_field:olecf.Stream.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -276,9 +276,9 @@ impl Stream {
         self.type_ = ::std::option::Option::Some(::protobuf::EnumOrUnknown::new(v));
     }
 
-    // required uint64 size = 3;
+    // required int64 size = 3;
 
-    pub fn size(&self) -> u64 {
+    pub fn size(&self) -> i64 {
         self.size.unwrap_or(0)
     }
 
@@ -291,7 +291,7 @@ impl Stream {
     }
 
     // Param is passed by value, moved
-    pub fn set_size(&mut self, v: u64) {
+    pub fn set_size(&mut self, v: i64) {
         self.size = ::std::option::Option::Some(v);
     }
 
@@ -347,7 +347,7 @@ impl ::protobuf::Message for Stream {
                     self.type_ = ::std::option::Option::Some(is.read_enum_or_unknown()?);
                 },
                 24 => {
-                    self.size = ::std::option::Option::Some(is.read_uint64()?);
+                    self.size = ::std::option::Option::Some(is.read_int64()?);
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -368,7 +368,7 @@ impl ::protobuf::Message for Stream {
             my_size += ::protobuf::rt::int32_size(2, v.value());
         }
         if let Some(v) = self.size {
-            my_size += ::protobuf::rt::uint64_size(3, v);
+            my_size += ::protobuf::rt::int64_size(3, v);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
@@ -383,7 +383,7 @@ impl ::protobuf::Message for Stream {
             os.write_enum(2, ::protobuf::EnumOrUnknown::value(&v))?;
         }
         if let Some(v) = self.size {
-            os.write_uint64(3, v)?;
+            os.write_int64(3, v)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -518,7 +518,7 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x08is_olecf\x18\x01\x20\x02(\x08R\x07isOlecf\x12'\n\x07streams\x18\x02\
     \x20\x03(\x0b2\r.olecf.StreamR\x07streams\"W\n\x06Stream\x12\x12\n\x04na\
     me\x18\x01\x20\x02(\tR\x04name\x12%\n\x04type\x18\x02\x20\x02(\x0e2\x11.\
-    olecf.StreamTypeR\x04type\x12\x12\n\x04size\x18\x03\x20\x02(\x04R\x04siz\
+    olecf.StreamTypeR\x04type\x12\x12\n\x04size\x18\x03\x20\x02(\x03R\x04siz\
     e*<\n\nStreamType\x12\x0b\n\x07UNKNOWN\x10\0\x12\x0b\n\x07STORAGE\x10\
     \x01\x12\n\n\x06STREAM\x10\x02\x12\x08\n\x04ROOT\x10\x05B&\xfa\x92\x19\"\
     \n\x05olecf\x12\x0bolecf.Olecf\x1a\x0colecf-moduleb\x06proto2\

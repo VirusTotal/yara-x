@@ -10,7 +10,7 @@ option (yara.module_options) = {
 };
 
 message Foobar {
-    optional uint64 count = 1;
+    optional int64 count = 1;
     optional string label = 2;
     repeated string tags = 3;
 }
