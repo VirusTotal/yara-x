@@ -1,0 +1,5 @@
+error[E027]: invalid integer
+ --> line:3:5
+  |
+3 |     0x10000000000000000 == 0
+  |     ^^^^^^^^^^^^^^^^^^^ this number is out of the valid range: [-9223372036854775808, 18446744073709551615]

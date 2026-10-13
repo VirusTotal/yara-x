@@ -506,6 +506,19 @@ fn expr_from_ast<'src>(
         }
 
         ast::Expr::LiteralInteger(lit) => {
+            // Literals greater than `i64::MAX` are parsed as unsigned
+            // integers, which are not supported yet.
+            if lit.is_unsigned {
+                return Err(crate::compiler::errors::InvalidInteger::build(
+                    ctx.report_builder,
+                    format!(
+                        "this number is out of the valid range: [{}, {}]",
+                        i64::MIN,
+                        i64::MAX
+                    ),
+                    ctx.report_builder.span_to_code_loc(lit.span()),
+                ));
+            }
             ctx.ir.constant(TypeValue::const_signed_integer_from(lit.value))
         }
 
