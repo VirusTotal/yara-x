@@ -241,6 +241,21 @@ uint8(0) - 2            // signed (uint8 is promoted to a signed 64-bit integer)
 0xFFFFFFFFFFFFFFFF + 1  // compile error: overflows 64-bit unsigned integer
 ```
 
+While `uint64(0) + (-1)` is equivalent to `uint64(0) - 1`, in divisions and
+remainders converting a negative constant to unsigned does change the result.
+For instance, in `uint64(0) % -3` the `-3` is interpreted as
+`18446744073709551613`. The compiler emits a
+[`sign_conversion`](/docs/warnings/#sign_conversion) warning in such cases, and
+also for negative constants in tuples that contain unsigned integers, like
+`(0xFFFFFFFFFFFFFFFF, -5)`, where the loop variable is unsigned. The same
+warning is emitted for unsigned constants greater than `0x7FFFFFFFFFFFFFFF`
+passed to functions that expect signed integers, as they become negative.
+
+```yara
+uint64(0) % -3          // -3 is interpreted as 18446744073709551613 (emits warning)
+uint64(0) % 3           // no warning
+```
+
 ##### Shift operations (`<<`, `>>`)
 
 In shift operations, the result always has the **same signedness as the left

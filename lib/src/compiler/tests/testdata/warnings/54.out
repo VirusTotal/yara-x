@@ -1,0 +1,35 @@
+warning[sign_conversion]: implicit conversion changes signedness
+ --> line:5:17
+  |
+5 |     uint64(0) % -3 == 2
+  |                 -- this is converted to 18446744073709551613
+  |
+  = note: signed integers are converted to unsigned when mixed with unsigned integers
+warning[sign_conversion]: implicit conversion changes signedness
+  --> line:10:5
+   |
+10 |     -6 \ uint64(0) == 0
+   |     -- this is converted to 18446744073709551610
+   |
+   = note: signed integers are converted to unsigned when mixed with unsigned integers
+warning[sign_conversion]: implicit conversion changes signedness
+  --> line:15:21
+   |
+15 |     uint64(0) \ 2 \ -2 == 0
+   |                     -- this is converted to 18446744073709551614
+   |
+   = note: signed integers are converted to unsigned when mixed with unsigned integers
+warning[sign_conversion]: implicit conversion changes signedness
+  --> line:20:39
+   |
+20 |     for any x in (0xFFFFFFFFFFFFFFFF, -5) : (x == 1)
+   |                                       -- this is converted to 18446744073709551611
+   |
+   = note: signed integers are converted to unsigned when mixed with unsigned integers
+warning[sign_conversion]: implicit conversion changes signedness
+  --> line:25:20
+   |
+25 |     math.to_string(0xFFFFFFFFFFFFFFFF) == "-1"
+   |                    ------------------ this is converted to -1
+   |
+   = note: the function expects a signed integer
