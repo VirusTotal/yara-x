@@ -184,7 +184,7 @@ promoted to signed integers.
 0x7FFFFFFFFFFFFFFF  // signed integer (maximum signed 64-bit value)
 0x8000000000000000  // unsigned integer (too large for signed 64-bit)
 0xFFFFFFFFFFFFFFFF  // unsigned integer (maximum unsigned 64-bit value)
-uint32(0)           // signed integer (promoted, 0..4294967295 fits in signed 64-bit)
+uint32(0)           // promoted to signed integer (0..4294967295 fits in signed 64-bit)
 uint64(0)           // unsigned integer
 ```
 

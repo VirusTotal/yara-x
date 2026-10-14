@@ -27,8 +27,10 @@ fn test_proto2_module() {
     condition_true!(r#"test_proto2.int64_one * test_proto2.int64_one == 1"#);
     condition_true!(r#"test_proto2.int64_one - test_proto2.int64_one == 0"#);
 
-    // Fields of type uint32 are signed integers constrained to [0, u32::MAX],
-    // while fields of type uint64 are unsigned integers.
+    // Fields of type uint32 are never negative (their values are in the
+    // range [0, u32::MAX]), but they are promoted to signed 64-bit integers
+    // when used in operations, so `uint32_one - 2` is -1. Fields of type
+    // uint64 are unsigned integers, so `uint64_one - 2` wraps around.
     condition_true!(r#"test_proto2.uint32_zero == 0"#);
     condition_true!(r#"test_proto2.uint32_one == 1"#);
     condition_true!(r#"test_proto2.uint32_one > -1"#);

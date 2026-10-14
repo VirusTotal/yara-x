@@ -200,10 +200,14 @@ rule text_with_100_words {
 }
 ```
 
-Notice that `num_lines` and `num_words` are `int64` fields. Fields of type
-`int64`, `int32` and `uint32` are signed integers in YARA rules, while fields
-of type `uint64` are unsigned integers. Arithmetic with unsigned integers wraps
-around instead of producing negative numbers. For instance, if `num_words` were
+Notice that `num_lines` and `num_words` are `int64` fields. In YARA rules,
+fields of type `int64` and `int32` are signed integers. Fields of type `uint32`
+are never negative, but all their values fit in an `int64`, so they are promoted
+to `int64` when used in operations. For instance, if `num_words` were a `uint32`
+field equal to zero, `text.num_words - 1` would be `-1`. However, the values of
+`uint64` fields can exceed the maximum `int64` value (`0x7FFFFFFFFFFFFFFF`), so
+they can't be promoted, and they are unsigned integers. Arithmetic with unsigned
+integers wraps around instead of producing negative numbers. If `num_words` were
 a `uint64` field equal to zero, `text.num_words - 1` would be
 `0xFFFFFFFFFFFFFFFF` instead of `-1`, which is probably not what the author of
 the rule expects. For this reason, it's better to use `int64` for counts, sizes
