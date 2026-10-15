@@ -28,3 +28,22 @@ rule test_5 {
         test_proto2.string_foo matches /foo.bar/ or
         test_proto2.string_bar matches /bar.baz/
 }
+
+rule test_6 {
+    condition:
+        test_proto2.string_foo == "foo" or
+        test_proto2.string_foo == "bar"
+}
+
+rule test_7 {
+    condition:
+        test_proto2.string_foo == "foo" or
+        "bar" == test_proto2.string_foo or
+        test_proto2.string_foo iequals "baz" or
+        test_proto2.string_foo contains "qux" or
+        test_proto2.string_foo icontains "quux" or
+        test_proto2.string_foo startswith "corge" or
+        test_proto2.string_foo istartswith "grault" or
+        test_proto2.string_foo endswith "garply" or
+        test_proto2.string_foo iendswith "waldo"
+}

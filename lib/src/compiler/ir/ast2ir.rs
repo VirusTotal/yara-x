@@ -9,9 +9,10 @@ use std::num::NonZeroU32;
 use std::ops::{ControlFlow, RangeInclusive};
 use std::rc::Rc;
 
-use bstr::{BString, ByteSlice};
+use bstr::{BStr, BString, ByteSlice};
+use indexmap::IndexMap;
 use itertools::Itertools;
-use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
+use rustc_hash::{FxHashSet, FxHasher};
 use yara_x_parser::Span;
 use yara_x_parser::ast;
 use yara_x_parser::ast::WithSpan;
@@ -33,7 +34,7 @@ use crate::compiler::ir::{
 use crate::compiler::report::{Level, ReportBuilder};
 use crate::compiler::{
     CompileContext, CompileError, FilesizeBounds, ForVars, HeaderConstraint,
-    PatternIdx, RegexId, RegexSetId, TextPatternAsHex, warnings,
+    PatternIdx, RegexSetId, TextPatternAsHex, warnings,
 };
 use crate::errors::CustomError;
 use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
@@ -3040,44 +3041,220 @@ fn or_expr_from_ast<'src>(
         )?;
     }
 
-    // Group `matches` expressions by their left-side operand. All the `matches`
-    // expressions sharing the same left-side operand will be aggregated together
-    // into a MatchMany operation that matches the left-side operand against
-    // a set of regular expressions.
-    let mut matches_by_lhs: FxHashMap<u64, Vec<(usize, ExprId, RegexId)>> =
-        FxHashMap::default();
+    #[derive(Clone, Copy)]
+    enum MatchPattern {
+        Regexp(ExprId),
+        Literal {
+            expr: ExprId,
+            anchor_start: bool,
+            anchor_end: bool,
+            case_insensitive: bool,
+        },
+    }
+
+    let is_const_str = |expr: &Expr| {
+        matches!(expr, Expr::Const(TypeValue::String { value: Const(_), .. }))
+    };
+
+    // Group `matches` and string comparison expressions by their target
+    // operand. All expressions sharing the same target operand will be
+    // aggregated together into a `MatchesMany` operation that matches the
+    // operand against a set of regular expressions.
+    let mut matches_by_lhs: IndexMap<u64, Vec<(usize, ExprId, MatchPattern)>> =
+        IndexMap::default();
 
     for (i, &op) in or_operands.iter().enumerate() {
-        if let Expr::Matches { lhs, rhs } = ctx.ir.get(op)
-            && let Expr::Const(TypeValue::Regexp(Some(re))) = ctx.ir.get(*rhs)
-        {
+        let target_and_pattern = match ctx.ir.get(op) {
+            Expr::Matches { lhs, rhs }
+                if matches!(
+                    ctx.ir.get(*rhs),
+                    Expr::Const(TypeValue::Regexp(Some(_)))
+                ) =>
+            {
+                Some((*lhs, MatchPattern::Regexp(*rhs)))
+            }
+            Expr::Eq { lhs, rhs } => {
+                if is_const_str(ctx.ir.get(*rhs)) {
+                    Some((
+                        *lhs,
+                        MatchPattern::Literal {
+                            expr: *rhs,
+                            anchor_start: true,
+                            anchor_end: true,
+                            case_insensitive: false,
+                        },
+                    ))
+                } else if is_const_str(ctx.ir.get(*lhs)) {
+                    Some((
+                        *rhs,
+                        MatchPattern::Literal {
+                            expr: *lhs,
+                            anchor_start: true,
+                            anchor_end: true,
+                            case_insensitive: false,
+                        },
+                    ))
+                } else {
+                    None
+                }
+            }
+            Expr::IEquals { lhs, rhs } => {
+                if is_const_str(ctx.ir.get(*rhs)) {
+                    Some((
+                        *lhs,
+                        MatchPattern::Literal {
+                            expr: *rhs,
+                            anchor_start: true,
+                            anchor_end: true,
+                            case_insensitive: true,
+                        },
+                    ))
+                } else if is_const_str(ctx.ir.get(*lhs)) {
+                    Some((
+                        *rhs,
+                        MatchPattern::Literal {
+                            expr: *lhs,
+                            anchor_start: true,
+                            anchor_end: true,
+                            case_insensitive: true,
+                        },
+                    ))
+                } else {
+                    None
+                }
+            }
+            Expr::Contains { lhs, rhs } if is_const_str(ctx.ir.get(*rhs)) => {
+                Some((
+                    *lhs,
+                    MatchPattern::Literal {
+                        expr: *rhs,
+                        anchor_start: false,
+                        anchor_end: false,
+                        case_insensitive: false,
+                    },
+                ))
+            }
+            Expr::IContains { lhs, rhs } if is_const_str(ctx.ir.get(*rhs)) => {
+                Some((
+                    *lhs,
+                    MatchPattern::Literal {
+                        expr: *rhs,
+                        anchor_start: false,
+                        anchor_end: false,
+                        case_insensitive: true,
+                    },
+                ))
+            }
+            Expr::StartsWith { lhs, rhs }
+                if is_const_str(ctx.ir.get(*rhs)) =>
+            {
+                Some((
+                    *lhs,
+                    MatchPattern::Literal {
+                        expr: *rhs,
+                        anchor_start: true,
+                        anchor_end: false,
+                        case_insensitive: false,
+                    },
+                ))
+            }
+            Expr::IStartsWith { lhs, rhs }
+                if is_const_str(ctx.ir.get(*rhs)) =>
+            {
+                Some((
+                    *lhs,
+                    MatchPattern::Literal {
+                        expr: *rhs,
+                        anchor_start: true,
+                        anchor_end: false,
+                        case_insensitive: true,
+                    },
+                ))
+            }
+            Expr::EndsWith { lhs, rhs } if is_const_str(ctx.ir.get(*rhs)) => {
+                Some((
+                    *lhs,
+                    MatchPattern::Literal {
+                        expr: *rhs,
+                        anchor_start: false,
+                        anchor_end: true,
+                        case_insensitive: false,
+                    },
+                ))
+            }
+            Expr::IEndsWith { lhs, rhs } if is_const_str(ctx.ir.get(*rhs)) => {
+                Some((
+                    *lhs,
+                    MatchPattern::Literal {
+                        expr: *rhs,
+                        anchor_start: false,
+                        anchor_end: true,
+                        case_insensitive: true,
+                    },
+                ))
+            }
+            _ => None,
+        };
+
+        if let Some((lhs, pattern)) = target_and_pattern {
             let mut hasher = FxHasher::default();
-            for evt in ctx.ir.dfs_iter(*lhs) {
+            for evt in ctx.ir.dfs_iter(lhs) {
                 if let dfs::Event::Enter((_, expr, _)) = evt {
                     Hash::hash(expr, &mut hasher);
                 }
             }
             let lhs_expr_hash = hasher.finish();
-            let re_id = ctx.regex_pool.get_or_intern(re.as_str());
             matches_by_lhs
                 .entry(lhs_expr_hash)
                 .or_default()
-                .push((i, *lhs, re_id));
+                .push((i, lhs, pattern));
         }
     }
 
     // Collapse grouped regular expressions into `MatchesMany`. For any target
-    // expression associated with two or more regular expressions, construct a
-    // unified `RegexSet`, replace the individual `matches` nodes with a single
-    // `MatchesMany` expression, and record the collapsed indices.
+    // expression associated with two or more patterns, construct a unified
+    // `RegexSet`, replace the individual nodes with a single `MatchesMany`
+    // expression, and record the collapsed indices.
     let mut final_operands = Vec::new();
     let mut collapsed_indices = FxHashSet::default();
 
     for (_, group) in matches_by_lhs {
         if group.len() >= 2 {
             let set_id = RegexSetId::from(ctx.regex_sets.len() as i32);
-            let re_ids: Vec<_> =
-                group.iter().map(|&(_, _, re_id)| re_id).collect();
+            let re_ids: Vec<_> = group
+                .iter()
+                .map(|&(_, _, pattern)| match pattern {
+                    MatchPattern::Regexp(rhs) => {
+                        let Expr::Const(TypeValue::Regexp(Some(re))) =
+                            ctx.ir.get(rhs)
+                        else {
+                            unreachable!()
+                        };
+                        ctx.regex_pool.get_or_intern(re.as_str())
+                    }
+                    MatchPattern::Literal {
+                        expr,
+                        anchor_start,
+                        anchor_end,
+                        case_insensitive,
+                    } => {
+                        let Expr::Const(TypeValue::String {
+                            value: Const(s),
+                            ..
+                        }) = ctx.ir.get(expr)
+                        else {
+                            unreachable!()
+                        };
+                        let re = literal_to_regexp(
+                            s.as_bstr(),
+                            anchor_start,
+                            anchor_end,
+                            case_insensitive,
+                        );
+                        ctx.regex_pool.get_or_intern(&re)
+                    }
+                })
+                .collect();
             ctx.regex_sets.insert(set_id, re_ids);
 
             let first_lhs = group[0].1;
@@ -3113,6 +3290,69 @@ fn or_expr_from_ast<'src>(
             ctx.report_builder.span_to_code_loc(span),
         ),
     })
+}
+
+/// Converts a literal string into a YARA regular expression string (enclosed
+/// in `/`), optionally anchored at the start/end and optionally case-insensitive.
+fn literal_to_regexp(
+    literal: &BStr,
+    anchor_start: bool,
+    anchor_end: bool,
+    case_insensitive: bool,
+) -> String {
+    use std::fmt::Write;
+
+    let mut regexp = String::with_capacity(literal.len() * 2 + 8);
+    regexp.push('/');
+
+    if case_insensitive
+        && !literal.is_ascii()
+        && let Ok(utf8) = literal.to_str()
+    {
+        regexp.push_str("(?u)");
+        if anchor_start {
+            regexp.push_str(r"\A");
+        }
+        for c in utf8.chars() {
+            if c == '/' || c.is_ascii_control() {
+                write!(regexp, "\\x{:02x}", c as u32).unwrap();
+            } else if regex_syntax::is_meta_character(c) {
+                regexp.push('\\');
+                regexp.push(c);
+            } else {
+                regexp.push(c);
+            }
+        }
+        if anchor_end {
+            regexp.push_str(r"\z");
+        }
+        regexp.push_str("/i");
+        return regexp;
+    }
+
+    if anchor_start {
+        regexp.push_str(r"\A");
+    }
+
+    for &b in literal.as_bytes() {
+        if b.is_ascii_alphanumeric() || b == b'_' || b == b' ' {
+            regexp.push(b as char);
+        } else {
+            write!(regexp, "\\x{b:02x}").unwrap();
+        }
+    }
+
+    if anchor_end {
+        regexp.push_str(r"\z");
+    }
+
+    regexp.push('/');
+
+    if case_insensitive {
+        regexp.push('i');
+    }
+
+    regexp
 }
 
 fn minus_expr_from_ast<'src>(

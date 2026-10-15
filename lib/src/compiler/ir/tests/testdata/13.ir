@@ -43,3 +43,15 @@ RULE test_5
         6: SYMBOL Field { index: 37, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
       8: CONST regexp(Regexp("/bar.baz/"))
 
+RULE test_6
+  10: MATCHES_MANY RegexSetId(2) -- hash: 0x3c6728168e1bb284
+    2: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
+      0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+      1: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+
+RULE test_7
+  45: MATCHES_MANY RegexSetId(3) -- hash: 0x3c6728168e1bb284
+    2: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
+      0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+      1: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+
