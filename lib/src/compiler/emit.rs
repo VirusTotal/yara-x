@@ -856,7 +856,8 @@ fn emit_and(
                 None,
                 block,
                 |ctx, instr| {
-                    for (position, operand) in operands.iter().with_position() {
+                    for (position, operand) in operands.iter().with_position()
+                    {
                         emit_bool_expr(ctx, ir, *operand, instr);
                         // For all operands except the last one, check the result
                         // and exit early from the block if it is false.
@@ -1656,7 +1657,8 @@ fn emit_of_pattern_set(
                     let block_end = block.id();
                     block.block(None, |any_true_block| {
                         let any_true = any_true_block.id();
-                        for (position, range) in ranges.iter().with_position() {
+                        for (position, range) in ranges.iter().with_position()
+                        {
                             let start: i32 = (*range.start()).into();
                             let end: i32 = (*range.end()).into();
                             // If the range contains a single PatternId, invoke
@@ -1709,7 +1711,8 @@ fn emit_of_pattern_set(
                     let block_end = block.id();
                     block.block(None, |all_false_block| {
                         let all_false = all_false_block.id();
-                        for (position, range) in ranges.iter().with_position() {
+                        for (position, range) in ranges.iter().with_position()
+                        {
                             let start: i32 = (*range.start()).into();
                             let end: i32 = (*range.end()).into();
                             if end == start {
@@ -3303,7 +3306,10 @@ fn throw_undef(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
 
 /// Branches to the innermost exception handler if the `i32` at the top of the
 /// stack is non-zero. The innermost handler must have return type `None`.
-fn throw_undef_if_non_zero(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
+fn throw_undef_if_non_zero(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+) {
     let innermost_handler = ctx
         .exception_handler_stack
         .last_mut()
