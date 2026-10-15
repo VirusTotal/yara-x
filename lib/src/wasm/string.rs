@@ -3,7 +3,7 @@
 use bstr::{BStr, BString, ByteSlice, Utf8Error};
 use std::rc::Rc;
 
-use crate::compiler::LiteralId;
+use crate::compiler::{LiteralId, LiteralSetId};
 use crate::scanner::{
     RuntimeObject, RuntimeObjectHandle, ScanContext, ScanState,
 };
@@ -161,7 +161,7 @@ impl RuntimeString {
     pub fn as_bstr<'a>(&'a self, ctx: &'a ScanContext) -> &'a BStr {
         match self {
             Self::Literal(id) => {
-                ctx.compiled_rules.lit_pool().get(*id).unwrap()
+                ctx.compiled_rules.literal_pool().get(*id).unwrap()
             }
             Self::ScannedDataSlice { offset, length } => {
                 let data = ctx.scanned_data().unwrap();
@@ -346,6 +346,147 @@ impl RuntimeString {
             }
         } else {
             self.as_bstr(ctx).eq(other.as_bstr(ctx))
+        }
+    }
+
+    #[inline]
+    pub(crate) fn contains_many(
+        &self,
+        literal_set: LiteralSetId,
+        ctx: &ScanContext,
+        case_insensitive: bool,
+    ) -> bool {
+        let this = self.as_bstr(ctx);
+        let lit_pool = ctx.compiled_rules.literal_pool();
+        let literals = ctx.compiled_rules.get_literal_set(literal_set);
+
+        if case_insensitive {
+            let this_is_ascii = this.is_ascii();
+            let mut this_lower = None;
+
+            literals.iter().any(|&lit_id| {
+                let other = lit_pool.get(lit_id).unwrap();
+                if this_is_ascii && other.is_ascii() {
+                    contains_ascii_case_insensitive(
+                        this.as_bytes(),
+                        other.as_bytes(),
+                    )
+                } else {
+                    let this_lower =
+                        this_lower.get_or_insert_with(|| this.to_lowercase());
+                    this_lower.contains_str(other.to_lowercase())
+                }
+            })
+        } else {
+            literals.iter().any(|&lit_id| {
+                let other = lit_pool.get(lit_id).unwrap();
+                this.contains_str(other)
+            })
+        }
+    }
+
+    #[inline]
+    pub(crate) fn starts_with_many(
+        &self,
+        literal_set: LiteralSetId,
+        ctx: &ScanContext,
+        case_insensitive: bool,
+    ) -> bool {
+        let this = self.as_bstr(ctx);
+        let lit_pool = ctx.compiled_rules.literal_pool();
+        let literals = ctx.compiled_rules.get_literal_set(literal_set);
+
+        if case_insensitive {
+            let this_is_ascii = this.is_ascii();
+            let mut this_lower = None;
+
+            literals.iter().any(|&lit_id| {
+                let other = lit_pool.get(lit_id).unwrap();
+                if this_is_ascii && other.is_ascii() {
+                    starts_with_ascii_case_insensitive(
+                        this.as_bytes(),
+                        other.as_bytes(),
+                    )
+                } else {
+                    let this_lower =
+                        this_lower.get_or_insert_with(|| this.to_lowercase());
+                    this_lower.starts_with_str(other.to_lowercase())
+                }
+            })
+        } else {
+            literals.iter().any(|&lit_id| {
+                let other = lit_pool.get(lit_id).unwrap();
+                this.starts_with_str(other)
+            })
+        }
+    }
+
+    #[inline]
+    pub(crate) fn ends_with_many(
+        &self,
+        literal_set: LiteralSetId,
+        ctx: &ScanContext,
+        case_insensitive: bool,
+    ) -> bool {
+        let this = self.as_bstr(ctx);
+        let lit_pool = ctx.compiled_rules.literal_pool();
+        let literals = ctx.compiled_rules.get_literal_set(literal_set);
+
+        if case_insensitive {
+            let this_is_ascii = this.is_ascii();
+            let mut this_lower = None;
+
+            literals.iter().any(|&lit_id| {
+                let other = lit_pool.get(lit_id).unwrap();
+                if this_is_ascii && other.is_ascii() {
+                    ends_with_ascii_case_insensitive(
+                        this.as_bytes(),
+                        other.as_bytes(),
+                    )
+                } else {
+                    let this_lower =
+                        this_lower.get_or_insert_with(|| this.to_lowercase());
+                    this_lower.ends_with_str(other.to_lowercase())
+                }
+            })
+        } else {
+            literals.iter().any(|&lit_id| {
+                let other = lit_pool.get(lit_id).unwrap();
+                this.ends_with_str(other)
+            })
+        }
+    }
+
+    #[inline]
+    pub(crate) fn equals_many(
+        &self,
+        literal_set: LiteralSetId,
+        ctx: &ScanContext,
+        case_insensitive: bool,
+    ) -> bool {
+        let this = self.as_bstr(ctx);
+        let lit_pool = ctx.compiled_rules.literal_pool();
+        let literals = ctx.compiled_rules.get_literal_set(literal_set);
+
+        if case_insensitive {
+            let this_is_ascii = this.is_ascii();
+            let mut this_lower = None;
+
+            literals.iter().any(|&lit_id| {
+                let other = lit_pool.get(lit_id).unwrap();
+                if this_is_ascii && other.is_ascii() {
+                    this.as_bytes().eq_ignore_ascii_case(other.as_bytes())
+                } else {
+                    let this_lower =
+                        this_lower.get_or_insert_with(|| this.to_lowercase());
+                    this_lower == &other.to_lowercase()
+                }
+            })
+        } else {
+            literals.iter().any(|&lit_id| {
+                let other = lit_pool.get(lit_id).unwrap();
+                this.eq(other)
+            })
         }
     }
 }

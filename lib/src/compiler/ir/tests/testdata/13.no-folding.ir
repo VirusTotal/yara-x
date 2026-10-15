@@ -1,57 +1,86 @@
 RULE test_1
-  5: CONTAINS -- hash: 0x1667f67a2195103e
-    2: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
+  5: CONTAINS -- hash: 0xdc03ce768142f957
+    2: FIELD_ACCESS -- hash: 0xae4777d2d39452d7
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
       1: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
     4: CONST string("foobar")
 
 RULE test_2
-  5: ICONTAINS -- hash: 0x26e1c5d1543c285e
-    2: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
+  5: ICONTAINS -- hash: 0xec7d9dcdb7ea1177
+    2: FIELD_ACCESS -- hash: 0xae4777d2d39452d7
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
       1: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
     4: CONST string("foobar")
 
 RULE test_3
-  16: OR -- hash: 0x916f24695c46d386
-    15: MATCHES_MANY RegexSetId(0) -- hash: 0x3c6728168e1bb284
-      7: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
+  16: OR -- hash: 0x4ad979741f3c45f5
+    15: MATCHES_MANY RegexSetId(0) -- hash: 0x60b024e56f1733df
+      7: FIELD_ACCESS -- hash: 0xae4777d2d39452d7
         5: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
         6: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
-    4: EQ -- hash: 0x6549687ba39f0f6c
-      2: FIELD_ACCESS -- hash: 0xcfb0ade44793171f
+    4: EQ -- hash: 0xb19fc52c832f35ca
+      2: FIELD_ACCESS -- hash: 0xf3f9aab3248e987a
         0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
         1: SYMBOL Field { index: 1, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
       3: CONST integer(0)
 
 RULE test_4
-  10: MATCHES_MANY RegexSetId(1) -- hash: 0x3c6728168e1bb284
-    2: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
+  10: MATCHES_MANY RegexSetId(1) -- hash: 0x60b024e56f1733df
+    2: FIELD_ACCESS -- hash: 0xae4777d2d39452d7
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
       1: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
 
 RULE test_5
-  10: OR -- hash: 0xfeb4b1bf60fcf99b
-    4: MATCHES -- hash: 0x35e51c8f076b9967
-      2: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
+  10: OR -- hash: 0xc6709ab4a35e8906
+    4: MATCHES -- hash: 0xfb80f48b67198280
+      2: FIELD_ACCESS -- hash: 0xae4777d2d39452d7
         0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
         1: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
       3: CONST regexp(Regexp("/foo.bar/"))
-    9: MATCHES -- hash: 0xa5e68ffc5e5da100
-      7: FIELD_ACCESS -- hash: 0x3edc21ca56e97069
+    9: MATCHES -- hash: 0x6b8267f8be0b8a1a
+      7: FIELD_ACCESS -- hash: 0x63251e9937e4f1c4
         5: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
         6: SYMBOL Field { index: 37, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
       8: CONST regexp(Regexp("/bar.baz/"))
 
 RULE test_6
-  10: MATCHES_MANY RegexSetId(2) -- hash: 0x3c6728168e1bb284
-    2: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
+  10: EQ_MANY LiteralSetId(0) -- hash: 0xea927d0f51c8d808
+    2: FIELD_ACCESS -- hash: 0xae4777d2d39452d7
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
       1: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
 
 RULE test_7
-  45: MATCHES_MANY RegexSetId(3) -- hash: 0x3c6728168e1bb284
-    2: FIELD_ACCESS -- hash: 0x89fe7b03f298d17c
-      0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
-      1: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+  88: OR -- hash: 0xdd793418c15b1736
+    80: EQ_MANY LiteralSetId(1) -- hash: 0xea927d0f51c8d808
+      2: FIELD_ACCESS -- hash: 0xae4777d2d39452d7
+        0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+        1: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+    81: IEQUALS_MANY LiteralSetId(2) -- hash: 0x7474d539347a7c32
+      12: FIELD_ACCESS -- hash: 0xae4777d2d39452d7
+        10: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+        11: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+    82: CONTAINS_MANY LiteralSetId(3) -- hash: 0xfe572d631b2c205b
+      22: FIELD_ACCESS -- hash: 0xae4777d2d39452d7
+        20: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+        21: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+    83: ICONTAINS_MANY LiteralSetId(4) -- hash: 0x8839858cfdddc485
+      32: FIELD_ACCESS -- hash: 0xae4777d2d39452d7
+        30: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+        31: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+    84: STARTS_WITH_MANY LiteralSetId(5) -- hash: 0x121bddb6e08f68af
+      42: FIELD_ACCESS -- hash: 0xae4777d2d39452d7
+        40: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+        41: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+    85: ISTARTS_WITH_MANY LiteralSetId(6) -- hash: 0x9bfe35e0c7410cd8
+      52: FIELD_ACCESS -- hash: 0xae4777d2d39452d7
+        50: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+        51: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+    86: ENDS_WITH_MANY LiteralSetId(7) -- hash: 0x25e08e0aa9f2b102
+      62: FIELD_ACCESS -- hash: 0xae4777d2d39452d7
+        60: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+        61: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+    87: IENDS_WITH_MANY LiteralSetId(8) -- hash: 0xafc2e6348ca4552b
+      72: FIELD_ACCESS -- hash: 0xae4777d2d39452d7
+        70: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+        71: SYMBOL Field { index: 36, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
 

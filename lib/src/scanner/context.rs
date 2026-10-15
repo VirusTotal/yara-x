@@ -943,7 +943,7 @@ impl ScanContext<'_, '_> {
             | SubPattern::LiteralChainTail { pattern, flags, .. } => {
                 let pattern = self
                     .compiled_rules
-                    .lit_pool()
+                    .literal_pool()
                     .get_bytes(*pattern)
                     .unwrap();
 
@@ -962,12 +962,15 @@ impl ScanContext<'_, '_> {
             SubPattern::LiteralWithMask { pattern, mask, flags } => {
                 let pattern = self
                     .compiled_rules
-                    .lit_pool()
+                    .literal_pool()
                     .get_bytes(*pattern)
                     .unwrap();
 
-                let mask =
-                    self.compiled_rules.lit_pool().get_bytes(*mask).unwrap();
+                let mask = self
+                    .compiled_rules
+                    .literal_pool()
+                    .get_bytes(*mask)
+                    .unwrap();
 
                 debug_assert_eq!(pattern.len(), mask.len());
 
@@ -1015,7 +1018,7 @@ impl ScanContext<'_, '_> {
             SubPattern::Xor { pattern, flags } => {
                 let pattern = self
                     .compiled_rules
-                    .lit_pool()
+                    .literal_pool()
                     .get_bytes(*pattern)
                     .unwrap();
 
@@ -1039,7 +1042,7 @@ impl ScanContext<'_, '_> {
             | SubPattern::Base64Wide { pattern, padding } => {
                 if let Some(match_range) = verify_base64(
                     self.compiled_rules
-                        .lit_pool()
+                        .literal_pool()
                         .get_bytes(*pattern)
                         .unwrap(),
                     data,
@@ -1068,7 +1071,7 @@ impl ScanContext<'_, '_> {
                     alphabet_id,
                     || {
                         let alphabet = compiled_rules
-                            .lit_pool()
+                            .literal_pool()
                             .get_str(*alphabet)
                             .unwrap();
                         let alphabet =
@@ -1082,7 +1085,7 @@ impl ScanContext<'_, '_> {
 
                 if let Some(match_range) = verify_base64(
                     self.compiled_rules
-                        .lit_pool()
+                        .literal_pool()
                         .get_bytes(*pattern)
                         .unwrap(),
                     data,
@@ -1237,7 +1240,7 @@ impl ScanContext<'_, '_> {
                     if let (offset, false) = offset.overflowing_sub(base) {
                         let pattern = self
                             .compiled_rules
-                            .lit_pool()
+                            .literal_pool()
                             .get_bytes(*pattern)
                             .unwrap();
 

@@ -40,10 +40,17 @@ rule test_7 {
         test_proto2.string_foo == "foo" or
         "bar" == test_proto2.string_foo or
         test_proto2.string_foo iequals "baz" or
-        test_proto2.string_foo contains "qux" or
-        test_proto2.string_foo icontains "quux" or
-        test_proto2.string_foo startswith "corge" or
-        test_proto2.string_foo istartswith "grault" or
-        test_proto2.string_foo endswith "garply" or
-        test_proto2.string_foo iendswith "waldo"
+        "qux" iequals test_proto2.string_foo or
+        test_proto2.string_foo contains "quux" or
+        test_proto2.string_foo contains "corge" or
+        test_proto2.string_foo icontains "grault" or
+        test_proto2.string_foo icontains "garply" or
+        test_proto2.string_foo startswith "waldo" or
+        test_proto2.string_foo startswith "fred" or
+        test_proto2.string_foo istartswith "plugh" or
+        test_proto2.string_foo istartswith "xyzzy" or
+        test_proto2.string_foo endswith "thud" or
+        test_proto2.string_foo endswith "wibble" or
+        test_proto2.string_foo iendswith "wobble" or
+        test_proto2.string_foo iendswith "wubble"
 }

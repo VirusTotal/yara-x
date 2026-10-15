@@ -1,6 +1,6 @@
 RULE test
-  12: MATCHES_MANY RegexSetId(0) -- hash: 0xbbaa6b89a3026997
-    3: FN_CALL hash.md5@offset:i64,size:i64@s:N32:Lu -- hash: 0x8717cf2bb401dc77
+  12: EQ_MANY LiteralSetId(0) -- hash: 0x6889e33a56988a21
+    3: FN_CALL hash.md5@offset:i64,size:i64@s:N32:Lu -- hash: 0xf0349ca7d4ea8d18
       1: CONST integer(0)
       2: FILESIZE
 

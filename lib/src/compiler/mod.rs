@@ -364,7 +364,7 @@ pub struct Compiler<'a> {
     /// capable of storing [`bstr::BString`] must be used, the [`String`] type
     /// only accepts valid UTF-8. This pool also stores the atoms extracted
     /// from patterns.
-    lit_pool: BStringPool<LiteralId>,
+    literal_pool: BStringPool<LiteralId>,
 
     /// Intermediate representation (IR) tree for condition of the rule that
     /// is currently being compiled. After compiling each rule the tree is
@@ -476,6 +476,9 @@ pub struct Compiler<'a> {
     /// Grouped RegexSets constructed during IR creation for or-expressions.
     regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
 
+    /// Grouped LiteralSets constructed during IR creation for or-expressions.
+    literal_sets: FxHashMap<LiteralSetId, Vec<LiteralId>>,
+
     /// Constraints on filesize and header associated with each rule. A
     /// [`RuleId`] is an index in this vector.
     rule_constraints: Vec<(FilesizeBounds, HeaderConstraint)>,
@@ -565,7 +568,7 @@ impl<'a> Compiler<'a> {
             rules_depending_on_unsupported_modules: FxHashMap::default(),
             root_struct: Struct::new().make_root(),
             report_builder: ReportBuilder::new(),
-            lit_pool: BStringPool::new(),
+            literal_pool: BStringPool::new(),
             regex_pool: StringPool::new(),
             patterns: FxHashMap::default(),
             ir_writer: None,
@@ -574,6 +577,7 @@ impl<'a> Compiler<'a> {
             includes_enabled: true,
             include_stack: Vec::new(),
             regex_sets: FxHashMap::default(),
+            literal_sets: FxHashMap::default(),
             rule_constraints: Vec::new(),
         }
     }
@@ -875,7 +879,7 @@ impl<'a> Compiler<'a> {
                     num_patterns: this.next_pattern_id.0 as usize,
                     ident_pool: this.ident_pool,
                     regex_pool: this.regex_pool,
-                    lit_pool: this.lit_pool,
+                    literal_pool: this.literal_pool,
                     imported_modules: this.imported_modules,
                     rules: this.rules,
                     sub_patterns: this.sub_patterns,
@@ -886,6 +890,7 @@ impl<'a> Compiler<'a> {
                     filesize_bounds,
                     header_constraints,
                     regex_sets: this.regex_sets,
+                    literal_sets: this.literal_sets,
                     fast_scan_max_matches: this.fast_scan_max_matches,
                     rules_profiling_enabled: cfg!(feature = "rules-profiling"),
                 },
@@ -1283,7 +1288,7 @@ impl Compiler<'_> {
         } else {
             literal
         };
-        self.lit_pool.get_or_intern(literal_bytes)
+        self.literal_pool.get_or_intern(literal_bytes)
     }
 
     /// Takes a snapshot of the compiler's state at this moment.
@@ -1633,10 +1638,10 @@ impl Compiler<'_> {
             ast::MetaValue::Float((f, _)) => MetaValue::Float(*f),
             ast::MetaValue::Bool((b, _)) => MetaValue::Bool(*b),
             ast::MetaValue::String((s, _)) => {
-                MetaValue::String(self.lit_pool.get_or_intern(s))
+                MetaValue::String(self.literal_pool.get_or_intern(s))
             }
             ast::MetaValue::Bytes((s, _)) => {
-                MetaValue::Bytes(self.lit_pool.get_or_intern(s))
+                MetaValue::Bytes(self.literal_pool.get_or_intern(s))
             }
         };
 
@@ -1671,6 +1676,8 @@ impl Compiler<'_> {
             loop_iteration_multiplier: 1,
             regex_sets: &mut self.regex_sets,
             regex_pool: &mut self.regex_pool,
+            literal_sets: &mut self.literal_sets,
+            literal_pool: &mut self.literal_pool,
         };
 
         // Convert the patterns from AST to IR. This populates the
@@ -2040,7 +2047,7 @@ impl Compiler<'_> {
         // will remain in the WASM module.
         let mut ctx = EmitContext {
             current_rule: self.rules.last_mut().unwrap(),
-            lit_pool: &mut self.lit_pool,
+            lit_pool: &mut self.literal_pool,
             regex_pool: &mut self.regex_pool,
             wasm_symbols: &self.wasm_symbols,
             wasm_exports: &self.wasm_exports,
@@ -2187,7 +2194,7 @@ impl Compiler<'_> {
         }
 
         for (main_pattern, best_atom, flags) in main_patterns {
-            let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
+            let pattern_lit_id = self.literal_pool.get_or_intern(main_pattern);
 
             if pattern.flags.contains(PatternFlags::Xor) {
                 // When `xor` is used, `base64`, `base64wide` and `nocase` are
@@ -2249,7 +2256,7 @@ impl Compiler<'_> {
                             SubPattern::CustomBase64 {
                                 pattern: pattern_lit_id,
                                 alphabet: self
-                                    .lit_pool
+                                    .literal_pool
                                     .get_or_intern(alphabet),
                                 padding,
                             }
@@ -2288,7 +2295,7 @@ impl Compiler<'_> {
                             SubPattern::CustomBase64Wide {
                                 pattern: pattern_lit_id,
                                 alphabet: self
-                                    .lit_pool
+                                    .literal_pool
                                     .get_or_intern(alphabet),
                                 padding,
                             }
@@ -2470,7 +2477,7 @@ impl Compiler<'_> {
                 self.intern_literal(literal.0.as_bytes(), wide);
 
             let best_atom = best_atom_in_bytes(
-                self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
+                self.literal_pool.get_bytes(pattern_lit_id).unwrap(),
             );
 
             let flags =
@@ -2801,7 +2808,7 @@ impl Compiler<'_> {
             pattern_id,
             SubPattern::LiteralChainHead { pattern: pattern_lit_id, flags },
             extract_atoms(
-                self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
+                self.literal_pool.get_bytes(pattern_lit_id).unwrap(),
                 flags,
             ),
             SubPatternAtom::from_atom,
@@ -2829,7 +2836,7 @@ impl Compiler<'_> {
                 flags,
             },
             extract_atoms(
-                self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
+                self.literal_pool.get_bytes(pattern_lit_id).unwrap(),
                 flags,
             ),
             SubPatternAtom::from_atom,
@@ -3030,6 +3037,36 @@ impl From<RegexSetId> for usize {
 impl From<RegexSetId> for i32 {
     #[inline]
     fn from(value: RegexSetId) -> Self {
+        value.0
+    }
+}
+
+/// ID associated to each grouped `LiteralSet`.
+///
+/// When compiling rules, identical string expressions are frequently compared
+/// against multiple distinct string literals within an `or` condition. The
+/// compiler groups these literals into a `LiteralSetId` so the target string
+/// expression is evaluated once and compared against the set.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub(crate) struct LiteralSetId(i32);
+
+impl From<i32> for LiteralSetId {
+    #[inline]
+    fn from(value: i32) -> Self {
+        Self(value)
+    }
+}
+
+impl From<LiteralSetId> for usize {
+    #[inline]
+    fn from(value: LiteralSetId) -> Self {
+        value.0 as usize
+    }
+}
+
+impl From<LiteralSetId> for i32 {
+    #[inline]
+    fn from(value: LiteralSetId) -> Self {
         value.0
     }
 }

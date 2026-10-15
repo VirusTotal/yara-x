@@ -303,7 +303,15 @@ pub(super) fn dfs_common(
             stack.push(Event::Enter((*lhs, EventContext::None)));
         }
 
-        Expr::MatchesMany { lhs, .. } => {
+        Expr::MatchesMany { lhs, .. }
+        | Expr::EqMany { lhs, .. }
+        | Expr::IEqualsMany { lhs, .. }
+        | Expr::ContainsMany { lhs, .. }
+        | Expr::IContainsMany { lhs, .. }
+        | Expr::StartsWithMany { lhs, .. }
+        | Expr::IStartsWithMany { lhs, .. }
+        | Expr::EndsWithMany { lhs, .. }
+        | Expr::IEndsWithMany { lhs, .. } => {
             stack.push(Event::Enter((*lhs, EventContext::None)));
         }
 

@@ -142,7 +142,7 @@ fn replace_child() {
         MatchAnchor, OfExprTuple, OfPatternSet, Quantifier, Range, With,
     };
     use crate::compiler::context::Var;
-    use crate::compiler::{ExprId, PatternIdx, RegexSetId};
+    use crate::compiler::{ExprId, LiteralSetId, PatternIdx, RegexSetId};
     use crate::types::{FuncSignature, MangledFnName, Type};
 
     let c1 = ExprId::from(1);
@@ -249,11 +249,51 @@ fn replace_child() {
     expr.replace_child(c2, repl);
     assert!(matches!(expr, Expr::Eq { lhs, rhs } if lhs == c1 && rhs == repl));
 
-    // MatchesMany
+    // MatchesMany and *Many string operations
     let mut expr =
         Expr::MatchesMany { lhs: c1, regex_set: RegexSetId::from(0) };
     expr.replace_child(c1, repl);
     assert!(matches!(expr, Expr::MatchesMany { lhs, .. } if lhs == repl));
+
+    let mut expr =
+        Expr::EqMany { lhs: c1, literal_set: LiteralSetId::from(0) };
+    expr.replace_child(c1, repl);
+    assert!(matches!(expr, Expr::EqMany { lhs, .. } if lhs == repl));
+
+    let mut expr =
+        Expr::IEqualsMany { lhs: c1, literal_set: LiteralSetId::from(0) };
+    expr.replace_child(c1, repl);
+    assert!(matches!(expr, Expr::IEqualsMany { lhs, .. } if lhs == repl));
+
+    let mut expr =
+        Expr::ContainsMany { lhs: c1, literal_set: LiteralSetId::from(0) };
+    expr.replace_child(c1, repl);
+    assert!(matches!(expr, Expr::ContainsMany { lhs, .. } if lhs == repl));
+
+    let mut expr =
+        Expr::IContainsMany { lhs: c1, literal_set: LiteralSetId::from(0) };
+    expr.replace_child(c1, repl);
+    assert!(matches!(expr, Expr::IContainsMany { lhs, .. } if lhs == repl));
+
+    let mut expr =
+        Expr::StartsWithMany { lhs: c1, literal_set: LiteralSetId::from(0) };
+    expr.replace_child(c1, repl);
+    assert!(matches!(expr, Expr::StartsWithMany { lhs, .. } if lhs == repl));
+
+    let mut expr =
+        Expr::IStartsWithMany { lhs: c1, literal_set: LiteralSetId::from(0) };
+    expr.replace_child(c1, repl);
+    assert!(matches!(expr, Expr::IStartsWithMany { lhs, .. } if lhs == repl));
+
+    let mut expr =
+        Expr::EndsWithMany { lhs: c1, literal_set: LiteralSetId::from(0) };
+    expr.replace_child(c1, repl);
+    assert!(matches!(expr, Expr::EndsWithMany { lhs, .. } if lhs == repl));
+
+    let mut expr =
+        Expr::IEndsWithMany { lhs: c1, literal_set: LiteralSetId::from(0) };
+    expr.replace_child(c1, repl);
+    assert!(matches!(expr, Expr::IEndsWithMany { lhs, .. } if lhs == repl));
 
     // PatternMatch (Anchor At/In)
     let mut expr = Expr::PatternMatch {

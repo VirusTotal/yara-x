@@ -1609,6 +1609,32 @@ gen_str_op_fn!(str_istartswith, starts_with, true);
 gen_str_op_fn!(str_iendswith, ends_with, true);
 gen_str_op_fn!(str_iequals, equals, true);
 
+macro_rules! gen_str_op_many_fn {
+    ($name:ident, $op:tt, $case_insensitive:literal) => {
+        #[wasm_export(sync = "none")]
+        pub(crate) fn $name(
+            caller: &mut Caller<'_, ScanContext>,
+            lhs: RuntimeString,
+            literal_set: i32,
+        ) -> bool {
+            lhs.$op(
+                crate::compiler::LiteralSetId::from(literal_set),
+                caller.data(),
+                $case_insensitive,
+            )
+        }
+    };
+}
+
+gen_str_op_many_fn!(str_eq_many, equals_many, false);
+gen_str_op_many_fn!(str_iequals_many, equals_many, true);
+gen_str_op_many_fn!(str_contains_many, contains_many, false);
+gen_str_op_many_fn!(str_icontains_many, contains_many, true);
+gen_str_op_many_fn!(str_startswith_many, starts_with_many, false);
+gen_str_op_many_fn!(str_istartswith_many, starts_with_many, true);
+gen_str_op_many_fn!(str_endswith_many, ends_with_many, false);
+gen_str_op_many_fn!(str_iendswith_many, ends_with_many, true);
+
 #[wasm_export(sync = "none")]
 pub(crate) fn str_len(
     caller: &mut Caller<'_, ScanContext>,
