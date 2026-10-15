@@ -200,11 +200,14 @@ macro_rules! emit_bitwise_op {
     }};
 }
 
+/// Function that generates the `catch` block of exception handlers.
+type Catch = dyn Fn(&mut EmitContext, &mut InstrSeqBuilder);
+
 pub(crate) struct ExceptionHandler {
     /// ID of the block to jump out of when an exception occurs.
     block_id: InstrSeqId,
     /// Closure executed before jumping out of `block_id`.
-    catch: Box<dyn Fn(&mut EmitContext, &mut InstrSeqBuilder)>,
+    catch: Box<Catch>,
     /// True if `throw_undef` or `throw_undef_if_non_zero` was called for this
     /// handler.
     used: bool,
