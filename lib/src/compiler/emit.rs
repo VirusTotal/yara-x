@@ -2669,7 +2669,7 @@ fn emit_with(
 ///
 /// ```text
 /// i32.wrap_i64                        ;; convert the i64 at the top of the
-///                                     ;; to i32.
+///                                     ;; stack to i32.
 /// local.set $tmp                      ;; store the i32 value in $tmp
 /// block (result i64)                  ;; block @1
 ///   block                             ;; block @2
@@ -2677,31 +2677,25 @@ fn emit_with(
 ///       block                         ;; block @4
 ///         block                       ;; block @5
 ///           local.get $tmp            ;; put $tmp at the top of the stack
-///           ;; Look for the i32 at the top of the stack, and depending on its
-///           ;; value jumps out of some block...
+///           ;; Look for the i32 at the top of the stack (selector), and
+///           ;; depending on its value jumps out of some block...
 ///           br_table
 ///                1 (;@4;)   ;; selector == 0 -> jump out of block @4
 ///                2 (;@3;)   ;; selector == 1 -> jump out of block @3
-///                4 (;@2;)   ;; selector == 2 -> jump out of block @2
+///                3 (;@2;)   ;; selector == 2 -> jump out of block @2
 ///                0 (;@5;)   ;; default       -> jump out of block @5
 ///
 ///         end                         ;; block @5
 ///         unreachable                 ;; if this point is reached is because
 ///                                     ;; the switch selector is out of range
 ///       end                           ;; block @4
-///       block (result i64)
-///         ;; < code expr 0 goes here >
-///       end
+///       ;; < code expr 0 goes here >
 ///       br 2 (;@1;)                   ;; exits block @1
 ///     end                             ;; block @3
-///     block (result i64)
-///       ;; < code expr 1 goes here >
-///     end
+///     ;; < code expr 1 goes here >
 ///     br 1 (;@1;)                     ;; exits block @1
 ///   end                               ;; block @2
-///   block (result i64)
-///     ;; < code expr 2 goes here >
-///   end
+///   ;; < code expr 2 goes here >
 /// end                                 ;; block @1
 ///                                     ;; at this point the i64 returned by the
 ///                                     ;; selected expression is at the top of
@@ -2716,7 +2710,7 @@ fn emit_switch<F>(
     F: FnMut(&mut EmitContext, &mut InstrSeqBuilder) -> bool,
 {
     // Convert the i64 at the top of the stack to an i32, which is the type
-    // expected by the `bt_table` instruction.
+    // expected by the `br_table` instruction.
     instr.unop(UnaryOp::I32WrapI64);
 
     // Store the i32 switch selector in a temp variable. The selector is the i32
@@ -2724,6 +2718,8 @@ fn emit_switch<F>(
     // executed.
     instr.local_set(ctx.wasm_symbols.i32_tmp);
 
+    // First, call `branch_generator` repeatedly to emit the instructions for
+    // each branch into temporary instruction sequences.
     let mut branch_exprs = VecDeque::new();
     let mut branch_expr = instr.dangling_instr_seq(None);
 
@@ -2732,41 +2728,66 @@ fn emit_switch<F>(
         branch_expr = instr.dangling_instr_seq(None);
     }
 
-    // The switch statement returns a value of type `ty`.
+    // In WebAssembly, `br_table` jumps to the *end* of a target block. To
+    // implement a switch statement, we nest one block per branch (`@1`..`@4`
+    // in the diagram above) with `br_table` at the deepest level, and place
+    // each branch's code right after the `end` of its corresponding block.
+    //
+    // Because each block wraps the previous one, we build the structure from
+    // the inside out:
+    //
+    // `outermost_block` is `block @1` in the diagram. It wraps the entire
+    // switch statement and has return type `ty` (the type of the value left on
+    // the stack by whichever branch is executed).
     let outermost_block = instr.dangling_instr_seq(ty);
     let outermost_block_id = outermost_block.id();
 
+    // `switch_block` is `block @4` in the diagram. It is the innermost branch
+    // block: jumping out of `switch_block` lands immediately before the code
+    // for branch 0 (`expr 0`).
     let switch_block = instr.dangling_instr_seq(None);
     let switch_block_id = switch_block.id();
 
-    // These are the block IDs for the `br_table` instruction.
+    // `block_ids` collects the target blocks for `br_table` in selector order:
+    // `block_ids[0]` is `block @4` (for selector == 0), `block_ids[1]` is
+    // `block @3` (for selector == 1), and so on.
     let mut block_ids = Vec::with_capacity(branch_exprs.len());
 
     let mut block_id = switch_block_id;
 
     block_ids.push(block_id);
 
+    // Pop the last branch (`expr 2` in the diagram) so we can handle it
+    // separately at the end: since it sits at the end of `outermost_block`
+    // (`block @1`), it doesn't need a `br` instruction to exit the switch.
     let last_branch = branch_exprs.pop_back().unwrap();
 
-    // Iterate over the branches of the switch statement except the last one.
-    // The last branch is handled slightly differently because its code is put
-    // directly in the outermost block.
+    // Wrap each of the remaining branches (`expr 0`, `expr 1`, ...) in its
+    // own enclosing block (`block @3`, `block @2`, ...) from the inside out.
     while let Some(expr_seq_id) = branch_exprs.pop_front() {
         let mut expr_instrs =
             mem::take(instr.instr_seq(expr_seq_id).instrs_mut());
         let mut branch = instr.dangling_instr_seq(None);
-        // This is the block that contains all the previous branches
+        // Embed the inner block (`block @4` on the first iteration, `block @3`
+        // on the second, etc.). When `br_table` jumps out of that inner block,
+        // execution resumes right after this instruction.
         branch.instr(walrus::ir::Block { seq: block_id });
-        // Emit the instructions for the current branch directly without
-        // wrapping them in a separate `block`.
+        // Append the instructions for the current branch directly after the
+        // inner block's `end`.
         branch.instrs_mut().append(&mut expr_instrs);
-        // The instruction that goes out of the switch statement
-        // after each branch (think of `break` statements in a C switch).
+        // Jump out of `outermost_block` (`block @1`), leaving the branch's
+        // result on the stack (like a `break` in a C switch statement).
         branch.br(outermost_block_id);
+        // This enclosing block becomes the inner block for the next iteration,
+        // and is also the `br_table` target for the next selector value.
         block_id = branch.id();
         block_ids.push(block_id);
     }
 
+    // Populate `switch_block` (`block @4`) with `block @5`, which contains
+    // the `br_table` dispatch. If the selector is out of range, `br_table`
+    // jumps to the default target (`block @5` itself) and traps on
+    // `unreachable`.
     instr
         .instr_seq(switch_block_id)
         .block(None, |block| {
@@ -2775,6 +2796,10 @@ fn emit_switch<F>(
         })
         .unreachable();
 
+    // Finally, assemble `outermost_block` (`block @1`): it contains the
+    // outermost branch wrapper (`block @2`), followed by the instructions for
+    // the last branch (`expr 2`), which naturally fall through to the end of
+    // `outermost_block`.
     let mut last_branch_instrs =
         mem::take(instr.instr_seq(last_branch).instrs_mut());
 
@@ -3243,8 +3268,7 @@ fn catch_undef(
     if handler.used {
         instr.instr(walrus::ir::Block { seq: block_id });
     } else {
-        let mut block_instrs =
-            mem::take(instr.instr_seq(block_id).instrs_mut());
+        let mut block_instrs = mem::take(block.instrs_mut());
         instr.instrs_mut().append(&mut block_instrs);
     }
 
