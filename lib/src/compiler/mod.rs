@@ -823,8 +823,78 @@ impl<'a> Compiler<'a> {
     /// This function consumes the compiler and returns an instance of
     /// [`Rules`].
     pub fn build(self) -> Rules {
+        // Move `self` into an inner scope so that all compiler-only fields
+        // (such as `report_builder`, `symbol_table`, `global_symbols`, `ir`,
+        // `wasm_exports`, `rule_constraints`, `root_struct`, `patterns`, etc.)
+        // are dropped when `this` goes out of scope at the end of this block,
+        // before emitting and compiling the WASM module. This helps reduce
+        // peak memory usage during builds.
+        let (mut rules, wasm_mod) = {
+            let this = self;
+
+            // The structure that contains the global variables is serialized before
+            // being passed to the `Rules` struct. This is because we want `Rules`
+            // to be `Send`, so that it can be shared with scanners running in
+            // different threads. In order for `Rules` to be `Send`, it can't
+            // contain fields that are not `Send`. As `Struct` is not `Send` we
+            // can't have a `Struct` field in `Rules`, so what we have a `Vec<u8>`
+            // with a serialized version of the struct.
+            //
+            // An alternative is changing the `Rc` in some variants of `TypeValue`
+            // to `Arc`, as the root cause that prevents `Struct` from being `Send`
+            // is the use of `Rc` in `TypeValue`.
+            let serialized_globals = bincode::serde::encode_to_vec(
+                this.root_struct,
+                bincode::config::standard().with_variable_int_encoding(),
+            )
+            .expect("failed to serialize global variables");
+
+            let mut filesize_bounds = FxHashMap::default();
+            let mut header_constraints = FxHashMap::default();
+
+            for (pattern, pattern_id) in this.patterns {
+                if !pattern.filesize_bounds().unbounded() {
+                    filesize_bounds
+                        .insert(pattern_id, pattern.filesize_bounds().clone());
+                }
+                if !pattern.header_constraints().unconstrained() {
+                    header_constraints.insert(
+                        pattern_id,
+                        pattern.header_constraints().clone(),
+                    );
+                }
+            }
+
+            (
+                Rules {
+                    serialized_globals,
+                    wasm_mod: Vec::new(),
+                    compiled_wasm_mod: None,
+                    relaxed_re_syntax: this.relaxed_re_syntax,
+                    ac: AhoCorasick::default(),
+                    num_patterns: this.next_pattern_id.0 as usize,
+                    ident_pool: this.ident_pool,
+                    regex_pool: this.regex_pool,
+                    lit_pool: this.lit_pool,
+                    imported_modules: this.imported_modules,
+                    rules: this.rules,
+                    sub_patterns: this.sub_patterns,
+                    anchored_sub_patterns: this.anchored_sub_patterns,
+                    atoms: this.atoms,
+                    re_code: this.re_code,
+                    warnings: this.warnings.into(),
+                    filesize_bounds,
+                    header_constraints,
+                    regex_sets: this.regex_sets,
+                    fast_scan_max_matches: this.fast_scan_max_matches,
+                    rules_profiling_enabled: cfg!(feature = "rules-profiling"),
+                },
+                this.wasm_mod,
+            )
+        };
+
         // Finish building the WASM module.
-        let wasm_mod = self.wasm_mod.build().emit_wasm();
+        rules.wasm_mod = wasm_mod.build().emit_wasm();
 
         #[cfg(feature = "logging")]
         let start = Instant::now();
@@ -833,69 +903,16 @@ impl<'a> Compiler<'a> {
         // if the WASM code is invalid, which should not happen as the code is
         // emitted by YARA itself. If this ever happens is probably because
         // wrong WASM code is being emitted.
-        let compiled_wasm_mod = wasm::runtime::Module::from_binary(
-            wasm::get_engine(),
-            wasm_mod.as_slice(),
-        )
-        .expect("WASM module is not valid");
+        rules.compiled_wasm_mod = Some(
+            wasm::runtime::Module::from_binary(
+                wasm::get_engine(),
+                rules.wasm_mod.as_slice(),
+            )
+            .expect("WASM module is not valid"),
+        );
 
         #[cfg(feature = "logging")]
         info!("WASM module build time: {:?}", Instant::elapsed(&start));
-
-        // The structure that contains the global variables is serialized before
-        // being passed to the `Rules` struct. This is because we want `Rules`
-        // to be `Send`, so that it can be shared with scanners running in
-        // different threads. In order for `Rules` to be `Send`, it can't
-        // contain fields that are not `Send`. As `Struct` is not `Send` we
-        // can't have a `Struct` field in `Rules`, so what we have a `Vec<u8>`
-        // with a serialized version of the struct.
-        //
-        // An alternative is changing the `Rc` in some variants of `TypeValue`
-        // to `Arc`, as the root cause that prevents `Struct` from being `Send`
-        // is the use of `Rc` in `TypeValue`.
-        let serialized_globals = bincode::serde::encode_to_vec(
-            &self.root_struct,
-            bincode::config::standard().with_variable_int_encoding(),
-        )
-        .expect("failed to serialize global variables");
-
-        let mut filesize_bounds = FxHashMap::default();
-        let mut header_constraints = FxHashMap::default();
-
-        for (pattern, pattern_id) in self.patterns {
-            if !pattern.filesize_bounds().unbounded() {
-                filesize_bounds
-                    .insert(pattern_id, pattern.filesize_bounds().clone());
-            }
-            if !pattern.header_constraints().unconstrained() {
-                header_constraints
-                    .insert(pattern_id, pattern.header_constraints().clone());
-            }
-        }
-
-        let mut rules = Rules {
-            serialized_globals,
-            wasm_mod,
-            compiled_wasm_mod: Some(compiled_wasm_mod),
-            relaxed_re_syntax: self.relaxed_re_syntax,
-            ac: AhoCorasick::default(),
-            num_patterns: self.next_pattern_id.0 as usize,
-            ident_pool: self.ident_pool,
-            regex_pool: self.regex_pool,
-            lit_pool: self.lit_pool,
-            imported_modules: self.imported_modules,
-            rules: self.rules,
-            sub_patterns: self.sub_patterns,
-            anchored_sub_patterns: self.anchored_sub_patterns,
-            atoms: self.atoms,
-            re_code: self.re_code,
-            warnings: self.warnings.into(),
-            filesize_bounds,
-            header_constraints,
-            regex_sets: self.regex_sets,
-            fast_scan_max_matches: self.fast_scan_max_matches,
-            rules_profiling_enabled: cfg!(feature = "rules-profiling"),
-        };
 
         rules.build_ac_automaton();
         rules
