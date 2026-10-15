@@ -2045,6 +2045,7 @@ impl Compiler<'_> {
             wasm_symbols: &self.wasm_symbols,
             wasm_exports: &self.wasm_exports,
             exception_handler_stack: Vec::new(),
+            vars_with_undef: Vec::new(),
             lookup_list: Vec::new(),
             emit_search_for_pattern_stack: Vec::new(),
         };

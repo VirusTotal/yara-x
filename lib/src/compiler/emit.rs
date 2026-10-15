@@ -7,7 +7,7 @@ expressions or language constructs.
  */
 
 use std::collections::VecDeque;
-use std::mem::size_of;
+use std::mem::{self, size_of};
 use std::ops::RangeInclusive;
 use std::rc::Rc;
 
@@ -172,8 +172,9 @@ macro_rules! emit_shift_op {
                 //  else
                 //     push 0
                 //
-                $instr.local_set($ctx.wasm_symbols.i64_tmp_b);
-                $instr.local_set($ctx.wasm_symbols.i64_tmp_a);
+                $instr.local_tee($ctx.wasm_symbols.i64_tmp_b);
+                $instr.binop(BinaryOp::$int_op);
+                $instr.i64_const(0);
                 $instr.local_get($ctx.wasm_symbols.i64_tmp_b);
                 $instr.i64_const(64);
                 // If the shift amount is unsigned, it must be compared as
@@ -183,17 +184,7 @@ macro_rules! emit_shift_op {
                 } else {
                     $instr.binop(BinaryOp::I64LtS);
                 }
-                $instr.if_else(
-                    I64,
-                    |then_| {
-                        then_.local_get($ctx.wasm_symbols.i64_tmp_a);
-                        then_.local_get($ctx.wasm_symbols.i64_tmp_b);
-                        then_.binop(BinaryOp::$int_op);
-                    },
-                    |else_| {
-                        else_.i64_const(0);
-                    },
-                )
+                $instr.select(None)
             }
             _ => unreachable!(),
         };
@@ -209,7 +200,18 @@ macro_rules! emit_bitwise_op {
     }};
 }
 
-type ExceptionHandler = Box<dyn Fn(&mut EmitContext, &mut InstrSeqBuilder)>;
+/// Function that generates the `catch` block of exception handlers.
+type Catch = dyn Fn(&mut EmitContext, &mut InstrSeqBuilder);
+
+pub(crate) struct ExceptionHandler {
+    /// ID of the block to jump out of when an exception occurs.
+    block_id: InstrSeqId,
+    /// Closure executed before jumping out of `block_id`.
+    catch: Box<Catch>,
+    /// True if `throw_undef` or `throw_undef_if_non_zero` was called for this
+    /// handler.
+    used: bool,
+}
 
 /// Structure that contains information used while emitting the code that
 /// corresponds to the condition of a YARA rule.
@@ -231,9 +233,11 @@ pub(crate) struct EmitContext<'a> {
     pub lit_pool: &'a mut BStringPool<LiteralId>,
 
     /// Stack of installed exception handlers for catching undefined values.
-    /// When an exception occurs the execution flow will jump out of the block
-    /// identified by `InstrSeqId`.
-    pub exception_handler_stack: Vec<(InstrSeqId, ExceptionHandler)>,
+    pub exception_handler_stack: Vec<ExceptionHandler>,
+
+    /// Variables currently in scope whose initializer may have thrown an
+    /// undefined value exception.
+    pub(crate) vars_with_undef: Vec<Var>,
 
     /// Controls whether [emit_lazy_call_to_search_for_patterns] needs to emit
     /// code or not.
@@ -358,14 +362,13 @@ fn emit_expr(
             instr.binop(BinaryOp::I64LtS);
             // Is filesize < 0?
             instr.if_else(
-                I64,
+                None,
                 // If yes, filesize is undefined
                 |then_| throw_undef(ctx, then_),
-                // Otherwise return its value
-                |else_| {
-                    else_.local_get(tmp);
-                },
+                |_| {},
             );
+            // Otherwise return its value
+            instr.local_get(tmp);
         }
 
         Expr::Symbol(symbol) => {
@@ -813,49 +816,64 @@ fn emit_and(
     operands: &[ExprId],
     instr: &mut InstrSeqBuilder,
 ) {
+    if operands.len() == 1 {
+        catch_undef(
+            ctx,
+            I32,
+            instr,
+            |ctx, instr| {
+                emit_bool_expr(ctx, ir, operands[0], instr);
+            },
+            |_, instr| {
+                instr.i32_const(0);
+            },
+        );
+        return;
+    }
+
     // The `and` expression is emitted as:
     //
-    //  try {
-    //    result = first_operand()
-    //    if !result {
-    //      push false
-    //      exit from try
-    //    }
-    //    result = second_operand()
-    //    if !result {
-    //      push false
-    //      exit from try
-    //    }
-    //    ...
-    //    push last_operand()
-    //  }
-    //  catch undefined {
-    //    push false
-    //  }
-    catch_undef(
-        ctx,
-        I32,
-        instr,
-        |ctx, instr| {
-            let block_id = instr.id();
-            for (position, operand) in operands.iter().with_position() {
-                emit_bool_expr(ctx, ir, *operand, instr);
-                // For all operands except the last one, check the result
-                // and exit early from the block if it is false.
-                if !position.is_last {
-                    instr.if_else(
-                        None,
-                        |_| {},
-                        |else_| {
-                            else_.i32_const(0);
-                            else_.br(block_id);
-                        },
-                    );
-                }
-            }
-        },
-        |_, instr| {
-            instr.i32_const(0); // push false
+    // block $and_end (result i32) {
+    //   try {
+    //     result = first_operand()
+    //     if !result {
+    //       exit from try
+    //     }
+    //     result = second_operand()
+    //     if !result {
+    //       exit from try
+    //     }
+    //     ...
+    //     push last_operand()
+    //     br $and_end
+    //   } catch undefined {
+    //   }
+    //   push false
+    // }
+    instr.block(
+        I32, // the block returns a bool
+        |block| {
+            let and_end = block.id();
+            catch_undef(
+                ctx,
+                None,
+                block,
+                |ctx, instr| {
+                    for (position, operand) in operands.iter().with_position()
+                    {
+                        emit_bool_expr(ctx, ir, *operand, instr);
+                        // For all operands except the last one, check the result
+                        // and exit early from the block if it is false.
+                        if !position.is_last {
+                            instr.unop(UnaryOp::I32Eqz);
+                            throw_undef_if_non_zero(ctx, instr);
+                        }
+                    }
+                    instr.br(and_end);
+                },
+                |_, _| {},
+            );
+            block.i32_const(0); // push false
         },
     );
 }
@@ -867,64 +885,63 @@ fn emit_or(
     operands: &[ExprId],
     instr: &mut InstrSeqBuilder,
 ) {
+    if operands.len() == 1 {
+        catch_undef(
+            ctx,
+            I32,
+            instr,
+            |ctx, instr| {
+                emit_bool_expr(ctx, ir, operands[0], instr);
+            },
+            |_, instr| {
+                instr.i32_const(0);
+            },
+        );
+        return;
+    }
+
     // The `or` expression is emitted as:
     //
-    // block {
-    //   try {
-    //     result = first_operand()
-    //   } catch undefined {
-    //     result = false
+    // block $or_end (result i32) {
+    //   block $or_true {
+    //     try {
+    //       if first_operand() {
+    //         br $or_true
+    //       }
+    //     } catch undefined {}
+    //     try {
+    //       if second_operand() {
+    //         br $or_true
+    //       }
+    //     } catch undefined {}
+    //     ...
+    //     push false
+    //     br $or_end
     //   }
-    //   if result {
-    //     push true
-    //     exit from block
-    //   }
-    //   try {
-    //     result = second_operand()
-    //   } catch undefined {
-    //     result = false
-    //   }
-    //   if result {
-    //     push true
-    //     exit from block
-    //   }
-    //   ...
-    //   try {
-    //     result = last_operand()
-    //   } catch undefined {
-    //     result = false
-    //   }
-    //   result
+    //   push true
     // }
     instr.block(
         I32, // the block returns a bool
         |block| {
-            let block_id = block.id();
-            for (position, operand) in operands.iter().with_position() {
-                catch_undef(
-                    ctx,
-                    I32,
-                    block,
-                    |ctx, instr| {
-                        emit_bool_expr(ctx, ir, *operand, instr);
-                    },
-                    |_, instr| {
-                        instr.i32_const(0);
-                    },
-                );
-                // For all operands except the last one, check the result
-                // and exit early from the block if it is true.
-                if !position.is_last {
-                    block.if_else(
+            let or_end = block.id();
+            block.block(None, |or_true_block| {
+                let or_true = or_true_block.id();
+                for operand in operands.iter() {
+                    catch_undef(
+                        ctx,
                         None,
-                        |then_| {
-                            then_.i32_const(1);
-                            then_.br(block_id);
+                        or_true_block,
+                        |ctx, instr| {
+                            emit_bool_expr(ctx, ir, *operand, instr);
+                            instr.br_if(or_true);
                         },
-                        |_| {},
+                        |_, _| {},
                     );
                 }
-            }
+                or_true_block.i32_const(0);
+                or_true_block.br(or_end);
+            });
+            block.i32_const(1);
         },
     );
 }
@@ -993,22 +1010,19 @@ fn emit_int_comparison(
             let rhs_tmp = ctx.wasm_symbols.i64_tmp_b;
 
             instr.local_set(rhs_tmp);
-            instr.local_set(lhs_tmp);
+            instr.local_tee(lhs_tmp);
+            instr.local_get(rhs_tmp);
+            instr.binop(unsigned_op);
 
             instr.local_get(if signed_is_lhs { lhs_tmp } else { rhs_tmp });
             instr.i64_const(0);
-            instr.binop(BinaryOp::I64LtS);
-            instr.if_else(
-                I32,
-                |then_| {
-                    then_.i32_const(result_if_negative as i32);
-                },
-                |else_| {
-                    else_.local_get(lhs_tmp);
-                    else_.local_get(rhs_tmp);
-                    else_.binop(unsigned_op);
-                },
-            );
+            if result_if_negative {
+                instr.binop(BinaryOp::I64LtS);
+                instr.binop(BinaryOp::I32Or);
+            } else {
+                instr.binop(BinaryOp::I64GeS);
+                instr.binop(BinaryOp::I32And);
+            }
         }
     }
 }
@@ -1079,16 +1093,16 @@ fn emit_div(
             instr.binop(BinaryOp::I32Or);
 
             instr.if_else(
-                I64,
+                None,
                 |then_| {
                     throw_undef(ctx, then_);
                 },
-                |else_| {
-                    else_.local_get(lhs);
-                    else_.local_get(rhs);
-                    else_.binop(BinaryOp::I64DivS);
-                },
+                |_| {},
             );
+
+            instr.local_get(lhs);
+            instr.local_get(rhs);
+            instr.binop(BinaryOp::I64DivS);
         }
     }
 }
@@ -1186,20 +1200,18 @@ fn emit_lazy_call_to_search_for_patterns(
 ) {
     if *ctx.emit_search_for_pattern_stack.last().unwrap() {
         instr.global_get(ctx.wasm_symbols.pattern_search_done);
+        instr.unop(UnaryOp::I32Eqz);
         instr.if_else(
             None,
-            |_then| {
-                // The pattern search phase was already executed. Nothing to
-                // do here.
-            },
-            |_else| {
-                _else
+            |then_| {
+                then_
                     // Call `search_for_patterns`. This function will set
                     // `pattern_search_done` to true before exiting.
                     .call(ctx.function_id(
                         wasm::export__search_for_patterns.mangled_name,
                     ));
             },
+            |_| {},
         );
         let top = ctx.emit_search_for_pattern_stack.last_mut().unwrap();
         *top = false;
@@ -1628,73 +1640,111 @@ fn emit_of_pattern_set(
     match (&of.quantifier, &of.items, &of.anchor) {
         // `any of them`
         (Quantifier::Any, _, MatchAnchor::None) => {
-            instr.block(I32, |instr| {
-                let block = instr.id();
-                for (position, range) in ranges.iter().with_position() {
-                    let start: i32 = (*range.start()).into();
-                    let end: i32 = (*range.end()).into();
-                    // If the range contains a single PatternId, invoke
-                    // `check_for_pattern_match` instead of `pat_range_match`.
-                    if end == start {
-                        instr.i32_const(start);
-                        instr.call(ctx.wasm_symbols.check_for_pattern_match);
-                    } else {
-                        instr.i32_const(start);
-                        instr.i32_const(end);
-                        instr.i64_const(1);
-                        instr.call(ctx.function_id(
-                            wasm::export__pat_range_match.mangled_name,
-                        ));
-                    }
-                    // For every call, except the last one, check the result
-                    // and exit early from the block if any of the patterns
-                    // were found.
-                    if !position.is_last {
-                        instr.if_else(
-                            None,
-                            |then_| {
-                                then_.i32_const(1);
-                                then_.br(block);
-                            },
-                            |_else| {},
-                        );
-                    }
+            if ranges.len() == 1 {
+                let range = ranges.pop().unwrap();
+                let start: i32 = (*range.start()).into();
+                let end: i32 = (*range.end()).into();
+                if end == start {
+                    instr.i32_const(start);
+                    instr.call(ctx.wasm_symbols.check_for_pattern_match);
+                } else {
+                    instr.i32_const(start);
+                    instr.i32_const(end);
+                    instr.i64_const(1);
+                    instr.call(ctx.function_id(
+                        wasm::export__pat_range_match.mangled_name,
+                    ));
                 }
-            });
+            } else {
+                instr.block(I32, |block| {
+                    let block_end = block.id();
+                    block.block(None, |any_true_block| {
+                        let any_true = any_true_block.id();
+                        for (position, range) in ranges.iter().with_position()
+                        {
+                            let start: i32 = (*range.start()).into();
+                            let end: i32 = (*range.end()).into();
+                            // If the range contains a single PatternId, invoke
+                            // `check_for_pattern_match` instead of `pat_range_match`.
+                            if end == start {
+                                any_true_block.i32_const(start);
+                                any_true_block.call(
+                                    ctx.wasm_symbols.check_for_pattern_match,
+                                );
+                            } else {
+                                any_true_block.i32_const(start);
+                                any_true_block.i32_const(end);
+                                any_true_block.i64_const(1);
+                                any_true_block.call(ctx.function_id(
+                                    wasm::export__pat_range_match.mangled_name,
+                                ));
+                            }
+                            // For every call, except the last one, check the result
+                            // and exit early from the block if any of the patterns
+                            // were found.
+                            if !position.is_last {
+                                any_true_block.br_if(any_true);
+                            }
+                        }
+                        any_true_block.br(block_end);
+                    });
+                    block.i32_const(1);
+                });
+            }
         }
-        // `any of them`
+        // `all of them`
         (Quantifier::All, _, MatchAnchor::None) => {
-            instr.block(I32, |instr| {
-                let block = instr.id();
-                for (position, range) in ranges.iter().with_position() {
-                    let start: i32 = (*range.start()).into();
-                    let end: i32 = (*range.end()).into();
-                    if end == start {
-                        instr.i32_const(start);
-                        instr.call(ctx.wasm_symbols.check_for_pattern_match);
-                    } else {
-                        instr.i32_const(start);
-                        instr.i32_const(end);
-                        instr.i64_const(end as i64 - start as i64 + 1);
-                        instr.call(ctx.function_id(
-                            wasm::export__pat_range_match.mangled_name,
-                        ));
-                    }
-                    // For every call, except the last one, check the result
-                    // and exit early from the block if some of the patterns
-                    // was not found.
-                    if !position.is_last {
-                        instr.if_else(
-                            None,
-                            |_| {},
-                            |else_| {
-                                else_.i32_const(0);
-                                else_.br(block);
-                            },
-                        );
-                    }
+            if ranges.len() == 1 {
+                let range = ranges.pop().unwrap();
+                let start: i32 = (*range.start()).into();
+                let end: i32 = (*range.end()).into();
+                if end == start {
+                    instr.i32_const(start);
+                    instr.call(ctx.wasm_symbols.check_for_pattern_match);
+                } else {
+                    instr.i32_const(start);
+                    instr.i32_const(end);
+                    instr.i64_const(end as i64 - start as i64 + 1);
+                    instr.call(ctx.function_id(
+                        wasm::export__pat_range_match.mangled_name,
+                    ));
                 }
-            });
+            } else {
+                instr.block(I32, |block| {
+                    let block_end = block.id();
+                    block.block(None, |all_false_block| {
+                        let all_false = all_false_block.id();
+                        for (position, range) in ranges.iter().with_position()
+                        {
+                            let start: i32 = (*range.start()).into();
+                            let end: i32 = (*range.end()).into();
+                            if end == start {
+                                all_false_block.i32_const(start);
+                                all_false_block.call(
+                                    ctx.wasm_symbols.check_for_pattern_match,
+                                );
+                            } else {
+                                all_false_block.i32_const(start);
+                                all_false_block.i32_const(end);
+                                all_false_block
+                                    .i64_const(end as i64 - start as i64 + 1);
+                                all_false_block.call(ctx.function_id(
+                                    wasm::export__pat_range_match.mangled_name,
+                                ));
+                            }
+                            // For every call, except the last one, check the result
+                            // and exit early from the block if some of the patterns
+                            // was not found.
+                            if !position.is_last {
+                                all_false_block.unop(UnaryOp::I32Eqz);
+                                all_false_block.br_if(all_false);
+                            }
+                        }
+                        all_false_block.br(block_end);
+                    });
+                    block.i32_const(0);
+                });
+            }
         }
         // `n of them` but all the pattern IDs are contiguous (there's a
         // single range)
@@ -1898,100 +1948,63 @@ fn emit_for_in_range(
         &for_in.quantifier,
         // Loop initialization
         |ctx, instr, n, loop_end| {
-            // Set n = upper_bound - lower_bound + 1;
-            set_var(ctx, instr, n, |ctx, instr| {
-                // Catch undefined values in upper_bound and lower_bound
-                // expressions. In such cases n = 0.
-                catch_undef(
-                    ctx,
-                    I64,
-                    instr,
-                    |ctx, instr| {
-                        let lower_tmp = ctx.wasm_symbols.i64_tmp_a;
-                        let upper_tmp = ctx.wasm_symbols.i64_tmp_b;
+            let lower_tmp = ctx.wasm_symbols.i64_tmp_a;
+            let upper_tmp = ctx.wasm_symbols.i64_tmp_b;
 
-                        emit_expr(ctx, ir, range.upper_bound, instr);
-                        emit_expr(ctx, ir, range.lower_bound, instr);
+            // Catch undefined values in upper_bound and lower_bound
+            // expressions. In such cases exit the loop with false (0).
+            catch_undef(
+                ctx,
+                None,
+                instr,
+                |ctx, instr| {
+                    emit_expr(ctx, ir, range.upper_bound, instr);
+                    emit_expr(ctx, ir, range.lower_bound, instr);
 
-                        // Store lower_bound in tmp_a and upper_bound in tmp_b.
-                        instr.local_set(lower_tmp);
-                        instr.local_set(upper_tmp);
+                    // Store lower_bound in tmp_a and upper_bound in tmp_b.
+                    instr.local_set(lower_tmp);
+                    instr.local_set(upper_tmp);
+                },
+                move |_, instr| {
+                    instr.i32_const(0);
+                    instr.br(loop_end);
+                },
+            );
 
-                        // The range is empty if upper_bound < lower_bound.
-                        // Checking this explicitly, instead of relying on
-                        // `n <= 0`, prevents `upper_bound - lower_bound + 1`
-                        // from wrapping around into a positive number.
-                        instr.local_get(upper_tmp);
-                        instr.local_get(lower_tmp);
-                        instr.binop(BinaryOp::I64LtS);
+            // The range is empty if upper_bound < lower_bound. Checking this
+            // explicitly, instead of relying on `n <= 0`, prevents
+            // `upper_bound - lower_bound + 1` from wrapping around into a
+            // positive number.
+            instr.local_get(upper_tmp);
+            instr.local_get(lower_tmp);
+            instr.binop(BinaryOp::I64LtS);
 
-                        // Unsigned bounds greater than i64::MAX can't be
-                        // represented by the loop variable, which is a signed
-                        // integer. Those bounds have a negative bit pattern
-                        // when interpreted as i64, and they also make the
-                        // range empty. This doesn't apply to signed bounds,
-                        // which can be negative at runtime (e.g: a lower
-                        // bound computed as `filesize - 10`), and in that
-                        // case the loop iterates over the negative values.
-                        //
-                        // Notice that saturating these bounds to i64::MAX is
-                        // not a good idea. In practice, they are the result of
-                        // an unsigned subtraction that wrapped around, like
-                        // `N - 1` when `N` is zero, where a negative number was
-                        // intended. Saturating `(0..N - 1)` to `(0..i64::MAX)`
-                        // makes the loop run until the scan times out.
-                        for (bound, tmp) in [
-                            (range.lower_bound, lower_tmp),
-                            (range.upper_bound, upper_tmp),
-                        ] {
-                            if ir.get(bound).type_value().is_unsigned() {
-                                instr.local_get(tmp);
-                                instr.i64_const(0);
-                                instr.binop(BinaryOp::I64LtS);
-                                instr.binop(BinaryOp::I32Or);
-                            }
-                        }
+            // Unsigned bounds greater than i64::MAX can't be represented by
+            // the loop variable, which is a signed integer. Those bounds have
+            // a negative bit pattern when interpreted as i64, and they also
+            // make the range empty. This doesn't apply to signed bounds, which
+            // can be negative at runtime (e.g: a lower bound computed as
+            // `filesize - 10`), and in that case the loop iterates over the
+            // negative values.
+            //
+            // Notice that saturating these bounds to i64::MAX is not a good
+            // idea. In practice, they are the result of an unsigned
+            // subtraction that wrapped around, like `N - 1` when `N` is zero,
+            // where a negative number was intended. Saturating `(0..N - 1)` to
+            // `(0..i64::MAX)` makes the loop run until the scan times out.
+            for (bound, tmp) in [
+                (range.lower_bound, lower_tmp),
+                (range.upper_bound, upper_tmp),
+            ] {
+                if ir.get(bound).type_value().is_unsigned() {
+                    instr.local_get(tmp);
+                    instr.i64_const(0);
+                    instr.binop(BinaryOp::I64LtS);
+                    instr.binop(BinaryOp::I32Or);
+                }
+            }
 
-                        instr.if_else(
-                            I64,
-                            |then_| {
-                                then_.i64_const(0);
-                            },
-                            |else_| {
-                                // Compute n = upper_bound - lower_bound + 1,
-                                // which doesn't fit in an i64 if the range has
-                                // more than i64::MAX items. As upper_bound is
-                                // not lower than lower_bound at this point,
-                                // diff = upper_bound - lower_bound is exact
-                                // when interpreted as unsigned, and the range
-                                // is too large if diff >= i64::MAX. In that
-                                // case n is saturated to i64::MAX.
-                                else_.i64_const(i64::MAX);
-                                else_.local_get(upper_tmp);
-                                else_.local_get(lower_tmp);
-                                else_.binop(BinaryOp::I64Sub);
-                                else_.i64_const(1);
-                                else_.binop(BinaryOp::I64Add);
-                                else_.local_get(upper_tmp);
-                                else_.local_get(lower_tmp);
-                                else_.binop(BinaryOp::I64Sub);
-                                else_.i64_const(i64::MAX);
-                                else_.binop(BinaryOp::I64GeU);
-                                // diff >= i64::MAX ? i64::MAX : diff + 1
-                                else_.select(None);
-                            },
-                        );
-                    },
-                    |_, instr| {
-                        instr.i64_const(0);
-                    },
-                )
-            });
-
-            // If n <= 0, exit from the loop.
-            load_var(ctx, instr, n);
-            instr.i64_const(0);
-            instr.binop(BinaryOp::I64LeS);
+            // If the range is empty, exit from the loop.
             instr.if_else(
                 None,
                 |then_| {
@@ -2000,6 +2013,28 @@ fn emit_for_in_range(
                 },
                 |_| {},
             );
+
+            // Compute n = upper_bound - lower_bound + 1, which doesn't fit in
+            // an i64 if the range has more than i64::MAX items. As upper_bound
+            // is not lower than lower_bound at this point,
+            // diff = upper_bound - lower_bound is exact when interpreted as
+            // unsigned, and the range is too large if diff >= i64::MAX. In
+            // that case n is saturated to i64::MAX.
+            set_var(ctx, instr, n, |_, instr| {
+                instr.i64_const(i64::MAX);
+                instr.local_get(upper_tmp);
+                instr.local_get(lower_tmp);
+                instr.binop(BinaryOp::I64Sub);
+                instr.i64_const(1);
+                instr.binop(BinaryOp::I64Add);
+                instr.local_get(upper_tmp);
+                instr.local_get(lower_tmp);
+                instr.binop(BinaryOp::I64Sub);
+                instr.i64_const(i64::MAX);
+                instr.binop(BinaryOp::I64GeU);
+                // diff >= i64::MAX ? i64::MAX : diff + 1
+                instr.select(None);
+            });
 
             // Store lower_bound in `next_item`.
             set_var(ctx, instr, next_item, |ctx, instr| {
@@ -2205,7 +2240,7 @@ fn emit_for_in_expr_tuple(
             // Execute the i-th expression and save its result in `next_item`.
             // If the expression calls `throw_undef`, we capture the exception
             // and flag the `next_item` variable as undefined.
-            catch_undef(
+            let can_be_undef = catch_undef(
                 ctx,
                 None,
                 instr,
@@ -2225,15 +2260,27 @@ fn emit_for_in_expr_tuple(
                             },
                         );
                     });
+                    if ctx.exception_handler_stack.last().unwrap().used {
+                        set_var_undef(ctx, instr, next_item, false);
+                    }
                 },
                 move |ctx, instr| {
                     set_var_undef(ctx, instr, next_item, true);
                 },
             );
+
+            if can_be_undef {
+                ctx.vars_with_undef.push(next_item);
+            }
         },
         // Body.
         |ctx, instr| {
             emit_bool_expr(ctx, ir, for_in.body, instr);
+            if let Some(last) = ctx.vars_with_undef.last()
+                && *last == next_item
+            {
+                ctx.vars_with_undef.pop();
+            }
         },
         // After each iteration.
         |_, _, _| {},
@@ -2399,148 +2446,166 @@ fn emit_for<I, B, C, A>(
             ),
         };
 
-        instr.loop_(I32, |block| {
+        instr.loop_(None, |block| {
             let loop_start = block.id();
 
             // Emit code that advances to next item.
             before_cond(ctx, block, i);
 
-            // Emit code for the loop's body. Use `catch_undef` for
-            // capturing any undefined exception produced by the body because
-            // we don't want to abort the loop in such cases. When the body's
-            // result is undefined it's handled as a false.
-            catch_undef(
-                ctx,
-                I32,
-                block,
-                |ctx, block| {
-                    body(ctx, block);
-                },
-                |_, instr| {
-                    instr.i32_const(0);
-                },
-            );
-
-            // At the top of the stack we have the i32 with the result from
-            // the loop body. Decide what to do depending on the quantifier.
             match quantifier {
                 Quantifier::None => {
-                    block.if_else(
-                        I32,
-                        |then_| {
-                            // If the body returned true, break the loop with
-                            // result false.
-                            then_.i32_const(0);
-                            then_.br(loop_end);
-                        },
-                        |else_| {
-                            incr_i_and_repeat(ctx, else_, n, i, loop_start);
-                            // If this point is reached is because all the
-                            // range was iterated without the body returning
-                            // true, this means that the whole "for" statement
-                            // is true.
-                            else_.i32_const(1);
-                            else_.br(loop_end);
-                        },
-                    );
-                }
-                Quantifier::All => {
-                    block.if_else(
-                        I32,
-                        |then_| {
-                            incr_i_and_repeat(ctx, then_, n, i, loop_start);
-                            // If this point is reached is because all the
-                            // range was iterated without the body returning
-                            // false, this means that the whole "for"
-                            // statement is true.
-                            then_.i32_const(1);
-                            then_.br(loop_end);
-                        },
-                        |else_| {
-                            // If the body returned false, break the loop
-                            // with result false.
-                            else_.i32_const(0);
-                            else_.br(loop_end);
-                        },
-                    );
-                }
-                Quantifier::Any => {
-                    block.if_else(
-                        I32,
-                        |then_| {
-                            // If the body returned true, break the loop with
-                            // result true.
-                            then_.i32_const(1);
-                            then_.br(loop_end);
-                        },
-                        |else_| {
-                            incr_i_and_repeat(ctx, else_, n, i, loop_start);
-                            // If this point is reached is because all the
-                            // range was iterated without the body returning
-                            // true, this means that the whole "for"
-                            // statement is false.
-                            else_.i32_const(0);
-                            else_.br(loop_end);
-                        },
-                    );
-                }
-                Quantifier::Percentage(_) | Quantifier::Expr(_) => {
-                    block.if_else(
+                    catch_undef(
+                        ctx,
                         None,
-                        |then_| {
-                            // The body was true, increment count.
-                            incr_var(ctx, then_, count);
-
-                            // Is counter >= quantifier?.
-                            // Using unsigned comparison ensures that if
-                            // `max_count` is negative (or an unsigned integer
-                            // > i64::MAX), it is treated as larger than `count`
-                            // and the condition evaluates to false.
-                            load_var(ctx, then_, count);
-                            load_var(ctx, then_, max_count);
-                            then_.binop(BinaryOp::I64GeU);
-
-                            then_.if_else(
+                        block,
+                        |ctx, block| {
+                            body(ctx, block);
+                            block.if_else(
                                 None,
-                                // count >= max_count
                                 |then_| {
-                                    // If max_count == 0, this should be
-                                    // treated as a `none` quantifier. At
-                                    // this point count >= 1, so break the
-                                    // loop with result false (0). If
-                                    // max_count != 0 and count >= max_count,
-                                    // break with result true (1).
-                                    //
-                                    // `i64.ne` with 0 directly produces the
-                                    // right i32: 0 when max_count == 0,
-                                    // 1 when max_count != 0.
-                                    load_var(ctx, then_, max_count);
-                                    then_.i64_const(0);
-                                    then_.binop(BinaryOp::I64Ne);
+                                    // If the body returned true, break the loop
+                                    // with result false.
+                                    then_.i32_const(0);
                                     then_.br(loop_end);
                                 },
                                 |_| {},
                             );
                         },
-                        |_| {},
+                        |_, _| {},
+                    );
+                    incr_i_and_repeat(ctx, block, n, i, loop_start);
+                }
+                Quantifier::All => {
+                    catch_undef(
+                        ctx,
+                        None,
+                        block,
+                        |ctx, block| {
+                            body(ctx, block);
+                            block.if_else(
+                                None,
+                                |then_| {
+                                    incr_i_and_repeat(
+                                        ctx, then_, n, i, loop_start,
+                                    );
+                                    // If this point is reached is because all
+                                    // the range was iterated without the body
+                                    // returning false, this means that the
+                                    // whole "for" statement is true.
+                                    then_.i32_const(1);
+                                    then_.br(loop_end);
+                                },
+                                |_| {},
+                            );
+                        },
+                        |_, _| {},
+                    );
+                    // If the body returned false or threw `undef`, break the
+                    // loop with result false.
+                    block.i32_const(0);
+                    block.br(loop_end);
+                }
+                Quantifier::Any => {
+                    catch_undef(
+                        ctx,
+                        None,
+                        block,
+                        |ctx, block| {
+                            body(ctx, block);
+                            block.if_else(
+                                None,
+                                |then_| {
+                                    // If the body returned true, break the loop
+                                    // with result true.
+                                    then_.i32_const(1);
+                                    then_.br(loop_end);
+                                },
+                                |_| {},
+                            );
+                        },
+                        |_, _| {},
+                    );
+                    incr_i_and_repeat(ctx, block, n, i, loop_start);
+                }
+                Quantifier::Percentage(_) | Quantifier::Expr(_) => {
+                    catch_undef(
+                        ctx,
+                        None,
+                        block,
+                        |ctx, block| {
+                            body(ctx, block);
+                            block.if_else(
+                                None,
+                                |then_| {
+                                    // The body was true, increment count.
+                                    incr_var(ctx, then_, count);
+
+                                    // Is counter >= quantifier?.
+                                    // Using unsigned comparison ensures that if
+                                    // `max_count` is negative (or an unsigned
+                                    // integer > i64::MAX), it is treated as
+                                    // larger than `count` and the condition
+                                    // evaluates to false.
+                                    load_var(ctx, then_, count);
+                                    load_var(ctx, then_, max_count);
+                                    then_.binop(BinaryOp::I64GeU);
+
+                                    then_.if_else(
+                                        None,
+                                        // count >= max_count
+                                        |then_| {
+                                            // If max_count == 0, this should be
+                                            // treated as a `none` quantifier.
+                                            // At this point count >= 1, so
+                                            // break the loop with result false
+                                            // (0). If max_count != 0 and
+                                            // count >= max_count, break with
+                                            // result true (1).
+                                            //
+                                            // `i64.ne` with 0 directly produces
+                                            // the right i32: 0 when
+                                            // max_count == 0, 1 when
+                                            // max_count != 0.
+                                            load_var(ctx, then_, max_count);
+                                            then_.i64_const(0);
+                                            then_.binop(BinaryOp::I64Ne);
+                                            then_.br(loop_end);
+                                        },
+                                        |_| {},
+                                    );
+                                },
+                                |_| {},
+                            );
+                        },
+                        |_, _| {},
                     );
 
                     incr_i_and_repeat(ctx, block, n, i, loop_start);
-
-                    // If this point is reached we have iterated over the whole
-                    // range 0..n. If `max_count` is zero this means that all
-                    // iterations returned false and therefore the loop must
-                    // return true. If `max_count` is non-zero it means that
-                    // `counter` didn't reach `max_count` and the loop must
-                    // return false.
-                    //
-                    // `i64.eqz` produces exactly the right i32 result:
-                    // 1 (true) when max_count == 0, 0 (false) otherwise.
-                    load_var(ctx, block, max_count);
-                    block.unop(UnaryOp::I64Eqz);
                 }
             }
         });
+
+        // If this point is reached we have iterated over the whole range 0..n
+        // without breaking out of the loop early.
+        match quantifier {
+            Quantifier::None | Quantifier::All => {
+                instr.i32_const(1);
+            }
+            Quantifier::Any => {
+                instr.i32_const(0);
+            }
+            Quantifier::Percentage(_) | Quantifier::Expr(_) => {
+                // If `max_count` is zero this means that all iterations
+                // returned false and therefore the loop must return true. If
+                // `max_count` is non-zero it means that `counter` didn't reach
+                // `max_count` and the loop must return false.
+                //
+                // `i64.eqz` produces exactly the right i32 result:
+                // 1 (true) when max_count == 0, 0 (false) otherwise.
+                load_var(ctx, instr, max_count);
+                instr.unop(UnaryOp::I64Eqz);
+            }
+        }
     });
 }
 
@@ -2559,9 +2624,11 @@ fn emit_with(
     body: ExprId,
     instr: &mut InstrSeqBuilder,
 ) {
+    let vars_len = ctx.vars_with_undef.len();
+
     // Emit the code that sets the variables in the `with` statement.
     for (id, expr) in declarations.iter().cloned() {
-        catch_undef(
+        let can_be_undef = catch_undef(
             ctx,
             None,
             instr,
@@ -2569,15 +2636,24 @@ fn emit_with(
                 set_var(ctx, instr, id, |ctx, instr| {
                     emit_expr(ctx, ir, expr, instr);
                 });
+                if ctx.exception_handler_stack.last().unwrap().used {
+                    set_var_undef(ctx, instr, id, false);
+                }
             },
             move |ctx, instr| {
                 set_var_undef(ctx, instr, id, true);
             },
         );
+
+        if can_be_undef {
+            ctx.vars_with_undef.push(id);
+        }
     }
 
     // Emit the code that evaluates the body of the `with` statement.
-    emit_expr(ctx, ir, body, instr)
+    emit_expr(ctx, ir, body, instr);
+
+    ctx.vars_with_undef.truncate(vars_len);
 }
 
 /// Produces a switch statement by calling a `branch_generator` function
@@ -2596,7 +2672,7 @@ fn emit_with(
 ///
 /// ```text
 /// i32.wrap_i64                        ;; convert the i64 at the top of the
-///                                     ;; to i32.
+///                                     ;; stack to i32.
 /// local.set $tmp                      ;; store the i32 value in $tmp
 /// block (result i64)                  ;; block @1
 ///   block                             ;; block @2
@@ -2604,31 +2680,25 @@ fn emit_with(
 ///       block                         ;; block @4
 ///         block                       ;; block @5
 ///           local.get $tmp            ;; put $tmp at the top of the stack
-///           ;; Look for the i32 at the top of the stack, and depending on its
-///           ;; value jumps out of some block...
+///           ;; Look for the i32 at the top of the stack (selector), and
+///           ;; depending on its value jumps out of some block...
 ///           br_table
 ///                1 (;@4;)   ;; selector == 0 -> jump out of block @4
 ///                2 (;@3;)   ;; selector == 1 -> jump out of block @3
-///                4 (;@2;)   ;; selector == 2 -> jump out of block @2
+///                3 (;@2;)   ;; selector == 2 -> jump out of block @2
 ///                0 (;@5;)   ;; default       -> jump out of block @5
 ///
 ///         end                         ;; block @5
 ///         unreachable                 ;; if this point is reached is because
 ///                                     ;; the switch selector is out of range
 ///       end                           ;; block @4
-///       block (result i64)
-///         ;; < code expr 0 goes here >
-///       end
+///       ;; < code expr 0 goes here >
 ///       br 2 (;@1;)                   ;; exits block @1
 ///     end                             ;; block @3
-///     block (result i64)
-///       ;; < code expr 1 goes here >
-///     end
+///     ;; < code expr 1 goes here >
 ///     br 1 (;@1;)                     ;; exits block @1
 ///   end                               ;; block @2
-///   block (result i64)
-///     ;; < code expr 2 goes here >
-///   end
+///   ;; < code expr 2 goes here >
 /// end                                 ;; block @1
 ///                                     ;; at this point the i64 returned by the
 ///                                     ;; selected expression is at the top of
@@ -2643,7 +2713,7 @@ fn emit_switch<F>(
     F: FnMut(&mut EmitContext, &mut InstrSeqBuilder) -> bool,
 {
     // Convert the i64 at the top of the stack to an i32, which is the type
-    // expected by the `bt_table` instruction.
+    // expected by the `br_table` instruction.
     instr.unop(UnaryOp::I32WrapI64);
 
     // Store the i32 switch selector in a temp variable. The selector is the i32
@@ -2651,46 +2721,76 @@ fn emit_switch<F>(
     // executed.
     instr.local_set(ctx.wasm_symbols.i32_tmp);
 
-    let mut branch_blocks = VecDeque::new();
-    let mut branch_expr = instr.dangling_instr_seq(ty);
+    // First, call `branch_generator` repeatedly to emit the instructions for
+    // each branch into temporary instruction sequences.
+    let mut branch_exprs = VecDeque::new();
+    let mut branch_expr = instr.dangling_instr_seq(None);
 
     while branch_generator(ctx, &mut branch_expr) {
-        branch_blocks.push_back(walrus::ir::Block { seq: branch_expr.id() });
-        branch_expr = instr.dangling_instr_seq(ty);
+        branch_exprs.push_back(branch_expr.id());
+        branch_expr = instr.dangling_instr_seq(None);
     }
 
-    // The switch statement returns a value of type `ty`.
+    // In WebAssembly, `br_table` jumps to the *end* of a target block. To
+    // implement a switch statement, we nest one block per branch (`@1`..`@4`
+    // in the diagram above) with `br_table` at the deepest level, and place
+    // each branch's code right after the `end` of its corresponding block.
+    //
+    // Because each block wraps the previous one, we build the structure from
+    // the inside out:
+    //
+    // `outermost_block` is `block @1` in the diagram. It wraps the entire
+    // switch statement and has return type `ty` (the type of the value left on
+    // the stack by whichever branch is executed).
     let outermost_block = instr.dangling_instr_seq(ty);
     let outermost_block_id = outermost_block.id();
 
+    // `switch_block` is `block @4` in the diagram. It is the innermost branch
+    // block: jumping out of `switch_block` lands immediately before the code
+    // for branch 0 (`expr 0`).
     let switch_block = instr.dangling_instr_seq(None);
     let switch_block_id = switch_block.id();
 
-    // These are the block IDs for the `br_table` instruction.
-    let mut block_ids = Vec::with_capacity(branch_blocks.len());
+    // `block_ids` collects the target blocks for `br_table` in selector order:
+    // `block_ids[0]` is `block @4` (for selector == 0), `block_ids[1]` is
+    // `block @3` (for selector == 1), and so on.
+    let mut block_ids = Vec::with_capacity(branch_exprs.len());
 
     let mut block_id = switch_block_id;
 
     block_ids.push(block_id);
 
-    let last_branch = branch_blocks.pop_back().unwrap();
+    // Pop the last branch (`expr 2` in the diagram) so we can handle it
+    // separately at the end: since it sits at the end of `outermost_block`
+    // (`block @1`), it doesn't need a `br` instruction to exit the switch.
+    let last_branch = branch_exprs.pop_back().unwrap();
 
-    // Iterate over the branches of the switch statement except the last one.
-    // The last branch is handled slightly differently because its code is put
-    // directly in the outermost block.
-    while let Some(expr_block) = branch_blocks.pop_front() {
+    // Wrap each of the remaining branches (`expr 0`, `expr 1`, ...) in its
+    // own enclosing block (`block @3`, `block @2`, ...) from the inside out.
+    while let Some(expr_seq_id) = branch_exprs.pop_front() {
+        let mut expr_instrs =
+            mem::take(instr.instr_seq(expr_seq_id).instrs_mut());
         let mut branch = instr.dangling_instr_seq(None);
-        // This is the block that contains all the previous branches
+        // Embed the inner block (`block @4` on the first iteration, `block @3`
+        // on the second, etc.). When `br_table` jumps out of that inner block,
+        // execution resumes right after this instruction.
         branch.instr(walrus::ir::Block { seq: block_id });
-        // This is the block for the current branch.
-        branch.instr(expr_block);
-        // The instruction that goes out of the switch statement
-        // after each branch (think of `break` statements in a C switch).
+        // Append the instructions for the current branch directly after the
+        // inner block's `end`.
+        branch.instrs_mut().append(&mut expr_instrs);
+        // Jump out of `outermost_block` (`block @1`), leaving the branch's
+        // result on the stack (like a `break` in a C switch statement).
         branch.br(outermost_block_id);
+        // This enclosing block becomes the inner block for the next iteration,
+        // and is also the `br_table` target for the next selector value.
         block_id = branch.id();
         block_ids.push(block_id);
     }
 
+    // Populate `switch_block` (`block @4`) with `block @5`, which contains
+    // the `br_table` dispatch. If the selector is out of range, `br_table`
+    // jumps to the default target (`block @5` itself) and traps on
+    // `unreachable`.
     instr
         .instr_seq(switch_block_id)
         .block(None, |block| {
@@ -2699,10 +2799,16 @@ fn emit_switch<F>(
         })
         .unreachable();
 
-    instr
-        .instr_seq(outermost_block_id)
-        .instr(walrus::ir::Block { seq: block_id })
-        .instr(last_branch);
+    // Finally, assemble `outermost_block` (`block @1`): it contains the
+    // outermost branch wrapper (`block @2`), followed by the instructions for
+    // the last branch (`expr 2`), which naturally fall through to the end of
+    // `outermost_block`.
+    let mut last_branch_instrs =
+        mem::take(instr.instr_seq(last_branch).instrs_mut());
+
+    let mut outermost = instr.instr_seq(outermost_block_id);
+    outermost.instr(walrus::ir::Block { seq: block_id });
+    outermost.instrs_mut().append(&mut last_branch_instrs);
 
     instr.instr(walrus::ir::Block { seq: outermost_block_id });
 }
@@ -2744,9 +2850,6 @@ fn set_var<B>(
         store_kind,
         MemArg { align: alignment as u32, offset: VARS_STACK_START as u64 },
     );
-
-    // Flag the variable as not undefined.
-    set_var_undef(ctx, instr, var, false);
 }
 
 /// Sets into variables the values produced by a code block.
@@ -2824,24 +2927,26 @@ fn set_vars<B>(
             }
             _ => unreachable!(),
         }
-        set_var_undef(ctx, instr, *var, false);
     }
 }
 
 /// Loads the value of variable into the stack.
 fn load_var(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
-    // First check if the undefined flag is set for the requested variable
-    // and throw the undefined exception in that case.
-    instr.i32_const(var.index().saturating_div(64));
-    instr.load(
-        ctx.wasm_symbols.main_memory,
-        LoadKind::I64 { atomic: false },
-        MemArg { align: 8, offset: 0 },
-    );
-    instr.i64_const(1 << var.index().wrapping_rem(64));
-    instr.binop(BinaryOp::I64And);
-    instr.unop(UnaryOp::I64Eqz);
-    instr.if_else(None, |_then| {}, |_else| throw_undef(ctx, _else));
+    // Only check the undefined flag if this variable's initializer could
+    // have thrown an undefined exception.
+    if ctx.vars_with_undef.contains(&var) {
+        instr.i32_const(var.index().saturating_div(64));
+        instr.load(
+            ctx.wasm_symbols.main_memory,
+            LoadKind::I64 { atomic: false },
+            MemArg { align: 8, offset: 0 },
+        );
+        instr.i64_const(1 << var.index().wrapping_rem(64));
+        instr.binop(BinaryOp::I64And);
+        instr.i64_const(0);
+        instr.binop(BinaryOp::I64Ne);
+        instr.if_else(None, |then_| throw_undef(ctx, then_), |_| {});
+    }
 
     // The slots where variables are stored start at offset VARS_STACK_START
     // within main memory, and are 64-bits long. Let's compute the variable's
@@ -3146,25 +3251,38 @@ fn catch_undef(
     instr: &mut InstrSeqBuilder,
     expr: impl FnOnce(&mut EmitContext, &mut InstrSeqBuilder),
     catch: impl Fn(&mut EmitContext, &mut InstrSeqBuilder) + 'static,
-) {
-    // Create a new block containing `expr`. When an exception is raised from
-    // within `expr`, the control flow will jump out of this block via a `br`
-    // instruction.
-    instr.block(ty, |block| {
-        // Push the type and ID of the current block in the handlers stack.
-        ctx.exception_handler_stack.push((block.id(), Box::new(catch)));
-        expr(ctx, block);
+) -> bool {
+    let mut block = instr.dangling_instr_seq(ty);
+    let block_id = block.id();
+
+    ctx.exception_handler_stack.push(ExceptionHandler {
+        block_id,
+        catch: Box::new(catch),
+        used: false,
     });
+    expr(ctx, &mut block);
 
     // Pop exception handler from the stack.
-    ctx.exception_handler_stack.pop();
+    let handler = ctx.exception_handler_stack.pop().unwrap();
+
+    // Only wrap the instructions in a WASM `block` if `throw_undef` was
+    // actually called targeting this handler. Otherwise, append the
+    // instructions directly to `instr` to avoid creating an unnecessary block.
+    if handler.used {
+        instr.instr(walrus::ir::Block { seq: block_id });
+    } else {
+        let mut block_instrs = mem::take(block.instrs_mut());
+        instr.instrs_mut().append(&mut block_instrs);
+    }
+
+    handler.used
 }
 
 /// Throws an exception when an undefined value is found.
 ///
 /// For more information see [`catch_undef`].
 fn throw_undef(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
-    let innermost_handler = ctx
+    let mut innermost_handler = ctx
         .exception_handler_stack
         .pop()
         .expect("calling `raise` from outside `try` block");
@@ -3204,12 +3322,28 @@ fn throw_undef(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
     // `br $outer`, because that is going to be the result for the $outer
     // block.
     //
-    innermost_handler.1(ctx, instr);
+    (innermost_handler.catch)(ctx, instr);
 
     // Jump to the exception handler.
-    instr.br(innermost_handler.0);
+    instr.br(innermost_handler.block_id);
 
+    innermost_handler.used = true;
     ctx.exception_handler_stack.push(innermost_handler);
+}
+
+/// Branches to the innermost exception handler if the `i32` at the top of the
+/// stack is non-zero. The innermost handler must have return type `None`.
+fn throw_undef_if_non_zero(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+) {
+    let innermost_handler = ctx
+        .exception_handler_stack
+        .last_mut()
+        .expect("calling `raise` from outside `try` block");
+
+    instr.br_if(innermost_handler.block_id);
+    innermost_handler.used = true;
 }
 
 /// Similar to [`throw_undef`], but throws the exception if the top of the
@@ -3224,14 +3358,13 @@ fn throw_undef_if_zero(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
     // stack.
     instr.unop(UnaryOp::I64Eqz);
     instr.if_else(
-        I64,
+        None,
         |then| {
             // Is zero, throw exception
             throw_undef(ctx, then);
         },
-        |else_| {
-            // Non-zero, put back the value into the stack.
-            else_.local_get(tmp);
-        },
+        |_| {},
     );
+    // Non-zero, put back the value into the stack.
+    instr.local_get(tmp);
 }
