@@ -1,3 +1,4 @@
 code_review:
-  disable: true
-  comment_severity_threshold: HIGH
+  pull_request_opened:
+    summary: true
+    include_drafts: false
