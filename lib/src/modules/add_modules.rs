@@ -22,6 +22,8 @@ add_module!(modules, "math", math, "math.Math", Some("math"), Some(math::__main_
 add_module!(modules, "msi", msi, "msi.Msi", Some("msi"), Some(msi::__main__ as MainFn));
 #[cfg(feature = "olecf-module")]
 add_module!(modules, "olecf", olecf, "olecf.Olecf", Some("olecf"), Some(olecf::__main__ as MainFn));
+#[cfg(feature = "ooxml-module")]
+add_module!(modules, "ooxml", ooxml, "ooxml.Ooxml", Some("ooxml"), Some(ooxml::__main__ as MainFn));
 #[cfg(feature = "pe-module")]
 add_module!(modules, "pe", pe, "pe.PE", Some("pe"), Some(pe::__main__ as MainFn));
 #[cfg(feature = "string-module")]

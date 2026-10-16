@@ -1,0 +1,36 @@
+is_ooxml: false
+number_of_on_disk_entries: 2
+number_of_total_entries: 2
+central_dir_size: 110
+central_dir_offset: 0x159
+zip_comment_len: 23
+zip_comment_str: "Some Random Zip Comment"
+entries:
+  - name_string: "readme.txt"
+    name_length: 10
+    compressed_size: 11
+    uncompressed_size: 180
+    crc32_checksum: 0x6ee44324
+    compression_method_value: 8
+    compression_method_name: "Deflate"
+    mod_time_raw: 0x1883
+    mod_date_raw: 0x5a22
+    flags: 0x0
+    version_needed: 20
+    version_made_by: 0x14
+    os_name: "FAT"
+    spec_version: 20
+  - name_string: "data.bin"
+    name_length: 8
+    compressed_size: 256
+    uncompressed_size: 256
+    crc32_checksum: 0x29058c73
+    compression_method_value: 0
+    compression_method_name: "Store"
+    mod_time_raw: 0x1883
+    mod_date_raw: 0x5a22
+    flags: 0x0
+    version_needed: 20
+    version_made_by: 0x14
+    os_name: "FAT"
+    spec_version: 20

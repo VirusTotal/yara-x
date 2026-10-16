@@ -25,6 +25,7 @@ enum SupportedModules {
     Crx,
     Dex,
     Zip,
+    Ooxml,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -131,6 +132,9 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         if !requested_modules.contains(&&SupportedModules::Zip) {
             module_output.zip = MessageField::none()
         }
+        if !requested_modules.contains(&&SupportedModules::Ooxml) {
+            module_output.ooxml = MessageField::none()
+        }
     } else {
         // Module was not specified, only show those that produced meaningful
         // results, the rest are cleared out.
@@ -165,6 +169,9 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         }
         if !module_output.zip.is_zip() {
             module_output.zip = MessageField::none()
+        }
+        if !module_output.ooxml.has_is_ooxml() {
+            module_output.ooxml = MessageField::none()
         }
     }
 
