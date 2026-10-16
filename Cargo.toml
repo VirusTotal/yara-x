@@ -119,7 +119,7 @@ yara-x-fmt = { path = "fmt", version = "1.21.0" }
 yara-x-macros = { path = "macros", version = "1.21.0" }
 yara-x-parser = { path = "parser", version = "1.21.0" }
 yara-x-proto = { path = "proto", version = "1.21.0"}
-zip = { version = "8.2.0", default-features = false }
+zip = { version = "9.0.4", default-features = false }
 tinyzip = "0.4.0"
 simd-adler32 = "0.3.10"
 simd_cesu8 = "1.2.0"
