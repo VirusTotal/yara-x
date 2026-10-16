@@ -255,22 +255,13 @@ impl RuntimeString {
         ctx: &ScanContext,
         case_insensitive: bool,
     ) -> bool {
-        if case_insensitive {
-            let this = self.as_bstr(ctx);
-            let other = other.as_bstr(ctx);
+        let this = self.as_bstr(ctx);
+        let other = other.as_bstr(ctx);
 
-            if this.is_ascii() && other.is_ascii() {
-                contains_ascii_case_insensitive(
-                    this.as_bytes(),
-                    other.as_bytes(),
-                )
-            } else {
-                let this = this.to_lowercase();
-                let other = other.to_lowercase();
-                this.contains_str(other)
-            }
+        if case_insensitive {
+            contains_case_insensitive(this.as_bytes(), other.as_bytes())
         } else {
-            self.as_bstr(ctx).contains_str(other.as_bstr(ctx))
+            this.contains_str(other)
         }
     }
 
@@ -281,22 +272,13 @@ impl RuntimeString {
         ctx: &ScanContext,
         case_insensitive: bool,
     ) -> bool {
-        if case_insensitive {
-            let this = self.as_bstr(ctx);
-            let other = other.as_bstr(ctx);
+        let this = self.as_bstr(ctx);
+        let other = other.as_bstr(ctx);
 
-            if this.is_ascii() && other.is_ascii() {
-                starts_with_ascii_case_insensitive(
-                    this.as_bytes(),
-                    other.as_bytes(),
-                )
-            } else {
-                let this = this.to_lowercase();
-                let other = other.to_lowercase();
-                this.starts_with_str(other)
-            }
+        if case_insensitive {
+            starts_with_case_insensitive(this.as_bytes(), other.as_bytes())
         } else {
-            self.as_bstr(ctx).starts_with_str(other.as_bstr(ctx))
+            this.starts_with_str(other)
         }
     }
 
@@ -307,22 +289,13 @@ impl RuntimeString {
         ctx: &ScanContext,
         case_insensitive: bool,
     ) -> bool {
-        if case_insensitive {
-            let this = self.as_bstr(ctx);
-            let other = other.as_bstr(ctx);
+        let this = self.as_bstr(ctx);
+        let other = other.as_bstr(ctx);
 
-            if this.is_ascii() && other.is_ascii() {
-                ends_with_ascii_case_insensitive(
-                    this.as_bytes(),
-                    other.as_bytes(),
-                )
-            } else {
-                let this = this.to_lowercase();
-                let other = other.to_lowercase();
-                this.ends_with_str(other)
-            }
+        if case_insensitive {
+            ends_with_case_insensitive(this.as_bytes(), other.as_bytes())
         } else {
-            self.as_bstr(ctx).ends_with_str(other.as_bstr(ctx))
+            this.ends_with_str(other)
         }
     }
 
@@ -333,19 +306,13 @@ impl RuntimeString {
         ctx: &ScanContext,
         case_insensitive: bool,
     ) -> bool {
-        if case_insensitive {
-            let this = self.as_bstr(ctx);
-            let other = other.as_bstr(ctx);
+        let this = self.as_bstr(ctx);
+        let other = other.as_bstr(ctx);
 
-            if this.is_ascii() && other.is_ascii() {
-                this.as_bytes().eq_ignore_ascii_case(other.as_bytes())
-            } else {
-                let this = this.to_lowercase();
-                let other = other.to_lowercase();
-                this.eq(&other)
-            }
+        if case_insensitive {
+            equals_case_insensitive(this.as_bytes(), other.as_bytes())
         } else {
-            self.as_bstr(ctx).eq(other.as_bstr(ctx))
+            this.eq(other)
         }
     }
 
@@ -357,29 +324,17 @@ impl RuntimeString {
         case_insensitive: bool,
     ) -> bool {
         let this = self.as_bstr(ctx);
-        let lit_pool = ctx.compiled_rules.literal_pool();
+        let literal_pool = ctx.compiled_rules.literal_pool();
         let literals = ctx.compiled_rules.get_literal_set(literal_set);
 
         if case_insensitive {
-            let this_is_ascii = this.is_ascii();
-            let mut this_lower = None;
-
             literals.iter().any(|&lit_id| {
-                let other = lit_pool.get(lit_id).unwrap();
-                if this_is_ascii && other.is_ascii() {
-                    contains_ascii_case_insensitive(
-                        this.as_bytes(),
-                        other.as_bytes(),
-                    )
-                } else {
-                    let this_lower =
-                        this_lower.get_or_insert_with(|| this.to_lowercase());
-                    this_lower.contains_str(other.to_lowercase())
-                }
+                let other = literal_pool.get(lit_id).unwrap();
+                contains_case_insensitive(this.as_bytes(), other.as_bytes())
             })
         } else {
             literals.iter().any(|&lit_id| {
-                let other = lit_pool.get(lit_id).unwrap();
+                let other = literal_pool.get(lit_id).unwrap();
                 this.contains_str(other)
             })
         }
@@ -393,29 +348,17 @@ impl RuntimeString {
         case_insensitive: bool,
     ) -> bool {
         let this = self.as_bstr(ctx);
-        let lit_pool = ctx.compiled_rules.literal_pool();
+        let literal_pool = ctx.compiled_rules.literal_pool();
         let literals = ctx.compiled_rules.get_literal_set(literal_set);
 
         if case_insensitive {
-            let this_is_ascii = this.is_ascii();
-            let mut this_lower = None;
-
             literals.iter().any(|&lit_id| {
-                let other = lit_pool.get(lit_id).unwrap();
-                if this_is_ascii && other.is_ascii() {
-                    starts_with_ascii_case_insensitive(
-                        this.as_bytes(),
-                        other.as_bytes(),
-                    )
-                } else {
-                    let this_lower =
-                        this_lower.get_or_insert_with(|| this.to_lowercase());
-                    this_lower.starts_with_str(other.to_lowercase())
-                }
+                let other = literal_pool.get(lit_id).unwrap();
+                starts_with_case_insensitive(this.as_bytes(), other.as_bytes())
             })
         } else {
             literals.iter().any(|&lit_id| {
-                let other = lit_pool.get(lit_id).unwrap();
+                let other = literal_pool.get(lit_id).unwrap();
                 this.starts_with_str(other)
             })
         }
@@ -429,29 +372,17 @@ impl RuntimeString {
         case_insensitive: bool,
     ) -> bool {
         let this = self.as_bstr(ctx);
-        let lit_pool = ctx.compiled_rules.literal_pool();
+        let literal_pool = ctx.compiled_rules.literal_pool();
         let literals = ctx.compiled_rules.get_literal_set(literal_set);
 
         if case_insensitive {
-            let this_is_ascii = this.is_ascii();
-            let mut this_lower = None;
-
             literals.iter().any(|&lit_id| {
-                let other = lit_pool.get(lit_id).unwrap();
-                if this_is_ascii && other.is_ascii() {
-                    ends_with_ascii_case_insensitive(
-                        this.as_bytes(),
-                        other.as_bytes(),
-                    )
-                } else {
-                    let this_lower =
-                        this_lower.get_or_insert_with(|| this.to_lowercase());
-                    this_lower.ends_with_str(other.to_lowercase())
-                }
+                let other = literal_pool.get(lit_id).unwrap();
+                ends_with_case_insensitive(this.as_bytes(), other.as_bytes())
             })
         } else {
             literals.iter().any(|&lit_id| {
-                let other = lit_pool.get(lit_id).unwrap();
+                let other = literal_pool.get(lit_id).unwrap();
                 this.ends_with_str(other)
             })
         }
@@ -465,32 +396,149 @@ impl RuntimeString {
         case_insensitive: bool,
     ) -> bool {
         let this = self.as_bstr(ctx);
-        let lit_pool = ctx.compiled_rules.literal_pool();
+        let literal_pool = ctx.compiled_rules.literal_pool();
         let literals = ctx.compiled_rules.get_literal_set(literal_set);
 
         if case_insensitive {
-            let this_is_ascii = this.is_ascii();
-            let mut this_lower = None;
-
             literals.iter().any(|&lit_id| {
-                let other = lit_pool.get(lit_id).unwrap();
-                if this_is_ascii && other.is_ascii() {
-                    this.as_bytes().eq_ignore_ascii_case(other.as_bytes())
-                } else {
-                    let this_lower =
-                        this_lower.get_or_insert_with(|| this.to_lowercase());
-                    this_lower == &other.to_lowercase()
-                }
+                let other = literal_pool.get(lit_id).unwrap();
+                equals_case_insensitive(this.as_bytes(), other.as_bytes())
             })
         } else {
             literals.iter().any(|&lit_id| {
-                let other = lit_pool.get(lit_id).unwrap();
+                let other = literal_pool.get(lit_id).unwrap();
                 this.eq(other)
             })
         }
     }
 }
 
+/// Zero-allocation iterator over the lowercased characters (and raw invalid
+/// UTF-8 bytes) of a byte slice.
+#[derive(Clone)]
+struct LowercaseChars<'a> {
+    bytes: &'a [u8],
+    pending: Option<std::char::ToLowercase>,
+}
+
+impl<'a> LowercaseChars<'a> {
+    #[inline]
+    fn new(bytes: &'a [u8]) -> Self {
+        Self { bytes, pending: None }
+    }
+}
+
+impl Iterator for LowercaseChars<'_> {
+    type Item = u32;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(ref mut lower) = self.pending {
+            if let Some(c) = lower.next() {
+                return Some(c as u32);
+            }
+            self.pending = None;
+        }
+
+        let (&first_byte, rest) = self.bytes.split_first()?;
+
+        if first_byte.is_ascii() {
+            self.bytes = rest;
+            return Some(first_byte.to_ascii_lowercase() as u32);
+        }
+
+        let (ch, size) = bstr::decode_utf8(self.bytes);
+        if let Some(ch) = ch {
+            self.bytes = &self.bytes[size..];
+            let mut lower = ch.to_lowercase();
+            let first = lower.next()? as u32;
+            if lower.len() > 0 {
+                self.pending = Some(lower);
+            }
+            Some(first)
+        } else {
+            self.bytes = rest;
+            Some(u32::from(first_byte) | 0x8000_0000)
+        }
+    }
+}
+
+/// Zero-allocation reverse iterator over the lowercased characters (and raw
+/// invalid UTF-8 bytes) of a byte slice.
+struct LowercaseCharsRev<'a> {
+    bytes: &'a [u8],
+    pending: Option<std::char::ToLowercase>,
+}
+
+impl<'a> LowercaseCharsRev<'a> {
+    #[inline]
+    fn new(bytes: &'a [u8]) -> Self {
+        Self { bytes, pending: None }
+    }
+}
+
+impl Iterator for LowercaseCharsRev<'_> {
+    type Item = u32;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(ref mut lower) = self.pending {
+            if let Some(c) = lower.next_back() {
+                return Some(c as u32);
+            }
+            self.pending = None;
+        }
+
+        let (&last_byte, rest) = self.bytes.split_last()?;
+
+        if last_byte.is_ascii() {
+            self.bytes = rest;
+            return Some(last_byte.to_ascii_lowercase() as u32);
+        }
+
+        let (ch, size) = bstr::decode_last_utf8(self.bytes);
+        if let Some(ch) = ch {
+            self.bytes = &self.bytes[..self.bytes.len() - size];
+            let mut lower = ch.to_lowercase();
+            let last = lower.next_back()? as u32;
+            if lower.len() > 0 {
+                self.pending = Some(lower);
+            }
+            Some(last)
+        } else {
+            self.bytes = rest;
+            Some(u32::from(last_byte) | 0x8000_0000)
+        }
+    }
+}
+
+/// Returns the index of the first pair of bytes produced by `a` and `b` that
+/// are not equal when ignoring ASCII case, or `None` if all pairs are equal.
+///
+/// Pairs containing a non-ASCII byte are never considered equal, so all the
+/// bytes before the returned index are ASCII in both inputs, which means
+/// that the index is a character boundary in both.
+#[inline]
+fn ascii_case_insensitive_mismatch<'a>(
+    a: impl Iterator<Item = &'a u8>,
+    b: impl Iterator<Item = &'a u8>,
+) -> Option<usize> {
+    a.zip(b).position(|(x, y)| !(x.is_ascii() && x.eq_ignore_ascii_case(y)))
+}
+
+/// Case-insensitive `contains`.
+#[inline]
+fn contains_case_insensitive(haystack: &[u8], needle: &[u8]) -> bool {
+    // The fast path requires both strings to be ASCII, because some non-ASCII
+    // characters are lowercased to ASCII (e.g. U+212A KELVIN SIGN -> 'k').
+    if haystack.is_ascii() && needle.is_ascii() {
+        contains_ascii_case_insensitive(haystack, needle)
+    } else {
+        contains_unicode_case_insensitive(haystack, needle)
+    }
+}
+
+/// Case-insensitive `contains` for strings that are both ASCII.
 #[inline]
 fn contains_ascii_case_insensitive(haystack: &[u8], needle: &[u8]) -> bool {
     if needle.is_empty() {
@@ -506,17 +554,100 @@ fn contains_ascii_case_insensitive(haystack: &[u8], needle: &[u8]) -> bool {
         .any(|window| window.eq_ignore_ascii_case(needle))
 }
 
-#[inline]
-fn starts_with_ascii_case_insensitive(haystack: &[u8], prefix: &[u8]) -> bool {
-    haystack.len() >= prefix.len()
-        && haystack[..prefix.len()].eq_ignore_ascii_case(prefix)
+/// Case-insensitive `contains` for arbitrary strings.
+#[cold]
+#[inline(never)]
+fn contains_unicode_case_insensitive(haystack: &[u8], needle: &[u8]) -> bool {
+    // Try every position in the lowercased haystack, including positions in
+    // the middle of characters that are lowercased to multiple characters
+    // (e.g. 'İ' -> "i\u{307}").
+    let mut h = LowercaseChars::new(haystack);
+    loop {
+        let mut candidate = h.clone();
+        if LowercaseChars::new(needle).all(|c| candidate.next() == Some(c)) {
+            return true;
+        }
+        if h.next().is_none() {
+            return false;
+        }
+    }
 }
 
+/// Case-insensitive `startswith`.
+///
+/// Bytes are compared ignoring ASCII case up to the first pair of bytes that
+/// don't match. If both bytes are ASCII the result is `false`. Otherwise, the
+/// rest of the strings are compared using full Unicode lowercasing, because
+/// lowercasing a non-ASCII character can change its length in bytes, or even
+/// produce an ASCII character (e.g. U+212A KELVIN SIGN -> 'k').
 #[inline]
-fn ends_with_ascii_case_insensitive(haystack: &[u8], suffix: &[u8]) -> bool {
-    haystack.len() >= suffix.len()
-        && haystack[haystack.len() - suffix.len()..]
-            .eq_ignore_ascii_case(suffix)
+fn starts_with_case_insensitive(haystack: &[u8], prefix: &[u8]) -> bool {
+    let Some(i) =
+        ascii_case_insensitive_mismatch(haystack.iter(), prefix.iter())
+    else {
+        // All compared bytes matched; fails only if the haystack ran out.
+        return haystack.len() >= prefix.len();
+    };
+    if haystack[i].is_ascii() && prefix[i].is_ascii() {
+        return false;
+    }
+    starts_with_unicode_case_insensitive(&haystack[i..], &prefix[i..])
+}
+
+#[cold]
+#[inline(never)]
+fn starts_with_unicode_case_insensitive(
+    haystack: &[u8],
+    prefix: &[u8],
+) -> bool {
+    let mut h = LowercaseChars::new(haystack);
+    LowercaseChars::new(prefix).all(|c| h.next() == Some(c))
+}
+
+/// Case-insensitive `endswith`. Works like [`starts_with_case_insensitive`],
+/// but comparing the strings from the end.
+#[inline]
+fn ends_with_case_insensitive(haystack: &[u8], suffix: &[u8]) -> bool {
+    let Some(i) = ascii_case_insensitive_mismatch(
+        haystack.iter().rev(),
+        suffix.iter().rev(),
+    ) else {
+        // All compared bytes matched; fails only if the haystack ran out.
+        return haystack.len() >= suffix.len();
+    };
+    // The last `i` bytes of both strings matched, the mismatching bytes are
+    // the ones right before them.
+    let (h_end, s_end) = (haystack.len() - i, suffix.len() - i);
+    if haystack[h_end - 1].is_ascii() && suffix[s_end - 1].is_ascii() {
+        return false;
+    }
+    ends_with_unicode_case_insensitive(&haystack[..h_end], &suffix[..s_end])
+}
+
+#[cold]
+#[inline(never)]
+fn ends_with_unicode_case_insensitive(haystack: &[u8], suffix: &[u8]) -> bool {
+    let mut h = LowercaseCharsRev::new(haystack);
+    LowercaseCharsRev::new(suffix).all(|c| h.next() == Some(c))
+}
+
+/// Case-insensitive equality. Works like [`starts_with_case_insensitive`].
+#[inline]
+fn equals_case_insensitive(a: &[u8], b: &[u8]) -> bool {
+    let Some(i) = ascii_case_insensitive_mismatch(a.iter(), b.iter()) else {
+        // All compared bytes matched; equal only if no bytes are left.
+        return a.len() == b.len();
+    };
+    if a[i].is_ascii() && b[i].is_ascii() {
+        return false;
+    }
+    equals_unicode_case_insensitive(&a[i..], &b[i..])
+}
+
+#[cold]
+#[inline(never)]
+fn equals_unicode_case_insensitive(a: &[u8], b: &[u8]) -> bool {
+    LowercaseChars::new(a).eq(LowercaseChars::new(b))
 }
 
 /// Special kind of [RuntimeString] that has a fixed length.
@@ -591,5 +722,75 @@ impl<S: String> String for Uppercase<S> {
 
     fn from_slice(ctx: &ScanContext, s: &[u8]) -> Self {
         Self(S::from_slice(ctx, s))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bstr::ByteSlice;
+
+    use super::{
+        contains_case_insensitive, ends_with_case_insensitive,
+        equals_case_insensitive, starts_with_case_insensitive,
+    };
+
+    /// Pairs of strings used for checking the case-insensitive functions
+    /// against a reference implementation that lowercases both strings with
+    /// [`ByteSlice::to_lowercase`] and then compares the results.
+    const CASES: &[(&[u8], &[u8])] = &[
+        (b"", b""),
+        (b"foo", b""),
+        (b"foobar", b"FOO"),
+        (b"foobar", b"BAR"),
+        (b"foobar", b"OBA"),
+        (b"foobar", b"baz"),
+        (b"fo", b"FOO"),
+        ("mañana".as_bytes(), "MAÑ".as_bytes()),
+        ("mañana".as_bytes(), b"MAN"),
+        ("CAFÉ".as_bytes(), "fé".as_bytes()),
+        // U+212A KELVIN SIGN is lowercased to 'k'.
+        ("\u{212A}elvin".as_bytes(), b"KEL"),
+        ("\u{212A}".as_bytes(), b"k"),
+        ("ABC\u{212A}".as_bytes(), b"k"),
+        ("x\u{212A}x".as_bytes(), b"k"),
+        // 'İ' is lowercased to "i\u{307}".
+        ("İstanbul".as_bytes(), b"i"),
+        ("İ".as_bytes(), "\u{307}".as_bytes()),
+        // 'Ⱥ' (2 bytes) is lowercased to 'ⱥ' (3 bytes).
+        ("Ⱥ".as_bytes(), "ⱥ".as_bytes()),
+        // 'Ɐ' (3 bytes) is lowercased to 'ɐ' (2 bytes).
+        ("Ɐ".as_bytes(), "ɐ".as_bytes()),
+        // Invalid UTF-8.
+        (b"\xFFFOO\xFF", b"\xFFfoo\xFF"),
+    ];
+
+    #[test]
+    fn case_insensitive_ops() {
+        for &(x, y) in CASES {
+            for (a, b) in [(x, y), (y, x)] {
+                let (a_lower, b_lower) = (a.to_lowercase(), b.to_lowercase());
+                let (a, b) = (a.as_bstr(), b.as_bstr());
+                assert_eq!(
+                    starts_with_case_insensitive(a, b),
+                    a_lower.starts_with_str(&b_lower),
+                    "{a:?} istartswith {b:?}"
+                );
+                assert_eq!(
+                    ends_with_case_insensitive(a, b),
+                    a_lower.ends_with_str(&b_lower),
+                    "{a:?} iendswith {b:?}"
+                );
+                assert_eq!(
+                    equals_case_insensitive(a, b),
+                    a_lower == b_lower,
+                    "{a:?} iequals {b:?}"
+                );
+                assert_eq!(
+                    contains_case_insensitive(a, b),
+                    a_lower.contains_str(&b_lower),
+                    "{a:?} icontains {b:?}"
+                );
+            }
+        }
     }
 }
