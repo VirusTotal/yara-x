@@ -1,5 +1,5 @@
 RULE test_1
-  10: FOR_IN -- hash: 0x4d867bf0d316d613
+  10: FOR_IN -- hash: 0x8ae4cdc13efbff6
         n: Var { frame_id: 1, ty: integer, index: 0 }
         i: Var { frame_id: 1, ty: integer, index: 1 }
         max_count: Var { frame_id: 1, ty: integer, index: 2 }
@@ -7,11 +7,11 @@ RULE test_1
         item: Var { frame_id: 1, ty: unknown, index: 4 }
     0: CONST integer(1)
     1: CONST integer(2)
-    12: WITH -- hash: 0x3ab1cce28def38dd
-      11: ADD -- hash: 0xc30737bed7ed7d61
+    12: WITH -- hash: 0x97156c73ad9236c2
+      11: ADD -- hash: 0xe11c89637558fca3
         5: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 5 }, type_value: integer(unknown) }
         6: CONST integer(1)
-      9: FOR_IN -- hash: 0xb88f2876d20283af
+      9: FOR_IN -- hash: 0xb424c04db0ea62c3
             n: Var { frame_id: 2, ty: integer, index: 8 }
             i: Var { frame_id: 2, ty: integer, index: 9 }
             max_count: Var { frame_id: 2, ty: integer, index: 10 }
@@ -19,21 +19,21 @@ RULE test_1
             item: Var { frame_id: 2, ty: unknown, index: 12 }
         2: CONST integer(1)
         3: CONST integer(2)
-        8: EQ -- hash: 0x2645e81ead56f981
+        8: EQ -- hash: 0xd6b1738c6e2a3d8c
           4: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 13 }, type_value: integer(unknown) }
           7: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 7 }, type_value: integer(unknown) }
 
 RULE test_2
-  8: FOR_OF -- hash: 0x76ebffb5ae21729f
+  8: FOR_OF -- hash: 0x3dd6c6dcec3ebba2
         n: Var { frame_id: 1, ty: integer, index: 0 }
         i: Var { frame_id: 1, ty: integer, index: 1 }
         max_count: Var { frame_id: 1, ty: integer, index: 2 }
         count: Var { frame_id: 1, ty: integer, index: 3 }
         item: Var { frame_id: 1, ty: integer, index: 4 }
-    10: WITH -- hash: 0x9052f0c2f9f49e19
-      9: FN_CALL math.abs@x:i64@i64 -- hash: 0x8060214e30dd5c4a
+    10: WITH -- hash: 0xc828a201982be744
+      9: FN_CALL math.abs@x:i64@i64 -- hash: 0xad1fba3bd1a1ba13
         4: CONST integer(1)
-      7: FOR_IN -- hash: 0xbd4d52dc62b1a692
+      7: FOR_IN -- hash: 0xb8e2eab3419985a6
             n: Var { frame_id: 2, ty: integer, index: 6 }
             i: Var { frame_id: 2, ty: integer, index: 7 }
             max_count: Var { frame_id: 2, ty: integer, index: 8 }
@@ -41,16 +41,16 @@ RULE test_2
             item: Var { frame_id: 2, ty: unknown, index: 10 }
         0: CONST integer(1)
         1: CONST integer(2)
-        6: EQ -- hash: 0x2b0412843e061c64
+        6: EQ -- hash: 0xdb6f9df1fed9606f
           2: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 11 }, type_value: integer(unknown) }
           5: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 5 }, type_value: integer(unknown) }
 
 RULE test_3
-  9: AND -- hash: 0x9db01bbff85d4ada
-    11: WITH -- hash: 0xef0ac1115d0d5f3c
-      10: FN_CALL math.abs@x:i64@i64 -- hash: 0x8060214e30dd5c4a
+  9: AND -- hash: 0xd585ccfe9a949405
+    11: WITH -- hash: 0x26e0724fff44a868
+      10: FN_CALL math.abs@x:i64@i64 -- hash: 0xad1fba3bd1a1ba13
         5: CONST integer(1)
-      8: FOR_IN -- hash: 0x1c05232ac5ca67b6
+      8: FOR_IN -- hash: 0x179abb01a4b246ca
             n: Var { frame_id: 1, ty: integer, index: 1 }
             i: Var { frame_id: 1, ty: integer, index: 2 }
             max_count: Var { frame_id: 1, ty: integer, index: 3 }
@@ -58,16 +58,16 @@ RULE test_3
             item: Var { frame_id: 1, ty: unknown, index: 5 }
         1: CONST integer(1)
         2: CONST integer(2)
-        7: EQ -- hash: 0x89bbe2d2a11edd87
+        7: EQ -- hash: 0x3a276e4061f22193
           3: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 6 }, type_value: integer(unknown) }
           6: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: integer(unknown) }
 
 RULE test_4
-  9: OR -- hash: 0xd7e739fa2d77eeb9
-    11: WITH -- hash: 0xef0ac1115d0d5f3c
-      10: FN_CALL math.abs@x:i64@i64 -- hash: 0x8060214e30dd5c4a
+  9: OR -- hash: 0xfbceb38cfaf37e5
+    11: WITH -- hash: 0x26e0724fff44a868
+      10: FN_CALL math.abs@x:i64@i64 -- hash: 0xad1fba3bd1a1ba13
         5: CONST integer(1)
-      8: FOR_IN -- hash: 0x1c05232ac5ca67b6
+      8: FOR_IN -- hash: 0x179abb01a4b246ca
             n: Var { frame_id: 1, ty: integer, index: 1 }
             i: Var { frame_id: 1, ty: integer, index: 2 }
             max_count: Var { frame_id: 1, ty: integer, index: 3 }
@@ -75,16 +75,16 @@ RULE test_4
             item: Var { frame_id: 1, ty: unknown, index: 5 }
         1: CONST integer(1)
         2: CONST integer(2)
-        7: EQ -- hash: 0x89bbe2d2a11edd87
+        7: EQ -- hash: 0x3a276e4061f22193
           3: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 6 }, type_value: integer(unknown) }
           6: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: integer(unknown) }
 
 RULE test_5
-  8: NOT -- hash: 0x6378fd85c742a6fb
-    10: WITH -- hash: 0xef0ac1115d0d5f3c
-      9: FN_CALL math.abs@x:i64@i64 -- hash: 0x8060214e30dd5c4a
+  8: NOT -- hash: 0x9b4eaec46579f026
+    10: WITH -- hash: 0x26e0724fff44a868
+      9: FN_CALL math.abs@x:i64@i64 -- hash: 0xad1fba3bd1a1ba13
         4: CONST integer(1)
-      7: FOR_IN -- hash: 0x1c05232ac5ca67b6
+      7: FOR_IN -- hash: 0x179abb01a4b246ca
             n: Var { frame_id: 1, ty: integer, index: 1 }
             i: Var { frame_id: 1, ty: integer, index: 2 }
             max_count: Var { frame_id: 1, ty: integer, index: 3 }
@@ -92,18 +92,18 @@ RULE test_5
             item: Var { frame_id: 1, ty: unknown, index: 5 }
         0: CONST integer(1)
         1: CONST integer(2)
-        6: EQ -- hash: 0x89bbe2d2a11edd87
+        6: EQ -- hash: 0x3a276e4061f22193
           2: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 6 }, type_value: integer(unknown) }
           5: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: integer(unknown) }
 
 RULE test_6
-  10: OF -- hash: 0x10c7a0fc43caa50b
+  10: OF -- hash: 0xd64d8e8f835c4ab2
     0: CONST integer(1)
     9: CONST boolean(true)
-    12: WITH -- hash: 0x9052f0c2f9f49e19
-      11: FN_CALL math.abs@x:i64@i64 -- hash: 0x8060214e30dd5c4a
+    12: WITH -- hash: 0xc828a201982be744
+      11: FN_CALL math.abs@x:i64@i64 -- hash: 0xad1fba3bd1a1ba13
         5: CONST integer(1)
-      8: FOR_IN -- hash: 0xbd4d52dc62b1a692
+      8: FOR_IN -- hash: 0xb8e2eab3419985a6
             n: Var { frame_id: 2, ty: integer, index: 6 }
             i: Var { frame_id: 2, ty: integer, index: 7 }
             max_count: Var { frame_id: 2, ty: integer, index: 8 }
@@ -111,17 +111,17 @@ RULE test_6
             item: Var { frame_id: 2, ty: unknown, index: 10 }
         1: CONST integer(1)
         2: CONST integer(2)
-        7: EQ -- hash: 0x2b0412843e061c64
+        7: EQ -- hash: 0xdb6f9df1fed9606f
           3: SYMBOL Var { var: Var { frame_id: 2, ty: integer, index: 11 }, type_value: integer(unknown) }
           6: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 5 }, type_value: integer(unknown) }
 
 RULE test_7
-  11: EQ -- hash: 0x77a8d7a1282f0c83
-    9: FN_CALL math.to_number@b:b@i64 -- hash: 0xed68c6d781a2698
-      13: WITH -- hash: 0xef0ac1115d0d5f3c
-        12: FN_CALL math.abs@x:i64@i64 -- hash: 0x8060214e30dd5c4a
+  11: EQ -- hash: 0xc791963469a318dc
+    9: FN_CALL math.to_number@b:b@i64 -- hash: 0xd5c15394ba376f9a
+      13: WITH -- hash: 0x26e0724fff44a868
+        12: FN_CALL math.abs@x:i64@i64 -- hash: 0xad1fba3bd1a1ba13
           5: CONST integer(1)
-        8: FOR_IN -- hash: 0x1c05232ac5ca67b6
+        8: FOR_IN -- hash: 0x179abb01a4b246ca
               n: Var { frame_id: 1, ty: integer, index: 1 }
               i: Var { frame_id: 1, ty: integer, index: 2 }
               max_count: Var { frame_id: 1, ty: integer, index: 3 }
@@ -129,17 +129,17 @@ RULE test_7
               item: Var { frame_id: 1, ty: unknown, index: 5 }
           1: CONST integer(1)
           2: CONST integer(2)
-          7: EQ -- hash: 0x89bbe2d2a11edd87
+          7: EQ -- hash: 0x3a276e4061f22193
             3: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 6 }, type_value: integer(unknown) }
             6: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: integer(unknown) }
     10: CONST integer(1)
 
 RULE test_8
-  8: DEFINED -- hash: 0x35ee8857dc61db24
-    10: WITH -- hash: 0xef0ac1115d0d5f3c
-      9: FN_CALL math.abs@x:i64@i64 -- hash: 0x8060214e30dd5c4a
+  8: DEFINED -- hash: 0x3f7d2b681f6e4349
+    10: WITH -- hash: 0x26e0724fff44a868
+      9: FN_CALL math.abs@x:i64@i64 -- hash: 0xad1fba3bd1a1ba13
         4: CONST integer(1)
-      7: FOR_IN -- hash: 0x1c05232ac5ca67b6
+      7: FOR_IN -- hash: 0x179abb01a4b246ca
             n: Var { frame_id: 1, ty: integer, index: 1 }
             i: Var { frame_id: 1, ty: integer, index: 2 }
             max_count: Var { frame_id: 1, ty: integer, index: 3 }
@@ -147,7 +147,7 @@ RULE test_8
             item: Var { frame_id: 1, ty: unknown, index: 5 }
         0: CONST integer(1)
         1: CONST integer(2)
-        6: EQ -- hash: 0x89bbe2d2a11edd87
+        6: EQ -- hash: 0x3a276e4061f22193
           2: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 6 }, type_value: integer(unknown) }
           5: SYMBOL Var { var: Var { frame_id: 0, ty: integer, index: 0 }, type_value: integer(unknown) }
 

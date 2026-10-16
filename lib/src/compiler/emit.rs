@@ -687,6 +687,65 @@ fn emit_expr(
                 wasm::export__str_matches_regex_set.mangled_name,
             ));
         }
+        Expr::EqMany { lhs, literal_set } => {
+            emit_expr(ctx, ir, *lhs, instr);
+            instr.i32_const((*literal_set).into());
+            instr
+                .call(ctx.function_id(wasm::export__str_eq_many.mangled_name));
+        }
+        Expr::IEqualsMany { lhs, literal_set } => {
+            emit_expr(ctx, ir, *lhs, instr);
+            instr.i32_const((*literal_set).into());
+            instr.call(
+                ctx.function_id(wasm::export__str_iequals_many.mangled_name),
+            );
+        }
+        Expr::ContainsMany { lhs, literal_set } => {
+            emit_expr(ctx, ir, *lhs, instr);
+            instr.i32_const((*literal_set).into());
+            instr.call(
+                ctx.function_id(wasm::export__str_contains_many.mangled_name),
+            );
+        }
+        Expr::IContainsMany { lhs, literal_set } => {
+            emit_expr(ctx, ir, *lhs, instr);
+            instr.i32_const((*literal_set).into());
+            instr.call(
+                ctx.function_id(wasm::export__str_icontains_many.mangled_name),
+            );
+        }
+        Expr::StartsWithMany { lhs, literal_set } => {
+            emit_expr(ctx, ir, *lhs, instr);
+            instr.i32_const((*literal_set).into());
+            instr.call(
+                ctx.function_id(
+                    wasm::export__str_startswith_many.mangled_name,
+                ),
+            );
+        }
+        Expr::IStartsWithMany { lhs, literal_set } => {
+            emit_expr(ctx, ir, *lhs, instr);
+            instr.i32_const((*literal_set).into());
+            instr.call(
+                ctx.function_id(
+                    wasm::export__str_istartswith_many.mangled_name,
+                ),
+            );
+        }
+        Expr::EndsWithMany { lhs, literal_set } => {
+            emit_expr(ctx, ir, *lhs, instr);
+            instr.i32_const((*literal_set).into());
+            instr.call(
+                ctx.function_id(wasm::export__str_endswith_many.mangled_name),
+            );
+        }
+        Expr::IEndsWithMany { lhs, literal_set } => {
+            emit_expr(ctx, ir, *lhs, instr);
+            instr.i32_const((*literal_set).into());
+            instr.call(
+                ctx.function_id(wasm::export__str_iendswith_many.mangled_name),
+            );
+        }
 
         Expr::Lookup(lookup) => {
             // Emit code for the primary expression (array or map) that is

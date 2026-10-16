@@ -51,7 +51,9 @@ use crate::compiler::ir::dfs::{
     DFSIter, DFSWithScopeIter, Event, EventContext, dfs_common,
 };
 
-use crate::compiler::{FilesizeBounds, HeaderConstraint, RegexSetId, RuleId};
+use crate::compiler::{
+    FilesizeBounds, HeaderConstraint, LiteralSetId, RegexSetId, RuleId,
+};
 use crate::re;
 use crate::symbols::Symbol;
 use crate::types::Value::Const;
@@ -2327,6 +2329,118 @@ impl IR {
         expr_id
     }
 
+    /// Creates a new [`Expr::EqMany`].
+    pub fn eq_many(
+        &mut self,
+        lhs: ExprId,
+        literal_set: LiteralSetId,
+    ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
+        self.nodes.push(Expr::EqMany { lhs, literal_set });
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
+    }
+
+    /// Creates a new [`Expr::IEqualsMany`].
+    pub fn iequals_many(
+        &mut self,
+        lhs: ExprId,
+        literal_set: LiteralSetId,
+    ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
+        self.nodes.push(Expr::IEqualsMany { lhs, literal_set });
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
+    }
+
+    /// Creates a new [`Expr::ContainsMany`].
+    pub fn contains_many(
+        &mut self,
+        lhs: ExprId,
+        literal_set: LiteralSetId,
+    ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
+        self.nodes.push(Expr::ContainsMany { lhs, literal_set });
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
+    }
+
+    /// Creates a new [`Expr::IContainsMany`].
+    pub fn icontains_many(
+        &mut self,
+        lhs: ExprId,
+        literal_set: LiteralSetId,
+    ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
+        self.nodes.push(Expr::IContainsMany { lhs, literal_set });
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
+    }
+
+    /// Creates a new [`Expr::StartsWithMany`].
+    pub fn starts_with_many(
+        &mut self,
+        lhs: ExprId,
+        literal_set: LiteralSetId,
+    ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
+        self.nodes.push(Expr::StartsWithMany { lhs, literal_set });
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
+    }
+
+    /// Creates a new [`Expr::IStartsWithMany`].
+    pub fn istarts_with_many(
+        &mut self,
+        lhs: ExprId,
+        literal_set: LiteralSetId,
+    ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
+        self.nodes.push(Expr::IStartsWithMany { lhs, literal_set });
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
+    }
+
+    /// Creates a new [`Expr::EndsWithMany`].
+    pub fn ends_with_many(
+        &mut self,
+        lhs: ExprId,
+        literal_set: LiteralSetId,
+    ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
+        self.nodes.push(Expr::EndsWithMany { lhs, literal_set });
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
+    }
+
+    /// Creates a new [`Expr::IEndsWithMany`].
+    pub fn iends_with_many(
+        &mut self,
+        lhs: ExprId,
+        literal_set: LiteralSetId,
+    ) -> ExprId {
+        let expr_id = ExprId::from(self.nodes.len());
+        self.parents[lhs.0 as usize] = expr_id;
+        self.parents.push(ExprId::none());
+        self.nodes.push(Expr::IEndsWithMany { lhs, literal_set });
+        debug_assert_eq!(self.parents.len(), self.nodes.len());
+        expr_id
+    }
+
     /// Creates a new [`Expr::PatternMatch`]
     pub fn pattern_match(
         &mut self,
@@ -2904,6 +3018,14 @@ impl Debug for IR {
                         Expr::IEquals { .. } => writeln!(f, "IEQUALS -- hash: {expr_hash:#08x}")?,
                         Expr::Matches { .. } => writeln!(f, "MATCHES -- hash: {expr_hash:#08x}")?,
                         Expr::MatchesMany { regex_set, .. } => writeln!(f, "MATCHES_MANY RegexSetId({}) -- hash: {expr_hash:#08x}", usize::from(*regex_set))?,
+                        Expr::EqMany { literal_set, .. } => writeln!(f, "EQ_MANY LiteralSetId({}) -- hash: {expr_hash:#08x}", usize::from(*literal_set))?,
+                        Expr::IEqualsMany { literal_set, .. } => writeln!(f, "IEQUALS_MANY LiteralSetId({}) -- hash: {expr_hash:#08x}", usize::from(*literal_set))?,
+                        Expr::ContainsMany { literal_set, .. } => writeln!(f, "CONTAINS_MANY LiteralSetId({}) -- hash: {expr_hash:#08x}", usize::from(*literal_set))?,
+                        Expr::IContainsMany { literal_set, .. } => writeln!(f, "ICONTAINS_MANY LiteralSetId({}) -- hash: {expr_hash:#08x}", usize::from(*literal_set))?,
+                        Expr::StartsWithMany { literal_set, .. } => writeln!(f, "STARTS_WITH_MANY LiteralSetId({}) -- hash: {expr_hash:#08x}", usize::from(*literal_set))?,
+                        Expr::IStartsWithMany { literal_set, .. } => writeln!(f, "ISTARTS_WITH_MANY LiteralSetId({}) -- hash: {expr_hash:#08x}", usize::from(*literal_set))?,
+                        Expr::EndsWithMany { literal_set, .. } => writeln!(f, "ENDS_WITH_MANY LiteralSetId({}) -- hash: {expr_hash:#08x}", usize::from(*literal_set))?,
+                        Expr::IEndsWithMany { literal_set, .. } => writeln!(f, "IENDS_WITH_MANY LiteralSetId({}) -- hash: {expr_hash:#08x}", usize::from(*literal_set))?,
                         Expr::Defined { .. } => writeln!(f, "DEFINED -- hash: {expr_hash:#08x}")?,
                         Expr::FieldAccess { .. } => writeln!(f, "FIELD_ACCESS -- hash: {expr_hash:#08x}")?,
                         Expr::With { .. } => writeln!(f, "WITH -- hash: {expr_hash:#08x}")?,
@@ -3146,6 +3268,32 @@ pub(crate) enum Expr {
     /// Match expression similar to `Expr::Matches` but that matches against
     /// multiple regular expressions at the same time.
     MatchesMany { lhs: ExprId, regex_set: RegexSetId },
+
+    /// Equality expression similar to `Expr::Eq` that compares a string against
+    /// multiple string literals.
+    EqMany { lhs: ExprId, literal_set: LiteralSetId },
+
+    /// Case-insensitive equality expression similar to `Expr::IEquals` that
+    /// compares a string against multiple string literals.
+    IEqualsMany { lhs: ExprId, literal_set: LiteralSetId },
+
+    /// `contains` expression that checks a string against multiple string literals.
+    ContainsMany { lhs: ExprId, literal_set: LiteralSetId },
+
+    /// `icontains` expression that checks a string against multiple string literals.
+    IContainsMany { lhs: ExprId, literal_set: LiteralSetId },
+
+    /// `startswith` expression that checks a string against multiple string literals.
+    StartsWithMany { lhs: ExprId, literal_set: LiteralSetId },
+
+    /// `istartswith` expression that checks a string against multiple string literals.
+    IStartsWithMany { lhs: ExprId, literal_set: LiteralSetId },
+
+    /// `endswith` expression that checks a string against multiple string literals.
+    EndsWithMany { lhs: ExprId, literal_set: LiteralSetId },
+
+    /// `iendswith` expression that checks a string against multiple string literals.
+    IEndsWithMany { lhs: ExprId, literal_set: LiteralSetId },
 
     /// A `defined` expression (e.g. `defined foo`)
     Defined { operand: ExprId },
@@ -3602,7 +3750,15 @@ impl Expr {
                     *rhs = replacement;
                 }
             }
-            Expr::MatchesMany { lhs, .. } => {
+            Expr::MatchesMany { lhs, .. }
+            | Expr::EqMany { lhs, .. }
+            | Expr::IEqualsMany { lhs, .. }
+            | Expr::ContainsMany { lhs, .. }
+            | Expr::IContainsMany { lhs, .. }
+            | Expr::StartsWithMany { lhs, .. }
+            | Expr::IStartsWithMany { lhs, .. }
+            | Expr::EndsWithMany { lhs, .. }
+            | Expr::IEndsWithMany { lhs, .. } => {
                 if *lhs == child {
                     *lhs = replacement;
                 }
@@ -3712,6 +3868,14 @@ impl Expr {
             | Expr::IEquals { .. }
             | Expr::Matches { .. }
             | Expr::MatchesMany { .. }
+            | Expr::EqMany { .. }
+            | Expr::IEqualsMany { .. }
+            | Expr::ContainsMany { .. }
+            | Expr::IContainsMany { .. }
+            | Expr::StartsWithMany { .. }
+            | Expr::IStartsWithMany { .. }
+            | Expr::EndsWithMany { .. }
+            | Expr::IEndsWithMany { .. }
             | Expr::PatternMatch { .. }
             | Expr::PatternMatchVar { .. }
             | Expr::OfExprTuple(_)
@@ -3784,6 +3948,14 @@ impl Expr {
             | Expr::IEquals { .. }
             | Expr::Matches { .. }
             | Expr::MatchesMany { .. }
+            | Expr::EqMany { .. }
+            | Expr::IEqualsMany { .. }
+            | Expr::ContainsMany { .. }
+            | Expr::IContainsMany { .. }
+            | Expr::StartsWithMany { .. }
+            | Expr::IStartsWithMany { .. }
+            | Expr::EndsWithMany { .. }
+            | Expr::IEndsWithMany { .. }
             | Expr::PatternMatch { .. }
             | Expr::PatternMatchVar { .. }
             | Expr::OfExprTuple(_)

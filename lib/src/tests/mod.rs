@@ -281,6 +281,17 @@ fn string_operations() {
     condition_true!(r#""foo" istartswith "Fo""#);
     condition_true!(r#""foo" iendswith "OO""#);
 
+    // Some non-ASCII characters are lowercased to ASCII (U+212A KELVIN SIGN
+    // -> 'k', 'İ' -> "i\u{307}"), or change their length in bytes ('Ⱥ' -> 'ⱥ'
+    // goes from 2 to 3 bytes).
+    condition_true!(r#""\xE2\x84\xAAelvin" istartswith "kel""#);
+    condition_true!(r#""İstanbul" istartswith "i""#);
+    condition_true!(r#""Ⱥ" istartswith "ⱥ""#);
+    condition_true!(r#""ABC\xE2\x84\xAA" iendswith "k""#);
+    condition_true!(r#""x\xE2\x84\xAAx" icontains "k""#);
+    condition_true!(r#""\xE2\x84\xAA" iequals "k""#);
+    condition_true!(r#""Ⱥ" iequals "ⱥ""#);
+
     condition_false!(r#""foo" contains "OO""#);
     condition_false!(r#""foo" startswith "Fo""#);
     condition_false!(r#""foo" endswith "OO""#);

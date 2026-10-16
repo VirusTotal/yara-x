@@ -10,8 +10,9 @@ use std::ops::{ControlFlow, RangeInclusive};
 use std::rc::Rc;
 
 use bstr::{BString, ByteSlice};
+use indexmap::IndexMap;
 use itertools::Itertools;
-use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
+use rustc_hash::{FxHashSet, FxHasher};
 use yara_x_parser::Span;
 use yara_x_parser::ast;
 use yara_x_parser::ast::WithSpan;
@@ -33,7 +34,7 @@ use crate::compiler::ir::{
 use crate::compiler::report::{Level, ReportBuilder};
 use crate::compiler::{
     CompileContext, CompileError, FilesizeBounds, ForVars, HeaderConstraint,
-    PatternIdx, RegexId, RegexSetId, TextPatternAsHex, warnings,
+    LiteralSetId, PatternIdx, RegexSetId, TextPatternAsHex, warnings,
 };
 use crate::errors::CustomError;
 use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
@@ -3040,66 +3041,7 @@ fn or_expr_from_ast<'src>(
         )?;
     }
 
-    // Group `matches` expressions by their left-side operand. All the `matches`
-    // expressions sharing the same left-side operand will be aggregated together
-    // into a MatchMany operation that matches the left-side operand against
-    // a set of regular expressions.
-    let mut matches_by_lhs: FxHashMap<u64, Vec<(usize, ExprId, RegexId)>> =
-        FxHashMap::default();
-
-    for (i, &op) in or_operands.iter().enumerate() {
-        if let Expr::Matches { lhs, rhs } = ctx.ir.get(op)
-            && let Expr::Const(TypeValue::Regexp(Some(re))) = ctx.ir.get(*rhs)
-        {
-            let mut hasher = FxHasher::default();
-            for evt in ctx.ir.dfs_iter(*lhs) {
-                if let dfs::Event::Enter((_, expr, _)) = evt {
-                    Hash::hash(expr, &mut hasher);
-                }
-            }
-            let lhs_expr_hash = hasher.finish();
-            let re_id = ctx.regex_pool.get_or_intern(re.as_str());
-            matches_by_lhs
-                .entry(lhs_expr_hash)
-                .or_default()
-                .push((i, *lhs, re_id));
-        }
-    }
-
-    // Collapse grouped regular expressions into `MatchesMany`. For any target
-    // expression associated with two or more regular expressions, construct a
-    // unified `RegexSet`, replace the individual `matches` nodes with a single
-    // `MatchesMany` expression, and record the collapsed indices.
-    let mut final_operands = Vec::new();
-    let mut collapsed_indices = FxHashSet::default();
-
-    for (_, group) in matches_by_lhs {
-        if group.len() >= 2 {
-            let set_id = RegexSetId::from(ctx.regex_sets.len() as i32);
-            let re_ids: Vec<_> =
-                group.iter().map(|&(_, _, re_id)| re_id).collect();
-            ctx.regex_sets.insert(set_id, re_ids);
-
-            let first_lhs = group[0].1;
-            let multimatch = ctx.ir.matches_regex_set(first_lhs, set_id);
-
-            final_operands.push(multimatch);
-
-            for (i, _, _) in group {
-                collapsed_indices.insert(i);
-            }
-        }
-    }
-
-    // Assemble final operands and construct the `or` expression. Preserve all
-    // non-collapsed operands in their original relative order. If all operands
-    // collapse into a single expression, return it directly without a wrapping
-    // `or` node.
-    for (i, &op) in or_operands.iter().enumerate() {
-        if !collapsed_indices.contains(&i) {
-            final_operands.push(op);
-        }
-    }
+    let final_operands = collapse_or_operands(ctx, &or_operands);
 
     if final_operands.len() == 1 {
         return Ok(final_operands[0]);
@@ -3113,6 +3055,182 @@ fn or_expr_from_ast<'src>(
             ctx.report_builder.span_to_code_loc(span),
         ),
     })
+}
+
+/// Analyzes the operands of an `or` expression and collapses multiple `matches`
+/// or string comparison operations sharing the same target operand and operator
+/// into a single `*Many` expression backed by a `RegexSet` or `LiteralSet`.
+fn collapse_or_operands(
+    ctx: &mut CompileContext,
+    or_operands: &[ExprId],
+) -> Vec<ExprId> {
+    #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+    enum OpKind {
+        Matches,
+        Eq,
+        IEquals,
+        Contains,
+        IContains,
+        StartsWith,
+        IStartsWith,
+        EndsWith,
+        IEndsWith,
+    }
+
+    let is_const_str = |expr: &Expr| {
+        matches!(expr, Expr::Const(TypeValue::String { value: Const(_), .. }))
+    };
+
+    // Group `matches` and string comparison expressions by their operator kind
+    // and target operand hash.
+    let mut groups = IndexMap::new();
+
+    for (i, &op) in or_operands.iter().enumerate() {
+        let matched = match ctx.ir.get(op) {
+            Expr::Matches { lhs, rhs }
+                if matches!(
+                    ctx.ir.get(*rhs),
+                    Expr::Const(TypeValue::Regexp(Some(_)))
+                ) =>
+            {
+                Some((OpKind::Matches, *lhs, *rhs))
+            }
+            Expr::Eq { lhs, rhs } => {
+                if is_const_str(ctx.ir.get(*rhs)) {
+                    Some((OpKind::Eq, *lhs, *rhs))
+                } else if is_const_str(ctx.ir.get(*lhs)) {
+                    Some((OpKind::Eq, *rhs, *lhs))
+                } else {
+                    None
+                }
+            }
+            Expr::IEquals { lhs, rhs } => {
+                if is_const_str(ctx.ir.get(*rhs)) {
+                    Some((OpKind::IEquals, *lhs, *rhs))
+                } else if is_const_str(ctx.ir.get(*lhs)) {
+                    Some((OpKind::IEquals, *rhs, *lhs))
+                } else {
+                    None
+                }
+            }
+            Expr::Contains { lhs, rhs } if is_const_str(ctx.ir.get(*rhs)) => {
+                Some((OpKind::Contains, *lhs, *rhs))
+            }
+            Expr::IContains { lhs, rhs } if is_const_str(ctx.ir.get(*rhs)) => {
+                Some((OpKind::IContains, *lhs, *rhs))
+            }
+            Expr::StartsWith { lhs, rhs }
+                if is_const_str(ctx.ir.get(*rhs)) =>
+            {
+                Some((OpKind::StartsWith, *lhs, *rhs))
+            }
+            Expr::IStartsWith { lhs, rhs }
+                if is_const_str(ctx.ir.get(*rhs)) =>
+            {
+                Some((OpKind::IStartsWith, *lhs, *rhs))
+            }
+            Expr::EndsWith { lhs, rhs } if is_const_str(ctx.ir.get(*rhs)) => {
+                Some((OpKind::EndsWith, *lhs, *rhs))
+            }
+            Expr::IEndsWith { lhs, rhs } if is_const_str(ctx.ir.get(*rhs)) => {
+                Some((OpKind::IEndsWith, *lhs, *rhs))
+            }
+            _ => None,
+        };
+
+        if let Some((kind, lhs, rhs)) = matched {
+            let mut hasher = FxHasher::default();
+            for evt in ctx.ir.dfs_iter(lhs) {
+                if let dfs::Event::Enter((_, expr, _)) = evt {
+                    Hash::hash(expr, &mut hasher);
+                }
+            }
+            let lhs_expr_hash = hasher.finish();
+            groups
+                .entry((kind, lhs_expr_hash))
+                .or_insert_with(Vec::new)
+                .push((i, lhs, rhs));
+        }
+    }
+
+    let mut final_operands = Vec::new();
+    let mut collapsed_indices = FxHashSet::default();
+
+    for ((kind, _), group) in groups {
+        if group.len() >= 2 {
+            let first_lhs = group[0].1;
+            let collapsed_expr = if kind == OpKind::Matches {
+                let set_id = RegexSetId::from(ctx.regex_sets.len() as i32);
+                let re_ids: Vec<_> = group
+                    .iter()
+                    .map(|&(_, _, rhs)| {
+                        let Expr::Const(TypeValue::Regexp(Some(re))) =
+                            ctx.ir.get(rhs)
+                        else {
+                            unreachable!()
+                        };
+                        ctx.regex_pool.get_or_intern(re.as_str())
+                    })
+                    .collect();
+                ctx.regex_sets.insert(set_id, re_ids);
+                ctx.ir.matches_regex_set(first_lhs, set_id)
+            } else {
+                let set_id = LiteralSetId::from(ctx.literal_sets.len() as i32);
+                let lit_ids: Vec<_> = group
+                    .iter()
+                    .map(|&(_, _, rhs)| {
+                        let Expr::Const(TypeValue::String {
+                            value: Const(s),
+                            ..
+                        }) = ctx.ir.get(rhs)
+                        else {
+                            unreachable!()
+                        };
+                        ctx.literal_pool.get_or_intern(s.as_bstr())
+                    })
+                    .collect();
+                ctx.literal_sets.insert(set_id, lit_ids);
+                match kind {
+                    OpKind::Eq => ctx.ir.eq_many(first_lhs, set_id),
+                    OpKind::IEquals => ctx.ir.iequals_many(first_lhs, set_id),
+                    OpKind::Contains => {
+                        ctx.ir.contains_many(first_lhs, set_id)
+                    }
+                    OpKind::IContains => {
+                        ctx.ir.icontains_many(first_lhs, set_id)
+                    }
+                    OpKind::StartsWith => {
+                        ctx.ir.starts_with_many(first_lhs, set_id)
+                    }
+                    OpKind::IStartsWith => {
+                        ctx.ir.istarts_with_many(first_lhs, set_id)
+                    }
+                    OpKind::EndsWith => {
+                        ctx.ir.ends_with_many(first_lhs, set_id)
+                    }
+                    OpKind::IEndsWith => {
+                        ctx.ir.iends_with_many(first_lhs, set_id)
+                    }
+                    OpKind::Matches => unreachable!(),
+                }
+            };
+
+            final_operands.push(collapsed_expr);
+
+            for (i, _, _) in group {
+                collapsed_indices.insert(i);
+            }
+        }
+    }
+
+    // Preserve all non-collapsed operands in their original relative order.
+    for (i, &op) in or_operands.iter().enumerate() {
+        if !collapsed_indices.contains(&i) {
+            final_operands.push(op);
+        }
+    }
+
+    final_operands
 }
 
 fn minus_expr_from_ast<'src>(
