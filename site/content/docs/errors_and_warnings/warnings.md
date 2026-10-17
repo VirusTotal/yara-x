@@ -266,6 +266,26 @@ warning[redundant_modifier]: redundant case-insensitive modifier
   |
 ```
 
+## sign_conversion {#sign_conversion}
+
+An integer constant changes its value because it is implicitly converted from
+signed to unsigned, or vice versa. When signed and unsigned integers are mixed,
+signed integers are converted to unsigned, and negative values wrap around. This
+changes the result of divisions and remainders like `uint64(0) % -3`, and the
+values taken by the loop variable in tuples like `(0xFFFFFFFFFFFFFFFF, -5)`.
+Similarly, unsigned integers greater than `0x7FFFFFFFFFFFFFFF` become negative
+when they are passed to a function that expects a signed integer.
+
+```text
+warning[sign_conversion]: implicit conversion changes signedness
+ --> line:1:36
+  |
+1 | rule test { condition: uint64(0) % -3 == 2 }
+  |                                    -- this is converted to 18446744073709551613
+  |
+  = note: signed integers are converted to unsigned when mixed with unsigned integers
+```
+
 ## slow_pattern {#slow_pattern}
 
 A pattern may be slow to match and degrade scanning performance. This is
@@ -359,6 +379,23 @@ warning[unsatisfiable_expr]: unsatisfiable expression
   |                     this contains uppercase characters
   |
   = note: a lowercase string can't be equal to a string containing uppercase characters
+```
+
+## unsigned_unary_op {#unsigned_unary_op}
+
+A unary minus (`-`) or bitwise not (`~`) operator is applied to an unsigned
+integer. Negating an unsigned integer produces a signed integer that wraps
+around when the unsigned value is greater than `0x7FFFFFFFFFFFFFFF`. The bitwise
+not of an unsigned integer inverts all its 64 bits.
+
+```text
+warning[unsigned_unary_op]: `-` applied to an unsigned integer
+ --> line:1:25
+  |
+1 | rule test { condition: -uint64(0) == 1 }
+  |                         --------- this is an unsigned integer
+  |
+  = note: the result is a signed integer, which wraps around if the unsigned value is greater than 0x7FFFFFFFFFFFFFFF
 ```
 
 ## unsupported_module {#unsupported_module}

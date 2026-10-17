@@ -1,35 +1,35 @@
 RULE test_1
-  35: AND -- hash: 0xfb4afd329fb07dc3
-    8: EQ -- hash: 0x496c97e53b61f654
-      6: FIELD_ACCESS -- hash: 0x6af92ddf1af8a3f2
-        4: LOOKUP -- hash: 0xb7e6fdca077aa568
-          2: FIELD_ACCESS -- hash: 0xb93ff31706b0e381
+  35: AND -- hash: 0x40f2250d30f5e05d
+    8: EQ -- hash: 0x2bb3653332178578
+      6: FIELD_ACCESS -- hash: 0xc29e4c53f72b679d
+        4: LOOKUP -- hash: 0x22797314e0747ac6
+          2: FIELD_ACCESS -- hash: 0xdd88efe5e7ac64dc
             0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
             1: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None, deprecation_notice: None }
           3: CONST integer(0)
         5: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
       7: CONST integer(0)
-    17: EQ -- hash: 0xdfb78d0d299b6d6d
-      15: FIELD_ACCESS -- hash: 0xc0df94afb482a623
-        13: LOOKUP -- hash: 0x60a088711b3f7b54
-          11: FIELD_ACCESS -- hash: 0xb93ff31706b0e381
+    17: EQ -- hash: 0xc1fe5a5b2050fc91
+      15: FIELD_ACCESS -- hash: 0x1884b32490b569cf
+        13: LOOKUP -- hash: 0xcb32fdbbf43950b1
+          11: FIELD_ACCESS -- hash: 0xdd88efe5e7ac64dc
             9: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
             10: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None, deprecation_notice: None }
           12: CONST integer(1)
         14: SYMBOL Field { index: 2, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
       16: CONST integer(1)
-    34: EQ -- hash: 0xf94a49164359b744
-      32: ADD -- hash: 0x637f01b98f7ef769
-        24: FIELD_ACCESS -- hash: 0x57244722efe1684a
-          22: LOOKUP -- hash: 0x60a088711b3f7b54
-            20: FIELD_ACCESS -- hash: 0xb93ff31706b0e381
+    34: EQ -- hash: 0xd31d4f8ee6270262
+      32: ADD -- hash: 0x561b499dd52a0b48
+        24: FIELD_ACCESS -- hash: 0xaec96597c8142bf5
+          22: LOOKUP -- hash: 0xcb32fdbbf43950b1
+            20: FIELD_ACCESS -- hash: 0xdd88efe5e7ac64dc
               18: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
               19: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None, deprecation_notice: None }
             21: CONST integer(1)
           23: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
-        31: FIELD_ACCESS -- hash: 0x75bd3b7618d34510
-          29: LOOKUP -- hash: 0x60a088711b3f7b54
-            27: FIELD_ACCESS -- hash: 0xb93ff31706b0e381
+        31: FIELD_ACCESS -- hash: 0xcd6259eaf50608bb
+          29: LOOKUP -- hash: 0xcb32fdbbf43950b1
+            27: FIELD_ACCESS -- hash: 0xdd88efe5e7ac64dc
               25: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
               26: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None, deprecation_notice: None }
             28: CONST integer(1)
@@ -37,37 +37,37 @@ RULE test_1
       33: CONST integer(1)
 
 RULE test_2
-  35: AND -- hash: 0x467259e49dca9732
-    16: EQ -- hash: 0xf94a49164359b744
-      14: ADD -- hash: 0x637f01b98f7ef769
-        6: FIELD_ACCESS -- hash: 0x57244722efe1684a
-          4: LOOKUP -- hash: 0x60a088711b3f7b54
-            2: FIELD_ACCESS -- hash: 0xb93ff31706b0e381
+  35: AND -- hash: 0xe129ce51337b0ad4
+    16: EQ -- hash: 0xd31d4f8ee6270262
+      14: ADD -- hash: 0x561b499dd52a0b48
+        6: FIELD_ACCESS -- hash: 0xaec96597c8142bf5
+          4: LOOKUP -- hash: 0xcb32fdbbf43950b1
+            2: FIELD_ACCESS -- hash: 0xdd88efe5e7ac64dc
               0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
               1: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None, deprecation_notice: None }
             3: CONST integer(1)
           5: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
-        13: FIELD_ACCESS -- hash: 0x75bd3b7618d34510
-          11: LOOKUP -- hash: 0x60a088711b3f7b54
-            9: FIELD_ACCESS -- hash: 0xb93ff31706b0e381
+        13: FIELD_ACCESS -- hash: 0xcd6259eaf50608bb
+          11: LOOKUP -- hash: 0xcb32fdbbf43950b1
+            9: FIELD_ACCESS -- hash: 0xdd88efe5e7ac64dc
               7: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
               8: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None, deprecation_notice: None }
             10: CONST integer(1)
           12: SYMBOL Field { index: 3, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
       15: CONST integer(1)
-    25: EQ -- hash: 0x496c97e53b61f654
-      23: FIELD_ACCESS -- hash: 0x6af92ddf1af8a3f2
-        21: LOOKUP -- hash: 0xb7e6fdca077aa568
-          19: FIELD_ACCESS -- hash: 0xb93ff31706b0e381
+    25: EQ -- hash: 0x2bb3653332178578
+      23: FIELD_ACCESS -- hash: 0xc29e4c53f72b679d
+        21: LOOKUP -- hash: 0x22797314e0747ac6
+          19: FIELD_ACCESS -- hash: 0xdd88efe5e7ac64dc
             17: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
             18: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None, deprecation_notice: None }
           20: CONST integer(0)
         22: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
       24: CONST integer(0)
-    34: EQ -- hash: 0xdfb78d0d299b6d6d
-      32: FIELD_ACCESS -- hash: 0xc0df94afb482a623
-        30: LOOKUP -- hash: 0x60a088711b3f7b54
-          28: FIELD_ACCESS -- hash: 0xb93ff31706b0e381
+    34: EQ -- hash: 0xc1fe5a5b2050fc91
+      32: FIELD_ACCESS -- hash: 0x1884b32490b569cf
+        30: LOOKUP -- hash: 0xcb32fdbbf43950b1
+          28: FIELD_ACCESS -- hash: 0xdd88efe5e7ac64dc
             26: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
             27: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None, deprecation_notice: None }
           29: CONST integer(1)
@@ -75,34 +75,34 @@ RULE test_2
       33: CONST integer(1)
 
 RULE test_3
-  31: WITH -- hash: 0xd12c99d2b9385c31
-    2: FIELD_ACCESS -- hash: 0xb93ff31706b0e381
+  31: WITH -- hash: 0x86dc57fa0e34b0d9
+    2: FIELD_ACCESS -- hash: 0xdd88efe5e7ac64dc
       0: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
       1: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None, deprecation_notice: None }
-    30: AND -- hash: 0x12dc7234de2063ae
-      15: EQ -- hash: 0xe2720d2e43d2dad5
-        13: ADD -- hash: 0x48118390d9d2fbc
-          7: FIELD_ACCESS -- hash: 0xabb583028cf4d3ae
-            5: LOOKUP -- hash: 0x15e3054cfa75da5a
+    30: AND -- hash: 0x292d82663187bd47
+      15: EQ -- hash: 0xf77008e825e74593
+        13: ADD -- hash: 0x19a1c9d297731a8d
+          7: FIELD_ACCESS -- hash: 0xe4e93b1b29e0f329
+            5: LOOKUP -- hash: 0xb9c8dc4d95866f03
               3: SYMBOL Var { var: Var { frame_id: 1, ty: array, index: 0 }, type_value: array }
               4: CONST integer(1)
             6: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
-          12: FIELD_ACCESS -- hash: 0xca4e7755b9e6b074
-            10: LOOKUP -- hash: 0x15e3054cfa75da5a
+          12: FIELD_ACCESS -- hash: 0x3822f6e56d2cff0
+            10: LOOKUP -- hash: 0xb9c8dc4d95866f03
               8: SYMBOL Var { var: Var { frame_id: 1, ty: array, index: 0 }, type_value: array }
               9: CONST integer(1)
             11: SYMBOL Field { index: 3, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
         14: CONST integer(1)
-      22: EQ -- hash: 0xf7a23951bfcab6f
-        20: FIELD_ACCESS -- hash: 0xbf8a69beb80c0f56
-          18: LOOKUP -- hash: 0x6d297aa5e6b1046e
+      22: EQ -- hash: 0x2659daead0b50945
+        20: FIELD_ACCESS -- hash: 0xf8be21d754f82ed1
+          18: LOOKUP -- hash: 0x110f51a681c19918
             16: SYMBOL Var { var: Var { frame_id: 1, ty: array, index: 0 }, type_value: array }
             17: CONST integer(0)
           19: SYMBOL Field { index: 0, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
         21: CONST integer(0)
-      29: EQ -- hash: 0xa5c518bd0a362288
-        27: FIELD_ACCESS -- hash: 0x1570d08f55961188
-          25: LOOKUP -- hash: 0x15e3054cfa75da5a
+      29: EQ -- hash: 0xbca4d012c2ee805e
+        27: FIELD_ACCESS -- hash: 0x4ea488a7f2823103
+          25: LOOKUP -- hash: 0xb9c8dc4d95866f03
             23: SYMBOL Var { var: Var { frame_id: 1, ty: array, index: 0 }, type_value: array }
             24: CONST integer(1)
           26: SYMBOL Field { index: 2, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }

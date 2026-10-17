@@ -36,6 +36,7 @@ pub enum Warning {
     PotentiallySlowLoop(Box<PotentiallySlowLoop>),
     PotentiallyUnsatisfiableExpression(Box<PotentiallyUnsatisfiableExpression>),
     RedundantCaseModifier(Box<RedundantCaseModifier>),
+    SignConversion(Box<SignConversion>),
     SlowPattern(Box<SlowPattern>),
     TextPatternAsHex(Box<TextPatternAsHex>),
     TooManyIterations(Box<TooManyIterations>),
@@ -43,6 +44,7 @@ pub enum Warning {
     UnsatisfiableExpression(Box<UnsatisfiableExpression>),
     UnusedIdentifier(Box<UnusedIdentifier>),
     UnintendedPatternInSet(Box<UnintendedPatternInSet>),
+    UnsignedUnaryOperation(Box<UnsignedUnaryOperation>),
 }
 
 /// A hex pattern contains two or more consecutive jumps.
@@ -890,4 +892,73 @@ pub struct DuplicatePatternValue {
     existing_ident: String,
     duplicate_loc: CodeLoc,
     existing_loc: CodeLoc,
+}
+
+/// A unary minus (`-`) or bitwise not (`~`) is applied to an unsigned integer.
+///
+/// Negating an unsigned integer produces a signed integer, and the result
+/// wraps around for values greater than `0x7FFFFFFFFFFFFFFF`. The bitwise not
+/// of an unsigned integer is an unsigned integer with all its 64 bits
+/// inverted.
+///
+/// ## Example
+///
+/// ```text
+/// warning[unsigned_unary_op]: `-` applied to an unsigned integer
+///  --> line:1:25
+///   |
+/// 1 | rule test { condition: -uint64(0) == 1 }
+///   |                         --------- this is an unsigned integer
+///   |
+///   = note: the result is a signed integer, which wraps around if the unsigned value is greater than 0x7FFFFFFFFFFFFFFF
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "unsigned_unary_op",
+    title = "`{operator}` applied to an unsigned integer"
+)]
+#[label("this is an unsigned integer", operand_loc)]
+#[footer(note)]
+pub struct UnsignedUnaryOperation {
+    report: Report,
+    operator: String,
+    operand_loc: CodeLoc,
+    note: Option<String>,
+}
+
+/// An integer constant changes its value because it is implicitly converted
+/// from signed to unsigned, or vice versa.
+///
+/// When signed and unsigned integers are mixed, signed integers are converted
+/// to unsigned, and negative values wrap around. This changes the result of
+/// divisions and remainders like `uint64(0) % -3`, and the values taken by
+/// the loop variable in tuples like `(0xFFFFFFFFFFFFFFFF, -5)`. Similarly,
+/// unsigned integers greater than `0x7FFFFFFFFFFFFFFF` become negative when
+/// they are passed to a function that expects a signed integer.
+///
+/// ## Example
+///
+/// ```text
+/// warning[sign_conversion]: implicit conversion changes signedness
+///  --> line:1:36
+///   |
+/// 1 | rule test { condition: uint64(0) % -3 == 2 }
+///   |                                    -- this is converted to 18446744073709551613
+///   |
+///   = note: signed integers are converted to unsigned when mixed with unsigned integers
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "sign_conversion",
+    title = "implicit conversion changes signedness"
+)]
+#[label("this is converted to {converted_value}", value_loc)]
+#[footer(note)]
+pub struct SignConversion {
+    report: Report,
+    converted_value: String,
+    value_loc: CodeLoc,
+    note: Option<String>,
 }

@@ -200,6 +200,20 @@ rule text_with_100_words {
 }
 ```
 
+Notice that `num_lines` and `num_words` are `int64` fields. In YARA rules,
+fields of type `int64` and `int32` are signed integers. Fields of type `uint32`
+are never negative, but all their values fit in an `int64`, so they are promoted
+to `int64` when used in operations. For instance, if `num_words` were a `uint32`
+field equal to zero, `text.num_words - 1` would be `-1`. However, the values of
+`uint64` fields can exceed the maximum `int64` value (`0x7FFFFFFFFFFFFFFF`), so
+they can't be promoted, and they are unsigned integers. Arithmetic with unsigned
+integers wraps around instead of producing negative numbers. If `num_words` were
+a `uint64` field equal to zero, `text.num_words - 1` would be
+`0xFFFFFFFFFFFFFFFF` instead of `-1`, which is probably not what the author of
+the rule expects. For this reason, it's better to use `int64` for counts, sizes
+and offsets, as the built-in modules do, and use `uint64` only for values that
+can exceed `0x7FFFFFFFFFFFFFFF`.
+
 Of course, we are not done yet. So far we have defined the structure of our
 module, but we need to populate that structure with actual values extracted from
 the scanned files. That's where the module's main function enters into play. But
@@ -1054,7 +1068,7 @@ syntax = "proto2";
 package foobar;
 
 message Foobar {
-  optional uint64 count = 1;
+  optional int64 count = 1;
   optional string label = 2;
   repeated string tags = 3;
 }
@@ -1101,7 +1115,7 @@ fn foobar_main(
     data: &[u8],
 ) -> Result<Foobar, ModuleError> {
     let mut out = Foobar::new();
-    out.count = Some(data.len() as u64);
+    out.count = Some(data.len() as i64);
     out.label = Some("foobar".to_owned());
     Ok(out)
 }

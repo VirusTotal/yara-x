@@ -204,12 +204,12 @@ impl<'r> Iterator for Metadata<'_, 'r> {
             compiler::MetaValue::Integer(i) => MetaValue::Integer(*i),
             compiler::MetaValue::Float(f) => MetaValue::Float(*f),
             compiler::MetaValue::String(id) => {
-                let s = self.rules.lit_pool().get(*id).unwrap();
+                let s = self.rules.literal_pool().get(*id).unwrap();
                 let s = s.to_str().unwrap();
                 MetaValue::String(s)
             }
             compiler::MetaValue::Bytes(id) => {
-                MetaValue::Bytes(self.rules.lit_pool().get(*id).unwrap())
+                MetaValue::Bytes(self.rules.literal_pool().get(*id).unwrap())
             }
         };
 

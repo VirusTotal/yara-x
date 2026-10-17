@@ -101,8 +101,9 @@ impl<'a> From<&Zip<'a>> for ZipProto {
 
             let mut proto_entry = Entry::new();
             proto_entry.set_file_path(file_path);
-            proto_entry.set_uncompressed_size(entry.uncompressed_size());
-            proto_entry.set_compressed_size(entry.compressed_size());
+            proto_entry
+                .set_uncompressed_size(entry.uncompressed_size() as i64);
+            proto_entry.set_compressed_size(entry.compressed_size() as i64);
 
             let compression = match entry.compression() {
                 Ok(tinyzip::Compression::Stored) => Compression::STORED,

@@ -51,7 +51,7 @@ pub struct PE {
     // @@protoc_insertion_point(field:pe.PE.timestamp)
     pub timestamp: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:pe.PE.image_base)
-    pub image_base: ::std::option::Option<u64>,
+    pub image_base: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.PE.checksum)
     pub checksum: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:pe.PE.base_of_code)
@@ -85,13 +85,13 @@ pub struct PE {
     // @@protoc_insertion_point(field:pe.PE.size_of_headers)
     pub size_of_headers: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:pe.PE.size_of_stack_reserve)
-    pub size_of_stack_reserve: ::std::option::Option<u64>,
+    pub size_of_stack_reserve: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.PE.size_of_stack_commit)
-    pub size_of_stack_commit: ::std::option::Option<u64>,
+    pub size_of_stack_commit: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.PE.size_of_heap_reserve)
-    pub size_of_heap_reserve: ::std::option::Option<u64>,
+    pub size_of_heap_reserve: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.PE.size_of_heap_commit)
-    pub size_of_heap_commit: ::std::option::Option<u64>,
+    pub size_of_heap_commit: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.PE.pointer_to_symbol_table)
     pub pointer_to_symbol_table: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:pe.PE.win32_version_value)
@@ -103,21 +103,21 @@ pub struct PE {
     // @@protoc_insertion_point(field:pe.PE.number_of_sections)
     pub number_of_sections: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:pe.PE.number_of_imported_functions)
-    pub number_of_imported_functions: ::std::option::Option<u64>,
+    pub number_of_imported_functions: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.PE.number_of_delayed_imported_functions)
-    pub number_of_delayed_imported_functions: ::std::option::Option<u64>,
+    pub number_of_delayed_imported_functions: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.PE.number_of_resources)
-    pub number_of_resources: ::std::option::Option<u64>,
+    pub number_of_resources: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.PE.number_of_version_infos)
-    pub number_of_version_infos: ::std::option::Option<u64>,
+    pub number_of_version_infos: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.PE.number_of_imports)
-    pub number_of_imports: ::std::option::Option<u64>,
+    pub number_of_imports: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.PE.number_of_delayed_imports)
-    pub number_of_delayed_imports: ::std::option::Option<u64>,
+    pub number_of_delayed_imports: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.PE.number_of_exports)
-    pub number_of_exports: ::std::option::Option<u64>,
+    pub number_of_exports: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.PE.number_of_signatures)
-    pub number_of_signatures: ::std::option::Option<u64>,
+    pub number_of_signatures: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.PE.version_info)
     pub version_info: ::std::collections::HashMap<::std::string::String, ::std::string::String>,
     // @@protoc_insertion_point(field:pe.PE.version_info_list)
@@ -131,7 +131,7 @@ pub struct PE {
     // @@protoc_insertion_point(field:pe.PE.data_directories)
     pub data_directories: ::std::vec::Vec<DirEntry>,
     // @@protoc_insertion_point(field:pe.PE.resource_timestamp)
-    pub resource_timestamp: ::std::option::Option<u64>,
+    pub resource_timestamp: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.PE.resource_version)
     pub resource_version: ::protobuf::MessageField<Version>,
     // @@protoc_insertion_point(field:pe.PE.resources)
@@ -306,9 +306,9 @@ impl PE {
         self.timestamp = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 image_base = 12;
+    // optional int64 image_base = 12;
 
-    pub fn image_base(&self) -> u64 {
+    pub fn image_base(&self) -> i64 {
         self.image_base.unwrap_or(0)
     }
 
@@ -321,7 +321,7 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_image_base(&mut self, v: u64) {
+    pub fn set_image_base(&mut self, v: i64) {
         self.image_base = ::std::option::Option::Some(v);
     }
 
@@ -646,9 +646,9 @@ impl PE {
         self.size_of_headers = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 size_of_stack_reserve = 29;
+    // optional int64 size_of_stack_reserve = 29;
 
-    pub fn size_of_stack_reserve(&self) -> u64 {
+    pub fn size_of_stack_reserve(&self) -> i64 {
         self.size_of_stack_reserve.unwrap_or(0)
     }
 
@@ -661,13 +661,13 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_size_of_stack_reserve(&mut self, v: u64) {
+    pub fn set_size_of_stack_reserve(&mut self, v: i64) {
         self.size_of_stack_reserve = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 size_of_stack_commit = 30;
+    // optional int64 size_of_stack_commit = 30;
 
-    pub fn size_of_stack_commit(&self) -> u64 {
+    pub fn size_of_stack_commit(&self) -> i64 {
         self.size_of_stack_commit.unwrap_or(0)
     }
 
@@ -680,13 +680,13 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_size_of_stack_commit(&mut self, v: u64) {
+    pub fn set_size_of_stack_commit(&mut self, v: i64) {
         self.size_of_stack_commit = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 size_of_heap_reserve = 31;
+    // optional int64 size_of_heap_reserve = 31;
 
-    pub fn size_of_heap_reserve(&self) -> u64 {
+    pub fn size_of_heap_reserve(&self) -> i64 {
         self.size_of_heap_reserve.unwrap_or(0)
     }
 
@@ -699,13 +699,13 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_size_of_heap_reserve(&mut self, v: u64) {
+    pub fn set_size_of_heap_reserve(&mut self, v: i64) {
         self.size_of_heap_reserve = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 size_of_heap_commit = 32;
+    // optional int64 size_of_heap_commit = 32;
 
-    pub fn size_of_heap_commit(&self) -> u64 {
+    pub fn size_of_heap_commit(&self) -> i64 {
         self.size_of_heap_commit.unwrap_or(0)
     }
 
@@ -718,7 +718,7 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_size_of_heap_commit(&mut self, v: u64) {
+    pub fn set_size_of_heap_commit(&mut self, v: i64) {
         self.size_of_heap_commit = ::std::option::Option::Some(v);
     }
 
@@ -817,9 +817,9 @@ impl PE {
         self.number_of_sections = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_imported_functions = 38;
+    // optional int64 number_of_imported_functions = 38;
 
-    pub fn number_of_imported_functions(&self) -> u64 {
+    pub fn number_of_imported_functions(&self) -> i64 {
         self.number_of_imported_functions.unwrap_or(0)
     }
 
@@ -832,13 +832,13 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_imported_functions(&mut self, v: u64) {
+    pub fn set_number_of_imported_functions(&mut self, v: i64) {
         self.number_of_imported_functions = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_delayed_imported_functions = 39;
+    // optional int64 number_of_delayed_imported_functions = 39;
 
-    pub fn number_of_delayed_imported_functions(&self) -> u64 {
+    pub fn number_of_delayed_imported_functions(&self) -> i64 {
         self.number_of_delayed_imported_functions.unwrap_or(0)
     }
 
@@ -851,13 +851,13 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_delayed_imported_functions(&mut self, v: u64) {
+    pub fn set_number_of_delayed_imported_functions(&mut self, v: i64) {
         self.number_of_delayed_imported_functions = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_resources = 40;
+    // optional int64 number_of_resources = 40;
 
-    pub fn number_of_resources(&self) -> u64 {
+    pub fn number_of_resources(&self) -> i64 {
         self.number_of_resources.unwrap_or(0)
     }
 
@@ -870,13 +870,13 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_resources(&mut self, v: u64) {
+    pub fn set_number_of_resources(&mut self, v: i64) {
         self.number_of_resources = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_version_infos = 41;
+    // optional int64 number_of_version_infos = 41;
 
-    pub fn number_of_version_infos(&self) -> u64 {
+    pub fn number_of_version_infos(&self) -> i64 {
         self.number_of_version_infos.unwrap_or(0)
     }
 
@@ -889,13 +889,13 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_version_infos(&mut self, v: u64) {
+    pub fn set_number_of_version_infos(&mut self, v: i64) {
         self.number_of_version_infos = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_imports = 42;
+    // optional int64 number_of_imports = 42;
 
-    pub fn number_of_imports(&self) -> u64 {
+    pub fn number_of_imports(&self) -> i64 {
         self.number_of_imports.unwrap_or(0)
     }
 
@@ -908,13 +908,13 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_imports(&mut self, v: u64) {
+    pub fn set_number_of_imports(&mut self, v: i64) {
         self.number_of_imports = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_delayed_imports = 43;
+    // optional int64 number_of_delayed_imports = 43;
 
-    pub fn number_of_delayed_imports(&self) -> u64 {
+    pub fn number_of_delayed_imports(&self) -> i64 {
         self.number_of_delayed_imports.unwrap_or(0)
     }
 
@@ -927,13 +927,13 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_delayed_imports(&mut self, v: u64) {
+    pub fn set_number_of_delayed_imports(&mut self, v: i64) {
         self.number_of_delayed_imports = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_exports = 44;
+    // optional int64 number_of_exports = 44;
 
-    pub fn number_of_exports(&self) -> u64 {
+    pub fn number_of_exports(&self) -> i64 {
         self.number_of_exports.unwrap_or(0)
     }
 
@@ -946,13 +946,13 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_exports(&mut self, v: u64) {
+    pub fn set_number_of_exports(&mut self, v: i64) {
         self.number_of_exports = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_signatures = 45;
+    // optional int64 number_of_signatures = 45;
 
-    pub fn number_of_signatures(&self) -> u64 {
+    pub fn number_of_signatures(&self) -> i64 {
         self.number_of_signatures.unwrap_or(0)
     }
 
@@ -965,7 +965,7 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_signatures(&mut self, v: u64) {
+    pub fn set_number_of_signatures(&mut self, v: i64) {
         self.number_of_signatures = ::std::option::Option::Some(v);
     }
 
@@ -1005,9 +1005,9 @@ impl PE {
         self.pdb_path.take().unwrap_or_else(|| ::std::vec::Vec::new())
     }
 
-    // optional uint64 resource_timestamp = 52;
+    // optional int64 resource_timestamp = 52;
 
-    pub fn resource_timestamp(&self) -> u64 {
+    pub fn resource_timestamp(&self) -> i64 {
         self.resource_timestamp.unwrap_or(0)
     }
 
@@ -1020,7 +1020,7 @@ impl PE {
     }
 
     // Param is passed by value, moved
-    pub fn set_resource_timestamp(&mut self, v: u64) {
+    pub fn set_resource_timestamp(&mut self, v: i64) {
         self.resource_timestamp = ::std::option::Option::Some(v);
     }
 
@@ -1477,7 +1477,7 @@ impl ::protobuf::Message for PE {
                     self.timestamp = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 96 => {
-                    self.image_base = ::std::option::Option::Some(is.read_uint64()?);
+                    self.image_base = ::std::option::Option::Some(is.read_int64()?);
                 },
                 104 => {
                     self.checksum = ::std::option::Option::Some(is.read_uint32()?);
@@ -1528,16 +1528,16 @@ impl ::protobuf::Message for PE {
                     self.size_of_headers = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 232 => {
-                    self.size_of_stack_reserve = ::std::option::Option::Some(is.read_uint64()?);
+                    self.size_of_stack_reserve = ::std::option::Option::Some(is.read_int64()?);
                 },
                 240 => {
-                    self.size_of_stack_commit = ::std::option::Option::Some(is.read_uint64()?);
+                    self.size_of_stack_commit = ::std::option::Option::Some(is.read_int64()?);
                 },
                 248 => {
-                    self.size_of_heap_reserve = ::std::option::Option::Some(is.read_uint64()?);
+                    self.size_of_heap_reserve = ::std::option::Option::Some(is.read_int64()?);
                 },
                 256 => {
-                    self.size_of_heap_commit = ::std::option::Option::Some(is.read_uint64()?);
+                    self.size_of_heap_commit = ::std::option::Option::Some(is.read_int64()?);
                 },
                 264 => {
                     self.pointer_to_symbol_table = ::std::option::Option::Some(is.read_uint32()?);
@@ -1555,28 +1555,28 @@ impl ::protobuf::Message for PE {
                     self.number_of_sections = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 304 => {
-                    self.number_of_imported_functions = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_imported_functions = ::std::option::Option::Some(is.read_int64()?);
                 },
                 312 => {
-                    self.number_of_delayed_imported_functions = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_delayed_imported_functions = ::std::option::Option::Some(is.read_int64()?);
                 },
                 320 => {
-                    self.number_of_resources = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_resources = ::std::option::Option::Some(is.read_int64()?);
                 },
                 328 => {
-                    self.number_of_version_infos = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_version_infos = ::std::option::Option::Some(is.read_int64()?);
                 },
                 336 => {
-                    self.number_of_imports = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_imports = ::std::option::Option::Some(is.read_int64()?);
                 },
                 344 => {
-                    self.number_of_delayed_imports = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_delayed_imports = ::std::option::Option::Some(is.read_int64()?);
                 },
                 352 => {
-                    self.number_of_exports = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_exports = ::std::option::Option::Some(is.read_int64()?);
                 },
                 360 => {
-                    self.number_of_signatures = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_signatures = ::std::option::Option::Some(is.read_int64()?);
                 },
                 370 => {
                     let len = is.read_raw_varint32()?;
@@ -1609,7 +1609,7 @@ impl ::protobuf::Message for PE {
                     self.data_directories.push(is.read_message()?);
                 },
                 416 => {
-                    self.resource_timestamp = ::std::option::Option::Some(is.read_uint64()?);
+                    self.resource_timestamp = ::std::option::Option::Some(is.read_int64()?);
                 },
                 426 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.resource_version)?;
@@ -1685,7 +1685,7 @@ impl ::protobuf::Message for PE {
             my_size += ::protobuf::rt::uint32_size(11, v);
         }
         if let Some(v) = self.image_base {
-            my_size += ::protobuf::rt::uint64_size(12, v);
+            my_size += ::protobuf::rt::int64_size(12, v);
         }
         if let Some(v) = self.checksum {
             my_size += ::protobuf::rt::uint32_size(13, v);
@@ -1736,16 +1736,16 @@ impl ::protobuf::Message for PE {
             my_size += ::protobuf::rt::uint32_size(28, v);
         }
         if let Some(v) = self.size_of_stack_reserve {
-            my_size += ::protobuf::rt::uint64_size(29, v);
+            my_size += ::protobuf::rt::int64_size(29, v);
         }
         if let Some(v) = self.size_of_stack_commit {
-            my_size += ::protobuf::rt::uint64_size(30, v);
+            my_size += ::protobuf::rt::int64_size(30, v);
         }
         if let Some(v) = self.size_of_heap_reserve {
-            my_size += ::protobuf::rt::uint64_size(31, v);
+            my_size += ::protobuf::rt::int64_size(31, v);
         }
         if let Some(v) = self.size_of_heap_commit {
-            my_size += ::protobuf::rt::uint64_size(32, v);
+            my_size += ::protobuf::rt::int64_size(32, v);
         }
         if let Some(v) = self.pointer_to_symbol_table {
             my_size += ::protobuf::rt::uint32_size(33, v);
@@ -1763,28 +1763,28 @@ impl ::protobuf::Message for PE {
             my_size += ::protobuf::rt::uint32_size(37, v);
         }
         if let Some(v) = self.number_of_imported_functions {
-            my_size += ::protobuf::rt::uint64_size(38, v);
+            my_size += ::protobuf::rt::int64_size(38, v);
         }
         if let Some(v) = self.number_of_delayed_imported_functions {
-            my_size += ::protobuf::rt::uint64_size(39, v);
+            my_size += ::protobuf::rt::int64_size(39, v);
         }
         if let Some(v) = self.number_of_resources {
-            my_size += ::protobuf::rt::uint64_size(40, v);
+            my_size += ::protobuf::rt::int64_size(40, v);
         }
         if let Some(v) = self.number_of_version_infos {
-            my_size += ::protobuf::rt::uint64_size(41, v);
+            my_size += ::protobuf::rt::int64_size(41, v);
         }
         if let Some(v) = self.number_of_imports {
-            my_size += ::protobuf::rt::uint64_size(42, v);
+            my_size += ::protobuf::rt::int64_size(42, v);
         }
         if let Some(v) = self.number_of_delayed_imports {
-            my_size += ::protobuf::rt::uint64_size(43, v);
+            my_size += ::protobuf::rt::int64_size(43, v);
         }
         if let Some(v) = self.number_of_exports {
-            my_size += ::protobuf::rt::uint64_size(44, v);
+            my_size += ::protobuf::rt::int64_size(44, v);
         }
         if let Some(v) = self.number_of_signatures {
-            my_size += ::protobuf::rt::uint64_size(45, v);
+            my_size += ::protobuf::rt::int64_size(45, v);
         }
         for (k, v) in &self.version_info {
             let mut entry_size = 0;
@@ -1812,7 +1812,7 @@ impl ::protobuf::Message for PE {
             my_size += 2 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         };
         if let Some(v) = self.resource_timestamp {
-            my_size += ::protobuf::rt::uint64_size(52, v);
+            my_size += ::protobuf::rt::int64_size(52, v);
         }
         if let Some(v) = self.resource_version.as_ref() {
             let len = v.compute_size();
@@ -1885,7 +1885,7 @@ impl ::protobuf::Message for PE {
             os.write_uint32(11, v)?;
         }
         if let Some(v) = self.image_base {
-            os.write_uint64(12, v)?;
+            os.write_int64(12, v)?;
         }
         if let Some(v) = self.checksum {
             os.write_uint32(13, v)?;
@@ -1936,16 +1936,16 @@ impl ::protobuf::Message for PE {
             os.write_uint32(28, v)?;
         }
         if let Some(v) = self.size_of_stack_reserve {
-            os.write_uint64(29, v)?;
+            os.write_int64(29, v)?;
         }
         if let Some(v) = self.size_of_stack_commit {
-            os.write_uint64(30, v)?;
+            os.write_int64(30, v)?;
         }
         if let Some(v) = self.size_of_heap_reserve {
-            os.write_uint64(31, v)?;
+            os.write_int64(31, v)?;
         }
         if let Some(v) = self.size_of_heap_commit {
-            os.write_uint64(32, v)?;
+            os.write_int64(32, v)?;
         }
         if let Some(v) = self.pointer_to_symbol_table {
             os.write_uint32(33, v)?;
@@ -1963,28 +1963,28 @@ impl ::protobuf::Message for PE {
             os.write_uint32(37, v)?;
         }
         if let Some(v) = self.number_of_imported_functions {
-            os.write_uint64(38, v)?;
+            os.write_int64(38, v)?;
         }
         if let Some(v) = self.number_of_delayed_imported_functions {
-            os.write_uint64(39, v)?;
+            os.write_int64(39, v)?;
         }
         if let Some(v) = self.number_of_resources {
-            os.write_uint64(40, v)?;
+            os.write_int64(40, v)?;
         }
         if let Some(v) = self.number_of_version_infos {
-            os.write_uint64(41, v)?;
+            os.write_int64(41, v)?;
         }
         if let Some(v) = self.number_of_imports {
-            os.write_uint64(42, v)?;
+            os.write_int64(42, v)?;
         }
         if let Some(v) = self.number_of_delayed_imports {
-            os.write_uint64(43, v)?;
+            os.write_int64(43, v)?;
         }
         if let Some(v) = self.number_of_exports {
-            os.write_uint64(44, v)?;
+            os.write_int64(44, v)?;
         }
         if let Some(v) = self.number_of_signatures {
-            os.write_uint64(45, v)?;
+            os.write_int64(45, v)?;
         }
         for (k, v) in &self.version_info {
             let mut entry_size = 0;
@@ -2011,7 +2011,7 @@ impl ::protobuf::Message for PE {
             ::protobuf::rt::write_message_field_with_cached_size(51, v, os)?;
         };
         if let Some(v) = self.resource_timestamp {
-            os.write_uint64(52, v)?;
+            os.write_int64(52, v)?;
         }
         if let Some(v) = self.resource_version.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(53, v, os)?;
@@ -3230,7 +3230,7 @@ pub struct Import {
     // @@protoc_insertion_point(field:pe.Import.library_name)
     pub library_name: ::std::option::Option<::std::string::String>,
     // @@protoc_insertion_point(field:pe.Import.number_of_functions)
-    pub number_of_functions: ::std::option::Option<u64>,
+    pub number_of_functions: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.Import.functions)
     pub functions: ::std::vec::Vec<Function>,
     // special fields
@@ -3285,9 +3285,9 @@ impl Import {
         self.library_name.take().unwrap_or_else(|| ::std::string::String::new())
     }
 
-    // required uint64 number_of_functions = 2;
+    // required int64 number_of_functions = 2;
 
-    pub fn number_of_functions(&self) -> u64 {
+    pub fn number_of_functions(&self) -> i64 {
         self.number_of_functions.unwrap_or(0)
     }
 
@@ -3300,7 +3300,7 @@ impl Import {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_functions(&mut self, v: u64) {
+    pub fn set_number_of_functions(&mut self, v: i64) {
         self.number_of_functions = ::std::option::Option::Some(v);
     }
 
@@ -3355,7 +3355,7 @@ impl ::protobuf::Message for Import {
                     self.library_name = ::std::option::Option::Some(is.read_string()?);
                 },
                 16 => {
-                    self.number_of_functions = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_functions = ::std::option::Option::Some(is.read_int64()?);
                 },
                 26 => {
                     self.functions.push(is.read_message()?);
@@ -3376,7 +3376,7 @@ impl ::protobuf::Message for Import {
             my_size += ::protobuf::rt::string_size(1, &v);
         }
         if let Some(v) = self.number_of_functions {
-            my_size += ::protobuf::rt::uint64_size(2, v);
+            my_size += ::protobuf::rt::int64_size(2, v);
         }
         for value in &self.functions {
             let len = value.compute_size();
@@ -3392,7 +3392,7 @@ impl ::protobuf::Message for Import {
             os.write_string(1, v)?;
         }
         if let Some(v) = self.number_of_functions {
-            os.write_uint64(2, v)?;
+            os.write_int64(2, v)?;
         }
         for v in &self.functions {
             ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
@@ -4043,9 +4043,9 @@ pub struct Signature {
     // @@protoc_insertion_point(field:pe.Signature.file_digest)
     pub file_digest: ::std::option::Option<::std::string::String>,
     // @@protoc_insertion_point(field:pe.Signature.number_of_certificates)
-    pub number_of_certificates: ::std::option::Option<u64>,
+    pub number_of_certificates: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.Signature.number_of_countersignatures)
-    pub number_of_countersignatures: ::std::option::Option<u64>,
+    pub number_of_countersignatures: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.Signature.signer_info)
     pub signer_info: ::protobuf::MessageField<SignerInfo>,
     // @@protoc_insertion_point(field:pe.Signature.certificates)
@@ -4468,9 +4468,9 @@ impl Signature {
         self.file_digest.take().unwrap_or_else(|| ::std::string::String::new())
     }
 
-    // optional uint64 number_of_certificates = 14;
+    // optional int64 number_of_certificates = 14;
 
-    pub fn number_of_certificates(&self) -> u64 {
+    pub fn number_of_certificates(&self) -> i64 {
         self.number_of_certificates.unwrap_or(0)
     }
 
@@ -4483,13 +4483,13 @@ impl Signature {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_certificates(&mut self, v: u64) {
+    pub fn set_number_of_certificates(&mut self, v: i64) {
         self.number_of_certificates = ::std::option::Option::Some(v);
     }
 
-    // optional uint64 number_of_countersignatures = 15;
+    // optional int64 number_of_countersignatures = 15;
 
-    pub fn number_of_countersignatures(&self) -> u64 {
+    pub fn number_of_countersignatures(&self) -> i64 {
         self.number_of_countersignatures.unwrap_or(0)
     }
 
@@ -4502,7 +4502,7 @@ impl Signature {
     }
 
     // Param is passed by value, moved
-    pub fn set_number_of_countersignatures(&mut self, v: u64) {
+    pub fn set_number_of_countersignatures(&mut self, v: i64) {
         self.number_of_countersignatures = ::std::option::Option::Some(v);
     }
 
@@ -4657,10 +4657,10 @@ impl ::protobuf::Message for Signature {
                     self.file_digest = ::std::option::Option::Some(is.read_string()?);
                 },
                 112 => {
-                    self.number_of_certificates = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_certificates = ::std::option::Option::Some(is.read_int64()?);
                 },
                 120 => {
-                    self.number_of_countersignatures = ::std::option::Option::Some(is.read_uint64()?);
+                    self.number_of_countersignatures = ::std::option::Option::Some(is.read_int64()?);
                 },
                 130 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.signer_info)?;
@@ -4723,10 +4723,10 @@ impl ::protobuf::Message for Signature {
             my_size += ::protobuf::rt::string_size(13, &v);
         }
         if let Some(v) = self.number_of_certificates {
-            my_size += ::protobuf::rt::uint64_size(14, v);
+            my_size += ::protobuf::rt::int64_size(14, v);
         }
         if let Some(v) = self.number_of_countersignatures {
-            my_size += ::protobuf::rt::uint64_size(15, v);
+            my_size += ::protobuf::rt::int64_size(15, v);
         }
         if let Some(v) = self.signer_info.as_ref() {
             let len = v.compute_size();
@@ -4786,10 +4786,10 @@ impl ::protobuf::Message for Signature {
             os.write_string(13, v)?;
         }
         if let Some(v) = self.number_of_certificates {
-            os.write_uint64(14, v)?;
+            os.write_int64(14, v)?;
         }
         if let Some(v) = self.number_of_countersignatures {
-            os.write_uint64(15, v)?;
+            os.write_int64(15, v)?;
         }
         if let Some(v) = self.signer_info.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(16, v, os)?;
@@ -7233,9 +7233,9 @@ impl ::protobuf::reflect::ProtobufValue for RichTool {
 pub struct Overlay {
     // message fields
     // @@protoc_insertion_point(field:pe.Overlay.offset)
-    pub offset: ::std::option::Option<u64>,
+    pub offset: ::std::option::Option<i64>,
     // @@protoc_insertion_point(field:pe.Overlay.size)
-    pub size: ::std::option::Option<u64>,
+    pub size: ::std::option::Option<i64>,
     // special fields
     // @@protoc_insertion_point(special_field:pe.Overlay.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -7252,9 +7252,9 @@ impl Overlay {
         ::std::default::Default::default()
     }
 
-    // required uint64 offset = 1;
+    // required int64 offset = 1;
 
-    pub fn offset(&self) -> u64 {
+    pub fn offset(&self) -> i64 {
         self.offset.unwrap_or(0)
     }
 
@@ -7267,13 +7267,13 @@ impl Overlay {
     }
 
     // Param is passed by value, moved
-    pub fn set_offset(&mut self, v: u64) {
+    pub fn set_offset(&mut self, v: i64) {
         self.offset = ::std::option::Option::Some(v);
     }
 
-    // required uint64 size = 2;
+    // required int64 size = 2;
 
-    pub fn size(&self) -> u64 {
+    pub fn size(&self) -> i64 {
         self.size.unwrap_or(0)
     }
 
@@ -7286,7 +7286,7 @@ impl Overlay {
     }
 
     // Param is passed by value, moved
-    pub fn set_size(&mut self, v: u64) {
+    pub fn set_size(&mut self, v: i64) {
         self.size = ::std::option::Option::Some(v);
     }
 
@@ -7328,10 +7328,10 @@ impl ::protobuf::Message for Overlay {
         while let Some(tag) = is.read_raw_tag_or_eof()? {
             match tag {
                 8 => {
-                    self.offset = ::std::option::Option::Some(is.read_uint64()?);
+                    self.offset = ::std::option::Option::Some(is.read_int64()?);
                 },
                 16 => {
-                    self.size = ::std::option::Option::Some(is.read_uint64()?);
+                    self.size = ::std::option::Option::Some(is.read_int64()?);
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -7346,10 +7346,10 @@ impl ::protobuf::Message for Overlay {
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
         if let Some(v) = self.offset {
-            my_size += ::protobuf::rt::uint64_size(1, v);
+            my_size += ::protobuf::rt::int64_size(1, v);
         }
         if let Some(v) = self.size {
-            my_size += ::protobuf::rt::uint64_size(2, v);
+            my_size += ::protobuf::rt::int64_size(2, v);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
@@ -7358,10 +7358,10 @@ impl ::protobuf::Message for Overlay {
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
         if let Some(v) = self.offset {
-            os.write_uint64(1, v)?;
+            os.write_int64(1, v)?;
         }
         if let Some(v) = self.size {
-            os.write_uint64(2, v)?;
+            os.write_int64(2, v)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -8851,7 +8851,7 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x15flags:Characteristics\x12O\n\x13dll_characteristics\x18\n\x20\x01(\r\
     R\x12dllCharacteristicsB\x1e\x82\x93\x19\x1a*\x18flags:DllCharacteristic\
     s\x12%\n\ttimestamp\x18\x0b\x20\x01(\rR\ttimestampB\x07\x82\x93\x19\x03*\
-    \x01t\x12&\n\nimage_base\x18\x0c\x20\x01(\x04R\timageBaseB\x07\x82\x93\
+    \x01t\x12&\n\nimage_base\x18\x0c\x20\x01(\x03R\timageBaseB\x07\x82\x93\
     \x19\x03*\x01x\x12\x1a\n\x08checksum\x18\r\x20\x01(\rR\x08checksum\x12)\
     \n\x0cbase_of_code\x18\x0e\x20\x01(\rR\nbaseOfCodeB\x07\x82\x93\x19\x03*\
     \x01x\x12)\n\x0cbase_of_data\x18\x0f\x20\x01(\rR\nbaseOfDataB\x07\x82\
@@ -8872,11 +8872,11 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x03*\x01x\x12+\n\rsize_of_image\x18\x1b\x20\x01(\rR\x0bsizeOfImageB\x07\
     \x82\x93\x19\x03*\x01x\x12/\n\x0fsize_of_headers\x18\x1c\x20\x01(\rR\rsi\
     zeOfHeadersB\x07\x82\x93\x19\x03*\x01x\x12:\n\x15size_of_stack_reserve\
-    \x18\x1d\x20\x01(\x04R\x12sizeOfStackReserveB\x07\x82\x93\x19\x03*\x01x\
-    \x128\n\x14size_of_stack_commit\x18\x1e\x20\x01(\x04R\x11sizeOfStackComm\
+    \x18\x1d\x20\x01(\x03R\x12sizeOfStackReserveB\x07\x82\x93\x19\x03*\x01x\
+    \x128\n\x14size_of_stack_commit\x18\x1e\x20\x01(\x03R\x11sizeOfStackComm\
     itB\x07\x82\x93\x19\x03*\x01x\x128\n\x14size_of_heap_reserve\x18\x1f\x20\
-    \x01(\x04R\x11sizeOfHeapReserveB\x07\x82\x93\x19\x03*\x01x\x126\n\x13siz\
-    e_of_heap_commit\x18\x20\x20\x01(\x04R\x10sizeOfHeapCommitB\x07\x82\x93\
+    \x01(\x03R\x11sizeOfHeapReserveB\x07\x82\x93\x19\x03*\x01x\x126\n\x13siz\
+    e_of_heap_commit\x18\x20\x20\x01(\x03R\x10sizeOfHeapCommitB\x07\x82\x93\
     \x19\x03*\x01x\x12>\n\x17pointer_to_symbol_table\x18!\x20\x01(\rR\x14poi\
     nterToSymbolTableB\x07\x82\x93\x19\x03*\x01x\x12.\n\x13win32_version_val\
     ue\x18\"\x20\x01(\rR\x11win32VersionValue\x12*\n\x11number_of_symbols\
@@ -8885,16 +8885,16 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x18%\x20\x01(\rR\x10numberOfSectionsBQ\x82\x93\x19M2K\n\x18this\x20fiel\
     d\x20is\x20deprecated\x12\x1fuse\x20`pe.sections.len()`\x20instead\x1a\
     \x0esections.len()\x12?\n\x1cnumber_of_imported_functions\x18&\x20\x01(\
-    \x04R\x19numberOfImportedFunctions\x12N\n$number_of_delayed_imported_fun\
-    ctions\x18'\x20\x01(\x04R\x20numberOfDelayedImportedFunctions\x12\x83\
-    \x01\n\x13number_of_resources\x18(\x20\x01(\x04R\x11numberOfResourcesBS\
+    \x03R\x19numberOfImportedFunctions\x12N\n$number_of_delayed_imported_fun\
+    ctions\x18'\x20\x01(\x03R\x20numberOfDelayedImportedFunctions\x12\x83\
+    \x01\n\x13number_of_resources\x18(\x20\x01(\x03R\x11numberOfResourcesBS\
     \x82\x93\x19O2M\n\x18this\x20field\x20is\x20deprecated\x12\x20use\x20`pe\
     .resources.len()`\x20instead\x1a\x0fresources.len()\x125\n\x17number_of_\
-    version_infos\x18)\x20\x01(\x04R\x14numberOfVersionInfos\x12*\n\x11numbe\
-    r_of_imports\x18*\x20\x01(\x04R\x0fnumberOfImports\x129\n\x19number_of_d\
-    elayed_imports\x18+\x20\x01(\x04R\x16numberOfDelayedImports\x12*\n\x11nu\
-    mber_of_exports\x18,\x20\x01(\x04R\x0fnumberOfExports\x12\x87\x01\n\x14n\
-    umber_of_signatures\x18-\x20\x01(\x04R\x12numberOfSignaturesBU\x82\x93\
+    version_infos\x18)\x20\x01(\x03R\x14numberOfVersionInfos\x12*\n\x11numbe\
+    r_of_imports\x18*\x20\x01(\x03R\x0fnumberOfImports\x129\n\x19number_of_d\
+    elayed_imports\x18+\x20\x01(\x03R\x16numberOfDelayedImports\x12*\n\x11nu\
+    mber_of_exports\x18,\x20\x01(\x03R\x0fnumberOfExports\x12\x87\x01\n\x14n\
+    umber_of_signatures\x18-\x20\x01(\x03R\x12numberOfSignaturesBU\x82\x93\
     \x19Q2O\n\x18this\x20field\x20is\x20deprecated\x12!use\x20`pe.signatures\
     .len()`\x20instead\x1a\x10signatures.len()\x12:\n\x0cversion_info\x18.\
     \x20\x03(\x0b2\x17.pe.PE.VersionInfoEntryR\x0bversionInfo\x128\n\x11vers\
@@ -8903,7 +8903,7 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     ature\x12\x19\n\x08pdb_path\x181\x20\x01(\x0cR\x07pdbPath\x12'\n\x08sect\
     ions\x182\x20\x03(\x0b2\x0b.pe.SectionR\x08sections\x127\n\x10data_direc\
     tories\x183\x20\x03(\x0b2\x0c.pe.DirEntryR\x0fdataDirectories\x126\n\x12\
-    resource_timestamp\x184\x20\x01(\x04R\x11resourceTimestampB\x07\x82\x93\
+    resource_timestamp\x184\x20\x01(\x03R\x11resourceTimestampB\x07\x82\x93\
     \x19\x03*\x01t\x126\n\x10resource_version\x185\x20\x01(\x0b2\x0b.pe.Vers\
     ionR\x0fresourceVersion\x12*\n\tresources\x186\x20\x03(\x0b2\x0c.pe.Reso\
     urceR\tresources\x121\n\x0eimport_details\x187\x20\x03(\x0b2\n.pe.Import\
@@ -8929,7 +8929,7 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     eString\x12\x1f\n\x0bname_string\x18\x08\x20\x01(\x0cR\nnameString\x12'\
     \n\x0flanguage_string\x18\t\x20\x01(\x0cR\x0elanguageString\"\x87\x01\n\
     \x06Import\x12!\n\x0clibrary_name\x18\x01\x20\x02(\tR\x0blibraryName\x12\
-    .\n\x13number_of_functions\x18\x02\x20\x02(\x04R\x11numberOfFunctions\
+    .\n\x13number_of_functions\x18\x02\x20\x02(\x03R\x11numberOfFunctions\
     \x12*\n\tfunctions\x18\x03\x20\x03(\x0b2\x0c.pe.FunctionR\tfunctions\"\
     \x95\x01\n\x06Export\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\
     \x18\n\x07ordinal\x18\x02\x20\x02(\rR\x07ordinal\x12\x19\n\x03rva\x18\
@@ -8949,8 +8949,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x1a\n\x08verified\x18\n\x20\x01(\x08R\x08verified\x12\x1d\n\ndigest_alg\
     \x18\x0b\x20\x01(\tR\tdigestAlg\x12\x16\n\x06digest\x18\x0c\x20\x01(\tR\
     \x06digest\x12\x1f\n\x0bfile_digest\x18\r\x20\x01(\tR\nfileDigest\x124\n\
-    \x16number_of_certificates\x18\x0e\x20\x01(\x04R\x14numberOfCertificates\
-    \x12>\n\x1bnumber_of_countersignatures\x18\x0f\x20\x01(\x04R\x19numberOf\
+    \x16number_of_certificates\x18\x0e\x20\x01(\x03R\x14numberOfCertificates\
+    \x12>\n\x1bnumber_of_countersignatures\x18\x0f\x20\x01(\x03R\x19numberOf\
     Countersignatures\x12/\n\x0bsigner_info\x18\x10\x20\x01(\x0b2\x0e.pe.Sig\
     nerInfoR\nsignerInfo\x123\n\x0ccertificates\x18\x11\x20\x03(\x0b2\x0f.pe\
     .CertificateR\x0ccertificates\x12B\n\x11countersignatures\x18\x12\x20\
@@ -8993,8 +8993,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x06\x20\x03(\x0b2\x0c.pe.RichToolR\x05tools\"R\n\x08RichTool\x12\x16\n\
     \x06toolid\x18\x01\x20\x02(\rR\x06toolid\x12\x18\n\x07version\x18\x02\
     \x20\x02(\rR\x07version\x12\x14\n\x05times\x18\x03\x20\x02(\rR\x05times\
-    \"G\n\x07Overlay\x12\x1f\n\x06offset\x18\x01\x20\x02(\x04R\x06offsetB\
-    \x07\x82\x93\x19\x03*\x01x\x12\x1b\n\x04size\x18\x02\x20\x02(\x04R\x04si\
+    \"G\n\x07Overlay\x12\x1f\n\x06offset\x18\x01\x20\x02(\x03R\x06offsetB\
+    \x07\x82\x93\x19\x03*\x01x\x12\x1b\n\x04size\x18\x02\x20\x02(\x03R\x04si\
     zeB\x07\x82\x93\x19\x03*\x01x*\xd0\x04\n\x0cResourceType\x12\x18\n\x14RE\
     SOURCE_TYPE_CURSOR\x10\x01\x12\x18\n\x14RESOURCE_TYPE_BITMAP\x10\x02\x12\
     \x16\n\x12RESOURCE_TYPE_ICON\x10\x03\x12\x16\n\x12RESOURCE_TYPE_MENU\x10\

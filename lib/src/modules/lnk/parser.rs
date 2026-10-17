@@ -735,8 +735,9 @@ impl LnkParser {
 /// For details see:
 /// https://stackoverflow.com/questions/6161776/convert-windows-filetime-to-second-in-unix-linux
 #[inline]
-fn filetime_to_unix_timestamp(filetime: u64) -> Option<u64> {
-    (filetime / 10000000).checked_sub(11644473600)
+fn filetime_to_unix_timestamp(filetime: u64) -> Option<i64> {
+    // The result is at most u64::MAX / 10000000, which fits in an i64.
+    (filetime / 10000000).checked_sub(11644473600).map(|t| t as i64)
 }
 
 #[cfg(test)]

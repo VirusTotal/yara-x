@@ -2016,8 +2016,8 @@ impl From<MachO<'_>> for protos::macho::Macho {
             result.set_flags(m.header.flags);
             result.set_sizeofcmds(m.header.sizeofcmds);
             result.reserved = m.header.reserved;
-            result.entry_point = m.entry_point_offset;
-            result.stack_size = m.stack_size;
+            result.entry_point = m.entry_point_offset.map(|v| v as i64);
+            result.stack_size = m.stack_size.map(|v| v as i64);
             m.source_version.clone_into(&mut result.source_version);
             result.dynamic_linker = m.dynamic_linker.map(|dl| dl.into());
 
@@ -2157,8 +2157,8 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         result.set_flags(macho.header.flags);
         result.set_sizeofcmds(macho.header.sizeofcmds);
         result.reserved = macho.header.reserved;
-        result.entry_point = macho.entry_point_offset;
-        result.stack_size = macho.stack_size;
+        result.entry_point = macho.entry_point_offset.map(|v| v as i64);
+        result.stack_size = macho.stack_size.map(|v| v as i64);
         macho.source_version.clone_into(&mut result.source_version);
         result.dynamic_linker = macho.dynamic_linker.map(|dl| dl.into());
 
@@ -2281,8 +2281,8 @@ impl From<&FatArch> for protos::macho::FatArch {
         let mut result = protos::macho::FatArch::new();
         result.set_cputype(arch.cputype);
         result.set_cpusubtype(arch.cpusubtype);
-        result.set_offset(arch.offset);
-        result.set_size(arch.size);
+        result.set_offset(arch.offset as i64);
+        result.set_size(arch.size as i64);
         result.set_align(arch.align);
         result.set_reserved(arch.reserved);
         result
@@ -2293,10 +2293,10 @@ impl From<&Segment<'_>> for protos::macho::Segment {
     fn from(seg: &Segment<'_>) -> Self {
         let mut result = protos::macho::Segment::new();
         result.set_segname(seg.segname.into());
-        result.set_vmaddr(seg.vmaddr);
-        result.set_vmsize(seg.vmsize);
-        result.set_fileoff(seg.fileoff);
-        result.set_filesize(seg.filesize);
+        result.set_vmaddr(seg.vmaddr as i64);
+        result.set_vmsize(seg.vmsize as i64);
+        result.set_fileoff(seg.fileoff as i64);
+        result.set_filesize(seg.filesize as i64);
         result.set_maxprot(seg.maxprot);
         result.set_initprot(seg.initprot);
         result.set_nsects(seg.nsects);
@@ -2311,8 +2311,8 @@ impl From<&Section<'_>> for protos::macho::Section {
         let mut result = protos::macho::Section::new();
         result.set_segname(sec.segname.into());
         result.set_sectname(sec.sectname.into());
-        result.set_addr(sec.addr);
-        result.set_size(sec.size);
+        result.set_addr(sec.addr as i64);
+        result.set_size(sec.size as i64);
         result.set_offset(sec.offset);
         result.set_align(sec.align);
         result.set_reloff(sec.reloff);
@@ -2363,7 +2363,7 @@ impl From<&Nlist> for protos::macho::Nlist {
         result.set_n_type(nlist.n_type as u32);
         result.set_n_sect(nlist.n_sect as u32);
         result.set_n_desc(nlist.n_desc as u32);
-        result.set_n_value(nlist.n_value);
+        result.set_n_value(nlist.n_value as i64);
         result
     }
 }

@@ -995,16 +995,139 @@ fn regex_set_optimization() {
                 test_proto2.string_foo matches /foo/ or
                 test_proto2.string_foo matches /bar/
         }
+        rule test_eq_true {
+            condition:
+                test_proto2.string_foo == "bar" or
+                test_proto2.string_foo == "foo"
+        }
+        rule test_eq_commuted_true {
+            condition:
+                "bar" == test_proto2.string_foo or
+                "foo" == test_proto2.string_foo
+        }
+        rule test_eq_false_partial {
+            condition:
+                test_proto2.string_foo == "fo" or
+                test_proto2.string_foo == "oo"
+        }
+        rule test_eq_false_case {
+            condition:
+                test_proto2.string_foo == "FOO" or
+                test_proto2.string_foo == "BAR"
+        }
+        rule test_iequals_true {
+            condition:
+                test_proto2.string_foo iequals "BAR" or
+                "FOO" iequals test_proto2.string_foo
+        }
+        rule test_iequals_false_partial {
+            condition:
+                test_proto2.string_foo iequals "FO" or
+                test_proto2.string_foo iequals "OO"
+        }
+        rule test_contains_true {
+            condition:
+                test_proto2.string_foo contains "ba" or
+                test_proto2.string_foo contains "oo"
+        }
+        rule test_contains_false {
+            condition:
+                test_proto2.string_foo contains "FO" or
+                test_proto2.string_foo contains "BA"
+        }
+        rule test_icontains_true {
+            condition:
+                test_proto2.string_foo icontains "BA" or
+                test_proto2.string_foo icontains "OO"
+        }
+        rule test_startswith_true {
+            condition:
+                test_proto2.string_foo startswith "ba" or
+                test_proto2.string_foo startswith "fo"
+        }
+        rule test_startswith_false {
+            condition:
+                test_proto2.string_foo startswith "oo" or
+                test_proto2.string_foo startswith "FO"
+        }
+        rule test_istartswith_true {
+            condition:
+                test_proto2.string_foo istartswith "BA" or
+                test_proto2.string_foo istartswith "FO"
+        }
+        rule test_istartswith_false {
+            condition:
+                test_proto2.string_foo istartswith "OO" or
+                test_proto2.string_foo istartswith "AR"
+        }
+        rule test_endswith_true {
+            condition:
+                test_proto2.string_foo endswith "ar" or
+                test_proto2.string_foo endswith "oo"
+        }
+        rule test_endswith_false {
+            condition:
+                test_proto2.string_foo endswith "fo" or
+                test_proto2.string_foo endswith "OO"
+        }
+        rule test_iendswith_true {
+            condition:
+                test_proto2.string_foo iendswith "AR" or
+                test_proto2.string_foo iendswith "OO"
+        }
+        rule test_iendswith_false {
+            condition:
+                test_proto2.string_foo iendswith "FO" or
+                test_proto2.string_foo iendswith "BA"
+        }
+        rule test_mixed_true {
+            condition:
+                test_proto2.string_foo == "nope" or
+                test_proto2.string_foo startswith "ba" or
+                test_proto2.string_foo matches /b.r/ or
+                test_proto2.string_foo iendswith "OO"
+        }
+        rule test_special_chars_true {
+            condition:
+                test_proto2.head(10) == "other" or
+                test_proto2.head(10) == "a+b/c\nd\x00\xff*"
+        }
+        rule test_special_chars_multiline_anchor_false {
+            condition:
+                test_proto2.head(10) == "a+b/c" or
+                test_proto2.head(10) == "d\x00\xff*"
+        }
+        rule test_undef_false {
+            condition:
+                test_proto2.string_undef == "foo" or
+                test_proto2.string_undef contains "bar"
+        }
         "#,
     )
     .unwrap();
 
     let mut scanner = crate::Scanner::new(&rules);
-    let results = scanner.scan(b"").unwrap();
+    let results = scanner.scan(b"a+b/c\nd\x00\xff*").unwrap();
 
     let matching_rules: Vec<_> =
         results.matching_rules().map(|r| r.identifier().to_string()).collect();
-    assert_eq!(matching_rules, vec!["test_match"]);
+    assert_eq!(
+        matching_rules,
+        vec![
+            "test_match",
+            "test_eq_true",
+            "test_eq_commuted_true",
+            "test_iequals_true",
+            "test_contains_true",
+            "test_icontains_true",
+            "test_startswith_true",
+            "test_istartswith_true",
+            "test_endswith_true",
+            "test_iendswith_true",
+            "test_mixed_true",
+            "test_special_chars_true",
+        ]
+    );
 }
 
 #[test]

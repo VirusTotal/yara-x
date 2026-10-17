@@ -148,3 +148,33 @@ rule test_16 {
   condition:
     all of them and $dollar at 0
 }
+
+rule test_17 {
+  condition:
+    // Constants with different signedness are not checked against the
+    // range of each other's type.
+    0xFFFFFFFFFFFFFFFF == -1 or -1 == 0xFFFFFFFFFFFFFFFF
+}
+
+import "math"
+
+rule test_18 {
+  condition:
+    // Converting a negative constant to unsigned doesn't change the result of
+    // additions, subtractions, multiplications and bitwise operations.
+    uint64(0) + -1 == 0 or
+    uint64(0) - -1 == 0 or
+    uint64(0) * -1 == 0 or
+    uint64(0) & -4 == 0 or
+    // Both operands in the first division are signed, -6 is not converted.
+    -6 \ 2 \ uint64(0) == 0 or
+    // Divisions involving floats are performed with floats.
+    uint64(0) \ -2.0 == 0 or
+    // No unsigned integers are involved.
+    int64(0) % -3 == 0 or
+    for any x in (1, -5) : (x == 1) or
+    // These arguments keep their values in functions that expect signed
+    // integers.
+    math.to_string(-1) == "-1" or
+    math.to_string(0x7FFFFFFFFFFFFFFF) == "9223372036854775807"
+}

@@ -9,7 +9,7 @@ use crate::modules::protos::yara::exts::{
     enum_options, enum_value, field_options, message_options, module_options,
 };
 use crate::symbols::{Symbol, SymbolLookup};
-use crate::types::{Array, Map, StringConstraint, TypeValue};
+use crate::types::{Array, Map, StringConstraint, TypeValue, Value};
 use crate::wasm::WasmExport;
 use bstr::BString;
 use indexmap::{IndexMap, IndexSet};
@@ -514,9 +514,8 @@ impl Struct {
 
             if Self::lowercase(&fd) {
                 if let TypeValue::String { constraints, .. } = &mut value {
-                    constraints
-                        .get_or_insert_default()
-                        .push(StringConstraint::Lowercase);
+                    *constraints =
+                        Some(Box::new([StringConstraint::Lowercase]));
                 } else {
                     panic!(
                         "`lowercase = true` in non-string field: {}",
@@ -933,19 +932,48 @@ impl Struct {
         syntax: Syntax,
     ) -> TypeValue {
         match ty {
-            RuntimeType::I32
-            | RuntimeType::I64
-            | RuntimeType::U32
-            | RuntimeType::U64
-            | RuntimeType::Enum(_) => {
+            RuntimeType::U64 => {
                 if let Some(v) = value {
-                    TypeValue::var_integer_from(Self::value_as_i64(v))
+                    TypeValue::var_unsigned_integer_from(Self::value_as_u64(v))
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
-                    TypeValue::var_integer_from(0)
+                    TypeValue::var_unsigned_integer_from(0_u64)
                 } else {
-                    TypeValue::unknown_integer()
+                    TypeValue::unknown_unsigned_integer()
+                }
+            }
+            RuntimeType::U32 => {
+                if let Some(v) = value {
+                    TypeValue::Uint32(Value::Var(Self::value_as_u32(v)))
+                } else if syntax == Syntax::Proto3 {
+                    // In proto3 unknown values are set to their default
+                    // values.
+                    TypeValue::Uint32(Value::Var(0))
+                } else {
+                    TypeValue::Uint32(Value::Unknown)
+                }
+            }
+            RuntimeType::I32 => {
+                if let Some(v) = value {
+                    TypeValue::Int32(Value::Var(Self::value_as_i32(v)))
+                } else if syntax == Syntax::Proto3 {
+                    // In proto3 unknown values are set to their default
+                    // values.
+                    TypeValue::Int32(Value::Var(0))
+                } else {
+                    TypeValue::Int32(Value::Unknown)
+                }
+            }
+            RuntimeType::I64 | RuntimeType::Enum(_) => {
+                if let Some(v) = value {
+                    TypeValue::var_signed_integer_from(Self::value_as_i64(v))
+                } else if syntax == Syntax::Proto3 {
+                    // In proto3 unknown values are set to their default
+                    // values.
+                    TypeValue::var_signed_integer_from(0)
+                } else {
+                    TypeValue::unknown_signed_integer()
                 }
             }
             RuntimeType::F32 | RuntimeType::F64 => {
@@ -1009,43 +1037,10 @@ impl Struct {
         generate_compile_time_fields: bool,
     ) -> TypeValue {
         let array = match ty {
-            RuntimeType::I32 => {
-                if let Some(repeated) = repeated {
-                    Array::Integers(
-                        repeated
-                            .into_iter()
-                            .map(|value| Self::value_as_i64(value))
-                            .collect(),
-                    )
-                } else {
-                    Array::Integers(vec![])
-                }
-            }
-            RuntimeType::I64 => {
-                if let Some(repeated) = repeated {
-                    Array::Integers(
-                        repeated
-                            .into_iter()
-                            .map(|value| Self::value_as_i64(value))
-                            .collect(),
-                    )
-                } else {
-                    Array::Integers(vec![])
-                }
-            }
-            RuntimeType::U32 => {
-                if let Some(repeated) = repeated {
-                    Array::Integers(
-                        repeated
-                            .into_iter()
-                            .map(|value| Self::value_as_i64(value))
-                            .collect(),
-                    )
-                } else {
-                    Array::Integers(vec![])
-                }
-            }
-            RuntimeType::U64 => {
+            RuntimeType::I32
+            | RuntimeType::I64
+            | RuntimeType::U32
+            | RuntimeType::U64 => {
                 if let Some(repeated) = repeated {
                     Array::Integers(
                         repeated
@@ -1290,6 +1285,20 @@ impl Struct {
         }
     }
 
+    fn value_as_i32(value: ReflectValueRef) -> i32 {
+        match value {
+            ReflectValueRef::I32(v) => v,
+            _ => panic!(),
+        }
+    }
+
+    fn value_as_u32(value: ReflectValueRef) -> u32 {
+        match value {
+            ReflectValueRef::U32(v) => v,
+            _ => panic!(),
+        }
+    }
+
     fn value_as_i64(value: ReflectValueRef) -> i64 {
         match value {
             ReflectValueRef::U32(v) => v as i64,
@@ -1297,6 +1306,14 @@ impl Struct {
             ReflectValueRef::I32(v) => v as i64,
             ReflectValueRef::I64(v) => v,
             ReflectValueRef::Enum(_, v) => v as i64,
+            _ => panic!(),
+        }
+    }
+
+    fn value_as_u64(value: ReflectValueRef) -> u64 {
+        match value {
+            ReflectValueRef::U32(v) => v as u64,
+            ReflectValueRef::U64(v) => v,
             _ => panic!(),
         }
     }
@@ -1421,7 +1438,7 @@ mod tests {
         let foo = Struct::default();
 
         root.add_field("foo", TypeValue::Struct(Rc::new(foo)));
-        root.add_field("bar", TypeValue::var_integer_from(1));
+        root.add_field("bar", TypeValue::var_signed_integer_from(1));
 
         let field1 = root.field_by_name("foo").unwrap();
         let field2 = root.field_by_index(0).unwrap();
@@ -1429,7 +1446,7 @@ mod tests {
         assert_eq!(field1.type_value.ty(), Type::Struct);
         assert_eq!(field1.type_value.ty(), field2.type_value.ty());
 
-        root.add_field("foo.bar", TypeValue::var_integer_from(1));
+        root.add_field("foo.bar", TypeValue::var_signed_integer_from(1));
     }
     #[test]
     fn test_proto_struct() {
@@ -1472,7 +1489,7 @@ mod tests {
     fn struct_eq() {
         let mut sub: Struct = Struct::default();
 
-        sub.add_field("integer", TypeValue::unknown_integer());
+        sub.add_field("integer", TypeValue::unknown_signed_integer());
         sub.add_field("string", TypeValue::unknown_string());
         sub.add_field("boolean", TypeValue::unknown_bool());
 
@@ -1482,7 +1499,7 @@ mod tests {
         let mut b = Struct::default();
 
         a.add_field("boolean", TypeValue::var_bool_from(true));
-        a.add_field("integer", TypeValue::var_integer_from(1));
+        a.add_field("integer", TypeValue::var_signed_integer_from(1));
         a.add_field("structure", TypeValue::Struct(sub.clone()));
         a.add_field(
             "floats_array",
@@ -1493,7 +1510,7 @@ mod tests {
         assert_ne!(a, b);
 
         b.add_field("boolean", TypeValue::var_bool_from(false));
-        b.add_field("integer", TypeValue::var_integer_from(1));
+        b.add_field("integer", TypeValue::var_signed_integer_from(1));
         b.add_field("structure", TypeValue::Struct(sub));
         b.add_field(
             "floats_array",
@@ -1504,7 +1521,7 @@ mod tests {
         assert_eq!(a, b);
 
         a.add_field("foo", TypeValue::var_bool_from(false));
-        b.add_field("foo", TypeValue::unknown_integer());
+        b.add_field("foo", TypeValue::unknown_signed_integer());
 
         // At this point a != b again because field "foo" have a different type
         // on each structure.

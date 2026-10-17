@@ -10,9 +10,11 @@ use yara_x_parser::ast::{Ident, WithSpan};
 use crate::compiler::errors::{CompileError, UnknownPattern};
 use crate::compiler::ir::{IR, PatternIdx};
 use crate::compiler::report::ReportBuilder;
-use crate::compiler::{RegexId, RegexSetId, Warnings, ir};
+use crate::compiler::{
+    LiteralId, LiteralSetId, RegexId, RegexSetId, Warnings, ir,
+};
 use crate::errors::{UnknownField, UnknownIdentifier};
-use crate::string_pool::StringPool;
+use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup};
 use crate::types::Type;
 use crate::wasm;
@@ -71,6 +73,13 @@ pub(crate) struct CompileContext<'a, 'src> {
 
     /// Pool for regular expressions.
     pub regex_pool: &'a mut StringPool<RegexId>,
+
+    /// Grouped LiteralSets constructed during IR creation for or-expressions.
+    pub literal_sets:
+        &'a mut rustc_hash::FxHashMap<LiteralSetId, Vec<LiteralId>>,
+
+    /// Pool for string literals.
+    pub literal_pool: &'a mut BStringPool<LiteralId>,
 }
 
 impl<'src> CompileContext<'_, 'src> {
