@@ -24,6 +24,9 @@ tracing = ["dep:tracing", "dep:tracing-subscriber"]
 # Enables the `magic` module.
 magic-module = ["yara-x/magic-module"]
 
+# Enables the `eml` module.
+eml-module = ["yara-x/eml-module"]
+
 [dependencies]
 bitflags = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
