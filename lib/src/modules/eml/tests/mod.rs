@@ -234,6 +234,30 @@ fn part_content_id_and_decoded_size() {
 }
 
 #[test]
+fn multipart_boundary_must_be_a_delimiter_line() {
+    let eml = b"Content-Type: multipart/mixed; boundary=b\r\n\r\n\
+                --b\r\n\
+                Content-Type: text/plain\r\n\
+                \r\n\
+                hello --b-not-a-delimiter\r\n\
+                --bXYZ\r\n\
+                world\r\n\
+                --b--\r\n";
+
+    rule_true!(
+        r#"
+        import "eml"
+        rule test {
+          condition:
+            eml.parts[0].size == 40 and
+            not defined eml.parts[1].content_type
+        }
+        "#,
+        eml.as_slice()
+    );
+}
+
+#[test]
 fn convenience_fields() {
     let eml = create_binary_from_zipped_ihex(
         "src/modules/eml/tests/testdata/1bd008595eefab8ab0653ccaeac7857989178d75f842f8b147b6cc7e1701aca5.in.zip",

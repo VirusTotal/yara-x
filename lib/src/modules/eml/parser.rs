@@ -95,14 +95,13 @@ impl EmlParser {
 
             if let Some(boundary) = boundary {
                 let delimiter = [b"--".as_slice(), &boundary].concat();
-                // The first element is the preamble, not a part.
                 let remaining_parts =
                     MAX_PARTS.saturating_sub(parts_processed + stack.len());
-                let parts: Vec<&[u8]> = body
-                    .split_str(&delimiter)
-                    .skip(1)
-                    .take(remaining_parts)
-                    .collect();
+                let parts = Self::split_multipart(
+                    body,
+                    &delimiter,
+                    remaining_parts,
+                );
                 for part in parts.into_iter().rev() {
                     let trimmed = part.trim();
 
@@ -186,6 +185,72 @@ impl EmlParser {
         }
 
         has_field
+    }
+
+    /// Splits a multipart body at valid delimiter lines, stopping at `limit`.
+    fn split_multipart<'a>(
+        body: &'a [u8],
+        delimiter: &[u8],
+        limit: usize,
+    ) -> Vec<&'a [u8]> {
+        let mut parts = Vec::new();
+        if limit == 0 {
+            return parts;
+        }
+
+        let mut part_start = None;
+        let mut line_start = 0;
+
+        while line_start <= body.len() {
+            let line_end = body[line_start..]
+                .iter()
+                .position(|&b| b == b'\n')
+                .map_or(body.len(), |offset| line_start + offset);
+            let next_line_start = if line_end < body.len() {
+                line_end + 1
+            } else {
+                body.len()
+            };
+            let mut line = &body[line_start..line_end];
+            if line.ends_with(b"\r") {
+                line = &line[..line.len() - 1];
+            }
+
+            if let Some(closing) = Self::is_boundary_line(line, delimiter) {
+                if let Some(start) = part_start {
+                    parts.push(&body[start..line_start]);
+                    if parts.len() == limit || closing {
+                        return parts;
+                    }
+                } else if closing {
+                    return parts;
+                }
+                part_start = Some(next_line_start);
+            }
+
+            if line_end == body.len() {
+                break;
+            }
+            line_start = next_line_start;
+        }
+
+        if let Some(start) = part_start {
+            if parts.len() < limit {
+                parts.push(&body[start..]);
+            }
+        }
+        parts
+    }
+
+    /// Returns whether `line` is a delimiter line, and whether it closes the
+    /// multipart body. Delimiter lines may have trailing spaces or tabs.
+    fn is_boundary_line(line: &[u8], delimiter: &[u8]) -> Option<bool> {
+        let mut suffix = line.strip_prefix(delimiter)?;
+        let closing = suffix.starts_with(b"--");
+        if closing {
+            suffix = &suffix[2..];
+        }
+        suffix.iter().all(|&b| b == b' ' || b == b'\t').then_some(closing)
     }
 
     fn decode_body(headers: &Headers, body: &[u8]) -> Option<Vec<u8>> {
