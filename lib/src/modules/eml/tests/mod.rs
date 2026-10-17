@@ -42,6 +42,73 @@ fn is_eml() {
         "#,
         b"Subject: hi\r\n\r\nbody".as_slice()
     );
+    rule_true!(
+        r#"
+        import "eml"
+        rule test {
+          condition:
+            eml.is_eml
+        }
+        "#,
+        b"Subject: hi\r\nX(test): value\r\n\r\nbody".as_slice()
+    );
+}
+
+#[test]
+fn rejects_invalid_or_unbounded_headers() {
+    let invalid_inputs: [&[u8]; 2] = [
+        b"\xff\x00garbage\r\nSubject: hi\r\n\r\nbody",
+        b"Subject: hi",
+    ];
+
+    for input in invalid_inputs {
+        rule_true!(
+            r#"
+            import "eml"
+            rule test {
+              condition:
+                not eml.is_eml
+            }
+            "#,
+            input
+        );
+    }
+
+    let mut oversized_header = vec![b'x'; 64 * 1024];
+    oversized_header.extend_from_slice(b"\r\nSubject: hi\r\n\r\nbody");
+    rule_true!(
+        r#"
+        import "eml"
+        rule test {
+          condition:
+            not eml.is_eml
+        }
+        "#,
+        oversized_header.as_slice()
+    );
+}
+
+#[test]
+fn skips_mime_parts_with_oversized_headers() {
+    let mut eml =
+        b"Content-Type: multipart/mixed; boundary=b\r\n\r\n--b\r\n".to_vec();
+    for _ in 0..7000 {
+        eml.extend_from_slice(b"X-Pad: x\r\n");
+    }
+    eml.extend_from_slice(
+        b"Content-Type: text/plain\r\n\r\nbody\r\n--b--\r\n",
+    );
+
+    rule_true!(
+        r#"
+        import "eml"
+        rule test {
+          condition:
+            not defined eml.parts[0].content_type
+        }
+        "#,
+        eml.as_slice()
+    );
 }
 
 #[test]
