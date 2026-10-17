@@ -54,11 +54,12 @@ impl EmlParser {
                 break;
             }
 
-            let split = Self::split_message(current_data);
-            if is_root && split.is_none() {
-                return Err(Error::NotEml);
-            }
-            let (header, body) = split.unwrap_or((current_data, &[][..]));
+            let Some((header, body)) = Self::split_message(current_data) else {
+                if is_root {
+                    return Err(Error::NotEml);
+                }
+                continue;
+            };
             let headers = Self::parse_headers(header);
 
             if is_root {
@@ -170,10 +171,7 @@ impl EmlParser {
                 return false;
             };
             if name.is_empty()
-                || !name.iter().all(|b| {
-                    b.is_ascii_alphanumeric()
-                        || b"!#$%&'*+-.^_`|~".contains(b)
-                })
+                || !name.iter().all(|b| b.is_ascii_graphic())
                 || value.iter().any(|b| b.is_ascii_control() && *b != b'\t')
             {
                 return false;
