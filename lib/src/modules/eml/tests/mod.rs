@@ -89,6 +89,30 @@ fn rejects_invalid_or_unbounded_headers() {
 }
 
 #[test]
+fn limits_number_of_mime_parts() {
+    let mut eml =
+        b"Content-Type: multipart/mixed; boundary=b\r\n\r\n".to_vec();
+    for _ in 0..105 {
+        eml.extend_from_slice(
+            b"--b\r\nContent-Type: text/plain\r\n\r\npart\r\n",
+        );
+    }
+    eml.extend_from_slice(b"--b--\r\n");
+
+    rule_true!(
+        r#"
+        import "eml"
+        rule test {
+          condition:
+            eml.parts[98].content_type == "text/plain" and
+            not defined eml.parts[99].content_type
+        }
+        "#,
+        eml.as_slice()
+    );
+}
+
+#[test]
 fn skips_mime_parts_with_oversized_headers() {
     let mut eml =
         b"Content-Type: multipart/mixed; boundary=b\r\n\r\n--b\r\n".to_vec();

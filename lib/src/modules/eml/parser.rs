@@ -28,6 +28,7 @@ const COMMON_HEADERS: [&[u8]; 8] = [
 
 /// Maximum number of bytes searched for the header/body separator.
 const MAX_HEADER_BYTES: usize = 64 * 1024;
+const MAX_PARTS: usize = 100;
 
 /// An Eml parser
 pub struct EmlParser;
@@ -50,7 +51,7 @@ impl EmlParser {
 
         while let Some(current_data) = stack.pop() {
             parts_processed += 1;
-            if parts_processed > 100 {
+            if parts_processed > MAX_PARTS {
                 break;
             }
 
@@ -95,8 +96,13 @@ impl EmlParser {
             if let Some(boundary) = boundary {
                 let delimiter = [b"--".as_slice(), &boundary].concat();
                 // The first element is the preamble, not a part.
-                let parts: Vec<&[u8]> =
-                    body.split_str(&delimiter).skip(1).collect();
+                let remaining_parts =
+                    MAX_PARTS.saturating_sub(parts_processed + stack.len());
+                let parts: Vec<&[u8]> = body
+                    .split_str(&delimiter)
+                    .skip(1)
+                    .take(remaining_parts)
+                    .collect();
                 for part in parts.into_iter().rev() {
                     let trimmed = part.trim();
 
