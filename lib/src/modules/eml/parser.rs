@@ -26,6 +26,9 @@ const COMMON_HEADERS: [&[u8]; 8] = [
     b"content-type",
 ];
 
+/// Maximum number of bytes searched for the header/body separator.
+const MAX_HEADER_BYTES: usize = 64 * 1024;
+
 /// An Eml parser
 pub struct EmlParser;
 
@@ -51,11 +54,17 @@ impl EmlParser {
                 break;
             }
 
-            let (header, body) = Self::split_message(current_data);
+            let split = Self::split_message(current_data);
+            if is_root && split.is_none() {
+                return Err(Error::NotEml);
+            }
+            let (header, body) = split.unwrap_or((current_data, &[][..]));
             let headers = Self::parse_headers(header);
 
             if is_root {
-                if !COMMON_HEADERS.iter().any(|h| headers.contains_key(*h)) {
+                if !Self::valid_header_block(header)
+                    || !COMMON_HEADERS.iter().any(|h| headers.contains_key(*h))
+                {
                     return Err(Error::NotEml);
                 }
                 result.headers = Self::map_to_proto_headers(&headers);
@@ -129,14 +138,50 @@ impl EmlParser {
         Ok(result)
     }
 
-    fn split_message(input: &[u8]) -> (&[u8], &[u8]) {
-        if let Some(pos) = input.find("\r\n\r\n") {
-            (&input[..pos], &input[pos + 4..])
-        } else if let Some(pos) = input.find("\n\n") {
-            (&input[..pos], &input[pos + 2..])
-        } else {
-            (input, &[][..])
+    fn split_message(input: &[u8]) -> Option<(&[u8], &[u8])> {
+        let prefix = &input[..input.len().min(MAX_HEADER_BYTES)];
+        let crlf = prefix.find(b"\r\n\r\n").map(|pos| (pos, 4));
+        let lf = prefix.find(b"\n\n").map(|pos| (pos, 2));
+        let (pos, separator_len) = match (crlf, lf) {
+            (Some(a), Some(b)) => if a.0 <= b.0 { a } else { b },
+            (Some(a), None) => a,
+            (None, Some(b)) => b,
+            (None, None) => return None,
+        };
+
+        Some((&input[..pos], &input[pos + separator_len..]))
+    }
+
+    /// Checks that the root header block is plausible email syntax, rather
+    /// than garbage bytes containing a familiar header later in the block.
+    fn valid_header_block(raw: &[u8]) -> bool {
+        let mut has_field = false;
+
+        for line in raw.lines() {
+            let line = line.strip_suffix(b"\r").unwrap_or(line);
+            if line.starts_with(b" ") || line.starts_with(b"\t") {
+                if !has_field || line.iter().any(|b| b.is_ascii_control() && *b != b'\t') {
+                    return false;
+                }
+                continue;
+            }
+
+            let Some((name, value)) = line.split_once_str(b":") else {
+                return false;
+            };
+            if name.is_empty()
+                || !name.iter().all(|b| {
+                    b.is_ascii_alphanumeric()
+                        || b"!#$%&'*+-.^_`|~".contains(b)
+                })
+                || value.iter().any(|b| b.is_ascii_control() && *b != b'\t')
+            {
+                return false;
+            }
+            has_field = true;
         }
+
+        has_field
     }
 
     fn decode_body(headers: &Headers, body: &[u8]) -> Option<Vec<u8>> {
