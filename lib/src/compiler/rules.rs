@@ -4,6 +4,7 @@ use std::io::{BufWriter, Read, Write};
 use std::num::NonZeroU32;
 use std::ops::{Bound, RangeBounds};
 use std::slice::Iter;
+use std::sync::OnceLock;
 #[cfg(feature = "logging")]
 use std::time::Instant;
 
@@ -246,6 +247,19 @@ pub struct Rules {
     /// set automata for single-pass evaluation.
     pub(in crate::compiler) regex_sets: FxHashMap<RegExpSetId, Vec<RegExpId>>,
 
+    /// Lazily compiled `RegExpSet` automata shared by all scanners using these
+    /// rules.
+    ///
+    /// The definitions in `regex_sets` are serialized with the rules, but the
+    /// compiled automata are runtime-only. The vector is initialized when the
+    /// [`Rules`] are built or deserialized, while each individual set is
+    /// compiled lazily on first use. A `None` entry means the set could not be
+    /// compiled into a single automaton, in which case callers fall back to
+    /// matching the individual regexps (see [`Rules::get_regex_set_ids`]).
+    #[serde(skip)]
+    pub(in crate::compiler) compiled_regex_sets:
+        Vec<OnceLock<Option<Regex>>>,
+
     /// Grouped `LiteralSet` persistent definitions.
     ///
     /// Populated during `Compiler::build`, each entry maps a unique
@@ -378,6 +392,7 @@ impl Rules {
             info!("WASM build time: {:?}", Instant::elapsed(&start));
         }
 
+        rules.init_regex_set_cache();
         rules.ac.rebuild_teddy(rules.atoms.iter().map(|x| x.atom.as_ref()));
 
         // Validate that all SubPatternId, PatternId, FwdCodeLoc, and BckCodeLoc
@@ -506,9 +521,33 @@ impl Rules {
         })
     }
 
+    /// Initializes the runtime-only cache for compiled `RegExpSet` automata.
+    ///
+    /// Allocates one empty [`OnceLock`] per entry in `regex_sets`. Because
+    /// `RegExpSetId`s are assigned densely (`0..regex_sets.len()`), each id can
+    /// be used directly as an index into `compiled_regex_sets`.
+    pub(in crate::compiler) fn init_regex_set_cache(&mut self) {
+        self.compiled_regex_sets =
+            (0..self.regex_sets.len()).map(|_| OnceLock::new()).collect();
+    }
+
     /// Returns a compiled multi-pattern `RegExp` for a given `RegExpSetId`.
+    ///
+    /// The automaton is built lazily on first use and shared across all
+    /// scanners using these rules. Returns `None` if the set could not be
+    /// compiled into a single automaton, in which case callers should fall
+    /// back to matching the individual regexps via
+    /// [`Rules::get_regex_set_ids`].
     #[inline]
-    pub(crate) fn get_regex_set(&self, set_id: RegExpSetId) -> Option<Regex> {
+    pub(crate) fn get_regex_set(&self, set_id: RegExpSetId) -> Option<&Regex> {
+        self.compiled_regex_sets
+            .get(usize::from(set_id))?
+            .get_or_init(|| self.build_regex_set(set_id))
+            .as_ref()
+    }
+
+    /// Builds the combined automaton for a given [`RegExpSetId`].
+    fn build_regex_set(&self, set_id: RegExpSetId) -> Option<Regex> {
         let re_ids = self.regex_sets.get(&set_id)?;
         let parser = re::parser::Parser::new()
             .relaxed_re_syntax(self.relaxed_re_syntax);

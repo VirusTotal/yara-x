@@ -27,7 +27,7 @@ use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 
 use crate::compiler::{
-    NamespaceId, PatternId, RegExpId, RegExpSetId, RuleId, Rules, SubPattern,
+    NamespaceId, PatternId, RegExpId, RuleId, Rules, SubPattern,
     SubPatternAtom, SubPatternFlags, SubPatternId,
 };
 use crate::errors::VariableError;
@@ -243,14 +243,6 @@ pub struct ScanContext<'r, 'd> {
     /// is evaluated, it is compiled the first time and stored in this hash
     /// map.
     pub(crate) regex_cache: RefCell<FxHashMap<RegExpId, Regex>>,
-    /// Persistent cache for grouped `RegexSet` automata.
-    ///
-    /// Like individual regular expressions, compiling a multi-pattern
-    /// `RegexSet` is an expensive operation. This cache compiles the set
-    /// automata lazily upon the very first match request and preserves the
-    /// compiled automata across all subsequent scans performed by the
-    /// scanner instance.
-    pub(crate) regex_set_cache: RefCell<FxHashMap<RegExpSetId, Option<Regex>>>,
     /// Engines for custom base64 alphabets used by base64 string modifiers.
     ///
     /// These engines are derived from rule literals and reused across scans.
@@ -395,12 +387,11 @@ impl ScanContext<'_, '_> {
         set_id: crate::compiler::RegExpSetId,
         haystack: &[u8],
     ) -> bool {
-        if let Some(regex_set) = self
-            .regex_set_cache
-            .borrow_mut()
-            .entry(set_id)
-            .or_insert_with(|| self.compiled_rules.get_regex_set(set_id))
-        {
+        // The compiled set automaton is cached on the shared `Rules`, so it is
+        // built once and reused by every scanner. If the set could not be
+        // compiled into a single automaton, fall back to matching each
+        // individual regexp.
+        if let Some(regex_set) = self.compiled_rules.get_regex_set(set_id) {
             return regex_set.is_match(haystack);
         }
 
@@ -2355,7 +2346,6 @@ impl<'r> PinnedScanContext<'r> {
             },
             deadline: 0,
             regex_cache: RefCell::new(FxHashMap::default()),
-            regex_set_cache: RefCell::new(FxHashMap::default()),
             vm: VM::new(rules.re_code()),
             custom_base64_engine_cache: Vec::new(),
             #[cfg(feature = "rules-profiling")]
