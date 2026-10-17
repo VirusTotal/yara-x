@@ -13,7 +13,7 @@ use thiserror::Error;
 
 use yara_x_parser::ast;
 
-use crate::re::hir::Hir;
+use crate::re::hir::{Hir, Warning};
 use crate::types;
 
 #[derive(Error, Debug)]
@@ -285,10 +285,20 @@ impl Parser {
         // greedy and non-greedy quantifiers, like in `foo.*bar.*?baz`. Mixed
         // greediness is allowed only if allow_mixed_greediness is true, an
         // error is returned if otherwise.
-        let greedy = Validator::new()
+        let (greedy, warnings) = Validator::new()
             .allow_mixed_greediness(self.allow_mixed_greediness)
             .dot_matches_new_line(regexp.dot_matches_new_line())
             .validate(&ast)?;
+
+        // Adjust the warning spans so that they are relative to the original
+        // regular expression source, accounting for any modifications made by
+        // the relaxed-syntax handling above, and wrap them into `Warning`s.
+        let warnings: Vec<Warning> = warnings
+            .into_iter()
+            .map(|span| Warning::GreedyDotStar {
+                span: adjust_span(&span, span_delta),
+            })
+            .collect();
 
         let case_insensitive = match self.force_case_sensitiveness {
             Some(CaseSensitiveness::Sensitive) => false,
@@ -312,7 +322,7 @@ impl Parser {
                 }
             })?;
 
-        Ok(Hir { inner: hir, greedy })
+        Ok(Hir { inner: hir, greedy, warnings })
     }
 }
 
@@ -334,6 +344,7 @@ enum MatchKind {
 struct Validator {
     first_rep: Option<(bool, re::ast::Span)>,
     greedy: Option<bool>,
+    warnings: Vec<re::ast::Span>,
     match_kind: MatchKind,
     stack: Vec<Vec<MatchKind>>,
     allow_mixed_greediness: bool,
@@ -346,6 +357,7 @@ impl Validator {
         Self {
             first_rep: None,
             greedy: None,
+            warnings: Vec::new(),
             match_kind: MatchKind::NonArbitrary,
             stack: Vec::new(),
             allow_mixed_greediness: false,
@@ -363,7 +375,10 @@ impl Validator {
         self
     }
 
-    fn validate(&mut self, ast: &Ast) -> Result<Option<bool>, Error> {
+    fn validate(
+        &mut self,
+        ast: &Ast,
+    ) -> Result<(Option<bool>, Vec<re::ast::Span>), Error> {
         re::ast::visit(ast, self)
     }
 
@@ -382,11 +397,11 @@ impl Validator {
 }
 
 impl re::ast::Visitor for &mut Validator {
-    type Output = Option<bool>;
+    type Output = (Option<bool>, Vec<re::ast::Span>);
     type Err = Error;
 
     fn finish(self) -> Result<Self::Output, Self::Err> {
-        Ok(self.greedy)
+        Ok((self.greedy, std::mem::take(&mut self.warnings)))
     }
 
     fn visit_pre(&mut self, ast: &Ast) -> Result<(), Self::Err> {
@@ -427,6 +442,19 @@ impl re::ast::Visitor for &mut Validator {
                 }
             }
             Ast::Repetition(rep) => {
+                // Detect a greedy `.*` (a `*` repetition over a dot) and record
+                // its span so that a warning can be raised by the caller. This
+                // is done here, where the regular expression has already been
+                // fully parsed, instead of inspecting the regular expression
+                // source manually, as the latter is error-prone (e.g: character
+                // classes can contain `]` or nested classes).
+                if rep.greedy
+                    && rep.op.kind == RepetitionKind::ZeroOrMore
+                    && matches!(rep.ast.as_ref(), Ast::Dot(_))
+                {
+                    self.warnings.push(rep.span);
+                }
+
                 if let Some(first_rep) = self.first_rep {
                     if rep.greedy != first_rep.0 {
                         if !self.allow_mixed_greediness {

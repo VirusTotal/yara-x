@@ -51,6 +51,18 @@ pub(crate) struct ChainedPattern {
     pub hir: Hir,
 }
 
+/// A warning produced while parsing a regular expression.
+///
+/// Currently there's only one kind of warning, but more kinds may be added in
+/// the future.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum Warning {
+    /// The regular expression contains a greedy `.*` repetition, which can
+    /// cause performance issues due to excessive backtracking. The span points
+    /// at the `.*`.
+    GreedyDotStar { span: regex_syntax::ast::Span },
+}
+
 /// High level intermediate representation (HIR) for a regular expression.
 ///
 /// This is a thin wrapper around [`regex_syntax::hir::Hir`] that implements
@@ -62,6 +74,8 @@ pub(crate) struct Hir {
     /// non-greedy (`Some(false)`), or has a mixture of greedy and non-greedy
     /// quantifiers (`None`).
     pub(super) greedy: Option<bool>,
+    /// Warnings produced while parsing the regular expression.
+    pub(super) warnings: Vec<Warning>,
 }
 
 impl Hash for Hir {
@@ -78,7 +92,7 @@ impl PartialEq for Hir {
 
 impl From<regex_syntax::hir::Hir> for Hir {
     fn from(value: regex_syntax::hir::Hir) -> Self {
-        Self { inner: value, greedy: None }
+        Self { inner: value, greedy: None, warnings: Vec::new() }
     }
 }
 
@@ -299,6 +313,12 @@ impl Hir {
     #[inline]
     pub fn is_greedy(&self) -> Option<bool> {
         self.greedy
+    }
+
+    /// Returns the warnings produced while parsing the regular expression.
+    #[inline]
+    pub fn warnings(&self) -> &[Warning] {
+        &self.warnings
     }
 
     #[inline]
