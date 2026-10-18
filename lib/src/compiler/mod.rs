@@ -32,9 +32,9 @@ use yara_x_parser::{Parser, Span};
 use crate::compiler::base64::base64_patterns;
 use crate::compiler::emit::{EmitContext, emit_rule_condition};
 use crate::compiler::errors::{
-    CompileError, ConflictingRuleIdentifier, CustomError, DuplicateRule,
-    DuplicateTag, EmitWasmError, InvalidRegexp, InvalidUTF8, UnknownModule,
-    UnusedPattern,
+    CompileError, ConditionTooLarge, ConflictingRuleIdentifier, CustomError,
+    DuplicateRule, DuplicateTag, EmitWasmError, InvalidRegexp, InvalidUTF8,
+    UnknownModule, UnusedPattern,
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{CompileContext, VarStack};
@@ -107,6 +107,10 @@ pub(crate) enum IgnoredRuleReasonInternal {
     IgnoredRule(String),
     CompileError(usize),
 }
+
+/// IR nodes in a rule condition above this limit are rejected before WASM
+/// emission (see issue #439).
+const MAX_CONDITION_IR_NODES: usize = 75_000;
 
 /// Iterator that yields rules ignored during compilation.
 pub struct IgnoredRules<'a> {
@@ -1834,6 +1838,16 @@ impl Compiler<'_> {
 
         if self.hoisting {
             condition = self.ir.hoisting();
+        }
+
+        if self.ir.expr_subtree_node_count(condition) > MAX_CONDITION_IR_NODES
+        {
+            self.restore_snapshot(snapshot);
+            return Err(ConditionTooLarge::build(
+                &self.report_builder,
+                MAX_CONDITION_IR_NODES,
+                self.report_builder.span_to_code_loc(rule.identifier.span()),
+            ));
         }
 
         // Analyze the condition and determine the bounds it imposes to

@@ -721,6 +721,13 @@ impl IR {
         DFSIter::new(start, self)
     }
 
+    /// Number of IR expression nodes in the subtree rooted at `start`.
+    pub(crate) fn expr_subtree_node_count(&self, start: ExprId) -> usize {
+        self.dfs_iter(start)
+            .filter(|event| matches!(event, Event::Enter(_)))
+            .count()
+    }
+
     /// Similar to [`IR::dfs_iter`] but returns an iterator that also can offer
     /// information about the current scopes.
     ///

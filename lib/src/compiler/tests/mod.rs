@@ -1759,3 +1759,27 @@ fn test_var_stack_overflow() {
     let rule = format!("rule test {{ condition: with {vars} : ( true ) }}");
     assert!(compiler.add_source(rule.as_str()).is_err());
 }
+
+fn massive_condition_rule(num_ands: usize) -> String {
+    // `filesize` comparisons are not constant-folded, so the IR grows with
+    // each `and` (unlike `true and true ...`, which folds to one node).
+    let mut s = String::with_capacity(48 + num_ands * 20);
+    s.push_str("rule massive { condition: filesize > 0");
+    for _ in 0..num_ands {
+        s.push_str(" and filesize > 0");
+    }
+    s.push('}');
+    s
+}
+
+#[test]
+fn test_massive_condition() {
+    use crate::errors::CompileError;
+
+    compile("rule small { condition: filesize > 0 and filesize > 0 }")
+        .expect("small condition should compile");
+
+    let huge = massive_condition_rule(50_000);
+    let err = compile(huge.as_str()).unwrap_err();
+    assert!(matches!(err, CompileError::ConditionTooLarge(_)));
+}
