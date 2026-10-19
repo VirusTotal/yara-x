@@ -32,9 +32,9 @@ use yara_x_parser::{Parser, Span};
 use crate::compiler::base64::base64_patterns;
 use crate::compiler::emit::{EmitContext, emit_rule_condition};
 use crate::compiler::errors::{
-    CompileError, ConflictingRuleIdentifier, CustomError, DuplicateRule,
-    DuplicateTag, EmitWasmError, InvalidRegexp, InvalidUTF8, UnknownModule,
-    UnusedPattern,
+    CompileError, ConditionTooLarge, ConflictingRuleIdentifier, CustomError,
+    DuplicateRule, DuplicateTag, EmitWasmError, InvalidRegexp, InvalidUTF8,
+    UnknownModule, UnusedPattern,
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{CompileContext, VarStack};
@@ -2020,6 +2020,39 @@ impl Compiler<'_> {
             }
         }
 
+        // The last step is emitting the WASM code corresponding to the rule's
+        // condition. This is done after every fallible function has been called
+        // because once the code is emitted it cannot be undone, which means
+        // that if this function fails after emitting the code, some code debris
+        // will remain in the WASM module.
+        let mut ctx = EmitContext {
+            current_rule: self.rules.last_mut().unwrap(),
+            lit_pool: &mut self.literal_pool,
+            regex_pool: &mut self.regex_pool,
+            wasm_symbols: &self.wasm_symbols,
+            wasm_exports: &self.wasm_exports,
+            exception_handler_stack: Vec::new(),
+            vars_with_undef: Vec::new(),
+            lookup_list: Vec::new(),
+            emit_search_for_pattern_stack: Vec::new(),
+        };
+
+        if emit_rule_condition(
+            &mut ctx,
+            &self.ir,
+            rule_id,
+            condition,
+            &mut self.wasm_mod,
+        )
+        .is_err()
+        {
+            self.restore_snapshot(snapshot);
+            return Err(ConditionTooLarge::build(
+                &self.report_builder,
+                self.report_builder.span_to_code_loc(rule.identifier.span()),
+            ));
+        }
+
         // Create a new symbol of bool type for the rule.
         let new_symbol = Symbol::Rule {
             rule_id,
@@ -2039,31 +2072,6 @@ impl Compiler<'_> {
 
         // No other symbol with the same identifier should exist.
         assert!(existing_symbol.is_none());
-
-        // The last step is emitting the WASM code corresponding to the rule's
-        // condition. This is done after every fallible function has been called
-        // because once the code is emitted it cannot be undone, which means
-        // that if this function fails after emitting the code, some code debris
-        // will remain in the WASM module.
-        let mut ctx = EmitContext {
-            current_rule: self.rules.last_mut().unwrap(),
-            lit_pool: &mut self.literal_pool,
-            regex_pool: &mut self.regex_pool,
-            wasm_symbols: &self.wasm_symbols,
-            wasm_exports: &self.wasm_exports,
-            exception_handler_stack: Vec::new(),
-            vars_with_undef: Vec::new(),
-            lookup_list: Vec::new(),
-            emit_search_for_pattern_stack: Vec::new(),
-        };
-
-        emit_rule_condition(
-            &mut ctx,
-            &self.ir,
-            rule_id,
-            condition,
-            &mut self.wasm_mod,
-        );
 
         Ok(())
     }

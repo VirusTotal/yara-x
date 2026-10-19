@@ -689,3 +689,17 @@ error[E047]: too many variables
 4 |       with v0=0, v1=0, ... : ( true )
   |            ^^^^^^^^^^^^^^^^^ too many local variables
 ```
+
+## E048 {#E048}
+
+A rule condition is too large and exceeds the compiler's limit on the size of
+the generated WebAssembly function.
+
+```text
+error[E048]: condition is too large
+ --> line:1:6
+  |
+1 | rule massive {
+  |      ^^^^^^^ the condition of this rule is too large
+```
+

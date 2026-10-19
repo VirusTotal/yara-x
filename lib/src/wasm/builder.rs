@@ -6,10 +6,16 @@ use walrus::ValType::{F64, I32, I64};
 use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{BinaryOp, Block, InstrSeqId, LoadKind, MemArg, UnaryOp};
 use walrus::{
-    FunctionBuilder, FunctionId, GlobalId, InstrSeqBuilder, MemoryId, Module,
+    FunctionBuilder, FunctionId, GlobalId, InstrSeqBuilder, LocalFunction,
+    MemoryId, Module,
 };
 
 use super::WasmSymbols;
+
+#[derive(Debug)]
+pub(crate) enum Error {
+    FunctionTooLarge,
+}
 
 macro_rules! global_var {
     ($module:ident, $name:ident, $ty:ident) => {
@@ -122,10 +128,11 @@ pub(crate) struct WasmModuleBuilder {
     wasm_exports: FxHashMap<String, FunctionId>,
     main_func: FunctionBuilder,
     namespace_func: FunctionBuilder,
-    rules_func: FunctionBuilder,
+    rules_func: LocalFunction,
     namespace_block: InstrSeqId,
     rule_id: RuleId,
     num_rules: usize,
+    num_instrs: usize,
     num_namespaces: usize,
     namespaces_per_func: usize,
     rules_per_func: usize,
@@ -134,6 +141,7 @@ pub(crate) struct WasmModuleBuilder {
 
 impl WasmModuleBuilder {
     const RULES_FUNC_RET: [walrus::ValType; 1] = [I32; 1];
+    const MAX_FUNC_INSTRS: u64 = 100_000;
 
     /// Creates a new module builder.
     pub fn new() -> Self {
@@ -194,7 +202,8 @@ impl WasmModuleBuilder {
             &mut module.types,
             &[],
             &Self::RULES_FUNC_RET,
-        );
+        )
+        .local_func(Vec::new());
 
         // The main function receives no arguments and returns an I32.
         let main_func = FunctionBuilder::new(&mut module.types, &[], &[I32]);
@@ -210,6 +219,7 @@ impl WasmModuleBuilder {
             namespace_block,
             rule_id: RuleId::default(),
             num_rules: 0,
+            num_instrs: 0,
             num_namespaces: 0,
             namespaces_per_func: 10,
             rules_per_func: 10,
@@ -259,22 +269,24 @@ impl WasmModuleBuilder {
         self.num_rules += 1;
         self.rule_id = rule_id;
         self.global_rule = global;
+        self.num_instrs =
+            self.rules_func.builder_mut().func_body().instrs().len();
 
-        self.rules_func.func_body()
+        self.rules_func.builder_mut().func_body()
     }
 
     /// This finishes the code for a rule.
     ///
     /// Each call to [`WasmModuleBuilder::start_rule`] must be followed by a
     /// call to this function once the code for rule has been emitted.
-    pub fn finish_rule(&mut self) {
+    pub fn finish_rule(&mut self) -> Result<(), Error> {
         let rule_no_match =
             self.function_id(wasm::export__rule_no_match.mangled_name);
 
         let rule_match =
             self.function_id(wasm::export__rule_match.mangled_name);
 
-        let mut instr = self.rules_func.func_body();
+        let mut instr = self.rules_func.builder_mut().func_body();
 
         // Check if the result from the condition is zero (false).
         instr.unop(UnaryOp::I32Eqz).if_else(
@@ -315,6 +327,18 @@ impl WasmModuleBuilder {
                 else_.i32_const(self.rule_id.into()).call(rule_match);
             },
         );
+
+        if self.rules_func.size() > Self::MAX_FUNC_INSTRS {
+            self.rules_func
+                .builder_mut()
+                .func_body()
+                .instrs_mut()
+                .truncate(self.num_instrs);
+            self.num_rules -= 1;
+            return Err(Error::FunctionTooLarge);
+        }
+
+        Ok(())
     }
 
     /// Starts a new namespace.
@@ -408,22 +432,21 @@ impl WasmModuleBuilder {
                 &mut self.module.types,
                 &[],
                 &Self::RULES_FUNC_RET,
-            ),
+            )
+            .local_func(Vec::new()),
         );
 
-        if !rule_func.func_body().instrs().is_empty() {
+        if !rule_func.builder_mut().func_body().instrs().is_empty() {
             // The last instruction in a rules function leaves a 0 in the
             // stack as its return value. This is reached only when all
             // global rules match. If any global rules doesn't match, the
             // function exits early with a return value of 1.
-            rule_func.func_body().i32_const(0);
+            rule_func.builder_mut().func_body().i32_const(0);
 
             let mut namespace_block =
                 self.namespace_func.instr_seq(self.namespace_block);
 
-            namespace_block.call(
-                self.module.funcs.add_local(rule_func.local_func(Vec::new())),
-            );
+            namespace_block.call(self.module.funcs.add_local(rule_func));
 
             let namespace_block_id = namespace_block.id();
 

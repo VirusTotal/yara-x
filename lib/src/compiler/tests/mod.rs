@@ -1759,3 +1759,27 @@ fn test_var_stack_overflow() {
     let rule = format!("rule test {{ condition: with {vars} : ( true ) }}");
     assert!(compiler.add_source(rule.as_str()).is_err());
 }
+
+#[test]
+fn test_condition_too_large() {
+    use crate::errors::CompileError;
+
+    let mut compiler = Compiler::new();
+    compiler.add_source("rule ok_before { condition: true }").unwrap();
+
+    let mut huge = String::from("rule massive { condition: filesize > 0");
+    for _ in 0..25_000 {
+        huge.push_str(" and filesize > 0");
+    }
+    huge.push('}');
+
+    let err = compiler.add_source(huge.as_str()).unwrap_err();
+    assert!(matches!(err, CompileError::ConditionTooLarge(_)));
+
+    compiler.add_source("rule ok_after { condition: true }").unwrap();
+    let rules = compiler.build();
+
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(&[]).unwrap();
+    assert_eq!(results.matching_rules().len(), 2);
+}
