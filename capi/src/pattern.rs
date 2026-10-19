@@ -84,7 +84,11 @@ pub unsafe extern "C" fn yrx_pattern_iter_matches(
 
     for m in matches_iter {
         callback(
-            &YRX_MATCH { offset: m.range().start, length: m.range().len() },
+            &YRX_MATCH {
+                offset: m.range().start,
+                length: m.range().len(),
+                xor_key: m.xor_key().map_or(-1, |k| k as i16),
+            },
             user_data,
         )
     }
