@@ -75,6 +75,7 @@ pub enum CompileError {
     ArbitraryRegexpPrefix(Box<ArbitraryRegexpPrefix>),
     AssignmentMismatch(Box<AssignmentMismatch>),
     CircularIncludes(Box<CircularIncludes>),
+    ConditionTooLarge(Box<ConditionTooLarge>),
     ConflictingRuleIdentifier(Box<ConflictingRuleIdentifier>),
     CustomError(Box<CustomError>),
     DuplicateModifier(Box<DuplicateModifier>),
@@ -959,6 +960,16 @@ pub struct CircularIncludes {
 #[error(code = "E047", title = "too many variables")]
 #[label("too many local variables", error_loc)]
 pub struct TooManyVariables {
+    report: Report,
+    error_loc: CodeLoc,
+}
+
+/// Rule condition is too large.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E048", title = "condition is too large")]
+#[label("the condition of this rule is too large", error_loc)]
+pub struct ConditionTooLarge {
     report: Report,
     error_loc: CodeLoc,
 }
