@@ -122,6 +122,9 @@ typedef struct YRX_MATCH {
   size_t offset;
   // Length of the match.
   size_t length;
+  // XOR key used for decrypting the data if the pattern had the `xor`
+  // modifier, or -1 if otherwise.
+  int16_t xor_key;
 } YRX_MATCH;
 
 // Callback function passed to [`yrx_pattern_iter_matches`].

@@ -45,9 +45,26 @@ func TestScanner2(t *testing.T) {
 	assert.Equal(t, "$bar", matchingRules[0].Patterns()[0].Identifier())
 	assert.Equal(t, uint64(3), matchingRules[0].Patterns()[0].Matches()[0].Offset())
 	assert.Equal(t, uint64(3), matchingRules[0].Patterns()[0].Matches()[0].Length())
+	xorKey, ok := matchingRules[0].Patterns()[0].Matches()[0].XorKey()
+	assert.False(t, ok)
+	assert.Equal(t, uint8(0), xorKey)
 
 	s.Destroy()
 	runtime.GC()
+}
+
+func TestScannerXorKey(t *testing.T) {
+	r, _ := Compile(`rule t { strings: $foo = "foo" xor condition: $foo }`)
+	s := NewScanner(r)
+	scanResults, _ := s.Scan([]byte{0xCC, 0xC5, 0xC5})
+	matchingRules := scanResults.MatchingRules()
+
+	assert.Len(t, matchingRules, 1)
+	assert.Len(t, matchingRules[0].Patterns(), 1)
+	assert.Len(t, matchingRules[0].Patterns()[0].Matches(), 1)
+	xorKey, ok := matchingRules[0].Patterns()[0].Matches()[0].XorKey()
+	assert.True(t, ok)
+	assert.Equal(t, uint8(0xAA), xorKey)
 }
 
 func TestScanner3(t *testing.T) {
