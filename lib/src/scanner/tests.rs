@@ -1312,27 +1312,30 @@ fn test_slow_rule_hang() {
 
 #[test]
 fn test_teddy_scan_timeout() {
+    use std::fmt::Write;
     use std::time::Duration;
 
-    let rules = crate::compile(
-        r#"
-        rule test {
-            strings:
-                $a = "abcd"
-            condition:
-                $a
-        }
-        "#,
-    )
-    .unwrap();
+    // Build a rule with 64 distinct literal patterns (the maximum number of
+    // patterns supported by Teddy) that all share the 4-byte atom `"aaaa"`.
+    // All 64 atoms hash to the same Teddy bucket, so scanning a buffer of `'a'`
+    // bytes triggers 64 Teddy atom matches per byte while failing literal
+    // verification on the trailing `\x00` bytes (which prevents the patterns
+    // from reaching `max_matches_per_pattern` and being disabled).
+    let mut rule = String::from("rule test { strings:\n");
+    for i in 1..=64 {
+        writeln!(rule, r#"$ = "aaaa{}""#, "\\x00".repeat(i)).unwrap();
+    }
+    rule.push_str("condition: any of them }");
+
+    let rules = crate::compile(rule.as_str()).unwrap();
+
+    assert_eq!(rules.atoms.len(), 64);
+    assert!(rules.ac_automaton().teddy.is_some());
 
     let mut scanner = Scanner::new(&rules);
     scanner.set_timeout(Duration::from_secs(1));
 
-    let mut data = Vec::with_capacity(40_000_000);
-    for _ in 0..10_000_000 {
-        data.extend_from_slice(b"abcd");
-    }
+    let data = vec![b'a'; 10_000_000];
 
     let err = scanner.scan(&data).unwrap_err();
     assert_eq!(err.to_string(), "timeout");
