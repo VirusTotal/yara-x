@@ -99,9 +99,9 @@ impl ElfParser {
         self.result.machine =
             Some(EnumOrUnknown::<elf::Machine>::from_i32(ehdr.machine.into()));
 
-        self.result.sh_offset = Some(ehdr.sh_offset);
+        self.result.sh_offset = Some(ehdr.sh_offset as i64);
         self.result.sh_entry_size = Some(ehdr.sh_entry_size.into());
-        self.result.ph_offset = Some(ehdr.ph_offset);
+        self.result.ph_offset = Some(ehdr.ph_offset as i64);
         self.result.ph_entry_size = Some(ehdr.ph_entry_size.into());
         self.result.number_of_sections = Some(ehdr.sh_entry_count.into());
         self.result.number_of_segments = Some(ehdr.ph_entry_count.into());
@@ -112,12 +112,12 @@ impl ElfParser {
         for s in segments.iter().flatten() {
             let mut segment = elf::Segment::new();
             segment.flags = Some(s.flags);
-            segment.offset = Some(s.offset);
-            segment.virtual_address = Some(s.virt_addr);
-            segment.physical_address = Some(s.phys_addr);
-            segment.file_size = Some(s.file_size);
-            segment.memory_size = Some(s.mem_size);
-            segment.alignment = Some(s.alignment);
+            segment.offset = Some(s.offset as i64);
+            segment.virtual_address = Some(s.virt_addr as i64);
+            segment.physical_address = Some(s.phys_addr as i64);
+            segment.file_size = Some(s.file_size as i64);
+            segment.memory_size = Some(s.mem_size as i64);
+            segment.alignment = Some(s.alignment as i64);
             segment.flags = Some(s.flags);
             segment.type_ = Some(EnumOrUnknown::<elf::SegmentType>::from_i32(
                 s.type_ as i32,
@@ -147,6 +147,7 @@ impl ElfParser {
                     sections.as_deref().unwrap_or(&[]),
                     ehdr.entry_point,
                 )
+                .map(|offset| offset as i64)
             }
 
         let sections = match sections {
@@ -162,10 +163,10 @@ impl ElfParser {
         for s in sections.iter() {
             let mut section = elf::Section::new();
 
-            section.flags = Some(s.flags);
-            section.address = Some(s.addr);
-            section.size = Some(s.size);
-            section.offset = Some(s.offset);
+            section.flags = Some(s.flags as i64);
+            section.address = Some(s.addr as i64);
+            section.size = Some(s.size as i64);
+            section.offset = Some(s.offset as i64);
             section.name = Self::parse_name(elf, shstrtab, s.name);
             section.type_ = Some(EnumOrUnknown::<elf::SectionType>::from_i32(
                 s.type_ as i32,
@@ -460,8 +461,8 @@ impl ElfParser {
                     for s in syms.iter().flatten() {
                         let mut sym = elf::Sym::new();
                         sym.name = Self::parse_name(elf, symtabstr, s.name);
-                        sym.value = Some(s.value);
-                        sym.size = Some(s.size);
+                        sym.value = Some(s.value as i64);
+                        sym.size = Some(s.size as i64);
                         sym.shndx = Some(s.shndx.into());
 
                         sym.type_ =
@@ -594,7 +595,7 @@ impl ElfParser {
                             Some(EnumOrUnknown::<elf::DynType>::from_i32(
                                 tag as i32,
                             ));
-                        dyn_entry.val = Some(value);
+                        dyn_entry.val = Some(value as i64);
                         result.push(dyn_entry);
                     }
                 }

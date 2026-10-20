@@ -24,7 +24,9 @@ pub mod sandbox;
 pub mod sigma;
 pub mod string;
 pub mod submitter;
+#[cfg(feature = "test_proto2-module")]
 pub mod test_proto2;
+#[cfg(feature = "test_proto3-module")]
 pub mod test_proto3;
 pub mod time;
 pub mod titan;

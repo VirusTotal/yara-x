@@ -304,6 +304,26 @@
     "label": "zip"
   },
   {
+    "data": {
+      "uri": "${test_dir}/completion13.yar"
+    },
+    "kind": 6,
+    "label": "test",
+    "labelDetails": {
+      "description": "completion13.yar"
+    }
+  },
+  {
+    "data": {
+      "uri": "${test_dir}/completion15.yar"
+    },
+    "kind": 6,
+    "label": "completion_include",
+    "labelDetails": {
+      "description": "Rule"
+    }
+  },
+  {
     "insertText": "at ${1:expression}",
     "insertTextFormat": 2,
     "kind": 14,
@@ -376,20 +396,6 @@
   {
     "kind": 14,
     "label": "true"
-  },
-  {
-    "kind": 6,
-    "label": "completion_include",
-    "labelDetails": {
-      "description": "Rule"
-    }
-  },
-  {
-    "kind": 6,
-    "label": "test",
-    "labelDetails": {
-      "description": "completion13.yar"
-    }
   },
   {
     "kind": 9,

@@ -1,0 +1,6 @@
+{
+  "label": "resolve_example_rule",
+  "data": {
+    "uri": "${test_dir}/completion_resolve2.yar"
+  }
+}

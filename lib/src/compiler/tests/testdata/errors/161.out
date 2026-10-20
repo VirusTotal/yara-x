@@ -1,0 +1,5 @@
+error[E007]: number out of range
+ --> line:4:5
+  |
+4 |     0xFFFFFFFFFFFFFFFF + 1 == 0
+  |     ^^^^^^^^^^^^^^^^^^^^^^ this number is out of the allowed range [-9223372036854775808-9223372036854775807]

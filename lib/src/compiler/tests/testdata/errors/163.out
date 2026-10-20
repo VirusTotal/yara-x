@@ -1,0 +1,5 @@
+error[E007]: number out of range
+ --> line:3:22
+  |
+3 |     for any i in (0..0x8000000000000000) : (true)
+  |                      ^^^^^^^^^^^^^^^^^^ this number is out of the allowed range [0-9223372036854775807]

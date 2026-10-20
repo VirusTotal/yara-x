@@ -304,6 +304,16 @@
     "label": "zip"
   },
   {
+    "data": {
+      "uri": "${test_dir}/completion14.yar"
+    },
+    "kind": 6,
+    "label": "with_for",
+    "labelDetails": {
+      "description": "Rule"
+    }
+  },
+  {
     "insertText": "at ${1:expression}",
     "insertTextFormat": 2,
     "kind": 14,
@@ -403,13 +413,6 @@
     "label": "version_info",
     "labelDetails": {
       "description": "Variable"
-    }
-  },
-  {
-    "kind": 6,
-    "label": "with_for",
-    "labelDetails": {
-      "description": "Rule"
     }
   },
   {

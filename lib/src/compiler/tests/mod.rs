@@ -27,7 +27,7 @@ fn serialization() {
     // `DecodeError`.
     let mut data = Vec::new();
     data.extend(b"YARA-X\0\0");
-    data.extend(7u32.to_le_bytes());
+    data.extend(8u32.to_le_bytes());
     data.extend(b"foo");
 
     assert!(matches!(
@@ -1758,4 +1758,28 @@ fn test_var_stack_overflow() {
         (0..2050).map(|i| format!("v{i}=0")).collect::<Vec<_>>().join(",");
     let rule = format!("rule test {{ condition: with {vars} : ( true ) }}");
     assert!(compiler.add_source(rule.as_str()).is_err());
+}
+
+#[test]
+fn test_condition_too_large() {
+    use crate::errors::CompileError;
+
+    let mut compiler = Compiler::new();
+    compiler.add_source("rule ok_before { condition: true }").unwrap();
+
+    let mut huge = String::from("rule massive { condition: filesize > 0");
+    for _ in 0..25_000 {
+        huge.push_str(" and filesize > 0");
+    }
+    huge.push('}');
+
+    let err = compiler.add_source(huge.as_str()).unwrap_err();
+    assert!(matches!(err, CompileError::ConditionTooLarge(_)));
+
+    compiler.add_source("rule ok_after { condition: true }").unwrap();
+    let rules = compiler.build();
+
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(&[]).unwrap();
+    assert_eq!(results.matching_rules().len(), 2);
 }

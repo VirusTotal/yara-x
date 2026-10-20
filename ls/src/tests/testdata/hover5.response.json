@@ -1,6 +1,6 @@
 {
   "contents": {
     "kind": "markdown",
-    "value": "Pattern value is:\n\n`$a = \"foo\" wide ascii nocase`"
+    "value": "Pattern value is:\n\n```\n$a = \"foo\" wide ascii nocase\n```\n"
   }
 }

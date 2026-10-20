@@ -1,5 +1,9 @@
 [
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "Pattern value is:\n\n```\n$my_str = \"hello\"\n```\n"
+    },
     "kind": 1,
     "label": "my_str",
     "labelDetails": {
@@ -7,6 +11,10 @@
     }
   },
   {
+    "documentation": {
+      "kind": "markdown",
+      "value": "Pattern value is:\n\n```\n$other = \"world\"\n```\n"
+    },
     "kind": 1,
     "label": "other",
     "labelDetails": {

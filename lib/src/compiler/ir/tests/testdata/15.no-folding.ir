@@ -1,0 +1,208 @@
+RULE test
+  171: AND -- hash: 0xfb96eea3049babcc
+    0: PATTERN_MATCH PatternIdx(0) -- hash: 0x96cc220517f2081e
+    2: PATTERN_MATCH PatternIdx(0) AT -- hash: 0x5efc911f60870d35
+      1: CONST integer(0)
+    5: PATTERN_MATCH PatternIdx(0) IN -- hash: 0x74dcb64b7ce0ece9
+      3: CONST integer(0)
+      4: CONST integer(100)
+    8: GT -- hash: 0x44c95fcd471519e3
+      6: PATTERN_COUNT PatternIdx(0) -- hash: 0x65f54f62feacaadb
+      7: CONST integer(0)
+    13: GT -- hash: 0x61753658db503b47
+      11: PATTERN_COUNT PatternIdx(0) IN -- hash: 0x9ddf9b97d22567db
+        9: CONST integer(0)
+        10: CONST integer(100)
+      12: CONST integer(0)
+    16: GT -- hash: 0x8ff94608ae463155
+      14: PATTERN_OFFSET PatternIdx(0) -- hash: 0x351e7cc0e5674d98
+      15: CONST integer(0)
+    20: GT -- hash: 0xe65184a20c6577f6
+      18: PATTERN_OFFSET PatternIdx(0) INDEX -- hash: 0x9e15e83d46ae1205
+        17: CONST integer(1)
+      19: CONST integer(0)
+    23: GT -- hash: 0xdb292c44157748c7
+      21: PATTERN_LENGTH PatternIdx(0) -- hash: 0x447aa1ecc21f055
+      22: CONST integer(0)
+    27: GT -- hash: 0x53171422f45762d1
+      25: PATTERN_LENGTH PatternIdx(0) INDEX -- hash: 0xe945ce78addf2977
+        24: CONST integer(1)
+      26: CONST integer(0)
+    35: FOR_OF -- hash: 0x98951d3aa7b825e9
+          n: Var { frame_id: 1, ty: integer, index: 0 }
+          i: Var { frame_id: 1, ty: integer, index: 1 }
+          max_count: Var { frame_id: 1, ty: integer, index: 2 }
+          count: Var { frame_id: 1, ty: integer, index: 3 }
+          item: Var { frame_id: 1, ty: integer, index: 4 }
+      34: AND -- hash: 0xc62fcdff01e21581
+        28: PATTERN_MATCH Var { var: Var { frame_id: 1, ty: integer, index: 4 }, type_value: integer(unknown) } -- hash: 0x1ca3d3c031cbc1f7
+        30: PATTERN_MATCH Var { var: Var { frame_id: 1, ty: integer, index: 4 }, type_value: integer(unknown) } AT -- hash: 0x9f2225a2be019fb7
+          29: CONST integer(0)
+        33: PATTERN_MATCH Var { var: Var { frame_id: 1, ty: integer, index: 4 }, type_value: integer(unknown) } IN -- hash: 0xc0b4487318651284
+          31: CONST integer(0)
+          32: CONST integer(100)
+    45: FOR_OF -- hash: 0x2dcf42214f0adb18
+          n: Var { frame_id: 2, ty: integer, index: 0 }
+          i: Var { frame_id: 2, ty: integer, index: 1 }
+          max_count: Var { frame_id: 2, ty: integer, index: 2 }
+          count: Var { frame_id: 2, ty: integer, index: 3 }
+          item: Var { frame_id: 2, ty: integer, index: 4 }
+      44: AND -- hash: 0x5b69f2e5a934cab0
+        38: GT -- hash: 0x3396f16b468c664f
+          36: PATTERN_COUNT Var { var: Var { frame_id: 2, ty: integer, index: 4 }, type_value: integer(unknown) } -- hash: 0xba156fc23d67dd6b
+          37: CONST integer(0)
+        43: GT -- hash: 0x73f33c36d9503863
+          41: PATTERN_COUNT Var { var: Var { frame_id: 2, ty: integer, index: 4 }, type_value: integer(unknown) } IN -- hash: 0x9b375f0f12c2ea2e
+            39: CONST integer(0)
+            40: CONST integer(100)
+          42: CONST integer(0)
+    54: FOR_OF -- hash: 0x46aff0774053e325
+          n: Var { frame_id: 3, ty: integer, index: 0 }
+          i: Var { frame_id: 3, ty: integer, index: 1 }
+          max_count: Var { frame_id: 3, ty: integer, index: 2 }
+          count: Var { frame_id: 3, ty: integer, index: 3 }
+          item: Var { frame_id: 3, ty: integer, index: 4 }
+      53: AND -- hash: 0x837396035edc9cfa
+        48: GT -- hash: 0x747f3b6e908cc4b6
+          46: PATTERN_OFFSET Var { var: Var { frame_id: 3, ty: integer, index: 4 }, type_value: integer(unknown) } -- hash: 0x57870bc44903f8e0
+          47: CONST integer(0)
+        52: GT -- hash: 0x6b242afb0e1488c
+          50: PATTERN_OFFSET Var { var: Var { frame_id: 3, ty: integer, index: 4 }, type_value: integer(unknown) } INDEX -- hash: 0xc9ac445069c73271
+            49: CONST integer(1)
+          51: CONST integer(0)
+    63: FOR_OF -- hash: 0x76f0d827a9de17da
+          n: Var { frame_id: 4, ty: integer, index: 0 }
+          i: Var { frame_id: 4, ty: integer, index: 1 }
+          max_count: Var { frame_id: 4, ty: integer, index: 2 }
+          count: Var { frame_id: 4, ty: integer, index: 3 }
+          item: Var { frame_id: 4, ty: integer, index: 4 }
+      62: AND -- hash: 0xb3b47db3c466d1af
+        57: GT -- hash: 0xb5678571de8d231d
+          55: PATTERN_LENGTH Var { var: Var { frame_id: 4, ty: integer, index: 4 }, type_value: integer(unknown) } -- hash: 0xf4f8a7c654a01454
+          56: CONST integer(0)
+        61: GT -- hash: 0x24f803803dec901e
+          59: PATTERN_LENGTH Var { var: Var { frame_id: 4, ty: integer, index: 4 }, type_value: integer(unknown) } INDEX -- hash: 0xa948e53b7c790d9
+            58: CONST integer(1)
+          60: CONST integer(0)
+    65: FOR_OF -- hash: 0xdd6494b88aa85ec3
+          n: Var { frame_id: 5, ty: integer, index: 0 }
+          i: Var { frame_id: 5, ty: integer, index: 1 }
+          max_count: Var { frame_id: 5, ty: integer, index: 2 }
+          count: Var { frame_id: 5, ty: integer, index: 3 }
+          item: Var { frame_id: 5, ty: integer, index: 4 }
+      64: PATTERN_MATCH Var { var: Var { frame_id: 5, ty: integer, index: 4 }, type_value: integer(unknown) } -- hash: 0xeb2f4297411f6ab2
+    68: OF -- hash: 0x8c1e1f9f8aa8caf2
+      67: CONST boolean(false)
+      66: CONST boolean(true)
+    69: OF -- hash: 0x6d73baab90b32aa6
+    72: FOR_OF -- hash: 0xdc10cb17d7196a9a
+          n: Var { frame_id: 8, ty: integer, index: 0 }
+          i: Var { frame_id: 8, ty: integer, index: 1 }
+          max_count: Var { frame_id: 8, ty: integer, index: 2 }
+          count: Var { frame_id: 8, ty: integer, index: 3 }
+          item: Var { frame_id: 8, ty: integer, index: 4 }
+      70: CONST integer(1)
+      71: PATTERN_MATCH Var { var: Var { frame_id: 8, ty: integer, index: 4 }, type_value: integer(unknown) } -- hash: 0xc617d5b88c9e293f
+    80: FOR_IN -- hash: 0x74b90b103b47568d
+          n: Var { frame_id: 9, ty: integer, index: 0 }
+          i: Var { frame_id: 9, ty: integer, index: 1 }
+          max_count: Var { frame_id: 9, ty: integer, index: 2 }
+          count: Var { frame_id: 9, ty: integer, index: 3 }
+          item: Var { frame_id: 9, ty: unknown, index: 4 }
+      73: CONST integer(1)
+      74: CONST integer(5)
+      79: EQ -- hash: 0x50b9cf8029632927
+        77: ADD -- hash: 0xddc2251161d5a6d
+          75: SYMBOL Var { var: Var { frame_id: 9, ty: integer, index: 5 }, type_value: integer(unknown) }
+          76: CONST integer(1)
+        78: CONST integer(2)
+    84: NE -- hash: 0xd67dd744289d4ccb
+      82: BITWISE_NOT -- hash: 0x3c0f28aae9f52de9
+        81: CONST integer(1)
+      83: CONST integer(0)
+    89: EQ -- hash: 0x9d6d8466b8ce9b46
+      87: BITWISE_AND -- hash: 0xb9c963d4de56dd9f
+        85: CONST integer(1)
+        86: CONST integer(2)
+      88: CONST integer(0)
+    94: EQ -- hash: 0xff9d3707f3f75ea4
+      92: BITWISE_OR -- hash: 0x851162729a5f2d58
+        90: CONST integer(1)
+        91: CONST integer(2)
+      93: CONST integer(3)
+    99: EQ -- hash: 0x779e3d4146957483
+      97: BITWISE_XOR -- hash: 0xc8d40ca72d0c9d40
+        95: CONST integer(1)
+        96: CONST integer(2)
+      98: CONST integer(3)
+    102: LT -- hash: 0x6a52c36f1bb9b872
+      100: CONST integer(-1)
+      101: CONST integer(0)
+    107: EQ -- hash: 0x92113cac62e05dbe
+      105: SUB -- hash: 0xc06200845c5b9561
+        103: CONST integer(5)
+        104: CONST integer(3)
+      106: CONST integer(2)
+    112: EQ -- hash: 0xe1b06ee448897b92
+      110: MUL -- hash: 0x3fa35eed744eb842
+        108: CONST integer(2)
+        109: CONST integer(3)
+      111: CONST integer(6)
+    117: EQ -- hash: 0x826464b6dda60af7
+      115: DIV -- hash: 0x8b58e38a46da639e
+        113: CONST integer(6)
+        114: CONST integer(2)
+      116: CONST integer(3)
+    122: EQ -- hash: 0x652fab6d760d0516
+      120: MOD -- hash: 0xe2f0747b049f0f2e
+        118: CONST integer(5)
+        119: CONST integer(2)
+      121: CONST integer(1)
+    127: EQ -- hash: 0xb854b53c5e8008d3
+      125: SHL -- hash: 0xfd8c0e0971044d87
+        123: CONST integer(1)
+        124: CONST integer(2)
+      126: CONST integer(4)
+    132: EQ -- hash: 0x1e7d49a1eaf369b4
+      130: SHR -- hash: 0xdc2de71be4a45ec
+        128: CONST integer(8)
+        129: CONST integer(1)
+      131: CONST integer(4)
+    135: CONTAINS -- hash: 0xe9d671366ebd2d23
+      133: CONST string("foo")
+      134: CONST string("f")
+    138: ICONTAINS -- hash: 0xbb462e252da406dd
+      136: CONST string("foo")
+      137: CONST string("F")
+    141: STARTS_WITH -- hash: 0x569c00b756af17fe
+      139: CONST string("foo")
+      140: CONST string("f")
+    144: ISTARTS_WITH -- hash: 0x280bbda61595f1b8
+      142: CONST string("foo")
+      143: CONST string("F")
+    147: ENDS_WITH -- hash: 0x335913468af5c6a2
+      145: CONST string("foo")
+      146: CONST string("o")
+    150: IENDS_WITH -- hash: 0x7be69a9c6a8ba43c
+      148: CONST string("foo")
+      149: CONST string("O")
+    153: IEQUALS -- hash: 0xddbdfa20f8912ec5
+      151: CONST string("foo")
+      152: CONST string("FOO")
+    157: CONTAINS -- hash: 0xed56b07d2f6e7ace
+      154: CONST string("foo")
+      156: CONST string("foo")
+    161: DEFINED -- hash: 0x39a53e5e7355f955
+      160: FIELD_ACCESS -- hash: 0xae4777d2d39452d7
+        158: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+        159: SYMBOL Field { index: 36, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.sections.len()` instead"), replacement: Some("sections.len()") }) }
+    170: EQ -- hash: 0xbf648f4fbd345cc9
+      168: FIELD_ACCESS -- hash: 0xc29e4c53f72b679d
+        166: LOOKUP -- hash: 0x22797314e0747ac6
+          164: FIELD_ACCESS -- hash: 0xdd88efe5e7ac64dc
+            162: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+            163: SYMBOL Field { index: 49, is_root: false, type_value: array, acl: None, deprecation_notice: None }
+          165: CONST integer(0)
+        167: SYMBOL Field { index: 0, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+      169: CONST string(".text")
+

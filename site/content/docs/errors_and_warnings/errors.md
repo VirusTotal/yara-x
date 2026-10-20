@@ -118,8 +118,9 @@ error[E006]: unexpected negative number
 
 An integer value or constant expression result falls outside the allowed range
 for the operation. For instance, pattern occurrence indices (`@a[i]` or `!a[i]`)
-are 1-based and must be at least `1`, and arithmetic operations on constants
-cannot overflow a 64-bit signed integer.
+are 1-based and must be at least `1`, and the result of arithmetic operations
+on constants (like `0xFFFFFFFFFFFFFFFF + 1` or `-(-9223372036854775808)`) must
+fit in a 64-bit integer.
 
 ```text
 error[E007]: number out of range
@@ -400,15 +401,16 @@ error[E026]: invalid base64 alphabet
 
 ## E027 {#E027}
 
-An integer literal cannot be parsed—for example, because it exceeds the 64-bit
-signed integer limits or contains invalid digits for its base.
+An integer literal cannot be parsed—for example, because it's outside the range
+of 64-bit integers (from `-9223372036854775808` to `18446744073709551615`) or
+contains invalid digits for its base.
 
 ```text
 error[E027]: invalid integer
  --> line:2:15
   |
 2 |    condition: 99999999999999999999
-  |               ^^^^^^^^^^^^^^^^^^^^ this number is out of the valid range: [-9223372036854775808, 9223372036854775807]
+  |               ^^^^^^^^^^^^^^^^^^^^ this number is out of the valid range: [-9223372036854775808, 18446744073709551615]
 ```
 
 ## E028 {#E028}
@@ -687,3 +689,17 @@ error[E047]: too many variables
 4 |       with v0=0, v1=0, ... : ( true )
   |            ^^^^^^^^^^^^^^^^^ too many local variables
 ```
+
+## E048 {#E048}
+
+A rule condition is too large and exceeds the compiler's limit on the size of
+the generated WebAssembly function.
+
+```text
+error[E048]: condition is too large
+ --> line:1:6
+  |
+1 | rule massive {
+  |      ^^^^^^^ the condition of this rule is too large
+```
+

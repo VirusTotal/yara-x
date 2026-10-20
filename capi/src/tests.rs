@@ -1126,3 +1126,55 @@ fn capi_serialization_and_compile() {
         yrx_rules_destroy(rules);
     }
 }
+
+#[test]
+fn capi_xor_key() {
+    extern "C" fn on_match(match_: *const YRX_MATCH, user_data: *mut c_void) {
+        let xor_key = unsafe { &mut *(user_data as *mut i16) };
+        *xor_key = unsafe { (*match_).xor_key };
+    }
+
+    extern "C" fn on_pattern(
+        pattern: *const YRX_PATTERN,
+        user_data: *mut c_void,
+    ) {
+        unsafe {
+            yrx_pattern_iter_matches(pattern, Some(on_match), user_data);
+        }
+    }
+
+    extern "C" fn on_rule(rule: *const YRX_RULE, user_data: *mut c_void) {
+        unsafe {
+            yrx_rule_iter_patterns(rule, Some(on_pattern), user_data);
+        }
+    }
+
+    unsafe {
+        let mut rules = std::ptr::null_mut();
+        assert_eq!(
+            yrx_compile(
+                c"rule test { strings: $a = \"foo\" xor condition: $a }"
+                    .as_ptr(),
+                &mut rules
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+
+        let mut scanner = std::ptr::null_mut();
+        yrx_scanner_create(rules, &mut scanner);
+
+        let mut xor_key: i16 = -1;
+        yrx_scanner_on_matching_rule(
+            scanner,
+            Some(on_rule),
+            &mut xor_key as *mut i16 as *mut c_void,
+        );
+
+        let data = b"\xCC\xC5\xC5";
+        yrx_scanner_scan(scanner, data.as_ptr(), data.len());
+        assert_eq!(xor_key, 0xAA);
+
+        yrx_scanner_destroy(scanner);
+        yrx_rules_destroy(rules);
+    }
+}

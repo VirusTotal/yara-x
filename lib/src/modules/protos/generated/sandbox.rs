@@ -4624,6 +4624,8 @@ pub struct ProcessItem {
     pub name: ::std::string::String,
     // @@protoc_insertion_point(field:vt.fileanalysis.ProcessItem.parent_name)
     pub parent_name: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.fileanalysis.ProcessItem.ancestor_names)
+    pub ancestor_names: ::std::vec::Vec<::std::string::String>,
     // @@protoc_insertion_point(field:vt.fileanalysis.ProcessItem.start_time)
     pub start_time: u64,
     // @@protoc_insertion_point(field:vt.fileanalysis.ProcessItem.termination_time)
@@ -4653,7 +4655,7 @@ impl ProcessItem {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(10);
+        let mut fields = ::std::vec::Vec::with_capacity(11);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
             "process_id",
@@ -4674,6 +4676,11 @@ impl ProcessItem {
             "parent_name",
             |m: &ProcessItem| { &m.parent_name },
             |m: &mut ProcessItem| { &mut m.parent_name },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "ancestor_names",
+            |m: &ProcessItem| { &m.ancestor_names },
+            |m: &mut ProcessItem| { &mut m.ancestor_names },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
             "start_time",
@@ -4735,6 +4742,9 @@ impl ::protobuf::Message for ProcessItem {
                 82 => {
                     self.parent_name = is.read_string()?;
                 },
+                90 => {
+                    self.ancestor_names.push(is.read_string()?);
+                },
                 32 => {
                     self.start_time = is.read_uint64()?;
                 },
@@ -4777,6 +4787,9 @@ impl ::protobuf::Message for ProcessItem {
         if !self.parent_name.is_empty() {
             my_size += ::protobuf::rt::string_size(10, &self.parent_name);
         }
+        for value in &self.ancestor_names {
+            my_size += ::protobuf::rt::string_size(11, &value);
+        };
         if self.start_time != 0 {
             my_size += ::protobuf::rt::uint64_size(4, self.start_time);
         }
@@ -4814,6 +4827,9 @@ impl ::protobuf::Message for ProcessItem {
         if !self.parent_name.is_empty() {
             os.write_string(10, &self.parent_name)?;
         }
+        for v in &self.ancestor_names {
+            os.write_string(11, &v)?;
+        };
         if self.start_time != 0 {
             os.write_uint64(4, self.start_time)?;
         }
@@ -4853,6 +4869,7 @@ impl ::protobuf::Message for ProcessItem {
         self.parent_process_id.clear();
         self.name.clear();
         self.parent_name.clear();
+        self.ancestor_names.clear();
         self.start_time = 0;
         self.termination_time = 0;
         self.files_opened.clear();
@@ -4868,6 +4885,7 @@ impl ::protobuf::Message for ProcessItem {
             parent_process_id: ::std::string::String::new(),
             name: ::std::string::String::new(),
             parent_name: ::std::string::String::new(),
+            ancestor_names: ::std::vec::Vec::new(),
             start_time: 0,
             termination_time: 0,
             files_opened: ::std::vec::Vec::new(),
@@ -5030,6 +5048,22 @@ pub enum BehaviourTag {
     SETS_PROCESS_NAME = 64,
     // @@protoc_insertion_point(enum_value:vt.fileanalysis.BehaviourTag.QR_CODE)
     QR_CODE = 65,
+    // @@protoc_insertion_point(enum_value:vt.fileanalysis.BehaviourTag.BROWSER_CREDS)
+    BROWSER_CREDS = 66,
+    // @@protoc_insertion_point(enum_value:vt.fileanalysis.BehaviourTag.CRYPTO_WALLETS)
+    CRYPTO_WALLETS = 67,
+    // @@protoc_insertion_point(enum_value:vt.fileanalysis.BehaviourTag.OS_CREDENTIALS)
+    OS_CREDENTIALS = 68,
+    // @@protoc_insertion_point(enum_value:vt.fileanalysis.BehaviourTag.WEB_EXFIL)
+    WEB_EXFIL = 69,
+    // @@protoc_insertion_point(enum_value:vt.fileanalysis.BehaviourTag.UNSIGNED_EXEC)
+    UNSIGNED_EXEC = 70,
+    // @@protoc_insertion_point(enum_value:vt.fileanalysis.BehaviourTag.STRIP_QUARANTINE)
+    STRIP_QUARANTINE = 71,
+    // @@protoc_insertion_point(enum_value:vt.fileanalysis.BehaviourTag.DISABLES_SECURITY)
+    DISABLES_SECURITY = 72,
+    // @@protoc_insertion_point(enum_value:vt.fileanalysis.BehaviourTag.CHECKS_VM)
+    CHECKS_VM = 73,
 }
 
 impl ::protobuf::Enum for BehaviourTag {
@@ -5106,6 +5140,14 @@ impl ::protobuf::Enum for BehaviourTag {
             63 => ::std::option::Option::Some(BehaviourTag::LISTENS),
             64 => ::std::option::Option::Some(BehaviourTag::SETS_PROCESS_NAME),
             65 => ::std::option::Option::Some(BehaviourTag::QR_CODE),
+            66 => ::std::option::Option::Some(BehaviourTag::BROWSER_CREDS),
+            67 => ::std::option::Option::Some(BehaviourTag::CRYPTO_WALLETS),
+            68 => ::std::option::Option::Some(BehaviourTag::OS_CREDENTIALS),
+            69 => ::std::option::Option::Some(BehaviourTag::WEB_EXFIL),
+            70 => ::std::option::Option::Some(BehaviourTag::UNSIGNED_EXEC),
+            71 => ::std::option::Option::Some(BehaviourTag::STRIP_QUARANTINE),
+            72 => ::std::option::Option::Some(BehaviourTag::DISABLES_SECURITY),
+            73 => ::std::option::Option::Some(BehaviourTag::CHECKS_VM),
             _ => ::std::option::Option::None
         }
     }
@@ -5177,6 +5219,14 @@ impl ::protobuf::Enum for BehaviourTag {
             "LISTENS" => ::std::option::Option::Some(BehaviourTag::LISTENS),
             "SETS_PROCESS_NAME" => ::std::option::Option::Some(BehaviourTag::SETS_PROCESS_NAME),
             "QR_CODE" => ::std::option::Option::Some(BehaviourTag::QR_CODE),
+            "BROWSER_CREDS" => ::std::option::Option::Some(BehaviourTag::BROWSER_CREDS),
+            "CRYPTO_WALLETS" => ::std::option::Option::Some(BehaviourTag::CRYPTO_WALLETS),
+            "OS_CREDENTIALS" => ::std::option::Option::Some(BehaviourTag::OS_CREDENTIALS),
+            "WEB_EXFIL" => ::std::option::Option::Some(BehaviourTag::WEB_EXFIL),
+            "UNSIGNED_EXEC" => ::std::option::Option::Some(BehaviourTag::UNSIGNED_EXEC),
+            "STRIP_QUARANTINE" => ::std::option::Option::Some(BehaviourTag::STRIP_QUARANTINE),
+            "DISABLES_SECURITY" => ::std::option::Option::Some(BehaviourTag::DISABLES_SECURITY),
+            "CHECKS_VM" => ::std::option::Option::Some(BehaviourTag::CHECKS_VM),
             _ => ::std::option::Option::None
         }
     }
@@ -5247,6 +5297,14 @@ impl ::protobuf::Enum for BehaviourTag {
         BehaviourTag::LISTENS,
         BehaviourTag::SETS_PROCESS_NAME,
         BehaviourTag::QR_CODE,
+        BehaviourTag::BROWSER_CREDS,
+        BehaviourTag::CRYPTO_WALLETS,
+        BehaviourTag::OS_CREDENTIALS,
+        BehaviourTag::WEB_EXFIL,
+        BehaviourTag::UNSIGNED_EXEC,
+        BehaviourTag::STRIP_QUARANTINE,
+        BehaviourTag::DISABLES_SECURITY,
+        BehaviourTag::CHECKS_VM,
     ];
 }
 
@@ -5323,6 +5381,14 @@ impl ::protobuf::EnumFull for BehaviourTag {
             BehaviourTag::LISTENS => 62,
             BehaviourTag::SETS_PROCESS_NAME => 63,
             BehaviourTag::QR_CODE => 64,
+            BehaviourTag::BROWSER_CREDS => 65,
+            BehaviourTag::CRYPTO_WALLETS => 66,
+            BehaviourTag::OS_CREDENTIALS => 67,
+            BehaviourTag::WEB_EXFIL => 68,
+            BehaviourTag::UNSIGNED_EXEC => 69,
+            BehaviourTag::STRIP_QUARANTINE => 70,
+            BehaviourTag::DISABLES_SECURITY => 71,
+            BehaviourTag::CHECKS_VM => 72,
         };
         Self::enum_descriptor().value_by_index(index)
     }
@@ -5709,58 +5775,62 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x14signatureDescription\"z\n\x16MalwareBehaviorCatalog\x12\x0e\n\x02id\
     \x18\x01\x20\x01(\tR\x02id\x12\x1c\n\tobjective\x18\x02\x20\x01(\tR\tobj\
     ective\x12\x1a\n\x08behavior\x18\x03\x20\x01(\tR\x08behavior\x12\x16\n\
-    \x06method\x18\x04\x20\x01(\tR\x06method\"\x82\x03\n\x0bProcessItem\x12\
+    \x06method\x18\x04\x20\x01(\tR\x06method\"\xa9\x03\n\x0bProcessItem\x12\
     \x1d\n\nprocess_id\x18\x01\x20\x01(\tR\tprocessId\x12*\n\x11parent_proce\
     ss_id\x18\x02\x20\x01(\tR\x0fparentProcessId\x12\x12\n\x04name\x18\x03\
     \x20\x01(\tR\x04name\x12\x1f\n\x0bparent_name\x18\n\x20\x01(\tR\nparentN\
-    ame\x12\x1d\n\nstart_time\x18\x04\x20\x01(\x04R\tstartTime\x12)\n\x10ter\
-    mination_time\x18\x05\x20\x01(\x04R\x0fterminationTime\x12!\n\x0cfiles_o\
-    pened\x18\x06\x20\x03(\tR\x0bfilesOpened\x12#\n\rfiles_written\x18\x07\
-    \x20\x03(\tR\x0cfilesWritten\x12#\n\rfiles_deleted\x18\x08\x20\x03(\tR\
-    \x0cfilesDeleted\x12<\n\x0cfiles_copied\x18\t\x20\x03(\x0b2\x19.vt.filea\
-    nalysis.FileCopyR\x0bfilesCopied*\xde\n\n\x0cBehaviourTag\x12\x15\n\x11U\
-    NKNOWN_BEHAVIOUR\x10\0\x12\x1c\n\x18DETECT_DEBUG_ENVIRONMENT\x10\x01\x12\
-    \x1b\n\x17DIRECT_CPU_CLOCK_ACCESS\x10\x02\x12\x0f\n\x0bLONG_SLEEPS\x10\
-    \x03\x12\x0f\n\x0bSELF_DELETE\x10\x04\x12\x12\n\x0eHOSTS_MODIFIER\x10\
-    \x05\x12\x1e\n\x1aINSTALLS_BROWSER_EXTENSION\x10\x06\x12\x13\n\x0fPASSWO\
-    RD_DIALOG\x10\x07\x12\x08\n\x04SUDO\x10\x08\x12\x0f\n\x0bPERSISTENCE\x10\
-    \t\x12\r\n\tSENDS_SMS\x10\n\x12\x0e\n\nCHECKS_GPS\x10\x0b\x12\x15\n\x11F\
-    TP_COMMUNICATION\x10\x0c\x12\x15\n\x11SSH_COMMUNICATION\x10\r\x12\x18\n\
-    \x14TELNET_COMMUNICATION\x10\x0e\x12\x16\n\x12SMTP_COMMUNICATION\x10\x0f\
-    \x12\x17\n\x13MYSQL_COMMUNICATION\x10\x1a\x12\x15\n\x11IRC_COMMUNICATION\
-    \x10\x11\x12\x12\n\x0eSUSPICIOUS_DNS\x10\x12\x12\x12\n\x0eSUSPICIOUS_UDP\
-    \x10\x13\x12\x10\n\x0cBIG_UPSTREAM\x10\x14\x12\r\n\tTUNNELING\x10\x15\
-    \x12\n\n\x06CRYPTO\x10\x16\x12\r\n\tTELEPHONY\x10\x17\x12\x13\n\x0fRUNTI\
-    ME_MODULES\x10\x18\x12\x0e\n\nREFLECTION\x10\x19\x12\x10\n\x0cDECRYPTS_E\
-    XE\x10\x1b\x12\x11\n\rMACRO_ENVIRON\x10\x1c\x12\x13\n\x0fMACRO_OPEN_FILE\
-    \x10\x1d\x12\x14\n\x10MACRO_WRITE_FILE\x10\x1e\x12\x15\n\x11MACRO_HANDLE\
-    _FILE\x10\x1f\x12\x13\n\x0fMACRO_COPY_FILE\x10\x20\x12\x15\n\x11MACRO_CR\
-    EATE_FILE\x10!\x12\x12\n\x0eMACRO_RUN_FILE\x10\"\x12\x12\n\x0eMACRO_HIDE\
-    _APP\x10#\x12\x14\n\x10MACRO_POWERSHELL\x10$\x12\x14\n\x10MACRO_CREATE_D\
-    IR\x10%\x12\x17\n\x13MACRO_SAVE_WORKBOOK\x10&\x12\x14\n\x10MACRO_CREATE_\
-    OLE\x10'\x12\x16\n\x12MACRO_ENUM_WINDOWS\x10(\x12\x11\n\rMACRO_RUN_DLL\
-    \x10)\x12\x16\n\x12MACRO_DOWNLOAD_URL\x10*\x12\x13\n\x0fMACRO_SEND_KEYS\
-    \x10+\x12\x12\n\x0eMACRO_REGISTRY\x10,\x12\x17\n\x13MACRO_ANTI_ANALYSIS\
-    \x10-\x12\x0e\n\nOBFUSCATED\x10.\x12\r\n\tCLIPBOARD\x10/\x12\x13\n\x0fCH\
-    ECKS_CPU_NAME\x100\x12\x15\n\x11CHECKS_DISK_SPACE\x101\x12\x1b\n\x17CHEC\
-    KS_MEMORY_AVAILABLE\x102\x12\x13\n\x0fCHECKS_HOSTNAME\x103\x12\x1b\n\x17\
-    CHECKS_NETWORK_ADAPTERS\x104\x12\x0f\n\x0bCHECKS_BIOS\x105\x12\x12\n\x0e\
-    CHECKS_PCI_BUS\x106\x12\x12\n\x0eCHECKS_USB_BUS\x107\x12\x19\n\x15EXECUT\
-    ES_DROPPED_FILE\x108\x12\x19\n\x15REPEATED_CLOCK_ACCESS\x109\x12\x15\n\
-    \x11CHECKS_USER_INPUT\x10:\x12\r\n\tCALLS_WMI\x10;\x12\x11\n\rEVAL_FUNCT\
-    ION\x10<\x12\x08\n\x04IDLE\x10=\x12\x10\n\x0cSERVICE_SCAN\x10>\x12\x0b\n\
-    \x07LISTENS\x10?\x12\x15\n\x11SETS_PROCESS_NAME\x10@\x12\x0b\n\x07QR_COD\
-    E\x10A\x1a\x14\x92\x93\x19\x10\n\x0eBehaviourTrait*\xda\x01\n\nVerdictTa\
-    g\x12\x13\n\x0fUNKNOWN_VERDICT\x10\0\x12\t\n\x05CLEAN\x10\x01\x12\x0b\n\
-    \x07MALWARE\x10\x02\x12\x0c\n\x08GREYWARE\x10\x03\x12\n\n\x06RANSOM\x10\
-    \x04\x12\x0c\n\x08PHISHING\x10\x05\x12\n\n\x06BANKER\x10\x06\x12\n\n\x06\
-    ADWARE\x10\x07\x12\x0b\n\x07EXPLOIT\x10\x08\x12\n\n\x06EVADER\x10\t\x12\
-    \x07\n\x03RAT\x10\n\x12\n\n\x06TROJAN\x10\x0b\x12\x0c\n\x08SPREADER\x10\
-    \x0c\x12\x0b\n\x07STEALER\x10\r\x1a\x16\x92\x93\x19\x12\n\x10BehaviourVe\
-    rdict*\x96\x01\n\x0eImpactSeverity\x12\x1b\n\x17IMPACT_SEVERITY_UNKNOWN\
-    \x10\0\x12\x18\n\x14IMPACT_SEVERITY_INFO\x10\x01\x12\x17\n\x13IMPACT_SEV\
-    ERITY_LOW\x10\x02\x12\x1a\n\x16IMPACT_SEVERITY_MEDIUM\x10\x03\x12\x18\n\
-    \x14IMPACT_SEVERITY_HIGH\x10\x04b\x06proto3\
+    ame\x12%\n\x0eancestor_names\x18\x0b\x20\x03(\tR\rancestorNames\x12\x1d\
+    \n\nstart_time\x18\x04\x20\x01(\x04R\tstartTime\x12)\n\x10termination_ti\
+    me\x18\x05\x20\x01(\x04R\x0fterminationTime\x12!\n\x0cfiles_opened\x18\
+    \x06\x20\x03(\tR\x0bfilesOpened\x12#\n\rfiles_written\x18\x07\x20\x03(\t\
+    R\x0cfilesWritten\x12#\n\rfiles_deleted\x18\x08\x20\x03(\tR\x0cfilesDele\
+    ted\x12<\n\x0cfiles_copied\x18\t\x20\x03(\x0b2\x19.vt.fileanalysis.FileC\
+    opyR\x0bfilesCopied*\xf7\x0b\n\x0cBehaviourTag\x12\x15\n\x11UNKNOWN_BEHA\
+    VIOUR\x10\0\x12\x1c\n\x18DETECT_DEBUG_ENVIRONMENT\x10\x01\x12\x1b\n\x17D\
+    IRECT_CPU_CLOCK_ACCESS\x10\x02\x12\x0f\n\x0bLONG_SLEEPS\x10\x03\x12\x0f\
+    \n\x0bSELF_DELETE\x10\x04\x12\x12\n\x0eHOSTS_MODIFIER\x10\x05\x12\x1e\n\
+    \x1aINSTALLS_BROWSER_EXTENSION\x10\x06\x12\x13\n\x0fPASSWORD_DIALOG\x10\
+    \x07\x12\x08\n\x04SUDO\x10\x08\x12\x0f\n\x0bPERSISTENCE\x10\t\x12\r\n\tS\
+    ENDS_SMS\x10\n\x12\x0e\n\nCHECKS_GPS\x10\x0b\x12\x15\n\x11FTP_COMMUNICAT\
+    ION\x10\x0c\x12\x15\n\x11SSH_COMMUNICATION\x10\r\x12\x18\n\x14TELNET_COM\
+    MUNICATION\x10\x0e\x12\x16\n\x12SMTP_COMMUNICATION\x10\x0f\x12\x17\n\x13\
+    MYSQL_COMMUNICATION\x10\x1a\x12\x15\n\x11IRC_COMMUNICATION\x10\x11\x12\
+    \x12\n\x0eSUSPICIOUS_DNS\x10\x12\x12\x12\n\x0eSUSPICIOUS_UDP\x10\x13\x12\
+    \x10\n\x0cBIG_UPSTREAM\x10\x14\x12\r\n\tTUNNELING\x10\x15\x12\n\n\x06CRY\
+    PTO\x10\x16\x12\r\n\tTELEPHONY\x10\x17\x12\x13\n\x0fRUNTIME_MODULES\x10\
+    \x18\x12\x0e\n\nREFLECTION\x10\x19\x12\x10\n\x0cDECRYPTS_EXE\x10\x1b\x12\
+    \x11\n\rMACRO_ENVIRON\x10\x1c\x12\x13\n\x0fMACRO_OPEN_FILE\x10\x1d\x12\
+    \x14\n\x10MACRO_WRITE_FILE\x10\x1e\x12\x15\n\x11MACRO_HANDLE_FILE\x10\
+    \x1f\x12\x13\n\x0fMACRO_COPY_FILE\x10\x20\x12\x15\n\x11MACRO_CREATE_FILE\
+    \x10!\x12\x12\n\x0eMACRO_RUN_FILE\x10\"\x12\x12\n\x0eMACRO_HIDE_APP\x10#\
+    \x12\x14\n\x10MACRO_POWERSHELL\x10$\x12\x14\n\x10MACRO_CREATE_DIR\x10%\
+    \x12\x17\n\x13MACRO_SAVE_WORKBOOK\x10&\x12\x14\n\x10MACRO_CREATE_OLE\x10\
+    '\x12\x16\n\x12MACRO_ENUM_WINDOWS\x10(\x12\x11\n\rMACRO_RUN_DLL\x10)\x12\
+    \x16\n\x12MACRO_DOWNLOAD_URL\x10*\x12\x13\n\x0fMACRO_SEND_KEYS\x10+\x12\
+    \x12\n\x0eMACRO_REGISTRY\x10,\x12\x17\n\x13MACRO_ANTI_ANALYSIS\x10-\x12\
+    \x0e\n\nOBFUSCATED\x10.\x12\r\n\tCLIPBOARD\x10/\x12\x13\n\x0fCHECKS_CPU_\
+    NAME\x100\x12\x15\n\x11CHECKS_DISK_SPACE\x101\x12\x1b\n\x17CHECKS_MEMORY\
+    _AVAILABLE\x102\x12\x13\n\x0fCHECKS_HOSTNAME\x103\x12\x1b\n\x17CHECKS_NE\
+    TWORK_ADAPTERS\x104\x12\x0f\n\x0bCHECKS_BIOS\x105\x12\x12\n\x0eCHECKS_PC\
+    I_BUS\x106\x12\x12\n\x0eCHECKS_USB_BUS\x107\x12\x19\n\x15EXECUTES_DROPPE\
+    D_FILE\x108\x12\x19\n\x15REPEATED_CLOCK_ACCESS\x109\x12\x15\n\x11CHECKS_\
+    USER_INPUT\x10:\x12\r\n\tCALLS_WMI\x10;\x12\x11\n\rEVAL_FUNCTION\x10<\
+    \x12\x08\n\x04IDLE\x10=\x12\x10\n\x0cSERVICE_SCAN\x10>\x12\x0b\n\x07LIST\
+    ENS\x10?\x12\x15\n\x11SETS_PROCESS_NAME\x10@\x12\x0b\n\x07QR_CODE\x10A\
+    \x12\x11\n\rBROWSER_CREDS\x10B\x12\x12\n\x0eCRYPTO_WALLETS\x10C\x12\x12\
+    \n\x0eOS_CREDENTIALS\x10D\x12\r\n\tWEB_EXFIL\x10E\x12\x11\n\rUNSIGNED_EX\
+    EC\x10F\x12\x14\n\x10STRIP_QUARANTINE\x10G\x12\x15\n\x11DISABLES_SECURIT\
+    Y\x10H\x12\r\n\tCHECKS_VM\x10I\x1a\x14\x92\x93\x19\x10\n\x0eBehaviourTra\
+    it*\xda\x01\n\nVerdictTag\x12\x13\n\x0fUNKNOWN_VERDICT\x10\0\x12\t\n\x05\
+    CLEAN\x10\x01\x12\x0b\n\x07MALWARE\x10\x02\x12\x0c\n\x08GREYWARE\x10\x03\
+    \x12\n\n\x06RANSOM\x10\x04\x12\x0c\n\x08PHISHING\x10\x05\x12\n\n\x06BANK\
+    ER\x10\x06\x12\n\n\x06ADWARE\x10\x07\x12\x0b\n\x07EXPLOIT\x10\x08\x12\n\
+    \n\x06EVADER\x10\t\x12\x07\n\x03RAT\x10\n\x12\n\n\x06TROJAN\x10\x0b\x12\
+    \x0c\n\x08SPREADER\x10\x0c\x12\x0b\n\x07STEALER\x10\r\x1a\x16\x92\x93\
+    \x19\x12\n\x10BehaviourVerdict*\x96\x01\n\x0eImpactSeverity\x12\x1b\n\
+    \x17IMPACT_SEVERITY_UNKNOWN\x10\0\x12\x18\n\x14IMPACT_SEVERITY_INFO\x10\
+    \x01\x12\x17\n\x13IMPACT_SEVERITY_LOW\x10\x02\x12\x1a\n\x16IMPACT_SEVERI\
+    TY_MEDIUM\x10\x03\x12\x18\n\x14IMPACT_SEVERITY_HIGH\x10\x04b\x06proto3\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

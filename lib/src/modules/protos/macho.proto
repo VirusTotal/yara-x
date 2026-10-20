@@ -98,7 +98,7 @@ message Nlist {
   // Description attributes of the symbol.
   optional uint32 n_desc = 4;
   // Value or address of the symbol.
-  optional uint64 n_value = 5;
+  optional int64 n_value = 5;
 }
 
 message Symtab {
@@ -161,9 +161,9 @@ message Section {
   // Individual section designation string.
   optional bytes sectname = 2;
   // Address where the section is mapped in virtual memory.
-  optional uint64 addr = 3 [(yara.field_options).fmt = "x"];
+  optional int64 addr = 3 [(yara.field_options).fmt = "x"];
   // Total virtual memory size occupied by the section.
-  optional uint64 size = 4 [(yara.field_options).fmt = "x"];
+  optional int64 size = 4 [(yara.field_options).fmt = "x"];
   // File offset pointing to the section data.
   optional uint32 offset = 5;
   // Memory alignment constraint of the section.
@@ -186,13 +186,13 @@ message Segment {
   // Text identifier of the segment.
   optional bytes segname = 3;
   // Virtual memory address where the segment is mapped.
-  optional uint64 vmaddr = 4 [(yara.field_options).fmt = "x"];
+  optional int64 vmaddr = 4 [(yara.field_options).fmt = "x"];
   // Total size of the mapped segment in virtual memory.
-  optional uint64 vmsize = 5 [(yara.field_options).fmt = "x"];
+  optional int64 vmsize = 5 [(yara.field_options).fmt = "x"];
   // File offset pointing to the segment contents on disk.
-  optional uint64 fileoff = 6;
+  optional int64 fileoff = 6;
   // Total physical length of the segment inside the file.
-  optional uint64 filesize = 7;
+  optional int64 filesize = 7;
   // Maximum virtual memory protection state applicable.
   optional uint32 maxprot = 8 [(yara.field_options).fmt = "x"];
   // Initial virtual memory protection applied at load time.
@@ -211,9 +211,9 @@ message FatArch {
   // Sub-architecture designation.
   optional uint32 cpusubtype = 2 [(yara.field_options).fmt = "x"];
   // File offset referencing the start of the embedded binary.
-  optional uint64 offset = 3;
+  optional int64 offset = 3;
   // Size in bytes of the embedded binary payload.
-  optional uint64 size = 4;
+  optional int64 size = 4;
   // Required byte alignment of the binary payload.
   optional uint32 align = 5;
   // Reserved internal field.
@@ -239,7 +239,7 @@ message File {
   optional uint32 reserved = 8;
 
   // Number of segments parsed from the binary.
-  optional uint64 number_of_segments = 9 [(yara.field_options).deprecation_notice = {
+  optional int64 number_of_segments = 9 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `segments.len()` instead",
     replacement: "segments.len()"
@@ -248,9 +248,9 @@ message File {
   // Standard path of the dynamic linker.
   optional bytes dynamic_linker = 10;
   // Execution entry point offset or address.
-  optional uint64 entry_point = 11;
+  optional int64 entry_point = 11;
   // Size of the stack allocated by the loader.
-  optional uint64 stack_size = 12;
+  optional int64 stack_size = 12;
   // Source version metadata string.
   optional string source_version = 13;
   // Segments nested inside the binary.
@@ -304,7 +304,7 @@ message Macho {
   optional uint32 reserved = 8;
 
   // Number of segments parsed.
-  optional uint64 number_of_segments = 9 [(yara.field_options).deprecation_notice = {
+  optional int64 number_of_segments = 9 [(yara.field_options).deprecation_notice = {
     text: "this field is deprecated",
     help: "use `macho.segments.len()` instead",
     replacement: "segments.len()"
@@ -313,9 +313,9 @@ message Macho {
   // Standard dynamic linker specification path.
   optional bytes dynamic_linker = 10;
   // Execution entry point address.
-  optional uint64 entry_point = 11;
+  optional int64 entry_point = 11;
   // Stack size allocation requested.
-  optional uint64 stack_size = 12;
+  optional int64 stack_size = 12;
   // Build source version metadata string.
   optional string source_version = 13;
   // Standard symbol table block.

@@ -12,6 +12,11 @@ pub async fn main() -> Result<(), async_lsp::Error> {
         .with_writer(std::io::stderr)
         .init();
 
+    // Parse command-line arguments. `-h`/`--help` and `-V`/`--version` are
+    // handled by clap, printing the corresponding information and exiting.
+    // When no arguments are given the language server starts as usual.
+    clap::command!().about("Language server for YARA-X").get_matches();
+
     #[cfg(unix)]
     let (stdin, stdout) = (
         async_lsp::stdio::PipeStdin::lock_tokio()?,

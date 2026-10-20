@@ -28,5 +28,5 @@ enum StreamType {
 message Stream {
   required string name = 1;
   required StreamType type = 2;
-  required uint64 size = 3;
+  required int64 size = 3;
 }

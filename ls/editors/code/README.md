@@ -93,6 +93,16 @@ the following properties:
     `"^(draft|reviewed|approved)$"` restricts the field to those values. Patterns use Rust's regex syntax.
     For more information see: https://docs.rs/regex/latest/regex/
 
+### `YARA.documentation`
+
+Type: `object`
+Default: `{ "showRuleStringsBlock": false, "showRuleConditionBlock": false }`
+
+Controls which sections of a rule are included in documentation popups for Hover and Code Completion:
+
+*   `showRuleStringsBlock` (boolean, optional): If `true`, includes the rule's `strings` section in documentation. Defaults to `false`.
+*   `showRuleConditionBlock` (boolean, optional): If `true`, includes the rule's `condition` section in documentation. Defaults to `false`.
+
 For accessing these settings go to the Settings
 
 <p align="center">

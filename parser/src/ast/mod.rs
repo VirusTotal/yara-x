@@ -1040,7 +1040,15 @@ pub struct LiteralInteger<'src> {
     /// The literal value as it appears in the source code.
     pub literal: &'src str,
     /// The value of the integer literal.
+    ///
+    /// Literals are signed integers, except when their value doesn't fit in an
+    /// `i64`, that is, when they are in the range
+    /// `[0x8000000000000000, 0xFFFFFFFFFFFFFFFF]`. In that case `is_unsigned`
+    /// is `true` and `value` holds the `i64` with the same bit pattern as the
+    /// `u64` value.
     pub value: i64,
+    /// True if the literal is an unsigned integer.
+    pub is_unsigned: bool,
 }
 
 /// A literal float (e.g: `2.0`, `3.14`).

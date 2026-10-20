@@ -20,8 +20,8 @@ use crate::compiler::errors::SerializationError;
 use crate::compiler::report::CodeLoc;
 use crate::compiler::warnings::Warning;
 use crate::compiler::{
-    IdentId, Imports, LiteralId, NamespaceId, PatternId, RegexId, RegexSetId,
-    RuleId, SubPattern, SubPatternId,
+    IdentId, Imports, LiteralId, LiteralSetId, NamespaceId, PatternId,
+    RegexId, RegexSetId, RuleId, SubPattern, SubPatternId,
 };
 use crate::models::PatternKind;
 use crate::re::{BckCodeLoc, FwdCodeLoc, RegexpAtom};
@@ -35,7 +35,7 @@ const MAGIC: &[u8] = b"YARA-X\0\0";
 ///
 /// This version is incremented every time a change is made to the binary
 /// format in a way that breaks backwards compatibility.
-const SERIALIZATION_VERSION: u32 = 7;
+const SERIALIZATION_VERSION: u32 = 8;
 
 /// Aho-Corasick automaton bundled with an optional Teddy scanner if the
 /// number of patterns is low enough. If the Teddy scanner is present, and
@@ -139,7 +139,7 @@ pub struct Rules {
     /// Pool with literal strings used in the rules. Each literal has its
     /// own [`LiteralId`], which can be used for retrieving the literal
     /// string as `&BStr`.
-    pub(in crate::compiler) lit_pool: BStringPool<LiteralId>,
+    pub(in crate::compiler) literal_pool: BStringPool<LiteralId>,
 
     /// WASM module as in raw form.
     pub(in crate::compiler) wasm_mod: Vec<u8>,
@@ -245,6 +245,13 @@ pub struct Rules {
     /// in the source code, allowing them to be compiled into a unified
     /// set automata for single-pass evaluation.
     pub(in crate::compiler) regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
+
+    /// Grouped `LiteralSet` persistent definitions.
+    ///
+    /// Populated during `Compiler::build`, each entry maps a unique
+    /// `LiteralSetId` to an ordered list of `LiteralId`s.
+    pub(in crate::compiler) literal_sets:
+        FxHashMap<LiteralSetId, Vec<LiteralId>>,
 
     /// Vector where the N-th element indicates the maximum number of matches
     /// required in fast-scan mode for the pattern with PatternId = N, or
@@ -524,6 +531,15 @@ impl Rules {
             })
     }
 
+    /// Returns the slice of [`LiteralId`]s belonging to a given [`LiteralSetId`].
+    #[inline]
+    pub(crate) fn get_literal_set(
+        &self,
+        set_id: LiteralSetId,
+    ) -> &[LiteralId] {
+        self.literal_sets.get(&set_id).unwrap()
+    }
+
     /// Returns a sub-pattern by [`SubPatternId`].
     #[inline]
     pub(crate) fn get_sub_pattern(
@@ -656,8 +672,8 @@ impl Rules {
     }
 
     #[inline]
-    pub(crate) fn lit_pool(&self) -> &BStringPool<LiteralId> {
-        &self.lit_pool
+    pub(crate) fn literal_pool(&self) -> &BStringPool<LiteralId> {
+        &self.literal_pool
     }
 
     #[inline]

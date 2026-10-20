@@ -188,6 +188,9 @@ pub struct YRX_MATCH {
     pub offset: usize,
     /// Length of the match.
     pub length: usize,
+    /// XOR key used for decrypting the data if the pattern had the `xor`
+    /// modifier, or -1 if otherwise.
+    pub xor_key: i16,
 }
 
 /// Represents a buffer with arbitrary data.

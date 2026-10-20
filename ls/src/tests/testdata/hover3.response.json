@@ -1,6 +1,6 @@
 {
   "contents": {
     "kind": "markdown",
-    "value": "Pattern value is:\n\n`$a = { 11 22\n          33 44 }`"
+    "value": "Pattern value is:\n\n```\n$a = { 11 22\n      33 44 }\n```\n"
   }
 }

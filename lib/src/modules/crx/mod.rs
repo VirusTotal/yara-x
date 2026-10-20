@@ -57,7 +57,7 @@ fn permhash(ctx: &ScanContext) -> Option<Lowercase<FixedLenString<64>>> {
         sha256_hash.update(permission.as_bytes());
     }
 
-    let digest = format!("{:x}", sha256_hash.finalize());
+    let digest = hex::encode(sha256_hash.finalize());
 
     PERMHASH_CACHE.with(|cache| {
         *cache.borrow_mut() = Some(digest.clone());

@@ -323,6 +323,26 @@
     "label": "zip"
   },
   {
+    "data": {
+      "uri": "${test_dir}/completion23.yar"
+    },
+    "kind": 6,
+    "label": "rule_one",
+    "labelDetails": {
+      "description": "Rule"
+    }
+  },
+  {
+    "data": {
+      "uri": "${test_dir}/completion23.yar"
+    },
+    "kind": 6,
+    "label": "rule_two",
+    "labelDetails": {
+      "description": "Rule"
+    }
+  },
+  {
     "insertText": "at ${1:expression}",
     "insertTextFormat": 2,
     "kind": 14,
@@ -395,19 +415,5 @@
   {
     "kind": 14,
     "label": "true"
-  },
-  {
-    "kind": 6,
-    "label": "rule_one",
-    "labelDetails": {
-      "description": "Rule"
-    }
-  },
-  {
-    "kind": 6,
-    "label": "rule_two",
-    "labelDetails": {
-      "description": "Rule"
-    }
   }
 ]
