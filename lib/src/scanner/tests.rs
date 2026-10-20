@@ -1311,6 +1311,14 @@ fn test_slow_rule_hang() {
 }
 
 #[test]
+#[cfg(any(
+    all(target_arch = "x86_64", target_feature = "sse2"),
+    all(
+        target_arch = "aarch64",
+        target_feature = "neon",
+        target_endian = "little"
+    )
+))]
 fn test_teddy_scan_timeout() {
     use std::fmt::Write;
     use std::time::Duration;
