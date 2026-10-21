@@ -211,3 +211,205 @@ func TestScannerMaxMatchesPerPattern(t *testing.T) {
 
 	assert.Len(t, matchingRules, 1)
 }
+
+var testZipData = []byte{
+	0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x00, 0x00, 0x08, 0x00, 0x33,
+	0x63, 0xd0, 0x5c, 0xe7, 0xb0, 0x5a, 0x76, 0x35, 0x00, 0x00, 0x00,
+	0x36, 0x00, 0x00, 0x00, 0x16, 0x00, 0x00, 0x00, 0x73, 0x75, 0x73,
+	0x70, 0x69, 0x63, 0x69, 0x6f, 0x75, 0x73, 0x5f, 0x70, 0x61, 0x79,
+	0x6c, 0x6f, 0x61, 0x64, 0x2e, 0x65, 0x78, 0x65, 0x0b, 0xc9, 0xc8,
+	0x2c, 0x56, 0x00, 0xa2, 0x44, 0x85, 0xe2, 0xd2, 0xe2, 0x82, 0xcc,
+	0xe4, 0xcc, 0xfc, 0xd2, 0x62, 0x85, 0x48, 0xc7, 0x20, 0x47, 0x85,
+	0x82, 0xc4, 0xca, 0x9c, 0xfc, 0xc4, 0x14, 0x85, 0xcc, 0xbc, 0xe2,
+	0xcc, 0x94, 0x54, 0xa0, 0x82, 0x28, 0xcf, 0x00, 0x85, 0xc4, 0xa2,
+	0xe4, 0x8c, 0xcc, 0xb2, 0x54, 0x00, 0x50, 0x4b, 0x01, 0x02, 0x14,
+	0x03, 0x14, 0x00, 0x00, 0x00, 0x08, 0x00, 0x33, 0x63, 0xd0, 0x5c,
+	0xe7, 0xb0, 0x5a, 0x76, 0x35, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00,
+	0x00, 0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x80, 0x01, 0x00, 0x00, 0x00, 0x00, 0x73, 0x75, 0x73,
+	0x70, 0x69, 0x63, 0x69, 0x6f, 0x75, 0x73, 0x5f, 0x70, 0x61, 0x79,
+	0x6c, 0x6f, 0x61, 0x64, 0x2e, 0x65, 0x78, 0x65, 0x50, 0x4b, 0x05,
+	0x06, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x44, 0x00,
+	0x00, 0x00, 0x69, 0x00, 0x00, 0x00, 0x00, 0x00,
+}
+
+func TestDeepScanner(t *testing.T) {
+	r, err := Compile(`
+		import "zip"
+		rule test_pe {
+			strings:
+				$pe = "suspicious_payload"
+			condition:
+				$pe
+		}
+		rule dummy {
+			condition:
+				true
+		}
+	`)
+	require.NoError(t, err)
+
+	s := NewDeepScanner(r)
+	defer s.Destroy()
+
+	var events []string
+	matchesPerPath := make(map[string][]string)
+
+	err = s.Scan(testZipData, func(event ScanEvent) bool {
+		switch e := event.(type) {
+		case ScanStarted:
+			events = append(events, "start:"+e.Path)
+		case Scanned:
+			events = append(events, "scanned:"+e.Path)
+			var rules []string
+			for _, rule := range e.Results.MatchingRules() {
+				rules = append(rules, rule.Identifier())
+			}
+			matchesPerPath[e.Path] = rules
+		case ScanFinished:
+			events = append(events, "finish:"+e.Path)
+		}
+		return true
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{
+		"start:",
+		"scanned:",
+		"start:suspicious_payload.exe",
+		"scanned:suspicious_payload.exe",
+		"finish:suspicious_payload.exe",
+		"finish:",
+	}, events)
+
+	assert.Equal(t, []string{"test_pe", "dummy"}, matchesPerPath[""])
+	assert.Equal(t, []string{"dummy"}, matchesPerPath["suspicious_payload.exe"])
+}
+
+func TestDeepScannerMaxDepth(t *testing.T) {
+	r, err := Compile(`
+		import "zip"
+		rule dummy { condition: true }
+	`)
+	require.NoError(t, err)
+
+	s := NewDeepScanner(r)
+	defer s.Destroy()
+	s.MaxDepth(0)
+
+	var events []string
+	err = s.Scan(testZipData, func(event ScanEvent) bool {
+		switch e := event.(type) {
+		case ScanStarted:
+			events = append(events, "start:"+e.Path)
+		case Scanned:
+			events = append(events, "scanned:"+e.Path)
+		case ScanFinished:
+			events = append(events, "finish:"+e.Path)
+		}
+		return true
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{
+		"start:",
+		"scanned:",
+		"finish:",
+	}, events)
+}
+
+func TestDeepScannerAbort(t *testing.T) {
+	r, err := Compile(`
+		import "zip"
+		rule dummy { condition: true }
+	`)
+	require.NoError(t, err)
+
+	s := NewDeepScanner(r)
+	defer s.Destroy()
+
+	// Abort on ScanStarted for the extracted file.
+	var events []string
+	err = s.Scan(testZipData, func(event ScanEvent) bool {
+		switch e := event.(type) {
+		case ScanStarted:
+			events = append(events, "start:"+e.Path)
+			if e.Path == "suspicious_payload.exe" {
+				return false
+			}
+		case Scanned:
+			events = append(events, "scanned:"+e.Path)
+		case ScanFinished:
+			events = append(events, "finish:"+e.Path)
+		}
+		return true
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		"start:",
+		"scanned:",
+		"start:suspicious_payload.exe",
+	}, events)
+
+	// Abort on Scanned for the root file.
+	events = nil
+	err = s.Scan(testZipData, func(event ScanEvent) bool {
+		switch e := event.(type) {
+		case ScanStarted:
+			events = append(events, "start:"+e.Path)
+		case Scanned:
+			events = append(events, "scanned:"+e.Path)
+			return false
+		case ScanFinished:
+			events = append(events, "finish:"+e.Path)
+		}
+		return true
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		"start:",
+		"scanned:",
+	}, events)
+}
+
+func TestDeepScannerScanFile(t *testing.T) {
+	r, err := Compile(`
+		import "zip"
+		rule dummy { condition: true }
+	`)
+	require.NoError(t, err)
+
+	f, err := os.CreateTemp(t.TempDir(), "example.zip")
+	require.NoError(t, err)
+	defer os.Remove(f.Name())
+
+	_, err = f.Write(testZipData)
+	require.NoError(t, err)
+	f.Close()
+
+	s := NewDeepScanner(r)
+	defer s.Destroy()
+
+	var events []string
+	err = s.ScanFile(f.Name(), func(event ScanEvent) bool {
+		switch e := event.(type) {
+		case ScanStarted:
+			events = append(events, "start:"+e.Path)
+		case Scanned:
+			events = append(events, "scanned:"+e.Path)
+		case ScanFinished:
+			events = append(events, "finish:"+e.Path)
+		}
+		return true
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{
+		"start:",
+		"scanned:",
+		"start:suspicious_payload.exe",
+		"scanned:suspicious_payload.exe",
+		"finish:suspicious_payload.exe",
+		"finish:",
+	}, events)
+}

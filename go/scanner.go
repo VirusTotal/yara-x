@@ -9,6 +9,13 @@ package yara_x
 //   return yrx_scanner_on_matching_rule(scanner, callback, (void*) user_data);
 // }
 //
+// enum YRX_RESULT static inline _yrx_scanner_on_file_scanned(
+//     struct YRX_SCANNER *scanner,
+//     YRX_FILE_CALLBACK callback,
+//     uintptr_t user_data) {
+//   return yrx_scanner_on_file_scanned(scanner, callback, (void*) user_data);
+// }
+//
 //  enum YRX_RESULT static inline _yrx_scanner_iter_slowest_rules(
 //      struct YRX_SCANNER *scanner,
 //      size_t n,
@@ -19,6 +26,7 @@ package yara_x
 // }
 //
 // extern void onMatchingRule(YRX_RULE*, uintptr_t);
+// extern bool onFileScanned(YRX_FILE_EVENT, char*, uintptr_t);
 // extern void slowestRulesCallback(char*, char*, double, double, uintptr_t);
 import "C"
 
@@ -56,6 +64,11 @@ type Scanner struct {
 
 	// Rules that matched during the last scan.
 	matchingRules []*Rule
+
+	// Fields used by DeepScanner during a scan operation.
+	callback       func(ScanEvent) bool
+	pendingPath    string
+	hasPendingScan bool
 }
 
 // ScanResults contains the results of a call to [Scanner.Scan] or [Rules.Scan].
@@ -68,6 +81,42 @@ func (s ScanResults) MatchingRules() []*Rule {
 	return s.matchingRules
 }
 
+// ScanEvent represents an event emitted by [DeepScanner] during a scan
+// operation.
+//
+// The concrete types implementing this interface are [ScanStarted], [Scanned],
+// and [ScanFinished].
+type ScanEvent interface {
+	isScanEvent()
+}
+
+// ScanStarted is emitted when a file or data buffer is about to be scanned.
+//
+// Path is the relative path of the file within the container, or empty ("")
+// for the top-level file or data buffer.
+type ScanStarted struct {
+	Path string
+}
+
+func (ScanStarted) isScanEvent() {}
+
+// Scanned is emitted after scanning the raw content of a file or data buffer,
+// before scanning any inner files extracted from it.
+type Scanned struct {
+	Path    string
+	Results *ScanResults
+}
+
+func (Scanned) isScanEvent() {}
+
+// ScanFinished is emitted once a file or data buffer, along with all inner
+// files extracted from it (if any), has been completely scanned.
+type ScanFinished struct {
+	Path string
+}
+
+func (ScanFinished) isScanEvent() {}
+
 // This is the callback function called every time a YARA rule matches.
 //
 //export onMatchingRule
@@ -78,6 +127,51 @@ func onMatchingRule(rule *C.YRX_RULE, handle C.uintptr_t) {
 		panic("onMatchingRule didn't receive a Scanner")
 	}
 	scanner.matchingRules = append(scanner.matchingRules, newRule(rule))
+}
+
+// This is the callback function called by yrx_scanner_on_file_scanned.
+//
+//export onFileScanned
+func onFileScanned(event C.YRX_FILE_EVENT, path *C.char, handle C.uintptr_t) C.bool {
+	h := cgo.Handle(handle)
+	scanner, ok := h.Value().(*Scanner)
+	if !ok {
+		panic("onFileScanned didn't receive a Scanner")
+	}
+
+	if scanner.callback == nil {
+		return C.bool(true)
+	}
+
+	// If a previous file's YRX_FILE_SCAN_STARTED event was received and its
+	// matching rules were collected via onMatchingRule, flush its Scanned
+	// event before emitting the next event.
+	if scanner.hasPendingScan {
+		results := &ScanResults{scanner.matchingRules}
+		scanner.matchingRules = nil
+		scanner.hasPendingScan = false
+		if !scanner.callback(Scanned{Path: scanner.pendingPath, Results: results}) {
+			return C.bool(false)
+		}
+	}
+
+	goPath := C.GoString(path)
+
+	switch event {
+	case C.YRX_FILE_SCAN_STARTED:
+		scanner.pendingPath = goPath
+		scanner.hasPendingScan = true
+		if !scanner.callback(ScanStarted{Path: goPath}) {
+			scanner.hasPendingScan = false
+			return C.bool(false)
+		}
+	case C.YRX_FILE_SCAN_FINISHED:
+		if !scanner.callback(ScanFinished{Path: goPath}) {
+			return C.bool(false)
+		}
+	}
+
+	return C.bool(true)
 }
 
 // NewScanner creates a Scanner that will use the provided YARA rules.
@@ -391,4 +485,112 @@ func (s *Scanner) Destroy() {
 	}
 	s.rules = nil
 	runtime.SetFinalizer(s, nil)
+}
+
+// DeepScanner scans data and container contents (e.g., ZIP archives)
+// recursively with a set of compiled YARA rules.
+type DeepScanner struct {
+	*Scanner
+}
+
+// NewDeepScanner creates a DeepScanner that will use the provided YARA rules.
+//
+// By default, the maximum container extraction depth is set to 1. Use
+// [DeepScanner.MaxDepth] to change this limit.
+//
+// It's safe to pass the same Rules to multiple scanners, and use each scanner
+// on a separate goroutine for performing multiple scans in parallel with the
+// same set of rules.
+func NewDeepScanner(r *Rules) *DeepScanner {
+	s := NewScanner(r)
+	C.yrx_scanner_max_depth(s.cScanner, 1)
+	C._yrx_scanner_on_file_scanned(
+		s.cScanner,
+		C.YRX_FILE_CALLBACK(C.onFileScanned),
+		C.uintptr_t(s.handle))
+	return &DeepScanner{Scanner: s}
+}
+
+// MaxDepth sets the maximum container extraction depth.
+//
+// If set to 0, the scanner scans only the main input buffer (or file) without
+// extracting any inner files from it. If set to 1, it extracts and scans
+// immediate inner files, but no further.
+//
+// The default value for [DeepScanner] is 1.
+func (s *DeepScanner) MaxDepth(n int) {
+	C.yrx_scanner_max_depth(s.cScanner, C.size_t(n))
+	runtime.KeepAlive(s)
+}
+
+// Scan scans the provided data and any container files extracted from it,
+// invoking callback with [ScanEvent] notifications for the main data buffer
+// and each extracted file.
+//
+// Returning true from callback instructs the scanner to continue scanning,
+// whereas returning false immediately aborts the scan operation.
+func (s *DeepScanner) Scan(buf []byte, callback func(ScanEvent) bool) error {
+	var ptr *C.uint8_t
+	if len(buf) > 0 {
+		ptr = (*C.uint8_t)(unsafe.Pointer(&(buf[0])))
+	}
+
+	s.callback = callback
+	s.hasPendingScan = false
+	s.matchingRules = nil
+	defer func() {
+		s.callback = nil
+		s.hasPendingScan = false
+		s.matchingRules = nil
+	}()
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	var err error
+	switch r := C.yrx_scanner_scan(s.cScanner, ptr, C.size_t(len(buf))); r {
+	case C.YRX_SUCCESS:
+		err = nil
+	case C.YRX_SCAN_TIMEOUT:
+		err = ErrTimeout
+	default:
+		err = errors.New(C.GoString(C.yrx_last_error()))
+	}
+
+	return err
+}
+
+// ScanFile scans a file and any container files extracted from it, invoking
+// callback with [ScanEvent] notifications for the main file and each extracted
+// inner file.
+//
+// Returning true from callback instructs the scanner to continue scanning,
+// whereas returning false immediately aborts the scan operation.
+func (s *DeepScanner) ScanFile(path string, callback func(ScanEvent) bool) error {
+	cPath := C.CString(path)
+	defer C.free(unsafe.Pointer(cPath))
+
+	s.callback = callback
+	s.hasPendingScan = false
+	s.matchingRules = nil
+	defer func() {
+		s.callback = nil
+		s.hasPendingScan = false
+		s.matchingRules = nil
+	}()
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	var err error
+	switch r := C.yrx_scanner_scan_file(s.cScanner, cPath); r {
+	case C.YRX_SUCCESS:
+		err = nil
+	case C.YRX_SCAN_TIMEOUT:
+		err = ErrTimeout
+	default:
+		err = errors.New(C.GoString(C.yrx_last_error()))
+	}
+
+	return err
 }
