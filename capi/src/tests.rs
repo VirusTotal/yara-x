@@ -10,21 +10,23 @@ use crate::compiler::{
     yrx_compiler_warnings_json,
 };
 use crate::{
-    YRX_BUFFER, YRX_MATCH, YRX_METADATA, YRX_METADATA_TYPE, YRX_PATTERN,
-    YRX_RESULT, YRX_RULE, yrx_buffer_destroy, yrx_compile, yrx_last_error,
-    yrx_pattern_identifier, yrx_pattern_iter_matches, yrx_rule_identifier,
-    yrx_rule_iter_metadata, yrx_rule_iter_patterns, yrx_rule_iter_tags,
-    yrx_rule_namespace, yrx_rules_count, yrx_rules_deserialize,
-    yrx_rules_destroy, yrx_rules_iter, yrx_rules_iter_imports,
-    yrx_rules_serialize, yrx_scanner_clear_profiling_data, yrx_scanner_create,
-    yrx_scanner_destroy, yrx_scanner_fast_scan, yrx_scanner_finish,
-    yrx_scanner_iter_slowest_rules, yrx_scanner_max_matches_per_pattern,
-    yrx_scanner_on_console_log, yrx_scanner_on_matching_rule,
-    yrx_scanner_scan, yrx_scanner_scan_block, yrx_scanner_scan_file,
-    yrx_scanner_set_global_bool, yrx_scanner_set_global_float,
-    yrx_scanner_set_global_int, yrx_scanner_set_global_json,
-    yrx_scanner_set_global_str, yrx_scanner_set_module_data,
-    yrx_scanner_set_module_output, yrx_scanner_set_timeout,
+    YRX_BUFFER, YRX_FILE_EVENT, YRX_MATCH, YRX_METADATA, YRX_METADATA_TYPE,
+    YRX_PATTERN, YRX_RESULT, YRX_RULE, yrx_buffer_destroy, yrx_compile,
+    yrx_last_error, yrx_pattern_identifier, yrx_pattern_iter_matches,
+    yrx_rule_identifier, yrx_rule_iter_metadata, yrx_rule_iter_patterns,
+    yrx_rule_iter_tags, yrx_rule_namespace, yrx_rules_count,
+    yrx_rules_deserialize, yrx_rules_destroy, yrx_rules_iter,
+    yrx_rules_iter_imports, yrx_rules_serialize,
+    yrx_scanner_clear_profiling_data, yrx_scanner_create, yrx_scanner_destroy,
+    yrx_scanner_fast_scan, yrx_scanner_finish, yrx_scanner_iter_slowest_rules,
+    yrx_scanner_max_depth, yrx_scanner_max_matches_per_pattern,
+    yrx_scanner_on_console_log, yrx_scanner_on_file_scanned,
+    yrx_scanner_on_matching_rule, yrx_scanner_scan, yrx_scanner_scan_block,
+    yrx_scanner_scan_file, yrx_scanner_set_global_bool,
+    yrx_scanner_set_global_float, yrx_scanner_set_global_int,
+    yrx_scanner_set_global_json, yrx_scanner_set_global_str,
+    yrx_scanner_set_module_data, yrx_scanner_set_module_output,
+    yrx_scanner_set_timeout,
 };
 
 use std::ffi::{CStr, c_char, c_void};
@@ -877,6 +879,10 @@ fn capi_null_args() {
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
         assert_eq!(
+            yrx_scanner_max_depth(std::ptr::null_mut(), 1),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert_eq!(
             yrx_scanner_scan(std::ptr::null_mut(), std::ptr::null(), 0),
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
@@ -901,6 +907,14 @@ fn capi_null_args() {
             yrx_scanner_on_matching_rule(
                 std::ptr::null_mut(),
                 Some(on_rule_match_increase_counter),
+                std::ptr::null_mut()
+            ),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert_eq!(
+            yrx_scanner_on_file_scanned(
+                std::ptr::null_mut(),
+                None,
                 std::ptr::null_mut()
             ),
             YRX_RESULT::YRX_INVALID_ARGUMENT
@@ -1173,6 +1187,153 @@ fn capi_xor_key() {
         let data = b"\xCC\xC5\xC5";
         yrx_scanner_scan(scanner, data.as_ptr(), data.len());
         assert_eq!(xor_key, 0xAA);
+
+        yrx_scanner_destroy(scanner);
+        yrx_rules_destroy(rules);
+    }
+}
+
+#[test]
+fn capi_deep_scan() {
+    #[derive(Default)]
+    struct DeepScanState {
+        events: Vec<String>,
+        stop_after_first_file: bool,
+    }
+
+    extern "C" fn on_file(
+        event: YRX_FILE_EVENT,
+        path: *const c_char,
+        user_data: *mut c_void,
+    ) -> bool {
+        let state = unsafe { &mut *(user_data as *mut DeepScanState) };
+        let path_str = unsafe { CStr::from_ptr(path).to_string_lossy() };
+        match event {
+            YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED => {
+                state.events.push(format!("start:{path_str}"));
+                true
+            }
+            YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED => {
+                state.events.push(format!("finish:{path_str}"));
+                !state.stop_after_first_file
+            }
+        }
+    }
+
+    extern "C" fn on_rule(rule: *const YRX_RULE, user_data: *mut c_void) {
+        let state = unsafe { &mut *(user_data as *mut DeepScanState) };
+        let mut ident_ptr = std::ptr::null();
+        let mut ident_len = 0;
+        unsafe {
+            yrx_rule_identifier(rule, &mut ident_ptr, &mut ident_len);
+            let ident = std::str::from_utf8(std::slice::from_raw_parts(
+                ident_ptr, ident_len,
+            ))
+            .unwrap();
+            state.events.push(format!("match:{ident}"));
+        }
+    }
+
+    let zip_data = [
+        0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x00, 0x00, 0x08, 0x00, 0x33,
+        0x63, 0xd0, 0x5c, 0xe7, 0xb0, 0x5a, 0x76, 0x35, 0x00, 0x00, 0x00,
+        0x36, 0x00, 0x00, 0x00, 0x16, 0x00, 0x00, 0x00, 0x73, 0x75, 0x73,
+        0x70, 0x69, 0x63, 0x69, 0x6f, 0x75, 0x73, 0x5f, 0x70, 0x61, 0x79,
+        0x6c, 0x6f, 0x61, 0x64, 0x2e, 0x65, 0x78, 0x65, 0x0b, 0xc9, 0xc8,
+        0x2c, 0x56, 0x00, 0xa2, 0x44, 0x85, 0xe2, 0xd2, 0xe2, 0x82, 0xcc,
+        0xe4, 0xcc, 0xfc, 0xd2, 0x62, 0x85, 0x48, 0xc7, 0x20, 0x47, 0x85,
+        0x82, 0xc4, 0xca, 0x9c, 0xfc, 0xc4, 0x14, 0x85, 0xcc, 0xbc, 0xe2,
+        0xcc, 0x94, 0x54, 0xa0, 0x82, 0x28, 0xcf, 0x00, 0x85, 0xc4, 0xa2,
+        0xe4, 0x8c, 0xcc, 0xb2, 0x54, 0x00, 0x50, 0x4b, 0x01, 0x02, 0x14,
+        0x03, 0x14, 0x00, 0x00, 0x00, 0x08, 0x00, 0x33, 0x63, 0xd0, 0x5c,
+        0xe7, 0xb0, 0x5a, 0x76, 0x35, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00,
+        0x00, 0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x80, 0x01, 0x00, 0x00, 0x00, 0x00, 0x73, 0x75, 0x73,
+        0x70, 0x69, 0x63, 0x69, 0x6f, 0x75, 0x73, 0x5f, 0x70, 0x61, 0x79,
+        0x6c, 0x6f, 0x61, 0x64, 0x2e, 0x65, 0x78, 0x65, 0x50, 0x4b, 0x05,
+        0x06, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x44, 0x00,
+        0x00, 0x00, 0x69, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ];
+
+    unsafe {
+        let mut rules = std::ptr::null_mut();
+        assert_eq!(
+            yrx_compile(
+                cr#"
+                import "zip"
+                rule test_pe {
+                    strings:
+                        $pe = "suspicious_payload"
+                    condition:
+                        $pe
+                }
+                rule dummy {
+                    condition:
+                        true
+                }
+                "#
+                .as_ptr(),
+                &mut rules
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+
+        let mut scanner = std::ptr::null_mut();
+        yrx_scanner_create(rules, &mut scanner);
+
+        let mut state = DeepScanState::default();
+        let state_ptr = &mut state as *mut DeepScanState as *mut c_void;
+
+        assert_eq!(
+            yrx_scanner_on_file_scanned(scanner, Some(on_file), state_ptr),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert_eq!(
+            yrx_scanner_on_matching_rule(scanner, Some(on_rule), state_ptr),
+            YRX_RESULT::YRX_SUCCESS
+        );
+
+        // By default max_depth is 0, so only the root buffer ("") is scanned.
+        assert_eq!(
+            yrx_scanner_scan(scanner, zip_data.as_ptr(), zip_data.len()),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert_eq!(
+            state.events,
+            vec!["start:", "match:test_pe", "match:dummy", "finish:"]
+        );
+
+        // Enable deep scan with max_depth = 1.
+        state.events.clear();
+        assert_eq!(yrx_scanner_max_depth(scanner, 1), YRX_RESULT::YRX_SUCCESS);
+        assert_eq!(
+            yrx_scanner_scan(scanner, zip_data.as_ptr(), zip_data.len()),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert_eq!(
+            state.events,
+            vec![
+                "start:",
+                "match:test_pe",
+                "match:dummy",
+                "finish:",
+                "start:suspicious_payload.exe",
+                "match:dummy",
+                "finish:suspicious_payload.exe",
+            ]
+        );
+
+        // Test early abort by returning false from the file callback.
+        state.events.clear();
+        state.stop_after_first_file = true;
+        assert_eq!(
+            yrx_scanner_scan(scanner, zip_data.as_ptr(), zip_data.len()),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert_eq!(
+            state.events,
+            vec!["start:", "match:test_pe", "match:dummy", "finish:"]
+        );
 
         yrx_scanner_destroy(scanner);
         yrx_rules_destroy(rules);

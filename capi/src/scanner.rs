@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::ffi::{CStr, c_char, c_void};
 use std::mem;
+use std::ops::ControlFlow;
+use std::path::Path;
 use std::time::Duration;
 
 #[cfg(feature = "rules-profiling")]
@@ -14,9 +16,47 @@ use crate::{
     _yrx_set_last_error, YRX_RESULT, YRX_RULE, YRX_RULE_CALLBACK, YRX_RULES,
 };
 
+/// Events notified to [`YRX_FILE_CALLBACK`].
+#[derive(PartialEq, Debug)]
+#[repr(C)]
+pub enum YRX_FILE_EVENT {
+    /// A file is about to be scanned.
+    YRX_FILE_SCAN_STARTED,
+    /// A file has been scanned.
+    YRX_FILE_SCAN_FINISHED,
+}
+
+/// Callback function passed to [`yrx_scanner_on_file_scanned`].
+///
+/// During a scan operation, this callback is invoked twice for each scanned
+/// file or data buffer:
+///
+/// 1) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED`], before any matching rules
+///    for that file are reported via [`YRX_RULE_CALLBACK`].
+/// 2) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED`], after all matching rules
+///    for that file have been reported via [`YRX_RULE_CALLBACK`].
+///
+/// The `path` argument is a null-terminated string containing the relative
+/// path of the file within the container, or an empty string (`""`) for the
+/// top-level file or data buffer. This pointer is only valid while the callback
+/// function is executing and must not be used after the callback returns.
+///
+/// The callback also receives the `user_data` pointer passed to
+/// [`yrx_scanner_on_file_scanned`].
+///
+/// Returning `true` instructs the scanner to continue scanning, whereas
+/// returning `false` immediately aborts the scan operation.
+pub type YRX_FILE_CALLBACK = Option<
+    extern "C" fn(
+        event: YRX_FILE_EVENT,
+        path: *const c_char,
+        user_data: *mut c_void,
+    ) -> bool,
+>;
+
 enum InnerScanner<'r> {
     None,
-    SingleBlock(yara_x::Scanner<'r>),
+    SingleBlock(yara_x::deep::Scanner<'r>),
     MultiBlock(yara_x::blocks::Scanner<'r>),
 }
 
@@ -123,6 +163,14 @@ pub struct YRX_SCANNER<'r, 'm> {
         extern "C" fn(rule: *const YRX_RULE, user_data: *mut c_void),
         *mut c_void,
     )>,
+    on_file_scanned: Option<(
+        extern "C" fn(
+            event: YRX_FILE_EVENT,
+            path: *const c_char,
+            user_data: *mut c_void,
+        ) -> bool,
+        *mut c_void,
+    )>,
     module_data: HashMap<&'m str, &'m [u8]>,
 }
 
@@ -153,9 +201,13 @@ pub unsafe extern "C" fn yrx_scanner_create(
         return YRX_RESULT::YRX_INVALID_ARGUMENT;
     };
 
+    let mut inner = yara_x::deep::Scanner::new(rules.inner());
+    inner.max_depth(0);
+
     *scanner = Box::into_raw(Box::new(YRX_SCANNER {
-        inner: InnerScanner::SingleBlock(yara_x::Scanner::new(rules.inner())),
+        inner: InnerScanner::SingleBlock(inner),
         on_matching_rule: None,
+        on_file_scanned: None,
         module_data: HashMap::new(),
     }));
 
@@ -249,6 +301,102 @@ pub unsafe extern "C" fn yrx_scanner_max_matches_per_pattern(
     YRX_RESULT::YRX_SUCCESS
 }
 
+/// Sets the maximum container extraction depth for deep scanning.
+///
+/// When scanning archive or container files (e.g., ZIP archives), the scanner
+/// can unpack supported container formats and recursively scan the extracted
+/// files in depth-first order up to `depth` levels.
+///
+/// If set to 0 (the default), the scanner only scans the main input buffer or
+/// file without extracting any files from it. If set to 1, it extracts and
+/// scans immediate inner files, but no further.
+///
+/// If the scanner is in block scanning mode this function returns
+/// [`YRX_RESULT::YRX_INVALID_STATE`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn yrx_scanner_max_depth(
+    scanner: *mut YRX_SCANNER,
+    depth: usize,
+) -> YRX_RESULT {
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => {
+            _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
+    };
+
+    match &mut scanner.inner {
+        InnerScanner::SingleBlock(s) => {
+            s.max_depth(depth);
+            _yrx_set_last_error::<&str>(None);
+            YRX_RESULT::YRX_SUCCESS
+        }
+        InnerScanner::MultiBlock(_) => {
+            _yrx_set_last_error(Some(
+                "cannot use `yrx_scanner_max_depth` on a scanner in multi-block mode",
+            ));
+            YRX_RESULT::YRX_INVALID_STATE
+        }
+        InnerScanner::None => unreachable!(),
+    }
+}
+
+fn handle_scan_results(
+    path: &Path,
+    results: &yara_x::ScanResults,
+    on_file_scanned: Option<(
+        extern "C" fn(
+            event: YRX_FILE_EVENT,
+            path: *const c_char,
+            user_data: *mut c_void,
+        ) -> bool,
+        *mut c_void,
+    )>,
+    on_matching_rule: Option<(
+        extern "C" fn(rule: *const YRX_RULE, user_data: *mut c_void),
+        *mut c_void,
+    )>,
+) -> ControlFlow<()> {
+    let path_cstr = on_file_scanned.map(|_| {
+        CString::new(path.to_string_lossy().as_bytes()).unwrap_or_else(|e| {
+            let mut bytes = e.into_vec();
+            bytes.retain(|&b| b != 0);
+            CString::new(bytes).unwrap()
+        })
+    });
+
+    if let Some(((callback, user_data), path_cstr)) =
+        on_file_scanned.zip(path_cstr.as_ref())
+        && !callback(
+            YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED,
+            path_cstr.as_ptr(),
+            user_data,
+        )
+    {
+        return ControlFlow::Break(());
+    }
+
+    if let Some((callback, user_data)) = on_matching_rule {
+        for r in results.matching_rules() {
+            callback(&YRX_RULE::new(r), user_data);
+        }
+    }
+
+    if let Some(((callback, user_data), path_cstr)) =
+        on_file_scanned.zip(path_cstr.as_ref())
+        && !callback(
+            YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED,
+            path_cstr.as_ptr(),
+            user_data,
+        )
+    {
+        return ControlFlow::Break(());
+    }
+
+    ControlFlow::Continue(())
+}
+
 /// Scans a data buffer.
 ///
 /// `data` can be null as long as `len` is 0. In such cases its handled as
@@ -287,8 +435,20 @@ pub unsafe extern "C" fn yrx_scanner_scan(
             acc.set_module_metadata(module_name, meta)
         });
 
+    let on_file_scanned = scanner.on_file_scanned;
+    let on_matching_rule = scanner.on_matching_rule;
+
     let scan_results = match &mut scanner.inner {
-        InnerScanner::SingleBlock(s) => s.scan_with_options(data, options),
+        InnerScanner::SingleBlock(s) => {
+            s.scan_with_options(data, options, |path, results| {
+                handle_scan_results(
+                    path,
+                    results,
+                    on_file_scanned,
+                    on_matching_rule,
+                )
+            })
+        }
         InnerScanner::MultiBlock(_) => {
             _yrx_set_last_error(Some(
                 "cannot use `yrx_scanner_scan` on a scanner in multi-block mode",
@@ -299,14 +459,7 @@ pub unsafe extern "C" fn yrx_scanner_scan(
     };
 
     match scan_results {
-        Ok(results) => {
-            if let Some((callback, user_data)) = scanner.on_matching_rule {
-                for r in results.matching_rules() {
-                    callback(&YRX_RULE::new(r), user_data);
-                }
-            }
-            YRX_RESULT::YRX_SUCCESS
-        }
+        Ok(_) => YRX_RESULT::YRX_SUCCESS,
         Err(ScanError::Timeout) => {
             _yrx_set_last_error(Some(ScanError::Timeout));
             YRX_RESULT::YRX_SCAN_TIMEOUT
@@ -349,9 +502,19 @@ pub unsafe extern "C" fn yrx_scanner_scan_file(
             acc.set_module_metadata(module_name, meta)
         });
 
+    let on_file_scanned = scanner.on_file_scanned;
+    let on_matching_rule = scanner.on_matching_rule;
+
     let scan_results = match &mut scanner.inner {
         InnerScanner::SingleBlock(s) => {
-            s.scan_file_with_options(path, options)
+            s.scan_file_with_options(path, options, |inner_path, results| {
+                handle_scan_results(
+                    inner_path,
+                    results,
+                    on_file_scanned,
+                    on_matching_rule,
+                )
+            })
         }
         InnerScanner::MultiBlock(_) => {
             _yrx_set_last_error(Some(
@@ -363,14 +526,7 @@ pub unsafe extern "C" fn yrx_scanner_scan_file(
     };
 
     match scan_results {
-        Ok(results) => {
-            if let Some((callback, user_data)) = scanner.on_matching_rule {
-                for r in results.matching_rules() {
-                    callback(&YRX_RULE::new(r), user_data);
-                }
-            }
-            YRX_RESULT::YRX_SUCCESS
-        }
+        Ok(_) => YRX_RESULT::YRX_SUCCESS,
         Err(ScanError::Timeout) => {
             _yrx_set_last_error(Some(ScanError::Timeout));
             YRX_RESULT::YRX_SCAN_TIMEOUT
@@ -534,6 +690,31 @@ pub unsafe extern "C" fn yrx_scanner_on_matching_rule(
 ) -> YRX_RESULT {
     if let Some(scanner) = scanner.as_mut() {
         scanner.on_matching_rule = callback.map(|cb| (cb, user_data));
+        _yrx_set_last_error::<&str>(None);
+        YRX_RESULT::YRX_SUCCESS
+    } else {
+        _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+        YRX_RESULT::YRX_INVALID_ARGUMENT
+    }
+}
+
+/// Sets a callback function that is called by the scanner for each file
+/// scanned during a scan operation, including files extracted from containers
+/// when deep scanning is enabled via [`yrx_scanner_max_depth`].
+///
+/// The `user_data` pointer can be used to provide additional context to your
+/// callback function. If the callback is not set, the scanner doesn't notify
+/// about scanned files.
+///
+/// See [`YRX_FILE_CALLBACK`] for more details.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn yrx_scanner_on_file_scanned(
+    scanner: *mut YRX_SCANNER,
+    callback: YRX_FILE_CALLBACK,
+    user_data: *mut std::ffi::c_void,
+) -> YRX_RESULT {
+    if let Some(scanner) = scanner.as_mut() {
+        scanner.on_file_scanned = callback.map(|cb| (cb, user_data));
         _yrx_set_last_error::<&str>(None);
         YRX_RESULT::YRX_SUCCESS
     } else {

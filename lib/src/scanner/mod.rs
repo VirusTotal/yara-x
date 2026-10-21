@@ -802,6 +802,13 @@ impl<'r> Scanner<'r> {
     }
 }
 
+impl<'r> From<deep::Scanner<'r>> for Scanner<'r> {
+    /// Create a standard `Scanner` from a [`deep::Scanner`].
+    fn from(scanner: deep::Scanner<'r>) -> Self {
+        scanner.inner
+    }
+}
+
 /// Helper type that exposes the data matched during a scan operation.
 ///
 /// Matching data can be accessed through the [`Match::data`] method. Normally,

@@ -367,6 +367,13 @@ impl<'r> From<crate::scanner::Scanner<'r>> for Scanner<'r> {
     }
 }
 
+impl<'r> From<crate::scanner::deep::Scanner<'r>> for Scanner<'r> {
+    fn from(scanner: crate::scanner::deep::Scanner<'r>) -> Self {
+        let scanner: crate::scanner::Scanner<'r> = scanner.into();
+        Self::from(scanner)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::scanner::blocks::Scanner;

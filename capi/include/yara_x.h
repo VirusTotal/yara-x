@@ -93,6 +93,14 @@ typedef enum YRX_METADATA_TYPE {
   YRX_BYTES,
 } YRX_METADATA_TYPE;
 
+// Events notified to [`YRX_FILE_CALLBACK`].
+typedef enum YRX_FILE_EVENT {
+  // A file is about to be scanned.
+  YRX_FILE_SCAN_STARTED,
+  // A file has been scanned.
+  YRX_FILE_SCAN_FINISHED,
+} YRX_FILE_EVENT;
+
 // A compiler that takes YARA source code and produces compiled rules.
 typedef struct YRX_COMPILER YRX_COMPILER;
 
@@ -239,6 +247,30 @@ typedef void (*YRX_RULE_CALLBACK)(const struct YRX_RULE *rule,
 // data owned by the user.
 typedef void (*YRX_IMPORT_CALLBACK)(const char *module_name,
                                     void *user_data);
+
+// Callback function passed to [`yrx_scanner_on_file_scanned`].
+//
+// During a scan operation, this callback is invoked twice for each scanned
+// file or data buffer:
+//
+// 1) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED`], before any matching rules
+//    for that file are reported via [`YRX_RULE_CALLBACK`].
+// 2) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED`], after all matching rules
+//    for that file have been reported via [`YRX_RULE_CALLBACK`].
+//
+// The `path` argument is a null-terminated string containing the relative
+// path of the file within the container, or an empty string (`""`) for the
+// top-level file or data buffer. This pointer is only valid while the callback
+// function is executing and must not be used after the callback returns.
+//
+// The callback also receives the `user_data` pointer passed to
+// [`yrx_scanner_on_file_scanned`].
+//
+// Returning `true` instructs the scanner to continue scanning, whereas
+// returning `false` immediately aborts the scan operation.
+typedef bool (*YRX_FILE_CALLBACK)(enum YRX_FILE_EVENT event,
+                                  const char *path,
+                                  void *user_data);
 
 // Callback function used when a YARA rule calls the console module.
 //
@@ -726,6 +758,21 @@ enum YRX_RESULT yrx_scanner_fast_scan(struct YRX_SCANNER *scanner,
 enum YRX_RESULT yrx_scanner_max_matches_per_pattern(struct YRX_SCANNER *scanner,
                                                     size_t n);
 
+// Sets the maximum container extraction depth for deep scanning.
+//
+// When scanning archive or container files (e.g., ZIP archives), the scanner
+// can unpack supported container formats and recursively scan the extracted
+// files in depth-first order up to `depth` levels.
+//
+// If set to 0 (the default), the scanner only scans the main input buffer or
+// file without extracting any files from it. If set to 1, it extracts and
+// scans immediate inner files, but no further.
+//
+// If the scanner is in block scanning mode this function returns
+// [`YRX_RESULT::YRX_INVALID_STATE`].
+enum YRX_RESULT yrx_scanner_max_depth(struct YRX_SCANNER *scanner,
+                                      size_t depth);
+
 // Scans a data buffer.
 //
 // `data` can be null as long as `len` is 0. In such cases its handled as
@@ -822,6 +869,19 @@ enum YRX_RESULT yrx_scanner_finish(struct YRX_SCANNER *scanner);
 enum YRX_RESULT yrx_scanner_on_matching_rule(struct YRX_SCANNER *scanner,
                                              YRX_RULE_CALLBACK callback,
                                              void *user_data);
+
+// Sets a callback function that is called by the scanner for each file
+// scanned during a scan operation, including files extracted from containers
+// when deep scanning is enabled via [`yrx_scanner_max_depth`].
+//
+// The `user_data` pointer can be used to provide additional context to your
+// callback function. If the callback is not set, the scanner doesn't notify
+// about scanned files.
+//
+// See [`YRX_FILE_CALLBACK`] for more details.
+enum YRX_RESULT yrx_scanner_on_file_scanned(struct YRX_SCANNER *scanner,
+                                            YRX_FILE_CALLBACK callback,
+                                            void *user_data);
 
 // Specifies the output data structure for a module.
 //

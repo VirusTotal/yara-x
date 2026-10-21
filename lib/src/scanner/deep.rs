@@ -65,7 +65,7 @@ use crate::{Rules, ScanError, ScanResults, Variable};
 ///     ControlFlow::<()>::Continue(())
 /// });
 pub struct Scanner<'r> {
-    inner: crate::Scanner<'r>,
+    pub(super) inner: crate::Scanner<'r>,
     /// Container extractor.
     extractor: Extractor,
 }

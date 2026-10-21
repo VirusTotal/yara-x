@@ -675,6 +675,25 @@ about matching rules.
 
 See [YRX_ON_MATCHING_RULE](#yrx_on_matching_rule) for more details.
 
+### yrx_scanner_on_file_scanned
+
+```c
+enum YRX_RESULT yrx_scanner_on_file_scanned(
+    struct YRX_SCANNER *scanner,
+    YRX_FILE_CALLBACK callback,
+    void *user_data);
+```
+
+Sets a callback function that is called by the scanner for each file scanned
+during a scan operation, including files extracted from containers when deep
+scanning is enabled via [yrx_scanner_max_depth](#yrx_scanner_max_depth).
+
+The `user_data` pointer can be used to provide additional context to your
+callback function. If the callback is not set, the scanner doesn't notify
+about scanned files.
+
+See [YRX_FILE_CALLBACK](#yrx_file_callback) for more details.
+
 ### yrx_scanner_on_console_log
 
 ```c
@@ -777,6 +796,28 @@ Sets the maximum number of matches per pattern.
 
 When a pattern reaches the maximum number of matches it won't produce more
 matches.
+
+------
+
+### yrx_scanner_max_depth
+
+```c
+enum YRX_RESULT yrx_scanner_max_depth(
+    struct YRX_SCANNER *scanner,
+    size_t depth);
+```
+
+Sets the maximum container extraction depth for deep scanning.
+
+When scanning archive or container files (e.g., ZIP archives), the scanner can
+unpack supported container formats and recursively scan the extracted files in
+depth-first order up to `depth` levels.
+
+If set to 0 (the default), the scanner only scans the main input buffer or file
+without extracting any files from it. If set to 1, it extracts and scans
+immediate inner files, but no further.
+
+If the scanner is in block scanning mode this function returns `YRX_INVALID_STATE`.
 
 ------
 
@@ -1233,6 +1274,48 @@ returns, so you cannot use the pointer outside the callback.
 
 It also receives the `user_data` pointer that can point to arbitrary data
 owned by the user.
+
+
+### YRX_FILE_CALLBACK
+
+```c
+typedef bool (*YRX_FILE_CALLBACK)(
+    enum YRX_FILE_EVENT event,
+    const char *path,
+    void *user_data);
+```
+
+Callback function passed to [yrx_scanner_on_file_scanned](#yrx_scanner_on_file_scanned).
+
+During a scan operation, this callback is invoked twice for each scanned file
+or data buffer:
+
+1) With `YRX_FILE_SCAN_STARTED`, before any matching rules for that file are
+   reported via [YRX_RULE_CALLBACK](#yrx_rule_callback).
+2) With `YRX_FILE_SCAN_FINISHED`, after all matching rules for that file have
+   been reported via [YRX_RULE_CALLBACK](#yrx_rule_callback).
+
+The `path` argument is a null-terminated string containing the relative path of
+the file within the container, or an empty string (`""`) for the top-level file
+or data buffer. This pointer is only valid while the callback function is
+executing and must not be used after the callback returns.
+
+Returning `true` instructs the scanner to continue scanning, whereas returning
+`false` immediately aborts the scan operation.
+
+
+### YRX_FILE_EVENT
+
+```c
+typedef enum YRX_FILE_EVENT {
+    // A file is about to be scanned.
+    YRX_FILE_SCAN_STARTED,
+    // A file has been scanned.
+    YRX_FILE_SCAN_FINISHED,
+} YRX_FILE_EVENT;
+```
+
+Events notified to [YRX_FILE_CALLBACK](#yrx_file_callback).
 
 
 ### YRX_IMPORT_CALLBACK
