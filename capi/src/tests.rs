@@ -1198,7 +1198,8 @@ fn capi_deep_scan() {
     #[derive(Default)]
     struct DeepScanState {
         events: Vec<String>,
-        stop_after_first_file: bool,
+        stop_on_finish: bool,
+        stop_on_inner_start: bool,
     }
 
     extern "C" fn on_file(
@@ -1211,11 +1212,11 @@ fn capi_deep_scan() {
         match event {
             YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED => {
                 state.events.push(format!("start:{path_str}"));
-                true
+                !state.stop_on_inner_start || path_str.is_empty()
             }
             YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED => {
                 state.events.push(format!("finish:{path_str}"));
-                !state.stop_after_first_file
+                !state.stop_on_finish
             }
         }
     }
@@ -1316,23 +1317,48 @@ fn capi_deep_scan() {
                 "start:",
                 "match:test_pe",
                 "match:dummy",
-                "finish:",
                 "start:suspicious_payload.exe",
                 "match:dummy",
                 "finish:suspicious_payload.exe",
+                "finish:",
             ]
         );
 
-        // Test early abort by returning false from the file callback.
+        // Test early abort by returning false on YRX_FILE_SCAN_STARTED for the inner file.
         state.events.clear();
-        state.stop_after_first_file = true;
+        state.stop_on_inner_start = true;
         assert_eq!(
             yrx_scanner_scan(scanner, zip_data.as_ptr(), zip_data.len()),
             YRX_RESULT::YRX_SUCCESS
         );
         assert_eq!(
             state.events,
-            vec!["start:", "match:test_pe", "match:dummy", "finish:"]
+            vec![
+                "start:",
+                "match:test_pe",
+                "match:dummy",
+                "start:suspicious_payload.exe",
+            ]
+        );
+
+        // Test early abort by returning false on YRX_FILE_SCAN_FINISHED.
+        state.events.clear();
+        state.stop_on_inner_start = false;
+        state.stop_on_finish = true;
+        assert_eq!(
+            yrx_scanner_scan(scanner, zip_data.as_ptr(), zip_data.len()),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert_eq!(
+            state.events,
+            vec![
+                "start:",
+                "match:test_pe",
+                "match:dummy",
+                "start:suspicious_payload.exe",
+                "match:dummy",
+                "finish:suspicious_payload.exe",
+            ]
         );
 
         yrx_scanner_destroy(scanner);

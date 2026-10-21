@@ -5,12 +5,22 @@ formats (e.g., ZIP archives) supported by YARA modules.
 */
 
 use std::ops::ControlFlow;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::modules::{
     RegisteredModule, ScannedDataWithPath, registered_modules,
 };
 use crate::scanner::ScannedData;
+
+pub(crate) enum ExtractEvent<'a> {
+    Extracted(&'a dyn RegisteredModule, &'a Path, &'a [u8]),
+    Finished(&'a Path),
+}
+
+enum StackItem<'a> {
+    Extracted(ScannedDataWithPath<'a>, &'static dyn RegisteredModule, usize),
+    Finished(PathBuf),
+}
 
 /// Extracts archive and container formats (e.g., ZIP archives) supported by
 /// YARA modules.
@@ -66,23 +76,71 @@ impl Extractor {
     where
         F: FnMut(&dyn RegisteredModule, &Path, &[u8]) -> ControlFlow<B>,
     {
+        self.extract_dfs(data, |event| match event {
+            ExtractEvent::Extracted(module, path, bytes) => {
+                callback(module, path, bytes)
+            }
+            ExtractEvent::Finished(_) => ControlFlow::Continue(()),
+        })
+    }
+
+    /// Extracts files from container data recursively in depth-first search (DFS)
+    /// order, invoking `callback` with [`ExtractEvent`] notifications.
+    ///
+    /// For each extracted file, `callback` is invoked twice:
+    /// 1. With [`ExtractEvent::Extracted`] when the file is popped from the stack.
+    /// 2. With [`ExtractEvent::Finished`] after all sub-files extracted from it
+    ///    (if any) have been processed.
+    pub(crate) fn extract_dfs<F, B>(
+        &self,
+        data: &[u8],
+        mut callback: F,
+    ) -> ControlFlow<B>
+    where
+        F: FnMut(ExtractEvent) -> ControlFlow<B>,
+    {
         if self.max_depth == 0 {
             return ControlFlow::Continue(());
         }
 
         let mut stack = Vec::new();
+
+        // Extract top-level sub-files from the original data and push them
+        // onto the LIFO stack (in reverse order so the first extracted file is
+        // popped first).
         self.extract_children(&ScannedData::Slice(data), None, 1, &mut stack);
 
-        while let Some((item, module, depth)) = stack.pop() {
-            callback(module, &item.path, item.data.as_ref())?;
+        while let Some(item) = stack.pop() {
+            match item {
+                StackItem::Extracted(item, module, depth) => {
+                    // Notify the caller that this file has been extracted.
+                    callback(ExtractEvent::Extracted(
+                        module,
+                        &item.path,
+                        item.data.as_ref(),
+                    ))?;
 
-            if depth < self.max_depth {
-                self.extract_children(
-                    &item.data,
-                    Some(&item.path),
-                    depth + 1,
-                    &mut stack,
-                );
+                    // Push a `Finished` marker onto the stack *before* extracting
+                    // any children from `item.data`. Because `stack` is LIFO, any
+                    // children pushed by `extract_children` below will sit on top
+                    // of this `Finished` marker and will be popped and processed
+                    // first. Once all descendants of `item` have been processed,
+                    // this `Finished` marker will be popped and
+                    // `ExtractEvent::Finished` will be emitted for `item.path`.
+                    stack.push(StackItem::Finished(item.path.clone()));
+
+                    if depth < self.max_depth {
+                        self.extract_children(
+                            &item.data,
+                            Some(&item.path),
+                            depth + 1,
+                            &mut stack,
+                        );
+                    }
+                }
+                StackItem::Finished(path) => {
+                    callback(ExtractEvent::Finished(&path))?;
+                }
             }
         }
 
@@ -94,11 +152,7 @@ impl Extractor {
         data: &ScannedData<'a>,
         parent_path: Option<&Path>,
         depth: usize,
-        stack: &mut Vec<(
-            ScannedDataWithPath<'a>,
-            &'static dyn RegisteredModule,
-            usize,
-        )>,
+        stack: &mut Vec<StackItem<'a>>,
     ) {
         for module in registered_modules() {
             let extract_fn = match module.extract_fn() {
@@ -114,10 +168,9 @@ impl Extractor {
                     }
                 }
                 stack.extend(
-                    children
-                        .into_iter()
-                        .rev()
-                        .map(|child| (child, module, depth)),
+                    children.into_iter().rev().map(|child| {
+                        StackItem::Extracted(child, module, depth)
+                    }),
                 );
             }
         }

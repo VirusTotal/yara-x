@@ -1386,19 +1386,42 @@ fn test_scan_deep() {
     ];
 
     let mut scanner = crate::deep::Scanner::new(&rules);
+    let mut events = Vec::new();
     let mut matches_per_path = std::collections::HashMap::new();
 
     let _ = scanner
-        .scan(&zip_data, |path, results| {
-            let matches: Vec<String> = results
-                .matching_rules()
-                .map(|r| r.identifier().to_string())
-                .collect();
-            matches_per_path.insert(path.to_path_buf(), matches);
+        .scan(&zip_data, |event| {
+            match event {
+                crate::deep::ScanEvent::Started(path) => {
+                    events.push(format!("start:{}", path.display()));
+                }
+                crate::deep::ScanEvent::Scanned(path, results) => {
+                    events.push(format!("scanned:{}", path.display()));
+                    let matches: Vec<String> = results
+                        .matching_rules()
+                        .map(|r| r.identifier().to_string())
+                        .collect();
+                    matches_per_path.insert(path.to_path_buf(), matches);
+                }
+                crate::deep::ScanEvent::Finished(path) => {
+                    events.push(format!("finish:{}", path.display()));
+                }
+            }
             std::ops::ControlFlow::<()>::Continue(())
         })
         .unwrap();
 
+    assert_eq!(
+        events,
+        vec![
+            "start:",
+            "scanned:",
+            "start:suspicious_payload.exe",
+            "scanned:suspicious_payload.exe",
+            "finish:suspicious_payload.exe",
+            "finish:",
+        ]
+    );
     assert_eq!(matches_per_path.len(), 2);
     assert_eq!(
         matches_per_path.get(std::path::Path::new("")).unwrap().len(),
@@ -1426,7 +1449,7 @@ fn test_scan_deep_abort() {
     let count = std::sync::atomic::AtomicUsize::new(0);
 
     let res = scanner
-        .scan(b"dummy data", |_path, _results| {
+        .scan(b"dummy data", |_event| {
             count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             std::ops::ControlFlow::Break("aborted")
         })
@@ -1470,8 +1493,10 @@ fn test_scan_deep_timeout() {
     let mut scanner = crate::deep::Scanner::new(&rules);
     scanner.set_timeout(std::time::Duration::from_secs(1));
 
-    let res = scanner.scan(&zip_data, |_path, _results| {
-        std::thread::sleep(std::time::Duration::from_millis(1100));
+    let res = scanner.scan(&zip_data, |event| {
+        if matches!(event, crate::deep::ScanEvent::Scanned(_, _)) {
+            std::thread::sleep(std::time::Duration::from_millis(1100));
+        }
         std::ops::ControlFlow::<()>::Continue(())
     });
 

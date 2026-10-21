@@ -376,7 +376,15 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                 .scan_file_with_options(
                     file_path.as_path(),
                     scan_options,
-                    |inner_path, scan_results| {
+                    |event| {
+                        let yara_x::deep::ScanEvent::Scanned(
+                            inner_path,
+                            scan_results,
+                        ) = event
+                        else {
+                            return ControlFlow::<()>::Continue(());
+                        };
+
                         let full_path = if inner_path.as_os_str().is_empty() {
                             file_path.to_path_buf()
                         } else {

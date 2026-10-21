@@ -3,7 +3,6 @@ use std::ffi::CString;
 use std::ffi::{CStr, c_char, c_void};
 use std::mem;
 use std::ops::ControlFlow;
-use std::path::Path;
 use std::time::Duration;
 
 #[cfg(feature = "rules-profiling")]
@@ -33,8 +32,9 @@ pub enum YRX_FILE_EVENT {
 ///
 /// 1) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED`], before any matching rules
 ///    for that file are reported via [`YRX_RULE_CALLBACK`].
-/// 2) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED`], after all matching rules
-///    for that file have been reported via [`YRX_RULE_CALLBACK`].
+/// 2) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED`], after the file (and all
+///    subfiles extracted from it, if any) has been scanned and its matching
+///    rules have been reported via [`YRX_RULE_CALLBACK`].
 ///
 /// The `path` argument is a null-terminated string containing the relative
 /// path of the file within the container, or an empty string (`""`) for the
@@ -342,9 +342,8 @@ pub unsafe extern "C" fn yrx_scanner_max_depth(
     }
 }
 
-fn handle_scan_results(
-    path: &Path,
-    results: &yara_x::ScanResults,
+fn handle_scan_event(
+    event: yara_x::deep::ScanEvent,
     on_file_scanned: Option<(
         extern "C" fn(
             event: YRX_FILE_EVENT,
@@ -358,40 +357,52 @@ fn handle_scan_results(
         *mut c_void,
     )>,
 ) -> ControlFlow<()> {
-    let path_cstr = on_file_scanned.map(|_| {
-        CString::new(path.to_string_lossy().as_bytes()).unwrap_or_else(|e| {
-            let mut bytes = e.into_vec();
-            bytes.retain(|&b| b != 0);
-            CString::new(bytes).unwrap()
-        })
-    });
+    match event {
+        yara_x::deep::ScanEvent::Started(path) => {
+            if let Some((callback, user_data)) = on_file_scanned {
+                let path_cstr =
+                    CString::new(path.to_string_lossy().as_bytes())
+                        .unwrap_or_else(|e| {
+                            let mut bytes = e.into_vec();
+                            bytes.retain(|&b| b != 0);
+                            CString::new(bytes).unwrap()
+                        });
 
-    if let Some(((callback, user_data), path_cstr)) =
-        on_file_scanned.zip(path_cstr.as_ref())
-        && !callback(
-            YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED,
-            path_cstr.as_ptr(),
-            user_data,
-        )
-    {
-        return ControlFlow::Break(());
-    }
-
-    if let Some((callback, user_data)) = on_matching_rule {
-        for r in results.matching_rules() {
-            callback(&YRX_RULE::new(r), user_data);
+                if !callback(
+                    YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED,
+                    path_cstr.as_ptr(),
+                    user_data,
+                ) {
+                    return ControlFlow::Break(());
+                }
+            }
         }
-    }
+        yara_x::deep::ScanEvent::Scanned(_path, results) => {
+            if let Some((callback, user_data)) = on_matching_rule {
+                for r in results.matching_rules() {
+                    callback(&YRX_RULE::new(r), user_data);
+                }
+            }
+        }
+        yara_x::deep::ScanEvent::Finished(path) => {
+            if let Some((callback, user_data)) = on_file_scanned {
+                let path_cstr =
+                    CString::new(path.to_string_lossy().as_bytes())
+                        .unwrap_or_else(|e| {
+                            let mut bytes = e.into_vec();
+                            bytes.retain(|&b| b != 0);
+                            CString::new(bytes).unwrap()
+                        });
 
-    if let Some(((callback, user_data), path_cstr)) =
-        on_file_scanned.zip(path_cstr.as_ref())
-        && !callback(
-            YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED,
-            path_cstr.as_ptr(),
-            user_data,
-        )
-    {
-        return ControlFlow::Break(());
+                if !callback(
+                    YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED,
+                    path_cstr.as_ptr(),
+                    user_data,
+                ) {
+                    return ControlFlow::Break(());
+                }
+            }
+        }
     }
 
     ControlFlow::Continue(())
@@ -440,13 +451,8 @@ pub unsafe extern "C" fn yrx_scanner_scan(
 
     let scan_results = match &mut scanner.inner {
         InnerScanner::SingleBlock(s) => {
-            s.scan_with_options(data, options, |path, results| {
-                handle_scan_results(
-                    path,
-                    results,
-                    on_file_scanned,
-                    on_matching_rule,
-                )
+            s.scan_with_options(data, options, |event| {
+                handle_scan_event(event, on_file_scanned, on_matching_rule)
             })
         }
         InnerScanner::MultiBlock(_) => {
@@ -507,13 +513,8 @@ pub unsafe extern "C" fn yrx_scanner_scan_file(
 
     let scan_results = match &mut scanner.inner {
         InnerScanner::SingleBlock(s) => {
-            s.scan_file_with_options(path, options, |inner_path, results| {
-                handle_scan_results(
-                    inner_path,
-                    results,
-                    on_file_scanned,
-                    on_matching_rule,
-                )
+            s.scan_file_with_options(path, options, |event| {
+                handle_scan_event(event, on_file_scanned, on_matching_rule)
             })
         }
         InnerScanner::MultiBlock(_) => {

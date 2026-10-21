@@ -255,8 +255,9 @@ typedef void (*YRX_IMPORT_CALLBACK)(const char *module_name,
 //
 // 1) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED`], before any matching rules
 //    for that file are reported via [`YRX_RULE_CALLBACK`].
-// 2) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED`], after all matching rules
-//    for that file have been reported via [`YRX_RULE_CALLBACK`].
+// 2) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED`], after the file (and all
+//    subfiles extracted from it, if any) has been scanned and its matching
+//    rules have been reported via [`YRX_RULE_CALLBACK`].
 //
 // The `path` argument is a null-terminated string containing the relative
 // path of the file within the container, or an empty string (`""`) for the

@@ -13,9 +13,26 @@ use std::time::Duration;
 use protobuf::MessageDyn;
 
 use crate::errors::VariableError;
-use crate::extractor::Extractor;
+use crate::extractor::{ExtractEvent, Extractor};
 use crate::scanner::{ScanOptions, ScannedData};
 use crate::{Rules, ScanError, ScanResults, Variable};
+
+/// Events emitted during a deep scan operation.
+pub enum ScanEvent<'a, 'r> {
+    /// Emitted when a file or data buffer is about to be scanned.
+    ///
+    /// The path is relative to the root container, or empty (`Path::new("")`)
+    /// for the top-level file or data buffer.
+    Started(&'a Path),
+
+    /// Emitted after scanning the raw content of a file or data buffer,
+    /// before scanning any inner files extracted from it.
+    Scanned(&'a Path, &'a ScanResults<'a, 'r>),
+
+    /// Emitted once a file or data buffer, along with all inner files
+    /// extracted from it (if any), has been completely scanned.
+    Finished(&'a Path),
+}
 
 /// Scans data and container contents recursively.
 ///
@@ -25,13 +42,18 @@ use crate::{Rules, ScanError, ScanResults, Variable};
 /// and traverses the extracted file tree in depth-first search (DFS) order up
 /// to a maximum extraction depth.
 ///
-/// The `callback` function is invoked for the main data buffer and for every
-/// file extracted from it. The function receives two arguments:
+/// The `callback` function is invoked with [`ScanEvent`] notifications for the
+/// main data buffer and for every file extracted from it:
 ///
-/// 1. The file path within the container. For the main data passed in `data`,
-///    this path is empty (`Path::new("")`).
+/// 1. [`ScanEvent::Started`] before scanning the file or data buffer.
+/// 2. [`ScanEvent::Scanned`] with the [`ScanResults`] after scanning the
+///    raw file or data buffer, before any inner files extracted from it are
+///    scanned.
+/// 3. [`ScanEvent::Finished`] once the file or data buffer and all inner files
+///    extracted from it (if any) have been completely scanned.
 ///
-/// 2. The [`ScanResults`] corresponding to that file or data buffer.
+/// For the main data passed in `data`, the path associated with these events
+/// is empty (`Path::new("")`).
 ///
 /// # Flow Control
 ///
@@ -39,7 +61,7 @@ use crate::{Rules, ScanError, ScanResults, Variable};
 /// control over scan traversal and early termination:
 ///
 /// - Returning [`std::ops::ControlFlow::Continue(())`] instructs the scanner
-///   to proceed normally to the next file in the queue.
+///   to proceed normally.
 ///
 /// - Returning [`std::ops::ControlFlow::Break(b)`] immediately halts further
 ///   scanning and extraction recursion, returning
@@ -60,10 +82,13 @@ use crate::{Rules, ScanError, ScanResults, Variable};
 /// let rules = compile("rule test { condition: true }").unwrap();
 /// let mut scanner = deep::Scanner::new(&rules);
 ///
-/// let _ = scanner.scan(b"dummy haystack", |path, results| {
-///     assert_eq!(results.matching_rules().count(), 1);
+/// let _ = scanner.scan(b"dummy haystack", |event| {
+///     if let deep::ScanEvent::Scanned(_path, results) = event {
+///         assert_eq!(results.matching_rules().count(), 1);
+///     }
 ///     ControlFlow::<()>::Continue(())
 /// });
+/// ```
 pub struct Scanner<'r> {
     pub(super) inner: crate::Scanner<'r>,
     /// Container extractor.
@@ -181,14 +206,14 @@ impl<'r> Scanner<'r> {
     }
 
     /// Scans in-memory data recursively, unpacking container files and
-    /// executing `callback` for each buffer.
+    /// executing `callback` for each scan event.
     pub fn scan<F, B>(
         &mut self,
         data: &[u8],
         callback: F,
     ) -> Result<ControlFlow<B>, ScanError>
     where
-        F: FnMut(&Path, &ScanResults) -> ControlFlow<B>,
+        F: FnMut(ScanEvent<'_, 'r>) -> ControlFlow<B>,
     {
         self.scan_internal(data, None, callback)
     }
@@ -201,13 +226,13 @@ impl<'r> Scanner<'r> {
         callback: F,
     ) -> Result<ControlFlow<B>, ScanError>
     where
-        F: FnMut(&Path, &ScanResults) -> ControlFlow<B>,
+        F: FnMut(ScanEvent<'_, 'r>) -> ControlFlow<B>,
     {
         self.scan_internal(data, Some(&options), callback)
     }
 
     /// Scans a file recursively, unpacking container files and
-    /// executing `callback` for each buffer.
+    /// executing `callback` for each scan event.
     pub fn scan_file<P, F, B>(
         &mut self,
         target: P,
@@ -215,7 +240,7 @@ impl<'r> Scanner<'r> {
     ) -> Result<ControlFlow<B>, ScanError>
     where
         P: AsRef<Path>,
-        F: FnMut(&Path, &ScanResults) -> ControlFlow<B>,
+        F: FnMut(ScanEvent<'_, 'r>) -> ControlFlow<B>,
     {
         let data = self.inner.load_file(target.as_ref())?;
         self.scan_internal(data.as_ref(), None, callback)
@@ -230,7 +255,7 @@ impl<'r> Scanner<'r> {
     ) -> Result<ControlFlow<B>, ScanError>
     where
         P: AsRef<Path>,
-        F: FnMut(&Path, &ScanResults) -> ControlFlow<B>,
+        F: FnMut(ScanEvent<'_, 'r>) -> ControlFlow<B>,
     {
         let data = self.inner.load_file(target.as_ref())?;
         self.scan_internal(data.as_ref(), Some(&options), callback)
@@ -243,9 +268,16 @@ impl<'r> Scanner<'r> {
         mut callback: F,
     ) -> Result<ControlFlow<B>, ScanError>
     where
-        F: FnMut(&Path, &ScanResults) -> ControlFlow<B>,
+        F: FnMut(ScanEvent<'_, 'r>) -> ControlFlow<B>,
     {
         self.inner.scan_context_mut().reset(false);
+
+        let root_path = Path::new("");
+
+        if let ControlFlow::Break(b) = callback(ScanEvent::Started(root_path))
+        {
+            return Ok(ControlFlow::Break(b));
+        }
 
         let scan_results = self.inner.scan_internal(
             ScannedData::Slice(data),
@@ -253,38 +285,65 @@ impl<'r> Scanner<'r> {
             true,
         )?;
 
-        if let ControlFlow::Break(b) = callback(Path::new(""), &scan_results) {
+        if let ControlFlow::Break(b) =
+            callback(ScanEvent::Scanned(root_path, &scan_results))
+        {
             return Ok(ControlFlow::Break(b));
         }
 
         let mut result = Ok(ControlFlow::Continue(()));
 
-        let _ = self.extractor.extract(data, |_module, path, bytes| {
-            if self.inner.scan_context().timeout_expired() {
-                result = Err(ScanError::Timeout);
-                return ControlFlow::Break(());
-            }
-
-            let scan_results = match self.inner.scan_internal(
-                ScannedData::Slice(bytes),
-                options,
-                true,
-            ) {
-                Ok(results) => results,
-                Err(err) => {
-                    result = Err(err);
+        let _ = self.extractor.extract_dfs(data, |event| match event {
+            ExtractEvent::Extracted(_module, path, bytes) => {
+                if self.inner.scan_context().timeout_expired() {
+                    result = Err(ScanError::Timeout);
                     return ControlFlow::Break(());
                 }
-            };
 
-            match callback(path, &scan_results) {
-                ControlFlow::Continue(()) => ControlFlow::Continue(()),
-                ControlFlow::Break(b) => {
+                if let ControlFlow::Break(b) =
+                    callback(ScanEvent::Started(path))
+                {
                     result = Ok(ControlFlow::Break(b));
-                    ControlFlow::Break(())
+                    return ControlFlow::Break(());
+                }
+
+                let scan_results = match self.inner.scan_internal(
+                    ScannedData::Slice(bytes),
+                    options,
+                    true,
+                ) {
+                    Ok(results) => results,
+                    Err(err) => {
+                        result = Err(err);
+                        return ControlFlow::Break(());
+                    }
+                };
+
+                match callback(ScanEvent::Scanned(path, &scan_results)) {
+                    ControlFlow::Continue(()) => ControlFlow::Continue(()),
+                    ControlFlow::Break(b) => {
+                        result = Ok(ControlFlow::Break(b));
+                        ControlFlow::Break(())
+                    }
+                }
+            }
+            ExtractEvent::Finished(path) => {
+                match callback(ScanEvent::Finished(path)) {
+                    ControlFlow::Continue(()) => ControlFlow::Continue(()),
+                    ControlFlow::Break(b) => {
+                        result = Ok(ControlFlow::Break(b));
+                        ControlFlow::Break(())
+                    }
                 }
             }
         });
+
+        if let Ok(ControlFlow::Continue(())) = result
+            && let ControlFlow::Break(b) =
+                callback(ScanEvent::Finished(root_path))
+        {
+            return Ok(ControlFlow::Break(b));
+        }
 
         result
     }
