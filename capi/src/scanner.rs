@@ -3,6 +3,7 @@ use std::ffi::CString;
 use std::ffi::{CStr, c_char, c_void};
 use std::mem;
 use std::ops::ControlFlow;
+use std::path::Path;
 use std::time::Duration;
 
 #[cfg(feature = "rules-profiling")]
@@ -342,6 +343,21 @@ pub unsafe extern "C" fn yrx_scanner_max_depth(
     }
 }
 
+/// Converts a [`Path`] into a null-terminated [`CString`].
+///
+/// Paths of files extracted from containers (e.g., ZIP archives) come from
+/// untrusted archive metadata and may contain interior null bytes (`\0`),
+/// which [`CString::new`] rejects with a [`std::ffi::NulError`]. If any
+/// interior null bytes are present, this function strips them so that the
+/// conversion succeeds without panicking across the C FFI boundary.
+fn path_to_cstring(path: &Path) -> CString {
+    CString::new(path.to_string_lossy().as_bytes()).unwrap_or_else(|e| {
+        let mut bytes = e.into_vec();
+        bytes.retain(|&b| b != 0);
+        CString::new(bytes).unwrap()
+    })
+}
+
 fn handle_scan_event(
     event: yara_x::deep::ScanEvent,
     on_file_scanned: Option<(
@@ -360,14 +376,7 @@ fn handle_scan_event(
     match event {
         yara_x::deep::ScanEvent::Started(path) => {
             if let Some((callback, user_data)) = on_file_scanned {
-                let path_cstr =
-                    CString::new(path.to_string_lossy().as_bytes())
-                        .unwrap_or_else(|e| {
-                            let mut bytes = e.into_vec();
-                            bytes.retain(|&b| b != 0);
-                            CString::new(bytes).unwrap()
-                        });
-
+                let path_cstr = path_to_cstring(path);
                 if !callback(
                     YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED,
                     path_cstr.as_ptr(),
@@ -386,14 +395,7 @@ fn handle_scan_event(
         }
         yara_x::deep::ScanEvent::Finished(path) => {
             if let Some((callback, user_data)) = on_file_scanned {
-                let path_cstr =
-                    CString::new(path.to_string_lossy().as_bytes())
-                        .unwrap_or_else(|e| {
-                            let mut bytes = e.into_vec();
-                            bytes.retain(|&b| b != 0);
-                            CString::new(bytes).unwrap()
-                        });
-
+                let path_cstr = path_to_cstring(path);
                 if !callback(
                     YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED,
                     path_cstr.as_ptr(),
