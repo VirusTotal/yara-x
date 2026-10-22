@@ -187,6 +187,23 @@ message EnrichedURL {
   string dom_sha256 = 51;
 }
 
+message EnrichedPortInfo {
+  message PortService {
+    string product = 1;
+    string version = 2;
+    string cpe = 3;
+  }
+
+  int32 port = 1;
+  string protocol = 2 [(yara.field_options) = { lowercase: true }];
+  string port_banner = 3;
+  repeated vt.net.EnrichedPortInfo.PortService port_service = 4;
+  string fingerprint = 5;
+  string os_type = 6;
+  string device_type = 7;
+  string port_status = 8 [(yara.field_options) = { lowercase: true }];
+}
+
 message EnrichedIP {
   option (yara.message_options) = {
     name: "IP"
@@ -229,6 +246,20 @@ message EnrichedIP {
           accept_if: [ "gti", "staff" ]
         } ]
       }];
+  repeated EnrichedPortInfo ports = 31 [(yara.field_options) = {
+    acl: [
+      {
+        error_title: "unknown field or method `ports`"
+        error_label: "this field or method doesn't exist"
+        accept_if: [ "staff" ]
+      },
+      {
+        error_title: "vt.net.ip.ports is supported in rulesets matching against IPs"
+        error_label: "this field is supported for IPs only"
+        accept_if: [ "ip_address" ]
+      }
+    ]
+  }];
 }
 
 message EnrichedDomain {

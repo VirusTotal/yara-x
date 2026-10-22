@@ -82,7 +82,7 @@ The Language Server analyzes the rule as you type and sends diagnostics, complet
 
 ## Run locally
 
-Node `24.16.0` is pinned in [`.nvmrc`](./.nvmrc).
+Node `24.22.1` is pinned in [`.nvmrc`](./.nvmrc).
 
 ```bash
 nvm use
