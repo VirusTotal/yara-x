@@ -59,6 +59,7 @@ base64 = { workspace = true }
 protobuf = { workspace = true }
 pyo3 = { version = "0.30.1", features = [
     "abi3",
+    "abi3-py39",
     "extension-module",
 ] }
 regex = { workspace = true }
