@@ -249,7 +249,7 @@ impl<'a> MachO<'a> {
                     Ok(macho) => files.push(macho),
                     #[cfg(feature = "logging")]
                     Err(err) => {
-                        error!("Error parsing Mach-O file: {:?}", err);
+                        error!("Error parsing Mach-O file: {}", err);
                     }
                     #[cfg(not(feature = "logging"))]
                     Err(_) => {}
@@ -347,7 +347,7 @@ impl<'a> MachO<'a> {
                 Ok((c, _)) => commands = c,
                 Err(err) => {
                     #[cfg(feature = "logging")]
-                    error!("Error parsing Mach-O file: {:?}", err);
+                    error!("Error parsing Mach-O file: {}", err);
                     // Break the loop when the end of file has been reached.
                     // With other types of errors we keep trying to parse more
                     // commands as one individual command structure could be
@@ -377,7 +377,7 @@ impl<'a> MachO<'a> {
                     macho.parse_symtab(string_table, symbol_table, nsyms)
             {
                 #[cfg(feature = "logging")]
-                error!("Error parsing Mach-O file: {:?}", _err);
+                error!("Error parsing Mach-O file: {}", _err);
                 // fail silently if it fails, data was not formatted
                 // correctly but parsing should still proceed for
                 // everything else
@@ -396,7 +396,7 @@ impl<'a> MachO<'a> {
                 && let Err(_err) = macho.cs_superblob().parse(super_data)
             {
                 #[cfg(feature = "logging")]
-                error!("Error parsing Mach-O file: {:?}", _err);
+                error!("Error parsing Mach-O file: {}", _err);
                 // fail silently if it fails, data was not formatted
                 // correctly but parsing should still proceed for
                 // everything else
@@ -421,7 +421,7 @@ impl<'a> MachO<'a> {
                 && let Err(_err) = macho.parse_exports(export_data)
             {
                 #[cfg(feature = "logging")]
-                error!("Error parsing Mach-O file: {:?}", _err);
+                error!("Error parsing Mach-O file: {}", _err);
                 // fail silently if it fails, data was not formatted
                 // correctly but parsing should still proceed for
                 // everything else
@@ -450,7 +450,7 @@ impl<'a> MachO<'a> {
                 && let Err(_err) = macho.parse_imports(import_data, &mut seen)
             {
                 #[cfg(feature = "logging")]
-                error!("Error parsing Mach-O file: {:?}", _err);
+                error!("Error parsing Mach-O file: {}", _err);
                 // fail silently if it fails, data was not formatted
                 // correctly but parsing should still proceed for
                 // everything else
@@ -465,7 +465,7 @@ impl<'a> MachO<'a> {
                 && let Err(_err) = macho.parse_chained_fixups(fixup_data)
             {
                 #[cfg(feature = "logging")]
-                error!("Error parsing Mach-O file: {:?}", _err);
+                error!("Error parsing Mach-O file: {}", _err);
                 // fail silently if it fails, data was not formatted
                 // correctly but parsing should still proceed for
                 // everything else
