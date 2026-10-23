@@ -166,13 +166,13 @@ impl Extractor {
             match item {
                 StackItem::Extracted(item, module, depth) => {
                     // Notify the caller that this file has been extracted.
-                    if let ControlFlow::Break(b) = callback(
-                        ExtractEvent::Extracted(
+                    if let ControlFlow::Break(b) =
+                        callback(ExtractEvent::Extracted(
                             module,
                             &item.path,
                             item.data.as_ref(),
-                        ),
-                    ) {
+                        ))
+                    {
                         result = ControlFlow::Break(b);
                         break;
                     }
