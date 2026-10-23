@@ -82,10 +82,11 @@ pub struct ScannedDataWithPath<'a> {
 }
 
 /// Signature for module extraction functions.
-pub type ModuleExtractFn =
-    for<'a> fn(
-        &ScannedData<'a>,
-    ) -> Result<Vec<ScannedDataWithPath<'a>>, ModuleError>;
+pub type ModuleExtractFn = for<'a> fn(
+    &ScannedData<'a>,
+) -> Option<
+    Box<dyn Iterator<Item = ScannedDataWithPath<'a>> + 'a>,
+>;
 
 /// The trait implemented by all registered modules.
 pub trait RegisteredModule: Send + Sync {
@@ -195,7 +196,16 @@ macro_rules! register_module {
             &$crate::mods::prelude::Module::<$root_message> {
                 name: $name,
                 main_fn: Some($main_fn),
-                extract_fn: Some($extract_fn),
+                extract_fn: Some(|data| {
+                    $extract_fn(data).map(|iter| {
+                        Box::new(iter)
+                            as Box<
+                                dyn Iterator<
+                                        Item = $crate::modules::ScannedDataWithPath<'_>,
+                                    > + '_,
+                            >
+                    })
+                }),
                 rust_module_name: Some(module_path!()),
             } as &dyn $crate::mods::prelude::RegisteredModule
         }

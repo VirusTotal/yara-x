@@ -18,7 +18,12 @@ pub(crate) enum ExtractEvent<'a> {
 }
 
 enum StackItem<'a> {
-    Extracted(ScannedDataWithPath<'a>, &'static dyn RegisteredModule, usize),
+    Iterator {
+        iter: Box<dyn Iterator<Item = ScannedDataWithPath<'a>> + 'a>,
+        module: &'static dyn RegisteredModule,
+        parent_path: Option<PathBuf>,
+        depth: usize,
+    },
     Finished(PathBuf),
 }
 
@@ -88,7 +93,7 @@ impl Extractor {
     /// order, invoking `callback` with [`ExtractEvent`] notifications.
     ///
     /// For each extracted file, `callback` is invoked twice:
-    /// 1. With [`ExtractEvent::Extracted`] when the file is popped from the stack.
+    /// 1. With [`ExtractEvent::Extracted`] when the file is extracted.
     /// 2. With [`ExtractEvent::Finished`] after all sub-files extracted from it
     ///    (if any) have been processed.
     pub(crate) fn extract_dfs<F, B>(
@@ -105,41 +110,59 @@ impl Extractor {
 
         let mut stack = Vec::new();
 
-        // Extract top-level sub-files from the original data and push them
-        // onto the LIFO stack (in reverse order so the first extracted file is
-        // popped first).
         self.extract_children(&ScannedData::Slice(data), None, 1, &mut stack);
 
-        while let Some(item) = stack.pop() {
+        while let Some(item) = stack.last_mut() {
             match item {
-                StackItem::Extracted(item, module, depth) => {
+                StackItem::Iterator { iter, module, parent_path, depth } => {
+                    let Some(ScannedDataWithPath { mut path, data }) =
+                        iter.next()
+                    else {
+                        stack.pop();
+                        continue;
+                    };
+
+                    let module = *module;
+                    let depth = *depth;
+
+                    if let Some(parent) = parent_path
+                        && !parent.as_os_str().is_empty()
+                    {
+                        path = parent.join(path);
+                    }
+
                     // Notify the caller that this file has been extracted.
                     callback(ExtractEvent::Extracted(
                         module,
-                        &item.path,
-                        item.data.as_ref(),
+                        &path,
+                        data.as_ref(),
                     ))?;
 
-                    // Push a `Finished` marker onto the stack *before* extracting
-                    // any children from `item.data`. Because `stack` is LIFO, any
-                    // children pushed by `extract_children` below will sit on top
-                    // of this `Finished` marker and will be popped and processed
-                    // first. Once all descendants of `item` have been processed,
-                    // this `Finished` marker will be popped and
-                    // `ExtractEvent::Finished` will be emitted for `item.path`.
-                    stack.push(StackItem::Finished(item.path.clone()));
+                    // Reserve a `Finished` slot on the stack *before* pushing
+                    // any child extractors for `data`. Because `stack` is LIFO,
+                    // any child iterators pushed by `extract_children` below
+                    // will sit on top of this `Finished` marker and will be
+                    // exhausted first. Once all descendants of `path` have been
+                    // processed, this `Finished` marker will reach the top of
+                    // the stack and `ExtractEvent::Finished` will be emitted.
+                    let finished_idx = stack.len();
+                    stack.push(StackItem::Finished(PathBuf::new()));
 
                     if depth < self.max_depth {
                         self.extract_children(
-                            &item.data,
-                            Some(&item.path),
+                            &data,
+                            Some(&path),
                             depth + 1,
                             &mut stack,
                         );
                     }
+
+                    stack[finished_idx] = StackItem::Finished(path);
                 }
-                StackItem::Finished(path) => {
-                    callback(ExtractEvent::Finished(&path))?;
+                StackItem::Finished(_) => {
+                    if let Some(StackItem::Finished(path)) = stack.pop() {
+                        callback(ExtractEvent::Finished(&path))?;
+                    }
                 }
             }
         }
@@ -155,24 +178,113 @@ impl Extractor {
         stack: &mut Vec<StackItem<'a>>,
     ) {
         for module in registered_modules() {
-            let extract_fn = match module.extract_fn() {
-                Some(f) => f,
-                None => continue,
+            let Some(extract_fn) = module.extract_fn() else {
+                continue;
             };
-            if let Ok(mut children) = extract_fn(data) {
-                if let Some(path) = parent_path
-                    && !path.as_os_str().is_empty()
-                {
-                    for child in children.iter_mut() {
-                        child.path = path.join(&child.path);
-                    }
-                }
-                stack.extend(
-                    children.into_iter().rev().map(|child| {
-                        StackItem::Extracted(child, module, depth)
-                    }),
-                );
+            if let Some(children) = extract_fn(data) {
+                stack.push(StackItem::Iterator {
+                    iter: children,
+                    module,
+                    parent_path: parent_path.map(Path::to_path_buf),
+                    depth,
+                });
             }
         }
+    }
+}
+
+#[cfg(all(test, feature = "zip-module"))]
+mod tests {
+    use std::io::{Cursor, Write};
+    use std::ops::ControlFlow;
+    use std::path::PathBuf;
+
+    use super::{ExtractEvent, Extractor};
+
+    fn create_zip(files: &[(&str, &[u8])]) -> Vec<u8> {
+        let buf = Vec::new();
+        let mut zip = zip::ZipWriter::new(Cursor::new(buf));
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
+        for (name, content) in files {
+            zip.start_file(*name, options).unwrap();
+            zip.write_all(content).unwrap();
+        }
+        zip.finish().unwrap().into_inner()
+    }
+
+    #[test]
+    fn test_extractor_dfs_nested() {
+        let inner_zip =
+            create_zip(&[("sub1.txt", b"sub1"), ("sub2.txt", b"sub2")]);
+        let outer_zip = create_zip(&[
+            ("inner.zip", &inner_zip),
+            ("top1.txt", b"top1"),
+            ("top2.txt", b"top2"),
+        ]);
+
+        let mut extractor = Extractor::new();
+        extractor.max_depth(2);
+
+        let mut events = Vec::new();
+        let _ = extractor.extract_dfs(&outer_zip, |event| {
+            match event {
+                ExtractEvent::Extracted(_module, path, bytes) => {
+                    events.push(format!(
+                        "extracted:{}:{}",
+                        path.display(),
+                        bytes.len()
+                    ));
+                }
+                ExtractEvent::Finished(path) => {
+                    events.push(format!("finished:{}", path.display()));
+                }
+            }
+            ControlFlow::<()>::Continue(())
+        });
+
+        let inner_zip_extracted =
+            format!("extracted:inner.zip:{}", inner_zip.len());
+        assert_eq!(
+            events,
+            vec![
+                inner_zip_extracted.as_str(),
+                "extracted:inner.zip/sub1.txt:4",
+                "finished:inner.zip/sub1.txt",
+                "extracted:inner.zip/sub2.txt:4",
+                "finished:inner.zip/sub2.txt",
+                "finished:inner.zip",
+                "extracted:top1.txt:4",
+                "finished:top1.txt",
+                "extracted:top2.txt:4",
+                "finished:top2.txt",
+            ]
+        );
+    }
+
+    #[test]
+    fn test_extractor_break_stops_further_extraction() {
+        let zip_data = create_zip(&[
+            ("file1.txt", b"content1"),
+            ("file2.txt", b"content2"),
+            ("file3.txt", b"content3"),
+        ]);
+
+        let extractor = Extractor::new();
+        let mut extracted_paths = Vec::new();
+        let res = extractor.extract(&zip_data, |_module, path, _bytes| {
+            extracted_paths.push(path.to_path_buf());
+            if extracted_paths.len() == 2 {
+                ControlFlow::Break("stopped")
+            } else {
+                ControlFlow::Continue(())
+            }
+        });
+
+        assert_eq!(res, ControlFlow::Break("stopped"));
+        assert_eq!(
+            extracted_paths,
+            vec![PathBuf::from("file1.txt"), PathBuf::from("file2.txt")]
+        );
     }
 }
