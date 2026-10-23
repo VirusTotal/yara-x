@@ -1917,6 +1917,8 @@ fn regexp_patterns_2() {
     pattern_match!(r#"/abc.{0,3}ddd/s"#, b"abcdddddd", b"abcdddddd");
     pattern_false!(r#"/abc.{1,3}def/s"#, b"abcxxxxdef");
     pattern_false!(r#"/ab.{1,3}cdef/s"#, b"abxxxxcdef");
+    pattern_match!(r"/ab(k{0}x)+c/", b"abxc", b"abxc");
+    pattern_match!(r"/ab(k{0}x)+c/", b"abxxc", b"abxxc");
     pattern_match!(r#"/abc.*ddd/s"#, b"abcdddddd", b"abcdddddd");
     pattern_match!(r#"/abc.*?ddd/s"#, b"abcdddddd", b"abcddd");
     pattern_match!(r#"/abc.*ddd/s"#, b"abcabcdddddd", b"abcabcdddddd");
