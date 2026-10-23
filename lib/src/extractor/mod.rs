@@ -232,12 +232,15 @@ mod tests {
                 ExtractEvent::Extracted(_module, path, bytes) => {
                     events.push(format!(
                         "extracted:{}:{}",
-                        path.display(),
+                        path.to_string_lossy().replace('\\', "/"),
                         bytes.len()
                     ));
                 }
                 ExtractEvent::Finished(path) => {
-                    events.push(format!("finished:{}", path.display()));
+                    events.push(format!(
+                        "finished:{}",
+                        path.to_string_lossy().replace('\\', "/")
+                    ));
                 }
             }
             ControlFlow::<()>::Continue(())
