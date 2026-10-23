@@ -67,6 +67,7 @@ impl ExtractionStats {
 #[derive(Debug, Clone)]
 pub struct Extractor {
     max_depth: usize,
+    max_files: usize,
 }
 
 impl Default for Extractor {
@@ -76,10 +77,13 @@ impl Default for Extractor {
 }
 
 impl Extractor {
+    /// Default maximum number of extracted files.
+    const DEFAULT_MAX_FILES: usize = 5;
+
     /// Creates a new extractor.
     pub fn new() -> Self {
         crate::init_logger();
-        Self { max_depth: 1 }
+        Self { max_depth: 1, max_files: Self::DEFAULT_MAX_FILES }
     }
 
     /// Sets the maximum container extraction depth.
@@ -90,6 +94,16 @@ impl Extractor {
     /// Default value is 1.
     pub fn max_depth(&mut self, depth: usize) -> &mut Self {
         self.max_depth = depth;
+        self
+    }
+
+    /// Sets the maximum total number of files to extract.
+    ///
+    /// If set to 0 extracts nothing.
+    ///
+    /// Default value is 5.
+    pub fn max_files(&mut self, max_files: usize) -> &mut Self {
+        self.max_files = max_files;
         self
     }
 
@@ -140,11 +154,12 @@ impl Extractor {
     where
         F: FnMut(ExtractEvent) -> ControlFlow<B>,
     {
-        if self.max_depth == 0 {
+        if self.max_depth == 0 || self.max_files == 0 {
             return ControlFlow::Continue(());
         }
 
         let mut stack = Vec::new();
+        let mut extracted_files = 0;
         #[cfg(feature = "logging")]
         let mut stats = ExtractionStats::default();
 
@@ -156,6 +171,7 @@ impl Extractor {
             None,
             1,
             &mut stack,
+            &mut extracted_files,
             #[cfg(feature = "logging")]
             &mut stats,
         );
@@ -186,12 +202,15 @@ impl Extractor {
                     // `ExtractEvent::Finished` will be emitted for `item.path`.
                     stack.push(StackItem::Finished(item.path.clone()));
 
-                    if depth < self.max_depth {
+                    if depth < self.max_depth
+                        && extracted_files < self.max_files
+                    {
                         self.extract_children(
                             &item.data,
                             Some(&item.path),
                             depth + 1,
                             &mut stack,
+                            &mut extracted_files,
                             #[cfg(feature = "logging")]
                             &mut stats,
                         );
@@ -230,14 +249,30 @@ impl Extractor {
         parent_path: Option<&Path>,
         depth: usize,
         stack: &mut Vec<StackItem<'a>>,
+        extracted_files: &mut usize,
         #[cfg(feature = "logging")] stats: &mut ExtractionStats,
     ) {
         for module in registered_modules() {
+            let remaining = self.max_files.saturating_sub(*extracted_files);
+            if remaining == 0 {
+                break;
+            }
             let extract_fn = match module.extract_fn() {
                 Some(f) => f,
                 None => continue,
             };
-            if let Ok(mut children) = extract_fn(data) {
+            if let Ok(mut children) = extract_fn(data, remaining) {
+                children.truncate(remaining);
+                *extracted_files += children.len();
+
+                #[cfg(feature = "logging")]
+                if *extracted_files >= self.max_files {
+                    log::info!(
+                        "Maximum number of extracted files ({}) reached",
+                        self.max_files
+                    );
+                }
+
                 if let Some(path) = parent_path
                     && !path.as_os_str().is_empty()
                 {
@@ -257,11 +292,91 @@ impl Extractor {
 
 #[cfg(test)]
 mod tests {
+    use std::io::{Cursor, Write};
+    use std::ops::ControlFlow;
     use std::path::PathBuf;
 
-    use super::ExtractionStats;
+    use super::{ExtractionStats, Extractor};
     use crate::modules::ScannedDataWithPath;
     use crate::scanner::ScannedData;
+
+    fn create_zip(files: &[(&str, &[u8])]) -> Vec<u8> {
+        let buf = Vec::new();
+        let mut zip = zip::ZipWriter::new(Cursor::new(buf));
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
+        for (name, content) in files {
+            zip.start_file(*name, options).unwrap();
+            zip.write_all(content).unwrap();
+        }
+        zip.finish().unwrap().into_inner()
+    }
+
+    #[test]
+    fn test_extractor_max_files_limit() {
+        let zip_data = create_zip(&[
+            ("file1.txt", b"content1"),
+            ("file2.txt", b"content2"),
+            ("file3.txt", b"content3"),
+            ("file4.txt", b"content4"),
+            ("file5.txt", b"content5"),
+            ("file6.txt", b"content6"),
+            ("file7.txt", b"content7"),
+        ]);
+
+        // Default limit is 5 files.
+        let extractor = Extractor::new();
+        let mut extracted_paths = Vec::new();
+        let _ = extractor.extract(&zip_data, |_module, path, _bytes| {
+            extracted_paths.push(path.to_path_buf());
+            ControlFlow::<()>::Continue(())
+        });
+
+        assert_eq!(
+            extracted_paths,
+            vec![
+                PathBuf::from("file1.txt"),
+                PathBuf::from("file2.txt"),
+                PathBuf::from("file3.txt"),
+                PathBuf::from("file4.txt"),
+                PathBuf::from("file5.txt"),
+            ]
+        );
+
+        // Nested archive: global limit of 5 applies across the whole tree.
+        let inner_zip = create_zip(&[
+            ("sub1.txt", b"sub1"),
+            ("sub2.txt", b"sub2"),
+            ("sub3.txt", b"sub3"),
+            ("sub4.txt", b"sub4"),
+        ]);
+        let outer_zip = create_zip(&[
+            ("inner.zip", &inner_zip),
+            ("top1.txt", b"top1"),
+            ("top2.txt", b"top2"),
+        ]);
+
+        let mut extractor = Extractor::new();
+        extractor.max_depth(2);
+        let mut nested_paths = Vec::new();
+        let _ = extractor.extract(&outer_zip, |_module, path, _bytes| {
+            nested_paths.push(path.to_path_buf());
+            ControlFlow::<()>::Continue(())
+        });
+
+        // 3 top-level files (`inner.zip`, `top1.txt`, `top2.txt`) + 2 inner files
+        // (`inner.zip/sub1.txt`, `inner.zip/sub2.txt`) = 5 files total.
+        assert_eq!(
+            nested_paths,
+            vec![
+                PathBuf::from("inner.zip"),
+                PathBuf::from("inner.zip/sub1.txt"),
+                PathBuf::from("inner.zip/sub2.txt"),
+                PathBuf::from("top1.txt"),
+                PathBuf::from("top2.txt"),
+            ]
+        );
+    }
 
     #[test]
     fn test_extraction_stats_memory_tracking() {

@@ -85,6 +85,7 @@ pub struct ScannedDataWithPath<'a> {
 pub type ModuleExtractFn =
     for<'a> fn(
         &ScannedData<'a>,
+        usize,
     ) -> Result<Vec<ScannedDataWithPath<'a>>, ModuleError>;
 
 /// The trait implemented by all registered modules.

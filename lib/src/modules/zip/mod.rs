@@ -27,14 +27,18 @@ pub fn main<'a>(
 /// Extracts internal items from a ZIP archive.
 pub fn extract_zip<'a>(
     data: &ScannedData<'a>,
+    max_files: usize,
 ) -> Result<Vec<ScannedDataWithPath<'a>>, ModuleError> {
+    if max_files == 0 {
+        return Ok(Vec::new());
+    }
+
     let archive = match tinyzip::Archive::open(data.as_ref()) {
         Ok(arch) => arch,
         Err(_) => return Ok(Vec::new()),
     };
 
     let mut results = Vec::new();
-    let max_files = 1000; // Guardrail: prevent file extraction DoS
     let max_file_size = 50 * 1024 * 1024; // Guardrail: 50MB extraction limit per file
 
     let mut path_buf = vec![0u8; 65536];

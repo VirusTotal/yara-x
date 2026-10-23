@@ -113,6 +113,14 @@ impl<'r> Scanner<'r> {
         self
     }
 
+    /// Sets the maximum total number of files to extract during a scan.
+    ///
+    /// Default value is 5.
+    pub fn max_files(&mut self, max_files: usize) -> &mut Self {
+        self.extractor.max_files(max_files);
+        self
+    }
+
     /// Sets a timeout for scan operations.
     pub fn set_timeout(&mut self, timeout: Duration) -> &mut Self {
         self.inner.set_timeout(timeout);
