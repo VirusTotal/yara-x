@@ -50,6 +50,8 @@ pub struct Modules {
     pub msi: ::protobuf::MessageField<super::msi::Msi>,
     // @@protoc_insertion_point(field:mods.Modules.zip)
     pub zip: ::protobuf::MessageField<super::zip::Zip>,
+    // @@protoc_insertion_point(field:mods.Modules.ooxml)
+    pub ooxml: ::protobuf::MessageField<super::ooxml::Ooxml>,
     // special fields
     // @@protoc_insertion_point(special_field:mods.Modules.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -67,7 +69,7 @@ impl Modules {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(11);
+        let mut fields = ::std::vec::Vec::with_capacity(12);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, super::pe::PE>(
             "pe",
@@ -123,6 +125,11 @@ impl Modules {
             "zip",
             |m: &Modules| { &m.zip },
             |m: &mut Modules| { &mut m.zip },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, super::ooxml::Ooxml>(
+            "ooxml",
+            |m: &Modules| { &m.ooxml },
+            |m: &mut Modules| { &mut m.ooxml },
         ));
         ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<Modules>(
             "Modules",
@@ -191,6 +198,11 @@ impl ::protobuf::Message for Modules {
                 return false;
             }
         };
+        for v in &self.ooxml {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
         true
     }
 
@@ -229,6 +241,9 @@ impl ::protobuf::Message for Modules {
                 },
                 90 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.zip)?;
+                },
+                98 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.ooxml)?;
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -286,6 +301,10 @@ impl ::protobuf::Message for Modules {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         }
+        if let Some(v) = self.ooxml.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
         my_size
@@ -325,6 +344,9 @@ impl ::protobuf::Message for Modules {
         if let Some(v) = self.zip.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(11, v, os)?;
         }
+        if let Some(v) = self.ooxml.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(12, v, os)?;
+        }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -353,6 +375,7 @@ impl ::protobuf::Message for Modules {
         self.dex.clear();
         self.msi.clear();
         self.zip.clear();
+        self.ooxml.clear();
         self.special_fields.clear();
     }
 
@@ -369,6 +392,7 @@ impl ::protobuf::Message for Modules {
             dex: ::protobuf::MessageField::none(),
             msi: ::protobuf::MessageField::none(),
             zip: ::protobuf::MessageField::none(),
+            ooxml: ::protobuf::MessageField::none(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -396,16 +420,18 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \n\nmods.proto\x12\x04mods\x1a\nyara.proto\x1a\tcrx.proto\x1a\tdex.proto\
     \x1a\x0cdotnet.proto\x1a\telf.proto\x1a\x08pe.proto\x1a\tlnk.proto\x1a\
     \x0bmacho.proto\x1a\x0bolecf.proto\x1a\tvba.proto\x1a\tmsi.proto\x1a\tzi\
-    p.proto\"\xd5\x02\n\x07Modules\x12\x16\n\x02pe\x18\x01\x20\x01(\x0b2\x06\
-    .pe.PER\x02pe\x12\x1a\n\x03elf\x18\x02\x20\x01(\x0b2\x08.elf.ELFR\x03elf\
-    \x12&\n\x06dotnet\x18\x03\x20\x01(\x0b2\x0e.dotnet.DotnetR\x06dotnet\x12\
-    \"\n\x05macho\x18\x04\x20\x01(\x0b2\x0c.macho.MachoR\x05macho\x12\x1a\n\
-    \x03lnk\x18\x05\x20\x01(\x0b2\x08.lnk.LnkR\x03lnk\x12\"\n\x05olecf\x18\
-    \x06\x20\x01(\x0b2\x0c.olecf.OlecfR\x05olecf\x12\x1a\n\x03vba\x18\x07\
-    \x20\x01(\x0b2\x08.vba.VbaR\x03vba\x12\x1a\n\x03crx\x18\x08\x20\x01(\x0b\
-    2\x08.crx.CrxR\x03crx\x12\x1a\n\x03dex\x18\t\x20\x01(\x0b2\x08.dex.DexR\
-    \x03dex\x12\x1a\n\x03msi\x18\n\x20\x01(\x0b2\x08.msi.MsiR\x03msi\x12\x1a\
-    \n\x03zip\x18\x0b\x20\x01(\x0b2\x08.zip.ZipR\x03zipb\x06proto2\
+    p.proto\x1a\x0booxml.proto\"\xf9\x02\n\x07Modules\x12\x16\n\x02pe\x18\
+    \x01\x20\x01(\x0b2\x06.pe.PER\x02pe\x12\x1a\n\x03elf\x18\x02\x20\x01(\
+    \x0b2\x08.elf.ELFR\x03elf\x12&\n\x06dotnet\x18\x03\x20\x01(\x0b2\x0e.dot\
+    net.DotnetR\x06dotnet\x12\"\n\x05macho\x18\x04\x20\x01(\x0b2\x0c.macho.M\
+    achoR\x05macho\x12\x1a\n\x03lnk\x18\x05\x20\x01(\x0b2\x08.lnk.LnkR\x03ln\
+    k\x12\"\n\x05olecf\x18\x06\x20\x01(\x0b2\x0c.olecf.OlecfR\x05olecf\x12\
+    \x1a\n\x03vba\x18\x07\x20\x01(\x0b2\x08.vba.VbaR\x03vba\x12\x1a\n\x03crx\
+    \x18\x08\x20\x01(\x0b2\x08.crx.CrxR\x03crx\x12\x1a\n\x03dex\x18\t\x20\
+    \x01(\x0b2\x08.dex.DexR\x03dex\x12\x1a\n\x03msi\x18\n\x20\x01(\x0b2\x08.\
+    msi.MsiR\x03msi\x12\x1a\n\x03zip\x18\x0b\x20\x01(\x0b2\x08.zip.ZipR\x03z\
+    ip\x12\"\n\x05ooxml\x18\x0c\x20\x01(\x0b2\x0c.ooxml.OoxmlR\x05ooxmlb\x06\
+    proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -422,7 +448,7 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
     static file_descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::FileDescriptor> = ::protobuf::rt::Lazy::new();
     file_descriptor.get(|| {
         let generated_file_descriptor = generated_file_descriptor_lazy.get(|| {
-            let mut deps = ::std::vec::Vec::with_capacity(12);
+            let mut deps = ::std::vec::Vec::with_capacity(13);
             deps.push(super::yara::file_descriptor().clone());
             deps.push(super::crx::file_descriptor().clone());
             deps.push(super::dex::file_descriptor().clone());
@@ -435,6 +461,7 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             deps.push(super::vba::file_descriptor().clone());
             deps.push(super::msi::file_descriptor().clone());
             deps.push(super::zip::file_descriptor().clone());
+            deps.push(super::ooxml::file_descriptor().clone());
             let mut messages = ::std::vec::Vec::with_capacity(1);
             messages.push(Modules::generated_message_descriptor_data());
             let mut enums = ::std::vec::Vec::with_capacity(0);

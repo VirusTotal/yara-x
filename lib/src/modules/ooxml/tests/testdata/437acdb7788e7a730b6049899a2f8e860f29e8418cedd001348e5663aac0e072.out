@@ -1,0 +1,6 @@
+is_ooxml: false
+number_of_on_disk_entries: 1
+number_of_total_entries: 0
+central_dir_size: 65
+central_dir_offset: 0x32
+zip_comment_len: 0
