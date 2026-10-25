@@ -80,7 +80,7 @@ yara-x-proto = { workspace = true }
 yara-x-fmt = { workspace = true }
 
 chardetng = "1.0.0"
-crossbeam = "0.8.4"
+crossbeam = "0.8.5"
 crossterm = "0.29.0"
 dunce = "1.0.5"
 indicatif = "0.18.6"

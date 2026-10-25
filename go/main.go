@@ -274,6 +274,7 @@ type Metadata struct {
 type Match struct {
 	offset uint64
 	length uint64
+	xorKey int16
 }
 
 // Creates a new Rule from it's C counterpart.
@@ -390,6 +391,15 @@ func (m *Match) Offset() uint64 {
 // Length returns the length of a match in bytes.
 func (m *Match) Length() uint64 {
 	return m.length
+}
+
+// XorKey returns the XOR key used for decrypting the data if the pattern had
+// the xor modifier, or (0, false) if otherwise.
+func (m *Match) XorKey() (uint8, bool) {
+	if m.xorKey >= 0 {
+		return uint8(m.xorKey), true
+	}
+	return 0, false
 }
 
 // This is the callback called by yrx_rules_iter, when Rules.GetRules is
@@ -511,5 +521,6 @@ func matchCallback(match *C.YRX_MATCH, handle C.uintptr_t) {
 	*matches = append(*matches, Match{
 		offset: uint64(match.offset),
 		length: uint64(match.length),
+		xorKey: int16(match.xor_key),
 	})
 }

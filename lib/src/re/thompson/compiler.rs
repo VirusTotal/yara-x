@@ -202,7 +202,7 @@ impl Compiler {
         let bck_code_start = code.len();
         code.append(&mut bck_code.into_inner());
 
-        let atoms = atoms
+        let re_atoms = atoms
             .into_iter()
             .map(|a| re::RegexpAtom {
                 atom: a.atom,
@@ -215,7 +215,7 @@ impl Compiler {
             })
             .collect();
 
-        Ok(atoms)
+        Ok(re_atoms)
     }
 }
 
@@ -285,7 +285,10 @@ impl Compiler {
         self.backward_code_chunks.push(self.backward_code().next());
     }
 
-    fn reverse_backward_code_chunks(&mut self, n: usize) -> Vec<CodeLoc> {
+    fn reverse_backward_code_chunks(
+        &mut self,
+        n: usize,
+    ) -> Result<Vec<CodeLoc>, Error> {
         // Split `backward_code_chunks` in two halves, [0, len-n) and
         // [len-n, len). The first half stays in `backward_code_chunks` while
         // the second half is stored in `last_n_chunks`.
@@ -328,7 +331,7 @@ impl Compiler {
             zip(locations.iter_mut(), last_n_chunks.iter()).rev()
         {
             chunk_locations.insert(chunk.seq_id(), backward_code.location());
-            backward_code.append(chunk);
+            backward_code.append(chunk)?;
 
             location.bck_seq_id = backward_code.seq_id();
             location.bck = backward_code.location();
@@ -348,7 +351,7 @@ impl Compiler {
             }
         }
 
-        locations
+        Ok(locations)
     }
 
     fn location(&self) -> CodeLoc {
@@ -375,36 +378,43 @@ impl Compiler {
         })
     }
 
-    fn emit_repeat(&mut self, min: u32, max: u32, greedy: bool) -> CodeLoc {
-        CodeLoc {
-            fwd: self.forward_code_mut().emit_repeat(min, max, greedy),
+    fn emit_repeat(
+        &mut self,
+        min: u32,
+        max: u32,
+        greedy: bool,
+    ) -> Result<CodeLoc, Error> {
+        Ok(CodeLoc {
+            fwd: self.forward_code_mut().emit_repeat(min, max, greedy)?,
             bck_seq_id: self.backward_code().seq_id(),
-            bck: self.backward_code_mut().emit_repeat(min, max, greedy),
-        }
+            bck: self.backward_code_mut().emit_repeat(min, max, greedy)?,
+        })
     }
 
-    fn emit_masked_byte(&mut self, b: HexByte) -> CodeLoc {
-        CodeLoc {
-            fwd: self.forward_code_mut().emit_masked_byte(b),
+    fn emit_masked_byte(&mut self, b: HexByte) -> Result<CodeLoc, Error> {
+        Ok(CodeLoc {
+            fwd: self.forward_code_mut().emit_masked_byte(b)?,
             bck_seq_id: self.backward_code().seq_id(),
-            bck: self.backward_code_mut().emit_masked_byte(b),
-        }
+            bck: self.backward_code_mut().emit_masked_byte(b)?,
+        })
     }
 
-    fn emit_class(&mut self, c: &ClassBytes) -> CodeLoc {
-        CodeLoc {
-            fwd: self.forward_code_mut().emit_class(c),
+    fn emit_class(&mut self, c: &ClassBytes) -> Result<CodeLoc, Error> {
+        Ok(CodeLoc {
+            fwd: self.forward_code_mut().emit_class(c)?,
             bck_seq_id: self.backward_code().seq_id(),
-            bck: self.backward_code_mut().emit_class(c),
-        }
+            bck: self.backward_code_mut().emit_class(c)?,
+        })
     }
 
-    fn emit_literal(&mut self, literal: &Literal) -> CodeLoc {
-        CodeLoc {
-            fwd: self.forward_code_mut().emit_literal(literal.0.iter()),
+    fn emit_literal(&mut self, literal: &Literal) -> Result<CodeLoc, Error> {
+        Ok(CodeLoc {
+            fwd: self.forward_code_mut().emit_literal(literal.0.iter())?,
             bck_seq_id: self.backward_code().seq_id(),
-            bck: self.backward_code_mut().emit_literal(literal.0.iter().rev()),
-        }
+            bck: self
+                .backward_code_mut()
+                .emit_literal(literal.0.iter().rev())?,
+        })
     }
 
     fn emit_clone(
@@ -466,9 +476,9 @@ impl Compiler {
         match class {
             Class::Bytes(class) => {
                 if let Some(byte) = re::hir::class_to_masked_byte(class) {
-                    Ok(self.emit_masked_byte(byte))
+                    self.emit_masked_byte(byte)
                 } else {
-                    Ok(self.emit_class(class))
+                    self.emit_class(class)
                 }
             }
             Class::Unicode(class) => {
@@ -483,7 +493,7 @@ impl Compiler {
                 // where each literal is the UTF-8 encoding of one character in
                 // the class.
                 if let Some(class) = class.to_byte_class() {
-                    Ok(self.emit_class(&class))
+                    self.emit_class(&class)
                 } else {
                     let mut lits = Vec::new();
                     for range in class.ranges() {
@@ -538,7 +548,10 @@ impl Compiler {
         self.start_backward_code_chunk();
     }
 
-    fn visit_post_concat(&mut self, expressions: &[Hir]) -> Vec<CodeLoc> {
+    fn visit_post_concat(
+        &mut self,
+        expressions: &[Hir],
+    ) -> Result<Vec<CodeLoc>, Error> {
         // We are here because all the children of a `Concat` node have been
         // processed. The last N chunks in the `backward_code_chunks` stack
         // contain the code produced for each of the N children, but the nodes
@@ -857,7 +870,7 @@ impl Compiler {
 
                 let l1 = self.bookmarks.pop().unwrap();
                 let l2 = self.bookmarks.pop().unwrap();
-                let l3 = self.emit_repeat(0, max, greedy);
+                let l3 = self.emit_repeat(0, max, greedy)?;
                 let l4 = self.location();
 
                 self.patch_instr(&l1, l4.sub(&l1)?);
@@ -905,7 +918,7 @@ impl Compiler {
                 };
 
                 let l1 = self.emit_clone(start, end)?;
-                let l2 = self.emit_repeat(min - 1, max - 1, greedy);
+                let l2 = self.emit_repeat(min - 1, max - 1, greedy)?;
                 let l3 = self.location();
 
                 self.patch_instr(&l2, l1.sub(&l2)?);
@@ -914,7 +927,7 @@ impl Compiler {
                     self.patch_instr(&split, l3.sub(&split)?);
                 }
 
-                let locations = self.reverse_backward_code_chunks(2);
+                let locations = self.reverse_backward_code_chunks(2)?;
 
                 Ok(locations[0])
             }
@@ -1056,7 +1069,7 @@ impl hir::Visitor for Compiler {
                 (Some(vec![Atom::exact([])]), self.location())
             }
             HirKind::Literal(literal) => {
-                let mut code_loc = self.emit_literal(literal);
+                let mut code_loc = self.emit_literal(literal)?;
 
                 code_loc.bck_seq_id = self.backward_code().seq_id();
                 code_loc.bck = self.backward_code().location();
@@ -1143,7 +1156,7 @@ impl hir::Visitor for Compiler {
                 // bck code:     expr3 expr2 expr1
                 //                     ^->
                 //
-                let locations = self.visit_post_concat(expressions);
+                let locations = self.visit_post_concat(expressions)?;
 
                 if self.zero_rep_depth > 0 {
                     return Ok(());
@@ -1332,6 +1345,9 @@ impl AsRef<[u8]> for InstrSeq {
 }
 
 impl InstrSeq {
+    /// Maximum size (in bytes) of an instruction sequence.
+    const MAX_CODE_SIZE: usize = 128 * 1024;
+
     /// Creates a new [`InstrSeq`].
     pub fn new() -> Self {
         Self {
@@ -1362,8 +1378,19 @@ impl InstrSeq {
     }
 
     /// Appends another sequence to this one.
-    pub fn append(&mut self, other: &Self) {
-        self.seq.write_all(other.seq.get_ref().as_slice()).unwrap();
+    pub fn append(&mut self, other: &Self) -> Result<(), Error> {
+        self.write(other.seq.get_ref().as_slice())
+    }
+
+    #[inline]
+    fn write(&mut self, bytes: &[u8]) -> Result<(), Error> {
+        if self.seq.get_ref().len().saturating_add(bytes.len())
+            > Self::MAX_CODE_SIZE
+        {
+            return Err(Error::TooLarge);
+        }
+        self.seq.write_all(bytes).unwrap();
+        Ok(())
     }
 
     /// Returns the current location within the instruction sequence.
@@ -1393,16 +1420,14 @@ impl InstrSeq {
         // the result for this function.
         let location = self.location();
 
-        self.seq.write_all(&[OPCODE_PREFIX, instr]).unwrap();
+        self.write(&[OPCODE_PREFIX, instr])?;
 
         match instr {
             Instr::SPLIT_A | Instr::SPLIT_B => {
                 // Split instructions are followed by a value that identifies
                 // the split. Each split in the same regexp have a unique
                 // value.
-                self.seq
-                    .write_all(self.split_id.to_le_bytes().as_slice())
-                    .unwrap();
+                self.write(self.split_id.to_le_bytes().as_slice())?;
                 // Increment the split ID, so that the next split has a
                 // different ID.
                 if let Some(incremented) = self.split_id.add(1) {
@@ -1412,18 +1437,14 @@ impl InstrSeq {
                 }
                 // The split ID is  followed by a 16-bits offset that is
                 // relative to the start of the instruction.
-                self.seq
-                    .write_all(&[0x00; size_of::<instr::Offset>()])
-                    .unwrap();
+                self.write(&[0x00; size_of::<instr::Offset>()])?;
             }
             Instr::JUMP => {
                 // Jump instructions are followed by a 16-bits offset that is
                 // relative to the start of the instruction. This offset is
                 // initially set to 0, but later updated with `patch_instr`,
                 // when the target offset is known.
-                self.seq
-                    .write_all(&[0x00; size_of::<instr::Offset>()])
-                    .unwrap();
+                self.write(&[0x00; size_of::<instr::Offset>()])?;
             }
             _ => {}
         }
@@ -1436,8 +1457,8 @@ impl InstrSeq {
     pub fn emit_split_n(&mut self, n: NumAlt) -> Result<usize, Error> {
         let location = self.location();
 
-        self.seq.write_all(&[OPCODE_PREFIX, Instr::SPLIT_N]).unwrap();
-        self.seq.write_all(self.split_id.to_le_bytes().as_slice()).unwrap();
+        self.write(&[OPCODE_PREFIX, Instr::SPLIT_N])?;
+        self.write(self.split_id.to_le_bytes().as_slice())?;
 
         if let Some(incremented) = self.split_id.add(1) {
             self.split_id = incremented
@@ -1445,10 +1466,10 @@ impl InstrSeq {
             return Err(Error::TooLarge);
         }
 
-        self.seq.write_all(NumAlt::to_le_bytes(n).as_slice()).unwrap();
+        self.write(NumAlt::to_le_bytes(n).as_slice())?;
 
         for _ in 0..n {
-            self.seq.write_all(&[0x00; size_of::<instr::Offset>()]).unwrap();
+            self.write(&[0x00; size_of::<instr::Offset>()])?;
         }
 
         Ok(location)
@@ -1457,54 +1478,53 @@ impl InstrSeq {
     /// Adds a [`Instr::RepeatGreedy`] instruction at the end of the
     /// sequence and returns the location where the newly added instruction
     /// resides.
-    pub fn emit_repeat(&mut self, min: u32, max: u32, greedy: bool) -> usize {
+    pub fn emit_repeat(
+        &mut self,
+        min: u32,
+        max: u32,
+        greedy: bool,
+    ) -> Result<usize, Error> {
         let location = self.location();
 
-        self.seq
-            .write_all(&[
-                OPCODE_PREFIX,
-                if greedy {
-                    Instr::REPEAT_GREEDY
-                } else {
-                    Instr::REPEAT_NON_GREEDY
-                },
-            ])
-            .unwrap();
+        self.write(&[
+            OPCODE_PREFIX,
+            if greedy {
+                Instr::REPEAT_GREEDY
+            } else {
+                Instr::REPEAT_NON_GREEDY
+            },
+        ])?;
 
-        self.seq.write_all(&[0x00; size_of::<instr::Offset>()]).unwrap();
-        self.seq.write_all(min.to_le_bytes().as_slice()).unwrap();
-        self.seq.write_all(max.to_le_bytes().as_slice()).unwrap();
+        self.write(&[0x00; size_of::<instr::Offset>()])?;
+        self.write(min.to_le_bytes().as_slice())?;
+        self.write(max.to_le_bytes().as_slice())?;
 
-        location
+        Ok(location)
     }
 
     /// Adds a [`Instr::MaskedByte`] instruction at the end of the sequence and
     /// returns the location where the newly added instruction resides.
-    pub fn emit_masked_byte(&mut self, b: HexByte) -> usize {
+    pub fn emit_masked_byte(&mut self, b: HexByte) -> Result<usize, Error> {
         let location = self.location();
-        self.seq
-            .write_all(&[OPCODE_PREFIX, Instr::MASKED_BYTE, b.value, b.mask])
-            .unwrap();
-        location
+        self.write(&[OPCODE_PREFIX, Instr::MASKED_BYTE, b.value, b.mask])?;
+        Ok(location)
     }
 
     /// Adds a [`Instr::ClassBitmap`] or [`Instr::ClassRanges`] instruction at
     /// the end of the sequence and returns the location where the newly added
     /// instruction resides.
-    pub fn emit_class(&mut self, c: &ClassBytes) -> usize {
+    pub fn emit_class(&mut self, c: &ClassBytes) -> Result<usize, Error> {
         let location = self.location();
         // Keep very small classes compact. Starting at four ranges, prefer the
         // constant-time bitmap lookup over scanning each range.
         if c.ranges().len() < 4 {
-            self.seq
-                .write_all(&[
-                    OPCODE_PREFIX,
-                    Instr::CLASS_RANGES,
-                    c.ranges().len() as u8,
-                ])
-                .unwrap();
+            self.write(&[
+                OPCODE_PREFIX,
+                Instr::CLASS_RANGES,
+                c.ranges().len() as u8,
+            ])?;
             for range in c.ranges() {
-                self.seq.write_all(&[range.start(), range.end()]).unwrap();
+                self.write(&[range.start(), range.end()])?;
             }
         } else {
             // Create a bitmap where the N-th bit is set if byte N is part of
@@ -1514,35 +1534,35 @@ impl InstrSeq {
                 let range = range.start() as usize..=range.end() as usize;
                 bitmap[range].fill(true);
             }
-            self.seq.write_all(&[OPCODE_PREFIX, Instr::CLASS_BITMAP]).unwrap();
-            self.seq.write_all(&bitmap.data).unwrap();
+            self.write(&[OPCODE_PREFIX, Instr::CLASS_BITMAP])?;
+            self.write(&bitmap.data)?;
         }
 
-        location
+        Ok(location)
     }
 
     /// Adds instructions for matching a literal at the end of the sequence.
     pub fn emit_literal<'a, I: IntoIterator<Item = &'a u8>>(
         &mut self,
         literal: I,
-    ) -> usize {
+    ) -> Result<usize, Error> {
         let location = self.location();
         for b in literal {
             // If the literal contains a byte that is equal to the opcode
             // prefix it is duplicated. This allows the VM to interpret this
             // byte as part of the literal, not as an instruction.
             if *b == OPCODE_PREFIX {
-                self.seq.write_all(&[*b, *b]).unwrap();
+                self.write(&[*b, *b])?;
             } else {
-                self.seq.write_all(&[*b]).unwrap();
+                self.write(&[*b])?;
             }
         }
-        location
+        Ok(location)
     }
 
     pub fn emit_bytes(&mut self, bytes: &[u8]) -> Result<usize, Error> {
         let location = self.location();
-        self.seq.write_all(bytes).unwrap();
+        self.write(bytes)?;
         self.update_split_ids(location)?;
         Ok(location)
     }
@@ -1560,6 +1580,13 @@ impl InstrSeq {
         end: usize,
     ) -> Result<usize, Error> {
         let location = self.location();
+        let clone_len = end - start;
+
+        if self.seq.get_ref().len().saturating_add(clone_len)
+            > Self::MAX_CODE_SIZE
+        {
+            return Err(Error::TooLarge);
+        }
 
         // Extend the code by cloning the ranges that go from `start` to `end`.
         self.seq.get_mut().extend_from_within(start..end);

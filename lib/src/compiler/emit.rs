@@ -287,7 +287,7 @@ pub(crate) fn emit_rule_condition(
     rule_id: RuleId,
     condition: ExprId,
     builder: &mut WasmModuleBuilder,
-) {
+) -> Result<(), wasm::builder::Error> {
     let mut instr = builder.start_rule(rule_id, ctx.current_rule.is_global);
 
     ctx.emit_search_for_pattern_stack.push(true);
@@ -307,7 +307,7 @@ pub(crate) fn emit_rule_condition(
 
     ctx.emit_search_for_pattern_stack.pop();
     assert!(ctx.emit_search_for_pattern_stack.is_empty());
-    builder.finish_rule();
+    builder.finish_rule()
 }
 
 /// Emits WASM code for `expr` into the instruction sequence `instr`.

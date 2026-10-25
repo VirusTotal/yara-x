@@ -441,22 +441,22 @@ the following functions to read data from the file at the given offset:
 int8(<offset>)
 int16(<offset>)
 int32(<offset>)
-int64(<offset>)
+int64(<offset>)      (since: v1.22.0)
 
 uint8(<offset>)
 uint16(<offset>)
 uint32(<offset>)
-uint64(<offset>)
+uint64(<offset>)     (since: v1.22.0)
 
 int8be(<offset>)
 int16be(<offset>)
 int32be(<offset>)
-int64be(<offset>)
+int64be(<offset>)    (since: v1.22.0)
 
 uint8be(<offset>)
 uint16be(<offset>)
 uint32be(<offset>)
-uint64be(<offset>)
+uint64be(<offset>)   (since: v1.22.0)
 
 float32(<offset>)
 float64(<offset>)
