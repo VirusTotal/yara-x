@@ -109,16 +109,16 @@ wasm-opt = "0.116.1"
 wasmtime = { version = "48.0.6", default-features = false }
 x509-parser = "0.18.1"
 yansi = "1.0.1"
-yara-x = { path = "lib", version = "1.22.0", default-features = false, features = [
+yara-x = { path = "lib", version = "=1.22.0", default-features = false, features = [
     "constant-folding",
     "exact-atoms",
     "fast-regexp",
     "generate-proto-code",
 ] }
-yara-x-fmt = { path = "fmt", version = "1.22.0" }
-yara-x-macros = { path = "macros", version = "1.22.0" }
-yara-x-parser = { path = "parser", version = "1.22.0" }
-yara-x-proto = { path = "proto", version = "1.22.0"}
+yara-x-fmt = { path = "fmt", version = "=1.22.0" }
+yara-x-macros = { path = "macros", version = "=1.22.0" }
+yara-x-parser = { path = "parser", version = "=1.22.0" }
+yara-x-proto = { path = "proto", version = "=1.22.0" }
 zip = { version = "9.0.5", default-features = false }
 tinyzip = "0.4.0"
 simd-adler32 = "0.3.10"

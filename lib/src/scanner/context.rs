@@ -867,7 +867,7 @@ impl ScanContext<'_, '_> {
         atom_idx: usize,
         match_start: usize,
         base: usize,
-        data: &[u8],
+        scanned_data: &[u8],
     ) {
         let atoms = self.compiled_rules.atoms();
         let atom = unsafe { atoms.get_unchecked(atom_idx) };
@@ -909,7 +909,7 @@ impl ScanContext<'_, '_> {
 
             let match_range = atom_pos..atom_pos + atom.len();
 
-            if verify_full_word(data, &match_range, *flags, None) {
+            if verify_full_word(scanned_data, &match_range, *flags, None) {
                 handle_sub_pattern_match(
                     &mut self.tracker,
                     &mut self.wasm,
@@ -947,7 +947,7 @@ impl ScanContext<'_, '_> {
                     .get_bytes(*pattern)
                     .unwrap();
 
-                if verify_literal(pattern, data, atom_pos, *flags) {
+                if verify_literal(pattern, scanned_data, atom_pos, *flags) {
                     handle_sub_pattern_match(
                         &mut self.tracker,
                         &mut self.wasm,
@@ -974,15 +974,21 @@ impl ScanContext<'_, '_> {
 
                 debug_assert_eq!(pattern.len(), mask.len());
 
-                if let Some(data) =
-                    data.get(atom_pos..atom_pos + pattern.len())
-                    && verify_literal_with_mask(data, pattern, mask)
-                {
-                    let match_range = atom_pos..atom_pos + pattern.len();
-                    if !flags.intersects(
-                        SubPatternFlags::FullwordLeft
-                            | SubPatternFlags::FullwordRight,
-                    ) || verify_full_word(data, &match_range, *flags, None)
+                let match_range = atom_pos..atom_pos + pattern.len();
+
+                match scanned_data.get(match_range.start..match_range.end) {
+                    Some(match_data)
+                        if verify_literal_with_mask(
+                            match_data, pattern, mask,
+                        ) && (!flags.intersects(
+                            SubPatternFlags::FullwordLeft
+                                | SubPatternFlags::FullwordRight,
+                        ) || verify_full_word(
+                            scanned_data,
+                            &match_range,
+                            *flags,
+                            None,
+                        )) =>
                     {
                         handle_sub_pattern_match(
                             &mut self.tracker,
@@ -993,13 +999,14 @@ impl ScanContext<'_, '_> {
                             Match::new(match_range).rebase(base),
                         );
                     }
-                }
+                    _ => {}
+                };
             }
             SubPattern::Regexp { flags, .. }
             | SubPattern::RegexpChainHead { flags, .. }
             | SubPattern::RegexpChainTail { flags, .. } => verify_regexp(
                 &mut self.vm,
-                data,
+                scanned_data,
                 atom_pos,
                 atom,
                 *flags,
@@ -1023,7 +1030,7 @@ impl ScanContext<'_, '_> {
                     .unwrap();
 
                 if let Some(key) =
-                    verify_xor(pattern, data, atom_pos, atom, *flags)
+                    verify_xor(pattern, scanned_data, atom_pos, atom, *flags)
                 {
                     handle_sub_pattern_match(
                         &mut self.tracker,
@@ -1045,7 +1052,7 @@ impl ScanContext<'_, '_> {
                         .literal_pool()
                         .get_bytes(*pattern)
                         .unwrap(),
-                    data,
+                    scanned_data,
                     (*padding).into(),
                     atom_pos,
                     &base64::engine::general_purpose::STANDARD_NO_PAD,
@@ -1088,7 +1095,7 @@ impl ScanContext<'_, '_> {
                         .literal_pool()
                         .get_bytes(*pattern)
                         .unwrap(),
-                    data,
+                    scanned_data,
                     (*padding).into(),
                     atom_pos,
                     base64_engine,

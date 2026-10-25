@@ -3848,6 +3848,416 @@ impl ::protobuf::reflect::ProtobufValue for EnrichedURL {
     type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
 }
 
+// @@protoc_insertion_point(message:vt.net.EnrichedPortInfo)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct EnrichedPortInfo {
+    // message fields
+    // @@protoc_insertion_point(field:vt.net.EnrichedPortInfo.port)
+    pub port: i32,
+    // @@protoc_insertion_point(field:vt.net.EnrichedPortInfo.protocol)
+    pub protocol: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.EnrichedPortInfo.port_banner)
+    pub port_banner: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.EnrichedPortInfo.port_service)
+    pub port_service: ::std::vec::Vec<enriched_port_info::PortService>,
+    // @@protoc_insertion_point(field:vt.net.EnrichedPortInfo.fingerprint)
+    pub fingerprint: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.EnrichedPortInfo.os_type)
+    pub os_type: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.EnrichedPortInfo.device_type)
+    pub device_type: ::std::string::String,
+    // @@protoc_insertion_point(field:vt.net.EnrichedPortInfo.port_status)
+    pub port_status: ::std::string::String,
+    // special fields
+    // @@protoc_insertion_point(special_field:vt.net.EnrichedPortInfo.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a EnrichedPortInfo {
+    fn default() -> &'a EnrichedPortInfo {
+        <EnrichedPortInfo as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl EnrichedPortInfo {
+    pub fn new() -> EnrichedPortInfo {
+        ::std::default::Default::default()
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(8);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "port",
+            |m: &EnrichedPortInfo| { &m.port },
+            |m: &mut EnrichedPortInfo| { &mut m.port },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "protocol",
+            |m: &EnrichedPortInfo| { &m.protocol },
+            |m: &mut EnrichedPortInfo| { &mut m.protocol },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "port_banner",
+            |m: &EnrichedPortInfo| { &m.port_banner },
+            |m: &mut EnrichedPortInfo| { &mut m.port_banner },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "port_service",
+            |m: &EnrichedPortInfo| { &m.port_service },
+            |m: &mut EnrichedPortInfo| { &mut m.port_service },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "fingerprint",
+            |m: &EnrichedPortInfo| { &m.fingerprint },
+            |m: &mut EnrichedPortInfo| { &mut m.fingerprint },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "os_type",
+            |m: &EnrichedPortInfo| { &m.os_type },
+            |m: &mut EnrichedPortInfo| { &mut m.os_type },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "device_type",
+            |m: &EnrichedPortInfo| { &m.device_type },
+            |m: &mut EnrichedPortInfo| { &mut m.device_type },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "port_status",
+            |m: &EnrichedPortInfo| { &m.port_status },
+            |m: &mut EnrichedPortInfo| { &mut m.port_status },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<EnrichedPortInfo>(
+            "EnrichedPortInfo",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for EnrichedPortInfo {
+    const NAME: &'static str = "EnrichedPortInfo";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                8 => {
+                    self.port = is.read_int32()?;
+                },
+                18 => {
+                    self.protocol = is.read_string()?;
+                },
+                26 => {
+                    self.port_banner = is.read_string()?;
+                },
+                34 => {
+                    self.port_service.push(is.read_message()?);
+                },
+                42 => {
+                    self.fingerprint = is.read_string()?;
+                },
+                50 => {
+                    self.os_type = is.read_string()?;
+                },
+                58 => {
+                    self.device_type = is.read_string()?;
+                },
+                66 => {
+                    self.port_status = is.read_string()?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if self.port != 0 {
+            my_size += ::protobuf::rt::int32_size(1, self.port);
+        }
+        if !self.protocol.is_empty() {
+            my_size += ::protobuf::rt::string_size(2, &self.protocol);
+        }
+        if !self.port_banner.is_empty() {
+            my_size += ::protobuf::rt::string_size(3, &self.port_banner);
+        }
+        for value in &self.port_service {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        if !self.fingerprint.is_empty() {
+            my_size += ::protobuf::rt::string_size(5, &self.fingerprint);
+        }
+        if !self.os_type.is_empty() {
+            my_size += ::protobuf::rt::string_size(6, &self.os_type);
+        }
+        if !self.device_type.is_empty() {
+            my_size += ::protobuf::rt::string_size(7, &self.device_type);
+        }
+        if !self.port_status.is_empty() {
+            my_size += ::protobuf::rt::string_size(8, &self.port_status);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if self.port != 0 {
+            os.write_int32(1, self.port)?;
+        }
+        if !self.protocol.is_empty() {
+            os.write_string(2, &self.protocol)?;
+        }
+        if !self.port_banner.is_empty() {
+            os.write_string(3, &self.port_banner)?;
+        }
+        for v in &self.port_service {
+            ::protobuf::rt::write_message_field_with_cached_size(4, v, os)?;
+        };
+        if !self.fingerprint.is_empty() {
+            os.write_string(5, &self.fingerprint)?;
+        }
+        if !self.os_type.is_empty() {
+            os.write_string(6, &self.os_type)?;
+        }
+        if !self.device_type.is_empty() {
+            os.write_string(7, &self.device_type)?;
+        }
+        if !self.port_status.is_empty() {
+            os.write_string(8, &self.port_status)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> EnrichedPortInfo {
+        EnrichedPortInfo::new()
+    }
+
+    fn clear(&mut self) {
+        self.port = 0;
+        self.protocol.clear();
+        self.port_banner.clear();
+        self.port_service.clear();
+        self.fingerprint.clear();
+        self.os_type.clear();
+        self.device_type.clear();
+        self.port_status.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static EnrichedPortInfo {
+        static instance: EnrichedPortInfo = EnrichedPortInfo {
+            port: 0,
+            protocol: ::std::string::String::new(),
+            port_banner: ::std::string::String::new(),
+            port_service: ::std::vec::Vec::new(),
+            fingerprint: ::std::string::String::new(),
+            os_type: ::std::string::String::new(),
+            device_type: ::std::string::String::new(),
+            port_status: ::std::string::String::new(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for EnrichedPortInfo {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("EnrichedPortInfo").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for EnrichedPortInfo {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for EnrichedPortInfo {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
+/// Nested message and enums of message `EnrichedPortInfo`
+pub mod enriched_port_info {
+    // @@protoc_insertion_point(message:vt.net.EnrichedPortInfo.PortService)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct PortService {
+        // message fields
+        // @@protoc_insertion_point(field:vt.net.EnrichedPortInfo.PortService.product)
+        pub product: ::std::string::String,
+        // @@protoc_insertion_point(field:vt.net.EnrichedPortInfo.PortService.version)
+        pub version: ::std::string::String,
+        // @@protoc_insertion_point(field:vt.net.EnrichedPortInfo.PortService.cpe)
+        pub cpe: ::std::string::String,
+        // special fields
+        // @@protoc_insertion_point(special_field:vt.net.EnrichedPortInfo.PortService.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a PortService {
+        fn default() -> &'a PortService {
+            <PortService as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl PortService {
+        pub fn new() -> PortService {
+            ::std::default::Default::default()
+        }
+
+        pub(in super) fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+            let mut fields = ::std::vec::Vec::with_capacity(3);
+            let mut oneofs = ::std::vec::Vec::with_capacity(0);
+            fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+                "product",
+                |m: &PortService| { &m.product },
+                |m: &mut PortService| { &mut m.product },
+            ));
+            fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+                "version",
+                |m: &PortService| { &m.version },
+                |m: &mut PortService| { &mut m.version },
+            ));
+            fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+                "cpe",
+                |m: &PortService| { &m.cpe },
+                |m: &mut PortService| { &mut m.cpe },
+            ));
+            ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<PortService>(
+                "EnrichedPortInfo.PortService",
+                fields,
+                oneofs,
+            )
+        }
+    }
+
+    impl ::protobuf::Message for PortService {
+        const NAME: &'static str = "PortService";
+
+        fn is_initialized(&self) -> bool {
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    10 => {
+                        self.product = is.read_string()?;
+                    },
+                    18 => {
+                        self.version = is.read_string()?;
+                    },
+                    26 => {
+                        self.cpe = is.read_string()?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if !self.product.is_empty() {
+                my_size += ::protobuf::rt::string_size(1, &self.product);
+            }
+            if !self.version.is_empty() {
+                my_size += ::protobuf::rt::string_size(2, &self.version);
+            }
+            if !self.cpe.is_empty() {
+                my_size += ::protobuf::rt::string_size(3, &self.cpe);
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if !self.product.is_empty() {
+                os.write_string(1, &self.product)?;
+            }
+            if !self.version.is_empty() {
+                os.write_string(2, &self.version)?;
+            }
+            if !self.cpe.is_empty() {
+                os.write_string(3, &self.cpe)?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> PortService {
+            PortService::new()
+        }
+
+        fn clear(&mut self) {
+            self.product.clear();
+            self.version.clear();
+            self.cpe.clear();
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static PortService {
+            static instance: PortService = PortService {
+                product: ::std::string::String::new(),
+                version: ::std::string::String::new(),
+                cpe: ::std::string::String::new(),
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    impl ::protobuf::MessageFull for PortService {
+        fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+            static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+            descriptor.get(|| super::file_descriptor().message_by_package_relative_name("EnrichedPortInfo.PortService").unwrap()).clone()
+        }
+    }
+
+    impl ::std::fmt::Display for PortService {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+            ::protobuf::text_format::fmt(self, f)
+        }
+    }
+
+    impl ::protobuf::reflect::ProtobufValue for PortService {
+        type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+    }
+}
+
 // @@protoc_insertion_point(message:vt.net.EnrichedIP)
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct EnrichedIP {
@@ -3888,6 +4298,8 @@ pub struct EnrichedIP {
     pub reverse_lookup: ::std::string::String,
     // @@protoc_insertion_point(field:vt.net.EnrichedIP.gti_assessment)
     pub gti_assessment: ::protobuf::MessageField<super::hunting_gti_score::HuntingGtiScore>,
+    // @@protoc_insertion_point(field:vt.net.EnrichedIP.ports)
+    pub ports: ::std::vec::Vec<EnrichedPortInfo>,
     // special fields
     // @@protoc_insertion_point(special_field:vt.net.EnrichedIP.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -3905,7 +4317,7 @@ impl EnrichedIP {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(18);
+        let mut fields = ::std::vec::Vec::with_capacity(19);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_map_simpler_accessor_new::<_, _>(
             "whois",
@@ -3996,6 +4408,11 @@ impl EnrichedIP {
             "gti_assessment",
             |m: &EnrichedIP| { &m.gti_assessment },
             |m: &mut EnrichedIP| { &mut m.gti_assessment },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "ports",
+            |m: &EnrichedIP| { &m.ports },
+            |m: &mut EnrichedIP| { &mut m.ports },
         ));
         ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<EnrichedIP>(
             "EnrichedIP",
@@ -4093,6 +4510,9 @@ impl ::protobuf::Message for EnrichedIP {
                 242 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.gti_assessment)?;
                 },
+                250 => {
+                    self.ports.push(is.read_message()?);
+                },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                 },
@@ -4170,6 +4590,10 @@ impl ::protobuf::Message for EnrichedIP {
             let len = v.compute_size();
             my_size += 2 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         }
+        for value in &self.ports {
+            let len = value.compute_size();
+            my_size += 2 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
         my_size
@@ -4242,6 +4666,9 @@ impl ::protobuf::Message for EnrichedIP {
         if let Some(v) = self.gti_assessment.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(30, v, os)?;
         }
+        for v in &self.ports {
+            ::protobuf::rt::write_message_field_with_cached_size(31, v, os)?;
+        };
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -4277,6 +4704,7 @@ impl ::protobuf::Message for EnrichedIP {
         self.new_whois = false;
         self.reverse_lookup.clear();
         self.gti_assessment.clear();
+        self.ports.clear();
         self.special_fields.clear();
     }
 
@@ -5267,90 +5695,106 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\
     \x01(\tR\x05value:\x028\x01\x1aF\n\x18JavascriptVariablesEntry\x12\x10\n\
     \x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\t\
-    R\x05value:\x028\x01:\t\x8a\x93\x19\x05\n\x03URL\"\xf1\t\n\nEnrichedIP\
-    \x123\n\x05whois\x18\x03\x20\x03(\x0b2\x1d.vt.net.EnrichedIP.WhoisEntryR\
-    \x05whois\x12\x1b\n\twhois_raw\x18\x16\x20\x01(\tR\x08whoisRaw\x12C\n\
-    \x11https_certificate\x18\x04\x20\x01(\x0b2\x16.vt.net.SSLCertificateR\
-    \x10httpsCertificate\x12\x12\n\x04jarm\x18\x05\x20\x01(\tR\x04jarm\x12\
-    \x1e\n\x0bip_as_owner\x18\x06\x20\x01(\tR\tipAsOwner\x12\x15\n\x06ip_asn\
-    \x18\x07\x20\x01(\x03R\x05ipAsn\x12\x1d\n\nip_country\x18\x08\x20\x01(\t\
-    R\tipCountry\x12A\n\x0eanalysis_stats\x18\r\x20\x01(\x0b2\x1a.vt.analysi\
-    s.AnalysisStatsR\ranalysisStats\x12B\n\nsignatures\x18\x0e\x20\x03(\x0b2\
-    \".vt.net.EnrichedIP.SignaturesEntryR\nsignatures\x12\x12\n\x04tags\x18\
-    \x11\x20\x03(\tR\x04tags\x12\x10\n\x03raw\x18\x12\x20\x01(\tR\x03raw\x12\
-    =\n\x0fdownloaded_file\x18\x13\x20\x01(\x0b2\x14.vt.net.FileMetadataR\
-    \x0edownloadedFile\x12C\n\x12communicating_file\x18\x14\x20\x01(\x0b2\
-    \x14.vt.net.FileMetadataR\x11communicatingFile\x12\x1a\n\tip_as_int\x18\
-    \x17\x20\x01(\x03R\x07ipAsInt\x12\x9e\x01\n\x0bfirst_whois\x18\x18\x20\
-    \x01(\x08R\nfirstWhoisB}\x82\x93\x19y\x1aw\nCvt.net.ip.first_whois\x20is\
-    \x20supported\x20in\x20rulesets\x20matching\x20against\x20IPs\x12$this\
-    \x20field\x20is\x20supported\x20for\x20IPs\x20only\x1a\nip_address\x12\
-    \x98\x01\n\tnew_whois\x18\x19\x20\x01(\x08R\x08newWhoisB{\x82\x93\x19w\
-    \x1au\nAvt.net.ip.new_whois\x20is\x20supported\x20in\x20rulesets\x20matc\
-    hing\x20against\x20IPs\x12$this\x20field\x20is\x20supported\x20for\x20IP\
-    s\x20only\x1a\nip_address\x12%\n\x0ereverse_lookup\x18\x1a\x20\x01(\tR\r\
-    reverseLookup\x12\xae\x01\n\x0egti_assessment\x18\x1e\x20\x01(\x0b2%.vt.\
-    hunting_gti_score.HuntingGtiScoreR\rgtiAssessmentB`\x82\x93\x19\\\x1aZ\n\
-    (unknown\x20field\x20or\x20method\x20`gti_assessment`\x12\"this\x20field\
-    \x20or\x20method\x20doesn't\x20exist\x1a\x03gti\x1a\x05staff\x1a8\n\nWho\
-    isEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\
-    \x18\x02\x20\x01(\tR\x05value:\x028\x01\x1a=\n\x0fSignaturesEntry\x12\
+    R\x05value:\x028\x01:\t\x8a\x93\x19\x05\n\x03URL\"\x8e\x03\n\x10Enriched\
+    PortInfo\x12\x12\n\x04port\x18\x01\x20\x01(\x05R\x04port\x12\"\n\x08prot\
+    ocol\x18\x02\x20\x01(\tR\x08protocolB\x06\x82\x93\x19\x02\x20\x01\x12\
+    \x1f\n\x0bport_banner\x18\x03\x20\x01(\tR\nportBanner\x12G\n\x0cport_ser\
+    vice\x18\x04\x20\x03(\x0b2$.vt.net.EnrichedPortInfo.PortServiceR\x0bport\
+    Service\x12\x20\n\x0bfingerprint\x18\x05\x20\x01(\tR\x0bfingerprint\x12\
+    \x17\n\x07os_type\x18\x06\x20\x01(\tR\x06osType\x12\x1f\n\x0bdevice_type\
+    \x18\x07\x20\x01(\tR\ndeviceType\x12'\n\x0bport_status\x18\x08\x20\x01(\
+    \tR\nportStatusB\x06\x82\x93\x19\x02\x20\x01\x1aS\n\x0bPortService\x12\
+    \x18\n\x07product\x18\x01\x20\x01(\tR\x07product\x12\x18\n\x07version\
+    \x18\x02\x20\x01(\tR\x07version\x12\x10\n\x03cpe\x18\x03\x20\x01(\tR\x03\
+    cpe\"\xeb\x0b\n\nEnrichedIP\x123\n\x05whois\x18\x03\x20\x03(\x0b2\x1d.vt\
+    .net.EnrichedIP.WhoisEntryR\x05whois\x12\x1b\n\twhois_raw\x18\x16\x20\
+    \x01(\tR\x08whoisRaw\x12C\n\x11https_certificate\x18\x04\x20\x01(\x0b2\
+    \x16.vt.net.SSLCertificateR\x10httpsCertificate\x12\x12\n\x04jarm\x18\
+    \x05\x20\x01(\tR\x04jarm\x12\x1e\n\x0bip_as_owner\x18\x06\x20\x01(\tR\ti\
+    pAsOwner\x12\x15\n\x06ip_asn\x18\x07\x20\x01(\x03R\x05ipAsn\x12\x1d\n\ni\
+    p_country\x18\x08\x20\x01(\tR\tipCountry\x12A\n\x0eanalysis_stats\x18\r\
+    \x20\x01(\x0b2\x1a.vt.analysis.AnalysisStatsR\ranalysisStats\x12B\n\nsig\
+    natures\x18\x0e\x20\x03(\x0b2\".vt.net.EnrichedIP.SignaturesEntryR\nsign\
+    atures\x12\x12\n\x04tags\x18\x11\x20\x03(\tR\x04tags\x12\x10\n\x03raw\
+    \x18\x12\x20\x01(\tR\x03raw\x12=\n\x0fdownloaded_file\x18\x13\x20\x01(\
+    \x0b2\x14.vt.net.FileMetadataR\x0edownloadedFile\x12C\n\x12communicating\
+    _file\x18\x14\x20\x01(\x0b2\x14.vt.net.FileMetadataR\x11communicatingFil\
+    e\x12\x1a\n\tip_as_int\x18\x17\x20\x01(\x03R\x07ipAsInt\x12\x9e\x01\n\
+    \x0bfirst_whois\x18\x18\x20\x01(\x08R\nfirstWhoisB}\x82\x93\x19y\x1aw\nC\
+    vt.net.ip.first_whois\x20is\x20supported\x20in\x20rulesets\x20matching\
+    \x20against\x20IPs\x12$this\x20field\x20is\x20supported\x20for\x20IPs\
+    \x20only\x1a\nip_address\x12\x98\x01\n\tnew_whois\x18\x19\x20\x01(\x08R\
+    \x08newWhoisB{\x82\x93\x19w\x1au\nAvt.net.ip.new_whois\x20is\x20supporte\
+    d\x20in\x20rulesets\x20matching\x20against\x20IPs\x12$this\x20field\x20i\
+    s\x20supported\x20for\x20IPs\x20only\x1a\nip_address\x12%\n\x0ereverse_l\
+    ookup\x18\x1a\x20\x01(\tR\rreverseLookup\x12\xae\x01\n\x0egti_assessment\
+    \x18\x1e\x20\x01(\x0b2%.vt.hunting_gti_score.HuntingGtiScoreR\rgtiAssess\
+    mentB`\x82\x93\x19\\\x1aZ\n(unknown\x20field\x20or\x20method\x20`gti_ass\
+    essment`\x12\"this\x20field\x20or\x20method\x20doesn't\x20exist\x1a\x03g\
+    ti\x1a\x05staff\x12\xf7\x01\n\x05ports\x18\x1f\x20\x03(\x0b2\x18.vt.net.\
+    EnrichedPortInfoR\x05portsB\xc6\x01\x82\x93\x19\xc1\x01\x1aL\n\x1funknow\
+    n\x20field\x20or\x20method\x20`ports`\x12\"this\x20field\x20or\x20method\
+    \x20doesn't\x20exist\x1a\x05staff\x1aq\n=vt.net.ip.ports\x20is\x20suppor\
+    ted\x20in\x20rulesets\x20matching\x20against\x20IPs\x12$this\x20field\
+    \x20is\x20supported\x20for\x20IPs\x20only\x1a\nip_address\x1a8\n\nWhoisE\
+    ntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\
+    \x02\x20\x01(\tR\x05value:\x028\x01\x1a=\n\x0fSignaturesEntry\x12\x10\n\
+    \x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\t\
+    R\x05value:\x028\x01:\x08\x8a\x93\x19\x04\n\x02IP\"\xfb\x0c\n\x0eEnriche\
+    dDomain\x12\x10\n\x03raw\x18\x12\x20\x01(\tR\x03raw\x12\x12\n\x04root\
+    \x18\x1b\x20\x01(\tR\x04root\x127\n\x05whois\x18\x03\x20\x03(\x0b2!.vt.n\
+    et.EnrichedDomain.WhoisEntryR\x05whois\x12\x1b\n\twhois_raw\x18\x1a\x20\
+    \x01(\tR\x08whoisRaw\x12C\n\x11https_certificate\x18\x04\x20\x01(\x0b2\
+    \x16.vt.net.SSLCertificateR\x10httpsCertificate\x12\x12\n\x04jarm\x18\
+    \x05\x20\x01(\tR\x04jarm\x122\n\x0bdns_records\x18\x06\x20\x03(\x0b2\x11\
+    .vt.net.DNSRecordR\ndnsRecords\x12)\n\x07favicon\x18\x07\x20\x01(\x0b2\
+    \x0f.vt.net.FaviconR\x07favicon\x12A\n\x0eanalysis_stats\x18\x0c\x20\x01\
+    (\x0b2\x1a.vt.analysis.AnalysisStatsR\ranalysisStats\x12F\n\nsignatures\
+    \x18\r\x20\x03(\x0b2&.vt.net.EnrichedDomain.SignaturesEntryR\nsignatures\
+    \x12\x1d\n\nnew_domain\x18\x10\x20\x01(\x08R\tnewDomain\x12\x12\n\x04tag\
+    s\x18\x11\x20\x03(\tR\x04tags\x12=\n\x0fdownloaded_file\x18\x13\x20\x01(\
+    \x0b2\x14.vt.net.FileMetadataR\x0edownloadedFile\x12C\n\x12communicating\
+    _file\x18\x14\x20\x01(\x0b2\x14.vt.net.FileMetadataR\x11communicatingFil\
+    e\x12\x1f\n\x0bfirst_whois\x18\x15\x20\x01(\x08R\nfirstWhois\x12\x1b\n\t\
+    new_whois\x18\x16\x20\x01(\x08R\x08newWhois\x12)\n\x10first_resolution\
+    \x18\x17\x20\x01(\x08R\x0ffirstResolution\x12%\n\x0enew_resolution\x18\
+    \x18\x20\x01(\x08R\rnewResolution\x12F\n\ncategories\x18\x1c\x20\x03(\
+    \x0b2&.vt.net.EnrichedDomain.CategoriesEntryR\ncategories\x12A\n\x10popu\
+    larity_ranks\x18\x1e\x20\x03(\x0b2\x16.vt.net.PopularityRankR\x0fpopular\
+    ityRanks\x12;\n\x1anumber_of_popularity_ranks\x18\x1f\x20\x01(\x03R\x17n\
+    umberOfPopularityRanks\x12J\n\x15root_popularity_ranks\x18\x20\x20\x03(\
+    \x0b2\x16.vt.net.PopularityRankR\x13rootPopularityRanks\x12D\n\x1fnumber\
+    _of_root_popularity_ranks\x18!\x20\x01(\x03R\x1bnumberOfRootPopularityRa\
+    nks\x12\xae\x01\n\x0egti_assessment\x18%\x20\x01(\x0b2%.vt.hunting_gti_s\
+    core.HuntingGtiScoreR\rgtiAssessmentB`\x82\x93\x19\\\x1aZ\n(unknown\x20f\
+    ield\x20or\x20method\x20`gti_assessment`\x12\"this\x20field\x20or\x20met\
+    hod\x20doesn't\x20exist\x1a\x03gti\x1a\x05staff\x1a8\n\nWhoisEntry\x12\
     \x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\
-    \x01(\tR\x05value:\x028\x01:\x08\x8a\x93\x19\x04\n\x02IP\"\xfb\x0c\n\x0e\
-    EnrichedDomain\x12\x10\n\x03raw\x18\x12\x20\x01(\tR\x03raw\x12\x12\n\x04\
-    root\x18\x1b\x20\x01(\tR\x04root\x127\n\x05whois\x18\x03\x20\x03(\x0b2!.\
-    vt.net.EnrichedDomain.WhoisEntryR\x05whois\x12\x1b\n\twhois_raw\x18\x1a\
-    \x20\x01(\tR\x08whoisRaw\x12C\n\x11https_certificate\x18\x04\x20\x01(\
-    \x0b2\x16.vt.net.SSLCertificateR\x10httpsCertificate\x12\x12\n\x04jarm\
-    \x18\x05\x20\x01(\tR\x04jarm\x122\n\x0bdns_records\x18\x06\x20\x03(\x0b2\
-    \x11.vt.net.DNSRecordR\ndnsRecords\x12)\n\x07favicon\x18\x07\x20\x01(\
-    \x0b2\x0f.vt.net.FaviconR\x07favicon\x12A\n\x0eanalysis_stats\x18\x0c\
-    \x20\x01(\x0b2\x1a.vt.analysis.AnalysisStatsR\ranalysisStats\x12F\n\nsig\
-    natures\x18\r\x20\x03(\x0b2&.vt.net.EnrichedDomain.SignaturesEntryR\nsig\
-    natures\x12\x1d\n\nnew_domain\x18\x10\x20\x01(\x08R\tnewDomain\x12\x12\n\
-    \x04tags\x18\x11\x20\x03(\tR\x04tags\x12=\n\x0fdownloaded_file\x18\x13\
-    \x20\x01(\x0b2\x14.vt.net.FileMetadataR\x0edownloadedFile\x12C\n\x12comm\
-    unicating_file\x18\x14\x20\x01(\x0b2\x14.vt.net.FileMetadataR\x11communi\
-    catingFile\x12\x1f\n\x0bfirst_whois\x18\x15\x20\x01(\x08R\nfirstWhois\
-    \x12\x1b\n\tnew_whois\x18\x16\x20\x01(\x08R\x08newWhois\x12)\n\x10first_\
-    resolution\x18\x17\x20\x01(\x08R\x0ffirstResolution\x12%\n\x0enew_resolu\
-    tion\x18\x18\x20\x01(\x08R\rnewResolution\x12F\n\ncategories\x18\x1c\x20\
-    \x03(\x0b2&.vt.net.EnrichedDomain.CategoriesEntryR\ncategories\x12A\n\
-    \x10popularity_ranks\x18\x1e\x20\x03(\x0b2\x16.vt.net.PopularityRankR\
-    \x0fpopularityRanks\x12;\n\x1anumber_of_popularity_ranks\x18\x1f\x20\x01\
-    (\x03R\x17numberOfPopularityRanks\x12J\n\x15root_popularity_ranks\x18\
-    \x20\x20\x03(\x0b2\x16.vt.net.PopularityRankR\x13rootPopularityRanks\x12\
-    D\n\x1fnumber_of_root_popularity_ranks\x18!\x20\x01(\x03R\x1bnumberOfRoo\
-    tPopularityRanks\x12\xae\x01\n\x0egti_assessment\x18%\x20\x01(\x0b2%.vt.\
-    hunting_gti_score.HuntingGtiScoreR\rgtiAssessmentB`\x82\x93\x19\\\x1aZ\n\
-    (unknown\x20field\x20or\x20method\x20`gti_assessment`\x12\"this\x20field\
-    \x20or\x20method\x20doesn't\x20exist\x1a\x03gti\x1a\x05staff\x1a8\n\nWho\
-    isEntry\x12\x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\
-    \x18\x02\x20\x01(\tR\x05value:\x028\x01\x1a=\n\x0fSignaturesEntry\x12\
-    \x10\n\x03key\x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\
-    \x01(\tR\x05value:\x028\x01\x1a=\n\x0fCategoriesEntry\x12\x10\n\x03key\
+    \x01(\tR\x05value:\x028\x01\x1a=\n\x0fSignaturesEntry\x12\x10\n\x03key\
     \x18\x01\x20\x01(\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05va\
-    lue:\x028\x01\"\x91\x01\n\x0bPermutation\x12\x0f\n\x03ALL\x10\0\x1a\x06\
-    \x9a\x93\x19\x02\x08\x1f\x12\x10\n\x04TYPO\x10\x01\x1a\x06\x9a\x93\x19\
-    \x02\x08\x01\x12\x15\n\tHOMOGLYPH\x10\x02\x1a\x06\x9a\x93\x19\x02\x08\
-    \x02\x12\x17\n\x0bHYPHENATION\x10\x03\x1a\x06\x9a\x93\x19\x02\x08\x04\
-    \x12\x15\n\tSUBDOMAIN\x10\x04\x1a\x06\x9a\x93\x19\x02\x08\x08\x12\x18\n\
-    \x0cBITSQUATTING\x10\x05\x1a\x06\x9a\x93\x19\x02\x08\x10:\x0c\x8a\x93\
-    \x19\x08\n\x06Domain\"\xd8\x04\n\x0eEnrichedNetloc\x12\x9f\x01\n\x03url\
-    \x18\x01\x20\x01(\x0b2\x13.vt.net.EnrichedURLR\x03urlBx\x82\x93\x19t\x1a\
-    r\n>vt.net.url\x20is\x20supported\x20only\x20in\x20rulesets\x20matching\
-    \x20against\x20URLs\x12%this\x20field\x20is\x20supported\x20for\x20URLs\
-    \x20only\x1a\x03url\x1a\x04file\x12\xd3\x01\n\x02ip\x18\x02\x20\x01(\x0b\
-    2\x12.vt.net.EnrichedIPR\x02ipB\xae\x01\x82\x93\x19\xa9\x01\x1a\xa6\x01\
-    \nMvt.net.ip\x20is\x20supported\x20only\x20in\x20rulesets\x20matching\
-    \x20against\x20URLs,\x20domains\x20or\x20IPs\x126this\x20field\x20is\x20\
-    supported\x20for\x20URLs,\x20domains\x20and\x20IPs\x20only\x1a\x03url\
-    \x1a\x06domain\x1a\nip_address\x1a\x04file\x12\xcd\x01\n\x06domain\x18\
-    \x03\x20\x01(\x0b2\x16.vt.net.EnrichedDomainR\x06domainB\x9c\x01\x82\x93\
-    \x19\x97\x01\x1a\x94\x01\nLvt.net.domain\x20is\x20supported\x20only\x20i\
-    n\x20rulesets\x20matching\x20against\x20URLs\x20or\x20domains\x121this\
-    \x20field\x20is\x20supported\x20for\x20URLs\x20and\x20domains\x20only\
-    \x1a\x03url\x1a\x06domain\x1a\x04fileb\x06proto3\
+    lue:\x028\x01\x1a=\n\x0fCategoriesEntry\x12\x10\n\x03key\x18\x01\x20\x01\
+    (\tR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x028\x01\"\
+    \x91\x01\n\x0bPermutation\x12\x0f\n\x03ALL\x10\0\x1a\x06\x9a\x93\x19\x02\
+    \x08\x1f\x12\x10\n\x04TYPO\x10\x01\x1a\x06\x9a\x93\x19\x02\x08\x01\x12\
+    \x15\n\tHOMOGLYPH\x10\x02\x1a\x06\x9a\x93\x19\x02\x08\x02\x12\x17\n\x0bH\
+    YPHENATION\x10\x03\x1a\x06\x9a\x93\x19\x02\x08\x04\x12\x15\n\tSUBDOMAIN\
+    \x10\x04\x1a\x06\x9a\x93\x19\x02\x08\x08\x12\x18\n\x0cBITSQUATTING\x10\
+    \x05\x1a\x06\x9a\x93\x19\x02\x08\x10:\x0c\x8a\x93\x19\x08\n\x06Domain\"\
+    \xd8\x04\n\x0eEnrichedNetloc\x12\x9f\x01\n\x03url\x18\x01\x20\x01(\x0b2\
+    \x13.vt.net.EnrichedURLR\x03urlBx\x82\x93\x19t\x1ar\n>vt.net.url\x20is\
+    \x20supported\x20only\x20in\x20rulesets\x20matching\x20against\x20URLs\
+    \x12%this\x20field\x20is\x20supported\x20for\x20URLs\x20only\x1a\x03url\
+    \x1a\x04file\x12\xd3\x01\n\x02ip\x18\x02\x20\x01(\x0b2\x12.vt.net.Enrich\
+    edIPR\x02ipB\xae\x01\x82\x93\x19\xa9\x01\x1a\xa6\x01\nMvt.net.ip\x20is\
+    \x20supported\x20only\x20in\x20rulesets\x20matching\x20against\x20URLs,\
+    \x20domains\x20or\x20IPs\x126this\x20field\x20is\x20supported\x20for\x20\
+    URLs,\x20domains\x20and\x20IPs\x20only\x1a\x03url\x1a\x06domain\x1a\nip_\
+    address\x1a\x04file\x12\xcd\x01\n\x06domain\x18\x03\x20\x01(\x0b2\x16.vt\
+    .net.EnrichedDomainR\x06domainB\x9c\x01\x82\x93\x19\x97\x01\x1a\x94\x01\
+    \nLvt.net.domain\x20is\x20supported\x20only\x20in\x20rulesets\x20matchin\
+    g\x20against\x20URLs\x20or\x20domains\x121this\x20field\x20is\x20support\
+    ed\x20for\x20URLs\x20and\x20domains\x20only\x1a\x03url\x1a\x06domain\x1a\
+    \x04fileb\x06proto3\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -5375,7 +5819,7 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             deps.push(super::submitter::file_descriptor().clone());
             deps.push(super::urlheadless::file_descriptor().clone());
             deps.push(super::yara::file_descriptor().clone());
-            let mut messages = ::std::vec::Vec::with_capacity(18);
+            let mut messages = ::std::vec::Vec::with_capacity(20);
             messages.push(Subject::generated_message_descriptor_data());
             messages.push(Validity::generated_message_descriptor_data());
             messages.push(SSLCertificate::generated_message_descriptor_data());
@@ -5391,9 +5835,11 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             messages.push(ConsoleMessage::generated_message_descriptor_data());
             messages.push(WebTechnology::generated_message_descriptor_data());
             messages.push(EnrichedURL::generated_message_descriptor_data());
+            messages.push(EnrichedPortInfo::generated_message_descriptor_data());
             messages.push(EnrichedIP::generated_message_descriptor_data());
             messages.push(EnrichedDomain::generated_message_descriptor_data());
             messages.push(EnrichedNetloc::generated_message_descriptor_data());
+            messages.push(enriched_port_info::PortService::generated_message_descriptor_data());
             let mut enums = ::std::vec::Vec::with_capacity(1);
             enums.push(enriched_domain::Permutation::generated_enum_descriptor_data());
             ::protobuf::reflect::GeneratedFileDescriptor::new_generated(
