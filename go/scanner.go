@@ -44,18 +44,6 @@ type Scanner struct {
 	// is garbage collected the associated C.YRX_RULES object is destroyed
 	// before the C.YRX_SCANNER object.
 	rules *Rules
-	// Handle to the scanner itself that is passed to C callbacks.
-	//
-	// Go 1.21 introduces https://pkg.go.dev/runtime#Pinner.Pin, which allows
-	// to pin a Go object in memory, guaranteeing that the garbage collector
-	// won't move it to another memory location. We could pin the Scanner
-	// struct and pass a pointer to the scanner to the C code, making this
-	// handle unnecessary. At this time (Feb 2024) Go 1.21 is only 6 months
-	// old, and we want to support older versions.
-	handle cgo.Handle
-
-	// Rules that matched during the last scan.
-	matchingRules []*Rule
 }
 
 // ScanResults contains the results of a call to [Scanner.Scan] or [Rules.Scan].
@@ -73,11 +61,11 @@ func (s ScanResults) MatchingRules() []*Rule {
 //export onMatchingRule
 func onMatchingRule(rule *C.YRX_RULE, handle C.uintptr_t) {
 	h := cgo.Handle(handle)
-	scanner, ok := h.Value().(*Scanner)
+	matchingRules, ok := h.Value().(*[]*Rule)
 	if !ok {
-		panic("onMatchingRule didn't receive a Scanner")
+		panic("onMatchingRule didn't receive a *[]*Rule")
 	}
-	scanner.matchingRules = append(scanner.matchingRules, newRule(rule))
+	*matchingRules = append(*matchingRules, newRule(rule))
 }
 
 // NewScanner creates a Scanner that will use the provided YARA rules.
@@ -90,13 +78,6 @@ func NewScanner(r *Rules) *Scanner {
 	if C.yrx_scanner_create(r.cRules, &s.cScanner) != C.YRX_SUCCESS {
 		panic("yrx_scanner_create failed")
 	}
-
-	s.handle = cgo.NewHandle(s)
-
-	C._yrx_scanner_on_matching_rule(
-		s.cScanner,
-		C.YRX_RULE_CALLBACK(C.onMatchingRule),
-		C.uintptr_t(s.handle))
 
 	runtime.SetFinalizer(s, (*Scanner).Destroy)
 	return s
@@ -255,8 +236,20 @@ func (s *Scanner) Scan(buf []byte) (*ScanResults, error) {
 		ptr = (*C.uint8_t)(unsafe.Pointer(&(buf[0])))
 	}
 
+	var matchingRules []*Rule
+	handle := cgo.NewHandle(&matchingRules)
+	defer func() {
+		C._yrx_scanner_on_matching_rule(s.cScanner, nil, 0)
+		handle.Delete()
+	}()
+
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
+
+	C._yrx_scanner_on_matching_rule(
+		s.cScanner,
+		C.YRX_RULE_CALLBACK(C.onMatchingRule),
+		C.uintptr_t(handle))
 
 	var err error
 	switch r := C.yrx_scanner_scan(s.cScanner, ptr, C.size_t(len(buf))); r {
@@ -268,10 +261,8 @@ func (s *Scanner) Scan(buf []byte) (*ScanResults, error) {
 		err = errors.New(C.GoString(C.yrx_last_error()))
 	}
 
-	scanResults := &ScanResults{s.matchingRules}
-	s.matchingRules = nil
-
-	return scanResults, err
+	runtime.KeepAlive(s)
+	return &ScanResults{matchingRules}, err
 }
 
 // ScanFile scans a file with the Rules associated to the Scanner.
@@ -279,8 +270,20 @@ func (s *Scanner) ScanFile(path string) (*ScanResults, error) {
 	cPath := C.CString(path)
 	defer C.free(unsafe.Pointer(cPath))
 
+	var matchingRules []*Rule
+	handle := cgo.NewHandle(&matchingRules)
+	defer func() {
+		C._yrx_scanner_on_matching_rule(s.cScanner, nil, 0)
+		handle.Delete()
+	}()
+
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
+
+	C._yrx_scanner_on_matching_rule(
+		s.cScanner,
+		C.YRX_RULE_CALLBACK(C.onMatchingRule),
+		C.uintptr_t(handle))
 
 	var err error
 	switch r := C.yrx_scanner_scan_file(s.cScanner, cPath); r {
@@ -292,10 +295,8 @@ func (s *Scanner) ScanFile(path string) (*ScanResults, error) {
 		err = errors.New(C.GoString(C.yrx_last_error()))
 	}
 
-	scanResults := &ScanResults{s.matchingRules}
-	s.matchingRules = nil
-
-	return scanResults, err
+	runtime.KeepAlive(s)
+	return &ScanResults{matchingRules}, err
 }
 
 // ProfilingInfo contains profiling information about a YARA rule.
@@ -386,7 +387,6 @@ func (s *Scanner) ClearProfilingData() {
 func (s *Scanner) Destroy() {
 	if s.cScanner != nil {
 		C.yrx_scanner_destroy(s.cScanner)
-		s.handle.Delete()
 		s.cScanner = nil
 	}
 	s.rules = nil

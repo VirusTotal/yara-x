@@ -2139,6 +2139,10 @@ fn regexp_patterns_4() {
     pattern_false!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"effg");
     pattern_false!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"bcdd");
     pattern_match!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"reffgz", b"effgz");
+    pattern_match!(r#"/abc(\s|$)+?/"#, b"abc", b"abc");
+    pattern_match!(r#"/abc(\s|$)+/"#, b"abc", b"abc");
+    pattern_match!(r#"/(\s|^)+?abc/"#, b"abc", b"abc");
+    pattern_match!(r#"/(\s|^)+abc/"#, b"abc", b"abc");
 }
 
 #[test]

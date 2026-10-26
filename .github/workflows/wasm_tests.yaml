@@ -46,10 +46,10 @@ jobs:
         run: echo "$(dirname "$CHROMEDRIVER_PATH")" >> "$GITHUB_PATH"
 
       - name: Install wasm-pack
-        run: cargo install --locked wasm-pack --version 0.14.0
+        run: cargo install --locked wasm-pack --version 0.15.0
 
       - name: Install wasm-bindgen CLI
-        run: cargo install --locked wasm-bindgen-cli --version 0.2.113
+        run: cargo install --locked wasm-bindgen-cli --version 0.2.129
 
       - name: Install terser
         run: npm install --global terser
