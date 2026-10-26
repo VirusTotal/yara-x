@@ -211,3 +211,28 @@ func TestScannerMaxMatchesPerPattern(t *testing.T) {
 
 	assert.Len(t, matchingRules, 1)
 }
+
+func TestScannerGarbageCollected(t *testing.T) {
+	r, _ := Compile(`rule t { condition: true }`)
+	collected := make(chan struct{})
+
+	func() {
+		s := NewScanner(r)
+		runtime.AddCleanup(s, func(ch chan struct{}) { close(ch) }, collected)
+		s.Scan([]byte{})
+	}()
+
+	// The scanner has a finalizer, so it takes at least two GC cycles to
+	// free it: one for running the finalizer, and another one for freeing
+	// the memory.
+	for i := 0; i < 10; i++ {
+		runtime.GC()
+		select {
+		case <-collected:
+			return
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+
+	t.Fatal("scanner was not garbage collected")
+}
