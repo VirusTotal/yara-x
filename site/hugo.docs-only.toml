@@ -1,0 +1,7 @@
+[[cascade]]
+  [cascade.build]
+    render = "link"
+    list = "never"
+    publishResources = false
+  [cascade.target]
+    path = "{/blog,/blog/**}"
