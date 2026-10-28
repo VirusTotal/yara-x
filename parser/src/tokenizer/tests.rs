@@ -358,8 +358,18 @@ fn whitespaces() {
     assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
     assert_eq!(lexer.next_token(), None);
 
+    // "Ogham Space Mark" character (U+1680).
+    let mut lexer = super::Tokenizer::new(b"\xE1\x9A\x80");
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
+
     // "Medium Mathematical Space" character (U+205f).
     let mut lexer = super::Tokenizer::new(b"\xE2\x81\x9F");
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
+
+    // "Ideographic Space" character (U+3000).
+    let mut lexer = super::Tokenizer::new(b"\xE3\x80\x80");
     assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(0..3))));
     assert_eq!(lexer.next_token(), None);
 }
@@ -385,6 +395,20 @@ fn errors() {
     assert_eq!(lexer.next_token(), Some(Token::UNKNOWN(Span(0..9))));
     assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(9..10))));
     assert_eq!(lexer.next_token(), Some(Token::UNKNOWN(Span(10..19))));
+
+    // Unrecognized Unicode whitespace characters must still produce full
+    // UTF-8 character spans rather than 1-byte spans.
+    let mut lexer = super::Tokenizer::new("\u{0085}".as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::UNKNOWN(Span(0..2))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new("\u{2028}".as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::UNKNOWN(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new("\u{2029}".as_bytes());
+    assert_eq!(lexer.next_token(), Some(Token::UNKNOWN(Span(0..3))));
+    assert_eq!(lexer.next_token(), None);
 
     let mut lexer = super::Tokenizer::new(b"\xC7\xA3\xFF\xFF");
     assert_eq!(lexer.next_token(), Some(Token::UNKNOWN(Span(0..2))));

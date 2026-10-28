@@ -1795,3 +1795,38 @@ fn test_condition_too_large() {
     let results = scanner.scan(&[]).unwrap();
     assert_eq!(results.matching_rules().len(), 4);
 }
+
+#[test]
+fn test_unicode_whitespace() {
+    // Space separator characters (including U+1680 and U+3000) must be treated
+    // as valid whitespace, and rendering errors on lines containing them must
+    // not panic.
+    for ws in ['\u{3000}', '\u{1680}'] {
+        let rule = format!("rule test {{         {ws}condition: true }}");
+        assert!(compile(rule.as_str()).is_ok());
+
+        let hex_rule = format!(
+            "rule test {{ strings: $a = {{ AA {ws} BB }} condition: $a }}"
+        );
+        assert!(compile(hex_rule.as_str()).is_ok());
+
+        let invalid_rule = format!("rule test {{         {ws}invalid }}");
+        let err = compile(invalid_rule.as_str()).unwrap_err();
+        let _ = err.to_string();
+    }
+
+    // Other `char::is_whitespace` characters not accepted as YARA whitespace
+    // must produce clean syntax errors whose formatted reports do not panic on
+    // UTF-8 char boundaries.
+    for ws in ['\u{0085}', '\u{2028}', '\u{2029}'] {
+        let rule = format!("rule test {{         {ws}condition: true }}");
+        let err = compile(rule.as_str()).unwrap_err();
+        let _ = err.to_string();
+
+        let hex_rule = format!(
+            "rule test {{ strings: $a = {{ AA {ws} BB }} condition: $a }}"
+        );
+        let err = compile(hex_rule.as_str()).unwrap_err();
+        let _ = err.to_string();
+    }
+}
