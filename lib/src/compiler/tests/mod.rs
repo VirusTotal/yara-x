@@ -1830,3 +1830,26 @@ fn test_unicode_whitespace() {
         let _ = err.to_string();
     }
 }
+
+#[test]
+fn test_var_undef_bitmap_addressing() {
+    // On a 1-byte input, `v8 = uint8(1)` is undefined while `v64 = uint8(0)`
+    // is defined. Variables 8 and 64 must not share the same undef bit in
+    // WASM memory, otherwise `v64` clears `v8`'s undef flag.
+    let vars = (0..=64)
+        .map(|i| match i {
+            8 => "v8 = uint8(1)".to_string(),
+            64 => "v64 = uint8(0)".to_string(),
+            _ => format!("v{i} = 0"),
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let rule =
+        format!("rule test {{ condition: with {vars} : ( defined v8 ) }}");
+
+    let rules = compile(rule.as_str()).unwrap();
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(b"\x01").unwrap();
+    assert_eq!(results.matching_rules().len(), 0);
+}
