@@ -29,7 +29,7 @@ macro_rules! assert_re_code {
 
         epsilon_closure(
             fwd_code.as_ref(),
-            FwdCodeLoc::try_from(0_usize).unwrap(),
+            FwdCodeLoc::from(0),
             0,
             None,
             None,
@@ -45,7 +45,7 @@ macro_rules! assert_re_code {
         let mut bck_closure = Vec::new();
         epsilon_closure(
             bck_code.as_ref(),
-            BckCodeLoc::try_from(0_usize).unwrap(),
+            BckCodeLoc::from(0),
             0,
             None,
             None,

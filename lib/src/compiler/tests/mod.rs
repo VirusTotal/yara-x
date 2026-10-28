@@ -1776,10 +1776,22 @@ fn test_condition_too_large() {
     let err = compiler.add_source(huge.as_str()).unwrap_err();
     assert!(matches!(err, CompileError::ConditionTooLarge(_)));
 
+    // Two rules that each fit under MAX_FUNC_INSTRS alone, but exceed
+    // MAX_FUNC_INSTRS together, should both compile by splitting into
+    // separate WASM functions (issue #828).
+    let large_rule = |name: &str| {
+        format!(
+            "rule {name} {{ condition: filesize >= 0{} }}\n",
+            " and filesize >= 0".repeat(6000)
+        )
+    };
+    compiler.add_source(large_rule("large_a").as_str()).unwrap();
+    compiler.add_source(large_rule("large_b").as_str()).unwrap();
+
     compiler.add_source("rule ok_after { condition: true }").unwrap();
     let rules = compiler.build();
 
     let mut scanner = Scanner::new(&rules);
     let results = scanner.scan(&[]).unwrap();
-    assert_eq!(results.matching_rules().len(), 2);
+    assert_eq!(results.matching_rules().len(), 4);
 }

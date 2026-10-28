@@ -288,26 +288,25 @@ pub(crate) fn emit_rule_condition(
     condition: ExprId,
     builder: &mut WasmModuleBuilder,
 ) -> Result<(), wasm::builder::Error> {
-    let mut instr = builder.start_rule(rule_id, ctx.current_rule.is_global);
+    builder.emit_rule(rule_id, ctx.current_rule.is_global, |instr| {
+        ctx.emit_search_for_pattern_stack.push(true);
 
-    ctx.emit_search_for_pattern_stack.push(true);
+        // Emit WASM code for the rule's condition.
+        catch_undef(
+            ctx,
+            I32,
+            instr,
+            |ctx, instr| {
+                emit_bool_expr(ctx, ir, condition, instr);
+            },
+            |_, instr| {
+                instr.i32_const(0);
+            },
+        );
 
-    // Emit WASM code for the rule's condition.
-    catch_undef(
-        ctx,
-        I32,
-        &mut instr,
-        |ctx, instr| {
-            emit_bool_expr(ctx, ir, condition, instr);
-        },
-        |_, instr| {
-            instr.i32_const(0);
-        },
-    );
-
-    ctx.emit_search_for_pattern_stack.pop();
-    assert!(ctx.emit_search_for_pattern_stack.is_empty());
-    builder.finish_rule()
+        ctx.emit_search_for_pattern_stack.pop();
+        assert!(ctx.emit_search_for_pattern_stack.is_empty());
+    })
 }
 
 /// Emits WASM code for `expr` into the instruction sequence `instr`.

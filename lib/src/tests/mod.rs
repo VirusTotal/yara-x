@@ -1917,6 +1917,8 @@ fn regexp_patterns_2() {
     pattern_match!(r#"/abc.{0,3}ddd/s"#, b"abcdddddd", b"abcdddddd");
     pattern_false!(r#"/abc.{1,3}def/s"#, b"abcxxxxdef");
     pattern_false!(r#"/ab.{1,3}cdef/s"#, b"abxxxxcdef");
+    pattern_match!(r"/ab(k{0}x)+c/", b"abxc", b"abxc");
+    pattern_match!(r"/ab(k{0}x)+c/", b"abxxc", b"abxxc");
     pattern_match!(r#"/abc.*ddd/s"#, b"abcdddddd", b"abcdddddd");
     pattern_match!(r#"/abc.*?ddd/s"#, b"abcdddddd", b"abcddd");
     pattern_match!(r#"/abc.*ddd/s"#, b"abcabcdddddd", b"abcabcdddddd");
@@ -2137,6 +2139,10 @@ fn regexp_patterns_4() {
     pattern_false!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"effg");
     pattern_false!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"bcdd");
     pattern_match!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"reffgz", b"effgz");
+    pattern_match!(r#"/abc(\s|$)+?/"#, b"abc", b"abc");
+    pattern_match!(r#"/abc(\s|$)+/"#, b"abc", b"abc");
+    pattern_match!(r#"/(\s|^)+?abc/"#, b"abc", b"abc");
+    pattern_match!(r#"/(\s|^)+abc/"#, b"abc", b"abc");
 }
 
 #[test]
@@ -3435,8 +3441,21 @@ fn fullword() {
         r#"/ip{2}i/ wide fullword"#,
         b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
     );
-}
 
+    // Regression test: verify_full_word was called with a shadowed sub-slice
+    // of the scanned data (only pattern.len() bytes) instead of the full
+    // scanned data. When the match occurred at a position greater than the
+    // pattern length, this caused an index out-of-bounds panic.
+    //
+    // The regex /\x01\x02.\x04\x05/s with `fullword` is compiled as a
+    // LiteralWithMask sub-pattern. Placing the matching bytes at offset 10
+    // (greater than the pattern length of 5) triggers the bug because
+    // verify_full_word tries to access scanned_data[9] on a 5-byte slice.
+    pattern_true!(
+        r#"/\x01\x02.\x04\x05/s fullword"#,
+        b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05"
+    );
+}
 #[test]
 fn base64() {
     pattern_true!(
