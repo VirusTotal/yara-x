@@ -1882,8 +1882,17 @@ fn test_var_undef_bitmap_addressing() {
 }
 
 #[test]
-fn test_unicode_half_word_boundary() {
-    for pat in [r"/(?u)\b{start-half}abc/", r"/(?u)abc\b{end-half}/"] {
+fn test_unicode_word_boundary() {
+    for pat in [
+        r"/(?u)\b{start-half}abc/",
+        r"/(?u)abc\b{end-half}/",
+        r"/(?u:\b)abc/",
+        r"/(?u:\B)abc/",
+        r"/(?u:\b{start})abc/",
+        r"/(?u:\b{end})abc/",
+        r"/(?u:\b{start-half})abc/",
+        r"/(?u:\b{end-half})abc/",
+    ] {
         let rule =
             format!("rule test {{ strings: $a = {pat} condition: $a }}");
         let err = compile(rule.as_str()).unwrap_err();

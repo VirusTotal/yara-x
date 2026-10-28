@@ -2253,6 +2253,8 @@ fn regexp_patterns_5() {
     // regexp Unicode is disabled
     pattern_match!(r"/(?u)^abc(?-u)\b xyz$/", b"abc xyz", b"abc xyz");
     pattern_match!(r"/^((?u)abc)\b xyz$/", b"abc xyz", b"abc xyz");
+    pattern_match!(r"/^(?u:abc)\b xyz$/", b"abc xyz", b"abc xyz");
+    pattern_match!(r"/(?u)^abc(?-u:\b) xyz$/", b"abc xyz", b"abc xyz");
 
     // TODO: enable if we ever implement unicode support for regexps.
     //pattern_match!(r"/(?u)^abc \bxyz$/", b"abc xyz", b"abc xyz");

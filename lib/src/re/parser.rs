@@ -6,8 +6,8 @@ use std::ops::Deref;
 
 use regex_syntax as re;
 use regex_syntax::ast::{
-    AssertionKind, Ast, ErrorKind, Flag, Literal, LiteralKind, RepetitionKind,
-    RepetitionRange,
+    AssertionKind, Ast, ErrorKind, Flag, GroupKind, Literal, LiteralKind,
+    RepetitionKind, RepetitionRange,
 };
 use thiserror::Error;
 
@@ -391,8 +391,14 @@ impl re::ast::Visitor for &mut Validator {
 
     fn visit_pre(&mut self, ast: &Ast) -> Result<(), Self::Err> {
         match ast {
-            Ast::Group(_) => {
-                self.unicode_mode_stack.push(self.in_unicode_mode());
+            Ast::Group(group) => {
+                let unicode_mode = match &group.kind {
+                    GroupKind::NonCapturing(flags) => flags
+                        .flag_state(Flag::Unicode)
+                        .unwrap_or_else(|| self.in_unicode_mode()),
+                    _ => self.in_unicode_mode(),
+                };
+                self.unicode_mode_stack.push(unicode_mode);
             }
             Ast::Flags(f) => {
                 if let Some(unicode_flag) = f.flags.flag_state(Flag::Unicode) {
