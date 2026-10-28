@@ -628,10 +628,40 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                     (false, Some(p), Some(c)) | (true, Some(c), Some(p)) => {
                         is_word_char(*p) && !is_word_char(*c)
                     }
-                    (false, Some(p), None) | (true, Some(p), None) => {
+                    (false, Some(p), None) | (true, None, Some(p)) => {
                         is_word_char(*p)
                     }
                     _ => false,
+                };
+                if is_match {
+                    state.threads.push((
+                        apply_offset(ip, instr_size.into()),
+                        rep_count,
+                    ));
+                }
+            }
+            Instr::WordStartHalf => {
+                let is_match = match (start.backwards(), prev_byte, curr_byte)
+                {
+                    (false, None, _) | (true, _, None) => true,
+                    (false, Some(b), _) | (true, _, Some(b)) => {
+                        !is_word_char(*b)
+                    }
+                };
+                if is_match {
+                    state.threads.push((
+                        apply_offset(ip, instr_size.into()),
+                        rep_count,
+                    ));
+                }
+            }
+            Instr::WordEndHalf => {
+                let is_match = match (start.backwards(), prev_byte, curr_byte)
+                {
+                    (false, _, None) | (true, None, _) => true,
+                    (false, _, Some(b)) | (true, Some(b), _) => {
+                        !is_word_char(*b)
+                    }
                 };
                 if is_match {
                     state.threads.push((

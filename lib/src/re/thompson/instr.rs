@@ -288,6 +288,16 @@ pub enum Instr<'a> {
     /// character and the following character is not a word character. This is a
     /// zero-length match.
     WordEnd,
+
+    /// Match the start half of a word boundary. That is, this matches a
+    /// position at either the beginning of the haystack or where the previous
+    /// character is not a word character. This is a zero-length match.
+    WordStartHalf,
+
+    /// Match the end half of a word boundary. That is, this matches a position
+    /// at either the end of the haystack or where the following character is
+    /// not a word character. This is a zero-length match.
+    WordEndHalf,
 }
 
 impl Instr<'_> {
@@ -311,6 +321,8 @@ impl Instr<'_> {
     pub const REPEAT_NON_GREEDY: u8 = 0x11;
     pub const LINE_START: u8 = 0x12;
     pub const LINE_END: u8 = 0x13;
+    pub const WORD_START_HALF: u8 = 0x14;
+    pub const WORD_END_HALF: u8 = 0x15;
 }
 
 /// Parses a slice of bytes that contains Pike VM instructions, returning
@@ -454,6 +466,12 @@ impl<'a> InstrParser<'a> {
             }
             [OPCODE_PREFIX, Instr::WORD_START, ..] => (Instr::WordStart, 2),
             [OPCODE_PREFIX, Instr::WORD_END, ..] => (Instr::WordEnd, 2),
+            [OPCODE_PREFIX, Instr::WORD_START_HALF, ..] => {
+                (Instr::WordStartHalf, 2)
+            }
+            [OPCODE_PREFIX, Instr::WORD_END_HALF, ..] => {
+                (Instr::WordEndHalf, 2)
+            }
             [OPCODE_PREFIX, Instr::MATCH, ..] => (Instr::Match, 2),
             [_, ..] => {
                 if decode_literal_runs && Self::is_bytes_run(code) {

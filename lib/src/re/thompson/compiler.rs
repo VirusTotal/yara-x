@@ -538,6 +538,10 @@ impl Compiler {
             }
             Look::WordStartAscii => self.emit_instr(Instr::WORD_START)?,
             Look::WordEndAscii => self.emit_instr(Instr::WORD_END)?,
+            Look::WordStartHalfAscii => {
+                self.emit_instr(Instr::WORD_START_HALF)?
+            }
+            Look::WordEndHalfAscii => self.emit_instr(Instr::WORD_END_HALF)?,
             _ => unreachable!("{:?}", look),
         })
     }
@@ -1859,6 +1863,12 @@ impl Display for InstrSeq {
                 }
                 Instr::WordEnd => {
                     writeln!(f, "{addr:05x}: WORD_END")?;
+                }
+                Instr::WordStartHalf => {
+                    writeln!(f, "{addr:05x}: WORD_START_HALF")?;
+                }
+                Instr::WordEndHalf => {
+                    writeln!(f, "{addr:05x}: WORD_END_HALF")?;
                 }
                 Instr::Match => {
                     writeln!(f, "{addr:05x}: MATCH")?;

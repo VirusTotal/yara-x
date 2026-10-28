@@ -2180,6 +2180,19 @@ fn regexp_patterns_5() {
     pattern_match!(r"/abc\b{end}/", b"abc", b"abc");
     pattern_match!(r"/\b{start}abc/", b" abc", b"abc");
     pattern_match!(r"/abc\b{end}/", b"abc ", b"abc");
+    pattern_false!(r"/\b{end}abcd/", b"abcd");
+    pattern_match!(r"/\b{start-half}abc/", b"abc", b"abc");
+    pattern_match!(r"/\b{start-half}abc/", b" abc", b"abc");
+    pattern_match!(r"/\b{start-half} abc/", b"  abc", b" abc");
+    pattern_false!(r"/\b{start-half}abc/", b"1abc");
+    pattern_false!(r"/abc\b{start-half}/", b"abc");
+    pattern_match!(r"/abc \b{start-half}/", b"abc 1", b"abc ");
+    pattern_match!(r"/abc\b{end-half}/", b"abc", b"abc");
+    pattern_match!(r"/abc\b{end-half}/", b"abc ", b"abc");
+    pattern_match!(r"/abc \b{end-half}/", b"abc  ", b"abc ");
+    pattern_false!(r"/abc\b{end-half}/", b"abc1");
+    pattern_false!(r"/\b{end-half}abc/", b"abc");
+    pattern_match!(r"/\b{end-half} abc/", b" abc", b" abc");
     pattern_false!(r"/\<abc/", b" abc");
     pattern_false!(r"/abc\>/", b"abc ");
     pattern_false!(r"/\<abc/", b"1abc");
@@ -2225,6 +2238,14 @@ fn regexp_patterns_5() {
 
     pattern_match!(r"/^abc\b{end} xyz$/", b"abc xyz", b"abc xyz");
     pattern_false!(r"/^abc \b{end}xyz$/", b"abc xyz");
+
+    pattern_match!(r"/^abc \b{start-half}xyz$/", b"abc xyz", b"abc xyz");
+    pattern_match!(r"/^abc \b{start-half} xyz$/", b"abc  xyz", b"abc  xyz");
+    pattern_false!(r"/^abc\b{start-half} xyz$/", b"abc xyz");
+
+    pattern_match!(r"/^abc\b{end-half} xyz$/", b"abc xyz", b"abc xyz");
+    pattern_match!(r"/^abc \b{end-half} xyz$/", b"abc  xyz", b"abc  xyz");
+    pattern_false!(r"/^abc \b{end-half}xyz$/", b"abc xyz");
 
     pattern_match!(r"/^abc\Bxyz$/", b"abcxyz", b"abcxyz");
 

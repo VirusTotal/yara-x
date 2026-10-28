@@ -419,6 +419,8 @@ impl re::ast::Visitor for &mut Validator {
                         | AssertionKind::WordBoundary // \b
                         | AssertionKind::WordBoundaryStart // \b{start}
                         | AssertionKind::WordBoundaryEnd // \b{end}
+                        | AssertionKind::WordBoundaryStartHalf // \b{start-half}
+                        | AssertionKind::WordBoundaryEndHalf // \b{end-half}
                     )
                 {
                     return Err(Error::UnsupportedInUnicode {

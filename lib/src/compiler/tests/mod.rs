@@ -27,7 +27,7 @@ fn serialization() {
     // `DecodeError`.
     let mut data = Vec::new();
     data.extend(b"YARA-X\0\0");
-    data.extend(8u32.to_le_bytes());
+    data.extend(9u32.to_le_bytes());
     data.extend(b"foo");
 
     assert!(matches!(
@@ -1879,4 +1879,18 @@ fn test_var_undef_bitmap_addressing() {
     let mut scanner = Scanner::new(&rules);
     let results = scanner.scan(b"\x01").unwrap();
     assert_eq!(results.matching_rules().len(), 0);
+}
+
+#[test]
+fn test_unicode_half_word_boundary() {
+    for pat in [r"/(?u)\b{start-half}abc/", r"/(?u)abc\b{end-half}/"] {
+        let rule =
+            format!("rule test {{ strings: $a = {pat} condition: $a }}");
+        let err = compile(rule.as_str()).unwrap_err();
+        assert!(
+            err.to_string().contains(
+                "this is unsupported in Unicode regular expressions"
+            )
+        );
+    }
 }
