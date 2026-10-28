@@ -163,9 +163,9 @@ jobs:
       run: pip install -U setuptools wheel twine cibuildwheel platformdirs
 
     - name: Build sdist
-      if: matrix.build == 'linux' && matrix.python-version == 'cp39'
+      if: matrix.build == 'linux-intel' && matrix.python-version == 'cp39'
       run: |
-        pip install maturin==1.7.4
+        pip install "maturin>=1.8.2"
         maturin sdist --manifest-path py/Cargo.toml -o wheelhouse
 
     - name: Build ${{ matrix.platform || matrix.os }} binaries
@@ -199,6 +199,7 @@ jobs:
         path: ./wheelhouse/*.whl
 
     - name: Upload artifacts
+      if: matrix.build == 'linux-intel' && matrix.python-version == 'cp39'
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: pypi-source-${{ strategy.job-index }}
