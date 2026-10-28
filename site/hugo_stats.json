@@ -663,6 +663,7 @@
       "metadata-validation",
       "method",
       "methoditem",
+      "mime_type",
       "minint-int",
       "minversion",
       "missing_metadata",

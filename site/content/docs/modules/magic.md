@@ -25,10 +25,13 @@ being scanned, instead of on specific bytes inside it.
 
 {{< callout context="caution" title="Important">}}
 
-The `magic` module is disabled by default. To use it, YARA-X must be built with
-the `magic-module` feature of the `yara-x` crate, on a system where libmagic and
-its database are installed. The `yara-x-py`, `yara-x-capi` and `yara-x-ls`
-crates have their own `magic-module` feature that turns it on.
+The `magic` module is disabled by default. To enable it, build YARA-X with
+the `magic-module` feature of the `yara-x` crate on a system where `libmagic`
+and its database are installed. The `yara-x-py`, `yara-x-capi` and `yara-x-ls`
+crates have their own `magic-module` feature that enables it.
+
+This module is disabled by default because it can be very slow and its output 
+for the same file may vary across `libmagic` versions.
 
 {{< /callout >}}
 
