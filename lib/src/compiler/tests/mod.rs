@@ -172,6 +172,33 @@ fn snapshots() {
         .expect_err("compilation should fail");
 
     assert_eq!(compiler.take_snapshot(), snapshot);
+
+    // `$a` is an anchored literal (added to `anchored_sub_patterns`), while
+    // `$b` fails later during regexp compilation because it can match an empty
+    // string. Rolling back the failed rule must also roll back
+    // `anchored_sub_patterns`.
+    compiler
+        .add_source(
+            r#"rule bad {
+                strings:
+                    $a = "abcd"
+                    $b = /(a|)/
+                condition:
+                    $a at 0 and $b
+            }"#,
+        )
+        .expect_err("compilation should fail");
+
+    assert_eq!(compiler.take_snapshot(), snapshot);
+
+    compiler
+        .add_source(r#"rule test_2 { strings: $x = "bar" condition: $x }"#)
+        .unwrap();
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(b"foobar").unwrap();
+    assert_eq!(results.matching_rules().len(), 2);
 }
 
 #[test]

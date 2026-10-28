@@ -546,6 +546,7 @@ impl Rules {
         &self,
         sub_pattern_id: SubPatternId,
     ) -> &(PatternId, SubPattern) {
+        debug_assert!((sub_pattern_id.0 as usize) < self.sub_patterns.len());
         unsafe { self.sub_patterns.get_unchecked(sub_pattern_id.0 as usize) }
     }
 
