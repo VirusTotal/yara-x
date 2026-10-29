@@ -688,8 +688,9 @@ impl FastVM<'_> {
         let jmp_range = &input[range_min..range_max];
 
         let mut on_match_found = |offset| {
-            next_positions
-                .insert(position + n + jmp_range.len() - offset - step, ());
+            if let Some(jump) = jmp_range.len().checked_sub(offset + step) {
+                next_positions.insert(position + n + jump, ());
+            }
         };
 
         let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);

@@ -1925,16 +1925,15 @@ fn test_best_atom_past_u16_max() {
     let rules = compile(wide_rule.as_str()).unwrap();
     let mut scanner = Scanner::new(&rules);
 
-    let matching_wide: Vec<u8> = format!("{wide_prefix}1234")
-        .bytes()
-        .flat_map(|b| [b, 0])
-        .collect();
-    let non_matching_wide: Vec<u8> = format!("{wide_prefix}1235")
-        .bytes()
-        .flat_map(|b| [b, 0])
-        .collect();
+    let matching_wide: Vec<u8> =
+        format!("{wide_prefix}1234").bytes().flat_map(|b| [b, 0]).collect();
+    let non_matching_wide: Vec<u8> =
+        format!("{wide_prefix}1235").bytes().flat_map(|b| [b, 0]).collect();
 
-    assert_eq!(scanner.scan(&matching_wide).unwrap().matching_rules().len(), 1);
+    assert_eq!(
+        scanner.scan(&matching_wide).unwrap().matching_rules().len(),
+        1
+    );
     assert_eq!(
         scanner.scan(&non_matching_wide).unwrap().matching_rules().len(),
         0
@@ -1998,4 +1997,99 @@ fn test_fastvm_pattern_too_large() {
         let err = compile(rule.as_str()).unwrap_err();
         assert!(err.to_string().contains("regexp is too large"));
     }
+}
+
+#[test]
+fn test_fastvm_wide_jump_bck_underflow() {
+    // In all three cases below, FastVM extracts the wide atom `"1\02\03\04\0"`
+    // (`"1234"` in UTF-16LE) and verifies the prefix before `"1234"` backwards
+    // via `FastVM::jump_bck`. In `wide` mode each character requires 2 bytes
+    // (`step = 2`), so when only 1 byte precedes the jump in the scanned data,
+    // no wide character can fit before the jump and `jump_bck` must not
+    // subtract `step` (2) from `1` and underflow `usize`.
+
+    // Case 1: Backward jump followed by an alternation (`(ab|cd)`), which
+    // takes the byte-by-byte loop in `jump_bck`. Scanning `b"x1\02\03\04\0"`
+    // leaves only 1 byte (`b"x"`) before the atom.
+    let rules = compile(
+        r#"rule test { strings: $a = /(ab|cd).{0,2}1234/ wide condition: $a }"#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+
+    assert_eq!(
+        scanner.scan(b"x1\02\03\04\0").unwrap().matching_rules().len(),
+        0
+    );
+
+    // Valid wide matches with 0, 1, and 2 wide characters skipped by `.{0,2}`.
+    assert_eq!(
+        scanner.scan(b"a\0b\01\02\03\04\0").unwrap().matching_rules().len(),
+        1
+    );
+    assert_eq!(
+        scanner.scan(b"a\0b\0x\01\02\03\04\0").unwrap().matching_rules().len(),
+        1
+    );
+    assert_eq!(
+        scanner
+            .scan(b"c\0d\0x\0y\01\02\03\04\0")
+            .unwrap()
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    // 3 wide characters between `"cd"` and `"1234"` exceeds `.{0,2}`.
+    assert_eq!(
+        scanner
+            .scan(b"c\0d\0x\0y\0z\01\02\03\04\0")
+            .unwrap()
+            .matching_rules()
+            .len(),
+        0
+    );
+
+    // Case 2: Backward jump followed by a literal (`ab`), which takes the
+    // `memrchr` fast path in `jump_bck` looking for `'b'`. Scanning
+    // `b"b1\02\03\04\0"` finds `'b'` in the single byte before the atom, where
+    // a 2-byte wide character (`"b\0"`) cannot fit.
+    let rules = compile(
+        r#"rule test { strings: $a = /ab.{0,2}1234/ wide condition: $a }"#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+
+    assert_eq!(
+        scanner.scan(b"b1\02\03\04\0").unwrap().matching_rules().len(),
+        0
+    );
+    assert_eq!(
+        scanner.scan(b"a\0b\0x\01\02\03\04\0").unwrap().matching_rules().len(),
+        1
+    );
+
+    // Case 3: Non-zero `position` when entering `jump_bck`. Matching `(xf|gh)`
+    // backwards against `"x\0f\0"` advances `position` to 4, leaving 1 byte
+    // (`b"x"`) in `b"xx\0f\01\02\03\04\0"`. `jump_bck` must ignore that single
+    // byte rather than moving `position` from 4 back to 3.
+    let rules = compile(
+        r#"rule test { strings: $a = /(ab|xf).{0,2}(xf|gh)1234/ wide condition: $a }"#,
+    )
+    .unwrap();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(
+        scanner.scan(b"xx\0f\01\02\03\04\0").unwrap().matching_rules().len(),
+        0
+    );
+    assert_eq!(
+        scanner
+            .scan(b"a\0b\0x\0y\0g\0h\01\02\03\04\0")
+            .unwrap()
+            .matching_rules()
+            .len(),
+        1
+    );
 }
