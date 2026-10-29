@@ -1,0 +1,73 @@
+SOURCE_FILE@0..141
+  RULE_DECL@0..139
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..13 "\r\n"
+    WHITESPACE@13..14 "\t"
+    PATTERNS_BLK@14..115
+      STRINGS_KW@14..21 "strings"
+      COLON@21..22 ":"
+      NEWLINE@22..24 "\r\n"
+      WHITESPACE@24..27 "\t  "
+      PATTERN_DEF@27..61
+        PATTERN_IDENT@27..29 "$a"
+        WHITESPACE@29..30 " "
+        EQUAL@30..31 "="
+        WHITESPACE@31..32 " "
+        HEX_PATTERN@32..61
+          L_BRACE@32..33 "{"
+          WHITESPACE@33..34 " "
+          HEX_SUB_PATTERN@34..59
+            HEX_BYTE@34..36 "E0"
+            WHITESPACE@36..37 " "
+            HEX_BYTE@37..44 "F:0?1?:"
+            WHITESPACE@44..45 " "
+            HEX_BYTE@45..56 ":0110 1001:"
+            WHITESPACE@56..57 " "
+            HEX_BYTE@57..59 "AB"
+          WHITESPACE@59..60 " "
+          R_BRACE@60..61 "}"
+      NEWLINE@61..63 "\r\n"
+      WHITESPACE@63..66 "\t  "
+      PATTERN_DEF@66..93
+        PATTERN_IDENT@66..68 "$b"
+        WHITESPACE@68..69 " "
+        EQUAL@69..70 "="
+        WHITESPACE@70..71 " "
+        HEX_PATTERN@71..93
+          L_BRACE@71..72 "{"
+          WHITESPACE@72..73 " "
+          HEX_SUB_PATTERN@73..91
+            HEX_BYTE@73..91 ":0110100111110000:"
+          WHITESPACE@91..92 " "
+          R_BRACE@92..93 "}"
+      NEWLINE@93..95 "\r\n"
+      WHITESPACE@95..98 "\t  "
+      PATTERN_DEF@98..115
+        PATTERN_IDENT@98..100 "$c"
+        WHITESPACE@100..101 " "
+        EQUAL@101..102 "="
+        WHITESPACE@102..103 " "
+        HEX_PATTERN@103..115
+          L_BRACE@103..104 "{"
+          WHITESPACE@104..105 " "
+          HEX_SUB_PATTERN@105..113
+            HEX_BYTE@105..113 "~F:0?1?:"
+          WHITESPACE@113..114 " "
+          R_BRACE@114..115 "}"
+    NEWLINE@115..117 "\r\n"
+    WHITESPACE@117..119 "  "
+    CONDITION_BLK@119..136
+      CONDITION_KW@119..128 "condition"
+      COLON@128..129 ":"
+      NEWLINE@129..131 "\r\n"
+      WHITESPACE@131..134 "\t  "
+      BOOLEAN_EXPR@134..136
+        BOOLEAN_TERM@134..136
+          PATTERN_IDENT@134..136 "$a"
+    NEWLINE@136..138 "\r\n"
+    R_BRACE@138..139 "}"
+  NEWLINE@139..141 "\r\n"

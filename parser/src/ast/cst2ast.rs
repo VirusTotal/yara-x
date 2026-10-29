@@ -27,6 +27,164 @@ enum BuilderError {
     MaxDepthReached,
 }
 
+/// One `HEX_BYTE` token is either a classic two-nibble byte, or a
+/// colon-delimited bit group that packs into one or more bytes.
+fn hex_tokens_from_literal(
+    literal: &str,
+    span: Span,
+) -> Result<Vec<HexToken>, String> {
+    let (negated, body) = match literal.strip_prefix('~') {
+        Some(rest) => (true, rest),
+        None => (false, literal),
+    };
+
+    if !body.contains(':') {
+        return Ok(vec![classic_hex_token(body, negated, span)]);
+    }
+
+    let bytes = pack_bit_literal(body)?;
+    if negated && bytes.len() != 1 {
+        return Err("negation applies to a single byte".to_string());
+    }
+
+    Ok(bytes
+        .into_iter()
+        .map(|(value, mask)| {
+            let byte = HexByte { span: span.clone(), value, mask };
+            if negated {
+                HexToken::NotByte(byte)
+            } else {
+                HexToken::Byte(byte)
+            }
+        })
+        .collect())
+}
+
+fn classic_hex_token(body: &str, negated: bool, span: Span) -> HexToken {
+    let mut value: u8 = 0x00;
+    let mut mask: u8 = 0xFF;
+    let mut nibbles = body.chars();
+
+    let high = nibbles.next().unwrap();
+    // High nibble is `?`, then it should be masked out.
+    if high == '?' {
+        mask &= 0x0F;
+    } else {
+        value |= (high.to_digit(16).unwrap() << 4) as u8;
+    }
+
+    let low = nibbles.next().unwrap();
+    // Low nibble is `?`, then it should be masked out.
+    if low == '?' {
+        mask &= 0xF0;
+    } else {
+        value |= low.to_digit(16).unwrap() as u8;
+    }
+
+    let byte = HexByte { span, value, mask };
+    if negated { HexToken::NotByte(byte) } else { HexToken::Byte(byte) }
+}
+
+/// Pack `F:0?1?:` or `:0110 1001:` into `(value, mask)` bytes.
+///
+/// Mask bit 1 is significant. Unknown bits are 0 in `value`.
+fn pack_bit_literal(body: &str) -> Result<Vec<(u8, u8)>, String> {
+    let mut nibbles: Vec<(u8, u8)> = Vec::new();
+    let (bit_src, leading) = split_bit_literal(body)?;
+    if let Some(nibble) = leading {
+        nibbles.push(nibble);
+    }
+
+    let mut bits = String::new();
+    for c in bit_src.chars() {
+        if c == ' ' || c == '\t' {
+            continue;
+        }
+        match c {
+            '0' | '1' | '?' => bits.push(c),
+            _ => {
+                return Err(format!("invalid bit '{c}' in bit sequence"));
+            }
+        }
+    }
+
+    if bits.is_empty() {
+        return Err("empty bit sequence".to_string());
+    }
+    if bits.len() % 4 != 0 {
+        return Err("bit sequence length must be a multiple of 4".to_string());
+    }
+
+    let raw = bits.as_bytes();
+    let mut i = 0;
+    while i < raw.len() {
+        nibbles.push(nibble_from_bits(&raw[i..i + 4]));
+        i += 4;
+    }
+
+    if nibbles.len() % 2 != 0 {
+        return Err("bit sequence must pack into whole bytes".to_string());
+    }
+
+    let mut bytes = Vec::with_capacity(nibbles.len() / 2);
+    let mut iter = nibbles.into_iter();
+    while let Some((hi_value, hi_mask)) = iter.next() {
+        let (lo_value, lo_mask) = iter.next().unwrap();
+        let value = (hi_value << 4) | lo_value;
+        let mask = (hi_mask << 4) | lo_mask;
+        debug_assert_eq!(value & !mask, 0);
+        bytes.push((value, mask));
+    }
+    Ok(bytes)
+}
+
+/// Split `F:0?1?:` into the leading nibble and the bits inside the colons.
+fn split_bit_literal(body: &str) -> Result<(&str, Option<(u8, u8)>), String> {
+    let (leading, after_nibble) = if let Some(first) = body.chars().next() {
+        if first.is_ascii_hexdigit() {
+            let after = &body[first.len_utf8()..];
+            if after.starts_with(':') {
+                (Some((first.to_digit(16).unwrap() as u8, 0x0F)), after)
+            } else {
+                (None, body)
+            }
+        } else {
+            (None, body)
+        }
+    } else {
+        (None, body)
+    };
+
+    let Some(inner) = after_nibble.strip_prefix(':') else {
+        return Err("invalid bit sequence".to_string());
+    };
+    let Some((bits, tail)) = inner.split_once(':') else {
+        return Err("unclosed bit sequence".to_string());
+    };
+    if !tail.is_empty() {
+        return Err("invalid bit sequence".to_string());
+    }
+    Ok((bits, leading))
+}
+
+fn nibble_from_bits(bits: &[u8]) -> (u8, u8) {
+    let mut value = 0u8;
+    let mut mask = 0u8;
+    for (i, bit) in bits.iter().enumerate() {
+        let shift = 3 - i;
+        match bit {
+            b'0' => mask |= 1 << shift,
+            b'1' => {
+                mask |= 1 << shift;
+                value |= 1 << shift;
+            }
+            b'?' => {}
+            _ => unreachable!("bits were validated"),
+        }
+    }
+    (value, mask)
+}
+
 /// Creates an Abstract Syntax Tree from an iterator of [`Event`],
 /// like a [`CSTStream`].
 pub(super) struct Builder<'src, I>
@@ -823,53 +981,29 @@ where
         let mut sub_patterns = Vec::new();
 
         loop {
-            sub_patterns.push(match self.peek() {
+            match self.peek() {
                 Event::Token { kind: HEX_BYTE, .. } => {
                     let span = self.expect(HEX_BYTE)?;
-                    let mut byte_literal = self.get_source_str(&span)?;
-
-                    let mut value: u8 = 0x00;
-                    let mut mask: u8 = 0xFF;
-                    let mut negated = false;
-
-                    // If the byte starts with `~` is a negated byte.
-                    if let Some(b) = byte_literal.strip_prefix('~') {
-                        negated = true;
-                        byte_literal = b;
-                    }
-
-                    let mut nibbles = byte_literal.chars();
-
-                    let high = nibbles.next().unwrap();
-                    // High nibble is `?`, then it should be masked out.
-                    if high == '?' {
-                        mask &= 0x0F;
-                    } else {
-                        value |= (high.to_digit(16).unwrap() << 4) as u8;
-                    }
-
-                    let low = nibbles.next().unwrap();
-                    // Low nibble is `?`, then it should be masked out.
-                    if low == '?' {
-                        mask &= 0xF0;
-                    } else {
-                        value |= low.to_digit(16).unwrap() as u8;
-                    }
-
-                    if negated {
-                        HexToken::NotByte(HexByte { span, value, mask })
-                    } else {
-                        HexToken::Byte(HexByte { span, value, mask })
+                    let byte_literal = self.get_source_str(&span)?;
+                    match hex_tokens_from_literal(byte_literal, span.clone()) {
+                        Ok(tokens) => sub_patterns.extend(tokens),
+                        Err(message) => {
+                            self.errors
+                                .push(Error::SyntaxError { message, span });
+                            return Err(BuilderError::Abort);
+                        }
                     }
                 }
                 Event::Begin { kind: HEX_ALTERNATIVE, .. } => {
-                    HexToken::Alternative(Box::new(self.hex_alternative()?))
+                    sub_patterns.push(HexToken::Alternative(Box::new(
+                        self.hex_alternative()?,
+                    )));
                 }
                 Event::Begin { kind: HEX_JUMP, .. } => {
-                    HexToken::Jump(self.hex_jump()?)
+                    sub_patterns.push(HexToken::Jump(self.hex_jump()?));
                 }
                 _ => break,
-            });
+            }
         }
 
         self.end(HEX_SUB_PATTERN)?;
