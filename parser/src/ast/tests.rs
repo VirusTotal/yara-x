@@ -104,3 +104,30 @@ fn ast_dfs() {
     assert!(enter_count > 0);
     assert_eq!(enter_count, leave_count);
 }
+
+#[test]
+fn deep_expr_span_and_drop() {
+    use crate::ast::{BinaryExpr, Expr, NAryExpr, WithSpan};
+
+    // Build 100,000-deep `BinaryExpr` and `NAryExpr` trees directly; both
+    // `span()` and `Drop` must run in O(1) stack space without overflowing
+    // the thread stack.
+    let mut expr = Expr::True { span: Span(0..4) };
+    for i in 1..=100_000u32 {
+        let rhs = Expr::True { span: Span(i..i + 4) };
+        expr = Expr::BitwiseOr(Box::new(BinaryExpr::new(expr, rhs)));
+    }
+
+    assert_eq!(expr.span(), Span(0..100_004));
+    drop(expr);
+
+    let mut expr = Expr::True { span: Span(0..4) };
+    for i in 1..=100_000u32 {
+        let rhs = Expr::True { span: Span(i..i + 4) };
+        let nary = Box::new(NAryExpr::new(expr, rhs));
+        expr = if i % 2 == 0 { Expr::Add(nary) } else { Expr::Sub(nary) };
+    }
+
+    assert_eq!(expr.span(), Span(0..100_004));
+    drop(expr);
+}

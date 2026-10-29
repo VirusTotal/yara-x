@@ -1090,19 +1090,34 @@ pub struct UnaryExpr<'src> {
 /// An expression with two operands.
 #[derive(Debug)]
 pub struct BinaryExpr<'src> {
+    span: Span,
     /// Left-hand side.
     pub lhs: Expr<'src>,
     /// Right-hand side.
     pub rhs: Expr<'src>,
 }
 
+impl<'src> BinaryExpr<'src> {
+    pub fn new(lhs: Expr<'src>, rhs: Expr<'src>) -> Self {
+        Self { span: lhs.span().combine(&rhs.span()), lhs, rhs }
+    }
+}
+
 /// An expression with multiple operands.
 #[derive(Debug)]
 pub struct NAryExpr<'src> {
+    span: Span,
     pub operands: Vec<Expr<'src>>,
 }
 
 impl<'src> NAryExpr<'src> {
+    pub fn new(lhs: Expr<'src>, rhs: Expr<'src>) -> Self {
+        Self {
+            span: lhs.span().combine(&rhs.span()),
+            operands: vec![lhs, rhs],
+        }
+    }
+
     #[inline]
     pub fn operands(&self) -> Iter<'_, Expr<'src>> {
         self.operands.iter()
@@ -1110,6 +1125,7 @@ impl<'src> NAryExpr<'src> {
 
     #[inline]
     pub fn add(&mut self, expr: Expr<'src>) {
+        self.span = self.span.combine(&expr.span());
         self.operands.push(expr);
     }
 
@@ -1133,7 +1149,8 @@ impl<'src> NAryExpr<'src> {
 
 impl<'src> From<Vec<Expr<'src>>> for NAryExpr<'src> {
     fn from(value: Vec<Expr<'src>>) -> Self {
-        Self { operands: value }
+        let span = (&value).span();
+        Self { span, operands: value }
     }
 }
 
@@ -1432,13 +1449,13 @@ impl WithSpan for UnaryExpr<'_> {
 
 impl WithSpan for BinaryExpr<'_> {
     fn span(&self) -> Span {
-        self.lhs.span().combine(&self.rhs.span())
+        self.span.clone()
     }
 }
 
 impl WithSpan for NAryExpr<'_> {
     fn span(&self) -> Span {
-        self.first().span().combine(&self.last().span())
+        self.span.clone()
     }
 }
 
@@ -1545,6 +1562,107 @@ impl WithSpan for Expr<'_> {
             Expr::ForIn(f) => f.span(),
             Expr::Of(o) => o.span(),
             Expr::With(w) => w.span(),
+        }
+    }
+}
+
+#[inline]
+fn drain_binary_expr<'src>(
+    expr: &mut BinaryExpr<'src>,
+    stack: &mut Vec<Expr<'src>>,
+) {
+    // `Expr::False` is a leaf and is also used as the placeholder left behind
+    // in `lhs` and `rhs`; skipping it avoids re-pushing placeholders when an
+    // already-drained `BinaryExpr` finishes dropping.
+    if !matches!(expr.lhs, Expr::False { .. }) {
+        stack.push(std::mem::replace(
+            &mut expr.lhs,
+            Expr::False { span: Span(0..0) },
+        ));
+    }
+    if !matches!(expr.rhs, Expr::False { .. }) {
+        stack.push(std::mem::replace(
+            &mut expr.rhs,
+            Expr::False { span: Span(0..0) },
+        ));
+    }
+}
+
+fn drop_exprs(mut stack: Vec<Expr<'_>>) {
+    while let Some(expr) = stack.pop() {
+        match expr {
+            Expr::Shl(mut e)
+            | Expr::Shr(mut e)
+            | Expr::BitwiseAnd(mut e)
+            | Expr::BitwiseOr(mut e)
+            | Expr::BitwiseXor(mut e)
+            | Expr::Eq(mut e)
+            | Expr::Ne(mut e)
+            | Expr::Lt(mut e)
+            | Expr::Gt(mut e)
+            | Expr::Le(mut e)
+            | Expr::Ge(mut e)
+            | Expr::Contains(mut e)
+            | Expr::IContains(mut e)
+            | Expr::StartsWith(mut e)
+            | Expr::IStartsWith(mut e)
+            | Expr::EndsWith(mut e)
+            | Expr::IEndsWith(mut e)
+            | Expr::IEquals(mut e)
+            | Expr::Matches(mut e) => {
+                drain_binary_expr(&mut e, &mut stack);
+            }
+
+            Expr::FieldAccess(mut e)
+            | Expr::And(mut e)
+            | Expr::Or(mut e)
+            | Expr::Add(mut e)
+            | Expr::Sub(mut e)
+            | Expr::Mul(mut e)
+            | Expr::Div(mut e)
+            | Expr::Mod(mut e) => {
+                stack.append(&mut e.operands);
+            }
+
+            // All other AST constructs advance CST nesting depth in the
+            // parser, which is bounded by `MAX_CST_DEPTH`, so their compiler-
+            // generated drop glue cannot overflow the call stack.
+            _ => {}
+        }
+    }
+}
+
+/// Drops nested [`BinaryExpr`] trees iteratively instead of relying on
+/// compiler-generated recursive drop glue.
+///
+/// Flat binary operator chains (such as `1 | 1 | 1 | ...`) have shallow CSTs,
+/// so `Builder`'s iterative Pratt parser can fold them into arbitrarily deep
+/// [`BinaryExpr`] trees on the heap before `Builder::check_ast_depth` rejects
+/// the condition (or before a syntax error mid-expression aborts AST
+/// construction). Without an iterative `Drop`, discarding that tree would
+/// recurse down the spine on the call stack and cause a stack overflow.
+impl Drop for BinaryExpr<'_> {
+    fn drop(&mut self) {
+        let mut stack = Vec::new();
+        drain_binary_expr(self, &mut stack);
+        drop_exprs(stack);
+    }
+}
+
+/// Drops nested [`NAryExpr`] trees iteratively instead of relying on compiler-
+/// generated recursive drop glue.
+///
+/// Alternating associative operator chains (such as `1 + 1 - 1 + 1 - ...`)
+/// have shallow CSTs, so `Builder`'s iterative Pratt parser can fold them into
+/// arbitrarily deep [`NAryExpr`] trees on the heap before
+/// `Builder::check_ast_depth` rejects the condition (or before a syntax error
+/// mid-expression aborts AST construction). Without an iterative `Drop`,
+/// discarding that tree would recurse down the spine on the call stack and
+/// cause a stack overflow.
+impl Drop for NAryExpr<'_> {
+    fn drop(&mut self) {
+        if !self.operands.is_empty() {
+            drop_exprs(std::mem::take(&mut self.operands));
         }
     }
 }

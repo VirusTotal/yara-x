@@ -36,7 +36,6 @@ where
     source: &'src [u8],
     events: Peekable<I>,
     errors: Vec<Error>,
-    depth: usize,
 }
 
 impl<'src, I> Builder<'src, I>
@@ -44,12 +43,7 @@ where
     I: Iterator<Item = Event>,
 {
     pub fn new(src: &'src [u8], events: I) -> Self {
-        Self {
-            source: src,
-            events: events.peekable(),
-            errors: Vec::new(),
-            depth: 0,
-        }
+        Self { source: src, events: events.peekable(), errors: Vec::new() }
     }
 
     pub fn build_ast(mut self) -> AST<'src> {
@@ -109,8 +103,6 @@ where
             }
         }
 
-        assert_eq!(self.depth, 0);
-
         AST { items, errors: self.errors }
     }
 }
@@ -150,13 +142,13 @@ macro_rules! new_n_ary_expr {
                 operands.add($rhs);
                 $lhs
             }
-            _ => $variant(Box::new(NAryExpr { operands: vec![$lhs, $rhs] })),
+            _ => $variant(Box::new(NAryExpr::new($lhs, $rhs))),
         }
     }};
 }
 
 macro_rules! new_binary_expr {
-    ($variant:path, $lhs:ident, $rhs:ident) => {{ $variant(Box::new(BinaryExpr { lhs: $lhs, rhs: $rhs })) }};
+    ($variant:path, $lhs:ident, $rhs:ident) => {{ $variant(Box::new(BinaryExpr::new($lhs, $rhs))) }};
 }
 
 impl<'src, I> Builder<'src, I>
@@ -164,6 +156,29 @@ where
     I: Iterator<Item = Event>,
 {
     const MAX_AST_DEPTH: usize = crate::parser::MAX_CST_DEPTH;
+
+    /// Checks that the depth of `expr` does not exceed [`Self::MAX_AST_DEPTH`].
+    fn check_ast_depth(&mut self, expr: &Expr) -> Result<(), BuilderError> {
+        let mut depth = 0;
+        for event in dfs::DFSIter::new(expr) {
+            match event {
+                dfs::DFSEvent::Enter(node) => {
+                    depth += 1;
+                    if depth > Self::MAX_AST_DEPTH {
+                        self.errors.push(Error::SyntaxError {
+                            message: "nesting limit reached".to_string(),
+                            span: node.span(),
+                        });
+                        return Err(BuilderError::MaxDepthReached);
+                    }
+                }
+                dfs::DFSEvent::Leave(_) => {
+                    depth -= 1;
+                }
+            }
+        }
+        Ok(())
+    }
 
     /// Consumes all events until finding the start of a rule, an import
     /// statement, an include statement, or the end of the file.
@@ -185,7 +200,6 @@ where
                 }
             }
         }
-        self.depth = 0;
     }
 
     /// Consumes errors, whitespaces, newlines and comments, until finding
@@ -260,17 +274,7 @@ where
 
     fn begin(&mut self, kind: SyntaxKind) -> Result<(), BuilderError> {
         match self.next()? {
-            Event::Begin { kind: k, span } if k == kind => {
-                if self.depth == Self::MAX_AST_DEPTH {
-                    self.errors.push(Error::SyntaxError {
-                        message: "nesting limit reached".to_string(),
-                        span,
-                    });
-                    return Err(BuilderError::MaxDepthReached);
-                }
-                self.depth += 1;
-                Ok(())
-            }
+            Event::Begin { kind: k, .. } if k == kind => Ok(()),
             _ => Err(BuilderError::Abort),
         }
     }
@@ -281,7 +285,6 @@ where
             matches!(next, Event::End{kind: k, ..} if k == kind),
             "expecting End {{ kind: {kind:?} }}, found {next:?}",
         );
-        self.depth = self.depth.saturating_sub(1);
         Ok(())
     }
 
@@ -536,6 +539,7 @@ where
         self.expect(COLON)?;
 
         let condition = self.boolean_expr()?;
+        self.check_ast_depth(&condition)?;
 
         self.end(CONDITION_BLK)?;
         self.expect(R_BRACE)?;
@@ -1531,8 +1535,8 @@ where
                     .coalesce(|x, y| match (x, y) {
                         // Two consecutive identifiers, this is a field access.
                         (left @ Expr::Ident(_), right @ Expr::Ident(_)) => {
-                            Ok(Expr::FieldAccess(Box::new(NAryExpr::from(
-                                vec![left, right],
+                            Ok(Expr::FieldAccess(Box::new(NAryExpr::new(
+                                left, right,
                             ))))
                         }
                         // A field access followed by some identifier, add the
@@ -1541,7 +1545,7 @@ where
                             Expr::FieldAccess(mut field_access),
                             ident @ Expr::Ident(_),
                         ) => {
-                            field_access.operands.push(ident);
+                            field_access.add(ident);
                             Ok(Expr::FieldAccess(field_access))
                         }
                         //  A field access followed by a function call, the
@@ -1566,7 +1570,7 @@ where
                         (ident @ Expr::Ident(_), Expr::Lookup(mut lookup)) => {
                             lookup.span = ident.span().combine(&lookup.span);
                             lookup.primary = Expr::FieldAccess(Box::new(
-                                NAryExpr::from(vec![ident, lookup.primary]),
+                                NAryExpr::new(ident, lookup.primary),
                             ));
                             Ok(Expr::Lookup(lookup))
                         }
@@ -1575,7 +1579,7 @@ where
                             Expr::FieldAccess(mut fa),
                             Expr::Lookup(mut lookup),
                         ) => {
-                            fa.operands.push(lookup.primary);
+                            fa.add(lookup.primary);
                             lookup.span = fa.span().combine(&lookup.span);
                             lookup.primary = Expr::FieldAccess(fa);
                             Ok(Expr::Lookup(lookup))

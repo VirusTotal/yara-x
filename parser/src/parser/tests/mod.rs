@@ -192,59 +192,58 @@ fn nesting_error() {
         }]
     );
     assert_eq!(ast.rules().count(), 1);
-}
 
-#[test]
-fn cst2ast_max_depth() {
-    use crate::cst::Event;
-    use crate::cst::SyntaxKind::*;
-
-    // Construct a synthetic event stream that exceeds `Builder::MAX_AST_DEPTH`
-    // directly via `AST::new`, verifying that `Builder` emits a syntax error
-    // and recovers to parse subsequent rules.
-    let source = b"rule ok { condition: true }";
-    let ok_events: Vec<_> = Parser::new(source).collect();
-
-    let mut events = vec![
-        Event::Begin { kind: SOURCE_FILE, span: Span(0..source.len() as u32) },
-        Event::Begin { kind: RULE_DECL, span: Span(0..0) },
-        Event::Token { kind: RULE_KW, span: Span(0..4) },
-        Event::Token { kind: IDENT, span: Span(5..7) },
-        Event::Token { kind: L_BRACE, span: Span(8..9) },
-        Event::Begin { kind: CONDITION_BLK, span: Span(10..25) },
-        Event::Token { kind: CONDITION_KW, span: Span(10..19) },
-        Event::Token { kind: COLON, span: Span(19..20) },
-    ];
-
-    let depth = crate::parser::MAX_CST_DEPTH + 10;
-    for _ in 0..depth {
-        events.push(Event::Begin { kind: BOOLEAN_EXPR, span: Span(21..25) });
-        events.push(Event::Begin { kind: BOOLEAN_TERM, span: Span(21..25) });
-        events.push(Event::Token { kind: L_PAREN, span: Span(21..22) });
-    }
-    events.push(Event::Token { kind: TRUE_KW, span: Span(21..25) });
-    for _ in 0..depth {
-        events.push(Event::Token { kind: R_PAREN, span: Span(21..22) });
-        events.push(Event::End { kind: BOOLEAN_TERM, span: Span(21..25) });
-        events.push(Event::End { kind: BOOLEAN_EXPR, span: Span(21..25) });
-    }
-    events.push(Event::End { kind: CONDITION_BLK, span: Span(10..25) });
-    events.push(Event::Token { kind: R_BRACE, span: Span(26..27) });
-    events.push(Event::End { kind: RULE_DECL, span: Span(0..27) });
-
-    // Append the valid `ok` rule (skipping its outer `SOURCE_FILE` Begin/End).
-    events.extend(ok_events.into_iter().skip(1));
-
-    let ast = AST::new(source, events.into_iter());
-    assert_eq!(ast.errors().len(), 1);
-    assert_eq!(
-        ast.errors()[0],
-        Error::SyntaxError {
-            message: "nesting limit reached".to_string(),
-            span: Span(21..25),
-        }
+    // Flat CST chain of `BinaryExpr` operators (`|`) exceeding `MAX_AST_DEPTH`.
+    let source = format!(
+        "rule test_1 {{ condition: -({}) == 0 }}\nrule test_2 {{ condition: true }}",
+        vec!["1"; 25_000].join(" | ")
     );
-    let rules: Vec<_> = ast.rules().collect();
-    assert_eq!(rules.len(), 1);
-    assert_eq!(rules[0].identifier.name, "ok");
+    let ast = AST::from(source.as_str());
+    assert_eq!(
+        ast.errors(),
+        &[Error::SyntaxError {
+            message: "nesting limit reached".to_string(),
+            span: Span(27..96032),
+        }]
+    );
+    assert_eq!(ast.rules().count(), 1);
+
+    // Alternating same-precedence `NAryExpr` operators (`+` / `-`) cannot be
+    // flattened into a single `NAryExpr`, so they also hit `MAX_AST_DEPTH`.
+    let source = format!(
+        "rule test_1 {{ condition: {} == 0 }}\nrule test_2 {{ condition: true }}",
+        "1 + 1 - ".repeat(1_000) + "1"
+    );
+    let ast = AST::from(source.as_str());
+    assert_eq!(
+        ast.errors(),
+        &[Error::SyntaxError {
+            message: "nesting limit reached".to_string(),
+            span: Span(25..4030),
+        }]
+    );
+    assert_eq!(ast.rules().count(), 1);
+
+    // Parenthesized sub-chains accumulate their AST depth across parentheses.
+    let chunk = vec!["1"; 400].join(" | ");
+    let source = format!(
+        "rule test_1 {{ condition: (({chunk}) | {chunk}) | {chunk} == 0 }}\nrule test_2 {{ condition: true }}",
+    );
+    let ast = AST::from(source.as_str());
+    assert_eq!(ast.errors().len(), 1);
+    assert!(matches!(
+        &ast.errors()[0],
+        Error::SyntaxError { message, .. } if message == "nesting limit reached"
+    ));
+    assert_eq!(ast.rules().count(), 1);
+
+    // Homogeneous `NAryExpr` chains (`1 + 1 + 1 + ...`) flatten into a single
+    // `NAryExpr` node of depth 2 and must NOT hit `MAX_AST_DEPTH`.
+    let source = format!(
+        "rule test_1 {{ condition: {} == 2000 }}",
+        vec!["1"; 2_000].join(" + ")
+    );
+    let ast = AST::from(source.as_str());
+    assert!(ast.errors().is_empty());
+    assert_eq!(ast.rules().count(), 1);
 }
