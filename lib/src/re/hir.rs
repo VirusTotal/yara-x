@@ -48,9 +48,9 @@ impl ChainedPatternGap {
     #[inline]
     pub fn contains(&self, gap: usize) -> bool {
         match self {
-            ChainedPatternGap::Bounded(range) => {
-                (*range.start() as usize..=*range.end() as usize).contains(&gap)
-            }
+            ChainedPatternGap::Bounded(range) => (*range.start() as usize
+                ..=*range.end() as usize)
+                .contains(&gap),
             ChainedPatternGap::Unbounded(range) => {
                 (range.start as usize..).contains(&gap)
             }

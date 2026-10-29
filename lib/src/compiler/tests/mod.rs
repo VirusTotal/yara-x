@@ -1969,6 +1969,7 @@ fn test_best_atom_past_u16_max() {
 }
 
 #[test]
+#[cfg(feature = "fast-regexp")]
 fn test_fastvm_pattern_too_large() {
     // 65,535-byte (`u16::MAX`) literal and masked-literal pieces fit in FastVM.
     let rule_lit_ok = format!(
@@ -2001,16 +2002,16 @@ fn test_fastvm_pattern_too_large() {
 
 #[test]
 fn test_fastvm_wide_jump_bck_underflow() {
-    // In all three cases below, FastVM extracts the wide atom `"1\02\03\04\0"`
-    // (`"1234"` in UTF-16LE) and verifies the prefix before `"1234"` backwards
-    // via `FastVM::jump_bck`. In `wide` mode each character requires 2 bytes
-    // (`step = 2`), so when only 1 byte precedes the jump in the scanned data,
-    // no wide character can fit before the jump and `jump_bck` must not
-    // subtract `step` (2) from `1` and underflow `usize`.
+    // In all three cases below, FastVM extracts the wide atom
+    // `"1\x002\x003\x004\x00"` (`"1234"` in UTF-16LE) and verifies the prefix
+    // before `"1234"` backwards via `FastVM::jump_bck`. In `wide` mode each
+    // character requires 2 bytes (`step = 2`), so when only 1 byte precedes the
+    // jump in the scanned data, no wide character can fit before the jump and
+    // `jump_bck` must not subtract `step` (2) from `1` and underflow `usize`.
 
     // Case 1: Backward jump followed by an alternation (`(ab|cd)`), which
-    // takes the byte-by-byte loop in `jump_bck`. Scanning `b"x1\02\03\04\0"`
-    // leaves only 1 byte (`b"x"`) before the atom.
+    // takes the byte-by-byte loop in `jump_bck`. Scanning
+    // `b"x1\x002\x003\x004\x00"` leaves only 1 byte (`b"x"`) before the atom.
     let rules = compile(
         r#"rule test { strings: $a = /(ab|cd).{0,2}1234/ wide condition: $a }"#,
     )
@@ -2019,22 +2020,30 @@ fn test_fastvm_wide_jump_bck_underflow() {
     let mut scanner = Scanner::new(&rules);
 
     assert_eq!(
-        scanner.scan(b"x1\02\03\04\0").unwrap().matching_rules().len(),
+        scanner.scan(b"x1\x002\x003\x004\x00").unwrap().matching_rules().len(),
         0
     );
 
     // Valid wide matches with 0, 1, and 2 wide characters skipped by `.{0,2}`.
     assert_eq!(
-        scanner.scan(b"a\0b\01\02\03\04\0").unwrap().matching_rules().len(),
-        1
-    );
-    assert_eq!(
-        scanner.scan(b"a\0b\0x\01\02\03\04\0").unwrap().matching_rules().len(),
+        scanner
+            .scan(b"a\x00b\x001\x002\x003\x004\x00")
+            .unwrap()
+            .matching_rules()
+            .len(),
         1
     );
     assert_eq!(
         scanner
-            .scan(b"c\0d\0x\0y\01\02\03\04\0")
+            .scan(b"a\x00b\x00x\x001\x002\x003\x004\x00")
+            .unwrap()
+            .matching_rules()
+            .len(),
+        1
+    );
+    assert_eq!(
+        scanner
+            .scan(b"c\x00d\x00x\x00y\x001\x002\x003\x004\x00")
             .unwrap()
             .matching_rules()
             .len(),
@@ -2044,7 +2053,7 @@ fn test_fastvm_wide_jump_bck_underflow() {
     // 3 wide characters between `"cd"` and `"1234"` exceeds `.{0,2}`.
     assert_eq!(
         scanner
-            .scan(b"c\0d\0x\0y\0z\01\02\03\04\0")
+            .scan(b"c\x00d\x00x\x00y\x00z\x001\x002\x003\x004\x00")
             .unwrap()
             .matching_rules()
             .len(),
@@ -2053,8 +2062,8 @@ fn test_fastvm_wide_jump_bck_underflow() {
 
     // Case 2: Backward jump followed by a literal (`ab`), which takes the
     // `memrchr` fast path in `jump_bck` looking for `'b'`. Scanning
-    // `b"b1\02\03\04\0"` finds `'b'` in the single byte before the atom, where
-    // a 2-byte wide character (`"b\0"`) cannot fit.
+    // `b"b1\x002\x003\x004\x00"` finds `'b'` in the single byte before the
+    // atom, where a 2-byte wide character (`"b\x00"`) cannot fit.
     let rules = compile(
         r#"rule test { strings: $a = /ab.{0,2}1234/ wide condition: $a }"#,
     )
@@ -2063,30 +2072,38 @@ fn test_fastvm_wide_jump_bck_underflow() {
     let mut scanner = Scanner::new(&rules);
 
     assert_eq!(
-        scanner.scan(b"b1\02\03\04\0").unwrap().matching_rules().len(),
+        scanner.scan(b"b1\x002\x003\x004\x00").unwrap().matching_rules().len(),
         0
     );
     assert_eq!(
-        scanner.scan(b"a\0b\0x\01\02\03\04\0").unwrap().matching_rules().len(),
+        scanner
+            .scan(b"a\x00b\x00x\x001\x002\x003\x004\x00")
+            .unwrap()
+            .matching_rules()
+            .len(),
         1
     );
 
     // Case 3: Non-zero `position` when entering `jump_bck`. Matching `(xf|gh)`
-    // backwards against `"x\0f\0"` advances `position` to 4, leaving 1 byte
-    // (`b"x"`) in `b"xx\0f\01\02\03\04\0"`. `jump_bck` must ignore that single
-    // byte rather than moving `position` from 4 back to 3.
+    // backwards against `"x\x00f\x00"` advances `position` to 4, leaving 1 byte
+    // (`b"x"`) in `b"xx\x00f\x001\x002\x003\x004\x00"`. `jump_bck` must ignore
+    // that single byte rather than moving `position` from 4 back to 3.
     let rules = compile(
         r#"rule test { strings: $a = /(ab|xf).{0,2}(xf|gh)1234/ wide condition: $a }"#,
     )
     .unwrap();
     let mut scanner = Scanner::new(&rules);
     assert_eq!(
-        scanner.scan(b"xx\0f\01\02\03\04\0").unwrap().matching_rules().len(),
+        scanner
+            .scan(b"xx\x00f\x001\x002\x003\x004\x00")
+            .unwrap()
+            .matching_rules()
+            .len(),
         0
     );
     assert_eq!(
         scanner
-            .scan(b"a\0b\0x\0y\0g\0h\01\02\03\04\0")
+            .scan(b"a\x00b\x00x\x00y\x00g\x00h\x001\x002\x003\x004\x00")
             .unwrap()
             .matching_rules()
             .len(),
@@ -2100,6 +2117,12 @@ fn test_wide_regexp_atom_backtrack_overflow() {
     let p32767 = "a".repeat(32767);
     let p32768 = "a".repeat(32768);
 
+    // FastVM keeps the intra-literal offset in `atom.backtrack` (`32,764`
+    // narrow -> `65,528` wide), whereas Thompson's compiler (`not(fast-regexp)`)
+    // folds the intra-literal offset into `code_loc` and resets `backtrack` to 0.
+    let expected_backtrack =
+        if cfg!(feature = "fast-regexp") { 65528 } else { 0 };
+
     // `"1234"` right at the end of the first 32 KiB (`32764..32768`) is
     // selected with narrow `backtrack = 32,764` (`65,528` in wide mode).
     let rules_32764 = compile(
@@ -2110,8 +2133,8 @@ fn test_wide_regexp_atom_backtrack_overflow() {
     )
     .unwrap();
     assert_eq!(rules_32764.atoms().len(), 1);
-    assert_eq!(rules_32764.atoms()[0].as_slice(), b"1\02\03\04\0");
-    assert_eq!(rules_32764.atoms()[0].backtrack(), 65528);
+    assert_eq!(rules_32764.atoms()[0].as_slice(), b"1\x002\x003\x004\x00");
+    assert_eq!(rules_32764.atoms()[0].backtrack(), expected_backtrack);
 
     // `"1234"` straddling the 32 KiB boundary (`32767..32771`): only `"aaa1"`
     // (`32764..32768`) lies within the first 32 KiB (`backtrack = 65,528`).
@@ -2123,8 +2146,8 @@ fn test_wide_regexp_atom_backtrack_overflow() {
     )
     .unwrap();
     assert_eq!(rules_32767.atoms().len(), 1);
-    assert_eq!(rules_32767.atoms()[0].as_slice(), b"a\0a\0a\01\0");
-    assert_eq!(rules_32767.atoms()[0].backtrack(), 65528);
+    assert_eq!(rules_32767.atoms()[0].as_slice(), b"a\x00a\x00a\x001\x00");
+    assert_eq!(rules_32767.atoms()[0].backtrack(), expected_backtrack);
 
     // High-quality bytes (`"1234"`) past the first 32 KiB (`32,768` bytes):
     // `best_range_in_bytes` and `best_range_in_masked_bytes` consider only the
@@ -2138,7 +2161,7 @@ fn test_wide_regexp_atom_backtrack_overflow() {
     )
     .unwrap();
     assert_eq!(rules_32768.atoms().len(), 1);
-    assert_eq!(rules_32768.atoms()[0].as_slice(), b"a\0a\0a\0a\0");
+    assert_eq!(rules_32768.atoms()[0].as_slice(), b"a\x00a\x00a\x00a\x00");
     assert_eq!(rules_32768.atoms()[0].backtrack(), 0);
 
     for rule in [
@@ -2163,7 +2186,7 @@ fn test_wide_regexp_atom_backtrack_overflow() {
         // (previously release builds wrapped `backtrack` modulo 65,536 to 0).
         assert_eq!(
             scanner
-                .scan(b"1\02\03\04\0x\0b\0")
+                .scan(b"1\x002\x003\x004\x00x\x00b\x00")
                 .unwrap()
                 .matching_rules()
                 .len(),
@@ -2282,4 +2305,3 @@ fn test_hex_large_and_coalesced_jumps() {
         );
     }
 }
-
