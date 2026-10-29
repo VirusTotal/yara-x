@@ -21,8 +21,10 @@ use bitvec::order::Lsb0;
 use regex_syntax::hir;
 use regex_syntax::hir::literal::Seq;
 use regex_syntax::hir::{
-    Class, ClassBytes, Hir, HirKind, Literal, Look, Repetition, Visitor, visit,
+    Class, ClassBytes, ClassBytesRange, Hir, HirKind, Literal, Look,
+    Repetition, visit,
 };
+use regex_syntax::utf8::{Utf8Range, Utf8Sequence, Utf8Sequences};
 
 use super::instr;
 use super::instr::{Instr, NumAlt, OPCODE_PREFIX, literal_code_length};
@@ -472,6 +474,53 @@ impl Compiler {
         self.backward_code_mut().patch_split_n(location.bck, bck.into_iter());
     }
 
+    /// Emits a PikeVM instruction into `seq` matching a single byte range from
+    /// a [`Utf8Sequence`].
+    fn emit_utf8_range(
+        seq: &mut InstrSeq,
+        range: &Utf8Range,
+    ) -> Result<usize, Error> {
+        // When the range matches a single exact byte, emit it as a literal
+        // instead of a `CLASS_RANGES` instruction, as literals are more
+        // compact.
+        if range.start == range.end {
+            seq.emit_literal(std::iter::once(&range.start))
+        } else {
+            let class = ClassBytes::new([ClassBytesRange::new(
+                range.start,
+                range.end,
+            )]);
+            // Byte ranges such as UTF-8 continuation bytes (`0x80..=0xBF`) can
+            // be encoded as a single `MASKED_BYTE` (`b & 0xC0 == 0x80`).
+            if let Some(byte) = re::hir::class_to_masked_byte(&class) {
+                seq.emit_masked_byte(byte)
+            } else {
+                seq.emit_class(&class)
+            }
+        }
+    }
+
+    /// Emits forward and backward PikeVM code for a [`Utf8Sequence`].
+    ///
+    /// A [`Utf8Sequence`] represents a set of Unicode scalar values whose
+    /// UTF-8 encodings have the same length (1 to 4 bytes) and match each
+    /// byte range in sequence (e.g. `U+0080..=U+07FF` is represented as the
+    /// 2-byte sequence `[0xC2..=0xDF][0x80..=0xBF]`).
+    fn emit_utf8_seq(&mut self, seq: &Utf8Sequence) -> Result<CodeLoc, Error> {
+        let loc = self.location();
+        let ranges = seq.as_slice();
+        // Forward code matches the UTF-8 bytes left-to-right.
+        for range in ranges.iter() {
+            Self::emit_utf8_range(self.forward_code_mut(), range)?;
+        }
+        // Backward code scans right-to-left, so the byte ranges must be
+        // emitted in reverse order.
+        for range in ranges.iter().rev() {
+            Self::emit_utf8_range(self.backward_code_mut(), range)?;
+        }
+        Ok(loc)
+    }
+
     fn visit_post_class(&mut self, class: &Class) -> Result<CodeLoc, Error> {
         match class {
             Class::Bytes(class) => {
@@ -482,43 +531,98 @@ impl Compiler {
                 }
             }
             Class::Unicode(class) => {
-                // Unicode classes can appear even on regexps that were compiled
-                // without unicode support. This a well-known issue with the
-                // `regex-syntax` crate, and we should be able to handle it.
-                // See: https://github.com/rust-lang/regex/issues/1088
+                // Unicode classes can appear when Unicode mode is enabled via
+                // `(?u)` or even on regexps compiled without Unicode support
+                // due to `regex-syntax` issue #1088:
+                // https://github.com/rust-lang/regex/issues/1088
                 //
-                // The first thing we do is trying to covert the unicode class
-                // into a byte class. If that's not possible, the alternative
-                // is converting the unicode class to an alternation of literals,
-                // where each literal is the UTF-8 encoding of one character in
-                // the class.
+                // First try converting the Unicode class into an ASCII byte
+                // class. When the class contains non-ASCII characters that
+                // require multi-byte UTF-8 encodings, use `Utf8Sequences` to
+                // compile each Unicode scalar range into minimal sequences of
+                // UTF-8 byte ranges rather than expanding every codepoint into
+                // an individual literal (for example, `(?u).` spans >1.1M
+                // codepoints, which `Utf8Sequences` collapses into 10 UTF-8
+                // byte-range sequences).
                 if let Some(class) = class.to_byte_class() {
                     self.emit_class(&class)
                 } else {
-                    let mut lits = Vec::new();
+                    let mut seqs = Vec::new();
                     for range in class.ranges() {
-                        for unicode_char in range.start()..=range.end() {
-                            let mut buf: [u8; 4] = [0; 4];
-                            lits.push(Hir::literal(
-                                unicode_char.encode_utf8(&mut buf).as_bytes(),
-                            ));
+                        for seq in
+                            Utf8Sequences::new(range.start(), range.end())
+                        {
+                            // `SPLIT_N` encodes the number of branches in a
+                            // `u8` (`MAX_ALTERNATIVES` = 255). Stop early if a
+                            // fragmented Unicode class (such as `\p{L}`)
+                            // exceeds this limit.
+                            if seqs.len() == MAX_ALTERNATIVES {
+                                return Err(Error::TooLarge);
+                            }
+                            seqs.push(seq);
                         }
                     }
-                    // Using `Hir::alternation` for creating a HIR for the
-                    // alternation of literals is not possible, because during
-                    // the construction the HIR will be converted into a
-                    // unicode class. Therefore, we don't try to create a HIR
-                    // node for the alternation, and instead visit the literal
-                    // nodes as if they were part of an alternation.
-                    self.visit_pre_alternation(&lits)?;
-                    for (i, lit) in lits.iter().enumerate() {
-                        self.visit_pre(lit)?;
-                        self.visit_post(lit)?;
-                        if i < lits.len() - 1 {
-                            self.visit_alternation_in()?;
+
+                    match seqs.as_slice() {
+                        // An empty Unicode class would have already been
+                        // handled by `class.to_byte_class()` above.
+                        [] => unreachable!(),
+                        // Single UTF-8 sequence (e.g. `/🙈/i`): emit its bytes
+                        // directly without wrapping them in a `split_n`.
+                        [seq] => self.emit_utf8_seq(seq),
+                        // Multiple UTF-8 sequences: emit an N-way alternation:
+                        //
+                        //         split_n l1, l2, ..., lN
+                        // l1    : ... code for seqs[0] ...
+                        // l1_j  : jump end_loc
+                        // l2    : ... code for seqs[1] ...
+                        // l2_j  : jump end_loc
+                        //         ...
+                        // lN    : ... code for seqs[N - 1] ...
+                        // end_loc:
+                        seqs => {
+                            let n = seqs.len();
+                            let split_loc =
+                                self.emit_split_n(n.try_into().unwrap())?;
+                            let mut seq_locs = Vec::with_capacity(n);
+                            let mut jump_locs = Vec::with_capacity(n - 1);
+
+                            for (i, seq) in seqs.iter().enumerate() {
+                                seq_locs.push(self.emit_utf8_seq(seq)?);
+                                // Every branch except the last one needs to
+                                // jump over the remaining branches to `end_loc`.
+                                if i < n - 1 {
+                                    jump_locs
+                                        .push(self.emit_instr(Instr::JUMP)?);
+                                }
+                            }
+
+                            let end_loc = self.location();
+
+                            // Patch all branch-ending jumps to land at `end_loc`.
+                            for jump_loc in jump_locs {
+                                self.patch_instr(
+                                    &jump_loc,
+                                    end_loc.sub(&jump_loc)?,
+                                );
+                            }
+
+                            // Patch `split_n` with the relative offset of each
+                            // sequence branch.
+                            let offsets: Vec<CodeLocOffset> = seq_locs
+                                .into_iter()
+                                .map(|loc| loc.sub(&split_loc))
+                                .collect::<Result<Vec<CodeLocOffset>, Error>>(
+                                )?;
+
+                            self.patch_split_n(
+                                &split_loc,
+                                offsets.into_iter(),
+                            );
+
+                            Ok(split_loc)
                         }
                     }
-                    self.visit_post_alternation(&lits)
                 }
             }
         }

@@ -2256,6 +2256,12 @@ fn regexp_patterns_5() {
     pattern_match!(r"/^(?u:abc)\b xyz$/", b"abc xyz", b"abc xyz");
     pattern_match!(r"/(?u)^abc(?-u:\b) xyz$/", b"abc xyz", b"abc xyz");
 
+    pattern_true!(r"/(?u)^...$/", "🙈🙉🙊".as_bytes());
+    pattern_false!(r"/(?u)^.(?-u)..$/", "🙈🙉🙊".as_bytes());
+    pattern_match!(r"/(?u)\d+abc/", "٠١٢abc".as_bytes(), "٠١٢abc".as_bytes());
+    pattern_match!(r"/(?u)abc\d+/", "abc٠١٢".as_bytes(), "abc٠١٢".as_bytes());
+    pattern_false!(r"/(?u)\d+abc/", b"xyzabc");
+
     // TODO: enable if we ever implement unicode support for regexps.
     //pattern_match!(r"/(?u)^abc \bxyz$/", b"abc xyz", b"abc xyz");
     //pattern_match!(r"/(?u)^abc\Bxyz$/", b"abcxyz", b"abcxyz");

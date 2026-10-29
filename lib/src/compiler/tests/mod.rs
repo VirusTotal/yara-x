@@ -1903,3 +1903,13 @@ fn test_unicode_word_boundary() {
         );
     }
 }
+
+#[test]
+fn test_unicode_class_too_large() {
+    for pat in [r"/(?u)\w+abc/", r"/(?u)\p{L}+abc/"] {
+        let rule =
+            format!("rule test {{ strings: $a = {pat} condition: $a }}");
+        let err = compile(rule.as_str()).unwrap_err();
+        assert!(err.to_string().contains("regexp is too large"));
+    }
+}
