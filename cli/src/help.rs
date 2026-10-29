@@ -129,6 +129,9 @@ pub const IGNORE_MODULE_LONG_HELP: &str = r#"Ignore rules that use the specified
 Rules that use the specified module will be ignored, as well as any rules that
 depends directly or indirectly on such rules.
 
+The module is ignored even if YARA-X implements it. This is useful for modules
+that are only partially supported.
+
 This option can be used more than once for ignored different modules."#;
 
 pub const NO_MMAP_LONG_HELP: &str = r#"Don't use memory-mapped files
