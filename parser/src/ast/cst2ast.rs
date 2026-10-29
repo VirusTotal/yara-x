@@ -111,7 +111,7 @@ fn pack_bit_literal(body: &str) -> Result<Vec<(u8, u8)>, String> {
     if bits.is_empty() {
         return Err("empty bit sequence".to_string());
     }
-    if bits.len() % 4 != 0 {
+    if !bits.len().is_multiple_of(4) {
         return Err("bit sequence length must be a multiple of 4".to_string());
     }
 
@@ -122,7 +122,7 @@ fn pack_bit_literal(body: &str) -> Result<Vec<(u8, u8)>, String> {
         i += 4;
     }
 
-    if nibbles.len() % 2 != 0 {
+    if !nibbles.len().is_multiple_of(2) {
         return Err("bit sequence must pack into whole bytes".to_string());
     }
 
@@ -138,8 +138,10 @@ fn pack_bit_literal(body: &str) -> Result<Vec<(u8, u8)>, String> {
     Ok(bytes)
 }
 
+type Nibble = (u8, u8);
+
 /// Split `F:0?1?:` into the leading nibble and the bits inside the colons.
-fn split_bit_literal(body: &str) -> Result<(&str, Option<(u8, u8)>), String> {
+fn split_bit_literal(body: &str) -> Result<(&str, Option<Nibble>), String> {
     let (leading, after_nibble) = if let Some(first) = body.chars().next() {
         if first.is_ascii_hexdigit() {
             let after = &body[first.len_utf8()..];
