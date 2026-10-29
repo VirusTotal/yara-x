@@ -219,6 +219,31 @@ impl Compiler {
 
         Ok(re_atoms)
     }
+
+    /// True when `code` contains `MASKED_BYTE byte mask` and no class
+    /// instruction. Used to lock bit masks onto the 4-byte opcode.
+    #[cfg(test)]
+    pub(crate) fn code_has_masked_byte(
+        code: &[u8],
+        byte: u8,
+        mask: u8,
+    ) -> bool {
+        use super::instr::{Instr, InstrParser};
+
+        let mut found = false;
+        for (instr, _) in InstrParser::new(code) {
+            match instr {
+                Instr::MaskedByte { byte: b, mask: m }
+                    if b == byte && m == mask =>
+                {
+                    found = true;
+                }
+                Instr::ClassBitmap(_) | Instr::ClassRanges(_) => return false,
+                _ => {}
+            }
+        }
+        found
+    }
 }
 
 impl Compiler {

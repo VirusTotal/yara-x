@@ -1,0 +1,6 @@
+ERRORS:
+- SyntaxError { message: "bit sequence length must be a multiple of 4", span: Span(40..45) }
+- SyntaxError { message: "empty bit sequence", span: Span(118..120) }
+- SyntaxError { message: "invalid bit '2' in bit sequence", span: Span(191..197) }
+- SyntaxError { message: "bit sequence must pack into whole bytes", span: Span(268..274) }
+- SyntaxError { message: "negation applies to a single byte", span: Span(353..372) }
