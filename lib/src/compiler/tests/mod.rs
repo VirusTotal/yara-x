@@ -1968,3 +1968,34 @@ fn test_best_atom_past_u16_max() {
         0
     );
 }
+
+#[test]
+fn test_fastvm_pattern_too_large() {
+    // 65,535-byte (`u16::MAX`) literal and masked-literal pieces fit in FastVM.
+    let rule_lit_ok = format!(
+        "rule test {{ strings: $a = /{}.{{1,2}}b/ condition: $a }}",
+        "a".repeat(65535)
+    );
+    assert!(compile(rule_lit_ok.as_str()).is_ok());
+
+    let rule_masked_ok = format!(
+        "rule test {{ strings: $a = /[Aa]{}.{{1,2}}b/ condition: $a }}",
+        "a".repeat(65534)
+    );
+    assert!(compile(rule_masked_ok.as_str()).is_ok());
+
+    // 65,536-byte (`u16::MAX + 1`) literal, masked-literal, and alternation
+    // pieces exceed `u16::MAX` and must fail with `Error::TooLarge` rather than
+    // panicking.
+    for pat in [
+        format!("/{}.{{1,2}}b/", "a".repeat(65536)),
+        format!("/[Aa]{}.{{1,2}}b/", "a".repeat(65535)),
+        format!("/({}|b)1234/", "a".repeat(65535)),
+        format!("/({}|b)1234/", "a".repeat(65536)),
+    ] {
+        let rule =
+            format!("rule test {{ strings: $a = {pat} condition: $a }}");
+        let err = compile(rule.as_str()).unwrap_err();
+        assert!(err.to_string().contains("regexp is too large"));
+    }
+}
