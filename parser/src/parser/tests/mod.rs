@@ -171,3 +171,80 @@ rule test_2 {
 
     assert!(errors.is_empty(), "unexpected errors emitted: {errors:?}");
 }
+
+#[test]
+fn nesting_error() {
+    let source = format!(
+        "rule test_1 {{ condition: {}true{} }}\nrule test_2 {{ condition: true }}",
+        "(".repeat(505),
+        ")".repeat(505),
+    );
+
+    let cst = CST::try_from(Parser::new(source.as_bytes())).unwrap();
+    assert_eq!(cst.root().text().len(), source.len());
+
+    let ast = AST::from(source.as_str());
+    assert_eq!(
+        ast.errors(),
+        &[Error::SyntaxError {
+            message: "nesting limit reached".to_string(),
+            span: Span(522..523),
+        }]
+    );
+    assert_eq!(ast.rules().count(), 1);
+}
+
+#[test]
+fn cst2ast_max_depth() {
+    use crate::cst::Event;
+    use crate::cst::SyntaxKind::*;
+
+    // Construct a synthetic event stream that exceeds `Builder::MAX_AST_DEPTH`
+    // directly via `AST::new`, verifying that `Builder` emits a syntax error
+    // and recovers to parse subsequent rules.
+    let source = b"rule ok { condition: true }";
+    let ok_events: Vec<_> = Parser::new(source).collect();
+
+    let mut events = vec![
+        Event::Begin { kind: SOURCE_FILE, span: Span(0..source.len() as u32) },
+        Event::Begin { kind: RULE_DECL, span: Span(0..0) },
+        Event::Token { kind: RULE_KW, span: Span(0..4) },
+        Event::Token { kind: IDENT, span: Span(5..7) },
+        Event::Token { kind: L_BRACE, span: Span(8..9) },
+        Event::Begin { kind: CONDITION_BLK, span: Span(10..25) },
+        Event::Token { kind: CONDITION_KW, span: Span(10..19) },
+        Event::Token { kind: COLON, span: Span(19..20) },
+    ];
+
+    let depth = crate::parser::MAX_CST_DEPTH + 10;
+    for _ in 0..depth {
+        events.push(Event::Begin { kind: BOOLEAN_EXPR, span: Span(21..25) });
+        events.push(Event::Begin { kind: BOOLEAN_TERM, span: Span(21..25) });
+        events.push(Event::Token { kind: L_PAREN, span: Span(21..22) });
+    }
+    events.push(Event::Token { kind: TRUE_KW, span: Span(21..25) });
+    for _ in 0..depth {
+        events.push(Event::Token { kind: R_PAREN, span: Span(21..22) });
+        events.push(Event::End { kind: BOOLEAN_TERM, span: Span(21..25) });
+        events.push(Event::End { kind: BOOLEAN_EXPR, span: Span(21..25) });
+    }
+    events.push(Event::End { kind: CONDITION_BLK, span: Span(10..25) });
+    events.push(Event::Token { kind: R_BRACE, span: Span(26..27) });
+    events.push(Event::End { kind: RULE_DECL, span: Span(0..27) });
+
+    // Append the valid `ok` rule (skipping its outer `SOURCE_FILE` Begin/End).
+    events.extend(ok_events.into_iter().skip(1));
+
+    let ast = AST::new(source, events.into_iter());
+    assert_eq!(ast.errors().len(), 1);
+    assert_eq!(
+        ast.errors()[0],
+        Error::SyntaxError {
+            message: "nesting limit reached".to_string(),
+            span: Span(21..25),
+        }
+    );
+    let rules: Vec<_> = ast.rules().collect();
+    assert_eq!(rules.len(), 1);
+    assert_eq!(rules[0].identifier.name, "ok");
+}

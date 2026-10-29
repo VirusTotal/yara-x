@@ -67,16 +67,19 @@ where
                     // import statement, or include statement. The `recover`
                     // function discards everything until finding the next
                     // valid item.
-                    Err(BuilderError::Abort) => self.recover(),
-                    Err(BuilderError::MaxDepthReached) => {}
+                    Err(
+                        BuilderError::Abort | BuilderError::MaxDepthReached,
+                    ) => self.recover(),
                 },
                 Event::Begin { kind: IMPORT_STMT, .. } => {
                     match self.import_stmt() {
                         Ok(import) => items.push(Item::Import(import)),
                         // If `import_stmt` returns an error the import is ignored,
                         // but we try to continue at the next valid item.
-                        Err(BuilderError::Abort) => self.recover(),
-                        Err(BuilderError::MaxDepthReached) => {}
+                        Err(
+                            BuilderError::Abort
+                            | BuilderError::MaxDepthReached,
+                        ) => self.recover(),
                     }
                 }
                 Event::Begin { kind: INCLUDE_STMT, .. } => {
@@ -84,8 +87,10 @@ where
                         Ok(include) => items.push(Item::Include(include)),
                         // If `include_stmt` returns an error the include is ignored,
                         // but we try to continue at the next valid item.
-                        Err(BuilderError::Abort) => self.recover(),
-                        Err(BuilderError::MaxDepthReached) => {}
+                        Err(
+                            BuilderError::Abort
+                            | BuilderError::MaxDepthReached,
+                        ) => self.recover(),
                     }
                 }
                 Event::End { kind: SOURCE_FILE, .. } => break,
@@ -158,7 +163,7 @@ impl<'src, I> Builder<'src, I>
 where
     I: Iterator<Item = Event>,
 {
-    const MAX_AST_DEPTH: usize = 3000;
+    const MAX_AST_DEPTH: usize = crate::parser::MAX_CST_DEPTH;
 
     /// Consumes all events until finding the start of a rule, an import
     /// statement, an include statement, or the end of the file.
@@ -255,8 +260,12 @@ where
 
     fn begin(&mut self, kind: SyntaxKind) -> Result<(), BuilderError> {
         match self.next()? {
-            Event::Begin { kind: k, .. } if k == kind => {
+            Event::Begin { kind: k, span } if k == kind => {
                 if self.depth == Self::MAX_AST_DEPTH {
+                    self.errors.push(Error::SyntaxError {
+                        message: "nesting limit reached".to_string(),
+                        span,
+                    });
                     return Err(BuilderError::MaxDepthReached);
                 }
                 self.depth += 1;

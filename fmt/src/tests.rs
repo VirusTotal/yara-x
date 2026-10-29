@@ -154,3 +154,23 @@ fn format_config_options() {
         );
     }
 }
+
+#[test]
+fn format_deeply_nested_rule() {
+    let deep_cond = format!("{}true{}", "(".repeat(5_000), ")".repeat(5_000));
+    let input = format!(
+        "rule deep {{\n  condition:\n    {deep_cond}\n}}\nrule  ok  {{condition:true}}\n"
+    );
+
+    let mut output = Vec::new();
+    Formatter::new()
+        .format(input.as_bytes(), &mut output)
+        .expect("format failed");
+
+    let formatted = str::from_utf8(&output).unwrap();
+    // The `deep` rule's condition exceeds `MAX_CST_DEPTH` and is wrapped in an
+    // `ERROR` node whose original text must be preserved verbatim, while the
+    // subsequent `ok` rule is still formatted normally.
+    assert!(formatted.contains(&deep_cond));
+    assert!(formatted.contains("rule ok {\n  condition:\n    true\n}"));
+}
