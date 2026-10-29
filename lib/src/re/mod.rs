@@ -47,7 +47,7 @@ pub(crate) mod thompson;
 /// for every atom match, the regex engine will read, at most, 2 times the
 /// scan limit bytes while confirming the match. This is the default value for
 /// the scan limit.
-pub(crate) const DEFAULT_SCAN_LIMIT: u16 = 4096;
+pub(crate) const DEFAULT_SCAN_LIMIT: u32 = 4096;
 
 /// Maximum number of alternatives in a regexp alternation
 /// (e.g: `(foo|bar|baz..)`)

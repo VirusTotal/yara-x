@@ -1507,20 +1507,15 @@ fn verify_chain_of_matches(
                     };
 
                 for m in unconfirmed_matches {
-                    let in_range = match gap {
-                        ChainedPatternGap::Bounded(gap) => {
-                            let min_gap = *gap.start() as usize;
-                            let max_gap = *gap.end() as usize;
-                            (m.range.end + min_gap..=m.range.end + max_gap)
-                                .contains(&current_match.range.start)
-                        }
-                        ChainedPatternGap::Unbounded(gap) => {
-                            let min_gap = gap.start as usize;
-                            (m.range.end + min_gap..)
-                                .contains(&current_match.range.start)
-                        }
-                    };
-                    if in_range && m.chain_length <= current_match.chain_length
+                    // Compute the byte distance between the end of the previous
+                    // sub-pattern match (`m`) and the start of `current_match`.
+                    // Using `checked_sub` both ignores overlapping/later matches
+                    // (`current_match.range.start < m.range.end`) and avoids
+                    // `m.range.end + gap` overflowing `usize` on large jumps.
+                    if let Some(actual_gap) =
+                        current_match.range.start.checked_sub(m.range.end)
+                        && gap.contains(actual_gap)
+                        && m.chain_length <= current_match.chain_length
                     {
                         m.chain_length = current_match.chain_length + 1;
                         queue.push_back((*chained_to, m.clone()))
@@ -2034,6 +2029,8 @@ fn track_match(
     }
 }
 
+/// Returns true if `match_start` falls within the allowed `gap` after the end
+/// of at least one unconfirmed match for `chained_to`.
 fn within_valid_distance(
     tracker: &MatchTracker,
     chained_to: SubPatternId,
@@ -2044,23 +2041,11 @@ fn within_valid_distance(
         tracker.unconfirmed_matches.get(&chained_to)
     {
         for m in unconfirmed_matches {
-            match gap {
-                ChainedPatternGap::Bounded(gap) => {
-                    let min_gap = *gap.start() as usize;
-                    let max_gap = *gap.end() as usize;
-                    if (m.range.end + min_gap..=m.range.end + max_gap)
-                        .contains(&match_start)
-                    {
-                        return true;
-                    }
-                }
-                ChainedPatternGap::Unbounded(gap) => {
-                    let min_gap = gap.start as usize;
-                    if (m.range.start + min_gap..).contains(&match_start) {
-                        return true;
-                    }
-                }
-            };
+            if let Some(actual_gap) = match_start.checked_sub(m.range.end)
+                && gap.contains(actual_gap)
+            {
+                return true;
+            }
         }
     }
 

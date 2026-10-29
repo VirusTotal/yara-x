@@ -25,25 +25,25 @@ pub(crate) enum Instr<'a> {
     Alternation(InstrParser<'a>),
 
     /// Matches all strings of a given length.
-    JumpExact(u16),
+    JumpExact(u32),
 
     /// Matches all strings of a given length, but the string can't contain
     /// newline characters.
-    JumpExactNoNewline(u16),
+    JumpExactNoNewline(u32),
 
     /// Matches any string with a length in a given range.
-    Jump(RangeInclusive<u16>),
+    Jump(RangeInclusive<u32>),
 
     /// Like Jump, but the upper bound is infinite.
-    JumpUnbounded(RangeFrom<u16>),
+    JumpUnbounded(RangeFrom<u32>),
 
     /// Matches any string with a length in a given range, but the string can't
     /// contain newline characters. This is a non-greedy match, shorter strings
     /// are preferred.
-    JumpNoNewline(RangeInclusive<u16>),
+    JumpNoNewline(RangeInclusive<u32>),
 
     /// Like JumpNoNewline, but the upper bound is infinite.
-    JumpNoNewlineUnbounded(RangeFrom<u16>),
+    JumpNoNewlineUnbounded(RangeFrom<u32>),
 }
 
 impl Instr<'_> {
@@ -100,31 +100,31 @@ impl<'a> InstrParser<'a> {
                 )
             }
             [Instr::JUMP_EXACT, ..] => {
-                let len = Self::decode_u16(&code[1..]);
-                (JumpExact(len), 1 + size_of::<u16>())
+                let len = Self::decode_u32(&code[1..]);
+                (JumpExact(len), 1 + size_of::<u32>())
             }
             [Instr::JUMP, ..] => {
-                let min = Self::decode_u16(&code[1..]);
-                let max = Self::decode_u16(&code[1 + size_of::<u16>()..]);
+                let min = Self::decode_u32(&code[1..]);
+                let max = Self::decode_u32(&code[1 + size_of::<u32>()..]);
                 // When max is 0 it actually means unlimited max.
                 if max == 0 {
-                    (JumpUnbounded(min..), 1 + 2 * size_of::<u16>())
+                    (JumpUnbounded(min..), 1 + 2 * size_of::<u32>())
                 } else {
-                    (Jump(min..=max), 1 + 2 * size_of::<u16>())
+                    (Jump(min..=max), 1 + 2 * size_of::<u32>())
                 }
             }
             [Instr::JUMP_EXACT_NO_NEWLINE, ..] => {
-                let len = Self::decode_u16(&code[1..]);
-                (JumpExactNoNewline(len), 1 + size_of::<u16>())
+                let len = Self::decode_u32(&code[1..]);
+                (JumpExactNoNewline(len), 1 + size_of::<u32>())
             }
             [Instr::JUMP_NO_NEWLINE, ..] => {
-                let min = Self::decode_u16(&code[1..]);
-                let max = Self::decode_u16(&code[1 + size_of::<u16>()..]);
+                let min = Self::decode_u32(&code[1..]);
+                let max = Self::decode_u32(&code[1 + size_of::<u32>()..]);
                 // When max is 0 it actually means unlimited max.
                 if max == 0 {
-                    (JumpNoNewlineUnbounded(min..), 1 + 2 * size_of::<u16>())
+                    (JumpNoNewlineUnbounded(min..), 1 + 2 * size_of::<u32>())
                 } else {
-                    (JumpNoNewline(min..=max), 1 + 2 * size_of::<u16>())
+                    (JumpNoNewline(min..=max), 1 + 2 * size_of::<u32>())
                 }
             }
             [Instr::MATCH, ..] => (Match, 1),
@@ -140,6 +140,13 @@ impl<'a> InstrParser<'a> {
             unsafe { &*(slice.as_ptr() as *const [u8; size_of::<u16>()]) };
 
         u16::from_le_bytes(*bytes)
+    }
+
+    fn decode_u32(slice: &[u8]) -> u32 {
+        let bytes: &[u8; size_of::<u32>()] =
+            unsafe { &*(slice.as_ptr() as *const [u8; size_of::<u32>()]) };
+
+        u32::from_le_bytes(*bytes)
     }
 }
 

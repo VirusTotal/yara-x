@@ -27,7 +27,7 @@ fn serialization() {
     // `DecodeError`.
     let mut data = Vec::new();
     data.extend(b"YARA-X\0\0");
-    data.extend(9u32.to_le_bytes());
+    data.extend(10u32.to_le_bytes());
     data.extend(b"foo");
 
     assert!(matches!(
@@ -2171,3 +2171,115 @@ fn test_wide_regexp_atom_backtrack_overflow() {
         );
     }
 }
+
+#[test]
+fn test_hex_large_and_coalesced_jumps() {
+    // 1. Large fixed-size jumps (`[4294967295]`) must compile without
+    //    materializing ~8 GiB of zero/mask bytes in `LiteralWithMask`, both
+    //    when sub-patterns are long enough to chain (`{ 01 02 ... 03 04 }`)
+    //    and when a 1-byte sub-pattern prevents chaining (`{ 01 ... 02 }`).
+    for pat in [
+        "{ 01 [4294967295] 02 }",
+        "{ 01 02 [4294967295] 03 04 }",
+        "{ 01 [4294967295] 02 03 }",
+        "{ ( 01 [4294967295] 02 | 03 04 ) }",
+    ] {
+        let rule =
+            format!("rule test {{ strings: $a = {pat} condition: $a }}");
+        let rules = compile(rule.as_str()).unwrap();
+        let mut scanner = Scanner::new(&rules);
+        assert_eq!(
+            scanner.scan(b"\x01\x02").unwrap().matching_rules().len(),
+            0
+        );
+    }
+
+    // Chained fixed jump `{ 01 02 [5000] 03 04 }` matches across an exact
+    // 5,000-byte gap (exceeding the 4,096-byte regexp VM scan limit), and does
+    // not match 4,999-byte or 5,001-byte gaps.
+    let rules = compile(
+        "rule test { strings: $a = { 01 02 [5000] 03 04 } condition: $a }",
+    )
+    .unwrap();
+    let mut scanner = Scanner::new(&rules);
+    for (gap_len, expected_matches) in [(4999, 0), (5000, 1), (5001, 0)] {
+        let mut buf = vec![0x01, 0x02];
+        buf.extend(std::iter::repeat_n(0xff, gap_len));
+        buf.extend_from_slice(&[0x03, 0x04]);
+        assert_eq!(
+            scanner.scan(&buf).unwrap().matching_rules().len(),
+            expected_matches
+        );
+    }
+
+    // 2. Un-split jumps exceeding `u16::MAX` (`65,535`) with a >= 2-byte atom
+    //    are compiled for FastVM using `u32` jump operands and must not
+    //    truncate `65536` to `0` or `65537` to `1`.
+    let rules = compile(
+        "rule test { strings: $a = { 01 [65536] 02 03 } condition: $a }",
+    )
+    .unwrap();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(
+        scanner.scan(b"\x01\x02\x03").unwrap().matching_rules().len(),
+        0
+    );
+
+    let rules = compile(
+        "rule test { strings: $a = { 01 [0-65536] 02 03 } condition: $a }",
+    )
+    .unwrap();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(
+        scanner.scan(b"\x01\xff\x02\x03").unwrap().matching_rules().len(),
+        1
+    );
+
+    let rules = compile(
+        "rule test { strings: $a = { 01 [0-65537] 02 03 } condition: $a }",
+    )
+    .unwrap();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(
+        scanner.scan(b"\x01\xff\xff\x02\x03").unwrap().matching_rules().len(),
+        1
+    );
+
+    // Leading and trailing `JumpExact` in FastVM must check `next_pos <= input.len()`
+    // rather than advancing past the input slice bounds.
+    for pat in ["/.{10}(ab|cd)/s", "/(ab|cd).{10}/s"] {
+        let rule =
+            format!("rule test {{ strings: $a = {pat} condition: $a }}");
+        let rules = compile(rule.as_str()).unwrap();
+        let mut scanner = Scanner::new(&rules);
+        assert_eq!(scanner.scan(b"ab").unwrap().matching_rules().len(), 0);
+        assert_eq!(
+            scanner
+                .scan(b"0123456789ab0123456789")
+                .unwrap()
+                .matching_rules()
+                .len(),
+            1
+        );
+    }
+
+    // 3. Consecutive jumps whose coalesced lower or upper bound overflows
+    //    `u32::MAX` must fail cleanly with `InvalidPattern` (`E024`).
+    for pat in [
+        "{ 01 [3000000000] [2000000000] 02 }",
+        "{ 01 [0-3000000000] [0-2000000000] 02 }",
+        "{ 01 [3000000000-] [2000000000-] 02 }",
+        "{ 01 [3000000000] [2000000000] [100] 02 }",
+    ] {
+        let rule =
+            format!("rule test {{ strings: $a = {pat} condition: $a }}");
+        let err = compile(rule.as_str()).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("jump exceeds maximum allowed bound"), "{msg}");
+        assert!(
+            msg.contains("consecutive jumps were coalesced into a single one"),
+            "{msg}"
+        );
+    }
+}
+

@@ -41,6 +41,23 @@ pub(crate) enum ChainedPatternGap {
     Unbounded(RangeFrom<u32>),
 }
 
+impl ChainedPatternGap {
+    /// Returns true if a byte distance `gap` between the end of the previous
+    /// sub-pattern match and the start of the next sub-pattern match satisfies
+    /// this gap constraint.
+    #[inline]
+    pub fn contains(&self, gap: usize) -> bool {
+        match self {
+            ChainedPatternGap::Bounded(range) => {
+                (*range.start() as usize..=*range.end() as usize).contains(&gap)
+            }
+            ChainedPatternGap::Unbounded(range) => {
+                (range.start as usize..).contains(&gap)
+            }
+        }
+    }
+}
+
 /// A patterns that is chained to another one.
 #[derive(Debug, PartialEq)]
 pub(crate) struct ChainedPattern {
@@ -149,11 +166,10 @@ impl Hir {
 
         for item in cast!(self.into_kind(), HirKind::Concat) {
             if let HirKind::Repetition(rep) = item.kind() {
-                let num_repetitions =
-                    rep.max.unwrap_or(u32::MAX).saturating_sub(rep.min);
+                let max_gap = rep.max.unwrap_or(u32::MAX);
 
                 if !chunks.is_empty()
-                    && num_repetitions > Self::PATTERN_CHAINING_THRESHOLD
+                    && max_gap > Self::PATTERN_CHAINING_THRESHOLD
                     && any_byte(rep.sub.as_ref().kind())
                 {
                     let hir: Hir = Hir::concat(chunks).set_greedy(greedy);
@@ -249,7 +265,9 @@ impl Hir {
                     mask.extend(repeat_n(0xff, bytes.len()));
                 }
                 HirKind::Repetition(Repetition { min, max, sub, .. })
-                    if *max == Some(*min) && any_byte(sub.kind()) =>
+                    if *max == Some(*min)
+                        && *min <= Self::PATTERN_CHAINING_THRESHOLD
+                        && any_byte(sub.kind()) =>
                 {
                     let count = *min as usize;
                     pattern.extend(repeat_n(0x00, count));
@@ -750,5 +768,33 @@ mod tests {
                 vec![]
             )
         );
+
+        // Fixed-size jump larger than `PATTERN_CHAINING_THRESHOLD` (`max - min == 0`,
+        // `max > 200`) must also be split into chained sub-patterns.
+        assert_eq!(
+            Hir::concat(vec![
+                Hir::literal([0x01, 0x02]),
+                Hir::any_byte_repetition(u32::MAX, Some(u32::MAX), false),
+                Hir::literal([0x03, 0x04]),
+            ])
+            .split_at_large_gaps(),
+            (
+                Hir::literal([0x01, 0x02]),
+                vec![ChainedPattern {
+                    gap: ChainedPatternGap::Bounded(u32::MAX..=u32::MAX),
+                    hir: Hir::literal([0x03, 0x04]),
+                }]
+            )
+        );
+
+        // When sub-patterns are shorter than `MIN_PATTERN_LENGTH_IN_CHAIN` so
+        // `split_at_large_gaps` cannot split, `try_extract_literal_with_mask`
+        // must not materialize `u32::MAX` zero/mask bytes.
+        let unsplit = Hir::concat(vec![
+            Hir::literal([0x01]),
+            Hir::any_byte_repetition(u32::MAX, Some(u32::MAX), false),
+            Hir::literal([0x02]),
+        ]);
+        assert!(unsplit.try_extract_literal_with_mask().is_none());
     }
 }

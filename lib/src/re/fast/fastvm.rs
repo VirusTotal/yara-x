@@ -22,7 +22,7 @@ pub(crate) struct FastVM<'r> {
     code: &'r [u8],
     /// Maximum number of bytes to scan. The VM will abort after ingesting
     /// this number of bytes from the input.
-    scan_limit: u16,
+    scan_limit: u32,
     /// A set with all the positions within the data that are matching so
     /// far. `BitmapSet` is used instead of `HashSet` because insertion order
     /// needs to be maintained while iterating the positions and `HashSet`
@@ -59,7 +59,7 @@ impl<'r> FastVM<'r> {
     ///
     /// The default limit is 4096 bytes.
     #[allow(dead_code)]
-    pub fn scan_limit(mut self, limit: u16) -> Self {
+    pub fn scan_limit(mut self, limit: u32) -> Self {
         self.scan_limit = limit;
         self
     }
@@ -77,9 +77,9 @@ impl<'r> FastVM<'r> {
         let mut ip = start.location();
 
         let input = if backwards {
-            &input[input.len().saturating_sub(self.scan_limit.into())..]
+            &input[input.len().saturating_sub(self.scan_limit as usize)..]
         } else {
-            &input[..cmp::min(input.len(), self.scan_limit.into())]
+            &input[..cmp::min(input.len(), self.scan_limit as usize)]
         };
 
         let step = if wide { 2 } else { 1 };
@@ -248,20 +248,30 @@ impl<'r> FastVM<'r> {
                     }
                 }
                 Instr::JumpExact(jump) => {
-                    for (position, _) in self.positions.iter() {
-                        self.next_positions
-                            .insert(position + step * jump as usize, ());
+                    if let Some(jump_bytes) = (jump as usize).checked_mul(step)
+                    {
+                        for (position, _) in self.positions.iter() {
+                            if let Some(next_pos) =
+                                position.checked_add(jump_bytes)
+                                && next_pos <= input.len()
+                            {
+                                self.next_positions.insert(next_pos, ());
+                            }
+                        }
                     }
                 }
                 Instr::JumpExactNoNewline(jump) => {
-                    for (position, _) in self.positions.iter() {
-                        let jump_range =
-                            *position..*position + step * jump as usize;
-                        if let Some(jump_range) = input.get(jump_range)
-                            && memchr::memchr(0x0A, jump_range).is_none()
-                        {
-                            self.next_positions
-                                .insert(position + step * jump as usize, ());
+                    if let Some(jump_bytes) = (jump as usize).checked_mul(step)
+                    {
+                        for (position, _) in self.positions.iter() {
+                            if let Some(next_pos) =
+                                position.checked_add(jump_bytes)
+                                && let Some(jump_range) =
+                                    input.get(*position..next_pos)
+                                && memchr::memchr(0x0A, jump_range).is_none()
+                            {
+                                self.next_positions.insert(next_pos, ());
+                            }
                         }
                     }
                 }
@@ -566,17 +576,17 @@ impl FastVM<'_> {
         input: &[u8],
         byte_after_jmp: Option<u8>,
         flags: JumpFlags,
-        range: &RangeInclusive<u16>,
+        range: &RangeInclusive<u32>,
         position: usize,
         next_positions: &mut BitmapSet<()>,
     ) {
         let step = if flags.contains(JumpFlags::Wide) { 2 } else { 1 };
 
-        let n = *range.start() as usize * step;
-        let m = *range.end() as usize * step;
+        let n = (*range.start() as usize).saturating_mul(step);
+        let m = (*range.end() as usize).saturating_mul(step);
 
         let range_min = n;
-        let range_max = cmp::min(input.len(), m + step);
+        let range_max = cmp::min(input.len(), m.saturating_add(step));
 
         if range_min >= range_max {
             return;
@@ -640,14 +650,14 @@ impl FastVM<'_> {
         input: &[u8],
         expected_after_jump: Option<u8>,
         flags: JumpFlags,
-        range: &RangeInclusive<u16>,
+        range: &RangeInclusive<u32>,
         position: usize,
         next_positions: &mut BitmapSet<()>,
     ) {
         let step = if flags.contains(JumpFlags::Wide) { 2 } else { 1 };
 
-        let n = *range.start() as usize * step;
-        let m = *range.end() as usize * step;
+        let n = (*range.start() as usize).saturating_mul(step);
+        let m = (*range.end() as usize).saturating_mul(step);
 
         //  Let's explain what this function does using the following pattern
         //  as an example:
@@ -669,7 +679,7 @@ impl FastVM<'_> {
         //             ^              ^
         //             range_min      range_max
         //
-        let range_min = input.len().saturating_sub(m + step);
+        let range_min = input.len().saturating_sub(m.saturating_add(step));
         let range_max = input.len().saturating_sub(n);
 
         if range_min >= range_max {
@@ -737,5 +747,65 @@ bitflags! {
     struct JumpFlags: u8  {
         const AcceptNewlines = 0x01;
         const Wide           = 0x02;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ops::ControlFlow;
+
+    use crate::re::fast::{Compiler, FastVM};
+    use crate::re::hir::Hir;
+
+    #[test]
+    fn large_jumps_with_u32_scan_limit() {
+        for (min, max) in
+            [(70_000, Some(70_000)), (65_536, Some(70_000)), (65_536, None)]
+        {
+            // Forward jump > u16::MAX: `{ 01 02 [min-max] 03 }`.
+            let hir = Hir::concat(vec![
+                Hir::literal([0x01, 0x02]),
+                Hir::any_byte_repetition(min, max, false),
+                Hir::literal([0x03]),
+            ]);
+            let mut code = Vec::new();
+            let atoms = Compiler::new().compile(&hir, &mut code).unwrap();
+            assert_eq!(atoms.len(), 1);
+            assert!(atoms[0].bck_code.is_none());
+
+            let mut input = vec![0x01, 0x02];
+            input.extend(std::iter::repeat_n(0xff, 70_000));
+            input.push(0x03);
+
+            let mut matched_len = None;
+            let mut vm = FastVM::new(&code).scan_limit(100_000);
+            vm.try_match(atoms[0].fwd_code.unwrap(), &input, false, |len| {
+                matched_len = Some(len);
+                ControlFlow::Break(())
+            });
+            assert_eq!(matched_len, Some(input.len()));
+
+            // Backward jump > u16::MAX: `{ 01 [min-max] 02 03 }`.
+            let hir = Hir::concat(vec![
+                Hir::literal([0x01]),
+                Hir::any_byte_repetition(min, max, false),
+                Hir::literal([0x02, 0x03]),
+            ]);
+            let mut code = Vec::new();
+            let atoms = Compiler::new().compile(&hir, &mut code).unwrap();
+            assert_eq!(atoms.len(), 1);
+            assert!(atoms[0].bck_code.is_some());
+
+            let mut prefix = vec![0x01];
+            prefix.extend(std::iter::repeat_n(0xff, 70_000));
+
+            let mut matched_bck_len = None;
+            let mut vm = FastVM::new(&code).scan_limit(100_000);
+            vm.try_match(atoms[0].bck_code.unwrap(), &prefix, false, |len| {
+                matched_bck_len = Some(len);
+                ControlFlow::Break(())
+            });
+            assert_eq!(matched_bck_len, Some(prefix.len()));
+        }
     }
 }
