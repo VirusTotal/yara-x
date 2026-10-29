@@ -1,0 +1,34 @@
+rule bad_length {
+	strings:
+	  $a = { :011: }
+  condition:
+	  true
+}
+
+rule empty_group {
+	strings:
+	  $a = { :: }
+  condition:
+	  true
+}
+
+rule bad_digit {
+	strings:
+	  $a = { :2222: }
+  condition:
+	  true
+}
+
+rule half_byte {
+	strings:
+	  $a = { :0?1?: }
+  condition:
+	  true
+}
+
+rule negated_two_bytes {
+	strings:
+	  $a = { ~:0110100111110000: }
+  condition:
+	  true
+}

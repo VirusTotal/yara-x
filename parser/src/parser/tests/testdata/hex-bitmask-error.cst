@@ -1,0 +1,195 @@
+SOURCE_FILE@0..402
+  RULE_DECL@0..73
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..15 "bad_length"
+    WHITESPACE@15..16 " "
+    L_BRACE@16..17 "{"
+    NEWLINE@17..19 "\r\n"
+    WHITESPACE@19..20 "\t"
+    PATTERNS_BLK@20..47
+      STRINGS_KW@20..27 "strings"
+      COLON@27..28 ":"
+      NEWLINE@28..30 "\r\n"
+      WHITESPACE@30..33 "\t  "
+      PATTERN_DEF@33..47
+        PATTERN_IDENT@33..35 "$a"
+        WHITESPACE@35..36 " "
+        EQUAL@36..37 "="
+        WHITESPACE@37..38 " "
+        HEX_PATTERN@38..47
+          L_BRACE@38..39 "{"
+          WHITESPACE@39..40 " "
+          HEX_SUB_PATTERN@40..45
+            HEX_BYTE@40..45 ":011:"
+          WHITESPACE@45..46 " "
+          R_BRACE@46..47 "}"
+    NEWLINE@47..49 "\r\n"
+    WHITESPACE@49..51 "  "
+    CONDITION_BLK@51..70
+      CONDITION_KW@51..60 "condition"
+      COLON@60..61 ":"
+      NEWLINE@61..63 "\r\n"
+      WHITESPACE@63..66 "\t  "
+      BOOLEAN_EXPR@66..70
+        BOOLEAN_TERM@66..70
+          TRUE_KW@66..70 "true"
+    NEWLINE@70..72 "\r\n"
+    R_BRACE@72..73 "}"
+  NEWLINE@73..75 "\r\n"
+  NEWLINE@75..77 "\r\n"
+  RULE_DECL@77..148
+    RULE_KW@77..81 "rule"
+    WHITESPACE@81..82 " "
+    IDENT@82..93 "empty_group"
+    WHITESPACE@93..94 " "
+    L_BRACE@94..95 "{"
+    NEWLINE@95..97 "\r\n"
+    WHITESPACE@97..98 "\t"
+    PATTERNS_BLK@98..122
+      STRINGS_KW@98..105 "strings"
+      COLON@105..106 ":"
+      NEWLINE@106..108 "\r\n"
+      WHITESPACE@108..111 "\t  "
+      PATTERN_DEF@111..122
+        PATTERN_IDENT@111..113 "$a"
+        WHITESPACE@113..114 " "
+        EQUAL@114..115 "="
+        WHITESPACE@115..116 " "
+        HEX_PATTERN@116..122
+          L_BRACE@116..117 "{"
+          WHITESPACE@117..118 " "
+          HEX_SUB_PATTERN@118..120
+            HEX_BYTE@118..120 "::"
+          WHITESPACE@120..121 " "
+          R_BRACE@121..122 "}"
+    NEWLINE@122..124 "\r\n"
+    WHITESPACE@124..126 "  "
+    CONDITION_BLK@126..145
+      CONDITION_KW@126..135 "condition"
+      COLON@135..136 ":"
+      NEWLINE@136..138 "\r\n"
+      WHITESPACE@138..141 "\t  "
+      BOOLEAN_EXPR@141..145
+        BOOLEAN_TERM@141..145
+          TRUE_KW@141..145 "true"
+    NEWLINE@145..147 "\r\n"
+    R_BRACE@147..148 "}"
+  NEWLINE@148..150 "\r\n"
+  NEWLINE@150..152 "\r\n"
+  RULE_DECL@152..225
+    RULE_KW@152..156 "rule"
+    WHITESPACE@156..157 " "
+    IDENT@157..166 "bad_digit"
+    WHITESPACE@166..167 " "
+    L_BRACE@167..168 "{"
+    NEWLINE@168..170 "\r\n"
+    WHITESPACE@170..171 "\t"
+    PATTERNS_BLK@171..199
+      STRINGS_KW@171..178 "strings"
+      COLON@178..179 ":"
+      NEWLINE@179..181 "\r\n"
+      WHITESPACE@181..184 "\t  "
+      PATTERN_DEF@184..199
+        PATTERN_IDENT@184..186 "$a"
+        WHITESPACE@186..187 " "
+        EQUAL@187..188 "="
+        WHITESPACE@188..189 " "
+        HEX_PATTERN@189..199
+          L_BRACE@189..190 "{"
+          WHITESPACE@190..191 " "
+          HEX_SUB_PATTERN@191..197
+            HEX_BYTE@191..197 ":2222:"
+          WHITESPACE@197..198 " "
+          R_BRACE@198..199 "}"
+    NEWLINE@199..201 "\r\n"
+    WHITESPACE@201..203 "  "
+    CONDITION_BLK@203..222
+      CONDITION_KW@203..212 "condition"
+      COLON@212..213 ":"
+      NEWLINE@213..215 "\r\n"
+      WHITESPACE@215..218 "\t  "
+      BOOLEAN_EXPR@218..222
+        BOOLEAN_TERM@218..222
+          TRUE_KW@218..222 "true"
+    NEWLINE@222..224 "\r\n"
+    R_BRACE@224..225 "}"
+  NEWLINE@225..227 "\r\n"
+  NEWLINE@227..229 "\r\n"
+  RULE_DECL@229..302
+    RULE_KW@229..233 "rule"
+    WHITESPACE@233..234 " "
+    IDENT@234..243 "half_byte"
+    WHITESPACE@243..244 " "
+    L_BRACE@244..245 "{"
+    NEWLINE@245..247 "\r\n"
+    WHITESPACE@247..248 "\t"
+    PATTERNS_BLK@248..276
+      STRINGS_KW@248..255 "strings"
+      COLON@255..256 ":"
+      NEWLINE@256..258 "\r\n"
+      WHITESPACE@258..261 "\t  "
+      PATTERN_DEF@261..276
+        PATTERN_IDENT@261..263 "$a"
+        WHITESPACE@263..264 " "
+        EQUAL@264..265 "="
+        WHITESPACE@265..266 " "
+        HEX_PATTERN@266..276
+          L_BRACE@266..267 "{"
+          WHITESPACE@267..268 " "
+          HEX_SUB_PATTERN@268..274
+            HEX_BYTE@268..274 ":0?1?:"
+          WHITESPACE@274..275 " "
+          R_BRACE@275..276 "}"
+    NEWLINE@276..278 "\r\n"
+    WHITESPACE@278..280 "  "
+    CONDITION_BLK@280..299
+      CONDITION_KW@280..289 "condition"
+      COLON@289..290 ":"
+      NEWLINE@290..292 "\r\n"
+      WHITESPACE@292..295 "\t  "
+      BOOLEAN_EXPR@295..299
+        BOOLEAN_TERM@295..299
+          TRUE_KW@295..299 "true"
+    NEWLINE@299..301 "\r\n"
+    R_BRACE@301..302 "}"
+  NEWLINE@302..304 "\r\n"
+  NEWLINE@304..306 "\r\n"
+  RULE_DECL@306..400
+    RULE_KW@306..310 "rule"
+    WHITESPACE@310..311 " "
+    IDENT@311..328 "negated_two_bytes"
+    WHITESPACE@328..329 " "
+    L_BRACE@329..330 "{"
+    NEWLINE@330..332 "\r\n"
+    WHITESPACE@332..333 "\t"
+    PATTERNS_BLK@333..374
+      STRINGS_KW@333..340 "strings"
+      COLON@340..341 ":"
+      NEWLINE@341..343 "\r\n"
+      WHITESPACE@343..346 "\t  "
+      PATTERN_DEF@346..374
+        PATTERN_IDENT@346..348 "$a"
+        WHITESPACE@348..349 " "
+        EQUAL@349..350 "="
+        WHITESPACE@350..351 " "
+        HEX_PATTERN@351..374
+          L_BRACE@351..352 "{"
+          WHITESPACE@352..353 " "
+          HEX_SUB_PATTERN@353..372
+            HEX_BYTE@353..372 "~:0110100111110000:"
+          WHITESPACE@372..373 " "
+          R_BRACE@373..374 "}"
+    NEWLINE@374..376 "\r\n"
+    WHITESPACE@376..378 "  "
+    CONDITION_BLK@378..397
+      CONDITION_KW@378..387 "condition"
+      COLON@387..388 ":"
+      NEWLINE@388..390 "\r\n"
+      WHITESPACE@390..393 "\t  "
+      BOOLEAN_EXPR@393..397
+        BOOLEAN_TERM@393..397
+          TRUE_KW@393..397 "true"
+    NEWLINE@397..399 "\r\n"
+    R_BRACE@399..400 "}"
+  NEWLINE@400..402 "\r\n"
