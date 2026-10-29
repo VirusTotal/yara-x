@@ -462,7 +462,12 @@ pub(crate) fn best_range_in_masked_bytes(
 /// the slice. This means that once the atom is found, the reported offset will
 /// correspond to the start of the slice in the data.
 pub(crate) fn best_atom_in_bytes(bytes: &[u8]) -> Atom {
-    let (range, _) = best_range_in_bytes(bytes);
+    // `Atom` stores its backtrack offset as a `u16`, so only the first 64 KiB
+    // of the slice is considered when looking for the best atom. Notice that
+    // the full `bytes` slice is still passed to `Atom::from_slice_range` so
+    // `Atom::is_exact` accurately reflects whether the atom covers the entire
+    // slice.
+    let (range, _) = best_range_in_bytes(&bytes[..min(bytes.len(), 65536)]);
     Atom::from_slice_range(bytes, range)
         .expect("best_range_in_bytes returned invalid range")
 }
@@ -867,5 +872,35 @@ mod test {
         assert_eq!(finder_2.finalize(), (Some(1..3), 44));
         assert_eq!(finder_3.finalize(), (Some(1..4), 64));
         assert_eq!(finder_4.finalize(), (Some(0..4), 51));
+    }
+
+    #[test]
+    fn best_atom_in_bytes_64k_limit() {
+        // High-quality bytes right at the end of the first 64 KiB (`65532..65536`)
+        // are selected.
+        let mut bytes = vec![b'a'; 65532];
+        bytes.extend_from_slice(b"1234");
+        let atom = atoms::best_atom_in_bytes(&bytes);
+        assert_eq!(atom.as_ref(), b"1234");
+        assert_eq!(atom.backtrack(), 65532);
+        assert!(!atom.is_exact());
+
+        // High-quality bytes straddling the 64 KiB boundary (`65535..65539`):
+        // only `"aaa1"` (`65532..65536`) falls within the first 64 KiB.
+        let mut bytes = vec![b'a'; 65535];
+        bytes.extend_from_slice(b"1234");
+        let atom = atoms::best_atom_in_bytes(&bytes);
+        assert_eq!(atom.as_ref(), b"aaa1");
+        assert_eq!(atom.backtrack(), 65532);
+        assert!(!atom.is_exact());
+
+        // High-quality bytes past 64 KiB (`65536..65540`) are ignored without
+        // panicking.
+        let mut bytes = vec![b'a'; 65536];
+        bytes.extend_from_slice(b"1234");
+        let atom = atoms::best_atom_in_bytes(&bytes);
+        assert_eq!(atom.as_ref(), b"aaaa");
+        assert_eq!(atom.backtrack(), 0);
+        assert!(!atom.is_exact());
     }
 }

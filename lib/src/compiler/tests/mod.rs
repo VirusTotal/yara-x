@@ -1913,3 +1913,58 @@ fn test_unicode_class_too_large() {
         assert!(err.to_string().contains("regexp is too large"));
     }
 }
+
+#[test]
+fn test_best_atom_past_u16_max() {
+    // Wide literal: 32,769 `'a'`s expand to 65,538 bytes in UTF-16LE before
+    // `"1234"`.
+    let wide_prefix = "a".repeat(32769);
+    let wide_rule = format!(
+        r#"rule test {{ strings: $a = "{wide_prefix}1234" wide condition: $a }}"#
+    );
+    let rules = compile(wide_rule.as_str()).unwrap();
+    let mut scanner = Scanner::new(&rules);
+
+    let matching_wide: Vec<u8> = format!("{wide_prefix}1234")
+        .bytes()
+        .flat_map(|b| [b, 0])
+        .collect();
+    let non_matching_wide: Vec<u8> = format!("{wide_prefix}1235")
+        .bytes()
+        .flat_map(|b| [b, 0])
+        .collect();
+
+    assert_eq!(scanner.scan(&matching_wide).unwrap().matching_rules().len(), 1);
+    assert_eq!(
+        scanner.scan(&non_matching_wide).unwrap().matching_rules().len(),
+        0
+    );
+
+    // Narrow literal: 65,536 `'a'`s followed by `"1234"`.
+    let ascii_prefix = "a".repeat(65536);
+    let ascii_rule = format!(
+        r#"rule test {{ strings: $a = "{ascii_prefix}1234" condition: $a }}"#
+    );
+    let rules = compile(ascii_rule.as_str()).unwrap();
+    let mut scanner = Scanner::new(&rules);
+
+    let matching_ascii = format!("{ascii_prefix}1234");
+    let non_matching_ascii = format!("{ascii_prefix}1235");
+
+    assert_eq!(
+        scanner
+            .scan(matching_ascii.as_bytes())
+            .unwrap()
+            .matching_rules()
+            .len(),
+        1
+    );
+    assert_eq!(
+        scanner
+            .scan(non_matching_ascii.as_bytes())
+            .unwrap()
+            .matching_rules()
+            .len(),
+        0
+    );
+}
