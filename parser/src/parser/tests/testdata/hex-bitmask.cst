@@ -1,73 +1,73 @@
-SOURCE_FILE@0..141
-  RULE_DECL@0..139
+SOURCE_FILE@0..133
+  RULE_DECL@0..132
     RULE_KW@0..4 "rule"
     WHITESPACE@4..5 " "
     IDENT@5..9 "test"
     WHITESPACE@9..10 " "
     L_BRACE@10..11 "{"
-    NEWLINE@11..13 "\r\n"
-    WHITESPACE@13..14 "\t"
-    PATTERNS_BLK@14..115
-      STRINGS_KW@14..21 "strings"
-      COLON@21..22 ":"
-      NEWLINE@22..24 "\r\n"
-      WHITESPACE@24..27 "\t  "
-      PATTERN_DEF@27..61
-        PATTERN_IDENT@27..29 "$a"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..13 "\t"
+    PATTERNS_BLK@13..111
+      STRINGS_KW@13..20 "strings"
+      COLON@20..21 ":"
+      NEWLINE@21..22 "\n"
+      WHITESPACE@22..25 "\t  "
+      PATTERN_DEF@25..59
+        PATTERN_IDENT@25..27 "$a"
+        WHITESPACE@27..28 " "
+        EQUAL@28..29 "="
         WHITESPACE@29..30 " "
-        EQUAL@30..31 "="
-        WHITESPACE@31..32 " "
-        HEX_PATTERN@32..61
-          L_BRACE@32..33 "{"
-          WHITESPACE@33..34 " "
-          HEX_SUB_PATTERN@34..59
-            HEX_BYTE@34..36 "E0"
-            WHITESPACE@36..37 " "
-            HEX_BYTE@37..44 "F:0?1?:"
-            WHITESPACE@44..45 " "
-            HEX_BYTE@45..56 ":0110 1001:"
-            WHITESPACE@56..57 " "
-            HEX_BYTE@57..59 "AB"
-          WHITESPACE@59..60 " "
-          R_BRACE@60..61 "}"
-      NEWLINE@61..63 "\r\n"
-      WHITESPACE@63..66 "\t  "
-      PATTERN_DEF@66..93
-        PATTERN_IDENT@66..68 "$b"
-        WHITESPACE@68..69 " "
-        EQUAL@69..70 "="
-        WHITESPACE@70..71 " "
-        HEX_PATTERN@71..93
-          L_BRACE@71..72 "{"
-          WHITESPACE@72..73 " "
-          HEX_SUB_PATTERN@73..91
-            HEX_BYTE@73..91 ":0110100111110000:"
-          WHITESPACE@91..92 " "
-          R_BRACE@92..93 "}"
-      NEWLINE@93..95 "\r\n"
-      WHITESPACE@95..98 "\t  "
-      PATTERN_DEF@98..115
-        PATTERN_IDENT@98..100 "$c"
-        WHITESPACE@100..101 " "
-        EQUAL@101..102 "="
-        WHITESPACE@102..103 " "
-        HEX_PATTERN@103..115
-          L_BRACE@103..104 "{"
-          WHITESPACE@104..105 " "
-          HEX_SUB_PATTERN@105..113
-            HEX_BYTE@105..113 "~F:0?1?:"
-          WHITESPACE@113..114 " "
-          R_BRACE@114..115 "}"
-    NEWLINE@115..117 "\r\n"
-    WHITESPACE@117..119 "  "
-    CONDITION_BLK@119..136
-      CONDITION_KW@119..128 "condition"
-      COLON@128..129 ":"
-      NEWLINE@129..131 "\r\n"
-      WHITESPACE@131..134 "\t  "
-      BOOLEAN_EXPR@134..136
-        BOOLEAN_TERM@134..136
-          PATTERN_IDENT@134..136 "$a"
-    NEWLINE@136..138 "\r\n"
-    R_BRACE@138..139 "}"
-  NEWLINE@139..141 "\r\n"
+        HEX_PATTERN@30..59
+          L_BRACE@30..31 "{"
+          WHITESPACE@31..32 " "
+          HEX_SUB_PATTERN@32..57
+            HEX_BYTE@32..34 "E0"
+            WHITESPACE@34..35 " "
+            HEX_BYTE@35..42 "F:0?1?:"
+            WHITESPACE@42..43 " "
+            HEX_BYTE@43..54 ":0110 1001:"
+            WHITESPACE@54..55 " "
+            HEX_BYTE@55..57 "AB"
+          WHITESPACE@57..58 " "
+          R_BRACE@58..59 "}"
+      NEWLINE@59..60 "\n"
+      WHITESPACE@60..63 "\t  "
+      PATTERN_DEF@63..90
+        PATTERN_IDENT@63..65 "$b"
+        WHITESPACE@65..66 " "
+        EQUAL@66..67 "="
+        WHITESPACE@67..68 " "
+        HEX_PATTERN@68..90
+          L_BRACE@68..69 "{"
+          WHITESPACE@69..70 " "
+          HEX_SUB_PATTERN@70..88
+            HEX_BYTE@70..88 ":0110100111110000:"
+          WHITESPACE@88..89 " "
+          R_BRACE@89..90 "}"
+      NEWLINE@90..91 "\n"
+      WHITESPACE@91..94 "\t  "
+      PATTERN_DEF@94..111
+        PATTERN_IDENT@94..96 "$c"
+        WHITESPACE@96..97 " "
+        EQUAL@97..98 "="
+        WHITESPACE@98..99 " "
+        HEX_PATTERN@99..111
+          L_BRACE@99..100 "{"
+          WHITESPACE@100..101 " "
+          HEX_SUB_PATTERN@101..109
+            HEX_BYTE@101..109 "~F:0?1?:"
+          WHITESPACE@109..110 " "
+          R_BRACE@110..111 "}"
+    NEWLINE@111..112 "\n"
+    WHITESPACE@112..114 "  "
+    CONDITION_BLK@114..130
+      CONDITION_KW@114..123 "condition"
+      COLON@123..124 ":"
+      NEWLINE@124..125 "\n"
+      WHITESPACE@125..128 "\t  "
+      BOOLEAN_EXPR@128..130
+        BOOLEAN_TERM@128..130
+          PATTERN_IDENT@128..130 "$a"
+    NEWLINE@130..131 "\n"
+    R_BRACE@131..132 "}"
+  NEWLINE@132..133 "\n"
