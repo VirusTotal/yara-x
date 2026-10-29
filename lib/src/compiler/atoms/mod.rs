@@ -230,7 +230,10 @@ impl Atom {
 
     pub fn make_wide(mut self) -> Self {
         let atom_len = self.bytes.len();
-        self.backtrack *= 2;
+        self.backtrack = self
+            .backtrack
+            .checked_mul(2)
+            .expect("wide atom backtrack exceeds u16::MAX");
         self.bytes = self
             .bytes
             .into_iter()

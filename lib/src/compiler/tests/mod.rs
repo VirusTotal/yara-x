@@ -2093,3 +2093,81 @@ fn test_fastvm_wide_jump_bck_underflow() {
         1
     );
 }
+
+#[test]
+fn test_wide_regexp_atom_backtrack_overflow() {
+    let p32764 = "a".repeat(32764);
+    let p32767 = "a".repeat(32767);
+    let p32768 = "a".repeat(32768);
+
+    // `"1234"` right at the end of the first 32 KiB (`32764..32768`) is
+    // selected with narrow `backtrack = 32,764` (`65,528` in wide mode).
+    let rules_32764 = compile(
+        format!(
+            "rule test {{ strings: $a = /{p32764}1234.{{1,2}}b/ wide condition: $a }}"
+        )
+        .as_str(),
+    )
+    .unwrap();
+    assert_eq!(rules_32764.atoms().len(), 1);
+    assert_eq!(rules_32764.atoms()[0].as_slice(), b"1\02\03\04\0");
+    assert_eq!(rules_32764.atoms()[0].backtrack(), 65528);
+
+    // `"1234"` straddling the 32 KiB boundary (`32767..32771`): only `"aaa1"`
+    // (`32764..32768`) lies within the first 32 KiB (`backtrack = 65,528`).
+    let rules_32767 = compile(
+        format!(
+            "rule test {{ strings: $a = /{p32767}1234.{{1,2}}b/ wide condition: $a }}"
+        )
+        .as_str(),
+    )
+    .unwrap();
+    assert_eq!(rules_32767.atoms().len(), 1);
+    assert_eq!(rules_32767.atoms()[0].as_slice(), b"a\0a\0a\01\0");
+    assert_eq!(rules_32767.atoms()[0].backtrack(), 65528);
+
+    // High-quality bytes (`"1234"`) past the first 32 KiB (`32,768` bytes):
+    // `best_range_in_bytes` and `best_range_in_masked_bytes` consider only the
+    // first 32 KiB so `backtrack <= 32,767` and `Atom::make_wide` never
+    // overflows `u16`.
+    let rules_32768 = compile(
+        format!(
+            "rule test {{ strings: $a = /{p32768}1234.{{1,2}}b/ wide condition: $a }}"
+        )
+        .as_str(),
+    )
+    .unwrap();
+    assert_eq!(rules_32768.atoms().len(), 1);
+    assert_eq!(rules_32768.atoms()[0].as_slice(), b"a\0a\0a\0a\0");
+    assert_eq!(rules_32768.atoms()[0].backtrack(), 0);
+
+    for rule in [
+        format!(
+            "rule test {{ strings: $a = /{p32768}1234.{{1,2}}b/ wide condition: $a }}"
+        ),
+        format!(
+            "rule test {{ strings: $a = /{p32768}1234.{{1,2}}b/ wide ascii condition: $a }}"
+        ),
+        format!(
+            "rule test {{ strings: $a = /[Aa]{p32767}1234.{{1,2}}b/ wide condition: $a }}"
+        ),
+        // Exercises both `RegexpChainHead` and `RegexpChainTail` when `/s`
+        // causes `.{300}` to split the regexp into chained sub-patterns.
+        format!(
+            "rule test {{ strings: $a = /{p32768}1234.{{1,2}}b.{{300}}{p32768}5678.{{1,2}}d/s wide condition: $a }}"
+        ),
+    ] {
+        let rules = compile(rule.as_str()).unwrap();
+        let mut scanner = Scanner::new(&rules);
+        // Verify that a suffix without the 32,768-char prefix does not match
+        // (previously release builds wrapped `backtrack` modulo 65,536 to 0).
+        assert_eq!(
+            scanner
+                .scan(b"1\02\03\04\0x\0b\0")
+                .unwrap()
+                .matching_rules()
+                .len(),
+            0
+        );
+    }
+}

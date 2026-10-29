@@ -389,9 +389,19 @@ impl Ord for AtomsQuality {
     }
 }
 
+/// Maximum number of bytes considered when searching for the best atom in a
+/// slice (`32 KiB`).
+///
+/// [`Atom`] stores its backtrack offset as a `u16`, and [`Atom::make_wide`]
+/// multiplies that offset by 2, so an atom's start offset must not exceed
+/// `u16::MAX / 2` (`32,767`). Restricting the search to the first `32,768`
+/// bytes guarantees that any non-empty range starts at `<= 32,767`.
+const MAX_ATOM_SEARCH_BYTES: usize = 32768;
+
 /// Returns the range for the best possible atom that can be extracted from
 /// the slice and its quality.
 pub(crate) fn best_range_in_bytes(bytes: &[u8]) -> (Range<usize>, i32) {
+    let bytes = &bytes[..min(bytes.len(), MAX_ATOM_SEARCH_BYTES)];
     let mut best_quality = i32::MIN;
     let mut best_range = 0..0;
 
@@ -416,7 +426,7 @@ pub(crate) fn best_range_in_masked_bytes(
     let mut finders: Vec<BestAtomFinder> =
         (1..=DESIRED_ATOM_SIZE).map(BestAtomFinder::new).collect();
 
-    for (byte, mask) in zip(bytes, mask) {
+    for (byte, mask) in zip(bytes, mask).take(MAX_ATOM_SEARCH_BYTES) {
         for finder in &mut finders {
             finder.feed(*byte, *mask);
         }
@@ -462,12 +472,7 @@ pub(crate) fn best_range_in_masked_bytes(
 /// the slice. This means that once the atom is found, the reported offset will
 /// correspond to the start of the slice in the data.
 pub(crate) fn best_atom_in_bytes(bytes: &[u8]) -> Atom {
-    // `Atom` stores its backtrack offset as a `u16`, so only the first 64 KiB
-    // of the slice is considered when looking for the best atom. Notice that
-    // the full `bytes` slice is still passed to `Atom::from_slice_range` so
-    // `Atom::is_exact` accurately reflects whether the atom covers the entire
-    // slice.
-    let (range, _) = best_range_in_bytes(&bytes[..min(bytes.len(), 65536)]);
+    let (range, _) = best_range_in_bytes(bytes);
     Atom::from_slice_range(bytes, range)
         .expect("best_range_in_bytes returned invalid range")
 }
@@ -875,32 +880,44 @@ mod test {
     }
 
     #[test]
-    fn best_atom_in_bytes_64k_limit() {
-        // High-quality bytes right at the end of the first 64 KiB (`65532..65536`)
+    fn best_range_32k_limit() {
+        // High-quality bytes right at the end of the first 32 KiB (`32764..32768`)
         // are selected.
-        let mut bytes = vec![b'a'; 65532];
+        let mut bytes = vec![b'a'; 32764];
         bytes.extend_from_slice(b"1234");
         let atom = atoms::best_atom_in_bytes(&bytes);
         assert_eq!(atom.as_ref(), b"1234");
-        assert_eq!(atom.backtrack(), 65532);
+        assert_eq!(atom.backtrack(), 32764);
         assert!(!atom.is_exact());
 
-        // High-quality bytes straddling the 64 KiB boundary (`65535..65539`):
-        // only `"aaa1"` (`65532..65536`) falls within the first 64 KiB.
-        let mut bytes = vec![b'a'; 65535];
+        // High-quality bytes straddling the 32 KiB boundary (`32767..32771`):
+        // only `"aaa1"` (`32764..32768`) falls within the first 32 KiB.
+        let mut bytes = vec![b'a'; 32767];
         bytes.extend_from_slice(b"1234");
         let atom = atoms::best_atom_in_bytes(&bytes);
         assert_eq!(atom.as_ref(), b"aaa1");
-        assert_eq!(atom.backtrack(), 65532);
+        assert_eq!(atom.backtrack(), 32764);
         assert!(!atom.is_exact());
 
-        // High-quality bytes past 64 KiB (`65536..65540`) are ignored without
+        // High-quality bytes past 32 KiB (`32768..32772`) are ignored without
         // panicking.
-        let mut bytes = vec![b'a'; 65536];
+        let mut bytes = vec![b'a'; 32768];
         bytes.extend_from_slice(b"1234");
         let atom = atoms::best_atom_in_bytes(&bytes);
         assert_eq!(atom.as_ref(), b"aaaa");
         assert_eq!(atom.backtrack(), 0);
         assert!(!atom.is_exact());
+
+        // Masked bytes also respect the 32 KiB (`32,768` bytes) limit: even a
+        // 1-byte atom right at byte `32767` has `backtrack == 32767 <= u16::MAX / 2`.
+        let mut masked_bytes = vec![0x00; 32767];
+        let mut mask = vec![0x00; 32767];
+        masked_bytes.extend_from_slice(&[0x01, 0x02, 0x03, 0x04]);
+        mask.extend_from_slice(&[0xff, 0xff, 0xff, 0xff]);
+
+        let (range, _) =
+            atoms::best_range_in_masked_bytes(&masked_bytes, &mask);
+        assert_eq!(range, 32767..32768);
+        assert!(range.start <= (u16::MAX / 2) as usize);
     }
 }

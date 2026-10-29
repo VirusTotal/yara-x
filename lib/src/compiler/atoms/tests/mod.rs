@@ -69,6 +69,18 @@ fn make_wide() {
 
     assert_eq!(atom.bytes.as_slice(), &[0x01, 0x00, 0x02, 0x00, 0x03, 0x00]);
     assert_eq!(atom.backtrack, 4);
+
+    let mut max_atom = Atom::exact([0x01_u8, 0x02]);
+    max_atom.set_backtrack(32767);
+    assert_eq!(max_atom.make_wide().backtrack, 65534);
+}
+
+#[test]
+#[should_panic(expected = "wide atom backtrack exceeds u16::MAX")]
+fn make_wide_overflow() {
+    let mut atom = Atom::exact([0x01_u8, 0x02]);
+    atom.set_backtrack(32768);
+    let _ = atom.make_wide();
 }
 
 fn check_atoms<I, T>(pattern_src: &str, expected_atoms: I)
