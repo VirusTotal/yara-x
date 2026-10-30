@@ -844,6 +844,42 @@ fn test_ignored_rules() {
     assert!(matches!(ignored[1].1, IgnoredRuleReason::CompileError(_)));
 }
 
+#[cfg(feature = "math-module")]
+#[test]
+fn ignored_supported_module() {
+    let mut compiler = Compiler::new();
+    compiler.ignore_module("math");
+
+    compiler
+        .add_source(
+            r#"
+        import "math"
+
+        rule rule_ok { condition: true }
+        rule rule_ignored { condition: math.entropy(0, filesize) > 0 }
+        "#,
+        )
+        .unwrap();
+
+    let ignored: Vec<_> = compiler.ignored_rules().collect();
+    assert_eq!(ignored.len(), 1);
+    assert_eq!(ignored[0].0, "rule_ignored");
+    assert_eq!(ignored[0].1, IgnoredRuleReason::IgnoredModule("math"));
+    assert!(!compiler.warnings().is_empty());
+
+    // The same module is used normally when it is not ignored.
+    let mut compiler = Compiler::new();
+    compiler
+        .add_source(
+            r#"
+        import "math"
+        rule rule_used { condition: math.entropy(0, filesize) >= 0 }
+        "#,
+        )
+        .unwrap();
+    assert_eq!(compiler.ignored_rules().count(), 0);
+}
+
 #[cfg(feature = "test_proto2-module")]
 #[test]
 fn banned_modules() {

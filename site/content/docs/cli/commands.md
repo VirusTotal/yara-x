@@ -162,6 +162,9 @@ Rules that use the specified module will be ignored, as well as any rules that
 depends directly or indirectly on such rules. This option can be used more than
 once for ignored different modules.
 
+The module is ignored even if YARA-X implements it. This is useful for modules
+that are only partially supported.
+
 ### --include-dir \<PATH\>, -I \<PATH\>
 
 Directory in which to search for included files

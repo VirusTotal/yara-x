@@ -349,6 +349,32 @@ warning[unsupported_module]: module `unknown` is not supported
 }
 
 #[test]
+fn ignore_supported_module() {
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--ignore-module=math")
+        .arg("src/tests/testdata/known_module.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .stderr(
+            r#"warning[unsupported_module]: module `math` is not supported
+ --> src/tests/testdata/known_module.yar:1:1
+  |
+1 | import "math"
+  | ------------- module `math` used here
+warning[unsupported_module]: module `math` is not supported
+ --> src/tests/testdata/known_module.yar:5:6
+  |
+5 |      math.entropy(0, filesize) >= 0
+  |      ---- module `math` used here
+  |
+  = note: the whole rule `test` will be ignored
+"#,
+        );
+}
+
+#[test]
 fn recursive() {
     Command::new(cargo_bin!("yr"))
         .arg("scan")

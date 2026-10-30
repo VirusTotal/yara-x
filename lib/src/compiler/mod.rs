@@ -998,6 +998,9 @@ impl<'a> Compiler<'a> {
     /// but a warning will be issued. Any rule that makes use of an ignored
     /// module will be also ignored, while the rest of the rules that don't
     /// rely on that module will be correctly compiled.
+    ///
+    /// A module is ignored even if YARA-X implements it, which is useful for
+    /// modules that are only partially supported.
     pub fn ignore_module<M: Into<String>>(&mut self, module: M) -> &mut Self {
         self.ignored_modules.insert(module.into());
         self
@@ -2081,14 +2084,22 @@ impl Compiler<'_> {
 
     fn c_import(&mut self, import: &Import) -> Result<(), CompileError> {
         let module_name = import.module_name;
-        let module = crate::modules::module_by_name(module_name);
+        let ignored = self.ignored_modules.iter().any(|m| m == module_name);
+
+        // A module in the list of ignored modules is treated as if it didn't
+        // exist, even if YARA-X implements it.
+        let module = if ignored {
+            None
+        } else {
+            crate::modules::module_by_name(module_name)
+        };
 
         // Does a module with the given name actually exist? ...
         if module.is_none() {
             // The module does not exist, but it is included in the list
             // of unsupported modules. In such cases we don't raise an error,
             // only a warning.
-            return if self.ignored_modules.iter().any(|m| m == module_name) {
+            return if ignored {
                 self.warnings.add(|| {
                     warnings::IgnoredModule::build(
                         &self.report_builder,
