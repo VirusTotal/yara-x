@@ -41,6 +41,29 @@ rule WildcardExample {
 As shown in the example the wildcards are nibble-wise, which means that you can
 define just one nibble of the byte and leave the other unknown (e.g: `A?`).
 
+## Bit masks
+
+A colon-delimited group is a sequence of bits. `0` and `1` are fixed bits and
+`?` is a wildcard for a single bit. Spaces and tabs inside the group are
+ignored. The number of bits, not counting that whitespace, must be a multiple
+of 4, and the group must pack into whole bytes. One hex nibble may be written
+immediately before the group.
+
+```yara
+rule BitmaskExample {
+    strings:
+        $hex = { E0 F:0?1?: :0110 1001: AB }
+    condition:
+        $hex
+}
+```
+
+`F:0?1?:` is byte `F2` with mask `FA`: the high nibble is `F` and the low
+nibble is the bits `0?1?`. `:0110 1001:` is the literal byte `69`. A byte
+matches when `(input & mask) == value`, with wildcard bits stored as 0 in
+`value`. `F2`, `F3`, `F6`, and `F7` match that masked byte. `F0` does not,
+because bit 1 of the low nibble must be 1.
+
 ## Negation
 
 You may also specify that a byte is not a specific value. For that you can use

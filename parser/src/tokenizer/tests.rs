@@ -285,6 +285,21 @@ fn hex_pattern() {
 
     lexer.enter_hex_pattern_mode();
     assert_eq!(lexer.next_token(), Some(Token::HEX_BYTE(Span(0..2))));
+
+    let mut lexer = super::Tokenizer::new(b"F:0?1?:");
+    lexer.enter_hex_pattern_mode();
+    assert_eq!(lexer.next_token(), Some(Token::HEX_BYTE(Span(0..7))));
+    assert_eq!(lexer.next_token(), None);
+
+    let mut lexer = super::Tokenizer::new(b":0110 1001:");
+    lexer.enter_hex_pattern_mode();
+    assert_eq!(lexer.next_token(), Some(Token::HEX_BYTE(Span(0..11))));
+    assert_eq!(lexer.next_token(), None);
+
+    // A space between the nibble and the colon is not one byte token.
+    let mut lexer = super::Tokenizer::new(b"F :0?1?:");
+    lexer.enter_hex_pattern_mode();
+    assert_eq!(lexer.next_token(), Some(Token::IDENT(Span(0..1))));
 }
 
 #[test]

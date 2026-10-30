@@ -566,10 +566,17 @@ enum HexPatternToken {
     //
     // 10, A0, ef, 3?, ?3, ??, ~AB, ~A?, ~??
     //
+    // A byte may also be a colon-delimited bit group (`:0110 1001:`) or a
+    // hex nibble glued to one (`F:0?1?:`). The group may cover more than
+    // one byte. Invalid groups are accepted here and rejected while building
+    // the AST, so the error can name the span.
+    //
     // Some tokens like ~?? are not actually valid, but the tokenizer accepts
     // them, and they are rejected later on during the compilation process.
     // This way we can provide meaningful error messages.
     #[regex("~?[?0-9a-fA-F]{2}")]
+    #[regex(r"~?[0-9a-fA-F]:[^:\n\r]*:")]
+    #[regex(r"~?:[^:\n\r]*:")]
     Byte,
 
     #[token("|")]
