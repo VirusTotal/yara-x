@@ -25,6 +25,7 @@ pub enum Warning {
     DuplicateImport(Box<DuplicateImport>),
     DuplicatePatternValue(Box<DuplicatePatternValue>),
     GlobalRuleMisuse(Box<GlobalRuleMisuse>),
+    GreedyDotStar(Box<GreedyDotStar>),
     IgnoredModule(Box<IgnoredModule>),
     IgnoredRule(Box<IgnoredRule>),
     InvalidMetadata(Box<InvalidMetadata>),
@@ -961,4 +962,34 @@ pub struct SignConversion {
     converted_value: String,
     value_loc: CodeLoc,
     note: Option<String>,
+}
+
+/// A regular expression contains a greedy `.*`.
+///
+/// The greedy `.*` repetition matches the longest possible sequence of bytes,
+/// which can cause performance issues due to excessive backtracking. In most
+/// cases the non-greedy `.*?` variant is preferable, as it matches the
+/// shortest possible sequence and avoids unnecessary backtracking.
+///
+/// ## Example
+///
+/// ```text
+/// warning[greedy_dot_star]: greedy `.*` in pattern `$a`
+///  --> test.yar:3:9
+///   |
+/// 3 |     $a = /abc.*def/
+///   |           -- consider using `.*?` instead
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "greedy_dot_star",
+    title = "greedy `.*` in pattern `{pattern_ident}`"
+)]
+#[label("consider using `.*?` instead", dot_star_loc)]
+pub struct GreedyDotStar {
+    report: Report,
+    pattern_ident: String,
+    dot_star_loc: CodeLoc,
 }
