@@ -606,6 +606,16 @@ fn relaxed_re_syntax() {
         .add_source(r#"rule test_8 { strings: $a = /a{1{/ condition: $a }"#)
         .unwrap()
         .add_source(r#"rule test_9 { strings: $a = /a{2,1}/ condition: $a }"#)
+        .unwrap()
+        .add_source(r#"rule test_10 { strings: $a = /r{{2}/ condition: $a }"#)
+        .unwrap()
+        .add_source(
+            r#"rule test_11 { strings: $a = /(?x)p{# {/ condition: $a }"#,
+        )
+        .unwrap()
+        .add_source(
+            r#"rule test_12 { strings: $a = /(?x)q{1 # {{{/ condition: $a }"#,
+        )
         .unwrap();
 
     let rules = compiler.build();
@@ -685,6 +695,33 @@ fn relaxed_re_syntax() {
     assert_eq!(
         Scanner::new(&rules)
             .scan(b"a{2,1}")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    assert_eq!(
+        Scanner::new(&rules)
+            .scan(b"r{{")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    assert_eq!(
+        Scanner::new(&rules)
+            .scan(b"p{")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    assert_eq!(
+        Scanner::new(&rules)
+            .scan(b"q{1")
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -873,6 +910,21 @@ fn relaxed_re_syntax() {
   |                                ^^   ^^^ this is non-greedy
   |                                |
   |                                this is greedy"#
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .relaxed_re_syntax(true)
+            .add_source("rule test { strings: $a = /[{]|+/ condition: $a }")
+            .unwrap_err()
+            .to_string(),
+        r#"error[E014]: invalid regular expression
+ --> line:1:32
+  |
+1 | rule test { strings: $a = /[{]|+/ condition: $a }
+  |                                ^ repetition operator missing expression
+  |
+  = note: did you mean `\+` instead of `+`?"#
     );
 }
 

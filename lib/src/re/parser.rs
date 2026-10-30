@@ -247,9 +247,7 @@ impl Parser {
                             // repeatable expression. In relaxed mode only an
                             // unescaped `{` is treated as a literal; bare `+`,
                             // `*`, and `?` remain syntax errors.
-                            if re_src.as_bytes().get(span.start.offset)
-                                == Some(&b'{')
-                            {
+                            if re_src[span.start.offset..].starts_with('{') {
                                 let mut s = re_src.into_owned();
                                 s.insert(span.start.offset, '\\');
                                 re_src = Cow::Owned(s);
@@ -259,19 +257,38 @@ impl Parser {
                             }
                         }
                         ErrorKind::RepetitionCountInvalid
-                        | ErrorKind::RepetitionCountUnclosed
-                        | ErrorKind::RepetitionCountDecimalEmpty => {
+                        | ErrorKind::RepetitionCountUnclosed => {
                             let span = err.span();
-                            // Find the `{` that needs to be escaped. Notice we
-                            // slice re_src as `0..span.end.offset` rather than
-                            // `0..=span.start.offset`. For `RepetitionCountUnclosed`
-                            // (e.g. `/xyz{/`) `span` covers the `{` itself (`3..4`),
-                            // while for `RepetitionCountDecimalEmpty` (e.g.
-                            // `/a{你好/`) `span` is empty (`2..2`) at the start
-                            // of the character following `{`, where
-                            // `0..=span.start.offset` would land mid-UTF-8.
-                            let Some(curly_brace) =
-                                re_src.as_ref()[0..span.end.offset].rfind('{')
+                            // For `RepetitionCountInvalid` (e.g. `/a{2,1}/`)
+                            // and `RepetitionCountUnclosed` (e.g. `/xyz{/`),
+                            // `span.start.offset` points directly to the
+                            // opening `{`. Notice that we don't search
+                            // backwards from `span.end.offset`, because in
+                            // `(?x)` verbose mode `span.end.offset` may extend
+                            // over `#` comments that also contain `{` (e.g.
+                            // `/(?x)a{# {/`), which would escape the `{` inside
+                            // the comment and loop indefinitely.
+                            let mut s = re_src.into_owned();
+                            // Insert a backslash in front of the `{`.
+                            s.insert(span.start.offset, '\\');
+                            re_src = Cow::Owned(s);
+                            edits.push(Edit::Insert(span.start.offset));
+                        }
+                        ErrorKind::RepetitionCountDecimalEmpty => {
+                            let span = err.span();
+                            // For `RepetitionCountDecimalEmpty` (e.g. `/a{你好/`
+                            // or `/a{1,你好/`), `span` is empty (`2..2` or
+                            // `4..4`) at the start of the character where a
+                            // decimal digit was expected, a few characters
+                            // after the `{`. Notice we slice `0..span.start.offset`
+                            // (a valid UTF-8 boundary, unlike `0..=span.start.offset`
+                            // which would land mid-UTF-8) to find the opening
+                            // `{`. Since YARA `/.../` literals cannot contain
+                            // `\n`, no `(?x)` `#` comment can end before
+                            // `span.start.offset`.
+                            let Some(curly_brace) = re_src.as_ref()
+                                [0..span.start.offset]
+                                .rfind('{')
                             else {
                                 break Err(err);
                             };
