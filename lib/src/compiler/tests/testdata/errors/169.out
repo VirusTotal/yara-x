@@ -1,0 +1,5 @@
+error[E002]: wrong type
+ --> line:3:33
+  |
+3 |     with re = /foo/ : ( defined re )
+  |                                 ^^ expression should be `boolean`, `float`, `integer`, or `string`, but it is `regexp`

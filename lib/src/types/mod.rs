@@ -362,7 +362,7 @@ impl TypeValue {
             TypeValue::Float { value } => value.is_const(),
             TypeValue::Bool { value } => value.is_const(),
             TypeValue::String { value, .. } => value.is_const(),
-            TypeValue::Regexp(_) => false,
+            TypeValue::Regexp(regexp) => regexp.is_some(),
             TypeValue::Struct(_) => false,
             TypeValue::Array(_) => false,
             TypeValue::Map(_) => false,

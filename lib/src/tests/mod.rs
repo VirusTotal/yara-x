@@ -1203,6 +1203,14 @@ fn with() {
         )
         "#
     );
+
+    condition_true!(r#"with re = /foo.*bar/ : ("foo123bar" matches re)"#);
+    condition_false!(r#"with re = /foo.*bar/ : ("foo123baz" matches re)"#);
+    condition_true!(r#"with re = /foobar/i : ("xxFOOBARxx" matches re)"#);
+    condition_true!(r#"with r1 = /foo.*1/, r2 = r1 : ("foo_1" matches r2)"#);
+    condition_true!(
+        r#"with r1 = /foo.*1/, r2 = /bar.*2/ : ("bar_2" matches r1 or "bar_2" matches r2)"#
+    );
 }
 
 #[test]
