@@ -7,6 +7,7 @@ pub mod cuckoo;
 pub mod dex;
 pub mod dotnet;
 pub mod elf;
+pub mod eml;
 pub mod filetypes;
 pub mod gti_score;
 pub mod hash;
