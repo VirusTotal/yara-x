@@ -163,25 +163,43 @@ impl Parser {
 
     /// Parses the regexp and returns its HIR.
     pub fn parse(&self, regexp: &impl Regexp) -> Result<Hir, Error> {
-        let mut re_src = Cow::Borrowed(regexp.source());
-        let mut span_delta = 0_isize;
+        enum Edit {
+            Remove(usize),
+            Insert(usize),
+        }
 
-        // Utility function that given a span and a `delta` amount, adds that
-        // amount to both the starting and ending points of the span. It will
-        // be used for adjusting error spans after we have modified the
-        // original regular expression. See comment below.
-        let adjust_span = |span: &re::ast::Span, delta| {
+        let mut re_src = Cow::Borrowed(regexp.source());
+        let mut edits = Vec::new();
+
+        // Maps a `Position` in the modified `re_src` back to its corresponding
+        // position in the original `regexp.source()` by undoing each edit in
+        // reverse chronological order.
+        let adjust_pos = |pos: &re::ast::Position, edits: &[Edit]| {
+            let mut offset = pos.offset;
+            let mut column = pos.column;
+            for edit in edits.iter().rev() {
+                match *edit {
+                    Edit::Remove(edit_pos) => {
+                        if offset >= edit_pos {
+                            offset += 1;
+                            column += 1;
+                        }
+                    }
+                    Edit::Insert(edit_pos) => {
+                        if offset > edit_pos {
+                            offset -= 1;
+                            column = column.saturating_sub(1);
+                        }
+                    }
+                }
+            }
+            re::ast::Position::new(offset, pos.line, column)
+        };
+
+        let adjust_span = |span: &re::ast::Span, edits: &[Edit]| {
             re::ast::Span::new(
-                re::ast::Position::new(
-                    span.start.offset.saturating_add_signed(delta),
-                    span.start.line,
-                    span.start.column.saturating_add_signed(delta),
-                ),
-                re::ast::Position::new(
-                    span.end.offset.saturating_add_signed(delta),
-                    span.end.line,
-                    span.end.column.saturating_add_signed(delta),
-                ),
+                adjust_pos(&span.start, edits),
+                adjust_pos(&span.end, edits),
             )
         };
 
@@ -220,12 +238,7 @@ impl Parser {
                             // Remove the backslash (\) from the original regexp.
                             s.remove(span.start.offset);
                             re_src = Cow::Owned(s);
-                            // By removing the backslash we are altering the spans
-                            // of any other error that is found after this change,
-                            // we need to account for that change. The new spans
-                            // are one byte before they should be because we removed
-                            // one byte, so we need to add 1 to fix those spans.
-                            span_delta += 1;
+                            edits.push(Edit::Remove(span.start.offset));
                         }
                         ErrorKind::RepetitionMissing => {
                             let span = err.span();
@@ -240,7 +253,7 @@ impl Parser {
                                 let mut s = re_src.into_owned();
                                 s.insert(span.start.offset, '\\');
                                 re_src = Cow::Owned(s);
-                                span_delta -= 1;
+                                edits.push(Edit::Insert(span.start.offset));
                             } else {
                                 break Err(err);
                             }
@@ -266,7 +279,7 @@ impl Parser {
                             // Insert a backslash in front of the `{`.
                             s.insert(curly_brace, '\\');
                             re_src = Cow::Owned(s);
-                            span_delta -= 1;
+                            edits.push(Edit::Insert(curly_brace));
                         }
                         _ => {
                             break Err(err);
@@ -300,7 +313,7 @@ impl Parser {
 
             Error::WrongSyntax {
                 msg: err.kind().to_string(),
-                span: adjust_span(span, span_delta),
+                span: adjust_span(span, &edits),
                 note,
             }
         })?;
@@ -321,11 +334,11 @@ impl Parser {
                     Error::WrongSyntax { span, .. }
                     | Error::UnsupportedInUnicode { span }
                     | Error::ArbitraryPrefix { span } => {
-                        *span = adjust_span(span, span_delta);
+                        *span = adjust_span(span, &edits);
                     }
                     Error::MixedGreediness { span_1, span_2, .. } => {
-                        *span_1 = adjust_span(span_1, span_delta);
-                        *span_2 = adjust_span(span_2, span_delta);
+                        *span_1 = adjust_span(span_1, &edits);
+                        *span_2 = adjust_span(span_2, &edits);
                     }
                 }
                 err
@@ -348,7 +361,7 @@ impl Parser {
             translator.translate(re_src.as_ref(), &ast).map_err(|err| {
                 Error::WrongSyntax {
                     msg: err.kind().to_string(),
-                    span: adjust_span(err.span(), span_delta),
+                    span: adjust_span(err.span(), &edits),
                     note: None,
                 }
             })?;

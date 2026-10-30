@@ -829,6 +829,51 @@ fn relaxed_re_syntax() {
 1 | rule test { strings: $a = /({{{{|.*)a/s condition: $a }
   |                                  ^^ this prefix can be arbitrarily long and matches all bytes"#
     );
+
+    assert_eq!(
+        Compiler::new()
+            .relaxed_re_syntax(true)
+            .add_source(
+                r"rule test { strings: $a = /你好\p{L}{/ condition: $a }"
+            )
+            .unwrap_err()
+            .to_string(),
+        r#"error[E014]: invalid regular expression
+ --> line:1:30
+  |
+1 | rule test { strings: $a = /你好\p{L}{/ condition: $a }
+  |                                ^^^^^ Unicode not allowed here"#
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .relaxed_re_syntax(true)
+            .add_source(r"rule test { strings: $a = /[好-\Z]/ condition: $a }")
+            .unwrap_err()
+            .to_string(),
+        r#"error[E014]: invalid regular expression
+ --> line:1:29
+  |
+1 | rule test { strings: $a = /[好-\Z]/ condition: $a }
+  |                             ^^^^^ invalid character class range, the start must be <= the end"#
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .relaxed_re_syntax(true)
+            .add_source(
+                "rule test { strings: $a = /你好.*{{a.*?/ condition: $a }"
+            )
+            .unwrap_err()
+            .to_string(),
+        r#"error[E015]: mixing greedy and non-greedy quantifiers in regular expression
+ --> line:1:30
+  |
+1 | rule test { strings: $a = /你好.*{{a.*?/ condition: $a }
+  |                                ^^   ^^^ this is non-greedy
+  |                                |
+  |                                this is greedy"#
+    );
 }
 
 #[test]
