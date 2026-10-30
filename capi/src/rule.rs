@@ -132,13 +132,28 @@ pub unsafe extern "C" fn yrx_rule_iter_metadata(
                 YRX_METADATA_TYPE::YRX_BOOLEAN,
                 YRX_METADATA_VALUE { boolean: v },
             ),
-            MetaValue::String(v) => {
-                string = CString::new(v).unwrap();
-                (
-                    YRX_METADATA_TYPE::YRX_STRING,
-                    YRX_METADATA_VALUE { string: string.as_ptr() },
-                )
-            }
+            MetaValue::String(v) => match CString::new(v) {
+                Ok(s) => {
+                    string = s;
+                    (
+                        YRX_METADATA_TYPE::YRX_STRING,
+                        YRX_METADATA_VALUE { string: string.as_ptr() },
+                    )
+                }
+                // C strings cannot contain interior null bytes; if a metadata
+                // string contains one (for instance, in rules serialized
+                // before literal null bytes were classified as `Bytes`),
+                // expose it as `YRX_BYTES` instead of panicking across FFI.
+                Err(_) => (
+                    YRX_METADATA_TYPE::YRX_BYTES,
+                    YRX_METADATA_VALUE {
+                        bytes: YRX_METADATA_BYTES {
+                            length: v.len(),
+                            data: v.as_ptr(),
+                        },
+                    },
+                ),
+            },
             MetaValue::Bytes(v) => (
                 YRX_METADATA_TYPE::YRX_BYTES,
                 YRX_METADATA_VALUE {

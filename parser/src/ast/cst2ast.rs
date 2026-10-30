@@ -649,15 +649,22 @@ where
                 match self.string_lit(true)? {
                     // If the result is a string borrowed directly from the
                     // source code, we can be sure that it's a valid UTF-8
-                    // string.
-                    (Cow::Borrowed(s), _lit, span) => MetaValue::String((
-                        unsafe { s.to_str_unchecked() },
-                        span,
-                    )),
+                    // string. However, if it contains literal null bytes we
+                    // still treat it as `MetaValue::Bytes` (just like `\0` or
+                    // `\x00`) so C-API consumers receive `YRX_BYTES` instead
+                    // of a truncated or invalid C string.
+                    (Cow::Borrowed(s), _lit, span) if !s.contains(&0) => {
+                        MetaValue::String((
+                            unsafe { s.to_str_unchecked() },
+                            span,
+                        ))
+                    }
                     // If the result is an owned string is because it contains
                     // some escaped character, this string is not guaranteed
                     // to be a valid UTF-8 string.
-                    (Cow::Owned(s), _lit, span) => MetaValue::Bytes((s, span)),
+                    (s, _lit, span) => {
+                        MetaValue::Bytes((s.into_owned(), span))
+                    }
                 }
             }
             Event::Token { kind: TRUE_KW, .. } => {

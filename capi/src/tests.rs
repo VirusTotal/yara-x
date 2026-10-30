@@ -1178,3 +1178,67 @@ fn capi_xor_key() {
         yrx_rules_destroy(rules);
     }
 }
+
+#[test]
+fn capi_metadata_literal_nul() {
+    extern "C" fn on_metadata(
+        metadata: *const YRX_METADATA,
+        user_data: *mut c_void,
+    ) {
+        let out = unsafe { &mut *(user_data as *mut Vec<(String, Vec<u8>)>) };
+        let m = unsafe { metadata.as_ref().unwrap() };
+        let ident = unsafe { CStr::from_ptr(m.identifier) }
+            .to_str()
+            .unwrap()
+            .to_owned();
+        assert!(matches!(m.value_type, YRX_METADATA_TYPE::YRX_BYTES));
+        let bytes = unsafe {
+            std::slice::from_raw_parts(
+                m.value.bytes.data,
+                m.value.bytes.length,
+            )
+        };
+        out.push((ident, bytes.to_vec()));
+    }
+
+    extern "C" fn on_rule(rule: *const YRX_RULE, user_data: *mut c_void) {
+        unsafe {
+            assert_eq!(
+                yrx_rule_iter_metadata(rule, Some(on_metadata), user_data),
+                YRX_RESULT::YRX_SUCCESS
+            );
+        }
+    }
+
+    let compiled = yara_x::compile(
+        b"rule test { meta: m = \"a\0b\" condition: true }".as_slice(),
+    )
+    .unwrap();
+    let serialized = compiled.serialize().unwrap();
+
+    unsafe {
+        let mut rules = std::ptr::null_mut();
+        assert_eq!(
+            yrx_rules_deserialize(
+                serialized.as_ptr(),
+                serialized.len(),
+                &mut rules
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+
+        let mut collected: Vec<(String, Vec<u8>)> = Vec::new();
+        assert_eq!(
+            yrx_rules_iter(
+                rules,
+                Some(on_rule),
+                &mut collected as *mut Vec<(String, Vec<u8>)> as *mut c_void,
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+
+        assert_eq!(collected, vec![("m".to_string(), b"a\0b".to_vec())]);
+
+        yrx_rules_destroy(rules);
+    }
+}
