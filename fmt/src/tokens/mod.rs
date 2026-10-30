@@ -537,11 +537,12 @@ where
                         let s = unsafe { from_utf8_unchecked(token_bytes) };
                         for ch in s.chars() {
                             match ch {
-                                ' ' => {
-                                    self.buffer.push_back(Token::Whitespace)
-                                }
                                 '\t' => self.buffer.push_back(Token::Tab),
-                                _ => unreachable!(),
+                                // Besides ASCII spaces (`' '`), the tokenizer
+                                // also accepts Unicode space characters as
+                                // `SyntaxKind::WHITESPACE`; normalize all of
+                                // them to `Token::Whitespace`.
+                                _ => self.buffer.push_back(Token::Whitespace),
                             };
                         }
                         self.buffer.pop_front()
