@@ -34,6 +34,27 @@ fn length(ctx: &ScanContext, string: RuntimeString) -> Option<i64> {
     Some(string.as_bstr(ctx).len().try_into().unwrap())
 }
 
+/// Returns a substring of the string, starting at `offset` and spanning
+/// `size` bytes. The result is undefined when the substring lies outside of
+/// the string, i.e. when `offset` or `size` is negative, or when
+/// `offset + size` is greater than the length of the string.
+#[module_export]
+fn substr(
+    ctx: &ScanContext,
+    string: RuntimeString,
+    offset: i64,
+    size: i64,
+) -> Option<RuntimeString> {
+    let offset: usize = offset.try_into().ok()?;
+    let size: usize = size.try_into().ok()?;
+    let string = string.as_bstr(ctx);
+    let end = offset.checked_add(size)?;
+    if end > string.len() {
+        return None;
+    }
+    Some(RuntimeString::from_slice(ctx, &string[offset..end]))
+}
+
 #[cfg(test)]
 mod tests {
     use crate::tests::rule_false;
@@ -98,6 +119,63 @@ mod tests {
             r#"
             import "string"
             rule test { condition: string.to_int("-011", 8) == -9 }"#,
+            &[]
+        );
+    }
+
+    #[test]
+    fn substr() {
+        rule_true!(
+            r#"
+            import "string"
+            rule test { condition: string.substr("AXsx00ERS", 0, 1) == "A" }"#,
+            &[]
+        );
+
+        rule_true!(
+            r#"
+            import "string"
+            rule test { condition: string.substr("AXsx00ERS", 1, 3) == "Xsx" }"#,
+            &[]
+        );
+
+        // The string argument can also be a string value produced by another
+        // module (like a string field in a module), not only a literal.
+        rule_true!(
+            r#"
+            import "math"
+            import "string"
+            rule test { condition: string.substr(math.to_string(12345), 0, 3) == "123" }"#,
+            &[]
+        );
+
+        // The result is undefined when the substring is out of bounds.
+        rule_false!(
+            r#"
+            import "string"
+            rule test { condition: string.substr("AXsx00ERS", 0, 100) == "AXsx" }"#,
+            &[]
+        );
+
+        rule_false!(
+            r#"
+            import "string"
+            rule test { condition: string.substr("AXsx00ERS", 100, 1) == "A" }"#,
+            &[]
+        );
+
+        // ... and also when the offset is negative.
+        rule_false!(
+            r#"
+            import "string"
+            rule test { condition: string.substr("AXsx00ERS", -1, 1) == "A" }"#,
+            &[]
+        );
+
+        rule_true!(
+            r#"
+            import "string"
+            rule test { condition: string.substr("AXsx00ERS", 8, 1) == "S" }"#,
             &[]
         );
     }
