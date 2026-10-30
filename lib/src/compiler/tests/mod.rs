@@ -1103,6 +1103,52 @@ fn linter_tag_list() {
   |             ^^^ tag `axs` not in allowed list
   |
   = note: allowed tags: foo, bar"#);
+
+    // Empty allowed list: untagged rules are valid, any tag produces a
+    // warning or error without panicking.
+    assert!(
+        Compiler::new()
+            .add_linter(linters::tags_allowed(vec![]))
+            .add_source(
+                r#"rule test { strings: $foo = "foo" condition: $foo }"#
+            )
+            .unwrap()
+            .warnings()
+            .is_empty()
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .add_linter(linters::tags_allowed(vec![]))
+            .add_source(
+                r#"rule test : foo { strings: $foo = "foo" condition: $foo }"#
+            )
+            .unwrap()
+            .warnings()
+            .iter()
+            .map(|w| w.to_string())
+            .collect::<Vec<_>>(),
+        &[r#"warning[unknown_tag]: tag not in allowed list
+ --> line:1:13
+  |
+1 | rule test : foo { strings: $foo = "foo" condition: $foo }
+  |             --- tag `foo` not in allowed list"#]
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .add_linter(linters::tags_allowed(vec![]).error(true))
+            .add_source(
+                r#"rule test : foo { strings: $foo = "foo" condition: $foo }"#
+            )
+            .expect_err("expected error")
+            .to_string(),
+        r#"error[E040]: tag not in allowed list
+ --> line:1:13
+  |
+1 | rule test : foo { strings: $foo = "foo" condition: $foo }
+  |             ^^^ tag `foo` not in allowed list"#,
+    );
 }
 
 #[test]
