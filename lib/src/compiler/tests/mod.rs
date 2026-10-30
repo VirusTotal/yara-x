@@ -594,6 +594,18 @@ fn relaxed_re_syntax() {
         .add_source(
             r#"rule test_4 { strings: $a = /{(foo|bar)/ condition: $a }"#,
         )
+        .unwrap()
+        .add_source(r#"rule test_5 { strings: $a = /a{你好/ condition: $a }"#)
+        .unwrap()
+        .add_source(
+            r#"rule test_6 { strings: $a = /a{1,你好/ condition: $a }"#,
+        )
+        .unwrap()
+        .add_source(r#"rule test_7 { strings: $a = /你好{/ condition: $a }"#)
+        .unwrap()
+        .add_source(r#"rule test_8 { strings: $a = /a{1{/ condition: $a }"#)
+        .unwrap()
+        .add_source(r#"rule test_9 { strings: $a = /a{2,1}/ condition: $a }"#)
         .unwrap();
 
     let rules = compiler.build();
@@ -628,6 +640,51 @@ fn relaxed_re_syntax() {
     assert_eq!(
         Scanner::new(&rules)
             .scan(b"{foo")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    assert_eq!(
+        Scanner::new(&rules)
+            .scan("a{你好".as_bytes())
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    assert_eq!(
+        Scanner::new(&rules)
+            .scan("a{1,你好".as_bytes())
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    assert_eq!(
+        Scanner::new(&rules)
+            .scan("你好{".as_bytes())
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    assert_eq!(
+        Scanner::new(&rules)
+            .scan(b"a{1{")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    assert_eq!(
+        Scanner::new(&rules)
+            .scan(b"a{2,1}")
             .expect("scan should not fail")
             .matching_rules()
             .len(),

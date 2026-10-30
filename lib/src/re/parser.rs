@@ -249,14 +249,19 @@ impl Parser {
                         | ErrorKind::RepetitionCountUnclosed
                         | ErrorKind::RepetitionCountDecimalEmpty => {
                             let span = err.span();
-                            // Find the `{` that needs to be escaped. In some
-                            // cases the error span starts exactly at the
-                            // position where the `{` is, but in some other
-                            // cases it starts a few characters after the `{`.
-                            let curly_brace = re_src.as_ref()
-                                [0..=span.start.offset]
-                                .rfind('{')
-                                .unwrap();
+                            // Find the `{` that needs to be escaped. Notice we
+                            // slice re_src as `0..span.end.offset` rather than
+                            // `0..=span.start.offset`. For `RepetitionCountUnclosed`
+                            // (e.g. `/xyz{/`) `span` covers the `{` itself (`3..4`),
+                            // while for `RepetitionCountDecimalEmpty` (e.g.
+                            // `/a{你好/`) `span` is empty (`2..2`) at the start
+                            // of the character following `{`, where
+                            // `0..=span.start.offset` would land mid-UTF-8.
+                            let Some(curly_brace) =
+                                re_src.as_ref()[0..span.end.offset].rfind('{')
+                            else {
+                                break Err(err);
+                            };
                             let mut s = re_src.into_owned();
                             // Insert a backslash in front of the `{`.
                             s.insert(curly_brace, '\\');
