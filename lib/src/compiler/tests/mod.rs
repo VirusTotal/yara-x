@@ -590,6 +590,10 @@ fn relaxed_re_syntax() {
         .add_source(r#"rule test_2 { strings: $a = /xyz{/ condition: $a }"#)
         .unwrap()
         .add_source(r#"rule test_3 { strings: $a = /xyz[\>]/ condition: $a }"#)
+        .unwrap()
+        .add_source(
+            r#"rule test_4 { strings: $a = /{(foo|bar)/ condition: $a }"#,
+        )
         .unwrap();
 
     let rules = compiler.build();
@@ -619,6 +623,90 @@ fn relaxed_re_syntax() {
             .matching_rules()
             .len(),
         1
+    );
+
+    assert_eq!(
+        Scanner::new(&rules)
+            .scan(b"{foo")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .relaxed_re_syntax(true)
+            .add_source("rule test { strings: $a = /+/ condition: $a }")
+            .unwrap_err()
+            .to_string(),
+        r#"error[E014]: invalid regular expression
+ --> line:1:28
+  |
+1 | rule test { strings: $a = /+/ condition: $a }
+  |                            ^ repetition operator missing expression
+  |
+  = note: did you mean `\+` instead of `+`?"#
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .relaxed_re_syntax(true)
+            .add_source("rule test { strings: $a = /?/ condition: $a }")
+            .unwrap_err()
+            .to_string(),
+        r#"error[E014]: invalid regular expression
+ --> line:1:28
+  |
+1 | rule test { strings: $a = /?/ condition: $a }
+  |                            ^ repetition operator missing expression
+  |
+  = note: did you mean `\?` instead of `?`?"#
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .relaxed_re_syntax(true)
+            .add_source("rule test { strings: $a = /a|*/ condition: $a }")
+            .unwrap_err()
+            .to_string(),
+        r#"error[E014]: invalid regular expression
+ --> line:1:30
+  |
+1 | rule test { strings: $a = /a|*/ condition: $a }
+  |                              ^ repetition operator missing expression
+  |
+  = note: did you mean `\*` instead of `*`?"#
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .relaxed_re_syntax(true)
+            .add_source(r#"rule test { strings: $a = /\X|+/ condition: $a }"#)
+            .unwrap_err()
+            .to_string(),
+        r#"error[E014]: invalid regular expression
+ --> line:1:31
+  |
+1 | rule test { strings: $a = /\X|+/ condition: $a }
+  |                               ^ repetition operator missing expression
+  |
+  = note: did you mean `\+` instead of `+`?"#
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .relaxed_re_syntax(true)
+            .add_source(r#"rule test { condition: "foo" matches /+/ }"#)
+            .unwrap_err()
+            .to_string(),
+        r#"error[E014]: invalid regular expression
+ --> line:1:39
+  |
+1 | rule test { condition: "foo" matches /+/ }
+  |                                       ^ repetition operator missing expression
+  |
+  = note: did you mean `\+` instead of `+`?"#
     );
 }
 

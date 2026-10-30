@@ -227,8 +227,25 @@ impl Parser {
                             // one byte, so we need to add 1 to fix those spans.
                             span_delta += 1;
                         }
-                        ErrorKind::RepetitionMissing
-                        | ErrorKind::RepetitionCountInvalid
+                        ErrorKind::RepetitionMissing => {
+                            let span = err.span();
+                            // `RepetitionMissing` is emitted for `{` as well
+                            // as `+`, `*`, and `?` when there is no preceding
+                            // repeatable expression. In relaxed mode only an
+                            // unescaped `{` is treated as a literal; bare `+`,
+                            // `*`, and `?` remain syntax errors.
+                            if re_src.as_bytes().get(span.start.offset)
+                                == Some(&b'{')
+                            {
+                                let mut s = re_src.into_owned();
+                                s.insert(span.start.offset, '\\');
+                                re_src = Cow::Owned(s);
+                                span_delta -= 1;
+                            } else {
+                                break Err(err);
+                            }
+                        }
+                        ErrorKind::RepetitionCountInvalid
                         | ErrorKind::RepetitionCountUnclosed
                         | ErrorKind::RepetitionCountDecimalEmpty => {
                             let span = err.span();
@@ -262,8 +279,13 @@ impl Parser {
                         "did you mean `\\{esc_seq}` instead of `{esc_seq}`?"
                     ))
                 }
-                ErrorKind::RepetitionMissing
-                | ErrorKind::RepetitionCountInvalid
+                ErrorKind::RepetitionMissing => re_src
+                    .get(span.start.offset..)
+                    .and_then(|s| s.chars().next())
+                    .map(|op| {
+                        format!("did you mean `\\{op}` instead of `{op}`?")
+                    }),
+                ErrorKind::RepetitionCountInvalid
                 | ErrorKind::RepetitionCountUnclosed
                 | ErrorKind::RepetitionCountDecimalEmpty => {
                     Some("did you mean `\\{` instead of `{`?".to_string())
