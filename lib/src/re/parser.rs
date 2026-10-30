@@ -315,7 +315,21 @@ impl Parser {
         let greedy = Validator::new()
             .allow_mixed_greediness(self.allow_mixed_greediness)
             .dot_matches_new_line(regexp.dot_matches_new_line())
-            .validate(&ast)?;
+            .validate(&ast)
+            .map_err(|mut err| {
+                match &mut err {
+                    Error::WrongSyntax { span, .. }
+                    | Error::UnsupportedInUnicode { span }
+                    | Error::ArbitraryPrefix { span } => {
+                        *span = adjust_span(span, span_delta);
+                    }
+                    Error::MixedGreediness { span_1, span_2, .. } => {
+                        *span_1 = adjust_span(span_1, span_delta);
+                        *span_2 = adjust_span(span_2, span_delta);
+                    }
+                }
+                err
+            })?;
 
         let case_insensitive = match self.force_case_sensitiveness {
             Some(CaseSensitiveness::Sensitive) => false,

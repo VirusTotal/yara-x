@@ -765,6 +765,70 @@ fn relaxed_re_syntax() {
   |
   = note: did you mean `\+` instead of `+`?"#
     );
+
+    assert_eq!(
+        Compiler::new()
+            .relaxed_re_syntax(true)
+            .add_source(
+                "rule test { strings: $a = /{{{{.*a.*?/ condition: $a }"
+            )
+            .unwrap_err()
+            .to_string(),
+        r#"error[E015]: mixing greedy and non-greedy quantifiers in regular expression
+ --> line:1:32
+  |
+1 | rule test { strings: $a = /{{{{.*a.*?/ condition: $a }
+  |                                ^^ ^^^ this is non-greedy
+  |                                |
+  |                                this is greedy"#
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .relaxed_re_syntax(true)
+            .add_source(
+                r#"rule test { strings: $a = /\X\Y.*a.*?/ condition: $a }"#
+            )
+            .unwrap_err()
+            .to_string(),
+        r#"error[E015]: mixing greedy and non-greedy quantifiers in regular expression
+ --> line:1:32
+  |
+1 | rule test { strings: $a = /\X\Y.*a.*?/ condition: $a }
+  |                                ^^ ^^^ this is non-greedy
+  |                                |
+  |                                this is greedy"#
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .relaxed_re_syntax(true)
+            .add_source(
+                r#"rule test { strings: $a = /{{{{(?u)\b/ condition: $a }"#
+            )
+            .unwrap_err()
+            .to_string(),
+        r#"error[E014]: invalid regular expression
+ --> line:1:36
+  |
+1 | rule test { strings: $a = /{{{{(?u)\b/ condition: $a }
+  |                                    ^^ this is unsupported in Unicode regular expressions"#
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .relaxed_re_syntax(true)
+            .add_source(
+                "rule test { strings: $a = /({{{{|.*)a/s condition: $a }"
+            )
+            .unwrap_err()
+            .to_string(),
+        r#"error[E045]: arbitrary regular expression prefix
+ --> line:1:34
+  |
+1 | rule test { strings: $a = /({{{{|.*)a/s condition: $a }
+  |                                  ^^ this prefix can be arbitrarily long and matches all bytes"#
+    );
 }
 
 #[test]
