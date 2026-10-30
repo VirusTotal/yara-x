@@ -1,7 +1,7 @@
 {
     "i32": 123,
     "str": "foo",
-    "bytes": { "encoding": "base64", "value": "yv4="},
+    "bytes": { "$bytes": ["yv4="] },
     "float": 3.1415,
     "bool": true,
     "repeated_msg": [
@@ -37,7 +37,7 @@
             "foo": "bar"
         }
     },
-    "timestamp": { "encoding": "timestamp", "value": 0 },
+    "timestamp": { "$timestamp": [0] },
     "enum": "Foo",
     "flags": 3
 }

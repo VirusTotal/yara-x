@@ -328,6 +328,36 @@ rule test {
     scanner.set_module_output('pe', b'\xff\xff\xff')
 
 
+@pytest.mark.parametrize('version_info', [
+  {'CompanyName': 'Acme', 'encoding': 'base64', 'value': 'x'},
+  {'encoding': 'timestamp', 'value': 'now'},
+  {'encoding': 'base64', 'value': 'aGk='},
+  {'$bytes': 'aGk='},
+  {'$timestamp': '0'},
+])
+def test_module_outputs_map_not_decoded(version_info):
+  # https://github.com/VirusTotal/yara-x/issues/825
+  if 'pe' not in yara_x.module_names():
+    return
+
+  def ld(tag, payload):  # length-delimited protobuf field
+    return tag + bytes([len(payload)]) + payload
+
+  # Raw bytes for a `pe.PE` protobuf message with `is_pe = true` and
+  # `version_info` set to the given map.
+  pe_data = b'\x08\x01'
+  for k, v in version_info.items():
+    pe_data += ld(b'\xf2\x02', ld(b'\x0a', k.encode()) + ld(b'\x12', v.encode()))
+
+  rules = yara_x.compile('import "pe" rule test { condition: pe.is_pe }')
+  scanner = yara_x.Scanner(rules)
+  scanner.set_module_output('pe', pe_data)
+  results = scanner.scan(b'')
+
+  assert len(results.matching_rules) == 1
+  assert results.module_outputs['pe']['version_info'] == version_info
+
+
 def test_ignored_modules():
   compiler = yara_x.Compiler()
   compiler.ignore_module("unsupported_module")

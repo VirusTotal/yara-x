@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use strum_macros::Display;
 
 use yara_x::mods::*;
-use yara_x_proto::json::Serializer as JsonSerializer;
+use yara_x_proto::json::{Format as JsonFormat, Serializer as JsonSerializer};
 use yara_x_proto::yaml::Serializer as YamlSerializer;
 
 use crate::help;
@@ -173,6 +173,7 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
             let mut serializer = JsonSerializer::new(stdout());
             serializer
                 .with_colors(use_color)
+                .with_format(JsonFormat::YrDump)
                 .serialize(module_output.as_ref())?;
             println!();
         }

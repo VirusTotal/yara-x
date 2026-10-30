@@ -6,17 +6,42 @@ protobuf field types that are not natively representable in JSON—most notably,
 `bytes` fields.
 
 Since raw byte sequences may contain non-UTF-8 data, they cannot be directly
-encoded as JSON strings. Instead, they are serialized as an object containing
-the base64-encoded value along with an encoding identifier. For example:
+encoded as JSON strings. Instead, they are serialized as an object whose only
+key is `$bytes`, and whose value is a list with the base64-encoded bytes.
+Timestamps are serialized in a similar way, using the `$timestamp` key. For
+example:
+
+```json
+{
+  "my_bytes_field": { "$bytes": ["dGhpcyBpcyB0aGUgb3JpZ2luYWwgdmFsdWU="] },
+  "my_timestamp_field": { "$timestamp": [1748591440] }
+}
+```
+
+No message or map can produce an object like these. Protobuf field names
+can't start with `$`, and map values can't be repeated fields, so they are
+never serialized as JSON arrays. This means that the JSON can be decoded
+back without mistaking a map for an encoded value.
+
+This is the [`Format::Default`] format. The `yr dump` command uses
+[`Format::YrDump`] instead, which keeps the format it has always produced:
 
 ```json
 {
   "my_bytes_field": {
     "encoding": "base64",
     "value": "dGhpcyBpcyB0aGUgb3JpZ2luYWwgdmFsdWU="
+  },
+  "my_timestamp_field": {
+    "encoding": "timestamp",
+    "value": 1748591440
   }
 }
 ```
+
+In this format a `map<string, string>` with `encoding` and `value` keys is
+indistinguishable from an encoded value, so it shouldn't be used for JSON
+that is decoded back.
 */
 
 use std::borrow::Cow;
@@ -42,6 +67,21 @@ struct Colors {
     field_name: Style,
 }
 
+/// Formats in which [`Serializer`] can write `bytes` and timestamp values.
+///
+/// See the [module documentation](self) for details.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum Format {
+    /// `{ "$bytes": ["..."] }` for bytes, and `{ "$timestamp": [...] }` for
+    /// timestamps.
+    #[default]
+    Default,
+    /// `{ "encoding": "base64", "value": "..." }` for bytes, and
+    /// `{ "encoding": "timestamp", "value": ... }` for timestamps. Used only
+    /// by `yr dump`, for backward compatibility.
+    YrDump,
+}
+
 /// Serializes a protobuf to JSON format.
 ///
 /// Takes a protobuf message and produces a JSON representation of it.
@@ -49,12 +89,26 @@ pub struct Serializer<W: Write> {
     indent: u16,
     output: W,
     colors: Colors,
+    format: Format,
 }
 
 impl<W: Write> Serializer<W> {
     /// Creates a new YAML serializer that writes its output to `w`.
     pub fn new(w: W) -> Self {
-        Self { output: w, indent: 0, colors: Colors::default() }
+        Self {
+            output: w,
+            indent: 0,
+            colors: Colors::default(),
+            format: Format::default(),
+        }
+    }
+
+    /// Specifies the format used for `bytes` and timestamp values.
+    ///
+    /// The default setting is [`Format::Default`].
+    pub fn with_format(&mut self, format: Format) -> &mut Self {
+        self.format = format;
+        self
     }
 
     /// Specifies whether the serializer should colorize the output.
@@ -86,11 +140,18 @@ impl<W: Write> Serializer<W> {
         format: FieldFormat,
     ) -> Result<(), std::io::Error> {
         if matches!(format, FieldFormat::Timestamp) {
-            write!(
-                self.output,
-                "{{ \"encoding\": \"timestamp\", \"value\": {} }}",
-                value.to_string()
-            )
+            match self.format {
+                Format::Default => write!(
+                    self.output,
+                    "{{ \"$timestamp\": [{}] }}",
+                    value.to_string()
+                ),
+                Format::YrDump => write!(
+                    self.output,
+                    "{{ \"encoding\": \"timestamp\", \"value\": {} }}",
+                    value.to_string()
+                ),
+            }
         } else {
             write!(self.output, "{}", value.to_string())
         }
@@ -249,11 +310,22 @@ impl<W: Write> Serializer<W> {
                     Self::escape(v).paint(self.colors.string)
                 )?;
             }
-            ReflectValueRef::Bytes(v) => write!(
-                self.output,
-                "{{ \"encoding\": \"base64\", \"value\": \"{}\"}}",
-                BASE64_STANDARD.encode(v).paint(self.colors.string)
-            )?,
+            ReflectValueRef::Bytes(v) => {
+                let encoded = BASE64_STANDARD.encode(v);
+                let encoded = encoded.paint(self.colors.string);
+                match self.format {
+                    Format::Default => write!(
+                        self.output,
+                        "{{ \"$bytes\": [\"{}\"] }}",
+                        encoded
+                    )?,
+                    Format::YrDump => write!(
+                        self.output,
+                        "{{ \"encoding\": \"base64\", \"value\": \"{}\"}}",
+                        encoded
+                    )?,
+                }
+            }
             ReflectValueRef::Enum(d, v) => match d.value_by_number(*v) {
                 Some(e) => write!(self.output, "\"{}\"", e.name())?,
                 None => write!(self.output, "{v}")?,

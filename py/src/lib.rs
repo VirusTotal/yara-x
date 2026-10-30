@@ -32,8 +32,8 @@ use pyo3::exceptions::{PyException, PyIOError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
 use pyo3::types::{
-    PyBool, PyBytes, PyDict, PyFloat, PyInt, PyString, PyStringMethods,
-    PyTuple, PyTzInfo,
+    PyBool, PyBytes, PyDict, PyFloat, PyInt, PyList, PyString,
+    PyStringMethods, PyTuple, PyTzInfo,
 };
 use pyo3::{IntoPyObjectExt, create_exception};
 use strum_macros::{Display, EnumString};
@@ -1544,19 +1544,21 @@ fn match_to_py(py: Python, match_: yrx::Match) -> PyResult<Py<Match>> {
 ///
 /// YARA module outputs often include values that require special handling.
 /// In particular, raw byte strings—since they cannot be directly represented
-/// in JSON—are encoded as base64 and wrapped in an object that includes
-/// both the encoded value and metadata about the encoding. For example:
+/// in JSON—are encoded as base64, and timestamps are converted to `datetime`
+/// objects. The JSON is produced in the default format of
+/// `yara_x_proto::json::Serializer`, which wraps these values in an object
+/// with a single key and a single-item list. For example:
 ///
 /// ```json
-/// "my_bytes_field": {
-///   "encoding": "base64",
-///   "value": "dGhpcyBpcyB0aGUgb3JpZ2luYWwgdmFsdWU="
-/// }
+/// "my_bytes_field": { "$bytes": ["dGhpcyBpcyB0aGUgb3JpZ2luYWwgdmFsdWU="] },
+/// "my_timestamp_field": { "$timestamp": [1748591440] }
 /// ```
 ///
-/// This decoder identifies such structures, decodes the base64-encoded content,
-/// and returns the result as a Python `bytes` object, preserving the original
-/// binary data.
+/// This decoder identifies such structures, and returns a Python `bytes`
+/// object with the original binary data, or a `datetime` object in UTC,
+/// respectively. Any other object is returned unchanged. No message or map
+/// in a module output can produce an object with that exact shape, so a
+/// `map<string, string>` is never mistaken for an encoded value.
 #[pyclass]
 struct JsonDecoder {
     fromtimestamp: Py<PyAny>,
@@ -1584,30 +1586,29 @@ impl JsonDecoder {
         py: Python<'py>,
         dict: Bound<'py, PyDict>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        if let Some(encoding) = dict
-            .get_item("encoding")?
-            .as_ref()
-            .and_then(|encoding| encoding.cast::<PyString>().ok())
-        {
-            let value = match dict.get_item("value")? {
-                Some(value) => value,
-                None => return Ok(dict.into_any()),
-            };
+        // Encoded values are objects with a single key, whose value is a
+        // list with a single item.
+        let (key, value) = match dict.iter().next() {
+            Some(item) if dict.len() == 1 => item,
+            _ => return Ok(dict.into_any()),
+        };
 
-            if encoding == "base64" {
-                BASE64_STANDARD
-                    .decode(value.cast::<PyString>()?.to_cow()?.as_bytes())
-                    .expect("decoding base64")
-                    .into_bound_py_any(py)
-            } else if encoding == "timestamp" {
-                let kwargs = PyDict::new(py);
-                kwargs.set_item("tz", PyTzInfo::utc(py)?)?;
-                self.fromtimestamp
-                    .call(py, (value,), Some(&kwargs))?
-                    .into_bound_py_any(py)
-            } else {
-                Ok(dict.into_any())
-            }
+        let value = match value.cast::<PyList>() {
+            Ok(list) if list.len() == 1 => list.get_item(0)?,
+            _ => return Ok(dict.into_any()),
+        };
+
+        if key.eq("$bytes")? {
+            BASE64_STANDARD
+                .decode(value.cast::<PyString>()?.to_cow()?.as_bytes())
+                .map_err(|err| PyValueError::new_err(err.to_string()))?
+                .into_bound_py_any(py)
+        } else if key.eq("$timestamp")? {
+            let kwargs = PyDict::new(py);
+            kwargs.set_item("tz", PyTzInfo::utc(py)?)?;
+            self.fromtimestamp
+                .call(py, (value,), Some(&kwargs))?
+                .into_bound_py_any(py)
         } else {
             Ok(dict.into_any())
         }
