@@ -57,6 +57,45 @@ assert results.matching_rules[0].patterns[0].matches[0].length == 6
 If the program above runs without errors, everything is ready to start using
 YARA-X from your Python programs.
 
+### Building with support for the `magic` module
+
+The pre-built `yara-x` packages distributed on PyPI include all default YARA-X
+modules, except the `magic` module, which is disabled by default because it
+depends on the external C library `libmagic`.
+
+To build the Python library with the `magic` module enabled, you need a recent
+[Rust toolchain](https://www.rust-lang.org/tools/install) and `libmagic`
+installed on your system:
+
+* **Debian / Ubuntu**: `sudo apt-get install libmagic-dev`
+* **Fedora / RHEL**: `sudo dnf install file-devel`
+* **macOS (Homebrew)**: `brew install libmagic`
+* **Windows (`vcpkg`)**: `vcpkg install libmagic:x64-windows` (with `VCPKG_ROOT`
+  and `VCPKGRS_DYNAMIC=1` set in your environment)
+
+Once `libmagic` and Rust are installed, build and install `yara-x` from source
+passing `--features=magic-module` to Cargo:
+
+```shell
+pip install yara-x \
+  --no-binary yara-x \
+  --config-settings="build-args=--features=magic-module"
+```
+
+Alternatively, you can build and install directly from the Git repository:
+
+```shell
+git clone https://github.com/VirusTotal/yara-x.git
+cd yara-x
+pip install ./py --config-settings="build-args=--features=magic-module"
+```
+
+Or build a wheel package using [`maturin`](https://www.maturin.rs/):
+
+```shell
+maturin build --release --manifest-path py/Cargo.toml --features=magic-module
+```
+
 ## API overview
 
 Using YARA-X from Python involves a two-step process: rule compilation and

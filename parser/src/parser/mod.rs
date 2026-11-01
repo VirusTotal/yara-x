@@ -90,6 +90,13 @@ impl<'src> Parser<'src> {
     }
 }
 
+/// Maximum allowed nesting depth of CST nodes produced by [`ParserImpl`].
+///
+/// Bounding CST depth protects the recursive PEG parser and downstream
+/// recursive CST/AST/IR passes from overflowing the call stack on deeply
+/// nested rules.
+pub(crate) const MAX_CST_DEPTH: usize = 1000;
+
 /// Describes the state of the parser.
 enum State {
     /// Indicates that the parser is as the start of the input.
@@ -104,6 +111,9 @@ enum State {
     /// The parser is out fuel. See the `fuel` field in [`ParserImpl`] for
     /// details.
     OutOfFuel,
+    /// The parser reached [`MAX_CST_DEPTH`]. Backtracking is aborted until
+    /// unwinding returns to a top-level rule section.
+    MaxDepthReached,
 }
 
 /// Internal implementation of the parser. The [`Parser`] type is only a
@@ -129,8 +139,7 @@ pub(crate) struct ParserImpl<'src> {
     /// How deep is the parse into "not" branches of the grammar.
     not_depth: usize,
 
-    /// How deep is the parser into grammar branches.
-    #[cfg(feature = "logging")]
+    /// How deep is the parser into grammar branches (open `Begin` nodes).
     depth: usize,
 
     /// Hash map where keys are tuples (Span, TokenId) identifying a token in
@@ -220,7 +229,6 @@ impl<'src> From<Tokenizer<'src>> for ParserImpl<'src> {
             cache: FxHashSet::default(),
             opt_depth: 0,
             not_depth: 0,
-            #[cfg(feature = "logging")]
             depth: 0,
             state: State::StartOfInput,
             fuel: 100_000_000,
@@ -261,9 +269,12 @@ impl Iterator for ParserImpl<'_> {
                 {
                     let _ = self.trivia();
                     let _ = self.top_level_item();
+                    debug_assert_eq!(self.depth, 0);
                     self.flush_errors();
                     self.cache.clear();
-                    self.set_state(State::OK);
+                    if !matches!(self.state, State::OutOfFuel) {
+                        self.state = State::OK;
+                    }
                 }
                 // If still there are no more tokens, we have reached the end of
                 // the input.
@@ -371,7 +382,10 @@ impl<'src> ParserImpl<'src> {
 
     /// Switches to hex pattern mode.
     fn enter_hex_pattern_mode(&mut self) -> &mut Self {
-        if matches!(self.state, State::Failure | State::OutOfFuel) {
+        if matches!(
+            self.state,
+            State::Failure | State::OutOfFuel | State::MaxDepthReached
+        ) {
             return self;
         }
         self.tokens.enter_hex_pattern_mode();
@@ -380,7 +394,10 @@ impl<'src> ParserImpl<'src> {
 
     /// Switches to hex jump mode.
     fn enter_hex_jump_mode(&mut self) -> &mut Self {
-        if matches!(self.state, State::Failure | State::OutOfFuel) {
+        if matches!(
+            self.state,
+            State::Failure | State::OutOfFuel | State::MaxDepthReached
+        ) {
             return self;
         }
         self.tokens.enter_hex_jump_mode();
@@ -388,9 +405,10 @@ impl<'src> ParserImpl<'src> {
     }
 
     /// Sets the parser state, except if the current state is
-    /// [`State::OutOfFuel`], in that  case the state remains unchanged.
+    /// [`State::OutOfFuel`] or [`State::MaxDepthReached`], in that case the
+    /// state remains unchanged.
     fn set_state(&mut self, state: State) {
-        if !matches!(self.state, State::OutOfFuel) {
+        if !matches!(self.state, State::OutOfFuel | State::MaxDepthReached) {
             self.state = state;
         }
     }
@@ -402,18 +420,38 @@ impl<'src> ParserImpl<'src> {
         self.trivia();
 
         #[cfg(feature = "logging")]
-        {
-            debug!(
-                "{}{:?}    -- next token: {}",
-                "  ".repeat(self.depth),
-                kind,
-                self.tokens
-                    .peek_token(0)
-                    .map(|t| format!("{:?}", t))
-                    .unwrap_or_default()
-            );
-            self.depth += 1;
+        debug!(
+            "{}{:?}    -- next token: {}",
+            "  ".repeat(self.depth),
+            kind,
+            self.tokens
+                .peek_token(0)
+                .map(|t| format!("{:?}", t))
+                .unwrap_or_default()
+        );
+
+        if self.depth == MAX_CST_DEPTH && matches!(self.state, State::OK) {
+            self.state = State::MaxDepthReached;
+            // Clear speculative errors from earlier optional/alternative
+            // branches so recovery only emits the nesting error.
+            self.expected_token_errors.clear();
+            self.unexpected_token_errors.clear();
+
+            let span = match self.peek_non_trivia() {
+                Some(token) => token.span(),
+                None => {
+                    let last = self.tokens.source().len() as u32;
+                    Span(last..last)
+                }
+            };
+
+            if !self.pending_errors.iter().any(|(s, _)| s == &span) {
+                self.pending_errors
+                    .push((span, "nesting limit reached".to_string()));
+            }
         }
+
+        self.depth += 1;
 
         if let Some(fuel) = self.fuel.checked_sub(1) {
             self.fuel = fuel;
@@ -428,17 +466,20 @@ impl<'src> ParserImpl<'src> {
     /// Indicates the end of the non-terminal symbol that was previously
     /// started with [`Parser::begin`].
     fn end(&mut self) -> &mut Self {
-        #[cfg(feature = "logging")]
-        {
-            self.depth -= 1;
-        }
-        if matches!(self.state, State::Failure | State::OutOfFuel) {
-            if self.opt_depth == 0 {
-                self.handle_errors();
+        self.depth -= 1;
+        match self.state {
+            State::Failure | State::OutOfFuel => {
+                if self.opt_depth == 0 {
+                    self.handle_errors();
+                }
+                self.output.end_with_error();
             }
-            self.output.end_with_error();
-        } else {
-            self.output.end();
+            State::MaxDepthReached => {
+                self.output.end_with_error();
+            }
+            _ => {
+                self.output.end();
+            }
         }
         self
     }
@@ -455,9 +496,18 @@ impl<'src> ParserImpl<'src> {
             return self;
         }
 
+        // If the maximum CST depth was reached, do not recover inside nested
+        // expressions (such as `for` or `with` bodies), as doing so would
+        // allow parsing to resume at high depth and hit the limit repeatedly.
+        // Only recover once unwinding has returned to the top-level rule
+        // sections (`self.depth <= 1`).
+        if matches!(self.state, State::MaxDepthReached) && self.depth > 1 {
+            return self;
+        }
+
         let state_was_ok = matches!(self.state, State::OK);
 
-        self.set_state(State::OK);
+        self.state = State::OK;
 
         let token = match self.peek_non_trivia() {
             Some(token) => token,
@@ -509,7 +559,10 @@ impl<'src> ParserImpl<'src> {
     /// Trivia tokens those that are not really part of the language, like
     /// whitespaces, newlines and comments.
     fn trivia(&mut self) -> &mut Self {
-        if matches!(self.state, State::Failure | State::OutOfFuel) {
+        if matches!(
+            self.state,
+            State::Failure | State::OutOfFuel | State::MaxDepthReached
+        ) {
             return self;
         }
         while let Some(token) = self.peek() {
@@ -543,7 +596,10 @@ impl<'src> ParserImpl<'src> {
     ) -> &mut Self {
         debug_assert!(!expected_tokens.is_empty());
 
-        if matches!(self.state, State::Failure | State::OutOfFuel) {
+        if matches!(
+            self.state,
+            State::Failure | State::OutOfFuel | State::MaxDepthReached
+        ) {
             return self;
         }
 
@@ -632,7 +688,10 @@ impl<'src> ParserImpl<'src> {
     where
         P: Fn(&mut Self) -> &mut Self,
     {
-        if matches!(self.state, State::Failure | State::OutOfFuel) {
+        if matches!(
+            self.state,
+            State::Failure | State::OutOfFuel | State::MaxDepthReached
+        ) {
             return self;
         }
 
@@ -644,7 +703,7 @@ impl<'src> ParserImpl<'src> {
         self.opt_depth -= 1;
 
         // Any error occurred while parsing the optional production is ignored.
-        if matches!(self.state, State::Failure) {
+        if matches!(self.state, State::Failure | State::MaxDepthReached) {
             self.set_state(State::OK);
             self.restore_bookmark(&bookmark);
         }
@@ -660,7 +719,10 @@ impl<'src> ParserImpl<'src> {
     where
         P: Fn(&mut Self) -> &mut Self,
     {
-        if matches!(self.state, State::Failure | State::OutOfFuel) {
+        if matches!(
+            self.state,
+            State::Failure | State::OutOfFuel | State::MaxDepthReached
+        ) {
             return self;
         }
 
@@ -676,6 +738,7 @@ impl<'src> ParserImpl<'src> {
             State::OK => State::Failure,
             State::Failure => State::OK,
             State::OutOfFuel => State::OutOfFuel,
+            State::MaxDepthReached => State::MaxDepthReached,
             _ => unreachable!(),
         };
 
@@ -717,7 +780,10 @@ impl<'src> ParserImpl<'src> {
     where
         P: Fn(&mut Self) -> &mut Self,
     {
-        if matches!(self.state, State::Failure | State::OutOfFuel) {
+        if matches!(
+            self.state,
+            State::Failure | State::OutOfFuel | State::MaxDepthReached
+        ) {
             return self;
         }
         match self.peek_non_trivia() {
@@ -791,14 +857,20 @@ impl<'src> ParserImpl<'src> {
     where
         P: Fn(&mut Self) -> &mut Self,
     {
-        if matches!(self.state, State::Failure | State::OutOfFuel) {
+        if matches!(
+            self.state,
+            State::Failure | State::OutOfFuel | State::MaxDepthReached
+        ) {
             return self;
         }
         // The first N times that `f` is called it must match.
         for _ in 0..n {
             self.trivia();
             parser(self);
-            if matches!(self.state, State::Failure | State::OutOfFuel) {
+            if matches!(
+                self.state,
+                State::Failure | State::OutOfFuel | State::MaxDepthReached
+            ) {
                 return self;
             }
         }
@@ -810,13 +882,17 @@ impl<'src> ParserImpl<'src> {
             self.opt_depth += 1;
             parser(self);
             self.opt_depth -= 1;
-            if matches!(self.state, State::Failure | State::OutOfFuel) {
-                self.set_state(State::OK);
-                self.restore_bookmark(&bookmark);
-                self.remove_bookmark(bookmark);
-                break;
-            } else {
-                self.remove_bookmark(bookmark);
+            match self.state {
+                State::OK => {
+                    self.remove_bookmark(bookmark);
+                }
+                State::Failure | State::OutOfFuel | State::MaxDepthReached => {
+                    self.set_state(State::OK);
+                    self.restore_bookmark(&bookmark);
+                    self.remove_bookmark(bookmark);
+                    break;
+                }
+                _ => unreachable!(),
             }
         }
         self
@@ -827,7 +903,10 @@ impl<'src> ParserImpl<'src> {
     where
         P: Fn(&mut Self) -> &mut Self,
     {
-        if matches!(self.state, State::Failure | State::OutOfFuel) {
+        if matches!(
+            self.state,
+            State::Failure | State::OutOfFuel | State::MaxDepthReached
+        ) {
             return self;
         }
         self.trivia();
@@ -839,7 +918,10 @@ impl<'src> ParserImpl<'src> {
     where
         P: Fn(&mut Self) -> &mut Self,
     {
-        if matches!(self.state, State::Failure | State::OutOfFuel) {
+        if matches!(
+            self.state,
+            State::Failure | State::OutOfFuel | State::MaxDepthReached
+        ) {
             return self;
         }
 
@@ -1841,7 +1923,10 @@ impl<'a, 'src> Alt<'a, 'src> {
     where
         P: Fn(&'a mut ParserImpl<'src>) -> &'a mut ParserImpl<'src>,
     {
-        if matches!(self.parser.state, State::Failure | State::OutOfFuel) {
+        if matches!(
+            self.parser.state,
+            State::Failure | State::OutOfFuel | State::MaxDepthReached
+        ) {
             return self;
         }
         // Don't try to match the current alternative if a previous one already
@@ -1858,7 +1943,7 @@ impl<'a, 'src> Alt<'a, 'src> {
                 }
                 // The current alternative didn't match, restore the token
                 // stream to the position it has before trying to match.
-                State::Failure => {
+                State::Failure | State::MaxDepthReached => {
                     self.parser.set_state(State::OK);
                     self.parser.restore_bookmark(&self.bookmark);
                 }

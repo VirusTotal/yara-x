@@ -144,8 +144,6 @@ test("Compiler accepts the full browser module set", () => {
     "pe",
     "string",
     "time",
-    "test_proto2",
-    "test_proto3",
   ].map(
     (moduleName) => `
       import "${moduleName}"

@@ -156,5 +156,38 @@ fn whitespaces() {
             End(SyntaxKind::RULE_DECL),
             End(SyntaxKind::SOURCE_FILE),
         ]
-    )
+    );
+
+    let rule =
+        "rule\u{00a0}test\u{1680}{\u{3000}condition:\u{205f}true\u{2000}}";
+    let events = CSTStream::from(Parser::new(rule.as_bytes()));
+    let tokens: Vec<Token> = Tokens::new(rule.as_bytes(), events).collect();
+
+    assert_eq!(
+        tokens,
+        vec![
+            Begin(SyntaxKind::SOURCE_FILE),
+            Begin(SyntaxKind::RULE_DECL),
+            Keyword(b"rule"),
+            Whitespace,
+            Identifier(b"test"),
+            Whitespace,
+            Punctuation(b"{"),
+            Whitespace,
+            Begin(SyntaxKind::CONDITION_BLK),
+            Keyword(b"condition"),
+            Punctuation(b":"),
+            Whitespace,
+            Begin(SyntaxKind::BOOLEAN_EXPR),
+            Begin(SyntaxKind::BOOLEAN_TERM),
+            Keyword(b"true"),
+            End(SyntaxKind::BOOLEAN_TERM),
+            End(SyntaxKind::BOOLEAN_EXPR),
+            End(SyntaxKind::CONDITION_BLK),
+            Whitespace,
+            Punctuation(b"}"),
+            End(SyntaxKind::RULE_DECL),
+            End(SyntaxKind::SOURCE_FILE),
+        ]
+    );
 }

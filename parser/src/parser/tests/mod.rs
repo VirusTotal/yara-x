@@ -171,3 +171,79 @@ rule test_2 {
 
     assert!(errors.is_empty(), "unexpected errors emitted: {errors:?}");
 }
+
+#[test]
+fn nesting_error() {
+    let source = format!(
+        "rule test_1 {{ condition: {}true{} }}\nrule test_2 {{ condition: true }}",
+        "(".repeat(505),
+        ")".repeat(505),
+    );
+
+    let cst = CST::try_from(Parser::new(source.as_bytes())).unwrap();
+    assert_eq!(cst.root().text().len(), source.len());
+
+    let ast = AST::from(source.as_str());
+    assert_eq!(
+        ast.errors(),
+        &[Error::SyntaxError {
+            message: "nesting limit reached".to_string(),
+            span: Span(522..523),
+        }]
+    );
+    assert_eq!(ast.rules().count(), 1);
+
+    // Flat CST chain of `BinaryExpr` operators (`|`) exceeding `MAX_AST_DEPTH`.
+    let source = format!(
+        "rule test_1 {{ condition: -({}) == 0 }}\nrule test_2 {{ condition: true }}",
+        vec!["1"; 25_000].join(" | ")
+    );
+    let ast = AST::from(source.as_str());
+    assert_eq!(
+        ast.errors(),
+        &[Error::SyntaxError {
+            message: "nesting limit reached".to_string(),
+            span: Span(27..96032),
+        }]
+    );
+    assert_eq!(ast.rules().count(), 1);
+
+    // Alternating same-precedence `NAryExpr` operators (`+` / `-`) cannot be
+    // flattened into a single `NAryExpr`, so they also hit `MAX_AST_DEPTH`.
+    let source = format!(
+        "rule test_1 {{ condition: {} == 0 }}\nrule test_2 {{ condition: true }}",
+        "1 + 1 - ".repeat(1_000) + "1"
+    );
+    let ast = AST::from(source.as_str());
+    assert_eq!(
+        ast.errors(),
+        &[Error::SyntaxError {
+            message: "nesting limit reached".to_string(),
+            span: Span(25..4030),
+        }]
+    );
+    assert_eq!(ast.rules().count(), 1);
+
+    // Parenthesized sub-chains accumulate their AST depth across parentheses.
+    let chunk = vec!["1"; 400].join(" | ");
+    let source = format!(
+        "rule test_1 {{ condition: (({chunk}) | {chunk}) | {chunk} == 0 }}\nrule test_2 {{ condition: true }}",
+    );
+    let ast = AST::from(source.as_str());
+    assert_eq!(ast.errors().len(), 1);
+    assert!(matches!(
+        &ast.errors()[0],
+        Error::SyntaxError { message, .. } if message == "nesting limit reached"
+    ));
+    assert_eq!(ast.rules().count(), 1);
+
+    // Homogeneous `NAryExpr` chains (`1 + 1 + 1 + ...`) flatten into a single
+    // `NAryExpr` node of depth 2 and must NOT hit `MAX_AST_DEPTH`.
+    let source = format!(
+        "rule test_1 {{ condition: {} == 2000 }}",
+        vec!["1"; 2_000].join(" + ")
+    );
+    let ast = AST::from(source.as_str());
+    assert!(ast.errors().is_empty());
+    assert_eq!(ast.rules().count(), 1);
+}

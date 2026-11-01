@@ -146,7 +146,18 @@ fn metadata() {
             ("qux", "qux"),
             ("quux", [113, 117, 0, 120])
         ])
+    );
+
+    let rules = crate::compile(
+        b"rule test { meta: raw_nul = \"qu\0x\" condition: true }".as_slice(),
     )
+    .unwrap();
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(b"").expect("scan should not fail");
+    let matching_rule = results.matching_rules().next().unwrap();
+    let metas: Vec<_> = matching_rule.metadata().collect();
+
+    assert_eq!(metas, [("raw_nul", MetaValue::Bytes(b"qu\0x".into()))]);
 }
 
 #[test]

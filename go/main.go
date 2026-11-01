@@ -127,6 +127,7 @@ func ReadFrom(r io.Reader) (*Rules, error) {
 		return nil, errors.New(C.GoString(C.yrx_last_error()))
 	}
 
+	runtime.SetFinalizer(rules, (*Rules).Destroy)
 	return rules, nil
 }
 

@@ -113,6 +113,11 @@ impl LinterInternal for RuleName {
 
 type Predicate<'a> = dyn Fn(&Meta) -> bool + 'a;
 
+enum TagsMode {
+    Allowed(Vec<String>),
+    Regex(String, Regex),
+}
+
 /// A linter that ensures tags meet specified requirements in either an allowed
 /// list of tags or in a regex.
 ///
@@ -138,16 +143,14 @@ type Predicate<'a> = dyn Fn(&Meta) -> bool + 'a;
 ///   |
 ///   = note: allowed tags: foo, bar"#);
 pub struct Tags {
-    allowed: Vec<String>,
-    regex: Option<String>,
-    compiled_regex: Option<Regex>,
+    mode: TagsMode,
     error: bool,
 }
 
 impl Tags {
     /// A list of strings that tags for each rule must match one of.
     pub(crate) fn from_list(list: Vec<String>) -> Self {
-        Self { allowed: list, regex: None, compiled_regex: None, error: false }
+        Self { mode: TagsMode::Allowed(list), error: false }
     }
 
     /// Regular expression that tags for each rule must match.
@@ -155,14 +158,8 @@ impl Tags {
         regex: R,
     ) -> Result<Self, regex::Error> {
         let regex = regex.into();
-        let compiled_regex = Some(Regex::new(regex.as_str())?);
-        let tags = Self {
-            allowed: Vec::new(),
-            regex: Some(regex),
-            compiled_regex,
-            error: false,
-        };
-        Ok(tags)
+        let compiled_regex = Regex::new(regex.as_str())?;
+        Ok(Self { mode: TagsMode::Regex(regex, compiled_regex), error: false })
     }
 
     /// Specifies whether the linter should produce an error instead of a
@@ -183,57 +180,61 @@ impl LinterInternal for Tags {
         report_builder: &ReportBuilder,
         rule: &ast::Rule,
     ) -> LinterResult {
-        if rule.tags.is_none() {
+        let Some(tags) = rule.tags.as_ref() else {
             return LinterResult::Ok;
-        }
+        };
 
         let mut results: Vec<Warning> = Vec::new();
-        let tags = rule.tags.as_ref().unwrap();
-        if !self.allowed.is_empty() {
-            for tag in tags.iter() {
-                if !self.allowed.contains(&tag.name.to_string()) {
-                    if self.error {
-                        return LinterResult::Err(errors::UnknownTag::build(
-                            report_builder,
-                            report_builder.span_to_code_loc(tag.span()),
-                            tag.name.to_string(),
-                            Some(format!(
-                                "allowed tags: {}",
-                                self.allowed.join(", ")
-                            )),
-                        ));
-                    } else {
-                        results.push(warnings::UnknownTag::build(
-                            report_builder,
-                            report_builder.span_to_code_loc(tag.span()),
-                            tag.name.to_string(),
-                            Some(format!(
-                                "allowed tags: {}",
-                                self.allowed.join(", ")
-                            )),
-                        ));
+
+        match &self.mode {
+            TagsMode::Allowed(allowed) => {
+                for tag in tags.iter() {
+                    if !allowed.iter().any(|a| a == tag.name) {
+                        let note = (!allowed.is_empty()).then(|| {
+                            format!("allowed tags: {}", allowed.join(", "))
+                        });
+                        if self.error {
+                            return LinterResult::Err(
+                                errors::UnknownTag::build(
+                                    report_builder,
+                                    report_builder
+                                        .span_to_code_loc(tag.span()),
+                                    tag.name.to_string(),
+                                    note,
+                                ),
+                            );
+                        } else {
+                            results.push(warnings::UnknownTag::build(
+                                report_builder,
+                                report_builder.span_to_code_loc(tag.span()),
+                                tag.name.to_string(),
+                                note,
+                            ));
+                        }
                     }
                 }
             }
-        } else {
-            let compiled_regex = self.compiled_regex.as_ref().unwrap();
-
-            for tag in tags.iter() {
-                if !compiled_regex.is_match(tag.name) {
-                    if self.error {
-                        return LinterResult::Err(errors::InvalidTag::build(
-                            report_builder,
-                            report_builder.span_to_code_loc(tag.span()),
-                            tag.name.to_string(),
-                            self.regex.as_ref().unwrap().clone(),
-                        ));
-                    } else {
-                        results.push(warnings::InvalidTag::build(
-                            report_builder,
-                            report_builder.span_to_code_loc(tag.span()),
-                            tag.name.to_string(),
-                            self.regex.as_ref().unwrap().clone(),
-                        ));
+            TagsMode::Regex(regex, compiled_regex) => {
+                for tag in tags.iter() {
+                    if !compiled_regex.is_match(tag.name) {
+                        if self.error {
+                            return LinterResult::Err(
+                                errors::InvalidTag::build(
+                                    report_builder,
+                                    report_builder
+                                        .span_to_code_loc(tag.span()),
+                                    tag.name.to_string(),
+                                    regex.clone(),
+                                ),
+                            );
+                        } else {
+                            results.push(warnings::InvalidTag::build(
+                                report_builder,
+                                report_builder.span_to_code_loc(tag.span()),
+                                tag.name.to_string(),
+                                regex.clone(),
+                            ));
+                        }
                     }
                 }
             }

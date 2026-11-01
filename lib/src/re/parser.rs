@@ -6,8 +6,8 @@ use std::ops::Deref;
 
 use regex_syntax as re;
 use regex_syntax::ast::{
-    AssertionKind, Ast, ErrorKind, Flag, Literal, LiteralKind, RepetitionKind,
-    RepetitionRange,
+    AssertionKind, Ast, ErrorKind, Flag, GroupKind, Literal, LiteralKind,
+    RepetitionKind, RepetitionRange,
 };
 use thiserror::Error;
 
@@ -163,25 +163,43 @@ impl Parser {
 
     /// Parses the regexp and returns its HIR.
     pub fn parse(&self, regexp: &impl Regexp) -> Result<Hir, Error> {
-        let mut re_src = Cow::Borrowed(regexp.source());
-        let mut span_delta = 0_isize;
+        enum Edit {
+            Remove(usize),
+            Insert(usize),
+        }
 
-        // Utility function that given a span and a `delta` amount, adds that
-        // amount to both the starting and ending points of the span. It will
-        // be used for adjusting error spans after we have modified the
-        // original regular expression. See comment below.
-        let adjust_span = |span: &re::ast::Span, delta| {
+        let mut re_src = Cow::Borrowed(regexp.source());
+        let mut edits = Vec::new();
+
+        // Maps a `Position` in the modified `re_src` back to its corresponding
+        // position in the original `regexp.source()` by undoing each edit in
+        // reverse chronological order.
+        let adjust_pos = |pos: &re::ast::Position, edits: &[Edit]| {
+            let mut offset = pos.offset;
+            let mut column = pos.column;
+            for edit in edits.iter().rev() {
+                match *edit {
+                    Edit::Remove(edit_pos) => {
+                        if offset >= edit_pos {
+                            offset += 1;
+                            column += 1;
+                        }
+                    }
+                    Edit::Insert(edit_pos) => {
+                        if offset > edit_pos {
+                            offset -= 1;
+                            column = column.saturating_sub(1);
+                        }
+                    }
+                }
+            }
+            re::ast::Position::new(offset, pos.line, column)
+        };
+
+        let adjust_span = |span: &re::ast::Span, edits: &[Edit]| {
             re::ast::Span::new(
-                re::ast::Position::new(
-                    span.start.offset.saturating_add_signed(delta),
-                    span.start.line,
-                    span.start.column.saturating_add_signed(delta),
-                ),
-                re::ast::Position::new(
-                    span.end.offset.saturating_add_signed(delta),
-                    span.end.line,
-                    span.end.column.saturating_add_signed(delta),
-                ),
+                adjust_pos(&span.start, edits),
+                adjust_pos(&span.end, edits),
             )
         };
 
@@ -220,31 +238,65 @@ impl Parser {
                             // Remove the backslash (\) from the original regexp.
                             s.remove(span.start.offset);
                             re_src = Cow::Owned(s);
-                            // By removing the backslash we are altering the spans
-                            // of any other error that is found after this change,
-                            // we need to account for that change. The new spans
-                            // are one byte before they should be because we removed
-                            // one byte, so we need to add 1 to fix those spans.
-                            span_delta += 1;
+                            edits.push(Edit::Remove(span.start.offset));
                         }
-                        ErrorKind::RepetitionMissing
-                        | ErrorKind::RepetitionCountInvalid
-                        | ErrorKind::RepetitionCountUnclosed
-                        | ErrorKind::RepetitionCountDecimalEmpty => {
+                        ErrorKind::RepetitionMissing => {
                             let span = err.span();
-                            // Find the `{` that needs to be escaped. In some
-                            // cases the error span starts exactly at the
-                            // position where the `{` is, but in some other
-                            // cases it starts a few characters after the `{`.
-                            let curly_brace = re_src.as_ref()
-                                [0..=span.start.offset]
+                            // `RepetitionMissing` is emitted for `{` as well
+                            // as `+`, `*`, and `?` when there is no preceding
+                            // repeatable expression. In relaxed mode only an
+                            // unescaped `{` is treated as a literal; bare `+`,
+                            // `*`, and `?` remain syntax errors.
+                            if re_src[span.start.offset..].starts_with('{') {
+                                let mut s = re_src.into_owned();
+                                s.insert(span.start.offset, '\\');
+                                re_src = Cow::Owned(s);
+                                edits.push(Edit::Insert(span.start.offset));
+                            } else {
+                                break Err(err);
+                            }
+                        }
+                        ErrorKind::RepetitionCountInvalid
+                        | ErrorKind::RepetitionCountUnclosed => {
+                            let span = err.span();
+                            // For `RepetitionCountInvalid` (e.g. `/a{2,1}/`)
+                            // and `RepetitionCountUnclosed` (e.g. `/xyz{/`),
+                            // `span.start.offset` points directly to the
+                            // opening `{`. Notice that we don't search
+                            // backwards from `span.end.offset`, because in
+                            // `(?x)` verbose mode `span.end.offset` may extend
+                            // over `#` comments that also contain `{` (e.g.
+                            // `/(?x)a{# {/`), which would escape the `{` inside
+                            // the comment and loop indefinitely.
+                            let mut s = re_src.into_owned();
+                            // Insert a backslash in front of the `{`.
+                            s.insert(span.start.offset, '\\');
+                            re_src = Cow::Owned(s);
+                            edits.push(Edit::Insert(span.start.offset));
+                        }
+                        ErrorKind::RepetitionCountDecimalEmpty => {
+                            let span = err.span();
+                            // For `RepetitionCountDecimalEmpty` (e.g. `/a{你好/`
+                            // or `/a{1,你好/`), `span` is empty (`2..2` or
+                            // `4..4`) at the start of the character where a
+                            // decimal digit was expected, a few characters
+                            // after the `{`. Notice we slice `0..span.start.offset`
+                            // (a valid UTF-8 boundary, unlike `0..=span.start.offset`
+                            // which would land mid-UTF-8) to find the opening
+                            // `{`. Since YARA `/.../` literals cannot contain
+                            // `\n`, no `(?x)` `#` comment can end before
+                            // `span.start.offset`.
+                            let Some(curly_brace) = re_src.as_ref()
+                                [0..span.start.offset]
                                 .rfind('{')
-                                .unwrap();
+                            else {
+                                break Err(err);
+                            };
                             let mut s = re_src.into_owned();
                             // Insert a backslash in front of the `{`.
                             s.insert(curly_brace, '\\');
                             re_src = Cow::Owned(s);
-                            span_delta -= 1;
+                            edits.push(Edit::Insert(curly_brace));
                         }
                         _ => {
                             break Err(err);
@@ -262,8 +314,13 @@ impl Parser {
                         "did you mean `\\{esc_seq}` instead of `{esc_seq}`?"
                     ))
                 }
-                ErrorKind::RepetitionMissing
-                | ErrorKind::RepetitionCountInvalid
+                ErrorKind::RepetitionMissing => re_src
+                    .get(span.start.offset..)
+                    .and_then(|s| s.chars().next())
+                    .map(|op| {
+                        format!("did you mean `\\{op}` instead of `{op}`?")
+                    }),
+                ErrorKind::RepetitionCountInvalid
                 | ErrorKind::RepetitionCountUnclosed
                 | ErrorKind::RepetitionCountDecimalEmpty => {
                     Some("did you mean `\\{` instead of `{`?".to_string())
@@ -273,7 +330,7 @@ impl Parser {
 
             Error::WrongSyntax {
                 msg: err.kind().to_string(),
-                span: adjust_span(span, span_delta),
+                span: adjust_span(span, &edits),
                 note,
             }
         })?;
@@ -288,7 +345,21 @@ impl Parser {
         let greedy = Validator::new()
             .allow_mixed_greediness(self.allow_mixed_greediness)
             .dot_matches_new_line(regexp.dot_matches_new_line())
-            .validate(&ast)?;
+            .validate(&ast)
+            .map_err(|mut err| {
+                match &mut err {
+                    Error::WrongSyntax { span, .. }
+                    | Error::UnsupportedInUnicode { span }
+                    | Error::ArbitraryPrefix { span } => {
+                        *span = adjust_span(span, &edits);
+                    }
+                    Error::MixedGreediness { span_1, span_2, .. } => {
+                        *span_1 = adjust_span(span_1, &edits);
+                        *span_2 = adjust_span(span_2, &edits);
+                    }
+                }
+                err
+            })?;
 
         let case_insensitive = match self.force_case_sensitiveness {
             Some(CaseSensitiveness::Sensitive) => false,
@@ -307,7 +378,7 @@ impl Parser {
             translator.translate(re_src.as_ref(), &ast).map_err(|err| {
                 Error::WrongSyntax {
                     msg: err.kind().to_string(),
-                    span: adjust_span(err.span(), span_delta),
+                    span: adjust_span(err.span(), &edits),
                     note: None,
                 }
             })?;
@@ -391,8 +462,14 @@ impl re::ast::Visitor for &mut Validator {
 
     fn visit_pre(&mut self, ast: &Ast) -> Result<(), Self::Err> {
         match ast {
-            Ast::Group(_) => {
-                self.unicode_mode_stack.push(self.in_unicode_mode());
+            Ast::Group(group) => {
+                let unicode_mode = match &group.kind {
+                    GroupKind::NonCapturing(flags) => flags
+                        .flag_state(Flag::Unicode)
+                        .unwrap_or_else(|| self.in_unicode_mode()),
+                    _ => self.in_unicode_mode(),
+                };
+                self.unicode_mode_stack.push(unicode_mode);
             }
             Ast::Flags(f) => {
                 if let Some(unicode_flag) = f.flags.flag_state(Flag::Unicode) {
@@ -419,6 +496,8 @@ impl re::ast::Visitor for &mut Validator {
                         | AssertionKind::WordBoundary // \b
                         | AssertionKind::WordBoundaryStart // \b{start}
                         | AssertionKind::WordBoundaryEnd // \b{end}
+                        | AssertionKind::WordBoundaryStartHalf // \b{start-half}
+                        | AssertionKind::WordBoundaryEndHalf // \b{end-half}
                     )
                 {
                     return Err(Error::UnsupportedInUnicode {

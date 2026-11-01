@@ -2139,6 +2139,10 @@ fn regexp_patterns_4() {
     pattern_false!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"effg");
     pattern_false!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"bcdd");
     pattern_match!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"reffgz", b"effgz");
+    pattern_match!(r#"/abc(\s|$)+?/"#, b"abc", b"abc");
+    pattern_match!(r#"/abc(\s|$)+/"#, b"abc", b"abc");
+    pattern_match!(r#"/(\s|^)+?abc/"#, b"abc", b"abc");
+    pattern_match!(r#"/(\s|^)+abc/"#, b"abc", b"abc");
 }
 
 #[test]
@@ -2176,6 +2180,19 @@ fn regexp_patterns_5() {
     pattern_match!(r"/abc\b{end}/", b"abc", b"abc");
     pattern_match!(r"/\b{start}abc/", b" abc", b"abc");
     pattern_match!(r"/abc\b{end}/", b"abc ", b"abc");
+    pattern_false!(r"/\b{end}abcd/", b"abcd");
+    pattern_match!(r"/\b{start-half}abc/", b"abc", b"abc");
+    pattern_match!(r"/\b{start-half}abc/", b" abc", b"abc");
+    pattern_match!(r"/\b{start-half} abc/", b"  abc", b" abc");
+    pattern_false!(r"/\b{start-half}abc/", b"1abc");
+    pattern_false!(r"/abc\b{start-half}/", b"abc");
+    pattern_match!(r"/abc \b{start-half}/", b"abc 1", b"abc ");
+    pattern_match!(r"/abc\b{end-half}/", b"abc", b"abc");
+    pattern_match!(r"/abc\b{end-half}/", b"abc ", b"abc");
+    pattern_match!(r"/abc \b{end-half}/", b"abc  ", b"abc ");
+    pattern_false!(r"/abc\b{end-half}/", b"abc1");
+    pattern_false!(r"/\b{end-half}abc/", b"abc");
+    pattern_match!(r"/\b{end-half} abc/", b" abc", b" abc");
     pattern_false!(r"/\<abc/", b" abc");
     pattern_false!(r"/abc\>/", b"abc ");
     pattern_false!(r"/\<abc/", b"1abc");
@@ -2222,12 +2239,28 @@ fn regexp_patterns_5() {
     pattern_match!(r"/^abc\b{end} xyz$/", b"abc xyz", b"abc xyz");
     pattern_false!(r"/^abc \b{end}xyz$/", b"abc xyz");
 
+    pattern_match!(r"/^abc \b{start-half}xyz$/", b"abc xyz", b"abc xyz");
+    pattern_match!(r"/^abc \b{start-half} xyz$/", b"abc  xyz", b"abc  xyz");
+    pattern_false!(r"/^abc\b{start-half} xyz$/", b"abc xyz");
+
+    pattern_match!(r"/^abc\b{end-half} xyz$/", b"abc xyz", b"abc xyz");
+    pattern_match!(r"/^abc \b{end-half} xyz$/", b"abc  xyz", b"abc  xyz");
+    pattern_false!(r"/^abc \b{end-half}xyz$/", b"abc xyz");
+
     pattern_match!(r"/^abc\Bxyz$/", b"abcxyz", b"abcxyz");
 
     // Here the Unicode mode is enabled only for "abc", for the rest of the
     // regexp Unicode is disabled
     pattern_match!(r"/(?u)^abc(?-u)\b xyz$/", b"abc xyz", b"abc xyz");
     pattern_match!(r"/^((?u)abc)\b xyz$/", b"abc xyz", b"abc xyz");
+    pattern_match!(r"/^(?u:abc)\b xyz$/", b"abc xyz", b"abc xyz");
+    pattern_match!(r"/(?u)^abc(?-u:\b) xyz$/", b"abc xyz", b"abc xyz");
+
+    pattern_true!(r"/(?u)^...$/", "🙈🙉🙊".as_bytes());
+    pattern_false!(r"/(?u)^.(?-u)..$/", "🙈🙉🙊".as_bytes());
+    pattern_match!(r"/(?u)\d+abc/", "٠١٢abc".as_bytes(), "٠١٢abc".as_bytes());
+    pattern_match!(r"/(?u)abc\d+/", "abc٠١٢".as_bytes(), "abc٠١٢".as_bytes());
+    pattern_false!(r"/(?u)\d+abc/", b"xyzabc");
 
     // TODO: enable if we ever implement unicode support for regexps.
     //pattern_match!(r"/(?u)^abc \bxyz$/", b"abc xyz", b"abc xyz");

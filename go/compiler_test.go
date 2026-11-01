@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"runtime"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -419,4 +421,53 @@ help: consider the following change
   |                           ------------------- this pattern may slow down the scan`,
 		},
 	}, c.Warnings())
+}
+
+// gcCyclesUntilCollected returns the number of GC cycles it takes for
+// collecting the Rules returned by newRules, or -1 if they are not collected.
+func gcCyclesUntilCollected(newRules func() *Rules) int {
+	collected := make(chan struct{})
+
+	func() {
+		r := newRules()
+		runtime.AddCleanup(r, func(ch chan struct{}) { close(ch) }, collected)
+	}()
+
+	for i := 1; i <= 10; i++ {
+		runtime.GC()
+		select {
+		case <-collected:
+			return i
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+
+	return -1
+}
+
+func TestReadFromRulesHaveFinalizer(t *testing.T) {
+	r, err := Compile("rule test { condition: true }")
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	_, err = r.WriteTo(&buf)
+	require.NoError(t, err)
+
+	// An object with a finalizer survives one more GC cycle than one
+	// without it, because the finalizer (which destroys the C-side rules)
+	// must run before the memory is freed. Rules returned by ReadFrom must
+	// take as many cycles to be collected as the ones returned by Compile,
+	// which have a finalizer.
+	compiled := gcCyclesUntilCollected(func() *Rules {
+		r, _ := Compile("rule test { condition: true }")
+		return r
+	})
+
+	deserialized := gcCyclesUntilCollected(func() *Rules {
+		r, _ := ReadFrom(bytes.NewReader(buf.Bytes()))
+		return r
+	})
+
+	assert.NotEqual(t, -1, compiled)
+	assert.Equal(t, compiled, deserialized)
 }

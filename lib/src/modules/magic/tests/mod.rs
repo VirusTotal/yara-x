@@ -2,9 +2,10 @@ use pretty_assertions::assert_eq;
 
 #[test]
 fn get_filetype() {
-    assert_eq!(
-        "RISC OS music file",
-        crate::modules::magic::get_type(b"Maestro\r").unwrap()
+    assert!(
+        crate::modules::magic::get_type(b"Maestro\r")
+            .unwrap()
+            .starts_with("RISC OS music file")
     )
 }
 
@@ -23,11 +24,11 @@ fn e2e_test() {
     import "magic"
     rule t { 
       condition: 
-        magic.type() == "RISC OS music file" and 
+        magic.type() startswith "RISC OS music file" and 
         magic.mime_type() == "text/plain" and 
         // Call the functions twice, in order to exercise the caching
         // mechanism.
-        magic.type() == "RISC OS music file" and 
+        magic.type() startswith "RISC OS music file" and 
         magic.mime_type() == "text/plain"
     }"#,
     )

@@ -1307,6 +1307,7 @@ impl Compiler<'_> {
             atoms_len: self.atoms.len(),
             re_code_len: self.re_code.len(),
             sub_patterns_len: self.sub_patterns.len(),
+            anchored_sub_patterns_len: self.anchored_sub_patterns.len(),
             symbol_table_len: self.symbol_table.len(),
             fast_scan_max_matches_len: self.fast_scan_max_matches.len(),
             rule_constraints_len: self.rule_constraints.len(),
@@ -1329,6 +1330,8 @@ impl Compiler<'_> {
         self.next_pattern_id = snapshot.next_pattern_id;
         self.rules.truncate(snapshot.rules_len);
         self.sub_patterns.truncate(snapshot.sub_patterns_len);
+        self.anchored_sub_patterns
+            .truncate(snapshot.anchored_sub_patterns_len);
         self.re_code.truncate(snapshot.re_code_len);
         self.atoms.truncate(snapshot.atoms_len);
         self.symbol_table.truncate(snapshot.symbol_table_len);
@@ -3297,6 +3300,7 @@ struct Snapshot {
     atoms_len: usize,
     re_code_len: usize,
     sub_patterns_len: usize,
+    anchored_sub_patterns_len: usize,
     symbol_table_len: usize,
     fast_scan_max_matches_len: usize,
     rule_constraints_len: usize,

@@ -130,13 +130,11 @@ pub(crate) struct WasmModuleBuilder {
     namespace_func: FunctionBuilder,
     rules_func: LocalFunction,
     namespace_block: InstrSeqId,
-    rule_id: RuleId,
     num_rules: usize,
-    num_instrs: usize,
     num_namespaces: usize,
     namespaces_per_func: usize,
     rules_per_func: usize,
-    global_rule: bool,
+    rules_func_size: u64,
 }
 
 impl WasmModuleBuilder {
@@ -217,13 +215,11 @@ impl WasmModuleBuilder {
             namespace_func,
             rules_func,
             namespace_block,
-            rule_id: RuleId::default(),
             num_rules: 0,
-            num_instrs: 0,
             num_namespaces: 0,
             namespaces_per_func: 10,
             rules_per_func: 10,
-            global_rule: false,
+            rules_func_size: 0,
         }
     }
 
@@ -252,91 +248,101 @@ impl WasmModuleBuilder {
         self
     }
 
-    /// Returns an instruction sequence builder that can be used for emitting
-    /// code for a YARA rule.
+    /// Emits the WASM code for a YARA rule.
     ///
-    /// The code emitted for the rule must leave an i32 in the stack with value
-    /// 1 or 0 indicating whether the rule matched or not.
-    pub fn start_rule(
+    /// The `emit_condition` closure receives an [`InstrSeqBuilder`] and must
+    /// emit the code for the rule's condition, leaving an i32 in the stack
+    /// with value 1 or 0 indicating whether the rule matched or not.
+    ///
+    /// Multiple rules (up to `self.rules_per_func`) are packed into a single
+    /// WASM function (`self.rules_func`), provided the total number of
+    /// instructions in the function does not exceed [`Self::MAX_FUNC_INSTRS`].
+    /// If adding the new rule would push the current function over that limit,
+    /// `emit_rule` either:
+    /// - returns [`Error::FunctionTooLarge`] if the rule alone exceeds
+    ///   [`Self::MAX_FUNC_INSTRS`], or
+    /// - closes the current function and re-emits the rule into a new WASM
+    ///   function if the rule fits on its own.
+    pub fn emit_rule(
         &mut self,
         rule_id: RuleId,
         global: bool,
-    ) -> InstrSeqBuilder<'_> {
+        mut emit_condition: impl FnMut(&mut InstrSeqBuilder),
+    ) -> Result<(), Error> {
+        // If the current WASM function already holds the maximum number of
+        // rules per function, close it and start a fresh one.
         if self.num_rules == self.rules_per_func {
             self.finish_rule_func();
-            self.num_rules = 0;
         }
-        self.num_rules += 1;
-        self.rule_id = rule_id;
-        self.global_rule = global;
-        self.num_instrs =
+
+        // Record the length of the top-level instruction sequence before
+        // emitting this rule. Note that `func_body().instrs().len()` only
+        // counts top-level instructions in the function's entry sequence (a
+        // nested `block` or `if_else` counts as a single top-level entry),
+        // which is the index needed by `truncate` to roll back the rule if
+        // it doesn't fit.
+        let num_instrs =
             self.rules_func.builder_mut().func_body().instrs().len();
 
-        self.rules_func.builder_mut().func_body()
-    }
+        // Total number of instructions in `self.rules_func` (across all rules
+        // already emitted into it) before emitting the current rule.
+        let size_before = self.rules_func_size;
 
-    /// This finishes the code for a rule.
-    ///
-    /// Each call to [`WasmModuleBuilder::start_rule`] must be followed by a
-    /// call to this function once the code for rule has been emitted.
-    pub fn finish_rule(&mut self) -> Result<(), Error> {
-        let rule_no_match =
-            self.function_id(wasm::export__rule_no_match.mangled_name);
+        self.emit_rule_into_current_func(rule_id, global, &mut emit_condition);
 
-        let rule_match =
-            self.function_id(wasm::export__rule_match.mangled_name);
+        // Unlike `func_body().instrs().len()`, `self.rules_func.size()`
+        // traverses all nested blocks (`if_else`, `block`, `loop`) and returns
+        // the total number of WASM instructions in `self.rules_func`.
+        //
+        // Because `self.rules_func` can already contain instructions from
+        // earlier rules (`size_before`), and `emit_rule_into_current_func`
+        // just appended the current rule's instructions to `self.rules_func`,
+        // `size_after` is the combined size of all rules in `self.rules_func`.
+        // Subtracting `size_before` gives `rule_size`, the number of
+        // instructions emitted for the current rule alone.
+        let size_after = self.rules_func.size();
+        let rule_size = size_after - size_before;
 
-        let mut instr = self.rules_func.builder_mut().func_body();
-
-        // Check if the result from the condition is zero (false).
-        instr.unop(UnaryOp::I32Eqz).if_else(
-            None,
-            |then_| {
-                // The condition is false. Call `rule_no_match` if the rule is
-                // a global one, or if `rules-profiling` is enabled. The purpose
-                // of calling `rule_no_match` for global rules is reverting any
-                // previous matches that occurred in the same namespace. For
-                // non-global rules calling `rule_no_match` is not necessary,
-                // unless `rules-profiling` is enabled, in that case the purpose
-                // is tracking the time spent evaluating the rule.
-                if self.global_rule {
-                    then_
-                        // Call `rule_no_match`.
-                        .i32_const(self.rule_id.into())
-                        .call(rule_no_match)
-                        // Return 1.
-                        //
-                        // By returning 1 the function that contains the logic for this
-                        // rule exits immediately, preventing that any other rule in the
-                        // same namespace is executed.
-                        //
-                        // This guarantees that any global rule that returns false, forces
-                        // any other rule in the same namespace to be false.
-                        .i32_const(1)
-                        .return_();
-                } else {
-                    #[cfg(feature = "rules-profiling")]
-                    then_
-                        // Call `rule_no_match`.
-                        .i32_const(self.rule_id.into())
-                        .call(rule_no_match);
-                }
-            },
-            |else_| {
-                // The condition is true, call `rule_match`.
-                else_.i32_const(self.rule_id.into()).call(rule_match);
-            },
-        );
-
-        if self.rules_func.size() > Self::MAX_FUNC_INSTRS {
+        // Case 1: The rule by itself exceeds `MAX_FUNC_INSTRS`. Even if put
+        // into an empty function of its own, it would still be too large.
+        // Revert the instructions emitted for this rule while keeping the
+        // current `rules_func` open for subsequent rules.
+        if rule_size > Self::MAX_FUNC_INSTRS {
             self.rules_func
                 .builder_mut()
                 .func_body()
                 .instrs_mut()
-                .truncate(self.num_instrs);
-            self.num_rules -= 1;
+                .truncate(num_instrs);
             return Err(Error::FunctionTooLarge);
         }
+
+        // Case 2: The rule fits within `MAX_FUNC_INSTRS` on its own, but
+        // combined with the rules already present in `self.rules_func` the
+        // function exceeds `MAX_FUNC_INSTRS`. Revert the rule from the
+        // current function, finish the current function with the earlier
+        // rules, and re-emit this rule into a fresh `rules_func`.
+        if size_after > Self::MAX_FUNC_INSTRS {
+            self.rules_func
+                .builder_mut()
+                .func_body()
+                .instrs_mut()
+                .truncate(num_instrs);
+            self.finish_rule_func();
+            self.emit_rule_into_current_func(
+                rule_id,
+                global,
+                &mut emit_condition,
+            );
+            self.num_rules = 1;
+            self.rules_func_size = rule_size;
+            debug_assert_eq!(self.rules_func.size(), rule_size);
+            return Ok(());
+        }
+
+        // Case 3: The rule fits in the current function alongside any
+        // previously emitted rules.
+        self.num_rules += 1;
+        self.rules_func_size = size_after;
 
         Ok(())
     }
@@ -350,7 +356,6 @@ impl WasmModuleBuilder {
             self.num_namespaces = 0;
         }
         self.num_namespaces += 1;
-        self.num_rules = 0;
     }
 
     /// Builds the WASM module and consumes the builder.
@@ -391,6 +396,71 @@ impl WasmModuleBuilder {
         *self.wasm_exports.get(fn_mangled_name).unwrap_or_else(|| {
             panic!("can't find function `{fn_mangled_name}`")
         })
+    }
+
+    /// Appends the WASM instructions for a single rule to the current
+    /// `self.rules_func` without checking function size limits or updating
+    /// rule counters.
+    ///
+    /// It first invokes `emit_condition` to emit the rule's condition (which
+    /// leaves an `i32` with value 0 or 1 on the stack), and then emits the
+    /// branching logic that records whether the rule matched (`rule_match`)
+    /// or did not match (`rule_no_match`).
+    fn emit_rule_into_current_func(
+        &mut self,
+        rule_id: RuleId,
+        global: bool,
+        mut emit_condition: impl FnMut(&mut InstrSeqBuilder),
+    ) {
+        let rule_no_match =
+            self.function_id(wasm::export__rule_no_match.mangled_name);
+
+        let rule_match =
+            self.function_id(wasm::export__rule_match.mangled_name);
+
+        let mut instr = self.rules_func.builder_mut().func_body();
+
+        emit_condition(&mut instr);
+
+        // Check if the result from the condition is zero (false).
+        instr.unop(UnaryOp::I32Eqz).if_else(
+            None,
+            |then_| {
+                // The condition is false. Call `rule_no_match` if the rule is
+                // a global one, or if `rules-profiling` is enabled. The purpose
+                // of calling `rule_no_match` for global rules is reverting any
+                // previous matches that occurred in the same namespace. For
+                // non-global rules calling `rule_no_match` is not necessary,
+                // unless `rules-profiling` is enabled, in that case the purpose
+                // is tracking the time spent evaluating the rule.
+                if global {
+                    then_
+                        // Call `rule_no_match`.
+                        .i32_const(rule_id.into())
+                        .call(rule_no_match)
+                        // Return 1.
+                        //
+                        // By returning 1 the function that contains the logic for this
+                        // rule exits immediately, preventing that any other rule in the
+                        // same namespace is executed.
+                        //
+                        // This guarantees that any global rule that returns false, forces
+                        // any other rule in the same namespace to be false.
+                        .i32_const(1)
+                        .return_();
+                } else {
+                    #[cfg(feature = "rules-profiling")]
+                    then_
+                        // Call `rule_no_match`.
+                        .i32_const(rule_id.into())
+                        .call(rule_no_match);
+                }
+            },
+            |else_| {
+                // The condition is true, call `rule_match`.
+                else_.i32_const(rule_id.into()).call(rule_match);
+            },
+        );
     }
 
     fn finish_namespace_block(&mut self) {
@@ -435,6 +505,9 @@ impl WasmModuleBuilder {
             )
             .local_func(Vec::new()),
         );
+
+        self.num_rules = 0;
+        self.rules_func_size = 0;
 
         if !rule_func.builder_mut().func_body().instrs().is_empty() {
             // The last instruction in a rules function leaves a 0 in the

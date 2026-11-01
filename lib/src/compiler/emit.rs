@@ -288,26 +288,25 @@ pub(crate) fn emit_rule_condition(
     condition: ExprId,
     builder: &mut WasmModuleBuilder,
 ) -> Result<(), wasm::builder::Error> {
-    let mut instr = builder.start_rule(rule_id, ctx.current_rule.is_global);
+    builder.emit_rule(rule_id, ctx.current_rule.is_global, |instr| {
+        ctx.emit_search_for_pattern_stack.push(true);
 
-    ctx.emit_search_for_pattern_stack.push(true);
+        // Emit WASM code for the rule's condition.
+        catch_undef(
+            ctx,
+            I32,
+            instr,
+            |ctx, instr| {
+                emit_bool_expr(ctx, ir, condition, instr);
+            },
+            |_, instr| {
+                instr.i32_const(0);
+            },
+        );
 
-    // Emit WASM code for the rule's condition.
-    catch_undef(
-        ctx,
-        I32,
-        &mut instr,
-        |ctx, instr| {
-            emit_bool_expr(ctx, ir, condition, instr);
-        },
-        |_, instr| {
-            instr.i32_const(0);
-        },
-    );
-
-    ctx.emit_search_for_pattern_stack.pop();
-    assert!(ctx.emit_search_for_pattern_stack.is_empty());
-    builder.finish_rule()
+        ctx.emit_search_for_pattern_stack.pop();
+        assert!(ctx.emit_search_for_pattern_stack.is_empty());
+    })
 }
 
 /// Emits WASM code for `expr` into the instruction sequence `instr`.
@@ -2994,16 +2993,14 @@ fn load_var(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     // Only check the undefined flag if this variable's initializer could
     // have thrown an undefined exception.
     if ctx.vars_with_undef.contains(&var) {
-        instr.i32_const(var.index().saturating_div(64));
+        instr.i32_const(var.index() / 8);
         instr.load(
             ctx.wasm_symbols.main_memory,
-            LoadKind::I64 { atomic: false },
-            MemArg { align: 8, offset: 0 },
+            LoadKind::I32_8 { kind: ZeroExtend },
+            MemArg { align: size_of::<i8>() as u32, offset: 0 },
         );
-        instr.i64_const(1 << var.index().wrapping_rem(64));
-        instr.binop(BinaryOp::I64And);
-        instr.i64_const(0);
-        instr.binop(BinaryOp::I64Ne);
+        instr.i32_const(1 << (var.index() % 8));
+        instr.binop(BinaryOp::I32And);
         instr.if_else(None, |then_| throw_undef(ctx, then_), |_| {});
     }
 
@@ -3037,31 +3034,32 @@ fn set_var_undef(
     var: Var,
     is_undef: bool,
 ) {
-    // Push the address of the i64 where the flag is located. Push it
+    // Push the address of the byte where the flag is located. Push it
     // twice, one is for the load instruction and the other one is for
     // the store instruction.
-    instr.i32_const(var.index().saturating_div(64));
-    instr.i32_const(var.index().saturating_div(64));
+    let flag_addr = var.index() / 8;
+    instr.i32_const(flag_addr);
+    instr.i32_const(flag_addr);
     instr.load(
         ctx.wasm_symbols.main_memory,
-        LoadKind::I64 { atomic: false },
-        MemArg { align: 8, offset: 0 },
+        LoadKind::I32_8 { kind: ZeroExtend },
+        MemArg { align: size_of::<i8>() as u32, offset: 0 },
     );
 
-    let bit = 1i64 << var.index().wrapping_rem(64);
+    let bit = 1i32 << (var.index() % 8);
 
     if is_undef {
-        instr.i64_const(bit);
-        instr.binop(BinaryOp::I64Or);
+        instr.i32_const(bit);
+        instr.binop(BinaryOp::I32Or);
     } else {
-        instr.i64_const(!bit);
-        instr.binop(BinaryOp::I64And);
+        instr.i32_const(!bit);
+        instr.binop(BinaryOp::I32And);
     }
 
     instr.store(
         ctx.wasm_symbols.main_memory,
-        StoreKind::I64 { atomic: false },
-        MemArg { align: 8, offset: 0 },
+        StoreKind::I32_8 { atomic: false },
+        MemArg { align: size_of::<i8>() as u32, offset: 0 },
     );
 }
 

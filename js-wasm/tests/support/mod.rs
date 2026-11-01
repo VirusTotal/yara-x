@@ -100,7 +100,7 @@ pub(crate) fn decode_zipped_ihex_fixture(
             .by_index(index)
             .expect("fixture archive entry should open");
 
-        if file.name() != inner_name {
+        if file.name().expect("file must have a valid name ") != inner_name {
             continue;
         }
 
