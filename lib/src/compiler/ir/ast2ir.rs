@@ -1048,9 +1048,10 @@ fn anchor_patterns(ctx: &mut CompileContext) {
                 MatchAnchor::At(expr) => {
                     if let Some(offset) =
                         ctx.ir.get(*expr).try_as_const_integer()
+                        && let Ok(offset) = usize::try_from(offset)
                     {
                         ctx.current_rule_patterns[pattern.as_usize()]
-                            .anchor_at(offset as usize);
+                            .anchor_at(offset);
                     } else {
                         ctx.current_rule_patterns[pattern.as_usize()]
                             .make_non_anchorable();
@@ -1076,12 +1077,14 @@ fn anchor_patterns(ctx: &mut CompileContext) {
                     // them non-anchorable otherwise.
                     MatchAnchor::At(expr) => {
                         let anchor_at =
-                            ctx.ir.get(expr).try_as_const_integer();
+                            ctx.ir.get(expr).try_as_const_integer().and_then(
+                                |offset| usize::try_from(offset).ok(),
+                            );
                         for pattern in &of.items {
                             let pattern = &mut ctx.current_rule_patterns
                                 [pattern.as_usize()];
                             if let Some(offset) = anchor_at {
-                                pattern.anchor_at(offset as usize);
+                                pattern.anchor_at(offset);
                             } else {
                                 pattern.make_non_anchorable();
                             }

@@ -1525,8 +1525,9 @@ impl IR {
                 ) => {
                     if let Some(offset) =
                         self.get(*offset_expr).try_as_const_integer()
+                        && let Ok(offset) = usize::try_from(offset)
                     {
-                        f(*pattern, offset as usize);
+                        f(*pattern, offset);
                     }
                     dfs.prune();
                 }
@@ -1541,9 +1542,10 @@ impl IR {
                         )
                         && let Some(offset) =
                             self.get(offset_expr).try_as_const_integer()
+                        && let Ok(offset) = usize::try_from(offset)
                     {
                         for pattern in &of.items {
-                            f(*pattern, offset as usize);
+                            f(*pattern, offset);
                         }
                     }
                     dfs.prune();

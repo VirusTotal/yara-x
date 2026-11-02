@@ -1385,3 +1385,40 @@ fn runtime_string_from_large_slice() {
     let results = scanner.scan(&data).unwrap();
     assert_eq!(results.matching_rules().len(), 2);
 }
+
+#[test]
+fn anchored_pattern_large_offsets() {
+    let rules = crate::compile(
+        r#"
+        rule r1 {
+            strings:
+                $a = "foobar"
+            condition:
+                $a at 0xffffffff
+        }
+        rule r2 {
+            strings:
+                $a = "foobar"
+            condition:
+                $a at 0x100000000
+        }
+        rule r3 {
+            strings:
+                $a = "foobar"
+            condition:
+                all of ($a) at 0x100000000
+        }
+        rule r4 {
+            strings:
+                $a = "foobar"
+            condition:
+                $a and $a at 0x100000000
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(b"foobar").unwrap();
+    assert_eq!(results.matching_rules().len(), 0);
+}
