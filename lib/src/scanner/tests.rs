@@ -1459,3 +1459,87 @@ fn pe_section_index_overflow() {
     let results = scanner.scan(b"").unwrap();
     assert_eq!(results.matching_rules().len(), 1);
 }
+
+#[cfg(feature = "pe-module")]
+#[test]
+fn set_module_output_partial_pe() {
+    let rules = crate::compile(
+        r#"
+        import "pe"
+        rule test {
+            condition:
+                not defined pe.rva_to_offset(0x1000) and
+                pe.offset_to_rva(0x200) == 0 and
+                pe.imphash() == "d41d8cd98f00b204e9800998ecf8427e" and
+                pe.rich_signature.toolid(1) == 0 and
+                pe.rich_signature.version(1) == 0 and
+                pe.rich_signature.toolid(1, 1) == 0
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+
+    // Run a normal scan first so `pe::main` clears thread-local caches.
+    let _ = scanner.scan(b"").unwrap();
+
+    let mut pe_data = Box::new(mods::PE::new());
+    pe_data.set_is_pe(true);
+    pe_data.set_file_alignment(0x200);
+    pe_data.set_section_alignment(0x1000);
+
+    // Unpopulated section (`None` fields) and partial section missing
+    // `virtual_address` / `virtual_size`.
+    pe_data.sections.push(mods::pe::Section::new());
+    let mut partial_sec = mods::pe::Section::new();
+    partial_sec.set_raw_data_offset(0x200);
+    partial_sec.set_raw_data_size(0x200);
+    pe_data.sections.push(partial_sec);
+
+    // Partial `Import` entries missing `library_name` or `func.name`.
+    pe_data.import_details.push(mods::pe::Import::new());
+    let mut imp = mods::pe::Import::new();
+    imp.set_library_name("kernel32.dll".to_string());
+    imp.functions.push(mods::pe::Function::new());
+    pe_data.import_details.push(imp);
+
+    // Partial `RichTool` entry missing `toolid` and `version`.
+    let mut rich = mods::pe::RichSignature::new();
+    rich.tools.push(mods::pe::RichTool::new());
+    pe_data.rich_signature = protobuf::MessageField::some(rich);
+
+    scanner.set_module_output(pe_data).unwrap();
+    let results = scanner.scan(b"").unwrap();
+    assert_eq!(results.matching_rules().len(), 1);
+
+    // Also verify a wire-valid PE protobuf via `set_module_output_raw` where
+    // optional `Function.name` is unset (`None`).
+    let imphash_rules = crate::compile(
+        r#"
+        import "pe"
+        rule test_imphash {
+            condition:
+                pe.imphash() == "d41d8cd98f00b204e9800998ecf8427e"
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut valid_pe = mods::PE::new();
+    valid_pe.set_is_pe(true);
+    let mut func = mods::pe::Function::new();
+    func.set_ordinal(1);
+    func.set_rva(0x2000);
+    let mut imp = mods::pe::Import::new();
+    imp.set_library_name("kernel32.dll".to_string());
+    imp.set_number_of_functions(1);
+    imp.functions.push(func);
+    valid_pe.import_details.push(imp);
+
+    let raw = valid_pe.write_to_bytes().unwrap();
+    let mut scanner = Scanner::new(&imphash_rules);
+    let _ = scanner.scan(b"").unwrap();
+    scanner.set_module_output_raw("pe", &raw).unwrap();
+    assert_eq!(scanner.scan(b"").unwrap().matching_rules().len(), 1);
+}

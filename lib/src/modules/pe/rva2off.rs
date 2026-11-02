@@ -184,18 +184,18 @@ pub(crate) fn offset_to_rva(
 
 impl Section for crate::modules::protos::pe::Section {
     fn virtual_address(&self) -> u32 {
-        self.virtual_address.unwrap()
+        self.virtual_address.unwrap_or_default()
     }
 
     fn virtual_size(&self) -> u32 {
-        self.virtual_size.unwrap()
+        self.virtual_size.unwrap_or_default()
     }
 
     fn raw_data_offset(&self) -> u32 {
-        self.raw_data_offset.unwrap()
+        self.raw_data_offset.unwrap_or_default()
     }
 
     fn raw_data_size(&self) -> u32 {
-        self.raw_data_size.unwrap()
+        self.raw_data_size.unwrap_or_default()
     }
 }

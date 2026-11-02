@@ -251,16 +251,20 @@ fn imphash(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<32>>> {
     let mut first = true;
 
     for import in &pe.import_details {
-        let dll_name = trim_import_library_extension(
-            import.library_name.as_deref().unwrap(),
-        );
+        let Some(dll_name) = import.library_name.as_deref() else {
+            continue;
+        };
+        let dll_name = trim_import_library_extension(dll_name);
         for func in &import.functions {
+            let Some(func_name) = func.name.as_deref() else {
+                continue;
+            };
             if !first {
                 Digest::update(&mut md5_hash, ",".as_bytes())
             }
             update_lowercase(&mut md5_hash, dll_name);
             Digest::update(&mut md5_hash, ".".as_bytes());
-            update_lowercase(&mut md5_hash, func.name.as_deref().unwrap());
+            update_lowercase(&mut md5_hash, func_name);
             first = false;
         }
     }
@@ -355,12 +359,10 @@ fn rich_version_impl(
         .iter()
         .filter_map(|t| {
             let toolid_matches = toolid
-                .map(|toolid| toolid == t.toolid.unwrap() as i64)
-                .unwrap_or(true);
+                .is_none_or(|id| t.toolid.is_some_and(|tid| id == tid as i64));
 
             let version_matches = version
-                .map(|version| version == t.version.unwrap() as i64)
-                .unwrap_or(true);
+                .is_none_or(|ver| t.version.is_some_and(|v| ver == v as i64));
 
             if toolid_matches && version_matches {
                 t.times.map(|v| v as i64)
