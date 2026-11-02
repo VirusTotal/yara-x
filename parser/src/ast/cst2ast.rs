@@ -1860,7 +1860,8 @@ where
         let span = self.expect(STRING_LIT)?;
         let literal = self.get_source_str(&span)?;
 
-        let num_quotes = if literal.starts_with("\"\"\"") {
+        let num_quotes = if literal.len() >= 6 && literal.starts_with("\"\"\"")
+        {
             debug_assert!(literal.starts_with("\"\"\""));
             debug_assert!(literal.ends_with("\"\"\""));
             3
@@ -1903,14 +1904,18 @@ where
             match b {
                 // The backslash indicates an escape sequence.
                 '\\' => {
-                    // Consume the backslash and see what's next. A character must
-                    // follow the backslash, this is guaranteed by the grammar
-                    // itself.
-                    let escaped_char = if let Some(x) = chars.next() {
-                        x
-                    } else {
-                        //
-                        panic!()
+                    // Consume the backslash and see what's next. Grammar tokens
+                    // always include an escaped character, but synthetic CST
+                    // streams might end with a bare `\`.
+                    let Some(escaped_char) = chars.next() else {
+                        self.errors.push(Error::InvalidEscapeSequence {
+                            message: "incomplete escape sequence".to_string(),
+                            span: string_span.subspan(
+                                first_backslash + backslash,
+                                first_backslash + backslash + 1,
+                            ),
+                        });
+                        return Err(BuilderError::Abort);
                     };
 
                     match escaped_char.1 {
@@ -1939,14 +1944,20 @@ where
                                 _ => {
                                     let (escaped_char_pos, _) = escaped_char;
 
+                                    // Compute offsets directly from `string_span`
+                                    // instead of `string_span.offset(...)`, which
+                                    // would add `first_backslash` to `string_span.end`
+                                    // and overflow `u32` on large string literals.
                                     self.errors
                                         .push(Error::InvalidEscapeSequence {
                                             message:
                                             r"expecting two hex digits after `\x`"
                                                 .to_string(),
-                                            span: string_span.offset(first_backslash as isize).subspan(
-                                                backslash,
-                                                escaped_char_pos + 1,
+                                            span: string_span.subspan(
+                                                first_backslash + backslash,
+                                                first_backslash
+                                                    + escaped_char_pos
+                                                    + 1,
                                             ),
                                         });
 
@@ -1967,9 +1978,10 @@ where
                                     &remaining
                                         [backslash..escaped_char_end_pos]
                                 ),
-                                span: string_span
-                                    .offset(first_backslash as isize)
-                                    .subspan(backslash, escaped_char_end_pos),
+                                span: string_span.subspan(
+                                    first_backslash + backslash,
+                                    first_backslash + escaped_char_end_pos,
+                                ),
                             });
 
                             return Err(BuilderError::Abort);

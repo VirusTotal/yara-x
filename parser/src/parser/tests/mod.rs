@@ -247,3 +247,45 @@ fn nesting_error() {
     assert!(ast.errors().is_empty());
     assert_eq!(ast.rules().count(), 1);
 }
+
+#[test]
+fn string_lit_escape_error_spans_and_synthetic_incomplete_escape() {
+    // Invalid `\x` after a non-zero `first_backslash` and earlier valid escape.
+    let src = r#"rule r { condition: "prefix\nmid\x1" == "" }"#;
+    let ast = AST::from(src);
+    assert_eq!(
+        ast.errors(),
+        &[Error::InvalidEscapeSequence {
+            message: r"expecting two hex digits after `\x`".to_string(),
+            span: Span(32..34),
+        }]
+    );
+
+    // Invalid unknown escape in a multi-line string literal after `first_backslash`.
+    let src_multi =
+        "rule r { condition: \"\"\"abc\\ndef\\qghi\"\"\" == \"\" }";
+    let ast_multi = AST::from(src_multi);
+    assert_eq!(
+        ast_multi.errors(),
+        &[Error::InvalidEscapeSequence {
+            message: r"invalid escape sequence `\q`".to_string(),
+            span: Span(31..33),
+        }]
+    );
+
+    // Synthetic CST stream with a trailing bare `\` inside `STRING_LIT` (where
+    // `allow_escape_char == true`) must report `InvalidEscapeSequence` instead
+    // of panicking.
+    let template_src = br#"rule r { meta: m = "abcx" condition: true }"#;
+    let synthetic_src = br#"rule r { meta: m = "abc\" condition: true }"#;
+    let events: Vec<_> = Parser::new(template_src.as_slice()).collect();
+    let ast_syn = AST::new(synthetic_src.as_slice(), events.into_iter());
+    assert_eq!(
+        ast_syn.errors(),
+        &[Error::InvalidEscapeSequence {
+            message: "incomplete escape sequence".to_string(),
+            span: Span(23..24),
+        }]
+    );
+}
+
