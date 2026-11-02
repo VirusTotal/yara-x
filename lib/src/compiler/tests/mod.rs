@@ -2161,20 +2161,27 @@ fn test_rules_matches_many() {
 
     // Multiple regexps that individually fit under the 50 MiB NFA limit but
     // exceed 50 MiB when combined must skip `MatchesMany` collapsing and still
-    // evaluate cleanly without panicking.
+    // evaluate cleanly without panicking. Use a 31-range character class (248
+    // bytes of `Transition`s per state regardless of pointer width) so the
+    // combined NFA exceeds 50 MiB on both 32-bit (~58.8 MiB) and 64-bit
+    // (~65.5 MiB) targets while each individual regexp stays under 50 MiB.
+    let cls = "[acegikmoqsuwyACEGIKMOQSUWY02468]";
     let mut compiler = Compiler::new();
     compiler
         .define_global("str_foo", "")
         .unwrap()
         .add_source(
-            r#"
-            rule combined_too_large {
-                condition:
-                    str_foo matches /a.{450000}b/ or
-                    str_foo matches /a.{450000}c/ or
-                    str_foo matches /ba[zt]/
-            }
-            "#,
+            format!(
+                r#"
+                rule combined_too_large {{
+                    condition:
+                        str_foo matches /a{cls}{{110000}}b/ or
+                        str_foo matches /a{cls}{{110000}}c/ or
+                        str_foo matches /ba[zt]/
+                }}
+                "#
+            )
+            .as_str(),
         )
         .unwrap();
     let rules = compiler.build();
