@@ -1573,3 +1573,94 @@ fn hoisting_percentage_quantifier_var_shift() {
     assert_eq!(scanner.scan(b"B").unwrap().matching_rules().len(), 0);
 }
 
+#[test]
+fn loop_frame_allocation_order() {
+    let rules = crate::compile(
+        r#"
+        import "math"
+        rule tuple_with_inner_vars {
+            condition:
+                for all v in (
+                    1,
+                    math.to_number(with x = 2, y = 0 : ( x + y == 2 ))
+                ) : (
+                    v == 1
+                )
+        }
+        rule for_of_quantifier_with_inner_vars {
+            strings:
+                $a = "abc"
+            condition:
+                for (math.to_number(with x = 1, y = 99 : ( x + y == 100 ))) of ($a) : ( $ )
+        }
+        rule of_quantifier_with_inner_vars {
+            condition:
+                (math.to_number(with x = 1, y = 99 : ( x + y == 100 ))) of (true, false)
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(b"abc").unwrap().matching_rules().len(), 3);
+
+    // Also verify `IR::hoisting` when an outer `with` binds a module function
+    // (`TypeValue::Func`, which reserves a frame slot without pushing to
+    // `With::declarations`) alongside an inner `RuntimeString` variable.
+    let mut compiler = crate::Compiler::new();
+    compiler
+        .condition_optimization(true)
+        .add_source(
+            r#"
+            import "math"
+            rule hoisting_with_func_alias {
+                condition:
+                    with f = math.abs : (
+                        with s = math.to_string(filesize) : (
+                            for any i in (0..1) : (
+                                f(int8(0)) == 65 + i and s == "1"
+                            )
+                        )
+                    )
+            }
+            "#,
+        )
+        .unwrap();
+
+    let opt_rules = compiler.build();
+    let mut opt_scanner = Scanner::new(&opt_rules);
+    assert_eq!(opt_scanner.scan(b"A").unwrap().matching_rules().len(), 1);
+    assert_eq!(opt_scanner.scan(b"C").unwrap().matching_rules().len(), 0);
+}
+
+#[test]
+fn hoisting_in_for_in_iterable() {
+    let mut compiler = crate::Compiler::new();
+    compiler
+        .condition_optimization(true)
+        .add_source(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    for any v in (
+                        math.to_number(
+                            for any i in (0..2) : (
+                                math.to_string(filesize) == math.to_string(i)
+                            )
+                        ),
+                        0
+                    ) : (
+                        v == 1
+                    )
+            }
+            "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(b"A").unwrap().matching_rules().len(), 1);
+    assert_eq!(scanner.scan(b"ABCD").unwrap().matching_rules().len(), 0);
+}
+

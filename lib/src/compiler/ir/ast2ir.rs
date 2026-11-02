@@ -1229,7 +1229,9 @@ fn of_expr_from_ast<'src>(
     ctx: &mut CompileContext<'_, 'src>,
     of: &ast::Of<'src>,
 ) -> Result<ExprId, CompileError> {
-    let quantifier = quantifier_from_ast(ctx, &of.quantifier)?;
+    // Reserve the loop's stack frame before compiling `quantifier` because
+    // `for_vars` (`n` and `i`) are already live in `emit_for` when `quantifier`
+    // is evaluated; see `for_in_expr_from_ast` for details.
     let mut stack_frame =
         ctx.vars.new_frame(VarStack::OF_FRAME_SIZE).ok_or_else(|| {
             TooManyVariables::build(
@@ -1237,6 +1239,7 @@ fn of_expr_from_ast<'src>(
                 ctx.report_builder.span_to_code_loc(of.span()),
             )
         })?;
+    let quantifier = quantifier_from_ast(ctx, &of.quantifier)?;
 
     let (items, next_item_var) = match &of.items {
         // `x of (<boolean expr>, <boolean expr>, ...)`
@@ -1396,9 +1399,9 @@ fn for_of_expr_from_ast<'src>(
     ctx: &mut CompileContext<'_, 'src>,
     for_of: &ast::ForOf<'src>,
 ) -> Result<ExprId, CompileError> {
-    let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
-    let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set)?;
-
+    // Reserve the loop's stack frame before compiling `quantifier` because
+    // `for_vars` (`n` and `i`) are already live in `emit_for` when `quantifier`
+    // is evaluated; see `for_in_expr_from_ast` for details.
     let mut stack_frame =
         ctx.vars.new_frame(VarStack::FOR_OF_FRAME_SIZE).ok_or_else(|| {
             TooManyVariables::build(
@@ -1406,6 +1409,9 @@ fn for_of_expr_from_ast<'src>(
                 ctx.report_builder.span_to_code_loc(for_of.span()),
             )
         })?;
+
+    let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
+    let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set)?;
 
     let for_vars = ForVars {
         n: stack_frame.new_var(Type::Integer),
@@ -1541,6 +1547,22 @@ fn for_in_expr_from_ast<'src>(
     ctx: &mut CompileContext<'_, 'src>,
     for_in: &ast::ForIn<'src>,
 ) -> Result<ExprId, CompileError> {
+    // Reserve the loop's stack frame before compiling `quantifier` and
+    // `iterable`. At runtime (`emit_for` / `emit_for_in_expr_tuple`), the
+    // loop's `for_vars` (`n` and `i`) are already initialized and live while
+    // `quantifier` and `iterable` tuple expressions are evaluated, so any
+    // nested `with`, `for`, or `of` inside them must get higher variable slots
+    // instead of reusing and overwriting `for_vars`. This also guarantees that
+    // all variables inside the loop's subtree have indices `>= for_vars.n`,
+    // which `IR::hoisting` relies on when shifting variables.
+    let mut stack_frame =
+        ctx.vars.new_frame(VarStack::FOR_IN_FRAME_SIZE).ok_or_else(|| {
+            TooManyVariables::build(
+                ctx.report_builder,
+                ctx.report_builder.span_to_code_loc(for_in.span()),
+            )
+        })?;
+
     let quantifier = quantifier_from_ast(ctx, &for_in.quantifier)?;
     let iterable = iterable_from_ast(ctx, &for_in.iterable)?;
 
@@ -1657,14 +1679,6 @@ fn for_in_expr_from_ast<'src>(
             ctx.report_builder.span_to_code_loc(span),
         ));
     }
-
-    let mut stack_frame =
-        ctx.vars.new_frame(VarStack::FOR_IN_FRAME_SIZE).ok_or_else(|| {
-            TooManyVariables::build(
-                ctx.report_builder,
-                ctx.report_builder.span_to_code_loc(for_in.span()),
-            )
-        })?;
 
     let for_vars = ForVars {
         n: stack_frame.new_var(Type::Integer),

@@ -46,7 +46,7 @@ use serde::{Deserialize, Serialize};
 use yara_x_parser::Span;
 use yara_x_parser::ast::Ident;
 
-use crate::compiler::context::{Var, VarStack};
+use crate::compiler::context::Var;
 use crate::compiler::ir::dfs::{
     DFSIter, DFSWithScopeIter, Event, EventContext, dfs_common,
 };
@@ -58,6 +58,7 @@ use crate::re;
 use crate::symbols::Symbol;
 use crate::types::Value::Const;
 use crate::types::{FuncSignature, Type, TypeValue};
+use crate::utils::cast;
 
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
 pub(in crate::compiler) use ast2ir::rule_condition_from_ast;
@@ -1064,10 +1065,8 @@ impl IR {
         for (expr_id, loop_expr_id) in self.find_hoisting_candidates() {
             let loop_parent = self.get_parent(loop_expr_id);
 
-            let var_index = self
-                .ancestors(loop_expr_id)
-                .map(|expr_id| self.get(expr_id).stack_frame_size())
-                .sum::<i32>();
+            let var_index =
+                cast!(self.get(loop_expr_id), Expr::ForIn).for_vars.n.index();
 
             // Shift all variables with an index greater or equal than
             // var_index one position to the right in order to make room for
@@ -3599,18 +3598,6 @@ impl Hash for Expr {
 }
 
 impl Expr {
-    /// Returns the size of the stack frame for this expression.
-    pub fn stack_frame_size(&self) -> i32 {
-        match self {
-            Expr::With(with) => with.declarations.len() as i32,
-            Expr::ForOf(_) => VarStack::FOR_OF_FRAME_SIZE,
-            Expr::ForIn(_) => VarStack::FOR_IN_FRAME_SIZE,
-            Expr::OfExprTuple(_) => VarStack::OF_FRAME_SIZE,
-            Expr::OfPatternSet(_) => VarStack::OF_FRAME_SIZE,
-            _ => 0,
-        }
-    }
-
     /// Increase the index of variables used by this expression (including
     /// its subexpressions) by a certain amount.
     ///
