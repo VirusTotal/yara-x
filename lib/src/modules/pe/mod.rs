@@ -173,7 +173,7 @@ fn calculate_checksum(ctx: &mut ScanContext) -> Option<i64> {
     sum = (sum & 0xffff) + (sum >> 16);
     sum += sum >> 16;
     sum &= 0xffff;
-    sum += data.len() as u32;
+    sum = sum.wrapping_add(data.len() as u32);
 
     CHECKSUM_CACHE.with(|cache| {
         *cache.borrow_mut() = Some(sum.into());
@@ -208,9 +208,10 @@ fn section_index_offset(ctx: &ScanContext, offset: i64) -> Option<i64> {
         .iter()
         .find_position(|section| {
             match (section.raw_data_offset, section.raw_data_size) {
-                (Some(section_offset), Some(section_size)) => (section_offset
-                    ..section_offset + section_size)
-                    .contains(&offset),
+                (Some(section_offset), Some(section_size)) => {
+                    offset >= section_offset
+                        && offset - section_offset < section_size
+                }
                 _ => false,
             }
         })

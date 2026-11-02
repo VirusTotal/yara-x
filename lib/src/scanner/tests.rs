@@ -1422,3 +1422,40 @@ fn anchored_pattern_large_offsets() {
     let results = scanner.scan(b"foobar").unwrap();
     assert_eq!(results.matching_rules().len(), 0);
 }
+
+#[cfg(feature = "pe-module")]
+#[test]
+fn pe_section_index_overflow() {
+    let rules = crate::compile(
+        r#"
+        import "pe"
+        rule test {
+            condition:
+                pe.section_index(0xffffff80) == 0 and
+                not defined pe.section_index(0x00000080)
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut valid_pe = mods::PE::new();
+    valid_pe.set_is_pe(true);
+    let mut sec = mods::pe::Section::new();
+    sec.set_name(b".text".to_vec());
+    sec.set_full_name(b".text".to_vec());
+    sec.set_characteristics(0);
+    sec.set_raw_data_offset(0xffff_ff00);
+    sec.set_raw_data_size(0x200);
+    sec.set_virtual_address(0x1000);
+    sec.set_virtual_size(0x200);
+    sec.set_pointer_to_relocations(0);
+    sec.set_pointer_to_line_numbers(0);
+    sec.set_number_of_relocations(0);
+    sec.set_number_of_line_numbers(0);
+    valid_pe.sections.push(sec);
+
+    let mut scanner = Scanner::new(&rules);
+    scanner.set_module_output(Box::new(valid_pe)).unwrap();
+    let results = scanner.scan(b"").unwrap();
+    assert_eq!(results.matching_rules().len(), 1);
+}
