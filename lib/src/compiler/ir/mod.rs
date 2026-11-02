@@ -716,6 +716,17 @@ impl IR {
         });
     }
 
+    /// Returns the maximum variable index referenced or declared in the
+    /// subtree rooted at `start`, or `None` if no variables are used.
+    fn max_var_index(&self, start: ExprId) -> Option<i32> {
+        self.dfs_iter(start)
+            .filter_map(|evt| match evt {
+                Event::Enter((_, expr, _)) => expr.max_var_index(),
+                Event::Leave(_) => None,
+            })
+            .max()
+    }
+
     /// Returns an iterator that performs a depth first search starting at
     /// the given node.
     pub fn dfs_iter(&self, start: ExprId) -> DFSIter<'_> {
@@ -1031,12 +1042,12 @@ impl IR {
                             if let Some(inner_loop) = scopes.next() {
                                 result.push((current_expr_id, inner_loop));
                             }
-                            // Limit the number of candidates to a reasonable
-                            // number.
-                            if result.len() > 100 {
-                                return result;
-                            }
                         }
+                    }
+
+                    // Limit the number of candidates to a reasonable number.
+                    if result.len() > 100 {
+                        return result;
                     }
                 }
                 _ => {}
@@ -1074,6 +1085,17 @@ impl IR {
 
             let var_index =
                 cast!(self.get(loop_expr_id), Expr::ForIn).for_vars.n.index();
+
+            if var_index >= crate::wasm::MAX_VARS {
+                continue;
+            }
+
+            if let Some(max_idx) = self.max_var_index(loop_expr_id)
+                && max_idx >= var_index
+                && max_idx + 1 >= crate::wasm::MAX_VARS
+            {
+                continue;
+            }
 
             // Shift all variables with an index greater or equal than
             // var_index one position to the right in order to make room for
@@ -3467,6 +3489,15 @@ impl ForVars {
         self.count.shift(after, amount);
         self.item.shift(after, amount);
     }
+
+    pub fn max_index(&self) -> i32 {
+        self.n
+            .index()
+            .max(self.i.index())
+            .max(self.max_count.index())
+            .max(self.count.index())
+            .max(self.item.index())
+    }
 }
 
 /// A `with <identifiers> : ...` expression. (e.g. `with $a, $b : ( ... )`)
@@ -3605,6 +3636,35 @@ impl Hash for Expr {
 }
 
 impl Expr {
+    /// Returns the maximum variable index referenced or declared directly by
+    /// this expression, or `None` if it neither declares nor references any
+    /// variables.
+    pub fn max_var_index(&self) -> Option<i32> {
+        match self {
+            Expr::Symbol(symbol)
+            | Expr::PatternMatchVar { symbol, .. }
+            | Expr::PatternCountVar { symbol, .. }
+            | Expr::PatternOffsetVar { symbol, .. }
+            | Expr::PatternLengthVar { symbol, .. } => match symbol.as_ref() {
+                Symbol::Var { var, .. } => Some(var.index()),
+                _ => None,
+            },
+            Expr::With(with) => {
+                with.declarations.iter().map(|(v, _)| v.index()).max()
+            }
+            Expr::OfExprTuple(of) => Some(of.for_vars.max_index()),
+            Expr::OfPatternSet(of) => Some(of.for_vars.max_index()),
+            Expr::ForOf(for_of) => Some(for_of.for_vars.max_index()),
+            Expr::ForIn(for_in) => for_in
+                .variables
+                .iter()
+                .map(|v| v.index())
+                .chain(std::iter::once(for_in.for_vars.max_index()))
+                .max(),
+            _ => None,
+        }
+    }
+
     /// Increase the index of variables used by this expression (including
     /// its subexpressions) by a certain amount.
     ///

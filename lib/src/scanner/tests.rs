@@ -1693,3 +1693,53 @@ fn hoisting_for_of_pattern_vars() {
     assert_eq!(scanner.scan(b"def").unwrap().matching_rules().len(), 0);
 }
 
+#[test]
+fn hoisting_max_vars_and_candidate_limit() {
+    // 1. Many loop-invariant expressions inside a single `for` loop (`None`
+    // dependency branch in `find_hoisting_candidates`).
+    let many_checks = (0..150)
+        .map(|k| format!("uint8(0) + {k} == {}", 65 + k))
+        .collect::<Vec<_>>()
+        .join(" and ");
+    let src_many = format!(
+        "rule many_invariants {{ condition: for any i in (0..1) : ( i == 0 and {} ) }}",
+        many_checks
+    );
+
+    let mut compiler = crate::Compiler::new();
+    compiler
+        .condition_optimization(true)
+        .add_source(src_many.as_str())
+        .unwrap();
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(b"A").unwrap().matching_rules().len(), 1);
+    assert_eq!(scanner.scan(b"B").unwrap().matching_rules().len(), 0);
+
+    // 2. Outer `with` occupying `MAX_VARS - FOR_IN_FRAME_SIZE` (2048 - 7 = 2041)
+    // slots so the inner `for` loop sits right at the `wasm::MAX_VARS` ceiling
+    // with zero room to shift variables during hoisting.
+    let num_with_vars = (crate::wasm::MAX_VARS - 7) as usize;
+    let decls = (0..num_with_vars)
+        .map(|k| format!("v{k} = {k}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let uses = (0..num_with_vars)
+        .map(|k| format!("v{k}"))
+        .collect::<Vec<_>>()
+        .join(" + ");
+    let expected_sum: usize = (0..num_with_vars).sum();
+    let src_ceiling = format!(
+        "rule at_max_vars {{ condition: with {decls} : ( ({uses}) == {expected_sum} and for any i in (0..1) : ( uint8(0) == 65 and i == 0 ) ) }}"
+    );
+
+    let mut compiler = crate::Compiler::new();
+    compiler
+        .condition_optimization(true)
+        .add_source(src_ceiling.as_str())
+        .unwrap();
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(b"A").unwrap().matching_rules().len(), 1);
+    assert_eq!(scanner.scan(b"B").unwrap().matching_rules().len(), 0);
+}
