@@ -1543,3 +1543,33 @@ fn set_module_output_partial_pe() {
     scanner.set_module_output_raw("pe", &raw).unwrap();
     assert_eq!(scanner.scan(b"").unwrap().matching_rules().len(), 1);
 }
+
+#[test]
+fn hoisting_percentage_quantifier_var_shift() {
+    let mut compiler = crate::Compiler::new();
+    compiler
+        .condition_optimization(true)
+        .add_source(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    for any i in (0..1) : (
+                        i >= 0 and
+                        with s = math.to_string(filesize) : (
+                            for (math.to_number(s == "1") * 100)% j in (0..1) : (
+                                int8(0) == 65 and j >= 0
+                            )
+                        )
+                    )
+            }
+            "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(b"A").unwrap().matching_rules().len(), 1);
+    assert_eq!(scanner.scan(b"B").unwrap().matching_rules().len(), 0);
+}
+
