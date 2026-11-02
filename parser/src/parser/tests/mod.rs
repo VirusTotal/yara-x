@@ -289,3 +289,38 @@ fn string_lit_escape_error_spans_and_synthetic_incomplete_escape() {
     );
 }
 
+#[test]
+fn source_too_large_error() {
+    let source = b"rule test { condition: true }";
+
+    for max_size in [source.len(), source.len() - 1, 1] {
+        let parser = Parser::new_with_max_size(source, max_size);
+        assert_eq!(parser.source(), source.as_slice());
+
+        let ast = AST::from(parser);
+        assert_eq!(ast.rules().count(), 0);
+        assert_eq!(
+            ast.errors(),
+            &[Error::SyntaxError {
+                message: "source file is too large".to_string(),
+                span: Span(0..0),
+            }]
+        );
+
+        let cst = CST::try_from(Parser::new_with_max_size(source, max_size))
+            .unwrap();
+        assert_eq!(cst.root().text(), "");
+        let has_err = cst.iter().any(|e| {
+            e == crate::cst::Event::Error {
+                message: "source file is too large".to_string(),
+                span: Span(0..0),
+            }
+        });
+        assert!(has_err);
+    }
+
+    // Input strictly smaller than `max_size` parses normally.
+    let ast = AST::from(Parser::new_with_max_size(source, source.len() + 1));
+    assert!(ast.errors().is_empty());
+    assert_eq!(ast.rules().count(), 1);
+}

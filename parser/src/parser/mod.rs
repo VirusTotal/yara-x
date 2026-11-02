@@ -53,6 +53,18 @@ impl<'src> Parser<'src> {
         Self { parser: ParserImpl::from(Tokenizer::new(source)) }
     }
 
+    #[cfg(test)]
+    pub(crate) fn new_with_max_size(
+        source: &'src [u8],
+        max_size: usize,
+    ) -> Self {
+        Self {
+            parser: ParserImpl::from(Tokenizer::new_with_max_size(
+                source, max_size,
+            )),
+        }
+    }
+
     /// Returns the source code passed to the parser.
     #[inline]
     pub fn source(&self) -> &'src [u8] {
@@ -220,9 +232,13 @@ pub(crate) struct ParserImpl<'src> {
 impl<'src> From<Tokenizer<'src>> for ParserImpl<'src> {
     /// Creates a new parser that receives tokens from the given [`Tokenizer`].
     fn from(tokenizer: Tokenizer<'src>) -> Self {
+        let mut output = SyntaxStream::new();
+        if tokenizer.source_too_large() {
+            output.push_error("source file is too large", Span(0..0));
+        }
         Self {
             tokens: TokenStream::new(tokenizer),
-            output: SyntaxStream::new(),
+            output,
             pending_errors: Vec::new(),
             expected_token_errors: FxHashMap::default(),
             unexpected_token_errors: FxHashSet::default(),
@@ -241,12 +257,13 @@ impl Iterator for ParserImpl<'_> {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
+        let source_span_end = self.tokens.source().len().min(Span::MAX) as u32;
         match self.state {
             State::StartOfInput => {
                 self.state = State::OK;
                 Some(Event::Begin {
                     kind: SOURCE_FILE,
-                    span: Span(0..self.tokens.source().len() as u32),
+                    span: Span(0..source_span_end),
                 })
             }
             State::EndOfInput => None,
@@ -284,7 +301,7 @@ impl Iterator for ParserImpl<'_> {
                     self.state = State::EndOfInput;
                     Some(Event::End {
                         kind: SOURCE_FILE,
-                        span: Span(0..self.tokens.source().len() as u32),
+                        span: Span(0..source_span_end),
                     })
                 }
             }
