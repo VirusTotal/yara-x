@@ -1359,3 +1359,29 @@ fn test_teddy_scan_timeout() {
     let err = scanner.scan(&data).unwrap_err();
     assert_eq!(err.to_string(), "timeout");
 }
+
+#[cfg(feature = "test_proto2-module")]
+#[test]
+fn runtime_string_from_large_slice() {
+    let rules = crate::compile(
+        r#"
+        import "test_proto2"
+        rule exact_u16_max {
+            condition:
+                test_proto2.head(65535) startswith "aaaa" and
+                test_proto2.head(65535) endswith "aaaa"
+        }
+        rule larger_than_u16_max {
+            condition:
+                test_proto2.head(65536) startswith "aaaa" and
+                test_proto2.head(65536) endswith "aaaa"
+        }
+        "#,
+    )
+    .unwrap();
+
+    let data = vec![b'a'; 70_000];
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(&data).unwrap();
+    assert_eq!(results.matching_rules().len(), 2);
+}

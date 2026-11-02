@@ -116,7 +116,7 @@ impl String for RuntimeString {
                 handle | 1
             }
             Self::ScannedDataSlice { offset, length } => {
-                if length >= u16::MAX as usize {
+                if length > u16::MAX as usize {
                     panic!(
                         "runtime-string slices can't be larger than {}",
                         u16::MAX
@@ -129,14 +129,17 @@ impl String for RuntimeString {
 
     /// Creates a [`RuntimeString`] from a reference to a byte slice.
     ///
-    /// If the original slice is contained within the scanned data, this
-    /// function returns the [`RuntimeString::ScannedDataSlice`] variant, which
-    /// doesn't need to copy the string data.
+    /// If the original slice is contained within the scanned data and its
+    /// length fits in a `u16`, this function returns the
+    /// [`RuntimeString::ScannedDataSlice`] variant, which doesn't need to copy
+    /// the string data.
     ///
     /// In any other case it makes a copy of the string and return the
     /// [`RuntimeString::Rc`] variant.
     fn from_slice(ctx: &ScanContext, s: &[u8]) -> Self {
-        if let ScanState::ScanningData(data) = &ctx.scan_state {
+        if s.len() <= u16::MAX as usize
+            && let ScanState::ScanningData(data) = &ctx.scan_state
+        {
             let data = data.as_ref();
             let data_start = data.as_ptr() as usize;
             let data_end = data_start + data.len();
