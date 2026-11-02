@@ -67,9 +67,10 @@ fn get_data<'a>(
     offset: i64,
     length: i64,
 ) -> Option<Cow<'a, str>> {
-    ctx.scanned_data()?
-        .get(offset as usize..(offset + length) as usize)
-        .map(escape)
+    let start = usize::try_from(offset).ok()?;
+    let len = usize::try_from(length).ok()?;
+    let end = start.checked_add(len)?;
+    ctx.scanned_data()?.get(start..end).map(escape)
 }
 
 #[module_export(name = "log")]
@@ -183,7 +184,11 @@ mod tests {
                     console.hex(10) and
                     console.hex("qux: ", 255) and
                     console.log("hello ", "world!") and
-                    console.log(0, 4)
+                    console.log(0, 4) and
+                    console.log(1, 0x7fffffffffffffff) and
+                    console.log("msg: ", 1, 0x7fffffffffffffff) and
+                    console.log(-1, 2) and
+                    console.log(0, -1)
             }
             "#,
         )
