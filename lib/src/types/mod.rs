@@ -635,6 +635,13 @@ impl TypeValue {
         )
     }
 
+    #[inline]
+    pub fn as_regexp(&self) -> &Regexp {
+        self.try_as_regexp().expect(
+            "TypeValue is not regexp or doesn't have an associated value",
+        )
+    }
+
     pub fn try_as_bool(&self) -> Option<bool> {
         if let TypeValue::Bool { value } = self {
             value.extract().cloned()
@@ -767,6 +774,14 @@ impl TypeValue {
     pub fn try_as_string(&self) -> Option<Rc<BString>> {
         if let TypeValue::String { value, .. } = self {
             value.extract().cloned()
+        } else {
+            None
+        }
+    }
+
+    pub fn try_as_regexp(&self) -> Option<&Regexp> {
+        if let TypeValue::Regexp(regexp) = self {
+            regexp.as_ref()
         } else {
             None
         }

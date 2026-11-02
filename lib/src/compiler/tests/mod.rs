@@ -2128,6 +2128,62 @@ fn test_rules_matches_many() {
     scanner.set_global("str_foo", "bar").unwrap();
     let scan_results = scanner.scan(&[]).unwrap();
     assert_eq!(scan_results.matching_rules().len(), 1);
+
+    // Deeply nested groups near `nest_limit` (250) would previously inflate
+    // past 250 when `hir.to_string()` re-wrapped groups and panic at scan time
+    // inside `get_regex_set`. Building directly from HIR avoids re-parsing.
+    let nested = format!("{}[a-z]{}", "([0-9]?(".repeat(60), "))".repeat(60));
+    let mut compiler = Compiler::new();
+    compiler
+        .define_global("str_foo", "")
+        .unwrap()
+        .add_source(
+            format!(
+                r#"
+                rule deep_nested {{
+                    condition:
+                        str_foo matches /{nested}/ or str_foo matches /ba[zt]/
+                }}
+                "#
+            )
+            .as_str(),
+        )
+        .unwrap();
+    let rules = compiler.build();
+    assert_eq!(rules.regex_sets.len(), 1);
+    let mut scanner = Scanner::new(&rules);
+    scanner.set_global("str_foo", "baz").unwrap();
+    assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 1);
+    scanner.set_global("str_foo", "7q").unwrap();
+    assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 1);
+    scanner.set_global("str_foo", "99").unwrap();
+    assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 0);
+
+    // Multiple regexps that individually fit under the 50 MiB NFA limit but
+    // exceed 50 MiB when combined must skip `MatchesMany` collapsing and still
+    // evaluate cleanly without panicking.
+    let mut compiler = Compiler::new();
+    compiler
+        .define_global("str_foo", "")
+        .unwrap()
+        .add_source(
+            r#"
+            rule combined_too_large {
+                condition:
+                    str_foo matches /a.{450000}b/ or
+                    str_foo matches /a.{450000}c/ or
+                    str_foo matches /ba[zt]/
+            }
+            "#,
+        )
+        .unwrap();
+    let rules = compiler.build();
+    assert!(rules.regex_sets.is_empty());
+    let mut scanner = Scanner::new(&rules);
+    scanner.set_global("str_foo", "bat").unwrap();
+    assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 1);
+    scanner.set_global("str_foo", "nope").unwrap();
+    assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 0);
 }
 
 #[test]

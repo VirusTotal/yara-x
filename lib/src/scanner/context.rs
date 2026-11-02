@@ -188,8 +188,7 @@ pub struct ScanContext<'r, 'd> {
     /// automata lazily upon the very first match request and preserves the
     /// compiled automata across all subsequent scans performed by the
     /// scanner instance.
-    pub(crate) regex_set_cache:
-        RefCell<FxHashMap<RegexSetId, regex::bytes::RegexSet>>,
+    pub(crate) regex_set_cache: RefCell<FxHashMap<RegexSetId, Option<Regex>>>,
     /// Engines for custom base64 alphabets used by base64 string modifiers.
     ///
     /// These engines are derived from rule literals and reused across scans.
@@ -334,11 +333,18 @@ impl ScanContext<'_, '_> {
         set_id: crate::compiler::RegexSetId,
         haystack: &[u8],
     ) -> bool {
-        let mut automata_cache = self.regex_set_cache.borrow_mut();
-        let regex_set = automata_cache
+        if let Some(regex_set) = self
+            .regex_set_cache
+            .borrow_mut()
             .entry(set_id)
-            .or_insert_with(|| self.compiled_rules.get_regex_set(set_id));
-        regex_set.is_match(haystack)
+            .or_insert_with(|| self.compiled_rules.get_regex_set(set_id))
+        {
+            return regex_set.is_match(haystack);
+        }
+
+        self.compiled_rules.get_regex_set_ids(set_id).is_some_and(|re_ids| {
+            re_ids.iter().any(|&re_id| self.regexp_matches(re_id, haystack))
+        })
     }
 
     /// Returns the protobuf struct produced by a module.

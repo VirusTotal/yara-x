@@ -526,7 +526,7 @@ fn expr_from_ast<'src>(
                     re_error_to_compile_error(ctx.report_builder, regexp, err)
                 })?;
 
-            hir.build_automata().map_err(|err| {
+            re::hir::Hir::build_automata(&[hir]).map_err(|err| {
                 InvalidRegexp::build(
                     ctx.report_builder,
                     err.to_string(),
@@ -3160,18 +3160,28 @@ fn collapse_or_operands(
         if group.len() >= 2 {
             let first_lhs = group[0].1;
             let collapsed_expr = if kind == OpKind::Matches {
+                let parser = re::parser::Parser::new()
+                    .relaxed_re_syntax(ctx.relaxed_re_syntax);
+                let mut hirs = Vec::with_capacity(group.len());
+                let mut re_ids = Vec::with_capacity(group.len());
+
+                for &(_, _, rhs) in &group {
+                    let re = ctx.ir.get(rhs).as_const().as_regexp();
+                    // `unwrap()` is safe because `re` comes from an
+                    // `ast::Expr::Regexp` operand that was already parsed and
+                    // validated with the same `relaxed_re_syntax` setting.
+                    hirs.push(parser.parse(re).unwrap());
+                    re_ids.push(ctx.regex_pool.get_or_intern(re.as_str()));
+                }
+
+                // Skip collapsing into `MatchesMany` if the combined NFA would
+                // exceed the size limit, keeping the individual `Matches`
+                // expressions intact.
+                if re::hir::Hir::build_automata(&hirs).is_err() {
+                    continue;
+                }
+
                 let set_id = RegexSetId::from(ctx.regex_sets.len() as i32);
-                let re_ids: Vec<_> = group
-                    .iter()
-                    .map(|&(_, _, rhs)| {
-                        let Expr::Const(TypeValue::Regexp(Some(re))) =
-                            ctx.ir.get(rhs)
-                        else {
-                            unreachable!()
-                        };
-                        ctx.regex_pool.get_or_intern(re.as_str())
-                    })
-                    .collect();
                 ctx.regex_sets.insert(set_id, re_ids);
                 ctx.ir.matches_regex_set(first_lhs, set_id)
             } else {
@@ -3179,13 +3189,7 @@ fn collapse_or_operands(
                 let lit_ids: Vec<_> = group
                     .iter()
                     .map(|&(_, _, rhs)| {
-                        let Expr::Const(TypeValue::String {
-                            value: Const(s),
-                            ..
-                        }) = ctx.ir.get(rhs)
-                        else {
-                            unreachable!()
-                        };
+                        let s = ctx.ir.get(rhs).as_const().as_string();
                         ctx.literal_pool.get_or_intern(s.as_bstr())
                     })
                     .collect();

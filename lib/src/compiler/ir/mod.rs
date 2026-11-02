@@ -4016,6 +4016,15 @@ impl Expr {
         }
     }
 
+    /// Panics if the expression is not [`Expr::Const`].
+    pub fn as_const(&self) -> &TypeValue {
+        if let Expr::Const(type_value) = self {
+            type_value
+        } else {
+            panic!("called `as_const` on an Expr that is not Expr::Const")
+        }
+    }
+
     /// If the expression is a constant boolean, returns its value, if not
     /// returns [`None`]
     pub fn try_as_const_bool(&self) -> Option<bool> {
