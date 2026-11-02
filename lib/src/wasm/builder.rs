@@ -6,8 +6,8 @@ use walrus::ValType::{F64, I32, I64};
 use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{BinaryOp, Block, InstrSeqId, LoadKind, MemArg, UnaryOp};
 use walrus::{
-    FunctionBuilder, FunctionId, GlobalId, InstrSeqBuilder, LocalFunction,
-    MemoryId, Module,
+    ConstExpr, FunctionBuilder, FunctionId, GlobalId, GlobalKind,
+    InstrSeqBuilder, LocalFunction, MemoryId, Module,
 };
 
 use super::WasmSymbols;
@@ -15,30 +15,6 @@ use super::WasmSymbols;
 #[derive(Debug)]
 pub(crate) enum Error {
     FunctionTooLarge,
-}
-
-macro_rules! global_var {
-    ($module:ident, $name:ident, $ty:ident) => {
-        let ($name, _) = $module.add_import_global(
-            "yara_x",
-            stringify!($name),
-            $ty,
-            true,  // mutable
-            false, // shared
-        );
-    };
-}
-
-macro_rules! global_const {
-    ($module:ident, $name:ident, $ty:ident) => {
-        let ($name, _) = $module.add_import_global(
-            "yara_x",
-            stringify!($name),
-            $ty,
-            false, // mutable
-            false, // shared
-        );
-    };
 }
 
 /// Builds the WASM module for a set of compiled rules.
@@ -130,6 +106,7 @@ pub(crate) struct WasmModuleBuilder {
     namespace_func: FunctionBuilder,
     rules_func: LocalFunction,
     namespace_block: InstrSeqId,
+    matching_patterns_bitmap_base: GlobalId,
     num_rules: usize,
     num_namespaces: usize,
     namespaces_per_func: usize,
@@ -161,19 +138,48 @@ impl WasmModuleBuilder {
             wasm_exports.insert(fully_qualified_name, func_id);
         }
 
-        global_const!(module, matching_patterns_bitmap_base, I32);
-        global_var!(module, filesize, I64);
-        global_var!(module, pattern_search_done, I32);
+        // The main memory and the global variables are defined by the
+        // module itself instead of being imported. This way the only
+        // imports are host functions, which don't belong to any particular
+        // store.
+        //
+        // The value for `matching_patterns_bitmap_base` and the size of
+        // the main memory depend on the number of rules and patterns, they
+        // are set in `build`.
+        let matching_patterns_bitmap_base = module.globals.add_local(
+            I32,
+            false, // mutable
+            false, // shared
+            ConstExpr::Value(walrus::ir::Value::I32(0)),
+        );
 
-        let (main_memory, _) = module.add_import_memory(
-            "yara_x",
-            "main_memory",
+        // `filesize` is initialized to -1 (which means undefined) because
+        // the file size is not known until some data is scanned.
+        let filesize = module.globals.add_local(
+            I64,
+            true,  // mutable
+            false, // shared
+            ConstExpr::Value(walrus::ir::Value::I64(-1)),
+        );
+
+        // `pattern_search_done` is set to `true` when the Aho-Corasick
+        // pattern search phase has been executed.
+        let pattern_search_done = module.globals.add_local(
+            I32,
+            true,  // mutable
+            false, // shared
+            ConstExpr::Value(walrus::ir::Value::I32(0)),
+        );
+
+        let main_memory = module.memories.add_local(
             false, // shared
             false, // memory64
-            1,
-            None,
-            None,
+            1, None, None,
         );
+
+        module.exports.add("filesize", filesize);
+        module.exports.add("pattern_search_done", pattern_search_done);
+        module.exports.add("main_memory", main_memory);
 
         // Generate the function that checks if a pattern matched.
         let check_for_pattern_match = Self::gen_check_for_pattern_match(
@@ -215,6 +221,7 @@ impl WasmModuleBuilder {
             namespace_func,
             rules_func,
             namespace_block,
+            matching_patterns_bitmap_base,
             num_rules: 0,
             num_namespaces: 0,
             namespaces_per_func: 10,
@@ -359,7 +366,39 @@ impl WasmModuleBuilder {
     }
 
     /// Builds the WASM module and consumes the builder.
-    pub fn build(mut self) -> walrus::Module {
+    ///
+    /// `num_rules` and `num_patterns` are the total number of rules and
+    /// patterns, they determine the size of the main memory.
+    pub fn build(
+        mut self,
+        num_rules: u32,
+        num_patterns: u32,
+    ) -> walrus::Module {
+        // Compute the base offset for the bitmap that contains matching
+        // information for patterns. This bitmap has 1 bit per pattern, the
+        // N-th bit is set if pattern with PatternId = N matched. The bitmap
+        // starts right after the bitmap that contains matching information
+        // for rules.
+        let matching_patterns_bitmap_base =
+            wasm::MATCHING_RULES_BITMAP_BASE as u32 + num_rules.div_ceil(8);
+
+        // Compute the required memory size in 64KB pages.
+        let mem_size = u32::div_ceil(
+            matching_patterns_bitmap_base + num_patterns.div_ceil(8),
+            65536,
+        );
+
+        self.module.globals.get_mut(self.matching_patterns_bitmap_base).kind =
+            GlobalKind::Local(ConstExpr::Value(walrus::ir::Value::I32(
+                matching_patterns_bitmap_base as i32,
+            )));
+
+        let main_memory =
+            self.module.memories.get_mut(self.wasm_symbols.main_memory);
+
+        main_memory.initial = mem_size as u64;
+        main_memory.maximum = Some(mem_size as u64);
+
         self.finish_rule_func();
         self.finish_namespace_block();
         self.finish_namespace_func();

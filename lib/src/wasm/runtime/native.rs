@@ -12,9 +12,8 @@ pub use wasmtime::Caller;
 
 /// Wasmtime types re-exported by the native runtime.
 pub(crate) use wasmtime::{
-    AsContext, AsContextMut, Config, Engine, Extern, FuncType, Global,
-    GlobalType, Instance, Memory, MemoryType, Mutability, OptLevel, Store,
-    TypedFunc, Val, ValRaw, ValType,
+    AsContext, AsContextMut, Config, Engine, FuncType, Global, Instance,
+    Memory, OptLevel, Store, TypedFunc, Val, ValRaw, ValType,
 };
 
 #[derive(Clone)]
@@ -106,18 +105,6 @@ impl<T: 'static> Linker<T> {
                 })
                 .map(|_| ())
         }
-    }
-
-    /// Defines an extern import.
-    pub fn define(
-        &mut self,
-        store: impl AsContext<Data = T>,
-        module: &str,
-        name: &str,
-        item: impl Into<Extern>,
-    ) -> wasmtime::Result<&mut Self> {
-        self.0.define(store, module, name, item)?;
-        Ok(self)
     }
 
     /// Instantiates `module` with the imports currently registered.

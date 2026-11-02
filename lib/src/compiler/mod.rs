@@ -899,7 +899,9 @@ impl<'a> Compiler<'a> {
         };
 
         // Finish building the WASM module.
-        rules.wasm_mod = wasm_mod.build().emit_wasm();
+        rules.wasm_mod = wasm_mod
+            .build(rules.num_rules() as u32, rules.num_patterns() as u32)
+            .emit_wasm();
 
         #[cfg(feature = "logging")]
         let start = Instant::now();
@@ -1184,7 +1186,9 @@ impl<'a> Compiler<'a> {
     where
         P: AsRef<Path>,
     {
-        let mut wasm_mod = self.wasm_mod.build();
+        let mut wasm_mod = self
+            .wasm_mod
+            .build(self.rules.len() as u32, self.next_pattern_id.0 as u32);
         Ok(wasm_mod.emit_wasm_file(path)?)
     }
 
