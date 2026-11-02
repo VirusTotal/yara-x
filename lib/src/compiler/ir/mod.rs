@@ -3813,11 +3813,13 @@ impl Expr {
             }
 
             Expr::OfExprTuple(of) => {
+                replace_in_quantifier(&mut of.quantifier);
                 replace_in_slice(of.items.as_mut_slice());
                 replace_in_anchor(&mut of.anchor);
             }
 
             Expr::OfPatternSet(of) => {
+                replace_in_quantifier(&mut of.quantifier);
                 replace_in_anchor(&mut of.anchor);
             }
 
@@ -3830,6 +3832,17 @@ impl Expr {
 
             Expr::ForIn(for_in) => {
                 replace_in_quantifier(&mut for_in.quantifier);
+                match &mut for_in.iterable {
+                    Iterable::Range(range) => replace_in_range(range),
+                    Iterable::ExprTuple(exprs) => {
+                        replace_in_slice(exprs.as_mut_slice())
+                    }
+                    Iterable::Expr(expr) => {
+                        if *expr == child {
+                            *expr = replacement;
+                        }
+                    }
+                }
                 if for_in.body == child {
                     for_in.body = replacement
                 }
