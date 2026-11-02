@@ -1284,7 +1284,9 @@ fn verify_literal(
     flags: SubPatternFlags,
 ) -> bool {
     // Offset where the match should end (exclusive).
-    let match_end = match_start + pattern.len();
+    let Some(match_end) = match_start.checked_add(pattern.len()) else {
+        return false;
+    };
 
     // The match can not end past the end of the scanned data.
     if match_end > scanned_data.len() {
@@ -2318,4 +2320,19 @@ pub fn create_wasm_store_and_ctx<'r>(
     ctx.wasm.pattern_search_done = Some(pattern_search_done);
 
     wasm_store
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SubPatternFlags, verify_literal};
+
+    #[test]
+    fn verify_literal_overflow() {
+        assert!(!verify_literal(
+            b"ab",
+            b"abcdef",
+            usize::MAX,
+            SubPatternFlags::empty(),
+        ));
+    }
 }
