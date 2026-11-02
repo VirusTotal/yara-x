@@ -542,3 +542,22 @@ fn cst_recovery_and_error_merging() {
     }
     assert!(has_error);
 }
+
+#[test]
+fn cst_try_from_filtered_stream() {
+    let src = br#"
+/* header comment */
+rule test {
+    condition: true // trailing comment
+}
+"#;
+
+    let stream = CSTStream::from(Parser::new(src))
+        .whitespaces(false)
+        .newlines(false)
+        .comments(false);
+    let cst = CST::try_from(stream).unwrap();
+
+    assert_eq!(cst.root().text(), "ruletest{condition:true}");
+}
+

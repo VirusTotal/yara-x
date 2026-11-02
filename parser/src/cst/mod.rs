@@ -311,6 +311,7 @@ where
     /// Creates a [`CST`] from the given [`CSTStream`].
     fn try_from(cst: CSTStream<'src, I>) -> Result<Self, Utf8Error> {
         let source = cst.source();
+        let lossless = cst.whitespaces && cst.newlines && cst.comments;
         let mut builder = rowan::GreenNodeBuilder::new();
         let mut prev_token_span: Option<Span> = None;
         let mut errors = Vec::new();
@@ -320,16 +321,27 @@ where
                 Event::Begin { kind, .. } => builder.start_node(kind.into()),
                 Event::End { .. } => builder.finish_node(),
                 Event::Token { kind, span } => {
-                    // Make sure that the CST covers the whole source code,
-                    // each must start where the previous one ended.
+                    // When all trivia tokens are retained, the CST must cover
+                    // the whole source code without gaps. When trivia filtering
+                    // is enabled on `CSTStream`, skipped trivia creates
+                    // expected gaps (`prev_token_span.end() <= span.start()`).
                     if let Some(prev_token_span) = prev_token_span {
-                        assert_eq!(
-                            prev_token_span.end(),
-                            span.start(),
-                            "gap in the CST, one token ends at {} and the next one starts at {}",
-                            prev_token_span.end(),
-                            span.start(),
-                        );
+                        if lossless {
+                            assert_eq!(
+                                prev_token_span.end(),
+                                span.start(),
+                                "gap in the CST, one token ends at {} and the next one starts at {}",
+                                prev_token_span.end(),
+                                span.start(),
+                            );
+                        } else {
+                            assert!(
+                                prev_token_span.end() <= span.start(),
+                                "overlapping tokens in the CST, one token ends at {} and the next one starts at {}",
+                                prev_token_span.end(),
+                                span.start(),
+                            );
+                        }
                     }
                     // The span must be within the source code, this unwrap
                     // can't fail.
