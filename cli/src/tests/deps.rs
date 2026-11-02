@@ -426,3 +426,66 @@ fn field_access_hiding_ident() {
         )
         .success();
 }
+
+#[test]
+fn self_referential_rule() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.child("rule.yar");
+
+    input_file.write_str("rule a { condition: a }").unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .arg("deps")
+        .arg(input_file.path())
+        .assert()
+        .stdout(
+            r#" a
+
+"#,
+        )
+        .success();
+}
+
+#[test]
+fn rule_named_after_module() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.child("rule.yar");
+
+    input_file.write_str("rule pe { condition: pe.is_dll() }").unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .arg("deps")
+        .arg(input_file.path())
+        .assert()
+        .stdout(
+            r#" pe
+ └─ mod: pe
+
+"#,
+        )
+        .success();
+}
+
+#[test]
+fn mutually_referencing_rules() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_file = temp_dir.child("rule.yar");
+
+    input_file
+        .write_str("rule a { condition: b } rule b { condition: a }")
+        .unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .arg("deps")
+        .arg(input_file.path())
+        .assert()
+        .stdout(
+            r#" a
+
+ b
+ └─ a
+
+"#,
+        )
+        .success();
+}
