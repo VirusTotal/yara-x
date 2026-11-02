@@ -1,9 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::collections::hash_map::Entry;
 use std::fs;
-use std::fs::File;
-use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -184,56 +181,95 @@ pub fn exec_fix_warnings(
 
     let (rules, _) = compile_rules(rules_path, args, config)?;
 
-    let mut patches_per_origin = HashMap::new();
-    let mut num_warnings = 0;
-    let mut num_warnings_with_patch = 0;
-    let mut counted;
+    let mut patches_per_origin: HashMap<String, Vec<(usize, Patch)>> =
+        HashMap::new();
+    let mut warning_total_patches = Vec::new();
 
-    // Create a map where keys are file paths (stored in patch.origin), and
-    // values are a list of patches that must be applied to that file. Patches
-    // are ordered by their starting positions in the file.
-    for warning in rules.warnings() {
-        num_warnings += 1;
-        counted = false;
+    // Group patches by file path (`patch.origin()`), keeping track of which
+    // warning produced each patch.
+    for (warning_idx, warning) in rules.warnings().iter().enumerate() {
+        let mut count = 0;
         for patch in warning.patches() {
-            if !counted {
-                num_warnings_with_patch += 1;
-                counted = true;
-            }
-            match patches_per_origin.entry(patch.origin().unwrap()) {
-                Entry::Occupied(mut entry) => {
-                    let patches: &mut Vec<Patch> = entry.get_mut();
-                    patches.push(patch);
-                    patches.sort_by_key(|patch| patch.span().start());
+            let Some(origin) = patch.origin() else {
+                continue;
+            };
+            count += 1;
+            patches_per_origin
+                .entry(origin)
+                .or_default()
+                .push((warning_idx, patch));
+        }
+        warning_total_patches.push(count);
+    }
+
+    let num_warnings = warning_total_patches.len();
+    let mut warning_applied_patches = vec![0usize; num_warnings];
+    let mut files_modified = 0usize;
+
+    for (origin, patches) in &mut patches_per_origin {
+        // Order patches by start offset, preferring wider (outer) spans first
+        // when two patches start at the same offset, and grouping identical
+        // replacements together.
+        patches.sort_by(|(_, a), (_, b)| {
+            a.span()
+                .start()
+                .cmp(&b.span().start())
+                .then_with(|| b.span().end().cmp(&a.span().end()))
+                .then_with(|| a.replacement().cmp(b.replacement()))
+        });
+
+        let input = fs::read(origin)?;
+        let mut output = Vec::with_capacity(input.len());
+        let mut input_pos = 0;
+        let mut last_applied = None;
+
+        for (warning_idx, patch) in patches.iter() {
+            let warning_span = patch.span();
+
+            // Deduplicate identical patches (for instance, when the same file
+            // is included across multiple namespaces).
+            if let Some((ref prev_span, prev_repl)) = last_applied
+                && warning_span == *prev_span
+            {
+                if patch.replacement() == prev_repl {
+                    warning_applied_patches[*warning_idx] += 1;
                 }
-                Entry::Vacant(entry) => {
-                    entry.insert(vec![patch]);
-                }
+                continue;
             }
+
+            // Skip inner/overlapping patches whose enclosing span was already
+            // rewritten in this pass, as well as any out-of-bounds spans.
+            if warning_span.start() < input_pos
+                || warning_span.start() > warning_span.end()
+                || warning_span.end() > input.len()
+            {
+                continue;
+            }
+
+            // Append all bytes from the current position to the start of the
+            // replaced span, followed by the replacement text.
+            output.extend_from_slice(&input[input_pos..warning_span.start()]);
+            output.extend_from_slice(patch.replacement().as_bytes());
+            input_pos = warning_span.end();
+            last_applied = Some((warning_span, patch.replacement()));
+            warning_applied_patches[*warning_idx] += 1;
+        }
+
+        if last_applied.is_some() {
+            output.extend_from_slice(&input[input_pos..]);
+            fs::write(origin, &output)?;
+            files_modified += 1;
         }
     }
 
-    for (origin, patches) in &patches_per_origin {
-        let input = fs::read(origin)?;
-        let mut output = File::create(origin)?;
-        let mut input_pos = 0;
-        for patch in patches {
-            let warning_span = patch.span();
-            // Write all bytes from the current position, to the offset where
-            // the replaced text starts.
-            output.write_all(&input[input_pos..warning_span.start()])?;
-            // Write the replacement.
-            output.write_all(patch.replacement().as_bytes())?;
-            // Now the current position is the offset where the replaced text
-            // ends.
-            input_pos = warning_span.end();
-        }
-        output.write_all(&input[input_pos..])?;
-    }
+    let num_warnings_fixed = warning_total_patches
+        .iter()
+        .zip(&warning_applied_patches)
+        .filter(|&(total, applied)| *total > 0 && total == applied)
+        .count();
 
     println!(
-        "{num_warnings_with_patch} out of {num_warnings} warning(s) fixed, {} file(s) modified",
-        patches_per_origin.len()
+        "{num_warnings_fixed} out of {num_warnings} warning(s) fixed, {files_modified} file(s) modified",
     );
 
     Ok(())
