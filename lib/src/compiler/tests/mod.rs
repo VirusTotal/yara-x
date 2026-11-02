@@ -2713,3 +2713,43 @@ fn test_hex_large_and_coalesced_jumps() {
         );
     }
 }
+
+#[test]
+fn test_non_matching_rules_page_boundary() {
+    use crate::compiler::RuleInfo;
+    use crate::wasm::MATCHING_RULES_BITMAP_BASE;
+
+    // Also verify 0 rules (`num_rules == 0`).
+    let empty_rules = compile("").unwrap();
+    let mut scanner = Scanner::new(&empty_rules);
+    let results = scanner.scan(b"").unwrap();
+    assert_eq!(results.non_matching_rules().count(), 0);
+
+    // Populate `rules` so `MATCHING_RULES_BITMAP_BASE + num_rules.div_ceil(8)`
+    // lands on an exact 65,536-byte WASM page boundary (`382,976` rules with
+    // `num_patterns == 0`).
+    let mut rules = compile("rule r { condition: false }").unwrap();
+    let exact_page_rules = (65536 - MATCHING_RULES_BITMAP_BASE as usize) * 8;
+    let namespace_id = rules.rules[0].namespace_id;
+    let namespace_ident_id = rules.rules[0].namespace_ident_id;
+    let ident_id = rules.rules[0].ident_id;
+    let ident_ref = rules.rules[0].ident_ref.clone();
+
+    rules.rules.resize_with(exact_page_rules, || RuleInfo {
+        namespace_id,
+        namespace_ident_id,
+        ident_id,
+        tags: Vec::new(),
+        ident_ref: ident_ref.clone(),
+        metadata: Vec::new(),
+        patterns: Vec::new(),
+        num_private_patterns: 0,
+        is_global: false,
+        is_private: false,
+    });
+
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(b"").unwrap();
+    assert_eq!(results.non_matching_rules().len(), exact_page_rules);
+    assert_eq!(results.non_matching_rules().count(), exact_page_rules);
+}

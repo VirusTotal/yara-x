@@ -985,7 +985,7 @@ impl<'a, 'r> NonMatchingRules<'a, 'r> {
         // Create a BitSlice that covers the region of main memory containing
         // the bitmap that tells which rules matched and which did not.
         let matching_rules_bitmap = BitSlice::<_, Lsb0>::from_slice(
-            &main_memory[base..base + num_rules / 8 + 1],
+            &main_memory[base..base + num_rules.div_ceil(8)],
         );
 
         // The BitSlice will cover more bits than necessary, for example, if
