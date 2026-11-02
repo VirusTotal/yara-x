@@ -986,13 +986,41 @@ impl<M: Clone> Node<M> {
     /// Returns the position (line and column) where this node starts.
     #[inline]
     pub fn start_pos<E: Encoding>(&self) -> Position<E> {
-        self.first_token().unwrap().start_pos()
+        if let Some(tok) = self.first_token() {
+            tok.start_pos()
+        } else {
+            self.empty_node_pos()
+        }
     }
 
     /// Returns the position (line and column) where this node ends.
     #[inline]
     pub fn end_pos<E: Encoding>(&self) -> Position<E> {
-        self.last_token().unwrap().end_pos()
+        if let Some(tok) = self.last_token() {
+            tok.end_pos()
+        } else {
+            self.empty_node_pos()
+        }
+    }
+
+    /// Computes the `(line, column)` position of a node that contains no
+    /// descendant tokens (such as the root of an empty source file, a
+    /// trivia-filtered node, or a node whose tokens were detached) by locating
+    /// the closest preceding token in the CST.
+    fn empty_node_pos<E: Encoding>(&self) -> Position<E> {
+        for ancestor in iter::once(self.clone()).chain(self.ancestors()) {
+            for sibling in ancestor.siblings_with_tokens(Direction::Prev) {
+                match sibling {
+                    NodeOrToken::Token(tok) => return tok.end_pos(),
+                    NodeOrToken::Node(node) => {
+                        if let Some(tok) = node.last_token() {
+                            return tok.end_pos();
+                        }
+                    }
+                }
+            }
+        }
+        Position::from((0, 0))
     }
 
     /// Returns the parent of this node.
