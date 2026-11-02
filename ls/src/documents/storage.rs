@@ -550,4 +550,55 @@ mod tests {
 
         assert!(!storage.cached.contains_key(&uri));
     }
+
+    #[test]
+    fn test_cached_cst_divergent_text() {
+        use std::sync::Arc;
+
+        use async_lsp::lsp_types::{Position, Range};
+
+        use crate::features::{
+            document_symbol::document_symbol, inlay_hint::inlay_hint,
+        };
+
+        let storage = Arc::new(DocumentStorage::new());
+        let uri = Url::parse("file:///project/divergent.yar").unwrap();
+
+        // Simulate opening a file, making unsaved edits that make the buffer
+        // much longer, closing with workspace caching enabled, and reopening
+        // the shorter on-disk version.
+        let on_disk = "import \"pe\"\nrule short {\n  condition:\n    with x = pe.entry_point : ( x == 0 )\n}";
+        let unsaved_longer = format!(
+            "{}\n{}",
+            "// padding comment to shift all spans past on_disk.len()\n"
+                .repeat(10),
+            on_disk
+        );
+
+        storage.insert(uri.clone(), unsaved_longer);
+        storage.remove(&uri, true);
+        assert!(storage.cached.contains_key(&uri));
+
+        storage.insert(uri.clone(), on_disk.to_string());
+        assert_eq!(storage.get(&uri).unwrap().cst.root().text(), on_disk);
+
+        let symbols = document_symbol(Arc::clone(&storage), uri.clone());
+        assert!(symbols.is_some());
+
+        let hints = inlay_hint(
+            Arc::clone(&storage),
+            uri.clone(),
+            Range::new(Position::new(0, 0), Position::new(4, 0)),
+        );
+        assert_eq!(hints.unwrap().len(), 1);
+
+        // Also simulate CRLF cached from disk followed by LF-normalized text in
+        // `didOpen`.
+        let crlf_text = on_disk.replace('\n', "\r\n");
+        storage.remove(&uri, false);
+        storage.cached.insert(uri.clone(), CST::from(crlf_text.as_str()));
+        storage.insert(uri.clone(), on_disk.to_string());
+        assert_eq!(storage.get(&uri).unwrap().cst.root().text(), on_disk);
+        assert!(document_symbol(Arc::clone(&storage), uri).is_some());
+    }
 }
