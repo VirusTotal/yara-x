@@ -917,7 +917,11 @@ impl IR {
             };
 
             let symbol = match self.get(current_expr_id) {
-                Expr::Symbol(symbol) => symbol,
+                Expr::Symbol(symbol)
+                | Expr::PatternMatchVar { symbol, .. }
+                | Expr::PatternCountVar { symbol, .. }
+                | Expr::PatternOffsetVar { symbol, .. }
+                | Expr::PatternLengthVar { symbol, .. } => symbol,
                 _ => continue,
             };
 
@@ -935,17 +939,20 @@ impl IR {
                     Expr::ForIn(for_in) => {
                         for_in.variables.iter().any(|v| v.index() == var)
                     }
+                    Expr::ForOf(for_of) => for_of.for_vars.item.index() == var,
                     _ => false,
                 }) {
                     Some(stmt) => stmt,
                     None => continue,
                 };
 
-            // Iterate the ancestors of the current statement up to the
+            // Iterate the current expression and its ancestors up to the
             // statement that declared the variable (not included), and mark
-            // them as dependent on that variable.
-            for ancestor in self
-                .ancestors(current_expr_id)
+            // them as dependent on that variable. Including `current_expr_id`
+            // itself is required for `Pattern*Var` nodes, which directly
+            // reference `for_of.for_vars.item` without a child `Expr::Symbol`.
+            for ancestor in std::iter::once(current_expr_id)
+                .chain(self.ancestors(current_expr_id))
                 .take_while(|ancestor| ancestor.ne(&stmt_declaring_var))
             {
                 match &mut depends_on[ancestor.0 as usize] {

@@ -1664,3 +1664,32 @@ fn hoisting_in_for_in_iterable() {
     assert_eq!(scanner.scan(b"ABCD").unwrap().matching_rules().len(), 0);
 }
 
+#[test]
+fn hoisting_for_of_pattern_vars() {
+    let mut compiler = crate::Compiler::new();
+    compiler
+        .condition_optimization(true)
+        .add_source(
+            r#"
+            rule test {
+                strings:
+                    $a = "zzz"
+                    $b = "abc"
+                condition:
+                    for any i in (0..1) : (
+                        i == 0 and
+                        for any of ($a, $b) : (
+                            $ and # == 1 and @[1] == 0 and ![1] == 3
+                        )
+                    )
+            }
+            "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(b"abc").unwrap().matching_rules().len(), 1);
+    assert_eq!(scanner.scan(b"def").unwrap().matching_rules().len(), 0);
+}
+
