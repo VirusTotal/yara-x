@@ -173,7 +173,7 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
             let mut serializer = JsonSerializer::new(stdout());
             serializer
                 .with_colors(use_color)
-                .with_format(JsonFormat::YrDump)
+                .with_format(JsonFormat::Legacy)
                 .serialize(module_output.as_ref())?;
             println!();
         }

@@ -24,7 +24,7 @@ never serialized as JSON arrays. This means that the JSON can be decoded
 back without mistaking a map for an encoded value.
 
 This is the [`Format::Default`] format. The `yr dump` command uses
-[`Format::YrDump`] instead, which keeps the format it has always produced:
+[`Format::Legacy`] instead, which keeps the format it has always produced:
 
 ```json
 {
@@ -79,7 +79,7 @@ pub enum Format {
     /// `{ "encoding": "base64", "value": "..." }` for bytes, and
     /// `{ "encoding": "timestamp", "value": ... }` for timestamps. Used only
     /// by `yr dump`, for backward compatibility.
-    YrDump,
+    Legacy,
 }
 
 /// Serializes a protobuf to JSON format.
@@ -146,7 +146,7 @@ impl<W: Write> Serializer<W> {
                     "{{ \"$timestamp\": [{}] }}",
                     value.to_string()
                 ),
-                Format::YrDump => write!(
+                Format::Legacy => write!(
                     self.output,
                     "{{ \"encoding\": \"timestamp\", \"value\": {} }}",
                     value.to_string()
@@ -319,7 +319,7 @@ impl<W: Write> Serializer<W> {
                         "{{ \"$bytes\": [\"{}\"] }}",
                         encoded
                     )?,
-                    Format::YrDump => write!(
+                    Format::Legacy => write!(
                         self.output,
                         "{{ \"encoding\": \"base64\", \"value\": \"{}\"}}",
                         encoded

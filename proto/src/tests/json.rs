@@ -21,7 +21,7 @@ fn json_serializer() {
         // The .out file has the output in the default format, and the
         // .yr_dump.out file has the output in the format used by `yr dump`.
         for (format, extension) in
-            [(Format::Default, "out"), (Format::YrDump, "yr_dump.out")]
+            [(Format::Default, "out"), (Format::Legacy, "yr_dump.out")]
         {
             let out_path = in_path.with_extension(extension);
             let output_file = mint.new_goldenfile(out_path).unwrap();
