@@ -992,15 +992,12 @@ impl<'a> Compiler<'a> {
         self
     }
 
-    /// Tell the compiler that a YARA module is not supported.
+    /// Tell the compiler that a YARA module should be ignored.
     ///
     /// Import statements for ignored modules will be ignored without errors,
     /// but a warning will be issued. Any rule that makes use of an ignored
     /// module will be also ignored, while the rest of the rules that don't
     /// rely on that module will be correctly compiled.
-    ///
-    /// A module is ignored even if YARA-X implements it, which is useful for
-    /// modules that are only partially supported.
     pub fn ignore_module<M: Into<String>>(&mut self, module: M) -> &mut Self {
         self.ignored_modules.insert(module.into());
         self
