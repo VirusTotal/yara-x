@@ -348,7 +348,7 @@ enum YRX_RESULT yrx_compiler_add_source_with_origin(struct YRX_COMPILER *compile
 enum YRX_RESULT yrx_compiler_add_include_dir(struct YRX_COMPILER *compiler,
                                              const char *dir);
 
-// Tell the compiler that a YARA module is not supported.
+// Tell the compiler that a YARA module should be ignored.
 //
 // Import statements for ignored modules will be ignored without errors but a
 // warning will be issued. Any rule that make use of an ignored module will be

@@ -682,7 +682,7 @@ impl Compiler {
         self.inner.new_namespace(namespace);
     }
 
-    /// Tell the compiler that a YARA module is not supported.
+    /// Tell the compiler that a YARA module should be ignored.
     ///
     /// Import statements for ignored modules will be ignored without errors,
     /// but a warning will be issued. Any rule that makes use of an ignored
