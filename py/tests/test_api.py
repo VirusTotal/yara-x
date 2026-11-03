@@ -168,7 +168,7 @@ def test_namespaces():
 
 
 def test_metadata():
-  rules = yara_x.compile('''
+  rules = yara_x.compile(r'''
 	rule test {
 		meta:
 			foo = 1
@@ -188,8 +188,12 @@ def test_metadata():
       ("bar", 2.0),
       ("baz", True),
       ("qux", "qux"),
-      ("quux", "qu\x00x")
+      ("quux", b"qu\x00x"),
   )
+
+  rules = yara_x.compile('rule test { meta: raw_nul = "qu\x00x" condition: true }')
+  matching_rules = rules.scan(b'').matching_rules
+  assert matching_rules[0].metadata == (("raw_nul", b"qu\x00x"),)
 
 
 def test_tags():
