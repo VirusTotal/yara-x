@@ -2232,12 +2232,11 @@ pub fn create_wasm_store_and_ctx<'r>(
     wasm_store.data_mut().wasm.store =
         NonNull::from(wasm_store.as_ref().deref());
 
-    // Instantiate the module. This takes the wasm code provided by the
-    // `wasm_mod` function and links its imported functions with the
-    // implementations that YARA provides.
-    let wasm_instance = wasm::get_linker()
-        .instantiate(wasm_store.as_context_mut(), rules.wasm_mod())
-        .unwrap();
+    // Instantiate the module. The module's imports were already resolved
+    // when the rules were compiled or deserialized, see
+    // `Rules::resolve_wasm_imports`.
+    let wasm_instance =
+        rules.instance_pre().instantiate(wasm_store.as_context_mut()).unwrap();
 
     // The main memory and the global variables are defined and exported by
     // the module itself, see `WasmModuleBuilder::new`.

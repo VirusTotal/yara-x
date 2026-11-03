@@ -24,6 +24,8 @@ pub(crate) use super::common::{
 pub type Caller<'a, T> = common::Caller<'a, T, Backend>;
 /// Alias for [`common::Instance`] specialized for the browser backend.
 pub(crate) type Instance = common::Instance<Backend>;
+/// Alias for [`common::InstancePre`] specialized for the browser backend.
+pub(crate) type InstancePre<T> = common::InstancePre<T, Backend>;
 /// Alias for [`common::Linker`] specialized for the browser backend.
 pub(crate) type Linker<T> = common::Linker<T, Backend>;
 /// Alias for [`common::Memory`] specialized for the browser backend.

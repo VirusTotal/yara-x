@@ -141,7 +141,8 @@ impl WasmModuleBuilder {
         // The main memory and the global variables are defined by the
         // module itself instead of being imported. This way the only
         // imports are host functions, which don't belong to any particular
-        // store.
+        // store, and the module's imports can be resolved once per set of
+        // rules instead of once per scanner. See `Rules::instance_pre`.
         //
         // The value for `matching_patterns_bitmap_base` and the size of
         // the main memory depend on the number of rules and patterns, they

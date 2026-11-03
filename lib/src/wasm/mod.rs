@@ -838,8 +838,10 @@ pub(crate) unsafe fn free_engine() {
 ///
 /// Building the linker requires registering every function exported to
 /// WASM code, which is expensive and produces the same result every time.
-/// For this reason, the linker is built only once and shared by every
-/// scanner. It needs to be mutable so that [`free_engine`] can destroy it.
+/// For this reason, the linker is built only once and reused every time
+/// the imports of a WASM module are resolved, which happens once per set
+/// of compiled rules (see `Rules::resolve_wasm_imports`). It needs to be
+/// mutable so that [`free_engine`] can destroy it.
 static mut LINKER: OnceLock<Linker<ScanContext<'static, 'static>>> =
     OnceLock::new();
 

@@ -25,6 +25,7 @@ use crate::compiler::{
 };
 use crate::models::PatternKind;
 use crate::re::{BckCodeLoc, FwdCodeLoc, RegexpAtom};
+use crate::scanner::ScanContext;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::{Rule, re, teddy, types, wasm};
 
@@ -152,6 +153,15 @@ pub struct Rules {
         deserialize_with = "deserialize_wasm_mod"
     )]
     pub(in crate::compiler) compiled_wasm_mod: Option<wasm::runtime::Module>,
+
+    /// The compiled WASM module with all its imports already resolved, ready
+    /// to be instantiated by each scanner. It is created right after
+    /// `compiled_wasm_mod`, both when the rules are compiled and when they
+    /// are deserialized, so that creating a scanner only needs to instantiate
+    /// the module. See [`Rules::resolve_wasm_imports`].
+    #[serde(skip)]
+    pub(in crate::compiler) instance_pre:
+        Option<wasm::runtime::InstancePre<ScanContext<'static, 'static>>>,
 
     /// Vector with the names of all the imported modules. The vector contains
     /// the [`IdentId`] corresponding to the module's identifier.
@@ -377,6 +387,8 @@ impl Rules {
             #[cfg(feature = "logging")]
             info!("WASM build time: {:?}", Instant::elapsed(&start));
         }
+
+        rules.resolve_wasm_imports()?;
 
         rules.ac.rebuild_teddy(rules.atoms.iter().map(|x| x.atom.as_ref()));
 
@@ -698,6 +710,36 @@ impl Rules {
         self.compiled_wasm_mod.as_ref().unwrap()
     }
 
+    /// Returns the compiled WASM module with its imports already resolved.
+    ///
+    /// # Panics
+    ///
+    /// If [`Rules::resolve_wasm_imports`] was not called before.
+    #[inline]
+    pub(crate) fn instance_pre(
+        &self,
+    ) -> &wasm::runtime::InstancePre<ScanContext<'static, 'static>> {
+        self.instance_pre.as_ref().unwrap()
+    }
+
+    /// Resolves the imports of the compiled WASM module.
+    ///
+    /// The only imports in the module are the host functions registered in
+    /// the global linker (see [`wasm::get_linker`]), which don't depend on
+    /// any particular scanner. Resolving them once per set of rules, instead
+    /// of once per scanner, is what makes creating a scanner cheap. The
+    /// result is stored in `instance_pre` and used by every scanner created
+    /// for these rules.
+    ///
+    /// This must be called after `compiled_wasm_mod` is set.
+    pub(in crate::compiler) fn resolve_wasm_imports(
+        &mut self,
+    ) -> Result<(), SerializationError> {
+        self.instance_pre =
+            Some(wasm::get_linker().instantiate_pre(self.wasm_mod())?);
+        Ok(())
+    }
+
     #[inline]
     pub(crate) fn filesize_bounds(
         &self,
@@ -766,6 +808,15 @@ where
 
     Ok(module)
 }
+
+// `Rules` are shared between scanners, which may run in different threads.
+// This guarantees at compile time that they can be sent and shared across
+// threads, which is particularly relevant for `instance_pre`, as it is the
+// only field whose type is generic over `ScanContext`.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<Rules>();
+};
 
 /// Iterator that yields the of the compiled rules.
 pub struct RulesIter<'a> {
