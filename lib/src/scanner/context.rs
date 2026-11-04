@@ -44,8 +44,7 @@ use crate::scanner::{HEARTBEAT_COUNTER, INIT_HEARTBEAT};
 use crate::types::{Array, Map, Struct, TypeValue};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
 use crate::wasm::runtime::{
-    AsContext, AsContextMut, Global, GlobalType, Instance, MemoryType,
-    Mutability, Store, TypedFunc, Val, ValType,
+    AsContextMut, Global, Instance, Store, TypedFunc, Val,
 };
 use crate::{Variable, wasm};
 
@@ -2234,24 +2233,12 @@ pub fn create_wasm_store_and_ctx<'r>(
     wasm_store.data_mut().wasm.store =
         NonNull::from(wasm_store.as_ref().deref());
 
-    // Global variable that will hold the value for `filesize`. This is
-    // initialized to -1 (which means undefined) because the file size
-    // is not known until some data is scanned.
-    let filesize = Global::new(
-        wasm_store.as_context_mut(),
-        GlobalType::new(ValType::I64, Mutability::Var),
-        Val::I64(-1),
-    )
-    .unwrap();
-
-    // Global variable that is set to `true` when the Aho-Corasick pattern
-    // search phase has been executed.
-    let pattern_search_done = Global::new(
-        wasm_store.as_context_mut(),
-        GlobalType::new(ValType::I32, Mutability::Var),
-        Val::I32(0),
-    )
-    .unwrap();
+    // Instantiate the module. This takes the wasm code provided by the
+    // `wasm_mod` function and links its imported functions with the
+    // implementations that YARA provides.
+    let wasm_instance = wasm::get_linker()
+        .instantiate(wasm_store.as_context_mut(), rules.wasm_mod())
+        .unwrap();
 
     // Compute the base offset for the bitmap that contains matching
     // information for patterns. This bitmap has 1 bit per pattern, the
@@ -2267,43 +2254,36 @@ pub fn create_wasm_store_and_ctx<'r>(
         65536,
     );
 
-    let matching_patterns_bitmap_base = Global::new(
-        wasm_store.as_context_mut(),
-        GlobalType::new(ValType::I32, Mutability::Const),
-        Val::I32(matching_patterns_bitmap_base as i32),
-    )
-    .unwrap();
+    // The main memory and the global variables are defined and exported by
+    // the module itself, see `WasmModuleBuilder::new`.
+    let main_memory = wasm_instance
+        .get_memory(wasm_store.as_context_mut(), "main_memory")
+        .unwrap();
 
-    // Create module's main memory.
-    let main_memory = wasm::runtime::Memory::new(
-        wasm_store.as_context_mut(),
-        MemoryType::new(mem_size, Some(mem_size)),
-    )
-    .unwrap();
+    if mem_size > 1 {
+        main_memory
+            .grow(wasm_store.as_context_mut(), (mem_size - 1) as u64)
+            .unwrap();
+    }
 
-    // Instantiate the module. This takes the wasm code provided by the
-    // `wasm_mod` function and links its imported functions with the
-    // implementations that YARA provides.
-    let wasm_instance = wasm::new_linker()
-        .define(wasm_store.as_context(), "yara_x", "filesize", filesize)
-        .unwrap()
-        .define(
-            wasm_store.as_context(),
-            "yara_x",
-            "pattern_search_done",
-            pattern_search_done,
-        )
-        .unwrap()
-        .define(
-            wasm_store.as_context(),
-            "yara_x",
+    wasm_instance
+        .get_global(
+            wasm_store.as_context_mut(),
             "matching_patterns_bitmap_base",
-            matching_patterns_bitmap_base,
         )
         .unwrap()
-        .define(wasm_store.as_context(), "yara_x", "main_memory", main_memory)
-        .unwrap()
-        .instantiate(wasm_store.as_context_mut(), rules.wasm_mod())
+        .set(
+            wasm_store.as_context_mut(),
+            Val::I32(matching_patterns_bitmap_base as i32),
+        )
+        .unwrap();
+
+    let filesize = wasm_instance
+        .get_global(wasm_store.as_context_mut(), "filesize")
+        .unwrap();
+
+    let pattern_search_done = wasm_instance
+        .get_global(wasm_store.as_context_mut(), "pattern_search_done")
         .unwrap();
 
     // Obtain a reference to the "main" function exported by the module.
