@@ -101,6 +101,13 @@ pub(crate) trait RuntimeBackend:
     fn memory_data_ptr(runtime: &mut Self::RuntimeState, id: usize)
     -> *mut u8;
 
+    /// Grows the memory identified by `id` by `delta` pages.
+    fn grow_memory(
+        runtime: &mut Self::RuntimeState,
+        id: usize,
+        delta: u64,
+    ) -> Result<u64>;
+
     /// Creates a module from raw WASM bytes.
     fn module_from_binary(
         engine: &Engine,
@@ -535,11 +542,7 @@ pub(crate) struct Memory {
 pub(crate) struct Linker<T, B: RuntimeBackend> {
     /// Functions registered in the linker.
     pub(crate) functions: Vec<RegisteredFunc<T, B>>,
-    /// The linker doesn't own any `T`, it only calls functions that receive
-    /// one. `fn() -> T` makes the linker `Send + Sync` regardless of `T`,
-    /// exactly like `wasmtime::Linker`, which is required because a linker
-    /// is stored (via `InstancePre`) in `Rules`.
-    _phantom: PhantomData<fn() -> T>,
+    _phantom: PhantomData<T>,
 }
 
 pub(crate) type Trampoline<T, B> = Box<
@@ -550,24 +553,6 @@ pub(crate) type Trampoline<T, B> = Box<
 >;
 
 pub(crate) type TrampolineResult = Result<()>;
-
-impl<T, B: RuntimeBackend> Clone for RegisteredFunc<T, B> {
-    fn clone(&self) -> Self {
-        Self {
-            module: self.module.clone(),
-            name: self.name.clone(),
-            ty: self.ty.clone(),
-            sync_flags: self.sync_flags,
-            trampoline: self.trampoline.clone(),
-        }
-    }
-}
-
-impl<T, B: RuntimeBackend> Clone for Linker<T, B> {
-    fn clone(&self) -> Self {
-        Self { functions: self.functions.clone(), _phantom: PhantomData }
-    }
-}
 
 impl<T: 'static, B: RuntimeBackend> Linker<T, B> {
     /// Creates an empty linker.
@@ -604,21 +589,6 @@ impl<T: 'static, B: RuntimeBackend> Linker<T, B> {
         });
 
         TrampolineResult::Ok(())
-    }
-
-    /// Resolves the imports of `module` with the functions currently
-    /// registered, so that it can be instantiated multiple times without
-    /// resolving them again.
-    ///
-    /// The custom runtimes resolve the imports when the module is
-    /// instantiated, so this simply bundles a copy of the linker with the
-    /// module. It exists for compatibility with Wasmtime's API, where
-    /// resolving the imports up front is what makes instantiation cheap.
-    pub fn instantiate_pre(
-        &self,
-        module: &Module<B>,
-    ) -> Result<InstancePre<T, B>> {
-        Ok(InstancePre { linker: self.clone(), module: module.clone() })
     }
 
     /// Instantiates `module` with the imports currently registered.
@@ -702,29 +672,30 @@ impl Memory {
     ) -> *mut u8 {
         B::memory_data_ptr(&mut store.runtime, self.id)
     }
+
+    /// Grows the memory by `delta` pages.
+    pub fn grow<T, B: RuntimeBackend>(
+        &self,
+        store: StoreContextMut<'_, T, B>,
+        delta: u64,
+    ) -> Result<u64> {
+        B::grow_memory(&mut store.runtime, self.id, delta)
+    }
 }
 
 /// Compiled WASM module.
-///
-/// Cloning a module is cheap, all the clones share the same backend-specific
-/// representation.
+#[derive(Clone)]
 pub(crate) struct Module<B: RuntimeBackend> {
     /// Backend-specific module representation.
-    pub(crate) inner: Arc<B::ModuleInner>,
+    pub(crate) inner: B::ModuleInner,
     _backend: PhantomData<B>,
-}
-
-impl<B: RuntimeBackend> Clone for Module<B> {
-    fn clone(&self) -> Self {
-        Self { inner: Arc::clone(&self.inner), _backend: PhantomData }
-    }
 }
 
 impl<B: RuntimeBackend> Module<B> {
     /// Compiles a module from raw WASM bytes.
     pub fn from_binary(engine: &Engine, bytes: &[u8]) -> Result<Self> {
         Ok(Self {
-            inner: Arc::new(B::module_from_binary(engine, bytes)?),
+            inner: B::module_from_binary(engine, bytes)?,
             _backend: PhantomData,
         })
     }
@@ -735,29 +706,6 @@ impl<B: RuntimeBackend> Module<B> {
     /// the native runtime preserves Wasmtime's unsafe deserialization API.
     pub fn deserialize(engine: &Engine, bytes: &[u8]) -> Result<Self> {
         Self::from_binary(engine, bytes)
-    }
-}
-
-/// A WASM module bundled with the [`Linker`] that resolves its imports,
-/// ready to be instantiated multiple times.
-///
-/// This mirrors `wasmtime::InstancePre`. In Wasmtime the imports are resolved
-/// once, when the `InstancePre` is created, and instantiation is cheap. The
-/// custom runtimes don't have an equivalent, they resolve the imports every
-/// time the module is instantiated, so this simply keeps the linker and the
-/// module together. See [`Linker::instantiate_pre`].
-pub(crate) struct InstancePre<T, B: RuntimeBackend> {
-    linker: Linker<T, B>,
-    module: Module<B>,
-}
-
-impl<T: 'static, B: RuntimeBackend> InstancePre<T, B> {
-    /// Instantiates the module in `store`.
-    pub fn instantiate(
-        &self,
-        mut store: impl AsContextMut<Data = T, Backend = B>,
-    ) -> Result<Instance<B>> {
-        self.linker.instantiate(store.as_context_mut(), &self.module)
     }
 }
 

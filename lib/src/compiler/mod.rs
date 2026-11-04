@@ -874,7 +874,6 @@ impl<'a> Compiler<'a> {
                     serialized_globals,
                     wasm_mod: Vec::new(),
                     compiled_wasm_mod: None,
-                    instance_pre: None,
                     relaxed_re_syntax: this.relaxed_re_syntax,
                     ac: AhoCorasick::default(),
                     num_patterns: this.next_pattern_id.0 as usize,
@@ -900,9 +899,7 @@ impl<'a> Compiler<'a> {
         };
 
         // Finish building the WASM module.
-        rules.wasm_mod = wasm_mod
-            .build(rules.num_rules() as u32, rules.num_patterns() as u32)
-            .emit_wasm();
+        rules.wasm_mod = wasm_mod.build().emit_wasm();
 
         #[cfg(feature = "logging")]
         let start = Instant::now();
@@ -918,13 +915,6 @@ impl<'a> Compiler<'a> {
             )
             .expect("WASM module is not valid"),
         );
-
-        // Resolve the module's imports once, so that scanners only need to
-        // instantiate the module. Same as above, this can't fail unless the
-        // emitted WASM code imports something that the linker doesn't define.
-        rules
-            .resolve_wasm_imports()
-            .expect("WASM module imports can't be resolved");
 
         #[cfg(feature = "logging")]
         info!("WASM module build time: {:?}", Instant::elapsed(&start));
@@ -1194,9 +1184,7 @@ impl<'a> Compiler<'a> {
     where
         P: AsRef<Path>,
     {
-        let mut wasm_mod = self
-            .wasm_mod
-            .build(self.rules.len() as u32, self.next_pattern_id.0 as u32);
+        let mut wasm_mod = self.wasm_mod.build();
         Ok(wasm_mod.emit_wasm_file(path)?)
     }
 

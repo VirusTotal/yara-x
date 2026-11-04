@@ -2156,6 +2156,7 @@ pub fn create_wasm_store_and_ctx<'r>(
 ) -> Pin<Box<Store<ScanContext<'static, 'static>>>> {
     crate::init_logger();
 
+    let num_rules = rules.num_rules() as u32;
     let num_patterns = rules.num_patterns() as u32;
 
     let ctx = ScanContext {
@@ -2199,7 +2200,7 @@ pub fn create_wasm_store_and_ctx<'r>(
         #[cfg(feature = "rules-profiling")]
         time_spent_in_pattern: FxHashMap::default(),
         #[cfg(feature = "rules-profiling")]
-        time_spent_in_rule: vec![0; rules.num_rules()],
+        time_spent_in_rule: vec![0; num_rules as usize],
         #[cfg(feature = "rules-profiling")]
         rule_execution_start_time: 0,
         #[cfg(feature = "rules-profiling")]
@@ -2232,16 +2233,49 @@ pub fn create_wasm_store_and_ctx<'r>(
     wasm_store.data_mut().wasm.store =
         NonNull::from(wasm_store.as_ref().deref());
 
-    // Instantiate the module. The module's imports were already resolved
-    // when the rules were compiled or deserialized, see
-    // `Rules::resolve_wasm_imports`.
-    let wasm_instance =
-        rules.instance_pre().instantiate(wasm_store.as_context_mut()).unwrap();
+    // Instantiate the module. This takes the wasm code provided by the
+    // `wasm_mod` function and links its imported functions with the
+    // implementations that YARA provides.
+    let wasm_instance = wasm::get_linker()
+        .instantiate(wasm_store.as_context_mut(), rules.wasm_mod())
+        .unwrap();
+
+    // Compute the base offset for the bitmap that contains matching
+    // information for patterns. This bitmap has 1 bit per pattern, the
+    // N-th bit is set if pattern with PatternId = N matched. The bitmap
+    // starts right after the bitmap that contains matching information
+    // for rules.
+    let matching_patterns_bitmap_base =
+        MATCHING_RULES_BITMAP_BASE as u32 + num_rules.div_ceil(8);
+
+    // Compute the required memory size in 64KB pages.
+    let mem_size = u32::div_ceil(
+        matching_patterns_bitmap_base + num_patterns.div_ceil(8),
+        65536,
+    );
 
     // The main memory and the global variables are defined and exported by
     // the module itself, see `WasmModuleBuilder::new`.
     let main_memory = wasm_instance
         .get_memory(wasm_store.as_context_mut(), "main_memory")
+        .unwrap();
+
+    if mem_size > 1 {
+        main_memory
+            .grow(wasm_store.as_context_mut(), (mem_size - 1) as u64)
+            .unwrap();
+    }
+
+    wasm_instance
+        .get_global(
+            wasm_store.as_context_mut(),
+            "matching_patterns_bitmap_base",
+        )
+        .unwrap()
+        .set(
+            wasm_store.as_context_mut(),
+            Val::I32(matching_patterns_bitmap_base as i32),
+        )
         .unwrap();
 
     let filesize = wasm_instance

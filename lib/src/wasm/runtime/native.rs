@@ -5,9 +5,6 @@
 
 use std::mem::transmute;
 
-use crate::errors::SerializationError;
-use anyhow::anyhow;
-
 pub use wasmtime::Caller;
 
 /// Wasmtime types re-exported by the native runtime.
@@ -60,25 +57,6 @@ impl Module {
     }
 }
 
-/// Thin wrapper around [`wasmtime::InstancePre`] with a backend-neutral API.
-///
-/// A module whose imports have already been resolved against a [`Linker`].
-/// Instantiating it is much cheaper than instantiating the module through
-/// the linker, as the imports don't need to be resolved every time.
-pub(crate) struct InstancePre<T>(wasmtime::InstancePre<T>);
-
-impl<T: 'static> InstancePre<T> {
-    /// Instantiates the module in `store`.
-    pub fn instantiate(
-        &self,
-        store: impl AsContextMut<Data = T>,
-    ) -> Result<Instance, SerializationError> {
-        self.0
-            .instantiate(store)
-            .map_err(|e| SerializationError::InvalidWASM(anyhow!(e)))
-    }
-}
-
 /// Thin wrapper around [`wasmtime::Linker`] with a backend-neutral API.
 pub(crate) struct Linker<T>(wasmtime::Linker<T>);
 
@@ -126,16 +104,12 @@ impl<T: 'static> Linker<T> {
         }
     }
 
-    /// Resolves the imports of `module` with the functions currently
-    /// registered, so that it can be instantiated multiple times without
-    /// resolving them again.
-    pub fn instantiate_pre(
+    /// Instantiates `module` with the imports currently registered.
+    pub fn instantiate(
         &self,
+        store: impl AsContextMut<Data = T>,
         module: &Module,
-    ) -> Result<InstancePre<T>, SerializationError> {
-        self.0
-            .instantiate_pre(&module.0)
-            .map(InstancePre)
-            .map_err(|e| SerializationError::InvalidWASM(anyhow!(e)))
+    ) -> wasmtime::Result<Instance> {
+        self.0.instantiate(store, &module.0)
     }
 }

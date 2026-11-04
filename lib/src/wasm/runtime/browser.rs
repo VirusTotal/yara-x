@@ -24,8 +24,6 @@ pub(crate) use super::common::{
 pub type Caller<'a, T> = common::Caller<'a, T, Backend>;
 /// Alias for [`common::Instance`] specialized for the browser backend.
 pub(crate) type Instance = common::Instance<Backend>;
-/// Alias for [`common::InstancePre`] specialized for the browser backend.
-pub(crate) type InstancePre<T> = common::InstancePre<T, Backend>;
 /// Alias for [`common::Linker`] specialized for the browser backend.
 pub(crate) type Linker<T> = common::Linker<T, Backend>;
 /// Alias for [`common::Memory`] specialized for the browser backend.
@@ -182,6 +180,18 @@ impl RuntimeBackend for Backend {
         id: usize,
     ) -> *mut u8 {
         runtime.memories[id].cache.as_mut_ptr()
+    }
+
+    fn grow_memory(
+        runtime: &mut Self::RuntimeState,
+        id: usize,
+        delta: u64,
+    ) -> Result<u64> {
+        let memory = &mut runtime.memories[id];
+        let prev_pages = memory.js_memory.grow(delta as u32);
+        let js = Uint8Array::new(&memory.js_memory.buffer());
+        memory.cache.resize(js.length() as usize, 0);
+        Ok(prev_pages as u64)
     }
 
     fn module_from_binary(
