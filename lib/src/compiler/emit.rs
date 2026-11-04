@@ -2883,7 +2883,9 @@ fn set_var<B>(
     B: FnOnce(&mut EmitContext, &mut InstrSeqBuilder),
 {
     let (store_kind, alignment) = match var.ty() {
-        Type::Bool => (StoreKind::I32 { atomic: false }, size_of::<i32>()),
+        Type::Bool | Type::Regexp => {
+            (StoreKind::I32 { atomic: false }, size_of::<i32>())
+        }
         Type::Float => (StoreKind::F64, size_of::<f64>()),
         Type::Integer
         | Type::String
@@ -2932,13 +2934,13 @@ fn set_vars<B>(
     // at the top of the stack.
     for var in vars.iter().rev() {
         match var.ty() {
-            Type::Bool => {
+            Type::Bool | Type::Regexp => {
                 // Pop the value and store it into temp variable.
                 instr.local_set(ctx.wasm_symbols.i32_tmp);
                 // Push the offset where the variable resides in memory.
                 // The offset is always multiple of 64-bits, as each variable
-                // occupies a 64-bits slot. This is true even for bool values
-                // that are represented as a 32-bits integer.
+                // occupies a 64-bits slot. This is true even for 32-bits
+                // values like bool and RegexId.
                 instr.i32_const(var.index() * Var::mem_size());
                 // Push the value.
                 instr.local_get(ctx.wasm_symbols.i32_tmp);
@@ -2993,16 +2995,14 @@ fn load_var(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     // Only check the undefined flag if this variable's initializer could
     // have thrown an undefined exception.
     if ctx.vars_with_undef.contains(&var) {
-        instr.i32_const(var.index().saturating_div(64));
+        instr.i32_const(var.index() / 8);
         instr.load(
             ctx.wasm_symbols.main_memory,
-            LoadKind::I64 { atomic: false },
-            MemArg { align: 8, offset: 0 },
+            LoadKind::I32_8 { kind: ZeroExtend },
+            MemArg { align: size_of::<i8>() as u32, offset: 0 },
         );
-        instr.i64_const(1 << var.index().wrapping_rem(64));
-        instr.binop(BinaryOp::I64And);
-        instr.i64_const(0);
-        instr.binop(BinaryOp::I64Ne);
+        instr.i32_const(1 << (var.index() % 8));
+        instr.binop(BinaryOp::I32And);
         instr.if_else(None, |then_| throw_undef(ctx, then_), |_| {});
     }
 
@@ -3012,7 +3012,9 @@ fn load_var(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     instr.i32_const(var.index() * Var::mem_size());
 
     let (load_kind, alignment) = match var.ty() {
-        Type::Bool => (LoadKind::I32 { atomic: false }, size_of::<i32>()),
+        Type::Bool | Type::Regexp => {
+            (LoadKind::I32 { atomic: false }, size_of::<i32>())
+        }
         Type::Float => (LoadKind::F64, size_of::<i64>()),
         Type::Integer
         | Type::String
@@ -3036,31 +3038,32 @@ fn set_var_undef(
     var: Var,
     is_undef: bool,
 ) {
-    // Push the address of the i64 where the flag is located. Push it
+    // Push the address of the byte where the flag is located. Push it
     // twice, one is for the load instruction and the other one is for
     // the store instruction.
-    instr.i32_const(var.index().saturating_div(64));
-    instr.i32_const(var.index().saturating_div(64));
+    let flag_addr = var.index() / 8;
+    instr.i32_const(flag_addr);
+    instr.i32_const(flag_addr);
     instr.load(
         ctx.wasm_symbols.main_memory,
-        LoadKind::I64 { atomic: false },
-        MemArg { align: 8, offset: 0 },
+        LoadKind::I32_8 { kind: ZeroExtend },
+        MemArg { align: size_of::<i8>() as u32, offset: 0 },
     );
 
-    let bit = 1i64 << var.index().wrapping_rem(64);
+    let bit = 1i32 << (var.index() % 8);
 
     if is_undef {
-        instr.i64_const(bit);
-        instr.binop(BinaryOp::I64Or);
+        instr.i32_const(bit);
+        instr.binop(BinaryOp::I32Or);
     } else {
-        instr.i64_const(!bit);
-        instr.binop(BinaryOp::I64And);
+        instr.i32_const(!bit);
+        instr.binop(BinaryOp::I32And);
     }
 
     instr.store(
         ctx.wasm_symbols.main_memory,
-        StoreKind::I64 { atomic: false },
-        MemArg { align: 8, offset: 0 },
+        StoreKind::I32_8 { atomic: false },
+        MemArg { align: size_of::<i8>() as u32, offset: 0 },
     );
 }
 

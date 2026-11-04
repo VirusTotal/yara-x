@@ -44,8 +44,7 @@ use crate::scanner::{HEARTBEAT_COUNTER, INIT_HEARTBEAT};
 use crate::types::{Array, Map, Struct, TypeValue};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
 use crate::wasm::runtime::{
-    AsContext, AsContextMut, Global, GlobalType, Instance, MemoryType,
-    Mutability, Store, TypedFunc, Val, ValType,
+    AsContextMut, Global, Instance, Store, TypedFunc, Val,
 };
 use crate::{Variable, wasm};
 
@@ -188,8 +187,7 @@ pub struct ScanContext<'r, 'd> {
     /// automata lazily upon the very first match request and preserves the
     /// compiled automata across all subsequent scans performed by the
     /// scanner instance.
-    pub(crate) regex_set_cache:
-        RefCell<FxHashMap<RegexSetId, regex::bytes::RegexSet>>,
+    pub(crate) regex_set_cache: RefCell<FxHashMap<RegexSetId, Option<Regex>>>,
     /// Engines for custom base64 alphabets used by base64 string modifiers.
     ///
     /// These engines are derived from rule literals and reused across scans.
@@ -341,11 +339,18 @@ impl ScanContext<'_, '_> {
         set_id: crate::compiler::RegexSetId,
         haystack: &[u8],
     ) -> bool {
-        let mut automata_cache = self.regex_set_cache.borrow_mut();
-        let regex_set = automata_cache
+        if let Some(regex_set) = self
+            .regex_set_cache
+            .borrow_mut()
             .entry(set_id)
-            .or_insert_with(|| self.compiled_rules.get_regex_set(set_id));
-        regex_set.is_match(haystack)
+            .or_insert_with(|| self.compiled_rules.get_regex_set(set_id))
+        {
+            return regex_set.is_match(haystack);
+        }
+
+        self.compiled_rules.get_regex_set_ids(set_id).is_some_and(|re_ids| {
+            re_ids.iter().any(|&re_id| self.regexp_matches(re_id, haystack))
+        })
     }
 
     /// Returns the protobuf struct produced by a module.
@@ -1285,7 +1290,9 @@ fn verify_literal(
     flags: SubPatternFlags,
 ) -> bool {
     // Offset where the match should end (exclusive).
-    let match_end = match_start + pattern.len();
+    let Some(match_end) = match_start.checked_add(pattern.len()) else {
+        return false;
+    };
 
     // The match can not end past the end of the scanned data.
     if match_end > scanned_data.len() {
@@ -1514,20 +1521,15 @@ fn verify_chain_of_matches(
                     };
 
                 for m in unconfirmed_matches {
-                    let in_range = match gap {
-                        ChainedPatternGap::Bounded(gap) => {
-                            let min_gap = *gap.start() as usize;
-                            let max_gap = *gap.end() as usize;
-                            (m.range.end + min_gap..=m.range.end + max_gap)
-                                .contains(&current_match.range.start)
-                        }
-                        ChainedPatternGap::Unbounded(gap) => {
-                            let min_gap = gap.start as usize;
-                            (m.range.end + min_gap..)
-                                .contains(&current_match.range.start)
-                        }
-                    };
-                    if in_range && m.chain_length <= current_match.chain_length
+                    // Compute the byte distance between the end of the previous
+                    // sub-pattern match (`m`) and the start of `current_match`.
+                    // Using `checked_sub` both ignores overlapping/later matches
+                    // (`current_match.range.start < m.range.end`) and avoids
+                    // `m.range.end + gap` overflowing `usize` on large jumps.
+                    if let Some(actual_gap) =
+                        current_match.range.start.checked_sub(m.range.end)
+                        && gap.contains(actual_gap)
+                        && m.chain_length <= current_match.chain_length
                     {
                         m.chain_length = current_match.chain_length + 1;
                         queue.push_back((*chained_to, m.clone()))
@@ -2041,6 +2043,8 @@ fn track_match(
     }
 }
 
+/// Returns true if `match_start` falls within the allowed `gap` after the end
+/// of at least one unconfirmed match for `chained_to`.
 fn within_valid_distance(
     tracker: &MatchTracker,
     chained_to: SubPatternId,
@@ -2051,23 +2055,11 @@ fn within_valid_distance(
         tracker.unconfirmed_matches.get(&chained_to)
     {
         for m in unconfirmed_matches {
-            match gap {
-                ChainedPatternGap::Bounded(gap) => {
-                    let min_gap = *gap.start() as usize;
-                    let max_gap = *gap.end() as usize;
-                    if (m.range.end + min_gap..=m.range.end + max_gap)
-                        .contains(&match_start)
-                    {
-                        return true;
-                    }
-                }
-                ChainedPatternGap::Unbounded(gap) => {
-                    let min_gap = gap.start as usize;
-                    if (m.range.start + min_gap..).contains(&match_start) {
-                        return true;
-                    }
-                }
-            };
+            if let Some(actual_gap) = match_start.checked_sub(m.range.end)
+                && gap.contains(actual_gap)
+            {
+                return true;
+            }
         }
     }
 
@@ -2248,24 +2240,12 @@ pub fn create_wasm_store_and_ctx<'r>(
     wasm_store.data_mut().wasm.store =
         NonNull::from(wasm_store.as_ref().deref());
 
-    // Global variable that will hold the value for `filesize`. This is
-    // initialized to -1 (which means undefined) because the file size
-    // is not known until some data is scanned.
-    let filesize = Global::new(
-        wasm_store.as_context_mut(),
-        GlobalType::new(ValType::I64, Mutability::Var),
-        Val::I64(-1),
-    )
-    .unwrap();
-
-    // Global variable that is set to `true` when the Aho-Corasick pattern
-    // search phase has been executed.
-    let pattern_search_done = Global::new(
-        wasm_store.as_context_mut(),
-        GlobalType::new(ValType::I32, Mutability::Var),
-        Val::I32(0),
-    )
-    .unwrap();
+    // Instantiate the module. This takes the wasm code provided by the
+    // `wasm_mod` function and links its imported functions with the
+    // implementations that YARA provides.
+    let wasm_instance = wasm::get_linker()
+        .instantiate(wasm_store.as_context_mut(), rules.wasm_mod())
+        .unwrap();
 
     // Compute the base offset for the bitmap that contains matching
     // information for patterns. This bitmap has 1 bit per pattern, the
@@ -2281,43 +2261,36 @@ pub fn create_wasm_store_and_ctx<'r>(
         65536,
     );
 
-    let matching_patterns_bitmap_base = Global::new(
-        wasm_store.as_context_mut(),
-        GlobalType::new(ValType::I32, Mutability::Const),
-        Val::I32(matching_patterns_bitmap_base as i32),
-    )
-    .unwrap();
+    // The main memory and the global variables are defined and exported by
+    // the module itself, see `WasmModuleBuilder::new`.
+    let main_memory = wasm_instance
+        .get_memory(wasm_store.as_context_mut(), "main_memory")
+        .unwrap();
 
-    // Create module's main memory.
-    let main_memory = wasm::runtime::Memory::new(
-        wasm_store.as_context_mut(),
-        MemoryType::new(mem_size, Some(mem_size)),
-    )
-    .unwrap();
+    if mem_size > 1 {
+        main_memory
+            .grow(wasm_store.as_context_mut(), (mem_size - 1) as u64)
+            .unwrap();
+    }
 
-    // Instantiate the module. This takes the wasm code provided by the
-    // `wasm_mod` function and links its imported functions with the
-    // implementations that YARA provides.
-    let wasm_instance = wasm::new_linker()
-        .define(wasm_store.as_context(), "yara_x", "filesize", filesize)
-        .unwrap()
-        .define(
-            wasm_store.as_context(),
-            "yara_x",
-            "pattern_search_done",
-            pattern_search_done,
-        )
-        .unwrap()
-        .define(
-            wasm_store.as_context(),
-            "yara_x",
+    wasm_instance
+        .get_global(
+            wasm_store.as_context_mut(),
             "matching_patterns_bitmap_base",
-            matching_patterns_bitmap_base,
         )
         .unwrap()
-        .define(wasm_store.as_context(), "yara_x", "main_memory", main_memory)
-        .unwrap()
-        .instantiate(wasm_store.as_context_mut(), rules.wasm_mod())
+        .set(
+            wasm_store.as_context_mut(),
+            Val::I32(matching_patterns_bitmap_base as i32),
+        )
+        .unwrap();
+
+    let filesize = wasm_instance
+        .get_global(wasm_store.as_context_mut(), "filesize")
+        .unwrap();
+
+    let pattern_search_done = wasm_instance
+        .get_global(wasm_store.as_context_mut(), "pattern_search_done")
         .unwrap();
 
     // Obtain a reference to the "main" function exported by the module.
@@ -2334,4 +2307,19 @@ pub fn create_wasm_store_and_ctx<'r>(
     ctx.wasm.pattern_search_done = Some(pattern_search_done);
 
     wasm_store
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SubPatternFlags, verify_literal};
+
+    #[test]
+    fn verify_literal_overflow() {
+        assert!(!verify_literal(
+            b"ab",
+            b"abcdef",
+            usize::MAX,
+            SubPatternFlags::empty(),
+        ));
+    }
 }

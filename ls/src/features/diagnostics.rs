@@ -98,14 +98,20 @@ pub fn compiler_diagnostics(
         if let Some(ty) = &validation_rule.ty {
             match ty.as_str() {
                 "string" => {
-                    if let Some(pattern) = &validation_rule.regex {
+                    // Pre-compile the regex outside the validator closure:
+                    // `initialization_options` and `load_config` may store an
+                    // invalid regex in `Config`, and calling `.unwrap()` inside
+                    // the validator would panic when linting a matching rule.
+                    if let Some(pattern) = &validation_rule.regex
+                        && let Ok(re) = Regex::new(pattern)
+                    {
                         compiler.add_linter(linter.validator(
-                            |meta| {
+                            move |meta| {
                                 if let yara_x_parser::ast::MetaValue::String(
                                     value,
                                 ) = &meta.value
                                 {
-                                    Regex::new(pattern).unwrap().is_match(value.0)
+                                    re.is_match(value.0)
                                 } else {
                                     false
                                 }
@@ -298,4 +304,68 @@ pub fn compiler_diagnostics(
     }
 
     diagnostics
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::configuration::MetadataValidationRule;
+
+    #[test]
+    fn test_diagnostics_invalid_metadata_regex() {
+        let storage = Arc::new(DocumentStorage::new());
+        let uri = Url::parse("file:///test.yar").unwrap();
+        storage.insert(
+            uri.clone(),
+            r#"rule r {
+              meta:
+                author = "Alice"
+                ticket = 123
+              condition:
+                true
+            }"#
+            .to_string(),
+        );
+
+        let config = Arc::new(Config {
+            metadata_validation: vec![
+                MetadataValidationRule {
+                    identifier: "author".to_string(),
+                    required: true,
+                    ty: Some("string".to_string()),
+                    format: None,
+                    regex: Some("[unclosed".to_string()),
+                },
+                MetadataValidationRule {
+                    identifier: "ticket".to_string(),
+                    required: false,
+                    ty: Some("string".to_string()),
+                    format: None,
+                    regex: Some("[also-invalid".to_string()),
+                },
+                MetadataValidationRule {
+                    identifier: "author".to_string(),
+                    required: false,
+                    ty: Some("string".to_string()),
+                    format: None,
+                    regex: Some("^Bob$".to_string()),
+                },
+            ],
+            ..Default::default()
+        });
+
+        // Must not panic on invalid regexes, while still enforcing string type
+        // on `ticket` and valid regexes on `author`.
+        let diags = diagnostics(storage, uri, config);
+        let invalid_meta_diags: Vec<_> = diags
+            .iter()
+            .filter(|d| {
+                d.code
+                    == Some(NumberOrString::String(
+                        "invalid_metadata".to_string(),
+                    ))
+            })
+            .collect();
+        assert_eq!(invalid_meta_diags.len(), 2);
+    }
 }

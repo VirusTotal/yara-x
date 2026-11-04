@@ -64,18 +64,39 @@ pub struct Tokenizer<'src> {
     /// at the "c", from the lexer standpoint the span for the "c" is 0..1,
     /// but `lexer_starting_pos` will be 2, so the real span for "c" is 2..3.
     lexer_starting_pos: usize,
+    /// True if `source.len()` reached or exceeded the maximum representable
+    /// [`Span`] offset (`Span::MAX`).
+    source_too_large: bool,
 }
 
 impl<'src> Tokenizer<'src> {
     /// Creates a new [`Tokenizer`].
     pub fn new(source: &'src [u8]) -> Self {
-        // Can't handle source files greater than the maximum span size.
-        assert!(source.len() < Span::MAX);
+        Self::new_with_max_size(source, Span::MAX)
+    }
+
+    pub(crate) fn new_with_max_size(
+        source: &'src [u8],
+        max_size: usize,
+    ) -> Self {
+        // Source files with `len >= max_size` (normally `Span::MAX`, i.e.
+        // `u32::MAX`) cannot have their byte offsets represented in `Span`.
+        // Initialize an empty lexer so `Parser` emits a structured syntax
+        // error instead of panicking on `u32` span conversion.
+        let source_too_large = source.len() >= max_size;
+        let lexer_source = if source_too_large { &[] } else { source };
         Self {
             source,
             lexer_starting_pos: 0,
-            mode: Mode::Normal(Logos::lexer(source)),
+            mode: Mode::Normal(Logos::lexer(lexer_source)),
+            source_too_large,
         }
+    }
+
+    /// Returns true if the source file exceeds the maximum representable span.
+    #[inline]
+    pub(crate) fn source_too_large(&self) -> bool {
+        self.source_too_large
     }
 
     /// Returns the source code passed to the tokenizer.
@@ -210,8 +231,18 @@ impl Tokenizer<'_> {
         // `unexpected` is the valid UTF-8 prefix.
         let unexpected = chunk.valid();
 
-        // Truncate `unexpected` at the first whitespace if any.
-        let unexpected = unexpected.split(char::is_whitespace).next().unwrap();
+        // Truncate `unexpected` at the first whitespace if any. If `unexpected`
+        // starts with a character considered whitespace by `char::is_whitespace`
+        // that wasn't matched as `Whitespace` or a newline (e.g. `\u{0085}`,
+        // `\u{2028}`, `\u{2029}`), `split` yields an empty string; consume that
+        // first full UTF-8 character so the span never splits a code point.
+        let unexpected = match unexpected.split(char::is_whitespace).next() {
+            Some(s) if !s.is_empty() => s,
+            _ => {
+                let c = unexpected.chars().next().unwrap();
+                &unexpected[..c.len_utf8()]
+            }
+        };
 
         // If `unexpected` is larger than the current token, bump the lexer to the
         // end of `unexpected`.
@@ -532,7 +563,7 @@ enum NormalToken<'src> {
     // https://www.compart.com/en/unicode/U+00A0
     // https://www.compart.com/en/unicode/bidiclass/WS
     #[regex(
-        "[ \t\u{a0}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+"
+        "[ \t\u{a0}\u{1680}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}\u{3000}]+"
     )]
     Whitespace,
 
@@ -581,7 +612,7 @@ enum HexPatternToken {
     // https://www.compart.com/en/unicode/U+00A0
     // https://www.compart.com/en/unicode/bidiclass/WS
     #[regex(
-        "[ \t\u{a0}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+"
+        "[ \t\u{a0}\u{1680}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}\u{3000}]+"
     )]
     Whitespace,
 
@@ -640,7 +671,7 @@ enum HexJumpToken<'src> {
     // https://www.compart.com/en/unicode/U+00A0
     // https://www.compart.com/en/unicode/bidiclass/WS
     #[regex(
-        "[ \t\u{a0}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}]+"
+        "[ \t\u{a0}\u{1680}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202f}\u{205f}\u{3000}]+"
     )]
     Whitespace,
 

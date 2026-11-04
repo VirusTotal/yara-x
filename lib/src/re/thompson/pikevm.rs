@@ -24,7 +24,7 @@ pub(crate) struct PikeVM<'r> {
     next_threads: Vec<Thread>,
     /// Maximum number of bytes to scan. The VM will abort after ingesting
     /// this number of bytes from the input.
-    scan_limit: u16,
+    scan_limit: u32,
     /// State for the [`epsilon_closure`] function.
     cache: EpsilonClosureState,
 }
@@ -53,7 +53,7 @@ impl<'r> PikeVM<'r> {
     ///
     /// The default limit is 4096 bytes.
     #[allow(dead_code)]
-    pub fn scan_limit(mut self, limit: u16) -> Self {
+    pub fn scan_limit(mut self, limit: u32) -> Self {
         self.scan_limit = limit;
         self
     }
@@ -628,10 +628,40 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                     (false, Some(p), Some(c)) | (true, Some(c), Some(p)) => {
                         is_word_char(*p) && !is_word_char(*c)
                     }
-                    (false, Some(p), None) | (true, Some(p), None) => {
+                    (false, Some(p), None) | (true, None, Some(p)) => {
                         is_word_char(*p)
                     }
                     _ => false,
+                };
+                if is_match {
+                    state.threads.push((
+                        apply_offset(ip, instr_size.into()),
+                        rep_count,
+                    ));
+                }
+            }
+            Instr::WordStartHalf => {
+                let is_match = match (start.backwards(), prev_byte, curr_byte)
+                {
+                    (false, None, _) | (true, _, None) => true,
+                    (false, Some(b), _) | (true, _, Some(b)) => {
+                        !is_word_char(*b)
+                    }
+                };
+                if is_match {
+                    state.threads.push((
+                        apply_offset(ip, instr_size.into()),
+                        rep_count,
+                    ));
+                }
+            }
+            Instr::WordEndHalf => {
+                let is_match = match (start.backwards(), prev_byte, curr_byte)
+                {
+                    (false, _, None) | (true, None, _) => true,
+                    (false, _, Some(b)) | (true, Some(b), _) => {
+                        !is_word_char(*b)
+                    }
                 };
                 if is_match {
                     state.threads.push((

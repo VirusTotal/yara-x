@@ -81,6 +81,23 @@ fn test_hash_module() {
         "#,
         b"TEST STRING"
     );
+
+    rule_true!(
+        r#"
+        import "hash"
+        rule test {
+          condition:
+            not defined hash.md5(1, 0x7fffffffffffffff) and
+            not defined hash.sha1(1, 0x7fffffffffffffff) and
+            not defined hash.sha256(1, 0x7fffffffffffffff) and
+            not defined hash.crc32(1, 0x7fffffffffffffff) and
+            not defined hash.checksum32(1, 0x7fffffffffffffff) and
+            not defined hash.md5(-1, 2) and
+            not defined hash.md5(2, -1)
+        }
+        "#,
+        b"foobarbaz"
+    );
 }
 
 #[test]

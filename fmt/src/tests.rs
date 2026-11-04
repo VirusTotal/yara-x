@@ -154,3 +154,60 @@ fn format_config_options() {
         );
     }
 }
+
+#[test]
+fn format_deeply_nested_rule() {
+    let deep_cond = format!("{}true{}", "(".repeat(5_000), ")".repeat(5_000));
+    let input = format!(
+        "rule deep {{\n  condition:\n    {deep_cond}\n}}\nrule  ok  {{condition:true}}\n"
+    );
+
+    let mut output = Vec::new();
+    Formatter::new()
+        .format(input.as_bytes(), &mut output)
+        .expect("format failed");
+
+    let formatted = str::from_utf8(&output).unwrap();
+    // The `deep` rule's condition exceeds `MAX_CST_DEPTH` and is wrapped in an
+    // `ERROR` node whose original text must be preserved verbatim, while the
+    // subsequent `ok` rule is still formatted normally.
+    assert!(formatted.contains(&deep_cond));
+    assert!(formatted.contains("rule ok {\n  condition:\n    true\n}"));
+}
+
+#[test]
+fn format_unicode_whitespace() {
+    let unicode_spaces = [
+        '\u{00a0}', '\u{1680}', '\u{2000}', '\u{2001}', '\u{2002}',
+        '\u{2003}', '\u{2004}', '\u{2005}', '\u{2006}', '\u{2007}',
+        '\u{2008}', '\u{2009}', '\u{200a}', '\u{202f}', '\u{205f}',
+        '\u{3000}',
+    ];
+
+    for ws in unicode_spaces {
+        let input = format!(
+            "rule{ws}test{ws}{{{ws}strings:{ws}$a{ws}={ws}{{{ws}AA{ws}[{ws}1{ws}-{ws}2{ws}]{ws}BB{ws}}}{ws}condition:{ws}$a{ws}}}\n"
+        );
+        let mut output = Vec::new();
+        let changed = Formatter::new()
+            .format(input.as_bytes(), &mut output)
+            .expect("format failed");
+
+        assert!(changed);
+        assert_eq!(
+            str::from_utf8(&output).unwrap(),
+            "rule test {\n  strings:\n    $a = { AA [1-2] BB }\n\n  condition:\n    $a\n}\n"
+        );
+    }
+
+    // Characters considered whitespace by `char::is_whitespace` that are not
+    // valid YARA whitespace are preserved inside `ERROR` nodes without panicking.
+    for ws in ['\u{0085}', '\u{2028}', '\u{2029}'] {
+        let input = format!("rule test {{ {ws}condition: true }}\n");
+        let mut output = Vec::new();
+        Formatter::new()
+            .format(input.as_bytes(), &mut output)
+            .expect("format failed");
+        assert!(str::from_utf8(&output).unwrap().contains(ws));
+    }
+}

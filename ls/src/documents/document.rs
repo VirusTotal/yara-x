@@ -26,6 +26,16 @@ impl Document {
 
     /// Creates a new document with precached CST.
     pub fn new_with_cst(uri: Url, text: String, cst: CST) -> Self {
+        // Reuse the cached CST only when its lossless token text matches `text`
+        // byte-for-byte. Editors may normalize CRLF to LF on `didOpen`, or a
+        // buffer closed with unsaved edits may be reopened from disk; pairing a
+        // divergent CST with `text` would cause `AST::new` to slice `text` with
+        // misaligned or out-of-bounds spans.
+        let cst = if cst.root().text() == text.as_str() {
+            cst
+        } else {
+            CST::from(text.as_str())
+        };
         let line_index = LineIndex::new(text.as_str());
         Self { uri, text, cst, line_index }
     }

@@ -31,8 +31,8 @@
 //! The abstraction exposes common Wasm execution types, including:
 //! - [`Store`]: Manages execution state and holds user-defined data (e.g.,
 //!   `ScanContext`).
-//! - [`Linker`]: Registers and links host-defined functions and globals into
-//!   Wasm modules.
+//! - [`Linker`]: Registers and links host-defined functions into Wasm
+//!   modules.
 //! - [`Caller`]: Exposes the execution context and mutable access to the store
 //!   within host callbacks.
 //! - [`Memory`]: Provides structured access to Wasm linear memory.

@@ -262,3 +262,73 @@ fn check_reports_all_errors() {
         ))
         .stderr(predicate::str::contains("rule name does not match regex"));
 }
+
+#[test]
+fn check_metadata_raw_byte_and_invalid_regexp() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_file = temp_dir.child("config.toml");
+    let yar_file = temp_dir.child("test.yar");
+
+    // `(?-u)^\xff` is valid in `regex::bytes::Regex` (raw byte escape) but
+    // rejected by `regex::Regex::new`. It must not panic when checking a rule
+    // whose metadata value is a valid UTF-8 `MetaValue::String`.
+    config_file
+        .write_str(
+            r#"
+            [check.metadata.raw]
+            type = "string"
+            regexp = '(?-u)^\xff'
+            "#,
+        )
+        .unwrap();
+
+    yar_file
+        .write_str(
+            r#"rule utf8_meta {
+              meta:
+                raw = "ascii"
+              condition:
+                true
+            }
+            rule bytes_meta {
+              meta:
+                raw = "\xffok"
+              condition:
+                true
+            }"#,
+        )
+        .unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("check")
+        .arg(yar_file.path())
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains(
+            "warning[invalid_metadata]: metadata `raw` is not valid",
+        ));
+
+    // Invalid regex syntax in `[check.metadata.*]` must fail cleanly with exit
+    // code 1 instead of panicking or exiting 0.
+    config_file
+        .write_str(
+            r#"
+            [check.metadata.broken]
+            type = "string"
+            regexp = "[unclosed"
+            "#,
+        )
+        .unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .arg("--config")
+        .arg(config_file.path())
+        .arg("check")
+        .arg(yar_file.path())
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(predicate::str::contains("error: regex parse error"));
+}

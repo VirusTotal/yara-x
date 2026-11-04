@@ -46,7 +46,7 @@ use serde::{Deserialize, Serialize};
 use yara_x_parser::Span;
 use yara_x_parser::ast::Ident;
 
-use crate::compiler::context::{Var, VarStack};
+use crate::compiler::context::Var;
 use crate::compiler::ir::dfs::{
     DFSIter, DFSWithScopeIter, Event, EventContext, dfs_common,
 };
@@ -58,6 +58,7 @@ use crate::re;
 use crate::symbols::Symbol;
 use crate::types::Value::Const;
 use crate::types::{FuncSignature, Type, TypeValue};
+use crate::utils::cast;
 
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
 pub(in crate::compiler) use ast2ir::rule_condition_from_ast;
@@ -715,6 +716,17 @@ impl IR {
         });
     }
 
+    /// Returns the maximum variable index referenced or declared in the
+    /// subtree rooted at `start`, or `None` if no variables are used.
+    fn max_var_index(&self, start: ExprId) -> Option<i32> {
+        self.dfs_iter(start)
+            .filter_map(|evt| match evt {
+                Event::Enter((_, expr, _)) => expr.max_var_index(),
+                Event::Leave(_) => None,
+            })
+            .max()
+    }
+
     /// Returns an iterator that performs a depth first search starting at
     /// the given node.
     pub fn dfs_iter(&self, start: ExprId) -> DFSIter<'_> {
@@ -916,7 +928,11 @@ impl IR {
             };
 
             let symbol = match self.get(current_expr_id) {
-                Expr::Symbol(symbol) => symbol,
+                Expr::Symbol(symbol)
+                | Expr::PatternMatchVar { symbol, .. }
+                | Expr::PatternCountVar { symbol, .. }
+                | Expr::PatternOffsetVar { symbol, .. }
+                | Expr::PatternLengthVar { symbol, .. } => symbol,
                 _ => continue,
             };
 
@@ -934,17 +950,20 @@ impl IR {
                     Expr::ForIn(for_in) => {
                         for_in.variables.iter().any(|v| v.index() == var)
                     }
+                    Expr::ForOf(for_of) => for_of.for_vars.item.index() == var,
                     _ => false,
                 }) {
                     Some(stmt) => stmt,
                     None => continue,
                 };
 
-            // Iterate the ancestors of the current statement up to the
+            // Iterate the current expression and its ancestors up to the
             // statement that declared the variable (not included), and mark
-            // them as dependent on that variable.
-            for ancestor in self
-                .ancestors(current_expr_id)
+            // them as dependent on that variable. Including `current_expr_id`
+            // itself is required for `Pattern*Var` nodes, which directly
+            // reference `for_of.for_vars.item` without a child `Expr::Symbol`.
+            for ancestor in std::iter::once(current_expr_id)
+                .chain(self.ancestors(current_expr_id))
                 .take_while(|ancestor| ancestor.ne(&stmt_declaring_var))
             {
                 match &mut depends_on[ancestor.0 as usize] {
@@ -1023,12 +1042,12 @@ impl IR {
                             if let Some(inner_loop) = scopes.next() {
                                 result.push((current_expr_id, inner_loop));
                             }
-                            // Limit the number of candidates to a reasonable
-                            // number.
-                            if result.len() > 100 {
-                                return result;
-                            }
                         }
+                    }
+
+                    // Limit the number of candidates to a reasonable number.
+                    if result.len() > 100 {
+                        return result;
                     }
                 }
                 _ => {}
@@ -1064,10 +1083,19 @@ impl IR {
         for (expr_id, loop_expr_id) in self.find_hoisting_candidates() {
             let loop_parent = self.get_parent(loop_expr_id);
 
-            let var_index = self
-                .ancestors(loop_expr_id)
-                .map(|expr_id| self.get(expr_id).stack_frame_size())
-                .sum::<i32>();
+            let var_index =
+                cast!(self.get(loop_expr_id), Expr::ForIn).for_vars.n.index();
+
+            if var_index >= crate::wasm::MAX_VARS {
+                continue;
+            }
+
+            if let Some(max_idx) = self.max_var_index(loop_expr_id)
+                && max_idx >= var_index
+                && max_idx + 1 >= crate::wasm::MAX_VARS
+            {
+                continue;
+            }
 
             // Shift all variables with an index greater or equal than
             // var_index one position to the right in order to make room for
@@ -1525,8 +1553,9 @@ impl IR {
                 ) => {
                     if let Some(offset) =
                         self.get(*offset_expr).try_as_const_integer()
+                        && let Ok(offset) = usize::try_from(offset)
                     {
-                        f(*pattern, offset as usize);
+                        f(*pattern, offset);
                     }
                     dfs.prune();
                 }
@@ -1541,9 +1570,10 @@ impl IR {
                         )
                         && let Some(offset) =
                             self.get(offset_expr).try_as_const_integer()
+                        && let Ok(offset) = usize::try_from(offset)
                     {
                         for pattern in &of.items {
-                            f(*pattern, offset as usize);
+                            f(*pattern, offset);
                         }
                     }
                     dfs.prune();
@@ -3459,6 +3489,15 @@ impl ForVars {
         self.count.shift(after, amount);
         self.item.shift(after, amount);
     }
+
+    pub fn max_index(&self) -> i32 {
+        self.n
+            .index()
+            .max(self.i.index())
+            .max(self.max_count.index())
+            .max(self.count.index())
+            .max(self.item.index())
+    }
 }
 
 /// A `with <identifiers> : ...` expression. (e.g. `with $a, $b : ( ... )`)
@@ -3597,15 +3636,32 @@ impl Hash for Expr {
 }
 
 impl Expr {
-    /// Returns the size of the stack frame for this expression.
-    pub fn stack_frame_size(&self) -> i32 {
+    /// Returns the maximum variable index referenced or declared directly by
+    /// this expression, or `None` if it neither declares nor references any
+    /// variables.
+    pub fn max_var_index(&self) -> Option<i32> {
         match self {
-            Expr::With(with) => with.declarations.len() as i32,
-            Expr::ForOf(_) => VarStack::FOR_OF_FRAME_SIZE,
-            Expr::ForIn(_) => VarStack::FOR_IN_FRAME_SIZE,
-            Expr::OfExprTuple(_) => VarStack::OF_FRAME_SIZE,
-            Expr::OfPatternSet(_) => VarStack::OF_FRAME_SIZE,
-            _ => 0,
+            Expr::Symbol(symbol)
+            | Expr::PatternMatchVar { symbol, .. }
+            | Expr::PatternCountVar { symbol, .. }
+            | Expr::PatternOffsetVar { symbol, .. }
+            | Expr::PatternLengthVar { symbol, .. } => match symbol.as_ref() {
+                Symbol::Var { var, .. } => Some(var.index()),
+                _ => None,
+            },
+            Expr::With(with) => {
+                with.declarations.iter().map(|(v, _)| v.index()).max()
+            }
+            Expr::OfExprTuple(of) => Some(of.for_vars.max_index()),
+            Expr::OfPatternSet(of) => Some(of.for_vars.max_index()),
+            Expr::ForOf(for_of) => Some(for_of.for_vars.max_index()),
+            Expr::ForIn(for_in) => for_in
+                .variables
+                .iter()
+                .map(|v| v.index())
+                .chain(std::iter::once(for_in.for_vars.max_index()))
+                .max(),
+            _ => None,
         }
     }
 
@@ -3811,11 +3867,13 @@ impl Expr {
             }
 
             Expr::OfExprTuple(of) => {
+                replace_in_quantifier(&mut of.quantifier);
                 replace_in_slice(of.items.as_mut_slice());
                 replace_in_anchor(&mut of.anchor);
             }
 
             Expr::OfPatternSet(of) => {
+                replace_in_quantifier(&mut of.quantifier);
                 replace_in_anchor(&mut of.anchor);
             }
 
@@ -3828,6 +3886,17 @@ impl Expr {
 
             Expr::ForIn(for_in) => {
                 replace_in_quantifier(&mut for_in.quantifier);
+                match &mut for_in.iterable {
+                    Iterable::Range(range) => replace_in_range(range),
+                    Iterable::ExprTuple(exprs) => {
+                        replace_in_slice(exprs.as_mut_slice())
+                    }
+                    Iterable::Expr(expr) => {
+                        if *expr == child {
+                            *expr = replacement;
+                        }
+                    }
+                }
                 if for_in.body == child {
                     for_in.body = replacement
                 }
@@ -4013,6 +4082,15 @@ impl Expr {
             Expr::FuncCall(func_call) => func_call.signature.result.clone(),
             Expr::Lookup(lookup) => lookup.type_value.clone(),
             Expr::With(with) => with.type_value.clone(),
+        }
+    }
+
+    /// Panics if the expression is not [`Expr::Const`].
+    pub fn as_const(&self) -> &TypeValue {
+        if let Expr::Const(type_value) = self {
+            type_value
+        } else {
+            panic!("called `as_const` on an Expr that is not Expr::Const")
         }
     }
 

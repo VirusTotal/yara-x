@@ -419,26 +419,30 @@ fn replace_child() {
         matches!(&expr, Expr::FuncCall(fc) if fc.object == Some(c1) && fc.args == vec![repl])
     );
 
+    let c3 = ExprId::from(4);
+    let c4 = ExprId::from(5);
+
     // OfExprTuple
     let mut expr = Expr::OfExprTuple(Box::new(OfExprTuple {
         quantifier: Quantifier::Percentage(c1),
         items: vec![c2],
         for_vars: make_for_vars(),
-        anchor: MatchAnchor::At(c1),
+        anchor: MatchAnchor::At(c3),
     }));
     expr.replace_child(c1, repl);
-    assert!(
-        matches!(&expr, Expr::OfExprTuple(of) if matches!(of.anchor, MatchAnchor::At(a) if a == repl))
-    );
-
-    let mut expr = Expr::OfExprTuple(Box::new(OfExprTuple {
-        quantifier: Quantifier::Percentage(c1),
-        items: vec![c2],
-        for_vars: make_for_vars(),
-        anchor: MatchAnchor::At(c1),
-    }));
+    assert!(matches!(
+        &expr,
+        Expr::OfExprTuple(of)
+            if matches!(of.quantifier, Quantifier::Percentage(q) if q == repl)
+    ));
     expr.replace_child(c2, repl);
     assert!(matches!(&expr, Expr::OfExprTuple(of) if of.items == vec![repl]));
+    expr.replace_child(c3, repl);
+    assert!(matches!(
+        &expr,
+        Expr::OfExprTuple(of)
+            if matches!(of.anchor, MatchAnchor::At(a) if a == repl)
+    ));
 
     // OfPatternSet
     let mut expr = Expr::OfPatternSet(Box::new(OfPatternSet {
@@ -447,6 +451,12 @@ fn replace_child() {
         for_vars: make_for_vars(),
         anchor: MatchAnchor::At(c2),
     }));
+    expr.replace_child(c1, repl);
+    assert!(matches!(
+        &expr,
+        Expr::OfPatternSet(of)
+            if matches!(of.quantifier, Quantifier::Percentage(q) if q == repl)
+    ));
     expr.replace_child(c2, repl);
     assert!(
         matches!(&expr, Expr::OfPatternSet(of) if matches!(of.anchor, MatchAnchor::At(a) if a == repl))
@@ -478,23 +488,55 @@ fn replace_child() {
         quantifier: Quantifier::Percentage(c1),
         variables: vec![],
         for_vars: make_for_vars(),
-        iterable: Iterable::Range(Range { lower_bound: c1, upper_bound: c2 }),
-        body: c2,
+        iterable: Iterable::Range(Range { lower_bound: c2, upper_bound: c3 }),
+        body: c4,
     }));
     expr.replace_child(c1, repl);
     assert!(
         matches!(&expr, Expr::ForIn(fi) if matches!(fi.quantifier, Quantifier::Percentage(q) if q == repl))
     );
+    expr.replace_child(c2, repl);
+    assert!(matches!(
+        &expr,
+        Expr::ForIn(fi)
+            if matches!(&fi.iterable, Iterable::Range(r) if r.lower_bound == repl && r.upper_bound == c3)
+    ));
+    expr.replace_child(c3, repl);
+    assert!(matches!(
+        &expr,
+        Expr::ForIn(fi)
+            if matches!(&fi.iterable, Iterable::Range(r) if r.lower_bound == repl && r.upper_bound == repl)
+    ));
+    expr.replace_child(c4, repl);
+    assert!(matches!(&expr, Expr::ForIn(fi) if fi.body == repl));
 
     let mut expr = Expr::ForIn(Box::new(ForIn {
-        quantifier: Quantifier::Percentage(c1),
+        quantifier: Quantifier::Any,
         variables: vec![],
         for_vars: make_for_vars(),
-        iterable: Iterable::Range(Range { lower_bound: c1, upper_bound: c2 }),
-        body: c2,
+        iterable: Iterable::ExprTuple(vec![c1, c2]),
+        body: c3,
     }));
     expr.replace_child(c2, repl);
-    assert!(matches!(&expr, Expr::ForIn(fi) if fi.body == repl));
+    assert!(matches!(
+        &expr,
+        Expr::ForIn(fi)
+            if matches!(&fi.iterable, Iterable::ExprTuple(items) if items == &vec![c1, repl])
+    ));
+
+    let mut expr = Expr::ForIn(Box::new(ForIn {
+        quantifier: Quantifier::Any,
+        variables: vec![],
+        for_vars: make_for_vars(),
+        iterable: Iterable::Expr(c1),
+        body: c2,
+    }));
+    expr.replace_child(c1, repl);
+    assert!(matches!(
+        &expr,
+        Expr::ForIn(fi)
+            if matches!(fi.iterable, Iterable::Expr(e) if e == repl)
+    ));
 
     // Lookup
     let mut expr = Expr::Lookup(Box::new(Lookup {

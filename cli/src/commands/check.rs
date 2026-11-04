@@ -86,6 +86,22 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
     w.max_depth(*recursive.unwrap_or(&0));
 
+    // Pre-compile metadata regexes once up front so invalid regex syntax fails
+    // immediately with a non-zero exit code, and use `regex::bytes::Regex` for
+    // both `MetaValue::String` and `MetaValue::Bytes` so valid `(?-u)` byte
+    // escapes never panic inside `regex::Regex::new(...).unwrap()`.
+    let mut metadata_regexps = std::collections::HashMap::new();
+    for (identifier, meta_config) in config.check.metadata.iter() {
+        if matches!(meta_config.ty, MetaValueType::String)
+            && let Some(regexp) = &meta_config.regexp
+        {
+            metadata_regexps.insert(
+                identifier.as_str(),
+                regex::bytes::Regex::new(regexp)?,
+            );
+        }
+    }
+
     let state = w.walk(
         CheckState::new(),
         // Initialization
@@ -112,29 +128,34 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
                 match config.ty {
                     MetaValueType::String => {
-                        let message = if let Some(regexp) = &config.regexp {
-                            // Make sure that the regexp is valid.
-                            let _ = regex::bytes::Regex::new(regexp)?;
-                            format!("`{identifier}` must be a string that matches `/{regexp}/`")
-                        } else {
-                            format!("`{identifier}` must be a string")
-                        };
-                        linter = linter.validator(
-                            |meta| {
-                                match (&meta.value, &config.regexp) {
-                                    (MetaValue::String((s, _)), Some(regexp)) => {
-                                        regex::Regex::new(regexp).unwrap().is_match(s)
+                        if let (Some(regexp), Some(re)) = (
+                            &config.regexp,
+                            metadata_regexps.get(identifier.as_str()),
+                        ) {
+                            linter = linter.validator(
+                                move |meta| match &meta.value {
+                                    MetaValue::String((s, _)) => {
+                                        re.is_match(s.as_bytes())
                                     }
-                                    (MetaValue::Bytes((s, _)), Some(regexp)) => {
-                                        regex::bytes::Regex::new(regexp).unwrap().is_match(s)
-                                    }
-                                    (MetaValue::String(_), None) => true,
-                                    (MetaValue::Bytes(_), None) => true,
+                                    MetaValue::Bytes((s, _)) => re.is_match(s),
                                     _ => false,
-                                }
-                            },
-                            message,
-                        );
+                                },
+                                format!(
+                                    "`{identifier}` must be a string that matches `/{regexp}/`"
+                                ),
+                            );
+                        } else {
+                            linter = linter.validator(
+                                |meta| {
+                                    matches!(
+                                        meta.value,
+                                        MetaValue::String(_)
+                                            | MetaValue::Bytes(_)
+                                    )
+                                },
+                                format!("`{identifier}` must be a string"),
+                            );
+                        }
                     }
                     MetaValueType::Integer => {
                         linter = linter.validator(

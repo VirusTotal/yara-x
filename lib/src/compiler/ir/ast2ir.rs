@@ -526,7 +526,7 @@ fn expr_from_ast<'src>(
                     re_error_to_compile_error(ctx.report_builder, regexp, err)
                 })?;
 
-            hir.build_automata().map_err(|err| {
+            re::hir::Hir::build_automata(&[hir]).map_err(|err| {
                 InvalidRegexp::build(
                     ctx.report_builder,
                     err.to_string(),
@@ -1048,9 +1048,10 @@ fn anchor_patterns(ctx: &mut CompileContext) {
                 MatchAnchor::At(expr) => {
                     if let Some(offset) =
                         ctx.ir.get(*expr).try_as_const_integer()
+                        && let Ok(offset) = usize::try_from(offset)
                     {
                         ctx.current_rule_patterns[pattern.as_usize()]
-                            .anchor_at(offset as usize);
+                            .anchor_at(offset);
                     } else {
                         ctx.current_rule_patterns[pattern.as_usize()]
                             .make_non_anchorable();
@@ -1076,12 +1077,14 @@ fn anchor_patterns(ctx: &mut CompileContext) {
                     // them non-anchorable otherwise.
                     MatchAnchor::At(expr) => {
                         let anchor_at =
-                            ctx.ir.get(expr).try_as_const_integer();
+                            ctx.ir.get(expr).try_as_const_integer().and_then(
+                                |offset| usize::try_from(offset).ok(),
+                            );
                         for pattern in &of.items {
                             let pattern = &mut ctx.current_rule_patterns
                                 [pattern.as_usize()];
                             if let Some(offset) = anchor_at {
-                                pattern.anchor_at(offset as usize);
+                                pattern.anchor_at(offset);
                             } else {
                                 pattern.make_non_anchorable();
                             }
@@ -1226,7 +1229,9 @@ fn of_expr_from_ast<'src>(
     ctx: &mut CompileContext<'_, 'src>,
     of: &ast::Of<'src>,
 ) -> Result<ExprId, CompileError> {
-    let quantifier = quantifier_from_ast(ctx, &of.quantifier)?;
+    // Reserve the loop's stack frame before compiling `quantifier` because
+    // `for_vars` (`n` and `i`) are already live in `emit_for` when `quantifier`
+    // is evaluated; see `for_in_expr_from_ast` for details.
     let mut stack_frame =
         ctx.vars.new_frame(VarStack::OF_FRAME_SIZE).ok_or_else(|| {
             TooManyVariables::build(
@@ -1234,6 +1239,7 @@ fn of_expr_from_ast<'src>(
                 ctx.report_builder.span_to_code_loc(of.span()),
             )
         })?;
+    let quantifier = quantifier_from_ast(ctx, &of.quantifier)?;
 
     let (items, next_item_var) = match &of.items {
         // `x of (<boolean expr>, <boolean expr>, ...)`
@@ -1393,9 +1399,9 @@ fn for_of_expr_from_ast<'src>(
     ctx: &mut CompileContext<'_, 'src>,
     for_of: &ast::ForOf<'src>,
 ) -> Result<ExprId, CompileError> {
-    let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
-    let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set)?;
-
+    // Reserve the loop's stack frame before compiling `quantifier` because
+    // `for_vars` (`n` and `i`) are already live in `emit_for` when `quantifier`
+    // is evaluated; see `for_in_expr_from_ast` for details.
     let mut stack_frame =
         ctx.vars.new_frame(VarStack::FOR_OF_FRAME_SIZE).ok_or_else(|| {
             TooManyVariables::build(
@@ -1403,6 +1409,9 @@ fn for_of_expr_from_ast<'src>(
                 ctx.report_builder.span_to_code_loc(for_of.span()),
             )
         })?;
+
+    let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
+    let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set)?;
 
     let for_vars = ForVars {
         n: stack_frame.new_var(Type::Integer),
@@ -1538,6 +1547,22 @@ fn for_in_expr_from_ast<'src>(
     ctx: &mut CompileContext<'_, 'src>,
     for_in: &ast::ForIn<'src>,
 ) -> Result<ExprId, CompileError> {
+    // Reserve the loop's stack frame before compiling `quantifier` and
+    // `iterable`. At runtime (`emit_for` / `emit_for_in_expr_tuple`), the
+    // loop's `for_vars` (`n` and `i`) are already initialized and live while
+    // `quantifier` and `iterable` tuple expressions are evaluated, so any
+    // nested `with`, `for`, or `of` inside them must get higher variable slots
+    // instead of reusing and overwriting `for_vars`. This also guarantees that
+    // all variables inside the loop's subtree have indices `>= for_vars.n`,
+    // which `IR::hoisting` relies on when shifting variables.
+    let mut stack_frame =
+        ctx.vars.new_frame(VarStack::FOR_IN_FRAME_SIZE).ok_or_else(|| {
+            TooManyVariables::build(
+                ctx.report_builder,
+                ctx.report_builder.span_to_code_loc(for_in.span()),
+            )
+        })?;
+
     let quantifier = quantifier_from_ast(ctx, &for_in.quantifier)?;
     let iterable = iterable_from_ast(ctx, &for_in.iterable)?;
 
@@ -1654,14 +1679,6 @@ fn for_in_expr_from_ast<'src>(
             ctx.report_builder.span_to_code_loc(span),
         ));
     }
-
-    let mut stack_frame =
-        ctx.vars.new_frame(VarStack::FOR_IN_FRAME_SIZE).ok_or_else(|| {
-            TooManyVariables::build(
-                ctx.report_builder,
-                ctx.report_builder.span_to_code_loc(for_in.span()),
-            )
-        })?;
 
     let for_vars = ForVars {
         n: stack_frame.new_var(Type::Integer),
@@ -3160,18 +3177,28 @@ fn collapse_or_operands(
         if group.len() >= 2 {
             let first_lhs = group[0].1;
             let collapsed_expr = if kind == OpKind::Matches {
+                let parser = re::parser::Parser::new()
+                    .relaxed_re_syntax(ctx.relaxed_re_syntax);
+                let mut hirs = Vec::with_capacity(group.len());
+                let mut re_ids = Vec::with_capacity(group.len());
+
+                for &(_, _, rhs) in &group {
+                    let re = ctx.ir.get(rhs).as_const().as_regexp();
+                    // `unwrap()` is safe because `re` comes from an
+                    // `ast::Expr::Regexp` operand that was already parsed and
+                    // validated with the same `relaxed_re_syntax` setting.
+                    hirs.push(parser.parse(re).unwrap());
+                    re_ids.push(ctx.regex_pool.get_or_intern(re.as_str()));
+                }
+
+                // Skip collapsing into `MatchesMany` if the combined NFA would
+                // exceed the size limit, keeping the individual `Matches`
+                // expressions intact.
+                if re::hir::Hir::build_automata(&hirs).is_err() {
+                    continue;
+                }
+
                 let set_id = RegexSetId::from(ctx.regex_sets.len() as i32);
-                let re_ids: Vec<_> = group
-                    .iter()
-                    .map(|&(_, _, rhs)| {
-                        let Expr::Const(TypeValue::Regexp(Some(re))) =
-                            ctx.ir.get(rhs)
-                        else {
-                            unreachable!()
-                        };
-                        ctx.regex_pool.get_or_intern(re.as_str())
-                    })
-                    .collect();
                 ctx.regex_sets.insert(set_id, re_ids);
                 ctx.ir.matches_regex_set(first_lhs, set_id)
             } else {
@@ -3179,13 +3206,7 @@ fn collapse_or_operands(
                 let lit_ids: Vec<_> = group
                     .iter()
                     .map(|&(_, _, rhs)| {
-                        let Expr::Const(TypeValue::String {
-                            value: Const(s),
-                            ..
-                        }) = ctx.ir.get(rhs)
-                        else {
-                            unreachable!()
-                        };
+                        let s = ctx.ir.get(rhs).as_const().as_string();
                         ctx.literal_pool.get_or_intern(s.as_bstr())
                     })
                     .collect();

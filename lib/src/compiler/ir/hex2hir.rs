@@ -87,20 +87,44 @@ fn hex_sub_pattern_hir_from_ast(
                 //  `[0-2][5-]` becomes `[5-]`
                 //  `[4][0-7]`  becomes `[4-11]`
                 //
+                let mut overflow = false;
+
                 while let Some(ast::HexToken::Jump(next)) = ast_tokens.peek() {
                     match (jump.start, next.start) {
-                        (Some(s1), Some(s2)) => jump.start = Some(s1 + s2),
+                        (Some(s1), Some(s2)) => match s1.checked_add(s2) {
+                            Some(s) => jump.start = Some(s),
+                            None => overflow = true,
+                        },
                         (Some(s1), None) => jump.start = Some(s1),
                         (None, Some(s2)) => jump.start = Some(s2),
                         (None, None) => jump.start = None,
                     }
                     match (jump.end, next.end) {
-                        (Some(e1), Some(e2)) => jump.end = Some(e1 + e2),
+                        (Some(e1), Some(e2)) => match e1.checked_add(e2) {
+                            Some(e) => jump.end = Some(e),
+                            None => overflow = true,
+                        },
                         (_, _) => jump.end = None,
                     }
                     span = span.combine(&next.span());
                     ast_tokens.next();
                     coalesced = true;
+                }
+
+                if overflow {
+                    return Err(InvalidPattern::build(
+                        ctx.report_builder,
+                        pattern_ident.name.to_string(),
+                        format!(
+                            "jump exceeds maximum allowed bound ({})",
+                            u32::MAX
+                        ),
+                        ctx.report_builder.span_to_code_loc(span),
+                        Some(
+                            "consecutive jumps were coalesced into a single one"
+                                .to_string(),
+                        ),
+                    ));
                 }
 
                 if coalesced {

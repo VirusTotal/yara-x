@@ -542,3 +542,62 @@ fn cst_recovery_and_error_merging() {
     }
     assert!(has_error);
 }
+
+#[test]
+fn cst_try_from_filtered_stream() {
+    let src = br#"
+/* header comment */
+rule test {
+    condition: true // trailing comment
+}
+"#;
+
+    let stream = CSTStream::from(Parser::new(src))
+        .whitespaces(false)
+        .newlines(false)
+        .comments(false);
+    let cst = CST::try_from(stream).unwrap();
+
+    assert_eq!(cst.root().text(), "ruletest{condition:true}");
+}
+
+#[test]
+fn empty_node_positions() {
+    use crate::cst::Position;
+
+    // Empty source file root node has no tokens.
+    let empty_cst = CST::from("");
+    assert_eq!(empty_cst.root().start_pos::<Utf8>(), Position::from((0, 0)));
+    assert_eq!(empty_cst.root().end_pos::<Utf8>(), Position::from((0, 0)));
+    assert_eq!(empty_cst.root().start_pos::<Utf16>(), Position::from((0, 0)));
+    assert_eq!(empty_cst.root().end_pos::<Utf16>(), Position::from((0, 0)));
+
+    // Trivia-only file converted with all trivia filtered out also has no tokens.
+    let trivia_only = CST::try_from(
+        CSTStream::from(Parser::new(b"  \n/* comment */\n"))
+            .whitespaces(false)
+            .newlines(false)
+            .comments(false),
+    )
+    .unwrap();
+    assert_eq!(trivia_only.root().start_pos::<Utf8>(), Position::from((0, 0)));
+    assert_eq!(trivia_only.root().end_pos::<Utf8>(), Position::from((0, 0)));
+
+    // Interior node whose tokens were all detached reports the end position of
+    // the nearest preceding token.
+    let cst = CST::from("rule test {\n  condition: true\n}");
+    let mut root = cst.root().into_mut();
+    loop {
+        let cond_blk = root
+            .first_child()
+            .unwrap()
+            .first_child()
+            .expect("CONDITION_BLK still present");
+        let Some(tok) = cond_blk.first_token() else { break };
+        root = tok.detach().unwrap();
+    }
+    let empty_cond = root.first_child().unwrap().first_child().unwrap();
+    assert_eq!(empty_cond.kind(), SyntaxKind::CONDITION_BLK);
+    assert_eq!(empty_cond.start_pos::<Utf8>(), Position::from((1, 2)));
+    assert_eq!(empty_cond.end_pos::<Utf8>(), Position::from((1, 2)));
+}

@@ -5,16 +5,12 @@
 
 use std::mem::transmute;
 
-use crate::errors::SerializationError;
-use anyhow::anyhow;
-
 pub use wasmtime::Caller;
 
 /// Wasmtime types re-exported by the native runtime.
 pub(crate) use wasmtime::{
-    AsContext, AsContextMut, Config, Engine, Extern, FuncType, Global,
-    GlobalType, Instance, Memory, MemoryType, Mutability, OptLevel, Store,
-    TypedFunc, Val, ValRaw, ValType,
+    AsContext, AsContextMut, Config, Engine, FuncType, Global, Instance,
+    Memory, OptLevel, Store, TypedFunc, Val, ValRaw, ValType,
 };
 
 #[derive(Clone)]
@@ -108,26 +104,12 @@ impl<T: 'static> Linker<T> {
         }
     }
 
-    /// Defines an extern import.
-    pub fn define(
-        &mut self,
-        store: impl AsContext<Data = T>,
-        module: &str,
-        name: &str,
-        item: impl Into<Extern>,
-    ) -> wasmtime::Result<&mut Self> {
-        self.0.define(store, module, name, item)?;
-        Ok(self)
-    }
-
     /// Instantiates `module` with the imports currently registered.
     pub fn instantiate(
         &self,
         store: impl AsContextMut<Data = T>,
         module: &Module,
-    ) -> Result<Instance, SerializationError> {
-        self.0
-            .instantiate(store, &module.0)
-            .map_err(|e| SerializationError::InvalidWASM(anyhow!(e)))
+    ) -> wasmtime::Result<Instance> {
+        self.0.instantiate(store, &module.0)
     }
 }

@@ -239,8 +239,7 @@ pub(super) fn dfs_common(
             Quantifier::None => {}
             Quantifier::All => {}
             Quantifier::Any => {}
-            Quantifier::Percentage(_) => {}
-            Quantifier::Expr(expr) => {
+            Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
                 stack.push(Event::Enter((*expr, EventContext::None)))
             }
         };
@@ -672,5 +671,40 @@ mod tests {
         ));
 
         assert_eq!(dfs.scopes().collect::<Vec<_>>(), vec![]);
+    }
+
+    #[test]
+    fn dfs_quantifier_percentage() {
+        use crate::compiler::ir::{ForVars, MatchAnchor, Quantifier};
+
+        let mut ir = IR::new();
+        let mut var_stack = VarStack::new();
+        let mut var_frame = var_stack.new_frame(5).unwrap();
+
+        let pct = ir.constant(TypeValue::const_signed_integer_from(50));
+        let item = ir.constant(TypeValue::const_bool_from(true));
+        let for_vars = ForVars {
+            n: var_frame.new_var(Type::Integer),
+            i: var_frame.new_var(Type::Integer),
+            max_count: var_frame.new_var(Type::Integer),
+            count: var_frame.new_var(Type::Integer),
+            item: var_frame.new_var(Type::Bool),
+        };
+        let of = ir.of_expr_tuple(
+            Quantifier::Percentage(pct),
+            for_vars,
+            vec![item],
+            MatchAnchor::None,
+        );
+
+        let visited: Vec<ExprId> = ir
+            .dfs_iter(of)
+            .filter_map(|evt| match evt {
+                Event::Enter((id, _, _)) => Some(id),
+                Event::Leave(_) => None,
+            })
+            .collect();
+
+        assert_eq!(visited, vec![of, pct, item]);
     }
 }

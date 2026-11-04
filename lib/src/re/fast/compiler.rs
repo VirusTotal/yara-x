@@ -218,19 +218,17 @@ impl Compiler {
         instr: &mut InstrSeq,
     ) -> Result<(), Error> {
         match piece {
-            PatternPiece::Pattern(pattern) => instr.emit_pattern(pattern),
+            PatternPiece::Pattern(pattern) => {
+                instr.emit_pattern(pattern)?;
+            }
             PatternPiece::Alternation(alt) => {
                 instr.emit_alternation(alt)?;
             }
             PatternPiece::JumpExact(len, accept_newlines) => {
-                instr.emit_jump_exact(*len as u16, *accept_newlines)
+                instr.emit_jump_exact(*len, *accept_newlines)
             }
             PatternPiece::Jump(min, max, accept_newlines) => {
-                instr.emit_jump(
-                    *min as u16,
-                    max.map(|max| max as u16),
-                    *accept_newlines,
-                );
+                instr.emit_jump(*min, *max, *accept_newlines);
             }
         }
 
@@ -504,7 +502,7 @@ impl InstrSeq {
         self.seq.write_all(&[Instr::MATCH]).unwrap();
     }
 
-    pub fn emit_jump_exact(&mut self, len: u16, accept_newlines: bool) {
+    pub fn emit_jump_exact(&mut self, len: u32, accept_newlines: bool) {
         if accept_newlines {
             self.seq.write_all(&[Instr::JUMP_EXACT]).unwrap();
         } else {
@@ -515,8 +513,8 @@ impl InstrSeq {
 
     pub fn emit_jump(
         &mut self,
-        min: u16,
-        max: Option<u16>,
+        min: u32,
+        max: Option<u32>,
         accept_newlines: bool,
     ) {
         if accept_newlines {
@@ -530,25 +528,27 @@ impl InstrSeq {
         self.seq.write_all(max.unwrap_or(0).to_le_bytes().as_slice()).unwrap();
     }
 
-    pub fn emit_pattern(&mut self, pattern: &Pattern) {
+    pub fn emit_pattern(&mut self, pattern: &Pattern) -> Result<(), Error> {
         match pattern {
             Pattern::Literal(literal) => {
-                assert!(literal.len() < u16::MAX as usize);
-                let len = u16::to_le_bytes(literal.len().try_into().unwrap());
+                let len: u16 =
+                    literal.len().try_into().map_err(|_| Error::TooLarge)?;
                 self.seq.write_all(&[Instr::LITERAL]).unwrap();
-                self.seq.write_all(len.as_slice()).unwrap();
+                self.seq.write_all(len.to_le_bytes().as_slice()).unwrap();
                 self.seq.write_all(literal).unwrap();
             }
             Pattern::Masked(literal, mask) => {
-                assert!(literal.len() < u16::MAX as usize);
                 assert_eq!(literal.len(), mask.len());
-                let len = u16::to_le_bytes(literal.len().try_into().unwrap());
+                let len: u16 =
+                    literal.len().try_into().map_err(|_| Error::TooLarge)?;
                 self.seq.write_all(&[Instr::MASKED_LITERAL]).unwrap();
-                self.seq.write_all(len.as_slice()).unwrap();
+                self.seq.write_all(len.to_le_bytes().as_slice()).unwrap();
                 self.seq.write_all(literal).unwrap();
                 self.seq.write_all(mask).unwrap();
             }
         }
+
+        Ok(())
     }
 
     pub fn emit_alternation(
@@ -570,7 +570,7 @@ impl InstrSeq {
         let alternatives_loc = self.seq.position();
         // Emit all alternatives.
         for pattern in alternatives {
-            self.emit_pattern(pattern);
+            self.emit_pattern(pattern)?;
         }
         // Calculate the size of alternatives.
         let alternatives_len = self.seq.position() - alternatives_loc;

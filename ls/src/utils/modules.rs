@@ -1,11 +1,18 @@
+use std::collections::HashSet;
+
 use yara_x::mods::module_definition;
 use yara_x::mods::reflect::Type;
 use yara_x_parser::{
+    Span,
     ast::{Expr, Lookup, NAryExpr},
     cst::{Immutable, Node, SyntaxKind, Token},
 };
 
 use crate::utils::cst_traversal::{find_declaration, prev_non_trivia_token};
+
+/// Upper bound on nested `with`/`for` variable alias chains resolved by
+/// [`get_type`] to prevent stack overflows on deeply chained declarations.
+const MAX_TYPE_RESOLUTION_DEPTH: usize = 64;
 
 #[derive(Debug)]
 pub enum Segment {
@@ -36,6 +43,14 @@ pub struct ResolvedType {
 /// identified by the token, together with the name of the module it belongs
 /// to. Returns `None` if the type cannot be determined.
 pub fn get_type(token: &Token<Immutable>) -> Option<ResolvedType> {
+    let mut visited = HashSet::new();
+    get_type_inner(token, &mut visited)
+}
+
+fn get_type_inner(
+    token: &Token<Immutable>,
+    visited: &mut HashSet<Span>,
+) -> Option<ResolvedType> {
     let mut path = Vec::new();
     let mut curr = Some(token.clone());
 
@@ -44,11 +59,19 @@ pub fn get_type(token: &Token<Immutable>) -> Option<ResolvedType> {
             SyntaxKind::IDENT => {
                 // If the identifier is a variable declared in a `for` or `with`
                 // statement, we need to find the type of that variable.
-                if let Some((_, declaration)) = find_declaration(&token) {
+                if let Some((declared_ident, declaration)) =
+                    find_declaration(&token)
+                {
+                    if visited.len() >= MAX_TYPE_RESOLUTION_DEPTH
+                        || !visited.insert(declared_ident.span())
+                    {
+                        return None;
+                    }
                     return get_type_from_declaration(
                         &declaration,
-                        &token,
+                        &declared_ident,
                         path.into_iter().rev(),
+                        visited,
                     );
                 }
                 path.push(Segment::Field(token.text().to_string()));
@@ -140,10 +163,11 @@ pub fn get_type(token: &Token<Immutable>) -> Option<ResolvedType> {
 /// A [`ResolvedType`] containing the resolved type of the identifier and the
 /// module it comes from. Returns `None` if the type cannot be determined or if
 /// the access path is invalid for the type.
-pub fn get_type_from_declaration(
+fn get_type_from_declaration(
     declaration: &Node<Immutable>,
     ident: &Token<Immutable>,
     path: impl Iterator<Item = Segment>,
+    visited: &mut HashSet<Span>,
 ) -> Option<ResolvedType> {
     match declaration.kind() {
         SyntaxKind::WITH_EXPR => {
@@ -151,49 +175,87 @@ pub fn get_type_from_declaration(
                 .children()
                 .find(|n| n.kind() == SyntaxKind::WITH_DECLS)?;
 
-            for with_decl in with_decls.children() {
-                let declared_ident = with_decl.first_token()?;
-                if declared_ident.text() != ident.text() {
+            let mut target_decl = None;
+            for with_decl in with_decls
+                .children()
+                .filter(|n| n.kind() == SyntaxKind::WITH_DECL)
+            {
+                let Some(declared_ident) = with_decl
+                    .first_token()
+                    .filter(|t| t.kind() == SyntaxKind::IDENT)
+                else {
                     continue;
+                };
+                if declared_ident.span() == ident.span() {
+                    target_decl = Some(with_decl);
+                    break;
                 }
+                if declared_ident.text() == ident.text() {
+                    target_decl = Some(with_decl);
+                }
+            }
 
-                let ResolvedType { ty: mut current_type, module } =
-                    get_type(&with_decl.last_token()?)?;
+            let with_decl = target_decl?;
+            let eq = with_decl
+                .children_with_tokens()
+                .find(|child| child.kind() == SyntaxKind::EQUAL)?
+                .into_token()?;
 
-                for segment in path {
-                    match segment {
-                        Segment::Field(name) => {
-                            if let Type::Struct(struct_def) = current_type {
-                                current_type = struct_def
-                                    .fields()
-                                    .find(|field| field.name() == name)?
-                                    .ty()
-                            } else {
-                                return None;
-                            }
-                        }
-                        Segment::Index => {
-                            if let Type::Array(inner) = current_type {
-                                current_type = *inner
-                            } else {
-                                return None;
-                            }
+            let mut expr_last_token = with_decl.last_token()?;
+            if matches!(
+                expr_last_token.kind(),
+                SyntaxKind::NEWLINE
+                    | SyntaxKind::WHITESPACE
+                    | SyntaxKind::COMMENT
+            ) {
+                expr_last_token = prev_non_trivia_token(&expr_last_token)?;
+            }
+            if expr_last_token.span().start() < eq.span().end() {
+                return None;
+            }
+
+            let ResolvedType { ty: mut current_type, module } =
+                get_type_inner(&expr_last_token, visited)?;
+
+            for segment in path {
+                match segment {
+                    Segment::Field(name) => {
+                        if let Type::Struct(struct_def) = current_type {
+                            current_type = struct_def
+                                .fields()
+                                .find(|field| field.name() == name)?
+                                .ty()
+                        } else {
+                            return None;
                         }
                     }
+                    Segment::Index => match current_type {
+                        Type::Array(inner) => current_type = *inner,
+                        Type::Map(_, value) => current_type = *value,
+                        _ => return None,
+                    },
                 }
-                return Some(ResolvedType { ty: current_type, module });
             }
-            return None;
+            return Some(ResolvedType { ty: current_type, module });
         }
         SyntaxKind::FOR_EXPR => {
+            let in_kw = declaration
+                .children_with_tokens()
+                .find(|child| child.kind() == SyntaxKind::IN_KW)?
+                .into_token()?;
+
             let colon = declaration
                 .children_with_tokens()
                 .find(|child| child.kind() == SyntaxKind::COLON)?
                 .into_token()?;
 
             let iterable_last_token = prev_non_trivia_token(&colon)?;
+            if iterable_last_token.span().start() < in_kw.span().end() {
+                return None;
+            }
+
             let ResolvedType { ty: iterable_type, module } =
-                get_type(&iterable_last_token)?;
+                get_type_inner(&iterable_last_token, visited)?;
 
             let mut current_type = match iterable_type {
                 Type::Array(inner) => *inner,
@@ -213,13 +275,11 @@ pub fn get_type_from_declaration(
                             return None;
                         }
                     }
-                    Segment::Index => {
-                        if let Type::Array(inner) = current_type {
-                            current_type = *inner
-                        } else {
-                            return None;
-                        }
-                    }
+                    Segment::Index => match current_type {
+                        Type::Array(inner) => current_type = *inner,
+                        Type::Map(_, value) => current_type = *value,
+                        _ => return None,
+                    },
                 }
             }
             return Some(ResolvedType { ty: current_type, module });
@@ -478,5 +538,75 @@ mod tests {
         let resolved = get_type(name_token).expect("type of s.name in loop");
         assert!(matches!(resolved.ty, Type::String));
         assert_eq!(resolved.module, "pe");
+    }
+
+    #[test]
+    fn test_get_type_cyclic_and_incomplete_declarations() {
+        let cases = [
+            // Self-referential `with` initializer.
+            "rule r { condition: with a = a : ( a.foo == 1 ) }",
+            // Mutually referencing `with` initializers.
+            "rule r { condition: with a = b, b = a : ( a.foo == b.foo ) }",
+            // Self-referential `for` iterable.
+            "rule r { condition: for any s in s : ( s.foo == 1 ) }",
+            // Incomplete `with` and `for` declarations while editing.
+            "rule r { condition: with a : ( a.foo == 1 ) }",
+            "rule r { condition: with a = : ( a.foo == 1 ) }",
+            "rule r { condition: for any s : ( s.foo == 1 ) }",
+            "rule r { condition: for any s in : ( s.foo == 1 ) }",
+        ];
+
+        for text in cases {
+            let cst = CST::from(text);
+            let root = cst.root();
+            let mut stack = vec![NodeOrToken::Node(root)];
+            while let Some(nt) = stack.pop() {
+                match nt {
+                    NodeOrToken::Node(n) => {
+                        stack.extend(n.children_with_tokens())
+                    }
+                    NodeOrToken::Token(t) if t.kind() == SyntaxKind::IDENT => {
+                        assert!(get_type(&t).is_none());
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_get_type_shadowing_and_deep_chain() {
+        // `for` variable shadowing an outer `with` variable used as its iterable.
+        let text = "import \"pe\"\nrule r { condition: with s = pe.sections : ( for any s in s : ( s.name == \".text\" ) ) }";
+        let cst = CST::from(text);
+        let root = cst.root();
+        let name_token = find_tokens(&root, "name").pop().unwrap();
+        let resolved = get_type(&name_token).expect("type of shadowed s.name");
+        assert!(matches!(resolved.ty, Type::String));
+        assert_eq!(resolved.module, "pe");
+
+        // Redeclared `with` variable in the same `with` block.
+        let text = "import \"pe\"\nrule r { condition: with s = pe.entry_point, s = pe.sections[0] : ( s.name == \".text\" ) }";
+        let cst = CST::from(text);
+        let root = cst.root();
+        let name_token = find_tokens(&root, "name").pop().unwrap();
+        let resolved =
+            get_type(&name_token).expect("type of redeclared s.name");
+        assert!(matches!(resolved.ty, Type::String));
+        assert_eq!(resolved.module, "pe");
+
+        // Deep chain exceeding `MAX_TYPE_RESOLUTION_DEPTH` must return `None`
+        // cleanly without overflowing the stack.
+        let mut decls = String::from("a0 = pe.sections[0]");
+        for i in 1..=200 {
+            decls.push_str(&format!(", a{i} = a{}", i - 1));
+        }
+        let deep = format!(
+            "import \"pe\"\nrule r {{ condition: with {decls} : ( a200.name == \".text\" ) }}"
+        );
+        let cst = CST::from(deep.as_str());
+        let root = cst.root();
+        let name_token = find_tokens(&root, "name").pop().unwrap();
+        assert!(get_type(&name_token).is_none());
     }
 }

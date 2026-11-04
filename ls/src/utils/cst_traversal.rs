@@ -286,17 +286,59 @@ pub fn find_declaration(
     for ancestor in ident.ancestors() {
         match ancestor.kind() {
             SyntaxKind::FOR_EXPR => {
+                // Loop variables declared by `for` are only in scope inside
+                // the loop body (after `:`), or at the declaration site itself.
+                let in_body = ancestor
+                    .children_with_tokens()
+                    .find(|child| child.kind() == SyntaxKind::COLON)
+                    .is_some_and(|colon| {
+                        ident.span().start() >= colon.span().end()
+                    });
+
                 for declared_ident in idents_declared_by_for(&ancestor) {
-                    if ident.text() == declared_ident.text() {
+                    if ident.text() == declared_ident.text()
+                        && (ident.span() == declared_ident.span() || in_body)
+                    {
                         return Some((declared_ident, ancestor));
                     }
                 }
             }
             SyntaxKind::WITH_EXPR => {
-                for declared_ident in idents_declared_by_with(&ancestor) {
-                    if ident.text() == declared_ident.text() {
-                        return Some((declared_ident, ancestor));
+                // Each `with` variable is only in scope in subsequent
+                // `WITH_DECL` initializers and in the `with` body, or at its
+                // own declaration site. If the same name is redeclared in the
+                // same `with` block, the latest preceding declaration wins.
+                let Some(with_decls) = ancestor
+                    .children()
+                    .find(|node| node.kind() == SyntaxKind::WITH_DECLS)
+                else {
+                    continue;
+                };
+
+                let mut matched = None;
+                for with_decl in with_decls
+                    .children()
+                    .filter(|node| node.kind() == SyntaxKind::WITH_DECL)
+                {
+                    let Some(declared_ident) = with_decl
+                        .first_token()
+                        .filter(|token| token.kind() == SyntaxKind::IDENT)
+                    else {
+                        continue;
+                    };
+
+                    if ident.text() == declared_ident.text()
+                        && (ident.span() == declared_ident.span()
+                            || with_decl.last_token().is_some_and(|last| {
+                                ident.span().start() >= last.span().end()
+                            }))
+                    {
+                        matched = Some(declared_ident);
                     }
+                }
+
+                if let Some(declared_ident) = matched {
+                    return Some((declared_ident, ancestor));
                 }
             }
             _ => {}
@@ -315,13 +357,38 @@ pub fn idents_declared_by_expr(
     for ancestor in child.ancestors() {
         match ancestor.kind() {
             SyntaxKind::FOR_EXPR => {
-                for ident in idents_declared_by_for(&ancestor) {
-                    result_idents.push(ident);
+                let in_body = ancestor
+                    .children_with_tokens()
+                    .find(|n| n.kind() == SyntaxKind::COLON)
+                    .is_some_and(|colon| {
+                        child.span().start() >= colon.span().end()
+                    });
+
+                if in_body {
+                    for ident in idents_declared_by_for(&ancestor) {
+                        result_idents.push(ident);
+                    }
                 }
             }
             SyntaxKind::WITH_EXPR => {
-                for ident in idents_declared_by_with(&ancestor) {
-                    result_idents.push(ident);
+                if let Some(with_decls) = ancestor
+                    .children()
+                    .find(|node| node.kind() == SyntaxKind::WITH_DECLS)
+                {
+                    for with_decl in with_decls
+                        .children()
+                        .filter(|node| node.kind() == SyntaxKind::WITH_DECL)
+                    {
+                        if let Some(declared_ident) = with_decl
+                            .first_token()
+                            .filter(|token| token.kind() == SyntaxKind::IDENT)
+                            && with_decl.last_token().is_some_and(|last| {
+                                child.span().start() >= last.span().end()
+                            })
+                        {
+                            result_idents.push(declared_ident);
+                        }
+                    }
                 }
             }
             _ => {}
@@ -598,5 +665,51 @@ mod tests {
         assert_eq!(incs.len(), 2);
         assert_eq!(incs[0].as_str(), "file:///project/common.yar");
         assert_eq!(incs[1].as_str(), "file:///project/sub/rules.yar");
+    }
+
+    #[test]
+    fn test_find_declaration_scoping() {
+        // Self-referential `with a = a` must not resolve the initializer `a`
+        // to the `a` being declared, nor resolve a forward reference `a = b`.
+        let text = "rule r { condition: with a = a, b = a : ( a == b ) }";
+        let cst = CST::from(text);
+        let root = cst.root();
+
+        let mut a_tokens = find_tokens(&root, "a");
+        a_tokens.sort_by_key(|t| t.span().start());
+        assert_eq!(a_tokens.len(), 4);
+
+        // `a` at LHS of `a = a` resolves to itself.
+        let (decl, _) = find_declaration(&a_tokens[0]).unwrap();
+        assert_eq!(decl.span(), a_tokens[0].span());
+
+        // `a` in RHS of `a = a` is not yet in scope.
+        assert!(find_declaration(&a_tokens[1]).is_none());
+
+        // `a` in RHS of `b = a` and in body `( a == b )` resolves to `a_tokens[0]`.
+        let (decl, _) = find_declaration(&a_tokens[2]).unwrap();
+        assert_eq!(decl.span(), a_tokens[0].span());
+        let (decl, _) = find_declaration(&a_tokens[3]).unwrap();
+        assert_eq!(decl.span(), a_tokens[0].span());
+
+        // In `with s = pe.sections : ( for any s in s : ( s.name == ".text" ) )`,
+        // the iterable `s` resolves to the outer `with`, while the body `s`
+        // resolves to the inner `for`.
+        let shadowed = "rule r { condition: with s = pe.sections : ( for any s in s : ( s.name == \".text\" ) ) }";
+        let cst = CST::from(shadowed);
+        let root = cst.root();
+
+        let mut s_tokens = find_tokens(&root, "s");
+        s_tokens.sort_by_key(|t| t.span().start());
+        assert_eq!(s_tokens.len(), 4);
+
+        let (iterable_decl, iterable_node) =
+            find_declaration(&s_tokens[2]).unwrap();
+        assert_eq!(iterable_decl.span(), s_tokens[0].span());
+        assert_eq!(iterable_node.kind(), SyntaxKind::WITH_EXPR);
+
+        let (body_decl, body_node) = find_declaration(&s_tokens[3]).unwrap();
+        assert_eq!(body_decl.span(), s_tokens[1].span());
+        assert_eq!(body_node.kind(), SyntaxKind::FOR_EXPR);
     }
 }

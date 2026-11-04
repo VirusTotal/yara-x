@@ -992,7 +992,7 @@ impl<'a> Compiler<'a> {
         self
     }
 
-    /// Tell the compiler that a YARA module is not supported.
+    /// Tell the compiler that a YARA module should be ignored.
     ///
     /// Import statements for ignored modules will be ignored without errors,
     /// but a warning will be issued. Any rule that makes use of an ignored
@@ -1307,6 +1307,7 @@ impl Compiler<'_> {
             atoms_len: self.atoms.len(),
             re_code_len: self.re_code.len(),
             sub_patterns_len: self.sub_patterns.len(),
+            anchored_sub_patterns_len: self.anchored_sub_patterns.len(),
             symbol_table_len: self.symbol_table.len(),
             fast_scan_max_matches_len: self.fast_scan_max_matches.len(),
             rule_constraints_len: self.rule_constraints.len(),
@@ -1329,6 +1330,8 @@ impl Compiler<'_> {
         self.next_pattern_id = snapshot.next_pattern_id;
         self.rules.truncate(snapshot.rules_len);
         self.sub_patterns.truncate(snapshot.sub_patterns_len);
+        self.anchored_sub_patterns
+            .truncate(snapshot.anchored_sub_patterns_len);
         self.re_code.truncate(snapshot.re_code_len);
         self.atoms.truncate(snapshot.atoms_len);
         self.symbol_table.truncate(snapshot.symbol_table_len);
@@ -2078,14 +2081,22 @@ impl Compiler<'_> {
 
     fn c_import(&mut self, import: &Import) -> Result<(), CompileError> {
         let module_name = import.module_name;
-        let module = crate::modules::module_by_name(module_name);
+        let ignored = self.ignored_modules.iter().any(|m| m == module_name);
+
+        // A module in the list of ignored modules is treated as if it didn't
+        // exist, even if YARA-X implements it.
+        let module = if ignored {
+            None
+        } else {
+            crate::modules::module_by_name(module_name)
+        };
 
         // Does a module with the given name actually exist? ...
         if module.is_none() {
             // The module does not exist, but it is included in the list
             // of unsupported modules. In such cases we don't raise an error,
             // only a warning.
-            return if self.ignored_modules.iter().any(|m| m == module_name) {
+            return if ignored {
                 self.warnings.add(|| {
                     warnings::IgnoredModule::build(
                         &self.report_builder,
@@ -3297,6 +3308,7 @@ struct Snapshot {
     atoms_len: usize,
     re_code_len: usize,
     sub_patterns_len: usize,
+    anchored_sub_patterns_len: usize,
     symbol_table_len: usize,
     fast_scan_max_matches_len: usize,
     rule_constraints_len: usize,
