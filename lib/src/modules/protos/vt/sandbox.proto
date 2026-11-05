@@ -89,6 +89,7 @@ enum BehaviourTag {
   STRIP_QUARANTINE = 71;
   DISABLES_SECURITY = 72;
   CHECKS_VM = 73;
+  ENCRYPTS_FILES = 74;
 }
 
 enum VerdictTag {
