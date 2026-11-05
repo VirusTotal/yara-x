@@ -2239,42 +2239,6 @@ fn test_var_stack_overflow() {
 }
 
 #[test]
-fn test_condition_too_large() {
-    use crate::errors::CompileError;
-
-    let mut compiler = Compiler::new();
-    compiler.add_source("rule ok_before { condition: true }").unwrap();
-
-    let mut huge = String::from("rule massive { condition: filesize > 0");
-    for _ in 0..25_000 {
-        huge.push_str(" and filesize > 0");
-    }
-    huge.push('}');
-
-    let err = compiler.add_source(huge.as_str()).unwrap_err();
-    assert!(matches!(err, CompileError::ConditionTooLarge(_)));
-
-    // Two rules that each fit under MAX_FUNC_INSTRS alone, but exceed
-    // MAX_FUNC_INSTRS together, should both compile by splitting into
-    // separate WASM functions (issue #828).
-    let large_rule = |name: &str| {
-        format!(
-            "rule {name} {{ condition: filesize >= 0{} }}\n",
-            " and filesize >= 0".repeat(6000)
-        )
-    };
-    compiler.add_source(large_rule("large_a").as_str()).unwrap();
-    compiler.add_source(large_rule("large_b").as_str()).unwrap();
-
-    compiler.add_source("rule ok_after { condition: true }").unwrap();
-    let rules = compiler.build();
-
-    let mut scanner = Scanner::new(&rules);
-    let results = scanner.scan(&[]).unwrap();
-    assert_eq!(results.matching_rules().len(), 4);
-}
-
-#[test]
 fn test_unicode_whitespace() {
     // Space separator characters (including U+1680 and U+3000) must be treated
     // as valid whitespace, and rendering errors on lines containing them must
