@@ -5064,6 +5064,8 @@ pub enum BehaviourTag {
     DISABLES_SECURITY = 72,
     // @@protoc_insertion_point(enum_value:vt.fileanalysis.BehaviourTag.CHECKS_VM)
     CHECKS_VM = 73,
+    // @@protoc_insertion_point(enum_value:vt.fileanalysis.BehaviourTag.ENCRYPTS_FILES)
+    ENCRYPTS_FILES = 74,
 }
 
 impl ::protobuf::Enum for BehaviourTag {
@@ -5148,6 +5150,7 @@ impl ::protobuf::Enum for BehaviourTag {
             71 => ::std::option::Option::Some(BehaviourTag::STRIP_QUARANTINE),
             72 => ::std::option::Option::Some(BehaviourTag::DISABLES_SECURITY),
             73 => ::std::option::Option::Some(BehaviourTag::CHECKS_VM),
+            74 => ::std::option::Option::Some(BehaviourTag::ENCRYPTS_FILES),
             _ => ::std::option::Option::None
         }
     }
@@ -5227,6 +5230,7 @@ impl ::protobuf::Enum for BehaviourTag {
             "STRIP_QUARANTINE" => ::std::option::Option::Some(BehaviourTag::STRIP_QUARANTINE),
             "DISABLES_SECURITY" => ::std::option::Option::Some(BehaviourTag::DISABLES_SECURITY),
             "CHECKS_VM" => ::std::option::Option::Some(BehaviourTag::CHECKS_VM),
+            "ENCRYPTS_FILES" => ::std::option::Option::Some(BehaviourTag::ENCRYPTS_FILES),
             _ => ::std::option::Option::None
         }
     }
@@ -5305,6 +5309,7 @@ impl ::protobuf::Enum for BehaviourTag {
         BehaviourTag::STRIP_QUARANTINE,
         BehaviourTag::DISABLES_SECURITY,
         BehaviourTag::CHECKS_VM,
+        BehaviourTag::ENCRYPTS_FILES,
     ];
 }
 
@@ -5389,6 +5394,7 @@ impl ::protobuf::EnumFull for BehaviourTag {
             BehaviourTag::STRIP_QUARANTINE => 70,
             BehaviourTag::DISABLES_SECURITY => 71,
             BehaviourTag::CHECKS_VM => 72,
+            BehaviourTag::ENCRYPTS_FILES => 73,
         };
         Self::enum_descriptor().value_by_index(index)
     }
@@ -5785,7 +5791,7 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x06\x20\x03(\tR\x0bfilesOpened\x12#\n\rfiles_written\x18\x07\x20\x03(\t\
     R\x0cfilesWritten\x12#\n\rfiles_deleted\x18\x08\x20\x03(\tR\x0cfilesDele\
     ted\x12<\n\x0cfiles_copied\x18\t\x20\x03(\x0b2\x19.vt.fileanalysis.FileC\
-    opyR\x0bfilesCopied*\xf7\x0b\n\x0cBehaviourTag\x12\x15\n\x11UNKNOWN_BEHA\
+    opyR\x0bfilesCopied*\x8b\x0c\n\x0cBehaviourTag\x12\x15\n\x11UNKNOWN_BEHA\
     VIOUR\x10\0\x12\x1c\n\x18DETECT_DEBUG_ENVIRONMENT\x10\x01\x12\x1b\n\x17D\
     IRECT_CPU_CLOCK_ACCESS\x10\x02\x12\x0f\n\x0bLONG_SLEEPS\x10\x03\x12\x0f\
     \n\x0bSELF_DELETE\x10\x04\x12\x12\n\x0eHOSTS_MODIFIER\x10\x05\x12\x1e\n\
@@ -5820,17 +5826,18 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x12\x11\n\rBROWSER_CREDS\x10B\x12\x12\n\x0eCRYPTO_WALLETS\x10C\x12\x12\
     \n\x0eOS_CREDENTIALS\x10D\x12\r\n\tWEB_EXFIL\x10E\x12\x11\n\rUNSIGNED_EX\
     EC\x10F\x12\x14\n\x10STRIP_QUARANTINE\x10G\x12\x15\n\x11DISABLES_SECURIT\
-    Y\x10H\x12\r\n\tCHECKS_VM\x10I\x1a\x14\x92\x93\x19\x10\n\x0eBehaviourTra\
-    it*\xda\x01\n\nVerdictTag\x12\x13\n\x0fUNKNOWN_VERDICT\x10\0\x12\t\n\x05\
-    CLEAN\x10\x01\x12\x0b\n\x07MALWARE\x10\x02\x12\x0c\n\x08GREYWARE\x10\x03\
-    \x12\n\n\x06RANSOM\x10\x04\x12\x0c\n\x08PHISHING\x10\x05\x12\n\n\x06BANK\
-    ER\x10\x06\x12\n\n\x06ADWARE\x10\x07\x12\x0b\n\x07EXPLOIT\x10\x08\x12\n\
-    \n\x06EVADER\x10\t\x12\x07\n\x03RAT\x10\n\x12\n\n\x06TROJAN\x10\x0b\x12\
-    \x0c\n\x08SPREADER\x10\x0c\x12\x0b\n\x07STEALER\x10\r\x1a\x16\x92\x93\
-    \x19\x12\n\x10BehaviourVerdict*\x96\x01\n\x0eImpactSeverity\x12\x1b\n\
-    \x17IMPACT_SEVERITY_UNKNOWN\x10\0\x12\x18\n\x14IMPACT_SEVERITY_INFO\x10\
-    \x01\x12\x17\n\x13IMPACT_SEVERITY_LOW\x10\x02\x12\x1a\n\x16IMPACT_SEVERI\
-    TY_MEDIUM\x10\x03\x12\x18\n\x14IMPACT_SEVERITY_HIGH\x10\x04b\x06proto3\
+    Y\x10H\x12\r\n\tCHECKS_VM\x10I\x12\x12\n\x0eENCRYPTS_FILES\x10J\x1a\x14\
+    \x92\x93\x19\x10\n\x0eBehaviourTrait*\xda\x01\n\nVerdictTag\x12\x13\n\
+    \x0fUNKNOWN_VERDICT\x10\0\x12\t\n\x05CLEAN\x10\x01\x12\x0b\n\x07MALWARE\
+    \x10\x02\x12\x0c\n\x08GREYWARE\x10\x03\x12\n\n\x06RANSOM\x10\x04\x12\x0c\
+    \n\x08PHISHING\x10\x05\x12\n\n\x06BANKER\x10\x06\x12\n\n\x06ADWARE\x10\
+    \x07\x12\x0b\n\x07EXPLOIT\x10\x08\x12\n\n\x06EVADER\x10\t\x12\x07\n\x03R\
+    AT\x10\n\x12\n\n\x06TROJAN\x10\x0b\x12\x0c\n\x08SPREADER\x10\x0c\x12\x0b\
+    \n\x07STEALER\x10\r\x1a\x16\x92\x93\x19\x12\n\x10BehaviourVerdict*\x96\
+    \x01\n\x0eImpactSeverity\x12\x1b\n\x17IMPACT_SEVERITY_UNKNOWN\x10\0\x12\
+    \x18\n\x14IMPACT_SEVERITY_INFO\x10\x01\x12\x17\n\x13IMPACT_SEVERITY_LOW\
+    \x10\x02\x12\x1a\n\x16IMPACT_SEVERITY_MEDIUM\x10\x03\x12\x18\n\x14IMPACT\
+    _SEVERITY_HIGH\x10\x04b\x06proto3\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
