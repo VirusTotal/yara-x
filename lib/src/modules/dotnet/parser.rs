@@ -11,9 +11,9 @@ use itertools::Itertools;
 use nom::branch::alt;
 use nom::bytes::complete::{take, take_till};
 use nom::combinator::{cond, map, map_opt, map_parser, map_res, verify};
-use nom::multi::{count, length_count, length_data, many0, many_m_n};
+use nom::multi::{count, length_count, length_data, many_m_n, many0};
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
-use nom::{bits, IResult, Parser};
+use nom::{IResult, Parser, bits};
 use num_derive::FromPrimitive;
 use num_traits;
 use protobuf::MessageField;
@@ -244,11 +244,7 @@ impl<'a> Dotnet<'a> {
 
     pub fn get_string_constants(&self) -> impl Iterator<Item = &[u8]> {
         self.constants.iter().filter_map(|c| {
-            if c.type_ == Type::String {
-                c.value
-            } else {
-                None
-            }
+            if c.type_ == Type::String { c.value } else { None }
         })
     }
 
@@ -472,13 +468,7 @@ impl<'a> Dotnet<'a> {
 
         for i in 0..64 {
             if valid & (1 << i) != 0 {
-                // Limit the number of rows per table to a reasonable number
-                // of MAX_ROWS_PER_TABLE.
-                let num_rows = min(
-                    num_rows_per_present_table.next().unwrap(),
-                    Self::MAX_ROWS_PER_TABLE,
-                );
-                self.num_rows.push(num_rows);
+                self.num_rows.push(num_rows_per_present_table.next().unwrap());
             } else {
                 self.num_rows.push(0)
             }
@@ -498,237 +488,265 @@ impl<'a> Dotnet<'a> {
         // have a variable length, and we can't skip them without some amount
         // of parsing.
 
-        (remainder, self.modules) =
-            count(self.parse_module_row(), self.num_rows(Table::Module))
-                .parse(remainder)?;
+        (remainder, self.modules) = self
+            .parse_table(self.parse_module_row(), Table::Module)(
+            remainder
+        )?;
 
-        (remainder, self.type_refs) =
-            count(self.parse_type_ref_row(), self.num_rows(Table::TypeRef))
-                .parse(remainder)?;
+        (remainder, self.type_refs) = self
+            .parse_table(self.parse_type_ref_row(), Table::TypeRef)(
+            remainder,
+        )?;
 
-        (remainder, self.type_defs) =
-            count(self.parse_type_def_row(), self.num_rows(Table::TypeDef))
-                .parse(remainder)?;
+        (remainder, self.type_defs) = self
+            .parse_table(self.parse_type_def_row(), Table::TypeDef)(
+            remainder,
+        )?;
 
-        (remainder, _) = count(
-            self.table_index(Table::Field),
-            self.num_rows(Table::FieldPtr),
-        )
-        .parse(remainder)?;
+        (remainder, _) = self
+            .parse_table(self.table_index(Table::Field), Table::FieldPtr)(
+            remainder,
+        )?;
 
         (remainder, _) =
-            count(self.parse_field_row(), self.num_rows(Table::Field))
-                .parse(remainder)?;
+            self.parse_table(self.parse_field_row(), Table::Field)(remainder)?;
 
-        (remainder, _) = count(
+        (remainder, _) = self.parse_table(
             self.table_index(Table::MethodDef),
-            self.num_rows(Table::MethodDefPtr),
-        )
-        .parse(remainder)?;
+            Table::MethodDefPtr,
+        )(remainder)?;
 
-        (remainder, self.method_defs) = count(
-            self.parse_method_def_row(),
-            self.num_rows(Table::MethodDef),
-        )
-        .parse(remainder)?;
+        (remainder, self.method_defs) = self
+            .parse_table(self.parse_method_def_row(), Table::MethodDef)(
+            remainder,
+        )?;
 
-        (remainder, _) = count(
-            self.table_index(Table::Param),
-            self.num_rows(Table::ParamPtr),
-        )
-        .parse(remainder)?;
+        (remainder, _) = self
+            .parse_table(self.table_index(Table::Param), Table::ParamPtr)(
+            remainder,
+        )?;
 
         (remainder, self.params) =
-            count(self.parse_param_row(), self.num_rows(Table::Param))
-                .parse(remainder)?;
+            self.parse_table(self.parse_param_row(), Table::Param)(remainder)?;
 
-        (remainder, self.interface_impls) = count(
+        (remainder, self.interface_impls) = self.parse_table(
             self.parse_interface_impl_row(),
-            self.num_rows(Table::InterfaceImpl),
-        )
-        .parse(remainder)?;
+            Table::InterfaceImpl,
+        )(remainder)?;
 
-        (remainder, self.member_refs) = count(
-            self.parse_member_ref_row(),
-            self.num_rows(Table::MemberRef),
-        )
-        .parse(remainder)?;
+        (remainder, self.member_refs) = self
+            .parse_table(self.parse_member_ref_row(), Table::MemberRef)(
+            remainder,
+        )?;
 
-        (remainder, self.constants) =
-            count(self.parse_constant_row(), self.num_rows(Table::Constant))
-                .parse(remainder)?;
+        (remainder, self.constants) = self
+            .parse_table(self.parse_constant_row(), Table::Constant)(
+            remainder,
+        )?;
 
-        (remainder, self.custom_attributes) = count(
+        (remainder, self.custom_attributes) = self.parse_table(
             self.parse_custom_attribute_row(),
-            self.num_rows(Table::CustomAttribute),
-        )
-        .parse(remainder)?;
+            Table::CustomAttribute,
+        )(remainder)?;
 
-        (remainder, _) = count(
-            self.parse_field_marshal_row(),
-            self.num_rows(Table::FieldMarshal),
-        )
-        .parse(remainder)?;
+        (remainder, _) = self
+            .parse_table(self.parse_field_marshal_row(), Table::FieldMarshal)(
+            remainder,
+        )?;
 
-        (remainder, _) = count(
-            self.parse_decl_security_row(),
-            self.num_rows(Table::DeclSecurity),
-        )
-        .parse(remainder)?;
+        (remainder, _) = self
+            .parse_table(self.parse_decl_security_row(), Table::DeclSecurity)(
+            remainder,
+        )?;
 
-        (remainder, _) = count(
-            self.parse_class_layout_row(),
-            self.num_rows(Table::ClassLayout),
-        )
-        .parse(remainder)?;
+        (remainder, _) = self
+            .parse_table(self.parse_class_layout_row(), Table::ClassLayout)(
+            remainder,
+        )?;
 
-        (remainder, _) = count(
-            self.parse_field_layout_row(),
-            self.num_rows(Table::FieldLayout),
-        )
-        .parse(remainder)?;
+        (remainder, _) = self
+            .parse_table(self.parse_field_layout_row(), Table::FieldLayout)(
+            remainder,
+        )?;
 
-        (remainder, _) =
-            count(self.blob_index(), self.num_rows(Table::StandaloneSig))
-                .parse(remainder)?;
+        (remainder, _) = self
+            .parse_table(self.blob_index(), Table::StandaloneSig)(
+            remainder
+        )?;
 
-        (remainder, _) =
-            count(self.parse_event_map_row(), self.num_rows(Table::EventMap))
-                .parse(remainder)?;
+        (remainder, _) = self
+            .parse_table(self.parse_event_map_row(), Table::EventMap)(
+            remainder,
+        )?;
 
-        (remainder, _) = count(
-            self.table_index(Table::Event),
-            self.num_rows(Table::EventPtr),
-        )
-        .parse(remainder)?;
+        (remainder, _) = self
+            .parse_table(self.table_index(Table::Event), Table::EventPtr)(
+            remainder,
+        )?;
 
         (remainder, _) =
-            count(self.parse_event_row(), self.num_rows(Table::Event))
-                .parse(remainder)?;
+            self.parse_table(self.parse_event_row(), Table::Event)(remainder)?;
 
-        (remainder, _) = count(
-            self.parse_property_map_row(),
-            self.num_rows(Table::PropertyMap),
-        )
-        .parse(remainder)?;
+        (remainder, _) = self
+            .parse_table(self.parse_property_map_row(), Table::PropertyMap)(
+            remainder,
+        )?;
 
-        (remainder, _) = count(
+        (remainder, _) = self.parse_table(
             self.table_index(Table::Property),
-            self.num_rows(Table::PropertyPtr),
-        )
-        .parse(remainder)?;
+            Table::PropertyPtr,
+        )(remainder)?;
 
-        (remainder, _) =
-            count(self.parse_property_row(), self.num_rows(Table::Property))
-                .parse(remainder)?;
+        (remainder, _) = self
+            .parse_table(self.parse_property_row(), Table::Property)(
+            remainder,
+        )?;
 
-        (remainder, _) = count(
+        (remainder, _) = self.parse_table(
             self.parse_method_semantics_row(),
-            self.num_rows(Table::MethodSemantics),
-        )
-        .parse(remainder)?;
+            Table::MethodSemantics,
+        )(remainder)?;
 
-        (remainder, _) = count(
-            self.parse_method_impl_row(),
-            self.num_rows(Table::MethodImpl),
-        )
-        .parse(remainder)?;
+        (remainder, _) = self
+            .parse_table(self.parse_method_impl_row(), Table::MethodImpl)(
+            remainder,
+        )?;
 
-        (remainder, self.module_refs) = count(
+        (remainder, self.module_refs) = self.parse_table(
             map(self.string_index(), |index| self.get_string(index)),
-            self.num_rows(Table::ModuleRef),
-        )
-        .parse(remainder)?;
+            Table::ModuleRef,
+        )(remainder)?;
 
         (remainder, self.type_specs) =
-            count(self.blob_index(), self.num_rows(Table::TypeSpec))
-                .parse(remainder)?;
+            self.parse_table(self.blob_index(), Table::TypeSpec)(remainder)?;
+
+        (remainder, _) = self
+            .parse_table(self.parse_impl_map_row(), Table::ImplMap)(
+            remainder,
+        )?;
+
+        (remainder, self.field_rvas) = self
+            .parse_table(self.parse_field_rva_row(), Table::FieldRva)(
+            remainder,
+        )?;
 
         (remainder, _) =
-            count(self.parse_impl_map_row(), self.num_rows(Table::ImplMap))
-                .parse(remainder)?;
-
-        (remainder, self.field_rvas) =
-            count(self.parse_field_rva_row(), self.num_rows(Table::FieldRva))
-                .parse(remainder)?;
-
-        (remainder, _) = count(take(8_usize), self.num_rows(Table::EncLog))
-            .parse(remainder)?;
-
-        (remainder, _) = count(take(4_usize), self.num_rows(Table::EncMap))
-            .parse(remainder)?;
-
-        (remainder, self.assemblies) =
-            count(self.parse_assembly_row(), self.num_rows(Table::Assembly))
-                .parse(remainder)?;
+            self.parse_table(take(8_usize), Table::EncLog)(remainder)?;
 
         (remainder, _) =
-            count(take(4_usize), self.num_rows(Table::AssemblyProcessor))
-                .parse(remainder)?;
+            self.parse_table(take(4_usize), Table::EncMap)(remainder)?;
+
+        (remainder, self.assemblies) = self
+            .parse_table(self.parse_assembly_row(), Table::Assembly)(
+            remainder,
+        )?;
+
+        (remainder, _) = self
+            .parse_table(take(4_usize), Table::AssemblyProcessor)(
+            remainder
+        )?;
 
         (remainder, _) =
-            count(take(12_usize), self.num_rows(Table::AssemblyOs))
-                .parse(remainder)?;
+            self.parse_table(take(12_usize), Table::AssemblyOs)(remainder)?;
 
-        (remainder, self.assembly_refs) = count(
-            self.parse_assembly_ref_row(),
-            self.num_rows(Table::AssemblyRef),
-        )
-        .parse(remainder)?;
+        (remainder, self.assembly_refs) = self
+            .parse_table(self.parse_assembly_ref_row(), Table::AssemblyRef)(
+            remainder,
+        )?;
 
-        (remainder, _) = count(
+        (remainder, _) = self.parse_table(
             self.parse_assembly_ref_processor_row(),
-            self.num_rows(Table::AssemblyRefProcessor),
-        )
-        .parse(remainder)?;
+            Table::AssemblyRefProcessor,
+        )(remainder)?;
 
-        (remainder, _) = count(
+        (remainder, _) = self.parse_table(
             self.parse_assembly_ref_os_row(),
-            self.num_rows(Table::AssemblyRefOs),
-        )
-        .parse(remainder)?;
+            Table::AssemblyRefOs,
+        )(remainder)?;
 
         (remainder, _) =
-            count(self.parse_file_row(), self.num_rows(Table::File))
-                .parse(remainder)?;
+            self.parse_table(self.parse_file_row(), Table::File)(remainder)?;
 
-        (remainder, _) = count(
-            self.parse_exported_type_row(),
-            self.num_rows(Table::ExportedType),
-        )
-        .parse(remainder)?;
+        (remainder, _) = self
+            .parse_table(self.parse_exported_type_row(), Table::ExportedType)(
+            remainder,
+        )?;
 
-        (remainder, self.resources) = count(
+        (remainder, self.resources) = self.parse_table(
             self.parse_manifest_resource_row(),
-            self.num_rows(Table::ManifestResource),
-        )
-        .parse(remainder)?;
+            Table::ManifestResource,
+        )(remainder)?;
 
-        (remainder, self.nested_classes) = count(
-            self.parse_nested_class_row(),
-            self.num_rows(Table::NestedClass),
-        )
-        .parse(remainder)?;
+        (remainder, self.nested_classes) = self
+            .parse_table(self.parse_nested_class_row(), Table::NestedClass)(
+            remainder,
+        )?;
 
-        (remainder, self.generic_params) = count(
-            self.parse_generic_param_row(),
-            self.num_rows(Table::GenericParam),
-        )
-        .parse(remainder)?;
+        (remainder, self.generic_params) = self
+            .parse_table(self.parse_generic_param_row(), Table::GenericParam)(
+            remainder,
+        )?;
 
-        (remainder, _) = count(
-            self.parse_method_spec_row(),
-            self.num_rows(Table::MethodSpec),
-        )
-        .parse(remainder)?;
+        (remainder, _) = self
+            .parse_table(self.parse_method_spec_row(), Table::MethodSpec)(
+            remainder,
+        )?;
 
-        (remainder, _) = count(
+        (remainder, _) = self.parse_table(
             self.parse_generic_param_constraint_row(),
-            self.num_rows(Table::GenericParamConstraint),
-        )
-        .parse(remainder)?;
+            Table::GenericParamConstraint,
+        )(remainder)?;
 
         Ok((remainder, ()))
+    }
+
+    /// Parses the rows of `table` using `row_parser`.
+    ///
+    /// To prevent excessive memory usage or long parsing times on large or
+    /// corrupted files, at most [`Self::MAX_ROWS_PER_TABLE`] rows are parsed
+    /// and returned. However, `self.num_rows` preserves the actual number of
+    /// rows declared in the `#~` header so that:
+    ///
+    /// 1. Table and coded index sizes (16-bit vs 32-bit) are computed
+    ///    correctly according to ECMA-335 II.24.2.6.
+    /// 2. Any remaining rows beyond [`Self::MAX_ROWS_PER_TABLE`] can be
+    ///    skipped in the input slice, keeping subsequent tables in the `#~`
+    ///    stream properly aligned.
+    fn parse_table<'b, O, P>(
+        &'b self,
+        mut row_parser: P,
+        table: Table,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<O>> + 'b
+    where
+        P: Parser<&'a [u8], Output = O, Error = NomError<'a>> + 'b,
+    {
+        move |input: &'a [u8]| {
+            let num_rows = self.num_rows(table);
+            let rows_to_parse = min(num_rows, Self::MAX_ROWS_PER_TABLE);
+
+            let (remainder, rows) =
+                count(|i| row_parser.parse(i), rows_to_parse).parse(input)?;
+
+            // All rows in a given metadata table have the exact same byte
+            // size. If the table has more than `MAX_ROWS_PER_TABLE` rows,
+            // compute the row size from the `MAX_ROWS_PER_TABLE` rows just
+            // parsed and skip the remaining rows so the next table starts at
+            // the right offset.
+            let remainder = if let Some(extra_rows) =
+                num_rows.checked_sub(Self::MAX_ROWS_PER_TABLE)
+                && extra_rows > 0
+            {
+                let row_size =
+                    (input.len() - remainder.len()) / Self::MAX_ROWS_PER_TABLE;
+                let bytes_to_skip = extra_rows.saturating_mul(row_size);
+                let (remainder, _) = take(bytes_to_skip)(remainder)?;
+                remainder
+            } else {
+                remainder
+            };
+
+            Ok((remainder, rows))
+        }
     }
 
     /// Parses the `#US` stream, and returns all the string contained
@@ -799,6 +817,8 @@ impl<'a> Dotnet<'a> {
 
     fn parse_user_types(&self) -> Vec<Class<'a>> {
         let mut classes = Vec::new();
+        let mut highest_method_list = 0;
+
         for (idx, type_def) in self.type_defs.iter().enumerate() {
             // Skip type definitions with invalid (empty) names, and the
             // "<Module>" pseudo-class.
@@ -824,13 +844,37 @@ impl<'a> Dotnet<'a> {
             // from the index specified by `method_list` to the index specified
             // by the next type's `method_list`. If this is the last type, then
             // it goes to the end of the MethodDef table.
-            let method_defs =
-                if let Some(next_type_def) = self.type_defs.get(idx + 1) {
+            //
+            // According to ECMA-335 II.22.37, `method_list` should be
+            // monotonically non-decreasing across the TypeDef table, with
+            // types that have no methods repeating the `method_list` of the
+            // following type. However, some tools (such as Unity/IL2CPP
+            // linkers and dumpers) set `method_list` to 1 (0-based 0) for
+            // every type that has no methods. One example of this is file:
+            // ef1c257f1dc7e21a0df2221965c42f72a4097010e1f8be00018866acdaf088ec
+            //
+            // If `type_def.method_list` is less than `highest_method_list`,
+            // it is out of order (e.g. reset to 0) and the type has no
+            // methods. Otherwise, we look for the next type with a
+            // `method_list >= type_def.method_list` so that intermediate
+            // types with `method_list == 0` do not truncate the current
+            // type's method list or cause methods from index 0 to be
+            // repeatedly re-assigned to multiple types.
+            let method_defs = if type_def.method_list >= highest_method_list {
+                if let Some(next_type_def) = self.type_defs[idx + 1..]
+                    .iter()
+                    .find(|t| t.method_list >= type_def.method_list)
+                {
+                    highest_method_list = next_type_def.method_list;
                     self.method_defs
                         .get(type_def.method_list..next_type_def.method_list)
                 } else {
+                    highest_method_list = usize::MAX;
                     self.method_defs.get(type_def.method_list..)
-                };
+                }
+            } else {
+                None
+            };
 
             let methods = if let Some(method_defs) = method_defs {
                 method_defs
@@ -1696,8 +1740,11 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.10.
     fn parse_custom_attribute_row(
         &self,
-    ) -> impl Parser<&'a [u8], Output = CustomAttribute<'a>, Error = NomError<'a>>
-           + '_ {
+    ) -> impl Parser<
+        &'a [u8],
+        Output = CustomAttribute<'a>,
+        Error = NomError<'a>,
+    > + '_ {
         map(
             (
                 // parent
@@ -1991,7 +2038,8 @@ impl<'a> Dotnet<'a> {
             )| AssemblyRef {
                 // public_key_or_token sometimes have an empty string (""),
                 // in such cases return `None` instead.
-                public_key_or_token: public_key_or_token.filter(|&v| !v.is_empty()),
+                public_key_or_token: public_key_or_token
+                    .filter(|&v| !v.is_empty()),
                 name,
                 version: Version {
                     major_version,
@@ -2959,25 +3007,13 @@ fn var_sint(input: &[u8]) -> IResult<&[u8], i32> {
         _,
     >(alt((
         map(bits_tag(0b0, 1u8).and(bits_take(7u8)), |(_, x): (_, i32)| {
-            if x & 0x01 != 0 {
-                (x >> 1) - 0x40
-            } else {
-                x >> 1
-            }
+            if x & 0x01 != 0 { (x >> 1) - 0x40 } else { x >> 1 }
         }),
         map(bits_tag(0b10, 2u8).and(bits_take(14u8)), |(_, x): (_, i32)| {
-            if x & 0x01 != 0 {
-                (x >> 1) - 0x2000
-            } else {
-                x >> 1
-            }
+            if x & 0x01 != 0 { (x >> 1) - 0x2000 } else { x >> 1 }
         }),
         map(bits_tag(0b110, 3u8).and(bits_take(29u8)), |(_, x): (_, i32)| {
-            if x & 0x01 != 0 {
-                (x >> 1) - 0x10000000
-            } else {
-                x >> 1
-            }
+            if x & 0x01 != 0 { (x >> 1) - 0x10000000 } else { x >> 1 }
         }),
     )))(input)?;
 
