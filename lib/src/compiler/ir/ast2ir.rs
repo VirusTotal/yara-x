@@ -3448,9 +3448,9 @@ fn eq_check(
         |ctx: &mut CompileContext,
          const_string: Rc<BString>,
          const_string_span: Span,
-         constraints: Box<Vec<StringConstraint>>,
+         constraints: Vec<StringConstraint>,
          constrained_string_span: Span| {
-            for constraint in *constraints {
+            for constraint in constraints {
                 match constraint {
                     StringConstraint::Uppercase
                         if const_string.chars().any(|c| c.is_lowercase()) =>

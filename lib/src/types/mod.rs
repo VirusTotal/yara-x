@@ -235,7 +235,7 @@ pub(crate) enum TypeValue {
     Uint64(Value<u64>),
     String {
         value: Value<Rc<BString>>,
-        constraints: Option<Box<Vec<StringConstraint>>>,
+        constraints: Option<Vec<StringConstraint>>,
     },
     Regexp(Option<Regexp>),
     Struct(Rc<Struct>),
@@ -891,7 +891,7 @@ impl TypeValue {
     ) -> Self {
         Self::String {
             value: Value::Unknown,
-            constraints: Some(Box::new(constraints.into())),
+            constraints: Some(constraints.into()),
         }
     }
 }

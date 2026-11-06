@@ -671,8 +671,7 @@ impl Struct {
             if field_schema.lowercase {
                 if let TypeValue::String { constraints, .. } = &mut value {
                     if generate_compile_time_fields {
-                        *constraints =
-                            Some(Box::new(vec![StringConstraint::Lowercase]));
+                        *constraints = Some(vec![StringConstraint::Lowercase]);
                     }
                 } else {
                     panic!(
