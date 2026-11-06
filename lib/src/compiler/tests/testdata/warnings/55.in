@@ -1,0 +1,12 @@
+rule test {
+  strings:
+    $a = /foo.*bar/
+    $b = /foo.*?bar/
+    $c = /foo.*bar/s
+    $d = /foo[.*]bar/
+    $e = /[]a.*]foo.*bar/
+    $f = /[[:alpha:].*]foo.*bar/
+    $g = /[[a-z].*]foo.*bar/
+  condition:
+    any of them
+}
