@@ -235,7 +235,7 @@ pub(crate) enum TypeValue {
     Uint64(Value<u64>),
     String {
         value: Value<Rc<BString>>,
-        constraints: Option<Box<[StringConstraint]>>,
+        constraints: Option<Box<Vec<StringConstraint>>>,
     },
     Regexp(Option<Regexp>),
     Struct(Rc<Struct>),
@@ -886,14 +886,12 @@ impl TypeValue {
     /// Creates a new [`TypeValue`] consisting of an unknown string with
     /// the given constraints.
     #[inline]
-    pub fn unknown_string_with_constraints<
-        C: Into<Box<[StringConstraint]>>,
-    >(
+    pub fn unknown_string_with_constraints<C: Into<Vec<StringConstraint>>>(
         constraints: C,
     ) -> Self {
         Self::String {
             value: Value::Unknown,
-            constraints: Some(constraints.into()),
+            constraints: Some(Box::new(constraints.into())),
         }
     }
 }

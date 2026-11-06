@@ -386,12 +386,12 @@ impl ScanContext<'_, '_> {
             let variable: Variable = value.try_into()?;
             let type_value: TypeValue = variable.into();
             // The new type must match the old one.
-            if type_value.eq_type(&field.type_value) {
-                field.type_value = type_value;
+            if type_value.eq_type(field.type_value()) {
+                *field.type_value_mut() = type_value;
             } else {
                 return Err(VariableError::InvalidType {
                     variable: ident.to_string(),
-                    expected_type: field.type_value.ty().to_string(),
+                    expected_type: field.type_value().ty().to_string(),
                     actual_type: type_value.ty().to_string(),
                 });
             }

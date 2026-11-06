@@ -703,13 +703,13 @@ fn valid_on(
     let not_before = signature
         .field_by_name("not_before")
         .unwrap()
-        .type_value
+        .type_value()
         .try_as_integer()?;
 
     let not_after = signature
         .field_by_name("not_after")
         .unwrap()
-        .type_value
+        .type_value()
         .try_as_integer()?;
 
     Some(timestamp >= not_before && timestamp <= not_after)

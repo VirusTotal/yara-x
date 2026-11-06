@@ -488,7 +488,7 @@ pub mod mods {
             pub fn fields(&self) -> impl Iterator<Item = Field<'_>> + '_ {
                 self.inner
                     .fields()
-                    .map(|(name, field)| Field::new(name, field))
+                    .map(|(name, field, meta)| Field::new(name, field, meta))
             }
         }
 
@@ -557,14 +557,16 @@ pub mod mods {
         pub struct Field<'a> {
             name: &'a str,
             struct_field: &'a types::StructField,
+            meta: &'a types::StructFieldMeta,
         }
 
         impl<'a> Field<'a> {
             fn new(
                 name: &'a str,
                 struct_field: &'a types::StructField,
+                meta: &'a types::StructFieldMeta,
             ) -> Self {
-                Self { name, struct_field }
+                Self { name, struct_field, meta }
             }
 
             /// Returns the name of the field.
@@ -574,17 +576,17 @@ pub mod mods {
 
             /// Returns the type of the field.
             pub fn ty(&self) -> Type {
-                Type::from(&self.struct_field.type_value)
+                Type::from(self.struct_field.type_value())
             }
 
             /// Returns true if the field is a constant.
             pub fn is_const(&self) -> bool {
-                self.struct_field.type_value.is_const()
+                self.struct_field.type_value().is_const()
             }
 
             /// Returns the documentation for the current field.
             pub fn doc(&self) -> Option<&str> {
-                self.struct_field.doc
+                self.meta.doc
             }
         }
 

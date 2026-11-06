@@ -1204,12 +1204,12 @@ fn lookup_field(
 
         final_field = Some(field);
 
-        if let TypeValue::Struct(s) = &field.type_value {
+        if let TypeValue::Struct(s) = field.type_value() {
             structure = s
         }
     }
 
-    final_field.unwrap().type_value.clone()
+    final_field.unwrap().type_value().clone()
 }
 
 /// Lookup a field of string type and returns its value.
