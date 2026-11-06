@@ -246,6 +246,10 @@ olecf-module = [
     "dep:nom"
 ]
 
+# The `ooxml` module parses Office Open XML documents (DOCX, XLSX, PPTX) and
+# other ZIP archives, exposing the metadata in their central directory.
+ooxml-module = []
+
 # The `pe` module parses PE files.
 pe-module = [
     "crypto",
@@ -301,6 +305,8 @@ default-modules = [
     "hash-module",
     # Still experimental
     # "olecf-module",
+    # Still experimental
+    # "ooxml-module",
     "pe-module",
     "string-module",
     "time-module",

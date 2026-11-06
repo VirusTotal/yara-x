@@ -19,6 +19,7 @@ pub mod mods;
 pub mod msi;
 pub mod net_analysis;
 pub mod olecf;
+pub mod ooxml;
 pub mod pe;
 pub mod sandbox;
 pub mod sigma;
