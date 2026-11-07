@@ -335,9 +335,12 @@ impl<'r> Scanner<'r> {
     /// Modules like `pe` or `elf` still parse the data as a whole, once.
     ///
     /// A rule matches if it matched in at least one window. The matches
-    /// reported for each pattern are the ones found in the windows where a
-    /// rule using that pattern matched, and their offsets are relative to
-    /// the start of the data. Fast scan mode ([`Scanner::fast_scan`]) is
+    /// reported for each pattern of a rule are the ones found in the windows
+    /// where that rule matched (even when the same pattern is used by other
+    /// rules), and their offsets are relative to the start of the data. In this mode the patterns are always searched, so
+    /// a rule that matched without needing its patterns (e.g. `$a or true`)
+    /// still reports the matches of its patterns in those windows, unlike in
+    /// a regular scan. Fast scan mode ([`Scanner::fast_scan`]) is
     /// ignored for the pattern search, because the first match of a pattern
     /// may not be in the window that matters. The limit set with
     /// [`Scanner::max_matches_per_pattern`] applies to the whole data, not

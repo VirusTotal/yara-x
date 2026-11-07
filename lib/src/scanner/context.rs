@@ -147,6 +147,11 @@ pub struct ScanContext<'r, 'd> {
     /// the data covered by the windows where it matched. Overlapping or
     /// adjacent windows are merged into a single range.
     pub(crate) matching_windows: FxHashMap<RuleId, Vec<Range<usize>>>,
+    /// In a sliding window scan, the matches reported for each pattern of
+    /// each matching rule: those in the windows where the rule matched, with
+    /// offsets relative to the start of the data. `None` in other scans.
+    pub(crate) window_matches:
+        Option<FxHashMap<(RuleId, PatternId), MatchList>>,
     /// Vector containing the IDs of the rules that matched, including both
     /// global and non-global ones. The rules are added first to the
     /// `matching_rules_per_ns` map, and then moved to this vector
@@ -606,6 +611,7 @@ impl ScanContext<'_, '_> {
             self.tracker.pattern_matches.clear();
             self.matching_rules.clear();
             self.matching_windows.clear();
+            self.window_matches = None;
             self.clear_match_bitmaps();
         }
 
@@ -634,12 +640,33 @@ impl ScanContext<'_, '_> {
         let all_matches =
             mem::replace(&mut self.tracker.pattern_matches, window_matches);
         let mut reported_matches = all_matches.new_like();
+        let mut window_matches: FxHashMap<(RuleId, PatternId), MatchList> =
+            FxHashMap::default();
 
-        let matched_patterns: Vec<(PatternId, &MatchList)> = all_matches
-            .matches_per_pattern()
-            .filter(|(_, matches)| matches.len() > 0)
-            .map(|(pattern_id, matches)| (*pattern_id, matches))
+        // Patterns anchored at a fixed offset (e.g. `$a at 10`) are searched
+        // at that offset relative to each window start. In each window only
+        // the match at the window's own anchor offset is visible, as when
+        // the window is scanned on its own.
+        let anchors: FxHashMap<PatternId, usize> = self
+            .compiled_rules
+            .anchored_sub_patterns()
+            .iter()
+            .filter_map(|id| match self.compiled_rules.get_sub_pattern(*id) {
+                (pattern_id, SubPattern::Literal { anchored_at, .. }) => {
+                    anchored_at.map(|offset| (*pattern_id, offset))
+                }
+                _ => None,
+            })
             .collect();
+
+        let matched_patterns: Vec<(PatternId, &MatchList, Option<usize>)> =
+            all_matches
+                .matches_per_pattern()
+                .filter(|(_, matches)| matches.len() > 0)
+                .map(|(pattern_id, matches)| {
+                    (*pattern_id, matches, anchors.get(pattern_id).copied())
+                })
+                .collect();
 
         let num_rules = self.compiled_rules.num_rules();
         let mut matched_rules: BitVec = BitVec::repeat(false, num_rules);
@@ -653,9 +680,14 @@ impl ScanContext<'_, '_> {
             self.tracker.pattern_matches.clear();
             self.clear_match_bitmaps();
 
-            for (pattern_id, matches) in &matched_patterns {
+            for (pattern_id, matches, anchor) in &matched_patterns {
                 let mut any = false;
                 for m in matches.within(window.clone()) {
+                    if let Some(anchor) = anchor
+                        && m.range.start != window_start + anchor
+                    {
+                        continue;
+                    }
                     let relative = Match {
                         base: 0,
                         range: m.range.start - window_start
@@ -706,17 +738,18 @@ impl ScanContext<'_, '_> {
                     else {
                         continue;
                     };
+                    let rule_matches = window_matches
+                        .entry((rule_id, pattern.pattern_id))
+                        .or_default();
                     for m in matches.iter() {
-                        reported_matches.add(
-                            pattern.pattern_id,
-                            Match {
-                                base: 0,
-                                range: m.range.start + window_start
-                                    ..m.range.end + window_start,
-                                xor_key: m.xor_key,
-                            },
-                            true,
-                        );
+                        let m = Match {
+                            base: 0,
+                            range: m.range.start + window_start
+                                ..m.range.end + window_start,
+                            xor_key: m.xor_key,
+                        };
+                        rule_matches.add(m.clone(), true);
+                        reported_matches.add(pattern.pattern_id, m, true);
                     }
                 }
             }
@@ -726,6 +759,7 @@ impl ScanContext<'_, '_> {
         // grouped by namespace (in the order namespaces first matched) and
         // the bitmaps updated accordingly.
         self.tracker.pattern_matches = reported_matches;
+        self.window_matches = Some(window_matches);
         self.matching_rules.clear();
         self.num_matching_private_rules = 0;
         self.clear_match_bitmaps();
@@ -818,6 +852,7 @@ impl ScanContext<'_, '_> {
         self.scan_state = ScanState::Idle;
         self.current_window = None;
         self.matching_windows.clear();
+        self.window_matches = None;
 
         // Free all runtime objects left around by previous scans.
         self.runtime_objects.clear();
@@ -2523,6 +2558,7 @@ pub fn create_wasm_store_and_ctx<'r>(
         sliding_window: None,
         current_window: None,
         matching_windows: FxHashMap::default(),
+        window_matches: None,
         root_struct: rules.globals().make_root(),
         matching_rules: Vec::new(),
         matching_rules_per_ns: IndexMap::new(),

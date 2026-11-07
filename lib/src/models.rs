@@ -94,6 +94,7 @@ impl<'a, 'r> Rule<'a, 'r> {
         Patterns {
             ctx: self.ctx,
             rules: self.rules,
+            rule_id: self.rule_id,
             include_private: false,
             iterator: self.rule_info.patterns.iter(),
             len_non_private: self.rule_info.patterns.len()
@@ -302,6 +303,7 @@ impl<'r> Serialize for Tag<'r> {
 pub struct Patterns<'a, 'r> {
     ctx: Option<&'a ScanContext<'r, 'a>>,
     rules: &'r Rules,
+    rule_id: RuleId,
     iterator: Iter<'a, PatternInfo>,
     /// True if the iterator should yield all patterns, including the
     /// private ones. If false, only the non-private patterns are
@@ -352,6 +354,7 @@ impl<'a, 'r> Iterator for Patterns<'a, 'r> {
                 return Some(Pattern {
                     ctx: self.ctx,
                     rules: self.rules,
+                    rule_id: self.rule_id,
                     ident_id: pattern.ident_id,
                     pattern_id: pattern.pattern_id,
                     kind: pattern.kind,
@@ -366,6 +369,7 @@ impl<'a, 'r> Iterator for Patterns<'a, 'r> {
 pub struct Pattern<'a, 'r> {
     ctx: Option<&'a ScanContext<'r, 'a>>,
     rules: &'r Rules,
+    rule_id: RuleId,
     ident_id: IdentId,
     pattern_id: PatternId,
     kind: PatternKind,
@@ -399,10 +403,19 @@ impl<'a, 'r> Pattern<'a, 'r> {
         Matches {
             ctx: self.ctx,
             iterator: self.ctx.and_then(|ctx| {
-                ctx.tracker
-                    .pattern_matches
-                    .get(self.pattern_id)
-                    .map(|matches| matches.iter())
+                // In a sliding window scan the matches are kept per rule,
+                // because a pattern shared by several rules must report
+                // only the matches in the windows where each rule matched.
+                match &ctx.window_matches {
+                    Some(window_matches) => window_matches
+                        .get(&(self.rule_id, self.pattern_id))
+                        .map(|matches| matches.iter()),
+                    None => ctx
+                        .tracker
+                        .pattern_matches
+                        .get(self.pattern_id)
+                        .map(|matches| matches.iter()),
+                }
             }),
         }
     }
