@@ -883,6 +883,51 @@ fn sliding_window() {
             r#""windows":[{"start":8100,"end":9100}]"#,
         ));
 
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--print-windows")
+        .arg("--output-format=json")
+        .arg("--sliding-window=1000")
+        .arg("--window-overlap=100")
+        .arg(rules.path())
+        .arg(near.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#""start": 8100"#))
+        .stdout(predicate::str::contains(r#""end": 9100"#));
+
+    // Without --print-windows the output has no windows.
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=ndjson")
+        .arg("--sliding-window=1000")
+        .arg("--window-overlap=100")
+        .arg(rules.path())
+        .arg(near.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("windows").not());
+
+    // Several files with several threads: each file gets its own result.
+    let dir = temp_dir.child("files");
+    dir.create_dir_all().unwrap();
+    dir.child("far.bin")
+        .write_binary(&std::fs::read(far.path()).unwrap())
+        .unwrap();
+    dir.child("near.bin").write_binary(&data).unwrap();
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--threads=2")
+        .arg("--count")
+        .arg("--sliding-window=1000")
+        .arg("--window-overlap=100")
+        .arg(rules.path())
+        .arg(dir.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("near.bin: 1"))
+        .stdout(predicate::str::contains("far.bin").not());
+
     // --print-windows requires --sliding-window.
     Command::new(cargo_bin!("yr"))
         .arg("scan")

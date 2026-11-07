@@ -595,6 +595,43 @@ test("Scanner.setSlidingWindow requires patterns to be close", () => {
   ]);
 });
 
+test("Scanner.setSlidingWindow edge cases", () => {
+  const compiler = new Compiler();
+  compiler.addSource(`
+    rule pair {
+      strings:
+        $a = "foo"
+        $b = "bar"
+      condition:
+        $a and $b
+    }
+  `);
+  const rules = compiler.build();
+  const encode = (s) => new TextEncoder().encode(s);
+
+  // Without a sliding window, and when the data fits in one window, there
+  // is no matchingWindows field.
+  const plain = rules.scan(encode("foo bar"));
+  assert.equal(plain.matches.length, 1);
+  assert.equal("matchingWindows" in plain.matches[0], false);
+
+  const scanner = new Scanner(rules);
+  scanner.setSlidingWindow(1000, 100);
+  const small = scanner.scan(encode("foo bar"));
+  assert.equal(small.matches.length, 1);
+  assert.equal("matchingWindows" in small.matches[0], false);
+
+  // Changing the window between scans.
+  const payload = new Uint8Array(10000);
+  payload.set(encode("foo"), 5000);
+  payload.set(encode("bar"), 5050);
+  assert.deepEqual(scanner.scan(payload).matches[0].matchingWindows, [
+    { start: 4500, end: 5500 },
+  ]);
+  scanner.setSlidingWindow(40, 10);
+  assert.equal(scanner.scan(payload).matches.length, 0);
+});
+
 test("external globals can be defined and overridden per scanner", () => {
   const compiler = new Compiler();
   compiler.defineGlobal("ext_enabled", false);

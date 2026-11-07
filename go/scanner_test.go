@@ -3,6 +3,7 @@ package yara_x
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
@@ -255,6 +256,48 @@ func TestScannerSlidingWindow(t *testing.T) {
 	assert.Len(t, windows, 1)
 	assert.Equal(t, uint64(8100), windows[0].Start())
 	assert.Equal(t, uint64(9100), windows[0].End())
+}
+
+func TestScannerSlidingWindowEdgeCases(t *testing.T) {
+	r, _ := Compile(`
+    rule t {
+        strings:
+            $a = "foo"
+            $b = "bar"
+        condition:
+            $a and $b
+    }`)
+
+	data := make([]byte, 10000)
+	copy(data[5000:], "foo")
+	copy(data[5050:], "bar")
+
+	// Without a sliding window there are no matching windows.
+	s := NewScanner(r)
+	scanResults, _ := s.Scan(data)
+	assert.Len(t, scanResults.MatchingRules(), 1)
+	assert.Len(t, scanResults.MatchingRules()[0].MatchingWindows(), 0)
+
+	// Data that fits in one window is scanned as usual.
+	assert.NoError(t, s.SlidingWindow(1000, 100))
+	scanResults, _ = s.Scan([]byte("foo bar"))
+	assert.Len(t, scanResults.MatchingRules(), 1)
+	assert.Len(t, scanResults.MatchingRules()[0].MatchingWindows(), 0)
+
+	// Files.
+	path := filepath.Join(t.TempDir(), "data.bin")
+	assert.NoError(t, os.WriteFile(path, data, 0o600))
+	scanResults, err := s.ScanFile(path)
+	assert.NoError(t, err)
+	windows := scanResults.MatchingRules()[0].MatchingWindows()
+	assert.Len(t, windows, 1)
+	assert.Equal(t, uint64(4500), windows[0].Start())
+	assert.Equal(t, uint64(5500), windows[0].End())
+
+	// Changing the window between scans.
+	assert.NoError(t, s.SlidingWindow(40, 10))
+	scanResults, _ = s.Scan(data)
+	assert.Len(t, scanResults.MatchingRules(), 0)
 }
 
 func TestScannerGarbageCollected(t *testing.T) {

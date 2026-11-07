@@ -994,6 +994,14 @@ fn capi_null_args() {
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
         assert_eq!(
+            yrx_rule_iter_matching_windows(
+                std::ptr::null(),
+                None,
+                std::ptr::null_mut()
+            ),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert_eq!(
             yrx_scanner_scan(std::ptr::null_mut(), std::ptr::null(), 0),
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
