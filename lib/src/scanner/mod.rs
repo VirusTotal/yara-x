@@ -994,14 +994,22 @@ impl<'a, 'r> NonMatchingRules<'a, 'r> {
         // the BitSlice has exactly as many bits as existing rules.
         let matching_rules_bitmap = &matching_rules_bitmap[0..num_rules];
 
+        // The number of non-matching private rules is computed from the
+        // total number of private rules, because the scanner doesn't track
+        // every rule that doesn't match (only global ones, and all of them
+        // only when profiling is enabled).
+        let num_non_matching_private_rules =
+            ctx.compiled_rules.num_private_rules()
+                - ctx.num_matching_private_rules;
+
         Self {
             ctx,
             iterator: matching_rules_bitmap.iter_zeros(),
             include_private: false,
             len_non_private: ctx.compiled_rules.num_rules()
                 - ctx.matching_rules.len()
-                - ctx.num_non_matching_private_rules,
-            len_private: ctx.num_non_matching_private_rules,
+                - num_non_matching_private_rules,
+            len_private: num_non_matching_private_rules,
         }
     }
 
