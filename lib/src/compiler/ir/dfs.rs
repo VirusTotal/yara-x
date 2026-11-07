@@ -246,7 +246,7 @@ pub(super) fn dfs_common(
 
     let push_anchor = |anchor: &MatchAnchor, stack: &mut Vec<_>| match anchor {
         MatchAnchor::None => {}
-        MatchAnchor::At(expr) => {
+        MatchAnchor::At(expr) | MatchAnchor::Within(expr) => {
             stack.push(Event::Enter((*expr, EventContext::None)));
         }
         MatchAnchor::In(range) => {

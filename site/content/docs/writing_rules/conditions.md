@@ -587,6 +587,38 @@ Or in a specific offset, like this:
 any of ($a*) at 0
 ```
 
+### Patterns close to each other
+
+Sometimes it is not enough that the patterns appear in the scanned data, they
+must also be close to each other. This is common when scanning large inputs
+that contain many unrelated pieces of data, like memory dumps, where the
+patterns of a rule may all appear, but far away from each other. The `within`
+operator requires the matches to be close:
+
+```yara
+all of them within 4KB        // all patterns match within 4KB of each other
+2 of ($a, $b, $c) within 100  // at least two of them, within 100 bytes
+50% of ($s*) within 1MB
+```
+
+`<quantifier> of <patterns> within <distance>` is true if there is a group
+of matches whose starting offsets are at most `<distance>` bytes apart, and
+that contains matches of at least as many different patterns as the
+quantifier requires. Several matches of the same pattern count as one. In
+`all of them within 4KB`, for example, the first match in the group and the
+last one start at most 4096 bytes apart.
+
+The distance is any integer expression, and it can't be negative. As `within`
+relates the matches of different patterns, it only makes sense when the
+quantifier requires two or more patterns: `any of them within 100` is the
+same as `any of them`, and the compiler warns about it.
+
+{{< callout title="Note">}}
+
+`within` is a YARA-X extension, rules that use it can't be compiled by YARA.
+
+{{< /callout >}}
+
 ## Applying the same condition to many patterns
 
 There is another operator very similar to `of` but even more powerful,

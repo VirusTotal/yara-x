@@ -246,6 +246,10 @@ pub struct Rules {
     /// set automata for single-pass evaluation.
     pub(in crate::compiler) regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
 
+    /// Sets of pattern IDs used by `<quantifier> of <patterns> within <expr>`
+    /// expressions. The WASM code identifies each set by its index.
+    pub(in crate::compiler) pattern_sets: Vec<Vec<PatternId>>,
+
     /// Grouped `LiteralSet` persistent definitions.
     ///
     /// Populated during `Compiler::build`, each entry maps a unique
@@ -520,6 +524,16 @@ impl Rules {
         }
 
         re::hir::Hir::build_automata(&hirs).ok()
+    }
+
+    /// Returns the pattern IDs in the pattern set with the given index (see
+    /// [`Rules::pattern_sets`]).
+    #[inline]
+    pub(crate) fn get_pattern_set(
+        &self,
+        index: usize,
+    ) -> Option<&[PatternId]> {
+        self.pattern_sets.get(index).map(Vec::as_slice)
     }
 
     /// Returns the slice of [`RegexId`]s belonging to a given [`RegexSetId`].

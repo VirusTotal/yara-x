@@ -1061,6 +1061,128 @@ pub(crate) fn pat_matches_in(
     }
 }
 
+/// Invoked from WASM for evaluating `<quantifier> of <patterns> within <expr>`.
+///
+/// Returns true if there's a group of matches whose starting offsets are at
+/// most `distance` bytes apart, and that contains matches of at least
+/// `required` distinct patterns from the pattern set with index `set` (see
+/// [`crate::compiler::Rules::get_pattern_set`]).
+///
+/// If `is_percentage` is not zero, `quantifier` is a percentage of the number
+/// of patterns in the set, rounded up. Otherwise it is the number of required
+/// patterns. Negative quantifiers or distances (only possible when they are
+/// computed at runtime) can't be satisfied. As documented for `of`, a
+/// quantifier of zero means that none of the patterns can match.
+#[wasm_export(sync = "none")]
+pub(crate) fn pat_set_within(
+    caller: &mut Caller<'_, ScanContext>,
+    set: i32,
+    quantifier: i64,
+    is_percentage: i32,
+    distance: i64,
+) -> bool {
+    use std::cmp::Reverse;
+    use std::collections::{BinaryHeap, VecDeque};
+
+    let ctx = caller.data();
+
+    let Some(pattern_ids) = usize::try_from(set)
+        .ok()
+        .and_then(|set| ctx.compiled_rules.get_pattern_set(set))
+    else {
+        unreachable!("invalid pattern set index: {set}")
+    };
+
+    let (Ok(quantifier), Ok(distance)) =
+        (usize::try_from(quantifier), usize::try_from(distance))
+    else {
+        return false;
+    };
+
+    let required = if is_percentage != 0 {
+        (pattern_ids.len() as f64 * quantifier as f64 / 100.0).ceil() as usize
+    } else {
+        quantifier
+    };
+
+    if required > pattern_ids.len() {
+        return false;
+    }
+
+    // One list of matches per member of the set. The same pattern ID can
+    // appear more than once in the set (e.g. two identical patterns in a
+    // rule share the same ID), each occurrence counts as a different member.
+    let members: Vec<&[crate::scanner::Match]> = pattern_ids
+        .iter()
+        .map(|pattern_id| {
+            ctx.tracker
+                .pattern_matches
+                .get(*pattern_id)
+                .map_or(&[][..], |matches| matches.as_slice())
+        })
+        .collect();
+
+    let members_with_matches =
+        members.iter().filter(|matches| !matches.is_empty()).count();
+
+    if required == 0 {
+        return members_with_matches == 0;
+    }
+
+    if members_with_matches < required {
+        return false;
+    }
+
+    if required == 1 {
+        return true;
+    }
+
+    // Merge the members' match lists (each one sorted by offset) in a single
+    // pass, keeping in `window` the matches whose offsets are within
+    // `distance` of the latest one, and counting how many distinct members
+    // are in the window.
+    let mut heap: BinaryHeap<Reverse<(usize, usize, usize)>> = members
+        .iter()
+        .enumerate()
+        .filter_map(|(member, matches)| {
+            matches.first().map(|m| Reverse((m.range.start, member, 0)))
+        })
+        .collect();
+
+    let mut window: VecDeque<(usize, usize)> = VecDeque::new();
+    let mut matches_in_window = vec![0_usize; members.len()];
+    let mut members_in_window = 0;
+
+    while let Some(Reverse((offset, member, index))) = heap.pop() {
+        if let Some(next) = members[member].get(index + 1) {
+            heap.push(Reverse((next.range.start, member, index + 1)));
+        }
+
+        window.push_back((offset, member));
+        matches_in_window[member] += 1;
+        if matches_in_window[member] == 1 {
+            members_in_window += 1;
+        }
+
+        while let Some(&(first_offset, first_member)) = window.front() {
+            if offset - first_offset <= distance {
+                break;
+            }
+            window.pop_front();
+            matches_in_window[first_member] -= 1;
+            if matches_in_window[first_member] == 0 {
+                members_in_window -= 1;
+            }
+        }
+
+        if members_in_window >= required {
+            return true;
+        }
+    }
+
+    false
+}
+
 /// Invoked from WASM to ask for the offset where a pattern matched
 ///
 /// Returns the length for the index-th occurrence of the pattern identified

@@ -4103,6 +4103,179 @@ fn for_of() {
     );
 }
 
+/// Returns `len` bytes of 0x01 with each `(offset, bytes)` written into them.
+fn data_with_patterns(len: usize, plants: &[(usize, &[u8])]) -> Vec<u8> {
+    let mut data = vec![1_u8; len];
+    for (offset, bytes) in plants {
+        data[*offset..*offset + bytes.len()].copy_from_slice(bytes);
+    }
+    data
+}
+
+#[test]
+fn of_within() {
+    let three = |condition: &str| -> &'static str {
+        let rule = format!(
+            r#"rule test {{
+                 strings:
+                   $a = "foo"
+                   $b = "bar"
+                   $c = "baz"
+                 condition:
+                   {condition}
+               }}"#
+        );
+        // Leaked on purpose: the test macros take a `&str`.
+        Box::leak(rule.into_boxed_str())
+    };
+
+    // Starting offsets: foo 0, bar 50, baz 90.
+    let close =
+        data_with_patterns(10_000, &[(0, b"foo"), (50, b"bar"), (90, b"baz")]);
+
+    // The distance is between starting offsets, and it's inclusive.
+    rule_true!(three("all of them within 90"), &close);
+    rule_false!(three("all of them within 89"), &close);
+    rule_true!(three("all of them within 1KB"), &close);
+    rule_true!(three("2 of them within 40"), &close);
+    rule_false!(three("2 of them within 39"), &close);
+    rule_true!(three("2 of ($a, $c) within 90 and $b"), &close);
+    rule_false!(three("2 of ($a, $c) within 89 and $b"), &close);
+    rule_true!(three("66% of them within 40"), &close);
+    rule_false!(three("66% of them within 39"), &close);
+    rule_true!(three("all of them within 45 + 45"), &close);
+    // As documented for `of`, zero means that none of the patterns match.
+    rule_false!(three("0 of them within 0"), &close);
+    rule_true!(three("0 of them within 0"), &[]);
+
+    // Patterns far from each other.
+    let far = data_with_patterns(
+        10_000,
+        &[(0, b"foo"), (5000, b"bar"), (9000, b"baz")],
+    );
+
+    rule_false!(three("2 of them within 3999"), &far);
+    rule_true!(three("2 of them within 4000"), &far);
+    rule_false!(three("all of them within 8999"), &far);
+    rule_true!(three("all of them"), &far);
+
+    // Patterns with several matches: the group can be made of any of them.
+    let many = data_with_patterns(
+        10_000,
+        &[
+            (0, b"foo"),
+            (3000, b"bar"),
+            (5000, b"foo"),
+            (5010, b"bar"),
+            (5020, b"baz"),
+            (7000, b"baz"),
+        ],
+    );
+
+    rule_true!(three("all of them within 20"), &many);
+    rule_false!(three("all of them within 19"), &many);
+
+    // Several matches of the same pattern close to each other count as one.
+    let repeated = data_with_patterns(
+        10_000,
+        &[
+            (0, b"foo"),
+            (10, b"foo"),
+            (20, b"foo"),
+            (5000, b"bar"),
+            (9000, b"baz"),
+        ],
+    );
+
+    rule_false!(three("2 of them within 100"), &repeated);
+    rule_true!(three("2 of them within 5000"), &repeated);
+
+    // `any` and `none` behave as without `within`.
+    rule_true!(three("any of them within 0"), &far);
+    rule_false!(three("none of them within 0"), &far);
+    rule_true!(three("none of them within 0"), &[]);
+    rule_false!(three("2 of them within 1000"), &[]);
+
+    // Two identical patterns share the same pattern ID, but each one counts.
+    rule_true!(
+        r#"rule test {
+             strings:
+               $a = "foo"
+               $b = "foo"
+             condition:
+               all of them within 0
+           }"#,
+        b"xxfooxx"
+    );
+
+    // The quantifier and the distance can be computed at runtime. Negative
+    // values can't be satisfied.
+    let mut runtime = close.clone();
+    runtime[9999] = 2;
+    rule_true!(three("uint8(9999) of them within 40"), &runtime);
+    rule_true!(three("all of them within uint8(9999) * 45"), &runtime);
+    runtime[9999] = 0xff;
+    rule_false!(three("int8(9999) of them within 1000"), &runtime);
+    rule_false!(three("all of them within int8(9999)"), &runtime);
+}
+
+#[test]
+fn of_within_fast_scan() {
+    // In fast scan mode a pattern used only in `all of them` would stop at
+    // its first match. With `within` all the matches are needed: the group
+    // here is made of the second "foo" and "bar".
+    let rules = crate::compile(
+        r#"rule test {
+             strings:
+               $a = "foo"
+               $b = "bar"
+             condition:
+               all of them within 20
+           }"#,
+    )
+    .unwrap();
+
+    let data = data_with_patterns(
+        10_000,
+        &[(0, b"foo"), (5000, b"foo"), (5010, b"bar")],
+    );
+
+    let mut scanner = crate::Scanner::new(&rules);
+    scanner.fast_scan(true);
+    assert_eq!(scanner.scan(&data).unwrap().matching_rules().len(), 1);
+}
+
+#[test]
+fn of_within_sliding_window() {
+    // In a sliding window scan, `within` sees only the matches in the window.
+    let rules = crate::compile(
+        r#"rule test {
+             strings:
+               $a = "foo"
+               $b = "bar"
+             condition:
+               all of them within 4000
+           }"#,
+    )
+    .unwrap();
+
+    // 3000 bytes apart, but there's no 1000-byte window that has both.
+    let data = data_with_patterns(10_000, &[(1000, b"foo"), (4000, b"bar")]);
+
+    assert_eq!(
+        crate::Scanner::new(&rules)
+            .scan(&data)
+            .unwrap()
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    let mut scanner = crate::Scanner::new(&rules);
+    scanner.sliding_window(1000, 100);
+    assert_eq!(scanner.scan(&data).unwrap().matching_rules().len(), 0);
+}
+
 #[test]
 fn of_zero_quantifier() {
     // A quantifier of zero means that none of the items match, like `none`,

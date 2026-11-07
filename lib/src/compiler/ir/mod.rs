@@ -2480,7 +2480,7 @@ impl IR {
         let expr_id = ExprId::from(self.nodes.len());
         match &anchor {
             MatchAnchor::None => {}
-            MatchAnchor::At(expr) => {
+            MatchAnchor::At(expr) | MatchAnchor::Within(expr) => {
                 self.parents[expr.0 as usize] = expr_id;
             }
             MatchAnchor::In(range) => {
@@ -2503,7 +2503,7 @@ impl IR {
         let expr_id = ExprId::from(self.nodes.len());
         match &anchor {
             MatchAnchor::None => {}
-            MatchAnchor::At(expr) => {
+            MatchAnchor::At(expr) | MatchAnchor::Within(expr) => {
                 self.parents[expr.0 as usize] = expr_id;
             }
             MatchAnchor::In(range) => {
@@ -2663,7 +2663,7 @@ impl IR {
         }
         match &anchor {
             MatchAnchor::None => {}
-            MatchAnchor::At(expr) => {
+            MatchAnchor::At(expr) | MatchAnchor::Within(expr) => {
                 self.parents[expr.0 as usize] = expr_id;
             }
             MatchAnchor::In(range) => {
@@ -2699,7 +2699,7 @@ impl IR {
         }
         match &anchor {
             MatchAnchor::None => {}
-            MatchAnchor::At(expr) => {
+            MatchAnchor::At(expr) | MatchAnchor::Within(expr) => {
                 self.parents[expr.0 as usize] = expr_id;
             }
             MatchAnchor::In(range) => {
@@ -2991,6 +2991,7 @@ impl Debug for IR {
             MatchAnchor::None => "",
             MatchAnchor::At(_) => " AT",
             MatchAnchor::In(_) => " IN",
+            MatchAnchor::Within(_) => " WITHIN",
         };
 
         let range_str = |range: &Option<_>| {
@@ -3513,10 +3514,15 @@ pub(crate) struct With {
 /// The anchor is the part of the expression that restricts the offset range
 /// where the match can occur.
 /// (e.g. `at <expr>`, `in <range>`).
+///
+/// `Within` is used only in `of` expressions over pattern sets (e.g.
+/// `all of them within 4KB`), and the expression is the maximum distance
+/// between the starting offsets of the matches.
 pub(crate) enum MatchAnchor {
     None,
     At(ExprId),
     In(Range),
+    Within(ExprId),
 }
 
 /// A pair of values conforming a range (e.g. `(0..10)`).
@@ -3748,7 +3754,7 @@ impl Expr {
 
         let replace_in_anchor = |anchor: &mut MatchAnchor| match anchor {
             MatchAnchor::None => {}
-            MatchAnchor::At(expr) => {
+            MatchAnchor::At(expr) | MatchAnchor::Within(expr) => {
                 if *expr == child {
                     *expr = replacement;
                 }

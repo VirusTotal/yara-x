@@ -194,6 +194,12 @@ impl MatchList {
         self.matches.iter()
     }
 
+    /// Returns the matches as a slice, sorted by starting offset.
+    #[inline]
+    pub fn as_slice(&self) -> &[Match] {
+        self.matches.as_slice()
+    }
+
     /// Searches for a match that starts at the given offset.
     ///
     /// If a match starting at `offset` is found, then [`Ok`] is returned

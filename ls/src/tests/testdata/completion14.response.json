@@ -344,6 +344,12 @@
     "label": "with"
   },
   {
+    "insertText": "within ${1:distance}",
+    "insertTextFormat": 2,
+    "kind": 14,
+    "label": "within"
+  },
+  {
     "kind": 14,
     "label": "all"
   },
