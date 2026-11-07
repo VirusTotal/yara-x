@@ -283,8 +283,7 @@ fn generate_module_docs(
         // Testing proto modules don't end up in release builds.
         let cfg_attr = if msg_name.starts_with("test_proto") {
             format!(
-                r#"#[cfg(feature = "{}-module")]
-    "#,
+                "    #[cfg(feature = \"{}-module\")]\n",
                 msg_name.split_once('.').unwrap().0
             )
         } else {
