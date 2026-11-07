@@ -37,7 +37,7 @@ use crate::re::thompson::PikeVM;
 #[cfg(feature = "rules-profiling")]
 use crate::scanner::ProfilingData;
 use crate::scanner::matches::{
-    AddResult, Match, PatternMatches, UnconfirmedMatch,
+    AddResult, Match, MatchList, PatternMatches, UnconfirmedMatch,
 };
 use crate::scanner::{DataSnippets, ScanError, ScannedData};
 use crate::scanner::{HEARTBEAT_COUNTER, INIT_HEARTBEAT};
@@ -135,6 +135,14 @@ pub struct ScanContext<'r, 'd> {
     pub(crate) match_context_size: usize,
     /// The current state of the scanner.
     pub(crate) scan_state: ScanState<'d>,
+    /// Sliding window configuration as `(window_size, overlap)`, set with
+    /// [`crate::Scanner::sliding_window`]. `None` means the data is
+    /// evaluated as a whole.
+    pub(crate) sliding_window: Option<(usize, usize)>,
+    /// While the conditions are evaluated for one window of a sliding window
+    /// scan, this is the window's range within the scanned data. Functions
+    /// that read the scanned data (e.g. `uint16`) see only this range.
+    pub(crate) current_window: Option<Range<usize>>,
     /// Vector containing the IDs of the rules that matched, including both
     /// global and non-global ones. The rules are added first to the
     /// `matching_rules_per_ns` map, and then moved to this vector
@@ -297,7 +305,10 @@ impl ScanContext<'_, '_> {
     /// `None`.
     pub(crate) fn scanned_data(&self) -> Option<&[u8]> {
         match &self.scan_state {
-            ScanState::ScanningData(data) => Some(data.as_ref()),
+            ScanState::ScanningData(data) => match &self.current_window {
+                Some(window) => data.as_ref().get(window.clone()),
+                None => Some(data.as_ref()),
+            },
             _ => None,
         }
     }
@@ -558,6 +569,228 @@ impl ScanContext<'_, '_> {
         }
     }
 
+    /// Evaluates the conditions in sliding window mode.
+    ///
+    /// The patterns are searched once over the whole data. Then, for each
+    /// window, the conditions are evaluated as if the window were the whole
+    /// data: only the matches completely inside the window are visible (with
+    /// offsets relative to the window start), `filesize` is the window size,
+    /// and functions like `uint16` read from the window.
+    ///
+    /// A rule matches if it matched in at least one window. The matches
+    /// reported for a pattern are those found in the windows where a rule
+    /// using the pattern matched, with offsets relative to the start of the
+    /// data.
+    pub(crate) fn eval_conditions_in_windows(
+        &mut self,
+    ) -> Result<(), ScanError> {
+        let (size, overlap) = self.sliding_window.expect(
+            "eval_conditions_in_windows called without a sliding window",
+        );
+
+        let result = self.eval_conditions_in_windows_impl(size, overlap);
+
+        // Evaluation finished (or failed), from now on the data is seen
+        // as a whole again.
+        self.current_window = None;
+        let data_len = self.scanned_data().map_or(0, |data| data.len());
+        self.set_filesize(data_len as i64);
+
+        if result.is_err() {
+            // The bitmaps may contain bits from the window that was being
+            // evaluated. Clear them so that the next scan starts clean.
+            self.tracker.pattern_matches.clear();
+            self.matching_rules.clear();
+            self.clear_match_bitmaps();
+        }
+
+        result
+    }
+
+    fn eval_conditions_in_windows_impl(
+        &mut self,
+        size: usize,
+        overlap: usize,
+    ) -> Result<(), ScanError> {
+        // Search for patterns over the whole data. Fast scan mode is
+        // disabled during the search because it stops collecting matches
+        // for a pattern after the first ones, which may be in a different
+        // window than the ones that matter.
+        let fast_scan = mem::replace(&mut self.tracker.fast_scan, false);
+        let search_result = self.search_for_patterns();
+        self.tracker.fast_scan = fast_scan;
+        search_result?;
+
+        let data_len = self.scanned_data().map_or(0, |data| data.len());
+
+        // All matches found in the data. The tracker's `pattern_matches`
+        // will hold the matches of the current window only.
+        let window_matches = self.tracker.pattern_matches.new_like();
+        let all_matches =
+            mem::replace(&mut self.tracker.pattern_matches, window_matches);
+        let mut reported_matches = all_matches.new_like();
+
+        let matched_patterns: Vec<(PatternId, &MatchList)> = all_matches
+            .matches_per_pattern()
+            .filter(|(_, matches)| matches.len() > 0)
+            .map(|(pattern_id, matches)| (*pattern_id, matches))
+            .collect();
+
+        let num_rules = self.compiled_rules.num_rules();
+        let mut matched_rules: BitVec = BitVec::repeat(false, num_rules);
+        let mut window_rules = Vec::new();
+
+        for window_start in WindowStarts::new(data_len, size, overlap) {
+            let window = window_start..cmp::min(window_start + size, data_len);
+
+            // Make visible only the matches inside this window, with offsets
+            // relative to the window start.
+            self.tracker.pattern_matches.clear();
+            self.clear_match_bitmaps();
+
+            for (pattern_id, matches) in &matched_patterns {
+                let mut any = false;
+                for m in matches.within(window.clone()) {
+                    let relative = Match {
+                        base: 0,
+                        range: m.range.start - window_start
+                            ..m.range.end - window_start,
+                        xor_key: m.xor_key,
+                    };
+                    self.tracker.pattern_matches.add(
+                        *pattern_id,
+                        relative,
+                        false,
+                    );
+                    any = true;
+                }
+                if any {
+                    self.set_pattern_bit(*pattern_id);
+                }
+            }
+
+            self.current_window = Some(window);
+            self.set_filesize(
+                (self.current_window.as_ref().unwrap().len()) as i64,
+            );
+            self.runtime_objects.clear();
+            self.current_struct = None;
+            self.matching_rules.clear();
+            self.num_matching_private_rules = 0;
+
+            self.eval_conditions()?;
+
+            // Record the rules that matched in this window, and the matches
+            // of their patterns (with offsets relative to the data start).
+            mem::swap(&mut window_rules, &mut self.matching_rules);
+            for rule_id in window_rules.drain(..) {
+                matched_rules.set(usize::from(rule_id), true);
+                for pattern in &self.compiled_rules.get(rule_id).patterns {
+                    let Some(matches) =
+                        self.tracker.pattern_matches.get(pattern.pattern_id)
+                    else {
+                        continue;
+                    };
+                    for m in matches.iter() {
+                        reported_matches.add(
+                            pattern.pattern_id,
+                            Match {
+                                base: 0,
+                                range: m.range.start + window_start
+                                    ..m.range.end + window_start,
+                                xor_key: m.xor_key,
+                            },
+                            true,
+                        );
+                    }
+                }
+            }
+        }
+
+        // Build the final results as a regular scan would: matching rules
+        // grouped by namespace (in the order namespaces first matched) and
+        // the bitmaps updated accordingly.
+        self.tracker.pattern_matches = reported_matches;
+        self.matching_rules.clear();
+        self.num_matching_private_rules = 0;
+        self.clear_match_bitmaps();
+
+        let mut per_namespace: IndexMap<NamespaceId, Vec<RuleId>> =
+            IndexMap::new();
+
+        for rule_index in 0..num_rules {
+            let rule_id = RuleId::from(rule_index);
+            let rule = self.compiled_rules.get(rule_id);
+            if matched_rules[rule_index] {
+                per_namespace
+                    .entry(rule.namespace_id)
+                    .or_default()
+                    .push(rule_id);
+                if rule.is_private {
+                    self.num_matching_private_rules += 1;
+                }
+            }
+        }
+
+        for rule_ids in per_namespace.into_values() {
+            for rule_id in rule_ids {
+                self.set_rule_bit(rule_id);
+                self.matching_rules.push(rule_id);
+            }
+        }
+
+        let reported_patterns: Vec<PatternId> = self
+            .tracker
+            .pattern_matches
+            .matches_per_pattern()
+            .filter(|(_, matches)| matches.len() > 0)
+            .map(|(pattern_id, _)| *pattern_id)
+            .collect();
+
+        for pattern_id in reported_patterns {
+            self.set_pattern_bit(pattern_id);
+        }
+
+        Ok(())
+    }
+
+    /// Clears the bitmaps in WASM memory that tell which rules and patterns
+    /// matched.
+    fn clear_match_bitmaps(&mut self) {
+        let num_rules = self.compiled_rules.num_rules();
+        let num_patterns = self.compiled_rules.num_patterns();
+        let store = self.wasm_store_mut();
+        let mem = self.wasm.main_memory.unwrap().data_mut(store);
+        let base = MATCHING_RULES_BITMAP_BASE as usize;
+        mem[base..base + num_rules.div_ceil(8) + num_patterns.div_ceil(8)]
+            .fill(0);
+    }
+
+    /// Sets the bit for `rule_id` in the matching rules bitmap.
+    fn set_rule_bit(&mut self, rule_id: RuleId) {
+        let num_rules = self.compiled_rules.num_rules();
+        let store = self.wasm_store_mut();
+        let mem = self.wasm.main_memory.unwrap().data_mut(store);
+        let base = MATCHING_RULES_BITMAP_BASE as usize;
+        BitSlice::<u8, Lsb0>::from_slice_mut(
+            &mut mem[base..base + num_rules.div_ceil(8)],
+        )
+        .set(rule_id.into(), true);
+    }
+
+    /// Sets the bit for `pattern_id` in the matching patterns bitmap.
+    fn set_pattern_bit(&mut self, pattern_id: PatternId) {
+        let num_rules = self.compiled_rules.num_rules();
+        let num_patterns = self.compiled_rules.num_patterns();
+        let store = self.wasm_store_mut();
+        let mem = self.wasm.main_memory.unwrap().data_mut(store);
+        let base = MATCHING_RULES_BITMAP_BASE as usize + num_rules.div_ceil(8);
+        BitSlice::<u8, Lsb0>::from_slice_mut(
+            &mut mem[base..base + num_patterns.div_ceil(8)],
+        )
+        .set(pattern_id.into(), true);
+    }
+
     /// Resets the scan context to its initial state, making it ready for
     /// another scan.
     ///
@@ -568,6 +801,7 @@ impl ScanContext<'_, '_> {
         let num_patterns = self.compiled_rules.num_patterns();
 
         self.scan_state = ScanState::Idle;
+        self.current_window = None;
 
         // Free all runtime objects left around by previous scans.
         self.runtime_objects.clear();
@@ -1153,7 +1387,21 @@ impl ScanContext<'_, '_> {
             _ => panic!(),
         };
 
-        if !block_scanning_mode {
+        // In a sliding window scan the conditions are evaluated once per
+        // window, and each window has its own size, header and start offset.
+        // The optimizations below assume a single file starting at offset 0,
+        // so they are skipped, and anchored patterns are checked relative to
+        // the start of every window.
+        let windows = match self.sliding_window {
+            Some((size, overlap))
+                if !block_scanning_mode && data.len() > size =>
+            {
+                Some(WindowStarts::new(data.len(), size, overlap))
+            }
+            _ => None,
+        };
+
+        if !block_scanning_mode && windows.is_none() {
             let filesize = self.get_filesize();
             for (pattern_id, bounds) in self.compiled_rules.filesize_bounds() {
                 if !bounds.contains(filesize) {
@@ -1164,7 +1412,7 @@ impl ScanContext<'_, '_> {
             }
         }
 
-        if base == 0 {
+        if base == 0 && windows.is_none() {
             for (pattern_id, constraints) in
                 self.compiled_rules.header_constraints()
             {
@@ -1177,8 +1425,19 @@ impl ScanContext<'_, '_> {
         }
 
         // Verify the anchored pattern first. These are patterns that can
-        // match at a single known offset within the data.
-        self.verify_anchored_patterns(base, data);
+        // match at a single known offset within the data (or within each
+        // window).
+        match windows {
+            Some(windows) => {
+                for window_start in windows {
+                    self.verify_anchored_patterns_in_window(
+                        window_start,
+                        data,
+                    );
+                }
+            }
+            None => self.verify_anchored_patterns(base, data),
+        }
 
         let result = match self.ac_search_loop(base, data) {
             Ok(_) => {
@@ -1264,6 +1523,92 @@ impl ScanContext<'_, '_> {
                 _ => unreachable!(),
             }
         }
+    }
+
+    /// Like [`Self::verify_anchored_patterns`], but for a sliding window
+    /// scan: anchored offsets are relative to `window_start` within `data`.
+    /// Matches are recorded with offsets relative to the start of `data`.
+    fn verify_anchored_patterns_in_window(
+        &mut self,
+        window_start: usize,
+        data: &[u8],
+    ) {
+        for (sub_pattern_id, (pattern_id, sub_pattern)) in self
+            .compiled_rules
+            .anchored_sub_patterns()
+            .iter()
+            .map(|id| (id, self.compiled_rules.get_sub_pattern(*id)))
+        {
+            if self.tracker.disabled_patterns[usize::from(*pattern_id)] {
+                continue;
+            }
+            match sub_pattern {
+                SubPattern::Literal {
+                    pattern,
+                    flags,
+                    anchored_at: Some(offset),
+                    ..
+                } => {
+                    let Some(offset) = window_start.checked_add(*offset)
+                    else {
+                        continue;
+                    };
+                    let pattern = self
+                        .compiled_rules
+                        .literal_pool()
+                        .get_bytes(*pattern)
+                        .unwrap();
+
+                    if verify_literal(pattern, data, offset, *flags) {
+                        handle_sub_pattern_match(
+                            &mut self.tracker,
+                            &mut self.wasm,
+                            *sub_pattern_id,
+                            sub_pattern,
+                            *pattern_id,
+                            Match::new(offset..offset + pattern.len()),
+                        );
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+}
+
+/// Iterator over the start offsets of the windows in a sliding window scan.
+///
+/// Windows are `size` bytes long and start `size - overlap` bytes apart. The
+/// first window starts at 0 and the last one ends exactly at the end of the
+/// data (it may be shorter than `size`). Any range of at most `overlap`
+/// bytes is completely contained in at least one window.
+pub(crate) struct WindowStarts {
+    data_len: usize,
+    size: usize,
+    step: usize,
+    next: Option<usize>,
+}
+
+impl WindowStarts {
+    /// Creates the iterator. `overlap` must be smaller than `size`, this is
+    /// guaranteed by [`crate::Scanner::sliding_window`].
+    pub(crate) fn new(data_len: usize, size: usize, overlap: usize) -> Self {
+        debug_assert!(overlap < size);
+        Self { data_len, size, step: size - overlap, next: Some(0) }
+    }
+}
+
+impl Iterator for WindowStarts {
+    type Item = usize;
+
+    fn next(&mut self) -> Option<usize> {
+        let start = self.next?;
+        self.next = if start.saturating_add(self.size) >= self.data_len {
+            None
+        } else {
+            Some(start + self.step)
+        };
+        Some(start)
     }
 }
 
@@ -2159,6 +2504,8 @@ pub fn create_wasm_store_and_ctx<'r>(
         scan_timeout: None,
         match_context_size: 0,
         scan_state: ScanState::Idle,
+        sliding_window: None,
+        current_window: None,
         root_struct: rules.globals().make_root(),
         matching_rules: Vec::new(),
         matching_rules_per_ns: IndexMap::new(),

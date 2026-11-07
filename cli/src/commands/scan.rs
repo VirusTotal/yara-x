@@ -111,6 +111,16 @@ pub fn scan() -> Command {
             arg!(--"scan-list")
                 .help("Indicate that TARGET_PATH is a file containing the paths to be scanned")
                 .long_help(help::SCAN_LIST_LONG_HELP),
+            arg!(--"sliding-window" <BYTES>)
+                .help("Evaluate rules in overlapping windows of the given size")
+                .long_help(help::SLIDING_WINDOW_LONG_HELP)
+                .requires("window-overlap")
+                .value_parser(value_parser!(u64).range(1..)),
+            arg!(--"window-overlap" <BYTES>)
+                .help("Overlap between consecutive windows (requires --sliding-window)")
+                .long_help(help::WINDOW_OVERLAP_LONG_HELP)
+                .requires("sliding-window")
+                .value_parser(value_parser!(u64)),
             arg!(-z --"skip-larger" <FILE_SIZE>)
                 .help("Skip files larger than the given size")
                 .value_parser(value_parser!(u64)),
@@ -190,6 +200,14 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let only_tag = args.get_one::<String>("tag");
     let max_matches_per_pattern =
         args.get_one::<usize>("max-matches-per-pattern");
+    let sliding_window = args.get_one::<u64>("sliding-window").map(|size| {
+        // `requires` guarantees that --window-overlap is present.
+        let overlap = *args.get_one::<u64>("window-overlap").unwrap();
+        (
+            usize::try_from(*size).unwrap_or(usize::MAX),
+            usize::try_from(overlap).unwrap_or(usize::MAX),
+        )
+    });
 
     let timeout =
         args.get_one::<u64>("timeout").map(|t| Duration::from_secs(*t));
@@ -208,6 +226,18 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             "{} requires that YARA-X is built with profiling support.\n\nUse {}.",
             Paint::bold("--profiling"),
             Paint::cyan("`cargo build --release --features=rules-profiling`")
+        );
+    }
+
+    if let Some((size, overlap)) = sliding_window
+        && overlap >= size
+    {
+        bail!(
+            "'{}' ({}) must be smaller than '{}' ({})",
+            Paint::bold("--window-overlap"),
+            overlap,
+            Paint::bold("--sliding-window"),
+            size
         );
     }
 
@@ -328,6 +358,10 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
             if let Some(max_matches_per_pattern) = max_matches_per_pattern {
                 scanner.max_matches_per_pattern(*max_matches_per_pattern);
+            }
+
+            if let Some((size, overlap)) = sliding_window {
+                scanner.sliding_window(size, overlap);
             }
 
             scanner
