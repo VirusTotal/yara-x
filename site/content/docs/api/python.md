@@ -661,6 +661,34 @@ if the type of `value` is not one of the supported ones.
 
 Sets a timeout for each scan. Scans will abort after the specified `seconds`.
 
+#### .sliding_window(size, overlap)
+
+Evaluates the rules over overlapping windows of the scanned data, instead of
+over the data as a whole.
+
+Windows are `size` bytes long and consecutive windows overlap by `overlap`
+bytes. Each window is evaluated as if it were the whole data, so a rule only
+matches when all the patterns it needs are within one window. This avoids
+false positives in large inputs with many unrelated pieces of data, like
+memory dumps. Any group of matches spanning at most `overlap` bytes falls
+completely within some window.
+
+Patterns are searched once over the whole data. In each window, offsets are
+relative to the window start, `filesize` is the window size, and functions
+like `uint16(0)` read from the window. Reported matches are those in the
+windows where the rule matched, with offsets relative to the start of the
+data. Data not larger than `size` is scanned as usual.
+
+Raises: [ValueError](https://docs.python.org/3/library/exceptions.html#ValueError)
+if `size` is zero or `overlap` is not smaller than `size`.
+
+```python
+scanner = yara_x.Scanner(rules)
+# 1MB windows that overlap by 64KB.
+scanner.sliding_window(1024 * 1024, 64 * 1024)
+results = scanner.scan_file("memory.dmp")
+```
+
 #### .fast_scan(bool)
 
 Enables or disables fast scan mode.

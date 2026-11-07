@@ -254,6 +254,43 @@ fn scanner_max_matches_per_pattern_limits_results() {
 }
 
 #[wasm_bindgen_test]
+fn scanner_sliding_window() {
+    let rule = r#"
+        rule pair {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                $a and $b
+        }
+    "#;
+
+    let mut compiler = WasmCompiler::new();
+    compiler.add_source(rule).expect("rule should compile");
+    let rules = compiler.build().expect("rules should build");
+
+    // "foo" and "bar" are 9000 bytes apart.
+    let mut data = vec![0_u8; 10_000];
+    data[0..3].copy_from_slice(b"foo");
+    data[9000..9003].copy_from_slice(b"bar");
+
+    let mut scanner = rules.scanner();
+    assert!(scanner.set_sliding_window(0, 0).is_err());
+    let err = scanner.set_sliding_window(100, 100).unwrap_err();
+    assert!(js_error_message(err).contains("must be smaller than the size"));
+
+    scanner.set_sliding_window(1000, 100).expect("valid sliding window");
+    let result = parse_scan_result(scanner.scan(&data).expect("scan"));
+    assert_eq!(result.matches.len(), 0);
+
+    data[8950..8953].copy_from_slice(b"foo");
+    let result = parse_scan_result(scanner.scan(&data).expect("scan"));
+    assert_eq!(result.matches.len(), 1);
+    assert_eq!(result.matches[0].patterns[0].matches.len(), 1);
+    assert_eq!(result.matches[0].patterns[0].matches[0].offset, 8950);
+}
+
+#[wasm_bindgen_test]
 fn scan_results_include_compiler_warnings() {
     let mut compiler = WasmCompiler::new();
     compiler

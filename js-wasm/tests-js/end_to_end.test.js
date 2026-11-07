@@ -552,6 +552,44 @@ test("Scanner.setMaxMatchesPerPattern limits match details end to end", () => {
   assert.equal(limited.matches[0].patterns[0].matches.length, 1);
 });
 
+test("Scanner.setSlidingWindow requires patterns to be close", () => {
+  const compiler = new Compiler();
+  compiler.addSource(`
+    rule pair {
+      strings:
+        $a = "foo"
+        $b = "bar"
+      condition:
+        $a and $b
+    }
+  `);
+
+  const rules = compiler.build();
+  const scanner = new Scanner(rules);
+
+  // "foo" and "bar" are 9000 bytes apart.
+  const payload = new Uint8Array(10000);
+  payload.set(new TextEncoder().encode("foo"), 0);
+  payload.set(new TextEncoder().encode("bar"), 9000);
+
+  assert.equal(scanner.scan(payload).matches.length, 1);
+
+  assert.throws(() => scanner.setSlidingWindow(0, 0));
+  assert.throws(() => scanner.setSlidingWindow(100, 100), /smaller than the size/);
+
+  scanner.setSlidingWindow(1000, 100);
+  assert.equal(scanner.scan(payload).matches.length, 0);
+
+  // Now "bar" is close to "foo".
+  payload.set(new TextEncoder().encode("foo"), 8950);
+  const result = scanner.scan(payload);
+  assert.equal(result.matches.length, 1);
+  assert.deepEqual(
+    result.matches[0].patterns[0].matches.map((m) => m.offset),
+    [8950],
+  );
+});
+
 test("external globals can be defined and overridden per scanner", () => {
   const compiler = new Compiler();
   compiler.defineGlobal("ext_enabled", false);

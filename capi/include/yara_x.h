@@ -719,6 +719,30 @@ enum YRX_RESULT yrx_scanner_set_timeout(struct YRX_SCANNER *scanner,
 enum YRX_RESULT yrx_scanner_fast_scan(struct YRX_SCANNER *scanner,
                                       bool yes);
 
+// Evaluates the rules over overlapping windows of the scanned data.
+//
+// Windows are `size` bytes long and consecutive windows overlap by `overlap`
+// bytes. Each window is evaluated as if it were the whole data, so a rule
+// only matches when all the patterns it needs are within one window. This
+// avoids false positives in large inputs with many unrelated pieces of data,
+// like memory dumps. Any group of matches spanning at most `overlap` bytes
+// falls completely within some window.
+//
+// Patterns are searched once over the whole data. In each window, offsets
+// are relative to the window start, `filesize` is the window size, and
+// functions like `uint16(0)` read from the window. Reported matches are those
+// in the windows where the rule matched, with offsets relative to the start
+// of the data. Data not larger than `size` is scanned as usual.
+//
+// Returns [`YRX_RESULT::YRX_INVALID_ARGUMENT`] if `size` is zero or
+// `overlap` is not smaller than `size`, and [`YRX_RESULT::YRX_INVALID_STATE`]
+// if the scanner was already used with [`yrx_scanner_scan_block`], as
+// sliding windows are not supported in block scanning mode. Scanning blocks
+// after setting a sliding window fails with [`YRX_RESULT::YRX_SCAN_ERROR`].
+enum YRX_RESULT yrx_scanner_sliding_window(struct YRX_SCANNER *scanner,
+                                           size_t size,
+                                           size_t overlap);
+
 // Sets the maximum number of matches per pattern.
 //
 // When a pattern reaches the maximum number of matches it won't produce more

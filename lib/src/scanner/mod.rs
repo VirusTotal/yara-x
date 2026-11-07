@@ -95,6 +95,10 @@ pub enum ScanError {
         /// Error that occurred.
         err: ModuleError,
     },
+    /// A sliding window ([`Scanner::sliding_window`]) was set in a scanner
+    /// that is used for block scanning, where it is not supported.
+    #[error("sliding windows are not supported in block scanning mode")]
+    SlidingWindowInBlockMode,
 }
 
 /// Global counter that gets incremented every 1 second by a dedicated thread.
@@ -341,6 +345,10 @@ impl<'r> Scanner<'r> {
     ///
     /// Data that is not larger than `size` is scanned as usual, as a single
     /// window.
+    ///
+    /// Sliding windows are not supported in block scanning mode: if this
+    /// scanner is converted into a [`blocks::Scanner`], scanning a block
+    /// returns [`ScanError::SlidingWindowInBlockMode`].
     ///
     /// # Panics
     ///

@@ -212,6 +212,44 @@ func TestScannerMaxMatchesPerPattern(t *testing.T) {
 	assert.Len(t, matchingRules, 1)
 }
 
+func TestScannerSlidingWindow(t *testing.T) {
+	r, _ := Compile(`
+    rule t {
+        strings:
+            $a = "foo"
+            $b = "bar"
+        condition:
+            $a and $b
+    }`)
+	s := NewScanner(r)
+
+	// "foo" and "bar" are 9000 bytes apart.
+	data := make([]byte, 10000)
+	copy(data[0:], "foo")
+	copy(data[9000:], "bar")
+
+	scanResults, _ := s.Scan(data)
+	assert.Len(t, scanResults.MatchingRules(), 1)
+
+	assert.Error(t, s.SlidingWindow(0, 0))
+	assert.Error(t, s.SlidingWindow(100, 100))
+	assert.Error(t, s.SlidingWindow(100, -1))
+	assert.NoError(t, s.SlidingWindow(1000, 100))
+
+	scanResults, _ = s.Scan(data)
+	assert.Len(t, scanResults.MatchingRules(), 0)
+
+	// Now "bar" is close to "foo". The reported offsets are relative to the
+	// start of the data, and only matches from the matching window are
+	// reported.
+	copy(data[8950:], "foo")
+	scanResults, _ = s.Scan(data)
+	matchingRules := scanResults.MatchingRules()
+	assert.Len(t, matchingRules, 1)
+	assert.Equal(t, uint64(8950), matchingRules[0].Patterns()[0].Matches()[0].Offset())
+	assert.Len(t, matchingRules[0].Patterns()[0].Matches(), 1)
+}
+
 func TestScannerGarbageCollected(t *testing.T) {
 	r, _ := Compile(`rule t { condition: true }`)
 	collected := make(chan struct{})

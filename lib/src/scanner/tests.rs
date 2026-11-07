@@ -2085,3 +2085,15 @@ fn sliding_window_zero_size() {
     let rules = crate::compile("rule test { condition: true }").unwrap();
     Scanner::new(&rules).sliding_window(0, 0);
 }
+
+#[test]
+fn sliding_window_not_in_block_mode() {
+    let rules = crate::compile("rule test { condition: true }").unwrap();
+    let mut scanner = Scanner::new(&rules);
+    scanner.sliding_window(1000, 100);
+    let mut scanner: crate::blocks::Scanner = scanner.into();
+    assert!(matches!(
+        scanner.scan(0, b"foo"),
+        Err(crate::ScanError::SlidingWindowInBlockMode)
+    ));
+}

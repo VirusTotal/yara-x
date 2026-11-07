@@ -112,8 +112,23 @@ fn scan_rules(rule_sources: &[String], payload: &[u8]) -> ScanResult {
         None,
         None,
         None,
+        None,
         compile_outcome.warnings,
     )
+}
+
+/// Checks the arguments of `Scanner.setSlidingWindow`.
+#[cfg(any(target_family = "wasm", test))]
+fn validate_sliding_window(size: usize, overlap: usize) -> Result<(), String> {
+    if size == 0 {
+        return Err("sliding window size must be greater than 0".to_owned());
+    }
+    if overlap >= size {
+        return Err(format!(
+            "sliding window overlap ({overlap}) must be smaller than the size ({size})"
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(any(target_family = "wasm", test))]
@@ -122,6 +137,7 @@ fn scan_compiled_rules(
     payload: &[u8],
     timeout_ms: Option<u64>,
     max_matches_per_pattern: Option<usize>,
+    sliding_window: Option<(usize, usize)>,
     external_globals: Option<&[(String, serde_json::Value)]>,
     warnings: Vec<String>,
 ) -> ScanResult {
@@ -138,6 +154,10 @@ fn scan_compiled_rules(
 
     if let Some(limit) = max_matches_per_pattern {
         scanner.max_matches_per_pattern(limit);
+    }
+
+    if let Some((size, overlap)) = sliding_window {
+        scanner.sliding_window(size, overlap);
     }
 
     if let Some(globals) = external_globals {
@@ -344,6 +364,7 @@ impl WasmRules {
             rules: Arc::clone(&self.inner),
             timeout_ms: None,
             max_matches_per_pattern: None,
+            sliding_window: None,
             globals: vec![],
         }
     }
@@ -353,6 +374,7 @@ impl WasmRules {
         let result = scan_compiled_rules(
             &self.inner,
             payload,
+            None,
             None,
             None,
             None,
@@ -379,6 +401,7 @@ pub struct WasmScanner {
     rules: Arc<YaraRules>,
     timeout_ms: Option<u64>,
     max_matches_per_pattern: Option<usize>,
+    sliding_window: Option<(usize, usize)>,
     globals: Vec<(String, serde_json::Value)>,
 }
 
@@ -391,6 +414,7 @@ impl WasmScanner {
             rules: Arc::clone(&rules.inner),
             timeout_ms: None,
             max_matches_per_pattern: None,
+            sliding_window: None,
             globals: vec![],
         }
     }
@@ -403,6 +427,29 @@ impl WasmScanner {
     #[wasm_bindgen(js_name = setMaxMatchesPerPattern)]
     pub fn set_max_matches_per_pattern(&mut self, n: usize) {
         self.max_matches_per_pattern = Some(n);
+    }
+
+    /// Evaluates the rules over overlapping windows of the scanned data,
+    /// instead of over the data as a whole.
+    ///
+    /// Windows are `size` bytes long and consecutive windows overlap by
+    /// `overlap` bytes. Each window is evaluated as if it were the whole data,
+    /// so a rule only matches when all the patterns it needs are within one
+    /// window. Any group of matches spanning at most `overlap` bytes falls
+    /// completely within some window. Reported match offsets are relative to
+    /// the start of the data.
+    ///
+    /// Throws an error if `size` is zero or `overlap` is not smaller than
+    /// `size`.
+    #[wasm_bindgen(js_name = setSlidingWindow)]
+    pub fn set_sliding_window(
+        &mut self,
+        size: usize,
+        overlap: usize,
+    ) -> Result<(), JsValue> {
+        validate_sliding_window(size, overlap).map_err(js_error)?;
+        self.sliding_window = Some((size, overlap));
+        Ok(())
     }
 
     #[wasm_bindgen(js_name = setGlobal)]
@@ -437,6 +484,7 @@ impl WasmScanner {
             payload,
             self.timeout_ms,
             self.max_matches_per_pattern,
+            self.sliding_window,
             Some(&self.globals),
             collect_rule_warnings(&self.rules),
         );
@@ -579,5 +627,47 @@ mod tests {
         let matched = &pattern.matches[0];
         assert_eq!(matched.offset, 3);
         assert_eq!(matched.length, 3);
+    }
+
+    #[test]
+    fn sliding_window() {
+        let rule = r#"rule pair {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                $a and $b
+        }"#;
+
+        let mut compiler = YaraCompiler::new();
+        compiler.add_source(rule).unwrap();
+        let rules = compiler.build();
+
+        // "foo" and "bar" are 9000 bytes apart.
+        let mut data = vec![0_u8; 10_000];
+        data[0..3].copy_from_slice(b"foo");
+        data[9000..9003].copy_from_slice(b"bar");
+
+        let scan = |data: &[u8], window| {
+            scan_compiled_rules(&rules, data, None, None, window, None, vec![])
+        };
+
+        assert_eq!(scan(&data, None).matches.len(), 1);
+        assert_eq!(scan(&data, Some((1000, 100))).matches.len(), 0);
+
+        // Now "bar" is close to "foo".
+        data[8950..8953].copy_from_slice(b"foo");
+        let result = scan(&data, Some((1000, 100)));
+        assert_eq!(result.matches.len(), 1);
+        let offsets: Vec<_> = result.matches[0].patterns[0]
+            .matches
+            .iter()
+            .map(|m| m.offset)
+            .collect();
+        assert_eq!(offsets, [8950]);
+
+        assert!(validate_sliding_window(1000, 100).is_ok());
+        assert!(validate_sliding_window(0, 0).is_err());
+        assert!(validate_sliding_window(100, 100).is_err());
     }
 }

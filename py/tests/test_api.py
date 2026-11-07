@@ -264,6 +264,38 @@ def test_scanner_max_matches_per_pattern():
   assert len(matching_rules) == 1
 
 
+def test_scanner_sliding_window():
+  compiler = yara_x.Compiler()
+  compiler.add_source(
+      'rule test {strings: $a = "foo" $b = "bar" condition: $a and $b}')
+  scanner = yara_x.Scanner(compiler.build())
+
+  # "foo" and "bar" are 9000 bytes apart.
+  data = bytearray(10000)
+  data[0:3] = b'foo'
+  data[9000:9003] = b'bar'
+
+  assert len(scanner.scan(bytes(data)).matching_rules) == 1
+
+  with pytest.raises(ValueError):
+    scanner.sliding_window(0, 0)
+  with pytest.raises(ValueError):
+    scanner.sliding_window(100, 100)
+  with pytest.raises(OverflowError):
+    scanner.sliding_window(100, -1)
+
+  scanner.sliding_window(1000, 100)
+  assert len(scanner.scan(bytes(data)).matching_rules) == 0
+
+  # Now "bar" is close to "foo". Only matches from the matching window are
+  # reported, with offsets relative to the start of the data.
+  data[8950:8953] = b'foo'
+  matching_rules = scanner.scan(bytes(data)).matching_rules
+  assert len(matching_rules) == 1
+  matches = matching_rules[0].patterns[0].matches
+  assert [m.offset for m in matches] == [8950]
+
+
 def test_scanner_fast_scan():
   compiler = yara_x.Compiler()
   compiler.add_source('rule test {strings: $a = "foo" condition: $a}')

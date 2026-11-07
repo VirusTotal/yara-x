@@ -1092,6 +1092,39 @@ impl Scanner {
         self.inner.max_matches_per_pattern(matches);
     }
 
+    /// Evaluates the rules over overlapping windows of the scanned data,
+    /// instead of over the data as a whole.
+    ///
+    /// Windows are `size` bytes long and consecutive windows overlap by
+    /// `overlap` bytes. Each window is evaluated as if it were the whole data,
+    /// so a rule only matches when all the patterns it needs are within one
+    /// window. This avoids false positives in large inputs with many unrelated
+    /// pieces of data, like memory dumps. Any group of matches spanning at most
+    /// `overlap` bytes falls completely within some window.
+    ///
+    /// Patterns are searched once over the whole data. In each window, offsets
+    /// are relative to the window start, `filesize` is the window size, and
+    /// functions like `uint16(0)` read from the window. Reported matches are
+    /// those in the windows where the rule matched, with offsets relative to
+    /// the start of the data. Data not larger than `size` is scanned as usual.
+    ///
+    /// Raises `ValueError` if `size` is zero or `overlap` is not smaller than
+    /// `size`.
+    fn sliding_window(&mut self, size: usize, overlap: usize) -> PyResult<()> {
+        if size == 0 {
+            return Err(PyValueError::new_err(
+                "sliding window size must be greater than 0",
+            ));
+        }
+        if overlap >= size {
+            return Err(PyValueError::new_err(format!(
+                "sliding window overlap ({overlap}) must be smaller than the size ({size})"
+            )));
+        }
+        self.inner.sliding_window(size, overlap);
+        Ok(())
+    }
+
     /// Enables or disables fast scan mode.
     ///
     /// In fast scan mode, the scanner avoids tracking matches for patterns when
