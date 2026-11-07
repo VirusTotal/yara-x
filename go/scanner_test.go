@@ -212,7 +212,6 @@ func TestScannerMaxMatchesPerPattern(t *testing.T) {
 	assert.Len(t, matchingRules, 1)
 }
 
-
 func TestScannerGarbageCollected(t *testing.T) {
 	r, _ := Compile(`rule t { condition: true }`)
 	collected := make(chan struct{})
