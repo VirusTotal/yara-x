@@ -779,6 +779,15 @@ A tuple of [Pattern](#pattern) with every pattern defined by the rule, matching
 or not. Each pattern contains information about the matches that were found
 during the scan, if any.
 
+#### .matching_windows
+
+A tuple of `(start, end)` pairs with the ranges of the scanned data where the
+rule matched in a sliding window scan (see
+[Scanner.sliding_window(...)](#sliding_windowsize-overlap)). `start` is
+inclusive and `end` is exclusive. Windows that overlap or touch each other are
+merged into a single range. The tuple is empty if the scan didn't use a
+sliding window, or if the data fit in a single window.
+
 #### .metadata
 
 A tuple of pairs `(identifier, value)` with the metadata associated to the

@@ -36,6 +36,20 @@ struct RuleMatch {
     tags: Vec<String>,
     metadata: Vec<MetadataEntry>,
     patterns: Vec<PatternMatchResult>,
+    /// Ranges of the data where the rule matched in a sliding window scan.
+    /// Omitted when empty, so results of other scans don't change.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    matching_windows: Vec<WindowRange>,
+}
+
+/// A range of the scanned data where a rule matched in a sliding window
+/// scan. `start` is inclusive and `end` is exclusive.
+#[cfg(any(target_family = "wasm", test))]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+struct WindowRange {
+    start: usize,
+    end: usize,
 }
 
 #[cfg(any(target_family = "wasm", test))]
@@ -234,6 +248,14 @@ fn scan_compiled_rules(
                             .collect::<Vec<_>>(),
                         metadata,
                         patterns,
+                        matching_windows: rule
+                            .matching_windows()
+                            .iter()
+                            .map(|w| WindowRange {
+                                start: w.start,
+                                end: w.end,
+                            })
+                            .collect(),
                     }
                 })
                 .collect::<Vec<_>>();
@@ -668,6 +690,17 @@ mod tests {
             .map(|m| m.offset)
             .collect();
         assert_eq!(offsets, [8950]);
+        assert_eq!(
+            result.matches[0].matching_windows,
+            [WindowRange { start: 8100, end: 9100 }]
+        );
+
+        // Without a sliding window there are no windows, and the field is
+        // left out of the serialized result.
+        let result = scan(&data, None);
+        assert!(result.matches[0].matching_windows.is_empty());
+        let json = serde_json::to_value(&result.matches[0]).unwrap();
+        assert!(json.get("matchingWindows").is_none());
 
         assert!(validate_sliding_window(1000, 100).is_ok());
         assert!(validate_sliding_window(0, 0).is_err());

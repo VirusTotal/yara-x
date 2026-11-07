@@ -65,6 +65,14 @@ package yara_x
 //   return yrx_rule_iter_patterns(rule, callback, (void*) patterns_handle);
 // }
 //
+// enum YRX_RESULT static inline _yrx_rule_iter_matching_windows(
+//		const struct YRX_RULE *rule,
+//		YRX_WINDOW_CALLBACK callback,
+//		uintptr_t windows_handle)
+// {
+//   return yrx_rule_iter_matching_windows(rule, callback, (void*) windows_handle);
+// }
+//
 // enum YRX_RESULT static inline _yrx_pattern_iter_matches(
 //		const struct YRX_PATTERN *pattern,
 //		YRX_MATCH_CALLBACK callback,
@@ -79,6 +87,7 @@ package yara_x
 // extern void patternCallback(YRX_PATTERN*, uintptr_t);
 // extern void matchCallback(YRX_MATCH*, uintptr_t);
 // extern void tagCallback(char*, uintptr_t);
+// extern void windowCallback(size_t, size_t, uintptr_t);
 //
 import "C"
 
@@ -256,6 +265,14 @@ type Rule struct {
 	tags       []string
 	patterns   []Pattern
 	metadata   []Metadata
+	windows    []Window
+}
+
+// Window is a range of the scanned data where a rule matched in a sliding
+// window scan (see [Scanner.SlidingWindow]).
+type Window struct {
+	start uint64
+	end   uint64
 }
 
 // Pattern represents a pattern in a Rule.
@@ -328,12 +345,24 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 		panic("yrx_rule_iter_patterns failed")
 	}
 
+	windows := make([]Window, 0)
+	windowsHandle := cgo.NewHandle(&windows)
+	defer windowsHandle.Delete()
+
+	if C._yrx_rule_iter_matching_windows(
+		cRule,
+		C.YRX_WINDOW_CALLBACK(C.windowCallback),
+		C.uintptr_t(windowsHandle)) != C.YRX_SUCCESS {
+		panic("yrx_rule_iter_matching_windows failed")
+	}
+
 	rule := &Rule{
 		namespace,
 		identifier,
 		tags,
 		patterns,
 		metadata,
+		windows,
 	}
 
 	return rule
@@ -372,6 +401,29 @@ func (r *Rule) Metadata() []Metadata {
 // Patterns returns the patterns defined by this rule.
 func (r *Rule) Patterns() []Pattern {
 	return r.patterns
+}
+
+// MatchingWindows returns the ranges of the scanned data where the rule
+// matched in a sliding window scan (see [Scanner.SlidingWindow]).
+//
+// Each range covers one or more consecutive windows where the rule matched.
+// Windows that overlap or touch each other are merged into a single range, so
+// the ranges are sorted and don't overlap. The result is empty if the scan
+// didn't use a sliding window, or if the data fit in a single window.
+func (r *Rule) MatchingWindows() []Window {
+	return r.windows
+}
+
+// Start returns the offset where the window starts (inclusive), relative to
+// the start of the scanned data.
+func (w *Window) Start() uint64 {
+	return w.start
+}
+
+// End returns the offset where the window ends (exclusive), relative to the
+// start of the scanned data.
+func (w *Window) End() uint64 {
+	return w.end
 }
 
 // Identifier returns the pattern's identifier (i.e: $a, $foo).
@@ -507,6 +559,21 @@ func metadataCallback(metadata *C.YRX_METADATA, handle C.uintptr_t) {
 	*m = append(*m, Metadata{
 		identifier: C.GoString(metadata.identifier),
 		value:      value,
+	})
+}
+
+// This is the callback called by yrx_rule_iter_matching_windows
+//
+//export windowCallback
+func windowCallback(start C.size_t, end C.size_t, handle C.uintptr_t) {
+	h := cgo.Handle(handle)
+	windows, ok := h.Value().(*[]Window)
+	if !ok {
+		panic("windowCallback didn't receive a *[]Window")
+	}
+	*windows = append(*windows, Window{
+		start: uint64(start),
+		end:   uint64(end),
 	})
 }
 

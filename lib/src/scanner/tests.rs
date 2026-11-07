@@ -2097,3 +2097,73 @@ fn sliding_window_not_in_block_mode() {
         Err(crate::ScanError::SlidingWindowInBlockMode)
     ));
 }
+
+/// Returns the matching windows of a rule as `(start, end)` pairs.
+fn window_pairs(rule: &Rule) -> Vec<(usize, usize)> {
+    rule.matching_windows().iter().map(|w| (w.start, w.end)).collect()
+}
+
+#[test]
+fn sliding_window_matching_windows() {
+    let rules = crate::compile(
+        r#"
+        rule pair { strings: $a = "foo" $b = "bar" condition: $a and $b }
+        rule always { condition: filesize > 0 }
+        rule never { condition: false }
+        "#,
+    )
+    .unwrap();
+
+    // Windows start at 0, 900, 1800, ..., 9000.
+    let data = data_with(
+        10_000,
+        &[(1000, b"foo"), (1050, b"bar"), (5000, b"foo"), (5020, b"bar")],
+    );
+
+    let mut scanner = Scanner::new(&rules);
+    scanner.sliding_window(1000, 100);
+    let results = scanner.scan(&data).unwrap();
+
+    let windows: Vec<(String, Vec<(usize, usize)>)> = results
+        .matching_rules()
+        .map(|r| (r.identifier().to_string(), window_pairs(&r)))
+        .collect();
+
+    assert_eq!(
+        windows,
+        [
+            // Only the window starting at 900 contains both 1000 and 1050,
+            // and only the one starting at 4500 contains 5000 and 5020.
+            ("pair".to_string(), vec![(900, 1900), (4500, 5500)]),
+            // Matches in every window, which are merged into one range.
+            ("always".to_string(), vec![(0, 10_000)]),
+        ]
+    );
+
+    for rule in results.non_matching_rules() {
+        assert!(rule.matching_windows().is_empty());
+    }
+
+    // Without a sliding window, or when the data fits in one window, there
+    // are no windows to report.
+    let mut plain_scanner = Scanner::new(&rules);
+    let results = plain_scanner.scan(&data).unwrap();
+    assert!(results.matching_rules().all(|r| r.matching_windows().is_empty()));
+
+    let mut scanner = Scanner::new(&rules);
+    scanner.sliding_window(1000, 100);
+    let small = data_with(500, &[(0, b"foo"), (10, b"bar")]);
+    let results = scanner.scan(&small).unwrap();
+    assert_eq!(results.matching_rules().len(), 2);
+    assert!(results.matching_rules().all(|r| r.matching_windows().is_empty()));
+
+    // A following scan doesn't keep windows from the previous one.
+    let empty = data_with(10_000, &[]);
+    let results = scanner.scan(&empty).unwrap();
+    let always = results.matching_rules().next().unwrap();
+    assert_eq!(window_pairs(&always), [(0, 10_000)]);
+    assert_eq!(results.matching_rules().len(), 1);
+
+    // Rules iterated from `Rules` have no scan, and no windows.
+    assert!(rules.iter().all(|r| r.matching_windows().is_empty()));
+}

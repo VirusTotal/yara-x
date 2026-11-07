@@ -209,6 +209,13 @@ slower. Windows of 64KB or more add little to the scan time.
 
 Requires --window-overlap. Example: --sliding-window 1048576 --window-overlap 65536"#;
 
+pub const PRINT_WINDOWS_LONG_HELP: &str = r#"Print the windows where each rule matched (requires --sliding-window)
+
+For each matching rule, prints the ranges of the file covered by the windows
+where the rule matched. Windows that overlap or touch each other are merged
+into a single range. Offsets are relative to the start of the file. Nothing is
+printed for files that fit in a single window."#;
+
 pub const WINDOW_OVERLAP_LONG_HELP: &str = r#"Overlap between consecutive windows, in bytes
 
 Any group of matches that spans at most this many bytes falls completely within

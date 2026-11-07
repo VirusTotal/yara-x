@@ -295,6 +295,10 @@ def test_scanner_sliding_window():
   matches = matching_rules[0].patterns[0].matches
   assert [m.offset for m in matches] == [8950]
 
+  # Windows start every 900 bytes, the one starting at 8100 contains both
+  # 8950 and 9000.
+  assert matching_rules[0].matching_windows == ((8100, 9100),)
+
 
 def test_scanner_fast_scan():
   compiler = yara_x.Compiler()

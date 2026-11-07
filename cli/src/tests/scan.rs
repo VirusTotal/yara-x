@@ -856,6 +856,41 @@ fn sliding_window() {
         .stdout(predicate::str::contains("0x22f6:3:$a: foo"))
         .stdout(predicate::str::contains("0x2328:3:$b: bar"))
         .stdout(predicate::str::contains("0x0:3:$a").not());
+
+    // --print-windows shows the ranges where the rule matched.
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--print-windows")
+        .arg("--sliding-window=1000")
+        .arg("--window-overlap=100")
+        .arg(rules.path())
+        .arg(near.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("window 0x1fa4-0x238c"));
+
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--print-windows")
+        .arg("--output-format=ndjson")
+        .arg("--sliding-window=1000")
+        .arg("--window-overlap=100")
+        .arg(rules.path())
+        .arg(near.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            r#""windows":[{"start":8100,"end":9100}]"#,
+        ));
+
+    // --print-windows requires --sliding-window.
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--print-windows")
+        .arg(rules.path())
+        .arg(near.path())
+        .assert()
+        .failure();
 }
 
 #[test]

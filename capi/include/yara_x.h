@@ -214,6 +214,18 @@ typedef void (*YRX_PATTERN_CALLBACK)(const struct YRX_PATTERN *pattern,
 typedef void (*YRX_TAG_CALLBACK)(const char *tag,
                                  void *user_data);
 
+// Callback function passed to [`yrx_rule_iter_matching_windows`].
+//
+// The callback is called for each range of the scanned data where the rule
+// matched in a sliding window scan. `start` is inclusive and `end` is
+// exclusive, both are offsets relative to the start of the scanned data.
+//
+// The callback also receives a `user_data` pointer that can point to arbitrary
+// data owned by the user.
+typedef void (*YRX_WINDOW_CALLBACK)(size_t start,
+                                    size_t end,
+                                    void *user_data);
+
 // Callback function passed to `yrx_scanner_on_matching_rule` or
 // [`yrx_rules_iter`].
 //
@@ -634,6 +646,24 @@ enum YRX_RESULT yrx_rule_iter_patterns(const struct YRX_RULE *rule,
 enum YRX_RESULT yrx_rule_iter_tags(const struct YRX_RULE *rule,
                                    YRX_TAG_CALLBACK callback,
                                    void *user_data);
+
+// Iterates over the ranges of the scanned data where a rule matched in a
+// sliding window scan (see `yrx_scanner_sliding_window`), calling the
+// callback for each range.
+//
+// Each range covers one or more consecutive windows where the rule matched.
+// Windows that overlap or touch each other are merged into a single range,
+// so the ranges are sorted and don't overlap. The callback is never called
+// if the scan didn't use a sliding window, or if the data fit in a single
+// window.
+//
+// The `user_data` pointer can be used to provide additional context to your
+// callback function.
+//
+// See [`YRX_WINDOW_CALLBACK`] for more details.
+enum YRX_RESULT yrx_rule_iter_matching_windows(const struct YRX_RULE *rule,
+                                               YRX_WINDOW_CALLBACK callback,
+                                               void *user_data);
 
 // Iterates over the compiled rules, calling the callback function for each
 // rule.

@@ -1073,6 +1073,25 @@ callback function. See `YRX_TAG_CALLBACK` for more details.
 
 ------
 
+### yrx_rule_iter_matching_windows
+
+```c
+enum YRX_RESULT yrx_rule_iter_matching_windows(
+    const struct YRX_RULE *rule,
+    YRX_WINDOW_CALLBACK callback,
+    void *user_data);
+```
+
+Iterates over the ranges of the scanned data where a rule matched in a sliding
+window scan (see [yrx_scanner_sliding_window](#yrx_scanner_sliding_window)),
+calling the callback with the `start` (inclusive) and `end` (exclusive)
+offsets of each range. Windows that overlap or touch each other are merged
+into a single range. The callback is never called if the scan didn't use a
+sliding window, or if the data fit in a single window. The `user_data` pointer
+can be used to provide additional context to your callback function.
+
+------
+
 ### YRX_PATTERN
 
 An individual pattern defined in a rule.

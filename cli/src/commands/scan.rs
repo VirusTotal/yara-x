@@ -98,6 +98,10 @@ pub fn scan() -> Command {
                 .default_missing_value("120")
                 .require_equals(true)
                 .value_parser(value_parser!(usize)),
+            arg!(--"print-windows")
+                .help("Print the windows where each rule matched (requires --sliding-window)")
+                .long_help(help::PRINT_WINDOWS_LONG_HELP)
+                .requires("sliding-window"),
             arg!(-g --"print-tags")
                 .help("Print rule tags"),
             arg!(--"profiling")
@@ -166,6 +170,7 @@ struct OutputOptions {
     include_meta: bool,
     include_tags: bool,
     include_strings: Option<usize>,
+    include_windows: bool,
 }
 
 impl From<&ArgMatches> for OutputOptions {
@@ -176,6 +181,7 @@ impl From<&ArgMatches> for OutputOptions {
             include_meta: args.get_flag("print-meta"),
             include_tags: args.get_flag("print-tags"),
             include_strings: args.get_one::<usize>("print-strings").cloned(),
+            include_windows: args.get_flag("print-windows"),
         }
     }
 }
@@ -649,6 +655,23 @@ mod output_handler {
         tags: Option<Vec<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         strings: Option<Vec<PatternJson>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        windows: Option<Vec<WindowJson>>,
+    }
+
+    /// A range of the scanned data where a rule matched in a sliding window
+    /// scan.
+    #[derive(serde::Serialize, Clone)]
+    pub(super) struct WindowJson {
+        pub(super) start: usize,
+        pub(super) end: usize,
+    }
+
+    pub(super) fn windows_to_json(rule: &Rule) -> Vec<WindowJson> {
+        rule.matching_windows()
+            .iter()
+            .map(|w| WindowJson { start: w.start, end: w.end })
+            .collect()
     }
 
     #[derive(serde::Serialize)]
@@ -684,6 +707,9 @@ mod output_handler {
                 strings: output_options
                     .include_strings
                     .map(|limit| patterns_to_json(rule.patterns(), limit)),
+                windows: output_options
+                    .include_windows
+                    .then(|| windows_to_json(&rule)),
             })
             .collect()
     }
@@ -852,6 +878,15 @@ mod output_handler {
 
                 msg.push(' ');
                 msg.push_str(&file_path.display().to_string());
+
+                if self.output_options.include_windows {
+                    for window in matching_rule.matching_windows() {
+                        msg.push_str(&format!(
+                            "\nwindow {:#x}-{:#x}",
+                            window.start, window.end
+                        ));
+                    }
+                }
 
                 if let Some(limit) = self.output_options.include_strings {
                     for p in matching_rule.patterns() {
@@ -1022,6 +1057,8 @@ mod output_handler {
         tags: Option<Vec<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         strings: Option<Vec<StringJson>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        windows: Option<Vec<WindowJson>>,
     }
 
     #[derive(serde::Serialize)]
@@ -1157,12 +1194,18 @@ mod output_handler {
                         )
                     });
 
+                let windows = self
+                    .output_options
+                    .include_windows
+                    .then(|| windows_to_json(&rule));
+
                 MatchJson {
                     rule: rule.identifier().to_string(),
                     meta,
                     file,
                     tags,
                     strings,
+                    windows,
                 }
             });
 

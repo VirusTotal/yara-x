@@ -556,6 +556,20 @@ class Rule:
         """
         ...
 
+    @property
+    def matching_windows(self) -> Tuple[Tuple[int, int], ...]:
+        r"""
+        Ranges of the scanned data where the rule matched in a sliding window
+        scan, as `(start, end)` tuples (see `Scanner.sliding_window`).
+
+        Each range covers one or more consecutive windows where the rule
+        matched. Windows that overlap or touch each other are merged into a
+        single range. `start` is inclusive and `end` is exclusive. The tuple
+        is empty if the scan didn't use a sliding window, or if the data fit
+        in a single window.
+        """
+        ...
+
 @final
 class Rules:
     r"""

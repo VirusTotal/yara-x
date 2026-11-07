@@ -97,6 +97,12 @@ The `.scan(...)` methods return an object detailing matches and diagnostics:
 }
 ```
 
+When the scanner uses a sliding window (`setSlidingWindow`), each rule also has
+a `matchingWindows` array with the ranges of the data where the rule matched,
+like `[{ "start": 8100, "end": 9100 }]`. Windows that overlap or touch each
+other are merged into a single range. The field is omitted when it would be
+empty.
+
 ---
 
 ## Resource Management

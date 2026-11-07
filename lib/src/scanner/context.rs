@@ -143,6 +143,10 @@ pub struct ScanContext<'r, 'd> {
     /// scan, this is the window's range within the scanned data. Functions
     /// that read the scanned data (e.g. `uint16`) see only this range.
     pub(crate) current_window: Option<Range<usize>>,
+    /// For each rule that matched in a sliding window scan, the ranges of
+    /// the data covered by the windows where it matched. Overlapping or
+    /// adjacent windows are merged into a single range.
+    pub(crate) matching_windows: FxHashMap<RuleId, Vec<Range<usize>>>,
     /// Vector containing the IDs of the rules that matched, including both
     /// global and non-global ones. The rules are added first to the
     /// `matching_rules_per_ns` map, and then moved to this vector
@@ -601,6 +605,7 @@ impl ScanContext<'_, '_> {
             // evaluated. Clear them so that the next scan starts clean.
             self.tracker.pattern_matches.clear();
             self.matching_rules.clear();
+            self.matching_windows.clear();
             self.clear_match_bitmaps();
         }
 
@@ -683,8 +688,18 @@ impl ScanContext<'_, '_> {
             // Record the rules that matched in this window, and the matches
             // of their patterns (with offsets relative to the data start).
             mem::swap(&mut window_rules, &mut self.matching_rules);
+            let window = self.current_window.clone().unwrap();
             for rule_id in window_rules.drain(..) {
                 matched_rules.set(usize::from(rule_id), true);
+                let ranges = self.matching_windows.entry(rule_id).or_default();
+                match ranges.last_mut() {
+                    // Windows are evaluated in order, so if this window
+                    // overlaps or touches the last range, extend it.
+                    Some(last) if window.start <= last.end => {
+                        last.end = cmp::max(last.end, window.end);
+                    }
+                    _ => ranges.push(window.clone()),
+                }
                 for pattern in &self.compiled_rules.get(rule_id).patterns {
                     let Some(matches) =
                         self.tracker.pattern_matches.get(pattern.pattern_id)
@@ -802,6 +817,7 @@ impl ScanContext<'_, '_> {
 
         self.scan_state = ScanState::Idle;
         self.current_window = None;
+        self.matching_windows.clear();
 
         // Free all runtime objects left around by previous scans.
         self.runtime_objects.clear();
@@ -2506,6 +2522,7 @@ pub fn create_wasm_store_and_ctx<'r>(
         scan_state: ScanState::Idle,
         sliding_window: None,
         current_window: None,
+        matching_windows: FxHashMap::default(),
         root_struct: rules.globals().make_root(),
         matching_rules: Vec::new(),
         matching_rules_per_ns: IndexMap::new(),

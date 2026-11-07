@@ -288,6 +288,9 @@ fn scanner_sliding_window() {
     assert_eq!(result.matches.len(), 1);
     assert_eq!(result.matches[0].patterns[0].matches.len(), 1);
     assert_eq!(result.matches[0].patterns[0].matches[0].offset, 8950);
+    assert_eq!(result.matches[0].matching_windows.len(), 1);
+    assert_eq!(result.matches[0].matching_windows[0].start, 8100);
+    assert_eq!(result.matches[0].matching_windows[0].end, 9100);
 }
 
 #[wasm_bindgen_test]

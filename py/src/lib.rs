@@ -1280,6 +1280,7 @@ struct Rule {
     tags: Py<PyTuple>,
     metadata: Py<PyTuple>,
     patterns: Py<PyTuple>,
+    matching_windows: Py<PyTuple>,
 }
 
 #[pymethods]
@@ -1313,6 +1314,19 @@ impl Rule {
     #[getter]
     fn patterns(&self) -> Py<PyTuple> {
         Python::attach(|py| self.patterns.clone_ref(py))
+    }
+
+    /// Ranges of the scanned data where the rule matched in a sliding window
+    /// scan, as `(start, end)` tuples (see [`Scanner::sliding_window`]).
+    ///
+    /// Each range covers one or more consecutive windows where the rule
+    /// matched. Windows that overlap or touch each other are merged into a
+    /// single range. `start` is inclusive and `end` is exclusive. The tuple is
+    /// empty if the scan didn't use a sliding window, or if the data fit in a
+    /// single window.
+    #[getter]
+    fn matching_windows(&self) -> Py<PyTuple> {
+        Python::attach(|py| self.matching_windows.clone_ref(py))
     }
 }
 
@@ -1521,6 +1535,13 @@ fn rule_to_py(py: Python, rule: yrx::Rule) -> PyResult<Py<Rule>> {
                 rule.patterns()
                     .map(|pattern| pattern_to_py(py, pattern))
                     .collect::<Result<Vec<_>, _>>()?,
+            )?
+            .unbind(),
+            matching_windows: PyTuple::new(
+                py,
+                rule.matching_windows()
+                    .iter()
+                    .map(|window| (window.start, window.end)),
             )?
             .unbind(),
         },

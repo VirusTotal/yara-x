@@ -588,6 +588,11 @@ test("Scanner.setSlidingWindow requires patterns to be close", () => {
     result.matches[0].patterns[0].matches.map((m) => m.offset),
     [8950],
   );
+  // Windows start every 900 bytes, the one starting at 8100 contains both
+  // 8950 and 9000.
+  assert.deepEqual(result.matches[0].matchingWindows, [
+    { start: 8100, end: 9100 },
+  ]);
 });
 
 test("external globals can be defined and overridden per scanner", () => {

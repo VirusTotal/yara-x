@@ -479,7 +479,7 @@ impl Rules {
     /// assert_eq!(iter.next().map(|r| r.identifier()), Some("bar"));
     /// ```
     pub fn iter(&self) -> RulesIter<'_> {
-        RulesIter { rules: self, iterator: self.rules.iter() }
+        RulesIter { rules: self, iterator: self.rules.iter().enumerate() }
     }
 
     /// Returns a [`RuleInfo`] given its [`RuleId`].
@@ -789,17 +789,19 @@ where
 /// Iterator that yields the of the compiled rules.
 pub struct RulesIter<'a> {
     rules: &'a Rules,
-    iterator: Iter<'a, RuleInfo>,
+    iterator: std::iter::Enumerate<Iter<'a, RuleInfo>>,
 }
 
 impl<'a> Iterator for RulesIter<'a> {
     type Item = Rule<'a, 'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        let (index, rule_info) = self.iterator.next()?;
         Some(Rule {
             ctx: None,
             rules: self.rules,
-            rule_info: self.iterator.next()?,
+            rule_id: RuleId::from(index),
+            rule_info,
         })
     }
 }

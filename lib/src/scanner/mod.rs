@@ -1049,7 +1049,12 @@ impl<'a, 'r> Iterator for MatchingRules<'a, 'r> {
                 self.len_non_private -= 1;
             }
             if self.include_private || !rule_info.is_private {
-                return Some(Rule { ctx: Some(self.ctx), rule_info, rules });
+                return Some(Rule {
+                    ctx: Some(self.ctx),
+                    rules,
+                    rule_id,
+                    rule_info,
+                });
             }
         }
     }
@@ -1147,7 +1152,12 @@ impl<'a, 'r> Iterator for NonMatchingRules<'a, 'r> {
             }
 
             if self.include_private || !rule_info.is_private {
-                return Some(Rule { ctx: Some(self.ctx), rule_info, rules });
+                return Some(Rule {
+                    ctx: Some(self.ctx),
+                    rules,
+                    rule_id,
+                    rule_info,
+                });
             }
         }
     }

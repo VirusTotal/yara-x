@@ -248,6 +248,13 @@ func TestScannerSlidingWindow(t *testing.T) {
 	assert.Len(t, matchingRules, 1)
 	assert.Equal(t, uint64(8950), matchingRules[0].Patterns()[0].Matches()[0].Offset())
 	assert.Len(t, matchingRules[0].Patterns()[0].Matches(), 1)
+
+	// The window where the rule matched: windows start every 900 bytes, the
+	// one starting at 8100 contains both 8950 and 9000.
+	windows := matchingRules[0].MatchingWindows()
+	assert.Len(t, windows, 1)
+	assert.Equal(t, uint64(8100), windows[0].Start())
+	assert.Equal(t, uint64(9100), windows[0].End())
 }
 
 func TestScannerGarbageCollected(t *testing.T) {

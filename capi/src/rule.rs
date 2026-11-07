@@ -272,3 +272,55 @@ pub unsafe extern "C" fn yrx_rule_iter_tags(
     _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS
 }
+
+/// Callback function passed to [`yrx_rule_iter_matching_windows`].
+///
+/// The callback is called for each range of the scanned data where the rule
+/// matched in a sliding window scan. `start` is inclusive and `end` is
+/// exclusive, both are offsets relative to the start of the scanned data.
+///
+/// The callback also receives a `user_data` pointer that can point to arbitrary
+/// data owned by the user.
+pub type YRX_WINDOW_CALLBACK = Option<
+    extern "C" fn(start: usize, end: usize, user_data: *mut c_void) -> (),
+>;
+
+/// Iterates over the ranges of the scanned data where a rule matched in a
+/// sliding window scan (see `yrx_scanner_sliding_window`), calling the
+/// callback for each range.
+///
+/// Each range covers one or more consecutive windows where the rule matched.
+/// Windows that overlap or touch each other are merged into a single range,
+/// so the ranges are sorted and don't overlap. The callback is never called
+/// if the scan didn't use a sliding window, or if the data fit in a single
+/// window.
+///
+/// The `user_data` pointer can be used to provide additional context to your
+/// callback function.
+///
+/// See [`YRX_WINDOW_CALLBACK`] for more details.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn yrx_rule_iter_matching_windows(
+    rule: *const YRX_RULE,
+    callback: YRX_WINDOW_CALLBACK,
+    user_data: *mut c_void,
+) -> YRX_RESULT {
+    let windows = if let Some(rule) = rule.as_ref() {
+        rule.0.matching_windows()
+    } else {
+        _yrx_set_last_error(Some("`rule` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    let Some(callback) = callback else {
+        _yrx_set_last_error(Some("`callback` pointer cannot be null"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    };
+
+    for window in windows {
+        callback(window.start, window.end, user_data)
+    }
+
+    _yrx_set_last_error::<&str>(None);
+    YRX_RESULT::YRX_SUCCESS
+}

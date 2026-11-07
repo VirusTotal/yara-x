@@ -317,6 +317,14 @@ Examples:
 
 Print the tags associated to matching rules.
 
+### --print-windows
+
+Print the ranges of the file where each rule matched when using
+`--sliding-window`. Windows that overlap or touch each other are merged into a
+single range, and offsets are relative to the start of the file. Nothing is
+printed for files that fit in a single window. In JSON and NDJSON output the
+ranges appear in a `windows` field. Requires `--sliding-window`.
+
 ### --relaxed-re-syntax
 
 Use a more relaxed syntax check while parsing regular expressions.

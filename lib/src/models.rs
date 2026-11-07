@@ -6,7 +6,7 @@ use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize, Serializer};
 
 use crate::compiler::{
-    IdentId, PatternId, PatternInfo, RuleInfo, SubPatternAtom,
+    IdentId, PatternId, PatternInfo, RuleId, RuleInfo, SubPatternAtom,
 };
 use crate::scanner::{ScanContext, ScanState};
 use crate::{Rules, compiler, scanner};
@@ -26,6 +26,7 @@ pub enum PatternKind {
 pub struct Rule<'a, 'r> {
     pub(crate) ctx: Option<&'a ScanContext<'r, 'a>>,
     pub(crate) rules: &'r Rules,
+    pub(crate) rule_id: RuleId,
     pub(crate) rule_info: &'r RuleInfo,
 }
 
@@ -66,6 +67,22 @@ impl<'a, 'r> Rule<'a, 'r> {
             iterator: self.rule_info.tags.iter(),
             len: self.rule_info.tags.len(),
         }
+    }
+
+    /// Returns the ranges of the scanned data where this rule matched in a
+    /// sliding window scan (see [`crate::Scanner::sliding_window`]).
+    ///
+    /// Each range covers one or more consecutive windows where the rule
+    /// matched. Windows that overlap or touch each other are merged into a
+    /// single range, so the ranges are sorted and don't overlap. Offsets are
+    /// relative to the start of the scanned data.
+    ///
+    /// The result is empty if the scan didn't use a sliding window, if the
+    /// data fit in a single window, or if the rule didn't match.
+    pub fn matching_windows(&self) -> &'a [Range<usize>] {
+        self.ctx
+            .and_then(|ctx| ctx.matching_windows.get(&self.rule_id))
+            .map_or(&[], Vec::as_slice)
     }
 
     /// Returns an iterator over the patterns defined for this rule.
