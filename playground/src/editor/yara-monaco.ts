@@ -58,6 +58,7 @@ const YARA_KEYWORDS = [
   "private",
   "global",
   "import",
+  "include",
 ];
 
 const YARA_OPERATORS = [
@@ -69,21 +70,29 @@ const YARA_OPERATORS = [
   "base64",
   "base64wide",
   "contains",
+  "defined",
+  "endswith",
   "entrypoint",
   "false",
   "filesize",
   "for",
   "fullword",
+  "icontains",
+  "iendswith",
+  "iequals",
   "in",
+  "istartswith",
   "matches",
   "nocase",
   "none",
   "not",
   "of",
   "or",
+  "startswith",
   "them",
   "true",
   "wide",
+  "with",
   "xor",
 ];
 
