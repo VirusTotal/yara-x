@@ -204,6 +204,9 @@ read from the window. Modules like `pe` still parse the whole file. Reported
 matches are those in the windows where the rule matched, with offsets relative
 to the start of the file. Files not larger than the window are scanned as usual.
 
+The rules are evaluated once per window, so very small windows make scans
+slower. Windows of 64KB or more add little to the scan time.
+
 Requires --window-overlap. Example: --sliding-window 1048576 --window-overlap 65536"#;
 
 pub const WINDOW_OVERLAP_LONG_HELP: &str = r#"Overlap between consecutive windows, in bytes

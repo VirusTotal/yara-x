@@ -131,6 +131,9 @@ func (s *Scanner) MaxMatchesPerPattern(n int) {
 // in the windows where the rule matched, with offsets relative to the start
 // of the data. Data not larger than size is scanned as usual.
 //
+// The rules are evaluated once per window, so very small windows make scans
+// slower. Windows of 64KB or more add little to the scan time.
+//
 // Returns an error if size is not greater than zero, or overlap is negative
 // or not smaller than size.
 func (s *Scanner) SlidingWindow(size, overlap int) error {

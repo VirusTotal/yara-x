@@ -805,6 +805,9 @@ like `uint16(0)` read from the window. Reported matches are those in the
 windows where the rule matched, with offsets relative to the start of the
 data. Data not larger than `size` is scanned as usual.
 
+The rules are evaluated once per window, so very small windows make scans
+slower. Windows of 64KB or more add little to the scan time.
+
 Returns `YRX_INVALID_ARGUMENT` if `size` is zero or `overlap` is not smaller
 than `size`, and `YRX_INVALID_STATE` if the scanner was already used with
 [yrx_scanner_scan_block](#yrx_scanner_scan_block), as sliding windows are not

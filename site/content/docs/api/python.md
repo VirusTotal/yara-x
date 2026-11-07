@@ -679,6 +679,9 @@ like `uint16(0)` read from the window. Reported matches are those in the
 windows where the rule matched, with offsets relative to the start of the
 data. Data not larger than `size` is scanned as usual.
 
+The rules are evaluated once per window, so very small windows make scans
+slower. Windows of 64KB or more add little to the scan time.
+
 Raises: [ValueError](https://docs.python.org/3/library/exceptions.html#ValueError)
 if `size` is zero or `overlap` is not smaller than `size`.
 

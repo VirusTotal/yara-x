@@ -439,6 +439,9 @@ impl WasmScanner {
     /// completely within some window. Reported match offsets are relative to
     /// the start of the data.
     ///
+    /// The rules are evaluated once per window, so very small windows make
+    /// scans slower. Windows of 64KB or more add little to the scan time.
+    ///
     /// Throws an error if `size` is zero or `overlap` is not smaller than
     /// `size`.
     #[wasm_bindgen(js_name = setSlidingWindow)]

@@ -243,6 +243,9 @@ In YARA 4.x the same can be achieved only with `for` loops over the offsets
 of the matches, which get long and slow as the number of patterns grows.
 See [Patterns close to each other](../conditions/#patterns-close-to-each-other).
 
+Notice that `within` is a reserved keyword in YARA-X, so it can't be used as
+an identifier, for instance as the name of a rule.
+
 ## Using xor and fullword together
 
 In YARA 4.x the combination `xor` and `fullword` looks for the bytes before

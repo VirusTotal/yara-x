@@ -4220,6 +4220,33 @@ fn of_within() {
 }
 
 #[test]
+fn of_within_different_distances_are_not_merged() {
+    // The same `of` expression with different distances must not be treated
+    // as the same expression, with or without condition optimizations.
+    let src = r#"rule test {
+         strings:
+           $a = "foo"
+           $b = "bar"
+         condition:
+           not (all of them within 10) and all of them within 100
+       }"#;
+
+    let data = data_with_patterns(1000, &[(0, b"foo"), (50, b"bar")]);
+
+    for optimize in [false, true] {
+        let mut compiler = crate::Compiler::new();
+        compiler.condition_optimization(optimize).add_source(src).unwrap();
+        let rules = compiler.build();
+        let mut scanner = crate::Scanner::new(&rules);
+        assert_eq!(
+            scanner.scan(&data).unwrap().matching_rules().len(),
+            1,
+            "condition_optimization({optimize})"
+        );
+    }
+}
+
+#[test]
 fn of_within_fast_scan() {
     // In fast scan mode a pattern used only in `all of them` would stop at
     // its first match. With `within` all the matches are needed: the group

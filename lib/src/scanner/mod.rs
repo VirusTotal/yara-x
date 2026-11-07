@@ -346,6 +346,11 @@ impl<'r> Scanner<'r> {
     /// Data that is not larger than `size` is scanned as usual, as a single
     /// window.
     ///
+    /// The rule conditions are evaluated once per window, so the scan time
+    /// grows with the number of windows. Windows of 64KB or more add little
+    /// to the scan time, but very small windows (a few KB or less) can make
+    /// the scan many times slower.
+    ///
     /// Sliding windows are not supported in block scanning mode: if this
     /// scanner is converted into a [`blocks::Scanner`], scanning a block
     /// returns [`ScanError::SlidingWindowInBlockMode`].
