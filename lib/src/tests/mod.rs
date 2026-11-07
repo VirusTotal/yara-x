@@ -4104,6 +4104,51 @@ fn for_of() {
 }
 
 #[test]
+fn of_zero_quantifier() {
+    // A quantifier of zero means that none of the items match, like `none`,
+    // whatever the form of the `of` expression. This is how YARA behaves
+    // since 4.3.0.
+    let rule = |condition: &str| {
+        format!(
+            r#"rule test {{
+                 strings:
+                   $a = "foo"
+                   $b = "bar"
+                   $c = "baz"
+                 condition:
+                   {condition}
+               }}"#
+        )
+    };
+
+    for condition in [
+        // Contiguous pattern IDs, evaluated with a single function call.
+        "0 of them",
+        "0 of ($a, $b) and #c >= 0",
+        // Non-contiguous pattern IDs, evaluated with a loop.
+        "0 of ($a, $c) and #b >= 0",
+        "0 of them in (0..100)",
+        "0 of them at 2",
+        "0% of them",
+        "for 0 of them : ( # > 0 )",
+        // Quantifiers computed at runtime.
+        "uint8(0) of them",
+        "uint8(0) of ($a, $c) and #b >= 0",
+    ] {
+        let src = rule(condition);
+        // Data where "foo" matches.
+        rule_false!(src.as_str(), b"\x00xfooxx");
+        // Data where nothing matches.
+        rule_true!(src.as_str(), b"\x00nothing");
+    }
+
+    condition_false!("0 of (true, false)");
+    condition_true!("0 of (false, false)");
+    condition_false!("for 0 i in (1..3) : ( i > 0 )");
+    condition_true!("for 0 i in (1..3) : ( i > 5 )");
+}
+
+#[test]
 fn of() {
     condition_true!(r#"any of (false, true)"#);
     condition_true!(r#"all of (true, true)"#);
