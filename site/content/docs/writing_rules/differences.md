@@ -228,6 +228,21 @@ with
 This is something that was not present in YARA 4.x and you had to repeat the
 expression multiple times.
 
+## The "within" operator
+
+YARA-X supports the `within` operator in `of` expressions, which requires the
+matches of the patterns to be close to each other. For example, the
+following condition is true only if all the patterns match within 4KB of each
+other:
+
+```
+all of them within 4KB
+```
+
+In YARA 4.x the same can be achieved only with `for` loops over the offsets
+of the matches, which get long and slow as the number of patterns grows.
+See [Patterns close to each other](../conditions/#patterns-close-to-each-other).
+
 ## Using xor and fullword together
 
 In YARA 4.x the combination `xor` and `fullword` looks for the bytes before

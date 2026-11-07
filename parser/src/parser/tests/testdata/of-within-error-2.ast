@@ -1,0 +1,2 @@
+ERRORS:
+- SyntaxError { message: "unexpected `within`", span: Span(45..51) }

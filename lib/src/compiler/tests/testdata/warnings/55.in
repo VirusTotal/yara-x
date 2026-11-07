@@ -1,0 +1,39 @@
+rule test_1 {
+  strings:
+    $a = "foo"
+    $b = "bar"
+  condition:
+    any of them within 100
+}
+
+rule test_2 {
+  strings:
+    $a = "foo"
+    $b = "bar"
+  condition:
+    1 of them within 100
+}
+
+rule test_3 {
+  strings:
+    $a = "foo"
+    $b = "bar"
+  condition:
+    50% of them within 100
+}
+
+rule test_4 {
+  strings:
+    $a = "foo"
+    $b = "bar"
+  condition:
+    all of ($a) within 100 and $b
+}
+
+rule test_5 {
+  strings:
+    $a = "foo"
+    $b = "bar"
+  condition:
+    2 of them within 100 and 51% of them within 100
+}

@@ -98,7 +98,8 @@ fn token_type(
         | SyntaxKind::TRUE_KW
         | SyntaxKind::WIDE_KW
         | SyntaxKind::XOR_KW
-        | SyntaxKind::WITH_KW => {
+        | SyntaxKind::WITH_KW
+        | SyntaxKind::WITHIN_KW => {
             Some((SemanticTokenType::KEYWORD, Modifiers::empty()))
         }
 

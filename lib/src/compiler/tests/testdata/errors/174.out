@@ -1,0 +1,5 @@
+error[E002]: wrong type
+ --> line:6:24
+  |
+6 |     all of them within "foo"
+  |                        ^^^^^ expression should be `integer`, but it is `string`

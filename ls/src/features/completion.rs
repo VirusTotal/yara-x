@@ -60,7 +60,7 @@ const SRC_SUGGESTIONS: [(&str, Option<&str>); 5] = [
     ("global", None),
 ];
 
-const CONDITION_SUGGESTIONS: [(&str, Option<&str>); 16] = [
+const CONDITION_SUGGESTIONS: [(&str, Option<&str>); 17] = [
     ("and", None),
     ("or", None),
     ("all", None),
@@ -69,6 +69,7 @@ const CONDITION_SUGGESTIONS: [(&str, Option<&str>); 16] = [
     ("of", None),
     ("at", Some("at ${1:expression}")),
     ("in", Some("in (${1:}..${2:})")),
+    ("within", Some("within ${1:distance}")),
     ("filesize", None),
     ("entrypoint", Some("pe.entry_point")),
     ("true", None),

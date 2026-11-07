@@ -476,6 +476,10 @@ pub struct Compiler<'a> {
     /// Grouped RegexSets constructed during IR creation for or-expressions.
     regex_sets: FxHashMap<RegExpSetId, Vec<RegExpId>>,
 
+    /// Sets of pattern IDs used by `<quantifier> of <patterns> within <expr>`
+    /// expressions. The index in this vector is passed to the WASM code.
+    pattern_sets: Vec<Vec<PatternId>>,
+
     /// Grouped LiteralSets constructed during IR creation for or-expressions.
     literal_sets: FxHashMap<LiteralSetId, Vec<LiteralId>>,
 
@@ -573,6 +577,7 @@ impl<'a> Compiler<'a> {
             includes_enabled: true,
             include_stack: Vec::new(),
             regex_sets: FxHashMap::default(),
+            pattern_sets: Vec::new(),
             literal_sets: FxHashMap::default(),
             rule_constraints: Vec::new(),
         }
@@ -886,6 +891,7 @@ impl<'a> Compiler<'a> {
                     filesize_bounds,
                     header_constraints,
                     regexp_sets: this.regex_sets,
+                    pattern_sets: this.pattern_sets,
                     literal_sets: this.literal_sets,
                     compiled_regexps: Vec::new(),
                     compiled_regexp_sets: Vec::new(),
@@ -2051,6 +2057,7 @@ impl Compiler<'_> {
             current_rule: self.rules.last_mut().unwrap(),
             lit_pool: &mut self.literal_pool,
             regexp_pool: &mut self.regex_pool,
+            pattern_sets: &mut self.pattern_sets,
             wasm_symbols: &self.wasm_symbols,
             wasm_exports: &self.wasm_exports,
             exception_handler_stack: Vec::new(),

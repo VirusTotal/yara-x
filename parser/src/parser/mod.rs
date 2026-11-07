@@ -1549,6 +1549,17 @@ impl ParserImpl<'_> {
             .end_alt()
     }
 
+    /// Parses the anchor in `of` expressions, which can be `at EXPR`,
+    /// `in RANGE` or `within EXPR`. `within` is accepted only after `of`,
+    /// because it relates the matches of several patterns.
+    fn of_anchor(&mut self) -> &mut Self {
+        self.begin_alt()
+            .alt(|p| p.expect(t!(AT_KW)).then(Self::expr))
+            .alt(|p| p.expect(t!(IN_KW)).then(Self::range))
+            .alt(|p| p.expect(t!(WITHIN_KW)).then(Self::expr))
+            .end_alt()
+    }
+
     /// Parses an expression.
     ///
     /// ```text
@@ -1739,7 +1750,8 @@ impl ParserImpl<'_> {
     ///
     /// ```text
     /// OF_EXPR := QUANTIFIER (
-    ///     `of` ( `them` | PATTERN_IDENT_TUPLE ) ( `at` EXPR | `in` RANGE )? |
+    ///     `of` ( `them` | PATTERN_IDENT_TUPLE )
+    ///         ( `at` EXPR | `in` RANGE | `within` EXPR )? |
     ///     BOOLEAN_EXPR_TUPLE
     /// )
     /// ``
@@ -1753,10 +1765,11 @@ impl ParserImpl<'_> {
                     .alt(|p| p.expect(t!(THEM_KW)))
                     .alt(Self::pattern_ident_tuple)
                     .end_alt()
-                    .if_next(t!(AT_KW | IN_KW), Self::at_or_in)
+                    .if_next(t!(AT_KW | IN_KW | WITHIN_KW), Self::of_anchor)
             })
             .alt(|p| {
-                p.boolean_expr_tuple().not(|p| p.expect(t!(AT_KW | IN_KW)))
+                p.boolean_expr_tuple()
+                    .not(|p| p.expect(t!(AT_KW | IN_KW | WITHIN_KW)))
             })
             .end_alt()
             .end()

@@ -1,0 +1,2 @@
+ERRORS:
+- SyntaxError { message: "expecting `at`, `in`, operator or `}`, found `within`", span: Span(55..61) }
