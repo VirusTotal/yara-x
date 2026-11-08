@@ -41,7 +41,7 @@ fn main<'a>(
         .map(|(name, entry)| {
             let mut s = Stream::new();
             s.set_name(name.to_string());
-            s.set_size(entry.size);
+            s.set_size(entry.size as i64);
             s.set_type(match entry.stream_type {
                 parser::DirEntryType::Storage => StreamType::STORAGE,
                 parser::DirEntryType::Stream => StreamType::STREAM,

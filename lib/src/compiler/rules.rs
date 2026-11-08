@@ -35,7 +35,7 @@ const MAGIC: &[u8] = b"YARA-X\0\0";
 ///
 /// This version is incremented every time a change is made to the binary
 /// format in a way that breaks backwards compatibility.
-const SERIALIZATION_VERSION: u32 = 10;
+const SERIALIZATION_VERSION: u32 = 13;
 
 /// Aho-Corasick automaton bundled with an optional Teddy scanner if the
 /// number of patterns is low enough. If the Teddy scanner is present, and
@@ -501,34 +501,34 @@ impl Rules {
 
         let hir = parser.parse(&re).unwrap();
 
-        hir.build_automata().unwrap_or_else(|err| {
+        re::hir::Hir::build_automata(&[hir]).unwrap_or_else(|err| {
             panic!("error compiling regex `{}`: {:#?}", re.as_str(), err)
         })
     }
 
-    /// Returns a compiled multi-pattern `RegexSet` for a given `RegexSetId`.
+    /// Returns a compiled multi-pattern `Regex` for a given `RegexSetId`.
     #[inline]
-    pub(crate) fn get_regex_set(
-        &self,
-        set_id: RegexSetId,
-    ) -> regex::bytes::RegexSet {
-        let re_ids = self.regex_sets.get(&set_id).unwrap();
-        let mut patterns = Vec::with_capacity(re_ids.len());
+    pub(crate) fn get_regex_set(&self, set_id: RegexSetId) -> Option<Regex> {
+        let re_ids = self.regex_sets.get(&set_id)?;
+        let parser = re::parser::Parser::new()
+            .relaxed_re_syntax(self.relaxed_re_syntax);
+        let mut hirs = Vec::with_capacity(re_ids.len());
 
         for &re_id in re_ids {
-            let re = types::Regexp::new(self.regex_pool.get(re_id).unwrap());
-            let parser = re::parser::Parser::new()
-                .relaxed_re_syntax(self.relaxed_re_syntax);
-            let hir = parser.parse(&re).unwrap().into_inner();
-            patterns.push(hir.to_string());
+            let re = types::Regexp::new(self.regex_pool.get(re_id)?);
+            hirs.push(parser.parse(&re).ok()?);
         }
 
-        regex::bytes::RegexSetBuilder::new(patterns)
-            .size_limit(1024 * 1024 * 1024)
-            .build()
-            .unwrap_or_else(|err| {
-                panic!("error compiling RegexSet: {:#?}", err)
-            })
+        re::hir::Hir::build_automata(&hirs).ok()
+    }
+
+    /// Returns the slice of [`RegexId`]s belonging to a given [`RegexSetId`].
+    #[inline]
+    pub(crate) fn get_regex_set_ids(
+        &self,
+        set_id: RegexSetId,
+    ) -> Option<&[RegexId]> {
+        self.regex_sets.get(&set_id).map(Vec::as_slice)
     }
 
     /// Returns the slice of [`LiteralId`]s belonging to a given [`LiteralSetId`].

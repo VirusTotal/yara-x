@@ -64,18 +64,39 @@ pub struct Tokenizer<'src> {
     /// at the "c", from the lexer standpoint the span for the "c" is 0..1,
     /// but `lexer_starting_pos` will be 2, so the real span for "c" is 2..3.
     lexer_starting_pos: usize,
+    /// True if `source.len()` reached or exceeded the maximum representable
+    /// [`Span`] offset (`Span::MAX`).
+    source_too_large: bool,
 }
 
 impl<'src> Tokenizer<'src> {
     /// Creates a new [`Tokenizer`].
     pub fn new(source: &'src [u8]) -> Self {
-        // Can't handle source files greater than the maximum span size.
-        assert!(source.len() < Span::MAX);
+        Self::new_with_max_size(source, Span::MAX)
+    }
+
+    pub(crate) fn new_with_max_size(
+        source: &'src [u8],
+        max_size: usize,
+    ) -> Self {
+        // Source files with `len >= max_size` (normally `Span::MAX`, i.e.
+        // `u32::MAX`) cannot have their byte offsets represented in `Span`.
+        // Initialize an empty lexer so `Parser` emits a structured syntax
+        // error instead of panicking on `u32` span conversion.
+        let source_too_large = source.len() >= max_size;
+        let lexer_source = if source_too_large { &[] } else { source };
         Self {
             source,
             lexer_starting_pos: 0,
-            mode: Mode::Normal(Logos::lexer(source)),
+            mode: Mode::Normal(Logos::lexer(lexer_source)),
+            source_too_large,
         }
+    }
+
+    /// Returns true if the source file exceeds the maximum representable span.
+    #[inline]
+    pub(crate) fn source_too_large(&self) -> bool {
+        self.source_too_large
     }
 
     /// Returns the source code passed to the tokenizer.

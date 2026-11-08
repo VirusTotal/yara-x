@@ -1359,3 +1359,387 @@ fn test_teddy_scan_timeout() {
     let err = scanner.scan(&data).unwrap_err();
     assert_eq!(err.to_string(), "timeout");
 }
+
+#[cfg(feature = "test_proto2-module")]
+#[test]
+fn runtime_string_from_large_slice() {
+    let rules = crate::compile(
+        r#"
+        import "test_proto2"
+        rule exact_u16_max {
+            condition:
+                test_proto2.head(65535) startswith "aaaa" and
+                test_proto2.head(65535) endswith "aaaa"
+        }
+        rule larger_than_u16_max {
+            condition:
+                test_proto2.head(65536) startswith "aaaa" and
+                test_proto2.head(65536) endswith "aaaa"
+        }
+        "#,
+    )
+    .unwrap();
+
+    let data = vec![b'a'; 70_000];
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(&data).unwrap();
+    assert_eq!(results.matching_rules().len(), 2);
+}
+
+#[test]
+fn anchored_pattern_large_offsets() {
+    let rules = crate::compile(
+        r#"
+        rule r1 {
+            strings:
+                $a = "foobar"
+            condition:
+                $a at 0xffffffff
+        }
+        rule r2 {
+            strings:
+                $a = "foobar"
+            condition:
+                $a at 0x100000000
+        }
+        rule r3 {
+            strings:
+                $a = "foobar"
+            condition:
+                all of ($a) at 0x100000000
+        }
+        rule r4 {
+            strings:
+                $a = "foobar"
+            condition:
+                $a and $a at 0x100000000
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(b"foobar").unwrap();
+    assert_eq!(results.matching_rules().len(), 0);
+}
+
+#[cfg(feature = "pe-module")]
+#[test]
+fn pe_section_index_overflow() {
+    let rules = crate::compile(
+        r#"
+        import "pe"
+        rule test {
+            condition:
+                pe.section_index(0xffffff80) == 0 and
+                not defined pe.section_index(0x00000080)
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut valid_pe = mods::PE::new();
+    valid_pe.set_is_pe(true);
+    let mut sec = mods::pe::Section::new();
+    sec.set_name(b".text".to_vec());
+    sec.set_full_name(b".text".to_vec());
+    sec.set_characteristics(0);
+    sec.set_raw_data_offset(0xffff_ff00);
+    sec.set_raw_data_size(0x200);
+    sec.set_virtual_address(0x1000);
+    sec.set_virtual_size(0x200);
+    sec.set_pointer_to_relocations(0);
+    sec.set_pointer_to_line_numbers(0);
+    sec.set_number_of_relocations(0);
+    sec.set_number_of_line_numbers(0);
+    valid_pe.sections.push(sec);
+
+    let mut scanner = Scanner::new(&rules);
+    scanner.set_module_output(Box::new(valid_pe)).unwrap();
+    let results = scanner.scan(b"").unwrap();
+    assert_eq!(results.matching_rules().len(), 1);
+}
+
+#[cfg(feature = "pe-module")]
+#[test]
+fn set_module_output_partial_pe() {
+    let rules = crate::compile(
+        r#"
+        import "pe"
+        rule test {
+            condition:
+                not defined pe.rva_to_offset(0x1000) and
+                pe.offset_to_rva(0x200) == 0 and
+                pe.imphash() == "d41d8cd98f00b204e9800998ecf8427e" and
+                pe.rich_signature.toolid(1) == 0 and
+                pe.rich_signature.version(1) == 0 and
+                pe.rich_signature.toolid(1, 1) == 0
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+
+    // Run a normal scan first so `pe::main` clears thread-local caches.
+    let _ = scanner.scan(b"").unwrap();
+
+    let mut pe_data = Box::new(mods::PE::new());
+    pe_data.set_is_pe(true);
+    pe_data.set_file_alignment(0x200);
+    pe_data.set_section_alignment(0x1000);
+
+    // Unpopulated section (`None` fields) and partial section missing
+    // `virtual_address` / `virtual_size`.
+    pe_data.sections.push(mods::pe::Section::new());
+    let mut partial_sec = mods::pe::Section::new();
+    partial_sec.set_raw_data_offset(0x200);
+    partial_sec.set_raw_data_size(0x200);
+    pe_data.sections.push(partial_sec);
+
+    // Partial `Import` entries missing `library_name` or `func.name`.
+    pe_data.import_details.push(mods::pe::Import::new());
+    let mut imp = mods::pe::Import::new();
+    imp.set_library_name("kernel32.dll".to_string());
+    imp.functions.push(mods::pe::Function::new());
+    pe_data.import_details.push(imp);
+
+    // Partial `RichTool` entry missing `toolid` and `version`.
+    let mut rich = mods::pe::RichSignature::new();
+    rich.tools.push(mods::pe::RichTool::new());
+    pe_data.rich_signature = protobuf::MessageField::some(rich);
+
+    scanner.set_module_output(pe_data).unwrap();
+    let results = scanner.scan(b"").unwrap();
+    assert_eq!(results.matching_rules().len(), 1);
+
+    // Also verify a wire-valid PE protobuf via `set_module_output_raw` where
+    // optional `Function.name` is unset (`None`).
+    let imphash_rules = crate::compile(
+        r#"
+        import "pe"
+        rule test_imphash {
+            condition:
+                pe.imphash() == "d41d8cd98f00b204e9800998ecf8427e"
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut valid_pe = mods::PE::new();
+    valid_pe.set_is_pe(true);
+    let mut func = mods::pe::Function::new();
+    func.set_ordinal(1);
+    func.set_rva(0x2000);
+    let mut imp = mods::pe::Import::new();
+    imp.set_library_name("kernel32.dll".to_string());
+    imp.set_number_of_functions(1);
+    imp.functions.push(func);
+    valid_pe.import_details.push(imp);
+
+    let raw = valid_pe.write_to_bytes().unwrap();
+    let mut scanner = Scanner::new(&imphash_rules);
+    let _ = scanner.scan(b"").unwrap();
+    scanner.set_module_output_raw("pe", &raw).unwrap();
+    assert_eq!(scanner.scan(b"").unwrap().matching_rules().len(), 1);
+}
+
+#[test]
+fn hoisting_percentage_quantifier_var_shift() {
+    let mut compiler = crate::Compiler::new();
+    compiler
+        .condition_optimization(true)
+        .add_source(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    for any i in (0..1) : (
+                        i >= 0 and
+                        with s = math.to_string(filesize) : (
+                            for (math.to_number(s == "1") * 100)% j in (0..1) : (
+                                int8(0) == 65 and j >= 0
+                            )
+                        )
+                    )
+            }
+            "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(b"A").unwrap().matching_rules().len(), 1);
+    assert_eq!(scanner.scan(b"B").unwrap().matching_rules().len(), 0);
+}
+
+#[test]
+fn loop_frame_allocation_order() {
+    let rules = crate::compile(
+        r#"
+        import "math"
+        rule tuple_with_inner_vars {
+            condition:
+                for all v in (
+                    1,
+                    math.to_number(with x = 2, y = 0 : ( x + y == 2 ))
+                ) : (
+                    v == 1
+                )
+        }
+        rule for_of_quantifier_with_inner_vars {
+            strings:
+                $a = "abc"
+            condition:
+                for (math.to_number(with x = 1, y = 99 : ( x + y == 100 ))) of ($a) : ( $ )
+        }
+        rule of_quantifier_with_inner_vars {
+            condition:
+                (math.to_number(with x = 1, y = 99 : ( x + y == 100 ))) of (true, false)
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(b"abc").unwrap().matching_rules().len(), 3);
+
+    // Also verify `IR::hoisting` when an outer `with` binds a module function
+    // (`TypeValue::Func`, which reserves a frame slot without pushing to
+    // `With::declarations`) alongside an inner `RuntimeString` variable.
+    let mut compiler = crate::Compiler::new();
+    compiler
+        .condition_optimization(true)
+        .add_source(
+            r#"
+            import "math"
+            rule hoisting_with_func_alias {
+                condition:
+                    with f = math.abs : (
+                        with s = math.to_string(filesize) : (
+                            for any i in (0..1) : (
+                                f(int8(0)) == 65 + i and s == "1"
+                            )
+                        )
+                    )
+            }
+            "#,
+        )
+        .unwrap();
+
+    let opt_rules = compiler.build();
+    let mut opt_scanner = Scanner::new(&opt_rules);
+    assert_eq!(opt_scanner.scan(b"A").unwrap().matching_rules().len(), 1);
+    assert_eq!(opt_scanner.scan(b"C").unwrap().matching_rules().len(), 0);
+}
+
+#[test]
+fn hoisting_in_for_in_iterable() {
+    let mut compiler = crate::Compiler::new();
+    compiler
+        .condition_optimization(true)
+        .add_source(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    for any v in (
+                        math.to_number(
+                            for any i in (0..2) : (
+                                math.to_string(filesize) == math.to_string(i)
+                            )
+                        ),
+                        0
+                    ) : (
+                        v == 1
+                    )
+            }
+            "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(b"A").unwrap().matching_rules().len(), 1);
+    assert_eq!(scanner.scan(b"ABCD").unwrap().matching_rules().len(), 0);
+}
+
+#[test]
+fn hoisting_for_of_pattern_vars() {
+    let mut compiler = crate::Compiler::new();
+    compiler
+        .condition_optimization(true)
+        .add_source(
+            r#"
+            rule test {
+                strings:
+                    $a = "zzz"
+                    $b = "abc"
+                condition:
+                    for any i in (0..1) : (
+                        i == 0 and
+                        for any of ($a, $b) : (
+                            $ and # == 1 and @[1] == 0 and ![1] == 3
+                        )
+                    )
+            }
+            "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(b"abc").unwrap().matching_rules().len(), 1);
+    assert_eq!(scanner.scan(b"def").unwrap().matching_rules().len(), 0);
+}
+
+#[test]
+fn hoisting_max_vars_and_candidate_limit() {
+    // 1. Many loop-invariant expressions inside a single `for` loop (`None`
+    // dependency branch in `find_hoisting_candidates`).
+    let many_checks = (0..150)
+        .map(|k| format!("uint8(0) + {k} == {}", 65 + k))
+        .collect::<Vec<_>>()
+        .join(" and ");
+    let src_many = format!(
+        "rule many_invariants {{ condition: for any i in (0..1) : ( i == 0 and {} ) }}",
+        many_checks
+    );
+
+    let mut compiler = crate::Compiler::new();
+    compiler
+        .condition_optimization(true)
+        .add_source(src_many.as_str())
+        .unwrap();
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(b"A").unwrap().matching_rules().len(), 1);
+    assert_eq!(scanner.scan(b"B").unwrap().matching_rules().len(), 0);
+
+    // 2. Outer `with` occupying `MAX_VARS - FOR_IN_FRAME_SIZE` (2048 - 7 = 2041)
+    // slots so the inner `for` loop sits right at the `wasm::MAX_VARS` ceiling
+    // with zero room to shift variables during hoisting.
+    let num_with_vars = (crate::wasm::MAX_VARS - 7) as usize;
+    let decls = (0..num_with_vars)
+        .map(|k| format!("v{k} = {k}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let uses = (0..num_with_vars)
+        .map(|k| format!("v{k}"))
+        .collect::<Vec<_>>()
+        .join(" + ");
+    let expected_sum: usize = (0..num_with_vars).sum();
+    let src_ceiling = format!(
+        "rule at_max_vars {{ condition: with {decls} : ( ({uses}) == {expected_sum} and for any i in (0..1) : ( uint8(0) == 65 and i == 0 ) ) }}"
+    );
+
+    let mut compiler = crate::Compiler::new();
+    compiler
+        .condition_optimization(true)
+        .add_source(src_ceiling.as_str())
+        .unwrap();
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(b"A").unwrap().matching_rules().len(), 1);
+    assert_eq!(scanner.scan(b"B").unwrap().matching_rules().len(), 0);
+}

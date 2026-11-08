@@ -1,0 +1,4 @@
+rule test {
+  condition:
+    with re = /foo/ : ( re == re )
+}

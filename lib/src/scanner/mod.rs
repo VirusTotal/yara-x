@@ -658,25 +658,21 @@ impl<'r> Scanner<'r> {
             {
                 module_output = Some(output);
             } else if let Some(main_res) = module.main_fn(&mut mod_ctx, data) {
-                module_output =
-                    Some(main_res.map_err(|err| ScanError::ModuleError {
+                let output =
+                    main_res.map_err(|err| ScanError::ModuleError {
                         module: module_name.to_string(),
                         err,
-                    })?);
-            } else {
-                module_output = None;
-            }
+                    })?;
 
-            if let Some(module_output) = &module_output {
                 // Make sure that the module is returning a protobuf message of
                 // the expected type.
                 debug_assert_eq!(
-                    module_output.descriptor_dyn().full_name(),
+                    output.descriptor_dyn().full_name(),
                     root_struct_name,
                     "main function of module `{}` must return `{}`, but returned `{}`",
                     module_name,
                     root_struct_name,
-                    module_output.descriptor_dyn().full_name(),
+                    output.descriptor_dyn().full_name(),
                 );
 
                 // Make sure that the module is returning a protobuf message
@@ -684,11 +680,15 @@ impl<'r> Scanner<'r> {
                 // to proto2, proto3 doesn't have "required" fields, all fields
                 // are optional.
                 debug_assert!(
-                    module_output.is_initialized_dyn(),
+                    output.is_initialized_dyn(),
                     "module `{}` returned a protobuf `{}` where some required fields are not initialized ",
                     module_name,
                     root_struct_name
                 );
+
+                module_output = Some(output);
+            } else {
+                module_output = None;
             }
 
             // When constant folding is enabled we don't need to generate
@@ -985,7 +985,7 @@ impl<'a, 'r> NonMatchingRules<'a, 'r> {
         // Create a BitSlice that covers the region of main memory containing
         // the bitmap that tells which rules matched and which did not.
         let matching_rules_bitmap = BitSlice::<_, Lsb0>::from_slice(
-            &main_memory[base..base + num_rules / 8 + 1],
+            &main_memory[base..base + num_rules.div_ceil(8)],
         );
 
         // The BitSlice will cover more bits than necessary, for example, if

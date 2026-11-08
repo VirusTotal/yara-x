@@ -44,7 +44,7 @@ pub(crate) fn nested_method(
     _ctx: &mut ScanContext,
     structure: Rc<Struct>,
 ) -> bool {
-    structure.field_by_name("nested_bool").unwrap().type_value.as_bool()
+    structure.field_by_name("nested_bool").unwrap().type_value().as_bool()
 }
 
 /// A nested method with an argument.
@@ -61,7 +61,7 @@ pub(crate) fn nested_method_with_arg(
     let field = structure
         .field_by_name("nested_string")
         .unwrap()
-        .type_value
+        .type_value()
         .as_string();
 
     arg.eq(field.as_bstr())

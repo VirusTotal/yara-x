@@ -439,3 +439,7 @@ harness = false
 [[bench]]
 name = "pe"
 harness = false
+
+[[bench]]
+name = "scanner"
+harness = false

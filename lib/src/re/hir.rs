@@ -99,6 +99,13 @@ impl From<regex_syntax::hir::Hir> for Hir {
     }
 }
 
+impl std::borrow::Borrow<regex_syntax::hir::Hir> for Hir {
+    #[inline]
+    fn borrow(&self) -> &regex_syntax::hir::Hir {
+        &self.inner
+    }
+}
+
 impl Hir {
     /// Pattern chaining is the process of splitting a pattern that contains very
     /// large gaps (a.k.a. jumps) into multiple pieces that are chained together.
@@ -334,9 +341,9 @@ impl Hir {
         self.inner
     }
 
-    /// Builds a [`regex_automata::meta::Regex`] from this HIR.
+    /// Builds a [`regex_automata::meta::Regex`] from one or more HIRs.
     pub fn build_automata(
-        &self,
+        hirs: &[Self],
     ) -> Result<regex_automata::meta::Regex, anyhow::Error> {
         // Set a size limit for the NFA automata. The default limit (10MB) is
         // not enough for certain regular expressions seen in the wild, see:
@@ -346,7 +353,7 @@ impl Hir {
 
         regex_automata::meta::Builder::new()
             .configure(config)
-            .build_from_hir(&self.inner)
+            .build_many_from_hir(hirs)
             .map_err(|err| {
                 if err.size_limit().is_some() {
                     anyhow::anyhow!("regex is too large")

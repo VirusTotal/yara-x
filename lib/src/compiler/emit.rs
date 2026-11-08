@@ -2883,7 +2883,9 @@ fn set_var<B>(
     B: FnOnce(&mut EmitContext, &mut InstrSeqBuilder),
 {
     let (store_kind, alignment) = match var.ty() {
-        Type::Bool => (StoreKind::I32 { atomic: false }, size_of::<i32>()),
+        Type::Bool | Type::Regexp => {
+            (StoreKind::I32 { atomic: false }, size_of::<i32>())
+        }
         Type::Float => (StoreKind::F64, size_of::<f64>()),
         Type::Integer
         | Type::String
@@ -2932,13 +2934,13 @@ fn set_vars<B>(
     // at the top of the stack.
     for var in vars.iter().rev() {
         match var.ty() {
-            Type::Bool => {
+            Type::Bool | Type::Regexp => {
                 // Pop the value and store it into temp variable.
                 instr.local_set(ctx.wasm_symbols.i32_tmp);
                 // Push the offset where the variable resides in memory.
                 // The offset is always multiple of 64-bits, as each variable
-                // occupies a 64-bits slot. This is true even for bool values
-                // that are represented as a 32-bits integer.
+                // occupies a 64-bits slot. This is true even for 32-bits
+                // values like bool and RegexId.
                 instr.i32_const(var.index() * Var::mem_size());
                 // Push the value.
                 instr.local_get(ctx.wasm_symbols.i32_tmp);
@@ -3010,7 +3012,9 @@ fn load_var(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     instr.i32_const(var.index() * Var::mem_size());
 
     let (load_kind, alignment) = match var.ty() {
-        Type::Bool => (LoadKind::I32 { atomic: false }, size_of::<i32>()),
+        Type::Bool | Type::Regexp => {
+            (LoadKind::I32 { atomic: false }, size_of::<i32>())
+        }
         Type::Float => (LoadKind::F64, size_of::<i64>()),
         Type::Integer
         | Type::String

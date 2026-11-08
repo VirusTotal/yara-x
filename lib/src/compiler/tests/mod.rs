@@ -27,7 +27,7 @@ fn serialization() {
     // `DecodeError`.
     let mut data = Vec::new();
     data.extend(b"YARA-X\0\0");
-    data.extend(10u32.to_le_bytes());
+    data.extend(13u32.to_le_bytes());
     data.extend(b"foo");
 
     assert!(matches!(
@@ -1003,6 +1003,42 @@ fn test_ignored_rules() {
 
     assert_eq!(ignored[1].0, "rule_failed_compile");
     assert!(matches!(ignored[1].1, IgnoredRuleReason::CompileError(_)));
+}
+
+#[cfg(feature = "math-module")]
+#[test]
+fn ignored_supported_module() {
+    let mut compiler = Compiler::new();
+    compiler.ignore_module("math");
+
+    compiler
+        .add_source(
+            r#"
+        import "math"
+
+        rule rule_ok { condition: true }
+        rule rule_ignored { condition: math.entropy(0, filesize) > 0 }
+        "#,
+        )
+        .unwrap();
+
+    let ignored: Vec<_> = compiler.ignored_rules().collect();
+    assert_eq!(ignored.len(), 1);
+    assert_eq!(ignored[0].0, "rule_ignored");
+    assert_eq!(ignored[0].1, IgnoredRuleReason::IgnoredModule("math"));
+    assert!(!compiler.warnings().is_empty());
+
+    // The same module is used normally when it is not ignored.
+    let mut compiler = Compiler::new();
+    compiler
+        .add_source(
+            r#"
+        import "math"
+        rule rule_used { condition: math.entropy(0, filesize) >= 0 }
+        "#,
+        )
+        .unwrap();
+    assert_eq!(compiler.ignored_rules().count(), 0);
 }
 
 #[cfg(feature = "test_proto2-module")]
@@ -2128,6 +2164,69 @@ fn test_rules_matches_many() {
     scanner.set_global("str_foo", "bar").unwrap();
     let scan_results = scanner.scan(&[]).unwrap();
     assert_eq!(scan_results.matching_rules().len(), 1);
+
+    // Deeply nested groups near `nest_limit` (250) would previously inflate
+    // past 250 when `hir.to_string()` re-wrapped groups and panic at scan time
+    // inside `get_regex_set`. Building directly from HIR avoids re-parsing.
+    let nested = format!("{}[a-z]{}", "([0-9]?(".repeat(60), "))".repeat(60));
+    let mut compiler = Compiler::new();
+    compiler
+        .define_global("str_foo", "")
+        .unwrap()
+        .add_source(
+            format!(
+                r#"
+                rule deep_nested {{
+                    condition:
+                        str_foo matches /{nested}/ or str_foo matches /ba[zt]/
+                }}
+                "#
+            )
+            .as_str(),
+        )
+        .unwrap();
+    let rules = compiler.build();
+    assert_eq!(rules.regex_sets.len(), 1);
+    let mut scanner = Scanner::new(&rules);
+    scanner.set_global("str_foo", "baz").unwrap();
+    assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 1);
+    scanner.set_global("str_foo", "7q").unwrap();
+    assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 1);
+    scanner.set_global("str_foo", "99").unwrap();
+    assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 0);
+
+    // Multiple regexps that individually fit under the 50 MiB NFA limit but
+    // exceed 50 MiB when combined must skip `MatchesMany` collapsing and still
+    // evaluate cleanly without panicking. Use a 31-range character class (248
+    // bytes of `Transition`s per state regardless of pointer width) so the
+    // combined NFA exceeds 50 MiB on both 32-bit (~58.8 MiB) and 64-bit
+    // (~65.5 MiB) targets while each individual regexp stays under 50 MiB.
+    let cls = "[acegikmoqsuwyACEGIKMOQSUWY02468]";
+    let mut compiler = Compiler::new();
+    compiler
+        .define_global("str_foo", "")
+        .unwrap()
+        .add_source(
+            format!(
+                r#"
+                rule combined_too_large {{
+                    condition:
+                        str_foo matches /a{cls}{{110000}}b/ or
+                        str_foo matches /a{cls}{{110000}}c/ or
+                        str_foo matches /ba[zt]/
+                }}
+                "#
+            )
+            .as_str(),
+        )
+        .unwrap();
+    let rules = compiler.build();
+    assert!(rules.regex_sets.is_empty());
+    let mut scanner = Scanner::new(&rules);
+    scanner.set_global("str_foo", "bat").unwrap();
+    assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 1);
+    scanner.set_global("str_foo", "nope").unwrap();
+    assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 0);
 }
 
 #[test]
@@ -2137,42 +2236,6 @@ fn test_var_stack_overflow() {
         (0..2050).map(|i| format!("v{i}=0")).collect::<Vec<_>>().join(",");
     let rule = format!("rule test {{ condition: with {vars} : ( true ) }}");
     assert!(compiler.add_source(rule.as_str()).is_err());
-}
-
-#[test]
-fn test_condition_too_large() {
-    use crate::errors::CompileError;
-
-    let mut compiler = Compiler::new();
-    compiler.add_source("rule ok_before { condition: true }").unwrap();
-
-    let mut huge = String::from("rule massive { condition: filesize > 0");
-    for _ in 0..25_000 {
-        huge.push_str(" and filesize > 0");
-    }
-    huge.push('}');
-
-    let err = compiler.add_source(huge.as_str()).unwrap_err();
-    assert!(matches!(err, CompileError::ConditionTooLarge(_)));
-
-    // Two rules that each fit under MAX_FUNC_INSTRS alone, but exceed
-    // MAX_FUNC_INSTRS together, should both compile by splitting into
-    // separate WASM functions (issue #828).
-    let large_rule = |name: &str| {
-        format!(
-            "rule {name} {{ condition: filesize >= 0{} }}\n",
-            " and filesize >= 0".repeat(6000)
-        )
-    };
-    compiler.add_source(large_rule("large_a").as_str()).unwrap();
-    compiler.add_source(large_rule("large_b").as_str()).unwrap();
-
-    compiler.add_source("rule ok_after { condition: true }").unwrap();
-    let rules = compiler.build();
-
-    let mut scanner = Scanner::new(&rules);
-    let results = scanner.scan(&[]).unwrap();
-    assert_eq!(results.matching_rules().len(), 4);
 }
 
 #[test]
@@ -2656,4 +2719,44 @@ fn test_hex_large_and_coalesced_jumps() {
             "{msg}"
         );
     }
+}
+
+#[test]
+fn test_non_matching_rules_page_boundary() {
+    use crate::compiler::RuleInfo;
+    use crate::wasm::MATCHING_RULES_BITMAP_BASE;
+
+    // Also verify 0 rules (`num_rules == 0`).
+    let empty_rules = compile("").unwrap();
+    let mut scanner = Scanner::new(&empty_rules);
+    let results = scanner.scan(b"").unwrap();
+    assert_eq!(results.non_matching_rules().count(), 0);
+
+    // Populate `rules` so `MATCHING_RULES_BITMAP_BASE + num_rules.div_ceil(8)`
+    // lands on an exact 65,536-byte WASM page boundary (`382,976` rules with
+    // `num_patterns == 0`).
+    let mut rules = compile("rule r { condition: false }").unwrap();
+    let exact_page_rules = (65536 - MATCHING_RULES_BITMAP_BASE as usize) * 8;
+    let namespace_id = rules.rules[0].namespace_id;
+    let namespace_ident_id = rules.rules[0].namespace_ident_id;
+    let ident_id = rules.rules[0].ident_id;
+    let ident_ref = rules.rules[0].ident_ref.clone();
+
+    rules.rules.resize_with(exact_page_rules, || RuleInfo {
+        namespace_id,
+        namespace_ident_id,
+        ident_id,
+        tags: Vec::new(),
+        ident_ref: ident_ref.clone(),
+        metadata: Vec::new(),
+        patterns: Vec::new(),
+        num_private_patterns: 0,
+        is_global: false,
+        is_private: false,
+    });
+
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(b"").unwrap();
+    assert_eq!(results.non_matching_rules().len(), exact_page_rules);
+    assert_eq!(results.non_matching_rules().count(), exact_page_rules);
 }

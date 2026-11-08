@@ -205,7 +205,7 @@ pub unsafe extern "C" fn yrx_compiler_add_include_dir(
     YRX_RESULT::YRX_SUCCESS
 }
 
-/// Tell the compiler that a YARA module is not supported.
+/// Tell the compiler that a YARA module should be ignored.
 ///
 /// Import statements for ignored modules will be ignored without errors but a
 /// warning will be issued. Any rule that make use of an ignored module will be

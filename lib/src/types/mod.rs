@@ -235,7 +235,7 @@ pub(crate) enum TypeValue {
     Uint64(Value<u64>),
     String {
         value: Value<Rc<BString>>,
-        constraints: Option<Box<[StringConstraint]>>,
+        constraints: Option<Vec<StringConstraint>>,
     },
     Regexp(Option<Regexp>),
     Struct(Rc<Struct>),
@@ -362,7 +362,7 @@ impl TypeValue {
             TypeValue::Float { value } => value.is_const(),
             TypeValue::Bool { value } => value.is_const(),
             TypeValue::String { value, .. } => value.is_const(),
-            TypeValue::Regexp(_) => false,
+            TypeValue::Regexp(regexp) => regexp.is_some(),
             TypeValue::Struct(_) => false,
             TypeValue::Array(_) => false,
             TypeValue::Map(_) => false,
@@ -635,6 +635,13 @@ impl TypeValue {
         )
     }
 
+    #[inline]
+    pub fn as_regexp(&self) -> &Regexp {
+        self.try_as_regexp().expect(
+            "TypeValue is not regexp or doesn't have an associated value",
+        )
+    }
+
     pub fn try_as_bool(&self) -> Option<bool> {
         if let TypeValue::Bool { value } = self {
             value.extract().cloned()
@@ -772,6 +779,14 @@ impl TypeValue {
         }
     }
 
+    pub fn try_as_regexp(&self) -> Option<&Regexp> {
+        if let TypeValue::Regexp(regexp) = self {
+            regexp.as_ref()
+        } else {
+            None
+        }
+    }
+
     /// Creates a new [`TypeValue`] consisting of a variable signed 64-bit integer.
     #[inline]
     pub fn var_signed_integer_from<T: Into<i64>>(i: T) -> Self {
@@ -871,9 +886,7 @@ impl TypeValue {
     /// Creates a new [`TypeValue`] consisting of an unknown string with
     /// the given constraints.
     #[inline]
-    pub fn unknown_string_with_constraints<
-        C: Into<Box<[StringConstraint]>>,
-    >(
+    pub fn unknown_string_with_constraints<C: Into<Vec<StringConstraint>>>(
         constraints: C,
     ) -> Self {
         Self::String {

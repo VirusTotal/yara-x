@@ -825,12 +825,34 @@ pub(crate) unsafe fn free_engine() {
     {
         #[allow(static_mut_refs)]
         unsafe {
+            // The linker holds a reference to the engine, it must be
+            // dropped first, as `unload_process_handlers` requires the
+            // engine to be the only remaining reference.
+            LINKER.take();
             ENGINE.take().unwrap().unload_process_handlers()
         }
     }
 }
 
-pub(crate) fn new_linker() -> Linker<ScanContext<'static, 'static>> {
+/// Linker with the host functions exported to WASM code.
+///
+/// Building the linker requires registering every function exported to
+/// WASM code, which is expensive and produces the same result every time.
+/// For this reason, the linker is built only once and shared by every
+/// scanner. It needs to be mutable so that [`free_engine`] can destroy it.
+static mut LINKER: OnceLock<Linker<ScanContext<'static, 'static>>> =
+    OnceLock::new();
+
+/// Returns the global linker with the host functions exported to WASM code.
+pub(crate) fn get_linker<'a>() -> &'a Linker<ScanContext<'static, 'static>> {
+    unsafe {
+        // See the comment in `get_engine`.
+        #[allow(static_mut_refs)]
+        LINKER.get_or_init(new_linker)
+    }
+}
+
+fn new_linker() -> Linker<ScanContext<'static, 'static>> {
     let engine = get_engine();
     let mut linker = Linker::<ScanContext<'static, 'static>>::new(engine);
 
@@ -1182,12 +1204,12 @@ fn lookup_field(
 
         final_field = Some(field);
 
-        if let TypeValue::Struct(s) = &field.type_value {
+        if let TypeValue::Struct(s) = field.type_value() {
             structure = s
         }
     }
 
-    final_field.unwrap().type_value.clone()
+    final_field.unwrap().type_value().clone()
 }
 
 /// Lookup a field of string type and returns its value.

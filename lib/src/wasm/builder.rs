@@ -6,8 +6,8 @@ use walrus::ValType::{F64, I32, I64};
 use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{BinaryOp, Block, InstrSeqId, LoadKind, MemArg, UnaryOp};
 use walrus::{
-    FunctionBuilder, FunctionId, GlobalId, InstrSeqBuilder, LocalFunction,
-    MemoryId, Module,
+    ConstExpr, FunctionBuilder, FunctionId, GlobalId, InstrSeqBuilder,
+    LocalFunction, MemoryId, Module,
 };
 
 use super::WasmSymbols;
@@ -15,30 +15,6 @@ use super::WasmSymbols;
 #[derive(Debug)]
 pub(crate) enum Error {
     FunctionTooLarge,
-}
-
-macro_rules! global_var {
-    ($module:ident, $name:ident, $ty:ident) => {
-        let ($name, _) = $module.add_import_global(
-            "yara_x",
-            stringify!($name),
-            $ty,
-            true,  // mutable
-            false, // shared
-        );
-    };
-}
-
-macro_rules! global_const {
-    ($module:ident, $name:ident, $ty:ident) => {
-        let ($name, _) = $module.add_import_global(
-            "yara_x",
-            stringify!($name),
-            $ty,
-            false, // mutable
-            false, // shared
-        );
-    };
 }
 
 /// Builds the WASM module for a set of compiled rules.
@@ -139,7 +115,7 @@ pub(crate) struct WasmModuleBuilder {
 
 impl WasmModuleBuilder {
     const RULES_FUNC_RET: [walrus::ValType; 1] = [I32; 1];
-    const MAX_FUNC_INSTRS: u64 = 100_000;
+    const MAX_FUNC_INSTRS: u64 = 300_000;
 
     /// Creates a new module builder.
     pub fn new() -> Self {
@@ -161,19 +137,48 @@ impl WasmModuleBuilder {
             wasm_exports.insert(fully_qualified_name, func_id);
         }
 
-        global_const!(module, matching_patterns_bitmap_base, I32);
-        global_var!(module, filesize, I64);
-        global_var!(module, pattern_search_done, I32);
+        // The main memory and the global variables are defined by the
+        // module itself instead of being imported. This way the only
+        // imports are host functions, which don't belong to any particular
+        // store, so the linker can be built once and shared across scanners.
+        let matching_patterns_bitmap_base = module.globals.add_local(
+            I32,
+            true,  // mutable
+            false, // shared
+            ConstExpr::Value(walrus::ir::Value::I32(0)),
+        );
 
-        let (main_memory, _) = module.add_import_memory(
-            "yara_x",
-            "main_memory",
+        // `filesize` is initialized to -1 (which means undefined) because
+        // the file size is not known until some data is scanned.
+        let filesize = module.globals.add_local(
+            I64,
+            true,  // mutable
+            false, // shared
+            ConstExpr::Value(walrus::ir::Value::I64(-1)),
+        );
+
+        // `pattern_search_done` is set to `true` when the Aho-Corasick
+        // pattern search phase has been executed.
+        let pattern_search_done = module.globals.add_local(
+            I32,
+            true,  // mutable
+            false, // shared
+            ConstExpr::Value(walrus::ir::Value::I32(0)),
+        );
+
+        let main_memory = module.memories.add_local(
             false, // shared
             false, // memory64
-            1,
-            None,
-            None,
+            1, None, None,
         );
+
+        module.exports.add(
+            "matching_patterns_bitmap_base",
+            matching_patterns_bitmap_base,
+        );
+        module.exports.add("filesize", filesize);
+        module.exports.add("pattern_search_done", pattern_search_done);
+        module.exports.add("main_memory", main_memory);
 
         // Generate the function that checks if a pattern matched.
         let check_for_pattern_match = Self::gen_check_for_pattern_match(

@@ -75,10 +75,14 @@ pub fn exec_deps(args: &ArgMatches) -> anyhow::Result<()> {
     let mut dep_map: BTreeMap<&str, Deps> = BTreeMap::new();
 
     for rule in ast.rules() {
-        if dep_map.insert(rule.identifier.name, Deps::default()).is_some() {
+        if dep_map.contains_key(rule.identifier.name) {
             bail!("Duplicate rule \"{}\" found", rule.identifier.name);
-        };
-        find_dependencies(&rule.condition, rule.identifier.name, &mut dep_map);
+        }
+        // Compute dependencies before inserting the rule into `dep_map` so
+        // self-references (or rules named after a module) are not recorded as
+        // cyclic dependencies on the rule itself.
+        let deps = find_dependencies(&rule.condition, &dep_map);
+        dep_map.insert(rule.identifier.name, deps);
     }
 
     let dep_tree = generate_dep_tree(&dep_map, &requested_rules);
@@ -92,25 +96,27 @@ pub fn exec_deps(args: &ArgMatches) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn generate_dep_tree(
-    dep_map: &BTreeMap<&str, Deps>,
-    requested_rules: &Vec<&str>,
+fn generate_dep_tree<'a>(
+    dep_map: &BTreeMap<&'a str, Deps<'a>>,
+    requested_rules: &[&str],
 ) -> Vec<Tree> {
     let mut nodes: Vec<Tree> = Vec::new();
 
     for (rule, deps) in dep_map.iter() {
         if requested_rules.is_empty() || requested_rules.contains(rule) {
-            nodes.push(tree_for_rule(rule, deps, dep_map));
+            let mut ancestors = HashSet::from([*rule]);
+            nodes.push(tree_for_rule(rule, deps, dep_map, &mut ancestors));
         }
     }
 
     nodes
 }
 
-fn tree_for_rule(
-    rule: &str,
-    deps: &Deps,
-    dep_map: &BTreeMap<&str, Deps>,
+fn tree_for_rule<'a>(
+    rule: &'a str,
+    deps: &Deps<'a>,
+    dep_map: &BTreeMap<&'a str, Deps<'a>>,
+    ancestors: &mut HashSet<&'a str>,
 ) -> Tree {
     let mut nodes: Vec<Tree> = Vec::new();
 
@@ -120,10 +126,11 @@ fn tree_for_rule(
 
     for dep in deps.rules.iter() {
         match dep_map.get(dep) {
-            Some(new_deps) => {
-                nodes.push(tree_for_rule(dep, new_deps, dep_map));
+            Some(new_deps) if ancestors.insert(dep) => {
+                nodes.push(tree_for_rule(dep, new_deps, dep_map, ancestors));
+                ancestors.remove(dep);
             }
-            None => {
+            _ => {
                 nodes.push(Node(dep.to_string(), vec![]));
             }
         }
@@ -134,9 +141,9 @@ fn tree_for_rule(
 
 fn find_dependencies<'a>(
     expr: &'a Expr<'a>,
-    rule_name: &'a str,
-    dep_map: &mut BTreeMap<&'a str, Deps<'a>>,
-) {
+    dep_map: &BTreeMap<&'a str, Deps<'a>>,
+) -> Deps<'a> {
+    let mut deps = Deps::default();
     // Contains the variables that are currently defined. This acts
     // as a stack where the variables defined by the innermost `for`
     // or `with` statements are at top of the array.
@@ -178,17 +185,13 @@ fn find_dependencies<'a>(
                     if dep_map.contains_key(ident.name) {
                         // This is an identifier that matches a previously
                         // seen rule.
-                        dep_map.entry(rule_name).and_modify(|v| {
-                            v.rules.insert(ident.name);
-                        });
+                        deps.rules.insert(ident.name);
                     } else if yara_x::mods::module_names()
                         .any(|module| module == ident.name)
                     {
                         // This is a known module or is not in the list of
                         // variable identifier to be ignored.
-                        dep_map.entry(rule_name).and_modify(|v| {
-                            v.modules.insert(ident.name);
-                        });
+                        deps.modules.insert(ident.name);
                     }
                 }
             }
@@ -214,4 +217,6 @@ fn find_dependencies<'a>(
             }
         }
     }
+
+    deps
 }

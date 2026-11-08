@@ -40,8 +40,8 @@ fn max(_ctx: &ScanContext, a: i64, b: i64) -> i64 {
 
 /// Returns the absolute value of an integer.
 #[module_export]
-fn abs(_ctx: &ScanContext, x: i64) -> i64 {
-    x.abs()
+fn abs(_ctx: &ScanContext, x: i64) -> Option<i64> {
+    x.checked_abs()
 }
 
 /// Returns true if the given float is mostly within the [min, max] range.
@@ -499,6 +499,17 @@ mod tests {
             r#"
             import "math"
             rule test { condition: math.abs(1) == 1}"#,
+            &[]
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.abs(-9223372036854775807) == 9223372036854775807 and
+                    not defined math.abs(-9223372036854775807 - 1)
+            }"#,
             &[]
         );
     }
