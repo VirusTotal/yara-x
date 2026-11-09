@@ -164,43 +164,39 @@ impl<'a> Olecf<'a> {
             }
         }
 
-        self.mini_sector_size = if (1..=16).contains(&mini_sector_shift) {
+        // Per [MS-CFB] Section 2.2, `mini_sector_shift` must be 6 (64 bytes),
+        // but we tolerate non-standard values in `4..=12` (16..=4096 bytes)
+        // and fall back to the standard 64-byte size outside that range.
+        // Rejecting shifts < 4 avoids tiny mini-sectors (e.g., 2 bytes) that
+        // would inflate MiniFAT chain iterations, and rejecting shifts > 12
+        // disallows mini-sectors larger than a v4 regular sector (4096 bytes).
+        self.mini_sector_size = if (4..=12).contains(&mini_sector_shift) {
             1 << mini_sector_shift
         } else {
             64
         };
 
-        // (B) Parse up to 109 DIFAT entries from `input`
-        //     109 is the max allowed number of DIFAT entries in the header.
-        let rest = input;
-        if rest.len() < 109 * 4 {
-            let possible = rest.len() / 4;
-            let (rest2, entries) = count(le_u32, possible).parse(rest)?;
-            let mut filtered = entries
-                .into_iter()
-                .filter(|&x| x < MAX_REGULAR_SECTOR)
-                .collect::<Vec<_>>();
-            self.fat_sectors.append(&mut filtered);
-            input = rest2;
-        } else {
-            let (rest2, entries) = count(le_u32, 109).parse(rest)?;
-            let mut filtered = entries
-                .into_iter()
-                .filter(|&x| x < MAX_REGULAR_SECTOR)
-                .collect::<Vec<_>>();
-            self.fat_sectors.append(&mut filtered);
-            input = rest2;
-        }
-
-        // Follow the DIFAT chain if present.
-        let mut next_difat_sector = first_difat_sector;
         let entries_per_sector = self.sector_size / 4;
 
         // Bound fat_sectors to what a file of this size can legitimately need.
         let max_fat_sectors =
             (self.data.len() / self.sector_size / entries_per_sector) + 2;
 
-        let mut visited_difat = std::collections::HashSet::new();
+        // (B) Parse up to 109 DIFAT entries from `input`
+        //     109 is the max allowed number of DIFAT entries in the header.
+        let num_entries = (input.len() / 4).min(109);
+        let (rest, entries) = count(le_u32, num_entries).parse(input)?;
+        self.fat_sectors.extend(
+            entries
+                .into_iter()
+                .filter(|&x| x < MAX_REGULAR_SECTOR)
+                .take(max_fat_sectors),
+        );
+        input = rest;
+
+        // Follow the DIFAT chain if present.
+        let mut next_difat_sector = first_difat_sector;
+        let mut visited_difat = rustc_hash::FxHashSet::default();
 
         for _ in 0..difat_count {
             if next_difat_sector >= MAX_REGULAR_SECTOR
@@ -452,11 +448,12 @@ impl<'a> Olecf<'a> {
             return chain;
         }
 
+        let max_sectors = (self.data.len() / self.sector_size) + 1;
+        let mut visited = rustc_hash::FxHashSet::default();
         let mut current = start_sector;
-        while current < MAX_REGULAR_SECTOR {
-            // Prevent cycles by keeping track of visited sectors
-            if chain.contains(&current) {
-                // We've seen this sector before - it's a cycle
+        while current < MAX_REGULAR_SECTOR && chain.len() < max_sectors {
+            // Prevent cycles in O(1) by keeping track of visited sectors
+            if !visited.insert(current) {
                 break;
             }
 
@@ -552,6 +549,14 @@ impl<'a> Olecf<'a> {
             return Ok(Cow::Borrowed(&[]));
         }
 
+        // Since visited sectors cannot repeat, a non-cyclic stream can never
+        // yield more bytes than exist in `stream_data` after `base_offset`.
+        // Reject oversized `size` claims before walking the chain or allocating
+        // up to `MAX_STREAM_SIZE` (256 MiB).
+        if size > stream_data.len().saturating_sub(base_offset as usize) {
+            return Err("Stream size exceeds available data");
+        }
+
         // Fast path: zero-copy slicing if stream_data is borrowed.
         if let Cow::Borrowed(src) = stream_data
             && let Ok(slice) = self.try_get_stream_slice(
@@ -570,13 +575,12 @@ impl<'a> Olecf<'a> {
         let fallback_slice = stream_data.as_ref();
         let mut data = Vec::with_capacity(size);
         let mut current_sector = start_sector;
-        let mut visited = Vec::new();
+        let mut visited = rustc_hash::FxHashSet::default();
 
         while current_sector < MAX_REGULAR_SECTOR && data.len() < size {
-            if visited.contains(&current_sector) {
+            if !visited.insert(current_sector) {
                 return Err("Circular reference detected in sector chain");
             }
-            visited.push(current_sector);
 
             let sector_offset = base_offset
                 .saturating_add(current_sector as u64 * sector_size as u64);
