@@ -1743,3 +1743,47 @@ fn hoisting_max_vars_and_candidate_limit() {
     assert_eq!(scanner.scan(b"A").unwrap().matching_rules().len(), 1);
     assert_eq!(scanner.scan(b"B").unwrap().matching_rules().len(), 0);
 }
+
+#[test]
+fn non_matching_private_rules() {
+    // Regression test: the number of non-matching private rules was tracked
+    // only for global rules (or with profiling), which made the length of
+    // `non_matching_rules()` wrong and iterating it overflow.
+    let rules = crate::compile(
+        r#"
+        private rule p1 { condition: filesize > 100 }
+        private rule p2 { condition: filesize == 3 }
+        private global rule pg { condition: filesize < 1000 }
+        rule a { condition: filesize > 100 }
+        rule b { condition: true }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+
+    for (data, matching, non_matching) in [
+        (&b"abc"[..], vec!["p2", "pg", "b"], vec!["p1", "a"]),
+        (&[0_u8; 500][..], vec!["p1", "pg", "a", "b"], vec!["p2"]),
+        (&[0_u8; 2000][..], vec![], vec!["p1", "p2", "pg", "a", "b"]),
+    ] {
+        let results = scanner.scan(data).unwrap();
+
+        let m = results.matching_rules().include_private(true);
+        assert_eq!(m.len(), matching.len());
+        assert_eq!(m.map(|r| r.identifier()).collect::<Vec<_>>(), matching);
+
+        let n = results.non_matching_rules().include_private(true);
+        assert_eq!(n.len(), non_matching.len());
+        assert_eq!(
+            n.map(|r| r.identifier()).collect::<Vec<_>>(),
+            non_matching
+        );
+
+        let public: Vec<_> =
+            non_matching.iter().filter(|r| !r.starts_with('p')).collect();
+        let n = results.non_matching_rules();
+        assert_eq!(n.len(), public.len());
+        assert_eq!(n.count(), public.len());
+    }
+}

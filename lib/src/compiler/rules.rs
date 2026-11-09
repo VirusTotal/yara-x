@@ -606,6 +606,11 @@ impl Rules {
         self.rules.len()
     }
 
+    /// Returns the number of private rules.
+    pub(crate) fn num_private_rules(&self) -> usize {
+        self.rules.iter().filter(|rule| rule.is_private).count()
+    }
+
     #[inline]
     pub(crate) fn num_patterns(&self) -> usize {
         self.num_patterns

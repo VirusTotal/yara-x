@@ -147,8 +147,6 @@ pub struct ScanContext<'r, 'd> {
     /// Number of private rules that have matched. This will be equal to or
     /// less than the length of `matching_rules`.
     pub(crate) num_matching_private_rules: usize,
-    /// Number of private rules that did not match.
-    pub(crate) num_non_matching_private_rules: usize,
     /// Compiled rules for this scan.
     pub(crate) compiled_rules: &'r Rules,
     /// Structure that contains top-level symbols, like module names
@@ -579,7 +577,6 @@ impl ScanContext<'_, '_> {
 
         self.tracker.unconfirmed_matches.clear();
         self.num_matching_private_rules = 0;
-        self.num_non_matching_private_rules = 0;
 
         // Clear the value of `current_struct` as it may contain a reference
         // to some struct.
@@ -702,15 +699,11 @@ impl ScanContext<'_, '_> {
 
         let rule = self.compiled_rules.get(rule_id);
 
-        if rule.is_private {
-            self.num_non_matching_private_rules += 1;
-        }
-
         // If the rule is global, all the rules in the same namespace that
         // matched previously must be removed from the `matching_rules_per_ns`
         // map. Also, their corresponding bits in the matching rules bitmap must
         // be cleared, and `num_matching_private_rules` must be decremented if
-        // the rule was private and `num_non_matching_private_rules` incremented.
+        // the rule was private.
         if rule.is_global
             && let Some(rules) =
                 self.matching_rules_per_ns.get_mut(&rule.namespace_id)
@@ -728,7 +721,6 @@ impl ScanContext<'_, '_> {
             for rule_id in rules.drain(0..) {
                 if self.compiled_rules.get(rule_id).is_private {
                     self.num_matching_private_rules -= 1;
-                    self.num_non_matching_private_rules += 1;
                 }
                 bits.set(rule_id.into(), false);
             }
@@ -2171,7 +2163,6 @@ pub fn create_wasm_store_and_ctx<'r>(
         matching_rules: Vec::new(),
         matching_rules_per_ns: IndexMap::new(),
         num_matching_private_rules: 0,
-        num_non_matching_private_rules: 0,
         wasm: WasmState {
             module: MaybeUninit::uninit(),
             main_memory: None,
