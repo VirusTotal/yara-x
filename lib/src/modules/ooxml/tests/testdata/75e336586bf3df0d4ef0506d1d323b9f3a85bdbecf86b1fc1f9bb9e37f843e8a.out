@@ -1,0 +1,63 @@
+is_ooxml: true
+number_of_on_disk_entries: 4
+number_of_total_entries: 4
+central_dir_size: 252
+central_dir_offset: 0x17c
+zip_comment_len: 0
+entries:
+  - name_string: "[Content_Types].xml"
+    name_length: 19
+    compressed_size: 92
+    uncompressed_size: 98
+    crc32_checksum: 0x6b74b8e6
+    compression_method_value: 8
+    compression_method_name: "Deflate"
+    mod_time_raw: 0x1883
+    mod_date_raw: 0x5a22
+    flags: 0x0
+    version_needed: 20
+    version_made_by: 0x314
+    os_name: "Unix"
+    spec_version: 20
+  - name_string: "_rels/.rels"
+    name_length: 11
+    compressed_size: 18
+    uncompressed_size: 16
+    crc32_checksum: 0xd51cd982
+    compression_method_value: 8
+    compression_method_name: "Deflate"
+    mod_time_raw: 0x1883
+    mod_date_raw: 0x5a22
+    flags: 0x0
+    version_needed: 20
+    version_made_by: 0x314
+    os_name: "Unix"
+    spec_version: 20
+  - name_string: "word/document.xml"
+    name_length: 17
+    compressed_size: 18
+    uncompressed_size: 260
+    crc32_checksum: 0x1de3a7a
+    compression_method_value: 8
+    compression_method_name: "Deflate"
+    mod_time_raw: 0x1883
+    mod_date_raw: 0x5a22
+    flags: 0x0
+    version_needed: 20
+    version_made_by: 0x314
+    os_name: "Unix"
+    spec_version: 20
+  - name_string: "word/media/image1.png"
+    name_length: 21
+    compressed_size: 64
+    uncompressed_size: 64
+    crc32_checksum: 0x636fcc0d
+    compression_method_value: 0
+    compression_method_name: "Store"
+    mod_time_raw: 0x1883
+    mod_date_raw: 0x5a22
+    flags: 0x0
+    version_needed: 20
+    version_made_by: 0x314
+    os_name: "Unix"
+    spec_version: 20

@@ -1,0 +1,47 @@
+is_ooxml: false
+number_of_on_disk_entries: 3
+number_of_total_entries: 5
+central_dir_size: 156
+central_dir_offset: 0x6f
+zip_comment_len: 0
+entries:
+  - compressed_size: 1
+    uncompressed_size: 1
+    crc32_checksum: 0x8cdc1683
+    compression_method_value: 0
+    compression_method_name: "Store"
+    mod_time_raw: 0x6000
+    mod_date_raw: 0x5a22
+    flags: 0x0
+    version_needed: 20
+    version_made_by: 0x314
+    os_name: "Unix"
+    spec_version: 20
+  - name_string: "\x80\xfename.txt"
+    name_length: 10
+    compressed_size: 1
+    uncompressed_size: 1
+    crc32_checksum: 0x8cdc1683
+    compression_method_value: 0
+    compression_method_name: "Store"
+    mod_time_raw: 0x6000
+    mod_date_raw: 0x5a22
+    flags: 0x0
+    version_needed: 20
+    version_made_by: 0x314
+    os_name: "Unix"
+    spec_version: 20
+  - name_string: "zstd.bin"
+    name_length: 8
+    compressed_size: 1
+    uncompressed_size: 1
+    crc32_checksum: 0x8cdc1683
+    compression_method_value: 93
+    compression_method_name: "Unknown"
+    mod_time_raw: 0x6000
+    mod_date_raw: 0x5a22
+    flags: 0x0
+    version_needed: 20
+    version_made_by: 0x4014
+    os_name: "Unknown"
+    spec_version: 20
