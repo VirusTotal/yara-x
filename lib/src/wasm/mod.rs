@@ -969,6 +969,9 @@ pub(crate) fn is_pat_match_in(
 
 /// Invoked from WASM to ask if at least `required` of the patterns in the
 /// range `pattern_id_start..=pattern_id_end` (inclusive) match.
+///
+/// A `required` of zero means that none of the patterns can match, as in
+/// `0 of them`, which is equivalent to `none of them`.
 #[wasm_export(sync = "none")]
 pub(crate) fn pat_range_match(
     caller: &mut Caller<'_, ScanContext>,
@@ -1011,6 +1014,12 @@ pub(crate) fn pat_range_match(
         if match_found {
             num_matches += 1;
         }
+    }
+
+    // `0 of them` means that no pattern matches, like `none of them`, which
+    // is how the other `of` expressions behave too.
+    if required == 0 {
+        return num_matches == 0;
     }
 
     num_matches >= required
