@@ -1,23 +1,24 @@
 use rustc_hash::FxHashMap as HashMap;
+use std::cell::OnceCell;
 use std::fmt::Write;
 use std::io::{Cursor, Read, Seek};
 
-use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
+use base64::prelude::BASE64_STANDARD;
 use const_oid::db::rfc5912;
 use const_oid::db::rfc5912::SHA_1_WITH_RSA_ENCRYPTION;
 use const_oid::{AssociatedOid, ObjectIdentifier};
+use nom::Parser;
 use nom::bytes::take;
 use nom::multi::length_data;
 use nom::number::complete::be_u32;
 use nom::number::complete::le_u32;
-use nom::Parser;
 use protobuf::Message;
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
 use strum_macros::Display;
-use zip::result::ZipResult;
 use zip::ZipArchive;
+use zip::result::ZipResult;
 
 use crate::mods::crx::{
     AsymmetricKeyProof, CrxFileHeader, CrxSignature, SignedData,
@@ -108,6 +109,15 @@ impl CrxLocale {
 
 impl Crx {
     const MAGIC: u32 = 0x43723234; // Cr24
+
+    /// Maximum decompressed size allowed for `manifest.json` or locale JSON
+    /// files inside a CRX archive (16 MiB). Prevents DEFLATE ZIP-bomb OOM/DoS.
+    const MAX_JSON_SIZE: u64 = 16 * 1024 * 1024;
+
+    /// Maximum number of `AsymmetricKeyProof` entries per signature type
+    /// verified in a CRX3 header.
+    const MAX_CRX_SIGNATURES: usize = 32;
+
     pub fn parse(data: &[u8]) -> Result<Self, Error<'_>> {
         let (remainder, (magic, version)) = (be_u32, le_u32).parse(data)?;
 
@@ -164,7 +174,7 @@ impl Crx {
 
         Ok(Crx {
             crx_version: 2,
-            header_size: key_len + signature_len,
+            header_size: key_len.saturating_add(signature_len),
             crx_id,
             manifest,
             signatures,
@@ -187,32 +197,48 @@ impl Crx {
         let signed_data = SignedData::parse_from_bytes(signed_header_data)
             .map_err(|_| Error::InvalidCrx)?;
 
-        let mut signatures = Vec::new();
-
-        signatures.extend(header.sha256_with_rsa.iter().filter_map(|proof| {
-            Self::parse_proof(
-                rfc5912::SHA_256_WITH_RSA_ENCRYPTION,
-                proof,
-                signed_header_data,
-                zip_data,
-            )
-        }));
-
-        signatures.extend(header.sha256_with_ecdsa.iter().filter_map(
-            |proof| {
-                Self::parse_proof(
-                    rfc5912::ECDSA_WITH_SHA_256,
-                    proof,
-                    signed_header_data,
-                    zip_data,
-                )
-            },
-        ));
-
-        let crx_id = Self::printable_extension_id(signed_data.crx_id());
-
         let mut zip =
             Self::read_zip(zip_data).map_err(|_| Error::InvalidCrx)?;
+
+        // Lazily computed SHA-256 digest of the signed CRX3 payload. All
+        // proofs in the header sign the same data, so we compute the digest
+        // at most once and reuse it across all RSA and ECDSA verifications.
+        let digest = OnceCell::new();
+        let mut signatures = Vec::new();
+
+        signatures.extend(
+            header
+                .sha256_with_rsa
+                .iter()
+                .take(Self::MAX_CRX_SIGNATURES)
+                .filter_map(|proof| {
+                    Self::parse_proof(
+                        rfc5912::SHA_256_WITH_RSA_ENCRYPTION,
+                        proof,
+                        &digest,
+                        signed_header_data,
+                        zip_data,
+                    )
+                }),
+        );
+
+        signatures.extend(
+            header
+                .sha256_with_ecdsa
+                .iter()
+                .take(Self::MAX_CRX_SIGNATURES)
+                .filter_map(|proof| {
+                    Self::parse_proof(
+                        rfc5912::ECDSA_WITH_SHA_256,
+                        proof,
+                        &digest,
+                        signed_header_data,
+                        zip_data,
+                    )
+                }),
+        );
+
+        let crx_id = Self::printable_extension_id(signed_data.crx_id());
 
         let manifest = Self::read_manifest(&mut zip);
 
@@ -238,6 +264,7 @@ impl Crx {
     fn parse_proof(
         algorithm: ObjectIdentifier,
         proof: &AsymmetricKeyProof,
+        digest: &OnceCell<digest::Output<Sha256>>,
         signed_header_data: &[u8],
         zip_data: &[u8],
     ) -> Option<CrxSignature> {
@@ -246,12 +273,13 @@ impl Crx {
 
         let verified = PublicKey::from_der(algorithm, public_key_data)
             .is_ok_and(|key| {
-                Self::verify_v3::<Sha256>(
-                    signed_header_data,
-                    zip_data,
-                    &key,
-                    signature,
-                )
+                let digest = *digest.get_or_init(|| {
+                    Self::compute_v3_digest::<Sha256>(
+                        signed_header_data,
+                        zip_data,
+                    )
+                });
+                key.verify_digest::<Sha256>(digest, signature)
             });
 
         let mut signature = CrxSignature::new();
@@ -266,11 +294,25 @@ impl Crx {
         zip::ZipArchive::new(Cursor::new(zip_data))
     }
 
+    fn read_bounded_json<R: Read, T: serde::de::DeserializeOwned>(
+        file: zip::read::ZipFile<'_, R>,
+    ) -> Option<T> {
+        if file.size() > Self::MAX_JSON_SIZE {
+            return None;
+        }
+        let mut reader = file.take(Self::MAX_JSON_SIZE + 1);
+        let value = serde_json::from_reader::<_, T>(&mut reader).ok()?;
+        if reader.limit() == 0 {
+            return None;
+        }
+        Some(value)
+    }
+
     fn read_manifest<R: Read + Seek>(
         zip: &mut ZipArchive<R>,
     ) -> Option<CrxManifest> {
         let manifest = zip.by_name("manifest.json").ok()?;
-        serde_json::from_reader::<_, CrxManifest>(manifest).ok()
+        Self::read_bounded_json(manifest)
     }
 
     fn read_locale<R: Read + Seek>(
@@ -280,7 +322,7 @@ impl Crx {
         let index =
             zip.index_for_path(format!("_locales/{lang}/messages.json"))?;
         let locale = zip.by_index(index).ok()?;
-        serde_json::from_reader::<_, CrxLocale>(locale).ok()
+        Self::read_bounded_json(locale)
     }
 
     fn verify_v2<D: Digest + AssociatedOid>(
@@ -293,19 +335,26 @@ impl Crx {
         public_key.verify_digest::<D>(digest.finalize(), signature)
     }
 
-    fn verify_v3<D: Digest + AssociatedOid>(
+    /// Computes the digest used for verifying CRX3 signatures.
+    ///
+    /// In CRX3, all `AsymmetricKeyProof` signatures are computed over the
+    /// concatenation of:
+    ///
+    /// [16 bytes] : "CRX3 SignedData\x00", domain-separation prefix.
+    /// [4 bytes]  : N, little-endian, length of `signed_header_data`.
+    /// [N bytes]  : `signed_header_data` (encoded `SignedData` protobuf).
+    /// [rest]     : The ZIP archive (`zip_data`).
+    fn compute_v3_digest<D: Digest>(
         signed_header_data: &[u8],
         zip_data: &[u8],
-        public_key: &PublicKey,
-        signature: &[u8],
-    ) -> bool {
+    ) -> digest::Output<D> {
         let signed_header_size = signed_header_data.len() as u32;
         let mut digest = D::new();
         digest.update(b"CRX3 SignedData\x00");
         digest.update(signed_header_size.to_le_bytes());
         digest.update(signed_header_data);
         digest.update(zip_data);
-        public_key.verify_digest::<D>(digest.finalize(), signature)
+        digest.finalize()
     }
 
     /// Converts a Chrome extension ID from binary form to a printable string.
