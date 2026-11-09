@@ -22,7 +22,7 @@ use super::asn1::{oid, oid_to_object_identifier};
 
 /// Represents a public key.
 pub enum PublicKey {
-    Rsa(rsa::RsaPublicKey),
+    Rsa(rsa::PublicKey),
     Dsa(dsa::VerifyingKey),
     EcdsaP256(p256::ecdsa::VerifyingKey),
     EcdsaP384(p384::ecdsa::VerifyingKey),
@@ -64,7 +64,7 @@ impl TryFrom<&SubjectPublicKeyInfo<'_>> for PublicKey {
         {
             rfc5912::RSA_ENCRYPTION => {
                 use rsa::pkcs1::DecodeRsaPublicKey;
-                Ok(Self::Rsa(rsa::RsaPublicKey::from_pkcs1_der(
+                Ok(Self::Rsa(rsa::PublicKey::from_pkcs1_der(
                     spki.subject_public_key.as_ref(),
                 )?))
             }
@@ -175,10 +175,10 @@ impl PublicKey {
     ) -> Result<Self, PublicKeyError> {
         match algorithm {
             rfc5912::SHA_1_WITH_RSA_ENCRYPTION => Ok(PublicKey::Rsa(
-                rsa::RsaPublicKey::from_public_key_der(der)?,
+                rsa::PublicKey::from_public_key_der(der)?,
             )),
             rfc5912::SHA_256_WITH_RSA_ENCRYPTION => Ok(PublicKey::Rsa(
-                rsa::RsaPublicKey::from_public_key_der(der)?,
+                rsa::PublicKey::from_public_key_der(der)?,
             )),
             rfc5912::ECDSA_WITH_SHA_256 => Ok(PublicKey::EcdsaP256(
                 ecdsa::VerifyingKey::from_public_key_der(der)?,
