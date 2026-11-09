@@ -76,6 +76,11 @@ impl DocumentStorage {
         self.workspace = Some(uri);
     }
 
+    /// Returns the workspace folder URI, if set.
+    pub fn workspace(&self) -> Option<&Url> {
+        self.workspace.as_ref()
+    }
+
     /// Gets root [`yara_x_parser::cst::Node`] either from opened document,
     /// or reads the file to parse the tree.
     #[cfg(not(target_family = "wasm"))]

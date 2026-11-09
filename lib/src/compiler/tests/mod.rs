@@ -1715,6 +1715,89 @@ fn test_disable_includes() {
 }
 
 #[test]
+fn test_include_outside_include_dir() {
+    // `a/a.yar` contains `include "../b/b.yar"`. When the include directory
+    // is restricted to `.../includes/a`, `../b/b.yar` escapes the allowed
+    // directory and must be rejected.
+    let mut compiler = Compiler::new();
+    let err = compiler
+        .add_include_dir("src/compiler/tests/testdata/includes/a")
+        .add_source(r#"include "a.yar""#)
+        .unwrap_err()
+        .to_string();
+
+    assert!(err.contains(r#"error[E043]: include file not found"#));
+    assert!(err.contains(
+        r#"`../b/b.yar` not found in any of the include directories"#
+    ));
+
+    // Direct `..` traversal escaping the configured include directory must
+    // also fail.
+    let mut compiler = Compiler::new();
+    let err = compiler
+        .add_include_dir("src/compiler/tests/testdata/includes/a")
+        .add_source(r#"include "../included_ok.yar""#)
+        .unwrap_err()
+        .to_string();
+
+    assert!(err.contains(r#"error[E043]: include file not found"#));
+    assert!(err.contains(
+        r#"`../included_ok.yar` not found in any of the include directories"#
+    ));
+
+    // Absolute path outside the configured include directory must fail.
+    let abs_path = std::path::Path::new(
+        "src/compiler/tests/testdata/includes/included_ok.yar",
+    )
+    .canonicalize()
+    .unwrap();
+
+    let mut compiler = Compiler::new();
+    let err = compiler
+        .add_include_dir("src/compiler/tests/testdata/includes/a")
+        .add_source(
+            format!(
+                r#"include "{}""#,
+                abs_path.to_str().unwrap().replace('\\', "/")
+            )
+            .as_str(),
+        )
+        .unwrap_err()
+        .to_string();
+
+    assert!(err.contains("error[E043]: include file not found"));
+
+    // Without `add_include_dir`, `..` traversal escaping the current working
+    // directory (`lib/`) into the workspace root must also fail.
+    let mut compiler = Compiler::new();
+    let err = compiler
+        .add_source(r#"include "../Cargo.toml""#)
+        .unwrap_err()
+        .to_string();
+
+    assert!(err.contains("error[E043]: include file not found"));
+}
+
+#[test]
+fn test_include_non_regular_file() {
+    let mut compiler = Compiler::new();
+    let err = compiler
+        .add_include_dir("src/compiler/tests/testdata/includes")
+        .add_source(r#"include "a""#)
+        .unwrap_err()
+        .to_string();
+
+    assert_eq!(
+        err,
+        r#"error[E042]: error including file
+ --> line:1:1
+  |
+1 | include "a"
+  | ^^^^^^^^^^^ failed with error: included file is not a regular file"#
+    );
+}
+
+#[test]
 fn test_switch_warnings() {
     let mut compiler = Compiler::new();
 
