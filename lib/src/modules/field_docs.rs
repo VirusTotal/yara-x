@@ -197,6 +197,29 @@ pub const FIELD_DOCS: &[(&str, u64, &str)] = &[
     ("lnk.Lnk", 19, "Size in bytes of any extra data appended to the LNK file."),
     ("lnk.Lnk", 20, "Offset within the LNK file where the overlay starts."),
     ("lnk.Lnk", 21, "Distributed link tracker information."),
+    ("lnk.Lnk", 22, "Shell items parsed from the link target ID list (LINKTARGET_IDLIST). This
+ list describes the target of the shortcut as a chain of shell items (root
+ folder, volume, file entry, control panel item, etc.)."),
+    ("lnk.ShellItem", 1, "Type (category) of the shell item, derived from the class type indicator
+ byte. Always set for every shell item: when the class type indicator
+ maps to a known category, the corresponding enum variant is used;
+ otherwise, the raw class type indicator byte is stored as an unknown value."),
+    ("lnk.ShellItem", 3, "The raw class type specific data of the shell item: all the bytes that
+ follow the class type indicator byte. Always populated, which allows rules
+ to match on shell items whose type is not decoded into a dedicated field
+ below."),
+    ("lnk.ShellItem", 4, "Path to the control panel CPL file. Populated for control panel CPL file
+ shell items (item_type CONTROL_PANEL_CPL)."),
+    ("lnk.ShellItem", 5, "Shell folder identifier (a GUID). Populated for root folder shell items
+ (item_type ROOT_FOLDER)."),
+    ("lnk.ShellItem", 6, "Volume name. Populated for volume shell items (item_type VOLUME) that
+ carry a name."),
+    ("lnk.ShellItem", 7, "Volume identifier (a GUID). Populated for volume shell items
+ (item_type VOLUME) that carry an identifier instead of a name."),
+    ("lnk.ShellItem", 8, "File or directory name. Populated for file entry shell items
+ (item_type FILE_ENTRY)."),
+    ("lnk.ShellItem", 9, "Network location (usually a UNC path). Populated for network location
+ shell items (item_type NETWORK_LOCATION)."),
     ("macho.BuildTool", 1, "Identifier representing the tool utilized."),
     ("macho.BuildTool", 2, "Version string corresponding to the tool."),
     ("macho.BuildVersion", 1, "Target platform designation."),
