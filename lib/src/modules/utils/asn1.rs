@@ -660,7 +660,8 @@ impl<'a> TstInfo<'a> {
                 AlgorithmIdentifier::from_ber(input)
                     .map_err(|_| BerValueError)?;
 
-            let (remainder, hashed_message) = parse_ber_octetstring(remainder)?;
+            let (remainder, hashed_message) =
+                parse_ber_octetstring(remainder)?;
 
             Ok((remainder, (hash_algorithm, hashed_message.as_slice()?)))
         })(input)
