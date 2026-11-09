@@ -138,9 +138,14 @@ codegen-units = 1
 # Special profile used when building for WASM. Optimizations must be enabled
 # because otherwise the WASM file produced is too large and parsing it fails
 # with: "too many locals: locals exceed maximum".
+#
+# Incremental compilation must be disabled: with it, the WASM binary misses
+# some of the YARA modules, which are registered with `inventory`, and rules
+# that import them fail with "unknown module".
 [profile.wasm-dev]
 inherits = "dev"
 opt-level = 1
+incremental = false
 
 [profile.wasm-release-lto]
 inherits = "release"
