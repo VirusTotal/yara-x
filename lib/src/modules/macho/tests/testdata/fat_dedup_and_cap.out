@@ -1,0 +1,398 @@
+fat_magic: 0xcafebabe
+nfat_arch: 62
+fat_arch:
+  - cputype: 0x100000c
+    cpusubtype: 0x0
+    offset: 4096
+    size: 64
+    align: 0
+    reserved: 0
+  - cputype: 0x1000007
+    cpusubtype: 0x3
+    offset: 4352
+    size: 64
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8256
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8272
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8288
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8304
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8320
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8336
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8352
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8368
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8384
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8400
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8416
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8432
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8448
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8464
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8480
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8496
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8512
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8528
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8544
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8560
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8576
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8592
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8608
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8624
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8640
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8656
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8672
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8688
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8704
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8720
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8736
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8752
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8768
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8784
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8800
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8816
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8832
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8848
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8864
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8880
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8896
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8912
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8928
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8944
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8960
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8976
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 8992
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 9008
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 9024
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 9040
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 9056
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 9072
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 9088
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 9104
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 9120
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 9136
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 9152
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 9168
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 9184
+    size: 0
+    align: 0
+    reserved: 0
+  - cputype: 0x7
+    cpusubtype: 0x3
+    offset: 9200
+    size: 0
+    align: 0
+    reserved: 0
+file:
+  - magic: 0xcffaedfe
+    cputype: 0x100000c
+    cpusubtype: 0x0
+    filetype: 2
+    ncmds: 1
+    sizeofcmds: 24
+    flags: 0x0
+    reserved: 0
+    number_of_segments: 0
+    entry_point: 32
+    stack_size: 0
+  - magic: 0xcffaedfe
+    cputype: 0x1000007
+    cpusubtype: 0x3
+    filetype: 2
+    ncmds: 1
+    sizeofcmds: 24
+    flags: 0x0
+    reserved: 0
+    number_of_segments: 0
+    entry_point: 48
+    stack_size: 0
