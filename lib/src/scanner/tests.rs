@@ -1787,3 +1787,67 @@ fn non_matching_private_rules() {
         assert_eq!(n.count(), public.len());
     }
 }
+
+#[cfg(feature = "pe-module")]
+#[test]
+fn hoisting_nested_field_access_after_lookup() {
+    let mut compiler = crate::Compiler::new();
+    compiler
+        .condition_optimization(true)
+        .add_source(
+            r#"
+            import "pe"
+            rule match_version {
+              condition:
+                for any i in (0..pe.number_of_signatures) : (
+                  pe.signatures[i].signer_info.chain[0].version == 1
+                )
+            }
+            rule mismatch_version {
+              condition:
+                for any i in (0..pe.number_of_signatures) : (
+                  pe.signatures[i].signer_info.chain[0].version == 2
+                )
+            }
+            rule match_program_name_len {
+              condition:
+                for any i in (0..pe.number_of_signatures) : (
+                  pe.signatures[i].signer_info.program_name.len() == 1
+                )
+            }
+            rule mismatch_program_name_len {
+              condition:
+                for any i in (0..pe.number_of_signatures) : (
+                  pe.signatures[i].signer_info.program_name.len() == 2
+                )
+            }
+            "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+
+    let mut cert = mods::pe::Certificate::new();
+    cert.set_version(1);
+
+    let mut signer_info = mods::pe::SignerInfo::new();
+    signer_info.set_program_name("a".to_string());
+    signer_info.chain.push(cert);
+
+    let mut sig = mods::pe::Signature::new();
+    sig.signer_info = protobuf::MessageField::some(signer_info);
+
+    let mut pe = Box::new(mods::PE::new());
+    pe.set_is_pe(true);
+    pe.set_number_of_signatures(1);
+    pe.signatures.push(sig);
+
+    let mut scanner = Scanner::new(&rules);
+    scanner.set_module_output(pe).unwrap();
+    let results = scanner.scan(b"").unwrap();
+
+    assert_eq!(
+        results.matching_rules().map(|r| r.identifier()).collect::<Vec<_>>(),
+        vec!["match_version", "match_program_name_len"]
+    );
+}

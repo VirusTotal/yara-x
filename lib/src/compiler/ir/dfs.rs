@@ -104,7 +104,7 @@ impl<'a> Iterator for DFSIter<'a> {
 
         if let Event::Enter((expr, ctx)) = next {
             self.stack.push(Event::Leave((expr, ctx)));
-            dfs_common(self.ir.get(expr), &mut self.stack);
+            dfs_common(self.ir.get(expr), ctx, &mut self.stack);
         }
 
         let next = match next {
@@ -232,8 +232,19 @@ impl Iterator for DFSWithScopeIter<'_> {
 
 pub(super) fn dfs_common(
     expr: &Expr,
+    ctx: EventContext,
     stack: &mut Vec<Event<(ExprId, EventContext)>>,
 ) {
+    // Only `EventContext::FieldAccess` propagates down target object chains
+    // (`FieldAccess` first operand, `Lookup::primary`, `FuncCall::object`).
+    // Other contexts like `Body` and `WithDeclaration` apply strictly to the
+    // immediate child node.
+    let inherited_ctx = if matches!(ctx, EventContext::FieldAccess) {
+        EventContext::FieldAccess
+    } else {
+        EventContext::None
+    };
+
     let push_quantifier =
         |quantifier: &Quantifier, stack: &mut Vec<_>| match quantifier {
             Quantifier::None => {}
@@ -343,9 +354,16 @@ pub(super) fn dfs_common(
         }
 
         Expr::FieldAccess(field_access) => {
-            for operand in field_access.operands.iter().rev() {
+            // All operands except the first one depend on the result produced
+            // by their preceding sibling, so they get `EventContext::FieldAccess`.
+            // The first operand only gets `EventContext::FieldAccess` if this
+            // `FieldAccess` itself was entered in a `FieldAccess` context.
+            for operand in field_access.operands.iter().skip(1).rev() {
                 stack
                     .push(Event::Enter((*operand, EventContext::FieldAccess)));
+            }
+            if let Some(first) = field_access.operands.first() {
+                stack.push(Event::Enter((*first, inherited_ctx)));
             }
         }
 
@@ -354,7 +372,7 @@ pub(super) fn dfs_common(
                 stack.push(Event::Enter((*arg, EventContext::None)));
             }
             if let Some(obj) = func_call.object {
-                stack.push(Event::Enter((obj, EventContext::None)));
+                stack.push(Event::Enter((obj, inherited_ctx)));
             }
         }
 
@@ -403,7 +421,7 @@ pub(super) fn dfs_common(
 
         Expr::Lookup(lookup) => {
             stack.push(Event::Enter((lookup.index, EventContext::None)));
-            stack.push(Event::Enter((lookup.primary, EventContext::None)));
+            stack.push(Event::Enter((lookup.primary, inherited_ctx)));
         }
 
         Expr::With(with) => {
@@ -706,5 +724,99 @@ mod tests {
             .collect();
 
         assert_eq!(visited, vec![of, pct, item]);
+    }
+
+    #[test]
+    fn dfs_field_access_context() {
+        use std::rc::Rc;
+
+        use crate::types::{FuncSignature, MangledFnName};
+
+        let mut ir = IR::new();
+
+        // Build an IR tree shaped like `a.b[i].c.d[0].f.g.fn(arg)`:
+        //   outer_fa: FIELD_ACCESS
+        //     lookup_0: LOOKUP (a.b[i])
+        //       inner_fa_0: FIELD_ACCESS (a.b)
+        //         a, b
+        //       idx_0
+        //     lookup_1: LOOKUP (c.d[0])
+        //       inner_fa_1: FIELD_ACCESS (c.d)
+        //         c, d
+        //       idx_1
+        //     fn_call: FN_CALL (f.g.fn(arg))
+        //       inner_fa_2: FIELD_ACCESS (f.g)
+        //         f, g
+        //       arg
+        let a = ir.constant(TypeValue::unknown_signed_integer());
+        let b = ir.constant(TypeValue::unknown_signed_integer());
+        let inner_fa_0 = ir.field_access(vec![a, b]);
+        let idx_0 = ir.constant(TypeValue::unknown_signed_integer());
+        let lookup_0 =
+            ir.lookup(TypeValue::unknown_signed_integer(), inner_fa_0, idx_0);
+
+        let c = ir.constant(TypeValue::unknown_signed_integer());
+        let d = ir.constant(TypeValue::unknown_signed_integer());
+        let inner_fa_1 = ir.field_access(vec![c, d]);
+        let idx_1 = ir.constant(TypeValue::unknown_signed_integer());
+        let lookup_1 =
+            ir.lookup(TypeValue::unknown_signed_integer(), inner_fa_1, idx_1);
+
+        let f = ir.constant(TypeValue::unknown_signed_integer());
+        let g = ir.constant(TypeValue::unknown_signed_integer());
+        let inner_fa_2 = ir.field_access(vec![f, g]);
+        let arg = ir.constant(TypeValue::unknown_signed_integer());
+        let fn_call = ir.func_call(
+            Some(inner_fa_2),
+            vec![arg],
+            Rc::new(FuncSignature {
+                mangled_name: MangledFnName::from(""),
+                args: vec![],
+                result: TypeValue::unknown_signed_integer(),
+                doc: None,
+            }),
+        );
+
+        let outer_fa = ir.field_access(vec![lookup_0, lookup_1, fn_call]);
+
+        let enter_events: Vec<(ExprId, bool)> = ir
+            .dfs_iter(outer_fa)
+            .filter_map(|evt| match evt {
+                Event::Enter((id, _, ctx)) => {
+                    Some((id, matches!(ctx, EventContext::FieldAccess)))
+                }
+                Event::Leave(_) => None,
+            })
+            .collect();
+
+        assert_eq!(
+            enter_events,
+            vec![
+                (outer_fa, false),
+                // First operand (`a.b[i]`) is not preceded by a sibling, so
+                // `lookup_0` and `inner_fa_0` (`a.b`) have `EventContext::None`.
+                (lookup_0, false),
+                (inner_fa_0, false),
+                (a, false),
+                (b, true),
+                (idx_0, false),
+                // Second operand (`c.d[0]`) depends on `lookup_0`, so
+                // `EventContext::FieldAccess` propagates into `inner_fa_1`
+                // (`c.d`), while `idx_1` (`0`) stays `EventContext::None`.
+                (lookup_1, true),
+                (inner_fa_1, true),
+                (c, true),
+                (d, true),
+                (idx_1, false),
+                // Third operand (`f.g.fn(arg)`) depends on `lookup_1`, so
+                // `EventContext::FieldAccess` propagates into `inner_fa_2`
+                // (`f.g`), while `arg` stays `EventContext::None`.
+                (fn_call, true),
+                (inner_fa_2, true),
+                (f, true),
+                (g, true),
+                (arg, false),
+            ]
+        );
     }
 }

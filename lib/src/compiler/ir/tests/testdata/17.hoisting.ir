@@ -1,0 +1,54 @@
+RULE test_1
+  20: WITH -- hash: 0x53e45f8ef3d6bae
+    19: FIELD_ACCESS -- hash: 0x3953ccdf6a81fb2f
+      4: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+      5: SYMBOL Field { index: 58, is_root: false, type_value: array, acl: None, deprecation_notice: None }
+    18: FOR_IN -- hash: 0x1fae2242bfcd4297
+          n: Var { frame_id: 1, ty: integer, index: 1 }
+          i: Var { frame_id: 1, ty: integer, index: 2 }
+          max_count: Var { frame_id: 1, ty: integer, index: 3 }
+          count: Var { frame_id: 1, ty: integer, index: 4 }
+          item: Var { frame_id: 1, ty: unknown, index: 5 }
+      0: CONST integer(0)
+      3: FIELD_ACCESS -- hash: 0x5534ae05f2194a3d
+        1: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+        2: SYMBOL Field { index: 44, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.signatures.len()` instead"), replacement: Some("signatures.len()") }) }
+      17: EQ -- hash: 0xb1939d252ef72add
+        15: FIELD_ACCESS -- hash: 0xd199a01ced9dc802
+          8: LOOKUP -- hash: 0xcc845309ca736bf9
+            6: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array }
+            7: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 6 }, type_value: integer(unknown) }
+          13: LOOKUP -- hash: 0x864e0ca0552dd4ad
+            11: FIELD_ACCESS -- hash: 0x9ff627fe98eda273
+              9: SYMBOL Field { index: 15, is_root: false, type_value: struct, acl: None, deprecation_notice: None }
+              10: SYMBOL Field { index: 4, is_root: false, type_value: array, acl: None, deprecation_notice: None }
+            12: CONST integer(0)
+          14: SYMBOL Field { index: 3, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: None }
+        16: CONST integer(1)
+
+RULE test_2
+  18: WITH -- hash: 0x3098986b8ecc360
+    17: FIELD_ACCESS -- hash: 0x3953ccdf6a81fb2f
+      4: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+      5: SYMBOL Field { index: 58, is_root: false, type_value: array, acl: None, deprecation_notice: None }
+    16: FOR_IN -- hash: 0xa787979e086c6dbe
+          n: Var { frame_id: 1, ty: integer, index: 1 }
+          i: Var { frame_id: 1, ty: integer, index: 2 }
+          max_count: Var { frame_id: 1, ty: integer, index: 3 }
+          count: Var { frame_id: 1, ty: integer, index: 4 }
+          item: Var { frame_id: 1, ty: unknown, index: 5 }
+      0: CONST integer(0)
+      3: FIELD_ACCESS -- hash: 0x5534ae05f2194a3d
+        1: SYMBOL Field { index: 0, is_root: true, type_value: struct, acl: None, deprecation_notice: None }
+        2: SYMBOL Field { index: 44, is_root: false, type_value: integer(unknown), acl: None, deprecation_notice: Some(DeprecationNotice { text: "this field is deprecated", help: Some("use `pe.signatures.len()` instead"), replacement: Some("signatures.len()") }) }
+      15: EQ -- hash: 0xa36f2780f913d195
+        13: FIELD_ACCESS -- hash: 0x8256d641b57dafb
+          8: LOOKUP -- hash: 0xcc845309ca736bf9
+            6: SYMBOL Var { var: Var { frame_id: 0, ty: array, index: 0 }, type_value: array }
+            7: SYMBOL Var { var: Var { frame_id: 1, ty: integer, index: 6 }, type_value: integer(unknown) }
+          12: FN_CALL RuntimeString::len@string:s@i64 -- hash: 0xd7a26b3f878a04fe
+            11: FIELD_ACCESS -- hash: 0xcc7f8ce50bab26c0
+              9: SYMBOL Field { index: 15, is_root: false, type_value: struct, acl: None, deprecation_notice: None }
+              10: SYMBOL Field { index: 0, is_root: false, type_value: string(unknown), acl: None, deprecation_notice: None }
+        14: CONST integer(1)
+

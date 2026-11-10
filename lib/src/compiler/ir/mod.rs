@@ -761,8 +761,8 @@ impl IR {
                     Event::Leave((*expr_id, self.get_mut(*expr_id), *ctx))
                 }
             });
-            if let Event::Enter((expr, _)) = evt {
-                dfs_common(&self.nodes[expr.0 as usize], &mut stack);
+            if let Event::Enter((expr, ctx)) = evt {
+                dfs_common(&self.nodes[expr.0 as usize], ctx, &mut stack);
             }
         }
     }

@@ -1,0 +1,15 @@
+import "pe"
+
+rule test_1 {
+    condition:
+        for any i in (0..pe.number_of_signatures) : (
+            pe.signatures[i].signer_info.chain[0].version == 1
+        )
+}
+
+rule test_2 {
+    condition:
+        for any i in (0..pe.number_of_signatures) : (
+            pe.signatures[i].signer_info.program_name.len() == 1
+        )
+}
