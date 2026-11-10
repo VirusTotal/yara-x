@@ -493,10 +493,12 @@ impl Compiler {
     fn new_inner(
         relaxed_re_syntax: bool,
         error_on_slow_pattern: bool,
+        includes_enabled: bool,
     ) -> yrx::Compiler<'static> {
         let mut compiler = yrx::Compiler::new();
         compiler.relaxed_re_syntax(relaxed_re_syntax);
         compiler.error_on_slow_pattern(error_on_slow_pattern);
+        compiler.enable_includes(includes_enabled);
         compiler
     }
 }
@@ -531,15 +533,17 @@ impl Compiler {
         includes_enabled: bool,
         ignore_invalid_rules: bool,
     ) -> Self {
-        let mut compiler = Self {
-            inner: Self::new_inner(relaxed_re_syntax, error_on_slow_pattern),
+        Self {
+            inner: Self::new_inner(
+                relaxed_re_syntax,
+                error_on_slow_pattern,
+                includes_enabled,
+            ),
             relaxed_re_syntax,
             error_on_slow_pattern,
             includes_enabled,
             ignore_invalid_rules,
-        };
-        compiler.inner.enable_includes(includes_enabled);
-        compiler
+        }
     }
 
     /// Specify a regular expression that the compiler will enforce upon each
@@ -742,6 +746,7 @@ impl Compiler {
             Self::new_inner(
                 self.relaxed_re_syntax,
                 self.error_on_slow_pattern,
+                self.includes_enabled,
             ),
         );
         Rules::new(compiler.build())
