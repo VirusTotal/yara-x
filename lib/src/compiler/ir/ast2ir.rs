@@ -24,7 +24,8 @@ use crate::compiler::errors::{
     InvalidBase64Alphabet, InvalidModifier, InvalidModifierCombination,
     InvalidPattern, InvalidRange, InvalidRegexp, MismatchingTypes,
     MixedGreediness, NumberOutOfRange, SyntaxError, TooManyPatterns,
-    TooManyVariables, UnexpectedNegativeNumber, WrongArguments, WrongType,
+    TooManyVariables, UnexpectedNegativeNumber, UnknownField, WrongArguments,
+    WrongType,
 };
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
@@ -2422,9 +2423,19 @@ fn func_call_from_ast<'src>(
     let mut object = if let Some(obj) = &func_call.object {
         let expr = expr_from_ast(ctx, obj)?;
         // The one-shot symbol table is set according to the type of the object
-        // associated to the function call, so that methods can be resolved.
-        ctx.one_shot_symbol_table =
-            ctx.ir.get(expr).type_value().symbol_table();
+        // associated to the function call, so that methods can be resolved. If
+        // the object's type doesn't have an associated symbol table it can't
+        // have any fields or methods.
+        ctx.one_shot_symbol_table = Some(
+            ctx.ir.get(expr).type_value().symbol_table().ok_or_else(|| {
+                UnknownField::build(
+                    ctx.report_builder,
+                    func_call.identifier.name.to_string(),
+                    ctx.report_builder
+                        .span_to_code_loc(func_call.identifier.span()),
+                )
+            })?,
+        );
         Some(expr)
     } else {
         None
