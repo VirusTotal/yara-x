@@ -256,6 +256,9 @@ impl<'a> Dotnet<'a> {
     const MAX_ROWS_PER_TABLE: usize = 15000;
     const MAX_ARRAY_DIMENSION: u32 = 50;
     const MAX_RECURSION: usize = 16;
+    const MAX_TYPE_NAME_LEN: usize = 16 * 1024;
+    const MAX_METHOD_SIG_BYTES: usize = 32 * 1024 * 1024;
+    const PARAM_OVERHEAD_BYTES: usize = 64;
 
     /// Given an index into the `#Strings` stream, returns the string.
     fn get_string(&self, index: StringIndex) -> Option<&'a str> {
@@ -620,7 +623,7 @@ impl<'a> Dotnet<'a> {
 
         (remainder, _) = self
             .skip_table(self.parse_impl_map_row(), Table::ImplMap)(
-            remainder,
+            remainder
         )?;
 
         (remainder, self.field_rvas) = self
@@ -855,130 +858,127 @@ impl<'a> Dotnet<'a> {
 
     fn iter_user_types(&self) -> impl Iterator<Item = Class<'a>> + '_ {
         let mut highest_method_list = 0;
+        let mut remaining_sig_bytes = Self::MAX_METHOD_SIG_BYTES;
 
-        self.type_defs
-            .iter()
-            .enumerate()
-            .filter_map(move |(idx, type_def)| {
-                // Skip type definitions with invalid (empty) names, and the
-                // "<Module>" pseudo-class.
-                if type_def.name.is_none_or(|name| name == "<Module>") {
-                    return None;
-                }
+        self.type_defs.iter().enumerate().filter_map(move |(idx, type_def)| {
+            // Skip type definitions with invalid (empty) names, and the
+            // "<Module>" pseudo-class.
+            if type_def.name.is_none_or(|name| name == "<Module>") {
+                return None;
+            }
 
-                let generic_class_params: Vec<_> = self
-                    .generic_params
-                    .iter()
-                    .filter_map(|param| {
-                        if param.owner.table == Table::TypeDef
-                            && param.owner.index == idx
-                        {
-                            param.name
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-
-                // The methods belonging to this type in the MethodDef table go
-                // from the index specified by `method_list` to the index specified
-                // by the next type's `method_list`. If this is the last type, then
-                // it goes to the end of the MethodDef table.
-                //
-                // According to ECMA-335 II.22.37, `method_list` should be
-                // monotonically non-decreasing across the TypeDef table, with
-                // types that have no methods repeating the `method_list` of the
-                // following type. However, some tools (such as Unity/IL2CPP
-                // linkers and dumpers) set `method_list` to 1 (0-based 0) for
-                // every type that has no methods. One example of this is file:
-                // ef1c257f1dc7e21a0df2221965c42f72a4097010e1f8be00018866acdaf088ec
-                //
-                // If `type_def.method_list` is less than `highest_method_list`,
-                // it is out of order (e.g. reset to 0) and the type has no
-                // methods. Otherwise, we look for the next type with a
-                // `method_list >= type_def.method_list` so that intermediate
-                // types with `method_list == 0` do not truncate the current
-                // type's method list or cause methods from index 0 to be
-                // repeatedly re-assigned to multiple types.
-                let method_defs =
-                    if type_def.method_list >= highest_method_list {
-                        if let Some(next_type_def) = self.type_defs[idx + 1..]
-                            .iter()
-                            .find(|t| t.method_list >= type_def.method_list)
-                        {
-                            highest_method_list = next_type_def.method_list;
-                            self.method_defs.get(
-                                type_def.method_list..next_type_def.method_list,
-                            )
-                        } else {
-                            highest_method_list = usize::MAX;
-                            self.method_defs.get(type_def.method_list..)
-                        }
+            let generic_class_params: Vec<_> = self
+                .generic_params
+                .iter()
+                .filter_map(|param| {
+                    if param.owner.table == Table::TypeDef
+                        && param.owner.index == idx
+                    {
+                        param.name
                     } else {
                         None
-                    };
-
-                let methods = if let Some(method_defs) = method_defs {
-                    let mut methods = Vec::with_capacity(method_defs.len());
-                    for (m_idx, method_def) in method_defs.iter().enumerate() {
-                        if let Some(m) = self.convert_method_def(
-                            type_def.method_list + m_idx,
-                            method_def,
-                            generic_class_params.as_slice(),
-                        ) {
-                            methods.push(m);
-                        }
                     }
-                    methods
-                } else {
-                    vec![]
-                };
-
-                // `base_types` will contain the names of the classes the current
-                // class inherits from.
-                let mut base_types = Vec::new();
-                let mut depth = 0;
-
-                // If the current class extends some other class, add the full name
-                // of this other class to `base_types`.
-                if let Some(name) = self.type_def_or_ref_fullname(
-                    &type_def.extends,
-                    &mut depth,
-                    generic_class_params.as_slice(),
-                    &[],
-                ) {
-                    base_types.push(name)
-                }
-
-                // For every interface implemented by the current class, add its
-                // full name to `base_types`.
-                base_types.extend(self.interface_impls.iter().filter_map(
-                    |interface_impl| {
-                        if interface_impl.class == idx {
-                            depth = 0;
-                            self.type_def_or_ref_fullname(
-                                &interface_impl.interface,
-                                &mut depth,
-                                generic_class_params.as_slice(),
-                                &[],
-                            )
-                        } else {
-                            None
-                        }
-                    },
-                ));
-
-                Some(Class {
-                    full_name: self.type_full_name(idx),
-                    base_types,
-                    visibility: type_def.visibility(),
-                    semantics: type_def.class_semantics(),
-                    is_abstract: type_def.is_abstract(),
-                    is_sealed: type_def.is_sealed(),
-                    methods,
-                    generic_params: generic_class_params,
                 })
+                .collect();
+
+            // The methods belonging to this type in the MethodDef table go
+            // from the index specified by `method_list` to the index specified
+            // by the next type's `method_list`. If this is the last type, then
+            // it goes to the end of the MethodDef table.
+            //
+            // According to ECMA-335 II.22.37, `method_list` should be
+            // monotonically non-decreasing across the TypeDef table, with
+            // types that have no methods repeating the `method_list` of the
+            // following type. However, some tools (such as Unity/IL2CPP
+            // linkers and dumpers) set `method_list` to 1 (0-based 0) for
+            // every type that has no methods. One example of this is file:
+            // ef1c257f1dc7e21a0df2221965c42f72a4097010e1f8be00018866acdaf088ec
+            //
+            // If `type_def.method_list` is less than `highest_method_list`,
+            // it is out of order (e.g. reset to 0) and the type has no
+            // methods. Otherwise, we look for the next type with a
+            // `method_list >= type_def.method_list` so that intermediate
+            // types with `method_list == 0` do not truncate the current
+            // type's method list or cause methods from index 0 to be
+            // repeatedly re-assigned to multiple types.
+            let method_defs = if type_def.method_list >= highest_method_list {
+                if let Some(next_type_def) = self.type_defs[idx + 1..]
+                    .iter()
+                    .find(|t| t.method_list >= type_def.method_list)
+                {
+                    highest_method_list = next_type_def.method_list;
+                    self.method_defs
+                        .get(type_def.method_list..next_type_def.method_list)
+                } else {
+                    highest_method_list = usize::MAX;
+                    self.method_defs.get(type_def.method_list..)
+                }
+            } else {
+                None
+            };
+
+            let methods = if let Some(method_defs) = method_defs {
+                let mut methods = Vec::with_capacity(method_defs.len());
+                for (m_idx, method_def) in method_defs.iter().enumerate() {
+                    if let Some(m) = self.convert_method_def(
+                        type_def.method_list + m_idx,
+                        method_def,
+                        generic_class_params.as_slice(),
+                        &mut remaining_sig_bytes,
+                    ) {
+                        methods.push(m);
+                    }
+                }
+                methods
+            } else {
+                vec![]
+            };
+
+            // `base_types` will contain the names of the classes the current
+            // class inherits from.
+            let mut base_types = Vec::new();
+            let mut depth = 0;
+
+            // If the current class extends some other class, add the full name
+            // of this other class to `base_types`.
+            if let Some(name) = self.type_def_or_ref_fullname(
+                &type_def.extends,
+                &mut depth,
+                generic_class_params.as_slice(),
+                &[],
+            ) {
+                base_types.push(name)
+            }
+
+            // For every interface implemented by the current class, add its
+            // full name to `base_types`.
+            base_types.extend(self.interface_impls.iter().filter_map(
+                |interface_impl| {
+                    if interface_impl.class == idx {
+                        depth = 0;
+                        self.type_def_or_ref_fullname(
+                            &interface_impl.interface,
+                            &mut depth,
+                            generic_class_params.as_slice(),
+                            &[],
+                        )
+                    } else {
+                        None
+                    }
+                },
+            ));
+
+            Some(Class {
+                full_name: self.type_full_name(idx),
+                base_types,
+                visibility: type_def.visibility(),
+                semantics: type_def.class_semantics(),
+                is_abstract: type_def.is_abstract(),
+                is_sealed: type_def.is_sealed(),
+                methods,
+                generic_params: generic_class_params,
             })
+        })
     }
 
     fn convert_method_def(
@@ -986,7 +986,12 @@ impl<'a> Dotnet<'a> {
         method_def_idx: usize,
         method_def: &MethodDef<'a>,
         generic_class_params: &[&'a str],
+        remaining_sig_bytes: &mut usize,
     ) -> Option<Method<'a>> {
+        if *remaining_sig_bytes == 0 {
+            return None;
+        }
+
         let method_name = method_def.name?;
 
         let (remainder, flags) =
@@ -998,7 +1003,7 @@ impl<'a> Dotnet<'a> {
             // SIG_FLAG_GENERIC flag is set.
             cond(flags & 0x10 != 0, var_uint),
             // Regular param count.
-            var_uint,
+            verify(var_uint, |count| *count < Self::MAX_PARAMS),
         )
             .parse(remainder)
             .ok()?;
@@ -1017,31 +1022,43 @@ impl<'a> Dotnet<'a> {
             })
             .collect();
 
-        let mut return_type = String::new();
+        let mut return_type = BoundedString::new(Self::MAX_TYPE_NAME_LEN);
         let mut depth = 0;
 
-        let mut remainder = self
-            .parse_type_spec(
-                remainder,
-                &mut return_type,
-                &mut depth,
-                generic_class_params,
-                generic_method_params.as_slice(),
-            )
-            .ok()?;
+        let res = self.parse_type_spec(
+            remainder,
+            &mut return_type,
+            &mut depth,
+            generic_class_params,
+            generic_method_params.as_slice(),
+        );
+
+        let prev_budget = *remaining_sig_bytes;
+
+        *remaining_sig_bytes = prev_budget.saturating_sub(return_type.len());
+
+        if return_type.len() > prev_budget {
+            return None;
+        }
+
+        let mut remainder = res.ok()?;
 
         // Return type for constructors is always set to None, which YARA sees
         // as undefined, for FileInfo compatibility.
         let return_type = if matches!(method_name, ".ctor" | ".cctor") {
             None
         } else {
-            Some(return_type)
+            Some(return_type.into_inner())
         };
 
         let mut method_params =
             Vec::with_capacity(min(param_count as usize, remainder.len()));
 
         for i in 0..param_count {
+            if *remaining_sig_bytes == 0 {
+                return None;
+            }
+
             // Try to find the param in the Param table. Params for the current
             // method start at the index indicated by `method_def.param_list`.
             // If found, and the Param struct has a name, use it. If not found,
@@ -1054,19 +1071,32 @@ impl<'a> Dotnet<'a> {
                 .map(Cow::Borrowed)
                 .unwrap_or_else(|| Cow::Owned(format!("P_{i}")));
 
-            let mut param_type = String::new();
+            let mut param_type = BoundedString::new(Self::MAX_TYPE_NAME_LEN);
 
-            remainder = self
-                .parse_type_spec(
-                    remainder,
-                    &mut param_type,
-                    &mut depth,
-                    generic_class_params,
-                    generic_method_params.as_slice(),
-                )
-                .ok()?;
+            let res = self.parse_type_spec(
+                remainder,
+                &mut param_type,
+                &mut depth,
+                generic_class_params,
+                generic_method_params.as_slice(),
+            );
 
-            method_params.push(MethodParam { name, type_: Some(param_type) })
+            let cost =
+                Self::PARAM_OVERHEAD_BYTES.saturating_add(param_type.len());
+
+            let prev_budget = *remaining_sig_bytes;
+
+            *remaining_sig_bytes = prev_budget.saturating_sub(cost);
+
+            if cost > prev_budget {
+                return None;
+            }
+            remainder = res.ok()?;
+
+            method_params.push(MethodParam {
+                name,
+                type_: Some(param_type.into_inner()),
+            })
         }
 
         Some(Method {
@@ -1091,20 +1121,27 @@ impl<'a> Dotnet<'a> {
     fn write_type_full_name(
         &self,
         type_def_idx: usize,
-        output: &mut String,
-    ) -> Option<()> {
-        let first_type_def = self.type_defs.get(type_def_idx)?;
+        output: &mut BoundedString,
+    ) -> Result<(), Error<'a>> {
+        let first_type_def =
+            self.type_defs.get(type_def_idx).ok_or(Error::InvalidType)?;
         if !first_type_def.is_nested() {
-            let name = first_type_def.plain_name()?;
+            let name =
+                first_type_def.plain_name().ok_or(Error::InvalidType)?;
             if let Some(namespace) = first_type_def.namespace {
-                output.reserve(namespace.len() + 1 + name.len());
-                output.push_str(namespace);
-                output.push('.');
-                output.push_str(name);
+                output.reserve(
+                    namespace
+                        .len()
+                        .saturating_add(1)
+                        .saturating_add(name.len()),
+                )?;
+                output.push_str(namespace)?;
+                output.push('.')?;
+                output.push_str(name)?;
             } else {
-                output.push_str(name);
+                output.push_str(name)?;
             }
-            return Some(());
+            return Ok(());
         }
 
         let mut next_idx = Some(type_def_idx);
@@ -1112,14 +1149,15 @@ impl<'a> Dotnet<'a> {
         let mut len = 0;
 
         while let Some(idx) = next_idx.take() {
-            let type_def = self.type_defs.get(idx)?;
+            let type_def =
+                self.type_defs.get(idx).ok_or(Error::InvalidType)?;
 
             // Protect against corrupted files.
             if len >= Self::MAX_RECURSION {
-                return None;
+                return Err(Error::RecursionLimit);
             }
 
-            parts[len] = type_def.plain_name()?;
+            parts[len] = type_def.plain_name().ok_or(Error::InvalidType)?;
             len += 1;
 
             if let Some(namespace) = type_def.namespace {
@@ -1149,30 +1187,29 @@ impl<'a> Dotnet<'a> {
         }
 
         let valid_len = min(len, Self::MAX_RECURSION);
-        let total_bytes: usize = parts[..valid_len]
+        let total_bytes = parts[..valid_len]
             .iter()
-            .map(|s| s.len())
-            .sum::<usize>()
-            + valid_len.saturating_sub(1);
-        output.reserve(total_bytes);
+            .fold(0usize, |acc, s| acc.saturating_add(s.len()))
+            .saturating_add(valid_len.saturating_sub(1));
+        output.reserve(total_bytes)?;
 
         // The innermost type is pushed first into the list, but it should be
         // the last one in the resulting name. So the list must be iterated
         // backwards.
         for (i, part) in parts[..valid_len].iter().rev().enumerate() {
             if i > 0 {
-                output.push('.');
+                output.push('.')?;
             }
-            output.push_str(part);
+            output.push_str(part)?;
         }
 
-        Some(())
+        Ok(())
     }
 
     fn type_full_name(&self, type_def_idx: usize) -> Option<String> {
-        let mut output = String::new();
-        self.write_type_full_name(type_def_idx, &mut output)?;
-        Some(output)
+        let mut output = BoundedString::new(Self::MAX_TYPE_NAME_LEN);
+        self.write_type_full_name(type_def_idx, &mut output).ok()?;
+        Some(output.into_inner())
     }
 
     /// Given a [`CodedIndex`] that can point either to the TypeDef, TypeRef or
@@ -1180,38 +1217,44 @@ impl<'a> Dotnet<'a> {
     fn write_type_def_or_ref_fullname(
         &self,
         index: &CodedIndex,
-        output: &mut String,
+        output: &mut BoundedString,
         depth: &mut usize,
         generic_class_params: &[&'a str],
         generic_method_params: &[&'a str],
-    ) -> Option<()> {
+    ) -> Result<(), Error<'a>> {
         match index.table {
             Table::TypeDef => self.write_type_full_name(index.index, output),
             Table::TypeRef => {
-                let t = self.get_type_ref(index)?;
-                let name = t.plain_name()?;
+                let t = self.get_type_ref(index).ok_or(Error::InvalidType)?;
+                let name = t.plain_name().ok_or(Error::InvalidType)?;
                 if let Some(namespace) = t.namespace {
-                    output.reserve(namespace.len() + 1 + name.len());
-                    output.push_str(namespace);
-                    output.push('.');
-                    output.push_str(name);
+                    output.reserve(
+                        namespace
+                            .len()
+                            .saturating_add(1)
+                            .saturating_add(name.len()),
+                    )?;
+                    output.push_str(namespace)?;
+                    output.push('.')?;
+                    output.push_str(name)?;
                 } else {
-                    output.push_str(name);
+                    output.push_str(name)?;
                 }
-                Some(())
+                Ok(())
             }
             Table::TypeSpec => {
-                let blob_index = self.get_type_spec(index)?;
-                let data = self.get_blob(*blob_index)?;
+                let blob_index =
+                    self.get_type_spec(index).ok_or(Error::InvalidType)?;
+                let data =
+                    self.get_blob(*blob_index).ok_or(Error::InvalidType)?;
                 self.parse_type_spec(
                     data,
                     output,
                     depth,
                     generic_class_params,
                     generic_method_params,
-                )
-                .ok()
-                .map(|_| ())
+                )?;
+                Ok(())
             }
             _ => unreachable!(),
         }
@@ -1224,15 +1267,16 @@ impl<'a> Dotnet<'a> {
         generic_class_params: &[&'a str],
         generic_method_params: &[&'a str],
     ) -> Option<String> {
-        let mut output = String::new();
+        let mut output = BoundedString::new(Self::MAX_TYPE_NAME_LEN);
         self.write_type_def_or_ref_fullname(
             index,
             &mut output,
             depth,
             generic_class_params,
             generic_method_params,
-        )?;
-        Some(output)
+        )
+        .ok()?;
+        Some(output.into_inner())
     }
 
     /// Parses a type spec blob, writing a textual representation of the
@@ -1247,7 +1291,7 @@ impl<'a> Dotnet<'a> {
     fn parse_type_spec(
         &self,
         input: &'a [u8],
-        output: &mut String,
+        output: &mut BoundedString,
         depth: &mut usize,
         generic_class_params: &[&'a str],
         generic_method_params: &[&'a str],
@@ -1256,32 +1300,36 @@ impl<'a> Dotnet<'a> {
             return Err(Error::RecursionLimit);
         }
 
+        if output.is_full() {
+            return Err(Error::OutputWrite(std::fmt::Error));
+        }
+
         let (mut remainder, type_) =
             map_opt(u8, num_traits::FromPrimitive::from_u8).parse(input)?;
 
         *depth += 1;
 
         match type_ {
-            Type::Void => output.push_str("void"),
-            Type::Bool => output.push_str("bool"),
-            Type::Char => output.push_str("char"),
-            Type::I1 => output.push_str("sbyte"),
-            Type::U1 => output.push_str("byte"),
-            Type::I2 => output.push_str("short"),
-            Type::U2 => output.push_str("ushort"),
-            Type::I4 => output.push_str("int"),
-            Type::U4 => output.push_str("uint"),
-            Type::I8 => output.push_str("long"),
-            Type::U8 => output.push_str("ulong"),
-            Type::R4 => output.push_str("float"),
-            Type::R8 => output.push_str("double"),
-            Type::Object => output.push_str("object"),
-            Type::String => output.push_str("string"),
-            Type::TypedRef => output.push_str("TypedReference"),
-            Type::I => output.push_str("IntPtr"),
-            Type::U => output.push_str("UintPtr"),
+            Type::Void => output.push_str("void")?,
+            Type::Bool => output.push_str("bool")?,
+            Type::Char => output.push_str("char")?,
+            Type::I1 => output.push_str("sbyte")?,
+            Type::U1 => output.push_str("byte")?,
+            Type::I2 => output.push_str("short")?,
+            Type::U2 => output.push_str("ushort")?,
+            Type::I4 => output.push_str("int")?,
+            Type::U4 => output.push_str("uint")?,
+            Type::I8 => output.push_str("long")?,
+            Type::U8 => output.push_str("ulong")?,
+            Type::R4 => output.push_str("float")?,
+            Type::R8 => output.push_str("double")?,
+            Type::Object => output.push_str("object")?,
+            Type::String => output.push_str("string")?,
+            Type::TypedRef => output.push_str("TypedReference")?,
+            Type::I => output.push_str("IntPtr")?,
+            Type::U => output.push_str("UintPtr")?,
             Type::Ptr => {
-                output.push_str("Ptr<");
+                output.push_str("Ptr<")?;
                 remainder = self.parse_type_spec(
                     remainder,
                     output,
@@ -1289,10 +1337,10 @@ impl<'a> Dotnet<'a> {
                     generic_class_params,
                     generic_method_params,
                 )?;
-                output.push('>');
+                output.push('>')?;
             }
             Type::ByRef => {
-                output.push_str("ref ");
+                output.push_str("ref ")?;
                 remainder = self.parse_type_spec(
                     remainder,
                     output,
@@ -1315,8 +1363,7 @@ impl<'a> Dotnet<'a> {
                     depth,
                     generic_class_params,
                     generic_method_params,
-                )
-                .ok_or(Error::InvalidType)?;
+                )?;
             }
             Type::Var | Type::MVar => {
                 let index;
@@ -1333,7 +1380,7 @@ impl<'a> Dotnet<'a> {
                         .ok_or(Error::InvalidType)?
                 };
 
-                output.push_str(name);
+                output.push_str(name)?;
             }
             Type::Array => {
                 let dimensions;
@@ -2856,7 +2903,9 @@ impl From<Dotnet<'_>> for protos::dotnet::Dotnet {
         result.set_version(dotnet.version.to_string());
         if let Some(guids) = dotnet.parse_guids() {
             result.guids = Vec::with_capacity(guids.len());
-            result.guids.extend(guids.into_iter().map(|guid| guid.to_string()));
+            result
+                .guids
+                .extend(guids.into_iter().map(|guid| guid.to_string()));
         }
         result.typelib =
             dotnet.parse_typelib().map(|typelib| typelib.to_string());
@@ -3017,9 +3066,9 @@ impl From<Class<'_>> for protos::dotnet::Class {
         class.set_visibility(value.visibility.to_string());
 
         class.methods = Vec::with_capacity(value.methods.len());
-        class
-            .methods
-            .extend(value.methods.into_iter().map(protos::dotnet::Method::from));
+        class.methods.extend(
+            value.methods.into_iter().map(protos::dotnet::Method::from),
+        );
 
         class.generic_parameters =
             Vec::with_capacity(value.generic_params.len());
@@ -3135,8 +3184,99 @@ fn var_sint(input: &[u8]) -> IResult<&[u8], i32> {
     Ok((remainder, value))
 }
 
+/// A string buffer that enforces a maximum byte length.
+struct BoundedString {
+    buf: String,
+    max_len: usize,
+}
+
+impl BoundedString {
+    #[inline]
+    fn new(max_len: usize) -> Self {
+        Self { buf: String::new(), max_len }
+    }
+
+    #[inline]
+    fn into_inner(self) -> String {
+        self.buf
+    }
+
+    #[inline]
+    fn len(&self) -> usize {
+        self.buf.len()
+    }
+
+    #[inline]
+    fn is_full(&self) -> bool {
+        self.buf.len() >= self.max_len
+    }
+
+    #[inline]
+    fn reserve(&mut self, additional: usize) -> std::fmt::Result {
+        if self.buf.len().saturating_add(additional) > self.max_len {
+            return Err(std::fmt::Error);
+        }
+        self.buf.reserve(additional);
+        Ok(())
+    }
+
+    #[inline]
+    fn push_str(&mut self, s: &str) -> std::fmt::Result {
+        if self.buf.len().saturating_add(s.len()) > self.max_len {
+            return Err(std::fmt::Error);
+        }
+        self.buf.push_str(s);
+        Ok(())
+    }
+
+    #[inline]
+    fn push(&mut self, ch: char) -> std::fmt::Result {
+        self.push_str(ch.encode_utf8(&mut [0; 4]))
+    }
+}
+
+impl Write for BoundedString {
+    #[inline]
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        self.push_str(s)
+    }
+
+    #[inline]
+    fn write_char(&mut self, c: char) -> std::fmt::Result {
+        self.push(c)
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use super::*;
+
+    fn encode_var_uint(v: u32, out: &mut Vec<u8>) {
+        if v <= 0x7F {
+            out.push(v as u8);
+        } else if v <= 0x3FFF {
+            out.push(0x80 | ((v >> 8) as u8));
+            out.push((v & 0xFF) as u8);
+        } else {
+            assert!(v <= 0x1FFF_FFFF);
+            out.push(0xC0 | ((v >> 24) as u8));
+            out.push(((v >> 16) & 0xFF) as u8);
+            out.push(((v >> 8) & 0xFF) as u8);
+            out.push((v & 0xFF) as u8);
+        }
+    }
+
+    fn push_blob(stream: &mut Vec<u8>, payload: &[u8]) -> BlobIndex {
+        let offset = stream.len() as u32;
+        encode_var_uint(payload.len() as u32, stream);
+        stream.extend_from_slice(payload);
+        BlobIndex(offset)
+    }
+
+    fn typespec_coded_index_u32(idx: usize) -> u32 {
+        (((idx as u32) + 1) << 2) | 2
+    }
+
     #[test]
     fn var_uint() {
         assert_eq!(
@@ -3201,5 +3341,210 @@ mod test {
             super::var_sint(&[0xC0, 0x00, 0x00, 0x01]).unwrap(),
             ([].as_slice(), -268435456)
         );
+    }
+
+    #[test]
+    fn typespec_dag_output_cap() {
+        // Build a 6-layer GenericInst TypeSpec DAG with fan-out 32 per layer
+        // (32^6 = 2^30 leaves if uncapped, well within MAX_RECURSION = 16).
+        let mut blob_stream = vec![0u8];
+        let mut type_specs = Vec::new();
+
+        // Layer 0: GenericInst<int, int, ..., int> (32 args)
+        let mut leaf = vec![Type::GenericInst as u8, Type::I4 as u8, 32];
+        leaf.resize(leaf.len() + 32, Type::I4 as u8);
+        type_specs.push(push_blob(&mut blob_stream, &leaf));
+
+        // Layers 1..=5: each instantiates 32 copies of the previous TypeSpec.
+        for prev in 0..5 {
+            let mut node = vec![Type::GenericInst as u8, Type::I4 as u8, 32];
+            for _ in 0..32 {
+                node.push(Type::Class as u8);
+                encode_var_uint(typespec_coded_index_u32(prev), &mut node);
+            }
+            type_specs.push(push_blob(&mut blob_stream, &node));
+        }
+
+        let root_blob = *type_specs.last().unwrap();
+        let dotnet = Dotnet {
+            data: &blob_stream,
+            stream_headers: vec![StreamHeader {
+                offset: 0,
+                size: blob_stream.len() as u32,
+                name: b"#Blob",
+            }],
+            blob_stream: Some(0),
+            type_specs,
+            ..Default::default()
+        };
+
+        let root_data = dotnet.get_blob(root_blob).unwrap();
+        let mut output = BoundedString::new(Dotnet::MAX_TYPE_NAME_LEN);
+        let mut depth = 0;
+
+        let res = dotnet.parse_type_spec(
+            root_data,
+            &mut output,
+            &mut depth,
+            &[],
+            &[],
+        );
+
+        assert!(matches!(res, Err(Error::OutputWrite(_))));
+        assert!(output.len() <= Dotnet::MAX_TYPE_NAME_LEN);
+    }
+
+    #[test]
+    fn oversized_strings_do_not_bypass_cap_or_deplete_budget() {
+        let huge = "A".repeat(Dotnet::MAX_TYPE_NAME_LEN + 1);
+        let dotnet = Dotnet {
+            type_defs: vec![
+                TypeDef {
+                    flags: 0x1, // Public, non-nested
+                    name: Some(&huge),
+                    namespace: Some("Ns"),
+                    extends: CodedIndex { table: Table::TypeDef, index: 0 },
+                    method_list: 0,
+                },
+                TypeDef {
+                    flags: 0x1,
+                    name: Some("ValidClass"),
+                    namespace: Some("Ns"),
+                    extends: CodedIndex { table: Table::TypeRef, index: 0 },
+                    method_list: 0,
+                },
+            ],
+            type_refs: vec![TypeRef {
+                name: Some(&huge),
+                namespace: Some("Ns"),
+            }],
+            ..Default::default()
+        };
+
+        let classes: Vec<_> = dotnet.iter_user_types().collect();
+        assert_eq!(classes.len(), 2);
+        // Oversized TypeDef full_name is rejected cleanly without exhausting
+        // the budget for subsequent valid classes.
+        assert_eq!(classes[0].full_name, None);
+        assert_eq!(classes[1].full_name.as_deref(), Some("Ns.ValidClass"));
+        // Oversized TypeRef base type is also rejected cleanly.
+        assert!(classes[1].base_types.is_empty());
+    }
+
+    #[test]
+    fn method_param_count_cap() {
+        // Signature with MAX_PARAMS (1000) regular params must be rejected.
+        let mut bad_sig = vec![0x00]; // flags
+        encode_var_uint(Dotnet::MAX_PARAMS, &mut bad_sig);
+        bad_sig.push(Type::Void as u8);
+        bad_sig.resize(
+            bad_sig.len() + Dotnet::MAX_PARAMS as usize,
+            Type::I4 as u8,
+        );
+
+        // Signature with 2 regular params must succeed.
+        let good_sig =
+            [0x00, 0x02, Type::Void as u8, Type::I4 as u8, Type::U4 as u8];
+
+        let dotnet = Dotnet {
+            type_defs: vec![TypeDef {
+                flags: 0x1,
+                name: Some("C"),
+                namespace: None,
+                extends: CodedIndex { table: Table::TypeDef, index: 1 },
+                method_list: 0,
+            }],
+            method_defs: vec![
+                MethodDef {
+                    flags: 0x6,
+                    name: Some("TooManyParams"),
+                    signature: Some(&bad_sig),
+                    param_list: 0,
+                },
+                MethodDef {
+                    flags: 0x6,
+                    name: Some("OkParams"),
+                    signature: Some(&good_sig),
+                    param_list: 0,
+                },
+            ],
+            ..Default::default()
+        };
+
+        let classes: Vec<_> = dotnet.iter_user_types().collect();
+        assert_eq!(classes.len(), 1);
+        assert_eq!(classes[0].methods.len(), 1);
+        assert_eq!(classes[0].methods[0].name, "OkParams");
+        assert_eq!(classes[0].methods[0].params.len(), 2);
+    }
+
+    #[test]
+    fn cumulative_type_name_budget_caps_shared_blob_amplification() {
+        // Create a TypeSpec that formats to ~8 KiB (< MAX_TYPE_NAME_LEN = 16 KiB).
+        let mut blob_stream = vec![0u8];
+        let mut ts0 = vec![Type::GenericInst as u8, Type::I4 as u8, 64];
+        ts0.resize(ts0.len() + 64, Type::I4 as u8); // ~260 bytes formatted
+
+        let mut ts1 = vec![Type::GenericInst as u8, Type::I4 as u8, 30];
+        for _ in 0..30 {
+            ts1.push(Type::Class as u8);
+            encode_var_uint(typespec_coded_index_u32(0), &mut ts1);
+        } // ~7,800 bytes formatted (< 16 KiB)
+
+        let b0 = push_blob(&mut blob_stream, &ts0);
+        let b1 = push_blob(&mut blob_stream, &ts1);
+
+        // One shared method signature with 100 params of TypeSpec[1] (~780 KiB
+        // per method). Across 100 methods that would be ~78 MiB without the
+        // 32 MiB cumulative budget.
+        let mut sig = vec![0x00, 100, Type::Void as u8];
+        for _ in 0..100 {
+            sig.push(Type::Class as u8);
+            encode_var_uint(typespec_coded_index_u32(1), &mut sig);
+        }
+
+        let method_defs = (0..100)
+            .map(|_| MethodDef {
+                flags: 0x6,
+                name: Some("M"),
+                signature: Some(&sig),
+                param_list: 0,
+            })
+            .collect();
+
+        let dotnet = Dotnet {
+            data: &blob_stream,
+            stream_headers: vec![StreamHeader {
+                offset: 0,
+                size: blob_stream.len() as u32,
+                name: b"#Blob",
+            }],
+            blob_stream: Some(0),
+            type_specs: vec![b0, b1],
+            type_defs: vec![TypeDef {
+                flags: 0x1,
+                name: Some("Amplifier"),
+                namespace: None,
+                extends: CodedIndex { table: Table::TypeDef, index: 1 },
+                method_list: 0,
+            }],
+            method_defs,
+            ..Default::default()
+        };
+
+        let classes: Vec<_> = dotnet.iter_user_types().collect();
+        assert_eq!(classes.len(), 1);
+        // Some methods succeed before the budget runs out, but not all 100.
+        assert!(!classes[0].methods.is_empty());
+        assert!(classes[0].methods.len() < 100);
+
+        let total_retained_bytes: usize = classes[0]
+            .methods
+            .iter()
+            .flat_map(|m| m.params.iter())
+            .filter_map(|p| p.type_.as_ref())
+            .map(|s| s.len())
+            .sum();
+        assert!(total_retained_bytes <= Dotnet::MAX_METHOD_SIG_BYTES);
     }
 }
