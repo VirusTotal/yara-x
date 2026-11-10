@@ -1,0 +1,5 @@
+error[E006]: unexpected negative number
+ --> line:6:24
+  |
+6 |     all of them within -1
+  |                        ^^ this number can not be negative

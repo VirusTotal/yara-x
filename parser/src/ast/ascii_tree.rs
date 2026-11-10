@@ -138,6 +138,10 @@ fn build_tree_for_expr(expr: &Expr, children: Vec<Tree>) -> Tree {
                         format!("{} at <expr>", s.identifier.name),
                         vec![Node("<expr>".to_string(), children)],
                     ),
+                    MatchAnchor::Within(_) => Node(
+                        format!("{} within <expr>", s.identifier.name),
+                        vec![Node("<expr>".to_string(), children)],
+                    ),
                     MatchAnchor::In(_) => {
                         let mut children_iter = children.into_iter();
                         Node(
@@ -255,6 +259,13 @@ fn build_tree_for_expr(expr: &Expr, children: Vec<Tree>) -> Tree {
                             vec![children_iter.next().unwrap()],
                         ));
                         "<quantifier> of <items> at <expr>".to_string()
+                    }
+                    MatchAnchor::Within(_) => {
+                        new_children.push(Node(
+                            "<expr>".to_string(),
+                            vec![children_iter.next().unwrap()],
+                        ));
+                        "<quantifier> of <items> within <expr>".to_string()
                     }
                     MatchAnchor::In(_) => {
                         new_children.push(Node(

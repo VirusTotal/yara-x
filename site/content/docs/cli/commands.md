@@ -317,6 +317,14 @@ Examples:
 
 Print the tags associated to matching rules.
 
+### --print-windows
+
+Print the ranges of the file where each rule matched when using
+`--sliding-window`. Windows that overlap or touch each other are merged into a
+single range, and offsets are relative to the start of the file. Nothing is
+printed for files that fit in a single window. In JSON and NDJSON output the
+ranges appear in a `windows` field. Requires `--sliding-window`.
+
 ### --relaxed-re-syntax
 
 Use a more relaxed syntax check while parsing regular expressions.
@@ -337,6 +345,33 @@ Indicate that `<TARGET_PATH>` is a file containing the paths to be scanned.
 
 `<TARGET_PATH>` must be a text file containing one path per line. The paths
 must be either absolute paths, or relative to the current directory.
+
+### --sliding-window \<BYTES\>
+
+Evaluates the rules in overlapping windows of the given size, instead of over
+the whole file. Requires `--window-overlap`.
+
+Each window is evaluated as if it were the whole file, so a rule only matches
+when all the patterns it needs are within one window. This avoids false
+positives in large inputs with many unrelated pieces of data, like memory
+dumps, where the patterns of a rule may appear far away from each other.
+
+Patterns are searched only once. In each window, offsets are relative to the
+window start, `filesize` is the window size, and functions like `uint16(0)`
+read from the window. Modules like `pe` still parse the whole file. Reported
+matches are those in the windows where the rule matched, with offsets relative
+to the start of the file. Files not larger than the window are scanned as usual.
+
+The rules are evaluated once per window, so very small windows make scans
+slower. Windows of 64KB or more add little to the scan time.
+
+Example: `--sliding-window 1048576 --window-overlap 65536`
+
+### --window-overlap \<BYTES\>
+
+Overlap between consecutive windows, in bytes. Any group of matches that spans
+at most this many bytes falls completely within some window, so it is always
+found. Must be smaller than `--sliding-window`.
 
 ### --skip-larger <FILE_SIZE>
 

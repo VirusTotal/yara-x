@@ -45,6 +45,7 @@ pub enum SyntaxKind {
     WIDE_KW,
     XOR_KW,
     WITH_KW,
+    WITHIN_KW,
 
     // Arithmetic operators
     ADD,
@@ -217,6 +218,7 @@ impl SyntaxKind {
             SyntaxKind::WIDE_KW => TokenId::WIDE_KW,
             SyntaxKind::XOR_KW => TokenId::XOR_KW,
             SyntaxKind::WITH_KW => TokenId::WITH_KW,
+            SyntaxKind::WITHIN_KW => TokenId::WITHIN_KW,
 
             SyntaxKind::ADD => TokenId::PLUS,
             SyntaxKind::SUB => TokenId::HYPHEN,
@@ -320,6 +322,7 @@ impl From<&Token> for SyntaxKind {
             Token::WIDE_KW(_) => SyntaxKind::WIDE_KW,
             Token::XOR_KW(_) => SyntaxKind::XOR_KW,
             Token::WITH_KW(_) => SyntaxKind::WITH_KW,
+            Token::WITHIN_KW(_) => SyntaxKind::WITHIN_KW,
 
             // Bitwise operators
             Token::SHL(_) => SyntaxKind::SHL,

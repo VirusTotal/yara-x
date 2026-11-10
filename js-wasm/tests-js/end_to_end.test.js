@@ -552,6 +552,86 @@ test("Scanner.setMaxMatchesPerPattern limits match details end to end", () => {
   assert.equal(limited.matches[0].patterns[0].matches.length, 1);
 });
 
+test("Scanner.setSlidingWindow requires patterns to be close", () => {
+  const compiler = new Compiler();
+  compiler.addSource(`
+    rule pair {
+      strings:
+        $a = "foo"
+        $b = "bar"
+      condition:
+        $a and $b
+    }
+  `);
+
+  const rules = compiler.build();
+  const scanner = new Scanner(rules);
+
+  // "foo" and "bar" are 9000 bytes apart.
+  const payload = new Uint8Array(10000);
+  payload.set(new TextEncoder().encode("foo"), 0);
+  payload.set(new TextEncoder().encode("bar"), 9000);
+
+  assert.equal(scanner.scan(payload).matches.length, 1);
+
+  assert.throws(() => scanner.setSlidingWindow(0, 0));
+  assert.throws(() => scanner.setSlidingWindow(100, 100), /smaller than the size/);
+
+  scanner.setSlidingWindow(1000, 100);
+  assert.equal(scanner.scan(payload).matches.length, 0);
+
+  // Now "bar" is close to "foo".
+  payload.set(new TextEncoder().encode("foo"), 8950);
+  const result = scanner.scan(payload);
+  assert.equal(result.matches.length, 1);
+  assert.deepEqual(
+    result.matches[0].patterns[0].matches.map((m) => m.offset),
+    [8950],
+  );
+  // Windows start every 900 bytes, the one starting at 8100 contains both
+  // 8950 and 9000.
+  assert.deepEqual(result.matches[0].matchingWindows, [
+    { start: 8100, end: 9100 },
+  ]);
+});
+
+test("Scanner.setSlidingWindow edge cases", () => {
+  const compiler = new Compiler();
+  compiler.addSource(`
+    rule pair {
+      strings:
+        $a = "foo"
+        $b = "bar"
+      condition:
+        $a and $b
+    }
+  `);
+  const rules = compiler.build();
+  const encode = (s) => new TextEncoder().encode(s);
+
+  // Without a sliding window, and when the data fits in one window, there
+  // is no matchingWindows field.
+  const plain = rules.scan(encode("foo bar"));
+  assert.equal(plain.matches.length, 1);
+  assert.equal("matchingWindows" in plain.matches[0], false);
+
+  const scanner = new Scanner(rules);
+  scanner.setSlidingWindow(1000, 100);
+  const small = scanner.scan(encode("foo bar"));
+  assert.equal(small.matches.length, 1);
+  assert.equal("matchingWindows" in small.matches[0], false);
+
+  // Changing the window between scans.
+  const payload = new Uint8Array(10000);
+  payload.set(encode("foo"), 5000);
+  payload.set(encode("bar"), 5050);
+  assert.deepEqual(scanner.scan(payload).matches[0].matchingWindows, [
+    { start: 4500, end: 5500 },
+  ]);
+  scanner.setSlidingWindow(40, 10);
+  assert.equal(scanner.scan(payload).matches.length, 0);
+});
+
 test("external globals can be defined and overridden per scanner", () => {
   const compiler = new Compiler();
   compiler.defineGlobal("ext_enabled", false);

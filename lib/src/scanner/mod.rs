@@ -95,6 +95,10 @@ pub enum ScanError {
         /// Error that occurred.
         err: ModuleError,
     },
+    /// A sliding window ([`Scanner::sliding_window`]) was set in a scanner
+    /// that is used for block scanning, where it is not supported.
+    #[error("sliding windows are not supported in block scanning mode")]
+    SlidingWindowInBlockMode,
 }
 
 /// Global counter that gets incremented every 1 second by a dedicated thread.
@@ -299,6 +303,105 @@ impl<'r> Scanner<'r> {
     /// but safer.
     pub fn use_mmap(&mut self, yes: bool) -> &mut Self {
         self.use_mmap = yes;
+        self
+    }
+
+    /// Evaluates the rules over overlapping windows of the scanned data,
+    /// instead of over the data as a whole.
+    ///
+    /// This is useful for large inputs that contain many unrelated pieces
+    /// of data, like full-system memory dumps. In those inputs the patterns
+    /// required by a rule may all appear, but far away from each other and
+    /// in unrelated places, which leads to false positives. With a sliding
+    /// window, a rule only matches when everything it needs is found within
+    /// a single window.
+    ///
+    /// Windows are `size` bytes long and consecutive windows overlap by
+    /// `overlap` bytes. Any group of matches that spans at most `overlap`
+    /// bytes falls completely within some window. Matches that are more than
+    /// `size` bytes apart are never seen together.
+    ///
+    /// The patterns are searched only once over the whole data. Then, for
+    /// each window, the rule conditions are evaluated as if the window were
+    /// the whole data:
+    ///
+    /// - Only the matches that are completely inside the window are visible,
+    ///   and their offsets (`@a`, `$a at 0`, `$a in (..)`) are relative to
+    ///   the start of the window.
+    /// - `filesize` is the size of the window.
+    /// - Functions that read the data, like `uint16(0)`, and module
+    ///   functions like `math.entropy` and `hash.md5`, read from the window.
+    ///
+    /// Modules like `pe` or `elf` still parse the data as a whole, once.
+    ///
+    /// A rule matches if it matched in at least one window. The matches
+    /// reported for each pattern of a rule are the ones found in the windows
+    /// where that rule matched (even when the same pattern is used by other
+    /// rules), and their offsets are relative to the start of the data. In this mode the patterns are always searched, so
+    /// a rule that matched without needing its patterns (e.g. `$a or true`)
+    /// still reports the matches of its patterns in those windows, unlike in
+    /// a regular scan. Fast scan mode ([`Scanner::fast_scan`]) is
+    /// ignored for the pattern search, because the first match of a pattern
+    /// may not be in the window that matters. The limit set with
+    /// [`Scanner::max_matches_per_pattern`] applies to the whole data, not
+    /// to each window.
+    ///
+    /// Data that is not larger than `size` is scanned as usual, as a single
+    /// window.
+    ///
+    /// The rule conditions are evaluated once per window, so the scan time
+    /// grows with the number of windows. Windows of 64KB or more add little
+    /// to the scan time, but very small windows (a few KB or less) can make
+    /// the scan many times slower.
+    ///
+    /// Sliding windows are not supported in block scanning mode: if this
+    /// scanner is converted into a [`blocks::Scanner`], scanning a block
+    /// returns [`ScanError::SlidingWindowInBlockMode`].
+    ///
+    /// # Panics
+    ///
+    /// If `size` is zero or `overlap` is not smaller than `size`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use yara_x;
+    /// let rules = yara_x::compile(r#"
+    /// rule test {
+    ///   strings:
+    ///     $a = "foo"
+    ///     $b = "bar"
+    ///   condition:
+    ///     $a and $b
+    /// }"#).unwrap();
+    ///
+    /// let mut data = vec![0_u8; 10_000];
+    /// data[0..3].copy_from_slice(b"foo");
+    /// data[9_000..9_003].copy_from_slice(b"bar");
+    ///
+    /// let mut scanner = yara_x::Scanner::new(&rules);
+    /// scanner.sliding_window(1_000, 100);
+    ///
+    /// // "foo" and "bar" are 9000 bytes apart, no window contains both.
+    /// let results = scanner.scan(data.as_slice()).unwrap();
+    /// assert_eq!(results.matching_rules().len(), 0);
+    ///
+    /// // Now "bar" is close to "foo".
+    /// data[50..53].copy_from_slice(b"bar");
+    /// let results = scanner.scan(data.as_slice()).unwrap();
+    /// assert_eq!(results.matching_rules().len(), 1);
+    /// ```
+    pub fn sliding_window(
+        &mut self,
+        size: usize,
+        overlap: usize,
+    ) -> &mut Self {
+        assert!(size > 0, "sliding window size must be greater than 0");
+        assert!(
+            overlap < size,
+            "sliding window overlap ({overlap}) must be smaller than the window size ({size})"
+        );
+        self.scan_context_mut().sliding_window = Some((size, overlap));
         self
     }
 
@@ -734,8 +837,15 @@ impl<'r> Scanner<'r> {
         ctx.set_pattern_search_done(false);
 
         // Evaluate the conditions of every rule, this will call
-        // `ScanContext::search_for_patterns` if necessary.
-        ctx.eval_conditions()?;
+        // `ScanContext::search_for_patterns` if necessary. In sliding window
+        // mode, data larger than one window is evaluated window by window.
+        let data_len = ctx.scanned_data().map_or(0, |data| data.len());
+        match ctx.sliding_window {
+            Some((size, _)) if data_len > size => {
+                ctx.eval_conditions_in_windows()?
+            }
+            _ => ctx.eval_conditions()?,
+        }
 
         let data = match ctx.scan_state.take() {
             ScanState::ScanningData(data) => data,
@@ -942,7 +1052,12 @@ impl<'a, 'r> Iterator for MatchingRules<'a, 'r> {
                 self.len_non_private -= 1;
             }
             if self.include_private || !rule_info.is_private {
-                return Some(Rule { ctx: Some(self.ctx), rule_info, rules });
+                return Some(Rule {
+                    ctx: Some(self.ctx),
+                    rules,
+                    rule_id,
+                    rule_info,
+                });
             }
         }
     }
@@ -1040,7 +1155,12 @@ impl<'a, 'r> Iterator for NonMatchingRules<'a, 'r> {
             }
 
             if self.include_private || !rule_info.is_private {
-                return Some(Rule { ctx: Some(self.ctx), rule_info, rules });
+                return Some(Rule {
+                    ctx: Some(self.ctx),
+                    rules,
+                    rule_id,
+                    rule_info,
+                });
             }
         }
     }

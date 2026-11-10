@@ -1368,6 +1368,36 @@ fn of_expr_from_ast<'src>(
         }
     }
 
+    // `within` limits the distance between the matches of different
+    // patterns. If the quantifier requires at most one pattern, it has no
+    // effect (e.g. `any of them within 100` is the same as `any of them`).
+    if let Some(anchor @ ast::MatchAnchor::Within(_)) = &of.anchor {
+        let const_value =
+            |expr: &ExprId| ctx.ir.get(*expr).type_value().try_as_const_i128();
+        let at_most_one = match &quantifier {
+            Quantifier::None | Quantifier::Any => true,
+            Quantifier::All => items.len() <= 1,
+            Quantifier::Expr(expr) => {
+                matches!(const_value(expr), Some(value) if value <= 1)
+            }
+            Quantifier::Percentage(expr) => matches!(
+                const_value(expr),
+                Some(percentage)
+                    if (items.len() as f64 * percentage as f64 / 100.0).ceil() <= 1.0
+            ),
+        };
+
+        if at_most_one {
+            ctx.warnings.add(|| {
+                warnings::RedundantWithin::build(
+                    ctx.report_builder,
+                    ctx.report_builder.span_to_code_loc(of.quantifier.span()),
+                    ctx.report_builder.span_to_code_loc(anchor.span()),
+                )
+            });
+        }
+    }
+
     let anchor = anchor_from_ast(ctx, &of.anchor)?;
 
     if !matches!(anchor, MatchAnchor::None)
@@ -1851,6 +1881,9 @@ fn anchor_from_ast<'src>(
         Some(ast::MatchAnchor::In(in_)) => {
             Ok(MatchAnchor::In(range_from_ast(ctx, &in_.range)?))
         }
+        Some(ast::MatchAnchor::Within(within)) => Ok(MatchAnchor::Within(
+            non_negative_integer_from_ast(ctx, &within.expr)?,
+        )),
         None => Ok(MatchAnchor::None),
     }
 }

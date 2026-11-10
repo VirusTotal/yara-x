@@ -3,6 +3,7 @@ package yara_x
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
@@ -210,6 +211,93 @@ func TestScannerMaxMatchesPerPattern(t *testing.T) {
 	matchingRules := scanResults.MatchingRules()
 
 	assert.Len(t, matchingRules, 1)
+}
+
+func TestScannerSlidingWindow(t *testing.T) {
+	r, _ := Compile(`
+    rule t {
+        strings:
+            $a = "foo"
+            $b = "bar"
+        condition:
+            $a and $b
+    }`)
+	s := NewScanner(r)
+
+	// "foo" and "bar" are 9000 bytes apart.
+	data := make([]byte, 10000)
+	copy(data[0:], "foo")
+	copy(data[9000:], "bar")
+
+	scanResults, _ := s.Scan(data)
+	assert.Len(t, scanResults.MatchingRules(), 1)
+
+	assert.Error(t, s.SlidingWindow(0, 0))
+	assert.Error(t, s.SlidingWindow(100, 100))
+	assert.Error(t, s.SlidingWindow(100, -1))
+	assert.NoError(t, s.SlidingWindow(1000, 100))
+
+	scanResults, _ = s.Scan(data)
+	assert.Len(t, scanResults.MatchingRules(), 0)
+
+	// Now "bar" is close to "foo". The reported offsets are relative to the
+	// start of the data, and only matches from the matching window are
+	// reported.
+	copy(data[8950:], "foo")
+	scanResults, _ = s.Scan(data)
+	matchingRules := scanResults.MatchingRules()
+	assert.Len(t, matchingRules, 1)
+	assert.Equal(t, uint64(8950), matchingRules[0].Patterns()[0].Matches()[0].Offset())
+	assert.Len(t, matchingRules[0].Patterns()[0].Matches(), 1)
+
+	// The window where the rule matched: windows start every 900 bytes, the
+	// one starting at 8100 contains both 8950 and 9000.
+	windows := matchingRules[0].MatchingWindows()
+	assert.Len(t, windows, 1)
+	assert.Equal(t, uint64(8100), windows[0].Start())
+	assert.Equal(t, uint64(9100), windows[0].End())
+}
+
+func TestScannerSlidingWindowEdgeCases(t *testing.T) {
+	r, _ := Compile(`
+    rule t {
+        strings:
+            $a = "foo"
+            $b = "bar"
+        condition:
+            $a and $b
+    }`)
+
+	data := make([]byte, 10000)
+	copy(data[5000:], "foo")
+	copy(data[5050:], "bar")
+
+	// Without a sliding window there are no matching windows.
+	s := NewScanner(r)
+	scanResults, _ := s.Scan(data)
+	assert.Len(t, scanResults.MatchingRules(), 1)
+	assert.Len(t, scanResults.MatchingRules()[0].MatchingWindows(), 0)
+
+	// Data that fits in one window is scanned as usual.
+	assert.NoError(t, s.SlidingWindow(1000, 100))
+	scanResults, _ = s.Scan([]byte("foo bar"))
+	assert.Len(t, scanResults.MatchingRules(), 1)
+	assert.Len(t, scanResults.MatchingRules()[0].MatchingWindows(), 0)
+
+	// Files.
+	path := filepath.Join(t.TempDir(), "data.bin")
+	assert.NoError(t, os.WriteFile(path, data, 0o600))
+	scanResults, err := s.ScanFile(path)
+	assert.NoError(t, err)
+	windows := scanResults.MatchingRules()[0].MatchingWindows()
+	assert.Len(t, windows, 1)
+	assert.Equal(t, uint64(4500), windows[0].Start())
+	assert.Equal(t, uint64(5500), windows[0].End())
+
+	// Changing the window between scans.
+	assert.NoError(t, s.SlidingWindow(40, 10))
+	scanResults, _ = s.Scan(data)
+	assert.Len(t, scanResults.MatchingRules(), 0)
 }
 
 func TestScannerGarbageCollected(t *testing.T) {

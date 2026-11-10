@@ -93,6 +93,7 @@ const YARA_OPERATORS = [
   "true",
   "wide",
   "with",
+  "within",
   "xor",
 ];
 

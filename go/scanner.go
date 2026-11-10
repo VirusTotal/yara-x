@@ -115,6 +115,43 @@ func (s *Scanner) MaxMatchesPerPattern(n int) {
 	runtime.KeepAlive(s)
 }
 
+// SlidingWindow makes the scanner evaluate the rules over overlapping
+// windows of the scanned data, instead of over the data as a whole.
+//
+// Windows are size bytes long and consecutive windows overlap by overlap
+// bytes. Each window is evaluated as if it were the whole data, so a rule
+// only matches when all the patterns it needs are within one window. This
+// avoids false positives in large inputs with many unrelated pieces of data,
+// like memory dumps. Any group of matches spanning at most overlap bytes
+// falls completely within some window.
+//
+// Patterns are searched once over the whole data. In each window, offsets
+// are relative to the window start, `filesize` is the window size, and
+// functions like `uint16(0)` read from the window. Reported matches are those
+// in the windows where the rule matched, with offsets relative to the start
+// of the data. Data not larger than size is scanned as usual.
+//
+// The rules are evaluated once per window, so very small windows make scans
+// slower. Windows of 64KB or more add little to the scan time.
+//
+// Returns an error if size is not greater than zero, or overlap is negative
+// or not smaller than size.
+func (s *Scanner) SlidingWindow(size, overlap int) error {
+	if size <= 0 {
+		return fmt.Errorf("sliding window size must be greater than 0, got %d", size)
+	}
+	if overlap < 0 || overlap >= size {
+		return fmt.Errorf(
+			"sliding window overlap (%d) must be non-negative and smaller than the size (%d)",
+			overlap, size)
+	}
+	if C.yrx_scanner_sliding_window(s.cScanner, C.size_t(size), C.size_t(overlap)) != C.YRX_SUCCESS {
+		return errors.New(C.GoString(C.yrx_last_error()))
+	}
+	runtime.KeepAlive(s)
+	return nil
+}
+
 var ErrTimeout = errors.New("timeout")
 
 // SetGlobal sets the value of a global variable.

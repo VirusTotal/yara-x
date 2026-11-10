@@ -4,9 +4,7 @@ use bstr::{BStr, BString, ByteSlice, Utf8Error};
 use std::rc::Rc;
 
 use crate::compiler::{LiteralId, LiteralSetId};
-use crate::scanner::{
-    RuntimeObject, RuntimeObjectHandle, ScanContext, ScanState,
-};
+use crate::scanner::{RuntimeObject, RuntimeObjectHandle, ScanContext};
 use crate::utils::cast;
 
 /// This trait is implemented by [RuntimeString], [FixedLenString], [Lowercase] and [Uppercase].
@@ -137,10 +135,12 @@ impl String for RuntimeString {
     /// In any other case it makes a copy of the string and return the
     /// [`RuntimeString::Rc`] variant.
     fn from_slice(ctx: &ScanContext, s: &[u8]) -> Self {
+        // `scanned_data` is used (instead of reading `scan_state` directly)
+        // so that offsets are relative to the same slice that `as_bstr`
+        // reads from, which is the current window in sliding window scans.
         if s.len() <= u16::MAX as usize
-            && let ScanState::ScanningData(data) = &ctx.scan_state
+            && let Some(data) = ctx.scanned_data()
         {
-            let data = data.as_ref();
             let data_start = data.as_ptr() as usize;
             let data_end = data_start + data.len();
 

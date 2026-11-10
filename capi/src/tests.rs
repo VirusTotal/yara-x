@@ -13,18 +13,19 @@ use crate::{
     YRX_BUFFER, YRX_MATCH, YRX_METADATA, YRX_METADATA_TYPE, YRX_PATTERN,
     YRX_RESULT, YRX_RULE, yrx_buffer_destroy, yrx_compile, yrx_last_error,
     yrx_pattern_identifier, yrx_pattern_iter_matches, yrx_rule_identifier,
-    yrx_rule_iter_metadata, yrx_rule_iter_patterns, yrx_rule_iter_tags,
-    yrx_rule_namespace, yrx_rules_count, yrx_rules_deserialize,
-    yrx_rules_destroy, yrx_rules_iter, yrx_rules_iter_imports,
-    yrx_rules_serialize, yrx_scanner_clear_profiling_data, yrx_scanner_create,
-    yrx_scanner_destroy, yrx_scanner_fast_scan, yrx_scanner_finish,
-    yrx_scanner_iter_slowest_rules, yrx_scanner_max_matches_per_pattern,
-    yrx_scanner_on_console_log, yrx_scanner_on_matching_rule,
-    yrx_scanner_scan, yrx_scanner_scan_block, yrx_scanner_scan_file,
-    yrx_scanner_set_global_bool, yrx_scanner_set_global_float,
-    yrx_scanner_set_global_int, yrx_scanner_set_global_json,
-    yrx_scanner_set_global_str, yrx_scanner_set_module_data,
-    yrx_scanner_set_module_output, yrx_scanner_set_timeout,
+    yrx_rule_iter_matching_windows, yrx_rule_iter_metadata,
+    yrx_rule_iter_patterns, yrx_rule_iter_tags, yrx_rule_namespace,
+    yrx_rules_count, yrx_rules_deserialize, yrx_rules_destroy, yrx_rules_iter,
+    yrx_rules_iter_imports, yrx_rules_serialize,
+    yrx_scanner_clear_profiling_data, yrx_scanner_create, yrx_scanner_destroy,
+    yrx_scanner_fast_scan, yrx_scanner_finish, yrx_scanner_iter_slowest_rules,
+    yrx_scanner_max_matches_per_pattern, yrx_scanner_on_console_log,
+    yrx_scanner_on_matching_rule, yrx_scanner_scan, yrx_scanner_scan_block,
+    yrx_scanner_scan_file, yrx_scanner_set_global_bool,
+    yrx_scanner_set_global_float, yrx_scanner_set_global_int,
+    yrx_scanner_set_global_json, yrx_scanner_set_global_str,
+    yrx_scanner_set_module_data, yrx_scanner_set_module_output,
+    yrx_scanner_set_timeout, yrx_scanner_sliding_window,
 };
 
 use std::ffi::{CStr, c_char, c_void};
@@ -605,6 +606,110 @@ fn capi_max_matches_per_pattern() {
     }
 }
 
+extern "C" fn on_window(start: usize, end: usize, user_data: *mut c_void) {
+    let windows = unsafe { &mut *(user_data as *mut Vec<(usize, usize)>) };
+    windows.push((start, end));
+}
+
+extern "C" fn on_rule_collect_windows(
+    rule: *const YRX_RULE,
+    user_data: *mut c_void,
+) {
+    unsafe {
+        assert_eq!(
+            yrx_rule_iter_matching_windows(rule, Some(on_window), user_data),
+            YRX_RESULT::YRX_SUCCESS
+        );
+    }
+}
+
+#[test]
+fn capi_sliding_window() {
+    unsafe {
+        let mut compiler = std::ptr::null_mut();
+        yrx_compiler_create(0, &mut compiler);
+
+        let src = c"rule test { strings: $a = \"foo\" $b = \"bar\" condition: $a and $b }";
+        yrx_compiler_add_source(compiler, src.as_ptr());
+
+        let rules = yrx_compiler_build(compiler);
+        yrx_compiler_destroy(compiler);
+
+        let mut scanner = std::ptr::null_mut();
+        yrx_scanner_create(rules, &mut scanner);
+
+        let mut matches = 0;
+        yrx_scanner_on_matching_rule(
+            scanner,
+            Some(on_rule_match_increase_counter),
+            &mut matches as *mut i32 as *mut c_void,
+        );
+
+        // "foo" and "bar" are 9000 bytes apart.
+        let mut data = vec![0_u8; 10_000];
+        data[0..3].copy_from_slice(b"foo");
+        data[9000..9003].copy_from_slice(b"bar");
+
+        // Invalid arguments are rejected, and the scanner is left unchanged.
+        assert_eq!(
+            yrx_scanner_sliding_window(scanner, 0, 0),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert!(!yrx_last_error().is_null());
+        assert_eq!(
+            yrx_scanner_sliding_window(scanner, 100, 100),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+
+        yrx_scanner_scan(scanner, data.as_ptr(), data.len());
+        assert_eq!(matches, 1);
+
+        assert_eq!(
+            yrx_scanner_sliding_window(scanner, 1000, 100),
+            YRX_RESULT::YRX_SUCCESS
+        );
+
+        matches = 0;
+        yrx_scanner_scan(scanner, data.as_ptr(), data.len());
+        assert_eq!(matches, 0);
+
+        // Now "bar" is close to "foo".
+        data[50..53].copy_from_slice(b"bar");
+        yrx_scanner_scan(scanner, data.as_ptr(), data.len());
+        assert_eq!(matches, 1);
+
+        // The windows where the rule matched can be iterated.
+        let mut windows: Vec<(usize, usize)> = Vec::new();
+        yrx_scanner_on_matching_rule(
+            scanner,
+            Some(on_rule_collect_windows),
+            &mut windows as *mut Vec<(usize, usize)> as *mut c_void,
+        );
+        yrx_scanner_scan(scanner, data.as_ptr(), data.len());
+        assert_eq!(windows, [(0, 1000)]);
+
+        // Block scanning fails with a sliding window.
+        assert_eq!(
+            yrx_scanner_scan_block(scanner, 0, data.as_ptr(), data.len()),
+            YRX_RESULT::YRX_SCAN_ERROR
+        );
+
+        yrx_scanner_destroy(scanner);
+
+        // A scanner already in block mode rejects the sliding window.
+        let mut scanner = std::ptr::null_mut();
+        yrx_scanner_create(rules, &mut scanner);
+        yrx_scanner_scan_block(scanner, 0, data.as_ptr(), data.len());
+        assert_eq!(
+            yrx_scanner_sliding_window(scanner, 1000, 100),
+            YRX_RESULT::YRX_INVALID_STATE
+        );
+
+        yrx_scanner_destroy(scanner);
+        yrx_rules_destroy(rules);
+    }
+}
+
 #[test]
 fn capi_null_args() {
     unsafe {
@@ -874,6 +979,26 @@ fn capi_null_args() {
         );
         assert_eq!(
             yrx_scanner_max_matches_per_pattern(std::ptr::null_mut(), 10),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert_eq!(
+            yrx_scanner_sliding_window(std::ptr::null_mut(), 10, 1),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert_eq!(
+            yrx_rule_iter_matching_windows(
+                std::ptr::null(),
+                Some(on_window),
+                std::ptr::null_mut()
+            ),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert_eq!(
+            yrx_rule_iter_matching_windows(
+                std::ptr::null(),
+                None,
+                std::ptr::null_mut()
+            ),
             YRX_RESULT::YRX_INVALID_ARGUMENT
         );
         assert_eq!(

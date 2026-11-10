@@ -264,6 +264,82 @@ def test_scanner_max_matches_per_pattern():
   assert len(matching_rules) == 1
 
 
+def test_scanner_sliding_window():
+  compiler = yara_x.Compiler()
+  compiler.add_source(
+      'rule test {strings: $a = "foo" $b = "bar" condition: $a and $b}')
+  scanner = yara_x.Scanner(compiler.build())
+
+  # "foo" and "bar" are 9000 bytes apart.
+  data = bytearray(10000)
+  data[0:3] = b'foo'
+  data[9000:9003] = b'bar'
+
+  assert len(scanner.scan(bytes(data)).matching_rules) == 1
+
+  with pytest.raises(ValueError):
+    scanner.sliding_window(0, 0)
+  with pytest.raises(ValueError):
+    scanner.sliding_window(100, 100)
+  with pytest.raises(OverflowError):
+    scanner.sliding_window(100, -1)
+
+  scanner.sliding_window(1000, 100)
+  assert len(scanner.scan(bytes(data)).matching_rules) == 0
+
+  # Now "bar" is close to "foo". Only matches from the matching window are
+  # reported, with offsets relative to the start of the data.
+  data[8950:8953] = b'foo'
+  matching_rules = scanner.scan(bytes(data)).matching_rules
+  assert len(matching_rules) == 1
+  matches = matching_rules[0].patterns[0].matches
+  assert [m.offset for m in matches] == [8950]
+
+  # Windows start every 900 bytes, the one starting at 8100 contains both
+  # 8950 and 9000.
+  assert matching_rules[0].matching_windows == ((8100, 9100),)
+
+
+def test_scanner_sliding_window_edge_cases(tmp_path):
+  compiler = yara_x.Compiler()
+  compiler.add_source(
+      'rule test {strings: $a = "foo" $b = "bar" condition: $a and $b}')
+  rules = compiler.build()
+
+  data = bytearray(10000)
+  data[5000:5003] = b'foo'
+  data[5050:5053] = b'bar'
+
+  # Without a sliding window there are no matching windows.
+  matching_rules = yara_x.Scanner(rules).scan(bytes(data)).matching_rules
+  assert matching_rules[0].matching_windows == ()
+
+  scanner = yara_x.Scanner(rules)
+  scanner.sliding_window(1000, 100)
+
+  # Data that fits in one window is scanned as usual.
+  matching_rules = scanner.scan(b'foo bar').matching_rules
+  assert len(matching_rules) == 1
+  assert matching_rules[0].matching_windows == ()
+
+  # Files, and the windows where the rule matched.
+  path = tmp_path / 'data.bin'
+  path.write_bytes(bytes(data))
+  matching_rules = scanner.scan_file(str(path)).matching_rules
+  assert len(matching_rules) == 1
+  assert matching_rules[0].matching_windows == ((4500, 5500),)
+
+  # Changing the window between scans.
+  scanner.sliding_window(40, 10)
+  assert len(scanner.scan(bytes(data)).matching_rules) == 0
+
+  # Non-integer and too large arguments.
+  with pytest.raises(TypeError):
+    scanner.sliding_window('1000', 100)
+  with pytest.raises(OverflowError):
+    scanner.sliding_window(2**64, 100)
+
+
 def test_scanner_fast_scan():
   compiler = yara_x.Compiler()
   compiler.add_source('rule test {strings: $a = "foo" condition: $a}')

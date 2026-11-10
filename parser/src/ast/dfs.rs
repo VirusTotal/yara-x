@@ -340,6 +340,12 @@ fn dfs_enter<'a>(
                             DFSContext::Anchor(expr),
                         )));
                     }
+                    MatchAnchor::Within(within) => {
+                        stack.push(DFSEvent::Enter((
+                            &within.expr,
+                            DFSContext::Anchor(expr),
+                        )));
+                    }
                     MatchAnchor::In(in_expr) => {
                         stack.push(DFSEvent::Enter((
                             &in_expr.range.upper_bound,
@@ -444,6 +450,12 @@ fn dfs_enter<'a>(
                     MatchAnchor::At(at) => {
                         stack.push(DFSEvent::Enter((
                             &at.expr,
+                            DFSContext::Anchor(expr),
+                        )));
+                    }
+                    MatchAnchor::Within(within) => {
+                        stack.push(DFSEvent::Enter((
+                            &within.expr,
                             DFSContext::Anchor(expr),
                         )));
                     }

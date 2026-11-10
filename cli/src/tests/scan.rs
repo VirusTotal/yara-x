@@ -800,3 +800,162 @@ fn issue_785() {
         "unexpected terminal output: {output:?}"
     );
 }
+
+#[test]
+fn sliding_window() {
+    let temp_dir = TempDir::new().unwrap();
+    let rules = temp_dir.child("rules.yar");
+    rules
+        .write_str(
+            r#"rule pair { strings: $a = "foo" $b = "bar" condition: $a and $b }"#,
+        )
+        .unwrap();
+
+    // "foo" and "bar" are far apart.
+    let mut data = vec![0_u8; 10_000];
+    data[0..3].copy_from_slice(b"foo");
+    data[9000..9003].copy_from_slice(b"bar");
+    let far = temp_dir.child("far.bin");
+    far.write_binary(&data).unwrap();
+
+    // Same, plus a "foo" close to "bar".
+    data[8950..8953].copy_from_slice(b"foo");
+    let near = temp_dir.child("near.bin");
+    near.write_binary(&data).unwrap();
+
+    // Without a sliding window, both files match.
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg(rules.path())
+        .arg(far.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("pair"));
+
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--sliding-window=1000")
+        .arg("--window-overlap=100")
+        .arg(rules.path())
+        .arg(far.path())
+        .assert()
+        .success()
+        .stdout("");
+
+    // Only the matches from the window where the rule matched are printed,
+    // with offsets from the start of the file.
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--print-strings")
+        .arg("--sliding-window=1000")
+        .arg("--window-overlap=100")
+        .arg(rules.path())
+        .arg(near.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("0x22f6:3:$a: foo"))
+        .stdout(predicate::str::contains("0x2328:3:$b: bar"))
+        .stdout(predicate::str::contains("0x0:3:$a").not());
+
+    // --print-windows shows the ranges where the rule matched.
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--print-windows")
+        .arg("--sliding-window=1000")
+        .arg("--window-overlap=100")
+        .arg(rules.path())
+        .arg(near.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("window 0x1fa4-0x238c"));
+
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--print-windows")
+        .arg("--output-format=ndjson")
+        .arg("--sliding-window=1000")
+        .arg("--window-overlap=100")
+        .arg(rules.path())
+        .arg(near.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            r#""windows":[{"start":8100,"end":9100}]"#,
+        ));
+
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--print-windows")
+        .arg("--output-format=json")
+        .arg("--sliding-window=1000")
+        .arg("--window-overlap=100")
+        .arg(rules.path())
+        .arg(near.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(r#""start": 8100"#))
+        .stdout(predicate::str::contains(r#""end": 9100"#));
+
+    // Without --print-windows the output has no windows.
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=ndjson")
+        .arg("--sliding-window=1000")
+        .arg("--window-overlap=100")
+        .arg(rules.path())
+        .arg(near.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("windows").not());
+
+    // Several files with several threads: each file gets its own result.
+    let dir = temp_dir.child("files");
+    dir.create_dir_all().unwrap();
+    dir.child("far.bin")
+        .write_binary(&std::fs::read(far.path()).unwrap())
+        .unwrap();
+    dir.child("near.bin").write_binary(&data).unwrap();
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--threads=2")
+        .arg("--count")
+        .arg("--sliding-window=1000")
+        .arg("--window-overlap=100")
+        .arg(rules.path())
+        .arg(dir.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("near.bin: 1"))
+        .stdout(predicate::str::contains("far.bin").not());
+
+    // --print-windows requires --sliding-window.
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--print-windows")
+        .arg(rules.path())
+        .arg(near.path())
+        .assert()
+        .failure();
+}
+
+#[test]
+fn sliding_window_invalid_args() {
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--sliding-window=1000")
+        .arg("--window-overlap=1000")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("must be smaller than"));
+
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--sliding-window=1000")
+        .arg("src/tests/testdata/foo.yar")
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--window-overlap"));
+}

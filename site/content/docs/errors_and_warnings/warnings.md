@@ -266,6 +266,24 @@ warning[redundant_modifier]: redundant case-insensitive modifier
   |
 ```
 
+## redundant_within {#redundant_within}
+
+A `within` anchor has no effect because the quantifier requires at most one
+pattern. `within` limits the distance between the matches of different
+patterns, so it only makes sense when two or more patterns must match. For
+instance, `any of them within 100` is the same as `any of them`.
+
+```text
+warning[redundant_within]: `within` has no effect
+ --> line:6:5
+  |
+6 |     any of them within 100
+  |     ---         ---------- so this has no effect
+  |     |
+  |     this requires at most one pattern
+  |
+```
+
 ## sign_conversion {#sign_conversion}
 
 An integer constant changes its value because it is implicitly converted from

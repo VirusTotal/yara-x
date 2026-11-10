@@ -229,6 +229,10 @@ pub(crate) struct EmitContext<'a> {
     /// Pool with regular expressions used in rule conditions.
     pub regex_pool: &'a mut StringPool<RegexId>,
 
+    /// Sets of pattern IDs used by `within` expressions, they end up in
+    /// [`crate::compiler::Rules`]. See [`emit_of_pattern_set_within`].
+    pub pattern_sets: &'a mut Vec<Vec<PatternId>>,
+
     /// Pool with literal strings used in the rules.
     pub lit_pool: &'a mut BStringPool<LiteralId>,
 
@@ -1324,6 +1328,10 @@ fn emit_pattern_match(
                 ctx.function_id(wasm::export__is_pat_match_in.mangled_name),
             );
         }
+        // The parser accepts `within` only in `of` expressions.
+        MatchAnchor::Within(_) => {
+            unreachable!("`within` anchor in a single pattern match")
+        }
     }
 }
 
@@ -1696,6 +1704,10 @@ fn emit_of_pattern_set(
     // of pattern IDs and the minimum number of patterns in that range that must
     // match. All remaining cases must be evaluated by emitting a loop.
     match (&of.quantifier, &of.items, &of.anchor) {
+        // `<quantifier> of <patterns> within <distance>`
+        (_, _, MatchAnchor::Within(distance)) => {
+            emit_of_pattern_set_within(ctx, ir, of, *distance, instr)
+        }
         // `any of them`
         (Quantifier::Any, _, MatchAnchor::None) => {
             if ranges.len() == 1 {
@@ -1824,6 +1836,59 @@ fn emit_of_pattern_set(
     }
 }
 
+/// Emits the code for `<quantifier> of <patterns> within <distance>`.
+///
+/// The expression is true if there's a group of matches whose starting
+/// offsets are at most `distance` bytes apart, and that contains matches of
+/// at least as many distinct patterns from the set as the quantifier requires.
+/// The whole check is done by the `pat_set_within` function, which receives
+/// the index of the pattern set in [`crate::compiler::Rules`], the quantifier
+/// and the distance.
+fn emit_of_pattern_set_within(
+    ctx: &mut EmitContext,
+    ir: &IR,
+    of: &OfPatternSet,
+    distance: ExprId,
+    instr: &mut InstrSeqBuilder,
+) {
+    let pattern_ids: Vec<PatternId> =
+        of.items.iter().map(|pattern| ctx.pattern_id(*pattern)).collect();
+
+    let set_index = ctx.pattern_sets.len();
+    ctx.pattern_sets.push(pattern_ids);
+
+    instr.i32_const(set_index.try_into().unwrap());
+
+    // Push the quantifier and a flag that tells if it is a percentage.
+    // `none of S within D` is evaluated as `not (any of S within D)`.
+    match &of.quantifier {
+        Quantifier::None | Quantifier::Any => {
+            instr.i64_const(1);
+            instr.i32_const(0);
+        }
+        Quantifier::All => {
+            instr.i64_const(of.items.len() as i64);
+            instr.i32_const(0);
+        }
+        Quantifier::Expr(expr) => {
+            emit_expr(ctx, ir, *expr, instr);
+            instr.i32_const(0);
+        }
+        Quantifier::Percentage(expr) => {
+            emit_expr(ctx, ir, *expr, instr);
+            instr.i32_const(1);
+        }
+    }
+
+    emit_expr(ctx, ir, distance, instr);
+
+    instr.call(ctx.function_id(wasm::export__pat_set_within.mangled_name));
+
+    if matches!(of.quantifier, Quantifier::None) {
+        instr.unop(UnaryOp::I32Eqz);
+    }
+}
+
 fn emit_of_pattern_set_with_loop(
     ctx: &mut EmitContext,
     ir: &IR,
@@ -1884,6 +1949,8 @@ fn emit_of_pattern_set_with_loop(
                         wasm::export__is_pat_match_in.mangled_name,
                     ));
                 }
+                // Handled by `emit_of_pattern_set_within`.
+                MatchAnchor::Within(_) => unreachable!(),
             }
         },
         // After each iteration.

@@ -60,6 +60,19 @@ impl<'r> InnerScanner<'r> {
         self
     }
 
+    /// Sets a sliding window. Returns `false` if the scanner is already in
+    /// block scanning mode, where sliding windows are not supported.
+    fn sliding_window(&mut self, size: usize, overlap: usize) -> bool {
+        match self {
+            InnerScanner::SingleBlock(s) => {
+                s.sliding_window(size, overlap);
+                true
+            }
+            InnerScanner::MultiBlock(_) => false,
+            InnerScanner::None => unreachable!(),
+        }
+    }
+
     fn make_multi_block(&mut self) -> &mut yara_x::blocks::Scanner<'r> {
         // Already a multi-block scanner, nothing else to do.
         if let Self::MultiBlock(s) = self {
@@ -221,6 +234,63 @@ pub unsafe extern "C" fn yrx_scanner_fast_scan(
     };
 
     scanner.inner.fast_scan(yes);
+
+    _yrx_set_last_error::<&str>(None);
+    YRX_RESULT::YRX_SUCCESS
+}
+
+/// Evaluates the rules over overlapping windows of the scanned data.
+///
+/// Windows are `size` bytes long and consecutive windows overlap by `overlap`
+/// bytes. Each window is evaluated as if it were the whole data, so a rule
+/// only matches when all the patterns it needs are within one window. This
+/// avoids false positives in large inputs with many unrelated pieces of data,
+/// like memory dumps. Any group of matches spanning at most `overlap` bytes
+/// falls completely within some window.
+///
+/// Patterns are searched once over the whole data. In each window, offsets
+/// are relative to the window start, `filesize` is the window size, and
+/// functions like `uint16(0)` read from the window. Reported matches are those
+/// in the windows where the rule matched, with offsets relative to the start
+/// of the data. Data not larger than `size` is scanned as usual.
+///
+/// Returns [`YRX_RESULT::YRX_INVALID_ARGUMENT`] if `size` is zero or
+/// `overlap` is not smaller than `size`, and [`YRX_RESULT::YRX_INVALID_STATE`]
+/// if the scanner was already used with [`yrx_scanner_scan_block`], as
+/// sliding windows are not supported in block scanning mode. Scanning blocks
+/// after setting a sliding window fails with [`YRX_RESULT::YRX_SCAN_ERROR`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn yrx_scanner_sliding_window(
+    scanner: *mut YRX_SCANNER,
+    size: usize,
+    overlap: usize,
+) -> YRX_RESULT {
+    let scanner = match scanner.as_mut() {
+        Some(s) => s,
+        None => {
+            _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+            return YRX_RESULT::YRX_INVALID_ARGUMENT;
+        }
+    };
+
+    if size == 0 {
+        _yrx_set_last_error(Some("`size` must be greater than 0"));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
+
+    if overlap >= size {
+        _yrx_set_last_error(Some(format!(
+            "`overlap` ({overlap}) must be smaller than `size` ({size})"
+        )));
+        return YRX_RESULT::YRX_INVALID_ARGUMENT;
+    }
+
+    if !scanner.inner.sliding_window(size, overlap) {
+        _yrx_set_last_error(Some(
+            "sliding windows are not supported in block scanning mode",
+        ));
+        return YRX_RESULT::YRX_INVALID_STATE;
+    }
 
     _yrx_set_last_error::<&str>(None);
     YRX_RESULT::YRX_SUCCESS

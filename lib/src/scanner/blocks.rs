@@ -133,6 +133,11 @@ impl<'r> Scanner<'r> {
         base: usize,
         data: &[u8],
     ) -> Result<&mut Self, ScanError> {
+        // A sliding window evaluates the conditions once per window over the
+        // whole data, which is not available when it arrives in blocks.
+        if self.scan_context_mut().sliding_window.is_some() {
+            return Err(ScanError::SlidingWindowInBlockMode);
+        }
         // Reset the scanner if needed. This is done before scanning the first
         // block after the scanner has been created, or when a previous scan
         // has finished and the scanner is going to be reused.

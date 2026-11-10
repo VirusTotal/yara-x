@@ -780,6 +780,42 @@ matches.
 
 ------
 
+### yrx_scanner_sliding_window
+
+```c
+enum YRX_RESULT yrx_scanner_sliding_window(
+    struct YRX_SCANNER *scanner,
+    size_t size,
+    size_t overlap);
+```
+
+Evaluates the rules over overlapping windows of the scanned data, instead of
+over the data as a whole.
+
+Windows are `size` bytes long and consecutive windows overlap by `overlap`
+bytes. Each window is evaluated as if it were the whole data, so a rule only
+matches when all the patterns it needs are within one window. This avoids
+false positives in large inputs with many unrelated pieces of data, like
+memory dumps. Any group of matches spanning at most `overlap` bytes falls
+completely within some window.
+
+Patterns are searched once over the whole data. In each window, offsets are
+relative to the window start, `filesize` is the window size, and functions
+like `uint16(0)` read from the window. Reported matches are those in the
+windows where the rule matched, with offsets relative to the start of the
+data. Data not larger than `size` is scanned as usual.
+
+The rules are evaluated once per window, so very small windows make scans
+slower. Windows of 64KB or more add little to the scan time.
+
+Returns `YRX_INVALID_ARGUMENT` if `size` is zero or `overlap` is not smaller
+than `size`, and `YRX_INVALID_STATE` if the scanner was already used with
+[yrx_scanner_scan_block](#yrx_scanner_scan_block), as sliding windows are not
+supported in block scanning mode. Scanning blocks after setting a sliding
+window fails with `YRX_SCAN_ERROR`.
+
+------
+
 ### yrx_scanner_set_global_xxxx
 
 ```c
@@ -1034,6 +1070,25 @@ enum YRX_RESULT yrx_rule_iter_tags(
 Iterates over the tags in a rule, calling the callback with a pointer to each
 tag. The `user_data` pointer can be used to provide additional context to your
 callback function. See `YRX_TAG_CALLBACK` for more details.
+
+------
+
+### yrx_rule_iter_matching_windows
+
+```c
+enum YRX_RESULT yrx_rule_iter_matching_windows(
+    const struct YRX_RULE *rule,
+    YRX_WINDOW_CALLBACK callback,
+    void *user_data);
+```
+
+Iterates over the ranges of the scanned data where a rule matched in a sliding
+window scan (see [yrx_scanner_sliding_window](#yrx_scanner_sliding_window)),
+calling the callback with the `start` (inclusive) and `end` (exclusive)
+offsets of each range. Windows that overlap or touch each other are merged
+into a single range. The callback is never called if the scan didn't use a
+sliding window, or if the data fit in a single window. The `user_data` pointer
+can be used to provide additional context to your callback function.
 
 ------
 

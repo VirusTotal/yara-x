@@ -1787,3 +1787,383 @@ fn non_matching_private_rules() {
         assert_eq!(n.count(), public.len());
     }
 }
+
+/// Scans `data` with a sliding window of 1000 bytes and 100 bytes of
+/// overlap, and returns the identifiers of the matching rules. Windows
+/// start at offsets 0, 900, 1800, ...
+fn sliding_window_scan(rules: &crate::Rules, data: &[u8]) -> Vec<String> {
+    let mut scanner = Scanner::new(rules);
+    scanner.sliding_window(1000, 100);
+    scanner
+        .scan(data)
+        .unwrap()
+        .matching_rules()
+        .map(|r| r.identifier().to_string())
+        .collect()
+}
+
+/// Returns `len` zero bytes with each `(offset, bytes)` written into them.
+fn data_with(len: usize, plants: &[(usize, &[u8])]) -> Vec<u8> {
+    let mut data = vec![0_u8; len];
+    for (offset, bytes) in plants {
+        data[*offset..*offset + bytes.len()].copy_from_slice(bytes);
+    }
+    data
+}
+
+#[test]
+fn sliding_window_far_patterns() {
+    let rules = crate::compile(
+        r#"rule test { strings: $a = "foo" $b = "bar" condition: $a and $b }"#,
+    )
+    .unwrap();
+
+    let data = data_with(10_000, &[(0, b"foo"), (9000, b"bar")]);
+
+    // A regular scan matches...
+    assert_eq!(
+        Scanner::new(&rules).scan(&data).unwrap().matching_rules().len(),
+        1
+    );
+    // ...but no window contains both patterns.
+    assert!(sliding_window_scan(&rules, &data).is_empty());
+}
+
+#[test]
+fn sliding_window_edges() {
+    let rules = crate::compile(
+        r#"rule test { strings: $a = "foo" $b = "bar" condition: $a and $b }"#,
+    )
+    .unwrap();
+
+    // The pair crosses the end of the first window (1000), but spans less
+    // than the overlap, so the second window (900..1900) contains both.
+    let data = data_with(10_000, &[(960, b"foo"), (1040, b"bar")]);
+    assert_eq!(sliding_window_scan(&rules, &data), ["test"]);
+
+    // This pair spans 203 bytes, more than the overlap, and crosses the end
+    // of the first window. No window contains both.
+    let data = data_with(10_000, &[(850, b"foo"), (1050, b"bar")]);
+    assert!(sliding_window_scan(&rules, &data).is_empty());
+
+    // A match that is cut by the end of a window is not visible in that
+    // window, but it is in the next one.
+    let rules = crate::compile(
+        r#"rule test { strings: $a = "foobar" condition: $a at 98 }"#,
+    )
+    .unwrap();
+    let data = data_with(10_000, &[(998, b"foobar")]);
+    assert_eq!(sliding_window_scan(&rules, &data), ["test"]);
+}
+
+#[test]
+fn sliding_window_offsets_are_relative() {
+    // `$a at 0` uses the anchored pattern optimization.
+    let rules = crate::compile(
+        r#"
+        rule at_zero { strings: $a = "foo" condition: $a at 0 }
+        rule at_five { strings: $a = "foo" condition: @a[1] == 5 }
+        rule in_range { strings: $a = "foo" condition: $a in (0..10) }
+        "#,
+    )
+    .unwrap();
+
+    // 900 is the start of the second window.
+    let data = data_with(10_000, &[(900, b"foo")]);
+    assert_eq!(sliding_window_scan(&rules, &data), ["at_zero", "in_range"]);
+
+    let data = data_with(10_000, &[(905, b"foo")]);
+    assert_eq!(sliding_window_scan(&rules, &data), ["at_five", "in_range"]);
+
+    let data = data_with(10_000, &[(950, b"foo")]);
+    assert!(sliding_window_scan(&rules, &data).is_empty());
+}
+
+#[test]
+fn sliding_window_filesize_and_data() {
+    let rules = crate::compile(
+        r#"
+        rule full_window { condition: filesize == 1000 }
+        rule last_window { condition: filesize == 500 }
+        rule whole_data { condition: filesize == 9500 }
+        // The compiler uses the `filesize` and `uint16(0)` checks to skip
+        // searching for regex patterns in files that can't match.
+        rule small_with_pattern {
+          strings: $a = /fo+x/
+          condition: $a and filesize < 2000
+        }
+        rule mz_header {
+          strings: $a = /fo+x/
+          condition: uint16(0) == 0x5A4D and $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    // Windows start at 0, 900, ..., 8100, 9000. The last one is 500 bytes.
+    let data = data_with(9500, &[]);
+    assert_eq!(
+        sliding_window_scan(&rules, &data),
+        ["full_window", "last_window"]
+    );
+
+    // `filesize < 2000` is true in every window, even if the whole data is
+    // larger, so the pattern must not be discarded before the search.
+    let data = data_with(9500, &[(5000, b"foox")]);
+    assert_eq!(
+        sliding_window_scan(&rules, &data),
+        ["full_window", "last_window", "small_with_pattern"]
+    );
+
+    // `uint16(0)` reads the first bytes of each window. 1800 is the start
+    // of the third window.
+    let data = data_with(9500, &[(1800, b"MZ"), (1850, b"foox")]);
+    assert!(
+        sliding_window_scan(&rules, &data).contains(&"mz_header".to_string())
+    );
+
+    let data = data_with(9500, &[(1801, b"MZ"), (1850, b"foox")]);
+    assert!(
+        !sliding_window_scan(&rules, &data).contains(&"mz_header".to_string())
+    );
+}
+
+#[test]
+fn sliding_window_counts() {
+    let rules = crate::compile(
+        r#"
+        rule three { strings: $a = "foo" condition: #a == 3 }
+        rule five { strings: $a = "foo" condition: #a == 5 }
+        "#,
+    )
+    .unwrap();
+
+    let data = data_with(
+        10_000,
+        &[
+            (100, b"foo"),
+            (200, b"foo"),
+            (300, b"foo"),
+            (5000, b"foo"),
+            (5100, b"foo"),
+        ],
+    );
+    assert_eq!(sliding_window_scan(&rules, &data), ["three"]);
+}
+
+#[test]
+fn sliding_window_reported_matches() {
+    let rules = crate::compile(
+        r#"rule test { strings: $a = "foo" $b = "bar" condition: $a and $b }"#,
+    )
+    .unwrap();
+
+    let data =
+        data_with(10_000, &[(10, b"foo"), (5000, b"foo"), (5050, b"bar")]);
+
+    let mut scanner = Scanner::new(&rules);
+    scanner.sliding_window(1000, 100);
+    let results = scanner.scan(&data).unwrap();
+    let rule = results.matching_rules().next().unwrap();
+
+    // Only matches in the windows where the rule matched are reported, with
+    // offsets relative to the start of the data. The match at 10 isn't.
+    let offsets: Vec<(String, Vec<usize>)> = rule
+        .patterns()
+        .map(|p| {
+            (
+                p.identifier().to_string(),
+                p.matches().map(|m| m.range().start).collect(),
+            )
+        })
+        .collect();
+
+    assert_eq!(
+        offsets,
+        [("$a".to_string(), vec![5000]), ("$b".to_string(), vec![5050])]
+    );
+
+    let m = rule.patterns().next().unwrap().matches().next().unwrap();
+    assert_eq!(m.data(), b"foo");
+}
+
+#[test]
+fn sliding_window_global_and_private_rules() {
+    let rules = crate::compile(
+        r#"
+        global rule g { condition: filesize == 1000 }
+        private rule p { strings: $a = "foo" condition: $a }
+        rule r { condition: p }
+        rule other { condition: false }
+        "#,
+    )
+    .unwrap();
+
+    // "foo" at 9200 is only in the last window (9000..9500), which is 500
+    // bytes, so the global rule fails there.
+    let data = data_with(9500, &[(9200, b"foo")]);
+    let mut scanner = Scanner::new(&rules);
+    scanner.sliding_window(1000, 100);
+    let results = scanner.scan(&data).unwrap();
+    let matching: Vec<_> =
+        results.matching_rules().map(|r| r.identifier()).collect();
+    assert_eq!(matching, ["g"]);
+
+    let data = data_with(9500, &[(100, b"foo")]);
+    let results = scanner.scan(&data).unwrap();
+    let matching: Vec<_> =
+        results.matching_rules().map(|r| r.identifier()).collect();
+    assert_eq!(matching, ["g", "r"]);
+    assert_eq!(results.matching_rules().include_private(true).len(), 3);
+    let non_matching: Vec<_> = results
+        .non_matching_rules()
+        .include_private(true)
+        .map(|r| r.identifier())
+        .collect();
+    assert_eq!(non_matching, ["other"]);
+}
+
+#[test]
+fn sliding_window_rescan_and_small_data() {
+    let rules = crate::compile(
+        r#"
+        rule test { strings: $a = "foo" $b = "bar" condition: $a and $b }
+        rule size { condition: filesize == 500 }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    scanner.sliding_window(1000, 100);
+
+    let data = data_with(10_000, &[(5000, b"foo"), (5050, b"bar")]);
+    assert_eq!(scanner.scan(&data).unwrap().matching_rules().len(), 1);
+
+    // A following scan doesn't see anything from the previous one.
+    let data = data_with(10_000, &[(5000, b"foo")]);
+    let results = scanner.scan(&data).unwrap();
+    assert_eq!(results.matching_rules().len(), 0);
+    assert_eq!(results.non_matching_rules().len(), 2);
+
+    // Data that fits in one window is scanned as a whole.
+    let data = data_with(500, &[(0, b"foo"), (400, b"bar")]);
+    let matching: Vec<_> = scanner
+        .scan(&data)
+        .unwrap()
+        .matching_rules()
+        .map(|r| r.identifier().to_string())
+        .collect();
+    assert_eq!(matching, ["test", "size"]);
+}
+
+#[test]
+fn sliding_window_fast_scan() {
+    let rules = crate::compile(
+        r#"rule test { strings: $a = "foo" $b = "bar" condition: $a and $b }"#,
+    )
+    .unwrap();
+
+    // In fast scan mode only the first match of "foo" would be collected,
+    // and it is not in the window where "bar" is.
+    let data =
+        data_with(10_000, &[(0, b"foo"), (5000, b"foo"), (5050, b"bar")]);
+    let mut scanner = Scanner::new(&rules);
+    scanner.fast_scan(true).sliding_window(1000, 100);
+    assert_eq!(scanner.scan(&data).unwrap().matching_rules().len(), 1);
+}
+
+#[test]
+#[should_panic(expected = "must be smaller than the window size")]
+fn sliding_window_invalid_overlap() {
+    let rules = crate::compile("rule test { condition: true }").unwrap();
+    Scanner::new(&rules).sliding_window(100, 100);
+}
+
+#[test]
+#[should_panic(expected = "must be greater than 0")]
+fn sliding_window_zero_size() {
+    let rules = crate::compile("rule test { condition: true }").unwrap();
+    Scanner::new(&rules).sliding_window(0, 0);
+}
+
+#[test]
+fn sliding_window_not_in_block_mode() {
+    let rules = crate::compile("rule test { condition: true }").unwrap();
+    let mut scanner = Scanner::new(&rules);
+    scanner.sliding_window(1000, 100);
+    let mut scanner: crate::blocks::Scanner = scanner.into();
+    assert!(matches!(
+        scanner.scan(0, b"foo"),
+        Err(crate::ScanError::SlidingWindowInBlockMode)
+    ));
+}
+
+/// Returns the matching windows of a rule as `(start, end)` pairs.
+fn window_pairs(rule: &Rule) -> Vec<(usize, usize)> {
+    rule.matching_windows().iter().map(|w| (w.start, w.end)).collect()
+}
+
+#[test]
+fn sliding_window_matching_windows() {
+    let rules = crate::compile(
+        r#"
+        rule pair { strings: $a = "foo" $b = "bar" condition: $a and $b }
+        rule always { condition: filesize > 0 }
+        rule never { condition: false }
+        "#,
+    )
+    .unwrap();
+
+    // Windows start at 0, 900, 1800, ..., 9000.
+    let data = data_with(
+        10_000,
+        &[(1000, b"foo"), (1050, b"bar"), (5000, b"foo"), (5020, b"bar")],
+    );
+
+    let mut scanner = Scanner::new(&rules);
+    scanner.sliding_window(1000, 100);
+    let results = scanner.scan(&data).unwrap();
+
+    let windows: Vec<(String, Vec<(usize, usize)>)> = results
+        .matching_rules()
+        .map(|r| (r.identifier().to_string(), window_pairs(&r)))
+        .collect();
+
+    assert_eq!(
+        windows,
+        [
+            // Only the window starting at 900 contains both 1000 and 1050,
+            // and only the one starting at 4500 contains 5000 and 5020.
+            ("pair".to_string(), vec![(900, 1900), (4500, 5500)]),
+            // Matches in every window, which are merged into one range.
+            ("always".to_string(), vec![(0, 10_000)]),
+        ]
+    );
+
+    for rule in results.non_matching_rules() {
+        assert!(rule.matching_windows().is_empty());
+    }
+
+    // Without a sliding window, or when the data fits in one window, there
+    // are no windows to report.
+    let mut plain_scanner = Scanner::new(&rules);
+    let results = plain_scanner.scan(&data).unwrap();
+    assert!(results.matching_rules().all(|r| r.matching_windows().is_empty()));
+
+    let mut scanner = Scanner::new(&rules);
+    scanner.sliding_window(1000, 100);
+    let small = data_with(500, &[(0, b"foo"), (10, b"bar")]);
+    let results = scanner.scan(&small).unwrap();
+    assert_eq!(results.matching_rules().len(), 2);
+    assert!(results.matching_rules().all(|r| r.matching_windows().is_empty()));
+
+    // A following scan doesn't keep windows from the previous one.
+    let empty = data_with(10_000, &[]);
+    let results = scanner.scan(&empty).unwrap();
+    let always = results.matching_rules().next().unwrap();
+    assert_eq!(window_pairs(&always), [(0, 10_000)]);
+    assert_eq!(results.matching_rules().len(), 1);
+
+    // Rules iterated from `Rules` have no scan, and no windows.
+    assert!(rules.iter().all(|r| r.matching_windows().is_empty()));
+}

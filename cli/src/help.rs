@@ -191,6 +191,36 @@ pub const THREADS_LONG_HELP: &str = r#"Use the specified number of threads
 
 The default value is automatically determined based on the number of CPU cores."#;
 
+pub const SLIDING_WINDOW_LONG_HELP: &str = r#"Evaluate rules in overlapping windows of the given size
+
+Each window is evaluated as if it were the whole file, so a rule only matches
+when all the patterns it needs are within one window. This avoids false
+positives in large inputs with many unrelated pieces of data, like memory
+dumps, where the patterns of a rule may appear far away from each other.
+
+Patterns are searched only once. In each window, offsets are relative to the
+window start, `filesize` is the window size, and functions like `uint16(0)`
+read from the window. Modules like `pe` still parse the whole file. Reported
+matches are those in the windows where the rule matched, with offsets relative
+to the start of the file. Files not larger than the window are scanned as usual.
+
+The rules are evaluated once per window, so very small windows make scans
+slower. Windows of 64KB or more add little to the scan time.
+
+Requires --window-overlap. Example: --sliding-window 1048576 --window-overlap 65536"#;
+
+pub const PRINT_WINDOWS_LONG_HELP: &str = r#"Print the windows where each rule matched (requires --sliding-window)
+
+For each matching rule, prints the ranges of the file covered by the windows
+where the rule matched. Windows that overlap or touch each other are merged
+into a single range. Offsets are relative to the start of the file. Nothing is
+printed for files that fit in a single window."#;
+
+pub const WINDOW_OVERLAP_LONG_HELP: &str = r#"Overlap between consecutive windows, in bytes
+
+Any group of matches that spans at most this many bytes falls completely within
+some window, so it is always found. Must be smaller than --sliding-window."#;
+
 pub const SCAN_LIST_LONG_HELP: &str = r#"Indicate that TARGET_PATH is a file containing the paths to be scanned
 
 <TARGET_PATH> must be a text file containing one path per line, or `-` to read

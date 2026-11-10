@@ -98,6 +98,10 @@ pub fn scan() -> Command {
                 .default_missing_value("120")
                 .require_equals(true)
                 .value_parser(value_parser!(usize)),
+            arg!(--"print-windows")
+                .help("Print the windows where each rule matched (requires --sliding-window)")
+                .long_help(help::PRINT_WINDOWS_LONG_HELP)
+                .requires("sliding-window"),
             arg!(-g --"print-tags")
                 .help("Print rule tags"),
             arg!(--"profiling")
@@ -111,6 +115,16 @@ pub fn scan() -> Command {
             arg!(--"scan-list")
                 .help("Indicate that TARGET_PATH is a file containing the paths to be scanned")
                 .long_help(help::SCAN_LIST_LONG_HELP),
+            arg!(--"sliding-window" <BYTES>)
+                .help("Evaluate rules in overlapping windows of the given size")
+                .long_help(help::SLIDING_WINDOW_LONG_HELP)
+                .requires("window-overlap")
+                .value_parser(value_parser!(u64).range(1..)),
+            arg!(--"window-overlap" <BYTES>)
+                .help("Overlap between consecutive windows (requires --sliding-window)")
+                .long_help(help::WINDOW_OVERLAP_LONG_HELP)
+                .requires("sliding-window")
+                .value_parser(value_parser!(u64)),
             arg!(-z --"skip-larger" <FILE_SIZE>)
                 .help("Skip files larger than the given size")
                 .value_parser(value_parser!(u64)),
@@ -156,6 +170,7 @@ struct OutputOptions {
     include_meta: bool,
     include_tags: bool,
     include_strings: Option<usize>,
+    include_windows: bool,
 }
 
 impl From<&ArgMatches> for OutputOptions {
@@ -166,6 +181,7 @@ impl From<&ArgMatches> for OutputOptions {
             include_meta: args.get_flag("print-meta"),
             include_tags: args.get_flag("print-tags"),
             include_strings: args.get_one::<usize>("print-strings").cloned(),
+            include_windows: args.get_flag("print-windows"),
         }
     }
 }
@@ -190,6 +206,14 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let only_tag = args.get_one::<String>("tag");
     let max_matches_per_pattern =
         args.get_one::<usize>("max-matches-per-pattern");
+    let sliding_window = args.get_one::<u64>("sliding-window").map(|size| {
+        // `requires` guarantees that --window-overlap is present.
+        let overlap = *args.get_one::<u64>("window-overlap").unwrap();
+        (
+            usize::try_from(*size).unwrap_or(usize::MAX),
+            usize::try_from(overlap).unwrap_or(usize::MAX),
+        )
+    });
 
     let timeout =
         args.get_one::<u64>("timeout").map(|t| Duration::from_secs(*t));
@@ -208,6 +232,18 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
             "{} requires that YARA-X is built with profiling support.\n\nUse {}.",
             Paint::bold("--profiling"),
             Paint::cyan("`cargo build --release --features=rules-profiling`")
+        );
+    }
+
+    if let Some((size, overlap)) = sliding_window
+        && overlap >= size
+    {
+        bail!(
+            "'{}' ({}) must be smaller than '{}' ({})",
+            Paint::bold("--window-overlap"),
+            overlap,
+            Paint::bold("--sliding-window"),
+            size
         );
     }
 
@@ -328,6 +364,10 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
 
             if let Some(max_matches_per_pattern) = max_matches_per_pattern {
                 scanner.max_matches_per_pattern(*max_matches_per_pattern);
+            }
+
+            if let Some((size, overlap)) = sliding_window {
+                scanner.sliding_window(size, overlap);
             }
 
             scanner
@@ -615,6 +655,23 @@ mod output_handler {
         tags: Option<Vec<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         strings: Option<Vec<PatternJson>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        windows: Option<Vec<WindowJson>>,
+    }
+
+    /// A range of the scanned data where a rule matched in a sliding window
+    /// scan.
+    #[derive(serde::Serialize, Clone)]
+    pub(super) struct WindowJson {
+        pub(super) start: usize,
+        pub(super) end: usize,
+    }
+
+    pub(super) fn windows_to_json(rule: &Rule) -> Vec<WindowJson> {
+        rule.matching_windows()
+            .iter()
+            .map(|w| WindowJson { start: w.start, end: w.end })
+            .collect()
     }
 
     #[derive(serde::Serialize)]
@@ -650,6 +707,9 @@ mod output_handler {
                 strings: output_options
                     .include_strings
                     .map(|limit| patterns_to_json(rule.patterns(), limit)),
+                windows: output_options
+                    .include_windows
+                    .then(|| windows_to_json(&rule)),
             })
             .collect()
     }
@@ -818,6 +878,15 @@ mod output_handler {
 
                 msg.push(' ');
                 msg.push_str(&file_path.display().to_string());
+
+                if self.output_options.include_windows {
+                    for window in matching_rule.matching_windows() {
+                        msg.push_str(&format!(
+                            "\nwindow {:#x}-{:#x}",
+                            window.start, window.end
+                        ));
+                    }
+                }
 
                 if let Some(limit) = self.output_options.include_strings {
                     for p in matching_rule.patterns() {
@@ -988,6 +1057,8 @@ mod output_handler {
         tags: Option<Vec<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         strings: Option<Vec<StringJson>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        windows: Option<Vec<WindowJson>>,
     }
 
     #[derive(serde::Serialize)]
@@ -1123,12 +1194,18 @@ mod output_handler {
                         )
                     });
 
+                let windows = self
+                    .output_options
+                    .include_windows
+                    .then(|| windows_to_json(&rule));
+
                 MatchJson {
                     rule: rule.identifier().to_string(),
                     meta,
                     file,
                     tags,
                     strings,
+                    windows,
                 }
             });
 

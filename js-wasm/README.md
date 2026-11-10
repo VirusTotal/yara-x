@@ -59,6 +59,7 @@ The `Scanner` provides fine-grained control over scanning operations.
 - `scan(payload: Uint8Array): ScanResult`: Scans the payload.
 - `setGlobal(identifier: string, value: any)`: Overrides values defined by `compiler.defineGlobal()`.
 - `setMaxMatchesPerPattern(n: number)`: Limits reporting to first `n` matches per pattern.
+- `setSlidingWindow(size: number, overlap: number)`: Evaluates the rules over overlapping windows of `size` bytes that overlap by `overlap` bytes, so a rule only matches when all the patterns it needs are within one window. Useful for large inputs like memory dumps. Very small windows make scans slower; windows of 64KB or more add little to the scan time. Throws if `size` is zero or `overlap` is not smaller than `size`.
 - `setTimeoutMs(timeout_ms: number)`: Sets a hard timeout for scanning.
 
 ---
@@ -95,6 +96,12 @@ The `.scan(...)` methods return an object detailing matches and diagnostics:
   "warnings": []
 }
 ```
+
+When the scanner uses a sliding window (`setSlidingWindow`), each rule also has
+a `matchingWindows` array with the ranges of the data where the rule matched,
+like `[{ "start": 8100, "end": 9100 }]`. Windows that overlap or touch each
+other are merged into a single range. The field is omitted when it would be
+empty.
 
 ---
 

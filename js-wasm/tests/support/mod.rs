@@ -35,6 +35,14 @@ pub(crate) struct RuleMatch {
     pub(crate) tags: Vec<String>,
     pub(crate) metadata: Vec<MetadataEntry>,
     pub(crate) patterns: Vec<PatternMatchResult>,
+    #[serde(default)]
+    pub(crate) matching_windows: Vec<WindowRange>,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub(crate) struct WindowRange {
+    pub(crate) start: usize,
+    pub(crate) end: usize,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]

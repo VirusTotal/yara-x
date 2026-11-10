@@ -1092,6 +1092,39 @@ impl Scanner {
         self.inner.max_matches_per_pattern(matches);
     }
 
+    /// Evaluates the rules over overlapping windows of the scanned data,
+    /// instead of over the data as a whole.
+    ///
+    /// Windows are `size` bytes long and consecutive windows overlap by
+    /// `overlap` bytes. Each window is evaluated as if it were the whole data,
+    /// so a rule only matches when all the patterns it needs are within one
+    /// window. This avoids false positives in large inputs with many unrelated
+    /// pieces of data, like memory dumps. Any group of matches spanning at most
+    /// `overlap` bytes falls completely within some window.
+    ///
+    /// Patterns are searched once over the whole data. In each window, offsets
+    /// are relative to the window start, `filesize` is the window size, and
+    /// functions like `uint16(0)` read from the window. Reported matches are
+    /// those in the windows where the rule matched, with offsets relative to
+    /// the start of the data. Data not larger than `size` is scanned as usual.
+    ///
+    /// Raises `ValueError` if `size` is zero or `overlap` is not smaller than
+    /// `size`.
+    fn sliding_window(&mut self, size: usize, overlap: usize) -> PyResult<()> {
+        if size == 0 {
+            return Err(PyValueError::new_err(
+                "sliding window size must be greater than 0",
+            ));
+        }
+        if overlap >= size {
+            return Err(PyValueError::new_err(format!(
+                "sliding window overlap ({overlap}) must be smaller than the size ({size})"
+            )));
+        }
+        self.inner.sliding_window(size, overlap);
+        Ok(())
+    }
+
     /// Enables or disables fast scan mode.
     ///
     /// In fast scan mode, the scanner avoids tracking matches for patterns when
@@ -1247,6 +1280,7 @@ struct Rule {
     tags: Py<PyTuple>,
     metadata: Py<PyTuple>,
     patterns: Py<PyTuple>,
+    matching_windows: Py<PyTuple>,
 }
 
 #[pymethods]
@@ -1280,6 +1314,19 @@ impl Rule {
     #[getter]
     fn patterns(&self) -> Py<PyTuple> {
         Python::attach(|py| self.patterns.clone_ref(py))
+    }
+
+    /// Ranges of the scanned data where the rule matched in a sliding window
+    /// scan, as `(start, end)` tuples (see [`Scanner::sliding_window`]).
+    ///
+    /// Each range covers one or more consecutive windows where the rule
+    /// matched. Windows that overlap or touch each other are merged into a
+    /// single range. `start` is inclusive and `end` is exclusive. The tuple is
+    /// empty if the scan didn't use a sliding window, or if the data fit in a
+    /// single window.
+    #[getter]
+    fn matching_windows(&self) -> Py<PyTuple> {
+        Python::attach(|py| self.matching_windows.clone_ref(py))
     }
 }
 
@@ -1488,6 +1535,13 @@ fn rule_to_py(py: Python, rule: yrx::Rule) -> PyResult<Py<Rule>> {
                 rule.patterns()
                     .map(|pattern| pattern_to_py(py, pattern))
                     .collect::<Result<Vec<_>, _>>()?,
+            )?
+            .unbind(),
+            matching_windows: PyTuple::new(
+                py,
+                rule.matching_windows()
+                    .iter()
+                    .map(|window| (window.start, window.end)),
             )?
             .unbind(),
         },
