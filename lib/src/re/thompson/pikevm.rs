@@ -569,9 +569,9 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                     // Going forward, no previous byte and current byte is \n,
                     // this is a match.
                     (false, None, Some(b'\n')) => true,
-                    // Going forward, no previous byte and current byte is \t,
+                    // Going forward, no previous byte and current byte is \r,
                     // this is a match.
-                    (false, None, Some(b'\t')) => true,
+                    (false, None, Some(b'\r')) => true,
                     // Going forward, current byte is \n, this is a match if
                     // the previous byte is not \r.
                     (false, Some(prev_byte), Some(b'\n')) => {
@@ -585,6 +585,12 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                     // Going backward, no previous byte, we are at the end of
                     // the data, this is a match.
                     (true, None, _) => true,
+                    // Going backward, no current byte and previous byte is \n,
+                    // this is a match.
+                    (true, Some(b'\n'), None) => true,
+                    // Going backward, no current byte and previous byte is \r,
+                    // this is a match.
+                    (true, Some(b'\r'), None) => true,
                     // Going backward, previous byte is \n, this is a match if
                     // the current byte is not \r.
                     (true, Some(b'\n'), Some(curr_byte)) => {

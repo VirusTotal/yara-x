@@ -2124,6 +2124,28 @@ fn regexp_patterns_4() {
     pattern_false!(r#"/(?m)xyz$abcd/"#, b"xyzabcd");
     pattern_match!(r#"/(?ms)xyz$.abcd/"#, b"xyz\nabcd", b"xyz\nabcd");
 
+    pattern_false!(r#"/(?m)$(?:\t|\n)abcd/"#, b"\tabcd");
+    pattern_false!(r#"/(?ms)$.{5}/"#, b"\tabcd");
+    pattern_match!(r#"/(?m)$(?:\n|\r)abcd/"#, b"\nabcd", b"\nabcd");
+    pattern_match!(r#"/(?m)$(?:\n|\r)abcd/"#, b"\rabcd", b"\rabcd");
+    pattern_match!(r#"/(?m)$(?:\n|\r)\nabcd/"#, b"\r\nabcd", b"\r\nabcd");
+    pattern_match!(r#"/(?m)$(?:\n|\r)\rabcd/"#, b"\n\rabcd", b"\n\rabcd");
+    pattern_match!(r#"/(?ms)$.{5}/"#, b"\nabcd", b"\nabcd");
+    pattern_match!(r#"/(?ms)$.{5}/"#, b"\rabcd", b"\rabcd");
+
+    pattern_match!(r#"/(?m)$(?:\n|\r)1234/"#, b"\n1234", b"\n1234");
+    pattern_match!(r#"/(?m)$(?:\n|\r)1234/"#, b"\r1234", b"\r1234");
+    pattern_match!(r#"/(?m)$(?:\n|\r)+abcd/"#, b"\nabcd", b"\nabcd");
+    pattern_match!(r#"/(?m)$(?:\n|\r)+abcd/"#, b"\rabcd", b"\rabcd");
+    pattern_match!(r#"/(?m)$\r\n1234/"#, b"\r\n1234", b"\r\n1234");
+    pattern_match!(r#"/(?m)$\n\r1234/"#, b"\n\r1234", b"\n\r1234");
+    pattern_match!(r#"/(?m)$\nabcd/"#, b"\nabcd", b"\nabcd");
+    pattern_match!(r#"/(?m)$\rabcd/"#, b"\rabcd", b"\rabcd");
+    pattern_false!(r#"/(?m)$\tabcd/"#, b"\tabcd");
+    pattern_false!(r#"/(?m)$(?:\t|\n)1234/"#, b"\t1234");
+    pattern_false!(r#"/(?m)\r$\n1234/"#, b"\r\n1234");
+    pattern_false!(r#"/(?m)\n$\r1234/"#, b"\n\r1234");
+
     pattern_match!(r#"/\Aabc/"#, b"abcd", b"abc");
     pattern_match!(r#"/bcd\z/"#, b"abcd", b"bcd");
     pattern_false!(r#"/^def/"#, b"abcdef");
@@ -2498,6 +2520,18 @@ fn regexp_wide() {
     pattern_false!(r"/foobar\B/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
     pattern_true!(r"/foobar$/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00");
     pattern_true!(r"/foobar$/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
+    pattern_false!(
+        r"/(?m)$(?:\t|\n)abcd/ wide",
+        b"\t\x00a\x00b\x00c\x00d\x00"
+    );
+    pattern_true!(r"/(?m)$(?:\n|\r)abcd/ wide", b"\n\x00a\x00b\x00c\x00d\x00");
+    pattern_true!(r"/(?m)$(?:\n|\r)abcd/ wide", b"\r\x00a\x00b\x00c\x00d\x00");
+    pattern_true!(
+        r"/(?m)$(?:\n|\r)\nabcd/ wide",
+        b"\r\x00\n\x00a\x00b\x00c\x00d\x00"
+    );
+    pattern_true!(r"/(?m)$(?:\n|\r)1234/ wide", b"\n\x001\x002\x003\x004\x00");
+    pattern_true!(r"/(?m)$(?:\n|\r)1234/ wide", b"\r\x001\x002\x003\x004\x00");
 
     pattern_false!(
         r"/foo.bar/ wide",
