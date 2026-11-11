@@ -154,12 +154,9 @@ impl<W: Write> Serializer<W> {
             }
             FieldFormat::Timestamp => {
                 write!(self.output, "{}", value.to_string())?;
-                self.write_comment(
-                    DateTime::from_timestamp(value.into(), 0)
-                        .unwrap()
-                        .to_string()
-                        .as_str(),
-                )?;
+                if let Some(dt) = DateTime::from_timestamp(value.into(), 0) {
+                    self.write_comment(dt.to_string().as_str())?;
+                }
             }
             _ => {
                 write!(self.output, "{}", value.to_string())?;

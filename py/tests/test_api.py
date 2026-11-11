@@ -362,6 +362,57 @@ def test_module_outputs_map_not_decoded(version_info):
   assert results.module_outputs['pe']['version_info'] == version_info
 
 
+@pytest.mark.parametrize('timestamp,expected', [
+  (0, 'datetime'),
+  (-1, 'datetime'),
+  (-62135596800, 'datetime'),   # 0001-01-01 00:00:00 UTC (datetime.min)
+  (253402300799, 'datetime'),   # 9999-12-31 23:59:59 UTC (RFC 5280 sentinel)
+  (-62135596801, 'int'),        # 1s before datetime.min
+  (-62167219200, 'int'),        # 0000-01-01 00:00:00 UTC (year 0)
+  (253402300800, 'int'),        # 1s after datetime.max
+  (-(2**63), 'int'),            # i64::MIN
+  (2**63 - 1, 'int'),           # i64::MAX
+])
+def test_module_outputs_timestamps(timestamp, expected):
+  if 'pe' not in yara_x.module_names():
+    return
+
+  import datetime
+
+  def varint_i64(n):
+    n &= (1 << 64) - 1
+    out = bytearray()
+    while n >= 0x80:
+      out.append((n & 0x7f) | 0x80)
+      n >>= 7
+    out.append(n)
+    return bytes(out)
+
+  # Raw bytes for a `pe.PE` protobuf message with `is_pe = true` (field 1)
+  # and `resource_timestamp = timestamp` (field 52, varint tag 0xa0 0x03).
+  pe_data = b'\x08\x01\xa0\x03' + varint_i64(timestamp)
+
+  rules = yara_x.compile(
+      f'import "pe" rule test {{ condition: pe.is_pe and pe.resource_timestamp == {timestamp} }}'
+  )
+  scanner = yara_x.Scanner(rules)
+  scanner.set_module_output('pe', pe_data)
+  results = scanner.scan(b'')
+
+  assert len(results.matching_rules) == 1
+  actual = results.module_outputs['pe']['resource_timestamp']
+  if expected == 'datetime':
+    expected_dt = (
+        datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+        + datetime.timedelta(seconds=timestamp)
+    )
+    assert isinstance(actual, datetime.datetime)
+    assert actual == expected_dt
+  else:
+    assert type(actual) is int
+    assert actual == timestamp
+
+
 def test_ignored_modules():
   compiler = yara_x.Compiler()
   compiler.ignore_module("unsupported_module")
