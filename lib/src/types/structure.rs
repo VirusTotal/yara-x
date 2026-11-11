@@ -1532,9 +1532,10 @@ impl From<&dyn RegisteredModule> for Rc<Struct> {
         // exports some function and add it to the structure.
         if let Some(rust_module_name) = module.rust_module_name() {
             let functions = WasmExport::get_functions(|export| {
-                export.public
-                    && export.rust_module_path.ends_with(rust_module_name)
-                    && export.method_of.is_none()
+                export.owner_module().is_some_and(|owner| {
+                    owner.name() == module.name()
+                        && owner.rust_module_name() == Some(rust_module_name)
+                })
             })
             .into_iter()
             .sorted_by_key(|(name, _)| *name);
