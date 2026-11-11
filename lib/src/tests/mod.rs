@@ -2682,6 +2682,16 @@ fn hex_large_jumps() {
     rule_true!(
         r#"rule test {
                 strings:
+                    $a = /AAAA.{0,300}BD(xBDy)?/s
+                condition:
+                    @a[1] == 0 and !a[1] == 10
+            }"#,
+        b"AAAABDxBDy"
+    );
+
+    rule_true!(
+        r#"rule test {
+                strings:
                     $a = /dddd.{0,28}?DDDD.{0,28}?dddd/si
                 condition:
                     $a

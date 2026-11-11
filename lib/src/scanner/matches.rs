@@ -85,9 +85,9 @@ impl MatchList {
             }
             // The new match starts has the same offset as the last match. We
             // only need to update its end position when replace_if_longer is
-            // true.
+            // true and the new match is actually longer than the existing one.
             Some(last) if new_match.range.start == last.range.start => {
-                if replace_if_longer {
+                if replace_if_longer && last.range.end < new_match.range.end {
                     last.range.end = new_match.range.end;
                 }
                 false
