@@ -1,4 +1,3 @@
-use std::cell::Cell;
 use std::ops::{ControlFlow, RangeInclusive};
 use std::{cmp, mem};
 
@@ -7,7 +6,7 @@ use itertools::izip;
 
 use crate::re::bitmapset::BitmapSet;
 use crate::re::fast::instr::{Instr, InstrParser};
-use crate::re::{CodeLoc, DEFAULT_SCAN_LIMIT, WideIter};
+use crate::re::{CodeLoc, DEFAULT_SCAN_LIMIT, InputByte, WideIter};
 
 /// A faster but less general alternative to [PikeVM].
 ///
@@ -479,28 +478,16 @@ impl FastVM<'_> {
                 return false;
             }
 
-            let error_pos = Cell::new(None);
-
             // Iterate the input in chunks of two bytes, where the first one
             // must match a byte in the literal, and the second one is the
             // interleaved zero.
-            let input = WideIter::non_zero_first(input.iter(), &error_pos);
+            let input = WideIter::non_zero_first(input.iter());
 
-            // Iterate the input in chunks of two bytes, where the first one
-            // must match a byte in the literal, and the second one is the
-            // interleaved zero.
             for (input, byte, mask) in izip!(input, literal, mask) {
-                if input & *mask != *byte & *mask {
-                    return false;
+                match input {
+                    InputByte::Valid(b) if b & *mask == *byte & *mask => {}
+                    _ => return false,
                 }
-            }
-
-            // Is some of the interleaved zeroes was not actually zero, return
-            // false as this is not a match.
-            if let Some(pos) = error_pos.get()
-                && pos < literal.len()
-            {
-                return false;
             }
         } else {
             if input.len() < literal.len() {
@@ -533,25 +520,18 @@ impl FastVM<'_> {
                 return false;
             }
 
-            let error_pos = Cell::new(None);
-
             // Iterate the input in chunks of two bytes, where the first one
             // must match a byte in the literal, and the second one is the
             // interleaved zero.
-            let input = WideIter::zero_first(input.iter().rev(), &error_pos);
+            let input = WideIter::zero_first(input.iter().rev());
 
             for (input, byte, mask) in
                 izip!(input, literal.iter().rev(), mask.iter().rev())
             {
-                if input & *mask != *byte & *mask {
-                    return false;
+                match input {
+                    InputByte::Valid(b) if b & *mask == *byte & *mask => {}
+                    _ => return false,
                 }
-            }
-
-            if let Some(pos) = error_pos.get()
-                && pos < literal.len()
-            {
-                return false;
             }
         } else {
             if input.len() < literal.len() {
