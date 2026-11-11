@@ -495,10 +495,7 @@ impl<'a> Compiler<'a> {
         let global_symbols = symbol_table.push_new();
 
         // Add symbols for built-in functions like uint8, uint16, etc.
-        for export in wasm_exports()
-            // Get only the public exports not belonging to a YARA module.
-            .filter(|e| e.public && e.builtin())
-        {
+        for export in wasm_exports().filter(|e| e.builtin()) {
             let func = Rc::new(Func::from(export.mangled_name));
             let symbol = Symbol::Func(func);
 
