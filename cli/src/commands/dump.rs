@@ -1,11 +1,9 @@
 use clap::{ArgAction, ArgMatches, Command, ValueEnum, arg, value_parser};
 
 use crossterm::tty::IsTty;
-use protobuf::MessageField;
 use std::fs::File;
 use std::io::{Read, stdin, stdout};
 use std::path::PathBuf;
-use strum_macros::Display;
 
 use yara_x::mods::*;
 use yara_x_proto::json::{Format as JsonFormat, Serializer as JsonSerializer};
@@ -13,7 +11,7 @@ use yara_x_proto::yaml::Serializer as YamlSerializer;
 
 use crate::help;
 
-#[derive(Debug, Clone, ValueEnum, Display, PartialEq)]
+#[derive(Debug, Clone, ValueEnum, PartialEq)]
 enum SupportedModules {
     Lnk,
     Macho,
@@ -25,6 +23,25 @@ enum SupportedModules {
     Crx,
     Dex,
     Zip,
+}
+
+impl SupportedModules {
+    /// Returns the name of the module, as used in the structure returned by
+    /// [`yara_x::mods::invoke_all`].
+    fn name(&self) -> &'static str {
+        match self {
+            SupportedModules::Lnk => "lnk",
+            SupportedModules::Macho => "macho",
+            SupportedModules::Elf => "elf",
+            SupportedModules::Pe => "pe",
+            SupportedModules::Dotnet => "dotnet",
+            SupportedModules::Olecf => "olecf",
+            SupportedModules::Vba => "vba",
+            SupportedModules::Crx => "crx",
+            SupportedModules::Dex => "dex",
+            SupportedModules::Zip => "zip",
+        }
+    }
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -99,73 +116,14 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
     if let Some(modules) = requested_modules {
         // The user asked explicitly for one or more modules, clear out
         // those that weren't explicitly asked for.
-        let requested_modules: Vec<_> = modules.collect();
+        let requested_modules =
+            modules.map(|m| m.name()).collect::<Vec<&str>>();
 
-        if !requested_modules.contains(&&SupportedModules::Dotnet) {
-            module_output.dotnet = MessageField::none()
-        }
-        if !requested_modules.contains(&&SupportedModules::Elf) {
-            module_output.elf = MessageField::none()
-        }
-        if !requested_modules.contains(&&SupportedModules::Lnk) {
-            module_output.lnk = MessageField::none()
-        }
-        if !requested_modules.contains(&&SupportedModules::Macho) {
-            module_output.macho = MessageField::none()
-        }
-        if !requested_modules.contains(&&SupportedModules::Pe) {
-            module_output.pe = MessageField::none()
-        }
-        if !requested_modules.contains(&&SupportedModules::Crx) {
-            module_output.crx = MessageField::none()
-        }
-        if !requested_modules.contains(&&SupportedModules::Dex) {
-            module_output.dex = MessageField::none()
-        }
-        if !requested_modules.contains(&&SupportedModules::Olecf) {
-            module_output.olecf = MessageField::none()
-        }
-        if !requested_modules.contains(&&SupportedModules::Vba) {
-            module_output.vba = MessageField::none()
-        }
-        if !requested_modules.contains(&&SupportedModules::Zip) {
-            module_output.zip = MessageField::none()
-        }
+        retain_requested(module_output.as_mut(), &requested_modules)?;
     } else {
         // Module was not specified, only show those that produced meaningful
         // results, the rest are cleared out.
-        if !module_output.dotnet.is_dotnet() {
-            module_output.dotnet = MessageField::none()
-        }
-        if !module_output.elf.has_type() {
-            module_output.elf = MessageField::none()
-        }
-        if !module_output.lnk.is_lnk() {
-            module_output.lnk = MessageField::none()
-        }
-        if !module_output.macho.has_magic()
-            && !module_output.macho.has_fat_magic()
-        {
-            module_output.macho = MessageField::none()
-        }
-        if !module_output.pe.is_pe() {
-            module_output.pe = MessageField::none()
-        }
-        if !module_output.crx.is_crx() {
-            module_output.crx = MessageField::none()
-        }
-        if !module_output.dex.is_dex() {
-            module_output.dex = MessageField::none()
-        }
-        if !module_output.olecf.is_olecf() {
-            module_output.olecf = MessageField::none()
-        }
-        if !module_output.vba.has_macros() {
-            module_output.vba = MessageField::none()
-        }
-        if !module_output.zip.is_zip() {
-            module_output.zip = MessageField::none()
-        }
+        retain_meaningful(module_output.as_mut());
     }
 
     match output_format {

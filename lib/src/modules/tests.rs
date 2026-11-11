@@ -6,7 +6,9 @@ use rayon::prelude::*;
 
 use crate::mods;
 use crate::mods::reflect::Type;
-use crate::mods::{invoke_all, module_names};
+use crate::mods::{
+    invoke_all, module_names, retain_meaningful, retain_requested,
+};
 
 /// Utility function that receives the content of an [`Intel HEX`][1] (ihex)
 /// file and returns the binary data contained in it.
@@ -209,6 +211,71 @@ fn test_invoke_modules() {
     assert!(modules.lnk.is_lnk.is_some_and(|value| !value));
     assert!(modules.crx.is_crx.is_some_and(|value| !value));
     assert!(modules.dex.is_dex.is_some_and(|value| !value));
+}
+
+#[test]
+fn test_retain_requested() {
+    let mut modules = invoke_all(&[]);
+
+    // The `pe` module produces some output even for empty data, while
+    // the rest of the modules that produce some output for empty data are
+    // cleared out.
+    assert!(retain_requested(&mut modules, &["pe"]).is_ok());
+    assert!(modules.pe.is_some());
+    assert!(modules.elf.is_none());
+    assert!(modules.dotnet.is_none());
+    assert!(modules.macho.is_none());
+    assert!(modules.lnk.is_none());
+    assert!(modules.crx.is_none());
+    assert!(modules.dex.is_none());
+    assert!(modules.zip.is_none());
+
+    // Requesting a module that is not compiled into the library is fine,
+    // the module simply produces no data.
+    assert!(retain_requested(&mut modules, &["olecf"]).is_ok());
+    assert!(modules.pe.is_none());
+
+    // Requesting a module that doesn't produce dumpable data fails.
+    assert!(retain_requested(&mut modules, &["console"]).is_err());
+    assert!(retain_requested(&mut modules, &["foo"]).is_err());
+
+    // Requesting multiple modules, with a name that appears twice.
+    let mut modules = invoke_all(&[]);
+    assert!(retain_requested(&mut modules, &["pe", "macho", "pe"]).is_ok());
+    assert!(modules.pe.is_some());
+    assert!(modules.macho.is_some());
+}
+
+#[test]
+fn test_retain_meaningful() {
+    // For empty data no module produced meaningful results.
+    let mut modules = invoke_all(&[]);
+    retain_meaningful(&mut modules);
+    assert!(modules.pe.is_none());
+    assert!(modules.elf.is_none());
+    assert!(modules.dotnet.is_none());
+    assert!(modules.macho.is_none());
+    assert!(modules.lnk.is_none());
+    assert!(modules.crx.is_none());
+    assert!(modules.dex.is_none());
+    assert!(modules.zip.is_none());
+
+    // For a Mach-O file the macho module produced meaningful results,
+    // while the pe module didn't.
+    #[cfg(feature = "macho-module")]
+    {
+        let path = Path::new(
+            "src/modules/macho/tests/testdata/\
+             01ac68a14f0ff5faa72bb33e768bfaae4d21de61f776e2405324c498ef52b21b.in.zip",
+        );
+        let data = create_binary_from_zipped_ihex(path);
+
+        let mut modules = invoke_all(&data);
+        retain_meaningful(&mut modules);
+
+        assert!(modules.macho.is_some());
+        assert!(modules.pe.is_none());
+    }
 }
 
 #[cfg(feature = "test_proto2-module")]

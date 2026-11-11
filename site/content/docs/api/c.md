@@ -1347,6 +1347,67 @@ This callback is only available if the `rules-profiling` feature was enabled dur
 
 ------
 
+### yrx_modules_dump
+
+```c
+enum YRX_RESULT yrx_modules_dump(
+    const uint8_t *data,
+    size_t data_len,
+    const char *modules,
+    enum YRX_DUMP_FORMAT format,
+    bool colors,
+    struct YRX_BUFFER **buf);
+```
+
+Dumps the data produced by YARA modules for the given input data. This
+function invokes all YARA modules that produce structured information
+about a file, and returns their output rendered as text. It behaves exactly 
+like the `yr dump` command-line tool, and the returned data is identical to 
+the output printed by that command, including the trailing newline.
+
+Arguments:
+
+* `data`: pointer to the input data. It can be `null` if `data_len` is 0.
+* `data_len`: length of the input data.
+* `modules`: if not `null`, it is a comma-separated list of module names
+  (e.g: "pe,dotnet") and only those modules are dumped, even if they
+  didn't produce any results for the given data. If `null`, only the
+  modules that produced meaningful results are dumped. This is equivalent
+  to the `--module` argument of the `yr dump` command. Asking for a module
+  that is not compiled into the library is not an error, but the module
+  produces no data.
+* `format`: the output format, see [YRX_DUMP_FORMAT](#yrx_dump_format).
+* `colors`: if true, the returned data contains ANSI escape sequences for
+  showing the results in color, like `yr dump` does when its output goes
+  to a terminal.
+* `buf`: address where a pointer to a [YRX_BUFFER](#yrx_buffer) structure
+  will be copied. The buffer contains the dumped data as UTF-8 text.
+
+The returned buffer must be destroyed
+with [yrx_buffer_destroy](#yrx_buffer_destroy).
+
+The function returns `YRX_INVALID_ARGUMENT` if any of the pointers is
+invalid, or if the module list contains an unknown module name, and
+`YRX_INVALID_UTF8` if the module list is not valid UTF-8.
+
+------
+
+### YRX_DUMP_FORMAT
+
+Formats in which [yrx_modules_dump](#yrx_modules_dump) can render the data
+produced by YARA modules.
+
+```c
+typedef enum YRX_DUMP_FORMAT {
+    // YAML format, the default format used by the `yr dump` command.
+    YRX_DUMP_YAML,
+    // JSON format, like `yr dump --output-format json`.
+    YRX_DUMP_JSON,
+} YRX_DUMP_FORMAT;
+```
+
+------
+
 ### YRX_BUFFER
 
 Represents a buffer with arbitrary data. Some functions in this API like

@@ -10,21 +10,22 @@ use crate::compiler::{
     yrx_compiler_warnings_json,
 };
 use crate::{
-    YRX_BUFFER, YRX_MATCH, YRX_METADATA, YRX_METADATA_TYPE, YRX_PATTERN,
-    YRX_RESULT, YRX_RULE, yrx_buffer_destroy, yrx_compile, yrx_last_error,
-    yrx_pattern_identifier, yrx_pattern_iter_matches, yrx_rule_identifier,
-    yrx_rule_iter_metadata, yrx_rule_iter_patterns, yrx_rule_iter_tags,
-    yrx_rule_namespace, yrx_rules_count, yrx_rules_deserialize,
-    yrx_rules_destroy, yrx_rules_iter, yrx_rules_iter_imports,
-    yrx_rules_serialize, yrx_scanner_clear_profiling_data, yrx_scanner_create,
-    yrx_scanner_destroy, yrx_scanner_fast_scan, yrx_scanner_finish,
-    yrx_scanner_iter_slowest_rules, yrx_scanner_max_matches_per_pattern,
-    yrx_scanner_on_console_log, yrx_scanner_on_matching_rule,
-    yrx_scanner_scan, yrx_scanner_scan_block, yrx_scanner_scan_file,
-    yrx_scanner_set_global_bool, yrx_scanner_set_global_float,
-    yrx_scanner_set_global_int, yrx_scanner_set_global_json,
-    yrx_scanner_set_global_str, yrx_scanner_set_module_data,
-    yrx_scanner_set_module_output, yrx_scanner_set_timeout,
+    YRX_BUFFER, YRX_DUMP_FORMAT, YRX_MATCH, YRX_METADATA, YRX_METADATA_TYPE,
+    YRX_PATTERN, YRX_RESULT, YRX_RULE, yrx_buffer_destroy, yrx_compile,
+    yrx_last_error, yrx_modules_dump, yrx_pattern_identifier,
+    yrx_pattern_iter_matches, yrx_rule_identifier, yrx_rule_iter_metadata,
+    yrx_rule_iter_patterns, yrx_rule_iter_tags, yrx_rule_namespace,
+    yrx_rules_count, yrx_rules_deserialize, yrx_rules_destroy, yrx_rules_iter,
+    yrx_rules_iter_imports, yrx_rules_serialize,
+    yrx_scanner_clear_profiling_data, yrx_scanner_create, yrx_scanner_destroy,
+    yrx_scanner_fast_scan, yrx_scanner_finish, yrx_scanner_iter_slowest_rules,
+    yrx_scanner_max_matches_per_pattern, yrx_scanner_on_console_log,
+    yrx_scanner_on_matching_rule, yrx_scanner_scan, yrx_scanner_scan_block,
+    yrx_scanner_scan_file, yrx_scanner_set_global_bool,
+    yrx_scanner_set_global_float, yrx_scanner_set_global_int,
+    yrx_scanner_set_global_json, yrx_scanner_set_global_str,
+    yrx_scanner_set_module_data, yrx_scanner_set_module_output,
+    yrx_scanner_set_timeout,
 };
 
 use std::ffi::{CStr, c_char, c_void};
@@ -1240,5 +1241,172 @@ fn capi_metadata_literal_nul() {
         assert_eq!(collected, vec![("m".to_string(), b"a\0b".to_vec())]);
 
         yrx_rules_destroy(rules);
+    }
+}
+
+#[test]
+fn capi_modules_dump() {
+    unsafe {
+        let mut buf: *mut YRX_BUFFER = std::ptr::null_mut();
+        assert_eq!(
+            yrx_modules_dump(
+                std::ptr::null(),
+                0,
+                std::ptr::null(),
+                YRX_DUMP_FORMAT::YRX_DUMP_YAML,
+                false,
+                &mut buf
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        let output = std::slice::from_raw_parts((*buf).data, (*buf).length);
+        assert_eq!(output, b"\n");
+        yrx_buffer_destroy(buf);
+
+        let modules = c"pe";
+        assert_eq!(
+            yrx_modules_dump(
+                std::ptr::null(),
+                0,
+                modules.as_ptr(),
+                YRX_DUMP_FORMAT::YRX_DUMP_YAML,
+                false,
+                &mut buf
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        let output = std::slice::from_raw_parts((*buf).data, (*buf).length);
+        assert_eq!(output, b"pe:\n    is_pe: false\n");
+        yrx_buffer_destroy(buf);
+
+        // Dump the `pe` module in JSON format.
+        assert_eq!(
+            yrx_modules_dump(
+                std::ptr::null(),
+                0,
+                modules.as_ptr(),
+                YRX_DUMP_FORMAT::YRX_DUMP_JSON,
+                false,
+                &mut buf
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        let output = std::slice::from_raw_parts((*buf).data, (*buf).length);
+        assert_eq!(
+            output,
+            b"{\n    \"pe\": {\n        \"is_pe\": false\n    }\n}\n"
+        );
+        yrx_buffer_destroy(buf);
+
+        // Dump with colors. The output contains ANSI escape sequences.
+        assert_eq!(
+            yrx_modules_dump(
+                std::ptr::null(),
+                0,
+                modules.as_ptr(),
+                YRX_DUMP_FORMAT::YRX_DUMP_YAML,
+                true,
+                &mut buf
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        let output = std::slice::from_raw_parts((*buf).data, (*buf).length);
+        assert!(output.windows(2).any(|w| w == b"\x1b["));
+        yrx_buffer_destroy(buf);
+
+        // A comma-separated list of modules is accepted, with or without
+        // spaces around the names.
+        let modules = c"pe, macho";
+        assert_eq!(
+            yrx_modules_dump(
+                std::ptr::null(),
+                0,
+                modules.as_ptr(),
+                YRX_DUMP_FORMAT::YRX_DUMP_YAML,
+                false,
+                &mut buf
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        let output = std::slice::from_raw_parts((*buf).data, (*buf).length);
+        assert_eq!(output, b"pe:\n    is_pe: false\nmacho:\n    \n");
+        yrx_buffer_destroy(buf);
+    }
+}
+
+#[test]
+fn capi_modules_dump_errors() {
+    unsafe {
+        let mut buf: *mut YRX_BUFFER = std::ptr::null_mut();
+
+        // Null `buf` argument.
+        assert_eq!(
+            yrx_modules_dump(
+                std::ptr::null(),
+                0,
+                std::ptr::null(),
+                YRX_DUMP_FORMAT::YRX_DUMP_YAML,
+                false,
+                std::ptr::null_mut()
+            ),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+
+        // Null `data` argument with a non-zero length.
+        assert_eq!(
+            yrx_modules_dump(
+                std::ptr::null(),
+                10,
+                std::ptr::null(),
+                YRX_DUMP_FORMAT::YRX_DUMP_YAML,
+                false,
+                &mut buf
+            ),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert!(buf.is_null());
+        assert!(!yrx_last_error().is_null());
+
+        // Unknown module name.
+        assert_eq!(
+            yrx_modules_dump(
+                std::ptr::null(),
+                0,
+                c"foo".as_ptr(),
+                YRX_DUMP_FORMAT::YRX_DUMP_YAML,
+                false,
+                &mut buf
+            ),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        assert!(buf.is_null());
+        assert_eq!(CStr::from_ptr(yrx_last_error()), c"unknown module `foo`");
+
+        // Empty module list.
+        assert_eq!(
+            yrx_modules_dump(
+                std::ptr::null(),
+                0,
+                c"".as_ptr(),
+                YRX_DUMP_FORMAT::YRX_DUMP_YAML,
+                false,
+                &mut buf
+            ),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+
+        // Module list that is not valid UTF-8.
+        assert_eq!(
+            yrx_modules_dump(
+                std::ptr::null(),
+                0,
+                c"\xff".as_ptr() as *const c_char,
+                YRX_DUMP_FORMAT::YRX_DUMP_YAML,
+                false,
+                &mut buf
+            ),
+            YRX_RESULT::YRX_INVALID_UTF8
+        );
+        assert!(buf.is_null());
     }
 }
