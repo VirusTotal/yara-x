@@ -37,11 +37,9 @@ pub enum YRX_DUMP_FORMAT {
 ///   equivalent to the `--module` argument of the `yr dump` command.
 /// * `format`: the output format, see [`YRX_DUMP_FORMAT`].
 /// * `colors`: if true, the returned data contains ANSI escape sequences
-///   for showing the results in color, like `yr dump` does when its output
-///   goes to a terminal.
+///   for showing the results in color.
 /// * `buf`: address where a pointer to a [`YRX_BUFFER`] structure will be
-///   copied. The buffer contains the dumped data as UTF-8 text, including
-///   the trailing newline, exactly as printed by `yr dump`.
+///   copied. The buffer contains the dumped data as UTF-8 text.
 ///
 /// The returned buffer must be destroyed with `yrx_buffer_destroy`.
 ///

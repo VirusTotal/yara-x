@@ -26,8 +26,7 @@ enum SupportedModules {
 }
 
 impl SupportedModules {
-    /// Returns the name of the module, as used in the structure returned by
-    /// [`yara_x::mods::invoke_all`].
+    /// Returns the name of the module.
     fn name(&self) -> &'static str {
         match self {
             SupportedModules::Lnk => "lnk",
