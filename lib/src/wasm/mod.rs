@@ -172,20 +172,40 @@ impl WasmExport {
         if self.method_of.is_some() {
             return self.mangled_name.to_string();
         }
-        for module in crate::modules::registered_modules() {
-            if let Some(rust_module_name) = module.rust_module_name()
-                && self.rust_module_path.contains(rust_module_name)
-            {
-                return format!("{}.{}", module.name(), self.mangled_name);
-            }
+        if let Some(module) = self.owner_module() {
+            return format!("{}.{}", module.name(), self.mangled_name);
         }
         self.mangled_name.to_owned()
     }
 
+    /// Returns the registered YARA module that this export belongs to, if
+    /// any.
+    ///
+    /// An export belongs to a module if it is defined in the module's
+    /// `rust_module_name`, which is the Rust module where `register_module!`
+    /// was invoked.
+    pub(crate) fn owner_module(
+        &self,
+    ) -> Option<&'static dyn crate::modules::RegisteredModule> {
+        crate::modules::registered_modules().find(|module| {
+            module.rust_module_name() == Some(self.rust_module_path)
+        })
+    }
+
     /// Returns true if this export comes from YARA itself, not for a YARA
     /// module.
+    ///
+    /// Only exports defined in the `yara_x` crate, outside `yara_x::modules`,
+    /// are built-in. Exports from other crates are never built-in, even if
+    /// they don't belong to any module, and neither are methods.
     pub fn builtin(&self) -> bool {
-        self.rust_module_path.strip_prefix("yara_x::modules::").is_none()
+        let in_yara_x = self.rust_module_path == "yara_x"
+            || self.rust_module_path.starts_with("yara_x::");
+
+        in_yara_x
+            && self.method_of.is_none()
+            && !self.rust_module_path.starts_with("yara_x::modules::")
+            && self.owner_module().is_none()
     }
 
     /// Returns a hash map with all function exported to WASM that match the
