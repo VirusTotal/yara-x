@@ -705,6 +705,71 @@ fn max_matches_per_pattern() {
     // If the scanner is used again it should produce results because the
     // number of matches must be reset to 0 for the new scan.
     assert_eq!(scanner.scan(b"foo").unwrap().matching_rules().len(), 1);
+
+    // When `max_matches_per_pattern` is reached, a longer greedy match at an
+    // already-recorded start offset must still extend the existing match in
+    // place rather than being rejected.
+    let rules = crate::compile(
+        r#"
+        rule greedy_at_limit {
+            strings:
+              $alt = /abcd|.{2}cdef/
+              $chain = /1234.{0,300}5678/
+            condition:
+              $alt and $chain
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    scanner.max_matches_per_pattern(1);
+
+    let scan_results = scanner
+        .scan(b"abcdef 1234aaaa5678bbbb5678")
+        .expect("scan should not fail");
+
+    let rule = scan_results.matching_rules().next().unwrap();
+    let mut patterns = rule.patterns();
+
+    let alt_matches: Vec<_> =
+        patterns.next().unwrap().matches().map(|m| m.range()).collect();
+    assert_eq!(alt_matches, vec![0..6]);
+
+    let chain_matches: Vec<_> =
+        patterns.next().unwrap().matches().map(|m| m.range()).collect();
+    assert_eq!(chain_matches, vec![7..27]);
+
+    // Also verify in-place extension via binary search when the updated match
+    // is earlier than the last recorded match (`start < last.start`).
+    let rules = crate::compile(
+        r#"
+        rule greedy_bsearch_at_limit {
+            strings:
+              $a = /abcd|1234|.{10}efgh/
+            condition:
+              $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    scanner.max_matches_per_pattern(2);
+
+    let scan_results =
+        scanner.scan(b"abcdx1234xefgh").expect("scan should not fail");
+    let matches: Vec<_> = scan_results
+        .matching_rules()
+        .next()
+        .unwrap()
+        .patterns()
+        .next()
+        .unwrap()
+        .matches()
+        .map(|m| m.range())
+        .collect();
+    assert_eq!(matches, vec![0..14, 5..9]);
 }
 
 #[test]
