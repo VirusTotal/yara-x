@@ -2180,6 +2180,66 @@ fn test_header_constraints() {
         &[],
         &[b"\x01", b"\x02", b"\x03"],
     );
+
+    // 3. Multi-byte reads at boundary offsets (e.g. `u32::MAX` on 32-bit
+    // targets and `i64::MAX` on 64-bit targets) must not panic or wrap around
+    // into header offsets starting at 0.
+    check_header_constraint(
+        "uint16(0xffffffff) == 0x2211",
+        &[],
+        &[b"\x11\x22\x00\x00", b"MZ\x00\x00"],
+    );
+    check_header_constraint(
+        "uint32(0xffffffff) == 0x44332211",
+        &[],
+        &[b"\x11\x22\x33\x44", b"\x22\x33\x44\x00"],
+    );
+    check_header_constraint(
+        "uint64(0xfffffff9) == 0x8877665544332211",
+        &[],
+        &[b"\x11\x22\x33\x44\x55\x66\x77\x88", b"\x88\x00\x00\x00"],
+    );
+    check_header_constraint(
+        "uint16(0) == 0x5a4d and uint32(0xffffffff) == 0x44332211",
+        &[],
+        &[b"MZ\x00\x00"],
+    );
+    check_header_constraint(
+        "uint64(0x7fffffffffffffff) == 0x8877665544332211",
+        &[],
+        &[b"\x11\x22\x33\x44\x55\x66\x77\x88"],
+    );
+
+    let rules = compile(
+        r#"
+        rule unconstrained_boundary_read {
+            strings:
+                $re = /foo|bar/
+            condition:
+                $re and uint32(0xffffffff) == 0x44332211
+        }
+        "#,
+    )
+    .unwrap();
+    assert_eq!(rules.header_constraints().count(), 0);
+
+    let rules = compile(
+        r#"
+        rule header_with_boundary_read {
+            strings:
+                $re = /foo|bar/
+            condition:
+                $re and uint16(0) == 0x5a4d and uint32(0xffffffff) == 0x44332211
+        }
+        "#,
+    )
+    .unwrap();
+    let constraints: Vec<_> = rules.header_constraints().collect();
+    assert_eq!(constraints.len(), 1);
+    assert_eq!(
+        constraints[0].1,
+        &crate::compiler::HeaderConstraint::Constrained(vec![0x4d, 0x5a])
+    );
 }
 
 #[test]
