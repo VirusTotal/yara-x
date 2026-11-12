@@ -45,7 +45,9 @@ impl<'a> ZipExtractor<'a> {
             return None;
         }
 
-        let archive = tinyzip::Archive::open(data.as_ref()).ok()?;
+        // Validate the 4-byte ZIP magic at offset 0 before opening with
+        // `tinyzip`; see `utils::zip::open_archive` for why this is needed.
+        let archive = crate::modules::utils::zip::open_archive(data.as_ref())?;
         if archive.entry_count() == 0 {
             return None;
         }

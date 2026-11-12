@@ -20,11 +20,40 @@ pub(crate) struct Zip<'a> {
     pub cached_contents: FxHashMap<String, Cow<'a, [u8]>>,
 }
 
+/// Opens `data` as a [`tinyzip::Archive`] after verifying that it starts with
+/// a valid 4-byte ZIP signature at offset 0.
+///
+/// Checking the magic header up front is necessary because
+/// [`tinyzip::Archive::open`] locates the End of Central Directory (EOCD)
+/// record by scanning backwards up to ~64 KiB from the end of the buffer, and
+/// tolerates both prepended bytes (inferring a base offset before the Central
+/// Directory) and trailing bytes after the EOCD. Without this header check:
+///
+/// 1. Non-ZIP containers that happen to embed a small ZIP stream within their
+///    last ~64 KiB (for example, Word 97-2003 OLECF `.doc` documents that store
+///    an OOXML Theme mini-ZIP inside the `1Table` stream, or CRX packages)
+///    would be misidentified as top-level ZIP archives.
+/// 2. Every non-ZIP file scanned by the extractor or `zip` module would pay the
+///    cost of copying and scanning up to ~64 KiB from the end of the file.
+pub(crate) fn open_archive(data: &[u8]) -> Option<Archive<&[u8]>> {
+    let has_zip_magic = matches!(
+        data.get(..4),
+        // Local file header (`PK\x03\x04`), empty archive EOCD (`PK\x05\x06`),
+        // or spanned archive marker (`PK\x07\x08`).
+        Some(b"PK\x03\x04" | b"PK\x05\x06" | b"PK\x07\x08")
+    );
+
+    if !has_zip_magic {
+        return None;
+    }
+
+    Archive::open(data).ok()
+}
+
 impl<'a> CachedZip<'a> {
     pub(crate) fn new(data: &'a [u8]) -> Self {
-        let archive = match Archive::open(data) {
-            Ok(arch) => arch,
-            Err(_) => return CachedZip::NotZip,
+        let Some(archive) = open_archive(data) else {
+            return CachedZip::NotZip;
         };
 
         CachedZip::Zip(Zip {
@@ -144,6 +173,23 @@ mod tests {
             let zip_proto: ZipProto = (&cached).into();
             assert!(zip_proto.is_zip());
             assert_eq!(zip_proto.entries.len(), 0);
+        } else {
+            panic!("expected valid empty ZIP");
         }
+    }
+
+    #[test]
+    fn test_embedded_zip_rejected() {
+        // OLECF `.doc` file that embeds an OOXML Theme mini-ZIP stream inside
+        // `1Table`; must not be detected as a top-level ZIP archive.
+        let doc_with_theme_zip =
+            crate::modules::tests::create_binary_from_zipped_ihex(
+                "src/modules/vba/tests/testdata/8d49551eaba3388c69538fde1ec51bb1528f6b029602b049a222bb2588487fc6.in.zip",
+            );
+        assert!(open_archive(&doc_with_theme_zip).is_none());
+        assert!(matches!(
+            CachedZip::new(&doc_with_theme_zip),
+            CachedZip::NotZip
+        ));
     }
 }
