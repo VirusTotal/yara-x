@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use std::fmt::Write;
 
 use bstr::ByteSlice;
+use const_oid::ObjectIdentifier;
 use const_oid::db::{rfc5911, rfc5912, rfc6268};
 use der_parser::asn1_rs::{Set, Tag, ToDer, UtcTime};
 use digest::Digest;
@@ -10,6 +11,7 @@ use itertools::Itertools;
 use md2::Md2;
 use md5::Md5;
 use protobuf::MessageField;
+use rustc_hash::FxHashMap;
 use sha1::Sha1;
 use sha2::{Sha256, Sha384, Sha512};
 
@@ -88,6 +90,18 @@ pub trait AuthenticodeHasher {
 pub struct AuthenticodeParser {}
 
 impl AuthenticodeParser {
+    /// Maximum nesting depth for `MS_SPC_NESTED_SIGNATURE` attributes.
+    const MAX_NESTED_DEPTH: usize = 8;
+
+    /// Maximum total Authenticode signatures extracted from a single file.
+    const MAX_TOTAL_SIGNATURES: usize = 32;
+
+    /// Maximum countersignatures verified per `SignerInfo`.
+    const MAX_COUNTERSIGNATURES: usize = 32;
+
+    /// Maximum certificates retained on a single `AuthenticodeSignature`.
+    const MAX_CERTIFICATES_PER_SIG: usize = 256;
+
     /// Parses Authenticode signatures from DER-encoded bytes.
     pub fn parse<'a>(
         input: &'a [u8],
@@ -96,13 +110,30 @@ impl AuthenticodeParser {
         let content_info = ContentInfo::from_ber(input)
             .map_err(|_| ParseError::InvalidContentInfo)?;
 
-        Self::parse_content_info(content_info, authenticode_hasher)
+        let mut digest_cache = FxHashMap::default();
+        let mut remaining_sigs = Self::MAX_TOTAL_SIGNATURES;
+
+        Self::parse_content_info(
+            content_info,
+            authenticode_hasher,
+            &mut digest_cache,
+            0,
+            &mut remaining_sigs,
+        )
     }
 
     fn parse_content_info<'a>(
         content_info: ContentInfo<'a>,
         authenticode_hasher: &impl AuthenticodeHasher,
+        digest_cache: &mut FxHashMap<ObjectIdentifier, Vec<u8>>,
+        depth: usize,
+        remaining_sigs: &mut usize,
     ) -> Result<Vec<AuthenticodeSignature<'a>>, ParseError> {
+        if depth > Self::MAX_NESTED_DEPTH || *remaining_sigs == 0 {
+            return Ok(Vec::new());
+        }
+        *remaining_sigs -= 1;
+
         if content_info.content_type != rfc5911::ID_SIGNED_DATA {
             return Err(ParseError::InvalidContentType(
                 content_info.content_type.to_string(),
@@ -190,12 +221,13 @@ impl AuthenticodeParser {
             };
 
         // Extract all the certificates contained in `SignedData`, more
-        // certificates from nested signatures and countersignatures will
-        // be added later to this vector.
+        // certificates from countersignatures will be added later to this
+        // vector (capped at `MAX_CERTIFICATES_PER_SIG`).
         let mut certificates: Vec<Certificate> = signed_data.certificates;
 
         let mut nested_signatures = Vec::new();
         let mut countersignatures = Vec::new();
+        let mut remaining_countersigs = Self::MAX_COUNTERSIGNATURES;
 
         for attr in signer_info.unsigned_attrs.iter() {
             match attr.attr_type {
@@ -207,16 +239,26 @@ impl AuthenticodeParser {
                 // than one. Windows doesn't seem to recognize the signature
                 // stored in the second value, but we extract it and expose it
                 // anyway.
-                oid::MS_SPC_NESTED_SIGNATURE => {
+                oid::MS_SPC_NESTED_SIGNATURE
+                    if depth < Self::MAX_NESTED_DEPTH =>
+                {
                     for value in &attr.attr_values {
-                        if let Ok(content_info) = value.try_into()
-                            && let Ok(nested) = Self::parse_content_info(
+                        if *remaining_sigs == 0 {
+                            break;
+                        }
+                        if let Ok(content_info) = value.try_into() {
+                            if let Ok(nested) = Self::parse_content_info(
                                 content_info,
                                 authenticode_hasher,
-                            )
-                        {
-                            nested_signatures.extend(nested);
-                        };
+                                digest_cache,
+                                depth + 1,
+                                remaining_sigs,
+                            ) {
+                                nested_signatures.extend(nested);
+                            }
+                        } else {
+                            *remaining_sigs -= 1;
+                        }
                     }
                 }
                 oid::MS_COUNTERSIGN => {
@@ -225,6 +267,7 @@ impl AuthenticodeParser {
                         attr,
                         &mut certificates,
                         &mut countersignatures,
+                        &mut remaining_countersigs,
                     )?;
                 }
                 rfc5911::ID_COUNTERSIGNATURE => {
@@ -233,46 +276,33 @@ impl AuthenticodeParser {
                         attr,
                         &mut certificates,
                         &mut countersignatures,
+                        &mut remaining_countersigs,
                     )?;
                 }
                 _ => {}
             }
         }
 
-        // Compute the Authenticode hash by ourselves. This hash will be
-        // compared later with the one included in the PE file.
-        let computed_authenticode_hash = match digest_algorithm {
+        // Compute the Authenticode hash at most once per digest algorithm
+        // instead of re-hashing the entire PE/MSI for every nested signature.
+        let canonical_alg = match digest_algorithm {
             rfc5912::ID_MD_2 | rfc5912::MD_2_WITH_RSA_ENCRYPTION => {
-                let mut md2 = Md2::default();
-                authenticode_hasher.hash(&mut md2);
-                md2.finalize().to_vec()
+                rfc5912::ID_MD_2
             }
             rfc5912::ID_MD_5 | rfc5912::MD_5_WITH_RSA_ENCRYPTION => {
-                let mut md5 = Md5::default();
-                authenticode_hasher.hash(&mut md5);
-                md5.finalize().to_vec()
+                rfc5912::ID_MD_5
             }
             rfc5912::ID_SHA_1
             | rfc5912::SHA_1_WITH_RSA_ENCRYPTION
-            | oid::SHA1_WITH_RSA_ENCRYPTION_OBSOLETE => {
-                let mut sha1 = Sha1::default();
-                authenticode_hasher.hash(&mut sha1);
-                sha1.finalize().to_vec()
-            }
+            | oid::SHA1_WITH_RSA_ENCRYPTION_OBSOLETE => rfc5912::ID_SHA_1,
             rfc5912::ID_SHA_256 | rfc5912::SHA_256_WITH_RSA_ENCRYPTION => {
-                let mut sha256 = Sha256::default();
-                authenticode_hasher.hash(&mut sha256);
-                sha256.finalize().to_vec()
+                rfc5912::ID_SHA_256
             }
             rfc5912::ID_SHA_384 | rfc5912::SHA_384_WITH_RSA_ENCRYPTION => {
-                let mut sha384 = Sha384::default();
-                authenticode_hasher.hash(&mut sha384);
-                sha384.finalize().to_vec()
+                rfc5912::ID_SHA_384
             }
             rfc5912::ID_SHA_512 | rfc5912::SHA_512_WITH_RSA_ENCRYPTION => {
-                let mut sha512 = Sha512::default();
-                authenticode_hasher.hash(&mut sha512);
-                sha512.finalize().to_vec()
+                rfc5912::ID_SHA_512
             }
             _ => {
                 #[cfg(feature = "logging")]
@@ -280,6 +310,43 @@ impl AuthenticodeParser {
                 return Err(ParseError::InvalidDigestAlgorithm);
             }
         };
+
+        let computed_authenticode_hash = digest_cache
+            .entry(canonical_alg)
+            .or_insert_with(|| match canonical_alg {
+                rfc5912::ID_MD_2 => {
+                    let mut md2 = Md2::default();
+                    authenticode_hasher.hash(&mut md2);
+                    md2.finalize().to_vec()
+                }
+                rfc5912::ID_MD_5 => {
+                    let mut md5 = Md5::default();
+                    authenticode_hasher.hash(&mut md5);
+                    md5.finalize().to_vec()
+                }
+                rfc5912::ID_SHA_1 => {
+                    let mut sha1 = Sha1::default();
+                    authenticode_hasher.hash(&mut sha1);
+                    sha1.finalize().to_vec()
+                }
+                rfc5912::ID_SHA_256 => {
+                    let mut sha256 = Sha256::default();
+                    authenticode_hasher.hash(&mut sha256);
+                    sha256.finalize().to_vec()
+                }
+                rfc5912::ID_SHA_384 => {
+                    let mut sha384 = Sha384::default();
+                    authenticode_hasher.hash(&mut sha384);
+                    sha384.finalize().to_vec()
+                }
+                rfc5912::ID_SHA_512 => {
+                    let mut sha512 = Sha512::default();
+                    authenticode_hasher.hash(&mut sha512);
+                    sha512.finalize().to_vec()
+                }
+                _ => unreachable!(),
+            })
+            .clone();
 
         let authenticode_digest = indirect_data.message_digest;
 
@@ -334,8 +401,14 @@ impl AuthenticodeParser {
         attr: &Attribute<'a>,
         certificates: &mut Vec<Certificate<'a>>,
         countersignatures: &mut Vec<AuthenticodeCountersign<'a>>,
+        remaining_countersigs: &mut usize,
     ) -> Result<(), ParseError> {
         for value in &attr.attr_values {
+            if *remaining_countersigs == 0 {
+                break;
+            }
+            *remaining_countersigs -= 1;
+
             let ci: ContentInfo = match value.try_into() {
                 Ok(ci) => ci,
                 Err(_) => continue,
@@ -346,7 +419,10 @@ impl AuthenticodeParser {
                 Err(_) => continue,
             };
 
-            certificates.extend(sd.certificates);
+            let remaining_certs = Self::MAX_CERTIFICATES_PER_SIG
+                .saturating_sub(certificates.len());
+            certificates
+                .extend(sd.certificates.into_iter().take(remaining_certs));
 
             let cs_si = match sd.signer_infos.first() {
                 Some(cs_si) => cs_si,
@@ -394,8 +470,14 @@ impl AuthenticodeParser {
         attr: &Attribute<'a>,
         certificates: &mut Vec<Certificate<'a>>,
         countersignatures: &mut Vec<AuthenticodeCountersign<'a>>,
+        remaining_countersigs: &mut usize,
     ) -> Result<(), ParseError> {
         for value in &attr.attr_values {
+            if *remaining_countersigs == 0 {
+                break;
+            }
+            *remaining_countersigs -= 1;
+
             if let Ok(cs_si) = value.try_into() {
                 let mut countersignature =
                     Self::pkcs9_countersignature(&cs_si)?;

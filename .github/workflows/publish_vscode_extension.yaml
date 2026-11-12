@@ -12,6 +12,9 @@ permissions:
 
 jobs:
   build-and-publish:
+    # The `tags` filter in `on.create` is ignored by GitHub, so the workflow
+    # also runs when a branch is created. Run only for `v*` tags.
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

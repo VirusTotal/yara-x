@@ -1,0 +1,128 @@
+is_dotnet: true
+module_name: "test.dll"
+version: "v4.0.30319"
+number_of_streams: 3
+number_of_guids: 0
+number_of_resources: 0
+number_of_classes: 6
+number_of_assembly_refs: 0
+number_of_modulerefs: 0
+number_of_user_strings: 0
+number_of_constants: 0
+number_of_field_offsets: 0
+streams:
+  - name: "#~"
+    offset: 0x2a8
+    size: 0xd4
+  - name: "#Strings"
+    offset: 0x37c
+    size: 0x6c
+  - name: "#Blob"
+    offset: 0x3e8
+    size: 0x8
+classes:
+  - fullname: "ClassA"
+    name: "ClassA"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: false
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 2
+    base_types:
+      - "System.Object"
+    methods:
+      - name: "m0"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "m1"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+  - fullname: "ClassB"
+    name: "ClassB"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: false
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 1
+    base_types:
+      - "System.Object"
+    methods:
+      - name: "m2"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+  - fullname: "EmptyType1"
+    name: "EmptyType1"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: false
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 0
+    base_types:
+      - "System.Object"
+  - fullname: "EmptyType2"
+    name: "EmptyType2"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: false
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 0
+    base_types:
+      - "System.Object"
+  - fullname: "ClassC"
+    name: "ClassC"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: false
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 1
+    base_types:
+      - "System.Object"
+    methods:
+      - name: "m3"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+  - fullname: "TrailingEmptyType"
+    name: "TrailingEmptyType"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: false
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 0
+    base_types:
+      - "System.Object"

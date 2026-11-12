@@ -1,6 +1,6 @@
 use std::cell::OnceCell;
 use std::cmp::min;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::default::Default;
 use std::iter::zip;
 use std::mem;
@@ -12,7 +12,7 @@ use digest;
 use itertools::Itertools;
 use memchr::memmem;
 use nom::branch::{alt, permutation};
-use nom::bytes::complete::{take, take_till, take_while_m_n};
+use nom::bytes::complete::{take, take_while_m_n};
 use nom::combinator::{
     Success, cond, consumed, iterator, map, opt, success, verify,
 };
@@ -214,12 +214,32 @@ impl<'a> PE<'a> {
         let (directory, optional_hdr) =
             Self::parse_opt_header()(optional_hdr).unwrap_or_default();
 
-        // The string table is located right after the COFF symbol table.
-        let string_table_offset = pe_hdr.symbol_table_offset.saturating_add(
-            pe_hdr.number_of_symbols.saturating_mul(Self::SIZE_OF_SYMBOL),
-        );
-
-        let string_table = data.get(string_table_offset as usize..);
+        // The string table is located right after the COFF symbol table (only
+        // present when `symbol_table_offset` is non-zero). It starts with a
+        // 32-bit size (which includes the size field itself). When that size
+        // is sane it is used for bounding the table, otherwise the table is
+        // assumed to span until the end of the file.
+        let string_table = (pe_hdr.symbol_table_offset > 0)
+            .then(|| {
+                let string_table_offset =
+                    pe_hdr.symbol_table_offset.saturating_add(
+                        pe_hdr
+                            .number_of_symbols
+                            .saturating_mul(Self::SIZE_OF_SYMBOL),
+                    );
+                data.get(string_table_offset as usize..).map(|table| {
+                    match le_u32::<&[u8], Error>(table) {
+                        Ok((_, size))
+                            if size as usize >= 4
+                                && size as usize <= table.len() =>
+                        {
+                            &table[..size as usize]
+                        }
+                        _ => table,
+                    }
+                })
+            })
+            .flatten();
 
         // Parse the section table. The section table is located right after
         // NT headers, which starts at pe_hdr and is composed of the PE
@@ -551,9 +571,13 @@ impl<'a> PE<'a> {
     const MAX_PE_IMPORTS: usize = 16384;
     const MAX_PE_EXPORTS: usize = 16384;
     const MAX_PE_RESOURCES: usize = 65536;
+    const MAX_PE_RESOURCE_DIR_ENTRIES: usize = 1 << 18;
+    const MAX_PE_VERSION_INFO_STRINGS: usize = 16384;
     const MAX_DIR_ENTRIES: usize = 16;
     const MAX_FUNC_NAME_LENGTH: usize = 1024;
     const MAX_DLL_NAME_LENGTH: usize = 512;
+    const MAX_SECTION_NAME_LENGTH: usize = 1024;
+    const MAX_PDB_PATH_LENGTH: usize = 1024;
 
     fn parse_dos_header(input: &[u8]) -> IResult<&[u8], DOSHeader> {
         map(
@@ -918,8 +942,15 @@ impl<'a> PE<'a> {
                     .ok()
                     .and_then(|name| name.strip_prefix('/'))
                     .and_then(|offset| u32::from_str(offset).ok())
+                // The first 4 bytes of the COFF string table hold its byte
+                // size, so valid string offsets start at 4.
+                && offset >= 4
                 && let Some(s) = string_table.get(offset as usize..)
-                && let Ok((_, s)) = take_till::<_, &[u8], Error>(|c| c == 0)(s)
+                && let Ok((_, s)) = take_while_m_n::<_, &[u8], Error>(
+                    0,
+                    Self::MAX_SECTION_NAME_LENGTH,
+                    |c| c != 0,
+                )(s)
             {
                 section.full_name = Some(BStr::new(s));
             }
@@ -1080,60 +1111,70 @@ impl<'a> PE<'a> {
     /// ]
     /// ```
     fn parse_version_info(&self) -> Option<Vec<(String, String)>> {
-        let result = self
-            .get_resources()
-            .iter()
-            // Use only the resources that contain version information, and
-            // get the resource data.
-            .filter_map(|resource| {
+        // Multiple resources can point to the same VERSIONINFO data, this
+        // set makes sure that each of them is parsed only once.
+        let mut seen_offsets = HashSet::new();
+        let mut result = Vec::new();
+
+        // Use only the resources that contain version information, and
+        // get the resource data.
+        let version_resources =
+            self.get_resources().iter().filter_map(|resource| {
                 if resource.type_id
                     == ResourceId::Id(
                         protos::pe::ResourceType::RESOURCE_TYPE_VERSION as u32,
                     )
+                    && seen_offsets.insert(resource.offset?)
                 {
                     self.data.get(resource.offset? as usize..)
                 } else {
                     None
                 }
-            })
-            // Parse each resource that contain version info, appending the
-            // (key, value) pairs to `result`.
-            .fold(Vec::new(), |mut result, version_info_raw| {
-                let version_info = Self::parse_info_with_key(
-                    "VS_VERSION_INFO",
-                    version_info_raw,
-                    Some((
-                        le_u32, // signature
-                        le_u32, // struct_version
-                        le_u32, // file_version_high
-                        le_u32, // file_version_low
-                        le_u32, // dwProductVersionMS;
-                        le_u32, // dwProductVersionLS;
-                        le_u32, // DWORD dwFileFlagsMask;
-                        le_u32, // DWORD dwFileFlags;
-                        le_u32, // DWORD dwFileOS;
-                        le_u32, // DWORD dwFileType;
-                        le_u32, // DWORD dwFileSubtype;
-                        le_u32, // DWORD dwFileDateMS;
-                        le_u32, // DWORD dwFileDateLS;
-                    )),
-                    // Possible children are StringFileInfo and VarFileInfo
-                    // structures. Both are optional, and they can appear in any
-                    // order. Usually StringFileInfo appears first, but
-                    // 09e7d832320e51bcc80b9aecde2a4135267a9b0156642a9596a62e85c9998cc9
-                    // is an example where VarFileInfo appears first.
-                    permutation((
-                        opt(Self::parse_var_file_info),
-                        opt(Self::parse_string_file_info),
-                    )),
-                );
-
-                if let Ok((_, (_, _, (_, Some(strings))))) = version_info {
-                    result.extend(strings);
-                }
-
-                result
             });
+
+        // Parse each resource that contains version info, appending the
+        // (key, value) pairs to `result` until `MAX_PE_VERSION_INFO_STRINGS`
+        // is reached.
+        for version_info_raw in version_resources {
+            if result.len() >= Self::MAX_PE_VERSION_INFO_STRINGS {
+                break;
+            }
+
+            let version_info = Self::parse_info_with_key(
+                "VS_VERSION_INFO",
+                version_info_raw,
+                Some((
+                    le_u32, // signature
+                    le_u32, // struct_version
+                    le_u32, // file_version_high
+                    le_u32, // file_version_low
+                    le_u32, // dwProductVersionMS;
+                    le_u32, // dwProductVersionLS;
+                    le_u32, // DWORD dwFileFlagsMask;
+                    le_u32, // DWORD dwFileFlags;
+                    le_u32, // DWORD dwFileOS;
+                    le_u32, // DWORD dwFileType;
+                    le_u32, // DWORD dwFileSubtype;
+                    le_u32, // DWORD dwFileDateMS;
+                    le_u32, // DWORD dwFileDateLS;
+                )),
+                // Possible children are StringFileInfo and VarFileInfo
+                // structures. Both are optional, and they can appear in any
+                // order. Usually StringFileInfo appears first, but
+                // 09e7d832320e51bcc80b9aecde2a4135267a9b0156642a9596a62e85c9998cc9
+                // is an example where VarFileInfo appears first.
+                permutation((
+                    opt(Self::parse_var_file_info),
+                    opt(Self::parse_string_file_info),
+                )),
+            );
+
+            if let Ok((_, (_, _, (_, Some(strings))))) = version_info {
+                let room = Self::MAX_PE_VERSION_INFO_STRINGS
+                    .saturating_sub(result.len());
+                result.extend(strings.into_iter().take(room));
+            }
+        }
 
         if result.is_empty() {
             return None;
@@ -1415,7 +1456,19 @@ impl<'a> PE<'a> {
         // in the tuple represents the tree level.
         queue.push_back((0, ids, rsrc_section));
 
+        // Directory entries can point to any directory in the resource
+        // section, including directories that were already visited. This
+        // means that a small, maliciously crafted resource section can make
+        // the tree arbitrarily large (e.g., N entries at each level pointing
+        // to the same directory produces N^3 directories). The total number
+        // of directory entries processed is bounded by this budget.
+        let mut remaining_entries = Self::MAX_PE_RESOURCE_DIR_ENTRIES;
+
         while let Some((level, ids, rsrc_dir)) = queue.pop_front() {
+            if remaining_entries == 0 {
+                break;
+            }
+
             // Parse the IMAGE_RESOURCE_DIRECTORY structure.
             let (raw_entries, rsrc_dir) = match Self::parse_rsrc_dir(rsrc_dir)
             {
@@ -1430,12 +1483,15 @@ impl<'a> PE<'a> {
                 Self::parse_rsrc_dir_entry(rsrc_section),
             );
 
+            let num_entries =
+                min(rsrc_dir.number_of_entries, remaining_entries);
+            remaining_entries -= num_entries;
+
             // Entries with invalid offsets are ignored, they are a sign
             // of PE corruption.
-            let dir_entries =
-                dir_entries.take(rsrc_dir.number_of_entries).filter(|entry| {
-                    entry.offset > 0 && entry.offset < rsrc_section.len()
-                });
+            let dir_entries = dir_entries.take(num_entries).filter(|entry| {
+                entry.offset > 0 && entry.offset < rsrc_section.len()
+            });
 
             if level == 0 {
                 resources_info = rsrc_dir;
@@ -1474,7 +1530,13 @@ impl<'a> PE<'a> {
                     };
 
                     if dir_entry.is_subdir {
-                        queue.push_back((level + 1, ids, entry_data));
+                        // Sub-directories found at level 2 would be level-3
+                        // directories, whose entries are always discarded
+                        // above (the tree has 3 levels at most). Don't queue
+                        // them at all.
+                        if level < 2 {
+                            queue.push_back((level + 1, ids, entry_data));
+                        }
                     }
                     if let Ok((_, rsrc_entry)) =
                         Self::parse_rsrc_entry(entry_data)
@@ -1629,6 +1691,12 @@ impl<'a> PE<'a> {
                 None => continue,
             };
 
+            // The PDB path is a NUL-terminated string. `raw_data_size` is not
+            // reliable enough to bound it, so the path is bounded by length
+            // instead (like YARA, which uses `strnlen(.., MAX_PATH)`).
+            let pdb_path =
+                || take_while_m_n(0, Self::MAX_PDB_PATH_LENGTH, |c| c != 0);
+
             // The CodeView information can come in different formats, but all
             // of them start with 32-bits signature that allows to distinguish
             // between them. Here we recognize three different signatures:
@@ -1654,7 +1722,7 @@ impl<'a> PE<'a> {
                         *signature == 0x53445352 // "RSDS"
                     }),
                     take(20_usize), // skip guid and age
-                    take_till(|c| c == 0),
+                    pdb_path(),
                 ),
                 // "NB10" means that the debug information is stored in a
                 // PDB 2.0 file. The structure is:
@@ -1670,7 +1738,7 @@ impl<'a> PE<'a> {
                         *signature == 0x3031424e // "NB10"
                     }),
                     take(12_usize), // skip offset, timestamp, and age
-                    take_till(|c| c == 0),
+                    pdb_path(),
                 ),
                 //
                 //   DWORD      signature;
@@ -1682,7 +1750,7 @@ impl<'a> PE<'a> {
                         *signature == 0x434f544d // "MTOC"
                     }),
                     take(16_usize), // skip guid
-                    take_till(|c| c == 0),
+                    pdb_path(),
                 ),
             ))
             .parse(cv_info)
@@ -2163,17 +2231,28 @@ impl<'a> PE<'a> {
             .data_at_rva(exports.address_of_name_ordinals)
             .unwrap_or_default();
 
+        // Map each ordinal (relative to `exports.base`) to the index of the
+        // first entry in `address_of_name_ordinals` with that value. Building
+        // this map in a single pass avoids a linear search per exported
+        // function, which is quadratic for files with many exports.
+        let mut name_index_by_ordinal = HashMap::with_capacity(min(
+            num_names,
+            name_ordinals.len() / mem::size_of::<u16>(),
+        ));
+        for (idx, ordinal) in iterator(name_ordinals, le_u16::<&[u8], Error>)
+            .take(num_names)
+            .enumerate()
+        {
+            name_index_by_ordinal.entry(ordinal).or_insert(idx);
+        }
+
         // Set the name field for each exported function, if they are exported
         // by name.
         for f in exported_funcs.iter_mut() {
             // Find the index of the ordinal.
-            if let Some((idx, _)) =
-                iterator(name_ordinals, le_u16::<&[u8], Error>)
-                    .take(num_names)
-                    .find_position(|ordinal| {
-                        *ordinal as u32 == f.ordinal - exports.base
-                    })
-                && let Some(name_rva) = names.get(idx)
+            if let Ok(ordinal) = u16::try_from(f.ordinal - exports.base)
+                && let Some(idx) = name_index_by_ordinal.get(&ordinal)
+                && let Some(name_rva) = names.get(*idx)
             {
                 f.name =
                     self.str_at_rva(*name_rva, Self::MAX_FUNC_NAME_LENGTH);

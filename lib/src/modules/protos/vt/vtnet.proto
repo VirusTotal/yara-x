@@ -115,6 +115,10 @@ message URLResource {
   repeated string redirects = 12;
 }
 
+message IdentifiedBrandsList {
+  repeated string brands = 1;
+}
+
 message ExtendedCookie {
   string name = 1;
   string value = 2;
@@ -178,6 +182,35 @@ message EnrichedURL {
         } ]
       }];
   repeated URLResource resources = 40;
+  map<string, IdentifiedBrandsList> identified_brands = 43
+      [(yara.field_options) = {
+        acl: [
+          {
+            error_title: "unknown field or method `identified_brands`"
+            error_label: "this field or method doesn't exist"
+            reject_if: [ "disable_ai" ]
+          },
+          {
+            error_title: "unknown field or method `identified_brands`"
+            error_label: "this field or method doesn't exist"
+            accept_if: [ "gti", "staff" ]
+          }
+        ]
+      }];
+  string main_brand = 44 [(yara.field_options) = {
+    acl: [
+      {
+        error_title: "unknown field or method `main_brand`"
+        error_label: "this field or method doesn't exist"
+        reject_if: [ "disable_ai" ]
+      },
+      {
+        error_title: "unknown field or method `main_brand`"
+        error_label: "this field or method doesn't exist"
+        accept_if: [ "gti", "staff" ]
+      }
+    ]
+  }];
   repeated ExtendedCookie cookies_extended = 45;
   map<string, string> javascript_variables = 46;
   repeated ConsoleMessage console_messages = 47;

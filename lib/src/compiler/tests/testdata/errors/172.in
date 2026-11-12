@@ -1,0 +1,4 @@
+rule test {
+  condition:
+    with x = 1 : ( x.uint8(0) == 0 )
+}

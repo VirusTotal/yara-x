@@ -1,0 +1,21 @@
+fat_magic: 0xcafebabe
+nfat_arch: 1
+fat_arch:
+  - cputype: 0x100000c
+    cpusubtype: 0x0
+    offset: 256
+    size: 64
+    align: 0
+    reserved: 0
+file:
+  - magic: 0xcffaedfe
+    cputype: 0x100000c
+    cpusubtype: 0x0
+    filetype: 2
+    ncmds: 1
+    sizeofcmds: 24
+    flags: 0x0
+    reserved: 0
+    number_of_segments: 0
+    entry_point: 32
+    stack_size: 0

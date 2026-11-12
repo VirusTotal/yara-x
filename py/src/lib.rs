@@ -28,7 +28,9 @@ use std::{io, mem};
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
 use protobuf::MessageDyn;
-use pyo3::exceptions::{PyException, PyIOError, PyTypeError, PyValueError};
+use pyo3::exceptions::{
+    PyException, PyIOError, PyOverflowError, PyTypeError, PyValueError,
+};
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
 use pyo3::types::{
@@ -493,10 +495,12 @@ impl Compiler {
     fn new_inner(
         relaxed_re_syntax: bool,
         error_on_slow_pattern: bool,
+        includes_enabled: bool,
     ) -> yrx::Compiler<'static> {
         let mut compiler = yrx::Compiler::new();
         compiler.relaxed_re_syntax(relaxed_re_syntax);
         compiler.error_on_slow_pattern(error_on_slow_pattern);
+        compiler.enable_includes(includes_enabled);
         compiler
     }
 }
@@ -531,15 +535,17 @@ impl Compiler {
         includes_enabled: bool,
         ignore_invalid_rules: bool,
     ) -> Self {
-        let mut compiler = Self {
-            inner: Self::new_inner(relaxed_re_syntax, error_on_slow_pattern),
+        Self {
+            inner: Self::new_inner(
+                relaxed_re_syntax,
+                error_on_slow_pattern,
+                includes_enabled,
+            ),
             relaxed_re_syntax,
             error_on_slow_pattern,
             includes_enabled,
             ignore_invalid_rules,
-        };
-        compiler.inner.enable_includes(includes_enabled);
-        compiler
+        }
     }
 
     /// Specify a regular expression that the compiler will enforce upon each
@@ -742,6 +748,7 @@ impl Compiler {
             Self::new_inner(
                 self.relaxed_re_syntax,
                 self.error_on_slow_pattern,
+                self.includes_enabled,
             ),
         );
         Rules::new(compiler.build())
@@ -1555,32 +1562,33 @@ fn match_to_py(py: Python, match_: yrx::Match) -> PyResult<Py<Match>> {
 /// ```
 ///
 /// This decoder identifies such structures, and returns a Python `bytes`
-/// object with the original binary data, or a `datetime` object in UTC,
-/// respectively. Any other object is returned unchanged. No message or map
-/// in a module output can produce an object with that exact shape, so a
-/// `map<string, string>` is never mistaken for an encoded value.
+/// object with the original binary data, or a `datetime` object in UTC
+/// (falling back to the raw integer if the timestamp is outside the range
+/// representable by `datetime`), respectively. Any other object is returned
+/// unchanged. No message or map in a module output can produce an object
+/// with that exact shape, so a `map<string, string>` is never mistaken for
+/// an encoded value.
 #[pyclass]
 struct JsonDecoder {
-    fromtimestamp: Py<PyAny>,
+    epoch: Py<PyAny>,
+    timedelta: Py<PyAny>,
+}
+
+impl JsonDecoder {
+    fn new(py: Python<'_>) -> PyResult<Self> {
+        let datetime_mod = PyModule::import(py, "datetime")?;
+        let datetime_cls = datetime_mod.getattr("datetime")?;
+        let timedelta = datetime_mod.getattr("timedelta")?.unbind();
+        let kwargs = PyDict::new(py);
+        kwargs.set_item("tzinfo", PyTzInfo::utc(py)?)?;
+        let epoch = datetime_cls.call((1970, 1, 1), Some(&kwargs))?.unbind();
+
+        Ok(JsonDecoder { epoch, timedelta })
+    }
 }
 
 #[pymethods]
 impl JsonDecoder {
-    #[staticmethod]
-    fn new() -> Self {
-        JsonDecoder {
-            fromtimestamp: Python::attach(|py| {
-                PyModule::import(py, "datetime")
-                    .unwrap()
-                    .getattr("datetime")
-                    .unwrap()
-                    .getattr("fromtimestamp")
-                    .unwrap()
-                    .unbind()
-            }),
-        }
-    }
-
     fn __call__<'py>(
         &self,
         py: Python<'py>,
@@ -1604,11 +1612,28 @@ impl JsonDecoder {
                 .map_err(|err| PyValueError::new_err(err.to_string()))?
                 .into_bound_py_any(py)
         } else if key.eq("$timestamp")? {
-            let kwargs = PyDict::new(py);
-            kwargs.set_item("tz", PyTzInfo::utc(py)?)?;
-            self.fromtimestamp
-                .call(py, (value,), Some(&kwargs))?
-                .into_bound_py_any(py)
+            // Compute `EPOCH + timedelta(seconds=value)` instead of calling
+            // `datetime.fromtimestamp` so conversion does not depend on the
+            // platform C `gmtime` range (e.g. negative timestamps or dates
+            // past year 3000 on Windows). Timestamps come from the scanned
+            // file (e.g. certificate validity dates in a PE signature) and
+            // can still fall outside `datetime`'s `MINYEAR..=MAXYEAR` range
+            // (e.g. year 0); in such cases, return the raw integer so the
+            // scan does not fail.
+            let to_datetime = || -> PyResult<Bound<'py, PyAny>> {
+                let delta = self.timedelta.call1(py, (0, &value))?;
+                self.epoch.bind(py).add(delta)
+            };
+            match to_datetime() {
+                Ok(datetime) => Ok(datetime),
+                Err(err)
+                    if err.is_instance_of::<PyOverflowError>(py)
+                        || err.is_instance_of::<PyValueError>(py) =>
+                {
+                    Ok(value)
+                }
+                Err(err) => Err(err),
+            }
         } else {
             Ok(dict.into_any())
         }
@@ -1637,7 +1662,7 @@ fn proto_to_json<'py>(
     // that can transform JSON objects on the fly. This is used in order to
     // decode some types that are not directly representable in JSON. See the
     // documentation for JsonDecode for details.
-    kwargs.set_item("object_hook", JsonDecoder::new())?;
+    kwargs.set_item("object_hook", JsonDecoder::new(py)?)?;
     // By default, json.loads doesn't allow control character (\t, \n, etc)
     // in strings, we need to set strict=False to allow them.
     // https://github.com/VirusTotal/yara-x/issues/365

@@ -841,6 +841,6 @@ test("Compiler.addSource surfaces include loading errors clearly", () => {
         }
       `);
     },
-    /error including file/i,
+    /include file not found/i,
   );
 });

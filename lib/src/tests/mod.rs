@@ -2124,6 +2124,28 @@ fn regexp_patterns_4() {
     pattern_false!(r#"/(?m)xyz$abcd/"#, b"xyzabcd");
     pattern_match!(r#"/(?ms)xyz$.abcd/"#, b"xyz\nabcd", b"xyz\nabcd");
 
+    pattern_false!(r#"/(?m)$(?:\t|\n)abcd/"#, b"\tabcd");
+    pattern_false!(r#"/(?ms)$.{5}/"#, b"\tabcd");
+    pattern_match!(r#"/(?m)$(?:\n|\r)abcd/"#, b"\nabcd", b"\nabcd");
+    pattern_match!(r#"/(?m)$(?:\n|\r)abcd/"#, b"\rabcd", b"\rabcd");
+    pattern_match!(r#"/(?m)$(?:\n|\r)\nabcd/"#, b"\r\nabcd", b"\r\nabcd");
+    pattern_match!(r#"/(?m)$(?:\n|\r)\rabcd/"#, b"\n\rabcd", b"\n\rabcd");
+    pattern_match!(r#"/(?ms)$.{5}/"#, b"\nabcd", b"\nabcd");
+    pattern_match!(r#"/(?ms)$.{5}/"#, b"\rabcd", b"\rabcd");
+
+    pattern_match!(r#"/(?m)$(?:\n|\r)1234/"#, b"\n1234", b"\n1234");
+    pattern_match!(r#"/(?m)$(?:\n|\r)1234/"#, b"\r1234", b"\r1234");
+    pattern_match!(r#"/(?m)$(?:\n|\r)+abcd/"#, b"\nabcd", b"\nabcd");
+    pattern_match!(r#"/(?m)$(?:\n|\r)+abcd/"#, b"\rabcd", b"\rabcd");
+    pattern_match!(r#"/(?m)$\r\n1234/"#, b"\r\n1234", b"\r\n1234");
+    pattern_match!(r#"/(?m)$\n\r1234/"#, b"\n\r1234", b"\n\r1234");
+    pattern_match!(r#"/(?m)$\nabcd/"#, b"\nabcd", b"\nabcd");
+    pattern_match!(r#"/(?m)$\rabcd/"#, b"\rabcd", b"\rabcd");
+    pattern_false!(r#"/(?m)$\tabcd/"#, b"\tabcd");
+    pattern_false!(r#"/(?m)$(?:\t|\n)1234/"#, b"\t1234");
+    pattern_false!(r#"/(?m)\r$\n1234/"#, b"\r\n1234");
+    pattern_false!(r#"/(?m)\n$\r1234/"#, b"\n\r1234");
+
     pattern_match!(r#"/\Aabc/"#, b"abcd", b"abc");
     pattern_match!(r#"/bcd\z/"#, b"abcd", b"bcd");
     pattern_false!(r#"/^def/"#, b"abcdef");
@@ -2492,12 +2514,78 @@ fn regexp_wide() {
 
     pattern_false!(r"/\bfoobar/ wide", b"x\x00f\x00o\x00o\x00b\x00a\x00r\x00");
     pattern_true!(r"/\Bfoobar/ wide", b"x\x00f\x00o\x00o\x00b\x00a\x00r\x00");
+    pattern_true!(r"/\bfoobar/ wide", b"x\xFFf\x00o\x00o\x00b\x00a\x00r\x00");
+    pattern_false!(r"/\Bfoobar/ wide", b"x\xFFf\x00o\x00o\x00b\x00a\x00r\x00");
+    pattern_true!(
+        r"/\b.foobar/ wide",
+        b"x\xFF_\x00f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+    pattern_false!(
+        r"/\B.foobar/ wide",
+        b"x\xFF_\x00f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+    pattern_true!(
+        r"/\b{start}foobar/ wide",
+        b"x\xFFf\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+    pattern_true!(
+        r"/\b{start-half}foobar/ wide",
+        b"x\xFFf\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+    pattern_false!(
+        r"/\b{end} foobar/ wide",
+        b"x\xFF \x00f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
     pattern_false!(r"/foobar\b/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x\x00");
     pattern_true!(r"/foobar\B/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x\x00");
+    pattern_true!(r"/foobar\b/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x\xFF");
+    pattern_false!(r"/foobar\B/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x\xFF");
+    pattern_true!(
+        r"/foobar\b{end}/ wide",
+        b"f\x00o\x00o\x00b\x00a\x00r\x00x\xFF"
+    );
+    pattern_true!(
+        r"/foobar\b{end-half}/ wide",
+        b"f\x00o\x00o\x00b\x00a\x00r\x00x\xFF"
+    );
+    pattern_false!(
+        r"/foobar \b{start}/ wide",
+        b"f\x00o\x00o\x00b\x00a\x00r\x00 \x00x\xFF"
+    );
     pattern_true!(r"/foobar\b/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
     pattern_false!(r"/foobar\B/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
+    pattern_false!(r"/^foobar/ wide", b"x\xFFf\x00o\x00o\x00b\x00a\x00r\x00");
     pattern_true!(r"/foobar$/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00");
     pattern_true!(r"/foobar$/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
+    pattern_false!(r"/foobar$/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x\xFF");
+    pattern_false!(
+        r"/(?m)^foobar/ wide",
+        b"\n\xFFf\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+    pattern_false!(
+        r"/(?m)^foobar/ wide",
+        b"\r\xFFf\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+    pattern_false!(
+        r"/(?m)foobar$/ wide",
+        b"f\x00o\x00o\x00b\x00a\x00r\x00\n\xFF"
+    );
+    pattern_false!(
+        r"/(?m)foobar$/ wide",
+        b"f\x00o\x00o\x00b\x00a\x00r\x00\r\xFF"
+    );
+    pattern_false!(
+        r"/(?m)$(?:\t|\n)abcd/ wide",
+        b"\t\x00a\x00b\x00c\x00d\x00"
+    );
+    pattern_true!(r"/(?m)$(?:\n|\r)abcd/ wide", b"\n\x00a\x00b\x00c\x00d\x00");
+    pattern_true!(r"/(?m)$(?:\n|\r)abcd/ wide", b"\r\x00a\x00b\x00c\x00d\x00");
+    pattern_true!(
+        r"/(?m)$(?:\n|\r)\nabcd/ wide",
+        b"\r\x00\n\x00a\x00b\x00c\x00d\x00"
+    );
+    pattern_true!(r"/(?m)$(?:\n|\r)1234/ wide", b"\n\x001\x002\x003\x004\x00");
+    pattern_true!(r"/(?m)$(?:\n|\r)1234/ wide", b"\r\x001\x002\x003\x004\x00");
 
     pattern_false!(
         r"/foo.bar/ wide",
@@ -2677,6 +2765,16 @@ fn hex_large_jumps() {
                     @a[4] == 0x324 and !a[4] == 0x2e4
             }"#,
         JUMPS_DATA.as_bytes()
+    );
+
+    rule_true!(
+        r#"rule test {
+                strings:
+                    $a = /AAAA.{0,300}BD(xBDy)?/s
+                condition:
+                    @a[1] == 0 and !a[1] == 10
+            }"#,
+        b"AAAABDxBDy"
     );
 
     rule_true!(
@@ -4101,6 +4199,51 @@ fn for_of() {
         "#,
         b"foobarbar"
     );
+}
+
+#[test]
+fn of_zero_quantifier() {
+    // A quantifier of zero means that none of the items match, like `none`,
+    // whatever the form of the `of` expression. This is how YARA behaves
+    // since 4.3.0.
+    let rule = |condition: &str| {
+        format!(
+            r#"rule test {{
+                 strings:
+                   $a = "foo"
+                   $b = "bar"
+                   $c = "baz"
+                 condition:
+                   {condition}
+               }}"#
+        )
+    };
+
+    for condition in [
+        // Contiguous pattern IDs, evaluated with a single function call.
+        "0 of them",
+        "0 of ($a, $b) and #c >= 0",
+        // Non-contiguous pattern IDs, evaluated with a loop.
+        "0 of ($a, $c) and #b >= 0",
+        "0 of them in (0..100)",
+        "0 of them at 2",
+        "0% of them",
+        "for 0 of them : ( # > 0 )",
+        // Quantifiers computed at runtime.
+        "uint8(0) of them",
+        "uint8(0) of ($a, $c) and #b >= 0",
+    ] {
+        let src = rule(condition);
+        // Data where "foo" matches.
+        rule_false!(src.as_str(), b"\x00xfooxx");
+        // Data where nothing matches.
+        rule_true!(src.as_str(), b"\x00nothing");
+    }
+
+    condition_false!("0 of (true, false)");
+    condition_true!("0 of (false, false)");
+    condition_false!("for 0 i in (1..3) : ( i > 0 )");
+    condition_true!("for 0 i in (1..3) : ( i > 5 )");
 }
 
 #[test]

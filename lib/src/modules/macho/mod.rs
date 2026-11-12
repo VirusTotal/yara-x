@@ -55,7 +55,7 @@ fn file_index_type(ctx: &mut ScanContext, type_arg: i64) -> Option<i64> {
     let nfat = macho.nfat_arch?;
 
     // Iterate over fat_arch up to nfat entries
-    for i in 0..nfat as usize {
+    for i in 0..(nfat as usize).min(macho.fat_arch.len()) {
         if let Some(arch) = macho.fat_arch.get(i)
             && let Some(cputype) = arch.cputype
             && cputype as i64 == type_arg
@@ -95,7 +95,7 @@ fn file_index_subtype(
     let nfat = macho.nfat_arch?;
 
     // Iterate over fat_arch up to nfat entries
-    for i in 0..nfat as usize {
+    for i in 0..(nfat as usize).min(macho.fat_arch.len()) {
         if let Some(arch) = macho.fat_arch.get(i)
             && let (Some(cputype), Some(cpusubtype)) =
                 (arch.cputype, arch.cpusubtype)
@@ -132,13 +132,17 @@ fn ep_for_arch_type(ctx: &mut ScanContext, type_arg: i64) -> Option<i64> {
     let nfat = macho.nfat_arch?;
 
     // Iterate over fat_arch up to nfat entries
-    for i in 0..nfat as usize {
+    for i in 0..(nfat as usize).min(macho.fat_arch.len()) {
         if let Some(arch) = macho.fat_arch.get(i)
             && let Some(cputype) = arch.cputype
             && cputype as i64 == type_arg
         {
             let file_offset = arch.offset?;
-            let entry_point = macho.file.get(i)?.entry_point?;
+            let file = macho.file.get(i)?;
+            if file.cputype != arch.cputype {
+                return None;
+            }
+            let entry_point = file.entry_point?;
             return file_offset.checked_add(entry_point);
         }
     }
@@ -174,7 +178,7 @@ fn ep_for_arch_subtype(
     let nfat = macho.nfat_arch?;
 
     // Iterate over fat_arch up to nfat entries
-    for i in 0..nfat as usize {
+    for i in 0..(nfat as usize).min(macho.fat_arch.len()) {
         if let Some(arch) = macho.fat_arch.get(i)
             && let (Some(cputype), Some(cpusubtype)) =
                 (arch.cputype, arch.cpusubtype)
@@ -182,7 +186,13 @@ fn ep_for_arch_subtype(
             && cpusubtype as i64 == subtype_arg
         {
             let file_offset = arch.offset?;
-            let entry_point = macho.file.get(i)?.entry_point?;
+            let file = macho.file.get(i)?;
+            if file.cputype != arch.cputype
+                || file.cpusubtype != arch.cpusubtype
+            {
+                return None;
+            }
+            let entry_point = file.entry_point?;
             return file_offset.checked_add(entry_point);
         }
     }

@@ -76,26 +76,51 @@ impl MatchList {
     /// the new match at an offset that is higher than those from previous
     /// matches.
     pub fn add(&mut self, new_match: Match, replace_if_longer: bool) -> bool {
+        matches!(
+            self.add_with_limit(new_match, usize::MAX, replace_if_longer),
+            AddResult::Inserted(_)
+        )
+    }
+
+    /// Adds a new match to the list while enforcing an upper bound on the
+    /// total number of matches.
+    ///
+    /// If a match at the same start offset already exists, it is updated in
+    /// place (when `replace_if_longer` is `true` and `new_match` is longer) or
+    /// ignored without increasing the list length, even when `self.len()` has
+    /// already reached `max_matches`.
+    pub fn add_with_limit(
+        &mut self,
+        new_match: Match,
+        max_matches: usize,
+        replace_if_longer: bool,
+    ) -> AddResult {
         match self.matches.last_mut() {
             // The new match starts at some offset greater than the offset of
             // the last match, we can simply push the new match at the end.
             Some(last) if new_match.range.start > last.range.start => {
+                if self.matches.len() >= max_matches {
+                    return AddResult::MaxMatchesReached;
+                }
                 self.matches.push(new_match);
-                true
+                AddResult::Inserted(self.matches.len())
             }
             // The new match starts has the same offset as the last match. We
             // only need to update its end position when replace_if_longer is
-            // true.
+            // true and the new match is actually longer than the existing one.
             Some(last) if new_match.range.start == last.range.start => {
-                if replace_if_longer {
+                if replace_if_longer && last.range.end < new_match.range.end {
                     last.range.end = new_match.range.end;
                 }
-                false
+                AddResult::Updated
             }
             // No matches so far, the match is first one.
             None => {
+                if max_matches == 0 {
+                    return AddResult::MaxMatchesReached;
+                }
                 self.matches.push(new_match);
-                true
+                AddResult::Inserted(1)
             }
             _ => {
                 // If not at the end, use binary search to find the insertion point.
@@ -110,16 +135,19 @@ impl MatchList {
                         if existing_match.range.end < new_match.range.end {
                             existing_match.range.end = new_match.range.end;
                         }
-                        false
-                    }
-                    // Not found, insert at the corresponding position.
-                    Err(index) => {
-                        self.matches.insert(index, new_match);
-                        true
+                        AddResult::Updated
                     }
                     // Found, but replace_if_longer is false, do nothing and keep the
                     // existing match.
-                    _ => false,
+                    Ok(_) => AddResult::Updated,
+                    // Not found, insert at the corresponding position.
+                    Err(index) => {
+                        if self.matches.len() >= max_matches {
+                            return AddResult::MaxMatchesReached;
+                        }
+                        self.matches.insert(index, new_match);
+                        AddResult::Inserted(self.matches.len())
+                    }
                 }
             }
         }
@@ -322,21 +350,21 @@ impl PatternMatches {
         m: Match,
         replace_if_longer: bool,
     ) -> AddResult {
+        if self.max_matches_per_pattern == 0 {
+            return AddResult::MaxMatchesReached;
+        }
+
         match self.matches.entry(pattern_id) {
             Entry::Occupied(mut entry) => {
                 let matches = entry.get_mut();
-                if matches.len() < self.max_matches_per_pattern {
-                    self.capacity -= matches.capacity();
-                    let inserted = matches.add(m, replace_if_longer);
-                    self.capacity += matches.capacity();
-                    if inserted {
-                        AddResult::Inserted(matches.len())
-                    } else {
-                        AddResult::Updated
-                    }
-                } else {
-                    AddResult::MaxMatchesReached
-                }
+                self.capacity -= matches.capacity();
+                let res = matches.add_with_limit(
+                    m,
+                    self.max_matches_per_pattern,
+                    replace_if_longer,
+                );
+                self.capacity += matches.capacity();
+                res
             }
             Entry::Vacant(entry) => {
                 let mut matches = MatchList::with_capacity(8);
@@ -358,7 +386,9 @@ impl PatternMatches {
 
 #[cfg(test)]
 mod test {
-    use crate::scanner::matches::{Match, MatchList, PatternMatches};
+    use crate::scanner::matches::{
+        AddResult, Match, MatchList, PatternMatches,
+    };
     use std::ops::Range;
 
     #[test]
@@ -396,5 +426,47 @@ mod test {
             pm.add(pid, Match::new(i..i + 1), false);
         }
         assert_eq!(pm.get(pid).unwrap().len(), 10_000);
+
+        let mut pm = PatternMatches::new();
+        pm.max_matches_per_pattern(2);
+        assert_eq!(
+            pm.add(pid, Match::new(2..5), true),
+            AddResult::Inserted(1)
+        );
+        assert_eq!(
+            pm.add(pid, Match::new(10..12), true),
+            AddResult::Inserted(2)
+        );
+        // Extending the last match in place at capacity must succeed.
+        assert_eq!(pm.add(pid, Match::new(10..18), true), AddResult::Updated);
+        // Extending an earlier match via binary search at capacity must succeed.
+        assert_eq!(pm.add(pid, Match::new(2..9), true), AddResult::Updated);
+        // Shorter match at an existing offset is ignored without error.
+        assert_eq!(pm.add(pid, Match::new(2..4), true), AddResult::Updated);
+        // New start offsets (both after the end and in the middle) are rejected.
+        assert_eq!(
+            pm.add(pid, Match::new(20..22), true),
+            AddResult::MaxMatchesReached
+        );
+        assert_eq!(
+            pm.add(pid, Match::new(6..8), true),
+            AddResult::MaxMatchesReached
+        );
+        assert_eq!(
+            pm.get(pid)
+                .unwrap()
+                .iter()
+                .map(|m| m.range.clone())
+                .collect::<Vec<_>>(),
+            vec![2..9, 10..18]
+        );
+
+        let mut pm = PatternMatches::new();
+        pm.max_matches_per_pattern(0);
+        assert_eq!(
+            pm.add(pid, Match::new(0..4), true),
+            AddResult::MaxMatchesReached
+        );
+        assert!(pm.get(pid).is_none());
     }
 }

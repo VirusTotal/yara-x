@@ -1,0 +1,5 @@
+error[E008]: unknown field or method `uint8`
+ --> line:3:22
+  |
+3 |     with x = 1 : ( x.uint8(0) == 0 )
+  |                      ^^^^^ this field or method doesn't exist

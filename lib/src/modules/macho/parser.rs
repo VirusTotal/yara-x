@@ -173,6 +173,24 @@ impl<'a> MachO<'a> {
 }
 
 impl<'a> MachO<'a> {
+    const MAX_FAT_ARCHS: usize = 64;
+    const MAX_SYMBOLS: usize = 200_000;
+    const MAX_SYM_NAME_LEN: usize = 4096;
+    const MAX_SYMTAB_BYTES: usize = 16 * 1024 * 1024;
+    const MAX_EXPORTS: usize = 100_000;
+    const MAX_EXPORT_TRIE_NODES: usize = 200_000;
+    const MAX_EXPORT_STACK: usize = 4096;
+    const MAX_EXPORT_NAME_LEN: usize = 4096;
+    const MAX_EXPORTS_BYTES: usize = 16 * 1024 * 1024;
+    const MAX_IMPORTS: usize = 100_000;
+    const MAX_IMPORT_NAME_LEN: usize = 4096;
+    const MAX_IMPORTS_BYTES: usize = 16 * 1024 * 1024;
+    const MAX_CS_BLOBS: u32 = 256;
+    const MAX_ENTITLEMENTS: usize = 1000;
+    const MAX_ENTITLEMENT_NAME_LEN: usize = 1024;
+    const MAX_ENTITLEMENTS_XML_BYTES: usize = 1024 * 1024;
+    const MAX_ENTITLEMENTS_XML_NODES: u32 = 4096;
+
     /// Parses a FAT Mach-O file.
     fn parse_fat_macho_file(
         data: &'a [u8],
@@ -205,10 +223,20 @@ impl<'a> MachO<'a> {
         // After the magic comes an u32 with the number of `fat_arch`
         // structures that follow (`fat_arch64` for 64-bits binaries). Each
         // structure describes an individual Mach-O file included in the FAT
-        // binary.
-        let (_, archs) = length_count(
-            // number of architectures.
-            u32(endianness),
+        // binary. Validate that the declared table fits in the input before
+        // parsing up to `MAX_FAT_ARCHS` entries.
+        let (remainder, nfat_arch) = u32(endianness).parse(remainder)?;
+        let arch_entry_size = if is_32_bits { 20usize } else { 32usize };
+        if usize::try_from(nfat_arch)
+            .ok()
+            .and_then(|n| n.checked_mul(arch_entry_size))
+            .is_none_or(|bytes| bytes > remainder.len())
+        {
+            return Err(Err::Error(NomError::new(remainder, ErrorKind::Eof)));
+        }
+
+        let arch_count = (nfat_arch as usize).min(Self::MAX_FAT_ARCHS);
+        let (_, raw_archs) = count(
             // fat_arch/fat_arch64 structure.
             map(
                 (
@@ -230,21 +258,32 @@ impl<'a> MachO<'a> {
                     }
                 },
             ),
+            arch_count,
         )
         .parse(remainder)?;
 
-        let mut files = Vec::new();
+        let mut archs = Vec::with_capacity(raw_archs.len());
+        let mut files = Vec::with_capacity(raw_archs.len());
 
         // Parse each of the individual Mach-O files contained in the FAT
         // binary. Errors that occur while parsing individual Mach-O files are
         // not propagated. If the FAT file is truncated for example, we may be
         // able to parse some of the Mach-O files while the rest can't be
         // parsed, but we still consider that case a success.
-        for arch in &archs {
-            let start = arch.offset as usize;
-            let end = start.saturating_add(arch.size as usize);
+        //
+        // Duplicate slice offsets are skipped in both `archs` and `files` to
+        // prevent re-parsing the same Mach-O slice while keeping `fat_arch`
+        // and `file` indices aligned.
+        for arch in raw_archs {
+            if archs.iter().any(|a: &FatArch| a.offset == arch.offset) {
+                continue;
+            }
 
-            if let Some(macho) = data.get(start..end) {
+            if let Ok(start) = usize::try_from(arch.offset)
+                && let Ok(size) = usize::try_from(arch.size)
+                && let Some(end) = start.checked_add(size)
+                && let Some(macho) = data.get(start..end)
+            {
                 match Self::parse_macho_file(macho) {
                     Ok(macho) => files.push(macho),
                     #[cfg(feature = "logging")]
@@ -255,6 +294,8 @@ impl<'a> MachO<'a> {
                     Err(_) => {}
                 }
             };
+
+            archs.push(arch);
         }
 
         Ok(MachO { fat_magic: Some(magic), archs, files })
@@ -370,8 +411,8 @@ impl<'a> MachO<'a> {
             let nsyms = symtab.nsyms;
 
             // We don't want the dyld_shared_cache ones for now
-            if let Some(string_table) =
-                data.get(str_offset..str_offset.saturating_add(str_end))
+            if let Some(str_range_end) = str_offset.checked_add(str_end)
+                && let Some(string_table) = data.get(str_offset..str_range_end)
                 && let Some(symbol_table) = data.get(sym_offset..)
                 && let Err(_err) =
                     macho.parse_symtab(string_table, symbol_table, nsyms)
@@ -391,8 +432,8 @@ impl<'a> MachO<'a> {
         if let Some(ref code_signature_data) = macho.code_signature_data {
             let offset = code_signature_data.dataoff as usize;
             let size = code_signature_data.datasize as usize;
-            if let Some(super_data) =
-                data.get(offset..offset.saturating_add(size))
+            if let Some(end) = offset.checked_add(size)
+                && let Some(super_data) = data.get(offset..end)
                 && let Err(_err) = macho.cs_superblob().parse(super_data)
             {
                 #[cfg(feature = "logging")]
@@ -416,8 +457,8 @@ impl<'a> MachO<'a> {
         .into_iter()
         .flatten()
         {
-            if let Some(export_data) =
-                data.get(offset..offset.saturating_add(size))
+            if let Some(end) = offset.checked_add(size)
+                && let Some(export_data) = data.get(offset..end)
                 && let Err(_err) = macho.parse_exports(export_data)
             {
                 #[cfg(feature = "logging")]
@@ -431,7 +472,7 @@ impl<'a> MachO<'a> {
         // imports defined at `weak_offset` can be duplicative, meaning
         // they can exist in `bind_offset` _and_ `weak_offset` or one of them.
         // To avoid duplicates in the imports list, keep track of seen imports
-        let mut seen: HashSet<_> = HashSet::new();
+        let mut seen = HashSet::new();
         for (offset, size) in macho
             .dyld_info
             .as_ref()
@@ -445,8 +486,8 @@ impl<'a> MachO<'a> {
             .into_iter()
             .flatten()
         {
-            if let Some(import_data) =
-                data.get(offset..offset.saturating_add(size))
+            if let Some(end) = offset.checked_add(size)
+                && let Some(import_data) = data.get(offset..end)
                 && let Err(_err) = macho.parse_imports(import_data, &mut seen)
             {
                 #[cfg(feature = "logging")]
@@ -460,8 +501,8 @@ impl<'a> MachO<'a> {
         if let Some(ref chained_fixups) = macho.dyld_chain_fixups {
             let offset = chained_fixups.data_off as usize;
             let size = chained_fixups.data_size as usize;
-            if let Some(fixup_data) =
-                data.get(offset..offset.saturating_add(size))
+            if let Some(end) = offset.checked_add(size)
+                && let Some(fixup_data) = data.get(offset..end)
                 && let Err(_err) = macho.parse_chained_fixups(fixup_data)
             {
                 #[cfg(feature = "logging")]
@@ -1010,11 +1051,12 @@ impl<'a> MachOFile<'a> {
 
             let mut cs_index: CSBlobIndex;
 
-            for _ in 0..super_blob.count {
+            for _ in 0..super_blob.count.min(MachO::MAX_CS_BLOBS) {
                 (remainder, cs_index) = self.cs_index().parse(remainder)?;
 
-                cs_index.blob = input
-                    .get(cs_index.offset as usize..)
+                cs_index.blob = usize::try_from(cs_index.offset)
+                    .ok()
+                    .and_then(|off| input.get(off..))
                     .and_then(|blob_data| self.cs_blob().parse(blob_data).ok())
                     .map(|(_, blob)| blob);
 
@@ -1025,31 +1067,47 @@ impl<'a> MachOFile<'a> {
 
             // Iterator over the `CSBlobIndex` entries that have some blob.
             let blobs = super_blob.index.iter().filter_map(|blob_index| {
-                blob_index
-                    .blob
-                    .as_ref()
-                    .map(|blob| (blob_index.offset as usize, blob))
+                let off = usize::try_from(blob_index.offset).ok()?;
+                blob_index.blob.as_ref().map(|blob| (off, blob))
             });
 
             for (offset, blob) in blobs {
                 let length = blob.length as usize;
                 let size_of_blob = std::mem::size_of::<CSBlob>();
+                let Some(blob_start) = offset.checked_add(size_of_blob) else {
+                    continue;
+                };
+                let Some(blob_end) = offset.checked_add(length) else {
+                    continue;
+                };
                 match blob.magic {
                     CS_MAGIC_EMBEDDED_ENTITLEMENTS => {
-                        let xml_data = match super_data.get(
-                            offset.saturating_add(size_of_blob)
-                                ..offset.saturating_add(length),
-                        ) {
-                            Some(data) => data,
-                            None => continue,
+                        let Some(xml_data) =
+                            super_data.get(blob_start..blob_end)
+                        else {
+                            continue;
                         };
+
+                        if xml_data.len() > MachO::MAX_ENTITLEMENTS_XML_BYTES {
+                            continue;
+                        }
 
                         let xml_string =
                             std::str::from_utf8(xml_data).unwrap_or_default();
 
+                        // Apple plists declare an external `<!DOCTYPE plist ...>`
+                        // header, so `allow_dtd` must remain `true`, while
+                        // rejecting `<!ENTITY` declarations prevents internal
+                        // DTD entity amplification (`entity_resolver: None`
+                        // already prevents external entity resolution).
+                        if xml_string.contains("<!ENTITY") {
+                            continue;
+                        }
+
                         let opt = roxmltree::ParsingOptions {
                             allow_dtd: true,
-                            ..roxmltree::ParsingOptions::default()
+                            nodes_limit: MachO::MAX_ENTITLEMENTS_XML_NODES,
+                            entity_resolver: None,
                         };
 
                         if let Ok(parsed_xml) =
@@ -1061,31 +1119,54 @@ impl<'a> MachOFile<'a> {
                                 n.has_tag_name("key")
                                     || n.has_tag_name("array")
                             }) {
-                                if let Some(entitlement) = node.text() {
-                                    if node.has_tag_name("array") {
-                                        node.descendants()
-                                            .filter_map(|n| n.text())
-                                            .filter(|t| !t.trim().is_empty())
-                                            .unique()
-                                            .map(|t| t.to_string())
-                                            .for_each(|array_entitlement| {
-                                                self.entitlements
-                                                    .push(array_entitlement)
-                                            });
-                                    } else {
+                                if self.entitlements.len()
+                                    >= MachO::MAX_ENTITLEMENTS
+                                {
+                                    break;
+                                }
+
+                                if node.has_tag_name("key") {
+                                    if let Some(entitlement) = node.text() {
+                                        let bounded = &entitlement[..entitlement
+                                            .floor_char_boundary(
+                                                MachO::MAX_ENTITLEMENT_NAME_LEN,
+                                            )];
                                         self.entitlements
-                                            .push(entitlement.to_string());
+                                            .push(bounded.to_string());
+                                    }
+                                } else if !node
+                                    .ancestors()
+                                    .skip(1)
+                                    .any(|a| a.has_tag_name("array"))
+                                {
+                                    for array_entitlement in node
+                                        .descendants()
+                                        .filter_map(|n| n.text())
+                                        .filter(|t| !t.trim().is_empty())
+                                        .unique()
+                                    {
+                                        if self.entitlements.len()
+                                            >= MachO::MAX_ENTITLEMENTS
+                                        {
+                                            break;
+                                        }
+                                        let bounded = &array_entitlement
+                                            [..array_entitlement
+                                                .floor_char_boundary(
+                                                    MachO::MAX_ENTITLEMENT_NAME_LEN,
+                                                )];
+                                        self.entitlements
+                                            .push(bounded.to_string());
                                     }
                                 }
                             }
                         }
                     }
                     CS_MAGIC_BLOBWRAPPER => {
-                        if let Some(ber_blob) = super_data.get(
-                            offset.saturating_add(size_of_blob)
-                                ..offset.saturating_add(length),
-                        ) && let Ok((_remainder, certs)) =
-                            parse_certificates(ber_blob)
+                        if let Some(ber_blob) =
+                            super_data.get(blob_start..blob_end)
+                            && let Ok((_remainder, certs)) =
+                                parse_certificates(ber_blob)
                         {
                             self.certificates.extend(certs);
                         }
@@ -1176,21 +1257,24 @@ impl<'a> MachOFile<'a> {
         count: u32,
     ) -> IResult<&'a [u8], ()> {
         let mut data = symbol_table;
+        let mut total_symtab_bytes = 0usize;
         let mut n;
 
-        for _ in 0..count {
+        for _ in 0..(count as usize).min(MachO::MAX_SYMBOLS) {
+            if total_symtab_bytes >= MachO::MAX_SYMTAB_BYTES {
+                break;
+            }
             (data, n) = self.nlist().parse(data)?;
             if let Some(symtab) = self.symtab.as_mut()
-                && let Some(string_data) =
-                    string_table.get(n.n_strx as usize..)
+                && let Ok(strx) = usize::try_from(n.n_strx)
+                && let Some(string_data) = string_table.get(strx..)
             {
-                let (_, string_value) = map(
-                    (take_till(|b| b == b'\x00'), tag("\x00")),
-                    |(s, _)| s,
-                )
-                .parse(string_data)?;
+                let string_value =
+                    parse_capped_cstr(string_data, MachO::MAX_SYM_NAME_LEN)?;
 
                 if !string_value.is_empty() {
+                    total_symtab_bytes =
+                        total_symtab_bytes.saturating_add(string_value.len());
                     symtab.entries.push(string_value);
                     symtab.nlists.push(n);
                 }
@@ -1205,11 +1289,18 @@ impl<'a> MachOFile<'a> {
     fn parse_exports(&mut self, data: &'a [u8]) -> IResult<&'a [u8], ()> {
         let mut stack = Vec::<ExportNode>::new();
         let mut visited = HashSet::<usize>::new();
+        let mut total_exports_bytes = 0usize;
 
         stack.push(ExportNode { offset: 0, prefix: "".to_string() });
 
-        while !stack.is_empty() && !data.is_empty() {
-            let export_node = stack.pop().unwrap();
+        while let Some(export_node) = stack.pop() {
+            if data.is_empty()
+                || visited.len() >= MachO::MAX_EXPORT_TRIE_NODES
+                || self.exports.len() >= MachO::MAX_EXPORTS
+                || total_exports_bytes >= MachO::MAX_EXPORTS_BYTES
+            {
+                break;
+            }
 
             // If node was already visited, continue without processing it.
             if !visited.insert(export_node.offset) {
@@ -1259,9 +1350,19 @@ impl<'a> MachOFile<'a> {
 
                 let (remainder, edge_offset) = uleb128(remainder)?;
 
-                if let Ok(edge_label_str) = edge_label.to_str() {
+                if let Ok(edge_label_str) = edge_label.to_str()
+                    && let Ok(next_offset) = usize::try_from(edge_offset)
+                    && next_offset < data.len()
+                    && !visited.contains(&next_offset)
+                    && stack.len() < MachO::MAX_EXPORT_STACK
+                    && export_node
+                        .prefix
+                        .len()
+                        .saturating_add(edge_label_str.len())
+                        <= MachO::MAX_EXPORT_NAME_LEN
+                {
                     stack.push(ExportNode {
-                        offset: edge_offset as usize,
+                        offset: next_offset,
                         prefix: format!(
                             "{}{}",
                             export_node.prefix, edge_label_str
@@ -1273,7 +1374,9 @@ impl<'a> MachOFile<'a> {
             }
 
             if length != 0 {
-                self.exports.push(export_node.prefix)
+                total_exports_bytes =
+                    total_exports_bytes.saturating_add(export_node.prefix.len());
+                self.exports.push(export_node.prefix);
             }
         }
 
@@ -1287,9 +1390,15 @@ impl<'a> MachOFile<'a> {
         seen: &mut HashSet<&'a str>,
     ) -> IResult<&'a [u8], ()> {
         let mut remainder: &[u8] = data;
+        let mut total_imports_bytes = 0usize;
         let mut entry: u8;
 
         while !remainder.is_empty() {
+            if self.imports.len() >= MachO::MAX_IMPORTS
+                || total_imports_bytes >= MachO::MAX_IMPORTS_BYTES
+            {
+                break;
+            }
             (remainder, entry) = u8(remainder)?;
             let opcode = entry & BIND_OPCODE_MASK;
             let _immediate = entry & BIND_IMMEDIATE_MASK;
@@ -1315,11 +1424,14 @@ impl<'a> MachOFile<'a> {
                     )
                     .parse(remainder)?;
                     remainder = import_remainder;
-                    if let Ok(import) = strr.to_str()
-                        && !seen.contains(import)
-                    {
-                        self.imports.push(import.to_string());
-                        seen.insert(import);
+                    if let Ok(import) = strr.to_str() {
+                        let bounded = &import[..import
+                            .floor_char_boundary(MachO::MAX_IMPORT_NAME_LEN)];
+                        if seen.insert(bounded) {
+                            total_imports_bytes =
+                                total_imports_bytes.saturating_add(bounded.len());
+                            self.imports.push(bounded.to_string());
+                        }
                     }
                 }
                 _ => {}
@@ -1370,13 +1482,13 @@ impl<'a> MachOFile<'a> {
     }
 
     /// Parser that parses the chained fixup imports designated by LC_DYLD_CHAINED_FIXUPS.
-    fn parse_chained_fixups(
-        &mut self,
-        data: &'a [u8],
-    ) -> IResult<&'a [u8], ()> {
+    fn parse_chained_fixups(&mut self, data: &'a [u8]) -> IResult<&'a [u8], ()> {
         let (_, header) = self.chained_fixup_header().parse(data)?;
+        let mut total_imports_bytes = 0usize;
 
-        if let Some(import_data) = data.get(header.imports_offset as usize..) {
+        if let Ok(imports_offset) = usize::try_from(header.imports_offset)
+            && let Some(import_data) = data.get(imports_offset..)
+        {
             let entry_size = match header.imports_format {
                 DYLD_CHAINED_IMPORT => 4,
                 DYLD_CHAINED_IMPORT_ADDEND => 8,
@@ -1394,9 +1506,17 @@ impl<'a> MachOFile<'a> {
                     (9, 0x7FFFFF, 0xFF, 8)
                 };
 
-            let imports_size = (header.imports_count as usize) * entry_size;
-            if let Some(raw_imports_blob) = import_data.get(..imports_size) {
+            let imports_count =
+                (header.imports_count as usize).min(MachO::MAX_IMPORTS);
+            if let Some(imports_size) = imports_count.checked_mul(entry_size)
+                && let Some(raw_imports_blob) = import_data.get(..imports_size)
+            {
                 for chunk in raw_imports_blob.chunks_exact(entry_size) {
+                    if self.imports.len() >= MachO::MAX_IMPORTS
+                        || total_imports_bytes >= MachO::MAX_IMPORTS_BYTES
+                    {
+                        break;
+                    }
                     // this is u64 if DYLD_CHAINED_IMPORT_ADDEND64 else u32
                     let chained_import_value = if is_addend64 {
                         let (_, val) = u64(self.endianness)(chunk)?;
@@ -1413,19 +1533,34 @@ impl<'a> MachOFile<'a> {
                     let name_offset =
                         (chained_import_value >> shift_symbol) & symbol_mask;
 
-                    if let Some(name_buffer) = data.get(
-                        header
-                            .symbols_offset
-                            // name_offset is always _at most_ 32 bits, so this is ok to cast down
-                            .saturating_add(name_offset as u32)
-                            as usize..,
-                    ) {
-                        let (_remainder, import_str) = map(
-                            (take_till(|b| b == b'\x00'), tag("\x00")),
-                            |(s, _)| s,
-                        )
-                        .parse(name_buffer)?;
-                        if let Ok(import) = import_str.to_str() {
+                    // name_offset is always _at most_ 32 bits, so this is ok to cast down
+                    if let Some(sym_off) =
+                        header.symbols_offset.checked_add(name_offset as u32)
+                        && let Ok(sym_off) = usize::try_from(sym_off)
+                        && let Some(name_buffer) = data.get(sym_off..)
+                    {
+                        let import_bytes = parse_capped_cstr(
+                            name_buffer,
+                            MachO::MAX_IMPORT_NAME_LEN,
+                        )?;
+                        let import_str = match std::str::from_utf8(import_bytes)
+                        {
+                            Ok(s) => Some(s),
+                            Err(err)
+                                if import_bytes.len()
+                                    == MachO::MAX_IMPORT_NAME_LEN
+                                    && err.error_len().is_none() =>
+                            {
+                                std::str::from_utf8(
+                                    &import_bytes[..err.valid_up_to()],
+                                )
+                                .ok()
+                            }
+                            Err(_) => None,
+                        };
+                        if let Some(import) = import_str {
+                            total_imports_bytes =
+                                total_imports_bytes.saturating_add(import.len());
                             self.imports.push(import.to_string());
                         }
                     }
@@ -1999,6 +2134,22 @@ fn parse_content_info(input: &[u8]) -> BerResult<'_> {
     parse_ber_sequence(input)
 }
 
+/// Reads a NUL-terminated byte slice capped to `max_len` bytes. If no NUL
+/// terminator is found within `max_len` bytes and the buffer is at least
+/// `max_len` bytes long, the slice is truncated to `max_len` bytes instead of
+/// failing; shorter unterminated buffers still fail with `ErrorKind::Tag`.
+fn parse_capped_cstr(
+    input: &[u8],
+    max_len: usize,
+) -> Result<&[u8], Err<NomError<'_>>> {
+    let bounded = &input[..input.len().min(max_len)];
+    match memchr::memchr(0, bounded) {
+        Some(nul_pos) => Ok(&bounded[..nul_pos]),
+        None if input.len() >= max_len => Ok(bounded),
+        None => Err(Err::Error(NomError::new(input, ErrorKind::Tag))),
+    }
+}
+
 impl From<MachO<'_>> for protos::macho::Macho {
     fn from(macho: MachO<'_>) -> Self {
         let mut result = protos::macho::Macho::new();
@@ -2006,7 +2157,7 @@ impl From<MachO<'_>> for protos::macho::Macho {
         // at the top level of `protos::macho::Macho` structure. If it is a
         // multi-architecture binary (FAT binary) then fill the `fat_arch`
         // and `file` arrays.
-        if macho.files.len() == 1 {
+        if macho.fat_magic.is_none() {
             let m = macho.files.first().unwrap();
             result.set_magic(m.header.magic);
             result.set_ncmds(m.header.ncmds);

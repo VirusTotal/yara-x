@@ -99,10 +99,10 @@ pub(crate) fn impl_module_export_macro(
 
     let wasm_export = match &method_of {
         Some(m) => {
-            quote! { #[wasm_export(name = #fn_name, public = true, method_of = #m, sync = #sync)] }
+            quote! { #[wasm_export(name = #fn_name, method_of = #m, sync = #sync)] }
         }
         None => {
-            quote! { #[wasm_export(name = #fn_name, public = true, sync = #sync)] }
+            quote! { #[wasm_export(name = #fn_name, module = true, sync = #sync)] }
         }
     };
 

@@ -29,3 +29,22 @@ fn yaml_serializer() {
         serializer.serialize(&test_pb).expect("Unable to serialize");
     }
 }
+
+#[test]
+fn yaml_serializer_out_of_range_timestamp() {
+    yansi::disable();
+
+    for ts in [i64::MIN, i64::MAX] {
+        let mut msg = crate::test_yaml::Message::new();
+        msg.set_timestamp(ts);
+
+        let mut output = Vec::new();
+        let mut serializer = Serializer::new(&mut output);
+        serializer.serialize(&msg).expect("Unable to serialize");
+
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            format!("timestamp: {ts}")
+        );
+    }
+}

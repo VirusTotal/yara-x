@@ -33,6 +33,10 @@ fn test_macho_module() {
         "src/modules/macho/tests/testdata/24536f0d970ca2e02b998d21e51e062b84f9b4f31af8bb5addd5b0de6e0013ab.in.zip",
     );
 
+    let fat_dedup_data = create_binary_from_zipped_ihex(
+        "src/modules/macho/tests/testdata/fat_dedup_and_cap.in.zip",
+    );
+
     rule_true!(
         r#"
         import "macho"
@@ -613,5 +617,20 @@ fn test_macho_module() {
         }
         "#,
         &ppc64_macho_test_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.nfat_arch == 62 and
+                macho.file_index_for_arch(0x01000007) == 1 and
+                macho.file[macho.file_index_for_arch(0x01000007)].cputype == 0x01000007 and
+                macho.entry_point_for_arch(0x01000007) == 0x1130 and
+                macho.entry_point_for_arch(0x01000007, 3) == 0x1130
+        }
+        "#,
+        &fat_dedup_data
     );
 }

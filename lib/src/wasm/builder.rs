@@ -115,7 +115,7 @@ pub(crate) struct WasmModuleBuilder {
 
 impl WasmModuleBuilder {
     const RULES_FUNC_RET: [walrus::ValType; 1] = [I32; 1];
-    const MAX_FUNC_INSTRS: u64 = 100_000;
+    const MAX_FUNC_INSTRS: u64 = 300_000;
 
     /// Creates a new module builder.
     pub fn new() -> Self {
