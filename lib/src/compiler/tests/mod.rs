@@ -1797,6 +1797,63 @@ fn test_include_non_regular_file() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn test_include_non_utf8_dir() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct TempDir(PathBuf);
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    let unique =
+        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let base_dir = TempDir(std::env::temp_dir().join(format!(
+        "yara_x_include_test_{}_{}",
+        std::process::id(),
+        unique
+    )));
+    fs::create_dir_all(&base_dir.0).unwrap();
+
+    let non_utf8_dir = base_dir.0.join(OsStr::from_bytes(b"inc_\xff"));
+
+    // Some filesystems (such as APFS on macOS) reject non-UTF-8 directory
+    // names at the OS level, whereas Linux filesystems like ext4/tmpfs allow
+    // them.
+    if fs::create_dir(&non_utf8_dir).is_err() {
+        return;
+    }
+
+    fs::write(
+        non_utf8_dir.join("included.yar"),
+        b"rule test { condition: true }\n",
+    )
+    .unwrap();
+
+    let mut compiler = Compiler::new();
+    compiler
+        .add_include_dir(&non_utf8_dir)
+        .add_source(r#"include "included.yar""#)
+        .unwrap();
+
+    assert_eq!(compiler.warnings().len(), 1);
+    assert!(
+        compiler.warnings()[0]
+            .to_string()
+            .contains("inc_\u{fffd}/included.yar")
+    );
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(b"").unwrap().matching_rules().len(), 1);
+}
+
 #[test]
 fn test_switch_warnings() {
     let mut compiler = Compiler::new();

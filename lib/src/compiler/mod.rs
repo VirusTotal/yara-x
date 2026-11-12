@@ -1567,7 +1567,7 @@ impl Compiler<'_> {
                         SourceCode::from(included_src.as_slice()).with_origin(
                             // In Windows the paths separators are backslashes, but we
                             // want to use slashes.
-                            included_path.to_str().unwrap().replace("\\", "/"),
+                            included_path.to_string_lossy().replace("\\", "/"),
                         );
 
                     self.include_stack.push(included_path);
