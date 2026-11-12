@@ -129,7 +129,11 @@ impl Extractor {
     /// containers. It receives three arguments:
     ///
     /// 1. The registered YARA module that produced the extracted data.
-    /// 2. The relative file path within the container (e.g., `Path::new("dir/file.txt")`).
+    /// 2. The relative file path within the container (e.g.,
+    ///    `Path::new("dir/file.txt")`). When files are unpacked from a nested
+    ///    container (`max_depth >= 2`), a trailing `_` is appended to the
+    ///    parent container's name (e.g., `Path::new("dir/inner.zip_/file.txt")`)
+    ///    so container files do not collide with directory names on disk.
     /// 3. The raw extracted data as a byte slice (`&[u8]`).
     ///
     /// # Flow Control
@@ -214,9 +218,19 @@ impl Extractor {
                     stack.push(StackItem::Finished(PathBuf::new()));
 
                     if depth < self.max_depth {
+                        // Append `_` to the parent container's file name (e.g.,
+                        // `dir/inner.zip` -> `dir/inner.zip_`) so extracted
+                        // children do not collide with the parent container
+                        // file when materialized on a filesystem.
+                        let mut child_parent = path.clone();
+                        if let Some(name) = child_parent.file_name() {
+                            let mut dir_name = name.to_os_string();
+                            dir_name.push("_");
+                            child_parent.set_file_name(dir_name);
+                        }
                         self.extract_children(
                             &data,
-                            Some(&path),
+                            Some(&child_parent),
                             depth + 1,
                             &mut stack,
                         );
@@ -317,10 +331,10 @@ mod tests {
             events,
             vec![
                 inner_zip_extracted.as_str(),
-                "extracted:inner.zip/sub1.txt:4",
-                "finished:inner.zip/sub1.txt",
-                "extracted:inner.zip/sub2.txt:4",
-                "finished:inner.zip/sub2.txt",
+                "extracted:inner.zip_/sub1.txt:4",
+                "finished:inner.zip_/sub1.txt",
+                "extracted:inner.zip_/sub2.txt:4",
+                "finished:inner.zip_/sub2.txt",
                 "finished:inner.zip",
                 "extracted:top1.txt:4",
                 "finished:top1.txt",
