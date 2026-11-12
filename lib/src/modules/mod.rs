@@ -84,6 +84,7 @@ pub struct ScannedDataWithPath<'a> {
 /// Signature for module extraction functions.
 pub type ModuleExtractFn = for<'a> fn(
     &ScannedData<'a>,
+    &crate::extractor::ExtractOptions,
 ) -> Option<
     Box<dyn Iterator<Item = ScannedDataWithPath<'a>> + 'a>,
 >;
@@ -196,8 +197,8 @@ macro_rules! register_module {
             &$crate::mods::prelude::Module::<$root_message> {
                 name: $name,
                 main_fn: Some($main_fn),
-                extract_fn: Some(|data| {
-                    $extract_fn(data).map(|iter| {
+                extract_fn: Some(|data, options| {
+                    $extract_fn(data, options).map(|iter| {
                         Box::new(iter)
                             as Box<
                                 dyn Iterator<

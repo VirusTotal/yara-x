@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use anyhow::Context;
 use clap::{ArgMatches, Command, arg, value_parser};
 use yara_x::Extractor;
+use yara_x::deep::ZipOptions;
 
 use crate::help;
 
@@ -28,12 +29,20 @@ pub fn extract() -> Command {
                 .value_parser(value_parser!(usize))
                 .default_value("1"),
         )
+        .arg(
+            arg!(--"zip-max-extracted-files" <FILES>)
+                .help("Maximum number of files extracted per ZIP archive")
+                .value_parser(value_parser!(usize))
+                .default_value("1000"),
+        )
 }
 
 pub fn exec_extract(args: &ArgMatches) -> anyhow::Result<()> {
     let file = args.get_one::<PathBuf>("FILE").unwrap();
     let output_dir = args.get_one::<PathBuf>("OUTPUT_DIR").unwrap();
     let max_depth = *args.get_one::<usize>("max-depth").unwrap_or(&1);
+    let zip_max_extracted_files =
+        *args.get_one::<usize>("zip-max-extracted-files").unwrap_or(&1000);
 
     let mut buffer = Vec::new();
     File::open(file)
@@ -42,7 +51,10 @@ pub fn exec_extract(args: &ArgMatches) -> anyhow::Result<()> {
         .with_context(|| format!("can not read `{}`", file.display()))?;
 
     let mut extractor = Extractor::new();
-    extractor.max_depth(max_depth);
+
+    extractor.max_depth(max_depth).zip_options(
+        ZipOptions::new().max_extracted_files(zip_max_extracted_files),
+    );
 
     let mut result = Ok(());
 

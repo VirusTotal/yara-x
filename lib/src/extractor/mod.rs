@@ -12,6 +12,59 @@ use crate::modules::{
 };
 use crate::scanner::ScannedData;
 
+/// Options for the ZIP archive extractor.
+///
+/// Passed to [`crate::deep::Scanner::zip_options`] or
+/// [`Extractor::zip_options`] to configure how ZIP archives are unpacked.
+///
+/// # Example
+///
+/// ```
+/// # use yara_x::{compile, deep};
+/// let rules = compile("rule test { condition: true }").unwrap();
+/// let mut scanner = deep::Scanner::new(&rules);
+/// scanner.zip_options(deep::ZipOptions::new().max_extracted_files(2000));
+/// ```
+#[derive(Debug, Clone)]
+pub struct ZipOptions {
+    #[cfg_attr(not(feature = "zip-module"), allow(dead_code))]
+    pub(crate) max_extracted_files: usize,
+}
+
+impl Default for ZipOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ZipOptions {
+    const DEFAULT_MAX_EXTRACTED_FILES: usize = 1000;
+
+    /// Creates a new [`ZipOptions`] with default settings.
+    pub const fn new() -> Self {
+        Self { max_extracted_files: Self::DEFAULT_MAX_EXTRACTED_FILES }
+    }
+
+    /// Sets the maximum number of files extracted per ZIP archive.
+    ///
+    /// If set to 0, no files are extracted from ZIP archives. Once a ZIP
+    /// archive yields `n` extracted files, any remaining files in that
+    /// archive are skipped.
+    ///
+    /// Default value is 1000.
+    pub const fn max_extracted_files(mut self, n: usize) -> Self {
+        self.max_extracted_files = n;
+        self
+    }
+}
+
+/// Bundle of configuration structures for all supported extractors.
+#[derive(Debug, Clone, Default)]
+pub struct ExtractOptions {
+    #[cfg_attr(not(feature = "zip-module"), allow(dead_code))]
+    pub(crate) zip: ZipOptions,
+}
+
 pub(crate) enum ExtractEvent<'a> {
     Extracted(&'a dyn RegisteredModule, &'a Path, &'a [u8]),
     Finished(&'a Path),
@@ -32,6 +85,7 @@ enum StackItem<'a> {
 #[derive(Debug, Clone)]
 pub struct Extractor {
     max_depth: usize,
+    options: ExtractOptions,
 }
 
 impl Default for Extractor {
@@ -41,9 +95,14 @@ impl Default for Extractor {
 }
 
 impl Extractor {
+    const DEFAULT_MAX_DEPTH: usize = 1;
+
     /// Creates a new extractor.
     pub fn new() -> Self {
-        Self { max_depth: 1 }
+        Self {
+            max_depth: Self::DEFAULT_MAX_DEPTH,
+            options: ExtractOptions::default(),
+        }
     }
 
     /// Sets the maximum container extraction depth.
@@ -54,6 +113,12 @@ impl Extractor {
     /// Default value is 1.
     pub fn max_depth(&mut self, depth: usize) -> &mut Self {
         self.max_depth = depth;
+        self
+    }
+
+    /// Sets options for the ZIP archive extractor.
+    pub fn zip_options(&mut self, options: ZipOptions) -> &mut Self {
+        self.options.zip = options;
         self
     }
 
@@ -181,7 +246,7 @@ impl Extractor {
             let Some(extract_fn) = module.extract_fn() else {
                 continue;
             };
-            if let Some(children) = extract_fn(data) {
+            if let Some(children) = extract_fn(data, &self.options) {
                 stack.push(StackItem::Iterator {
                     iter: children,
                     module,
@@ -289,5 +354,155 @@ mod tests {
             extracted_paths,
             vec![PathBuf::from("file1.txt"), PathBuf::from("file2.txt")]
         );
+    }
+
+    #[cfg(all(feature = "logging", not(feature = "stderr-logs")))]
+    mod logging_tests {
+        use std::cell::RefCell;
+        use std::ops::ControlFlow;
+        use std::sync::Once;
+        use std::time::Duration;
+
+        use super::{Extractor, create_zip};
+
+        struct ThreadLocalLogger;
+
+        thread_local! {
+            static LOGS: RefCell<Vec<(log::Level, String)>> =
+                const { RefCell::new(Vec::new()) };
+        }
+
+        impl log::Log for ThreadLocalLogger {
+            fn enabled(&self, metadata: &log::Metadata) -> bool {
+                metadata.target().starts_with("yara_x::extractor")
+            }
+
+            fn log(&self, record: &log::Record) {
+                if self.enabled(record.metadata()) {
+                    LOGS.with(|logs| {
+                        logs.borrow_mut()
+                            .push((record.level(), record.args().to_string()));
+                    });
+                }
+            }
+
+            fn flush(&self) {}
+        }
+
+        static LOGGER: ThreadLocalLogger = ThreadLocalLogger;
+        static INIT: Once = Once::new();
+
+        fn init_test_logger() {
+            INIT.call_once(|| {
+                log::set_logger(&LOGGER).unwrap();
+                log::set_max_level(log::LevelFilter::Debug);
+            });
+            LOGS.with(|logs| logs.borrow_mut().clear());
+        }
+
+        fn take_logs() -> Vec<(log::Level, String)> {
+            LOGS.with(|logs| std::mem::take(&mut *logs.borrow_mut()))
+        }
+
+        fn parse_debug_duration(s: &str) -> Duration {
+            if let Some(ns) = s.strip_suffix("ns") {
+                Duration::from_secs_f64(ns.parse::<f64>().unwrap() * 1e-9)
+            } else if let Some(us) = s.strip_suffix("µs") {
+                Duration::from_secs_f64(us.parse::<f64>().unwrap() * 1e-6)
+            } else if let Some(ms) = s.strip_suffix("ms") {
+                Duration::from_secs_f64(ms.parse::<f64>().unwrap() * 1e-3)
+            } else if let Some(secs) = s.strip_suffix('s') {
+                Duration::from_secs_f64(secs.parse::<f64>().unwrap())
+            } else {
+                panic!("unexpected duration format: {s}");
+            }
+        }
+
+        #[test]
+        fn test_extractor_logs_nothing_when_no_files_extracted() {
+            init_test_logger();
+
+            let extractor = Extractor::new();
+            let _ = extractor.extract(b"not a container", |_, _, _| {
+                ControlFlow::<()>::Continue(())
+            });
+
+            assert!(take_logs().is_empty());
+        }
+
+        #[test]
+        fn test_extractor_logs_per_file_and_total_excluding_callback() {
+            init_test_logger();
+
+            let inner_zip = create_zip(&[("sub.txt", b"hello")]);
+            let outer_zip = create_zip(&[
+                ("inner.zip", &inner_zip),
+                ("top.txt", b"world"),
+            ]);
+
+            let mut extractor = Extractor::new();
+            extractor.max_depth(2);
+
+            let _ = extractor.extract(&outer_zip, |_module, _path, _bytes| {
+                // Simulate 80ms of scan work per extracted file (240ms total).
+                std::thread::sleep(Duration::from_millis(80));
+                ControlFlow::<()>::Continue(())
+            });
+
+            let logs = take_logs();
+            assert_eq!(logs.len(), 4);
+
+            // First 3 logs are per-file DEBUG logs.
+            for (level, msg) in &logs[..3] {
+                assert_eq!(*level, log::Level::Debug);
+                assert!(msg.starts_with("Extracted "), "unexpected: {msg}");
+                assert!(msg.contains("module: `zip`"), "unexpected: {msg}");
+            }
+
+            // Final log is the INFO summary with total extraction time.
+            let (level, summary) = &logs[3];
+            assert_eq!(*level, log::Level::Info);
+            let rest = summary
+                .strip_prefix("Extraction time: ")
+                .expect("missing prefix");
+            let dur_str = rest
+                .strip_suffix(" (files: 3)")
+                .expect("missing files count suffix");
+
+            let logged_duration = parse_debug_duration(dur_str);
+            assert!(
+                logged_duration < Duration::from_millis(150),
+                "callback sleep leaked into extraction time: {logged_duration:?}",
+            );
+        }
+
+        #[test]
+        fn test_extractor_logs_total_on_early_break() {
+            init_test_logger();
+
+            let zip_data = create_zip(&[
+                ("file1.txt", b"one"),
+                ("file2.txt", b"two"),
+                ("file3.txt", b"three"),
+            ]);
+
+            let extractor = Extractor::new();
+            let res = extractor
+                .extract(&zip_data, |_module, _path, _bytes| {
+                    ControlFlow::Break("stop")
+                });
+
+            assert_eq!(res, ControlFlow::Break("stop"));
+
+            let logs = take_logs();
+            assert_eq!(logs.len(), 2);
+            assert_eq!(logs[0].0, log::Level::Debug);
+            assert_eq!(logs[1].0, log::Level::Info);
+            assert!(
+                logs[1].1.ends_with(" (files: 1)"),
+                "unexpected summary: {}",
+                logs[1].1
+            );
+        }
     }
 }

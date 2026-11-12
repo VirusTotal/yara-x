@@ -17,6 +17,8 @@ use crate::extractor::{ExtractEvent, Extractor};
 use crate::scanner::{ScanOptions, ScannedData};
 use crate::{Rules, ScanError, ScanResults, Variable};
 
+pub use crate::extractor::ZipOptions;
+
 /// Events emitted during a deep scan operation.
 pub enum ScanEvent<'a, 'r> {
     /// Emitted when a file or data buffer is about to be scanned.
@@ -110,6 +112,12 @@ impl<'r> Scanner<'r> {
     /// Default value is 1.
     pub fn max_depth(&mut self, depth: usize) -> &mut Self {
         self.extractor.max_depth(depth);
+        self
+    }
+
+    /// Sets options for the ZIP archive extractor.
+    pub fn zip_options(&mut self, options: ZipOptions) -> &mut Self {
+        self.extractor.zip_options(options);
         self
     }
 

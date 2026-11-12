@@ -1579,6 +1579,54 @@ fn test_scan_deep_timeout() {
     assert!(matches!(res, Err(crate::ScanError::Timeout)));
 }
 
+#[cfg(feature = "zip-module")]
+#[test]
+fn test_scan_deep_zip_options() {
+    use std::io::{Cursor, Write};
+
+    let rules = crate::compile(
+        r#"
+        rule match_item {
+            strings:
+                $a = "item"
+            condition:
+                $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    let buf = Vec::new();
+    let mut zip = zip::ZipWriter::new(Cursor::new(buf));
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+    for i in 1..=4 {
+        zip.start_file(format!("file{i}.txt"), options).unwrap();
+        zip.write_all(format!("item {i}").as_bytes()).unwrap();
+    }
+    let zip_data = zip.finish().unwrap().into_inner();
+
+    let mut scanner = crate::deep::Scanner::new(&rules);
+    scanner.zip_options(
+        crate::scanner::deep::ZipOptions::new().max_extracted_files(2),
+    );
+
+    let mut scanned_paths = Vec::new();
+    let _ = scanner
+        .scan(&zip_data, |event| {
+            if let crate::deep::ScanEvent::Scanned(path, results) = event {
+                scanned_paths.push(path.to_string_lossy().replace('\\', "/"));
+                if !path.as_os_str().is_empty() {
+                    assert_eq!(results.matching_rules().count(), 1);
+                }
+            }
+            std::ops::ControlFlow::<()>::Continue(())
+        })
+        .unwrap();
+
+    assert_eq!(scanned_paths, vec!["", "file1.txt", "file2.txt"]);
+}
+
 #[cfg(feature = "test_proto2-module")]
 #[test]
 fn runtime_string_from_large_slice() {

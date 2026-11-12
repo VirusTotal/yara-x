@@ -2,6 +2,7 @@ use std::io::Read;
 use std::ops::{Deref, Range};
 use std::path::PathBuf;
 
+use crate::extractor::{ExtractOptions, ZipOptions};
 use crate::mods::prelude::*;
 use crate::modules::ModuleError;
 use crate::modules::ScannedDataWithPath;
@@ -38,8 +39,11 @@ pub struct ZipExtractor<'a> {
 }
 
 impl<'a> ZipExtractor<'a> {
-    fn new(data: &ScannedData<'a>) -> Option<Self> {
-        const MAX_FILES: usize = 1000; // Guardrail: prevent file extraction DoS
+    fn new(data: &ScannedData<'a>, options: &ZipOptions) -> Option<Self> {
+        let max_files = options.max_extracted_files;
+        if max_files == 0 {
+            return None;
+        }
 
         let archive = tinyzip::Archive::open(data.as_ref()).ok()?;
         if archive.entry_count() == 0 {
@@ -50,7 +54,7 @@ impl<'a> ZipExtractor<'a> {
         let mut path_buf = vec![0u8; 65536];
 
         for entry in archive.entries().flatten() {
-            if entries.len() >= MAX_FILES {
+            if entries.len() >= max_files {
                 break;
             }
 
@@ -156,8 +160,11 @@ impl<'a> Iterator for ZipExtractor<'a> {
 }
 
 /// Extracts internal items from a ZIP archive.
-pub fn extract_zip<'a>(data: &ScannedData<'a>) -> Option<ZipExtractor<'a>> {
-    ZipExtractor::new(data)
+pub fn extract_zip<'a>(
+    data: &ScannedData<'a>,
+    options: &ExtractOptions,
+) -> Option<ZipExtractor<'a>> {
+    ZipExtractor::new(data, &options.zip)
 }
 
 register_module!("zip", Zip, main, extract_zip);

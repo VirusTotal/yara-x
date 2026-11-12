@@ -89,6 +89,7 @@ mod partial {
         &Module::<Empty> {
             name: "partial",
             main_fn: None,
+            extract_fn: None,
             rust_module_name: Some("partial"),
         } as &dyn RegisteredModule
     }

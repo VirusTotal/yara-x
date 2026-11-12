@@ -20,3 +20,24 @@ fn test_extract_command() {
 
     assert!(!entries.is_empty(), "expected extracted files in output dir");
 }
+
+#[test]
+fn test_extract_command_zip_max_extracted_files() {
+    let temp = TempDir::new().unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .arg("extract")
+        .arg("--zip-max-extracted-files")
+        .arg("1")
+        .arg(
+            "../lib/src/modules/zip/tests/testdata/stored_and_deflated.in.zip",
+        )
+        .arg(temp.path())
+        .assert()
+        .success();
+
+    let entries: Vec<_> =
+        fs::read_dir(temp.path()).unwrap().filter_map(|e| e.ok()).collect();
+
+    assert_eq!(entries.len(), 1);
+}
