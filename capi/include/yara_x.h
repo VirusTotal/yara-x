@@ -84,6 +84,15 @@ typedef enum YRX_RESULT {
   YRX_NOT_SUPPORTED,
 } YRX_RESULT;
 
+// Formats in which [`yrx_modules_dump`] can render the data produced by
+// YARA modules.
+typedef enum YRX_DUMP_FORMAT {
+  // YAML format, the default format used by the `yr dump` command.
+  YRX_DUMP_YAML,
+  // JSON format, like `yr dump --output-format json`.
+  YRX_DUMP_JSON,
+} YRX_DUMP_FORMAT;
+
 // Types of metadata values.
 typedef enum YRX_METADATA_TYPE {
   YRX_I64,
@@ -554,6 +563,45 @@ enum YRX_RESULT yrx_compiler_warnings_json(struct YRX_COMPILER *compiler,
 // (i.e: the state it had after returning from yrx_compiler_create) you can
 // keep using it by adding more sources and calling this function again.
 struct YRX_RULES *yrx_compiler_build(struct YRX_COMPILER *compiler);
+
+// Dumps the data produced by YARA modules for the given input data.
+//
+// It behaves exactly like the `yr dump` command-line tool, and the
+// returned data is identical to the output printed by that command.
+//
+// # Arguments
+//
+// * `data`: pointer to the input data. It can be null if `data_len` is 0.
+// * `data_len`: length of the input data.
+// * `modules`: if not null, it is a comma-separated list of module names
+//   (e.g: "pe,dotnet") and only those modules are dumped, even if they
+//   didn't produce any results for the given data. If null, only the
+//   modules that produced meaningful results are dumped. This is
+//   equivalent to the `--module` argument of the `yr dump` command.
+// * `format`: the output format, see [`YRX_DUMP_FORMAT`].
+// * `colors`: if true, the returned data contains ANSI escape sequences
+//   for showing the results in color.
+// * `buf`: address where a pointer to a [`YRX_BUFFER`] structure will be
+//   copied. The buffer contains the dumped data as UTF-8 text.
+//
+// The returned buffer must be destroyed with `yrx_buffer_destroy`.
+//
+// # Example
+//
+// ```c
+// YRX_BUFFER* buf;
+// if (yrx_modules_dump(data, len, NULL, YRX_DUMP_YAML, false, &buf) ==
+//     YRX_SUCCESS) {
+//     fwrite(buf->data, 1, buf->length, stdout);
+//     yrx_buffer_destroy(buf);
+// }
+// ```
+enum YRX_RESULT yrx_modules_dump(const uint8_t *data,
+                                 size_t data_len,
+                                 const char *modules,
+                                 enum YRX_DUMP_FORMAT format,
+                                 bool colors,
+                                 struct YRX_BUFFER **buf);
 
 // Returns the name of the pattern represented by [`YRX_PATTERN`].
 //
