@@ -887,6 +887,7 @@ impl<'a> Compiler<'a> {
                     filesize_bounds,
                     header_constraints,
                     regex_sets: this.regex_sets,
+                    compiled_regex_sets: Default::default(),
                     literal_sets: this.literal_sets,
                     fast_scan_max_matches: this.fast_scan_max_matches,
                     rules_profiling_enabled: cfg!(feature = "rules-profiling"),
@@ -916,6 +917,7 @@ impl<'a> Compiler<'a> {
         #[cfg(feature = "logging")]
         info!("WASM module build time: {:?}", Instant::elapsed(&start));
 
+        rules.init_regex_set_cache();
         rules.build_ac_automaton();
         rules
     }
