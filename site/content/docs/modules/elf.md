@@ -41,6 +41,42 @@ rule elf_64 {
 
 ## Functions
 
+### has_symbol(name)
+
+Returns true if the ELF has a symbol named `name` in either the dynamic symbol
+table (`dynsym`) or the regular symbol table (`symtab`), or false otherwise.
+
+- `name` is case-sensitive.
+
+#### Example
+
+```yara
+import "elf"
+
+rule has_symbol_example {
+  condition:
+    elf.has_symbol("tee")
+}
+```
+
+### has_symbol(name, type)
+
+Like `has_symbol(name)`, but the symbol must also be of the given `type`, which
+is one of the [SymType](#symtype) values (e.g. `elf.STT_FUNC`).
+
+- `name` is case-sensitive.
+
+#### Example
+
+```yara
+import "elf"
+
+rule has_symbol_with_type_example {
+  condition:
+    elf.has_symbol("socket", elf.STT_FUNC)
+}
+```
+
 ### import_md5()
 
 Returns the MD5 of the import table.

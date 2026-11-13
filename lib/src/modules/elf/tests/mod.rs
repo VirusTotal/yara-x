@@ -5,6 +5,28 @@ use crate::tests::rule_true;
 use crate::tests::test_rule;
 
 #[test]
+fn has_symbol() {
+    let elf = create_binary_from_zipped_ihex(
+        "src/modules/elf/tests/testdata/8bfe885838b4d1fba194b761ca900a0425aa892e4b358bf5a9bf4304e571df1b.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "elf"
+        rule test {
+          condition:
+            elf.has_symbol("FOO", elf.STT_FUNC)
+            and elf.has_symbol("a_value", elf.STT_OBJECT)
+            and elf.has_symbol("crtstuff.c", elf.STT_FILE)
+            and not elf.has_symbol("strallcaps")
+            and not elf.has_symbol("crtstuff.c", elf.STT_NOTYPE)
+        }
+        "#,
+        &elf
+    );
+}
+
+#[test]
 fn import_md5() {
     let elf = create_binary_from_zipped_ihex(
         "src/modules/elf/tests/testdata/8bfe885838b4d1fba194b761ca900a0425aa892e4b358bf5a9bf4304e571df1b.in.zip",
