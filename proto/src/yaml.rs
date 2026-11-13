@@ -127,6 +127,52 @@ impl<W: Write> Serializer<W> {
     pub fn serialize(&mut self, msg: &dyn MessageDyn) -> Result<(), Error> {
         self.write_msg(&MessageRef::new(msg))
     }
+
+    /// Begins serializing a map of string keys to protobuf messages.
+    pub fn serialize_map(&mut self) -> Result<MapSerializer<'_, W>, Error> {
+        Ok(MapSerializer { serializer: self, first: true })
+    }
+}
+
+/// Serializes a map of string keys to protobuf messages in YAML format.
+pub struct MapSerializer<'a, W: Write> {
+    serializer: &'a mut Serializer<W>,
+    first: bool,
+}
+
+impl<W: Write> MapSerializer<'_, W> {
+    /// Serializes a single key-message entry in the map.
+    pub fn serialize_entry(
+        &mut self,
+        key: &str,
+        msg: &dyn MessageDyn,
+    ) -> Result<(), Error> {
+        if !self.first {
+            self.serializer.newline()?;
+        }
+        self.first = false;
+        let escaped_key = Serializer::<W>::escape(key);
+        write!(
+            self.serializer.output,
+            "\"{}\":",
+            escaped_key.paint(self.serializer.colors.field_name)
+        )?;
+        let msg_ref = MessageRef::new(msg);
+        if Serializer::<W>::has_non_empty_fields(&msg_ref) {
+            self.serializer.indent += INDENTATION;
+            self.serializer.newline()?;
+            self.serializer.write_msg(&msg_ref)?;
+            self.serializer.indent -= INDENTATION;
+        } else {
+            write!(self.serializer.output, " {{}}")?;
+        }
+        Ok(())
+    }
+
+    /// Finishes serializing the map.
+    pub fn finish(self) -> Result<(), Error> {
+        Ok(())
+    }
 }
 
 impl<W: Write> Serializer<W> {
@@ -245,6 +291,16 @@ impl<W: Write> Serializer<W> {
 
     fn write_repeated_name(&mut self, name: &str) -> Result<(), Error> {
         write!(self.output, "{}:", name.paint(self.colors.repeated_name))
+    }
+
+    fn has_non_empty_fields(msg: &MessageRef) -> bool {
+        msg.descriptor_dyn().fields().any(|field| {
+            match field.get_reflect(&**msg) {
+                Optional(optional) => optional.value().is_some(),
+                Repeated(repeated) => !repeated.is_empty(),
+                Map(map) => !map.is_empty(),
+            }
+        })
     }
 
     fn write_msg(&mut self, msg: &MessageRef) -> Result<(), Error> {

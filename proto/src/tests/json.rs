@@ -34,3 +34,42 @@ fn json_serializer() {
         }
     }
 }
+
+#[test]
+fn json_serializer_map() {
+    yansi::disable();
+
+    let mut msg1 = crate::test_json::Message::new();
+    msg1.set_i32(42);
+    msg1.set_str("hello".to_string());
+
+    let mut msg2 = crate::test_json::Message::new();
+    msg2.set_bool(true);
+
+    let mut output = Vec::new();
+    let mut serializer = Serializer::new(&mut output);
+    let mut map = serializer.serialize_map().unwrap();
+    map.serialize_entry("dir/file1.bin", &msg1).unwrap();
+    map.serialize_entry("dir/\"quoted\".bin", &msg2).unwrap();
+    map.finish().unwrap();
+
+    assert_eq!(
+        String::from_utf8(output).unwrap(),
+        concat!(
+            "{\n",
+            "    \"dir/file1.bin\": {\n",
+            "        \"i32\": 42,\n",
+            "        \"str\": \"hello\"\n",
+            "    },\n",
+            "    \"dir/\\\"quoted\\\".bin\": {\n",
+            "        \"bool\": true\n",
+            "    }\n",
+            "}",
+        )
+    );
+
+    let mut empty_output = Vec::new();
+    let mut empty_serializer = Serializer::new(&mut empty_output);
+    empty_serializer.serialize_map().unwrap().finish().unwrap();
+    assert_eq!(String::from_utf8(empty_output).unwrap(), "{}");
+}

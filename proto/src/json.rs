@@ -131,6 +131,50 @@ impl<W: Write> Serializer<W> {
     pub fn serialize(&mut self, msg: &dyn MessageDyn) -> Result<(), Error> {
         self.write_msg(&MessageRef::new(msg))
     }
+
+    /// Begins serializing a map of string keys to protobuf messages.
+    pub fn serialize_map(&mut self) -> Result<MapSerializer<'_, W>, Error> {
+        write!(self.output, "{{")?;
+        self.indent += INDENTATION;
+        Ok(MapSerializer { serializer: self, first: true })
+    }
+}
+
+/// Serializes a map of string keys to protobuf messages in JSON format.
+pub struct MapSerializer<'a, W: Write> {
+    serializer: &'a mut Serializer<W>,
+    first: bool,
+}
+
+impl<W: Write> MapSerializer<'_, W> {
+    /// Serializes a single key-message entry in the map.
+    pub fn serialize_entry(
+        &mut self,
+        key: &str,
+        msg: &dyn MessageDyn,
+    ) -> Result<(), Error> {
+        if !self.first {
+            write!(self.serializer.output, ",")?;
+        }
+        self.first = false;
+        self.serializer.newline()?;
+        let escaped_key = Serializer::<W>::escape(key);
+        write!(
+            self.serializer.output,
+            "\"{}\": ",
+            escaped_key.paint(self.serializer.colors.field_name)
+        )?;
+        self.serializer.write_msg(&MessageRef::new(msg))
+    }
+
+    /// Finishes serializing the map.
+    pub fn finish(self) -> Result<(), Error> {
+        self.serializer.indent -= INDENTATION;
+        if !self.first {
+            self.serializer.newline()?;
+        }
+        write!(self.serializer.output, "}}")
+    }
 }
 
 impl<W: Write> Serializer<W> {

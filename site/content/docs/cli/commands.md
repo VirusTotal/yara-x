@@ -439,6 +439,15 @@ by all these modules will dumped to stdout in YAML format.
 
 If the file is not provided it will be read from stdin.
 
+### --max-depth, -d \<DEPTH\>
+
+Specify the maximum container extraction depth. The default value is `0`, which
+dumps only the module data produced for `<FILE>` itself. When set to a value
+greater than `0`, container files are unpacked recursively up to `<DEPTH>`
+levels, and the output becomes a map keyed by file path (`<FILE>` and
+`<FILE>/<inner_path>`) containing the module data for `<FILE>` and each
+extracted inner file that produced meaningful module information.
+
 ### --output-format \<FORMAT\>
 
 Specify the output format. Possible values are: `json` and `yaml`. The default

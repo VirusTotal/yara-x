@@ -48,3 +48,37 @@ fn yaml_serializer_out_of_range_timestamp() {
         );
     }
 }
+
+#[test]
+fn yaml_serializer_map() {
+    yansi::disable();
+
+    let mut msg1 = crate::test_yaml::Message::new();
+    msg1.set_int32_dec(42);
+    msg1.set_str("hello".to_string());
+
+    let mut msg2 = crate::test_yaml::Message::new();
+    msg2.set_int32_hex(0xff);
+
+    let empty_msg = crate::test_yaml::Message::new();
+
+    let mut output = Vec::new();
+    let mut serializer = Serializer::new(&mut output);
+    let mut map = serializer.serialize_map().unwrap();
+    map.serialize_entry("dir/file1.bin", &msg1).unwrap();
+    map.serialize_entry("dir/empty.bin", &empty_msg).unwrap();
+    map.serialize_entry("dir/\"quoted\".bin", &msg2).unwrap();
+    map.finish().unwrap();
+
+    assert_eq!(
+        String::from_utf8(output).unwrap(),
+        concat!(
+            "\"dir/file1.bin\":\n",
+            "    int32_dec: 42\n",
+            "    str: \"hello\"\n",
+            "\"dir/empty.bin\": {}\n",
+            "\"dir/\\\"quoted\\\".bin\":\n",
+            "    int32_hex: 0xff",
+        )
+    );
+}
