@@ -1361,11 +1361,7 @@ unsafe fn verify_literal_with_mask_simd<V: teddy::vector::Vector>(
                 offset += 16;
             }
 
-            if offset < len && !verify_chunk(len - 16) {
-                return false;
-            }
-
-            true
+            !(offset < len && !verify_chunk(len - 16))
         }
     }
 }

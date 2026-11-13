@@ -1688,10 +1688,13 @@ impl IR {
         };
 
         for (i, byte) in bytes.iter().enumerate() {
+            let Some(byte_offset) = offset.checked_add(i) else {
+                break;
+            };
             self.add_constraint(
                 constrained_bytes,
                 unsatisfiable,
-                offset + i,
+                byte_offset,
                 *byte,
             );
         }

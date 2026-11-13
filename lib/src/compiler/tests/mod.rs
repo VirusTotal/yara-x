@@ -1797,6 +1797,63 @@ fn test_include_non_regular_file() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn test_include_non_utf8_dir() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct TempDir(PathBuf);
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    let unique =
+        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let base_dir = TempDir(std::env::temp_dir().join(format!(
+        "yara_x_include_test_{}_{}",
+        std::process::id(),
+        unique
+    )));
+    fs::create_dir_all(&base_dir.0).unwrap();
+
+    let non_utf8_dir = base_dir.0.join(OsStr::from_bytes(b"inc_\xff"));
+
+    // Some filesystems (such as APFS on macOS) reject non-UTF-8 directory
+    // names at the OS level, whereas Linux filesystems like ext4/tmpfs allow
+    // them.
+    if fs::create_dir(&non_utf8_dir).is_err() {
+        return;
+    }
+
+    fs::write(
+        non_utf8_dir.join("included.yar"),
+        b"rule test { condition: true }\n",
+    )
+    .unwrap();
+
+    let mut compiler = Compiler::new();
+    compiler
+        .add_include_dir(&non_utf8_dir)
+        .add_source(r#"include "included.yar""#)
+        .unwrap();
+
+    assert_eq!(compiler.warnings().len(), 1);
+    assert!(
+        compiler.warnings()[0]
+            .to_string()
+            .contains("inc_\u{fffd}/included.yar")
+    );
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(b"").unwrap().matching_rules().len(), 1);
+}
+
 #[test]
 fn test_switch_warnings() {
     let mut compiler = Compiler::new();
@@ -2179,6 +2236,66 @@ fn test_header_constraints() {
         "uint8(0) == 1 and uint8(0) == 2",
         &[],
         &[b"\x01", b"\x02", b"\x03"],
+    );
+
+    // 3. Multi-byte reads at boundary offsets (e.g. `u32::MAX` on 32-bit
+    // targets and `i64::MAX` on 64-bit targets) must not panic or wrap around
+    // into header offsets starting at 0.
+    check_header_constraint(
+        "uint16(0xffffffff) == 0x2211",
+        &[],
+        &[b"\x11\x22\x00\x00", b"MZ\x00\x00"],
+    );
+    check_header_constraint(
+        "uint32(0xffffffff) == 0x44332211",
+        &[],
+        &[b"\x11\x22\x33\x44", b"\x22\x33\x44\x00"],
+    );
+    check_header_constraint(
+        "uint64(0xfffffff9) == 0x8877665544332211",
+        &[],
+        &[b"\x11\x22\x33\x44\x55\x66\x77\x88", b"\x88\x00\x00\x00"],
+    );
+    check_header_constraint(
+        "uint16(0) == 0x5a4d and uint32(0xffffffff) == 0x44332211",
+        &[],
+        &[b"MZ\x00\x00"],
+    );
+    check_header_constraint(
+        "uint64(0x7fffffffffffffff) == 0x8877665544332211",
+        &[],
+        &[b"\x11\x22\x33\x44\x55\x66\x77\x88"],
+    );
+
+    let rules = compile(
+        r#"
+        rule unconstrained_boundary_read {
+            strings:
+                $re = /foo|bar/
+            condition:
+                $re and uint32(0xffffffff) == 0x44332211
+        }
+        "#,
+    )
+    .unwrap();
+    assert_eq!(rules.header_constraints().count(), 0);
+
+    let rules = compile(
+        r#"
+        rule header_with_boundary_read {
+            strings:
+                $re = /foo|bar/
+            condition:
+                $re and uint16(0) == 0x5a4d and uint32(0xffffffff) == 0x44332211
+        }
+        "#,
+    )
+    .unwrap();
+    let constraints: Vec<_> = rules.header_constraints().collect();
+    assert_eq!(constraints.len(), 1);
+    assert_eq!(
+        constraints[0].1,
+        &crate::compiler::HeaderConstraint::Constrained(vec![0x4d, 0x5a])
     );
 }
 
