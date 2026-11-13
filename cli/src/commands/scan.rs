@@ -634,12 +634,16 @@ mod output_handler {
     #[derive(serde::Serialize)]
     struct JsonOutput<'a> {
         path: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        inner_path: Option<&'a str>,
         rules: &'a [RuleJson],
     }
 
     #[derive(serde::Serialize)]
     struct JsonCountOutput<'a> {
         path: &'a str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        inner_path: Option<&'a str>,
         count: usize,
     }
 
@@ -964,13 +968,15 @@ mod output_handler {
                 let count = scan_results.count();
 
                 if count > 0 {
-                    let full_path = join_inner_path(file_path, inner_path);
-                    let path = full_path.to_string_lossy();
+                    let path = file_path.to_string_lossy();
+                    let inner_path = (!inner_path.as_os_str().is_empty())
+                        .then(|| inner_path.to_string_lossy());
                     output
                         .send(Message::Info(
                             serde_json::to_string(&JsonCountOutput {
-                                count,
                                 path: &path,
+                                inner_path: inner_path.as_deref(),
+                                count,
                             })
                             .unwrap(),
                         ))
@@ -987,11 +993,13 @@ mod output_handler {
                 return false;
             }
 
-            let full_path = join_inner_path(file_path, inner_path);
-            let path = full_path.to_string_lossy();
+            let path = file_path.to_string_lossy();
+            let inner_path = (!inner_path.as_os_str().is_empty())
+                .then(|| inner_path.to_string_lossy());
 
             let line = serde_json::to_string(&JsonOutput {
                 path: &path,
+                inner_path: inner_path.as_deref(),
                 rules: matching_rules.as_slice(),
             })
             .unwrap();
@@ -1020,7 +1028,9 @@ mod output_handler {
     #[derive(serde::Serialize, Clone)]
     struct MatchJson {
         rule: String,
-        file: String,
+        path: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        inner_path: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         meta: Option<HashMap<String, serde_json::Value>>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -1112,10 +1122,13 @@ mod output_handler {
             }
 
             let canonical = dunce::canonicalize(file_path);
-            let base_path = canonical.as_deref().unwrap_or(file_path);
-            let path = join_inner_path(base_path, inner_path)
+            let path = canonical
+                .as_deref()
+                .unwrap_or(file_path)
                 .to_string_lossy()
                 .into_owned();
+            let inner_path = (!inner_path.as_os_str().is_empty())
+                .then(|| inner_path.to_string_lossy().into_owned());
 
             // prepare the increment *outside* the critical section
             let matching_rules = matching_rules.map(|rule| {
@@ -1146,7 +1159,8 @@ mod output_handler {
                         .collect::<HashMap<_, _>>()
                 });
 
-                let file = path.clone();
+                let path = path.clone();
+                let inner_path = inner_path.clone();
 
                 let tags = self.output_options.include_tags.then(|| {
                     rule.tags()
@@ -1164,8 +1178,9 @@ mod output_handler {
 
                 MatchJson {
                     rule: rule.identifier().to_string(),
+                    path,
+                    inner_path,
                     meta,
-                    file,
                     tags,
                     strings,
                 }
@@ -1188,15 +1203,22 @@ mod output_handler {
 
             let rendered_json = match self.output_options.count_only {
                 true => {
-                    let json_output = matches
-                        .iter()
-                        .fold(HashMap::new(), |mut acc, it| {
-                            *acc.entry(&it.file).or_insert(0) += 1;
-                            acc
-                        })
-                        .into_iter()
-                        .map(|(path, count)| JsonCountOutput { path, count })
-                        .collect::<Vec<_>>();
+                    let json_output =
+                        matches
+                            .iter()
+                            .fold(HashMap::new(), |mut acc, it| {
+                                *acc.entry((
+                                    it.path.as_str(),
+                                    it.inner_path.as_deref(),
+                                ))
+                                .or_insert(0) += 1;
+                                acc
+                            })
+                            .into_iter()
+                            .map(|((path, inner_path), count)| {
+                                JsonCountOutput { path, inner_path, count }
+                            })
+                            .collect::<Vec<_>>();
 
                     serde_json::to_string_pretty(&json_output)
                 }

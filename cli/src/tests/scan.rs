@@ -838,10 +838,8 @@ fn json_output_inner_extracted_file() {
 
     let canonical_archive = dunce::canonicalize(archive_file.path()).unwrap();
     let expected_outer = canonical_archive.to_string_lossy().into_owned();
-    let expected_inner = canonical_archive
-        .join("7972ee9287cfcce00dc23098dce4ea8ed32e2dff629342e5364a48cd9c01bcb8.in")
-        .to_string_lossy()
-        .into_owned();
+    let expected_inner_path =
+        "7972ee9287cfcce00dc23098dce4ea8ed32e2dff629342e5364a48cd9c01bcb8.in";
 
     // Run from `temp_dir` passing a relative file name, matching:
     // `yr scan -s test.yar <filename> -o json`
@@ -865,15 +863,17 @@ fn json_output_inner_extracted_file() {
     assert_eq!(matches.len(), 2);
 
     assert_eq!(matches[0]["rule"], "outer_zip");
-    assert_eq!(matches[0]["file"], expected_outer);
+    assert_eq!(matches[0]["path"], expected_outer);
+    assert!(matches[0].get("inner_path").is_none());
 
     assert_eq!(matches[1]["rule"], "inner_vba_hex");
-    assert_eq!(matches[1]["file"], expected_inner);
+    assert_eq!(matches[1]["path"], expected_outer);
+    assert_eq!(matches[1]["inner_path"], expected_inner_path);
     assert_eq!(matches[1]["strings"][0]["identifier"], "$a");
     assert_eq!(matches[1]["strings"][0]["match"], ":020000040000FA");
 
-    // Also verify `--count` with `--output-format=json` preserves distinct
-    // outer and inner file paths rather than collapsing inner matches into `""`.
+    // Verify `--count` with `--output-format=json` keeps `path` as the outer
+    // file and reports `inner_path` separately when matching an extracted file.
     let count_output = Command::new(cargo_bin!("yr"))
         .current_dir(temp_dir.path())
         .arg("scan")
@@ -892,12 +892,78 @@ fn json_output_inner_extracted_file() {
         serde_json::from_slice(&count_output)
             .expect("valid JSON count output");
     counts.sort_by(|a, b| {
-        a["path"].as_str().unwrap().cmp(b["path"].as_str().unwrap())
+        a.get("inner_path")
+            .and_then(|v| v.as_str())
+            .cmp(&b.get("inner_path").and_then(|v| v.as_str()))
     });
 
     assert_eq!(counts.len(), 2);
     assert_eq!(counts[0]["path"], expected_outer);
+    assert!(counts[0].get("inner_path").is_none());
     assert_eq!(counts[0]["count"], 1);
-    assert_eq!(counts[1]["path"], expected_inner);
+    assert_eq!(counts[1]["path"], expected_outer);
+    assert_eq!(counts[1]["inner_path"], expected_inner_path);
     assert_eq!(counts[1]["count"], 1);
+
+    // Verify `--output-format=ndjson` also keeps `path` as the outer file and
+    // reports `inner_path` separately.
+    let ndjson_output = Command::new(cargo_bin!("yr"))
+        .current_dir(temp_dir.path())
+        .arg("scan")
+        .arg("test.yar")
+        .arg(archive_name)
+        .arg("-o")
+        .arg("ndjson")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let ndjson_lines: Vec<serde_json::Value> =
+        String::from_utf8(ndjson_output)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("valid NDJSON line"))
+            .collect();
+
+    assert_eq!(ndjson_lines.len(), 2);
+    assert_eq!(ndjson_lines[0]["path"], archive_name);
+    assert!(ndjson_lines[0].get("inner_path").is_none());
+    assert_eq!(ndjson_lines[0]["rules"][0]["identifier"], "outer_zip");
+
+    assert_eq!(ndjson_lines[1]["path"], archive_name);
+    assert_eq!(ndjson_lines[1]["inner_path"], expected_inner_path);
+    assert_eq!(ndjson_lines[1]["rules"][0]["identifier"], "inner_vba_hex");
+
+    // Verify `--count` with `--output-format=ndjson`.
+    let ndjson_count_output = Command::new(cargo_bin!("yr"))
+        .current_dir(temp_dir.path())
+        .arg("scan")
+        .arg("-c")
+        .arg("test.yar")
+        .arg(archive_name)
+        .arg("-o")
+        .arg("ndjson")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let ndjson_counts: Vec<serde_json::Value> =
+        String::from_utf8(ndjson_count_output)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("valid NDJSON line"))
+            .collect();
+
+    assert_eq!(ndjson_counts.len(), 2);
+    assert_eq!(ndjson_counts[0]["path"], archive_name);
+    assert!(ndjson_counts[0].get("inner_path").is_none());
+    assert_eq!(ndjson_counts[0]["count"], 1);
+
+    assert_eq!(ndjson_counts[1]["path"], archive_name);
+    assert_eq!(ndjson_counts[1]["inner_path"], expected_inner_path);
+    assert_eq!(ndjson_counts[1]["count"], 1);
 }
