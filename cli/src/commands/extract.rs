@@ -24,7 +24,7 @@ pub fn extract() -> Command {
                 .value_parser(value_parser!(PathBuf)),
         )
         .arg(
-            arg!(-d --"max-depth" <DEPTH>)
+            arg!(--"max-depth" <DEPTH>)
                 .help("Maximum container extraction depth")
                 .value_parser(value_parser!(usize))
                 .default_value("1"),

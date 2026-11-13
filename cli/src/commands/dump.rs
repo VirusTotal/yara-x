@@ -83,7 +83,7 @@ pub fn dump() -> Command {
         // Keep options sorted alphabetically by their long name.
         // For instance, --bar goes before --foo.
         .arg(
-            arg!(-d --"max-depth" <DEPTH>)
+            arg!(--"max-depth" <DEPTH>)
                 .help("Maximum container extraction depth")
                 .long_help(help::DUMP_MAX_DEPTH_LONG_HELP)
                 .value_parser(value_parser!(usize))
