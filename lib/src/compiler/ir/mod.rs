@@ -52,7 +52,7 @@ use crate::compiler::ir::dfs::{
 };
 
 use crate::compiler::{
-    FilesizeBounds, HeaderConstraint, LiteralSetId, RegexSetId, RuleId,
+    FilesizeBounds, HeaderConstraint, LiteralSetId, RegExpSetId, RuleId,
 };
 use crate::re;
 use crate::symbols::Symbol;
@@ -2352,12 +2352,12 @@ impl IR {
     pub fn matches_regex_set(
         &mut self,
         lhs: ExprId,
-        regex_set: RegexSetId,
+        regex_set: RegExpSetId,
     ) -> ExprId {
         let expr_id = ExprId::from(self.nodes.len());
         self.parents[lhs.0 as usize] = expr_id;
         self.parents.push(ExprId::none());
-        self.nodes.push(Expr::MatchesMany { lhs, regex_set });
+        self.nodes.push(Expr::MatchesMany { lhs, regexp_set: regex_set });
         debug_assert_eq!(self.parents.len(), self.nodes.len());
         expr_id
     }
@@ -3050,7 +3050,7 @@ impl Debug for IR {
                         Expr::IEndsWith { .. } => writeln!(f, "IENDS_WITH -- hash: {expr_hash:#08x}")?,
                         Expr::IEquals { .. } => writeln!(f, "IEQUALS -- hash: {expr_hash:#08x}")?,
                         Expr::Matches { .. } => writeln!(f, "MATCHES -- hash: {expr_hash:#08x}")?,
-                        Expr::MatchesMany { regex_set, .. } => writeln!(f, "MATCHES_MANY RegexSetId({}) -- hash: {expr_hash:#08x}", usize::from(*regex_set))?,
+                        Expr::MatchesMany { regexp_set, .. } => writeln!(f, "MATCHES_MANY RegexSetId({}) -- hash: {expr_hash:#08x}", usize::from(*regexp_set))?,
                         Expr::EqMany { literal_set, .. } => writeln!(f, "EQ_MANY LiteralSetId({}) -- hash: {expr_hash:#08x}", usize::from(*literal_set))?,
                         Expr::IEqualsMany { literal_set, .. } => writeln!(f, "IEQUALS_MANY LiteralSetId({}) -- hash: {expr_hash:#08x}", usize::from(*literal_set))?,
                         Expr::ContainsMany { literal_set, .. } => writeln!(f, "CONTAINS_MANY LiteralSetId({}) -- hash: {expr_hash:#08x}", usize::from(*literal_set))?,
@@ -3300,7 +3300,7 @@ pub(crate) enum Expr {
 
     /// Match expression similar to `Expr::Matches` but that matches against
     /// multiple regular expressions at the same time.
-    MatchesMany { lhs: ExprId, regex_set: RegexSetId },
+    MatchesMany { lhs: ExprId, regexp_set: RegExpSetId },
 
     /// Equality expression similar to `Expr::Eq` that compares a string against
     /// multiple string literals.

@@ -21,7 +21,7 @@ use crate::compiler::report::CodeLoc;
 use crate::compiler::warnings::Warning;
 use crate::compiler::{
     IdentId, Imports, LiteralId, LiteralSetId, NamespaceId, PatternId,
-    RegexId, RegexSetId, RuleId, SubPattern, SubPatternId,
+    RegExpId, RegExpSetId, RuleId, SubPattern, SubPatternId,
 };
 use crate::models::PatternKind;
 use crate::re::{BckCodeLoc, FwdCodeLoc, RegexpAtom};
@@ -127,10 +127,10 @@ pub struct Rules {
     pub(in crate::compiler) ident_pool: StringPool<IdentId>,
 
     /// Pool with the regular expressions used in the rules conditions. Each
-    /// regular expression has its own [`RegexId`]. Regular expressions
+    /// regular expression has its own [`RegExpId`]. Regular expressions
     /// include the starting and ending slashes (`/`), and the modifiers
     /// `i` and `s` if present (e.g: `/foobar/`, `/foo/i`, `/bar/s`).
-    pub(in crate::compiler) regex_pool: StringPool<RegexId>,
+    pub(in crate::compiler) regex_pool: StringPool<RegExpId>,
 
     /// If `true`, the regular expressions in `regex_pool` are allowed to
     /// contain invalid escape sequences.
@@ -240,11 +240,11 @@ pub struct Rules {
     /// Grouped `RegexSet` persistent definitions.
     ///
     /// Populated during `Compiler::build`, each entry maps a unique
-    /// `RegexSetId` to an ordered list of `RegexpId`s. All regular
+    /// `RegExpSetId` to an ordered list of `RegExpId`s. All regular
     /// expressions in a given set match the exact same target expression
     /// in the source code, allowing them to be compiled into a unified
     /// set automata for single-pass evaluation.
-    pub(in crate::compiler) regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
+    pub(in crate::compiler) regex_sets: FxHashMap<RegExpSetId, Vec<RegExpId>>,
 
     /// Grouped `LiteralSet` persistent definitions.
     ///
@@ -487,13 +487,13 @@ impl Rules {
         self.rules.get(rule_id.0 as usize).unwrap()
     }
 
-    /// Returns a regular expression by [`RegexId`].
+    /// Returns a regular expression by [`RegExpId`].
     ///
     /// # Panics
     ///
-    /// If no regular expression with such [`RegexId`] exists.
+    /// If no regular expression with such [`RegExpId`] exists.
     #[inline]
-    pub(crate) fn get_regexp(&self, regexp_id: RegexId) -> Regex {
+    pub(crate) fn get_regexp(&self, regexp_id: RegExpId) -> Regex {
         let re = types::Regexp::new(self.regex_pool.get(regexp_id).unwrap());
 
         let parser = re::parser::Parser::new()
@@ -506,9 +506,9 @@ impl Rules {
         })
     }
 
-    /// Returns a compiled multi-pattern `Regex` for a given `RegexSetId`.
+    /// Returns a compiled multi-pattern `RegExp` for a given `RegExpSetId`.
     #[inline]
-    pub(crate) fn get_regex_set(&self, set_id: RegexSetId) -> Option<Regex> {
+    pub(crate) fn get_regex_set(&self, set_id: RegExpSetId) -> Option<Regex> {
         let re_ids = self.regex_sets.get(&set_id)?;
         let parser = re::parser::Parser::new()
             .relaxed_re_syntax(self.relaxed_re_syntax);
@@ -522,12 +522,12 @@ impl Rules {
         re::hir::Hir::build_automata(&hirs).ok()
     }
 
-    /// Returns the slice of [`RegexId`]s belonging to a given [`RegexSetId`].
+    /// Returns the slice of [`RegExpId`]s belonging to a given [`RegExpSetId`].
     #[inline]
     pub(crate) fn get_regex_set_ids(
         &self,
-        set_id: RegexSetId,
-    ) -> Option<&[RegexId]> {
+        set_id: RegExpSetId,
+    ) -> Option<&[RegExpId]> {
         self.regex_sets.get(&set_id).map(Vec::as_slice)
     }
 

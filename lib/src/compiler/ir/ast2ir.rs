@@ -35,7 +35,7 @@ use crate::compiler::ir::{
 use crate::compiler::report::{Level, ReportBuilder};
 use crate::compiler::{
     CompileContext, CompileError, FilesizeBounds, ForVars, HeaderConstraint,
-    LiteralSetId, PatternIdx, RegexSetId, TextPatternAsHex, warnings,
+    LiteralSetId, PatternIdx, RegExpSetId, TextPatternAsHex, warnings,
 };
 use crate::errors::CustomError;
 use crate::errors::{MethodNotAllowedInWith, PotentiallySlowLoop};
@@ -3199,7 +3199,7 @@ fn collapse_or_operands(
                     // `ast::Expr::Regexp` operand that was already parsed and
                     // validated with the same `relaxed_re_syntax` setting.
                     hirs.push(parser.parse(re).unwrap());
-                    re_ids.push(ctx.regex_pool.get_or_intern(re.as_str()));
+                    re_ids.push(ctx.regexp_pool.get_or_intern(re.as_str()));
                 }
 
                 // Skip collapsing into `MatchesMany` if the combined NFA would
@@ -3209,8 +3209,8 @@ fn collapse_or_operands(
                     continue;
                 }
 
-                let set_id = RegexSetId::from(ctx.regex_sets.len() as i32);
-                ctx.regex_sets.insert(set_id, re_ids);
+                let set_id = RegExpSetId::from(ctx.regexp_set.len() as i32);
+                ctx.regexp_set.insert(set_id, re_ids);
                 ctx.ir.matches_regex_set(first_lhs, set_id)
             } else {
                 let set_id = LiteralSetId::from(ctx.literal_sets.len() as i32);

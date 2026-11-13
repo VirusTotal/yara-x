@@ -11,7 +11,7 @@ use crate::compiler::errors::{CompileError, UnknownPattern};
 use crate::compiler::ir::{IR, PatternIdx};
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{
-    LiteralId, LiteralSetId, RegexId, RegexSetId, Warnings, ir,
+    LiteralId, LiteralSetId, RegExpId, RegExpSetId, Warnings, ir,
 };
 use crate::errors::{UnknownField, UnknownIdentifier};
 use crate::string_pool::{BStringPool, StringPool};
@@ -68,11 +68,11 @@ pub(crate) struct CompileContext<'a, 'src> {
     /// Used to detect loops that may iterate an excessive number of times.
     pub loop_iteration_multiplier: i64,
 
-    /// Grouped RegexSets constructed during IR creation for or-expressions.
-    pub regex_sets: &'a mut rustc_hash::FxHashMap<RegexSetId, Vec<RegexId>>,
+    /// Grouped RegExpSets constructed during IR creation for or-expressions.
+    pub regexp_set: &'a mut rustc_hash::FxHashMap<RegExpSetId, Vec<RegExpId>>,
 
     /// Pool for regular expressions.
-    pub regex_pool: &'a mut StringPool<RegexId>,
+    pub regexp_pool: &'a mut StringPool<RegExpId>,
 
     /// Grouped LiteralSets constructed during IR creation for or-expressions.
     pub literal_sets:

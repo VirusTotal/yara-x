@@ -26,7 +26,7 @@ use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 
 use crate::compiler::{
-    NamespaceId, PatternId, RegexId, RegexSetId, RuleId, Rules, SubPattern,
+    NamespaceId, PatternId, RegExpId, RegExpSetId, RuleId, Rules, SubPattern,
     SubPatternAtom, SubPatternFlags, SubPatternId,
 };
 use crate::errors::VariableError;
@@ -177,7 +177,7 @@ pub struct ScanContext<'r, 'd> {
     /// operation. Instead of compiling the regexp each time the expression
     /// is evaluated, it is compiled the first time and stored in this hash
     /// map.
-    pub(crate) regex_cache: RefCell<FxHashMap<RegexId, Regex>>,
+    pub(crate) regex_cache: RefCell<FxHashMap<RegExpId, Regex>>,
     /// Persistent cache for grouped `RegexSet` automata.
     ///
     /// Like individual regular expressions, compiling a multi-pattern
@@ -185,7 +185,7 @@ pub struct ScanContext<'r, 'd> {
     /// automata lazily upon the very first match request and preserves the
     /// compiled automata across all subsequent scans performed by the
     /// scanner instance.
-    pub(crate) regex_set_cache: RefCell<FxHashMap<RegexSetId, Option<Regex>>>,
+    pub(crate) regex_set_cache: RefCell<FxHashMap<RegExpSetId, Option<Regex>>>,
     /// Engines for custom base64 alphabets used by base64 string modifiers.
     ///
     /// These engines are derived from rule literals and reused across scans.
@@ -310,10 +310,10 @@ impl ScanContext<'_, '_> {
     }
 
     /// Returns true if the regular expression identified by the given
-    /// [`RegexId`] matches `haystack`.
+    /// [`RegExpId`] matches `haystack`.
     pub(crate) fn regexp_matches(
         &self,
-        regexp_id: RegexId,
+        regexp_id: RegExpId,
         haystack: &[u8],
     ) -> bool {
         self.regex_cache
@@ -324,10 +324,10 @@ impl ScanContext<'_, '_> {
     }
 
     /// Returns true if any regular expression belonging to the given
-    /// [`RegexSetId`] matches `haystack`.
+    /// [`RegExpSetId`] matches `haystack`.
     pub(crate) fn regex_set_matches(
         &self,
-        set_id: crate::compiler::RegexSetId,
+        set_id: crate::compiler::RegExpSetId,
         haystack: &[u8],
     ) -> bool {
         if let Some(regex_set) = self

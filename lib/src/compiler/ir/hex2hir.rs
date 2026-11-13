@@ -269,8 +269,8 @@ mod tests {
             vars: VarStack::new(),
             for_of_depth: 0,
             loop_iteration_multiplier: 1,
-            regex_sets: &mut regex_sets,
-            regex_pool: &mut regex_pool,
+            regexp_set: &mut regex_sets,
+            regexp_pool: &mut regex_pool,
             literal_sets: &mut literal_sets,
             literal_pool: &mut lit_pool,
         };
