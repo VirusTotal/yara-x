@@ -3580,6 +3580,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-util"
+version = "0.7.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e464cf451ba96ebfc6f9b6542f17ee8b8956e33f1e40d9690624e59d7a7f8a4b"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "futures-io",
+ "futures-sink",
+ "pin-project-lite",
+ "tokio",
+]
+
+[[package]]
 name = "toml"
 version = "0.8.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4675,7 +4689,9 @@ version = "1.23.0"
 dependencies = [
  "getrandom",
  "js-sys",
+ "serde",
  "serde-wasm-bindgen",
+ "serde_json",
  "uuid",
  "wasm-bindgen",
  "wasm-bindgen-test",
@@ -4701,6 +4717,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tokio-util",
  "tower",
  "tracing",
  "tracing-subscriber",

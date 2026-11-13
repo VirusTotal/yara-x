@@ -61,6 +61,7 @@ web-sys = { version = "0.3.90", features = [
 
 [dev-dependencies]
 goldenfile = { workspace = true }
+tokio-util = { version = "0.7.20", features = ["compat"] }
 # Enables the test modules when building the LS tests, so they are suggested
 # in completion tests. Doesn't affect the release build of the language
 # server.
