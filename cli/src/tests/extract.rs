@@ -148,7 +148,7 @@ fn test_extract_command_nested_companion_dir() {
     for _ in 0..2 {
         Command::new(cargo_bin!("yr"))
             .arg("extract")
-            .arg("-d")
+            .arg("--max-depth")
             .arg("2")
             .arg(&docm_path)
             .arg(temp.path())

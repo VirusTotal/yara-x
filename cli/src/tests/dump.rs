@@ -137,10 +137,10 @@ fn test_dump_default_depth_zero() {
     assert!(yaml_str.starts_with("zip:\n"));
     assert!(!yaml_str.contains("vba:"));
 
-    // Explicit `-d 0` behaves identically to default.
+    // Explicit `--max-depth 0` behaves identically to default.
     let yaml_zero = Command::new(cargo_bin!("yr"))
         .arg("dump")
-        .arg("-d")
+        .arg("--max-depth")
         .arg("0")
         .arg(&docm_path)
         .output()
@@ -204,10 +204,10 @@ fn test_dump_max_depth_one() {
     assert_eq!(obj[&vba_key]["olecf"]["is_olecf"], true);
     assert_eq!(obj[&vba_key]["vba"]["has_macros"], true);
 
-    // YAML output with -d 1
+    // YAML output with --max-depth 1
     let yaml_out = Command::new(cargo_bin!("yr"))
         .arg("dump")
-        .arg("-d")
+        .arg("--max-depth")
         .arg("1")
         .arg(&docm_path)
         .output()
@@ -249,7 +249,7 @@ fn test_dump_max_depth_nested_and_module_filter() {
     // vbaProject.bin not yet extracted).
     let depth1_out = Command::new(cargo_bin!("yr"))
         .arg("dump")
-        .arg("-d")
+        .arg("--max-depth")
         .arg("1")
         .arg("-o")
         .arg("json")
@@ -267,7 +267,7 @@ fn test_dump_max_depth_nested_and_module_filter() {
     // At depth 2: vbaProject.bin inside macro.docm is also extracted and dumped.
     let depth2_out = Command::new(cargo_bin!("yr"))
         .arg("dump")
-        .arg("-d")
+        .arg("--max-depth")
         .arg("2")
         .arg("-o")
         .arg("json")
@@ -287,7 +287,7 @@ fn test_dump_max_depth_nested_and_module_filter() {
     // and omits `olecf` on vbaProject.bin.
     let filtered_out = Command::new(cargo_bin!("yr"))
         .arg("dump")
-        .arg("-d")
+        .arg("--max-depth")
         .arg("2")
         .arg("-m")
         .arg("vba")
@@ -309,7 +309,7 @@ fn test_dump_max_depth_nested_and_module_filter() {
 fn test_dump_max_depth_no_matching_modules() {
     let json_out = Command::new(cargo_bin!("yr"))
         .arg("dump")
-        .arg("-d")
+        .arg("--max-depth")
         .arg("1")
         .arg("-o")
         .arg("json")
@@ -321,7 +321,7 @@ fn test_dump_max_depth_no_matching_modules() {
 
     let yaml_out = Command::new(cargo_bin!("yr"))
         .arg("dump")
-        .arg("-d")
+        .arg("--max-depth")
         .arg("1")
         .arg("src/tests/testdata/dummy.file")
         .output()

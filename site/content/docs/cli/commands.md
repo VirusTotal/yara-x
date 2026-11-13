@@ -439,7 +439,7 @@ by all these modules will dumped to stdout in YAML format.
 
 If the file is not provided it will be read from stdin.
 
-### --max-depth, -d \<DEPTH\>
+### --max-depth \<DEPTH\>
 
 Specify the maximum container extraction depth. The default value is `0`, which
 dumps only the module data produced for `<FILE>` itself. When set to a value
