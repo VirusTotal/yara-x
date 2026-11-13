@@ -1,0 +1,25 @@
+warning[greedy_dot_star]: greedy `.*` in pattern `$a`
+ --> line:3:14
+  |
+3 |     $a = /foo.*bar/
+  |              -- consider using `.*?` instead
+warning[greedy_dot_star]: greedy `.*` in pattern `$c`
+ --> line:5:14
+  |
+5 |     $c = /foo.*bar/s
+  |              -- consider using `.*?` instead
+warning[greedy_dot_star]: greedy `.*` in pattern `$e`
+ --> line:7:20
+  |
+7 |     $e = /[]a.*]foo.*bar/
+  |                    -- consider using `.*?` instead
+warning[greedy_dot_star]: greedy `.*` in pattern `$f`
+ --> line:8:27
+  |
+8 |     $f = /[[:alpha:].*]foo.*bar/
+  |                           -- consider using `.*?` instead
+warning[greedy_dot_star]: greedy `.*` in pattern `$g`
+ --> line:9:23
+  |
+9 |     $g = /[[a-z].*]foo.*bar/
+  |                       -- consider using `.*?` instead

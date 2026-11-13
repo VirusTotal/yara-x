@@ -459,8 +459,29 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
             re_error_to_compile_error(ctx.report_builder, &pattern.regexp, err)
         })?;
 
-    // TODO: raise warning when .* used, propose using the non-greedy
-    // variant .*?
+    // A greedy `.*` can cause performance issues due to excessive
+    // backtracking. Suggest using the non-greedy `.*?` variant instead.
+    for warning in hir.warnings() {
+        let re::hir::Warning::GreedyDotStar { span } = warning;
+
+        ctx.warnings.add(|| {
+            warnings::GreedyDotStar::build(
+                ctx.report_builder,
+                pattern.identifier.name.to_string(),
+                ctx.report_builder.span_to_code_loc(
+                    // The span is relative to the regular expression source
+                    // (i.e: it doesn't include the opening `/`), so shift it
+                    // by one to account for the `/` and make it relative to
+                    // the source code.
+                    pattern
+                        .regexp
+                        .span()
+                        .subspan(span.start.offset, span.end.offset)
+                        .offset(1),
+                ),
+            )
+        });
+    }
 
     Ok(PatternInRule {
         identifier: pattern.identifier.clone(),
