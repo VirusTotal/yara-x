@@ -15,11 +15,6 @@ rust-version.workspace = true
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[dependencies]
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-yara-x = { workspace = true, default-features = true }
-
 [target.'cfg(target_family = "wasm")'.dependencies]
 js-sys = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
