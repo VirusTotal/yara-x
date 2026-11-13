@@ -176,4 +176,35 @@ fn telfhash(ctx: &mut ScanContext) -> Option<Uppercase<FixedLenString<72>>> {
     Some(Uppercase::<FixedLenString<72>>::new(digest))
 }
 
+/// Returns true if the ELF has a symbol with the given name.
+#[module_export(name = "has_symbol")]
+fn has_symbol(ctx: &ScanContext, name: RuntimeString) -> Option<bool> {
+    has_symbol_impl(ctx, name, None)
+}
+
+/// Returns true if the ELF has a symbol with the given name and type.
+#[module_export(name = "has_symbol")]
+fn has_symbol_with_type(
+    ctx: &ScanContext,
+    name: RuntimeString,
+    sym_type: i64,
+) -> Option<bool> {
+    has_symbol_impl(ctx, name, Some(sym_type))
+}
+
+fn has_symbol_impl(
+    ctx: &ScanContext,
+    name: RuntimeString,
+    sym_type: Option<i64>,
+) -> Option<bool> {
+    let elf = ctx.module_output::<ELF>()?;
+    let name = name.as_bstr(ctx);
+
+    Some(elf.dynsym.iter().chain(elf.symtab.iter()).any(|s| {
+        s.has_name()
+            && s.name() == name
+            && sym_type.is_none_or(|t| s.type_() as i64 == t)
+    }))
+}
+
 register_module!("elf", ELF, main);
