@@ -385,12 +385,6 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                             return ControlFlow::<()>::Continue(());
                         };
 
-                        let full_path = if inner_path.as_os_str().is_empty() {
-                            file_path.to_path_buf()
-                        } else {
-                            file_path.join(inner_path)
-                        };
-
                         let mut wanted_rules = match args.get_flag("negate") {
                             true => Box::new(scan_results.non_matching_rules())
                                 as Box<dyn ExactSizeIterator<Item=Rule>>,
@@ -407,7 +401,8 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                         // `on_file_scanned` returns `true`, which indicates that the
                         // match is actually included in the output and not ignored.
                         if output_handler.on_file_scanned(
-                            &full_path,
+                            &file_path,
+                            inner_path,
                             &mut wanted_rules,
                             output,
                         ) {
@@ -723,16 +718,30 @@ mod output_handler {
             .collect()
     }
 
+    fn join_inner_path<'a>(
+        file_path: &'a Path,
+        inner_path: &Path,
+    ) -> Cow<'a, Path> {
+        if inner_path.as_os_str().is_empty() {
+            Cow::Borrowed(file_path)
+        } else {
+            Cow::Owned(file_path.join(inner_path))
+        }
+    }
+
     /// Trait implemented by all output handlers like [`TextOutputHandler`],
     /// [`NdjsonOutputHandler`] and [`JsonOutputHandler`].
     pub(super) trait OutputHandler: Sync {
-        /// Called for each scanned file.
+        /// Called for each scanned file, including inner files extracted from
+        /// containers (for which `inner_path` is relative to `file_path`, or
+        /// empty when scanning `file_path` itself).
         ///
         /// Must return `true` when the file was included in the output,
         /// or `false` if the file was ignored.
         fn on_file_scanned(
             &self,
             file_path: &Path,
+            inner_path: &Path,
             scan_results: &mut dyn Iterator<Item = Rule>,
             output: &Sender<Message>,
         ) -> bool;
@@ -754,6 +763,7 @@ mod output_handler {
         fn on_file_scanned(
             &self,
             file_path: &Path,
+            inner_path: &Path,
             scan_results: &mut dyn Iterator<Item = Rule>,
             output: &Sender<Message>,
         ) -> bool {
@@ -761,10 +771,11 @@ mod output_handler {
                 let count = scan_results.count();
 
                 if count > 0 {
+                    let full_path = join_inner_path(file_path, inner_path);
                     output
                         .send(Message::Info(format!(
                             "{}: {}",
-                            file_path.display(),
+                            full_path.display(),
                             count
                         )))
                         .unwrap();
@@ -773,11 +784,16 @@ mod output_handler {
                 return count > 0;
             }
 
-            let mut result = false;
+            let mut scan_results = scan_results.peekable();
+
+            if scan_results.peek().is_none() {
+                return false;
+            }
+
+            let full_path =
+                join_inner_path(file_path, inner_path).display().to_string();
 
             for matching_rule in scan_results {
-                result = true;
-
                 let mut msg = if self.output_options.include_namespace {
                     format!(
                         "{}:{}",
@@ -836,7 +852,7 @@ mod output_handler {
                 }
 
                 msg.push(' ');
-                msg.push_str(&file_path.display().to_string());
+                msg.push_str(&full_path);
 
                 if let Some(limit) = self.output_options.include_strings {
                     for p in matching_rule.patterns() {
@@ -918,7 +934,7 @@ mod output_handler {
                 output.send(Message::Info(msg)).unwrap();
             }
 
-            result
+            true
         }
 
         fn on_done(&self, _output: &Sender<Message>) {
@@ -940,20 +956,21 @@ mod output_handler {
         fn on_file_scanned(
             &self,
             file_path: &Path,
+            inner_path: &Path,
             scan_results: &mut dyn Iterator<Item = Rule>,
             output: &Sender<Message>,
         ) -> bool {
-            let path = file_path.to_str().unwrap();
-
             if self.output_options.count_only {
                 let count = scan_results.count();
 
                 if count > 0 {
+                    let full_path = join_inner_path(file_path, inner_path);
+                    let path = full_path.to_string_lossy();
                     output
                         .send(Message::Info(
                             serde_json::to_string(&JsonCountOutput {
                                 count,
-                                path,
+                                path: &path,
                             })
                             .unwrap(),
                         ))
@@ -970,8 +987,11 @@ mod output_handler {
                 return false;
             }
 
+            let full_path = join_inner_path(file_path, inner_path);
+            let path = full_path.to_string_lossy();
+
             let line = serde_json::to_string(&JsonOutput {
-                path,
+                path: &path,
                 rules: matching_rules.as_slice(),
             })
             .unwrap();
@@ -1081,6 +1101,7 @@ mod output_handler {
         fn on_file_scanned(
             &self,
             file_path: &Path,
+            inner_path: &Path,
             scan_results: &mut dyn Iterator<Item = Rule>,
             _output: &Sender<Message>,
         ) -> bool {
@@ -1090,12 +1111,11 @@ mod output_handler {
                 return false;
             }
 
-            let path = dunce::canonicalize(file_path)
-                .ok()
-                .as_ref()
-                .and_then(|absolute| absolute.to_str())
-                .map(|s| s.to_string())
-                .unwrap_or_default();
+            let canonical = dunce::canonicalize(file_path);
+            let base_path = canonical.as_deref().unwrap_or(file_path);
+            let path = join_inner_path(base_path, inner_path)
+                .to_string_lossy()
+                .into_owned();
 
             // prepare the increment *outside* the critical section
             let matching_rules = matching_rules.map(|rule| {

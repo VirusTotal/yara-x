@@ -800,3 +800,104 @@ fn issue_785() {
         "unexpected terminal output: {output:?}"
     );
 }
+
+#[test]
+fn json_output_inner_extracted_file() {
+    let temp_dir = TempDir::new().unwrap();
+    let rules_file = temp_dir.child("test.yar");
+    rules_file
+        .write_str(
+            r#"
+            import "zip"
+
+            rule outer_zip {
+                condition:
+                    zip.is_zip
+            }
+
+            rule inner_vba_hex {
+                strings:
+                    $a = ":020000040000FA"
+                condition:
+                    $a
+            }
+            "#,
+        )
+        .unwrap();
+
+    // Copy a ZIP archive whose inner file is Deflate-compressed so `inner_vba_hex`
+    // matches only the extracted inner file and `outer_zip` matches only the
+    // outer archive.
+    let archive_name = "sample_archive";
+    let archive_file = temp_dir.child(archive_name);
+    std::fs::copy(
+        "../lib/src/modules/vba/tests/testdata/7972ee9287cfcce00dc23098dce4ea8ed32e2dff629342e5364a48cd9c01bcb8.in.zip",
+        archive_file.path(),
+    )
+    .unwrap();
+
+    let canonical_archive = dunce::canonicalize(archive_file.path()).unwrap();
+    let expected_outer = canonical_archive.to_string_lossy().into_owned();
+    let expected_inner = canonical_archive
+        .join("7972ee9287cfcce00dc23098dce4ea8ed32e2dff629342e5364a48cd9c01bcb8.in")
+        .to_string_lossy()
+        .into_owned();
+
+    // Run from `temp_dir` passing a relative file name, matching:
+    // `yr scan -s test.yar <filename> -o json`
+    let output = Command::new(cargo_bin!("yr"))
+        .current_dir(temp_dir.path())
+        .arg("scan")
+        .arg("-s")
+        .arg("test.yar")
+        .arg(archive_name)
+        .arg("-o")
+        .arg("json")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value =
+        serde_json::from_slice(&output).expect("valid JSON output");
+    let matches = json["matches"].as_array().unwrap();
+    assert_eq!(matches.len(), 2);
+
+    assert_eq!(matches[0]["rule"], "outer_zip");
+    assert_eq!(matches[0]["file"], expected_outer);
+
+    assert_eq!(matches[1]["rule"], "inner_vba_hex");
+    assert_eq!(matches[1]["file"], expected_inner);
+    assert_eq!(matches[1]["strings"][0]["identifier"], "$a");
+    assert_eq!(matches[1]["strings"][0]["match"], ":020000040000FA");
+
+    // Also verify `--count` with `--output-format=json` preserves distinct
+    // outer and inner file paths rather than collapsing inner matches into `""`.
+    let count_output = Command::new(cargo_bin!("yr"))
+        .current_dir(temp_dir.path())
+        .arg("scan")
+        .arg("-c")
+        .arg("test.yar")
+        .arg(archive_name)
+        .arg("-o")
+        .arg("json")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let mut counts: Vec<serde_json::Value> =
+        serde_json::from_slice(&count_output)
+            .expect("valid JSON count output");
+    counts.sort_by(|a, b| {
+        a["path"].as_str().unwrap().cmp(b["path"].as_str().unwrap())
+    });
+
+    assert_eq!(counts.len(), 2);
+    assert_eq!(counts[0]["path"], expected_outer);
+    assert_eq!(counts[0]["count"], 1);
+    assert_eq!(counts[1]["path"], expected_inner);
+    assert_eq!(counts[1]["count"], 1);
+}
