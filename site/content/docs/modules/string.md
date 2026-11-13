@@ -60,3 +60,19 @@ included.
 Examples:
 
 `string.length("AXSx00ERS") == 7`
+
+### substr(string, offset, size)
+
+Returns a substring of the string, starting at `offset` and spanning `size`
+bytes. The string can be a string literal or any other string value, like
+`pe.resources[i].name`.
+
+The result is undefined when the substring lies outside of the string, that is,
+when `offset` or `size` is negative, or when `offset + size` is greater than
+the length of the string.
+
+Examples:
+
+`string.substr("AXSx00ERS", 0, 1) == "A"`
+
+`string.substr("AXSx00ERS", 1, 3) == "Xsx"`
