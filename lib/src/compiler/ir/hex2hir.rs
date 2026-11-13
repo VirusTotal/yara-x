@@ -456,4 +456,80 @@ mod tests {
             unreachable!()
         }
     }
+
+    fn compile_hex(src: &str) -> (Vec<u8>, Vec<crate::re::RegexpAtom>) {
+        let parsed = yara_x_parser::ast::AST::from(src);
+        assert!(parsed.errors().is_empty(), "{parsed:?}");
+        let rule = parsed.rules().next().unwrap();
+        let ast::Pattern::Hex(pattern) = &rule.patterns.as_ref().unwrap()[0]
+        else {
+            panic!("expected a hex pattern");
+        };
+
+        let mut ir = IR::new();
+        let mut report_builder = ReportBuilder::default();
+        let mut symbol_table = StackedSymbolTable::new();
+        let mut warnings = Warnings::default();
+        let mut rule_patterns = vec![];
+        let mut regex_sets = rustc_hash::FxHashMap::default();
+        let mut regex_pool = crate::string_pool::StringPool::new();
+        let mut literal_sets = rustc_hash::FxHashMap::default();
+        let mut lit_pool = crate::string_pool::BStringPool::new();
+
+        let mut ctx = CompileContext {
+            ir: &mut ir,
+            relaxed_re_syntax: false,
+            error_on_slow_loop: false,
+            one_shot_symbol_table: None,
+            features: &FxHashSet::default(),
+            symbol_table: &mut symbol_table,
+            report_builder: &mut report_builder,
+            current_rule_patterns: &mut rule_patterns,
+            warnings: &mut warnings,
+            vars: VarStack::new(),
+            for_of_depth: 0,
+            loop_iteration_multiplier: 1,
+            regex_sets: &mut regex_sets,
+            regex_pool: &mut regex_pool,
+            literal_sets: &mut literal_sets,
+            literal_pool: &mut lit_pool,
+        };
+
+        let syntax =
+            super::hex_pattern_hir_from_ast(&mut ctx, pattern.as_ref())
+                .unwrap();
+        let hir = crate::re::hir::Hir::from(syntax);
+        let mut code = Vec::new();
+        let atoms = crate::re::thompson::Compiler::new()
+            .compile(&hir, &mut code)
+            .unwrap();
+        (code, atoms)
+    }
+
+    #[test]
+    fn bit_mask_lowers_to_masked_byte() {
+        let (code, _) = compile_hex(
+            "rule test { strings: $a = { E0 F:0?1?: :0110 1001: AB } condition: $a }",
+        );
+        assert!(
+            crate::re::thompson::Compiler::code_has_masked_byte(
+                &code, 0xF2, 0xFA
+            ),
+            "expected MASKED_BYTE f2 fa"
+        );
+
+        let (_code, atoms) = compile_hex(
+            "rule test { strings: $a = { F:0?1?: 11 22 33 44 55 66 77 88 } condition: $a }",
+        );
+        assert!(
+            atoms.iter().all(|atom| {
+                let bytes = atom.atom.as_ref();
+                bytes.len() > 1
+                    && bytes
+                        .windows(3)
+                        .any(|window| window == [0x11, 0x22, 0x33])
+            }),
+            "fixed tail was not part of the atom: {atoms:?}"
+        );
+    }
 }

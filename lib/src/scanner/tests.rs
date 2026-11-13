@@ -1916,3 +1916,82 @@ fn hoisting_nested_field_access_after_lookup() {
         vec!["match_version", "match_program_name_len"]
     );
 }
+
+fn hex_rule_matches(rule: &str, data: &[u8]) -> bool {
+    let rules = crate::compile(rule).unwrap();
+    Scanner::new(&rules).scan(data).unwrap().matching_rules().next().is_some()
+}
+
+#[test]
+fn hex_bit_mask_matches() {
+    let rule = r#"
+        rule test {
+            strings:
+                $a = { E0 F:0?1?: :0110 1001: AB }
+            condition:
+                $a
+        }
+    "#;
+
+    for byte in [0xF2, 0xF3, 0xF6, 0xF7] {
+        let data = [0xE0, byte, 0x69, 0xAB];
+        assert!(hex_rule_matches(rule, &data), "{byte:#04x} should match");
+    }
+
+    for byte in [0xF0, 0xFA] {
+        let data = [0xE0, byte, 0x69, 0xAB];
+        assert!(
+            !hex_rule_matches(rule, &data),
+            "{byte:#04x} should not match"
+        );
+    }
+
+    assert!(!hex_rule_matches(rule, &[0xE0, 0xF2, 0x68, 0xAB]));
+
+    let negated = r#"
+        rule test {
+            strings:
+                $a = { E0 ~F:0?1?: }
+            condition:
+                $a
+        }
+    "#;
+    assert!(hex_rule_matches(negated, &[0xE0, 0x00]));
+    assert!(!hex_rule_matches(negated, &[0xE0, 0xF2]));
+
+    let tail = r#"
+        rule test {
+            strings:
+                $a = { F:0?1?: 11 22 33 44 55 66 77 88 }
+            condition:
+                $a
+        }
+    "#;
+    assert!(hex_rule_matches(
+        tail,
+        &[0xF2, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88]
+    ));
+    assert!(hex_rule_matches(
+        tail,
+        &[0xF6, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88]
+    ));
+    assert!(!hex_rule_matches(tail, &[0xF2]));
+    assert!(!hex_rule_matches(
+        tail,
+        &[0xF0, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88]
+    ));
+
+    let xored = r#"
+        rule test {
+            strings:
+                $a = { F:0?1?: } xor(0x10)
+            condition:
+                $a
+        }
+    "#;
+    // Hex patterns reject `xor`, including bit-mask bytes. The modifier
+    // check must still see the masked byte as a hex pattern.
+    let err =
+        crate::compile(xored).expect_err("xor is not valid on hex patterns");
+    assert!(err.to_string().contains("invalid pattern modifier"), "{err}");
+}
