@@ -52,12 +52,9 @@ impl Tlsh {
         let mut result = String::with_capacity(cap);
         result.push_str(self.ver.ver());
 
-        for ii in 0..self.checksum.len() {
+        for checksum in self.checksum.iter() {
             result.push_str(
-                &format!("{:02X}", self.checksum[ii])
-                    .chars()
-                    .rev()
-                    .collect::<String>(),
+                &format!("{:02X}", checksum).chars().rev().collect::<String>(),
             );
         }
         result.push_str(
