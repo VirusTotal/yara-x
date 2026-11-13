@@ -15,5 +15,5 @@ pub mod leb128;
     feature = "vba-module"
 ))]
 pub mod olecf;
-#[cfg(any(feature = "zip-module", feature = "vba-module"))]
+#[cfg(feature = "zip-module")]
 pub mod zip;

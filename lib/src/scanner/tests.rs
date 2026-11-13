@@ -1627,6 +1627,107 @@ fn test_scan_deep_zip_options() {
     assert_eq!(scanned_paths, vec!["", "file1.txt", "file2.txt"]);
 }
 
+#[cfg(feature = "vba-module")]
+#[test]
+fn test_scan_deep_vba_options() {
+    use crate::modules::tests::create_binary_from_zipped_ihex;
+
+    let rules = crate::compile(
+        r#"
+        rule match_vb_name {
+            strings:
+                $a = "Attribute VB_Name"
+            condition:
+                $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    let vba_doc = create_binary_from_zipped_ihex(
+        "src/modules/vba/tests/testdata/1450fa0c4f5973ebf3efa06fb03259105065baba29690362014926583bc85f48.in.zip",
+    );
+
+    let mut scanner = crate::deep::Scanner::new(&rules);
+    scanner.vba_options(
+        crate::scanner::deep::VbaOptions::new().max_extracted_files(2),
+    );
+
+    let mut scanned_paths = Vec::new();
+    let _ = scanner
+        .scan(&vba_doc, |event| {
+            if let crate::deep::ScanEvent::Scanned(path, results) = event {
+                scanned_paths.push(path.to_string_lossy().replace('\\', "/"));
+                if !path.as_os_str().is_empty() {
+                    assert_eq!(results.matching_rules().count(), 1);
+                }
+            }
+            std::ops::ControlFlow::<()>::Continue(())
+        })
+        .unwrap();
+
+    assert_eq!(scanned_paths, vec!["", "ThisDocument", "UserForm1"]);
+}
+
+#[cfg(all(feature = "zip-module", feature = "vba-module"))]
+#[test]
+fn test_scan_deep_docm_zip_and_vba() {
+    use crate::modules::tests::create_binary_from_zipped_ihex;
+
+    let rules = crate::compile(
+        r#"
+        import "vba"
+
+        rule has_vba_macros {
+            condition:
+                vba.has_macros
+        }
+
+        rule hello_macro {
+            strings:
+                $a = "MsgBox \"Hello, world!\""
+            condition:
+                $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    let docm_data = create_binary_from_zipped_ihex(
+        "src/modules/vba/tests/testdata/643d1e3b68c1e31aef5779eb28ac3b0aaa284c91c47c26cfc2dbb3bc7f569103.in.zip",
+    );
+
+    let mut scanner = crate::deep::Scanner::new(&rules);
+    scanner.max_depth(2);
+
+    let mut matches_per_path = std::collections::HashMap::new();
+    let _ = scanner
+        .scan(&docm_data, |event| {
+            if let crate::deep::ScanEvent::Scanned(path, results) = event {
+                let matches: Vec<String> = results
+                    .matching_rules()
+                    .map(|r| r.identifier().to_string())
+                    .collect();
+                matches_per_path.insert(
+                    path.to_string_lossy().replace('\\', "/"),
+                    matches,
+                );
+            }
+            std::ops::ControlFlow::<()>::Continue(())
+        })
+        .unwrap();
+
+    assert_eq!(matches_per_path.get(""), Some(&Vec::<String>::new()));
+    assert_eq!(
+        matches_per_path.get("word/vbaProject.bin"),
+        Some(&vec!["has_vba_macros".to_string()])
+    );
+    assert_eq!(
+        matches_per_path.get("word/vbaProject.bin_/ThisDocument"),
+        Some(&vec!["hello_macro".to_string()])
+    );
+}
+
 #[cfg(feature = "test_proto2-module")]
 #[test]
 fn runtime_string_from_large_slice() {

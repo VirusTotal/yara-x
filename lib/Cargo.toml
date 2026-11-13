@@ -267,12 +267,9 @@ time-module = []
 # The `vba` module
 vba-module = [
     "olecf-module",
-    "zip-module",
     "dep:codepage",
     "dep:encoding_rs",
     "dep:nom",
-    "dep:tinyzip",
-    "dep:flate2",
 ]
 
 # The `vt` module is a VirusTotal-specific module that provides access to
@@ -299,15 +296,13 @@ default-modules = [
     # Still experimental
     # "msi-module",
     "hash-module",
-    # Still experimental
-    # "olecf-module",
+    "olecf-module",
     "pe-module",
     "string-module",
     "time-module",
     # Test modules are not enabled by default. They are only built when
     # running this crate's own tests, see the dev-dependencies below.
-    # Still experimental
-    # "vba-module",
+    "vba-module",
     "vt-module",
     "zip-module",
 ]
@@ -422,7 +417,7 @@ ihex = { workspace = true }
 pretty_assertions = { workspace = true }
 rayon = { workspace = true }
 yara-x-proto = { workspace = true }
-zip = { workspace = true }
+zip = { workspace = true, features = ["deflate"] }
 
 [[bench]]
 name = "dex"

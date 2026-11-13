@@ -209,6 +209,10 @@ fn test_invoke_modules() {
     assert!(modules.lnk.is_lnk.is_some_and(|value| !value));
     assert!(modules.crx.is_crx.is_some_and(|value| !value));
     assert!(modules.dex.is_dex.is_some_and(|value| !value));
+    #[cfg(feature = "olecf-module")]
+    assert!(modules.olecf.is_olecf.is_some_and(|value| !value));
+    #[cfg(feature = "vba-module")]
+    assert!(modules.vba.has_macros.is_some_and(|value| !value));
 }
 
 #[cfg(feature = "test_proto2-module")]

@@ -17,7 +17,7 @@ use crate::extractor::{ExtractEvent, Extractor};
 use crate::scanner::{ScanOptions, ScannedData};
 use crate::{Rules, ScanError, ScanResults, Variable};
 
-pub use crate::extractor::ZipOptions;
+pub use crate::extractor::{VbaOptions, ZipOptions};
 
 /// Events emitted during a deep scan operation.
 pub enum ScanEvent<'a, 'r> {
@@ -112,6 +112,12 @@ impl<'r> Scanner<'r> {
     /// Default value is 1.
     pub fn max_depth(&mut self, depth: usize) -> &mut Self {
         self.extractor.max_depth(depth);
+        self
+    }
+
+    /// Sets options for the VBA macro extractor.
+    pub fn vba_options(&mut self, options: VbaOptions) -> &mut Self {
+        self.extractor.vba_options(options);
         self
     }
 

@@ -16,7 +16,7 @@ pub mod protos {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 pub(crate) mod field_docs;
 pub(crate) mod utils;
@@ -51,7 +51,7 @@ pub struct ModuleContext<'a> {
         feature = "vba-module"
     ))]
     pub(crate) olecf_cache: Option<utils::olecf::CachedOlecf<'a>>,
-    #[cfg(any(feature = "zip-module", feature = "vba-module"))]
+    #[cfg(feature = "zip-module")]
     pub(crate) zip_cache: Option<utils::zip::CachedZip<'a>>,
 }
 
@@ -340,7 +340,7 @@ pub mod mods {
     /// of them are used by one or more fields in the main structure.
     ///
     pub use super::protos::vba;
-    /// Data structure returned by the `macho` module.
+    /// Data structure returned by the `vba` module.
     pub use super::protos::vba::Vba;
 
     /// Data structures defined by the `pe` module.

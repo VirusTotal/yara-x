@@ -22,7 +22,6 @@ message Vba {
   message Module {
     optional string name = 1;
     optional ModuleType type = 2;
-    optional string code = 3;
   }
 
   // VBA macro modules found

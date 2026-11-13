@@ -1,6 +1,3 @@
-use rustc_hash::FxHashMap as HashMap;
-use std::borrow::Cow;
-
 use nom::combinator::opt;
 use nom::multi::length_data;
 use nom::{
@@ -14,6 +11,52 @@ use crate::modules::protos::vba::vba::ProjectInfo;
 use crate::modules::protos::vba::{ModuleType, Vba};
 
 type Error<'a> = nom::error::Error<&'a [u8]>;
+
+/// Guardrail: 128MB decompression limit per VBA stream.
+const MAX_DECOMPRESSED_SIZE: usize = 128 * 1024 * 1024;
+
+pub(crate) struct ModuleDescriptor {
+    pub name: String,
+    pub stream_name: Option<String>,
+    pub offset: u32,
+    pub module_type: ModuleType,
+}
+
+pub(crate) struct ParsedProject {
+    pub codepage: u16,
+    pub name: String,
+    pub version_major: u32,
+    pub version_minor: u16,
+    pub references: Vec<String>,
+    pub modules_count: u16,
+    pub modules: Vec<ModuleDescriptor>,
+}
+
+impl From<ParsedProject> for Vba {
+    fn from(project: ParsedProject) -> Self {
+        let mut vba = Vba::new();
+        vba.has_macros = Some(true);
+
+        for module in project.modules {
+            let mut m = crate::modules::protos::vba::vba::Module::new();
+            m.set_name(module.name);
+            m.set_type(module.module_type);
+            vba.modules.push(m);
+        }
+
+        let mut project_info = ProjectInfo::new();
+        project_info.references = project.references;
+        project_info.set_name(project.name);
+        project_info.set_version(format!(
+            "{}.{}",
+            project.version_major, project.version_minor
+        ));
+        project_info.set_module_count(project.modules_count as i32);
+
+        vba.project_info = protobuf::MessageField::some(project_info);
+        vba
+    }
+}
 
 fn copytoken_help(difference: usize) -> (u16, u16, u32, u16) {
     let bit_count = (difference as f64).log2().ceil() as u32;
@@ -42,7 +85,8 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
         return Err("Invalid signature byte");
     }
 
-    let mut decompressed = Vec::with_capacity(compressed.len() * 2);
+    let mut decompressed =
+        Vec::with_capacity(compressed.len().saturating_mul(2).min(64 * 1024));
     let mut current = 1; // Skip signature byte
 
     while current < compressed.len() {
@@ -104,6 +148,9 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
             if bytes_to_read == 0 {
                 break;
             }
+            if decompressed.len() + bytes_to_read > MAX_DECOMPRESSED_SIZE {
+                return Err("Decompressed stream exceeds maximum size");
+            }
             decompressed.extend_from_slice(
                 &compressed[current..current + bytes_to_read],
             );
@@ -133,6 +180,9 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
 
                 if (flag_byte & (1 << bit_index)) == 0 {
                     // Bit is 0: Literal byte (Section 2.4.1.3.11.1.1)
+                    if decompressed.len() >= MAX_DECOMPRESSED_SIZE {
+                        return Err("Decompressed stream exceeds maximum size");
+                    }
                     decompressed.push(compressed[current]);
                     current += 1;
                 } else {
@@ -154,7 +204,7 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
                             decompressed.len() - decompressed_chunk_start,
                         );
 
-                    let length = (copy_token & length_mask) + 3;
+                    let length = ((copy_token & length_mask) + 3) as usize;
                     let temp1 = copy_token & offset_mask;
                     let temp2 = 16 - bit_count;
                     let offset = (temp1 >> temp2) + 1;
@@ -163,9 +213,19 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
                         return Err("Invalid copy token offset");
                     }
 
+                    let remaining_chunk = 4096usize
+                        .saturating_sub(
+                            decompressed.len() - decompressed_chunk_start,
+                        );
+                    let copy_len = length.min(remaining_chunk);
+
+                    if decompressed.len() + copy_len > MAX_DECOMPRESSED_SIZE {
+                        return Err("Decompressed stream exceeds maximum size");
+                    }
+
                     let copy_source = decompressed.len() - offset as usize;
-                    for i in 0..length {
-                        let source_idx = copy_source + i as usize;
+                    for i in 0..copy_len {
+                        let source_idx = copy_source + i;
                         if source_idx >= decompressed.len() {
                             return Err("Copy token source out of bounds");
                         }
@@ -188,11 +248,9 @@ pub fn decompress_stream(compressed: &[u8]) -> Result<Vec<u8>, &'static str> {
     Ok(decompressed)
 }
 
-pub fn parse<'a>(
-    dir_stream: &'a [u8],
-    module_streams: &HashMap<String, Cow<'_, [u8]>>,
-) -> Result<Vba, nom::Err<Error<'a>>> {
-    let mut vba = Vba::new();
+pub(crate) fn parse_dir(
+    dir_stream: &[u8],
+) -> Result<ParsedProject, nom::Err<Error<'_>>> {
     let input = dir_stream;
 
     // The records below are described in [MS-OVBA] version 15.0.
@@ -351,26 +409,19 @@ pub fn parse<'a>(
         .parse(input)?;
 
     // -- Modules
-    // Parses module streams and decompresses MS-OVBA streams.
+    // Parses module metadata entries from the dir stream.
     // See: [MS-OVBA] Section 2.3.4.2.3.2 Modules
-    let (_input, _) = parse_modules(
-        input,
-        modules_count,
-        module_streams,
-        &mut vba,
+    let (_input, modules) = parse_modules(input, modules_count, codepage)?;
+
+    Ok(ParsedProject {
         codepage,
-    )?;
-
-    let mut project_info = ProjectInfo::new();
-    project_info.references = references;
-
-    project_info.set_name(project_name.to_string());
-    project_info.set_version(format!("{}.{}", version_major, version_minor));
-    project_info.set_module_count(modules_count as i32);
-
-    vba.project_info = protobuf::MessageField::some(project_info);
-
-    Ok(vba)
+        name: project_name,
+        version_major,
+        version_minor,
+        references,
+        modules_count,
+        modules,
+    })
 }
 
 fn parse_references(
@@ -462,13 +513,13 @@ fn parse_references(
     Ok((input, references))
 }
 
-fn parse_modules<'a>(
-    mut input: &'a [u8],
+fn parse_modules(
+    mut input: &[u8],
     modules_count: u16,
-    module_streams: &HashMap<String, Cow<'_, [u8]>>,
-    vba: &mut Vba,
     codepage: u16,
-) -> Result<(&'a [u8], ()), nom::Err<Error<'a>>> {
+) -> Result<(&[u8], Vec<ModuleDescriptor>), nom::Err<Error<'_>>> {
+    let mut modules = Vec::with_capacity(modules_count as usize);
+
     for _ in 0..modules_count {
         // MODULENAME record
         let (remainder, _) =
@@ -494,26 +545,29 @@ fn parse_modules<'a>(
                 0x0047 => {
                     // MODULENAMEUNICODE
                     (input, module_name_unicode) = length_data(le_u32)
-                        .map(|name| decode_utf16(name).ok())
+                        .map(|name| {
+                            decode_utf16(name).ok().filter(|s| !s.is_empty())
+                        })
                         .parse(input)?;
                 }
                 0x001A => {
                     // MODULESTREAMNAME
-                    (input, (stream_name, _, _)) = (
+                    (input, (stream_name, _, stream_name_unicode)) = (
                         length_data(le_u32)
                             .map(|bytes| Some(decode_string(bytes, codepage))),
                         verify(le_u16, |&val| val == 0x0032),
-                        length_data(le_u32),
+                        length_data(le_u32).map(|name| {
+                            decode_utf16(name).ok().filter(|s| !s.is_empty())
+                        }),
                     )
                         .parse(input)?;
                 }
                 0x001C => {
                     // MODULEDOCSTRING
-                    (input, (_, _, stream_name_unicode)) = (
+                    (input, _) = (
                         length_data(le_u32),
                         verify(le_u16, |&val| val == 0x0048),
-                        length_data(le_u32)
-                            .map(|name| decode_utf16(name).ok()),
+                        length_data(le_u32),
                     )
                         .parse(input)?;
                 }
@@ -566,75 +620,58 @@ fn parse_modules<'a>(
             }
         }
 
-        // Retrieve module code
-        let mut code = None;
+        let resolved_stream_name = stream_name_unicode.or(stream_name);
+        let resolved_module_name = module_name_unicode.unwrap_or(module_name);
 
-        let stream_name =
-            stream_name_unicode.as_deref().or(stream_name.as_deref());
+        modules.push(ModuleDescriptor {
+            name: resolved_module_name,
+            stream_name: resolved_stream_name,
+            offset: module_offset,
+            module_type,
+        });
+    }
 
-        let module_name =
-            module_name_unicode.as_deref().unwrap_or(&module_name);
+    Ok((input, modules))
+}
 
-        let mut module_data = None;
+pub(crate) fn extract_module_code(
+    module_data: &[u8],
+    module_offset: u32,
+    codepage: u16,
+) -> Option<String> {
+    let code_data = module_data.get(module_offset as usize..).unwrap_or(&[]);
 
-        if let Some(name) = stream_name {
-            module_data = module_streams.get(&normalize_name(name));
-        }
+    let mut decompressed_res = None;
+    if !code_data.is_empty() && code_data[0] == 0x01 {
+        decompressed_res = decompress_stream(code_data).ok();
+    }
 
-        if module_data.is_none() {
-            module_data = module_streams.get(&normalize_name(module_name));
-        }
-
-        if let Some(module_data) = module_data {
-            let code_data = if (module_offset as usize) < module_data.len() {
-                &module_data[module_offset as usize..]
-            } else {
-                &[]
-            };
-
-            let mut decompressed_res = None;
-            if !code_data.is_empty() && code_data[0] == 0x01 {
-                decompressed_res = decompress_stream(code_data).ok();
+    // If the declared offset is invalid or fails decompression,
+    // scan the stream physically for the first valid compressed VBA stream signature.
+    if decompressed_res.is_none() {
+        let mut attempts = 0usize;
+        for scan_offset in memchr::memchr_iter(0x01, module_data) {
+            if scan_offset + 3 > module_data.len() || attempts >= 256 {
+                break;
             }
-
-            // If the declared offset is invalid or fails decompression,
-            // scan the stream physically for the first valid compressed VBA stream signature.
-            if decompressed_res.is_none() {
-                let mut scan_offset = 0;
-                while scan_offset + 3 <= module_data.len() {
-                    if module_data[scan_offset] == 0x01 {
-                        let header = u16::from_le_bytes([
-                            module_data[scan_offset + 1],
-                            module_data[scan_offset + 2],
-                        ]);
-                        let sig = (header & 0x7000) >> 12;
-                        if (sig == 3 || sig == 4)
-                            && let Ok(decompressed) =
-                                decompress_stream(&module_data[scan_offset..])
-                        {
-                            decompressed_res = Some(decompressed);
-                            break;
-                        }
-                    }
-                    scan_offset += 1;
+            let header = u16::from_le_bytes([
+                module_data[scan_offset + 1],
+                module_data[scan_offset + 2],
+            ]);
+            let sig = (header & 0x7000) >> 12;
+            if sig == 3 || sig == 4 {
+                attempts += 1;
+                if let Ok(decompressed) =
+                    decompress_stream(&module_data[scan_offset..])
+                {
+                    decompressed_res = Some(decompressed);
+                    break;
                 }
             }
-
-            if let Some(decompressed) = decompressed_res {
-                code = Some(decode_string(&decompressed, codepage));
-            }
-        }
-
-        if let Some(code) = code {
-            let mut m = crate::modules::protos::vba::vba::Module::new();
-            m.set_name(module_name.to_string());
-            m.set_type(module_type);
-            m.set_code(code);
-            vba.modules.push(m);
         }
     }
 
-    Ok((input, ()))
+    decompressed_res.map(|decompressed| decode_string(&decompressed, codepage))
 }
 
 fn decode_string(bytes: &[u8], codepage: u16) -> String {
@@ -651,7 +688,9 @@ fn decode_utf16(bytes: &[u8]) -> Result<String, &'static str> {
         return Err("Invalid UTF-16 byte length");
     }
     let u16_units: Vec<u16> = bytes
-        .as_chunks::<2>().0.iter()
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
         .collect();
     String::from_utf16(&u16_units).map_err(|_| "Invalid UTF-16 data")

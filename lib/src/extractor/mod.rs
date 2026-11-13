@@ -58,9 +58,57 @@ impl ZipOptions {
     }
 }
 
+/// Options for the VBA macro extractor.
+///
+/// Passed to [`crate::deep::Scanner::vba_options`] or
+/// [`Extractor::vba_options`] to configure how VBA documents are unpacked.
+///
+/// # Example
+///
+/// ```
+/// # use yara_x::{compile, deep};
+/// let rules = compile("rule test { condition: true }").unwrap();
+/// let mut scanner = deep::Scanner::new(&rules);
+/// scanner.vba_options(deep::VbaOptions::new().max_extracted_files(2000));
+/// ```
+#[derive(Debug, Clone)]
+pub struct VbaOptions {
+    #[cfg_attr(not(feature = "vba-module"), allow(dead_code))]
+    pub(crate) max_extracted_files: usize,
+}
+
+impl Default for VbaOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl VbaOptions {
+    const DEFAULT_MAX_EXTRACTED_FILES: usize = 1000;
+
+    /// Creates a new [`VbaOptions`] with default settings.
+    pub const fn new() -> Self {
+        Self { max_extracted_files: Self::DEFAULT_MAX_EXTRACTED_FILES }
+    }
+
+    /// Sets the maximum number of files extracted per VBA document.
+    ///
+    /// If set to 0, no files are extracted from VBA documents. Once a VBA
+    /// document yields `n` extracted files, any remaining files in that
+    /// document are skipped.
+    ///
+    /// Default value is 1000.
+    pub const fn max_extracted_files(mut self, n: usize) -> Self {
+        self.max_extracted_files = n;
+        self
+    }
+}
+
 /// Bundle of configuration structures for all supported extractors.
 #[derive(Debug, Clone, Default)]
 pub struct ExtractOptions {
+    #[cfg_attr(not(feature = "vba-module"), allow(dead_code))]
+    pub(crate) vba: VbaOptions,
     #[cfg_attr(not(feature = "zip-module"), allow(dead_code))]
     pub(crate) zip: ZipOptions,
 }
@@ -113,6 +161,12 @@ impl Extractor {
     /// Default value is 1.
     pub fn max_depth(&mut self, depth: usize) -> &mut Self {
         self.max_depth = depth;
+        self
+    }
+
+    /// Sets options for the VBA macro extractor.
+    pub fn vba_options(&mut self, options: VbaOptions) -> &mut Self {
+        self.options.vba = options;
         self
     }
 

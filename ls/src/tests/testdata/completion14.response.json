@@ -192,6 +192,25 @@
   {
     "additionalTextEdits": [
       {
+        "newText": "import \"olecf\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "olecf"
+  },
+  {
+    "additionalTextEdits": [
+      {
         "newText": "import \"string\"\n",
         "range": {
           "end": {
@@ -264,6 +283,25 @@
     ],
     "kind": 9,
     "label": "time"
+  },
+  {
+    "additionalTextEdits": [
+      {
+        "newText": "import \"vba\"\n",
+        "range": {
+          "end": {
+            "character": 0,
+            "line": 0
+          },
+          "start": {
+            "character": 0,
+            "line": 0
+          }
+        }
+      }
+    ],
+    "kind": 9,
+    "label": "vba"
   },
   {
     "additionalTextEdits": [

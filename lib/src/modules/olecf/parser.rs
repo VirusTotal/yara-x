@@ -47,8 +47,8 @@ impl From<u8> for DirEntryType {
 /// `Olecf` analyzes file headers, FAT/DIFAT allocation chains, directory
 /// entries, and stream contents for OLE compound documents (e.g., DOC, XLS,
 /// PPT, MSI).
-pub struct Olecf<'a> {
-    data: &'a [u8],
+pub struct Olecf<D> {
+    data: D,
     sector_size: usize,
     mini_sector_size: usize,
     fat_sectors: Vec<u32>,
@@ -67,11 +67,39 @@ pub struct DirectoryEntry {
     pub stream_type: DirEntryType,
 }
 
-impl<'a> Olecf<'a> {
-    /// Creates a new `Olecf` from a byte slice and initializes internal
+impl<D: AsRef<[u8]>> Olecf<D> {
+    /// Creates a new `Olecf` from `data` and initializes internal
     /// data structures by parsing the file header, FAT/DIFAT tables, and
     /// directory entries.
-    pub fn parse(data: &'a [u8]) -> Result<Self, &'static str> {
+    pub fn parse(data: D) -> Result<Self, &'static str> {
+        let Olecf {
+            data: _,
+            sector_size,
+            mini_sector_size,
+            fat_sectors,
+            directory_sectors,
+            mini_fat_sectors,
+            dir_entries,
+            mini_stream_start,
+            mini_stream_size,
+        } = Olecf::parse_slice(data.as_ref())?;
+
+        Ok(Olecf {
+            data,
+            sector_size,
+            mini_sector_size,
+            fat_sectors,
+            directory_sectors,
+            mini_fat_sectors,
+            dir_entries,
+            mini_stream_start,
+            mini_stream_size,
+        })
+    }
+}
+
+impl<'a> Olecf<&'a [u8]> {
+    fn parse_slice(data: &'a [u8]) -> Result<Self, &'static str> {
         let mut olecf = Olecf {
             data,
             sector_size: 0,
@@ -210,9 +238,15 @@ impl<'a> Olecf<'a> {
                 break;
             }
 
-            let sector_data = match self.read_sector(next_difat_sector) {
-                Ok(data) => data,
-                Err(_) => break,
+            let offset = self.sector_to_offset(next_difat_sector);
+            let Ok(offset) = usize::try_from(offset) else {
+                break;
+            };
+            let Some(sector_data) = offset
+                .checked_add(self.sector_size)
+                .and_then(|end| self.data.get(offset..end))
+            else {
+                break;
             };
 
             // The first (entries_per_sector - 1) entries point to FAT sectors
@@ -327,28 +361,35 @@ impl<'a> Olecf<'a> {
 
         Ok((_input, ()))
     }
+}
 
+impl<D: AsRef<[u8]>> Olecf<D> {
     /// Returns the underlying byte slice.
-    pub fn data(&self) -> &'a [u8] {
-        self.data
+    #[allow(dead_code)]
+    pub fn data(&self) -> &[u8] {
+        self.data.as_ref()
     }
 
     /// Returns the sector size in bytes.
+    #[allow(dead_code)]
     pub fn sector_size(&self) -> usize {
         self.sector_size
     }
 
     /// Returns `true` if the underlying byte slice starts with a valid 8-byte
     /// OLECF signature (`0xD0CF11E0A1B11AE1`), or `false` otherwise.
+    #[allow(dead_code)]
     pub fn is_valid_header(&self) -> bool {
-        self.data.len() >= OLECF_SIGNATURE.len()
-            && &self.data[..OLECF_SIGNATURE.len()] == OLECF_SIGNATURE
+        let data = self.data.as_ref();
+        data.len() >= OLECF_SIGNATURE.len()
+            && &data[..OLECF_SIGNATURE.len()] == OLECF_SIGNATURE
     }
 
     /// Returns a vector containing the names of all streams found in the
     /// directory.
     ///
     /// Returns an error if the directory contains no streams.
+    #[allow(dead_code)]
     pub fn stream_names(&self) -> Result<Vec<String>, &'static str> {
         if self.dir_entries.is_empty() {
             return Err("No streams found");
@@ -364,6 +405,7 @@ impl<'a> Olecf<'a> {
     /// Retrieves the size in bytes of the specified stream by name.
     ///
     /// Returns an error if the stream does not exist in the directory.
+    #[allow(dead_code)]
     pub fn get_stream_size(
         &self,
         stream_name: &str,
@@ -384,7 +426,7 @@ impl<'a> Olecf<'a> {
     pub fn get_stream_data(
         &self,
         stream_name: &str,
-    ) -> Result<Cow<'a, [u8]>, &'static str> {
+    ) -> Result<Cow<'_, [u8]>, &'static str> {
         let entry =
             self.dir_entries.get(stream_name).ok_or("Stream not found")?;
 
@@ -412,16 +454,17 @@ impl<'a> Olecf<'a> {
     ///
     /// Returns an error if the sector offset or size extends beyond the file
     /// data.
-    fn read_sector(&self, sector: u32) -> Result<&'a [u8], &'static str> {
+    fn read_sector(&self, sector: u32) -> Result<&[u8], &'static str> {
+        let data = self.data.as_ref();
         let offset = self.sector_to_offset(sector);
         // Narrow to usize for slice indexing; any offset that doesn't fit in
         // usize is necessarily beyond the in-memory data slice.
         let offset = usize::try_from(offset)
             .map_err(|_| "Sector offset exceeds address space")?;
-        if offset + self.sector_size > self.data.len() {
+        if offset + self.sector_size > data.len() {
             return Err("Sector read out of bounds");
         }
-        Ok(&self.data[offset..offset + self.sector_size])
+        Ok(&data[offset..offset + self.sector_size])
     }
 
     /// Retrieves the next sector number in the File Allocation Table (FAT)
@@ -448,7 +491,7 @@ impl<'a> Olecf<'a> {
             return chain;
         }
 
-        let max_sectors = (self.data.len() / self.sector_size) + 1;
+        let max_sectors = (self.data.as_ref().len() / self.sector_size) + 1;
         let mut visited = rustc_hash::FxHashSet::default();
         let mut current = start_sector;
         while current < MAX_REGULAR_SECTOR && chain.len() < max_sectors {
@@ -484,16 +527,17 @@ impl<'a> Olecf<'a> {
         &self,
         offset: usize,
     ) -> Result<DirectoryEntry, &'static str> {
-        if offset + 128 > self.data.len() {
+        let data = self.data.as_ref();
+        if offset + 128 > data.len() {
             return Err("Incomplete directory entry");
         }
 
-        let name_len = parse_u16_at(self.data, offset + 64)? as usize;
+        let name_len = parse_u16_at(data, offset + 64)? as usize;
         if !(2..=64).contains(&name_len) {
             return Err("Invalid name length");
         }
 
-        let name_bytes = &self.data[offset..offset + name_len];
+        let name_bytes = &data[offset..offset + name_len];
 
         // The name length stored is in bytes (including the null terminator).
         // Since it is UTF-16 LE, each character takes 2 bytes.
@@ -522,9 +566,9 @@ impl<'a> Olecf<'a> {
             name.remove(0);
         }
 
-        let stream_type = DirEntryType::from(self.data[offset + 66]);
-        let start_sector = parse_u32_at(self.data, offset + 116)?;
-        let size_32 = parse_u32_at(self.data, offset + 120)?;
+        let stream_type = DirEntryType::from(data[offset + 66]);
+        let start_sector = parse_u32_at(data, offset + 116)?;
+        let size_32 = parse_u32_at(data, offset + 120)?;
         let size = size_32 as u64;
 
         Ok(DirectoryEntry { name, size, start_sector, stream_type })
@@ -536,15 +580,15 @@ impl<'a> Olecf<'a> {
     /// Attempts zero-copy slicing from `stream_data` if it is a borrowed slice
     /// and if the sector chain is strictly sequential. Falls back to allocating
     /// a vector and reading sectors from `stream_data`.
-    fn get_stream_data_by_chain(
+    fn get_stream_data_by_chain<'b>(
         &self,
-        stream_data: &Cow<'a, [u8]>,
+        stream_data: &Cow<'b, [u8]>,
         base_offset: u64,
         sector_size: usize,
         start_sector: u32,
         size: usize,
         next_sector_fn: impl Fn(u32) -> Result<u32, &'static str>,
-    ) -> Result<Cow<'a, [u8]>, &'static str> {
+    ) -> Result<Cow<'b, [u8]>, &'static str> {
         if size == 0 {
             return Ok(Cow::Borrowed(&[]));
         }
@@ -621,15 +665,15 @@ impl<'a> Olecf<'a> {
     ///
     /// If so, returns a zero-copy slice of `src`. Returns an error if the chain is
     /// fragmented or out of bounds.
-    fn try_get_stream_slice(
+    fn try_get_stream_slice<'b>(
         &self,
-        src: &'a [u8],
+        src: &'b [u8],
         base_offset: u64,
         sector_size: usize,
         start_sector: u32,
         size: usize,
         next_sector_fn: &impl Fn(u32) -> Result<u32, &'static str>,
-    ) -> Result<&'a [u8], &'static str> {
+    ) -> Result<&'b [u8], &'static str> {
         if start_sector >= MAX_REGULAR_SECTOR {
             return Err("Invalid start sector");
         }
@@ -671,12 +715,12 @@ impl<'a> Olecf<'a> {
         &self,
         start_sector: u32,
         size: u64,
-    ) -> Result<Cow<'a, [u8]>, &'static str> {
+    ) -> Result<Cow<'_, [u8]>, &'static str> {
         if size > MAX_STREAM_SIZE {
             return Err("Stream size exceeds maximum allowed size");
         }
         self.get_stream_data_by_chain(
-            &Cow::Borrowed(self.data),
+            &Cow::Borrowed(self.data.as_ref()),
             self.sector_size as u64,
             self.sector_size,
             start_sector,
@@ -689,7 +733,7 @@ impl<'a> Olecf<'a> {
     /// Mini Stream), which contains the data sectors for all mini streams.
     fn get_root_mini_stream_data(
         &self,
-    ) -> Result<Cow<'a, [u8]>, &'static str> {
+    ) -> Result<Cow<'_, [u8]>, &'static str> {
         self.get_regular_stream_data(
             self.mini_stream_start,
             self.mini_stream_size,
@@ -728,7 +772,7 @@ impl<'a> Olecf<'a> {
         &self,
         start_mini_sector: u32,
         size: u64,
-    ) -> Result<Cow<'a, [u8]>, &'static str> {
+    ) -> Result<Cow<'_, [u8]>, &'static str> {
         if size > MAX_STREAM_SIZE {
             return Err("Stream size exceeds maximum allowed size");
         }

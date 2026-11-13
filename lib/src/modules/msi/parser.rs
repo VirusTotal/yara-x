@@ -7,11 +7,11 @@ use crate::modules::utils::authenticode::{
 
 pub struct Msi;
 
-struct MsiHasher<'a> {
-    olecf: &'a Olecf<'a>,
+struct MsiHasher<'a, D> {
+    olecf: &'a Olecf<D>,
 }
 
-impl AuthenticodeHasher for MsiHasher<'_> {
+impl<D: AsRef<[u8]>> AuthenticodeHasher for MsiHasher<'_, D> {
     fn hash(&self, digest: &mut dyn digest::Update) -> Option<()> {
         let data = self.olecf.data();
         let sector_size = self.olecf.sector_size();
@@ -50,7 +50,9 @@ impl AuthenticodeHasher for MsiHasher<'_> {
 }
 
 impl Msi {
-    pub fn parse<'a>(olecf: &Olecf<'a>) -> Result<MsiProto, &'static str> {
+    pub fn parse<D: AsRef<[u8]>>(
+        olecf: &Olecf<D>,
+    ) -> Result<MsiProto, &'static str> {
         // Find the digital signature stream
         let sig_stream = olecf.streams().find(|(name, _)| {
             let clean = name.trim_start_matches(|c: char| c < '\u{20}');

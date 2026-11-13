@@ -2,7 +2,7 @@ use crate::modules::olecf::parser::Olecf;
 
 pub(crate) enum CachedOlecf<'a> {
     NotOlecf,
-    Olecf(Olecf<'a>),
+    Olecf(Olecf<&'a [u8]>),
 }
 
 impl<'a> CachedOlecf<'a> {
