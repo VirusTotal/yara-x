@@ -62,10 +62,9 @@ cat SOMEFILE | yr dump"#;
 pub const DUMP_MAX_DEPTH_LONG_HELP: &str = r#"Maximum container extraction depth
 
 When <DEPTH> is 0, only the data produced by YARA modules for <FILE> itself is
-shown. When <DEPTH> is greater than 0, supported container formats (such as ZIP
-archives or Office documents with VBA macros) are recursively unpacked up to
-<DEPTH> levels, and module data is dumped for both <FILE> and the inner files
-extracted from it.
+shown. When <DEPTH> is greater than 0, supported container formats are recursively
+unpacked up to <DEPTH> levels, and module data is dumped for both <FILE> and the
+inner files extracted from it.
 
 With <DEPTH> greater than 0, the output becomes a map keyed by file path
 (<FILE> for the original file and <FILE>/<inner_path> for extracted files),
