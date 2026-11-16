@@ -63,6 +63,12 @@ impl<'r> FastVM<'r> {
         self
     }
 
+    /// Returns the maximum number of bytes scanned by the VM before aborting.
+    #[inline]
+    pub fn get_scan_limit(&self) -> u32 {
+        self.scan_limit
+    }
+
     pub fn try_match<C>(
         &mut self,
         start: C,

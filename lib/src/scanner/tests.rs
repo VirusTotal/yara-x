@@ -1916,3 +1916,151 @@ fn hoisting_nested_field_access_after_lookup() {
         vec!["match_version", "match_program_name_len"]
     );
 }
+
+#[test]
+fn chained_patterns_distance_precheck() {
+    // 1. Motivating rule with optional prefix in head and prefix class atoms
+    // in tail (`bck_code == None`).
+    let rules = crate::compile(
+        r#"
+        rule redleaves_cfg {
+            strings:
+                $format_v2 = /\.?AV[\x00-\xFF]{1,500}[0-9a-z\.]{10}[0-9a-zA-Z\.\x00]{44}[\x00]{10}[0-9a-z\.]{10}[0-9a-zA-Z\.\x00]{44}[\x00]{10}[0-9a-z\.]{10}[0-9a-zA-Z\.\x00]{44}[\x00]{10}(\xBB\x01|\x50)/
+            condition:
+                $format_v2
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut tail = Vec::new();
+    for _ in 0..3 {
+        tail.extend_from_slice(b"host.local"); // 10 bytes in [0-9a-z.]
+        tail.extend_from_slice(&[b'A'; 44]);
+        tail.extend_from_slice(&[0x00; 10]);
+    }
+    tail.extend_from_slice(b"\xBB\x01");
+
+    let mut scanner = Scanner::new(&rules);
+
+    // Tail without `.AV` / `AV` head never matches even when repeated many times.
+    let mut no_head = Vec::new();
+    for _ in 0..20 {
+        no_head.extend_from_slice(&tail);
+    }
+    assert_eq!(scanner.scan(&no_head).unwrap().matching_rules().len(), 0);
+
+    // Gap 0 fails (`{1,500}`), gap 1 and gap 500 succeed, gap 501 fails.
+    for (gap_len, expected) in [(0, 0), (1, 1), (500, 1), (501, 0)] {
+        let mut buf = b".AV".to_vec();
+        buf.extend(std::iter::repeat_n(0xFF, gap_len));
+        buf.extend_from_slice(&tail);
+        assert_eq!(
+            scanner.scan(&buf).unwrap().matching_rules().len(),
+            expected,
+            "gap_len = {gap_len}"
+        );
+    }
+
+    // 2. Interior tail atoms (`bck_code == Some(_)` in both FastVM and PikeVM,
+    // plus `wide` mode), where `atom_pos - head.end` exceeds `gap_max` (500)
+    // while `tail_match.start - head.end` is within `gap_max` thanks to
+    // backward matching.
+    let bck_rules = crate::compile(
+        r#"
+        rule fast_vm_bck {
+            strings:
+                $a = /HEAD[\x00-\xFF]{1,500}[a-z]{10}TAIL/
+            condition:
+                $a
+        }
+        rule pike_vm_bck {
+            strings:
+                $a = /HEAD[\x00-\xFF]{1,500}(ab|cd){5}TAIL/
+            condition:
+                $a
+        }
+        rule pike_vm_bck_wide {
+            strings:
+                $a = /HEAD.{1,300}(ab|cd){5}TAIL/s wide
+            condition:
+                $a
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut bck_scanner = Scanner::new(&bck_rules);
+
+    // `HEAD` (0..4), 500 gap bytes (4..504), 10-byte prefix (504..514), `TAIL`
+    // at 514..518 (`atom_pos - head.end == 510 > 500`, `tail.start - head.end == 500`).
+    let mut exact_max = b"HEAD".to_vec();
+    exact_max.extend(std::iter::repeat_n(b'_', 500));
+    exact_max.extend_from_slice(b"abababababTAIL");
+    let matching: Vec<_> = bck_scanner
+        .scan(&exact_max)
+        .unwrap()
+        .matching_rules()
+        .map(|r| r.identifier())
+        .collect();
+    assert_eq!(matching, vec!["fast_vm_bck", "pike_vm_bck"]);
+
+    // Adding 1 byte to the gap (`tail.start - head.end == 501`) must not match.
+    let mut over_max = b"HEAD".to_vec();
+    over_max.extend(std::iter::repeat_n(b'_', 501));
+    over_max.extend_from_slice(b"abababababTAIL");
+    assert_eq!(bck_scanner.scan(&over_max).unwrap().matching_rules().len(), 0);
+
+    // Wide mode with interior atom (`TAIL` wide): `ChainedPatternGap` measures
+    // raw byte distance (`1..=300`), so 150 wide `_` characters (300 bytes)
+    // between wide `HEAD` and wide `(ab|cd){5}TAIL` puts `atom_pos - head.end`
+    // at 320 (> 300) while `tail.start - head.end` is 300.
+    let to_wide =
+        |s: &[u8]| -> Vec<u8> { s.iter().flat_map(|&b| [b, 0]).collect() };
+    let mut wide_buf = to_wide(b"HEAD");
+    wide_buf.extend_from_slice(&to_wide(&[b'_'; 150]));
+    wide_buf.extend_from_slice(&to_wide(b"abababababTAIL"));
+    let matching_wide: Vec<_> = bck_scanner
+        .scan(&wide_buf)
+        .unwrap()
+        .matching_rules()
+        .map(|r| r.identifier())
+        .collect();
+    assert_eq!(matching_wide, vec!["pike_vm_bck_wide"]);
+
+    // 3. Non-monotonic head `range.end`, multi-piece regexp chain, literal
+    // chain tail with >4-byte literal (inexact atom), and block scanning.
+    let chain_rules = crate::compile(
+        r#"
+        rule non_monotonic_and_multilink {
+            strings:
+                $nm = /(AA[a-z]{40}BB|cc)[\x00-\xFF]{5,10}[0-9]{2}TAIL/
+                $ml = /H1H1[\x00-\xFF]{1,300}M1M1[\x00-\xFF]{1,300}[0-9]{2}T1T1/
+                $lit = /LHEAD[\x00-\xFF]{1,300}LTAIL_LONG/
+            condition:
+                $nm and $ml and $lit
+        }
+        "#,
+    )
+    .unwrap();
+
+    // `AA` at 0 matches `0..44` (`end = 44`), while `cc` inside it at `2..4`
+    // pushes a shorter `end = 4` afterwards; `99TAIL` at `49` has gap `5` from `44`.
+    let mut data = b"AAcc".to_vec();
+    data.extend(std::iter::repeat_n(b'z', 38));
+    data.extend_from_slice(b"BB");
+    data.extend_from_slice(b"1234599TAIL");
+    data.extend_from_slice(b"H1H1_____M1M1_____99T1T1");
+    data.extend_from_slice(b"LHEAD_____LTAIL_LONG");
+
+    let mut scanner = Scanner::new(&chain_rules);
+    assert_eq!(scanner.scan(&data).unwrap().matching_rules().len(), 1);
+
+    // Block scanning at a non-zero `base` offset (`base = 1_000_000`) clears
+    // unconfirmed matches across blocks and rebases offsets accurately.
+    let mut block_scanner = crate::blocks::Scanner::new(&chain_rules);
+    block_scanner.scan(0, b"LTAIL_LONG 99T1T1 99TAIL without heads").unwrap();
+    block_scanner.scan(1_000_000, &data).unwrap();
+    let block_results = block_scanner.finish().unwrap();
+    assert_eq!(block_results.matching_rules().len(), 1);
+}

@@ -57,6 +57,12 @@ impl<'r> PikeVM<'r> {
         self
     }
 
+    /// Returns the maximum number of steps scanned by the VM before aborting.
+    #[inline]
+    pub fn get_scan_limit(&self) -> u32 {
+        self.scan_limit
+    }
+
     /// Executes VM code starting at the `start` location and calls `f` for
     /// each match found. The `right` slice contains the bytes at the right
     /// of the starting point (i.e: from the starting point until the end of
