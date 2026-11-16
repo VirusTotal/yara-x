@@ -20,26 +20,41 @@ use crate::{
 #[derive(PartialEq, Debug)]
 #[repr(C)]
 pub enum YRX_FILE_EVENT {
-    /// A file is about to be scanned.
+    /// A file or data buffer is about to be scanned.
     YRX_FILE_SCAN_STARTED,
-    /// A file has been scanned.
+    /// The raw content of a file or data buffer has been scanned, before
+    /// scanning any inner files extracted from it.
+    YRX_FILE_SCANNED,
+    /// A file or data buffer, along with all inner files extracted from it
+    /// (if any), has been completely scanned.
     YRX_FILE_SCAN_FINISHED,
 }
 
 /// Callback function passed to [`yrx_scanner_on_file_scanned`].
 ///
-/// During a scan operation, this callback is invoked twice for each scanned
-/// file or data buffer:
+/// During a scan operation, this callback is invoked three times for each
+/// scanned file or data buffer:
 ///
-/// 1) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED`], before any matching rules
-///    for that file are reported via [`YRX_RULE_CALLBACK`].
-/// 2) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED`], after the file (and all
-///    subfiles extracted from it, if any) has been scanned and its matching
-///    rules have been reported via [`YRX_RULE_CALLBACK`].
+/// 1) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED`], before scanning the file
+///    or data buffer and before any matching rules for it are reported via
+///    [`YRX_RULE_CALLBACK`].
+/// 2) With [`YRX_FILE_EVENT::YRX_FILE_SCANNED`], after scanning the raw content
+///    of the file or data buffer and reporting its matching rules via
+///    [`YRX_RULE_CALLBACK`], before scanning any inner files extracted from it.
+/// 3) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED`], once the file or data
+///    buffer and all inner files extracted from it (if any) have been
+///    completely scanned.
 ///
-/// The `path` argument is a null-terminated string containing the relative
-/// path of the file within the container, or an empty string (`""`) for the
-/// top-level file or data buffer. This pointer is only valid while the callback
+/// The `inner_path` argument is null for the top-level file or data buffer,
+/// or a null-terminated string containing the relative path of the extracted
+/// file within the container.
+///
+/// For [`YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED`] and
+/// [`YRX_FILE_EVENT::YRX_FILE_SCANNED`], `data` and `len` point to the raw
+/// bytes of the file or data buffer being scanned. For
+/// [`YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED`], `data` is null and `len` is 0.
+///
+/// Both `inner_path` and `data` pointers are only valid while the callback
 /// function is executing and must not be used after the callback returns.
 ///
 /// The callback also receives the `user_data` pointer passed to
@@ -50,7 +65,9 @@ pub enum YRX_FILE_EVENT {
 pub type YRX_FILE_CALLBACK = Option<
     extern "C" fn(
         event: YRX_FILE_EVENT,
-        path: *const c_char,
+        inner_path: *const c_char,
+        data: *const u8,
+        len: usize,
         user_data: *mut c_void,
     ) -> bool,
 >;
@@ -167,7 +184,9 @@ pub struct YRX_SCANNER<'r, 'm> {
     on_file_scanned: Option<(
         extern "C" fn(
             event: YRX_FILE_EVENT,
-            path: *const c_char,
+            inner_path: *const c_char,
+            data: *const u8,
+            len: usize,
             user_data: *mut c_void,
         ) -> bool,
         *mut c_void,
@@ -363,7 +382,9 @@ fn handle_scan_event(
     on_file_scanned: Option<(
         extern "C" fn(
             event: YRX_FILE_EVENT,
-            path: *const c_char,
+            inner_path: *const c_char,
+            data: *const u8,
+            len: usize,
             user_data: *mut c_void,
         ) -> bool,
         *mut c_void,
@@ -374,31 +395,56 @@ fn handle_scan_event(
     )>,
 ) -> ControlFlow<()> {
     match event {
-        yara_x::deep::ScanEvent::Started(path) => {
+        yara_x::deep::ScanEvent::Started { inner_path, data } => {
             if let Some((callback, user_data)) = on_file_scanned {
-                let path_cstr = path_to_cstring(path);
+                let path_cstr = inner_path.map(path_to_cstring);
+                let inner_path_ptr = path_cstr
+                    .as_ref()
+                    .map_or(std::ptr::null(), |s| s.as_ptr());
                 if !callback(
                     YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED,
-                    path_cstr.as_ptr(),
+                    inner_path_ptr,
+                    data.as_ptr(),
+                    data.len(),
                     user_data,
                 ) {
                     return ControlFlow::Break(());
                 }
             }
         }
-        yara_x::deep::ScanEvent::Scanned(_path, results) => {
+        yara_x::deep::ScanEvent::Scanned { inner_path, data, results } => {
             if let Some((callback, user_data)) = on_matching_rule {
                 for r in results.matching_rules() {
                     callback(&YRX_RULE::new(r), user_data);
                 }
             }
-        }
-        yara_x::deep::ScanEvent::Finished(path) => {
             if let Some((callback, user_data)) = on_file_scanned {
-                let path_cstr = path_to_cstring(path);
+                let path_cstr = inner_path.map(path_to_cstring);
+                let inner_path_ptr = path_cstr
+                    .as_ref()
+                    .map_or(std::ptr::null(), |s| s.as_ptr());
+                if !callback(
+                    YRX_FILE_EVENT::YRX_FILE_SCANNED,
+                    inner_path_ptr,
+                    data.as_ptr(),
+                    data.len(),
+                    user_data,
+                ) {
+                    return ControlFlow::Break(());
+                }
+            }
+        }
+        yara_x::deep::ScanEvent::Finished { inner_path } => {
+            if let Some((callback, user_data)) = on_file_scanned {
+                let path_cstr = inner_path.map(path_to_cstring);
+                let inner_path_ptr = path_cstr
+                    .as_ref()
+                    .map_or(std::ptr::null(), |s| s.as_ptr());
                 if !callback(
                     YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED,
-                    path_cstr.as_ptr(),
+                    inner_path_ptr,
+                    std::ptr::null(),
+                    0,
                     user_data,
                 ) {
                     return ControlFlow::Break(());

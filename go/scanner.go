@@ -26,7 +26,7 @@ package yara_x
 // }
 //
 // extern void onMatchingRule(YRX_RULE*, uintptr_t);
-// extern bool onFileScanned(YRX_FILE_EVENT, char*, uintptr_t);
+// extern bool onFileScanned(YRX_FILE_EVENT, char*, uint8_t*, size_t, uintptr_t);
 // extern void slowestRulesCallback(char*, char*, double, double, uintptr_t);
 import "C"
 
@@ -75,27 +75,43 @@ type ScanEvent interface {
 
 // ScanStarted is emitted when a file or data buffer is about to be scanned.
 //
-// Path is the relative path of the file within the container, or empty ("")
-// for the top-level file or data buffer.
+// InnerPath is the relative path of the extracted file within the container,
+// or empty ("") for the top-level file or data buffer.
+//
+// Data contains the raw bytes of the file or data buffer being scanned. This
+// slice is only valid while the callback is executing; if the caller needs to
+// retain the data after the callback returns, it must make a copy.
 type ScanStarted struct {
-	Path string
+	InnerPath string
+	Data      []byte
 }
 
 func (ScanStarted) isScanEvent() {}
 
 // Scanned is emitted after scanning the raw content of a file or data buffer,
 // before scanning any inner files extracted from it.
+//
+// InnerPath is the relative path of the extracted file within the container,
+// or empty ("") for the top-level file or data buffer.
+//
+// Data contains the raw bytes of the file or data buffer that was scanned. This
+// slice is only valid while the callback is executing; if the caller needs to
+// retain the data after the callback returns, it must make a copy.
 type Scanned struct {
-	Path    string
-	Results *ScanResults
+	InnerPath string
+	Data      []byte
+	Results   *ScanResults
 }
 
 func (Scanned) isScanEvent() {}
 
 // ScanFinished is emitted once a file or data buffer, along with all inner
 // files extracted from it (if any), has been completely scanned.
+//
+// InnerPath is the relative path of the extracted file within the container,
+// or empty ("") for the top-level file or data buffer.
 type ScanFinished struct {
-	Path string
+	InnerPath string
 }
 
 func (ScanFinished) isScanEvent() {}
@@ -103,10 +119,8 @@ func (ScanFinished) isScanEvent() {}
 // scanContext holds per-scan state passed to C callbacks during a scan
 // operation.
 type scanContext struct {
-	callback       func(ScanEvent) bool
-	matchingRules  []*Rule
-	pendingPath    string
-	hasPendingScan bool
+	callback      func(ScanEvent) bool
+	matchingRules []*Rule
 }
 
 // This is the callback function called every time a YARA rule matches.
@@ -124,7 +138,7 @@ func onMatchingRule(rule *C.YRX_RULE, handle C.uintptr_t) {
 // This is the callback function called by yrx_scanner_on_file_scanned.
 //
 //export onFileScanned
-func onFileScanned(event C.YRX_FILE_EVENT, path *C.char, handle C.uintptr_t) C.bool {
+func onFileScanned(event C.YRX_FILE_EVENT, innerPath *C.char, data *C.uint8_t, length C.size_t, handle C.uintptr_t) C.bool {
 	h := cgo.Handle(handle)
 	ctx, ok := h.Value().(*scanContext)
 	if !ok {
@@ -136,30 +150,32 @@ func onFileScanned(event C.YRX_FILE_EVENT, path *C.char, handle C.uintptr_t) C.b
 		return C.bool(true)
 	}
 
-	// If a previous file's YRX_FILE_SCAN_STARTED event was received and its
-	// matching rules were collected via onMatchingRule, flush its Scanned
-	// event before emitting the next event.
-	if ctx.hasPendingScan {
-		results := &ScanResults{ctx.matchingRules}
-		ctx.matchingRules = nil
-		ctx.hasPendingScan = false
-		if !ctx.callback(Scanned{Path: ctx.pendingPath, Results: results}) {
-			return C.bool(false)
-		}
+	var goInnerPath string
+	if innerPath != nil {
+		goInnerPath = C.GoString(innerPath)
 	}
 
-	goPath := C.GoString(path)
+	rawSlice := func() []byte {
+		if length == 0 || data == nil {
+			return []byte{}
+		}
+		return unsafe.Slice((*byte)(unsafe.Pointer(data)), int(length))
+	}
 
 	switch event {
 	case C.YRX_FILE_SCAN_STARTED:
-		ctx.pendingPath = goPath
-		ctx.hasPendingScan = true
-		if !ctx.callback(ScanStarted{Path: goPath}) {
-			ctx.hasPendingScan = false
+		ctx.matchingRules = nil
+		if !ctx.callback(ScanStarted{InnerPath: goInnerPath, Data: rawSlice()}) {
+			return C.bool(false)
+		}
+	case C.YRX_FILE_SCANNED:
+		results := &ScanResults{ctx.matchingRules}
+		ctx.matchingRules = nil
+		if !ctx.callback(Scanned{InnerPath: goInnerPath, Data: rawSlice(), Results: results}) {
 			return C.bool(false)
 		}
 	case C.YRX_FILE_SCAN_FINISHED:
-		if !ctx.callback(ScanFinished{Path: goPath}) {
+		if !ctx.callback(ScanFinished{InnerPath: goInnerPath}) {
 			return C.bool(false)
 		}
 	}

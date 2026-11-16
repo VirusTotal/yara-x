@@ -22,18 +22,33 @@ pub use crate::extractor::{VbaOptions, ZipOptions};
 /// Events emitted during a deep scan operation.
 pub enum ScanEvent<'a, 'r> {
     /// Emitted when a file or data buffer is about to be scanned.
-    ///
-    /// The path is relative to the root container, or empty (`Path::new("")`)
-    /// for the top-level file or data buffer.
-    Started(&'a Path),
+    Started {
+        /// Path of the extracted file relative to the root container, or
+        /// `None` for the top-level file or data buffer.
+        inner_path: Option<&'a Path>,
+        /// Raw bytes of the file or data buffer being scanned.
+        data: &'a [u8],
+    },
 
     /// Emitted after scanning the raw content of a file or data buffer,
     /// before scanning any inner files extracted from it.
-    Scanned(&'a Path, &'a ScanResults<'a, 'r>),
+    Scanned {
+        /// Path of the extracted file relative to the root container, or
+        /// `None` for the top-level file or data buffer.
+        inner_path: Option<&'a Path>,
+        /// Raw bytes of the file or data buffer that was scanned.
+        data: &'a [u8],
+        /// Results of scanning the raw content of the file or data buffer.
+        results: &'a ScanResults<'a, 'r>,
+    },
 
     /// Emitted once a file or data buffer, along with all inner files
     /// extracted from it (if any), has been completely scanned.
-    Finished(&'a Path),
+    Finished {
+        /// Path of the extracted file relative to the root container, or
+        /// `None` for the top-level file or data buffer.
+        inner_path: Option<&'a Path>,
+    },
 }
 
 /// Scans data and container contents recursively.
@@ -54,8 +69,8 @@ pub enum ScanEvent<'a, 'r> {
 /// 3. [`ScanEvent::Finished`] once the file or data buffer and all inner files
 ///    extracted from it (if any) have been completely scanned.
 ///
-/// For the main data passed in `data`, the path associated with these events
-/// is empty (`Path::new("")`).
+/// For the main data passed in `data` (or the top-level file), `inner_path`
+/// in [`ScanEvent`] is `None`.
 ///
 /// # Flow Control
 ///
@@ -85,7 +100,7 @@ pub enum ScanEvent<'a, 'r> {
 /// let mut scanner = deep::Scanner::new(&rules);
 ///
 /// let _ = scanner.scan(b"dummy haystack", |event| {
-///     if let deep::ScanEvent::Scanned(_path, results) = event {
+///     if let deep::ScanEvent::Scanned { results, .. } = event {
 ///         assert_eq!(results.matching_rules().count(), 1);
 ///     }
 ///     ControlFlow::<()>::Continue(())
@@ -286,9 +301,8 @@ impl<'r> Scanner<'r> {
     {
         self.inner.scan_context_mut().reset(false);
 
-        let root_path = Path::new("");
-
-        if let ControlFlow::Break(b) = callback(ScanEvent::Started(root_path))
+        if let ControlFlow::Break(b) =
+            callback(ScanEvent::Started { inner_path: None, data })
         {
             return Ok(ControlFlow::Break(b));
         }
@@ -299,30 +313,33 @@ impl<'r> Scanner<'r> {
             true,
         )?;
 
-        if let ControlFlow::Break(b) =
-            callback(ScanEvent::Scanned(root_path, &scan_results))
-        {
+        if let ControlFlow::Break(b) = callback(ScanEvent::Scanned {
+            inner_path: None,
+            data,
+            results: &scan_results,
+        }) {
             return Ok(ControlFlow::Break(b));
         }
 
         let mut result = Ok(ControlFlow::Continue(()));
 
         let _ = self.extractor.extract_dfs(data, |event| match event {
-            ExtractEvent::Extracted(_module, path, bytes) => {
+            ExtractEvent::Extracted(_module, path, extracted_data) => {
                 if self.inner.scan_context().timeout_expired() {
                     result = Err(ScanError::Timeout);
                     return ControlFlow::Break(());
                 }
 
-                if let ControlFlow::Break(b) =
-                    callback(ScanEvent::Started(path))
-                {
+                if let ControlFlow::Break(b) = callback(ScanEvent::Started {
+                    inner_path: Some(path),
+                    data: extracted_data,
+                }) {
                     result = Ok(ControlFlow::Break(b));
                     return ControlFlow::Break(());
                 }
 
                 let scan_results = match self.inner.scan_internal(
-                    ScannedData::Slice(bytes),
+                    ScannedData::Slice(extracted_data),
                     options,
                     true,
                 ) {
@@ -333,7 +350,11 @@ impl<'r> Scanner<'r> {
                     }
                 };
 
-                match callback(ScanEvent::Scanned(path, &scan_results)) {
+                match callback(ScanEvent::Scanned {
+                    inner_path: Some(path),
+                    data: extracted_data,
+                    results: &scan_results,
+                }) {
                     ControlFlow::Continue(()) => ControlFlow::Continue(()),
                     ControlFlow::Break(b) => {
                         result = Ok(ControlFlow::Break(b));
@@ -342,7 +363,8 @@ impl<'r> Scanner<'r> {
                 }
             }
             ExtractEvent::Finished(path) => {
-                match callback(ScanEvent::Finished(path)) {
+                match callback(ScanEvent::Finished { inner_path: Some(path) })
+                {
                     ControlFlow::Continue(()) => ControlFlow::Continue(()),
                     ControlFlow::Break(b) => {
                         result = Ok(ControlFlow::Break(b));
@@ -354,7 +376,7 @@ impl<'r> Scanner<'r> {
 
         if let Ok(ControlFlow::Continue(())) = result
             && let ControlFlow::Break(b) =
-                callback(ScanEvent::Finished(root_path))
+                callback(ScanEvent::Finished { inner_path: None })
         {
             return Ok(ControlFlow::Break(b));
         }

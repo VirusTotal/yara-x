@@ -95,9 +95,13 @@ typedef enum YRX_METADATA_TYPE {
 
 // Events notified to [`YRX_FILE_CALLBACK`].
 typedef enum YRX_FILE_EVENT {
-  // A file is about to be scanned.
+  // A file or data buffer is about to be scanned.
   YRX_FILE_SCAN_STARTED,
-  // A file has been scanned.
+  // The raw content of a file or data buffer has been scanned, before
+  // scanning any inner files extracted from it.
+  YRX_FILE_SCANNED,
+  // A file or data buffer, along with all inner files extracted from it
+  // (if any), has been completely scanned.
   YRX_FILE_SCAN_FINISHED,
 } YRX_FILE_EVENT;
 
@@ -250,18 +254,29 @@ typedef void (*YRX_IMPORT_CALLBACK)(const char *module_name,
 
 // Callback function passed to [`yrx_scanner_on_file_scanned`].
 //
-// During a scan operation, this callback is invoked twice for each scanned
-// file or data buffer:
+// During a scan operation, this callback is invoked three times for each
+// scanned file or data buffer:
 //
-// 1) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED`], before any matching rules
-//    for that file are reported via [`YRX_RULE_CALLBACK`].
-// 2) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED`], after the file (and all
-//    subfiles extracted from it, if any) has been scanned and its matching
-//    rules have been reported via [`YRX_RULE_CALLBACK`].
+// 1) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED`], before scanning the file
+//    or data buffer and before any matching rules for it are reported via
+//    [`YRX_RULE_CALLBACK`].
+// 2) With [`YRX_FILE_EVENT::YRX_FILE_SCANNED`], after scanning the raw content
+//    of the file or data buffer and reporting its matching rules via
+//    [`YRX_RULE_CALLBACK`], before scanning any inner files extracted from it.
+// 3) With [`YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED`], once the file or data
+//    buffer and all inner files extracted from it (if any) have been
+//    completely scanned.
 //
-// The `path` argument is a null-terminated string containing the relative
-// path of the file within the container, or an empty string (`""`) for the
-// top-level file or data buffer. This pointer is only valid while the callback
+// The `inner_path` argument is null for the top-level file or data buffer,
+// or a null-terminated string containing the relative path of the extracted
+// file within the container.
+//
+// For [`YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED`] and
+// [`YRX_FILE_EVENT::YRX_FILE_SCANNED`], `data` and `len` point to the raw
+// bytes of the file or data buffer being scanned. For
+// [`YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED`], `data` is null and `len` is 0.
+//
+// Both `inner_path` and `data` pointers are only valid while the callback
 // function is executing and must not be used after the callback returns.
 //
 // The callback also receives the `user_data` pointer passed to
@@ -270,7 +285,9 @@ typedef void (*YRX_IMPORT_CALLBACK)(const char *module_name,
 // Returning `true` instructs the scanner to continue scanning, whereas
 // returning `false` immediately aborts the scan operation.
 typedef bool (*YRX_FILE_CALLBACK)(enum YRX_FILE_EVENT event,
-                                  const char *path,
+                                  const char *inner_path,
+                                  const uint8_t *data,
+                                  size_t len,
                                   void *user_data);
 
 // Callback function used when a YARA rule calls the console module.

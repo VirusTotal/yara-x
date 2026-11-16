@@ -1464,23 +1464,41 @@ fn test_scan_deep() {
     let mut scanner = crate::deep::Scanner::new(&rules);
     let mut events = Vec::new();
     let mut matches_per_path = std::collections::HashMap::new();
+    let mut started_data_per_path = std::collections::HashMap::new();
+    let mut scanned_data_per_path = std::collections::HashMap::new();
 
     let _ = scanner
         .scan(&zip_data, |event| {
             match event {
-                crate::deep::ScanEvent::Started(path) => {
-                    events.push(format!("start:{}", path.display()));
+                crate::deep::ScanEvent::Started { inner_path, data } => {
+                    let display = inner_path
+                        .map_or_else(String::new, |p| p.display().to_string());
+                    events.push(format!("start:{display}"));
+                    started_data_per_path.insert(
+                        inner_path.map(std::path::Path::to_path_buf),
+                        data.to_vec(),
+                    );
                 }
-                crate::deep::ScanEvent::Scanned(path, results) => {
-                    events.push(format!("scanned:{}", path.display()));
+                crate::deep::ScanEvent::Scanned {
+                    inner_path,
+                    data,
+                    results,
+                } => {
+                    let display = inner_path
+                        .map_or_else(String::new, |p| p.display().to_string());
+                    events.push(format!("scanned:{display}"));
+                    let key = inner_path.map(std::path::Path::to_path_buf);
+                    scanned_data_per_path.insert(key.clone(), data.to_vec());
                     let matches: Vec<String> = results
                         .matching_rules()
                         .map(|r| r.identifier().to_string())
                         .collect();
-                    matches_per_path.insert(path.to_path_buf(), matches);
+                    matches_per_path.insert(key, matches);
                 }
-                crate::deep::ScanEvent::Finished(path) => {
-                    events.push(format!("finish:{}", path.display()));
+                crate::deep::ScanEvent::Finished { inner_path } => {
+                    let display = inner_path
+                        .map_or_else(String::new, |p| p.display().to_string());
+                    events.push(format!("finish:{display}"));
                 }
             }
             std::ops::ControlFlow::<()>::Continue(())
@@ -1498,14 +1516,23 @@ fn test_scan_deep() {
             "finish:",
         ]
     );
-    assert_eq!(matches_per_path.len(), 2);
+    assert_eq!(started_data_per_path, scanned_data_per_path);
     assert_eq!(
-        matches_per_path.get(std::path::Path::new("")).unwrap().len(),
-        1
+        started_data_per_path.get(&None).unwrap().as_slice(),
+        &zip_data[..]
     );
     assert_eq!(
+        started_data_per_path
+            .get(&Some(std::path::PathBuf::from("suspicious_payload.exe")))
+            .unwrap()
+            .as_slice(),
+        b"This is a suspicious YARA payload inside a ZIP archive"
+    );
+    assert_eq!(matches_per_path.len(), 2);
+    assert_eq!(matches_per_path.get(&None).unwrap().len(), 1);
+    assert_eq!(
         matches_per_path
-            .get(std::path::Path::new("suspicious_payload.exe"))
+            .get(&Some(std::path::PathBuf::from("suspicious_payload.exe")))
             .unwrap()
             .len(),
         0
@@ -1570,7 +1597,7 @@ fn test_scan_deep_timeout() {
     scanner.set_timeout(std::time::Duration::from_secs(1));
 
     let res = scanner.scan(&zip_data, |event| {
-        if matches!(event, crate::deep::ScanEvent::Scanned(_, _)) {
+        if matches!(event, crate::deep::ScanEvent::Scanned { .. }) {
             std::thread::sleep(std::time::Duration::from_millis(1100));
         }
         std::ops::ControlFlow::<()>::Continue(())
@@ -1614,17 +1641,32 @@ fn test_scan_deep_zip_options() {
     let mut scanned_paths = Vec::new();
     let _ = scanner
         .scan(&zip_data, |event| {
-            if let crate::deep::ScanEvent::Scanned(path, results) = event {
-                scanned_paths.push(path.to_string_lossy().replace('\\', "/"));
-                if !path.as_os_str().is_empty() {
+            if let crate::deep::ScanEvent::Scanned {
+                inner_path,
+                data,
+                results,
+            } = event
+            {
+                if inner_path.is_some() {
                     assert_eq!(results.matching_rules().count(), 1);
+                    assert!(data.starts_with(b"item "));
                 }
+                scanned_paths.push(
+                    inner_path.map(|p| p.to_string_lossy().replace('\\', "/")),
+                );
             }
             std::ops::ControlFlow::<()>::Continue(())
         })
         .unwrap();
 
-    assert_eq!(scanned_paths, vec!["", "file1.txt", "file2.txt"]);
+    assert_eq!(
+        scanned_paths,
+        vec![
+            None,
+            Some("file1.txt".to_string()),
+            Some("file2.txt".to_string()),
+        ]
+    );
 }
 
 #[cfg(feature = "vba-module")]
@@ -1656,17 +1698,31 @@ fn test_scan_deep_vba_options() {
     let mut scanned_paths = Vec::new();
     let _ = scanner
         .scan(&vba_doc, |event| {
-            if let crate::deep::ScanEvent::Scanned(path, results) = event {
-                scanned_paths.push(path.to_string_lossy().replace('\\', "/"));
-                if !path.as_os_str().is_empty() {
+            if let crate::deep::ScanEvent::Scanned {
+                inner_path,
+                results,
+                ..
+            } = event
+            {
+                if inner_path.is_some() {
                     assert_eq!(results.matching_rules().count(), 1);
                 }
+                scanned_paths.push(
+                    inner_path.map(|p| p.to_string_lossy().replace('\\', "/")),
+                );
             }
             std::ops::ControlFlow::<()>::Continue(())
         })
         .unwrap();
 
-    assert_eq!(scanned_paths, vec!["", "ThisDocument", "UserForm1"]);
+    assert_eq!(
+        scanned_paths,
+        vec![
+            None,
+            Some("ThisDocument".to_string()),
+            Some("UserForm1".to_string()),
+        ]
+    );
 }
 
 #[cfg(all(feature = "zip-module", feature = "vba-module"))]
@@ -1703,13 +1759,18 @@ fn test_scan_deep_docm_zip_and_vba() {
     let mut matches_per_path = std::collections::HashMap::new();
     let _ = scanner
         .scan(&docm_data, |event| {
-            if let crate::deep::ScanEvent::Scanned(path, results) = event {
+            if let crate::deep::ScanEvent::Scanned {
+                inner_path,
+                results,
+                ..
+            } = event
+            {
                 let matches: Vec<String> = results
                     .matching_rules()
                     .map(|r| r.identifier().to_string())
                     .collect();
                 matches_per_path.insert(
-                    path.to_string_lossy().replace('\\', "/"),
+                    inner_path.map(|p| p.to_string_lossy().replace('\\', "/")),
                     matches,
                 );
             }
@@ -1717,13 +1778,14 @@ fn test_scan_deep_docm_zip_and_vba() {
         })
         .unwrap();
 
-    assert_eq!(matches_per_path.get(""), Some(&Vec::<String>::new()));
+    assert_eq!(matches_per_path.get(&None), Some(&Vec::<String>::new()));
     assert_eq!(
-        matches_per_path.get("word/vbaProject.bin"),
+        matches_per_path.get(&Some("word/vbaProject.bin".to_string())),
         Some(&vec!["has_vba_macros".to_string()])
     );
     assert_eq!(
-        matches_per_path.get("word/vbaProject.bin_/ThisDocument"),
+        matches_per_path
+            .get(&Some("word/vbaProject.bin_/ThisDocument".to_string())),
         Some(&vec!["hello_macro".to_string()])
     );
 }

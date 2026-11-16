@@ -377,10 +377,11 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                     file_path.as_path(),
                     scan_options,
                     |event| {
-                        let yara_x::deep::ScanEvent::Scanned(
+                        let yara_x::deep::ScanEvent::Scanned {
                             inner_path,
-                            scan_results,
-                        ) = event
+                            results: scan_results,
+                            ..
+                        } = event
                         else {
                             return ControlFlow::<()>::Continue(());
                         };
@@ -724,12 +725,11 @@ mod output_handler {
 
     fn join_inner_path<'a>(
         file_path: &'a Path,
-        inner_path: &Path,
+        inner_path: Option<&Path>,
     ) -> Cow<'a, Path> {
-        if inner_path.as_os_str().is_empty() {
-            Cow::Borrowed(file_path)
-        } else {
-            Cow::Owned(file_path.join(inner_path))
+        match inner_path {
+            Some(inner_path) => Cow::Owned(file_path.join(inner_path)),
+            None => Cow::Borrowed(file_path),
         }
     }
 
@@ -737,15 +737,15 @@ mod output_handler {
     /// [`NdjsonOutputHandler`] and [`JsonOutputHandler`].
     pub(super) trait OutputHandler: Sync {
         /// Called for each scanned file, including inner files extracted from
-        /// containers (for which `inner_path` is relative to `file_path`, or
-        /// empty when scanning `file_path` itself).
+        /// containers (for which `inner_path` is `Some(...)`, or `None` when
+        /// scanning `file_path` itself).
         ///
         /// Must return `true` when the file was included in the output,
         /// or `false` if the file was ignored.
         fn on_file_scanned(
             &self,
             file_path: &Path,
-            inner_path: &Path,
+            inner_path: Option<&Path>,
             scan_results: &mut dyn Iterator<Item = Rule>,
             output: &Sender<Message>,
         ) -> bool;
@@ -767,7 +767,7 @@ mod output_handler {
         fn on_file_scanned(
             &self,
             file_path: &Path,
-            inner_path: &Path,
+            inner_path: Option<&Path>,
             scan_results: &mut dyn Iterator<Item = Rule>,
             output: &Sender<Message>,
         ) -> bool {
@@ -960,7 +960,7 @@ mod output_handler {
         fn on_file_scanned(
             &self,
             file_path: &Path,
-            inner_path: &Path,
+            inner_path: Option<&Path>,
             scan_results: &mut dyn Iterator<Item = Rule>,
             output: &Sender<Message>,
         ) -> bool {
@@ -969,8 +969,7 @@ mod output_handler {
 
                 if count > 0 {
                     let path = file_path.to_string_lossy();
-                    let inner_path = (!inner_path.as_os_str().is_empty())
-                        .then(|| inner_path.to_string_lossy());
+                    let inner_path = inner_path.map(Path::to_string_lossy);
                     output
                         .send(Message::Info(
                             serde_json::to_string(&JsonCountOutput {
@@ -994,8 +993,7 @@ mod output_handler {
             }
 
             let path = file_path.to_string_lossy();
-            let inner_path = (!inner_path.as_os_str().is_empty())
-                .then(|| inner_path.to_string_lossy());
+            let inner_path = inner_path.map(Path::to_string_lossy);
 
             let line = serde_json::to_string(&JsonOutput {
                 path: &path,
@@ -1111,7 +1109,7 @@ mod output_handler {
         fn on_file_scanned(
             &self,
             file_path: &Path,
-            inner_path: &Path,
+            inner_path: Option<&Path>,
             scan_results: &mut dyn Iterator<Item = Rule>,
             _output: &Sender<Message>,
         ) -> bool {
@@ -1127,8 +1125,8 @@ mod output_handler {
                 .unwrap_or(file_path)
                 .to_string_lossy()
                 .into_owned();
-            let inner_path = (!inner_path.as_os_str().is_empty())
-                .then(|| inner_path.to_string_lossy().into_owned());
+            let inner_path =
+                inner_path.map(|p| p.to_string_lossy().into_owned());
 
             // prepare the increment *outside* the critical section
             let matching_rules = matching_rules.map(|rule| {

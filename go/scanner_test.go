@@ -254,20 +254,24 @@ func TestDeepScanner(t *testing.T) {
 
 	var events []string
 	matchesPerPath := make(map[string][]string)
+	startedDataPerPath := make(map[string][]byte)
+	scannedDataPerPath := make(map[string][]byte)
 
 	err = s.Scan(testZipData, func(event ScanEvent) bool {
 		switch e := event.(type) {
 		case ScanStarted:
-			events = append(events, "start:"+e.Path)
+			events = append(events, "start:"+e.InnerPath)
+			startedDataPerPath[e.InnerPath] = append([]byte(nil), e.Data...)
 		case Scanned:
-			events = append(events, "scanned:"+e.Path)
+			events = append(events, "scanned:"+e.InnerPath)
+			scannedDataPerPath[e.InnerPath] = append([]byte(nil), e.Data...)
 			var rules []string
 			for _, rule := range e.Results.MatchingRules() {
 				rules = append(rules, rule.Identifier())
 			}
-			matchesPerPath[e.Path] = rules
+			matchesPerPath[e.InnerPath] = rules
 		case ScanFinished:
-			events = append(events, "finish:"+e.Path)
+			events = append(events, "finish:"+e.InnerPath)
 		}
 		return true
 	})
@@ -281,6 +285,10 @@ func TestDeepScanner(t *testing.T) {
 		"finish:suspicious_payload.exe",
 		"finish:",
 	}, events)
+
+	assert.Equal(t, startedDataPerPath, scannedDataPerPath)
+	assert.Equal(t, testZipData, startedDataPerPath[""])
+	assert.Equal(t, []byte("This is a suspicious YARA payload inside a ZIP archive"), startedDataPerPath["suspicious_payload.exe"])
 
 	assert.Equal(t, []string{"test_pe", "dummy"}, matchesPerPath[""])
 	assert.Equal(t, []string{"dummy"}, matchesPerPath["suspicious_payload.exe"])
@@ -301,11 +309,11 @@ func TestDeepScannerMaxDepth(t *testing.T) {
 	err = s.Scan(testZipData, func(event ScanEvent) bool {
 		switch e := event.(type) {
 		case ScanStarted:
-			events = append(events, "start:"+e.Path)
+			events = append(events, "start:"+e.InnerPath)
 		case Scanned:
-			events = append(events, "scanned:"+e.Path)
+			events = append(events, "scanned:"+e.InnerPath)
 		case ScanFinished:
-			events = append(events, "finish:"+e.Path)
+			events = append(events, "finish:"+e.InnerPath)
 		}
 		return true
 	})
@@ -333,14 +341,14 @@ func TestDeepScannerAbort(t *testing.T) {
 	err = s.Scan(testZipData, func(event ScanEvent) bool {
 		switch e := event.(type) {
 		case ScanStarted:
-			events = append(events, "start:"+e.Path)
-			if e.Path == "suspicious_payload.exe" {
+			events = append(events, "start:"+e.InnerPath)
+			if e.InnerPath == "suspicious_payload.exe" {
 				return false
 			}
 		case Scanned:
-			events = append(events, "scanned:"+e.Path)
+			events = append(events, "scanned:"+e.InnerPath)
 		case ScanFinished:
-			events = append(events, "finish:"+e.Path)
+			events = append(events, "finish:"+e.InnerPath)
 		}
 		return true
 	})
@@ -356,12 +364,12 @@ func TestDeepScannerAbort(t *testing.T) {
 	err = s.Scan(testZipData, func(event ScanEvent) bool {
 		switch e := event.(type) {
 		case ScanStarted:
-			events = append(events, "start:"+e.Path)
+			events = append(events, "start:"+e.InnerPath)
 		case Scanned:
-			events = append(events, "scanned:"+e.Path)
+			events = append(events, "scanned:"+e.InnerPath)
 			return false
 		case ScanFinished:
-			events = append(events, "finish:"+e.Path)
+			events = append(events, "finish:"+e.InnerPath)
 		}
 		return true
 	})
@@ -391,14 +399,18 @@ func TestDeepScannerScanFile(t *testing.T) {
 	defer s.Destroy()
 
 	var events []string
+	startedDataPerPath := make(map[string][]byte)
+	scannedDataPerPath := make(map[string][]byte)
 	err = s.ScanFile(f.Name(), func(event ScanEvent) bool {
 		switch e := event.(type) {
 		case ScanStarted:
-			events = append(events, "start:"+e.Path)
+			events = append(events, "start:"+e.InnerPath)
+			startedDataPerPath[e.InnerPath] = append([]byte(nil), e.Data...)
 		case Scanned:
-			events = append(events, "scanned:"+e.Path)
+			events = append(events, "scanned:"+e.InnerPath)
+			scannedDataPerPath[e.InnerPath] = append([]byte(nil), e.Data...)
 		case ScanFinished:
-			events = append(events, "finish:"+e.Path)
+			events = append(events, "finish:"+e.InnerPath)
 		}
 		return true
 	})
@@ -412,6 +424,9 @@ func TestDeepScannerScanFile(t *testing.T) {
 		"finish:suspicious_payload.exe",
 		"finish:",
 	}, events)
+	assert.Equal(t, startedDataPerPath, scannedDataPerPath)
+	assert.Equal(t, testZipData, startedDataPerPath[""])
+	assert.Equal(t, []byte("This is a suspicious YARA payload inside a ZIP archive"), startedDataPerPath["suspicious_payload.exe"])
 }
 
 func TestScannerGarbageCollected(t *testing.T) {

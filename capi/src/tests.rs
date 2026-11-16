@@ -1198,24 +1198,52 @@ fn capi_deep_scan() {
     #[derive(Default)]
     struct DeepScanState {
         events: Vec<String>,
+        started_data: std::collections::HashMap<Option<String>, Vec<u8>>,
+        scanned_data: std::collections::HashMap<Option<String>, Vec<u8>>,
         stop_on_finish: bool,
+        stop_on_root_scanned: bool,
         stop_on_inner_start: bool,
     }
 
     extern "C" fn on_file(
         event: YRX_FILE_EVENT,
-        path: *const c_char,
+        inner_path: *const c_char,
+        data: *const u8,
+        len: usize,
         user_data: *mut c_void,
     ) -> bool {
         let state = unsafe { &mut *(user_data as *mut DeepScanState) };
-        let path_str = unsafe { CStr::from_ptr(path).to_string_lossy() };
+        let inner_path_opt = if inner_path.is_null() {
+            None
+        } else {
+            Some(
+                unsafe { CStr::from_ptr(inner_path) }
+                    .to_string_lossy()
+                    .into_owned(),
+            )
+        };
+        let path_display = inner_path_opt.as_deref().unwrap_or("");
         match event {
             YRX_FILE_EVENT::YRX_FILE_SCAN_STARTED => {
-                state.events.push(format!("start:{path_str}"));
-                !state.stop_on_inner_start || path_str.is_empty()
+                let bytes =
+                    unsafe { std::slice::from_raw_parts(data, len).to_vec() };
+                state.events.push(format!("start:{path_display}"));
+                let is_root = inner_path_opt.is_none();
+                state.started_data.insert(inner_path_opt, bytes);
+                !state.stop_on_inner_start || is_root
+            }
+            YRX_FILE_EVENT::YRX_FILE_SCANNED => {
+                let bytes =
+                    unsafe { std::slice::from_raw_parts(data, len).to_vec() };
+                state.events.push(format!("scanned:{path_display}"));
+                let is_root = inner_path_opt.is_none();
+                state.scanned_data.insert(inner_path_opt, bytes);
+                !state.stop_on_root_scanned || !is_root
             }
             YRX_FILE_EVENT::YRX_FILE_SCAN_FINISHED => {
-                state.events.push(format!("finish:{path_str}"));
+                assert!(data.is_null());
+                assert_eq!(len, 0);
+                state.events.push(format!("finish:{path_display}"));
                 !state.stop_on_finish
             }
         }
@@ -1294,18 +1322,26 @@ fn capi_deep_scan() {
             YRX_RESULT::YRX_SUCCESS
         );
 
-        // By default max_depth is 0, so only the root buffer ("") is scanned.
+        // By default max_depth is 0, so only the root buffer (None) is scanned.
         assert_eq!(
             yrx_scanner_scan(scanner, zip_data.as_ptr(), zip_data.len()),
             YRX_RESULT::YRX_SUCCESS
         );
         assert_eq!(
             state.events,
-            vec!["start:", "match:test_pe", "match:dummy", "finish:"]
+            vec![
+                "start:",
+                "match:test_pe",
+                "match:dummy",
+                "scanned:",
+                "finish:",
+            ]
         );
 
         // Enable deep scan with max_depth = 1.
         state.events.clear();
+        state.started_data.clear();
+        state.scanned_data.clear();
         assert_eq!(yrx_scanner_max_depth(scanner, 1), YRX_RESULT::YRX_SUCCESS);
         assert_eq!(
             yrx_scanner_scan(scanner, zip_data.as_ptr(), zip_data.len()),
@@ -1317,15 +1353,37 @@ fn capi_deep_scan() {
                 "start:",
                 "match:test_pe",
                 "match:dummy",
+                "scanned:",
                 "start:suspicious_payload.exe",
                 "match:dummy",
+                "scanned:suspicious_payload.exe",
                 "finish:suspicious_payload.exe",
                 "finish:",
             ]
         );
+        assert_eq!(state.started_data, state.scanned_data);
+        assert_eq!(state.started_data[&None].as_slice(), &zip_data[..]);
+        assert_eq!(
+            state.started_data[&Some("suspicious_payload.exe".to_string())]
+                .as_slice(),
+            b"This is a suspicious YARA payload inside a ZIP archive"
+        );
+
+        // Test early abort by returning false on YRX_FILE_SCANNED for the root file.
+        state.events.clear();
+        state.stop_on_root_scanned = true;
+        assert_eq!(
+            yrx_scanner_scan(scanner, zip_data.as_ptr(), zip_data.len()),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert_eq!(
+            state.events,
+            vec!["start:", "match:test_pe", "match:dummy", "scanned:"]
+        );
 
         // Test early abort by returning false on YRX_FILE_SCAN_STARTED for the inner file.
         state.events.clear();
+        state.stop_on_root_scanned = false;
         state.stop_on_inner_start = true;
         assert_eq!(
             yrx_scanner_scan(scanner, zip_data.as_ptr(), zip_data.len()),
@@ -1337,6 +1395,7 @@ fn capi_deep_scan() {
                 "start:",
                 "match:test_pe",
                 "match:dummy",
+                "scanned:",
                 "start:suspicious_payload.exe",
             ]
         );
@@ -1355,8 +1414,10 @@ fn capi_deep_scan() {
                 "start:",
                 "match:test_pe",
                 "match:dummy",
+                "scanned:",
                 "start:suspicious_payload.exe",
                 "match:dummy",
+                "scanned:suspicious_payload.exe",
                 "finish:suspicious_payload.exe",
             ]
         );
