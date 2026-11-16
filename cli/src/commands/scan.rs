@@ -63,13 +63,13 @@ pub fn scan() -> Command {
             arg!(--"cpu-limit" <PERCENTAGE>)
                 .help("Limit the CPU usage of the scan (percentage from 1 to 99)")
                 .value_parser(value_parser!(u8).range(1..=99)),
-            arg!(--exclude <PATH>)
+            arg!(--"disable-console-logs")
+                .help("Disable printing console log messages"),
+            arg!(--"exclude" <PATH>)
                 .help("Exclude a file or directory from scanning")
                 .long_help(help::SCAN_EXCLUDE_LONG_HELP)
                 .value_parser(value_parser!(PathBuf))
                 .action(ArgAction::Append),
-            arg!(--"disable-console-logs")
-                .help("Disable printing console log messages"),
             arg!(-f --"fast-scan")
                 .help("Enable fast-scan mode")
                 .long_help(help::FAST_SCAN_LONG_HELP),
@@ -216,7 +216,15 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         );
     }
 
-    if recursive.is_some() && target_path.is_file() {
+    // Exclusions are validated before compiling rules, and an excluded
+    // target is not inspected at all.
+    let mut exclusions = walk::Exclusions::new();
+    for path in args.get_many::<PathBuf>("exclude").into_iter().flatten() {
+        exclusions.add(path)?;
+    }
+    let target_excluded = !scan_list && exclusions.contains(target_path);
+
+    if recursive.is_some() && !target_excluded && target_path.is_file() {
         bail!(
             "can't use '{}' when <TARGET_PATH> is a file",
             Paint::bold("--recursive")
@@ -268,9 +276,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         walk::ParWalker::path(target_path)
     };
 
-    for path in args.get_many::<PathBuf>("exclude").into_iter().flatten() {
-        w.exclude(path)?;
-    }
+    w.exclusions(exclusions);
 
     if let Some(num_threads) = num_threads {
         w.num_threads(*num_threads);

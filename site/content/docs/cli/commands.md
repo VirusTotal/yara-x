@@ -156,6 +156,23 @@ Equivalent to the previous one, but using `--disable-warnings` multiple times:
 --disable-warnings=slow_pattern --disable-warnings=redundant_modifier
 ```
 
+### --exclude \<PATH\>
+
+Excludes a file or directory from the scan. When `<PATH>` is a directory, the
+whole subtree is skipped without being traversed. The option can be used more
+than once, and applies to `<TARGET_PATH>` itself and to the entries of a
+`--scan-list`. Exclusions affect scanned files, not rule compilation.
+
+Relative paths are resolved against the current working directory, not
+against `<TARGET_PATH>`. Paths are literal, not glob patterns. A path is
+excluded whether it is reached through the spelling given or through its parent
+directories with symbolic links resolved, so `/tmp/dir` and `/private/tmp/dir`
+on macOS are the same exclusion. On Windows, matching is case-insensitive.
+
+```
+yr scan --recursive --exclude ./samples/private rules.yar ./samples
+```
+
 ### --ignore-module \<MODULE\>
 
 Rules that use the specified module will be ignored, as well as any rules that

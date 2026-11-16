@@ -14,7 +14,8 @@ use indicatif::{ProgressBar, ProgressStyle};
 use walkdir::WalkDir;
 
 mod exclusions;
-use exclusions::Exclusions;
+pub use exclusions::Exclusions;
+use exclusions::ParentCache;
 
 pub trait Draw {
     fn draw(&self, width: usize) -> String;
@@ -117,11 +118,11 @@ impl<'a> Walker<'a> {
         self
     }
 
-    /// Excludes a literal file or directory path from the walk. Relative paths
-    /// are resolved against the current directory, without filesystem access.
-    pub fn exclude(&mut self, path: &Path) -> anyhow::Result<&mut Self> {
-        self.exclusions.add(path)?;
-        Ok(self)
+    /// Sets the paths excluded from the walk, together with their
+    /// descendants.
+    pub fn exclusions(&mut self, exclusions: Exclusions) -> &mut Self {
+        self.exclusions = exclusions;
+        self
     }
 
     /// Sets a filter based in file metadata.
@@ -161,7 +162,7 @@ impl<'a> Walker<'a> {
             return self.walk_file_list(f, e);
         }
 
-        if !self.file_list && self.exclusions.contains(self.path)? {
+        if !self.file_list && self.exclusions.contains(self.path) {
             return Ok(());
         }
 
@@ -218,9 +219,10 @@ impl<'a> Walker<'a> {
         E: FnMut(anyhow::Error) -> anyhow::Result<()>,
         I: Iterator<Item = io::Result<String>>,
     {
+        let mut parents = ParentCache::default();
         for line in lines {
             let path = PathBuf::from(line?);
-            if self.exclusions.contains(&path)? {
+            if self.exclusions.contains_cached(&path, &mut parents) {
                 continue;
             }
             let metadata = match path
@@ -248,18 +250,28 @@ impl<'a> Walker<'a> {
         F: FnMut(&Path) -> anyhow::Result<()>,
         E: FnMut(anyhow::Error) -> anyhow::Result<()>,
     {
-        // Preserve the path spelling used by existing directory walks.
-        let path = if self.path.as_os_str().len() > 2 {
-            self.path
-                .strip_prefix(if cfg!(target_os = "windows") {
-                    r#".\"#
-                } else {
-                    "./"
-                })
-                .unwrap_or(self.path)
-        } else {
-            self.path
-        };
+        // Preserve the path spelling used by existing directory walks. Paths
+        // like `.//` or `./.` would become empty after stripping, keep them
+        // as they are.
+        let path =
+            match self.path.strip_prefix(if cfg!(target_os = "windows") {
+                r#".\"#
+            } else {
+                "./"
+            }) {
+                Ok(stripped)
+                    if self.path.as_os_str().len() > 2
+                        && !stripped.as_os_str().is_empty() =>
+                {
+                    stripped
+                }
+                _ => self.path,
+            };
+
+        let scope = self.exclusions.scope(path);
+        if scope.root_excluded() {
+            return Ok(());
+        }
 
         // Use the same glob matcher as globwalk, with a traversal predicate
         // that can prune literal excluded directories before reading them.
@@ -276,16 +288,9 @@ impl<'a> Walker<'a> {
         if let Some(max_depth) = self.max_depth {
             walker = walker.max_depth(max_depth + 1);
         }
-        let absolute_root = if self.exclusions.is_empty() {
-            None
-        } else {
-            Some(std::path::absolute(path)?)
-        };
         let entries = walker.into_iter().filter_entry(|entry| {
             let relative = entry.path().strip_prefix(path).unwrap();
-            if let Some(root) = &absolute_root
-                && self.exclusions.contains_absolute(&root.join(relative))
-            {
+            if scope.excludes(relative) {
                 return false;
             }
             relative.as_os_str().is_empty()
@@ -455,10 +460,10 @@ impl<'a> ParWalker<'a> {
         self
     }
 
-    /// Excludes a literal path and its descendants. See [`Walker::exclude`].
-    pub fn exclude(&mut self, path: &Path) -> anyhow::Result<&mut Self> {
-        self.walker.exclude(path)?;
-        Ok(self)
+    /// Sets the excluded paths. See [`Walker::exclusions`].
+    pub fn exclusions(&mut self, exclusions: Exclusions) -> &mut Self {
+        self.walker.exclusions(exclusions);
+        self
     }
 
     /// Adds a glob pattern that controls which files will be processed.

@@ -198,8 +198,11 @@ without traversing it. Also applies to single-file targets and --scan-list entri
 Relative paths are resolved against the current working directory, not TARGET_PATH.
 
 Paths are literal, not glob patterns. Quote shell wildcard characters.
-Matching is lexical and case-sensitive; symbolic links and filesystem aliases
-are not resolved. Exclusions affect scan targets, not rule compilation.
+A path is excluded whether it is reached through the spelling given or
+through its parent directories with symbolic links resolved, so /tmp/dir and
+/private/tmp/dir on macOS, or $PWD/dir and ./dir, are the same exclusion.
+The excluded entry itself is not opened. On Windows, matching is
+case-insensitive. Exclusions affect scan targets, not rule compilation.
 
 Examples:
 
