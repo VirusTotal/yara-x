@@ -1641,3 +1641,62 @@ fn empty_and_nullable_repetitions() {
         assert!(matches!(err, re::Error::TooLarge), "{err:?}");
     }
 }
+
+#[test]
+fn compile_omits_noop_bck_code() {
+    let parser = re::parser::Parser::new();
+
+    // Atoms extracted from the start of the regexp (including after leading
+    // look-around assertions) have `bck_code == None`, and `Compiler::compile`
+    // omits appending `bck_code` to the output bytecode buffer.
+    for pat in [
+        r"/foo[a-z]+bar/s",
+        r"/^foo[a-z]+/s",
+        r"/\bfoo[a-z]+/s",
+        r"/(fooo|barr)[a-z]+/s",
+        r"/[0-9a-z\.]{10}[0-9a-zA-Z\.]{44}/s",
+    ] {
+        let hir = parser.parse(&Regexp::new(pat)).unwrap();
+        let (fwd_code, _, _) = Compiler::new().compile_internal(&hir).unwrap();
+
+        let mut code = Vec::new();
+        let atoms = Compiler::new().compile(&hir, &mut code).unwrap();
+
+        assert!(!atoms.is_empty(), "{pat}");
+        assert!(
+            atoms.iter().all(|a| a.bck_code.is_none()),
+            "expected bck_code == None for {pat}, got {atoms:?}"
+        );
+        assert_eq!(code.len(), fwd_code.as_slice().len(), "{pat}");
+    }
+
+    // Atoms preceded by matchable bytes still emit `bck_code == Some(...)`.
+    for pat in [r"/a+foo[a-z]*/s", r"/.foo[a-z]*/s", r"/^a?foo[a-z]+/s"] {
+        let hir = parser.parse(&Regexp::new(pat)).unwrap();
+        let (fwd_code, bck_code, _) =
+            Compiler::new().compile_internal(&hir).unwrap();
+
+        let mut code = Vec::new();
+        let atoms = Compiler::new().compile(&hir, &mut code).unwrap();
+
+        assert!(!atoms.is_empty(), "{pat}");
+        assert!(
+            atoms.iter().all(|a| a.bck_code.is_some()),
+            "expected bck_code == Some(_) for {pat}, got {atoms:?}"
+        );
+        assert_eq!(
+            code.len(),
+            fwd_code.as_slice().len() + bck_code.as_slice().len(),
+            "{pat}"
+        );
+    }
+
+    // Alternation mixing a prefix atom (`fooo`) and an interior atom (`barr`).
+    let hir =
+        parser.parse(&Regexp::new(r"/fooo[a-z]*|x+barr[a-z]*/s")).unwrap();
+    let mut code = Vec::new();
+    let atoms = Compiler::new().compile(&hir, &mut code).unwrap();
+    assert_eq!(atoms.len(), 2);
+    assert!(atoms[0].bck_code.is_none());
+    assert!(atoms[1].bck_code.is_some());
+}

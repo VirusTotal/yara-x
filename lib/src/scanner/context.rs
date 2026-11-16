@@ -6,7 +6,7 @@ use std::mem::{MaybeUninit, transmute};
 #[cfg(feature = "rules-profiling")]
 use std::ops::AddAssign;
 use std::ops::ControlFlow;
-use std::ops::{Deref, Range};
+use std::ops::{Deref, Range, RangeInclusive};
 use std::pin::Pin;
 use std::ptr::NonNull;
 use std::rc::Rc;
@@ -37,7 +37,7 @@ use crate::re::thompson::PikeVM;
 #[cfg(feature = "rules-profiling")]
 use crate::scanner::ProfilingData;
 use crate::scanner::matches::{
-    AddResult, Match, PatternMatches, UnconfirmedMatch,
+    AddResult, Match, PatternMatches, UnconfirmedMatch, UnconfirmedMatches,
 };
 use crate::scanner::{DataSnippets, ScanError, ScannedData};
 use crate::scanner::{HEARTBEAT_COUNTER, INIT_HEARTBEAT};
@@ -81,7 +81,7 @@ pub(crate) struct MatchTracker<'r> {
     pub pattern_matches: PatternMatches,
     /// Contains matches for subpatterns that are part of a chain but
     /// the whole chain has not been confirmed yet
-    pub unconfirmed_matches: FxHashMap<SubPatternId, Vec<UnconfirmedMatch>>,
+    pub unconfirmed_matches: FxHashMap<SubPatternId, UnconfirmedMatches>,
     /// Patterns that have been disabled, either because they have reached
     /// the maximum number of matches or because they are meant to be ignored
     /// during this scan because they belong to some rule that we know that
@@ -943,8 +943,7 @@ impl ScanContext<'_, '_> {
 
         match sub_pattern {
             SubPattern::Literal { pattern, flags, .. }
-            | SubPattern::LiteralChainHead { pattern, flags, .. }
-            | SubPattern::LiteralChainTail { pattern, flags, .. } => {
+            | SubPattern::LiteralChainHead { pattern, flags, .. } => {
                 let pattern = self
                     .compiled_rules
                     .literal_pool()
@@ -961,6 +960,38 @@ impl ScanContext<'_, '_> {
                         Match::new(atom_pos..atom_pos + pattern.len())
                             .rebase(base),
                     );
+                }
+            }
+            SubPattern::LiteralChainTail {
+                pattern,
+                chained_to,
+                gap,
+                flags,
+            } => {
+                if within_valid_distance(
+                    &self.tracker,
+                    *chained_to,
+                    base + atom_pos,
+                    gap,
+                ) {
+                    let pattern = self
+                        .compiled_rules
+                        .literal_pool()
+                        .get_bytes(*pattern)
+                        .unwrap();
+
+                    if verify_literal(pattern, scanned_data, atom_pos, *flags)
+                    {
+                        handle_sub_pattern_match(
+                            &mut self.tracker,
+                            &mut self.wasm,
+                            sub_pattern_id,
+                            sub_pattern,
+                            *pattern_id,
+                            Match::new(atom_pos..atom_pos + pattern.len())
+                                .rebase(base),
+                        );
+                    }
                 }
             }
             SubPattern::LiteralWithMask { pattern, mask, flags } => {
@@ -1007,8 +1038,7 @@ impl ScanContext<'_, '_> {
                 };
             }
             SubPattern::Regexp { flags, .. }
-            | SubPattern::RegexpChainHead { flags, .. }
-            | SubPattern::RegexpChainTail { flags, .. } => verify_regexp(
+            | SubPattern::RegexpChainHead { flags, .. } => verify_regexp(
                 &mut self.vm,
                 scanned_data,
                 atom_pos,
@@ -1025,6 +1055,56 @@ impl ScanContext<'_, '_> {
                     );
                 },
             ),
+            SubPattern::RegexpChainTail { chained_to, gap, flags } => {
+                // Skip invoking the regexp VM unless `chained_to` already has
+                // an unconfirmed match within a reachable distance of the
+                // candidate tail match start.
+                //
+                // When `bck_code` is `None`, any match verified from `atom_pos`
+                // starts at `base + atom_pos` exactly. Otherwise, backward
+                // matching is bounded by both `atom_pos` and the VM's scan
+                // limit (doubled in wide mode for `PikeVM`, which counts
+                // 2-byte wide characters).
+                let max_start = base + atom_pos;
+                let min_start = if atom.bck_code().is_some() {
+                    let max_bck_len =
+                        if flags.contains(SubPatternFlags::FastRegexp) {
+                            self.vm.fast_vm.get_scan_limit() as usize
+                        } else if flags.contains(SubPatternFlags::Wide) {
+                            (self.vm.pike_vm.get_scan_limit() as usize) * 2
+                        } else {
+                            self.vm.pike_vm.get_scan_limit() as usize
+                        };
+                    base + atom_pos.saturating_sub(max_bck_len)
+                } else {
+                    max_start
+                };
+
+                if within_valid_distance_range(
+                    &self.tracker,
+                    *chained_to,
+                    min_start..=max_start,
+                    gap,
+                ) {
+                    verify_regexp(
+                        &mut self.vm,
+                        scanned_data,
+                        atom_pos,
+                        atom,
+                        *flags,
+                        |match_range| {
+                            handle_sub_pattern_match(
+                                &mut self.tracker,
+                                &mut self.wasm,
+                                sub_pattern_id,
+                                sub_pattern,
+                                *pattern_id,
+                                Match::new(match_range).rebase(base),
+                            );
+                        },
+                    );
+                }
+            }
 
             SubPattern::Xor { pattern, flags } => {
                 let pattern = self
@@ -2033,25 +2113,35 @@ fn track_match(
 
 /// Returns true if `match_start` falls within the allowed `gap` after the end
 /// of at least one unconfirmed match for `chained_to`.
+#[inline]
 fn within_valid_distance(
     tracker: &MatchTracker,
     chained_to: SubPatternId,
     match_start: usize,
     gap: &ChainedPatternGap,
 ) -> bool {
-    if let Some(unconfirmed_matches) =
-        tracker.unconfirmed_matches.get(&chained_to)
-    {
-        for m in unconfirmed_matches {
-            if let Some(actual_gap) = match_start.checked_sub(m.range.end)
-                && gap.contains(actual_gap)
-            {
-                return true;
-            }
-        }
-    }
+    within_valid_distance_range(
+        tracker,
+        chained_to,
+        match_start..=match_start,
+        gap,
+    )
+}
 
-    false
+/// Returns true if some candidate start offset in `start_range` falls within
+/// the allowed `gap` after the end of at least one unconfirmed match for
+/// `chained_to`.
+#[inline]
+fn within_valid_distance_range(
+    tracker: &MatchTracker,
+    chained_to: SubPatternId,
+    start_range: RangeInclusive<usize>,
+    gap: &ChainedPatternGap,
+) -> bool {
+    tracker
+        .unconfirmed_matches
+        .get(&chained_to)
+        .is_some_and(|matches| matches.has_match_within_gap(start_range, gap))
 }
 
 fn custom_base64_engine(

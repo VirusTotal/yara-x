@@ -201,28 +201,54 @@ impl Compiler {
         code.append(&mut fwd_code.into_inner());
 
         // `bck_code_start` will contain the offset within the `code` vector
-        // where the backward code resides.
+        // where the backward code resides. Any atom whose backward code
+        // unconditionally reaches `Instr::Match` (either directly or via
+        // forward alternation exit `Instr::Jump`s) has nothing to match
+        // backwards (`bck_match_len == 0`), so it doesn't need `bck_code`.
         let bck_code_start = code.len();
-        code.append(&mut bck_code.into_inner());
+        let bck_slice = bck_code.as_slice();
 
-        let re_atoms = atoms
+        let re_atoms: Vec<_> = atoms
             .into_iter()
             .map(|a| re::RegexpAtom {
                 atom: a.atom,
                 fwd_code: Some(FwdCodeLoc::from(
                     a.code_loc.fwd + fwd_code_start,
                 )),
-                bck_code: Some(BckCodeLoc::from(
-                    a.code_loc.bck + bck_code_start,
-                )),
+                bck_code: (!Self::is_noop_bck_code(bck_slice, a.code_loc.bck))
+                    .then(|| {
+                        BckCodeLoc::from(a.code_loc.bck + bck_code_start)
+                    }),
             })
             .collect();
+
+        if re_atoms.iter().any(|a| a.bck_code.is_some()) {
+            code.append(&mut bck_code.into_inner());
+        }
 
         Ok(re_atoms)
     }
 }
 
 impl Compiler {
+    /// Returns true if executing `bck_code` starting at `ip` unconditionally
+    /// reaches `Instr::Match` without consuming any bytes or checking any
+    /// look-around assertions.
+    fn is_noop_bck_code(bck_code: &[u8], mut ip: usize) -> bool {
+        loop {
+            match InstrParser::decode_instr(&bck_code[ip..], false).0 {
+                Instr::Match => return true,
+                Instr::Jump(offset) => {
+                    let offset = isize::from(offset);
+                    if offset <= 0 {
+                        return false;
+                    }
+                    ip = ip.checked_add_signed(offset).unwrap();
+                }
+                _ => return false,
+            }
+        }
+    }
     /// Repetition threshold. Repetitions with count(s) below or equal to this
     /// threshold are unrolled (i.e., the repeated expression's code is
     /// duplicated). Repetitions with count(s) above this threshold are

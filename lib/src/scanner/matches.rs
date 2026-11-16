@@ -1,10 +1,11 @@
 use std::collections::hash_map::Entry;
 use std::ops::{Add, Range, RangeInclusive, Sub};
 
-use core::slice::Iter;
+use core::slice::{Iter, IterMut};
 use rustc_hash::FxHashMap;
 
 use crate::compiler::PatternId;
+use crate::re::hir::ChainedPatternGap;
 
 /// Represents the match of a pattern.
 #[derive(Debug, Clone)]
@@ -257,6 +258,124 @@ pub struct UnconfirmedMatch {
     pub chain_length: usize,
 }
 
+/// Collection of unconfirmed matches for a chained sub-pattern, along with
+/// the minimum and maximum `range.end` offsets across all stored matches for
+/// O(1) distance pre-filtering.
+pub(crate) struct UnconfirmedMatches {
+    matches: Vec<UnconfirmedMatch>,
+    min_end: usize,
+    max_end: usize,
+}
+
+impl Default for UnconfirmedMatches {
+    #[inline]
+    fn default() -> Self {
+        Self { matches: Vec::new(), min_end: usize::MAX, max_end: 0 }
+    }
+}
+
+impl UnconfirmedMatches {
+    #[inline]
+    pub fn push(&mut self, m: UnconfirmedMatch) {
+        self.min_end = self.min_end.min(m.range.end);
+        self.max_end = self.max_end.max(m.range.end);
+        self.matches.push(m);
+    }
+
+    #[cfg(feature = "logging")]
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.matches.len()
+    }
+
+    #[inline]
+    pub fn iter_mut(&mut self) -> IterMut<'_, UnconfirmedMatch> {
+        self.matches.iter_mut()
+    }
+
+    /// Returns true if some candidate tail match starting within `start_range`
+    /// falls within `gap` bytes after the end of at least one stored match.
+    #[inline]
+    pub fn has_match_within_gap(
+        &self,
+        start_range: RangeInclusive<usize>,
+        gap: &ChainedPatternGap,
+    ) -> bool {
+        if self.matches.is_empty() {
+            return false;
+        }
+
+        let min_start = *start_range.start();
+        let max_start = *start_range.end();
+        debug_assert!(min_start <= max_start);
+
+        match gap {
+            ChainedPatternGap::Unbounded(range) => {
+                let gap_min = range.start as usize;
+                // Because `self.min_end` is the exact `range.end` of at least
+                // one stored match, a start offset in `min_start..=max_start`
+                // can satisfy `start >= m.range.end + gap_min` if and only if
+                // `max_start` satisfies it for `self.min_end`.
+                max_start
+                    .checked_sub(self.min_end)
+                    .is_some_and(|max_gap| max_gap >= gap_min)
+            }
+            ChainedPatternGap::Bounded(range) => {
+                let gap_min = *range.start() as usize;
+                let gap_max = *range.end() as usize;
+
+                if gap_min > gap_max {
+                    return false;
+                }
+
+                // O(1) rejection if even the earliest match end is not far
+                // enough before `max_start` to satisfy `gap_min`.
+                if max_start
+                    .checked_sub(self.min_end)
+                    .is_none_or(|max_gap| max_gap < gap_min)
+                {
+                    return false;
+                }
+
+                // O(1) rejection if even the latest match end is too far
+                // behind `min_start` to satisfy `gap_max`.
+                if min_start.saturating_sub(self.max_end) > gap_max {
+                    return false;
+                }
+
+                // Fast path when all stored matches end at the same offset
+                // (including the common single-match case): the two envelope
+                // checks above already establish a valid gap in `start_range`.
+                if self.min_end == self.max_end {
+                    return true;
+                }
+
+                // Check recent matches first, as nearby head matches during a
+                // left-to-right scan sit at the end of `self.matches`.
+                self.matches.iter().rev().any(|m| {
+                    max_start.checked_sub(m.range.end).is_some_and(
+                        |max_actual_gap| {
+                            max_actual_gap >= gap_min
+                                && min_start.saturating_sub(m.range.end)
+                                    <= gap_max
+                        },
+                    )
+                })
+            }
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a mut UnconfirmedMatches {
+    type Item = &'a mut UnconfirmedMatch;
+    type IntoIter = IterMut<'a, UnconfirmedMatch>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        self.matches.iter_mut()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AddResult {
     /// A new match was inserted into the list, growing it to the given length.
@@ -468,5 +587,44 @@ mod test {
             AddResult::MaxMatchesReached
         );
         assert!(pm.get(pid).is_none());
+    }
+
+    #[test]
+    fn unconfirmed_matches_gap_lookup() {
+        use crate::re::hir::ChainedPatternGap;
+        use crate::scanner::matches::{UnconfirmedMatch, UnconfirmedMatches};
+
+        let bounded = ChainedPatternGap::Bounded(5..=10);
+        let unbounded = ChainedPatternGap::Unbounded(5..);
+
+        // Empty set never matches, even at usize::MAX.
+        let mut um = UnconfirmedMatches::default();
+        assert!(!um.has_match_within_gap(0..=100, &bounded));
+        assert!(!um.has_match_within_gap(usize::MAX..=usize::MAX, &unbounded));
+
+        // Single match ending at 20 (`min_end == max_end` fast path).
+        um.push(UnconfirmedMatch { range: 10..20, chain_length: 0 });
+        assert!(!um.has_match_within_gap(15..=24, &bounded));
+        assert!(um.has_match_within_gap(15..=25, &bounded));
+        assert!(um.has_match_within_gap(30..=30, &bounded));
+        assert!(um.has_match_within_gap(30..=40, &bounded));
+        assert!(!um.has_match_within_gap(31..=40, &bounded));
+        assert!(!um.has_match_within_gap(24..=24, &unbounded));
+        assert!(um.has_match_within_gap(25..=25, &unbounded));
+        assert!(um.has_match_within_gap(1_000_000..=1_000_000, &unbounded));
+
+        // Non-monotonic `range.end`: push a long match `22..100` followed by a
+        // shorter match `25..30`. A tail at `105` must still match `22..100`
+        // (`105 - 100 == 5` in `5..=10`), while a gap hole `40..=90` must fail.
+        um.push(UnconfirmedMatch { range: 22..100, chain_length: 0 });
+        um.push(UnconfirmedMatch { range: 25..30, chain_length: 0 });
+        assert!(!um.has_match_within_gap(41..=94, &bounded));
+        assert!(um.has_match_within_gap(105..=105, &bounded));
+        assert!(um.has_match_within_gap(90..=105, &bounded));
+        assert!(!um.has_match_within_gap(111..=120, &bounded));
+
+        // Large u32::MAX gap bounds do not overflow `usize`.
+        let max_gap = ChainedPatternGap::Bounded(u32::MAX..=u32::MAX);
+        assert!(!um.has_match_within_gap(100..=1000, &max_gap));
     }
 }
