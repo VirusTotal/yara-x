@@ -2104,8 +2104,8 @@ fn track_match(
     }
 }
 
-/// Returns true if `match_start` falls within the allowed `gap` after the end
-/// of at least one unconfirmed match for `chained_to`.
+/// Returns true if a sub-pattern starting at `match_start` can be chained to
+/// a previous match of `chained_to` within the allowed `gap`.
 #[inline]
 fn within_valid_distance(
     tracker: &MatchTracker,
@@ -2121,20 +2121,47 @@ fn within_valid_distance(
     )
 }
 
-/// Returns true if some candidate start offset in `start_range` falls within
-/// the allowed `gap` after the end of at least one unconfirmed match for
-/// `chained_to`.
+/// Returns true if a sub-pattern starting anywhere in `match_start_range` can
+/// be chained to a previous match of `chained_to` within the allowed `gap`.
+///
+/// Patterns containing large gaps (e.g., `/foo.{300,400}bar/` or
+/// `{ 01 02 [300-400] 03 04 }`) are split into chained sub-patterns (`S1` ->
+/// `S2`) separated by `gap`. A match of `S2` starting at offset `s` can chain
+/// to a previous unconfirmed match `m` of `S1` only if `s` comes at or after
+/// `m.range.end` and the byte distance `s - m.range.end` satisfies `gap`:
+///
+/// Why a range of start offsets instead of a single offset?
+///
+/// * When `S2` is a literal ([`SubPattern::LiteralChainTail`]) or an
+///   already-verified match, `s` is known exactly, so [`within_valid_distance`]
+///   passes `s..=s`.
+/// * When `S2` is a regexp ([`SubPattern::RegexpChainTail`]) and an atom from
+///   the middle or end of `S2` is found at `atom_pos`, the exact start offset
+///   `s` of `S2` is not known until the regexp VM runs `bck_code` backwards
+///   from `atom_pos`. However, `s` is guaranteed to lie within
+///   `min_start..=max_start` (bounded by `atom_pos` on the right and by the
+///   VM's backward scan limit on the left).
+///
+/// Passing `min_start..=max_start` acts as a fast pre-filter before invoking
+/// the regexp VM:
+///
+/// * If this function returns `false`, **no** match verified from `atom_pos`
+///   can possibly chain to any prior match of `chained_to`, so VM execution
+///   can be skipped safely.
+/// * If this function returns `true` for a non-singleton `match_start_range`,
+///   a valid chain is *possible* but not yet guaranteed; once the VM finds the
+///   actual `match_.range.start`, [`within_valid_distance`] verifies the exact
+///   gap.
 #[inline]
 fn within_valid_distance_range(
     tracker: &MatchTracker,
     chained_to: SubPatternId,
-    start_range: RangeInclusive<usize>,
+    match_start_range: RangeInclusive<usize>,
     gap: &ChainedPatternGap,
 ) -> bool {
-    tracker
-        .unconfirmed_matches
-        .get(&chained_to)
-        .is_some_and(|matches| matches.has_match_within_gap(start_range, gap))
+    tracker.unconfirmed_matches.get(&chained_to).is_some_and(|matches| {
+        matches.has_match_within_gap(match_start_range, gap)
+    })
 }
 
 fn custom_base64_engine(

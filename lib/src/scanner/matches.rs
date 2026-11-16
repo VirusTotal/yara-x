@@ -293,8 +293,43 @@ impl UnconfirmedMatches {
         self.matches.iter_mut()
     }
 
-    /// Returns true if some candidate tail match starting within `start_range`
-    /// falls within `gap` bytes after the end of at least one stored match.
+    /// Returns true if any stored match ends within `gap` bytes before some
+    /// offset in `start_range`.
+    ///
+    /// Let `start_range` be `min_start..=max_start`. For a stored match `m`
+    /// ending at `end = m.range.end`, the valid start offsets for the next
+    /// sub-pattern in the chain form the interval `[end + gap_min, +inf)`
+    /// ([`ChainedPatternGap::Unbounded`]) or `[end + gap_min, end + gap_max]`
+    /// ([`ChainedPatternGap::Bounded`]). `start_range` contains a valid offset
+    /// for `m` iff the two intervals intersect:
+    ///
+    /// ```text
+    ///   valid starts for m:   [end + gap_min ..= end + gap_max]
+    ///   candidate starts:                [min_start ..= max_start]
+    ///                                    ^^^^^^^^^^ intersection
+    /// ```
+    ///
+    /// Two closed intervals `[a, b]` and `[c, d]` intersect iff `b >= c` and
+    /// `a <= d`, evaluated without risking `end + gap_*` overflow as:
+    ///
+    /// 1. `max_start >= end + gap_min`, checked via
+    ///    `max_start.checked_sub(end).is_some_and(|d| d >= gap_min)`.
+    /// 2. `min_start <= end + gap_max`, checked via
+    ///    `min_start.saturating_sub(end) <= gap_max` (when `min_start <= end`,
+    ///    `saturating_sub` yields `0 <= gap_max`, which always holds).
+    ///
+    /// # Complexity
+    ///
+    /// * [`ChainedPatternGap::Unbounded`]: always **O(1)** via `self.min_end`.
+    /// * [`ChainedPatternGap::Bounded`]: **O(1)** whenever `start_range` falls
+    ///   outside the aggregate envelope `[self.min_end + gap_min,
+    ///   self.max_end + gap_max]` or when `self.min_end == self.max_end`
+    ///   (including the common single-match case). Only when multiple matches
+    ///   have distinct `end` offsets and `start_range` falls inside their
+    ///   combined envelope—where it might still land in an uncovered "hole"
+    ///   between two widely separated matches—does this scan `self.matches`
+    ///   (in reverse order, since recent matches are closest during a
+    ///   left-to-right scan).
     #[inline]
     pub fn has_match_within_gap(
         &self,
