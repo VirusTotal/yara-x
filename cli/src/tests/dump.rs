@@ -49,7 +49,7 @@ fn crc32(data: &[u8]) -> u32 {
 }
 
 /// Builds a valid uncompressed (Stored) ZIP archive from `(name, data)` pairs.
-fn create_stored_zip(entries: &[(&str, &[u8])]) -> Vec<u8> {
+pub(super) fn create_stored_zip(entries: &[(&str, &[u8])]) -> Vec<u8> {
     let mut buf = Vec::new();
     let mut central_dir = Vec::new();
 

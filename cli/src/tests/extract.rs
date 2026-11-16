@@ -219,3 +219,32 @@ fn test_extract_command_nested_companion_dir() {
     .unwrap();
     assert!(this_doc.contains("MsgBox \"Hello, world!\""));
 }
+
+#[test]
+fn test_extract_command_default_max_depth() {
+    let temp = TempDir::new().unwrap();
+    let input_dir = TempDir::new().unwrap();
+
+    // Build a 4-level nested ZIP:
+    // outer.zip -> l1.zip (depth 1) -> l2.zip (depth 2) -> l3.zip (depth 3) -> l4.txt (depth 4)
+    let l3_zip = super::dump::create_stored_zip(&[("l4.txt", b"hello")]);
+    let l2_zip = super::dump::create_stored_zip(&[("l3.zip", &l3_zip)]);
+    let l1_zip = super::dump::create_stored_zip(&[("l2.zip", &l2_zip)]);
+    let outer_zip = super::dump::create_stored_zip(&[("l1.zip", &l1_zip)]);
+
+    let outer_path = input_dir.path().join("outer.zip");
+    fs::write(&outer_path, outer_zip).unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .arg("extract")
+        .arg(&outer_path)
+        .arg(temp.path())
+        .assert()
+        .success();
+
+    // Default `--max-depth` is 3, so depths 1..=3 are extracted, while depth 4 is not.
+    assert!(temp.path().join("l1.zip").is_file());
+    assert!(temp.path().join("l1.zip_/l2.zip").is_file());
+    assert!(temp.path().join("l1.zip_/l2.zip_/l3.zip").is_file());
+    assert!(!temp.path().join("l1.zip_/l2.zip_/l3.zip_/l4.txt").exists());
+}

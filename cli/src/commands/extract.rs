@@ -27,7 +27,7 @@ pub fn extract() -> Command {
             arg!(--"max-depth" <DEPTH>)
                 .help("Maximum container extraction depth")
                 .value_parser(value_parser!(usize))
-                .default_value("1"),
+                .default_value("3"),
         )
         .arg(
             arg!(--"vba-max-extracted-files" <FILES>)
@@ -46,11 +46,11 @@ pub fn extract() -> Command {
 pub fn exec_extract(args: &ArgMatches) -> anyhow::Result<()> {
     let file = args.get_one::<PathBuf>("FILE").unwrap();
     let output_dir = args.get_one::<PathBuf>("OUTPUT_DIR").unwrap();
-    let max_depth = *args.get_one::<usize>("max-depth").unwrap_or(&1);
+    let max_depth = *args.get_one::<usize>("max-depth").unwrap();
     let vba_max_extracted_files =
-        *args.get_one::<usize>("vba-max-extracted-files").unwrap_or(&1000);
+        *args.get_one::<usize>("vba-max-extracted-files").unwrap();
     let zip_max_extracted_files =
-        *args.get_one::<usize>("zip-max-extracted-files").unwrap_or(&1000);
+        *args.get_one::<usize>("zip-max-extracted-files").unwrap();
 
     let mut buffer = Vec::new();
     File::open(file)
