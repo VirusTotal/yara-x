@@ -1,31 +1,46 @@
 use assert_cmd::{Command, cargo_bin};
 use assert_fs::TempDir;
+use predicates::prelude::*;
+use std::collections::HashSet;
 use std::fs;
+use std::path::PathBuf;
 
 #[test]
 fn test_extract_command() {
     let temp = TempDir::new().unwrap();
 
-    Command::new(cargo_bin!("yr"))
+    let output = Command::new(cargo_bin!("yr"))
         .arg("extract")
         .arg(
             "../lib/src/modules/zip/tests/testdata/stored_and_deflated.in.zip",
         )
         .arg(temp.path())
         .assert()
-        .success();
+        .success()
+        .get_output()
+        .stdout
+        .clone();
 
-    let entries: Vec<_> =
-        fs::read_dir(temp.path()).unwrap().filter_map(|e| e.ok()).collect();
+    let printed_paths: HashSet<PathBuf> = String::from_utf8(output)
+        .unwrap()
+        .lines()
+        .map(PathBuf::from)
+        .collect();
+
+    let entries: HashSet<PathBuf> = fs::read_dir(temp.path())
+        .unwrap()
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .collect();
 
     assert!(!entries.is_empty(), "expected extracted files in output dir");
+    assert_eq!(printed_paths, entries);
 }
 
 #[test]
 fn test_extract_command_zip_max_extracted_files() {
     let temp = TempDir::new().unwrap();
 
-    Command::new(cargo_bin!("yr"))
+    let output = Command::new(cargo_bin!("yr"))
         .arg("extract")
         .arg("--zip-max-extracted-files")
         .arg("1")
@@ -34,12 +49,19 @@ fn test_extract_command_zip_max_extracted_files() {
         )
         .arg(temp.path())
         .assert()
-        .success();
+        .success()
+        .get_output()
+        .stdout
+        .clone();
 
     let entries: Vec<_> =
         fs::read_dir(temp.path()).unwrap().filter_map(|e| e.ok()).collect();
 
     assert_eq!(entries.len(), 1);
+    assert_eq!(
+        String::from_utf8(output).unwrap(),
+        format!("{}\n", entries[0].path().display()),
+    );
 }
 
 fn decode_zipped_ihex(zip_path: &str) -> Vec<u8> {
@@ -86,12 +108,23 @@ fn test_extract_command_vba() {
     )
     .unwrap();
 
-    Command::new(cargo_bin!("yr"))
+    let output = Command::new(cargo_bin!("yr"))
         .arg("extract")
         .arg(&doc_path)
         .arg(temp.path())
         .assert()
-        .success();
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let printed_lines: Vec<_> = String::from_utf8(output)
+        .unwrap()
+        .lines()
+        .map(PathBuf::from)
+        .collect();
+    assert_eq!(printed_lines.len(), 2);
+    assert!(printed_lines.contains(&temp.path().join("ThisDocument")));
 
     let entries: Vec<_> =
         fs::read_dir(temp.path()).unwrap().filter_map(|e| e.ok()).collect();
@@ -115,19 +148,26 @@ fn test_extract_command_vba_max_extracted_files() {
     )
     .unwrap();
 
-    Command::new(cargo_bin!("yr"))
+    let output = Command::new(cargo_bin!("yr"))
         .arg("extract")
         .arg("--vba-max-extracted-files")
         .arg("1")
         .arg(&doc_path)
         .arg(temp.path())
         .assert()
-        .success();
+        .success()
+        .get_output()
+        .stdout
+        .clone();
 
     let entries: Vec<_> =
         fs::read_dir(temp.path()).unwrap().filter_map(|e| e.ok()).collect();
 
     assert_eq!(entries.len(), 1);
+    assert_eq!(
+        String::from_utf8(output).unwrap(),
+        format!("{}\n", entries[0].path().display()),
+    );
 }
 
 #[test]
@@ -143,6 +183,19 @@ fn test_extract_command_nested_companion_dir() {
     )
     .unwrap();
 
+    let expected_vba_bin = format!(
+        "{}\n",
+        temp.path().join("word").join("vbaProject.bin").display()
+    );
+    let expected_this_doc = format!(
+        "{}\n",
+        temp.path()
+            .join("word")
+            .join("vbaProject.bin_")
+            .join("ThisDocument")
+            .display()
+    );
+
     // Run twice into the same output directory to verify both initial creation
     // of `<name>_/` and idempotent re-extraction.
     for _ in 0..2 {
@@ -153,7 +206,9 @@ fn test_extract_command_nested_companion_dir() {
             .arg(&docm_path)
             .arg(temp.path())
             .assert()
-            .success();
+            .success()
+            .stdout(predicate::str::contains(&expected_vba_bin))
+            .stdout(predicate::str::contains(&expected_this_doc));
     }
 
     assert!(temp.path().join("word/vbaProject.bin").is_file());

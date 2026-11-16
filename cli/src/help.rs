@@ -265,4 +265,5 @@ Examples:
 pub const EXTRACT_LONG_HELP: &str = r#"Extract data from a container file
 
 Given a container file (e.g., a ZIP archive), this command unpacks its contents
-recursively and saves the extracted files into the specified output directory."#;
+recursively and saves the extracted files into the specified output directory,
+printing the path of each extracted file."#;

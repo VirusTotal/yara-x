@@ -89,6 +89,7 @@ pub fn exec_extract(args: &ArgMatches) -> anyhow::Result<()> {
             )));
             return std::ops::ControlFlow::Break(());
         }
+        println!("{}", target_path.display());
         std::ops::ControlFlow::Continue(())
     });
 
