@@ -967,3 +967,210 @@ fn json_output_inner_extracted_file() {
     assert_eq!(ndjson_counts[1]["inner_path"], expected_inner_path);
     assert_eq!(ndjson_counts[1]["count"], 1);
 }
+
+#[test]
+fn text_output_inner_extracted_file() {
+    let temp_dir = TempDir::new().unwrap();
+    let rules_file = temp_dir.child("test.yar");
+    rules_file
+        .write_str(
+            r#"
+            import "zip"
+
+            rule outer_zip {
+                condition:
+                    zip.is_zip
+            }
+
+            rule inner_vba_hex {
+                strings:
+                    $a = ":020000040000FA"
+                condition:
+                    $a
+            }
+            "#,
+        )
+        .unwrap();
+
+    let archive_name = "sample_archive";
+    let archive_file = temp_dir.child(archive_name);
+    std::fs::copy(
+        "../lib/src/modules/vba/tests/testdata/7972ee9287cfcce00dc23098dce4ea8ed32e2dff629342e5364a48cd9c01bcb8.in.zip",
+        archive_file.path(),
+    )
+    .unwrap();
+
+    let expected_inner = std::path::Path::new(archive_name).join(
+        "7972ee9287cfcce00dc23098dce4ea8ed32e2dff629342e5364a48cd9c01bcb8.in",
+    );
+
+    // Non-TTY text output should concatenate outer and inner paths without ANSI escapes.
+    Command::new(cargo_bin!("yr"))
+        .current_dir(temp_dir.path())
+        .arg("scan")
+        .arg("test.yar")
+        .arg(archive_name)
+        .assert()
+        .success()
+        .stdout(format!(
+            "outer_zip {archive_name}\ninner_vba_hex {}\n",
+            expected_inner.display()
+        ));
+
+    // Non-TTY `--count` output should also omit ANSI escapes.
+    Command::new(cargo_bin!("yr"))
+        .current_dir(temp_dir.path())
+        .arg("scan")
+        .arg("-c")
+        .arg("test.yar")
+        .arg(archive_name)
+        .assert()
+        .success()
+        .stdout(format!(
+            "{archive_name}: 1\n{}: 1\n",
+            expected_inner.display()
+        ));
+}
+
+#[cfg(unix)]
+#[test]
+fn text_output_inner_extracted_file_colors() {
+    use std::fs::File;
+    use std::io::Read;
+    use std::os::fd::FromRawFd;
+    use std::process::Stdio;
+    use std::ptr;
+
+    #[repr(C)]
+    struct Winsize {
+        ws_row: u16,
+        ws_col: u16,
+        ws_xpixel: u16,
+        ws_ypixel: u16,
+    }
+
+    unsafe extern "C" {
+        fn openpty(
+            amaster: *mut std::ffi::c_int,
+            aslave: *mut std::ffi::c_int,
+            name: *mut std::ffi::c_char,
+            termp: *const std::ffi::c_void,
+            winp: *const Winsize,
+        ) -> std::ffi::c_int;
+    }
+
+    fn run_yr_in_pty(current_dir: &std::path::Path, args: &[&str]) -> String {
+        let mut master_fd = -1;
+        let mut slave_fd = -1;
+        let ws =
+            Winsize { ws_row: 24, ws_col: 120, ws_xpixel: 0, ws_ypixel: 0 };
+
+        let ret = unsafe {
+            openpty(
+                &mut master_fd,
+                &mut slave_fd,
+                ptr::null_mut(),
+                ptr::null(),
+                &ws,
+            )
+        };
+        assert_eq!(ret, 0);
+
+        let mut master = unsafe { File::from_raw_fd(master_fd) };
+        let slave = unsafe { File::from_raw_fd(slave_fd) };
+
+        let mut cmd = std::process::Command::new(cargo_bin!("yr"));
+        cmd.current_dir(current_dir)
+            .args(args)
+            .env("TERM", "xterm-256color")
+            .env_remove("NO_COLOR")
+            .env_remove("CLICOLOR")
+            .stdin(Stdio::from(slave.try_clone().unwrap()))
+            .stdout(Stdio::from(slave.try_clone().unwrap()))
+            .stderr(Stdio::from(slave));
+
+        let mut child = cmd.spawn().unwrap();
+        drop(cmd);
+
+        let mut output = Vec::new();
+        let mut buf = [0u8; 1024];
+        loop {
+            match master.read(&mut buf) {
+                Ok(0) | Err(_) => break,
+                Ok(n) => output.extend_from_slice(&buf[..n]),
+            }
+        }
+
+        assert!(child.wait().unwrap().success());
+        String::from_utf8(output).unwrap()
+    }
+
+    let temp_dir = TempDir::new().unwrap();
+    let rules_file = temp_dir.child("test.yar");
+    rules_file
+        .write_str(
+            r#"
+            import "zip"
+
+            rule outer_zip {
+                condition:
+                    zip.is_zip
+            }
+
+            rule inner_vba_hex {
+                strings:
+                    $a = ":020000040000FA"
+                condition:
+                    $a
+            }
+            "#,
+        )
+        .unwrap();
+
+    let archive_name = "sample_archive";
+    let archive_file = temp_dir.child(archive_name);
+    std::fs::copy(
+        "../lib/src/modules/vba/tests/testdata/7972ee9287cfcce00dc23098dce4ea8ed32e2dff629342e5364a48cd9c01bcb8.in.zip",
+        archive_file.path(),
+    )
+    .unwrap();
+
+    let inner_name =
+        "7972ee9287cfcce00dc23098dce4ea8ed32e2dff629342e5364a48cd9c01bcb8.in";
+
+    // Default text output in a TTY: outer path is uncolored, `/inner` is dimmed.
+    let output =
+        run_yr_in_pty(temp_dir.path(), &["scan", "test.yar", archive_name]);
+
+    assert!(
+        output.contains(&format!(
+            "\x1b[36;1mouter_zip\x1b[0m {archive_name}\r\n"
+        )) || output.contains(&format!(
+            "\x1b[1;36mouter_zip\x1b[0m {archive_name}\r\n"
+        )),
+        "expected uncolored outer path in terminal output, got: {output:?}"
+    );
+    assert!(
+        output.contains(&format!(
+            "{archive_name}\x1b[2m/{inner_name}\x1b[0m\r\n"
+        )),
+        "expected dimmed separator and inner path in terminal output, got: {output:?}"
+    );
+
+    // `--count` output in a TTY: outer path is uncolored, `/inner` is dimmed.
+    let count_output = run_yr_in_pty(
+        temp_dir.path(),
+        &["scan", "-c", "test.yar", archive_name],
+    );
+
+    assert!(
+        count_output.contains(&format!("{archive_name}: 1\r\n")),
+        "expected uncolored outer count line in terminal output, got: {count_output:?}"
+    );
+    assert!(
+        count_output.contains(&format!(
+            "{archive_name}\x1b[2m/{inner_name}\x1b[0m: 1\r\n"
+        )),
+        "expected dimmed separator and inner path in --count output, got: {count_output:?}"
+    );
+}

@@ -723,13 +723,22 @@ mod output_handler {
             .collect()
     }
 
-    fn join_inner_path<'a>(
+    fn format_scanned_path<'a>(
         file_path: &'a Path,
         inner_path: Option<&Path>,
-    ) -> Cow<'a, Path> {
+    ) -> Cow<'a, str> {
         match inner_path {
-            Some(inner_path) => Cow::Owned(file_path.join(inner_path)),
-            None => Cow::Borrowed(file_path),
+            Some(inner_path) => Cow::Owned(format!(
+                "{}{}",
+                file_path.display(),
+                format_args!(
+                    "{}{}",
+                    std::path::MAIN_SEPARATOR,
+                    inner_path.display()
+                )
+                .dim()
+            )),
+            None => file_path.to_string_lossy(),
         }
     }
 
@@ -775,13 +784,9 @@ mod output_handler {
                 let count = scan_results.count();
 
                 if count > 0 {
-                    let full_path = join_inner_path(file_path, inner_path);
+                    let full_path = format_scanned_path(file_path, inner_path);
                     output
-                        .send(Message::Info(format!(
-                            "{}: {}",
-                            full_path.display(),
-                            count
-                        )))
+                        .send(Message::Info(format!("{full_path}: {count}")))
                         .unwrap();
                 }
 
@@ -794,8 +799,7 @@ mod output_handler {
                 return false;
             }
 
-            let full_path =
-                join_inner_path(file_path, inner_path).display().to_string();
+            let full_path = format_scanned_path(file_path, inner_path);
 
             for matching_rule in scan_results {
                 let mut msg = if self.output_options.include_namespace {
