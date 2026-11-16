@@ -222,6 +222,13 @@ impl Compiler {
             })
             .collect();
 
+        // `compile_internal` always generates backward bytecode for the whole
+        // regexp, since atom selection happens while visiting the HIR. However,
+        // if every selected atom starts at the beginning of the regexp, all of
+        // them have `bck_code == None` and the backward bytecode is completely
+        // unreachable. Only append `bck_code` to `code` when at least one atom
+        // actually references it (at `bck_code_start`, which equals `code.len()`
+        // right before appending), avoiding dead bytecode in compiled rules.
         if re_atoms.iter().any(|a| a.bck_code.is_some()) {
             code.append(&mut bck_code.into_inner());
         }
