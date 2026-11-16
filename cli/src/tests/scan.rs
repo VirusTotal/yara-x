@@ -842,10 +842,11 @@ fn json_output_inner_extracted_file() {
         "7972ee9287cfcce00dc23098dce4ea8ed32e2dff629342e5364a48cd9c01bcb8.in";
 
     // Run from `temp_dir` passing a relative file name, matching:
-    // `yr scan -s test.yar <filename> -o json`
+    // `yr scan --max-depth=1 -s test.yar <filename> -o json`
     let output = Command::new(cargo_bin!("yr"))
         .current_dir(temp_dir.path())
         .arg("scan")
+        .arg("--max-depth=1")
         .arg("-s")
         .arg("test.yar")
         .arg(archive_name)
@@ -877,6 +878,7 @@ fn json_output_inner_extracted_file() {
     let count_output = Command::new(cargo_bin!("yr"))
         .current_dir(temp_dir.path())
         .arg("scan")
+        .arg("--max-depth=1")
         .arg("-c")
         .arg("test.yar")
         .arg(archive_name)
@@ -910,6 +912,7 @@ fn json_output_inner_extracted_file() {
     let ndjson_output = Command::new(cargo_bin!("yr"))
         .current_dir(temp_dir.path())
         .arg("scan")
+        .arg("--max-depth=1")
         .arg("test.yar")
         .arg(archive_name)
         .arg("-o")
@@ -940,6 +943,7 @@ fn json_output_inner_extracted_file() {
     let ndjson_count_output = Command::new(cargo_bin!("yr"))
         .current_dir(temp_dir.path())
         .arg("scan")
+        .arg("--max-depth=1")
         .arg("-c")
         .arg("test.yar")
         .arg(archive_name)
@@ -1008,6 +1012,7 @@ fn text_output_inner_extracted_file() {
     Command::new(cargo_bin!("yr"))
         .current_dir(temp_dir.path())
         .arg("scan")
+        .arg("--max-depth=1")
         .arg("test.yar")
         .arg(archive_name)
         .assert()
@@ -1021,6 +1026,7 @@ fn text_output_inner_extracted_file() {
     Command::new(cargo_bin!("yr"))
         .current_dir(temp_dir.path())
         .arg("scan")
+        .arg("--max-depth=1")
         .arg("-c")
         .arg("test.yar")
         .arg(archive_name)
@@ -1139,8 +1145,10 @@ fn text_output_inner_extracted_file_colors() {
         "7972ee9287cfcce00dc23098dce4ea8ed32e2dff629342e5364a48cd9c01bcb8.in";
 
     // Default text output in a TTY: outer path is uncolored, `/inner` is dimmed.
-    let output =
-        run_yr_in_pty(temp_dir.path(), &["scan", "test.yar", archive_name]);
+    let output = run_yr_in_pty(
+        temp_dir.path(),
+        &["scan", "--max-depth=1", "test.yar", archive_name],
+    );
 
     assert!(
         output.contains(&format!(
@@ -1160,7 +1168,7 @@ fn text_output_inner_extracted_file_colors() {
     // `--count` output in a TTY: outer path is uncolored, `/inner` is dimmed.
     let count_output = run_yr_in_pty(
         temp_dir.path(),
-        &["scan", "-c", "test.yar", archive_name],
+        &["scan", "--max-depth=1", "-c", "test.yar", archive_name],
     );
 
     assert!(
@@ -1173,4 +1181,130 @@ fn text_output_inner_extracted_file_colors() {
         )),
         "expected dimmed separator and inner path in --count output, got: {count_output:?}"
     );
+}
+
+#[test]
+fn max_depth() {
+    let zip_bytes = std::fs::read(
+        "../lib/src/modules/vba/tests/testdata/643d1e3b68c1e31aef5779eb28ac3b0aaa284c91c47c26cfc2dbb3bc7f569103.in.zip",
+    )
+    .unwrap();
+    let mut ihex_text = String::new();
+    let _ = yara_x::Extractor::new().extract(&zip_bytes, |_m, _p, bytes| {
+        ihex_text = String::from_utf8(bytes.to_vec()).unwrap();
+        std::ops::ControlFlow::Break(())
+    });
+
+    let mut docm_bytes = Vec::new();
+    for line in ihex_text.lines() {
+        let Some(rest) = line.strip_prefix(':') else {
+            continue;
+        };
+        if rest.len() < 8 {
+            continue;
+        }
+        let byte_count = usize::from_str_radix(&rest[0..2], 16).unwrap();
+        let record_type = u8::from_str_radix(&rest[6..8], 16).unwrap();
+        if record_type == 0x00 {
+            let data_hex = &rest[8..8 + byte_count * 2];
+            for i in 0..byte_count {
+                docm_bytes.push(
+                    u8::from_str_radix(&data_hex[i * 2..i * 2 + 2], 16)
+                        .unwrap(),
+                );
+            }
+        }
+    }
+
+    let temp_dir = TempDir::new().unwrap();
+    let docm_name = "macro.docm";
+    temp_dir.child(docm_name).write_binary(&docm_bytes).unwrap();
+
+    let rules_file = temp_dir.child("test.yar");
+    rules_file
+        .write_str(
+            r#"
+            import "zip"
+            import "vba"
+
+            rule outer_zip {
+                condition:
+                    zip.is_zip
+            }
+
+            rule has_vba_macros {
+                condition:
+                    vba.has_macros
+            }
+
+            rule hello_macro {
+                strings:
+                    $a = "MsgBox \"Hello, world!\""
+                condition:
+                    $a
+            }
+            "#,
+        )
+        .unwrap();
+
+    let vba_bin_path =
+        std::path::Path::new(docm_name).join("word").join("vbaProject.bin");
+    let this_doc_path = std::path::Path::new(docm_name)
+        .join("word")
+        .join("vbaProject.bin_")
+        .join("ThisDocument");
+
+    // Default (`--max-depth` omitted): depth 0, only the outer file is scanned.
+    Command::new(cargo_bin!("yr"))
+        .current_dir(temp_dir.path())
+        .arg("scan")
+        .arg("test.yar")
+        .arg(docm_name)
+        .assert()
+        .success()
+        .stdout(format!("outer_zip {docm_name}\n"));
+
+    // Explicit `--max-depth 0`: only the outer file is scanned.
+    Command::new(cargo_bin!("yr"))
+        .current_dir(temp_dir.path())
+        .arg("scan")
+        .arg("--max-depth")
+        .arg("0")
+        .arg("test.yar")
+        .arg(docm_name)
+        .assert()
+        .success()
+        .stdout(format!("outer_zip {docm_name}\n"));
+
+    // `--max-depth 1`: unpacks the outer `.docm` ZIP (`word/vbaProject.bin`),
+    // but does not extract VBA macro streams inside `vbaProject.bin`.
+    Command::new(cargo_bin!("yr"))
+        .current_dir(temp_dir.path())
+        .arg("scan")
+        .arg("--max-depth")
+        .arg("1")
+        .arg("test.yar")
+        .arg(docm_name)
+        .assert()
+        .success()
+        .stdout(format!(
+            "outer_zip {docm_name}\nhas_vba_macros {}\n",
+            vba_bin_path.display()
+        ));
+
+    // `--max-depth 2`: also unpacks `word/vbaProject.bin` and scans macro source.
+    Command::new(cargo_bin!("yr"))
+        .current_dir(temp_dir.path())
+        .arg("scan")
+        .arg("--max-depth")
+        .arg("2")
+        .arg("test.yar")
+        .arg(docm_name)
+        .assert()
+        .success()
+        .stdout(format!(
+            "outer_zip {docm_name}\nhas_vba_macros {}\nhello_macro {}\n",
+            vba_bin_path.display(),
+            this_doc_path.display()
+        ));
 }

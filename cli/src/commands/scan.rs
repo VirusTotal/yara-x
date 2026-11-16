@@ -69,6 +69,11 @@ pub fn scan() -> Command {
             arg!(-f --"fast-scan")
                 .help("Enable fast-scan mode")
                 .long_help(help::FAST_SCAN_LONG_HELP),
+            arg!(--"max-depth" <DEPTH>)
+                .help("Maximum container extraction depth")
+                .long_help(help::SCAN_MAX_DEPTH_LONG_HELP)
+                .value_parser(value_parser!(usize))
+                .default_value("0"),
             arg!(--"max-matches-per-pattern" <MATCHES>)
                 .help("Maximum number of matches per pattern")
                 .long_help(help::MAX_MATCHES_PER_PATTERN_LONG_HELP)
@@ -186,6 +191,7 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     let disable_console_logs = args.get_flag("disable-console-logs");
     let scan_list = args.get_flag("scan-list");
     let recursive = args.get_one::<usize>("recursive");
+    let max_depth = *args.get_one::<usize>("max-depth").unwrap_or(&0);
     let no_mmap = args.get_flag("no-mmap");
     let fast_scan = args.get_flag("fast-scan");
     let only_tag = args.get_one::<String>("tag");
@@ -310,6 +316,8 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         // Initialization
         |_, _| {
             let mut scanner = Scanner::new(rules_ref);
+
+            scanner.max_depth(max_depth);
 
             if let Some(ref vars) = external_vars {
                 for (ident, value) in vars {

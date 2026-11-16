@@ -228,6 +228,13 @@ yr scan rules_dir scanned_file
 yr scan namespace:rules_file.yar scanned_file
 yr scan namespace:rules_dir scanned_file"#;
 
+pub const SCAN_MAX_DEPTH_LONG_HELP: &str = r#"Maximum container extraction depth
+
+When <DEPTH> is 0, only the files on disk are scanned without unpacking container
+formats (e.g., ZIP archives, Office documents). When <DEPTH> is greater than 0,
+supported container formats are recursively unpacked up to <DEPTH> levels, and
+both the container file and the inner files extracted from it are scanned."#;
+
 pub const SCAN_PRINT_STRING_LONG_HELP: &str = r#"Print matching patterns
 
 The printed patterns can be optionally limited to <N> characters. By default 

@@ -202,6 +202,14 @@ will crash.
 This option disables memory mapping and forces the scanner to always read files into
 an in-memory buffer instead.
 
+### --max-depth \<DEPTH\>
+
+Specify the maximum container extraction depth. The default value is `0`, which
+scans only the files on disk without unpacking container formats (e.g., ZIP
+archives, Office documents). When set to a value greater than `0`, supported
+container files are unpacked recursively up to `<DEPTH>` levels, and both the
+container file and each extracted inner file are scanned.
+
 ### --max-matches-per-pattern \<MATCHES\>
 
 Maximum number of matches per pattern
