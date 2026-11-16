@@ -6,3 +6,4 @@ mod deps;
 mod fix;
 mod fmt;
 mod scan;
+mod scan_exclude;

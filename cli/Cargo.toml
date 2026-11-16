@@ -64,8 +64,8 @@ clap = { workspace = true, features = ["cargo", "derive"] }
 clap_complete = { workspace = true }
 encoding_rs = { workspace = true }
 figment = { workspace = true, features = ["toml"] }
-globwalk = { workspace = true }
 home = { workspace = true }
+ignore = { workspace = true }
 itertools = { workspace = true }
 protobuf = { workspace = true }
 regex = { workspace = true }
@@ -73,6 +73,7 @@ serde_json = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
 strum = { workspace = true }
 strum_macros = { workspace = true }
+walkdir = { workspace = true }
 yansi = { workspace = true }
 yara-x = { workspace = true, default-features = true, features = ["parallel-compilation"] }
 yara-x-parser = { workspace = true }

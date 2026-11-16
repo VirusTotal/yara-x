@@ -63,6 +63,11 @@ pub fn scan() -> Command {
             arg!(--"cpu-limit" <PERCENTAGE>)
                 .help("Limit the CPU usage of the scan (percentage from 1 to 99)")
                 .value_parser(value_parser!(u8).range(1..=99)),
+            arg!(--exclude <PATH>)
+                .help("Exclude a file or directory from scanning")
+                .long_help(help::SCAN_EXCLUDE_LONG_HELP)
+                .value_parser(value_parser!(PathBuf))
+                .action(ArgAction::Append),
             arg!(--"disable-console-logs")
                 .help("Disable printing console log messages"),
             arg!(-f --"fast-scan")
@@ -262,6 +267,10 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     } else {
         walk::ParWalker::path(target_path)
     };
+
+    for path in args.get_many::<PathBuf>("exclude").into_iter().flatten() {
+        w.exclude(path)?;
+    }
 
     if let Some(num_threads) = num_threads {
         w.num_threads(*num_threads);

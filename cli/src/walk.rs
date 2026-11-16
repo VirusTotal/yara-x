@@ -9,8 +9,12 @@ use std::{io, thread};
 use anyhow::{Context, bail};
 use crossbeam::channel::{RecvTimeoutError, SendError, Sender};
 use crossterm::tty::IsTty;
-use globwalk::FileType;
+use ignore::overrides::OverrideBuilder;
 use indicatif::{ProgressBar, ProgressStyle};
+use walkdir::WalkDir;
+
+mod exclusions;
+use exclusions::Exclusions;
 
 pub trait Draw {
     fn draw(&self, width: usize) -> String;
@@ -43,6 +47,8 @@ pub struct Walker<'a> {
     /// A list of filters applied to the files being walked, those that don't
     /// match at least one of the filters are ignored.
     filters: Vec<String>,
+    /// Literal paths to skip, including their descendants.
+    exclusions: Exclusions,
     /// When walking a directory, the maximum recursion depth. `None` means
     /// no limit.
     max_depth: Option<usize>,
@@ -59,6 +65,7 @@ impl<'a> Walker<'a> {
         Self {
             path,
             filters: Vec::new(),
+            exclusions: Exclusions::default(),
             file_list: false,
             max_depth: None,
             metadata_filter: None,
@@ -73,6 +80,7 @@ impl<'a> Walker<'a> {
         Self {
             path,
             filters: Vec::new(),
+            exclusions: Exclusions::default(),
             file_list: true,
             max_depth: None,
             metadata_filter: None,
@@ -107,6 +115,13 @@ impl<'a> Walker<'a> {
     pub fn filter(&mut self, filter: &str) -> &mut Self {
         self.filters.push(filter.to_string());
         self
+    }
+
+    /// Excludes a literal file or directory path from the walk. Relative paths
+    /// are resolved against the current directory, without filesystem access.
+    pub fn exclude(&mut self, path: &Path) -> anyhow::Result<&mut Self> {
+        self.exclusions.add(path)?;
+        Ok(self)
     }
 
     /// Sets a filter based in file metadata.
@@ -144,6 +159,10 @@ impl<'a> Walker<'a> {
     {
         if self.file_list && self.path == Path::new("-") {
             return self.walk_file_list(f, e);
+        }
+
+        if !self.file_list && self.exclusions.contains(self.path)? {
+            return Ok(());
         }
 
         let metadata =
@@ -201,6 +220,9 @@ impl<'a> Walker<'a> {
     {
         for line in lines {
             let path = PathBuf::from(line?);
+            if self.exclusions.contains(&path)? {
+                continue;
+            }
             let metadata = match path
                 .metadata()
                 .with_context(|| format!("can't open `{}`", path.display()))
@@ -226,11 +248,7 @@ impl<'a> Walker<'a> {
         F: FnMut(&Path) -> anyhow::Result<()>,
         E: FnMut(anyhow::Error) -> anyhow::Result<()>,
     {
-        // Strip the ./ prefix (.\ in Windows), if present. Except for ".",
-        // "./" and ".\". This is a workaround for a bug in globwalk that
-        // causes a panic.
-        // https://github.com/VirusTotal/yara-x/issues/280
-        // https://github.com/Gilnaa/globwalk/issues/28
+        // Preserve the path spelling used by existing directory walks.
         let path = if self.path.as_os_str().len() > 2 {
             self.path
                 .strip_prefix(if cfg!(target_os = "windows") {
@@ -243,22 +261,38 @@ impl<'a> Walker<'a> {
             self.path
         };
 
-        let mut builder = if self.filters.is_empty() {
-            globwalk::GlobWalkerBuilder::from_patterns(path, &["**"])
+        // Use the same glob matcher as globwalk, with a traversal predicate
+        // that can prune literal excluded directories before reading them.
+        let mut patterns = OverrideBuilder::new(path);
+        if self.filters.is_empty() {
+            patterns.add("**")?;
         } else {
-            globwalk::GlobWalkerBuilder::from_patterns(
-                path,
-                self.filters.iter().as_ref(),
-            )
-        };
-
-        builder = builder.file_type(FileType::FILE);
-
-        if let Some(max_depth) = self.max_depth {
-            builder = builder.max_depth(max_depth + 1);
+            for filter in &self.filters {
+                patterns.add(if filter == "*" { "/*" } else { filter })?;
+            }
         }
-
-        for entry in builder.build()? {
+        let patterns = patterns.build()?;
+        let mut walker = WalkDir::new(path);
+        if let Some(max_depth) = self.max_depth {
+            walker = walker.max_depth(max_depth + 1);
+        }
+        let absolute_root = if self.exclusions.is_empty() {
+            None
+        } else {
+            Some(std::path::absolute(path)?)
+        };
+        let entries = walker.into_iter().filter_entry(|entry| {
+            let relative = entry.path().strip_prefix(path).unwrap();
+            if let Some(root) = &absolute_root
+                && self.exclusions.contains_absolute(&root.join(relative))
+            {
+                return false;
+            }
+            relative.as_os_str().is_empty()
+                || !entry.file_type().is_dir()
+                || !patterns.matched(relative, true).is_ignore()
+        });
+        for entry in entries {
             let entry = match entry {
                 Ok(e) => e,
                 Err(err) => {
@@ -269,6 +303,14 @@ impl<'a> Walker<'a> {
                     }
                 }
             };
+
+            if !entry.file_type().is_file()
+                || !patterns
+                    .matched(entry.path().strip_prefix(path).unwrap(), false)
+                    .is_whitelist()
+            {
+                continue;
+            }
 
             match entry.metadata() {
                 Ok(metadata) => {
@@ -411,6 +453,12 @@ impl<'a> ParWalker<'a> {
     pub fn max_depth(&mut self, n: usize) -> &mut Self {
         self.walker.max_depth(n);
         self
+    }
+
+    /// Excludes a literal path and its descendants. See [`Walker::exclude`].
+    pub fn exclude(&mut self, path: &Path) -> anyhow::Result<&mut Self> {
+        self.walker.exclude(path)?;
+        Ok(self)
     }
 
     /// Adds a glob pattern that controls which files will be processed.

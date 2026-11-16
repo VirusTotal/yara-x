@@ -191,6 +191,21 @@ pub const THREADS_LONG_HELP: &str = r#"Use the specified number of threads
 
 The default value is automatically determined based on the number of CPU cores."#;
 
+pub const SCAN_EXCLUDE_LONG_HELP: &str = r#"Exclude a file or directory from scanning
+
+May be specified more than once. Directory paths exclude the entire subtree,
+without traversing it. Also applies to single-file targets and --scan-list entries.
+Relative paths are resolved against the current working directory, not TARGET_PATH.
+
+Paths are literal, not glob patterns. Quote shell wildcard characters.
+Matching is lexical and case-sensitive; symbolic links and filesystem aliases
+are not resolved. Exclusions affect scan targets, not rule compilation.
+
+Examples:
+
+yr scan --recursive --exclude ./samples/private rules.yar ./samples
+yr scan --exclude ./samples/skip.bin --exclude ./samples/cache rules.yar ./samples"#;
+
 pub const SCAN_LIST_LONG_HELP: &str = r#"Indicate that TARGET_PATH is a file containing the paths to be scanned
 
 <TARGET_PATH> must be a text file containing one path per line, or `-` to read
