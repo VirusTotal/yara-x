@@ -1590,3 +1590,113 @@ fn re_no_duplicate_atoms() {
         "Atoms vector contains duplicates"
     );
 }
+
+#[test]
+fn empty_and_nullable_repetitions() {
+    let parser = re::parser::Parser::new();
+
+    // `/(){4294967295,}/` and nested empty-capture variants must emit 0
+    // instructions for the repeated empty sub-expression instead of cloning
+    // a 0-byte range 4.29B times.
+    for pat in [
+        "/(){4294967295,}/s",
+        "/(){4294967295}/s",
+        "/(){0,4294967295}/s",
+        "/(?:()()){4294967295,}/s",
+        "/((){2}){4294967295}/s",
+    ] {
+        let hir = parser.parse(&Regexp::new(pat)).unwrap();
+        let (fwd_code, bck_code, _) =
+            Compiler::new().compile_internal(&hir).unwrap();
+        assert_eq!("\n00000: MATCH\n", fwd_code.to_string());
+        assert_eq!("\n00000: MATCH\n", bck_code.to_string());
+    }
+
+    // Nested bounded repetition `/(a{11}(){4294967295}){11}/` must also
+    // short-circuit the inner `(){4294967295}` to 0 instructions.
+    let hir =
+        parser.parse(&Regexp::new("/(a{11}(){4294967295}){11}/s")).unwrap();
+    let (fwd_code, bck_code, _) =
+        Compiler::new().compile_internal(&hir).unwrap();
+    let expected_hir = parser.parse(&Regexp::new("/(a{11}){11}/s")).unwrap();
+    let (expected_fwd, expected_bck, _) =
+        Compiler::new().compile_internal(&expected_hir).unwrap();
+    assert_eq!(expected_fwd.to_string(), fwd_code.to_string());
+    assert_eq!(expected_bck.to_string(), bck_code.to_string());
+
+    // Bounded repetitions of non-empty-code nullable sub-expressions must not
+    // use `REPEAT_GREEDY`/`REPEAT_NON_GREEDY`: huge bounds fail immediately
+    // with `Error::TooLarge` rather than reusing `SplitId`s across zero-length
+    // iterations in `epsilon_closure`.
+    for pat in [
+        r"/abcd(x?){0,4294967295}/s",
+        r"/abcd(x?){11,4294967295}/s",
+        r"/abcd(x|\b){0,4294967295}/s",
+        r"/abcd(x|\b){4294967295}/s",
+    ] {
+        let hir = parser.parse(&Regexp::new(pat)).unwrap();
+        let err = Compiler::new()
+            .compile(&hir, &mut Vec::new())
+            .expect_err(&format!("{pat}: {hir:?}"));
+        assert!(matches!(err, re::Error::TooLarge), "{err:?}");
+    }
+}
+
+#[test]
+fn compile_omits_noop_bck_code() {
+    let parser = re::parser::Parser::new();
+
+    // Atoms extracted from the start of the regexp (including after leading
+    // look-around assertions) have `bck_code == None`, and `Compiler::compile`
+    // omits appending `bck_code` to the output bytecode buffer.
+    for pat in [
+        r"/foo[a-z]+bar/s",
+        r"/^foo[a-z]+/s",
+        r"/\bfoo[a-z]+/s",
+        r"/(fooo|barr)[a-z]+/s",
+        r"/[0-9a-z\.]{10}[0-9a-zA-Z\.]{44}/s",
+    ] {
+        let hir = parser.parse(&Regexp::new(pat)).unwrap();
+        let (fwd_code, _, _) = Compiler::new().compile_internal(&hir).unwrap();
+
+        let mut code = Vec::new();
+        let atoms = Compiler::new().compile(&hir, &mut code).unwrap();
+
+        assert!(!atoms.is_empty(), "{pat}");
+        assert!(
+            atoms.iter().all(|a| a.bck_code.is_none()),
+            "expected bck_code == None for {pat}, got {atoms:?}"
+        );
+        assert_eq!(code.len(), fwd_code.as_slice().len(), "{pat}");
+    }
+
+    // Atoms preceded by matchable bytes still emit `bck_code == Some(...)`.
+    for pat in [r"/a+foo[a-z]*/s", r"/.foo[a-z]*/s", r"/^a?foo[a-z]+/s"] {
+        let hir = parser.parse(&Regexp::new(pat)).unwrap();
+        let (fwd_code, bck_code, _) =
+            Compiler::new().compile_internal(&hir).unwrap();
+
+        let mut code = Vec::new();
+        let atoms = Compiler::new().compile(&hir, &mut code).unwrap();
+
+        assert!(!atoms.is_empty(), "{pat}");
+        assert!(
+            atoms.iter().all(|a| a.bck_code.is_some()),
+            "expected bck_code == Some(_) for {pat}, got {atoms:?}"
+        );
+        assert_eq!(
+            code.len(),
+            fwd_code.as_slice().len() + bck_code.as_slice().len(),
+            "{pat}"
+        );
+    }
+
+    // Alternation mixing a prefix atom (`fooo`) and an interior atom (`barr`).
+    let hir =
+        parser.parse(&Regexp::new(r"/fooo[a-z]*|x+barr[a-z]*/s")).unwrap();
+    let mut code = Vec::new();
+    let atoms = Compiler::new().compile(&hir, &mut code).unwrap();
+    assert_eq!(atoms.len(), 2);
+    assert!(atoms[0].bck_code.is_none());
+    assert!(atoms[1].bck_code.is_some());
+}

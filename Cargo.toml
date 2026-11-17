@@ -105,7 +105,6 @@ uuid = "1.28.0"
 walrus = "0.27.2"
 wasm-bindgen = "0.2.129"
 wasm-bindgen-test = "0.3.79"
-wasm-opt = "0.116.1"
 wasmtime = { version = "48.0.8", default-features = false }
 x509-parser = "0.18.1"
 yansi = "1.0.1"

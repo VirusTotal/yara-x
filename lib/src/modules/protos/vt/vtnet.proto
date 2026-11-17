@@ -284,7 +284,7 @@ message EnrichedIP {
       {
         error_title: "unknown field or method `ports`"
         error_label: "this field or method doesn't exist"
-        accept_if: [ "staff" ]
+        accept_if: [ "staff", "gti_dev" ]
       },
       {
         error_title: "vt.net.ip.ports is supported in rulesets matching against IPs"

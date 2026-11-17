@@ -344,3 +344,25 @@ fn repeated_scans_with_same_rules_do_not_retain_stale_matches() {
         assert_match_identifiers(&parsed, expected);
     }
 }
+
+#[wasm_bindgen_test]
+fn compiler_handles_u32_max_int_read_constraints() {
+    let rules = r#"
+        rule boundary_u32 {
+          strings:
+            $a = "alpha"
+          condition:
+            $a and uint32(0xffffffff) == 0x44332211
+        }
+        rule boundary_with_header {
+          strings:
+            $a = "alpha"
+          condition:
+            $a and uint16(0) == 0x5a4d and uint64(0xfffffff9) == 0x8877665544332211
+        }
+    "#;
+
+    let parsed = scan_rule_sources(&[rules], b"MZ alpha");
+    assert!(parsed.valid);
+    assert!(parsed.matches.is_empty());
+}

@@ -160,13 +160,7 @@ fn permutations(
         return true;
     }
 
-    if HYPHENATION.bitand(&permutation_kinds) != 0
-        && interleaved(legit_domain, scanned_domain, '-')
-    {
-        return true;
-    }
-
-    false
+    HYPHENATION.bitand(&permutation_kinds) != 0 && interleaved(legit_domain, scanned_domain, '-')
 }
 
 /// Parses a domain name and returns its parts. For instance,

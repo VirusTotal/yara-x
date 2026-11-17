@@ -1797,6 +1797,63 @@ fn test_include_non_regular_file() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn test_include_non_utf8_dir() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct TempDir(PathBuf);
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    let unique =
+        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let base_dir = TempDir(std::env::temp_dir().join(format!(
+        "yara_x_include_test_{}_{}",
+        std::process::id(),
+        unique
+    )));
+    fs::create_dir_all(&base_dir.0).unwrap();
+
+    let non_utf8_dir = base_dir.0.join(OsStr::from_bytes(b"inc_\xff"));
+
+    // Some filesystems (such as APFS on macOS) reject non-UTF-8 directory
+    // names at the OS level, whereas Linux filesystems like ext4/tmpfs allow
+    // them.
+    if fs::create_dir(&non_utf8_dir).is_err() {
+        return;
+    }
+
+    fs::write(
+        non_utf8_dir.join("included.yar"),
+        b"rule test { condition: true }\n",
+    )
+    .unwrap();
+
+    let mut compiler = Compiler::new();
+    compiler
+        .add_include_dir(&non_utf8_dir)
+        .add_source(r#"include "included.yar""#)
+        .unwrap();
+
+    assert_eq!(compiler.warnings().len(), 1);
+    assert!(
+        compiler.warnings()[0]
+            .to_string()
+            .contains("inc_\u{fffd}/included.yar")
+    );
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(b"").unwrap().matching_rules().len(), 1);
+}
+
 #[test]
 fn test_switch_warnings() {
     let mut compiler = Compiler::new();
@@ -2179,6 +2236,66 @@ fn test_header_constraints() {
         "uint8(0) == 1 and uint8(0) == 2",
         &[],
         &[b"\x01", b"\x02", b"\x03"],
+    );
+
+    // 3. Multi-byte reads at boundary offsets (e.g. `u32::MAX` on 32-bit
+    // targets and `i64::MAX` on 64-bit targets) must not panic or wrap around
+    // into header offsets starting at 0.
+    check_header_constraint(
+        "uint16(0xffffffff) == 0x2211",
+        &[],
+        &[b"\x11\x22\x00\x00", b"MZ\x00\x00"],
+    );
+    check_header_constraint(
+        "uint32(0xffffffff) == 0x44332211",
+        &[],
+        &[b"\x11\x22\x33\x44", b"\x22\x33\x44\x00"],
+    );
+    check_header_constraint(
+        "uint64(0xfffffff9) == 0x8877665544332211",
+        &[],
+        &[b"\x11\x22\x33\x44\x55\x66\x77\x88", b"\x88\x00\x00\x00"],
+    );
+    check_header_constraint(
+        "uint16(0) == 0x5a4d and uint32(0xffffffff) == 0x44332211",
+        &[],
+        &[b"MZ\x00\x00"],
+    );
+    check_header_constraint(
+        "uint64(0x7fffffffffffffff) == 0x8877665544332211",
+        &[],
+        &[b"\x11\x22\x33\x44\x55\x66\x77\x88"],
+    );
+
+    let rules = compile(
+        r#"
+        rule unconstrained_boundary_read {
+            strings:
+                $re = /foo|bar/
+            condition:
+                $re and uint32(0xffffffff) == 0x44332211
+        }
+        "#,
+    )
+    .unwrap();
+    assert_eq!(rules.header_constraints().count(), 0);
+
+    let rules = compile(
+        r#"
+        rule header_with_boundary_read {
+            strings:
+                $re = /foo|bar/
+            condition:
+                $re and uint16(0) == 0x5a4d and uint32(0xffffffff) == 0x44332211
+        }
+        "#,
+    )
+    .unwrap();
+    let constraints: Vec<_> = rules.header_constraints().collect();
+    assert_eq!(constraints.len(), 1);
+    assert_eq!(
+        constraints[0].1,
+        &crate::compiler::HeaderConstraint::Constrained(vec![0x4d, 0x5a])
     );
 }
 
@@ -2842,4 +2959,107 @@ fn test_non_matching_rules_page_boundary() {
     let results = scanner.scan(b"").unwrap();
     assert_eq!(results.non_matching_rules().len(), exact_page_rules);
     assert_eq!(results.non_matching_rules().count(), exact_page_rules);
+}
+
+#[test]
+fn test_regexp_empty_capture_and_nullable_repetitions() {
+    // 1. Empty capturing group repetitions matching empty strings must fail
+    //    immediately with "this regexp can match empty strings" instead of
+    //    spinning 4.29B iterations in `re::thompson::Compiler`.
+    for pat in [
+        "/(){4294967295,}/",
+        "/(){4294967295}/",
+        "/(){0,4294967295}/",
+        "/(?:()()){4294967295,}/",
+        "/((){2}){4294967295}/",
+    ] {
+        let rule =
+            format!("rule test {{ strings: $a = {pat} condition: $a }}");
+        let err = compile(rule.as_str()).unwrap_err();
+        assert!(
+            err.to_string().contains("this regexp can match empty strings"),
+            "{err}"
+        );
+    }
+
+    // 2. Nested bounded repetition `/(a{11}(){4294967295}){11}/` must compile
+    //    immediately and match 121 'a's (and not 120 'a's).
+    let rules = compile(
+        r#"
+        rule hang_nested_bounded {
+          strings:
+            $a = /(a{11}(){4294967295}){11}/
+          condition:
+            $a
+        }
+        "#,
+    )
+    .unwrap();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(&[b'a'; 120]).unwrap().matching_rules().len(), 0);
+    assert_eq!(scanner.scan(&[b'a'; 121]).unwrap().matching_rules().len(), 1);
+
+    // 3. Non-empty regexps with unbounded and bounded empty-capture repetitions
+    //    must compile and scan in O(1) without spinning or OOMing in `PikeVM`.
+    for pat in [
+        "/abcd(){4294967295,}/",
+        "/abcd(){4294967295}/",
+        "/abcd(){0,4294967295}/",
+        "/abcd(){1,4294967295}?/",
+        "/abcd(?:()()){4294967295,}/",
+    ] {
+        let rule = format!(
+            "rule test {{ strings: $a = {pat} ascii wide condition: $a }}"
+        );
+        let rules = compile(rule.as_str()).unwrap();
+        let mut scanner = Scanner::new(&rules);
+        assert_eq!(scanner.scan(b"abc").unwrap().matching_rules().len(), 0);
+        assert_eq!(scanner.scan(b"abcd").unwrap().matching_rules().len(), 1);
+        assert_eq!(
+            scanner
+                .scan(b"a\x00b\x00c\x00d\x00")
+                .unwrap()
+                .matching_rules()
+                .len(),
+            1
+        );
+    }
+
+    // 4. Bounded repetitions (> REPEAT_INSTR_THRESHOLD) of nullable sub-expressions
+    //    must unroll with distinct `SplitId`s so zero-length matches succeed,
+    //    while huge bounds fail cleanly with "regexp is too large".
+    for pat in [r"/abcd(x?){11}/", r"/abcd(x|\b){11}/"] {
+        let rule =
+            format!("rule test {{ strings: $a = {pat} condition: $a }}");
+        let rules = compile(rule.as_str()).unwrap();
+        let mut scanner = Scanner::new(&rules);
+        assert_eq!(scanner.scan(b"abcd").unwrap().matching_rules().len(), 1);
+        assert_eq!(
+            scanner.scan(b"abcdxxxxxxxxxxx").unwrap().matching_rules().len(),
+            1
+        );
+    }
+
+    for pat in [r"/abcd(x?){0,4294967295}/", r"/abcd(x|\b){0,4294967295}/"] {
+        let rule =
+            format!("rule test {{ strings: $a = {pat} condition: $a }}");
+        let err = compile(rule.as_str()).unwrap_err();
+        assert!(err.to_string().contains("regexp is too large"), "{err}");
+    }
+
+    // 5. Condition `matches` (`Hir::build_automata` with `WhichCaptures::None`)
+    //    must compile empty-capture repetitions without hitting `nfa_size_limit`.
+    let rules = compile(
+        r#"
+        rule cond_empty_captures {
+          condition:
+            "foo" matches /(){4294967295,}/ and
+            "foo" matches /(){4294967295}/ and
+            ("foo" matches /bar(){4294967295,}/ or "foo" matches /foo(){4294967295}/)
+        }
+        "#,
+    )
+    .unwrap();
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(b"").unwrap().matching_rules().len(), 1);
 }

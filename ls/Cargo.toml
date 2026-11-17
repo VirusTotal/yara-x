@@ -43,7 +43,6 @@ yara-x = { workspace = true, default-features = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 tokio = { version = "1.48.0", features = ["full"] }
-tokio-util = { version = "0.7.17", features = ["compat"] }
 async-lsp = {version = "0.2.4", default-features=false, features=["omni-trait", "tokio", "stdio", "tracing"]}
 walkdir = "2.5.0"
 
@@ -62,6 +61,7 @@ web-sys = { version = "0.3.90", features = [
 
 [dev-dependencies]
 goldenfile = { workspace = true }
+tokio-util = { version = "0.7.20", features = ["compat"] }
 # Enables the test modules when building the LS tests, so they are suggested
 # in completion tests. Doesn't affect the release build of the language
 # server.

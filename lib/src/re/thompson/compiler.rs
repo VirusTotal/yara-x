@@ -17,6 +17,7 @@ use std::slice::IterMut;
 
 use bitvec::array::BitArray;
 use bitvec::order::Lsb0;
+use smallvec::{SmallVec, smallvec};
 
 use regex_syntax::hir;
 use regex_syntax::hir::literal::Seq;
@@ -200,22 +201,37 @@ impl Compiler {
         code.append(&mut fwd_code.into_inner());
 
         // `bck_code_start` will contain the offset within the `code` vector
-        // where the backward code resides.
+        // where the backward code resides. Any atom whose backward code
+        // unconditionally reaches `Instr::Match` (either directly or via
+        // forward alternation exit `Instr::Jump`s) has nothing to match
+        // backwards (`bck_match_len == 0`), so it doesn't need `bck_code`.
         let bck_code_start = code.len();
-        code.append(&mut bck_code.into_inner());
+        let bck_slice = bck_code.as_slice();
 
-        let re_atoms = atoms
+        let re_atoms: Vec<_> = atoms
             .into_iter()
             .map(|a| re::RegexpAtom {
                 atom: a.atom,
                 fwd_code: Some(FwdCodeLoc::from(
                     a.code_loc.fwd + fwd_code_start,
                 )),
-                bck_code: Some(BckCodeLoc::from(
-                    a.code_loc.bck + bck_code_start,
-                )),
+                bck_code: (!Self::is_noop_bck_code(bck_slice, a.code_loc.bck))
+                    .then(|| {
+                        BckCodeLoc::from(a.code_loc.bck + bck_code_start)
+                    }),
             })
             .collect();
+
+        // `compile_internal` always generates backward bytecode for the whole
+        // regexp, since atom selection happens while visiting the HIR. However,
+        // if every selected atom starts at the beginning of the regexp, all of
+        // them have `bck_code == None` and the backward bytecode is completely
+        // unreachable. Only append `bck_code` to `code` when at least one atom
+        // actually references it (at `bck_code_start`, which equals `code.len()`
+        // right before appending), avoiding dead bytecode in compiled rules.
+        if re_atoms.iter().any(|a| a.bck_code.is_some()) {
+            code.append(&mut bck_code.into_inner());
+        }
 
         Ok(re_atoms)
     }
@@ -247,6 +263,24 @@ impl Compiler {
 }
 
 impl Compiler {
+    /// Returns true if executing `bck_code` starting at `ip` unconditionally
+    /// reaches `Instr::Match` without consuming any bytes or checking any
+    /// look-around assertions.
+    fn is_noop_bck_code(bck_code: &[u8], mut ip: usize) -> bool {
+        loop {
+            match InstrParser::decode_instr(&bck_code[ip..], false).0 {
+                Instr::Match => return true,
+                Instr::Jump(offset) => {
+                    let offset = isize::from(offset);
+                    if offset <= 0 {
+                        return false;
+                    }
+                    ip = ip.checked_add_signed(offset).unwrap();
+                }
+                _ => return false,
+            }
+        }
+    }
     /// Repetition threshold. Repetitions with count(s) below or equal to this
     /// threshold are unrolled (i.e., the repeated expression's code is
     /// duplicated). Repetitions with count(s) above this threshold are
@@ -788,10 +822,52 @@ impl Compiler {
         Ok(split_loc)
     }
 
-    fn visit_pre_repetition(&mut self, rep: &Repetition) -> Result<(), Error> {
-        let nested_rep = self.repeats.last().cloned().unwrap_or(false);
+    /// Returns true if compiling `hir` produces zero PikeVM instructions.
+    ///
+    /// While `regex_syntax` folds `(?:){N,}` into `HirKind::Empty`, it
+    /// preserves `HirKind::Repetition` when the repeated sub-expression wraps
+    /// empty capturing groups (e.g. `(){N,}`, `(?:()()){N,}`, `((){2}){N,}`).
+    /// Because [`Compiler`] emits no instructions for `HirKind::Capture`, such
+    /// sub-expressions have zero code size.
+    fn emits_no_code(hir: &Hir) -> bool {
+        let mut stack: SmallVec<[&Hir; 4]> = smallvec![hir];
+        while let Some(node) = stack.pop() {
+            match node.kind() {
+                HirKind::Empty => {}
+                HirKind::Literal(lit) if lit.0.is_empty() => {}
+                HirKind::Capture(cap) => stack.push(&cap.sub),
+                HirKind::Repetition(rep) => {
+                    if rep.max != Some(0) {
+                        stack.push(&rep.sub);
+                    }
+                }
+                HirKind::Concat(subs) => stack.extend(subs.iter()),
+                HirKind::Literal(_)
+                | HirKind::Class(_)
+                | HirKind::Look(_)
+                | HirKind::Alternation(_) => return false,
+            }
+        }
+        true
+    }
 
-        match (rep.min, rep.max, rep.greedy, nested_rep) {
+    fn visit_pre_repetition(&mut self, rep: &Repetition) -> Result<(), Error> {
+        if Self::emits_no_code(&rep.sub) {
+            return Ok(());
+        }
+
+        let nested_rep = self.repeats.last().cloned().unwrap_or(false);
+        // `REPEAT_GREEDY` and `REPEAT_NON_GREEDY` jump back to the same
+        // instruction offsets (and `SplitId`s) across iterations, so they can
+        // only be used when `rep.sub` is guaranteed to consume at least one
+        // input byte per iteration. Otherwise `epsilon_closure` could either
+        // spin `max` times at a single byte offset (e.g. `(?:\b){0,4294967295}`)
+        // or drop threads when revisiting an already-executed `SplitId` at the
+        // same offset (e.g. `(x?){11}`).
+        let can_use_repeat_instr = !nested_rep
+            && rep.sub.properties().minimum_len().is_some_and(|len| len > 0);
+
+        match (rep.min, rep.max, rep.greedy, can_use_repeat_instr) {
             // e* and e*?
             //
             // l1: split_a l3  ( split_b for the non-greedy e*? )
@@ -834,7 +910,7 @@ impl Compiler {
             // l3: repeat l2, 0, max
             // l4:
             //
-            (0, Some(max), greedy, false)
+            (0, Some(max), greedy, true)
                 if max > Self::REPEAT_INSTR_THRESHOLD =>
             {
                 let l1 = self.emit_instr(if greedy {
@@ -854,7 +930,7 @@ impl Compiler {
             // l2: repeat l1, min-1, max-1
             // l3:
             //
-            (min, Some(max), _, false)
+            (min, Some(max), _, true)
                 if min > Self::REPEAT_INSTR_THRESHOLD
                     || max > Self::REPEAT_INSTR_THRESHOLD =>
             {
@@ -893,6 +969,10 @@ impl Compiler {
         &mut self,
         rep: &Repetition,
     ) -> Result<CodeLoc, Error> {
+        if Self::emits_no_code(&rep.sub) {
+            return Ok(self.location());
+        }
+
         match (rep.min, rep.max, rep.greedy, self.repeats.pop().unwrap()) {
             // e* and e*?
             //
@@ -937,6 +1017,8 @@ impl Compiler {
                 // starts and ends.
                 let start = self.bookmarks.pop().unwrap();
                 let end = self.location();
+
+                debug_assert!(end.fwd > start.fwd && end.bck > start.bck);
 
                 // The first copy of `e` was already emitted when the children
                 // of the repetition node was visited. Clone the code for `e`
@@ -996,10 +1078,8 @@ impl Compiler {
             // l3: repeat l1, 0, max
             // l4:
             //
-            (0, Some(max), greedy, true)
-                if max > Self::REPEAT_INSTR_THRESHOLD =>
-            {
-                debug_assert!(max > 0);
+            (0, Some(max), greedy, true) => {
+                debug_assert!(max > Self::REPEAT_INSTR_THRESHOLD);
 
                 let l1 = self.bookmarks.pop().unwrap();
                 let l2 = self.bookmarks.pop().unwrap();
@@ -1028,12 +1108,13 @@ impl Compiler {
             // l2: repeat l1, min-1, max-1
             // l3:
             //
-            (min, Some(max), greedy, true)
-                if min > Self::REPEAT_INSTR_THRESHOLD
-                    || max > Self::REPEAT_INSTR_THRESHOLD =>
-            {
+            (min, Some(max), greedy, true) => {
                 debug_assert!(min > 0);
                 debug_assert!(max >= min);
+                debug_assert!(
+                    min > Self::REPEAT_INSTR_THRESHOLD
+                        || max > Self::REPEAT_INSTR_THRESHOLD
+                );
 
                 let start = self.bookmarks.pop().unwrap();
                 let end = self.location();
@@ -1066,8 +1147,8 @@ impl Compiler {
             }
             // This is the approach used when the repetition can't be expressed
             // using a REPEAT instruction. This happens when we have nested
-            // repetitions, or when the number of repetitions is not large
-            // enough.
+            // repetitions, when the repeated expression can match the empty
+            // string, or when the number of repetitions is not large enough.
             //
             // e{min,max}  min >= 0
             //
@@ -1087,6 +1168,8 @@ impl Compiler {
                 // starts and ends.
                 let start = self.bookmarks.pop().unwrap();
                 let end = self.location();
+
+                debug_assert!(end.fwd > start.fwd && end.bck > start.bck);
 
                 // The first copy of `e` has already been emitted while
                 // visiting the child nodes. Make min - 1 clones of `e`.

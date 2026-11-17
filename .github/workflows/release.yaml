@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 jobs:
   build:
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
     env:
       CARGO_TERM_COLOR: always
     runs-on: ${{ matrix.os }}
@@ -21,7 +21,8 @@ jobs:
         - linux-intel
         - macos-arm
         - macos-intel
-        - windows
+        - windows-arm
+        - windows-intel
         include:
         - build: linux-intel
           os: ubuntu-latest
@@ -39,9 +40,13 @@ jobs:
           os: macos-latest
           target: aarch64-apple-darwin
 
-        - build: windows
+        - build: windows-intel
           os: windows-latest
           target: x86_64-pc-windows-msvc
+
+        - build: windows-arm
+          os: windows-11-arm
+          target: aarch64-pc-windows-msvc
 
     steps:
     - name: Checkout sources
@@ -55,6 +60,7 @@ jobs:
         toolchain: stable
 
     - name: Check version number
+      if: ${{ startsWith(github.ref, 'refs/tags/v') }}
       shell: bash
       run: |
         set -ex
@@ -83,7 +89,7 @@ jobs:
       run: |
         set -ex
         pkgname=yara-x-${GITHUB_REF_NAME}-${{ matrix.target }}
-        if [ "${{ matrix.build }}" = "windows" ]; then
+        if [[ "${{ matrix.build }}" == windows* ]]; then
             7z a $pkgname.zip ./target/${{ matrix.target }}/release-lto/yr.exe
             7z a yara-x-capi-${GITHUB_REF_NAME}-${{ matrix.target }}.zip \
                ./target/${{ matrix.target }}/release-lto/yara_x.h \
@@ -102,7 +108,6 @@ jobs:
         path: yara-x-*
 
   build-py:
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -114,7 +119,8 @@ jobs:
         - linux-intel
         - linux-arm
         - macos
-        - windows
+        - windows-intel
+        - windows-arm
         include:
         - build: linux-intel
           os: ubuntu-latest
@@ -128,9 +134,18 @@ jobs:
           os: macos-latest
           arch: 'arm64 x86_64'
 
-        - build: windows
+        - build: windows-intel
           os: windows-latest
           arch: 'x86 AMD64'
+
+        - build: windows-arm
+          os: windows-11-arm
+          arch: 'ARM64'
+
+        exclude:
+        # PyPy does not provide Windows ARM64 releases.
+        - build: windows-arm
+          python-version: pp311
 
     steps:
     - name: Checkout sources
@@ -143,6 +158,7 @@ jobs:
         toolchain: stable
 
     - name: Check version number
+      if: ${{ startsWith(github.ref, 'refs/tags/v') }}
       shell: bash
       run: |
         set -ex
@@ -155,6 +171,7 @@ jobs:
       uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: '3.12'
+        architecture: ${{ runner.arch == 'ARM64' && 'arm64' || 'x64' }}
 
     - run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
       if: matrix.build == 'macos'
@@ -206,6 +223,7 @@ jobs:
         path: ./wheelhouse/*.tar.gz
 
   publish:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     needs: [ build ]
     runs-on: ubuntu-latest
     permissions:
@@ -229,6 +247,7 @@ jobs:
         files: yr-*/yara-x-*
 
   publish-crate:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     needs: [ publish ]
     runs-on: ubuntu-latest
     steps:
@@ -256,6 +275,7 @@ jobs:
         cargo publish -p yara-x-cli
 
   publish-py:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     needs: [ build-py ]
     runs-on: ubuntu-latest
     environment:

@@ -357,7 +357,7 @@ pub struct Compiler<'a> {
 
     /// Similar to `ident_pool` but for regular expressions found in rule
     /// conditions.
-    regex_pool: StringPool<RegexId>,
+    regex_pool: StringPool<RegExpId>,
 
     /// Similar to `ident_pool` but for string literals found in the source
     /// code. As literal strings in YARA can contain arbitrary bytes, a pool
@@ -474,7 +474,7 @@ pub struct Compiler<'a> {
     linters: Vec<Box<dyn linters::Linter + 'a>>,
 
     /// Grouped RegexSets constructed during IR creation for or-expressions.
-    regex_sets: FxHashMap<RegexSetId, Vec<RegexId>>,
+    regex_sets: FxHashMap<RegExpSetId, Vec<RegExpId>>,
 
     /// Grouped LiteralSets constructed during IR creation for or-expressions.
     literal_sets: FxHashMap<LiteralSetId, Vec<LiteralId>>,
@@ -495,10 +495,7 @@ impl<'a> Compiler<'a> {
         let global_symbols = symbol_table.push_new();
 
         // Add symbols for built-in functions like uint8, uint16, etc.
-        for export in wasm_exports()
-            // Get only the public exports not belonging to a YARA module.
-            .filter(|e| e.public && e.builtin())
-        {
+        for export in wasm_exports().filter(|e| e.builtin()) {
             let func = Rc::new(Func::from(export.mangled_name));
             let symbol = Symbol::Func(func);
 
@@ -1570,7 +1567,7 @@ impl Compiler<'_> {
                         SourceCode::from(included_src.as_slice()).with_origin(
                             // In Windows the paths separators are backslashes, but we
                             // want to use slashes.
-                            included_path.to_str().unwrap().replace("\\", "/"),
+                            included_path.to_string_lossy().replace("\\", "/"),
                         );
 
                     self.include_stack.push(included_path);
@@ -1697,8 +1694,8 @@ impl Compiler<'_> {
             for_of_depth: 0,
             features: &self.features,
             loop_iteration_multiplier: 1,
-            regex_sets: &mut self.regex_sets,
-            regex_pool: &mut self.regex_pool,
+            regexp_set: &mut self.regex_sets,
+            regexp_pool: &mut self.regex_pool,
             literal_sets: &mut self.literal_sets,
             literal_pool: &mut self.literal_pool,
         };
@@ -2051,7 +2048,7 @@ impl Compiler<'_> {
         let mut ctx = EmitContext {
             current_rule: self.rules.last_mut().unwrap(),
             lit_pool: &mut self.literal_pool,
-            regex_pool: &mut self.regex_pool,
+            regexp_pool: &mut self.regex_pool,
             wasm_symbols: &self.wasm_symbols,
             wasm_exports: &self.wasm_exports,
             exception_handler_stack: Vec::new(),
@@ -3003,79 +3000,79 @@ impl From<RuleId> for i32 {
 
 /// ID associated to each regexp used in a rule condition.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub(crate) struct RegexId(i32);
+pub(crate) struct RegExpId(i32);
 
-impl From<i32> for RegexId {
+impl From<i32> for RegExpId {
     #[inline]
     fn from(value: i32) -> Self {
         Self(value)
     }
 }
 
-impl From<u32> for RegexId {
+impl From<u32> for RegExpId {
     #[inline]
     fn from(value: u32) -> Self {
         Self(value.try_into().unwrap())
     }
 }
 
-impl From<i64> for RegexId {
+impl From<i64> for RegExpId {
     #[inline]
     fn from(value: i64) -> Self {
         Self(value.try_into().unwrap())
     }
 }
 
-impl From<RegexId> for usize {
+impl From<RegExpId> for usize {
     #[inline]
-    fn from(value: RegexId) -> Self {
+    fn from(value: RegExpId) -> Self {
         value.0 as usize
     }
 }
 
-impl From<RegexId> for i32 {
+impl From<RegExpId> for i32 {
     #[inline]
-    fn from(value: RegexId) -> Self {
+    fn from(value: RegExpId) -> Self {
         value.0
     }
 }
 
-impl From<RegexId> for u32 {
+impl From<RegExpId> for u32 {
     #[inline]
-    fn from(value: RegexId) -> Self {
+    fn from(value: RegExpId) -> Self {
         value.0.try_into().unwrap()
     }
 }
 
-/// ID associated to each grouped `RegexSet`.
+/// ID associated to each grouped `RegexpSet`.
 ///
 /// When compiling multiple rules, identical string expressions (such as a
 /// specific field access like `vt.net.domain.raw`) are frequently matched
 /// against multiple distinct regular expressions. To optimize these
 /// evaluations, the compiler identifies identical targets, assigns them a
-/// unique `RegexSetId`, and groups all their associated regular expressions
+/// unique `RegExpSetId`, and groups all their associated regular expressions
 /// together. At runtime, the entire set is evaluated simultaneously in a
 /// single pass.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub(crate) struct RegexSetId(i32);
+pub(crate) struct RegExpSetId(i32);
 
-impl From<i32> for RegexSetId {
+impl From<i32> for RegExpSetId {
     #[inline]
     fn from(value: i32) -> Self {
         Self(value)
     }
 }
 
-impl From<RegexSetId> for usize {
+impl From<RegExpSetId> for usize {
     #[inline]
-    fn from(value: RegexSetId) -> Self {
+    fn from(value: RegExpSetId) -> Self {
         value.0 as usize
     }
 }
 
-impl From<RegexSetId> for i32 {
+impl From<RegExpSetId> for i32 {
     #[inline]
-    fn from(value: RegexSetId) -> Self {
+    fn from(value: RegExpSetId) -> Self {
         value.0
     }
 }

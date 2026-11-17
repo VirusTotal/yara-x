@@ -142,7 +142,7 @@ fn replace_child() {
         MatchAnchor, OfExprTuple, OfPatternSet, Quantifier, Range, With,
     };
     use crate::compiler::context::Var;
-    use crate::compiler::{ExprId, LiteralSetId, PatternIdx, RegexSetId};
+    use crate::compiler::{ExprId, LiteralSetId, PatternIdx, RegExpSetId};
     use crate::types::{FuncSignature, MangledFnName, Type};
 
     let c1 = ExprId::from(1);
@@ -251,7 +251,7 @@ fn replace_child() {
 
     // MatchesMany and *Many string operations
     let mut expr =
-        Expr::MatchesMany { lhs: c1, regex_set: RegexSetId::from(0) };
+        Expr::MatchesMany { lhs: c1, regexp_set: RegExpSetId::from(0) };
     expr.replace_child(c1, repl);
     assert!(matches!(expr, Expr::MatchesMany { lhs, .. } if lhs == repl));
 

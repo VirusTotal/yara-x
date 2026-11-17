@@ -342,14 +342,37 @@ impl Hir {
     }
 
     /// Builds a [`regex_automata::meta::Regex`] from one or more HIRs.
+    ///
+    /// Because [`WhichCaptures::None`](regex_automata::nfa::thompson::WhichCaptures::None)
+    /// is used, the returned [`Regex`](regex_automata::meta::Regex) only
+    /// supports [`is_match`](regex_automata::meta::Regex::is_match); methods
+    /// that report match spans or capture groups (such as `find` or
+    /// `captures`) will always return `None`.
     pub fn build_automata(
         hirs: &[Self],
     ) -> Result<regex_automata::meta::Regex, anyhow::Error> {
-        // Set a size limit for the NFA automata. The default limit (10MB) is
-        // not enough for certain regular expressions seen in the wild, see:
-        // https://github.com/VirusTotal/yara-x/issues/85
         let config = regex_automata::meta::Config::new()
-            .nfa_size_limit(Some(50 * 1024 * 1024));
+            // Set a size limit for the NFA automata. The default limit (10MB)
+            // is not enough for certain regular expressions seen in the wild,
+            // see: https://github.com/VirusTotal/yara-x/issues/85
+            .nfa_size_limit(Some(50 * 1024 * 1024))
+            // Omit all capture states from the Thompson NFA (both explicit
+            // `(...)` groups and the implicit group 0 span). This reduces NFA
+            // size and compile time (notably avoiding NFA blowup on repeated
+            // capturing groups like `/(){4294967295,}/`), lowers memory usage,
+            // and lets `regex_automata` use faster DFA-based engines without
+            // tracking capture slots.
+            //
+            // This is safe because `build_automata` is only used for condition
+            // regexes (`matches` operator, `RegexSet`s, and module functions
+            // like `pe.imports(/.../)`), which only ever query `is_match` and
+            // never inspect capture groups or match spans (pattern regexes in
+            // the `strings` section use `re::fast` and `re::thompson` instead).
+            // Since backreferences are not supported either, omitting captures
+            // never affects `is_match` semantics.
+            .which_captures(
+                regex_automata::nfa::thompson::WhichCaptures::None,
+            );
 
         regex_automata::meta::Builder::new()
             .configure(config)
@@ -803,5 +826,20 @@ mod tests {
             Hir::literal([0x02]),
         ]);
         assert!(unsplit.try_extract_literal_with_mask().is_none());
+    }
+
+    #[test]
+    fn build_automata_empty_captures() {
+        let parser = crate::re::parser::Parser::new();
+        for pat in [
+            "/(){4294967295,}/",
+            "/(){4294967295}/",
+            "/(){0,4294967295}/",
+            "/(a{11}(){4294967295}){11}/",
+        ] {
+            let hir = parser.parse(&crate::types::Regexp::new(pat)).unwrap();
+            let re = Hir::build_automata(&[hir]).unwrap();
+            assert!(re.is_match(&b"a".repeat(121)));
+        }
     }
 }

@@ -1,10 +1,11 @@
 use std::collections::hash_map::Entry;
 use std::ops::{Add, Range, RangeInclusive, Sub};
 
-use core::slice::Iter;
+use core::slice::{Iter, IterMut};
 use rustc_hash::FxHashMap;
 
 use crate::compiler::PatternId;
+use crate::re::hir::ChainedPatternGap;
 
 /// Represents the match of a pattern.
 #[derive(Debug, Clone)]
@@ -76,26 +77,51 @@ impl MatchList {
     /// the new match at an offset that is higher than those from previous
     /// matches.
     pub fn add(&mut self, new_match: Match, replace_if_longer: bool) -> bool {
+        matches!(
+            self.add_with_limit(new_match, usize::MAX, replace_if_longer),
+            AddResult::Inserted(_)
+        )
+    }
+
+    /// Adds a new match to the list while enforcing an upper bound on the
+    /// total number of matches.
+    ///
+    /// If a match at the same start offset already exists, it is updated in
+    /// place (when `replace_if_longer` is `true` and `new_match` is longer) or
+    /// ignored without increasing the list length, even when `self.len()` has
+    /// already reached `max_matches`.
+    pub fn add_with_limit(
+        &mut self,
+        new_match: Match,
+        max_matches: usize,
+        replace_if_longer: bool,
+    ) -> AddResult {
         match self.matches.last_mut() {
             // The new match starts at some offset greater than the offset of
             // the last match, we can simply push the new match at the end.
             Some(last) if new_match.range.start > last.range.start => {
+                if self.matches.len() >= max_matches {
+                    return AddResult::MaxMatchesReached;
+                }
                 self.matches.push(new_match);
-                true
+                AddResult::Inserted(self.matches.len())
             }
             // The new match starts has the same offset as the last match. We
             // only need to update its end position when replace_if_longer is
-            // true.
+            // true and the new match is actually longer than the existing one.
             Some(last) if new_match.range.start == last.range.start => {
-                if replace_if_longer {
+                if replace_if_longer && last.range.end < new_match.range.end {
                     last.range.end = new_match.range.end;
                 }
-                false
+                AddResult::Updated
             }
             // No matches so far, the match is first one.
             None => {
+                if max_matches == 0 {
+                    return AddResult::MaxMatchesReached;
+                }
                 self.matches.push(new_match);
-                true
+                AddResult::Inserted(1)
             }
             _ => {
                 // If not at the end, use binary search to find the insertion point.
@@ -110,16 +136,19 @@ impl MatchList {
                         if existing_match.range.end < new_match.range.end {
                             existing_match.range.end = new_match.range.end;
                         }
-                        false
-                    }
-                    // Not found, insert at the corresponding position.
-                    Err(index) => {
-                        self.matches.insert(index, new_match);
-                        true
+                        AddResult::Updated
                     }
                     // Found, but replace_if_longer is false, do nothing and keep the
                     // existing match.
-                    _ => false,
+                    Ok(_) => AddResult::Updated,
+                    // Not found, insert at the corresponding position.
+                    Err(index) => {
+                        if self.matches.len() >= max_matches {
+                            return AddResult::MaxMatchesReached;
+                        }
+                        self.matches.insert(index, new_match);
+                        AddResult::Inserted(self.matches.len())
+                    }
                 }
             }
         }
@@ -229,6 +258,159 @@ pub struct UnconfirmedMatch {
     pub chain_length: usize,
 }
 
+/// Collection of unconfirmed matches for a chained sub-pattern, along with
+/// the minimum and maximum `range.end` offsets across all stored matches for
+/// O(1) distance pre-filtering.
+pub(crate) struct UnconfirmedMatches {
+    matches: Vec<UnconfirmedMatch>,
+    min_end: usize,
+    max_end: usize,
+}
+
+impl Default for UnconfirmedMatches {
+    #[inline]
+    fn default() -> Self {
+        Self { matches: Vec::new(), min_end: usize::MAX, max_end: 0 }
+    }
+}
+
+impl UnconfirmedMatches {
+    #[inline]
+    pub fn push(&mut self, m: UnconfirmedMatch) {
+        self.min_end = self.min_end.min(m.range.end);
+        self.max_end = self.max_end.max(m.range.end);
+        self.matches.push(m);
+    }
+
+    #[cfg(feature = "logging")]
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.matches.len()
+    }
+
+    #[inline]
+    pub fn iter_mut(&mut self) -> IterMut<'_, UnconfirmedMatch> {
+        self.matches.iter_mut()
+    }
+
+    /// Returns true if any stored match ends within `gap` bytes before some
+    /// offset in `start_range`.
+    ///
+    /// Let `start_range` be `min_start..=max_start`. For a stored match `m`
+    /// ending at `end = m.range.end`, the valid start offsets for the next
+    /// sub-pattern in the chain form the interval `[end + gap_min, +inf)`
+    /// ([`ChainedPatternGap::Unbounded`]) or `[end + gap_min, end + gap_max]`
+    /// ([`ChainedPatternGap::Bounded`]). `start_range` contains a valid offset
+    /// for `m` iff the two intervals intersect:
+    ///
+    /// ```text
+    ///   valid starts for m:   [end + gap_min ..= end + gap_max]
+    ///   candidate starts:                [min_start ..= max_start]
+    ///                                    ^^^^^^^^^^ intersection
+    /// ```
+    ///
+    /// Two closed intervals `[a, b]` and `[c, d]` intersect iff `b >= c` and
+    /// `a <= d`, evaluated without risking `end + gap_*` overflow as:
+    ///
+    /// 1. `max_start >= end + gap_min`, checked via
+    ///    `max_start.checked_sub(end).is_some_and(|d| d >= gap_min)`.
+    /// 2. `min_start <= end + gap_max`, checked via
+    ///    `min_start.saturating_sub(end) <= gap_max` (when `min_start <= end`,
+    ///    `saturating_sub` yields `0 <= gap_max`, which always holds).
+    ///
+    /// # Complexity
+    ///
+    /// * [`ChainedPatternGap::Unbounded`]: always **O(1)** via `self.min_end`.
+    /// * [`ChainedPatternGap::Bounded`]: **O(1)** whenever `start_range` falls
+    ///   outside the aggregate envelope `[self.min_end + gap_min,
+    ///   self.max_end + gap_max]` or when `self.min_end == self.max_end`
+    ///   (including the common single-match case). Only when multiple matches
+    ///   have distinct `end` offsets and `start_range` falls inside their
+    ///   combined envelope—where it might still land in an uncovered "hole"
+    ///   between two widely separated matches—does this scan `self.matches`
+    ///   (in reverse order, since recent matches are closest during a
+    ///   left-to-right scan).
+    #[inline]
+    pub fn has_match_within_gap(
+        &self,
+        start_range: RangeInclusive<usize>,
+        gap: &ChainedPatternGap,
+    ) -> bool {
+        if self.matches.is_empty() {
+            return false;
+        }
+
+        let min_start = *start_range.start();
+        let max_start = *start_range.end();
+        debug_assert!(min_start <= max_start);
+
+        match gap {
+            ChainedPatternGap::Unbounded(range) => {
+                let gap_min = range.start as usize;
+                // Because `self.min_end` is the exact `range.end` of at least
+                // one stored match, a start offset in `min_start..=max_start`
+                // can satisfy `start >= m.range.end + gap_min` if and only if
+                // `max_start` satisfies it for `self.min_end`.
+                max_start
+                    .checked_sub(self.min_end)
+                    .is_some_and(|max_gap| max_gap >= gap_min)
+            }
+            ChainedPatternGap::Bounded(range) => {
+                let gap_min = *range.start() as usize;
+                let gap_max = *range.end() as usize;
+
+                if gap_min > gap_max {
+                    return false;
+                }
+
+                // O(1) rejection if even the earliest match end is not far
+                // enough before `max_start` to satisfy `gap_min`.
+                if max_start
+                    .checked_sub(self.min_end)
+                    .is_none_or(|max_gap| max_gap < gap_min)
+                {
+                    return false;
+                }
+
+                // O(1) rejection if even the latest match end is too far
+                // behind `min_start` to satisfy `gap_max`.
+                if min_start.saturating_sub(self.max_end) > gap_max {
+                    return false;
+                }
+
+                // Fast path when all stored matches end at the same offset
+                // (including the common single-match case): the two envelope
+                // checks above already establish a valid gap in `start_range`.
+                if self.min_end == self.max_end {
+                    return true;
+                }
+
+                // Check recent matches first, as nearby head matches during a
+                // left-to-right scan sit at the end of `self.matches`.
+                self.matches.iter().rev().any(|m| {
+                    max_start.checked_sub(m.range.end).is_some_and(
+                        |max_actual_gap| {
+                            max_actual_gap >= gap_min
+                                && min_start.saturating_sub(m.range.end)
+                                    <= gap_max
+                        },
+                    )
+                })
+            }
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a mut UnconfirmedMatches {
+    type Item = &'a mut UnconfirmedMatch;
+    type IntoIter = IterMut<'a, UnconfirmedMatch>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        self.matches.iter_mut()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AddResult {
     /// A new match was inserted into the list, growing it to the given length.
@@ -322,21 +504,21 @@ impl PatternMatches {
         m: Match,
         replace_if_longer: bool,
     ) -> AddResult {
+        if self.max_matches_per_pattern == 0 {
+            return AddResult::MaxMatchesReached;
+        }
+
         match self.matches.entry(pattern_id) {
             Entry::Occupied(mut entry) => {
                 let matches = entry.get_mut();
-                if matches.len() < self.max_matches_per_pattern {
-                    self.capacity -= matches.capacity();
-                    let inserted = matches.add(m, replace_if_longer);
-                    self.capacity += matches.capacity();
-                    if inserted {
-                        AddResult::Inserted(matches.len())
-                    } else {
-                        AddResult::Updated
-                    }
-                } else {
-                    AddResult::MaxMatchesReached
-                }
+                self.capacity -= matches.capacity();
+                let res = matches.add_with_limit(
+                    m,
+                    self.max_matches_per_pattern,
+                    replace_if_longer,
+                );
+                self.capacity += matches.capacity();
+                res
             }
             Entry::Vacant(entry) => {
                 let mut matches = MatchList::with_capacity(8);
@@ -358,7 +540,9 @@ impl PatternMatches {
 
 #[cfg(test)]
 mod test {
-    use crate::scanner::matches::{Match, MatchList, PatternMatches};
+    use crate::scanner::matches::{
+        AddResult, Match, MatchList, PatternMatches,
+    };
     use std::ops::Range;
 
     #[test]
@@ -396,5 +580,86 @@ mod test {
             pm.add(pid, Match::new(i..i + 1), false);
         }
         assert_eq!(pm.get(pid).unwrap().len(), 10_000);
+
+        let mut pm = PatternMatches::new();
+        pm.max_matches_per_pattern(2);
+        assert_eq!(
+            pm.add(pid, Match::new(2..5), true),
+            AddResult::Inserted(1)
+        );
+        assert_eq!(
+            pm.add(pid, Match::new(10..12), true),
+            AddResult::Inserted(2)
+        );
+        // Extending the last match in place at capacity must succeed.
+        assert_eq!(pm.add(pid, Match::new(10..18), true), AddResult::Updated);
+        // Extending an earlier match via binary search at capacity must succeed.
+        assert_eq!(pm.add(pid, Match::new(2..9), true), AddResult::Updated);
+        // Shorter match at an existing offset is ignored without error.
+        assert_eq!(pm.add(pid, Match::new(2..4), true), AddResult::Updated);
+        // New start offsets (both after the end and in the middle) are rejected.
+        assert_eq!(
+            pm.add(pid, Match::new(20..22), true),
+            AddResult::MaxMatchesReached
+        );
+        assert_eq!(
+            pm.add(pid, Match::new(6..8), true),
+            AddResult::MaxMatchesReached
+        );
+        assert_eq!(
+            pm.get(pid)
+                .unwrap()
+                .iter()
+                .map(|m| m.range.clone())
+                .collect::<Vec<_>>(),
+            vec![2..9, 10..18]
+        );
+
+        let mut pm = PatternMatches::new();
+        pm.max_matches_per_pattern(0);
+        assert_eq!(
+            pm.add(pid, Match::new(0..4), true),
+            AddResult::MaxMatchesReached
+        );
+        assert!(pm.get(pid).is_none());
+    }
+
+    #[test]
+    fn unconfirmed_matches_gap_lookup() {
+        use crate::re::hir::ChainedPatternGap;
+        use crate::scanner::matches::{UnconfirmedMatch, UnconfirmedMatches};
+
+        let bounded = ChainedPatternGap::Bounded(5..=10);
+        let unbounded = ChainedPatternGap::Unbounded(5..);
+
+        // Empty set never matches, even at usize::MAX.
+        let mut um = UnconfirmedMatches::default();
+        assert!(!um.has_match_within_gap(0..=100, &bounded));
+        assert!(!um.has_match_within_gap(usize::MAX..=usize::MAX, &unbounded));
+
+        // Single match ending at 20 (`min_end == max_end` fast path).
+        um.push(UnconfirmedMatch { range: 10..20, chain_length: 0 });
+        assert!(!um.has_match_within_gap(15..=24, &bounded));
+        assert!(um.has_match_within_gap(15..=25, &bounded));
+        assert!(um.has_match_within_gap(30..=30, &bounded));
+        assert!(um.has_match_within_gap(30..=40, &bounded));
+        assert!(!um.has_match_within_gap(31..=40, &bounded));
+        assert!(!um.has_match_within_gap(24..=24, &unbounded));
+        assert!(um.has_match_within_gap(25..=25, &unbounded));
+        assert!(um.has_match_within_gap(1_000_000..=1_000_000, &unbounded));
+
+        // Non-monotonic `range.end`: push a long match `22..100` followed by a
+        // shorter match `25..30`. A tail at `105` must still match `22..100`
+        // (`105 - 100 == 5` in `5..=10`), while a gap hole `40..=90` must fail.
+        um.push(UnconfirmedMatch { range: 22..100, chain_length: 0 });
+        um.push(UnconfirmedMatch { range: 25..30, chain_length: 0 });
+        assert!(!um.has_match_within_gap(41..=94, &bounded));
+        assert!(um.has_match_within_gap(105..=105, &bounded));
+        assert!(um.has_match_within_gap(90..=105, &bounded));
+        assert!(!um.has_match_within_gap(111..=120, &bounded));
+
+        // Large u32::MAX gap bounds do not overflow `usize`.
+        let max_gap = ChainedPatternGap::Bounded(u32::MAX..=u32::MAX);
+        assert!(!um.has_match_within_gap(100..=1000, &max_gap));
     }
 }

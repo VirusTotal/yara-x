@@ -27,7 +27,7 @@ use crate::compiler::ir::{
 };
 use crate::compiler::{
     FieldAccess, ForVars, LiteralId, OfExprTuple, OfPatternSet, PatternId,
-    RegexId, RuleId, RuleInfo, Var,
+    RegExpId, RuleId, RuleInfo, Var,
 };
 use crate::scanner::RuntimeObjectHandle;
 use crate::string_pool::{BStringPool, StringPool};
@@ -227,7 +227,7 @@ pub(crate) struct EmitContext<'a> {
     pub wasm_exports: &'a FxHashMap<String, FunctionId>,
 
     /// Pool with regular expressions used in rule conditions.
-    pub regex_pool: &'a mut StringPool<RegexId>,
+    pub regexp_pool: &'a mut StringPool<RegExpId>,
 
     /// Pool with literal strings used in the rules.
     pub lit_pool: &'a mut BStringPool<LiteralId>,
@@ -343,7 +343,7 @@ fn emit_expr(
                     .i64_const(RuntimeString::Literal(literal_id).into_wasm());
             }
             TypeValue::Regexp(Some(regexp)) => {
-                let re_id = ctx.regex_pool.get_or_intern(regexp.as_str());
+                let re_id = ctx.regexp_pool.get_or_intern(regexp.as_str());
 
                 instr.i32_const(re_id.into());
             }
@@ -679,9 +679,9 @@ fn emit_expr(
                 .call(ctx.function_id(wasm::export__str_matches.mangled_name));
         }
 
-        Expr::MatchesMany { lhs, regex_set } => {
+        Expr::MatchesMany { lhs, regexp_set } => {
             emit_expr(ctx, ir, *lhs, instr);
-            instr.i32_const((*regex_set).into());
+            instr.i32_const((*regexp_set).into());
             instr.call(ctx.function_id(
                 wasm::export__str_matches_regex_set.mangled_name,
             ));
