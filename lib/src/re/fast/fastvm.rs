@@ -4,8 +4,8 @@ use std::{cmp, mem};
 use bitflags::bitflags;
 use itertools::izip;
 
-use crate::re::bitmapset::BitmapSet;
 use crate::re::fast::instr::{Instr, InstrParser};
+use crate::re::position_set::PositionSet;
 use crate::re::{CodeLoc, DEFAULT_SCAN_LIMIT, InputByte, WideIter};
 
 /// A faster but less general alternative to [PikeVM].
@@ -23,16 +23,14 @@ pub(crate) struct FastVM<'r> {
     /// this number of bytes from the input.
     scan_limit: u32,
     /// A set with all the positions within the data that are matching so
-    /// far. `BitmapSet` is used instead of `HashSet` because insertion order
+    /// far. `PositionSet` is used instead of `HashSet` because insertion order
     /// needs to be maintained while iterating the positions and `HashSet`
-    /// doesn't make any guarantees about iteration order. Also, `BitmapSet`
-    /// is faster than `HashSet`, at the price of higher memory usage when
-    /// the values in the set are not close to each others. However, the
-    /// positions stored in this set are relatively close to each other.
-    positions: BitmapSet<()>,
+    /// doesn't make any guarantees about iteration order. Also, `PositionSet`
+    /// avoids hashing overhead by indexing a flat bitmap directly.
+    positions: PositionSet,
     /// The set that will replace `positions` in the next iteration of the
     /// VM loop.
-    next_positions: BitmapSet<()>,
+    next_positions: PositionSet,
 }
 
 impl<'r> FastVM<'r> {
@@ -40,8 +38,8 @@ impl<'r> FastVM<'r> {
     pub fn new(code: &'r [u8]) -> Self {
         Self {
             code,
-            positions: BitmapSet::new(),
-            next_positions: BitmapSet::new(),
+            positions: PositionSet::new(),
+            next_positions: PositionSet::new(),
             scan_limit: DEFAULT_SCAN_LIMIT,
         }
     }
@@ -89,7 +87,7 @@ impl<'r> FastVM<'r> {
 
         let step = if wide { 2 } else { 1 };
 
-        self.positions.insert(0, ());
+        self.positions.insert(0);
 
         let mut flags = JumpFlags::empty();
 
@@ -106,7 +104,7 @@ impl<'r> FastVM<'r> {
             match instr {
                 Instr::Match => {
                     let mut stop = false;
-                    for (position, _) in self.positions.iter() {
+                    for &position in self.positions.iter() {
                         // If the pattern is wide, make sure that the matching
                         // string contains the corresponding interleaved zeroes.
                         if wide {
@@ -114,13 +112,13 @@ impl<'r> FastVM<'r> {
                                 input
                                     .iter()
                                     .rev()
-                                    .take(*position)
+                                    .take(position)
                                     .step_by(2)
                                     .all(|b| *b == 0)
                             } else {
                                 input
                                     .iter()
-                                    .take(*position)
+                                    .take(position)
                                     .skip(1)
                                     .step_by(2)
                                     .all(|b| *b == 0)
@@ -129,7 +127,7 @@ impl<'r> FastVM<'r> {
                                 continue;
                             }
                         }
-                        match f(*position) {
+                        match f(position) {
                             ControlFlow::Break(_) => {
                                 stop = true;
                                 break;
@@ -142,125 +140,25 @@ impl<'r> FastVM<'r> {
                         return;
                     }
                 }
-                Instr::Literal(literal) => {
-                    for (position, _) in self.positions.iter() {
-                        if *position >= input.len() {
-                            continue;
-                        }
-                        let is_match = if backwards {
-                            self.try_match_literal_bck(
-                                &input[..input.len() - position],
-                                literal,
-                                wide,
-                            )
-                        } else {
-                            self.try_match_literal_fwd(
-                                &input[*position..],
-                                literal,
-                                wide,
-                            )
-                        };
-                        if is_match {
-                            self.next_positions
-                                .insert(position + step * literal.len(), ());
-                        }
-                    }
-                }
-                Instr::MaskedLiteral(literal, mask) => {
-                    for (position, _) in self.positions.iter() {
-                        if *position >= input.len() {
-                            continue;
-                        }
-                        let is_match = if backwards {
-                            self.try_match_masked_literal_bck(
-                                &input[..input.len() - position],
-                                literal,
-                                mask,
-                                wide,
-                            )
-                        } else {
-                            self.try_match_masked_literal_fwd(
-                                &input[*position..],
-                                literal,
-                                mask,
-                                wide,
-                            )
-                        };
-                        if is_match {
-                            self.next_positions
-                                .insert(position + step * literal.len(), ());
-                        }
-                    }
+                Instr::Literal(_) | Instr::MaskedLiteral(_, _) => {
+                    self.advance_pattern(&instr, input, backwards, wide, step);
                 }
                 Instr::Alternation(alternatives) => {
                     for alt in alternatives {
-                        for (position, _) in self.positions.iter() {
-                            if *position >= input.len() {
-                                continue;
-                            }
-                            match alt {
-                                Instr::Literal(literal) => {
-                                    let is_match = if backwards {
-                                        self.try_match_literal_bck(
-                                            &input[..input.len() - position],
-                                            literal,
-                                            wide,
-                                        )
-                                    } else {
-                                        self.try_match_literal_fwd(
-                                            &input[*position..],
-                                            literal,
-                                            wide,
-                                        )
-                                    };
-                                    if is_match {
-                                        self.next_positions.insert(
-                                            position + step * literal.len(),
-                                            (),
-                                        );
-                                    }
-                                }
-                                Instr::MaskedLiteral(literal, mask) => {
-                                    let is_match = if backwards {
-                                        self.try_match_masked_literal_bck(
-                                            &input[..input.len() - position],
-                                            literal,
-                                            mask,
-                                            wide,
-                                        )
-                                    } else {
-                                        self.try_match_masked_literal_fwd(
-                                            &input[*position..],
-                                            literal,
-                                            mask,
-                                            wide,
-                                        )
-                                    };
-                                    if is_match {
-                                        self.next_positions.insert(
-                                            position + step * literal.len(),
-                                            (),
-                                        );
-                                    }
-                                }
-                                // The only valid instructions in alternatives
-                                // are literals.
-                                _ => {
-                                    unreachable!()
-                                }
-                            }
-                        }
+                        self.advance_pattern(
+                            &alt, input, backwards, wide, step,
+                        );
                     }
                 }
                 Instr::JumpExact(jump) => {
                     if let Some(jump_bytes) = (jump as usize).checked_mul(step)
                     {
-                        for (position, _) in self.positions.iter() {
+                        for &position in self.positions.iter() {
                             if let Some(next_pos) =
                                 position.checked_add(jump_bytes)
                                 && next_pos <= input.len()
                             {
-                                self.next_positions.insert(next_pos, ());
+                                self.next_positions.insert(next_pos);
                             }
                         }
                     }
@@ -268,14 +166,14 @@ impl<'r> FastVM<'r> {
                 Instr::JumpExactNoNewline(jump) => {
                     if let Some(jump_bytes) = (jump as usize).checked_mul(step)
                     {
-                        for (position, _) in self.positions.iter() {
+                        for &position in self.positions.iter() {
                             if let Some(next_pos) =
                                 position.checked_add(jump_bytes)
                                 && let Some(jump_range) =
-                                    input.get(*position..next_pos)
+                                    input.get(position..next_pos)
                                 && memchr::memchr(0x0A, jump_range).is_none()
                             {
-                                self.next_positions.insert(next_pos, ());
+                                self.next_positions.insert(next_pos);
                             }
                         }
                     }
@@ -302,96 +200,51 @@ impl<'r> FastVM<'r> {
                         _ => unreachable!(),
                     };
 
-                    match InstrParser::decode_instr(&self.code[ip..]) {
-                        (Instr::Literal(literal), _) if backwards => {
-                            for (position, _) in self.positions.iter() {
-                                if *position >= input.len() {
-                                    continue;
-                                }
-                                Self::jump_bck(
-                                    &input[..input.len() - position],
-                                    literal.last().copied(),
-                                    flags,
-                                    &range,
-                                    *position,
-                                    &mut self.next_positions,
-                                );
-                            }
-                        }
-                        (Instr::Literal(literal), _) if !backwards => {
-                            for (position, _) in self.positions.iter() {
-                                if *position >= input.len() {
-                                    continue;
-                                }
-                                Self::jump_fwd(
-                                    &input[*position..],
-                                    literal.first().copied(),
-                                    flags,
-                                    &range,
-                                    *position,
-                                    &mut self.next_positions,
-                                )
-                            }
-                        }
-                        (Instr::MaskedLiteral(literal, mask), _)
-                            if backwards && mask.last() == Some(&0xff) =>
-                        {
-                            for (position, _) in self.positions.iter() {
-                                if *position >= input.len() {
-                                    continue;
-                                }
-                                Self::jump_bck(
-                                    &input[..input.len() - position],
-                                    literal.last().copied(),
-                                    flags,
-                                    &range,
-                                    *position,
-                                    &mut self.next_positions,
-                                );
-                            }
-                        }
-                        (Instr::MaskedLiteral(literal, mask), _)
-                            if !backwards && mask.first() == Some(&0xff) =>
-                        {
-                            for (position, _) in self.positions.iter() {
-                                if *position >= input.len() {
-                                    continue;
-                                }
-                                Self::jump_fwd(
-                                    &input[*position..],
-                                    literal.first().copied(),
-                                    flags,
-                                    &range,
-                                    *position,
-                                    &mut self.next_positions,
-                                );
-                            }
-                        }
-                        _ => {
-                            for (position, _) in self.positions.iter() {
-                                if *position >= input.len() {
-                                    continue;
-                                }
+                    let expected_byte =
+                        match InstrParser::decode_instr(&self.code[ip..]).0 {
+                            Instr::Literal(literal) => {
                                 if backwards {
-                                    Self::jump_bck(
-                                        &input[..input.len() - position],
-                                        None,
-                                        flags,
-                                        &range,
-                                        *position,
-                                        &mut self.next_positions,
-                                    );
+                                    literal.last().copied()
                                 } else {
-                                    Self::jump_fwd(
-                                        &input[*position..],
-                                        None,
-                                        flags,
-                                        &range,
-                                        *position,
-                                        &mut self.next_positions,
-                                    );
+                                    literal.first().copied()
                                 }
                             }
+                            Instr::MaskedLiteral(literal, mask) => {
+                                if backwards && mask.last() == Some(&0xff) {
+                                    literal.last().copied()
+                                } else if !backwards
+                                    && mask.first() == Some(&0xff)
+                                {
+                                    literal.first().copied()
+                                } else {
+                                    None
+                                }
+                            }
+                            _ => None,
+                        };
+
+                    for &position in self.positions.iter() {
+                        if position >= input.len() {
+                            continue;
+                        }
+                        if backwards {
+                            Self::jump_bck(
+                                &input[..input.len() - position],
+                                expected_byte,
+                                flags,
+                                &range,
+                                position,
+                                &mut self.next_positions,
+                            );
+                        } else {
+                            Self::jump_fwd(
+                                &input[position..],
+                                expected_byte,
+                                flags,
+                                &range,
+                                position,
+                                &mut self.next_positions,
+                            );
                         }
                     }
                 }
@@ -404,23 +257,70 @@ impl<'r> FastVM<'r> {
 }
 
 impl FastVM<'_> {
-    #[inline]
-    fn try_match_literal_fwd(
-        &self,
+    /// Returns the `byte_len`-byte candidate slice starting (or ending, when
+    /// `backwards` is true) at `position` in forward left-to-right byte order.
+    #[inline(always)]
+    fn candidate_window(
         input: &[u8],
-        literal: &[u8],
+        position: usize,
+        byte_len: usize,
+        backwards: bool,
+    ) -> Option<&[u8]> {
+        if backwards {
+            let end = input.len().checked_sub(position)?;
+            input.get(end.checked_sub(byte_len)?..end)
+        } else {
+            input.get(position..position.checked_add(byte_len)?)
+        }
+    }
+
+    #[inline]
+    fn advance_pattern(
+        &mut self,
+        instr: &Instr<'_>,
+        input: &[u8],
+        backwards: bool,
         wide: bool,
-    ) -> bool {
-        if wide {
-            // The input must be at least twice the length of the literal,
-            // because of the interleaved zeroes.
-            if input.len() < literal.len() * 2 {
-                return false;
+        step: usize,
+    ) {
+        match *instr {
+            Instr::Literal(literal) => {
+                let byte_len = step * literal.len();
+                for &position in self.positions.iter() {
+                    if let Some(window) = Self::candidate_window(
+                        input, position, byte_len, backwards,
+                    ) && Self::match_literal(window, literal, wide)
+                    {
+                        self.next_positions.insert(position + byte_len);
+                    }
+                }
             }
-            // Iterate the input in chunks of two bytes, where the first one
+            Instr::MaskedLiteral(literal, mask) => {
+                let byte_len = step * literal.len();
+                for &position in self.positions.iter() {
+                    if let Some(window) = Self::candidate_window(
+                        input, position, byte_len, backwards,
+                    ) && Self::match_masked_literal(
+                        window, literal, mask, wide,
+                    ) {
+                        self.next_positions.insert(position + byte_len);
+                    }
+                }
+            }
+            // The only valid instructions here (including inside Alternation)
+            // are Literal and MaskedLiteral.
+            _ => unreachable!(),
+        }
+    }
+
+    #[inline]
+    fn match_literal(window: &[u8], literal: &[u8], wide: bool) -> bool {
+        if wide {
+            debug_assert_eq!(window.len(), literal.len() * 2);
+            // Iterate the window in chunks of two bytes, where the first one
             // must match a byte in the literal, and the second one is the
             // interleaved zero.
-            let (chunks, _) = input.as_chunks::<2>();
+            let (chunks, _) = window.as_chunks::<2>();
             for (chunk, byte) in izip!(chunks, literal.iter()) {
                 if chunk[0] != *byte || chunk[1] != 0 {
                     return false;
@@ -428,49 +328,13 @@ impl FastVM<'_> {
             }
             true
         } else {
-            if input.len() < literal.len() {
-                return false;
-            }
-            &input[..literal.len()] == literal
+            window == literal
         }
     }
 
     #[inline]
-    fn try_match_literal_bck(
-        &self,
-        input: &[u8],
-        literal: &[u8],
-        wide: bool,
-    ) -> bool {
-        if wide {
-            // The input must be at least twice the length of the literal,
-            // because of the interleaved zeroes.
-            if input.len() < literal.len() * 2 {
-                return false;
-            }
-            // Iterate the input from right to left, in chunks of two bytes.
-            // The first byte in each chunk must match a byte in the literal,
-            // and the second one is the interleaved zero.
-            for (chunk, byte) in
-                izip!(input.rchunks_exact(2), literal.iter().rev())
-            {
-                if chunk[0] != *byte || chunk[1] != 0 {
-                    return false;
-                }
-            }
-            true
-        } else {
-            if input.len() < literal.len() {
-                return false;
-            }
-            &input[input.len() - literal.len()..] == literal
-        }
-    }
-
-    #[inline]
-    fn try_match_masked_literal_fwd(
-        &self,
-        input: &[u8],
+    fn match_masked_literal(
+        window: &[u8],
         literal: &[u8],
         mask: &[u8],
         wide: bool,
@@ -478,16 +342,11 @@ impl FastVM<'_> {
         debug_assert_eq!(literal.len(), mask.len());
 
         if wide {
-            // The input must be twice the length of the literal, because of
-            // the interleaved zeroes.
-            if input.len() < literal.len() * 2 {
-                return false;
-            }
-
-            // Iterate the input in chunks of two bytes, where the first one
+            debug_assert_eq!(window.len(), literal.len() * 2);
+            // Iterate the window in chunks of two bytes, where the first one
             // must match a byte in the literal, and the second one is the
             // interleaved zero.
-            let input = WideIter::non_zero_first(input.iter());
+            let input = WideIter::non_zero_first(window.iter());
 
             for (input, byte, mask) in izip!(input, literal, mask) {
                 match input {
@@ -496,58 +355,8 @@ impl FastVM<'_> {
                 }
             }
         } else {
-            if input.len() < literal.len() {
-                return false;
-            }
-            for (input, byte, mask) in izip!(input, literal, mask) {
-                if *input & *mask != *byte & *mask {
-                    return false;
-                }
-            }
-        }
-
-        true
-    }
-
-    #[inline]
-    fn try_match_masked_literal_bck(
-        &self,
-        input: &[u8],
-        literal: &[u8],
-        mask: &[u8],
-        wide: bool,
-    ) -> bool {
-        debug_assert_eq!(literal.len(), mask.len());
-
-        if wide {
-            // The input must be twice the length of the literal, because of
-            // the interleaved zeroes.
-            if input.len() < literal.len() * 2 {
-                return false;
-            }
-
-            // Iterate the input in chunks of two bytes, where the first one
-            // must match a byte in the literal, and the second one is the
-            // interleaved zero.
-            let input = WideIter::zero_first(input.iter().rev());
-
-            for (input, byte, mask) in
-                izip!(input, literal.iter().rev(), mask.iter().rev())
-            {
-                match input {
-                    InputByte::Valid(b) if b & *mask == *byte & *mask => {}
-                    _ => return false,
-                }
-            }
-        } else {
-            if input.len() < literal.len() {
-                return false;
-            }
-            for (input, byte, mask) in izip!(
-                input.iter().rev(),
-                literal.iter().rev(),
-                mask.iter().rev()
-            ) {
+            debug_assert_eq!(window.len(), literal.len());
+            for (input, byte, mask) in izip!(window, literal, mask) {
                 if *input & *mask != *byte & *mask {
                     return false;
                 }
@@ -564,7 +373,7 @@ impl FastVM<'_> {
         flags: JumpFlags,
         range: &RangeInclusive<u32>,
         position: usize,
-        next_positions: &mut BitmapSet<()>,
+        next_positions: &mut PositionSet,
     ) {
         let step = if flags.contains(JumpFlags::Wide) { 2 } else { 1 };
 
@@ -590,7 +399,7 @@ impl FastVM<'_> {
         let jmp_range = &input[range_min..range_max];
 
         let mut on_match_found = |offset| {
-            next_positions.insert(position + range_min + offset, ());
+            next_positions.insert(position + range_min + offset);
         };
 
         let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
@@ -638,7 +447,7 @@ impl FastVM<'_> {
         flags: JumpFlags,
         range: &RangeInclusive<u32>,
         position: usize,
-        next_positions: &mut BitmapSet<()>,
+        next_positions: &mut PositionSet,
     ) {
         let step = if flags.contains(JumpFlags::Wide) { 2 } else { 1 };
 
@@ -685,7 +494,7 @@ impl FastVM<'_> {
 
         let mut on_match_found = |offset| {
             if let Some(jump) = jmp_range.len().checked_sub(offset + step) {
-                next_positions.insert(position + n + jump, ());
+                next_positions.insert(position + n + jump);
             }
         };
 
@@ -793,5 +602,32 @@ mod tests {
             });
             assert_eq!(matched_bck_len, Some(prefix.len()));
         }
+    }
+
+    #[test]
+    fn overlapping_jumps_and_large_scan_limit() {
+        // `{ 01 02 [0-10] 03 [0-600000] 04 }` exercises duplicate frontier
+        // insertions across overlapping jumps and positions > 512 KiB.
+        let hir = Hir::concat(vec![
+            Hir::literal([0x01, 0x02]),
+            Hir::any_byte_repetition(0, Some(10), false),
+            Hir::literal([0x03]),
+            Hir::any_byte_repetition(0, Some(600_000), false),
+            Hir::literal([0x04]),
+        ]);
+        let mut code = Vec::new();
+        let atoms = Compiler::new().compile(&hir, &mut code).unwrap();
+
+        let mut input = vec![0x01, 0x02, 0x03, 0x03, 0x03];
+        input.extend(std::iter::repeat_n(0xaa, 550_000));
+        input.push(0x04);
+
+        let mut matched_len = None;
+        let mut vm = FastVM::new(&code).scan_limit(600_000);
+        vm.try_match(atoms[0].fwd_code.unwrap(), &input, false, |len| {
+            matched_len = Some(len);
+            ControlFlow::Break(())
+        });
+        assert_eq!(matched_len, Some(input.len()));
     }
 }

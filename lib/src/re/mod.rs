@@ -30,10 +30,10 @@ use thiserror::Error;
 
 use crate::compiler::Atom;
 
-pub(crate) mod bitmapset;
 pub(crate) mod fast;
 pub(crate) mod hir;
 pub(crate) mod parser;
+pub(crate) mod position_set;
 pub(crate) mod thompson;
 
 /// When it comes to matching a regular expression, the initial step involves
