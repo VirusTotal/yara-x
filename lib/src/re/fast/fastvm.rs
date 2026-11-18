@@ -15,7 +15,7 @@ use crate::re::{CodeLoc, DEFAULT_SCAN_LIMIT, InputByte, WideIter};
 /// only supports a subset of the regular expressions supported by [PikeVM]
 /// (see the more details in the [`crate::re::fast`] module's documentation).
 ///
-/// [PikeVM]: crate::re::thompson::pikevm::PikeVM
+/// [PikeVM]: crate::re::thompson::PikeVM
 pub(crate) struct FastVM<'r> {
     /// The code for the VM. Produced by [`crate::re::fast::Compiler`].
     code: &'r [u8],
@@ -67,6 +67,35 @@ impl<'r> FastVM<'r> {
         self.scan_limit
     }
 
+    /// Executes VM code starting at `start` against `input`, calling `f` with
+    /// the length in bytes of each match found.
+    ///
+    /// How `input` is interpreted depends on the execution direction encoded in
+    /// `start`:
+    ///
+    /// * **Forward**: `input` starts at the anchor point
+    ///   (typically the start of the atom) and extends toward the end of the
+    ///   haystack. Matching advances left-to-right from `input[0]`, scanning at
+    ///   most `self.scan_limit` bytes.
+    /// * **Backward** (`start.backwards()`: `input` contains the bytes before
+    ///   the anchor point (`&haystack[..atom_pos]`). Matching advances
+    ///   right-to-left from `input[input.len()]`, scanning at most the last
+    ///   `self.scan_limit` bytes of `input`.
+    ///
+    /// ```text
+    ///     <-- backward input --> | <-- forward input -->
+    ///          a b c d e f       |     g h i j k l
+    ///                            ^
+    ///                       starting point
+    /// ```
+    ///
+    /// When `wide` is `true`, each pattern byte is expected to be followed by an
+    /// interleaved `0x00` byte (UTF-16LE ASCII), so step sizes and reported
+    /// match lengths are doubled in bytes.
+    ///
+    /// Returning [`ControlFlow::Continue`] from `f` instructs the VM to keep
+    /// searching for additional matches, whereas [`ControlFlow::Break`] aborts
+    /// execution immediately.
     pub fn try_match<C>(
         &mut self,
         start: C,
@@ -141,13 +170,11 @@ impl<'r> FastVM<'r> {
                     }
                 }
                 Instr::Literal(_) | Instr::MaskedLiteral(_, _) => {
-                    self.advance_pattern(&instr, input, backwards, wide, step);
+                    self.advance_pattern(&instr, input, backwards, wide);
                 }
                 Instr::Alternation(alternatives) => {
                     for alt in alternatives {
-                        self.advance_pattern(
-                            &alt, input, backwards, wide, step,
-                        );
+                        self.advance_pattern(&alt, input, backwards, wide);
                     }
                 }
                 Instr::JumpExact(jump) => {
@@ -257,23 +284,36 @@ impl<'r> FastVM<'r> {
 }
 
 impl FastVM<'_> {
-    /// Returns the `byte_len`-byte candidate slice starting (or ending, when
-    /// `backwards` is true) at `position` in forward left-to-right byte order.
+    /// Returns the `len`-byte slice in `input` to test at `position`, always
+    /// oriented in left-to-right haystack order, or `None` if fewer than `len`
+    /// bytes remain in the scan direction.
+    ///
+    /// * In forward mode, `position` is measured from the start of `input`,
+    ///   returning `&input[position..position + len]`.
+    /// * In backward mode, `position` is measured leftward from `input.len()`,
+    ///   returning `&input[end - len..end]` where `end = input.len() - position`.
     #[inline(always)]
     fn candidate_window(
         input: &[u8],
         position: usize,
-        byte_len: usize,
+        len: usize,
         backwards: bool,
     ) -> Option<&[u8]> {
         if backwards {
             let end = input.len().checked_sub(position)?;
-            input.get(end.checked_sub(byte_len)?..end)
+            input.get(end.checked_sub(len)?..end)
         } else {
-            input.get(position..position.checked_add(byte_len)?)
+            input.get(position..position.checked_add(len)?)
         }
     }
 
+    /// Advances all currently active offsets in `self.positions` across `instr`
+    /// ([`Instr::Literal`] or [`Instr::MaskedLiteral`]), inserting
+    /// `position + byte_len` into `self.next_positions` for each offset whose
+    /// candidate window matches.
+    ///
+    /// Used both for top-level literal instructions and for each branch inside
+    /// an [`Instr::Alternation`].
     #[inline]
     fn advance_pattern(
         &mut self,
@@ -281,8 +321,9 @@ impl FastVM<'_> {
         input: &[u8],
         backwards: bool,
         wide: bool,
-        step: usize,
     ) {
+        let step = if wide { 2 } else { 1 };
+
         match *instr {
             Instr::Literal(literal) => {
                 let byte_len = step * literal.len();
@@ -313,6 +354,10 @@ impl FastVM<'_> {
         }
     }
 
+    /// Returns `true` if `window` matches `literal` exactly.
+    ///
+    /// `window` must have length `literal.len()` (or `literal.len() * 2` when
+    /// `wide` is `true`, in which case odd-indexed bytes must all be `0x00`).
     #[inline]
     fn match_literal(window: &[u8], literal: &[u8], wide: bool) -> bool {
         if wide {
@@ -332,6 +377,11 @@ impl FastVM<'_> {
         }
     }
 
+    /// Returns `true` if `window` matches `literal` after applying `mask`
+    /// (`(input_byte & mask_byte) == (literal_byte & mask_byte)`).
+    ///
+    /// `window` must have length `literal.len()` (or `literal.len() * 2` when
+    /// `wide` is `true`, in which case odd-indexed bytes must all be `0x00`).
     #[inline]
     fn match_masked_literal(
         window: &[u8],
@@ -366,6 +416,17 @@ impl FastVM<'_> {
         true
     }
 
+    /// Advances a single forward `position` across a variable-length jump
+    /// `range` (`[min..=max]` steps, scaled by 2 when [`JumpFlags::Wide`] is
+    /// set), inserting reachable target offsets into `next_positions`.
+    ///
+    /// `input` is the remaining slice starting at `position`
+    /// (`&full_input[position..]`). When `byte_after_jmp` is `Some(b)` (the
+    /// known leading byte of the instruction immediately following the jump),
+    /// SIMD `memchr` / `memchr2` is used to record only offsets within the jump
+    /// window where `b` actually occurs; when [`JumpFlags::AcceptNewlines`] is
+    /// not set, any `0x0A` byte in the mandatory prefix or jump window halts
+    /// further expansion from `position`.
     #[inline]
     fn jump_fwd(
         input: &[u8],
@@ -440,6 +501,17 @@ impl FastVM<'_> {
         }
     }
 
+    /// Advances a single backward `position` leftward across a variable-length
+    /// jump `range` (`[min..=max]` steps, scaled by 2 when [`JumpFlags::Wide`]
+    /// is set), inserting reachable target distances into `next_positions`.
+    ///
+    /// `input` is the prefix preceding `position`
+    /// (`&full_input[..full_input.len() - position]`). When
+    /// `expected_after_jump` is `Some(b)` (the known trailing byte of the
+    /// preceding sub-pattern in backward execution), reverse SIMD `memrchr` /
+    /// `memrchr2` scans right-to-left so only candidate positions preceded by
+    /// `b` are inserted, stopping at the first `0x0A` when
+    /// [`JumpFlags::AcceptNewlines`] is not set.
     #[inline]
     fn jump_bck(
         input: &[u8],
