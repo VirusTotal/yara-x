@@ -161,52 +161,47 @@ impl<'r> Scanner<'r> {
 
         let ctx = self.scan_context_mut();
 
+        ctx.tracker.block_matches.get_or_insert_with(Vec::new).clear();
         ctx.scan_state = ScanState::ScanningBlock((base, data));
 
         ctx.set_pattern_search_done(false);
-        ctx.search_for_patterns()?;
-
+        let search_res = ctx.search_for_patterns();
         ctx.scan_state = ScanState::Idle;
+        search_res?;
 
-        for (_, match_list) in
-            ctx.tracker.pattern_matches.matches_per_pattern()
+        let context_size = ctx.match_context_size;
+
+        // Gather snippets of data for every match newly inserted or extended
+        // in the block that was just scanned.
+        for match_range in
+            ctx.tracker.block_matches.as_mut().unwrap().drain(..)
         {
-            // Here we iterate the matches in order to gather snippets of data
-            // from where the matches occurred. Notice however that we are only
-            // interested in the matches that occurred in the recently scanned
-            // block (those were match.base == base).
-            for match_ in
-                match_list.iter().filter(|match_| match_.base == base)
-            {
-                let context_start = cmp::max(
-                    match_.range.start.saturating_sub(ctx.match_context_size),
-                    base,
-                );
+            let context_start =
+                cmp::max(match_range.start.saturating_sub(context_size), base);
 
-                let context_end = cmp::min(
-                    match_.range.end + ctx.match_context_size,
-                    base + data.len(),
-                );
+            let context_end = cmp::min(
+                match_range.end.saturating_add(context_size),
+                base + data.len(),
+            );
 
-                let block_start = context_start - base;
-                let block_end = context_end - base;
+            let block_start = context_start - base;
+            let block_end = context_end - base;
 
-                if let Some(context_data) = data.get(block_start..block_end) {
-                    // Snippets are indexed by the offset where the context starts.
-                    match self.snippets.entry(context_start) {
-                        Entry::Occupied(mut entry) => {
-                            let snippet = entry.get_mut();
-                            if context_data.len() > snippet.len() {
-                                entry.insert(context_data.to_vec());
-                            }
-                        }
-                        Entry::Vacant(entry) => {
+            if let Some(context_data) = data.get(block_start..block_end) {
+                // Snippets are indexed by the offset where the context starts.
+                match self.snippets.entry(context_start) {
+                    Entry::Occupied(mut entry) => {
+                        let snippet = entry.get_mut();
+                        if context_data.len() > snippet.len() {
                             entry.insert(context_data.to_vec());
                         }
                     }
-                } else {
-                    debug_assert!(false)
+                    Entry::Vacant(entry) => {
+                        entry.insert(context_data.to_vec());
+                    }
                 }
+            } else {
+                debug_assert!(false)
             }
         }
 
@@ -609,6 +604,48 @@ mod tests {
         assert_eq!(match1.data(), b"foo".as_slice());
         assert_eq!(match1.range(), 0..3);
 
+        assert!(matches.next().is_none());
+    }
+
+    #[test]
+    fn block_scanner_overlapping_greedy_regexp() {
+        let rules = compile(
+            r#"
+            rule test {
+                strings:
+                    $a = /aaaB+/
+                condition:
+                    $a
+            }"#,
+        )
+        .unwrap();
+
+        let mut scanner = Scanner::new(&rules);
+        // Block 0 (offsets 0..13): matches "aaaBBB" at 7..13.
+        // Block 1 (offsets 6..23): overlaps block 0 and extends the match at
+        // offset 7 to "aaaBBBBBB" (7..16).
+        let results = scanner
+            .match_context_size(2)
+            .scan(0, b"prefix aaaBBB")
+            .unwrap()
+            .scan(6, b" aaaBBBBBB suffix")
+            .unwrap()
+            .finish()
+            .unwrap();
+
+        assert_eq!(results.matching_rules().len(), 1);
+
+        let rule = results.matching_rules().next().unwrap();
+        let pattern = rule.patterns().next().unwrap();
+        let mut matches = pattern.matches();
+
+        let match_ = matches.next().unwrap();
+        assert_eq!(match_.range(), 7..16);
+        assert_eq!(match_.data(), b"aaaBBBBBB".as_slice());
+        assert_eq!(
+            match_.data_with_context(),
+            (b" aaaBBBBBB s".as_slice(), 1..10)
+        );
         assert!(matches.next().is_none());
     }
 }

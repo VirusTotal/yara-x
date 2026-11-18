@@ -87,6 +87,11 @@ pub(crate) struct MatchTracker<'r> {
     /// during this scan because they belong to some rule that we know that
     /// can't match.
     pub disabled_patterns: BitVec,
+    /// When scanning in multi-block mode, records the absolute ranges of
+    /// matches newly inserted or extended during the current block so
+    /// [`crate::scanner::blocks::Scanner`] can extract snippets in
+    /// `O(block_matches)` time without rescanning historical matches.
+    pub block_matches: Option<Vec<Range<usize>>>,
     /// The rules that are being used during the scan.
     pub compiled_rules: &'r Rules,
     /// Indicates whether fast mode is enabled. In fast mode the scanner
@@ -579,6 +584,9 @@ impl ScanContext<'_, '_> {
         self.tracker.disabled_patterns.fill(false);
 
         self.tracker.unconfirmed_matches.clear();
+        if let Some(bm) = &mut self.tracker.block_matches {
+            bm.clear();
+        }
         self.num_matching_private_rules = 0;
 
         // Clear the value of `current_struct` as it may contain a reference
@@ -916,7 +924,7 @@ impl ScanContext<'_, '_> {
                     sub_pattern_id,
                     sub_pattern,
                     *pattern_id,
-                    Match::new(match_range).rebase(base),
+                    Match::with_base(base, match_range),
                 );
             }
 
@@ -953,8 +961,10 @@ impl ScanContext<'_, '_> {
                         sub_pattern_id,
                         sub_pattern,
                         *pattern_id,
-                        Match::new(atom_pos..atom_pos + pattern.len())
-                            .rebase(base),
+                        Match::with_base(
+                            base,
+                            atom_pos..atom_pos + pattern.len(),
+                        ),
                     );
                 }
             }
@@ -984,8 +994,10 @@ impl ScanContext<'_, '_> {
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            Match::new(atom_pos..atom_pos + pattern.len())
-                                .rebase(base),
+                            Match::with_base(
+                                base,
+                                atom_pos..atom_pos + pattern.len(),
+                            ),
                         );
                     }
                 }
@@ -1027,7 +1039,7 @@ impl ScanContext<'_, '_> {
                             sub_pattern_id,
                             sub_pattern,
                             *pattern_id,
-                            Match::new(match_range).rebase(base),
+                            Match::with_base(base, match_range),
                         );
                     }
                     _ => {}
@@ -1047,7 +1059,7 @@ impl ScanContext<'_, '_> {
                         sub_pattern_id,
                         sub_pattern,
                         *pattern_id,
-                        Match::new(match_range).rebase(base),
+                        Match::with_base(base, match_range),
                     );
                 },
             ),
@@ -1095,7 +1107,7 @@ impl ScanContext<'_, '_> {
                                 sub_pattern_id,
                                 sub_pattern,
                                 *pattern_id,
-                                Match::new(match_range).rebase(base),
+                                Match::with_base(base, match_range),
                             );
                         },
                     );
@@ -1118,9 +1130,11 @@ impl ScanContext<'_, '_> {
                         sub_pattern_id,
                         sub_pattern,
                         *pattern_id,
-                        Match::new(atom_pos..atom_pos + pattern.len())
-                            .rebase(base)
-                            .xor_key(key),
+                        Match::with_base(
+                            base,
+                            atom_pos..atom_pos + pattern.len(),
+                        )
+                        .xor_key(key),
                     );
                 }
             }
@@ -1144,7 +1158,7 @@ impl ScanContext<'_, '_> {
                         sub_pattern_id,
                         sub_pattern,
                         *pattern_id,
-                        Match::new(match_range).rebase(base),
+                        Match::with_base(base, match_range),
                     );
                 }
             }
@@ -1187,7 +1201,7 @@ impl ScanContext<'_, '_> {
                         sub_pattern_id,
                         sub_pattern,
                         *pattern_id,
-                        Match::new(match_range).rebase(base),
+                        Match::with_base(base, match_range),
                     );
                 }
             }
@@ -1338,8 +1352,10 @@ impl ScanContext<'_, '_> {
                                 *sub_pattern_id,
                                 sub_pattern,
                                 *pattern_id,
-                                Match::new(offset..offset + pattern.len())
-                                    .rebase(base),
+                                Match::with_base(
+                                    base,
+                                    offset..offset + pattern.len(),
+                                ),
                             );
                         }
                     }
@@ -1551,11 +1567,9 @@ fn verify_chain_of_matches(
                     tracker,
                     wasm_state,
                     pattern_id,
-                    Match {
-                        base: tail_match.base,
-                        range: current_match.range.start..tail_match.range.end,
-                        xor_key: None,
-                    },
+                    Match::new(
+                        current_match.range.start..tail_match.range.end,
+                    ),
                     flags.contains(SubPatternFlags::GreedyRegexp),
                 );
 
@@ -2055,9 +2069,13 @@ fn track_match(
     bits.set(pattern_id.into(), true);
 
     let mut disable_pattern = false;
+    let match_range = match_.range.clone();
 
     match tracker.pattern_matches.add(pattern_id, match_, replace_if_longer) {
         AddResult::Inserted(current_matches) => {
+            if let Some(block_matches) = &mut tracker.block_matches {
+                block_matches.push(match_range);
+            }
             #[cfg(feature = "logging")]
             if current_matches % 100_000 == 0 {
                 let (rule, pattern) = tracker
@@ -2099,7 +2117,12 @@ fn track_match(
         AddResult::MaxMatchesReached => {
             disable_pattern = true;
         }
-        AddResult::Updated => {}
+        AddResult::Updated { extended } => {
+            if extended && let Some(block_matches) = &mut tracker.block_matches
+            {
+                block_matches.push(match_range);
+            }
+        }
     }
 
     if disable_pattern {
@@ -2293,6 +2316,7 @@ pub fn create_wasm_store_and_ctx<'r>(
             pattern_matches: PatternMatches::new(),
             unconfirmed_matches: FxHashMap::default(),
             disabled_patterns: BitVec::repeat(false, num_patterns as usize),
+            block_matches: None,
             compiled_rules: rules,
             fast_scan: false,
         },

@@ -1,5 +1,5 @@
 use std::collections::hash_map::Entry;
-use std::ops::{Add, Range, RangeInclusive, Sub};
+use std::ops::{Range, RangeInclusive};
 
 use core::slice::{Iter, IterMut};
 use rustc_hash::FxHashMap;
@@ -10,8 +10,6 @@ use crate::re::hir::ChainedPatternGap;
 /// Represents the match of a pattern.
 #[derive(Debug, Clone)]
 pub(crate) struct Match {
-    /// Base offset of the block where the match occurred.
-    pub base: usize,
     /// Range within the scanned data where the match occurred. Notice that
     /// this is an absolute range, in other words: in block scanning this
     /// range is not relative to the block where the match occurred, it is
@@ -24,22 +22,20 @@ pub(crate) struct Match {
 }
 
 impl Match {
+    #[inline]
     pub fn new(range: Range<usize>) -> Self {
-        Self { base: 0, range, xor_key: None }
+        Self { range, xor_key: None }
     }
 
-    /// Sets the base for the match.
-    ///
-    /// Subtract the previous base from the match start and end, and
-    /// adds the new one.
-    pub fn rebase(mut self, base: usize) -> Self {
-        self.range = self.range.start.sub(self.base).add(base)
-            ..self.range.end.sub(self.base).add(base);
-        self.base = base;
-        self
+    /// Creates a [`Match`] from a block-relative `range` and the block's
+    /// starting `base` offset.
+    #[inline]
+    pub fn with_base(base: usize, range: Range<usize>) -> Self {
+        Self { range: (range.start + base)..(range.end + base), xor_key: None }
     }
 
     /// Sets the xor key for the match.
+    #[inline]
     pub fn xor_key(mut self, key: u8) -> Self {
         self.xor_key = Some(key);
         self
@@ -112,8 +108,10 @@ impl MatchList {
             Some(last) if new_match.range.start == last.range.start => {
                 if replace_if_longer && last.range.end < new_match.range.end {
                     last.range.end = new_match.range.end;
+                    AddResult::Updated { extended: true }
+                } else {
+                    AddResult::Updated { extended: false }
                 }
-                AddResult::Updated
             }
             // No matches so far, the match is first one.
             None => {
@@ -135,12 +133,14 @@ impl MatchList {
                         let existing_match = &mut self.matches[index];
                         if existing_match.range.end < new_match.range.end {
                             existing_match.range.end = new_match.range.end;
+                            AddResult::Updated { extended: true }
+                        } else {
+                            AddResult::Updated { extended: false }
                         }
-                        AddResult::Updated
                     }
                     // Found, but replace_if_longer is false, do nothing and keep the
                     // existing match.
-                    Ok(_) => AddResult::Updated,
+                    Ok(_) => AddResult::Updated { extended: false },
                     // Not found, insert at the corresponding position.
                     Err(index) => {
                         if self.matches.len() >= max_matches {
@@ -415,8 +415,9 @@ impl<'a> IntoIterator for &'a mut UnconfirmedMatches {
 pub(crate) enum AddResult {
     /// A new match was inserted into the list, growing it to the given length.
     Inserted(usize),
-    /// An existing match was updated or ignored (list length did not increase).
-    Updated,
+    /// An existing match at the same start offset was either extended in place
+    /// (`extended == true`) or left unchanged (`extended == false`).
+    Updated { extended: bool },
     /// Pattern has reached `max_matches_per_pattern` limit and the match was rejected.
     MaxMatchesReached,
 }
@@ -530,12 +531,6 @@ impl PatternMatches {
             }
         }
     }
-
-    pub fn matches_per_pattern(
-        &self,
-    ) -> impl Iterator<Item = (&PatternId, &MatchList)> {
-        self.matches.iter()
-    }
 }
 
 #[cfg(test)]
@@ -592,11 +587,20 @@ mod test {
             AddResult::Inserted(2)
         );
         // Extending the last match in place at capacity must succeed.
-        assert_eq!(pm.add(pid, Match::new(10..18), true), AddResult::Updated);
+        assert_eq!(
+            pm.add(pid, Match::new(10..18), true),
+            AddResult::Updated { extended: true }
+        );
         // Extending an earlier match via binary search at capacity must succeed.
-        assert_eq!(pm.add(pid, Match::new(2..9), true), AddResult::Updated);
+        assert_eq!(
+            pm.add(pid, Match::new(2..9), true),
+            AddResult::Updated { extended: true }
+        );
         // Shorter match at an existing offset is ignored without error.
-        assert_eq!(pm.add(pid, Match::new(2..4), true), AddResult::Updated);
+        assert_eq!(
+            pm.add(pid, Match::new(2..4), true),
+            AddResult::Updated { extended: false }
+        );
         // New start offsets (both after the end and in the middle) are rejected.
         assert_eq!(
             pm.add(pid, Match::new(20..22), true),
