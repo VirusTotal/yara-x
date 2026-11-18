@@ -8,14 +8,11 @@ use std::cmp;
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 use std::mem;
-use std::mem::transmute;
-use std::pin::Pin;
 use std::time::Duration;
 
 use crate::errors::VariableError;
-use crate::scanner::context::{ScanState, create_wasm_store_and_ctx};
-use crate::scanner::{DataSnippets, ScanContext};
-use crate::wasm::runtime::Store;
+use crate::scanner::DataSnippets;
+use crate::scanner::context::{PinnedScanContext, ScanState};
 use crate::{Rules, ScanError, ScanResults, Variable};
 
 /// Scans data in blocks
@@ -80,8 +77,7 @@ use crate::{Rules, ScanError, ScanResults, Variable};
 /// the scanner may try to verify this consistency, but only when some pattern
 /// matches in the overlapping region.
 pub struct Scanner<'r> {
-    _rules: &'r Rules,
-    wasm_store: Pin<Box<Store<ScanContext<'static, 'static>>>>,
+    ctx: PinnedScanContext<'r>,
     needs_reset: bool,
     snippets: BTreeMap<usize, Vec<u8>>,
 }
@@ -90,8 +86,7 @@ impl<'r> Scanner<'r> {
     /// Creates a new block scanner.
     pub fn new(rules: &'r Rules) -> Scanner<'r> {
         Scanner {
-            _rules: rules,
-            wasm_store: create_wasm_store_and_ctx(rules),
+            ctx: PinnedScanContext::new(rules),
             needs_reset: true,
             snippets: BTreeMap::new(),
         }
@@ -104,7 +99,7 @@ impl<'r> Scanner<'r> {
     /// match context size is 0, which means that [`crate::Match::data_with_context`]
     /// will return exactly the same data as [`crate::Match::data`].
     pub fn match_context_size(&mut self, size: usize) -> &mut Self {
-        self.scan_context_mut().match_context_size = size;
+        self.ctx.get_mut().match_context_size = size;
         self
     }
 }
@@ -137,7 +132,7 @@ impl<'r> Scanner<'r> {
         // block after the scanner has been created, or when a previous scan
         // has finished and the scanner is going to be reused.
         if self.needs_reset {
-            self.scan_context_mut().reset();
+            self.ctx.get_mut().reset();
             self.needs_reset = false;
         }
         // Even when the scanner is not reset, we must clear unconfirmed matches
@@ -156,10 +151,10 @@ impl<'r> Scanner<'r> {
         // cannot span blocks. To maintain a simple, uniform rule — that matches
         // never cross block boundaries — we clear all unconfirmed matches here.
         else {
-            self.scan_context_mut().tracker.unconfirmed_matches.clear();
+            self.ctx.get_mut().tracker.unconfirmed_matches.clear();
         }
 
-        let ctx = self.scan_context_mut();
+        let ctx = self.ctx.get_mut();
 
         ctx.tracker.block_matches.get_or_insert_with(Vec::new).clear();
         ctx.scan_state = ScanState::ScanningBlock((base, data));
@@ -214,12 +209,12 @@ impl<'r> Scanner<'r> {
     /// conditions of the YARA rules and produces the final scan results.
     pub fn finish(&mut self) -> Result<ScanResults<'_, 'r>, ScanError> {
         if self.needs_reset {
-            self.scan_context_mut().reset();
+            self.ctx.get_mut().reset();
         }
 
         self.needs_reset = true;
 
-        let ctx = self.scan_context_mut();
+        let ctx = self.ctx.get_mut();
 
         ctx.eval_conditions()?;
 
@@ -246,7 +241,7 @@ impl<'r> Scanner<'r> {
     where
         VariableError: From<<T as TryInto<Variable>>::Error>,
     {
-        self.scan_context_mut().set_global(ident, value)?;
+        self.ctx.get_mut().set_global(ident, value)?;
         Ok(self)
     }
 
@@ -259,7 +254,7 @@ impl<'r> Scanner<'r> {
     /// the scanner could potentially continue running for a longer period than
     /// the specified timeout.
     pub fn set_timeout(&mut self, timeout: Duration) -> &mut Self {
-        self.scan_context_mut().set_timeout(timeout);
+        self.ctx.get_mut().set_timeout(timeout);
         self
     }
 
@@ -268,10 +263,7 @@ impl<'r> Scanner<'r> {
     /// When some pattern reaches the maximum number of patterns it won't
     /// produce more matches.
     pub fn max_matches_per_pattern(&mut self, n: usize) -> &mut Self {
-        self.scan_context_mut()
-            .tracker
-            .pattern_matches
-            .max_matches_per_pattern(n);
+        self.ctx.get_mut().tracker.pattern_matches.max_matches_per_pattern(n);
         self
     }
 
@@ -286,7 +278,7 @@ impl<'r> Scanner<'r> {
     /// you won't get all occurrences of the pattern in the file, only the first
     /// one.
     pub fn fast_scan(&mut self, yes: bool) -> &mut Self {
-        self.scan_context_mut().tracker.fast_scan = yes;
+        self.ctx.get_mut().tracker.fast_scan = yes;
         self
     }
 
@@ -301,7 +293,7 @@ impl<'r> Scanner<'r> {
     where
         F: FnMut(String) + 'r,
     {
-        self.scan_context_mut().console_log = Some(Box::new(callback));
+        self.ctx.get_mut().console_log = Some(Box::new(callback));
         self
     }
 
@@ -316,7 +308,7 @@ impl<'r> Scanner<'r> {
         &self,
         n: usize,
     ) -> Vec<crate::scanner::ProfilingData<'_>> {
-        self.scan_context().slowest_rules(n)
+        self.ctx.get().slowest_rules(n)
     }
 
     /// Clears all accumulated profiling data.
@@ -326,36 +318,14 @@ impl<'r> Scanner<'r> {
     /// the results reflect only the data gathered after this method is called.
     #[cfg(feature = "rules-profiling")]
     pub fn clear_profiling_data(&mut self) {
-        self.scan_context_mut().clear_profiling_data()
-    }
-}
-
-impl<'r> Scanner<'r> {
-    #[cfg(feature = "rules-profiling")]
-    #[inline]
-    fn scan_context<'a>(&self) -> &ScanContext<'r, 'a> {
-        unsafe {
-            transmute::<&ScanContext<'static, 'static>, &ScanContext<'r, '_>>(
-                self.wasm_store.data(),
-            )
-        }
-    }
-    #[inline]
-    fn scan_context_mut<'a>(&mut self) -> &'a mut ScanContext<'r, 'a> {
-        unsafe {
-            transmute::<
-                &mut ScanContext<'static, 'static>,
-                &mut ScanContext<'r, 'a>,
-            >(self.wasm_store.data_mut())
-        }
+        self.ctx.get_mut().clear_profiling_data()
     }
 }
 
 impl<'r> From<crate::scanner::Scanner<'r>> for Scanner<'r> {
     fn from(scanner: crate::scanner::Scanner<'r>) -> Self {
         Self {
-            _rules: scanner._rules,
-            wasm_store: scanner.wasm_store,
+            ctx: scanner.ctx,
             needs_reset: true,
             snippets: Default::default(),
         }

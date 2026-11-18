@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 #[cfg(feature = "rules-profiling")]
 use std::iter;
+use std::marker::PhantomData;
 use std::mem::{MaybeUninit, transmute};
 #[cfg(feature = "rules-profiling")]
 use std::ops::AddAssign;
@@ -2296,154 +2297,204 @@ impl From<i64> for RuntimeObjectHandle {
     }
 }
 
-pub fn create_wasm_store_and_ctx<'r>(
-    rules: &'r Rules,
-) -> Pin<Box<Store<ScanContext<'static, 'static>>>> {
-    crate::init_logger();
+/// Owns a heap-pinned WASM [`Store`] and its embedded [`ScanContext`], tying
+/// their lifetime to the compiled [`Rules`] (`'r`).
+///
+/// [`Store`] requires a `'static` state type, so [`ScanContext<'r, '_>`] has
+/// its lifetimes erased to `'static` on construction and restored when
+/// borrowed via [`Self::get`] and [`Self::get_mut`]. Keeping both
+/// transmutations inside this type ensures `'r` can never be separated from
+/// the underlying store and borrows cannot outlive `&self` / `&mut self`.
+pub(crate) struct PinnedScanContext<'r> {
+    store: Pin<Box<Store<ScanContext<'static, 'static>>>>,
+    _rules: PhantomData<&'r Rules>,
+}
 
-    let num_rules = rules.num_rules() as u32;
-    let num_patterns = rules.num_patterns() as u32;
+impl<'r> PinnedScanContext<'r> {
+    /// Creates a new [`PinnedScanContext`] initialized for `rules`.
+    pub(crate) fn new(rules: &'r Rules) -> Self {
+        crate::init_logger();
 
-    let ctx = ScanContext {
-        runtime_objects: FxHashMap::default(),
-        compiled_rules: rules,
-        console_log: None,
-        current_struct: None,
-        scan_timeout: None,
-        match_context_size: 0,
-        scan_state: ScanState::Idle,
-        root_struct: rules.globals().make_root(),
-        matching_rules: Vec::new(),
-        matching_rules_per_ns: IndexMap::new(),
-        num_matching_private_rules: 0,
-        wasm: WasmState {
-            module: MaybeUninit::uninit(),
-            main_memory: None,
-            main_func: None,
-            filesize: None,
-            pattern_search_done: None,
-            store: NonNull::dangling(),
-            num_rules,
-            num_patterns,
-        },
-        module_outputs: FxHashMap::default(),
-        user_provided_module_outputs: FxHashMap::default(),
-        tracker: MatchTracker {
-            pattern_matches: PatternMatches::new(),
-            unconfirmed_matches: FxHashMap::default(),
-            disabled_patterns: BitVec::repeat(false, num_patterns as usize),
-            block_matches: None,
+        let num_rules = rules.num_rules() as u32;
+        let num_patterns = rules.num_patterns() as u32;
+
+        let ctx = ScanContext {
+            runtime_objects: FxHashMap::default(),
             compiled_rules: rules,
-            fast_scan: false,
-        },
-        deadline: 0,
-        regex_cache: RefCell::new(FxHashMap::default()),
-        regex_set_cache: RefCell::new(FxHashMap::default()),
-        vm: VM::new(rules.re_code()),
-        custom_base64_engine_cache: Vec::new(),
-        #[cfg(feature = "rules-profiling")]
-        time_spent_in_pattern: FxHashMap::default(),
-        #[cfg(feature = "rules-profiling")]
-        time_spent_in_rule: vec![0; num_rules as usize],
-        #[cfg(feature = "rules-profiling")]
-        rule_execution_start_time: 0,
-        #[cfg(feature = "rules-profiling")]
-        last_executed_rule: None,
-        #[cfg(any(feature = "rules-profiling", feature = "logging"))]
-        clock: quanta::Clock::new(),
-    };
+            console_log: None,
+            current_struct: None,
+            scan_timeout: None,
+            match_context_size: 0,
+            scan_state: ScanState::Idle,
+            root_struct: rules.globals().make_root(),
+            matching_rules: Vec::new(),
+            matching_rules_per_ns: IndexMap::new(),
+            num_matching_private_rules: 0,
+            wasm: WasmState {
+                module: MaybeUninit::uninit(),
+                main_memory: None,
+                main_func: None,
+                filesize: None,
+                pattern_search_done: None,
+                store: NonNull::dangling(),
+                num_rules,
+                num_patterns,
+            },
+            module_outputs: FxHashMap::default(),
+            user_provided_module_outputs: FxHashMap::default(),
+            tracker: MatchTracker {
+                pattern_matches: PatternMatches::new(),
+                unconfirmed_matches: FxHashMap::default(),
+                disabled_patterns: BitVec::repeat(
+                    false,
+                    num_patterns as usize,
+                ),
+                block_matches: None,
+                compiled_rules: rules,
+                fast_scan: false,
+            },
+            deadline: 0,
+            regex_cache: RefCell::new(FxHashMap::default()),
+            regex_set_cache: RefCell::new(FxHashMap::default()),
+            vm: VM::new(rules.re_code()),
+            custom_base64_engine_cache: Vec::new(),
+            #[cfg(feature = "rules-profiling")]
+            time_spent_in_pattern: FxHashMap::default(),
+            #[cfg(feature = "rules-profiling")]
+            time_spent_in_rule: vec![0; num_rules as usize],
+            #[cfg(feature = "rules-profiling")]
+            rule_execution_start_time: 0,
+            #[cfg(feature = "rules-profiling")]
+            last_executed_rule: None,
+            #[cfg(any(feature = "rules-profiling", feature = "logging"))]
+            clock: quanta::Clock::new(),
+        };
 
-    // The ScanContext structure belongs to the WASM store, but at the same
-    // time the context must have a reference to the store because it is
-    // required for accessing the WASM memory from code that only has a
-    // reference to ScanContext. This kind of circular data structures are
-    // not natural to Rust, and they can be achieved either by using unsafe
-    // pointers, or by using Rc::Weak. In this case we are storing a pointer
-    // to the store in ScanContext. The store is put into a pinned box in order
-    // to make sure that it doesn't move from its original memory address and
-    // the pointer remains valid.
-    //
-    // Also, the `Store` type requires a type T that is static, therefore
-    // we are forced to transmute the ScanContext<'r> into ScanContext<'static>.
-    // This is safe to do because the Store only lives for the time that
-    // the scanner lives, and 'r is the lifetime for the rules passed to
-    // the scanner, which are guaranteed to outlive the scanner.
-    let mut wasm_store = Box::pin(Store::new(wasm::get_engine(), unsafe {
-        transmute::<ScanContext<'r, '_>, ScanContext<'static, 'static>>(ctx)
-    }));
+        // The ScanContext structure belongs to the WASM store, but at the same
+        // time the context must have a reference to the store because it is
+        // required for accessing the WASM memory from code that only has a
+        // reference to ScanContext. This kind of circular data structures are
+        // not natural to Rust, and they can be achieved either by using unsafe
+        // pointers, or by using Rc::Weak. In this case we are storing a pointer
+        // to the store in ScanContext. The store is put into a pinned box in order
+        // to make sure that it doesn't move from its original memory address and
+        // the pointer remains valid.
+        //
+        // Also, the `Store` type requires a type T that is static, therefore
+        // we are forced to transmute the ScanContext<'r> into ScanContext<'static>.
+        // This is safe to do because the Store only lives for the time that
+        // the scanner lives, and 'r is the lifetime for the rules passed to
+        // the scanner, which are guaranteed to outlive the scanner.
+        let mut wasm_store = Box::pin(Store::new(
+            wasm::get_engine(),
+            unsafe {
+                transmute::<ScanContext<'r, '_>, ScanContext<'static, 'static>>(
+                    ctx,
+                )
+            },
+        ));
 
-    // Initialize the ScanContext.wasm.store pointer that was initially
-    // dangling.
-    wasm_store.data_mut().wasm.store =
-        NonNull::from(wasm_store.as_ref().deref());
+        // Initialize the ScanContext.wasm.store pointer that was initially
+        // dangling.
+        wasm_store.data_mut().wasm.store =
+            NonNull::from(wasm_store.as_ref().deref());
 
-    // Instantiate the module. This takes the wasm code provided by the
-    // `wasm_mod` function and links its imported functions with the
-    // implementations that YARA provides.
-    let wasm_instance = wasm::get_linker()
-        .instantiate(wasm_store.as_context_mut(), rules.wasm_mod())
-        .unwrap();
-
-    // Compute the base offset for the bitmap that contains matching
-    // information for patterns. This bitmap has 1 bit per pattern, the
-    // N-th bit is set if pattern with PatternId = N matched. The bitmap
-    // starts right after the bitmap that contains matching information
-    // for rules.
-    let matching_patterns_bitmap_base =
-        MATCHING_RULES_BITMAP_BASE as u32 + num_rules.div_ceil(8);
-
-    // Compute the required memory size in 64KB pages.
-    let mem_size = u32::div_ceil(
-        matching_patterns_bitmap_base + num_patterns.div_ceil(8),
-        65536,
-    );
-
-    // The main memory and the global variables are defined and exported by
-    // the module itself, see `WasmModuleBuilder::new`.
-    let main_memory = wasm_instance
-        .get_memory(wasm_store.as_context_mut(), "main_memory")
-        .unwrap();
-
-    if mem_size > 1 {
-        main_memory
-            .grow(wasm_store.as_context_mut(), (mem_size - 1) as u64)
+        // Instantiate the module. This takes the wasm code provided by the
+        // `wasm_mod` function and links its imported functions with the
+        // implementations that YARA provides.
+        let wasm_instance = wasm::get_linker()
+            .instantiate(wasm_store.as_context_mut(), rules.wasm_mod())
             .unwrap();
+
+        // Compute the base offset for the bitmap that contains matching
+        // information for patterns. This bitmap has 1 bit per pattern, the
+        // N-th bit is set if pattern with PatternId = N matched. The bitmap
+        // starts right after the bitmap that contains matching information
+        // for rules.
+        let matching_patterns_bitmap_base =
+            MATCHING_RULES_BITMAP_BASE as u32 + num_rules.div_ceil(8);
+
+        // Compute the required memory size in 64KB pages.
+        let mem_size = u32::div_ceil(
+            matching_patterns_bitmap_base + num_patterns.div_ceil(8),
+            65536,
+        );
+
+        // The main memory and the global variables are defined and exported by
+        // the module itself, see `WasmModuleBuilder::new`.
+        let main_memory = wasm_instance
+            .get_memory(wasm_store.as_context_mut(), "main_memory")
+            .unwrap();
+
+        if mem_size > 1 {
+            main_memory
+                .grow(wasm_store.as_context_mut(), (mem_size - 1) as u64)
+                .unwrap();
+        }
+
+        wasm_instance
+            .get_global(
+                wasm_store.as_context_mut(),
+                "matching_patterns_bitmap_base",
+            )
+            .unwrap()
+            .set(
+                wasm_store.as_context_mut(),
+                Val::I32(matching_patterns_bitmap_base as i32),
+            )
+            .unwrap();
+
+        let filesize = wasm_instance
+            .get_global(wasm_store.as_context_mut(), "filesize")
+            .unwrap();
+
+        let pattern_search_done = wasm_instance
+            .get_global(wasm_store.as_context_mut(), "pattern_search_done")
+            .unwrap();
+
+        // Obtain a reference to the "main" function exported by the module.
+        let main_fn = wasm_instance
+            .get_typed_func::<(), i32>(wasm_store.as_context_mut(), "main")
+            .unwrap();
+
+        let ctx = wasm_store.data_mut();
+
+        ctx.wasm.module = MaybeUninit::new(wasm_instance);
+        ctx.wasm.main_memory = Some(main_memory);
+        ctx.wasm.main_func = Some(main_fn);
+        ctx.wasm.filesize = Some(filesize);
+        ctx.wasm.pattern_search_done = Some(pattern_search_done);
+
+        Self { store: wasm_store, _rules: PhantomData }
     }
 
-    wasm_instance
-        .get_global(
-            wasm_store.as_context_mut(),
-            "matching_patterns_bitmap_base",
-        )
-        .unwrap()
-        .set(
-            wasm_store.as_context_mut(),
-            Val::I32(matching_patterns_bitmap_base as i32),
-        )
-        .unwrap();
+    /// Returns a reference to the underlying [`ScanContext`].
+    #[cfg(feature = "rules-profiling")]
+    #[inline]
+    pub(crate) fn get<'a>(&'a self) -> &'a ScanContext<'r, 'a> {
+        // SAFETY: `self._rules` guarantees `Rules` outlives `'r`, and both
+        // the reference lifetime and scanned-data lifetime `'a` are bounded
+        // by `&'a self`.
+        unsafe {
+            transmute::<&ScanContext<'static, 'static>, &ScanContext<'r, 'a>>(
+                self.store.data(),
+            )
+        }
+    }
 
-    let filesize = wasm_instance
-        .get_global(wasm_store.as_context_mut(), "filesize")
-        .unwrap();
-
-    let pattern_search_done = wasm_instance
-        .get_global(wasm_store.as_context_mut(), "pattern_search_done")
-        .unwrap();
-
-    // Obtain a reference to the "main" function exported by the module.
-    let main_fn = wasm_instance
-        .get_typed_func::<(), i32>(wasm_store.as_context_mut(), "main")
-        .unwrap();
-
-    let ctx = wasm_store.data_mut();
-
-    ctx.wasm.module = MaybeUninit::new(wasm_instance);
-    ctx.wasm.main_memory = Some(main_memory);
-    ctx.wasm.main_func = Some(main_fn);
-    ctx.wasm.filesize = Some(filesize);
-    ctx.wasm.pattern_search_done = Some(pattern_search_done);
-
-    wasm_store
+    /// Returns a mutable reference to the underlying [`ScanContext`].
+    #[inline]
+    pub(crate) fn get_mut<'a>(&'a mut self) -> &'a mut ScanContext<'r, 'a> {
+        // SAFETY: `self._rules` guarantees `Rules` outlives `'r`, and both
+        // the exclusive borrow and scanned-data lifetime `'a` are bounded
+        // by `&'a mut self`, preventing aliasing borrows.
+        unsafe {
+            transmute::<
+                &mut ScanContext<'static, 'static>,
+                &mut ScanContext<'r, 'a>,
+            >(self.store.data_mut())
+        }
+    }
 }
 
 #[cfg(test)]
