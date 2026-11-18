@@ -15,7 +15,7 @@ use std::sync::Once;
 use std::sync::atomic::AtomicU64;
 use std::time::Duration;
 
-use bitvec::prelude::*;
+use bitvec::order::Lsb0;
 #[cfg(unix)]
 use memmap2::Advice;
 use memmap2::{Mmap, MmapOptions};
@@ -37,7 +37,6 @@ use crate::scanner::context::create_wasm_store_and_ctx;
 pub(crate) use crate::scanner::matches::Match;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
-use crate::wasm::MATCHING_RULES_BITMAP_BASE;
 use crate::wasm::runtime::Store;
 
 mod context;
@@ -973,26 +972,7 @@ pub struct NonMatchingRules<'a, 'r> {
 
 impl<'a, 'r> NonMatchingRules<'a, 'r> {
     fn new(ctx: &'a ScanContext<'r, 'a>) -> Self {
-        let num_rules = ctx.compiled_rules.num_rules();
-        let main_memory = ctx
-            .wasm
-            .main_memory
-            .unwrap()
-            .data(unsafe { ctx.wasm.store.as_ref() });
-
-        let base = MATCHING_RULES_BITMAP_BASE as usize;
-
-        // Create a BitSlice that covers the region of main memory containing
-        // the bitmap that tells which rules matched and which did not.
-        let matching_rules_bitmap = BitSlice::<_, Lsb0>::from_slice(
-            &main_memory[base..base + num_rules.div_ceil(8)],
-        );
-
-        // The BitSlice will cover more bits than necessary, for example, if
-        // there are 3 rules the BitSlice will have 8 bits because it is
-        // created from a u8 slice that has 1 byte. Here we make sure that
-        // the BitSlice has exactly as many bits as existing rules.
-        let matching_rules_bitmap = &matching_rules_bitmap[0..num_rules];
+        let matching_rules_bitmap = ctx.wasm.rules_bitmap();
 
         // The number of non-matching private rules is computed from the
         // total number of private rules, because the scanner doesn't track

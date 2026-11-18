@@ -111,6 +111,8 @@ pub(crate) struct WasmState {
     pub filesize: Option<Global>,
     pub pattern_search_done: Option<Global>,
     pub store: NonNull<Store<ScanContext<'static, 'static>>>,
+    pub num_rules: u32,
+    pub num_patterns: u32,
 }
 
 impl WasmState {
@@ -119,6 +121,63 @@ impl WasmState {
         &mut self,
     ) -> &'a mut Store<ScanContext<'static, 'static>> {
         unsafe { self.store.as_mut() }
+    }
+
+    /// Returns an immutable [`BitSlice`] of length `self.num_rules` backed by
+    /// the matching-rules bitmap in WASM linear memory.
+    #[inline]
+    pub(crate) fn rules_bitmap(&self) -> &BitSlice<u8, Lsb0> {
+        let num_rules = self.num_rules as usize;
+        let main_mem =
+            self.main_memory.unwrap().data(unsafe { self.store.as_ref() });
+        let base = MATCHING_RULES_BITMAP_BASE as usize;
+        let bits = BitSlice::<u8, Lsb0>::from_slice(
+            &main_mem[base..base + num_rules.div_ceil(8)],
+        );
+        &bits[0..num_rules]
+    }
+
+    /// Returns a mutable [`BitSlice`] of length `self.num_rules` backed by the
+    /// matching-rules bitmap in WASM linear memory.
+    #[inline]
+    pub(crate) fn rules_bitmap_mut(&mut self) -> &mut BitSlice<u8, Lsb0> {
+        let num_rules = self.num_rules as usize;
+        let store = unsafe { self.store.as_mut() };
+        let main_mem = self.main_memory.unwrap().data_mut(store);
+        let base = MATCHING_RULES_BITMAP_BASE as usize;
+        let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
+            &mut main_mem[base..base + num_rules.div_ceil(8)],
+        );
+        &mut bits[0..num_rules]
+    }
+
+    /// Returns a mutable [`BitSlice`] of length `self.num_patterns` backed by
+    /// the matching-patterns bitmap in WASM linear memory (immediately
+    /// following the matching-rules bitmap).
+    #[inline]
+    pub(crate) fn patterns_bitmap_mut(&mut self) -> &mut BitSlice<u8, Lsb0> {
+        let num_rules = self.num_rules as usize;
+        let num_patterns = self.num_patterns as usize;
+        let store = unsafe { self.store.as_mut() };
+        let main_mem = self.main_memory.unwrap().data_mut(store);
+        let base = MATCHING_RULES_BITMAP_BASE as usize + num_rules.div_ceil(8);
+        let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
+            &mut main_mem[base..base + num_patterns.div_ceil(8)],
+        );
+        &mut bits[0..num_patterns]
+    }
+
+    /// Zeroes both the matching-rules and matching-patterns bitmaps in WASM
+    /// linear memory in a single contiguous byte fill.
+    #[inline]
+    pub(crate) fn clear_bitmaps(&mut self) {
+        let num_rules = self.num_rules as usize;
+        let num_patterns = self.num_patterns as usize;
+        let store = unsafe { self.store.as_mut() };
+        let mem = self.main_memory.unwrap().data_mut(store);
+        let base = MATCHING_RULES_BITMAP_BASE as usize;
+        let len = num_rules.div_ceil(8) + num_patterns.div_ceil(8);
+        mem[base..base + len].fill(0);
     }
 }
 
@@ -572,9 +631,6 @@ impl ScanContext<'_, '_> {
     /// This clears all the information generated during the previous scan and
     /// resets the deadline for timeouts.
     pub(crate) fn reset(&mut self) {
-        let num_rules = self.compiled_rules.num_rules();
-        let num_patterns = self.compiled_rules.num_patterns();
-
         self.scan_state = ScanState::Idle;
 
         // Free all runtime objects left around by previous scans.
@@ -613,23 +669,7 @@ impl ScanContext<'_, '_> {
         {
             self.tracker.pattern_matches.clear();
             self.matching_rules.clear();
-
-            let store = self.wasm_store_mut();
-            let mem = self.wasm.main_memory.unwrap().data_mut(store);
-
-            // Starting at MATCHING_RULES_BITMAP in main memory there's a
-            // bitmap were the N-th bit indicates if the rule with ID = N
-            // matched or not, If some rule matched in a previous call the
-            // bitmap will contain some bits set to 1 and need to be cleared.
-            let base = MATCHING_RULES_BITMAP_BASE as usize;
-            let bitmap = BitSlice::<_, Lsb0>::from_slice_mut(
-                &mut mem[base..base
-                    + num_rules.div_ceil(8)
-                    + num_patterns.div_ceil(8)],
-            );
-
-            // Set to zero all bits in the bitmap.
-            bitmap.fill(false);
+            self.wasm.clear_bitmaps();
         }
 
         // Timeout in seconds. This is either the value provided by the user or
@@ -719,15 +759,7 @@ impl ScanContext<'_, '_> {
             && let Some(rules) =
                 self.matching_rules_per_ns.get_mut(&rule.namespace_id)
         {
-            let store = self.wasm.store_mut();
-            let main_mem = self.wasm.main_memory.unwrap().data_mut(store);
-
-            let base = MATCHING_RULES_BITMAP_BASE as usize;
-            let num_rules = self.compiled_rules.num_rules();
-
-            let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
-                &mut main_mem[base..base + num_rules.div_ceil(8)],
-            );
+            let bits = self.wasm.rules_bitmap_mut();
 
             for rule_id in rules.drain(0..) {
                 if self.compiled_rules.get(rule_id).is_private {
@@ -775,17 +807,8 @@ impl ScanContext<'_, '_> {
             self.num_matching_private_rules += 1;
         }
 
-        let wasm_store = self.wasm_store_mut();
-        let mem = self.wasm.main_memory.unwrap().data_mut(wasm_store);
-        let num_rules = self.compiled_rules.num_rules();
-
-        let base = MATCHING_RULES_BITMAP_BASE as usize;
-        let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
-            &mut mem[base..base + num_rules.div_ceil(8)],
-        );
-
         // The RuleId-th bit in the `rule_matches` bit vector is set to 1.
-        bits.set(rule_id.into(), true);
+        self.wasm.rules_bitmap_mut().set(rule_id.into(), true);
 
         // Save the time in which the evaluation of the next rule started.
         #[cfg(feature = "rules-profiling")]
@@ -2056,17 +2079,7 @@ fn track_match(
     match_: Match,
     replace_if_longer: bool,
 ) {
-    let wasm_store = wasm_state.store_mut();
-    let mem = wasm_state.main_memory.unwrap().data_mut(wasm_store);
-    let num_rules = tracker.compiled_rules.num_rules();
-    let num_patterns = tracker.compiled_rules.num_patterns();
-
-    let base = MATCHING_RULES_BITMAP_BASE as usize + num_rules.div_ceil(8);
-    let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
-        &mut mem[base..base + num_patterns.div_ceil(8)],
-    );
-
-    bits.set(pattern_id.into(), true);
+    wasm_state.patterns_bitmap_mut().set(pattern_id.into(), true);
 
     let mut disable_pattern = false;
     let match_range = match_.range.clone();
@@ -2309,6 +2322,8 @@ pub fn create_wasm_store_and_ctx<'r>(
             filesize: None,
             pattern_search_done: None,
             store: NonNull::dangling(),
+            num_rules,
+            num_patterns,
         },
         module_outputs: FxHashMap::default(),
         user_provided_module_outputs: FxHashMap::default(),
