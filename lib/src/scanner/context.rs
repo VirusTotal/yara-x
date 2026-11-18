@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 #[cfg(feature = "rules-profiling")]
 use std::iter;
 use std::marker::PhantomData;
-use std::mem::{MaybeUninit, transmute};
+use std::mem::transmute;
 #[cfg(feature = "rules-profiling")]
 use std::ops::AddAssign;
 use std::ops::ControlFlow;
@@ -106,7 +106,7 @@ pub(crate) struct MatchTracker<'r> {
 /// Structure that holds information about WASM memories and variables used
 /// during the scan.
 pub(crate) struct WasmState {
-    pub module: MaybeUninit<Instance>,
+    pub module: Option<Instance>,
     pub main_func: Option<TypedFunc<(), i32>>,
     pub main_memory: Option<wasm::runtime::Memory>,
     pub filesize: Option<Global>,
@@ -2331,7 +2331,7 @@ impl<'r> PinnedScanContext<'r> {
             matching_rules_per_ns: IndexMap::new(),
             num_matching_private_rules: 0,
             wasm: WasmState {
-                module: MaybeUninit::uninit(),
+                module: None,
                 main_memory: None,
                 main_func: None,
                 filesize: None,
@@ -2459,7 +2459,7 @@ impl<'r> PinnedScanContext<'r> {
 
         let ctx = wasm_store.data_mut();
 
-        ctx.wasm.module = MaybeUninit::new(wasm_instance);
+        ctx.wasm.module = Some(wasm_instance);
         ctx.wasm.main_memory = Some(main_memory);
         ctx.wasm.main_func = Some(main_fn);
         ctx.wasm.filesize = Some(filesize);
