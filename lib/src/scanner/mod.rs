@@ -108,7 +108,7 @@ static INIT_HEARTBEAT: Once = Once::new();
 pub enum ScannedData<'d> {
     Slice(&'d [u8]),
     Vec(Vec<u8>),
-    Mmap { mmap: Mmap, len: usize },
+    Mmap(Mmap),
 }
 
 impl AsRef<[u8]> for ScannedData<'_> {
@@ -116,7 +116,7 @@ impl AsRef<[u8]> for ScannedData<'_> {
         match self {
             ScannedData::Slice(s) => s,
             ScannedData::Vec(v) => v.as_ref(),
-            ScannedData::Mmap { mmap, len } => &mmap.as_ref()[..*len],
+            ScannedData::Mmap(m) => m.as_ref(),
         }
     }
 }
@@ -556,15 +556,18 @@ impl<'r> Scanner<'r> {
         // cases.
         let data = if self.use_mmap && size > 32_000_000 {
             let mapped_file = unsafe {
-                MmapOptions::new().map_copy_read_only(&file).map_err(|err| {
-                    ScanError::MapError { path: path.to_path_buf(), err }
-                })
+                MmapOptions::new().len(size).map_copy_read_only(&file).map_err(
+                    |err| ScanError::MapError {
+                        path: path.to_path_buf(),
+                        err,
+                    },
+                )
             }?;
             #[cfg(unix)]
             mapped_file.advise(Advice::Sequential).map_err(|err| {
                 ScanError::MapError { path: path.to_path_buf(), err }
             })?;
-            ScannedData::Mmap { mmap: mapped_file, len: size }
+            ScannedData::Mmap(mapped_file)
         } else {
             let mut buffered_file = Vec::with_capacity(size);
             (&file)
