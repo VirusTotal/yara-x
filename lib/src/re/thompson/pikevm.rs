@@ -397,7 +397,30 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
     state.threads.push((start.location().try_into().unwrap(), rep_count));
     state.dirty = true;
 
-    let is_word_char = |b: InputByte| matches!(b, InputByte::Valid(c) if c == b'_' || c.is_ascii_alphanumeric());
+    // Normalize neighboring bytes into input text order `(left, right)` once
+    // so look-around assertions don't depend on the VM's scan direction.
+    let (left, right) = if start.backwards() {
+        (curr_byte, prev_byte)
+    } else {
+        (prev_byte, curr_byte)
+    };
+
+    let is_word = |b: Option<InputByte>| {
+        matches!(
+            b,
+            Some(InputByte::Valid(c)) if c == b'_' || c.is_ascii_alphanumeric()
+        )
+    };
+
+    // True at start/end of input (`a` is `None`), or immediately after/before
+    // `\n` or `\r` provided the cursor is not splitting a `\r\n` / `\n\r` pair.
+    let is_line_boundary = |a: Option<InputByte>, b: Option<InputByte>| match a
+    {
+        None => true,
+        Some(InputByte::Valid(b'\n')) => b != Some(InputByte::Valid(b'\r')),
+        Some(InputByte::Valid(b'\r')) => b != Some(InputByte::Valid(b'\n')),
+        _ => false,
+    };
 
     let apply_offset = |ip: u32, offset: Offset| -> u32 {
         (ip as isize).saturating_add(offset.into()).try_into().unwrap()
@@ -473,227 +496,29 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
             Instr::Jump(offset) => {
                 state.threads.push((apply_offset(ip, offset), rep_count));
             }
-            Instr::Start => {
-                let is_match = match (start.backwards(), prev_byte, curr_byte)
-                {
-                    // Going forward, no previous byte, we are at the start of
-                    // the input, this is a match.
-                    (false, None, _) => true,
-                    // Going backward, no current byte, we are at the start
-                    // of the input, this is a match.
-                    (true, _, None) => true,
-                    _ => false,
+            Instr::Start
+            | Instr::End
+            | Instr::LineStart
+            | Instr::LineEnd
+            | Instr::WordStart
+            | Instr::WordEnd
+            | Instr::WordStartHalf
+            | Instr::WordEndHalf
+            | Instr::WordBoundary
+            | Instr::WordBoundaryNeg => {
+                let is_match = match instr {
+                    Instr::Start => left.is_none(),
+                    Instr::End => right.is_none(),
+                    Instr::LineStart => is_line_boundary(left, right),
+                    Instr::LineEnd => is_line_boundary(right, left),
+                    Instr::WordStart => !is_word(left) && is_word(right),
+                    Instr::WordEnd => is_word(left) && !is_word(right),
+                    Instr::WordStartHalf => !is_word(left),
+                    Instr::WordEndHalf => !is_word(right),
+                    Instr::WordBoundary => is_word(left) != is_word(right),
+                    Instr::WordBoundaryNeg => is_word(left) == is_word(right),
+                    _ => unreachable!(),
                 };
-                if is_match {
-                    state.threads.push((
-                        apply_offset(ip, instr_size.into()),
-                        rep_count,
-                    ));
-                }
-            }
-            Instr::End => {
-                let is_match = match (start.backwards(), prev_byte, curr_byte)
-                {
-                    // Going forward, no current byte, we are at the end of the
-                    // data, this is a match.
-                    (false, _, None) => true,
-                    // Going backward, no previous byte, we are at the end of
-                    // the data, this is a match.
-                    (true, None, _) => true,
-                    _ => false,
-                };
-                if is_match {
-                    state.threads.push((
-                        apply_offset(ip, instr_size.into()),
-                        rep_count,
-                    ));
-                }
-            }
-            Instr::LineStart => {
-                let is_match = match (start.backwards(), prev_byte, curr_byte)
-                {
-                    // Going forward, no previous byte, we are at the start of
-                    // the input, this is a match.
-                    (false, None, _) => true,
-                    // Going forward, no current byte, previous byte was \n,
-                    // this is a match.
-                    (false, Some(InputByte::Valid(b'\n')), None) => true,
-                    // Going forward, no current byte, previous byte was \r,
-                    // this is a match.
-                    (false, Some(InputByte::Valid(b'\r')), None) => true,
-                    // Going forward, previous byte was \n, this is match if
-                    // current byte is not \r.
-                    (
-                        false,
-                        Some(InputByte::Valid(b'\n')),
-                        Some(curr_byte),
-                    ) => curr_byte != InputByte::Valid(b'\r'),
-                    // Going forward, previous byte was \r, this is match if
-                    // current byte is not \n.
-                    (
-                        false,
-                        Some(InputByte::Valid(b'\r')),
-                        Some(curr_byte),
-                    ) => curr_byte != InputByte::Valid(b'\n'),
-                    // Going backward, no current byte, we are at the start
-                    // of the input, this is a match.
-                    (true, _, None) => true,
-                    // Going backward, no previous byte and current byte is \n,
-                    // this is a match.
-                    (true, None, Some(InputByte::Valid(b'\n'))) => true,
-                    // Going backward, no previous byte and current byte is \r,
-                    // this is a match.
-                    (true, None, Some(InputByte::Valid(b'\r'))) => true,
-                    // Going backward, current byte is \n, this is a match if
-                    // previous byte was not \r.
-                    (true, Some(prev_byte), Some(InputByte::Valid(b'\n'))) => {
-                        prev_byte != InputByte::Valid(b'\r')
-                    }
-                    // Going backward, current byte is \r, this is a match if
-                    // previous byte was not \n.
-                    (true, Some(prev_byte), Some(InputByte::Valid(b'\r'))) => {
-                        prev_byte != InputByte::Valid(b'\n')
-                    }
-                    _ => false,
-                };
-                if is_match {
-                    state.threads.push((
-                        apply_offset(ip, instr_size.into()),
-                        rep_count,
-                    ));
-                }
-            }
-            Instr::LineEnd => {
-                let is_match = match (start.backwards(), prev_byte, curr_byte)
-                {
-                    // Going forward, no current byte, we are at the end of the
-                    // data, this is a match.
-                    (false, _, None) => true,
-                    // Going forward, no previous byte and current byte is \n,
-                    // this is a match.
-                    (false, None, Some(InputByte::Valid(b'\n'))) => true,
-                    // Going forward, no previous byte and current byte is \r,
-                    // this is a match.
-                    (false, None, Some(InputByte::Valid(b'\r'))) => true,
-                    // Going forward, current byte is \n, this is a match if
-                    // the previous byte is not \r.
-                    (
-                        false,
-                        Some(prev_byte),
-                        Some(InputByte::Valid(b'\n')),
-                    ) => prev_byte != InputByte::Valid(b'\r'),
-                    // Going forward, current byte is \r, this is a match if
-                    // the previous byte is not \n.
-                    (
-                        false,
-                        Some(prev_byte),
-                        Some(InputByte::Valid(b'\r')),
-                    ) => prev_byte != InputByte::Valid(b'\n'),
-                    // Going backward, no previous byte, we are at the end of
-                    // the data, this is a match.
-                    (true, None, _) => true,
-                    // Going backward, no current byte and previous byte is \n,
-                    // this is a match.
-                    (true, Some(InputByte::Valid(b'\n')), None) => true,
-                    // Going backward, no current byte and previous byte is \r,
-                    // this is a match.
-                    (true, Some(InputByte::Valid(b'\r')), None) => true,
-                    // Going backward, previous byte is \n, this is a match if
-                    // the current byte is not \r.
-                    (true, Some(InputByte::Valid(b'\n')), Some(curr_byte)) => {
-                        curr_byte != InputByte::Valid(b'\r')
-                    }
-                    // Going backward, previous byte is \r, this is a match if
-                    // the current byte is not \n.
-                    (true, Some(InputByte::Valid(b'\r')), Some(curr_byte)) => {
-                        curr_byte != InputByte::Valid(b'\n')
-                    }
-                    _ => false,
-                };
-                if is_match {
-                    state.threads.push((
-                        apply_offset(ip, instr_size.into()),
-                        rep_count,
-                    ));
-                }
-            }
-            Instr::WordStart => {
-                let is_match = match (start.backwards(), prev_byte, curr_byte)
-                {
-                    (false, Some(p), Some(c)) | (true, Some(c), Some(p)) => {
-                        !is_word_char(p) && is_word_char(c)
-                    }
-                    (false, None, Some(c)) | (true, Some(c), None) => {
-                        is_word_char(c)
-                    }
-                    _ => false,
-                };
-                if is_match {
-                    state.threads.push((
-                        apply_offset(ip, instr_size.into()),
-                        rep_count,
-                    ));
-                }
-            }
-            Instr::WordEnd => {
-                let is_match = match (start.backwards(), prev_byte, curr_byte)
-                {
-                    (false, Some(p), Some(c)) | (true, Some(c), Some(p)) => {
-                        is_word_char(p) && !is_word_char(c)
-                    }
-                    (false, Some(p), None) | (true, None, Some(p)) => {
-                        is_word_char(p)
-                    }
-                    _ => false,
-                };
-                if is_match {
-                    state.threads.push((
-                        apply_offset(ip, instr_size.into()),
-                        rep_count,
-                    ));
-                }
-            }
-            Instr::WordStartHalf => {
-                let is_match = match (start.backwards(), prev_byte, curr_byte)
-                {
-                    (false, None, _) | (true, _, None) => true,
-                    (false, Some(b), _) | (true, _, Some(b)) => {
-                        !is_word_char(b)
-                    }
-                };
-                if is_match {
-                    state.threads.push((
-                        apply_offset(ip, instr_size.into()),
-                        rep_count,
-                    ));
-                }
-            }
-            Instr::WordEndHalf => {
-                let is_match = match (start.backwards(), prev_byte, curr_byte)
-                {
-                    (false, _, None) | (true, None, _) => true,
-                    (false, _, Some(b)) | (true, Some(b), _) => {
-                        !is_word_char(b)
-                    }
-                };
-                if is_match {
-                    state.threads.push((
-                        apply_offset(ip, instr_size.into()),
-                        rep_count,
-                    ));
-                }
-            }
-            Instr::WordBoundary | Instr::WordBoundaryNeg => {
-                let mut is_match = match (prev_byte, curr_byte) {
-                    (Some(p), Some(c)) => is_word_char(p) != is_word_char(c),
-                    (None, Some(b)) | (Some(b), None) => is_word_char(b),
-                    _ => false,
-                };
-
-                if matches!(instr, Instr::WordBoundaryNeg) {
-                    is_match = !is_match;
-                }
-
                 if is_match {
                     state.threads.push((
                         apply_offset(ip, instr_size.into()),
