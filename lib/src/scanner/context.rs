@@ -125,7 +125,7 @@ pub struct ScanContext<'r, 'd> {
     /// the evaluation of rule conditions. Handles are opaque integer values
     /// that can be passed to and received from WASM code. Each handle identify
     /// an object (string, struct, array or map).
-    pub(crate) runtime_objects: IndexMap<RuntimeObjectHandle, RuntimeObject>,
+    pub(crate) runtime_objects: FxHashMap<RuntimeObjectHandle, RuntimeObject>,
     /// The time that can be spent in a scan operation, including the
     /// execution of the rule conditions.
     pub(crate) scan_timeout: Option<Duration>,
@@ -400,34 +400,37 @@ impl ScanContext<'_, '_> {
         Ok(self)
     }
 
+    #[inline]
+    fn store_rc<T>(
+        &mut self,
+        rc: Rc<T>,
+        wrap: fn(Rc<T>) -> RuntimeObject,
+    ) -> RuntimeObjectHandle {
+        let handle = RuntimeObjectHandle(Rc::as_ptr(&rc) as i64);
+        self.runtime_objects.entry(handle).or_insert_with(|| wrap(rc));
+        handle
+    }
+
     pub(crate) fn store_struct(
         &mut self,
         s: Rc<Struct>,
     ) -> RuntimeObjectHandle {
-        let obj_ref = RuntimeObjectHandle(Rc::<Struct>::as_ptr(&s) as i64);
-        self.runtime_objects.insert_full(obj_ref, RuntimeObject::Struct(s));
-        obj_ref
+        self.store_rc(s, RuntimeObject::Struct)
     }
 
     pub(crate) fn store_array(&mut self, a: Rc<Array>) -> RuntimeObjectHandle {
-        let obj_ref = RuntimeObjectHandle(Rc::<Array>::as_ptr(&a) as i64);
-        self.runtime_objects.insert_full(obj_ref, RuntimeObject::Array(a));
-        obj_ref
+        self.store_rc(a, RuntimeObject::Array)
     }
 
     pub(crate) fn store_map(&mut self, m: Rc<Map>) -> RuntimeObjectHandle {
-        let obj_ref = RuntimeObjectHandle(Rc::<Map>::as_ptr(&m) as i64);
-        self.runtime_objects.insert_full(obj_ref, RuntimeObject::Map(m));
-        obj_ref
+        self.store_rc(m, RuntimeObject::Map)
     }
 
     pub(crate) fn store_string(
         &mut self,
         s: Rc<BString>,
     ) -> RuntimeObjectHandle {
-        let obj_ref = RuntimeObjectHandle(Rc::<BString>::as_ptr(&s) as i64);
-        self.runtime_objects.insert_full(obj_ref, RuntimeObject::String(s));
-        obj_ref
+        self.store_rc(s, RuntimeObject::String)
     }
 
     /// Gets the value of the global variable `filesize`.
@@ -2265,7 +2268,7 @@ pub fn create_wasm_store_and_ctx<'r>(
     let num_patterns = rules.num_patterns() as u32;
 
     let ctx = ScanContext {
-        runtime_objects: IndexMap::new(),
+        runtime_objects: FxHashMap::default(),
         compiled_rules: rules,
         console_log: None,
         current_struct: None,
