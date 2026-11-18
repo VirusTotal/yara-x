@@ -30,8 +30,8 @@ use crate::compiler::{
     SubPatternAtom, SubPatternFlags, SubPatternId,
 };
 use crate::errors::VariableError;
+use crate::re::CodeLoc;
 use crate::re::fast::FastVM;
-
 use crate::re::hir::ChainedPatternGap;
 use crate::re::thompson::PikeVM;
 #[cfg(feature = "rules-profiling")]
@@ -1098,15 +1098,8 @@ impl ScanContext<'_, '_> {
                 // 2-byte wide characters).
                 let max_start = base + atom_pos;
                 let min_start = if atom.bck_code().is_some() {
-                    let max_bck_len =
-                        if flags.contains(SubPatternFlags::FastRegexp) {
-                            self.vm.fast_vm.get_scan_limit() as usize
-                        } else if flags.contains(SubPatternFlags::Wide) {
-                            (self.vm.pike_vm.get_scan_limit() as usize) * 2
-                        } else {
-                            self.vm.pike_vm.get_scan_limit() as usize
-                        };
-                    base + atom_pos.saturating_sub(max_bck_len)
+                    base + atom_pos
+                        .saturating_sub(self.vm.max_bck_scan_bytes(*flags))
                 } else {
                     max_start
                 };
@@ -1662,6 +1655,7 @@ fn verify_regexp(
     mut f: impl FnMut(Range<usize>),
 ) {
     let mut fwd_match_len = None;
+    let (bck_data, fwd_data) = scanned_data.split_at(match_start);
 
     // If the atom has some forward code, that's the code that should execute
     // the VM for matching the portion that pattern that comes after the atom.
@@ -1669,72 +1663,36 @@ fn verify_regexp(
     // faster and less general FastVM, or for the slower but more general
     // PikeVM.
     if let Some(fwd_code) = atom.fwd_code() {
-        if flags.contains(SubPatternFlags::FastRegexp) {
-            vm.fast_vm.try_match(
-                fwd_code,
-                &scanned_data[match_start..],
-                flags.contains(SubPatternFlags::Wide),
-                |match_len| {
-                    fwd_match_len = Some(match_len);
-                    if flags.contains(SubPatternFlags::GreedyRegexp) {
-                        ControlFlow::Continue(())
-                    } else {
-                        ControlFlow::Break(())
-                    }
-                },
-            );
-        } else {
-            vm.pike_vm.try_match(
-                fwd_code,
-                &scanned_data[match_start..],
-                &scanned_data[..match_start],
-                flags.contains(SubPatternFlags::Wide),
-                |match_len| {
-                    fwd_match_len = Some(match_len);
-                    ControlFlow::Break(())
-                },
-            );
-        }
+        // PikeVM executes threads in priority order so its first match is
+        // already the greedy or non-greedy winner, whereas FastVM enumerates
+        // matches in increasing length order and must continue when greedy.
+        let continue_on_match = flags.contains(SubPatternFlags::FastRegexp)
+            && flags.contains(SubPatternFlags::GreedyRegexp);
+        vm.try_match(fwd_code, fwd_data, bck_data, flags, |match_len| {
+            fwd_match_len = Some(match_len);
+            if continue_on_match {
+                ControlFlow::Continue(())
+            } else {
+                ControlFlow::Break(())
+            }
+        });
     } else {
         fwd_match_len = Some(atom.len());
     }
 
-    let fwd_match_len = match fwd_match_len {
-        Some(len) => len,
-        None => return,
+    let Some(fwd_match_len) = fwd_match_len else {
+        return;
     };
 
     if let Some(bck_code) = atom.bck_code() {
-        if flags.contains(SubPatternFlags::FastRegexp) {
-            vm.fast_vm.try_match(
-                bck_code,
-                &scanned_data[..match_start],
-                flags.contains(SubPatternFlags::Wide),
-                |bck_match_len| {
-                    let range = match_start - bck_match_len
-                        ..match_start + fwd_match_len;
-                    if verify_full_word(scanned_data, &range, flags, None) {
-                        f(range);
-                    }
-                    ControlFlow::Continue(())
-                },
-            );
-        } else {
-            vm.pike_vm.try_match(
-                bck_code,
-                &scanned_data[match_start..],
-                &scanned_data[..match_start],
-                flags.contains(SubPatternFlags::Wide),
-                |bck_match_len| {
-                    let range = match_start - bck_match_len
-                        ..match_start + fwd_match_len;
-                    if verify_full_word(scanned_data, &range, flags, None) {
-                        f(range);
-                    }
-                    ControlFlow::Continue(())
-                },
-            );
-        }
+        vm.try_match(bck_code, fwd_data, bck_data, flags, |bck_match_len| {
+            let range =
+                match_start - bck_match_len..match_start + fwd_match_len;
+            if verify_full_word(scanned_data, &range, flags, None) {
+                f(range);
+            }
+            ControlFlow::Continue(())
+        });
     } else {
         let range = match_start..match_start + fwd_match_len;
         if verify_full_word(scanned_data, &range, flags, None) {
@@ -2230,6 +2188,49 @@ pub(crate) struct VM<'r> {
     fast_vm: FastVM<'r>,
 }
 
+impl<'r> VM<'r> {
+    /// Creates a new [`VM`] bound to the compiled regexp bytecode `code`.
+    fn new(code: &'r [u8]) -> Self {
+        Self { pike_vm: PikeVM::new(code), fast_vm: FastVM::new(code) }
+    }
+
+    /// Executes `code` against `fwd_data` / `bck_data`, dispatching to
+    /// [`FastVM`] when [`SubPatternFlags::FastRegexp`] is set or [`PikeVM`]
+    /// otherwise.
+    #[inline(always)]
+    fn try_match<C: CodeLoc>(
+        &mut self,
+        code: C,
+        fwd_data: &[u8],
+        bck_data: &[u8],
+        flags: SubPatternFlags,
+        f: impl FnMut(usize) -> ControlFlow<()>,
+    ) {
+        let wide = flags.contains(SubPatternFlags::Wide);
+        if flags.contains(SubPatternFlags::FastRegexp) {
+            let input = if code.backwards() { bck_data } else { fwd_data };
+            self.fast_vm.try_match(code, input, wide, f);
+        } else {
+            self.pike_vm.try_match(code, fwd_data, bck_data, wide, f);
+        }
+    }
+
+    /// Returns the maximum number of haystack bytes the selected VM may scan
+    /// backwards from an atom.
+    #[inline]
+    fn max_bck_scan_bytes(&self, flags: SubPatternFlags) -> usize {
+        if flags.contains(SubPatternFlags::FastRegexp) {
+            self.fast_vm.get_scan_limit() as usize
+        } else if flags.contains(SubPatternFlags::Wide) {
+            // `PikeVM::scan_limit` counts 2-byte wide characters rather than
+            // raw bytes when `Wide` is set.
+            (self.pike_vm.get_scan_limit() as usize) * 2
+        } else {
+            self.pike_vm.get_scan_limit() as usize
+        }
+    }
+}
+
 /// A runtime object is a struct, array, map or string used during the
 /// evaluation of a rule condition. Instances of these types can't cross the
 /// WASM-Rust boundary, as integers and floats can do. Therefore, they are
@@ -2338,10 +2339,7 @@ pub fn create_wasm_store_and_ctx<'r>(
         deadline: 0,
         regex_cache: RefCell::new(FxHashMap::default()),
         regex_set_cache: RefCell::new(FxHashMap::default()),
-        vm: VM {
-            pike_vm: PikeVM::new(rules.re_code()),
-            fast_vm: FastVM::new(rules.re_code()),
-        },
+        vm: VM::new(rules.re_code()),
         custom_base64_engine_cache: Vec::new(),
         #[cfg(feature = "rules-profiling")]
         time_spent_in_pattern: FxHashMap::default(),
