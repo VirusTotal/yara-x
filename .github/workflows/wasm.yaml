@@ -1,10 +1,28 @@
-name: Language server WebAssembly build
+name: WebAssembly build
 on:
-  push:
+  pull_request:
     paths:
+    - 'Cargo.toml'
+    - 'Cargo.lock'
     - 'parser/**'
     - 'fmt/**'
     - 'ls/**'
+    - 'lib/**'
+    - 'macros/**'
+    - 'proto/**'
+    - 'js-wasm/**'
+    - '.github/workflows/wasm.yaml'
+  push:
+    paths:
+    - 'Cargo.toml'
+    - 'Cargo.lock'
+    - 'parser/**'
+    - 'fmt/**'
+    - 'ls/**'
+    - 'lib/**'
+    - 'macros/**'
+    - 'proto/**'
+    - 'js-wasm/**'
     - '.github/workflows/wasm.yaml'
     tags-ignore:
     - '**'
@@ -28,6 +46,9 @@ jobs:
         with:
           toolchain: stable
           target: wasm32-unknown-unknown
-      
+
       - name: Build LS
         run: cargo build --target wasm32-unknown-unknown --no-default-features -p yara-x-ls --lib --release
+
+      - name: Check JS WASM
+        run: cargo check --target wasm32-unknown-unknown -p yara-x-js --lib
