@@ -267,7 +267,7 @@ pub struct Rules {
     /// compiled into a single automaton, in which case callers fall back to
     /// matching the individual regexps (see [`Rules::get_regex_set_ids`]).
     #[serde(skip)]
-    pub(in crate::compiler) compiled_regex_sets: Vec<OnceLock<Option<Regex>>>,
+    pub(in crate::compiler) compiled_regexp_sets: Vec<OnceLock<Option<Regex>>>,
 
     /// Grouped `LiteralSet` persistent definitions.
     ///
@@ -522,7 +522,7 @@ impl Rules {
     pub(in crate::compiler) fn init_regexp_caches(&mut self) {
         self.compiled_regexps =
             (0..self.regex_pool.len()).map(|_| OnceLock::new()).collect();
-        self.compiled_regex_sets =
+        self.compiled_regexp_sets =
             (0..self.regex_sets.len()).map(|_| OnceLock::new()).collect();
     }
 
@@ -564,7 +564,7 @@ impl Rules {
     /// [`Rules::get_regex_set_ids`].
     #[inline]
     pub(crate) fn get_regex_set(&self, set_id: RegExpSetId) -> Option<&Regex> {
-        self.compiled_regex_sets
+        self.compiled_regexp_sets
             .get(usize::from(set_id))?
             .get_or_init(|| self.build_regex_set(set_id))
             .as_ref()
@@ -1407,11 +1407,11 @@ mod tests {
         assert_eq!(rules.regex_pool.len(), 3);
         assert_eq!(rules.compiled_regexps.len(), 3);
         assert_eq!(rules.regex_sets.len(), 1);
-        assert_eq!(rules.compiled_regex_sets.len(), 1);
+        assert_eq!(rules.compiled_regexp_sets.len(), 1);
 
         // Both caches are compiled lazily: empty until first evaluation.
         assert!(rules.compiled_regexps.iter().all(|c| c.get().is_none()));
-        assert!(rules.compiled_regex_sets[0].get().is_none());
+        assert!(rules.compiled_regexp_sets[0].get().is_none());
 
         let mut scanner1 = Scanner::new(&rules);
         scanner1.set_global("s", "foo123").unwrap();
@@ -1421,7 +1421,7 @@ mod tests {
         let cached_re = rules.compiled_regexps[0]
             .get()
             .expect("single regexp should be cached after first scan");
-        let cached_set = rules.compiled_regex_sets[0]
+        let cached_set = rules.compiled_regexp_sets[0]
             .get()
             .and_then(Option::as_ref)
             .expect("regex set should be cached after first scan");
@@ -1444,11 +1444,11 @@ mod tests {
         let serialized = rules.serialize().unwrap();
         let deserialized = Rules::deserialize(&serialized).unwrap();
         assert_eq!(deserialized.compiled_regexps.len(), 3);
-        assert_eq!(deserialized.compiled_regex_sets.len(), 1);
+        assert_eq!(deserialized.compiled_regexp_sets.len(), 1);
         assert!(
             deserialized.compiled_regexps.iter().all(|c| c.get().is_none())
         );
-        assert!(deserialized.compiled_regex_sets[0].get().is_none());
+        assert!(deserialized.compiled_regexp_sets[0].get().is_none());
 
         // Concurrent scanners sharing `&Rules` across threads.
         std::thread::scope(|scope| {
@@ -1477,7 +1477,7 @@ mod tests {
 
         assert!(deserialized.compiled_regexps[0].get().is_some());
         assert!(
-            deserialized.compiled_regex_sets[0]
+            deserialized.compiled_regexp_sets[0]
                 .get()
                 .and_then(Option::as_ref)
                 .is_some()
