@@ -62,6 +62,12 @@ where
     pub fn get(&self, id: T) -> Option<&str> {
         self.pool.get(Symbol::from(id.into()))
     }
+
+    /// Returns the number of strings stored in the pool.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.pool.len()
+    }
 }
 
 impl<T> Serialize for StringPool<T>

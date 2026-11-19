@@ -133,6 +133,16 @@ pub struct Rules {
     /// `i` and `s` if present (e.g: `/foobar/`, `/foo/i`, `/bar/s`).
     pub(in crate::compiler) regex_pool: StringPool<RegExpId>,
 
+    /// Lazily compiled condition regular expressions shared by all scanners
+    /// using these rules.
+    ///
+    /// The regular expression strings in `regex_pool` are serialized with the
+    /// rules, while the compiled automata are runtime-only. The vector is
+    /// initialized when [`Rules`] are built or deserialized, and each regexp
+    /// is compiled lazily on first use.
+    #[serde(skip)]
+    pub(in crate::compiler) compiled_regexps: Vec<OnceLock<Regex>>,
+
     /// If `true`, the regular expressions in `regex_pool` are allowed to
     /// contain invalid escape sequences.
     pub(in crate::compiler) relaxed_re_syntax: bool,
@@ -257,8 +267,7 @@ pub struct Rules {
     /// compiled into a single automaton, in which case callers fall back to
     /// matching the individual regexps (see [`Rules::get_regex_set_ids`]).
     #[serde(skip)]
-    pub(in crate::compiler) compiled_regex_sets:
-        Vec<OnceLock<Option<Regex>>>,
+    pub(in crate::compiler) compiled_regex_sets: Vec<OnceLock<Option<Regex>>>,
 
     /// Grouped `LiteralSet` persistent definitions.
     ///
@@ -392,7 +401,6 @@ impl Rules {
             info!("WASM build time: {:?}", Instant::elapsed(&start));
         }
 
-        rules.init_regex_set_cache();
         rules.ac.rebuild_teddy(rules.atoms.iter().map(|x| x.atom.as_ref()));
 
         // Validate that all SubPatternId, PatternId, FwdCodeLoc, and BckCodeLoc
@@ -429,6 +437,8 @@ impl Rules {
         if !valid_atoms || !valid_anchored || !valid_sub_patterns {
             return Err(SerializationError::InvalidFormat);
         }
+
+        rules.init_regexp_caches();
 
         Ok(rules)
     }
@@ -502,13 +512,37 @@ impl Rules {
         self.rules.get(rule_id.0 as usize).unwrap()
     }
 
-    /// Returns a regular expression by [`RegExpId`].
+    /// Initializes the runtime-only caches for compiled condition regular
+    /// expressions and `RegExpSet` automata.
+    ///
+    /// Allocates one empty [`OnceLock`] per entry in `regex_pool` and
+    /// `regex_sets`. Because [`RegExpId`]s and [`RegExpSetId`]s
+    /// are assigned densely, each id can be used directly as an index
+    /// into `compiled_regexps` and `compiled_regex_sets` respectively.
+    pub(in crate::compiler) fn init_regexp_caches(&mut self) {
+        self.compiled_regexps =
+            (0..self.regex_pool.len()).map(|_| OnceLock::new()).collect();
+        self.compiled_regex_sets =
+            (0..self.regex_sets.len()).map(|_| OnceLock::new()).collect();
+    }
+
+    /// Returns a compiled regular expression by [`RegExpId`].
+    ///
+    /// The automaton is built lazily on first use and shared across all
+    /// scanners using these rules.
     ///
     /// # Panics
     ///
     /// If no regular expression with such [`RegExpId`] exists.
     #[inline]
-    pub(crate) fn get_regexp(&self, regexp_id: RegExpId) -> Regex {
+    pub(crate) fn get_regexp(&self, regexp_id: RegExpId) -> &Regex {
+        self.compiled_regexps[usize::from(regexp_id)]
+            .get_or_init(|| self.build_regexp(regexp_id))
+    }
+
+    /// Builds the automaton for a given [`RegExpId`].
+    #[cold]
+    fn build_regexp(&self, regexp_id: RegExpId) -> Regex {
         let re = types::Regexp::new(self.regex_pool.get(regexp_id).unwrap());
 
         let parser = re::parser::Parser::new()
@@ -519,16 +553,6 @@ impl Rules {
         re::hir::Hir::build_automata(&[hir]).unwrap_or_else(|err| {
             panic!("error compiling regex `{}`: {:#?}", re.as_str(), err)
         })
-    }
-
-    /// Initializes the runtime-only cache for compiled `RegExpSet` automata.
-    ///
-    /// Allocates one empty [`OnceLock`] per entry in `regex_sets`. Because
-    /// `RegExpSetId`s are assigned densely (`0..regex_sets.len()`), each id can
-    /// be used directly as an index into `compiled_regex_sets`.
-    pub(in crate::compiler) fn init_regex_set_cache(&mut self) {
-        self.compiled_regex_sets =
-            (0..self.regex_sets.len()).map(|_| OnceLock::new()).collect();
     }
 
     /// Returns a compiled multi-pattern `RegExp` for a given `RegExpSetId`.
@@ -547,6 +571,7 @@ impl Rules {
     }
 
     /// Builds the combined automaton for a given [`RegExpSetId`].
+    #[cold]
     fn build_regex_set(&self, set_id: RegExpSetId) -> Option<Regex> {
         let re_ids = self.regex_sets.get(&set_id)?;
         let parser = re::parser::Parser::new()
@@ -1351,5 +1376,111 @@ mod tests {
             Rules::deserialize(&bytes),
             Err(SerializationError::InvalidFormat)
         ));
+    }
+
+    #[test]
+    fn shared_regexp_caches() {
+        use crate::compiler::{RegExpId, RegExpSetId};
+        use crate::{Compiler, Rules, Scanner};
+
+        let mut compiler = Compiler::new();
+        compiler
+            .define_global("s", "")
+            .unwrap()
+            .define_global("t", "")
+            .unwrap()
+            .add_source(
+                r#"
+                rule single_re {
+                    condition:
+                        s matches /^foo[0-9]+$/
+                }
+                rule set_re {
+                    condition:
+                        t matches /^bar[0-9]+$/ or t matches /^qux[0-9]+$/
+                }
+                "#,
+            )
+            .unwrap();
+
+        let rules = compiler.build();
+        assert_eq!(rules.regex_pool.len(), 3);
+        assert_eq!(rules.compiled_regexps.len(), 3);
+        assert_eq!(rules.regex_sets.len(), 1);
+        assert_eq!(rules.compiled_regex_sets.len(), 1);
+
+        // Both caches are compiled lazily: empty until first evaluation.
+        assert!(rules.compiled_regexps.iter().all(|c| c.get().is_none()));
+        assert!(rules.compiled_regex_sets[0].get().is_none());
+
+        let mut scanner1 = Scanner::new(&rules);
+        scanner1.set_global("s", "foo123").unwrap();
+        scanner1.set_global("t", "qux456").unwrap();
+        assert_eq!(scanner1.scan(&[]).unwrap().matching_rules().len(), 2);
+
+        let cached_re = rules.compiled_regexps[0]
+            .get()
+            .expect("single regexp should be cached after first scan");
+        let cached_set = rules.compiled_regex_sets[0]
+            .get()
+            .and_then(Option::as_ref)
+            .expect("regex set should be cached after first scan");
+
+        let mut scanner2 = Scanner::new(&rules);
+        scanner2.set_global("s", "nope").unwrap();
+        scanner2.set_global("t", "nope").unwrap();
+        assert_eq!(scanner2.scan(&[]).unwrap().matching_rules().len(), 0);
+        assert!(std::ptr::eq(
+            cached_re,
+            rules.get_regexp(RegExpId::from(0i32))
+        ));
+        assert!(std::ptr::eq(
+            cached_set,
+            rules.get_regex_set(RegExpSetId::from(0i32)).unwrap()
+        ));
+
+        // Serialization skips compiled automata; deserialization re-initializes
+        // both lazy caches cleanly.
+        let serialized = rules.serialize().unwrap();
+        let deserialized = Rules::deserialize(&serialized).unwrap();
+        assert_eq!(deserialized.compiled_regexps.len(), 3);
+        assert_eq!(deserialized.compiled_regex_sets.len(), 1);
+        assert!(
+            deserialized.compiled_regexps.iter().all(|c| c.get().is_none())
+        );
+        assert!(deserialized.compiled_regex_sets[0].get().is_none());
+
+        // Concurrent scanners sharing `&Rules` across threads.
+        std::thread::scope(|scope| {
+            for i in 0..8 {
+                let rules_ref = &deserialized;
+                scope.spawn(move || {
+                    let mut scanner = Scanner::new(rules_ref);
+                    if i % 2 == 0 {
+                        scanner.set_global("s", format!("foo{i}")).unwrap();
+                        scanner.set_global("t", format!("bar{i}")).unwrap();
+                        assert_eq!(
+                            scanner.scan(&[]).unwrap().matching_rules().len(),
+                            2
+                        );
+                    } else {
+                        scanner.set_global("s", format!("baz{i}")).unwrap();
+                        scanner.set_global("t", format!("baz{i}")).unwrap();
+                        assert_eq!(
+                            scanner.scan(&[]).unwrap().matching_rules().len(),
+                            0
+                        );
+                    }
+                });
+            }
+        });
+
+        assert!(deserialized.compiled_regexps[0].get().is_some());
+        assert!(
+            deserialized.compiled_regex_sets[0]
+                .get()
+                .and_then(Option::as_ref)
+                .is_some()
+        );
     }
 }

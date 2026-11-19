@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::collections::VecDeque;
 #[cfg(feature = "rules-profiling")]
 use std::iter;
@@ -22,7 +21,6 @@ use bitvec::vec::BitVec;
 use bstr::{BString, ByteSlice};
 use indexmap::IndexMap;
 use protobuf::{MessageDyn, MessageFull};
-use regex_automata::meta::Regex;
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 
@@ -237,12 +235,6 @@ pub struct ScanContext<'r, 'd> {
     /// When [`HEARTBEAT_COUNTER`] is larger than this value, the scan is
     /// aborted due to a timeout.
     pub(crate) deadline: u64,
-    /// Hash map that serves as a cache for regexps used in expressions like
-    /// `some_var matches /foobar/`. Compiling a regexp is an expensive
-    /// operation. Instead of compiling the regexp each time the expression
-    /// is evaluated, it is compiled the first time and stored in this hash
-    /// map.
-    pub(crate) regex_cache: RefCell<FxHashMap<RegExpId, Regex>>,
     /// Engines for custom base64 alphabets used by base64 string modifiers.
     ///
     /// These engines are derived from rule literals and reused across scans.
@@ -373,11 +365,7 @@ impl ScanContext<'_, '_> {
         regexp_id: RegExpId,
         haystack: &[u8],
     ) -> bool {
-        self.regex_cache
-            .borrow_mut()
-            .entry(regexp_id)
-            .or_insert_with(|| self.compiled_rules.get_regexp(regexp_id))
-            .is_match(haystack)
+        self.compiled_rules.get_regexp(regexp_id).is_match(haystack)
     }
 
     /// Returns true if any regular expression belonging to the given
@@ -2345,7 +2333,6 @@ impl<'r> PinnedScanContext<'r> {
                 fast_scan: false,
             },
             deadline: 0,
-            regex_cache: RefCell::new(FxHashMap::default()),
             vm: VM::new(rules.re_code()),
             custom_base64_engine_cache: Vec::new(),
             #[cfg(feature = "rules-profiling")]

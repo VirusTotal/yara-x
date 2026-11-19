@@ -876,6 +876,7 @@ impl<'a> Compiler<'a> {
                     num_patterns: this.next_pattern_id.0 as usize,
                     ident_pool: this.ident_pool,
                     regex_pool: this.regex_pool,
+                    compiled_regexps: Vec::new(),
                     literal_pool: this.literal_pool,
                     imported_modules: this.imported_modules,
                     rules: this.rules,
@@ -887,7 +888,7 @@ impl<'a> Compiler<'a> {
                     filesize_bounds,
                     header_constraints,
                     regex_sets: this.regex_sets,
-                    compiled_regex_sets: Default::default(),
+                    compiled_regex_sets: Vec::new(),
                     literal_sets: this.literal_sets,
                     fast_scan_max_matches: this.fast_scan_max_matches,
                     rules_profiling_enabled: cfg!(feature = "rules-profiling"),
@@ -917,7 +918,7 @@ impl<'a> Compiler<'a> {
         #[cfg(feature = "logging")]
         info!("WASM module build time: {:?}", Instant::elapsed(&start));
 
-        rules.init_regex_set_cache();
+        rules.init_regexp_caches();
         rules.build_ac_automaton();
         rules
     }
