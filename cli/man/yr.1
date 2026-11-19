@@ -1,0 +1,52 @@
+.TH YR "1" "November 2026" "YARA-X" "User Commands"
+.SH NAME
+yr \- pattern matching and malware research tool
+.SH SYNOPSIS
+.B yr
+[\fIOPTIONS\fR] <\fICOMMAND\fR>
+.SH DESCRIPTION
+YARA\-X is the Rust-based rewrite of YARA, the pattern matching swiss army knife
+aimed at helping malware researchers identify and classify malware samples.
+.SH COMMANDS
+.TP
+.B scan
+Scan a file or directory
+.TP
+.B compile
+Compile rules to binary form
+.TP
+.B dump
+Show the data produced by YARA modules for a file
+.TP
+.B fmt
+Format YARA source files
+.TP
+.B fix
+Utilities for fixing source code
+.TP
+.B completion
+Output shell completion code for the specified shell
+.TP
+.B deps
+Show rule dependencies
+.TP
+.B help
+Print this message or the help of the given subcommand(s)
+.SH OPTIONS
+.TP
+\fB\-C\fR, \fB\-\-config\fR <\fICONFIG_FILE\fR>
+Specifies a config file which controls the behavior of YARA\-X. If no config
+file is specified, \fI${HOME}/.yara\-x.toml\fR is used. If it does not exist,
+the default options are applied. See
+\fIhttps://virustotal.github.io/yara\-x/docs/cli/config\-file/\fR for supported
+options.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with '\-h')
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version
+.SH SEE ALSO
+Full CLI documentation: \fIhttps://virustotal.github.io/yara\-x/docs/cli/\fR
+.SH AUTHOR
+Victor M. Alvarez <vmalvarez@virustotal.com>
