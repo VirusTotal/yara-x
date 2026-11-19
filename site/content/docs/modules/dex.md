@@ -171,6 +171,19 @@ Read more about it in [dex-format](https://source.android.com/docs/core/runtime/
 | endian_tag      | integer | Endianness tag                                                                                |
 | link_size       | integer | Size of the link section, or 0 if this file isn't statically linked                           |
 | link_off        | integer | Offset from the start of the file to the link section, or 0 if `link_size == 0`               |
+| map_offset      | integer | Offset from the start of the file to the map list                                             |
+| string_ids_size | integer | Count of strings in the string identifiers list                                               |
+| string_ids_offset | integer | Offset from the start of the file to the string identifiers list                            |
+| type_ids_size   | integer | Count of elements in the type identifiers list                                                |
+| type_ids_offset | integer | Offset from the start of the file to the type identifiers list                                |
+| proto_ids_size  | integer | Count of elements in the prototype identifiers list                                           |
+| proto_ids_offset | integer | Offset from the start of the file to the prototype identifiers list                          |
+| field_ids_size  | integer | Count of elements in the field identifiers list                                               |
+| field_ids_offset | integer | Offset from the start of the file to the field identifiers list                             |
+| method_ids_size | integer | Count of elements in the method identifiers list                                              |
+| method_ids_offset | integer | Offset from the start of the file to the method identifiers list                            |
+| class_defs_size | integer | Count of elements in the class definitions list                                               |
+| class_defs_offset | integer | Offset from the start of the file to the class definitions list                             |
 | data_size       | integer | Size of `data` section (only in v40 or earlier)                                               |
 | data_off        | integer | Offset from the start of the file to the start of the `data` section (only in v40 or earlier) |
 | container_size  | integer | Size of the entire file (only in v41 or later)                                                |

@@ -881,6 +881,19 @@ impl From<DexHeader> for protos::dex::DexHeader {
         result.set_endian_tag(header.endian_tag);
         result.set_link_size(header.link_size);
         result.set_link_off(header.link_off);
+        result.set_map_offset(header.map_off);
+        result.set_string_ids_size(header.string_ids_size);
+        result.set_string_ids_offset(header.string_ids_off);
+        result.set_type_ids_size(header.type_ids_size);
+        result.set_type_ids_offset(header.type_ids_off);
+        result.set_proto_ids_size(header.proto_ids_size);
+        result.set_proto_ids_offset(header.proto_ids_off);
+        result.set_field_ids_size(header.field_ids_size);
+        result.set_field_ids_offset(header.field_ids_off);
+        result.set_method_ids_size(header.method_ids_size);
+        result.set_method_ids_offset(header.method_ids_off);
+        result.set_class_defs_size(header.class_defs_size);
+        result.set_class_defs_offset(header.class_defs_off);
         result.container_size = header.container_size;
         result.header_offset = header.header_offset;
         result

@@ -231,3 +231,36 @@ fn classes() {
         b"not a dex"
     );
 }
+
+#[test]
+fn header_fields() {
+    let dex = create_binary_from_zipped_ihex(
+        "src/modules/dex/tests/testdata/c14c75d58399825287e0ee0fcfede6ec06f93489fb52f70bca2736fae5fceab2.in.zip",
+    );
+
+    // The size/offset fields of the DEX header, exposed for compatibility with
+    // YARA's `dex` module. The DEX layout places the id lists right after the
+    // 0x70-byte header, in a fixed order (string_ids, type_ids, proto_ids,
+    // field_ids, method_ids, class_defs), with the map list in the data
+    // section, so these structural invariants hold for any valid DEX file.
+    rule_true!(
+        r#"
+        import "dex"
+        rule test {
+            condition:
+                dex.header.string_ids_offset == 0x70 and
+                dex.header.string_ids_size > 0 and
+                dex.header.type_ids_size > 0 and
+                dex.header.proto_ids_size > 0 and
+                dex.header.method_ids_size > 0 and
+                dex.header.class_defs_size > 0 and
+                dex.header.type_ids_offset > dex.header.string_ids_offset and
+                dex.header.proto_ids_offset > dex.header.type_ids_offset and
+                dex.header.method_ids_offset > dex.header.proto_ids_offset and
+                dex.header.class_defs_offset > dex.header.method_ids_offset and
+                dex.header.map_offset > dex.header.class_defs_offset
+        }
+        "#,
+        &dex
+    );
+}

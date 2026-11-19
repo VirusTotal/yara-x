@@ -337,6 +337,32 @@ pub struct DexHeader {
     pub link_size: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dex.DexHeader.link_off)
     pub link_off: ::std::option::Option<u32>,
+    // @@protoc_insertion_point(field:dex.DexHeader.map_offset)
+    pub map_offset: ::std::option::Option<u32>,
+    // @@protoc_insertion_point(field:dex.DexHeader.string_ids_size)
+    pub string_ids_size: ::std::option::Option<u32>,
+    // @@protoc_insertion_point(field:dex.DexHeader.string_ids_offset)
+    pub string_ids_offset: ::std::option::Option<u32>,
+    // @@protoc_insertion_point(field:dex.DexHeader.type_ids_size)
+    pub type_ids_size: ::std::option::Option<u32>,
+    // @@protoc_insertion_point(field:dex.DexHeader.type_ids_offset)
+    pub type_ids_offset: ::std::option::Option<u32>,
+    // @@protoc_insertion_point(field:dex.DexHeader.proto_ids_size)
+    pub proto_ids_size: ::std::option::Option<u32>,
+    // @@protoc_insertion_point(field:dex.DexHeader.proto_ids_offset)
+    pub proto_ids_offset: ::std::option::Option<u32>,
+    // @@protoc_insertion_point(field:dex.DexHeader.field_ids_size)
+    pub field_ids_size: ::std::option::Option<u32>,
+    // @@protoc_insertion_point(field:dex.DexHeader.field_ids_offset)
+    pub field_ids_offset: ::std::option::Option<u32>,
+    // @@protoc_insertion_point(field:dex.DexHeader.method_ids_size)
+    pub method_ids_size: ::std::option::Option<u32>,
+    // @@protoc_insertion_point(field:dex.DexHeader.method_ids_offset)
+    pub method_ids_offset: ::std::option::Option<u32>,
+    // @@protoc_insertion_point(field:dex.DexHeader.class_defs_size)
+    pub class_defs_size: ::std::option::Option<u32>,
+    // @@protoc_insertion_point(field:dex.DexHeader.class_defs_offset)
+    pub class_defs_offset: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dex.DexHeader.data_size)
     pub data_size: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:dex.DexHeader.data_off)
@@ -549,6 +575,253 @@ impl DexHeader {
         self.link_off = ::std::option::Option::Some(v);
     }
 
+    // optional uint32 map_offset = 10;
+
+    pub fn map_offset(&self) -> u32 {
+        self.map_offset.unwrap_or(0)
+    }
+
+    pub fn clear_map_offset(&mut self) {
+        self.map_offset = ::std::option::Option::None;
+    }
+
+    pub fn has_map_offset(&self) -> bool {
+        self.map_offset.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_map_offset(&mut self, v: u32) {
+        self.map_offset = ::std::option::Option::Some(v);
+    }
+
+    // optional uint32 string_ids_size = 11;
+
+    pub fn string_ids_size(&self) -> u32 {
+        self.string_ids_size.unwrap_or(0)
+    }
+
+    pub fn clear_string_ids_size(&mut self) {
+        self.string_ids_size = ::std::option::Option::None;
+    }
+
+    pub fn has_string_ids_size(&self) -> bool {
+        self.string_ids_size.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_string_ids_size(&mut self, v: u32) {
+        self.string_ids_size = ::std::option::Option::Some(v);
+    }
+
+    // optional uint32 string_ids_offset = 12;
+
+    pub fn string_ids_offset(&self) -> u32 {
+        self.string_ids_offset.unwrap_or(0)
+    }
+
+    pub fn clear_string_ids_offset(&mut self) {
+        self.string_ids_offset = ::std::option::Option::None;
+    }
+
+    pub fn has_string_ids_offset(&self) -> bool {
+        self.string_ids_offset.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_string_ids_offset(&mut self, v: u32) {
+        self.string_ids_offset = ::std::option::Option::Some(v);
+    }
+
+    // optional uint32 type_ids_size = 13;
+
+    pub fn type_ids_size(&self) -> u32 {
+        self.type_ids_size.unwrap_or(0)
+    }
+
+    pub fn clear_type_ids_size(&mut self) {
+        self.type_ids_size = ::std::option::Option::None;
+    }
+
+    pub fn has_type_ids_size(&self) -> bool {
+        self.type_ids_size.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_type_ids_size(&mut self, v: u32) {
+        self.type_ids_size = ::std::option::Option::Some(v);
+    }
+
+    // optional uint32 type_ids_offset = 14;
+
+    pub fn type_ids_offset(&self) -> u32 {
+        self.type_ids_offset.unwrap_or(0)
+    }
+
+    pub fn clear_type_ids_offset(&mut self) {
+        self.type_ids_offset = ::std::option::Option::None;
+    }
+
+    pub fn has_type_ids_offset(&self) -> bool {
+        self.type_ids_offset.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_type_ids_offset(&mut self, v: u32) {
+        self.type_ids_offset = ::std::option::Option::Some(v);
+    }
+
+    // optional uint32 proto_ids_size = 15;
+
+    pub fn proto_ids_size(&self) -> u32 {
+        self.proto_ids_size.unwrap_or(0)
+    }
+
+    pub fn clear_proto_ids_size(&mut self) {
+        self.proto_ids_size = ::std::option::Option::None;
+    }
+
+    pub fn has_proto_ids_size(&self) -> bool {
+        self.proto_ids_size.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_proto_ids_size(&mut self, v: u32) {
+        self.proto_ids_size = ::std::option::Option::Some(v);
+    }
+
+    // optional uint32 proto_ids_offset = 16;
+
+    pub fn proto_ids_offset(&self) -> u32 {
+        self.proto_ids_offset.unwrap_or(0)
+    }
+
+    pub fn clear_proto_ids_offset(&mut self) {
+        self.proto_ids_offset = ::std::option::Option::None;
+    }
+
+    pub fn has_proto_ids_offset(&self) -> bool {
+        self.proto_ids_offset.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_proto_ids_offset(&mut self, v: u32) {
+        self.proto_ids_offset = ::std::option::Option::Some(v);
+    }
+
+    // optional uint32 field_ids_size = 17;
+
+    pub fn field_ids_size(&self) -> u32 {
+        self.field_ids_size.unwrap_or(0)
+    }
+
+    pub fn clear_field_ids_size(&mut self) {
+        self.field_ids_size = ::std::option::Option::None;
+    }
+
+    pub fn has_field_ids_size(&self) -> bool {
+        self.field_ids_size.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_field_ids_size(&mut self, v: u32) {
+        self.field_ids_size = ::std::option::Option::Some(v);
+    }
+
+    // optional uint32 field_ids_offset = 18;
+
+    pub fn field_ids_offset(&self) -> u32 {
+        self.field_ids_offset.unwrap_or(0)
+    }
+
+    pub fn clear_field_ids_offset(&mut self) {
+        self.field_ids_offset = ::std::option::Option::None;
+    }
+
+    pub fn has_field_ids_offset(&self) -> bool {
+        self.field_ids_offset.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_field_ids_offset(&mut self, v: u32) {
+        self.field_ids_offset = ::std::option::Option::Some(v);
+    }
+
+    // optional uint32 method_ids_size = 19;
+
+    pub fn method_ids_size(&self) -> u32 {
+        self.method_ids_size.unwrap_or(0)
+    }
+
+    pub fn clear_method_ids_size(&mut self) {
+        self.method_ids_size = ::std::option::Option::None;
+    }
+
+    pub fn has_method_ids_size(&self) -> bool {
+        self.method_ids_size.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_method_ids_size(&mut self, v: u32) {
+        self.method_ids_size = ::std::option::Option::Some(v);
+    }
+
+    // optional uint32 method_ids_offset = 20;
+
+    pub fn method_ids_offset(&self) -> u32 {
+        self.method_ids_offset.unwrap_or(0)
+    }
+
+    pub fn clear_method_ids_offset(&mut self) {
+        self.method_ids_offset = ::std::option::Option::None;
+    }
+
+    pub fn has_method_ids_offset(&self) -> bool {
+        self.method_ids_offset.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_method_ids_offset(&mut self, v: u32) {
+        self.method_ids_offset = ::std::option::Option::Some(v);
+    }
+
+    // optional uint32 class_defs_size = 21;
+
+    pub fn class_defs_size(&self) -> u32 {
+        self.class_defs_size.unwrap_or(0)
+    }
+
+    pub fn clear_class_defs_size(&mut self) {
+        self.class_defs_size = ::std::option::Option::None;
+    }
+
+    pub fn has_class_defs_size(&self) -> bool {
+        self.class_defs_size.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_class_defs_size(&mut self, v: u32) {
+        self.class_defs_size = ::std::option::Option::Some(v);
+    }
+
+    // optional uint32 class_defs_offset = 22;
+
+    pub fn class_defs_offset(&self) -> u32 {
+        self.class_defs_offset.unwrap_or(0)
+    }
+
+    pub fn clear_class_defs_offset(&mut self) {
+        self.class_defs_offset = ::std::option::Option::None;
+    }
+
+    pub fn has_class_defs_offset(&self) -> bool {
+        self.class_defs_offset.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_class_defs_offset(&mut self, v: u32) {
+        self.class_defs_offset = ::std::option::Option::Some(v);
+    }
+
     // optional uint32 data_size = 23;
 
     pub fn data_size(&self) -> u32 {
@@ -626,7 +899,7 @@ impl DexHeader {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(13);
+        let mut fields = ::std::vec::Vec::with_capacity(26);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "magic",
@@ -672,6 +945,71 @@ impl DexHeader {
             "link_off",
             |m: &DexHeader| { &m.link_off },
             |m: &mut DexHeader| { &mut m.link_off },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "map_offset",
+            |m: &DexHeader| { &m.map_offset },
+            |m: &mut DexHeader| { &mut m.map_offset },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "string_ids_size",
+            |m: &DexHeader| { &m.string_ids_size },
+            |m: &mut DexHeader| { &mut m.string_ids_size },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "string_ids_offset",
+            |m: &DexHeader| { &m.string_ids_offset },
+            |m: &mut DexHeader| { &mut m.string_ids_offset },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "type_ids_size",
+            |m: &DexHeader| { &m.type_ids_size },
+            |m: &mut DexHeader| { &mut m.type_ids_size },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "type_ids_offset",
+            |m: &DexHeader| { &m.type_ids_offset },
+            |m: &mut DexHeader| { &mut m.type_ids_offset },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "proto_ids_size",
+            |m: &DexHeader| { &m.proto_ids_size },
+            |m: &mut DexHeader| { &mut m.proto_ids_size },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "proto_ids_offset",
+            |m: &DexHeader| { &m.proto_ids_offset },
+            |m: &mut DexHeader| { &mut m.proto_ids_offset },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "field_ids_size",
+            |m: &DexHeader| { &m.field_ids_size },
+            |m: &mut DexHeader| { &mut m.field_ids_size },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "field_ids_offset",
+            |m: &DexHeader| { &m.field_ids_offset },
+            |m: &mut DexHeader| { &mut m.field_ids_offset },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "method_ids_size",
+            |m: &DexHeader| { &m.method_ids_size },
+            |m: &mut DexHeader| { &mut m.method_ids_size },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "method_ids_offset",
+            |m: &DexHeader| { &m.method_ids_offset },
+            |m: &mut DexHeader| { &mut m.method_ids_offset },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "class_defs_size",
+            |m: &DexHeader| { &m.class_defs_size },
+            |m: &mut DexHeader| { &mut m.class_defs_size },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "class_defs_offset",
+            |m: &DexHeader| { &m.class_defs_offset },
+            |m: &mut DexHeader| { &mut m.class_defs_offset },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "data_size",
@@ -738,6 +1076,45 @@ impl ::protobuf::Message for DexHeader {
                 72 => {
                     self.link_off = ::std::option::Option::Some(is.read_uint32()?);
                 },
+                80 => {
+                    self.map_offset = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                88 => {
+                    self.string_ids_size = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                96 => {
+                    self.string_ids_offset = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                104 => {
+                    self.type_ids_size = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                112 => {
+                    self.type_ids_offset = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                120 => {
+                    self.proto_ids_size = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                128 => {
+                    self.proto_ids_offset = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                136 => {
+                    self.field_ids_size = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                144 => {
+                    self.field_ids_offset = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                152 => {
+                    self.method_ids_size = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                160 => {
+                    self.method_ids_offset = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                168 => {
+                    self.class_defs_size = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                176 => {
+                    self.class_defs_offset = ::std::option::Option::Some(is.read_uint32()?);
+                },
                 184 => {
                     self.data_size = ::std::option::Option::Some(is.read_uint32()?);
                 },
@@ -789,6 +1166,45 @@ impl ::protobuf::Message for DexHeader {
         if let Some(v) = self.link_off {
             my_size += ::protobuf::rt::uint32_size(9, v);
         }
+        if let Some(v) = self.map_offset {
+            my_size += ::protobuf::rt::uint32_size(10, v);
+        }
+        if let Some(v) = self.string_ids_size {
+            my_size += ::protobuf::rt::uint32_size(11, v);
+        }
+        if let Some(v) = self.string_ids_offset {
+            my_size += ::protobuf::rt::uint32_size(12, v);
+        }
+        if let Some(v) = self.type_ids_size {
+            my_size += ::protobuf::rt::uint32_size(13, v);
+        }
+        if let Some(v) = self.type_ids_offset {
+            my_size += ::protobuf::rt::uint32_size(14, v);
+        }
+        if let Some(v) = self.proto_ids_size {
+            my_size += ::protobuf::rt::uint32_size(15, v);
+        }
+        if let Some(v) = self.proto_ids_offset {
+            my_size += ::protobuf::rt::uint32_size(16, v);
+        }
+        if let Some(v) = self.field_ids_size {
+            my_size += ::protobuf::rt::uint32_size(17, v);
+        }
+        if let Some(v) = self.field_ids_offset {
+            my_size += ::protobuf::rt::uint32_size(18, v);
+        }
+        if let Some(v) = self.method_ids_size {
+            my_size += ::protobuf::rt::uint32_size(19, v);
+        }
+        if let Some(v) = self.method_ids_offset {
+            my_size += ::protobuf::rt::uint32_size(20, v);
+        }
+        if let Some(v) = self.class_defs_size {
+            my_size += ::protobuf::rt::uint32_size(21, v);
+        }
+        if let Some(v) = self.class_defs_offset {
+            my_size += ::protobuf::rt::uint32_size(22, v);
+        }
         if let Some(v) = self.data_size {
             my_size += ::protobuf::rt::uint32_size(23, v);
         }
@@ -834,6 +1250,45 @@ impl ::protobuf::Message for DexHeader {
         if let Some(v) = self.link_off {
             os.write_uint32(9, v)?;
         }
+        if let Some(v) = self.map_offset {
+            os.write_uint32(10, v)?;
+        }
+        if let Some(v) = self.string_ids_size {
+            os.write_uint32(11, v)?;
+        }
+        if let Some(v) = self.string_ids_offset {
+            os.write_uint32(12, v)?;
+        }
+        if let Some(v) = self.type_ids_size {
+            os.write_uint32(13, v)?;
+        }
+        if let Some(v) = self.type_ids_offset {
+            os.write_uint32(14, v)?;
+        }
+        if let Some(v) = self.proto_ids_size {
+            os.write_uint32(15, v)?;
+        }
+        if let Some(v) = self.proto_ids_offset {
+            os.write_uint32(16, v)?;
+        }
+        if let Some(v) = self.field_ids_size {
+            os.write_uint32(17, v)?;
+        }
+        if let Some(v) = self.field_ids_offset {
+            os.write_uint32(18, v)?;
+        }
+        if let Some(v) = self.method_ids_size {
+            os.write_uint32(19, v)?;
+        }
+        if let Some(v) = self.method_ids_offset {
+            os.write_uint32(20, v)?;
+        }
+        if let Some(v) = self.class_defs_size {
+            os.write_uint32(21, v)?;
+        }
+        if let Some(v) = self.class_defs_offset {
+            os.write_uint32(22, v)?;
+        }
         if let Some(v) = self.data_size {
             os.write_uint32(23, v)?;
         }
@@ -872,6 +1327,19 @@ impl ::protobuf::Message for DexHeader {
         self.endian_tag = ::std::option::Option::None;
         self.link_size = ::std::option::Option::None;
         self.link_off = ::std::option::Option::None;
+        self.map_offset = ::std::option::Option::None;
+        self.string_ids_size = ::std::option::Option::None;
+        self.string_ids_offset = ::std::option::Option::None;
+        self.type_ids_size = ::std::option::Option::None;
+        self.type_ids_offset = ::std::option::Option::None;
+        self.proto_ids_size = ::std::option::Option::None;
+        self.proto_ids_offset = ::std::option::Option::None;
+        self.field_ids_size = ::std::option::Option::None;
+        self.field_ids_offset = ::std::option::Option::None;
+        self.method_ids_size = ::std::option::Option::None;
+        self.method_ids_offset = ::std::option::Option::None;
+        self.class_defs_size = ::std::option::Option::None;
+        self.class_defs_offset = ::std::option::Option::None;
         self.data_size = ::std::option::Option::None;
         self.data_off = ::std::option::Option::None;
         self.container_size = ::std::option::Option::None;
@@ -890,6 +1358,19 @@ impl ::protobuf::Message for DexHeader {
             endian_tag: ::std::option::Option::None,
             link_size: ::std::option::Option::None,
             link_off: ::std::option::Option::None,
+            map_offset: ::std::option::Option::None,
+            string_ids_size: ::std::option::Option::None,
+            string_ids_offset: ::std::option::Option::None,
+            type_ids_size: ::std::option::Option::None,
+            type_ids_offset: ::std::option::Option::None,
+            proto_ids_size: ::std::option::Option::None,
+            proto_ids_offset: ::std::option::Option::None,
+            field_ids_size: ::std::option::Option::None,
+            field_ids_offset: ::std::option::Option::None,
+            method_ids_size: ::std::option::Option::None,
+            method_ids_offset: ::std::option::Option::None,
+            class_defs_size: ::std::option::Option::None,
+            class_defs_offset: ::std::option::Option::None,
             data_size: ::std::option::Option::None,
             data_off: ::std::option::Option::None,
             container_size: ::std::option::Option::None,
@@ -2809,7 +3290,7 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x06fields\x18\x06\x20\x03(\x0b2\x0e.dex.FieldItemR\x06fields\x12)\n\x07\
     methods\x18\x07\x20\x03(\x0b2\x0f.dex.MethodItemR\x07methods\x12-\n\ncla\
     ss_defs\x18\x08\x20\x03(\x0b2\x0e.dex.ClassItemR\tclassDefs\x12'\n\x08ma\
-    p_list\x18\t\x20\x01(\x0b2\x0c.dex.MapListR\x07mapList\"\xcd\x03\n\tDexH\
+    p_list\x18\t\x20\x01(\x0b2\x0c.dex.MapListR\x07mapList\"\x93\x08\n\tDexH\
     eader\x12\x1d\n\x05magic\x18\x01\x20\x01(\rR\x05magicB\x07\x82\x93\x19\
     \x03*\x01x\x12\x18\n\x07version\x18\x02\x20\x01(\rR\x07version\x12#\n\
     \x08checksum\x18\x03\x20\x01(\rR\x08checksumB\x07\x82\x93\x19\x03*\x01x\
@@ -2818,54 +3299,68 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \rR\nheaderSizeB\x07\x82\x93\x19\x03*\x01x\x12&\n\nendian_tag\x18\x07\
     \x20\x01(\rR\tendianTagB\x07\x82\x93\x19\x03*\x01x\x12\x1b\n\tlink_size\
     \x18\x08\x20\x01(\rR\x08linkSize\x12\"\n\x08link_off\x18\t\x20\x01(\rR\
-    \x07linkOffB\x07\x82\x93\x19\x03*\x01x\x12\x1b\n\tdata_size\x18\x17\x20\
-    \x01(\rR\x08dataSize\x12\"\n\x08data_off\x18\x18\x20\x01(\rR\x07dataOffB\
-    \x07\x82\x93\x19\x03*\x01x\x12%\n\x0econtainer_size\x18\x19\x20\x01(\rR\
-    \rcontainerSize\x12,\n\rheader_offset\x18\x1a\x20\x01(\rR\x0cheaderOffse\
-    tB\x07\x82\x93\x19\x03*\x01x\"\x8f\x01\n\tProtoItem\x12\x16\n\x06shorty\
-    \x18\x01\x20\x01(\tR\x06shorty\x12\x1f\n\x0breturn_type\x18\x02\x20\x01(\
-    \tR\nreturnType\x12)\n\x10parameters_count\x18\x03\x20\x01(\rR\x0fparame\
-    tersCount\x12\x1e\n\nparameters\x18\x04\x20\x03(\tR\nparameters\"I\n\tFi\
-    eldItem\x12\x14\n\x05class\x18\x01\x20\x01(\tR\x05class\x12\x12\n\x04typ\
-    e\x18\x02\x20\x01(\tR\x04type\x12\x12\n\x04name\x18\x03\x20\x01(\tR\x04n\
-    ame\"\\\n\nMethodItem\x12\x14\n\x05class\x18\x01\x20\x01(\tR\x05class\
-    \x12$\n\x05proto\x18\x02\x20\x01(\x0b2\x0e.dex.ProtoItemR\x05proto\x12\
-    \x12\n\x04name\x18\x03\x20\x01(\tR\x04name\"\x9d\x01\n\tClassItem\x12\
-    \x14\n\x05class\x18\x01\x20\x01(\tR\x05class\x129\n\x0caccess_flags\x18\
-    \x02\x20\x01(\rR\x0baccessFlagsB\x16\x82\x93\x19\x12*\x10flags:AccessFla\
-    g\x12\x1e\n\nsuperclass\x18\x03\x20\x01(\tR\nsuperclass\x12\x1f\n\x0bsou\
-    rce_file\x18\x04\x20\x01(\tR\nsourceFile\"A\n\x07MapList\x12\x12\n\x04si\
-    ze\x18\x01\x20\x01(\rR\x04size\x12\"\n\x05items\x18\x02\x20\x03(\x0b2\
-    \x0c.dex.MapItemR\x05items\"y\n\x07MapItem\x12!\n\x04type\x18\x01\x20\
-    \x01(\x0e2\r.dex.TypeCodeR\x04type\x12\x16\n\x06unused\x18\x02\x20\x01(\
-    \rR\x06unused\x12\x12\n\x04size\x18\x03\x20\x01(\rR\x04size\x12\x1f\n\
-    \x06offset\x18\x04\x20\x01(\rR\x06offsetB\x07\x82\x93\x19\x03*\x01x*\xd9\
-    \x02\n\nAccessFlag\x12\x0e\n\nACC_PUBLIC\x10\x01\x12\x0f\n\x0bACC_PRIVAT\
-    E\x10\x02\x12\x11\n\rACC_PROTECTED\x10\x04\x12\x0e\n\nACC_STATIC\x10\x08\
-    \x12\r\n\tACC_FINAL\x10\x10\x12\x14\n\x10ACC_SYNCHRONIZED\x10\x20\x12\
-    \x0e\n\nACC_BRIDGE\x10@\x12\x10\n\x0bACC_VARARGS\x10\x80\x01\x12\x0f\n\n\
-    ACC_NATIVE\x10\x80\x02\x12\x12\n\rACC_INTERFACE\x10\x80\x04\x12\x11\n\
-    \x0cACC_ABSTRACT\x10\x80\x08\x12\x0f\n\nACC_STRICT\x10\x80\x10\x12\x12\n\
-    \rACC_SYNTHETIC\x10\x80\x20\x12\x13\n\x0eACC_ANNOTATION\x10\x80@\x12\x0e\
-    \n\x08ACC_ENUM\x10\x80\x80\x01\x12\x15\n\x0fACC_CONSTRUCTOR\x10\x80\x80\
-    \x04\x12\x1f\n\x19ACC_DECLARED_SYNCHRONIZED\x10\x80\x80\x08\x1a\x06\x92\
-    \x93\x19\x02\x10\x01*A\n\x11AccessFlagSpecial\x12\x10\n\x0cACC_VOLATILE\
-    \x10@\x12\x12\n\rACC_TRANSIENT\x10\x80\x01\x1a\x06\x92\x93\x19\x02\x10\
-    \x01*\xca\x04\n\x08TypeCode\x12\x14\n\x10TYPE_HEADER_ITEM\x10\0\x12\x17\
-    \n\x13TYPE_STRING_ID_ITEM\x10\x01\x12\x15\n\x11TYPE_TYPE_ID_ITEM\x10\x02\
-    \x12\x16\n\x12TYPE_PROTO_ID_ITEM\x10\x03\x12\x16\n\x12TYPE_FIELD_ID_ITEM\
-    \x10\x04\x12\x17\n\x13TYPE_METHOD_ID_ITEM\x10\x05\x12\x17\n\x13TYPE_CLAS\
-    S_DEF_ITEM\x10\x06\x12\x1a\n\x16TYPE_CALL_SITE_ID_ITEM\x10\x07\x12\x1b\n\
-    \x17TYPE_METHOD_HANDLE_ITEM\x10\x08\x12\x12\n\rTYPE_MAP_LIST\x10\x80\x20\
-    \x12\x13\n\x0eTYPE_TYPE_LIST\x10\x81\x20\x12!\n\x1cTYPE_ANNOTATION_SET_R\
-    EF_LIST\x10\x82\x20\x12\x1d\n\x18TYPE_ANNOTATION_SET_ITEM\x10\x83\x20\
-    \x12\x19\n\x14TYPE_CLASS_DATA_ITEM\x10\x80@\x12\x13\n\x0eTYPE_CODE_ITEM\
-    \x10\x81@\x12\x1a\n\x15TYPE_STRING_DATA_ITEM\x10\x82@\x12\x19\n\x14TYPE_\
-    DEBUG_INFO_ITEM\x10\x83@\x12\x19\n\x14TYPE_ANNOTATION_ITEM\x10\x84@\x12\
-    \x1c\n\x17TYPE_ENCODED_ARRAY_ITEM\x10\x85@\x12$\n\x1fTYPE_ANNOTATIONS_DI\
-    RECTORY_ITEM\x10\x86@\x12$\n\x1eTYPE_HIDDENAPI_CLASS_DATA_ITEM\x10\x80\
-    \xe0\x03\x1a\x06\x92\x93\x19\x02\x10\x01B\x1e\xfa\x92\x19\x1a\n\x03dex\
-    \x12\x07dex.Dex\x1a\ndex-moduleb\x06proto2\
+    \x07linkOffB\x07\x82\x93\x19\x03*\x01x\x12&\n\nmap_offset\x18\n\x20\x01(\
+    \rR\tmapOffsetB\x07\x82\x93\x19\x03*\x01x\x12&\n\x0fstring_ids_size\x18\
+    \x0b\x20\x01(\rR\rstringIdsSize\x123\n\x11string_ids_offset\x18\x0c\x20\
+    \x01(\rR\x0fstringIdsOffsetB\x07\x82\x93\x19\x03*\x01x\x12\"\n\rtype_ids\
+    _size\x18\r\x20\x01(\rR\x0btypeIdsSize\x12/\n\x0ftype_ids_offset\x18\x0e\
+    \x20\x01(\rR\rtypeIdsOffsetB\x07\x82\x93\x19\x03*\x01x\x12$\n\x0eproto_i\
+    ds_size\x18\x0f\x20\x01(\rR\x0cprotoIdsSize\x121\n\x10proto_ids_offset\
+    \x18\x10\x20\x01(\rR\x0eprotoIdsOffsetB\x07\x82\x93\x19\x03*\x01x\x12$\n\
+    \x0efield_ids_size\x18\x11\x20\x01(\rR\x0cfieldIdsSize\x121\n\x10field_i\
+    ds_offset\x18\x12\x20\x01(\rR\x0efieldIdsOffsetB\x07\x82\x93\x19\x03*\
+    \x01x\x12&\n\x0fmethod_ids_size\x18\x13\x20\x01(\rR\rmethodIdsSize\x123\
+    \n\x11method_ids_offset\x18\x14\x20\x01(\rR\x0fmethodIdsOffsetB\x07\x82\
+    \x93\x19\x03*\x01x\x12&\n\x0fclass_defs_size\x18\x15\x20\x01(\rR\rclassD\
+    efsSize\x123\n\x11class_defs_offset\x18\x16\x20\x01(\rR\x0fclassDefsOffs\
+    etB\x07\x82\x93\x19\x03*\x01x\x12\x1b\n\tdata_size\x18\x17\x20\x01(\rR\
+    \x08dataSize\x12\"\n\x08data_off\x18\x18\x20\x01(\rR\x07dataOffB\x07\x82\
+    \x93\x19\x03*\x01x\x12%\n\x0econtainer_size\x18\x19\x20\x01(\rR\rcontain\
+    erSize\x12,\n\rheader_offset\x18\x1a\x20\x01(\rR\x0cheaderOffsetB\x07\
+    \x82\x93\x19\x03*\x01x\"\x8f\x01\n\tProtoItem\x12\x16\n\x06shorty\x18\
+    \x01\x20\x01(\tR\x06shorty\x12\x1f\n\x0breturn_type\x18\x02\x20\x01(\tR\
+    \nreturnType\x12)\n\x10parameters_count\x18\x03\x20\x01(\rR\x0fparameter\
+    sCount\x12\x1e\n\nparameters\x18\x04\x20\x03(\tR\nparameters\"I\n\tField\
+    Item\x12\x14\n\x05class\x18\x01\x20\x01(\tR\x05class\x12\x12\n\x04type\
+    \x18\x02\x20\x01(\tR\x04type\x12\x12\n\x04name\x18\x03\x20\x01(\tR\x04na\
+    me\"\\\n\nMethodItem\x12\x14\n\x05class\x18\x01\x20\x01(\tR\x05class\x12\
+    $\n\x05proto\x18\x02\x20\x01(\x0b2\x0e.dex.ProtoItemR\x05proto\x12\x12\n\
+    \x04name\x18\x03\x20\x01(\tR\x04name\"\x9d\x01\n\tClassItem\x12\x14\n\
+    \x05class\x18\x01\x20\x01(\tR\x05class\x129\n\x0caccess_flags\x18\x02\
+    \x20\x01(\rR\x0baccessFlagsB\x16\x82\x93\x19\x12*\x10flags:AccessFlag\
+    \x12\x1e\n\nsuperclass\x18\x03\x20\x01(\tR\nsuperclass\x12\x1f\n\x0bsour\
+    ce_file\x18\x04\x20\x01(\tR\nsourceFile\"A\n\x07MapList\x12\x12\n\x04siz\
+    e\x18\x01\x20\x01(\rR\x04size\x12\"\n\x05items\x18\x02\x20\x03(\x0b2\x0c\
+    .dex.MapItemR\x05items\"y\n\x07MapItem\x12!\n\x04type\x18\x01\x20\x01(\
+    \x0e2\r.dex.TypeCodeR\x04type\x12\x16\n\x06unused\x18\x02\x20\x01(\rR\
+    \x06unused\x12\x12\n\x04size\x18\x03\x20\x01(\rR\x04size\x12\x1f\n\x06of\
+    fset\x18\x04\x20\x01(\rR\x06offsetB\x07\x82\x93\x19\x03*\x01x*\xd9\x02\n\
+    \nAccessFlag\x12\x0e\n\nACC_PUBLIC\x10\x01\x12\x0f\n\x0bACC_PRIVATE\x10\
+    \x02\x12\x11\n\rACC_PROTECTED\x10\x04\x12\x0e\n\nACC_STATIC\x10\x08\x12\
+    \r\n\tACC_FINAL\x10\x10\x12\x14\n\x10ACC_SYNCHRONIZED\x10\x20\x12\x0e\n\
+    \nACC_BRIDGE\x10@\x12\x10\n\x0bACC_VARARGS\x10\x80\x01\x12\x0f\n\nACC_NA\
+    TIVE\x10\x80\x02\x12\x12\n\rACC_INTERFACE\x10\x80\x04\x12\x11\n\x0cACC_A\
+    BSTRACT\x10\x80\x08\x12\x0f\n\nACC_STRICT\x10\x80\x10\x12\x12\n\rACC_SYN\
+    THETIC\x10\x80\x20\x12\x13\n\x0eACC_ANNOTATION\x10\x80@\x12\x0e\n\x08ACC\
+    _ENUM\x10\x80\x80\x01\x12\x15\n\x0fACC_CONSTRUCTOR\x10\x80\x80\x04\x12\
+    \x1f\n\x19ACC_DECLARED_SYNCHRONIZED\x10\x80\x80\x08\x1a\x06\x92\x93\x19\
+    \x02\x10\x01*A\n\x11AccessFlagSpecial\x12\x10\n\x0cACC_VOLATILE\x10@\x12\
+    \x12\n\rACC_TRANSIENT\x10\x80\x01\x1a\x06\x92\x93\x19\x02\x10\x01*\xca\
+    \x04\n\x08TypeCode\x12\x14\n\x10TYPE_HEADER_ITEM\x10\0\x12\x17\n\x13TYPE\
+    _STRING_ID_ITEM\x10\x01\x12\x15\n\x11TYPE_TYPE_ID_ITEM\x10\x02\x12\x16\n\
+    \x12TYPE_PROTO_ID_ITEM\x10\x03\x12\x16\n\x12TYPE_FIELD_ID_ITEM\x10\x04\
+    \x12\x17\n\x13TYPE_METHOD_ID_ITEM\x10\x05\x12\x17\n\x13TYPE_CLASS_DEF_IT\
+    EM\x10\x06\x12\x1a\n\x16TYPE_CALL_SITE_ID_ITEM\x10\x07\x12\x1b\n\x17TYPE\
+    _METHOD_HANDLE_ITEM\x10\x08\x12\x12\n\rTYPE_MAP_LIST\x10\x80\x20\x12\x13\
+    \n\x0eTYPE_TYPE_LIST\x10\x81\x20\x12!\n\x1cTYPE_ANNOTATION_SET_REF_LIST\
+    \x10\x82\x20\x12\x1d\n\x18TYPE_ANNOTATION_SET_ITEM\x10\x83\x20\x12\x19\n\
+    \x14TYPE_CLASS_DATA_ITEM\x10\x80@\x12\x13\n\x0eTYPE_CODE_ITEM\x10\x81@\
+    \x12\x1a\n\x15TYPE_STRING_DATA_ITEM\x10\x82@\x12\x19\n\x14TYPE_DEBUG_INF\
+    O_ITEM\x10\x83@\x12\x19\n\x14TYPE_ANNOTATION_ITEM\x10\x84@\x12\x1c\n\x17\
+    TYPE_ENCODED_ARRAY_ITEM\x10\x85@\x12$\n\x1fTYPE_ANNOTATIONS_DIRECTORY_IT\
+    EM\x10\x86@\x12$\n\x1eTYPE_HIDDENAPI_CLASS_DATA_ITEM\x10\x80\xe0\x03\x1a\
+    \x06\x92\x93\x19\x02\x10\x01B\x1e\xfa\x92\x19\x1a\n\x03dex\x12\x07dex.De\
+    x\x1a\ndex-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

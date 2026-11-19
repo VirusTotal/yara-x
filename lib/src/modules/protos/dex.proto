@@ -50,6 +50,32 @@ message DexHeader {
     optional uint32 link_size = 8;
     // Offset pointing to the link section data.
     optional uint32 link_off = 9 [(yara.field_options).fmt = "x"];
+    // File offset to the map list, from the start of the file.
+    optional uint32 map_offset = 10 [(yara.field_options).fmt = "x"];
+    // Count of strings in the string identifiers list.
+    optional uint32 string_ids_size = 11;
+    // File offset to the string identifiers list.
+    optional uint32 string_ids_offset = 12 [(yara.field_options).fmt = "x"];
+    // Count of elements in the type identifiers list.
+    optional uint32 type_ids_size = 13;
+    // File offset to the type identifiers list.
+    optional uint32 type_ids_offset = 14 [(yara.field_options).fmt = "x"];
+    // Count of elements in the prototype identifiers list.
+    optional uint32 proto_ids_size = 15;
+    // File offset to the prototype identifiers list.
+    optional uint32 proto_ids_offset = 16 [(yara.field_options).fmt = "x"];
+    // Count of elements in the field identifiers list.
+    optional uint32 field_ids_size = 17;
+    // File offset to the field identifiers list.
+    optional uint32 field_ids_offset = 18 [(yara.field_options).fmt = "x"];
+    // Count of elements in the method identifiers list.
+    optional uint32 method_ids_size = 19;
+    // File offset to the method identifiers list.
+    optional uint32 method_ids_offset = 20 [(yara.field_options).fmt = "x"];
+    // Count of elements in the class definitions list.
+    optional uint32 class_defs_size = 21;
+    // File offset to the class definitions list.
+    optional uint32 class_defs_offset = 22 [(yara.field_options).fmt = "x"];
     // Size in bytes of the main data section.
     optional uint32 data_size = 23;
     // File offset pointing to the main data block.
