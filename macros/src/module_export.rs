@@ -9,6 +9,7 @@ use syn::{Expr, FnArg, ItemFn, Pat, Result};
 /// Arguments received by the `#[module_export]` macro.
 pub struct ModuleExportsArgs {
     name: Option<String>,
+    alias: Option<String>,
     method_of: Option<String>,
     sync: Option<String>,
 }
@@ -86,8 +87,11 @@ pub(crate) fn impl_module_export_macro(
 
     let rust_fn_name = func.sig.ident;
     let fn_name = attr_args.name.unwrap_or(rust_fn_name.to_string());
+    let alias = attr_args.alias.as_deref();
     let sync = attr_args.sync.unwrap_or_else(|| "none".to_owned());
     let method_of = attr_args.method_of;
+
+    crate::wasm_export::validate_alias(&fn_name, alias)?;
 
     // Modify the original function and convert it into the thunk function.
     func.sig.ident = format_ident!("__thunk__{}", rust_fn_name);
@@ -97,12 +101,28 @@ pub(crate) fn impl_module_export_macro(
         #rust_fn_name(caller.data_mut(), #arg_pats)
     }})?;
 
+    let alias_arg = alias.map(|a| quote! { alias = #a, });
+
     let wasm_export = match &method_of {
         Some(m) => {
-            quote! { #[wasm_export(name = #fn_name, method_of = #m, sync = #sync)] }
+            quote! {
+                #[wasm_export(
+                    name = #fn_name,
+                    #alias_arg
+                    method_of = #m,
+                    sync = #sync
+                )]
+            }
         }
         None => {
-            quote! { #[wasm_export(name = #fn_name, module = true, sync = #sync)] }
+            quote! {
+                #[wasm_export(
+                    name = #fn_name,
+                    #alias_arg
+                    module = true,
+                    sync = #sync
+                )]
+            }
         }
     };
 
@@ -115,4 +135,91 @@ pub(crate) fn impl_module_export_macro(
     });
 
     Ok(token_stream)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::module_export::impl_module_export_macro;
+    use darling::ast::NestedMeta;
+    use quote::quote;
+    use syn::parse_quote;
+
+    #[test]
+    fn module_export_alias() {
+        let parse_args = |tokens: proc_macro2::TokenStream| {
+            NestedMeta::parse_meta_list(tokens).unwrap()
+        };
+
+        let func: syn::ItemFn = parse_quote! {
+            fn contains_method(ctx: &ScanContext, value: RuntimeString) -> bool {
+                true
+            }
+        };
+
+        let expanded = impl_module_export_macro(
+            parse_args(quote! {
+                name = "contains_method",
+                alias = "has_method"
+            }),
+            func.clone(),
+        )
+        .unwrap()
+        .to_string();
+        assert!(expanded.contains(
+            "wasm_export (name = \"contains_method\" , alias = \"has_method\" , module = true , sync = \"none\")"
+        ));
+
+        let expanded_default_name = impl_module_export_macro(
+            parse_args(quote! { alias = "has_method" }),
+            func.clone(),
+        )
+        .unwrap()
+        .to_string();
+        assert!(expanded_default_name.contains(
+            "wasm_export (name = \"contains_method\" , alias = \"has_method\" , module = true , sync = \"none\")"
+        ));
+
+        let expanded_method = impl_module_export_macro(
+            parse_args(quote! {
+                name = "contains_method",
+                alias = "has_method",
+                method_of = "dex.Dex"
+            }),
+            func.clone(),
+        )
+        .unwrap()
+        .to_string();
+        assert!(expanded_method.contains(
+            "wasm_export (name = \"contains_method\" , alias = \"has_method\" , method_of = \"dex.Dex\" , sync = \"none\")"
+        ));
+
+        let err = impl_module_export_macro(
+            parse_args(quote! { alias = "" }),
+            func.clone(),
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("alias cannot be empty"));
+
+        let err = impl_module_export_macro(
+            parse_args(quote! {
+                name = "contains_method",
+                alias = "contains_method"
+            }),
+            func.clone(),
+        )
+        .unwrap_err();
+        assert!(
+            err.to_string().contains("cannot be the same as the function")
+        );
+
+        let err = impl_module_export_macro(
+            parse_args(quote! {
+                alias = "has_method",
+                alias = "other_method"
+            }),
+            func,
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("Duplicate field `alias`"));
+    }
 }
