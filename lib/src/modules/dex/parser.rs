@@ -299,9 +299,9 @@ impl Dex {
     /// idx - is an index in the string_ids_off table
     /// strings_ids_off[idx] -> string_data_item
     ///
-    /// Strings larger than 64KB will be considered invalid and the result will
-    /// be `Ok(None)`. Returns `Err(())` if the cumulative memory budget is
-    /// exhausted.
+    /// Strings longer than 65,536 UTF-16 code units will be considered invalid
+    /// and the result will be `Ok(None)`. Returns `Err(())` if the cumulative
+    /// memory budget is exhausted.
     fn parse_string_from_offset(
         data: &[u8],
         string_data_offset: u32,
@@ -331,6 +331,11 @@ impl Dex {
         let max_len = (utf16_size as usize).saturating_mul(3);
         let window = &slice[..slice.len().min(max_len.saturating_add(1))];
         let Some(end) = memchr::memchr(0, window) else {
+            // Charge the scanned window so repeated unterminated entries
+            // cannot cause unbounded scanning work.
+            if !budget.try_consume(window.len()) {
+                return Err(());
+            }
             return Ok(None);
         };
         let bytes = &window[..end];
