@@ -77,6 +77,14 @@ impl Dex {
         Self::STRING_OVERHEAD.saturating_add(len)
     }
 
+    /// Returns the item at `idx` in a table that keeps one slot per index
+    /// of the DEX file, or `None` if the index is out of range or the item
+    /// couldn't be parsed.
+    #[inline]
+    fn lookup<T>(items: &[Option<T>], idx: u32) -> Option<&T> {
+        items.get(idx as usize)?.as_ref()
+    }
+
     pub fn parse(data: &[u8]) -> Result<protos::dex::Dex, Err<Error<'_>>> {
         // Extract dex header with information about data location
         let (_, header) = Self::parse_dex_header(data)?;
@@ -128,9 +136,12 @@ impl Dex {
         dex.set_is_dex(true);
 
         dex.header = MessageField::some(header.into());
-        dex.strings = strings;
-        dex.types = types;
-        dex.protos = protos;
+        // The tables above keep one slot per index of the DEX file, so that
+        // an entry that can't be parsed doesn't shift the indices of the
+        // following ones. Only the entries that were parsed are exposed.
+        dex.strings = strings.into_iter().flatten().collect();
+        dex.types = types.into_iter().flatten().collect();
+        dex.protos = protos.into_iter().flatten().collect();
         dex.fields = fields;
         dex.methods = methods;
         dex.class_defs = class_defs;
@@ -238,15 +249,19 @@ impl Dex {
         Ok((remainder, header))
     }
 
-    /// Collects a list of strings in a hashmap from string_ids_off list.
-    /// A HashMap is needed to quickly access an item by its index.
+    /// Collects the strings referenced by the string_ids_off list.
+    ///
+    /// The result has one slot per entry in string_ids, so that types, fields,
+    /// methods and classes can look up strings by their index in the DEX
+    /// file. A string that can't be parsed leaves a `None` in its slot
+    /// instead of shifting the indices of the strings that follow it.
     ///
     /// See: https://source.android.com/docs/core/runtime/dex-format#string-item
     fn parse_strings(
         data: &[u8],
         header: &DexHeader,
         budget: &mut MemoryBudget,
-    ) -> Vec<String> {
+    ) -> Vec<Option<String>> {
         // DEX file doesn't contain strings.
         // It's a strange case, but it needs to be checked.
         if header.string_ids_off == 0 {
@@ -265,8 +280,13 @@ impl Dex {
             .take(header.string_ids_size as usize)
         {
             match Self::parse_string_from_offset(data, offset, budget) {
-                Ok(Some(s)) => strings.push(s),
-                Ok(None) => continue,
+                Ok(Some(s)) => strings.push(Some(s)),
+                Ok(None) => {
+                    if !budget.try_consume(Self::STRING_OVERHEAD) {
+                        break;
+                    }
+                    strings.push(None)
+                }
                 Err(()) => break,
             }
         }
@@ -303,11 +323,17 @@ impl Dex {
             return Ok(None);
         }
 
-        let Ok((_, bytes)) =
-            take::<usize, &[u8], Error>(utf16_size as usize)(slice)
-        else {
+        // `utf16_size` is the length of the string in UTF-16 code units, not
+        // in bytes: each code unit takes 1 to 3 bytes in MUTF-8. The string
+        // data ends with a null byte, which MUTF-8 never uses inside a
+        // string (U+0000 is encoded as 0xC0 0x80), so the string spans up to
+        // that terminator, looked for within the longest possible encoding.
+        let max_len = (utf16_size as usize).saturating_mul(3);
+        let window = &slice[..slice.len().min(max_len.saturating_add(1))];
+        let Some(end) = memchr::memchr(0, window) else {
             return Ok(None);
         };
+        let bytes = &window[..end];
 
         // Charge the input slice size upfront before MUTF-8 decoding so that
         // repeated invalid MUTF-8 entries cannot cause unbounded decoding work.
@@ -339,9 +365,9 @@ impl Dex {
     fn parse_types(
         data: &[u8],
         header: &DexHeader,
-        string_items: &[String],
+        string_items: &[Option<String>],
         budget: &mut MemoryBudget,
-    ) -> Vec<String> {
+    ) -> Vec<Option<String>> {
         // DEX file doesn't contain types.
         // It's a strange case, but it needs to be checked.
         if header.type_ids_off == 0 {
@@ -359,13 +385,16 @@ impl Dex {
             .take(Self::MAX_TYPES)
             .take(header.type_ids_size as usize)
         {
-            let Some(s) = string_items.get(idx as usize) else {
-                continue;
-            };
-            if !budget.try_consume(Self::vec_string_cost(s.len())) {
+            // Keep one slot per type index, even when the type's string is
+            // missing, so that the indices of the following types still match.
+            let s = Self::lookup(string_items, idx);
+            let cost = s.map_or(Self::STRING_OVERHEAD, |s| {
+                Self::vec_string_cost(s.len())
+            });
+            if !budget.try_consume(cost) {
                 break;
             }
-            types.push(s.clone());
+            types.push(s.cloned());
         }
 
         types
@@ -378,10 +407,10 @@ impl Dex {
     fn parse_protos(
         data: &[u8],
         header: &DexHeader,
-        string_items: &[String],
-        type_items: &[String],
+        string_items: &[Option<String>],
+        type_items: &[Option<String>],
         budget: &mut MemoryBudget,
-    ) -> (Vec<protos::dex::ProtoItem>, Vec<usize>) {
+    ) -> (Vec<Option<protos::dex::ProtoItem>>, Vec<usize>) {
         // DEX file doesn't contain prototypes.
         // It's a strange case, but it needs to be checked.
         if header.proto_ids_off == 0 {
@@ -401,11 +430,17 @@ impl Dex {
                 .take(Self::MAX_PROTOS)
                 .take(header.proto_ids_size as usize)
         {
-            let Some(shorty) = string_items.get(shorty_idx as usize) else {
-                continue;
-            };
-            let Some(return_type) = type_items.get(return_type_idx as usize)
-            else {
+            // As with strings and types, a prototype that can't be resolved
+            // keeps its slot so that methods still find theirs by index.
+            let (Some(shorty), Some(return_type)) = (
+                Self::lookup(string_items, shorty_idx),
+                Self::lookup(type_items, return_type_idx),
+            ) else {
+                if !budget.try_consume(Self::PROTO_OVERHEAD) {
+                    break;
+                }
+                protos.push(None);
+                proto_costs.push(0);
                 continue;
             };
 
@@ -444,7 +479,7 @@ impl Dex {
             item.set_parameters_count(parameters.len() as u32);
             item.parameters = parameters;
 
-            protos.push(item);
+            protos.push(Some(item));
             proto_costs.push(item_cost);
         }
 
@@ -456,7 +491,7 @@ impl Dex {
     /// See: https://source.android.com/docs/core/runtime/dex-format#type-list
     fn parse_type_list(
         data: &[u8],
-        type_items: &[String],
+        type_items: &[Option<String>],
         offset: u32,
         budget: &mut MemoryBudget,
         item_cost: &mut usize,
@@ -478,7 +513,7 @@ impl Dex {
         for idx in iterator(remainder, le_u16::<&[u8], Error>)
             .take(size as usize)
         {
-            let Some(t) = type_items.get(idx as usize) else {
+            let Some(t) = Self::lookup(type_items, idx.into()) else {
                 continue;
             };
             let param_cost = Self::vec_string_cost(t.len());
@@ -498,8 +533,8 @@ impl Dex {
     fn parse_fields(
         data: &[u8],
         header: &DexHeader,
-        string_items: &[String],
-        type_items: &[String],
+        string_items: &[Option<String>],
+        type_items: &[Option<String>],
         budget: &mut MemoryBudget,
     ) -> Vec<protos::dex::FieldItem> {
         // DEX file doesn't contain fields.
@@ -520,13 +555,13 @@ impl Dex {
                 .take(Self::MAX_FIELDS)
                 .take(header.field_ids_size as usize)
         {
-            let Some(class) = type_items.get(class_idx as usize) else {
+            let Some(class) = Self::lookup(type_items, class_idx.into()) else {
                 continue;
             };
-            let Some(type_) = type_items.get(type_idx as usize) else {
+            let Some(type_) = Self::lookup(type_items, type_idx.into()) else {
                 continue;
             };
-            let Some(name) = string_items.get(name_idx as usize) else {
+            let Some(name) = Self::lookup(string_items, name_idx) else {
                 continue;
             };
 
@@ -555,9 +590,9 @@ impl Dex {
     fn parse_methods(
         data: &[u8],
         header: &DexHeader,
-        string_items: &[String],
-        type_items: &[String],
-        proto_items: &[protos::dex::ProtoItem],
+        string_items: &[Option<String>],
+        type_items: &[Option<String>],
+        proto_items: &[Option<protos::dex::ProtoItem>],
         proto_costs: &[usize],
         budget: &mut MemoryBudget,
     ) -> Vec<protos::dex::MethodItem> {
@@ -579,14 +614,14 @@ impl Dex {
                 .take(Self::MAX_METHODS)
                 .take(header.method_ids_size as usize)
         {
-            let Some(class) = type_items.get(class_idx as usize) else {
+            let Some(class) = Self::lookup(type_items, class_idx.into()) else {
                 continue;
             };
-            let Some(proto) = proto_items.get(proto_idx as usize) else {
+            let Some(proto) = Self::lookup(proto_items, proto_idx.into()) else {
                 continue;
             };
             let proto_cost = proto_costs[proto_idx as usize];
-            let Some(name) = string_items.get(name_idx as usize) else {
+            let Some(name) = Self::lookup(string_items, name_idx) else {
                 continue;
             };
 
@@ -617,8 +652,8 @@ impl Dex {
     fn parse_class_defs(
         data: &[u8],
         header: &DexHeader,
-        string_items: &[String],
-        type_items: &[String],
+        string_items: &[Option<String>],
+        type_items: &[Option<String>],
         budget: &mut MemoryBudget,
     ) -> Vec<protos::dex::ClassItem> {
         // DEX file doesn't contain classess
@@ -659,16 +694,16 @@ impl Dex {
             _,
         ) in it.take(Self::MAX_CLASSES).take(header.class_defs_size as usize)
         {
-            let Some(class) = type_items.get(class_idx as usize) else {
+            let Some(class) = Self::lookup(type_items, class_idx) else {
                 continue;
             };
             let superclass = if superclass_idx != Self::NO_INDEX {
-                type_items.get(superclass_idx as usize)
+                Self::lookup(type_items, superclass_idx)
             } else {
                 None
             };
             let source_file = if source_file_idx != Self::NO_INDEX {
-                string_items.get(source_file_idx as usize)
+                Self::lookup(string_items, source_file_idx)
             } else {
                 None
             };
