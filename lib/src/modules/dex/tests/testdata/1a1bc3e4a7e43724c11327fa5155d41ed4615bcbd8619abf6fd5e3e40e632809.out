@@ -1,0 +1,59 @@
+is_dex: true
+header:
+    magic: 0x6465780a
+    version: 35
+    checksum: 0x73c3ace5
+    signature: "06a1047c1d0835ae3a0c0c421c2560a7052b07d3"
+    file_size: 70372
+    header_size: 0x70
+    endian_tag: 0x12345678
+    link_size: 0
+    link_off: 0x0
+strings:
+  - "I"
+  - "Lcom/example/Main;"
+  - "Main.java"
+  - "V"
+  - "VI"
+  - "a\x00b"
+  - "evilMethod"
+  - "field1"
+  - "método"
+  - "日本"
+  - "😀"
+types:
+  - "I"
+  - "Lcom/example/Main;"
+  - "V"
+protos:
+  - shorty: "V"
+    return_type: "V"
+    parameters_count: 0
+  - shorty: "VI"
+    return_type: "V"
+    parameters_count: 1
+    parameters:
+      - "I"
+fields:
+  - class: "Lcom/example/Main;"
+    type: "I"
+    name: "field1"
+methods:
+  - class: "Lcom/example/Main;"
+    proto:
+        shorty: "V"
+        return_type: "V"
+        parameters_count: 0
+    name: "evilMethod"
+  - class: "Lcom/example/Main;"
+    proto:
+        shorty: "VI"
+        return_type: "V"
+        parameters_count: 1
+        parameters:
+          - "I"
+    name: "método"
+class_defs:
+  - class: "Lcom/example/Main;"
+    access_flags: 0x1  # ACC_PUBLIC
+    source_file: "Main.java"
