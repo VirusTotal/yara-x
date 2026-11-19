@@ -1,3 +1,6 @@
+pub const APP_LONG_ABOUT: &str = r#"YARA-X is the pattern matching swiss army knife
+aimed at helping malware researchers identify and classify malware samples."#;
+
 pub const CHECK_LONG_HELP: &str = r#"Check if YARA source files are correct
 
 If <RULES_PATH> is a directory, all files with extensions `.yar` and `.yara` will be checked.
@@ -67,7 +70,7 @@ Examples:
 
 --disable-warnings
 --disable-warnings=slow_pattern
---disable-warnings=slow_rules,redundant_modifier"
+--disable-warnings=slow_rules,redundant_modifier
 --disable-warnings=slow_rules --disable-warnings=redundant_modifier"#;
 
 pub const FILTER_LONG_HELP: &str = r#"Only check files that match the given pattern

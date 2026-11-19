@@ -55,6 +55,8 @@ pub fn command(name: &'static str) -> Command {
 
 pub fn cli() -> Command {
     command!()
+        .about("Pattern matching and malware research tool")
+        .long_about(help::APP_LONG_ABOUT)
         .author(crate_authors!("\n")) // requires `cargo` feature
         .arg_required_else_help(true)
         .arg(

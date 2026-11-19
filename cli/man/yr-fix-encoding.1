@@ -1,0 +1,77 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH YR-FIX-ENCODING 1 "" YARA-X "User Commands"
+.SH NAME
+yr\-fix\-encoding \- Convert source files to UTF\-8
+.SH SYNOPSIS
+\fByr fix encoding\fR [\fB\-d\fR|\fB\-\-dry\-run\fR] [\fB\-f\fR|\fB\-\-filter\fR] [\fB\-r\fR|\fB\-\-recursive\fR] [\fB\-p\fR|\fB\-\-threads\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIRULES_PATH\fR>
+.SH DESCRIPTION
+Convert source files to UTF\-8
+.PP
+YARA\-X is stricter that YARA with respect to invalid UTF\-8 characters in source
+code. This command allows to convert your YARA source files to UTF\-8 encoding if
+they are not.
+.PP
+If <RULES_PATH> is a directory, all files with extensions `.yar` and `.yara` will
+be converted. This behavior can be changed by using the `\-\-filter` option.
+.SH OPTIONS
+.TP
+\fB\-d\fR, \fB\-\-dry\-run\fR
+Don\*(Aqt modify source files
+.TP
+\fB\-f\fR, \fB\-\-filter\fR \fI<PATTERN>\fR
+Only check files that match the given pattern
+
+Patterns can contains the following wildcards:
+
+?      matches any single character.
+
+*      matches any sequence of characters, except the path separator.
+
+**     matches any sequence of characters, including the path separator.
+
+[...]  matches any character inside the brackets. Can also specify ranges of
+       characters (e.g. [0\-9], [a\-z])
+
+[!...] is the negation of [...]
+
+This option can be used more than once with different patterns. In such cases
+files matching any of the patterns will be checked.
+
+When no filter is specified, the following ones are used by default:
+
+\-\-filter=\*(Aq**/*.yara\*(Aq \-\-filter=\*(Aq**/*.yar\*(Aq
+.TP
+\fB\-r\fR, \fB\-\-recursive\fR[=\fI<MAX_DEPTH>\fR]
+Walk directories recursively
+
+When <RULES_PATH> is a directory, this option enables recursive directory traversal.
+You can optionally specify a <MAX_DEPTH> to limit how deep the traversal goes:
+
+.nf
+\-\-recursive     process nested subdirectories with no limits.
+\-\-recursive=0   process only the files in <TARGET_PATH> (no subdirectories)
+\-\-recursive=3   process up to 3 levels deep, including nested subdirectories
+.fi
+
+If \-\-recursive is not specified, the default behavior is equivalent to \-\-recursive=0.
+
+Examples:
+
+.nf
+\-\-recursive
+\-\-recursive=3
+.fi
+.TP
+\fB\-p\fR, \fB\-\-threads\fR \fI<NUM_THREADS>\fR
+Use the specified number of threads
+
+The default value is automatically determined based on the number of CPU cores.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+<\fIRULES_PATH\fR>
+Path to YARA source file or directory
+.SH "SEE ALSO"
+\fByr\-fix\fR(1), \fByr\fR(1)

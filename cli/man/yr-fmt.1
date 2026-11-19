@@ -1,0 +1,53 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH YR-FMT 1 "" YARA-X "User Commands"
+.SH NAME
+yr\-fmt \- Format YARA source files
+.SH SYNOPSIS
+\fByr fmt\fR [\fB\-c\fR|\fB\-\-check\fR] [\fB\-r\fR|\fB\-\-recursive\fR] [\fB\-t\fR|\fB\-\-tab\-size\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIPATH\fR>
+.SH DESCRIPTION
+Format YARA source files
+.SH OPTIONS
+.TP
+\fB\-c\fR, \fB\-\-check\fR
+Run in \*(Aqcheck\*(Aq mode
+
+Doesn\*(Aqt modify the files. If formatting is required prints the names of files
+that would be modified and exits with 1. Exits with 0 if all files were already
+formatted correctly.
+.TP
+\fB\-r\fR, \fB\-\-recursive\fR[=\fI<MAX_DEPTH>\fR]
+Walk directories recursively
+
+When <RULES_PATH> is a directory, this option enables recursive directory traversal.
+You can optionally specify a <MAX_DEPTH> to limit how deep the traversal goes:
+
+.nf
+\-\-recursive     process nested subdirectories with no limits.
+\-\-recursive=0   process only the files in <TARGET_PATH> (no subdirectories)
+\-\-recursive=3   process up to 3 levels deep, including nested subdirectories
+.fi
+
+If \-\-recursive is not specified, the default behavior is equivalent to \-\-recursive=0.
+
+Examples:
+
+.nf
+\-\-recursive
+\-\-recursive=3
+.fi
+.TP
+\fB\-t\fR, \fB\-\-tab\-size\fR \fI<NUM_SPACES>\fR [default: 4]
+Tab size (in spaces) used in source files
+
+If the input contains tab characters, the formatter uses this value to determine how
+many spaces each tab represents. Setting this incorrectly can lead to misaligned
+formatting when the code mixes tabs and spaces.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+<\fIPATH\fR>
+Path to YARA source file or directory
+.SH "SEE ALSO"
+\fByr\fR(1)
