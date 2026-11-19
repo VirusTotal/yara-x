@@ -1,6 +1,7 @@
 use pretty_assertions::assert_eq;
 
 use crate::modules::tests::create_binary_from_zipped_ihex;
+use crate::tests::rule_false;
 use crate::tests::rule_true;
 use crate::tests::test_rule;
 
@@ -111,6 +112,99 @@ fn classes() {
         rule test {
             condition:
                 dex.contains_class("Lwmczycqxv/egztwrhea;")
+        }
+        "#,
+        &dex
+    );
+}
+
+#[test]
+fn has_method() {
+    let dex = create_binary_from_zipped_ihex(
+        "src/modules/dex/tests/testdata/c14c75d58399825287e0ee0fcfede6ec06f93489fb52f70bca2736fae5fceab2.in.zip",
+    );
+
+    // In this DEX file `getPackageName` is a method of class
+    // `Lwmczycqxv/egztwrhea;` and `loadLibrary` is a method of class
+    // `Ljava/lang/System;`.
+
+    // has_method(string) and has_method(regexp).
+    rule_true!(
+        r#"
+        import "dex"
+        rule test {
+            condition:
+                dex.has_method("getPackageName") and
+                dex.has_method(/getPackage.*/) and
+                dex.has_method("loadLibrary")
+        }
+        "#,
+        &dex
+    );
+
+    // has_method(class, method) with both strings and regexps.
+    rule_true!(
+        r#"
+        import "dex"
+        rule test {
+            condition:
+                dex.has_method("Lwmczycqxv/egztwrhea;", "getPackageName") and
+                dex.has_method(/Lwmczycqxv\/.*/, /getPackageName/) and
+                dex.has_method("Ljava/lang/System;", "loadLibrary")
+        }
+        "#,
+        &dex
+    );
+
+    // Negatives, including the class+method binding: `getPackageName` is not a
+    // method of `Ljava/lang/System;`, and `loadLibrary` is not a method of
+    // `Lwmczycqxv/egztwrhea;`.
+    rule_false!(
+        r#"
+        import "dex"
+        rule test {
+            condition:
+                dex.has_method("thisMethodDoesNotExist") or
+                dex.has_method(/^thisMethodDoesNotExist$/) or
+                dex.has_method("Ljava/lang/System;", "getPackageName") or
+                dex.has_method("Lwmczycqxv/egztwrhea;", "loadLibrary")
+        }
+        "#,
+        &dex
+    );
+}
+
+#[test]
+fn has_class() {
+    let dex = create_binary_from_zipped_ihex(
+        "src/modules/dex/tests/testdata/c14c75d58399825287e0ee0fcfede6ec06f93489fb52f70bca2736fae5fceab2.in.zip",
+    );
+
+    // `has_class` only matches classes *defined* in the DEX file (its
+    // `class_defs`), not classes that are merely referenced. In this file the
+    // only defined class is `Lwmczycqxv/egztwrhea;`.
+    rule_true!(
+        r#"
+        import "dex"
+        rule test {
+            condition:
+                dex.has_class("Lwmczycqxv/egztwrhea;") and
+                dex.has_class(/Lwmczycqxv\/.*/)
+        }
+        "#,
+        &dex
+    );
+
+    // `Ljava/lang/System;` is referenced but not defined, so `has_class` is
+    // false for it, as in YARA.
+    rule_false!(
+        r#"
+        import "dex"
+        rule test {
+            condition:
+                dex.has_class("Ljava/lang/System;") or
+                dex.has_class("Lcom/does/not/Exist;") or
+                dex.has_class(/^Lthisclassdoesnotexist/)
         }
         "#,
         &dex

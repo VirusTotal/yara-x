@@ -116,6 +116,53 @@ rule search_method {
 }
 ```
 
+### has_method()
+
+Returns true if the DEX file defines a method with the given name. Provided for
+compatibility with YARA's `dex` module. The function is overloaded and accepts:
+
+- `has_method(method_name)` — a method whose name equals `method_name`.
+- `has_method(/method_name/)` — a method whose name matches the regular expression.
+- `has_method(class_name, method_name)` — a method named `method_name` defined in
+  the class `class_name`.
+- `has_method(/class_name/, /method_name/)` — the regular-expression form of the
+  above.
+
+All comparisons are case-sensitive.
+
+#### Example
+
+```yara
+import "dex"
+
+rule search_method {
+    condition:
+        dex.has_method(/^get/) and
+        dex.has_method("Landroid/app/Application;", "onCreate")
+}
+```
+
+### has_class()
+
+Returns true if the DEX file defines a class with the given name. Provided for
+compatibility with YARA's `dex` module. The function is overloaded and accepts:
+
+- `has_class(class_name)` — a class whose name equals `class_name`.
+- `has_class(/class_name/)` — a class whose name matches the regular expression.
+
+The comparison is case-sensitive.
+
+#### Example
+
+```yara
+import "dex"
+
+rule search_class {
+    condition:
+        dex.has_class(/^Landroid\//)
+}
+```
+
 ---
 
 ## Module structure

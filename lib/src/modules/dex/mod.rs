@@ -6,6 +6,7 @@ use sha1::{Digest, Sha1};
 use simd_adler32::Adler32;
 use std::cell::RefCell;
 
+use crate::compiler::RegExpId;
 use crate::mods::prelude::*;
 use crate::modules::protos::dex::*;
 
@@ -154,6 +155,112 @@ fn contains_class(
             .binary_search_by(|item| item.class.cmp(&class_name))
             .is_ok(),
     )
+}
+
+/// Returns true if the DEX file defines a method whose name equals
+/// `method_name`.
+///
+/// Provides compatibility with YARA's `dex.has_method(method_name)`. The
+/// comparison is case-sensitive.
+#[module_export(name = "has_method")]
+fn has_method_str(
+    ctx: &ScanContext,
+    method_name: RuntimeString,
+) -> Option<bool> {
+    let dex = ctx.module_output::<Dex>()?;
+    let name = method_name.to_str(ctx).ok()?;
+    Some(dex.methods.iter().any(|m| m.name.as_deref() == Some(name)))
+}
+
+/// Returns true if the DEX file defines a method whose name matches the given
+/// regular expression.
+///
+/// Provides compatibility with YARA's `dex.has_method(/method_name/)`.
+#[module_export(name = "has_method")]
+fn has_method_regexp(
+    ctx: &ScanContext,
+    method_name: RegExpId,
+) -> Option<bool> {
+    let dex = ctx.module_output::<Dex>()?;
+    Some(dex.methods.iter().any(|m| {
+        m.name
+            .as_ref()
+            .is_some_and(|n| ctx.regexp_matches(method_name, n.as_bytes()))
+    }))
+}
+
+/// Returns true if the DEX file defines a method named `method_name` inside a
+/// class named `class_name`.
+///
+/// Provides compatibility with YARA's
+/// `dex.has_method(class_name, method_name)`. Both comparisons are
+/// case-sensitive.
+#[module_export(name = "has_method")]
+fn has_method_class_str(
+    ctx: &ScanContext,
+    class_name: RuntimeString,
+    method_name: RuntimeString,
+) -> Option<bool> {
+    let dex = ctx.module_output::<Dex>()?;
+    let class = class_name.to_str(ctx).ok()?;
+    let name = method_name.to_str(ctx).ok()?;
+    Some(dex.methods.iter().any(|m| {
+        m.class.as_deref() == Some(class) && m.name.as_deref() == Some(name)
+    }))
+}
+
+/// Returns true if the DEX file defines a method whose name matches
+/// `method_name` inside a class whose name matches `class_name`.
+///
+/// Provides compatibility with YARA's
+/// `dex.has_method(/class_name/, /method_name/)`.
+#[module_export(name = "has_method")]
+fn has_method_class_regexp(
+    ctx: &ScanContext,
+    class_name: RegExpId,
+    method_name: RegExpId,
+) -> Option<bool> {
+    let dex = ctx.module_output::<Dex>()?;
+    Some(dex.methods.iter().any(|m| {
+        m.class
+            .as_ref()
+            .is_some_and(|c| ctx.regexp_matches(class_name, c.as_bytes()))
+            && m.name
+                .as_ref()
+                .is_some_and(|n| ctx.regexp_matches(method_name, n.as_bytes()))
+    }))
+}
+
+/// Returns true if the DEX file defines a class whose name equals
+/// `class_name`.
+///
+/// Provides compatibility with YARA's `dex.has_class(class_name)`. The
+/// comparison is case-sensitive.
+#[module_export(name = "has_class")]
+fn has_class_str(
+    ctx: &ScanContext,
+    class_name: RuntimeString,
+) -> Option<bool> {
+    let dex = ctx.module_output::<Dex>()?;
+    let name = class_name.to_str(ctx).ok()?;
+    Some(dex.class_defs.iter().any(|c| c.class.as_deref() == Some(name)))
+}
+
+/// Returns true if the DEX file defines a class whose name matches the given
+/// regular expression.
+///
+/// Provides compatibility with YARA's `dex.has_class(/class_name/)`.
+#[module_export(name = "has_class")]
+fn has_class_regexp(
+    ctx: &ScanContext,
+    class_name: RegExpId,
+) -> Option<bool> {
+    let dex = ctx.module_output::<Dex>()?;
+    Some(dex.class_defs.iter().any(|c| {
+        c.class
+            .as_ref()
+            .is_some_and(|n| ctx.regexp_matches(class_name, n.as_bytes()))
+    }))
 }
 
 register_module!("dex", Dex, main);
