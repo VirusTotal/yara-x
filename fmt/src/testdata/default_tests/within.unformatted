@@ -1,0 +1,9 @@
+rule within_test {
+strings:
+$a = "foo"
+$b = "bar"
+condition:
+all of them   within    4KB and
+2 of ($a,$b) within(100+filesize) or
+not   (any of ($a*)within 0)
+}

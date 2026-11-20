@@ -1234,6 +1234,14 @@ where
                     range,
                 }))))
             }
+            Event::Token { kind: WITHIN_KW, .. } => {
+                let within_span = self.expect(WITHIN_KW)?;
+                let expr = self.expr()?;
+                Ok(Some(MatchAnchor::Within(Box::new(Within {
+                    span: within_span.combine(&expr.span()),
+                    expr,
+                }))))
+            }
             _ => Ok(None),
         }
     }

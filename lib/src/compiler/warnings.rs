@@ -36,6 +36,7 @@ pub enum Warning {
     PotentiallySlowLoop(Box<PotentiallySlowLoop>),
     PotentiallyUnsatisfiableExpression(Box<PotentiallyUnsatisfiableExpression>),
     RedundantCaseModifier(Box<RedundantCaseModifier>),
+    RedundantWithin(Box<RedundantWithin>),
     SignConversion(Box<SignConversion>),
     SlowPattern(Box<SlowPattern>),
     TextPatternAsHex(Box<TextPatternAsHex>),
@@ -157,6 +158,45 @@ pub struct PotentiallyUnsatisfiableExpression {
     report: Report,
     quantifier_loc: CodeLoc,
     at_loc: CodeLoc,
+}
+
+/// A `within` anchor has no effect because the quantifier requires at most
+/// one pattern.
+///
+/// `within` limits the distance between the matches of different patterns,
+/// so it only makes sense when two or more patterns must match. For instance,
+/// `any of them within 100` is the same as `any of them`.
+///
+/// ## Example
+///
+/// ```text
+/// warning[redundant_within]: `within` has no effect
+///  --> line:6:5
+///   |
+/// 6 |     any of them within 100
+///   |     ---         ---------- so this has no effect
+///   |     |
+///   |     this requires at most one pattern
+///   |
+/// ```
+#[derive(ErrorStruct, Debug, PartialEq, Eq)]
+#[associated_enum(Warning)]
+#[warning(
+    code = "redundant_within",
+    title = "`within` has no effect"
+)]
+#[label(
+    "this requires at most one pattern",
+    quantifier_loc
+)]
+#[label(
+    "so this has no effect",
+    within_loc
+)]
+pub struct RedundantWithin {
+    report: Report,
+    quantifier_loc: CodeLoc,
+    within_loc: CodeLoc,
 }
 
 /// A boolean expression can't be satisfied.
