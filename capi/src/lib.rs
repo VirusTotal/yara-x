@@ -100,6 +100,7 @@ use std::ptr::slice_from_raw_parts_mut;
 
 use yara_x::errors::CompileError;
 
+pub use dump::*;
 pub use metadata::*;
 pub use pattern::*;
 pub use rule::*;
@@ -107,6 +108,7 @@ pub use rules::*;
 pub use scanner::*;
 
 mod compiler;
+mod dump;
 mod metadata;
 mod pattern;
 mod rule;
@@ -179,6 +181,23 @@ pub unsafe extern "C" fn yrx_last_error() -> *const c_char {
     LAST_ERROR.with_borrow(|err| {
         if let Some(err) = err { err.as_ptr() } else { std::ptr::null() }
     })
+}
+
+pub(crate) unsafe fn slice_from_ptr_and_len<'a>(
+    data: *const u8,
+    len: usize,
+) -> Option<&'a [u8]> {
+    // `data` is allowed to be null as long as `len` is 0. That's equivalent
+    // to an empty slice.
+    if data.is_null() && len > 0 {
+        return None;
+    }
+    let data = if data.is_null() || len == 0 {
+        &[]
+    } else {
+        std::slice::from_raw_parts(data, len)
+    };
+    Some(data)
 }
 
 /// Contains information about a pattern match.

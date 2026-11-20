@@ -203,6 +203,10 @@ pub mod mods {
     YARA module and obtain the same data structure that is accessible to YARA
     rules and which you use in your rule conditions.
 
+    The functions [`retain_requested`] and [`retain_meaningful`] allow
+    filtering the data returned by [`invoke_all`], by removing the data
+    produced by modules you are not interested in.
+
     This allows external projects to benefit from YARA's file-parsing
     capabilities for their own purposes.
 
@@ -402,6 +406,125 @@ pub mod mods {
         info.msi = protobuf::MessageField(invoke::<Msi>(data));
         info.zip = protobuf::MessageField(invoke::<Zip>(data));
         info
+    }
+
+    /// Error returned by [`retain_requested`] when the list of requested
+    /// modules contains a name that doesn't correspond to any of the modules
+    /// that produce structured data.
+    #[derive(Debug, thiserror::Error)]
+    #[error("unknown module `{name}`")]
+    pub struct UnknownModule {
+        name: String,
+    }
+
+    /// Removes from `modules` the data produced by all modules except those
+    /// whose names appear in the `requested` argument.
+    ///
+    /// Modules that are not compiled into the library produce no data, but
+    /// their names are still valid. Asking for a module that is not compiled
+    /// in simply produces an empty result.
+    ///
+    /// Returns an [`UnknownModule`] error if any of the names in `requested`
+    /// is not one of the valid names.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use yara_x;
+    /// let mut modules = yara_x::mods::invoke_all(&[]);
+    /// assert!(yara_x::mods::retain_requested(&mut modules, &["pe"]).is_ok());
+    /// assert!(yara_x::mods::retain_requested(&mut modules, &["foo"]).is_err());
+    /// ```
+    pub fn retain_requested(
+        modules: &mut Modules,
+        requested: &[&str],
+    ) -> Result<(), UnknownModule> {
+        use protobuf::MessageFull;
+
+        // Fail if any of the requested modules is not a valid name.
+        for name in requested {
+            if Modules::descriptor().field_by_name(name).is_none() {
+                return Err(UnknownModule { name: name.to_string() });
+            }
+        }
+
+        // Clear out the modules that were not explicitly requested.
+        if !requested.contains(&"dotnet") {
+            modules.dotnet = protobuf::MessageField::none()
+        }
+        if !requested.contains(&"elf") {
+            modules.elf = protobuf::MessageField::none()
+        }
+        if !requested.contains(&"lnk") {
+            modules.lnk = protobuf::MessageField::none()
+        }
+        if !requested.contains(&"macho") {
+            modules.macho = protobuf::MessageField::none()
+        }
+        if !requested.contains(&"pe") {
+            modules.pe = protobuf::MessageField::none()
+        }
+        if !requested.contains(&"crx") {
+            modules.crx = protobuf::MessageField::none()
+        }
+        if !requested.contains(&"dex") {
+            modules.dex = protobuf::MessageField::none()
+        }
+        if !requested.contains(&"olecf") {
+            modules.olecf = protobuf::MessageField::none()
+        }
+        if !requested.contains(&"vba") {
+            modules.vba = protobuf::MessageField::none()
+        }
+        if !requested.contains(&"zip") {
+            modules.zip = protobuf::MessageField::none()
+        }
+
+        Ok(())
+    }
+
+    /// Removes from `modules` the data produced by modules that didn't
+    /// produce meaningful results.
+    ///
+    /// This is the filtering applied by the `yr dump` command when no module
+    /// is explicitly requested with the `--module` argument.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use yara_x;
+    /// let mut modules = yara_x::mods::invoke_all(&[]);
+    /// yara_x::mods::retain_meaningful(&mut modules);
+    /// ```
+    pub fn retain_meaningful(modules: &mut Modules) {
+        if !modules.dotnet.is_dotnet() {
+            modules.dotnet = protobuf::MessageField::none()
+        }
+        if !modules.elf.has_type() {
+            modules.elf = protobuf::MessageField::none()
+        }
+        if !modules.lnk.is_lnk() {
+            modules.lnk = protobuf::MessageField::none()
+        }
+        if !modules.macho.has_magic() && !modules.macho.has_fat_magic() {
+            modules.macho = protobuf::MessageField::none()
+        }
+        if !modules.pe.is_pe() {
+            modules.pe = protobuf::MessageField::none()
+        }
+        if !modules.crx.is_crx() {
+            modules.crx = protobuf::MessageField::none()
+        }
+        if !modules.dex.is_dex() {
+            modules.dex = protobuf::MessageField::none()
+        }
+        if !modules.olecf.is_olecf() {
+            modules.olecf = protobuf::MessageField::none()
+        }
+        if !modules.vba.has_macros() {
+            modules.vba = protobuf::MessageField::none()
+        }
+        if !modules.zip.is_zip() {
+            modules.zip = protobuf::MessageField::none()
+        }
     }
 
     /// Iterator over all registered module names.
