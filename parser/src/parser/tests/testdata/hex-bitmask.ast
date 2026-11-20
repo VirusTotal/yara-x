@@ -1,0 +1,18 @@
+ rule test
+ ├─ strings
+ │  ├─ $a 
+ │  │  └─ hex
+ │  │     ├─ 0xE0 mask: 0xFF
+ │  │     ├─ 0xF2 mask: 0xFA
+ │  │     ├─ 0x69 mask: 0xFF
+ │  │     └─ 0xAB mask: 0xFF
+ │  ├─ $b 
+ │  │  └─ hex
+ │  │     ├─ 0x69 mask: 0xFF
+ │  │     └─ 0xF0 mask: 0xFF
+ │  └─ $c 
+ │     └─ hex
+ │        └─ ~ 0xF2 mask: 0xFA
+ └─ condition
+    └─ $a
+
