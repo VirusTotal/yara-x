@@ -358,7 +358,7 @@ num-derive = { workspace = true }
 num-traits = { workspace = true }
 p384 = { workspace = true, optional = true, features = ["ecdsa"] }
 p256 = { workspace = true, optional = true, features = ["ecdsa"] }
-postcard = { workspace = true, default-features = false, features = ["use-std"] }
+postcard = { workspace = true, features = ["use-std"] }
 protobuf = { workspace = true }
 psl = { workspace = true, optional = true }
 quanta = { workspace = true, optional = true }
