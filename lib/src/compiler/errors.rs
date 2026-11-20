@@ -50,11 +50,11 @@ pub enum SerializationError {
 
     /// Error occurred while encoding YARA-X rules.
     #[error("cannot encode YARA-X rules")]
-    EncodeError(#[from] bincode::error::EncodeError),
+    EncodeError(#[source] anyhow::Error),
 
     /// Error occurred while decoding YARA-X rules.
     #[error("cannot decode YARA-X rules")]
-    DecodeError(#[from] bincode::error::DecodeError),
+    DecodeError(#[source] anyhow::Error),
 
     /// I/O error while trying to read or write serialized data.
     #[error(transparent)]

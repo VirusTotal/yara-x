@@ -213,10 +213,21 @@ where
     where
         S: Serializer,
     {
+        struct Bytes<'a>(&'a [u8]);
+
+        impl Serialize for Bytes<'_> {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer,
+            {
+                serializer.serialize_bytes(self.0)
+            }
+        }
+
         let mut seq = serializer.serialize_seq(Some(self.pool.len()))?;
 
         for string in self.pool.bytestrings() {
-            seq.serialize_element(string)?
+            seq.serialize_element(&Bytes(string))?
         }
 
         seq.end()
@@ -287,16 +298,9 @@ mod test {
         pool.get_or_intern("foo");
         pool.get_or_intern("bar");
 
-        let serialized =
-            bincode::serde::encode_to_vec(&pool, bincode::config::standard())
-                .unwrap();
-
-        let (deserialized, _): (StringPool<u32>, _) =
-            bincode::serde::decode_from_slice(
-                &serialized,
-                bincode::config::standard(),
-            )
-            .unwrap();
+        let serialized = postcard::to_stdvec(&pool).unwrap();
+        let deserialized: StringPool<u32> =
+            postcard::from_bytes(&serialized).unwrap();
 
         assert_eq!(deserialized.get(0), Some("foo"));
         assert_eq!(deserialized.get(1), Some("bar"));
@@ -310,16 +314,9 @@ mod test {
         pool.get_or_intern("foo");
         pool.get_or_intern("bar");
 
-        let serialized =
-            bincode::serde::encode_to_vec(&pool, bincode::config::standard())
-                .unwrap();
-
-        let (deserialized, _): (BStringPool<u32>, _) =
-            bincode::serde::decode_from_slice(
-                &serialized,
-                bincode::config::standard(),
-            )
-            .unwrap();
+        let serialized = postcard::to_stdvec(&pool).unwrap();
+        let deserialized: BStringPool<u32> =
+            postcard::from_bytes(&serialized).unwrap();
 
         assert_eq!(deserialized.get(0), Some(BStr::new("foo")));
         assert_eq!(deserialized.get(1), Some(BStr::new("bar")));

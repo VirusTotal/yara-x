@@ -843,11 +843,8 @@ impl<'a> Compiler<'a> {
             // An alternative is changing the `Rc` in some variants of `TypeValue`
             // to `Arc`, as the root cause that prevents `Struct` from being `Send`
             // is the use of `Rc` in `TypeValue`.
-            let serialized_globals = bincode::serde::encode_to_vec(
-                this.root_struct,
-                bincode::config::standard().with_variable_int_encoding(),
-            )
-            .expect("failed to serialize global variables");
+            let serialized_globals = postcard::to_stdvec(&this.root_struct)
+                .expect("failed to serialize global variables");
 
             let mut filesize_bounds = FxHashMap::default();
             let mut header_constraints = FxHashMap::default();

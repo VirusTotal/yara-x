@@ -36,7 +36,7 @@ const MAGIC: &[u8] = b"YARA-X\0\0";
 ///
 /// This version is incremented every time a change is made to the binary
 /// format in a way that breaks backwards compatibility.
-const SERIALIZATION_VERSION: u32 = 13;
+const SERIALIZATION_VERSION: u32 = 14;
 
 /// Aho-Corasick automaton bundled with an optional Teddy scanner if the
 /// number of patterns is low enough. If the Teddy scanner is present, and
@@ -54,7 +54,7 @@ impl Serialize for AhoCorasick {
         S: Serializer,
     {
         let bytes = self.daachorse.serialize();
-        bytes.serialize(serializer)
+        serializer.serialize_bytes(&bytes)
     }
 }
 
@@ -143,6 +143,7 @@ pub struct Rules {
     pub(in crate::compiler) literal_pool: BStringPool<LiteralId>,
 
     /// WASM module as in raw form.
+    #[serde(with = "serde_bytes")]
     pub(in crate::compiler) wasm_mod: Vec<u8>,
 
     /// WASM module already compiled into native code for the current platform.
@@ -220,11 +221,13 @@ pub struct Rules {
     /// each regexp is appended to the vector, during the compilation process
     /// and the atoms extracted from the regexp contain offsets within this
     /// vector. This vector contains both forward and backward code.
+    #[serde(with = "serde_bytes")]
     pub(in crate::compiler) re_code: Vec<u8>,
 
     /// A [`types::Struct`] in serialized form that contains all the global
     /// variables. Each field in the structure corresponds to a global variable
     /// defined at compile time using [`crate::compiler::Compiler`].
+    #[serde(with = "serde_bytes")]
     pub(in crate::compiler) serialized_globals: Vec<u8>,
 
     /// Aho-Corasick automaton containing the atoms extracted from the patterns.
@@ -354,11 +357,8 @@ impl Rules {
         let start = Instant::now();
 
         // Skip the header and deserialize the remaining data.
-        let (mut rules, _len): (Self, usize) =
-            bincode::serde::decode_from_slice(
-                &bytes[data_offset..],
-                bincode::config::standard(),
-            )?;
+        let mut rules: Self = postcard::from_bytes(&bytes[data_offset..])
+            .map_err(|e| SerializationError::DecodeError(anyhow!(e)))?;
 
         #[cfg(feature = "logging")]
         info!("Deserialization time: {:?}", Instant::elapsed(&start));
@@ -459,11 +459,10 @@ impl Rules {
         // Write version.
         writer.write_all(&SERIALIZATION_VERSION.to_le_bytes())?;
 
-        bincode::serde::encode_into_std_write(
-            self,
-            &mut writer,
-            bincode::config::standard(),
-        )?;
+        postcard::to_io(self, &mut writer)
+            .map_err(|e| SerializationError::EncodeError(anyhow!(e)))?;
+
+        writer.flush()?;
 
         Ok(())
     }
@@ -753,13 +752,8 @@ impl Rules {
 
     #[inline]
     pub(crate) fn globals(&self) -> types::Struct {
-        let (globals, _): (types::Struct, usize) =
-            bincode::serde::decode_from_slice(
-                self.serialized_globals.as_slice(),
-                bincode::config::standard(),
-            )
-            .expect("error deserializing global variables");
-        globals
+        postcard::from_bytes(self.serialized_globals.as_slice())
+            .expect("error deserializing global variables")
     }
 
     #[inline]
@@ -790,6 +784,52 @@ impl Rules {
     }
 }
 
+/// Helper for serializing and deserializing `Vec<u8>` fields as raw byte slices
+/// rather than byte-by-byte Serde sequences.
+mod serde_bytes {
+    use std::fmt;
+
+    use serde::{Deserializer, Serializer};
+
+    pub fn serialize<S>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_bytes(bytes)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct Visitor;
+
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = Vec<u8>;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("a byte array")
+            }
+
+            fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(v.to_vec())
+            }
+
+            fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(v)
+            }
+        }
+
+        deserializer.deserialize_bytes(Visitor)
+    }
+}
+
 #[cfg(feature = "native-code-serialization")]
 fn serialize_wasm_mod<S>(
     wasm_mod: &Option<wasm::runtime::Module>,
@@ -798,12 +838,23 @@ fn serialize_wasm_mod<S>(
 where
     S: Serializer,
 {
+    struct Bytes<'a>(&'a [u8]);
+
+    impl Serialize for Bytes<'_> {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            serializer.serialize_bytes(self.0)
+        }
+    }
+
     if let Some(wasm_mod) = wasm_mod {
         let bytes = wasm_mod
             .serialize()
             .map_err(|err| serde::ser::Error::custom(err.to_string()))?;
 
-        serializer.serialize_some(bytes.as_slice())
+        serializer.serialize_some(&Bytes(bytes.as_slice()))
     } else {
         serializer.serialize_none()
     }
