@@ -84,7 +84,7 @@ chardetng = "1.0.0"
 crossbeam = "0.8.5"
 crossterm = "0.29.0"
 dunce = "1.0.5"
-unicode-width = "0.2.2"
+unicode-width = "0.2.3"
 wild = "2.2.1"
 
 [dev-dependencies]
